@@ -1,6 +1,6 @@
-# Test: ze config validate with valid DNS resolver config block
-# VALIDATES: AC-1 -- YANG config specifies dns server address, accepted by schema
-# VALIDATES: AC-2 -- config with dns section parses without error
+# Test: ze config validate with static DNS name-servers
+# VALIDATES: AC-1 -- YANG config specifies name-server leaf-list, accepted by schema
+# VALIDATES: AC-5 -- resolv-conf-path under system dns accepted by schema
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer peer1 {
@@ -21,12 +21,10 @@ bgp {
 	}
 }
 
-environment {
+system {
+	name-server [8.8.8.8 1.1.1.1]
 	dns {
-		server 8.8.8.8:53
-		timeout 10
-		cache-size 5000
-		cache-ttl 3600
+		resolv-conf-path /tmp/resolv.conf
 	}
 }
 EOF_CONF

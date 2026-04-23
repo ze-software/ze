@@ -121,6 +121,119 @@ func TestExtractSystemConfig_PeeringDB_Defaults(t *testing.T) {
 	assert.Equal(t, uint8(10), sc.PeeringDBMargin)
 }
 
+// TestExtractSystemConfig_NameServers verifies leaf-list extraction.
+//
+// VALIDATES: AC-1 -- system { name-server [8.8.8.8 1.1.1.1]; } extracts both servers.
+// PREVENTS: Name servers being silently ignored.
+func TestExtractSystemConfig_NameServers(t *testing.T) {
+	tree := config.NewTree()
+	sys := tree.GetOrCreateContainer("system")
+	sys.SetSlice("name-server", []string{"8.8.8.8", "1.1.1.1"})
+
+	sc := system.ExtractSystemConfig(tree)
+	assert.Equal(t, []string{"8.8.8.8", "1.1.1.1"}, sc.NameServers)
+}
+
+// TestExtractSystemConfig_NameServers_Empty verifies no servers returns nil.
+//
+// VALIDATES: AC-8 -- no name-servers configured returns nil slice.
+// PREVENTS: Non-nil empty slice causing unexpected behavior.
+func TestExtractSystemConfig_NameServers_Empty(t *testing.T) {
+	tree := config.NewTree()
+	tree.GetOrCreateContainer("system")
+
+	sc := system.ExtractSystemConfig(tree)
+	assert.Nil(t, sc.NameServers)
+}
+
+// TestExtractSystemConfig_DNS verifies dns tuning extraction.
+//
+// VALIDATES: AC-4 -- dns timeout, cache-size, cache-ttl extracted from config.
+// PREVENTS: DNS tuning values being silently ignored.
+func TestExtractSystemConfig_DNS(t *testing.T) {
+	tree := config.NewTree()
+	sys := tree.GetOrCreateContainer("system")
+	dns := sys.GetOrCreateContainer("dns")
+	dns.Set("timeout", "10")
+	dns.Set("cache-size", "5000")
+	dns.Set("cache-ttl", "3600")
+
+	sc := system.ExtractSystemConfig(tree)
+	assert.Equal(t, uint16(10), sc.DNSTimeout)
+	assert.Equal(t, uint32(5000), sc.DNSCacheSize)
+	assert.Equal(t, uint32(3600), sc.DNSCacheTTL)
+}
+
+// TestExtractSystemConfig_DNS_Defaults verifies default values when no dns block.
+//
+// VALIDATES: AC-10 -- default timeout 5, cache-size 10000, cache-ttl 86400, resolv-conf-path /tmp/resolv.conf.
+// PREVENTS: Zero-value defaults breaking resolver or resolv.conf writer.
+func TestExtractSystemConfig_DNS_Defaults(t *testing.T) {
+	tree := config.NewTree()
+
+	sc := system.ExtractSystemConfig(tree)
+	assert.Equal(t, uint16(5), sc.DNSTimeout)
+	assert.Equal(t, uint32(10000), sc.DNSCacheSize)
+	assert.Equal(t, uint32(86400), sc.DNSCacheTTL)
+	assert.Equal(t, "/tmp/resolv.conf", sc.ResolvConfPath)
+}
+
+// TestExtractSystemConfig_ResolvConfPath verifies custom resolv-conf-path extraction.
+//
+// VALIDATES: AC-5 -- resolv-conf-path extracted from system { dns {} }.
+// PREVENTS: Custom path being ignored.
+func TestExtractSystemConfig_ResolvConfPath(t *testing.T) {
+	tree := config.NewTree()
+	sys := tree.GetOrCreateContainer("system")
+	dns := sys.GetOrCreateContainer("dns")
+	dns.Set("resolv-conf-path", "/etc/resolv.conf")
+
+	sc := system.ExtractSystemConfig(tree)
+	assert.Equal(t, "/etc/resolv.conf", sc.ResolvConfPath)
+}
+
+// TestExtractSystemConfig_ResolvConfPath_Relative verifies relative paths are rejected.
+//
+// VALIDATES: Relative resolv-conf-path silently disabled (returns default).
+// PREVENTS: Path traversal via relative resolv-conf-path.
+func TestExtractSystemConfig_ResolvConfPath_Relative(t *testing.T) {
+	tree := config.NewTree()
+	sys := tree.GetOrCreateContainer("system")
+	dns := sys.GetOrCreateContainer("dns")
+	dns.Set("resolv-conf-path", "../etc/resolv.conf")
+
+	sc := system.ExtractSystemConfig(tree)
+	assert.Equal(t, "", sc.ResolvConfPath)
+}
+
+// TestExtractSystemConfig_ResolvConfPath_Traversal verifies path traversal is rejected.
+//
+// VALIDATES: Path containing /../ silently disabled.
+// PREVENTS: Writing to unintended locations.
+func TestExtractSystemConfig_ResolvConfPath_Traversal(t *testing.T) {
+	tree := config.NewTree()
+	sys := tree.GetOrCreateContainer("system")
+	dns := sys.GetOrCreateContainer("dns")
+	dns.Set("resolv-conf-path", "/tmp/../etc/resolv.conf")
+
+	sc := system.ExtractSystemConfig(tree)
+	assert.Equal(t, "", sc.ResolvConfPath)
+}
+
+// TestExtractSystemConfig_ResolvConfPath_Empty verifies empty disables writing.
+//
+// VALIDATES: Empty resolv-conf-path disables resolv.conf writing.
+// PREVENTS: Writing to empty path.
+func TestExtractSystemConfig_ResolvConfPath_Empty(t *testing.T) {
+	tree := config.NewTree()
+	sys := tree.GetOrCreateContainer("system")
+	dns := sys.GetOrCreateContainer("dns")
+	dns.Set("resolv-conf-path", "")
+
+	sc := system.ExtractSystemConfig(tree)
+	assert.Equal(t, "", sc.ResolvConfPath)
+}
+
 // TestExtractSystemConfig_PeeringDB_InvalidMargin verifies invalid margin is ignored.
 //
 // VALIDATES: Invalid margin value keeps the default.

@@ -191,7 +191,8 @@ func (c *DHCPClient) handleV4Lease(ack *dhcpv4.DHCPv4, topic string) {
 	}
 
 	// Write DNS servers from DHCP to resolv.conf (RFC 2132 Section 3.8).
-	if len(payload.DNSAll) > 0 && c.config.ResolvConfPath != "" {
+	// Static name-servers (system { name-server }) take priority.
+	if len(payload.DNSAll) > 0 && c.config.ResolvConfPath != "" && !c.config.HasStaticNameServers {
 		if err := writeResolvConfTo(c.config.ResolvConfPath, payload.DNSAll); err != nil {
 			logger.Warn("iface dhcp v4: resolv.conf write failed",
 				"iface", c.ifaceName, "path", c.config.ResolvConfPath, "err", err)

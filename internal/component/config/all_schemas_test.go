@@ -41,7 +41,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ssh/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/web/schema"

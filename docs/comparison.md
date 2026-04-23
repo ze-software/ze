@@ -145,6 +145,7 @@ roles enforcement. Filters compose in ordered chains:
 | Streaming route events | Yes | Yes | No | Yes | No | No | Yes | Yes | No | No | No |
 | JSON event protocol | Yes | No | No | No | No | No | No | Yes | No | No | No |
 | Built-in DNS resolver | Yes | No | No | No | No | No | No | No | No | No | No |
+| Static DNS name-servers | Yes | No | No | Yes | No | Yes | No | Yes | No | No | No |
 | Built-in PeeringDB/IRR/Cymru | Yes | No | No | No | No | No | No | No | No | No | No |
 | Unified operational reports (`show warnings` / `show errors`) | Yes | No | Partial | No | No | Partial | No | No | Partial | Partial | Partial |
 

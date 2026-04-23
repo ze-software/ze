@@ -1430,63 +1430,6 @@ func TestParseIfaceDHCPAutoDefault(t *testing.T) {
 	assert.False(t, cfg.DHCPAuto)
 }
 
-// TestParseIfaceResolvConfPath verifies the resolv-conf-path leaf is parsed.
-//
-// VALIDATES: AC-6 - resolv-conf-path configured value parsed into ifaceConfig.
-// PREVENTS: Custom resolv.conf path silently ignored.
-func TestParseIfaceResolvConfPath(t *testing.T) {
-	cfg := mustParseIfaceJSON(t, `{
-		"interface": {
-			"resolv-conf-path": "/etc/resolv.conf"
-		}
-	}`)
-	assert.Equal(t, "/etc/resolv.conf", cfg.ResolvConfPath)
-}
-
-// TestParseIfaceResolvConfPathDefault verifies the default resolv-conf-path.
-//
-// VALIDATES: AC-7 - Default /tmp/resolv.conf used when not configured.
-// PREVENTS: Empty resolv.conf path when no config provided.
-func TestParseIfaceResolvConfPathDefault(t *testing.T) {
-	cfg := mustParseIfaceJSON(t, `{
-		"interface": {}
-	}`)
-	assert.Equal(t, "/tmp/resolv.conf", cfg.ResolvConfPath)
-}
-
-// TestParseIfaceResolvConfPathEmpty verifies empty string disables DNS writing.
-//
-// VALIDATES: AC-6 - Empty resolv-conf-path disables resolv.conf writes.
-// PREVENTS: DHCP writing to empty path.
-func TestParseIfaceResolvConfPathEmpty(t *testing.T) {
-	cfg := mustParseIfaceJSON(t, `{
-		"interface": {
-			"resolv-conf-path": ""
-		}
-	}`)
-	assert.Equal(t, "", cfg.ResolvConfPath)
-}
-
-// TestParseIfaceResolvConfPathRelativeRejected verifies relative paths are rejected.
-//
-// VALIDATES: resolv-conf-path validation rejects relative paths.
-// PREVENTS: Path traversal via relative resolv-conf-path.
-func TestParseIfaceResolvConfPathRelativeRejected(t *testing.T) {
-	_, err := parseIfaceConfig(`{"interface":{"resolv-conf-path":"../etc/resolv.conf"}}`)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "absolute path")
-}
-
-// TestParseIfaceResolvConfPathTraversalRejected verifies traversal paths are rejected.
-//
-// VALIDATES: resolv-conf-path validation rejects path traversal.
-// PREVENTS: Writing to unintended locations via /../ in path.
-func TestParseIfaceResolvConfPathTraversalRejected(t *testing.T) {
-	_, err := parseIfaceConfig(`{"interface":{"resolv-conf-path":"/tmp/../etc/resolv.conf"}}`)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "traversal")
-}
-
 // TestParseUnitRoutePriority verifies that route-priority is parsed into
 // unitEntry.RoutePriority from the YANG config JSON.
 //

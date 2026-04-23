@@ -29,9 +29,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	zegokrazy "codeberg.org/thomas-mangin/ze/internal/component/gokrazy"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/lg"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
@@ -65,7 +67,7 @@ var rebootRequested atomic.Bool
 // Used when ze start --web is called without a config.
 // listenAddr overrides the default "0.0.0.0:3443" when non-empty.
 func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int {
-	resolvers := newResolvers()
+	resolvers := newResolvers(system.SystemConfig{DNSTimeout: 5, DNSCacheSize: 10000, DNSCacheTTL: 86400})
 	defer resolvers.Close()
 
 	var listenAddrs []string
@@ -454,9 +456,17 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	dispatch := serverDispatcher(apiServer)
 
 	// Create shared resolvers for web UI, looking glass, and MCP.
-	resolvers := newResolvers()
+	sc := system.ExtractSystemConfig(loadResult.Tree)
+	iface.SetDHCPSystemConfig(sc.ResolvConfPath, len(sc.NameServers) > 0)
+	resolvers := newResolvers(sc)
 	defer resolvers.Close()
 	resolvecmd.SetResolvers(resolvers)
+
+	if len(sc.NameServers) > 0 {
+		if err := system.WriteResolvConf(sc.ResolvConfPath, sc.NameServers); err != nil {
+			slogutil.Logger("hub").Warn("resolv.conf write failed", "path", sc.ResolvConfPath, "err", err)
+		}
+	}
 
 	if webEnabled {
 		if len(webAddrs) == 0 {
@@ -1378,8 +1388,17 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 
 // newResolvers creates a shared Resolvers struct with a single DNS instance
 // and a Cymru resolver wired to it. Called once at hub startup.
-func newResolvers() *resolve.Resolvers {
-	dnsResolver := resolveDNS.NewResolver(resolveDNS.ResolverConfig{})
+func newResolvers(sc system.SystemConfig) *resolve.Resolvers {
+	cfg := resolveDNS.ResolverConfig{
+		Timeout:   sc.DNSTimeout,
+		CacheSize: sc.DNSCacheSize,
+		CacheTTL:  sc.DNSCacheTTL,
+	}
+	if len(sc.NameServers) > 0 {
+		cfg.Server = sc.NameServers[0]
+	}
+
+	dnsResolver := resolveDNS.NewResolver(cfg)
 
 	// Wrap DNS ResolveTXT to match Cymru's TXTResolver signature (adds context).
 	txtResolver := func(_ context.Context, name string) ([]string, error) {

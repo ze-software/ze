@@ -5,6 +5,7 @@ package system
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
@@ -14,6 +15,15 @@ import (
 type SystemConfig struct {
 	Host   string
 	Domain string
+
+	// Static DNS name servers (from system { name-server [...] }).
+	NameServers []string
+
+	// DNS resolver tuning (from system { dns {} }).
+	DNSTimeout     uint16
+	DNSCacheSize   uint32
+	DNSCacheTTL    uint32
+	ResolvConfPath string
 
 	// PeeringDB API settings for prefix data lookups.
 	PeeringDBURL    string
@@ -43,6 +53,10 @@ func ExpandEnvValue(s string) string {
 func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 	sc := SystemConfig{
 		Host:            "unknown",
+		DNSTimeout:      5,
+		DNSCacheSize:    10000,
+		DNSCacheTTL:     86400,
+		ResolvConfPath:  "/tmp/resolv.conf",
 		PeeringDBURL:    "https://www.peeringdb.com",
 		PeeringDBMargin: 10,
 	}
@@ -58,6 +72,34 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 
 	if domain, ok := sys.Get("domain"); ok {
 		sc.Domain = ExpandEnvValue(domain)
+	}
+
+	if servers := sys.GetSlice("name-server"); len(servers) > 0 {
+		sc.NameServers = servers
+	}
+
+	if dns := sys.GetContainer("dns"); dns != nil {
+		if v, ok := dns.Get("resolv-conf-path"); ok {
+			sc.ResolvConfPath = sanitizeResolvConfPath(v)
+		}
+		if v, ok := dns.Get("timeout"); ok {
+			var n int
+			if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n >= 1 && n <= 60 {
+				sc.DNSTimeout = uint16(n) //nolint:gosec // Bounded by range check above
+			}
+		}
+		if v, ok := dns.Get("cache-size"); ok {
+			var n int
+			if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n >= 0 && n <= 1000000 {
+				sc.DNSCacheSize = uint32(n) //nolint:gosec // Bounded by range check above
+			}
+		}
+		if v, ok := dns.Get("cache-ttl"); ok {
+			var n int
+			if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n >= 0 && n <= 604800 {
+				sc.DNSCacheTTL = uint32(n) //nolint:gosec // Bounded by range check above
+			}
+		}
 	}
 
 	pdb := sys.GetContainer("peeringdb")
@@ -77,4 +119,20 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 	}
 
 	return sc
+}
+
+// sanitizeResolvConfPath validates and cleans a resolv-conf-path value.
+// Rejects relative paths and path traversal; returns empty string (disabling
+// resolv.conf writing) for invalid input.
+func sanitizeResolvConfPath(v string) string {
+	if v == "" {
+		return ""
+	}
+	if !filepath.IsAbs(v) {
+		return ""
+	}
+	if filepath.Clean(v) != v {
+		return ""
+	}
+	return v
 }

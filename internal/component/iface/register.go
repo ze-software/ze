@@ -569,12 +569,25 @@ type DHCPStopper interface {
 // SetDHCPClientFactory. It returns a started DHCP client or an error.
 // The interface plugin calls this to create clients without importing
 // the ifacedhcp package.
-var dhcpClientFactory func(ifaceName string, unit int, eb ze.EventBus, v4, v6 bool, hostname, clientID string, pdLength int, duid, resolvConfPath string, routeMetric int) (DHCPStopper, error)
+var dhcpClientFactory func(ifaceName string, unit int, eb ze.EventBus, v4, v6 bool, hostname, clientID string, pdLength int, duid, resolvConfPath string, hasStaticNameServers bool, routeMetric int) (DHCPStopper, error)
 
 // SetDHCPClientFactory registers the factory function used to create
 // DHCP clients. Called from ifacedhcp's init().
-func SetDHCPClientFactory(f func(string, int, ze.EventBus, bool, bool, string, string, int, string, string, int) (DHCPStopper, error)) {
+func SetDHCPClientFactory(f func(string, int, ze.EventBus, bool, bool, string, string, int, string, string, bool, int) (DHCPStopper, error)) {
 	dhcpClientFactory = f
+}
+
+// dhcpSystemConfig holds system-level DNS settings passed from the hub
+// to the interface plugin for DHCP client creation. Atomic because the
+// hub goroutine writes and the iface engine goroutine reads.
+var dhcpSystemResolvConfPath atomic.Value // string
+var dhcpSystemHasStaticNameServers atomic.Bool
+
+// SetDHCPSystemConfig configures system-level DNS settings used by DHCP
+// clients. Called from hub startup after extracting system config.
+func SetDHCPSystemConfig(resolvConfPath string, hasStaticNameServers bool) {
+	dhcpSystemResolvConfPath.Store(resolvConfPath)
+	dhcpSystemHasStaticNameServers.Store(hasStaticNameServers)
 }
 
 // dhcpParams holds the config parameters for a DHCP client so reconcile
@@ -687,7 +700,8 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 		if _, running := active[key]; running {
 			continue
 		}
-		client, err := dhcpClientFactory(key.ifaceName, key.unit, eb, p.v4, p.v6, p.hostname, p.clientID, p.pdLength, p.duid, cfg.ResolvConfPath, p.routePriority)
+		resolvPath, _ := dhcpSystemResolvConfPath.Load().(string)
+		client, err := dhcpClientFactory(key.ifaceName, key.unit, eb, p.v4, p.v6, p.hostname, p.clientID, p.pdLength, p.duid, resolvPath, dhcpSystemHasStaticNameServers.Load(), p.routePriority)
 		if err != nil {
 			log.Warn("interface: DHCP client creation failed",
 				"iface", key.ifaceName, "unit", key.unit, "err", err)

@@ -1,0 +1,35 @@
+# Test: ze config validate with DNS tuning settings
+# VALIDATES: AC-4 -- YANG config specifies dns timeout, cache-size, cache-ttl
+# VALIDATES: AC-10 -- dns tuning values accepted by schema
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+system {
+	dns {
+		timeout 10
+		cache-size 5000
+		cache-ttl 3600
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

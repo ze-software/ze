@@ -66,7 +66,8 @@ No running daemon required.
 
 ## DNS Config
 
-DNS resolver configuration comes from YANG (`ze-dns-conf.yang`):
-`environment/dns` with leaves: `server`, `timeout`, `cache-size`, `cache-ttl`.
+DNS resolver configuration comes from YANG (`ze-system-conf.yang`):
+`system/name-server` (leaf-list of IP addresses) and `system/dns` with
+leaves: `resolv-conf-path`, `timeout`, `cache-size`, `cache-ttl`.
 
-<!-- source: internal/component/resolve/dns/schema/ze-dns-conf.yang -- DNS YANG config -->
+<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- system DNS config -->

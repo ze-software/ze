@@ -787,7 +787,7 @@ DNS queries to all Ze components. It is cross-cutting infrastructure, not a plug
 | **Library** | `github.com/miekg/dns` (the library CoreDNS is built on) |
 | **Cache** | O(1) LRU using `container/list`, struct keys, mutex-protected |
 | **TTL** | Respects response TTL, caps at configured max, honors TTL=0 (RFC 1035: do not cache) |
-| **Config** | YANG under `environment/dns` (server, timeout, cache-size, cache-ttl) |
+| **Config** | YANG under `system/name-server` (servers) and `system/dns` (timeout, cache-size, cache-ttl, resolv-conf-path) |
 | **Concurrency** | Thread-safe. Immutable fields after construction, mutex on cache |
 | **System fallback** | Reads `/etc/resolv.conf` once at construction when no server configured |
 
@@ -795,9 +795,9 @@ The resolver exposes `Resolve(name, qtype)` and convenience methods (`ResolveA`,
 `ResolvePTR`, etc.). Consumers receive a `*dns.Resolver` instance; they never import miekg/dns
 directly. NXDOMAIN returns empty results (not an error) and is not cached.
 
-<!-- source: internal/component/dns/resolver.go -- Resolver type, NewResolver, Resolve -->
-<!-- source: internal/component/dns/cache.go -- O(1) LRU cache with TTL and eviction -->
-<!-- source: internal/component/dns/schema/ze-dns-conf.yang -- YANG config schema -->
+<!-- source: internal/component/resolve/dns/resolver.go -- Resolver type, NewResolver, Resolve -->
+<!-- source: internal/component/resolve/dns/cache.go -- O(1) LRU cache with TTL and eviction -->
+<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- system DNS config -->
 
 ---
 

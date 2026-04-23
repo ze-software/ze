@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"sync/atomic"
 
@@ -25,16 +24,15 @@ const yangTrue = "true"
 
 // ifaceConfig is the parsed representation of the interface config section.
 type ifaceConfig struct {
-	Backend        string
-	DHCPAuto       bool   // auto-discover first ethernet for DHCP
-	ResolvConfPath string // path for DHCP DNS resolv.conf (empty = disabled)
-	Ethernet       []ifaceEntry
-	Dummy          []ifaceEntry
-	Veth           []vethEntry
-	Bridge         []bridgeEntry
-	Tunnel         []tunnelEntry
-	Wireguard      []wireguardEntry
-	Loopback       *loopbackEntry
+	Backend   string
+	DHCPAuto  bool // auto-discover first ethernet for DHCP
+	Ethernet  []ifaceEntry
+	Dummy     []ifaceEntry
+	Veth      []vethEntry
+	Bridge    []bridgeEntry
+	Tunnel    []tunnelEntry
+	Wireguard []wireguardEntry
+	Loopback  *loopbackEntry
 }
 
 // tunnelEntry represents a configured tunnel interface. The Spec carries
@@ -164,8 +162,7 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 	}
 
 	cfg := &ifaceConfig{
-		Backend:        defaultBackendName,
-		ResolvConfPath: "/tmp/resolv.conf",
+		Backend: defaultBackendName,
 	}
 
 	if b, ok := ifaceMap["backend"].(string); ok && b != "" {
@@ -174,16 +171,6 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 
 	if v, ok := ifaceMap["dhcp-auto"].(string); ok {
 		cfg.DHCPAuto = v == yangTrue
-	}
-
-	if v, ok := ifaceMap["resolv-conf-path"].(string); ok {
-		if v != "" && !filepath.IsAbs(v) {
-			return nil, fmt.Errorf("interface resolv-conf-path: must be absolute path, got %q", v)
-		}
-		if v != "" && filepath.Clean(v) != v {
-			return nil, fmt.Errorf("interface resolv-conf-path: path contains traversal or redundant separators: %q", v)
-		}
-		cfg.ResolvConfPath = v
 	}
 
 	if ethMap, ok := ifaceMap["ethernet"].(map[string]any); ok {

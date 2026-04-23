@@ -179,8 +179,6 @@ func MapPrefixToModule(prefix string) string {
 		return "ze-web-conf"
 	case "ssh":
 		return "ze-ssh-conf"
-	case "dns":
-		return "ze-dns-conf"
 	case "telemetry":
 		return "ze-telemetry-conf"
 	case "looking-glass":

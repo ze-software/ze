@@ -205,8 +205,9 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 
 	// Write DNS servers from DHCPv6 reply to resolv.conf.
 	// Done once after the address loop rather than per-address.
+	// Static name-servers (system { name-server }) take priority.
 	dnsServers := msg.Options.DNS()
-	if len(dnsServers) > 0 && c.config.ResolvConfPath != "" {
+	if len(dnsServers) > 0 && c.config.ResolvConfPath != "" && !c.config.HasStaticNameServers {
 		dnsAll := make([]string, 0, len(dnsServers))
 		for _, s := range dnsServers {
 			dnsAll = append(dnsAll, s.String())

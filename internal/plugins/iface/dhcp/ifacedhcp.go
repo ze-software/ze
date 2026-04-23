@@ -13,10 +13,11 @@ package ifacedhcp
 // Defined in this platform-independent file so register.go (no build tag)
 // can reference it when compiling on non-Linux (e.g., macOS build host).
 type DHCPConfig struct {
-	Hostname       string // DHCPv4 option 12
-	ClientID       string // DHCPv4 option 61
-	PDLength       int    // DHCPv6 requested prefix delegation length (0 = server decides)
-	DUID           string // DHCPv6 DUID override
-	ResolvConfPath string // path for DNS resolv.conf (empty = disabled)
-	RouteMetric    int    // metric for DHCP-installed default routes (0 = kernel default)
+	Hostname             string // DHCPv4 option 12
+	ClientID             string // DHCPv4 option 61
+	PDLength             int    // DHCPv6 requested prefix delegation length (0 = server decides)
+	DUID                 string // DHCPv6 DUID override
+	ResolvConfPath       string // path for DNS resolv.conf (empty = disabled)
+	HasStaticNameServers bool   // when true, DHCP does not write resolv.conf (static servers take priority)
+	RouteMetric          int    // metric for DHCP-installed default routes (0 = kernel default)
 }

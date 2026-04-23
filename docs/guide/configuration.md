@@ -838,24 +838,26 @@ env var > CLI flag > config file > YANG default.
 <!-- source: internal/component/config/environment.go — ParseCompoundListen -->
 <!-- source: cmd/ze/hub/main.go — runYANGConfig env/CLI/config resolution for webAddrs, lgAddrs, mcpAddrs -->
 
-### DNS Resolver
+### DNS Name Servers
 
-Configure a shared DNS resolver for all Ze components:
+Configure static DNS name servers and resolver tuning under `system {}`:
 
 ```
-environment {
+system {
+    name-server [8.8.8.8 1.1.1.1]
     dns {
-        server 8.8.8.8:53;    # upstream DNS server (empty = system default)
-        timeout 5;             # query timeout in seconds (1-60)
-        cache-size 10000;      # max cached entries (0 = disable cache)
-        cache-ttl 86400;       # max cache TTL in seconds (0 = use response TTL only)
+        resolv-conf-path /tmp/resolv.conf
+        timeout 5
+        cache-size 10000
+        cache-ttl 86400
     }
 }
 ```
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `server` | string | `""` | DNS server address with port. Empty uses system `/etc/resolv.conf`. |
+| `name-server` | leaf-list ip-address | (none) | Static DNS servers. First server used by ze internal resolver. All written to resolv.conf. |
+| `resolv-conf-path` | string | `/tmp/resolv.conf` | Path for resolv.conf output. Default suits gokrazy (read-only rootfs). Empty disables. |
 | `timeout` | uint16 | `5` | Query timeout in seconds. Range: 1-60. |
 | `cache-size` | uint32 | `10000` | Maximum cached entries. 0 disables caching entirely. |
 | `cache-ttl` | uint32 | `86400` | Maximum cache entry TTL in seconds. 0 means use only the response TTL. |
@@ -863,20 +865,13 @@ environment {
 The cache respects DNS response TTLs: entries expire at `min(response TTL, cache-ttl)`.
 Records with TTL=0 from the server are not cached (per RFC 1035).
 
-### Environment Variable Override
+When static name servers are configured, DHCP-discovered DNS servers do not
+overwrite resolv.conf. When no static servers are configured, DHCP writes DNS
+to resolv-conf-path as before.
 
-| Variable | Type | Description |
-|----------|------|-------------|
-| `ze.dns.server` | string | DNS server address (e.g., `8.8.8.8:53`) |
-| `ze.dns.timeout` | int | Query timeout in seconds (1-60) |
-| `ze.dns.cache-size` | int | Max cached entries (0 = disabled) |
-| `ze.dns.cache-ttl` | int | Max cache TTL in seconds (0 = response TTL only) |
-
-Precedence: env var > config file > system default (`/etc/resolv.conf`).
-
-<!-- source: internal/component/dns/schema/ze-dns-conf.yang -- DNS YANG schema -->
-<!-- source: internal/component/dns/resolver.go -- NewResolver, Resolve -->
-<!-- source: cmd/ze/hub/main.go -- ze.dns.server env registration -->
+<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- system DNS config -->
+<!-- source: internal/component/resolve/dns/resolver.go -- NewResolver, Resolve -->
+<!-- source: cmd/ze/hub/main.go -- newResolvers wiring -->
 
 ### Reactor Settings
 

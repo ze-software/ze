@@ -197,7 +197,7 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
 	//
 	// Schema.Define merges same-named top-level containers so
 	// modules that define children under a shared parent (e.g.,
-	// ze-web-conf and ze-dns-conf both contribute to "environment")
+	// multiple -conf modules contributing to "environment")
 	// compose correctly regardless of iteration order.
 	modNames := loader.ModuleNames()
 	sort.Strings(modNames)

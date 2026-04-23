@@ -74,12 +74,6 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.gokrazy.enabled", Type: "bool", Description: "Enable gokrazy management proxy on web server at /gokrazy/"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.gokrazy.socket", Type: "string", Default: "/run/gokrazy-http.sock", Description: "Gokrazy management Unix socket path"})
 
-	// DNS resolver.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.server", Type: "string", Default: "8.8.8.8:53", Description: "DNS server address (e.g., 8.8.8.8:53)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.timeout", Type: "int", Default: "5", Description: "DNS query timeout in seconds (1-60)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-size", Type: "int", Default: "10000", Description: "DNS cache max entries (0 = disabled)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-ttl", Type: "int", Default: "86400", Description: "DNS cache max TTL in seconds (0 = response TTL only)"})
-
 	// BGP reactor tuning (YANG augment under `environment/reactor/`).
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.speed", Type: "string", Default: "1.0", Description: "Reactor loop time multiplier (0.1-10.0)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.cache-ttl", Type: "int", Default: "60", Description: "Update cache TTL in seconds (0=immediate)"})
