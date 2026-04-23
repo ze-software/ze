@@ -13,4 +13,6 @@ module ze-cli-show-api {
   rpc l2tp-health { description "Show L2TP session health sorted by echo loss"; }
   rpc bgp-health { description "Show BGP peer health sorted by state and activity"; }
   rpc metrics-query { description "Query Prometheus metrics by name and label filter"; }
+  rpc ping { description "ICMP ping from the router to a destination IP"; }
+  rpc route-lookup { description "Longest-prefix-match route lookup for a destination IP"; }
 }

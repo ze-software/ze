@@ -89,6 +89,14 @@ func init() {
 			WireMethod: "ze-show:event-namespaces",
 			Handler:    handleShowEventNamespaces,
 		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:ping",
+			Handler:    handlePing,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:route-lookup",
+			Handler:    handleRouteLookup,
+		},
 	)
 	// ze-show:host-* RPCs are registered from host.go's own init()
 	// via a loop over host.SectionNames(). See rules/derive-not-hardcode.md.

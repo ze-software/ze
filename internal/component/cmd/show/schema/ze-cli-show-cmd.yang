@@ -115,6 +115,12 @@ module ze-cli-show-cmd {
             description "Show traffic control (qdisc/class/filter) state per interface";
         }
 
+        container ping {
+            config false;
+            ze:command "ze-show:ping";
+            description "ICMP ping from the router (<dest> [count N] [timeout Ns])";
+        }
+
         container l2tp-health {
             config false;
             ze:command "ze-show:l2tp-health";
@@ -391,6 +397,12 @@ module ze-cli-show-cmd {
                 config false;
                 ze:command "ze-show:ip-route";
                 description "Kernel routing table. Optional positional CIDR (or 'default') narrows the dump. Rejects when VPP is the iface backend (kernel FIB is not authoritative under VPP). Equivalent to the top-level `show kernel-routes`; same handler, same flags.";
+
+                container lookup {
+                    config false;
+                    ze:command "ze-show:route-lookup";
+                    description "Longest-prefix-match route lookup for a destination IP";
+                }
             }
         }
 
