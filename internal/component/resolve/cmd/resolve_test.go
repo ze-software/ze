@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -210,4 +211,168 @@ func TestHandlers_ZeroValueResolvers(t *testing.T) {
 			assert.Contains(t, resp.Data, h.errMsg)
 		})
 	}
+}
+
+// --- validateTarget ---
+
+func TestValidateTarget_Valid(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"ipv4", "192.168.1.1"},
+		{"ipv6", "::1"},
+		{"hostname", "example.com"},
+		{"subdomain", "foo.bar.example.com"},
+		{"hyphen", "my-host.example.com"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.NoError(t, validateTarget(tt.input))
+		})
+	}
+}
+
+func TestValidateTarget_Invalid(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		errContains string
+	}{
+		{"empty", "", "must not be empty"},
+		{"space", "foo bar", "invalid character"},
+		{"semicolon", "foo;bar", "invalid character"},
+		{"pipe", "foo|bar", "invalid character"},
+		{"long", strings.Repeat("a", 254), "253-character"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateTarget(tt.input)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errContains)
+		})
+	}
+}
+
+// --- validateIP ---
+
+func TestValidateSourceIP_Valid(t *testing.T) {
+	assert.NoError(t, validateSourceIP("192.168.1.1"))
+	assert.NoError(t, validateSourceIP("::1"))
+}
+
+func TestValidateSourceIP_Invalid(t *testing.T) {
+	err := validateSourceIP("not-an-ip")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not a valid IP address")
+}
+
+// --- validateUint ---
+
+func TestValidateUint_Valid(t *testing.T) {
+	assert.NoError(t, validateUint("5", "count", 1, 100))
+	assert.NoError(t, validateUint("1", "count", 1, 100))
+	assert.NoError(t, validateUint("100", "count", 1, 100))
+}
+
+func TestValidateUint_Invalid(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		lo, hi      uint64
+		errContains string
+	}{
+		{"not number", "abc", 1, 100, "not a valid number"},
+		{"too low", "0", 1, 100, "out of range"},
+		{"too high", "101", 1, 100, "out of range"},
+		{"negative", "-1", 1, 100, "not a valid number"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateUint(tt.input, "count", tt.lo, tt.hi)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errContains)
+		})
+	}
+}
+
+// --- Ping validation ---
+
+func TestHandlePing_InvalidTarget(t *testing.T) {
+	resp, err := handlePing(&pluginserver.CommandContext{}, []string{"foo;bar"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "invalid character")
+}
+
+func TestHandlePing_InvalidSource(t *testing.T) {
+	resp, err := handlePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "source", "not-ip"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "not a valid IP address")
+}
+
+func TestHandlePing_InvalidCount(t *testing.T) {
+	resp, err := handlePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "count", "abc"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "not a valid number")
+}
+
+func TestHandlePing_CountOutOfRange(t *testing.T) {
+	resp, err := handlePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "count", "200"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "out of range")
+}
+
+func TestHandlePing_SizeOutOfRange(t *testing.T) {
+	resp, err := handlePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "size", "99999"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "out of range")
+}
+
+func TestHandlePing_UnknownOption(t *testing.T) {
+	resp, err := handlePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "bogus", "val"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "unknown option")
+}
+
+func TestHandlePing_TrailingKeyword(t *testing.T) {
+	resp, err := handlePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "count"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "requires a value")
+}
+
+// --- Traceroute validation ---
+
+func TestHandleTraceroute_InvalidTarget(t *testing.T) {
+	resp, err := handleTraceroute(&pluginserver.CommandContext{}, []string{"foo;bar"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "invalid character")
+}
+
+func TestHandleTraceroute_InvalidSource(t *testing.T) {
+	resp, err := handleTraceroute(&pluginserver.CommandContext{}, []string{"192.168.1.1", "source", "not-ip"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "not a valid IP address")
+}
+
+func TestHandleTraceroute_UnknownOption(t *testing.T) {
+	resp, err := handleTraceroute(&pluginserver.CommandContext{}, []string{"192.168.1.1", "bogus"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "unknown option")
+}
+
+func TestHandleTraceroute_SourceMissingValue(t *testing.T) {
+	resp, err := handleTraceroute(&pluginserver.CommandContext{}, []string{"192.168.1.1", "source"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "requires a value")
 }

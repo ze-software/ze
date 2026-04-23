@@ -8,6 +8,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -87,6 +88,42 @@ func dnsResult(records []string, resolveErr error) (*plugin.Response, error) {
 	}, nil
 }
 
+func validateTarget(s string) error {
+	if s == "" {
+		return fmt.Errorf("target must not be empty")
+	}
+	if net.ParseIP(s) != nil {
+		return nil
+	}
+	if len(s) > 253 {
+		return fmt.Errorf("target %q: exceeds 253-character hostname limit", s)
+	}
+	for _, c := range s {
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '-' && c != '.' {
+			return fmt.Errorf("target %q: invalid character %q", s, string(c))
+		}
+	}
+	return nil
+}
+
+func validateSourceIP(s string) error {
+	if net.ParseIP(s) == nil {
+		return fmt.Errorf("source %q: not a valid IP address", s)
+	}
+	return nil
+}
+
+func validateUint(s, name string, lo, hi uint64) error {
+	n, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return fmt.Errorf("%s %q: not a valid number", name, s)
+	}
+	if n < lo || n > hi {
+		return fmt.Errorf("%s %d: out of range %d..%d", name, n, lo, hi)
+	}
+	return nil
+}
+
 // DNS handlers.
 
 func handleDNSA(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
@@ -139,7 +176,7 @@ func handleDNSPTR(_ *pluginserver.CommandContext, args []string) (*plugin.Respon
 
 // Cymru handler.
 
-func handleCymruASNName(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleCymruASNName(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if resolvers == nil || resolvers.Cymru == nil {
 		return errResponse("Cymru resolver not available")
 	}
@@ -147,7 +184,7 @@ func handleCymruASNName(_ *pluginserver.CommandContext, args []string) (*plugin.
 	if errResp != nil {
 		return errResp, nil
 	}
-	name, err := resolvers.Cymru.LookupASNName(context.Background(), asn)
+	name, err := resolvers.Cymru.LookupASNName(ctx.Context(), asn)
 	if err != nil {
 		return errResponse(err.Error())
 	}
@@ -159,7 +196,7 @@ func handleCymruASNName(_ *pluginserver.CommandContext, args []string) (*plugin.
 
 // PeeringDB handlers.
 
-func handlePeeringDBMaxPrefix(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handlePeeringDBMaxPrefix(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if resolvers == nil || resolvers.PeeringDB == nil {
 		return errResponse("PeeringDB client not available")
 	}
@@ -167,7 +204,7 @@ func handlePeeringDBMaxPrefix(_ *pluginserver.CommandContext, args []string) (*p
 	if errResp != nil {
 		return errResp, nil
 	}
-	counts, err := resolvers.PeeringDB.LookupASN(context.Background(), asn)
+	counts, err := resolvers.PeeringDB.LookupASN(ctx.Context(), asn)
 	if err != nil {
 		return errResponse(err.Error())
 	}
@@ -181,7 +218,7 @@ func handlePeeringDBMaxPrefix(_ *pluginserver.CommandContext, args []string) (*p
 	}, nil
 }
 
-func handlePeeringDBASSet(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handlePeeringDBASSet(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if resolvers == nil || resolvers.PeeringDB == nil {
 		return errResponse("PeeringDB client not available")
 	}
@@ -189,7 +226,7 @@ func handlePeeringDBASSet(_ *pluginserver.CommandContext, args []string) (*plugi
 	if errResp != nil {
 		return errResp, nil
 	}
-	sets, err := resolvers.PeeringDB.LookupASSet(context.Background(), asn)
+	sets, err := resolvers.PeeringDB.LookupASSet(ctx.Context(), asn)
 	if err != nil {
 		return errResponse(err.Error())
 	}
@@ -201,7 +238,7 @@ func handlePeeringDBASSet(_ *pluginserver.CommandContext, args []string) (*plugi
 
 // IRR handlers.
 
-func handleIRRExpand(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleIRRExpand(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if resolvers == nil || resolvers.IRR == nil {
 		return errResponse("IRR client not available")
 	}
@@ -209,7 +246,7 @@ func handleIRRExpand(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 	if errResp != nil {
 		return errResp, nil
 	}
-	asns, err := resolvers.IRR.ResolveASSet(context.Background(), asSet)
+	asns, err := resolvers.IRR.ResolveASSet(ctx.Context(), asSet)
 	if err != nil {
 		return errResponse(err.Error())
 	}
@@ -223,7 +260,7 @@ func handleIRRExpand(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 	}, nil
 }
 
-func handleIRRPrefix(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleIRRPrefix(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if resolvers == nil || resolvers.IRR == nil {
 		return errResponse("IRR client not available")
 	}
@@ -231,7 +268,7 @@ func handleIRRPrefix(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 	if errResp != nil {
 		return errResp, nil
 	}
-	prefixes, err := resolvers.IRR.LookupPrefixes(context.Background(), asSet)
+	prefixes, err := resolvers.IRR.LookupPrefixes(ctx.Context(), asSet)
 	if err != nil {
 		return errResponse(err.Error())
 	}
@@ -248,39 +285,56 @@ func handleIRRPrefix(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 	}, nil
 }
 
-// handlePing runs an ICMP ping to the target address.
-// Syntax: resolve ping <target> [source <ip>] [count <n>] [size <bytes>].
-func handlePing(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handlePing(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	target, errResp := requireArg(args, "target")
 	if errResp != nil {
 		return errResp, nil
+	}
+	if err := validateTarget(target); err != nil {
+		return errResponse(err.Error())
 	}
 
 	cmdArgs := []string{"-c", "4", "-W", "2"}
 
-	// Parse optional args.
 	for i := 1; i < len(args); i++ {
-		if i+1 >= len(args) {
-			break
-		}
 		switch args[i] {
 		case "source":
+			if i+1 >= len(args) {
+				return errResponse("ping: \"source\" requires a value")
+			}
 			i++
+			if err := validateSourceIP(args[i]); err != nil {
+				return errResponse(err.Error())
+			}
 			cmdArgs = append(cmdArgs, "-I", args[i])
 		case "count":
+			if i+1 >= len(args) {
+				return errResponse("ping: \"count\" requires a value")
+			}
 			i++
+			if err := validateUint(args[i], "count", 1, 100); err != nil {
+				return errResponse(err.Error())
+			}
 			cmdArgs = append(cmdArgs, "-c", args[i])
 		case "size":
+			if i+1 >= len(args) {
+				return errResponse("ping: \"size\" requires a value")
+			}
 			i++
+			if err := validateUint(args[i], "size", 0, 65535); err != nil {
+				return errResponse(err.Error())
+			}
 			cmdArgs = append(cmdArgs, "-s", args[i])
+		default:
+			return errResponse(fmt.Sprintf("ping: unknown option %q", args[i]))
 		}
 	}
 	cmdArgs = append(cmdArgs, target)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	reqCtx, cancel := context.WithTimeout(ctx.Context(), 15*time.Second)
 	defer cancel()
 
-	out, err := execCommand(ctx, "ping", cmdArgs...)
+	out, err := execCommand(reqCtx, "ping", cmdArgs...)
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
@@ -300,29 +354,38 @@ func handlePing(_ *pluginserver.CommandContext, args []string) (*plugin.Response
 	}, nil
 }
 
-// handleTraceroute runs a traceroute to the target address.
-// Syntax: resolve traceroute <target> [source <ip>].
-func handleTraceroute(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleTraceroute(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	target, errResp := requireArg(args, "target")
 	if errResp != nil {
 		return errResp, nil
 	}
+	if err := validateTarget(target); err != nil {
+		return errResponse(err.Error())
+	}
 
 	cmdArgs := []string{"-n", "-w", "2", "-q", "1"}
 
-	// Parse optional source arg.
 	for i := 1; i < len(args); i++ {
-		if args[i] == "source" && i+1 < len(args) {
+		switch args[i] {
+		case "source":
+			if i+1 >= len(args) {
+				return errResponse("traceroute: \"source\" requires a value")
+			}
 			i++
+			if err := validateSourceIP(args[i]); err != nil {
+				return errResponse(err.Error())
+			}
 			cmdArgs = append(cmdArgs, "-s", args[i])
+		default:
+			return errResponse(fmt.Sprintf("traceroute: unknown option %q", args[i]))
 		}
 	}
 	cmdArgs = append(cmdArgs, target)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	reqCtx, cancel := context.WithTimeout(ctx.Context(), 30*time.Second)
 	defer cancel()
 
-	out, err := execCommand(ctx, "traceroute", cmdArgs...)
+	out, err := execCommand(reqCtx, "traceroute", cmdArgs...)
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
@@ -342,19 +405,6 @@ func handleTraceroute(_ *pluginserver.CommandContext, args []string) (*plugin.Re
 	}, nil
 }
 
-// execCommand runs an OS command with context timeout and returns combined output.
-//
-// Security note: `name` is a fixed allowlist (`ping`, `traceroute`) picked by
-// the caller -- never user-controlled. `args` may contain operator-supplied
-// values (target, source, count, size) that are NOT validated today, but
-// `exec.CommandContext` does not invoke a shell so there is no injection
-// channel: every element of `args` is passed as a discrete argv[N] to the
-// child process. The worst an operator can do is make ping/traceroute reject
-// a malformed argument with its own error.
-//
-// TODO: validate `args` format (IP/hostname for target, digit strings for
-// count/size) so operator mistakes surface as ze errors rather than opaque
-// ping output.
 func execCommand(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).CombinedOutput() //nolint:gosec // fixed-allowlist `name`, exec.CommandContext bypasses the shell so args are argv literals
+	return exec.CommandContext(ctx, name, args...).CombinedOutput() //nolint:gosec // fixed-allowlist name, no shell
 }
