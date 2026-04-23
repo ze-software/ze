@@ -1,6 +1,7 @@
 package log
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -126,4 +127,129 @@ func TestLogSetUnknownSubsystem(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Data, "unknown subsystem")
+}
+
+// --- handleLogRecent ---
+
+func TestLogRecent_NoArgs(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	slogutil.ResetLevelRegistry()
+	defer slogutil.ResetLevelRegistry()
+
+	logger := slogutil.Logger("recent-noargs")
+	logger.Warn("test entry for no-args")
+
+	ctx := &pluginserver.CommandContext{}
+	resp, err := handleLogRecent(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	entries, ok := data["entries"].([]map[string]any)
+	require.True(t, ok)
+	assert.Greater(t, len(entries), 0)
+}
+
+func TestLogRecent_FilterComponent(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	slogutil.ResetLevelRegistry()
+	defer slogutil.ResetLevelRegistry()
+
+	logger := slogutil.Logger("recent-comp-filter")
+	logger.Warn("component filter test")
+
+	ctx := &pluginserver.CommandContext{}
+	resp, err := handleLogRecent(ctx, []string{"component", "recent-comp-filter"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	entries, ok := data["entries"].([]map[string]any)
+	require.True(t, ok)
+	for _, e := range entries {
+		assert.Equal(t, "recent-comp-filter", e["component"])
+	}
+}
+
+func TestLogRecent_FilterLevel(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	slogutil.ResetLevelRegistry()
+	defer slogutil.ResetLevelRegistry()
+
+	t.Setenv("ze.log.recent-lvl-filter", "info")
+	env.ResetCache()
+	logger := slogutil.Logger("recent-lvl-filter")
+	logger.Info("info message")
+	logger.Warn("warn message")
+
+	ctx := &pluginserver.CommandContext{}
+	resp, err := handleLogRecent(ctx, []string{"level", slog.LevelWarn.String(), "component", "recent-lvl-filter"})
+	require.NoError(t, err)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	entries, ok := data["entries"].([]map[string]any)
+	require.True(t, ok)
+	for _, e := range entries {
+		assert.Equal(t, "WARN", e["level"])
+	}
+}
+
+func TestLogRecent_Limit(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	slogutil.ResetLevelRegistry()
+	defer slogutil.ResetLevelRegistry()
+
+	logger := slogutil.Logger("recent-limit")
+	for range 5 {
+		logger.Warn("limit test entry")
+	}
+
+	ctx := &pluginserver.CommandContext{}
+	resp, err := handleLogRecent(ctx, []string{"component", "recent-limit", "count", "2"})
+	require.NoError(t, err)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	entries, ok := data["entries"].([]map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, 2, len(entries))
+}
+
+func TestLogRecent_UnknownOption(t *testing.T) {
+	ctx := &pluginserver.CommandContext{}
+	resp, err := handleLogRecent(ctx, []string{"bogus"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "unknown option")
+}
+
+func TestLogRecent_TrailingKeyword(t *testing.T) {
+	ctx := &pluginserver.CommandContext{}
+	resp, err := handleLogRecent(ctx, []string{"level"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "requires a value")
+}
+
+func TestLogRecent_InvalidCount(t *testing.T) {
+	ctx := &pluginserver.CommandContext{}
+	resp, err := handleLogRecent(ctx, []string{"count", "abc"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "not a positive number")
+}
+
+func TestLogRecent_ZeroCount(t *testing.T) {
+	ctx := &pluginserver.CommandContext{}
+	resp, err := handleLogRecent(ctx, []string{"count", "0"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "not a positive number")
 }

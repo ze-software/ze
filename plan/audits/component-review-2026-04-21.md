@@ -86,45 +86,43 @@ first draft needed pruning after the code changed.
 | `test/plugin/community-strip.ci` | Community strip fixture declared AC-7 blocked because no real forward path was exercised | The fixture now asserts the stripped re-advertised UPDATE on the destination peer and no longer claims blocked evidence |
 | `test/plugin/{forward-overflow-two-tier,forward-two-tier-under-load}.ci` | Overflow fixtures only smoke-checked observer state and did not prove the forward path | Both fixtures now force a tiny forward-worker channel, assert ordered destination delivery on the wire, and keep metrics as secondary diagnostics |
 | `test/plugin/role-otc-{egress-filter,egress-stamp,export-unknown,ingress-reject,unicast-scope}.ci` | OTC fixtures marked AC verification blocked or TODO because the forward path was not exercised | The fixtures now use second peers plus destination wire assertions or EOR-only suppression checks, so the RFC 9234 claims are backed by real forwarding evidence |
+| `internal/component/resolve/cmd/resolve.go` | `ping` and `traceroute` accepted operator args without Ze-side validation | `validateTarget`, `validateSourceIP`, `validateUint` now enforce format before exec; unknown options and trailing keywords rejected per exact-or-reject; 11 new tests cover all validation paths |
+| `internal/component/resolve/cmd/resolve.go` | Cymru, PeeringDB, IRR, and shell-out handlers rooted work at `context.Background()` | All 7 handlers now derive context from `ctx.Context()`; callers can cancel long-running lookups cleanly |
 
 ## Preliminary Findings
 
-These are the remaining concrete leads verified in source. They should drive
-follow-on review before the broader structural risks.
+These structural risks remain. Each needs a dedicated review session or spec.
 
 | Type | Location | Finding | Why it matters | First action |
 |------|----------|---------|----------------|--------------|
-| Confirmed validation gap | `internal/component/resolve/cmd/resolve.go` | `ping` and `traceroute` still accept operator args without Ze-side validation | Operator mistakes surface as child tool stderr instead of exact validation errors | Define and enforce validation for target, source, count, and size |
-| Confirmed context gap | `internal/component/resolve/cmd/resolve.go` | DNS, Cymru, PeeringDB, IRR, and shell-out handlers still root work at `context.Background()` | API, MCP, CLI, and web callers cannot cancel long-running lookups cleanly | Trace request context into resolve handlers and child process timeouts |
 | Structural risk | `internal/component/bgp/*` | The initial scan counted 822 Go files and 339 test files here, and it remains the dominant risk area | Highest complexity, most boundary crossings, most performance-sensitive code | Split review into wire, reactor, RIB, config, plugins, and tests |
 | Structural risk | `internal/component/plugin/*` | Plugin lifecycle, registry, IPC, and YANG wiring are central to the product shape even after the earlier context bug was fixed | Many subsystems depend on plugin behavior being structurally correct | Review before subsystem-specific plugin behavior |
-| Structural risk | `cmd/ze-test/*` | No Go tests under the test harness entry point | Tooling bugs can invalidate test evidence silently | Review harness assumptions and failure reporting |
-| Structural risk | large files listed below | Several non-generated files exceed the modularity thresholds in `file-modularity.md` | Multi-concern files hide bugs and make follow-up fixes risky | Run a concern audit before making localized edits |
+| Structural risk | `cmd/ze-test/*` | No Go tests under the test harness entry point (confirmed 2026-04-23: 21 Go files, 0 test files) | Tooling bugs can invalidate test evidence silently | Review harness assumptions and failure reporting |
+| Structural risk | large files listed below | All 16 files still exceed the modularity thresholds (refreshed 2026-04-23) | Multi-concern files hide bugs and make follow-up fixes risky | Run a concern audit before making localized edits |
 
 ## Large-File Audit Queue
 
 These files exceed the thresholds where `file-modularity.md` expects an
-explicit concern check. Line counts below are the initial snapshot and should
-be refreshed before using them as exact thresholds.
+explicit concern check. Line counts refreshed 2026-04-23.
 
 | File | Lines | Review question |
 |------|-------|-----------------|
-| `internal/component/iface/config.go` | 1500 | Is this still one concern, or multiple backend/config concerns mixed together? |
-| `internal/component/bgp/reactor/reactor.go` | 1336 | Does it mix lifecycle, event handling, and forwarding concerns? |
-| `internal/component/bgp/reactor/reactor_api_forward.go` | 1312 | Are API-facing and forwarding concerns coupled too tightly? |
-| `internal/component/cli/model_commands.go` | 1297 | Are command behaviors and UI state transitions tangled? |
+| `internal/component/iface/config.go` | 1487 | Is this still one concern, or multiple backend/config concerns mixed together? |
+| `internal/component/bgp/reactor/reactor.go` | 1401 | Does it mix lifecycle, event handling, and forwarding concerns? |
+| `internal/component/cli/model_commands.go` | 1298 | Are command behaviors and UI state transitions tangled? |
+| `internal/component/bgp/reactor/reactor_api_forward.go` | 1241 | Are API-facing and forwarding concerns coupled too tightly? |
 | `internal/component/mcp/streamable.go` | 1240 | Are transport, auth, protocol, and handler concerns split cleanly? |
-| `internal/component/bgp/reactor/forward_pool.go` | 1206 | Is the pool still a single coherent concern, or mixed with policy/forward logic? |
-| `internal/component/firewall/config.go` | 1117 | Are schema, validation, lowering, and backend assumptions combined? |
+| `internal/component/bgp/reactor/forward_pool.go` | 1213 | Is the pool still a single coherent concern, or mixed with policy/forward logic? |
+| `internal/component/firewall/config.go` | 1167 | Are schema, validation, lowering, and backend assumptions combined? |
 | `internal/component/cli/completer.go` | 1088 | Is completion logic a single concern or multiple command grammars fused? |
-| `internal/component/l2tp/session_fsm.go` | 1085 | Are state transitions, timers, and I/O handling too interleaved? |
-| `internal/component/bgp/reactor/reactor_api.go` | 1080 | Are API entry points and reactor internals coupled? |
-| `internal/component/bgp/plugins/rib/rib_commands.go` | 1071 | Are command surface and storage semantics mixed? |
-| `internal/component/bgp/plugins/rib/rib.go` | 1063 | Is plugin lifecycle mixed with route storage behavior? |
-| `internal/component/bgp/plugins/rib/rib_bestchange.go` | 1037 | Is best-change detection isolated enough to reason about? |
+| `internal/component/l2tp/session_fsm.go` | 1087 | Are state transitions, timers, and I/O handling too interleaved? |
+| `internal/component/bgp/reactor/reactor_api.go` | 1077 | Are API entry points and reactor internals coupled? |
+| `internal/component/bgp/plugins/rib/rib_commands.go` | 1073 | Are command surface and storage semantics mixed? |
+| `internal/component/bgp/plugins/rib/rib.go` | 1065 | Is plugin lifecycle mixed with route storage behavior? |
+| `internal/component/cli/editor.go` | 1057 | Is editor state, rendering, and mutation logic too tightly coupled? |
 | `internal/component/config/setparser.go` | 1024 | Are parser, command semantics, and syntax migration fused together? |
 | `internal/component/plugin/registry/registry.go` | 1020 | Are registration, validation, and lookup concerns still cohesive? |
-| `internal/component/cli/editor.go` | 1019 | Is editor state, rendering, and mutation logic too tightly coupled? |
+| `internal/component/bgp/plugins/rib/rib_bestchange.go` | 1003 | Is best-change detection isolated enough to reason about? |
 
 ## Bundle Work Packages
 
