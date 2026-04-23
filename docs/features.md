@@ -73,6 +73,8 @@ Ze is a network operating system written in Go. It runs on any Linux or as a gok
 <!-- source: internal/component/mcp/handler.go -- ze_execute handcrafted tool -->
 | [DNS Resolver](features/dns-resolver.md) | Built-in cached DNS resolver for all components |
 | Resolution CLI | Offline `ze resolve` tool for DNS, Team Cymru ASN names, PeeringDB prefix counts, and IRR AS-SET expansion |
+| [Netdata-compatible OS Telemetry](guide/monitoring.md#os-metrics-netdata-compatible) | 138 Prometheus metrics from /proc and /sys (CPU, memory, network, disk, IPv4/IPv6 protocols, conntrack, PSI, cpuidle, cpufreq, ZFS, btrfs, mdstat, SCTP, IPVS, wireless, etc) matching Netdata's naming and labels exactly. Drop-in replacement for Netdata's Prometheus exporter -- existing Grafana dashboards keep working. Per-collector enable/disable and interval override via YANG. |
+<!-- source: internal/component/telemetry/collector/ -- Netdata-compatible OS collectors -->
 | VPP Data Plane | Manages VPP lifecycle (startup, crash recovery, DPDK NIC binding), programs FIB routes via GoVPP binary API, and polls VPP's stats segment for per-interface, per-node, and system-wide Prometheus metrics. Configurable poll interval. `vpp.external=true` switches ze into connect-only mode for systemd-managed / container-sidecar deployments and the `ze-test vpp` stub harness. |
 <!-- source: internal/component/vpp/vpp.go -- VPPManager lifecycle + External branch -->
 <!-- source: internal/component/vpp/telemetry.go -- stats poller, Prometheus metrics -->
