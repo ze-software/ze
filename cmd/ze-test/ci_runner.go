@@ -35,13 +35,13 @@ func runCISubcommand(cfg ciRunnerConfig) error {
 	fs.BoolVar(quiet, "quiet", false, "minimal output")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: ze-test %s [options] [test-nicks...]\n\n%s\n\nOptions:\n", cfg.Name, cfg.Detail) //nolint:errcheck // terminal output
+		fmt.Fprintf(os.Stderr, "Usage: ze-test %s [options] [test-ids...]\n\n%s\n\nOptions:\n", cfg.Name, cfg.Detail) //nolint:errcheck // terminal output
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Examples:
   ze-test %s -a              # Run all %s tests
   ze-test %s -l              # List available tests
-  ze-test %s 0 1 2           # Run specific tests by nick
+  ze-test %s 0 1 2           # Run specific tests by id
   ze-test %s -a -v           # Verbose output
 `, cfg.Name, cfg.Description, cfg.Name, cfg.Name, cfg.Name) //nolint:errcheck // terminal output
 	}

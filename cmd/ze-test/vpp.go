@@ -207,6 +207,6 @@ Examples:
   ze-test vpp -l
   ze-test vpp -a
   ze-test vpp 001-boot
-  ze-test vpp 0 1         # by nick
+  ze-test vpp 0 1         # by numeric id
 `)
 }

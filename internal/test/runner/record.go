@@ -196,20 +196,13 @@ var (
 	nickMu    sync.Mutex
 )
 
-// GenerateNick generates a unique short nick for a test.
+// GenerateNick generates a unique numeric id for a test.
 func GenerateNick(_ string) string {
 	nickMu.Lock()
 	defer nickMu.Unlock()
 
-	// Use single character for short nicks: 0-9, A-Z, a-z
-	chars := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 	idx := nickIndex
 	nickIndex++
-
-	if idx < len(chars) {
-		return string(chars[idx])
-	}
-	// Use numeric for large test suites
 	return fmt.Sprintf("%d", idx)
 }
 

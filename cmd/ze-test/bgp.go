@@ -604,7 +604,7 @@ func parseRunCLI() *runCLIFlags {
 	fs.BoolVar(&cli.all, "all", false, "run all tests")
 	fs.BoolVar(&cli.list, "l", false, "list available tests")
 	fs.BoolVar(&cli.list, "list", false, "list available tests")
-	fs.BoolVar(&cli.shortList, "short-list", false, "list test codes only")
+	fs.BoolVar(&cli.shortList, "short-list", false, "list numeric test ids only")
 	fs.DurationVar(&cli.timeout, "t", 15*time.Second, "timeout per test")
 	fs.DurationVar(&cli.timeout, "timeout", 15*time.Second, "timeout per test")
 	fs.IntVar(&cli.parallel, "p", runner.DefaultParallelConcurrent, "max concurrent tests (0 = all)")
@@ -643,7 +643,7 @@ Types:
 
 Modes:
   -l, --list          List available tests
-  --short-list        List test codes only (space separated)
+  --short-list        List numeric test ids only (space separated)
   -a, --all           Run all tests
 
 Options:
@@ -656,8 +656,8 @@ Options:
   -c, --count N       Run each test N times (stress testing)
 
 Debugging:
-  --server NICK       Run server only for test
-  --client NICK       Run client only for test
+  --server ID         Run server only for test
+  --client ID         Run client only for test
 
 Examples:
   ze-test bgp encode -l

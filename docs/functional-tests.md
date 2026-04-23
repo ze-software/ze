@@ -299,7 +299,7 @@ Commands:
 
 Modes:
   --list, -l          List available tests
-  --short-list        List test codes only (space separated)
+  --short-list        List numeric test ids only (space separated)
   --all               Run all tests
 
 Options:

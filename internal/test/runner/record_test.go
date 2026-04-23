@@ -3,6 +3,7 @@ package runner
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -150,6 +151,20 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 			assert.Equal(t, tt.wantRejStderr, rec.RejectStderr, "RejectStderr mismatch")
 			assert.Equal(t, tt.wantExpSyslog, rec.ExpectSyslog, "ExpectSyslog mismatch")
 		})
+	}
+}
+
+// TestGenerateNick_NumericOnly verifies generated test ids are decimal strings
+// with no letter-based short-code phase.
+//
+// VALIDATES: GenerateNick returns 0,1,2... as decimal strings for every test.
+// PREVENTS: Mixed letter/number ids like A, B, C reappearing in ze-test output.
+func TestGenerateNick_NumericOnly(t *testing.T) {
+	ResetNickCounter()
+
+	for i := range 70 {
+		got := GenerateNick("ignored")
+		assert.Equal(t, strconv.Itoa(i), got)
 	}
 }
 
