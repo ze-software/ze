@@ -373,6 +373,29 @@ func TestExtractTelemetryConfig_Prefix(t *testing.T) {
 	assert.Equal(t, "node", cfg.Prefix)
 }
 
+// TestExtractTelemetryConfig_Interval verifies the interval field is extracted
+// from the config tree, defaulting to 1 when absent, clamped to 1-60.
+func TestExtractTelemetryConfig_Interval(t *testing.T) {
+	extract := func(interval string) int {
+		prom := map[string]any{"enabled": "true"}
+		if interval != "" {
+			prom["interval"] = interval
+		}
+		return metrics.ExtractTelemetryConfig(map[string]any{
+			"telemetry": map[string]any{"prometheus": prom},
+		}).Interval
+	}
+
+	assert.Equal(t, 1, extract(""))
+	assert.Equal(t, 1, extract("1"))
+	assert.Equal(t, 5, extract("5"))
+	assert.Equal(t, 60, extract("60"))
+	assert.Equal(t, 1, extract("0"))
+	assert.Equal(t, 1, extract("61"))
+	assert.Equal(t, 1, extract("-1"))
+	assert.Equal(t, 1, extract("abc"))
+}
+
 // TestServer_MultiListener verifies Server.Start binds every endpoint and
 // both listeners serve the same metrics handler.
 //

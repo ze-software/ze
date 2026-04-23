@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"os"
 	"strconv"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
@@ -212,7 +213,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 			r.SetMetricsRegistry(reg)
 			registry.SetMetricsRegistry(reg)
 
-			collector.StartOSCollectors(reg, telemetryCfg.Prefix, configLogger())
+			collector.StartOSCollectors(reg, telemetryCfg.Prefix, time.Duration(telemetryCfg.Interval)*time.Second, configLogger())
 		}
 	}
 

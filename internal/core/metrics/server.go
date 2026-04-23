@@ -36,6 +36,7 @@ type TelemetryConfig struct {
 	Endpoints []Endpoint
 	Path      string
 	Prefix    string
+	Interval  int
 }
 
 // Server serves Prometheus metrics over HTTP on one or more listeners.
@@ -153,6 +154,14 @@ func ExtractTelemetryConfig(tree map[string]any) TelemetryConfig {
 	cfg.Prefix, _ = prom["prefix"].(string)
 	if cfg.Prefix == "" {
 		cfg.Prefix = "netdata"
+	}
+
+	// Extract interval (default: 1 second, range 1-60).
+	cfg.Interval = 1
+	if intervalStr, ok := prom["interval"].(string); ok {
+		if n, err := strconv.Atoi(intervalStr); err == nil && n >= 1 && n <= 60 {
+			cfg.Interval = n
+		}
 	}
 
 	// Read every server list entry in alphabetical key order. ToMap() loses

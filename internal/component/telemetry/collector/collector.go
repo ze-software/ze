@@ -100,11 +100,11 @@ func (m *Manager) collectAll() {
 }
 
 // StartOSCollectors creates a Manager with all platform-specific OS
-// collectors and starts collection at 1s intervals. Returns the Manager
-// so callers can call Stop() on shutdown; returns nil if no collectors
-// are available for this platform.
-func StartOSCollectors(reg metrics.Registry, prefix string, logger *slog.Logger) *Manager {
-	m := NewManager(reg, prefix, 0, logger)
+// collectors and starts collection at the given interval. Returns the
+// Manager so callers can call Stop() on shutdown; returns nil if no
+// collectors are available for this platform.
+func StartOSCollectors(reg metrics.Registry, prefix string, interval time.Duration, logger *slog.Logger) *Manager {
+	m := NewManager(reg, prefix, interval, logger)
 	registerPlatformCollectors(m)
 	if len(m.collectors) == 0 {
 		return nil

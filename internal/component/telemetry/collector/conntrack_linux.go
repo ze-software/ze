@@ -25,15 +25,34 @@ type conntrackCollector struct {
 	errors  metrics.GaugeVec
 	search  metrics.GaugeVec
 
-	prevNew           uint64
-	prevInvalid       uint64
-	prevInsert        uint64
-	prevInsertFailed  uint64
-	prevDrop          uint64
-	prevSearched      uint64
-	prevSearchRestart uint64
-	prevDelete        uint64
-	first             bool
+	prev  conntrackTotals
+	first bool
+}
+
+type conntrackTotals struct {
+	new, ignore, invalid           uint64
+	insert, delete_, deleteList    uint64
+	insertFailed, drop, earlyDrop  uint64
+	searched, searchRestart, found uint64
+}
+
+func sumConntrack(entries []procfs.ConntrackStatEntry) conntrackTotals {
+	var t conntrackTotals
+	for _, e := range entries {
+		t.new += e.New
+		t.ignore += e.Ignore
+		t.invalid += e.Invalid
+		t.insert += e.Insert
+		t.delete_ += e.Delete
+		t.deleteList += e.DeleteList
+		t.insertFailed += e.InsertFailed
+		t.drop += e.Drop
+		t.earlyDrop += e.EarlyDrop
+		t.searched += e.Searched
+		t.searchRestart += e.SearchRestart
+		t.found += e.Found
+	}
+	return t
 }
 
 func newConntrackCollector(fs procfs.FS, interval time.Duration) *conntrackCollector {
@@ -57,59 +76,37 @@ func (c *conntrackCollector) Collect() error {
 		return err
 	}
 
-	// Read current conntrack count from /proc/sys/net/netfilter/nf_conntrack_count
 	count := readConntrackCount()
 	c.sockets.With("netfilter.conntrack_sockets", "connections", "conntrack").Set(float64(count))
 
-	var totalNew, totalInvalid, totalInsert, totalInsertFailed, totalDrop uint64
-	var totalSearched, totalSearchRestart, totalDelete uint64
-	for _, e := range entries {
-		totalNew += e.New
-		totalInvalid += e.Invalid
-		totalInsert += e.Insert
-		totalInsertFailed += e.InsertFailed
-		totalDrop += e.Drop
-		totalSearched += e.Searched
-		totalSearchRestart += e.SearchRestart
-		totalDelete += e.Delete
-	}
+	cur := sumConntrack(entries)
 
 	if c.first {
-		c.prevNew = totalNew
-		c.prevInvalid = totalInvalid
-		c.prevInsert = totalInsert
-		c.prevInsertFailed = totalInsertFailed
-		c.prevDrop = totalDrop
-		c.prevSearched = totalSearched
-		c.prevSearchRestart = totalSearchRestart
-		c.prevDelete = totalDelete
+		c.prev = cur
 		c.first = false
 		return nil
 	}
 
 	secs := c.interval.Seconds()
+	p := c.prev
 
-	c.newConn.With("netfilter.conntrack_new", "new", "conntrack").Set(float64(safeDelta(totalNew, c.prevNew)) / secs)
-	c.newConn.With("netfilter.conntrack_new", "ignore", "conntrack").Set(float64(safeDelta(totalInvalid, c.prevInvalid)) / secs)
+	c.newConn.With("netfilter.conntrack_new", "new", "conntrack").Set(float64(safeDelta(cur.new, p.new)) / secs)
+	c.newConn.With("netfilter.conntrack_new", "ignore", "conntrack").Set(float64(safeDelta(cur.ignore, p.ignore)) / secs)
+	c.newConn.With("netfilter.conntrack_new", "invalid", "conntrack").Set(float64(safeDelta(cur.invalid, p.invalid)) / secs)
 
-	c.changes.With("netfilter.conntrack_changes", "inserted", "conntrack").Set(float64(safeDelta(totalInsert, c.prevInsert)) / secs)
-	c.changes.With("netfilter.conntrack_changes", "deleted", "conntrack").Set(float64(safeDelta(totalDelete, c.prevDelete)) / secs)
+	c.changes.With("netfilter.conntrack_changes", "inserted", "conntrack").Set(float64(safeDelta(cur.insert, p.insert)) / secs)
+	c.changes.With("netfilter.conntrack_changes", "deleted", "conntrack").Set(float64(safeDelta(cur.delete_, p.delete_)) / secs)
+	c.changes.With("netfilter.conntrack_changes", "delete_list", "conntrack").Set(float64(safeDelta(cur.deleteList, p.deleteList)) / secs)
 
-	c.errors.With("netfilter.conntrack_errors", "insert_failed", "conntrack").Set(float64(safeDelta(totalInsertFailed, c.prevInsertFailed)) / secs)
-	c.errors.With("netfilter.conntrack_errors", "drop", "conntrack").Set(float64(safeDelta(totalDrop, c.prevDrop)) / secs)
+	c.errors.With("netfilter.conntrack_errors", "insert_failed", "conntrack").Set(float64(safeDelta(cur.insertFailed, p.insertFailed)) / secs)
+	c.errors.With("netfilter.conntrack_errors", "drop", "conntrack").Set(float64(safeDelta(cur.drop, p.drop)) / secs)
+	c.errors.With("netfilter.conntrack_errors", "early_drop", "conntrack").Set(float64(safeDelta(cur.earlyDrop, p.earlyDrop)) / secs)
 
-	c.search.With("netfilter.conntrack_search", "searched", "conntrack").Set(float64(safeDelta(totalSearched, c.prevSearched)) / secs)
-	c.search.With("netfilter.conntrack_search", "restarted", "conntrack").Set(float64(safeDelta(totalSearchRestart, c.prevSearchRestart)) / secs)
+	c.search.With("netfilter.conntrack_search", "searched", "conntrack").Set(float64(safeDelta(cur.searched, p.searched)) / secs)
+	c.search.With("netfilter.conntrack_search", "restarted", "conntrack").Set(float64(safeDelta(cur.searchRestart, p.searchRestart)) / secs)
+	c.search.With("netfilter.conntrack_search", "found", "conntrack").Set(float64(safeDelta(cur.found, p.found)) / secs)
 
-	c.prevNew = totalNew
-	c.prevInvalid = totalInvalid
-	c.prevInsert = totalInsert
-	c.prevInsertFailed = totalInsertFailed
-	c.prevDrop = totalDrop
-	c.prevSearched = totalSearched
-	c.prevSearchRestart = totalSearchRestart
-	c.prevDelete = totalDelete
-
+	c.prev = cur
 	return nil
 }
 

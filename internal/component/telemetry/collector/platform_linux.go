@@ -28,4 +28,8 @@ func registerPlatformCollectors(m *Manager) {
 	m.Register(newSNMPCollector(fs, m.interval))
 	m.Register(newConntrackCollector(fs, m.interval))
 	m.Register(newVMStatCollector(m.interval))
+	m.Register(newSNMP6Collector(fs, m.interval))
+	m.Register(newDiskSpaceCollector())
+	m.Register(newSoftIRQsCollector(fs, m.interval))
+	m.Register(newSockStat6Collector(fs))
 }

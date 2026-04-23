@@ -54,6 +54,14 @@ module ze-telemetry-conf {
                 default "netdata";
                 description "Metric name prefix for OS collectors (e.g. netdata, node)";
             }
+
+            leaf interval {
+                type uint16 {
+                    range "1..60";
+                }
+                default 1;
+                description "OS collector sampling interval in seconds";
+            }
         }
     }
 }
