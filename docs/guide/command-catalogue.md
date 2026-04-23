@@ -170,7 +170,7 @@ internal; kernel / VPP FIB view is not yet exposed.
 | Route by protocol | `show ip route bgp` / `static` / `connected` | `show route protocol <proto>` | `show router route-table protocol bgp` | `show ip route bgp` | `show ip route bgp` | | planned | nl+vpp-fib | RTPROT filter |
 | Route summary counts | `show ip route summary` | `show route summary` | `show router route-table summary` | `show ip route summary` | `show ip route summary` | | planned | nl+vpp-fib | |
 | FIB (forwarding) table | ~ | `show route forwarding-table` | `show router fib` | `show ip route vrf` (close) | `show fib` | | planned | nl+vpp-fib | Separates RIB from FIB |
-| Static routes installed | `show ip route static` | `show route protocol static` | `show router static-route` | `show ip route static` | `show ip route static` | | planned | nl+vpp-fib | Phase 2 of static-routes spec |
+| Static routes installed | `show ip route static` | `show route protocol static` | `show router static-route` | `show ip route static` | `show ip route static` | `show ip route static` | planned | nl+vpp-fib | Requires RTPROT filter on `show ip route`. Static route plugin programs routes with RTPROT_ZE=250. |
 | VRF route table | `show ip route vrf <name>` | `show route table <vrf>.inet.0` | `show router <vrf> route-table` | `show ip route vrf <name>` | `show ip route vrf <name>` | | scope | - | VRF not yet shipped |
 | Kernel-programmed (by ze) | ~ | - | - | - | `show ip route bgp` | fib-kernel `showInstalled` | shipped | nl | |
 

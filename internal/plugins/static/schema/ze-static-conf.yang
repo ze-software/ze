@@ -1,0 +1,110 @@
+module ze-static-conf {
+    namespace "urn:ze:static:conf";
+    prefix static;
+
+    import ze-extensions { prefix ze; }
+
+    description
+        "Static route configuration for Ze.
+         Routes are programmed directly to the kernel (netlink) or VPP
+         data plane. Multiple next-hops produce ECMP with optional
+         per-next-hop weights. BFD profiles enable fast failover.";
+
+    revision 2026-04-23 {
+        description "Initial revision.";
+    }
+
+    container static {
+        description "Static route configuration.";
+
+        list route {
+            key "prefix";
+            description "A static route entry.";
+
+            leaf prefix {
+                type string;
+                ze:validate "ipv4-prefix|ipv6-prefix";
+                description "Destination prefix in CIDR notation.";
+            }
+
+            leaf description {
+                type string { length "0..255"; }
+                description "Operator note for this route.";
+            }
+
+            leaf metric {
+                type uint32;
+                default 0;
+                description
+                    "Route metric. Used as kernel route priority
+                     (lower is preferred) and carried in redistribute.";
+            }
+
+            leaf tag {
+                type uint32;
+                description
+                    "Opaque tag for route policy matching.
+                     Carried in redistribute events.";
+            }
+
+            choice action {
+                mandatory true;
+                description "What to do with matching packets.";
+
+                case forward {
+                    list next-hop {
+                        key "address";
+                        description
+                            "Forward via gateway. Multiple entries produce
+                             ECMP with traffic distributed by weight.";
+
+                        leaf address {
+                            type string;
+                            ze:validate "ipv4-address|ipv6-address";
+                            description "Gateway address.";
+                        }
+
+                        leaf interface {
+                            type string;
+                            description
+                                "Outgoing interface. Required when the
+                                 next-hop is a link-local IPv6 address.";
+                        }
+
+                        leaf weight {
+                            type uint16 { range "1..65535"; }
+                            default 1;
+                            description
+                                "ECMP weight. Higher values receive
+                                 proportionally more traffic. Default 1
+                                 gives equal distribution.";
+                        }
+
+                        leaf bfd-profile {
+                            type string;
+                            description
+                                "BFD profile name (from bfd/profile list).
+                                 When the BFD session to this next-hop goes
+                                 down, the next-hop is removed from the ECMP
+                                 group and the route is reprogrammed with
+                                 remaining active next-hops.";
+                        }
+                    }
+                }
+
+                case discard {
+                    container blackhole {
+                        presence "Silently discard matching packets.";
+                    }
+                }
+
+                case unreachable {
+                    container reject {
+                        presence
+                            "Discard and reply ICMP unreachable.";
+                    }
+                }
+            }
+        }
+    }
+}
