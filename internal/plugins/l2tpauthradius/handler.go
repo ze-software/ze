@@ -5,6 +5,7 @@ package l2tpauthradius
 
 import (
 	"context"
+	"net"
 	"sync"
 	"time"
 
@@ -15,10 +16,11 @@ import (
 
 // radiusAuth holds the RADIUS client and implements the auth handler.
 type radiusAuth struct {
-	mu         sync.RWMutex
-	client     *radius.Client
-	nasID      string
-	serverAddr string
+	mu            sync.RWMutex
+	client        *radius.Client
+	nasID         string
+	serverAddr    string
+	sourceAddress net.IP
 }
 
 func newRADIUSAuth() *radiusAuth {
@@ -26,13 +28,14 @@ func newRADIUSAuth() *radiusAuth {
 }
 
 // swapClient replaces the client and returns the old one (caller closes it).
-func (a *radiusAuth) swapClient(c *radius.Client, nasID, serverAddr string) *radius.Client {
+func (a *radiusAuth) swapClient(c *radius.Client, nasID, serverAddr string, sourceAddr net.IP) *radius.Client {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	old := a.client
 	a.client = c
 	a.nasID = nasID
 	a.serverAddr = serverAddr
+	a.sourceAddress = sourceAddr
 	return old
 }
 
@@ -44,6 +47,7 @@ func (a *radiusAuth) handle(req ppp.EventAuthRequest, respond l2tp.AuthRespondFu
 	client := a.client
 	nasID := a.nasID
 	sAddr := a.serverAddr
+	srcAddr := a.sourceAddress
 	a.mu.RUnlock()
 
 	if client == nil {
@@ -53,11 +57,11 @@ func (a *radiusAuth) handle(req ppp.EventAuthRequest, respond l2tp.AuthRespondFu
 	}
 
 	incAuthSent(sAddr, sAddr)
-	go a.doRADIUS(req, client, nasID, respond)
+	go a.doRADIUS(req, client, nasID, srcAddr, respond)
 	return l2tp.AuthResult{Handled: true}
 }
 
-func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, nasID string, respond l2tp.AuthRespondFunc) {
+func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, nasID string, sourceAddr net.IP, respond l2tp.AuthRespondFunc) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger().Error("l2tp-auth-radius: goroutine panic",
@@ -80,7 +84,7 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 	pkt := &radius.Packet{
 		Code:          radius.CodeAccessRequest,
 		Authenticator: auth,
-		Attrs:         buildAuthAttrs(req, nasID),
+		Attrs:         buildAuthAttrs(req, nasID, sourceAddr),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -136,13 +140,17 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 
 // RFC 2865 Section 5.2: User-Password stored as cleartext here;
 // the client XOR-encodes it per-server in Exchange().
-func buildAuthAttrs(req ppp.EventAuthRequest, nasID string) []radius.Attr {
+func buildAuthAttrs(req ppp.EventAuthRequest, nasID string, sourceAddr net.IP) []radius.Attr {
 	attrs := []radius.Attr{
 		{Type: radius.AttrUserName, Value: radius.AttrString(req.Username)},
 		{Type: radius.AttrServiceType, Value: radius.AttrUint32(radius.ServiceTypeFramed)},
 		{Type: radius.AttrFramedProtocol, Value: radius.AttrUint32(radius.FramedProtocolPPP)},
 		{Type: radius.AttrNASPortType, Value: radius.AttrUint32(radius.NASPortTypeVirtual)},
 		{Type: radius.AttrNASPort, Value: radius.AttrUint32(uint32(req.SessionID))},
+	}
+
+	if v4 := sourceAddr.To4(); v4 != nil {
+		attrs = append(attrs, radius.Attr{Type: radius.AttrNASIPAddress, Value: v4})
 	}
 
 	if nasID != "" {

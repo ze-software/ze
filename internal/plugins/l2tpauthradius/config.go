@@ -5,6 +5,7 @@ package l2tpauthradius
 
 import (
 	"fmt"
+	"net"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
@@ -17,7 +18,8 @@ type radiusConfig struct {
 	Retries       int
 	AcctInterval  time.Duration
 	NASIdentifier string
-	CoAPort       int // RFC 5176 CoA/DM listener port; 0 = disabled
+	SourceAddress net.IP // bind outbound RADIUS socket to this IP; nil = any
+	CoAPort       int    // RFC 5176 CoA/DM listener port; 0 = disabled
 }
 
 // errNoRADIUSConfig is returned when the config tree has no auth.radius block.
@@ -41,6 +43,17 @@ func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
 
 	if nasID, ok := radiusBlock["nas-identifier"].(string); ok {
 		cfg.NASIdentifier = nasID
+	}
+
+	if src, ok := radiusBlock["source-address"].(string); ok {
+		ip := net.ParseIP(src)
+		if ip == nil {
+			return nil, fmt.Errorf("%s: invalid source-address %q", Name, src)
+		}
+		if ip.To4() == nil {
+			return nil, fmt.Errorf("%s: source-address must be IPv4, got %q", Name, src)
+		}
+		cfg.SourceAddress = ip.To4()
 	}
 
 	if timeout, ok := radiusBlock["timeout"].(float64); ok {

@@ -303,6 +303,73 @@ func TestClientAuthenticatorVerify(t *testing.T) {
 	}
 }
 
+func TestClientSourceAddress(t *testing.T) {
+	sharedKey := []byte("testing123")
+
+	var receivedFrom *net.UDPAddr
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := conn.LocalAddr().String()
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+		buf := make([]byte, MaxPacketLen)
+		n, from, readErr := conn.ReadFromUDP(buf)
+		if readErr != nil {
+			return
+		}
+		receivedFrom = from
+		resp := buildResponse(CodeAccessAccept, buf[:n], sharedKey)
+		conn.WriteToUDP(resp, from) //nolint:errcheck // test mock
+	}()
+	defer func() {
+		closeSilent(conn)
+		<-done
+	}()
+
+	client, err := NewClient(ClientConfig{
+		Timeout:       2 * time.Second,
+		Retries:       1,
+		SourceAddress: net.IPv4(127, 0, 0, 1),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeSilent(client)
+
+	auth, _ := RandomAuthenticator()
+	pkt := &Packet{
+		Code:          CodeAccessRequest,
+		Identifier:    client.NextID(),
+		Authenticator: auth,
+	}
+
+	_, err = client.Exchange(context.Background(), pkt, sharedKey, addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receivedFrom == nil {
+		t.Fatal("no request received")
+	}
+	if !receivedFrom.IP.Equal(net.IPv4(127, 0, 0, 1)) {
+		t.Errorf("source IP: got %v, want 127.0.0.1", receivedFrom.IP)
+	}
+}
+
+func TestClientSourceAddressBadBind(t *testing.T) {
+	_, err := NewClient(ClientConfig{
+		Timeout:       time.Second,
+		Retries:       1,
+		SourceAddress: net.IPv4(198, 51, 100, 1),
+	})
+	if err == nil {
+		t.Fatal("expected bind error for non-local source address")
+	}
+}
+
 func TestClientTimeout(t *testing.T) {
 	dead, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {

@@ -23,10 +23,11 @@ type Server struct {
 
 // ClientConfig holds configuration for the RADIUS client.
 type ClientConfig struct {
-	Servers []Server
-	Timeout time.Duration // per-request timeout (default 3s)
-	Retries int           // retransmit count (default 3)
-	Logger  *slog.Logger
+	Servers       []Server
+	Timeout       time.Duration // per-request timeout (default 3s)
+	Retries       int           // retransmit count (default 3)
+	SourceAddress net.IP        // bind outbound socket to this IP; nil = any
+	Logger        *slog.Logger
 }
 
 // Client is a RADIUS UDP client with retransmit and server failover.
@@ -52,7 +53,11 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 		cfg.Retries = 3
 	}
 
-	conn, err := net.ListenUDP("udp4", nil)
+	var laddr *net.UDPAddr
+	if len(cfg.SourceAddress) > 0 {
+		laddr = &net.UDPAddr{IP: cfg.SourceAddress}
+	}
+	conn, err := net.ListenUDP("udp4", laddr)
 	if err != nil {
 		return nil, fmt.Errorf("radius: listen: %w", err)
 	}

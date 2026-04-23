@@ -207,6 +207,86 @@ func TestParseConfigBadAcctInterval(t *testing.T) {
 	}
 }
 
+func TestParseConfigSourceAddress(t *testing.T) {
+	tree := map[string]any{
+		"auth": map[string]any{
+			"radius": map[string]any{
+				"source-address": "192.168.1.100",
+				"server": []any{
+					map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+				},
+			},
+		},
+	}
+
+	cfg, err := parseConfigFromTree(tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SourceAddress == nil {
+		t.Fatal("source-address: got nil, want 192.168.1.100")
+	}
+	if cfg.SourceAddress.String() != "192.168.1.100" {
+		t.Errorf("source-address: got %q, want %q", cfg.SourceAddress, "192.168.1.100")
+	}
+}
+
+func TestParseConfigBadSourceAddress(t *testing.T) {
+	tree := map[string]any{
+		"auth": map[string]any{
+			"radius": map[string]any{
+				"source-address": "not-an-ip",
+				"server": []any{
+					map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+				},
+			},
+		},
+	}
+
+	_, err := parseConfigFromTree(tree)
+	if err == nil {
+		t.Fatal("expected error for invalid source-address")
+	}
+}
+
+func TestParseConfigIPv6SourceAddress(t *testing.T) {
+	tree := map[string]any{
+		"auth": map[string]any{
+			"radius": map[string]any{
+				"source-address": "::1",
+				"server": []any{
+					map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+				},
+			},
+		},
+	}
+
+	_, err := parseConfigFromTree(tree)
+	if err == nil {
+		t.Fatal("expected error for IPv6 source-address")
+	}
+}
+
+func TestParseConfigNoSourceAddress(t *testing.T) {
+	tree := map[string]any{
+		"auth": map[string]any{
+			"radius": map[string]any{
+				"server": []any{
+					map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+				},
+			},
+		},
+	}
+
+	cfg, err := parseConfigFromTree(tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SourceAddress != nil {
+		t.Errorf("source-address: got %v, want nil", cfg.SourceAddress)
+	}
+}
+
 func TestParseConfigMultipleServers(t *testing.T) {
 	tree := map[string]any{
 		"auth": map[string]any{

@@ -121,10 +121,11 @@ func runPlugin(conn net.Conn) int {
 			return nil
 		}
 		client, err := radius.NewClient(radius.ClientConfig{
-			Servers: pending.Servers,
-			Timeout: pending.Timeout,
-			Retries: pending.Retries,
-			Logger:  logger(),
+			Servers:       pending.Servers,
+			Timeout:       pending.Timeout,
+			Retries:       pending.Retries,
+			SourceAddress: pending.SourceAddress,
+			Logger:        logger(),
 		})
 		if err != nil {
 			return fmt.Errorf("%s: create client: %w", Name, err)
@@ -133,8 +134,8 @@ func runPlugin(conn net.Conn) int {
 		if len(pending.Servers) > 0 {
 			primaryAddr = pending.Servers[0].Address
 		}
-		oldClient := authInstance.swapClient(client, pending.NASIdentifier, primaryAddr)
-		acctInstance.setClient(client, pending.NASIdentifier, pending.AcctInterval, primaryAddr)
+		oldClient := authInstance.swapClient(client, pending.NASIdentifier, primaryAddr, pending.SourceAddress)
+		acctInstance.setClient(client, pending.NASIdentifier, pending.AcctInterval, primaryAddr, pending.SourceAddress)
 		if oldClient != nil {
 			oldClient.Close() //nolint:errcheck // best-effort on replaced client
 		}
