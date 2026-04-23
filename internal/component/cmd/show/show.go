@@ -23,11 +23,22 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"codeberg.org/thomas-mangin/ze/internal/core/health"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
 
 func init() {
+	health.Register("l2tp", func() (health.Status, string) {
+		if l2tp.LookupService() == nil {
+			return health.StatusDegraded, "subsystem not running"
+		}
+		return health.StatusHealthy, ""
+	})
+	health.Register("report-bus", func() (health.Status, string) {
+		return health.StatusHealthy, ""
+	})
+
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:version",
@@ -100,6 +111,10 @@ func init() {
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:capture",
 			Handler:    handleShowCapture,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:health",
+			Handler:    handleShowHealth,
 		},
 	)
 	// ze-show:host-* RPCs are registered from host.go's own init()
@@ -440,6 +455,31 @@ const (
 	capL2TP = "l2tp"
 	capBGP  = "bgp"
 )
+
+func handleShowHealth(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	report := health.Check()
+	components := make([]map[string]any, 0, len(report.Components))
+	for i := range report.Components {
+		c := &report.Components[i]
+		m := map[string]any{
+			"name":   c.Name,
+			"status": string(c.Status),
+		}
+		if c.Reason != "" {
+			m["reason"] = c.Reason
+		}
+		components = append(components, m)
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"status":     string(report.Status),
+			"components": components,
+			"count":      len(components),
+			"checked-at": report.CheckedAt,
+		},
+	}, nil
+}
 
 func handleShowCapture(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	protocol := ""

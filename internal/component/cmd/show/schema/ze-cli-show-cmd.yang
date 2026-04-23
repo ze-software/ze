@@ -133,6 +133,12 @@ module ze-cli-show-cmd {
             description "Show BGP peer health sorted by state and activity";
         }
 
+        container health {
+            config false;
+            ze:command "ze-show:health";
+            description "Show aggregated component health status";
+        }
+
         container metrics-query {
             config false;
             ze:command "ze-show:metrics-query";

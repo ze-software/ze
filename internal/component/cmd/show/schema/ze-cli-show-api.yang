@@ -16,4 +16,5 @@ module ze-cli-show-api {
   rpc ping { description "ICMP ping from the router to a destination IP"; }
   rpc route-lookup { description "Longest-prefix-match route lookup for a destination IP"; }
   rpc capture { description "Show captured control messages"; }
+  rpc health { description "Show aggregated component health status"; }
 }

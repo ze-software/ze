@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/health"
 )
 
 // Endpoint is one parsed "address:port" listen entry for the metrics server.
@@ -70,6 +72,9 @@ func (s *Server) Start(registry *PrometheusRegistry, cfg TelemetryConfig) error 
 
 	mux := http.NewServeMux()
 	mux.Handle(path, registry.Handler())
+	if path != "/health" {
+		mux.Handle("/health", health.DefaultRegistry.Handler())
+	}
 
 	s.httpServer = &http.Server{
 		// Addr is informational; multi-listener serving uses Serve(ln).
