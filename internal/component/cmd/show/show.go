@@ -61,6 +61,14 @@ func init() {
 			WireMethod: "ze-show:traffic",
 			Handler:    handleShowTraffic,
 		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:event-recent",
+			Handler:    handleShowEventRecent,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:event-namespaces",
+			Handler:    handleShowEventNamespaces,
+		},
 	)
 	// ze-show:host-* RPCs are registered from host.go's own init()
 	// via a loop over host.SectionNames(). See rules/derive-not-hardcode.md.
@@ -105,6 +113,15 @@ func handleShowErrors(_ *pluginserver.CommandContext, args []string) (*plugin.Re
 func extractSourceFilter(args []string) string {
 	for i, a := range args {
 		if a == "source" && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	return ""
+}
+
+func extractNamespaceFilter(args []string) string {
+	for i, a := range args {
+		if a == "namespace" && i+1 < len(args) {
 			return args[i+1]
 		}
 	}
@@ -191,6 +208,58 @@ func handleShowTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.R
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data:   map[string]any{"interfaces": rows, "count": len(rows)},
+	}, nil
+}
+
+func handleShowEventRecent(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if ctx == nil || ctx.Server == nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: "event ring not available"}, nil
+	}
+	ring := ctx.Server.EventRing()
+	if ring == nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: "event ring not available"}, nil
+	}
+	namespace := extractNamespaceFilter(args)
+	limit := extractCountFilter(args)
+	records := ring.Snapshot(limit, namespace)
+	out := make([]map[string]any, 0, len(records))
+	for i := range records {
+		out = append(out, map[string]any{
+			"timestamp":  records[i].Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			"namespace":  records[i].Namespace,
+			"event-type": records[i].EventType,
+		})
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   map[string]any{"events": out, "count": len(out)},
+	}, nil
+}
+
+func handleShowEventNamespaces(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if ctx == nil || ctx.Server == nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: "event ring not available"}, nil
+	}
+	ring := ctx.Server.EventRing()
+	if ring == nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: "event ring not available"}, nil
+	}
+	counts := ring.NamespaceCounts()
+	rows := make([]map[string]any, 0, len(counts))
+	for ns, count := range counts {
+		rows = append(rows, map[string]any{
+			"namespace": ns,
+			"count":     count,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		ni, _ := rows[i]["namespace"].(string)
+		nj, _ := rows[j]["namespace"].(string)
+		return ni < nj
+	})
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   map[string]any{"namespaces": rows, "count": len(rows)},
 	}, nil
 }
 

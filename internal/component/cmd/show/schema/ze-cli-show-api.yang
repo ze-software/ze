@@ -8,4 +8,6 @@ module ze-cli-show-api {
   rpc bgp-peer { description "Show peer(s) details"; }
   rpc bgp-warnings { description "Show active prefix warnings (stale data, threshold exceeded)"; }
   rpc traffic { description "Show traffic control state per interface"; }
+  rpc event-recent { description "Show recent events from global event ring"; }
+  rpc event-namespaces { description "Show registered event namespaces with counts"; }
 }

@@ -76,6 +76,8 @@ type Server struct {
 	registry      *plugin.PluginRegistry     // Command/capability registry
 	capInjector   *plugin.CapabilityInjector // Capability injection for OPEN
 
+	eventRing *EventRing // Global event history ring (diag-2)
+
 	running atomic.Bool
 
 	loadedPlugins   map[string]bool // tracks all plugins loaded across startup phases
@@ -156,6 +158,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		monitors:          NewMonitorManager(),
 		registry:          plugin.NewPluginRegistry(),
 		capInjector:       plugin.NewCapabilityInjector(),
+		eventRing:         NewEventRing(defaultEventRingCapacity),
 		startupDone:       make(chan struct{}),
 		loadedPlugins:     make(map[string]bool),
 	}
@@ -331,6 +334,11 @@ func (s *Server) Monitors() *MonitorManager {
 // Used by BGP hook implementations to iterate plugin processes.
 func (s *Server) ProcessManager() *process.ProcessManager {
 	return s.procManager.Load()
+}
+
+// EventRing returns the global event history ring for CLI queries.
+func (s *Server) EventRing() *EventRing {
+	return s.eventRing
 }
 
 // SetProcessSpawner sets the PluginManager as the process spawner.

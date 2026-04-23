@@ -298,6 +298,8 @@ func (p *Peer) runOnce() error {
 		addr := p.settings.Address.String()
 		peerLogger().Debug("FSM transition", "peer", addr, "from", from.String(), "to", to.String())
 
+		transitionReason := from.String() + " -> " + to.String()
+
 		if to == fsm.StateEstablished {
 			// Pre-compute negotiated capabilities for O(1) access during route sending
 			neg := session.Negotiated()
@@ -346,6 +348,7 @@ func (p *Peer) runOnce() error {
 			// Send static routes from config (one-time per-session lifecycle goroutine).
 			peerLogger().Debug("spawning sendInitialRoutes", "peer", addr)
 			go p.sendInitialRoutes() //nolint:goroutine-lifecycle // per-session lifecycle, not per-event
+			transitionReason = "established"
 		} else if from == fsm.StateEstablished {
 			// Release any BFD session opened on Established. Runs
 			// before clearEncodingContexts so the subscriber
@@ -380,7 +383,15 @@ func (p *Peer) runOnce() error {
 			p.clearEncodingContexts()
 			p.setState(PeerStateConnecting)
 			peerLogger().Info("session closed", "peer", addr, "reason", reason)
+			transitionReason = reason
 		}
+
+		p.history.append(FSMTransition{
+			Timestamp: p.clock.Now(),
+			From:      from.String(),
+			To:        to.String(),
+			Reason:    transitionReason,
+		})
 	})
 
 	// Set up per-peer async delivery channel for received UPDATEs.

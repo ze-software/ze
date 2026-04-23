@@ -181,6 +181,7 @@ type Peer struct {
 	state           atomic.Int32
 	callback        PeerCallback
 	messageCallback MessageCallback // Called when any BGP message is received
+	history         *fsmHistory
 
 	// Per-peer async delivery channel for received UPDATEs.
 	// Created in runOnce() before session.Run(), closed after session exits.
@@ -285,6 +286,7 @@ func NewPeer(settings *PeerSettings) *Peer {
 		sourceID:      source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),
 		inboundNotify: make(chan struct{}, 1),
 		addrString:    settings.Address.String(),
+		history:       newFSMHistory(),
 	}
 
 	return p

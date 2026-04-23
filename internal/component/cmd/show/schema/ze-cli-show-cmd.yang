@@ -115,6 +115,23 @@ module ze-cli-show-cmd {
             description "Show traffic control (qdisc/class/filter) state per interface";
         }
 
+        container event {
+            config false;
+            description "Event history";
+
+            container recent {
+                config false;
+                ze:command "ze-show:event-recent";
+                description "Show recent events from the global event ring (newest first)";
+            }
+
+            container namespaces {
+                config false;
+                ze:command "ze-show:event-namespaces";
+                description "Show registered event namespaces with event counts";
+            }
+        }
+
         container bgp {
             config false;
             description "BGP introspection";
@@ -123,6 +140,12 @@ module ze-cli-show-cmd {
                 config false;
                 ze:command "ze-show:bgp-peer";
                 description "Show peer(s) details";
+            }
+
+            container peer-history {
+                config false;
+                ze:command "ze-bgp:peer-history";
+                description "Show FSM transition history for a peer";
             }
 
             container decode {

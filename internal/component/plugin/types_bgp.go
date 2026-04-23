@@ -142,6 +142,21 @@ type ReactorIntrospector interface {
 	GetPeerCapabilityConfigs() []PeerCapabilityConfig
 }
 
+// FSMTransitionRecord is one peer FSM state change for diagnostic display.
+type FSMTransitionRecord struct {
+	Timestamp time.Time
+	From      string
+	To        string
+	Reason    string
+}
+
+// FSMHistoryProvider is an optional interface for reactors that track
+// per-peer FSM transition history. Handlers type-assert to this to
+// avoid widening ReactorLifecycle.
+type FSMHistoryProvider interface {
+	PeerFSMHistory(addr string) []FSMTransitionRecord
+}
+
 // ReactorPeerController manages BGP peer lifecycle: shutdown, teardown,
 // flow control, and dynamic peer add/remove.
 type ReactorPeerController interface {

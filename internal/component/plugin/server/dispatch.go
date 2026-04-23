@@ -382,6 +382,10 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 		return 0, &rpc.RPCCallError{Message: "unknown event: " + namespace + "/" + eventType}
 	}
 
+	if s.eventRing != nil {
+		s.eventRing.Append(namespace, eventType)
+	}
+
 	// Convert strings to typed IDs once; all internal matching uses integers.
 	nsID := events.LookupNamespaceID(namespace)
 	etID := events.LookupEventTypeID(eventType)

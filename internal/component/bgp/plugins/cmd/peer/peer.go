@@ -29,6 +29,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-flush", Handler: handleBgpPeerFlush, RequiresSelector: true},
 		// CLI verb RPCs (moved from cmd/show, cmd/del, cmd/set, cmd/update).
 		pluginserver.RPCRegistration{WireMethod: "ze-show:bgp-peer", Handler: HandleBgpPeerDetail, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-history", Handler: handlePeerHistory, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-del:bgp-peer", Handler: HandleBgpPeerRemove, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-set:bgp-peer-with", Handler: HandleBgpPeerWith, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-set:bgp-peer-save", Handler: HandleBgpPeerSave, RequiresSelector: true},
@@ -533,4 +534,46 @@ func parseRouterID(s string) (uint32, error) {
 		return 0, fmt.Errorf("router-id out of range: %s", s)
 	}
 	return uint32(n), nil
+}
+
+func handlePeerHistory(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	peers, errResp, err := filterPeersBySelector(ctx)
+	if err != nil {
+		return errResp, nil //nolint:nilerr // operational error in Response
+	}
+	if len(peers) == 0 {
+		return &plugin.Response{Status: plugin.StatusError, Data: "peer not found"}, nil
+	}
+	hp, ok := ctx.Reactor().(plugin.FSMHistoryProvider)
+	if !ok || hp == nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: "FSM history not available"}, nil
+	}
+	addr := peers[0].Address.String()
+	transitions := hp.PeerFSMHistory(addr)
+	if transitions == nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("no history for peer %s", addr)}, nil
+	}
+	out := make([]map[string]any, 0, len(transitions))
+	for i := range transitions {
+		t := &transitions[i]
+		m := map[string]any{
+			"from": t.From,
+			"to":   t.To,
+		}
+		if !t.Timestamp.IsZero() {
+			m["timestamp"] = t.Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00")
+		}
+		if t.Reason != "" {
+			m["reason"] = t.Reason
+		}
+		out = append(out, m)
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"peer":        addr,
+			"transitions": out,
+			"count":       len(out),
+		},
+	}, nil
 }

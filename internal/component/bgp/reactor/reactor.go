@@ -691,6 +691,29 @@ func (r *Reactor) Peers() []*Peer {
 	return peers
 }
 
+// PeerFSMHistory returns the FSM transition history for a peer by address.
+// Returns nil when the peer is not found. Satisfies plugin.FSMHistoryProvider.
+func (r *Reactor) PeerFSMHistory(addr string) []plugin.FSMTransitionRecord {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, p := range r.peers {
+		if p.addrString == addr {
+			internal := p.FSMHistory()
+			out := make([]plugin.FSMTransitionRecord, len(internal))
+			for i, t := range internal {
+				out[i] = plugin.FSMTransitionRecord{
+					Timestamp: t.Timestamp,
+					From:      t.From,
+					To:        t.To,
+					Reason:    t.Reason,
+				}
+			}
+			return out
+		}
+	}
+	return nil
+}
+
 // PluginNames returns the names of all configured plugins.
 func (r *Reactor) PluginNames() []string {
 	names := make([]string, len(r.config.Plugins))
