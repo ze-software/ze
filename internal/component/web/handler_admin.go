@@ -198,7 +198,7 @@ func buildAdminFragmentData(path []string, children map[string][]string) *Fragme
 		CLIPrompt:       formatCLIPrompt(nil),
 		CLIContextPath:  "",
 		CLIPathSegments: nil,
-		GokrazyEnabled:  gokrazyFlag.Load(),
+		Services:        PortalServices(),
 	}
 
 	// Leaf command: show form in detail panel.

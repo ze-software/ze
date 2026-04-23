@@ -16,7 +16,6 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
-	"sync/atomic"
 )
 
 //go:embed templates
@@ -44,24 +43,13 @@ type LayoutData struct {
 	HasSession       bool
 	Username         string
 	Insecure         bool
-	GokrazyEnabled   bool
+	Services         []PortalService
 }
 
 // LoginData holds the data passed to the login template.
 type LoginData struct {
 	Error   string
 	Overlay bool
-}
-
-// gokrazyFlag is set by SetGokrazyEnabled and read by RenderLayout.
-// Atomic because the write happens during startup and reads happen on
-// HTTP request goroutines.
-var gokrazyFlag atomic.Bool
-
-// SetGokrazyEnabled marks that the gokrazy proxy is active so the web
-// UI can show a link to the gokrazy management page.
-func SetGokrazyEnabled() {
-	gokrazyFlag.Store(true)
 }
 
 // Renderer loads and renders HTML templates from embedded files.
@@ -318,7 +306,7 @@ func (r *Renderer) RenderConfigToHTML(name string, data any) template.HTML {
 // RenderLayout renders the layout template with the given data to the response writer.
 // Renders to a buffer first to avoid partial writes on template errors.
 func (r *Renderer) RenderLayout(w http.ResponseWriter, data LayoutData) error {
-	data.GokrazyEnabled = gokrazyFlag.Load()
+	data.Services = PortalServices()
 	var buf bytes.Buffer
 	if err := r.layout.Execute(&buf, data); err != nil {
 		return fmt.Errorf("render layout: %w", err)

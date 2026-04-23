@@ -161,10 +161,8 @@ type FragmentData struct {
 	Username string
 	// Insecure is true when --insecure-web mode is active.
 	Insecure bool
-	// GokrazyEnabled is true when the gokrazy proxy is active; mirrors LayoutData
-	// so the shared breadcrumb template can render the gokrazy link in both
-	// full-page and HTMX partial responses.
-	GokrazyEnabled bool
+	// Services lists portal-embeddable services for the breadcrumb menu.
+	Services []PortalService
 	// Monitor is true when the view is auto-refreshing (/monitor/ URL).
 	Monitor bool
 	// ContextHeading shows the current named node context (e.g., "Peer thomas").
@@ -225,7 +223,7 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 		renderer.ResolveDecorations(data.Fields)
 		data.Username = username
 		data.Insecure = insecure
-		data.GokrazyEnabled = gokrazyFlag.Load()
+		data.Services = PortalServices()
 		data.Monitor = strings.HasPrefix(r.URL.Path, "/monitor/")
 
 		// HTMX partial request: render OOB response via template.

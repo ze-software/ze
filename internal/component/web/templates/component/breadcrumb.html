@@ -16,6 +16,12 @@
   <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" data-action="toggle-theme">&#9681;</button>
   <button class="view-toggle" id="view-toggle" title="Switch to text/CLI view"
           hx-post="/cli/mode" hx-vals='{"mode":"terminal"}' hx-target=".content-area" hx-swap="innerHTML">CLI</button>
-  {{if .GokrazyEnabled}}<a class="gokrazy-link" href="/gokrazy/" title="Gokrazy management"><img class="gokrazy-logo" src="/gokrazy/assets/gokrazy-logo.svg" alt="Gokrazy" width="20" height="20"></a>{{end}}
+  {{if .Services}}<div class="portal-menu">
+    <button class="portal-toggle" title="Services">&#9776;</button>
+    <div class="portal-dropdown">
+      {{range .Services}}<a class="portal-item" href="/portal/{{.Key}}" title="{{.Title}}">{{if .Icon}}<img src="{{.Icon}}" alt="" width="16" height="16"> {{end}}{{.Title}}</a>
+      {{end}}
+    </div>
+  </div>{{end}}
 </div>
 {{end}}

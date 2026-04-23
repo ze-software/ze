@@ -72,6 +72,7 @@ var knownPrefixes = map[string]bool{
 	"monitor": true,
 	"config":  true,
 	"admin":   true,
+	"portal":  true,
 	"login":   true,
 	"assets":  true,
 }
@@ -126,6 +127,9 @@ func ParseURL(r *http.Request) (ParsedURL, error) {
 			return ParsedURL{}, err
 		}
 		return ParsedURL{Tier: TierAdmin, Verb: "admin", Path: segments, Format: format}, nil
+
+	case "portal":
+		return ParsedURL{Tier: TierView, Verb: "portal", Path: segments, Format: format}, nil
 
 	case "login":
 		return ParsedURL{Verb: "login", Format: format}, nil

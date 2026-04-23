@@ -48,6 +48,7 @@ import (
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/health"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/reboot"
@@ -417,6 +418,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			fmt.Fprintf(os.Stderr, "error: register l2tp subsystem: %v\n", regErr)
 			return 1
 		}
+		zeweb.RegisterPortalService(zeweb.PortalService{Key: "l2tp", Title: "L2TP Sessions", Path: "/l2tp"})
 	}
 
 	startCtx := context.Background()
@@ -1121,10 +1123,17 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	srv.Handle("GET /l2tp/{login}/samples.csv", authWrap(zeweb.HandleL2TPSamplesCSV()))
 	srv.Handle("GET /l2tp/{login}/samples/stream", authWrap(zeweb.HandleL2TPSamplesSSE()))
 
+	// Portal: iframe wrapper for embedded services.
+	zeweb.RegisterPortalService(zeweb.PortalService{Key: "health", Title: "Health", Path: "/health"})
 	if env.IsEnabled("ze.gokrazy.enabled") {
 		srv.Handle("/gokrazy/", authWrap(zegokrazy.Handler(env.Get("ze.gokrazy.socket"))))
-		zeweb.SetGokrazyEnabled()
+		zeweb.RegisterPortalService(zeweb.PortalService{
+			Key: "gokrazy", Title: "Gokrazy", Path: "/gokrazy/",
+			Icon: "/gokrazy/assets/gokrazy-logo.svg",
+		})
 	}
+	srv.Handle("/portal/", authWrap(zeweb.HandlePortal(renderer)))
+	srv.Handle("GET /health", authWrap(health.DefaultRegistry.Handler()))
 	srv.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			http.Redirect(w, r, "/show/", http.StatusFound)
