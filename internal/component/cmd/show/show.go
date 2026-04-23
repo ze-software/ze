@@ -97,6 +97,10 @@ func init() {
 			WireMethod: "ze-show:route-lookup",
 			Handler:    handleRouteLookup,
 		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:capture",
+			Handler:    handleShowCapture,
+		},
 	)
 	// ze-show:host-* RPCs are registered from host.go's own init()
 	// via a loop over host.SectionNames(). See rules/derive-not-hardcode.md.
@@ -430,6 +434,75 @@ func handleShowEventNamespaces(ctx *pluginserver.CommandContext, _ []string) (*p
 		Status: plugin.StatusDone,
 		Data:   map[string]any{"namespaces": rows, "count": len(rows)},
 	}, nil
+}
+
+const (
+	capL2TP = "l2tp"
+	capBGP  = "bgp"
+)
+
+func handleShowCapture(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	protocol := ""
+	tunnelIDFilter := uint16(0)
+	peerFilter := ""
+	limit := 0
+	for i, a := range args {
+		switch a {
+		case capL2TP, capBGP:
+			protocol = a
+		case "tunnel-id":
+			if i+1 < len(args) {
+				if n, err := strconv.ParseUint(args[i+1], 10, 16); err == nil {
+					tunnelIDFilter = uint16(n)
+				}
+			}
+		case "peer":
+			if i+1 < len(args) {
+				peerFilter = args[i+1]
+			}
+		case "count":
+			if i+1 < len(args) {
+				if n, err := strconv.Atoi(args[i+1]); err == nil && n > 0 {
+					limit = n
+				}
+			}
+		}
+	}
+
+	result := map[string]any{}
+
+	if protocol == "" || protocol == capL2TP {
+		svc := l2tp.LookupService()
+		if svc != nil {
+			entries := svc.CaptureSnapshot(limit, tunnelIDFilter, peerFilter)
+			if entries != nil {
+				result["l2tp"] = entries
+				result["l2tp-count"] = len(entries)
+			} else {
+				result["l2tp"] = "capture not enabled"
+			}
+		} else if protocol == capL2TP {
+			result["l2tp"] = "subsystem not running"
+		}
+	}
+
+	if protocol == "" || protocol == capBGP {
+		if ctx != nil && ctx.Reactor() != nil {
+			if cp, ok := ctx.Reactor().(plugin.BGPCaptureProvider); ok {
+				entries := cp.BGPCaptureSnapshot(limit, peerFilter)
+				if entries != nil {
+					result["bgp"] = entries
+					result["bgp-count"] = len(entries)
+				} else {
+					result["bgp"] = "capture not enabled"
+				}
+			}
+		} else if protocol == capBGP {
+			result["bgp"] = "reactor not available"
+		}
+	}
+
+	return &plugin.Response{Status: plugin.StatusDone, Data: result}, nil
 }
 
 // handleShowVersion returns the ze version and build date.

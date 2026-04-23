@@ -220,6 +220,16 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	} else {
 		peerInfo = plugin.PeerInfo{Address: peerAddr}
 	}
+
+	if r.capture != nil {
+		var errCode, errSub uint8
+		if msgType == message.TypeNOTIFICATION && len(rawBytes) >= 2 {
+			errCode = rawBytes[0]
+			errSub = rawBytes[1]
+		}
+		r.capture.Append(direction == rpc.DirectionSent, peerAddr, msgType, len(rawBytes), errCode, errSub)
+	}
+
 	r.mu.RUnlock()
 
 	if receiver == nil {

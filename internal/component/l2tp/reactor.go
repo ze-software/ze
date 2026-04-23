@@ -166,6 +166,9 @@ type L2TPReactor struct {
 	// Set by subsystem via SetEventBus before Start.
 	eventBus ze.EventBus
 
+	// diag-4: control packet capture ring.
+	capture *CaptureRing
+
 	mu      sync.Mutex
 	stop    chan struct{}
 	wg      sync.WaitGroup
@@ -197,6 +200,22 @@ func NewL2TPReactor(listener *UDPListener, logger *slog.Logger, params ReactorPa
 		tickCh:           make(chan tickReq, 1),
 		updateCh:         make(chan heapUpdate, 16),
 	}
+}
+
+// EnableCapture allocates the capture ring. Called when YANG
+// diagnostics.capture is true. No-op if already enabled.
+func (r *L2TPReactor) EnableCapture() {
+	if r.capture == nil {
+		r.capture = NewCaptureRing()
+	}
+}
+
+// CaptureSnapshot returns captured control messages. Nil-safe.
+func (r *L2TPReactor) CaptureSnapshot(limit int, tunnelID uint16, peer string) []CaptureEntry {
+	if r.capture == nil {
+		return nil
+	}
+	return r.capture.Snapshot(limit, tunnelID, peer)
 }
 
 // Start launches the reactor goroutine. Returns an error if already started.
@@ -318,6 +337,10 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 	}
 	payload := pkt.bytes[hdr.PayloadOff:int(hdr.Length)]
 
+	if r.capture != nil {
+		r.capture.AppendInbound(hdr.TunnelID, hdr.SessionID, extractMsgType(payload), pkt.from, int(hdr.Length), 0)
+	}
+
 	// For TunnelID=0 (expected to be SCCRQ) parse the full AVP body
 	// BEFORE grabbing tunnelsMu. A malformed body is rejected here,
 	// without allocating a tunnel entry or consuming a local TID.
@@ -405,6 +428,9 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 	r.enqueueKernelEvents(setupEvents, teardownEvents)
 
 	for _, req := range outbound {
+		if r.capture != nil && len(req.bytes) > 12 {
+			r.capture.AppendOutbound(localTID, 0, extractMsgType(req.bytes[12:]), req.to, len(req.bytes))
+		}
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
 			r.logger.Warn("l2tp: outbound send failed",
 				"to", req.to.String(), "len", len(req.bytes), "error", err.Error())

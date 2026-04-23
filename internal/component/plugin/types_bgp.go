@@ -157,6 +157,23 @@ type FSMHistoryProvider interface {
 	PeerFSMHistory(addr string) []FSMTransitionRecord
 }
 
+// BGPCaptureRecord is one BGP message for diagnostic display.
+type BGPCaptureRecord struct {
+	Timestamp string `json:"timestamp"`
+	Direction string `json:"direction"`
+	PeerAddr  string `json:"peer-addr"`
+	MsgType   string `json:"msg-type"`
+	ByteCount int    `json:"byte-count"`
+	ErrorCode int    `json:"error-code,omitempty"`
+	ErrorSub  int    `json:"error-sub,omitempty"`
+}
+
+// BGPCaptureProvider is an optional interface for reactors that capture
+// BGP messages. Handlers type-assert to this.
+type BGPCaptureProvider interface {
+	BGPCaptureSnapshot(limit int, peer string) []BGPCaptureRecord
+}
+
 // ReactorPeerController manages BGP peer lifecycle: shutdown, teardown,
 // flow control, and dynamic peer add/remove.
 type ReactorPeerController interface {

@@ -35,6 +35,7 @@ type Service interface {
 	ReliableStats(localTID uint16) *ReliableStats
 	TunnelFSMHistory(localTID uint16) []FSMTransition
 	SessionFSMHistory(localSID uint16) []FSMTransition
+	CaptureSnapshot(limit int, tunnelID uint16, peer string) []CaptureEntry
 	RecordDisconnect(sessionID uint16, actor, reason string, cause uint32)
 }
 

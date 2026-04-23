@@ -303,6 +303,31 @@ func (s *Subsystem) SessionFSMHistory(localSID uint16) []FSMTransition {
 	return nil
 }
 
+// CaptureSnapshot returns captured L2TP control messages.
+func (s *Subsystem) CaptureSnapshot(limit int, tunnelID uint16, peer string) []CaptureEntry {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.started {
+		return nil
+	}
+	for _, r := range s.reactors {
+		snap := r.CaptureSnapshot(limit, tunnelID, peer)
+		if snap != nil {
+			return snap
+		}
+	}
+	return nil
+}
+
+// EnableCapture enables packet capture on all reactors.
+func (s *Subsystem) EnableCapture() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, r := range s.reactors {
+		r.EnableCapture()
+	}
+}
+
 // RecordDisconnect records a disconnect-requested event on the per-session
 // event ring. No-op when the observer is not enabled.
 func (s *Subsystem) RecordDisconnect(sessionID uint16, actor, reason string, cause uint32) {

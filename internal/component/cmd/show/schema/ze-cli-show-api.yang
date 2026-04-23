@@ -15,4 +15,5 @@ module ze-cli-show-api {
   rpc metrics-query { description "Query Prometheus metrics by name and label filter"; }
   rpc ping { description "ICMP ping from the router to a destination IP"; }
   rpc route-lookup { description "Longest-prefix-match route lookup for a destination IP"; }
+  rpc capture { description "Show captured control messages"; }
 }

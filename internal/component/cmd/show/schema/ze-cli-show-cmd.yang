@@ -139,6 +139,12 @@ module ze-cli-show-cmd {
             description "Query Prometheus metrics by name with optional label filter";
         }
 
+        container capture {
+            config false;
+            ze:command "ze-show:capture";
+            description "Show captured control messages (l2tp [tunnel-id N] [count N] [peer X])";
+        }
+
         container event {
             config false;
             description "Event history";

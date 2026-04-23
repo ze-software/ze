@@ -257,6 +257,8 @@ type Reactor struct {
 	peerObservers []PeerLifecycleObserver
 	observersMu   sync.RWMutex
 
+	capture *BGPCaptureRing
+
 	running   bool
 	startTime time.Time
 
@@ -689,6 +691,46 @@ func (r *Reactor) Peers() []*Peer {
 		peers = append(peers, p)
 	}
 	return peers
+}
+
+// EnableCapture allocates the BGP capture ring.
+func (r *Reactor) EnableCapture() {
+	if r.capture == nil {
+		r.capture = NewBGPCaptureRing()
+	}
+}
+
+// CaptureSnapshot returns captured BGP messages. Nil-safe.
+func (r *Reactor) CaptureSnapshot(limit int, peer netip.Addr) []BGPCaptureEntry {
+	if r.capture == nil {
+		return nil
+	}
+	return r.capture.Snapshot(limit, peer)
+}
+
+// BGPCaptureSnapshot satisfies plugin.BGPCaptureProvider.
+func (r *Reactor) BGPCaptureSnapshot(limit int, peer string) []plugin.BGPCaptureRecord {
+	if r.capture == nil {
+		return nil
+	}
+	var peerAddr netip.Addr
+	if peer != "" {
+		peerAddr, _ = netip.ParseAddr(peer)
+	}
+	internal := r.capture.Snapshot(limit, peerAddr)
+	out := make([]plugin.BGPCaptureRecord, len(internal))
+	for i, e := range internal {
+		out[i] = plugin.BGPCaptureRecord{
+			Timestamp: e.Timestamp,
+			Direction: e.Direction,
+			PeerAddr:  e.PeerAddr,
+			MsgType:   e.MsgType,
+			ByteCount: e.ByteCount,
+			ErrorCode: e.ErrorCode,
+			ErrorSub:  e.ErrorSub,
+		}
+	}
+	return out
 }
 
 // PeerFSMHistory returns the FSM transition history for a peer by address.
