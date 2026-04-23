@@ -93,6 +93,8 @@ type L2TPTunnel struct {
 	// snapshot to report uptime. Immutable after newTunnel.
 	createdAt time.Time
 
+	fsmHistory *fsmHistoryRing
+
 	// sessions maps our locally-assigned Session ID to the session state.
 	// Nil until the first session is created. Keyed by local SID (the ID
 	// in the header of inbound session-scoped messages).
@@ -117,13 +119,27 @@ func newTunnel(localTID, remoteTID uint16, peer netip.AddrPort, cfg ReliableConf
 	cfg.LocalTunnelID = localTID
 	cfg.PeerTunnelID = remoteTID
 	return &L2TPTunnel{
-		localTID:  localTID,
-		remoteTID: remoteTID,
-		peerAddr:  peer,
-		state:     L2TPTunnelIdle,
-		engine:    NewReliableEngine(cfg),
-		logger:    logger.With("local-tid", localTID, "peer", peer.String()),
-		createdAt: now,
+		localTID:   localTID,
+		remoteTID:  remoteTID,
+		peerAddr:   peer,
+		state:      L2TPTunnelIdle,
+		engine:     NewReliableEngine(cfg),
+		logger:     logger.With("local-tid", localTID, "peer", peer.String()),
+		createdAt:  now,
+		fsmHistory: newFSMHistoryRing(),
+	}
+}
+
+func (t *L2TPTunnel) transition(to L2TPTunnelState, trigger string) {
+	from := t.state
+	t.state = to
+	if t.fsmHistory != nil {
+		t.fsmHistory.append(FSMTransition{
+			Timestamp: time.Now(),
+			From:      from.String(),
+			To:        to.String(),
+			Trigger:   trigger,
+		})
 	}
 }
 

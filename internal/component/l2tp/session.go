@@ -120,10 +120,25 @@ type L2TPSession struct {
 	// Set by handleKernelSuccess when the PPP session is started.
 	// Used by SessionUp EventBus event so the shaper can apply TC.
 	pppInterface string
+
+	fsmHistory *fsmHistoryRing
 }
 
 // State returns the session's current FSM state.
 func (s *L2TPSession) State() L2TPSessionState { return s.state }
+
+func (s *L2TPSession) transition(to L2TPSessionState, trigger string) {
+	from := s.state
+	s.state = to
+	if s.fsmHistory != nil {
+		s.fsmHistory.append(FSMTransition{
+			Timestamp: time.Now(),
+			From:      from.String(),
+			To:        to.String(),
+			Trigger:   trigger,
+		})
+	}
+}
 
 // LocalSID returns the session ID we assigned. Immutable after creation.
 func (s *L2TPSession) LocalSID() uint16 { return s.localSID }

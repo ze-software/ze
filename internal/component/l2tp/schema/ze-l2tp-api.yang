@@ -198,6 +198,42 @@ module ze-l2tp-api {
         }
     }
 
+    rpc tunnel-history {
+        description
+            "Return FSM transition history for a tunnel.";
+        input {
+            leaf tunnel-id {
+                type uint16;
+                mandatory true;
+                description "Local tunnel ID (1..65535).";
+            }
+        }
+        output {
+            leaf history {
+                type string;
+                description "JSON array of FSM transitions.";
+            }
+        }
+    }
+
+    rpc session-history {
+        description
+            "Return FSM transition history for a session.";
+        input {
+            leaf session-id {
+                type uint16;
+                mandatory true;
+                description "Local session ID (1..65535).";
+            }
+        }
+        output {
+            leaf history {
+                type string;
+                description "JSON array of FSM transitions.";
+            }
+        }
+    }
+
     // -----------------------------------------------------------------
     // Destructive operations. All send either StopCCN (tunnel) or CDN
     // (session) with administrative Result Code and return a status

@@ -237,6 +237,37 @@ func (r *L2TPReactor) ReliableStats(localTID uint16) *ReliableStats {
 	return &stats
 }
 
+// TunnelFSMHistory returns the FSM transition history for a tunnel.
+// Returns nil when the tunnel does not exist.
+func (r *L2TPReactor) TunnelFSMHistory(localTID uint16) []FSMTransition {
+	r.tunnelsMu.Lock()
+	defer r.tunnelsMu.Unlock()
+	t, ok := r.tunnelsByLocalID[localTID]
+	if !ok {
+		return nil
+	}
+	if t.fsmHistory == nil {
+		return []FSMTransition{}
+	}
+	return t.fsmHistory.snapshot()
+}
+
+// SessionFSMHistory returns the FSM transition history for a session.
+// Returns nil when the session does not exist.
+func (r *L2TPReactor) SessionFSMHistory(localSID uint16) []FSMTransition {
+	r.tunnelsMu.Lock()
+	defer r.tunnelsMu.Unlock()
+	for _, t := range r.tunnelsByLocalID {
+		if sess, ok := t.sessions[localSID]; ok {
+			if sess.fsmHistory == nil {
+				return []FSMTransition{}
+			}
+			return sess.fsmHistory.snapshot()
+		}
+	}
+	return nil
+}
+
 // FormatFraming renders an RFC 2661 Framing Capabilities bitmap as a
 // human-readable string for CLI output. "-" when zero.
 func FormatFraming(v uint32) string {

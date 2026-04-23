@@ -33,6 +33,8 @@ type Service interface {
 	LoginSummaries() []LoginSummary
 	EchoState(login string) *LoginEchoState
 	ReliableStats(localTID uint16) *ReliableStats
+	TunnelFSMHistory(localTID uint16) []FSMTransition
+	SessionFSMHistory(localSID uint16) []FSMTransition
 	RecordDisconnect(sessionID uint16, actor, reason string, cause uint32)
 }
 

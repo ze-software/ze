@@ -196,7 +196,7 @@ func (t *L2TPTunnel) handleSCCRQ(now time.Time, defaults TunnelDefaults, sccrq *
 		t.logger.Warn("l2tp: SCCRP enqueue failed; tunnel stays idle", "error", err.Error())
 		return nil
 	}
-	t.state = L2TPTunnelWaitCtlConn
+	t.transition(L2TPTunnelWaitCtlConn, "SCCRQ received")
 	t.logger.Info("l2tp: SCCRP sent; tunnel now wait-ctl-conn",
 		"peer-host", strconv.Quote(sccrq.HostName),
 		"peer-tid", t.remoteTID,
@@ -235,7 +235,7 @@ func (t *L2TPTunnel) handleSCCCN(now time.Time, defaults TunnelDefaults, payload
 			return t.teardownStopCCN(now, resultNotAuthorized)
 		}
 	}
-	t.state = L2TPTunnelEstablished
+	t.transition(L2TPTunnelEstablished, "SCCCN received")
 	// Release the challenge now that verification succeeded. No consumer
 	// reads it past established; keeping it would be a 16-byte leak per
 	// tunnel for the tunnel's lifetime.
@@ -267,11 +267,11 @@ func (t *L2TPTunnel) teardownStopCCN(now time.Time, resultCode uint16) []sendReq
 	wire, err := t.engine.Enqueue(0, (*bodyBuf)[:n], now)
 	if err != nil {
 		t.logger.Warn("l2tp: StopCCN enqueue failed", "error", err.Error())
-		t.state = L2TPTunnelClosed
+		t.transition(L2TPTunnelClosed, "StopCCN enqueue failed")
 		t.engine.Close(now)
 		return nil
 	}
-	t.state = L2TPTunnelClosed
+	t.transition(L2TPTunnelClosed, "StopCCN sent")
 	t.engine.Close(now)
 	t.logger.Info("l2tp: StopCCN sent; tunnel closed", "result-code", resultCode)
 	return []sendRequest{{to: t.peerAddr, bytes: wire}}
@@ -565,7 +565,7 @@ func (t *L2TPTunnel) handleStopCCN(now time.Time, payload []byte) []sendRequest 
 	if len(cleared) > 0 {
 		t.logger.Info("l2tp: StopCCN clearing sessions", "count", len(cleared))
 	}
-	t.state = L2TPTunnelClosed
+	t.transition(L2TPTunnelClosed, "StopCCN received")
 	t.engine.Close(now)
 	t.logger.Info("l2tp: peer StopCCN received; tunnel closed",
 		"result", info.Result,

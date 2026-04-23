@@ -273,6 +273,36 @@ func (s *Subsystem) EchoState(login string) *LoginEchoState {
 	return obs.EchoState(login)
 }
 
+// TunnelFSMHistory returns the FSM transition history for a tunnel.
+func (s *Subsystem) TunnelFSMHistory(localTID uint16) []FSMTransition {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.started {
+		return nil
+	}
+	for _, r := range s.reactors {
+		if h := r.TunnelFSMHistory(localTID); h != nil {
+			return h
+		}
+	}
+	return nil
+}
+
+// SessionFSMHistory returns the FSM transition history for a session.
+func (s *Subsystem) SessionFSMHistory(localSID uint16) []FSMTransition {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.started {
+		return nil
+	}
+	for _, r := range s.reactors {
+		if h := r.SessionFSMHistory(localSID); h != nil {
+			return h
+		}
+	}
+	return nil
+}
+
 // RecordDisconnect records a disconnect-requested event on the per-session
 // event ring. No-op when the observer is not enabled.
 func (s *Subsystem) RecordDisconnect(sessionID uint16, actor, reason string, cause uint32) {

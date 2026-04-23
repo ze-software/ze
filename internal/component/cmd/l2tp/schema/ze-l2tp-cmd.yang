@@ -96,6 +96,18 @@ module ze-l2tp-cmd {
                 ze:command "ze-l2tp-api:reliable";
                 description "Show reliable transport window state for a tunnel.";
             }
+
+            container tunnel-history {
+                config false;
+                ze:command "ze-l2tp-api:tunnel-history";
+                description "Show FSM transition history for a tunnel.";
+            }
+
+            container session-history {
+                config false;
+                ze:command "ze-l2tp-api:session-history";
+                description "Show FSM transition history for a session.";
+            }
         }
     }
 

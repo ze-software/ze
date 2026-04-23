@@ -50,6 +50,8 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:cqm", Handler: handleCQM},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:echo", Handler: handleEcho},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:reliable", Handler: handleReliable},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:tunnel-history", Handler: handleTunnelHistory},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:session-history", Handler: handleSessionHistory},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:tunnel-teardown", Handler: handleTunnelTeardown},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:tunnel-teardown-all", Handler: handleTunnelTeardownAll},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:session-teardown", Handler: handleSessionTeardown},
@@ -377,6 +379,61 @@ func firstPositionalArg(args []string) string {
 		}
 	}
 	return ""
+}
+
+// -----------------------------------------------------------------
+// FSM history handlers (spec-diag-2)
+// -----------------------------------------------------------------
+
+func handleTunnelHistory(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	tid, err := parseIDArg(args, "tunnel-id")
+	if err != nil {
+		return errResponse(err), nil
+	}
+	svc := l2tp.LookupService()
+	if svc == nil {
+		return errResponse(errSubsystemUnavailable), nil
+	}
+	history := svc.TunnelFSMHistory(tid)
+	if history == nil {
+		return errResponse(fmt.Errorf("l2tp: no tunnel with local-tid=%d", tid)), nil
+	}
+	return jsonResponse("l2tp tunnel history", fsmTransitionsJSON(history))
+}
+
+func handleSessionHistory(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	sid, err := parseIDArg(args, "session-id")
+	if err != nil {
+		return errResponse(err), nil
+	}
+	svc := l2tp.LookupService()
+	if svc == nil {
+		return errResponse(errSubsystemUnavailable), nil
+	}
+	history := svc.SessionFSMHistory(sid)
+	if history == nil {
+		return errResponse(fmt.Errorf("l2tp: no session with local-sid=%d", sid)), nil
+	}
+	return jsonResponse("l2tp session history", fsmTransitionsJSON(history))
+}
+
+func fsmTransitionsJSON(transitions []l2tp.FSMTransition) map[string]any {
+	out := make([]map[string]any, 0, len(transitions))
+	for i := range transitions {
+		t := &transitions[i]
+		m := map[string]any{
+			"from": t.From,
+			"to":   t.To,
+		}
+		if !t.Timestamp.IsZero() {
+			m["timestamp"] = t.Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00")
+		}
+		if t.Trigger != "" {
+			m["trigger"] = t.Trigger
+		}
+		out = append(out, m)
+	}
+	return map[string]any{"transitions": out, "count": len(out)}
 }
 
 // -----------------------------------------------------------------

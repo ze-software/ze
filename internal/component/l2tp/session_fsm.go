@@ -122,10 +122,11 @@ func (t *L2TPTunnel) handleICRQ(payload []byte, now time.Time, logger *slog.Logg
 	}
 
 	sess := &L2TPSession{
-		localSID:  localSID,
-		remoteSID: info.assignedSessionID,
-		state:     L2TPSessionWaitConnect,
-		createdAt: now,
+		localSID:   localSID,
+		remoteSID:  info.assignedSessionID,
+		state:      L2TPSessionWaitConnect,
+		createdAt:  now,
+		fsmHistory: newFSMHistoryRing(),
 	}
 	t.addSession(sess)
 
@@ -178,7 +179,7 @@ func (t *L2TPTunnel) handleICCN(sess *L2TPSession, payload []byte, now time.Time
 	}
 
 	// AC-2: transition to established. Capture fields for phase 6.
-	sess.state = L2TPSessionEstablished
+	sess.transition(L2TPSessionEstablished, "ICCN received")
 	sess.txConnectSpeed = info.txConnectSpeed
 	sess.rxConnectSpeed = info.rxConnectSpeed
 	sess.framingType = info.framingType
@@ -258,10 +259,11 @@ func (t *L2TPTunnel) handleOCRQ(payload []byte, now time.Time, logger *slog.Logg
 	}
 
 	sess := &L2TPSession{
-		localSID:  localSID,
-		remoteSID: info.assignedSessionID,
-		state:     L2TPSessionWaitCSAnswer,
-		createdAt: now,
+		localSID:   localSID,
+		remoteSID:  info.assignedSessionID,
+		state:      L2TPSessionWaitCSAnswer,
+		createdAt:  now,
+		fsmHistory: newFSMHistoryRing(),
 	}
 	t.addSession(sess)
 
@@ -312,7 +314,7 @@ func (t *L2TPTunnel) handleOCCN(sess *L2TPSession, payload []byte, now time.Time
 		return t.teardownSession(sess, cdnResultGeneralError, now, logger)
 	}
 
-	sess.state = L2TPSessionEstablished
+	sess.transition(L2TPSessionEstablished, "OCCN received")
 	sess.txConnectSpeed = info.txConnectSpeed
 	sess.rxConnectSpeed = info.rxConnectSpeed
 	sess.framingType = info.framingType
