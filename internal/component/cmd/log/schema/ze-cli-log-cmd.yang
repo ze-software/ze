@@ -20,5 +20,11 @@ module ze-cli-log-cmd {
             ze:command "ze-bgp:log-set";
             description "Set subsystem log level at runtime";
         }
+
+        container recent {
+            config false;
+            ze:command "ze-bgp:log-recent";
+            description "Show recent log entries (level <lvl> component <name> count <N>)";
+        }
     }
 }

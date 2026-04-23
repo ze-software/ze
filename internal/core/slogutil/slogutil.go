@@ -254,7 +254,7 @@ func createHandler(level slog.Leveler) slog.Handler {
 
 	// Single syslog backend (not composable with io.Writer).
 	if len(parts) == 1 && strings.TrimSpace(parts[0]) == backendSyslog {
-		return newSyslogHandler(opts)
+		return newRingHandler(newSyslogHandler(opts), globalLogRing)
 	}
 
 	writers := make([]io.Writer, 0, len(parts))
@@ -275,10 +275,13 @@ func createHandler(level slog.Leveler) slog.Handler {
 		w = io.MultiWriter(writers...)
 	}
 
+	var base slog.Handler
 	if UseColor(w) {
-		return newColorHandler(w, opts)
+		base = newColorHandler(w, opts)
+	} else {
+		base = slog.NewTextHandler(w, opts)
 	}
-	return slog.NewTextHandler(w, opts)
+	return newRingHandler(base, globalLogRing)
 }
 
 // writerForBackend returns an io.Writer for a backend name, or nil if unknown/empty.

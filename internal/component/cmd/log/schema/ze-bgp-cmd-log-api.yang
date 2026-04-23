@@ -15,4 +15,8 @@ module ze-bgp-cmd-log-api {
     rpc log-set {
         description "Set log level for a subsystem at runtime.";
     }
+
+    rpc log-recent {
+        description "Show recent log entries from ring buffer with optional level/component/count filters.";
+    }
 }
