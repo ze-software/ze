@@ -15,6 +15,7 @@ Ze uses a plugin architecture for all features beyond core BGP session managemen
 | Service healthcheck | `bgp-healthcheck` + `bgp-watchdog` | Monitor services, control route announcement via MED or withdraw. [Guide](healthcheck.md) |
 | Monitor only (no RIB) | None | Ze runs without plugins -- peers connect, events fire, no routes stored |
 | Interface-aware BGP | `iface` + `bgp-rib` | React to OS interface changes -- start/stop BGP listeners when addresses appear/disappear |
+| Static routes | (auto-loaded) | Config-driven static routes with ECMP, weighted load balancing, BFD failover. [Guide](static-routes.md) |
 
 NLRI family plugins (bgp-nlri-evpn, bgp-nlri-vpn, etc.) are loaded automatically when you configure the corresponding address family. You don't need to declare them.
 <!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin registrations with Families field -->

@@ -1,0 +1,59 @@
+# Test: Static route plugin loads and programs routes at boot.
+# VALIDATES: spec-static-routes AC-1, AC-2, AC-13 -- config with static
+#            routes parsed, plugin reports "static routes loaded" in log,
+#            static show returns configured routes.
+# PREVENTS: static config section accepted but plugin never loads
+#           (missing auto-import or init registration).
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, signal, subprocess, sys, time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+last_err = None
+out = None
+for _ in range(50):
+    try:
+        out = subprocess.check_output(
+            ["ze", "cli", "-c", "static show"],
+            text=True, stderr=subprocess.STDOUT)
+        break
+    except subprocess.CalledProcessError as e:
+        last_err = e
+        time.sleep(0.1)
+if out is None:
+    sys.exit("ze cli never became ready: %s" % last_err.output)
+sys.stdout.write(out)
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+static {
+    route 10.0.0.0/8 {
+        next-hop 192.168.1.1 { }
+    }
+    route 0.0.0.0/0 {
+        next-hop 10.0.0.1 { weight 3; }
+        next-hop 10.0.0.2 { weight 1; }
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.static:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=static routes loaded
+expect=stdout:contains=10.0.0.0/8
+expect=stdout:contains=0.0.0.0/0

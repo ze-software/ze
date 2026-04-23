@@ -1,0 +1,69 @@
+# Test: Config reload adds a new static route.
+# VALIDATES: spec-static-routes AC-10 -- SIGHUP with new route,
+#            route appears in static show output.
+# PREVENTS: reload accepted but new routes not programmed (diff
+#           engine or apply path broken).
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, signal, subprocess, sys, time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+
+# Rewrite config to add a new route
+with open("ze-bgp.conf", "w") as f:
+    f.write("""static {
+    route 10.0.0.0/8 {
+        next-hop 192.168.1.1 { }
+    }
+    route 172.16.0.0/12 {
+        next-hop 10.0.0.1 { }
+    }
+}
+""")
+
+os.kill(pid, signal.SIGHUP)
+time.sleep(1.0)
+
+last_err = None
+out = None
+for _ in range(50):
+    try:
+        out = subprocess.check_output(
+            ["ze", "cli", "-c", "static show"],
+            text=True, stderr=subprocess.STDOUT)
+        break
+    except subprocess.CalledProcessError as e:
+        last_err = e
+        time.sleep(0.1)
+if out is None:
+    sys.exit("ze cli never became ready: %s" % last_err.output)
+sys.stdout.write(out)
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+static {
+    route 10.0.0.0/8 {
+        next-hop 192.168.1.1 { }
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.static:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=static routes reloaded
+expect=stdout:contains=172.16.0.0/12

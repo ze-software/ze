@@ -1,0 +1,74 @@
+# Test: static show returns structured JSON with routes, next-hops, weights.
+# VALIDATES: spec-static-routes AC-11 -- static show CLI displays
+#            prefix, next-hops with weight, action, metric, tag.
+# PREVENTS: show command returns empty or malformed JSON.
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import json, os, signal, subprocess, sys, time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+last_err = None
+out = None
+for _ in range(50):
+    try:
+        out = subprocess.check_output(
+            ["ze", "cli", "-c", "static show"],
+            text=True, stderr=subprocess.STDOUT)
+        break
+    except subprocess.CalledProcessError as e:
+        last_err = e
+        time.sleep(0.1)
+if out is None:
+    sys.exit("ze cli never became ready: %s" % last_err.output)
+
+# Verify JSON is parseable
+try:
+    data = json.loads(out)
+except json.JSONDecodeError as e:
+    sys.exit("invalid JSON from static show: %s\noutput: %s" % (e, out))
+
+# Verify structure
+if not isinstance(data, list) or len(data) == 0:
+    sys.exit("expected non-empty list, got: %s" % out)
+
+# Print for expect matching
+sys.stdout.write(out)
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+static {
+    route 0.0.0.0/0 {
+        description "default with weighted ECMP"
+        metric 100
+        tag 42
+        next-hop 10.0.0.1 { weight 3; }
+        next-hop 10.0.0.2 { weight 1; }
+    }
+    route 192.0.2.0/24 {
+        blackhole { }
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.static:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+expect=exit:code=0
+expect=stdout:contains="prefix"
+expect=stdout:contains="weight"
+expect=stdout:contains=0.0.0.0/0
+expect=stdout:contains=192.0.2.0/24
+expect=stdout:contains=blackhole

@@ -103,8 +103,8 @@ func TestRouteManagerRemoveOnReload(t *testing.T) {
 
 	rm.applyRoutes([]staticRoute{
 		{
-			Prefix: netip.MustParsePrefix("10.0.0.0/8"),
-			Action: actionForward,
+			Prefix:   netip.MustParsePrefix("10.0.0.0/8"),
+			Action:   actionForward,
 			NextHops: []nextHop{{Address: netip.MustParseAddr("1.1.1.1"), Weight: 1}},
 		},
 		{
@@ -118,8 +118,8 @@ func TestRouteManagerRemoveOnReload(t *testing.T) {
 
 	rm.applyRoutes([]staticRoute{
 		{
-			Prefix: netip.MustParsePrefix("10.0.0.0/8"),
-			Action: actionForward,
+			Prefix:   netip.MustParsePrefix("10.0.0.0/8"),
+			Action:   actionForward,
 			NextHops: []nextHop{{Address: netip.MustParseAddr("1.1.1.1"), Weight: 1}},
 		},
 	})
@@ -138,8 +138,8 @@ func TestRouteManagerSkipsUnchangedRoutes(t *testing.T) {
 
 	route := []staticRoute{
 		{
-			Prefix: netip.MustParsePrefix("10.0.0.0/8"),
-			Action: actionForward,
+			Prefix:   netip.MustParsePrefix("10.0.0.0/8"),
+			Action:   actionForward,
 			NextHops: []nextHop{{Address: netip.MustParseAddr("1.1.1.1"), Weight: 1}},
 		},
 	}
@@ -162,8 +162,8 @@ func TestRouteManagerShutdownRemovesRoutes(t *testing.T) {
 
 	rm.applyRoutes([]staticRoute{
 		{
-			Prefix: netip.MustParsePrefix("10.0.0.0/8"),
-			Action: actionForward,
+			Prefix:   netip.MustParsePrefix("10.0.0.0/8"),
+			Action:   actionForward,
 			NextHops: []nextHop{{Address: netip.MustParseAddr("1.1.1.1"), Weight: 1}},
 		},
 		{

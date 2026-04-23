@@ -1060,6 +1060,15 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 Batch operations: `cache <id1>,<id2> <action> [args]`.
 <!-- source: internal/component/cmd/cache/ -- cache command RPCs -->
 
+### Static Routes
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `static show` | read-only | Show all configured static routes in JSON: prefix, action, next-hops with address/weight/BFD status, metric, tag |
+
+The static route plugin programs routes directly to the kernel (netlink multipath) or VPP. It auto-loads when the config contains a `static { }` section. See [Static Routes Guide](static-routes.md).
+<!-- source: internal/plugins/static/register.go -- OnExecuteCommand "static show" -->
+
 ### Sysctl (Kernel Tunables)
 
 | Command | Access | Purpose |

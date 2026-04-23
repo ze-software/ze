@@ -4,7 +4,6 @@ package static
 
 import "slices"
 
-
 func routesEqual(a, b staticRoute) bool {
 	if a.Action != b.Action || a.Metric != b.Metric || a.Tag != b.Tag || a.Description != b.Description {
 		return false

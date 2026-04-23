@@ -4,6 +4,7 @@ package static
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -11,19 +12,14 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	bfdapi "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
 	staticschema "codeberg.org/thomas-mangin/ze/internal/plugins/static/schema"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
-var staticProtocolID redistevents.ProtocolID
-
 func init() {
-	staticProtocolID = redistevents.RegisterProtocol("static")
-	redistevents.RegisterProducer(staticProtocolID)
-
 	reg := registry.Registration{
 		Name:        "static",
 		Description: "Static routes: config-driven kernel/VPP route programming with ECMP",
@@ -33,6 +29,11 @@ func init() {
 		RunEngine:   runStaticPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureEventBus: func(eb any) {
+			if e, ok := eb.(ze.EventBus); ok {
+				setEventBus(e)
+			}
 		},
 	}
 	reg.CLIHandler = func(args []string) int {
@@ -158,12 +159,27 @@ func runStaticPlugin(conn net.Conn) int {
 		return nil
 	})
 
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
+		if command == "static show" {
+			data := rm.showRoutes()
+			out, err := json.Marshal(data)
+			if err != nil {
+				return "error", "", err
+			}
+			return "done", string(out), nil
+		}
+		return "error", "", fmt.Errorf("unknown command: %s", command)
+	})
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig:  []string{"static"},
 		VerifyBudget: 1,
 		ApplyBudget:  2,
+		Commands: []sdk.CommandDecl{
+			{Name: "static show"},
+		},
 	})
 	if err != nil {
 		logger().Error("static plugin failed", "error", err)
@@ -178,4 +194,3 @@ func runStaticPlugin(conn net.Conn) int {
 
 	return 0
 }
-

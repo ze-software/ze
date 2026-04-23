@@ -31,6 +31,10 @@ Ze is a network operating system written in Go. It runs on any Linux or as a gok
 <!-- source: internal/core/sysctl/known.go -- KnownSysctl registry, MustRegister, Validate -->
 | Modular Deployment | Config-driven plugin loading: BGP, interfaces, and FIB load only when their config section is present. Add or remove subsystems at runtime via config reload (SIGHUP). |
 <!-- source: internal/component/plugin/server/startup_autoload.go -- autoLoadForNewConfigPaths, autoStopForRemovedConfigPaths -->
+| [Static Routes](guide/static-routes.md) | Config-driven static route plugin with ECMP (multiple active next-hops), per-next-hop weighted load balancing, BFD-tracked failover (next-hop removed from ECMP group on session DOWN, re-added on UP), blackhole/reject, IPv4/IPv6, config reload reconciliation, and redistribute integration (`redistribute { import static }`). Programs kernel via netlink multipath or VPP via GoVPP. |
+<!-- source: internal/plugins/static/register.go -- plugin registration -->
+<!-- source: internal/plugins/static/inject.go -- BFD integration, ECMP group management -->
+<!-- source: internal/plugins/static/backend_linux.go -- netlink multipath backend -->
 | Route Installation | FIB pipeline: protocol RIB best-path tracking, system RIB selection by admin distance, kernel route programming via netlink (RTPROT_ZE=250), crash recovery via stale-mark-sweep, external change monitoring |
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeEntry, publishBestChanges -->
 <!-- source: internal/plugins/sysrib/sysrib.go -- system-rib topic, admin distance selection -->

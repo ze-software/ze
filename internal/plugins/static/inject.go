@@ -4,10 +4,13 @@ package static
 
 import (
 	"net/netip"
+	"slices"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	bfdapi "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/packet"
+	staticevents "codeberg.org/thomas-mangin/ze/internal/plugins/static/events"
 )
 
 type nhState struct {
@@ -21,6 +24,7 @@ type routeState struct {
 	route    staticRoute
 	nhStates []nhState
 	done     chan struct{}
+	emitted  bool
 }
 
 type routeManager struct {
@@ -76,6 +80,9 @@ func (rm *routeManager) applyRoutes(routes []staticRoute) {
 
 func (rm *routeManager) applyRouteLocked(r staticRoute) {
 	if existing := rm.routes[r.Prefix]; existing != nil {
+		if existing.emitted && r.Action != actionForward {
+			rm.emitRouteChange(redistevents.ActionRemove, existing.route)
+		}
 		rm.teardownRouteLocked(existing)
 	}
 
@@ -101,6 +108,10 @@ func (rm *routeManager) removeRouteLocked(rs *routeState) {
 	if err := rm.backend.removeRoute(rs.route); err != nil {
 		logger().Warn("static: remove route failed", "prefix", rs.route.Prefix, "error", err)
 	}
+	if rs.emitted {
+		rm.emitRouteChange(redistevents.ActionRemove, rs.route)
+		rs.emitted = false
+	}
 }
 
 func (rm *routeManager) teardownRouteLocked(rs *routeState) {
@@ -121,6 +132,10 @@ func (rm *routeManager) programRouteLocked(rs *routeState) {
 		if err := rm.backend.removeRoute(rs.route); err != nil {
 			logger().Warn("static: withdraw route (all NHs down)", "prefix", rs.route.Prefix, "error", err)
 		}
+		if rs.emitted {
+			rm.emitRouteChange(redistevents.ActionRemove, rs.route)
+			rs.emitted = false
+		}
 		return
 	}
 
@@ -128,6 +143,11 @@ func (rm *routeManager) programRouteLocked(rs *routeState) {
 	programmed.NextHops = active
 	if err := rm.backend.applyRoute(programmed); err != nil {
 		logger().Warn("static: apply route failed", "prefix", programmed.Prefix, "error", err)
+		return
+	}
+	if !rs.emitted {
+		rm.emitRouteChange(redistevents.ActionAdd, rs.route)
+		rs.emitted = true
 	}
 }
 
@@ -241,4 +261,85 @@ func activeNextHops(rs *routeState) []nextHop {
 		}
 	}
 	return active
+}
+
+type showRoute struct {
+	Prefix      string   `json:"prefix"`
+	Action      string   `json:"action"`
+	NextHops    []showNH `json:"next-hops,omitempty"`
+	Metric      uint32   `json:"metric"`
+	Tag         uint32   `json:"tag,omitempty"`
+	Description string   `json:"description,omitempty"`
+}
+
+type showNH struct {
+	Address    string `json:"address"`
+	Interface  string `json:"interface,omitempty"`
+	Weight     uint16 `json:"weight"`
+	BFDProfile string `json:"bfd-profile,omitempty"`
+	Active     bool   `json:"active"`
+}
+
+func (rm *routeManager) showRoutes() []showRoute {
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+
+	out := make([]showRoute, 0, len(rm.routes))
+	for _, rs := range rm.routes {
+		sr := showRoute{
+			Prefix:      rs.route.Prefix.String(),
+			Action:      rs.route.Action.String(),
+			Metric:      rs.route.Metric,
+			Tag:         rs.route.Tag,
+			Description: rs.route.Description,
+		}
+		for _, nhs := range rs.nhStates {
+			sr.NextHops = append(sr.NextHops, showNH{
+				Address:    nhs.nh.Address.String(),
+				Interface:  nhs.nh.Interface,
+				Weight:     nhs.nh.Weight,
+				BFDProfile: nhs.nh.BFDProfile,
+				Active:     nhs.active,
+			})
+		}
+		out = append(out, sr)
+	}
+	slices.SortFunc(out, func(a, b showRoute) int {
+		if a.Prefix < b.Prefix {
+			return -1
+		}
+		if a.Prefix > b.Prefix {
+			return 1
+		}
+		return 0
+	})
+	return out
+}
+
+func (rm *routeManager) emitRouteChange(action redistevents.RouteAction, r staticRoute) {
+	bus := getEventBus()
+	if bus == nil {
+		return
+	}
+	if r.Action != actionForward {
+		return
+	}
+	b := redistevents.AcquireBatch()
+	defer redistevents.ReleaseBatch(b)
+	b.Protocol = staticevents.ProtocolID
+	if r.Prefix.Addr().Is4() {
+		b.AFI = 1
+		b.SAFI = 1
+	} else {
+		b.AFI = 2
+		b.SAFI = 1
+	}
+	b.Entries = append(b.Entries, redistevents.RouteChangeEntry{
+		Action: action,
+		Prefix: r.Prefix,
+		Metric: r.Metric,
+	})
+	if _, err := staticevents.RouteChange.Emit(bus, b); err != nil {
+		logger().Warn("static: route-change emit failed", "error", err)
+	}
 }
