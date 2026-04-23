@@ -264,6 +264,92 @@ func TestRADIUSHandledSentinel(t *testing.T) {
 	}
 }
 
+func TestRADIUSAuthNASIPAddress(t *testing.T) {
+	sharedKey := []byte("testing123")
+	var capturedReq []byte
+	var captured sync.Mutex
+
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close() //nolint:errcheck // test cleanup
+	addr := conn.LocalAddr().String()
+
+	go func() {
+		buf := make([]byte, radius.MaxPacketLen)
+		for {
+			n, from, readErr := conn.ReadFromUDP(buf)
+			if readErr != nil {
+				return
+			}
+			if n < radius.MinPacketLen {
+				continue
+			}
+			captured.Lock()
+			capturedReq = make([]byte, n)
+			copy(capturedReq, buf[:n])
+			captured.Unlock()
+
+			resp := make([]byte, radius.HeaderLen)
+			resp[0] = radius.CodeAccessAccept
+			resp[1] = buf[1]
+			binary.BigEndian.PutUint16(resp[2:4], radius.HeaderLen)
+			var reqAuth [radius.AuthenticatorLen]byte
+			copy(reqAuth[:], buf[4:4+radius.AuthenticatorLen])
+			auth := radius.ResponseAuthenticator(radius.CodeAccessAccept, buf[1], radius.HeaderLen, reqAuth, nil, sharedKey)
+			copy(resp[4:4+radius.AuthenticatorLen], auth[:])
+			conn.WriteToUDP(resp, from) //nolint:errcheck // test mock
+		}
+	}()
+
+	client, err := radius.NewClient(radius.ClientConfig{
+		Servers: []radius.Server{{Address: addr, SharedKey: sharedKey}},
+		Timeout: 2 * time.Second,
+		Retries: 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close() //nolint:errcheck // test cleanup
+
+	srcIP := net.IPv4(10, 20, 30, 40).To4()
+	a := newRADIUSAuth()
+	a.swapClient(client, "test-nas", addr, srcIP)
+	resp := newFakeResponder()
+
+	a.handle(ppp.EventAuthRequest{
+		TunnelID:  1,
+		SessionID: 9,
+		Method:    ppp.AuthMethodPAP,
+		Username:  "alice",
+		Response:  []byte("pass"),
+	}, resp.respond)
+
+	resp.waitOne(t)
+
+	captured.Lock()
+	raw := capturedReq
+	captured.Unlock()
+
+	if raw == nil {
+		t.Fatal("no RADIUS request captured")
+	}
+
+	pkt, err := radius.Decode(raw)
+	if err != nil {
+		t.Fatalf("decode captured request: %v", err)
+	}
+
+	nasIP := pkt.FindAttr(radius.AttrNASIPAddress)
+	if nasIP == nil {
+		t.Fatal("NAS-IP-Address attribute not found in RADIUS request")
+	}
+	if !net.IP(nasIP).Equal(srcIP) {
+		t.Errorf("NAS-IP-Address: got %v, want %v", net.IP(nasIP), srcIP)
+	}
+}
+
 func TestRADIUSNoClient(t *testing.T) {
 	a := newRADIUSAuth()
 	resp := newFakeResponder()
