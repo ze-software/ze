@@ -17,6 +17,7 @@ import (
 // tacacs, tests) compile unchanged. Only the ownership moved.
 type (
 	UserConfig         = aaa.UserCredential
+	SSHPublicKey       = aaa.SSHPublicKey
 	AuthResult         = aaa.AuthResult
 	AuthRequest        = aaa.AuthRequest
 	Authenticator      = aaa.Authenticator

@@ -14,13 +14,21 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+// SSHPublicKey holds a single named SSH public key for key-based authentication.
+type SSHPublicKey struct {
+	Name string // key identifier (e.g. "jdoe@laptop")
+	Type string // algorithm (e.g. "ssh-ed25519")
+	Key  string // base64-encoded key data
+}
+
 // UserCredential is a configured local user credential. Owned by aaa so the
 // local backend factory can consume it without introducing a cycle back to
 // authz. The authz package re-exports this as UserConfig for callers.
 type UserCredential struct {
-	Name     string
-	Hash     string
-	Profiles []string
+	Name       string
+	Hash       string
+	Profiles   []string
+	PublicKeys []SSHPublicKey
 }
 
 // BuildParams is the data passed to every backend factory at Build time.

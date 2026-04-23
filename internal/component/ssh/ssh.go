@@ -360,6 +360,19 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 			s.execMiddleware(),
 			s.maxSessionsMiddleware(),
 		),
+		wish.WithPublicKeyAuth(func(ctx ssh.Context, key ssh.PublicKey) bool {
+			username := ctx.User()
+			remote := ctx.RemoteAddr().String()
+			profiles := matchPublicKey(s.config.Users, username, key)
+			if profiles != nil {
+				s.logger.Info("SSH auth success",
+					"username", username, "remote", remote,
+					"source", "public-key",
+					"profiles", truncateProfiles(profiles))
+				return true
+			}
+			return false
+		}),
 		wish.WithPasswordAuth(func(ctx ssh.Context, pass string) bool {
 			username := ctx.User()
 			remote := ctx.RemoteAddr().String()

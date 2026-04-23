@@ -418,6 +418,16 @@ func ExtractSSHConfig(tree *config.Tree) SSHExtractedConfig {
 					uc.Hash = pw
 				}
 				uc.Profiles = entry.GetSlice("profile")
+				for keyName, keyEntry := range entry.GetList("public-keys") {
+					pk := authz.SSHPublicKey{Name: keyName}
+					if t, ok := keyEntry.Get("type"); ok {
+						pk.Type = t
+					}
+					if k, ok := keyEntry.Get("key"); ok {
+						pk.Key = k
+					}
+					uc.PublicKeys = append(uc.PublicKeys, pk)
+				}
 				cfg.Users = append(cfg.Users, uc)
 			}
 		}

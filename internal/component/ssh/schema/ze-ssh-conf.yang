@@ -47,6 +47,35 @@ module ze-ssh-conf {
                     type string;
                     description "Authorization profile name(s) assigned to this user";
                 }
+
+                list public-keys {
+                    key "name";
+                    description "SSH public keys for key-based authentication.
+                                 Each entry is a named key (e.g. user@host).";
+
+                    leaf name {
+                        type string;
+                        description "Key identifier (e.g. jdoe@laptop)";
+                    }
+
+                    leaf type {
+                        type enumeration {
+                            enum ssh-rsa;
+                            enum ssh-ed25519;
+                            enum ecdsa-sha2-nistp256;
+                            enum ecdsa-sha2-nistp384;
+                            enum ecdsa-sha2-nistp521;
+                        }
+                        description "SSH public key algorithm";
+                    }
+
+                    leaf key {
+                        type string;
+                        description "Base64-encoded public key data (the middle field
+                                     of an SSH public key line, without type prefix
+                                     or comment suffix)";
+                    }
+                }
             }
         }
     }

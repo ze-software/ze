@@ -103,6 +103,78 @@ export ZE_SSH_USERNAME=alice
 export ZE_SSH_PASSWORD=...   # or use a key-locked secret store
 ```
 
+## SSH public key authentication
+
+Users can authenticate to the SSH server with public keys instead of (or in
+addition to) passwords. Each user can have multiple named keys.
+
+### Adding a public key
+
+Extract the base64 key data from an existing SSH public key file. Given a
+key file like:
+
+```
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGtK... alice@laptop
+```
+
+The three parts are: type, base64 data, comment. Configure the type and
+base64 data in the user's `public-keys` block:
+
+```
+system {
+    authentication {
+        user alice {
+            password "$2a$10$..."
+            profile admin
+            public-keys laptop {
+                type ssh-ed25519
+                key AAAAC3NzaC1lZDI1NTE5AAAAIGtK...
+            }
+            public-keys workstation {
+                type ssh-rsa
+                key AAAAB3NzaC1yc2EAAAADAQABAAAB...
+            }
+        }
+    }
+}
+```
+
+The key name (`laptop`, `workstation`) is an identifier only. It appears in
+no protocol exchange but helps distinguish multiple keys for the same user.
+
+### Supported key types
+
+| Type | Algorithm |
+|------|-----------|
+| `ssh-ed25519` | Ed25519 (recommended) |
+| `ssh-rsa` | RSA |
+| `ecdsa-sha2-nistp256` | ECDSA P-256 |
+| `ecdsa-sha2-nistp384` | ECDSA P-384 |
+| `ecdsa-sha2-nistp521` | ECDSA P-521 |
+
+### Connecting with a key
+
+Standard SSH clients work directly:
+
+```
+ssh -i ~/.ssh/id_ed25519 -p 2222 alice@router
+```
+
+### Password and key coexistence
+
+A user can have both a password and public keys. The SSH server tries public
+key authentication first; if no key matches, it falls back to password
+authentication. The web UI uses passwords only; public keys are
+SSH-specific.
+
+### Scope
+
+Public key configuration applies to YANG-configured users only. The zefs
+super-admin (created by `ze init`) authenticates with a password.
+
+<!-- source: internal/component/ssh/pubkey.go -- matchPublicKey -->
+<!-- source: internal/component/ssh/ssh.go -- wish.WithPublicKeyAuth -->
+
 ## Why two leaves instead of auto-detecting the format
 
 The canonical `password` leaf is marked `ze:bcrypt` -- the parser stores
@@ -154,6 +226,7 @@ a `slog.Warn` so the truncation surfaces in daemon logs.
 | Symbol | Location |
 |--------|----------|
 | YANG schema | `internal/component/ssh/schema/ze-ssh-conf.yang` |
+| Public key matching | `internal/component/ssh/pubkey.go` |
 | Commit-time hashing helper | `internal/component/config/password_hash.go` |
 | Validator | `internal/component/cli/validator.go` |
 | SSH server password handler | `internal/component/ssh/ssh.go` |
