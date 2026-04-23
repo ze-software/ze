@@ -429,7 +429,8 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 
 	for _, req := range outbound {
 		if r.capture != nil && len(req.bytes) > 12 {
-			r.capture.AppendOutbound(localTID, 0, extractMsgType(req.bytes[12:]), req.to, len(req.bytes))
+			outSID := uint16(req.bytes[8])<<8 | uint16(req.bytes[9])
+			r.capture.AppendOutbound(localTID, outSID, extractMsgType(req.bytes[12:]), req.to, len(req.bytes))
 		}
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
 			r.logger.Warn("l2tp: outbound send failed",

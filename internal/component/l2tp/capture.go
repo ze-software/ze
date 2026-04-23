@@ -59,7 +59,7 @@ func (r *captureRecord) format() CaptureEntry {
 
 // CaptureRing is a fixed-size circular buffer of L2TP control message records.
 // Safe for concurrent use. Append is zero-alloc (stores value types only).
-// Nil-safe: all methods are no-ops on nil receiver.
+// Callers must nil-check before calling methods.
 type CaptureRing struct {
 	mu      sync.Mutex
 	records []captureRecord
@@ -115,6 +115,11 @@ func (r *CaptureRing) AppendOutbound(tunnelID, sessionID uint16, msgType Message
 // limit <= 0 returns all. tunnelID > 0 filters by tunnel.
 // peer filters by peer address (empty = no filter).
 func (r *CaptureRing) Snapshot(limit int, tunnelID uint16, peer string) []CaptureEntry {
+	var peerAddr netip.Addr
+	if peer != "" {
+		peerAddr, _ = netip.ParseAddr(peer)
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -128,7 +133,7 @@ func (r *CaptureRing) Snapshot(limit int, tunnelID uint16, peer string) []Captur
 		if tunnelID > 0 && rec.tunnelID != tunnelID {
 			continue
 		}
-		if peer != "" && rec.peerAddr.Addr().String() != peer {
+		if peerAddr.IsValid() && rec.peerAddr.Addr() != peerAddr {
 			continue
 		}
 		out = append(out, rec.format())
