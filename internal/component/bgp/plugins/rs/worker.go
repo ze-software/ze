@@ -173,12 +173,17 @@ func (wp *workerPool) Dispatch(key workerKey, item workItem) bool {
 		w.overflow = append(w.overflow, item)
 		w.overflowMu.Unlock()
 	} else {
-		// Try non-blocking channel send.
+		// Try non-blocking channel send. The closeCh case prevents a
+		// send-on-closed-channel panic when Stop/PeerDown is closing
+		// the worker concurrently.
 		select {
 		case w.ch <- item: // Channel has space — sent directly.
 			w.overflowMu.Unlock()
 			wp.checkBackpressure(key, w)
 			return true
+		case <-w.closeCh: // Shutting down — bail out.
+			w.overflowMu.Unlock()
+			return false
 		default: // Channel full — start overflow.
 			w.overflow = append(w.overflow, item)
 			wp.ensureDraining(key, w)
@@ -308,7 +313,7 @@ func (wp *workerPool) PeerDown(sourcePeer string) {
 	wp.backpressure.Delete(key)
 	wp.bpLastLog.Delete(key)
 
-	// Signal drain goroutine to stop, wait for it to exit, then close channel.
+	// Signal drain goroutine to stop, wait for it, then close channel.
 	close(w.closeCh)
 	w.drainWg.Wait()
 	close(w.ch)
@@ -335,17 +340,15 @@ func (wp *workerPool) Stop() {
 	}
 	wp.mu.Unlock()
 
-	// Signal all drain goroutines to stop.
+	// Signal all drain goroutines and workers to stop via closeCh.
 	for _, w := range all {
 		close(w.closeCh)
 	}
-	// Wait for all drain goroutines to exit before closing channels.
+	// Wait for all drain goroutines to exit.
 	for _, w := range all {
 		w.drainWg.Wait()
 	}
-	for _, w := range all {
-		close(w.ch)
-	}
+	// Wait for all worker goroutines to exit (they detect closeCh).
 	for _, w := range all {
 		<-w.done
 	}
@@ -407,7 +410,7 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 		select {
 		case item, ok := <-w.ch:
 			if !ok {
-				// Channel closed (PeerDown or Stop) — exit.
+				// Channel closed (PeerDown) -- exit.
 				return
 			}
 			if !idle.Stop() {
@@ -433,6 +436,23 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 			}
 
 			idle.Reset(wp.cfg.idleTimeout)
+
+		case <-w.closeCh:
+			// Drain remaining items before exiting.
+			for {
+				select {
+				case item, ok := <-w.ch:
+					if !ok {
+						return
+					}
+					wp.safeHandle(key, item)
+				default:
+					if wp.cfg.onDrained != nil {
+						wp.cfg.onDrained(key)
+					}
+					return
+				}
+			}
 
 		case <-idle.C:
 			// Idle timeout — remove self from pool and exit.

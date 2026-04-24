@@ -24,4 +24,4 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze show interface
 expect=exit:code=0
-expect=stdout:contains=interface
+expect=stdout:contains=NAME

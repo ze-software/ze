@@ -2,9 +2,11 @@ package fibkernel
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -16,6 +18,31 @@ import (
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+type fibConfig struct {
+	FlushOnStop bool
+	SweepDelay  time.Duration
+}
+
+func parseFIBConfig(sections []sdk.ConfigSection) (fibConfig, error) {
+	cfg := fibConfig{SweepDelay: sweepDelay}
+	for _, sec := range sections {
+		if sec.Root != "fib/kernel" || sec.Data == "" {
+			continue
+		}
+		var tree map[string]any
+		if err := json.Unmarshal([]byte(sec.Data), &tree); err != nil {
+			return cfg, fmt.Errorf("fib/kernel: invalid config JSON: %w", err)
+		}
+		if v, ok := tree["flush-on-stop"].(bool); ok {
+			cfg.FlushOnStop = v
+		}
+		if v, ok := tree["sweep-delay"].(float64); ok && v > 0 {
+			cfg.SweepDelay = time.Duration(v) * time.Second
+		}
+	}
+	return cfg, nil
+}
 
 func init() {
 	_ = events.RegisterNamespace(fibevents.Namespace, fibevents.EventExternalChange)
@@ -65,19 +92,24 @@ func runFIBKernelPlugin(conn net.Conn) int {
 	f := newFIBKernel(backend)
 
 	var activeJournal *sdk.Journal
+	var pendingCfg fibConfig
 
-	p.OnConfigVerify(func(_ []sdk.ConfigSection) error {
-		// fib-kernel has no config fields to validate yet;
-		// accept any config change that reaches us.
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		_, err := parseFIBConfig(sections)
+		return err
+	})
+
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		cfg, err := parseFIBConfig(sections)
+		if err != nil {
+			return err
+		}
+		pendingCfg = cfg
 		return nil
 	})
 
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
-		// fib-kernel config is minimal (route table settings).
-		// Journal records the apply for potential rollback.
 		j := sdk.NewJournal()
-		// No-op apply: fib-kernel reacts to sysrib bus events, not config directly.
-		// The journal is kept for protocol compliance (rollback = no-op).
 		activeJournal = j
 		logger().Info("fib-kernel config applied via transaction")
 		return nil
@@ -97,21 +129,21 @@ func runFIBKernelPlugin(conn net.Conn) int {
 	})
 
 	p.OnStarted(func(ctx context.Context) error {
-		// Emit forwarding defaults via sysctl plugin.
+		cfg := pendingCfg
+
 		emitForwardingDefaults()
 
-		// Startup sweep for crash recovery.
 		stale := f.startupSweep()
 
-		go f.run(ctx, false)
+		go f.run(ctx, cfg.FlushOnStop)
 
-		// Sweep stale routes after a short delay to allow reconvergence.
 		if len(stale) > 0 {
+			delay := cfg.SweepDelay
 			go func() {
 				select {
 				case <-ctx.Done():
 					return
-				case <-sweepTimer():
+				case <-time.After(delay):
 					f.sweepStale(stale)
 				}
 			}()

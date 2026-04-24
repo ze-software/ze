@@ -38,6 +38,9 @@ const sysfsDevDir = "/sys/bus/pci/devices"
 // MUST be called before starting VPP.
 // Caller MUST call UnbindAll on teardown to restore original drivers.
 func (d *DPDKBinder) BindAll(interfaces []DPDKInterface) error {
+	if len(interfaces) == 0 {
+		return nil
+	}
 	if err := loadVFIOModules(); err != nil {
 		return fmt.Errorf("dpdk: load vfio modules: %w", err)
 	}

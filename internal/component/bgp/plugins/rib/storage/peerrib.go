@@ -158,6 +158,16 @@ func (r *PeerRIB) ModifyFamilyAll(fam family.Family, fn func(entry *RouteEntry))
 	}
 }
 
+// ModifyFamilyAllKeyed calls fn with the NLRI key and a pointer to each entry.
+func (r *PeerRIB) ModifyFamilyAllKeyed(fam family.Family, fn func(nlriBytes []byte, entry *RouteEntry)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if rib, exists := r.families[fam]; exists {
+		rib.ModifyAllKeyed(fn)
+	}
+}
+
 // Clear removes all routes from the RIB, releasing all pool handles.
 func (r *PeerRIB) Clear() {
 	r.mu.Lock()

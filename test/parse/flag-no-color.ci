@@ -23,7 +23,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze --no-color config validate test.conf
+cmd=foreground:seq=1:exec=ze --no-color config validate -:stdin=config
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 reject=stderr:pattern=\x1b\[

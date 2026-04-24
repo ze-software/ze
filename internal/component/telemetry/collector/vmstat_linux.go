@@ -39,6 +39,7 @@ func newVMStatCollector(interval time.Duration) *vmstatCollector {
 
 func (c *vmstatCollector) Name() string { return "vmstat" }
 
+//nolint:dupl // distinct metric registrations share GaugeVec pattern
 func (c *vmstatCollector) Init(reg metrics.Registry, prefix string) {
 	labels := []string{"chart", "dimension", "family"}
 	c.pgfaults = reg.GaugeVec(prefix+"_mem_pgfaults_faults_persec_average", "Page Faults", labels)

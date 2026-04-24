@@ -62,7 +62,7 @@ func buildBenchUpdate() (*plugin.PeerInfo, bgptypes.RawMessage) {
 	payload := make([]byte, off)
 	copy(payload, attrBuf[:off])
 
-	ctxID := bgpctx.Registry.Register(bgpctx.EncodingContextWithAddPath(true, nil))
+	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextWithAddPath(true, nil))
 	wu := wireu.NewWireUpdate(payload, ctxID)
 	attrsWire := attribute.NewAttributesWire(payload[4:4+attrLen], ctxID)
 

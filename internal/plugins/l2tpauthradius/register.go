@@ -154,7 +154,8 @@ func runPlugin(conn net.Conn) int {
 		}
 		if pending.CoAPort > 0 && len(pending.Servers) > 0 {
 			allowed := serverIPs(pending.Servers)
-			cl, coaErr := newCoAListener(pending.CoAPort, pending.Servers[0].SharedKey, bus, allowed)
+			secrets := serverSecrets(pending.Servers)
+			cl, coaErr := newCoAListener(pending.CoAPort, secrets, pending.Servers[0].SharedKey, bus, allowed)
 			if coaErr != nil {
 				logger().Warn("l2tp-auth-radius: CoA listener failed to start", "error", coaErr)
 			} else {
@@ -180,9 +181,11 @@ func runPlugin(conn net.Conn) int {
 		ApplyBudget:  1,
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)
+		acctInstance.Stop()
 		closeCoAListener()
 		return 1
 	}
+	acctInstance.Stop()
 	closeCoAListener()
 	return 0
 }
@@ -218,6 +221,22 @@ func serverIPs(servers []radius.Server) []net.IP {
 		}
 	}
 	return ips
+}
+
+// serverSecrets builds a map of server IP -> shared secret for per-source
+// CoA/DM authenticator verification.
+func serverSecrets(servers []radius.Server) map[string][]byte {
+	secrets := make(map[string][]byte, len(servers))
+	for _, srv := range servers {
+		host, _, err := net.SplitHostPort(srv.Address)
+		if err != nil {
+			host = srv.Address
+		}
+		if ip := net.ParseIP(host); ip != nil {
+			secrets[ip.String()] = srv.SharedKey
+		}
+	}
+	return secrets
 }
 
 // parseConfigFromJSON parses YANG-delivered JSON config.

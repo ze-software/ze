@@ -11,31 +11,32 @@
 
 package fibkernel
 
-// newBackend returns a noop backend on non-Linux platforms.
+import "fmt"
+
+var errUnsupportedPlatform = fmt.Errorf("fib-kernel: not supported on this platform")
+
+// newBackend returns an error backend on non-Linux platforms.
 func newBackend() routeBackend {
-	return &noopBackend{}
+	return &unsupportedBackend{}
 }
 
-// noopBackend logs route operations without programming the OS routing table.
-type noopBackend struct{}
+// unsupportedBackend rejects all route operations on non-Linux platforms.
+type unsupportedBackend struct{}
 
-func (n *noopBackend) addRoute(prefix, nextHop string) error {
-	logger().Debug("fib-kernel: add route (noop)", "prefix", prefix, "next-hop", nextHop)
-	return nil
+func (u *unsupportedBackend) addRoute(_, _ string) error {
+	return errUnsupportedPlatform
 }
 
-func (n *noopBackend) delRoute(prefix string) error {
-	logger().Debug("fib-kernel: del route (noop)", "prefix", prefix)
-	return nil
+func (u *unsupportedBackend) delRoute(_ string) error {
+	return errUnsupportedPlatform
 }
 
-func (n *noopBackend) replaceRoute(prefix, nextHop string) error {
-	logger().Debug("fib-kernel: replace route (noop)", "prefix", prefix, "next-hop", nextHop)
-	return nil
+func (u *unsupportedBackend) replaceRoute(_, _ string) error {
+	return errUnsupportedPlatform
 }
 
-func (n *noopBackend) listZeRoutes() ([]installedRoute, error) {
-	return nil, nil
+func (u *unsupportedBackend) listZeRoutes() ([]installedRoute, error) {
+	return nil, errUnsupportedPlatform
 }
 
-func (n *noopBackend) close() error { return nil }
+func (u *unsupportedBackend) close() error { return nil }

@@ -10,5 +10,5 @@ package context
 var APIContextID ContextID
 
 func init() {
-	APIContextID = Registry.Register(EncodingContextForASN4(true))
+	APIContextID, _ = Registry.Register(EncodingContextForASN4(true))
 }

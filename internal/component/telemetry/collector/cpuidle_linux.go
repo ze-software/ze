@@ -113,7 +113,7 @@ func readCPUIdleStats() map[string]uint64 {
 }
 
 func readCPUIdleField(path string) string {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // sysfs path
 	if err != nil {
 		return ""
 	}
@@ -121,7 +121,7 @@ func readCPUIdleField(path string) string {
 }
 
 func readCPUIdleUint64(path string) uint64 {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // sysfs path
 	if err != nil {
 		return 0
 	}

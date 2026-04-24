@@ -34,10 +34,15 @@ module ze-l2tp-auth-radius-conf {
                     description "Accounting interim-update interval in seconds.";
                 }
                 list server {
-                    key "address";
+                    key "name";
                     ordered-by user;
+                    leaf name {
+                        type string;
+                        description "Logical name for this RADIUS server entry.";
+                    }
                     leaf address {
                         type string;
+                        ze:required;
                         description "RADIUS server IP address or hostname.";
                     }
                     leaf port {

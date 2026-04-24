@@ -282,9 +282,9 @@ system {
 	assert.Equal(t, authz.Deny, store.Authorize("operator", "peer set", false),
 		"operator should be denied edit commands")
 
-	// Unknown user (no assignment) gets admin default (allow all)
-	assert.Equal(t, authz.Allow, store.Authorize("unknown", "restart", true),
-		"unassigned user should get admin default (allow)")
+	// Unknown user (no assignment) is denied when user assignments exist (fail closed)
+	assert.Equal(t, authz.Deny, store.Authorize("unknown", "restart", true),
+		"unassigned user should be denied when assignments exist")
 }
 
 // TestExtractAuthzConfig_AdminAllowsAll verifies the admin profile allows everything.

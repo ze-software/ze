@@ -211,7 +211,7 @@ func isPhysicalDisk(e diskEntry) bool {
 			return true
 		}
 		suffix := n[idx+1:]
-		if len(suffix) == 0 {
+		if suffix == "" {
 			return true
 		}
 		for _, c := range suffix {

@@ -63,4 +63,4 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze config migrate test.conf
 expect=exit:code=0
 expect=stdout:contains=bgp.wire debug
-expect=stdout:contains=plugin.rib disabled
+expect=stdout:contains=plugin.bgp-rib disabled

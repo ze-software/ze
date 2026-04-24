@@ -211,7 +211,7 @@ func extractFirstASN(payload []byte) (uint32, bool) {
 // PREVENTS: Missing lazy generation or incorrect caching.
 func TestReceivedUpdate_EBGPWireLazyASN4(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	payload := testUpdatePayloadWithASPath([]uint32{64512, 64513})
 	wu := wireu.NewWireUpdate(payload, ctxID)
@@ -257,7 +257,7 @@ func TestReceivedUpdate_EBGPWireLazyASN4(t *testing.T) {
 // PREVENTS: Redundant pool allocations per ForwardUpdate.
 func TestReceivedUpdate_EBGPWireCachedASN4(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	payload := testUpdatePayloadWithASPath([]uint32{64512})
 	wu := wireu.NewWireUpdate(payload, ctxID)
@@ -291,7 +291,7 @@ func TestReceivedUpdate_EBGPWireCachedASN4(t *testing.T) {
 // PREVENTS: ASN4/ASN2 variants overwriting each other.
 func TestReceivedUpdate_EBGPWireLazyASN2(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	payload := testUpdatePayloadWithASPath([]uint32{64512})
 	wu := wireu.NewWireUpdate(payload, ctxID)
@@ -337,7 +337,7 @@ func TestReceivedUpdate_EBGPWireLazyASN2(t *testing.T) {
 // PREVENTS: Race conditions from concurrent lazy initialization.
 func TestReceivedUpdate_EBGPWireConcurrent(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	payload := testUpdatePayloadWithASPath([]uint32{64512, 64513})
 	wu := wireu.NewWireUpdate(payload, ctxID)

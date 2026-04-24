@@ -37,21 +37,47 @@ const grTimerMargin = 5 * time.Second
 // restart replaced it (new mark-stale created a new state), the callback is stale
 // and must be a no-op — otherwise it would purge the new cycle's routes.
 func (r *RIBManager) autoExpireStale(peerAddr string, owner *peerGRState) {
+	type staleNLRI struct {
+		fam     family.Family
+		nlri    []byte
+		addPath bool
+	}
+	var affected []staleNLRI
+
 	r.peerMu.Lock()
-	defer r.peerMu.Unlock()
 
 	// Guard: skip if grState was replaced by a consecutive restart.
 	if r.grState[peerAddr] != owner {
+		r.peerMu.Unlock()
 		return
 	}
 
 	peerRIB := r.ribInPool[peerAddr]
 	if peerRIB != nil {
+		for _, fam := range peerRIB.Families() {
+			ap := peerRIB.IsAddPath(fam)
+			peerRIB.IterateFamily(fam, func(nlriBytes []byte, entry storage.RouteEntry) bool {
+				if entry.StaleLevel > storage.StaleLevelFresh {
+					cp := make([]byte, len(nlriBytes))
+					copy(cp, nlriBytes)
+					affected = append(affected, staleNLRI{fam: fam, nlri: cp, addPath: ap})
+				}
+				return true
+			})
+		}
 		purged := peerRIB.PurgeAllStale()
 		logger().Info("auto-expire stale", "peer", peerAddr, "purged", purged)
 	}
 
 	delete(r.grState, peerAddr)
+	r.peerMu.Unlock()
+
+	for _, a := range affected {
+		change, ok := r.checkBestPathChange(a.fam, a.nlri, a.addPath, nil)
+		if ok {
+			publishBestChanges([]bestChangeEntry{change}, a.fam)
+		}
+	}
 }
 
 // CommandHandler is the signature for RIB command handlers.
@@ -723,18 +749,22 @@ func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
 		existing.expiryTimer.Stop()
 	}
 
-	// Store GR state for status display and start expiry timer.
+	// Store GR state for status display and conditionally start expiry timer.
+	// When restart-time is 0 (used by LLGR to raise stale level without a new
+	// safety timer), skip the timer -- the LLST per-family timer handles expiry.
 	now := time.Now()
 	restartTime := uint16(restartSec)
-	expiryDuration := time.Duration(restartTime)*time.Second + grTimerMargin
 	state := &peerGRState{
 		StaleAt:     now,
 		RestartTime: restartTime,
 		ExpiresAt:   now.Add(time.Duration(restartTime) * time.Second),
 	}
-	state.expiryTimer = time.AfterFunc(expiryDuration, func() {
-		r.autoExpireStale(peerAddr, state)
-	})
+	if restartTime > 0 {
+		expiryDuration := time.Duration(restartTime)*time.Second + grTimerMargin
+		state.expiryTimer = time.AfterFunc(expiryDuration, func() {
+			r.autoExpireStale(peerAddr, state)
+		})
+	}
 	r.grState[peerAddr] = state
 
 	logger().Debug("mark-stale", "peer", peerAddr, "marked", marked, "restart-time", restartTime)
@@ -994,24 +1024,43 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, string, erro
 	}
 
 	r.peerMu.Lock()
-	defer r.peerMu.Unlock()
 
 	peerRIB := r.ribInPool[peerAddr]
 	if peerRIB == nil {
+		r.peerMu.Unlock()
 		data, _ := json.Marshal(map[string]any{"attached": 0})
 		return statusDone, string(data), nil
 	}
 
+	type affectedNLRI struct {
+		nlri    []byte
+		addPath bool
+	}
+	var affected []affectedNLRI
+	ap := peerRIB.IsAddPath(fam)
+
 	attached := 0
-	peerRIB.ModifyFamilyAll(fam, func(entry *storage.RouteEntry) {
+	peerRIB.ModifyFamilyAllKeyed(fam, func(nlriBytes []byte, entry *storage.RouteEntry) {
 		if entry.StaleLevel == storage.StaleLevelFresh {
 			return
 		}
 		if r.attachCommunity(entry, commBytes) {
 			entry.StaleLevel = storage.DepreferenceThreshold
 			attached++
+			cp := make([]byte, len(nlriBytes))
+			copy(cp, nlriBytes)
+			affected = append(affected, affectedNLRI{nlri: cp, addPath: ap})
 		}
 	})
+
+	r.peerMu.Unlock()
+
+	for _, a := range affected {
+		change, ok := r.checkBestPathChange(fam, a.nlri, a.addPath, nil)
+		if ok {
+			publishBestChanges([]bestChangeEntry{change}, fam)
+		}
+	}
 
 	logger().Debug("attach-community", "peer", peerAddr, "family", familyStr,
 		"community", commHex, "attached", attached)
@@ -1043,13 +1092,15 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, string, 
 	}
 
 	r.peerMu.Lock()
-	defer r.peerMu.Unlock()
 
 	peerRIB := r.ribInPool[peerAddr]
 	if peerRIB == nil {
+		r.peerMu.Unlock()
 		data, _ := json.Marshal(map[string]any{"deleted": 0})
 		return statusDone, string(data), nil
 	}
+
+	ap := peerRIB.IsAddPath(fam)
 
 	// Collect NLRIs to delete (avoid modifying during iteration)
 	var toDelete [][]byte
@@ -1073,6 +1124,15 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, string, 
 	for _, nlriBytes := range toDelete {
 		if peerRIB.Remove(fam, nlriBytes) {
 			deleted++
+		}
+	}
+
+	r.peerMu.Unlock()
+
+	for _, nlriBytes := range toDelete {
+		change, ok := r.checkBestPathChange(fam, nlriBytes, ap, nil)
+		if ok {
+			publishBestChanges([]bestChangeEntry{change}, fam)
 		}
 	}
 

@@ -216,7 +216,7 @@ func (a *radiusAcct) sendAcctPacket(client *radius.Client, pkt *radius.Packet, p
 	}
 }
 
-func (a *radiusAcct) interimLoop(ctx context.Context, client *radius.Client, sess *acctSession, nasID string, sourceAddr net.IP, interval time.Duration) {
+func (a *radiusAcct) interimLoop(ctx context.Context, _ *radius.Client, sess *acctSession, _ string, _ net.IP, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -225,7 +225,16 @@ func (a *radiusAcct) interimLoop(ctx context.Context, client *radius.Client, ses
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			a.sendAcctInterimUpdate(client, sess, nasID, sourceAddr)
+			// Read current client/nasID/sourceAddr on each iteration so reload
+			// takes effect without restarting the loop.
+			a.mu.Lock()
+			c := a.client
+			nid := a.nasID
+			src := a.sourceAddress
+			a.mu.Unlock()
+			if c != nil {
+				a.sendAcctInterimUpdate(c, sess, nid, src)
+			}
 		}
 	}
 }

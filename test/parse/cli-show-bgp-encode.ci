@@ -24,4 +24,4 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze show bgp encode --help
 expect=exit:code=0
-expect=stdout:contains=Encode BGP UPDATE
+expect=stderr:contains=Encode

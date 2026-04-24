@@ -64,5 +64,7 @@ bgp {
 }
 EOF_FILE
 
+option=env:var=ze.storage.blob:value=false
+
 cmd=foreground:seq=1:exec=ze config archive local test.conf
 expect=exit:code=0

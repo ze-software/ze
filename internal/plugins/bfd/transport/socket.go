@@ -1,5 +1,6 @@
 // Design: rfc/short/rfc5881.md -- single-hop UDP encapsulation
 // Design: rfc/short/rfc5883.md -- multi-hop UDP encapsulation
+// Related: loopback.go, udp.go, dual.go -- Transport implementations
 //
 // Package transport provides UDP I/O for BFD Control packets and an
 // in-memory loopback implementation used by engine-level tests.
@@ -29,6 +30,11 @@ type Inbound struct {
 	// From is the source IP address as observed on the wire. The port
 	// is intentionally absent: BFD demultiplexing uses the address only.
 	From netip.Addr
+
+	// Local is the destination IP address (local receiver). Used for
+	// multi-hop first-packet demux where two sessions to the same peer
+	// from different local addresses must not collide.
+	Local netip.Addr
 
 	// VRF is the routing instance the packet arrived in.
 	VRF string

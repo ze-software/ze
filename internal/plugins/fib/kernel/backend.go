@@ -18,11 +18,6 @@ import (
 // Allows BGP reconvergence to refresh matching routes.
 const sweepDelay = 30 * time.Second
 
-// sweepTimer returns a channel that fires after the sweep delay.
-func sweepTimer() <-chan time.Time {
-	return time.After(sweepDelay)
-}
-
 // showInstalled returns the currently installed routes as JSON.
 func (f *fibKernel) showInstalled() string {
 	f.mu.RLock()

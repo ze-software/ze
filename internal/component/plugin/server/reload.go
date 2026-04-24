@@ -172,12 +172,13 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	// Auto-load plugins for newly added config sections.
 	// When a user adds fib { kernel { } } to their config, the fib-kernel plugin
 	// needs to start before we can send it config.
+	var autoLoaded []string
 	if len(diff.added) > 0 {
 		addedKeys := make([]string, 0, len(diff.added))
 		for k := range diff.added {
 			addedKeys = append(addedKeys, k)
 		}
-		s.autoLoadForNewConfigPaths(ctx, newTree, addedKeys)
+		autoLoaded = s.autoLoadForNewConfigPaths(ctx, newTree, addedKeys)
 	}
 
 	// Find affected plugins: those with WantsConfigRoots matching changed roots.
@@ -238,6 +239,10 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	logger().Info("config reload: verify+apply phase", "plugins", len(affected))
 	if err := s.runTxCoordinator(ctx, affected, diff); err != nil {
 		logger().Warn("config reload: transaction failed", "error", err)
+		if len(autoLoaded) > 0 {
+			logger().Info("config reload: stopping auto-loaded plugins after failed transaction", "plugins", autoLoaded)
+			s.autoStopForRemovedConfigPaths(autoLoaded)
+		}
 		return err
 	}
 

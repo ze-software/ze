@@ -94,6 +94,8 @@ bgp {
 }
 EOF_NEW
 
+option=env:var=ze.storage.blob:value=false
+
 cmd=foreground:seq=1:exec=ze config diff old.conf new.conf
 expect=exit:code=0
 expect=stdout:contains=remote

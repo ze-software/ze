@@ -410,13 +410,23 @@ func (p *Peer) setEncodingContexts(neg *capability.Negotiated) {
 
 	p.recvCtx = bgpctx.FromNegotiatedRecv(neg)
 	if p.recvCtx != nil {
-		p.recvCtxID = bgpctx.Registry.Register(p.recvCtx)
+		id, err := bgpctx.Registry.Register(p.recvCtx)
+		if err != nil {
+			reactorLogger().Error("context ID exhausted for recv context", "peer", p.addrString, "error", err)
+		} else {
+			p.recvCtxID = id
+		}
 	}
 
 	sctx := bgpctx.FromNegotiatedSend(neg)
 	p.sendCtx.Store(sctx)
 	if sctx != nil {
-		p.sendCtxID = bgpctx.Registry.Register(sctx)
+		id, err := bgpctx.Registry.Register(sctx)
+		if err != nil {
+			reactorLogger().Error("context ID exhausted for send context", "peer", p.addrString, "error", err)
+		} else {
+			p.sendCtxID = id
+		}
 	}
 
 	// Set context IDs on session for zero-copy WireUpdate and AttrsWire creation

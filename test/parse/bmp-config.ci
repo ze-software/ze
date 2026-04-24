@@ -49,5 +49,5 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config check -:stdin=ze-bgp
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ze-bgp
 expect=exit:code=0

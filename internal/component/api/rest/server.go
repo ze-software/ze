@@ -7,6 +7,7 @@ package rest
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
@@ -28,6 +29,16 @@ var logger = slogutil.Logger("api.rest")
 
 // maxRequestBody limits the size of request bodies (1 MB).
 const maxRequestBody = 1 << 20
+
+// ConvenienceCommands lists the dispatch command strings used by REST
+// convenience routes. Used by parity tests to detect drift from the
+// live command registry.
+var ConvenienceCommands = []string{
+	"summary",
+	"show version",
+	"daemon status",
+	"daemon reload",
+}
 
 // Authenticator validates an Authorization header value and returns the
 // authenticated username. Returns ("", false) on invalid credentials.
@@ -222,6 +233,7 @@ func (s *RESTServer) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/execute/stream", s.withAuth(s.handleStream))
 
 	// Convenience routes (map to Execute).
+	// Commands listed in ConvenienceCommands for parity testing.
 	mux.HandleFunc("GET /api/v1/peers", s.withAuth(s.handleConvenience("summary")))
 	mux.HandleFunc("GET /api/v1/peers/", s.withAuth(s.handlePeerByName))
 	mux.HandleFunc("DELETE /api/v1/peers/", s.withAuth(s.handlePeerAction("teardown")))
@@ -276,7 +288,9 @@ func (s *RESTServer) withAuth(next http.HandlerFunc) http.HandlerFunc {
 		} else if s.token != "" {
 			auth := r.Header.Get("Authorization")
 			expected := "Bearer " + s.token
-			if subtle.ConstantTimeCompare([]byte(auth), []byte(expected)) != 1 {
+			gotHash := sha256.Sum256([]byte(auth))
+			wantHash := sha256.Sum256([]byte(expected))
+			if subtle.ConstantTimeCompare(gotHash[:], wantHash[:]) != 1 {
 				writeError(w, http.StatusUnauthorized, "unauthorized")
 				return
 			}

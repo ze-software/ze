@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -140,7 +141,7 @@ func TestClientExchangeReject(t *testing.T) {
 
 func TestClientRetransmit(t *testing.T) {
 	sharedKey := []byte("testing123")
-	attempts := 0
+	var attempts atomic.Int32
 
 	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {
@@ -157,8 +158,8 @@ func TestClientRetransmit(t *testing.T) {
 			if readErr != nil {
 				return
 			}
-			attempts++
-			if attempts < 2 {
+			a := attempts.Add(1)
+			if a < 2 {
 				continue
 			}
 			resp := buildResponse(CodeAccessAccept, buf[:n], sharedKey)
@@ -193,8 +194,8 @@ func TestClientRetransmit(t *testing.T) {
 	if resp.Code != CodeAccessAccept {
 		t.Errorf("got code %d, want %d", resp.Code, CodeAccessAccept)
 	}
-	if attempts < 2 {
-		t.Errorf("expected at least 2 attempts, got %d", attempts)
+	if attempts.Load() < 2 {
+		t.Errorf("expected at least 2 attempts, got %d", attempts.Load())
 	}
 }
 
@@ -250,7 +251,7 @@ func TestClientAuthenticatorVerify(t *testing.T) {
 	}
 	addr := conn.LocalAddr().String()
 	done := make(chan struct{})
-	attempts := 0
+	var attempts atomic.Int32
 
 	go func() {
 		defer close(done)
@@ -260,9 +261,9 @@ func TestClientAuthenticatorVerify(t *testing.T) {
 			if readErr != nil {
 				return
 			}
-			attempts++
+			a := attempts.Add(1)
 			var resp []byte
-			if attempts == 1 {
+			if a == 1 {
 				resp = buildResponse(CodeAccessAccept, buf[:n], []byte("wrong-key"))
 			} else {
 				resp = buildResponse(CodeAccessAccept, buf[:n], sharedKey)
@@ -298,15 +299,18 @@ func TestClientAuthenticatorVerify(t *testing.T) {
 	if resp.Code != CodeAccessAccept {
 		t.Errorf("got code %d, want %d", resp.Code, CodeAccessAccept)
 	}
-	if attempts < 2 {
-		t.Errorf("expected at least 2 attempts (first had bad auth), got %d", attempts)
+	if attempts.Load() < 2 {
+		t.Errorf("expected at least 2 attempts (first had bad auth), got %d", attempts.Load())
 	}
 }
 
 func TestClientSourceAddress(t *testing.T) {
 	sharedKey := []byte("testing123")
 
-	var receivedFrom *net.UDPAddr
+	type addrResult struct {
+		from *net.UDPAddr
+	}
+	result := make(chan addrResult, 1)
 	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {
 		t.Fatal(err)
@@ -321,7 +325,7 @@ func TestClientSourceAddress(t *testing.T) {
 		if readErr != nil {
 			return
 		}
-		receivedFrom = from
+		result <- addrResult{from: from}
 		resp := buildResponse(CodeAccessAccept, buf[:n], sharedKey)
 		conn.WriteToUDP(resp, from) //nolint:errcheck // test mock
 	}()
@@ -351,11 +355,16 @@ func TestClientSourceAddress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receivedFrom == nil {
+	select {
+	case r := <-result:
+		if r.from == nil {
+			t.Fatal("no request received")
+		}
+		if !r.from.IP.Equal(net.IPv4(127, 0, 0, 1)) {
+			t.Errorf("source IP: got %v, want 127.0.0.1", r.from.IP)
+		}
+	default:
 		t.Fatal("no request received")
-	}
-	if !receivedFrom.IP.Equal(net.IPv4(127, 0, 0, 1)) {
-		t.Errorf("source IP: got %v, want 127.0.0.1", receivedFrom.IP)
 	}
 }
 

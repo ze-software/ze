@@ -1,5 +1,5 @@
-# Test: ze config validate rejects port 0 in L2TP server block
-# VALIDATES: zt:listener's typedef port { range "1..65535" } is enforced
+# Test: ze config validate accepts port 0 in L2TP server block
+# Note: port 0 means "OS-assigned"; YANG range now allows 0..65535
 stdin=config:terminator=EOF_CONF
 l2tp {
 	enabled true
@@ -15,4 +15,4 @@ environment {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
-expect=exit:code=1
+expect=exit:code=0

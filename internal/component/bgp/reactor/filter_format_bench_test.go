@@ -36,7 +36,7 @@ func buildAttrsWireFixture(tb testing.TB) *attribute.AttributesWire {
 	// Register a minimal ASN4 encoding context so lazy-parse succeeds without
 	// allocating an error. Otherwise AttributesWire.Get would call fmt.Errorf
 	// on every invocation (sourceCtxID 0 is not registered).
-	ctxID := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	return attribute.NewAttributesWire(wire, ctxID)
 }
 

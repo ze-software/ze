@@ -26,7 +26,7 @@ EOF_CONF
 option=env:var=NO_COLOR:value=1
 cmd=foreground:seq=1:exec=ze bgp --help
 expect=exit:code=0
-expect=stdout:contains=Commands:
-expect=stdout:contains=decode
-expect=stdout:contains=Examples:
-expect=stdout:contains=See also:
+expect=stderr:contains=Commands:
+expect=stderr:contains=decode
+expect=stderr:contains=Examples:
+expect=stderr:contains=See also:

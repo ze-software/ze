@@ -22,7 +22,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze show bgp decode --help
+cmd=foreground:seq=1:exec=ze bgp decode --help
 expect=exit:code=0
-expect=stdout:contains=Decode BGP message
-expect=stdout:contains=hex-payload
+expect=stderr:contains=Decode BGP message
+expect=stderr:contains=hex

@@ -5,6 +5,7 @@ package l2tpauthlocal
 
 import (
 	"crypto/md5" //nolint:gosec // RFC 1994 CHAP-MD5 requires MD5 by protocol definition
+	"crypto/sha256"
 	"crypto/subtle"
 	"sync"
 
@@ -40,9 +41,9 @@ func (a *localAuth) handle(req ppp.EventAuthRequest, _ l2tp.AuthRespondFunc) l2t
 	defer a.mu.RUnlock()
 
 	if len(a.users) == 0 {
-		logger().Warn("l2tp-auth-local: no users configured; accepting all",
+		logger().Warn("l2tp-auth-local: no users configured; rejecting",
 			"tunnel", req.TunnelID, "session", req.SessionID, "username", req.Username)
-		return l2tp.AuthResult{Accept: true, Message: "no users configured"}
+		return l2tp.AuthResult{Accept: false, Message: "no users configured"}
 	}
 
 	user, ok := a.users[req.Username]
@@ -77,8 +78,9 @@ func (a *localAuth) handle(req ppp.EventAuthRequest, _ l2tp.AuthRespondFunc) l2t
 
 // RFC 1334 Section 2.2.1: PAP carries cleartext password.
 func (a *localAuth) verifyPAP(req ppp.EventAuthRequest, user userEntry) l2tp.AuthResult {
-	got := string(req.Response)
-	if subtle.ConstantTimeCompare([]byte(got), []byte(user.secret)) == 1 {
+	gotHash := sha256.Sum256(req.Response)
+	wantHash := sha256.Sum256([]byte(user.secret))
+	if subtle.ConstantTimeCompare(gotHash[:], wantHash[:]) == 1 {
 		logger().Info("l2tp-auth-local: PAP accepted",
 			"tunnel", req.TunnelID, "session", req.SessionID, "username", req.Username)
 		return l2tp.AuthResult{Accept: true}

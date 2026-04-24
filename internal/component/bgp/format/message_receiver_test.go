@@ -491,7 +491,7 @@ func TestFormatFullAddPathFlags(t *testing.T) {
 		// Create encoding context with ADD-PATH for IPv4 unicast only
 		addPathMap := map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true}
 		ctx := bgpctx.EncodingContextWithAddPath(true, addPathMap)
-		ctxID := bgpctx.Registry.Register(ctx)
+		ctxID, _ := bgpctx.Registry.Register(ctx)
 
 		wireUpdate := wireu.NewWireUpdate(body, ctxID)
 		attrsWire, err := wireUpdate.Attrs()
@@ -535,7 +535,7 @@ func TestFormatFullAddPathFlags(t *testing.T) {
 	t.Run("no_add_path_omits_field", func(t *testing.T) {
 		// Create encoding context WITHOUT ADD-PATH
 		ctx := bgpctx.EncodingContextWithAddPath(true, nil)
-		ctxID := bgpctx.Registry.Register(ctx)
+		ctxID, _ := bgpctx.Registry.Register(ctx)
 
 		wireUpdate := wireu.NewWireUpdate(body, ctxID)
 		attrsWire, err := wireUpdate.Attrs()

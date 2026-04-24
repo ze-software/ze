@@ -43,21 +43,12 @@ func (b *backend) Apply(desired []firewall.Table) error {
 		return fmt.Errorf("firewallnft: list tables: %w", err)
 	}
 
-	// Build set of desired table names for orphan detection.
-	desiredNames := make(map[string]bool, len(desired))
-	for i := range desired {
-		desiredNames[desired[i].Name] = true
-	}
-
-	// Delete orphan ze_* tables (present in kernel but not in desired state).
+	// Delete ALL ze_* tables so desired tables are recreated cleanly.
+	// This ensures changed rules/chains/sets are replaced, not merged.
 	for _, ct := range currentTables {
-		if !strings.HasPrefix(ct.Name, zeTablePrefix) {
-			continue // not ours
+		if strings.HasPrefix(ct.Name, zeTablePrefix) {
+			b.conn.DelTable(ct)
 		}
-		if desiredNames[ct.Name] {
-			continue // still desired
-		}
-		b.conn.DelTable(ct)
 	}
 
 	// Create or replace desired tables.

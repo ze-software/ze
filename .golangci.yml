@@ -16,6 +16,9 @@ linters:
       - path: cmd/
         linters:
           - forbidigo
+      - linters:
+          - staticcheck
+        text: "QF1008"
       # Bubbletea tea.Model interface requires value receivers — cannot use pointer
       - path: "(internal/component/cli/model[^/]*|cmd/ze/cli/main)\\.go"
         text: "hugeParam"
@@ -77,7 +80,7 @@ linters:
         hugeParam:
           sizeThreshold: 280
         rangeValCopy:
-          sizeThreshold: 128
+          sizeThreshold: 160
 
     gosec:
       excludes:

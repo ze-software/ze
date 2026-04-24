@@ -94,7 +94,7 @@ func TestLocalAuthCHAPMD5Reject(t *testing.T) {
 	}
 }
 
-func TestLocalAuthNoUsersAcceptAll(t *testing.T) {
+func TestLocalAuthNoUsersRejectAll(t *testing.T) {
 	a := newLocalAuth()
 
 	result := a.handle(ppp.EventAuthRequest{
@@ -104,8 +104,8 @@ func TestLocalAuthNoUsersAcceptAll(t *testing.T) {
 		Username:  "anyone",
 		Response:  []byte("anything"),
 	}, nil)
-	if !result.Accept {
-		t.Fatal("expected accept when no users configured")
+	if result.Accept {
+		t.Fatal("expected reject when no users configured (fail-closed)")
 	}
 }
 
@@ -148,7 +148,7 @@ func TestLocalAuthHandlerType(t *testing.T) {
 	a := newLocalAuth()
 	var h l2tp.AuthHandler = a.handle
 	result := h(ppp.EventAuthRequest{Method: ppp.AuthMethodNone}, nil)
-	if !result.Accept {
-		t.Fatal("handler should accept AuthMethodNone")
+	if result.Accept {
+		t.Fatal("handler should reject when no users configured (fail-closed)")
 	}
 }

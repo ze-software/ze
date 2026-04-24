@@ -302,6 +302,16 @@ func (s *store) applyConfig(settings map[string]string) ([]string, []error) {
 		}
 	}
 
+	// Preflight: verify all keys are readable (writable) before applying any.
+	for key := range settings {
+		if _, err := s.be.read(key); err != nil {
+			errs = append(errs, fmt.Errorf("sysctl: preflight read %s: %w", key, err))
+		}
+	}
+	if len(errs) > 0 {
+		return nil, errs
+	}
+
 	// Apply config values.
 	for key, value := range settings {
 		e := s.getOrCreate(key)

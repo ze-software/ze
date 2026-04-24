@@ -96,7 +96,7 @@ func listCPUs() []int {
 }
 
 func readSysInt(path string) int {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // sysfs path
 	if err != nil {
 		return 0
 	}
@@ -105,7 +105,7 @@ func readSysInt(path string) int {
 }
 
 func readSysUint64(path string) uint64 {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // sysfs path
 	if err != nil {
 		return 0
 	}
@@ -114,7 +114,7 @@ func readSysUint64(path string) uint64 {
 }
 
 func readSysStr(path string) string {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // sysfs path
 	if err != nil {
 		return ""
 	}

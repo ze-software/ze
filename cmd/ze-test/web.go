@@ -36,6 +36,7 @@ func webMain() error {
 	listOnly := fs.Bool("l", false, "list tests without running")
 	fs.BoolVar(listOnly, "list", false, "list tests without running")
 	port := fs.String("port", "", "port for test web server (default: random free port)")
+	fs.Bool("all", false, "run all tests (default behavior)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze-test web [options]

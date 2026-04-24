@@ -48,9 +48,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
+	"codeberg.org/thomas-mangin/ze/internal/component/telemetry/collector"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/health"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/reboot"
@@ -504,7 +506,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	_, hasBGPBlock := configTree["bgp"]
 
 	if _, hasTelemetry := configTree["telemetry"]; hasTelemetry && !hasBGPBlock {
-		slog.Warn("telemetry {} block present but bgp {} absent: telemetry will not start (telemetry startup requires bgp {})")
+		if st := startStandaloneTelemetry(loadResult.Tree); st != nil {
+			defer st.Close()
+		}
 	}
 
 	sshCfg := bgpconfig.ExtractSSHConfig(loadResult.Tree)
@@ -642,6 +646,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			fmt.Fprintln(os.Stderr, "API auth mode: single-token (shared bearer)")
 		default:
 			fmt.Fprintln(os.Stderr, "warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or initialize zefs")
+		}
+
+		if len(apiUsers) == 0 && apiCfg.Token == "" && apiHasNonLoopback(apiCfg) {
+			fmt.Fprintln(os.Stderr, "error: refusing to start API on non-loopback listener without authentication")
+			fmt.Fprintln(os.Stderr, "  set ze.api-server.token, initialize zefs users, or bind to 127.0.0.1/::1 only")
+			return 1
 		}
 
 		apiSrvs = startAPIServers(apiCfg, apiServer, store, configPath, apiUsers)
@@ -1434,7 +1444,7 @@ func newResolvers(sc system.SystemConfig) *resolve.Resolvers {
 	return &resolve.Resolvers{
 		DNS:       dnsResolver,
 		Cymru:     cymru.New(txtResolver, nil),
-		PeeringDB: peeringdb.NewPeeringDB(""),
+		PeeringDB: peeringdb.NewPeeringDB(sc.PeeringDBURL),
 		IRR:       irr.NewIRR(""),
 	}
 }
@@ -1453,4 +1463,47 @@ func parseASNForDecorator(asn string) uint32 {
 		}
 	}
 	return uint32(n)
+}
+
+// startStandaloneTelemetry starts the Prometheus metrics server when
+// telemetry{} is configured but bgp{} is absent. Mirrors the startup
+// logic in loader_create.go but without requiring a reactor.
+type standaloneTelemetry struct {
+	srv     metrics.Server
+	manager *collector.Manager
+}
+
+func (st *standaloneTelemetry) Close() {
+	if st.manager != nil {
+		st.manager.Stop()
+	}
+	_ = st.srv.Close()
+}
+
+func startStandaloneTelemetry(tree *zeconfig.Tree) *standaloneTelemetry {
+	telemetryCfg := metrics.ExtractTelemetryConfig(tree.ToMap())
+	if !telemetryCfg.Enabled {
+		return nil
+	}
+
+	st := &standaloneTelemetry{}
+	reg := metrics.NewPrometheusRegistry()
+	if err := st.srv.Start(reg, telemetryCfg); err != nil {
+		slog.Warn("standalone telemetry: metrics server failed to start", "error", err)
+		return nil
+	}
+	for _, ep := range telemetryCfg.Endpoints {
+		slog.Info("standalone telemetry: prometheus metrics enabled",
+			"address", ep.Host, "port", ep.Port, "path", telemetryCfg.Path)
+	}
+
+	overrides := make(map[string]collector.CollectorOverride, len(telemetryCfg.Collectors))
+	for name, cc := range telemetryCfg.Collectors {
+		overrides[name] = collector.CollectorOverride{
+			Enabled:  cc.Enabled,
+			Interval: time.Duration(cc.Interval) * time.Second,
+		}
+	}
+	st.manager = collector.StartOSCollectors(reg, telemetryCfg.Prefix, time.Duration(telemetryCfg.Interval)*time.Second, overrides, slog.Default())
+	return st
 }

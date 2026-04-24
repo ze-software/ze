@@ -183,16 +183,17 @@ func runPlugin(conn net.Conn) int {
 		if pending != nil {
 			poolInstance.mu.Lock()
 			old := poolInstance.pool
-			poolInstance.pool = pending
-			poolInstance.mu.Unlock()
-			total, _, _ := pending.stats()
 			if old != nil {
 				_, oldAlloc, _ := old.stats()
 				if oldAlloc > 0 {
-					logger().Warn("l2tp-pool: pool replaced with live sessions; addresses from old pool release on session-down",
-						"old-allocated", oldAlloc)
+					poolInstance.mu.Unlock()
+					pending = nil
+					return fmt.Errorf("l2tp-pool: cannot replace pool with %d live allocations; tear down sessions first", oldAlloc)
 				}
 			}
+			poolInstance.pool = pending
+			poolInstance.mu.Unlock()
+			total, _, _ := pending.stats()
 			logger().Info("l2tp-pool: configured", "total", total)
 			pending = nil
 		}

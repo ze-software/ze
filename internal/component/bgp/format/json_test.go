@@ -1072,7 +1072,8 @@ func testEncodingContextWithAddPath() bgpctx.ContextID {
 		{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true,
 	}
 	ctx := bgpctx.EncodingContextWithAddPath(true, addPath)
-	return bgpctx.Registry.Register(ctx)
+	id, _ := bgpctx.Registry.Register(ctx)
+	return id
 }
 
 // TestJSONEncoderIPv4DualNextHop verifies handling of IPv4 with two next-hops.

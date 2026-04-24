@@ -105,6 +105,13 @@ func (s *Store[T]) ModifyAll(fn func(*T)) {
 	}
 }
 
+func (s *Store[T]) ModifyAllKeyed(fn func(pfx netip.Prefix, v *T)) {
+	for pfx, v := range s.trie.All() {
+		fn(pfx, &v)
+		s.trie.Insert(pfx, v)
+	}
+}
+
 // Reset clears every entry. The backing trie is replaced with an empty one.
 // Callers that need per-entry cleanup (e.g. releasing pool handles on
 // RouteEntry) must run ModifyAll first.

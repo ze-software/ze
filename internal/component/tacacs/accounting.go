@@ -152,6 +152,10 @@ func (a *TacacsAccountant) isStopped() bool {
 func (a *TacacsAccountant) CommandStart(username, remoteAddr, command string) string {
 	taskID := fmt.Sprintf("%d", a.taskSeq.Add(1))
 
+	args := append(splitTacacsArgs(command),
+		"task_id="+taskID,
+		"start_time="+fmt.Sprintf("%d", time.Now().Unix()),
+	)
 	req := &AcctRequest{
 		Flags:         AcctFlagStart,
 		AuthenMethod:  0x06, // TACACS+
@@ -161,12 +165,7 @@ func (a *TacacsAccountant) CommandStart(username, remoteAddr, command string) st
 		User:          username,
 		Port:          "ssh",
 		RemAddr:       remoteAddr,
-		Args: []string{
-			"task_id=" + taskID,
-			"service=shell",
-			"cmd=" + command,
-			"start_time=" + fmt.Sprintf("%d", time.Now().Unix()),
-		},
+		Args:          args,
 	}
 
 	if !a.enqueue(req) {
@@ -180,6 +179,10 @@ func (a *TacacsAccountant) CommandStart(username, remoteAddr, command string) st
 // CommandStop sends an accounting STOP record.
 // Never blocks: enqueues to the worker. Drops with a warning if the queue is full.
 func (a *TacacsAccountant) CommandStop(taskID, username, remoteAddr, command string) {
+	stopArgs := append(splitTacacsArgs(command),
+		"task_id="+taskID,
+		"stop_time="+fmt.Sprintf("%d", time.Now().Unix()),
+	)
 	req := &AcctRequest{
 		Flags:         AcctFlagStop,
 		AuthenMethod:  0x06, // TACACS+
@@ -189,12 +192,7 @@ func (a *TacacsAccountant) CommandStop(taskID, username, remoteAddr, command str
 		User:          username,
 		Port:          "ssh",
 		RemAddr:       remoteAddr,
-		Args: []string{
-			"task_id=" + taskID,
-			"service=shell",
-			"cmd=" + command,
-			"stop_time=" + fmt.Sprintf("%d", time.Now().Unix()),
-		},
+		Args:          stopArgs,
 	}
 
 	if !a.enqueue(req) {

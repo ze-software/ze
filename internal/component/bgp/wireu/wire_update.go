@@ -159,6 +159,18 @@ func (u *WireUpdate) MPUnreach() (MPUnreachWire, error) {
 	return MPUnreachWire(raw), nil
 }
 
+// Snapshot returns a new WireUpdate with an owned copy of the payload.
+// Use when the original payload references a pool buffer that may be
+// reused before all consumers finish reading (e.g., fire-and-forget delivery).
+func (u *WireUpdate) Snapshot() *WireUpdate {
+	owned := make([]byte, len(u.payload))
+	copy(owned, u.payload)
+	s := NewWireUpdate(owned, u.sourceCtxID)
+	s.messageID = u.messageID
+	s.sourceID = u.sourceID
+	return s
+}
+
 // SourceCtxID returns the encoding context ID for zero-copy decisions.
 func (u *WireUpdate) SourceCtxID() bgpctx.ContextID {
 	return u.sourceCtxID

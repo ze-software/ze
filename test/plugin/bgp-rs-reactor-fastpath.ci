@@ -10,10 +10,13 @@
 # Two eBGP peers: source (65001) sends one UPDATE, receiver (65002) must
 # get the forwarded UPDATE via the reactor fast path. The reject rules
 # verify no ForwardCached fallback was used.
+# Peers use different loopback IPs (127.0.0.1/127.0.0.2) to avoid duplicate
+# peer key collision in the reactor.
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
 option=timeout:value=15s
+option=bind:value=0.0.0.0
 
 # Source peer (conn=1): send one UPDATE with NLRI 10.0.0.0/24.
 # ORIGIN=IGP, AS_PATH=[65001] (4-byte), NEXT_HOP=1.1.1.1, LOCAL_PREF=100
@@ -93,10 +96,10 @@ bgp {
 	peer receiver-peer {
 		connection {
 			remote {
-				ip 127.0.0.1
+				ip 127.0.0.2
 			}
 			local {
-				ip 127.0.0.1
+				ip 127.0.0.2
 				accept false
 			}
 		}

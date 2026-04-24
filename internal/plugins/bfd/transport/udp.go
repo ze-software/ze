@@ -298,6 +298,7 @@ func (u *UDP) readLoop() {
 		ttl := parseReceivedTTL(oob[:oobn])
 		in := Inbound{
 			From:    raddr.Addr().Unmap(),
+			Local:   u.Bind.Addr(),
 			VRF:     u.VRF,
 			Mode:    u.Mode,
 			TTL:     ttl,

@@ -26,4 +26,4 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
-expect=stderr:contains=route-refresh requires process with send [ update ]
+expect=stdout:contains=route-refresh requires process with send [ update ]

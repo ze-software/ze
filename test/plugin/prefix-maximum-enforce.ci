@@ -4,8 +4,8 @@
 # AC-10: From spec-prefix-limit -- enforcement wiring test.
 
 # ze-peer: sends 3 routes (exceeds maximum=2)
-# We only expect EOR (seq=1) -- ze closes after sending NOTIFICATION,
-# and the NOTIFICATION is verified via ze's stderr log.
+# Ze sends NOTIFICATION Cease/MaxPrefixes before EOR because it tears down.
+# NOTIFICATION: code=6 (Cease), subcode=1 (MaxPrefixes), data=AFI(0001)+SAFI(01)+count(00000003)
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
@@ -13,8 +13,8 @@ option=asn:value=65001
 option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
 option=update:value=send-route:prefix=10.0.1.0/24:next-hop=10.0.0.1
 option=update:value=send-route:prefix=10.0.2.0/24:next-hop=10.0.0.1
-# Accept EOR (ze sends this immediately on session establishment)
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# Expect NOTIFICATION Cease/MaxPrefixes (type 3) instead of EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C03060100010100000003
 EOF_PEER
 
 # ze bgp configuration: prefix maximum=2 for ipv4/unicast

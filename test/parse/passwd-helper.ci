@@ -22,6 +22,10 @@ bgp {
 }
 EOF_STDIN
 
-cmd=foreground:seq=1:exec=sh:args=-c,echo secret | ze passwd
+stdin=secret:terminator=EOF_SECRET
+secret
+EOF_SECRET
+
+cmd=foreground:seq=1:exec=ze passwd:stdin=secret
 expect=exit:code=0
 expect=stdout:contains=$2a$10$

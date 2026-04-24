@@ -17,5 +17,6 @@ func testEncodingContext() bgpctx.ContextID {
 		},
 		bgpctx.DirectionRecv,
 	)
-	return bgpctx.Registry.Register(ctx)
+	id, _ := bgpctx.Registry.Register(ctx)
+	return id
 }

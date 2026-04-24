@@ -35,7 +35,10 @@ func (c *btrfsCollector) Init(reg metrics.Registry, prefix string) {
 
 func (c *btrfsCollector) Collect() error {
 	uuids, err := filepath.Glob("/sys/fs/btrfs/*-*-*-*-*")
-	if err != nil || len(uuids) == 0 {
+	if err != nil {
+		return err
+	}
+	if len(uuids) == 0 {
 		return nil
 	}
 
@@ -80,7 +83,7 @@ func (c *btrfsCollector) Collect() error {
 }
 
 func readBtrfsLabel(base string) string {
-	b, err := os.ReadFile(filepath.Join(base, "label"))
+	b, err := os.ReadFile(filepath.Join(base, "label")) //nolint:gosec // sysfs path
 	if err != nil {
 		return ""
 	}

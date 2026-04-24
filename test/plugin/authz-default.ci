@@ -1,14 +1,14 @@
-# Test: unassigned user gets built-in admin default (allow all)
+# Test: unassigned user is denied when other user assignments exist (fail closed)
 #
 # Flow:
 # 1. Daemon starts with SSH + authz config (profiles exist but user not assigned)
 # 2. Shell script connects via SSH as unknown user (no profile assignment)
-# 3. Unknown user has no profile assignment -> built-in admin -> allow all
+# 3. Unknown user has no profile assignment + other users exist -> fail closed -> deny
 #
-# VALIDATES: AC-4 -- users without profile assignment get admin default access.
-# PREVENTS: Unassigned users silently denied -- locked out without explicit profile.
+# VALIDATES: P1-2 -- unassigned users are denied when assignments are configured.
+# PREVENTS: Unassigned users silently becoming admin-equivalent.
 
-# Test script: unassigned user gets admin default
+# Test script: unassigned user gets denied
 tmpfs=test-authz-default.sh:mode=755:terminator=EOF_SH
 #!/bin/sh
 set -e
@@ -108,24 +108,24 @@ UNK_DIR=$(mktemp -d)
 trap 'rm -rf "$UNK_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
 printf 'unknown\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$UNK_DIR" ze init >/dev/null
 
-# Test 1: unknown user (no profile assignment) can run any read-only command
-# Store.Authorize returns Allow for users with no assignment (built-in admin)
-OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "peer list" 2>&1) || {
-	echo "FAIL: unknown user should get admin default (allow 'peer list')" >&2
+# Test 1: unknown user (no profile assignment) is DENIED when other assignments exist
+# Store.Authorize returns Deny for unassigned users when assignments are configured (fail closed)
+OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "peer list" 2>&1) && {
+	echo "FAIL: unknown user should be denied (fail closed) but was allowed" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
 }
-echo "OK: unknown user allowed peer list (admin default)" >&2
+echo "OK: unknown user denied peer list (fail closed)" >&2
 
-# Test 2: unknown user can also run commands that restricted profile would deny
-OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "peer detail" 2>&1) || {
-	echo "FAIL: unknown user should get admin default (allow 'peer detail')" >&2
+# Test 2: unknown user also denied on other commands
+OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "peer detail" 2>&1) && {
+	echo "FAIL: unknown user should be denied but was allowed" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
 }
-echo "OK: unknown user allowed peer detail (admin default)" >&2
+echo "OK: unknown user denied peer detail (fail closed)" >&2
 
-echo "OK: all default admin tests passed" >&2
+echo "OK: all fail-closed authz tests passed" >&2
 exit 0
 EOF_SH
 

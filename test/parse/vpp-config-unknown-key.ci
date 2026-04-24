@@ -19,4 +19,4 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
-expect=stderr:contains=unknown field in vpp: nonsense-leaf
+expect=stdout:contains=unknown field in vpp: nonsense-leaf

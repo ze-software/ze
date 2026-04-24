@@ -25,5 +25,5 @@ EOF_CONF
 option=env:var=NO_COLOR:value=1
 cmd=foreground:seq=1:exec=ze resolve cymru
 expect=exit:code=1
-expect=stdout:contains=Operations:
-expect=stdout:contains=asn-name
+expect=stderr:contains=Operations:
+expect=stderr:contains=asn-name

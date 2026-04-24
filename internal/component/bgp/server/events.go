@@ -287,8 +287,32 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 	isUpdate := msgs[0].Type == message.TypeUPDATE
 	var fmtCache formatCache
 
+	hasStructured := false
+	for _, proc := range procs {
+		if proc.HasStructuredHandler() {
+			hasStructured = true
+			break
+		}
+	}
+
 	for i := range msgs {
 		msg := &msgs[i]
+
+		// Snapshot WireUpdate for structured handlers: fire-and-forget
+		// delivery means the pool buffer backing the WireUpdate may be
+		// freed (via cache Activate/Decrement) before all consumers
+		// finish reading. The snapshot owns its bytes.
+		var snapshotMsg bgptypes.RawMessage
+		if hasStructured && msg.WireUpdate != nil {
+			snapshotMsg = *msg
+			snapshotMsg.WireUpdate = msg.WireUpdate.Snapshot()
+			if snapshotMsg.AttrsWire != nil {
+				if aw, err := snapshotMsg.WireUpdate.Attrs(); err == nil {
+					snapshotMsg.AttrsWire = aw
+				}
+			}
+			snapshotMsg.RawBytes = snapshotMsg.WireUpdate.Payload()
+		}
 
 		fmtCache.reset()
 		for _, proc := range procs {
@@ -305,7 +329,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 		for _, proc := range procs {
 			var delivery process.EventDelivery
 			if proc.HasStructuredHandler() {
-				se := getStructuredEvent(peer, msg)
+				se := getStructuredEvent(peer, &snapshotMsg)
 				delivery = process.EventDelivery{Event: se}
 			} else {
 				output, _ := fmtCache.get(proc.FormatCacheKey())

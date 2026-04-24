@@ -5,6 +5,7 @@
 package reactor
 
 import (
+	"log/slog"
 	"net"
 	"time"
 
@@ -142,29 +143,66 @@ func (s *Session) sendOpen(conn net.Conn) error {
 }
 
 // buildOptionalParams builds optional parameters from capabilities.
-// All capabilities are bundled in a single type-2 (Capabilities) parameter
-// per RFC 5492 Section 4. Some implementations (GoBGP) only parse the last
-// type-2 parameter, so bundling ensures all capabilities are seen.
-// Single allocation: calculates total size upfront, then writes all TLVs.
+// RFC 5492 Section 4: capabilities are packed into type-2 optional parameters.
+// If total capability bytes fit in one parameter (<=255), a single type-2
+// parameter is used. If they exceed 255 bytes, capabilities are split across
+// multiple type-2 parameters, each within the 255-byte length limit.
 func buildOptionalParams(caps []capability.Capability) []byte {
 	if len(caps) == 0 {
 		return nil
 	}
 
-	// Calculate total capability TLV bytes.
 	capTotal := 0
 	for _, c := range caps {
 		capTotal += c.Len()
 	}
 
-	// Single type-2 parameter: type (1) + length (1) + all capability TLVs.
-	buf := make([]byte, 2+capTotal)
-	buf[0] = 2              // Parameter type: Capabilities
-	buf[1] = byte(capTotal) //nolint:gosec // Total capability bytes always <256 for standard BGP
-	off := 2
-	for _, c := range caps {
-		off += c.WriteTo(buf, off)
+	if capTotal <= 255 {
+		buf := make([]byte, 2+capTotal)
+		buf[0] = 2
+		buf[1] = byte(capTotal) //nolint:gosec // guarded by <= 255 check above
+		off := 2
+		for _, c := range caps {
+			off += c.WriteTo(buf, off)
+		}
+		return buf
 	}
+
+	// Split into multiple type-2 parameters when total exceeds 255 bytes.
+	var buf []byte
+	paramLen := 0
+	var paramCaps []capability.Capability
+
+	flush := func() {
+		if paramLen == 0 {
+			return
+		}
+		param := make([]byte, 2+paramLen)
+		param[0] = 2
+		param[1] = byte(paramLen) //nolint:gosec // paramLen <= 255 enforced by split logic
+		off := 2
+		for _, c := range paramCaps {
+			off += c.WriteTo(param, off)
+		}
+		buf = append(buf, param...)
+		paramCaps = paramCaps[:0]
+		paramLen = 0
+	}
+
+	for _, c := range caps {
+		cLen := c.Len()
+		if cLen > 255 {
+			slog.Debug("capability exceeds 255-byte parameter limit, skipping",
+				"code", c.Code(), "len", cLen)
+			continue
+		}
+		if paramLen+cLen > 255 {
+			flush()
+		}
+		paramCaps = append(paramCaps, c)
+		paramLen += cLen
+	}
+	flush()
 
 	return buf
 }

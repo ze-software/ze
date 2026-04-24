@@ -7,6 +7,7 @@ package grpc
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
 	"encoding/json"
@@ -293,7 +294,9 @@ func (s *GRPCServer) checkAuth(ctx context.Context) (string, error) {
 	}
 
 	expected := "Bearer " + s.token
-	if subtle.ConstantTimeCompare([]byte(tokens[0]), []byte(expected)) != 1 {
+	got := sha256.Sum256([]byte(tokens[0]))
+	want := sha256.Sum256([]byte(expected))
+	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
 		return "", status.Error(codes.Unauthenticated, "invalid token")
 	}
 	return defaultUsername, nil

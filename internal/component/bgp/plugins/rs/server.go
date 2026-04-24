@@ -638,9 +638,14 @@ func formatCapInfo(cap capability.Capability) []CapabilityInfo {
 }
 
 // parseStructuredRefresh converts a StructuredEvent ROUTEREFRESH to an rs Event.
-// Decodes raw ROUTEREFRESH wire bytes (4 bytes: AFI + reserved + SAFI).
+// Decodes raw ROUTEREFRESH wire bytes (4 bytes: AFI + subtype + SAFI).
+// RFC 7313: subtype 1 (BoRR) and 2 (EoRR) are markers, not refresh requests.
 func parseStructuredRefresh(se *rpc.StructuredEvent, msg *bgptypes.RawMessage) *Event {
 	if se.PeerAddress == "" || msg.RawBytes == nil || len(msg.RawBytes) < 4 {
+		return nil
+	}
+	subtype := msg.RawBytes[2]
+	if subtype != 0 {
 		return nil
 	}
 	return &Event{

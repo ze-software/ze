@@ -196,6 +196,10 @@ func (a *reactorAPIAdapter) SoftClearPeer(peerSelector string) ([]string, error)
 			continue
 		}
 
+		if !neg.RouteRefresh {
+			continue
+		}
+
 		for _, f := range neg.Families() {
 			rr := &message.RouteRefresh{
 				AFI:     f.AFI,

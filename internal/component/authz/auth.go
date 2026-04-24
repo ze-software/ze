@@ -5,6 +5,7 @@
 package authz
 
 import (
+	"crypto/sha256"
 	"crypto/subtle"
 
 	"golang.org/x/crypto/bcrypt"
@@ -82,7 +83,9 @@ func CheckPassword(hash, credential string) bool {
 		return false
 	}
 	// Hash-as-token: ze cli sends the bcrypt hash read from zefs.
-	if subtle.ConstantTimeCompare([]byte(hash), []byte(credential)) == 1 {
+	gotHash := sha256.Sum256([]byte(hash))
+	credHash := sha256.Sum256([]byte(credential))
+	if subtle.ConstantTimeCompare(gotHash[:], credHash[:]) == 1 {
 		return true
 	}
 	// Plaintext: interactive user typed their password.

@@ -38,8 +38,8 @@ expect=stdout:contains=ze-system:daemon-status
 # RPCs from ze-plugin-api
 expect=stdout:contains=ze-plugin:session-ping
 # RPCs from ze-rib-api
-expect=stdout:contains=ze-rib:show-in
-expect=stdout:contains=ze-rib:show-out
+expect=stdout:contains=ze-rib:show
+expect=stdout:contains=ze-rib:best
 
 cmd=foreground:seq=2:exec=ze schema methods ze-system-api
 expect=exit:code=0

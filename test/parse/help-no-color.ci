@@ -26,6 +26,6 @@ EOF_CONF
 option=env:var=NO_COLOR:value=1
 cmd=foreground:seq=1:exec=ze --help
 expect=exit:code=0
-expect=stdout:contains=Usage:
-expect=stdout:contains=Tools:
-reject=stdout:pattern=\x1b\[
+expect=stderr:contains=Usage:
+expect=stderr:contains=Tools:
+reject=stderr:pattern=\x1b\[

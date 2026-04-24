@@ -718,6 +718,10 @@ func (r *RIBManager) handleSent(event *Event) {
 					key := outRouteKey(prefix, pathID)
 					var origin attribute.Origin
 					_ = origin.UnmarshalText([]byte(event.Origin))
+					var sourcePeer string
+					if event.RouteMeta != nil {
+						sourcePeer, _ = event.RouteMeta["source-peer"].(string)
+					}
 					r.ribOut[peerAddr][fam][key] = &Route{
 						MsgID:               msgID,
 						Family:              fam,
@@ -733,6 +737,7 @@ func (r *RIBManager) handleSent(event *Event) {
 						ExtendedCommunities: parseExtCommunityStrings(event.ExtendedCommunities),
 						RawAttrs:            event.RawAttributes,
 						Meta:                event.RouteMeta,
+						SourcePeer:          sourcePeer,
 					}
 				}
 			case "del":

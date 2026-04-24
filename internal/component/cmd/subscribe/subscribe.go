@@ -55,9 +55,9 @@ func handleSubscribe(ctx *pluginserver.CommandContext, args []string) (*plugin.R
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: map[string]any{
-			"namespace": sub.Namespace,
-			"event":     sub.EventType,
-			"direction": sub.Direction,
+			"namespace": sub.Namespace.String(),
+			"event":     sub.EventType.String(),
+			"direction": sub.Direction.String(),
 		},
 	}, nil
 }
@@ -92,8 +92,8 @@ func handleUnsubscribe(ctx *pluginserver.CommandContext, args []string) (*plugin
 		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"removed":   removed,
-			"namespace": sub.Namespace,
-			"event":     sub.EventType,
+			"namespace": sub.Namespace.String(),
+			"event":     sub.EventType.String(),
 		},
 	}, nil
 }

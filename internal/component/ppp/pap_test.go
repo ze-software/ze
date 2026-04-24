@@ -577,6 +577,7 @@ func TestPAPHandlerWireErrors(t *testing.T) {
 				if _, err := peerEnd.Write(buf[:off]); err != nil {
 					t.Fatalf("peer write: %v", err)
 				}
+				closeConn(peerEnd)
 			},
 		},
 		{

@@ -47,7 +47,7 @@ func makeRSPeer(t *testing.T, addr string, peerAS uint32, ctx *bgpctx.EncodingCo
 // except the source, using the same egress pipeline.
 func TestReactorForwardRSBasic(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	payload := []byte{0, 0, 0, 0}
 	wu := wireu.NewWireUpdate(payload, ctxID)
@@ -124,7 +124,7 @@ func TestReactorForwardRSBasic(t *testing.T) {
 // and returned in the FastPathSkipped list.
 func TestReactorForwardRSFallback(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	payload := []byte{0, 0, 0, 0}
 	wu := wireu.NewWireUpdate(payload, ctxID)
@@ -189,7 +189,7 @@ func TestReactorForwardRSFallback(t *testing.T) {
 // for EBGP destination peers.
 func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	// UPDATE with AS_PATH using 4-byte ASN encoding (matching ASN4 context).
 	// flags=0x40 (well-known transitive), type=2, len=6, AS_SEQUENCE, count=1, AS=65001 (4-byte)
@@ -276,7 +276,7 @@ func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 // RetainN before dispatch, Release in done() callback after worker completes.
 func TestReactorForwardRSBufferLifetime(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	payload := []byte{0, 0, 0, 0}
 	wu := wireu.NewWireUpdate(payload, ctxID)
@@ -343,7 +343,7 @@ func TestReactorForwardRSBufferLifetime(t *testing.T) {
 // CLUSTER_LIST injection for IBGP destination peers in an RS group.
 func TestReactorForwardRSRouteReflection(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	payload := []byte{0, 0, 0, 0}
 	wu := wireu.NewWireUpdate(payload, ctxID)
@@ -444,7 +444,7 @@ func TestReactorForwardRSRouteReflection(t *testing.T) {
 // and Activate runs after with pre-computed count.
 func TestReactorForwardRSCacheLifetime(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	payload := []byte{0, 0, 0, 0}
 	wu := wireu.NewWireUpdate(payload, ctxID)
@@ -533,7 +533,7 @@ func makeRSPeerWithSession(t *testing.T, addr string, peerAS uint32, ctx *bgpctx
 
 func TestReactorForwardRSDirectWrite(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	body := []byte{0, 0, 0, 0}
 
@@ -583,7 +583,7 @@ func TestReactorForwardRSDirectWrite(t *testing.T) {
 
 func TestReactorForwardRSDirectWriteTryLockFails(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	_, dstSession, _ := makeRSPeerWithSession(t, "10.0.0.2", 65002, ctx, ctxID)
 
@@ -609,7 +609,7 @@ func TestReactorForwardRSDirectWriteTryLockFails(t *testing.T) {
 
 func TestFlushFwdDirtyRetainsLockedSessions(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	_, srcSession, _ := makeRSPeerWithSession(t, "10.0.0.1", 65001, ctx, ctxID)
 	_, dst1Session, dst1Reader := makeRSPeerWithSession(t, "10.0.0.2", 65002, ctx, ctxID)

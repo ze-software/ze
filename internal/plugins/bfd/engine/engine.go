@@ -304,7 +304,9 @@ func (l *Loop) Stop() error {
 		return nil
 	}
 	close(l.stopCh)
-	<-l.doneCh
+	if l.started.Load() {
+		<-l.doneCh
+	}
 
 	l.mu.Lock()
 	for key, entry := range l.sessions {

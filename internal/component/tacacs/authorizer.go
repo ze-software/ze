@@ -11,9 +11,26 @@ package tacacs
 
 import (
 	"log/slog"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 )
+
+// splitTacacsArgs splits a command string into TACACS+ convention arguments.
+// RFC 8907 Section 6: service=shell, cmd=<verb>, cmd-arg=<arg1>, cmd-arg=<arg2>, ...
+func splitTacacsArgs(command string) []string {
+	args := []string{"service=shell"}
+	parts := strings.Fields(command)
+	if len(parts) == 0 {
+		args = append(args, "cmd=")
+		return args
+	}
+	args = append(args, "cmd="+parts[0])
+	for _, p := range parts[1:] {
+		args = append(args, "cmd-arg="+p)
+	}
+	return args
+}
 
 // TacacsAuthorizer wraps a local authorizer with TACACS+ per-command authorization.
 // When the TACACS+ server is reachable, its decision is authoritative.
@@ -41,6 +58,7 @@ func NewTacacsAuthorizer(client *TacacsClient, local aaa.Authorizer, logger *slo
 //   - false on FAIL (AC-10)
 //   - Falls back to local authorizer on ERROR or connection failure.
 func (a *TacacsAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
+	args := splitTacacsArgs(command)
 	req := &AuthorRequest{
 		AuthenMethod:  AuthenMethodTACACS,
 		PrivLvl:       1,
@@ -49,10 +67,7 @@ func (a *TacacsAuthorizer) Authorize(username, remoteAddr, command string, isRea
 		User:          username,
 		RemAddr:       remoteAddr,
 		Port:          "ssh",
-		Args: []string{
-			"service=shell",
-			"cmd=" + command,
-		},
+		Args:          args,
 	}
 
 	resp, err := a.client.SendAuthorization(req)

@@ -193,6 +193,93 @@ func MACAddressValidator() yang.CustomValidator {
 	}
 }
 
+// IPv4AddressValidator returns a validator that accepts valid IPv4 addresses.
+func IPv4AddressValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			ip := net.ParseIP(str)
+			if ip == nil || ip.To4() == nil {
+				return fmt.Errorf("%q is not a valid IPv4 address for %s", str, path)
+			}
+			return nil
+		},
+	}
+}
+
+// IPv6AddressValidator returns a validator that accepts valid IPv6 addresses.
+func IPv6AddressValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			ip := net.ParseIP(str)
+			if ip == nil {
+				return fmt.Errorf("%q is not a valid IPv6 address for %s", str, path)
+			}
+			return nil
+		},
+	}
+}
+
+// IPv4PrefixValidator returns a validator that accepts valid IPv4 CIDR prefixes.
+func IPv4PrefixValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			ip, _, err := net.ParseCIDR(str)
+			if err != nil {
+				return fmt.Errorf("%q is not a valid IPv4 prefix for %s: %w", str, path, err)
+			}
+			if ip.To4() == nil {
+				return fmt.Errorf("%q is not an IPv4 prefix for %s", str, path)
+			}
+			return nil
+		},
+	}
+}
+
+// IPv6PrefixValidator returns a validator that accepts valid IPv6 CIDR prefixes.
+func IPv6PrefixValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			_, _, err := net.ParseCIDR(str)
+			if err != nil {
+				return fmt.Errorf("%q is not a valid IPv6 prefix for %s: %w", str, path, err)
+			}
+			return nil
+		},
+	}
+}
+
+// SetRefValidator returns a validator that accepts @set-name references to firewall sets.
+func SetRefValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			if !strings.HasPrefix(str, "@") || len(str) < 2 {
+				return fmt.Errorf("%q is not a valid set reference (must start with @)", str)
+			}
+			return nil
+		},
+	}
+}
+
 // RedistributeSourceValidator returns a validator for redistribute source names.
 // Validates against the central redistribute source registry. Each protocol
 // component registers its own sources (e.g., BGP registers ibgp/ebgp).

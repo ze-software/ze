@@ -28,9 +28,12 @@ func TestRegistryRegister_NewContext(t *testing.T) {
 		DirectionRecv,
 	)
 
-	id1 := r.Register(ctx1)
-	id2 := r.Register(ctx2)
+	id1, err1 := r.Register(ctx1)
+	id2, err2 := r.Register(ctx2)
 
+	if err1 != nil || err2 != nil {
+		t.Fatalf("Register failed: err1=%v, err2=%v", err1, err2)
+	}
 	if id1 == id2 {
 		t.Errorf("different contexts got same ID: %d", id1)
 	}
@@ -55,9 +58,12 @@ func TestRegistryRegister_Dedup(t *testing.T) {
 	ctx1 := NewEncodingContext(identity, encoding, DirectionRecv)
 	ctx2 := NewEncodingContext(identity, encoding, DirectionRecv)
 
-	id1 := r.Register(ctx1)
-	id2 := r.Register(ctx2)
+	id1, err1 := r.Register(ctx1)
+	id2, err2 := r.Register(ctx2)
 
+	if err1 != nil || err2 != nil {
+		t.Fatalf("Register failed: err1=%v, err2=%v", err1, err2)
+	}
 	if id1 != id2 {
 		t.Errorf("identical contexts got different IDs: %d != %d", id1, id2)
 	}
@@ -77,7 +83,10 @@ func TestRegistryGet_Exists(t *testing.T) {
 		DirectionRecv,
 	)
 
-	id := r.Register(ctx)
+	id, err := r.Register(ctx)
+	if err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
 	retrieved := r.Get(id)
 
 	if retrieved == nil {
@@ -136,7 +145,11 @@ func TestRegistryConcurrent(t *testing.T) {
 					&capability.EncodingCaps{ASN4: (seed+j)%2 == 0},
 					DirectionRecv,
 				)
-				id := r.Register(ctx)
+				id, err := r.Register(ctx)
+				if err != nil {
+					t.Errorf("Register failed: %v", err)
+					return
+				}
 				retrieved := r.Get(id)
 				if retrieved == nil {
 					t.Errorf("Get returned nil for just-registered context")
@@ -177,17 +190,23 @@ func TestRegistryCount(t *testing.T) {
 		DirectionRecv,
 	)
 
-	r.Register(ctx1)
+	if _, err := r.Register(ctx1); err != nil {
+		t.Fatalf("Register ctx1: %v", err)
+	}
 	if r.Count() != 1 {
 		t.Errorf("after 1 unique context, count should be 1, got %d", r.Count())
 	}
 
-	r.Register(ctx2)
+	if _, err := r.Register(ctx2); err != nil {
+		t.Fatalf("Register ctx2: %v", err)
+	}
 	if r.Count() != 2 {
 		t.Errorf("after 2 unique contexts, count should be 2, got %d", r.Count())
 	}
 
-	r.Register(ctx3) // Duplicate
+	if _, err := r.Register(ctx3); err != nil {
+		t.Fatalf("Register ctx3: %v", err)
+	}
 	if r.Count() != 2 {
 		t.Errorf("after duplicate, count should still be 2, got %d", r.Count())
 	}

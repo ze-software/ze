@@ -28,7 +28,7 @@ import (
 func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 	// Register encoding context for zero-copy matching
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	// Create a small UPDATE payload (fits in standard message)
 	payload := []byte{0, 0, 0, 0} // WithdrawnLen=0 + AttrLen=0
@@ -122,7 +122,7 @@ func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 // PREVENTS: Cache entry premature eviction or leak from missing Release.
 func TestForwardUpdate_RetainRelease(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	payload := []byte{0, 0, 0, 0}
 	wu := wireu.NewWireUpdate(payload, ctxID)
@@ -225,7 +225,7 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 // PREVENTS: Cache entry leaks when pool is stopped during shutdown.
 func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	payload := []byte{0, 0, 0, 0}
 	wu := wireu.NewWireUpdate(payload, ctxID)
@@ -289,7 +289,7 @@ func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 // PREVENTS: Mods written by egress filters being silently ignored.
 func TestForwardUpdate_ModsApplied(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	// Build a minimal UPDATE payload: WithdrawnLen=0, AttrLen=4 (ORIGIN=IGP), no NLRI.
 	origAttrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
@@ -404,7 +404,7 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 // PREVENTS: Panicking handler crashing the reactor forward loop.
 func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	origAttrs := []byte{0x40, 0x01, 0x01, 0x00}
 	payload := make([]byte, 2+2+len(origAttrs))
@@ -501,7 +501,7 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 // PREVENTS: Nil dereference when egress filter writes a key with no handler.
 func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	origAttrs := []byte{0x40, 0x01, 0x01, 0x00}
 	payload := make([]byte, 2+2+len(origAttrs))
@@ -600,7 +600,7 @@ func fastpathSetup(t *testing.T, nPeers int, msgID uint64) (
 	t.Helper()
 
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	payload := []byte{0, 0, 0, 0} // WithdrawnLen=0 + AttrLen=0
 	wu := wireu.NewWireUpdate(payload, ctxID)
@@ -707,7 +707,7 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 	const msgID uint64 = 401
 
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	origAttrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
 	payload := make([]byte, 2+2+len(origAttrs))

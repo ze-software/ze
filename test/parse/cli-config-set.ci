@@ -48,8 +48,10 @@ bgp {
 }
 EOF_CONF
 
+option=env:var=ze.storage.blob:value=false
+
 # Set the value
-cmd=foreground:seq=1:exec=ze config set --no-reload test.conf bgp local-as 65000
+cmd=foreground:seq=1:exec=ze config set --no-reload test.conf bgp session asn local 65000
 expect=exit:code=0
 
 # Verify the value was actually changed by dumping the config

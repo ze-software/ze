@@ -232,7 +232,7 @@ func TestSplitWireUpdate_AddPath(t *testing.T) {
 // PREVENTS: Context loss breaking zero-copy forwarding.
 func TestSplitWireUpdate_SourceCtxIDPreserved(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	var nlriData []byte
 	for i := range 100 {

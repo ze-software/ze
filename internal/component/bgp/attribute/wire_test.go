@@ -32,7 +32,8 @@ func packAttrs(attrs ...[]byte) []byte {
 // setupTestContext registers a test context and returns its ID.
 func setupTestContext(asn4 bool) bgpctx.ContextID {
 	ctx := bgpctx.EncodingContextForASN4(asn4)
-	return bgpctx.Registry.Register(ctx)
+	id, _ := bgpctx.Registry.Register(ctx)
+	return id
 }
 
 // TestAttributesWireGet verifies lazy single-attribute parsing.

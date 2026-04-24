@@ -384,6 +384,35 @@ func (r *FamilyRIB) ModifyAll(fn func(entry *RouteEntry)) {
 	}
 }
 
+// ModifyAllKeyed calls fn with the NLRI key and a pointer to each entry.
+func (r *FamilyRIB) ModifyAllKeyed(fn func(nlriBytes []byte, entry *RouteEntry)) {
+	switch {
+	case !r.cidr:
+		for key, entry := range r.opaque {
+			fn([]byte(key), &entry)
+			r.opaque[key] = entry
+		}
+	case !r.addPath:
+		var buf [21]byte
+		r.direct.ModifyAllKeyed(func(pfx netip.Prefix, entry *RouteEntry) {
+			nlri := r.buildNLRIBytes(0, pfx, buf[:])
+			if nlri != nil {
+				fn(nlri, entry)
+			}
+		})
+	default:
+		var buf [21]byte
+		r.multi.ModifyAllKeyed(func(pfx netip.Prefix, ps *pathSet) {
+			for i := range ps.entries {
+				nlri := r.buildNLRIBytes(ps.entries[i].pathID, pfx, buf[:])
+				if nlri != nil {
+					fn(nlri, &ps.entries[i].entry)
+				}
+			}
+		})
+	}
+}
+
 // Family returns the address family of this RIB.
 func (r *FamilyRIB) Family() family.Family { return r.fam }
 

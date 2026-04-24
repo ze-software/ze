@@ -47,8 +47,8 @@ EOF_ENV
 cmd=foreground:seq=1:exec=ze exabgp migrate --env exabgp.env
 expect=exit:code=0
 expect=stdout:contains=bgp.wire debug
-expect=stdout:contains=plugin.rib disabled
+expect=stdout:contains=plugin.bgp-rib disabled
 expect=stdout:contains=# tcp.bind
 expect=stdout:contains=# tcp.port
-expect=stdout:contains=Python-only
+expect=stdout:contains=no longer supported
 expect=stdout:contains=user nobody

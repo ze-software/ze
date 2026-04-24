@@ -26,6 +26,6 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
-expect=stderr:contains=/interface/bridge
-expect=stderr:contains=/interface/tunnel
-expect=stderr:contains=/interface/wireguard
+expect=stdout:contains=/interface/bridge
+expect=stdout:contains=/interface/tunnel
+expect=stdout:contains=/interface/wireguard

@@ -378,19 +378,26 @@ func (r *RIBManager) removeSentNLRIs(peerAddr string, fam family.Family, wdData 
 }
 
 // handleRefreshStructured processes refresh events from wire types.
+// RFC 7313: subtype 0 = normal refresh (replay routes), 1 = BoRR marker, 2 = EoRR marker.
 func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
 	if !ok || msg == nil || msg.RawBytes == nil || len(msg.RawBytes) < 4 {
 		return
 	}
 
-	// Route refresh wire: AFI (2) + reserved (1) + SAFI (1) = 4 bytes.
+	// Route refresh wire: AFI (2) + subtype (1) + SAFI (1) = 4 bytes.
 	afi := uint16(msg.RawBytes[0])<<8 | uint16(msg.RawBytes[1])
+	subtype := msg.RawBytes[2]
 	safi := msg.RawBytes[3]
 	fam := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}
 
 	peerAddr := se.PeerAddress
 	if peerAddr == "" {
+		return
+	}
+
+	// Only subtype 0 (normal refresh) triggers route replay.
+	if subtype != 0 {
 		return
 	}
 

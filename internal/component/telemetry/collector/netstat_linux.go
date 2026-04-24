@@ -37,6 +37,7 @@ func newNetstatCollector(fs procfs.FS, interval time.Duration) *netstatCollector
 
 func (c *netstatCollector) Name() string { return "netstat" }
 
+//nolint:dupl // distinct metric registrations share GaugeVec pattern
 func (c *netstatCollector) Init(reg metrics.Registry, prefix string) {
 	labels := []string{"chart", "dimension", "family"}
 	c.sysIPv4 = reg.GaugeVec(prefix+"_system_ipv4_kilobits_persec_average", "System IPv4 Bandwidth", labels)

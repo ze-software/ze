@@ -69,7 +69,7 @@ func mustResolveUDP(t *testing.T, addr string) *net.UDPAddr {
 // VALIDATES: AC-4 -- invalid authenticator silently discarded.
 func TestCoAListenerInvalidAuth(t *testing.T) {
 	secret := []byte("test-coa-secret")
-	cl, err := newCoAListener(0, secret, nil, nil)
+	cl, err := newCoAListener(0, nil, secret, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func TestCoAListenerInvalidAuth(t *testing.T) {
 // VALIDATES: AC-5 -- CoA for unknown session returns NAK with Error-Cause 503.
 func TestCoAListenerUnknownSession(t *testing.T) {
 	secret := []byte("test-coa-secret-2")
-	cl, err := newCoAListener(0, secret, nil, nil)
+	cl, err := newCoAListener(0, nil, secret, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestCoAListenerUnknownSession(t *testing.T) {
 // VALIDATES: AC-7 -- DM for unknown session returns Disconnect-NAK.
 func TestDisconnectListenerUnknownSession(t *testing.T) {
 	secret := []byte("test-dm-secret")
-	cl, err := newCoAListener(0, secret, nil, nil)
+	cl, err := newCoAListener(0, nil, secret, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

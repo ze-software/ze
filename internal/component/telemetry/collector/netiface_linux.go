@@ -41,7 +41,7 @@ func (c *netIfaceCollector) Collect() error {
 	}
 
 	for _, iface := range ifaces {
-		base := filepath.Join("/sys/class/net", iface)
+		base := filepath.Join("/sys/class/net", iface) //nolint:gocritic // sysfs path construction
 		chart := "net." + iface
 		family := iface
 

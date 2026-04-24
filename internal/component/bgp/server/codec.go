@@ -138,7 +138,7 @@ var (
 func getStatelessDecodeCtxID() bgpctx.ContextID {
 	statelessDecodeOnce.Do(func() {
 		ctx := bgpctx.EncodingContextForASN4(true)
-		statelessDecodeCtx = bgpctx.Registry.Register(ctx)
+		statelessDecodeCtx, _ = bgpctx.Registry.Register(ctx)
 	})
 	return statelessDecodeCtx
 }

@@ -25,5 +25,5 @@ EOF_CONF
 option=env:var=NO_COLOR:value=1
 cmd=foreground:seq=1:exec=ze resolve dns --help
 expect=exit:code=0
-expect=stdout:contains=Operations:
-expect=stdout:contains=ptr
+expect=stderr:contains=Operations:
+expect=stderr:contains=ptr

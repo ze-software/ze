@@ -38,7 +38,7 @@ func collectSplit(t *testing.T, u *message.Update, maxSize int, addPath bool) ([
 func TestForwardUpdateSplitting(t *testing.T) {
 	// Create a large UPDATE that exceeds 4096 bytes
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	attrBytes := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN IGP
@@ -120,7 +120,7 @@ func TestForwardUpdateSplitting(t *testing.T) {
 // PREVENTS: Unnecessary splitting overhead.
 func TestForwardUpdateNoSplitWhenFits(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	attrBytes := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN IGP
@@ -170,7 +170,7 @@ func TestForwardUpdateNoSplitWhenFits(t *testing.T) {
 // PREVENTS: Unnecessary splitting when destination can handle large messages.
 func TestForwardUpdateSplittingExtendedPeer(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	attrBytes := []byte{
 		0x40, 0x01, 0x01, 0x00,

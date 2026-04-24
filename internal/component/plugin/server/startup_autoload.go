@@ -142,7 +142,9 @@ func (s *Server) getConfigPathPlugins() []plugin.PluginConfig {
 // Called during config reload when the diff shows new top-level keys.
 // Navigates into the nested config tree using paths from the diff,
 // matches against ConfigRoots, starts matching plugins via runPluginPhase.
-func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string]any, addedRoots []string) {
+// Returns the names of successfully started plugins so the caller can
+// roll them back if the subsequent transaction fails.
+func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string]any, addedRoots []string) []string {
 	// Build the set of all new paths by navigating into the nested tree.
 	// diff keys are slash-separated (e.g., "fib/kernel"), so we split and descend.
 	newPaths := make([]string, 0, len(addedRoots))
@@ -183,14 +185,14 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 	}
 
 	if len(needed) == 0 {
-		return
+		return nil
 	}
 
 	resolved, err := registry.ResolveDependencies(needed)
 	if err != nil {
 		logger().Error("config reload: dependency resolution failed, aborting auto-load",
 			"plugins", needed, "error", err)
-		return
+		return nil
 	}
 
 	var plugins []plugin.PluginConfig
@@ -206,7 +208,7 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 	}
 
 	if len(plugins) == 0 {
-		return
+		return nil
 	}
 
 	if s.reactor != nil {
@@ -215,19 +217,22 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 
 	if err := s.runPluginPhase(plugins); err != nil {
 		logger().Error("config reload: auto-load plugin startup failed", "error", err)
-		// Compensate the process count to avoid blocking "all plugins ready".
 		if s.reactor != nil {
 			s.reactor.AddAPIProcessCount(-len(plugins))
 		}
-		return
+		return nil
 	}
 
-	// Signal post-startup to newly loaded plugins. This triggers OnPostStartup
-	// callbacks (e.g., BGP starts peers after all tier plugins complete).
-	// Safe to call multiple times: Freeze is idempotent, startupDone uses sync.Once.
+	// Signal post-startup to newly loaded plugins.
 	if s.reactor != nil {
 		s.reactor.SignalPluginStartupComplete()
 	}
+
+	started := make([]string, len(plugins))
+	for i, p := range plugins {
+		started[i] = p.Name
+	}
+	return started
 }
 
 // navigateNestedMap descends into a nested map using a config path (e.g., "bgp/peer").

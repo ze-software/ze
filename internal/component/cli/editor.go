@@ -1025,8 +1025,12 @@ func (e *Editor) Rollback(backupPath string) error {
 		return fmt.Errorf("cannot read backup: %w", err)
 	}
 
-	// Backup current config before overwriting -- rollback is itself reversible
-	if err := e.createBackup(e.originalContent, nil); err != nil {
+	// Read current committed config from storage (not cache) for accurate backup.
+	currentData, readErr := e.store.ReadFile(e.originalPath)
+	if readErr != nil {
+		return fmt.Errorf("cannot read current config for backup: %w", readErr)
+	}
+	if err := e.createBackup(string(currentData), nil); err != nil {
 		return fmt.Errorf("cannot backup current config before rollback: %w", err)
 	}
 

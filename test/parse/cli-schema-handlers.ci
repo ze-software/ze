@@ -27,4 +27,4 @@ expect=exit:code=0
 expect=stdout:contains=Handler
 expect=stdout:contains=Module
 expect=stdout:contains=bgp
-expect=stdout:contains=ze.
+expect=stdout:contains=ze-bgp-conf

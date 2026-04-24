@@ -85,6 +85,7 @@ func (l *Loop) handleInbound(in transport.Inbound) {
 		// the application; we use (peer, vrf, mode, interface).
 		entry = l.byKey[firstPacketKey{
 			peer:  in.From,
+			local: in.Local,
 			vrf:   in.VRF,
 			iface: in.Interface,
 			mode:  in.Mode,

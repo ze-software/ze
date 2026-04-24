@@ -276,7 +276,7 @@ func TestPackAttributesFor_ZeroCopy(t *testing.T) {
 
 	// Create a context and register it
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	// Simulated wire bytes (ORIGIN IGP attribute)
 	wireBytes := []byte{0x40, 0x01, 0x01, 0x00}
@@ -301,11 +301,11 @@ func TestPackAttributesFor_Reencode(t *testing.T) {
 
 	// Source context (ASN4=true)
 	srcCtx := bgpctx.EncodingContextForASN4(true)
-	srcCtxID := bgpctx.Registry.Register(srcCtx)
+	srcCtxID, _ := bgpctx.Registry.Register(srcCtx)
 
 	// Destination context (ASN4=false) - different!
 	dstCtx := bgpctx.EncodingContextForASN4(false)
-	dstCtxID := bgpctx.Registry.Register(dstCtx)
+	dstCtxID, _ := bgpctx.Registry.Register(dstCtx)
 
 	// Route with attributes
 	origin := attribute.OriginIGP
@@ -337,7 +337,7 @@ func TestPackAttributesFor_NoCache(t *testing.T) {
 
 	// Create dest context
 	dstCtx := bgpctx.EncodingContextForASN4(true)
-	dstCtxID := bgpctx.Registry.Register(dstCtx)
+	dstCtxID, _ := bgpctx.Registry.Register(dstCtx)
 
 	// Route without wire cache
 	origin := attribute.OriginIGP
@@ -363,7 +363,7 @@ func TestPackAttributesFor_WithASPath(t *testing.T) {
 
 	// Dest context with ASN4
 	dstCtx := bgpctx.EncodingContextForASN4(true)
-	dstCtxID := bgpctx.Registry.Register(dstCtx)
+	dstCtxID, _ := bgpctx.Registry.Register(dstCtx)
 
 	// Route with AS_PATH
 	origin := attribute.OriginIGP
@@ -395,7 +395,7 @@ func TestPackNLRIFor_NoAddPath(t *testing.T) {
 
 	// Context without ADD-PATH
 	ctx := bgpctx.EncodingContextWithAddPath(true, make(map[family.Family]bool))
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	route := NewRoute(inet, nextHop, nil)
 	result := route.PackNLRIFor(ctxID)
@@ -418,7 +418,7 @@ func TestPackNLRIFor_WithAddPath(t *testing.T) {
 	ctx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{
 		{AFI: 1, SAFI: 1}: true, // IPv4 unicast
 	})
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	route := NewRoute(inet, nextHop, nil)
 	result := route.PackNLRIFor(ctxID)
@@ -443,7 +443,7 @@ func TestPackNLRIFor_ZeroCopy(t *testing.T) {
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	// Cached NLRI wire bytes
 	nlriWireBytes := []byte{24, 10, 0, 0} // /24 prefix without path-id
@@ -466,12 +466,12 @@ func TestPackNLRIFor_ReencodeOnMismatch(t *testing.T) {
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	srcCtx := bgpctx.EncodingContextForASN4(true)
-	srcCtxID := bgpctx.Registry.Register(srcCtx)
+	srcCtxID, _ := bgpctx.Registry.Register(srcCtx)
 
 	dstCtx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{
 		{AFI: 1, SAFI: 1}: true,
 	})
-	dstCtxID := bgpctx.Registry.Register(dstCtx)
+	dstCtxID, _ := bgpctx.Registry.Register(dstCtx)
 
 	// Cached without ADD-PATH
 	nlriWireBytes := []byte{24, 10, 0, 0}
@@ -511,7 +511,7 @@ func TestPackAttributesFor_ZeroContextID(t *testing.T) {
 
 	// Request with registered ID - should re-encode (not use invalid cache)
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 	result2 := route.PackAttributesFor(ctxID)
 	require.NotEqual(t, wireBytes, result2, "different ID should re-encode, not use cache")
 	// Verify we got valid ORIGIN attribute
@@ -529,7 +529,7 @@ func TestPackAttributesFor_EmptyAttributes(t *testing.T) {
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	// Route with no attributes and no AS_PATH
 	route := NewRoute(inet, nextHop, nil)
@@ -549,7 +549,7 @@ func TestPackNLRIFor_IPv6(t *testing.T) {
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	route := NewRoute(inet, nextHop, nil)
 	result := route.PackNLRIFor(ctxID)

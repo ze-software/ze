@@ -23,4 +23,4 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
-expect=stderr:contains=auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners
+expect=stdout:contains=auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners

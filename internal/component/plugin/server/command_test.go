@@ -971,13 +971,13 @@ func TestDispatcherWithAuthzStore(t *testing.T) {
 
 	// Empty username denied when user assignments exist (fail closed)
 	noAuthCtx := &CommandContext{Username: ""}
-	resp, err = d.Dispatch(noAuthCtx, "restart")
+	_, err = d.Dispatch(noAuthCtx, "restart")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 
 	// Unassigned user denied when user assignments exist (fail closed)
 	unknownCtx := &CommandContext{Username: "unknown-user"}
-	resp, err = d.Dispatch(unknownCtx, "restart")
+	_, err = d.Dispatch(unknownCtx, "restart")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 }

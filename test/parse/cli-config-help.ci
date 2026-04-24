@@ -25,9 +25,9 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config help
 expect=exit:code=0
-expect=stdout:contains=edit
-expect=stdout:contains=check
-expect=stdout:contains=migrate
-expect=stdout:contains=fmt
-expect=stdout:contains=dump
-expect=stdout:contains=archive
+expect=stderr:contains=edit
+expect=stderr:contains=validate
+expect=stderr:contains=migrate
+expect=stderr:contains=fmt
+expect=stderr:contains=dump
+expect=stderr:contains=archive

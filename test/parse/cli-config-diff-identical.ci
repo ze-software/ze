@@ -78,6 +78,8 @@ bgp {
 }
 EOF_FILE2
 
+option=env:var=ze.storage.blob:value=false
+
 cmd=foreground:seq=1:exec=ze config diff file1.conf file2.conf
 expect=exit:code=0
 expect=stdout:contains=No differences

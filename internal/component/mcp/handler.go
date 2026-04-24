@@ -13,6 +13,7 @@ package mcp
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
 	"fmt"
@@ -47,11 +48,13 @@ func Handler(dispatch CommandDispatcher, commands CommandLister, token string) h
 			return
 		}
 
-		// Bearer token authentication (constant-time comparison).
+		// Bearer token authentication (constant-time comparison over fixed-length digests).
 		if token != "" {
 			auth := r.Header.Get("Authorization")
 			expected := "Bearer " + token
-			if subtle.ConstantTimeCompare([]byte(auth), []byte(expected)) != 1 {
+			gotHash := sha256.Sum256([]byte(auth))
+			wantHash := sha256.Sum256([]byte(expected))
+			if subtle.ConstantTimeCompare(gotHash[:], wantHash[:]) != 1 {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}

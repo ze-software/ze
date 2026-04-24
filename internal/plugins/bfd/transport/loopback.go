@@ -125,7 +125,8 @@ func (l *Loopback) Send(out Outbound) error {
 	}
 
 	in := Inbound{
-		From:      l.localAddr, // the sender's local address becomes the receiver's source
+		From:      l.localAddr,    // the sender's local address becomes the receiver's source
+		Local:     peer.localAddr, // the receiver's local address is the destination
 		VRF:       out.VRF,
 		Interface: out.Interface,
 		Mode:      l.mode,

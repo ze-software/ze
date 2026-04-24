@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"sync"
@@ -25,6 +26,20 @@ import (
 type apiServers struct {
 	rest *rest.RESTServer
 	grpc *apigrpc.GRPCServer
+}
+
+// apiHasNonLoopback reports whether any configured API listener binds to
+// an address other than loopback (127.0.0.0/8 or ::1).
+func apiHasNonLoopback(cfg zeconfig.APIConfig) bool {
+	for _, listeners := range [][]zeconfig.APIListenConfig{cfg.REST, cfg.GRPC} {
+		for _, l := range listeners {
+			ip := net.ParseIP(l.Host)
+			if ip == nil || !ip.IsLoopback() {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // startAPIServers creates the shared API engine and starts REST and/or gRPC

@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/bgp"
@@ -848,6 +849,12 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 			Cache: func(cfgData []byte) error {
 				return store.WriteFile(configName, cfgData, 0)
 			},
+		},
+		OnReload: func() {
+			// Trigger runtime reload via SIGHUP so the hub applies the new config.
+			if p, err := os.FindProcess(os.Getpid()); err == nil {
+				_ = p.Signal(syscall.SIGHUP)
+			}
 		},
 		CheckManaged: func() bool {
 			return isManaged(store)

@@ -591,6 +591,8 @@ func (p *Process) startExternal() error {
 		if p.cmd != nil && p.cmd.Process != nil {
 			p.cmd.Process.Kill() //nolint:errcheck,gosec // cleanup on connect-back failure
 		}
+		// Stop delivery goroutine started by startDeliveryLocked to prevent leak.
+		p.stopEventChan()
 		return fmt.Errorf("plugin %s: TLS connect-back: %w", p.config.Name, waitErr)
 	}
 	p.rawConn = conn

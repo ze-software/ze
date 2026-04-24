@@ -26,9 +26,9 @@ EOF_CONF
 option=env:var=NO_COLOR:value=1
 cmd=foreground:seq=1:exec=ze resolve --help
 expect=exit:code=0
-expect=stdout:contains=Services:
-expect=stdout:contains=dns
-expect=stdout:contains=cymru
-expect=stdout:contains=peeringdb
-expect=stdout:contains=irr
-expect=stdout:contains=Examples:
+expect=stderr:contains=Services:
+expect=stderr:contains=dns
+expect=stderr:contains=cymru
+expect=stderr:contains=peeringdb
+expect=stderr:contains=irr
+expect=stderr:contains=Examples:

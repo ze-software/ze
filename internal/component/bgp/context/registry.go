@@ -2,7 +2,13 @@
 
 package context
 
-import "sync"
+import (
+	"errors"
+	"sync"
+)
+
+// ErrContextIDExhausted is returned when all 65535 context IDs are in use.
+var ErrContextIDExhausted = errors.New("context ID space exhausted")
 
 // ContextID is a compact identifier for an EncodingContext.
 // Enables fast compatibility checks via integer comparison.
@@ -33,17 +39,15 @@ func NewRegistry() *ContextRegistry {
 // Register returns an ID for the context, deduplicating identical ones.
 // If a context with the same hash already exists, returns its existing ID.
 // Otherwise, assigns a new ID and stores the context.
-//
-// Note: Deduplication relies on FNV-64 hash. Hash collisions are not detected
-// but are astronomically unlikely (1 in 2^64) for practical context counts.
-func (r *ContextRegistry) Register(ctx *EncodingContext) ContextID {
+// Returns ErrContextIDExhausted if all 65535 IDs are in use.
+func (r *ContextRegistry) Register(ctx *EncodingContext) (ContextID, error) {
 	hash := ctx.Hash()
 
 	// Fast path: check if already registered
 	r.mu.RLock()
 	if id, ok := r.byHash[hash]; ok {
 		r.mu.RUnlock()
-		return id
+		return id, nil
 	}
 	r.mu.RUnlock()
 
@@ -53,12 +57,15 @@ func (r *ContextRegistry) Register(ctx *EncodingContext) ContextID {
 
 	// Double-check after acquiring write lock
 	if id, ok := r.byHash[hash]; ok {
-		return id
+		return id, nil
+	}
+
+	if len(r.contexts) >= 65535 {
+		return 0, ErrContextIDExhausted
 	}
 
 	id := r.nextID
 	r.nextID++
-	// Skip 0 on overflow: 0 is the sentinel for "not registered".
 	if r.nextID == 0 {
 		r.nextID = 1
 	}
@@ -66,7 +73,7 @@ func (r *ContextRegistry) Register(ctx *EncodingContext) ContextID {
 	r.contexts[id] = ctx
 	r.byHash[hash] = id
 
-	return id
+	return id, nil
 }
 
 // Get retrieves the context by ID.

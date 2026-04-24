@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 )
 
 const bgpCaptureRingCapacity = 256
@@ -58,14 +59,15 @@ func (r *bgpCaptureRecord) format() BGPCaptureEntry {
 // Safe for concurrent use. Append is zero-alloc.
 type BGPCaptureRing struct {
 	mu      sync.Mutex
+	clock   clock.Clock
 	records []bgpCaptureRecord
 	head    int
 	count   int
 }
 
 // NewBGPCaptureRing creates a capture ring.
-func NewBGPCaptureRing() *BGPCaptureRing {
-	return &BGPCaptureRing{records: make([]bgpCaptureRecord, bgpCaptureRingCapacity)}
+func NewBGPCaptureRing(c clock.Clock) *BGPCaptureRing {
+	return &BGPCaptureRing{clock: c, records: make([]bgpCaptureRecord, bgpCaptureRingCapacity)}
 }
 
 // Append records a BGP message. dirOut true = sent, false = received.
@@ -74,7 +76,7 @@ func (r *BGPCaptureRing) Append(dirOut bool, peer netip.Addr, msgType message.Me
 	if dirOut {
 		d = 1
 	}
-	now := time.Now()
+	now := r.clock.Now()
 	r.mu.Lock()
 	r.records[r.head] = bgpCaptureRecord{
 		timestamp: now,

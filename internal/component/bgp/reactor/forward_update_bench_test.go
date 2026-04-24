@@ -23,7 +23,7 @@ import (
 //	go test -run=^$ -bench=BenchmarkForwardDirect ./internal/component/bgp/reactor/...
 func BenchmarkForwardDirect(b *testing.B) {
 	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	cache := NewRecentUpdateCache(b.N + 100)
 	defer cache.Stop()

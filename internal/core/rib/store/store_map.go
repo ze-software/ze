@@ -85,6 +85,13 @@ func (s *Store[T]) ModifyAll(fn func(*T)) {
 	}
 }
 
+func (s *Store[T]) ModifyAllKeyed(fn func(pfx netip.Prefix, v *T)) {
+	for pfx, v := range s.routes {
+		fn(pfx, &v)
+		s.routes[pfx] = v
+	}
+}
+
 // Reset clears every entry. Callers that need per-entry cleanup must run
 // ModifyAll first.
 func (s *Store[T]) Reset() {

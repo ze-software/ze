@@ -696,7 +696,7 @@ func (r *Reactor) Peers() []*Peer {
 // EnableCapture allocates the BGP capture ring.
 func (r *Reactor) EnableCapture() {
 	if r.capture == nil {
-		r.capture = NewBGPCaptureRing()
+		r.capture = NewBGPCaptureRing(r.clock)
 	}
 }
 

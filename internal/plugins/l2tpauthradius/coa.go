@@ -23,13 +23,14 @@ import (
 // rate-change event (CoA) or tears down the session (DM).
 type coaListener struct {
 	conn           *net.UDPConn
-	secret         []byte
+	secrets        map[string][]byte // source IP -> shared secret
+	defaultSecret  []byte
 	bus            ze.EventBus
 	allowedSources []net.IP
 	done           chan struct{}
 }
 
-func newCoAListener(port int, secret []byte, bus ze.EventBus, allowedSources []net.IP) (*coaListener, error) {
+func newCoAListener(port int, secrets map[string][]byte, defaultSecret []byte, bus ze.EventBus, allowedSources []net.IP) (*coaListener, error) {
 	addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, fmt.Errorf("coa: resolve: %w", err)
@@ -40,7 +41,8 @@ func newCoAListener(port int, secret []byte, bus ze.EventBus, allowedSources []n
 	}
 	cl := &coaListener{
 		conn:           conn,
-		secret:         secret,
+		secrets:        secrets,
+		defaultSecret:  defaultSecret,
 		bus:            bus,
 		allowedSources: allowedSources,
 		done:           make(chan struct{}),
@@ -79,7 +81,8 @@ func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
 	}
 
 	// RFC 5176 Section 3.5: verify request authenticator before processing.
-	if !radius.VerifyCoARequestAuth(data, cl.secret) {
+	secret := cl.secretForSource(from.IP)
+	if !radius.VerifyCoARequestAuth(data, secret) {
 		logger().Debug("coa: invalid authenticator, discarding", "from", from)
 		return
 	}
@@ -98,6 +101,15 @@ func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
 	default:
 		logger().Warn("coa: unexpected code", "code", pkt.Code, "from", from)
 	}
+}
+
+// secretForSource returns the shared secret for the given source IP.
+// Falls back to the default secret if no per-source secret is configured.
+func (cl *coaListener) secretForSource(ip net.IP) []byte {
+	if s, ok := cl.secrets[ip.String()]; ok {
+		return s
+	}
+	return cl.defaultSecret
 }
 
 func (cl *coaListener) isAllowedSource(ip net.IP) bool {
@@ -250,7 +262,7 @@ func (cl *coaListener) sendResponse(to *net.UDPAddr, req *radius.Packet, code ui
 	// RFC 5176 Section 3.5: response authenticator = MD5(Code+ID+Length+RequestAuth+Attrs+Secret).
 	respAuth := radius.ResponseAuthenticator(code, req.Identifier,
 		binary.BigEndian.Uint16(wireBuf[2:4]),
-		req.Authenticator, wireBuf[radius.HeaderLen:n], cl.secret)
+		req.Authenticator, wireBuf[radius.HeaderLen:n], cl.secretForSource(to.IP))
 	copy(wireBuf[4:4+radius.AuthenticatorLen], respAuth[:])
 
 	if _, err := cl.conn.WriteToUDP(wireBuf[:n], to); err != nil {

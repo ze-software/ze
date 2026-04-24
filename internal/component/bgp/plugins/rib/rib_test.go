@@ -2477,7 +2477,7 @@ func TestInjectRoute_IPv6NhopRealPeerContextNoExtNH(t *testing.T) {
 
 	// Register an encoding context WITHOUT ExtendedNextHop.
 	ctx := bgpctx.NewEncodingContext(nil, nil, bgpctx.DirectionRecv)
-	ctxID := bgpctx.Registry.Register(ctx)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
 
 	r.peerMeta["10.0.0.1"] = &PeerMeta{PeerASN: 65000, LocalASN: 65001, ContextID: ctxID}
 
