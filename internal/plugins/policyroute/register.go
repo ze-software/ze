@@ -15,13 +15,15 @@ import (
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
+const configRoot = "policy"
+
 func init() {
 	reg := registry.Registration{
 		Name:        "policy-routes",
 		Description: "Policy-based routing: nftables packet marking and ip rule table selection",
 		Features:    "yang",
 		YANG:        policyrouteschema.ZePolicyrouteConfYANG,
-		ConfigRoots: []string{"policy"},
+		ConfigRoots: []string{configRoot},
 		RunEngine:   runPolicyRoutePlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -55,7 +57,7 @@ func runPolicyRoutePlugin(conn net.Conn) int {
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "policy" {
+			if section.Root != configRoot {
 				continue
 			}
 			policies, err := parsePolicyConfig(section.Data)
@@ -71,7 +73,7 @@ func runPolicyRoutePlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "policy" {
+			if section.Root != configRoot {
 				continue
 			}
 			policies, err := parsePolicyConfig(section.Data)
@@ -146,7 +148,7 @@ func runPolicyRoutePlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"policy"},
+		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  2,
 		Commands: []sdk.CommandDecl{
@@ -233,7 +235,7 @@ type showRule struct {
 }
 
 func formatPolicies(policies []PolicyRoute) (string, error) {
-	var out []showPolicy
+	out := make([]showPolicy, 0, len(policies))
 	for _, p := range policies {
 		sp := showPolicy{Name: p.Name}
 		for _, iface := range p.Interfaces {
@@ -243,7 +245,8 @@ func formatPolicies(policies []PolicyRoute) (string, error) {
 			}
 			sp.Interfaces = append(sp.Interfaces, name)
 		}
-		for _, r := range p.Rules {
+		for i := range p.Rules {
+			r := &p.Rules[i]
 			action := "unknown"
 			switch r.Action.Type {
 			case ActionAccept:

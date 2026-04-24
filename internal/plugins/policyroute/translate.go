@@ -1,3 +1,5 @@
+// Design: plan/spec-policy-routing.md — config to nftables/ip-rule translation
+
 package policyroute
 
 import (
@@ -67,19 +69,19 @@ func (a *allocator) translatePolicy(policy PolicyRoute, basePriority *int) ([]fi
 	var ipRules []ipRuleSpec
 	var autoRoutes []autoRouteSpec
 
-	for _, rule := range policy.Rules {
-		matches, err := buildMatches(rule, policy.Interfaces)
+	for i := range policy.Rules {
+		matches, err := buildMatches(policy.Rules[i], policy.Interfaces)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("rule %q: %w", rule.Name, err)
+			return nil, nil, nil, fmt.Errorf("rule %q: %w", policy.Rules[i].Name, err)
 		}
 
-		actions, ruleSpecs, routeSpecs, err := a.buildActions(policy.Name, rule, basePriority)
+		actions, ruleSpecs, routeSpecs, err := a.buildActions(policy.Name, policy.Rules[i], basePriority)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("rule %q: %w", rule.Name, err)
+			return nil, nil, nil, fmt.Errorf("rule %q: %w", policy.Rules[i].Name, err)
 		}
 
 		terms = append(terms, firewall.Term{
-			Name:    policy.Name + "-" + rule.Name,
+			Name:    policy.Name + "-" + policy.Rules[i].Name,
 			Matches: matches,
 			Actions: actions,
 		})

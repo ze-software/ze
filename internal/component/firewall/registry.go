@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — firewall table registry
+
 package firewall
 
 import (
@@ -30,7 +32,11 @@ func RegisterTables(owner string, tables []Table) {
 // Apply call deletes another component's tables.
 func ApplyAll() error {
 	tableRegistry.mu.Lock()
-	var all []Table
+	totalCap := 0
+	for _, t := range tableRegistry.owners {
+		totalCap += len(t)
+	}
+	all := make([]Table, 0, totalCap)
 	owners := make([]string, 0, len(tableRegistry.owners))
 	for owner := range tableRegistry.owners {
 		owners = append(owners, owner)

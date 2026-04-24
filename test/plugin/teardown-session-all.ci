@@ -224,7 +224,7 @@ def main():
     if total_count < 1:
         runtime_fail('no session ever appeared')
 
-    r = dispatch(api, 'l2tp session teardown-all')
+    r = dispatch(api, 'clear l2tp session teardown-all')
     if r.get('status') != 'done':
         runtime_fail(f'teardown-all: status={r.get("status")!r} data={r.get("data", "")[:120]}')
     try:

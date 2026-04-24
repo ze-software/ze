@@ -42,7 +42,7 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "count":
+		case "count": //nolint:goconst // CLI arg, unrelated to map key uses in show.go
 			if i+1 >= len(args) {
 				return dest, 0, 0, fmt.Errorf("ping: count requires a value")
 			}

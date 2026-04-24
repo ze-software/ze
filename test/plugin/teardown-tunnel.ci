@@ -180,7 +180,7 @@ def main():
     if not isinstance(local_tid, int) or local_tid == 0:
         runtime_fail('tunnel never established')
 
-    r = dispatch(api, f'l2tp tunnel teardown {local_tid}')
+    r = dispatch(api, f'clear l2tp tunnel teardown {local_tid}')
     if r.get('status') != 'done':
         runtime_fail(f'teardown {local_tid}: status={r.get("status")!r} data={r.get("data", "")[:120]}')
     try:
@@ -211,7 +211,7 @@ def main():
     else:
         runtime_fail('tunnel remained in established state after teardown')
 
-    r = dispatch(api, 'l2tp tunnel teardown 65535')
+    r = dispatch(api, 'clear l2tp tunnel teardown 65535')
     if r.get('status') != 'error':
         runtime_fail(f'teardown unknown: expected status=error got {r.get("status")!r}')
     if '65535' not in (r.get('data') or ''):

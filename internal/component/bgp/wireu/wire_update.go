@@ -6,6 +6,7 @@ package wireu
 
 import (
 	"fmt"
+	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -33,26 +34,20 @@ import (
 // All methods return slices into the original payload - do not modify.
 // GC manages lifetime; no pool or reference counting.
 //
-// Thread-safe for concurrent read access. Lazy parsing has a benign race:
-// if two goroutines call accessors simultaneously on a fresh WireUpdate,
-// both may parse (same input → same result). The struct field assignment
-// is not atomic, but since both goroutines compute identical values from
-// identical input, any interleaving produces correct results.
+// Thread-safe for concurrent read access via sync.Once guards on lazy fields.
 type WireUpdate struct {
 	payload     []byte
 	sourceCtxID bgpctx.ContextID
 	messageID   uint64          // Unique ID set by reactor after creation
 	sourceID    source.SourceID // Source that sent/created this message
 
-	// Cached section offsets (parsed lazily on first accessor call)
-	sections wire.UpdateSections
-	parseErr error // Cached error if parsing failed
+	sectionOnce sync.Once
+	sections    wire.UpdateSections
+	parseErr    error
 
-	// Cached Attrs() result (parsed lazily on first call).
-	// Thread-safety: benign race — concurrent calls may both compute,
-	// but both produce identical results from identical input.
+	attrsOnce      sync.Once
 	cachedAttrs    *attribute.AttributesWire
-	cachedAttrsSet bool // distinguishes nil-result from not-yet-computed
+	cachedAttrsErr error
 }
 
 // NewWireUpdate creates a WireUpdate from raw UPDATE payload bytes.
@@ -64,21 +59,15 @@ func NewWireUpdate(payload []byte, ctxID bgpctx.ContextID) *WireUpdate {
 	}
 }
 
-// ensureParsed parses section offsets if not already done.
-// Thread-safety: benign race - concurrent calls may both parse,
-// but result is identical (same input → same output).
 func (u *WireUpdate) ensureParsed() {
-	if u.sections.Valid() || u.parseErr != nil {
-		return // Already parsed (success or failure)
-	}
-
-	sections, err := wire.ParseUpdateSections(u.payload)
-	if err != nil {
-		// Map wire.ErrUpdateTruncated to plugin.ErrUpdateTruncated for consistency
-		u.parseErr = ErrUpdateTruncated
-		return
-	}
-	u.sections = sections
+	u.sectionOnce.Do(func() {
+		sections, err := wire.ParseUpdateSections(u.payload)
+		if err != nil {
+			u.parseErr = ErrUpdateTruncated
+			return
+		}
+		u.sections = sections
+	})
 }
 
 // Withdrawn returns the Withdrawn Routes section.
@@ -95,43 +84,20 @@ func (u *WireUpdate) Withdrawn() ([]byte, error) {
 // Attrs returns the Path Attributes as an AttributesWire for lazy parsing.
 // RFC 4271 Section 4.3 - Path attribute sequence.
 // Returns (nil, nil) if empty, (nil, error) if malformed.
-// Result is cached: the first call parses and stores, subsequent calls return the cached value.
-// Thread-safety: benign race — concurrent first calls may both compute,
-// but both produce identical results from identical immutable input.
 func (u *WireUpdate) Attrs() (*attribute.AttributesWire, error) {
-	if u.cachedAttrsSet {
-		return u.cachedAttrs, u.attrsErr()
-	}
-	return u.deriveAttrs()
-}
-
-// attrsErr reconstructs the error for cached nil results.
-// When cachedAttrsSet is true and cachedAttrs is nil, it could be either
-// a successful empty result or a parse error. We check parseErr to distinguish.
-func (u *WireUpdate) attrsErr() error {
-	if u.parseErr != nil {
-		return fmt.Errorf("attrs: %w", u.parseErr)
-	}
-	return nil
-}
-
-// deriveAttrs extracts AttributesWire from payload using cached sections.
-func (u *WireUpdate) deriveAttrs() (*attribute.AttributesWire, error) {
-	u.ensureParsed()
-	if u.parseErr != nil {
-		u.cachedAttrsSet = true
-		return nil, fmt.Errorf("attrs: %w", u.parseErr)
-	}
-
-	attrBytes := u.sections.Attrs(u.payload)
-	if attrBytes == nil {
-		u.cachedAttrsSet = true
-		return nil, nil //nolint:nilnil // nil,nil = valid empty (no attributes)
-	}
-	result := attribute.NewAttributesWire(attrBytes, u.sourceCtxID)
-	u.cachedAttrs = result
-	u.cachedAttrsSet = true
-	return result, nil
+	u.attrsOnce.Do(func() {
+		u.ensureParsed()
+		if u.parseErr != nil {
+			u.cachedAttrsErr = fmt.Errorf("attrs: %w", u.parseErr)
+			return
+		}
+		attrBytes := u.sections.Attrs(u.payload)
+		if attrBytes == nil {
+			return
+		}
+		u.cachedAttrs = attribute.NewAttributesWire(attrBytes, u.sourceCtxID)
+	})
+	return u.cachedAttrs, u.cachedAttrsErr
 }
 
 // NLRI returns the Network Layer Reachability Information section.

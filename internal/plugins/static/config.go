@@ -128,11 +128,12 @@ func parseNextHop(entry map[string]any) (nextHop, error) {
 	if err != nil {
 		return nh, err
 	}
-	if w == 0 {
+	switch {
+	case w == 0:
 		nh.Weight = 1
-	} else if w > 65535 {
+	case w > 65535:
 		return nh, fmt.Errorf("weight %d exceeds maximum 65535", w)
-	} else {
+	default:
 		nh.Weight = uint16(w)
 	}
 

@@ -60,8 +60,8 @@ func TestRoutesEqualNHOrderIndependent(t *testing.T) {
 }
 
 func TestRoutesEqualBlackholes(t *testing.T) {
-	a := staticRoute{Prefix: pfx("10.0.0.0/8"), Action: actionBlackhole}
-	b := staticRoute{Prefix: pfx("10.0.0.0/8"), Action: actionBlackhole}
+	a := staticRoute{Prefix: pfx("192.168.0.0/16"), Action: actionBlackhole}
+	b := staticRoute{Prefix: pfx("192.168.0.0/16"), Action: actionBlackhole}
 	if !routesEqual(a, b) {
 		t.Error("identical blackholes should be equal")
 	}

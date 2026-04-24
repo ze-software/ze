@@ -218,7 +218,7 @@ def main():
     if not isinstance(local_sid, int) or local_sid == 0:
         runtime_fail('session never established')
 
-    r = dispatch(api, f'l2tp session teardown {local_sid}')
+    r = dispatch(api, f'clear l2tp session teardown {local_sid}')
     if r.get('status') != 'done':
         runtime_fail(f'session teardown {local_sid}: status={r.get("status")!r} data={r.get("data", "")[:120]}')
     try:
@@ -242,7 +242,7 @@ def main():
         runtime_fail(f'session remained established after teardown: {list_sessions(api)}')
 
     # Unknown SID must return StatusError naming it.
-    r = dispatch(api, 'l2tp session teardown 65534')
+    r = dispatch(api, 'clear l2tp session teardown 65534')
     if r.get('status') != 'error':
         runtime_fail(f'teardown unknown: status={r.get("status")!r} want error')
     if '65534' not in (r.get('data') or ''):

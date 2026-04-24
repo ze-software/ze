@@ -38,7 +38,7 @@ type PolicyMatch struct {
 type PolicyActionType uint8
 
 const (
-	ActionAccept  PolicyActionType = iota + 1
+	ActionAccept PolicyActionType = iota + 1
 	ActionDrop
 	ActionTable
 	ActionNextHop

@@ -18,6 +18,9 @@ set -e
 
 touch daemon.ready
 
+# Isolate from host SSH agent to prevent stray keys from authenticating.
+unset SSH_AUTH_SOCK
+
 # Generate an ed25519 key pair for the test.
 KEYDIR=$(mktemp -d)
 trap 'rm -rf "$KEYDIR"' EXIT
@@ -101,6 +104,7 @@ sleep 0.5
 DLOG_BEFORE=$(wc -c < daemon.log)
 OUTPUT=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
     -o PasswordAuthentication=no -o BatchMode=yes \
+    -o IdentitiesOnly=yes \
     -i "$KEYDIR/testkey" \
     -p "$SSH_PORT" keyuser@127.0.0.1 "peer list" 2>/dev/null) || {
     echo "FAIL: SSH with matching public key should authenticate" >&2
@@ -120,6 +124,7 @@ echo "OK: public key authentication succeeded" >&2
 ssh-keygen -t ed25519 -f "$KEYDIR/wrongkey" -N "" -q
 if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
     -o PasswordAuthentication=no -o BatchMode=yes \
+    -o IdentitiesOnly=yes -o KbdInteractiveAuthentication=no \
     -i "$KEYDIR/wrongkey" \
     -p "$SSH_PORT" keyuser@127.0.0.1 "peer list" >/dev/null 2>&1; then
     echo "FAIL: SSH with wrong key should NOT authenticate" >&2

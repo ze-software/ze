@@ -20,8 +20,8 @@ type allocator struct {
 	nextMark  uint32
 	nextTable uint32
 
-	markByKey  map[string]uint32
-	tableByNH  map[netip.Addr]uint32
+	markByKey map[string]uint32
+	tableByNH map[netip.Addr]uint32
 }
 
 func newAllocator() *allocator {

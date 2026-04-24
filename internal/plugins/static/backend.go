@@ -10,6 +10,6 @@ type routeBackend interface {
 }
 
 type installedStaticRoute struct {
-	prefix  string
-	nextHop string
+	prefix  string //nolint:unused // read in backend_linux.go
+	nextHop string //nolint:unused // read in backend_linux.go
 }
