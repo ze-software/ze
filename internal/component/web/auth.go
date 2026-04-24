@@ -198,6 +198,7 @@ func AuthMiddleware(store *SessionStore, authenticator authz.Authenticator, logi
 		}
 
 		// Unauthenticated: return 401 without WWW-Authenticate header.
+		addSecurityHeaders(w)
 		w.WriteHeader(http.StatusUnauthorized)
 		loginRenderer(w, r)
 	})
@@ -226,6 +227,7 @@ func LoginHandler(store *SessionStore, authenticator authz.Authenticator, loginR
 		})
 		if err != nil || !result.Authenticated {
 			logger.Warn("login failed", "username", username, "remote", r.RemoteAddr)
+			addSecurityHeaders(w)
 			w.WriteHeader(http.StatusUnauthorized)
 			loginRenderer(w, r)
 

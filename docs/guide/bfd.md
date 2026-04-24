@@ -110,16 +110,11 @@ packet sets `RequiredMinEchoRxInterval` to the configured rate.
 Peers that see a non-zero advertisement learn that the local end
 is willing to reflect echo packets.
 
-**Current coverage:** the YANG surface, wire advertisement, and
-session state plumbing ship in Stage 6. The actual echo transport
-(UDP 3785 socket, per-session TX scheduler, RX demux, RTT
-histogram, detection-time switchover, async slow-down) is tracked
-as `spec-bfd-6b-echo-transport`. Configurations written against
-the Stage 6 surface remain valid when the transport half lands.
-The `ze_bfd_echo_tx_packets_total` and `ze_bfd_echo_rx_packets_total`
-metric families are registered now so downstream alerting can
-reference them from day one, even though the counters stay at
-zero until the transport half lands.
+**Current coverage:** echo mode is fully implemented including the
+YANG surface, wire advertisement, per-session TX scheduler, RX
+demux with RTT measurement, echo detection timer, and async
+slow-down (RFC 5880 §6.8.9). The `ze_bfd_echo_tx_packets_total`
+and `ze_bfd_echo_rx_packets_total` Prometheus metrics are live.
 
 ### Authentication
 

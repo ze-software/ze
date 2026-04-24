@@ -115,14 +115,18 @@ queued after `Stop()` are dropped silently.
 
 ## Verification
 
-The four `.ci` tests in `test/plugin/` cover the main behaviours:
+The `.ci` tests in `test/plugin/` cover the main behaviours:
 
 | Test | Asserts |
 |------|---------|
 | `tacacs-auth.ci` | TACACS+ PASS + priv-lvl 15 -> admin profile, no local fallback consulted |
+| `tacacs-author.ci` | TACACS+ command authorization PASS/FAIL with local fallback |
 | `tacacs-fallback.ci` | Server unreachable -> local bcrypt accepted, log shows `source=local` |
 | `tacacs-local-only.ci` | No `tacacs` block -> existing local-only auth path unchanged |
+| `tacacs-readonly.ci` | Read-only profile restricts write commands |
 | `tacacs-acct.ci` | `accounting true` -> mock receives ACCT START followed by STOP |
+| `tacacs-singleconnect.ci` | Single-connect mode TCP reuse |
+| `tacacs-show.ci` | `ze tacacs show` offline config display |
 
 For ad-hoc verification, point the daemon at a real TACACS+ server and
 run any command via `ze cli -c "summary"` -- the daemon log tags the
@@ -145,12 +149,10 @@ local bcrypt user accepted the credentials.
   replaces them with `/* SECRET-DATA */`.
 - **VRF**: when the SSH server runs in a non-default VRF, TACACS+ TCP
   connections inherit the same VRF context.
-- **Single-connect mode** (RFC 8907 §4.4) is not negotiated today; every
-  AUTHEN/AUTHOR/ACCT exchange opens its own TCP connection. This is
-  compatible with every server we have tested.
-- **Operational tooling** (`ze show tacacs` per-server reachability +
-  counters) is tracked in `plan/deferrals.md` against
-  `spec-tacacs-observability`.
+- **Single-connect mode** (RFC 8907 §4.4) is tested via `tacacs-singleconnect.ci`.
+- **Operational tooling**: `ze tacacs show <config>` displays the parsed
+  TACACS+ configuration offline. Runtime `ze show tacacs` per-server
+  reachability and counters are tracked in `plan/deferrals.md`.
 
 ## RFC reference
 

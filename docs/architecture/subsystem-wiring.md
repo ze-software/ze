@@ -1,13 +1,20 @@
 # Subsystem Wiring: Reactor as ze.Subsystem
 
+> **Note (2026-04-24):** This document was written during the arch-0 migration.
+> The startup path has since evolved: the plugin server uses topological tier
+> ordering (`startup.go`), the coordinator owns config distribution, and the
+> reactor starts via the BGP plugin's `OnStarted` hook rather than direct
+> `LoadReactorWithPlugins`. The diagrams below describe the pre-migration state
+> and the planned target; the live code in `cmd/ze/hub/main.go` is authoritative.
+
 This document describes the migration from direct reactor startup to Engine-supervised
 startup with Bus integration, completing the arch-0 component boundary work.
 
-## Current Architecture
+## Pre-Migration Architecture
 
-The reactor is created and started directly by `cmd/ze/hub/main.go`. It holds a
+The reactor was created and started directly by `cmd/ze/hub/main.go`. It held a
 `*pluginserver.Server` and `*EventDispatcher` for plugin communication. The Engine,
-Bus, and Subsystem interface exist but are not wired into the startup path.
+Bus, and Subsystem interface existed but were not wired into the startup path.
 
 ```mermaid
 flowchart TB

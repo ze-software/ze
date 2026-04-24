@@ -493,8 +493,12 @@ watchdog withdraw <name> [peer]           # Withdraw all routes in pool from pee
 
 Routes are tagged with a pool when announced:
 ```bash
-update text next 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog set mypool
+update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog set mypool
 ```
+
+> **Note:** `watchdog set` in wire-mode updates is parsed but not yet
+> implemented. The watchdog announce/withdraw pool commands work
+> independently of this tagging.
 
 ### RIB Commands
 

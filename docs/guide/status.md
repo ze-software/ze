@@ -77,12 +77,12 @@ Over 40 built-in plugins covering protocol features, all address families, BFD, 
 
 | Type | Count |
 |------|-------|
-| Unit test functions | 18,000+ |
-| Functional test files (.ci) | 417 |
-| Fuzz targets | 121 |
+| Unit test functions | 10,400+ |
+| Functional test files (.ci) | 789 |
+| Fuzz targets | 57 |
 | Linters | 26 |
 
-All tests run with the race detector enabled.
+Unit tests run with the race detector enabled (`-race`). Functional, browser, and compatibility suites do not currently use the race detector.
 <!-- source: Makefile -- ze-unit-test, ze-functional-test, ze-lint, ze-fuzz-test targets -->
 
 ## What Does NOT Work Yet

@@ -1415,9 +1415,10 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 // and a Cymru resolver wired to it. Called once at hub startup.
 func newResolvers(sc system.SystemConfig) *resolve.Resolvers {
 	cfg := resolveDNS.ResolverConfig{
-		Timeout:   sc.DNSTimeout,
-		CacheSize: sc.DNSCacheSize,
-		CacheTTL:  sc.DNSCacheTTL,
+		Timeout:        sc.DNSTimeout,
+		ResolvConfPath: sc.ResolvConfPath,
+		CacheSize:      sc.DNSCacheSize,
+		CacheTTL:       sc.DNSCacheTTL,
 	}
 	if len(sc.NameServers) > 0 {
 		cfg.Server = sc.NameServers[0]

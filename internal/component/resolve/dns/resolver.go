@@ -17,10 +17,11 @@ import (
 
 // ResolverConfig holds DNS resolver configuration from YANG.
 type ResolverConfig struct {
-	Server    string // DNS server address (e.g., "8.8.8.8:53"). Empty uses system default.
-	Timeout   uint16 // Query timeout in seconds.
-	CacheSize uint32 // Max cached entries. 0 disables caching.
-	CacheTTL  uint32 // Max cache TTL in seconds. 0 means use response TTL only.
+	Server         string // DNS server address (e.g., "8.8.8.8:53"). Empty uses system default.
+	ResolvConfPath string // Path to resolv.conf (empty uses /etc/resolv.conf).
+	Timeout        uint16 // Query timeout in seconds.
+	CacheSize      uint32 // Max cached entries. 0 disables caching.
+	CacheTTL       uint32 // Max cache TTL in seconds. 0 means use response TTL only.
 }
 
 // Resolver provides DNS query services to Ze components.
@@ -47,8 +48,11 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 			server = net.JoinHostPort(server, "53")
 		}
 	} else {
-		// Resolve system default DNS server once at construction.
-		server = resolveSystemDNS()
+		resolvPath := cfg.ResolvConfPath
+		if resolvPath == "" {
+			resolvPath = "/etc/resolv.conf"
+		}
+		server = resolveSystemDNS(resolvPath)
 	}
 
 	return &Resolver{
@@ -65,8 +69,8 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 // resolveSystemDNS reads the system DNS server from /etc/resolv.conf.
 // Falls back to 8.8.8.8:53 (Google Public DNS) if the file is missing or empty,
 // so DNS resolution always works out of the box.
-func resolveSystemDNS() string {
-	config, err := mdns.ClientConfigFromFile("/etc/resolv.conf")
+func resolveSystemDNS(resolvConfPath string) string {
+	config, err := mdns.ClientConfigFromFile(resolvConfPath)
 	if err != nil || len(config.Servers) == 0 {
 		return "8.8.8.8:53"
 	}

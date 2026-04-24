@@ -1,10 +1,9 @@
 # BFD — Bidirectional Forwarding Detection
 
-**Status:** skeleton merged, NOT wired into the engine startup path. The plugin
-compiles, the codec and FSM are tested under `-race`, and a loopback engine
-test exercises the full three-way handshake. The `RunBFDPlugin` entry point
-is a no-op stub; opening real UDP sockets and exposing the Service over RPC
-lands in a follow-up commit.
+**Status:** implemented and wired. The plugin runs as an internal plugin with
+UDP transport, RFC 5880 FSM, detection timers, echo mode (RFC 5880 §6.8.9),
+and multi-hop support (RFC 5883). Static route next-hop tracking via the BFD
+Service is live. Session keying includes local address for multi-hop uniqueness.
 
 ## Source
 
