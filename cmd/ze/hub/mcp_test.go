@@ -16,7 +16,7 @@ import (
 )
 
 func mockMCPDispatch() zemcp.CommandDispatcher {
-	return func(_ string) (string, error) {
+	return func(_, _, _ string) (string, error) {
 		return `{"status":"ok"}`, nil
 	}
 }

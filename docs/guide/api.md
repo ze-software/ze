@@ -74,7 +74,7 @@ warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or 
 | `GET` | `/api/v1/commands` | List all commands with metadata |
 | `GET` | `/api/v1/commands/{path}` | Describe one command (e.g., `/bgp/summary`) |
 | `POST` | `/api/v1/execute` | Execute any command |
-| `GET` | `/api/v1/execute/stream?command=...` | Stream command output via Server-Sent Events |
+| `GET` | `/api/v1/execute/stream?command=...` | Stream command output via Server-Sent Events (not yet wired; returns error until a stream backend is connected) |
 | `GET` | `/api/v1/complete?partial=...` | Tab completion (future) |
 
 POST `/api/v1/execute` body:
@@ -162,7 +162,7 @@ Generic command execution and discovery.
 | RPC | Type | Purpose |
 |-----|------|---------|
 | `Execute` | unary | Run a command, get result |
-| `Stream` | server-stream | Run a streaming command (monitor, subscribe) |
+| `Stream` | server-stream | Run a streaming command (not yet wired; returns error until a stream backend is connected) |
 | `ListCommands` | unary | Enumerate all commands |
 | `DescribeCommand` | unary | Metadata for one command |
 | `Complete` | unary | Tab completion (future) |
@@ -274,7 +274,7 @@ The transports are functionally equivalent. Pick based on client needs:
 | Feature | REST | gRPC |
 |---------|------|------|
 | Discovery | OpenAPI 3.1 + Swagger UI | gRPC reflection + grpcurl |
-| Streaming | Server-Sent Events | server-stream RPC |
+| Streaming | Server-Sent Events (not yet wired) | server-stream RPC (not yet wired) |
 | Browser support | Yes (with CORS) | Needs grpc-web proxy |
 | Tooling | curl, any HTTP client | grpcurl, any gRPC client |
 | Overhead | JSON | Protobuf (smaller wire format) |

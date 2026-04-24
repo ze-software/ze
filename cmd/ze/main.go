@@ -87,6 +87,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.name", Type: "string", Description: "Override client name for managed mode"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.token", Type: "string", Description: "Override auth token for managed mode"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.connect.timeout", Type: "duration", Default: "5s", Description: "Connection timeout for managed hub"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.tls.insecure", Type: "bool", Default: "false", Description: "Skip TLS certificate verification for hub connection (INSECURE)"})
 )
 
 // version and buildDate are set via ldflags at build time.
@@ -775,7 +776,7 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 		return 1
 	}
 
-	// First boot: connect to hub, fetch config, cache it, then start.
+	// First boot: connect to hub, fetch config, validate, cache, then start.
 	fmt.Fprintf(os.Stderr, "managed: first boot, connecting to hub %s as %s\n", server, name)
 	configData, err := fetchInitialConfig(server, name, token)
 	if err != nil {
@@ -783,7 +784,14 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 		return 1
 	}
 
-	// Cache fetched config in blob.
+	// Validate fetched config before caching. Reject invalid remote config
+	// to prevent poisoning bootstrap state.
+	if _, parseErr := config.LoadConfig(string(configData), "", nil); parseErr != nil {
+		fmt.Fprintf(os.Stderr, "error: hub config failed validation: %v\n", parseErr)
+		return 1
+	}
+
+	// Cache validated config in blob.
 	if writeErr := store.WriteFile(configName, configData, 0); writeErr != nil {
 		fmt.Fprintf(os.Stderr, "error: cache config: %v\n", writeErr)
 		return 1
@@ -827,10 +835,11 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 	cli := hubCfg.Clients[0]
 
 	return &managed.ClientConfig{
-		Name:    cli.Name,
-		Server:  cli.Address(),
-		Token:   cli.Secret,
-		Version: fleet.VersionHash(data),
+		Name:        cli.Name,
+		Server:      cli.Address(),
+		Token:       cli.Secret,
+		TLSInsecure: env.GetBool("ze.managed.tls.insecure", false),
+		Version:     fleet.VersionHash(data),
 		Handler: &managed.Handler{
 			Validate: func(cfgData []byte) error {
 				_, parseErr := config.LoadConfig(string(cfgData), "", nil)
@@ -851,9 +860,13 @@ func fetchInitialConfig(server, name, token string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), env.GetDuration("ze.managed.connect.timeout", 5*time.Second))
 	defer cancel()
 
+	tlsInsecure := env.GetBool("ze.managed.tls.insecure", false)
 	tlsConf := &tls.Config{
-		InsecureSkipVerify: true, //nolint:gosec // hub uses self-signed certs; cert pinning is a future spec
+		InsecureSkipVerify: tlsInsecure, //nolint:gosec // opt-in via explicit env var
 		MinVersion:         tls.VersionTLS13,
+	}
+	if tlsInsecure {
+		slog.Warn("managed TLS: certificate verification disabled (insecure)")
 	}
 
 	conn, err := (&tls.Dialer{Config: tlsConf}).DialContext(ctx, "tcp", server)

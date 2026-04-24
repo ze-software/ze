@@ -362,6 +362,14 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		}
 	}
 
+	// Always record source peer in metadata for ribOut stale-scoping.
+	if direction == rpc.DirectionReceived {
+		if routeMeta == nil {
+			routeMeta = make(map[string]any, 1)
+		}
+		routeMeta["source-peer"] = peerAddr.String()
+	}
+
 	// Policy filter chain: external plugin filters (after in-process filters).
 	// Only for received UPDATEs when the peer has import filters configured.
 	if direction == rpc.DirectionReceived && wireUpdate != nil && hasPeer {

@@ -46,6 +46,7 @@ type Vars struct {
 	DesiredMinTxInterval  uint32 // local target transmit rate
 	RequiredMinRxInterval uint32 // local receive capacity
 	RemoteMinRxInterval   uint32 // last advertised by peer
+	RemoteDesiredMinTx    uint32 // peer's DesiredMinTxInterval (for detection arithmetic)
 
 	// ConfiguredDesiredMinTxInterval and ConfiguredRequiredMinRxInterval
 	// hold the operating values the client asked for. While not Up, the

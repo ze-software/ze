@@ -246,7 +246,7 @@ func TestHandleL2TPDisconnect_DispatchesCommand(t *testing.T) {
 
 	var dispatched string
 	h := &L2TPHandlers{
-		Dispatch: func(cmd string) (string, error) {
+		Dispatch: func(cmd, _, _ string) (string, error) {
 			dispatched = cmd
 			return `{"status":"ok"}`, nil
 		},
@@ -269,7 +269,7 @@ func TestHandleL2TPDisconnect_DispatchesCommand(t *testing.T) {
 
 func TestHandleL2TPDisconnect_ReasonRequired(t *testing.T) {
 	h := &L2TPHandlers{
-		Dispatch: func(cmd string) (string, error) { return "", nil },
+		Dispatch: func(cmd, _, _ string) (string, error) { return "", nil },
 	}
 	form := url.Values{"reason": {""}}
 	req := httptest.NewRequest("POST", "/l2tp/42/disconnect", strings.NewReader(form.Encode()))
@@ -284,7 +284,7 @@ func TestHandleL2TPDisconnect_ReasonRequired(t *testing.T) {
 
 func TestHandleL2TPDisconnect_ReasonTooLong(t *testing.T) {
 	h := &L2TPHandlers{
-		Dispatch: func(cmd string) (string, error) { return "", nil },
+		Dispatch: func(cmd, _, _ string) (string, error) { return "", nil },
 	}
 	form := url.Values{"reason": {strings.Repeat("x", 257)}}
 	req := httptest.NewRequest("POST", "/l2tp/42/disconnect", strings.NewReader(form.Encode()))
@@ -301,7 +301,7 @@ func TestHandleL2TPDisconnect_DispatchFailureReturns500JSON(t *testing.T) {
 	publishFakeL2TP(t, &fakeL2TPService{})
 
 	h := &L2TPHandlers{
-		Dispatch: func(cmd string) (string, error) {
+		Dispatch: func(cmd, _, _ string) (string, error) {
 			return "", fmt.Errorf("session not found")
 		},
 	}
@@ -380,7 +380,7 @@ func TestHandleL2TPDisconnect_ReasonQuoted(t *testing.T) {
 
 	var dispatched string
 	h := &L2TPHandlers{
-		Dispatch: func(cmd string) (string, error) {
+		Dispatch: func(cmd, _, _ string) (string, error) {
 			dispatched = cmd
 			return `{"status":"ok"}`, nil
 		},

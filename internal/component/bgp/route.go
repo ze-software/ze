@@ -49,6 +49,10 @@ type Route struct {
 	// When the RIB replays routes through ForwardUpdate, egress filters read this.
 	Meta map[string]any `json:"meta,omitempty"`
 
+	// SourcePeer is the address of the peer that originally sent this route.
+	// Set in ribOut entries to scope GR/LLGR stale propagation to the restarting peer.
+	SourcePeer string `json:"source-peer,omitempty"`
+
 	// StaleLevel tracks LLGR stale status for ribOut routes.
 	// 0 = fresh, 1 = GR stale, 2 = LLGR stale (depreference threshold).
 	// Set by markStaleCommand when propagating stale to ribOut.

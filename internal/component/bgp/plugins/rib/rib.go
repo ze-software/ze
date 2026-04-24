@@ -187,6 +187,7 @@ const metricsUpdateInterval = 10 * time.Second
 type PeerMeta struct {
 	PeerASN   uint32           // peer's AS number
 	LocalASN  uint32           // local AS number (for eBGP/iBGP detection)
+	RouterID  uint32           // remote peer's BGP Identifier (for best-path step 7)
 	ContextID bgpctx.ContextID // encoding context from last received event (0 = unknown)
 }
 

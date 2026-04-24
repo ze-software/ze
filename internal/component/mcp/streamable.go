@@ -857,7 +857,7 @@ func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 	}
 	defer release()
 
-	resp := s.runMethod(r.Context(), sess, &req)
+	resp := s.runMethod(r.Context(), sess, &req, r.RemoteAddr)
 	if resp == nil {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -1102,14 +1102,14 @@ func (s *Streamable) validateProtocolVersionHeader(r *http.Request) bool {
 // is the originating HTTP request's context; tool handlers propagate it into
 // blocking calls (notably session.Elicit) so a client disconnect unblocks
 // the handler via ctx.Done().
-func (s *Streamable) runMethod(ctx context.Context, sess *session, req *request) *response {
+func (s *Streamable) runMethod(ctx context.Context, sess *session, req *request, remoteAddr string) *response {
 	switch req.Method {
 	case "notifications/initialized":
 		return nil
 	case "tools/list":
 		return s.ok(req.ID, map[string]any{"tools": s.allTools()})
 	case "tools/call":
-		return s.callTool(ctx, req, sess)
+		return s.callTool(ctx, req, sess, remoteAddr)
 	default:
 		return s.fail(req.ID, -32601, fmt.Sprintf("method not found: %s", req.Method))
 	}
@@ -1135,12 +1135,12 @@ func (s *Streamable) allTools() []map[string]any {
 // blocking ops like session.Elicit see client disconnect. sess is the
 // Streamable session bound to the active POST; nil means the POST has no
 // session context and nil-aware handlers degrade gracefully.
-func (s *Streamable) callTool(ctx context.Context, req *request, sess *session) *response {
+func (s *Streamable) callTool(ctx context.Context, req *request, sess *session, remoteAddr string) *response {
 	var params callParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		return s.fail(req.ID, -32602, "invalid params: "+err.Error())
 	}
-	runner := &server{dispatch: s.cfg.Dispatch, commands: s.cfg.Commands, session: sess, ctx: ctx}
+	runner := &server{dispatch: s.cfg.Dispatch, commands: s.cfg.Commands, session: sess, ctx: ctx, remoteAddr: remoteAddr}
 	if handler, ok := toolHandlers[params.Name]; ok {
 		return s.ok(req.ID, handler(runner, params.Arguments))
 	}

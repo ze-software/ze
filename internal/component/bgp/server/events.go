@@ -85,6 +85,7 @@ func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.St
 	se.PeerGroup = peer.GroupName
 	se.PeerAS = peer.PeerAS
 	se.LocalAS = peer.LocalAS
+	se.RouterID = peer.RouterID
 	se.LocalAddress = peer.LocalAddress.String()
 	se.EventType = messageTypeToEventKind(msg.Type)
 	se.Direction = msg.Direction
@@ -102,6 +103,7 @@ func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reas
 	se.PeerGroup = peer.GroupName
 	se.PeerAS = peer.PeerAS
 	se.LocalAS = peer.LocalAS
+	se.RouterID = peer.RouterID
 	se.LocalAddress = peer.LocalAddress.String()
 	se.EventType = rpc.EventKindState
 	se.State = state
@@ -201,19 +203,11 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	results := make(chan process.EventResult, len(procs))
 	sent := 0
 
-	// Track pooled StructuredEvents for return after result collection.
-	var pooled [4]*rpc.StructuredEvent
-	pooledN := 0
-
 	for _, proc := range procs {
 		var delivery process.EventDelivery
 		if proc.HasStructuredHandler() {
 			se := getStructuredEvent(peer, &msg)
 			delivery = process.EventDelivery{Event: se, Result: results}
-			if pooledN < len(pooled) {
-				pooled[pooledN] = se
-				pooledN++
-			}
 		} else {
 			output, _ := fmtCache.get(proc.FormatCacheKey())
 			delivery = process.EventDelivery{Output: output, Result: results}
@@ -225,6 +219,8 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	}
 
 	// Collect results from all deliveries.
+	// StructuredEvent pool return is owned by delivery.go (deliveryLoop),
+	// not this caller. See P1-4: double pool return caused aliasing.
 	var cacheCount int
 	for range sent {
 		r := <-results
@@ -233,11 +229,6 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 		} else if r.CacheConsumer {
 			cacheCount++
 		}
-	}
-
-	// Return pooled StructuredEvents after all consumers are done.
-	for i := range pooledN {
-		rpc.PutStructuredEvent(pooled[i])
 	}
 
 	// RFC 4724 Section 2: detect EOR markers in received UPDATEs.
@@ -296,14 +287,6 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 	isUpdate := msgs[0].Type == message.TypeUPDATE
 	var fmtCache formatCache
 
-	// Pre-count cache consumers: constant across all messages in this batch.
-	cacheConsumerCount := 0
-	for _, proc := range procs {
-		if proc.IsCacheConsumer() {
-			cacheConsumerCount++
-		}
-	}
-
 	for i := range msgs {
 		msg := &msgs[i]
 
@@ -318,6 +301,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 			}
 		}
 
+		cacheCount := 0
 		for _, proc := range procs {
 			var delivery process.EventDelivery
 			if proc.HasStructuredHandler() {
@@ -327,11 +311,12 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 				output, _ := fmtCache.get(proc.FormatCacheKey())
 				delivery = process.EventDelivery{Output: output}
 			}
-			proc.Deliver(delivery)
+			if proc.Deliver(delivery) && proc.IsCacheConsumer() {
+				cacheCount++
+			}
 		}
 
-		// Cache consumer count is the same for every message.
-		counts[i] = cacheConsumerCount
+		counts[i] = cacheCount
 
 		// Deliver to CLI monitors per message (non-blocking).
 		jsonOutput, ok := fmtCache.get(monitorFormatKey)
@@ -542,18 +527,13 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 	// Deliver sequentially in dependency order — each process must complete
 	// before the next starts, enabling inter-plugin coordination.
 	// Structured consumers get StructuredEvent; text consumers get formatted text.
-	var pooled [4]*rpc.StructuredEvent
-	pooledN := 0
+	// StructuredEvent pool return is owned by delivery.go (deliveryLoop).
 	for _, proc := range procs {
 		var delivery process.EventDelivery
 		results := make(chan process.EventResult, 1)
 		if proc.HasStructuredHandler() {
 			se := getStructuredStateEvent(peer, state, reason)
 			delivery = process.EventDelivery{Event: se, Result: results}
-			if pooledN < len(pooled) {
-				pooled[pooledN] = se
-				pooledN++
-			}
 		} else {
 			output, _ := fmtCache.get(proc.Encoding())
 			delivery = process.EventDelivery{Output: output, Result: results}
@@ -565,11 +545,6 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 		if r.Err != nil && s.Context().Err() == nil {
 			logger().Warn("OnPeerStateChange write failed", "proc", r.ProcName, "err", r.Err)
 		}
-	}
-
-	// Return pooled StructuredEvents after all consumers are done.
-	for i := range pooledN {
-		rpc.PutStructuredEvent(pooled[i])
 	}
 
 	// Deliver to CLI monitors.

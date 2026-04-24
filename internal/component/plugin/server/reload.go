@@ -157,16 +157,16 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	logger().Debug("config reload diff",
 		"added", len(diff.added), "removed", len(diff.removed), "changed", len(diff.changed))
 
-	// Auto-stop plugins whose config sections were removed (stop before load).
-	// When a user removes fib { kernel { } }, stop the fib-kernel plugin.
-	// Must run before auto-load to avoid starting then immediately stopping
-	// the same plugin when a config section is replaced.
+	// Collect removed config keys for deferred stop (after verify+apply succeeds).
+	// Stopping plugins before the transaction is proven risks divergence: if
+	// verify/apply fails, the stopped plugins are gone and cannot be restarted
+	// with their old config.
+	var removedKeys []string
 	if len(diff.removed) > 0 {
-		removedKeys := make([]string, 0, len(diff.removed))
+		removedKeys = make([]string, 0, len(diff.removed))
 		for k := range diff.removed {
 			removedKeys = append(removedKeys, k)
 		}
-		s.autoStopForRemovedConfigPaths(removedKeys)
 	}
 
 	// Auto-load plugins for newly added config sections.
@@ -239,6 +239,13 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	if err := s.runTxCoordinator(ctx, affected, diff); err != nil {
 		logger().Warn("config reload: transaction failed", "error", err)
 		return err
+	}
+
+	// Transaction committed. Now stop plugins whose config sections were
+	// removed. Deferred to here so a failed verify/apply does not leave
+	// plugins stopped with no way to restore them.
+	if len(removedKeys) > 0 {
+		s.autoStopForRemovedConfigPaths(removedKeys)
 	}
 
 	// Update running config tree after the orchestrator commits. Plugins

@@ -25,8 +25,9 @@ import (
 const maxRequestBody = 1 << 20
 
 // CommandDispatcher executes a Ze command and returns its output.
-// This matches the signature of reactor.ExecuteCommand.
-type CommandDispatcher func(command string) (string, error)
+// Username and remoteAddr carry the authenticated caller's identity so that
+// authorization and accounting apply to MCP surfaces, not only SSH.
+type CommandDispatcher func(command, username, remoteAddr string) (string, error)
 
 // Handler returns an HTTP handler that speaks MCP JSON-RPC (2024-11-05 profile).
 // Each POST carries a JSON-RPC request; the response is a JSON-RPC response.
@@ -82,7 +83,7 @@ func Handler(dispatch CommandDispatcher, commands CommandLister, token string) h
 		// Per-request server so ctx stays scoped to this call. The
 		// 2024-11-05 profile has no session registry; session stays
 		// nil and elicit-capable handlers fall back accordingly.
-		s := &server{dispatch: dispatch, commands: commands, ctx: r.Context()}
+		s := &server{dispatch: dispatch, commands: commands, ctx: r.Context(), remoteAddr: r.RemoteAddr}
 		resp := s.handle(&req)
 		if resp == nil {
 			w.WriteHeader(http.StatusNoContent)
@@ -156,7 +157,9 @@ type server struct {
 	// ctx.Done() -- otherwise the correlation lingers until the session
 	// TTL sweeps it. Nil on the legacy Handler() path / unit tests; use
 	// context.Background() as the fallback in that case.
-	ctx context.Context //nolint:containedctx // per-request state; see godoc above
+	ctx        context.Context //nolint:containedctx // per-request state; see godoc above
+	username   string
+	remoteAddr string
 }
 
 // methods maps MCP method names to their handlers.
@@ -236,7 +239,7 @@ var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]a
 			}
 			input.Command = cmd
 		}
-		result, err := s.dispatch(input.Command)
+		result, err := s.dispatch(input.Command, s.username, s.remoteAddr)
 		if err != nil {
 			return errResult(err.Error())
 		}
@@ -325,7 +328,7 @@ func noSpaces(field, value string) error {
 
 // run dispatches a command and returns the result as MCP content.
 func (s *server) run(command string) map[string]any {
-	output, err := s.dispatch(command)
+	output, err := s.dispatch(command, s.username, s.remoteAddr)
 	if err != nil {
 		return errResult(err.Error())
 	}

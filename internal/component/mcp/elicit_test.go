@@ -603,7 +603,7 @@ func TestZeExecute_MissingCommandElicits(t *testing.T) {
 
 	dispatched := make(chan string, 1)
 	runner := &server{
-		dispatch: func(cmd string) (string, error) {
+		dispatch: func(cmd, _, _ string) (string, error) {
 			dispatched <- cmd
 			return "executed: " + cmd, nil
 		},
@@ -654,7 +654,7 @@ func TestZeExecute_MissingCommandNoCapability(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 	runner := &server{
-		dispatch: func(cmd string) (string, error) { return "unreachable", nil },
+		dispatch: func(cmd, _, _ string) (string, error) { return "unreachable", nil },
 		session:  sess,
 	}
 	result := toolHandlers["ze_execute"](runner, json.RawMessage(`{"command":""}`))

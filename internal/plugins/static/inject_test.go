@@ -90,7 +90,7 @@ func TestRouteManagerApplyRoutes(t *testing.T) {
 		},
 	}
 
-	rm.applyRoutes(routes)
+	_ = rm.applyRoutes(routes)
 
 	if len(mb.applied) != 2 {
 		t.Fatalf("applied %d routes, want 2", len(mb.applied))
@@ -101,7 +101,7 @@ func TestRouteManagerRemoveOnReload(t *testing.T) {
 	mb := &mockStaticBackend{}
 	rm := newRouteManager(mb)
 
-	rm.applyRoutes([]staticRoute{
+	_ = rm.applyRoutes([]staticRoute{
 		{
 			Prefix:   netip.MustParsePrefix("10.0.0.0/8"),
 			Action:   actionForward,
@@ -116,7 +116,7 @@ func TestRouteManagerRemoveOnReload(t *testing.T) {
 	mb.applied = nil
 	mb.removed = nil
 
-	rm.applyRoutes([]staticRoute{
+	_ = rm.applyRoutes([]staticRoute{
 		{
 			Prefix:   netip.MustParsePrefix("10.0.0.0/8"),
 			Action:   actionForward,
@@ -144,13 +144,13 @@ func TestRouteManagerSkipsUnchangedRoutes(t *testing.T) {
 		},
 	}
 
-	rm.applyRoutes(route)
+	_ = rm.applyRoutes(route)
 	if len(mb.applied) != 1 {
 		t.Fatalf("initial apply: %d routes, want 1", len(mb.applied))
 	}
 
 	mb.applied = nil
-	rm.applyRoutes(route)
+	_ = rm.applyRoutes(route)
 	if len(mb.applied) != 0 {
 		t.Errorf("second apply: %d routes, want 0 (unchanged)", len(mb.applied))
 	}
@@ -160,7 +160,7 @@ func TestRouteManagerShutdownRemovesRoutes(t *testing.T) {
 	mb := &mockStaticBackend{}
 	rm := newRouteManager(mb)
 
-	rm.applyRoutes([]staticRoute{
+	_ = rm.applyRoutes([]staticRoute{
 		{
 			Prefix:   netip.MustParsePrefix("10.0.0.0/8"),
 			Action:   actionForward,

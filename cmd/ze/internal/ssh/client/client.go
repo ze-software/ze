@@ -32,6 +32,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.port", Type: "string", Default: "2222", Description: "Override SSH port"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.username", Type: "string", Description: "Override SSH username (default: zefs super-admin)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.password", Type: "string", Description: "SSH password (zefs stores bcrypt hash)", Secret: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.insecure", Type: "bool", Default: "false", Description: "Skip host key verification for remote SSH (INSECURE)"})
 )
 
 // dialTimeout is the maximum time to establish an SSH connection.
@@ -48,12 +49,16 @@ type Credentials struct {
 // ExecCommand connects to the daemon via SSH and runs a command.
 // Returns the command output or an error.
 func ExecCommand(creds Credentials, command string) (string, error) {
+	hkCb, err := hostKeyCallback(creds.Host)
+	if err != nil {
+		return "", err
+	}
 	config := &ssh.ClientConfig{
 		User: creds.Username,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(creds.Auth),
 		},
-		HostKeyCallback: hostKeyCallback(creds.Host),
+		HostKeyCallback: hkCb,
 		Timeout:         dialTimeout,
 	}
 
@@ -86,12 +91,16 @@ func ExecCommand(creds Credentials, command string) (string, error) {
 // The callback receives the raw JSON event line. If the callback returns an error,
 // streaming stops. The function blocks until the session ends (disconnect or callback error).
 func StreamCommand(creds Credentials, command string, callback func(line string) error) error {
+	hkCb, err := hostKeyCallback(creds.Host)
+	if err != nil {
+		return err
+	}
 	config := &ssh.ClientConfig{
 		User: creds.Username,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(creds.Auth),
 		},
-		HostKeyCallback: hostKeyCallback(creds.Host),
+		HostKeyCallback: hkCb,
 		Timeout:         dialTimeout,
 	}
 
@@ -158,12 +167,16 @@ func (ps *ProtocolSession) Wait() error {
 // bidirectional session with the given command. Returns stdin (write) and
 // stdout (read) pipes for speaking the plugin protocol over the SSH channel.
 func OpenProtocolSession(creds Credentials, command string) (*ProtocolSession, error) {
+	hkCb, err := hostKeyCallback(creds.Host)
+	if err != nil {
+		return nil, err
+	}
 	config := &ssh.ClientConfig{
 		User: creds.Username,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(creds.Auth),
 		},
-		HostKeyCallback: hostKeyCallback(creds.Host),
+		HostKeyCallback: hkCb,
 		Timeout:         dialTimeout,
 	}
 
@@ -336,17 +349,17 @@ func readKey(store *zefs.BlobStore, key string) (string, error) {
 }
 
 // hostKeyCallback returns an appropriate host key callback for the given host.
-// Localhost connections (127.0.0.1, ::1, localhost) skip host key verification
-// since the daemon runs on the same machine. Remote connections also skip
-// verification but log a warning -- the user explicitly opts in via ze.ssh.host.
-func hostKeyCallback(host string) ssh.HostKeyCallback {
+// Localhost connections skip host key verification since the daemon runs on the
+// same machine. Remote connections reject by default unless ze.ssh.insecure=true.
+func hostKeyCallback(host string) (ssh.HostKeyCallback, error) {
 	switch host {
 	case "127.0.0.1", "::1", "localhost":
-		return ssh.InsecureIgnoreHostKey() //nolint:gosec // localhost daemon connection
+		return ssh.InsecureIgnoreHostKey(), nil //nolint:gosec // localhost daemon connection
 	default:
-		// Remote host: user explicitly configured ze_ssh_host.
-		// TODO: support known_hosts or host key pinning for remote targets.
-		return ssh.InsecureIgnoreHostKey() //nolint:gosec // user-configured remote host
+		if env.IsEnabled("ze.ssh.insecure") {
+			return ssh.InsecureIgnoreHostKey(), nil //nolint:gosec // explicit opt-in via ze.ssh.insecure
+		}
+		return nil, fmt.Errorf("remote SSH host %q: host key verification required (set ze.ssh.insecure=true to override)", host)
 	}
 }
 

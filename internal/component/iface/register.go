@@ -420,12 +420,24 @@ func runEngine(conn net.Conn) int {
 			return nil
 		}
 
+		previousCfg := activeCfg.Load()
+
+		// Detect backend change and switch transactionally.
+		previousBackend := ""
+		if previousCfg != nil {
+			previousBackend = previousCfg.Backend
+		}
+		if cfg.Backend != previousBackend && cfg.Backend != "" {
+			if err := LoadBackend(cfg.Backend); err != nil {
+				return fmt.Errorf("interface backend switch to %q: %w", cfg.Backend, err)
+			}
+			log.Info("interface backend switched", "from", previousBackend, "to", cfg.Backend)
+		}
+
 		b := GetBackend()
 		if b == nil {
 			return fmt.Errorf("interface config apply: no backend loaded")
 		}
-
-		previousCfg := activeCfg.Load()
 		j := sdk.NewJournal()
 		err := j.Record(
 			func() error {

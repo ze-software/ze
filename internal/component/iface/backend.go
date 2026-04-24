@@ -197,18 +197,12 @@ func RegisterBackend(name string, factory func() (Backend, error)) error {
 
 // LoadBackend creates and activates the named backend. Called by the iface
 // component during OnConfigure. Returns an error if the name is not registered.
+// The previous backend is kept alive until the new one is successfully created.
+// On failure, the previous backend remains active.
 // Caller MUST call CloseBackend when done.
 func LoadBackend(name string) error {
 	backendsMu.Lock()
 	defer backendsMu.Unlock()
-
-	// Close previous backend to avoid leaking resources (e.g., monitor goroutines).
-	if activeBackend != nil {
-		if closeErr := activeBackend.Close(); closeErr != nil {
-			loggerPtr.Load().Warn("iface: close previous backend", "err", closeErr)
-		}
-		activeBackend = nil
-	}
 
 	factory, ok := backends[name]
 	if !ok {
@@ -222,6 +216,13 @@ func LoadBackend(name string) error {
 	b, err := factory()
 	if err != nil {
 		return fmt.Errorf("iface: backend %q init: %w", name, err)
+	}
+
+	// New backend created successfully; close the previous one.
+	if activeBackend != nil {
+		if closeErr := activeBackend.Close(); closeErr != nil {
+			loggerPtr.Load().Warn("iface: close previous backend", "err", closeErr)
+		}
 	}
 	activeBackend = b
 	return nil

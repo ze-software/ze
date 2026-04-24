@@ -6,11 +6,30 @@ Functional tests verify ZeBGP's BGP message encoding by comparing actual wire ou
 
 ```bash
 # Quick start
-make ze-functional-test   # Run all tests
+make ze-functional-test   # Run all gating suites
 make ze-encode-test       # Encoding tests only
 make ze-plugin-test       # Plugin tests only
 make ze-reload-test       # Reload tests only
 ```
+
+## Release Gate Coverage
+
+`make ze-verify` (and its alias `make ze-verify-fast`) runs: lint, unit tests,
+`ze-functional-test`, and exabgp-compat. The functional test target runs 8
+suites: encode, plugin, parse, decode, reload, ui, editor, managed.
+
+The following shipped test suites are **not in the default release gate** and
+must be run manually:
+
+| Suite | Runner | Why not gated |
+|-------|--------|---------------|
+| L2TP | `bin/ze-test l2tp` | Requires loopback UDP |
+| Firewall | `bin/ze-test firewall` | Requires privileged nft/iptables access |
+| VPP | `bin/ze-test vpp` | Requires Python VPP stub setup |
+| Web | `make ze-web-test` / `bin/ze-test web` | Requires running ze daemon |
+
+There are no `make ze-l2tp-test`, `make ze-firewall-test`, or `make ze-vpp-test`
+targets. Use the `bin/ze-test` runners directly.
 
 ---
 
@@ -200,6 +219,10 @@ expect=bgp:conn=2:seq=1:hex=...   # Both routes after reload
 ```
 
 ### 5. VPP Tests (`test/vpp/`)
+
+> **Not in the default release gate.** VPP tests are not included in
+> `make ze-verify` / `make ze-functional-test`. Run manually via
+> `bin/ze-test vpp`. There is no `make ze-vpp-test` target.
 
 Functional tests that exercise `fib-vpp` end-to-end against a Python
 GoVPP-API stub. The stub replaces the real VPP process in CI: no DPDK,
@@ -1067,7 +1090,12 @@ If namespace creation fails (missing `CAP_NET_ADMIN`), the test is skipped with 
 
 L2TP functional tests (`test/l2tp/`) verify tunnel lifecycle, session
 negotiation, authentication, IP pool, and teardown over real loopback UDP.
-Run with `make ze-l2tp-test` or `bin/ze-test l2tp`.
+Run with `bin/ze-test l2tp`.
+
+> **Not in the default release gate.** L2TP tests require loopback UDP and
+> are not included in `make ze-verify` / `make ze-functional-test`. They must
+> be run manually via `bin/ze-test l2tp`. There is no `make ze-l2tp-test`
+> target.
 
 ```bash
 ze-test l2tp --list    # List available tests

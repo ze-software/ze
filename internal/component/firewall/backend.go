@@ -73,24 +73,17 @@ func RegisterBackend(name string, factory func() (Backend, error)) error {
 
 // LoadBackend creates and activates the named backend. Called by the firewall
 // component during OnConfigure. Returns an error if the name is not registered.
+// The previous backend is kept alive until the new one is successfully created.
+// On failure, the previous backend remains active.
 // Caller MUST call CloseBackend when done.
 //
 // Invariant: after any outcome, `activeBackend != nil` iff
-// `ActiveBackendName() != ""`. Every failure path (close of previous
-// backend, factory lookup miss, factory error) clears the name
-// alongside the backend pointer so CLI handlers can trust that
-// GetBackend() and ActiveBackendName() stay consistent.
+// `ActiveBackendName() != ""`. Every failure path (factory lookup miss,
+// factory error) preserves the previous backend and name so CLI handlers
+// can trust that GetBackend() and ActiveBackendName() stay consistent.
 func LoadBackend(name string) error {
 	backendsMu.Lock()
 	defer backendsMu.Unlock()
-
-	if activeBackend != nil {
-		if closeErr := activeBackend.Close(); closeErr != nil {
-			loggerPtr.Load().Warn("firewall: close previous backend", "err", closeErr)
-		}
-		activeBackend = nil
-		setActiveBackendName("")
-	}
 
 	factory, ok := backends[name]
 	if !ok {
@@ -104,6 +97,13 @@ func LoadBackend(name string) error {
 	b, err := factory()
 	if err != nil {
 		return fmt.Errorf("firewall: backend %q init: %w", name, err)
+	}
+
+	// New backend created successfully; close the previous one.
+	if activeBackend != nil {
+		if closeErr := activeBackend.Close(); closeErr != nil {
+			loggerPtr.Load().Warn("firewall: close previous backend", "err", closeErr)
+		}
 	}
 	activeBackend = b
 	setActiveBackendName(name)

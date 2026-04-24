@@ -326,7 +326,8 @@ func (h *L2TPHandlers) HandleL2TPDisconnect() http.HandlerFunc {
 			http.Error(w, "command dispatch not available", http.StatusServiceUnavailable)
 			return
 		}
-		output, execErr := h.Dispatch(cmd)
+		username := GetUsernameFromRequest(r)
+		output, execErr := h.Dispatch(cmd, username, r.RemoteAddr)
 
 		if NegotiateContentType(r) == formatJSON {
 			result := map[string]any{

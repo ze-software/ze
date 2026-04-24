@@ -704,12 +704,16 @@ func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
 		marked = peerRIB.StaleCount()
 	}
 
-	// RFC 9494: Propagate stale level to ribOut routes for all destination peers.
-	// During LLGR readvertisement, sendRoutes carries meta["stale"] to egress filters.
+	// RFC 9494: Propagate stale level to ribOut routes sourced from the restarting peer.
+	// Only routes originally received from peerAddr are marked; routes from other
+	// peers are left fresh. During LLGR readvertisement, sendRoutes carries
+	// meta["stale"] through ForwardUpdate to egress filters.
 	for _, peerFamilies := range r.ribOut {
 		for _, familyRoutes := range peerFamilies {
 			for _, route := range familyRoutes {
-				route.StaleLevel = staleLevel
+				if route.SourcePeer == peerAddr {
+					route.StaleLevel = staleLevel
+				}
 			}
 		}
 	}
@@ -923,9 +927,16 @@ func (r *RIBManager) extractCandidate(peerAddr string, entry storage.RouteEntry)
 	}
 
 	// ORIGINATOR_ID (type 9): 4 bytes, used as Router ID tiebreak (RFC 4456).
+	// RFC 4271 step 7: use ORIGINATOR_ID when present (reflected routes),
+	// otherwise fall back to the peer's BGP Identifier (Router ID).
 	if entry.HasOriginatorID() {
 		if data, err := pool.OriginatorID.Get(entry.OriginatorID); err == nil {
 			c.OriginatorID = formatNextHop(data) // same 4-byte IP format
+		}
+	}
+	if c.OriginatorID == "" {
+		if meta := r.peerMeta[peerAddr]; meta != nil && meta.RouterID != 0 {
+			c.OriginatorID = formatRouterID(meta.RouterID)
 		}
 	}
 

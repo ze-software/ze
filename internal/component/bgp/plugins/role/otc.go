@@ -265,6 +265,41 @@ func insertOTCInPayload(payload []byte, otcASN uint32) []byte {
 	return result
 }
 
+// payloadToWithdrawal converts an UPDATE payload to a pure withdrawal.
+// RFC 7606 Section 2: treat-as-withdraw moves announced NLRIs to the withdrawn
+// section and clears path attributes. Returns nil if the payload is malformed
+// or carries no announcements to withdraw.
+func payloadToWithdrawal(payload []byte) []byte {
+	if len(payload) < 4 {
+		return nil
+	}
+	withdrawnLen := int(binary.BigEndian.Uint16(payload[0:2]))
+	attrOffset := 2 + withdrawnLen
+	if len(payload) < attrOffset+2 {
+		return nil
+	}
+	attrLen := int(binary.BigEndian.Uint16(payload[attrOffset : attrOffset+2]))
+	nlriStart := attrOffset + 2 + attrLen
+	if nlriStart > len(payload) {
+		return nil
+	}
+	existingWD := payload[2 : 2+withdrawnLen]
+	trailingNLRI := payload[nlriStart:]
+
+	totalWDLen := len(existingWD) + len(trailingNLRI)
+	if totalWDLen == 0 {
+		return nil
+	}
+
+	// Build: withdrawnLen(2) + withdrawn + trailingNLRI + attrLen=0(2)
+	result := make([]byte, 2+totalWDLen+2)
+	binary.BigEndian.PutUint16(result[0:2], uint16(totalWDLen)) //nolint:gosec // G115: bounded by input
+	copy(result[2:], existingWD)
+	copy(result[2+len(existingWD):], trailingNLRI)
+	binary.BigEndian.PutUint16(result[2+totalWDLen:], 0) // empty path attributes
+	return result
+}
+
 // OTCIngressFilter is the ingress filter function registered in the plugin registry.
 // Called by the reactor for each received UPDATE before caching and dispatching.
 // Checks OTC ingress rules per RFC 9234 Section 5.
@@ -304,8 +339,11 @@ func OTCIngressFilter(src registry.PeerFilterInfo, payload []byte, meta map[stri
 			"peer", src.Address, "remote-role", remoteRole)
 		return false, nil
 	case otcTreatWithdraw:
-		logger().Info("OTC ingress reject: malformed OTC",
+		logger().Info("OTC treat-as-withdraw: malformed OTC",
 			"peer", src.Address)
+		if wd := payloadToWithdrawal(payload); wd != nil {
+			return true, wd
+		}
 		return false, nil
 	}
 

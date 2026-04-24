@@ -191,6 +191,8 @@ func applyPolicies(alloc *allocator, policies []PolicyRoute, oldResult *translat
 
 	if err := rm.applyAll(result); err != nil {
 		rm.removeAll(result)
+		firewall.RegisterTables("policy-routes", nil)
+		_ = firewall.ApplyAll()
 		return err
 	}
 

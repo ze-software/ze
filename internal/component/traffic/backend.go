@@ -128,17 +128,12 @@ func RunVerifier(backendName string, desired map[string]InterfaceQoS) error {
 
 // LoadBackend creates and activates the named backend. Called by the traffic
 // component during OnConfigure. Returns an error if the name is not registered.
+// The previous backend is kept alive until the new one is successfully created.
+// On failure, the previous backend remains active.
 // Caller MUST call CloseBackend when done.
 func LoadBackend(name string) error {
 	backendsMu.Lock()
 	defer backendsMu.Unlock()
-
-	if activeBackend != nil {
-		if closeErr := activeBackend.Close(); closeErr != nil {
-			loggerPtr.Load().Warn("traffic: close previous backend", "err", closeErr)
-		}
-		activeBackend = nil
-	}
 
 	factory, ok := backends[name]
 	if !ok {
@@ -152,6 +147,13 @@ func LoadBackend(name string) error {
 	b, err := factory()
 	if err != nil {
 		return fmt.Errorf("traffic: backend %q init: %w", name, err)
+	}
+
+	// New backend created successfully; close the previous one.
+	if activeBackend != nil {
+		if closeErr := activeBackend.Close(); closeErr != nil {
+			loggerPtr.Load().Warn("traffic: close previous backend", "err", closeErr)
+		}
 	}
 	activeBackend = b
 	return nil

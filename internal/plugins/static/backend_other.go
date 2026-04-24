@@ -1,14 +1,20 @@
-// Design: plan/spec-static-routes.md -- noop backend for non-Linux
+// Design: plan/spec-static-routes.md -- rejecting backend for non-Linux
 
 //go:build !linux
 
 package static
 
-type noopStaticBackend struct{}
+import "fmt"
 
-func newStaticBackend() routeBackend { return &noopStaticBackend{} }
+var errUnsupportedPlatform = fmt.Errorf("static routes: not supported on this platform (Linux required)")
 
-func (n *noopStaticBackend) applyRoute(_ staticRoute) error              { return nil }
-func (n *noopStaticBackend) removeRoute(_ staticRoute) error             { return nil }
-func (n *noopStaticBackend) listRoutes() ([]installedStaticRoute, error) { return nil, nil }
-func (n *noopStaticBackend) close() error                                { return nil }
+type unsupportedStaticBackend struct{}
+
+func newStaticBackend() routeBackend { return &unsupportedStaticBackend{} }
+
+func (n *unsupportedStaticBackend) applyRoute(_ staticRoute) error  { return errUnsupportedPlatform }
+func (n *unsupportedStaticBackend) removeRoute(_ staticRoute) error { return errUnsupportedPlatform }
+func (n *unsupportedStaticBackend) listRoutes() ([]installedStaticRoute, error) {
+	return nil, errUnsupportedPlatform
+}
+func (n *unsupportedStaticBackend) close() error { return nil }

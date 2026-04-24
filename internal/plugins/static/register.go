@@ -90,7 +90,9 @@ func runStaticPlugin(conn net.Conn) int {
 			mu.Lock()
 			currentRoutes = routes
 			mu.Unlock()
-			rm.applyRoutes(routes)
+			if applyErr := rm.applyRoutes(routes); applyErr != nil {
+				return fmt.Errorf("static routes: %w", applyErr)
+			}
 			logger().Info("static routes loaded", "count", len(routes))
 		}
 		return nil
@@ -112,7 +114,9 @@ func runStaticPlugin(conn net.Conn) int {
 		j := sdk.NewJournal()
 		err := j.Record(
 			func() error {
-				rm.applyRoutes(newRoutes)
+				if applyErr := rm.applyRoutes(newRoutes); applyErr != nil {
+					return fmt.Errorf("static routes apply: %w", applyErr)
+				}
 				mu.Lock()
 				currentRoutes = newRoutes
 				mu.Unlock()
@@ -120,7 +124,9 @@ func runStaticPlugin(conn net.Conn) int {
 				return nil
 			},
 			func() error {
-				rm.applyRoutes(oldRoutes)
+				if applyErr := rm.applyRoutes(oldRoutes); applyErr != nil {
+					return fmt.Errorf("static routes rollback: %w", applyErr)
+				}
 				mu.Lock()
 				currentRoutes = oldRoutes
 				mu.Unlock()

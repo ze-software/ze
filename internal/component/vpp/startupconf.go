@@ -27,6 +27,16 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings) error {
 		b.flag("full-coredump")
 	})
 
+	if s.APISocket != "" {
+		b.section("api-segment", func() {
+			b.kv("prefix", "vpp")
+		})
+
+		b.section("socksvr", func() {
+			b.kv("socket-name", s.APISocket)
+		})
+	}
+
 	b.section("cpu", func() {
 		if s.CPU.MainCore != nil {
 			b.kv("main-core", fmt.Sprintf("%d", *s.CPU.MainCore))
@@ -94,6 +104,9 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings) error {
 	b.section("statseg", func() {
 		b.kv("size", s.Stats.SegmentSize)
 		b.kv("page-size", pageSize(s.Memory.HugepageSize))
+		if s.Stats.SocketPath != "" {
+			b.kv("socket-name", s.Stats.SocketPath)
+		}
 	})
 
 	return b.err

@@ -548,7 +548,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	if len(lgAddrs) > 0 {
-		if lgSrv := startLGServer(store, lgAddrs, lgTLS, dispatch, resolvers); lgSrv != nil {
+		lgDispatch := func(cmd string) (string, error) { return dispatch(cmd, "", "") }
+		if lgSrv := startLGServer(store, lgAddrs, lgTLS, lgDispatch, resolvers); lgSrv != nil {
 			defer func() {
 				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer shutdownCancel()
@@ -849,13 +850,13 @@ func waitLoop(sigCh <-chan os.Signal, reloadCh chan<- os.Signal, doneCh <-chan s
 }
 
 // serverDispatcher creates a CommandDispatcher from the plugin server's dispatcher.
-func serverDispatcher(s *pluginserver.Server) func(string) (string, error) {
-	return func(input string) (string, error) {
+func serverDispatcher(s *pluginserver.Server) func(command, username, remoteAddr string) (string, error) {
+	return func(input, username, remoteAddr string) (string, error) {
 		d := s.Dispatcher()
 		if d == nil {
 			return "", fmt.Errorf("server not ready")
 		}
-		ctx := &pluginserver.CommandContext{Server: s}
+		ctx := &pluginserver.CommandContext{Server: s, Username: username, RemoteAddr: remoteAddr}
 		resp, err := d.Dispatch(ctx, input)
 		if err != nil {
 			return "", err

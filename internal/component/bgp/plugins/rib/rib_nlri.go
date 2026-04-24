@@ -256,3 +256,7 @@ func formatNextHop(data []byte) string {
 		return fmt.Sprintf("%x", data)
 	}
 }
+
+func formatRouterID(id uint32) string {
+	return fmt.Sprintf("%d.%d.%d.%d", id>>24, (id>>16)&0xff, (id>>8)&0xff, id&0xff)
+}

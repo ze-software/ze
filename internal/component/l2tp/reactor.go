@@ -989,6 +989,7 @@ func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
 	username := sess.username
 	now := r.params.Clock()
 	outbound := tunnel.teardownSession(sess, cdnResultGeneralError, now, r.logger)
+	teardowns := tunnel.drainPendingKernelTeardowns()
 	r.tunnelsMu.Unlock()
 
 	// spec-l2tp-7 Phase 6: notify the route observer before the CDN
@@ -1018,6 +1019,7 @@ func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
 				"to", req.to.String(), "error", err.Error())
 		}
 	}
+	r.enqueueKernelEvents(nil, teardowns)
 }
 
 // handleSessionIPAssigned records the NCP-negotiated peer IP on the

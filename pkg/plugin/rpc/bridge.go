@@ -326,6 +326,7 @@ type StructuredEvent struct {
 	PeerGroup    string           // Peer group name from config
 	PeerAS       uint32           // Remote peer AS number
 	LocalAS      uint32           // Local AS number
+	RouterID     uint32           // Remote peer's BGP Identifier (from OPEN)
 	LocalAddress string           // Local address string
 	EventType    EventKind        // EventKindUpdate, EventKindOpen, etc.
 	Direction    MessageDirection // DirectionSent / DirectionReceived
@@ -354,6 +355,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.PeerGroup = ""
 	se.PeerAS = 0
 	se.LocalAS = 0
+	se.RouterID = 0
 	se.LocalAddress = ""
 	se.EventType = EventKindUnspecified
 	se.Direction = DirectionUnspecified

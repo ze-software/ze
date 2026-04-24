@@ -21,20 +21,12 @@ import (
 // RFC 5880 Section 6.8.4 (Asynchronous mode):
 //
 //	detect_time = remote_detect_mult * max(local_RequiredMinRx, remote_DesiredMinTx)
-//
-// We approximate the "remote DesiredMinTx" with the most recently received
-// value, which is captured implicitly: bfd.RemoteMinRxInterval is the floor
-// the peer requires us to honor, and is updated on every received packet.
-// In strict-conformance mode the spec uses the peer's advertised TX rate;
-// the engine stores both fields and the larger is used.
-//
-// While the session is not Up, the floor is the slow-start interval.
 func (m *Machine) DetectionInterval() time.Duration {
 	mult := uint32(m.vars.RemoteDetectMult)
 	if mult == 0 {
 		mult = uint32(m.vars.DetectMult)
 	}
-	floor := max(m.vars.RequiredMinRxInterval, m.vars.RemoteMinRxInterval)
+	floor := max(m.vars.RequiredMinRxInterval, m.vars.RemoteDesiredMinTx)
 	if floor == 0 {
 		floor = SlowStartIntervalUs
 	}

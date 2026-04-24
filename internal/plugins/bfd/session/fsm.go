@@ -57,6 +57,7 @@ func (m *Machine) Receive(c packet.Control) error {
 	m.vars.RemoteSessionState = c.State
 	m.vars.RemoteDemandMode = c.Demand
 	m.vars.RemoteMinRxInterval = c.RequiredMinRxInterval
+	m.vars.RemoteDesiredMinTx = c.DesiredMinTxInterval
 	m.vars.RemoteDetectMult = c.DetectMult
 	m.vars.RemoteMinEchoRxInterval = c.RequiredMinEchoRxInterval
 

@@ -13,7 +13,7 @@ package ppp
 import (
 	"encoding/binary"
 	"errors"
-	"strconv"
+	"time"
 )
 
 // PAP packet codes from RFC 1334 Section 2.1. Unlike CHAP there are
@@ -29,6 +29,10 @@ const (
 // RFC 1334 Section 2.1 Length field covers this header and the Data
 // area; octets past Length are Data Link Layer padding.
 const papHeaderLen = 4
+
+// papFirstRequestTimeout bounds the wait for the peer's first PAP
+// Authenticate-Request. Matches the session-level defaultAuthTimeout.
+const papFirstRequestTimeout = 30 * time.Second
 
 // papMaxFieldLen is the maximum length of a Peer-ID, Password or
 // Message field. RFC 1334 prefixes each field with a one-octet length,
@@ -152,34 +156,45 @@ func writePAPReply(buf []byte, off int, code, identifier uint8, message []byte) 
 // RFC 1334 Section 2 flow: the peer is the sole initiator, so the
 // handler's first action is a blocking Read rather than a write.
 func (s *pppSession) runPAPAuthPhase() bool {
-	var frame []byte
-	select {
-	case f, ok := <-s.framesIn:
-		if !ok {
-			s.fail("pap: frames channel closed")
+	deadline := time.NewTimer(papFirstRequestTimeout)
+	defer deadline.Stop()
+
+	var req PAPRequest
+	for {
+		var frame []byte
+		select {
+		case f, ok := <-s.framesIn:
+			if !ok {
+				s.fail("pap: frames channel closed")
+				return false
+			}
+			frame = f
+		case <-deadline.C:
+			s.fail("pap: timed out waiting for Authenticate-Request")
+			return false
+		case <-s.stopCh:
+			return false
+		case <-s.sessStop:
 			return false
 		}
-		frame = f
-	case <-s.stopCh:
-		return false
-	case <-s.sessStop:
-		return false
-	}
-	defer putFrameBuf(frame)
-	proto, payload, _, perr := ParseFrame(frame)
-	if perr != nil {
-		s.fail("pap: malformed frame: " + perr.Error())
-		return false
-	}
-	if proto != ProtoPAP {
-		s.fail("pap: unexpected protocol 0x" +
-			strconv.FormatUint(uint64(proto), 16))
-		return false
-	}
-	req, perr := ParsePAPRequest(payload)
-	if perr != nil {
-		s.fail("pap: malformed request: " + perr.Error())
-		return false
+		proto, payload, _, perr := ParseFrame(frame)
+		if perr != nil {
+			putFrameBuf(frame)
+			s.fail("pap: malformed frame: " + perr.Error())
+			return false
+		}
+		if proto != ProtoPAP {
+			putFrameBuf(frame)
+			continue
+		}
+		parsed, perr := ParsePAPRequest(payload)
+		putFrameBuf(frame)
+		if perr != nil {
+			s.fail("pap: malformed request: " + perr.Error())
+			return false
+		}
+		req = parsed
+		break
 	}
 
 	evt := EventAuthRequest{
@@ -215,11 +230,6 @@ func (s *pppSession) runPAPAuthPhase() bool {
 		})
 		return true
 	}
-	// Mirror runAuthPhase reject path: emit EventSessionDown on the
-	// lifecycle channel before the auth-channel failure event so the
-	// transport can tear the session down. Without s.fail here the
-	// session goroutine returns false from afterLCPOpen but nothing
-	// on the lifecycle channel signals the reject.
 	s.fail("pap: auth rejected: " + resp.message)
 	s.sendAuthEvent(EventAuthFailure{
 		TunnelID:  s.tunnelID,

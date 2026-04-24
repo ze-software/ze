@@ -51,8 +51,9 @@ type CommandParameter struct {
 
 // CommandDispatcher executes an admin command and returns the output.
 // The command string is the full command path (e.g., "peer 192.168.1.1 teardown").
-// Returns the output text and any error from execution.
-type CommandDispatcher func(command string) (string, error)
+// Username and remoteAddr carry the authenticated caller's identity so that
+// authorization and accounting apply to web and MCP surfaces, not only SSH.
+type CommandDispatcher func(command, username, remoteAddr string) (string, error)
 
 // HandleAdminView returns an HTTP handler that serves the admin command tree
 // using finder-style column navigation (same layout as config). Leaf commands
@@ -143,7 +144,8 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.Han
 			return
 		}
 
-		output, execErr := dispatch(commandStr)
+		username := GetUsernameFromRequest(r)
+		output, execErr := dispatch(commandStr, username, r.RemoteAddr)
 
 		result := CommandResultData{
 			CommandName: commandStr,

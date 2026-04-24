@@ -107,6 +107,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	candidate := PeerMeta{
 		PeerASN:   se.PeerAS,
 		LocalASN:  se.LocalAS,
+		RouterID:  se.RouterID,
 		ContextID: wu.SourceCtxID(),
 	}
 	if cur := r.peerMeta[peerAddr]; cur == nil || *cur != candidate {
@@ -310,6 +311,11 @@ func (r *RIBManager) storeSentNLRIs(peerAddr string, fam family.Family, nlriData
 		r.ribOut[peerAddr][fam] = make(map[string]*Route)
 	}
 
+	var sourcePeer string
+	if meta != nil {
+		sourcePeer, _ = meta["source-peer"].(string)
+	}
+
 	iter := nlri.NewNLRIIterator(nlriData, addPath)
 	for {
 		wirePrefix, pathID, ok := iter.Next()
@@ -336,6 +342,7 @@ func (r *RIBManager) storeSentNLRIs(peerAddr string, fam family.Family, nlriData
 			ExtendedCommunities: extCommunities,
 			RawAttrs:            rawAttrsHex,
 			Meta:                meta,
+			SourcePeer:          sourcePeer,
 		}
 	}
 }

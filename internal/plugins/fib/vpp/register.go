@@ -14,7 +14,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	fibvppschema "codeberg.org/thomas-mangin/ze/internal/plugins/fib/vpp/schema"
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -107,38 +106,49 @@ func runFibVPPPlugin(conn net.Conn) int {
 	})
 
 	p.OnStarted(func(ctx context.Context) error {
-		// Get GoVPP channel from VPP component via package-level accessor.
-		connector := vppcomp.GetActiveConnector()
-		if connector == nil {
-			lg.Warn("fib-vpp: VPP connector not available, using noop backend")
-			fib = newFibVPP(&mockBackend{})
-			go fib.run(ctx, false)
-			return nil
+		var runCancel context.CancelFunc
+
+		initBackend := func() {
+			connector := vppcomp.GetActiveConnector()
+			if connector == nil {
+				lg.Warn("fib-vpp: VPP connector not available, using noop backend")
+				fib = newFibVPP(&mockBackend{})
+				return
+			}
+			ch, err := connector.NewChannel()
+			if err != nil {
+				lg.Warn("fib-vpp: GoVPP channel failed, using noop backend", "error", err)
+				fib = newFibVPP(&mockBackend{})
+				return
+			}
+			backend := newGovppBackend(ch, tableID)
+			fib = newFibVPP(backend)
 		}
 
-		ch, err := connector.NewChannel()
-		if err != nil {
-			lg.Warn("fib-vpp: GoVPP channel failed, using noop backend", "error", err)
-			fib = newFibVPP(&mockBackend{})
-			go fib.run(ctx, false)
-			return nil
+		startFib := func() {
+			if runCancel != nil {
+				runCancel()
+			}
+			var runCtx context.Context
+			runCtx, runCancel = context.WithCancel(ctx)
+			go fib.run(runCtx, false)
 		}
 
-		backend := newGovppBackend(ch, tableID)
-		fib = newFibVPP(backend)
+		initBackend()
 
-		// Subscribe to VPP lifecycle events for restart recovery.
 		eb := getEventBus()
 		if eb != nil {
-			vppUnsub = eb.Subscribe(vppevents.Namespace, vppevents.EventReconnected, events.AsString(func(_ string) {
-				lg.Info("fib-vpp: VPP reconnected, requesting replay")
-				if _, emitErr := eb.Emit(sysribevents.Namespace, sysribevents.EventReplayRequest, ""); emitErr != nil {
-					lg.Warn("fib-vpp: replay-request emit failed", "error", emitErr)
-				}
-			}))
+			onVPPReady := events.AsString(func(event string) {
+				lg.Info("fib-vpp: VPP ready, reinitializing backend", "event", event)
+				initBackend()
+				startFib()
+			})
+			unsub1 := eb.Subscribe(vppevents.Namespace, vppevents.EventConnected, onVPPReady)
+			unsub2 := eb.Subscribe(vppevents.Namespace, vppevents.EventReconnected, onVPPReady)
+			vppUnsub = func() { unsub1(); unsub2() }
 		}
 
-		go fib.run(ctx, false)
+		startFib()
 		return nil
 	})
 

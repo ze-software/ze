@@ -59,7 +59,7 @@ Ze is a network operating system written in Go. It runs on any Linux or as a gok
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- raisePrefixThreshold, RaisePrefixStale, raiseNotificationError, raiseSessionDropped -->
 <!-- source: internal/component/bgp/config/loader.go -- collectPrefixWarnings reads from report bus for login banner -->
 | [Interoperability Testing](features/interoperability-testing.md) | 32 Docker-based scenarios against FRR, BIRD, GoBGP |
-| REST/gRPC API | Programmatic API with OpenAPI 3.1 spec, SSE streaming, config sessions. Both transports accept multiple named listen endpoints via `environment.api-server.rest.server <name>` / `.grpc.server <name>`. Bearer token auth, CORS support. Both transports share one engine -- identical command output. |
+| REST/gRPC API | Programmatic API with OpenAPI 3.1 spec, config sessions. Both transports accept multiple named listen endpoints via `environment.api-server.rest.server <name>` / `.grpc.server <name>`. Bearer token auth, CORS support. Both transports share one engine -- identical command output. SSE and gRPC streaming endpoints exist but are not yet wired to a production event source; they return "streaming not supported" until a stream backend is connected. |
 <!-- source: internal/component/api/engine.go -- APIEngine, Execute, Stream, ListCommands -->
 <!-- source: internal/component/api/rest/server.go -- RESTServer, all HTTP handlers, multi-listener Serve -->
 <!-- source: internal/component/api/grpc/server.go -- GRPCServer, ZeService, ZeConfigService, multi-listener Serve -->

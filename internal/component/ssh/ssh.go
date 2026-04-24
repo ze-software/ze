@@ -537,49 +537,45 @@ func (s *Server) execMiddleware() wish.Middleware {
 			input := strings.Join(cmd, " ")
 			s.logger.Info("SSH exec command", "user", sess.User(), "command", input, "remote", sess.RemoteAddr().String())
 
-			// Handle lifecycle commands directly.
-			// Note: stop/restart/reboot bypass RPC authorization by design -- any
-			// authenticated SSH user can shut down or reboot. Restrict via SSH user config.
+			// Handle lifecycle commands. Authorization is checked via the
+			// command executor; only explicit ErrUnauthorized blocks the
+			// action (the dispatcher does not register lifecycle commands,
+			// so "unknown command" errors are expected and allowed through).
 			lcInput := strings.ToLower(strings.TrimSpace(input))
-			if lcInput == "stop" {
+			if lcInput == "stop" || lcInput == "restart" || lcInput == "reboot" {
 				s.mu.Lock()
-				fn := s.shutdownFunc
+				lcFactory := s.executorFactory
 				s.mu.Unlock()
-				if fn != nil {
-					fmt.Fprintln(sess, "stopping daemon") //nolint:errcheck // best-effort response
-					sess.Exit(0)                          //nolint:errcheck // best-effort exit status
-					fn()
-				} else {
-					fmt.Fprintln(sess.Stderr(), "error: shutdown not available") //nolint:errcheck // best-effort
-					sess.Exit(1)                                                 //nolint:errcheck // best-effort
+				if lcFactory == nil {
+					fmt.Fprintln(sess.Stderr(), "error: daemon still starting, lifecycle commands unavailable") //nolint:errcheck // best-effort
+					sess.Exit(1)                                                                                //nolint:errcheck // best-effort
+					return
 				}
-				return
-			}
-			if lcInput == "restart" {
-				s.mu.Lock()
-				fn := s.restartFunc
-				s.mu.Unlock()
-				if fn != nil {
-					fmt.Fprintln(sess, "restarting daemon") //nolint:errcheck // best-effort response
-					sess.Exit(0)                            //nolint:errcheck // best-effort exit status
-					fn()
-				} else {
-					fmt.Fprintln(sess.Stderr(), "error: restart not available") //nolint:errcheck // best-effort
-					sess.Exit(1)                                                //nolint:errcheck // best-effort
+				executor := lcFactory(sess.User(), sess.RemoteAddr().String())
+				if _, err := executor(lcInput); errors.Is(err, pluginserver.ErrUnauthorized) {
+					fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
+					sess.Exit(1)                                   //nolint:errcheck // best-effort
+					return
 				}
-				return
-			}
-			if lcInput == "reboot" {
 				s.mu.Lock()
-				fn := s.rebootFunc
+				var fn func()
+				switch lcInput {
+				case "stop":
+					fn = s.shutdownFunc
+				case "restart":
+					fn = s.restartFunc
+				case "reboot":
+					fn = s.rebootFunc
+				}
 				s.mu.Unlock()
 				if fn != nil {
-					fmt.Fprintln(sess, "rebooting system") //nolint:errcheck // best-effort response
-					sess.Exit(0)                           //nolint:errcheck // best-effort exit status
+					msg := map[string]string{"stop": "stopping", "restart": "restarting", "reboot": "rebooting"}
+					fmt.Fprintf(sess, "%s daemon\n", msg[lcInput]) //nolint:errcheck // best-effort
+					sess.Exit(0)                                   //nolint:errcheck // best-effort exit status
 					fn()
 				} else {
-					fmt.Fprintln(sess.Stderr(), "error: reboot not available") //nolint:errcheck // best-effort
-					sess.Exit(1)                                               //nolint:errcheck // best-effort
+					fmt.Fprintf(sess.Stderr(), "error: %s not available\n", lcInput) //nolint:errcheck // best-effort
+					sess.Exit(1)                                                     //nolint:errcheck // best-effort
 				}
 				return
 			}

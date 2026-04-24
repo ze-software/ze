@@ -430,6 +430,8 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			}
 		}
 		// Policy export filter chain: external plugin filters (after in-process filters).
+		// Per-peer wire override from export policy modification (P1-3: never mutate shared update).
+		var exportWireOverride *wireu.WireUpdate
 		if exportFilters := peer.Settings().ExportFilters; len(exportFilters) > 0 && a.r.api != nil {
 			attrsWire, attrErr := update.WireUpdate.Attrs()
 			if attrErr != nil {
@@ -460,7 +462,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				nlriOverride := extractLegacyNLRIOverride(updateText, modifiedText)
 				if exportMods.Len() > 0 || nlriOverride != nil {
 					if modPayload, _ := buildModifiedPayload(update.WireUpdate.Payload(), &exportMods, a.r.attrModHandlers, nil, nlriOverride); modPayload != nil {
-						update.WireUpdate = wireu.NewWireUpdate(modPayload, update.WireUpdate.SourceCtxID())
+						exportWireOverride = wireu.NewWireUpdate(modPayload, update.WireUpdate.SourceCtxID())
 					}
 				}
 			}
@@ -499,15 +501,21 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		// Send-community control: suppress community types not in the peer's send list.
 		applySendCommunityFilter(peer.Settings(), &mods)
 
+		// Use per-peer export-modified wire when available, otherwise shared wire.
+		peerBaseWire := update.WireUpdate
+		if exportWireOverride != nil {
+			peerBaseWire = exportWireOverride
+		}
+
 		// AS-override: replace peer's ASN with local ASN in outbound AS_PATH.
 		if peer.Settings().ASOverride && peer.Settings().IsEBGP() {
-			applyASOverride(peer.Settings(), update.WireUpdate, peer.asn4(), &mods)
+			applyASOverride(peer.Settings(), peerBaseWire, peer.asn4(), &mods)
 		}
 
 		// Select wire version for this peer.
 		// RFC 4271 §9.1.2: EBGP peers get AS-PATH-prepended wire.
 		// IBGP peers get original wire unchanged.
-		peerWire := update.WireUpdate
+		peerWire := peerBaseWire
 		if peer.Settings().IsEBGP() {
 			// Local-AS dual-AS mode: when the peer has a local-as override
 			// (LocalAS != GlobalLocalAS) and neither no-prepend nor replace-as

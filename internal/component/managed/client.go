@@ -34,6 +34,7 @@ type ClientConfig struct {
 	Server       string // Hub address (host:port)
 	Token        string // Auth token
 	Version      string // Current config version hash (empty on first boot)
+	TLSInsecure  bool   // Skip TLS certificate verification (INSECURE: only for testing or self-signed hubs with explicit opt-in)
 	Handler      *Handler
 	OnReload     func()      // Called after new config is cached and applied
 	CheckManaged func() bool // Returns false when meta/instance/managed is disabled; nil = always managed
@@ -77,10 +78,14 @@ func RunManagedClient(ctx context.Context, cfg ClientConfig) {
 // fetch config, run heartbeat + notification loop. Returns on any error
 // (caller retries with backoff). Resets backoff on successful auth.
 func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) error {
-	// TLS connect.
+	// TLS connect. Certificate verification is enabled by default.
+	// TLSInsecure must be explicitly set via config for self-signed hubs.
 	tlsConf := &tls.Config{
-		InsecureSkipVerify: true, //nolint:gosec // hub uses self-signed certs; cert pinning planned
+		InsecureSkipVerify: cfg.TLSInsecure, //nolint:gosec // opt-in via explicit config flag
 		MinVersion:         tls.VersionTLS13,
+	}
+	if cfg.TLSInsecure {
+		logger().Warn("managed TLS: certificate verification disabled (insecure)")
 	}
 
 	connectCtx, connectCancel := context.WithTimeout(ctx, connectTimeout)

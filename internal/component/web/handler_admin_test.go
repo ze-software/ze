@@ -32,7 +32,7 @@ func testCommandTree() map[string][]string {
 // testDispatcher returns a CommandDispatcher that echoes the command string
 // as output. If the command contains "fail", it returns an error.
 func testDispatcher() CommandDispatcher {
-	return func(command string) (string, error) {
+	return func(command, _, _ string) (string, error) {
 		if strings.Contains(command, "fail") {
 			return "", fmt.Errorf("command failed: %s", command)
 		}
