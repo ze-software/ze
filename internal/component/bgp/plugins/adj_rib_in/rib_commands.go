@@ -136,18 +136,22 @@ func (r *AdjRIBInManager) enableValidationCommand() (string, string, error) {
 	return statusDone, `{"validation-enabled":true}`, nil
 }
 
-// acceptRoutesCommand handles "adj-rib-in accept-routes <peer> <family> <prefix> <state>".
+// acceptRoutesCommand handles "adj-rib-in accept-routes <peer> <family> <prefix> <pathID> <state>".
 // Promotes a pending route to installed with the given validation state.
 func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, string, error) {
 	parts := strings.Fields(selector)
-	if len(parts) < 4 {
-		return statusError, "", fmt.Errorf("accept-routes requires: <peer> <family> <prefix> <state>")
+	if len(parts) < 5 {
+		return statusError, "", fmt.Errorf("accept-routes requires: <peer> <family> <prefix> <pathID> <state>")
 	}
 
 	peerAddr := parts[0]
 	fam := parts[1]
 	prefix := parts[2]
-	valState, err := parseValidationState(parts[3])
+	pathID, err := strconv.ParseUint(parts[3], 10, 32)
+	if err != nil {
+		return statusError, "", fmt.Errorf("accept-routes: invalid pathID %q: %w", parts[3], err)
+	}
+	valState, err := parseValidationState(parts[4])
 	if err != nil {
 		return statusError, "", err
 	}
@@ -155,11 +159,11 @@ func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, string, 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	rKey := bgp.RouteKey(fam, prefix, 0)
+	rKey := bgp.RouteKey(fam, prefix, uint32(pathID))
 	key := pendingKey(peerAddr, rKey)
 	pr, ok := r.pending[key]
 	if !ok {
-		return statusError, "", fmt.Errorf("no pending route for %s %s %s", peerAddr, fam, prefix)
+		return statusError, "", fmt.Errorf("no pending route for %s %s %s (pathID %d)", peerAddr, fam, prefix, pathID)
 	}
 
 	r.promoteToInstalled(pr, valState)
@@ -168,29 +172,33 @@ func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, string, 
 	return statusDone, `{"status":"ok"}`, nil
 }
 
-// rejectRoutesCommand handles "adj-rib-in reject-routes <peer> <family> <prefix>".
+// rejectRoutesCommand handles "adj-rib-in reject-routes <peer> <family> <prefix> <pathID>".
 // Discards a pending route (does not install it).
 func (r *AdjRIBInManager) rejectRoutesCommand(selector string) (string, string, error) {
 	parts := strings.Fields(selector)
-	if len(parts) < 3 {
-		return statusError, "", fmt.Errorf("reject-routes requires: <peer> <family> <prefix>")
+	if len(parts) < 4 {
+		return statusError, "", fmt.Errorf("reject-routes requires: <peer> <family> <prefix> <pathID>")
 	}
 
 	peerAddr := parts[0]
 	fam := parts[1]
 	prefix := parts[2]
+	pathID, err := strconv.ParseUint(parts[3], 10, 32)
+	if err != nil {
+		return statusError, "", fmt.Errorf("reject-routes: invalid pathID %q: %w", parts[3], err)
+	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	rKey := bgp.RouteKey(fam, prefix, 0)
+	rKey := bgp.RouteKey(fam, prefix, uint32(pathID))
 	key := pendingKey(peerAddr, rKey)
 	if _, ok := r.pending[key]; !ok {
-		return statusError, "", fmt.Errorf("no pending route for %s %s %s", peerAddr, fam, prefix)
+		return statusError, "", fmt.Errorf("no pending route for %s %s %s (pathID %d)", peerAddr, fam, prefix, pathID)
 	}
 
 	delete(r.pending, key)
-	logger().Debug("rejected pending route", "peer", peerAddr, "family", fam, "prefix", prefix)
+	logger().Debug("rejected pending route", "peer", peerAddr, "family", fam, "prefix", prefix, "pathID", pathID)
 
 	return statusDone, `{"status":"ok"}`, nil
 }

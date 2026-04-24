@@ -27,6 +27,13 @@ func NewPeerRIB(peerAddr string) *PeerRIB {
 	}
 }
 
+// IsAddPath returns whether ADD-PATH is configured for a family.
+func (r *PeerRIB) IsAddPath(fam family.Family) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.addPath[fam]
+}
+
 // SetAddPath configures ADD-PATH for a family.
 // Must be called before inserting routes for that family.
 func (r *PeerRIB) SetAddPath(fam family.Family, enabled bool) {

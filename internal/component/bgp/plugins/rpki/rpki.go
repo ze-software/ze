@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -76,6 +77,7 @@ type validationRequest struct {
 	peerAddr string
 	family   string
 	prefix   string
+	pathID   uint32
 	state    uint8
 }
 
@@ -332,11 +334,14 @@ func (rp *RPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, m
 	familyResults := make(map[string]uint8)
 	offset := 0
 	for offset < len(nlriData) {
+		var pathID uint32
 		if addPath {
 			if offset+4 >= len(nlriData) {
 				break
 			}
-			offset += 4 // skip path-ID
+			pathID = uint32(nlriData[offset])<<24 | uint32(nlriData[offset+1])<<16 |
+				uint32(nlriData[offset+2])<<8 | uint32(nlriData[offset+3])
+			offset += 4
 		}
 		if offset >= len(nlriData) {
 			break
@@ -366,6 +371,7 @@ func (rp *RPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, m
 			peerAddr: peerAddr,
 			family:   family,
 			prefix:   prefix,
+			pathID:   pathID,
 			state:    state,
 		}:
 		case <-rp.stopCh:
@@ -420,7 +426,7 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 			}
 
 			for _, nlriVal := range op.NLRIs {
-				prefix, _ := bgp.ParseNLRIValue(nlriVal)
+				prefix, pathID := bgp.ParseNLRIValue(nlriVal)
 				if prefix == "" {
 					continue
 				}
@@ -434,6 +440,7 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 					peerAddr: peerAddr,
 					family:   famName,
 					prefix:   prefix,
+					pathID:   pathID,
 					state:    state,
 				}:
 				case <-rp.stopCh:
@@ -504,15 +511,17 @@ func (rp *RPKIPlugin) dispatchValidation(req validationRequest) {
 		return
 	}
 
+	pathIDStr := strconv.FormatUint(uint64(req.pathID), 10)
+
 	var cmd string
 	if req.state == ValidationInvalid {
-		cmd = "adj-rib-in reject-routes " + req.peerAddr + " " + req.family + " " + req.prefix
+		cmd = "adj-rib-in reject-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + pathIDStr
 	} else {
 		stateStr := "2" // NotFound
 		if req.state == ValidationValid {
 			stateStr = "1"
 		}
-		cmd = "adj-rib-in accept-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + stateStr
+		cmd = "adj-rib-in accept-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + pathIDStr + " " + stateStr
 	}
 
 	for attempt := range validationRetries {

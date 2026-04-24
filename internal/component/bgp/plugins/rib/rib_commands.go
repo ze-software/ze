@@ -286,6 +286,8 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error
 	r.ribInPool[peer].Insert(fam, attrBytes, nlriBytes)
 	r.peerMu.Unlock()
 
+	r.reconcileBestPath(fam, nlriBytes)
+
 	data, _ := json.Marshal(map[string]any{"injected": prefix, "peer": peer, "family": familyStr})
 	return statusDone, string(data), nil
 }
@@ -360,6 +362,9 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, string, err
 	}
 
 	removed := peerRIB.Remove(fam, nlriBytes)
+
+	r.reconcileBestPath(fam, nlriBytes)
+
 	data, _ := json.Marshal(map[string]any{"withdrawn": prefix, "peer": peer, "family": familyStr, "existed": removed})
 	return statusDone, string(data), nil
 }
@@ -474,6 +479,7 @@ func matchesPeer(peerAddr, selector string) bool {
 func (r *RIBManager) inboundEmptyJSON(selector string) string {
 	r.peerMu.Lock()
 	cleared := 0
+	var purgedPeers []string
 
 	for peer, peerRIB := range r.ribInPool {
 		if !matchesPeer(peer, selector) {
@@ -483,8 +489,11 @@ func (r *RIBManager) inboundEmptyJSON(selector string) string {
 		peerRIB.Release()
 		delete(r.ribInPool, peer)
 		delete(r.peerMeta, peer)
+		purgedPeers = append(purgedPeers, peer)
 	}
 	r.peerMu.Unlock()
+
+	r.reconcileBestPathBulk(purgedPeers)
 
 	data, _ := json.Marshal(map[string]any{"cleared": cleared})
 	return string(data)
@@ -628,9 +637,9 @@ func (r *RIBManager) retainRoutesJSON(selector string) string {
 // Called by bgp-gr plugin via DispatchCommand("bgp rib release-routes <peer>").
 func (r *RIBManager) releaseRoutesJSON(selector string) string {
 	r.peerMu.Lock()
-	defer r.peerMu.Unlock()
 
 	released := 0
+	var purgedPeers []string
 	for peer := range r.retainedPeers {
 		if !matchesPeer(peer, selector) {
 			continue
@@ -639,15 +648,18 @@ func (r *RIBManager) releaseRoutesJSON(selector string) string {
 		if peerRIB := r.ribInPool[peer]; peerRIB != nil {
 			peerRIB.Release()
 			delete(r.ribInPool, peer)
+			purgedPeers = append(purgedPeers, peer)
 		}
 		delete(r.peerMeta, peer)
-		// Cancel expiry timer if present.
 		if state := r.grState[peer]; state != nil && state.expiryTimer != nil {
 			state.expiryTimer.Stop()
 		}
 		delete(r.grState, peer)
 		released++
 	}
+	r.peerMu.Unlock()
+
+	r.reconcileBestPathBulk(purgedPeers)
 
 	data, _ := json.Marshal(map[string]any{"released-peers": released})
 	return string(data)
@@ -742,28 +754,65 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, string, error) {
 		familyFilter = args[1]
 	}
 
+	// Collect stale NLRIs under peerMu so no concurrent INSERT can change
+	// stale state between snapshot and purge. Copies NLRI bytes per entry;
+	// acceptable for this cold-path GR command even on a full table.
 	r.peerMu.Lock()
-	defer r.peerMu.Unlock()
 
 	purged := 0
 	peerRIB := r.ribInPool[peerAddr]
+
+	type staleNLRI struct {
+		fam     family.Family
+		nlri    []byte
+		addPath bool
+	}
+	var affected []staleNLRI
+
 	if peerRIB != nil {
 		if familyFilter != "" {
 			fam, ok := parseFamily(familyFilter)
 			if ok {
+				ap := peerRIB.IsAddPath(fam)
+				peerRIB.IterateFamily(fam, func(nlriBytes []byte, entry storage.RouteEntry) bool {
+					if entry.StaleLevel > storage.StaleLevelFresh {
+						cp := make([]byte, len(nlriBytes))
+						copy(cp, nlriBytes)
+						affected = append(affected, staleNLRI{fam: fam, nlri: cp, addPath: ap})
+					}
+					return true
+				})
 				purged = peerRIB.PurgeFamilyStale(fam)
 			}
 		} else {
+			for _, fam := range peerRIB.Families() {
+				ap := peerRIB.IsAddPath(fam)
+				peerRIB.IterateFamily(fam, func(nlriBytes []byte, entry storage.RouteEntry) bool {
+					if entry.StaleLevel > storage.StaleLevelFresh {
+						cp := make([]byte, len(nlriBytes))
+						copy(cp, nlriBytes)
+						affected = append(affected, staleNLRI{fam: fam, nlri: cp, addPath: ap})
+					}
+					return true
+				})
+			}
 			purged = peerRIB.PurgeAllStale()
 		}
 	}
 
-	// If no stale routes remain, stop expiry timer and clear GR state.
 	if peerRIB != nil && peerRIB.StaleCount() == 0 {
 		if state := r.grState[peerAddr]; state != nil && state.expiryTimer != nil {
 			state.expiryTimer.Stop()
 		}
 		delete(r.grState, peerAddr)
+	}
+	r.peerMu.Unlock()
+
+	for _, a := range affected {
+		change, ok := r.checkBestPathChange(a.fam, a.nlri, a.addPath, nil)
+		if ok {
+			publishBestChanges([]bestChangeEntry{change}, a.fam)
+		}
 	}
 
 	logger().Debug("purge-stale", "peer", peerAddr, "purged", purged, "family", familyFilter)

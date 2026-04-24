@@ -88,7 +88,7 @@ func TestAcceptPendingRoute(t *testing.T) {
 	}
 	r.mu.Unlock()
 
-	status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 1")
+	status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -134,7 +134,7 @@ func TestRejectPendingRoute(t *testing.T) {
 	}
 	r.mu.Unlock()
 
-	status, _, err := r.handleCommand("adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24")
+	status, _, err := r.handleCommand("adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -257,7 +257,7 @@ func TestAcceptNonExistentRoute(t *testing.T) {
 	r := newTestManager(t)
 	r.validationEnabled = true
 
-	status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 1")
+	status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1")
 	assert.Equal(t, statusError, status)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no pending route")
@@ -279,7 +279,7 @@ func TestRejectAlreadyInstalled(t *testing.T) {
 	})
 	r.ribIn["10.0.0.1"] = m
 
-	status, _, err := r.handleCommand("adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24")
+	status, _, err := r.handleCommand("adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0")
 	assert.Equal(t, statusError, status)
 	assert.Error(t, err)
 
@@ -324,12 +324,12 @@ func TestMultiplePendingRoutes(t *testing.T) {
 	r.mu.Unlock()
 
 	// Accept first route
-	status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 1")
+	status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
 	// Reject second route
-	status, _, err = r.handleCommand("adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.1.0/24")
+	status, _, err = r.handleCommand("adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.1.0/24 0")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -380,7 +380,7 @@ func TestValidationStateField(t *testing.T) {
 			}
 			r.mu.Unlock()
 
-			status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 "+tt.stateArg)
+			status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 "+tt.stateArg)
 			require.NoError(t, err)
 			assert.Equal(t, statusDone, status)
 
@@ -392,6 +392,71 @@ func TestValidationStateField(t *testing.T) {
 			assert.Equal(t, tt.want, rt.ValidationState)
 		})
 	}
+}
+
+// TestAcceptWithAddPathID verifies accept-routes works with non-zero pathID.
+//
+// VALIDATES: pathID is carried through the command and used in RouteKey lookup.
+// PREVENTS: ADD-PATH sessions failing validation because pathID is dropped.
+func TestAcceptWithAddPathID(t *testing.T) {
+	r := newTestManager(t)
+	r.validationEnabled = true
+
+	r.mu.Lock()
+	key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 42))
+	r.pending[key] = &PendingRoute{
+		peerAddr:   "10.0.0.1",
+		family:     family.IPv4Unicast,
+		prefix:     "10.0.0.0/24",
+		routeKey:   bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 42),
+		route:      &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
+		receivedAt: time.Now(),
+		state:      ValidationPending,
+	}
+	r.mu.Unlock()
+
+	status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 42 1")
+	require.NoError(t, err)
+	assert.Equal(t, statusDone, status)
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	assert.Empty(t, r.pending)
+
+	require.Contains(t, r.ribIn, "10.0.0.1")
+	rt, ok := r.ribIn["10.0.0.1"].Get(bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 42))
+	require.True(t, ok, "route should be installed with pathID=42")
+	assert.Equal(t, ValidationValid, rt.ValidationState)
+}
+
+// TestRejectWithAddPathID verifies reject-routes works with non-zero pathID.
+//
+// VALIDATES: pathID is used to look up the correct pending route for rejection.
+// PREVENTS: Rejecting the wrong route when multiple pathIDs exist.
+func TestRejectWithAddPathID(t *testing.T) {
+	r := newTestManager(t)
+	r.validationEnabled = true
+
+	r.mu.Lock()
+	key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 7))
+	r.pending[key] = &PendingRoute{
+		peerAddr:   "10.0.0.1",
+		family:     family.IPv4Unicast,
+		prefix:     "10.0.0.0/24",
+		routeKey:   bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 7),
+		route:      &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
+		receivedAt: time.Now(),
+		state:      ValidationPending,
+	}
+	r.mu.Unlock()
+
+	status, _, err := r.handleCommand("adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 7")
+	require.NoError(t, err)
+	assert.Equal(t, statusDone, status)
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	assert.Empty(t, r.pending)
 }
 
 // TestValidationStateConstants verifies boundary values.

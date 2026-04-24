@@ -986,6 +986,33 @@ func (r *RIBManager) replayBestPaths() {
 // RIB lock is released. In-process subscribers receive *BestChangeBatch
 // directly; external plugin processes receive the JSON marshaling that the
 // bus produces lazily (only when at least one external subscriber exists).
+// reconcileBestPath runs best-path selection for a single prefix after a
+// command-driven mutation (inject, withdraw). Must be called AFTER releasing
+// peerMu so the internal peerMu.RLock in gatherCandidates does not deadlock.
+// addPath=false because inject/withdraw build NLRI with pathID=0 and no
+// ADD-PATH prefix; if those commands gain --path-id, this must change.
+func (r *RIBManager) reconcileBestPath(fam family.Family, nlriBytes []byte) {
+	change, ok := r.checkBestPathChange(fam, nlriBytes, false, nil)
+	if ok {
+		publishBestChanges([]bestChangeEntry{change}, fam)
+	}
+}
+
+// reconcileBestPathBulk runs purgeBestPrevForPeer + emitPurgedWithdraws for
+// each peer in the list. Used by bulk command mutations (empty, release)
+// that clear an entire peer's RIB. Must be called AFTER releasing peerMu.
+// Locks peerMu per peer (not once for all) so concurrent UPDATE processing
+// is not blocked for the full sweep; re-insertion between iterations is safe
+// because purgeBestPrevForPeer is idempotent.
+func (r *RIBManager) reconcileBestPathBulk(peers []string) {
+	for _, peer := range peers {
+		r.peerMu.Lock()
+		pending := r.purgeBestPrevForPeer(peer)
+		r.peerMu.Unlock()
+		r.emitPurgedWithdraws(pending)
+	}
+}
+
 func publishBestChanges(changes []bestChangeEntry, fam family.Family) {
 	eb := getEventBus()
 	if eb == nil {
