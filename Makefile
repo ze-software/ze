@@ -9,7 +9,7 @@
 .PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test
-.PHONY: ze-sync-vendor-web ze-check-vendor-web
+.PHONY: ze-sync-vendor-web ze-check-vendor-web ze-skill-sync
 .PHONY: check ze-setup
 .PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run ze-kernel ze-kernel-clean
 
@@ -545,6 +545,10 @@ ze-sync-vendor-web:
 # Check vendored web assets for newer versions
 ze-check-vendor-web:
 	@go run scripts/vendor/check_web.go
+
+# Sync canonical skills (ai/skills/) to tool-specific directories
+ze-skill-sync:
+	@scripts/dev/skill_sync.sh
 
 # ─── Utilities ───────────────────────────────────────────────────────────────
 
