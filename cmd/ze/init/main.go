@@ -226,13 +226,15 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCer
 		}
 	}
 
-	// Build at a temp path and atomically rename on success.
-	// A crash during init cannot leave a partial database at the final path.
-	tmpPath := dbPath + ".init.tmp"
+	tmpPath := dbPath + ".init-tmp"
 	store, err := zefs.Create(tmpPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: create database: %v\n", err)
 		return 1
+	}
+	cleanupTmp := func() {
+		store.Close()      //nolint:errcheck // best-effort cleanup
+		os.Remove(tmpPath) //nolint:errcheck // best-effort cleanup of partial database
 	}
 
 	// Write SSH credentials in deterministic order.
@@ -258,8 +260,7 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCer
 	for _, e := range entries {
 		if err := store.WriteFile(e.key, []byte(e.value), 0); err != nil {
 			fmt.Fprintf(os.Stderr, "error: write %s: %v\n", e.key, err)
-			store.Close()      //nolint:errcheck // best-effort cleanup after write failure
-			os.Remove(tmpPath) //nolint:errcheck // best-effort cleanup of partial database
+			cleanupTmp()
 			return 1
 		}
 	}
@@ -303,20 +304,17 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCer
 		certPEM, keyPEM, certErr := zeweb.GenerateWebCertWithNames(webCertAddr, extraNames)
 		if certErr != nil {
 			fmt.Fprintf(os.Stderr, "error: generate TLS certificate: %v\n", certErr)
-			store.Close()      //nolint:errcheck // best-effort cleanup
-			os.Remove(tmpPath) //nolint:errcheck // best-effort cleanup
+			cleanupTmp()
 			return 1
 		}
 		if err := store.WriteFile(zefs.KeyWebCert.Pattern, certPEM, 0); err != nil {
 			fmt.Fprintf(os.Stderr, "error: write TLS cert: %v\n", err)
-			store.Close()      //nolint:errcheck // best-effort cleanup
-			os.Remove(tmpPath) //nolint:errcheck // best-effort cleanup
+			cleanupTmp()
 			return 1
 		}
 		if err := store.WriteFile(zefs.KeyWebKey.Pattern, keyPEM, 0); err != nil {
 			fmt.Fprintf(os.Stderr, "error: write TLS key: %v\n", err)
-			store.Close()      //nolint:errcheck // best-effort cleanup
-			os.Remove(tmpPath) //nolint:errcheck // best-effort cleanup
+			cleanupTmp()
 			return 1
 		}
 		switch {
@@ -331,11 +329,13 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCer
 
 	if err := store.Close(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: close database: %v\n", err)
+		os.Remove(tmpPath) //nolint:errcheck // best-effort cleanup
 		return 1
 	}
 
 	if err := os.Rename(tmpPath, dbPath); err != nil {
 		fmt.Fprintf(os.Stderr, "error: atomic rename %s -> %s: %v\n", tmpPath, dbPath, err)
+		os.Remove(tmpPath) //nolint:errcheck // best-effort cleanup
 		return 1
 	}
 

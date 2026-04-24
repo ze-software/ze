@@ -3,24 +3,24 @@
 // Related: backend.go -- backend abstraction
 // Related: backend_linux.go -- Linux netlink backend
 //
-// Noop backend for non-Linux platforms. Logs route operations but does not
-// program the OS routing table. Darwin route socket support is defined in
-// the spec but requires platform-specific route table ID conventions.
+// Rejecting backend for non-Linux platforms. Route operations return errors
+// so callers know the OS routing table is not being programmed.
 
 //go:build !linux
 
 package fibkernel
 
-import "fmt"
+import (
+	"errors"
+	"runtime"
+)
 
-var errUnsupportedPlatform = fmt.Errorf("fib-kernel: not supported on this platform")
+var errUnsupportedPlatform = errors.New("fib-kernel: unsupported platform " + runtime.GOOS)
 
-// newBackend returns an error backend on non-Linux platforms.
 func newBackend() routeBackend {
 	return &unsupportedBackend{}
 }
 
-// unsupportedBackend rejects all route operations on non-Linux platforms.
 type unsupportedBackend struct{}
 
 func (u *unsupportedBackend) addRoute(_, _ string) error {
