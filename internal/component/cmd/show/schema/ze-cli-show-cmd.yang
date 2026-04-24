@@ -42,6 +42,17 @@ module ze-cli-show-cmd {
                 ze:command "ze-show:system-date";
                 description "Show current wall-clock time in the daemon's timezone";
             }
+
+            container subsystem {
+                config false;
+                description "Subsystem operations";
+
+                container list {
+                    config false;
+                    ze:command "ze-show:system-subsystem-list";
+                    description "List available subsystems with their state";
+                }
+            }
         }
 
         container host {

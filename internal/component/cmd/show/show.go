@@ -77,6 +77,10 @@ func init() {
 			Handler:    handleShowSystemDate,
 		},
 		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:system-subsystem-list",
+			Handler:    handleShowSystemSubsystemList,
+		},
+		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:traffic",
 			Handler:    handleShowTraffic,
 		},

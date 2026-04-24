@@ -15,7 +15,7 @@ tmpfs=subsystem-list-test.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 import time
-from ze_api import API
+from ze_api import API, runtime_fail
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -34,47 +34,35 @@ def main():
     time.sleep(1.0)
 
     try:
-        # Call the wire method directly (system RPCs are not in the CLI tree)
-        resp = api._call_engine('ze-system:subsystem-list', {})
-        if resp is None:
-            print('FAIL: subsystem-list returned None', file=sys.stderr)
-            sys.exit(1)
-        result = resp.get('result', {})
-        status = result.get('status')
+        resp = dispatch(api, 'system subsystem list')
+        status = resp.get('status')
+        if status is None:
+            runtime_fail(f'subsystem-list: dispatch returned no status: {resp}')
         if status != 'done':
-            print(f'FAIL: status={status} data={result.get("data")}', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail(f'subsystem-list: status={status} data={resp.get("data")}')
 
-        data = result.get('data', {})
-        if isinstance(data, str):
+        data = resp.get('data', '')
+        if isinstance(data, str) and data:
             data = json.loads(data)
 
         subsystems = data.get('subsystems', [])
         count = data.get('count', 0)
 
         if count < 1:
-            print(f'FAIL: expected at least 1 subsystem, got {count}', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail(f'subsystem-list: expected at least 1 subsystem, got {count}')
 
-        # Verify each entry has the expected fields
         for sub in subsystems:
             if not isinstance(sub, dict):
-                print(f'FAIL: subsystem entry is not a dict: {sub}', file=sys.stderr)
-                sys.exit(1)
+                runtime_fail(f'subsystem-list: entry is not a dict: {sub}')
             for field in ('name', 'stage', 'running', 'command-count'):
                 if field not in sub:
-                    print(f'FAIL: missing field {field!r} in {sub}', file=sys.stderr)
-                    sys.exit(1)
+                    runtime_fail(f'subsystem-list: missing field {field!r} in {sub}')
 
         names = [s['name'] for s in subsystems]
         print(f'OK: subsystem-list returned {count} subsystem(s): {names}', file=sys.stderr)
-        api._call_engine('ze-system:daemon-shutdown', {})
+    finally:
+        dispatch(api, 'daemon shutdown')
         api.wait_for_shutdown()
-    except SystemExit:
-        raise
-    except Exception as e:
-        print(f'FAIL: unexpected error: {e}', file=sys.stderr)
-        sys.exit(1)
 
 if __name__ == '__main__':
     main()

@@ -64,6 +64,37 @@ func handleShowSystemCPU(_ *pluginserver.CommandContext, _ []string) (*plugin.Re
 	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
 }
 
+// handleShowSystemSubsystemList returns available subsystems with their state.
+func handleShowSystemSubsystemList(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if ctx == nil || ctx.Server == nil {
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data:   map[string]any{"subsystems": []any{}, "count": 0},
+		}, nil
+	}
+	pm := ctx.Server.ProcessManager()
+	if pm == nil {
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data:   map[string]any{"subsystems": []any{}, "count": 0},
+		}, nil
+	}
+	procs := pm.AllProcesses()
+	out := make([]map[string]any, 0, len(procs))
+	for _, p := range procs {
+		out = append(out, map[string]any{
+			"name":          p.Name(),
+			"stage":         p.Stage().String(),
+			"running":       p.Running(),
+			"command-count": len(p.RegisteredCommands()),
+		})
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   map[string]any{"subsystems": out, "count": len(out)},
+	}, nil
+}
+
 // handleShowSystemDate reports the daemon's current wall-clock view in
 // RFC3339, Unix seconds, and the configured timezone name.
 func handleShowSystemDate(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
