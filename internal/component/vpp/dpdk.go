@@ -16,12 +16,15 @@ import (
 type DPDKBinder struct {
 	// savedDrivers maps PCI address to original driver name.
 	savedDrivers map[string]string
+	// addedNewIDs tracks vendor:device strings written to vfio-pci/new_id.
+	addedNewIDs map[string]bool
 }
 
 // NewDPDKBinder creates a new DPDK NIC binder.
 func NewDPDKBinder() *DPDKBinder {
 	return &DPDKBinder{
 		savedDrivers: make(map[string]string),
+		addedNewIDs:  make(map[string]bool),
 	}
 }
 
@@ -68,6 +71,10 @@ func (d *DPDKBinder) UnbindAll() error {
 		_ = rebindDriver(pci, driver) // best effort
 		delete(d.savedDrivers, pci)
 	}
+	for vendorDevice := range d.addedNewIDs {
+		_ = removeFromVFIO(vendorDevice)
+		delete(d.addedNewIDs, vendorDevice)
+	}
 	if len(errs) > 0 {
 		return fmt.Errorf("dpdk unbind errors: %s", strings.Join(errs, "; "))
 	}
@@ -102,6 +109,7 @@ func (d *DPDKBinder) bindPCI(pci string) error {
 	if err := bindToVFIO(vendorDevice); err != nil {
 		return fmt.Errorf("bind to vfio-pci: %w", err)
 	}
+	d.addedNewIDs[vendorDevice] = true
 
 	return nil
 }
@@ -156,6 +164,12 @@ func unbindFromVFIO(pci string) error {
 // bindToVFIO binds a PCI device to vfio-pci via new_id.
 func bindToVFIO(vendorDevice string) error {
 	path := "/sys/bus/pci/drivers/vfio-pci/new_id"
+	return writeSysfs(path, vendorDevice)
+}
+
+// removeFromVFIO removes a vendor:device pair from vfio-pci/remove_id.
+func removeFromVFIO(vendorDevice string) error {
+	path := "/sys/bus/pci/drivers/vfio-pci/remove_id"
 	return writeSysfs(path, vendorDevice)
 }
 

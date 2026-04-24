@@ -778,7 +778,7 @@ type mockAuthorizer struct {
 	allow bool
 }
 
-func (m *mockAuthorizer) Authorize(_, _ string, _ bool) bool {
+func (m *mockAuthorizer) Authorize(_, _, _ string, _ bool) bool {
 	return m.allow
 }
 
@@ -882,7 +882,7 @@ type readOnlyCapture struct {
 	captured *bool
 }
 
-func (r *readOnlyCapture) Authorize(_, _ string, readOnly bool) bool {
+func (r *readOnlyCapture) Authorize(_, _, _ string, readOnly bool) bool {
 	*r.captured = readOnly
 	return true
 }
@@ -913,7 +913,7 @@ type usernameCapture struct {
 	captured *string
 }
 
-func (u *usernameCapture) Authorize(username, _ string, _ bool) bool {
+func (u *usernameCapture) Authorize(username, _, _ string, _ bool) bool {
 	*u.captured = username
 	return true
 }

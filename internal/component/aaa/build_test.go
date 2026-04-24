@@ -14,7 +14,7 @@ type stubAuthorizer struct {
 	called int
 }
 
-func (s *stubAuthorizer) Authorize(_, _ string, _ bool) bool {
+func (s *stubAuthorizer) Authorize(_, _, _ string, _ bool) bool {
 	s.called++
 	return s.allow
 }
@@ -111,7 +111,7 @@ func TestBundleAuthorizerSelection(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, bundle.Authorizer)
 
-	allowed := bundle.Authorizer.Authorize("u", "c", true)
+	allowed := bundle.Authorizer.Authorize("u", "", "c", true)
 	assert.False(t, allowed, "tacacs authorizer should be picked")
 	assert.Equal(t, 1, tacacsAuthz.called)
 	assert.Equal(t, 0, localAuthz.called)

@@ -98,8 +98,12 @@ func parseFibVPPConfig(data string) (*fibVPPConfig, error) {
 	if err := json.Unmarshal([]byte(data), &raw); err != nil {
 		return nil, fmt.Errorf("fib-vpp config: %w", err)
 	}
-	known := map[string]bool{"enabled": true, "table-id": true, "batch-size": true, "batch-interval-ms": true}
+	known := map[string]bool{"enabled": true, "table-id": true}
+	deferred := map[string]bool{"batch-size": true, "batch-interval-ms": true}
 	for k := range raw {
+		if deferred[k] {
+			return nil, fmt.Errorf("fib-vpp config: %q is not yet implemented (deferred)", k)
+		}
 		if !known[k] {
 			return nil, fmt.Errorf("fib-vpp config: unknown key %q", k)
 		}

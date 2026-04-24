@@ -45,6 +45,8 @@ import (
 	resolvecmd "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
 	resolveDNS "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
+	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
+	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
@@ -328,6 +330,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	pm := pluginmgr.NewManager()
 
+	// Wire hub config into process manager for external plugin startup.
+	if hubCfg, hubErr := zeconfig.ExtractHubConfig(loadResult.Tree); hubErr == nil {
+		if len(hubCfg.Servers) > 1 {
+			slog.Warn("plugin hub: only first server listener is used, extra listeners ignored", "configured", len(hubCfg.Servers))
+		}
+		pm.SetHubConfig(&hubCfg)
+	}
+
 	// Convert explicit plugin configs from reactor format to plugin server format.
 	var explicitPlugins []zePlugin.PluginConfig
 	for _, pc := range loadResult.Plugins {
@@ -492,6 +502,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Without bgp {}, SSH must start here (e.g., gokrazy appliance with only
 	// environment {}).
 	_, hasBGPBlock := configTree["bgp"]
+
+	if _, hasTelemetry := configTree["telemetry"]; hasTelemetry && !hasBGPBlock {
+		slog.Warn("telemetry {} block present but bgp {} absent: telemetry will not start (telemetry startup requires bgp {})")
+	}
+
 	sshCfg := bgpconfig.ExtractSSHConfig(loadResult.Tree)
 	if sshCfg.HasConfig && !hasBGPBlock {
 		cfg := zessh.Config{
@@ -1416,8 +1431,10 @@ func newResolvers(sc system.SystemConfig) *resolve.Resolvers {
 	}
 
 	return &resolve.Resolvers{
-		DNS:   dnsResolver,
-		Cymru: cymru.New(txtResolver, nil),
+		DNS:       dnsResolver,
+		Cymru:     cymru.New(txtResolver, nil),
+		PeeringDB: peeringdb.NewPeeringDB(""),
+		IRR:       irr.NewIRR(""),
 	}
 }
 

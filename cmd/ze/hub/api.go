@@ -38,6 +38,7 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 		}
 		return ed, nil
 	})
+	go sessions.RunCleanup(server.Context())
 
 	authenticator := buildUserAuthenticator(users)
 

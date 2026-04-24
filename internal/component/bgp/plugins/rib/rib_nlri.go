@@ -154,46 +154,21 @@ func wireToPrefix(fam family.Family, wire []byte, addPath bool) (string, uint32,
 }
 
 // formatNLRIAsPrefix converts wire NLRI bytes to human-readable prefix string.
-// For IPv4: [24][10][0][0] -> "10.0.0.0/24".
-// For IPv6: [64][...] -> "2001:db8::/64".
-// Returns hex encoding for unrecognized formats.
-//
-// NOTE: Only handles IPv4/IPv6 unicast without ADD-PATH.
-// TODO: ADD-PATH support requires path-id prefix handling.
-// TODO: VPN/EVPN/FlowSpec have different NLRI structures.
-func formatNLRIAsPrefix(fam family.Family, nlriBytes []byte) string {
+// Handles IPv4/IPv6 with and without ADD-PATH path IDs.
+// Returns hex encoding for unrecognized families.
+func formatNLRIAsPrefix(fam family.Family, nlriBytes []byte, addPath ...bool) string {
 	if len(nlriBytes) == 0 {
 		return ""
 	}
-
-	prefixLen := int(nlriBytes[0])
-	prefixBytes := nlriBytes[1:]
-
-	switch fam.AFI { //nolint:exhaustive // Only IPv4/IPv6 have standard prefix format
-	case family.AFIIPv4:
-		// Pad to 4 bytes
-		ip := make([]byte, 4)
-		copy(ip, prefixBytes)
-		return fmt.Sprintf("%d.%d.%d.%d/%d", ip[0], ip[1], ip[2], ip[3], prefixLen)
-
-	case family.AFIIPv6:
-		// Pad to 16 bytes
-		ip := make([]byte, 16)
-		copy(ip, prefixBytes)
-		return fmt.Sprintf("%x:%x:%x:%x:%x:%x:%x:%x/%d",
-			uint16(ip[0])<<8|uint16(ip[1]),
-			uint16(ip[2])<<8|uint16(ip[3]),
-			uint16(ip[4])<<8|uint16(ip[5]),
-			uint16(ip[6])<<8|uint16(ip[7]),
-			uint16(ip[8])<<8|uint16(ip[9]),
-			uint16(ip[10])<<8|uint16(ip[11]),
-			uint16(ip[12])<<8|uint16(ip[13]),
-			uint16(ip[14])<<8|uint16(ip[15]),
-			prefixLen)
-
-	default: // unsupported family - return hex
+	ap := len(addPath) > 0 && addPath[0]
+	prefix, pathID, err := wireToPrefix(fam, nlriBytes, ap)
+	if err != nil {
 		return fmt.Sprintf("hex:%x", nlriBytes)
 	}
+	if ap && pathID != 0 {
+		return fmt.Sprintf("%s [pathID=%d]", prefix, pathID)
+	}
+	return prefix
 }
 
 // formatFamily converts family.Family to string like "ipv4/unicast".

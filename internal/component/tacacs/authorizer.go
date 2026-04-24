@@ -40,13 +40,14 @@ func NewTacacsAuthorizer(client *TacacsClient, local aaa.Authorizer, logger *slo
 //   - true on PASS_ADD or PASS_REPL (AC-9)
 //   - false on FAIL (AC-10)
 //   - Falls back to local authorizer on ERROR or connection failure.
-func (a *TacacsAuthorizer) Authorize(username, command string, isReadOnly bool) bool {
+func (a *TacacsAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
 	req := &AuthorRequest{
 		AuthenMethod:  AuthenMethodTACACS,
 		PrivLvl:       1,
 		AuthenType:    0x01, // ASCII
 		AuthenService: 0x01, // login
 		User:          username,
+		RemAddr:       remoteAddr,
 		Port:          "ssh",
 		Args: []string{
 			"service=shell",
@@ -58,7 +59,7 @@ func (a *TacacsAuthorizer) Authorize(username, command string, isReadOnly bool) 
 	if err != nil {
 		a.logger.Warn("TACACS+ authorization server unreachable, using local RBAC",
 			"username", username, "command", command, "error", err)
-		return a.fallback(username, command, isReadOnly)
+		return a.fallback(username, remoteAddr, command, isReadOnly)
 	}
 
 	if resp.Status == AuthorStatusPassAdd || resp.Status == AuthorStatusPassRepl {
@@ -73,17 +74,17 @@ func (a *TacacsAuthorizer) Authorize(username, command string, isReadOnly bool) 
 		a.logger.Warn("TACACS+ authorization error, using local RBAC",
 			"username", username, "command", command,
 			"server-msg", resp.ServerMsg)
-		return a.fallback(username, command, isReadOnly)
+		return a.fallback(username, remoteAddr, command, isReadOnly)
 	}
 
 	a.logger.Warn("TACACS+ authorization unknown status, using local RBAC",
 		"username", username, "command", command, "status", resp.Status)
-	return a.fallback(username, command, isReadOnly)
+	return a.fallback(username, remoteAddr, command, isReadOnly)
 }
 
-func (a *TacacsAuthorizer) fallback(username, command string, isReadOnly bool) bool {
+func (a *TacacsAuthorizer) fallback(username, remoteAddr, command string, isReadOnly bool) bool {
 	if a.local == nil {
 		return false
 	}
-	return a.local.Authorize(username, command, isReadOnly)
+	return a.local.Authorize(username, remoteAddr, command, isReadOnly)
 }

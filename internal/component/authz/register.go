@@ -17,7 +17,7 @@ type StoreAuthorizer struct {
 }
 
 // Authorize implements aaa.Authorizer.
-func (a StoreAuthorizer) Authorize(username, command string, isReadOnly bool) bool {
+func (a StoreAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
 	if a.Store == nil {
 		return true
 	}

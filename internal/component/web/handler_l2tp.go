@@ -312,7 +312,12 @@ func (h *L2TPHandlers) HandleL2TPDisconnect() http.HandlerFunc {
 			return
 		}
 		causeStr := r.FormValue("cause")
-		cmd := fmt.Sprintf("clear l2tp session teardown %d actor web reason %s", sid, quoteForDispatch(reason))
+		username := GetUsernameFromRequest(r)
+		actor := username
+		if actor == "" {
+			actor = "web"
+		}
+		cmd := fmt.Sprintf("clear l2tp session teardown %d actor %s reason %s", sid, actor, quoteForDispatch(reason))
 		if causeStr != "" {
 			causeVal, parseErr := strconv.ParseUint(causeStr, 10, 16)
 			if parseErr != nil || causeVal > maxCauseVal {
@@ -326,7 +331,6 @@ func (h *L2TPHandlers) HandleL2TPDisconnect() http.HandlerFunc {
 			http.Error(w, "command dispatch not available", http.StatusServiceUnavailable)
 			return
 		}
-		username := GetUsernameFromRequest(r)
 		output, execErr := h.Dispatch(cmd, username, r.RemoteAddr)
 
 		if NegotiateContentType(r) == formatJSON {

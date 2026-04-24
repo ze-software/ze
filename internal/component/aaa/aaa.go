@@ -27,7 +27,7 @@ type Authenticator interface {
 // avoids a dependency from this package on authz.Action (authz imports aaa,
 // not the other way around).
 type Authorizer interface {
-	Authorize(username, command string, isReadOnly bool) (allowed bool)
+	Authorize(username, remoteAddr, command string, isReadOnly bool) (allowed bool)
 }
 
 // Accountant records command execution. Implementations MUST NOT block

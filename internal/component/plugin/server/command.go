@@ -341,11 +341,12 @@ func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, readOnly bo
 	if d.authorizer == nil {
 		return true
 	}
-	username := ""
+	var username, remoteAddr string
 	if ctx != nil {
 		username = ctx.Username
+		remoteAddr = ctx.RemoteAddr
 	}
-	return d.authorizer.Authorize(username, input, readOnly)
+	return d.authorizer.Authorize(username, remoteAddr, input, readOnly)
 }
 
 // Dispatch parses and executes a command.

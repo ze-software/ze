@@ -105,7 +105,7 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 		}
 
 		peerRIB.Iterate(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
-			prefixStr := formatNLRIAsPrefix(fam, nlriBytes)
+			prefixStr := formatNLRIAsPrefix(fam, nlriBytes, peerRIB.IsAddPath(fam))
 			s.items = append(s.items, RouteItem{
 				Peer:       peer,
 				Family:     fam,

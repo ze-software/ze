@@ -5,6 +5,7 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -32,10 +33,11 @@ type ConfigEditorFactory func() (ConfigEditor, error)
 
 // ConfigSession tracks a single config editing session.
 type ConfigSession struct {
-	ID        string
-	Editor    ConfigEditor
-	Username  string
-	CreatedAt time.Time
+	ID           string
+	Editor       ConfigEditor
+	Username     string
+	CreatedAt    time.Time
+	LastActivity time.Time
 }
 
 // DefaultSessionTimeout is the maximum age of an idle config session.
@@ -44,7 +46,8 @@ const DefaultSessionTimeout = 30 * time.Minute
 // ConfigSessionManager manages config editing sessions for API use.
 // Each session wraps a ConfigEditor with a unique ID and tracks ownership.
 // Thread-safe for concurrent access.
-// Sessions that exceed the timeout are discarded by CleanExpired.
+// Idle sessions are automatically reaped by a background goroutine started
+// via RunCleanup. Sessions idle beyond the timeout are discarded.
 type ConfigSessionManager struct {
 	mu       sync.RWMutex
 	sessions map[string]*ConfigSession
@@ -61,7 +64,7 @@ func NewConfigSessionManager(factory ConfigEditorFactory) *ConfigSessionManager 
 	}
 }
 
-// CleanExpired discards sessions older than the configured timeout.
+// CleanExpired discards sessions idle beyond the configured timeout.
 // Returns the number of sessions cleaned. Safe for concurrent use.
 func (m *ConfigSessionManager) CleanExpired() int {
 	m.mu.Lock()
@@ -70,13 +73,28 @@ func (m *ConfigSessionManager) CleanExpired() int {
 	cutoff := time.Now().Add(-m.timeout)
 	var cleaned int
 	for id, s := range m.sessions {
-		if s.CreatedAt.Before(cutoff) {
+		if s.LastActivity.Before(cutoff) {
 			_ = s.Editor.Discard()
 			delete(m.sessions, id)
 			cleaned++
 		}
 	}
 	return cleaned
+}
+
+// RunCleanup starts a background goroutine that periodically reaps idle
+// sessions. Blocks until ctx is canceled. Call as `go m.RunCleanup(ctx)`.
+func (m *ConfigSessionManager) RunCleanup(ctx context.Context) {
+	ticker := time.NewTicker(m.timeout / 2)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			m.CleanExpired()
+		}
+	}
 }
 
 // Enter creates a new config editing session.
@@ -91,12 +109,14 @@ func (m *ConfigSessionManager) Enter(username string) (string, error) {
 		return "", fmt.Errorf("generate session ID: %w", idErr)
 	}
 
+	now := time.Now()
 	m.mu.Lock()
 	m.sessions[id] = &ConfigSession{
-		ID:        id,
-		Editor:    editor,
-		Username:  username,
-		CreatedAt: time.Now(),
+		ID:           id,
+		Editor:       editor,
+		Username:     username,
+		CreatedAt:    now,
+		LastActivity: now,
 	}
 	m.mu.Unlock()
 
@@ -171,9 +191,12 @@ func (m *ConfigSessionManager) Discard(username, sessionID string) error {
 
 // get retrieves a session by ID, verifying the username owns it.
 func (m *ConfigSessionManager) get(username, id string) (*ConfigSession, error) {
-	m.mu.RLock()
+	m.mu.Lock()
 	session, ok := m.sessions[id]
-	m.mu.RUnlock()
+	if ok {
+		session.LastActivity = time.Now()
+	}
+	m.mu.Unlock()
 	if !ok {
 		return nil, fmt.Errorf("session %q not found", id)
 	}

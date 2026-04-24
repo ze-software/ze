@@ -57,7 +57,7 @@ func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]
 		}
 		peerRIB.Iterate(func(fam family.Family, nlriBytes []byte, _ storage.RouteEntry) bool {
 			fStr := formatFamily(fam)
-			pStr := formatNLRIAsPrefix(fam, nlriBytes)
+			pStr := formatNLRIAsPrefix(fam, nlriBytes, peerRIB.IsAddPath(fam))
 			key := fStr + "|" + string(nlriBytes)
 			if _, ok := seen[key]; !ok {
 				seen[key] = routeKey{fam: fam, nlriKey: string(nlriBytes), familyS: fStr, prefixS: pStr}

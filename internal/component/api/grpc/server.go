@@ -296,7 +296,10 @@ func (s *zeServiceImpl) Execute(ctx context.Context, req *zepb.CommandRequest) (
 	}
 
 	// Append params as "key value" pairs, same as REST transport.
-	command := buildCommand(req.GetCommand(), req.GetParams())
+	command, buildErr := buildCommand(req.GetCommand(), req.GetParams())
+	if buildErr != nil {
+		return nil, status.Error(codes.InvalidArgument, buildErr.Error())
+	}
 
 	result, err := s.engine.Execute(ctx, callerIdentityFromContext(ctx), command)
 	if errors.Is(err, api.ErrUnauthorized) {
@@ -357,8 +360,7 @@ func (s *zeServiceImpl) DescribeCommand(_ context.Context, req *zepb.DescribeCom
 }
 
 func (s *zeServiceImpl) Complete(_ context.Context, _ *zepb.CompleteRequest) (*zepb.CompleteResponse, error) {
-	// Completion not yet wired to engine.
-	return &zepb.CompleteResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "completion not yet implemented")
 }
 
 // --- ZeConfigService implementation ---
@@ -477,22 +479,28 @@ func execResultToProto(r *api.ExecResult) *zepb.CommandResponse {
 
 // buildCommand appends params as "key value" pairs to a command string.
 // Matches the REST transport's param handling for equivalence.
-func buildCommand(command string, params map[string]string) string {
+func buildCommand(command string, params map[string]string) (string, error) {
 	if len(params) == 0 {
-		return command
+		return command, nil
 	}
 	var b strings.Builder
 	b.WriteString(command)
 	for key, val := range params {
+		if strings.ContainsAny(key, " \t\n\r") {
+			return "", fmt.Errorf("parameter key %q must not contain whitespace", key)
+		}
 		if val == "" {
 			continue
+		}
+		if strings.ContainsAny(val, " \t\n\r") {
+			return "", fmt.Errorf("parameter %q must not contain whitespace", key)
 		}
 		b.WriteString(" ")
 		b.WriteString(key)
 		b.WriteString(" ")
 		b.WriteString(val)
 	}
-	return b.String()
+	return b.String(), nil
 }
 
 func commandMetaToProto(cmd api.CommandMeta) *zepb.CommandInfo {

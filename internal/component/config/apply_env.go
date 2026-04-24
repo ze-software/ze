@@ -35,6 +35,13 @@ var envPlumbingTable = []envPlumbing{
 	{section: "daemon", option: "user", envKey: "ze.user"},
 	{section: "bgp", option: "openwait", envKey: "ze.bgp.openwait"},
 	{section: "bgp", option: "announce-delay", envKey: "ze.bgp.announce.delay"},
+	{section: "chaos", option: "seed", envKey: "ze.bgp.chaos.seed"},
+	{section: "chaos", option: "rate", envKey: "ze.bgp.chaos.rate"},
+	{section: "reactor", option: "speed", envKey: "ze.bgp.reactor.speed"},
+	{section: "reactor", option: "cache-ttl", envKey: "ze.bgp.reactor.cache-ttl"},
+	{section: "reactor", option: "cache-max", envKey: "ze.bgp.reactor.cache-max"},
+	{section: "reactor", option: "update-groups", envKey: "ze.bgp.reactor.update-groups"},
+	{section: "reactor", option: "coalesce", envKey: "ze.bgp.reactor.coalesce"},
 	{section: "exabgp.api", option: "ack", envKey: "exabgp.api.ack"},
 	{section: "", option: "pprof", envKey: "ze.pprof"},
 }

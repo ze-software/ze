@@ -12,7 +12,7 @@ type fakeLocalAuthz struct {
 	allow bool
 }
 
-func (f *fakeLocalAuthz) Authorize(_, _ string, _ bool) bool {
+func (f *fakeLocalAuthz) Authorize(_, _, _ string, _ bool) bool {
 	return f.allow
 }
 
@@ -38,7 +38,7 @@ func TestTacacsAuthorizerPassAdd(t *testing.T) {
 	local := &fakeLocalAuthz{allow: false}
 	authorizer := NewTacacsAuthorizer(client, local, nil)
 
-	result := authorizer.Authorize("admin", "show version", true)
+	result := authorizer.Authorize("admin", "10.0.0.1:22", "show version", true)
 	assert.True(t, result, "PASS_ADD should allow")
 }
 
@@ -56,7 +56,7 @@ func TestTacacsAuthorizerFail(t *testing.T) {
 	local := &fakeLocalAuthz{allow: true}
 	authorizer := NewTacacsAuthorizer(client, local, nil)
 
-	result := authorizer.Authorize("admin", "restart", true)
+	result := authorizer.Authorize("admin", "10.0.0.1:22", "restart", true)
 	assert.False(t, result, "FAIL should deny")
 }
 
@@ -69,7 +69,7 @@ func TestTacacsAuthorizerFallbackToLocal(t *testing.T) {
 	local := &fakeLocalAuthz{allow: true}
 	authorizer := NewTacacsAuthorizer(client, local, nil)
 
-	result := authorizer.Authorize("admin", "show version", true)
+	result := authorizer.Authorize("admin", "10.0.0.1:22", "show version", true)
 	assert.True(t, result, "should fall back to local allow")
 }
 
@@ -87,7 +87,7 @@ func TestTacacsAuthorizerPassRepl(t *testing.T) {
 	local := &fakeLocalAuthz{allow: false}
 	authorizer := NewTacacsAuthorizer(client, local, nil)
 
-	result := authorizer.Authorize("admin", "show version", true)
+	result := authorizer.Authorize("admin", "10.0.0.1:22", "show version", true)
 	assert.True(t, result, "PASS_REPL should allow")
 }
 
@@ -105,6 +105,6 @@ func TestTacacsAuthorizerErrorFallback(t *testing.T) {
 	local := &fakeLocalAuthz{allow: true}
 	authorizer := NewTacacsAuthorizer(client, local, nil)
 
-	result := authorizer.Authorize("admin", "show version", true)
+	result := authorizer.Authorize("admin", "10.0.0.1:22", "show version", true)
 	assert.True(t, result, "ERROR should fall back to local allow")
 }

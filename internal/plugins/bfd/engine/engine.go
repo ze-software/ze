@@ -174,23 +174,22 @@ func (e *sessionEntry) recordTransition(from, to packet.State, diag packet.Diag,
 
 // firstPacketKey indexes sessions for first-packet (Your-Discriminator==0)
 // dispatch. RFC 5880 §6.8.6 leaves the lookup tuple to the application;
-// we use (peer, vrf, mode, interface) -- single-hop binds an interface,
-// multi-hop leaves it empty so two multi-hop sessions to the same peer
-// in the same VRF would collide. EnsureSession asserts uniqueness.
+// we use (peer, local, vrf, mode, interface). Multi-hop sessions include
+// the local address (RFC 5883) so two sessions to the same peer from
+// different local addresses do not collide.
 type firstPacketKey struct {
 	peer  netip.Addr
+	local netip.Addr
 	vrf   string
 	iface string
 	mode  api.HopMode
 }
 
-// firstPacketIndex builds a firstPacketKey from a session key. The peer
-// address, VRF, hop mode, and (for single-hop) ingress interface are
-// what an incoming first-packet exposes via Inbound; matching on this
-// tuple is deterministic across map iteration order.
+// firstPacketIndex builds a firstPacketKey from a session key.
 func firstPacketIndex(k api.Key) firstPacketKey {
 	return firstPacketKey{
 		peer:  k.Peer,
+		local: k.Local,
 		vrf:   k.VRF,
 		iface: k.Interface,
 		mode:  k.Mode,
