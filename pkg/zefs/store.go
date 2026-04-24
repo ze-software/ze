@@ -475,9 +475,13 @@ func (s *BlobStore) decode(data []byte) error {
 
 // flush encodes, writes to disk, then reloads via mmap.
 // After flush, all tree nodes reference the new backing.
-// If the write or reload fails, the tree is rebuilt from the encoded
-// copy as a heap-backed buffer so the store remains usable.
+// If the write or reload fails, the tree is rebuilt from the previous
+// on-disk state so in-memory never diverges from persisted data.
 func (s *BlobStore) flush() error {
+	// Snapshot the previous on-disk state before any modification so we
+	// can restore it if the write fails (prevents in-memory/disk divergence).
+	oldEncoded, _ := os.ReadFile(s.path) //nolint:gosec // s.path is not user input
+
 	// encode() copies data out of current backing (safe before unload)
 	encoded := s.encode()
 
@@ -489,7 +493,11 @@ func (s *BlobStore) flush() error {
 	// Atomic write: temp file in same directory, then rename.
 	// os.Rename is atomic on POSIX when source and target are on the same filesystem.
 	if err := s.atomicWrite(encoded); err != nil {
-		s.recoverFromEncoded(encoded)
+		if len(oldEncoded) > 0 {
+			s.recoverFromEncoded(oldEncoded)
+		} else {
+			s.recoverFromEncoded(encoded)
+		}
 		return err
 	}
 
@@ -503,6 +511,7 @@ func (s *BlobStore) flush() error {
 
 // atomicWrite writes data to s.path via a temp file and rename.
 // os.Rename is atomic on POSIX when source and target share a filesystem.
+// Fsync the temp file and parent directory to ensure durability on power loss.
 func (s *BlobStore) atomicWrite(data []byte) error {
 	dir := filepath.Dir(s.path)
 	tmp, err := os.CreateTemp(dir, ".zefs-*.tmp")
@@ -522,6 +531,10 @@ func (s *BlobStore) atomicWrite(data []byte) error {
 		}
 		return fmt.Errorf("zefs: flush write: %w", err)
 	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close() //nolint:errcheck // already failing on sync path
+		return fmt.Errorf("zefs: flush fsync temp: %w", err)
+	}
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("zefs: flush close temp: %w", err)
 	}
@@ -529,6 +542,10 @@ func (s *BlobStore) atomicWrite(data []byte) error {
 		return fmt.Errorf("zefs: flush rename: %w", err)
 	}
 	committed = true
+	if dirFd, err := os.Open(dir); err == nil { //nolint:gosec // dir is derived from s.path, not user input
+		dirFd.Sync()  //nolint:errcheck // best-effort directory fsync for rename durability
+		dirFd.Close() //nolint:errcheck // best-effort close after fsync
+	}
 	return nil
 }
 

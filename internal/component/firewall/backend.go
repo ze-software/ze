@@ -99,13 +99,13 @@ func LoadBackend(name string) error {
 		return fmt.Errorf("firewall: backend %q init: %w", name, err)
 	}
 
-	// New backend created successfully; close the previous one.
-	if activeBackend != nil {
-		if closeErr := activeBackend.Close(); closeErr != nil {
+	prev := activeBackend
+	activeBackend = b
+	if prev != nil {
+		if closeErr := prev.Close(); closeErr != nil {
 			loggerPtr.Load().Warn("firewall: close previous backend", "err", closeErr)
 		}
 	}
-	activeBackend = b
 	setActiveBackendName(name)
 	return nil
 }

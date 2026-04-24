@@ -223,5 +223,9 @@ func atomicWriteFile(path string, data []byte, perm fs.FileMode) error {
 		return fmt.Errorf("storage: rename temp: %w", err)
 	}
 	committed = true
+	if dirFd, err := os.Open(dir); err == nil { //nolint:gosec // dir is derived from path, not user input
+		dirFd.Sync()  //nolint:errcheck // best-effort directory fsync for rename durability
+		dirFd.Close() //nolint:errcheck // best-effort close after fsync
+	}
 	return nil
 }

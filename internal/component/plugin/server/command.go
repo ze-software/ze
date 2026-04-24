@@ -60,6 +60,24 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc map[string]string) {
 	}
 }
 
+// LoadBuiltinsWithAliases registers all builtin handlers with the dispatcher,
+// including all YANG command aliases for each wire method.
+func LoadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pathToDesc map[string]string) {
+	for _, reg := range AllBuiltinRPCs() {
+		paths := wireToPaths[reg.WireMethod]
+		if len(paths) == 0 {
+			continue
+		}
+		for _, name := range paths {
+			d.RegisterWithOptions(name, reg.Handler, pathToDesc[name], RegisterOptions{
+				ReadOnly:         IsReadOnlyPath(name),
+				RequiresSelector: reg.RequiresSelector,
+				PluginProxy:      reg.PluginCommand != "",
+			})
+		}
+	}
+}
+
 // verbRIB is the CLI verb for system RIB commands (e.g., "rib show").
 const verbRIB = "rib"
 

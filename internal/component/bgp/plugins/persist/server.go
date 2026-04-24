@@ -5,6 +5,7 @@ package persist
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -463,13 +464,15 @@ func persistWireNLRIs(data []byte, addPath, isIPv6 bool) []any {
 		addrLen = 16
 	}
 	var result []any
-	var buf [16]byte // stack-allocated — large enough for IPv6
+	var buf [16]byte // stack-allocated, large enough for IPv6
 	offset := 0
 	for offset < len(data) {
+		var pathID uint32
 		if addPath {
 			if offset+4 >= len(data) {
 				break
 			}
+			pathID = binary.BigEndian.Uint32(data[offset : offset+4])
 			offset += 4
 		}
 		if offset >= len(data) {
@@ -488,7 +491,11 @@ func persistWireNLRIs(data []byte, addPath, isIPv6 bool) []any {
 		if !ok {
 			continue
 		}
-		result = append(result, netip.PrefixFrom(addr, prefixLen).String())
+		prefix := netip.PrefixFrom(addr, prefixLen).String()
+		if addPath {
+			prefix = fmt.Sprintf("%d:%s", pathID, prefix)
+		}
+		result = append(result, prefix)
 	}
 	return result
 }

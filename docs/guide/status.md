@@ -78,7 +78,7 @@ Over 40 built-in plugins covering protocol features, all address families, BFD, 
 | Type | Count |
 |------|-------|
 | Unit test functions | 10,400+ |
-| Functional test files (.ci) | 789 |
+| Functional test files (.ci) | 790 |
 | Fuzz targets | 57 |
 | Linters | 26 |
 

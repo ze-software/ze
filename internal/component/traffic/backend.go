@@ -149,13 +149,13 @@ func LoadBackend(name string) error {
 		return fmt.Errorf("traffic: backend %q init: %w", name, err)
 	}
 
-	// New backend created successfully; close the previous one.
-	if activeBackend != nil {
-		if closeErr := activeBackend.Close(); closeErr != nil {
+	prev := activeBackend
+	activeBackend = b
+	if prev != nil {
+		if closeErr := prev.Close(); closeErr != nil {
 			loggerPtr.Load().Warn("traffic: close previous backend", "err", closeErr)
 		}
 	}
-	activeBackend = b
 	return nil
 }
 

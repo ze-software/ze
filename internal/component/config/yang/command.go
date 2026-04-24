@@ -15,11 +15,11 @@ import (
 // cmdModuleSuffix identifies YANG command tree modules by naming convention.
 const cmdModuleSuffix = "-cmd"
 
-// WireMethodToPath walks all -cmd YANG modules and builds a map from
-// WireMethod (ze:command argument) to CLI path (space-joined tree path).
-// Used by LoadBuiltins to derive dispatch keys from YANG instead of CLICommand.
-func WireMethodToPath(loader *Loader) map[string]string {
-	result := make(map[string]string)
+// WireMethodToPaths walks all -cmd YANG modules and builds a map from
+// WireMethod (ze:command argument) to all CLI paths (space-joined tree paths).
+// Multiple paths per wire method represent command aliases.
+func WireMethodToPaths(loader *Loader) map[string][]string {
+	result := make(map[string][]string)
 	if loader == nil {
 		return result
 	}
@@ -28,8 +28,30 @@ func WireMethodToPath(loader *Loader) map[string]string {
 	return result
 }
 
+// WireMethodToPath returns the shortest CLI path for each wire method.
+// Deterministic: when multiple aliases exist, the lexicographically smallest
+// path is chosen so restarts produce consistent authz context.
+// Callers that need all aliases should use WireMethodToPaths.
+func WireMethodToPath(loader *Loader) map[string]string {
+	paths := WireMethodToPaths(loader)
+	result := make(map[string]string, len(paths))
+	for method, ps := range paths {
+		if len(ps) == 0 {
+			continue
+		}
+		best := ps[0]
+		for _, p := range ps[1:] {
+			if p < best {
+				best = p
+			}
+		}
+		result[method] = best
+	}
+	return result
+}
+
 // collectPaths recursively walks the command tree and collects WireMethod -> path mappings.
-func collectPaths(node *command.Node, prefix string, result map[string]string) {
+func collectPaths(node *command.Node, prefix string, result map[string][]string) {
 	if node == nil {
 		return
 	}
@@ -39,7 +61,7 @@ func collectPaths(node *command.Node, prefix string, result map[string]string) {
 			path = prefix + " " + name
 		}
 		if child.WireMethod != "" {
-			result[child.WireMethod] = path
+			result[child.WireMethod] = append(result[child.WireMethod], path)
 		}
 		collectPaths(child, path, result)
 	}

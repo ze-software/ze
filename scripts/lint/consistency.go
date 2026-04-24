@@ -326,10 +326,13 @@ func walkGoFiles(root string, fn func(path string)) {
 		if err != nil {
 			return nil
 		}
-		// Skip hidden dirs (except root "."), vendor, research.
+		// Skip hidden dirs (except root "."), vendor, research, caches, tmp.
 		if info.IsDir() {
 			base := filepath.Base(path)
-			if base == "vendor" || base == "node_modules" || base == "research" {
+			if base == "vendor" || base == "node_modules" || base == "research" || base == "modcache" || base == "tmp" {
+				return filepath.SkipDir
+			}
+			if base == "gokrazy" {
 				return filepath.SkipDir
 			}
 			if strings.HasPrefix(base, ".") && path != root {

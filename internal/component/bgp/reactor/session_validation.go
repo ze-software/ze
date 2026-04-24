@@ -26,15 +26,18 @@ import (
 func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, message.RFC7606Action, error) {
 	body := wu.Payload()
 
-	// Parse UPDATE structure
+	// Parse UPDATE structure — truncated sections trigger treat-as-withdraw
+	// to prevent malformed wire reaching plugins via callback dispatch.
 	if len(body) < 4 {
-		return wu, message.RFC7606ActionNone, nil // Let other validation handle
+		sessionLogger().Debug("RFC 7606 treat-as-withdraw (UPDATE too short for section headers)")
+		return wu, message.RFC7606ActionTreatAsWithdraw, nil
 	}
 
 	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
 	offset := 2 + withdrawnLen
 	if offset+2 > len(body) {
-		return wu, message.RFC7606ActionNone, nil
+		sessionLogger().Debug("RFC 7606 treat-as-withdraw (withdrawn length exceeds UPDATE)")
+		return wu, message.RFC7606ActionTreatAsWithdraw, nil
 	}
 
 	// RFC 7606 Section 5.3: Validate withdrawn routes NLRI syntax (IPv4)
@@ -49,7 +52,8 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 	attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
 	offset += 2
 	if offset+attrLen > len(body) {
-		return wu, message.RFC7606ActionNone, nil
+		sessionLogger().Debug("RFC 7606 treat-as-withdraw (attribute length exceeds UPDATE)")
+		return wu, message.RFC7606ActionTreatAsWithdraw, nil
 	}
 
 	pathAttrs := body[offset : offset+attrLen]

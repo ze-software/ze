@@ -323,6 +323,31 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `bgp-labeled` | MPLS labeled NLRI encode/decode |
 | `bgp-mvpn` | Multicast VPN NLRI decode |
 | `bgp-rtc` | Route Target Constraint NLRI decode |
+| `bgp-filter-aspath` | AS-path filter (regex + exact match) |
+| `bgp-filter-prefix` | Prefix-list filter |
+| `bgp-filter-modify` | Attribute modification filter (set LP, prepend, communities) |
+| `bgp-filter-community-match` | Community match filter |
+| `bgp-healthcheck` | Link/target health-dependent route withdrawal |
+| `bgp-bmp` | BMP monitoring station (RFC 7854) |
+| `bgp-rr` | Route reflector (RFC 4456) |
+| `bgp-redistribute-ingress` | Redistribute learned routes into system RIB |
+| `bgp-redistribute-egress` | Redistribute system routes into BGP |
+| `bfd` | BFD session management (RFC 5880, RFC 5881, RFC 5883) |
+| `static` | Static route management |
+| `sysctl` | Kernel sysctl tuning |
+| `sysrib` | System RIB (route table management) |
+| `fib-kernel` | FIB route installation via netlink |
+| `fib-vpp` | FIB route installation via VPP binary API |
+| `firewall-nft` | Firewall management via nftables |
+| `traffic-netlink` | Traffic control (TC qdisc/class) via netlink |
+| `iface-netlink` | Interface management via netlink |
+| `iface-dhcp` | DHCP client for interface address assignment |
+| `l2tp-auth-local` | L2TP local user authentication |
+| `l2tp-auth-radius` | L2TP RADIUS authentication/accounting |
+| `l2tp-pool` | L2TP IP address pool management |
+| `l2tp-shaper` | L2TP per-subscriber traffic shaping |
+| `ntp` | NTP time synchronization |
+| `policy-routes` | Policy-based routing |
 
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib plugin -->
 <!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs plugin -->

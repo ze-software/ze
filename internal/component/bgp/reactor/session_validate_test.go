@@ -51,16 +51,17 @@ func TestEnforceRFC7606_ValidUpdate(t *testing.T) {
 	assert.NotNil(t, newWU)
 }
 
-// TestEnforceRFC7606_ShortBody verifies body < 4 bytes is passed through.
+// TestEnforceRFC7606_ShortBody verifies body < 4 bytes triggers treat-as-withdraw.
+// Truncated section headers must not reach plugins via callback dispatch.
 func TestEnforceRFC7606_ShortBody(t *testing.T) {
 	s := newValidateSession()
 
-	// Only 2 bytes — too short for withdrawn length + attrs length.
+	// Only 2 bytes, too short for withdrawn length + attrs length.
 	wu := wireu.NewWireUpdate([]byte{0x00, 0x00}, 0)
 
 	newWU, action, err := s.enforceRFC7606(wu)
 	require.NoError(t, err)
-	assert.Equal(t, message.RFC7606ActionNone, action)
+	assert.Equal(t, message.RFC7606ActionTreatAsWithdraw, action)
 	assert.NotNil(t, newWU)
 }
 

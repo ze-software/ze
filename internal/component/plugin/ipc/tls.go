@@ -110,8 +110,9 @@ func Authenticate(ctx context.Context, conn net.Conn, expectedToken string) (str
 		return "", fmt.Errorf("auth failed: malformed params: %w", err)
 	}
 
-	// Constant-time comparison to prevent timing side-channel attacks.
-	if subtle.ConstantTimeCompare([]byte(params.Token), []byte(expectedToken)) != 1 {
+	got := sha256.Sum256([]byte(params.Token))
+	want := sha256.Sum256([]byte(expectedToken))
+	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
 		writeErrorRaw(conn, id, "auth failed")
 		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
 		return "", fmt.Errorf("auth failed: invalid token")
@@ -191,7 +192,9 @@ func AuthenticateWithLookup(ctx context.Context, conn net.Conn, sharedSecret str
 		}
 	}
 
-	if subtle.ConstantTimeCompare([]byte(params.Token), []byte(expectedToken)) != 1 {
+	got := sha256.Sum256([]byte(params.Token))
+	want := sha256.Sum256([]byte(expectedToken))
+	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
 		writeErrorRaw(conn, id, "auth failed")
 		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
 		return "", fmt.Errorf("auth failed: invalid token")

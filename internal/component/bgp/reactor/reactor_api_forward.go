@@ -122,12 +122,19 @@ func (a *reactorAPIAdapter) sendRouteRefresh(peerSelector string, afi uint16, sa
 			continue
 		}
 
-		// RFC 7313: "If peer did not advertise Enhanced Route Refresh Capability:
-		// Do NOT send BoRR or EoRR."
+		neg := peer.negotiated.Load()
+
+		// RFC 2918 Section 4: normal route-refresh requires Route Refresh capability
+		if !requiresEnhancedRR {
+			if neg == nil || !neg.RouteRefresh {
+				continue
+			}
+		}
+
+		// RFC 7313: BoRR/EoRR require Enhanced Route Refresh capability
 		if requiresEnhancedRR {
-			neg := peer.negotiated.Load()
 			if neg == nil || !neg.EnhancedRouteRefresh {
-				continue // Skip peers without Enhanced Route Refresh
+				continue
 			}
 		}
 

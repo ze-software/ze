@@ -588,7 +588,19 @@ func (s *Server) execMiddleware() wish.Middleware {
 
 			// Handle plugin protocol sessions (debug shell).
 			// The SSH channel becomes bidirectional plugin transport.
+			// Authorization required: plugin protocol gives direct IPC access.
 			if lcInput == "plugin protocol" {
+				if factory == nil {
+					fmt.Fprintln(sess.Stderr(), "error: daemon still starting, plugin protocol unavailable") //nolint:errcheck // best-effort
+					sess.Exit(1)                                                                             //nolint:errcheck // best-effort
+					return
+				}
+				executor := factory(sess.User(), sess.RemoteAddr().String())
+				if _, err := executor("plugin protocol"); errors.Is(err, pluginserver.ErrUnauthorized) {
+					fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
+					sess.Exit(1)                                   //nolint:errcheck // best-effort
+					return
+				}
 				if pluginProto == nil {
 					fmt.Fprintln(sess.Stderr(), "error: plugin protocol not available (daemon still starting)") //nolint:errcheck // best-effort
 					sess.Exit(1)                                                                                //nolint:errcheck // best-effort

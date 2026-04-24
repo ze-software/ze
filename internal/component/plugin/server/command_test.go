@@ -969,17 +969,17 @@ func TestDispatcherWithAuthzStore(t *testing.T) {
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.False(t, restartCalled)
 
-	// No-auth user (empty username) should be allowed everything
+	// Empty username denied when user assignments exist (fail closed)
 	noAuthCtx := &CommandContext{Username: ""}
 	resp, err = d.Dispatch(noAuthCtx, "restart")
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUnauthorized))
 
-	// User with no profile assignment gets admin (allow all)
+	// Unassigned user denied when user assignments exist (fail closed)
 	unknownCtx := &CommandContext{Username: "unknown-user"}
 	resp, err = d.Dispatch(unknownCtx, "restart")
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUnauthorized))
 }
 
 // TestDispatcherAuthorizationAppliesToUnknownCommands verifies that authorization

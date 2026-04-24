@@ -149,78 +149,18 @@ a JSON-RPC body. The server implements the MCP tool-calling protocol:
 
 ## Tools
 
-<!-- source: internal/component/mcp/handler.go -- handcraftedTools variable -->
+<!-- source: internal/component/mcp/tools.go -- auto-generated tools from command registry -->
 
-These tools have hand-tuned parameter schemas:
-
-| Tool | Purpose |
-|------|---------|
-| `ze_announce` | Announce BGP routes to peers |
-| `ze_withdraw` | Withdraw BGP routes from peers |
-| `ze_peers` | List peers with state (Idle, Established, ...) |
-| `ze_peer_control` | Teardown, pause, resume, or flush a peer |
-| `ze_execute` | Run any Ze command (escape hatch) |
-| `ze_commands` | List all available daemon commands |
-
-<!-- source: internal/component/mcp/tools.go -- auto-generated tools -->
-
-**Auto-generated tools:** In addition to the tools above, `tools/list`
-dynamically generates tools from all registered YANG commands and plugin
-commands. Each command group (e.g. `rib`, `show config`, `metrics`) becomes
-a tool with an `action` enum listing its subcommands. When a new YANG
-command is registered, it appears as an MCP tool automatically without
+All MCP tools are **auto-generated** from the YANG command registry at
+`tools/list` time. Each command group (e.g. `rib`, `show config`, `metrics`)
+becomes a tool with an `action` enum listing its subcommands. When a new
+YANG command is registered, it appears as an MCP tool automatically without
 code changes.
 
-### ze_announce
+Run `tools/list` against a live daemon to see the current tool inventory.
 
-Announce routes with typed parameters. Builds the UPDATE text command internally.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `peer` | string | No | Peer selector (address, name, or `*`). Default: `*` |
-| `origin` | string | No | `igp`, `egp`, or `incomplete` |
-| `next-hop` | string | No | Next-hop IP address |
-| `local-preference` | integer | No | LOCAL_PREF value |
-| `as-path` | array | No | List of ASNs |
-| `community` | array | No | List of communities (e.g. `"65000:100"`) |
-| `family` | string | Yes | Address family (e.g. `ipv4/unicast`) |
-| `prefixes` | array | Yes | Prefixes to announce (e.g. `"10.0.0.0/24"`) |
-
-Example:
-
-```json
-{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
-  "name":"ze_announce",
-  "arguments":{
-    "origin":"igp",
-    "next-hop":"1.1.1.1",
-    "local-preference":100,
-    "family":"ipv4/unicast",
-    "prefixes":["10.0.0.0/24","10.0.1.0/24"]
-  }
-}}
-```
-
-### ze_withdraw
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `peer` | string | No | Peer selector. Default: `*` |
-| `family` | string | Yes | Address family |
-| `prefixes` | array | Yes | Prefixes to withdraw |
-
-### ze_peers
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `peer` | string | No | Peer selector for detailed view. Omit for summary. |
-
-### ze_peer_control
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `peer` | string | Yes | Peer selector |
-| `action` | string | Yes | `teardown`, `pause`, `resume`, or `flush` |
+A small set of handcrafted tools (`ze_execute`, `ze_commands`) provide
+escape-hatch and discovery capabilities alongside the generated tools.
 
 ### ze_execute
 

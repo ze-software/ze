@@ -218,13 +218,14 @@ func LoadBackend(name string) error {
 		return fmt.Errorf("iface: backend %q init: %w", name, err)
 	}
 
-	// New backend created successfully; close the previous one.
-	if activeBackend != nil {
-		if closeErr := activeBackend.Close(); closeErr != nil {
+	// Swap first, then close old so a failed apply still has the new backend active.
+	prev := activeBackend
+	activeBackend = b
+	if prev != nil {
+		if closeErr := prev.Close(); closeErr != nil {
 			loggerPtr.Load().Warn("iface: close previous backend", "err", closeErr)
 		}
 	}
-	activeBackend = b
 	return nil
 }
 

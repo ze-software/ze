@@ -41,7 +41,7 @@ func TestAuthDrainCallsHandler(t *testing.T) {
 	}
 }
 
-func TestAuthDrainDefaultAcceptAll(t *testing.T) {
+func TestAuthDrainNilHandlerRejects(t *testing.T) {
 	authCh := make(chan ppp.AuthEvent, 1)
 	responded := make(chan authDrainResponse, 1)
 
@@ -51,8 +51,8 @@ func TestAuthDrainDefaultAcceptAll(t *testing.T) {
 	close(authCh)
 
 	resp := <-responded
-	if !resp.result.Accept {
-		t.Fatal("nil handler should accept all")
+	if resp.result.Accept {
+		t.Fatal("nil handler should reject (fail closed)")
 	}
 }
 

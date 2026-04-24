@@ -88,7 +88,7 @@ func startAuthDrain(logger *slog.Logger, d *ppp.Driver, handler AuthHandler) <-c
 
 func callAuthHandler(logger *slog.Logger, handler AuthHandler, req ppp.EventAuthRequest, respond AuthRespondFunc) (result AuthResult) {
 	if handler == nil {
-		return AuthResult{Accept: true, Message: "no auth handler; accept all"}
+		return AuthResult{Accept: false, Message: "no auth handler configured"}
 	}
 
 	defer func() {

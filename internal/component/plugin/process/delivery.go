@@ -40,9 +40,10 @@ func safeBridgeCall(fn func() error) (err error) {
 // For DirectBridge consumers, Event is set (structured delivery, no text formatting).
 // For text/JSON consumers, Output is set (pre-formatted at observation time).
 type EventDelivery struct {
-	Output string             // Pre-formatted event payload (text/JSON consumers)
-	Event  any                // Structured event for DirectBridge consumers (nil for text/JSON)
-	Result chan<- EventResult // Caller-provided result channel (nil if fire-and-forget)
+	Output    string             // Pre-formatted event payload (text/JSON consumers)
+	Event     any                // Structured event for DirectBridge consumers (nil for text/JSON)
+	Result    chan<- EventResult // Caller-provided result channel (nil if fire-and-forget)
+	OnFailure func()             // Called on fire-and-forget delivery failure (e.g. cache count release)
 }
 
 // EventResult is sent back to the caller after delivery completes.
@@ -135,6 +136,8 @@ func (p *Process) safeDeliverBatch(batch []EventDelivery, eventsBuf []string, ti
 						ProcName: p.config.Name,
 						Err:      panicErr,
 					}
+				} else if req.OnFailure != nil {
+					req.OnFailure()
 				}
 			}
 			result = eventsBuf
@@ -187,6 +190,9 @@ func (p *Process) deliverBatch(batch []EventDelivery, eventsBuf []string, timeou
 			// since no caller is waiting to collect them. This covers sent
 			// event delivery which uses nil Result to avoid re-entrant deadlock.
 			logger().Warn("event delivery failed (fire-and-forget)", "plugin", p.config.Name, "error", batchErr)
+			if req.OnFailure != nil {
+				req.OnFailure()
+			}
 		}
 		// Return pooled StructuredEvent after the handler is done with it.
 		// Moved here from the dispatcher (events.go) so fire-and-forget

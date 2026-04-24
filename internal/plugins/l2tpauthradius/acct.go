@@ -230,12 +230,23 @@ func (a *radiusAcct) interimLoop(ctx context.Context, client *radius.Client, ses
 	}
 }
 
-// Stop cancels all active accounting sessions.
+// Stop sends Accounting-Stop for all active sessions and cancels them.
 func (a *radiusAcct) Stop() {
 	a.mu.Lock()
-	defer a.mu.Unlock()
+	client := a.client
+	nasID := a.nasID
+	srcAddr := a.sourceAddress
+	active := make([]*acctSession, 0, len(a.sessions))
 	for _, sess := range a.sessions {
-		sess.cancel()
+		active = append(active, sess)
 	}
 	a.sessions = make(map[sessionKey]*acctSession)
+	a.mu.Unlock()
+
+	for _, sess := range active {
+		if client != nil {
+			a.sendAcctStop(client, sess, nasID, srcAddr)
+		}
+		sess.cancel()
+	}
 }

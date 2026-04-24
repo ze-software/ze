@@ -1008,7 +1008,10 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			continue
 		}
 		if err := b.CreateDummy(e.Name); err != nil {
-			log.Debug("iface config: create dummy (may already exist)", "name", e.Name, "err", err)
+			if _, getErr := b.GetInterface(e.Name); getErr != nil {
+				record(fmt.Sprintf("dummy %s create", e.Name), err)
+				continue
+			}
 		}
 	}
 	for _, e := range cfg.Veth {
@@ -1020,7 +1023,10 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			peer = e.Name + "-peer"
 		}
 		if err := b.CreateVeth(e.Name, peer); err != nil {
-			log.Debug("iface config: create veth (may already exist)", "name", e.Name, "err", err)
+			if _, getErr := b.GetInterface(e.Name); getErr != nil {
+				record(fmt.Sprintf("veth %s create", e.Name), err)
+				continue
+			}
 		}
 	}
 	previousTunnelSpecs := indexTunnelSpecs(previous)
@@ -1046,8 +1052,8 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			}
 		}
 		if err := b.CreateTunnel(e.Spec); err != nil {
-			log.Debug("iface config: create tunnel",
-				"name", e.Name, "kind", e.Spec.Kind, "err", err)
+			record(fmt.Sprintf("tunnel %s create", e.Name), err)
+			continue
 		}
 	}
 	previousWireguardSpecs := indexWireguardSpecs(previous)
@@ -1094,7 +1100,10 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			continue
 		}
 		if err := b.CreateBridge(e.Name); err != nil {
-			log.Debug("iface config: create bridge (may already exist)", "name", e.Name, "err", err)
+			if _, getErr := b.GetInterface(e.Name); getErr != nil {
+				record(fmt.Sprintf("bridge %s create", e.Name), err)
+				continue
+			}
 		}
 		if err := b.BridgeSetSTP(e.Name, e.STP); err != nil {
 			record(fmt.Sprintf("bridge %s stp", e.Name), err)
@@ -1145,8 +1154,11 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			osName := e.Name
 			if u.VLANID > 0 {
 				if err := b.CreateVLAN(e.Name, u.VLANID); err != nil {
-					log.Debug("iface config: create vlan (may already exist)",
-						"parent", e.Name, "vlan", u.VLANID, "err", err)
+					vlanName := fmt.Sprintf("%s.%d", e.Name, u.VLANID)
+					if _, getErr := b.GetInterface(vlanName); getErr != nil {
+						record(fmt.Sprintf("vlan %s create", vlanName), err)
+						continue
+					}
 				}
 				osName = fmt.Sprintf("%s.%d", e.Name, u.VLANID)
 			}
@@ -1176,7 +1188,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			continue
 		}
 		if err := b.SetAdminUp(e.Name); err != nil {
-			log.Debug("iface config: admin up (may already be up)", "name", e.Name, "err", err)
+			record(fmt.Sprintf("%s admin up", e.Name), err)
 		}
 	}
 

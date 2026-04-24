@@ -297,7 +297,7 @@ Priority: CLI flag > env var > config block > blob metadata.
 |---------|-----------|
 | Token per client | Each client has its own secret; token bound to name at auth |
 | Token in config | Config blob permissions 0600; token not logged |
-| TLS MITM | TLS 1.3 minimum; optional cert pinning (see `spec-plugin-tls-hardening.md`). **Current limitation:** managed client uses `InsecureSkipVerify: true`; server certificate verification is not yet enforced. See SECURITY.md "Known Limitations". |
+| TLS MITM | TLS 1.3 minimum; server certificate verification is now the default. Insecure mode is opt-in via config for development/testing. |
 | Client impersonation | Per-client secret + name binding; one connection per name |
 | Config isolation | Client can only fetch its own config (name implicit from auth session) |
 | Multiple servers | Different secrets for different trust levels (local vs. remote) |

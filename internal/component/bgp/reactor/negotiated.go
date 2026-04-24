@@ -18,6 +18,7 @@ import (
 type NegotiatedCapabilities struct {
 	families             map[family.Family]bool // private for O(1) lookup
 	ExtendedMessage      bool                   // RFC 8654: Extended message support
+	RouteRefresh         bool                   // RFC 2918: Route refresh
 	EnhancedRouteRefresh bool                   // RFC 7313: Enhanced route refresh
 	ASN4                 bool                   // RFC 6793: 4-byte ASN support
 }
@@ -31,6 +32,7 @@ func NewNegotiatedCapabilities(neg *capability.Negotiated) *NegotiatedCapabiliti
 	nc := &NegotiatedCapabilities{
 		families:             make(map[family.Family]bool),
 		ExtendedMessage:      neg.ExtendedMessage,
+		RouteRefresh:         neg.RouteRefresh,
 		EnhancedRouteRefresh: neg.EnhancedRouteRefresh,
 		ASN4:                 neg.ASN4,
 	}

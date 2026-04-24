@@ -21,23 +21,8 @@ import (
 	"strings"
 
 	// Blank imports trigger init() registrations for all RPCs.
-	// Uses schema/ subpackages where available (YANG only, no code deps).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/del/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/set/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"
+	// Uses plugin/all to match the runtime import set exactly.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"

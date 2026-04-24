@@ -83,6 +83,22 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		return nil, errors.New("listen address must not be empty")
 	}
 
+	if cfg.Token == "" && cfg.Authenticator == nil {
+		for _, addr := range cfg.ListenAddrs {
+			host, _, err := net.SplitHostPort(addr)
+			if err != nil {
+				host = addr
+			}
+			ip := net.ParseIP(host)
+			if ip != nil && !ip.IsLoopback() {
+				return nil, fmt.Errorf("non-loopback listen address %q requires authentication (set token or users)", addr)
+			}
+			if ip == nil && host != "localhost" {
+				return nil, fmt.Errorf("non-loopback listen address %q requires authentication (set token or users)", addr)
+			}
+		}
+	}
+
 	s := &GRPCServer{
 		engine:        engine,
 		sessions:      sessions,
@@ -312,7 +328,11 @@ func (s *zeServiceImpl) Stream(req *zepb.CommandRequest, stream zepb.ZeService_S
 	if req.GetCommand() == "" {
 		return status.Error(codes.InvalidArgument, "command is required")
 	}
-	ch, cancel, err := s.engine.Stream(stream.Context(), callerIdentityFromContext(stream.Context()), req.GetCommand())
+	command, buildErr := buildCommand(req.GetCommand(), req.GetParams())
+	if buildErr != nil {
+		return status.Error(codes.InvalidArgument, buildErr.Error())
+	}
+	ch, cancel, err := s.engine.Stream(stream.Context(), callerIdentityFromContext(stream.Context()), command)
 	if errors.Is(err, api.ErrUnauthorized) {
 		return status.Error(codes.PermissionDenied, "unauthorized")
 	}

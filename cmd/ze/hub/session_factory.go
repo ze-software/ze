@@ -113,7 +113,7 @@ func buildCommandTree() *command.Node {
 func dashboardFactoryFromExecutor(cmdExec zessh.CommandExecutor) cli.DashboardFactory {
 	return func() (func() (string, error), error) {
 		return func() (string, error) {
-			return cmdExec("bgp summary")
+			return cmdExec("summary")
 		}, nil
 	}
 }

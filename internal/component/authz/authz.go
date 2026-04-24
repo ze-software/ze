@@ -1,4 +1,5 @@
-// Design: (none — new authorization component)
+// Design: docs/architecture/core-design.md -- authorization component
+// Related: auth.go -- user/token authentication feeding into authz decisions
 
 // Package authz provides profile-based command authorization.
 // Profiles contain ordered allow/deny entries matched against command paths.
@@ -324,20 +325,26 @@ func (s *Store) HasUserAssignments() bool {
 }
 
 // Authorize checks if a user is allowed to execute a command.
-// Empty username (no auth) always returns Allow.
-// Users with no profile assignment get the built-in admin profile (allow all).
+// When user assignments are configured, empty username and unassigned users
+// are denied (fail closed). When no assignments exist, all access is allowed.
 func (s *Store) Authorize(username, command string, isReadOnly bool) Action {
-	// No authentication configured = allow all
-	if username == "" {
-		return Allow
-	}
-
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	hasUsers := len(s.assignments) > 0
+
+	if username == "" {
+		if hasUsers {
+			return Deny
+		}
+		return Allow
+	}
+
 	profileNames, hasAssignment := s.assignments[username]
 	if !hasAssignment || len(profileNames) == 0 {
-		// No profile assigned -> built-in admin (allow all)
+		if hasUsers {
+			return Deny
+		}
 		admin := BuiltinAdminProfile()
 		return admin.Authorize(command, isReadOnly)
 	}

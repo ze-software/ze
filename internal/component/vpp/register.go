@@ -92,8 +92,32 @@ func runVPPEngine(conn net.Conn) int {
 			if err != nil {
 				return err
 			}
+			if err := parsed.Validate(); err != nil {
+				return fmt.Errorf("vpp: config validation: %w", err)
+			}
 			settings = parsed
 		}
+		return nil
+	})
+
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		for _, s := range sections {
+			if s.Root != "vpp" {
+				continue
+			}
+			parsed, err := ParseConfigSection(s.Data)
+			if err != nil {
+				return err
+			}
+			if err := parsed.Validate(); err != nil {
+				return fmt.Errorf("vpp: config validation: %w", err)
+			}
+		}
+		return nil
+	})
+
+	p.OnConfigApply(func(sections []sdk.ConfigDiffSection) error {
+		lg.Warn("vpp: config reload requires daemon restart to take effect")
 		return nil
 	})
 

@@ -253,9 +253,10 @@ func buildToolDef(g toolGroup) map[string]any {
 	}
 
 	// Add typed parameters from YANG RPC metadata.
-	// Parameters are collected across all actions; each becomes an optional
-	// property since it may only apply to specific actions.
-	addedParams := addYANGParams(g.actions, properties)
+	// Parameters are collected across all actions; mandatory YANG inputs
+	// are added to the required list so AI clients see them as required.
+	addedParams, yangRequired := addYANGParams(g.actions, properties)
+	required = append(required, yangRequired...)
 
 	// Only add generic "arguments" if no typed params were found.
 	if !addedParams {
@@ -291,13 +292,12 @@ func buildToolDef(g toolGroup) map[string]any {
 }
 
 // addYANGParams collects typed parameters from YANG RPC metadata across all
-// actions and adds them as named JSON Schema properties. Returns true if any
-// typed parameters were added.
-func addYANGParams(actions []action, properties map[string]any) bool {
-	// Collect unique params by name. If a param appears in multiple actions,
-	// use the first occurrence's metadata.
+// actions and adds them as named JSON Schema properties. Returns whether any
+// params were added and the names of mandatory params.
+func addYANGParams(actions []action, properties map[string]any) (bool, []string) {
 	seen := make(map[string]bool)
 	var added bool
+	var requiredParams []string
 	for _, a := range actions {
 		for _, p := range a.params {
 			if seen[p.Name] {
@@ -312,9 +312,12 @@ func addYANGParams(actions []action, properties map[string]any) bool {
 			}
 			properties[p.Name] = prop
 			added = true
+			if p.Required {
+				requiredParams = append(requiredParams, p.Name)
+			}
 		}
 	}
-	return added
+	return added, requiredParams
 }
 
 // yangTypeToJSON maps YANG type names to JSON Schema types.

@@ -85,6 +85,22 @@ func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		return nil, errors.New("listen address must not be empty")
 	}
 
+	if cfg.Token == "" && cfg.Authenticator == nil {
+		for _, addr := range cfg.ListenAddrs {
+			host, _, err := net.SplitHostPort(addr)
+			if err != nil {
+				host = addr
+			}
+			ip := net.ParseIP(host)
+			if ip != nil && !ip.IsLoopback() {
+				return nil, fmt.Errorf("non-loopback listen address %q requires authentication (set token or users)", addr)
+			}
+			if ip == nil && host != "localhost" {
+				return nil, fmt.Errorf("non-loopback listen address %q requires authentication (set token or users)", addr)
+			}
+		}
+	}
+
 	s := &RESTServer{
 		engine:        engine,
 		sessions:      sessions,
@@ -206,7 +222,7 @@ func (s *RESTServer) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/execute/stream", s.withAuth(s.handleStream))
 
 	// Convenience routes (map to Execute).
-	mux.HandleFunc("GET /api/v1/peers", s.withAuth(s.handleConvenience("bgp summary")))
+	mux.HandleFunc("GET /api/v1/peers", s.withAuth(s.handleConvenience("summary")))
 	mux.HandleFunc("GET /api/v1/peers/", s.withAuth(s.handlePeerByName))
 	mux.HandleFunc("DELETE /api/v1/peers/", s.withAuth(s.handlePeerAction("teardown")))
 	mux.HandleFunc("POST /api/v1/peers/", s.withAuth(s.handlePeerRefresh))

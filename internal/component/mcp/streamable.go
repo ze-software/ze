@@ -1140,7 +1140,11 @@ func (s *Streamable) callTool(ctx context.Context, req *request, sess *session, 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		return s.fail(req.ID, -32602, "invalid params: "+err.Error())
 	}
-	runner := &server{dispatch: s.cfg.Dispatch, commands: s.cfg.Commands, session: sess, ctx: ctx, remoteAddr: remoteAddr}
+	var username string
+	if sess != nil {
+		username = sess.Identity().Name
+	}
+	runner := &server{dispatch: s.cfg.Dispatch, commands: s.cfg.Commands, session: sess, ctx: ctx, username: username, remoteAddr: remoteAddr}
 	if handler, ok := toolHandlers[params.Name]; ok {
 		return s.ok(req.ID, handler(runner, params.Arguments))
 	}

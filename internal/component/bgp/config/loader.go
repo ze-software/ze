@@ -295,11 +295,13 @@ func extractAuthzConfig(tree *config.Tree) *authz.Store {
 // plugins register commands dynamically at runtime.
 func validateMatchEntries(store *authz.Store) {
 	loader, _ := yang.DefaultLoader()
-	wireToPath := yang.WireMethodToPath(loader)
+	wireToPaths := yang.WireMethodToPaths(loader)
 
-	cmds := make([]string, 0, len(wireToPath))
-	for _, path := range wireToPath {
-		cmds = append(cmds, strings.ToLower(path))
+	var cmds []string
+	for _, paths := range wireToPaths {
+		for _, path := range paths {
+			cmds = append(cmds, strings.ToLower(path))
+		}
 	}
 
 	store.WalkEntries(func(profileName, section string, e authz.Entry) {
