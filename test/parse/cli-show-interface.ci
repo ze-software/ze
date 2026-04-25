@@ -1,6 +1,7 @@
 # Test: ze show interface dispatches through YANG verb tree
 # VALIDATES: show interface is wired via local handler to iface.Run
 # PREVENTS: show interface not reaching the interface handler
+option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer peer1 {

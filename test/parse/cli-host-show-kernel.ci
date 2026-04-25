@@ -4,6 +4,7 @@
 #            arch-flags list.
 # PREVENTS: regressions where /proc/version or /proc/cmdline parsing
 #           silently drops the release.
+option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 bgp { }
 EOF_CONF
