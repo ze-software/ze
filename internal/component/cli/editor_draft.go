@@ -834,3 +834,27 @@ func parseConfigWithFormat(content string, schema *config.Schema) (*config.Tree,
 	tree, err := config.NewParser(schema).Parse(content)
 	return tree, config.NewMetaTree(), err
 }
+
+// parseConfigLenient retries parsing with unknown fields skipped.
+// Used when strict parsing fails so the editor can still show a tree view.
+func parseConfigLenient(content string, schema *config.Schema) (*config.Tree, *config.MetaTree, error) {
+	format := config.DetectFormat(content)
+
+	switch format {
+	case config.FormatSetMeta:
+		sp := config.NewSetParser(schema)
+		sp.SetPreMigration(true)
+		return sp.ParseWithMeta(content)
+	case config.FormatSet:
+		sp := config.NewSetParser(schema)
+		sp.SetPreMigration(true)
+		tree, err := sp.Parse(content)
+		return tree, config.NewMetaTree(), err
+	case config.FormatHierarchical:
+		tree, err := config.NewParser(schema).Parse(content)
+		return tree, config.NewMetaTree(), err
+	}
+
+	tree, err := config.NewParser(schema).Parse(content)
+	return tree, config.NewMetaTree(), err
+}

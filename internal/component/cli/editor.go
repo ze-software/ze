@@ -79,11 +79,17 @@ func NewEditorWithStorage(store storage.Storage, configPath string) (*Editor, er
 	if err != nil {
 		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
-	tree, _, err := parseConfigWithFormat(content, schema)
+	tree, meta, err := parseConfigWithFormat(content, schema)
 	if err != nil {
-		// Non-fatal: allow editing invalid configs
-		tree = config.NewTree()
+		// Retry with lenient parsing: skip unknown fields so the editor
+		// can display a tree view even when stale fields exist on disk.
+		tree, meta, err = parseConfigLenient(content, schema)
+		if err != nil {
+			tree = config.NewTree()
+			meta = nil
+		}
 	}
+	_ = meta // metadata used later by SetSession
 
 	// Check for existing edit file
 	editPath := configPath + ".edit"
