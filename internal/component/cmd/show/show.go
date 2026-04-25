@@ -28,6 +28,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
 
+// argCount is the CLI argument keyword that takes a positive integer
+// limit on the number of returned entries. Centralized so goconst stops
+// flagging the literal repetition across the show package.
+const argCount = "count"
+
 func init() {
 	health.Register("l2tp", func() (health.Status, string) {
 		if l2tp.LookupService() == nil {
@@ -181,7 +186,7 @@ func extractNamespaceFilter(args []string) string {
 
 func extractCountFilter(args []string) int {
 	for i, a := range args {
-		if a == "count" && i+1 < len(args) {
+		if a == argCount && i+1 < len(args) {
 			n, err := strconv.Atoi(args[i+1])
 			if err == nil && n > 0 {
 				return n
@@ -504,7 +509,7 @@ func handleShowCapture(ctx *pluginserver.CommandContext, args []string) (*plugin
 			if i+1 < len(args) {
 				peerFilter = args[i+1]
 			}
-		case "count":
+		case argCount:
 			if i+1 < len(args) {
 				if n, err := strconv.Atoi(args[i+1]); err == nil && n > 0 {
 					limit = n
