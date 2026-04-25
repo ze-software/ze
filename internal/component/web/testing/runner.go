@@ -15,8 +15,10 @@ import (
 
 // WBTestResult holds the outcome of a single .wb test.
 type WBTestResult struct {
-	Passed bool
-	Error  string
+	Passed     bool
+	Error      string
+	Skipped    bool
+	SkipReason string
 }
 
 // Browser wraps agent-browser CLI commands.
@@ -208,6 +210,10 @@ func RunWBFile(path, baseURL string) *WBTestResult {
 	tc, err := ParseWBFile(string(content))
 	if err != nil {
 		return &WBTestResult{Error: fmt.Sprintf("parse %s: %v", path, err)}
+	}
+
+	if tc.SkipReason != "" {
+		return &WBTestResult{Passed: true, Skipped: true, SkipReason: tc.SkipReason}
 	}
 
 	return runWBTestCase(tc, baseURL)

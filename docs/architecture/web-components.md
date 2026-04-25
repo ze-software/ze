@@ -62,7 +62,8 @@ Hidden overlays (shown on demand):
 ```
 templates/
   page/                          -- document shells
-    layout.html                  -- grid layout, includes all component templates
+    layout.html                  -- Finder grid layout, includes all component templates
+    workbench.html               -- V2 workbench shell (ze.web.ui=workbench), grid: top bar / nav / workspace / commit bar / cli bar
     login.html                   -- login form
 
   component/                     -- page sections (one file = one visual region)
@@ -77,6 +78,9 @@ templates/
                                     full_content: initial page (sidebar + detail)
     oob_save.html                -- oob_save_ok: OOB commit bar after successful save
     oob_error.html               -- oob_error: OOB error item appended to error list
+    workbench_topbar.html        -- workbench_topbar: V2 top bar with breadcrumb + identity
+    workbench_nav.html           -- workbench_nav: V2 left navigation section list
+    tool_overlay.html            -- tool_overlay: V2 related-tool result/error/confirmation overlay (HTMX OOB swap into #tool-overlays)
 
   input/                         -- one file per YANG value type
     wrapper.html                 -- field_wrapper_start/end: label, (i) tooltip, decoration, container div

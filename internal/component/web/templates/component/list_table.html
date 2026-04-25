@@ -1,6 +1,20 @@
 {{define "list_table"}}
 {{$table := .ListTable}}
 <section class="config-section">
+  {{if $table.TableTools}}
+  <div class="list-table-toolbar" id="list-table-toolbar">
+    {{range $table.TableTools}}
+    <button class="related-tool{{if .Class}} related-tool--{{.Class}}{{end}}"
+            data-tool-id="{{.ToolID}}"
+            hx-post="/tools/related/run"
+            hx-target="#tool-overlays"
+            hx-swap="beforeend"
+            hx-vals='{"tool_id":"{{.ToolID}}","context_path":"{{.ContextPath}}"}'>
+      {{.Label}}
+    </button>
+    {{end}}
+  </div>
+  {{end}}
   <table class="finder-table detail-table">
     <thead>
       <tr>
@@ -13,9 +27,9 @@
     </thead>
     <tbody>
       {{range $table.Rows}}
-      <tr>
+      <tr class="{{if .HasPendingChanges}}row--pending{{end}}" data-row-key="{{.KeyValue}}">
         <td class="finder-table-action"><button class="finder-rename-btn" data-action="rename-entry" data-url="{{.URL}}" data-key="{{.KeyValue}}" title="Rename">&#9998;</button></td>
-        <td><a class="finder-table-link" href="{{.URL}}"
+        <td>{{if .HasPendingChanges}}<span class="row-pending-marker" title="Uncommitted changes" aria-label="Pending changes">●</span>{{end}}<a class="finder-table-link" href="{{.URL}}"
                hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="{{.URL}}">{{.KeyValue}}</a></td>
         {{range .Cells}}
         <td><input class="finder-table-input" type="text" value="{{.Value}}"
@@ -24,7 +38,24 @@
                    hx-target="closest td" hx-swap="innerHTML"
                    name="value" hx-vals='{"leaf":"{{.Leaf}}"}'></td>
         {{end}}
-        <td class="finder-table-action"><button class="finder-delete-btn" data-action="delete-entry" data-path="{{.HxPath}}" data-key="{{.KeyValue}}" title="Delete">&#128465;</button></td>
+        <td class="finder-table-action">
+          {{if .RowTools}}
+          <span class="row-tools" data-row-tools="{{.KeyValue}}">
+            {{range .RowTools}}
+            <button class="related-tool{{if .Class}} related-tool--{{.Class}}{{end}}"
+                    data-tool-id="{{.ToolID}}"
+                    {{if .Confirm}}data-confirm="true"{{end}}
+                    hx-post="/tools/related/run"
+                    hx-target="#tool-overlays"
+                    hx-swap="beforeend"
+                    hx-vals='{"tool_id":"{{.ToolID}}","context_path":"{{.ContextPath}}"}'>
+              {{.Label}}
+            </button>
+            {{end}}
+          </span>
+          {{end}}
+          <button class="finder-delete-btn" data-action="delete-entry" data-path="{{.HxPath}}" data-key="{{.KeyValue}}" title="Delete">&#128465;</button>
+        </td>
       </tr>
       {{end}}
     </tbody>

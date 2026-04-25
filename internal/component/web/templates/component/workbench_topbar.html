@@ -1,0 +1,15 @@
+{{define "workbench_topbar"}}
+<div class="workbench-topbar-inner" id="workbench-topbar-inner">
+  <div class="workbench-brand">
+    <span class="workbench-brand-name">Ze</span>
+    <span class="workbench-brand-mode">workbench</span>
+  </div>
+  <div class="workbench-breadcrumb" id="workbench-breadcrumb">
+    {{template "breadcrumb_inner" .}}
+  </div>
+  <div class="workbench-identity">
+    {{if .Username}}<span class="workbench-username">{{.Username}}</span>{{end}}
+    {{if .Insecure}}<span class="workbench-insecure-badge">insecure</span>{{end}}
+  </div>
+</div>
+{{end}}

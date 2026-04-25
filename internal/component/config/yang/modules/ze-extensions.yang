@@ -235,6 +235,45 @@ module ze-extensions {
                      Contrast with ze:hidden (hidden from display, saved).";
     }
 
+    // Extension: related
+    // Declares one operator tool related to the annotated config node.
+    // Repeatable: multiple `ze:related` statements may appear on the same
+    // node, each carrying one descriptor. The descriptor is encoded as a
+    // single argument string with the wire format documented in
+    // plan/spec-web-2-operator-workbench.md (Argument Wire Format):
+    //
+    //     id=peer-detail; label="Peer Detail"; \
+    //     command="show bgp peer ${path:connection/remote/ip|key}"; \
+    //     placement=row; presentation=drawer
+    //
+    // Field separator is `;`, key/value separator is `=`, and values that
+    // contain `;`, `=`, `}`, or surrounding whitespace must be enclosed in
+    // double quotes. Inside a quoted value `\"`, `\\`, and `\,` are the
+    // only valid escapes; `\,` embeds a literal comma in list-valued
+    // fields like `requires`.
+    //
+    // Required keys: id, label, command. Optional: placement (default
+    // detail), presentation (default modal), confirm, requires, class,
+    // empty (default disable). Unknown keys fail the schema build.
+    //
+    // ze:related is internal to ze and distinct from `ze:ui-resource`
+    // (spec-mcp-5-apps.md), which advertises a static MCP UI bundle on a
+    // command node. The two extensions intentionally do NOT share a
+    // metadata model: ze:related annotates config nodes with executable
+    // command templates plus placement/substitution metadata, while
+    // ze:ui-resource annotates command nodes with a static asset URI for
+    // sandboxed iframe rendering. See spec-web-2-operator-workbench.md
+    // Design Decision D16 for the resolution rationale.
+    extension related {
+        argument descriptor;
+        description "Declares one operator tool related to this node.
+                     Argument is a single ;-separated key=value descriptor
+                     (id, label, command required; placement, presentation,
+                     confirm, requires, class, empty optional). Repeatable:
+                     one descriptor per statement. Distinct from
+                     ze:ui-resource (MCP Apps); see spec-web-2 D16.";
+    }
+
     // Extension: bcrypt
     // Marks a leaf as a one-way bcrypt-hashed value. Distinct from ze:sensitive
     // (which uses $9$ reversible obfuscation). Parser does NOT apply $9$ decode.

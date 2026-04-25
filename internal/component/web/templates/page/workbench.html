@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/cli.js"></script>
+<script src="/assets/htmx.min.js"></script>
+<script src="/assets/sse-client.js"></script>
+</head>
+<body class="ui-workbench">
+<div class="workbench-shell" id="workbench-shell" data-ui-mode="workbench">
+
+  <header class="workbench-topbar" id="workbench-topbar">
+    {{template "workbench_topbar" .}}
+  </header>
+
+  <nav class="workbench-nav" id="workbench-nav" aria-label="Workbench sections">
+    {{template "workbench_nav" .}}
+  </nav>
+
+  <main class="workbench-workspace" id="workbench-workspace">
+    {{.Content}}
+  </main>
+
+  <aside class="workbench-notifications" id="notification-bar">
+    {{.NotificationHTML}}
+  </aside>
+
+  {{template "commit_bar" .}}
+  {{template "cli_bar" .}}
+
+</div>
+<div id="tool-overlays" class="tool-overlays"></div>
+<div id="notification-area" class="notification-area"></div>
+
+{{template "diff_modal" .}}
+{{template "error_panel" .}}
+
+<script>
+(function(){
+  var p = new URLSearchParams(window.location.search);
+  var err = p.get('error');
+  if (!err) return;
+  var area = document.getElementById('notification-area');
+  if (!area) return;
+  var div = document.createElement('div');
+  div.className = 'notification notification-error';
+  div.id = 'notif-toast';
+  var msg = document.createElement('span');
+  msg.className = 'notification-message';
+  msg.textContent = err;
+  var cd = document.createElement('span');
+  cd.className = 'notification-countdown';
+  cd.textContent = '30';
+  var btn = document.createElement('button');
+  btn.className = 'notification-close';
+  btn.textContent = '×';
+  div.appendChild(msg); div.appendChild(cd); div.appendChild(btn);
+  area.appendChild(div);
+  var secs = 30, tid;
+  function tick() { secs--; cd.textContent = secs; if (secs <= 0) div.remove(); else tid = setTimeout(tick, 1000); }
+  tid = setTimeout(tick, 1000);
+  cd.style.cursor = 'pointer';
+  cd.onclick = function() { clearTimeout(tid); cd.textContent = '⏸'; };
+  btn.onclick = function() { clearTimeout(tid); div.remove(); };
+  history.replaceState(null, '', window.location.pathname);
+})();
+</script>
+</body>
+</html>

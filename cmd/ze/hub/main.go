@@ -30,6 +30,7 @@ import (
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
+	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	zegokrazy "codeberg.org/thomas-mangin/ze/internal/component/gokrazy"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
@@ -1021,6 +1022,19 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: YANG schema: %v\n", schemaErr)
 		return nil, nil
 	}
+
+	// Strict ze:related validation against the full operational command
+	// tree. Surfaces typos and renamed-command drift at hub startup so
+	// operators see the diagnostic before any workbench click. Logged as
+	// a warning (not fatal) so a single drifted descriptor never prevents
+	// the hub from serving the rest of the UI.
+	if loader, loaderErr := yangloader.DefaultLoader(); loaderErr == nil {
+		commandTree := yangloader.BuildCommandTree(loader)
+		if validateErr := zeconfig.ValidateSchemaAgainstCommandTree(schema, commandTree); validateErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: ze:related validation: %v\n", validateErr)
+		}
+	}
+
 	tree := zeconfig.NewTree()
 
 	// Ensure a config file exists for the editor.
@@ -1044,8 +1058,24 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 		}
 	}
 
-	// Fragment handler serves HTMX components for YANG tree navigation.
-	fragmentHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, insecureWeb)
+	// /show handler picks between Finder (default through Phases 1-3, rollback
+	// after the Phase 4 default flip) and the V2 workbench (`ze.web.ui=workbench`
+	// opt-in until the flip, then the default). Read once at startup; flipping
+	// the variable later requires a hub restart by design.
+	uiMode := zeweb.GetUIMode()
+	finderHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, insecureWeb)
+	workbenchHandler := zeweb.HandleWorkbench(renderer, schema, tree, editorMgr, insecureWeb)
+	var showHandler http.HandlerFunc
+	switch uiMode {
+	case zeweb.UIModeWorkbench:
+		showHandler = workbenchHandler
+		fmt.Fprintf(os.Stderr, "web UI mode: workbench (V2 experiment)\n")
+	default:
+		showHandler = finderHandler
+	}
+	// Fragment handler still serves /fragment/detail HTMX requests regardless
+	// of mode; both UIs share the same OOB swap path.
+	fragmentHandler := finderHandler
 
 	// Config set, add, and delete handlers for editing leaf values.
 	setHandler := zeweb.HandleConfigSet(editorMgr, schema, renderer)
@@ -1110,8 +1140,20 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	loginHandler := zeweb.LoginHandler(sessionStore, webAuth, loginRenderer)
 	assetHandler := http.StripPrefix("/assets/", renderer.AssetHandler())
 
-	// Admin command tree for web UI.
-	adminChildren := zeweb.BuildAdminCommandTree()
+	// Admin command tree for web UI. Derive from the merged YANG command
+	// tree so plugin-contributed commands appear in the admin nav without
+	// editing the static map (spec-web-2 Phase 6 / Spec D6). The static
+	// fallback was removed because its tree shape (`peer/route/cache`)
+	// drifted from the YANG-derived shape (`peer/show/summary/...`); a
+	// silent fallback after loader failure would surface as broken admin
+	// links rather than a clear error.
+	var adminChildren map[string][]string
+	if loader, loaderErr := yangloader.DefaultLoader(); loaderErr == nil {
+		adminChildren = zeweb.AdminTreeFromYANG(yangloader.BuildCommandTree(loader))
+	} else {
+		fmt.Fprintf(os.Stderr, "warning: admin command tree unavailable: %v\n", loaderErr)
+		adminChildren = map[string][]string{}
+	}
 	adminViewHandler := zeweb.HandleAdminView(renderer, adminChildren)
 	adminExecHandler := zeweb.HandleAdminExecute(renderer, dispatch)
 
@@ -1140,6 +1182,11 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	srv.Handle("/config/diff-close", authWrap(diffCloseHandler))
 	srv.Handle("/config/commit", authWrap(commitHandler))
 	srv.Handle("POST /config/discard", authWrap(discardHandler))
+	// V2 workbench related-tool execution. Browser submits only tool id +
+	// context path; the handler resolves the descriptor server-side and
+	// dispatches via the standard CommandDispatcher (same authz pipeline
+	// as /cli and /admin).
+	srv.Handle("POST /tools/related/run", authWrap(zeweb.HandleRelatedToolRun(renderer, schema, tree, editorMgr, dispatch)))
 	// L2TP web UI: session list, detail, CQM chart feeds, disconnect.
 	l2tpHandlers := &zeweb.L2TPHandlers{Renderer: renderer, Dispatch: dispatch}
 	srv.Handle("GET /l2tp", authWrap(l2tpHandlers.HandleL2TPList()))
@@ -1163,6 +1210,13 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	srv.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			http.Redirect(w, r, "/show/", http.StatusFound)
+			return
+		}
+		// /show and /monitor go through the active UI handler; everything else
+		// (e.g. /fragment/detail HTMX requests) keeps using the Finder fragment
+		// handler so the OOB swap protocol is identical across both UIs.
+		if strings.HasPrefix(r.URL.Path, "/show/") || strings.HasPrefix(r.URL.Path, "/monitor/") {
+			authWrap(showHandler).ServeHTTP(w, r)
 			return
 		}
 		authWrap(fragmentHandler).ServeHTTP(w, r)

@@ -45,11 +45,12 @@ type WBExpectation struct {
 
 // WBTestCase holds a parsed .wb test file.
 type WBTestCase struct {
-	Actions  []WBAction
-	Expects  []WBExpectation
-	Steps    []WBStep
-	Timeout  string // from option=timeout:value=
-	Comments []string
+	Actions    []WBAction
+	Expects    []WBExpectation
+	Steps      []WBStep
+	Timeout    string // from option=timeout:value=
+	SkipReason string // from option=skip:reason=...; non-empty means skip the test
+	Comments   []string
 }
 
 // ParseWBFile parses a .wb file content into a WBTestCase.
@@ -94,9 +95,22 @@ func ParseWBFile(content string) (*WBTestCase, error) {
 func parseWBOption(tc *WBTestCase, rest string, line int) error {
 	kv := parseWBKV(rest)
 	kind := extractWBKind(rest)
-	if kind == "timeout" {
+	switch kind {
+	case "timeout":
 		if v, ok := kv["value"]; ok {
 			tc.Timeout = v
+		}
+		return nil
+	case "skip":
+		// option=skip:reason=<text> marks the test as skipped by the
+		// runner. Used for .wb tests that require an out-of-band
+		// environment (e.g. an env var) the runner does not set.
+		// Reason is surfaced in the runner output so the operator can
+		// invoke the test manually when prerequisites are met.
+		if v, ok := kv["reason"]; ok {
+			tc.SkipReason = v
+		} else {
+			tc.SkipReason = "skipped"
 		}
 		return nil
 	}

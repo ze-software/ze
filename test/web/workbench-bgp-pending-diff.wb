@@ -1,0 +1,21 @@
+# Test: editing a peer field exposes diff/review without losing the row context
+# VALIDATES: AC-21 (diff/review reachable from the BGP peer workspace
+#            without losing the selected peer context).
+# PREVENTS: Diff/review navigating away from the workbench.
+#
+# Spec: plan/spec-web-2-operator-workbench.md (Phase 4).
+# Run with: ZE_WEB_UI=workbench bin/ze-test web -p workbench-bgp-pending-diff
+
+option=skip:reason=requires ZE_WEB_UI=workbench
+option=timeout:value=30s
+
+action=open:path=/show/bgp/peer/
+action=fill:text=type a command:value=set bgp peer thomas connection remote ip 10.0.0.42
+action=press:key=Enter
+action=wait:ms=500
+expect=element:text=●
+
+action=click:text=Review &amp; Commit
+action=wait:ms=500
+# Diff modal opens but the workbench table remains in the DOM.
+expect=element:text=workbench-shell

@@ -6,11 +6,15 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
@@ -94,6 +98,8 @@ func flattenChoiceCases(choice *gyang.Entry) []namedChild {
 // Used for two-phase config parsing: first extract plugins, then parse full config.
 // This loads only the ze-plugin-conf.yang module.
 func PluginOnlySchema() (*Schema, error) {
+	resetSchemaBuildErrors()
+
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
 		return nil, fmt.Errorf("load embedded YANG: %w", err)
@@ -117,6 +123,10 @@ func PluginOnlySchema() (*Schema, error) {
 				schema.Define(name, node)
 			}
 		}
+	}
+
+	if buildErr := flushSchemaBuildErrors(); buildErr != nil {
+		return nil, fmt.Errorf("schema build errors: %w", buildErr)
 	}
 
 	return schema, nil
@@ -181,6 +191,8 @@ func YANGValidatorWithPlugins(pluginYANG map[string]string) (*yang.Validator, er
 // YANGSchemaWithPlugins loads YANG with additional plugin modules.
 // pluginYANG maps module filename to YANG content.
 func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
+	resetSchemaBuildErrors()
+
 	loader, err := loadYANGModules(pluginYANG)
 	if err != nil {
 		return nil, err
@@ -218,7 +230,64 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
 		}
 	}
 
+	if buildErr := flushSchemaBuildErrors(); buildErr != nil {
+		return nil, fmt.Errorf("schema build errors: %w", buildErr)
+	}
+
 	return schema, nil
+}
+
+// ValidateSchemaAgainstCommandTree runs the strict ze:related command-tree
+// check that would otherwise fail the schema build. Callers that hold both
+// the resolved schema and the full operational command tree -- typically
+// the hub's main process where every -cmd YANG module has been registered
+// -- invoke this after schema build to surface typo and rename errors at
+// startup. Unit tests that build a schema with only a subset of -cmd
+// modules deliberately skip this step; otherwise every descriptor whose
+// command lives in an unloaded subtree would falsely fail.
+//
+// Returns nil when every descriptor's static prefix matches a path in the
+// supplied tree.
+func ValidateSchemaAgainstCommandTree(s *Schema, tree *command.Node) error {
+	if s == nil || tree == nil || len(tree.Children) == 0 {
+		return nil
+	}
+	resetSchemaBuildErrors()
+	walkSchemaForRelatedValidation(s, tree)
+	return flushSchemaBuildErrors()
+}
+
+// walkSchemaForRelatedValidation walks every node in the schema, collecting
+// RelatedTool descriptors and validating them against the operational
+// command tree. Errors are recorded in the build accumulator.
+func walkSchemaForRelatedValidation(s *Schema, tree *command.Node) {
+	if s == nil || s.root == nil {
+		return
+	}
+	walkNodeRelated(s.root, tree, "")
+}
+
+func walkNodeRelated(n Node, tree *command.Node, path string) {
+	switch v := n.(type) {
+	case *ContainerNode:
+		recordRelatedErrors(ValidateRelatedAgainstCommandTree(v.Related, tree), path)
+		for _, name := range v.order {
+			walkNodeRelated(v.Get(name), tree, AppendPath(path, name))
+		}
+	case *ListNode:
+		recordRelatedErrors(ValidateRelatedAgainstCommandTree(v.Related, tree), path)
+		for _, name := range v.order {
+			walkNodeRelated(v.Get(name), tree, AppendPath(path, name))
+		}
+	case *LeafNode:
+		recordRelatedErrors(ValidateRelatedAgainstCommandTree(v.Related, tree), path)
+	}
+}
+
+func recordRelatedErrors(errs []error, path string) {
+	for _, err := range errs {
+		recordSchemaBuildError(fmt.Errorf("at %s: %w", path, err))
+	}
 }
 
 // yangToNode converts a YANG entry to a schema node.
@@ -262,7 +331,7 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 			}
 			return ValueOrArray(yangTypeToValueType(entry.Type))
 		}
-		return yangToLeaf(entry)
+		return yangToLeaf(entry, path)
 	case gyang.DirectoryEntry:
 		if entry.IsList() {
 			return yangToList(entry, path)
@@ -431,8 +500,78 @@ func hasEphemeralExtension(entry *gyang.Entry) bool {
 	return false
 }
 
+// schemaBuildErrors accumulates errors produced by extension extractors
+// that cannot easily return errors through the existing yangTo* signature
+// chain (yangToNode, yangToContainer, yangToList, yangToLeaf all return
+// concrete types without errors). YANGSchema/YANGSchemaWithPlugins reset
+// this slice at entry and join the accumulated errors at exit, so a
+// malformed `ze:related` descriptor fails the schema build per spec.
+var (
+	schemaBuildErrorsMu sync.Mutex
+	schemaBuildErrors   []error
+)
+
+// resetSchemaBuildErrors clears the build-time error accumulator. Called at
+// the top of every schema build entry point.
+func resetSchemaBuildErrors() {
+	schemaBuildErrorsMu.Lock()
+	schemaBuildErrors = nil
+	schemaBuildErrorsMu.Unlock()
+}
+
+// recordSchemaBuildError appends an error to the build-time accumulator.
+func recordSchemaBuildError(err error) {
+	if err == nil {
+		return
+	}
+	schemaBuildErrorsMu.Lock()
+	schemaBuildErrors = append(schemaBuildErrors, err)
+	schemaBuildErrorsMu.Unlock()
+}
+
+// flushSchemaBuildErrors returns and clears the accumulated errors. Returns
+// nil when no errors were recorded.
+func flushSchemaBuildErrors() error {
+	schemaBuildErrorsMu.Lock()
+	defer schemaBuildErrorsMu.Unlock()
+	if len(schemaBuildErrors) == 0 {
+		return nil
+	}
+	err := errors.Join(schemaBuildErrors...)
+	schemaBuildErrors = nil
+	return err
+}
+
+// extractRelatedTools parses every ze:related extension on the entry into
+// RelatedTool descriptors. Records errors in the build-time accumulator
+// when descriptors are malformed or share an id within the node; returns
+// only the descriptors that parsed successfully so the rest of the schema
+// build proceeds and surfaces every problem at once.
+func extractRelatedTools(entry *gyang.Entry, path string) []*RelatedTool {
+	var tools []*RelatedTool
+	seenIDs := make(map[string]bool)
+
+	for _, ext := range entry.Exts {
+		if ext.Keyword != "ze:related" && !strings.HasSuffix(ext.Keyword, ":related") {
+			continue
+		}
+		tool, err := ParseRelatedDescriptor(ext.Argument)
+		if err != nil {
+			recordSchemaBuildError(fmt.Errorf("ze:related on %s: %w", path, err))
+			continue
+		}
+		if seenIDs[tool.ID] {
+			recordSchemaBuildError(fmt.Errorf("ze:related on %s: duplicate id %q", path, tool.ID))
+			continue
+		}
+		seenIDs[tool.ID] = true
+		tools = append(tools, tool)
+	}
+	return tools
+}
+
 // yangToLeaf converts YANG leaf to LeafNode.
-func yangToLeaf(entry *gyang.Entry) *LeafNode {
+func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 	typ := yangTypeToValueType(entry.Type)
 	node := Leaf(typ)
 	if len(entry.Default) > 0 {
@@ -445,6 +584,7 @@ func yangToLeaf(entry *gyang.Entry) *LeafNode {
 	node.Decorate = getDecorateExtension(entry)
 	node.Description = entry.Description
 	node.Backend = getBackendExtension(entry)
+	node.Related = extractRelatedTools(entry, path)
 	if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
 		node.Enums = entry.Type.Enum.Names()
 	}
@@ -503,6 +643,7 @@ func yangToContainer(entry *gyang.Entry, path string) *ContainerNode {
 	container.Presence = hasPresenceStatement(entry)
 	container.Description = entry.Description
 	container.Backend = getBackendExtension(entry)
+	container.Related = extractRelatedTools(entry, path)
 
 	return container
 }
@@ -604,6 +745,8 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 			}
 		}
 	}
+
+	l.Related = extractRelatedTools(entry, path)
 
 	return l
 }

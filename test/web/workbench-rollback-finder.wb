@@ -1,0 +1,13 @@
+# Test: hub started without ze.web.ui (Phases 1-3 default) renders Finder
+# VALIDATES: AC-1a (Finder is default; V2 workbench markers absent)
+# PREVENTS: Workbench markers leaking into the rollback path
+#
+# Spec: plan/spec-web-2-operator-workbench.md (UI Mode Contract).
+# Notes: This test depends on the hub being started without
+# `ze.web.ui=workbench`. The default ze-test web invocation satisfies that.
+
+option=timeout:value=30s
+
+action=open:path=/show/
+expect=element:not-text=panic
+expect=element:not-text=workbench

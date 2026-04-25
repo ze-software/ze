@@ -107,20 +107,34 @@ type ListTableCell struct {
 
 // ListTableRow is one entry row in a list table.
 type ListTableRow struct {
-	KeyValue string          // The list key value (e.g., peer name)
-	Cells    []ListTableCell // Editable cells (same order as non-key columns)
-	URL      string          // Navigation URL for this entry
-	HxPath   string          // YANG path for hx-get
+	KeyValue          string              // The list key value (e.g., peer name)
+	Cells             []ListTableCell     // Editable cells (same order as non-key columns)
+	URL               string              // Navigation URL for this entry
+	HxPath            string              // YANG path for hx-get
+	RowTools          []RelatedToolButton // ze:related row-placement tools (workbench V2 only)
+	HasPendingChanges bool                // Editor session has uncommitted changes touching this row
 }
 
 // ListTableView holds data for rendering a multi-key list as a table.
 type ListTableView struct {
-	Name    string            // List name (e.g., "peer")
-	Columns []ListTableColumn // Column definitions
-	Rows    []ListTableRow    // Entry rows
-	AddURL  string            // Base URL for adding entries (/config/add/bgp/peer/)
-	FormURL string            // URL for the HTMX add-form overlay (/config/add-form/bgp/peer/)
-	SetURL  string            // Base URL for config/set (inline edits)
+	Name       string              // List name (e.g., "peer")
+	Columns    []ListTableColumn   // Column definitions
+	Rows       []ListTableRow      // Entry rows
+	AddURL     string              // Base URL for adding entries (/config/add/bgp/peer/)
+	FormURL    string              // URL for the HTMX add-form overlay (/config/add-form/bgp/peer/)
+	SetURL     string              // Base URL for config/set (inline edits)
+	TableTools []RelatedToolButton // ze:related table-placement tools (workbench V2 only)
+}
+
+// RelatedToolButton is the per-row or per-table render data for one
+// ze:related descriptor. The browser POSTs ToolID + ContextPath to
+// /tools/related/run; no command text crosses the wire.
+type RelatedToolButton struct {
+	ToolID      string
+	Label       string
+	ContextPath string // Slash-joined YANG path of the row or container
+	Class       string // inspect / diagnose / refresh / danger -- styling only
+	Confirm     string // Non-empty for tools that require explicit confirmation
 }
 
 // FinderColumn is one column in the Finder-style navigation.

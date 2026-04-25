@@ -22,6 +22,25 @@ When no certificate is configured, ze generates an ECDSA P-256 self-signed certi
 | `--web <port>` | Start web interface on `0.0.0.0:<port>` |
 | `--insecure-web` | Disable authentication (forces `127.0.0.1`, requires `--web`) |
 
+### V2 workbench (experiment)
+
+Ze ships an experimental RouterOS-style workbench UI alongside the established Finder UI. It is opt-in via the `ze.web.ui` env var:
+
+```bash
+ZE_WEB_UI=workbench ze start --web 8443
+```
+
+The workbench keeps the same authentication, commit flow, and CLI bar; only the chrome and table contract differ. BGP peer rows ship with related operator tools (peer detail, capabilities, statistics, flush, teardown) that run the same dispatched commands as the SSH CLI. Confirmation prompts gate destructive tools.
+
+To return to the default Finder UI:
+
+```bash
+ZE_WEB_UI=finder ze start --web 8443     # explicit rollback
+ze start --web 8443                       # also Finder while the default has not flipped
+```
+
+The workbench is gated on Promotion Criteria browser tests. Until those pass, the default stays at `finder`. See `plan/spec-web-2-operator-workbench.md` for the experiment status.
+
 ### Configuration
 
 The web server listen address can also be set in the ze configuration file:

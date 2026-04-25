@@ -115,14 +115,15 @@ type Node interface {
 type LeafNode struct {
 	Type        ValueType
 	Default     string
-	Sensitive   bool     // ze:sensitive — value is a password/key, masked in display ($9$ reversible)
-	Bcrypt      bool     // ze:bcrypt — one-way bcrypt hash; parser skips $9$ decode, commit hashes plaintext sibling
-	Hidden      bool     // ze:hidden — excluded from config display output
-	Ephemeral   bool     // ze:ephemeral — present in schema, not persisted to config file
-	Decorate    string   // ze:decorate — decorator name for display-time enrichment
-	Description string   // YANG description for tooltips/help
-	Enums       []string // Valid enum values (nil for non-enum types)
-	Backend     []string // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
+	Sensitive   bool           // ze:sensitive — value is a password/key, masked in display ($9$ reversible)
+	Bcrypt      bool           // ze:bcrypt — one-way bcrypt hash; parser skips $9$ decode, commit hashes plaintext sibling
+	Hidden      bool           // ze:hidden — excluded from config display output
+	Ephemeral   bool           // ze:ephemeral — present in schema, not persisted to config file
+	Decorate    string         // ze:decorate — decorator name for display-time enrichment
+	Description string         // YANG description for tooltips/help
+	Enums       []string       // Valid enum values (nil for non-enum types)
+	Backend     []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
+	Related     []*RelatedTool // ze:related — operator tools attached to this leaf (see related.go)
 }
 
 func (n *LeafNode) Kind() NodeKind { return NodeLeaf }
@@ -130,13 +131,14 @@ func (n *LeafNode) Kind() NodeKind { return NodeLeaf }
 // ContainerNode represents a group of child nodes.
 type ContainerNode struct {
 	children     map[string]Node
-	order        []string // preserve definition order
-	AllowUnknown bool     // accept arbitrary key-value pairs (ze:allow-unknown-fields)
-	Hidden       bool     // ze:hidden — excluded from config display output
-	Ephemeral    bool     // ze:ephemeral — present in schema, not persisted to config file
-	Presence     bool     // YANG presence container: accepts flag (;), value (word;), or block ({})
-	Description  string   // YANG description for tooltips
-	Backend      []string // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
+	order        []string       // preserve definition order
+	AllowUnknown bool           // accept arbitrary key-value pairs (ze:allow-unknown-fields)
+	Hidden       bool           // ze:hidden — excluded from config display output
+	Ephemeral    bool           // ze:ephemeral — present in schema, not persisted to config file
+	Presence     bool           // YANG presence container: accepts flag (;), value (word;), or block ({})
+	Description  string         // YANG description for tooltips
+	Backend      []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
+	Related      []*RelatedTool // ze:related — operator tools attached to this container (see related.go)
 }
 
 func (n *ContainerNode) Kind() NodeKind { return NodeContainer }
@@ -160,16 +162,17 @@ func (n *ContainerNode) Children() []string {
 // ListNode represents a keyed collection of containers.
 type ListNode struct {
 	KeyType     ValueType
-	KeyName     string     // YANG key name (empty = keyless list like update)
-	DisplayKey  string     // ze:display-key leaf name for UI label (keyless lists)
-	Unique      [][]string // YANG unique constraints: each sub-slice is leaf paths for one constraint
-	Required    [][]string // ze:required fields: must have value after config inheritance resolution
-	Suggest     [][]string // ze:suggest fields: shown in creation dialog but not mandatory
-	Hidden      bool       // ze:hidden -- excluded from config display output
-	Ephemeral   bool       // ze:ephemeral -- present in schema, not persisted to config file
-	Listener    bool       // ze:listener -- marks list as a network listener for port conflict detection
-	Description string     // YANG description for tooltips
-	Backend     []string   // ze:backend -- supporting backends; nil = unrestricted (see backend_gate.go)
+	KeyName     string         // YANG key name (empty = keyless list like update)
+	DisplayKey  string         // ze:display-key leaf name for UI label (keyless lists)
+	Unique      [][]string     // YANG unique constraints: each sub-slice is leaf paths for one constraint
+	Required    [][]string     // ze:required fields: must have value after config inheritance resolution
+	Suggest     [][]string     // ze:suggest fields: shown in creation dialog but not mandatory
+	Hidden      bool           // ze:hidden -- excluded from config display output
+	Ephemeral   bool           // ze:ephemeral -- present in schema, not persisted to config file
+	Listener    bool           // ze:listener -- marks list as a network listener for port conflict detection
+	Description string         // YANG description for tooltips
+	Backend     []string       // ze:backend -- supporting backends; nil = unrestricted (see backend_gate.go)
+	Related     []*RelatedTool // ze:related -- operator tools attached to this list (see related.go)
 	children    map[string]Node
 	order       []string
 }

@@ -67,6 +67,7 @@ standard YANG tools ignore but ze interprets at runtime.
 | `ze:key-type` | Key type for inline-list nodes | type name |
 | `ze:route-attributes` | Marks a node as accepting standard BGP route attributes | (none) |
 | `ze:allow-unknown-fields` | Container accepts arbitrary key-value pairs | (none) |
+| `ze:related` | V2 workbench: declares an operator tool descriptor on a config node | descriptor string |
 
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- all extension definitions -->
 

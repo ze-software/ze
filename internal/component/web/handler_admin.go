@@ -9,7 +9,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 )
 
 // CommandResultData holds the data for rendering a command result card.
@@ -283,6 +286,12 @@ func buildAdminBreadcrumbs(path []string) []BreadcrumbSegment {
 // BuildAdminCommandTree returns the static admin command tree derived from
 // the ze-bgp-api YANG RPCs. The tree groups commands by category (peer,
 // route, cache, system) for web UI navigation.
+//
+// Deprecated: Phase 6 of spec-web-2-operator-workbench replaces this map
+// with [AdminTreeFromYANG], which derives the same structure from the
+// merged YANG command tree so plugin-contributed commands appear without
+// editing this file. Kept temporarily so existing call sites compile; new
+// code MUST use AdminTreeFromYANG.
 func BuildAdminCommandTree() map[string][]string {
 	return map[string][]string{
 		"":       {"peer", "route", "cache", "system"},
@@ -290,5 +299,41 @@ func BuildAdminCommandTree() map[string][]string {
 		"route":  {"update", "borr", "eorr", "raw"},
 		"cache":  {"list", "retain", "release", "expire", "forward"},
 		"system": {"commit", "subscribe", "unsubscribe", "events"},
+	}
+}
+
+// AdminTreeFromYANG converts a merged YANG operational command tree into
+// the children-map format consumed by HandleAdminView. The returned map
+// keys are slash-joined parent paths; values are the sorted child names at
+// that depth. The empty key holds the top-level commands.
+//
+// Pass the result of yang.BuildCommandTree(loader). Plugin-contributed
+// commands appear automatically because the loader registers every
+// imported `-cmd` YANG module via init().
+func AdminTreeFromYANG(tree *command.Node) map[string][]string {
+	result := make(map[string][]string)
+	walkAdminTree(tree, "", result)
+	return result
+}
+
+// walkAdminTree recursively populates the children map. Keys are sorted at
+// each level so the rendered finder columns are deterministic.
+func walkAdminTree(node *command.Node, prefix string, result map[string][]string) {
+	if node == nil || node.Children == nil {
+		return
+	}
+	names := make([]string, 0, len(node.Children))
+	for name := range node.Children {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	result[prefix] = names
+
+	for _, name := range names {
+		childPrefix := name
+		if prefix != "" {
+			childPrefix = prefix + "/" + name
+		}
+		walkAdminTree(node.Children[name], childPrefix, result)
 	}
 }

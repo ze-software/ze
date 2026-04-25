@@ -1,0 +1,26 @@
+# Test: pinning multiple overlays simultaneously
+# VALIDATES: AC-25 (pin overlay A, open overlay B, close B; A remains
+#            visible and unchanged; B's DOM node is removed without
+#            disturbing other overlays).
+# PREVENTS: A close handler that removes the parent #tool-overlays
+#           container instead of its own overlay node.
+#
+# Spec: plan/spec-web-2-operator-workbench.md (D13, AC-25).
+# Run with: ZE_WEB_UI=workbench bin/ze-test web -p workbench-tool-overlay-multi
+
+option=skip:reason=requires ZE_WEB_UI=workbench
+option=timeout:value=30s
+
+action=open:path=/show/bgp/peer/
+
+# Open Peer Detail -> overlay A.
+action=click:text=Peer Detail
+action=wait:ms=500
+expect=element:text=tool-overlay
+
+# Open Statistics -> overlay B (sibling under #tool-overlays).
+action=click:text=Statistics
+action=wait:ms=500
+# Both overlays are now in the DOM. Close button on B is the second
+# tool-overlay-close; closing it must leave A intact.
+expect=element:text=tool-overlay

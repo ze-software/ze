@@ -540,6 +540,22 @@
     } catch(_) {}
   }
 
+  // Delegated handler for V2 workbench tool-overlay close/cancel buttons.
+  // CSP forbids inline event handlers and `unsafe-eval`, so HTMX `hx-on:click`
+  // attributes do not work; this listener performs the same `node.remove()`
+  // action via standard DOM events.
+  function initToolOverlay() {
+    document.addEventListener('click', function(e) {
+      var t = e.target;
+      if (!t || !t.classList) return;
+      if (t.classList.contains('tool-overlay-close') ||
+          t.classList.contains('tool-overlay-confirm-cancel')) {
+        var overlay = t.closest('.tool-overlay');
+        if (overlay) overlay.remove();
+      }
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
     initTheme();
     init();
@@ -547,5 +563,6 @@
     initNumberInputs();
     initActions();
     initFlyout();
+    initToolOverlay();
   });
 })();

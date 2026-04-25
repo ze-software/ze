@@ -17,11 +17,17 @@ All source files in `internal/component/web/` reference this document via `// De
 | `handler_config.go` | Config set/delete/commit/discard handlers, `ConfigViewData`, `HandleConfigView` |
 | `handler_config_walk.go` | Schema + tree walking, `buildConfigViewData`, `populateContainerView` |
 | `handler_config_leaf.go` | `buildLeafField`, `leafInputType`, `nodeKindToTemplate`, breadcrumbs |
-| `handler_admin.go` | Admin command tree navigation and execution |
+| `handler_admin.go` | Admin command tree navigation and execution; YANG-derived tree via `AdminTreeFromYANG`. When the YANG loader fails at hub startup the admin nav is empty (and the failure is logged to stderr) rather than falling back to a stale static map; an empty admin nav is operator-visible feedback that the hub did not load its command modules. |
 | `cli.go` | CLI bar (integrated + terminal modes), tab completion |
 | `editor.go` | Per-user `EditorManager`, working tree isolation, change tracking |
 | `render.go` | Template loading (embedded), `RenderFragment`, `fieldFor` dispatch |
 | `sse.go` | `EventBroker`, SSE client management, config change broadcast |
+| `ui_mode.go` | `UIMode` selector for the V2 workbench experiment (Phase 4 default flip pending) |
+| `handler_workbench.go` | V2 workbench shell handler; reuses fragment data path with workbench chrome |
+| `workbench_sections.go` | Left-nav section taxonomy (Dashboard/Routing/Logs/...) |
+| `workbench_enrich.go` | Promotes any named list to a workbench table; attaches per-row tools and pending markers |
+| `handler_tools.go` | `POST /tools/related/run`: resolves `ze:related` descriptors, dispatches via `CommandDispatcher`, renders the overlay |
+| `related_resolver.go` | Placeholder substitution for `ze:related` command templates against the user's working tree |
 
 <!-- source: internal/component/web/server.go -- WebServer struct -->
 <!-- source: internal/component/web/auth.go -- SessionStore, AuthMiddleware -->
@@ -59,6 +65,7 @@ Each input type is one file. The `fieldFor()` template function dispatches to `i
 /cli/terminal               Terminal mode command (POST, returns plain text)
 /cli/mode                   Toggle CLI/GUI mode (POST)
 /admin/<yang-path>          Admin commands (GET browse, POST execute)
+/tools/related/run          V2 workbench: execute a related operator tool (POST)
 /login                      Authentication (POST)
 /assets/                    Static files (CSS, JS)
 /                           Redirects to /show/
@@ -139,9 +146,33 @@ No `unsafe-eval`. All scripts are external files. No inline `<script>` blocks.
 |--------|---------|
 | CLI flag | `ze start --web <port>` |
 | Config | `environment { web { enabled true; server main { ip 0.0.0.0; port 3443; } } }` |
-| Env vars | `ze.web.listen=ip:port`, `ze.web.enabled=true`, `ze.web.insecure=true` |
+| Env vars | `ze.web.listen=ip:port`, `ze.web.enabled=true`, `ze.web.insecure=true`, `ze.web.ui=workbench` (V2 experiment) |
 
 Both paths call `startWebServer()` in `cmd/ze/hub/main.go`. Web-only mode (no BGP config) starts the web server standalone for initial setup.
+
+## V2 Workbench (experiment)
+
+`spec-web-2-operator-workbench.md` introduces a RouterOS-style operator workbench as a V2 experiment behind `ze.web.ui=workbench`. The default stays at `finder` until `bin/ze-test web -p workbench-bgp-change-verify` passes every Promotion Criteria threshold; flipping the default is a one-line change in `internal/component/config/environment.go`.
+
+| Region | Source |
+|--------|--------|
+| Top bar (identity, breadcrumb) | `templates/component/workbench_topbar.html` |
+| Left nav (Dashboard / Routing / Logs / ...) | `templates/component/workbench_nav.html` driven by `workbench_sections.go` |
+| Workspace (table + detail) | reuses the existing `detail` fragment so list tables and fields render unchanged inside the new chrome |
+| Tool overlay container `#tool-overlays` | `templates/component/tool_overlay.html`; HTMX `hx-swap="beforeend"` appends each instance as a sibling so multiple overlays can pin |
+| Commit bar / CLI bar / diff modal / error panel | reused unchanged from Finder |
+
+### Related-tool execution
+
+`POST /tools/related/run` accepts only `tool_id` and `context_path` (plus an optional `confirm=true` for destructive tools). Raw command text is never trusted from the form. The handler:
+
+1. Walks the schema to the context node and looks up the descriptor by id.
+2. Returns a confirmation overlay if the descriptor declares `confirm=...` and the operator has not confirmed.
+3. Resolves placeholder substitutions against the user's working tree via `related_resolver.go` (rejects unsafe values, caps depth at 16 segments, caps resolved command at 4096 chars).
+4. Dispatches via the standard `CommandDispatcher(command, username, remoteAddr)` so authz, accounting, and peer-selector extraction live in one place.
+5. ANSI-strips and 4-MiB-truncates output, splits the first 128 KiB inline and the rest into a `<details>` "Show full output" disclosure, HTML-escapes every leg.
+
+See `spec-web-2-operator-workbench.md` (Argument Wire Format, Resolved-Value Validation, Day-One BGP Related Tools) for the full descriptor grammar and the BGP YANG annotations that ship with the experiment.
 
 <!-- source: cmd/ze/hub/main.go -- startWebServer, RunWebOnly -->
 

@@ -244,6 +244,48 @@ func (m *EditorManager) Diff(username string) (string, error) {
 	return b.String(), nil
 }
 
+// PendingChangePaths returns the YANG paths of every pending change in the
+// user's session. The workbench uses this to mark rows whose subtree has
+// uncommitted edits. Returns nil when no session exists.
+func (m *EditorManager) PendingChangePaths(username string) []string {
+	m.mu.RLock()
+	us, ok := m.sessions[username]
+	m.mu.RUnlock()
+
+	if !ok {
+		return nil
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	sid := us.editor.SessionID()
+	if sid == "" {
+		return nil
+	}
+
+	pending := us.editor.PendingChanges(sid)
+	if len(pending) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(pending))
+	for _, p := range pending {
+		switch p.Kind {
+		case contract.PendingChangeRename:
+			// Both old and new locations carry the change.
+			if p.OldPath != "" {
+				out = append(out, p.OldPath)
+			}
+			if p.NewPath != "" {
+				out = append(out, p.NewPath)
+			}
+		default:
+			out = append(out, p.Path)
+		}
+	}
+	return out
+}
+
 // ChangeCount returns the number of pending changes for the user's session.
 // Returns 0 if no session exists.
 func (m *EditorManager) ChangeCount(username string) int {

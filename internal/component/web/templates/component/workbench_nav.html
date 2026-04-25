@@ -1,0 +1,11 @@
+{{define "workbench_nav"}}
+<ul class="workbench-nav-list" id="workbench-nav-list" role="list">
+  {{range .Sections}}
+  <li class="workbench-nav-item{{if .Selected}} workbench-nav-item--active{{end}}"
+      data-section="{{.Key}}"
+      {{if .Selected}}aria-current="page"{{end}}>
+    <a class="workbench-nav-link" href="{{.URL}}">{{.Label}}</a>
+  </li>
+  {{end}}
+</ul>
+{{end}}

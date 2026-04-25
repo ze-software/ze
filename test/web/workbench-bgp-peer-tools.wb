@@ -1,0 +1,18 @@
+# Test: BGP peer rows render the day-one related tool buttons under workbench
+# VALIDATES: AC-3 (rows show related tool actions for detail, capabilities,
+#            statistics, flush, teardown).
+# PREVENTS: A regression that drops one of the day-one tool buttons.
+#
+# Spec: plan/spec-web-2-operator-workbench.md (Day-One BGP Related Tools).
+# Run with: ZE_WEB_UI=workbench bin/ze-test web -p workbench-bgp-peer-tools
+
+option=skip:reason=requires ZE_WEB_UI=workbench
+option=timeout:value=30s
+
+action=open:path=/show/bgp/peer/
+expect=element:text=Peer Detail
+expect=element:text=Capabilities
+expect=element:text=Statistics
+expect=element:text=Flush
+expect=element:text=Teardown
+expect=element:not-text=panic

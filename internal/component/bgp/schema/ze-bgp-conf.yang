@@ -16,6 +16,14 @@ module ze-bgp-conf {
     container bgp {
         description "BGP configuration";
 
+        // Global BGP related tools (workbench V2). Spec D7/D12.
+        // Command paths target the registered command tree: `show bgp-health`
+        // is one container under show; `show warnings` and `show errors` are
+        // cross-subsystem report bus snapshots.
+        ze:related 'id=bgp-health; label="BGP Health"; command="show bgp-health"; placement=global; presentation=modal; class=inspect';
+        ze:related 'id=bgp-warnings; label="BGP Warnings"; command="show warnings"; placement=global; presentation=modal; class=diagnose';
+        ze:related 'id=bgp-errors; label="BGP Errors"; command="show errors"; placement=global; presentation=modal; class=diagnose';
+
         leaf router-id {
             type zt:ipv4-address;
             mandatory true;
@@ -134,6 +142,15 @@ module ze-bgp-conf {
                 ze:suggest "connection/local/ip";
                 description "BGP peer in this group";
 
+                // Same workbench tools as standalone bgp/peer, but the
+                // selector walks to the parent group's remote IP when the
+                // peer omits its own (Spec D7).
+                ze:related 'id=peer-detail; label="Peer Detail"; command="peer ${path-inherit:connection/remote/ip|key} detail"; placement=row; presentation=drawer; class=inspect';
+                ze:related 'id=peer-capabilities; label="Capabilities"; command="peer ${path-inherit:connection/remote/ip|key} capabilities"; placement=row; presentation=modal; class=inspect';
+                ze:related 'id=peer-statistics; label="Statistics"; command="peer ${path-inherit:connection/remote/ip|key} statistics"; placement=row; presentation=modal; class=inspect';
+                ze:related 'id=peer-flush; label="Flush"; command="peer ${path-inherit:connection/remote/ip|key} flush"; placement=row; presentation=modal; class=refresh';
+                ze:related 'id=peer-teardown; label="Teardown"; command="peer ${path-inherit:connection/remote/ip|key} teardown"; placement=row; presentation=modal; confirm="Tear down BGP session?"; class=danger';
+
                 leaf name {
                     type string {
                         pattern '[a-zA-Z0-9_][a-zA-Z0-9_.\-]*';
@@ -154,6 +171,19 @@ module ze-bgp-conf {
             ze:required "session/asn/remote";
             ze:suggest "connection/local/ip";
             description "BGP peer configuration (standalone, no group)";
+
+            // Per-row workbench tools (spec Day-One BGP Related Tools).
+            // The dispatcher extracts the `peer <selector>` pair and dispatches
+            // the remainder against the registered command tree, so commands
+            // are written in the form `peer <selector> <verb>` to match
+            // `peer/detail`, `peer/capabilities`, etc. from ze-peer-cmd.yang.
+            // Selector resolves the peer's remote IP, falling back to the
+            // peer's list key when the IP is unset.
+            ze:related 'id=peer-detail; label="Peer Detail"; command="peer ${path:connection/remote/ip|key} detail"; placement=row; presentation=drawer; class=inspect';
+            ze:related 'id=peer-capabilities; label="Capabilities"; command="peer ${path:connection/remote/ip|key} capabilities"; placement=row; presentation=modal; class=inspect';
+            ze:related 'id=peer-statistics; label="Statistics"; command="peer ${path:connection/remote/ip|key} statistics"; placement=row; presentation=modal; class=inspect';
+            ze:related 'id=peer-flush; label="Flush"; command="peer ${path:connection/remote/ip|key} flush"; placement=row; presentation=modal; class=refresh';
+            ze:related 'id=peer-teardown; label="Teardown"; command="peer ${path:connection/remote/ip|key} teardown"; placement=row; presentation=modal; confirm="Tear down BGP session?"; class=danger';
 
             leaf name {
                 type string {

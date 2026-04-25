@@ -152,16 +152,22 @@ Examples:
 
 	// Run tests sequentially (one browser session, shared server).
 	colors := runner.NewColors()
-	passed, failed := 0, 0
+	passed, failed, skipped := 0, 0, 0
 
 	for _, t := range tests {
 		result := webtesting.RunWBFile(t.Path, baseURL)
-		if result.Passed {
+		switch {
+		case result.Skipped:
+			skipped++
+			if *verbose {
+				fmt.Fprintf(os.Stdout, "○ %s (%s)\n", t.Name, result.SkipReason) //nolint:errcheck // terminal output
+			}
+		case result.Passed:
 			passed++
 			if *verbose {
 				fmt.Fprintln(os.Stdout, colors.Green("✓ "+t.Name)) //nolint:errcheck // terminal output
 			}
-		} else {
+		default:
 			failed++
 			fmt.Fprintln(os.Stdout, colors.Red("✗ "+t.Name)) //nolint:errcheck // terminal output
 			fmt.Fprintf(os.Stdout, "  %s\n", result.Error)   //nolint:errcheck // terminal output
@@ -171,7 +177,11 @@ Examples:
 	// Close browser.
 	_ = exec.CommandContext(context.Background(), "agent-browser", "close").Run() //nolint:gosec // fixed binary name
 
-	fmt.Fprintf(os.Stdout, "\n%d passed, %d failed\n", passed, failed) //nolint:errcheck // terminal output
+	if skipped > 0 {
+		fmt.Fprintf(os.Stdout, "\n%d passed, %d failed, %d skipped\n", passed, failed, skipped) //nolint:errcheck // terminal output
+	} else {
+		fmt.Fprintf(os.Stdout, "\n%d passed, %d failed\n", passed, failed) //nolint:errcheck // terminal output
+	}
 
 	if failed > 0 {
 		return fmt.Errorf("%d test(s) failed", failed)

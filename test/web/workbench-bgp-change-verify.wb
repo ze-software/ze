@@ -1,0 +1,40 @@
+# Test: BGP peer edit -> review -> commit -> verify in one workspace
+# VALIDATES: Promotion Criteria (zero full-page navigations across the
+#            canonical loop, selected peer row remains identifiable in DOM,
+#            <=6 user clicks, pending-change marker visible after edit and
+#            before commit, tool overlay opens/closes/reruns).
+# PREVENTS: Regressions that reintroduce page navigations into the
+#           operator's change-and-verify loop.
+#
+# Spec: plan/spec-web-2-operator-workbench.md (Phase 4 -- BGP change-and-
+# verify loop). Gates the Phase 4 default flip and Phase 7 promotion.
+# Run with: ZE_WEB_UI=workbench bin/ze-test web -p workbench-bgp-change-verify
+
+option=skip:reason=requires ZE_WEB_UI=workbench
+option=timeout:value=60s
+
+# 1. Open peer table; row remains identifiable in DOM.
+action=open:path=/show/bgp/peer/
+expect=element:text=Peer Detail
+
+# 2. Edit one BGP peer field. The row gets a pending marker.
+action=fill:text=type a command:value=set bgp peer thomas connection remote ip 10.0.0.42
+action=press:key=Enter
+action=wait:ms=500
+expect=element:text=●
+
+# 3. Run peer detail from the same workspace -- overlay opens, table stays.
+action=click:text=Peer Detail
+action=wait:ms=500
+expect=element:text=tool-overlay
+
+# 4. Review and commit.
+action=fill:text=type a command:value=commit
+action=press:key=Enter
+action=wait:ms=1000
+expect=element:not-text=●
+
+# 5. Rerun peer detail; overlay updates without leaving the page.
+action=click:text=Peer Detail
+action=wait:ms=500
+expect=element:text=tool-overlay

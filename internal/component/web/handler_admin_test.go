@@ -345,7 +345,7 @@ func TestAdminExecuteMethodNotAllowed(t *testing.T) {
 // VALIDATES: BuildAdminCommandTree returns a valid tree structure.
 // PREVENTS: Missing top-level categories, empty sub-command lists.
 func TestBuildAdminCommandTree(t *testing.T) {
-	tree := BuildAdminCommandTree()
+	tree := BuildAdminCommandTree() //nolint:staticcheck // legacy tree retained for fallback path
 
 	// Root must have top-level categories.
 	root := tree[""]

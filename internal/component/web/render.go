@@ -52,10 +52,20 @@ type LoginData struct {
 	Overlay bool
 }
 
+// WorkbenchData holds the data passed to the V2 workbench page template. It
+// embeds LayoutData so existing fragments (cli_bar, commit_bar, breadcrumb,
+// diff_modal, error_panel) render unchanged inside the workbench shell.
+type WorkbenchData struct {
+	LayoutData
+	// Sections drives the workbench left navigation rendering.
+	Sections []WorkbenchSection
+}
+
 // Renderer loads and renders HTML templates from embedded files.
 // Caller MUST use NewRenderer to create an instance; zero value is not usable.
 type Renderer struct {
 	layout     *template.Template
+	workbench  *template.Template
 	login      *template.Template
 	config     map[string]*template.Template // keyed by template name (e.g., "container.html")
 	fragments  *template.Template            // parsed fragment templates (detail, sidebar, pathbar, oob)
@@ -81,6 +91,20 @@ func NewRenderer() (*Renderer, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("parse layout template: %w", err)
+	}
+
+	workbench, err := template.New("workbench.html").Funcs(funcMap).ParseFS(templatesFS,
+		"templates/page/workbench.html",
+		"templates/component/breadcrumb.html",
+		"templates/component/cli_bar.html",
+		"templates/component/commit_bar.html",
+		"templates/component/error_panel.html",
+		"templates/component/diff_modal.html",
+		"templates/component/workbench_topbar.html",
+		"templates/component/workbench_nav.html",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("parse workbench template: %w", err)
 	}
 
 	login, err := template.New("login.html").Funcs(funcMap).ParseFS(templatesFS, "templates/page/login.html")
@@ -185,12 +209,29 @@ func NewRenderer() (*Renderer, error) {
 
 	return &Renderer{
 		layout:    layout,
+		workbench: workbench,
 		login:     login,
 		config:    configTemplates,
 		fragments: fragments,
 		l2tp:      l2tpTemplates,
 		assets:    assets,
 	}, nil
+}
+
+// RenderWorkbench renders the V2 workbench page template with the given data.
+// Renders to a buffer first to avoid partial writes on template errors.
+func (r *Renderer) RenderWorkbench(w http.ResponseWriter, data WorkbenchData) error {
+	data.Services = PortalServices()
+	var buf bytes.Buffer
+	if err := r.workbench.Execute(&buf, data); err != nil {
+		return fmt.Errorf("render workbench: %w", err)
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	_, writeErr := buf.WriteTo(w)
+
+	return writeErr
 }
 
 // RenderFragment renders a named fragment template to a string.

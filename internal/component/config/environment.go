@@ -45,6 +45,16 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.listen", Type: "string", Default: "0.0.0.0:3443", Description: "Web server listen address (ip:port[,ip:port])"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.enabled", Type: "bool", Description: "Enable web server"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.insecure", Type: "bool", Description: "Disable web authentication"})
+	// Workbench V2 experiment selector. Default `finder` keeps the established UI
+	// during Phases 1-3; flips to `workbench` after the Phase 4 Promotion Criteria
+	// pass; `finder` becomes the emergency rollback after the flip. Removed in
+	// Phase 7 once promotion or rejection is final. See spec-web-2-operator-workbench.
+	//
+	// PHASE 4 DEFAULT FLIP (PENDING): change Default below from "finder" to
+	// "workbench" only after `bin/ze-test web -p workbench-bgp-change-verify`
+	// passes every Promotion Criteria threshold. Until that verification, the
+	// default stays at finder; operators can still opt in via ze.web.ui=workbench.
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.ui", Type: "string", Default: "finder", Description: "Web UI mode: finder (default) or workbench (V2 experiment)"})
 
 	// MCP server.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.listen", Type: "string", Default: "127.0.0.1:8080", Description: "MCP server listen address (ip:port)"})

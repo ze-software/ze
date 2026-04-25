@@ -1,0 +1,56 @@
+{{define "tool_overlay"}}
+<div class="tool-overlay tool-overlay--{{if eq .State 1}}error{{else if eq .State 2}}confirm{{else}}result{{end}}"
+     id="{{.ID}}"
+     hx-swap-oob="beforeend:#tool-overlays">
+  <header class="tool-overlay-header">
+    <span class="tool-overlay-title">{{.Title}}</span>
+    {{if .Command}}<code class="tool-overlay-command">{{.Command}}</code>{{end}}
+    <button class="tool-overlay-close" type="button" aria-label="Close">×</button>
+  </header>
+  <section class="tool-overlay-body">
+    {{if eq .State 1}}
+      <div class="tool-overlay-error" role="alert">
+        <strong>Error:</strong>
+        <pre class="tool-overlay-error-message">{{.ErrorMessage}}</pre>
+      </div>
+    {{else if eq .State 2}}
+      <p class="tool-overlay-confirm-prompt">{{.ConfirmPrompt}}</p>
+      <form class="tool-overlay-confirm-form"
+            hx-post="/tools/related/run"
+            hx-target="#tool-overlays"
+            hx-swap="beforeend">
+        <input type="hidden" name="tool_id" value="{{.ToolID}}">
+        <input type="hidden" name="context_path" value="{{.ContextPath}}">
+        <input type="hidden" name="confirm" value="true">
+        <button type="submit" class="tool-overlay-confirm-yes">Confirm</button>
+        <button type="button" class="tool-overlay-confirm-cancel">Cancel</button>
+      </form>
+    {{else}}
+      <pre class="tool-overlay-output">{{.OutputInline}}</pre>
+      {{if .HasOverflow}}
+        <details class="tool-overlay-overflow">
+          <summary>Show full output</summary>
+          <pre class="tool-overlay-output-overflow">{{.OutputOverflow}}</pre>
+        </details>
+      {{end}}
+      {{if .Truncated}}
+        <p class="tool-overlay-truncation" role="status">
+          Output truncated server-side at the buffer cap.
+        </p>
+      {{end}}
+    {{end}}
+  </section>
+  <footer class="tool-overlay-footer">
+    {{if and (ne .State 2) .ToolID}}
+      <button type="button"
+              class="tool-overlay-rerun"
+              hx-post="/tools/related/run"
+              hx-target="#tool-overlays"
+              hx-swap="beforeend"
+              hx-vals='{"tool_id":"{{.ToolID}}","context_path":"{{.ContextPath}}","confirm":"true"}'>
+        Rerun
+      </button>
+    {{end}}
+  </footer>
+</div>
+{{end}}

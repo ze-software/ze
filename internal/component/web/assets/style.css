@@ -2246,3 +2246,242 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   .config-field { flex-basis: 100%; }
   .config-set-form .config-btn-set { opacity: 1; }
 }
+
+/* ==========================================================================
+   V2 Workbench shell (spec-web-2-operator-workbench, Phase 1).
+   Targets a minimum viewport of 1280x800. Below 1024px the workbench shows
+   a "viewport too small" hint instead of attempting a mobile layout.
+   ========================================================================== */
+
+body.ui-workbench {
+  margin: 0;
+}
+
+.workbench-shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  grid-template-rows: auto 1fr auto auto;
+  grid-template-areas:
+    "topbar topbar"
+    "nav    workspace"
+    "nav    notifications"
+    "commit cli";
+  min-height: 100vh;
+  background: var(--bg, #fafafa);
+}
+
+.workbench-topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border, #ddd);
+  padding: 0.4rem 1rem;
+  background: var(--topbar-bg, #fff);
+}
+
+.workbench-topbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.workbench-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.workbench-brand-name { font-size: 1.05rem; }
+.workbench-brand-mode {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--accent, #1e6cb6);
+  letter-spacing: 0.05em;
+}
+
+.workbench-breadcrumb {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workbench-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  font-size: 0.85rem;
+}
+
+.workbench-username { color: var(--text-muted, #555); }
+.workbench-insecure-badge {
+  background: #fee;
+  color: #b00020;
+  border: 1px solid #f3b3b3;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.workbench-nav {
+  grid-area: nav;
+  border-right: 1px solid var(--border, #ddd);
+  background: var(--nav-bg, #f4f4f4);
+  padding: 0.5rem 0;
+  overflow-y: auto;
+}
+
+.workbench-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.workbench-nav-item {
+  margin: 0;
+}
+
+.workbench-nav-link {
+  display: block;
+  padding: 0.5rem 1rem;
+  color: var(--text, #222);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+}
+
+.workbench-nav-link:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.workbench-nav-item--active .workbench-nav-link {
+  background: var(--nav-active-bg, #e6efff);
+  border-left-color: var(--accent, #1e6cb6);
+  font-weight: 600;
+}
+
+.workbench-workspace {
+  grid-area: workspace;
+  padding: 1rem;
+  overflow: auto;
+  min-width: 0;
+}
+
+.workbench-notifications {
+  grid-area: notifications;
+}
+
+.ui-workbench .commit-bar {
+  grid-area: commit;
+}
+
+.ui-workbench .cli-bar {
+  grid-area: cli;
+}
+
+@media (max-width: 1024px) {
+  body.ui-workbench::before {
+    content: "Workbench requires a viewport of at least 1024px wide.";
+    display: block;
+    padding: 1rem;
+    background: #fffbe6;
+    border-bottom: 1px solid #f0d967;
+    text-align: center;
+    font-size: 0.9rem;
+  }
+}
+
+/* Tool overlay container -- overlays are appended here as siblings; pinning
+ * keeps multiple instances visible at once.
+ */
+.tool-overlays {
+  position: fixed;
+  right: 1rem;
+  bottom: 5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 30;
+  max-width: min(640px, calc(100vw - 240px));
+}
+
+.tool-overlay {
+  background: var(--overlay-bg, #fff);
+  border: 1px solid var(--border, #ddd);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: 0.5rem 0.75rem;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.tool-overlay--error {
+  border-color: #d33;
+  background: #fff5f5;
+}
+
+.tool-overlay--confirm {
+  border-color: #cc8a00;
+  background: #fff8e1;
+}
+
+.tool-overlay-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.tool-overlay-title { flex: 1; }
+
+.tool-overlay-command {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--text-muted, #555);
+  background: rgba(0, 0, 0, 0.04);
+  padding: 0 0.3rem;
+  border-radius: 2px;
+}
+
+.tool-overlay-close {
+  background: transparent;
+  border: 0;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: var(--text-muted, #555);
+}
+
+.tool-overlay-output,
+.tool-overlay-output-overflow,
+.tool-overlay-error-message {
+  font-family: monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0.3rem 0;
+}
+
+.tool-overlay-truncation {
+  color: #cc8a00;
+  font-size: 0.8rem;
+  margin-top: 0.3rem;
+}
+
+.tool-overlay-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.tool-overlay-rerun,
+.tool-overlay-confirm-yes,
+.tool-overlay-confirm-cancel {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+}
