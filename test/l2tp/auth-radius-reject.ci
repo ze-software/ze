@@ -160,7 +160,7 @@ l2tp {
         radius {
             server radius1 {
                 address 127.0.0.1
-                port $RADIUS_PORT
+                port 11813
                 shared-key testing123
             }
             timeout 3

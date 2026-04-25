@@ -19,13 +19,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
+const pluginName = "static"
+
 func init() {
 	reg := registry.Registration{
-		Name:        "static",
+		Name:        pluginName,
 		Description: "Static routes: config-driven kernel/VPP route programming with ECMP",
 		Features:    "yang",
 		YANG:        staticschema.ZeStaticConfYANG,
-		ConfigRoots: []string{"static"},
+		ConfigRoots: []string{pluginName},
 		RunEngine:   runStaticPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -52,7 +54,7 @@ func init() {
 func runStaticPlugin(conn net.Conn) int {
 	logger().Debug("static plugin starting (RPC)")
 
-	p := sdk.NewWithConn("static", conn)
+	p := sdk.NewWithConn(pluginName, conn)
 	defer func() { _ = p.Close() }()
 
 	backend := newStaticBackend()
@@ -64,7 +66,7 @@ func runStaticPlugin(conn net.Conn) int {
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "static" {
+			if section.Root != pluginName {
 				continue
 			}
 			routes, err := parseStaticConfig(section.Data)
@@ -80,7 +82,7 @@ func runStaticPlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "static" {
+			if section.Root != pluginName {
 				continue
 			}
 			routes, err := parseStaticConfig(section.Data)
@@ -180,7 +182,7 @@ func runStaticPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"static"},
+		WantsConfig:  []string{pluginName},
 		VerifyBudget: 1,
 		ApplyBudget:  2,
 		Commands: []sdk.CommandDecl{
