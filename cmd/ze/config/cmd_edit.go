@@ -60,7 +60,7 @@ const ephemeralPollTimeout = 10 * time.Second
 // startEphemeralDaemon starts a background ze daemon for the given config.
 // Waits for the SSH port to become reachable before returning.
 // Returns the process (caller must stop and wait) or an error.
-func startEphemeralDaemon(configPath, host, port string) (*os.Process, string, error) {
+func startEphemeralDaemon(configPath, host, port string, extraArgs []string) (*os.Process, string, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, "", fmt.Errorf("find ze binary: %w", err)
@@ -77,7 +77,12 @@ func startEphemeralDaemon(configPath, host, port string) (*os.Process, string, e
 
 	daemonEnv := append(os.Environ(), "ZE_SSH_EPHEMERAL="+sshAddrFile)
 
-	proc, err := os.StartProcess(exe, []string{exe, configPath}, &os.ProcAttr{
+	argv := make([]string, 0, 1+len(extraArgs)+1)
+	argv = append(argv, exe)
+	argv = append(argv, extraArgs...)
+	argv = append(argv, configPath)
+
+	proc, err := os.StartProcess(exe, argv, &os.ProcAttr{
 		Env:   daemonEnv,
 		Files: []*os.File{devnull, os.Stderr, os.Stderr},
 	})
@@ -315,6 +320,8 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 	fileOverride := fs.Bool("f", false, "Use filesystem directly, bypass blob store")
 	user := fs.String("user", "", "SSH login username (overrides zefs super-admin)")
 	fs.StringVar(user, "u", "", "Short alias for --user")
+	webPort := fs.String("web", "", "Start web UI on given port (passed to ephemeral daemon)")
+	insecureWeb := fs.Bool("insecure-web", false, "Disable web auth (implies localhost bind)")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -324,6 +331,8 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 			Sections: []helpfmt.HelpSection{
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
 					{Name: "-f", Desc: "Use filesystem directly, bypass blob store"},
+					{Name: "--web <port>", Desc: "Start web UI on given port (ephemeral daemon)"},
+					{Name: "--insecure-web", Desc: "Disable web auth (binds localhost)"},
 				}},
 				{Title: "Commands", Entries: []helpfmt.HelpEntry{
 					{Name: "set <path> <value>", Desc: "Set a configuration value"},
@@ -410,11 +419,19 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 		return 1
 	}
 
-	return runEditor(ed, store, configPath, *user)
+	var daemonArgs []string
+	if *webPort != "" {
+		daemonArgs = append(daemonArgs, "--web", *webPort)
+	}
+	if *insecureWeb {
+		daemonArgs = append(daemonArgs, "--insecure-web")
+	}
+
+	return runEditor(ed, store, configPath, *user, daemonArgs)
 }
 
 // runEditor runs the interactive editor TUI after the Editor is created.
-func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string) int {
+func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, daemonArgs []string) int {
 	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
 	// Probe daemon SSH port at startup.
@@ -429,7 +446,7 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string) i
 			daemonReachable = true
 		} else if config.ProbeConfigType(ed.OriginalContent()) != config.ConfigTypeUnknown {
 			// Start ephemeral daemon; it starts SSH on a random port if config has none.
-			proc, sshAddr, ephErr := startEphemeralDaemon(configPath, creds.Host, creds.Port)
+			proc, sshAddr, ephErr := startEphemeralDaemon(configPath, creds.Host, creds.Port, daemonArgs)
 			if ephErr != nil {
 				fmt.Fprintf(os.Stderr, "warning: ephemeral daemon: %v\n", ephErr)
 			} else {
