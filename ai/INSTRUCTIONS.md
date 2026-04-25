@@ -30,7 +30,7 @@
 
 ---
 
-# Ze - Claude Instructions
+# Ze - {{TOOL}} Instructions
 
 ## Core Architecture
 

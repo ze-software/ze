@@ -43,8 +43,10 @@ __pycache__/
 .claude/.compaction-detected
 .claude/.compaction-detected-*
 
-# Generated skill directories (canonical source: ai/skills/)
-# Regenerate with: make ze-skill-sync
+# Generated AI tool config (canonical sources: ai/skills/, ai/INSTRUCTIONS.md)
+# Regenerate with: make ze-ai-sync
+CLAUDE.md
+AGENTS.md
 .claude/skills/
 .codex/skills/
 .agents/skills/

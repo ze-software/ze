@@ -1,13 +1,18 @@
 #!/bin/bash
-# Sync canonical skills from ai/skills/ into tool-specific directories.
+# Sync canonical skills and AGENTS.md from their sources into
+# tool-specific directories.
 #
-# Canonical source: ai/skills/<name>.md
-# Targets:
-#   .claude/skills/<name>/SKILL.md  -- verbatim copy
-#   .codex/skills/<name>/SKILL.md   -- YAML frontmatter added
-#   .agents/skills/<name>/SKILL.md  -- .claude/ paths replaced with .agents/
+# Skills:
+#   Canonical source: ai/skills/<name>.md
+#   Targets:
+#     .claude/skills/<name>/SKILL.md  -- verbatim copy
+#     .codex/skills/<name>/SKILL.md   -- YAML frontmatter added
+#     .agents/skills/<name>/SKILL.md  -- .claude/ paths replaced with .agents/
 #
-# Usage: make ze-skill-sync
+# AGENTS.md:
+#   Generated from CLAUDE.md with title adjusted for Codex.
+#
+# Usage: make ze-ai-sync
 #        scripts/dev/skill_sync.sh [--dry-run]
 
 set -euo pipefail
@@ -60,4 +65,11 @@ for src in "$CANON_DIR"/*.md; do
     synced=$((synced + 1))
 done
 
-echo "synced $synced skill(s) to $CLAUDE_DIR, $CODEX_DIR, $AGENTS_DIR"
+# Generate tool-specific instruction files from ai/INSTRUCTIONS.md
+INSTRUCTIONS="ai/INSTRUCTIONS.md"
+if [ -f "$INSTRUCTIONS" ]; then
+    sed 's/{{TOOL}}/Claude/' "$INSTRUCTIONS" > CLAUDE.md
+    sed 's/{{TOOL}}/Codex/'  "$INSTRUCTIONS" > AGENTS.md
+fi
+
+echo "synced $synced skill(s) + CLAUDE.md + AGENTS.md"
