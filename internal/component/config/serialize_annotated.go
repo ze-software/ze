@@ -220,6 +220,9 @@ func serializeAnnotatedTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, 
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
 			b.WriteString(prefix)
+			if tree.inactiveValues[name] {
+				b.WriteString("inactive: ")
+			}
 			b.WriteString(name)
 			b.WriteString(" ")
 			b.WriteString(quoteIfNeeded(normalizeBool(v)))
@@ -230,6 +233,9 @@ func serializeAnnotatedTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, 
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
 			b.WriteString(prefix)
+			if tree.inactiveValues[name] {
+				b.WriteString("inactive: ")
+			}
 			b.WriteString(name)
 			b.WriteString(" ")
 			b.WriteString(v)
@@ -240,6 +246,9 @@ func serializeAnnotatedTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, 
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
 			b.WriteString(prefix)
+			if tree.inactiveValues[name] {
+				b.WriteString("inactive: ")
+			}
 			b.WriteString(name)
 			b.WriteString(" [ ")
 			b.WriteString(v)
@@ -251,6 +260,9 @@ func serializeAnnotatedTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, 
 		if items := tree.multiValues[name]; len(items) > 0 {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
 			b.WriteString(prefix)
+			if tree.inactiveValues[name] {
+				b.WriteString("inactive: ")
+			}
 			b.WriteString(name)
 			if len(items) == 1 {
 				b.WriteString(" ")
@@ -591,6 +603,9 @@ func serializeAnnotatedExtraValues(b *strings.Builder, tree *Tree, meta *MetaTre
 	for _, k := range extraKeys {
 		writeAnnotatedLeafGutter(b, meta, k, columns)
 		b.WriteString(prefix)
+		if tree.inactiveValues[k] {
+			b.WriteString("inactive: ")
+		}
 		b.WriteString(k)
 		b.WriteString(" ")
 		b.WriteString(quoteIfNeeded(tree.values[k]))

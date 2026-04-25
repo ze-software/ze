@@ -1,0 +1,37 @@
+# Test: `ze config deactivate` on a list-entry path
+# Validates that the same one-shot CLI verb dispatches correctly to the
+# inactive-leaf-on-container path (existing mechanism) when a container
+# or list entry is targeted.
+tmpfs=test.conf:terminator=EOF_FILE
+bgp {
+	router-id 10.0.0.1
+	session {
+		asn {
+			local 65533
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				remote 65534
+			}
+		}
+	}
+}
+EOF_FILE
+
+option=env:var=ze.storage.blob:value=false
+
+cmd=foreground:seq=1:exec=ze config deactivate --no-reload test.conf bgp peer peer1
+expect=exit:code=0
+
+cmd=foreground:seq=2:exec=ze config validate test.conf
+expect=exit:code=0

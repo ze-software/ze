@@ -34,16 +34,18 @@ const (
 
 // storageHandlers maps subcommand names to handler functions that receive storage.
 var storageHandlers = map[string]func(storage.Storage, []string) int{
-	"edit":     cmdEditWithStorage,
-	"set":      cmdSetWithStorage,
-	"history":  cmdHistoryWithStorage,
-	"rollback": cmdRollbackWithStorage,
-	"archive":  cmdArchiveWithStorage,
-	"diff":     cmdDiffWithStorage,
-	"ls":       cmdLsWithStorage,
-	"cat":      cmdCatWithStorage,
-	"import":   cmdImportWithStorage,
-	"rename":   cmdRenameWithStorage,
+	"edit":       cmdEditWithStorage,
+	"set":        cmdSetWithStorage,
+	"deactivate": cmdDeactivateWithStorage,
+	"activate":   cmdActivateWithStorage,
+	"history":    cmdHistoryWithStorage,
+	"rollback":   cmdRollbackWithStorage,
+	"archive":    cmdArchiveWithStorage,
+	"diff":       cmdDiffWithStorage,
+	"ls":         cmdLsWithStorage,
+	"cat":        cmdCatWithStorage,
+	"import":     cmdImportWithStorage,
+	"rename":     cmdRenameWithStorage,
 }
 
 // subcommandHandlers maps subcommand names to their handler functions.
@@ -123,6 +125,8 @@ func usage() {
 			{Title: "Editing", Entries: []helpfmt.HelpEntry{
 				{Name: "edit [file]", Desc: "Interactive editor (default: <identity>.conf)"},
 				{Name: "set <file> <path> <val>", Desc: "Set a value by path"},
+				{Name: "deactivate <file> <path>", Desc: "Mark a node inactive (kept in file, skipped at apply)"},
+				{Name: "activate <file> <path>", Desc: "Clear the inactive flag on a node"},
 			}},
 			{Title: "Storage", Entries: []helpfmt.HelpEntry{
 				{Name: "import [--name n] <file>...", Desc: "Import files into the database"},

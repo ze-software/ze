@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -378,6 +379,112 @@ func (e *Editor) ActivateLeafListValue(path []string, leafListName, value string
 	if err := target.ActivateMultiValue(leafListName, value); err != nil {
 		return err
 	}
+	e.dirty.Store(true)
+	return nil
+}
+
+// Sentinel errors returned by the leaf and path deactivation helpers.
+// Callers (the CLI verb, the TUI command) use errors.Is to distinguish
+// "no change" from real failures so they can decide whether to surface
+// or swallow the result.
+var (
+	ErrLeafAlreadyInactive = errors.New("leaf already inactive")
+	ErrLeafNotInactive     = errors.New("leaf is not inactive")
+	ErrPathAlreadyInactive = errors.New("path already inactive")
+	ErrPathNotInactive     = errors.New("path is not inactive")
+	ErrPathNotFound        = errors.New("path not found")
+)
+
+// DeactivateLeaf marks a leaf inactive on the tree at parentPath. The
+// leaf value (if any) is preserved verbatim; PruneInactive removes the
+// entry at apply time so consumers see it as absent. Permissive on
+// absent leaves -- pre-marking before set is allowed, matching the
+// Tree.SetLeafInactive contract; this is what lets a leaf with a YANG
+// default be deactivated without a prior explicit set.
+//
+// Returns ErrLeafAlreadyInactive (wrapped) when the leaf is already
+// marked, so callers can use errors.Is for idempotent flows.
+func (e *Editor) DeactivateLeaf(parentPath []string, leafName string) error {
+	if e.session != nil {
+		return fmt.Errorf("deactivate not supported in session mode")
+	}
+	target := e.tree
+	if len(parentPath) > 0 {
+		target = e.WalkPath(parentPath)
+	}
+	if target == nil {
+		return fmt.Errorf("%w: %s", ErrPathNotFound, strings.Join(parentPath, " "))
+	}
+	if target.IsLeafInactive(leafName) {
+		return fmt.Errorf("%w: %q", ErrLeafAlreadyInactive, leafName)
+	}
+	target.SetLeafInactive(leafName, true)
+	e.dirty.Store(true)
+	return nil
+}
+
+// ActivateLeaf clears the inactive marker on a leaf at parentPath.
+// Returns ErrLeafNotInactive (wrapped) when the leaf is already active.
+func (e *Editor) ActivateLeaf(parentPath []string, leafName string) error {
+	if e.session != nil {
+		return fmt.Errorf("activate not supported in session mode")
+	}
+	target := e.tree
+	if len(parentPath) > 0 {
+		target = e.WalkPath(parentPath)
+	}
+	if target == nil {
+		return fmt.Errorf("%w: %s", ErrPathNotFound, strings.Join(parentPath, " "))
+	}
+	if !target.IsLeafInactive(leafName) {
+		return fmt.Errorf("%w: %q", ErrLeafNotInactive, leafName)
+	}
+	target.ClearLeafInactive(leafName)
+	e.dirty.Store(true)
+	return nil
+}
+
+// DeactivatePath sets the schema-injected `inactive` leaf to true on
+// the container or list entry at path. Strict on path resolution: it
+// rejects non-existent paths rather than silently materializing them
+// (which is what plain SetValue + walkOrCreate would do).
+//
+// Returns ErrPathNotFound when the path does not resolve in the tree,
+// and ErrPathAlreadyInactive (wrapped) when the inactive flag is
+// already set, so callers can use errors.Is for idempotent flows.
+func (e *Editor) DeactivatePath(path []string) error {
+	if e.session != nil {
+		return fmt.Errorf("deactivate not supported in session mode")
+	}
+	target := e.WalkPath(path)
+	if target == nil {
+		return fmt.Errorf("%w: %s", ErrPathNotFound, strings.Join(path, " "))
+	}
+	if v, ok := target.Get(config.InactiveLeafName); ok && v == boolTrue {
+		return fmt.Errorf("%w: %s", ErrPathAlreadyInactive, strings.Join(path, " "))
+	}
+	target.Set(config.InactiveLeafName, boolTrue)
+	e.dirty.Store(true)
+	return nil
+}
+
+// ActivatePath clears the schema-injected `inactive` leaf on the
+// container or list entry at path. Strict on path resolution.
+//
+// Returns ErrPathNotFound or ErrPathNotInactive (wrapped) for the
+// idempotent / mistyped-path cases.
+func (e *Editor) ActivatePath(path []string) error {
+	if e.session != nil {
+		return fmt.Errorf("activate not supported in session mode")
+	}
+	target := e.WalkPath(path)
+	if target == nil {
+		return fmt.Errorf("%w: %s", ErrPathNotFound, strings.Join(path, " "))
+	}
+	if v, ok := target.Get(config.InactiveLeafName); !ok || v != boolTrue {
+		return fmt.Errorf("%w: %s", ErrPathNotInactive, strings.Join(path, " "))
+	}
+	target.Delete(config.InactiveLeafName)
 	e.dirty.Store(true)
 	return nil
 }

@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	cmdSet    = "set"
-	cmdDelete = "delete"
+	cmdSet      = "set"
+	cmdDelete   = "delete"
+	cmdInactive = "inactive"
 )
 
 // SetParser parses set-style configuration.
@@ -93,8 +94,10 @@ func (p *SetParser) parseLine(tree *Tree, line string, lineNum int) error {
 		return p.parseSet(tree, tokens, lineNum)
 	case cmdDelete:
 		return p.parseDelete(tree, tokens, lineNum)
+	case cmdInactive:
+		return p.parseInactive(tree, tokens, lineNum)
 	default:
-		return fmt.Errorf("line %d: unknown command: %s (expected set/delete)", lineNum, cmd)
+		return fmt.Errorf("line %d: unknown command: %s (expected set/delete/inactive)", lineNum, cmd)
 	}
 }
 
@@ -277,6 +280,129 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 	}
 
 	return fmt.Errorf("line %d: unknown node type %T for %s", lineNum, node, name)
+}
+
+// parseInactive handles: inactive <path...>.
+//
+// Single-keyword design: the presence of `inactive <path>` declares the
+// node at <path> inactive. There is no symmetric "active" or
+// "deactivate"/"activate" verb pair -- absence of the line means the
+// node is active. Removing the inactive declaration (manually, or by
+// the editor's CLI/TUI activate path which re-serializes without it)
+// re-activates the node.
+//
+// The path resolves to a leaf, container, list entry, or single
+// leaf-list value; dispatch mirrors the block-format `inactive:`
+// prefix and the one-shot CLI verbs.
+func (p *SetParser) parseInactive(tree *Tree, tokens []string, lineNum int) error {
+	if len(tokens) < 1 {
+		return fmt.Errorf("line %d: inactive requires a path", lineNum)
+	}
+	return p.walkAndMarkInactive(tree, p.schema.root, tokens, lineNum)
+}
+
+// walkAndMarkInactive walks the path through schema and tree and sets
+// the inactive marker at the resolved node.
+//
+//nolint:cyclop // exhaustive node-type handling, mirrors walkAndDelete
+func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string, lineNum int) error {
+	if len(tokens) == 0 {
+		return fmt.Errorf("line %d: incomplete inactive path", lineNum)
+	}
+
+	name := tokens[0]
+	tokens = tokens[1:]
+
+	node := resolveSchemaNode(p.schema, parent, name)
+	if node == nil {
+		// In pre-migration mode unknown fields are warnings rather than
+		// errors so that a renamed YANG path can still parse and the
+		// migration step can rewrite it. Mirror the set / delete paths.
+		if p.preMigration {
+			p.warnings = append(p.warnings, fmt.Sprintf("line %d: unknown field: %s (needs migration)", lineNum, name))
+			return nil
+		}
+		return fmt.Errorf("line %d: unknown field: %s", lineNum, name)
+	}
+
+	if _, ok := node.(*LeafNode); ok {
+		if len(tokens) != 0 {
+			return fmt.Errorf("line %d: unexpected tokens after leaf %s", lineNum, name)
+		}
+		tree.SetLeafInactive(name, true)
+		return nil
+	}
+	if _, ok := node.(*MultiLeafNode); ok {
+		tree.SetLeafInactive(name, true)
+		return nil
+	}
+	if _, ok := node.(*BracketLeafListNode); ok {
+		tree.SetLeafInactive(name, true)
+		return nil
+	}
+
+	// ValueOrArray: a final token denotes a single leaf-list value
+	// (deactivate one element); no token denotes the whole leaf-list.
+	if _, ok := node.(*ValueOrArrayNode); ok {
+		if len(tokens) == 1 {
+			return tree.DeactivateMultiValue(name, tokens[0])
+		}
+		if len(tokens) == 0 {
+			tree.SetLeafInactive(name, true)
+			return nil
+		}
+		return fmt.Errorf("line %d: inactive on leaf-list expects either no value or one value, got %d", lineNum, len(tokens))
+	}
+
+	// Container: mark via the schema-injected `inactive` leaf, mirror
+	// of the block-format `inactive: container { }` prefix.
+	if container, ok := node.(*ContainerNode); ok {
+		child := tree.GetContainer(name)
+		if child == nil {
+			child = NewTree()
+			tree.SetContainer(name, child)
+		}
+		if len(tokens) == 0 {
+			child.Set(InactiveLeafName, configTrue)
+			return nil
+		}
+		return p.walkAndMarkInactive(child, container, tokens, lineNum)
+	}
+
+	// List: a key token selects an entry; further tokens descend
+	// into the entry's fields.
+	if list, ok := node.(*ListNode); ok {
+		if len(tokens) == 0 {
+			return fmt.Errorf("line %d: inactive on list %s requires a key", lineNum, name)
+		}
+		key := tokens[0]
+		entries := tree.GetList(name)
+		entry := entries[key]
+		if entry == nil {
+			entry = NewTree()
+			tree.AddListEntry(name, key, entry)
+		}
+		if len(tokens) == 1 {
+			entry.Set(InactiveLeafName, configTrue)
+			return nil
+		}
+		return p.walkAndMarkInactive(entry, list, tokens[1:], lineNum)
+	}
+
+	if flex, ok := node.(*FlexNode); ok {
+		child := tree.GetContainer(name)
+		if child == nil {
+			child = NewTree()
+			tree.SetContainer(name, child)
+		}
+		if len(tokens) == 0 {
+			child.Set(InactiveLeafName, configTrue)
+			return nil
+		}
+		return p.walkAndMarkInactive(child, flex, tokens, lineNum)
+	}
+
+	return fmt.Errorf("line %d: inactive not supported on %T (%s)", lineNum, node, name)
 }
 
 // parseDelete handles: delete <path...>.

@@ -5,6 +5,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -508,88 +509,55 @@ func (m *Model) cmdDelete(args []string) (commandResult, error) {
 }
 
 // cmdDeactivate marks a config node as inactive.
-// For containers/list entries: sets inactive leaf (existing behavior).
-// For leaf-list values: adds "inactive:" prefix to the value.
 func (m *Model) cmdDeactivate(args []string) (commandResult, error) {
-	if len(args) < 1 {
-		return commandResult{}, fmt.Errorf("usage: deactivate <path>")
-	}
-
-	fullPath := make([]string, 0, len(m.contextPath)+len(args))
-	fullPath = append(fullPath, m.contextPath...)
-	fullPath = append(fullPath, args...)
-
-	// Check if the path targets a leaf-list value.
-	if len(fullPath) >= 2 {
-		parentPath, leafListName, isLeafList := m.resolveLeafListValue(fullPath)
-		if isLeafList {
-			value := fullPath[len(fullPath)-1]
-			if err := m.editor.DeactivateLeafListValue(parentPath, leafListName, value); err != nil {
-				return commandResult{}, fmt.Errorf("deactivate failed: %w", err)
-			}
-			m.completer.SetTree(m.editor.Tree())
-			msg := fmt.Sprintf("Deactivated %s in %s", value, leafListName)
-			if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-				msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
-			}
-			return commandResult{
-				statusMessage: msg,
-				configView:    m.configViewAtPath(m.contextPath),
-				revalidate:    true,
-			}, nil
-		}
-	}
-
-	// Validate path exists in schema and points to a container or list entry.
-	entry, err := m.completer.validateTokenPath(fullPath)
-	if err != nil {
-		return commandResult{}, err
-	}
-	if entry != nil && entry.IsLeaf() {
-		return commandResult{}, fmt.Errorf("cannot deactivate a leaf value, use delete instead")
-	}
-
-	// Set inactive = true on the target node.
-	if err := m.editor.SetValue(fullPath, config.InactiveLeafName, "true"); err != nil {
-		return commandResult{}, fmt.Errorf("deactivate failed: %w", err)
-	}
-
-	m.completer.SetTree(m.editor.Tree())
-	msg := fmt.Sprintf("Deactivated %s", strings.Join(fullPath, " "))
-
-	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
-	}
-
-	return commandResult{
-		statusMessage: msg,
-		configView:    m.configViewAtPath(m.contextPath),
-		revalidate:    true,
-	}, nil
+	return m.runActivation(args, false)
 }
 
-// cmdActivate removes the inactive flag from a config node.
-// For containers/list entries: removes inactive leaf (existing behavior).
-// For leaf-list values: removes "inactive:" prefix from the value.
+// cmdActivate clears the inactive flag from a config node.
 func (m *Model) cmdActivate(args []string) (commandResult, error) {
+	return m.runActivation(args, true)
+}
+
+// runActivation backs both cmdDeactivate (activate=false) and cmdActivate
+// (activate=true). The two verbs share path resolution, leaf-list-value
+// detection, and idempotent-error mapping; only the editor methods and
+// the wording of the status messages differ.
+//
+//nolint:cyclop // exhaustive node-type dispatch
+func (m *Model) runActivation(args []string, activate bool) (commandResult, error) {
+	verb := "deactivate"
+	pastTense := "Deactivated"
+	alreadyState := "deactivated"
+	if activate {
+		verb = "activate"
+		pastTense = "Activated"
+		alreadyState = "active"
+	}
+
 	if len(args) < 1 {
-		return commandResult{}, fmt.Errorf("usage: activate <path>")
+		return commandResult{}, fmt.Errorf("usage: %s <path>", verb)
 	}
 
 	fullPath := make([]string, 0, len(m.contextPath)+len(args))
 	fullPath = append(fullPath, m.contextPath...)
 	fullPath = append(fullPath, args...)
 
-	// Check if the path targets a leaf-list value.
+	// Leaf-list value path.
 	if len(fullPath) >= 2 {
 		parentPath, leafListName, isLeafList := m.resolveLeafListValue(fullPath)
 		if isLeafList {
 			value := fullPath[len(fullPath)-1]
-			if err := m.editor.ActivateLeafListValue(parentPath, leafListName, value); err != nil {
-				return commandResult{}, fmt.Errorf("activate failed: %w", err)
+			var llErr error
+			if activate {
+				llErr = m.editor.ActivateLeafListValue(parentPath, leafListName, value)
+			} else {
+				llErr = m.editor.DeactivateLeafListValue(parentPath, leafListName, value)
+			}
+			if llErr != nil {
+				return commandResult{}, fmt.Errorf("%s failed: %w", verb, llErr)
 			}
 			m.completer.SetTree(m.editor.Tree())
-			msg := fmt.Sprintf("Activated %s in %s", value, leafListName)
+			msg := fmt.Sprintf("%s %s in %s", pastTense, value, leafListName)
 			if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
 				msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
 			}
@@ -601,27 +569,44 @@ func (m *Model) cmdActivate(args []string) (commandResult, error) {
 		}
 	}
 
-	// Validate path exists in schema and points to a container or list entry.
+	// Schema-validated leaf vs container/list-entry dispatch.
 	entry, err := m.completer.validateTokenPath(fullPath)
 	if err != nil {
 		return commandResult{}, err
 	}
-	if entry != nil && entry.IsLeaf() {
-		return commandResult{}, fmt.Errorf("cannot activate a leaf value")
+	var opErr error
+	switch {
+	case entry != nil && entry.IsLeaf():
+		parentPath := fullPath[:len(fullPath)-1]
+		leafName := fullPath[len(fullPath)-1]
+		if activate {
+			opErr = m.editor.ActivateLeaf(parentPath, leafName)
+		} else {
+			opErr = m.editor.DeactivateLeaf(parentPath, leafName)
+		}
+	case activate:
+		opErr = m.editor.ActivatePath(fullPath)
+	default:
+		opErr = m.editor.DeactivatePath(fullPath)
 	}
 
-	// Delete the inactive leaf (restoring default false = active).
-	if err := m.editor.DeleteValue(fullPath, config.InactiveLeafName); err != nil {
-		return commandResult{}, fmt.Errorf("activate failed: %w", err)
+	if opErr != nil {
+		// Idempotent: already-in-state becomes a status message.
+		if errors.Is(opErr, ErrLeafAlreadyInactive) || errors.Is(opErr, ErrPathAlreadyInactive) ||
+			errors.Is(opErr, ErrLeafNotInactive) || errors.Is(opErr, ErrPathNotInactive) {
+			return commandResult{
+				statusMessage: fmt.Sprintf("%s already %s", strings.Join(fullPath, " "), alreadyState),
+				configView:    m.configViewAtPath(m.contextPath),
+			}, nil
+		}
+		return commandResult{}, fmt.Errorf("%s failed: %w", verb, opErr)
 	}
 
 	m.completer.SetTree(m.editor.Tree())
-	msg := fmt.Sprintf("Activated %s", strings.Join(fullPath, " "))
-
+	msg := fmt.Sprintf("%s %s", pastTense, strings.Join(fullPath, " "))
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
 		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
 	}
-
 	return commandResult{
 		statusMessage: msg,
 		configView:    m.configViewAtPath(m.contextPath),
@@ -629,47 +614,14 @@ func (m *Model) cmdActivate(args []string) (commandResult, error) {
 	}, nil
 }
 
-// resolveLeafListValue checks if a path targets a value inside a leaf-list.
-// Returns the tree-level parent path (to the container holding the leaf-list),
-// the leaf-list field name, and true if the path ends at a leaf-list value.
-// Handles list keys in the path (e.g., bgp peer peer1 filter import value).
+// resolveLeafListValue is a thin wrapper around Editor.ResolveLeafListValue.
+// Kept for the existing call sites; new code should use the Editor method
+// directly.
 func (m *Model) resolveLeafListValue(fullPath []string) (parentPath []string, leafListName string, ok bool) {
-	if m.editor == nil || m.editor.schema == nil || len(fullPath) < 2 {
+	if m.editor == nil {
 		return nil, "", false
 	}
-
-	// Walk the schema along fullPath, skipping list keys, to find
-	// whether the second-to-last schema element is a leaf-list.
-	var current schemaGetter = m.editor.schema
-	i := 0
-	for i < len(fullPath)-1 {
-		name := fullPath[i]
-		node := current.Get(name)
-		if node == nil {
-			return nil, "", false
-		}
-
-		// If this is the second-to-last path element (before the value),
-		// check if it's a leaf-list.
-		if i == len(fullPath)-2 {
-			switch node.(type) {
-			case *config.ValueOrArrayNode, *config.BracketLeafListNode:
-				return fullPath[:i], name, true
-			}
-			return nil, "", false
-		}
-
-		sg, canNavigate := node.(schemaGetter)
-		if !canNavigate {
-			return nil, "", false // leaf nodes: can't navigate further
-		}
-		current = sg
-		i++
-		if _, isList := node.(*config.ListNode); isList {
-			i++ // skip list key
-		}
-	}
-	return nil, "", false
+	return m.editor.ResolveLeafListValue(fullPath)
 }
 
 // cmdInsert inserts a value into a leaf-list at a specified position.

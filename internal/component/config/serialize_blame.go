@@ -214,6 +214,9 @@ func serializeBlameTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, name
 		if v, ok := tree.values[name]; ok {
 			writeBlameGutter(b, meta, name)
 			b.WriteString(prefix)
+			if tree.inactiveValues[name] {
+				b.WriteString("inactive: ")
+			}
 			b.WriteString(name)
 			b.WriteString(" ")
 			b.WriteString(quoteIfNeeded(normalizeBool(v)))
@@ -224,6 +227,9 @@ func serializeBlameTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, name
 		if v, ok := tree.values[name]; ok {
 			writeBlameGutter(b, meta, name)
 			b.WriteString(prefix)
+			if tree.inactiveValues[name] {
+				b.WriteString("inactive: ")
+			}
 			b.WriteString(name)
 			b.WriteString(" ")
 			b.WriteString(v)
@@ -234,6 +240,9 @@ func serializeBlameTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, name
 		if v, ok := tree.values[name]; ok {
 			writeBlameGutter(b, meta, name)
 			b.WriteString(prefix)
+			if tree.inactiveValues[name] {
+				b.WriteString("inactive: ")
+			}
 			b.WriteString(name)
 			b.WriteString(" [ ")
 			b.WriteString(v)
@@ -245,6 +254,9 @@ func serializeBlameTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, name
 		if items := tree.multiValues[name]; len(items) > 0 {
 			writeBlameGutter(b, meta, name)
 			b.WriteString(prefix)
+			if tree.inactiveValues[name] {
+				b.WriteString("inactive: ")
+			}
 			b.WriteString(name)
 			if len(items) == 1 {
 				b.WriteString(" ")
@@ -575,6 +587,9 @@ func serializeBlameExtraValues(b *strings.Builder, tree *Tree, meta *MetaTree, c
 	for _, k := range extraKeys {
 		writeBlameGutter(b, meta, k)
 		b.WriteString(prefix)
+		if tree.inactiveValues[k] {
+			b.WriteString("inactive: ")
+		}
 		b.WriteString(k)
 		b.WriteString(" ")
 		b.WriteString(quoteIfNeeded(tree.values[k]))

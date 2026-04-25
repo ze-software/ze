@@ -402,6 +402,92 @@ func (e *Editor) walkPathWithSchema(path []string) (*config.Tree, config.Node) {
 	return e.walkPathWithSchemaFrom(e.tree, path)
 }
 
+// WalkPathWithSchema is the exported form of walkPathWithSchema. Returns
+// the (sub-tree, schema node) pair at the given path. Halts at structural
+// nodes (containers, lists) -- for terminal-leaf lookups use
+// LookupSchemaNode instead.
+func (e *Editor) WalkPathWithSchema(path []string) (*config.Tree, config.Node) {
+	return e.walkPathWithSchema(path)
+}
+
+// LookupSchemaNode returns the schema node at the terminus of path.
+// Unlike WalkPathWithSchema, this walks the schema only (no tree walk),
+// so it resolves leaves as well as containers and list entries. Used by
+// one-shot CLI verbs that need to dispatch deactivate/activate based on
+// the node kind regardless of whether the value is currently set.
+//
+// List keys interleaved in the path are skipped (a list child consumes
+// two tokens: its name and its key value).
+func (e *Editor) LookupSchemaNode(path []string) config.Node {
+	if e.schema == nil || len(path) == 0 {
+		return nil
+	}
+	var current schemaGetter = e.schema
+	var last config.Node
+	i := 0
+	for i < len(path) {
+		name := path[i]
+		node := current.Get(name)
+		if node == nil {
+			return nil
+		}
+		last = node
+		i++
+		// Step over a list key, if this list child has one.
+		if _, isList := node.(*config.ListNode); isList && i < len(path) {
+			i++
+		}
+		if i < len(path) {
+			sg, ok := node.(schemaGetter)
+			if !ok {
+				return nil // path continues past a leaf -- invalid
+			}
+			current = sg
+		}
+	}
+	return last
+}
+
+// ResolveLeafListValue checks whether fullPath terminates inside a
+// leaf-list value (e.g. `bgp filter import no-self-as`). Returns the
+// tree-level parent path (to the container holding the leaf-list), the
+// leaf-list field name, and true if so. Handles list keys interleaved
+// in the path (e.g. `bgp peer peer1 filter import value`).
+//
+// The Model's TUI dispatch and the one-shot CLI verbs both call this
+// to route deactivate/activate to DeactivateLeafListValue.
+func (e *Editor) ResolveLeafListValue(fullPath []string) (parentPath []string, leafListName string, ok bool) {
+	if e.schema == nil || len(fullPath) < 2 {
+		return nil, "", false
+	}
+	var current schemaGetter = e.schema
+	i := 0
+	for i < len(fullPath)-1 {
+		name := fullPath[i]
+		node := current.Get(name)
+		if node == nil {
+			return nil, "", false
+		}
+		if i == len(fullPath)-2 {
+			switch node.(type) {
+			case *config.ValueOrArrayNode, *config.BracketLeafListNode:
+				return fullPath[:i], name, true
+			}
+			return nil, "", false
+		}
+		sg, canNavigate := node.(schemaGetter)
+		if !canNavigate {
+			return nil, "", false
+		}
+		current = sg
+		i++
+		if _, isList := node.(*config.ListNode); isList {
+			i++ // skip list key
+		}
+	}
+	return nil, "", false
+}
+
 // walkPathWithSchemaFrom navigates an arbitrary tree and schema in parallel,
 // returning both the subtree and the schema node at the destination.
 // Used by ContentAtPath (working tree) and OriginalContentAtPath (re-parsed original tree).

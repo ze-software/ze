@@ -23,24 +23,84 @@ import (
 // its own mutex, so recursion into a child never re-acquires the parent's
 // lock.
 type Tree struct {
-	mu          sync.RWMutex
-	values      map[string]string
-	valuesOrder []string            // Preserves insertion order for value keys
-	multiValues map[string][]string // For multiple inline values (e.g., multiple mup entries)
-	containers  map[string]*Tree
-	lists       map[string]map[string]*Tree
-	listOrder   map[string][]string // Preserves insertion order for list keys
+	mu             sync.RWMutex
+	values         map[string]string
+	valuesOrder    []string            // Preserves insertion order for value keys
+	multiValues    map[string][]string // For multiple inline values (e.g., multiple mup entries)
+	inactiveValues map[string]bool     // Leaf-level deactivation; sibling to values, not encoded in the value string
+	containers     map[string]*Tree
+	lists          map[string]map[string]*Tree
+	listOrder      map[string][]string // Preserves insertion order for list keys
 }
 
 // NewTree creates an empty config tree.
 func NewTree() *Tree {
 	return &Tree{
-		values:      make(map[string]string),
-		multiValues: make(map[string][]string),
-		containers:  make(map[string]*Tree),
-		lists:       make(map[string]map[string]*Tree),
-		listOrder:   make(map[string][]string),
+		values:         make(map[string]string),
+		multiValues:    make(map[string][]string),
+		inactiveValues: make(map[string]bool),
+		containers:     make(map[string]*Tree),
+		lists:          make(map[string]map[string]*Tree),
+		listOrder:      make(map[string][]string),
 	}
+}
+
+// SetLeafInactive records (or clears) leaf-level deactivation for name.
+// The leaf value in t.values is left untouched -- inactivity lives in
+// a sibling map so that the value round-trips through deactivate/activate
+// without encoding tricks. Idempotent. Pre-marking a name that has no
+// value yet is permitted (parser may set the flag before parsing the
+// value into t.values; ordering is not enforced).
+func (t *Tree) SetLeafInactive(name string, inactive bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if inactive {
+		t.inactiveValues[name] = true
+	} else {
+		delete(t.inactiveValues, name)
+	}
+}
+
+// IsLeafInactive reports whether the leaf at name is deactivated.
+func (t *Tree) IsLeafInactive(name string) bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.inactiveValues[name]
+}
+
+// ClearLeafInactive removes the deactivation marker for name.
+// Equivalent to SetLeafInactive(name, false); kept as a separate verb
+// for symmetry with Tree.Delete-style APIs and reader call sites.
+func (t *Tree) ClearLeafInactive(name string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.inactiveValues, name)
+}
+
+// pruneInactiveLeaves removes every leaf entry whose name appears in
+// inactiveValues from values, multiValues, valuesOrder, and the marker
+// map itself. Called by pruneNode -- callers outside the prune walker
+// should use PruneInactive instead.
+func (t *Tree) pruneInactiveLeaves() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if len(t.inactiveValues) == 0 {
+		return
+	}
+	for name := range t.inactiveValues {
+		delete(t.values, name)
+		delete(t.multiValues, name)
+	}
+	if len(t.valuesOrder) > 0 {
+		filtered := t.valuesOrder[:0]
+		for _, n := range t.valuesOrder {
+			if !t.inactiveValues[n] {
+				filtered = append(filtered, n)
+			}
+		}
+		t.valuesOrder = filtered
+	}
+	clear(t.inactiveValues)
 }
 
 // Get returns a leaf value.
@@ -116,6 +176,9 @@ func (t *Tree) Clone() *Tree {
 		copy(copied, v)
 		clone.multiValues[k] = copied
 	}
+
+	// Clone inactiveValues (leaf-level deactivation markers)
+	maps.Copy(clone.inactiveValues, t.inactiveValues)
 
 	// Clone containers (deep). v.Clone() takes v.mu.RLock(); a different
 	// mutex from t.mu, so no reentrancy risk.

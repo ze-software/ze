@@ -6,6 +6,10 @@ Ze is a network operating system written in Go. It runs on any Linux or as a gok
 |---------|-------------|
 | [BGP Protocol](features/bgp-protocol.md) | 21 address families, 13 capabilities, 17 path attributes |
 | [Configuration](features/configuration.md) | YANG-modeled config with prefix limits, update groups, session resilience |
+| [Deactivate / Activate](guide/config-deactivate.md) | Junos-style `inactive:` prefix on any node (leaf, container, list entry, leaf-list value); kept in file, skipped at apply. CLI: `ze config deactivate/activate <file> <path>`. TUI: `deactivate <path>` / `activate <path>`. Engine-level, no schema annotation required. |
+<!-- source: internal/component/config/parser.go -- applyInactive dispatch -->
+<!-- source: internal/component/config/prune.go -- PruneInactive removes inactive subtrees and leaves -->
+<!-- source: cmd/ze/config/cmd_deactivate.go -- one-shot CLI verb -->
 | [Environment Variables](guide/environment-variables.md) | Ze-native env surface: `ze.user`, `ze.pid.file`, `ze.pprof`, `ze.bgp.openwait`, `ze.bgp.announce.delay`; ExaBGP-compat env keys retired 2026-04 |
 <!-- source: internal/component/config/environment.go -- env var registrations -->
 <!-- source: internal/component/config/apply_env.go -- ApplyEnvConfig -->

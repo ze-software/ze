@@ -351,6 +351,16 @@ func TreeEqual(a, b *Tree) bool {
 		}
 	}
 
+	// Compare leaf-level inactive markers
+	if len(a.inactiveValues) != len(b.inactiveValues) {
+		return false
+	}
+	for k, v := range a.inactiveValues {
+		if b.inactiveValues[k] != v {
+			return false
+		}
+	}
+
 	// Compare containers
 	if len(a.containers) != len(b.containers) {
 		return false

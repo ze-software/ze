@@ -88,6 +88,20 @@ func SerializeSet(tree *Tree, schema *Schema) string {
 	return b.String()
 }
 
+// emitSetInactive emits an `inactive <path>` line if the leaf at name
+// is marked inactive. Caller must hold tree.mu.RLock and have already
+// emitted the matching `set` line so the inactive declaration refers
+// to a known path.
+func emitSetInactive(b *strings.Builder, tree *Tree, name, prefix string) {
+	if !tree.inactiveValues[name] {
+		return
+	}
+	b.WriteString("inactive ")
+	b.WriteString(prefix)
+	b.WriteString(name)
+	b.WriteString("\n")
+}
+
 // serializeSetNode walks the schema children in order, emitting set commands.
 // prefix accumulates the path segments (e.g., "neighbor 192.0.2.1 ").
 //
@@ -110,6 +124,15 @@ func serializeSetNode(b *strings.Builder, tree *Tree, parent childProvider, pref
 //
 //nolint:cyclop // exhaustive switch over all node types is intentional
 func serializeSetChild(b *strings.Builder, tree *Tree, name string, node Node, prefix string) {
+	// Suppress the schema-injected `inactive` leaf in the leaf walk:
+	// container/list-entry inactivity is rendered as an `inactive <path>`
+	// trailing line by the parent, not as `set ... inactive true`.
+	if name == InactiveLeafName {
+		if _, isLeaf := node.(*LeafNode); isLeaf {
+			return
+		}
+	}
+
 	switch n := node.(type) {
 	case *LeafNode:
 		if v, ok := tree.values[name]; ok {
@@ -119,6 +142,7 @@ func serializeSetChild(b *strings.Builder, tree *Tree, name string, node Node, p
 			b.WriteString(" ")
 			b.WriteString(quoteIfNeeded(normalizeBool(v)))
 			b.WriteString("\n")
+			emitSetInactive(b, tree, name, prefix)
 		}
 
 	case *MultiLeafNode:
@@ -129,6 +153,7 @@ func serializeSetChild(b *strings.Builder, tree *Tree, name string, node Node, p
 			b.WriteString(" ")
 			b.WriteString(v)
 			b.WriteString("\n")
+			emitSetInactive(b, tree, name, prefix)
 		}
 
 	case *BracketLeafListNode:
@@ -139,6 +164,7 @@ func serializeSetChild(b *strings.Builder, tree *Tree, name string, node Node, p
 			b.WriteString(" [ ")
 			b.WriteString(v)
 			b.WriteString(" ]\n")
+			emitSetInactive(b, tree, name, prefix)
 		}
 
 	case *ValueOrArrayNode:
@@ -161,6 +187,7 @@ func serializeSetChild(b *strings.Builder, tree *Tree, name string, node Node, p
 				b.WriteString(" ]")
 			}
 			b.WriteString("\n")
+			emitSetInactive(b, tree, name, prefix)
 		}
 
 	case *ContainerNode:
@@ -206,7 +233,28 @@ func serializeSetContainer(b *strings.Builder, tree *Tree, name string, node *Co
 	if child := tree.containers[name]; child != nil {
 		childPrefix := prefix + name + " "
 		serializeSetNode(b, child, node, childPrefix)
+		emitSetInactiveStructural(b, child, prefix+name)
 	}
+}
+
+// emitSetInactiveStructural emits `inactive <path>` for a container
+// or list entry whose schema-injected `inactive` leaf is set to true.
+// Replaces the legacy `set <path> inactive true` round-trip form so
+// the set output declares the inactive state with one keyword instead
+// of round-tripping the engine-internal injected leaf.
+func emitSetInactiveStructural(b *strings.Builder, sub *Tree, path string) {
+	if sub == nil {
+		return
+	}
+	sub.mu.RLock()
+	v, ok := sub.values[InactiveLeafName]
+	sub.mu.RUnlock()
+	if !ok || v != configTrue {
+		return
+	}
+	b.WriteString("inactive ")
+	b.WriteString(path)
+	b.WriteString("\n")
 }
 
 // serializeSetList handles list nodes with keyed entries.
@@ -234,6 +282,7 @@ func serializeSetList(b *strings.Builder, tree *Tree, name string, node *ListNod
 		displayKey := StripListKeySuffix(key)
 		entryPrefix := prefix + name + " " + quoteIfNeeded(displayKey) + " "
 		serializeSetNode(b, entry, node, entryPrefix)
+		emitSetInactiveStructural(b, entry, prefix+name+" "+quoteIfNeeded(displayKey))
 	}
 }
 
@@ -364,6 +413,12 @@ func serializeSetExtraValues(b *strings.Builder, tree *Tree, children []string, 
 	var extraKeys []string
 	for k := range tree.values {
 		if !schemaNames[k] {
+			// Skip the engine's `inactive` marker -- it is rendered as
+			// a `deactivate <path>` line on the parent, not as an
+			// extra-values `set ... inactive true` line.
+			if k == InactiveLeafName {
+				continue
+			}
 			extraKeys = append(extraKeys, k)
 		}
 	}

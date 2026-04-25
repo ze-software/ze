@@ -67,6 +67,47 @@ keyword key2 {
 }
 ```
 
+### Inactive prefix (deactivate / activate)
+
+Any structural statement may be prefixed with `inactive: ` to mark it
+inactive. The node stays in the file and round-trips through save/load,
+but is removed by `PruneInactive` before consumers see the tree, so the
+runtime treats it as absent.
+
+```
+bgp {
+    inactive: router-id 10.0.0.1;       # leaf -- value preserved verbatim
+    inactive: peer scratch { ... }      # list entry -- whole subtree skipped
+    inactive: filter { ... }            # container -- whole subtree skipped
+    filter {
+        import [ inactive:no-self-as reject-bogons ];   # leaf-list value
+    }
+}
+```
+
+The CLI verbs `ze config deactivate <file> <path>` and `ze config
+activate <file> <path>` add and remove the prefix. The TUI accepts the
+same `deactivate <path>` / `activate <path>` commands while editing.
+The mechanism is engine-level: every YANG node is deactivatable, no
+schema annotation is required.
+
+In the **set / single-line format**, the inactive state is declared
+with a top-level `inactive <path>` keyword on its own line:
+
+```
+set bgp router-id 10.0.0.1
+inactive bgp router-id
+```
+
+Single-keyword design: there is no symmetric `activate` keyword. To
+re-activate, drop the `inactive <path>` line.
+
+Coexists with per-feature `disable` semantics (e.g. a peer's
+`admin-state disable` leaf), which are protocol-aware and operationally
+distinct from "no such node". Use `inactive:` when you want the node
+absent at apply time; use the per-feature disable when you want the
+protocol to know about the node but treat it as administratively down.
+
 ---
 
 ## Top-Level Structure

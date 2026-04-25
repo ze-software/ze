@@ -64,6 +64,21 @@ func (p *Parser) parseRoot() (*Tree, error) {
 		name := tok.Value
 		p.tok.Next() // consume name
 
+		// Handle "inactive: <name> ..." sugar at the top level. Mirrors
+		// the same sugar inside container blocks (parseContainer) and list
+		// entries (parseListFieldBlock); without it, top-level leaves and
+		// containers cannot be deactivated through the file syntax.
+		markInactive := false
+		if name == InactiveLeafName+":" {
+			markInactive = true
+			tok = p.tok.Peek()
+			if tok.Type != TokenWord {
+				return nil, p.errorf(tok, "expected name after inactive:, got %s", tok.Type)
+			}
+			name = tok.Value
+			p.tok.Next()
+		}
+
 		node := p.schema.Get(name)
 		if node == nil {
 			return nil, p.errorf(tok, "unknown top-level keyword: %s", name)
@@ -72,9 +87,56 @@ func (p *Parser) parseRoot() (*Tree, error) {
 		if err := p.parseNode(tree, name, node); err != nil {
 			return nil, err
 		}
+
+		if markInactive {
+			applyInactive(tree, name, node, p, tok.Line)
+		}
 	}
 
 	return tree, nil
+}
+
+// applyInactive records the inactive flag on the just-parsed node. Shared
+// by parseRoot, parseContainer, and parseListFieldBlock so that container,
+// list-entry, and leaf cases follow one rule. FlexNode and InlineListNode
+// are dual-natured; the helper checks where the parser actually deposited
+// the data (values, multiValues, containers, lists) and marks accordingly.
+func applyInactive(tree *Tree, name string, node Node, p *Parser, line int) {
+	switch node.(type) {
+	case *LeafNode, *MultiLeafNode, *BracketLeafListNode, *ValueOrArrayNode:
+		tree.SetLeafInactive(name, true)
+		return
+	case *FlexNode:
+		// Flex landed as scalar (values), multi (multiValues), or as a
+		// container -- mark whichever the parser produced.
+		if _, ok := tree.Get(name); ok {
+			tree.SetLeafInactive(name, true)
+			return
+		}
+		if mv := tree.GetMultiValues(name); len(mv) > 0 {
+			tree.SetLeafInactive(name, true)
+			return
+		}
+		if sub := tree.GetContainer(name); sub != nil {
+			sub.Set(InactiveLeafName, configTrue)
+			return
+		}
+	}
+	if sub := tree.GetContainer(name); sub != nil {
+		sub.Set(InactiveLeafName, configTrue)
+		return
+	}
+	if entries := tree.GetList(name); entries != nil {
+		order := tree.listOrder[name]
+		if len(order) > 0 {
+			lastKey := order[len(order)-1]
+			if entry, ok := entries[lastKey]; ok {
+				entry.Set(InactiveLeafName, configTrue)
+				return
+			}
+		}
+	}
+	p.warn(line, "inactive: prefix ignored on %s (no node materialized)", name)
 }
 
 // parseNode dispatches parsing based on schema node type.
@@ -257,22 +319,8 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 			return err
 		}
 
-		// Apply inactive flag to the parsed node.
 		if markInactive {
-			if sub := child.GetContainer(fieldName); sub != nil {
-				sub.Set(InactiveLeafName, configTrue)
-			} else if entries := child.GetList(fieldName); entries != nil {
-				// Mark the last added entry as inactive.
-				order := child.listOrder[fieldName]
-				if len(order) > 0 {
-					lastKey := order[len(order)-1]
-					if entry, ok := entries[lastKey]; ok {
-						entry.Set(InactiveLeafName, configTrue)
-					}
-				}
-			} else {
-				p.warn(tok.Line, "inactive: prefix ignored on leaf %s (only containers and list entries support inactive)", fieldName)
-			}
+			applyInactive(child, fieldName, fieldNode, p, tok.Line)
 		}
 	}
 

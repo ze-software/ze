@@ -76,6 +76,11 @@ func pruneNode(tree *Tree, node Node) {
 		return
 	}
 
+	// Drop leaf-level inactive entries before walking structural children.
+	// The marker is engine state on the parent Tree, not part of the YANG
+	// schema, so this step has no schema-walk equivalent.
+	tree.pruneInactiveLeaves()
+
 	for _, name := range cp.Children() {
 		child := cp.Get(name)
 

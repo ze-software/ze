@@ -1,0 +1,31 @@
+# Test: parser accepts `inactive: <leaf> <value>;` syntax
+# Validates that a config file already containing the inactive-leaf
+# prefix loads cleanly through `ze config validate`.
+stdin=config:terminator=EOF_CONF
+bgp {
+	inactive: router-id 10.0.0.1
+	session {
+		asn {
+			local 65533
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				remote 65534
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -
+expect=exit:code=0

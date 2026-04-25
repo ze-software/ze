@@ -20,13 +20,18 @@ const maxInlineDepth = 1
 
 // canInlineContainer reports whether a container's tree data has exactly one
 // leaf-like child (value or multiValue), and no containers or lists.
-// The inactive leaf is excluded from the count.
+// The inactive leaf is excluded from the count. A container with any
+// deactivated leaf cannot inline -- the "inactive: " prefix only renders
+// correctly on a multi-line statement, not in inline form.
 func canInlineContainer(tree *Tree) bool {
 	if maxInlineDepth < 1 {
 		return false
 	}
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
+	if len(tree.inactiveValues) > 0 {
+		return false
+	}
 	valueCount := len(tree.values)
 	if _, ok := tree.values[InactiveLeafName]; ok {
 		valueCount--
@@ -209,6 +214,9 @@ func serializeExtraValues(b *strings.Builder, tree *Tree, children []string, ind
 	sort.Strings(valueKeys)
 	for _, k := range valueKeys {
 		b.WriteString(prefix)
+		if tree.inactiveValues[k] {
+			b.WriteString("inactive: ")
+		}
 		b.WriteString(k)
 		b.WriteString(" ")
 		b.WriteString(quoteIfNeeded(tree.values[k]))
@@ -261,6 +269,9 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 		}
 		if v, ok := tree.values[name]; ok {
 			b.WriteString(prefix)
+			if tree.inactiveValues[name] {
+				b.WriteString("inactive: ")
+			}
 			b.WriteString(name)
 			b.WriteString(" ")
 			b.WriteString(quoteIfNeeded(normalizeBool(v)))
@@ -270,6 +281,9 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 	case *MultiLeafNode:
 		if v, ok := tree.values[name]; ok {
 			b.WriteString(prefix)
+			if tree.inactiveValues[name] {
+				b.WriteString("inactive: ")
+			}
 			b.WriteString(name)
 			b.WriteString(" ")
 			b.WriteString(v) // Already space-separated
@@ -279,6 +293,9 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 	case *BracketLeafListNode:
 		if v, ok := tree.values[name]; ok {
 			b.WriteString(prefix)
+			if tree.inactiveValues[name] {
+				b.WriteString("inactive: ")
+			}
 			b.WriteString(name)
 			b.WriteString(" [ ")
 			b.WriteString(v) // Space-separated items
@@ -290,6 +307,9 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 		// would recursively RLock the same mutex (unsafe per Go docs).
 		if items := tree.multiValues[name]; len(items) > 0 {
 			b.WriteString(prefix)
+			if tree.inactiveValues[name] {
+				b.WriteString("inactive: ")
+			}
 			b.WriteString(name)
 			if len(items) == 1 {
 				b.WriteString(" ")

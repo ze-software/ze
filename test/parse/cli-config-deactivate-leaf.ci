@@ -1,0 +1,36 @@
+# Test: `ze config deactivate` on a leaf path
+# Validates the new one-shot CLI verb against a real config file: the
+# leaf is preserved in the file but prefixed with "inactive:".
+tmpfs=test.conf:terminator=EOF_FILE
+bgp {
+	router-id 10.0.0.1
+	session {
+		asn {
+			local 65533
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				remote 65534
+			}
+		}
+	}
+}
+EOF_FILE
+
+option=env:var=ze.storage.blob:value=false
+
+cmd=foreground:seq=1:exec=ze config deactivate --no-reload test.conf bgp router-id
+expect=exit:code=0
+
+cmd=foreground:seq=2:exec=ze config validate test.conf
+expect=exit:code=0

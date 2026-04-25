@@ -77,7 +77,13 @@ Configuration management.
 ```
 ze config edit [file]            # Interactive editor
 ze config set <file> <path> <value>
+ze config deactivate <file> <path>  # Mark a node inactive (kept in file, skipped at apply)
+ze config activate <file> <path>    # Clear the inactive flag on a node
 ```
+
+`deactivate` and `activate` accept any node type: leaf, container, list entry,
+or leaf-list value. The deactivated node round-trips through save/load and is
+skipped at apply time. See `docs/guide/config-deactivate.md`.
 
 **Storage:**
 
