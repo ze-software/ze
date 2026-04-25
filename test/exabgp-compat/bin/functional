@@ -2113,6 +2113,10 @@ class EncodingTests(Tests):
                 if not test.ready():
                     continue
                 if not client[test.nick].ready():
+                    # Server finished but client (ze) is still running.
+                    # Ze reconnects indefinitely, so terminate the client
+                    # now that the server has the result.
+                    client[test.nick].terminate(collect=False)
                     continue
                 running.remove(test)
                 # Terminate BOTH client and server when test completes

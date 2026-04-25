@@ -306,12 +306,12 @@ def main():
         return 0
 
     # For tests: only dial out, never bind/listen (Ze default is connect+accept).
-    # Inject "accept false" into every peer's connection > remote > ip line.
-    # The migrated config has "remote {\n\t\t\t\t\tip <addr>\n\t\t\t\t}"
+    # Inject "accept false" into every peer's connection > local block.
+    # The migrated config has "local {\n\t\t\t\t\tip <addr>\n\t\t\t\t}"
     # under "connection {". We add "accept false" after the ip line.
     import re
     migrated_config = re.sub(
-        r'(\bremote\s*\{\s*\n\s*ip\s+\S+\s*\n)',
+        r'(\blocal\s*\{\s*\n\s*ip\s+\S+\s*\n)',
         r'\1\t\t\t\t\taccept false\n',
         migrated_config,
     )
@@ -347,10 +347,6 @@ def main():
         if env_vars.get('port'):
             # Ze reads ze_test_bgp_port to override peer port (see loader.go:388)
             os.environ['ze_test_bgp_port'] = env_vars['port']
-
-        # For tests: exit after first session so test can complete
-        # (Ze doesn't know it's in a test and would otherwise keep running)
-        os.environ['ze_bgp_tcp_attempts'] = '1'
 
         if args.debug:
             print(f"Running: {' '.join(cmd)}", file=sys.stderr)

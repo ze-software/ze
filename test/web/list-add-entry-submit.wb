@@ -9,7 +9,7 @@ expect=element:text=+ new
 
 action=click:text=+ new
 action=wait:ms=500
-expect=element:text=New entry
+expect=element:text=New Group
 
 action=fill:text=name:value=test-group
 action=press:key=Enter

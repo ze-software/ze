@@ -4,13 +4,16 @@
 
 option=timeout:value=30s
 
-action=open:path=/show/bgp/local/
+action=open:path=/show/bgp/session/asn/
 expect=element:text=Local Autonomous System Number
 
-action=click:text=←
+action=click:text=Back
+expect=element:text=asn
+
+action=click:text=Back
 expect=element:text=group
 expect=element:text=peer
 
-action=click:text=←
+action=click:text=Back
 expect=element:text=environment
 expect=element:text=bgp

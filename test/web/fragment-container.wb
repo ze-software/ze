@@ -7,4 +7,4 @@ option=timeout:value=30s
 action=open:path=/show/bgp/
 expect=element:text=group
 expect=element:text=peer
-expect=element:text=local
+expect=element:text=session

@@ -5,21 +5,16 @@
 option=timeout:value=45s
 
 # Navigate to peer path (does not create entry yet, just renders schema)
-action=open:path=/show/bgp/peer/test-peer/remote/
+action=open:path=/show/bgp/peer/test-peer/connection/remote/
 action=wait:ms=1000
 expect=breadcrumb:contains=test-peer
 
 # Use CLI set commands to save values
-action=fill:text=type a command:value=set as 65001
-action=press:text=type a command:key=Enter
-action=wait:ms=2000
-
 action=fill:text=type a command:value=set ip 192.168.1.1
 action=press:text=type a command:key=Enter
 action=wait:ms=2000
 
 # Navigate to peer entry and verify values survived navigation
-action=open:path=/show/bgp/peer/test-peer/remote/
+action=open:path=/show/bgp/peer/test-peer/connection/remote/
 action=wait:ms=1000
-expect=element:text=65001
 expect=element:text=192.168.1.1

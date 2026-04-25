@@ -11,6 +11,8 @@
 # Apply() fails with EPERM and the "firewall config applied" log line
 # never appears, so the expect on stderr fails too.
 
+option=skip-os:value=darwin
+
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 """Wait for ze to reach post-Apply, snapshot nft state, send SIGTERM."""

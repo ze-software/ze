@@ -7,4 +7,4 @@ option=timeout:value=30s
 action=open:path=/show/environment/
 expect=element:text=log
 expect=element:text=daemon
-expect=element:text=debug
+expect=element:text=reactor

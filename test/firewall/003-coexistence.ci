@@ -16,6 +16,8 @@
 # the assertion "ze didn't touch surfprotect" would degrade to "ze
 # didn't retroactively touch surfprotect" -- weaker than the AC.
 
+option=skip-os:value=darwin
+
 tmpfs=setup.py:mode=755:terminator=EOF_SETUP
 #!/usr/bin/env python3
 import subprocess, sys

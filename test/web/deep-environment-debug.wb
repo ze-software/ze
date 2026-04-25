@@ -4,5 +4,5 @@
 
 option=timeout:value=30s
 
-action=open:path=/show/environment/debug/
+action=open:path=/show/environment/
 expect=element:text=pprof

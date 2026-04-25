@@ -4,7 +4,7 @@
 
 option=timeout:value=30s
 
-action=open:path=/show/bgp/local/
+action=open:path=/show/bgp/session/asn/
 expect=element:text=Local Autonomous System Number
 
 action=fill:text=Local Autonomous System Number:value=65001

@@ -7,11 +7,13 @@ option=timeout:value=30s
 action=open:path=/show/bgp/
 action=fill:text=BGP Router ID:value=10.0.0.9
 action=wait:ms=2000
-action=fill:text=Listen address:value=0.0.0.0:1790
+
+action=open:path=/show/environment/daemon/
+action=fill:text=PID file path:value=/var/run/ze.pid
 action=wait:ms=2000
 
-action=open:path=/show/
 action=open:path=/show/bgp/
-
 expect=element:text=10.0.0.9
-expect=element:text=0.0.0.0:1790
+
+action=open:path=/show/environment/daemon/
+expect=element:text=/var/run/ze.pid

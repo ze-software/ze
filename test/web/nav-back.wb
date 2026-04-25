@@ -8,7 +8,7 @@ action=open:path=/show/
 action=click:text=environment ›
 expect=element:text=log
 
-action=click:text=←
+action=click:text=Back
 expect=element:text=environment
 expect=element:text=bgp
 expect=breadcrumb:not-contains=fragment

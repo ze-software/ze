@@ -12,6 +12,8 @@
 #
 # Requires CAP_NET_ADMIN.
 
+option=skip-os:value=darwin
+
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 import os, signal, subprocess, sys, time

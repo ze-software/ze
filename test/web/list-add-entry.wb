@@ -9,4 +9,4 @@ expect=element:text=new
 
 action=click:text=new
 action=wait:ms=500
-expect=element:text=New entry
+expect=element:text=New Group
