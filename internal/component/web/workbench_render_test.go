@@ -183,6 +183,90 @@ func TestWorkbenchSectionModel_BGP(t *testing.T) {
 	assert.True(t, strings.HasPrefix(routing.URL, "/show/bgp"), "Routing URL must point at BGP")
 }
 
+// TestRenderWorkbenchNav_TwoLevel verifies the nav renders nested sub-lists.
+func TestRenderWorkbenchNav_TwoLevel(t *testing.T) {
+	r, err := NewRenderer()
+	assert.NoError(t, err)
+
+	data := WorkbenchData{
+		LayoutData: LayoutData{
+			Title:   "Ze: /",
+			Content: template.HTML(`<p>workspace</p>`),
+		},
+		Sections: WorkbenchSections(nil),
+	}
+
+	rec := httptest.NewRecorder()
+	assert.NoError(t, r.RenderWorkbench(rec, data))
+
+	body := rec.Body.String()
+
+	assert.Contains(t, body, `workbench-nav-sublist`, "nav must contain nested sub-lists")
+	assert.Contains(t, body, `workbench-nav-sublink`, "nav must contain sub-page links")
+	assert.Contains(t, body, `<details`, "nav must use details/summary for sections")
+	assert.Contains(t, body, `<summary`, "nav must use details/summary for sections")
+}
+
+// TestRenderWorkbenchNav_ActiveHighlight verifies the active sub-page has the
+// correct CSS class for highlighting.
+func TestRenderWorkbenchNav_ActiveHighlight(t *testing.T) {
+	r, err := NewRenderer()
+	assert.NoError(t, err)
+
+	data := WorkbenchData{
+		LayoutData: LayoutData{
+			Title:   "Ze: /bgp/peer",
+			Content: template.HTML(`<p>peers</p>`),
+		},
+		Sections: WorkbenchSections([]string{"bgp", "peer"}),
+	}
+
+	rec := httptest.NewRecorder()
+	assert.NoError(t, r.RenderWorkbench(rec, data))
+
+	body := rec.Body.String()
+
+	assert.Contains(t, body, `workbench-nav-subitem--active`, "active sub-page must have active class")
+	assert.Contains(t, body, `aria-current="page"`, "active sub-page must have aria-current")
+}
+
+// TestRenderWorkbenchNav_ExpandedSection verifies that the active section's
+// details element has the open attribute.
+func TestRenderWorkbenchNav_ExpandedSection(t *testing.T) {
+	r, err := NewRenderer()
+	assert.NoError(t, err)
+
+	data := WorkbenchData{
+		LayoutData: LayoutData{
+			Title:   "Ze: /bgp/peer",
+			Content: template.HTML(`<p>peers</p>`),
+		},
+		Sections: WorkbenchSections([]string{"bgp", "peer"}),
+	}
+
+	rec := httptest.NewRecorder()
+	assert.NoError(t, r.RenderWorkbench(rec, data))
+
+	body := rec.Body.String()
+
+	// The routing section should have open attribute; check that "open" appears
+	// in a details element with data-section="routing".
+	assert.Contains(t, body, `workbench-nav-section--active`, "active section must have active class")
+
+	// Verify the active section has the open attribute. The template renders
+	// the open attribute after data-section, so look for the closing ">" after
+	// data-section="routing" and check for "open" in between.
+	routingIdx := strings.Index(body, `data-section="routing"`)
+	assert.Greater(t, routingIdx, 0, "routing section must exist in HTML")
+
+	// Find the closing > of the details tag after data-section="routing".
+	afterRouting := body[routingIdx:]
+	closingBracket := strings.Index(afterRouting, ">")
+	assert.Greater(t, closingBracket, 0, "details tag must close after data-section")
+	detailsSuffix := afterRouting[:closingBracket]
+	assert.Contains(t, detailsSuffix, "open", "active section details must have open attribute")
+}
+
 // assertOnlySelected verifies exactly one section in the list has Selected=true,
 // and that section's Key matches wantKey.
 func assertOnlySelected(t *testing.T, sections []WorkbenchSection, wantKey string) {

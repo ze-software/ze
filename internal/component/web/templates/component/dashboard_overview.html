@@ -1,0 +1,71 @@
+{{define "dashboard_overview"}}
+<div class="wb-dashboard" hx-get="/show/" hx-trigger="every 30s" hx-swap="innerHTML" hx-select=".wb-dashboard">
+  <div class="wb-dashboard-grid">
+    <div class="wb-dashboard-panel" hx-get="/show/" hx-trigger="every 5s" hx-swap="innerHTML" hx-select=".wb-dashboard-panel:first-child">
+      <h3 class="wb-dashboard-panel-title">System</h3>
+      <div class="wb-dashboard-panel-body">
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Hostname</span><span>{{if .System.Hostname}}{{.System.Hostname}}{{else}}-{{end}}</span></div>
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Uptime</span><span>{{.System.Uptime}}</span></div>
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Version</span><span>{{.System.Version}}</span></div>
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">CPU</span><span>{{.System.CPUCount}}</span></div>
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Memory</span><span>{{.System.MemAlloc}}</span></div>
+      </div>
+    </div>
+    <div class="wb-dashboard-panel">
+      <h3 class="wb-dashboard-panel-title">BGP Summary</h3>
+      <div class="wb-dashboard-panel-body">
+        {{if .BGP.Empty}}
+        <p class="wb-dashboard-empty-hint">No BGP peers configured. <a href="{{.BGP.HintURL}}">Add a peer</a></p>
+        {{else}}
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Total Peers</span><span>{{.BGP.Total}}</span></div>
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Established</span><span class="wb-dashboard-stat--green">{{.BGP.Established}}</span></div>
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Active</span><span class="wb-dashboard-stat--yellow">{{.BGP.Active}}</span></div>
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Idle</span><span>{{.BGP.Idle}}</span></div>
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Down</span><span class="wb-dashboard-stat--red">{{.BGP.Down}}</span></div>
+        {{end}}
+      </div>
+    </div>
+    <div class="wb-dashboard-panel">
+      <h3 class="wb-dashboard-panel-title">Interfaces</h3>
+      <div class="wb-dashboard-panel-body">
+        {{if .Interfaces.Empty}}
+        <p class="wb-dashboard-empty-hint">No interfaces configured. <a href="{{.Interfaces.HintURL}}">Configure interfaces</a></p>
+        {{else}}
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Total</span><span>{{.Interfaces.Total}}</span></div>
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Up</span><span class="wb-dashboard-stat--green">{{.Interfaces.Up}}</span></div>
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Down</span><span class="wb-dashboard-stat--red">{{.Interfaces.Down}}</span></div>
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Admin Down</span><span class="wb-dashboard-stat--yellow">{{.Interfaces.AdminDown}}</span></div>
+        {{end}}
+      </div>
+    </div>
+    <div class="wb-dashboard-panel">
+      <h3 class="wb-dashboard-panel-title">Active Warnings</h3>
+      <div class="wb-dashboard-panel-body">
+        {{if .Warnings}}
+        <ul class="wb-dashboard-event-list">
+          {{range .Warnings}}
+          <li class="wb-dashboard-event"><span class="wb-dashboard-event-time">{{.Time}}</span> <span class="wb-dashboard-event-component">{{.Component}}</span> {{.Message}}</li>
+          {{end}}
+        </ul>
+        {{else}}
+        <p class="wb-dashboard-empty-hint">System healthy, no warnings</p>
+        {{end}}
+      </div>
+    </div>
+    <div class="wb-dashboard-panel">
+      <h3 class="wb-dashboard-panel-title">Recent Errors</h3>
+      <div class="wb-dashboard-panel-body">
+        {{if .Errors}}
+        <ul class="wb-dashboard-event-list">
+          {{range .Errors}}
+          <li class="wb-dashboard-event"><span class="wb-dashboard-event-time">{{.Time}}</span> <span class="wb-dashboard-event-component">{{.Component}}</span> {{.Message}}</li>
+          {{end}}
+        </ul>
+        {{else}}
+        <p class="wb-dashboard-empty-hint">No recent errors</p>
+        {{end}}
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}

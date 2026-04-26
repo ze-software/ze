@@ -15,6 +15,7 @@ package web
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
@@ -22,11 +23,37 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+// workbenchConfig holds optional dependencies for the workbench handler.
+// Dependencies that are nil degrade gracefully (tool forms render but
+// command dispatch is unavailable).
+type workbenchConfig struct {
+	dispatch CommandDispatcher
+	broker   *EventBroker
+}
+
+// WorkbenchOption configures optional workbench handler dependencies.
+type WorkbenchOption func(*workbenchConfig)
+
+// WithDispatch sets the CommandDispatcher for tool and log page handlers.
+func WithDispatch(d CommandDispatcher) WorkbenchOption {
+	return func(c *workbenchConfig) { c.dispatch = d }
+}
+
+// WithBroker sets the EventBroker for Live Log SSE streaming.
+func WithBroker(b *EventBroker) WorkbenchOption {
+	return func(c *workbenchConfig) { c.broker = b }
+}
+
 // HandleWorkbench returns an HTTP handler that serves /show/* and the root
 // page in workbench mode. HTMX partial requests fall back to the existing
 // fragment OOB response so HTMX-driven navigation continues to work; only
 // the full-page render is replaced by the workbench shell.
-func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tree, mgr *EditorManager, insecure bool) http.HandlerFunc {
+func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tree, mgr *EditorManager, insecure bool, opts ...WorkbenchOption) http.HandlerFunc {
+	var cfg workbenchConfig
+	for _, o := range opts {
+		o(&cfg)
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := extractPath(r)
 		if err := ValidatePathSegments(path); err != nil {
@@ -40,6 +67,44 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 			if userTree := mgr.Tree(username); userTree != nil {
 				viewTree = userTree
 			}
+		}
+
+		// Purpose-built pages handle their own data sourcing and do not
+		// walk the YANG schema. Detect them before the generic schema walk.
+		if pageContent, handled := renderPageContent(renderer, r, path, viewTree, cfg.dispatch, cfg.broker); handled {
+			if r.Header.Get("HX-Request") == htmxRequestTrue {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				if _, writeErr := w.Write([]byte(pageContent)); writeErr != nil {
+					return
+				}
+				return
+			}
+
+			data := buildFragmentData(schema, viewTree, nil)
+			data.Username = username
+			data.Insecure = insecure
+			data.Services = PortalServices()
+			pathBar := renderer.RenderFragment("path_bar_inner", data)
+
+			wb := WorkbenchData{
+				LayoutData: LayoutData{
+					Title:          "Ze: /" + strings.Join(path, "/"),
+					Content:        pageContent,
+					HasSession:     true,
+					CLIPrompt:      data.CLIPrompt,
+					CLIContextPath: data.CLIContextPath,
+					CLIPathBar:     pathBar,
+					Breadcrumbs:    data.Breadcrumbs,
+					Username:       data.Username,
+					Insecure:       insecure,
+				},
+				Sections: WorkbenchSections(path),
+			}
+
+			if renderErr := renderer.RenderWorkbench(w, wb); renderErr != nil {
+				http.Error(w, fmt.Sprintf("render: %v", renderErr), http.StatusInternalServerError)
+			}
+			return
 		}
 
 		if len(path) > 0 {
@@ -73,7 +138,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		}
 		enrichWorkbenchTable(data, schema, viewTree, path, pendingPaths)
 
-		if r.Header.Get("HX-Request") == "true" {
+		if r.Header.Get("HX-Request") == htmxRequestTrue {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			html := renderer.RenderFragment("oob_response", data)
 			if _, writeErr := w.Write([]byte(html)); writeErr != nil {
@@ -82,9 +147,15 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 			return
 		}
 
-		// Full page: render the workspace from the existing detail fragment so
-		// list tables, fields, and command results appear inside the workbench.
-		content := renderer.RenderFragment("detail", data)
+		// Full page: at the root path render the dashboard overview; for
+		// all other paths render the existing detail fragment.
+		var content template.HTML
+		if len(path) == 0 {
+			dashData := BuildDashboardData(viewTree, schema)
+			content = renderer.RenderFragment("workbench_dashboard", dashData)
+		} else {
+			content = renderer.RenderFragment("detail", data)
+		}
 		pathBar := renderer.RenderFragment("path_bar_inner", data)
 
 		wb := WorkbenchData{

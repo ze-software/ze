@@ -1,0 +1,19 @@
+{{define "log_live"}}
+<div class="wb-log-live">
+  <h2 class="wb-form-title">Live Log</h2>
+  <div class="wb-log-toolbar">
+    <select id="log-namespace" class="wb-form-input" aria-label="Namespace filter">
+      <option value="">All Namespaces</option>
+    </select>
+    <label class="wb-log-level"><input type="checkbox" name="level" value="error" checked> Error</label>
+    <label class="wb-log-level"><input type="checkbox" name="level" value="warning" checked> Warning</label>
+    <label class="wb-log-level"><input type="checkbox" name="level" value="info" checked> Info</label>
+    <label class="wb-log-level"><input type="checkbox" name="level" value="debug"> Debug</label>
+    <input type="search" id="log-search" class="wb-form-input" placeholder="Search..." aria-label="Search log entries">
+    <button id="log-pause" class="wb-form-save">Pause</button>
+  </div>
+  <div class="wb-log-stream" id="log-stream">
+    <p class="wb-log-hint">Connecting to live log stream via SSE. Events will appear here in real time.</p>
+  </div>
+</div>
+{{end}}

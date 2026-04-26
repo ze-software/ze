@@ -1,11 +1,19 @@
 {{define "workbench_nav"}}
-<ul class="workbench-nav-list" id="workbench-nav-list" role="list">
+<nav class="workbench-nav-list" id="workbench-nav-list" role="navigation" aria-label="Main sections">
   {{range .Sections}}
-  <li class="workbench-nav-item{{if .Selected}} workbench-nav-item--active{{end}}"
-      data-section="{{.Key}}"
-      {{if .Selected}}aria-current="page"{{end}}>
-    <a class="workbench-nav-link" href="{{.URL}}">{{.Label}}</a>
-  </li>
+  <details class="workbench-nav-section{{if .Selected}} workbench-nav-section--active{{end}}"
+           data-section="{{.Key}}"
+           {{if .Expanded}}open{{end}}>
+    <summary class="workbench-nav-section-label">{{.Label}}</summary>
+    <ul class="workbench-nav-sublist">
+      {{range .Children}}
+      <li class="workbench-nav-subitem{{if .Selected}} workbench-nav-subitem--active{{end}}">
+        <a class="workbench-nav-sublink" href="{{.URL}}"
+           {{if .Selected}}aria-current="page"{{end}}>{{.Label}}</a>
+      </li>
+      {{end}}
+    </ul>
+  </details>
   {{end}}
-</ul>
+</nav>
 {{end}}

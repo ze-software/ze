@@ -20,6 +20,32 @@ const (
 	zeTypeWireguard = "wireguard"
 )
 
+// SupportedTypes returns the canonical list of Ze interface type names
+// matching the YANG schema list/container names. Used by UI components
+// that need to enumerate interface types without hardcoding the list.
+func SupportedTypes() []string {
+	return []string{
+		zeTypeEthernet,
+		zeTypeBridge,
+		zeTypeVeth,
+		zeTypeDummy,
+		zeTypeTunnel,
+		zeTypeWireguard,
+		zeTypeLoopback,
+	}
+}
+
+// TunnelKindNames returns the canonical list of tunnel encapsulation kind
+// names. Used by UI components that need to enumerate tunnel subtypes.
+func TunnelKindNames() []string {
+	names := make([]string, 0, len(tunnelKindNames))
+	for _, name := range tunnelKindNames {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
 // kernelTunnelKinds is the set of Linux netlink link types reported by the
 // kernel for the tunnel encapsulation kinds Ze supports. Used to map kernel
 // types into the single "tunnel" zeType (the YANG list is one tunnel list

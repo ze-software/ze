@@ -1,0 +1,21 @@
+# Test: workbench two-level nav renders sections with sub-pages
+# VALIDATES: AC-1 (two-level nav structure), AC-2 (expand/collapse),
+#            AC-3 (active page highlight)
+# Spec: plan/spec-web-3-foundation.md (Phase 7).
+
+option=skip:reason=requires ZE_WEB_UI=workbench
+option=timeout:value=30s
+
+action=open:path=/show/
+expect=element:text=Dashboard
+expect=element:text=Interfaces
+expect=element:text=IP
+expect=element:text=Routing
+expect=element:text=Policy
+expect=element:text=Firewall
+expect=element:text=Services
+expect=element:text=System
+expect=element:text=Tools
+expect=element:text=Logs
+expect=element:text=Overview
+expect=element:not-text=panic

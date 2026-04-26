@@ -1,0 +1,19 @@
+{{define "tool_bgp_decode"}}
+<div class="wb-tool-page">
+  <h2 class="wb-form-title">BGP Decode</h2>
+  <form class="wb-tool-form" method="post" action="/show/tools/bgp-decode/" hx-post="/show/tools/bgp-decode/" hx-target="#tool-result" hx-swap="innerHTML">
+    <div class="wb-form-field">
+      <label for="field-hex" class="wb-form-label wb-form-label--required">Hex Input</label>
+      <textarea id="field-hex" name="hex" class="wb-form-input wb-form-textarea" rows="6" placeholder="FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF ..." required></textarea>
+      <span class="wb-form-description">BGP UPDATE message in hexadecimal</span>
+    </div>
+    <div class="wb-form-actions">
+      <button type="submit" class="wb-form-save">Decode</button>
+    </div>
+  </form>
+  <div id="tool-result" class="wb-tool-result">
+    {{if .Error}}<div class="wb-tool-error">{{.Error}}</div>{{end}}
+    {{if .Output}}<pre class="wb-tool-output">{{.Output}}</pre>{{end}}
+  </div>
+</div>
+{{end}}

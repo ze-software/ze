@@ -1,0 +1,14 @@
+# Test: workbench dashboard renders system panels
+# VALIDATES: AC-10 (dashboard panels), AC-11 (empty state hints)
+# Spec: plan/spec-web-3-foundation.md (Phase 7).
+
+option=skip:reason=requires ZE_WEB_UI=workbench
+option=timeout:value=30s
+
+action=open:path=/show/
+expect=element:text=System
+expect=element:text=BGP Summary
+expect=element:text=Interfaces
+expect=element:text=Recent Warnings
+expect=element:text=Recent Errors
+expect=element:not-text=panic

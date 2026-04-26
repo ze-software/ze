@@ -1058,13 +1058,17 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 		}
 	}
 
+	// SSE broker for live config change notifications and log streaming.
+	broker := zeweb.NewEventBroker(0)
+
 	// /show handler picks between Finder (default through Phases 1-3, rollback
 	// after the Phase 4 default flip) and the V2 workbench (`ze.web.ui=workbench`
 	// opt-in until the flip, then the default). Read once at startup; flipping
 	// the variable later requires a hub restart by design.
 	uiMode := zeweb.GetUIMode()
 	finderHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, insecureWeb)
-	workbenchHandler := zeweb.HandleWorkbench(renderer, schema, tree, editorMgr, insecureWeb)
+	workbenchHandler := zeweb.HandleWorkbench(renderer, schema, tree, editorMgr, insecureWeb,
+		zeweb.WithDispatch(dispatch), zeweb.WithBroker(broker))
 	var showHandler http.HandlerFunc
 	switch uiMode {
 	case zeweb.UIModeWorkbench:
@@ -1083,9 +1087,6 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	addFormHandler := zeweb.HandleConfigAddForm(editorMgr, schema, renderer)
 	renameHandler := zeweb.HandleConfigRename(editorMgr, schema)
 	deleteHandler := zeweb.HandleConfigDelete(editorMgr)
-
-	// SSE broker for live config change notifications.
-	broker := zeweb.NewEventBroker(0)
 
 	// Commit and discard handlers.
 	commitHandler := zeweb.HandleConfigCommit(editorMgr, renderer, broker)

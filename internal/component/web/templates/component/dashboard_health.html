@@ -1,0 +1,29 @@
+{{define "dashboard_health"}}
+<div class="wb-table-container">
+  <h2 class="wb-form-title">Component Health</h2>
+  {{if .Rows}}
+  <table class="wb-table">
+    <thead>
+      <tr>
+        {{range .Columns}}<th class="wb-table-col">{{.Label}}</th>{{end}}
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Rows}}
+      <tr class="wb-table-row">
+        <td class="wb-table-cell"><span class="wb-health-status wb-health-status--{{.FlagClass}}">{{index .Cells 0}}</span></td>
+        <td class="wb-table-cell">{{index .Cells 1}}</td>
+        <td class="wb-table-cell">{{index .Cells 2}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="wb-table-empty">
+    <div class="wb-table-empty-content">
+      <p class="wb-table-empty-message">{{.EmptyMessage}}</p>
+    </div>
+  </div>
+  {{end}}
+</div>
+{{end}}

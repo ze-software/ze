@@ -1,0 +1,27 @@
+{{define "workbench_detail"}}
+<div class="wb-detail-panel">
+  <div class="wb-detail-header">
+    <span class="wb-detail-title">{{.Title}}</span>
+    {{if .CloseURL}}<a href="{{.CloseURL}}" class="wb-detail-close">Close</a>{{else}}<button class="wb-detail-close" type="button">Close</button>{{end}}
+  </div>
+  {{if .Tabs}}
+  <div class="wb-detail-tabs">
+    {{range .Tabs}}
+    <button class="wb-detail-tab{{if .Active}} wb-detail-tab--active{{end}}" data-tab="{{.Key}}" type="button">{{.Label}}</button>
+    {{end}}
+  </div>
+  {{range .Tabs}}
+  <div class="wb-detail-content{{if .Active}} wb-detail-content--active{{end}}" data-tab-content="{{.Key}}">{{.Content}}</div>
+  {{end}}
+  {{end}}
+  {{if .Tools}}
+  <div class="wb-detail-tools">
+    {{range .Tools}}
+    <button class="wb-detail-tool{{if eq .Class "danger"}} wb-detail-tool--danger{{end}}"
+            hx-post="{{.HxPost}}"{{if .Confirm}} hx-confirm="{{.Confirm}}"{{end}}
+            type="button">{{.Label}}</button>
+    {{end}}
+  </div>
+  {{end}}
+</div>
+{{end}}

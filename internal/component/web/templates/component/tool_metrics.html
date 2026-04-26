@@ -1,0 +1,24 @@
+{{define "tool_metrics"}}
+<div class="wb-tool-page">
+  <h2 class="wb-form-title">Metrics Query</h2>
+  <form class="wb-tool-form" method="post" action="/show/tools/metrics/" hx-post="/show/tools/metrics/" hx-target="#tool-result" hx-swap="innerHTML">
+    <div class="wb-form-field">
+      <label for="field-name" class="wb-form-label wb-form-label--required">Metric Name</label>
+      <input type="text" id="field-name" name="name" class="wb-form-input" placeholder="bgp_peer_up" required>
+      <span class="wb-form-description">Prometheus metric name (alphanumeric, underscore, colon)</span>
+    </div>
+    <div class="wb-form-field">
+      <label for="field-label" class="wb-form-label">Label Filter</label>
+      <input type="text" id="field-label" name="label" class="wb-form-input" placeholder="instance=peer1">
+      <span class="wb-form-description">Optional label=value filter</span>
+    </div>
+    <div class="wb-form-actions">
+      <button type="submit" class="wb-form-save">Query</button>
+    </div>
+  </form>
+  <div id="tool-result" class="wb-tool-result">
+    {{if .Error}}<div class="wb-tool-error">{{.Error}}</div>{{end}}
+    {{if .Output}}<pre class="wb-tool-output">{{.Output}}</pre>{{end}}
+  </div>
+</div>
+{{end}}

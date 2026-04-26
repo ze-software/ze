@@ -1,0 +1,29 @@
+{{define "tool_capture"}}
+<div class="wb-tool-page">
+  <h2 class="wb-form-title">Capture</h2>
+  <form class="wb-tool-form" method="post" action="/show/tools/capture/" hx-post="/show/tools/capture/" hx-target="#tool-result" hx-swap="innerHTML">
+    <div class="wb-form-field">
+      <label for="field-tunnel-id" class="wb-form-label">Tunnel ID</label>
+      <input type="number" id="field-tunnel-id" name="tunnel-id" class="wb-form-input" placeholder="0" min="0" max="65535">
+      <span class="wb-form-description">L2TP tunnel ID filter (0-65535, 0 means no filter)</span>
+    </div>
+    <div class="wb-form-field">
+      <label for="field-peer" class="wb-form-label">Peer</label>
+      <input type="text" id="field-peer" name="peer" class="wb-form-input" placeholder="192.0.2.1">
+      <span class="wb-form-description">Peer IP address filter</span>
+    </div>
+    <div class="wb-form-field">
+      <label for="field-count" class="wb-form-label">Count</label>
+      <input type="number" id="field-count" name="count" class="wb-form-input" value="100" min="1" max="10000">
+      <span class="wb-form-description">Number of packets to capture (1-10000, default 100)</span>
+    </div>
+    <div class="wb-form-actions">
+      <button type="submit" class="wb-form-save">Run</button>
+    </div>
+  </form>
+  <div id="tool-result" class="wb-tool-result">
+    {{if .Error}}<div class="wb-tool-error">{{.Error}}</div>{{end}}
+    {{if .Output}}<pre class="wb-tool-output">{{.Output}}</pre>{{end}}
+  </div>
+</div>
+{{end}}

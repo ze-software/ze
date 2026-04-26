@@ -1,0 +1,11 @@
+# Test: navigating to /show/bgp/peer/ highlights Peers sub-page
+# VALIDATES: AC-3 (active page highlighted, parent section expanded)
+# Spec: plan/spec-web-3-foundation.md (Phase 7).
+
+option=skip:reason=requires ZE_WEB_UI=workbench
+option=timeout:value=30s
+
+action=open:path=/show/bgp/peer/
+expect=element:text=Routing
+expect=element:text=Peers
+expect=element:not-text=panic

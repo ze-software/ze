@@ -78,6 +78,40 @@ func TestHandleWorkbench_HTMXPartialReusesOOBResponse(t *testing.T) {
 	assert.False(t, strings.Contains(html, `id="workbench-shell"`), "HTMX partial must not include the shell")
 }
 
+// TestHandleWorkbench_DashboardRendersOverview verifies that a full-page GET
+// at the root path renders the dashboard overview panels instead of the
+// detail fragment. The dashboard is the default landing page for the
+// workbench shell.
+//
+// VALIDATES: Phase 6 dashboard integration (root path renders overview).
+// PREVENTS: Dashboard template not wired into the handler, or root path
+// still rendering the detail fragment.
+func TestHandleWorkbench_DashboardRendersOverview(t *testing.T) {
+	renderer, err := NewRenderer()
+	assert.NoError(t, err)
+
+	schema, schemaErr := config.YANGSchema()
+	assert.NoError(t, schemaErr)
+	tree := config.NewTree()
+
+	handler := HandleWorkbench(renderer, schema, tree, nil, true)
+
+	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	html := rec.Body.String()
+	// Must contain dashboard panels.
+	assert.Contains(t, html, `wb-dashboard`, "root path must render dashboard")
+	assert.Contains(t, html, `System`, "dashboard must have System panel")
+	assert.Contains(t, html, `BGP Summary`, "dashboard must have BGP panel")
+	assert.Contains(t, html, `Interfaces`, "dashboard must have Interfaces panel")
+	// Must still be inside the workbench shell.
+	assert.Contains(t, html, `id="workbench-shell"`)
+}
+
 // TestHandleWorkbench_BadPathReturns400 verifies that a path containing
 // invalid YANG-identifier characters is rejected before any rendering work
 // happens. The shared ValidatePathSegments helper is the gate.

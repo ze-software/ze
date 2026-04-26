@@ -1,0 +1,46 @@
+{{define "workbench_table"}}
+<div class="wb-table-container">
+  <div class="wb-table-toolbar">
+    {{if .AddURL}}<a href="{{.AddURL}}" class="wb-table-add">{{if .AddLabel}}{{.AddLabel}}{{else}}Add{{end}}</a>{{end}}
+    <div class="wb-table-toolbar-right">
+      <input type="search" class="wb-table-search" placeholder="Search..." aria-label="Search table">
+    </div>
+  </div>
+  <table class="wb-table">
+    <thead>
+      <tr>
+        <th class="wb-table-flag-header">Flags</th>
+        {{range .Columns}}<th class="wb-table-col{{if .Sortable}} wb-table-col--sortable{{end}}">{{.Label}}</th>{{end}}
+        <th class="wb-table-actions-header">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if .Rows}}
+        {{range .Rows}}
+        <tr class="wb-table-row{{if .Pending}} wb-table-row--pending{{end}}"
+            data-key="{{.Key}}">
+          <td class="wb-table-flag{{if .FlagClass}} wb-table-flag--{{.FlagClass}}{{end}}">{{.Flags}}</td>
+          {{range .Cells}}<td class="wb-table-cell">{{.}}</td>{{end}}
+          <td class="wb-table-actions">
+            {{range .Actions}}
+            {{if .HxPost}}<button hx-post="{{.HxPost}}" class="wb-action{{if .Class}} wb-action--{{.Class}}{{end}}"{{if .Confirm}} hx-confirm="{{.Confirm}}"{{end}}>{{.Label}}</button>
+            {{else}}<a href="{{.URL}}" class="wb-action{{if .Class}} wb-action--{{.Class}}{{end}}">{{.Label}}</a>{{end}}
+            {{end}}
+          </td>
+        </tr>
+        {{end}}
+      {{else}}
+        <tr class="wb-table-empty-row">
+          <td colspan="0" class="wb-table-empty">
+            <div class="wb-table-empty-content">
+              <p class="wb-table-empty-message">{{.EmptyMessage}}</p>
+              {{if .EmptyHint}}<p class="wb-table-empty-hint">{{.EmptyHint}}</p>{{end}}
+              {{if .AddURL}}<a href="{{.AddURL}}" class="wb-table-add wb-table-empty-add">{{if .AddLabel}}{{.AddLabel}}{{else}}Add{{end}}</a>{{end}}
+            </div>
+          </td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}

@@ -1,0 +1,47 @@
+{{define "workbench_form"}}
+<div class="wb-form">
+  {{if .Title}}<h2 class="wb-form-title">{{.Title}}</h2>{{end}}
+  <form method="post" action="{{.SaveURL}}">
+    {{range .Fields}}{{$f := .}}
+    <div class="wb-form-field">
+      {{if eq .Type "toggle"}}
+      <div class="wb-form-toggle">
+        <input type="checkbox" id="field-{{.Name}}" name="{{.Name}}" value="true"{{if eq .Value "true"}} checked{{end}}{{if .Disabled}} disabled{{end}}>
+        <label for="field-{{.Name}}" class="wb-form-label{{if .Required}} wb-form-label--required{{end}}">{{.Label}}</label>
+      </div>
+      {{else}}
+      <label for="field-{{.Name}}" class="wb-form-label{{if .Required}} wb-form-label--required{{end}}">{{.Label}}</label>
+      {{if eq .Type "dropdown"}}
+      <select id="field-{{.Name}}" name="{{.Name}}" class="wb-form-input"{{if .Disabled}} disabled{{end}}>
+        {{range .Options}}<option value="{{.}}"{{if eq . $f.Value}} selected{{end}}>{{.}}</option>{{end}}
+      </select>
+      {{else if eq .Type "number"}}
+      <input type="number" id="field-{{.Name}}" name="{{.Name}}" value="{{.Value}}" class="wb-form-input"{{if .Required}} required{{end}}{{if .Disabled}} disabled{{end}}>
+      {{else if eq .Type "password"}}
+      <input type="password" id="field-{{.Name}}" name="{{.Name}}" value="{{.Value}}" class="wb-form-input"{{if .Required}} required{{end}}{{if .Disabled}} disabled{{end}}>
+      {{else if eq .Type "ip"}}
+      <input type="text" id="field-{{.Name}}" name="{{.Name}}" value="{{.Value}}" class="wb-form-input" placeholder="0.0.0.0"{{if .Required}} required{{end}}{{if .Disabled}} disabled{{end}}>
+      {{else if eq .Type "list"}}
+      <div class="wb-form-list">
+        {{range .Items}}
+        <div class="wb-form-list-item">
+          <input type="text" name="{{$f.Name}}[]" value="{{.}}" readonly>
+          <button type="button" class="wb-form-list-remove" aria-label="Remove">x</button>
+        </div>
+        {{end}}
+        <button type="button" class="wb-form-list-add">+ Add item</button>
+      </div>
+      {{else}}
+      <input type="text" id="field-{{.Name}}" name="{{.Name}}" value="{{.Value}}" class="wb-form-input"{{if .Required}} required{{end}}{{if .Disabled}} disabled{{end}}>
+      {{end}}
+      {{end}}
+      {{if .Description}}<span class="wb-form-description">{{.Description}}</span>{{end}}
+    </div>
+    {{end}}
+    <div class="wb-form-actions">
+      <button type="submit" class="wb-form-save">Save</button>
+      {{if .DiscardURL}}<a href="{{.DiscardURL}}" class="wb-form-discard">Discard</a>{{end}}
+    </div>
+  </form>
+</div>
+{{end}}
