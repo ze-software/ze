@@ -1777,7 +1777,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 .cli-path-seg:hover {
   color: var(--accent);
-  background: var(--bg-hover);
+  background: var(--accent-subtle);
 }
 
 .cli-path-sep { color: var(--text-muted); }
@@ -2267,16 +2267,16 @@ body.ui-workbench {
     "nav    notifications"
     "commit cli";
   min-height: 100vh;
-  background: var(--bg, #fafafa);
+  background: var(--bg-primary);
 }
 
 .workbench-topbar {
   grid-area: topbar;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--border, #ddd);
+  border-bottom: 1px solid var(--border);
   padding: 0.4rem 1rem;
-  background: var(--topbar-bg, #fff);
+  background: var(--bg-secondary);
 }
 
 .workbench-topbar-inner {
@@ -2298,7 +2298,7 @@ body.ui-workbench {
 .workbench-brand-mode {
   font-size: 0.75rem;
   text-transform: uppercase;
-  color: var(--accent, #1e6cb6);
+  color: var(--accent);
   letter-spacing: 0.05em;
 }
 
@@ -2317,11 +2317,11 @@ body.ui-workbench {
   font-size: 0.85rem;
 }
 
-.workbench-username { color: var(--text-muted, #555); }
+.workbench-username { color: var(--text-muted); }
 .workbench-insecure-badge {
-  background: #fee;
-  color: #b00020;
-  border: 1px solid #f3b3b3;
+  background: var(--error-subtle);
+  color: var(--error);
+  border: 1px solid var(--error);
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 0.75rem;
@@ -2330,8 +2330,8 @@ body.ui-workbench {
 
 .workbench-nav {
   grid-area: nav;
-  border-right: 1px solid var(--border, #ddd);
-  background: var(--nav-bg, #f4f4f4);
+  border-right: 1px solid var(--border);
+  background: var(--bg-secondary);
   padding: 0.5rem 0;
   overflow-y: auto;
 }
@@ -2349,18 +2349,18 @@ body.ui-workbench {
 .workbench-nav-link {
   display: block;
   padding: 0.5rem 1rem;
-  color: var(--text, #222);
+  color: var(--text-primary);
   text-decoration: none;
   border-left: 3px solid transparent;
 }
 
 .workbench-nav-link:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--accent-subtle);
 }
 
 .workbench-nav-item--active .workbench-nav-link {
-  background: var(--nav-active-bg, #e6efff);
-  border-left-color: var(--accent, #1e6cb6);
+  background: var(--accent-subtle);
+  border-left-color: var(--accent);
   font-weight: 600;
 }
 
@@ -2388,8 +2388,8 @@ body.ui-workbench {
     content: "Workbench requires a viewport of at least 1024px wide.";
     display: block;
     padding: 1rem;
-    background: #fffbe6;
-    border-bottom: 1px solid #f0d967;
+    background: var(--warning-subtle);
+    border-bottom: 1px solid var(--warning);
     text-align: center;
     font-size: 0.9rem;
   }
@@ -2410,8 +2410,8 @@ body.ui-workbench {
 }
 
 .tool-overlay {
-  background: var(--overlay-bg, #fff);
-  border: 1px solid var(--border, #ddd);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
   border-radius: 4px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   padding: 0.5rem 0.75rem;
@@ -2420,13 +2420,13 @@ body.ui-workbench {
 }
 
 .tool-overlay--error {
-  border-color: #d33;
-  background: #fff5f5;
+  border-color: var(--error);
+  background: var(--error-subtle);
 }
 
 .tool-overlay--confirm {
-  border-color: #cc8a00;
-  background: #fff8e1;
+  border-color: var(--warning);
+  background: var(--warning-subtle);
 }
 
 .tool-overlay-header {
@@ -2442,8 +2442,8 @@ body.ui-workbench {
 .tool-overlay-command {
   font-family: monospace;
   font-size: 0.8rem;
-  color: var(--text-muted, #555);
-  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-muted);
+  background: var(--bg-surface);
   padding: 0 0.3rem;
   border-radius: 2px;
 }
@@ -2453,7 +2453,7 @@ body.ui-workbench {
   border: 0;
   font-size: 1.1rem;
   cursor: pointer;
-  color: var(--text-muted, #555);
+  color: var(--text-muted);
 }
 
 .tool-overlay-output,
@@ -2467,7 +2467,7 @@ body.ui-workbench {
 }
 
 .tool-overlay-truncation {
-  color: #cc8a00;
+  color: var(--warning);
   font-size: 0.8rem;
   margin-top: 0.3rem;
 }
@@ -2485,3 +2485,215 @@ body.ui-workbench {
   padding: 0.25rem 0.6rem;
   cursor: pointer;
 }
+
+/* -- Workbench two-level nav -- */
+.workbench-nav-section { border-bottom: 1px solid var(--border); }
+.workbench-nav-section-label {
+    display: block; padding: 0.5rem 1rem; cursor: pointer;
+    font-weight: 600; font-size: 0.85rem; text-transform: uppercase;
+    letter-spacing: 0.03em; color: var(--text-muted);
+    list-style: none; /* remove default details marker */
+}
+.workbench-nav-section-label::-webkit-details-marker { display: none; }
+.workbench-nav-section-label::marker { display: none; content: ""; }
+.workbench-nav-section--active > .workbench-nav-section-label { color: var(--accent); }
+.workbench-nav-sublist { list-style: none; margin: 0; padding: 0 0 0.25rem 0; }
+.workbench-nav-subitem { margin: 0; }
+.workbench-nav-sublink {
+    display: block; padding: 0.3rem 1rem 0.3rem 1.75rem;
+    color: var(--text-primary); text-decoration: none; font-size: 0.85rem;
+}
+.workbench-nav-sublink:hover { background: var(--accent-subtle); }
+.workbench-nav-subitem--active .workbench-nav-sublink {
+    color: var(--accent); font-weight: 600;
+    border-left: 3px solid var(--accent); padding-left: calc(1.75rem - 3px);
+}
+
+/* -- Workbench table component -- */
+.wb-table-container { width: 100%; }
+.wb-table-toolbar {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 0; border-bottom: 1px solid var(--border);
+}
+.wb-table-toolbar-right { margin-left: auto; display: flex; gap: 0.5rem; }
+.wb-table-add {
+    display: inline-block; padding: 0.35rem 0.75rem;
+    background: var(--accent); color: #fff; border-radius: 4px;
+    text-decoration: none; font-size: 0.85rem; font-weight: 600;
+}
+.wb-table-add:hover { opacity: 0.9; }
+.wb-table-search {
+    padding: 0.3rem 0.5rem; border: 1px solid var(--border);
+    border-radius: 4px; font-size: 0.85rem; background: var(--input-bg);
+    color: var(--text-primary);
+}
+.wb-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.wb-table th {
+    text-align: left; padding: 0.4rem 0.5rem;
+    border-bottom: 2px solid var(--border); font-weight: 600;
+    color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.wb-table-col--sortable { cursor: pointer; }
+.wb-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border); }
+.wb-table-row:hover { background: var(--accent-subtle); }
+.wb-table-row--pending { background: rgba(255, 200, 0, 0.1); }
+.wb-table-flag { font-weight: 600; font-family: monospace; min-width: 2rem; }
+.wb-table-flag--red { color: var(--error); }
+.wb-table-flag--grey { color: var(--text-muted); }
+.wb-table-flag--green { color: var(--success); }
+.wb-table-flag--yellow { color: var(--warning); }
+.wb-table-actions { white-space: nowrap; }
+.wb-action {
+    display: inline-block; padding: 0.2rem 0.5rem; margin: 0 0.15rem;
+    border: 1px solid var(--border); border-radius: 3px;
+    background: var(--bg-secondary); color: var(--text-primary); font-size: 0.75rem;
+    text-decoration: none; cursor: pointer;
+}
+.wb-action:hover { background: var(--accent-subtle); }
+.wb-action--danger { color: var(--error); border-color: var(--error); }
+.wb-action--danger:hover { background: var(--error); color: #fff; }
+.wb-table-empty { text-align: center; padding: 2rem 1rem; }
+.wb-table-empty-content { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+.wb-table-empty-message { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
+.wb-table-empty-hint { color: var(--text-muted); font-size: 0.8rem; margin: 0; }
+.wb-table-empty-add { margin-top: 0.5rem; }
+
+/* -- Workbench detail panel -- */
+.wb-detail-panel {
+    border-left: 1px solid var(--border); background: var(--bg-primary);
+    display: flex; flex-direction: column; overflow-y: auto;
+}
+.wb-detail-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
+}
+.wb-detail-title { font-weight: 600; font-size: 0.95rem; }
+.wb-detail-close {
+    background: none; border: 1px solid var(--border); border-radius: 3px;
+    padding: 0.2rem 0.5rem; cursor: pointer; color: var(--text-muted);
+    font-size: 0.8rem; text-decoration: none;
+}
+.wb-detail-close:hover { background: var(--accent-subtle); }
+.wb-detail-tabs {
+    display: flex; border-bottom: 1px solid var(--border);
+    padding: 0 1rem;
+}
+.wb-detail-tab {
+    padding: 0.5rem 1rem; cursor: pointer; border: none; background: none;
+    color: var(--text-muted); font-size: 0.85rem; border-bottom: 2px solid transparent;
+}
+.wb-detail-tab:hover { color: var(--text-primary); }
+.wb-detail-tab--active {
+    color: var(--accent); border-bottom-color: var(--accent); font-weight: 600;
+}
+.wb-detail-content { display: none; padding: 1rem; flex: 1; }
+.wb-detail-content--active { display: block; }
+.wb-detail-tools {
+    padding: 0.75rem 1rem; border-top: 1px solid var(--border);
+    display: flex; gap: 0.5rem; flex-wrap: wrap;
+}
+.wb-detail-tool {
+    display: inline-block; padding: 0.25rem 0.6rem;
+    border: 1px solid var(--border); border-radius: 3px;
+    background: var(--bg-secondary); color: var(--text-primary); font-size: 0.8rem;
+    cursor: pointer; text-decoration: none;
+}
+.wb-detail-tool:hover { background: var(--accent-subtle); }
+.wb-detail-tool--danger { color: var(--error); border-color: var(--error); }
+.wb-detail-tool--danger:hover { background: var(--error); color: #fff; }
+.wb-detail-hint { color: var(--text-muted); font-size: 0.8rem; margin: 0.5rem 0 0 0; }
+.wb-detail-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* -- Workbench form component -- */
+.wb-form { max-width: 40rem; }
+.wb-form-title { font-size: 1.1rem; font-weight: 600; margin: 0 0 1.5rem 0; }
+.wb-form-field { margin-bottom: 1rem; }
+.wb-form-label {
+    display: block; margin-bottom: 0.3rem; font-weight: 600;
+    font-size: 0.85rem; color: var(--text-primary);
+}
+.wb-form-label--required::after { content: " *"; color: var(--error); }
+.wb-form-description { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; }
+.wb-form-input {
+    display: block; width: 100%; padding: 0.4rem 0.5rem;
+    border: 1px solid var(--border); border-radius: 4px;
+    font-size: 0.85rem; background: var(--input-bg); color: var(--text-primary);
+    box-sizing: border-box;
+}
+.wb-form-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.wb-form-input:disabled { opacity: 0.6; cursor: not-allowed; }
+.wb-form-toggle {
+    display: flex; align-items: center; gap: 0.5rem;
+}
+.wb-form-toggle input[type="checkbox"] { width: 1rem; height: 1rem; }
+.wb-form-list { display: flex; flex-direction: column; gap: 0.3rem; }
+.wb-form-list-item {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.3rem 0.5rem; border: 1px solid var(--border);
+    border-radius: 4px; background: var(--bg-secondary);
+}
+.wb-form-list-item input { flex: 1; border: none; background: transparent; font-size: 0.85rem; color: var(--text-primary); }
+.wb-form-list-remove {
+    background: none; border: none; color: var(--error);
+    cursor: pointer; font-size: 0.9rem; padding: 0 0.3rem;
+}
+.wb-form-list-add {
+    display: inline-block; padding: 0.25rem 0.5rem;
+    border: 1px dashed var(--border); border-radius: 4px;
+    background: none; color: var(--text-muted); cursor: pointer;
+    font-size: 0.8rem; text-align: center;
+}
+.wb-form-list-add:hover { border-color: var(--accent); color: var(--accent); }
+.wb-form-actions {
+    display: flex; gap: 0.75rem; margin-top: 1.5rem;
+    padding-top: 1rem; border-top: 1px solid var(--border);
+}
+.wb-form-save {
+    padding: 0.4rem 1.25rem; background: var(--accent); color: #fff;
+    border: none; border-radius: 4px; font-size: 0.85rem;
+    font-weight: 600; cursor: pointer;
+}
+.wb-form-save:hover { opacity: 0.9; }
+.wb-form-discard {
+    padding: 0.4rem 1.25rem; background: var(--bg-secondary);
+    border: 1px solid var(--border); border-radius: 4px;
+    font-size: 0.85rem; cursor: pointer; color: var(--text-primary);
+    text-decoration: none;
+}
+.wb-form-discard:hover { background: var(--accent-subtle); }
+
+/* -- Workbench dashboard -- */
+.wb-dashboard { padding: 1rem; }
+.wb-dashboard-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+.wb-dashboard-panel {
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg-primary); overflow: hidden;
+}
+.wb-dashboard-panel-title {
+    margin: 0; padding: 0.75rem 1rem; font-size: 0.9rem; font-weight: 600;
+    border-bottom: 1px solid var(--border); background: var(--bg-surface);
+}
+.wb-dashboard-panel-body { padding: 0.75rem 1rem; }
+.wb-dashboard-stat {
+    display: flex; justify-content: space-between; padding: 0.3rem 0;
+    font-size: 0.85rem; border-bottom: 1px solid var(--border);
+}
+.wb-dashboard-stat:last-child { border-bottom: none; }
+.wb-dashboard-stat-label { color: var(--text-muted); }
+.wb-dashboard-stat--green { color: var(--success); font-weight: 600; }
+.wb-dashboard-stat--red { color: var(--error); font-weight: 600; }
+.wb-dashboard-stat--yellow { color: var(--warning); font-weight: 600; }
+.wb-dashboard-empty-hint { color: var(--text-muted); font-size: 0.85rem; }
+.wb-dashboard-empty-hint a { color: var(--accent); }
+.wb-dashboard-event-list { list-style: none; padding: 0; margin: 0; }
+.wb-dashboard-event {
+    padding: 0.3rem 0; font-size: 0.8rem;
+    border-bottom: 1px solid var(--border);
+}
+.wb-dashboard-event:last-child { border-bottom: none; }
+.wb-dashboard-event-time { color: var(--text-muted); margin-right: 0.5rem; }
+.wb-dashboard-event-component { font-weight: 600; margin-right: 0.5rem; }
