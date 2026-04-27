@@ -254,16 +254,28 @@ func LoginHandler(store *SessionStore, authenticator authz.Authenticator, loginR
 
 		logger.Info("login successful", "username", username, "remote", r.RemoteAddr)
 
+		target := sanitizeReturnTo(r.FormValue("return_to"))
+
 		// HTMX login: respond with redirect header so HTMX replaces the page.
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
-			w.Header().Set("HX-Redirect", "/")
+			w.Header().Set("HX-Redirect", target)
 			w.WriteHeader(http.StatusOK)
 
 			return
 		}
 
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, target, http.StatusSeeOther)
 	}
+}
+
+// sanitizeReturnTo validates the return_to parameter to prevent open redirects.
+// Only same-origin paths starting with "/" are accepted; everything else
+// falls back to "/".
+func sanitizeReturnTo(raw string) string {
+	if raw == "" || raw[0] != '/' || strings.HasPrefix(raw, "//") {
+		return "/"
+	}
+	return raw
 }
 
 // addSecurityHeaders sets standard security headers on authenticated responses.

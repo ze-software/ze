@@ -5,6 +5,7 @@
     <h2>Login</h2>
     {{if .Error}}<div class="login-error">{{.Error}}</div>{{end}}
     <form method="POST" action="/login">
+      {{if .ReturnTo}}<input type="hidden" name="return_to" value="{{.ReturnTo}}">{{end}}
       <label for="username">Username</label>
       <input type="text" id="username" name="username" required autofocus>
       <label for="password">Password</label>
@@ -28,6 +29,7 @@
     <h2>Login</h2>
     {{if .Error}}<div class="login-error">{{.Error}}</div>{{end}}
     <form method="POST" action="/login">
+      {{if .ReturnTo}}<input type="hidden" name="return_to" value="{{.ReturnTo}}">{{end}}
       <label for="username">Username</label>
       <input type="text" id="username" name="username" required autofocus>
       <label for="password">Password</label>
