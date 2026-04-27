@@ -611,7 +611,7 @@ func (m *Model) cmdShowPipe(_ []string, filters []PipeFilter) (commandResult, er
 		result.configView = nil
 	}
 	for _, f := range textFilters {
-		output, err = applyPipeFilter(output, f)
+		output, err = ApplyPipeFilter(output, f)
 		if err != nil {
 			return commandResult{}, err
 		}
@@ -621,9 +621,9 @@ func (m *Model) cmdShowPipe(_ []string, filters []PipeFilter) (commandResult, er
 	return result, nil
 }
 
-// applyPipeFilter applies a single pipe filter to content.
+// ApplyPipeFilter applies a single pipe filter to content.
 // Returns error for unknown filter types.
-func applyPipeFilter(content string, filter PipeFilter) (string, error) {
+func ApplyPipeFilter(content string, filter PipeFilter) (string, error) {
 	lines := strings.Split(content, "\n")
 
 	switch filter.Type {
@@ -802,7 +802,7 @@ func extractConfigKey(line string) string {
 }
 
 // findPipeIndex returns the index of "|" in tokens, or -1 if not found.
-func findPipeIndex(tokens []string) int {
+func FindPipeIndex(tokens []string) int {
 	for i, t := range tokens {
 		if t == "|" {
 			return i
@@ -818,7 +818,7 @@ func (m *Model) dispatchWithPipe(cmdTokens, pipeTokens []string) (commandResult,
 	}
 
 	// Parse pipe filters
-	filters := parsePipeFilters(pipeTokens)
+	filters := ParsePipeFilters(pipeTokens)
 
 	cmd := cmdTokens[0]
 	switch cmd {
@@ -833,7 +833,7 @@ func (m *Model) dispatchWithPipe(cmdTokens, pipeTokens []string) (commandResult,
 		}
 		// Apply filters to errors output
 		for _, f := range filters {
-			result.output, err = applyPipeFilter(result.output, f)
+			result.output, err = ApplyPipeFilter(result.output, f)
 			if err != nil {
 				return commandResult{}, err
 			}
@@ -844,8 +844,8 @@ func (m *Model) dispatchWithPipe(cmdTokens, pipeTokens []string) (commandResult,
 	return commandResult{}, fmt.Errorf("command '%s' does not support piping", cmd)
 }
 
-// parsePipeFilters parses pipe filter tokens into PipeFilter structs.
-func parsePipeFilters(tokens []string) []PipeFilter {
+// ParsePipeFilters parses pipe filter tokens into PipeFilter structs.
+func ParsePipeFilters(tokens []string) []PipeFilter {
 	var filters []PipeFilter
 	i := 0
 

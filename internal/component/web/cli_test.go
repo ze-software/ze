@@ -344,19 +344,19 @@ func TestTerminalModeToggle(t *testing.T) {
 	assert.Contains(t, w.Body.String(), `id="terminal-input"`)
 }
 
-// VALIDATES: AC-12 (terminal mode command returns text output).
-// PREVENTS: Terminal command returns HTML fragments instead of text.
+// VALIDATES: AC-12 (terminal endpoint returns JSON with output and feedback).
+// PREVENTS: Terminal command returns wrong format.
 func TestTerminalModeCommand(t *testing.T) {
 	mgr, _ := setupCLITest(t)
 
-	// Create session.
 	_, err := mgr.GetOrCreate("testuser")
 	require.NoError(t, err)
 
-	handler := HandleCLITerminal(mgr)
+	schema, tree := buildTestSchemaAndTree()
+	handler := HandleCLITerminal(mgr, schema, tree)
 
 	body := url.Values{
-		"command": {"show"},
+		"command": {"help"},
 	}
 
 	w := httptest.NewRecorder()
@@ -364,9 +364,11 @@ func TestTerminalModeCommand(t *testing.T) {
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), `class="terminal-entry"`)
-	assert.Contains(t, w.Body.String(), `class="terminal-prompt"`)
-	assert.Contains(t, w.Body.String(), `class="terminal-output"`)
+	assert.Contains(t, w.Header().Get("Content-Type"), "application/json")
+
+	var resp terminalResponse
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Contains(t, resp.Output, "commands:")
 }
 
 // VALIDATES: AC-13 (toggle back from terminal restores integrated mode).

@@ -37,10 +37,38 @@ func (a *editorAdapter) RenameListEntry(parentPath []string, listName, oldKey, n
 func (a *editorAdapter) CommitSession() (*contract.CommitResult, error) {
 	return a.ed.CommitSession()
 }
+func (a *editorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
+	return a.ed.CopyListEntry(parentPath, listName, srcKey, dstKey)
+}
+func (a *editorAdapter) DeactivatePath(path []string) error { return a.ed.DeactivatePath(path) }
+func (a *editorAdapter) ActivatePath(path []string) error   { return a.ed.ActivatePath(path) }
 func (a *editorAdapter) Discard() error                     { return a.ed.Discard() }
-func (a *editorAdapter) Diff() string                       { return a.ed.Diff() }
+func (a *editorAdapter) DiscardSessionPath(path []string) error {
+	return a.ed.DiscardSessionPath(path)
+}
+func (a *editorAdapter) DisconnectSession(sessionID string) error {
+	return a.ed.DisconnectSession(sessionID)
+}
+func (a *editorAdapter) Diff() string     { return a.ed.Diff() }
+func (a *editorAdapter) SaveDraft() error { return a.ed.SaveDraft() }
+func (a *editorAdapter) ListBackups() ([]contract.BackupInfo, error) {
+	backups, err := a.ed.ListBackups()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]contract.BackupInfo, len(backups))
+	for i, b := range backups {
+		result[i] = contract.BackupInfo{Path: b.Path, Timestamp: b.Timestamp.Format("2006-01-02 15:04:05")}
+	}
+	return result, nil
+}
+func (a *editorAdapter) Rollback(backupPath string) error   { return a.ed.Rollback(backupPath) }
 func (a *editorAdapter) Tree() any                          { return a.ed.Tree() }
 func (a *editorAdapter) ContentAtPath(path []string) string { return a.ed.ContentAtPath(path) }
+func (a *editorAdapter) OriginalContentAtPath(path []string) string {
+	return a.ed.OriginalContentAtPath(path)
+}
+func (a *editorAdapter) ActiveSessions() []string { return a.ed.ActiveSessions() }
 
 func (a *editorAdapter) SessionChanges(sessionID string) []contract.SessionChange {
 	entries := a.ed.SessionChanges(sessionID)

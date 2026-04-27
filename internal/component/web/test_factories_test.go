@@ -55,10 +55,38 @@ func (a *testEditorAdapter) RenameListEntry(parentPath []string, listName, oldKe
 func (a *testEditorAdapter) CommitSession() (*contract.CommitResult, error) {
 	return a.ed.CommitSession()
 }
+func (a *testEditorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
+	return a.ed.CopyListEntry(parentPath, listName, srcKey, dstKey)
+}
+func (a *testEditorAdapter) DeactivatePath(path []string) error { return a.ed.DeactivatePath(path) }
+func (a *testEditorAdapter) ActivatePath(path []string) error   { return a.ed.ActivatePath(path) }
 func (a *testEditorAdapter) Discard() error                     { return a.ed.Discard() }
-func (a *testEditorAdapter) Diff() string                       { return a.ed.Diff() }
+func (a *testEditorAdapter) DiscardSessionPath(path []string) error {
+	return a.ed.DiscardSessionPath(path)
+}
+func (a *testEditorAdapter) DisconnectSession(sessionID string) error {
+	return a.ed.DisconnectSession(sessionID)
+}
+func (a *testEditorAdapter) Diff() string     { return a.ed.Diff() }
+func (a *testEditorAdapter) SaveDraft() error { return a.ed.SaveDraft() }
+func (a *testEditorAdapter) ListBackups() ([]contract.BackupInfo, error) {
+	backups, err := a.ed.ListBackups()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]contract.BackupInfo, len(backups))
+	for i, b := range backups {
+		result[i] = contract.BackupInfo{Path: b.Path, Timestamp: b.Timestamp.Format("2006-01-02 15:04:05")}
+	}
+	return result, nil
+}
+func (a *testEditorAdapter) Rollback(backupPath string) error   { return a.ed.Rollback(backupPath) }
 func (a *testEditorAdapter) Tree() any                          { return a.ed.Tree() }
 func (a *testEditorAdapter) ContentAtPath(path []string) string { return a.ed.ContentAtPath(path) }
+func (a *testEditorAdapter) OriginalContentAtPath(path []string) string {
+	return a.ed.OriginalContentAtPath(path)
+}
+func (a *testEditorAdapter) ActiveSessions() []string { return a.ed.ActiveSessions() }
 func (a *testEditorAdapter) SessionChanges(sessionID string) []contract.SessionChange {
 	entries := a.ed.SessionChanges(sessionID)
 	changes := make([]contract.SessionChange, len(entries))

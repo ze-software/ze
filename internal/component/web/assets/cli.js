@@ -282,39 +282,8 @@
     highlightItem(box, selectedIndex);
   }
 
-  // Track terminal mode state for CLI Enter key routing.
-  // Updated after HTMX mode toggle completes.
   function initViewToggle() {
-    document.addEventListener('htmx:afterSwap', function(e) {
-      // Check if the content area was swapped (mode toggle or navigation).
-      var content = document.querySelector('.content-area');
-      if (!content) return;
-      var hasTerminal = content.querySelector('#terminal-scrollback');
-      window.zeTerminalMode = !!hasTerminal;
-      var btn = document.getElementById('view-toggle');
-      if (!btn) return;
-      if (hasTerminal) {
-        btn.textContent = 'GUI';
-        btn.title = 'Switch to GUI view';
-        btn.setAttribute('hx-vals', '{"mode":"integrated"}');
-      } else {
-        btn.textContent = 'CLI';
-        btn.title = 'Switch to text/CLI view';
-        btn.setAttribute('hx-vals', '{"mode":"terminal"}');
-      }
-      if (window.htmx) htmx.process(btn);
-
-      // Sync URL with CLI context after navigation commands.
-      // Only push state when the swap was triggered by a CLI POST (not finder clicks
-      // which use hx-push-url and handle URL updates themselves).
-      if (e.detail && e.detail.requestConfig && e.detail.requestConfig.path === '/cli') {
-        var ctxPath = getContextPath();
-        var newURL = '/show/' + (ctxPath ? ctxPath + '/' : '');
-        if (window.location.pathname !== newURL) {
-          window.history.pushState(null, '', newURL);
-        }
-      }
-    });
+    // Retained as no-op; CLI is now a dedicated page at /cli.
   }
 
   // Refresh the detail panel via fragment endpoint without full page reload.
@@ -377,15 +346,33 @@
         var path = btn.getAttribute('data-path');
         var entryKey = btn.getAttribute('data-key');
         deleteEntry(path, entryKey);
+      } else if (action === 'switch-ui') {
+        var mode = btn.getAttribute('data-mode');
+        if (mode) {
+          document.cookie = 'ze-ui=' + mode + ';path=/;max-age=31536000';
+        }
       } else if (action === 'toggle-theme') {
         var html = document.documentElement;
         var current = html.getAttribute('data-theme');
         var next = current === 'light' ? 'dark' : 'light';
         html.setAttribute('data-theme', next);
         try { localStorage.setItem('ze-theme', next); } catch(_) {}
+      } else if (action === 'toggle-portal') {
+        var dropdown = btn.parentNode.querySelector('.portal-dropdown');
+        if (dropdown) {
+          var visible = dropdown.classList.contains('portal-dropdown--open');
+          dropdown.classList.toggle('portal-dropdown--open', !visible);
+        }
+        e.stopPropagation();
       }
     });
 
+    document.addEventListener('click', function(e) {
+      var openDropdown = document.querySelector('.portal-dropdown--open');
+      if (openDropdown && !e.target.closest('.portal-menu')) {
+        openDropdown.classList.remove('portal-dropdown--open');
+      }
+    });
   }
 
   // Add-entry overlay: fetches the server-rendered form for the list at baseURL.
@@ -556,6 +543,229 @@
     });
   }
 
+  // CLI page: SSH-style terminal with output viewport, message area, and input.
+  // Output viewport replaces its content on each command (not a scrollback).
+  // Message area shows feedback (line 1) and hints (line 2).
+  function initTerminal() {
+    var input = document.getElementById('terminal-input');
+    if (!input) return;
+
+    var outputEl = document.getElementById('cli-output');
+    var feedbackEl = document.getElementById('cli-feedback');
+    var hintEl = document.getElementById('cli-hint');
+    var promptEl = document.getElementById('terminal-prompt');
+    var contextEl = document.getElementById('cli-context-path');
+    var completionsBox = document.getElementById('terminal-completions');
+
+    var termHistory = [];
+    var termHistoryPos = -1;
+    var termHistoryDraft = '';
+    var termCachedItems = null;
+    var termCachedPrefix = '';
+    var termSelectedIndex = -1;
+
+    function getTermPath() {
+      return contextEl ? contextEl.textContent.trim() : '';
+    }
+
+    function setTermPath(path, prompt) {
+      if (contextEl) contextEl.textContent = path;
+      if (promptEl) promptEl.textContent = prompt;
+    }
+
+    function setOutput(text) {
+      if (!outputEl) return;
+      if (text) {
+        outputEl.textContent = text;
+      } else {
+        outputEl.textContent = '';
+      }
+    }
+
+    function setFeedback(msg, isError) {
+      if (!feedbackEl) return;
+      feedbackEl.textContent = msg || '';
+      feedbackEl.className = 'cli-feedback' + (isError ? ' cli-feedback--error' : '');
+    }
+
+    function setHint(msg) {
+      if (!hintEl) return;
+      hintEl.textContent = msg || 'Tab/?: complete, Enter: execute';
+    }
+
+    input.addEventListener('keydown', function(e) {
+      var dropdownVisible = completionsBox && completionsBox.style.display === 'block';
+
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (dropdownVisible) {
+          var items = completionsBox.querySelectorAll('.cli-completion-item');
+          if (items.length === 0) return;
+          if (termSelectedIndex > 0) termSelectedIndex--;
+          else termSelectedIndex = items.length - 1;
+          highlightItem(completionsBox, termSelectedIndex);
+          return;
+        }
+        if (termHistory.length === 0) return;
+        if (termHistoryPos < 0) termHistoryDraft = input.value;
+        if (termHistoryPos < termHistory.length - 1) {
+          termHistoryPos++;
+          input.value = termHistory[termHistory.length - 1 - termHistoryPos];
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (dropdownVisible) {
+          var items = completionsBox.querySelectorAll('.cli-completion-item');
+          if (items.length === 0) return;
+          if (termSelectedIndex < items.length - 1) termSelectedIndex++;
+          else termSelectedIndex = 0;
+          highlightItem(completionsBox, termSelectedIndex);
+          return;
+        }
+        if (termHistoryPos < 0) return;
+        termHistoryPos--;
+        if (termHistoryPos < 0) {
+          input.value = termHistoryDraft;
+        } else {
+          input.value = termHistory[termHistory.length - 1 - termHistoryPos];
+        }
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (dropdownVisible && termSelectedIndex >= 0) {
+          var items = completionsBox.querySelectorAll('.cli-completion-item');
+          if (termSelectedIndex < items.length) {
+            items[termSelectedIndex].click();
+            return;
+          }
+        }
+        if (completionsBox) { completionsBox.style.display = 'none'; }
+        termCachedItems = null;
+        termSelectedIndex = -1;
+        var cmd = input.value.trim();
+        if (!cmd) return;
+        termHistory.push(cmd);
+        termHistoryPos = -1;
+        input.value = '';
+
+        var ctxPath = getTermPath();
+        fetch('/cli/terminal', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: 'command=' + encodeURIComponent(cmd) + '&path=' + encodeURIComponent(ctxPath)
+        }).then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.path !== undefined && data.path !== null && data.prompt) {
+              setTermPath(data.path, data.prompt);
+            }
+            if (data.output) {
+              setOutput(data.output);
+            }
+            var isError = data.feedback && (data.feedback.indexOf('error') === 0 || data.feedback.indexOf('conflict') === 0);
+            setFeedback(data.feedback ? '► ' + data.feedback : '', isError);
+            setHint('');
+          })
+          .catch(function(err) {
+            setFeedback('error: ' + err.message, true);
+          });
+        return;
+      }
+
+      if (e.key === 'Tab' || (e.key === '?' && !e.ctrlKey)) {
+        e.preventDefault();
+        var val = input.value;
+        if (e.key === '?') {
+          val = val.replace(/\?+$/, '');
+          if (!val.endsWith(' ')) val += ' ';
+        }
+        doTermComplete(input, completionsBox, val);
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (completionsBox) { completionsBox.style.display = 'none'; }
+        termCachedItems = null;
+        termSelectedIndex = -1;
+        return;
+      }
+
+      if (termCachedItems && e.key.length === 1) {
+        setTimeout(function() { filterTermCached(input, completionsBox); }, 0);
+      }
+    });
+
+    input.addEventListener('input', function() {
+      if (termCachedItems) filterTermCached(input, completionsBox);
+    });
+
+    function doTermComplete(inp, box, val) {
+      var completePath = getTermPath();
+      fetch('/cli/complete?input=' + encodeURIComponent(val) + '&path=' + encodeURIComponent(completePath), {credentials: 'same-origin'})
+        .then(function(r) { return r.json(); })
+        .then(function(items) {
+          if (!items || items.length === 0) {
+            if (box) box.style.display = 'none';
+            termCachedItems = null;
+            return;
+          }
+          var parts = splitInput(val);
+          termCachedItems = items;
+          termCachedPrefix = parts.prefix;
+
+          if (items.length === 1) {
+            inp.value = termCachedPrefix + items[0].text + ' ';
+            if (box) box.style.display = 'none';
+            termCachedItems = null;
+            return;
+          }
+          showCompletions(inp, box, items, termCachedPrefix);
+        })
+        .catch(function() { if (box) box.style.display = 'none'; });
+    }
+
+    function filterTermCached(inp, box) {
+      if (!termCachedItems) return;
+      var parts = splitInput(inp.value);
+      var partial = parts.partial.toLowerCase();
+      if (parts.prefix !== termCachedPrefix) {
+        termCachedItems = null;
+        if (box) box.style.display = 'none';
+        return;
+      }
+      var filtered = termCachedItems.filter(function(c) {
+        return c.text.toLowerCase().indexOf(partial) === 0;
+      });
+      if (filtered.length === 0) {
+        if (box) box.style.display = 'none';
+        return;
+      }
+      if (filtered.length === 1 && filtered[0].text.toLowerCase() === partial) {
+        if (box) box.style.display = 'none';
+        return;
+      }
+      showCompletions(inp, box, filtered, termCachedPrefix);
+    }
+
+    // Auto-show config on page load (matches SSH CLI behavior).
+    fetch('/cli/terminal', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'command=show&path='
+    }).then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.output) setOutput(data.output);
+      });
+
+    input.focus();
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
     initTheme();
     init();
@@ -564,5 +774,6 @@
     initActions();
     initFlyout();
     initToolOverlay();
+    initTerminal();
   });
 })();

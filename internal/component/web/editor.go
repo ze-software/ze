@@ -343,6 +343,113 @@ func (m *EditorManager) ContentAtPath(username string, path []string) string {
 	return us.editor.ContentAtPath(path)
 }
 
+// CopyListEntry copies a list entry in the user's working tree.
+func (m *EditorManager) CopyListEntry(username string, parentPath []string, listName, srcKey, dstKey string) error {
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return err
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	return us.editor.CopyListEntry(parentPath, listName, srcKey, dstKey)
+}
+
+// DeactivatePath marks a node inactive in the user's working tree.
+func (m *EditorManager) DeactivatePath(username string, path []string) error {
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return err
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	return us.editor.DeactivatePath(path)
+}
+
+// ActivatePath re-activates a node in the user's working tree.
+func (m *EditorManager) ActivatePath(username string, path []string) error {
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return err
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	return us.editor.ActivatePath(path)
+}
+
+// SaveDraft saves the user's pending changes to the draft file.
+func (m *EditorManager) SaveDraft(username string) error {
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return err
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	return us.editor.SaveDraft()
+}
+
+// ListBackups returns the available config backups.
+func (m *EditorManager) ListBackups(username string) ([]contract.BackupInfo, error) {
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return nil, err
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	return us.editor.ListBackups()
+}
+
+// Rollback restores a backup by path.
+func (m *EditorManager) Rollback(username, backupPath string) error {
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return err
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	return us.editor.Rollback(backupPath)
+}
+
+// Compare returns the diff between original and working config.
+func (m *EditorManager) Compare(username string) string {
+	m.mu.RLock()
+	us, ok := m.sessions[username]
+	m.mu.RUnlock()
+
+	if !ok {
+		return ""
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	return us.editor.Diff()
+}
+
+// DisconnectSession disconnects another editing session.
+func (m *EditorManager) DisconnectSession(username, sessionID string) error {
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return err
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	return us.editor.DisconnectSession(sessionID)
+}
+
 // ActiveSessions returns a summary of active web editing sessions.
 // Each entry is formatted as "user@web%timestamp - N pending changes".
 func (m *EditorManager) ActiveSessions() []string {

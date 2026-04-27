@@ -37,7 +37,7 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 	args := tokens[1:]
 
 	// Check for pipe in command
-	if pipeIdx := findPipeIndex(tokens); pipeIdx > 0 {
+	if pipeIdx := FindPipeIndex(tokens); pipeIdx > 0 {
 		return m.dispatchWithPipe(tokens[:pipeIdx], tokens[pipeIdx+1:])
 	}
 

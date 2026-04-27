@@ -108,8 +108,16 @@ type PendingChange struct {
 	NewPath  string
 }
 
+// BackupInfo describes one config backup entry.
+type BackupInfo struct {
+	Path      string
+	Timestamp string
+}
+
 // Editor provides config editing operations for the web UI.
 // Implemented by cli.Editor; consumed by web's EditorManager.
+// Every command the SSH CLI supports must be callable through this interface
+// so both CLIs share the same code path.
 type Editor interface {
 	SetSession(s EditSession)
 	SessionID() string
@@ -117,15 +125,25 @@ type Editor interface {
 	SetValue(path []string, key, value string) error
 	DeleteValue(path []string, key string) error
 	RenameListEntry(parentPath []string, listName, oldKey, newKey string) error
+	CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error
+	DeactivatePath(path []string) error
+	ActivatePath(path []string) error
 	CommitSession() (*CommitResult, error)
 	Discard() error
+	DiscardSessionPath(path []string) error
+	DisconnectSession(sessionID string) error
 	Diff() string
+	SaveDraft() error
+	ListBackups() ([]BackupInfo, error)
+	Rollback(backupPath string) error
 	// Tree returns the parsed config tree (concrete *config.Tree).
 	// Returned as any to avoid contract importing config.
 	Tree() any
 	ContentAtPath(path []string) string
+	OriginalContentAtPath(path []string) string
 	SessionChanges(sessionID string) []SessionChange
 	PendingChanges(sessionID string) []PendingChange
+	ActiveSessions() []string
 }
 
 // EditorFactory creates a new Editor backed by storage.

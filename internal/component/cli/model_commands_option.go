@@ -152,7 +152,7 @@ func (m *Model) cmdOptionPipe(args []string, filters []PipeFilter) (commandResul
 	// Apply text filters to the output.
 	output := result.output
 	for _, f := range filters {
-		output, err = applyPipeFilter(output, f)
+		output, err = ApplyPipeFilter(output, f)
 		if err != nil {
 			return commandResult{}, err
 		}

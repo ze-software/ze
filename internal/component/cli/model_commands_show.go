@@ -32,6 +32,16 @@ func (m *Model) cmdShow(args []string) (commandResult, error) {
 	source := ""
 	if len(args) > 0 && (args[0] == srcConfirmed || args[0] == srcSaved) {
 		source = args[0]
+		return m.cmdShowDisplayWithSource(fmtTree, "", source)
+	}
+
+	// Path arguments: "show bgp" navigates temporarily into bgp for display.
+	if len(args) > 0 {
+		saved := m.contextPath
+		m.contextPath = append(append([]string{}, m.contextPath...), args...)
+		result, err := m.cmdShowDisplayWithSource(fmtTree, "", "")
+		m.contextPath = saved
+		return result, err
 	}
 
 	return m.cmdShowDisplayWithSource(fmtTree, "", source)
@@ -111,7 +121,7 @@ func (m *Model) cmdShowFiltered(filter string, textFilters []PipeFilter) (comman
 
 	var err error
 	for _, f := range textFilters {
-		content, err = applyPipeFilter(content, f)
+		content, err = ApplyPipeFilter(content, f)
 		if err != nil {
 			return commandResult{}, err
 		}

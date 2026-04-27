@@ -446,7 +446,7 @@ func TestParsePipeFiltersRollback(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := parsePipeFilters(tt.tokens)
+			got := ParsePipeFilters(tt.tokens)
 			assert.Equal(t, tt.want, got)
 		})
 	}
