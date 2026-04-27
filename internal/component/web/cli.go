@@ -685,17 +685,30 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 	if pipeIdx := cli.FindPipeIndex(allTokens); pipeIdx > 0 {
 		baseCmd := cliCommand{Verb: allTokens[0], Args: allTokens[1:pipeIdx]}
 		filters := cli.ParsePipeFilters(allTokens[pipeIdx+1:])
+		opts, classErr := cli.ClassifyShowPipes(filters)
+		if classErr != nil {
+			return nil, fmt.Sprintf("pipe error: %s", classErr)
+		}
+
 		newPath, output = executeTerminalNav(schema, viewTree, mgr, username, contextPath, baseCmd)
-		for _, f := range filters {
-			if f.Type == "format" && f.Arg == "config" {
-				output = mgr.ContentAtPath(username, contextPath)
-			} else {
-				filtered, err := cli.ApplyPipeFilter(output, f)
-				if err != nil {
-					return newPath, fmt.Sprintf("pipe error: %s", err)
-				}
-				output = filtered
+
+		if opts.Format == cli.FmtConfig {
+			showPath := contextPath
+			if baseCmd.Verb == verbShow && len(baseCmd.Args) > 0 {
+				showPath = append(append([]string{}, contextPath...), baseCmd.Args...)
 			}
+			output = mgr.ContentAtPath(username, showPath)
+		}
+		if opts.CompareTarget != "" {
+			output = mgr.Compare(username)
+		}
+
+		for _, f := range opts.TextFilters {
+			filtered, err := cli.ApplyPipeFilter(output, f)
+			if err != nil {
+				return newPath, fmt.Sprintf("pipe error: %s", err)
+			}
+			output = filtered
 		}
 		return newPath, output
 	}

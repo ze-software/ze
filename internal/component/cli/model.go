@@ -218,12 +218,17 @@ const (
 const (
 	fmtTree   = "tree"
 	fmtConfig = "config"
+
+	FmtTree   = fmtTree
+	FmtConfig = fmtConfig
 )
 
 // Show source names for selecting which version to display.
 const (
 	srcSaved     = "saved"
 	srcConfirmed = "confirmed"
+
+	SrcConfirmed = srcConfirmed
 )
 
 // Load command keywords.

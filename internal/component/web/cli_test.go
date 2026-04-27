@@ -371,6 +371,110 @@ func TestTerminalModeCommand(t *testing.T) {
 	assert.Contains(t, resp.Output, "commands:")
 }
 
+// PREVENTS: Pipe operators broken or missing in the web CLI terminal.
+// Covers every pipe filter type that ApplyPipeFilter and the web CLI handle.
+func TestTerminalPipes(t *testing.T) {
+	tests := []struct {
+		name        string
+		command     string
+		wantErr     string
+		wantContain string
+		wantAbsent  string
+	}{
+		{
+			name:        "format tree",
+			command:     "show bgp | format tree",
+			wantContain: "router-id",
+		},
+		{
+			name:    "format config",
+			command: "show bgp | format config",
+		},
+		{
+			name:    "format unknown",
+			command: "show | format bogus",
+			wantErr: "unknown format: bogus",
+		},
+		{
+			name:        "match filters lines",
+			command:     "show bgp | match peer",
+			wantContain: "peer",
+			wantAbsent:  "router-id",
+		},
+		{
+			name:        "head limits output",
+			command:     "show bgp | head 2",
+			wantContain: "router-id",
+		},
+		{
+			name:    "head default (no arg)",
+			command: "show bgp | head",
+		},
+		{
+			name:    "tail limits output",
+			command: "show bgp | tail 2",
+		},
+		{
+			name:    "tail default (no arg)",
+			command: "show bgp | tail",
+		},
+		{
+			name:       "compare uses real diff",
+			command:    "show bgp | compare",
+			wantAbsent: "+ router-id",
+		},
+		{
+			name:        "format tree then match",
+			command:     "show bgp | format tree | match peer",
+			wantContain: "peer",
+		},
+		{
+			name:        "match then head",
+			command:     "show bgp | match peer | head 1",
+			wantContain: "peer",
+		},
+		{
+			name:    "unknown pipe operator",
+			command: "show bgp | nosuch",
+			wantErr: "unknown pipe filter: nosuch",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mgr, _ := setupCLITest(t)
+
+			_, err := mgr.GetOrCreate("testuser")
+			require.NoError(t, err)
+
+			schema, tree := buildTestSchemaAndTree()
+			handler := HandleCLITerminal(mgr, schema, tree)
+
+			body := url.Values{"command": {tt.command}}
+			w := httptest.NewRecorder()
+			r := authedRequest(http.MethodPost, "/cli/terminal", body)
+			handler.ServeHTTP(w, r)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+
+			var resp terminalResponse
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+
+			if tt.wantErr != "" {
+				assert.Contains(t, resp.Output, tt.wantErr)
+				return
+			}
+			assert.NotContains(t, resp.Output, "pipe error", "pipe must not error")
+			if tt.wantContain != "" {
+				assert.Contains(t, resp.Output, tt.wantContain)
+			}
+			if tt.wantAbsent != "" {
+				assert.NotContains(t, resp.Output, tt.wantAbsent)
+			}
+		})
+	}
+}
+
 // VALIDATES: AC-13 (toggle back from terminal restores integrated mode).
 // PREVENTS: Toggle back returns terminal content.
 func TestIntegratedModeRestore(t *testing.T) {

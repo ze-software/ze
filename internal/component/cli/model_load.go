@@ -554,63 +554,32 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 // Recognizes show-specific pipes (format, compare) and delegates to cmdShowDisplay,
 // then applies text filters (grep, head, tail) to the result.
 func (m *Model) cmdShowPipe(_ []string, filters []PipeFilter) (commandResult, error) {
-	// Extract show-specific pipes (format, compare, active/inactive) from the filter list.
-	// Tree-level filters (active/inactive) are applied first regardless of position.
-	// Remaining filters (grep, head, tail) are applied as text transforms.
-	format := fmtTree
-	compareTarget := ""
-	treeFilter := "" // "", "active", or "inactive"
-	var textFilters []PipeFilter
-
-	for _, f := range filters {
-		if f.Type == cmdFormat {
-			if f.Arg != fmtTree && f.Arg != fmtConfig {
-				return commandResult{}, fmt.Errorf("unknown format: %s (use tree or config)", f.Arg)
-			}
-			format = f.Arg
-			continue
-		}
-		if f.Type == cmdCompare {
-			compareTarget = f.Arg
-			if compareTarget == "" {
-				compareTarget = srcConfirmed
-			}
-			continue
-		}
-		if f.Type == cmdActive || f.Type == cmdInactive {
-			treeFilter = f.Type
-			continue
-		}
-		// Text filters (grep, head, tail) -- applied after rendering.
-		textFilters = append(textFilters, f)
+	opts, err := ClassifyShowPipes(filters)
+	if err != nil {
+		return commandResult{}, err
 	}
 
-	// Tree-level filter: show only active or only inactive nodes.
-	// Applied before serialization by rendering a filtered tree copy.
-	if treeFilter != "" {
-		return m.cmdShowFiltered(treeFilter, textFilters)
+	if opts.TreeFilter != "" {
+		return m.cmdShowFiltered(opts.TreeFilter, opts.TextFilters)
 	}
 
-	// Use cmdShowDisplay for format/compare aware rendering.
-	result, err := m.cmdShowDisplay(format, compareTarget)
+	result, err := m.cmdShowDisplay(opts.Format, opts.CompareTarget)
 	if err != nil {
 		return result, err
 	}
 
-	// When no text filters remain, preserve the result as-is so that
-	// configView (with hasOriginal for diff gutter) reaches the Update handler intact.
-	if len(textFilters) == 0 {
+	if len(opts.TextFilters) == 0 {
 		return result, nil
 	}
 
-	// Apply text filters to the output. This flattens configView into plain text
-	// since grep/head/tail break the line-by-line diff correspondence.
+	// Text filters flatten configView into plain text since grep/head/tail
+	// break the line-by-line diff correspondence.
 	output := result.output
 	if output == "" && result.configView != nil {
 		output = result.configView.content
 		result.configView = nil
 	}
-	for _, f := range textFilters {
+	for _, f := range opts.TextFilters {
 		output, err = ApplyPipeFilter(output, f)
 		if err != nil {
 			return commandResult{}, err
@@ -873,6 +842,42 @@ func ParsePipeFilters(tokens []string) []PipeFilter {
 	}
 
 	return filters
+}
+
+// ShowPipeOpts holds the classified result of show-specific pipe filters.
+type ShowPipeOpts struct {
+	Format        string       // "tree" (default) or "config"
+	CompareTarget string       // "", "confirmed", "saved", "rollback N"
+	TreeFilter    string       // "", "active", "inactive"
+	TextFilters   []PipeFilter // remaining text filters (match, head, tail)
+}
+
+// ClassifyShowPipes separates show-specific pipes (format, compare, active/inactive)
+// from text filters (match, head, tail). Both the SSH and web CLI call this so the
+// classification logic lives in one place.
+func ClassifyShowPipes(filters []PipeFilter) (ShowPipeOpts, error) {
+	opts := ShowPipeOpts{Format: fmtTree}
+
+	for _, f := range filters {
+		switch f.Type {
+		case cmdFormat:
+			if f.Arg != fmtTree && f.Arg != fmtConfig {
+				return ShowPipeOpts{}, fmt.Errorf("unknown format: %s (use tree or config)", f.Arg)
+			}
+			opts.Format = f.Arg
+		case cmdCompare:
+			opts.CompareTarget = f.Arg
+			if opts.CompareTarget == "" {
+				opts.CompareTarget = srcConfirmed
+			}
+		case cmdActive, cmdInactive:
+			opts.TreeFilter = f.Type
+		default:
+			opts.TextFilters = append(opts.TextFilters, f)
+		}
+	}
+
+	return opts, nil
 }
 
 // Helper functions wrapping standard library calls
