@@ -225,9 +225,31 @@ func diffContainer(lines *[]diffLine, orig, mod *config.Tree, name string, node 
 	case modChild == nil:
 		emitContainerMarked(lines, name, origChild, node, diffRemoved, indent)
 	default: // both present
-		*lines = append(*lines, diffLine{diffUnchanged, prefix + name + " {"})
-		diffWalkChildren(lines, origChild, modChild, node, indent+1)
-		*lines = append(*lines, diffLine{diffUnchanged, prefix + "}"})
+		if config.CanInlineContainer(modChild) {
+			diffContainerInline(lines, origChild, modChild, name, node, prefix)
+		} else {
+			*lines = append(*lines, diffLine{diffUnchanged, prefix + name + " {"})
+			diffWalkChildren(lines, origChild, modChild, node, indent+1)
+			*lines = append(*lines, diffLine{diffUnchanged, prefix + "}"})
+		}
+	}
+}
+
+// diffContainerInline emits a single diff line for a container that the serializer
+// would render inline (e.g., "bgp openwait 140" instead of "bgp {\n\topenwait 140\n}").
+// This keeps the diff output line count consistent with Serialize, preventing
+// line-mapping drift in validation highlighting.
+func diffContainerInline(lines *[]diffLine, origChild, modChild *config.Tree, name string, node *config.ContainerNode, prefix string) {
+	origText := strings.TrimRight(config.SerializeSubtree(origChild, node), "\n")
+	modText := strings.TrimRight(config.SerializeSubtree(modChild, node), "\n")
+
+	origLine := prefix + name + " " + origText
+	modLine := prefix + name + " " + modText
+
+	if origLine == modLine {
+		*lines = append(*lines, diffLine{diffUnchanged, modLine})
+	} else {
+		*lines = append(*lines, diffLine{diffModified, modLine})
 	}
 }
 

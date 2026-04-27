@@ -500,7 +500,10 @@ func (e *Editor) LoadDraft() bool {
 	parser := config.NewSetParser(e.schema)
 	tree, meta, err := parser.ParseWithMeta(string(data))
 	if err != nil {
-		return false
+		tree, meta, err = parseConfigLenient(string(data), e.schema)
+		if err != nil {
+			return false
+		}
 	}
 	e.tree = tree
 	e.meta = meta

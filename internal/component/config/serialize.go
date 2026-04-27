@@ -23,6 +23,11 @@ const maxInlineDepth = 1
 // The inactive leaf is excluded from the count. A container with any
 // deactivated leaf cannot inline -- the "inactive: " prefix only renders
 // correctly on a multi-line statement, not in inline form.
+// CanInlineContainer reports whether a container tree would be serialized inline.
+func CanInlineContainer(tree *Tree) bool {
+	return canInlineContainer(tree)
+}
+
 func canInlineContainer(tree *Tree) bool {
 	if maxInlineDepth < 1 {
 		return false

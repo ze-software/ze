@@ -117,6 +117,61 @@ func startEphemeralDaemon(configPath, host, port string, extraArgs []string) (*o
 	return nil, "", fmt.Errorf("ephemeral daemon failed to start within %v", ephemeralPollTimeout)
 }
 
+// startWebOnlyDaemon starts an ephemeral daemon that runs in web-only mode.
+// Polls the web port for readiness instead of SSH (RunWebOnly has no SSH).
+func startWebOnlyDaemon(configPath, webPort string, extraArgs []string) (*os.Process, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("find ze binary: %w", err)
+	}
+
+	devnull, err := os.Open(os.DevNull)
+	if err != nil {
+		return nil, fmt.Errorf("open devnull: %w", err)
+	}
+
+	argv := make([]string, 0, 1+len(extraArgs)+1)
+	argv = append(argv, exe)
+	argv = append(argv, extraArgs...)
+	argv = append(argv, configPath)
+
+	proc, err := os.StartProcess(exe, argv, &os.ProcAttr{
+		Env:   os.Environ(),
+		Files: []*os.File{devnull, os.Stderr, os.Stderr},
+	})
+	devnull.Close() //nolint:errcheck // devnull close is non-fatal
+	if err != nil {
+		return nil, fmt.Errorf("start web daemon: %w", err)
+	}
+
+	webAddr := net.JoinHostPort("127.0.0.1", webPort)
+	deadline := time.Now().Add(ephemeralPollTimeout)
+	for time.Now().Before(deadline) {
+		if probeAddr(webAddr, 200*time.Millisecond) {
+			return proc, nil
+		}
+		time.Sleep(ephemeralPollInterval)
+	}
+
+	if killErr := proc.Kill(); killErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: kill web daemon: %v\n", killErr)
+	}
+	if _, waitErr := proc.Wait(); waitErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: wait web daemon: %v\n", waitErr)
+	}
+	return nil, fmt.Errorf("web daemon failed to start within %v", ephemeralPollTimeout)
+}
+
+// extractWebPort returns the --web port from daemon args, or "" if not present.
+func extractWebPort(args []string) string {
+	for i, arg := range args {
+		if arg == "--web" && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	return ""
+}
+
 // probeAddr dials a host:port address to check reachability.
 func probeAddr(addr string, timeout time.Duration) bool {
 	d := net.Dialer{Timeout: timeout}
@@ -438,13 +493,16 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, d
 	// If no daemon is running and credentials are available, start an ephemeral daemon.
 	// Skip ephemeral daemon when config has no recognized block (bgp, plugin) — the
 	// daemon would reject it with "no recognized block" and exit immediately.
+	// When --web is requested and config type is unknown, the daemon runs in web-only
+	// mode (no SSH), so we poll the web port instead.
 	creds, credsErr := sshclient.LoadCredentialsWithFlags(user)
 	var ephemeralProc *os.Process
 	daemonReachable := false
+	configType := config.ProbeConfigType(ed.OriginalContent())
 	if credsErr == nil {
 		if probeDaemonSSH(creds.Host, creds.Port) {
 			daemonReachable = true
-		} else if config.ProbeConfigType(ed.OriginalContent()) != config.ConfigTypeUnknown {
+		} else if configType != config.ConfigTypeUnknown {
 			// Start ephemeral daemon; it starts SSH on a random port if config has none.
 			proc, sshAddr, ephErr := startEphemeralDaemon(configPath, creds.Host, creds.Port, daemonArgs)
 			if ephErr != nil {
@@ -466,6 +524,19 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, d
 			})
 		}
 	}
+
+	// Web-only daemon: config has no recognized block but --web was requested.
+	// The daemon runs RunWebOnly (no SSH), so poll the web port instead.
+	webPort := extractWebPort(daemonArgs)
+	if ephemeralProc == nil && webPort != "" && configType == config.ConfigTypeUnknown {
+		proc, ephErr := startWebOnlyDaemon(configPath, webPort, daemonArgs)
+		if ephErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: web daemon: %v\n", ephErr)
+		} else {
+			ephemeralProc = proc
+		}
+	}
+
 	// Stop ephemeral daemon when editor exits
 	if ephemeralProc != nil {
 		defer stopEphemeralDaemon(ephemeralProc, creds)

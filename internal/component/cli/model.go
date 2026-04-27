@@ -314,8 +314,9 @@ func NewModel(ed *Editor) (Model, error) {
 		return Model{}, fmt.Errorf("failed to create validator: %w", err)
 	}
 
-	// Run initial validation
-	result := val.Validate(ed.WorkingContent())
+	// Run initial validation against hierarchical content (matching viewport display)
+	// so line numbers align with what the user sees.
+	result := val.Validate(ed.ContentAtPath(nil))
 
 	welcome := "welcome to ze!"
 	if ed.session != nil && ed.session.User != "" {

@@ -461,6 +461,10 @@ func findPeerLine(lines []string, addr string) int {
 // findDeepestParentLine finds the source line of the deepest existing parent
 // container for a missing required field. Falls back to the peer header line
 // if no intermediate container exists.
+//
+// Stops at inline containers: a line like "asn remote 65099" shows a specific
+// leaf value, so attaching an unrelated "missing: local" hint there is misleading.
+// The hint goes on the parent container instead.
 func findDeepestParentLine(lines []string, peerAddr string, reqPath []string, peerTree *config.Tree) int {
 	peerLine := findPeerLine(lines, peerAddr)
 	if peerLine == 0 || peerTree == nil || len(reqPath) < 2 {
@@ -474,7 +478,12 @@ func findDeepestParentLine(lines []string, peerAddr string, reqPath []string, pe
 		if child == nil {
 			break
 		}
-		if line := findFieldInPeer(lines, peerAddr, seg); line > 0 {
+		line := findFieldInPeer(lines, peerAddr, seg)
+		if line > 0 {
+			trimmed := strings.TrimSpace(lines[line-1])
+			if !strings.Contains(trimmed, "{") {
+				break
+			}
 			bestLine = line
 		}
 		current = child

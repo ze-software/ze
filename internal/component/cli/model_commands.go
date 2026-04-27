@@ -700,11 +700,13 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 }
 
 // runValidation re-runs validation on current content.
+// Validates hierarchical content (matching the viewport display format)
+// so that line numbers align with what the user sees.
 func (m *Model) runValidation() {
 	if m.editor == nil || m.validator == nil {
 		return
 	}
-	result := m.validator.Validate(m.editor.WorkingContent())
+	result := m.validator.Validate(m.editor.ContentAtPath(nil))
 	m.validationErrors = result.Errors
 	m.validationWarnings = result.Warnings
 }
