@@ -7,8 +7,10 @@
         <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Hostname</span><span>{{if .System.Hostname}}{{.System.Hostname}}{{else}}-{{end}}</span></div>
         <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Uptime</span><span>{{.System.Uptime}}</span></div>
         <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Version</span><span>{{.System.Version}}</span></div>
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Built</span><span>{{.System.BuildDate}}</span></div>
         <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">CPU Count</span><span>{{.System.CPUCount}}</span></div>
-        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Memory</span><span>{{.System.MemAlloc}}</span></div>
+        {{if .System.MemTotal}}<div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Memory Available</span><span>{{.System.MemTotal}}</span></div>{{end}}
+        <div class="wb-dashboard-stat"><span class="wb-dashboard-stat-label">Memory Used</span><span>{{.System.MemAlloc}}</span></div>
       </div>
     </div>
     <div class="wb-dashboard-panel">

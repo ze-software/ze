@@ -65,6 +65,18 @@ var readInfo = sync.OnceValue(func() info {
 	return i
 })
 
+func Release() string {
+	mu.RLock()
+	defer mu.RUnlock()
+	return release
+}
+
+func BuildDate() string {
+	mu.RLock()
+	defer mu.RUnlock()
+	return buildDate
+}
+
 // Short returns the single-line version string: "ze 26.04.05 (built 2026-04-05T...)".
 func Short() string {
 	mu.RLock()

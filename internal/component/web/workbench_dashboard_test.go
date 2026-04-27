@@ -2,6 +2,7 @@ package web
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,6 +79,8 @@ func TestBuildDashboardData_EmptyState(t *testing.T) {
 
 	// System panel should still work (runtime data).
 	assert.Greater(t, data.System.CPUCount, 0)
+	assert.NotEmpty(t, data.System.Hostname, "falls back to os.Hostname()")
+	assert.NotEqual(t, "-", data.System.Uptime)
 
 	// BGP empty.
 	assert.True(t, data.BGP.Empty, "BGP panel must be empty with no peers")
@@ -101,7 +104,7 @@ func TestBuildDashboardData_NilTree(t *testing.T) {
 	data := BuildDashboardData(nil, schema)
 	assert.True(t, data.BGP.Empty)
 	assert.True(t, data.Interfaces.Empty)
-	assert.Empty(t, data.System.Hostname)
+	assert.NotEmpty(t, data.System.Hostname, "falls back to os.Hostname()")
 }
 
 // TestRenderDashboard verifies the dashboard template renders all panels.
@@ -181,6 +184,23 @@ func TestRenderDashboard_EmptyState(t *testing.T) {
 	assert.Contains(t, html, `Configure interfaces`)
 	assert.Contains(t, html, `No recent warnings`)
 	assert.Contains(t, html, `No recent errors`)
+}
+
+func TestFormatUptime(t *testing.T) {
+	tests := []struct {
+		input    time.Duration
+		expected string
+	}{
+		{0, "0s"},
+		{30 * time.Second, "30s"},
+		{5*time.Minute + 12*time.Second, "5m 12s"},
+		{2*time.Hour + 15*time.Minute + 3*time.Second, "2h 15m 3s"},
+		{3*24*time.Hour + 12*time.Hour + 45*time.Minute, "3d 12h 45m"},
+	}
+
+	for _, tt := range tests {
+		assert.Equal(t, tt.expected, formatUptime(tt.input), "input: %v", tt.input)
+	}
 }
 
 // TestFormatBytes verifies the byte formatting helper.

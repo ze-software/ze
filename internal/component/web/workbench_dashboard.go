@@ -14,11 +14,16 @@ package web
 
 import (
 	"fmt"
+	"os"
 	"runtime"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	"codeberg.org/thomas-mangin/ze/internal/core/version"
 )
+
+var processStart = time.Now()
 
 // DashboardData holds the data for the workbench dashboard overview page.
 type DashboardData struct {
@@ -31,11 +36,13 @@ type DashboardData struct {
 
 // DashboardSystemPanel displays system identity and runtime stats.
 type DashboardSystemPanel struct {
-	Hostname string
-	Uptime   string
-	Version  string
-	CPUCount int
-	MemAlloc string
+	Hostname  string
+	Uptime    string
+	Version   string
+	BuildDate string
+	CPUCount  int
+	MemTotal  string
+	MemAlloc  string
 }
 
 // DashboardBGPPanel summarizes BGP peer state. In v1, only Total and Empty
@@ -81,27 +88,57 @@ func BuildDashboardData(tree *config.Tree, schema *config.Schema) DashboardData 
 	}
 }
 
-// buildSystemPanel extracts system identity from the config tree and runtime
-// stats from the Go runtime.
 func buildSystemPanel(tree *config.Tree) DashboardSystemPanel {
 	hostname := ""
 	if tree != nil {
 		if sys := tree.GetContainer("system"); sys != nil {
 			if h, ok := sys.Get("host"); ok {
-				hostname = h
+				hostname = system.ExpandEnvValue(h)
 			}
 		}
+	}
+	if hostname == "" {
+		hostname, _ = os.Hostname()
 	}
 
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
+	memTotal := ""
+	if sysBytes := totalSystemMemory(); sysBytes > 0 {
+		memTotal = formatBytes(sysBytes)
+	}
+
 	return DashboardSystemPanel{
-		Hostname: hostname,
-		Uptime:   "-", // Populated by later spec via operational data.
-		Version:  version.Short(),
-		CPUCount: runtime.NumCPU(),
-		MemAlloc: formatBytes(mem.Alloc),
+		Hostname:  hostname,
+		Uptime:    formatUptime(time.Since(processStart)),
+		Version:   version.Release(),
+		BuildDate: version.BuildDate(),
+		CPUCount:  runtime.NumCPU(),
+		MemTotal:  memTotal,
+		MemAlloc:  formatBytes(mem.Alloc),
+	}
+}
+
+func formatUptime(d time.Duration) string {
+	d = d.Truncate(time.Second)
+	days := int(d.Hours()) / 24
+	d -= time.Duration(days) * 24 * time.Hour
+	hours := int(d.Hours())
+	d -= time.Duration(hours) * time.Hour
+	minutes := int(d.Minutes())
+	d -= time.Duration(minutes) * time.Minute
+	seconds := int(d.Seconds())
+
+	switch {
+	case days > 0:
+		return fmt.Sprintf("%dd %dh %dm", days, hours, minutes)
+	case hours > 0:
+		return fmt.Sprintf("%dh %dm %ds", hours, minutes, seconds)
+	case minutes > 0:
+		return fmt.Sprintf("%dm %ds", minutes, seconds)
+	default:
+		return fmt.Sprintf("%ds", seconds)
 	}
 }
 
