@@ -11,8 +11,10 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
@@ -30,16 +32,27 @@ const maxCompletionResults = 50
 
 // CLI verb constants matching the SSH CLI command grammar.
 const (
-	verbEdit    = "edit"
-	verbSet     = "set"
-	verbDelete  = "delete"
-	verbShow    = "show"
-	verbTop     = "top"
-	verbUp      = "up"
-	verbCommit  = "commit"
-	verbDiscard = "discard"
-	verbHelp    = "help"
-	verbWho     = "who"
+	verbEdit       = "edit"
+	verbSet        = "set"
+	verbDelete     = "delete"
+	verbShow       = "show"
+	verbTop        = "top"
+	verbUp         = "up"
+	verbCommit     = "commit"
+	verbDiscard    = "discard"
+	verbHelp       = "help"
+	verbWho        = "who"
+	verbCompare    = "compare"
+	verbSave       = "save"
+	verbHistory    = "history"
+	verbRollback   = "rollback"
+	verbRename     = "rename"
+	verbCopy       = "copy"
+	verbInsert     = "insert"
+	verbDeactivate = "deactivate"
+	verbActivate   = "activate"
+	verbErrors     = "errors"
+	verbDisconnect = "disconnect"
 )
 
 // cliCommand holds the parsed verb and arguments from a CLI bar input.
@@ -108,6 +121,53 @@ func formatCLIPrompt(path []string) string {
 	return "ze[" + strings.Join(path, " ") + "]# "
 }
 
+// HandleCLIPage renders the CLI terminal page content for the workbench.
+// Layout matches the SSH CLI: output viewport fills available space, two-line
+// message area shows feedback and hints, prompt + input at the very bottom.
+func HandleCLIPage(renderer *Renderer) template.HTML {
+	prompt := formatCLIPrompt(nil)
+
+	var buf strings.Builder
+	fmt.Fprintf(&buf, `<div class="cli-page">`)
+	fmt.Fprintf(&buf, `<div class="cli-output" id="cli-output"></div>`)
+	fmt.Fprintf(&buf, `<div class="cli-messages" id="cli-messages">`)
+	fmt.Fprintf(&buf, `<div class="cli-feedback" id="cli-feedback"></div>`)
+	fmt.Fprintf(&buf, `<div class="cli-hint" id="cli-hint">Tab/?: complete, Enter: execute</div>`)
+	fmt.Fprintf(&buf, `</div>`)
+	fmt.Fprintf(&buf, `<div class="cli-input-line">`)
+	fmt.Fprintf(&buf, `<span class="terminal-prompt" id="terminal-prompt">%s</span>`, template.HTMLEscapeString(prompt))
+	fmt.Fprintf(&buf, `<input type="text" class="terminal-input" id="terminal-input" `)
+	fmt.Fprintf(&buf, `autocomplete="off" spellcheck="false" name="command">`)
+	fmt.Fprintf(&buf, `<div class="terminal-completions" id="terminal-completions" style="display:none"></div>`)
+	fmt.Fprintf(&buf, `</div>`)
+	fmt.Fprintf(&buf, `<span id="cli-context-path" style="display:none"></span>`)
+	fmt.Fprintf(&buf, `</div>`)
+
+	return template.HTML(buf.String()) //nolint:gosec // trusted template output
+}
+
+// HandleCLIPageHTTP returns an HTTP handler for /cli/ that renders the CLI
+// terminal in the Finder layout (topbar + full-page terminal, no sidebar).
+// Both the Finder and Workbench link to this same page.
+func HandleCLIPageHTTP(renderer *Renderer, insecure bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		username := GetUsernameFromRequest(r)
+		content := HandleCLIPage(renderer)
+		layoutData := LayoutData{
+			Title:      "Ze: CLI",
+			Content:    content,
+			HasSession: true,
+			CLIPrompt:  formatCLIPrompt(nil),
+			Username:   username,
+			Insecure:   insecure,
+			ActiveUI:   "cli",
+		}
+		if err := renderer.RenderLayout(w, layoutData); err != nil {
+			http.Error(w, fmt.Sprintf("render: %v", err), http.StatusInternalServerError)
+		}
+	}
+}
+
 // HandleCLICommand returns a POST handler for /cli that dispatches CLI bar
 // commands in integrated mode. The command text is parsed into verb + args
 // and dispatched to the appropriate EditorManager method.
@@ -169,10 +229,14 @@ func HandleCLICommand(mgr *EditorManager, schema *config.Schema, renderer *Rende
 }
 
 // knownCLIVerbs is the set of CLI verbs handled by the web CLI bar.
+// Must match the SSH CLI command set (model_commands.go).
 var knownCLIVerbs = map[string]bool{
 	verbEdit: true, verbSet: true, verbDelete: true, verbShow: true,
 	verbTop: true, verbUp: true, verbCommit: true, verbDiscard: true,
-	verbHelp: true, verbWho: true,
+	verbHelp: true, verbWho: true, verbCompare: true, verbSave: true,
+	verbHistory: true, verbRollback: true, verbRename: true, verbCopy: true,
+	verbInsert: true, verbDeactivate: true, verbActivate: true,
+	verbErrors: true, verbDisconnect: true,
 }
 
 // dispatchCLICommand routes a parsed CLI command to the appropriate handler.
@@ -488,10 +552,25 @@ func HandleCLIComplete(completer contract.Completer, mgr *EditorManager, schema 
 	}
 }
 
+// terminalResponse is the JSON envelope returned by the terminal endpoint.
+// The JS client updates the output viewport, message area, and prompt from
+// these fields, matching the SSH CLI's fixed-zone layout.
+type terminalResponse struct {
+	Output   string `json:"output"`
+	Feedback string `json:"feedback"`
+	Path     string `json:"path,omitempty"`
+	Prompt   string `json:"prompt,omitempty"`
+}
+
 // HandleCLITerminal returns a POST handler for /cli/terminal that processes
-// commands in terminal mode. Commands produce plain text output identical
-// to the SSH CLI, returned as pre-formatted text for the terminal scrollback.
-func HandleCLITerminal(mgr *EditorManager) http.HandlerFunc {
+// commands in terminal mode. Returns a JSON response with structured output
+// so the client can update the output viewport and message area separately,
+// matching the SSH CLI's layout.
+//
+// The committed tree is used for show output so the CLI displays the same
+// config the workbench shows (the daemon's running config, not just the
+// editor's on-disk file).
+func HandleCLITerminal(mgr *EditorManager, schema *config.Schema, tree *config.Tree) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -501,6 +580,11 @@ func HandleCLITerminal(mgr *EditorManager) http.HandlerFunc {
 		username := GetUsernameFromRequest(r)
 		if username == "" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		if _, err := mgr.GetOrCreate(username); err != nil {
+			http.Error(w, fmt.Sprintf("session: %v", err), http.StatusInternalServerError)
 			return
 		}
 
@@ -529,52 +613,293 @@ func HandleCLITerminal(mgr *EditorManager) http.HandlerFunc {
 		}
 
 		cmd := parseCLICommand(command)
-		output := executeTerminalCommand(mgr, username, contextPath, cmd)
-		prompt := formatCLIPrompt(contextPath)
 
-		var buf strings.Builder
-		fmt.Fprintf(&buf, `<div class="terminal-entry">`)
-		fmt.Fprintf(&buf, `<span class="terminal-prompt">%s</span>`, template.HTMLEscapeString(prompt))
-		fmt.Fprintf(&buf, `<span class="terminal-command">%s</span>`, template.HTMLEscapeString(command))
-		fmt.Fprintf(&buf, `<pre class="terminal-output">%s</pre>`, template.HTMLEscapeString(output))
-		fmt.Fprintf(&buf, `</div>`)
+		// Use the hub tree (parsed from draft or committed config at startup)
+		// so the CLI shows the same view as the SSH editor.
+		viewTree := tree
 
-		writeHTML(w, buf.String())
+		newPath, output := executeTerminalNav(schema, viewTree, mgr, username, contextPath, cmd)
+
+		resp := terminalResponse{
+			Output:   output,
+			Feedback: terminalFeedback(cmd, output),
+		}
+
+		// After navigation, show config at the new path.
+		if newPath != nil {
+			resp.Path = strings.Join(newPath, "/")
+			resp.Prompt = formatCLIPrompt(newPath)
+			if cmd.Verb == verbEdit || cmd.Verb == verbUp || cmd.Verb == verbTop {
+				resp.Output = serializeTreeAtPath(viewTree, schema, newPath)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			http.Error(w, fmt.Sprintf("json encode: %v", err), http.StatusInternalServerError)
+		}
 	}
 }
 
-// executeTerminalCommand runs a CLI command and returns its text output.
-func executeTerminalCommand(mgr *EditorManager, username string, contextPath []string, cmd cliCommand) string {
+// terminalFeedback returns the message-area feedback line for a command.
+func terminalFeedback(cmd cliCommand, output string) string {
+	switch cmd.Verb {
+	case verbSet:
+		if len(cmd.Args) >= 2 { //nolint:mnd // set <key> <value>
+			return fmt.Sprintf("set %s = %s", cmd.Args[0], strings.Join(cmd.Args[1:], " "))
+		}
+	case verbDelete:
+		if len(cmd.Args) >= 1 {
+			return fmt.Sprintf("deleted %s", cmd.Args[0])
+		}
+	case verbCommit:
+		if strings.HasPrefix(output, "error") || strings.HasPrefix(output, "commit conflicts") {
+			return output
+		}
+		return "commit successful"
+	case verbDiscard:
+		return "changes discarded"
+	case verbEdit:
+		return "edit " + strings.Join(cmd.Args, " ")
+	case verbUp:
+		return "up"
+	case verbTop:
+		return "top"
+	}
+	return ""
+}
+
+// executeTerminalNav runs a CLI command and returns the new context path
+// (nil if unchanged) and text output. Navigation commands (edit, up, top)
+// return the updated path; other commands return nil.
+// Pipe filters (| format config, | match, | head, | tail) are handled
+// using the same cli.ApplyPipeFilter as the SSH CLI.
+func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username string, contextPath []string, cmd cliCommand) (newPath []string, output string) {
 	if !knownCLIVerbs[cmd.Verb] && cmd.Verb != "" {
-		return fmt.Sprintf("unknown command: %s", cmd.Verb)
+		return nil, fmt.Sprintf("unknown command: %s", cmd.Verb)
+	}
+
+	// Check for pipe in args: split into command args and pipe filters.
+	allTokens := append([]string{cmd.Verb}, cmd.Args...)
+	if pipeIdx := cli.FindPipeIndex(allTokens); pipeIdx > 0 {
+		baseCmd := cliCommand{Verb: allTokens[0], Args: allTokens[1:pipeIdx]}
+		filters := cli.ParsePipeFilters(allTokens[pipeIdx+1:])
+		newPath, output = executeTerminalNav(schema, viewTree, mgr, username, contextPath, baseCmd)
+		for _, f := range filters {
+			if f.Type == "format" && f.Arg == "config" {
+				output = mgr.ContentAtPath(username, contextPath)
+			} else {
+				filtered, err := cli.ApplyPipeFilter(output, f)
+				if err != nil {
+					return newPath, fmt.Sprintf("pipe error: %s", err)
+				}
+				output = filtered
+			}
+		}
+		return newPath, output
 	}
 
 	switch cmd.Verb {
+	case verbEdit:
+		target := append(append([]string{}, contextPath...), cmd.Args...)
+		if len(target) > 0 {
+			if _, err := walkSchema(schema, target); err != nil {
+				return nil, fmt.Sprintf("invalid path: %s", err)
+			}
+		}
+		return target, ""
+	case verbUp:
+		if len(contextPath) > 0 {
+			return contextPath[:len(contextPath)-1], ""
+		}
+		return []string{}, ""
+	case verbTop:
+		return []string{}, ""
 	case verbShow:
 		showPath := append(append([]string{}, contextPath...), cmd.Args...)
-		return mgr.ContentAtPath(username, showPath)
+		return nil, serializeTreeAtPath(viewTree, schema, showPath)
 	case verbSet:
-		return executeTerminalSet(mgr, username, contextPath, cmd.Args)
+		return nil, executeTerminalSet(mgr, username, contextPath, cmd.Args)
 	case verbDelete:
-		return executeTerminalDelete(mgr, username, contextPath, cmd.Args)
+		return nil, executeTerminalDelete(mgr, username, contextPath, cmd.Args)
 	case verbCommit:
-		return executeTerminalCommit(mgr, username)
+		return nil, executeTerminalCommit(mgr, username)
 	case verbDiscard:
 		if err := mgr.Discard(username); err != nil {
-			return fmt.Sprintf("error: %s", err)
+			return nil, fmt.Sprintf("error: %s", err)
 		}
-		return "changes discarded"
-	case verbTop:
-		return "navigated to root"
-	case verbUp:
-		return "navigated up"
+		return nil, "changes discarded"
+	case verbWho:
+		sessions := mgr.ActiveSessions()
+		if len(sessions) == 0 {
+			return nil, "no active sessions"
+		}
+		var buf strings.Builder
+		buf.WriteString("active sessions:\n")
+		for _, s := range sessions {
+			fmt.Fprintf(&buf, "  %s\n", s)
+		}
+		return nil, buf.String()
+	case verbCompare:
+		return nil, mgr.Compare(username)
+	case verbSave:
+		if err := mgr.SaveDraft(username); err != nil {
+			return nil, fmt.Sprintf("error: %s", err)
+		}
+		return nil, "changes saved to draft"
+	case verbHistory:
+		backups, err := mgr.ListBackups(username)
+		if err != nil {
+			return nil, fmt.Sprintf("error: %s", err)
+		}
+		if len(backups) == 0 {
+			return nil, "no backups found"
+		}
+		var buf strings.Builder
+		for i, b := range backups {
+			fmt.Fprintf(&buf, "%d. %s  %s\n", i+1, b.Timestamp, b.Path)
+		}
+		return nil, buf.String()
+	case verbRollback:
+		if len(cmd.Args) != 1 {
+			return nil, "usage: rollback <number>"
+		}
+		n, err := strconv.Atoi(cmd.Args[0])
+		if err != nil {
+			return nil, fmt.Sprintf("invalid backup number: %s", cmd.Args[0])
+		}
+		backups, bErr := mgr.ListBackups(username)
+		if bErr != nil {
+			return nil, fmt.Sprintf("error: %s", bErr)
+		}
+		if n < 1 || n > len(backups) {
+			return nil, fmt.Sprintf("backup %d not found (have %d backups)", n, len(backups))
+		}
+		if err := mgr.Rollback(username, backups[n-1].Path); err != nil {
+			return nil, fmt.Sprintf("error: %s", err)
+		}
+		return nil, fmt.Sprintf("rolled back to %s", backups[n-1].Path)
+	case verbRename:
+		if len(cmd.Args) < 4 || cmd.Args[len(cmd.Args)-2] != "to" {
+			return nil, "usage: rename <list> <old-name> to <new-name>"
+		}
+		newKey := cmd.Args[len(cmd.Args)-1]
+		oldTokens := cmd.Args[:len(cmd.Args)-2]
+		fullPath := append(append([]string{}, contextPath...), oldTokens...)
+		if len(fullPath) < 2 {
+			return nil, "rename requires at least a list name and entry key"
+		}
+		oldKey := fullPath[len(fullPath)-1]
+		listName := fullPath[len(fullPath)-2]
+		parentPath := fullPath[:len(fullPath)-2]
+		if err := mgr.RenameListEntry(username, parentPath, listName, oldKey, newKey); err != nil {
+			return nil, fmt.Sprintf("error: %s", err)
+		}
+		return nil, fmt.Sprintf("renamed %s %s to %s", listName, oldKey, newKey)
+	case verbCopy:
+		if len(cmd.Args) < 4 || cmd.Args[len(cmd.Args)-2] != "to" {
+			return nil, "usage: copy <list> <source> to <destination>"
+		}
+		dstKey := cmd.Args[len(cmd.Args)-1]
+		srcTokens := cmd.Args[:len(cmd.Args)-2]
+		fullPath := append(append([]string{}, contextPath...), srcTokens...)
+		if len(fullPath) < 2 {
+			return nil, "copy requires at least a list name and entry key"
+		}
+		srcKey := fullPath[len(fullPath)-1]
+		listName := fullPath[len(fullPath)-2]
+		parentPath := fullPath[:len(fullPath)-2]
+		if err := mgr.CopyListEntry(username, parentPath, listName, srcKey, dstKey); err != nil {
+			return nil, fmt.Sprintf("error: %s", err)
+		}
+		return nil, fmt.Sprintf("copied %s %s to %s", listName, srcKey, dstKey)
+	case verbInsert:
+		if len(cmd.Args) < 1 {
+			return nil, "usage: insert <path>"
+		}
+		insertPath := append(append([]string{}, contextPath...), cmd.Args...)
+		if err := mgr.CreateEntry(username, insertPath); err != nil {
+			return nil, fmt.Sprintf("error: %s", err)
+		}
+		return nil, fmt.Sprintf("inserted entry at %s", strings.Join(cmd.Args, " "))
+	case verbDeactivate:
+		if len(cmd.Args) < 1 {
+			return nil, "usage: deactivate <path>"
+		}
+		fullPath := append(append([]string{}, contextPath...), cmd.Args...)
+		if err := mgr.DeactivatePath(username, fullPath); err != nil {
+			return nil, fmt.Sprintf("error: %s", err)
+		}
+		return nil, fmt.Sprintf("deactivated %s", strings.Join(cmd.Args, " "))
+	case verbActivate:
+		if len(cmd.Args) < 1 {
+			return nil, "usage: activate <path>"
+		}
+		fullPath := append(append([]string{}, contextPath...), cmd.Args...)
+		if err := mgr.ActivatePath(username, fullPath); err != nil {
+			return nil, fmt.Sprintf("error: %s", err)
+		}
+		return nil, fmt.Sprintf("activated %s", strings.Join(cmd.Args, " "))
+	case verbErrors:
+		return nil, mgr.Compare(username)
+	case verbDisconnect:
+		if len(cmd.Args) < 1 {
+			return nil, "usage: disconnect <session-id>"
+		}
+		if err := mgr.DisconnectSession(username, cmd.Args[0]); err != nil {
+			return nil, fmt.Sprintf("error: %s", err)
+		}
+		return nil, fmt.Sprintf("disconnected session %s", cmd.Args[0])
 	case verbHelp:
-		return "commands: edit, set, delete, show, top, up, commit, discard, help"
+		return nil, `commands:
+  edit <path>          Enter a subsection context
+  top                  Return to root context
+  up                   Go up one level
+  show [path]          Display configuration
+  set <path> <value>   Set a configuration value
+  delete <path>        Delete a configuration value
+  rename <list> <old> to <new>   Rename a list entry
+  copy <list> <src> to <dst>     Copy a list entry
+  insert <path>        Insert a keyless list entry
+  deactivate <path>    Mark a node inactive
+  activate <path>      Re-activate a node
+  compare              Show diff vs original
+  commit               Save changes
+  discard              Revert all changes
+  save                 Save draft
+  history              List backups
+  rollback <N>         Restore backup N
+  errors               Show validation errors
+  who                  Show active sessions
+  disconnect <id>      Disconnect a session
+  help                 Show this help`
 	case "":
-		return ""
+		return nil, ""
 	}
 
-	return ""
+	return nil, ""
+}
+
+// serializeTreeAtPath returns the config text at the given path from the
+// committed tree. At root it serializes the full tree; at a subpath it
+// walks to the subtree and serializes that section.
+func serializeTreeAtPath(tree *config.Tree, schema *config.Schema, path []string) string {
+	if tree == nil || schema == nil {
+		return ""
+	}
+	if len(path) == 0 {
+		return config.Serialize(tree, schema)
+	}
+	subtree := walkTree(tree, schema, path)
+	if subtree == nil {
+		return ""
+	}
+	node, err := walkSchema(schema, path)
+	if err != nil || node == nil {
+		return ""
+	}
+	return config.SerializeSubtree(subtree, node)
 }
 
 // executeTerminalSet handles the set command in terminal mode.

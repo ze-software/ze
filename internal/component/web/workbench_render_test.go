@@ -47,7 +47,6 @@ func TestRenderWorkbench(t *testing.T) {
 	assert.Contains(t, body, `id="workbench-nav"`, "missing workbench left nav")
 	assert.Contains(t, body, `id="workbench-workspace"`, "missing workbench workspace")
 	assert.Contains(t, body, `id="commit-bar"`, "commit bar must be reused under workbench")
-	assert.Contains(t, body, `id="cli-bar"`, "cli bar must be reused under workbench")
 
 	// Workspace renders the supplied content.
 	assert.Contains(t, body, `workspace-content`, "workspace must render Content")

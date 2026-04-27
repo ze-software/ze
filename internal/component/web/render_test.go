@@ -105,18 +105,9 @@ func TestRenderLayout(t *testing.T) {
 		t.Error("output missing notification-bar class")
 	}
 
-	// CLI bar with prompt
-	if !strings.Contains(body, `class="cli-bar"`) {
-		t.Error("output missing cli-bar class")
-	}
-
-	// html/template escapes ">" to "&gt;" inside text nodes
-	if !strings.Contains(body, "ze&gt;") {
-		t.Error("output missing CLI prompt text")
-	}
-
-	if !strings.Contains(body, `class="cli-input"`) {
-		t.Error("output missing cli-input")
+	// CLI bar is not in the layout (dedicated /cli page).
+	if strings.Contains(body, `class="cli-bar"`) {
+		t.Error("layout must not contain cli-bar (moved to CLI page)")
 	}
 
 	// Theme toggle

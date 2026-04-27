@@ -88,8 +88,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 /* --- Page layout grid --- */
 .layout {
   display: grid;
-  grid-template-rows: auto 1fr auto auto auto;
-  grid-template-areas: "breadcrumb" "content" "notification" "commit" "cli";
+  grid-template-rows: auto 1fr auto auto;
+  grid-template-areas: "breadcrumb" "content" "notification" "commit";
   height: 100vh;
   width: 100%;
   overflow: hidden;
@@ -216,6 +216,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .view-toggle:hover {
@@ -2177,6 +2179,11 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   overflow: hidden;
 }
 
+.workbench-workspace:has(.portal-frame) {
+  padding: 0;
+  overflow: hidden;
+}
+
 /* --- Portal services menu --- */
 .portal-menu {
   position: relative;
@@ -2213,7 +2220,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 
 .portal-menu:hover .portal-dropdown,
-.portal-menu:focus-within .portal-dropdown {
+.portal-menu:focus-within .portal-dropdown,
+.portal-dropdown--open {
   display: block;
 }
 
@@ -2265,8 +2273,8 @@ body.ui-workbench {
     "topbar topbar"
     "nav    workspace"
     "nav    notifications"
-    "commit cli";
-  min-height: 100vh;
+    "commit commit";
+  height: 100vh;
   background: var(--bg-primary);
 }
 
@@ -2307,6 +2315,17 @@ body.ui-workbench {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.workbench-breadcrumb .breadcrumb-actions {
+  display: none;
+}
+
+.workbench-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .workbench-identity {
@@ -2379,8 +2398,92 @@ body.ui-workbench {
   grid-area: commit;
 }
 
-.ui-workbench .cli-bar {
-  grid-area: cli;
+/* CLI page: SSH-style layout with output viewport, message area, and input.
+   Output fills available space; messages and prompt are pinned to the bottom. */
+.cli-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-inset);
+  overflow: hidden;
+}
+
+.cli-output {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.75rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--text-primary);
+}
+
+.cli-messages {
+  flex-shrink: 0;
+  padding: 0.15rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.cli-feedback {
+  color: var(--accent);
+  min-height: 1.1em;
+}
+
+.cli-feedback.cli-feedback--error {
+  color: var(--error, #e55);
+}
+
+.cli-hint {
+  color: var(--text-muted);
+  min-height: 1.1em;
+}
+
+.cli-input-line {
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.cli-page .terminal-prompt {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.cli-page .terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.cli-page .terminal-completions {
+  position: absolute;
+  bottom: 100%;
+  left: 4rem;
+  right: 1rem;
+  max-height: 12rem;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.25rem 0;
+  z-index: 100;
 }
 
 @media (max-width: 1024px) {

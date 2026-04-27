@@ -44,12 +44,14 @@ type LayoutData struct {
 	Username         string
 	Insecure         bool
 	Services         []PortalService
+	ActiveUI         string // "workbench", "finder", or "cli" — controls which nav buttons appear
 }
 
 // LoginData holds the data passed to the login template.
 type LoginData struct {
-	Error   string
-	Overlay bool
+	Error    string
+	Overlay  bool
+	ReturnTo string // URL to redirect to after successful login
 }
 
 // WorkbenchData holds the data passed to the V2 workbench page template. It

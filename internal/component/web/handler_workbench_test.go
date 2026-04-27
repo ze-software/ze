@@ -13,7 +13,7 @@ import (
 
 // TestHandleWorkbench_RootRendersShell verifies that a full-page GET against
 // the workbench handler at the root path renders the V2 shell with all four
-// regions (top bar, left nav, workspace, commit/cli bars). This is the
+// regions (top bar, left nav, workspace, commit bar). This is the
 // integration test that proves the whole render chain wires up: route ->
 // data builder -> detail fragment -> RenderWorkbench.
 //
@@ -43,7 +43,6 @@ func TestHandleWorkbench_RootRendersShell(t *testing.T) {
 	assert.Contains(t, html, `id="workbench-nav"`)
 	assert.Contains(t, html, `id="workbench-workspace"`)
 	assert.Contains(t, html, `id="commit-bar"`)
-	assert.Contains(t, html, `id="cli-bar"`)
 	assert.Contains(t, html, `Routing`, "left nav must contain Routing section")
 }
 
