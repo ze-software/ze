@@ -92,6 +92,7 @@ type Model struct {
 	// Display state
 	viewportContent string // Content shown in viewport
 	showViewport    bool   // Whether viewport is active (for scrolling)
+	showingConfig   bool   // Whether viewport shows config (false after command output)
 	showHelp        bool   // Whether help overlay is shown
 	showHints       bool   // Whether inline diagnostic hints are shown (← missing: ...)
 	statusMessage   string // Temporary status message (clears on next command)

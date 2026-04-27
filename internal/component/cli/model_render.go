@@ -133,6 +133,7 @@ func (m *Model) setViewportData(data viewportData) {
 	m.viewport.SetContent(highlighted)
 	m.viewport.GotoTop()
 	m.showViewport = true
+	m.showingConfig = true
 	m.err = nil
 }
 
@@ -157,6 +158,7 @@ func (m *Model) setViewportText(content string) {
 	m.viewport.SetContent(content)
 	m.viewport.GotoTop()
 	m.showViewport = true
+	m.showingConfig = false
 	m.err = nil
 }
 

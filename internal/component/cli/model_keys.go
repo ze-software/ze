@@ -143,6 +143,22 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.stopMonitorSession()
 			return m, nil
 		}
+		// Escape with input or non-config viewport: clear and return to config view.
+		if keyStr == keyEsc && (m.textInput.Value() != "" || (m.hasEditor() && !m.showingConfig)) {
+			m.textInput.SetValue("")
+			m.showDropdown = false
+			m.completionHint = ""
+			m.completionHintDim = false
+			m.selected = -1
+			m.ghostText = ""
+			m.completions = nil
+			m.statusMessage = ""
+			if m.hasEditor() {
+				m.showConfigContent()
+			}
+			m.updateCompletions()
+			return m, nil
+		}
 		if m.hasEditor() && m.hasPendingChanges() {
 			m.confirmQuit = true
 			m.statusMessage = "Pending changes. Use 'commit', 'discard all', or type y to force quit."

@@ -528,6 +528,140 @@ func TestExitBlockedByDirty(t *testing.T) {
 	assert.Contains(t, m.StatusMessage(), "Pending changes", "should show pending changes warning")
 }
 
+// TestEscapeClearsInputInsteadOfQuitting verifies that Escape clears
+// non-empty input rather than starting the quit confirmation flow.
+//
+// VALIDATES: Escape with text in the input clears it and returns to config view.
+// PREVENTS: Accidentally quitting when the user just wants to discard typed input.
+func TestEscapeClearsInputInsteadOfQuitting(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+
+	// Type something into the input
+	model.textInput.SetValue("set bgp invalid-thing")
+
+	// Press Escape
+	newModel, cmd := model.handleKeyMsg(tea.KeyPressMsg{Code: tea.KeyEscape})
+	m, ok := newModel.(Model)
+	require.True(t, ok)
+
+	assert.Equal(t, "", m.InputValue(), "Escape should clear the input")
+	assert.False(t, m.confirmQuit, "Escape should not trigger quit confirmation")
+	assert.Equal(t, "", m.StatusMessage(), "Escape should clear status message")
+	assert.Nil(t, cmd, "Escape clearing input should return no command")
+}
+
+// TestEscapeEmptyInputTriggersQuit verifies that Escape with empty input
+// and config already showing starts the quit confirmation flow.
+//
+// VALIDATES: Escape on empty input with config view behaves as before (quit confirmation).
+// PREVENTS: Breaking the existing quit shortcut.
+func TestEscapeEmptyInputTriggersQuit(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+
+	// Simulate config view already displayed (as after WindowSizeMsg)
+	model.showConfigContent()
+
+	// Input is empty, press Escape
+	newModel, _ := model.handleKeyMsg(tea.KeyPressMsg{Code: tea.KeyEscape})
+	m, ok := newModel.(Model)
+	require.True(t, ok)
+
+	assert.True(t, m.confirmQuit, "Escape on empty input should trigger quit confirmation")
+}
+
+// TestEscapeAfterErrorsReturnsToConfig verifies that Escape returns to config
+// view after running a command that replaced the viewport (like "errors").
+//
+// VALIDATES: Escape restores config view when viewport shows command output.
+// PREVENTS: Being forced to quit when you just want to dismiss command output.
+func TestEscapeAfterErrorsReturnsToConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+
+	// Simulate command output in viewport (like "errors" does)
+	model.setViewportText("1 issue(s):\n  line 3: missing required field")
+	assert.False(t, model.showingConfig, "viewport should not be showing config after setViewportText")
+
+	// Press Escape with empty input
+	newModel, _ := model.handleKeyMsg(tea.KeyPressMsg{Code: tea.KeyEscape})
+	m, ok := newModel.(Model)
+	require.True(t, ok)
+
+	assert.False(t, m.confirmQuit, "Escape should not trigger quit when showing command output")
+	assert.True(t, m.showingConfig, "Escape should restore config view")
+
+	// Press Escape again — now it should trigger quit
+	newModel2, _ := m.handleKeyMsg(tea.KeyPressMsg{Code: tea.KeyEscape})
+	m2, ok := newModel2.(Model)
+	require.True(t, ok)
+
+	assert.True(t, m2.confirmQuit, "second Escape should trigger quit confirmation")
+}
+
+// TestCtrlCStillQuitsWithInput verifies that Ctrl+C triggers quit even when
+// there is text in the input (only Escape gets the clear-input behavior).
+//
+// VALIDATES: Ctrl+C always triggers quit confirmation regardless of input.
+// PREVENTS: Ctrl+C losing its "I want to leave" meaning.
+func TestCtrlCStillQuitsWithInput(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+
+	model.textInput.SetValue("set bgp something")
+
+	newModel, _ := model.handleKeyMsg(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	m, ok := newModel.(Model)
+	require.True(t, ok)
+
+	assert.True(t, m.confirmQuit, "Ctrl+C should trigger quit even with input text")
+}
+
 // TestCommandHistoryRecall verifies Up/Down arrows recall previously executed commands.
 //
 // VALIDATES: Up arrow recalls previous command, Down returns to current input.
