@@ -32,7 +32,7 @@ func TestHandlePortal_UnknownService(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := HandlePortal(renderer)
+	handler := HandlePortal(renderer, UIModeFinder)
 
 	r := httptest.NewRequest("GET", "/portal/nonexistent", http.NoBody)
 	w := httptest.NewRecorder()
@@ -63,7 +63,7 @@ func TestHandlePortal_RegisteredService(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := HandlePortal(renderer)
+	handler := HandlePortal(renderer, UIModeFinder)
 
 	r := httptest.NewRequest("GET", "/portal/test-svc", http.NoBody)
 	w := httptest.NewRecorder()
@@ -89,7 +89,7 @@ func TestHandlePortal_EmptyKey_Redirects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := HandlePortal(renderer)
+	handler := HandlePortal(renderer, UIModeFinder)
 
 	r := httptest.NewRequest("GET", "/portal/", http.NoBody)
 	w := httptest.NewRecorder()

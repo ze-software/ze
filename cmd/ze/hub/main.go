@@ -98,10 +98,10 @@ func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	// Second signal forces immediate exit (lifecycle goroutine, not hot path).
 	go forceExitOnSignal(sigCh)
 
+	broker.Close()
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer shutdownCancel()
 	_ = webSrv.Shutdown(shutdownCtx)
-	broker.Close()
 
 	return 0
 }
@@ -495,10 +495,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				ring.Append("web", "server.started")
 			}
 			defer func() {
+				broker.Close()
 				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer shutdownCancel()
 				_ = webSrv.Shutdown(shutdownCtx)
-				broker.Close()
 			}()
 		}
 	}
@@ -1084,13 +1084,25 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 		}
 	}
 
-	tree := zeconfig.NewTree()
-
 	// Ensure a config file exists for the editor.
 	configPath := resolveConfigPath(store)
 	if !store.Exists(configPath) {
 		if writeErr := store.WriteFile(configPath, []byte("# ze config\n"), 0o600); writeErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: cannot create config: %v\n", writeErr)
+		}
+	}
+
+	// Parse the config into the committed tree so the web CLI and workbench
+	// show the same config as the SSH CLI. Prefer the draft (unsaved edits)
+	// over the committed file, matching the SSH editor's view.
+	tree := zeconfig.NewTree()
+	treeSource := configPath + ".draft"
+	if !store.Exists(treeSource) {
+		treeSource = configPath
+	}
+	if configData, readErr := store.ReadFile(treeSource); readErr == nil {
+		if parsed, parseErr := zeconfig.ParseTreeWithYANG(string(configData), nil); parseErr == nil {
+			tree = parsed
 		}
 	}
 
@@ -1101,8 +1113,8 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	completer := cli.NewCompleter()
 
 	sessionStore := zeweb.NewSessionStore()
-	loginRenderer := func(w http.ResponseWriter, _ *http.Request) {
-		if renderErr := renderer.RenderLogin(w, zeweb.LoginData{}); renderErr != nil {
+	loginRenderer := func(w http.ResponseWriter, r *http.Request) {
+		if renderErr := renderer.RenderLogin(w, zeweb.LoginData{ReturnTo: r.URL.RequestURI()}); renderErr != nil {
 			http.Error(w, "render error", http.StatusInternalServerError)
 		}
 	}
@@ -1110,22 +1122,22 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	// SSE broker for live config change notifications and log streaming.
 	broker := zeweb.NewEventBroker(0)
 
-	// /show handler picks between Finder (default through Phases 1-3, rollback
-	// after the Phase 4 default flip) and the V2 workbench (`ze.web.ui=workbench`
-	// opt-in until the flip, then the default). Read once at startup; flipping
-	// the variable later requires a hub restart by design.
+	// Both UIs are always available. The ze.web.ui env var (default: workbench)
+	// controls which one /show/ renders when no ze-ui cookie is set. Users
+	// switch at runtime via the Finder/Workbench links in the topbar.
 	uiMode := zeweb.GetUIMode()
 	finderHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, insecureWeb)
 	workbenchHandler := zeweb.HandleWorkbench(renderer, schema, tree, editorMgr, insecureWeb,
 		zeweb.WithDispatch(dispatch), zeweb.WithBroker(broker))
-	var showHandler http.HandlerFunc
-	switch uiMode {
-	case zeweb.UIModeWorkbench:
-		showHandler = workbenchHandler
-		fmt.Fprintf(os.Stderr, "web UI mode: workbench (V2 experiment)\n")
-	default:
-		showHandler = finderHandler
-	}
+	fmt.Fprintf(os.Stderr, "web UI default: %s\n", uiMode)
+	showHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch zeweb.ReadUIModeFromRequest(r, uiMode) {
+		case zeweb.UIModeWorkbench:
+			workbenchHandler(w, r)
+		default:
+			finderHandler(w, r)
+		}
+	})
 	// Fragment handler still serves /fragment/detail HTMX requests regardless
 	// of mode; both UIs share the same OOB swap path.
 	fragmentHandler := finderHandler
@@ -1173,7 +1185,7 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	// CLI handlers: command execution, autocomplete, terminal mode.
 	cliHandler := zeweb.HandleCLICommand(editorMgr, schema, renderer)
 	completeHandler := zeweb.HandleCLIComplete(completer, editorMgr, schema)
-	terminalHandler := zeweb.HandleCLITerminal(editorMgr)
+	terminalHandler := zeweb.HandleCLITerminal(editorMgr, schema, tree)
 	modeHandler := zeweb.HandleCLIModeToggle(editorMgr, schema, renderer)
 
 	// Auth wrapper for protecting individual routes.
@@ -1217,6 +1229,7 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 		}
 		adminViewHandler(w, r)
 	})))
+	srv.Handle("GET /cli", authWrap(zeweb.HandleCLIPageHTTP(renderer, insecureWeb)))
 	srv.Handle("POST /cli", authWrap(cliHandler))
 	srv.Handle("/cli/complete", authWrap(completeHandler))
 	srv.Handle("POST /cli/terminal", authWrap(terminalHandler))
@@ -1246,8 +1259,7 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	srv.Handle("GET /l2tp/{login}/samples.csv", authWrap(zeweb.HandleL2TPSamplesCSV()))
 	srv.Handle("GET /l2tp/{login}/samples/stream", authWrap(zeweb.HandleL2TPSamplesSSE()))
 
-	// Portal: iframe wrapper for embedded services.
-	zeweb.RegisterPortalService(zeweb.PortalService{Key: "health", Title: "Health", Path: "/health"})
+	// Portal: iframe wrapper for embedded services (gokrazy, etc.).
 	if env.IsEnabled("ze.gokrazy.enabled") {
 		srv.Handle("/gokrazy/", authWrap(zegokrazy.Handler(env.Get("ze.gokrazy.socket"))))
 		zeweb.RegisterPortalService(zeweb.PortalService{
@@ -1255,7 +1267,7 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 			Icon: "/gokrazy/assets/gokrazy-logo.svg",
 		})
 	}
-	srv.Handle("/portal/", authWrap(zeweb.HandlePortal(renderer)))
+	srv.Handle("/portal/", authWrap(zeweb.HandlePortal(renderer, uiMode)))
 	srv.Handle("GET /health", authWrap(health.DefaultRegistry.Handler()))
 	srv.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {

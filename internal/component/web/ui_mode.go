@@ -1,17 +1,11 @@
-// Design: docs/architecture/web-interface.md -- UI mode selection (V2 workbench experiment)
+// Design: docs/architecture/web-interface.md -- UI mode selection
 // Related: handler.go -- URL routing
 // Related: render.go -- Template rendering
-//
-// Spec: plan/spec-web-2-operator-workbench.md (UI Mode Contract).
-//
-// The hub reads `ze.web.ui` once at startup. Through Phases 1-3 the default is
-// `finder` and `workbench` is opt-in for development. After the Phase 4
-// Promotion Criteria pass, the default flips to `workbench` and `finder`
-// becomes the emergency rollback. Phase 7 removes the variable entirely.
 
 package web
 
 import (
+	"net/http"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
@@ -27,31 +21,43 @@ const (
 	UIModeWorkbench
 )
 
+// uiModeCookie is the cookie name used to persist the user's UI preference.
+const uiModeCookie = "ze-ui"
+
 // String returns the canonical token for the mode.
 func (m UIMode) String() string {
 	switch m {
-	case UIModeWorkbench:
-		return "workbench"
-	default:
+	case UIModeFinder:
 		return "finder"
+	default:
+		return "workbench"
 	}
 }
 
-// ParseUIMode converts the ze.web.ui token to a UIMode. Unknown or empty
-// values fall back to Finder; the default is encoded here, not at the call
-// site, so every reader of the mode agrees.
+// ParseUIMode converts a token to a UIMode. Unknown or empty values
+// fall back to workbench (the default UI).
 func ParseUIMode(s string) UIMode {
 	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "workbench":
-		return UIModeWorkbench
-	default:
+	case "finder":
 		return UIModeFinder
+	default:
+		return UIModeWorkbench
 	}
 }
 
-// GetUIMode reads ze.web.ui from the env registry and returns the selected
-// mode. Call once at hub startup; flipping the variable later requires a
-// hub restart by design (single active UI per process).
+// GetUIMode reads ze.web.ui from the env registry and returns the
+// startup default. Both UIs are always available; this only controls
+// which one /show/ renders when no cookie override is set.
 func GetUIMode() UIMode {
 	return ParseUIMode(env.Get("ze.web.ui"))
+}
+
+// ReadUIModeFromRequest checks the ze-ui cookie for a per-user override,
+// falling back to the startup default.
+func ReadUIModeFromRequest(r *http.Request, fallback UIMode) UIMode {
+	c, err := r.Cookie(uiModeCookie)
+	if err != nil || c.Value == "" {
+		return fallback
+	}
+	return ParseUIMode(c.Value)
 }

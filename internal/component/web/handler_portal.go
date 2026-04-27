@@ -59,7 +59,11 @@ func portalTarget(key string) (PortalService, bool) {
 // iframe embedding the requested service. The URL pattern is /portal/{key}
 // where key matches a registered PortalService. This avoids open redirects
 // by only allowing pre-registered targets.
-func HandlePortal(renderer *Renderer) http.HandlerFunc {
+//
+// The portal page renders inside the workbench or finder shell based on the
+// user's ze-ui cookie (falling back to defaultMode) so the topbar remains
+// visible for navigation back.
+func HandlePortal(renderer *Renderer, defaultMode UIMode) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		key := extractPortalKey(r)
 		if key == "" {
@@ -87,12 +91,25 @@ func HandlePortal(renderer *Renderer) http.HandlerFunc {
 			{Name: svc.Title, URL: "/portal/" + svc.Key, Active: true},
 		}
 
+		mode := ReadUIModeFromRequest(r, defaultMode)
 		layoutData := LayoutData{
 			Title:       "Ze: " + svc.Title,
 			Content:     content,
 			HasSession:  true,
 			Breadcrumbs: breadcrumbs,
 			Username:    username,
+			ActiveUI:    mode.String(),
+		}
+
+		if mode == UIModeWorkbench {
+			wb := WorkbenchData{
+				LayoutData: layoutData,
+				Sections:   WorkbenchSections(nil),
+			}
+			if err := renderer.RenderWorkbench(w, wb); err != nil {
+				http.Error(w, fmt.Sprintf("render: %v", err), http.StatusInternalServerError)
+			}
+			return
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {

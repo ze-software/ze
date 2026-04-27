@@ -97,6 +97,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 					Breadcrumbs:    data.Breadcrumbs,
 					Username:       data.Username,
 					Insecure:       insecure,
+					ActiveUI:       "workbench",
 				},
 				Sections: WorkbenchSections(path),
 			}
@@ -169,6 +170,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 				Breadcrumbs:    data.Breadcrumbs,
 				Username:       data.Username,
 				Insecure:       insecure,
+				ActiveUI:       "workbench",
 			},
 			Sections: WorkbenchSections(path),
 		}

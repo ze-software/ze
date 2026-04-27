@@ -110,6 +110,7 @@ func HandleAdminView(renderer *Renderer, children map[string][]string) http.Hand
 			Content:     content,
 			HasSession:  true,
 			Breadcrumbs: fragData.Breadcrumbs,
+			ActiveUI:    "finder",
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {

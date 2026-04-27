@@ -802,7 +802,8 @@ func handleCommitGet(w http.ResponseWriter, mgr *EditorManager, renderer *Render
 	}
 
 	layoutData := LayoutData{
-		Title: "Commit Changes",
+		Title:    "Commit Changes",
+		ActiveUI: "finder",
 	}
 
 	if diff != "" {
@@ -834,6 +835,7 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 		layoutData := LayoutData{
 			Title:            "Commit Conflicts",
 			NotificationHTML: template.HTML("<pre>" + template.HTMLEscapeString(msg.String()) + "</pre>"), //nolint:gosec // escaped
+			ActiveUI:         "finder",
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {
@@ -1012,6 +1014,7 @@ func HandleConfigView(renderer *Renderer, schema *config.Schema, tree *config.Tr
 			Breadcrumbs: viewData.Breadcrumbs,
 			HasSession:  true,
 			CLIPrompt:   "/" + strings.Join(path, "/") + ">",
+			ActiveUI:    "finder",
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {

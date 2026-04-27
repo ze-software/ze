@@ -189,6 +189,9 @@ func stopEphemeralDaemon(proc *os.Process, creds sshclient.Credentials) {
 	// Best-effort stop via SSH
 	if _, err := sshclient.ExecCommand(creds, "stop"); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: stop ephemeral daemon: %v\n", err)
+		// SSH failed (web-only daemon or unreachable) — send SIGINT so the
+		// process shuts down via its signal handler instead of waiting for kill.
+		_ = proc.Signal(os.Interrupt)
 	}
 
 	// Wait for process to exit with timeout.

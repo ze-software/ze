@@ -264,6 +264,7 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 			Breadcrumbs:    data.Breadcrumbs,
 			Username:       data.Username,
 			Insecure:       insecure,
+			ActiveUI:       "finder",
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {

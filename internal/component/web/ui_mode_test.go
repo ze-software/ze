@@ -10,19 +10,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
-// TestUIMode_DefaultsToFinder verifies that with no ze.web.ui env var set,
-// the hub serves the Finder UI. This is the Phases 1-3 default; the Phase 4
-// flip will replace this with Workbench, at which point the test is updated.
+// TestUIMode_DefaultsToWorkbench verifies that with no ze.web.ui env var set,
+// the hub defaults to the workbench UI. Users can switch at runtime via
+// the ze-ui cookie; the env var only sets the initial default.
 //
-// VALIDATES: AC-1a (no env var -> Finder during Phases 1-3).
-// PREVENTS: Accidentally shipping the V2 workbench as the active UI before
-// the BGP change-and-verify loop passes the Promotion Criteria.
-func TestUIMode_DefaultsToFinder(t *testing.T) {
+// VALIDATES: Default UI is workbench.
+// PREVENTS: Default silently reverting to finder.
+func TestUIMode_DefaultsToWorkbench(t *testing.T) {
 	t.Setenv("ze.web.ui", "")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	assert.Equal(t, UIModeFinder, GetUIMode())
+	assert.Equal(t, UIModeWorkbench, GetUIMode())
 }
 
 // TestUIMode_OptInWorkbench verifies that ze.web.ui=workbench selects V2.
@@ -52,25 +51,24 @@ func TestUIMode_RollbackFinder(t *testing.T) {
 }
 
 // TestParseUIMode_KnownTokens verifies the parser recognizes both labels in
-// any case and falls back to Finder for unknown values.
+// any case and falls back to workbench for unknown values.
 //
 // VALIDATES: Robustness against operator typos and case variation.
-// PREVENTS: An operator typing "WorkBench" and silently getting Finder
-// without any indication, or an unknown token landing the user in V2.
+// PREVENTS: An operator typing "WorkBench" and silently getting finder.
 func TestParseUIMode_KnownTokens(t *testing.T) {
 	tests := []struct {
 		input string
 		want  UIMode
 	}{
-		{"", UIModeFinder},
+		{"", UIModeWorkbench},
 		{"finder", UIModeFinder},
 		{"Finder", UIModeFinder},
 		{"FINDER", UIModeFinder},
 		{"workbench", UIModeWorkbench},
 		{"Workbench", UIModeWorkbench},
 		{"WORKBENCH", UIModeWorkbench},
-		{"unknown-mode", UIModeFinder},
-		{"v2", UIModeFinder},
+		{"unknown-mode", UIModeWorkbench},
+		{"v2", UIModeWorkbench},
 	}
 
 	for _, tc := range tests {
