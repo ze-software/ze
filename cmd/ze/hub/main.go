@@ -80,7 +80,10 @@ func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	if listenAddr != "" {
 		listenAddrs = []string{listenAddr}
 	}
-	webSrv, broker := startWebServer(store, listenAddrs, insecureWeb, nil, resolvers)
+	ring := pluginserver.NewEventRing(128)
+	ring.Append("web", "server.started")
+	dispatch := webOnlyDispatcher(ring)
+	webSrv, broker := startWebServer(store, listenAddrs, insecureWeb, dispatch, resolvers)
 	if webSrv == nil {
 		return 1
 	}
@@ -488,6 +491,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			webAddrs = []string{"0.0.0.0:3443"}
 		}
 		if webSrv, broker := startWebServer(store, webAddrs, insecureWeb, dispatch, resolvers); webSrv != nil {
+			if ring := apiServer.EventRing(); ring != nil {
+				ring.Append("web", "server.started")
+			}
 			defer func() {
 				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer shutdownCancel()
@@ -871,6 +877,49 @@ func waitLoop(sigCh <-chan os.Signal, reloadCh chan<- os.Signal, doneCh <-chan s
 				continue
 			}
 			return
+		}
+	}
+}
+
+// webOnlyDispatcher creates a minimal CommandDispatcher backed by a local event
+// ring. Used by RunWebOnly where no plugin server exists.
+func webOnlyDispatcher(ring *pluginserver.EventRing) zeweb.CommandDispatcher {
+	return func(command, _, _ string) (string, error) {
+		switch {
+		case strings.HasPrefix(command, "show event namespaces"):
+			counts := ring.NamespaceCounts()
+			rows := make([]map[string]any, 0, len(counts))
+			for ns, count := range counts {
+				rows = append(rows, map[string]any{"namespace": ns, "count": count})
+			}
+			b, err := json.Marshal(map[string]any{"namespaces": rows})
+			if err != nil {
+				return "", err
+			}
+			return string(b), nil
+
+		case strings.HasPrefix(command, "show event recent"):
+			namespace := ""
+			if _, after, ok := strings.Cut(command, "namespace "); ok {
+				namespace = strings.TrimSpace(after)
+			}
+			records := ring.Snapshot(50, namespace)
+			out := make([]map[string]any, 0, len(records))
+			for i := range records {
+				out = append(out, map[string]any{
+					"timestamp":  records[i].Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
+					"namespace":  records[i].Namespace,
+					"event-type": records[i].EventType,
+				})
+			}
+			b, err := json.Marshal(map[string]any{"events": out, "count": len(out)})
+			if err != nil {
+				return "", err
+			}
+			return string(b), nil
+
+		default:
+			return "", fmt.Errorf("command not available in web-only mode: %s", command)
 		}
 	}
 }

@@ -160,7 +160,7 @@ func TestDashboardEventsNamespaceFilter(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
-	// The handler dispatches both show event/namespaces and show event/recent.
+	// The handler dispatches both "show event namespaces" and "show event recent".
 	// The last captured command should include the namespace filter.
 	assert.Contains(t, capturedCmd, "namespace bgp")
 }

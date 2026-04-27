@@ -11,6 +11,7 @@
 package web
 
 import (
+	"encoding/json"
 	"html/template"
 	"net/http"
 	"strings"
@@ -115,7 +116,7 @@ func isComponentConfigured(tree *config.Tree, configKey string) bool {
 // --- Dashboard > Events ---
 
 // HandleDashboardEventsPage returns the rendered HTML for the recent events table.
-// Dispatches "show event/recent" with optional namespace filter.
+// Dispatches "show event recent" with optional namespace filter.
 func HandleDashboardEventsPage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
 	selectedNS := r.URL.Query().Get("namespace")
 
@@ -135,13 +136,13 @@ func HandleDashboardEventsPage(renderer *Renderer, r *http.Request, dispatch Com
 		username := GetUsernameFromRequest(r)
 
 		// Fetch namespaces for the filter dropdown.
-		nsOutput, nsErr := dispatch("show event/namespaces", username, r.RemoteAddr)
+		nsOutput, nsErr := dispatch("show event namespaces", username, r.RemoteAddr)
 		if nsErr == nil && nsOutput != "" {
 			data.Namespaces = parseNamespaces(nsOutput)
 		}
 
 		// Fetch recent events with optional namespace filter.
-		cmd := "show event/recent"
+		cmd := "show event recent"
 		if selectedNS != "" {
 			cmd += " namespace " + selectedNS
 		}
@@ -154,27 +155,62 @@ func HandleDashboardEventsPage(renderer *Renderer, r *http.Request, dispatch Com
 	return renderer.RenderFragment("dashboard_events", data)
 }
 
-// parseNamespaces splits show event/namespaces output into a slice of namespace names.
+// parseNamespaces parses show event namespaces JSON output into namespace names.
 func parseNamespaces(output string) []string {
+	var envelope struct {
+		Namespaces []struct {
+			Namespace string `json:"namespace"`
+		} `json:"namespaces"`
+	}
+	if json.Unmarshal([]byte(output), &envelope) == nil && len(envelope.Namespaces) > 0 {
+		ns := make([]string, 0, len(envelope.Namespaces))
+		for _, entry := range envelope.Namespaces {
+			if entry.Namespace != "" {
+				ns = append(ns, entry.Namespace)
+			}
+		}
+		return ns
+	}
+
+	// Fallback: line-per-namespace plain text.
 	cleaned, _ := normalizeOutput(output)
 	var namespaces []string
 	for _, line := range splitLines(cleaned) {
-		ns := strings.TrimSpace(line)
-		if ns != "" {
-			namespaces = append(namespaces, ns)
+		if s := strings.TrimSpace(line); s != "" {
+			namespaces = append(namespaces, s)
 		}
 	}
 	return namespaces
 }
 
-// parseEventOutput parses show event/recent output into table rows.
-// For v1, treats each line as a single-cell row.
+// parseEventOutput parses show event recent JSON output into table rows.
 func parseEventOutput(output string) []WorkbenchTableRow {
+	var envelope struct {
+		Events []struct {
+			Timestamp string `json:"timestamp"`
+			Namespace string `json:"namespace"`
+			EventType string `json:"event-type"`
+		} `json:"events"`
+	}
+	if json.Unmarshal([]byte(output), &envelope) == nil && len(envelope.Events) > 0 {
+		rows := make([]WorkbenchTableRow, 0, len(envelope.Events))
+		for _, ev := range envelope.Events {
+			rows = append(rows, WorkbenchTableRow{
+				Cells: []string{
+					template.HTMLEscapeString(ev.Timestamp),
+					template.HTMLEscapeString(ev.Namespace),
+					template.HTMLEscapeString(ev.EventType),
+				},
+			})
+		}
+		return rows
+	}
+
+	// Fallback: line-per-event plain text.
 	cleaned, _ := normalizeOutput(output)
 	if cleaned == "" {
 		return nil
 	}
-
 	var rows []WorkbenchTableRow
 	for _, line := range splitLines(cleaned) {
 		if line == "" {
@@ -184,6 +220,5 @@ func parseEventOutput(output string) []WorkbenchTableRow {
 			Cells: []string{"-", "-", template.HTMLEscapeString(line)},
 		})
 	}
-
 	return rows
 }
