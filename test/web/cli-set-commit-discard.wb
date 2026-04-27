@@ -5,13 +5,13 @@
 option=timeout:value=30s
 
 action=open:path=/show/bgp/
-expect=element:text=type a command
+expect=element:id=cli-input
 
-action=fill:text=type a command:value=set router-id 10.99.99.99
+action=fill:id=cli-input:value=set router-id 10.99.99.99
 action=press:key=Enter
 action=wait:ms=1000
 
-action=fill:text=type a command:value=discard
+action=fill:id=cli-input:value=discard
 action=press:key=Enter
 action=wait:ms=1000
 expect=element:not-text=10.99.99.99

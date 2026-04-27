@@ -5,10 +5,10 @@
 option=timeout:value=30s
 
 action=open:path=/show/
-expect=element:text=type a command
+expect=element:id=cli-input
 
 # Type partial command and trigger completion with Tab.
-action=fill:text=type a command:value=sh
+action=fill:id=cli-input:value=sh
 action=press:key=Tab
 action=wait:ms=500
 expect=element:text=show

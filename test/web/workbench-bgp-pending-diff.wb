@@ -10,12 +10,12 @@ option=skip:reason=requires ZE_WEB_UI=workbench
 option=timeout:value=30s
 
 action=open:path=/show/bgp/peer/
-action=fill:text=type a command:value=set bgp peer thomas connection remote ip 10.0.0.42
+action=fill:id=cli-input:value=set bgp peer thomas connection remote ip 10.0.0.42
 action=press:key=Enter
 action=wait:ms=500
 expect=element:text=●
 
-action=click:text=Review &amp; Commit
+action=click:id=commit-review-btn
 action=wait:ms=500
 # Diff modal opens but the workbench table remains in the DOM.
 expect=element:text=workbench-shell

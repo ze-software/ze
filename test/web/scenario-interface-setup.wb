@@ -1,0 +1,28 @@
+# Test: create ethernet interface and unit via CLI, commit, verify persists
+# VALIDATES: CLI creates interface with mac, unit and address saved, commit works
+# PREVENTS: interface not created, commit losing data
+
+option=timeout:value=60s
+
+action=open:path=/show/
+action=wait:ms=1000
+
+# Create interface via CLI with full path
+action=fill:id=cli-input:value=set interface ethernet iface-test mac-address 00:aa:bb:cc:dd:01
+action=press:key=Enter
+action=wait:ms=1000
+
+# Add unit and address
+action=fill:id=cli-input:value=set interface ethernet iface-test unit 0 address 192.0.2.2/30
+action=press:key=Enter
+action=wait:ms=1000
+
+# Commit
+action=fill:id=cli-input:value=commit
+action=press:key=Enter
+action=wait:ms=2000
+
+# Verify interface survived commit by navigating to interface list
+action=open:path=/show/interface/ethernet/
+action=wait:ms=1000
+expect=element:text=iface-test

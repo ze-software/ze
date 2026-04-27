@@ -5,6 +5,6 @@
 option=timeout:value=30s
 
 action=open:path=/show/bgp/
-expect=element:text=type a command
+expect=element:id=cli-input
 expect=element:text=CLI
 expect=element:text=Errors

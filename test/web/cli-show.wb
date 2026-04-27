@@ -5,7 +5,7 @@
 option=timeout:value=30s
 
 action=open:path=/config/edit/bgp/
-expect=element:text=type a command
+expect=element:id=cli-input
 
-action=fill:text=type a command:value=show
+action=fill:id=cli-input:value=show
 action=wait:ms=500

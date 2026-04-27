@@ -1,7 +1,7 @@
 {{define "sidebar"}}
 {{if .ParentURL}}
 <div class="sidebar-back">
-  <a class="sidebar-back-link" href="{{.ParentURL}}"
+  <a class="sidebar-back-link" id="link-back" href="{{.ParentURL}}"
      hx-get="/fragment/detail?path={{.ParentHxPath}}" hx-target="#detail" hx-push-url="{{.ParentURL}}">&larr; back</a>
 </div>
 {{end}}
@@ -21,7 +21,7 @@
       <a class="sidebar-flyout-entry{{if .Selected}} selected{{end}}" href="{{.URL}}"
          hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#detail" hx-push-url="{{.URL}}">{{.Key}}</a>
       {{end}}
-      <button class="sidebar-flyout-add" data-action="add-entry" data-base-url="{{.AddURL}}">+ new</button>
+      <button class="sidebar-flyout-add" id="btn-add-entry" data-action="add-entry" data-base-url="{{.AddURL}}">+ new</button>
     </div>
   </div>
   {{else}}

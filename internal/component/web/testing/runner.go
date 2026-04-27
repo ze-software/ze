@@ -90,6 +90,17 @@ func (b *Browser) PressOn(text, key string) error {
 	return b.WaitLoad()
 }
 
+// PressOnID focuses an element by HTML id and presses a key.
+func (b *Browser) PressOnID(id, key string) error {
+	if err := runAgent("focus", "#"+id); err != nil {
+		return fmt.Errorf("focus #%s: %w", id, err)
+	}
+	if err := runAgent("press", key); err != nil {
+		return fmt.Errorf("press %s on #%s: %w", key, id, err)
+	}
+	return b.WaitLoad()
+}
+
 // Click finds an element by visible text in the snapshot, then clicks its @ref.
 func (b *Browser) Click(text string) error {
 	snap, err := b.Snapshot()
@@ -104,6 +115,14 @@ func (b *Browser) Click(text string) error {
 
 	if err := runAgent("click", ref); err != nil {
 		return fmt.Errorf("click %s (text=%q): %w", ref, text, err)
+	}
+	return b.WaitLoad()
+}
+
+// ClickID clicks an element by its HTML id attribute using a CSS selector.
+func (b *Browser) ClickID(id string) error {
+	if err := runAgent("click", "#"+id); err != nil {
+		return fmt.Errorf("click #%s: %w", id, err)
 	}
 	return b.WaitLoad()
 }
@@ -123,6 +142,11 @@ func (b *Browser) Fill(text, value string) error {
 	return runAgent("fill", ref, value)
 }
 
+// FillID fills an input by its HTML id attribute using a CSS selector.
+func (b *Browser) FillID(id, value string) error {
+	return runAgent("fill", "#"+id, value)
+}
+
 // Hover finds an element by text and hovers.
 func (b *Browser) Hover(text string) error {
 	snap, err := b.Snapshot()
@@ -136,6 +160,11 @@ func (b *Browser) Hover(text string) error {
 	}
 
 	return runAgent("hover", ref)
+}
+
+// HoverID hovers an element by its HTML id attribute using a CSS selector.
+func (b *Browser) HoverID(id string) error {
+	return runAgent("hover", "#"+id)
 }
 
 // Screenshot saves a screenshot to the given path.
@@ -248,10 +277,19 @@ func executeAction(b *Browser, a *WBAction) error {
 	case "open":
 		return b.Open(a.Values["path"])
 	case "click":
+		if id, ok := a.Values["id"]; ok {
+			return b.ClickID(id)
+		}
 		return b.Click(a.Values["text"])
 	case "fill":
+		if id, ok := a.Values["id"]; ok {
+			return b.FillID(id, a.Values["value"])
+		}
 		return b.Fill(a.Values["text"], a.Values["value"])
 	case "hover":
+		if id, ok := a.Values["id"]; ok {
+			return b.HoverID(id)
+		}
 		return b.Hover(a.Values["text"])
 	case "wait":
 		if ms, ok := a.Values["ms"]; ok {
@@ -262,6 +300,9 @@ func executeAction(b *Browser, a *WBAction) error {
 		key := a.Values["key"]
 		if key == "" {
 			return fmt.Errorf("press action requires key= parameter")
+		}
+		if id, ok := a.Values["id"]; ok {
+			return b.PressOnID(id, key)
 		}
 		if text, ok := a.Values["text"]; ok {
 			return b.PressOn(text, key)

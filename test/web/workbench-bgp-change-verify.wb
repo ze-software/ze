@@ -18,7 +18,7 @@ action=open:path=/show/bgp/peer/
 expect=element:text=Peer Detail
 
 # 2. Edit one BGP peer field. The row gets a pending marker.
-action=fill:text=type a command:value=set bgp peer thomas connection remote ip 10.0.0.42
+action=fill:id=cli-input:value=set bgp peer thomas connection remote ip 10.0.0.42
 action=press:key=Enter
 action=wait:ms=500
 expect=element:text=●
@@ -29,7 +29,7 @@ action=wait:ms=500
 expect=element:text=tool-overlay
 
 # 4. Review and commit.
-action=fill:text=type a command:value=commit
+action=fill:id=cli-input:value=commit
 action=press:key=Enter
 action=wait:ms=1000
 expect=element:not-text=●

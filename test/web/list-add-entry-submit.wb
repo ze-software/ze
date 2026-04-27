@@ -5,9 +5,9 @@
 option=timeout:value=30s
 
 action=open:path=/show/bgp/group/
-expect=element:text=+ new
+expect=element:id=btn-add-entry
 
-action=click:text=+ new
+action=click:id=btn-add-entry
 action=wait:ms=500
 expect=element:text=New Group
 

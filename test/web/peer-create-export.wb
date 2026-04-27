@@ -10,8 +10,8 @@ action=wait:ms=1000
 expect=breadcrumb:contains=test-peer
 
 # Use CLI set commands to save values
-action=fill:text=type a command:value=set ip 192.168.1.1
-action=press:text=type a command:key=Enter
+action=fill:id=cli-input:value=set ip 192.168.1.1
+action=press:id=cli-input:key=Enter
 action=wait:ms=2000
 
 # Navigate to peer entry and verify values survived navigation

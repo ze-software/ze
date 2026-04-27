@@ -1,0 +1,32 @@
+# Test: configure BGP peer via CLI bar, verify in peer table, commit
+# VALIDATES: CLI set creates peer, peer table shows entry, commit persists
+# PREVENTS: CLI set not creating peer, table not refreshing, commit losing data
+
+option=timeout:value=60s
+
+action=open:path=/show/bgp/peer/
+action=wait:ms=1000
+
+# Create a peer via CLI set commands (full paths from root context)
+action=fill:id=cli-input:value=set bgp peer setup-test connection remote ip 192.0.2.1
+action=press:key=Enter
+action=wait:ms=1000
+
+action=fill:id=cli-input:value=set bgp peer setup-test session asn remote 64500
+action=press:key=Enter
+action=wait:ms=1000
+
+# Navigate to peer table and verify peer appeared
+action=open:path=/show/bgp/peer/
+action=wait:ms=1000
+expect=element:text=setup-test
+
+# Commit
+action=fill:id=cli-input:value=commit
+action=press:key=Enter
+action=wait:ms=2000
+
+# Verify peer survives commit
+action=open:path=/show/bgp/peer/
+action=wait:ms=1000
+expect=element:text=setup-test

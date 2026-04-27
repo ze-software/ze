@@ -31,6 +31,12 @@ func checkElement(b *Browser, e *WBExpectation) error {
 
 	snapLower := strings.ToLower(snap)
 
+	if id, ok := e.Values["id"]; ok {
+		if !strings.Contains(snap, "id=\""+id+"\"") && !strings.Contains(snapLower, id) {
+			return fmt.Errorf("expected element with id %q not found in snapshot:\n%s", id, snap)
+		}
+	}
+
 	if text, ok := e.Values["text"]; ok {
 		if !strings.Contains(snapLower, strings.ToLower(text)) {
 			return fmt.Errorf("expected element with text %q not found in snapshot:\n%s", text, snap)

@@ -4,7 +4,7 @@
   <div class="finder-col">
     {{range .NamedItems}}
     {{if and .IsList (eq .Name "+ new")}}
-    <button class="finder-item finder-add" data-action="add-entry" data-base-url="{{.AddURL}}">+ new</button>
+    <button class="finder-item finder-add" id="btn-add-entry" data-action="add-entry" data-base-url="{{.AddURL}}">+ new</button>
     {{else}}
     <a class="finder-item{{if .Selected}} selected{{end}}{{if .HasChildren}} has-children{{end}}"
        href="{{.URL}}"

@@ -1,0 +1,77 @@
+# Test: create firewall table, chain, and rule via web forms and CLI
+# VALIDATES: firewall table/chain/term creation forms, CLI set for chain fields
+# PREVENTS: broken firewall add forms, chain fields not saving
+
+option=timeout:value=60s
+
+# Navigate to firewall tables page
+action=open:path=/show/firewall/table/
+action=wait:ms=1000
+
+# Create a firewall table
+action=click:id=btn-add-entry
+action=wait:ms=1000
+action=fill:text=name:value=filter
+action=press:key=Enter
+action=wait:ms=2000
+expect=element:text=filter
+
+# Set the table family via CLI
+action=fill:id=cli-input:value=set family inet
+action=press:key=Enter
+action=wait:ms=1000
+
+# Navigate to chains and add an input chain
+action=open:path=/show/firewall/table/filter/chain/
+action=wait:ms=1000
+action=click:id=btn-add-entry
+action=wait:ms=1000
+action=fill:text=name:value=input
+action=press:key=Enter
+action=wait:ms=2000
+expect=element:text=input
+
+# Set chain properties via CLI
+action=fill:id=cli-input:value=set type filter
+action=press:key=Enter
+action=wait:ms=500
+action=fill:id=cli-input:value=set hook input
+action=press:key=Enter
+action=wait:ms=500
+action=fill:id=cli-input:value=set priority 0
+action=press:key=Enter
+action=wait:ms=500
+action=fill:id=cli-input:value=set policy drop
+action=press:key=Enter
+action=wait:ms=1000
+
+# Add a firewall rule (term)
+action=open:path=/show/firewall/table/filter/chain/input/term/
+action=wait:ms=1000
+action=click:id=btn-add-entry
+action=wait:ms=1000
+action=fill:text=name:value=allow-bgp
+action=press:key=Enter
+action=wait:ms=2000
+expect=element:text=allow-bgp
+
+# Set match criteria on the term via CLI
+action=fill:id=cli-input:value=set from protocol tcp
+action=press:key=Enter
+action=wait:ms=500
+action=fill:id=cli-input:value=set from destination-port 179
+action=press:key=Enter
+action=wait:ms=1000
+
+# Commit
+action=fill:id=cli-input:value=top
+action=press:key=Enter
+action=wait:ms=500
+action=fill:id=cli-input:value=commit
+action=press:key=Enter
+action=wait:ms=2000
+
+# Verify table still exists
+action=open:path=/show/firewall/table/
+action=wait:ms=1000
+expect=element:text=filter

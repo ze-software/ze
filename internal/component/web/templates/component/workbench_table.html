@@ -1,7 +1,7 @@
 {{define "workbench_table"}}
 <div class="wb-table-container">
   <div class="wb-table-toolbar">
-    {{if .AddURL}}<a href="{{.AddURL}}" class="wb-table-add">{{if .AddLabel}}{{.AddLabel}}{{else}}Add{{end}}</a>{{end}}
+    {{if .AddURL}}<a href="{{.AddURL}}" class="wb-table-add" id="btn-add-entry">{{if .AddLabel}}{{.AddLabel}}{{else}}Add{{end}}</a>{{end}}
     <div class="wb-table-toolbar-right">
       <input type="search" class="wb-table-search" placeholder="Search..." aria-label="Search table">
     </div>

@@ -1,7 +1,7 @@
 {{define "commit_bar"}}
 <div id="commit-bar" class="commit-bar">
   <span id="commit-count" class="commit-count"></span>
-  <button class="commit-btn" hx-get="/config/diff" hx-target="#diff-modal" hx-swap="outerHTML">Review &amp; Commit</button>
-  <button class="commit-discard-btn" hx-post="/config/discard" hx-swap="none">Discard</button>
+  <button class="commit-btn" id="commit-review-btn" hx-get="/config/diff" hx-target="#diff-modal" hx-swap="outerHTML">Review &amp; Commit</button>
+  <button class="commit-discard-btn" id="commit-discard-btn" hx-post="/config/discard" hx-swap="none">Discard</button>
 </div>
 {{end}}

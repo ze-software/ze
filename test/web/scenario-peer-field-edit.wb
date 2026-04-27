@@ -1,0 +1,23 @@
+# Test: create peer, verify remote IP and ASN visible in peer table
+# VALIDATES: peer table shows all field values (name, IP, ASN) in columns
+# PREVENTS: peer created but fields not showing in table, data not passed through
+
+option=timeout:value=60s
+
+action=open:path=/show/bgp/peer/
+action=wait:ms=1000
+
+# Create a peer via CLI
+action=fill:id=cli-input:value=set bgp peer field-test connection remote ip 10.99.0.2
+action=press:key=Enter
+action=wait:ms=1000
+action=fill:id=cli-input:value=set bgp peer field-test session asn remote 65099
+action=press:key=Enter
+action=wait:ms=1000
+
+# Navigate to peer table and verify all values visible in columns
+action=open:path=/show/bgp/peer/
+action=wait:ms=1000
+expect=element:text=field-test
+expect=element:text=10.99.0.2
+expect=element:text=65099

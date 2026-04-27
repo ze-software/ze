@@ -12,4 +12,4 @@ expect=element:text=group
 expect=element:text=peer
 
 action=click:text=group
-expect=element:text=Back
+expect=element:id=link-back
