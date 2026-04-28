@@ -8,7 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema" // Register BGP YANG for scoped show tests.
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"   // Required by ze-bgp-conf.yang.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/schema" // Register interface YANG for scoped show tests.
 )
 
 // testShowModel creates a Model with a valid BGP config for show command tests.
@@ -247,6 +250,114 @@ func TestCmdShowPipeComparePreservesConfigView(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result.configView, "compare pipe should return configView")
 	assert.True(t, result.configView.hasOriginal, "configView should have hasOriginal for diff gutter")
+}
+
+const testScopedShowConfig = `bgp {
+  router-id 1.2.3.4
+  session {
+    asn {
+      local 65000
+    }
+  }
+}
+interface {
+  ethernet eth0 {
+    mac-address 00:11:22:33:44:55
+    description "committed uplink"
+  }
+}`
+
+func testScopedShowModel(t *testing.T) *Model {
+	t.Helper()
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(testScopedShowConfig), 0o600))
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	return &model
+}
+
+func showResultContent(result commandResult) string {
+	if result.configView != nil {
+		return result.configView.content
+	}
+	return result.output
+}
+
+// TestCmdShowPipeScopesPath verifies SSH show pipes apply show arguments before
+// formatting or diffing.
+//
+// VALIDATES: show bgp | <pipe> only serializes the bgp subtree.
+// PREVENTS: Piped show commands leaking unrelated top-level sections.
+func TestCmdShowPipeScopesPath(t *testing.T) {
+	m := testScopedShowModel(t)
+
+	treeResult, err := m.cmdShowPipe([]string{"bgp"}, []PipeFilter{{Type: cmdFormat, Arg: fmtTree}})
+	require.NoError(t, err)
+	treeContent := showResultContent(treeResult)
+	assert.Contains(t, treeContent, "router-id")
+	assert.NotContains(t, treeContent, "interface")
+	assert.NotContains(t, treeContent, "uplink")
+
+	setResult, err := m.cmdShowPipe([]string{"bgp"}, []PipeFilter{{Type: cmdFormat, Arg: fmtConfig}})
+	require.NoError(t, err)
+	setContent := showResultContent(setResult)
+	assert.Contains(t, setContent, "set bgp router-id")
+	assert.NotContains(t, setContent, "interface")
+	assert.NotContains(t, setContent, "uplink")
+
+	require.NoError(t, m.editor.SetValue([]string{"interface", "ethernet", "eth0"}, "description", "working uplink"))
+	compareResult, err := m.cmdShowPipe([]string{"bgp"}, []PipeFilter{{Type: cmdCompare, Arg: srcConfirmed}})
+	require.NoError(t, err)
+	require.NotNil(t, compareResult.configView)
+	assert.NotContains(t, compareResult.configView.content, "interface")
+	assert.NotContains(t, compareResult.configView.content, "working uplink")
+	assert.NotContains(t, compareResult.configView.originalContent, "interface")
+	assert.NotContains(t, compareResult.configView.originalContent, "committed uplink")
+
+	require.NoError(t, m.editor.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
+	setCompareResult, err := m.cmdShowPipe([]string{"bgp"}, []PipeFilter{
+		{Type: cmdCompare, Arg: srcConfirmed},
+		{Type: cmdFormat, Arg: fmtConfig},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, setCompareResult.configView)
+	assert.Contains(t, setCompareResult.configView.content, "set bgp router-id 9.9.9.9")
+	assert.Contains(t, setCompareResult.configView.originalContent, "set bgp router-id 1.2.3.4")
+	assert.NotContains(t, setCompareResult.configView.content, "interface")
+	assert.NotContains(t, setCompareResult.configView.originalContent, "interface")
+}
+
+// TestCmdShowPipeCompareSavedScopesPath verifies saved means the persisted draft
+// with uncommitted changes and remains scoped to show arguments.
+func TestCmdShowPipeCompareSavedScopesPath(t *testing.T) {
+	m := testScopedShowModel(t)
+	m.editor.SetSession(NewEditSession("alice", "local"))
+
+	require.NoError(t, m.editor.SetValue([]string{"bgp"}, "router-id", "8.8.8.8"))
+	require.NoError(t, m.editor.SetValue([]string{"interface", "ethernet", "eth0"}, "description", "draft uplink"))
+	require.NoError(t, m.editor.SaveDraft())
+
+	require.NoError(t, m.editor.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
+	require.NoError(t, m.editor.SetValue([]string{"interface", "ethernet", "eth0"}, "description", "working uplink"))
+
+	result, err := m.cmdShowPipe([]string{"bgp"}, []PipeFilter{
+		{Type: cmdCompare, Arg: srcSaved},
+		{Type: cmdFormat, Arg: fmtConfig},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result.configView)
+	assert.Contains(t, result.configView.originalContent, "set bgp router-id 8.8.8.8")
+	assert.Contains(t, result.configView.content, "set bgp router-id 9.9.9.9")
+	assert.NotContains(t, result.configView.originalContent, "interface")
+	assert.NotContains(t, result.configView.content, "interface")
+	assert.NotContains(t, result.configView.originalContent, "uplink")
+	assert.NotContains(t, result.configView.content, "uplink")
 }
 
 // TestEditorShowColumnPreferences verifies ShowColumnEnabled and SetShowColumn.

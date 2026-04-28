@@ -873,3 +873,26 @@ func writeDeleteMetaLines(b *strings.Builder, tree *Tree, meta *MetaTree, prefix
 		}
 	}
 }
+
+// FilterSetByPath returns only the set/inactive lines whose path matches
+// the given prefix. Returns all content when path is empty.
+func FilterSetByPath(content string, path []string) string {
+	if len(path) == 0 {
+		return content
+	}
+	prefix := "set " + strings.Join(path, " ")
+	inactivePrefix := "inactive " + strings.Join(path, " ")
+	var buf strings.Builder
+	for line := range strings.SplitSeq(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if trimmed == prefix || strings.HasPrefix(trimmed, prefix+" ") ||
+			trimmed == inactivePrefix || strings.HasPrefix(trimmed, inactivePrefix+" ") {
+			buf.WriteString(line)
+			buf.WriteByte('\n')
+		}
+	}
+	return buf.String()
+}

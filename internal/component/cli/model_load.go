@@ -553,17 +553,30 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 // cmdShowPipe executes show with pipe filters.
 // Recognizes show-specific pipes (format, compare) and delegates to cmdShowDisplay,
 // then applies text filters (grep, head, tail) to the result.
-func (m *Model) cmdShowPipe(_ []string, filters []PipeFilter) (commandResult, error) {
+func (m *Model) cmdShowPipe(args []string, filters []PipeFilter) (commandResult, error) {
 	opts, err := ClassifyShowPipes(filters)
 	if err != nil {
 		return commandResult{}, err
+	}
+
+	source := ""
+	pathArgs := args
+	if len(pathArgs) > 0 && (pathArgs[0] == srcConfirmed || pathArgs[0] == srcSaved) {
+		source = pathArgs[0]
+		pathArgs = pathArgs[1:]
+	}
+
+	savedPath := m.contextPath
+	if len(pathArgs) > 0 {
+		m.contextPath = append(append([]string{}, m.contextPath...), pathArgs...)
+		defer func() { m.contextPath = savedPath }()
 	}
 
 	if opts.TreeFilter != "" {
 		return m.cmdShowFiltered(opts.TreeFilter, opts.TextFilters)
 	}
 
-	result, err := m.cmdShowDisplay(opts.Format, opts.CompareTarget)
+	result, err := m.cmdShowDisplayWithSource(opts.Format, opts.CompareTarget, source)
 	if err != nil {
 		return result, err
 	}

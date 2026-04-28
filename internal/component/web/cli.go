@@ -614,8 +614,8 @@ func HandleCLITerminal(mgr *EditorManager, schema *config.Schema, tree *config.T
 
 		cmd := parseCLICommand(command)
 
-		// Use the hub tree (parsed from draft or committed config at startup)
-		// so the CLI shows the same view as the SSH editor.
+		// Keep the committed hub tree as the compare baseline. Display commands
+		// use the per-user working tree when one exists.
 		viewTree := tree
 
 		newPath, output := executeTerminalNav(schema, viewTree, mgr, username, contextPath, cmd)
@@ -630,7 +630,7 @@ func HandleCLITerminal(mgr *EditorManager, schema *config.Schema, tree *config.T
 			resp.Path = strings.Join(newPath, "/")
 			resp.Prompt = formatCLIPrompt(newPath)
 			if cmd.Verb == verbEdit || cmd.Verb == verbUp || cmd.Verb == verbTop {
-				resp.Output = serializeTreeAtPath(viewTree, schema, newPath)
+				resp.Output = serializeTreeAtPath(displayTree(viewTree, mgr, username), schema, newPath)
 			}
 		}
 
@@ -697,10 +697,14 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 			if baseCmd.Verb == verbShow && len(baseCmd.Args) > 0 {
 				showPath = append(append([]string{}, contextPath...), baseCmd.Args...)
 			}
-			output = mgr.ContentAtPath(username, showPath)
+			output = serializeSetAtPath(displayTree(viewTree, mgr, username), schema, showPath)
 		}
 		if opts.CompareTarget != "" {
-			output = mgr.Compare(username)
+			showPath := contextPath
+			if baseCmd.Verb == verbShow && len(baseCmd.Args) > 0 {
+				showPath = append(append([]string{}, contextPath...), baseCmd.Args...)
+			}
+			output = compareTargetAtPath(viewTree, mgr, username, schema, showPath, opts.CompareTarget, opts.Format)
 		}
 
 		for _, f := range opts.TextFilters {
@@ -731,7 +735,7 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		return []string{}, ""
 	case verbShow:
 		showPath := append(append([]string{}, contextPath...), cmd.Args...)
-		return nil, serializeTreeAtPath(viewTree, schema, showPath)
+		return nil, serializeTreeAtPath(displayTree(viewTree, mgr, username), schema, showPath)
 	case verbSet:
 		return nil, executeTerminalSet(mgr, username, contextPath, cmd.Args)
 	case verbDelete:
@@ -755,7 +759,11 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		}
 		return nil, buf.String()
 	case verbCompare:
-		return nil, mgr.Compare(username)
+		target := cli.SrcConfirmed
+		if len(cmd.Args) > 0 {
+			target = strings.Join(cmd.Args, " ")
+		}
+		return nil, compareTargetAtPath(viewTree, mgr, username, schema, contextPath, target, cli.FmtTree)
 	case verbSave:
 		if err := mgr.SaveDraft(username); err != nil {
 			return nil, fmt.Sprintf("error: %s", err)
@@ -894,9 +902,209 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 	return nil, ""
 }
 
-// serializeTreeAtPath returns the config text at the given path from the
-// committed tree. At root it serializes the full tree; at a subpath it
-// walks to the subtree and serializes that section.
+// compareTargetAtPath resolves the compare baseline and diffs it against the
+// user's working tree at the selected path.
+func compareTargetAtPath(committed *config.Tree, mgr *EditorManager, username string, schema *config.Schema, path []string, target, format string) string {
+	baseline, err := compareBaselineTree(committed, mgr, username, schema, target)
+	if err != nil {
+		return fmt.Sprintf("compare %s: %s", compareTargetLabel(target), err)
+	}
+	return compareTreesAtPath(baseline, displayTree(committed, mgr, username), schema, path, format)
+}
+
+// compareTreesAtPath diffs two in-memory trees at a path.
+// baseline is the selected reference tree; working is the editor's tree.
+func compareTreesAtPath(baseline, working *config.Tree, schema *config.Schema, path []string, format string) string {
+	if baseline == nil || working == nil || schema == nil {
+		return "(no configuration)"
+	}
+	baseText := serializeTreeAtPath(baseline, schema, path)
+	workText := serializeTreeAtPath(working, schema, path)
+	if format == cli.FmtConfig {
+		baseText = serializeSetAtPath(baseline, schema, path)
+		workText = serializeSetAtPath(working, schema, path)
+	}
+	if baseText == workText {
+		return "(no changes)"
+	}
+	return textDiff(baseText, workText)
+}
+
+func compareBaselineTree(committed *config.Tree, mgr *EditorManager, username string, schema *config.Schema, target string) (*config.Tree, error) {
+	switch cli.NormalizeCompareTarget(target) {
+	case "", cli.SrcConfirmed:
+		return committed, nil
+	case cli.SrcSaved:
+		return savedDraftTree(mgr, schema)
+	case cli.CmpRollback:
+		return rollbackTree(mgr, username, schema, target)
+	default:
+		return nil, fmt.Errorf("unsupported compare target %q", target)
+	}
+}
+
+func compareTargetLabel(target string) string {
+	if strings.TrimSpace(target) == "" {
+		return cli.SrcConfirmed
+	}
+	return strings.TrimSpace(target)
+}
+
+func savedDraftTree(mgr *EditorManager, schema *config.Schema) (*config.Tree, error) {
+	if mgr == nil {
+		return nil, fmt.Errorf("no editor manager")
+	}
+	data, err := mgr.store.ReadFile(cli.DraftPath(mgr.configPath))
+	if err != nil {
+		return nil, fmt.Errorf("no saved draft")
+	}
+	return parseConfigContent(string(data), schema)
+}
+
+func rollbackTree(mgr *EditorManager, username string, schema *config.Schema, target string) (*config.Tree, error) {
+	if mgr == nil {
+		return nil, fmt.Errorf("no editor manager")
+	}
+	nText := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(target), "rollback "))
+	n, err := strconv.Atoi(nText)
+	if err != nil {
+		return nil, fmt.Errorf("invalid rollback number: %s", nText)
+	}
+	if n < 1 {
+		return nil, fmt.Errorf("rollback number must be >= 1, got %d", n)
+	}
+	backups, err := mgr.ListBackups(username)
+	if err != nil {
+		return nil, fmt.Errorf("cannot list backups: %w", err)
+	}
+	if n > len(backups) {
+		return nil, fmt.Errorf("backup %d not found (have %d backups)", n, len(backups))
+	}
+	data, err := mgr.store.ReadFile(backups[n-1].Path)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read backup %d: %w", n, err)
+	}
+	return parseConfigContent(string(data), schema)
+}
+
+func parseConfigContent(content string, schema *config.Schema) (*config.Tree, error) {
+	switch config.DetectFormat(content) {
+	case config.FormatSetMeta:
+		tree, _, err := config.NewSetParser(schema).ParseWithMeta(content)
+		return tree, err
+	case config.FormatSet:
+		return config.NewSetParser(schema).Parse(content)
+	case config.FormatHierarchical:
+		return config.NewParser(schema).Parse(content)
+	default:
+		return config.NewParser(schema).Parse(content)
+	}
+}
+
+// textDiff produces an interleaved +/- line diff using LCS so that
+// removals and additions appear next to each other.
+func textDiff(original, modified string) string {
+	origLines := nonEmptyLines(original)
+	modLines := nonEmptyLines(modified)
+	lcs := lcsLines(origLines, modLines)
+
+	var buf strings.Builder
+	oi, mi, li := 0, 0, 0
+	for li < len(lcs) {
+		for oi < len(origLines) && origLines[oi] != lcs[li] {
+			buf.WriteString("- ")
+			buf.WriteString(origLines[oi])
+			buf.WriteByte('\n')
+			oi++
+		}
+		for mi < len(modLines) && modLines[mi] != lcs[li] {
+			buf.WriteString("+ ")
+			buf.WriteString(modLines[mi])
+			buf.WriteByte('\n')
+			mi++
+		}
+		oi++
+		mi++
+		li++
+	}
+	for oi < len(origLines) {
+		buf.WriteString("- ")
+		buf.WriteString(origLines[oi])
+		buf.WriteByte('\n')
+		oi++
+	}
+	for mi < len(modLines) {
+		buf.WriteString("+ ")
+		buf.WriteString(modLines[mi])
+		buf.WriteByte('\n')
+		mi++
+	}
+	if buf.Len() == 0 {
+		return "(no changes)"
+	}
+	return buf.String()
+}
+
+func nonEmptyLines(s string) []string {
+	var out []string
+	for line := range strings.SplitSeq(s, "\n") {
+		if strings.TrimSpace(line) != "" {
+			out = append(out, line)
+		}
+	}
+	return out
+}
+
+func lcsLines(a, b []string) []string {
+	m, n := len(a), len(b)
+	dp := make([][]int, m+1)
+	for i := range dp {
+		dp[i] = make([]int, n+1)
+	}
+	for i := 1; i <= m; i++ {
+		for j := 1; j <= n; j++ {
+			switch {
+			case a[i-1] == b[j-1]:
+				dp[i][j] = dp[i-1][j-1] + 1
+			case dp[i-1][j] >= dp[i][j-1]:
+				dp[i][j] = dp[i-1][j]
+			default:
+				dp[i][j] = dp[i][j-1]
+			}
+		}
+	}
+	result := make([]string, 0, dp[m][n])
+	i, j := m, n
+	for i > 0 && j > 0 {
+		switch {
+		case a[i-1] == b[j-1]:
+			result = append(result, a[i-1])
+			i--
+			j--
+		case dp[i-1][j] >= dp[i][j-1]:
+			i--
+		default:
+			j--
+		}
+	}
+	for l, r := 0, len(result)-1; l < r; l, r = l+1, r-1 {
+		result[l], result[r] = result[r], result[l]
+	}
+	return result
+}
+
+func displayTree(fallback *config.Tree, mgr *EditorManager, username string) *config.Tree {
+	if mgr != nil {
+		if tree := mgr.Tree(username); tree != nil {
+			return tree
+		}
+	}
+	return fallback
+}
+
+// serializeTreeAtPath returns the config text at the given path. At root it
+// serializes the full tree; at a subpath it walks to the subtree and serializes
+// that section.
 func serializeTreeAtPath(tree *config.Tree, schema *config.Schema, path []string) string {
 	if tree == nil || schema == nil {
 		return ""
@@ -913,6 +1121,13 @@ func serializeTreeAtPath(tree *config.Tree, schema *config.Schema, path []string
 		return ""
 	}
 	return config.SerializeSubtree(subtree, node)
+}
+
+func serializeSetAtPath(tree *config.Tree, schema *config.Schema, path []string) string {
+	if tree == nil || schema == nil {
+		return ""
+	}
+	return config.FilterSetByPath(config.SerializeSet(tree, schema), path)
 }
 
 // executeTerminalSet handles the set command in terminal mode.

@@ -1092,15 +1092,10 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 		}
 	}
 
-	// Parse the config into the committed tree so the web CLI and workbench
-	// show the same config as the SSH CLI. Prefer the draft (unsaved edits)
-	// over the committed file, matching the SSH editor's view.
+	// Parse the committed config into the live baseline tree used by compare
+	// targets. Saved drafts are a separate source, not the startup-loaded config.
 	tree := zeconfig.NewTree()
-	treeSource := configPath + ".draft"
-	if !store.Exists(treeSource) {
-		treeSource = configPath
-	}
-	if configData, readErr := store.ReadFile(treeSource); readErr == nil {
+	if configData, readErr := store.ReadFile(configPath); readErr == nil {
 		if parsed, parseErr := zeconfig.ParseTreeWithYANG(string(configData), nil); parseErr == nil {
 			tree = parsed
 		}

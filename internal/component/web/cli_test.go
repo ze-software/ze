@@ -16,8 +16,10 @@ import (
 
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema" // Register BGP YANG for editor tests.
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema" // Required by ze-bgp-conf.yang.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"   // Required by ze-bgp-conf.yang.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/schema" // Register interface YANG for scoped terminal tests.
 )
 
 // VALIDATES: AC-3 (edit command updates breadcrumb + content), AC-15 (POST /cli dispatches command).
@@ -156,6 +158,39 @@ func setupCLITest(t *testing.T) (*EditorManager, *Renderer) {
 	require.NoError(t, err)
 
 	return mgr, renderer
+}
+
+func setupCLITerminalYANGTest(t *testing.T) (*EditorManager, *config.Schema, *config.Tree, string) {
+	t.Helper()
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(terminalScopedConfig), 0o644))
+
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	tree, err := config.NewParser(schema).Parse(terminalScopedConfig)
+	require.NoError(t, err)
+
+	store := storage.NewFilesystem()
+	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+
+	return mgr, schema, tree, configPath
+}
+
+func runTerminalCommand(t *testing.T, handler http.HandlerFunc, command string) terminalResponse {
+	t.Helper()
+
+	body := url.Values{"command": {command}}
+	w := httptest.NewRecorder()
+	r := authedRequest(http.MethodPost, "/cli/terminal", body)
+	handler.ServeHTTP(w, r)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var resp terminalResponse
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	return resp
 }
 
 // authedRequest creates a request with a username in context for handler tests.
@@ -385,10 +420,13 @@ func TestTerminalPipes(t *testing.T) {
 			name:        "format tree",
 			command:     "show bgp | format tree",
 			wantContain: "router-id",
+			wantAbsent:  "interface",
 		},
 		{
-			name:    "format config",
-			command: "show bgp | format config",
+			name:        "format config",
+			command:     "show bgp | format config",
+			wantContain: "set bgp",
+			wantAbsent:  "interface",
 		},
 		{
 			name:    "format unknown",
@@ -397,8 +435,8 @@ func TestTerminalPipes(t *testing.T) {
 		},
 		{
 			name:        "match filters lines",
-			command:     "show bgp | match peer",
-			wantContain: "peer",
+			command:     "show bgp | match session",
+			wantContain: "session",
 			wantAbsent:  "router-id",
 		},
 		{
@@ -425,13 +463,13 @@ func TestTerminalPipes(t *testing.T) {
 		},
 		{
 			name:        "format tree then match",
-			command:     "show bgp | format tree | match peer",
-			wantContain: "peer",
+			command:     "show bgp | format tree | match session",
+			wantContain: "session",
 		},
 		{
 			name:        "match then head",
-			command:     "show bgp | match peer | head 1",
-			wantContain: "peer",
+			command:     "show bgp | match session | head 1",
+			wantContain: "session",
 		},
 		{
 			name:    "unknown pipe operator",
@@ -442,12 +480,10 @@ func TestTerminalPipes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mgr, _ := setupCLITest(t)
-
+			mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
 			_, err := mgr.GetOrCreate("testuser")
 			require.NoError(t, err)
 
-			schema, tree := buildTestSchemaAndTree()
 			handler := HandleCLITerminal(mgr, schema, tree)
 
 			body := url.Values{"command": {tt.command}}
@@ -473,6 +509,182 @@ func TestTerminalPipes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// PREVENTS: compare verb and compare pipe ignoring the target argument.
+func TestTerminalCompareTargets(t *testing.T) {
+	mgr, _ := setupCLITest(t)
+
+	_, err := mgr.GetOrCreate("testuser")
+	require.NoError(t, err)
+
+	// Make a change so compare has something to show.
+	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9"))
+
+	schema, tree := buildTestSchemaAndTree()
+	handler := HandleCLITerminal(mgr, schema, tree)
+
+	tests := []struct {
+		name        string
+		command     string
+		wantContain string
+		wantErr     string
+	}{
+		{
+			name:        "compare defaults to confirmed",
+			command:     "compare",
+			wantContain: "router-id",
+		},
+		{
+			name:        "compare confirmed shows diff",
+			command:     "compare confirmed",
+			wantContain: "router-id",
+		},
+		{
+			name:    "compare saved without draft",
+			command: "compare saved",
+			wantErr: "no saved draft",
+		},
+		{
+			name:        "show pipe compare confirmed",
+			command:     "show bgp | compare",
+			wantContain: "router-id",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body := url.Values{"command": {tt.command}}
+			w := httptest.NewRecorder()
+			r := authedRequest(http.MethodPost, "/cli/terminal", body)
+			handler.ServeHTTP(w, r)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+
+			var resp terminalResponse
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+
+			if tt.wantErr != "" {
+				assert.Contains(t, resp.Output, tt.wantErr)
+				return
+			}
+			assert.Contains(t, resp.Output, tt.wantContain)
+		})
+	}
+}
+
+const terminalScopedConfig = `bgp {
+    router-id 1.2.3.4;
+    session {
+        asn {
+            local 65001;
+        }
+    }
+}
+interface {
+    ethernet eth0 {
+        mac-address 00:11:22:33:44:55;
+        description "committed uplink";
+    }
+}
+`
+
+// VALIDATES: terminal show renders the user's working tree and keeps show <path> scoped.
+// PREVENTS: Web terminal show returning committed config or unrelated sections.
+func TestTerminalShowUsesWorkingTreeAtPath(t *testing.T) {
+	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
+	_, err := mgr.GetOrCreate("testuser")
+	require.NoError(t, err)
+
+	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9"))
+	require.NoError(t, mgr.SetValue("testuser", []string{"interface", "ethernet", "eth0"}, "description", "working uplink"))
+
+	handler := HandleCLITerminal(mgr, schema, tree)
+	resp := runTerminalCommand(t, handler, "show bgp")
+
+	assert.Contains(t, resp.Output, "9.9.9.9")
+	assert.NotContains(t, resp.Output, "1.2.3.4")
+	assert.NotContains(t, resp.Output, "interface")
+	assert.NotContains(t, resp.Output, "working uplink")
+}
+
+// VALIDATES: show <path> | compare confirmed/committed only diffs that path.
+// PREVENTS: Path-scoped compare leaking unrelated top-level sections.
+func TestTerminalCompareCommittedScopesToShowPath(t *testing.T) {
+	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
+	_, err := mgr.GetOrCreate("testuser")
+	require.NoError(t, err)
+
+	handler := HandleCLITerminal(mgr, schema, tree)
+
+	require.NoError(t, mgr.SetValue("testuser", []string{"interface", "ethernet", "eth0"}, "description", "working uplink"))
+	resp := runTerminalCommand(t, handler, "show bgp | compare confirmed")
+	assert.Contains(t, resp.Output, "(no changes)")
+	assert.NotContains(t, resp.Output, "interface")
+	assert.NotContains(t, resp.Output, "working uplink")
+
+	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9"))
+	resp = runTerminalCommand(t, handler, "show bgp | compare committed")
+	assert.Contains(t, resp.Output, "router-id")
+	assert.NotContains(t, resp.Output, "interface")
+	assert.NotContains(t, resp.Output, "working uplink")
+}
+
+// VALIDATES: show <path> | compare saved diffs the working tree against the saved draft at that path.
+// PREVENTS: Saved-draft compare falling back to a full-tree diff.
+func TestTerminalCompareSavedScopesToShowPath(t *testing.T) {
+	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
+	_, err := mgr.GetOrCreate("testuser")
+	require.NoError(t, err)
+
+	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "8.8.8.8"))
+	require.NoError(t, mgr.SetValue("testuser", []string{"interface", "ethernet", "eth0"}, "description", "draft uplink"))
+	require.NoError(t, mgr.SaveDraft("testuser"))
+
+	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9"))
+	require.NoError(t, mgr.SetValue("testuser", []string{"interface", "ethernet", "eth0"}, "description", "working uplink"))
+
+	handler := HandleCLITerminal(mgr, schema, tree)
+	resp := runTerminalCommand(t, handler, "show bgp | compare saved")
+
+	assert.Contains(t, resp.Output, "router-id")
+	assert.Contains(t, resp.Output, "8.8.8.8")
+	assert.Contains(t, resp.Output, "9.9.9.9")
+	assert.NotContains(t, resp.Output, "interface")
+	assert.NotContains(t, resp.Output, "uplink")
+
+	resp = runTerminalCommand(t, handler, "show bgp | compare saved | format config")
+	assert.Contains(t, resp.Output, "set bgp router-id")
+	assert.NotContains(t, resp.Output, "interface")
+	assert.NotContains(t, resp.Output, "uplink")
+}
+
+// VALIDATES: show <path> | compare rollback N diffs against rollback N at that path.
+// PREVENTS: Rollback compare returning unsupported or diffing unrelated config.
+func TestTerminalCompareRollbackScopesToShowPath(t *testing.T) {
+	mgr, schema, tree, configPath := setupCLITerminalYANGTest(t)
+	_, err := mgr.GetOrCreate("testuser")
+	require.NoError(t, err)
+
+	rollbackDir := filepath.Join(filepath.Dir(configPath), "rollback")
+	require.NoError(t, os.MkdirAll(rollbackDir, 0o755))
+	base := strings.TrimSuffix(filepath.Base(configPath), filepath.Ext(configPath))
+	backupPath := filepath.Join(rollbackDir, base+"-20260101-120000.000.conf")
+	backupContent := strings.ReplaceAll(terminalScopedConfig, "1.2.3.4", "7.7.7.7")
+	backupContent = strings.ReplaceAll(backupContent, "committed uplink", "rollback uplink")
+	require.NoError(t, os.WriteFile(backupPath, []byte(backupContent), 0o600))
+
+	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9"))
+	require.NoError(t, mgr.SetValue("testuser", []string{"interface", "ethernet", "eth0"}, "description", "working uplink"))
+
+	handler := HandleCLITerminal(mgr, schema, tree)
+	resp := runTerminalCommand(t, handler, "show bgp | compare rollback 1")
+
+	assert.Contains(t, resp.Output, "router-id")
+	assert.Contains(t, resp.Output, "7.7.7.7")
+	assert.Contains(t, resp.Output, "9.9.9.9")
+	assert.NotContains(t, resp.Output, "interface")
+	assert.NotContains(t, resp.Output, "uplink")
 }
 
 // VALIDATES: AC-13 (toggle back from terminal restores integrated mode).

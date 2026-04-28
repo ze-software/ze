@@ -228,7 +228,9 @@ const (
 	srcSaved     = "saved"
 	srcConfirmed = "confirmed"
 
+	SrcSaved     = srcSaved
 	SrcConfirmed = srcConfirmed
+	CmpRollback  = cmdRollback
 )
 
 // Load command keywords.

@@ -45,6 +45,27 @@ func TestSerializeSetNeighborLeaf(t *testing.T) {
 	assert.Contains(t, output, "set neighbor 192.0.2.1 peer-as 65001\n")
 }
 
+// TestFilterSetByPath verifies shared set-format path filtering keeps matching
+// set and inactive lines and drops unrelated sections.
+//
+// VALIDATES: show <path> | format config scopes to the selected set path.
+//
+// PREVENTS: SSH/web CLI pipe filtering leaking unrelated top-level sections.
+func TestFilterSetByPath(t *testing.T) {
+	input := "set router-id 1.2.3.4\n" +
+		"set neighbor 192.0.2.1 local-as 65000\n" +
+		"inactive neighbor 192.0.2.1\n" +
+		"set neighbor 198.51.100.1 local-as 65001\n"
+
+	assert.Equal(t, input, FilterSetByPath(input, nil))
+
+	filtered := FilterSetByPath(input, []string{"neighbor", "192.0.2.1"})
+	assert.Contains(t, filtered, "set neighbor 192.0.2.1 local-as 65000\n")
+	assert.Contains(t, filtered, "inactive neighbor 192.0.2.1\n")
+	assert.NotContains(t, filtered, "router-id")
+	assert.NotContains(t, filtered, "198.51.100.1")
+}
+
 // TestSerializeSetNestedContainer verifies serialization of nested containers.
 //
 // VALIDATES: Container paths are flattened into set command paths.
