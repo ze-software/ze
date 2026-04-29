@@ -9,7 +9,7 @@
 .PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test
-.PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync
+.PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
 .PHONY: check ze-setup
 .PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run ze-kernel ze-kernel-clean
 
@@ -138,10 +138,10 @@ ze-functional-test: bin/ze bin/ze-test
 	$(SUITE_RUN) bin/ze-test bgp plugin --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }plugin"; }; \
 	$(SUITE_RUN) bin/ze-test bgp parse --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }parse"; }; \
 	$(SUITE_RUN) bin/ze-test bgp decode --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }decode"; }; \
-	$(SUITE_RUN) bin/ze-test bgp reload --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }reload"; }; \
+	$(SUITE_RUN) bin/ze-test bgp reload --all -p 1 || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }reload"; }; \
 	$(SUITE_RUN) bin/ze-test ui --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }ui"; }; \
 	$(SUITE_RUN) bin/ze-test editor || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }editor"; }; \
-	$(SUITE_RUN) bin/ze-test managed --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }managed"; }; \
+	$(SUITE_RUN) bin/ze-test managed --all -p 1 || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }managed"; }; \
 	$(SUITE_RUN) bin/ze-test l2tp --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }l2tp"; }; \
 	$(SUITE_RUN) bin/ze-test firewall --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }firewall"; }; \
 	$(SUITE_RUN) bin/ze-test web --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }web"; }; \
@@ -176,7 +176,7 @@ ze-parse-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test bgp parse --all
 
 ze-reload-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test bgp reload --all
+	@$(SUITE_RUN) bin/ze-test bgp reload --all -p 1
 
 ze-ui-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test ui --all
@@ -188,7 +188,7 @@ ze-web-test: bin/ze bin/ze-test
 	@$(SUITE_RUN) bin/ze-test web
 
 ze-managed-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test managed --all
+	@$(SUITE_RUN) bin/ze-test managed --all -p 1
 
 # Run ze fuzz tests (all targets, 15s each)
 # Note: multiple fuzz tests per package require individual enumeration (-fuzz=. fails with "matches more than one").
@@ -546,6 +546,11 @@ ze-sync-vendor-web:
 # Check vendored web assets for newer versions
 ze-check-vendor-web:
 	@go run scripts/vendor/check_web.go
+
+# Generate CLAUDE.md and AGENTS.md from ai/INSTRUCTIONS.md
+ze-ai-instructions:
+	@sed 's/{{TOOL}}/Claude/' ai/INSTRUCTIONS.md > CLAUDE.md
+	@sed 's/{{TOOL}}/Codex/' ai/INSTRUCTIONS.md > AGENTS.md
 
 # Sync canonical skills (ai/skills/) to tool-specific directories
 ze-ai-sync:

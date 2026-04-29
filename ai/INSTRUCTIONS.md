@@ -25,6 +25,10 @@
 - Work on your own branch. Commit there. Done.
 - NEVER merge, cherry-pick, rebase, or copy into main.
 
+## Worktrees: only on instruction or to keep worktree work on worktree
+- NEVER spawn a worktree agent on your own initiative. Only use worktrees when the user explicitly instructs it.
+- If work originated in a worktree, keep it there. Do not move worktree work to the main working tree.
+
 ## On violation: STOP immediately
 "The task requires it" is not valid. Nothing overrides these prohibitions.
 
@@ -77,6 +81,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 
 | Action | Read first |
 |--------|-----------|
+| Edit CLAUDE.md or AGENTS.md | Edit `ai/INSTRUCTIONS.md` (single source), then `make ze-ai-instructions` |
 | Start a session | `rules/session-start.md` |
 | Design or implement anything | `ai/rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
 | Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/` |
