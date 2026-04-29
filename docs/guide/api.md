@@ -17,17 +17,22 @@ environment {
     api-server {
         rest {
             enabled true;
-            server { ip 0.0.0.0; port 8081; }
+            server { ip 127.0.0.1; port 8081; }
         }
     }
 }
 ```
 
+REST is plaintext HTTP and only starts on loopback addresses. To expose REST
+remotely, keep Ze bound to `127.0.0.1` or `::1` and terminate TLS in a trusted
+local proxy.
+<!-- source: internal/component/api/rest/server.go -- NewRESTServer loopback check -->
+
 Or via environment variable:
 
 ```
 ze.api-server.rest.enabled=true
-ze.api-server.rest.listen=0.0.0.0:8081
+ze.api-server.rest.listen=127.0.0.1:8081
 ```
 
 Query the API:
@@ -74,7 +79,7 @@ warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or 
 | `GET` | `/api/v1/commands` | List all commands with metadata |
 | `GET` | `/api/v1/commands/{path}` | Describe one command (e.g., `/bgp/summary`) |
 | `POST` | `/api/v1/execute` | Execute any command |
-| `GET` | `/api/v1/execute/stream?command=...` | Stream command output via Server-Sent Events (not yet wired; returns error until a stream backend is connected) |
+| `GET` | `/api/v1/execute/stream?command=...` | Internal streaming hook. Production hub does not wire a stream backend, so this returns `streaming not supported`; it is not advertised in generated OpenAPI. |
 | `GET` | `/api/v1/complete?partial=...` | Tab completion (future) |
 
 POST `/api/v1/execute` body:
@@ -136,7 +141,9 @@ after 30 minutes.
 | `/api/v1/docs` | Interactive Swagger UI (assets vendored, offline-capable) |
 
 The OpenAPI spec is generated lazily on first request so it captures all
-plugin commands registered during startup.
+plugin commands registered during startup. Documentation routes use the same
+Bearer authentication policy as the API when auth is configured.
+<!-- source: internal/component/api/rest/server.go -- registerRoutes documentation handlers use withAuth -->
 
 ## gRPC Services
 
@@ -149,11 +156,15 @@ environment {
     api-server {
         grpc {
             enabled true;
-            server { ip 0.0.0.0; port 50051; }
+            server { ip 127.0.0.1; port 50051; }
         }
     }
 }
 ```
+
+Loopback gRPC can run plaintext for local tooling. Non-loopback gRPC listeners
+must be authenticated and must configure TLS with both `tls-cert` and `tls-key`.
+<!-- source: internal/component/api/grpc/server.go -- NewGRPCServer non-loopback TLS/auth checks -->
 
 ### ZeService
 
@@ -162,7 +173,7 @@ Generic command execution and discovery.
 | RPC | Type | Purpose |
 |-----|------|---------|
 | `Execute` | unary | Run a command, get result |
-| `Stream` | server-stream | Run a streaming command (not yet wired; returns error until a stream backend is connected) |
+| `Stream` | server-stream | Internal streaming hook. Production hub does not wire a stream backend, so this returns `streaming not supported`. |
 | `ListCommands` | unary | Enumerate all commands |
 | `DescribeCommand` | unary | Metadata for one command |
 | `Complete` | unary | Tab completion (future) |
@@ -194,7 +205,8 @@ stub.Execute(CommandRequest(command='bgp summary'), metadata=metadata)
 
 ### gRPC reflection
 
-Reflection is enabled by default. Discover the schema with `grpcurl`:
+Reflection is enabled by default. Discover the schema with `grpcurl` on a
+plaintext loopback listener:
 
 ```
 grpcurl -plaintext localhost:50051 list
@@ -206,7 +218,7 @@ grpcurl -plaintext -d '{"command":"bgp summary"}' \
 
 ### TLS
 
-Configure TLS via YANG:
+Configure TLS via YANG before binding gRPC outside loopback:
 
 ```
 environment {
@@ -220,7 +232,8 @@ environment {
 }
 ```
 
-Both fields must be set together. Minimum TLS version is 1.2.
+Both fields must be set together. Minimum TLS version is 1.2. Startup fails if
+an authenticated non-loopback gRPC listener is configured without TLS.
 
 ## CORS
 
@@ -244,9 +257,9 @@ Preflight `OPTIONS` requests are handled automatically.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ze.api-server.rest.enabled` | false | Enable REST API server |
-| `ze.api-server.rest.listen` | `0.0.0.0:8081` | REST listen address |
+| `ze.api-server.rest.listen` | `0.0.0.0:8081` | REST listen address schema default; only loopback is accepted at server startup, so set this to `127.0.0.1:8081` or `::1:<port>` when enabling REST |
 | `ze.api-server.grpc.enabled` | false | Enable gRPC API server |
-| `ze.api-server.grpc.listen` | `0.0.0.0:50051` | gRPC listen address |
+| `ze.api-server.grpc.listen` | `0.0.0.0:50051` | gRPC listen address; non-loopback requires authentication and TLS |
 | `ze.api-server.token` | (empty) | Single bearer token (if per-user auth not wanted) |
 
 Precedence: env > YANG config. Values set in env override YANG.
@@ -274,7 +287,7 @@ The transports are functionally equivalent. Pick based on client needs:
 | Feature | REST | gRPC |
 |---------|------|------|
 | Discovery | OpenAPI 3.1 + Swagger UI | gRPC reflection + grpcurl |
-| Streaming | Server-Sent Events (not yet wired) | server-stream RPC (not yet wired) |
+| Streaming | Internal SSE hook, production hub returns `streaming not supported` | Internal server-stream RPC, production hub returns `streaming not supported` |
 | Browser support | Yes (with CORS) | Needs grpc-web proxy |
 | Tooling | curl, any HTTP client | grpcurl, any gRPC client |
 | Overhead | JSON | Protobuf (smaller wire format) |

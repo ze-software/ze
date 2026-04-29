@@ -298,13 +298,14 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 
 | Plugin | Purpose |
 |--------|---------|
+| `bgp` | Core BGP speaker subsystem plugin |
 | `bgp-rib` | Route Information Base (received/sent routes) |
 | `bgp-adj-rib-in` | Adj-RIB-In with raw hex replay |
 | `bgp-persist` | Route persistence across restarts |
 | `bgp-rs` | Route server, client-to-client reflection (RFC 7947) |
 | `bgp-gr` | Graceful Restart (RFC 4724) + Long-Lived GR (RFC 9494) |
 | `bgp-route-refresh` | Route Refresh handling (RFC 2918, RFC 7313) |
-| `role` | BGP Role enforcement (RFC 9234) |
+| `bgp-role` | BGP Role enforcement (RFC 9234) |
 | `bgp-watchdog` | Deferred route announcement with named groups |
 | `bgp-hostname` | FQDN capability (code 73) |
 | `bgp-softver` | Software version capability (code 75) |
@@ -312,17 +313,17 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `bgp-rpki` | RPKI origin validation (RFC 6811, RFC 8210) |
 | `bgp-rpki-decorator` | Correlates UPDATE + RPKI events into merged update-rpki events |
 | `bgp-aigp` | Accumulated IGP Metric (RFC 7311) |
-| `filter-community` | Community tag/strip filter (standard, large, extended) |
+| `bgp-filter-community` | Community tag/strip filter (standard, large, extended) |
 | `loop` | Route loop detection (RFC 4271 S9, RFC 4456 S8) |
-| `bgp-evpn` | EVPN NLRI encode/decode (5 route types) |
-| `bgp-flowspec` | FlowSpec NLRI encode/decode |
-| `bgp-ls` | BGP-LS NLRI decode |
-| `bgp-mup` | Mobile User Plane NLRI encode/decode |
-| `bgp-vpn` | VPN NLRI encode/decode |
-| `bgp-vpls` | VPLS NLRI encode/decode |
-| `bgp-labeled` | MPLS labeled NLRI encode/decode |
-| `bgp-mvpn` | Multicast VPN NLRI decode |
-| `bgp-rtc` | Route Target Constraint NLRI decode |
+| `bgp-nlri-evpn` | EVPN NLRI encode/decode (5 route types) |
+| `bgp-nlri-flowspec` | FlowSpec NLRI encode/decode |
+| `bgp-nlri-ls` | BGP-LS NLRI decode |
+| `bgp-nlri-mup` | Mobile User Plane NLRI encode/decode |
+| `bgp-nlri-vpn` | VPN NLRI encode/decode |
+| `bgp-nlri-vpls` | VPLS NLRI encode/decode |
+| `bgp-nlri-labeled` | MPLS labeled NLRI encode/decode |
+| `bgp-nlri-mvpn` | Multicast VPN NLRI decode |
+| `bgp-nlri-rtc` | Route Target Constraint NLRI decode |
 | `bgp-filter-aspath` | AS-path filter (regex + exact match) |
 | `bgp-filter-prefix` | Prefix-list filter |
 | `bgp-filter-modify` | Attribute modification filter (set LP, prepend, communities) |
@@ -330,17 +331,19 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `bgp-healthcheck` | Link/target health-dependent route withdrawal |
 | `bgp-bmp` | BMP monitoring station (RFC 7854) |
 | `bgp-rr` | Route reflector (RFC 4456) |
-| `bgp-redistribute-ingress` | Redistribute learned routes into system RIB |
+| `bgp-redistribute` | Redistribute learned routes into system RIB and system routes into BGP |
 | `bgp-redistribute-egress` | Redistribute system routes into BGP |
 | `bfd` | BFD session management (RFC 5880, RFC 5881, RFC 5883) |
+| `rib` | Shared route information base service |
 | `static` | Static route management |
 | `sysctl` | Kernel sysctl tuning |
 | `sysrib` | System RIB (route table management) |
 | `fib-kernel` | FIB route installation via netlink |
+| `fib-p4` | FIB route installation via P4 backend |
 | `fib-vpp` | FIB route installation via VPP binary API |
-| `firewall-nft` | Firewall management via nftables |
-| `traffic-netlink` | Traffic control (TC qdisc/class) via netlink |
-| `iface-netlink` | Interface management via netlink |
+| `firewall` | Firewall management via nftables |
+| `traffic` | Traffic control (TC qdisc/class) via netlink or VPP backend |
+| `interface` | Interface management via netlink or VPP backend |
 | `iface-dhcp` | DHCP client for interface address assignment |
 | `l2tp-auth-local` | L2TP local user authentication |
 | `l2tp-auth-radius` | L2TP RADIUS authentication/accounting |
@@ -348,26 +351,27 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `l2tp-shaper` | L2TP per-subscriber traffic shaping |
 | `ntp` | NTP time synchronization |
 | `policy-routes` | Policy-based routing |
+| `vpp` | VPP lifecycle and telemetry management |
 
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib plugin -->
 <!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs plugin -->
 <!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr plugin -->
-<!-- source: internal/component/bgp/plugins/role/register.go -- role plugin -->
+<!-- source: internal/component/bgp/plugins/role/register.go -- bgp-role plugin -->
 <!-- source: internal/component/bgp/plugins/watchdog/register.go -- bgp-watchdog plugin -->
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki plugin -->
 <!-- source: internal/component/bgp/plugins/rpki_decorator/register.go -- bgp-rpki-decorator plugin -->
 <!-- source: internal/component/bgp/plugins/aigp/register.go -- bgp-aigp plugin -->
-<!-- source: internal/component/bgp/plugins/filter_community/register.go -- filter-community plugin -->
+<!-- source: internal/component/bgp/plugins/filter_community/register.go -- bgp-filter-community plugin -->
 <!-- source: internal/component/bgp/reactor/filter/register.go -- loop plugin -->
-<!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- bgp-evpn plugin -->
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- bgp-flowspec plugin -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- bgp-ls plugin -->
-<!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- bgp-mup plugin -->
-<!-- source: internal/component/bgp/plugins/nlri/vpn/register.go -- bgp-vpn plugin -->
-<!-- source: internal/component/bgp/plugins/nlri/vpls/register.go -- bgp-vpls plugin -->
-<!-- source: internal/component/bgp/plugins/nlri/labeled/register.go -- bgp-labeled plugin -->
-<!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- bgp-mvpn plugin -->
-<!-- source: internal/component/bgp/plugins/nlri/rtc/register.go -- bgp-rtc plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- bgp-nlri-evpn plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- bgp-nlri-flowspec plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- bgp-nlri-ls plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- bgp-nlri-mup plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/vpn/register.go -- bgp-nlri-vpn plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/vpls/register.go -- bgp-nlri-vpls plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/labeled/register.go -- bgp-nlri-labeled plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- bgp-nlri-mvpn plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/rtc/register.go -- bgp-nlri-rtc plugin -->
 
 ---
 
@@ -726,7 +730,7 @@ entry points is not a substitute.
 **Interop tests** (`test/interop/`, `test/exabgp/`) validate compatibility with other
 BGP daemons. Ze establishes real sessions with FRR, BIRD, and GoBGP in containers and
 verifies correct behavior: session establishment, route exchange, graceful restart,
-route refresh, and next-hop handling. 19 interop scenarios across 3 implementations,
+route refresh, and next-hop handling. 33 interop scenarios across multiple implementations,
 written in Python with automated container orchestration. Interop correctness is
 measured by real peers, not unit tests alone.
 
@@ -773,7 +777,7 @@ expect=exit:code=0
 
 | Target | What It Runs |
 |--------|-------------|
-| `make ze-verify` | lint + unit + functional + exabgp + chaos (pre-commit gate) |
+| `make ze-verify` | lint + unit + functional + exabgp (pre-commit gate) |
 | `make ze-unit-test` | Unit tests with race detector |
 | `make ze-functional-test` | All `.ci` functional tests |
 | `make ze-lint` | 26 linters via golangci-lint |

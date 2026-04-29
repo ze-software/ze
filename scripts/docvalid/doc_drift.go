@@ -1,8 +1,8 @@
 // Design: (none -- build tool)
 //
 // check-doc-drift compares documentation claims against the live plugin
-// registry, filesystem counts, and structured doc tables. It reports
-// any drift between what the code provides and what the docs claim.
+// registry, Makefile gates, filesystem counts, and structured doc tables.
+// It reports any drift between what the code provides and what the docs claim.
 //
 // Usage: go run scripts/check-doc-drift.go [--strict]
 // Called by: make ze-doc-drift, .claude/hooks/check-doc-drift.sh
@@ -80,11 +80,70 @@ func runChecks(root string) []issue {
 	interopCount := countInteropScenarios(filepath.Join(root, "test", "interop", "scenarios"))
 	fuzzCount := countFuzzTargets(root)
 	goTestCount := countGoTestFunctions(root)
+	releaseGateSuites := functionalGateSuites(root)
 
 	issues = append(issues, checkDesignMD(root, pluginNames, familyNames, ciTotal, ciByDir, interopCount, fuzzCount, goTestCount)...)
 	issues = append(issues, checkComparisonMD(root, familyNames)...)
+	issues = append(issues, checkReadmeMD(root, ciTotal, interopCount, fuzzCount, goTestCount)...)
+	issues = append(issues, checkFeaturesMD(root)...)
+	issues = append(issues, checkFunctionalTestsMD(root, releaseGateSuites)...)
 
 	return issues
+}
+
+func functionalGateSuites(root string) []string {
+	lines, err := readLines(filepath.Join(root, "Makefile"))
+	if err != nil {
+		return nil
+	}
+
+	var suites []string
+	seen := make(map[string]bool)
+	inTarget := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(line, "ze-functional-test:") {
+			inTarget = true
+			continue
+		}
+		if !inTarget {
+			continue
+		}
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if !strings.HasPrefix(line, "\t") {
+			break
+		}
+
+		suite, ok := zeTestSuiteFromMakeLine(line)
+		if !ok || seen[suite] {
+			continue
+		}
+		seen[suite] = true
+		suites = append(suites, suite)
+	}
+	return suites
+}
+
+func zeTestSuiteFromMakeLine(line string) (string, bool) {
+	fields := strings.Fields(line)
+	for i, field := range fields {
+		if field != "bin/ze-test" {
+			continue
+		}
+		if i+1 >= len(fields) {
+			return "", false
+		}
+		if fields[i+1] == "bgp" {
+			if i+2 >= len(fields) {
+				return "", false
+			}
+			return fields[i+2], true
+		}
+		return fields[i+1], true
+	}
+	return "", false
 }
 
 func registryPluginNames() []string {
@@ -365,6 +424,199 @@ func checkComparisonMD(root string, familyNames []string) []issue {
 	return issues
 }
 
+func checkReadmeMD(root string, ciTotal, interopCount, fuzzCount, goTestCount int) []issue {
+	path := filepath.Join(root, "README.md")
+	lines, err := readLines(path)
+	if err != nil {
+		return nil
+	}
+
+	var issues []issue
+	for i, line := range lines {
+		lineNum := i + 1
+		if m := extractAtLeast(line, `([\d,]+)\+ unit tests`); m > 0 && goTestCount < m {
+			issues = append(issues, issue{
+				File: "README.md", Line: lineNum,
+				Message: fmt.Sprintf("claims %d+ unit tests, actual is %d", m, goTestCount),
+			})
+		}
+		if m := extractApprox(line, `(?i)roughly ([\d,]+).*functional tests`); m > 0 && !withinThreshold(m, ciTotal, 0.20) {
+			issues = append(issues, issue{
+				File: "README.md", Line: lineNum,
+				Message: fmt.Sprintf("claims roughly %d functional tests, actual is %d", m, ciTotal),
+			})
+		}
+		if m := extractAtLeast(line, `([\d,]+)\+ fuzz targets`); m > 0 && fuzzCount < m {
+			issues = append(issues, issue{
+				File: "README.md", Line: lineNum,
+				Message: fmt.Sprintf("claims %d+ fuzz targets, actual is %d", m, fuzzCount),
+			})
+		}
+		if m := extractAtLeast(line, `([\d,]+)\+ Docker-based interop scenarios`); m > 0 && interopCount < m {
+			issues = append(issues, issue{
+				File: "README.md", Line: lineNum,
+				Message: fmt.Sprintf("claims %d+ Docker-based interop scenarios, actual is %d", m, interopCount),
+			})
+		}
+	}
+	return issues
+}
+
+func checkFeaturesMD(root string) []issue {
+	path := filepath.Join(root, "docs", "features.md")
+	lines, err := readLines(path)
+	if err != nil {
+		return nil
+	}
+
+	allowed := map[string]bool{
+		"supported":    true,
+		"partial":      true,
+		"experimental": true,
+		"stub-backed":  true,
+		"rejected":     true,
+		"future":       true,
+	}
+
+	var issues []issue
+	foundHeader := false
+	for i, line := range lines {
+		lineNum := i + 1
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "| Feature |") {
+			foundHeader = true
+			if !strings.Contains(trimmed, "| Status |") || !strings.Contains(trimmed, "| Description |") {
+				issues = append(issues, issue{
+					File: "docs/features.md", Line: lineNum,
+					Message: "feature inventory table must include Feature, Status, and Description columns",
+				})
+			}
+			continue
+		}
+		if !foundHeader || !strings.HasPrefix(trimmed, "|") || strings.Contains(trimmed, "---") {
+			continue
+		}
+		cells := splitTableRow(trimmed)
+		if len(cells) < 3 {
+			issues = append(issues, issue{
+				File: "docs/features.md", Line: lineNum,
+				Message: "feature inventory row must include status",
+			})
+			continue
+		}
+		status := strings.ToLower(strings.TrimSpace(cells[1]))
+		if !allowed[status] {
+			issues = append(issues, issue{
+				File: "docs/features.md", Line: lineNum,
+				Message: fmt.Sprintf("unknown feature status %q", cells[1]),
+				Detail:  "valid statuses: supported, partial, experimental, stub-backed, rejected, future",
+			})
+		}
+	}
+	if !foundHeader {
+		issues = append(issues, issue{
+			File:    "docs/features.md",
+			Line:    0,
+			Message: "feature inventory table not found",
+		})
+	}
+	return issues
+}
+
+func checkFunctionalTestsMD(root string, gateSuites []string) []issue {
+	path := filepath.Join(root, "docs", "functional-tests.md")
+	lines, err := readLines(path)
+	if err != nil {
+		return nil
+	}
+	if len(gateSuites) == 0 {
+		return []issue{{
+			File:    "docs/functional-tests.md",
+			Line:    0,
+			Message: "could not derive ze-functional-test suites from Makefile",
+		}}
+	}
+
+	var issues []issue
+	joined := strings.Join(lines, " ")
+	re := regexp.MustCompile(`functional test target runs (\d+) suites: ([^.]+)\.`)
+	m := re.FindStringSubmatch(joined)
+	if len(m) < 3 {
+		issues = append(issues, issue{
+			File:    "docs/functional-tests.md",
+			Line:    0,
+			Message: "could not find release gate suite list",
+			Detail:  "expected: functional test target runs N suites: a, b, c.",
+		})
+	} else {
+		claimedCount, _ := strconv.Atoi(m[1])
+		claimedSuites := splitSuiteList(m[2])
+		if claimedCount != len(gateSuites) {
+			issues = append(issues, issue{
+				File: "docs/functional-tests.md", Line: lineNumberContaining(lines, m[0]),
+				Message: fmt.Sprintf("claims %d release-gate suites, Makefile has %d", claimedCount, len(gateSuites)),
+				Detail:  fmt.Sprintf("Makefile: %s", strings.Join(gateSuites, ", ")),
+			})
+		}
+		if !sameStrings(claimedSuites, gateSuites) {
+			issues = append(issues, issue{
+				File: "docs/functional-tests.md", Line: lineNumberContaining(lines, m[0]),
+				Message: "release-gate suite list does not match Makefile",
+				Detail:  fmt.Sprintf("docs: %s; Makefile: %s", strings.Join(claimedSuites, ", "), strings.Join(gateSuites, ", ")),
+			})
+		}
+	}
+
+	manualSuites := extractTableColumn(lines, "Suite", "Runner", 0)
+	gateSet := make(map[string]bool, len(gateSuites))
+	for _, suite := range gateSuites {
+		gateSet[strings.ToLower(suite)] = true
+	}
+	for _, suite := range manualSuites {
+		name := strings.ToLower(strings.Trim(strings.TrimSpace(suite), "`"))
+		if gateSet[name] {
+			issues = append(issues, issue{
+				File: "docs/functional-tests.md", Line: 0,
+				Message: fmt.Sprintf("gated suite %q is listed as manual-only", suite),
+			})
+		}
+	}
+	return issues
+}
+
+func splitSuiteList(raw string) []string {
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		name := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(part), "and "))
+		if name != "" {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+func sameStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func lineNumberContaining(lines []string, fragment string) int {
+	for i, line := range lines {
+		if strings.Contains(line, fragment) {
+			return i + 1
+		}
+	}
+	return 0
+}
+
 func readLines(path string) ([]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -391,6 +643,10 @@ func extractCount(line, pattern string) int {
 }
 
 func extractApprox(line, pattern string) int {
+	return extractCount(line, pattern)
+}
+
+func extractAtLeast(line, pattern string) int {
 	return extractCount(line, pattern)
 }
 

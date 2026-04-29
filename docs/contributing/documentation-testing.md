@@ -17,7 +17,7 @@ documentation files, after adding/removing plugins, or as part of review.
 
 | Tool | Make target | What it validates |
 |------|-------------|-------------------|
-| `scripts/docvalid/doc_drift.go` | `ze-doc-drift` | `docs/DESIGN.md` plugin counts, family lists, `.ci` test totals, interop scenario count, fuzz target count, Go test count -- compared to the live plugin registry, family registry, and filesystem walk. Also `docs/comparison.md` family rows. |
+| `scripts/docvalid/doc_drift.go` | `ze-doc-drift` | `docs/DESIGN.md` plugin counts, family lists, `.ci` test totals, interop scenario count, fuzz target count, Go test count -- compared to the live plugin registry, family registry, and filesystem walk. Also `docs/comparison.md` family rows, README test-count claims, `docs/features.md` status labels, and `docs/functional-tests.md` release-gate suite claims derived from the Makefile. |
 | `scripts/docvalid/commands.go` | `ze-validate-commands` | Every YANG `ze:command` declaration has a registered RPC handler, and every registered RPC handler has a matching YANG declaration. |
 | `scripts/lint/consistency.go` | `ze-consistency` | Mixed code/doc consistency: `// Design:` references on `.go` files, cross-reference bidirectionality (`// Detail:` <-> `// Overview:`), stale package references in docs and scripts. |
 
@@ -40,7 +40,7 @@ completeness) and is run as part of code review, not doc review.
 | Before opening a documentation PR | `make ze-doc-test` |
 
 `make ze-doc-test` is **not** part of `make ze-verify` today because the
-codebase has pre-existing drift that has not been triaged. Once that backlog
+YANG/handler contract checker still has an explicit backlog. Once that backlog
 is cleared, the target should be moved into `ze-verify`'s dependency list.
 
 ## How to interpret output
@@ -85,7 +85,9 @@ Two-direction check. Both directions are contract bugs:
 |-------|-----|
 | Plugin count claim wrong in DESIGN.md | Update the number; the script reports the actual count |
 | Family list missing entries in DESIGN.md | Add the missing entries; the script lists which |
-| `.ci` test count claim wrong | Update the count |
+| `.ci` test count claim wrong | Update the count or phrase it as an approximate dated claim |
+| Feature inventory row has no status | Add one of: Supported, Partial, Experimental, Stub-backed, Rejected, Future |
+| Functional test release-gate list wrong | Update `docs/functional-tests.md` to match `ze-functional-test` in the Makefile |
 | Plugin in registry but not in Shipped Plugins table | Add a row to `docs/DESIGN.md`'s Shipped Plugins table |
 | YANG `ze:command` with no handler | Remove the YANG declaration OR write the handler in `internal/component/<area>/cmd/` |
 | Handler with no YANG `ze:command` | Add a YANG declaration in the appropriate `*-cmd.yang` schema |
@@ -94,9 +96,11 @@ Two-direction check. Both directions are contract bugs:
 
 `scripts/docvalid/doc_drift.go` imports `internal/component/plugin/all` so all
 plugins register themselves at init, then queries `registry.All()` and
-`registry.FamilyMap()`, walks the filesystem for `.ci` files, and compares
-those live counts/lists against hardcoded patterns in `docs/DESIGN.md` and
-`docs/comparison.md`.
+`registry.FamilyMap()`, walks the filesystem for `.ci` files, derives the
+functional release-gate suite list from the Makefile, and compares those live
+counts/lists against documented claims in `docs/DESIGN.md`,
+`docs/comparison.md`, `README.md`, `docs/features.md`, and
+`docs/functional-tests.md`.
 
 `scripts/docvalid/commands.go` imports the same set plus the BGP cmd plugin
 schema/handler packages, loads the YANG modules, and walks the schema tree

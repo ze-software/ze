@@ -2,7 +2,7 @@
 
 ## Overview
 
-Functional tests verify ZeBGP's BGP message encoding by comparing actual wire output against expected bytes.
+Functional tests exercise release-gate behavior across BGP wire encoding and decoding, plugin behavior, config parsing, reloads, UI/editor flows, managed config, L2TP, firewall, and the web UI.
 
 ```bash
 # Quick start
@@ -15,21 +15,25 @@ make ze-reload-test       # Reload tests only
 ## Release Gate Coverage
 
 `make ze-verify` (and its alias `make ze-verify-fast`) runs: lint, unit tests,
-`ze-functional-test`, and exabgp-compat. The functional test target runs 8
-suites: encode, plugin, parse, decode, reload, ui, editor, managed.
+`ze-functional-test`, and exabgp-compat. The functional test target runs 11 suites: encode, plugin, parse, decode, reload, ui, editor, managed, l2tp, firewall, web.
+<!-- source: Makefile -- ze-functional-test -->
 
 The following shipped test suites are **not in the default release gate** and
 must be run manually:
 
 | Suite | Runner | Why not gated |
 |-------|--------|---------------|
-| L2TP | `bin/ze-test l2tp` | Requires loopback UDP |
-| Firewall | `bin/ze-test firewall` | Requires privileged nft/iptables access |
+| Static routes | `bin/ze-test static` | Separate route-installation fixture |
+| Traffic control | `bin/ze-test traffic` | Requires traffic-control platform support |
 | VPP | `bin/ze-test vpp` | Requires Python VPP stub setup |
-| Web | `make ze-web-test` / `bin/ze-test web` | Requires running ze daemon |
+| L2TP wire | `bin/ze-test l2tp-wire` | Wire-level fixture separate from release-gate L2TP daemon scenarios |
+| Chaos web | `bin/ze-test bgp chaos-web` | Chaos dashboard scenarios live under the BGP runner |
 
-There are no `make ze-l2tp-test`, `make ze-firewall-test`, or `make ze-vpp-test`
-targets. Use the `bin/ze-test` runners directly.
+There are no `make ze-static-test`, `make ze-traffic-test`, `make ze-vpp-test`,
+`make ze-l2tp-wire-test`, or `make ze-chaos-web-test` targets. Use the
+`bin/ze-test` runners directly.
+<!-- source: cmd/ze-test/main.go -- subcommand registry -->
+<!-- source: cmd/ze-test/bgp.go -- chaos-web suite -->
 
 ---
 
@@ -163,10 +167,10 @@ and that timing remains flaky, the file should name that exact blocker and stay
 
 Some `.ci` tests need a synthetic Go-side producer to drive features that
 have no real producer yet (e.g., bgp-redistribute waiting for L2TP route
-events). These plugins live under `internal/test/plugins/<name>/` and
-register at init() so they appear in the production daemon's plugin
-registry. They do nothing until invoked via `ze.fakeredist`-style config or
-via a `.ci` test's dispatch-command.
+events). These plugins live under `internal/test/plugins/<name>/` and are
+loaded only by DUT builds compiled with the `zetest` tag. Normal production
+builds do not import `internal/test/plugins/all` and do not expose these
+registry entries.
 
 First occupant: `internal/test/plugins/fakeredist/`. Pattern:
 
@@ -177,13 +181,13 @@ First occupant: `internal/test/plugins/fakeredist/`. Pattern:
 | `fakeredist_test.go` | Unit tests for the command surface |
 
 The aggregator at `internal/test/plugins/all/all.go` blank-imports every
-test-only internal plugin. Production also imports the individual packages
-from `internal/component/plugin/all/all.go` because `.ci` tests run
-production `bin/ze`; the runtime cost is one registry entry per test plugin
-and zero overhead until invoked.
+test-only internal plugin. `cmd/ze/plugins_zetest.go` imports that aggregator
+only under the `zetest` build tag so functional tests can exercise fakeredist
+and fakel2tp without polluting normal `cmd/ze` builds.
 
 <!-- source: internal/test/plugins/fakeredist/register.go -- pattern reference -->
-<!-- source: internal/component/plugin/all/all.go -- production aggregator import -->
+<!-- source: internal/test/plugins/all/all.go -- test-only aggregator -->
+<!-- source: cmd/ze/plugins_zetest.go -- zetest-only import -->
 
 ### 4. Reload Tests (`test/reload/`)
 

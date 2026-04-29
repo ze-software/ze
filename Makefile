@@ -506,7 +506,7 @@ ze-command-list:
 ze-command-list-json:
 	@go run scripts/inventory/commands.go --json
 
-# Check documentation drift against live registry and filesystem
+# Check documentation drift against live registry, Makefile, and filesystem
 ze-doc-drift:
 	@go run scripts/docvalid/doc_drift.go
 
@@ -526,7 +526,7 @@ ze-doc-test:
 	@echo "Running documentation tests..."
 	@FAIL=0; \
 	echo ""; \
-	echo "  -> Documentation drift (DESIGN.md, comparison.md vs registry)..."; \
+	echo "  -> Documentation drift (docs claims vs registry, Makefile, filesystem)..."; \
 	go run scripts/docvalid/doc_drift.go || FAIL=1; \
 	echo ""; \
 	echo "  -> YANG/handler contract (validate-commands)..."; \
@@ -920,7 +920,7 @@ help:
 	@echo ""
 	@echo "  Documentation testing:"
 	@echo "  ze-doc-test           - Run all doc tests (drift + YANG/handler contract)"
-	@echo "  ze-doc-drift          - Check DESIGN.md/comparison.md claims vs live registry"
+	@echo "  ze-doc-drift          - Check docs claims vs live registry, Makefile, and filesystem"
 	@echo "  ze-validate-commands  - Cross-check YANG ze:command vs registered RPC handlers"
 	@echo "  ze-consistency        - Code/doc consistency: design refs, cross-refs, stale refs"
 	@echo "  See docs/contributing/documentation-testing.md for the workflow."

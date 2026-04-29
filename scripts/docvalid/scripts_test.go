@@ -44,8 +44,8 @@ func TestValidateCommandsScriptRuns(t *testing.T) {
 
 // VALIDATES: scripts/docvalid/doc_drift.go compiles and runs end-to-end.
 // PREVENTS: silent break of doc_drift via plugin registry refactor.
-// The script may report drift (current baseline) or print "No documentation
-// drift detected"; either way it must run to completion.
+// The script should normally print "No documentation drift detected"; if a
+// future change introduces drift, it must still run to completion and report it.
 func TestDocDriftScriptRuns(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
 	defer cancel()
