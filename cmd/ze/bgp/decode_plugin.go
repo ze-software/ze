@@ -184,10 +184,12 @@ func invokePluginNLRIDecodeRequest(pluginName, request string) any {
 // invokePluginPath executes an external plugin binary at the given path.
 // User-provided args are passed before the mandatory --decode flag.
 func invokePluginPath(path string, userArgs []string, request string) any {
-	// 10s allows for process startup chain (sh -> wrapper -> plugin binary -> Go runtime init -> decode).
+	// 30s allows for process startup under the broad parallel race-test gate.
+	// Normal decode returns immediately; the larger budget avoids false negatives
+	// when the host is saturated by many concurrently starting test binaries.
 	// Longer than invokePluginSubprocess (5s) because the external path may involve
 	// an extra shell layer and a separately-built binary.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	// Build args: user args + --decode
 	cmdArgs := append(userArgs, "--decode")           //nolint:gocritic // intentional append to new slice

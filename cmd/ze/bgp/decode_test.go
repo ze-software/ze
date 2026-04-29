@@ -1,17 +1,12 @@
 package bgp
 
 import (
-	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,69 +15,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
-// Shared test binary setup - built once, used by all tests that need it.
-var (
-	testZeBinaryPath string
-	testZeBuildOnce  sync.Once
-	testZeBuildErr   error
-	testZeTmpDir     string
-)
-
 // TestMain handles cleanup of shared test resources.
 func TestMain(m *testing.M) {
 	family.RegisterTestFamilies()
 	code := m.Run()
-
-	// Cleanup temp directory after all tests complete
-	if testZeTmpDir != "" {
-		_ = os.RemoveAll(testZeTmpDir)
-	}
-
 	os.Exit(code)
-}
-
-// setupTestZeBinary builds ze binary once for all tests that need it.
-// Uses sync.Once to ensure only one build happens even with parallel tests.
-func setupTestZeBinary(t *testing.T) string {
-	t.Helper()
-
-	testZeBuildOnce.Do(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-
-		// Create temp directory for binary
-		testZeTmpDir, testZeBuildErr = os.MkdirTemp("", "ze-decode-test-*")
-		if testZeBuildErr != nil {
-			testZeBuildErr = fmt.Errorf("create temp dir: %w", testZeBuildErr)
-			return
-		}
-
-		testZeBinaryPath = filepath.Join(testZeTmpDir, "ze")
-
-		// Find project root via go list
-		listCmd := exec.CommandContext(ctx, "go", "list", "-m", "-f", "{{.Dir}}")
-		output, err := listCmd.Output()
-		if err != nil {
-			testZeBuildErr = fmt.Errorf("find project root: %w", err)
-			return
-		}
-		projectRoot := strings.TrimSpace(string(output))
-
-		// Build ze binary once
-		buildCmd := exec.CommandContext(ctx, "go", "build", "-o", testZeBinaryPath, "./cmd/ze") //nolint:gosec // test code
-		buildCmd.Dir = projectRoot
-		buildOutput, err := buildCmd.CombinedOutput()
-		if err != nil {
-			testZeBuildErr = fmt.Errorf("build ze: %w\n%s", err, buildOutput)
-			return
-		}
-	})
-
-	if testZeBuildErr != nil {
-		t.Skipf("skipping test requiring ze binary: %v", testZeBuildErr)
-	}
-
-	return testZeBinaryPath
 }
 
 // Test data constants to avoid goconst lint warnings.
@@ -1203,18 +1140,23 @@ func TestInvokePluginFork(t *testing.T) {
 // VALIDATES: /path/to/binary invokes external program with --decode.
 // PREVENTS: Path-based invocation falling back to in-process.
 func TestInvokePluginForkPath(t *testing.T) {
-	// Use shared pre-built binary (built once via sync.Once).
-	binPath := setupTestZeBinary(t)
-
-	// Create a wrapper script that calls ze plugin flowspec --decode.
+	// Create a tiny external decoder. This keeps the path invocation contract
+	// deterministic under the race-enabled broad gate without starting a full ze
+	// subprocess inside another test process.
 	wrapperPath := t.TempDir() + "/flowspec-wrapper"
-	wrapperScript := fmt.Sprintf("#!/bin/sh\nexec %s plugin bgp-nlri-flowspec \"$@\"\n", binPath)
+	wrapperScript := "#!/bin/sh\n" +
+		"test \"$1\" = \"--decode\" || exit 1\n" +
+		"IFS= read -r request || exit 1\n" +
+		"case \"$request\" in\n" +
+		"  'decode nlri ipv4/flow '* ) printf 'decoded json {\"path\":\"ok\"}\\n' ;;\n" +
+		"  * ) exit 1 ;;\n" +
+		"esac\n"
 	require.NoError(t, os.WriteFile(wrapperPath, []byte(wrapperScript), 0o755), "failed to write wrapper") //nolint:gosec // executable script
 
 	// Invoke via path - this should call the wrapper with --decode.
 	result := invokePluginNLRIDecode(wrapperPath, testFlowSpecFamily, testFlowSpecNLRI)
 	require.NotNil(t, result, "path-based fork decode returned nil")
-	assertNonEmptyDecodeResult(t, result)
+	assert.Equal(t, map[string]any{"path": "ok"}, result)
 }
 
 // TestInvokePluginModeConsistency verifies all three modes produce same result.

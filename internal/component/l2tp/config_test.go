@@ -174,8 +174,7 @@ environment {
 		}
 	}
 }`
-	tree := loadTree(t, src)
-	_, err := l2tp.ExtractParameters(tree)
+	_, err := zeconfig.LoadConfig(src, "test.conf", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "hello-interval")
 }

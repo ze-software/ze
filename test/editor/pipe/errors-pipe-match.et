@@ -7,30 +7,56 @@ tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
   peer peer1 {
-  	connection {
-  		remote {
-  			ip 1.1.1.1
-  		}
-  	}
-  	session {
-  		asn {
-  			remote 65001
-  		}
-  	}
-    timer { receive-hold-time 1; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+    timer { receive-hold-time 90; }
   }
   peer peer2 {
-  	connection {
-  		remote {
-  			ip 2.2.2.2
-  		}
-  	}
-  	session {
-  		asn {
-  			remote 65002
-  		}
-  	}
-    timer { receive-hold-time 2; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65002
+      }
+    }
+    timer { receive-hold-time 90; }
+  }
+  peer peer3 {
+    connection {
+      remote {
+        ip 3.3.3.3
+      }
+    }
+    session {
+      asn {
+        remote 65003
+      }
+    }
+    timer { receive-hold-time 90; }
+  }
+  peer peer4 {
+    connection {
+      remote {
+        ip 3.3.3.3
+      }
+    }
+    session {
+      asn {
+        remote 65004
+      }
+    }
+    timer { receive-hold-time 90; }
   }
 }
 EOF_CONF
@@ -38,16 +64,16 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Should have validation errors for both peers
+# Should have validation errors for duplicate remote IPs
 expect=errors:count=2
 
 # Errors with match for specific peer name
-input=type:text=errors | match peer1
+input=type:text=errors | match peer2
 input=enter
 expect=error:none
 
-# Should show error for peer1
-expect=viewport:contains=peer1
+# Should show error for peer2
+expect=viewport:contains=peer2
 
-# Should NOT show error for peer2
-expect=viewport:not-contains=peer2
+# Should NOT show the second duplicate error
+expect=viewport:not-contains=peer3

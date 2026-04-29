@@ -17,10 +17,11 @@ import (
 
 // ciRunnerConfig holds the per-subcommand differences for .ci test runners.
 type ciRunnerConfig struct {
-	Name        string // subcommand name and label (e.g. "ui", "managed")
-	TestSubdir  string // subdirectory under test/ (e.g. "ui", "managed")
-	Description string // one-line description for usage text
-	Detail      string // longer description for usage text
+	Name            string // subcommand name and label (e.g. "ui", "managed")
+	TestSubdir      string // subdirectory under test/ (e.g. "ui", "managed")
+	Description     string // one-line description for usage text
+	Detail          string // longer description for usage text
+	DefaultParallel int    // max concurrent tests; 0 means all selected tests
 }
 
 func runCISubcommand(cfg ciRunnerConfig) error {
@@ -33,6 +34,8 @@ func runCISubcommand(cfg ciRunnerConfig) error {
 	fs.BoolVar(verbose, "verbose", false, "verbose output")
 	quiet := fs.Bool("q", false, "minimal output")
 	fs.BoolVar(quiet, "quiet", false, "minimal output")
+	parallel := fs.Int("p", cfg.DefaultParallel, "max concurrent tests (0 = all)")
+	fs.IntVar(parallel, "parallel", cfg.DefaultParallel, "max concurrent tests (0 = all)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: ze-test %s [options] [test-ids...]\n\n%s\n\nOptions:\n", cfg.Name, cfg.Detail) //nolint:errcheck // terminal output
@@ -122,9 +125,10 @@ Examples:
 	r.Report().SetLabel(cfg.Name)
 
 	opts := &runner.RunOptions{
-		Timeout: 15 * time.Second,
-		Verbose: *verbose,
-		Quiet:   *quiet,
+		Timeout:  15 * time.Second,
+		Verbose:  *verbose,
+		Quiet:    *quiet,
+		Parallel: *parallel,
 	}
 
 	success := r.Run(ctx, opts)
