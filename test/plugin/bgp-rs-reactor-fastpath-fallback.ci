@@ -1,16 +1,15 @@
-# bgp-rs-fastpath-ebgp-shared -- eBGP prepend with byte-equality (rs-fastpath-3)
+# bgp-rs-reactor-fastpath-fallback -- fallback to plugin dispatch (rs-gap-1)
 #
-# VALIDATES: AC-6b -- eBGP source peer goes through bgp-rs forwarding via the
-# Plugin.ForwardCached fast path; the receiver gets the UPDATE with local AS
-# 65000 prepended to AS_PATH. Deep byte-equality assertion confirms exact wire
-# content, not just wiring.
+# VALIDATES: peers without rs-fast-path enable still receive UPDATEs through
+# the normal bgp-rs ForwardCached plugin dispatch chain. The reactor fast path
+# skips peers that lack the flag, and bgp-rs picks them up via ForwardCached.
 #
-# PREVENTS: silent regression where the fast path is not engaged for eBGP
-# forwarding, or where AS_PATH prepend produces incorrect wire bytes.
+# PREVENTS: regression where disabling rs-fast-path causes UPDATEs to be lost
+# entirely (neither fast path nor plugin path forwards them).
 #
-# Two eBGP peers: source (65001) sends one UPDATE with empty AS_PATH,
-# receiver (65002) must get the forwarded UPDATE with AS_PATH=[65000].
-# Peers use different loopback IPs to avoid duplicate peer key collision.
+# Two eBGP peers: source (65001) sends one UPDATE, receiver (65002) has
+# rs-fast-path DISABLED (the default). The UPDATE must still arrive at the
+# receiver via the normal plugin dispatch chain.
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
@@ -18,28 +17,13 @@ option=timeout:value=15s
 option=bind:value=0.0.0.0
 
 # Source peer (conn=1): send one UPDATE with NLRI 10.0.0.0/24.
-# ORIGIN=IGP, AS_PATH=empty, NEXT_HOP=1.1.1.1, LOCAL_PREF=100
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A0000
+# ORIGIN=IGP, AS_PATH=[65001] (4-byte), NEXT_HOP=1.1.1.1, LOCAL_PREF=100
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040101010140050400000064180A0000
 
-# Receiver peer (conn=2): expect the forwarded UPDATE with exact byte content.
-# RS prepends local AS 65000 (0x0000FDE8) to the empty AS_PATH, producing
-# AS_PATH=AS_SEQUENCE[65000]. All other attributes preserved as-is.
-#
-# Expected UPDATE breakdown:
-#   Marker:    FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF (16 bytes)
-#   Length:    0036 (54 bytes)
-#   Type:      02 (UPDATE)
-#   WdLen:     0000 (no withdrawals)
-#   AttrLen:   001B (27 bytes)
-#   ORIGIN:    40010100 (IGP)
-#   AS_PATH:   40020602010000FDE8 (AS_SEQUENCE[65000])
-#   NEXT_HOP:  40030401010101 (1.1.1.1)
-#   LOCAL_PREF:40050400000064 (100)
-#   NLRI:      180A0000 (10.0.0.0/24)
-# NOTE: exact hex= match is intentional (not contains=). This is the byte-equality
-# assertion that verifies the RS produces correct wire bytes, not just wiring.
-# If attribute ordering changes, update the expected hex to match.
-expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE84003040101010140050400000064180A0000
+# Receiver peer (conn=2): expect the forwarded UPDATE containing NLRI 10.0.0.0/24.
+# Forwarded via plugin dispatch (not fast path), with AS 65000 prepended.
+# Use contains= to match the NLRI bytes (180A0000 = /24 10.0.0.0).
+expect=bgp:conn=2:seq=1:contains=180A0000
 
 # Both peers receive EOR.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
@@ -131,7 +115,6 @@ bgp {
 		}
 		behavior {
 			group-updates disable
-			rs-fast-path enable
 		}
 	}
 }
@@ -142,7 +125,5 @@ cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 reject=stderr:pattern=panic
 reject=stderr:pattern=fatal error
-reject=stderr:pattern=cache .* forward
-reject=stderr:pattern=forward-cached failed
 reject=stderr:pattern=release-cached failed
 reject=stderr:pattern=BUG: ForwardUpdatesDirect

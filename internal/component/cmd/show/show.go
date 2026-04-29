@@ -6,6 +6,7 @@ package show
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -17,6 +18,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -579,13 +581,16 @@ func handleShowUptime(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 		}, nil
 	}
 	stats := r.Stats()
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"start-time": stats.StartTime.Format(time.RFC3339),
-			"uptime":     stats.Uptime.Truncate(time.Second).String(),
-		},
-	}, nil
+	data := map[string]any{
+		"start-time": stats.StartTime.Format(time.RFC3339),
+		"uptime":     stats.Uptime.Truncate(time.Second).String(),
+	}
+	if hw, err := host.DetectHost(); err == nil && hw != nil {
+		data["hardware"] = hw
+	} else if err != nil && !errors.Is(err, host.ErrUnsupported) {
+		data["hardware-error"] = err.Error()
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
 }
 
 // handleShowInterface lists all interfaces or shows one by name.

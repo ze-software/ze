@@ -20,7 +20,7 @@ import (
 )
 
 // helper: create established peer with matching context.
-func makeRSPeer(t *testing.T, addr string, peerAS uint32, ctx *bgpctx.EncodingContext, ctxID bgpctx.ContextID) *Peer {
+func makeRSPeer(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingContext, ctxID bgpctx.ContextID) *Peer {
 	t.Helper()
 	peerAddr := netip.MustParseAddr(addr)
 	settings := &PeerSettings{
@@ -502,7 +502,7 @@ func TestReactorForwardRSCacheLifetime(t *testing.T) {
 // makeRSPeerWithSession creates an established peer with a real session backed
 // by a net.Pipe connection and bufWriter. Returns the peer, session, and the
 // reader end of the pipe (caller reads from it to verify flushed data).
-func makeRSPeerWithSession(t *testing.T, addr string, peerAS uint32, ctx *bgpctx.EncodingContext, ctxID bgpctx.ContextID) (*Peer, *Session, net.Conn) {
+func makeRSPeerWithSession(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingContext, ctxID bgpctx.ContextID) (*Peer, *Session, net.Conn) {
 	t.Helper()
 	peer := makeRSPeer(t, addr, peerAS, ctx, ctxID)
 
@@ -673,6 +673,73 @@ func TestFlushFwdDirtyRetainsLockedSessions(t *testing.T) {
 		require.Equal(t, message.HeaderLen+len(body), n)
 	case <-time.After(time.Second):
 		t.Fatal("timeout reading dst2 flushed data")
+	}
+}
+
+// BenchmarkReactorForwardRS measures the throughput of the reactor RS fast path.
+// Setup: 1 source + 10 EBGP destination peers, all sharing the same encoding
+// context. Each iteration dispatches one UPDATE to all 10 destinations via
+// reactorForwardRS. The benchmark captures the per-UPDATE cost of the hot loop
+// (peer iteration, EBGP wire cache, body building, pool dispatch).
+func BenchmarkReactorForwardRS(b *testing.B) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
+
+	// UPDATE with AS_PATH: AS_SEQUENCE[65001] (4-byte), NEXT_HOP, NLRI 10.0.0.0/24.
+	payload := []byte{
+		0, 0, // WithdrawnLen = 0
+		0, 9, // AttrLen = 9
+		0x40, 2, 6, 2, 1, 0, 0, 0xFD, 0xE9, // AS_PATH: AS_SEQUENCE[65001] (4-byte)
+	}
+
+	// No-op pool handler: items are consumed but no TCP write happens.
+	testPool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		for _, item := range items {
+			if item.done != nil {
+				item.done()
+			}
+		}
+	}, fwdPoolConfig{chanSize: 1024, idleTimeout: time.Second})
+	defer testPool.Stop()
+
+	// Source peer (65001).
+	src := makeRSPeer(b, "10.0.0.1", 65001, ctx, ctxID)
+	srcKey := src.Settings().PeerKey()
+
+	// 10 EBGP destination peers (65002..65011).
+	peers := map[netip.AddrPort]*Peer{srcKey: src}
+	for i := range 10 {
+		addr := netip.AddrFrom4([4]byte{10, 0, 0, byte(i + 2)})
+		p := makeRSPeer(b, addr.String(), uint32(65002+i), ctx, ctxID)
+		peers[p.Settings().PeerKey()] = p
+	}
+
+	cache := NewRecentUpdateCache(1000)
+	cache.Start()
+	defer cache.Stop()
+
+	r := &Reactor{
+		recentUpdates: cache,
+		peers:         peers,
+		fwdPool:       testPool,
+	}
+
+	sourceAddr := netip.MustParseAddr("10.0.0.1")
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := range b.N {
+		id := uint64(i + 1)
+		wu := wireu.NewWireUpdate(payload, ctxID)
+		wu.SetMessageID(id)
+		update := &ReceivedUpdate{
+			WireUpdate:   wu,
+			SourcePeerIP: sourceAddr,
+			ReceivedAt:   time.Now(),
+		}
+		cache.Add(update)
+		cache.Activate(id, 1)
+		reactorForwardRS(r, update, id, sourceAddr, src)
 	}
 }
 

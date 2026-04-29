@@ -21,6 +21,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/telemetry/collector"
@@ -215,6 +216,9 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 			}
 			r.SetMetricsRegistry(reg)
 			registry.SetMetricsRegistry(reg)
+			hostMetrics := host.RegisterMetrics(reg)
+			hostMetrics.CollectOnce()
+			hostMetrics.StartRefresh(30 * time.Second)
 
 			if telemetryCfg.Netdata.Enabled {
 				overrides := make(map[string]collector.CollectorOverride, len(telemetryCfg.Netdata.Collectors))
