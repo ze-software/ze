@@ -132,7 +132,9 @@ The plugin receives events through its `OnEvent` callback. See [Plugins guide](p
 
 ## Prometheus Metrics
 
-Ze exposes Prometheus metrics when `telemetry { prometheus { ... } }` is configured. BGP metrics are refreshed every 10 seconds. The `netdata` block only controls Netdata-compatible OS collector metrics. It does not rename Ze-native metrics such as `ze_bgp_*`, `ze_bfd_*`, or `ze_l2tp_*`.
+Ze exposes Prometheus metrics when `telemetry { prometheus { ... } }` is configured. BGP metrics are refreshed every 10 seconds. By default the HTTP listener binds to `127.0.0.1:9273`; configure an explicit server address to expose it to remote scrapers.
+
+The `netdata` block only controls Netdata-compatible OS collector metrics. It does not rename Ze-native metrics such as `ze_bgp_*`, `ze_bfd_*`, or `ze_l2tp_*`.
 
 ```
 telemetry {
@@ -180,6 +182,24 @@ telemetry {
 
 Deprecated compatibility aliases remain accepted: `prefix`, `interval`, and `collector` directly under `prometheus`. Prefer `netdata/prefix`, `netdata/interval`, and `netdata/collector` in new config.
 
+### HTTP Basic Authentication
+
+When `basic-auth/enabled` is true, Ze requires HTTP Basic Authentication for every handler on the Prometheus service, including both `/metrics` and `/health`. The password is stored as a bcrypt hash in the persisted config. Use `plaintext-password` when editing the config and the commit hook will replace it with `password`. If automation already has a hash from `ze passwd`, set `password` directly.
+
+Prometheus scrape configuration:
+
+```yaml
+scrape_configs:
+  - job_name: ze
+    static_configs:
+      - targets: ["router.example.net:9273"]
+    basic_auth:
+      username: prometheus
+      password: secret
+```
+
+Basic Auth does not provide transport encryption. Keep the listener on loopback, use a trusted management network, or put TLS in front of the service if the scrape crosses an untrusted network.
+
 Per-collector overrides:
 
 ```
@@ -195,7 +215,7 @@ netdata {
 
 Ze exports 138 OS metrics matching Netdata's Prometheus format exactly (same names, labels, values), acting as a drop-in replacement for Netdata's `/api/v1/allmetrics?format=prometheus` endpoint. Existing Grafana dashboards built against Netdata continue to work unchanged.
 
-Metric name format: `{prefix}_{context}_{units}_average{chart="...",dimension="...",family="..."}`
+Metric name format: `{prefix}_{context}_{units}_average{chart="...",dimension="...",family="..."}`, where `{prefix}` is `telemetry.prometheus.netdata.prefix`.
 
 | Collector | /proc or /sys source | Charts exposed |
 |-----------|---------------------|----------------|

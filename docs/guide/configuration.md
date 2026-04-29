@@ -799,6 +799,7 @@ Binder lifetime rules are uniform across every service:
 | Shutdown | Every listener closes when the service is stopped; there is no "primary plus extras" asymmetry. |
 | Insecure web | `insecure true` forces every entry's ip to `127.0.0.1` with a warning logged per rewrite. |
 | MCP | MCP is localhost-only. Non-loopback entries are rewritten to `127.0.0.1` with a warning. |
+| Prometheus | The implicit telemetry listener defaults to `127.0.0.1:9273`. Configure `server <name> { ip 0.0.0.0; ... }` explicitly when a remote scraper must connect. |
 
 <!-- source: internal/component/web/server.go — WebServer.ListenAndServe multi-listener bind-and-rollback -->
 <!-- source: internal/component/lg/server.go — LGServer.ListenAndServe multi-listener bind-and-rollback -->

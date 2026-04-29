@@ -19,7 +19,7 @@ It is the successor to [ExaBGP](https://github.com/Exa-Networks/exabgp) to be a 
 | CLI | SSH-accessible interactive editor and command shell |
 | Web UI | Browser-based configuration editor and admin dashboard |
 | Looking glass | Peer status and route viewer, [birdwatcher](https://github.com/alice-lg/birdwatcher)-compatible API |
-| Telemetry | Prometheus metrics export |
+| Telemetry | Prometheus metrics export with optional Basic Auth and Netdata-compatible OS collectors |
 | MCP | Model Context Protocol server for AI tool integration |
 
 ### Plugins
