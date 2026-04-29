@@ -252,6 +252,17 @@ func TestEncodingContextAddPathFor(t *testing.T) {
 	assert.Equal(t, ctx.AddPath(f), ctx.AddPathFor(f))
 }
 
+// TestEncodingContextAddPathNilContext verifies nil context returns false.
+//
+// VALIDATES: AddPath() and AddPathFor() return false for nil context.
+// PREVENTS: Panic when callers pass nil for default no-ADD-PATH encoding.
+func TestEncodingContextAddPathNilContext(t *testing.T) {
+	var ctx *EncodingContext
+
+	assert.False(t, ctx.AddPath(family.IPv4Unicast), "nil context should not enable ADD-PATH")
+	assert.False(t, ctx.AddPathFor(family.IPv4Unicast), "nil context should not enable ADD-PATH")
+}
+
 // -----------------------------------------------------------------------------
 // Boundary Tests: ExtendedMessage and MaxMessageSize
 // -----------------------------------------------------------------------------

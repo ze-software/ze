@@ -44,7 +44,7 @@ func apiHasNonLoopback(cfg zeconfig.APIConfig) bool {
 
 // startAPIServers creates the shared API engine and starts REST and/or gRPC
 // servers based on the config. Returns nil if neither transport is enabled.
-func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store storage.Storage, configPath string, users []authz.UserConfig) *apiServers {
+func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store storage.Storage, configPath string, users []authz.UserConfig, reloadAfterCommit func() error) *apiServers {
 	engine := buildAPIEngine(server)
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
 		ed, err := cli.NewEditorWithStorage(store, configPath)
@@ -53,6 +53,7 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 		}
 		return ed, nil
 	})
+	sessions.SetCommitHook(reloadAfterCommit)
 	go sessions.RunCleanup(server.Context())
 
 	authenticator := buildUserAuthenticator(users)

@@ -7,7 +7,7 @@ option=timeout:value=30s
 action=open:path=/show/bgp/
 expect=element:id=cli-input
 
-action=fill:id=cli-input:value=set listen 0.0.0.0:1179
+action=fill:id=cli-input:value=set router-id 10.99.99.98
 action=press:key=Enter
 action=wait:ms=1000
 

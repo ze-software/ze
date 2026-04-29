@@ -105,9 +105,9 @@ func TestRenderLayout(t *testing.T) {
 		t.Error("output missing notification-bar class")
 	}
 
-	// CLI bar is not in the layout (dedicated /cli page).
-	if strings.Contains(body, `class="cli-bar"`) {
-		t.Error("layout must not contain cli-bar (moved to CLI page)")
+	// CLI bar remains part of the Finder shell; /cli is the full terminal page.
+	if !strings.Contains(body, `class="cli-bar"`) {
+		t.Error("layout missing cli-bar")
 	}
 
 	// Theme toggle

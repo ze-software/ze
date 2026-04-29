@@ -84,6 +84,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 			data.Username = username
 			data.Insecure = insecure
 			data.Services = PortalServices()
+			data.ActiveUI = uiModeTokenWorkbench
 			pathBar := renderer.RenderFragment("path_bar_inner", data)
 
 			wb := WorkbenchData{
@@ -97,7 +98,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 					Breadcrumbs:    data.Breadcrumbs,
 					Username:       data.Username,
 					Insecure:       insecure,
-					ActiveUI:       "workbench",
+					ActiveUI:       uiModeTokenWorkbench,
 				},
 				Sections: WorkbenchSections(path),
 			}
@@ -129,6 +130,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		data.Insecure = insecure
 		data.Services = PortalServices()
 		data.Monitor = strings.HasPrefix(r.URL.Path, "/monitor/")
+		data.ActiveUI = uiModeTokenWorkbench
 
 		// V2-only enrichment: surface row tool buttons and pending-change
 		// markers. The Finder fragment handler skips this so its output is
@@ -170,7 +172,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 				Breadcrumbs:    data.Breadcrumbs,
 				Username:       data.Username,
 				Insecure:       insecure,
-				ActiveUI:       "workbench",
+				ActiveUI:       uiModeTokenWorkbench,
 			},
 			Sections: WorkbenchSections(path),
 		}

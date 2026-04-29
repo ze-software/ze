@@ -354,6 +354,19 @@ func (d *Dispatcher) IsAuthorized(ctx *CommandContext, input string, readOnly bo
 	return d.isAuthorized(ctx, input, readOnly)
 }
 
+// BeginAccounting records command START and returns a function that records STOP.
+// It is exported for command paths such as streaming handlers that intentionally
+// bypass Dispatch but must still share the same AAA accounting hook.
+func (d *Dispatcher) BeginAccounting(ctx *CommandContext, input string) func() {
+	if d.accountant == nil || ctx == nil || ctx.Username == "" {
+		return func() {}
+	}
+	taskID := d.accountant.CommandStart(ctx.Username, ctx.RemoteAddr, input)
+	return func() {
+		d.accountant.CommandStop(taskID, ctx.Username, ctx.RemoteAddr, input)
+	}
+}
+
 // isAuthorized checks if the user is allowed to execute the command.
 func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, readOnly bool) bool {
 	if d.authorizer == nil {
@@ -464,10 +477,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 
 	// Accounting: record command start/stop (AC-8).
 	// Accounting failures never block command execution.
-	if d.accountant != nil && ctx != nil && ctx.Username != "" {
-		taskID := d.accountant.CommandStart(ctx.Username, ctx.RemoteAddr, input)
-		defer d.accountant.CommandStop(taskID, ctx.Username, ctx.RemoteAddr, input)
-	}
+	defer d.BeginAccounting(ctx, input)()
 
 	return matchedCmd.Handler(ctx, args)
 }

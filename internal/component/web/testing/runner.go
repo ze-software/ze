@@ -34,7 +34,7 @@ func NewBrowser(baseURL string) *Browser {
 // Open navigates to baseURL + path.
 func (b *Browser) Open(path string) error {
 	url := b.baseURL + path
-	if err := runAgent("open", url, "--ignore-https-errors"); err != nil {
+	if err := runAgentWithHTTPSIgnore("open", url); err != nil {
 		return fmt.Errorf("open %s: %w", url, err)
 	}
 	return b.WaitLoad()
@@ -58,6 +58,11 @@ func (b *Browser) WaitMs(ms string) error {
 // Snapshot returns the interactive accessibility snapshot.
 func (b *Browser) Snapshot() (string, error) {
 	return runAgentOutput("snapshot", "-i")
+}
+
+// FullSnapshot returns the full accessibility snapshot, including static text.
+func (b *Browser) FullSnapshot() (string, error) {
+	return runAgentOutput("snapshot")
 }
 
 // Press sends a key press (e.g., "Enter", "Tab", "Escape").
@@ -136,7 +141,7 @@ func (b *Browser) Fill(text, value string) error {
 
 	ref := findRefByText(snap, text)
 	if ref == "" {
-		return fmt.Errorf("no input with text containing %q", text)
+		return fmt.Errorf("no input with text containing %q in snapshot:\n%s", text, snap)
 	}
 
 	return runAgent("fill", ref, value)
@@ -174,12 +179,17 @@ func (b *Browser) Screenshot(path string) error {
 
 // GetText returns the full page text.
 func (b *Browser) GetText() (string, error) {
-	return runAgentOutput("get", "text")
+	return runAgentOutput("get", "text", "body")
+}
+
+// GetHTML returns the full page HTML.
+func (b *Browser) GetHTML() (string, error) {
+	return runAgentOutput("get", "html", "body")
 }
 
 // Close closes the browser.
 func (b *Browser) Close() {
-	_ = runAgent("close")
+	_ = runAgentWithHTTPSIgnore("close", "--all")
 }
 
 // findRefByText searches the snapshot output for a line containing the text
@@ -207,9 +217,23 @@ var agentTimeout = 30 * time.Second
 
 // runAgent executes agent-browser with the given arguments.
 func runAgent(args ...string) error {
+	return runAgentWithEnv(nil, args...)
+}
+
+// runAgentWithHTTPSIgnore executes agent-browser with the HTTPS-ignore global
+// flag. Use it only for session cleanup/startup; agent-browser warns if the
+// flag is repeated once the daemon is already running.
+func runAgentWithHTTPSIgnore(args ...string) error {
+	return runAgentWithEnv([]string{"--ignore-https-errors"}, args...)
+}
+
+func runAgentWithEnv(globalArgs []string, args ...string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), agentTimeout)
 	defer cancel()
 
+	if len(globalArgs) > 0 {
+		args = append(append([]string{}, globalArgs...), args...)
+	}
 	cmd := exec.CommandContext(ctx, agentBrowserBin, args...) //nolint:gosec // args are test-controlled, not user input
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -250,7 +274,7 @@ func RunWBFile(path, baseURL string) *WBTestResult {
 
 func runWBTestCase(tc *WBTestCase, baseURL string) *WBTestResult {
 	// Each test gets a fresh browser session.
-	_ = runAgent("close")
+	_ = runAgentWithHTTPSIgnore("close", "--all")
 
 	browser := NewBrowser(baseURL)
 

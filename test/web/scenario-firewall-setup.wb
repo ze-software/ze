@@ -17,7 +17,9 @@ action=wait:ms=2000
 expect=element:text=filter
 
 # Set the table family via CLI
-action=fill:id=cli-input:value=set family inet
+action=open:path=/show/
+action=wait:ms=1000
+action=fill:id=cli-input:value=set firewall table filter family inet
 action=press:key=Enter
 action=wait:ms=1000
 
@@ -32,16 +34,18 @@ action=wait:ms=2000
 expect=element:text=input
 
 # Set chain properties via CLI
-action=fill:id=cli-input:value=set type filter
+action=open:path=/show/
+action=wait:ms=1000
+action=fill:id=cli-input:value=set firewall table filter chain input type filter
 action=press:key=Enter
 action=wait:ms=500
-action=fill:id=cli-input:value=set hook input
+action=fill:id=cli-input:value=set firewall table filter chain input hook input
 action=press:key=Enter
 action=wait:ms=500
-action=fill:id=cli-input:value=set priority 0
+action=fill:id=cli-input:value=set firewall table filter chain input priority 0
 action=press:key=Enter
 action=wait:ms=500
-action=fill:id=cli-input:value=set policy drop
+action=fill:id=cli-input:value=set firewall table filter chain input policy drop
 action=press:key=Enter
 action=wait:ms=1000
 
@@ -56,10 +60,12 @@ action=wait:ms=2000
 expect=element:text=allow-bgp
 
 # Set match criteria on the term via CLI
-action=fill:id=cli-input:value=set from protocol tcp
+action=open:path=/show/
+action=wait:ms=1000
+action=fill:id=cli-input:value=set firewall table filter chain input term allow-bgp from protocol tcp
 action=press:key=Enter
 action=wait:ms=500
-action=fill:id=cli-input:value=set from destination-port 179
+action=fill:id=cli-input:value=set firewall table filter chain input term allow-bgp from destination-port 179
 action=press:key=Enter
 action=wait:ms=1000
 

@@ -661,7 +661,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			return 1
 		}
 
-		apiSrvs = startAPIServers(apiCfg, apiServer, store, configPath, apiUsers)
+		reloadAfterCommit := func() error {
+			return doReload(apiServer, eng, configProvider, loadConfigFromDisk)
+		}
+		apiSrvs = startAPIServers(apiCfg, apiServer, store, configPath, apiUsers, reloadAfterCommit)
 	}
 
 	// Signal handling: SIGINT/SIGTERM for shutdown, SIGHUP for config reload.
@@ -1117,7 +1120,7 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	// SSE broker for live config change notifications and log streaming.
 	broker := zeweb.NewEventBroker(0)
 
-	// Both UIs are always available. The ze.web.ui env var (default: workbench)
+	// Both UIs are always available. The ze.web.ui env var (default: finder)
 	// controls which one /show/ renders when no ze-ui cookie is set. Users
 	// switch at runtime via the Finder/Workbench links in the topbar.
 	uiMode := zeweb.GetUIMode()

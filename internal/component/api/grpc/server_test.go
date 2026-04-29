@@ -350,6 +350,48 @@ func TestGRPCTLSInvalidCert(t *testing.T) {
 	assert.Contains(t, err.Error(), "load TLS")
 }
 
+// TestNewGRPCServer_RejectsNonLoopbackAuthenticatedPlaintext verifies remote
+// authenticated gRPC listeners require TLS.
+//
+// VALIDATES: Non-loopback authenticated gRPC listeners require tls-cert/tls-key.
+// PREVENTS: Management credentials crossing the network in cleartext.
+func TestNewGRPCServer_RejectsNonLoopbackAuthenticatedPlaintext(t *testing.T) {
+	engine := testEngine()
+
+	tests := []struct {
+		name string
+		cfg  GRPCConfig
+		want string
+	}{
+		{
+			name: "no_auth",
+			cfg:  GRPCConfig{ListenAddrs: []string{"0.0.0.0:50051"}},
+			want: "requires authentication",
+		},
+		{
+			name: "token",
+			cfg:  GRPCConfig{ListenAddrs: []string{"0.0.0.0:50051"}, Token: "secret"},
+			want: "requires TLS",
+		},
+		{
+			name: "per_user_auth",
+			cfg: GRPCConfig{
+				ListenAddrs:   []string{"0.0.0.0:50051"},
+				Authenticator: func(string) (string, bool) { return "alice", true },
+			},
+			want: "requires TLS",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewGRPCServer(tt.cfg, engine, nil)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.want)
+		})
+	}
+}
+
 // VALIDATES: per-user authenticator passes username to engine.
 // PREVENTS: all gRPC requests authenticated as "api" default.
 func TestGRPCAuthenticator(t *testing.T) {

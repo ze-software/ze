@@ -326,6 +326,34 @@ func TestRESTSwaggerJS(t *testing.T) {
 	assert.NotEmpty(t, r.Body)
 }
 
+// TestRESTDocsRequireAuthWhenConfigured verifies documentation endpoints follow
+// the same auth policy as command and config APIs.
+//
+// VALIDATES: OpenAPI and Swagger UI are not public when REST auth is configured.
+// PREVENTS: Authenticated API surface being enumerated without credentials.
+func TestRESTDocsRequireAuthWhenConfigured(t *testing.T) {
+	engine := testEngine()
+	openAPI, _ := api.OpenAPISchema(nil)
+	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Token: "secret"}, engine, nil, func() []byte { return openAPI })
+	require.NoError(t, err)
+
+	paths := []string{
+		"/api/v1/openapi.json",
+		"/api/v1/docs",
+		"/api/v1/docs/swagger-ui.css",
+		"/api/v1/docs/swagger-ui-bundle.js",
+	}
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			unauthorized := do(t, srv, "GET", path, "")
+			assert.Equal(t, http.StatusUnauthorized, unauthorized.Status)
+
+			authorized := doWithHeader(t, srv, "GET", path, "", map[string]string{"Authorization": "Bearer secret"})
+			assert.Equal(t, http.StatusOK, authorized.Status)
+		})
+	}
+}
+
 // VALIDATES: AC-8 -- SSE stream delivers events.
 // PREVENTS: streaming broken.
 func TestRESTStreamSSE(t *testing.T) {
@@ -501,6 +529,45 @@ func TestNewRESTServer_RequiresListenAddrs(t *testing.T) {
 	_, err = NewRESTServer(RESTConfig{ListenAddrs: []string{""}}, engine, nil, func() []byte { return openAPI })
 	assert.Error(t, err, "empty string entry must be rejected")
 	assert.Contains(t, err.Error(), "must not be empty")
+}
+
+// TestNewRESTServer_RejectsNonLoopback verifies REST rejects all non-loopback
+// listen addresses regardless of auth config, since REST has no TLS transport.
+//
+// VALIDATES: Non-loopback REST listeners are unconditionally rejected.
+// PREVENTS: Management traffic crossing the network in cleartext.
+func TestNewRESTServer_RejectsNonLoopback(t *testing.T) {
+	engine := testEngine()
+	openAPI, _ := api.OpenAPISchema(nil)
+
+	tests := []struct {
+		name string
+		cfg  RESTConfig
+	}{
+		{
+			name: "no_auth",
+			cfg:  RESTConfig{ListenAddrs: []string{"0.0.0.0:8081"}},
+		},
+		{
+			name: "token",
+			cfg:  RESTConfig{ListenAddrs: []string{"0.0.0.0:8081"}, Token: "secret"},
+		},
+		{
+			name: "per_user_auth",
+			cfg: RESTConfig{
+				ListenAddrs:   []string{"0.0.0.0:8081"},
+				Authenticator: func(string) (string, bool) { return "alice", true },
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewRESTServer(tt.cfg, engine, nil, func() []byte { return openAPI })
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "must be loopback")
+		})
+	}
 }
 
 // TestRESTServer_MultiListener verifies ListenAndServe binds every entry in

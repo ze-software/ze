@@ -62,7 +62,9 @@ type StreamingExecutor func(ctx context.Context, w io.Writer, args []string) err
 
 // StreamingExecutorFactory creates a StreamingExecutor.
 // Called when execMiddleware detects a streaming command (e.g., "bgp monitor").
-type StreamingExecutorFactory func(username string) StreamingExecutor
+// The username and remoteAddr are passed through so streaming commands share
+// the same authorization/accounting context as normal commands.
+type StreamingExecutorFactory func(username, remoteAddr string) StreamingExecutor
 
 // PluginProtocolFunc handles a "plugin protocol" SSH session by running
 // the 5-stage plugin handshake and runtime command loop over the SSH channel.
@@ -290,6 +292,18 @@ func (s *Server) ExecutorForUser(username, remoteAddr string) CommandExecutor {
 		if s.config.Executor != nil {
 			return s.config.Executor
 		}
+		return nil
+	}
+	return factory(username, remoteAddr)
+}
+
+// StreamingExecutorForUser returns a StreamingExecutor for the given username.
+// Returns nil if no streaming executor factory is set.
+func (s *Server) StreamingExecutorForUser(username, remoteAddr string) StreamingExecutor {
+	s.mu.Lock()
+	factory := s.streamingExecutorFactory
+	s.mu.Unlock()
+	if factory == nil {
 		return nil
 	}
 	return factory(username, remoteAddr)
@@ -617,7 +631,7 @@ func (s *Server) execMiddleware() wish.Middleware {
 			// Check for streaming commands (e.g., "monitor event ...").
 			// Pass the full input to the executor; the executor does handler lookup.
 			if streamFactory != nil && pluginserver.IsStreamingCommand(input) {
-				streamExec := streamFactory(sess.User())
+				streamExec := streamFactory(sess.User(), sess.RemoteAddr().String())
 				if err := streamExec(sess.Context(), sess, []string{input}); err != nil {
 					fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
 					sess.Exit(1)                                   //nolint:errcheck // best-effort

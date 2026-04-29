@@ -90,6 +90,52 @@ func TestEngineConfigSession(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// TestConfigSessionCommitHook verifies API commits apply the saved config to
+// runtime before reporting success.
+//
+// VALIDATES: Commit calls the configured runtime apply hook after saving.
+// PREVENTS: REST/gRPC config commit returning success for file-only writes.
+func TestConfigSessionCommitHook(t *testing.T) {
+	mgr := NewConfigSessionManager(fakeEditorFactory())
+	called := false
+	mgr.SetCommitHook(func() error {
+		called = true
+		return nil
+	})
+
+	id, err := mgr.Enter("admin")
+	require.NoError(t, err)
+	require.NoError(t, mgr.Set("admin", id, "bgp.router-id", "10.0.0.1"))
+
+	require.NoError(t, mgr.Commit("admin", id))
+	assert.True(t, called, "commit hook should be called")
+
+	_, err = mgr.Diff("admin", id)
+	assert.Error(t, err, "session should be removed after successful hook")
+}
+
+// TestConfigSessionCommitHookFailureKeepsSession verifies runtime apply errors
+// are visible to the client and leave the session available for retry.
+//
+// VALIDATES: Commit returns hook errors and does not delete the session.
+// PREVENTS: Failed runtime apply being hidden behind a successful commit response.
+func TestConfigSessionCommitHookFailureKeepsSession(t *testing.T) {
+	mgr := NewConfigSessionManager(fakeEditorFactory())
+	mgr.SetCommitHook(func() error { return fmt.Errorf("reload failed") })
+
+	id, err := mgr.Enter("admin")
+	require.NoError(t, err)
+	require.NoError(t, mgr.Set("admin", id, "bgp.router-id", "10.0.0.1"))
+
+	err = mgr.Commit("admin", id)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "runtime reload failed")
+	assert.Contains(t, err.Error(), "reload failed")
+
+	_, err = mgr.Diff("admin", id)
+	assert.NoError(t, err, "session should remain after failed hook")
+}
+
 // VALIDATES: AC-5 -- ConfigDiscard throws away changes.
 // PREVENTS: discard leaving stale session state.
 func TestEngineConfigDiscard(t *testing.T) {

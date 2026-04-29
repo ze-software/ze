@@ -8,18 +8,18 @@ action=open:path=/show/bgp/peer/
 action=wait:ms=1000
 
 # Create first peer (ISP transit)
-action=fill:id=cli-input:value=set bgp peer multi-isp connection remote ip 198.51.100.1
+action=fill:id=cli-input:value=set peer multi-isp connection remote ip 198.51.100.1
 action=press:key=Enter
 action=wait:ms=1000
-action=fill:id=cli-input:value=set bgp peer multi-isp session asn remote 64496
+action=fill:id=cli-input:value=set peer multi-isp session asn remote 64496
 action=press:key=Enter
 action=wait:ms=1000
 
 # Create second peer (customer)
-action=fill:id=cli-input:value=set bgp peer multi-cust connection remote ip 172.16.1.2
+action=fill:id=cli-input:value=set peer multi-cust connection remote ip 172.16.1.2
 action=press:key=Enter
 action=wait:ms=1000
-action=fill:id=cli-input:value=set bgp peer multi-cust session asn remote 65100
+action=fill:id=cli-input:value=set peer multi-cust session asn remote 65100
 action=press:key=Enter
 action=wait:ms=1000
 

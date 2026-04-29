@@ -31,6 +31,9 @@ type ConfigEditor interface {
 // ConfigEditorFactory creates a new ConfigEditor for a session.
 type ConfigEditorFactory func() (ConfigEditor, error)
 
+// ConfigCommitHook applies a saved config to the running daemon.
+type ConfigCommitHook func() error
+
 // ConfigSession tracks a single config editing session.
 type ConfigSession struct {
 	ID           string
@@ -52,6 +55,7 @@ type ConfigSessionManager struct {
 	mu       sync.RWMutex
 	sessions map[string]*ConfigSession
 	factory  ConfigEditorFactory
+	onCommit ConfigCommitHook
 	timeout  time.Duration
 }
 
@@ -62,6 +66,15 @@ func NewConfigSessionManager(factory ConfigEditorFactory) *ConfigSessionManager 
 		factory:  factory,
 		timeout:  DefaultSessionTimeout,
 	}
+}
+
+// SetCommitHook sets the hook called after a session save succeeds and before
+// the session is removed. A hook error is returned to the client so API commits
+// do not report success while runtime state remains unchanged.
+func (m *ConfigSessionManager) SetCommitHook(hook ConfigCommitHook) {
+	m.mu.Lock()
+	m.onCommit = hook
+	m.mu.Unlock()
 }
 
 // CleanExpired discards sessions idle beyond the configured timeout.
@@ -166,6 +179,14 @@ func (m *ConfigSessionManager) Commit(username, sessionID string) error {
 	}
 	if saveErr := session.Editor.Save(); saveErr != nil {
 		return fmt.Errorf("commit: %w", saveErr)
+	}
+	m.mu.RLock()
+	onCommit := m.onCommit
+	m.mu.RUnlock()
+	if onCommit != nil {
+		if hookErr := onCommit(); hookErr != nil {
+			return fmt.Errorf("commit saved to disk but runtime reload failed (config file may diverge from running state): %w", hookErr)
+		}
 	}
 	m.mu.Lock()
 	delete(m.sessions, sessionID)

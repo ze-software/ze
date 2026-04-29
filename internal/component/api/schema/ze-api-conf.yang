@@ -26,7 +26,8 @@ module ze-api-conf {
             }
 
             container rest {
-                description "REST/HTTP API transport";
+                description "REST/HTTP API transport. Plain HTTP listeners are restricted
+                             to loopback; expose remotely through a TLS terminator.";
 
                 leaf enabled {
                     type boolean;
@@ -61,7 +62,8 @@ module ze-api-conf {
             }
 
             container grpc {
-                description "gRPC API transport";
+                description "gRPC API transport. Authenticated non-loopback listeners
+                             require tls-cert and tls-key.";
 
                 leaf enabled {
                     type boolean;

@@ -110,7 +110,7 @@ func HandleAdminView(renderer *Renderer, children map[string][]string) http.Hand
 			Content:     content,
 			HasSession:  true,
 			Breadcrumbs: fragData.Breadcrumbs,
-			ActiveUI:    "finder",
+			ActiveUI:    uiModeTokenFinder,
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {
@@ -205,6 +205,7 @@ func buildAdminFragmentData(path []string, children map[string][]string) *Fragme
 		CLIContextPath:  "",
 		CLIPathSegments: nil,
 		Services:        PortalServices(),
+		ActiveUI:        uiModeTokenFinder,
 	}
 
 	// Leaf command: show form in detail panel.

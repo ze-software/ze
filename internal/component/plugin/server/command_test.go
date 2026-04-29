@@ -1172,12 +1172,16 @@ func TestDispatchEmbeddedNoSelector(t *testing.T) {
 
 // fakeAccountant records accounting calls for testing.
 type fakeAccountant struct {
-	starts []string // commands that triggered START
-	stops  []string // commands that triggered STOP
+	starts       []string // commands that triggered START
+	stops        []string // commands that triggered STOP
+	startUsers   []string
+	startRemotes []string
 }
 
-func (f *fakeAccountant) CommandStart(_, _, command string) string {
+func (f *fakeAccountant) CommandStart(username, remoteAddr, command string) string {
 	f.starts = append(f.starts, command)
+	f.startUsers = append(f.startUsers, username)
+	f.startRemotes = append(f.startRemotes, remoteAddr)
 	return "task-1"
 }
 
@@ -1246,4 +1250,25 @@ func TestDispatcherAccountingNilHook(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
+}
+
+// TestDispatcherBeginAccounting verifies non-Dispatch command paths can share
+// the same accounting hook as normal command dispatch.
+//
+// VALIDATES: streaming handlers can emit AAA START/STOP records.
+// PREVENTS: SSH streaming commands bypassing TACACS+ accounting.
+func TestDispatcherBeginAccounting(t *testing.T) {
+	d := NewDispatcher()
+	acct := &fakeAccountant{}
+	d.SetAccountingHook(acct)
+
+	ctx := &CommandContext{Username: "admin", RemoteAddr: "10.0.0.1:12345"}
+	stop := d.BeginAccounting(ctx, "monitor event")
+	assert.Equal(t, []string{"monitor event"}, acct.starts)
+	assert.Equal(t, []string{"admin"}, acct.startUsers)
+	assert.Equal(t, []string{"10.0.0.1:12345"}, acct.startRemotes)
+	assert.Empty(t, acct.stops)
+
+	stop()
+	assert.Equal(t, []string{"monitor event"}, acct.stops)
 }

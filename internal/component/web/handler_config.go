@@ -803,7 +803,7 @@ func handleCommitGet(w http.ResponseWriter, mgr *EditorManager, renderer *Render
 
 	layoutData := LayoutData{
 		Title:    "Commit Changes",
-		ActiveUI: "finder",
+		ActiveUI: uiModeTokenFinder,
 	}
 
 	if diff != "" {
@@ -835,7 +835,7 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 		layoutData := LayoutData{
 			Title:            "Commit Conflicts",
 			NotificationHTML: template.HTML("<pre>" + template.HTMLEscapeString(msg.String()) + "</pre>"), //nolint:gosec // escaped
-			ActiveUI:         "finder",
+			ActiveUI:         uiModeTokenFinder,
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {
@@ -1014,7 +1014,7 @@ func HandleConfigView(renderer *Renderer, schema *config.Schema, tree *config.Tr
 			Breadcrumbs: viewData.Breadcrumbs,
 			HasSession:  true,
 			CLIPrompt:   "/" + strings.Join(path, "/") + ">",
-			ActiveUI:    "finder",
+			ActiveUI:    uiModeTokenFinder,
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {

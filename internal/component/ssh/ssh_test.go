@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"context"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -386,6 +387,41 @@ func TestSSHExecCommandPropagatesRemoteAddr(t *testing.T) {
 	assert.Equal(t, "alice", gotUser)
 	assert.Equal(t, "203.0.113.5:2222", gotRemoteAddr)
 	assert.Equal(t, "show version", gotCommand)
+}
+
+// VALIDATES: SSH streaming commands keep the session remote address when building the executor.
+// PREVENTS: streaming accounting/authorization seeing an empty client address.
+func TestSSHStreamingCommandPropagatesRemoteAddr(t *testing.T) {
+	cfg := Config{
+		HostKeyPath: t.TempDir() + "/test_host_key",
+	}
+
+	srv, err := NewServer(cfg)
+	require.NoError(t, err)
+
+	var (
+		gotUser       string
+		gotRemoteAddr string
+		gotArgs       []string
+	)
+
+	srv.SetStreamingExecutorFactory(func(username, remoteAddr string) StreamingExecutor {
+		gotUser = username
+		gotRemoteAddr = remoteAddr
+		return func(_ context.Context, _ io.Writer, args []string) error {
+			gotArgs = args
+			return nil
+		}
+	})
+
+	exec := srv.StreamingExecutorForUser("alice", "203.0.113.5:2222")
+	require.NotNil(t, exec)
+
+	err = exec(context.Background(), io.Discard, []string{"monitor event"})
+	require.NoError(t, err)
+	assert.Equal(t, "alice", gotUser)
+	assert.Equal(t, "203.0.113.5:2222", gotRemoteAddr)
+	assert.Equal(t, []string{"monitor event"}, gotArgs)
 }
 
 // VALIDATES: interactive SSH sessions preserve remote address into the injected session factory.

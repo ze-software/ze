@@ -226,6 +226,33 @@ func TestSplitWireUpdate_AddPath(t *testing.T) {
 	}
 }
 
+// TestSplitWireUpdate_NilContextNoAddPath verifies nil context uses default encoding.
+//
+// VALIDATES: nil srcCtx means no ADD-PATH and does not panic while splitting.
+// PREVENTS: Panic when context registry lookup misses during forwarding.
+func TestSplitWireUpdate_NilContextNoAddPath(t *testing.T) {
+	var nlriData []byte
+	for i := range 100 {
+		nlriData = append(nlriData, 0x18, 0xC0, 0xA8, byte(i))
+	}
+	attrs := []byte{0x40, 0x01, 0x01, 0x00}
+	payload := buildTestUpdatePayload(nil, attrs, nlriData)
+
+	wu := NewWireUpdate(payload, 0)
+
+	chunks, err := SplitWireUpdate(wu, 50, nil)
+	require.NoError(t, err)
+	require.Greater(t, len(chunks), 1, "should split without a context")
+
+	totalNLRI := make([]byte, 0, len(nlriData))
+	for _, chunk := range chunks {
+		nlri, err := chunk.NLRI()
+		require.NoError(t, err)
+		totalNLRI = append(totalNLRI, nlri...)
+	}
+	assert.Equal(t, nlriData, totalNLRI, "all NLRIs should be preserved")
+}
+
 // TestSplitWireUpdate_SourceCtxIDPreserved verifies context ID preservation.
 //
 // VALIDATES: All split chunks preserve source context ID.

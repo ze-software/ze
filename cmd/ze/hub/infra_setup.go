@@ -210,16 +210,29 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 						return params.FormatResponseData(resp.Data), nil
 					}
 				})
-				sshSrv.SetStreamingExecutorFactory(func(username string) zessh.StreamingExecutor {
+				sshSrv.SetStreamingExecutorFactory(func(username, remoteAddr string) zessh.StreamingExecutor {
 					return func(ctx context.Context, w io.Writer, args []string) error {
 						if len(args) == 0 {
 							return fmt.Errorf("no command provided")
 						}
 						input := args[0]
+						cmdCtx := &pluginserver.CommandContext{
+							Server:     apiServer,
+							Username:   username,
+							RemoteAddr: remoteAddr,
+						}
+						// Streaming commands are currently monitor-style read-only commands.
+						// They still must pass through the same AAA authorizer/accountant as
+						// normal SSH commands; future write-capable streaming commands need
+						// explicit registry metadata instead of this read-only default.
+						if !d.IsAuthorized(cmdCtx, input, true) {
+							return pluginserver.ErrUnauthorized
+						}
 						handler, handlerArgs := pluginserver.GetStreamingHandlerForCommand(input)
 						if handler == nil {
 							return fmt.Errorf("unknown streaming command: %q", input)
 						}
+						defer d.BeginAccounting(cmdCtx, input)()
 						return handler(ctx, apiServer, w, username, handlerArgs)
 					}
 				})

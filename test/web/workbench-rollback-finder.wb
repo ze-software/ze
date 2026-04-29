@@ -10,4 +10,4 @@ option=timeout:value=30s
 
 action=open:path=/show/
 expect=element:not-text=panic
-expect=element:not-text=workbench
+expect=element:not-id=workbench-shell

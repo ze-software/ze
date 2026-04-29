@@ -29,23 +29,43 @@ func checkElement(b *Browser, e *WBExpectation) error {
 		return fmt.Errorf("snapshot: %w", err)
 	}
 
-	snapLower := strings.ToLower(snap)
-
 	if id, ok := e.Values["id"]; ok {
-		if !strings.Contains(snap, "id=\""+id+"\"") && !strings.Contains(snapLower, id) {
-			return fmt.Errorf("expected element with id %q not found in snapshot:\n%s", id, snap)
+		html, htmlErr := b.GetHTML()
+		if htmlErr != nil {
+			return fmt.Errorf("html: %w", htmlErr)
+		}
+		if !strings.Contains(html, "id=\""+id+"\"") && !strings.Contains(html, "id='"+id+"'") {
+			return fmt.Errorf("expected element with id %q not found in DOM; snapshot:\n%s", id, snap)
+		}
+	}
+
+	if id, ok := e.Values["not-id"]; ok {
+		html, htmlErr := b.GetHTML()
+		if htmlErr != nil {
+			return fmt.Errorf("html: %w", htmlErr)
+		}
+		if strings.Contains(html, "id=\""+id+"\"") || strings.Contains(html, "id='"+id+"'") {
+			return fmt.Errorf("unexpected element with id %q found", id)
 		}
 	}
 
 	if text, ok := e.Values["text"]; ok {
-		if !strings.Contains(snapLower, strings.ToLower(text)) {
-			return fmt.Errorf("expected element with text %q not found in snapshot:\n%s", text, snap)
+		fullSnap, textErr := b.FullSnapshot()
+		if textErr != nil {
+			return fmt.Errorf("full snapshot: %w", textErr)
+		}
+		if !strings.Contains(strings.ToLower(fullSnap), strings.ToLower(text)) {
+			return fmt.Errorf("expected element with text %q not found in snapshot:\n%s", text, fullSnap)
 		}
 	}
 
 	if text, ok := e.Values["not-text"]; ok {
-		if strings.Contains(snapLower, strings.ToLower(text)) {
-			return fmt.Errorf("unexpected element with text %q found in snapshot", text)
+		fullSnap, textErr := b.FullSnapshot()
+		if textErr != nil {
+			return fmt.Errorf("full snapshot: %w", textErr)
+		}
+		if strings.Contains(strings.ToLower(fullSnap), strings.ToLower(text)) {
+			return fmt.Errorf("unexpected element with text %q found in snapshot:\n%s", text, fullSnap)
 		}
 	}
 
@@ -98,9 +118,9 @@ func checkURL(b *Browser, e *WBExpectation) error {
 }
 
 func checkTitle(b *Browser, e *WBExpectation) error {
-	text, err := b.GetText()
+	text, err := b.FullSnapshot()
 	if err != nil {
-		return fmt.Errorf("get text: %w", err)
+		return fmt.Errorf("full snapshot: %w", err)
 	}
 
 	if sub, ok := e.Values["contains"]; ok {

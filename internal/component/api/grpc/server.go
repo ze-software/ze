@@ -84,18 +84,19 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		return nil, errors.New("listen address must not be empty")
 	}
 
-	if cfg.Token == "" && cfg.Authenticator == nil {
-		for _, addr := range cfg.ListenAddrs {
-			host, _, err := net.SplitHostPort(addr)
-			if err != nil {
-				host = addr
+	hasTLS := cfg.TLSCert != "" && cfg.TLSKey != ""
+	hasPartialTLS := (cfg.TLSCert != "") != (cfg.TLSKey != "")
+	if hasPartialTLS {
+		return nil, errors.New("both TLSCert and TLSKey must be set together")
+	}
+
+	for _, addr := range cfg.ListenAddrs {
+		if !api.IsLoopbackAddr(addr) {
+			if cfg.Token == "" && cfg.Authenticator == nil {
+				return nil, fmt.Errorf("non-loopback gRPC listen address %q requires authentication (set token or users)", addr)
 			}
-			ip := net.ParseIP(host)
-			if ip != nil && !ip.IsLoopback() {
-				return nil, fmt.Errorf("non-loopback listen address %q requires authentication (set token or users)", addr)
-			}
-			if ip == nil && host != "localhost" {
-				return nil, fmt.Errorf("non-loopback listen address %q requires authentication (set token or users)", addr)
+			if !hasTLS {
+				return nil, fmt.Errorf("non-loopback gRPC listen address %q with authentication requires TLS (set tls-cert and tls-key)", addr)
 			}
 		}
 	}
@@ -114,7 +115,7 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 	}
 
 	// Load TLS credentials if both cert and key are configured.
-	if cfg.TLSCert != "" && cfg.TLSKey != "" {
+	if hasTLS {
 		cert, err := tls.LoadX509KeyPair(cfg.TLSCert, cfg.TLSKey)
 		if err != nil {
 			return nil, fmt.Errorf("load TLS cert/key: %w", err)
@@ -124,8 +125,6 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 			MinVersion:   tls.VersionTLS12,
 		})
 		opts = append(opts, grpc.Creds(creds))
-	} else if cfg.TLSCert != "" || cfg.TLSKey != "" {
-		return nil, errors.New("both TLSCert and TLSKey must be set together")
 	}
 
 	s.srv = grpc.NewServer(opts...)

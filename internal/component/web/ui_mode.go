@@ -21,27 +21,32 @@ const (
 	UIModeWorkbench
 )
 
-// uiModeCookie is the cookie name used to persist the user's UI preference.
-const uiModeCookie = "ze-ui"
+const (
+	// uiModeCookie is the cookie name used to persist the user's UI preference.
+	uiModeCookie = "ze-ui"
+
+	uiModeTokenFinder    = "finder"
+	uiModeTokenWorkbench = "workbench"
+)
 
 // String returns the canonical token for the mode.
 func (m UIMode) String() string {
 	switch m {
 	case UIModeFinder:
-		return "finder"
+		return uiModeTokenFinder
 	default:
-		return "workbench"
+		return uiModeTokenWorkbench
 	}
 }
 
 // ParseUIMode converts a token to a UIMode. Unknown or empty values
-// fall back to workbench (the default UI).
+// fall back to Finder, the stable UI during the workbench experiment.
 func ParseUIMode(s string) UIMode {
 	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "finder":
-		return UIModeFinder
-	default:
+	case uiModeTokenWorkbench:
 		return UIModeWorkbench
+	default:
+		return UIModeFinder
 	}
 }
 

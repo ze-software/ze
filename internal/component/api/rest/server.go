@@ -96,19 +96,9 @@ func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		return nil, errors.New("listen address must not be empty")
 	}
 
-	if cfg.Token == "" && cfg.Authenticator == nil {
-		for _, addr := range cfg.ListenAddrs {
-			host, _, err := net.SplitHostPort(addr)
-			if err != nil {
-				host = addr
-			}
-			ip := net.ParseIP(host)
-			if ip != nil && !ip.IsLoopback() {
-				return nil, fmt.Errorf("non-loopback listen address %q requires authentication (set token or users)", addr)
-			}
-			if ip == nil && host != "localhost" {
-				return nil, fmt.Errorf("non-loopback listen address %q requires authentication (set token or users)", addr)
-			}
+	for _, addr := range cfg.ListenAddrs {
+		if !api.IsLoopbackAddr(addr) {
+			return nil, fmt.Errorf("REST listen address %q must be loopback; REST has no TLS transport, use 127.0.0.1/::1 or terminate TLS upstream", addr)
 		}
 	}
 
@@ -251,11 +241,11 @@ func (s *RESTServer) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/config/sessions/", s.withAuth(s.handleConfigDiff))
 	mux.HandleFunc("POST /api/v1/config/sessions/", s.withAuth(s.handleConfigCommit))
 
-	// Documentation (no auth required).
-	mux.HandleFunc("GET /api/v1/openapi.json", s.handleOpenAPI)
-	mux.HandleFunc("GET /api/v1/docs", s.handleDocs)
-	mux.HandleFunc("GET /api/v1/docs/swagger-ui.css", s.handleSwaggerCSS)
-	mux.HandleFunc("GET /api/v1/docs/swagger-ui-bundle.js", s.handleSwaggerJS)
+	// Documentation follows the same auth policy as the API it describes.
+	mux.HandleFunc("GET /api/v1/openapi.json", s.withAuth(s.handleOpenAPI))
+	mux.HandleFunc("GET /api/v1/docs", s.withAuth(s.handleDocs))
+	mux.HandleFunc("GET /api/v1/docs/swagger-ui.css", s.withAuth(s.handleSwaggerCSS))
+	mux.HandleFunc("GET /api/v1/docs/swagger-ui-bundle.js", s.withAuth(s.handleSwaggerJS))
 
 	// CORS preflight (no auth required).
 	mux.HandleFunc("OPTIONS /api/", s.handlePreflight)

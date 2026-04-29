@@ -5,6 +5,23 @@
 
 package api
 
+import "net"
+
+// IsLoopbackAddr returns true if the host portion of addr resolves to a
+// loopback address or is literally "localhost". Used by REST and gRPC
+// transports to enforce loopback-only policies for plaintext listeners.
+func IsLoopbackAddr(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr
+	}
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 // CommandMeta describes a registered command for API consumers.
 type CommandMeta struct {
 	Name        string      // Dispatch path, e.g. "bgp rib status"

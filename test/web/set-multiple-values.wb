@@ -5,12 +5,14 @@
 option=timeout:value=30s
 
 action=open:path=/show/bgp/
-action=fill:text=BGP Router ID:value=10.0.0.9
-action=wait:ms=2000
+action=fill:id=cli-input:value=set router-id 10.0.0.9
+action=press:key=Enter
+action=wait:ms=1000
 
 action=open:path=/show/environment/daemon/
-action=fill:text=PID file path:value=/var/run/ze.pid
-action=wait:ms=2000
+action=fill:id=cli-input:value=set pid /var/run/ze.pid
+action=press:key=Enter
+action=wait:ms=1000
 
 action=open:path=/show/bgp/
 expect=element:text=10.0.0.9

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
@@ -49,15 +51,9 @@ func TestE2E_FragmentHandlerRendersHTMX(t *testing.T) {
 
 	result := renderer.RenderFragment("oob_response", data)
 	t.Logf("oob_response result length: %d", len(result))
-	if len(result) == 0 {
-		// Try rendering sub-templates individually to find the error
-		r1 := renderer.RenderFragment("detail", data)
-		t.Logf("detail alone: %d bytes", len(r1))
-		r2 := renderer.RenderFragment("sidebar", data)
-		t.Logf("sidebar alone: %d bytes", len(r2))
-		r3 := renderer.RenderFragment("breadcrumb_inner", data)
-		t.Logf("breadcrumb_inner alone: %d bytes (THIS is likely the problem)", len(r3))
-	}
+	require.NotEmpty(t, result, "oob_response must render for HTMX navigation")
+	require.Contains(t, string(result), "group")
+	require.Contains(t, string(result), "peer")
 
 	// HTMX partial request (sidebar click)
 	req2 := httptest.NewRequest(http.MethodGet, "/fragment/detail?path=bgp", http.NoBody)
@@ -68,6 +64,10 @@ func TestE2E_FragmentHandlerRendersHTMX(t *testing.T) {
 	html2 := rec2.Body.String()
 	t.Logf("\n=== HTMX partial response ===")
 	t.Logf("Status: %d, Length: %d", rec2.Code, len(html2))
+	require.Equal(t, http.StatusOK, rec2.Code)
+	require.NotEmpty(t, html2, "HTMX partial response must not be empty")
+	require.Contains(t, html2, "group")
+	require.Contains(t, html2, "peer")
 	if len(html2) > 2000 {
 		t.Logf("First 2000 chars:\n%s", html2[:2000])
 	} else {

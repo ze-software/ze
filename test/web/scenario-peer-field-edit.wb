@@ -8,10 +8,10 @@ action=open:path=/show/bgp/peer/
 action=wait:ms=1000
 
 # Create a peer via CLI
-action=fill:id=cli-input:value=set bgp peer field-test connection remote ip 10.99.0.2
+action=fill:id=cli-input:value=set peer field-test connection remote ip 10.99.0.2
 action=press:key=Enter
 action=wait:ms=1000
-action=fill:id=cli-input:value=set bgp peer field-test session asn remote 65099
+action=fill:id=cli-input:value=set peer field-test session asn remote 65099
 action=press:key=Enter
 action=wait:ms=1000
 
@@ -20,4 +20,8 @@ action=open:path=/show/bgp/peer/
 action=wait:ms=1000
 expect=element:text=field-test
 expect=element:text=10.99.0.2
+
+# Navigate to the ASN detail and verify the configured value is rendered.
+action=open:path=/show/bgp/peer/field-test/session/asn/
+action=wait:ms=1000
 expect=element:text=65099

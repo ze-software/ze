@@ -176,7 +176,7 @@ func (c *EncodingContext) IsIBGP() bool {
 // AddPath returns whether ADD-PATH is enabled for the given family in this direction.
 // RFC 7911: Returns true if we can receive/send path IDs for this family.
 func (c *EncodingContext) AddPath(f family.Family) bool {
-	if c.addPath == nil {
+	if c == nil || c.addPath == nil {
 		return false
 	}
 	return c.addPath[f]

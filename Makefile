@@ -394,10 +394,11 @@ ze-interop-test:
 	@echo "Running interop tests (requires Docker)..."
 	@python3 test/interop/run.py $(INTEROP_SCENARIO)
 
-# ─── Stress tests (BNG Blaster) ────────────────────────────────────────────
+# ─── Stress tests (ze-test peer injector) ──────────────────────────────────
 
-# Run BGP stress tests using BNG Blaster (requires Linux, root, BNG Blaster installed).
-# Install BNG Blaster first: sudo python3 test/stress/setup.py
+# Run BGP stress tests using the in-tree ze-test peer injector.
+# Requires Linux, root, network namespaces, iproute2, and ethtool.
+# Install runtime dependencies first: sudo python3 test/stress/setup.py
 # Run single scenario: make ze-stress-test STRESS_SCENARIO=01-bulk-ipv4
 STRESS_SCENARIO ?=
 

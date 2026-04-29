@@ -10,18 +10,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
-// TestUIMode_DefaultsToWorkbench verifies that with no ze.web.ui env var set,
-// the hub defaults to the workbench UI. Users can switch at runtime via
-// the ze-ui cookie; the env var only sets the initial default.
+// TestUIMode_DefaultsToFinder verifies that with no ze.web.ui env var set,
+// the hub defaults to the established Finder UI. Workbench remains opt-in
+// until the Phase 4 promotion criteria pass.
 //
-// VALIDATES: Default UI is workbench.
-// PREVENTS: Default silently reverting to finder.
-func TestUIMode_DefaultsToWorkbench(t *testing.T) {
+// VALIDATES: Default UI is Finder during the workbench experiment.
+// PREVENTS: Default silently flipping to workbench before promotion.
+func TestUIMode_DefaultsToFinder(t *testing.T) {
 	t.Setenv("ze.web.ui", "")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	assert.Equal(t, UIModeWorkbench, GetUIMode())
+	assert.Equal(t, UIModeFinder, GetUIMode())
 }
 
 // TestUIMode_OptInWorkbench verifies that ze.web.ui=workbench selects V2.
@@ -51,24 +51,24 @@ func TestUIMode_RollbackFinder(t *testing.T) {
 }
 
 // TestParseUIMode_KnownTokens verifies the parser recognizes both labels in
-// any case and falls back to workbench for unknown values.
+// any case and falls back to Finder for unknown values.
 //
 // VALIDATES: Robustness against operator typos and case variation.
-// PREVENTS: An operator typing "WorkBench" and silently getting finder.
+// PREVENTS: An operator typo silently enabling the experimental UI.
 func TestParseUIMode_KnownTokens(t *testing.T) {
 	tests := []struct {
 		input string
 		want  UIMode
 	}{
-		{"", UIModeWorkbench},
+		{"", UIModeFinder},
 		{"finder", UIModeFinder},
 		{"Finder", UIModeFinder},
 		{"FINDER", UIModeFinder},
 		{"workbench", UIModeWorkbench},
 		{"Workbench", UIModeWorkbench},
 		{"WORKBENCH", UIModeWorkbench},
-		{"unknown-mode", UIModeWorkbench},
-		{"v2", UIModeWorkbench},
+		{"unknown-mode", UIModeFinder},
+		{"v2", UIModeFinder},
 	}
 
 	for _, tc := range tests {

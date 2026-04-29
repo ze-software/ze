@@ -148,7 +148,8 @@ Examples:
 	defer srv.stop()
 
 	// Close any existing browser session.
-	_ = exec.CommandContext(context.Background(), "agent-browser", "close").Run() //nolint:gosec // fixed binary name
+	closeCmd := exec.CommandContext(context.Background(), "agent-browser", "--ignore-https-errors", "close", "--all") //nolint:gosec // fixed binary name
+	_ = closeCmd.Run()
 
 	// Run tests sequentially (one browser session, shared server).
 	colors := runner.NewColors()
@@ -175,7 +176,8 @@ Examples:
 	}
 
 	// Close browser.
-	_ = exec.CommandContext(context.Background(), "agent-browser", "close").Run() //nolint:gosec // fixed binary name
+	closeCmd = exec.CommandContext(context.Background(), "agent-browser", "--ignore-https-errors", "close", "--all") //nolint:gosec // fixed binary name
+	_ = closeCmd.Run()
 
 	if skipped > 0 {
 		fmt.Fprintf(os.Stdout, "\n%d passed, %d failed, %d skipped\n", passed, failed, skipped) //nolint:errcheck // terminal output
@@ -196,30 +198,40 @@ type webTest struct {
 
 // testWebServer holds the ze web process.
 type testWebServer struct {
-	cmd *exec.Cmd
+	cmd     *exec.Cmd
+	tempDir string
 }
 
 func startTestWebServer(zeBin, listenAddr string) (*testWebServer, error) {
 	ctx := context.Background()
 	// Extract port from listenAddr (e.g. "127.0.0.1:8443" -> "8443").
 	_, port, _ := net.SplitHostPort(listenAddr)
+	tempDir, tempErr := os.MkdirTemp("", "ze-web-test-*")
+	if tempErr != nil {
+		return nil, fmt.Errorf("create temp config dir: %w", tempErr)
+	}
 	cmd := exec.CommandContext(ctx, zeBin, "start", "--web", port, "--insecure-web") //nolint:gosec // test binary path
+	cmd.Env = append(os.Environ(), "ze.web.ui=finder", "ZE_WEB_UI=finder", "ze.config.dir="+tempDir)
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {
+		_ = os.RemoveAll(tempDir)
 		return nil, err
 	}
 
 	// Wait for server to be ready.
 	time.Sleep(3 * time.Second)
 
-	return &testWebServer{cmd: cmd}, nil
+	return &testWebServer{cmd: cmd, tempDir: tempDir}, nil
 }
 
 func (s *testWebServer) stop() {
 	if s.cmd != nil && s.cmd.Process != nil {
 		_ = s.cmd.Process.Kill()
 		_ = s.cmd.Wait()
+	}
+	if s.tempDir != "" {
+		_ = os.RemoveAll(s.tempDir)
 	}
 }

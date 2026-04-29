@@ -195,6 +195,8 @@ type FragmentData struct {
 	CLIContextPath string
 	// CLIPathSegments holds pre-computed path segments for the CLI path bar template.
 	CLIPathSegments []PathBarSegment
+	// ActiveUI controls which shell toggle links appear in shared chrome.
+	ActiveUI string
 }
 
 // HandleFragment returns an HTTP handler that serves HTMX fragments.
@@ -264,7 +266,7 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 			Breadcrumbs:    data.Breadcrumbs,
 			Username:       data.Username,
 			Insecure:       insecure,
-			ActiveUI:       "finder",
+			ActiveUI:       uiModeTokenFinder,
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {
@@ -321,6 +323,7 @@ func buildFragmentData(schema *config.Schema, tree *config.Tree, path []string) 
 		CLIPrompt:       formatCLIPrompt(cliPath),
 		CLIContextPath:  cliContextPath,
 		CLIPathSegments: buildPathBarSegments(cliPath),
+		ActiveUI:        uiModeTokenFinder,
 	}
 
 	// Build sidebar for all levels including root.
