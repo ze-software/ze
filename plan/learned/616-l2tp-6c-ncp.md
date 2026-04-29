@@ -91,7 +91,7 @@ inject the subscriber route into the redistribute path in Phase 7.
   the NCP phase parks on EventIPRequest that no fixture responds to
   and they time out. If you write a new test at the Driver level and
   don't care about NCPs, set both flags.
-- `make ze-verify-fast` requires `flock` from `util-linux`. macOS dev
+- `make ze-verify` requires `flock` from `util-linux`. macOS dev
   hosts need `brew install util-linux` + a `flock` wrapper, or use the
   direct `go test -race ./...` invocation. Pre-existing
   `TestVPPManagerRunOnce_External*` failures on Darwin are unrelated

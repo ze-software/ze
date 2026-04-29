@@ -92,7 +92,7 @@ change to the VPP Apply path could be exercised without a VPP daemon.
   a new `logger_linux.go` with `//go:build linux` rather than tagging
   the whole `trafficvpp.go` file -- that file carries the package
   doc comment, which must stay visible on all GOOS.
-- `make ze-verify-fast` was blocked during this session by an unrelated
+- `make ze-verify` was blocked during this session by an unrelated
   compile error in `internal/component/plugin/coordinator.go` from the
   parallel `spec-rs-fastpath-3-passthrough` session (interface
   `ReactorLifecycle` extended with `ForwardUpdatesDirect` but

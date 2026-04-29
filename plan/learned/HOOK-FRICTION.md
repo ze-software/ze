@@ -157,7 +157,7 @@ to output of `make`, `go`, `golangci-lint`, or `bin/ze-*`.
 the `Read` tool:
 
 ```bash
-make ze-verify-fast > tmp/ze-verify.log 2>&1
+make ze-verify > tmp/ze-verify.log 2>&1
 ```
 
 Then use `Read` with `offset` and `limit` to page through the log.

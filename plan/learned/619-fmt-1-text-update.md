@@ -96,7 +96,7 @@ string-returning peer helpers fmt-1 was going to displace).
   content, not the concatenation.
 - **Research snippets in `tmp/*.go` break `go test ./...`.** Found two
   files (`tmp/my-vpp.go`, `tmp/my-config.go`) that had nothing to do with
-  fmt-1 but broke the unit-test phase of `make ze-verify-fast` because
+  fmt-1 but broke the unit-test phase of `make ze-verify` because
   `go test ./...` walks the module root. Renamed to `.txt` per the existing
   memory gotcha. Worth surfacing to research subagents: NEVER save fetched
   Go source to `tmp/*.go` -- always `.txt` or under a build-tagged

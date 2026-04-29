@@ -33,7 +33,7 @@ spec-l2tp-7c-redistribute required this coverage.
   protocol, not the CLI flags.
 - Pre-existing enum-over-string breakage (Phase 8 commit) required
   fixing `rpc.SessionState` string comparisons across 8 files before
-  `make ze-verify-fast` could pass.
+  `make ze-verify` could pass.
 
 ## Files
 

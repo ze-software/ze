@@ -381,7 +381,7 @@ rely on test isolation.
 
 ### `go test` cache hides compile breaks in dependent packages
 
-**Symptom.** `make ze-verify-fast` is green. A package that imports
+**Symptom.** `make ze-verify` is green. A package that imports
 your modified file fails to compile at the next build.
 
 **Cause.** `go test` caches the compile result per package. Modifying
@@ -395,7 +395,7 @@ is stale.
 
 **Avoid it by.** After modifying any exported identifier (type,
 function signature, constant, interface method), run
-`go clean -testcache` before `make ze-verify-fast`, OR touch one file
+`go clean -testcache` before `make ze-verify`, OR touch one file
 in every importing package to force recompile.
 
 **Recover if you hit it.** Clean the test cache and re-run.
@@ -556,7 +556,7 @@ close the spec.
 
 ### Concurrent session corrupts another session's WIP
 
-**Symptom.** `make ze-verify-fast` fails with compile errors in a
+**Symptom.** `make ze-verify` fails with compile errors in a
 file you did not touch. `git status` shows modifications you do not
 recognise. Another session's commit picked up your uncommitted files.
 
@@ -574,7 +574,7 @@ corrupted the shared log file).
 **Avoid it by.**
 1. `CLAUDE.md` already forbids `git add` / `git commit` from the Bash
    tool; commits only via a script the user runs.
-2. Before invoking `make ze-verify-fast`, `git status` and confirm
+2. Before invoking `make ze-verify`, `git status` and confirm
    only expected files appear as modified.
 3. Only one `make ze-verify*` may run at a time across the tree;
    `verify-lock.sh` enforces this via `flock`.
@@ -588,7 +588,7 @@ manually.
 
 ### Research subagents leaving `.go` files in `tmp/`
 
-**Symptom.** `make ze-verify-fast` fails with compile errors in files
+**Symptom.** `make ze-verify` fails with compile errors in files
 under `tmp/` that are unrelated to any active spec.
 
 **Cause.** Research subagents fetched third-party source (e.g. vendor

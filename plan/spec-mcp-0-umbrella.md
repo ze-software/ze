@@ -520,7 +520,7 @@ _To be filled as phases complete; each phase lands its own summary in `plan/lear
 
 - [ ] All five child specs written
 - [ ] All five phases land with `/ze-review` clean
-- [ ] `make ze-verify-fast` passes after each phase
+- [ ] `make ze-verify` passes after each phase
 - [ ] Documentation updated per checklist
 - [ ] Learned summary per phase + umbrella summary after Phase 5
 

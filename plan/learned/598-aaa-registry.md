@@ -105,7 +105,7 @@ bundle through `aaa.Default.Build` without naming any backend.
 - Pre-existing `internal/component/l2tp/{kernel_linux,pppox_linux}.go`
   errcheck failures (14 violations) and untracked l2tp test scaffolding
   (`undefined: addTestTunnel` in `reactor_kernel_test.go`) appear in
-  `make ze-verify-fast`. Logged in `plan/known-failures.md`. Not in the
+  `make ze-verify`. Logged in `plan/known-failures.md`. Not in the
   scope of this spec; touching them risks colliding with the active L2TP
   refactor session.
 

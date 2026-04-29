@@ -568,7 +568,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
     - Verify: tests fail -> implement -> tests pass
 
 14. **Functional tests** -> Create after feature works. Cover user-visible behavior.
-15. **Full verification** -> `make ze-verify-fast` (lint + all ze tests)
+15. **Full verification** -> `make ze-verify` (lint + all ze tests)
 16. **Complete spec** -> Fill audit tables, write learned summary.
 
 ### Critical Review Checklist (/implement stage 6)

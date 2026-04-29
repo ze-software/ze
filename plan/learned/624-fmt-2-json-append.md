@@ -92,7 +92,7 @@ sites and graduate the guard to a real PreToolUse hook.
   `fmt.Sprintf("%x", nil) == ""` behaviour. Pinned by
   `TestJSONEncoderNotification_HexData` (covers empty, single-byte, mixed,
   and all-high-bits inputs).
-- **Parallel-suite flakes are not regressions.** `ze-verify-fast` surfaced
+- **Parallel-suite flakes are not regressions.** `ze-verify` surfaced
   `bfd-auth-meticulous-persist` and `api-peer-prefix-update` as
   intermittent failures; both are documented in
   `plan/known-failures.md` (LOGGED 2026-04-17) and pass standalone. No

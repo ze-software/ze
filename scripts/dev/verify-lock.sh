@@ -2,7 +2,7 @@
 # verify-lock.sh -- acquire the global ze-verify lock, write owner info,
 # then run the given command.
 #
-# Blocks if another verify variant (ze-verify, ze-verify-fast, ze-verify-changed,
+# Blocks if another verify variant (ze-verify, ze-verify-changed,
 # ze-chaos-verify) is already running. Ensures only ONE verify-class run at a
 # time across concurrent Claude sessions and human invocations.
 #
@@ -14,8 +14,8 @@
 # Stuck-run recovery: if the current holder has been running longer than
 # MAX_LOCK_AGE seconds (env: ZE_VERIFY_MAX_LOCK_AGE, default 1800), the
 # waiting invocation SIGTERMs then SIGKILLs the holder's entire process
-# group and acquires the lock. ze-verify-fast targets 240s and full
-# ze-verify with -race targets ~15 min, so 30 min is well past "something
+# group and acquires the lock. ze-verify targets ~2 min (common case,
+# two-pass strategy), so 30 min is well past "something
 # is wrong" -- without this, a single hung test (e.g. ze-test bgp plugin
 # --all) wedges every concurrent session forever.
 #

@@ -65,7 +65,7 @@ summary.
 
 - **Duration budget must accommodate CPU starvation under parallel test
   binaries.** `TestInProcessBasicRoute` passed in ~3s isolated and needed
-  ~46s under `make ze-verify-fast` load. Treat the scenario `Duration`
+  ~46s under `make ze-verify` load. Treat the scenario `Duration`
   independently from the outer `ctx` timeout: give it ~8x the isolated
   wall-clock, keep the ctx as the absolute ceiling. Don't confuse the two.
 

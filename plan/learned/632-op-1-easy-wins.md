@@ -136,7 +136,7 @@ static list.
   next to Go-runtime stats. Both are correct; the catalogue notes
   column points to the other command for context. Not a bug, but
   worth knowing when writing scrapers.
-- **`make ze-verify-fast` on Darwin requires `flock`.** The
+- **`make ze-verify` on Darwin requires `flock`.** The
   `verify-lock.sh` wrapper fails without it. Workaround: `make _ze-
   verify-fast-impl` runs the underlying target directly. The real
   fix is either installing util-linux's `flock` via brew or

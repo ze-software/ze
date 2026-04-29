@@ -13,7 +13,7 @@ This document consolidates a full-project review for release readiness and first
 - Read project rules, architecture docs, status docs, feature inventory, prior audit material, and current known-failure tracking.
 - Mapped repository structure and current scope.
 - Ran forked bundle reviews with traced entry paths and file:line evidence.
-- Ran `make ze-verify-fast`.
+- Ran `make ze-verify`.
 
 ## Repository Facts
 
@@ -31,7 +31,7 @@ Current tree facts gathered during this review:
 
 ## Gate State
 
-`make ze-verify-fast` is currently red before any tests run.
+`make ze-verify` is currently red before any tests run.
 
 It stops in lint with 20 issues, including:
 
@@ -156,7 +156,7 @@ Objective: make the release gate and documentation truthful before relying on th
 
 | Step | Scope | Exit Criteria |
 |------|-------|---------------|
-| 0.1 | Fix current `make ze-verify-fast` lint failures | Fast gate runs cleanly to the test phase. |
+| 0.1 | Fix current `make ze-verify` lint failures | Fast gate runs cleanly to the test phase. |
 | 0.2 | Repair or replace parse runner | Parse tests execute the behavior their files claim to test. |
 | 0.3 | Re-audit `docs/ci-test-coverage.md` and observer-exit tests | Coverage doc only cites valid evidence. |
 | 0.4 | Update README, status, functional-test docs, security docs | Counts, gating claims, and trust model match the tree. |
@@ -216,7 +216,7 @@ Objective: define the real go-live bar.
 |------|-------|---------------|
 | 5.1 | Bring shipped suites into the release decision | Either `ze-verify` runs them or they are explicitly non-gating. |
 | 5.2 | Clear P0 and P1 findings | No P0 and no accepted P1 left open for the intended deployment scope. |
-| 5.3 | Re-run full evidence set | `make ze-verify-fast`, selected privileged suites, relevant interop and chaos runs are green. |
+| 5.3 | Re-run full evidence set | `make ze-verify`, selected privileged suites, relevant interop and chaos runs are green. |
 | 5.4 | Publish truthful status docs | README, status, security, and feature docs describe what is real today. |
 
 ## Suggested Spec Set

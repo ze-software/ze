@@ -11,7 +11,7 @@ the recurring shapes are catalogued there.
 ## bfd-auth-meticulous-persist / prefix-maximum-enforce parallel-load flakes -- LOGGED 2026-04-17
 
 **Files:** `test/plugin/bfd-auth-meticulous-persist.ci`, `test/plugin/prefix-maximum-enforce.ci`
-**Symptom:** Both fail intermittently under `make ze-verify-fast` (GOMAXPROCS=29, parallel
+**Symptom:** Both fail intermittently under `make ze-verify` (GOMAXPROCS=29, parallel
 functional suite). Standalone retries pass cleanly:
   `bin/ze-test bgp plugin bfd-auth-meticulous-persist` -> pass 5.1s
   `bin/ze-test bgp plugin prefix-maximum-enforce` -> pass 1.0s
@@ -61,9 +61,9 @@ scheduled onto its post-defer code (the `result <- ok` line).
 ## plugin test 272 watchdog (flake under parallel load) -- LOGGED 2026-04-16
 
 **File:** `test/plugin/watchdog.ci`
-**Symptom:** Output `mismatch` under `make ze-verify-fast` (parallel mode); passes in isolation (`bin/ze-test bgp plugin 272`, 3.8s).
+**Symptom:** Output `mismatch` under `make ze-verify` (parallel mode); passes in isolation (`bin/ze-test bgp plugin 272`, 3.8s).
 **Reproduction:**
-- FAILS: `make ze-verify-fast` occasionally on first run; retries pass.
+- FAILS: `make ze-verify` occasionally on first run; retries pass.
 - PASSES: `bin/ze-test bgp plugin 272` in isolation, every run.
 **Hypothesis:** Peer-tool timing against scripted BGP sessions under
 parallel CPU load. The watchdog test asserts a specific session outcome
@@ -159,7 +159,7 @@ Result: `pass 8/8 100.0%` locally on 2026-04-29.
 **Hypothesis:** The observer dispatches a `dispatch-command` event to `ze-plugin-engine` and awaits a response within a timeout. Under load (full `ze-verify` runs many other suites concurrently), the dispatch response may not arrive in time. The observer protocol likely needs a longer per-call timeout, or the test needs to gate on a readiness signal before dispatching.
 **Parked.** Estimated 15-30 min investigation: grep `dispatch-command` handling in `ze-plugin-engine` and the observer's timeout config.
 
-## addpath + fib-vpp-* failures under make ze-verify-fast -- LOGGED 2026-04-17
+## addpath + fib-vpp-* failures under make ze-verify -- LOGGED 2026-04-17
 
 **Files:**
 - `test/encode/addpath.ci` (index `0` in `bin/ze-test bgp encode`)
@@ -259,7 +259,7 @@ rewritten to use IPCP (0x8021) which handleFrame drops cleanly.
 - `test/parse/vpp-config-invalid-poll-interval.ci` (parse test 314)
 - `test/parse/vpp-config-invalid-hugepage.ci` (parse test 315)
 
-**Symptom under `make ze-verify-fast`:**
+**Symptom under `make ze-verify`:**
 ```
 ✗ vpp-config-invalid-poll-interval: expected failure but validation succeeded
 ✗ vpp-config-invalid-hugepage: expected failure but validation succeeded
@@ -328,7 +328,7 @@ Remove entries once fixed.
 
 After commit `7991bc294` ("config(bgp): direction-based placement of connect/accept") moved the `accept` leaf between container scopes, many existing `.ci` test configs still write `remote { accept ... }` and the parser rejects with "unknown field in remote: accept (line 6)". This makes the daemon refuse to load, so every `.ci` test that relies on the daemon starting reports `FAIL: SSH server did not start (no address in daemon.log)`.
 
-**Affected suites (5 of 8 in `make ze-verify-fast`):** encode, plugin, parse, reload, ui. Plus exabgp-test downstream.
+**Affected suites (5 of 8 in `make ze-verify`):** encode, plugin, parse, reload, ui. Plus exabgp-test downstream.
 
 **Representative failure line (`tmp/ze-verify-func.log`):**
 

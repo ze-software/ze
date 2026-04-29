@@ -25,7 +25,7 @@ full timeout with no signal to break out.
    via `ps aux | grep verify-lock` and read the active log to estimate
    ETA.
 3. The verify lock chain (`scripts/dev/verify-lock.sh`) means a second
-   `make ze-verify-fast` queues behind any prior call, including ones
+   `make ze-verify` queues behind any prior call, including ones
    from earlier in the same session that you forgot. ALWAYS check
    `ps aux | grep verify-lock` before kicking off a new verify; if any
    `flock` is running, your new call will wait for ALL ahead of it.

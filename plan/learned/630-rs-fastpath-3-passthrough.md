@@ -79,7 +79,7 @@ encoding, copy-on-modify still happens in the Outgoing Peer Pool.
   Full byte-equality assertions are follow-up work; `reject=stderr:pattern=cache .* forward`
   guards against the legacy text-RPC path silently re-emerging.
 - Pre-existing lint failure on `l2tp/kernel_other_types.go:pppoxFD` (logged in
-  `plan/known-failures.md:344`) prevented `make ze-verify-fast` from passing cleanly.
+  `plan/known-failures.md:344`) prevented `make ze-verify` from passing cleanly.
   Unit + race-reactor runs are clean.
 
 ## Files

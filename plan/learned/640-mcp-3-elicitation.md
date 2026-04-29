@@ -111,7 +111,7 @@ branch), and keep the door open for Phase 4's task-augmented
   and the MCP client libraries accept only `[]any` uniformly across
   schema fields. Copy-paste from Go idioms bites here.
 - **Parallel session uncommitted work** on `adj_rib_in`, `format`, and
-  `filter` blocked `make ze-verify-fast` at the lint stage. Targeted
+  `filter` blocked `make ze-verify` at the lint stage. Targeted
   package tests (`go test -race ./internal/component/mcp/`) confirmed
   this spec's code compiles and passes cleanly; the full verify will
   pass once the parallel session commits.

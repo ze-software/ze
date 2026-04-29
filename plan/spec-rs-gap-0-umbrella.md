@@ -258,7 +258,7 @@ This spec is about the grouped-input benchmark shape used by `ze-perf` today. Th
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan |
 | 3. Implement (TDD) | Implementation phases below |
 | 4. /ze-review gate | Review Gate section |
-| 5. Full verification | Functional tests + targeted perf run + `make ze-verify-fast` |
+| 5. Full verification | Functional tests + targeted perf run + `make ze-verify` |
 | 6. Critical review | Critical Review Checklist below |
 | 7. Fix issues | Relevant implementation phase |
 | 8. Re-verify | Stage 5 |
@@ -292,7 +292,7 @@ This spec is about the grouped-input benchmark shape used by `ze-perf` today. Th
    - Verify: grouped-input benchmark improves materially and egress correctness is unchanged
 
 5. **Phase: verification and docs** - regenerate grouped-input benchmark evidence, update architecture docs, comparison notes, and performance narrative
-   - Tests: `python3 test/perf/run.py --build --test ze`, `make ze-verify-fast`
+   - Tests: `python3 test/perf/run.py --build --test ze`, `make ze-verify`
    - Files: docs listed above, perf result files as evidence if intentionally refreshed
    - Verify: AC-1 through AC-9 evidenced directly
 

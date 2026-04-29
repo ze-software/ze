@@ -58,14 +58,14 @@ spec could land before fw-7 introduces a second traffic backend.
   already runs in both OnConfigure and OnConfigVerify and the offline CLI row
   is already wired. The deferrals log records which tests land in that follow-up.
 - `ze-test traffic` is a new subcommand dispatching `test/traffic/*.ci` via the
-  shared `.ci` runner. `make ze-verify-fast` does NOT yet call `ze-test traffic`;
+  shared `.ci` runner. `make ze-verify` does NOT yet call `ze-test traffic`;
   the two new `.ci` files are exercised by explicit runs and by developers who
-  want to validate the reactor. Wiring into `make ze-verify-fast` (alongside the
+  want to validate the reactor. Wiring into `make ze-verify` (alongside the
   other `.ci` suites) is a trivial follow-up.
 - Adding a plugin triggers two hard-coded expected-name lists:
   `cmd/ze/main_test.go` (`TestAvailablePlugins`) and
   `internal/component/plugin/all/all_test.go` (`TestAllPluginsRegistered`).
-  Forgetting either is an instant red in `make ze-verify-fast`. The check is
+  Forgetting either is an instant red in `make ze-verify`. The check is
   cheap but the failure mode ("unexpected plugin \"foo\" registered") reads
   like a regression until you remember it's the new plugin itself.
 - Third component reactor in the codebase (iface -> firewall (fw-8, still

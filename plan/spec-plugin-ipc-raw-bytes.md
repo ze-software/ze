@@ -139,7 +139,7 @@ None -- this is an internal protocol change, not an external RFC.
 5. Migrate reactor call sites -- drop `string(scratch)`.
 6. Parity tests: existing `.ci` tests produce identical filter decisions.
 7. Allocation benchmark: `BenchmarkFilterDispatch_EndToEnd` reports 0 allocs/op.
-8. Verify: `make ze-verify-fast`, `make ze-race-reactor`.
+8. Verify: `make ze-verify`, `make ze-race-reactor`.
 
 ## Checklist
 
@@ -147,7 +147,7 @@ None -- this is an internal protocol change, not an external RFC.
 - [ ] SDK version bumped
 - [ ] Filter dispatch end-to-end reports 0 allocs/op on warm scratch
 - [ ] All internal plugins migrated
-- [ ] `make ze-verify-fast` passes
+- [ ] `make ze-verify` passes
 - [ ] `make ze-race-reactor` passes
 - [ ] Plugin authoring guide updated with migration note
 

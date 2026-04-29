@@ -24,9 +24,10 @@ tea issue list
 tea issue create --title "..."
 ```
 
-## Why `ze-verify-fast` Runs Foreground
+## Why `ze-verify` Runs Foreground
 
-`ze-verify-fast` finishes well under the 240s Bash timeout in normal cases.
+`ze-verify` finishes well under the 240s Bash timeout in normal cases
+(two-pass strategy: cached full pass + `-race` only on changed groups).
 Running foreground means the tool result IS the completion signal -- no
 polling, no missed notifications, log is ready to read on return.
 
@@ -37,13 +38,12 @@ Anti-patterns that look like "smart" backgrounding but break:
 
 | Anti-pattern | What actually happens |
 |--------------|-----------------------|
-| `run_in_background: true` + `until pgrep -f ze-verify-fast; do sleep 2; done` | The polling loop becomes the "running" task; you never see the completion notification for the real run |
+| `run_in_background: true` + `until pgrep -f ze-verify; do sleep 2; done` | The polling loop becomes the "running" task; you never see the completion notification for the real run |
 | `run_in_background: true` + `stat -c %Y` mtime check on `tmp/ze-verify.log` | Log is written continuously during the run; mtime never "settles" reliably |
 | `run_in_background: true` then assume you'll be notified | You will be, but a concurrent polling/sleep loop in Bash can swallow the notification |
 
-Legitimate reasons to background `ze-verify-fast`:
+Legitimate reasons to background `ze-verify`:
 - Genuinely independent work to do for >60s while it runs (rare).
-- Run expected to exceed 240s (use full `make ze-verify`, not fast).
 
 In both cases: launch with `run_in_background: true` and **stop**. No
 polling loop. Ever.

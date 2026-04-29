@@ -37,7 +37,7 @@ the GET `/mcp` SSE stream, closing the deferrals from Phase 1
 
 `rules/integration-completeness.md`: at least one existing YANG command
 MUST be declared `taskSupport: required` (candidates: `bgp rib dump`,
-`rib routes received`, `monitor bgp`) so `make ze-verify-fast`
+`rib routes received`, `monitor bgp`) so `make ze-verify`
 exercises the full chain end-to-end.
 
 `rules/no-layering.md`: this phase also deletes
@@ -293,7 +293,7 @@ for a handful of legacy tests.
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan |
 | 3. Implement (TDD) | Implementation Phases below |
 | 4. /ze-review gate | Review Gate |
-| 5. Full verification | `make ze-verify-fast` |
+| 5. Full verification | `make ze-verify` |
 | 6. Critical review | Critical Review Checklist |
 | 7. Fix issues | Per finding |
 | 8. Re-verify | Re-run stage 5 |
@@ -364,7 +364,7 @@ for a handful of legacy tests.
 | At least one YANG command tagged `task-support: required` | `grep 'task-support required' internal/component/config/**/*.yang` |
 | `execution.taskSupport` in tools/list | Run `ze-test mcp --port N` + `@tools/list`, confirm field present |
 | `.ci` tests pass | `bin/ze-test plugin -p task` |
-| `make ze-verify-fast` passes | tmp/ze-verify.log shows PASS |
+| `make ze-verify` passes | tmp/ze-verify.log shows PASS |
 
 ### Security Review Checklist
 
@@ -487,7 +487,7 @@ _Filled after implementation per `/implement` stage 13._
 - [ ] AC-16..AC-21c all demonstrated
 - [ ] Wiring Test table complete -- every row has a concrete test name
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-verify-fast` passes
+- [ ] `make ze-verify` passes
 - [ ] `make ze-test` passes
 - [ ] Legacy `handler.go` deleted; no `Handler()` references in tests
 - [ ] At least one YANG command tagged `task-support: required`; end-to-end `.ci` proves the chain

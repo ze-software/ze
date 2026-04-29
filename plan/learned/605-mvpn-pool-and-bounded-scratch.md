@@ -132,7 +132,7 @@ correctness and tooling gaps surfaced in review. Three threads:
   long-lived struct fields stayed on `NewUpdateBuilder`.** Pool adds no
   value for already-long-lived holders; the cost is the one-time init,
   which they already amortize.
-- **`make ze-verify-fast` log is not safe under concurrent Claude
+- **`make ze-verify` log is not safe under concurrent Claude
   sessions.** Both runs redirect to `tmp/ze-verify.log`; interleaved
   output produced a spurious bare `FAIL` summary line that couldn't be
   traced to any specific package. Targeted `go test -race ./pkg/...` +

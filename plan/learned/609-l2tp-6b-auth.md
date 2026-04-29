@@ -121,7 +121,7 @@ spec-l2tp-8-plugins (`l2tp-auth`).
   fires during a reauth round-trip in the test window. In production
   the intervals are independent and the reauth pause is bounded by
   `AuthTimeout`.
-- **3 pre-existing suite failures surfaced during `ze-verify-fast`**
+- **3 pre-existing suite failures surfaced during `ze-verify`**
   (BGP encode addpath, fib-vpp-* plugin tests, exabgp conf-addpath)
   are unrelated to Phase 9 (no PPP / L2TP / auth files touched).
   Logged to `plan/known-failures.md` under the 2026-04-17 entry.

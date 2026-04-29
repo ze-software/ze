@@ -449,7 +449,7 @@ N/A for this spec.
 - [ ] AC-1..AC-8 all demonstrated
 - [ ] Wiring Test table filled with concrete test names
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-verify-fast` passes
+- [ ] `make ze-verify` passes
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] All existing `nas_*` metrics accounted for (renamed or explicitly dropped)
 - [ ] Documentation updated with rename table

@@ -52,7 +52,7 @@ several protocol edge cases. All resolved in the same landing:
 - `block-yagni-violations.sh` rejects comments containing "reserved for future" and similar — remove placeholder variables instead of leaving sentinels.
 - `block-layering.sh` pattern-matches `legacy.?(code|format|shim|layer|path|support)`. Rename any transition helper before committing.
 - `require-related-refs.sh` requires back-references for every `// Related:` / `// Overview:` pointer. If you drop a reference, grep every file that pointed at it.
-- The lint log can cite *other sessions' uncommitted files*. When pre-existing `parsing.go` / `locrib_test.go` issues surface during `make ze-verify-fast`, confirm with `git status` before assuming they're yours.
+- The lint log can cite *other sessions' uncommitted files*. When pre-existing `parsing.go` / `locrib_test.go` issues surface during `make ze-verify`, confirm with `git status` before assuming they're yours.
 - `go test -race` at the package level runs fine; `go build ./...` without `-o bin/` is blocked by a project hook. Use `make ze` for full builds.
 
 ## Files

@@ -474,7 +474,7 @@ Add `// RFC 1661 Section 5.8` (LCP Echo-Request/Reply) near sampler code when im
 - [ ] AC-1..AC-11 all demonstrated
 - [ ] Wiring Test table filled with concrete test names
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-verify-fast` passes
+- [ ] `make ze-verify` passes
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] Feature code integrated in subsystem Start/Stop
 - [ ] Documentation updated

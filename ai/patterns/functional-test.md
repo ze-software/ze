@@ -177,7 +177,7 @@ Tests are named descriptively with kebab-case: `<feature>-<scenario>.ci`
 ```bash
 make ze-functional-test     # All functional tests
 make ze-unit-test           # Unit tests only
-make ze-verify-fast         # Everything except fuzz, parallel (development)
+make ze-verify              # Everything except fuzz (two-pass: cached + race-on-changed)
 ```
 
 ## Checklist

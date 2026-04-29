@@ -5,7 +5,7 @@
 #
 # Appends a short block to <failures-log> that names the stage, points
 # at its full log, and extracts the key failure lines. Called by the
-# Makefile when a ze-verify-fast stage fails. Keeps the full stage log
+# Makefile when a ze-verify stage fails. Keeps the full stage log
 # in place -- this is a pointer, not a replacement.
 
 set -e

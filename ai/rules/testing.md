@@ -25,20 +25,54 @@ Each `test/<subdir>/` has its own runner and format — they are not interchange
 
 ## Make Targets
 
+### Component-Group Unit Tests
+
+Test one logical area during development instead of all 349 packages:
+
+| Target | Scope | Approx time |
+|--------|-------|-------------|
+| `make ze-test-bgp` | `./internal/component/bgp/...` (96 pkgs) | ~1:30 |
+| `make ze-test-core` | `./internal/core/...` (26 pkgs) | ~30s |
+| `make ze-test-plugins` | `./internal/plugins/...` (44 pkgs) | ~40s |
+| `make ze-test-config` | `./internal/component/config/...` (13 pkgs) | ~20s |
+| `make ze-test-cli` | `./internal/component/cli/...` (3 pkgs) | ~10s |
+| `make ze-test-rest` | Everything not in a named group (~70 pkgs) | ~1:00 |
+
+All groups run with `-race`. Use the group matching your change during iteration.
+
+### Verification Targets
+
 | Target | Purpose |
 |--------|---------|
-| `make ze-unit-test` | Unit tests with race detector |
-| `make ze-functional-test` | All functional tests |
+| `make ze-verify` | Pre-commit gate (two-pass unit + functional + exabgp) |
+| `make ze-verify-changed` | Scoped lint+test (changed packages only) + functional + exabgp |
+| `make ze-unit-test` | All unit tests with `-race` (full recompile, ~5 min) |
+| `make ze-functional-test` | All 11 functional test suites |
 | `make ze-lint` | 26 linters |
-| `make ze-verify-fast` | All tests except fuzz, parallel (before commits) |
-| `make ze-verify` | Same as above, sequential |
 | `make ze-ci` | lint + unit + build |
 | `make ze-fuzz-test` | Fuzz tests (15s per target) |
 | `make ze-exabgp-test` | ExaBGP compatibility |
-| `make ze-test` | All tests including fuzz (use when specifically needed) |
+| `make ze-test` | All tests including fuzz |
 | `make ze-editor-test` | Editor `.et` tests (headless TUI) |
 | `make ze-chaos-test` | Chaos unit + functional + web |
 | `make ze-race-reactor` | Stress race-test reactor (`-race -count=20`) -- REQUIRED when touching reactor concurrency code |
+
+### Two-Pass Verification (how `ze-verify` works)
+
+`ze-verify` uses a two-pass strategy to avoid recompiling all 349 packages with
+`-race` every time:
+
+1. **Lint** (full or changed-only depending on target)
+2. **Cached full pass** (`go test` without `-race`): Go caches results by source hash.
+   When nothing changed, this completes in under 1 second. Catches logic regressions
+   across the entire codebase.
+3. **Race pass on changed groups only** (`go test -race` on component groups containing
+   modified `.go` files): catches data races in what you touched, without recompiling
+   everything. Group detection uses `scripts/dev/changed-groups.sh`.
+4. **Functional tests** (11 suites via `ze-test`)
+5. **ExaBGP compatibility**
+
+Common case (one group changed): ~2 min total instead of 6+.
 
 ## Iteration Workflow (BLOCKING)
 
@@ -60,14 +94,16 @@ Each `test/<subdir>/` has its own runner and format — they are not interchange
 | Single editor test | `ze-test editor -p pattern` | seconds |
 | Single Go test | `go test -race -run TestName ./pkg/...` | seconds |
 | Single package | `go test -race ./internal/component/bgp/reactor/...` | seconds |
-| All unit tests | `make ze-unit-test` | fast |
+| Component group | `make ze-test-bgp` (or core, plugins, config, cli, rest) | 10s-1:30 |
+| All unit tests | `make ze-unit-test` | ~5 min |
 | All editor tests | `make ze-editor-test` | ~30s |
-| Pre-commit gate | `make ze-verify-fast` | ~1 min |
+| Pre-commit gate | `make ze-verify` | ~2 min (common case) |
 
-`make ze-verify-fast` is the **final gate**, not a development tool. Use targeted commands during iteration.
+**Escalation ladder:** single test -> single package -> component group -> `ze-verify`.
+`make ze-verify` is the **final gate**, not a development tool. Use targeted commands and component groups during iteration.
 Output is auto-captured to `tmp/ze-verify.log` (overwritten each run, no junk accumulation).
 
-**Overlapping runs:** If a test run is failing, kill it before starting another. Never run `make ze-verify-fast` twice concurrently.
+**Overlapping runs:** If a test run is failing, kill it before starting another. Never run `make ze-verify` twice concurrently.
 
 **Understand before modifying:** Before bulk-editing `.ci` files or test files, run one test and read its output to understand the format and expected behavior. Assumptions about test syntax cause cascading failures across every modified file.
 
@@ -104,7 +140,7 @@ Create a subfolder per debugging task (e.g., `tmp/watchdog-debug/`) to keep arti
 **BLOCKING:** Search the log, don't re-run the suite.
 
 ```bash
-make ze-verify-fast   # output auto-captured to tmp/ze-verify.log
+make ze-verify   # output auto-captured to tmp/ze-verify.log
 # On failure, search:
 grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-verify.log
 ```
@@ -244,5 +280,5 @@ and must be migrated.
 
 See `rules/git-safety.md` for the full pre-commit workflow.
 
-`make ze-verify-fast` is the ONLY acceptable pre-commit verification. Not `go test`. Not any subset.
-During development: `go test`, `make ze-unit-test` are fine for fast iteration.
+`make ze-verify` is the ONLY acceptable pre-commit verification. Not `go test`. Not any subset.
+During development: `go test`, component groups (`make ze-test-bgp`), `make ze-unit-test` are fine for fast iteration.

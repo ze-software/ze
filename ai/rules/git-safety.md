@@ -74,16 +74,16 @@ No = skip and note in commit summary. Unsure = run.
 
 ### Step 1: If `ze-verify` applies (BLOCKING)
 
-`make ze-verify-fast` (timeout 240s). Not `go test`, not any subset.
-Race detector is in `make ze-verify` (full sequential), NOT
-`ze-verify-fast` -- run the full variant when touching reactor
-concurrency or race-sensitive code. Output auto-captures to
-`tmp/ze-verify.log`; failure index in `tmp/ze-verify-failures.log`
-(read that FIRST).
+`make ze-verify` (timeout 240s). Not `go test`, not any subset.
+`ze-verify` uses a two-pass strategy: cached full pass (no `-race`) +
+`-race` only on component groups with changed `.go` files. For reactor
+concurrency changes, also run `make ze-race-reactor`. Output
+auto-captures to `tmp/ze-verify.log`; failure index in
+`tmp/ze-verify-failures.log` (read that FIRST).
 
 ```
 [ ] 0. `scripts/dev/verify-status.sh check`. FRESH -> skip step 1, note timestamp. STALE -> continue.
-[ ] 1. `make ze-verify-fast` (240s). On failure read tmp/ze-verify-failures.log, then tmp/ze-verify.log.
+[ ] 1. `make ze-verify` (240s). On failure read tmp/ze-verify-failures.log, then tmp/ze-verify.log.
 [ ] 2. Failure from current work: fix + re-run. Pre-existing: fix after primary task in separate commit; if >10 min, log to `plan/known-failures.md`.
 ```
 

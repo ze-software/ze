@@ -121,9 +121,9 @@ to follow-up specs that design the missing VPP pipelines.
   push once per interface. Easy to miss in isolated unit tests.
 - **`make ze-verify*` runs under a single repo-wide `flock`.** While a
   stuck `ze-test bgp plugin --all` from another session held the lock for
-  80+ minutes, ze-verify-fast was unavailable. Work proceeded using
+  80+ minutes, ze-verify was unavailable. Work proceeded using
   targeted `go test ./path/...` and `golangci-lint run ./path/...` on
-  touched packages; the blocking pre-commit `ze-verify-fast` ran after
+  touched packages; the blocking pre-commit `ze-verify` ran after
   the lock cleared.
 - **Vendored GoVPP v0.13.0 did not include `policer`, `policer_types`,
   `qos`, or `classify` binapi packages.** Same trap as vishvananda/netlink

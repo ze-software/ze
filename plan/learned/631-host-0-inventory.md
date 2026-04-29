@@ -113,7 +113,7 @@ requirements, works on the gokrazy appliance and on dev Linux.
 - The parallel session's `cmd/ze/main.go` carries an unrelated compile
   error at commit time (`undefined: zeconfig.BindStorageCommands` from
   its in-flight CLI registration refactor) which blocks a full
-  `make ze-verify-fast` on the tree. Per-package vet and tests pass
+  `make ze-verify` on the tree. Per-package vet and tests pass
   cleanly for every host-0 file. Full tree verify waits for that
   session to land.
 

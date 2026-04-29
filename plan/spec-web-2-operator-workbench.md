@@ -766,7 +766,7 @@ V2 uses `/show/` so the workflow is tested in the real operator path: opt-in via
 | 2. Audit | Files to Modify, Files to Create, Current Behavior, TDD Test Plan |
 | 3. Implement (TDD) | Implementation phases below |
 | 4. /ze-review gate | Review Gate section below |
-| 5. Full verification | `make ze-verify-fast` or split approved unit targets if timeout |
+| 5. Full verification | `make ze-verify` or split approved unit targets if timeout |
 | 6. Critical review | Critical Review Checklist |
 | 7. Fix issues | Fix every critical review issue |
 | 8. Re-verify | Re-run targeted and full verification |

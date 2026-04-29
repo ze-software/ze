@@ -34,7 +34,7 @@ The project is not releasable today. The main gate and independent evidence runs
 
 | Command | Result | Evidence |
 |---------|--------|----------|
-| `make ze-verify-fast` | FAIL | Stops in `ze-lint` with 20 issues before tests run. |
+| `make ze-verify` | FAIL | Stops in `ze-lint` with 20 issues before tests run. |
 | `make ze-unit-test` | FAIL | Failing packages include `cmd/ze`, `internal/chaos/inprocess`, `internal/component/cmd/subscribe`, `internal/component/plugin/all`, `internal/component/ppp`, `internal/component/radius`, `internal/core/clock`, `internal/plugins/bfd/engine`. |
 | `make ze-functional-test` | FAIL | encode: 1 timeout; plugin: 11 failures/timeouts; parse: 72 failures; decode, reload, UI, editor, managed passed. |
 | `make ze-doc-test` | FAIL | 40 doc drift issues and 29 YANG commands with no handler. |
@@ -86,7 +86,7 @@ These prior findings appear fixed or materially improved in the current tree. Th
 
 | ID | Area | Location | Finding | Impact | First Fix |
 |----|------|----------|---------|--------|-----------|
-| P0-1 | Release gate | `make ze-verify-fast`, `make ze-unit-test`, `make ze-functional-test`, `make ze-doc-test` | The main verification gate is red at lint, and independent unit, functional, and docs gates are also red. | No release or initial deployment decision can rely on current evidence. | Restore all mandatory gates to green before considering deployment. |
+| P0-1 | Release gate | `make ze-verify`, `make ze-unit-test`, `make ze-functional-test`, `make ze-doc-test` | The main verification gate is red at lint, and independent unit, functional, and docs gates are also red. | No release or initial deployment decision can rely on current evidence. | Restore all mandatory gates to green before considering deployment. |
 | P0-2 | Hot path concurrency | `internal/component/bgp/reactor/session_coalesce.go:183-186`, `internal/component/bgp/plugins/adj_rib_in/rib.go:235,314`, `internal/component/plugin/process/delivery.go:175-266` | Race detector shows the session read/coalesce buffer being overwritten while plugin delivery reads the same data. | Corruption or nondeterministic route parsing on the receive path under load. | Give delivered raw messages immutable ownership, copy before buffer reuse, or refcount the buffer until all consumers complete. |
 | P0-3 | SSH authentication | `test/plugin/ssh-pubkey-auth.ci`, `internal/component/ssh/`, `cmd/ze/hub` | Functional test says a wrong SSH key authenticated. | Remote admin surface may accept unauthorized public keys until disproven. | Investigate immediately, add a focused unit/integration test, and make the functional test deterministic. |
 | P0-4 | Command routing | `internal/component/l2tp/schema/ze-l2tp-api.yang`, `internal/component/cmd/l2tp/`, plugin functional tests 309-312 | L2TP teardown commands are in tests/docs but dispatch as `unknown command`. | Operator cannot tear down L2TP sessions/tunnels through the advertised command surface. | Register the command paths or correct tests/docs to the real path. |
@@ -216,7 +216,7 @@ Objective: make the evidence honest and repeatable before fixing deeper behavior
 
 | Step | Scope | Exit Criteria |
 |------|-------|---------------|
-| 0.1 | Fix current lint failures | `make ze-verify-fast` reaches unit tests. |
+| 0.1 | Fix current lint failures | `make ze-verify` reaches unit tests. |
 | 0.2 | Fix unit red packages | `make ze-unit-test` passes with race detector. |
 | 0.3 | Fix functional red suites | `make ze-functional-test` passes encode, plugin, parse, decode, reload, ui, editor, managed. |
 | 0.4 | Fix docs and command validation | `make ze-doc-test` passes with zero missing handlers. |
@@ -319,7 +319,7 @@ Do not leave experimental status yet.
 Minimum bar for an initial controlled deployment:
 
 - All P0 findings closed.
-- `make ze-verify-fast`, `make ze-unit-test`, `make ze-functional-test`, and `make ze-doc-test` green.
+- `make ze-verify`, `make ze-unit-test`, `make ze-functional-test`, and `make ze-doc-test` green.
 - Security phase closed for SSH, API, MCP, authz defaults, L2TP PPP auth, and RADIUS accounting.
 - BGP receive-buffer race and malformed UPDATE delivery fixed with race and malformed-input tests.
 - Reload and managed config semantics made transactional enough that failed changes do not split runtime state.

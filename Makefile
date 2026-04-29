@@ -1,6 +1,7 @@
 .PHONY: all build ze chaos test analyse clean fmt vet tidy generate help
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-race-reactor ze-test ze-verify ze-ci
-.PHONY: ze-lint-changed ze-unit-test-changed ze-verify-changed ze-verify-fast ze-clean-tmp
+.PHONY: ze-lint-changed ze-unit-test-changed ze-verify-changed ze-clean-tmp
+.PHONY: ze-test-bgp ze-test-core ze-test-plugins ze-test-config ze-test-cli ze-test-rest ze-unit-test-cached ze-unit-test-race-changed
 .PHONY: _ze-verify-impl _ze-verify-changed-impl _ze-chaos-verify-impl
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test ze-managed-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
@@ -44,6 +45,20 @@ GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test
 # Packages
 ZE_PACKAGES = $$(go list ./... | grep -v /cmd/ze-chaos)
 CHAOS_PACKAGES = ./cmd/ze-chaos/...
+
+# Component groups for scoped testing (ze-test-<group>).
+# "rest" = everything in ZE_PACKAGES not covered by a named group.
+ZE_GROUP_BGP     = ./internal/component/bgp/...
+ZE_GROUP_CORE    = ./internal/core/...
+ZE_GROUP_PLUGINS = ./internal/plugins/...
+ZE_GROUP_CONFIG  = ./internal/component/config/...
+ZE_GROUP_CLI     = ./internal/component/cli/...
+ZE_GROUP_REST    = $$(go list ./... | grep -v /cmd/ze-chaos \
+	| grep -v '^codeberg.org/thomas-mangin/ze/internal/component/bgp' \
+	| grep -v '^codeberg.org/thomas-mangin/ze/internal/core' \
+	| grep -v '^codeberg.org/thomas-mangin/ze/internal/plugins' \
+	| grep -v '^codeberg.org/thomas-mangin/ze/internal/component/config' \
+	| grep -v '^codeberg.org/thomas-mangin/ze/internal/component/cli')
 
 # Default target
 .DEFAULT_GOAL := help
@@ -190,6 +205,56 @@ ze-web-test: bin/ze bin/ze-test
 ze-managed-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test managed --all -p 1
 
+# ─── Component-group unit tests ─────────────────────────────────────────────
+# Each group covers one logical area. Use during development to test only
+# what you're working on. All groups together = ze-unit-test.
+
+ze-test-bgp:
+	@echo "Unit tests: bgp group..."
+	$(GO_TEST) -race $(ZE_GROUP_BGP)
+
+ze-test-core:
+	@echo "Unit tests: core group..."
+	$(GO_TEST) -race $(ZE_GROUP_CORE)
+
+ze-test-plugins:
+	@echo "Unit tests: plugins group..."
+	$(GO_TEST) -race $(ZE_GROUP_PLUGINS)
+
+ze-test-config:
+	@echo "Unit tests: config group..."
+	$(GO_TEST) -race $(ZE_GROUP_CONFIG)
+
+ze-test-cli:
+	@echo "Unit tests: cli group..."
+	$(GO_TEST) -race $(ZE_GROUP_CLI)
+
+ze-test-rest:
+	@echo "Unit tests: rest group (everything not in a named group)..."
+	$(GO_TEST) -race $(ZE_GROUP_REST)
+
+# ─── Two-pass unit test targets for ze-verify ────────────────────────────────
+
+# Cacheable full pass: no -race, Go caches results by source hash.
+# Instant when nothing changed, catches logic regressions everywhere.
+ze-unit-test-cached:
+	@echo "Unit tests: full pass (cacheable, no -race)..."
+	$(GO_TEST) $(ZE_PACKAGES)
+
+# Race pass: -race only on component groups with changed .go files.
+# Falls back to full -race if changes touch "rest" (unmapped packages).
+ze-unit-test-race-changed:
+	@groups=$$(scripts/dev/changed-groups.sh --pkgs 2>/dev/null); \
+	if [ -z "$$groups" ]; then \
+		echo "No changed .go files — skipping -race pass"; \
+	elif echo "$$groups" | grep -q '^ALL$$'; then \
+		echo "Unit tests: -race on ALL packages (changes outside named groups)..."; \
+		$(GO_TEST) -race $(ZE_PACKAGES); \
+	else \
+		echo "Unit tests: -race on changed groups: $$groups"; \
+		$(GO_TEST) -race $$groups; \
+	fi
+
 # Run ze fuzz tests (all targets, 15s each)
 # Note: multiple fuzz tests per package require individual enumeration (-fuzz=. fails with "matches more than one").
 # Config package uses exact path (no ...) because sub-packages would trigger "multiple packages" error.
@@ -288,14 +353,12 @@ ze-test: ze-lint ze-unit-test ze-functional-test ze-exabgp-test ze-fuzz-test
 ze-verify:
 	@scripts/dev/verify-lock.sh ze-verify $(MAKE) --no-print-directory _ze-verify-impl
 
-_ze-verify-impl: ze-lint ze-unit-test ze-functional-test ze-exabgp-test
+# Two-pass unit tests: cached full pass (instant when clean) + -race only on
+# changed groups. Falls back to full -race when no groups can be determined.
+_ze-verify-impl: ze-lint ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification passed"
 
-# ze-verify-fast is an alias for ze-verify. Kept for compatibility with existing
-# scripts, rules, and hooks that still invoke it. Log path still overridable via
-# ZE_VERIFY_LOG for callers that expect it.
 ZE_VERIFY_LOG ?= tmp/ze-verify.log
-ze-verify-fast: ze-verify
 
 # --- Scoped targets (parallel-safe: only lint/test packages with changed .go files) ---
 
@@ -840,8 +903,14 @@ help:
 	@echo ""
 	@echo "  Ze tests:"
 	@echo "  ze-lint               - Run linter on ze packages"
-	@echo "  ze-unit-test          - Run ze unit tests with race detector"
+	@echo "  ze-unit-test          - Run ze unit tests with race detector (all packages)"
 	@echo "  ze-unit-test-cover    - Run ze unit tests with coverage report"
+	@echo "  ze-test-bgp           - Unit tests: BGP component group (-race)"
+	@echo "  ze-test-core          - Unit tests: core libraries group (-race)"
+	@echo "  ze-test-plugins       - Unit tests: plugins group (-race)"
+	@echo "  ze-test-config        - Unit tests: config component group (-race)"
+	@echo "  ze-test-cli           - Unit tests: CLI component group (-race)"
+	@echo "  ze-test-rest          - Unit tests: everything not in a named group (-race)"
 	@echo "  ze-functional-test    - Run ze functional tests (encode, plugin, parse, decode, reload, ui, editor)"
 	@echo "  ze-encode-test        - Run encode functional tests only"
 	@echo "  ze-plugin-test        - Run plugin functional tests only"

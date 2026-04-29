@@ -168,7 +168,7 @@ If a spec describes work that is **already implemented**, run the full Completio
 [ ] 7. Review Mistake Log — check MEMORY.md, promote if seen before
 [ ] 7. Update spec — Implementation Summary, Documentation Updates, Deviations
 [ ] 7. Write learned summary: plan/learned/NNN-<name>.md (see plan/TEMPLATE.md for summary format)
-[ ] 7. Verify: `make ze-verify-fast` + git status + git diff, no unintended changes
+[ ] 7. Verify: `make ze-verify` + git status + git diff, no unintended changes
 [ ] 7. Executive Summary Report — present to user with what was done and what is left (including deferred).
         BLOCKING: learned summary (step 10) must exist. Name the file in the report.
         Do NOT ask to commit. The user will tell you when to commit.

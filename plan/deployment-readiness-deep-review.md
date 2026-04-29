@@ -8,7 +8,7 @@ Method:
 - Initial repository map: architecture docs, feature inventory, Makefile gates, known failures, deferrals, schemas, components, plugins, and test surface.
 - Forked subsystem agents: BGP, config/engine/plugin framework, dataplane/network, access/AAA/subscriber protocols, UI/observability/API, docs/tests/release.
 - Direct spot verification of the highest-severity findings with file reads.
-- Initial local `make ze-verify-fast` run failed at `ze-lint` before tests due typecheck import errors in `internal/component/cli/model_commands_show_test.go:11-14`. Later reruns after remediations passed lint, race unit tests, build, encode, plugin, parse, decode, reload, editor, and web functional suites. The monolithic command exceeded this session's tool timeout during ExaBGP compatibility retries; `make ze-exabgp-test` passed when run separately.
+- Initial local `make ze-verify` run failed at `ze-lint` before tests due typecheck import errors in `internal/component/cli/model_commands_show_test.go:11-14`. Later reruns after remediations passed lint, race unit tests, build, encode, plugin, parse, decode, reload, editor, and web functional suites. The monolithic command exceeded this session's tool timeout during ExaBGP compatibility retries; `make ze-exabgp-test` passed when run separately.
 
 Reference caveat: file:line references are snapshots from this review pass. Treat them as anchors to the cited function or block, not immutable coordinates; line numbers may drift as nearby code changes.
 
@@ -103,7 +103,7 @@ Severity note: web CSRF is not listed as P0 because the session cookie is alread
 Exit criteria:
 
 - `make ze-verify` green on a clean Linux runner.
-- `make ze-verify-fast` no longer aliases an already-known broken gate without warning.
+- `make ze-verify` no longer aliases an already-known broken gate without warning.
 - GitHub or Codeberg CI runs at least `make ze-verify` on every PR.
 - `plan/known-failures.md` contains no untriaged release blockers.
 - Partial `.ci` tests are either fixed or excluded from release evidence with a visible marker.
@@ -266,7 +266,7 @@ PASS: 320/320, skip 1.
 make ze-exabgp-test
 PASS: 37/37 recovered on retry.
 
-make ze-verify-fast
+make ze-verify
 Passed lint, race unit tests, build, all 11 functional suites, and web.
 The command was terminated by this session's tool timeout during the final ExaBGP compatibility retry phase; the ExaBGP target passed when rerun separately.
 ```

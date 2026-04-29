@@ -14,8 +14,10 @@ make ze-reload-test       # Reload tests only
 
 ## Release Gate Coverage
 
-`make ze-verify` (and its alias `make ze-verify-fast`) runs: lint, unit tests,
-`ze-functional-test`, and exabgp-compat. The functional test target runs 11 suites: encode, plugin, parse, decode, reload, ui, editor, managed, l2tp, firewall, web.
+`make ze-verify` runs: lint, unit tests (two-pass:
+cached full + `-race` on changed groups), `ze-functional-test`, and exabgp-compat.
+The functional test target runs 11 suites: encode, plugin, parse, decode, reload,
+ui, editor, managed, l2tp, firewall, web.
 <!-- source: Makefile -- ze-functional-test -->
 
 The following shipped test suites are **not in the default release gate** and

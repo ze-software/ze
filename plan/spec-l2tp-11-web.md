@@ -527,7 +527,7 @@ N/A.
 - [ ] AC-1..AC-9 all demonstrated
 - [ ] Wiring Test table filled with concrete test names
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-verify-fast` passes
+- [ ] `make ze-verify` passes
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] uPlot vendored and built into the binary via embed
 - [ ] Read-only profile deny entry added and test-covered

@@ -39,7 +39,7 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
    - If uncommitted code exists AND no review has run since it was written: STAGE = 3. Go to step 9.
    - If a review ran but reported unresolved BLOCKER or ISSUE items that are not yet fixed: STAGE = 3.
 7. **Stage 4 -- Commit A:** Check:
-   - Did `make ze-verify-fast` pass recently? Check `tmp/ze-verify.log` (<1h old) or a documented pass in session state.
+   - Did `make ze-verify` pass recently? Check `tmp/ze-verify.log` (<1h old) or a documented pass in session state.
    - Are there uncommitted files in the spec scope (code, tests, docs, or the spec file itself)?
    - If uncommitted spec-scoped files remain: STAGE = 4. Go to step 9.
 8. **Stage 5 -- Commit B (closure):** Check:

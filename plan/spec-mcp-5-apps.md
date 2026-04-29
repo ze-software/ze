@@ -266,7 +266,7 @@ Both paths share method dispatch with `tools/*` -- same auth + session + content
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan |
 | 3. Implement (TDD) | Implementation Phases below |
 | 4. /ze-review gate | Review Gate |
-| 5. Full verification | `make ze-verify-fast` |
+| 5. Full verification | `make ze-verify` |
 | 6. Critical review | Critical Review Checklist |
 | 7. Fix issues | Per finding |
 | 8. Re-verify | Re-run stage 5 |
@@ -328,7 +328,7 @@ Both paths share method dispatch with `tools/*` -- same auth + session + content
 | At least one YANG command tagged `ze:ui-resource` | `grep 'ze:ui-resource' internal/component/config/yang/modules/*.yang` |
 | `_meta.ui.*` appears in `tools/list` | Manual `ze-test mcp @tools/list` inspection |
 | `.ci` tests pass | `bin/ze-test plugin -p apps` |
-| `make ze-verify-fast` passes | tmp/ze-verify.log shows PASS |
+| `make ze-verify` passes | tmp/ze-verify.log shows PASS |
 
 ### Security Review Checklist
 
@@ -451,7 +451,7 @@ _Filled after implementation per `/implement` stage 13._
 - [ ] AC-22..AC-23d all demonstrated
 - [ ] Wiring Test table complete -- every row has a concrete test name
 - [ ] `/ze-review` gate clean
-- [ ] `make ze-verify-fast` passes
+- [ ] `make ze-verify` passes
 - [ ] At least one YANG command tagged `ze:ui-resource`; end-to-end `.ci` proves the chain
 - [ ] One UI bundle ships in the binary
 
