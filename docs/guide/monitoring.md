@@ -132,7 +132,7 @@ The plugin receives events through its `OnEvent` callback. See [Plugins guide](p
 
 ## Prometheus Metrics
 
-Ze exposes Prometheus metrics when `telemetry { prometheus { ... } }` is configured. BGP metrics are refreshed every 10 seconds.
+Ze exposes Prometheus metrics when `telemetry { prometheus { ... } }` is configured. BGP metrics are refreshed every 10 seconds. The `netdata` block only controls Netdata-compatible OS collector metrics. It does not rename Ze-native metrics such as `ze_bgp_*`, `ze_bfd_*`, or `ze_l2tp_*`.
 
 ```
 telemetry {
@@ -143,25 +143,50 @@ telemetry {
             port 9273;
         }
         path /metrics;
-        prefix netdata;
-        interval 1;
+        basic-auth {
+            enabled true;
+            username prometheus;
+            plaintext-password "secret";
+        }
+        netdata {
+            enabled true;
+            prefix netdata;
+            interval 1;
+            collector diskspace {
+                enabled false;
+            }
+            collector snmp6 {
+                interval 10;
+            }
+        }
     }
 }
 ```
 
-| Leaf | Default | Description |
+| Path | Default | Description |
 |------|---------|-------------|
 | `enabled` | false | Enable Prometheus HTTP endpoint |
-| `server` | `0.0.0.0:9273` | Listener list (YANG refinable) |
-| `path` | `/metrics` | HTTP path |
-| `prefix` | `netdata` | Metric name prefix for OS collectors |
-| `interval` | 1 | OS collector sampling interval (1-60s) |
+| `server` | `127.0.0.1:9273` | Listener list. Explicit `0.0.0.0` binds all interfaces |
+| `path` | `/metrics` | HTTP metrics path |
+| `basic-auth/enabled` | false | Require HTTP Basic Authentication for metrics and health endpoints |
+| `basic-auth/realm` | `ze prometheus` | Basic Auth realm |
+| `basic-auth/username` | unset | Basic Auth username |
+| `basic-auth/password` | unset | Bcrypt-hashed Basic Auth password |
+| `basic-auth/plaintext-password` | unset | Write-only password input, hashed on commit |
+| `netdata/enabled` | true | Enable Netdata-compatible OS collectors |
+| `netdata/prefix` | `netdata` | Prefix for Netdata-compatible OS collector metrics only |
+| `netdata/interval` | 1 | Netdata-compatible OS collector sampling interval (1-60s) |
+| `netdata/collector` | -- | Per-Netdata-collector enable and interval overrides |
+
+Deprecated compatibility aliases remain accepted: `prefix`, `interval`, and `collector` directly under `prometheus`. Prefer `netdata/prefix`, `netdata/interval`, and `netdata/collector` in new config.
 
 Per-collector overrides:
 
 ```
-collector diskspace { enabled false; }
-collector snmp6 { interval 10; }
+netdata {
+    collector diskspace { enabled false; }
+    collector snmp6 { interval 10; }
+}
 ```
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics, metricsUpdateLoop -->
 <!-- source: internal/component/telemetry/schema/ze-telemetry-conf.yang -->

@@ -11,6 +11,47 @@ module ze-telemetry-conf {
         description "Initial revision";
     }
 
+    grouping netdata-collector-settings {
+        description "Netdata-compatible OS collector settings";
+
+        leaf prefix {
+            type string;
+            default "netdata";
+            description "Metric name prefix for Netdata-compatible OS collector metrics only";
+        }
+
+        leaf interval {
+            type uint16 {
+                range "1..60";
+            }
+            default 1;
+            description "Netdata-compatible OS collector sampling interval in seconds";
+        }
+
+        list collector {
+            key "name";
+            description "Per-Netdata-collector overrides (enable/disable, interval)";
+
+            leaf name {
+                type string;
+                description "Collector name (cpu, memory, loadavg, netdev, diskstats, stat, snmp, snmp6, conntrack, vmstat, sockstat, sockstat6, softnet, softirqs, pressure, entropy, filenr, uptime, diskspace)";
+            }
+
+            leaf enabled {
+                type boolean;
+                default true;
+                description "Enable or disable this Netdata-compatible OS collector";
+            }
+
+            leaf interval {
+                type uint16 {
+                    range "1..60";
+                }
+                description "Override sampling interval for this collector (seconds). Inherits global Netdata interval if not set.";
+            }
+        }
+    }
+
     container telemetry {
         description "Telemetry export configuration";
 
@@ -35,7 +76,7 @@ module ze-telemetry-conf {
 
                 uses zt:listener {
                     refine ip {
-                        default "0.0.0.0";
+                        default "127.0.0.1";
                     }
                     refine port {
                         default 9273;
@@ -49,10 +90,56 @@ module ze-telemetry-conf {
                 description "HTTP path for metrics endpoint";
             }
 
+            container basic-auth {
+                description "HTTP Basic Authentication for the Prometheus service";
+
+                leaf enabled {
+                    type boolean;
+                    default false;
+                    description "Require HTTP Basic Authentication for Prometheus metrics and health endpoints";
+                }
+
+                leaf realm {
+                    type string;
+                    default "ze prometheus";
+                    description "HTTP Basic Authentication realm";
+                }
+
+                leaf username {
+                    type string;
+                    description "HTTP Basic Authentication username";
+                }
+
+                leaf password {
+                    type string;
+                    ze:bcrypt;
+                    description "Bcrypt-hashed HTTP Basic Authentication password. Write plaintext via plaintext-password.";
+                }
+
+                leaf plaintext-password {
+                    type string;
+                    ze:ephemeral;
+                    description "Write-only password. On commit, the config system hashes this value into password and removes this leaf.";
+                }
+            }
+
+            container netdata {
+                description "Netdata-compatible OS collector metrics. These settings do not affect Ze-native metrics.";
+
+                leaf enabled {
+                    type boolean;
+                    default true;
+                    description "Enable Netdata-compatible OS collectors";
+                }
+
+                uses netdata-collector-settings;
+            }
+
             leaf prefix {
                 type string;
                 default "netdata";
-                description "Metric name prefix for OS collectors (e.g. netdata, node)";
+                status deprecated;
+                description "Deprecated: use netdata/prefix. Metric name prefix for Netdata-compatible OS collector metrics only.";
             }
 
             leaf interval {
@@ -60,12 +147,14 @@ module ze-telemetry-conf {
                     range "1..60";
                 }
                 default 1;
-                description "OS collector sampling interval in seconds";
+                status deprecated;
+                description "Deprecated: use netdata/interval. Netdata-compatible OS collector sampling interval in seconds.";
             }
 
             list collector {
                 key "name";
-                description "Per-collector overrides (enable/disable, interval)";
+                status deprecated;
+                description "Deprecated: use netdata/collector. Per-Netdata-collector overrides (enable/disable, interval).";
 
                 leaf name {
                     type string;

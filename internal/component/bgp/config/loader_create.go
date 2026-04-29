@@ -206,6 +206,9 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		if err := srv.Start(reg, telemetryCfg); err != nil {
 			configLogger().Warn("metrics server failed to start", "error", err)
 		} else {
+			for _, path := range telemetryCfg.DeprecatedAliases {
+				configLogger().Warn("deprecated prometheus telemetry config; move setting under telemetry.prometheus.netdata", "path", path)
+			}
 			for _, ep := range telemetryCfg.Endpoints {
 				configLogger().Info("prometheus metrics enabled",
 					"address", ep.Host, "port", ep.Port, "path", telemetryCfg.Path)
@@ -213,14 +216,16 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 			r.SetMetricsRegistry(reg)
 			registry.SetMetricsRegistry(reg)
 
-			overrides := make(map[string]collector.CollectorOverride, len(telemetryCfg.Collectors))
-			for name, cc := range telemetryCfg.Collectors {
-				overrides[name] = collector.CollectorOverride{
-					Enabled:  cc.Enabled,
-					Interval: time.Duration(cc.Interval) * time.Second,
+			if telemetryCfg.Netdata.Enabled {
+				overrides := make(map[string]collector.CollectorOverride, len(telemetryCfg.Netdata.Collectors))
+				for name, cc := range telemetryCfg.Netdata.Collectors {
+					overrides[name] = collector.CollectorOverride{
+						Enabled:  cc.Enabled,
+						Interval: time.Duration(cc.Interval) * time.Second,
+					}
 				}
+				collector.StartOSCollectors(reg, telemetryCfg.Netdata.Prefix, time.Duration(telemetryCfg.Netdata.Interval)*time.Second, overrides, configLogger())
 			}
-			collector.StartOSCollectors(reg, telemetryCfg.Prefix, time.Duration(telemetryCfg.Interval)*time.Second, overrides, configLogger())
 		}
 	}
 

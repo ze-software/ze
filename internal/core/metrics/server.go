@@ -6,14 +6,18 @@ package metrics
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/health"
 )
@@ -34,9 +38,27 @@ func (e Endpoint) JoinHostPort() string {
 // Entries are returned in YANG list key order (sorted alphabetically when
 // the configuration tree does not preserve order, e.g. after ToMap()).
 type TelemetryConfig struct {
+	Enabled           bool
+	Endpoints         []Endpoint
+	Path              string
+	BasicAuth         BasicAuthConfig
+	Netdata           NetdataConfig
+	DeprecatedAliases []string
+}
+
+// BasicAuthConfig holds optional HTTP Basic Authentication settings for the
+// Prometheus HTTP service.
+type BasicAuthConfig struct {
+	Enabled  bool
+	Realm    string
+	Username string
+	Password string
+}
+
+// NetdataConfig holds Netdata-compatible OS collector settings. These settings
+// do not affect Ze-native Prometheus metrics such as ze_bgp_* or ze_bfd_*.
+type NetdataConfig struct {
 	Enabled    bool
-	Endpoints  []Endpoint
-	Path       string
 	Prefix     string
 	Interval   int
 	Collectors map[string]CollectorConfig
@@ -47,6 +69,14 @@ type CollectorConfig struct {
 	Enabled  bool
 	Interval int
 }
+
+const (
+	defaultTelemetryHost  = "127.0.0.1"
+	defaultPrometheusPath = "/metrics"
+	defaultBasicAuthRealm = "ze prometheus"
+	defaultNetdataPrefix  = "netdata"
+	defaultNetdataSeconds = 1
+)
 
 // Server serves Prometheus metrics over HTTP on one or more listeners.
 // Start binds every entry in the supplied endpoint slice; Shutdown / Close
@@ -65,9 +95,12 @@ func (s *Server) Start(registry *PrometheusRegistry, cfg TelemetryConfig) error 
 	if len(cfg.Endpoints) == 0 {
 		return errors.New("metrics server: at least one endpoint is required")
 	}
+	if err := cfg.BasicAuth.validate(); err != nil {
+		return err
+	}
 	path := cfg.Path
 	if path == "" {
-		path = "/metrics"
+		path = defaultPrometheusPath
 	}
 
 	mux := http.NewServeMux()
@@ -75,11 +108,15 @@ func (s *Server) Start(registry *PrometheusRegistry, cfg TelemetryConfig) error 
 	if path != "/health" {
 		mux.Handle("/health", health.DefaultRegistry.Handler())
 	}
+	handler := http.Handler(mux)
+	if cfg.BasicAuth.Enabled {
+		handler = basicAuthMiddleware(cfg.BasicAuth, handler)
+	}
 
 	s.httpServer = &http.Server{
 		// Addr is informational; multi-listener serving uses Serve(ln).
 		Addr:              cfg.Endpoints[0].JoinHostPort(),
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -128,6 +165,50 @@ func (s *Server) Close() error {
 	return s.httpServer.Close()
 }
 
+func (cfg BasicAuthConfig) validate() error {
+	if !cfg.Enabled {
+		return nil
+	}
+	if cfg.Username == "" {
+		return errors.New("metrics server basic-auth: username is required")
+	}
+	if cfg.Password == "" {
+		return errors.New("metrics server basic-auth: password is required")
+	}
+	if _, err := bcrypt.Cost([]byte(cfg.Password)); err != nil {
+		return fmt.Errorf("metrics server basic-auth: password must be a bcrypt hash: %w", err)
+	}
+	return nil
+}
+
+func basicAuthMiddleware(auth BasicAuthConfig, next http.Handler) http.Handler {
+	realm := auth.Realm
+	if realm == "" {
+		realm = defaultBasicAuthRealm
+	}
+	challenge := basicAuthChallenge(realm)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, password, ok := r.BasicAuth()
+		if ok && basicAuthAccepted(auth, username, password) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("WWW-Authenticate", challenge)
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+	})
+}
+
+func basicAuthAccepted(auth BasicAuthConfig, username, password string) bool {
+	usernameOK := subtle.ConstantTimeCompare([]byte(username), []byte(auth.Username)) == 1
+	passwordOK := bcrypt.CompareHashAndPassword([]byte(auth.Password), []byte(password)) == nil
+	return usernameOK && passwordOK
+}
+
+func basicAuthChallenge(realm string) string {
+	escaped := strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(realm)
+	return `Basic realm="` + escaped + `"`
+}
+
 // ExtractTelemetryConfig extracts Prometheus telemetry settings from a config
 // tree. The service must be explicitly enabled via the enabled leaf (default
 // false). Every YANG `list server {}` entry is returned as an Endpoint in
@@ -159,43 +240,11 @@ func ExtractTelemetryConfig(tree map[string]any) TelemetryConfig {
 	// Extract path (default: /metrics).
 	cfg.Path, _ = prom["path"].(string)
 	if cfg.Path == "" {
-		cfg.Path = "/metrics"
+		cfg.Path = defaultPrometheusPath
 	}
 
-	// Extract prefix (default: netdata).
-	cfg.Prefix, _ = prom["prefix"].(string)
-	if cfg.Prefix == "" {
-		cfg.Prefix = "netdata"
-	}
-
-	// Extract interval (default: 1 second, range 1-60).
-	cfg.Interval = 1
-	if intervalStr, ok := prom["interval"].(string); ok {
-		if n, err := strconv.Atoi(intervalStr); err == nil && n >= 1 && n <= 60 {
-			cfg.Interval = n
-		}
-	}
-
-	// Parse per-collector overrides from the YANG list.
-	cfg.Collectors = make(map[string]CollectorConfig)
-	if collMap, ok := prom["collector"].(map[string]any); ok {
-		for name, v := range collMap {
-			entry, ok := v.(map[string]any)
-			if !ok {
-				continue
-			}
-			cc := CollectorConfig{Enabled: true}
-			if enabledStr, ok := entry["enabled"].(string); ok && enabledStr == "false" {
-				cc.Enabled = false
-			}
-			if intervalStr, ok := entry["interval"].(string); ok {
-				if n, err := strconv.Atoi(intervalStr); err == nil && n >= 1 && n <= 60 {
-					cc.Interval = n
-				}
-			}
-			cfg.Collectors[name] = cc
-		}
-	}
+	cfg.BasicAuth = extractBasicAuthConfig(prom)
+	cfg.Netdata, cfg.DeprecatedAliases = extractNetdataConfig(prom)
 
 	// Read every server list entry in alphabetical key order. ToMap() loses
 	// the original insertion order, so alphabetical is the best deterministic
@@ -212,7 +261,7 @@ func ExtractTelemetryConfig(tree map[string]any) TelemetryConfig {
 			if !ok {
 				continue
 			}
-			ep := Endpoint{Host: "0.0.0.0", Port: 9273}
+			ep := Endpoint{Host: defaultTelemetryHost, Port: 9273}
 			if v, ok := srv["ip"].(string); ok && v != "" {
 				ep.Host = v
 			}
@@ -227,8 +276,120 @@ func ExtractTelemetryConfig(tree map[string]any) TelemetryConfig {
 
 	// Synthesize a default entry when no list entries are present.
 	if len(cfg.Endpoints) == 0 {
-		cfg.Endpoints = []Endpoint{{Host: "0.0.0.0", Port: 9273}}
+		cfg.Endpoints = []Endpoint{{Host: defaultTelemetryHost, Port: 9273}}
 	}
 
 	return cfg
+}
+
+func extractBasicAuthConfig(prom map[string]any) BasicAuthConfig {
+	cfg := BasicAuthConfig{Realm: defaultBasicAuthRealm}
+	authMap, ok := prom["basic-auth"].(map[string]any)
+	if !ok {
+		return cfg
+	}
+	if enabledStr, ok := authMap["enabled"].(string); ok && enabledStr == "true" {
+		cfg.Enabled = true
+	}
+	if realm, ok := authMap["realm"].(string); ok && realm != "" {
+		cfg.Realm = realm
+	}
+	cfg.Username, _ = authMap["username"].(string)
+	cfg.Password, _ = authMap["password"].(string)
+	return cfg
+}
+
+func extractNetdataConfig(prom map[string]any) (NetdataConfig, []string) {
+	cfg := defaultNetdataConfig()
+	deprecated := deprecatedNetdataAliases(prom)
+	netdata, hasNetdata := prom["netdata"].(map[string]any)
+
+	if hasNetdata {
+		if enabledStr, ok := netdata["enabled"].(string); ok && enabledStr == "false" {
+			cfg.Enabled = false
+		}
+	}
+
+	if hasNetdata {
+		if prefix, ok := netdata["prefix"].(string); ok && prefix != "" {
+			cfg.Prefix = prefix
+		} else if prefix, ok := prom["prefix"].(string); ok && prefix != "" {
+			cfg.Prefix = prefix
+		}
+	} else if prefix, ok := prom["prefix"].(string); ok && prefix != "" {
+		cfg.Prefix = prefix
+	}
+
+	if hasNetdata {
+		cfg.Interval = parseCollectorInterval(netdata["interval"], cfg.Interval)
+		if _, ok := netdata["interval"]; !ok {
+			cfg.Interval = parseCollectorInterval(prom["interval"], cfg.Interval)
+		}
+	} else {
+		cfg.Interval = parseCollectorInterval(prom["interval"], cfg.Interval)
+	}
+
+	if hasNetdata {
+		if collMap, ok := netdata["collector"].(map[string]any); ok {
+			cfg.Collectors = parseCollectorConfigs(collMap)
+		} else if collMap, ok := prom["collector"].(map[string]any); ok {
+			cfg.Collectors = parseCollectorConfigs(collMap)
+		}
+	} else if collMap, ok := prom["collector"].(map[string]any); ok {
+		cfg.Collectors = parseCollectorConfigs(collMap)
+	}
+
+	return cfg, deprecated
+}
+
+func defaultNetdataConfig() NetdataConfig {
+	return NetdataConfig{
+		Enabled:    true,
+		Prefix:     defaultNetdataPrefix,
+		Interval:   defaultNetdataSeconds,
+		Collectors: make(map[string]CollectorConfig),
+	}
+}
+
+func deprecatedNetdataAliases(prom map[string]any) []string {
+	var deprecated []string
+	if _, ok := prom["prefix"]; ok {
+		deprecated = append(deprecated, "telemetry.prometheus.prefix")
+	}
+	if _, ok := prom["interval"]; ok {
+		deprecated = append(deprecated, "telemetry.prometheus.interval")
+	}
+	if _, ok := prom["collector"]; ok {
+		deprecated = append(deprecated, "telemetry.prometheus.collector")
+	}
+	return deprecated
+}
+
+func parseCollectorInterval(value any, fallback int) int {
+	intervalStr, ok := value.(string)
+	if !ok {
+		return fallback
+	}
+	n, err := strconv.Atoi(intervalStr)
+	if err != nil || n < 1 || n > 60 {
+		return fallback
+	}
+	return n
+}
+
+func parseCollectorConfigs(collMap map[string]any) map[string]CollectorConfig {
+	collectors := make(map[string]CollectorConfig, len(collMap))
+	for name, v := range collMap {
+		entry, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		cc := CollectorConfig{Enabled: true}
+		if enabledStr, ok := entry["enabled"].(string); ok && enabledStr == "false" {
+			cc.Enabled = false
+		}
+		cc.Interval = parseCollectorInterval(entry["interval"], cc.Interval)
+		collectors[name] = cc
+	}
+	return collectors
 }

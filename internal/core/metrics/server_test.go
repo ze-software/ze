@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 )
@@ -116,10 +117,113 @@ func TestServer_CustomPath(t *testing.T) {
 	assert.Contains(t, string(body), "custom_path_total 1")
 }
 
+// TestServer_BasicAuth verifies optional Basic Auth protects every metrics
+// server path, including /health.
+//
+// VALIDATES: Basic Auth challenge and bcrypt password verification.
+// PREVENTS: unauthenticated scrape access when basic-auth is enabled.
+func TestServer_BasicAuth(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.MinCost)
+	require.NoError(t, err)
+
+	reg := metrics.NewPrometheusRegistry()
+	reg.Counter("basic_auth_total", "Test counter.").Inc()
+
+	var srv metrics.Server
+	err = srv.Start(reg, metrics.TelemetryConfig{
+		Enabled:   true,
+		Endpoints: []metrics.Endpoint{{Host: "127.0.0.1", Port: 19404}},
+		Path:      "/metrics",
+		BasicAuth: metrics.BasicAuthConfig{
+			Enabled:  true,
+			Realm:    "ze prometheus",
+			Username: "prometheus",
+			Password: string(hash),
+		},
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, srv.Close()) })
+
+	resp, err := http.Get("http://127.0.0.1:19404/metrics") //nolint:noctx // test code
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, `Basic realm="ze prometheus"`, resp.Header.Get("WWW-Authenticate"))
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://127.0.0.1:19404/metrics", nil)
+	require.NoError(t, err)
+	req.SetBasicAuth("prometheus", "wrong")
+	resp, err = http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+
+	req, err = http.NewRequestWithContext(context.Background(), http.MethodGet, "http://127.0.0.1:19404/metrics", nil)
+	require.NoError(t, err)
+	req.SetBasicAuth("prometheus", "secret")
+	resp, err = http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, resp.Body.Close())
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Contains(t, string(body), "basic_auth_total 1")
+
+	resp, err = http.Get("http://127.0.0.1:19404/health") //nolint:noctx // test code
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+// TestServer_BasicAuthRequiresCredentials verifies an incomplete auth config
+// fails before the listener is bound.
+//
+// VALIDATES: basic-auth enabled requires a username and bcrypt hash.
+// PREVENTS: starting an endpoint that can never authenticate a scrape.
+func TestServer_BasicAuthRequiresCredentials(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.MinCost)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name string
+		auth metrics.BasicAuthConfig
+	}{
+		{
+			name: "missing username",
+			auth: metrics.BasicAuthConfig{Enabled: true, Password: string(hash)},
+		},
+		{
+			name: "missing password",
+			auth: metrics.BasicAuthConfig{Enabled: true, Username: "prometheus"},
+		},
+		{
+			name: "invalid hash",
+			auth: metrics.BasicAuthConfig{Enabled: true, Username: "prometheus", Password: "cleartext"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reg := metrics.NewPrometheusRegistry()
+			var srv metrics.Server
+			err := srv.Start(reg, metrics.TelemetryConfig{
+				Enabled:   true,
+				Endpoints: []metrics.Endpoint{{Host: "127.0.0.1", Port: 19405}},
+				Path:      "/metrics",
+				BasicAuth: tt.auth,
+			})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "metrics server basic-auth")
+		})
+	}
+}
+
 // TestExtractTelemetryConfig verifies config tree extraction for telemetry settings.
 //
 // VALIDATES: ExtractTelemetryConfig returns correct values from config tree.
+// VALIDATES: implicit telemetry listeners default to loopback.
 // PREVENTS: Telemetry config not parsed or defaults not applied.
+// PREVENTS: exposing unauthenticated Prometheus metrics on all interfaces by default.
 func TestExtractTelemetryConfig(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -159,7 +263,7 @@ func TestExtractTelemetryConfig(t *testing.T) {
 					},
 				},
 			},
-			addr:    "0.0.0.0",
+			addr:    "127.0.0.1",
 			port:    9273,
 			path:    "/metrics",
 			enabled: true,
@@ -208,7 +312,7 @@ func TestExtractTelemetryConfig(t *testing.T) {
 					},
 				},
 			},
-			addr:    "0.0.0.0",
+			addr:    "127.0.0.1",
 			port:    65535,
 			path:    "/metrics",
 			enabled: true,
@@ -227,7 +331,7 @@ func TestExtractTelemetryConfig(t *testing.T) {
 					},
 				},
 			},
-			addr:    "0.0.0.0",
+			addr:    "127.0.0.1",
 			port:    1,
 			path:    "/metrics",
 			enabled: true,
@@ -246,7 +350,7 @@ func TestExtractTelemetryConfig(t *testing.T) {
 					},
 				},
 			},
-			addr:    "0.0.0.0",
+			addr:    "127.0.0.1",
 			port:    9273,
 			path:    "/metrics",
 			enabled: true,
@@ -265,7 +369,7 @@ func TestExtractTelemetryConfig(t *testing.T) {
 					},
 				},
 			},
-			addr:    "0.0.0.0",
+			addr:    "127.0.0.1",
 			port:    9273,
 			path:    "/metrics",
 			enabled: true,
@@ -284,7 +388,7 @@ func TestExtractTelemetryConfig(t *testing.T) {
 					},
 				},
 			},
-			addr:    "0.0.0.0",
+			addr:    "127.0.0.1",
 			port:    9273,
 			path:    "/metrics",
 			enabled: true,
@@ -353,37 +457,52 @@ func TestExtractTelemetryConfig_MultipleServers(t *testing.T) {
 	assert.Equal(t, 19273, cfg.Endpoints[1].Port)
 }
 
-// TestExtractTelemetryConfig_Prefix verifies the prefix field is extracted from
-// the config tree, defaulting to "netdata" when absent.
-func TestExtractTelemetryConfig_Prefix(t *testing.T) {
+// TestExtractTelemetryConfig_NetdataPrefix verifies the Netdata-compatible OS
+// metric prefix defaults to "netdata" and supports deprecated aliases.
+func TestExtractTelemetryConfig_NetdataPrefix(t *testing.T) {
 	// Default prefix when not specified.
 	cfg := metrics.ExtractTelemetryConfig(map[string]any{
 		"telemetry": map[string]any{
 			"prometheus": map[string]any{"enabled": "true"},
 		},
 	})
-	assert.Equal(t, "netdata", cfg.Prefix)
+	assert.Equal(t, "netdata", cfg.Netdata.Prefix)
 
-	// Custom prefix.
+	// Deprecated root alias.
 	cfg = metrics.ExtractTelemetryConfig(map[string]any{
 		"telemetry": map[string]any{
 			"prometheus": map[string]any{"enabled": "true", "prefix": "node"},
 		},
 	})
-	assert.Equal(t, "node", cfg.Prefix)
+	assert.Equal(t, "node", cfg.Netdata.Prefix)
+	assert.Equal(t, []string{"telemetry.prometheus.prefix"}, cfg.DeprecatedAliases)
+
+	// New netdata container takes precedence over the deprecated alias.
+	cfg = metrics.ExtractTelemetryConfig(map[string]any{
+		"telemetry": map[string]any{
+			"prometheus": map[string]any{
+				"enabled": "true",
+				"prefix":  "node",
+				"netdata": map[string]any{"prefix": "netdata"},
+			},
+		},
+	})
+	assert.Equal(t, "netdata", cfg.Netdata.Prefix)
+	assert.Equal(t, []string{"telemetry.prometheus.prefix"}, cfg.DeprecatedAliases)
 }
 
-// TestExtractTelemetryConfig_Interval verifies the interval field is extracted
-// from the config tree, defaulting to 1 when absent, clamped to 1-60.
-func TestExtractTelemetryConfig_Interval(t *testing.T) {
+// TestExtractTelemetryConfig_NetdataInterval verifies the Netdata-compatible OS
+// collector interval is extracted from the netdata container.
+func TestExtractTelemetryConfig_NetdataInterval(t *testing.T) {
 	extract := func(interval string) int {
-		prom := map[string]any{"enabled": "true"}
+		netdata := map[string]any{}
 		if interval != "" {
-			prom["interval"] = interval
+			netdata["interval"] = interval
 		}
+		prom := map[string]any{"enabled": "true", "netdata": netdata}
 		return metrics.ExtractTelemetryConfig(map[string]any{
 			"telemetry": map[string]any{"prometheus": prom},
-		}).Interval
+		}).Netdata.Interval
 	}
 
 	assert.Equal(t, 1, extract(""))
@@ -394,42 +513,63 @@ func TestExtractTelemetryConfig_Interval(t *testing.T) {
 	assert.Equal(t, 1, extract("61"))
 	assert.Equal(t, 1, extract("-1"))
 	assert.Equal(t, 1, extract("abc"))
+
+	legacy := metrics.ExtractTelemetryConfig(map[string]any{
+		"telemetry": map[string]any{
+			"prometheus": map[string]any{"enabled": "true", "interval": "10"},
+		},
+	})
+	assert.Equal(t, 10, legacy.Netdata.Interval)
+	assert.Equal(t, []string{"telemetry.prometheus.interval"}, legacy.DeprecatedAliases)
+
+	precedence := metrics.ExtractTelemetryConfig(map[string]any{
+		"telemetry": map[string]any{
+			"prometheus": map[string]any{
+				"enabled":  "true",
+				"interval": "5",
+				"netdata":  map[string]any{"interval": "10"},
+			},
+		},
+	})
+	assert.Equal(t, 10, precedence.Netdata.Interval)
 }
 
-// TestExtractTelemetryConfig_Collectors verifies per-collector overrides
-// are parsed from the YANG list.
-func TestExtractTelemetryConfig_Collectors(t *testing.T) {
+// TestExtractTelemetryConfig_NetdataCollectors verifies per-collector overrides
+// are parsed from the Netdata-compatible OS collector list.
+func TestExtractTelemetryConfig_NetdataCollectors(t *testing.T) {
 	cfg := metrics.ExtractTelemetryConfig(map[string]any{
 		"telemetry": map[string]any{
 			"prometheus": map[string]any{
 				"enabled": "true",
-				"collector": map[string]any{
-					"diskspace": map[string]any{
-						"enabled": "false",
-					},
-					"cpu": map[string]any{
-						"interval": "5",
-					},
-					"snmp6": map[string]any{
-						"enabled":  "true",
-						"interval": "10",
+				"netdata": map[string]any{
+					"collector": map[string]any{
+						"diskspace": map[string]any{
+							"enabled": "false",
+						},
+						"cpu": map[string]any{
+							"interval": "5",
+						},
+						"snmp6": map[string]any{
+							"enabled":  "true",
+							"interval": "10",
+						},
 					},
 				},
 			},
 		},
 	})
 
-	assert.Len(t, cfg.Collectors, 3)
+	assert.Len(t, cfg.Netdata.Collectors, 3)
 
-	ds := cfg.Collectors["diskspace"]
+	ds := cfg.Netdata.Collectors["diskspace"]
 	assert.False(t, ds.Enabled)
 	assert.Equal(t, 0, ds.Interval)
 
-	cpu := cfg.Collectors["cpu"]
+	cpu := cfg.Netdata.Collectors["cpu"]
 	assert.True(t, cpu.Enabled)
 	assert.Equal(t, 5, cpu.Interval)
 
-	snmp6 := cfg.Collectors["snmp6"]
+	snmp6 := cfg.Netdata.Collectors["snmp6"]
 	assert.True(t, snmp6.Enabled)
 	assert.Equal(t, 10, snmp6.Interval)
 
@@ -439,7 +579,77 @@ func TestExtractTelemetryConfig_Collectors(t *testing.T) {
 			"prometheus": map[string]any{"enabled": "true"},
 		},
 	})
-	assert.Empty(t, cfg2.Collectors)
+	assert.Empty(t, cfg2.Netdata.Collectors)
+
+	legacy := metrics.ExtractTelemetryConfig(map[string]any{
+		"telemetry": map[string]any{
+			"prometheus": map[string]any{
+				"enabled": "true",
+				"collector": map[string]any{
+					"cpu": map[string]any{"interval": "2"},
+				},
+			},
+		},
+	})
+	assert.Equal(t, 2, legacy.Netdata.Collectors["cpu"].Interval)
+	assert.Equal(t, []string{"telemetry.prometheus.collector"}, legacy.DeprecatedAliases)
+
+	precedence := metrics.ExtractTelemetryConfig(map[string]any{
+		"telemetry": map[string]any{
+			"prometheus": map[string]any{
+				"enabled": "true",
+				"collector": map[string]any{
+					"cpu": map[string]any{"interval": "2"},
+				},
+				"netdata": map[string]any{
+					"collector": map[string]any{
+						"snmp6": map[string]any{"interval": "10"},
+					},
+				},
+			},
+		},
+	})
+	assert.NotContains(t, precedence.Netdata.Collectors, "cpu")
+	assert.Equal(t, 10, precedence.Netdata.Collectors["snmp6"].Interval)
+}
+
+// TestExtractTelemetryConfig_BasicAuth verifies Basic Auth settings are parsed
+// from telemetry.prometheus.basic-auth.
+func TestExtractTelemetryConfig_BasicAuth(t *testing.T) {
+	cfg := metrics.ExtractTelemetryConfig(map[string]any{
+		"telemetry": map[string]any{
+			"prometheus": map[string]any{
+				"enabled": "true",
+				"basic-auth": map[string]any{
+					"enabled":  "true",
+					"realm":    "metrics",
+					"username": "prometheus",
+					"password": "$2a$10$abcdefghijklmnopqrstuu2J8Y27NbaVbhpI5NoRxw4ZmW0bErjUa",
+				},
+			},
+		},
+	})
+
+	assert.True(t, cfg.BasicAuth.Enabled)
+	assert.Equal(t, "metrics", cfg.BasicAuth.Realm)
+	assert.Equal(t, "prometheus", cfg.BasicAuth.Username)
+	assert.NotEmpty(t, cfg.BasicAuth.Password)
+}
+
+// TestExtractTelemetryConfig_NetdataDisabled verifies the netdata container can
+// disable only OS collectors without disabling the Prometheus service.
+func TestExtractTelemetryConfig_NetdataDisabled(t *testing.T) {
+	cfg := metrics.ExtractTelemetryConfig(map[string]any{
+		"telemetry": map[string]any{
+			"prometheus": map[string]any{
+				"enabled": "true",
+				"netdata": map[string]any{"enabled": "false"},
+			},
+		},
+	})
+
+	assert.True(t, cfg.Enabled)
+	assert.False(t, cfg.Netdata.Enabled)
 }
 
 // TestServer_MultiListener verifies Server.Start binds every endpoint and
