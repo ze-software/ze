@@ -3,7 +3,9 @@ package radius
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"net"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -239,6 +241,83 @@ func TestClientFailover(t *testing.T) {
 	}
 	if resp.Code != CodeAccessAccept {
 		t.Errorf("got code %d, want %d", resp.Code, CodeAccessAccept)
+	}
+}
+
+func TestClientConcurrentExchangeDemuxesByAuthenticator(t *testing.T) {
+	sharedKey := []byte("testing-concurrent")
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := conn.LocalAddr().String()
+	done := make(chan struct{})
+
+	type request struct {
+		data []byte
+		from *net.UDPAddr
+	}
+	go func() {
+		defer close(done)
+		buf := make([]byte, MaxPacketLen)
+		reqs := make([]request, 0, 2)
+		for len(reqs) < 2 {
+			n, from, readErr := conn.ReadFromUDP(buf)
+			if readErr != nil {
+				return
+			}
+			data := make([]byte, n)
+			copy(data, buf[:n])
+			reqs = append(reqs, request{data: data, from: from})
+		}
+		conn.WriteToUDP(buildResponse(CodeAccessAccept, reqs[1].data, sharedKey), reqs[1].from) //nolint:errcheck // test mock
+		conn.WriteToUDP(buildResponse(CodeAccessAccept, reqs[0].data, sharedKey), reqs[0].from) //nolint:errcheck // test mock
+	}()
+	defer func() {
+		closeSilent(conn)
+		<-done
+	}()
+
+	client, err := NewClient(ClientConfig{
+		Timeout: 2 * time.Second,
+		Retries: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeSilent(client)
+
+	packets := []*Packet{
+		{Code: CodeAccessRequest, Identifier: 7, Authenticator: [AuthenticatorLen]byte{1}},
+		{Code: CodeAccessRequest, Identifier: 7, Authenticator: [AuthenticatorLen]byte{2}},
+	}
+	results := make(chan error, len(packets))
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for _, pkt := range packets {
+		wg.Add(1)
+		go func(pkt *Packet) {
+			defer wg.Done()
+			<-start
+			resp, exchErr := client.Exchange(context.Background(), pkt, sharedKey, addr)
+			if exchErr != nil {
+				results <- exchErr
+				return
+			}
+			if resp.Code != CodeAccessAccept {
+				results <- fmt.Errorf("got code %d, want %d", resp.Code, CodeAccessAccept)
+				return
+			}
+			results <- nil
+		}(pkt)
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	for resultErr := range results {
+		if resultErr != nil {
+			t.Fatal(resultErr)
+		}
 	}
 }
 

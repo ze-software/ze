@@ -5,6 +5,7 @@
 package radius
 
 import (
+	"crypto/hmac"
 	"crypto/md5" //nolint:gosec // RFC 2865 requires MD5 for authenticator computation
 	"crypto/rand"
 	"crypto/subtle"
@@ -186,6 +187,46 @@ func VerifyCoARequestAuth(data, secret []byte) bool {
 	}
 	expected := AccountingRequestAuth(data, pktLen, secret)
 	return subtle.ConstantTimeCompare(data[4:4+AuthenticatorLen], expected[:]) == 1
+}
+
+// VerifyMessageAuthenticator checks the RADIUS Message-Authenticator
+// attribute (type 80) when present. RFC 3579 Section 3.2 computes the
+// HMAC-MD5 over the packet with the Message-Authenticator value zeroed.
+func VerifyMessageAuthenticator(data, secret []byte) bool {
+	if len(data) < MinPacketLen {
+		return false
+	}
+	pktLen := int(binary.BigEndian.Uint16(data[2:4]))
+	if pktLen < MinPacketLen || pktLen > len(data) {
+		return false
+	}
+
+	buf := make([]byte, pktLen)
+	copy(buf, data[:pktLen])
+	off := HeaderLen
+	for off < pktLen {
+		if off+2 > pktLen {
+			return false
+		}
+		attrType := buf[off]
+		attrLen := int(buf[off+1])
+		if attrLen < 2 || off+attrLen > pktLen {
+			return false
+		}
+		if attrType == AttrMessageAuthenticator {
+			if attrLen != 2+AuthenticatorLen {
+				return false
+			}
+			received := data[off+2 : off+attrLen]
+			clear(buf[off+2 : off+attrLen])
+			mac := hmac.New(md5.New, secret) //nolint:gosec // RFC 3579 mandates HMAC-MD5.
+			mac.Write(buf)
+			expected := mac.Sum(nil)
+			return hmac.Equal(received, expected)
+		}
+		off += attrLen
+	}
+	return false
 }
 
 // AccountingRequestAuth computes the authenticator for an Accounting-Request.

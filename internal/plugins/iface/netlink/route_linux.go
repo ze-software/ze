@@ -15,13 +15,14 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
 )
 
 // Well-known Linux rtm_protocol values that map to readable names. Any
 // other protocol number is rendered as its decimal string so operators
 // still see the disambiguating tag.
 //
-// See linux/rtnetlink.h RTPROT_* and fib-kernel's rtprotZE (250).
+// See linux/rtnetlink.h RTPROT_* and Ze's producer-specific rtproto IDs.
 var rtProtoNames = map[int]string{
 	syscall.RTPROT_UNSPEC:   "unspec",
 	syscall.RTPROT_REDIRECT: "redirect",
@@ -38,7 +39,6 @@ var rtProtoNames = map[int]string{
 	189: "rip",   // RTPROT_RIP
 	192: "eigrp", // RTPROT_EIGRP
 	193: "babel", // RTPROT_BABEL
-	250: "ze",    // matches fib-kernel's rtprotZE
 }
 
 // ListKernelRoutes returns up to `limit` routes from the kernel's main
@@ -124,6 +124,9 @@ func (b *netlinkBackend) ListKernelRoutes(filterPrefix string, limit int) ([]ifa
 }
 
 func protocolName(p int) string {
+	if name, ok := rtproto.Name(p); ok {
+		return name
+	}
 	if name, ok := rtProtoNames[p]; ok {
 		return name
 	}

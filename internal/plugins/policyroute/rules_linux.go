@@ -3,6 +3,8 @@ package policyroute
 import (
 	"fmt"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
+
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -57,7 +59,7 @@ func (rm *linuxRuleManager) applyAutoRoutes(routes []autoRouteSpec) error {
 		route := &netlink.Route{
 			Gw:       gw[:],
 			Table:    int(r.Table),
-			Protocol: 250, // rtprotZE
+			Protocol: rtproto.PolicyRoute,
 		}
 		if err := rm.handle.RouteAdd(route); err != nil {
 			return fmt.Errorf("route add (table %d via %s): %w", r.Table, r.NextHop, err)
@@ -72,7 +74,7 @@ func (rm *linuxRuleManager) removeAutoRoutes(routes []autoRouteSpec) {
 		route := &netlink.Route{
 			Gw:       gw[:],
 			Table:    int(r.Table),
-			Protocol: 250,
+			Protocol: rtproto.PolicyRoute,
 		}
 		_ = rm.handle.RouteDel(route)
 	}

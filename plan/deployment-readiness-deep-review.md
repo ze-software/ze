@@ -19,6 +19,8 @@ Remediation progress in this branch:
 - P0-5 SSH streaming commands now use dispatcher authorization and accounting, with remote-address propagation tests.
 - P0-6 API transport now rejects plaintext non-loopback REST and requires gRPC TLS for authenticated non-loopback listeners.
 - P0-3 API config commits now call the existing reload path after saving and return an error if runtime apply fails. Full transactional rollback and shared validation semantics remain open.
+- P0-7 RADIUS client responses now demux by server, identifier, and authenticator under concurrent exchange; CoA/DM now requires fresh Event-Timestamp, verifies Message-Authenticator when present, and caches retransmission responses so duplicate packets do not replay side effects. Targeted `go test -race -count=1 ./internal/component/radius ./internal/plugins/l2tpauthradius` passed locally.
+- P0-8 route producers now use distinct Linux `rtm_protocol` owner IDs for FIB, static, and policy-route routes; FIB monitoring ignores all Ze-owned route producers, static removal uses the exact installed route identity, and nft apply no longer sweeps unknown `ze_*` tables by prefix alone. Native unit tests and Linux compile-only checks passed locally; privileged Linux ownership/recovery tests remain open evidence.
 - P1 BGP `SplitWireUpdate` nil source context now falls back to no ADD-PATH and has regression coverage.
 - P1 API docs/OpenAPI now follow REST auth when auth is configured.
 - The legacy Finder web functional suite now runs against Finder by default, uses an isolated temporary zefs config directory, asserts DOM/text state through the right browser surfaces, and passes locally (`64 passed, 0 failed, 8 skipped`).

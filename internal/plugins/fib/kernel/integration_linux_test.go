@@ -58,7 +58,7 @@ func sanitizeNSName(testName string) string {
 	return name
 }
 
-// zeRoutes returns all routes with rtm_protocol == rtprotZE in the namespace.
+// zeRoutes returns all fib-kernel routes in the namespace.
 func zeRoutes(t *testing.T, h *netlink.Handle) []netlink.Route {
 	t.Helper()
 	routes, err := h.RouteList(nil, netlink.FAMILY_ALL)
@@ -88,7 +88,7 @@ func addLoopback(t *testing.T, h *netlink.Handle) {
 }
 
 // VALIDATES: AC-8 -- sysrib/best-change with action "add" installs route via netlink.
-// VALIDATES: AC-16 -- all ze routes use custom rtm_protocol ID (RTPROT_ZE=250).
+// VALIDATES: AC-16 -- fib-kernel routes use their producer-specific rtm_protocol ID.
 // PREVENTS: netlink backend silently failing to program real kernel routes.
 func TestNetlinkIntegration_AddRoute(t *testing.T) {
 	withNetNS(t, func() {
@@ -106,7 +106,7 @@ func TestNetlinkIntegration_AddRoute(t *testing.T) {
 		})
 		f.processEvent(event)
 
-		// Verify route exists in kernel with RTPROT_ZE.
+		// Verify route exists in kernel with the fib-kernel route owner.
 		routes := zeRoutes(t, h)
 		require.Len(t, routes, 1, "expected 1 ze route in kernel")
 		assert.Equal(t, "10.99.0.0/24", routes[0].Dst.String())

@@ -25,34 +25,36 @@ const (
 
 // RADIUS attribute type codes (RFC 2865 Section 5).
 const (
-	AttrUserName          = 1
-	AttrUserPassword      = 2
-	AttrCHAPPassword      = 3
-	AttrNASIPAddress      = 4
-	AttrNASPort           = 5
-	AttrServiceType       = 6
-	AttrFramedProtocol    = 7
-	AttrFramedIPAddress   = 8
-	AttrFramedIPNetmask   = 9
-	AttrFilterID          = 11
-	AttrReplyMessage      = 18
-	AttrSessionTimeout    = 27
-	AttrCalledStationID   = 30
-	AttrCallingStationID  = 31
-	AttrNASIdentifier     = 32
-	AttrAcctStatusType    = 40
-	AttrAcctDelayTime     = 41
-	AttrAcctInputOctets   = 42
-	AttrAcctOutputOctets  = 43
-	AttrAcctSessionID     = 44
-	AttrAcctSessionTime   = 46
-	AttrAcctInputPackets  = 47
-	AttrAcctOutputPackets = 48
-	AttrCHAPChallenge     = 60
-	AttrNASPortType       = 61
-	AttrFramedPool        = 88
-	AttrErrorCause        = 101 // RFC 5176 Section 3.6
-	AttrVendorSpecific    = 26
+	AttrUserName             = 1
+	AttrUserPassword         = 2
+	AttrCHAPPassword         = 3
+	AttrNASIPAddress         = 4
+	AttrNASPort              = 5
+	AttrServiceType          = 6
+	AttrFramedProtocol       = 7
+	AttrFramedIPAddress      = 8
+	AttrFramedIPNetmask      = 9
+	AttrFilterID             = 11
+	AttrReplyMessage         = 18
+	AttrSessionTimeout       = 27
+	AttrCalledStationID      = 30
+	AttrCallingStationID     = 31
+	AttrNASIdentifier        = 32
+	AttrAcctStatusType       = 40
+	AttrAcctDelayTime        = 41
+	AttrAcctInputOctets      = 42
+	AttrAcctOutputOctets     = 43
+	AttrAcctSessionID        = 44
+	AttrAcctSessionTime      = 46
+	AttrAcctInputPackets     = 47
+	AttrAcctOutputPackets    = 48
+	AttrEventTimestamp       = 55
+	AttrCHAPChallenge        = 60
+	AttrNASPortType          = 61
+	AttrMessageAuthenticator = 80
+	AttrFramedPool           = 88
+	AttrErrorCause           = 101 // RFC 5176 Section 3.6
+	AttrVendorSpecific       = 26
 )
 
 // Vendor IDs for vendor-specific attributes (RFC 2865 Section 5.26).

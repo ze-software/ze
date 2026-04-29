@@ -6,6 +6,7 @@ package radius
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -38,6 +39,19 @@ type Client struct {
 	mu     sync.Mutex
 	conn   *net.UDPConn
 	closed bool
+	done   chan struct{}
+	wait   map[responseKey][]*responseWaiter
+}
+
+type responseKey struct {
+	server string
+	id     uint8
+}
+
+type responseWaiter struct {
+	auth   [AuthenticatorLen]byte
+	secret []byte
+	ch     chan []byte
 }
 
 // NewClient creates a RADIUS client.
@@ -62,22 +76,30 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 		return nil, fmt.Errorf("radius: listen: %w", err)
 	}
 
-	return &Client{
+	c := &Client{
 		config: cfg,
 		logger: logger,
 		conn:   conn,
-	}, nil
+		done:   make(chan struct{}),
+		wait:   make(map[responseKey][]*responseWaiter),
+	}
+	go c.readLoop()
+	return c, nil
 }
 
 // Close releases the UDP socket.
 func (c *Client) Close() error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c.closed {
+		c.mu.Unlock()
 		return nil
 	}
 	c.closed = true
-	return c.conn.Close()
+	err := c.conn.Close()
+	done := c.done
+	c.mu.Unlock()
+	<-done
+	return err
 }
 
 // NextID returns the next RADIUS packet identifier (0-255 cycling).
@@ -101,20 +123,28 @@ func (c *Client) Exchange(ctx context.Context, pkt *Packet, secret []byte, serve
 		return nil, fmt.Errorf("radius: encode: %w", err)
 	}
 
+	requestAuth := pkt.Authenticator
 	// RFC 2866 Section 3: Accounting-Request authenticator is computed.
 	if pkt.Code == CodeAccountingReq {
 		auth := AccountingRequestAuth(buf, n, secret)
 		copy(buf[4:4+AuthenticatorLen], auth[:])
+		requestAuth = auth
 	}
 
 	addr, err := net.ResolveUDPAddr("udp4", serverAddr)
 	if err != nil {
 		return nil, fmt.Errorf("radius: resolve %s: %w", serverAddr, err)
 	}
+	key := responseKey{server: addr.String(), id: pkt.Identifier}
+	waiter, err := c.registerWaiter(key, requestAuth, secret)
+	if err != nil {
+		return nil, err
+	}
+	defer c.unregisterWaiter(key, waiter)
 
 	timeout := c.config.Timeout
-	respBuf := make([]byte, MaxPacketLen)
 
+retryLoop:
 	for attempt := range c.config.Retries {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -133,53 +163,110 @@ func (c *Client) Exchange(ctx context.Context, pkt *Packet, secret []byte, serve
 			return nil, fmt.Errorf("radius: write to %s: %w", serverAddr, writeErr)
 		}
 
-		deadline := time.Now().Add(timeout)
-		_ = c.conn.SetReadDeadline(deadline)
-
+		timer := time.NewTimer(timeout)
 		for {
-			rn, from, readErr := c.conn.ReadFromUDP(respBuf)
-			if readErr != nil {
-				var netErr net.Error
-				if errors.As(readErr, &netErr) && netErr.Timeout() {
-					break // retry
+			select {
+			case data := <-waiter.ch:
+				resp, decErr := Decode(data)
+				if decErr != nil {
+					c.logger.Warn("radius: decode response failed",
+						"server", serverAddr, "error", decErr)
+					continue
 				}
-				return nil, fmt.Errorf("radius: read: %w", readErr)
+				stopTimer(timer)
+				return resp, nil
+			case <-timer.C:
+				// Retry with exponential backoff.
+				timeout *= 2
+				continue retryLoop
+			case <-ctx.Done():
+				stopTimer(timer)
+				return nil, ctx.Err()
+			case <-c.done:
+				stopTimer(timer)
+				return nil, errors.New("radius: client closed")
 			}
-
-			// RFC 2865: only accept responses from the server we sent to.
-			if !from.IP.Equal(addr.IP) || from.Port != addr.Port {
-				continue
-			}
-
-			if rn < MinPacketLen {
-				continue
-			}
-
-			if respBuf[1] != pkt.Identifier {
-				continue
-			}
-
-			if !VerifyResponseAuth(respBuf[:rn], pkt.Authenticator, secret) {
-				c.logger.Warn("radius: bad response authenticator, discarding",
-					"server", serverAddr, "attempt", attempt+1)
-				continue
-			}
-
-			resp, decErr := Decode(respBuf[:rn])
-			if decErr != nil {
-				c.logger.Warn("radius: decode response failed",
-					"server", serverAddr, "error", decErr)
-				continue
-			}
-
-			return resp, nil
 		}
-
-		// Exponential backoff for next retry.
-		timeout *= 2
 	}
 
 	return nil, fmt.Errorf("radius: all %d retries exhausted for %s", c.config.Retries, serverAddr)
+}
+
+func (c *Client) readLoop() {
+	defer close(c.done)
+	buf := make([]byte, MaxPacketLen)
+	for {
+		n, from, err := c.conn.ReadFromUDP(buf)
+		if err != nil {
+			return
+		}
+		if n < MinPacketLen {
+			continue
+		}
+		pktLen := int(binary.BigEndian.Uint16(buf[2:4]))
+		if pktLen < MinPacketLen || pktLen > n || pktLen > MaxPacketLen {
+			continue
+		}
+		c.dispatchResponse(responseKey{server: from.String(), id: buf[1]}, buf[:pktLen])
+	}
+}
+
+func (c *Client) registerWaiter(key responseKey, auth [AuthenticatorLen]byte, secret []byte) (*responseWaiter, error) {
+	w := &responseWaiter{auth: auth, secret: secret, ch: make(chan []byte, 4)}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return nil, errors.New("radius: client closed")
+	}
+	c.wait[key] = append(c.wait[key], w)
+	return w, nil
+}
+
+func (c *Client) unregisterWaiter(key responseKey, waiter *responseWaiter) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	waits := c.wait[key]
+	for i, w := range waits {
+		if w == waiter {
+			waits = append(waits[:i], waits[i+1:]...)
+			break
+		}
+	}
+	if len(waits) == 0 {
+		delete(c.wait, key)
+		return
+	}
+	c.wait[key] = waits
+}
+
+func (c *Client) dispatchResponse(key responseKey, data []byte) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	waits := c.wait[key]
+	for _, w := range waits {
+		if !VerifyResponseAuth(data, w.auth, w.secret) {
+			continue
+		}
+		copyData := make([]byte, len(data))
+		copy(copyData, data)
+		select {
+		case w.ch <- copyData:
+		default:
+		}
+		return
+	}
+	if len(waits) > 0 {
+		c.logger.Warn("radius: bad response authenticator, discarding", "server", key.server)
+	}
+}
+
+func stopTimer(timer *time.Timer) {
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
 }
 
 // prepareWirePacket returns a copy of pkt with User-Password attributes

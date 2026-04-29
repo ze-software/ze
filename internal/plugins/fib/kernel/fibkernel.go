@@ -8,7 +8,7 @@
 //
 // fib-kernel subscribes to (sysrib, best-change) on the EventBus and
 // programs OS routes via netlink (Linux) or route socket (Darwin). Uses a
-// custom rtm_protocol ID (RTPROT_ZE=250) to identify ze-installed routes.
+// producer-specific rtm_protocol ID to identify fib-kernel routes.
 // Monitors kernel route changes to detect external modifications and
 // re-asserts ze routes when overwritten.
 package fibkernel
@@ -120,7 +120,7 @@ type routeBackend interface {
 	delRoute(prefix string) error
 	// replaceRoute atomically replaces a route.
 	replaceRoute(prefix, nextHop string) error
-	// listZeRoutes returns all routes installed by ze (matching rtprotZE).
+	// listZeRoutes returns all routes installed by fib-kernel.
 	listZeRoutes() ([]installedRoute, error)
 	// close releases backend resources.
 	close() error

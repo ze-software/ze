@@ -32,6 +32,24 @@ func TestLowerFamilyUnknownRejects(t *testing.T) {
 	}
 }
 
+func TestShouldDeleteTableScopesToDesiredOrApplied(t *testing.T) {
+	b := &backend{applied: map[string]struct{}{"ze_old": {}}}
+	desired := tableNameSet([]firewall.Table{{Name: "ze_new", Family: firewall.FamilyInet}})
+
+	if !b.shouldDeleteTable(&nftables.Table{Name: "ze_new"}, desired) {
+		t.Fatal("desired ze table should be replaced")
+	}
+	if !b.shouldDeleteTable(&nftables.Table{Name: "ze_old"}, desired) {
+		t.Fatal("previously applied ze table should be removed as orphan")
+	}
+	if b.shouldDeleteTable(&nftables.Table{Name: "ze_other"}, desired) {
+		t.Fatal("unknown ze table must not be swept by prefix")
+	}
+	if b.shouldDeleteTable(&nftables.Table{Name: "external"}, desired) {
+		t.Fatal("non-ze table must not be touched")
+	}
+}
+
 // VALIDATES: Category A -- lowerHook rejects unknown hooks.
 // PREVENTS: silent fall-back to ingress for an arbitrary hook value.
 func TestLowerHookUnknownRejects(t *testing.T) {

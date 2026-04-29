@@ -9,11 +9,13 @@ import (
 	"net"
 	"net/netip"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
+
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
 
-const rtprotZE = 250
+const rtprotStatic = rtproto.Static
 
 type netlinkStaticBackend struct {
 	handle *netlink.Handle
@@ -44,10 +46,9 @@ func (b *netlinkStaticBackend) applyRoute(r staticRoute) error {
 }
 
 func (b *netlinkStaticBackend) removeRoute(r staticRoute) error {
-	dst := prefixToIPNet(r.Prefix)
-	route := &netlink.Route{
-		Dst:      dst,
-		Protocol: rtprotZE,
+	route, err := b.buildRoute(r)
+	if err != nil {
+		return err
 	}
 	return b.handle.RouteDel(route)
 }
@@ -60,7 +61,7 @@ func (b *netlinkStaticBackend) listRoutes() ([]installedStaticRoute, error) {
 
 	var result []installedStaticRoute
 	for i := range routes {
-		if routes[i].Protocol != rtprotZE {
+		if routes[i].Protocol != rtprotStatic {
 			continue
 		}
 		if routes[i].Dst == nil {
@@ -87,7 +88,7 @@ func (b *netlinkStaticBackend) buildRoute(r staticRoute) (*netlink.Route, error)
 
 	route := &netlink.Route{
 		Dst:      dst,
-		Protocol: rtprotZE,
+		Protocol: rtprotStatic,
 		Priority: int(r.Metric),
 	}
 

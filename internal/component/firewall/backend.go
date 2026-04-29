@@ -27,7 +27,7 @@ func init() { //nolint:gochecknoinits // logger bootstrap only
 // and selected by the "backend" config leaf (default: "nft").
 //
 // Apply receives the full desired state. The backend reconciles against the
-// kernel: create new ze_* tables, replace changed ones, delete orphans.
+// kernel: create new ze_* tables, replace changed ones, delete owned orphans.
 // Non-ze_* tables MUST NOT be touched.
 //
 // Caller MUST call CloseBackend when done.

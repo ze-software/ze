@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
@@ -28,7 +30,23 @@ type coaListener struct {
 	bus            ze.EventBus
 	allowedSources []net.IP
 	done           chan struct{}
+	replayMu       sync.Mutex
+	replay         map[coaReplayKey]coaReplayEntry
 }
+
+type coaReplayKey struct {
+	source        string
+	code          uint8
+	identifier    uint8
+	authenticator [radius.AuthenticatorLen]byte
+}
+
+type coaReplayEntry struct {
+	seen     time.Time
+	response []byte
+}
+
+const coaReplayWindow = 5 * time.Minute
 
 func newCoAListener(port int, secrets map[string][]byte, defaultSecret []byte, bus ze.EventBus, allowedSources []net.IP) (*coaListener, error) {
 	addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf(":%d", port))
@@ -46,6 +64,7 @@ func newCoAListener(port int, secrets map[string][]byte, defaultSecret []byte, b
 		bus:            bus,
 		allowedSources: allowedSources,
 		done:           make(chan struct{}),
+		replay:         make(map[coaReplayKey]coaReplayEntry),
 	}
 	go cl.serve()
 	return cl, nil
@@ -92,14 +111,28 @@ func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
 		logger().Warn("coa: decode failed", "from", from, "error", err)
 		return
 	}
+	if pkt.Code != radius.CodeCoARequest && pkt.Code != radius.CodeDisconnectRequest {
+		logger().Warn("coa: unexpected code", "code", pkt.Code, "from", from)
+		return
+	}
+	if pkt.FindAttr(radius.AttrMessageAuthenticator) != nil && !radius.VerifyMessageAuthenticator(data, secret) {
+		logger().Debug("coa: invalid message-authenticator, discarding", "from", from)
+		return
+	}
+	if cached := cl.cachedReplay(from.IP, pkt); cached != nil {
+		cl.sendRawResponse(from, cached)
+		return
+	}
+	if !validEventTimestamp(pkt, time.Now()) {
+		cl.sendResponse(from, pkt, nakCode(pkt.Code), radius.ErrorCauseInvalidRequest)
+		return
+	}
 
 	switch pkt.Code {
 	case radius.CodeCoARequest:
 		cl.handleCoA(pkt, from)
 	case radius.CodeDisconnectRequest:
 		cl.handleDisconnect(pkt, from)
-	default:
-		logger().Warn("coa: unexpected code", "code", pkt.Code, "from", from)
 	}
 }
 
@@ -265,7 +298,76 @@ func (cl *coaListener) sendResponse(to *net.UDPAddr, req *radius.Packet, code ui
 		req.Authenticator, wireBuf[radius.HeaderLen:n], cl.secretForSource(to.IP))
 	copy(wireBuf[4:4+radius.AuthenticatorLen], respAuth[:])
 
-	if _, err := cl.conn.WriteToUDP(wireBuf[:n], to); err != nil {
+	wire := make([]byte, n)
+	copy(wire, wireBuf[:n])
+	if _, err := cl.conn.WriteToUDP(wire, to); err != nil {
 		logger().Warn("coa: send response failed", "error", err)
+		return
+	}
+	cl.rememberReplay(to.IP, req, wire)
+}
+
+func (cl *coaListener) sendRawResponse(to *net.UDPAddr, wire []byte) {
+	if _, err := cl.conn.WriteToUDP(wire, to); err != nil {
+		logger().Warn("coa: send cached response failed", "error", err)
+	}
+}
+
+func validEventTimestamp(pkt *radius.Packet, now time.Time) bool {
+	attr := pkt.FindAttr(radius.AttrEventTimestamp)
+	if len(attr) != 4 {
+		return false
+	}
+	ts := time.Unix(int64(binary.BigEndian.Uint32(attr)), 0)
+	return !ts.Before(now.Add(-coaReplayWindow)) && !ts.After(now.Add(coaReplayWindow))
+}
+
+func nakCode(code uint8) uint8 {
+	if code == radius.CodeDisconnectRequest {
+		return radius.CodeDisconnectNAK
+	}
+	return radius.CodeCoANAK
+}
+
+func (cl *coaListener) cachedReplay(source net.IP, pkt *radius.Packet) []byte {
+	key := replayKey(source, pkt)
+	now := time.Now()
+	cl.replayMu.Lock()
+	defer cl.replayMu.Unlock()
+	cl.pruneReplayLocked(now)
+	entry, ok := cl.replay[key]
+	if !ok {
+		return nil
+	}
+	resp := make([]byte, len(entry.response))
+	copy(resp, entry.response)
+	return resp
+}
+
+func (cl *coaListener) rememberReplay(source net.IP, pkt *radius.Packet, response []byte) {
+	key := replayKey(source, pkt)
+	now := time.Now()
+	resp := make([]byte, len(response))
+	copy(resp, response)
+	cl.replayMu.Lock()
+	defer cl.replayMu.Unlock()
+	cl.pruneReplayLocked(now)
+	cl.replay[key] = coaReplayEntry{seen: now, response: resp}
+}
+
+func (cl *coaListener) pruneReplayLocked(now time.Time) {
+	for key, entry := range cl.replay {
+		if now.Sub(entry.seen) > coaReplayWindow {
+			delete(cl.replay, key)
+		}
+	}
+}
+
+func replayKey(source net.IP, pkt *radius.Packet) coaReplayKey {
+	return coaReplayKey{
+		source:        source.String(),
+		code:          pkt.Code,
+		identifier:    pkt.Identifier,
+		authenticator: pkt.Authenticator,
 	}
 }

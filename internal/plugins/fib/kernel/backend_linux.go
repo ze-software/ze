@@ -15,13 +15,15 @@ import (
 	"fmt"
 	"net"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
+
 	"github.com/vishvananda/netlink"
 )
 
-// rtprotZE is the custom rtm_protocol ID used for all ze-installed routes.
-// Linux: identifies routes in the kernel routing table as belonging to ze.
+// rtprotZE is the custom rtm_protocol ID used for FIB-kernel routes.
+// Linux: identifies routes in the kernel routing table as belonging to this producer.
 // RFC 3549 Section 3.1.1: protocol field in rtmsg.
-const rtprotZE = 250
+const rtprotZE = rtproto.FIBKernel
 
 // netlinkBackend programs routes via Linux netlink.
 type netlinkBackend struct {

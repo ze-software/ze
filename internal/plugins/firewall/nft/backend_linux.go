@@ -22,7 +22,8 @@ const zeTablePrefix = "ze_"
 
 // backend implements firewall.Backend using google/nftables.
 type backend struct {
-	conn *nftables.Conn
+	conn    *nftables.Conn
+	applied map[string]struct{}
 }
 
 func newBackend() (firewall.Backend, error) {
@@ -30,23 +31,26 @@ func newBackend() (firewall.Backend, error) {
 	if err != nil {
 		return nil, fmt.Errorf("firewallnft: open netlink: %w", err)
 	}
-	return &backend{conn: conn}, nil
+	return &backend{conn: conn, applied: make(map[string]struct{})}, nil
 }
 
 // Apply receives the full desired state and reconciles against the kernel.
 // Creates new ze_* tables, replaces changed ones, deletes orphans.
 // All operations are atomic via Flush().
 func (b *backend) Apply(desired []firewall.Table) error {
+	desiredNames := tableNameSet(desired)
+
 	// List current ze_* tables.
 	currentTables, err := b.conn.ListTables()
 	if err != nil {
 		return fmt.Errorf("firewallnft: list tables: %w", err)
 	}
 
-	// Delete ALL ze_* tables so desired tables are recreated cleanly.
-	// This ensures changed rules/chains/sets are replaced, not merged.
+	// Delete only tables this Apply owns: current desired names and tables
+	// applied by this backend instance earlier. Unknown ze_* tables may belong
+	// to another Ze producer or process and must not be swept by prefix alone.
 	for _, ct := range currentTables {
-		if strings.HasPrefix(ct.Name, zeTablePrefix) {
+		if b.shouldDeleteTable(ct, desiredNames) {
 			b.conn.DelTable(ct)
 		}
 	}
@@ -62,7 +66,27 @@ func (b *backend) Apply(desired []firewall.Table) error {
 	if err := b.conn.Flush(); err != nil {
 		return fmt.Errorf("firewallnft: flush: %w", err)
 	}
+	b.applied = desiredNames
 	return nil
+}
+
+func (b *backend) shouldDeleteTable(t *nftables.Table, desiredNames map[string]struct{}) bool {
+	if t == nil || !strings.HasPrefix(t.Name, zeTablePrefix) {
+		return false
+	}
+	if _, ok := desiredNames[t.Name]; ok {
+		return true
+	}
+	_, ok := b.applied[t.Name]
+	return ok
+}
+
+func tableNameSet(tables []firewall.Table) map[string]struct{} {
+	result := make(map[string]struct{}, len(tables))
+	for i := range tables {
+		result[tables[i].Name] = struct{}{}
+	}
+	return result
 }
 
 func (b *backend) applyTable(tbl *firewall.Table) error {

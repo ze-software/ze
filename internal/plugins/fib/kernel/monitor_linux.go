@@ -15,6 +15,8 @@ package fibkernel
 import (
 	"context"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
+
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -51,8 +53,8 @@ func (f *fibKernel) runMonitor(ctx context.Context) {
 				return
 			}
 
-			// Ignore ze's own route changes.
-			if update.Protocol == rtprotZE {
+			// Ignore route changes from any Ze route producer.
+			if rtproto.IsZe(int(update.Protocol)) {
 				continue
 			}
 
