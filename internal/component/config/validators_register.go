@@ -21,4 +21,5 @@ func RegisterValidators(reg *yang.ValidatorRegistry) {
 	reg.Register("ipv4-prefix", IPv4PrefixValidator())
 	reg.Register("ipv6-prefix", IPv6PrefixValidator())
 	reg.Register("set-ref", SetRefValidator())
+	reg.Register("port-spec", PortSpecValidator())
 }

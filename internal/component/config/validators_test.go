@@ -78,6 +78,22 @@ func TestLiteralSelfValidator(t *testing.T) {
 	assert.Error(t, v.ValidateFn("bgp/peer/route.next-hop", 42))
 }
 
+// TestPortSpecValidator verifies port spec validation for policy/firewall match fields.
+//
+// VALIDATES: Ports, ranges, lists, and named sets accepted; invalid ports rejected.
+// PREVENTS: ze:validate "port-spec" registration accepting port 0 or malformed specs.
+func TestPortSpecValidator(t *testing.T) {
+	v := PortSpecValidator()
+
+	for _, valid := range []string{"1", "65535", "80-90", "22,80,443", "5060-5061,16384-32767", "@web_ports"} {
+		assert.NoError(t, v.ValidateFn("policy route term from source-port", valid), valid)
+	}
+
+	for _, invalid := range []any{"", "0", "65536", "90-80", "22,,443", "22, 443", "@", "@bad.name", 42} {
+		assert.Error(t, v.ValidateFn("policy route term from source-port", invalid), invalid)
+	}
+}
+
 // TestCommunityRangeValidator verifies community ASN:value range checking.
 //
 // VALIDATES: Valid communities accepted, out-of-range parts rejected (AC-21, AC-22).

@@ -280,6 +280,70 @@ func SetRefValidator() yang.CustomValidator {
 	}
 }
 
+var portSpecSetRefPattern = regexp.MustCompile(`^@[a-zA-Z0-9][a-zA-Z0-9_-]*$`)
+
+// PortSpecValidator returns a validator for firewall/policy-route port specs.
+// Accepts a whole named-set reference (@set-name) or comma-separated ports and
+// ranges. Numeric ports are real TCP/UDP ports, so 0 is rejected here.
+func PortSpecValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			if str == "" {
+				return fmt.Errorf("empty port spec for %s", path)
+			}
+			if portSpecSetRefPattern.MatchString(str) {
+				return nil
+			}
+			if strings.HasPrefix(str, "@") {
+				return fmt.Errorf("%q is not a valid port set reference", str)
+			}
+
+			entries := strings.Split(str, ",")
+			if len(entries) > 128 {
+				return fmt.Errorf("port spec %q has more than 128 entries", str)
+			}
+			for _, entry := range entries {
+				if entry == "" || strings.TrimSpace(entry) != entry {
+					return fmt.Errorf("invalid empty or spaced port entry %q in %q", entry, str)
+				}
+				if loStr, hiStr, ok := strings.Cut(entry, "-"); ok {
+					lo, err := parsePortSpecNumber(loStr)
+					if err != nil {
+						return err
+					}
+					hi, err := parsePortSpecNumber(hiStr)
+					if err != nil {
+						return err
+					}
+					if hi < lo {
+						return fmt.Errorf("inverted port range %q", entry)
+					}
+					continue
+				}
+				if _, err := parsePortSpecNumber(entry); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}
+}
+
+func parsePortSpecNumber(s string) (uint16, error) {
+	n, err := strconv.ParseUint(s, 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("invalid port %q", s)
+	}
+	if n == 0 {
+		return 0, fmt.Errorf("port 0 is not valid in port spec")
+	}
+	return uint16(n), nil
+}
+
 // RedistributeSourceValidator returns a validator for redistribute source names.
 // Validates against the central redistribute source registry. Each protocol
 // component registers its own sources (e.g., BGP registers ibgp/ebgp).
