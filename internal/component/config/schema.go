@@ -10,7 +10,9 @@ package config
 
 import (
 	"fmt"
+	"math/big"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -122,8 +124,15 @@ type LeafNode struct {
 	Decorate    string         // ze:decorate — decorator name for display-time enrichment
 	Description string         // YANG description for tooltips/help
 	Enums       []string       // Valid enum values (nil for non-enum types)
+	Ranges      []NumericRange // Valid numeric ranges from YANG range statements
 	Backend     []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
 	Related     []*RelatedTool // ze:related — operator tools attached to this leaf (see related.go)
+}
+
+// NumericRange is an inclusive numeric range constraint from YANG.
+type NumericRange struct {
+	Min string
+	Max string
 }
 
 func (n *LeafNode) Kind() NodeKind { return NodeLeaf }
@@ -727,6 +736,87 @@ func ValidateValue(typ ValueType, value string) error {
 	default:
 		return fmt.Errorf("unknown type: %v", typ)
 	}
+}
+
+// ValidateLeafValue validates a leaf value against its type and any YANG
+// restrictions carried by the schema node.
+func ValidateLeafValue(node *LeafNode, value string) error {
+	if err := ValidateValue(node.Type, value); err != nil {
+		return err
+	}
+	if len(node.Enums) > 0 && !stringIn(node.Enums, value) {
+		return fmt.Errorf("invalid enum: %q (expected one of: %s)", value, strings.Join(node.Enums, ", "))
+	}
+	if len(node.Ranges) > 0 {
+		if err := validateNumericRanges(node.Type, value, node.Ranges); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func stringIn(values []string, value string) bool {
+	return slices.Contains(values, value)
+}
+
+func validateNumericRanges(typ ValueType, value string, ranges []NumericRange) error {
+	parsed, err := parseNumericRangeValue(typ, value)
+	if err != nil {
+		return err
+	}
+	for _, r := range ranges {
+		// SetString fails for decimal64 strings ("3.14"); those ranges
+		// are silently skipped. No current YANG uses decimal64 ranges.
+		min, ok := new(big.Int).SetString(r.Min, 10)
+		if !ok {
+			continue
+		}
+		max, ok := new(big.Int).SetString(r.Max, 10)
+		if !ok {
+			continue
+		}
+		if parsed.Cmp(min) >= 0 && parsed.Cmp(max) <= 0 {
+			return nil
+		}
+	}
+	return fmt.Errorf("value %q outside range %s", value, formatNumericRanges(ranges))
+}
+
+func parseNumericRangeValue(typ ValueType, value string) (*big.Int, error) {
+	switch typ {
+	case TypeUint16:
+		v, err := strconv.ParseUint(value, 10, 16)
+		if err != nil {
+			return nil, fmt.Errorf("invalid uint16: %q", value)
+		}
+		return new(big.Int).SetUint64(v), nil
+	case TypeUint32:
+		v, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid uint: %q", value)
+		}
+		return new(big.Int).SetUint64(v), nil
+	case TypeInt:
+		v, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid int: %q", value)
+		}
+		return big.NewInt(v), nil
+	default:
+		return nil, fmt.Errorf("range validation not supported for type %s", typ)
+	}
+}
+
+func formatNumericRanges(ranges []NumericRange) string {
+	parts := make([]string, 0, len(ranges))
+	for _, r := range ranges {
+		if r.Min == r.Max {
+			parts = append(parts, r.Min)
+			continue
+		}
+		parts = append(parts, r.Min+".."+r.Max)
+	}
+	return strings.Join(parts, ", ")
 }
 
 // parseDuration parses a duration string like "100ms", "5s", "0.5s".

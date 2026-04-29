@@ -197,8 +197,8 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 		value = decoded
 	}
 
-	// Validate value type (works on decoded plaintext too)
-	if err := ValidateValue(node.Type, value); err != nil {
+	// Validate value type and YANG restrictions (works on decoded plaintext too).
+	if err := ValidateLeafValue(node, value); err != nil {
 		return p.errorf(tok, "invalid value for %s: %v", name, err)
 	}
 

@@ -414,7 +414,7 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 				if leaf, ok := fieldNode.(*LeafNode); ok {
 					// Only validate non-array simple values
 					if tok.Type != TokenLBracket {
-						if err := ValidateValue(leaf.Type, attrValue); err != nil {
+						if err := ValidateLeafValue(leaf, attrValue); err != nil {
 							return p.errorf(tok, "invalid value for %s.%s: %v", name, attrName, err)
 						}
 					}

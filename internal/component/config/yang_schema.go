@@ -588,7 +588,19 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 	if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
 		node.Enums = entry.Type.Enum.Names()
 	}
+	node.Ranges = numericRangesFromType(entry.Type, path)
 	return node
+}
+
+func numericRangesFromType(typ *gyang.YangType, _ string) []NumericRange {
+	if typ == nil || len(typ.Range) == 0 {
+		return nil
+	}
+	ranges := make([]NumericRange, 0, len(typ.Range))
+	for _, r := range typ.Range {
+		ranges = append(ranges, NumericRange{Min: r.Min.String(), Max: r.Max.String()})
+	}
+	return ranges
 }
 
 // InactiveLeafName is the name of the auto-injected inactive boolean leaf.

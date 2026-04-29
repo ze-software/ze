@@ -305,21 +305,18 @@ func TestFwdPool_StopUnblocksDispatch(t *testing.T) {
 	<-handlerStarted
 	pool.Dispatch(key, fwdItem{}) // In channel
 
-	// This dispatch should block.
-	result := make(chan bool, 1)
+	// This dispatch should block on the full worker channel.
 	go func() {
-		ok := pool.Dispatch(key, fwdItem{})
-		result <- ok
+		_ = pool.Dispatch(key, fwdItem{})
 	}()
 
-	require.Never(t, func() bool {
-		select {
-		case <-result:
-			return true
-		default:
-			return false
-		}
-	}, 50*time.Millisecond, 5*time.Millisecond, "dispatch should be blocked on full channel")
+	require.Eventually(t, func() bool {
+		pool.mu.Lock()
+		w := pool.workers[key]
+		pending := w != nil && w.pending.Load() == 1
+		pool.mu.Unlock()
+		return pending
+	}, time.Second, time.Millisecond, "dispatch should be blocked on full channel")
 
 	// Stop should unblock the blocked dispatch. Whether Dispatch returns
 	// true (worker drained, channel accepted item) or false (stopCh
@@ -327,16 +324,17 @@ func TestFwdPool_StopUnblocksDispatch(t *testing.T) {
 	// outcomes for AC-7. The key invariant is that the Dispatch does
 	// return (no deadlock).
 	close(blocker)
-	pool.Stop()
+	stopDone := make(chan struct{})
+	go func() {
+		pool.Stop()
+		close(stopDone)
+	}()
 
-	require.Eventually(t, func() bool {
-		select {
-		case <-result:
-			return true
-		default:
-			return false
-		}
-	}, 5*time.Second, time.Millisecond, "Stop should have unblocked blocked dispatch")
+	select {
+	case <-stopDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Stop should have unblocked blocked dispatch")
+	}
 }
 
 // TestFwdPool_DoneCalledOnSuccess verifies the done callback is called

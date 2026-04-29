@@ -25,12 +25,14 @@ event-driven synchronisation instead of wall-clock timeouts.
 **Unrelated to spec-l2tp-7** -- no L2TP code touched by either test; same behaviour before the
 spec landed.
 
-## TestPeerInfoPopulatesStats (uptime == 0) -- LOGGED 2026-04-17
+## TestPeerInfoPopulatesStats (uptime == 0) -- RESOLVED 2026-04-29
 
 **File:** `internal/component/bgp/reactor/reactor_api_test.go:47`
 **Symptom:** `assert.True(t, p.Uptime > 0, "uptime should be non-zero for established peer")` fails because `SetEstablishedNow()` stamps the current time and `adapter.Peers()` runs immediately after, often computing `time.Since(established)` == 0 on fast CPUs (nanosecond clock resolution can return the same value twice in back-to-back calls). Reproduced with `go test -run TestPeerInfoPopulatesStats -count=3` (3/3 fail).
 **Hypothesis:** The test was introduced in commit `0801fe949 feat: replace generic message counters with per-type BGP statistics`; uses `SetEstablishedNow()` + immediate `Peers()` call with no delay in between. Pre-existing; not caused by any fmt-0-append or peer_initial_sync migration.
-**Fix pattern candidate:** Adjust the test to set `EstablishedAt` explicitly to `time.Now().Add(-time.Millisecond)` (or similar) instead of calling `SetEstablishedNow()`, so `time.Since` is guaranteed positive. Mirror pattern already used by `TestPeerInfoUptimeUsesEstablishedAt` at line 56.
+**Resolution:** `TestPeerInfoPopulatesStats` now sets `establishedAt` explicitly in the past instead of calling `SetEstablishedNow()` immediately before reading `Peers()`.
+
+Verification: `go test -count=3 ./internal/component/bgp/reactor -run TestPeerInfoPopulatesStats` passed locally on 2026-04-29.
 
 ## TestFwdPool_StopUnblocksDispatch (residual flake) -- LOGGED 2026-04-11
 
@@ -123,60 +125,31 @@ reservation or a barrier between categories.
 Single-category runs (`bin/ze-test bgp plugin --all`) are stable and safe as
 a gate when the full suite flakes.
 
-## Egress-filter tests need forwarding-plugin redesign -- LOGGED 2026-04-11
+## Egress-filter tests need forwarding-plugin redesign -- RESOLVED 2026-04-29
 
-The 16-file observer-exit conversion (spec-ci-observer-per-test-audit)
-finished all 16 runtime_fail swaps but 8 of them are in "framework wired,
-AC verification TODO" state because of a single architectural issue
-discovered during phase 1: ze does not auto-forward UPDATEs between
-configured peers. Forwarding is plugin-driven (bgp-rs, bgp-cache, etc.).
+The eight tests previously tracked here now use destination-peer wire
+assertions (`expect=bgp`) for the release evidence instead of observer-side
+smoke checks. The Python observers remain only to keep Ze alive and provide
+diagnostics while the destination peer verifies the post-filter wire behavior.
 
-The following 8 tests load only `bgp-adj-rib-in` and no forwarding
-plugin, so their egress-side AC verification cannot succeed in the
-current test shape:
+Covered tests:
 
-- `community-strip.ci` (AC-7 egress strip)
-- `forward-overflow-two-tier.ci` (AC-10/11/12 overflow pool)
-- `forward-two-tier-under-load.ci` (AC-10/11/12 two-tier dispatch)
-- `role-otc-egress-filter.ci` (OTC ingress stamp)
-- `role-otc-egress-stamp.ci` (OTC egress stamp on forward)
-- `role-otc-export-unknown.ci` (no-role passthrough)
-- `role-otc-ingress-reject.ci` (OTC ingress reject)
-- `role-otc-unicast-scope.ci` (OTC unicast scoping)
+- `community-strip.ci` verifies egress community stripping on the forwarded UPDATE.
+- `forward-overflow-two-tier.ci` verifies all 50 burst routes arrive in order.
+- `forward-two-tier-under-load.ci` verifies all 80 burst routes arrive in order.
+- `role-otc-egress-filter.ci` verifies provider-to-provider suppression by EOR-only output.
+- `role-otc-egress-stamp.ci` verifies OTC is stamped on the forwarded UPDATE.
+- `role-otc-export-unknown.ci` verifies no-role peers still forward unchanged.
+- `role-otc-ingress-reject.ci` verifies leaked customer routes are not forwarded.
+- `role-otc-unicast-scope.ci` verifies multicast bypasses OTC processing and forwards unchanged.
 
-Each carries an inline STATUS comment pointing at this entry.
+Verification:
 
-**Compounding issue:** even if these tests loaded a forwarding plugin,
-the `bgp-rpki` plugin auto-loads via `ConfigRoots: ["bgp"]` and enables
-the adj-rib-in validation gate via `OnAllPluginsReady`. Routes then
-wait in `r.pending` for either RPKI validation or a 30s fail-open
-timeout. All 8 tests use `tcp_connections=1` peers that disconnect
-before the 30s timeout, so `clearPeerPending` wipes the route before
-the python observer can see it in `adj-rib-in status`. Any future
-redesign must address the forwarding-plugin gap AND the validation
-gate interaction.
+```bash
+go run ./cmd/ze-test bgp plugin 91 128 129 250 251 252 253 254
+```
 
-**Redesign paths:**
-
-- **Path A (minimal ze change):** Add `--plugin ze.bgp-rs` (or
-  `bgp-cache`) to each .ci so the reactor actually broadcasts received
-  UPDATEs. Then add one info-level log in `bgp/plugins/filter_community`
-  or `bgp/plugins/role` on the successful-apply path, and assert on it
-  via `expect=stderr:pattern=`. This is what `bgp-filter-prefix`
-  already does (cmd-4 `prefix-list accept`) and what phase 2 did for
-  `community ingress applied`.
-
-- **Path B (wire-level):** Switch dest peers from `--mode sink` to
-  default check mode with an `expect=bgp:hex=` directive matching the
-  post-rewrite wire bytes. Requires computing the exact post-rewrite
-  hex (AS-PATH prepend, NEXT_HOP rewrite, attribute insertion/removal)
-  for each test. More invasive but does not touch production code.
-
-Until the redesign, the 8 tests above are protected by `runtime_fail`
-sentinel + weakened `total < 0` assertions + negative regression
-checks (`panic recovered`, `fatal error`, `treat-as-withdraw`,
-`ZE-OBSERVER-FAIL`). The framework catches crashes and bad wire bytes;
-it does not catch logic errors in the egress-filter code paths.
+Result: `pass 8/8 100.0%` locally on 2026-04-29.
 
 ## test/plugin/show-errors-received (rare flake) -- LOGGED 2026-04-14
 
@@ -280,7 +253,7 @@ clean fix handles Echo-Reply and Echo-Request on distinct FSM events.
 **Parked.** Not on the Phase 9 critical path; Phase 9 regression test
 rewritten to use IPCP (0x8021) which handleFrame drops cleanly.
 
-## vpp-config-invalid-poll-interval / -invalid-hugepage parse tests -- LOGGED 2026-04-17
+## vpp-config-invalid-poll-interval / -invalid-hugepage parse tests -- RESOLVED 2026-04-29
 
 **Files:**
 - `test/parse/vpp-config-invalid-poll-interval.ci` (parse test 314)
@@ -329,17 +302,18 @@ enforces `unknownKeys` (so `nonsense-leaf` IS rejected, which is why
 `vpp-config-unknown-key.ci` passes). The two invalid-input tests have
 been failing since commit `6b7f5db9` (the one that added them).
 
-**Actual next step:** extend ze's YANG-to-schema walker
-(`internal/component/config/yang_schema.go`) to honor `enum` and
-`range` restrictions during `ze config validate`, or add the missing
-validators into `VPPSettings.Validate()` and make `ze config validate`
-invoke plugin OnConfigVerify callbacks (the latter is a known
-limitation -- see the "YANG Choice/Case Validation Gaps" memory
-entry in `.claude/rules/memory.md`).
+**Resolution:** `internal/component/config/yang_schema.go` now carries YANG
+leaf `enum` and numeric `range` restrictions into `LeafNode`, and the
+hierarchical parser enforces them through `ValidateLeafValue`.
 
-**Parked.** Owned by the concurrent spec-vpp-* session. Not touched
-here -- Claude sessions must not edit another session's uncommitted
-files.
+Verification:
+
+```bash
+go test -count=1 ./internal/component/config
+go run ./cmd/ze-test bgp parse 178 179 183 184
+```
+
+Both passed locally on 2026-04-29.
 
 ## TestRaiseHookNetdevDisambiguation (nft readback) -- LOGGED 2026-04-21
 
@@ -350,7 +324,7 @@ files.
 
 Remove entries once fixed.
 
-## 2026-04-18 -- BGP config: `remote: accept` direction-placement broke functional `.ci` suite
+## 2026-04-18 -- BGP config: `remote: accept` direction-placement broke functional `.ci` suite -- RESOLVED 2026-04-29
 
 After commit `7991bc294` ("config(bgp): direction-based placement of connect/accept") moved the `accept` leaf between container scopes, many existing `.ci` test configs still write `remote { accept ... }` and the parser rejects with "unknown field in remote: accept (line 6)". This makes the daemon refuse to load, so every `.ci` test that relies on the daemon starting reports `FAIL: SSH server did not start (no address in daemon.log)`.
 
@@ -360,6 +334,6 @@ After commit `7991bc294` ("config(bgp): direction-based placement of connect/acc
 
     error: load config: parse config: line 6: unknown field in remote: accept (line 6)
 
-**Root cause hypothesis:** `.ci` configs under `test/` were not updated to the new `connect`/`accept` placement. Needs a mechanical sweep across `test/plugin/*.ci`, `test/parse/*.ci`, and any sibling directories to move `accept <bool>` under its new parent.
+**Resolution:** No stale `remote { accept ... }` placement remains under `test/`.
 
-**Destination spec:** none yet; warrants a `spec-bgp-accept-placement-ci-sweep` or inclusion in whichever spec made the placement change. Not caused by spec-op-1-easy-wins (verified: my changes touch show/system, show/interface, bgp/summary, cmd/ze/diag; no BGP config schema writes).
+Verification: `rg -n -U 'remote\s*\{[^}]*accept\s+(true|false)' test` returned no matches locally on 2026-04-29.

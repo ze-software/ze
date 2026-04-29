@@ -27,7 +27,7 @@ func TestPeerInfoPopulatesStats(t *testing.T) {
 	peer.IncrKeepalivesSent()
 	peer.IncrEORReceived()
 	peer.IncrEORSent()
-	peer.SetEstablishedNow()
+	peer.counters.establishedAt.Store(time.Now().Add(-time.Second).UnixNano())
 	peer.state.Store(int32(PeerStateEstablished))
 
 	r.peers[settings.PeerKey()] = peer

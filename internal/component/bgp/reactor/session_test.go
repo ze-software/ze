@@ -487,12 +487,20 @@ func TestSessionConnectContext(t *testing.T) {
 	settings.Port = 17900
 
 	session := NewSession(settings)
+	session.SetDialer(contextBlockingDialer{})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
 	err := session.Connect(ctx)
 	require.Error(t, err)
+}
+
+type contextBlockingDialer struct{}
+
+func (contextBlockingDialer) DialContext(ctx context.Context, _, _ string) (net.Conn, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
 }
 
 // TestSessionCapabilityNegotiation verifies capability intersection.

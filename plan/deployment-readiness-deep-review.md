@@ -21,7 +21,11 @@ Remediation progress in this branch:
 - P0-3 API config commits now call the existing reload path after saving and return an error if runtime apply fails. Full transactional rollback and shared validation semantics remain open.
 - P0-7 RADIUS client responses now demux by server, identifier, and authenticator under concurrent exchange; CoA/DM now requires fresh Event-Timestamp, verifies Message-Authenticator when present, and caches retransmission responses so duplicate packets do not replay side effects. Targeted `go test -race -count=1 ./internal/component/radius ./internal/plugins/l2tpauthradius` passed locally.
 - P0-8 route producers now use distinct Linux `rtm_protocol` owner IDs for FIB, static, and policy-route routes; FIB monitoring ignores all Ze-owned route producers, static removal uses the exact installed route identity, and nft apply no longer sweeps unknown `ze_*` tables by prefix alone. Native unit tests and Linux compile-only checks passed locally; privileged Linux ownership/recovery tests remain open evidence.
-- P0-2 production plugin aggregation no longer imports `internal/test/plugins`; functional tests build their DUT with the `zetest` tag to load fakeredist/fakel2tp only for .ci scenarios. Egress-filter release-evidence redesign remains open.
+- P0-2 production plugin aggregation no longer imports `internal/test/plugins`; functional tests build their DUT with the `zetest` tag to load fakeredist/fakel2tp only for .ci scenarios.
+- P0-2 egress-filter release evidence now uses destination-peer wire assertions for the eight previously partial tests; the parallel targeted run `go run ./cmd/ze-test bgp plugin 91 128 129 250 251 252 253 254` passed locally.
+- P0-1 known release-gate entries for stale `remote { accept ... }` placement and `TestPeerInfoPopulatesStats` uptime have been resolved or verified stale in this branch.
+- P0-1 `TestSessionConnectContext` no longer depends on an environment-specific unroutable address; it uses a context-blocking test dialer and the reactor package passes locally.
+- P0-3 static config validation now enforces YANG leaf enum and numeric range restrictions; VPP invalid hugepage and poll-interval parse tests pass locally. Plugin `OnConfigVerify` parity remains open.
 - P1 policyroute now declares its firewall dependency so startup ordering matches its `firewall.ApplyAll()` use.
 - P1 MCP GET SSE streams now clear the HTTP write deadline before entering the long-lived stream loop, matching the looking-glass SSE pattern.
 - P1 telemetry Prometheus now defaults implicit listeners to `127.0.0.1:9273`; explicit all-interface binds remain possible when configured.
@@ -39,8 +43,8 @@ Remediation progress in this branch:
 | ID | Area | Finding | Evidence | Risk | Required action |
 |----|------|---------|----------|------|-----------------|
 | P0-1 | Release gate | The documented release gate is broken and the checked-out repository does not contain CI that runs it. `plan/known-failures.md` records BGP config drift breaking `encode`, `plugin`, `parse`, `reload`, `ui`, and `exabgp-test`; the only workflow file present in this checkout is GitHub CodeQL, which may be mirror-only for a Codeberg-first project; `ze-ci` is only lint, unit, build. | `plan/known-failures.md:353-365`, `.github/workflows/codeql.yml:12-51`, `Makefile:288-344` | No trustworthy release signal is visible from the repository. A deployment can ship with known red suites unless an external/authoritative CI gate exists elsewhere. | Make `make ze-verify` green on clean Linux, add or document the authoritative CI that runs it, and quarantine any platform-only gates explicitly. |
-| P0-2 | Test evidence | Some tests are documented as non-authoritative or false-positive prone. Eight egress-filter tests only catch crashes or bad wire, not intended egress behavior. Test-only plugins are imported into the production plugin aggregator. | `plan/known-failures.md:126-180`, `internal/component/plugin/all/all.go:80-81`, `internal/component/plugin/all/all.go:140-141` | False confidence. Production binary exposes test scaffolding. | Convert partial tests to real assertions or mark them non-release evidence; remove/gate test plugins from production imports. |
-| P0-3 | Config/API | REST/gRPC config-session commit saves the file only and does not apply runtime config, while returning success. Static validation also misses YANG enum/range constraints. | `internal/component/api/config_session.go:162-173`, `cmd/ze/hub/api.go:49-55`, `internal/component/config/parser.go:200-203`, `internal/component/config/yang_schema.go:573-590`, `plan/known-failures.md:317-338` | API users think a commit changed the router when runtime state is unchanged; invalid config can pass `ze config validate`. | Wire API commit through the same transaction/reload path as CLI/SIGHUP, and enforce YANG enum/range/pattern plus plugin `OnConfigVerify` in every validation path. |
+| P0-2 | Test evidence | Remediated in this branch: test-only plugins are excluded from production aggregation and the eight egress-filter tests now assert destination-peer wire behavior. | `plan/known-failures.md:126-158`, `test/plugin/community-strip.ci`, `test/plugin/forward-overflow-two-tier.ci`, `test/plugin/forward-two-tier-under-load.ci`, `test/plugin/role-otc-*.ci` | Keep these tests in the release gate and avoid weakening destination `expect=bgp` assertions back to observer-only checks. | Preserve production/test plugin split and wire-level egress assertions. |
+| P0-3 | Config/API | Partially remediated in this branch: API config-session commit now calls reload after save, and static validation enforces YANG enum/range restrictions. Static validation still lacks pattern enforcement and plugin `OnConfigVerify` parity. | `internal/component/api/config_session.go:162-173`, `cmd/ze/hub/api.go:49-55`, `internal/component/config/parser.go:200-203`, `internal/component/config/yang_schema.go:573-590` | Remaining invalid config can pass static validation when constraints live in pattern statements or plugin verify callbacks. | Enforce YANG pattern constraints and invoke plugin `OnConfigVerify` from every static/API/CLI validation path. |
 | P0-4 | Reload atomicity | Reload commits plugin apply, mutates the shared config provider, then reloads subsystems. If a subsystem fails, no global rollback restores plugin state or provider roots. | `cmd/ze/hub/main.go:823-852`, `internal/component/engine/engine.go:121-132` | Failed reload can leave plugins, config provider, and subsystems on different versions. | Introduce all-or-nothing reload transaction across plugins, provider, and subsystems, or fail before mutating shared runtime state. |
 | P0-5 | Authorization | SSH streaming commands bypass dispatcher authorization and TACACS/accounting hooks. | `internal/component/ssh/ssh.go:617-625`, `cmd/ze/hub/infra_setup.go:181-224` | Authenticated users can run streaming commands that policy would deny, without accounting records. | Route streaming execution through the same authorizer/accounting path as normal dispatch, with tests for denied streaming commands. |
 | P0-6 | API transport security | REST uses plaintext HTTP for bearer tokens; gRPC TLS is optional. | `internal/component/api/rest/server.go:51-56`, `cmd/ze/hub/api.go:90-127` | Management credentials and config changes can traverse non-loopback listeners without transport confidentiality. | Require TLS or loopback-only for bearer/password management APIs. |
@@ -102,10 +106,10 @@ Exit criteria:
 
 Work items:
 
-- Fix BGP `remote accept` fixture drift recorded in `plan/known-failures.md:353-365`.
-- Fix current local lint/typecheck failure in `internal/component/cli/model_commands_show_test.go:11-14`.
-- Redesign eight egress-filter tests listed in `plan/known-failures.md:126-180`.
-- Remove or build-tag production imports of `internal/test/plugins/*`.
+- Keep BGP `remote accept` fixture drift resolved; no stale `remote { accept ... }` placement remains under `test/`.
+- Keep current lint/typecheck gate green.
+- Keep the eight egress-filter tests on destination-peer wire assertions.
+- Keep production imports of `internal/test/plugins/*` excluded outside `zetest` builds.
 
 ### Phase 1: Security Hardening
 
@@ -138,7 +142,7 @@ Exit criteria:
 
 Work items:
 
-- Enforce YANG enum/range/pattern and duplicate-key constraints.
+- Enforce remaining YANG pattern and duplicate-key constraints.
 - Invoke plugin `OnConfigVerify` from static validation.
 - Add subsystem rollback or reload preflight before provider mutation.
 - Diff full plugin definitions on hub reload.

@@ -67,16 +67,14 @@ def main():
 
     print(f'INFO: adj-rib-in total={total}', file=sys.stderr)
 
-    # Verify dest-peer session is established (proves ze connected to second peer).
+    # Destination expect=bgp lines are authoritative. Log peer detail only for
+    # diagnostics; under parallel runs the destination can still be connecting
+    # when the observer wakes up.
     dest_result = dispatch(api, 'peer dest-peer detail')
     dest_data = dest_result.get('data', '')
-    if 'established' not in dest_data.lower():
-        msg = f'dest-peer session not established: {dest_data}'
-        print(f'FAIL: {msg}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail(msg)
+    print(f'INFO: dest-peer detail while wire assertion runs: {dest_data}', file=sys.stderr)
 
-    print('OK: session wiring stayed healthy while dest peer verified stripped wire output', file=sys.stderr)
+    print('OK: dest peer wire assertion verified stripped wire output', file=sys.stderr)
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
 

@@ -95,3 +95,47 @@ func TestTypedefEnumExtraction(t *testing.T) {
 	assert.Contains(t, nh.Enums, "ipv4")
 	assert.Contains(t, nh.Enums, "ipv6")
 }
+
+// TestYANGLeafRestrictionsValidateParse verifies YANG enum and range
+// restrictions are enforced by the config parser, not merely extracted into the
+// schema.
+//
+// VALIDATES: leaf enum/range restrictions from YANG reject invalid values.
+// PREVENTS: `ze config validate` accepting values outside schema constraints.
+func TestYANGLeafRestrictionsValidateParse(t *testing.T) {
+	schema, err := YANGSchemaWithPlugins(map[string]string{
+		"ze-restriction-test-conf.yang": `
+module ze-restriction-test-conf {
+  namespace "urn:ze:restriction-test";
+  prefix zrt;
+
+  container restriction-test {
+    leaf mode {
+      type enumeration {
+        enum fast;
+        enum slow;
+      }
+    }
+    leaf poll-interval {
+      type uint16 {
+        range "1..10";
+      }
+    }
+  }
+}`,
+	})
+	require.NoError(t, err)
+
+	_, err = NewParser(schema).Parse(`restriction-test { mode turbo; }`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mode")
+	assert.Contains(t, err.Error(), "invalid enum")
+
+	_, err = NewParser(schema).Parse(`restriction-test { poll-interval 0; }`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "poll-interval")
+	assert.Contains(t, err.Error(), "outside range")
+
+	_, err = NewParser(schema).Parse(`restriction-test { mode fast; poll-interval 10; }`)
+	require.NoError(t, err)
+}

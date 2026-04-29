@@ -52,8 +52,8 @@ module ze-types {
             description "Listen IP address";
         }
         leaf port {
-            type port;
-            description "Listen TCP port";
+            type listener-port;
+            description "Listen TCP port; 0 means OS-assigned";
         }
     }
 
@@ -101,6 +101,13 @@ module ze-types {
             range "1..65535";
         }
         description "TCP/UDP port number";
+    }
+
+    typedef listener-port {
+        type uint16 {
+            range "0..65535";
+        }
+        description "TCP/UDP listener port number; 0 means OS-assigned";
     }
 
     typedef rate {
