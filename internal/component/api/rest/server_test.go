@@ -652,3 +652,23 @@ func TestRESTServer_BindFailureClosesPartialListeners(t *testing.T) {
 	require.Error(t, err, "ListenAndServe must fail when any bind fails")
 	assert.Contains(t, err.Error(), squattedAddr)
 }
+
+func TestRESTServerStartReturnsBindFailure(t *testing.T) {
+	squatter, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp4", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer squatter.Close() //nolint:errcheck // test cleanup
+	squattedAddr := squatter.Addr().String()
+
+	engine := testEngine()
+	openAPI, _ := api.OpenAPISchema(nil)
+
+	srv, err := NewRESTServer(RESTConfig{
+		ListenAddrs: []string{"127.0.0.1:0", squattedAddr},
+	}, engine, nil, func() []byte { return openAPI })
+	require.NoError(t, err)
+
+	errCh, err := srv.Start(context.Background())
+	require.Error(t, err, "Start must fail before returning when any bind fails")
+	assert.Nil(t, errCh)
+	assert.Contains(t, err.Error(), squattedAddr)
+}

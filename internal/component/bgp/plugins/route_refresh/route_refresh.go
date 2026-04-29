@@ -17,6 +17,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -43,9 +44,18 @@ func SetLogger(l *slog.Logger) {
 }
 
 // capNames maps capability codes to names.
-var capNames = map[string]string{
-	"2":  "route-refresh",
-	"70": "enhanced-route-refresh",
+var capNames = map[uint8]string{
+	2:  "route-refresh",
+	70: "enhanced-route-refresh",
+}
+
+func capabilityName(codeStr string) (string, bool) {
+	code, err := strconv.ParseUint(codeStr, 10, 8)
+	if err != nil {
+		return "", false
+	}
+	name, ok := capNames[uint8(code)]
+	return name, ok
 }
 
 // RunRouteRefreshPlugin runs the route-refresh plugin using the SDK RPC protocol.
@@ -122,7 +132,7 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 		}
 
 		codeStr := parts[capIdx+1]
-		name, ok := capNames[codeStr]
+		name, ok := capabilityName(codeStr)
 		if !ok {
 			writeUnknown()
 			continue
@@ -156,9 +166,22 @@ func GetYANG() string {
 // RunCLIDecode decodes hex capability data directly from CLI arguments.
 // Route Refresh capabilities have zero payload, so hex data is ignored.
 func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int {
+	return RunCLIDecodeWithCode(2, hexData, textOutput, stdout, stderr)
+}
+
+// RunCLIDecodeWithCode decodes a route-refresh capability when the caller has
+// the capability code. The direct plugin CLI supplies this through --code
+// because Route Refresh capability payloads are empty.
+func RunCLIDecodeWithCode(capCode uint8, hexData string, textOutput bool, stdout, stderr io.Writer) int {
 	// Route Refresh and Enhanced Route Refresh have zero payload.
 	// The capability code determines the name; payload is empty.
-	name := "route-refresh"
+	name, ok := capNames[capCode]
+	if !ok {
+		if _, err := fmt.Fprintf(stderr, "error: unsupported route-refresh capability code %d\n", capCode); err != nil {
+			logger().Debug("write failed", "err", err)
+		}
+		return 1
+	}
 
 	if textOutput {
 		if _, err := fmt.Fprintf(stdout, "%-20s\n", name); err != nil {
@@ -166,7 +189,7 @@ func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int
 		}
 	} else {
 		result := map[string]any{
-			"code": 2,
+			"code": capCode,
 			"name": name,
 		}
 		jsonBytes, jsonErr := json.Marshal(result)

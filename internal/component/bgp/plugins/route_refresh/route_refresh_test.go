@@ -89,13 +89,16 @@ func TestRunDecodeMode(t *testing.T) {
 func TestRunCLIDecode(t *testing.T) {
 	tests := []struct {
 		name       string
+		capCode    uint8
 		hexData    string
 		textOutput bool
 		wantOut    string
+		wantErr    string
 		wantCode   int
 	}{
 		{
 			name:       "json_output",
+			capCode:    2,
 			hexData:    "",
 			textOutput: false,
 			wantOut:    `{"code":2,"name":"route-refresh"}` + "\n",
@@ -103,6 +106,7 @@ func TestRunCLIDecode(t *testing.T) {
 		},
 		{
 			name:       "text_output",
+			capCode:    2,
 			hexData:    "",
 			textOutput: true,
 			wantOut:    "route-refresh       \n",
@@ -110,22 +114,55 @@ func TestRunCLIDecode(t *testing.T) {
 		},
 		{
 			name:       "hex_data_ignored",
+			capCode:    2,
 			hexData:    "DEADBEEF",
 			textOutput: false,
 			wantOut:    `{"code":2,"name":"route-refresh"}` + "\n",
 			wantCode:   0,
+		},
+		{
+			name:       "enhanced_route_refresh_json",
+			capCode:    70,
+			hexData:    "",
+			textOutput: false,
+			wantOut:    `{"code":70,"name":"enhanced-route-refresh"}` + "\n",
+			wantCode:   0,
+		},
+		{
+			name:       "enhanced_route_refresh_text",
+			capCode:    70,
+			hexData:    "",
+			textOutput: true,
+			wantOut:    "enhanced-route-refresh\n",
+			wantCode:   0,
+		},
+		{
+			name:       "unknown_code",
+			capCode:    99,
+			hexData:    "",
+			textOutput: false,
+			wantErr:    "error: unsupported route-refresh capability code 99\n",
+			wantCode:   1,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			code := RunCLIDecode(tt.hexData, tt.textOutput, &stdout, &stderr)
+			code := RunCLIDecodeWithCode(tt.capCode, tt.hexData, tt.textOutput, &stdout, &stderr)
 			assert.Equal(t, tt.wantCode, code)
 			assert.Equal(t, tt.wantOut, stdout.String())
-			assert.Empty(t, stderr.String())
+			assert.Equal(t, tt.wantErr, stderr.String())
 		})
 	}
+}
+
+func TestRunCLIDecodeDefaultsToRouteRefresh(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := RunCLIDecode("", false, &stdout, &stderr)
+	assert.Equal(t, 0, code)
+	assert.Equal(t, `{"code":2,"name":"route-refresh"}`+"\n", stdout.String())
+	assert.Empty(t, stderr.String())
 }
 
 // TestGetYANG verifies YANG schema is embedded.

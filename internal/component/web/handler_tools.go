@@ -245,6 +245,33 @@ func renderToolOverlay(w http.ResponseWriter, renderer *Renderer, data ToolOverl
 	}
 }
 
+// RequireSameOrigin rejects authenticated mutating requests whose Origin or
+// Referer does not match the request host. It is intended to sit inside
+// AuthMiddleware so GetUsernameFromRequest is already populated; requests that
+// have not reached authentication yet are left to the next handler.
+func RequireSameOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username := GetUsernameFromRequest(r)
+		if isMutatingMethod(r.Method) && username != "" {
+			if err := checkSameOrigin(r); err != nil {
+				serverLogger.Warn("web mutation rejected", "user", username, "remote", r.RemoteAddr, "error", err)
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func isMutatingMethod(method string) bool {
+	switch method {
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+		return true
+	default:
+		return false
+	}
+}
+
 // renderToolError writes a minimal error overlay for protocol-level
 // failures (missing tool_id, invalid path, unknown tool) where the schema
 // lookup itself failed and we have no descriptor to title the overlay.

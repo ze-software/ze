@@ -43,8 +43,10 @@ func apiHasNonLoopback(cfg zeconfig.APIConfig) bool {
 }
 
 // startAPIServers creates the shared API engine and starts REST and/or gRPC
-// servers based on the config. Returns nil if neither transport is enabled.
-func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store storage.Storage, configPath string, users []authz.UserConfig, reloadAfterCommit func() error) *apiServers {
+// servers based on the config. Explicit transport configuration fails closed:
+// construction and bind errors return to the caller instead of silently
+// disabling the requested API listener.
+func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store storage.Storage, configPath string, users []authz.UserConfig, reloadAfterCommit func() error) (*apiServers, error) {
 	engine := buildAPIEngine(server)
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
 		ed, err := cli.NewEditorWithStorage(store, configPath)
@@ -95,13 +97,16 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 			CORSOrigin:    cfg.RESTCORSOrigin,
 		}, engine, sessions, lazySpec)
 		if restErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: REST API disabled: %v\n", restErr)
-		} else {
-			go serveREST(srv)
-			servers.rest = srv
-			for _, addr := range addrs {
-				fmt.Fprintf(os.Stderr, "REST API server starting on http://%s/\n", addr)
-			}
+			return nil, fmt.Errorf("create REST API: %w", restErr)
+		}
+		restErrCh, startErr := srv.Start(server.Context())
+		if startErr != nil {
+			return nil, fmt.Errorf("start REST API: %w", startErr)
+		}
+		go logRESTServerErrors(restErrCh)
+		servers.rest = srv
+		for _, addr := range srv.Addresses() {
+			fmt.Fprintf(os.Stderr, "REST API server starting on http://%s/\n", addr)
 		}
 	}
 
@@ -118,17 +123,22 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 			TLSKey:        cfg.GRPCTLSKey,
 		}, engine, sessions)
 		if grpcErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: gRPC API disabled: %v\n", grpcErr)
-		} else {
-			go serveGRPC(srv)
-			servers.grpc = srv
-			for _, addr := range addrs {
-				fmt.Fprintf(os.Stderr, "gRPC API server starting on %s\n", addr)
-			}
+			servers.Shutdown(context.Background())
+			return nil, fmt.Errorf("create gRPC API: %w", grpcErr)
+		}
+		grpcErrCh, startErr := srv.Start(server.Context())
+		if startErr != nil {
+			servers.Shutdown(context.Background())
+			return nil, fmt.Errorf("start gRPC API: %w", startErr)
+		}
+		go logGRPCServerErrors(grpcErrCh)
+		servers.grpc = srv
+		for _, addr := range srv.Addresses() {
+			fmt.Fprintf(os.Stderr, "gRPC API server starting on %s\n", addr)
 		}
 	}
 
-	return &servers
+	return &servers, nil
 }
 
 // Shutdown stops all running API servers.
@@ -247,18 +257,18 @@ func apiCommandLister(s *pluginserver.Server) api.CommandSource {
 	}
 }
 
-// serveREST runs the REST API server. Started once as a lifecycle goroutine.
-func serveREST(srv *rest.RESTServer) {
-	if err := srv.ListenAndServe(context.Background()); err != nil {
+// logRESTServerErrors logs runtime serving failures after startup already
+// bound every requested REST listener successfully.
+func logRESTServerErrors(errCh <-chan error) {
+	for err := range errCh {
 		fmt.Fprintf(os.Stderr, "warning: REST API server: %v\n", err)
 	}
 }
 
-// serveGRPC runs the gRPC API server. Started once as a lifecycle goroutine.
-// GRPCServer.Serve binds every address configured on the server and blocks
-// until Stop is called.
-func serveGRPC(srv *apigrpc.GRPCServer) {
-	if err := srv.Serve(context.Background()); err != nil {
+// logGRPCServerErrors logs runtime serving failures after startup already
+// bound every requested gRPC listener successfully.
+func logGRPCServerErrors(errCh <-chan error) {
+	for err := range errCh {
 		fmt.Fprintf(os.Stderr, "warning: gRPC API server: %v\n", err)
 	}
 }

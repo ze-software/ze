@@ -543,7 +543,7 @@ func runClientOnly(ctx context.Context, cli *runCLIFlags, tests *runner.Encoding
 // (binary in bin/ → config in etc/ze via GNU prefix conventions).
 func buildZe(ctx context.Context, baseDir string) (string, error) {
 	zePath := filepath.Join(baseDir, "bin", "ze")
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
+	cmd := exec.CommandContext(ctx, "go", "build", "-tags", runner.TestBuildTags(), "-o", zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {

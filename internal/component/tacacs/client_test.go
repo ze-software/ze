@@ -31,6 +31,7 @@ type testTacacsServer struct {
 	listener net.Listener
 	key      []byte
 	replyFn  func(hdr PacketHeader, body []byte) []byte // returns reply body
+	headerFn func(req PacketHeader, reply PacketHeader) PacketHeader
 }
 
 func newTestServer(t *testing.T, key []byte, replyFn func(PacketHeader, []byte) []byte) *testTacacsServer {
@@ -39,6 +40,13 @@ func newTestServer(t *testing.T, key []byte, replyFn func(PacketHeader, []byte) 
 
 	srv := &testTacacsServer{listener: ln, key: key, replyFn: replyFn}
 	go srv.serve()
+	return srv
+}
+
+func newTestServerWithHeader(t *testing.T, key []byte, replyFn func(PacketHeader, []byte) []byte, headerFn func(PacketHeader, PacketHeader) PacketHeader) *testTacacsServer {
+	t.Helper()
+	srv := newTestServer(t, key, replyFn)
+	srv.headerFn = headerFn
 	return srv
 }
 
@@ -84,6 +92,9 @@ func (s *testTacacsServer) serve() {
 		SeqNo:     hdr.SeqNo + 1, // server increments
 		SessionID: hdr.SessionID,
 		Length:    uint32(len(replyBody)),
+	}
+	if s.headerFn != nil {
+		replyHdr = s.headerFn(hdr, replyHdr)
 	}
 
 	replyWire := replyHdr.MarshalBinary()
@@ -199,6 +210,80 @@ func TestTacacsClientAllServersDown(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, reply)
 	assert.Contains(t, err.Error(), "unreachable")
+}
+
+// TestTacacsClientRejectsBadResponseHeader verifies that a syntactically valid
+// TACACS+ packet with mismatched response header fields is rejected before body
+// parsing.
+//
+// VALIDATES: response type, version, sequence, and flags are checked strictly.
+// PREVENTS: accepting spoofed or desynchronized TACACS+ responses.
+func TestTacacsClientRejectsBadResponseHeader(t *testing.T) {
+	key := []byte("test-key")
+	tests := []struct {
+		name   string
+		mutate func(PacketHeader, PacketHeader) PacketHeader
+		want   string
+	}{
+		{
+			name: "wrong type",
+			mutate: func(_ PacketHeader, reply PacketHeader) PacketHeader {
+				reply.Type = typeAuthorization
+				return reply
+			},
+			want: "type mismatch",
+		},
+		{
+			name: "wrong major version",
+			mutate: func(_ PacketHeader, reply PacketHeader) PacketHeader {
+				reply.Version = 0xD0
+				return reply
+			},
+			want: "major version mismatch",
+		},
+		{
+			name: "wrong sequence",
+			mutate: func(_ PacketHeader, reply PacketHeader) PacketHeader {
+				reply.SeqNo = 7
+				return reply
+			},
+			want: "sequence mismatch",
+		},
+		{
+			name: "unknown flags",
+			mutate: func(_ PacketHeader, reply PacketHeader) PacketHeader {
+				reply.Flags = 0x80
+				return reply
+			},
+			want: "unsupported response flags",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newTestServerWithHeader(t, key, passReply(), tt.mutate)
+			defer srv.close()
+			start := NewPAPAuthenStart("admin", "secret", "ssh", "10.0.0.1")
+			client := NewTacacsClient(TacacsClientConfig{
+				Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
+				Timeout: 2 * time.Second,
+			})
+			buf := client.bufs.Get()
+			defer client.bufs.Put(buf)
+			pkt := &Packet{Header: PacketHeader{
+				Version:   start.Version(),
+				Type:      typeAuthentication,
+				SeqNo:     1,
+				SessionID: 0x01020304,
+			}}
+
+			reply, err := client.sendReceive(buf, start.MarshalBinaryInto,
+				TacacsServer{Address: srv.addr(), Key: key}, pkt)
+			require.Error(t, err)
+			assert.Nil(t, reply)
+			assert.Contains(t, err.Error(), tt.want)
+		})
+	}
 }
 
 // VALIDATES: client timeout is respected.

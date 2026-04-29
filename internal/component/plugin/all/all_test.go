@@ -12,7 +12,9 @@ import (
 // registers all expected internal plugins.
 //
 // VALIDATES: Every internal plugin registers via init().
+// VALIDATES: Production plugin aggregation excludes internal/test/plugins.
 // PREVENTS: Missing plugin registration when a register.go is forgotten.
+// PREVENTS: Shipping test scaffolding in cmd/ze.
 func TestAllPluginsRegistered(t *testing.T) {
 	// All plugins that register unconditionally (no build tags).
 	expected := []string{
@@ -51,8 +53,6 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"bgp-rs",
 		"bgp-softver",
 		"bgp-watchdog",
-		"fakel2tp",
-		"fakeredist",
 		"fib-kernel",
 		"fib-p4",
 		"fib-vpp",
@@ -64,6 +64,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"l2tp-shaper",
 		"loop",
 		"ntp",
+		"policy-routes",
 		"rib",
 		"static",
 		"sysctl",
@@ -83,6 +84,12 @@ func TestAllPluginsRegistered(t *testing.T) {
 	for _, want := range expected {
 		if !slices.Contains(names, want) {
 			t.Errorf("expected plugin %q not registered", want)
+		}
+	}
+
+	for _, testOnly := range []string{"fakel2tp", "fakeredist"} {
+		if slices.Contains(names, testOnly) {
+			t.Errorf("test-only plugin %q registered in production plugin/all", testOnly)
 		}
 	}
 
@@ -176,6 +183,23 @@ func TestBgpRSDependsOnAdjRibIn(t *testing.T) {
 	}
 	if !slices.Contains(reg.OptionalDependencies, "bgp-adj-rib-in") {
 		t.Errorf("bgp-rs OptionalDependencies=%v, want to contain bgp-adj-rib-in", reg.OptionalDependencies)
+	}
+}
+
+// TestPolicyRoutesDependsOnFirewall verifies policy-routes startup is ordered
+// after the firewall plugin that owns nftables apply/reconcile.
+//
+// VALIDATES: policy-routes has Dependencies containing "firewall".
+// PREVENTS: policy-routes applying firewall tables before firewall startup.
+func TestPolicyRoutesDependsOnFirewall(t *testing.T) {
+	reg := registry.Lookup("policy-routes")
+	if reg == nil {
+		t.Fatal("policy-routes not registered")
+		return
+	}
+
+	if !slices.Contains(reg.Dependencies, "firewall") {
+		t.Errorf("policy-routes Dependencies=%v, want to contain firewall", reg.Dependencies)
 	}
 }
 

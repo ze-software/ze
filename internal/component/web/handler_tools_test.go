@@ -476,6 +476,48 @@ func TestHandleRelatedToolRun_AcceptsNoOriginNoReferer(t *testing.T) {
 	assert.Equal(t, "peer 10.0.0.1 detail", disp.command)
 }
 
+// TestRequireSameOriginRejectsCrossOriginMutation verifies the shared web
+// mutation middleware blocks authenticated cross-origin POSTs before the
+// wrapped handler runs.
+//
+// VALIDATES: authenticated mutating routes reject foreign Origin headers.
+// PREVENTS: CSRF defense-in-depth being limited to related-tool execution.
+func TestRequireSameOriginRejectsCrossOriginMutation(t *testing.T) {
+	called := false
+	h := RequireSameOrigin(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest(http.MethodPost, "http://router.local/config/set/bgp/", strings.NewReader(""))
+	req = req.WithContext(context.WithValue(req.Context(), ctxKeyUsername, "alice"))
+	req.Host = "router.local"
+	req.Header.Set("Origin", "https://evil.example")
+	rec := httptest.NewRecorder()
+
+	h.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+	assert.False(t, called, "wrapped handler must not run")
+}
+
+func TestRequireSameOriginAllowsReadOnlyGET(t *testing.T) {
+	called := false
+	h := RequireSameOrigin(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "http://router.local/show/", http.NoBody)
+	req = req.WithContext(context.WithValue(req.Context(), ctxKeyUsername, "alice"))
+	req.Host = "router.local"
+	req.Header.Set("Origin", "https://evil.example")
+	rec := httptest.NewRecorder()
+
+	h.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.True(t, called)
+}
+
 // testRenderer returns a renderer for handler tests.
 func testRenderer(t *testing.T) *Renderer {
 	t.Helper()

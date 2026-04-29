@@ -111,7 +111,6 @@ var pluginDirs = []string{
 	"internal/component/traffic",
 	"internal/component/vpp",
 	"internal/plugins",
-	"internal/test/plugins",
 }
 
 // rpcDirs lists directories that contain RPC command packages.
@@ -172,6 +171,9 @@ func discoverSchemaPackages(internalDir, module string) ([]string, error) {
 	err := filepath.Walk(internalDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
+		}
+		if isInternalTestPath(path) {
+			return nil
 		}
 		if info.IsDir() {
 			return nil
@@ -279,6 +281,9 @@ func discoverEventNamespaces(internalDir, module string, plugins []string) ([]st
 		if err != nil {
 			return err
 		}
+		if isInternalTestPath(path) {
+			return nil
+		}
 		if info.IsDir() || !strings.HasSuffix(info.Name(), ".go") {
 			return nil
 		}
@@ -306,6 +311,10 @@ func discoverEventNamespaces(internalDir, module string, plugins []string) ([]st
 
 	sort.Strings(imports)
 	return imports, nil
+}
+
+func isInternalTestPath(path string) bool {
+	return strings.Contains(filepath.ToSlash(path), "/internal/test/")
 }
 
 // generateAllGo writes the all.go file with blank imports for plugins and schemas.

@@ -3,7 +3,10 @@ package api
 import (
 	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,6 +64,26 @@ func fakeEditorFactory() ConfigEditorFactory {
 		return newFakeEditor(), nil
 	}
 }
+
+type serializingEditor struct {
+	active     atomic.Int32
+	violations atomic.Int32
+}
+
+func (e *serializingEditor) SetValue(_ []string, _, _ string) error {
+	if e.active.Add(1) > 1 {
+		e.violations.Add(1)
+	}
+	time.Sleep(10 * time.Millisecond)
+	e.active.Add(-1)
+	return nil
+}
+
+func (e *serializingEditor) DeleteByPath(_ []string) error { return nil }
+func (e *serializingEditor) Diff() string                  { return "" }
+func (e *serializingEditor) Save() error                   { return nil }
+func (e *serializingEditor) Discard() error                { return nil }
+func (e *serializingEditor) WorkingContent() string        { return "" }
 
 // VALIDATES: AC-5 -- ConfigEnter + Set + Commit lifecycle.
 // PREVENTS: config session lifecycle broken.
@@ -188,6 +211,39 @@ func TestConfigSessionIndependence(t *testing.T) {
 	diff, err := mgr.Diff("bob", id2)
 	require.NoError(t, err)
 	assert.NotEmpty(t, diff)
+}
+
+// TestConfigSessionSerializesConcurrentOperations verifies concurrent REST/gRPC
+// requests for the same session do not enter the editor at the same time.
+//
+// VALIDATES: one session serializes editor mutations.
+// PREVENTS: concurrent API requests racing inside a non-thread-safe editor.
+func TestConfigSessionSerializesConcurrentOperations(t *testing.T) {
+	editor := &serializingEditor{}
+	mgr := NewConfigSessionManager(func() (ConfigEditor, error) { return editor, nil })
+	id, err := mgr.Enter("admin")
+	require.NoError(t, err)
+
+	const workers = 16
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	errCh := make(chan error, workers)
+	for i := range workers {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			errCh <- mgr.Set("admin", id, "bgp.router-id", fmt.Sprintf("10.0.0.%d", i))
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		require.NoError(t, err)
+	}
+	assert.Equal(t, int32(0), editor.violations.Load(), "editor operations overlapped")
 }
 
 // VALIDATES: session owned by one user cannot be accessed by another.

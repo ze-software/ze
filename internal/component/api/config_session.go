@@ -36,11 +36,13 @@ type ConfigCommitHook func() error
 
 // ConfigSession tracks a single config editing session.
 type ConfigSession struct {
+	mu           sync.Mutex
 	ID           string
 	Editor       ConfigEditor
 	Username     string
 	CreatedAt    time.Time
 	LastActivity time.Time
+	closed       bool
 }
 
 // DefaultSessionTimeout is the maximum age of an idle config session.
@@ -80,16 +82,31 @@ func (m *ConfigSessionManager) SetCommitHook(hook ConfigCommitHook) {
 // CleanExpired discards sessions idle beyond the configured timeout.
 // Returns the number of sessions cleaned. Safe for concurrent use.
 func (m *ConfigSessionManager) CleanExpired() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	cutoff := time.Now().Add(-m.timeout)
+	m.mu.RLock()
+	sessions := make(map[string]*ConfigSession, len(m.sessions))
+	for id, session := range m.sessions {
+		sessions[id] = session
+	}
+	m.mu.RUnlock()
+
 	var cleaned int
-	for id, s := range m.sessions {
-		if s.LastActivity.Before(cutoff) {
+	for id, s := range sessions {
+		expired := false
+		s.mu.Lock()
+		if !s.closed && s.LastActivity.Before(cutoff) {
+			s.closed = true
 			_ = s.Editor.Discard()
-			delete(m.sessions, id)
-			cleaned++
+			expired = true
+		}
+		s.mu.Unlock()
+		if expired {
+			m.mu.Lock()
+			if m.sessions[id] == s {
+				delete(m.sessions, id)
+				cleaned++
+			}
+			m.mu.Unlock()
 		}
 	}
 	return cleaned
@@ -139,10 +156,11 @@ func (m *ConfigSessionManager) Enter(username string) (string, error) {
 // Set modifies a config path in the session's candidate.
 // username must match the session owner.
 func (m *ConfigSessionManager) Set(username, sessionID, path, value string) error {
-	session, err := m.get(username, sessionID)
+	session, err := m.getLocked(username, sessionID)
 	if err != nil {
 		return err
 	}
+	defer session.mu.Unlock()
 	parts := splitPath(path)
 	if len(parts) < 2 { //nolint:mnd // path needs at least parent + leaf
 		return fmt.Errorf("path too short: %q", path)
@@ -153,30 +171,33 @@ func (m *ConfigSessionManager) Set(username, sessionID, path, value string) erro
 // Delete removes a config path from the session's candidate.
 // username must match the session owner.
 func (m *ConfigSessionManager) Delete(username, sessionID, path string) error {
-	session, err := m.get(username, sessionID)
+	session, err := m.getLocked(username, sessionID)
 	if err != nil {
 		return err
 	}
+	defer session.mu.Unlock()
 	return session.Editor.DeleteByPath(splitPath(path))
 }
 
 // Diff returns the pending changes for a session.
 // username must match the session owner.
 func (m *ConfigSessionManager) Diff(username, sessionID string) (string, error) {
-	session, err := m.get(username, sessionID)
+	session, err := m.getLocked(username, sessionID)
 	if err != nil {
 		return "", err
 	}
+	defer session.mu.Unlock()
 	return session.Editor.Diff(), nil
 }
 
 // Commit applies the pending changes.
 // username must match the session owner.
 func (m *ConfigSessionManager) Commit(username, sessionID string) error {
-	session, err := m.get(username, sessionID)
+	session, err := m.getLocked(username, sessionID)
 	if err != nil {
 		return err
 	}
+	defer session.mu.Unlock()
 	if saveErr := session.Editor.Save(); saveErr != nil {
 		return fmt.Errorf("commit: %w", saveErr)
 	}
@@ -188,8 +209,11 @@ func (m *ConfigSessionManager) Commit(username, sessionID string) error {
 			return fmt.Errorf("commit saved to disk but runtime reload failed (config file may diverge from running state): %w", hookErr)
 		}
 	}
+	session.closed = true
 	m.mu.Lock()
-	delete(m.sessions, sessionID)
+	if m.sessions[sessionID] == session {
+		delete(m.sessions, sessionID)
+	}
 	m.mu.Unlock()
 	return nil
 }
@@ -197,33 +221,42 @@ func (m *ConfigSessionManager) Commit(username, sessionID string) error {
 // Discard throws away the session's candidate changes.
 // username must match the session owner.
 func (m *ConfigSessionManager) Discard(username, sessionID string) error {
-	session, err := m.get(username, sessionID)
+	session, err := m.getLocked(username, sessionID)
 	if err != nil {
 		return err
 	}
+	defer session.mu.Unlock()
 	if discardErr := session.Editor.Discard(); discardErr != nil {
 		return fmt.Errorf("discard: %w", discardErr)
 	}
+	session.closed = true
 	m.mu.Lock()
-	delete(m.sessions, sessionID)
+	if m.sessions[sessionID] == session {
+		delete(m.sessions, sessionID)
+	}
 	m.mu.Unlock()
 	return nil
 }
 
-// get retrieves a session by ID, verifying the username owns it.
-func (m *ConfigSessionManager) get(username, id string) (*ConfigSession, error) {
-	m.mu.Lock()
+// getLocked retrieves a session by ID, verifies the username owns it, and
+// returns it with the per-session mutex held. Caller must unlock session.mu.
+func (m *ConfigSessionManager) getLocked(username, id string) (*ConfigSession, error) {
+	m.mu.RLock()
 	session, ok := m.sessions[id]
-	if ok {
-		session.LastActivity = time.Now()
-	}
-	m.mu.Unlock()
+	m.mu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("session %q not found", id)
 	}
+	session.mu.Lock()
+	if session.closed {
+		session.mu.Unlock()
+		return nil, fmt.Errorf("session %q not found", id)
+	}
 	if session.Username != username {
+		session.mu.Unlock()
 		return nil, ErrSessionForbidden
 	}
+	session.LastActivity = time.Now()
 	return session, nil
 }
 

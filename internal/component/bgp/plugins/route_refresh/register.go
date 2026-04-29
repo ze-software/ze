@@ -2,6 +2,9 @@ package route_refresh
 
 import (
 	"bytes"
+	"flag"
+	"fmt"
+	"io"
 	"log/slog"
 	"os"
 
@@ -32,12 +35,25 @@ func init() {
 		},
 	}
 	reg.CLIHandler = func(args []string) int {
+		var capCode uint
 		cfg := cli.BaseConfig(&reg)
 		cfg.GetYANG = GetYANG
 		cfg.ConfigLogger = func(level string) {
 			SetLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.RunCLIDecode = RunCLIDecode
+		cfg.ExtraFlags = func(fs *flag.FlagSet) {
+			fs.UintVar(&capCode, "code", 2, "Capability code to decode (2 route-refresh, 70 enhanced-route-refresh)")
+		}
+		cfg.RunCLIWithCtx = func(hex string, text bool, out, errW io.Writer, _ *flag.FlagSet) int {
+			if capCode > 255 {
+				if _, err := fmt.Fprintf(errW, "error: capability code out of range: %d\n", capCode); err != nil {
+					logger().Debug("write failed", "err", err)
+				}
+				return 1
+			}
+			return RunCLIDecodeWithCode(uint8(capCode), hex, text, out, errW)
+		}
 		cfg.RunDecode = RunDecodeMode
 		cfg.RunEngine = RunRouteRefreshPlugin
 		return cli.RunPlugin(cfg, args)

@@ -664,7 +664,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		reloadAfterCommit := func() error {
 			return doReload(apiServer, eng, configProvider, loadConfigFromDisk)
 		}
-		apiSrvs = startAPIServers(apiCfg, apiServer, store, configPath, apiUsers, reloadAfterCommit)
+		var apiErr error
+		apiSrvs, apiErr = startAPIServers(apiCfg, apiServer, store, configPath, apiUsers, reloadAfterCommit)
+		if apiErr != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
+			apiServer.Stop()
+			_ = eng.Stop(startCtx)
+			return 1
+		}
 	}
 
 	// Signal handling: SIGINT/SIGTERM for shutdown, SIGHUP for config reload.
@@ -1196,6 +1203,9 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 			return zeweb.AuthMiddleware(sessionStore, webAuth, loginRenderer, h)
 		}
 	}
+	mutationWrap := func(h http.Handler) http.Handler {
+		return authWrap(zeweb.RequireSameOrigin(h))
+	}
 
 	loginHandler := zeweb.LoginHandler(sessionStore, webAuth, loginRenderer)
 	assetHandler := http.StripPrefix("/assets/", renderer.AssetHandler())
@@ -1220,7 +1230,7 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	srv.HandleFunc("POST /login", loginHandler)
 	srv.Handle("/assets/", assetHandler)
 	srv.Handle("/events", authWrap(broker))
-	srv.Handle("/admin/", authWrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv.Handle("/admin/", mutationWrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			adminExecHandler(w, r)
 			return
@@ -1228,31 +1238,31 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 		adminViewHandler(w, r)
 	})))
 	srv.Handle("GET /cli", authWrap(zeweb.HandleCLIPageHTTP(renderer, insecureWeb)))
-	srv.Handle("POST /cli", authWrap(cliHandler))
+	srv.Handle("POST /cli", mutationWrap(cliHandler))
 	srv.Handle("/cli/complete", authWrap(completeHandler))
-	srv.Handle("POST /cli/terminal", authWrap(terminalHandler))
-	srv.Handle("POST /cli/mode", authWrap(modeHandler))
+	srv.Handle("POST /cli/terminal", mutationWrap(terminalHandler))
+	srv.Handle("POST /cli/mode", mutationWrap(modeHandler))
 	srv.Handle("/fragment/detail", authWrap(fragmentHandler))
-	srv.Handle("POST /config/set/", authWrap(setHandler))
-	srv.Handle("POST /config/add/", authWrap(addHandler))
+	srv.Handle("POST /config/set/", mutationWrap(setHandler))
+	srv.Handle("POST /config/add/", mutationWrap(addHandler))
 	srv.Handle("GET /config/add-form/", authWrap(addFormHandler))
-	srv.Handle("POST /config/rename/", authWrap(renameHandler))
+	srv.Handle("POST /config/rename/", mutationWrap(renameHandler))
 	srv.Handle("GET /config/changes", authWrap(zeweb.HandleConfigChanges(editorMgr, renderer)))
-	srv.Handle("POST /config/delete/", authWrap(deleteHandler))
+	srv.Handle("POST /config/delete/", mutationWrap(deleteHandler))
 	srv.Handle("/config/diff", authWrap(diffHandler))
 	srv.Handle("/config/diff-close", authWrap(diffCloseHandler))
-	srv.Handle("/config/commit", authWrap(commitHandler))
-	srv.Handle("POST /config/discard", authWrap(discardHandler))
+	srv.Handle("/config/commit", mutationWrap(commitHandler))
+	srv.Handle("POST /config/discard", mutationWrap(discardHandler))
 	// V2 workbench related-tool execution. Browser submits only tool id +
 	// context path; the handler resolves the descriptor server-side and
 	// dispatches via the standard CommandDispatcher (same authz pipeline
 	// as /cli and /admin).
-	srv.Handle("POST /tools/related/run", authWrap(zeweb.HandleRelatedToolRun(renderer, schema, tree, editorMgr, dispatch)))
+	srv.Handle("POST /tools/related/run", mutationWrap(zeweb.HandleRelatedToolRun(renderer, schema, tree, editorMgr, dispatch)))
 	// L2TP web UI: session list, detail, CQM chart feeds, disconnect.
 	l2tpHandlers := &zeweb.L2TPHandlers{Renderer: renderer, Dispatch: dispatch}
 	srv.Handle("GET /l2tp", authWrap(l2tpHandlers.HandleL2TPList()))
 	srv.Handle("GET /l2tp/{sid}", authWrap(l2tpHandlers.HandleL2TPDetail()))
-	srv.Handle("POST /l2tp/{sid}/disconnect", authWrap(l2tpHandlers.HandleL2TPDisconnect()))
+	srv.Handle("POST /l2tp/{sid}/disconnect", mutationWrap(l2tpHandlers.HandleL2TPDisconnect()))
 	srv.Handle("GET /l2tp/{login}/samples", authWrap(zeweb.HandleL2TPSamplesJSON()))
 	srv.Handle("GET /l2tp/{login}/samples.csv", authWrap(zeweb.HandleL2TPSamplesCSV()))
 	srv.Handle("GET /l2tp/{login}/samples/stream", authWrap(zeweb.HandleL2TPSamplesSSE()))
@@ -1606,18 +1616,23 @@ func startStandaloneTelemetry(tree *zeconfig.Tree) *standaloneTelemetry {
 		slog.Warn("standalone telemetry: metrics server failed to start", "error", err)
 		return nil
 	}
+	for _, path := range telemetryCfg.DeprecatedAliases {
+		slog.Warn("standalone telemetry: deprecated prometheus config; move setting under telemetry.prometheus.netdata", "path", path)
+	}
 	for _, ep := range telemetryCfg.Endpoints {
 		slog.Info("standalone telemetry: prometheus metrics enabled",
 			"address", ep.Host, "port", ep.Port, "path", telemetryCfg.Path)
 	}
 
-	overrides := make(map[string]collector.CollectorOverride, len(telemetryCfg.Collectors))
-	for name, cc := range telemetryCfg.Collectors {
-		overrides[name] = collector.CollectorOverride{
-			Enabled:  cc.Enabled,
-			Interval: time.Duration(cc.Interval) * time.Second,
+	if telemetryCfg.Netdata.Enabled {
+		overrides := make(map[string]collector.CollectorOverride, len(telemetryCfg.Netdata.Collectors))
+		for name, cc := range telemetryCfg.Netdata.Collectors {
+			overrides[name] = collector.CollectorOverride{
+				Enabled:  cc.Enabled,
+				Interval: time.Duration(cc.Interval) * time.Second,
+			}
 		}
+		st.manager = collector.StartOSCollectors(reg, telemetryCfg.Netdata.Prefix, time.Duration(telemetryCfg.Netdata.Interval)*time.Second, overrides, slog.Default())
 	}
-	st.manager = collector.StartOSCollectors(reg, telemetryCfg.Prefix, time.Duration(telemetryCfg.Interval)*time.Second, overrides, slog.Default())
 	return st
 }

@@ -3,10 +3,9 @@
 //
 // Package all blank-imports test-only internal plugins. The production
 // daemon (cmd/ze) does NOT import this package; only the ze-test binary
-// or other test infrastructure may. Currently fakeredist is also imported
-// from production all.go because .ci scenarios run bin/ze; this aggregator
-// remains so future test-only plugins (network simulators, mock peers)
-// have a non-production home.
+// or other test infrastructure may. Functional tests build cmd/ze with the
+// zetest tag to load this package without exposing test plugins in normal
+// production builds.
 //
 // To add a test-only plugin, create internal/test/plugins/<name>/ with an
 // init() that calls registry.Register(), then add a blank import here.
@@ -14,6 +13,8 @@
 package all
 
 import (
+	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakel2tp"
+	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakel2tp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeredist"
 	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeredist/schema"
 )

@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,6 +22,18 @@ import (
 var logger = slogutil.LazyLogger("test.runner")
 
 const binNameZePeer = "ze-peer"
+
+// TestPluginBuildTag enables internal/test/plugins for functional-test DUTs.
+const TestPluginBuildTag = "zetest"
+
+// TestBuildTags returns ZE_TAGS plus the tag required for functional test-only plugins.
+func TestBuildTags() string {
+	tags := strings.FieldsFunc(os.Getenv("ZE_TAGS"), func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t' || r == '\n'
+	})
+	tags = append(tags, TestPluginBuildTag)
+	return strings.Join(tags, ",")
+}
 
 // RunOptions configures test execution.
 type RunOptions struct {
@@ -115,7 +128,7 @@ func (r *Runner) Build(ctx context.Context) error {
 	now := time.Now()
 	ldflags := fmt.Sprintf("-X main.version=%s -X main.buildDate=%s",
 		now.Format("06.01.02"), now.UTC().Format("2006-01-02T15:04:05Z"))
-	cmd := exec.CommandContext(ctx, "go", "build", "-ldflags", ldflags, "-o", r.zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
+	cmd := exec.CommandContext(ctx, "go", "build", "-tags", TestBuildTags(), "-ldflags", ldflags, "-o", r.zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {

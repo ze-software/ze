@@ -546,3 +546,22 @@ func TestGRPCServer_BindFailureClosesPartialListeners(t *testing.T) {
 	require.Error(t, err, "Serve must fail when any bind fails")
 	assert.Contains(t, err.Error(), squattedAddr)
 }
+
+func TestGRPCServerStartReturnsBindFailure(t *testing.T) {
+	var lc net.ListenConfig
+	squatter, err := lc.Listen(t.Context(), "tcp4", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer squatter.Close() //nolint:errcheck // test cleanup
+	squattedAddr := squatter.Addr().String()
+
+	engine := testEngine()
+	srv, err := NewGRPCServer(GRPCConfig{
+		ListenAddrs: []string{"127.0.0.1:0", squattedAddr},
+	}, engine, nil)
+	require.NoError(t, err)
+
+	errCh, err := srv.Start(t.Context())
+	require.Error(t, err, "Start must fail before returning when any bind fails")
+	assert.Nil(t, errCh)
+	assert.Contains(t, err.Error(), squattedAddr)
+}

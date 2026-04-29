@@ -346,6 +346,10 @@ func (c *TacacsClient) trySend(buf []byte, marshalBody func([]byte) (int, error)
 		c.closeAndEvict(srv.Address, conn)
 		return nil, fmt.Errorf("parse header: %w", hdrErr)
 	}
+	if err := validateResponseHeader(pkt.Header, respHdr); err != nil {
+		c.closeAndEvict(srv.Address, conn)
+		return nil, err
+	}
 
 	if respHdr.SessionID != pkt.Header.SessionID {
 		c.closeAndEvict(srv.Address, conn)
@@ -392,6 +396,23 @@ func (c *TacacsClient) trySend(buf []byte, marshalBody func([]byte) (int, error)
 	// caller (Authenticate/SendAuthorization/SendAccounting) MUST parse
 	// it before its deferred Put releases the buffer.
 	return buf[hdrLen:bodyEnd], nil
+}
+
+func validateResponseHeader(req, resp PacketHeader) error {
+	if resp.Type != req.Type {
+		return fmt.Errorf("type mismatch: sent %d, got %d", req.Type, resp.Type)
+	}
+	if resp.Version&0xF0 != req.Version&0xF0 {
+		return fmt.Errorf("major version mismatch: sent %#x, got %#x", req.Version, resp.Version)
+	}
+	expectedSeq := req.SeqNo + 1
+	if resp.SeqNo != expectedSeq {
+		return fmt.Errorf("sequence mismatch: want %d, got %d", expectedSeq, resp.SeqNo)
+	}
+	if extra := resp.Flags &^ (FlagUnencrypted | FlagSingleConnect); extra != 0 {
+		return fmt.Errorf("unsupported response flags: %#x", resp.Flags)
+	}
+	return nil
 }
 
 // pooledConnErr marks an error as coming from a reused pooled connection so

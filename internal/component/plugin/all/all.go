@@ -74,11 +74,10 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tppool/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpshaper/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/policyroute/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/static/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakel2tp/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeredist/schema"
 
 	// Plugin packages — plugin + schema registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugin"
@@ -132,13 +131,12 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tppool"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpshaper"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ntp"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/policyroute"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/static"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/netlink"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/vpp"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakel2tp"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeredist"
 
 	// Event namespace packages -- events.RegisterNamespace registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/transaction"

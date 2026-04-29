@@ -145,7 +145,7 @@ func (c *Client) Exchange(ctx context.Context, pkt *Packet, secret []byte, serve
 	timeout := c.config.Timeout
 
 retryLoop:
-	for attempt := range c.config.Retries {
+	for range c.config.Retries {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}

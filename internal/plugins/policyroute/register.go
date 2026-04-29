@@ -19,12 +19,13 @@ const configRoot = "policy"
 
 func init() {
 	reg := registry.Registration{
-		Name:        "policy-routes",
-		Description: "Policy-based routing: nftables packet marking and ip rule table selection",
-		Features:    "yang",
-		YANG:        policyrouteschema.ZePolicyrouteConfYANG,
-		ConfigRoots: []string{configRoot},
-		RunEngine:   runPolicyRoutePlugin,
+		Name:         "policy-routes",
+		Description:  "Policy-based routing: nftables packet marking and ip rule table selection",
+		Features:     "yang",
+		YANG:         policyrouteschema.ZePolicyrouteConfYANG,
+		ConfigRoots:  []string{configRoot},
+		Dependencies: []string{"firewall"},
+		RunEngine:    runPolicyRoutePlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

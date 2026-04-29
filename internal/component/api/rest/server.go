@@ -132,6 +132,32 @@ func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSe
 // Bind is all-or-nothing: any bind failure rolls back the already-bound
 // listeners and returns the error without entering the serve loop.
 func (s *RESTServer) ListenAndServe(ctx context.Context) error {
+	listeners, err := s.listen(ctx)
+	if err != nil {
+		return err
+	}
+	return s.serve(listeners)
+}
+
+// Start binds every configured address before returning, then serves in a
+// background goroutine. Bind errors are returned synchronously so daemon
+// startup can fail closed when an explicit API listener is unavailable.
+func (s *RESTServer) Start(ctx context.Context) (<-chan error, error) {
+	listeners, err := s.listen(ctx)
+	if err != nil {
+		return nil, err
+	}
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(errCh)
+		if serveErr := s.serve(listeners); serveErr != nil {
+			errCh <- serveErr
+		}
+	}()
+	return errCh, nil
+}
+
+func (s *RESTServer) listen(ctx context.Context) ([]net.Listener, error) {
 	var lc net.ListenConfig
 
 	listeners := make([]net.Listener, 0, len(s.configured))
@@ -144,7 +170,7 @@ func (s *RESTServer) ListenAndServe(ctx context.Context) error {
 					logger.Warn("REST API: close partial listener", "error", closeErr)
 				}
 			}
-			return fmt.Errorf("listen %s: %w", addr, err)
+			return nil, fmt.Errorf("listen %s: %w", addr, err)
 		}
 		listeners = append(listeners, ln)
 		bound = append(bound, ln.Addr().String())
@@ -158,7 +184,10 @@ func (s *RESTServer) ListenAndServe(ctx context.Context) error {
 	for _, addr := range bound {
 		logger.Info("REST API server listening", "addr", addr)
 	}
+	return listeners, nil
+}
 
+func (s *RESTServer) serve(listeners []net.Listener) error {
 	errCh := make(chan error, len(listeners))
 	var wg sync.WaitGroup
 	for _, ln := range listeners {

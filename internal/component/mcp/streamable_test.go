@@ -39,6 +39,37 @@ func closeBody(t *testing.T, body io.Closer) {
 	}
 }
 
+type deadlineResponseRecorder struct {
+	header      http.Header
+	status      int
+	deadlineSet bool
+	deadline    time.Time
+	flushed     bool
+}
+
+func newDeadlineResponseRecorder() *deadlineResponseRecorder {
+	return &deadlineResponseRecorder{header: make(http.Header)}
+}
+
+func (r *deadlineResponseRecorder) Header() http.Header { return r.header }
+
+func (r *deadlineResponseRecorder) Write(p []byte) (int, error) {
+	if r.status == 0 {
+		r.status = http.StatusOK
+	}
+	return len(p), nil
+}
+
+func (r *deadlineResponseRecorder) WriteHeader(status int) { r.status = status }
+
+func (r *deadlineResponseRecorder) Flush() { r.flushed = true }
+
+func (r *deadlineResponseRecorder) SetWriteDeadline(t time.Time) error {
+	r.deadlineSet = true
+	r.deadline = t
+	return nil
+}
+
 // initializeResult runs the initialize handshake and returns the negotiated
 // session id, the full response status, and the decoded result body. The
 // response body is closed inside the helper.
@@ -259,6 +290,40 @@ func TestStreamableGETOpensSSEStream(t *testing.T) {
 	}
 	if !strings.Contains(line, `"hello"`) {
 		t.Fatalf("SSE frame missing payload: %q", line)
+	}
+}
+
+func TestStreamableGETClearsWriteDeadline(t *testing.T) {
+	srv, err := NewStreamable(StreamableConfig{})
+	if err != nil {
+		t.Fatalf("NewStreamable: %v", err)
+	}
+	defer srv.Close()
+
+	sess, err := srv.registry.Create(ProtocolVersion, Identity{})
+	if err != nil {
+		t.Fatalf("Create session: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	req := httptest.NewRequest(http.MethodGet, Endpoint, http.NoBody).WithContext(ctx)
+	req.Header.Set("Accept", mimeEventStream)
+	req.Header.Set("Mcp-Session-Id", sess.ID())
+	rec := newDeadlineResponseRecorder()
+
+	srv.handleGET(rec, req)
+
+	if rec.status != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.status)
+	}
+	if !rec.deadlineSet {
+		t.Fatal("SetWriteDeadline was not called")
+	}
+	if !rec.deadline.IsZero() {
+		t.Fatalf("deadline = %v, want zero time", rec.deadline)
+	}
+	if !rec.flushed {
+		t.Fatal("Flush was not called")
 	}
 }
 

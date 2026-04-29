@@ -141,6 +141,32 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 // already-bound listeners and returns the error without entering the
 // serve loop.
 func (s *GRPCServer) Serve(ctx context.Context) error {
+	listeners, err := s.listen(ctx)
+	if err != nil {
+		return err
+	}
+	return s.serve(listeners)
+}
+
+// Start binds every configured address before returning, then serves in a
+// background goroutine. Bind errors are returned synchronously so daemon
+// startup can fail closed when an explicit API listener is unavailable.
+func (s *GRPCServer) Start(ctx context.Context) (<-chan error, error) {
+	listeners, err := s.listen(ctx)
+	if err != nil {
+		return nil, err
+	}
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(errCh)
+		if serveErr := s.serve(listeners); serveErr != nil {
+			errCh <- serveErr
+		}
+	}()
+	return errCh, nil
+}
+
+func (s *GRPCServer) listen(ctx context.Context) ([]net.Listener, error) {
 	var lc net.ListenConfig
 
 	listeners := make([]net.Listener, 0, len(s.configured))
@@ -153,7 +179,7 @@ func (s *GRPCServer) Serve(ctx context.Context) error {
 					logger.Warn("gRPC API: close partial listener", "error", closeErr)
 				}
 			}
-			return fmt.Errorf("listen %s: %w", addr, err)
+			return nil, fmt.Errorf("listen %s: %w", addr, err)
 		}
 		listeners = append(listeners, ln)
 		bound = append(bound, ln.Addr().String())
@@ -166,7 +192,10 @@ func (s *GRPCServer) Serve(ctx context.Context) error {
 	for _, addr := range bound {
 		logger.Info("gRPC API server listening", "addr", addr)
 	}
+	return listeners, nil
+}
 
+func (s *GRPCServer) serve(listeners []net.Listener) error {
 	// grpc.Server tracks every listener internally, so GracefulStop closes
 	// all of them. Serve is called once per listener in its own goroutine.
 	errCh := make(chan error, len(listeners))
