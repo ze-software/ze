@@ -135,10 +135,10 @@ func TestServer_BasicAuth(t *testing.T) {
 		Endpoints: []metrics.Endpoint{{Host: "127.0.0.1", Port: 19404}},
 		Path:      "/metrics",
 		BasicAuth: metrics.BasicAuthConfig{
-			Enabled:  true,
-			Realm:    "ze prometheus",
-			Username: "prometheus",
-			Password: string(hash),
+			Enabled:    true,
+			Realm:      "ze prometheus",
+			Username:   "prometheus",
+			BcryptHash: string(hash),
 		},
 	})
 	require.NoError(t, err)
@@ -150,7 +150,7 @@ func TestServer_BasicAuth(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.Equal(t, `Basic realm="ze prometheus"`, resp.Header.Get("WWW-Authenticate"))
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://127.0.0.1:19404/metrics", nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://127.0.0.1:19404/metrics", http.NoBody)
 	require.NoError(t, err)
 	req.SetBasicAuth("prometheus", "wrong")
 	resp, err = http.DefaultClient.Do(req)
@@ -158,7 +158,7 @@ func TestServer_BasicAuth(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 
-	req, err = http.NewRequestWithContext(context.Background(), http.MethodGet, "http://127.0.0.1:19404/metrics", nil)
+	req, err = http.NewRequestWithContext(context.Background(), http.MethodGet, "http://127.0.0.1:19404/metrics", http.NoBody)
 	require.NoError(t, err)
 	req.SetBasicAuth("prometheus", "secret")
 	resp, err = http.DefaultClient.Do(req)
@@ -190,7 +190,7 @@ func TestServer_BasicAuthRequiresCredentials(t *testing.T) {
 	}{
 		{
 			name: "missing username",
-			auth: metrics.BasicAuthConfig{Enabled: true, Password: string(hash)},
+			auth: metrics.BasicAuthConfig{Enabled: true, BcryptHash: string(hash)},
 		},
 		{
 			name: "missing password",
@@ -198,7 +198,7 @@ func TestServer_BasicAuthRequiresCredentials(t *testing.T) {
 		},
 		{
 			name: "invalid hash",
-			auth: metrics.BasicAuthConfig{Enabled: true, Username: "prometheus", Password: "cleartext"},
+			auth: metrics.BasicAuthConfig{Enabled: true, Username: "prometheus", BcryptHash: "cleartext"},
 		},
 	}
 
@@ -633,7 +633,7 @@ func TestExtractTelemetryConfig_BasicAuth(t *testing.T) {
 	assert.True(t, cfg.BasicAuth.Enabled)
 	assert.Equal(t, "metrics", cfg.BasicAuth.Realm)
 	assert.Equal(t, "prometheus", cfg.BasicAuth.Username)
-	assert.NotEmpty(t, cfg.BasicAuth.Password)
+	assert.NotEmpty(t, cfg.BasicAuth.BcryptHash)
 }
 
 // TestExtractTelemetryConfig_NetdataDisabled verifies the netdata container can

@@ -49,10 +49,10 @@ type TelemetryConfig struct {
 // BasicAuthConfig holds optional HTTP Basic Authentication settings for the
 // Prometheus HTTP service.
 type BasicAuthConfig struct {
-	Enabled  bool
-	Realm    string
-	Username string
-	Password string
+	Enabled    bool
+	Realm      string
+	Username   string
+	BcryptHash string
 }
 
 // NetdataConfig holds Netdata-compatible OS collector settings. These settings
@@ -172,10 +172,10 @@ func (cfg BasicAuthConfig) validate() error {
 	if cfg.Username == "" {
 		return errors.New("metrics server basic-auth: username is required")
 	}
-	if cfg.Password == "" {
+	if cfg.BcryptHash == "" {
 		return errors.New("metrics server basic-auth: password is required")
 	}
-	if _, err := bcrypt.Cost([]byte(cfg.Password)); err != nil {
+	if _, err := bcrypt.Cost([]byte(cfg.BcryptHash)); err != nil {
 		return fmt.Errorf("metrics server basic-auth: password must be a bcrypt hash: %w", err)
 	}
 	return nil
@@ -200,7 +200,7 @@ func basicAuthMiddleware(auth BasicAuthConfig, next http.Handler) http.Handler {
 
 func basicAuthAccepted(auth BasicAuthConfig, username, password string) bool {
 	usernameOK := subtle.ConstantTimeCompare([]byte(username), []byte(auth.Username)) == 1
-	passwordOK := bcrypt.CompareHashAndPassword([]byte(auth.Password), []byte(password)) == nil
+	passwordOK := bcrypt.CompareHashAndPassword([]byte(auth.BcryptHash), []byte(password)) == nil
 	return usernameOK && passwordOK
 }
 
@@ -295,7 +295,7 @@ func extractBasicAuthConfig(prom map[string]any) BasicAuthConfig {
 		cfg.Realm = realm
 	}
 	cfg.Username, _ = authMap["username"].(string)
-	cfg.Password, _ = authMap["password"].(string)
+	cfg.BcryptHash, _ = authMap["password"].(string)
 	return cfg
 }
 

@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 )
@@ -85,9 +86,7 @@ func (m *ConfigSessionManager) CleanExpired() int {
 	cutoff := time.Now().Add(-m.timeout)
 	m.mu.RLock()
 	sessions := make(map[string]*ConfigSession, len(m.sessions))
-	for id, session := range m.sessions {
-		sessions[id] = session
-	}
+	maps.Copy(sessions, m.sessions)
 	m.mu.RUnlock()
 
 	var cleaned int
