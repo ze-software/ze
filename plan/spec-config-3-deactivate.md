@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Depends | spec-policy-3 (existing `inactive:` plumbing for containers/list-entries/leaf-list values) |
 | Phase | 1/10 |
 | Updated | 2026-04-25 |
