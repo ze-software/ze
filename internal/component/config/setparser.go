@@ -195,33 +195,52 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 
 	//nolint:gocritic // if-else chain preferred over type switch for exhaustive node handling
 	if leaf, ok := node.(*LeafNode); ok {
-		_ = leaf
 		if len(tokens) != 1 {
 			return fmt.Errorf("line %d: leaf %s expects exactly one value", lineNum, name)
+		}
+		if err := ValidateLeafValue(leaf, tokens[0]); err != nil {
+			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 		}
 		tree.Set(name, tokens[0])
 		return nil
 	}
 
-	if _, ok := node.(*MultiLeafNode); ok {
+	if multi, ok := node.(*MultiLeafNode); ok {
 		if len(tokens) < 1 {
 			return fmt.Errorf("line %d: multi-leaf %s expects at least one value", lineNum, name)
 		}
-		tree.Set(name, strings.Join(tokens, " "))
+		value := strings.Join(tokens, " ")
+		if err := validateValuePatterns(multi.Type, multi.Patterns, value); err != nil {
+			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+		}
+		tree.Set(name, value)
 		return nil
 	}
 
-	if _, ok := node.(*BracketLeafListNode); ok {
+	if bracket, ok := node.(*BracketLeafListNode); ok {
 		if len(tokens) == 0 {
 			return nil // structural-only: no value to set
+		}
+		for _, item := range bracketItems(tokens) {
+			if err := validateValuePatterns(bracket.Type, bracket.Patterns, item); err != nil {
+				return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+			}
 		}
 		tree.Set(name, parseBracketValue(tokens))
 		return nil
 	}
 
-	if _, ok := node.(*ValueOrArrayNode); ok {
+	if valueOrArray, ok := node.(*ValueOrArrayNode); ok {
 		if len(tokens) == 0 {
 			return nil // structural-only: no value to set
+		}
+		for _, item := range bracketItems(tokens) {
+			if valueOrArray.ValidValues != nil && !containsString(valueOrArray.ValidValues, item) {
+				return fmt.Errorf("line %d: invalid value for %s: %q (valid: %s)", lineNum, name, item, strings.Join(valueOrArray.ValidValues, ", "))
+			}
+			if err := validateValuePatterns(valueOrArray.Type, valueOrArray.Patterns, item); err != nil {
+				return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+			}
 		}
 		tree.Set(name, parseBracketValue(tokens))
 		return nil
@@ -243,6 +262,9 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		if len(tokens) == 1 {
 			// Key-only: create empty list entry (incomplete config tolerance).
 			key := tokens[0]
+			if err := ValidateListKey(list, key); err != nil {
+				return fmt.Errorf("line %d: invalid key for %s: %w", lineNum, name, err)
+			}
 			entries := tree.GetList(name)
 			if entries == nil || entries[key] == nil {
 				tree.AddListEntry(name, key, NewTree())
@@ -829,33 +851,53 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		}
 	}
 
-	if _, ok := node.(*LeafNode); ok {
+	if leaf, ok := node.(*LeafNode); ok {
 		if len(tokens) != 1 {
 			return fmt.Errorf("line %d: leaf %s expects exactly one value", lineNum, name)
+		}
+		if err := ValidateLeafValue(leaf, tokens[0]); err != nil {
+			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 		}
 		setLeafMeta(tokens[0])
 		return nil
 	}
 
-	if _, ok := node.(*MultiLeafNode); ok {
+	if multi, ok := node.(*MultiLeafNode); ok {
 		if len(tokens) < 1 {
 			return fmt.Errorf("line %d: multi-leaf %s expects at least one value", lineNum, name)
 		}
-		setLeafMeta(strings.Join(tokens, " "))
+		value := strings.Join(tokens, " ")
+		if err := validateValuePatterns(multi.Type, multi.Patterns, value); err != nil {
+			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+		}
+		setLeafMeta(value)
 		return nil
 	}
 
-	if _, ok := node.(*BracketLeafListNode); ok {
+	if bracket, ok := node.(*BracketLeafListNode); ok {
 		if len(tokens) == 0 {
 			return nil // structural-only: no value to set
+		}
+		for _, item := range bracketItems(tokens) {
+			if err := validateValuePatterns(bracket.Type, bracket.Patterns, item); err != nil {
+				return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+			}
 		}
 		setLeafMeta(parseBracketValue(tokens))
 		return nil
 	}
 
-	if _, ok := node.(*ValueOrArrayNode); ok {
+	if valueOrArray, ok := node.(*ValueOrArrayNode); ok {
 		if len(tokens) == 0 {
 			return nil // structural-only: no value to set
+		}
+		for _, item := range bracketItems(tokens) {
+			if valueOrArray.ValidValues != nil && !containsString(valueOrArray.ValidValues, item) {
+				return fmt.Errorf("line %d: invalid value for %s: %q (valid: %s)", lineNum, name, item, strings.Join(valueOrArray.ValidValues, ", "))
+			}
+			if err := validateValuePatterns(valueOrArray.Type, valueOrArray.Patterns, item); err != nil {
+				return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+			}
 		}
 		setLeafMeta(parseBracketValue(tokens))
 		return nil
@@ -878,6 +920,9 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		if len(tokens) == 1 {
 			// Key-only: create empty list entry (incomplete config tolerance).
 			key := tokens[0]
+			if err := ValidateListKey(list, key); err != nil {
+				return fmt.Errorf("line %d: invalid key for %s: %w", lineNum, name, err)
+			}
 			entries := tree.GetList(name)
 			if entries == nil || entries[key] == nil {
 				tree.AddListEntry(name, key, NewTree())
@@ -886,6 +931,9 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		}
 		key := tokens[0]
 		tokens = tokens[1:]
+		if err := ValidateListKey(list, key); err != nil {
+			return fmt.Errorf("line %d: invalid key for %s: %w", lineNum, name, err)
+		}
 		entries := tree.GetList(name)
 		if entries == nil {
 			entries = make(map[string]*Tree)
@@ -1078,6 +1126,16 @@ func parseBracketValue(tokens []string) string {
 	return strings.Join(tokens, " ")
 }
 
+func bracketItems(tokens []string) []string {
+	if len(tokens) == 0 {
+		return nil
+	}
+	if tokens[0] == "[" && tokens[len(tokens)-1] == "]" {
+		return tokens[1 : len(tokens)-1]
+	}
+	return tokens
+}
+
 // setFreeformValue stores a freeform key-value pair.
 // Format: set <path> <freeform-name> <key> [value]
 // Stored as container[name] -> Tree with key=value (or key="true" for flags).
@@ -1119,6 +1177,9 @@ func (p *SetParser) setFlexValue(tree *Tree, flex *FlexNode, name string, tokens
 func (p *SetParser) walkAndSetListEntry(tree *Tree, list *ListNode, name string, tokens []string, lineNum int) error {
 	key := tokens[0]
 	tokens = tokens[1:]
+	if err := ValidateListKey(list, key); err != nil {
+		return fmt.Errorf("line %d: invalid key for %s: %w", lineNum, name, err)
+	}
 	entries := tree.GetList(name)
 	if entries == nil {
 		entries = make(map[string]*Tree)

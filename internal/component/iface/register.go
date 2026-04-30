@@ -121,13 +121,14 @@ func init() {
 	loggerPtr.Store(d)
 
 	reg := registry.Registration{
-		Name:         "interface",
-		Description:  "OS network interface monitoring and management",
-		Features:     "yang",
-		YANG:         ifaceschema.ZeIfaceConfYANG,
-		ConfigRoots:  []string{"interface"},
-		Dependencies: []string{"sysctl"},
-		RunEngine:    runEngine,
+		Name:                    "interface",
+		Description:             "OS network interface monitoring and management",
+		Features:                "yang",
+		YANG:                    ifaceschema.ZeIfaceConfYANG,
+		ConfigRoots:             []string{"interface"},
+		Dependencies:            []string{"sysctl"},
+		InProcessConfigVerifier: verifyIfaceConfig,
+		RunEngine:               runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -144,6 +145,25 @@ func init() {
 		fmt.Fprintf(os.Stderr, "interface: registration failed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func verifyIfaceConfig(sections []sdk.ConfigSection) error {
+	_, err := parseAndVerifyIfaceSections(sections)
+	return err
+}
+
+func parseAndVerifyIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, error) {
+	cfg, err := parseIfaceSections(sections)
+	if err != nil {
+		return nil, fmt.Errorf("interface config: %w", err)
+	}
+	if cfg.Backend == "" {
+		return nil, fmt.Errorf("interface: no backend configured and no OS default available")
+	}
+	if err := validateBackendGate(sections, cfg.Backend); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
 // setLogger sets the package-level logger.
@@ -397,14 +417,8 @@ func runEngine(conn net.Conn) int {
 	})
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		cfg, err := parseIfaceSections(sections)
+		cfg, err := parseAndVerifyIfaceSections(sections)
 		if err != nil {
-			return fmt.Errorf("interface config: %w", err)
-		}
-		if cfg.Backend == "" {
-			return fmt.Errorf("interface: no backend configured and no OS default available")
-		}
-		if err := validateBackendGate(sections, cfg.Backend); err != nil {
 			return err
 		}
 		pendingCfg = cfg

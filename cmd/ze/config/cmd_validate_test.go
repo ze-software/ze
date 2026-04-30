@@ -3,12 +3,16 @@ package config
 import (
 	"bytes"
 	"io"
+	"net"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // validConfig is a minimal valid BGP configuration for testing.
@@ -156,6 +160,45 @@ func TestValidateResultInvalid(t *testing.T) {
 
 	assert.False(t, result.Valid, "expected Valid=false for invalid config")
 	assert.NotEmpty(t, result.Errors, "expected at least one error")
+}
+
+// TestValidateContentReturnsAggregatedError verifies API callers can reuse the
+// static config validation path and receive a clear error.
+//
+// VALIDATES: ValidateContent exposes runValidation failures as an error.
+// PREVENTS: API pre-save validation drifting from ze config validate.
+func TestValidateContentReturnsAggregatedError(t *testing.T) {
+	err := ValidateContent(`bgp { router-id invalid; }`, "bad.conf")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "config validation failed")
+	assert.Contains(t, err.Error(), "router-id")
+}
+
+// TestValidateRunsPluginConfigVerifier verifies `ze config validate` rejects
+// errors from registered side-effect-free plugin verify hooks.
+//
+// VALIDATES: static config validation invokes plugin config verification.
+// PREVENTS: plugin-only config errors passing offline validation.
+func TestValidateRunsPluginConfigVerifier(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        "validate-test",
+		Description: "test verifier",
+		ConfigRoots: []string{"bgp"},
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+		InProcessConfigVerifier: func([]rpc.ConfigSection) error {
+			return assert.AnError
+		},
+	}))
+
+	result := runValidation(validConfig, "test.conf")
+	assert.False(t, result.Valid, "expected plugin verifier to reject config")
+	require.NotEmpty(t, result.Errors)
+	assert.Contains(t, result.Errors[0].Message, "validate-test")
 }
 
 // TestValidateSemanticValidationWarnings verifies semantic checks produce warnings.

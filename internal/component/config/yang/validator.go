@@ -5,7 +5,6 @@ package yang
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -262,9 +261,13 @@ func (v *Validator) validateString(path string, yangType *yang.YangType, value a
 
 	// Check patterns
 	for _, p := range yangType.Pattern {
-		matched, err := regexp.MatchString("^"+p+"$", str)
+		matched, err := MatchPattern(p, str)
 		if err != nil {
-			continue
+			return &ValidationError{
+				Path:    path,
+				Type:    ErrTypePattern,
+				Message: fmt.Sprintf("invalid pattern %q: %v", p, err),
+			}
 		}
 		if !matched {
 			return &ValidationError{

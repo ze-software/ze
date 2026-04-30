@@ -1963,9 +1963,11 @@ func TestRenameViaDispatch(t *testing.T) {
 	assert.Contains(t, ed.WorkingContent(), "peer renamed-peer")
 }
 
-// TestRenameQuotedListKey verifies rename handles quoted keys with spaces.
+// TestRenameQuotedListKey verifies rename handles quoted list keys.
+// Uses names containing dots so quoting is meaningful (dots could be
+// confused with path separators without quotes).
 //
-// VALIDATES: Rename works with quoted list entry names.
+// VALIDATES: Rename works when valid list entry names are quoted.
 // PREVENTS: Quoted key parsing breaking rename path resolution.
 func TestRenameQuotedListKey(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -1974,7 +1976,7 @@ func TestRenameQuotedListKey(t *testing.T) {
 	content := `bgp {
   router-id 1.2.3.4
   session { asn { local 65000; } }
-  peer "my peer" {
+  peer "peer.old" {
     connection { remote { ip 1.1.1.1; } }
     session { asn { remote 65001; } }
   }
@@ -1990,13 +1992,13 @@ func TestRenameQuotedListKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// Dispatch handles tokenization including quotes
-	result, err := model.dispatchCommand(`rename bgp peer "my peer" to "new peer"`)
+	result, err := model.dispatchCommand(`rename bgp peer "peer.old" to "peer.new"`)
 	require.NoError(t, err)
-	assert.Contains(t, result.statusMessage, "Renamed peer my peer to new peer")
+	assert.Contains(t, result.statusMessage, "Renamed peer peer.old to peer.new")
 
 	output := ed.WorkingContent()
-	assert.NotContains(t, output, `peer "my peer"`)
-	assert.Contains(t, output, `peer "new peer"`)
+	assert.NotContains(t, output, `peer peer.old`)
+	assert.Contains(t, output, `peer peer.new`)
 	assert.Contains(t, output, "1.1.1.1") // IP preserved
 }
 

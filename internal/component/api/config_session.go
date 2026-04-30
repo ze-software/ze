@@ -26,6 +26,7 @@ type ConfigEditor interface {
 	Diff() string
 	Save() error
 	Discard() error
+	OriginalContent() string
 	WorkingContent() string
 }
 
@@ -34,6 +35,9 @@ type ConfigEditorFactory func() (ConfigEditor, error)
 
 // ConfigCommitHook applies a saved config to the running daemon.
 type ConfigCommitHook func() error
+
+// ConfigValidationHook validates a candidate config before it is saved.
+type ConfigValidationHook func(previous, candidate string) error
 
 // ConfigSession tracks a single config editing session.
 type ConfigSession struct {
@@ -55,11 +59,12 @@ const DefaultSessionTimeout = 30 * time.Minute
 // Idle sessions are automatically reaped by a background goroutine started
 // via RunCleanup. Sessions idle beyond the timeout are discarded.
 type ConfigSessionManager struct {
-	mu       sync.RWMutex
-	sessions map[string]*ConfigSession
-	factory  ConfigEditorFactory
-	onCommit ConfigCommitHook
-	timeout  time.Duration
+	mu         sync.RWMutex
+	sessions   map[string]*ConfigSession
+	factory    ConfigEditorFactory
+	onCommit   ConfigCommitHook
+	onValidate ConfigValidationHook
+	timeout    time.Duration
 }
 
 // NewConfigSessionManager creates a session manager with the default timeout.
@@ -77,6 +82,14 @@ func NewConfigSessionManager(factory ConfigEditorFactory) *ConfigSessionManager 
 func (m *ConfigSessionManager) SetCommitHook(hook ConfigCommitHook) {
 	m.mu.Lock()
 	m.onCommit = hook
+	m.mu.Unlock()
+}
+
+// SetValidationHook sets the hook called before a session save. Hook errors
+// abort the commit before the config file is modified.
+func (m *ConfigSessionManager) SetValidationHook(hook ConfigValidationHook) {
+	m.mu.Lock()
+	m.onValidate = hook
 	m.mu.Unlock()
 }
 
@@ -197,6 +210,14 @@ func (m *ConfigSessionManager) Commit(username, sessionID string) error {
 		return err
 	}
 	defer session.mu.Unlock()
+	m.mu.RLock()
+	onValidate := m.onValidate
+	m.mu.RUnlock()
+	if onValidate != nil {
+		if validateErr := onValidate(session.Editor.OriginalContent(), session.Editor.WorkingContent()); validateErr != nil {
+			return fmt.Errorf("commit validation: %w", validateErr)
+		}
+	}
 	if saveErr := session.Editor.Save(); saveErr != nil {
 		return fmt.Errorf("commit: %w", saveErr)
 	}

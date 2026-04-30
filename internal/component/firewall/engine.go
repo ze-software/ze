@@ -138,6 +138,32 @@ func hasFirewallSection(sections []sdk.ConfigSection) bool {
 	return false
 }
 
+// VerifyConfig validates firewall config without loading or applying a backend.
+func VerifyConfig(sections []sdk.ConfigSection) error {
+	_, err := parseAndVerifyFirewallSections(sections)
+	return err
+}
+
+func parseAndVerifyFirewallSections(sections []sdk.ConfigSection) (*firewallConfig, error) {
+	cfg, err := parseFirewallSections(sections)
+	if err != nil {
+		return nil, err
+	}
+	if !hasFirewallSection(sections) {
+		return cfg, nil
+	}
+	if cfg.Backend == "" {
+		return nil, fmt.Errorf("firewall: no backend configured and no OS default available")
+	}
+	if err := validateBackendGate(sections, cfg.Backend); err != nil {
+		return nil, err
+	}
+	if err := ValidateTables(cfg.Tables); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
 // setLogger stores the engine-provided logger for package-level use.
 func setLogger(l *slog.Logger) {
 	if l != nil {
@@ -202,7 +228,7 @@ func runEngine(conn net.Conn) int {
 	})
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		cfg, err := parseFirewallSections(sections)
+		cfg, err := parseAndVerifyFirewallSections(sections)
 		if err != nil {
 			return err
 		}
@@ -210,15 +236,6 @@ func runEngine(conn net.Conn) int {
 			pendingCfg = cfg
 			log.Debug("firewall config verified: no firewall section")
 			return nil
-		}
-		if cfg.Backend == "" {
-			return fmt.Errorf("firewall: no backend configured and no OS default available")
-		}
-		if err := validateBackendGate(sections, cfg.Backend); err != nil {
-			return err
-		}
-		if err := ValidateTables(cfg.Tables); err != nil {
-			return err
 		}
 		pendingCfg = cfg
 		log.Debug("firewall config verified", "backend", cfg.Backend, "tables", len(cfg.Tables))

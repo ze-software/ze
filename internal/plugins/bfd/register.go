@@ -13,13 +13,14 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:        "bfd",
-		Description: "Bidirectional Forwarding Detection (RFC 5880, 5881, 5883)",
-		Features:    "yang",
-		RFCs:        []string{"5880", "5881", "5882", "5883"},
-		ConfigRoots: []string{"bfd"},
-		YANG:        bfdschema.ZeBFDConfYANG,
-		RunEngine:   RunBFDPlugin,
+		Name:                    "bfd",
+		Description:             "Bidirectional Forwarding Detection (RFC 5880, 5881, 5883)",
+		Features:                "yang",
+		RFCs:                    []string{"5880", "5881", "5882", "5883"},
+		ConfigRoots:             []string{"bfd"},
+		YANG:                    bfdschema.ZeBFDConfYANG,
+		InProcessConfigVerifier: verifyBFDConfig,
+		RunEngine:               RunBFDPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			UseLogger(slogutil.Logger(loggerName))
 		},

@@ -14,12 +14,13 @@ import (
 
 func init() { //nolint:gochecknoinits // plugin registration
 	reg := registry.Registration{
-		Name:        "firewall",
-		Description: "Packet filter and NAT rules (nftables on Linux)",
-		Features:    "yang",
-		YANG:        firewallschema.ZeFirewallConfYANG,
-		ConfigRoots: []string{configRootFirewall},
-		RunEngine:   runEngine,
+		Name:                    "firewall",
+		Description:             "Packet filter and NAT rules (nftables on Linux)",
+		Features:                "yang",
+		YANG:                    firewallschema.ZeFirewallConfYANG,
+		ConfigRoots:             []string{configRootFirewall},
+		InProcessConfigVerifier: VerifyConfig,
+		RunEngine:               runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

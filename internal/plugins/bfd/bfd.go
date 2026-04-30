@@ -560,6 +560,11 @@ func (s *pluginService) Profiles() []api.ProfileState {
 	return out
 }
 
+func verifyBFDConfig(sections []sdk.ConfigSection) error {
+	_, err := parseSections(sections)
+	return err
+}
+
 // RunBFDPlugin is the engine entry point. It uses the SDK 5-stage protocol
 // to receive configuration, drives engine.Loop instances per (VRF, mode)
 // for any pinned sessions, and blocks until shutdown.

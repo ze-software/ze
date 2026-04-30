@@ -59,6 +59,10 @@ func (e *fakeEditor) WorkingContent() string {
 	return "# config\n"
 }
 
+func (e *fakeEditor) OriginalContent() string {
+	return "# original\n"
+}
+
 func fakeEditorFactory() ConfigEditorFactory {
 	return func() (ConfigEditor, error) {
 		return newFakeEditor(), nil
@@ -83,6 +87,7 @@ func (e *serializingEditor) DeleteByPath(_ []string) error { return nil }
 func (e *serializingEditor) Diff() string                  { return "" }
 func (e *serializingEditor) Save() error                   { return nil }
 func (e *serializingEditor) Discard() error                { return nil }
+func (e *serializingEditor) OriginalContent() string       { return "" }
 func (e *serializingEditor) WorkingContent() string        { return "" }
 
 // VALIDATES: AC-5 -- ConfigEnter + Set + Commit lifecycle.
@@ -157,6 +162,34 @@ func TestConfigSessionCommitHookFailureKeepsSession(t *testing.T) {
 
 	_, err = mgr.Diff("admin", id)
 	assert.NoError(t, err, "session should remain after failed hook")
+}
+
+// TestConfigSessionValidationHookFailurePreventsSave verifies candidate
+// validation runs before writing config to storage.
+//
+// VALIDATES: API session commit rejects validation errors before Save.
+// PREVENTS: plugin verify failures being reported only after file mutation.
+func TestConfigSessionValidationHookFailurePreventsSave(t *testing.T) {
+	editor := newFakeEditor()
+	mgr := NewConfigSessionManager(func() (ConfigEditor, error) { return editor, nil })
+	mgr.SetValidationHook(func(previous, content string) error {
+		assert.Equal(t, "# original\n", previous)
+		assert.Equal(t, "# config\n", content)
+		return fmt.Errorf("plugin rejected config")
+	})
+
+	id, err := mgr.Enter("admin")
+	require.NoError(t, err)
+	require.NoError(t, mgr.Set("admin", id, "bgp.router-id", "10.0.0.1"))
+
+	err = mgr.Commit("admin", id)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "commit validation")
+	assert.Contains(t, err.Error(), "plugin rejected config")
+	assert.False(t, editor.saved, "validation failure must prevent Save")
+
+	_, err = mgr.Diff("admin", id)
+	assert.NoError(t, err, "session should remain after validation failure")
 }
 
 // VALIDATES: AC-5 -- ConfigDiscard throws away changes.

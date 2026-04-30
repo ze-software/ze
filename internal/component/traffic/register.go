@@ -130,12 +130,13 @@ func setLogger(l *slog.Logger) {
 
 func init() {
 	reg := registry.Registration{
-		Name:        "traffic",
-		Description: "Traffic control (tc) qdisc, class, and filter management",
-		Features:    "yang",
-		YANG:        trafficschema.ZeTrafficControlConfYANG,
-		ConfigRoots: []string{configRootTraffic},
-		RunEngine:   runEngine,
+		Name:                    "traffic",
+		Description:             "Traffic control (tc) qdisc, class, and filter management",
+		Features:                "yang",
+		YANG:                    trafficschema.ZeTrafficControlConfYANG,
+		ConfigRoots:             []string{configRootTraffic},
+		InProcessConfigVerifier: verifyTrafficConfig,
+		RunEngine:               runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -147,6 +148,34 @@ func init() {
 		fmt.Fprintf(os.Stderr, "traffic: registration failed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func verifyTrafficConfig(sections []sdk.ConfigSection) error {
+	_, err := parseAndVerifyTrafficSections(sections)
+	return err
+}
+
+func parseAndVerifyTrafficSections(sections []sdk.ConfigSection) (*trafficConfig, error) {
+	cfg, err := parseTrafficSections(sections)
+	if err != nil {
+		return nil, fmt.Errorf("traffic-control config: %w", err)
+	}
+	// A reload that drops the traffic-control section is a valid state
+	// (operator removed QoS). Accept it without a backend-gate call;
+	// OnConfigApply will apply the empty desired state.
+	if !hasTrafficSection(sections) {
+		return cfg, nil
+	}
+	if cfg.Backend == "" {
+		return nil, fmt.Errorf("traffic-control: no backend configured and no OS default available")
+	}
+	if err := validateBackendGate(sections, cfg.Backend); err != nil {
+		return nil, err
+	}
+	if err := RunVerifier(cfg.Backend, cfg.Interfaces); err != nil {
+		return nil, fmt.Errorf("traffic-control backend %q: %w", cfg.Backend, err)
+	}
+	return cfg, nil
 }
 
 // runEngine is the engine-mode entry point for the traffic plugin. It uses
@@ -217,28 +246,15 @@ func runEngine(conn net.Conn) int {
 	})
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		cfg, err := parseTrafficSections(sections)
+		cfg, err := parseAndVerifyTrafficSections(sections)
 		if err != nil {
-			return fmt.Errorf("traffic-control config: %w", err)
+			return err
 		}
-		// A reload that drops the traffic-control section is a valid state
-		// (operator removed QoS). Accept it without a backend-gate call;
-		// OnConfigApply will apply the empty desired state.
+		pendingCfg = cfg
 		if !hasTrafficSection(sections) {
-			pendingCfg = cfg
 			log.Debug("traffic-control config verified: no traffic-control section")
 			return nil
 		}
-		if cfg.Backend == "" {
-			return fmt.Errorf("traffic-control: no backend configured and no OS default available")
-		}
-		if err := validateBackendGate(sections, cfg.Backend); err != nil {
-			return err
-		}
-		if err := RunVerifier(cfg.Backend, cfg.Interfaces); err != nil {
-			return fmt.Errorf("traffic-control backend %q: %w", cfg.Backend, err)
-		}
-		pendingCfg = cfg
 		log.Debug("traffic-control config verified", "backend", cfg.Backend)
 		return nil
 	})

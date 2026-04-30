@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"net"
 	"strings"
 	"testing"
 
@@ -8,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // TestValidateSyntaxMissingSemicolon verifies semicolon handling.
@@ -283,7 +286,12 @@ func TestValidateSemanticDuplicatePeer(t *testing.T) {
       }
     }
   }
-  peer 2.2.2.2 {
+  peer peer2 {
+	connection {
+	  remote {
+		ip 2.2.2.2
+	  }
+	}
     session {
       asn {
         remote 65002
@@ -469,6 +477,34 @@ func TestValidateAll(t *testing.T) {
 	require.NotEmpty(t, result.Errors, "expected errors for invalid config")
 	// Should have receive-hold-time error
 	assert.Contains(t, result.Errors[0].Message, "receive-hold-time")
+}
+
+// TestValidateRunsPluginConfigVerifier verifies editor validation rejects
+// errors from registered side-effect-free plugin verify hooks.
+//
+// VALIDATES: CLI editor validation invokes plugin config verification.
+// PREVENTS: editor commit accepting config that daemon plugin verify rejects.
+func TestValidateRunsPluginConfigVerifier(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        "cli-verify-test",
+		Description: "test verifier",
+		ConfigRoots: []string{"bgp"},
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+		InProcessConfigVerifier: func([]rpc.ConfigSection) error {
+			return assert.AnError
+		},
+	}))
+
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
+	result := v.Validate(`bgp { router-id 1.2.3.4; }`)
+	require.NotEmpty(t, result.Errors)
+	assert.Contains(t, result.Errors[0].Message, "cli-verify-test")
 }
 
 // TestValidationErrorFormat verifies error message formatting.

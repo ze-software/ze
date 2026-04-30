@@ -745,7 +745,7 @@ func (m *Model) cmdSave() (commandResult, error) {
 func (m *Model) cmdCommit() (commandResult, error) {
 	// Validate inline - don't rely on m.validationErrors which may be stale
 	// (m is captured by value in the tea.Cmd closure)
-	result := m.validator.Validate(m.editor.WorkingContent())
+	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
 	issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
 	issues = append(issues, result.Errors...)
 	issues = append(issues, result.Warnings...)
@@ -779,7 +779,7 @@ func (m *Model) cmdCommitForce() (commandResult, error) {
 		return commandResult{}, fmt.Errorf("commit force not yet supported in session mode (use 'commit')")
 	}
 
-	result := m.validator.Validate(m.editor.WorkingContent())
+	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
 	if len(result.Errors) > 0 {
 		return commandResult{
 			statusMessage: fmt.Sprintf("commit blocked: %d error(s), type 'errors' for details", len(result.Errors)),
@@ -823,7 +823,7 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 	// Validate the current config before attempting commit.
 	// Session mode uses set/delete commands that validate per-field, but
 	// whole-config validation catches semantic issues (mandatory fields, etc.).
-	result := m.validator.Validate(m.editor.WorkingContent())
+	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
 	issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
 	issues = append(issues, result.Errors...)
 	issues = append(issues, result.Warnings...)

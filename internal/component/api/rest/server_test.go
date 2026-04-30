@@ -139,9 +139,10 @@ func (e *fakeEditor) Diff() string {
 	return b.String()
 }
 
-func (e *fakeEditor) Save() error            { return nil }
-func (e *fakeEditor) Discard() error         { e.values = make(map[string]string); return nil }
-func (e *fakeEditor) WorkingContent() string { return "# config\n" }
+func (e *fakeEditor) Save() error             { return nil }
+func (e *fakeEditor) Discard() error          { e.values = make(map[string]string); return nil }
+func (e *fakeEditor) OriginalContent() string { return "# original\n" }
+func (e *fakeEditor) WorkingContent() string  { return "# config\n" }
 
 // VALIDATES: AC-1 -- GET /api/v1/commands returns command list.
 // PREVENTS: missing commands in REST response.

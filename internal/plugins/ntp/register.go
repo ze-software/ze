@@ -41,12 +41,13 @@ func init() {
 	loggerPtr.Store(d)
 
 	reg := registry.Registration{
-		Name:        "ntp",
-		Description: "NTP client: system clock synchronization",
-		Features:    "yang",
-		YANG:        ntpschema.ZeNTPConfYANG,
-		ConfigRoots: []string{"environment"},
-		RunEngine:   runNTPPlugin,
+		Name:                    "ntp",
+		Description:             "NTP client: system clock synchronization",
+		Features:                "yang",
+		YANG:                    ntpschema.ZeNTPConfYANG,
+		ConfigRoots:             []string{"environment"},
+		InProcessConfigVerifier: verifyNTPConfig,
+		RunEngine:               runNTPPlugin,
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
 	reg.ConfigureEngineLogger = func(loggerName string) {
@@ -64,6 +65,18 @@ func init() {
 		fmt.Fprintf(os.Stderr, "ntp: registration failed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func verifyNTPConfig(sections []sdk.ConfigSection) error {
+	for _, s := range sections {
+		if s.Root != "environment" {
+			continue
+		}
+		if _, err := parseNTPConfig(s.Data); err != nil {
+			return fmt.Errorf("ntp: %w", err)
+		}
+	}
+	return nil
 }
 
 // runNTPPlugin is the engine-mode entry point for the NTP plugin.

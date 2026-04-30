@@ -45,12 +45,13 @@ func init() {
 	l2tp.RegisterPoolHandler(poolInstance.handle)
 
 	reg := registry.Registration{
-		Name:        Name,
-		Description: "Static IPv4 address pool for L2TP PPP sessions",
-		Features:    "yang",
-		YANG:        schema.ZeL2TPPoolConfYANG,
-		ConfigRoots: []string{"l2tp"},
-		RunEngine:   runPlugin,
+		Name:                    Name,
+		Description:             "Static IPv4 address pool for L2TP PPP sessions",
+		Features:                "yang",
+		YANG:                    schema.ZeL2TPPoolConfYANG,
+		ConfigRoots:             []string{"l2tp"},
+		InProcessConfigVerifier: verifyPoolConfig,
+		RunEngine:               runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -71,6 +72,18 @@ func init() {
 		fmt.Fprintf(os.Stderr, "%s: registration failed: %v\n", Name, err)
 		os.Exit(1)
 	}
+}
+
+func verifyPoolConfig(sections []sdk.ConfigSection) error {
+	for _, sec := range sections {
+		if sec.Root != "l2tp" {
+			continue
+		}
+		if _, _, err := parsePoolConfig(sec.Data); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *poolPlugin) setEventBus(eb ze.EventBus) {
@@ -150,15 +163,7 @@ func runPlugin(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		for _, sec := range sections {
-			if sec.Root != "l2tp" {
-				continue
-			}
-			if _, _, err := parsePoolConfig(sec.Data); err != nil {
-				return err
-			}
-		}
-		return nil
+		return verifyPoolConfig(sections)
 	})
 
 	var pending *ipv4Pool

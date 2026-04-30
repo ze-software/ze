@@ -736,9 +736,9 @@ func TestParseTunnelMultipleCases(t *testing.T) {
 }
 
 // TestParseTunnelBothLocals verifies the parser rejects a tunnel with both
-// local.ip and local.interface set. The current `ze config validate` path
-// does not invoke plugin OnConfigVerify (see plan/deferrals.md), so the
-// Go-side check in parseTunnelEntry is the only safety net. This test pins it.
+// local.ip and local.interface set. Static validation now invokes the
+// side-effect-free plugin verifier, and this test pins the parser check that
+// both verifier and runtime configure paths share.
 //
 // VALIDATES: AC-14 - local ip and local interface are mutually exclusive.
 // PREVENTS: Silent acceptance of contradictory tunnel source config.

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	zeconfigcmd "codeberg.org/thomas-mangin/ze/cmd/ze/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
 	apigrpc "codeberg.org/thomas-mangin/ze/internal/component/api/grpc"
 	"codeberg.org/thomas-mangin/ze/internal/component/api/rest"
@@ -42,6 +43,15 @@ func apiHasNonLoopback(cfg zeconfig.APIConfig) bool {
 	return false
 }
 
+func configValidationHook(configPath string) api.ConfigValidationHook {
+	return func(previous, candidate string) error {
+		if err := zeconfigcmd.ValidateContent(candidate, configPath); err != nil {
+			return err
+		}
+		return zeconfig.VerifyPluginConfigContentTransition(previous, candidate)
+	}
+}
+
 // startAPIServers creates the shared API engine and starts REST and/or gRPC
 // servers based on the config. Explicit transport configuration fails closed:
 // construction and bind errors return to the caller instead of silently
@@ -55,6 +65,7 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 		}
 		return ed, nil
 	})
+	sessions.SetValidationHook(configValidationHook(configPath))
 	sessions.SetCommitHook(reloadAfterCommit)
 	go sessions.RunCleanup(server.Context())
 

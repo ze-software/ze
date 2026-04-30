@@ -9,6 +9,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
@@ -41,4 +42,17 @@ func TestAPIExecutorPropagatesRequestContextAndRemoteAddr(t *testing.T) {
 	assert.Equal(t, "198.51.100.10:4444", seen.RemoteAddr)
 	assert.Same(t, requestCtx, seen.Context())
 	assert.Equal(t, "trace-id", seen.Context().Value(ctxKey{}))
+}
+
+// TestConfigValidationHookRunsFullValidation verifies API commits reject normal
+// config validation errors before saving, not only plugin verifier errors.
+//
+// VALIDATES: API pre-save validation uses ze config validation semantics.
+// PREVENTS: invalid non-plugin config being persisted before reload fails.
+func TestConfigValidationHookRunsFullValidation(t *testing.T) {
+	hook := configValidationHook("test.conf")
+	err := hook(`bgp { router-id 1.2.3.4; }`, `bgp { router-id invalid; }`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "config validation failed")
+	assert.Contains(t, err.Error(), "router-id")
 }

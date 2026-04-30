@@ -15,6 +15,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	configyang "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 )
 
 // ValueType represents the type of a leaf value.
@@ -125,6 +127,7 @@ type LeafNode struct {
 	Description string         // YANG description for tooltips/help
 	Enums       []string       // Valid enum values (nil for non-enum types)
 	Ranges      []NumericRange // Valid numeric ranges from YANG range statements
+	Patterns    []string       // Valid string patterns from YANG pattern statements
 	Backend     []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
 	Related     []*RelatedTool // ze:related — operator tools attached to this leaf (see related.go)
 }
@@ -172,6 +175,7 @@ func (n *ContainerNode) Children() []string {
 type ListNode struct {
 	KeyType     ValueType
 	KeyName     string         // YANG key name (empty = keyless list like update)
+	KeyLeaf     *LeafNode      // Full YANG restrictions for the key leaf, when present
 	DisplayKey  string         // ze:display-key leaf name for UI label (keyless lists)
 	Unique      [][]string     // YANG unique constraints: each sub-slice is leaf paths for one constraint
 	Required    [][]string     // ze:required fields: must have value after config inheritance resolution
@@ -524,7 +528,8 @@ func Freeform() *FreeformNode {
 
 // MultiLeafNode accepts multiple words until semicolon: "word word word;".
 type MultiLeafNode struct {
-	Type ValueType
+	Type     ValueType
+	Patterns []string
 }
 
 func (n *MultiLeafNode) Kind() NodeKind { return NodeLeaf }
@@ -537,7 +542,8 @@ func MultiLeaf(typ ValueType) *MultiLeafNode {
 // BracketLeafListNode accepts [ item item ... ] syntax for leaf-list.
 // Maps to YANG leaf-list with ze:syntax "bracket".
 type BracketLeafListNode struct {
-	Type ValueType
+	Type     ValueType
+	Patterns []string
 }
 
 func (n *BracketLeafListNode) Kind() NodeKind { return NodeLeaf }
@@ -558,6 +564,7 @@ func ArrayLeaf(typ ValueType) *BracketLeafListNode {
 type ValueOrArrayNode struct {
 	Type        ValueType
 	ValidValues []string // If non-nil, each item must be one of these values (YANG enum)
+	Patterns    []string
 }
 
 func (n *ValueOrArrayNode) Kind() NodeKind { return NodeLeaf }
@@ -750,6 +757,39 @@ func ValidateLeafValue(node *LeafNode, value string) error {
 	if len(node.Ranges) > 0 {
 		if err := validateNumericRanges(node.Type, value, node.Ranges); err != nil {
 			return err
+		}
+	}
+	if err := validatePatterns(value, node.Patterns); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ValidateListKey validates a list key against the full key leaf restrictions
+// when YANG provided a key leaf, falling back to the legacy key type check for
+// manually-built schemas.
+func ValidateListKey(node *ListNode, key string) error {
+	if node.KeyLeaf != nil {
+		return ValidateLeafValue(node.KeyLeaf, key)
+	}
+	return ValidateValue(node.KeyType, key)
+}
+
+func validateValuePatterns(typ ValueType, patterns []string, value string) error {
+	if err := ValidateValue(typ, value); err != nil {
+		return err
+	}
+	return validatePatterns(value, patterns)
+}
+
+func validatePatterns(value string, patterns []string) error {
+	for _, pattern := range patterns {
+		matched, err := configyang.MatchPattern(pattern, value)
+		if err != nil {
+			return fmt.Errorf("invalid pattern %q: %w", pattern, err)
+		}
+		if !matched {
+			return fmt.Errorf("value %q does not match pattern %q", value, pattern)
 		}
 	}
 	return nil

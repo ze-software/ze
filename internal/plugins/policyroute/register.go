@@ -19,13 +19,14 @@ const configRoot = "policy"
 
 func init() {
 	reg := registry.Registration{
-		Name:         "policy-routes",
-		Description:  "Policy-based routing: nftables packet marking and ip rule table selection",
-		Features:     "yang",
-		YANG:         policyrouteschema.ZePolicyrouteConfYANG,
-		ConfigRoots:  []string{configRoot},
-		Dependencies: []string{"firewall"},
-		RunEngine:    runPolicyRoutePlugin,
+		Name:                    "policy-routes",
+		Description:             "Policy-based routing: nftables packet marking and ip rule table selection",
+		Features:                "yang",
+		YANG:                    policyrouteschema.ZePolicyrouteConfYANG,
+		ConfigRoots:             []string{configRoot},
+		Dependencies:            []string{"firewall"},
+		InProcessConfigVerifier: verifyPolicyConfig,
+		RunEngine:               runPolicyRoutePlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -41,6 +42,18 @@ func init() {
 		fmt.Fprintf(os.Stderr, "policy-routes: registration failed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func verifyPolicyConfig(sections []sdk.ConfigSection) error {
+	for _, section := range sections {
+		if section.Root != configRoot {
+			continue
+		}
+		if _, err := parsePolicyConfig(section.Data); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func runPolicyRoutePlugin(conn net.Conn) int {

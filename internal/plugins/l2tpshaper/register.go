@@ -17,12 +17,13 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:        Name,
-		Description: "Traffic shaping for L2TP subscriber sessions",
-		Features:    "yang",
-		YANG:        schema.ZeL2TPShaperConfYANG,
-		ConfigRoots: []string{"l2tp"},
-		RunEngine:   runPlugin,
+		Name:                    Name,
+		Description:             "Traffic shaping for L2TP subscriber sessions",
+		Features:                "yang",
+		YANG:                    schema.ZeL2TPShaperConfYANG,
+		ConfigRoots:             []string{"l2tp"},
+		InProcessConfigVerifier: verifyShaperConfig,
+		RunEngine:               runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -45,6 +46,18 @@ func init() {
 	}
 }
 
+func verifyShaperConfig(sections []sdk.ConfigSection) error {
+	for _, sec := range sections {
+		if sec.Root != "l2tp" {
+			continue
+		}
+		if _, _, err := parseShaperConfig(sec.Data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func runPlugin(conn net.Conn) int {
 	logger().Debug(Name + " plugin starting (RPC)")
 
@@ -52,15 +65,7 @@ func runPlugin(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		for _, sec := range sections {
-			if sec.Root != "l2tp" {
-				continue
-			}
-			if _, _, err := parseShaperConfig(sec.Data); err != nil {
-				return err
-			}
-		}
-		return nil
+		return verifyShaperConfig(sections)
 	})
 
 	var pending *shaperConfig

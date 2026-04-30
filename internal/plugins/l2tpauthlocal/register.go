@@ -24,12 +24,13 @@ func init() {
 	l2tp.RegisterAuthHandler(authInstance.handle)
 
 	reg := registry.Registration{
-		Name:        Name,
-		Description: "Static local user list for L2TP PPP authentication",
-		Features:    "yang",
-		YANG:        schema.ZeL2TPAuthLocalConfYANG,
-		ConfigRoots: []string{"l2tp"},
-		RunEngine:   runPlugin,
+		Name:                    Name,
+		Description:             "Static local user list for L2TP PPP authentication",
+		Features:                "yang",
+		YANG:                    schema.ZeL2TPAuthLocalConfYANG,
+		ConfigRoots:             []string{"l2tp"},
+		InProcessConfigVerifier: verifyLocalAuthConfig,
+		RunEngine:               runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -47,6 +48,18 @@ func init() {
 	}
 }
 
+func verifyLocalAuthConfig(sections []sdk.ConfigSection) error {
+	for _, sec := range sections {
+		if sec.Root != "l2tp" {
+			continue
+		}
+		if _, err := parseUsersFromJSON(sec.Data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func runPlugin(conn net.Conn) int {
 	logger().Debug(Name + " plugin starting (RPC)")
 
@@ -54,15 +67,7 @@ func runPlugin(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		for _, sec := range sections {
-			if sec.Root != "l2tp" {
-				continue
-			}
-			if _, err := parseUsersFromJSON(sec.Data); err != nil {
-				return err
-			}
-		}
-		return nil
+		return verifyLocalAuthConfig(sections)
 	})
 
 	var pending map[string]userEntry

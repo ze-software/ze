@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	plugipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
@@ -668,17 +669,10 @@ func (s *Server) deliverConfigRPC(proc *process.Process) {
 	if len(reg.WantsConfigRoots) > 0 && s.reactor != nil {
 		configTree := s.reactor.GetConfigTree()
 		if configTree != nil {
-			for _, root := range reg.WantsConfigRoots {
-				subtree := ExtractConfigSubtree(configTree, root)
-				if subtree == nil {
-					continue
-				}
-				jsonBytes, err := json.Marshal(subtree)
-				if err != nil {
-					logger().Error("deliverConfigRPC: marshal config subtree", "plugin", proc.Name(), "root", root, "error", err)
-					continue
-				}
-				sections = append(sections, rpc.ConfigSection{Root: root, Data: string(jsonBytes)})
+			var err error
+			sections, err = config.BuildPluginConfigSections(configTree, reg.WantsConfigRoots)
+			if err != nil {
+				logger().Error("deliverConfigRPC: build config sections", "plugin", proc.Name(), "error", err)
 			}
 		}
 	}
@@ -731,42 +725,7 @@ func (s *Server) deliverRegistryRPC(proc *process.Process) {
 //   - "bgp" -> {"bgp": configTree["bgp"]}
 //   - "bgp/peer" -> {"bgp": {"peer": configTree["bgp"]["peer"]}}
 func ExtractConfigSubtree(configTree map[string]any, path string) any {
-	if path == "*" {
-		return configTree
-	}
-
-	// Split path by "/" and filter empty parts
-	rawParts := strings.Split(path, "/")
-	var parts []string
-	for _, p := range rawParts {
-		if p != "" {
-			parts = append(parts, p)
-		}
-	}
-
-	if len(parts) == 0 {
-		return configTree
-	}
-
-	// Navigate to the leaf data
-	var current any = configTree
-	for _, part := range parts {
-		m, ok := current.(map[string]any)
-		if !ok {
-			return nil
-		}
-		current = m[part]
-		if current == nil {
-			return nil
-		}
-	}
-
-	// Wrap the leaf data in its path structure (from leaf to root)
-	result := current
-	for i := len(parts) - 1; i >= 0; i-- {
-		result = map[string]any{parts[i]: result}
-	}
-	return result
+	return config.ExtractConfigSubtree(configTree, path)
 }
 
 // registerPluginFamilies registers each declared family with the nlri registry.

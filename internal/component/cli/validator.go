@@ -86,6 +86,37 @@ func NewConfigValidator() (*ConfigValidator, error) {
 // the appropriate parser. This is necessary because WorkingContent()
 // returns set+meta format when a session is active.
 func (v *ConfigValidator) Validate(content string) ConfigValidationResult {
+	result, tree, parseErr := v.validateCore(content)
+	if parseErr == nil {
+		for _, err := range config.VerifyPluginConfig(tree) {
+			result.Errors = append(result.Errors, ConfigValidationError{
+				Message:  err.Error(),
+				Severity: severityError,
+			})
+		}
+	}
+	return result
+}
+
+// ValidateTransition validates a candidate config with access to the previous
+// config, so plugin verifiers see deleted roots as runtime reload would.
+// Uses the transition-aware path instead of Validate to avoid running plugin
+// verifiers twice for roots present in both configs.
+func (v *ConfigValidator) ValidateTransition(previous, candidate string) ConfigValidationResult {
+	result, _, _ := v.validateCore(candidate)
+	if len(result.Errors) > 0 {
+		return result
+	}
+	if err := config.VerifyPluginConfigContentTransition(previous, candidate); err != nil {
+		result.Errors = append(result.Errors, ConfigValidationError{
+			Message:  err.Error(),
+			Severity: severityError,
+		})
+	}
+	return result
+}
+
+func (v *ConfigValidator) validateCore(content string) (ConfigValidationResult, *config.Tree, error) {
 	var result ConfigValidationResult
 
 	format := config.DetectFormat(content)
@@ -95,27 +126,23 @@ func (v *ConfigValidator) Validate(content string) ConfigValidationResult {
 
 	switch format {
 	case config.FormatSet, config.FormatSetMeta:
-		// Set-format content: use SetParser which handles set/delete commands
-		// and metadata prefixes (@timestamp, %session, #user, ^previous).
 		sp := config.NewSetParser(v.schema)
 		tree, _, parseErr = sp.ParseWithMeta(content)
 		if parseErr != nil {
 			result.Errors = append(result.Errors, v.parseError(parseErr))
 			if tree == nil {
-				return result
+				return result, nil, parseErr
 			}
 		}
 	case config.FormatHierarchical:
-		// Hierarchical format: use standard parser.
 		parser := config.NewParser(v.schema)
 		tree, parseErr = parser.Parse(content)
 		if parseErr != nil {
 			result.Errors = append(result.Errors, v.parseError(parseErr))
 			if tree == nil {
-				return result
+				return result, nil, parseErr
 			}
 		}
-		// Check parser warnings (unknown fields, etc.)
 		for _, warn := range parser.Warnings() {
 			result.Warnings = append(result.Warnings, ConfigValidationError{
 				Message:  warn,
@@ -124,15 +151,10 @@ func (v *ConfigValidator) Validate(content string) ConfigValidationResult {
 		}
 	}
 
-	// Run YANG validation on the parsed tree
-	// This catches RFC-specific constraints from YANG model
 	yangErrs, yangWarns := v.validateWithYANG(tree, content)
 	result.Errors = append(result.Errors, yangErrs...)
 	result.Warnings = append(result.Warnings, yangWarns...)
 
-	// Warn when a ze:bcrypt canonical leaf holds a non-bcrypt value
-	// (typically literal plaintext from hand-edited config). The daemon
-	// will fail to authenticate against this entry until it is fixed.
 	for _, msg := range config.CheckBcryptLeaves(tree, v.schema) {
 		result.Warnings = append(result.Warnings, ConfigValidationError{
 			Message:  msg,
@@ -140,7 +162,7 @@ func (v *ConfigValidator) Validate(content string) ConfigValidationResult {
 		})
 	}
 
-	return result
+	return result, tree, parseErr
 }
 
 // parseError converts a parser error to ConfigValidationError.

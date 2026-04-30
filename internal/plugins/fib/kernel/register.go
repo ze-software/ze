@@ -48,13 +48,14 @@ func init() {
 	_ = events.RegisterNamespace(fibevents.Namespace, fibevents.EventExternalChange)
 
 	reg := registry.Registration{
-		Name:         "fib-kernel",
-		Description:  "FIB kernel: programs OS routes from system RIB via netlink/route socket",
-		Features:     "yang",
-		YANG:         fibschema.ZeFibConfYANG,
-		ConfigRoots:  []string{"fib/kernel"},
-		Dependencies: []string{"rib", "sysctl"},
-		RunEngine:    runFIBKernelPlugin,
+		Name:                    "fib-kernel",
+		Description:             "FIB kernel: programs OS routes from system RIB via netlink/route socket",
+		Features:                "yang",
+		YANG:                    fibschema.ZeFibConfYANG,
+		ConfigRoots:             []string{"fib/kernel"},
+		Dependencies:            []string{"rib", "sysctl"},
+		InProcessConfigVerifier: verifyFIBConfig,
+		RunEngine:               runFIBKernelPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -82,6 +83,11 @@ func init() {
 	}
 }
 
+func verifyFIBConfig(sections []sdk.ConfigSection) error {
+	_, err := parseFIBConfig(sections)
+	return err
+}
+
 func runFIBKernelPlugin(conn net.Conn) int {
 	logger().Debug("fib-kernel plugin starting (RPC)")
 
@@ -95,8 +101,7 @@ func runFIBKernelPlugin(conn net.Conn) int {
 	var pendingCfg fibConfig
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		_, err := parseFIBConfig(sections)
-		return err
+		return verifyFIBConfig(sections)
 	})
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {

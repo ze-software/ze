@@ -5,6 +5,7 @@
 package config
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 )
@@ -47,7 +48,7 @@ func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 		key := tok.Value
 		p.tok.Next()
 
-		if err := ValidateValue(node.KeyType, key); err != nil {
+		if err := ValidateListKey(node, key); err != nil {
 			return p.errorf(tok, "invalid key for %s: %v", name, err)
 		}
 
@@ -137,7 +138,7 @@ func (p *Parser) parseListInlineBlock(tree *Tree, name string, node *ListNode) e
 		key := tok.Value
 		p.tok.Next()
 
-		if err := ValidateValue(node.KeyType, key); err != nil {
+		if err := ValidateListKey(node, key); err != nil {
 			return p.errorf(tok, "invalid key for %s: %v", name, err)
 		}
 
@@ -197,6 +198,9 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 		if tok.Type == TokenWord || tok.Type == TokenString {
 			if childIdx < lastIdx {
 				// Positional assignment for children before the last
+				if err := validateInlineListChildValue(node, children[childIdx], tok.Value); err != nil {
+					return p.errorf(tok, "invalid value for %s.%s: %v", name, children[childIdx], err)
+				}
 				entry.Set(children[childIdx], tok.Value)
 				childIdx++
 			} else if lastIdx >= 0 {
@@ -211,7 +215,11 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 
 	// Store collected values in the last child
 	if lastIdx >= 0 && len(lastParts) > 0 {
-		entry.Set(children[lastIdx], strings.Join(lastParts, " "))
+		value := strings.Join(lastParts, " ")
+		if err := validateInlineListChildValue(node, children[lastIdx], value); err != nil {
+			return p.errorf(Token{Line: p.tok.line}, "invalid value for %s.%s: %v", name, children[lastIdx], err)
+		}
+		entry.Set(children[lastIdx], value)
 	}
 
 	tree.AddListEntry(name, key, entry)
@@ -219,7 +227,7 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 }
 
 // parseMultiLeaf parses multiple words until semicolon: `name word word;`.
-func (p *Parser) parseMultiLeaf(tree *Tree, name string, _ *MultiLeafNode) error {
+func (p *Parser) parseMultiLeaf(tree *Tree, name string, node *MultiLeafNode) error {
 	var words []string
 
 	for {
@@ -244,12 +252,16 @@ func (p *Parser) parseMultiLeaf(tree *Tree, name string, _ *MultiLeafNode) error
 		value.WriteString(w)
 	}
 
-	tree.Set(name, value.String())
+	joined := value.String()
+	if err := validateValuePatterns(node.Type, node.Patterns, joined); err != nil {
+		return p.errorf(Token{Line: p.tok.line}, "invalid value for %s: %v", name, err)
+	}
+	tree.Set(name, joined)
 	return nil
 }
 
 // parseBracketLeafList parses a bracketed leaf-list: `name [ item item ... ];`.
-func (p *Parser) parseBracketLeafList(tree *Tree, name string, _ *BracketLeafListNode) error {
+func (p *Parser) parseBracketLeafList(tree *Tree, name string, node *BracketLeafListNode) error {
 	tok := p.tok.Peek()
 	if tok.Type != TokenLBracket {
 		return p.errorf(tok, "expected '[' after %s, got %s", name, tok.Type)
@@ -278,6 +290,12 @@ func (p *Parser) parseBracketLeafList(tree *Tree, name string, _ *BracketLeafLis
 		return p.errorf(tok, "expected ';' after %s array, got %s", name, tok.Type)
 	}
 	p.tok.Next()
+
+	for _, item := range items {
+		if err := validateValuePatterns(node.Type, node.Patterns, item); err != nil {
+			return p.errorf(tok, "invalid value for %s: %v", name, err)
+		}
+	}
 
 	// Store as space-separated string
 	var value strings.Builder
@@ -349,6 +367,11 @@ func (p *Parser) parseValueOrArray(tree *Tree, name string, node *ValueOrArrayNo
 			}
 		}
 	}
+	for _, item := range items {
+		if err := validateValuePatterns(node.Type, node.Patterns, item); err != nil {
+			return p.errorf(tok, "invalid value for %s: %v", name, err)
+		}
+	}
 
 	// Store as slice for GetSlice() and as string for Get()
 	tree.SetSlice(name, items)
@@ -361,6 +384,40 @@ func (p *Parser) parseValueOrArray(tree *Tree, name string, node *ValueOrArrayNo
 	}
 	tree.Set(name, value.String())
 	return nil
+}
+
+func validateInlineListChildValue(list *ListNode, childName, value string) error {
+	child := list.Get(childName)
+	switch n := child.(type) {
+	case *LeafNode:
+		return ValidateLeafValue(n, value)
+	case *MultiLeafNode:
+		return validateValuePatterns(n.Type, n.Patterns, value)
+	case *BracketLeafListNode:
+		for _, item := range inlineValueItems(value) {
+			if err := validateValuePatterns(n.Type, n.Patterns, item); err != nil {
+				return err
+			}
+		}
+	case *ValueOrArrayNode:
+		for _, item := range inlineValueItems(value) {
+			if n.ValidValues != nil && !containsString(n.ValidValues, item) {
+				return fmt.Errorf("invalid enum: %q (expected one of: %s)", item, strings.Join(n.ValidValues, ", "))
+			}
+			if err := validateValuePatterns(n.Type, n.Patterns, item); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func inlineValueItems(value string) []string {
+	items := strings.Fields(value)
+	if len(items) >= 2 && items[0] == "[" && items[len(items)-1] == "]" {
+		return items[1 : len(items)-1]
+	}
+	return items
 }
 
 // containsString checks if a string slice contains a value.

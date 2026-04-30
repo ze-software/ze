@@ -70,6 +70,19 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 // ParseTreeWithYANG parses config with optional plugin YANG schemas.
 // Returns the parsed tree for further processing by callers.
 func ParseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error) {
+	tree, err := parseTreeWithYANG(input, pluginYANG)
+	if err != nil {
+		return nil, err
+	}
+
+	envValues := ExtractEnvironment(tree)
+	slogutil.ApplyLogConfig(envValues)
+	ApplyEnvConfig(envValues)
+
+	return tree, nil
+}
+
+func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error) {
 	var schema *Schema
 	var schemaErr error
 	if len(pluginYANG) > 0 {
@@ -109,10 +122,6 @@ func ParseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error
 	// Env-level plumbing that depends on the full tree happens downstream in
 	// CreateReactorFromTree (and runs after this prune).
 	PruneInactive(tree, schema)
-
-	envValues := ExtractEnvironment(tree)
-	slogutil.ApplyLogConfig(envValues)
-	ApplyEnvConfig(envValues)
 
 	return tree, nil
 }

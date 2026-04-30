@@ -49,12 +49,13 @@ func init() {
 	)
 
 	reg := registry.Registration{
-		Name:        "sysctl",
-		Description: "Kernel tunable management: three-layer precedence, restore on stop",
-		Features:    "yang",
-		YANG:        sysctlschema.ZeSysctlConfYANG,
-		ConfigRoots: []string{configRoot},
-		RunEngine:   runSysctlPlugin,
+		Name:                    "sysctl",
+		Description:             "Kernel tunable management: three-layer precedence, restore on stop",
+		Features:                "yang",
+		YANG:                    sysctlschema.ZeSysctlConfYANG,
+		ConfigRoots:             []string{configRoot},
+		InProcessConfigVerifier: verifySysctlConfig,
+		RunEngine:               runSysctlPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -78,6 +79,34 @@ func init() {
 }
 
 const configRoot = "sysctl"
+
+func verifySysctlConfig(sections []sdk.ConfigSection) error {
+	for _, sec := range sections {
+		if sec.Root != configRoot {
+			continue
+		}
+		settings := parseSysctlConfig(sec.Data)
+		for key, value := range settings {
+			if err := validateKey(key); err != nil {
+				return err
+			}
+			if err := sysctlreg.Validate(key, value); err != nil {
+				return err
+			}
+		}
+		for _, prof := range parseSysctlProfileConfig(sec.Data) {
+			for _, setting := range prof.Settings {
+				if err := validateKey(setting.Key); err != nil {
+					return fmt.Errorf("profile %s: %w", prof.Name, err)
+				}
+				if err := sysctlreg.Validate(setting.Key, setting.Value); err != nil {
+					return fmt.Errorf("profile %s: %w", prof.Name, err)
+				}
+			}
+		}
+	}
+	return nil
+}
 
 func runSysctlPlugin(conn net.Conn) int {
 	log := logger()
@@ -235,33 +264,7 @@ func runSysctlPlugin(conn net.Conn) int {
 	})
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		for _, sec := range sections {
-			if sec.Root != configRoot {
-				continue
-			}
-			// Validate per-key settings.
-			settings := parseSysctlConfig(sec.Data)
-			for key, value := range settings {
-				if err := validateKey(key); err != nil {
-					return err
-				}
-				if err := sysctlreg.Validate(key, value); err != nil {
-					return err
-				}
-			}
-			// Validate keys inside user-defined profiles.
-			for _, prof := range parseSysctlProfileConfig(sec.Data) {
-				for _, setting := range prof.Settings {
-					if err := validateKey(setting.Key); err != nil {
-						return fmt.Errorf("profile %s: %w", prof.Name, err)
-					}
-					if err := sysctlreg.Validate(setting.Key, setting.Value); err != nil {
-						return fmt.Errorf("profile %s: %w", prof.Name, err)
-					}
-				}
-			}
-		}
-		return nil
+		return verifySysctlConfig(sections)
 	})
 
 	var activeJournal *sdk.Journal

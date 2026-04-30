@@ -26,6 +26,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // Registration describes a plugin's full metadata and handlers.
@@ -82,6 +84,11 @@ type Registration struct {
 	// Parameters: routeCmd (text args), family, localAS, isIBGP, asn4, addPath.
 	// Returns: (packed UPDATE bytes, NLRI bytes for --nlri-only, error).
 	InProcessRouteEncoder func(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error)
+
+	// In-process config verifier: side-effect-free equivalent of the plugin's
+	// OnConfigVerify callback. Static/API/CLI validation use this to reject the
+	// same malformed config without running OnConfigure or applying state.
+	InProcessConfigVerifier func([]rpc.ConfigSection) error
 
 	// In-process config NLRI builder: builds NLRI bytes from config-format match criteria.
 	// Used by config/loader.go to delegate family-specific NLRI construction to plugins,

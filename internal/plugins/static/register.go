@@ -23,12 +23,13 @@ const pluginName = "static"
 
 func init() {
 	reg := registry.Registration{
-		Name:        pluginName,
-		Description: "Static routes: config-driven kernel/VPP route programming with ECMP",
-		Features:    "yang",
-		YANG:        staticschema.ZeStaticConfYANG,
-		ConfigRoots: []string{pluginName},
-		RunEngine:   runStaticPlugin,
+		Name:                    pluginName,
+		Description:             "Static routes: config-driven kernel/VPP route programming with ECMP",
+		Features:                "yang",
+		YANG:                    staticschema.ZeStaticConfYANG,
+		ConfigRoots:             []string{pluginName},
+		InProcessConfigVerifier: verifyStaticConfig,
+		RunEngine:               runStaticPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -49,6 +50,18 @@ func init() {
 		fmt.Fprintf(os.Stderr, "static: registration failed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func verifyStaticConfig(sections []sdk.ConfigSection) error {
+	for _, section := range sections {
+		if section.Root != pluginName {
+			continue
+		}
+		if _, err := parseStaticConfig(section.Data); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func runStaticPlugin(conn net.Conn) int {

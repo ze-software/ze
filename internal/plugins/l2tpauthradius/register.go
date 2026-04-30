@@ -39,12 +39,13 @@ func init() {
 	})
 
 	reg := registry.Registration{
-		Name:        Name,
-		Description: "RADIUS authentication and accounting for L2TP PPP sessions",
-		Features:    "yang",
-		YANG:        schema.ZeL2TPAuthRadiusConfYANG,
-		ConfigRoots: []string{"l2tp"},
-		RunEngine:   runPlugin,
+		Name:                    Name,
+		Description:             "RADIUS authentication and accounting for L2TP PPP sessions",
+		Features:                "yang",
+		YANG:                    schema.ZeL2TPAuthRadiusConfYANG,
+		ConfigRoots:             []string{"l2tp"},
+		InProcessConfigVerifier: verifyRadiusAuthConfig,
+		RunEngine:               runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -75,6 +76,18 @@ func init() {
 	}
 }
 
+func verifyRadiusAuthConfig(sections []sdk.ConfigSection) error {
+	for _, sec := range sections {
+		if sec.Root != "l2tp" {
+			continue
+		}
+		if _, err := parseConfigFromJSON(sec.Data); err != nil && !errors.Is(err, errNoRADIUSConfig) {
+			return err
+		}
+	}
+	return nil
+}
+
 func runPlugin(conn net.Conn) int {
 	logger().Debug(Name + " plugin starting (RPC)")
 
@@ -86,15 +99,7 @@ func runPlugin(conn net.Conn) int {
 	}()
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		for _, sec := range sections {
-			if sec.Root != "l2tp" {
-				continue
-			}
-			if _, err := parseConfigFromJSON(sec.Data); err != nil && !errors.Is(err, errNoRADIUSConfig) {
-				return err
-			}
-		}
-		return nil
+		return verifyRadiusAuthConfig(sections)
 	})
 
 	var pending *radiusConfig

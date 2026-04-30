@@ -4,7 +4,7 @@
 package config
 
 import (
-	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -16,8 +16,27 @@ import (
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	configyang "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
 )
+
+// ValidateContent runs the same validation as `ze config validate` and returns
+// an error containing all validation errors. Warnings do not fail validation,
+// matching the CLI command exit-code semantics.
+func ValidateContent(input, path string) error {
+	result := runValidation(input, path)
+	if result.Valid {
+		return nil
+	}
+	var b strings.Builder
+	b.WriteString("config validation failed:")
+	for _, err := range result.Errors {
+		if err.Line > 0 {
+			fmt.Fprintf(&b, "\n  line %d: %s", err.Line, err.Message)
+			continue
+		}
+		fmt.Fprintf(&b, "\n  %s", err.Message)
+	}
+	return errors.New(b.String())
+}
 
 // yangSectionsToValidate lists config sections that get YANG tree validation.
 // BGP is excluded because it has its own deeper validation path.
@@ -236,66 +255,6 @@ func runValidation(input, path string) *validationResult {
 		}
 	}
 
-	// Commit-time backend feature gate for components that carry a
-	// `backend` leaf (interface today; fw-3 / fw-5 later). Matches the
-	// gate the iface plugin runs at OnConfigure / OnConfigVerify so the
-	// offline CLI diagnoses the same rejections without a running daemon.
-	//
-	// defaultB is the backend chosen when the user has not set a `backend`
-	// leaf; it MUST match what the component plugin uses at runtime. For
-	// iface that is `netlink` on Linux and "" on every other platform (see
-	// internal/component/iface/default_{linux,other}.go). When defaultB
-	// resolves to "", the walker's empty-backend guard fires and reports
-	// the same "no backend configured" rejection that the daemon would
-	// surface -- keeping CLI and daemon diagnostics aligned across
-	// platforms.
-	for _, gated := range []struct {
-		root     string
-		leafPath string
-		defaultB string
-	}{
-		{root: "interface", leafPath: "/interface/backend", defaultB: ifaceDefaultBackend()},
-		{root: "traffic-control", leafPath: "/traffic-control/backend", defaultB: trafficDefaultBackend()},
-		{root: "firewall", leafPath: "/firewall/backend", defaultB: firewallDefaultBackend()},
-	} {
-		container := tree.GetContainer(gated.root)
-		if container == nil {
-			continue
-		}
-		active := gated.defaultB
-		if v, ok := container.Get("backend"); ok && v != "" {
-			active = v
-		}
-		rootMap := map[string]any{gated.root: container.ToMap()}
-		for _, ge := range config.ValidateBackendFeatures(rootMap, schema, gated.root, active, gated.leafPath) {
-			result.Valid = false
-			result.Errors = append(result.Errors, validationError{
-				Message: ge.Error(),
-			})
-		}
-	}
-
-	// Firewall semantic validation (Term/action cross-refs, named-counter
-	// rejection, SetDSCP-on-non-IPv4 guard). Mirrors what the firewall
-	// plugin runs in OnConfigVerify so `ze config validate` surfaces the
-	// same rejections without a running daemon. Kept separate from the
-	// generic backend gate because it validates wiring inside the parsed
-	// firewall model, not ze:backend annotations on the schema.
-	if container := tree.GetContainer("firewall"); container != nil {
-		rootMap := map[string]any{"firewall": container.ToMap()}
-		data, err := json.Marshal(rootMap)
-		if err != nil {
-			result.Valid = false
-			result.Errors = append(result.Errors, validationError{Message: fmt.Sprintf("firewall: %v", err)})
-		} else if tables, perr := firewall.ParseFirewallConfig(string(data)); perr != nil {
-			result.Valid = false
-			result.Errors = append(result.Errors, validationError{Message: perr.Error()})
-		} else if verr := firewall.ValidateTables(tables); verr != nil {
-			result.Valid = false
-			result.Errors = append(result.Errors, validationError{Message: verr.Error()})
-		}
-	}
-
 	// MCP semantic validation (auth-mode / bind-remote / oauth / tls
 	// cross-leaf consistency). Mirrors what the MCP component enforces at
 	// startup so `ze config validate` surfaces rejections without a daemon.
@@ -304,6 +263,14 @@ func runValidation(input, path string) *validationResult {
 			result.Valid = false
 			result.Errors = append(result.Errors, validationError{Message: verr.Error()})
 		}
+	}
+
+	// Generic plugin config verification. Uses in-process side-effect-free
+	// verifier hooks matching the SDK OnConfigVerify callbacks, and never runs
+	// OnConfigure.
+	for _, verr := range config.VerifyPluginConfig(tree) {
+		result.Valid = false
+		result.Errors = append(result.Errors, validationError{Message: verr.Error()})
 	}
 
 	// BGP-specific validation only when bgp {} is present.

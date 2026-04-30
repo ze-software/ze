@@ -24,12 +24,13 @@ func init() {
 	)
 
 	reg := registry.Registration{
-		Name:        "rib",
-		Description: "System RIB: selects best route across protocols by admin distance",
-		Features:    "yang",
-		YANG:        sysribschema.ZeRibConfYANG,
-		ConfigRoots: []string{"rib"},
-		RunEngine:   runSysRIBPlugin,
+		Name:                    "rib",
+		Description:             "System RIB: selects best route across protocols by admin distance",
+		Features:                "yang",
+		YANG:                    sysribschema.ZeRibConfYANG,
+		ConfigRoots:             []string{"rib"},
+		InProcessConfigVerifier: verifySysRIBConfig,
+		RunEngine:               runSysRIBPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -55,6 +56,18 @@ func init() {
 		fmt.Fprintf(os.Stderr, "sysrib: registration failed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func verifySysRIBConfig(sections []sdk.ConfigSection) error {
+	for _, section := range sections {
+		if section.Root != "rib" {
+			continue
+		}
+		if _, err := parseAdminDistanceConfig(section.Data); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func runSysRIBPlugin(conn net.Conn) int {

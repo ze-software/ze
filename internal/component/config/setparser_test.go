@@ -213,28 +213,18 @@ set local-as 65000
 	require.Equal(t, "65000", val)
 }
 
-// TestSetParser_NoValidateValue verifies SetParser accepts values without type checking.
-// YANG validates types later in the pipeline — SetParser only does structural navigation.
+// TestSetParser_ValidateValue verifies SetParser rejects invalid typed leaf values.
 //
-// VALIDATES: SetParser accepts any string value for leaves (no own type checking).
-// PREVENTS: SetParser rejecting values that YANG should validate.
-func TestSetParser_NoValidateValue(t *testing.T) {
+// VALIDATES: SetParser enforces leaf value restrictions during parse.
+// PREVENTS: Invalid set-format values bypassing static validation.
+func TestSetParser_ValidateValue(t *testing.T) {
 	input := `set neighbor 192.0.2.1 local-as not-a-number`
 
 	p := NewSetParser(testSchema())
-	tree, err := p.Parse(input)
+	_, err := p.Parse(input)
 
-	// SetParser no longer calls ValidateValue — it accepts any value.
-	// Type validation is deferred to YANG.
-	require.NoError(t, err)
-
-	entries := tree.GetList("neighbor")
-	require.NotNil(t, entries)
-	entry := entries["192.0.2.1"]
-	require.NotNil(t, entry)
-	val, ok := entry.Get("local-as")
-	require.True(t, ok)
-	assert.Equal(t, "not-a-number", val)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid uint32")
 }
 
 // TestSetParserUnknownPath verifies unknown path rejection.

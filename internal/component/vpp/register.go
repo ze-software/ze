@@ -32,12 +32,13 @@ func init() {
 	)
 
 	reg := registry.Registration{
-		Name:        "vpp",
-		Description: "VPP data plane lifecycle management",
-		Features:    "yang",
-		YANG:        vppschema.ZeVppConfYANG,
-		ConfigRoots: []string{"vpp"},
-		RunEngine:   runVPPEngine,
+		Name:                    "vpp",
+		Description:             "VPP data plane lifecycle management",
+		Features:                "yang",
+		YANG:                    vppschema.ZeVppConfYANG,
+		ConfigRoots:             []string{"vpp"},
+		InProcessConfigVerifier: verifyVPPConfig,
+		RunEngine:               runVPPEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetVPPLogger(slogutil.Logger(loggerName))
 		},
@@ -63,6 +64,22 @@ func init() {
 		fmt.Fprintf(os.Stderr, "vpp: registration failed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func verifyVPPConfig(sections []sdk.ConfigSection) error {
+	for _, s := range sections {
+		if s.Root != "vpp" {
+			continue
+		}
+		parsed, err := ParseConfigSection(s.Data)
+		if err != nil {
+			return err
+		}
+		if err := parsed.Validate(); err != nil {
+			return fmt.Errorf("vpp: config validation: %w", err)
+		}
+	}
+	return nil
 }
 
 // runVPPEngine is the plugin RunEngine entry point.
@@ -101,19 +118,7 @@ func runVPPEngine(conn net.Conn) int {
 	})
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		for _, s := range sections {
-			if s.Root != "vpp" {
-				continue
-			}
-			parsed, err := ParseConfigSection(s.Data)
-			if err != nil {
-				return err
-			}
-			if err := parsed.Validate(); err != nil {
-				return fmt.Errorf("vpp: config validation: %w", err)
-			}
-		}
-		return nil
+		return verifyVPPConfig(sections)
 	})
 
 	p.OnConfigApply(func(sections []sdk.ConfigDiffSection) error {

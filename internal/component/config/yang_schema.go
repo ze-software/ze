@@ -313,11 +313,17 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 		keyType := getKeyTypeExtension(entry)
 		return yangToInlineListWithKey(entry, path, keyType)
 	case "multi-leaf":
-		return MultiLeaf(yangTypeToValueType(entry.Type))
+		node := MultiLeaf(yangTypeToValueType(entry.Type))
+		node.Patterns = patternsFromType(entry.Type)
+		return node
 	case "bracket":
-		return BracketLeafList(yangTypeToValueType(entry.Type))
+		node := BracketLeafList(yangTypeToValueType(entry.Type))
+		node.Patterns = patternsFromType(entry.Type)
+		return node
 	case "value-or-array":
-		return ValueOrArray(yangTypeToValueType(entry.Type))
+		node := ValueOrArray(yangTypeToValueType(entry.Type))
+		node.Patterns = patternsFromType(entry.Type)
+		return node
 	}
 
 	// Standard YANG node types
@@ -327,9 +333,13 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 		// leaf-list without ze:syntax extension — accepts single value or bracket list
 		if entry.IsLeafList() {
 			if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
-				return ValueOrArrayEnum(entry.Type.Enum.Names())
+				node := ValueOrArrayEnum(entry.Type.Enum.Names())
+				node.Patterns = patternsFromType(entry.Type)
+				return node
 			}
-			return ValueOrArray(yangTypeToValueType(entry.Type))
+			node := ValueOrArray(yangTypeToValueType(entry.Type))
+			node.Patterns = patternsFromType(entry.Type)
+			return node
 		}
 		return yangToLeaf(entry, path)
 	case gyang.DirectoryEntry:
@@ -589,7 +599,17 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 		node.Enums = entry.Type.Enum.Names()
 	}
 	node.Ranges = numericRangesFromType(entry.Type, path)
+	node.Patterns = patternsFromType(entry.Type)
 	return node
+}
+
+func patternsFromType(typ *gyang.YangType) []string {
+	if typ == nil || len(typ.Pattern) == 0 {
+		return nil
+	}
+	patterns := make([]string, len(typ.Pattern))
+	copy(patterns, typ.Pattern)
+	return patterns
 }
 
 func numericRangesFromType(typ *gyang.YangType, _ string) []NumericRange {
@@ -707,6 +727,11 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 		}
 	}
 	l := List(keyType, fields...)
+	if entry.Key != "" && entry.Dir != nil {
+		if keyEntry, ok := entry.Dir[entry.Key]; ok {
+			l.KeyLeaf = yangToLeaf(keyEntry, AppendPath(path, entry.Key))
+		}
+	}
 
 	// Auto-inject inactive leaf into structural lists (those with container/list children).
 	// Skip positional lists where all children are leaves (nlri, nexthop, add-path).
