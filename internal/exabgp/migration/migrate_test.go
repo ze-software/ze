@@ -555,6 +555,40 @@ neighbor 127.0.0.1 {
 	assert.Contains(t, output, "path-information 1.2.3.4", "expected path-information in attribute block")
 }
 
+// TestMigrateStaticDuplicatePathInformation verifies repeated static prefixes
+// with different ADD-PATH identifiers survive ExaBGP migration.
+//
+// VALIDATES: Same-prefix routes with distinct path-information become distinct
+// update blocks.
+//
+// PREVENTS: ExaBGP ADD-PATH static routes being rejected or collapsed by parse.
+func TestMigrateStaticDuplicatePathInformation(t *testing.T) {
+	input := `
+neighbor 127.0.0.1 {
+	local-as 1
+	peer-as 1
+	static {
+		route 10.0.0.10 next-hop 10.10.1.1 path-information 0.0.0.1
+		route 10.0.0.10 next-hop 10.10.1.2 path-information 0.0.0.2
+		route 10.1.0.10 next-hop 10.10.1.3 path-information 0.0.0.3
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	require.NoError(t, err, "parse")
+
+	result, err := MigrateFromExaBGP(tree)
+	require.NoError(t, err, "migrate")
+
+	output := SerializeTree(result.Tree)
+	assert.Contains(t, output, "next-hop 10.10.1.1", "expected first duplicate route")
+	assert.Contains(t, output, "path-information 0.0.0.1", "expected first path-information")
+	assert.Contains(t, output, "next-hop 10.10.1.2", "expected second duplicate route")
+	assert.Contains(t, output, "path-information 0.0.0.2", "expected second path-information")
+	assert.Contains(t, output, "next-hop 10.10.1.3", "expected non-duplicate route")
+	assert.Contains(t, output, "path-information 0.0.0.3", "expected non-duplicate path-information")
+}
+
 // TestMigrateAnnounceBlock verifies announce block conversion to update blocks.
 //
 // VALIDATES: Announce routes converted to update { attribute {} nlri {} }.

@@ -7,7 +7,10 @@
 
 package l2tp
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"fmt"
+)
 
 // AVPType is the 16-bit Attribute Type field of an AVP. For Vendor ID = 0
 // (IETF standard space), the values follow the RFC 2661 catalog.
@@ -149,6 +152,20 @@ func (it *AVPIterator) Next() (vendorID uint16, attrType AVPType, flags AVPFlags
 
 // Err returns the iteration error, if any. Nil means clean exhaustion.
 func (it *AVPIterator) Err() error { return it.err }
+
+// skipHiddenAVP returns skip=true for every hidden AVP because the control
+// message parsers do not decrypt H-bit values inline. Non-mandatory hidden
+// AVPs are ignored; mandatory hidden AVPs are rejected fail-closed so callers
+// never consume ciphertext as a plaintext value.
+func skipHiddenAVP(msgName string, attrType AVPType, flags AVPFlags) (bool, error) {
+	if flags&FlagHidden == 0 {
+		return false, nil
+	}
+	if flags&FlagMandatory != 0 {
+		return true, fmt.Errorf("l2tp: hidden mandatory %s AVP type %d rejected", msgName, attrType)
+	}
+	return true, nil
+}
 
 // Remaining returns the number of bytes not yet consumed.
 func (it *AVPIterator) Remaining() int { return len(it.data) - it.offset }

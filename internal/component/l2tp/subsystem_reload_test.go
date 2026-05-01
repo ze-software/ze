@@ -176,6 +176,7 @@ func TestReloadNoOpOnIdentical(t *testing.T) {
 		SharedSecret:  "same",
 		MaxTunnels:    10,
 		MaxSessions:   20,
+		AuthMethod:    DefaultAuthMethod,
 		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
 	})
 	prev := s.params

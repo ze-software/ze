@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
@@ -64,12 +65,14 @@ var (
 	})
 )
 
-// Default listener values. Phase 3 only implements a single well-known-port
-// listener; phase 7 will add shared-secret, limits, etc.
+// Default listener and protocol values.
 const (
-	DefaultListenIP   = "0.0.0.0"
-	DefaultListenPort = 1701
-	DefaultHelloSecs  = 60
+	DefaultListenIP           = "0.0.0.0"
+	DefaultListenPort         = 1701
+	DefaultHelloSecs          = 60
+	DefaultMaxTunnels  uint16 = 1024
+	DefaultMaxSessions uint16 = 1024
+	DefaultAuthMethod         = ppp.AuthMethodCHAPMD5
 
 	configTrue = "true"
 )
@@ -83,6 +86,8 @@ type Parameters struct {
 	ListenAddrs   []netip.AddrPort
 	MaxTunnels    uint16
 	MaxSessions   uint16
+	AuthMethod    ppp.AuthMethod
+	AllowNoAuth   bool
 	HelloInterval time.Duration
 	// SharedSecret is the CHAP-MD5 tunnel authentication secret (RFC 2661
 	// S4.2). Empty means peers that include a Challenge AVP in SCCRQ will
@@ -98,9 +103,10 @@ type Parameters struct {
 
 // ExtractParameters pulls L2TP configuration out of the parsed config tree.
 //
-// Protocol settings (enabled, shared-secret, hello-interval, max-tunnels)
-// live under the root-level `l2tp {}` block. Listener endpoints live under
-// `environment { l2tp { server <name> { ip ...; port ...; } } }`.
+// Protocol settings (enabled, shared-secret, auth-method, allow-no-auth,
+// hello-interval, max-tunnels, max-sessions) live under the root-level
+// `l2tp {}` block. Listener endpoints live under `environment { l2tp {
+// server <name> { ip ...; port ...; } } }`.
 //
 // Returns a zero-value Parameters (Enabled=false) if no `l2tp {}` block is
 // present.
@@ -118,6 +124,9 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 	p := Parameters{
 		Enabled:       true, // presence of l2tp{} implies enabled
 		HelloInterval: time.Duration(DefaultHelloSecs) * time.Second,
+		MaxTunnels:    DefaultMaxTunnels,
+		MaxSessions:   DefaultMaxSessions,
+		AuthMethod:    DefaultAuthMethod,
 	}
 
 	if v, ok := l2tpRoot.Get("enabled"); ok {
@@ -138,6 +147,21 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("l2tp max-sessions: %w", err)
 		}
 		p.MaxSessions = uint16(n)
+	}
+
+	if v, ok := l2tpRoot.Get("auth-method"); ok {
+		m, err := parsePPPAuthMethod(v)
+		if err != nil {
+			return Parameters{}, fmt.Errorf("l2tp auth-method: %w", err)
+		}
+		p.AuthMethod = m
+	}
+
+	if v, ok := l2tpRoot.Get("allow-no-auth"); ok {
+		p.AllowNoAuth = v == configTrue
+	}
+	if p.AuthMethod == ppp.AuthMethodNone && !p.AllowNoAuth {
+		return Parameters{}, fmt.Errorf("l2tp auth-method none requires allow-no-auth true")
 	}
 
 	if v, ok := l2tpRoot.Get("hello-interval"); ok {
@@ -216,6 +240,20 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 	}
 
 	return p, nil
+}
+
+func parsePPPAuthMethod(v string) (ppp.AuthMethod, error) {
+	switch v {
+	case "none":
+		return ppp.AuthMethodNone, nil
+	case "pap":
+		return ppp.AuthMethodPAP, nil
+	case "chap-md5":
+		return ppp.AuthMethodCHAPMD5, nil
+	case "ms-chap-v2":
+		return ppp.AuthMethodMSCHAPv2, nil
+	}
+	return ppp.AuthMethodNone, fmt.Errorf("unsupported method %q", v)
 }
 
 func parseListen(ip, port string) (netip.AddrPort, error) {

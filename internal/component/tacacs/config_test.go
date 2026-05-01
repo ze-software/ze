@@ -67,6 +67,23 @@ func TestExtractConfigServers(t *testing.T) {
 	assert.True(t, cfg.Accounting)
 }
 
+// VALIDATES: ExtractConfig parses strict-fallback for TACACS+ authorization.
+// PREVENTS: strict TACACS+ deployments silently falling back to local RBAC.
+func TestExtractConfigStrictFallback(t *testing.T) {
+	tree := config.NewTree()
+	sys := config.NewTree()
+	auth := config.NewTree()
+	tac := config.NewTree()
+
+	tac.Set("strict-fallback", "true")
+	auth.SetContainer("tacacs", tac)
+	sys.SetContainer("authentication", auth)
+	tree.SetContainer("system", sys)
+
+	cfg := ExtractConfig(tree)
+	assert.True(t, cfg.StrictFallback)
+}
+
 // VALIDATES: ExtractConfig parses privilege level to profile mapping.
 // PREVENTS: wrong priv-lvl parsing or missing profiles.
 func TestExtractConfigPrivLvlMap(t *testing.T) {

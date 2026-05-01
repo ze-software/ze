@@ -202,6 +202,8 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		reactor := NewL2TPReactor(ln, s.logger, ReactorParams{
 			MaxTunnels:      s.params.MaxTunnels,
 			MaxSessions:     s.params.MaxSessions,
+			AuthMethod:      s.params.AuthMethod,
+			AuthRequired:    !s.params.AllowNoAuth,
 			HelloInterval:   s.params.HelloInterval,
 			CQMEchoInterval: s.cqmEchoInterval(),
 			Defaults: TunnelDefaults{

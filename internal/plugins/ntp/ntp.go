@@ -36,6 +36,7 @@ type ntpConfig struct {
 	Enabled     bool
 	Servers     []string
 	IntervalSec int    // sync interval in seconds (default 3600)
+	MaxStepSec  int    // max accepted clock step in seconds; 0 means unlimited
 	PersistPath string // path to save time on shutdown
 }
 
@@ -44,6 +45,7 @@ func defaultConfig() ntpConfig {
 	return ntpConfig{
 		Enabled:     false,
 		IntervalSec: 3600,
+		MaxStepSec:  3600,
 		PersistPath: "/perm/ze/timefile",
 	}
 }
@@ -158,6 +160,11 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 	}
 
 	// Set system clock.
+	if !clockOffsetAllowed(resp.ClockOffset, time.Duration(w.cfg.MaxStepSec)*time.Second) {
+		logger.Warn("ntp: response rejected (clock offset exceeds max-step)",
+			"server", server, "offset", resp.ClockOffset, "max-step", w.cfg.MaxStepSec)
+		return false
+	}
 	clockTime := time.Now().Add(resp.ClockOffset)
 	if err := setClock(clockTime); err != nil {
 		logger.Warn("ntp: set clock failed", "server", server, "err", err)
@@ -185,6 +192,16 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 	}
 
 	return true
+}
+
+func clockOffsetAllowed(offset, maxStep time.Duration) bool {
+	if maxStep <= 0 {
+		return true
+	}
+	if offset < 0 {
+		offset = -offset
+	}
+	return offset <= maxStep
 }
 
 // servers returns the effective server list: configured servers first,
@@ -266,6 +283,16 @@ func parseNTPConfig(data string) (ntpConfig, error) {
 		if _, err := fmt.Sscanf(v, "%d", &sec); err == nil && sec >= 60 && sec <= 86400 {
 			cfg.IntervalSec = sec
 		}
+	}
+	if v, ok := ntpMap["max-step"].(string); ok {
+		var sec int
+		if _, err := fmt.Sscanf(v, "%d", &sec); err != nil {
+			return cfg, fmt.Errorf("ntp config: max-step: %w", err)
+		}
+		if sec < 0 || sec > 86400 {
+			return cfg, fmt.Errorf("ntp config: max-step %d out of range 0..86400", sec)
+		}
+		cfg.MaxStepSec = sec
 	}
 	if v, ok := ntpMap["persist-path"].(string); ok && v != "" {
 		if err := validatePersistPath(v); err != nil {

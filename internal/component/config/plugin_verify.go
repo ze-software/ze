@@ -20,8 +20,9 @@ func ParseTreeForValidation(input string) (*Tree, error) {
 	return parseTreeWithYANG(input, nil)
 }
 
-// VerifyPluginConfigContent parses content and runs registered in-process
-// plugin config verifiers. It does not call plugin OnConfigure callbacks.
+// VerifyPluginConfigContent parses content and runs registered in-process,
+// side-effect-free plugin config verifiers. It does not call live external
+// plugin OnConfigVerify callbacks or plugin OnConfigure callbacks.
 func VerifyPluginConfigContent(input string) error {
 	tree, err := ParseTreeForValidation(input)
 	if err != nil {
@@ -43,7 +44,8 @@ func VerifyPluginConfigContentTransition(previous, candidate string) error {
 }
 
 // VerifyPluginConfig runs side-effect-free in-process verifiers for plugins
-// whose config roots are present in the candidate tree.
+// whose config roots are present in the candidate tree. Live external plugin
+// OnConfigVerify callbacks participate only in daemon reload/commit.
 func VerifyPluginConfig(tree *Tree) []error {
 	if tree == nil {
 		return nil

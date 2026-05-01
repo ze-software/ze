@@ -207,6 +207,8 @@ func TestHandleConfigRedactsSecret(t *testing.T) {
 	publishFake(t, &fakeService{
 		config: l2tppkg.ConfigSnapshot{
 			Enabled:       true,
+			AuthMethod:    "chap-md5",
+			AllowNoAuth:   false,
 			HelloInterval: 60 * time.Second,
 			SharedSecret:  "<set>",
 			ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
@@ -218,6 +220,8 @@ func TestHandleConfigRedactsSecret(t *testing.T) {
 	var got map[string]any
 	require.NoError(t, json.Unmarshal([]byte(responseString(t, resp)), &got))
 	require.Equal(t, "<set>", got["shared-secret"])
+	require.Equal(t, "chap-md5", got["auth-method"])
+	require.Equal(t, false, got["allow-no-auth"])
 	require.Equal(t, float64(60), got["hello-interval"])
 }
 

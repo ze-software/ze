@@ -63,6 +63,12 @@ type StartSession struct {
 	// one mid-session.
 	AuthMethod AuthMethod
 
+	// AuthRequired fails the session if LCP reaches Opened without a
+	// negotiated Auth-Protocol method. This lets transports make PPP
+	// authentication mandatory while preserving AuthMethodNone for tests
+	// and explicitly configured lab deployments.
+	AuthRequired bool
+
 	// AuthFallbackOrder lists the AuthMethod values ze will accept
 	// when the peer replies to ze's CONFREQ with a Configure-Nak
 	// naming a different Auth-Protocol (RFC 1661 §5.3). The peer's

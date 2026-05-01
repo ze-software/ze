@@ -7,6 +7,7 @@ package l2tp
 import (
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -42,6 +43,22 @@ func (r *L2TPReactor) setMaxTunnels(n uint16) {
 func (r *L2TPReactor) setMaxSessions(n uint16) {
 	r.tunnelsMu.Lock()
 	r.params.MaxSessions = n
+	r.tunnelsMu.Unlock()
+}
+
+// setPPPAuthMethod updates the Auth-Protocol advertised to new PPP
+// sessions. Live sessions keep their already-negotiated method.
+func (r *L2TPReactor) setPPPAuthMethod(m ppp.AuthMethod) {
+	r.tunnelsMu.Lock()
+	r.params.AuthMethod = m
+	r.tunnelsMu.Unlock()
+}
+
+// setPPPAuthRequired updates whether new PPP sessions may proceed after
+// LCP opens with no negotiated Auth-Protocol.
+func (r *L2TPReactor) setPPPAuthRequired(required bool) {
+	r.tunnelsMu.Lock()
+	r.params.AuthRequired = required
 	r.tunnelsMu.Unlock()
 }
 

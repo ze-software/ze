@@ -5,6 +5,7 @@ environment {
     ntp {
         enabled true
         interval 300
+        max-step 120
         server pool0 {
             address 0.pool.ntp.org
         }

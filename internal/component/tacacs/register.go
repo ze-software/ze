@@ -44,7 +44,7 @@ func (tacacsBackend) Build(params aaa.BuildParams) (aaa.Contribution, error) {
 	}
 
 	if cfg.Authorization {
-		contrib.Authorizer = NewTacacsAuthorizer(client, params.LocalAuthorizer, params.Logger)
+		contrib.Authorizer = NewTacacsAuthorizerWithFallback(client, params.LocalAuthorizer, params.Logger, cfg.StrictFallback)
 	}
 
 	var acct *TacacsAccountant

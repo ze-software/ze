@@ -152,6 +152,25 @@ func TestResolveDefaultServer(t *testing.T) {
 	assert.NotNil(t, r)
 }
 
+// TestResolveSystemDNSNoPublicFallback verifies that appliance mode does not
+// silently send DNS queries to a public resolver when resolv.conf is absent.
+//
+// VALIDATES: missing system DNS leaves the resolver without a server.
+// PREVENTS: implicit fallback to Google Public DNS or any other public
+// resolver outside operator configuration.
+func TestResolveSystemDNSNoPublicFallback(t *testing.T) {
+	r := NewResolver(ResolverConfig{
+		ResolvConfPath: t.TempDir() + "/missing-resolv.conf",
+		Timeout:        1,
+	})
+	defer r.Close()
+
+	assert.Empty(t, r.server)
+	_, err := r.ResolveA("example.com")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no DNS server configured")
+}
+
 // TestResolveTXT verifies TXT record resolution.
 //
 // VALIDATES: AC-3 -- TXT query for valid domain returns TXT record content.

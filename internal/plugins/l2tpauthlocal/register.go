@@ -66,9 +66,7 @@ func runPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
 
-	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		return verifyLocalAuthConfig(sections)
-	})
+	p.OnConfigVerify(verifyLocalAuthConfig)
 
 	var pending map[string]userEntry
 

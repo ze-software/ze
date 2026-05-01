@@ -519,6 +519,11 @@ func parseICRQ(payload []byte) (icrqInfo, error) {
 			}
 			continue
 		}
+		if skip, err := skipHiddenAVP("ICRQ", attrType, flags); err != nil {
+			return icrqInfo{}, err
+		} else if skip {
+			continue
+		}
 		if vendorID != 0 {
 			if flags&FlagMandatory != 0 {
 				// AC-14: unknown mandatory vendor AVP.
@@ -619,6 +624,11 @@ func parseICCN(payload []byte) (iccnInfo, error) {
 			if flags&FlagMandatory != 0 {
 				return iccnInfo{}, fmt.Errorf("l2tp: mandatory ICCN AVP type %d with reserved bits set", attrType)
 			}
+			continue
+		}
+		if skip, err := skipHiddenAVP("ICCN", attrType, flags); err != nil {
+			return iccnInfo{}, err
+		} else if skip {
 			continue
 		}
 		if vendorID != 0 {
@@ -733,6 +743,11 @@ func parseOCRQ(payload []byte) (ocrqInfo, error) {
 			}
 			continue
 		}
+		if skip, err := skipHiddenAVP("OCRQ", attrType, flags); err != nil {
+			return ocrqInfo{}, err
+		} else if skip {
+			continue
+		}
 		if vendorID != 0 {
 			if flags&FlagMandatory != 0 {
 				return ocrqInfo{}, fmt.Errorf("l2tp: mandatory OCRQ vendor %d AVP not recognized", vendorID)
@@ -830,6 +845,11 @@ func parseOCCN(payload []byte) (occnInfo, error) {
 			}
 			continue
 		}
+		if skip, err := skipHiddenAVP("OCCN", attrType, flags); err != nil {
+			return occnInfo{}, err
+		} else if skip {
+			continue
+		}
 		if vendorID != 0 {
 			if flags&FlagMandatory != 0 {
 				return occnInfo{}, fmt.Errorf("l2tp: mandatory OCCN vendor %d AVP not recognized", vendorID)
@@ -914,6 +934,11 @@ func parseCDN(payload []byte) (cdnInfo, error) {
 			}
 			continue
 		}
+		if skip, err := skipHiddenAVP("CDN", attrType, flags); err != nil {
+			return cdnInfo{}, err
+		} else if skip {
+			continue
+		}
 		if vendorID != 0 {
 			if flags&FlagMandatory != 0 {
 				return cdnInfo{}, fmt.Errorf("l2tp: mandatory CDN vendor %d AVP not recognized", vendorID)
@@ -984,6 +1009,11 @@ func parseSingleAVPMessage(payload []byte, expectedMsg MessageType, targetAVP AV
 			if flags&FlagMandatory != 0 {
 				return nil, fmt.Errorf("l2tp: mandatory %s AVP type %d with reserved bits set", msgName, attrType)
 			}
+			continue
+		}
+		if skip, err := skipHiddenAVP(msgName, attrType, flags); err != nil {
+			return nil, err
+		} else if skip {
 			continue
 		}
 		if vendorID != 0 {

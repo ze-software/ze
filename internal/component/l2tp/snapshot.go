@@ -55,6 +55,8 @@ type ConfigSnapshot struct {
 	Enabled       bool
 	MaxTunnels    uint16
 	MaxSessions   uint16
+	AuthMethod    string
+	AllowNoAuth   bool
 	HelloInterval time.Duration
 	SharedSecret  string
 	ListenAddrs   []netip.AddrPort

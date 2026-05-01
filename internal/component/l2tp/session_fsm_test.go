@@ -3,6 +3,7 @@ package l2tp
 import (
 	"log/slog"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 )
@@ -529,6 +530,29 @@ func TestSession_UnknownMandatoryAVP(t *testing.T) {
 	// Tunnel should still be established (not torn down).
 	if tun.state != L2TPTunnelEstablished {
 		t.Fatalf("expected tunnel still established, got %s", tun.state)
+	}
+}
+
+// VALIDATES: hidden mandatory session AVPs are rejected before use when
+// hidden AVP decryption is not part of the control-message parser.
+// PREVENTS: a hidden mandatory Proxy Authen Name AVP from being stored as
+// plaintext proxy-auth metadata.
+func TestParseICCN_HiddenMandatoryAVPRejected(t *testing.T) {
+	var buf [128]byte
+	off := 0
+	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgICCN))
+	off += WriteAVPUint32(buf[:], off, true, AVPTxConnectSpeed, 64000)
+	off += WriteAVPUint32(buf[:], off, true, AVPFramingType, 1)
+	WriteAVPHeader(buf[:], off, FlagMandatory|FlagHidden, 0, AVPProxyAuthenName, AVPHeaderLen+2)
+	copy(buf[off+AVPHeaderLen:], []byte{0xaa, 0xbb})
+	off += AVPHeaderLen + 2
+
+	_, err := parseICCN(buf[:off])
+	if err == nil {
+		t.Fatal("parseICCN succeeded, want hidden mandatory AVP rejection")
+	}
+	if !strings.Contains(err.Error(), "hidden mandatory") {
+		t.Fatalf("error = %q, want hidden mandatory", err.Error())
 	}
 }
 

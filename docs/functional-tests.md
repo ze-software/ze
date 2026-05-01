@@ -1144,6 +1144,7 @@ ze-test l2tp --all     # Run all tests
 | Bad port | `test/parse/l2tp-bad-port.ci` | `port 0` rejected |
 | Unknown field | `test/parse/l2tp-unknown-field.ci` | Unknown key rejected with suggestion |
 | Max sessions | `test/parse/l2tp-max-sessions.ci` | `max-sessions` value accepted |
+| Auth policy | `test/parse/l2tp-auth-policy.ci` | `auth-method` and `allow-no-auth` values accepted |
 
 <!-- source: cmd/ze-test/l2tp.go -- l2tpCmd runner dispatch -->
 <!-- source: internal/test/runner/record_parse.go -- .ci discovery and directive parsing -->

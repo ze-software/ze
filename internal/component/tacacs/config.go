@@ -12,14 +12,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+const configValueTrue = "true"
+
 // ExtractedConfig holds TACACS+ configuration extracted from the config tree.
 type ExtractedConfig struct {
-	Servers       []TacacsServer
-	Timeout       time.Duration
-	SourceAddress string
-	Authorization bool
-	Accounting    bool
-	PrivLvlMap    map[int][]string // priv-lvl -> ze profile names
+	Servers        []TacacsServer
+	Timeout        time.Duration
+	SourceAddress  string
+	Authorization  bool
+	StrictFallback bool
+	Accounting     bool
+	PrivLvlMap     map[int][]string // priv-lvl -> ze profile names
 }
 
 // HasServers returns true if at least one TACACS+ server is configured.
@@ -81,10 +84,13 @@ func ExtractConfig(tree *config.Tree) ExtractedConfig {
 		if v, ok := tacContainer.Get("source-address"); ok {
 			cfg.SourceAddress = v
 		}
-		if v, ok := tacContainer.Get("authorization"); ok && v == "true" {
+		if v, ok := tacContainer.Get("authorization"); ok && v == configValueTrue {
 			cfg.Authorization = true
 		}
-		if v, ok := tacContainer.Get("accounting"); ok && v == "true" {
+		if v, ok := tacContainer.Get("strict-fallback"); ok && v == configValueTrue {
+			cfg.StrictFallback = true
+		}
+		if v, ok := tacContainer.Get("accounting"); ok && v == configValueTrue {
 			cfg.Accounting = true
 		}
 	}

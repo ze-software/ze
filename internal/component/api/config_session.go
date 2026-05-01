@@ -25,6 +25,7 @@ type ConfigEditor interface {
 	DeleteByPath(fullPath []string) error
 	Diff() string
 	Save() error
+	RestoreOriginalContent(content string) error
 	Discard() error
 	OriginalContent() string
 	WorkingContent() string
@@ -77,8 +78,8 @@ func NewConfigSessionManager(factory ConfigEditorFactory) *ConfigSessionManager 
 }
 
 // SetCommitHook sets the hook called after a session save succeeds and before
-// the session is removed. A hook error is returned to the client so API commits
-// do not report success while runtime state remains unchanged.
+// the session is removed. A hook error rolls the saved file back to its previous
+// content and is returned to the client.
 func (m *ConfigSessionManager) SetCommitHook(hook ConfigCommitHook) {
 	m.mu.Lock()
 	m.onCommit = hook
@@ -213,8 +214,10 @@ func (m *ConfigSessionManager) Commit(username, sessionID string) error {
 	m.mu.RLock()
 	onValidate := m.onValidate
 	m.mu.RUnlock()
+	previous := session.Editor.OriginalContent()
+	candidate := session.Editor.WorkingContent()
 	if onValidate != nil {
-		if validateErr := onValidate(session.Editor.OriginalContent(), session.Editor.WorkingContent()); validateErr != nil {
+		if validateErr := onValidate(previous, candidate); validateErr != nil {
 			return fmt.Errorf("commit validation: %w", validateErr)
 		}
 	}
@@ -226,7 +229,10 @@ func (m *ConfigSessionManager) Commit(username, sessionID string) error {
 	m.mu.RUnlock()
 	if onCommit != nil {
 		if hookErr := onCommit(); hookErr != nil {
-			return fmt.Errorf("commit saved to disk but runtime reload failed (config file may diverge from running state): %w", hookErr)
+			if restoreErr := session.Editor.RestoreOriginalContent(previous); restoreErr != nil {
+				return fmt.Errorf("commit runtime reload failed: %w; rollback restore failed: %w", hookErr, restoreErr)
+			}
+			return fmt.Errorf("commit runtime reload failed, restored previous config: %w", hookErr)
 		}
 	}
 	session.closed = true

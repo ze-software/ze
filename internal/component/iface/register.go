@@ -153,6 +153,13 @@ func verifyIfaceConfig(sections []sdk.ConfigSection) error {
 }
 
 func parseAndVerifyIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, error) {
+	activeBackend, err := parseIfaceBackend(sections)
+	if err != nil {
+		return nil, fmt.Errorf("interface config: %w", err)
+	}
+	if err := validateBackendGate(sections, activeBackend); err != nil {
+		return nil, err
+	}
 	cfg, err := parseIfaceSections(sections)
 	if err != nil {
 		return nil, fmt.Errorf("interface config: %w", err)
@@ -160,10 +167,29 @@ func parseAndVerifyIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, er
 	if cfg.Backend == "" {
 		return nil, fmt.Errorf("interface: no backend configured and no OS default available")
 	}
-	if err := validateBackendGate(sections, cfg.Backend); err != nil {
-		return nil, err
-	}
 	return cfg, nil
+}
+
+func parseIfaceBackend(sections []sdk.ConfigSection) (string, error) {
+	backend := defaultBackendName
+	for _, s := range sections {
+		if s.Root != configRootInterface {
+			continue
+		}
+		var root map[string]any
+		if err := json.Unmarshal([]byte(s.Data), &root); err != nil {
+			return "", fmt.Errorf("backend: unmarshal: %w", err)
+		}
+		ifaceMap, ok := root[configRootInterface].(map[string]any)
+		if !ok {
+			return backend, nil
+		}
+		if b, ok := ifaceMap["backend"].(string); ok && b != "" {
+			backend = b
+		}
+		return backend, nil
+	}
+	return backend, nil
 }
 
 // setLogger sets the package-level logger.

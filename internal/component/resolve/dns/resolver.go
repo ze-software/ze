@@ -67,12 +67,12 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 }
 
 // resolveSystemDNS reads the system DNS server from /etc/resolv.conf.
-// Falls back to 8.8.8.8:53 (Google Public DNS) if the file is missing or empty,
-// so DNS resolution always works out of the box.
+// Missing or empty resolver configuration returns an empty server so callers
+// fail closed instead of silently using a public resolver.
 func resolveSystemDNS(resolvConfPath string) string {
 	config, err := mdns.ClientConfigFromFile(resolvConfPath)
 	if err != nil || len(config.Servers) == 0 {
-		return "8.8.8.8:53"
+		return ""
 	}
 	return net.JoinHostPort(config.Servers[0], config.Port)
 }
@@ -134,6 +134,10 @@ func (r *Resolver) ResolvePTR(address string) ([]string, error) {
 // query sends a DNS query and extracts answer records.
 // Returns records, minimum TTL from answers, and any error.
 func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, error) {
+	if r.server == "" {
+		return nil, 0, fmt.Errorf("dns query %s %s: no DNS server configured", name, mdns.TypeToString[qtype])
+	}
+
 	fqdn := mdns.Fqdn(name)
 
 	m := new(mdns.Msg)

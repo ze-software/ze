@@ -16,7 +16,7 @@ Uses `github.com/miekg/dns` (the library CoreDNS is built on).
 | LRU cache | O(1) operations, configurable size and max TTL |
 | TTL-aware | Respects response TTL, caps at configured maximum, honors TTL=0 (do not cache) |
 | Concurrent safe | Mutex-protected cache, safe for multi-goroutine use |
-| System fallback | No configured servers uses `/etc/resolv.conf`, then falls back to `8.8.8.8:53` |
+| System fallback | No configured servers uses `/etc/resolv.conf`; if that is missing or empty, queries fail closed with `no DNS server configured` |
 | Timeout control | Per-resolver configurable timeout (1-60 seconds) |
 
 ## Configuration

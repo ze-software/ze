@@ -48,7 +48,7 @@ func ProbeConfigType(content string) ConfigType {
 				next := tok.Peek()
 				if next.Type == TokenLBrace {
 					switch t.Value {
-					case "bgp":
+					case string(ConfigTypeBGP):
 						hasBGP = true
 					case "plugin":
 						hasPlugin = true
@@ -104,7 +104,7 @@ func probeSetFormat(content string) ConfigType {
 		}
 
 		switch fields[1] {
-		case "bgp":
+		case string(ConfigTypeBGP):
 			hasBGP = true
 		case "plugin":
 			hasPlugin = true

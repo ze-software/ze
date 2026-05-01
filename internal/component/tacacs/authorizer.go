@@ -33,21 +33,30 @@ func splitTacacsArgs(command string) []string {
 }
 
 // TacacsAuthorizer wraps a local authorizer with TACACS+ per-command authorization.
-// When the TACACS+ server is reachable, its decision is authoritative.
-// On connection failure, falls back to the local authorizer.
+// When the TACACS+ server is reachable, its decision is authoritative. On
+// connection failure, the default policy falls back to the local authorizer;
+// strictFallback changes that fail mode to deny.
 type TacacsAuthorizer struct {
-	client *TacacsClient
-	local  aaa.Authorizer
-	logger *slog.Logger
+	client         *TacacsClient
+	local          aaa.Authorizer
+	logger         *slog.Logger
+	strictFallback bool
 }
 
 // NewTacacsAuthorizer creates a TacacsAuthorizer.
 // The local authorizer is used as fallback when the TACACS+ server is unreachable.
 func NewTacacsAuthorizer(client *TacacsClient, local aaa.Authorizer, logger *slog.Logger) *TacacsAuthorizer {
+	return NewTacacsAuthorizerWithFallback(client, local, logger, false)
+}
+
+// NewTacacsAuthorizerWithFallback creates a TacacsAuthorizer with explicit
+// fallback behavior. strictFallback denies when TACACS+ authorization is
+// unavailable instead of falling back to local RBAC.
+func NewTacacsAuthorizerWithFallback(client *TacacsClient, local aaa.Authorizer, logger *slog.Logger, strictFallback bool) *TacacsAuthorizer {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &TacacsAuthorizer{client: client, local: local, logger: logger}
+	return &TacacsAuthorizer{client: client, local: local, logger: logger, strictFallback: strictFallback}
 }
 
 // Authorize sends an AUTHOR REQUEST to the TACACS+ server for the given command.
@@ -72,6 +81,11 @@ func (a *TacacsAuthorizer) Authorize(username, remoteAddr, command string, isRea
 
 	resp, err := a.client.SendAuthorization(req)
 	if err != nil {
+		if a.strictFallback {
+			a.logger.Warn("TACACS+ authorization server unreachable, denying by strict fallback",
+				"username", username, "command", command, "error", err)
+			return false
+		}
 		a.logger.Warn("TACACS+ authorization server unreachable, using local RBAC",
 			"username", username, "command", command, "error", err)
 		return a.fallback(username, remoteAddr, command, isReadOnly)
@@ -86,12 +100,23 @@ func (a *TacacsAuthorizer) Authorize(username, remoteAddr, command string, isRea
 		return false
 	}
 	if resp.Status == AuthorStatusError {
+		if a.strictFallback {
+			a.logger.Warn("TACACS+ authorization error, denying by strict fallback",
+				"username", username, "command", command,
+				"server-msg", resp.ServerMsg)
+			return false
+		}
 		a.logger.Warn("TACACS+ authorization error, using local RBAC",
 			"username", username, "command", command,
 			"server-msg", resp.ServerMsg)
 		return a.fallback(username, remoteAddr, command, isReadOnly)
 	}
 
+	if a.strictFallback {
+		a.logger.Warn("TACACS+ authorization unknown status, denying by strict fallback",
+			"username", username, "command", command, "status", resp.Status)
+		return false
+	}
 	a.logger.Warn("TACACS+ authorization unknown status, using local RBAC",
 		"username", username, "command", command, "status", resp.Status)
 	return a.fallback(username, remoteAddr, command, isReadOnly)

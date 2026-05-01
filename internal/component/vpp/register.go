@@ -117,9 +117,7 @@ func runVPPEngine(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		return verifyVPPConfig(sections)
-	})
+	p.OnConfigVerify(verifyVPPConfig)
 
 	p.OnConfigApply(func(sections []sdk.ConfigDiffSection) error {
 		lg.Warn("vpp: config reload requires daemon restart to take effect")

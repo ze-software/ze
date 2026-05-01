@@ -102,6 +102,8 @@ func (s *Subsystem) EffectiveConfig() ConfigSnapshot {
 		Enabled:       s.params.Enabled,
 		MaxTunnels:    s.params.MaxTunnels,
 		MaxSessions:   s.params.MaxSessions,
+		AuthMethod:    s.params.AuthMethod.String(),
+		AllowNoAuth:   s.params.AllowNoAuth,
 		HelloInterval: s.params.HelloInterval,
 		SharedSecret:  redactSecret(s.params.SharedSecret),
 	}

@@ -136,6 +136,135 @@ neighbor 192.0.2.2 {
 	require.Equal(t, "65002", val)
 }
 
+// TestParserDuplicateListKeyRejected verifies repeated YANG list entries with
+// the same key fail instead of being silently renamed with a #N suffix.
+//
+// VALIDATES: Duplicate YANG list keys are rejected during hierarchical parse.
+//
+// PREVENTS: Duplicate operator config becoming a different hidden key.
+func TestParserDuplicateListKeyRejected(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "named block",
+			input: `
+neighbor 192.0.2.1 {
+    peer-as 65001
+}
+neighbor 192.0.2.1 {
+    peer-as 65002
+}
+`,
+		},
+		{
+			name: "inline block",
+			input: `
+neighbor {
+    192.0.2.1 first
+    192.0.2.1 second
+}
+`,
+		},
+		{
+			name: "anonymous block",
+			input: `
+process {
+    run one
+}
+process {
+    encoder two
+}
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(testSchema())
+			_, err := p.Parse(tt.input)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "duplicate list key")
+		})
+	}
+}
+
+func inlineRouteSchema() *Schema {
+	schema := NewSchema()
+	schema.Define("route", InlineList(TypePrefix,
+		Field("next-hop", Leaf(TypeIP)),
+		Field("path-information", Leaf(TypeIP)),
+	))
+	return schema
+}
+
+// TestParserInlineListDuplicatePathInformation verifies ADD-PATH style route
+// entries may repeat a prefix only when path-information disambiguates them.
+//
+// VALIDATES: Inline route duplicates with distinct path-information parse as
+// separate ordered entries.
+//
+// PREVENTS: ExaBGP ADD-PATH static routes being rejected as duplicate list keys.
+func TestParserInlineListDuplicatePathInformation(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{
+			name: "distinct path information allowed",
+			input: `
+route 10.0.0.10 next-hop 10.10.1.1 path-information 0.0.0.1;
+route 10.0.0.10 next-hop 10.10.1.2 path-information 0.0.0.2;
+`,
+		},
+		{
+			name: "same path information rejected",
+			input: `
+route 10.0.0.10 next-hop 10.10.1.1 path-information 0.0.0.1;
+route 10.0.0.10 next-hop 10.10.1.2 path-information 0.0.0.1;
+`,
+			wantErr: true,
+		},
+		{
+			name: "missing path information rejected",
+			input: `
+route 10.0.0.10 next-hop 10.10.1.1;
+route 10.0.0.10 next-hop 10.10.1.2;
+`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(inlineRouteSchema())
+			tree, err := p.Parse(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "duplicate list key")
+				return
+			}
+
+			require.NoError(t, err)
+			routes := tree.GetListOrdered("route")
+			require.Len(t, routes, 2)
+			assert.Equal(t, "10.0.0.10", StripListKeySuffix(routes[0].Key))
+			assert.Equal(t, "10.0.0.10", StripListKeySuffix(routes[1].Key))
+			assert.Equal(t, "0.0.0.1", mustTreeValue(t, routes[0].Value, "path-information"))
+			assert.Equal(t, "0.0.0.2", mustTreeValue(t, routes[1].Value, "path-information"))
+		})
+	}
+}
+
+func mustTreeValue(t *testing.T, tree *Tree, key string) string {
+	t.Helper()
+	value, ok := tree.Get(key)
+	require.True(t, ok, "missing %s", key)
+	return value
+}
+
 // TestParserNestedContainer verifies nested containers.
 //
 // VALIDATES: Nested containers are parsed correctly.

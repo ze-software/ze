@@ -663,7 +663,7 @@ func TestSessionFamilyValidation(t *testing.T) {
 	updateMsg = append(updateMsg, update...)
 
 	go func() {
-		_, _ = client.Write(updateMsg)
+		sendUpdateAndDrain(client, updateMsg)
 	}()
 
 	// This should return an error because IPv6 unicast is not negotiated
@@ -1805,6 +1805,76 @@ func TestSessionRFC7606SessionResetNotification(t *testing.T) {
 	// RFC 7606: Malformed Attribute List = subcode 1
 	require.Equal(t, message.NotifyUpdateMalformedAttr, notifBody[1],
 		"NOTIFICATION subcode must be 1 (Malformed Attribute List)")
+}
+
+// TestSessionNonNegotiatedMPFamilyNotification verifies strict RFC 4760 family handling.
+//
+// RFC 4760 Section 7: an incorrect MP_REACH_NLRI attribute SHOULD terminate
+// the session with UPDATE Message Error / Optional Attribute Error.
+//
+// VALIDATES: Non-negotiated MP_REACH_NLRI sends NOTIFICATION, closes the session,
+// and is not delivered to plugins.
+// PREVENTS: Plugins seeing routes for families that were not negotiated in OPEN.
+func TestSessionNonNegotiatedMPFamilyNotification(t *testing.T) {
+	session, client, callbackCount, cleanup := setupEstablishedSessionEBGP(t)
+	defer cleanup()
+
+	// The helper negotiates only IPv4 unicast. Send IPv6 unicast in MP_REACH_NLRI.
+	mpReach := []byte{
+		0x00, 0x02, // AFI = 2 (IPv6)
+		0x01, // SAFI = 1 (Unicast)
+		0x10, // Next-hop length = 16
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x01, // Next-hop = ::1
+		0x00,                         // Reserved
+		0x20, 0x20, 0x01, 0x0d, 0xb8, // NLRI = 2001:db8::/32
+	}
+
+	pathAttrs := make([]byte, 0, 10+len(mpReach))
+	pathAttrs = append(pathAttrs,
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH = empty
+		0x80, 0x0e, byte(len(mpReach)), // MP_REACH_NLRI
+	)
+	pathAttrs = append(pathAttrs, mpReach...)
+
+	update := make([]byte, 0, 4+len(pathAttrs))
+	update = append(update, 0x00, 0x00, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, pathAttrs...)
+	updateMsg := buildUpdateMsg(update)
+
+	var received []byte
+	done := make(chan struct{})
+	go func() {
+		client.Write(updateMsg) //nolint:errcheck // test goroutine
+		buf := make([]byte, 4096)
+		n, _ := client.Read(buf) //nolint:errcheck // read NOTIFICATION
+		received = buf[:n]
+		close(done)
+	}()
+
+	err := session.ReadAndProcess()
+	require.ErrorIs(t, err, ErrFamilyNotNegotiated)
+	require.Equal(t, fsm.StateIdle, session.State(), "session must be Idle after unsupported family error")
+	require.Equal(t, 0, *callbackCount, "callback must not fire for non-negotiated family UPDATE")
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for NOTIFICATION")
+	}
+
+	require.GreaterOrEqual(t, len(received), message.HeaderLen+2, "NOTIFICATION too short")
+	hdr, hdrErr := message.ParseHeader(received[:message.HeaderLen])
+	require.NoError(t, hdrErr)
+	require.Equal(t, message.TypeNOTIFICATION, hdr.Type, "must send NOTIFICATION")
+	notifBody := received[message.HeaderLen:]
+	require.Equal(t, byte(message.NotifyUpdateMessage), notifBody[0],
+		"NOTIFICATION error code must be 3 (UPDATE Message Error)")
+	require.Equal(t, message.NotifyUpdateOptionalAttr, notifBody[1],
+		"NOTIFICATION subcode must be 9 (Optional Attribute Error)")
 }
 
 // TestSessionRFC7606TreatAsWithdrawSuppressesCallback verifies callback suppression.

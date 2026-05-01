@@ -178,7 +178,11 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		for k := range diff.added {
 			addedKeys = append(addedKeys, k)
 		}
-		autoLoaded = s.autoLoadForNewConfigPaths(ctx, newTree, addedKeys)
+		var autoLoadErr error
+		autoLoaded, autoLoadErr = s.autoLoadForNewConfigPaths(ctx, newTree, addedKeys)
+		if autoLoadErr != nil {
+			return autoLoadErr
+		}
 	}
 
 	// Find affected plugins: those with WantsConfigRoots matching changed roots.

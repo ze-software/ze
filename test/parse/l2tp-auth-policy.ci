@@ -1,0 +1,21 @@
+# Test: ze config validate accepts explicit L2TP PPP auth policy
+# VALIDATES: l2tp auth-method and allow-no-auth leaves parse through YANG
+stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+	auth-method chap-md5
+	allow-no-auth false
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

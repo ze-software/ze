@@ -115,7 +115,11 @@ func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
 		logger().Warn("coa: unexpected code", "code", pkt.Code, "from", from)
 		return
 	}
-	if pkt.FindAttr(radius.AttrMessageAuthenticator) != nil && !radius.VerifyMessageAuthenticator(data, secret) {
+	if pkt.FindAttr(radius.AttrMessageAuthenticator) == nil {
+		logger().Debug("coa: missing message-authenticator, discarding", "from", from)
+		return
+	}
+	if !radius.VerifyMessageAuthenticator(data, secret) {
 		logger().Debug("coa: invalid message-authenticator, discarding", "from", from)
 		return
 	}

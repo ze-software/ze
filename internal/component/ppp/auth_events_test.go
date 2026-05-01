@@ -420,6 +420,59 @@ func TestRunAuthPhaseAccept(t *testing.T) {
 	}
 }
 
+// VALIDATES: mandatory PPP authentication fails closed when LCP reaches
+// Opened without a negotiated Auth-Protocol method.
+// PREVENTS: a peer Configure-Reject or unsupported Configure-Nak from
+// downgrading a required-auth session into AuthMethodNone and being
+// accepted by the no-auth accounting path.
+func TestRunAuthPhaseRequiredAuthRejectsNoMethod(t *testing.T) {
+	reg := newPipeRegistry()
+	installPipeRegistry(t, reg)
+	pair := newPipePair(reg, 7451)
+	defer closeConn(pair.peerEnd)
+
+	ops, _, _ := newFakeOps()
+	d := newTestDriverNoResponder(&fakeBackend{}, ops)
+	if err := d.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer d.Stop()
+
+	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
+	d.SessionsIn() <- StartSession{
+		TunnelID:            71,
+		SessionID:           81,
+		ChanFD:              7451,
+		UnitFD:              4002,
+		UnitNum:             6,
+		LNSMode:             true,
+		MaxMRU:              1500,
+		AuthRequired:        true,
+		DisableIPCP:         true,
+		DisableIPv6CP:       true,
+		ProxyLCPInitialRecv: stream,
+		ProxyLCPLastSent:    stream,
+		ProxyLCPLastRecv:    stream,
+	}
+
+	select {
+	case ev := <-d.AuthEventsOut():
+		fail, ok := ev.(EventAuthFailure)
+		if !ok {
+			t.Fatalf("auth event %T, want EventAuthFailure", ev)
+		}
+		if fail.Reason != "no negotiated authentication method" {
+			t.Errorf("failure reason = %q, want no negotiated authentication method", fail.Reason)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for EventAuthFailure")
+	}
+
+	if !waitForSessionDown(t, d.EventsOut(), 500*time.Millisecond) {
+		t.Fatal("timed out waiting for EventSessionDown after required auth failed")
+	}
+}
+
 // waitForSessionUp drains lifecycle events until EventSessionUp
 // arrives or the deadline fires. Returns true on receipt.
 func waitForSessionUp(t *testing.T, ch <-chan Event, d time.Duration) bool {

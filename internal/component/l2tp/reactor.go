@@ -97,10 +97,12 @@ type peerKey struct {
 // hardcodes host name and capabilities; phase 7 wires them through
 // YANG).
 type ReactorParams struct {
-	MaxTunnels      uint16        // 0 = unbounded (by this knob; uint16 still caps at 65535)
-	MaxSessions     uint16        // 0 = unbounded per-tunnel session limit
-	HelloInterval   time.Duration // peer silence before HELLO; 0 = no keepalive
-	CQMEchoInterval time.Duration // when >0, overrides PPP echo interval for CQM sampling
+	MaxTunnels      uint16         // 0 = unbounded (by this knob; uint16 still caps at 65535)
+	MaxSessions     uint16         // 0 = unbounded per-tunnel session limit
+	AuthMethod      ppp.AuthMethod // PPP Auth-Protocol first advertised to new sessions
+	AuthRequired    bool           // fail if LCP opens with AuthMethodNone
+	HelloInterval   time.Duration  // peer silence before HELLO; 0 = no keepalive
+	CQMEchoInterval time.Duration  // when >0, overrides PPP echo interval for CQM sampling
 	Defaults        TunnelDefaults
 	Clock           func() time.Time // injected for tests; time.Now if nil
 }
@@ -902,6 +904,8 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		UnitNum:             ksucc.fds.unitNum,
 		LNSMode:             ksucc.lnsMode,
 		PeerAddr:            peerAddr,
+		AuthMethod:          r.params.AuthMethod,
+		AuthRequired:        r.params.AuthRequired,
 		AuthTimeout:         authTimeout,
 		ReauthInterval:      reauthInterval,
 		DisableIPCP:         disableIPCP,

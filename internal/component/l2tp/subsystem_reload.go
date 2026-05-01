@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -20,9 +21,10 @@ import (
 // and applies each changed knob according to the spec-l2tp-7 diff-apply
 // policy:
 //
-//   - shared-secret, hello-interval, max-tunnels, max-sessions: hot-apply.
-//     Takes effect on new tunnels / new admission decisions. Live
-//     tunnels are not re-keyed or re-timed.
+//   - shared-secret, hello-interval, max-tunnels, max-sessions,
+//     auth-method, allow-no-auth: hot-apply. Takes effect on new tunnels,
+//     new sessions, or new admission decisions. Live tunnels are not
+//     re-keyed or re-timed.
 //   - enabled flip (true<->false): rejected with WARN. Operator must
 //     restart.
 //   - environment/l2tp/server/* listener endpoints: rejected with WARN.
@@ -128,6 +130,26 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 		applied++
 	}
 
+	// Hot-apply: PPP auth policy for new sessions.
+	if prev.AuthMethod != next.AuthMethod {
+		s.params.AuthMethod = next.AuthMethod
+		for _, r := range s.reactors {
+			r.setPPPAuthMethod(next.AuthMethod)
+		}
+		s.logger.Info("l2tp reload: auth-method updated",
+			"previous", prev.AuthMethod.String(), "new", next.AuthMethod.String())
+		applied++
+	}
+	if prev.AllowNoAuth != next.AllowNoAuth {
+		s.params.AllowNoAuth = next.AllowNoAuth
+		for _, r := range s.reactors {
+			r.setPPPAuthRequired(!next.AllowNoAuth)
+		}
+		s.logger.Info("l2tp reload: allow-no-auth updated",
+			"previous", prev.AllowNoAuth, "new", next.AllowNoAuth)
+		applied++
+	}
+
 	if applied == 0 && rejected == 0 {
 		s.logger.Debug("l2tp reload: no changes detected")
 	}
@@ -152,6 +174,9 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 	p := Parameters{
 		Enabled:       true,
 		HelloInterval: time.Duration(DefaultHelloSecs) * time.Second,
+		MaxTunnels:    DefaultMaxTunnels,
+		MaxSessions:   DefaultMaxSessions,
+		AuthMethod:    DefaultAuthMethod,
 	}
 	if v, ok := l2tpRoot["enabled"].(string); ok {
 		p.Enabled = v == configTrue
@@ -182,6 +207,19 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("max-sessions: %w", perr)
 		}
 		p.MaxSessions = uint16(n)
+	}
+	if v, ok := l2tpRoot["auth-method"].(string); ok {
+		m, perr := parsePPPAuthMethod(v)
+		if perr != nil {
+			return Parameters{}, fmt.Errorf("auth-method: %w", perr)
+		}
+		p.AuthMethod = m
+	}
+	if v, ok := l2tpRoot["allow-no-auth"].(string); ok {
+		p.AllowNoAuth = v == configTrue
+	}
+	if p.AuthMethod == ppp.AuthMethodNone && !p.AllowNoAuth {
+		return Parameters{}, fmt.Errorf("auth-method none requires allow-no-auth true")
 	}
 	if v, ok := l2tpRoot["cqm-enabled"].(string); ok {
 		p.CQMEnabled = v == configTrue

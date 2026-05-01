@@ -18,17 +18,19 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
+const configRootRIB = "rib"
+
 func init() {
 	_ = events.RegisterNamespace(sysribevents.Namespace,
 		sysribevents.EventBestChange, sysribevents.EventReplayRequest,
 	)
 
 	reg := registry.Registration{
-		Name:                    "rib",
+		Name:                    configRootRIB,
 		Description:             "System RIB: selects best route across protocols by admin distance",
 		Features:                "yang",
 		YANG:                    sysribschema.ZeRibConfYANG,
-		ConfigRoots:             []string{"rib"},
+		ConfigRoots:             []string{configRootRIB},
 		InProcessConfigVerifier: verifySysRIBConfig,
 		RunEngine:               runSysRIBPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -60,7 +62,7 @@ func init() {
 
 func verifySysRIBConfig(sections []sdk.ConfigSection) error {
 	for _, section := range sections {
-		if section.Root != "rib" {
+		if section.Root != configRootRIB {
 			continue
 		}
 		if _, err := parseAdminDistanceConfig(section.Data); err != nil {
@@ -73,7 +75,7 @@ func verifySysRIBConfig(sections []sdk.ConfigSection) error {
 func runSysRIBPlugin(conn net.Conn) int {
 	logger().Debug("sysrib plugin starting (RPC)")
 
-	p := sdk.NewWithConn("rib", conn)
+	p := sdk.NewWithConn(configRootRIB, conn)
 	defer func() { _ = p.Close() }()
 
 	// Wire the process-wide Loc-RIB so sysrib's run() picks the
@@ -89,7 +91,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "rib" {
+			if section.Root != configRootRIB {
 				continue
 			}
 			dist, err := parseAdminDistanceConfig(section.Data)
@@ -108,7 +110,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "rib" {
+			if section.Root != configRootRIB {
 				continue
 			}
 			dist, err := parseAdminDistanceConfig(section.Data)
@@ -210,7 +212,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"rib"},
+		WantsConfig:  []string{configRootRIB},
 		VerifyBudget: 1,
 		ApplyBudget:  2,
 		Commands: []sdk.CommandDecl{

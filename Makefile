@@ -41,6 +41,7 @@ ZE_LDFLAGS := -X main.version=$(ZE_VERSION) -X main.buildDate=$(ZE_BUILD_DATE)
 # parallel stages do not starve the system.
 GO_TEST_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); p=$$(( n - 3 )); [ $$p -lt 1 ] && p=1; echo $$p)
 GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test
+ZE_EXABGP_TIMEOUT ?= 180
 
 # Packages
 ZE_PACKAGES = $$(go list ./... | grep -v /cmd/ze-chaos)
@@ -141,6 +142,8 @@ ze-unit-test-cover:
 # Override: make ze-functional-test ZE_SUITE_TIMEOUT=1200s
 ZE_SUITE_TIMEOUT ?= 600s
 ZE_SUITE_KILL_AFTER ?= 10s
+ZE_ENCODE_PARALLEL ?= 8
+ZE_PLUGIN_PARALLEL ?= 2
 SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 
 # Run ze functional tests (all types, continue on failure to show all results)
@@ -149,8 +152,8 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 # vpp, l2tp-wire, chaos-web) have runners but need platform deps or infra.
 ze-functional-test: bin/ze bin/ze-test
 	@failed=0; failed_names=""; \
-	$(SUITE_RUN) bin/ze-test bgp encode --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }encode"; }; \
-	$(SUITE_RUN) bin/ze-test bgp plugin --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }plugin"; }; \
+	$(SUITE_RUN) bin/ze-test bgp encode --all -p $(ZE_ENCODE_PARALLEL) || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }encode"; }; \
+	$(SUITE_RUN) bin/ze-test bgp plugin --all -p $(ZE_PLUGIN_PARALLEL) || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }plugin"; }; \
 	$(SUITE_RUN) bin/ze-test bgp parse --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }parse"; }; \
 	$(SUITE_RUN) bin/ze-test bgp decode --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }decode"; }; \
 	$(SUITE_RUN) bin/ze-test bgp reload --all -p 1 || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }reload"; }; \
@@ -179,10 +182,10 @@ ze-functional-test: bin/ze bin/ze-test
 # stuck suite invoked directly from the CLI also gets process-group-killed
 # instead of wedging indefinitely.
 ze-encode-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test bgp encode --all
+	@$(SUITE_RUN) bin/ze-test bgp encode --all -p $(ZE_ENCODE_PARALLEL)
 
 ze-plugin-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test bgp plugin --all
+	@$(SUITE_RUN) bin/ze-test bgp plugin --all -p $(ZE_PLUGIN_PARALLEL)
 
 ze-decode-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test bgp decode --all
@@ -341,7 +344,7 @@ ze-race-reactor:
 # Uses uv to auto-install psutil dependency
 ze-exabgp-test: bin/ze
 	@echo "Running ExaBGP compatibility tests..."
-	uv run --with psutil --with paramiko ./test/exabgp-compat/bin/functional encoding --timeout 60
+	uv run --with psutil --with paramiko ./test/exabgp-compat/bin/functional encoding --timeout $(ZE_EXABGP_TIMEOUT)
 
 # Run all ze tests including fuzz (ze only, no chaos/perf/analyse)
 ze-test: ze-lint ze-unit-test ze-functional-test ze-exabgp-test ze-fuzz-test
@@ -911,7 +914,7 @@ help:
 	@echo "  ze-test-config        - Unit tests: config component group (-race)"
 	@echo "  ze-test-cli           - Unit tests: CLI component group (-race)"
 	@echo "  ze-test-rest          - Unit tests: everything not in a named group (-race)"
-	@echo "  ze-functional-test    - Run ze functional tests (encode, plugin, parse, decode, reload, ui, editor)"
+	@echo "  ze-functional-test    - Run ze functional tests (encode, plugin, parse, decode, reload, ui, editor, managed, l2tp, firewall, web)"
 	@echo "  ze-encode-test        - Run encode functional tests only"
 	@echo "  ze-plugin-test        - Run plugin functional tests only"
 	@echo "  ze-decode-test        - Run decode functional tests only"

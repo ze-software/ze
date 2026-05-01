@@ -82,6 +82,35 @@ func TestParseNTPConfigIntervalBounds(t *testing.T) {
 	}
 }
 
+// TestParseNTPConfigMaxStep verifies the deployment safety cap on NTP clock
+// steps is parsed from config.
+//
+// VALIDATES: max-step controls the largest accepted NTP clock step.
+// PREVENTS: an unauthenticated NTP server from moving system time by an
+// unbounded amount under default policy.
+func TestParseNTPConfigMaxStep(t *testing.T) {
+	t.Parallel()
+	data := `{"environment":{"ntp":{"enabled":"true","max-step":"120"}}}`
+	cfg, err := parseNTPConfig(data)
+	require.NoError(t, err)
+	assert.Equal(t, 120, cfg.MaxStepSec)
+}
+
+// TestClockOffsetAllowedMaxStep verifies the pure max-step decision used
+// before settimeofday.
+//
+// VALIDATES: offsets beyond max-step are rejected; max-step 0 is explicit
+// unlimited mode.
+// PREVENTS: accidental removal of the large-step guard in doSync.
+func TestClockOffsetAllowedMaxStep(t *testing.T) {
+	t.Parallel()
+
+	assert.True(t, clockOffsetAllowed(30*time.Second, time.Minute))
+	assert.True(t, clockOffsetAllowed(-30*time.Second, time.Minute))
+	assert.False(t, clockOffsetAllowed(2*time.Minute, time.Minute))
+	assert.True(t, clockOffsetAllowed(24*time.Hour, 0))
+}
+
 // TestTimePersistenceSave verifies time is saved to file.
 //
 // VALIDATES: AC-5 - NTP query succeeds, time saved to persistence file.

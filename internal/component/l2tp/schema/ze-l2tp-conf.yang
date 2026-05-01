@@ -27,23 +27,49 @@ module ze-l2tp-conf {
 
         leaf max-tunnels {
             type uint16;
+            default 1024;
             description
-                "Maximum concurrent L2TP tunnels. A value of 0 (and the
-                 unset default) means unbounded by this knob; the only
-                 cap is the 65535 ceiling imposed by RFC 2661's 16-bit
-                 Tunnel ID field. Set to a positive value to reject
-                 further SCCRQs with StopCCN Result Code 2 once the
-                 limit is reached.";
+                "Maximum concurrent L2TP tunnels. The default is a
+                 finite deployment safety cap. A value of 0 explicitly
+                 requests unbounded admission by this knob; the 65535
+                 ceiling imposed by RFC 2661's 16-bit Tunnel ID field
+                 still applies. New SCCRQs beyond a positive limit are
+                 rejected with StopCCN Result Code 2.";
         }
 
         leaf max-sessions {
             type uint16;
+            default 1024;
             description
-                "Maximum concurrent sessions per tunnel. A value of 0
-                 (and the unset default) means unbounded. Set to a
-                 positive value to reject further ICRQs and OCRQs with
-                 CDN Result Code 4 (no resources) once the limit is
-                 reached on any given tunnel.";
+                "Maximum concurrent sessions per tunnel. The default is
+                 a finite deployment safety cap. A value of 0 explicitly
+                 requests unbounded admission on each tunnel. New ICRQs
+                 and OCRQs beyond a positive limit are rejected with CDN
+                 Result Code 4 (no resources).";
+        }
+
+        leaf auth-method {
+            type enumeration {
+                enum none;
+                enum pap;
+                enum chap-md5;
+                enum ms-chap-v2;
+            }
+            default "chap-md5";
+            description
+                "PPP Auth-Protocol method first advertised in LCP
+                 Configure-Request. The default requires CHAP-MD5. Set
+                 to none only together with allow-no-auth true.";
+        }
+
+        leaf allow-no-auth {
+            type boolean;
+            default false;
+            description
+                "Allow PPP LCP authentication negotiation to proceed
+                 without an Auth-Protocol. The default is false, so a
+                 peer that rejects all configured authentication methods
+                 is disconnected instead of being accepted as no-auth.";
         }
 
         leaf shared-secret {

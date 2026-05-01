@@ -1,6 +1,8 @@
 package l2tpauthradius
 
 import (
+	"crypto/hmac"
+	"crypto/md5"
 	"encoding/binary"
 	"net"
 	"sync/atomic"
@@ -17,6 +19,16 @@ func sendCoAPacket(t *testing.T, addr string, code uint8, secret []byte, attrs [
 }
 
 func buildCoAPacket(t *testing.T, code uint8, secret []byte, attrs []radius.Attr, ts time.Time) []byte {
+	attrs = append(attrs, radius.Attr{Type: radius.AttrMessageAuthenticator, Value: make([]byte, radius.AuthenticatorLen)})
+	wire := buildCoAPacketWithoutMessageAuthenticator(t, code, secret, attrs, ts)
+	maOff := messageAuthenticatorOffsetForTest(t, wire)
+	mac := hmac.New(md5.New, secret) //nolint:gosec // RFC 3579 mandates HMAC-MD5.
+	mac.Write(wire)
+	copy(wire[maOff:maOff+radius.AuthenticatorLen], mac.Sum(nil))
+	return wire
+}
+
+func buildCoAPacketWithoutMessageAuthenticator(t *testing.T, code uint8, secret []byte, attrs []radius.Attr, ts time.Time) []byte {
 	t.Helper()
 	if !ts.IsZero() {
 		tsAttr := make([]byte, 4)
@@ -38,6 +50,30 @@ func buildCoAPacket(t *testing.T, code uint8, secret []byte, attrs []radius.Attr
 	auth := radius.AccountingRequestAuth(buf, n, secret)
 	copy(buf[4:4+radius.AuthenticatorLen], auth[:])
 	return append([]byte(nil), buf[:n]...)
+}
+
+func messageAuthenticatorOffsetForTest(t *testing.T, wire []byte) int {
+	t.Helper()
+	pktLen := int(binary.BigEndian.Uint16(wire[2:4]))
+	off := radius.HeaderLen
+	for off < pktLen {
+		if off+2 > pktLen {
+			t.Fatal("truncated radius attr")
+		}
+		attrLen := int(wire[off+1])
+		if attrLen < 2 || off+attrLen > pktLen {
+			t.Fatalf("invalid radius attr length %d", attrLen)
+		}
+		if wire[off] == radius.AttrMessageAuthenticator {
+			if attrLen != 2+radius.AuthenticatorLen {
+				t.Fatalf("invalid Message-Authenticator length %d", attrLen)
+			}
+			return off + 2
+		}
+		off += attrLen
+	}
+	t.Fatal("Message-Authenticator missing")
+	return 0
 }
 
 func sendRawCoAPacket(t *testing.T, addr string, wire []byte) *radius.Packet {
@@ -70,6 +106,30 @@ func sendRawCoAPacket(t *testing.T, addr string, wire []byte) *radius.Packet {
 		t.Fatal(err)
 	}
 	return resp
+}
+
+func sendRawCoAPacketExpectNoResponse(t *testing.T, addr string, wire []byte) {
+	t.Helper()
+	conn, err := net.DialUDP("udp4", nil, mustResolveUDP(t, addr))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Logf("conn close: %v", err)
+		}
+	}()
+
+	if _, err := conn.Write(wire); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	respBuf := make([]byte, radius.MaxPacketLen)
+	if _, err := conn.Read(respBuf); err == nil {
+		t.Fatal("unexpected CoA response")
+	}
 }
 
 type fakeL2TPService struct {
@@ -177,6 +237,27 @@ func TestCoAListenerInvalidAuth(t *testing.T) {
 	if readErr == nil {
 		t.Fatal("expected timeout (no response for invalid auth), got a response")
 	}
+}
+
+func TestCoAListenerMissingMessageAuthenticatorDropped(t *testing.T) {
+	secret := []byte("test-coa-secret-missing-ma")
+	cl, err := newCoAListener(0, nil, secret, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := cl.Close(); err != nil {
+			t.Logf("close: %v", err)
+		}
+	}()
+	addr := cl.conn.LocalAddr().String()
+
+	wire := buildCoAPacketWithoutMessageAuthenticator(t, radius.CodeCoARequest, secret, []radius.Attr{
+		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("999-999")},
+		{Type: radius.AttrFilterID, Value: radius.AttrString("10mbit")},
+	}, time.Now())
+
+	sendRawCoAPacketExpectNoResponse(t, addr, wire)
 }
 
 // VALIDATES: AC-5 -- CoA for unknown session returns NAK with Error-Cause 503.

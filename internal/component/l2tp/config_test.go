@@ -10,6 +10,7 @@ import (
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 )
 
 // TestConfig_MissingBlockReturnsZero ensures absence of any l2tp config
@@ -48,6 +49,81 @@ environment {
 	require.Len(t, p.ListenAddrs, 1)
 	assert.Equal(t, "127.0.0.1:1701", p.ListenAddrs[0].String())
 	assert.Equal(t, 60*time.Second, p.HelloInterval)
+}
+
+// TestConfig_DefaultSafetyCaps ensures an enabled L2TP subsystem has finite
+// admission caps even when the operator does not set max-tunnels or
+// max-sessions.
+//
+// VALIDATES: deployment default resource caps are non-zero.
+// PREVENTS: an omitted L2TP cap from leaving tunnel or session admission
+// unbounded in production configs.
+func TestConfig_DefaultSafetyCaps(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	assert.Equal(t, l2tp.DefaultMaxTunnels, p.MaxTunnels)
+	assert.Equal(t, l2tp.DefaultMaxSessions, p.MaxSessions)
+}
+
+// TestConfig_DefaultAuthRequiresCHAP verifies that enabling L2TP defaults to
+// a real PPP Auth-Protocol and does not allow no-auth fallback unless the
+// operator opts in.
+//
+// VALIDATES: mandatory PPP auth is the deployment default.
+// PREVENTS: L2TP sessions from starting with AuthMethodNone by omission.
+func TestConfig_DefaultAuthRequiresCHAP(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	assert.Equal(t, ppp.AuthMethodCHAPMD5, p.AuthMethod)
+	assert.False(t, p.AllowNoAuth)
+}
+
+// TestConfig_AllowNoAuthRequiresExplicitLeaf keeps no-auth possible for lab
+// peers while making the deployment opt-in visible in config.
+//
+// VALIDATES: allow-no-auth true is parsed explicitly.
+// PREVENTS: implicit no-auth fallback when the leaf is absent.
+func TestConfig_AllowNoAuthRequiresExplicitLeaf(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	allow-no-auth true
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	assert.True(t, p.AllowNoAuth)
 }
 
 // TestConfig_PresenceImpliesEnabled verifies that l2tp{} with any setting
@@ -183,7 +259,7 @@ environment {
 func TestConfig_MaxTunnels(t *testing.T) {
 	const src = `l2tp {
 	enabled true
-	max-tunnels 1024
+	max-tunnels 2048
 }
 environment {
 	l2tp {
@@ -196,12 +272,12 @@ environment {
 	tree := loadTree(t, src)
 	p, err := l2tp.ExtractParameters(tree)
 	require.NoError(t, err)
-	assert.Equal(t, uint16(1024), p.MaxTunnels)
+	assert.Equal(t, uint16(2048), p.MaxTunnels)
 }
 
-// TestConfig_MaxTunnelsZeroIsUnbounded captures the contract that
-// `max-tunnels 0` (and the unset default) both mean "no ze-side limit".
-// The YANG description documents this; the test locks it in.
+// TestConfig_MaxTunnelsZeroIsUnbounded captures the contract that an
+// explicit `max-tunnels 0` means "no ze-side limit". The unset default
+// remains finite for deployment safety.
 //
 // VALIDATES: max-tunnels=0 semantic documented in ze-l2tp-conf.yang.
 func TestConfig_MaxTunnelsZeroIsUnbounded(t *testing.T) {
@@ -245,8 +321,9 @@ environment {
 	assert.Equal(t, uint16(100), p.MaxSessions)
 }
 
-// TestConfig_MaxSessionsZeroIsUnbounded captures the contract that
-// max-sessions 0 (and the unset default) means "no limit per tunnel".
+// TestConfig_MaxSessionsZeroIsUnbounded captures the contract that an
+// explicit max-sessions 0 means "no limit per tunnel". The unset default
+// remains finite for deployment safety.
 func TestConfig_MaxSessionsZeroIsUnbounded(t *testing.T) {
 	const src = `l2tp {
 	enabled true

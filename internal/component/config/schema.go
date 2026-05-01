@@ -752,7 +752,14 @@ func ValidateLeafValue(node *LeafNode, value string) error {
 		return err
 	}
 	if len(node.Enums) > 0 && !stringIn(node.Enums, value) {
-		return fmt.Errorf("invalid enum: %q (expected one of: %s)", value, strings.Join(node.Enums, ", "))
+		expected := strings.Join(node.Enums, ", ")
+		if value == "simple-password" {
+			return fmt.Errorf(
+				"simple-password rejected (RFC 5880 Section 6.7.2 warns against use): invalid enum: %q (expected one of: %s)",
+				value, expected,
+			)
+		}
+		return fmt.Errorf("invalid enum: %q (expected one of: %s)", value, expected)
 	}
 	if len(node.Ranges) > 0 {
 		if err := validateNumericRanges(node.Type, value, node.Ranges); err != nil {

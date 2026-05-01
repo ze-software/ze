@@ -317,16 +317,22 @@ drops traffic on the changed tunnel only; unrelated tunnels are not disturbed.
 
 ## Tunnel Validation Scope
 
-`ze config validate` runs YANG schema validation plus BGP- and hub-specific
-checks. It does not invoke plugin `OnConfigVerify` callbacks, so iface
-parser-level rejections (missing `encapsulation` case, both `local { ip }` and
-`local { interface }` set in the same block, `key` on kinds that do not
-support it) only fire when the daemon loads or reloads the config. A config
-file that passes `ze config validate` can still be rejected by the running
-daemon at reload time.
+`ze config validate`, API pre-save validation, and CLI commit validation run
+YANG schema checks plus registered side-effect-free in-process plugin verifiers.
+They do not call live external plugin `OnConfigVerify` callbacks because those
+callbacks are runtime transaction participants. Live external plugin verification
+runs when the daemon loads, reloads, or commits config; failed API commits roll
+the saved file back to the previous content before returning the reload error.
 
-<!-- source: cmd/ze/config/cmd_validate.go -- runValidation (YANG + BGP + hub only, no plugin OnConfigVerify) -->
-<!-- source: internal/component/iface/config.go -- parseTunnelEntry (iface tunnel validation runs at OnConfigVerify) -->
+Interface validation that has an in-process verifier, such as tunnel case
+consistency and backend feature gates, is visible in static validation. Any
+third-party external plugin that only implements a live `OnConfigVerify`
+callback is verified at daemon transaction time, not by `ze config validate`.
+
+<!-- source: cmd/ze/config/cmd_validate.go -- runValidation generic in-process plugin verifier loop -->
+<!-- source: internal/component/config/plugin_verify.go -- VerifyPluginConfig uses InProcessConfigVerifier only -->
+<!-- source: internal/component/iface/config.go -- parseTunnelEntry used by iface in-process verifier and OnConfigVerify -->
+<!-- source: internal/component/api/config_session.go -- failed reload restores previous content -->
 
 ## WireGuard Configuration
 

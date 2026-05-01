@@ -870,9 +870,46 @@ When static name servers are configured, DHCP-discovered DNS servers do not
 overwrite resolv.conf. When no static servers are configured, DHCP writes DNS
 to resolv-conf-path as before.
 
+The internal resolver never falls back to a public recursive resolver. If no
+static name server exists and the configured resolv.conf path is missing or
+empty, DNS queries fail with `no DNS server configured` until DHCP or config
+provides a server.
+
 <!-- source: internal/component/config/system/schema/ze-system-conf.yang -- system DNS config -->
 <!-- source: internal/component/resolve/dns/resolver.go -- NewResolver, Resolve -->
 <!-- source: cmd/ze/hub/main.go -- newResolvers wiring -->
+
+### NTP Client
+
+Configure NTP under `environment { ntp { } }`:
+
+```
+environment {
+    ntp {
+        enabled true
+        interval 300
+        max-step 3600
+        server pool0 {
+            address 0.pool.ntp.org
+        }
+    }
+}
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable NTP time synchronization. |
+| `interval` | uint32 | `3600` | Sync interval in seconds. Range: 60-86400. |
+| `max-step` | uint32 | `3600` | Maximum accepted NTP clock step in seconds. `0` explicitly allows unlimited steps. |
+| `persist-path` | string | `/perm/ze/timefile` | Path used to persist recovered time across restarts. |
+| `server <name>.address` | string | (none) | NTP server hostname or IP address. Configured servers take priority over DHCP option 42 servers. |
+
+NTP responses are validated and timestamps outside years 2020-2100 are
+rejected. `max-step` is checked before `settimeofday`; responses whose clock
+offset exceeds the cap are rejected and logged.
+
+<!-- source: internal/plugins/ntp/schema/ze-ntp-conf.yang -- NTP config schema -->
+<!-- source: internal/plugins/ntp/ntp.go -- parseNTPConfig, doSync -->
 
 ### Reactor Settings
 
@@ -920,6 +957,8 @@ standard named-server pattern under `environment { l2tp { } }`.
 l2tp {
     enabled true;
     shared-secret "my-tunnel-secret";
+    auth-method chap-md5;
+    allow-no-auth false;
     hello-interval 60;
     max-tunnels 1000;
     max-sessions 100;
@@ -942,9 +981,11 @@ Protocol settings (root `l2tp {}`):
 |---------|------|---------|-------------|
 | `enabled` | boolean | `true` | Presence of `l2tp {}` implies enabled. Use `enabled false` to disable. Use `enabled true` as a filler when no other settings are needed. |
 | `shared-secret` | string | (unset) | CHAP-MD5 challenge/response secret (RFC 2661 S4.2). If unset and a peer sends a Challenge AVP, the tunnel is rejected with StopCCN Result Code 4. |
+| `auth-method` | enum | `chap-md5` | PPP Auth-Protocol first advertised in LCP. Values: `chap-md5`, `ms-chap-v2`, `pap`, `none`. `none` requires `allow-no-auth true`. |
+| `allow-no-auth` | boolean | `false` | Allows PPP LCP to proceed without an Auth-Protocol after explicit operator opt-in. Default false disconnects peers that reject all configured authentication methods. |
 | `hello-interval` | uint16 | (unset) | Seconds of peer silence before sending HELLO (1-3600). RFC 2661 recommends 60. |
-| `max-tunnels` | uint16 | 0 (unbounded) | Maximum concurrent tunnels. New SCCRQs beyond the limit receive StopCCN Result Code 2. |
-| `max-sessions` | uint16 | 0 (unbounded) | Maximum concurrent sessions per tunnel. New ICRQs/OCRQs beyond the limit receive CDN Result Code 4 (no resources). |
+| `max-tunnels` | uint16 | 1024 | Maximum concurrent tunnels. `0` explicitly requests unbounded admission by this knob. New SCCRQs beyond a positive limit receive StopCCN Result Code 2. |
+| `max-sessions` | uint16 | 1024 | Maximum concurrent sessions per tunnel. `0` explicitly requests unbounded admission on each tunnel. New ICRQs/OCRQs beyond a positive limit receive CDN Result Code 4 (no resources). |
 
 Listener endpoints (`environment { l2tp { } }`):
 

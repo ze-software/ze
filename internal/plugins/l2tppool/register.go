@@ -162,9 +162,7 @@ func runPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
 
-	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		return verifyPoolConfig(sections)
-	})
+	p.OnConfigVerify(verifyPoolConfig)
 
 	var pending *ipv4Pool
 

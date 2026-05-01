@@ -263,9 +263,7 @@ func runSysctlPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		return verifySysctlConfig(sections)
-	})
+	p.OnConfigVerify(verifySysctlConfig)
 
 	var activeJournal *sdk.Journal
 

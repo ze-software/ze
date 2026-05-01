@@ -87,7 +87,8 @@ type Registration struct {
 
 	// In-process config verifier: side-effect-free equivalent of the plugin's
 	// OnConfigVerify callback. Static/API/CLI validation use this to reject the
-	// same malformed config without running OnConfigure or applying state.
+	// same malformed config without calling live external plugin callbacks,
+	// running OnConfigure, or applying state.
 	InProcessConfigVerifier func([]rpc.ConfigSection) error
 
 	// In-process config NLRI builder: builds NLRI bytes from config-format match criteria.

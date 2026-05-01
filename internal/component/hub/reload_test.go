@@ -55,6 +55,14 @@ func TestDiffPluginDefs(t *testing.T) {
 			wantKept:  []string{"bgp"},
 		},
 		{
+			name:      "run_changed",
+			old:       []PluginDef{{Name: "bgp", Run: "ze bgp --old"}},
+			new:       []PluginDef{{Name: "bgp", Run: "ze bgp --new"}},
+			wantAdded: []string{"bgp"},
+			wantRemov: []string{"bgp"},
+			wantKept:  nil,
+		},
+		{
 			name:      "empty_to_plugins",
 			old:       nil,
 			new:       []PluginDef{{Name: "bgp", Run: "ze bgp"}},
@@ -188,6 +196,39 @@ func TestOrchestratorReloadRemovePlugin(t *testing.T) {
 
 	assert.Equal(t, 1, len(o.config.Plugins))
 	assert.Nil(t, o.subsystems.Get("rib"))
+}
+
+// TestOrchestratorReloadChangedPluginRunKeepsSubsystem verifies a changed run
+// command is treated as a restart, not as an unchanged plugin.
+//
+// VALIDATES: Same-name plugin definition changes trigger restart handling.
+// PREVENTS: SIGHUP-only reload when the executable command changed.
+func TestOrchestratorReloadChangedPluginRunKeepsSubsystem(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.conf")
+
+	cfg := &HubConfig{
+		Plugins:    []PluginDef{{Name: "bgp", Run: "echo old"}},
+		Env:        map[string]string{},
+		Blocks:     map[string]any{},
+		ConfigPath: configPath,
+	}
+
+	newConfig := `plugin {
+	external bgp {
+		run "echo new";
+	}
+}
+`
+	require.NoError(t, os.WriteFile(configPath, []byte(newConfig), 0o644))
+
+	o := NewOrchestrator(cfg)
+	err := o.Reload(configPath)
+	require.NoError(t, err)
+
+	require.Len(t, o.config.Plugins, 1)
+	assert.Equal(t, "echo new", o.config.Plugins[0].Run)
+	assert.NotNil(t, o.subsystems.Get("bgp"), "changed plugin should remain registered after restart")
 }
 
 // TestOrchestratorReloadConfigParseError verifies parse error preserves running config.

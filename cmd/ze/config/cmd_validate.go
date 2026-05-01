@@ -266,8 +266,8 @@ func runValidation(input, path string) *validationResult {
 	}
 
 	// Generic plugin config verification. Uses in-process side-effect-free
-	// verifier hooks matching the SDK OnConfigVerify callbacks, and never runs
-	// OnConfigure.
+	// verifier hooks matching SDK OnConfigVerify semantics. Live external plugin
+	// callbacks run only in daemon reload/commit, and this never runs OnConfigure.
 	for _, verr := range config.VerifyPluginConfig(tree) {
 		result.Valid = false
 		result.Errors = append(result.Errors, validationError{Message: verr.Error()})

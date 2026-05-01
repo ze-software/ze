@@ -30,13 +30,12 @@ func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 		if inner.Type == TokenRBrace {
 			// Empty block — anonymous entry
 			p.tok.Next()
-			tree.AddListEntry(name, KeyDefault, NewTree())
-			return nil
+			return p.addParsedListEntry(tree, name, node, KeyDefault, NewTree(), tok.Line)
 		}
 
 		// If the first word is a known child field → anonymous entry
 		if (inner.Type == TokenWord || inner.Type == TokenString) && node.Get(inner.Value) != nil {
-			return p.parseListFieldBlock(tree, name, node, KeyDefault)
+			return p.parseListFieldBlock(tree, name, node, KeyDefault, inner.Line)
 		}
 
 		// Otherwise → block of inline entries (each line = key [positional values...] ;)
@@ -49,7 +48,7 @@ func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 		p.tok.Next()
 
 		if err := ValidateListKey(node, key); err != nil {
-			return p.errorf(tok, "invalid key for %s: %v", name, err)
+			return p.invalidListKeyError(tok, name, err)
 		}
 
 		tok = p.tok.Peek()
@@ -57,7 +56,7 @@ func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 		// key { ... } — named block entry with child fields
 		if tok.Type == TokenLBrace {
 			p.tok.Next() // consume {
-			return p.parseListFieldBlock(tree, name, node, key)
+			return p.parseListFieldBlock(tree, name, node, key, tok.Line)
 		}
 
 		// key [values...] ; — single inline entry with positional values
@@ -69,7 +68,7 @@ func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 
 // parseListFieldBlock parses the inside of { ... } as named fields for a single list entry.
 // The opening { has already been consumed.
-func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, key string) error {
+func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, key string, keyLine int) error {
 	entry := NewTree()
 
 	for {
@@ -114,8 +113,7 @@ func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, ke
 		}
 	}
 
-	tree.AddListEntry(name, key, entry)
-	return nil
+	return p.addParsedListEntry(tree, name, node, key, entry, keyLine)
 }
 
 // parseListInlineBlock parses a { ... } block containing multiple inline entries.
@@ -139,13 +137,13 @@ func (p *Parser) parseListInlineBlock(tree *Tree, name string, node *ListNode) e
 		p.tok.Next()
 
 		if err := ValidateListKey(node, key); err != nil {
-			return p.errorf(tok, "invalid key for %s: %v", name, err)
+			return p.invalidListKeyError(tok, name, err)
 		}
 
 		// Disambiguate: key { ... } = named block entry, key [values] ; = inline entry.
 		if p.tok.Peek().Type == TokenLBrace {
 			p.tok.Next() // consume {
-			if err := p.parseListFieldBlock(tree, name, node, key); err != nil {
+			if err := p.parseListFieldBlock(tree, name, node, key, tok.Line); err != nil {
 				return err
 			}
 			continue
@@ -222,8 +220,47 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 		entry.Set(children[lastIdx], value)
 	}
 
+	return p.addParsedListEntry(tree, name, node, key, entry, p.tok.line)
+}
+
+func (p *Parser) addParsedListEntry(tree *Tree, name string, node *ListNode, key string, entry *Tree, line int) error {
+	if entries := tree.GetList(name); entries != nil {
+		incomingInactive := isInactiveTree(entry)
+		allowDuplicate := allowsDuplicateParsedListEntries(node, key)
+		for existingKey, existing := range entries {
+			if StripListKeySuffix(existingKey) != key {
+				continue
+			}
+			if allowDuplicate || incomingInactive || isInactiveTree(existing) {
+				continue
+			}
+			return p.errorf(Token{Line: line}, "duplicate list key for %s: %s", name, key)
+		}
+	}
 	tree.AddListEntry(name, key, entry)
 	return nil
+}
+
+func allowsDuplicateParsedListEntries(node *ListNode, key string) bool {
+	if node == nil {
+		return false
+	}
+	if key == KeyDefault && node.KeyName == "" && node.DisplayKey != "" {
+		return true
+	}
+	children := node.Children()
+	if node.KeyName == "" || len(children) != 1 || children[0] != "content" {
+		return false
+	}
+	_, ok := node.Get("content").(*LeafNode)
+	return ok
+}
+
+func (p *Parser) invalidListKeyError(tok Token, name string, err error) error {
+	if name == "peer" {
+		return p.errorf(tok, "invalid peer name: %v", err)
+	}
+	return p.errorf(tok, "invalid key for %s: %v", name, err)
 }
 
 // parseMultiLeaf parses multiple words until semicolon: `name word word;`.

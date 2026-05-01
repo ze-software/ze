@@ -62,6 +62,12 @@ module ze-tacacs-conf {
                     description "Enable per-command TACACS+ authorization";
                 }
 
+                leaf strict-fallback {
+                    type boolean;
+                    default false;
+                    description "Deny authorization when TACACS+ is unavailable instead of falling back to local RBAC";
+                }
+
                 leaf accounting {
                     type boolean;
                     default false;

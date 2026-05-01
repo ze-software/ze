@@ -10,9 +10,11 @@ import (
 // fakeLocalAuthz is a test double for local RBAC (aaa.Authorizer shape).
 type fakeLocalAuthz struct {
 	allow bool
+	calls int
 }
 
 func (f *fakeLocalAuthz) Authorize(_, _, _ string, _ bool) bool {
+	f.calls++
 	return f.allow
 }
 
@@ -107,4 +109,18 @@ func TestTacacsAuthorizerErrorFallback(t *testing.T) {
 
 	result := authorizer.Authorize("admin", "10.0.0.1:22", "show version", true)
 	assert.True(t, result, "ERROR should fall back to local allow")
+}
+
+// VALIDATES: strict TACACS+ fallback denies when authorization is unavailable.
+// PREVENTS: local RBAC fail-open when operator requested strict TACACS+ authorization.
+func TestTacacsAuthorizerStrictFallbackDeniesUnreachable(t *testing.T) {
+	client := NewTacacsClient(TacacsClientConfig{
+		Timeout: 200 * time.Millisecond,
+	})
+	local := &fakeLocalAuthz{allow: true}
+	authorizer := NewTacacsAuthorizerWithFallback(client, local, nil, true)
+
+	result := authorizer.Authorize("admin", "10.0.0.1:22", "show version", true)
+	assert.False(t, result, "strict fallback should deny")
+	assert.Equal(t, 0, local.calls, "strict fallback must not call local RBAC")
 }

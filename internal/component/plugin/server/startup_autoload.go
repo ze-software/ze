@@ -6,6 +6,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -142,9 +143,10 @@ func (s *Server) getConfigPathPlugins() []plugin.PluginConfig {
 // Called during config reload when the diff shows new top-level keys.
 // Navigates into the nested config tree using paths from the diff,
 // matches against ConfigRoots, starts matching plugins via runPluginPhase.
-// Returns the names of successfully started plugins so the caller can
-// roll them back if the subsequent transaction fails.
-func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string]any, addedRoots []string) []string {
+// Returns the names of successfully started plugins so the caller can roll them
+// back if the subsequent transaction fails. Startup failures are returned so
+// reload fails closed instead of accepting config without its owner plugin.
+func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string]any, addedRoots []string) ([]string, error) {
 	// Build the set of all new paths by navigating into the nested tree.
 	// diff keys are slash-separated (e.g., "fib/kernel"), so we split and descend.
 	newPaths := make([]string, 0, len(addedRoots))
@@ -185,14 +187,14 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 	}
 
 	if len(needed) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	resolved, err := registry.ResolveDependencies(needed)
 	if err != nil {
 		logger().Error("config reload: dependency resolution failed, aborting auto-load",
 			"plugins", needed, "error", err)
-		return nil
+		return nil, fmt.Errorf("config-path auto-load dependency resolution: %w", err)
 	}
 
 	var plugins []plugin.PluginConfig
@@ -208,7 +210,7 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 	}
 
 	if len(plugins) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	if s.reactor != nil {
@@ -220,7 +222,7 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 		if s.reactor != nil {
 			s.reactor.AddAPIProcessCount(-len(plugins))
 		}
-		return nil
+		return nil, fmt.Errorf("config-path auto-load startup: %w", err)
 	}
 
 	// Signal post-startup to newly loaded plugins.
@@ -232,7 +234,7 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 	for i, p := range plugins {
 		started[i] = p.Name
 	}
-	return started
+	return started, nil
 }
 
 // navigateNestedMap descends into a nested map using a config path (e.g., "bgp/peer").

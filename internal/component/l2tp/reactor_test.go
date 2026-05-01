@@ -294,6 +294,24 @@ func TestReactor_MalformedSCCRQCreatesNoTunnel(t *testing.T) {
 	require.Equal(t, 0, peerMapLen)
 }
 
+// VALIDATES: hidden mandatory AVPs are rejected before any parser treats
+// ciphertext as a plaintext value.
+// PREVENTS: a hidden mandatory Host Name AVP from satisfying SCCRQ required
+// fields without decryption.
+func TestParseSCCRQ_HiddenMandatoryAVPRejected(t *testing.T) {
+	var buf [128]byte
+	off := 0
+	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgSCCRQ))
+	WriteAVPHeader(buf[:], off, FlagMandatory|FlagHidden, 0, AVPHostName, AVPHeaderLen+2)
+	copy(buf[off+AVPHeaderLen:], []byte{0xaa, 0xbb})
+	off += AVPHeaderLen + 2
+	off += WriteAVPUint16(buf[:], off, true, AVPAssignedTunnelID, 333)
+
+	_, err := parseSCCRQ(buf[:off])
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "hidden mandatory")
+}
+
 // TestReactor_SCCRQDedupBySecondaryIndex — AC-7. A retransmitted SCCRQ
 // with the same (peer, peer-assigned-TID) must route to the existing
 // tunnel's reliable engine rather than creating a second object.

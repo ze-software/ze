@@ -73,10 +73,11 @@ func (e *fakeEditor) Diff() string {
 	return b.String()
 }
 
-func (e *fakeEditor) Save() error             { return nil }
-func (e *fakeEditor) Discard() error          { e.values = make(map[string]string); return nil }
-func (e *fakeEditor) OriginalContent() string { return "# original\n" }
-func (e *fakeEditor) WorkingContent() string  { return "# config\n" }
+func (e *fakeEditor) Save() error                         { return nil }
+func (e *fakeEditor) RestoreOriginalContent(string) error { return nil }
+func (e *fakeEditor) Discard() error                      { e.values = make(map[string]string); return nil }
+func (e *fakeEditor) OriginalContent() string             { return "# original\n" }
+func (e *fakeEditor) WorkingContent() string              { return "# config\n" }
 
 // serveBackground starts a gRPC server in a background goroutine.
 // One-time test lifecycle goroutine, not per-event.

@@ -185,7 +185,16 @@ func VerifyCoARequestAuth(data, secret []byte) bool {
 	if pktLen < MinPacketLen || pktLen > len(data) {
 		return false
 	}
-	expected := AccountingRequestAuth(data, pktLen, secret)
+	authInput := data[:pktLen]
+	if maOff, hasMA, ok := messageAuthenticatorValueOffset(authInput); !ok {
+		return false
+	} else if hasMA {
+		buf := make([]byte, pktLen)
+		copy(buf, authInput)
+		clear(buf[maOff : maOff+AuthenticatorLen])
+		authInput = buf
+	}
+	expected := AccountingRequestAuth(authInput, pktLen, secret)
 	return subtle.ConstantTimeCompare(data[4:4+AuthenticatorLen], expected[:]) == 1
 }
 
@@ -203,30 +212,38 @@ func VerifyMessageAuthenticator(data, secret []byte) bool {
 
 	buf := make([]byte, pktLen)
 	copy(buf, data[:pktLen])
+	maOff, hasMA, ok := messageAuthenticatorValueOffset(buf)
+	if !ok || !hasMA {
+		return false
+	}
+	received := data[maOff : maOff+AuthenticatorLen]
+	clear(buf[maOff : maOff+AuthenticatorLen])
+	mac := hmac.New(md5.New, secret) //nolint:gosec // RFC 3579 mandates HMAC-MD5.
+	mac.Write(buf)
+	expected := mac.Sum(nil)
+	return hmac.Equal(received, expected)
+}
+
+func messageAuthenticatorValueOffset(data []byte) (offset int, present, ok bool) {
 	off := HeaderLen
-	for off < pktLen {
-		if off+2 > pktLen {
-			return false
+	for off < len(data) {
+		if off+2 > len(data) {
+			return 0, false, false
 		}
-		attrType := buf[off]
-		attrLen := int(buf[off+1])
-		if attrLen < 2 || off+attrLen > pktLen {
-			return false
+		attrType := data[off]
+		attrLen := int(data[off+1])
+		if attrLen < 2 || off+attrLen > len(data) {
+			return 0, false, false
 		}
 		if attrType == AttrMessageAuthenticator {
 			if attrLen != 2+AuthenticatorLen {
-				return false
+				return 0, false, false
 			}
-			received := data[off+2 : off+attrLen]
-			clear(buf[off+2 : off+attrLen])
-			mac := hmac.New(md5.New, secret) //nolint:gosec // RFC 3579 mandates HMAC-MD5.
-			mac.Write(buf)
-			expected := mac.Sum(nil)
-			return hmac.Equal(received, expected)
+			return off + 2, true, true
 		}
 		off += attrLen
 	}
-	return false
+	return 0, false, true
 }
 
 // AccountingRequestAuth computes the authenticator for an Accounting-Request.

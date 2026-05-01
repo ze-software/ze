@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -269,6 +270,37 @@ func TestReloadConfigNoChange(t *testing.T) {
 	reactor.mu.Lock()
 	assert.Nil(t, reactor.setTree)
 	reactor.mu.Unlock()
+}
+
+// TestReloadConfigAutoLoadDependencyFailureFailsClosed verifies a reload that
+// adds a config section owned by an auto-loaded plugin aborts when dependency
+// resolution fails.
+//
+// VALIDATES: Reload-time config-path plugin auto-load is fail-closed.
+// PREVENTS: New config becoming running config without the plugin that owns it.
+func TestReloadConfigAutoLoadDependencyFailureFailsClosed(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:         "auto-load-owner",
+		Description:  "test auto-load owner",
+		ConfigRoots:  []string{"autopath"},
+		Dependencies: []string{"missing-dep"},
+		RunEngine:    func(net.Conn) int { return 0 },
+		CLIHandler:   func([]string) int { return 0 },
+	}))
+
+	reactor := &mockReloadReactor{tree: map[string]any{}}
+	s := newTestReloadServer(t, reactor, nil)
+	newTree := map[string]any{"autopath": map[string]any{"enabled": "true"}}
+
+	err := s.ReloadConfig(context.Background(), newTree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "config-path auto-load")
+	assert.Contains(t, err.Error(), "missing-dep")
+	assert.Nil(t, reactor.setTree, "failed auto-load must not update running config")
 }
 
 // TestReloadConfigVerifyFails verifies that verify error aborts apply.

@@ -300,6 +300,7 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 	// Get key
 	tok := p.tok.Peek()
 	var key string
+	keyLine := tok.Line
 	if tok.Type == TokenWord || tok.Type == TokenString {
 		key = tok.Value
 		p.tok.Next()
@@ -425,8 +426,40 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 		}
 	}
 
+	return p.addParsedInlineListEntry(tree, name, node, key, entry, keyLine)
+}
+
+func (p *Parser) addParsedInlineListEntry(
+	tree *Tree,
+	name string,
+	node *InlineListNode,
+	key string,
+	entry *Tree,
+	line int,
+) error {
+	if entries := tree.GetList(name); entries != nil {
+		incomingInactive := isInactiveTree(entry)
+		for existingKey, existing := range entries {
+			if StripListKeySuffix(existingKey) != key {
+				continue
+			}
+			if incomingInactive || isInactiveTree(existing) || allowsDuplicateInlineListEntry(node, existing, entry) {
+				continue
+			}
+			return p.errorf(Token{Line: line}, "duplicate list key for %s: %s", name, key)
+		}
+	}
 	tree.AddListEntry(name, key, entry)
 	return nil
+}
+
+func allowsDuplicateInlineListEntry(node *InlineListNode, existing, incoming *Tree) bool {
+	if node == nil || node.Get("path-information") == nil {
+		return false
+	}
+	incomingPathInfo, incomingOK := incoming.Get("path-information")
+	existingPathInfo, existingOK := existing.Get("path-information")
+	return incomingOK && existingOK && incomingPathInfo != existingPathInfo
 }
 
 // skipBlock skips a nested block { ... }, including nested blocks.

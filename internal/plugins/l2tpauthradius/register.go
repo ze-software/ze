@@ -98,9 +98,7 @@ func runPlugin(conn net.Conn) int {
 		}
 	}()
 
-	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		return verifyRadiusAuthConfig(sections)
-	})
+	p.OnConfigVerify(verifyRadiusAuthConfig)
 
 	var pending *radiusConfig
 

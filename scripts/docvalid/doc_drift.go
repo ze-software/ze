@@ -87,6 +87,7 @@ func runChecks(root string) []issue {
 	issues = append(issues, checkReadmeMD(root, ciTotal, interopCount, fuzzCount, goTestCount)...)
 	issues = append(issues, checkFeaturesMD(root)...)
 	issues = append(issues, checkFunctionalTestsMD(root, releaseGateSuites)...)
+	issues = append(issues, checkMakefileHelp(root, releaseGateSuites)...)
 
 	return issues
 }
@@ -582,6 +583,38 @@ func checkFunctionalTestsMD(root string, gateSuites []string) []issue {
 		}
 	}
 	return issues
+}
+
+func checkMakefileHelp(root string, gateSuites []string) []issue {
+	path := filepath.Join(root, "Makefile")
+	lines, err := readLines(path)
+	if err != nil || len(gateSuites) == 0 {
+		return nil
+	}
+
+	re := regexp.MustCompile(`ze-functional-test\s+- Run ze functional tests \(([^)]*)\)`)
+	for i, line := range lines {
+		m := re.FindStringSubmatch(line)
+		if len(m) < 2 {
+			continue
+		}
+		claimed := splitSuiteList(m[1])
+		if sameStrings(claimed, gateSuites) {
+			return nil
+		}
+		return []issue{{
+			File:    "Makefile",
+			Line:    i + 1,
+			Message: "ze-functional-test help suite list does not match target",
+			Detail:  fmt.Sprintf("help: %s; target: %s", strings.Join(claimed, ", "), strings.Join(gateSuites, ", ")),
+		}}
+	}
+
+	return []issue{{
+		File:    "Makefile",
+		Line:    0,
+		Message: "ze-functional-test help line not found",
+	}}
 }
 
 func splitSuiteList(raw string) []string {

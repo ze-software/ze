@@ -24,9 +24,11 @@ live under `environment { l2tp { server ... } }`:
 l2tp {
     enabled true;
     shared-secret <secret>;     // CHAP-MD5 tunnel auth (RFC 2661 S4.2)
+    auth-method chap-md5;        // PPP Auth-Protocol first advertised
+    allow-no-auth false;         // explicit opt-in required for no-auth
     hello-interval 60;           // seconds of peer silence before HELLO
-    max-tunnels 0;               // 0 = unbounded (16-bit ceiling)
-    max-sessions 0;              // per-tunnel, 0 = unbounded
+    max-tunnels 1024;            // 0 explicitly means unbounded
+    max-sessions 1024;           // per-tunnel, 0 explicitly means unbounded
 }
 
 environment {
@@ -139,6 +141,13 @@ The subsystem handles the PPP auth protocol (PAP/CHAP wire framing),
 then dispatches an `EventAuthRequest` to the registered auth handler.
 The handler responds with accept/reject via a channel.
 
+By default, new sessions advertise `auth-method chap-md5` and
+`allow-no-auth false`. If a peer rejects every acceptable Auth-Protocol,
+the PPP session is disconnected after LCP instead of falling through to
+the no-auth accounting path. Set `allow-no-auth true` only for lab peers
+or explicit no-auth deployments; `auth-method none` is rejected unless
+that opt-in is present.
+
 Two auth handlers ship with ze:
 
 ### l2tp-auth-local
@@ -158,8 +167,8 @@ l2tp {
 }
 ```
 
-When no users are configured, all sessions are accepted (permissive
-default for testing).
+When no users are configured, the local handler rejects sessions. Add at
+least one user or configure RADIUS before enabling subscriber access.
 
 ### l2tp-auth-radius
 
@@ -430,6 +439,8 @@ each knob according to this policy:
 | `hello-interval` | Hot-apply; new tunnels use the new interval. Live tunnels keep theirs. |
 | `max-tunnels` | Hot-apply at next admission decision. |
 | `max-sessions` | Hot-apply at next admission decision. |
+| `auth-method` | Hot-apply to new PPP sessions. |
+| `allow-no-auth` | Hot-apply to new PPP sessions. |
 | `enabled` flip | Rejected with WARN. Restart to enable/disable. |
 | Listener endpoint change | Rejected with WARN. Restart to rebind. |
 

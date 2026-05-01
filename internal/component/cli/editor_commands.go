@@ -588,6 +588,17 @@ func (e *Editor) Save() error {
 	return nil
 }
 
+// RestoreOriginalContent writes the previous committed content back to disk
+// after a failed runtime reload while keeping the current candidate in memory.
+func (e *Editor) RestoreOriginalContent(content string) error {
+	if err := e.store.WriteFile(e.originalPath, []byte(content), 0o600); err != nil {
+		return fmt.Errorf("failed to restore config: %w", err)
+	}
+	e.originalContent = content
+	e.dirty.Store(true)
+	return nil
+}
+
 // Discard reverts working content and tree to original state.
 func (e *Editor) Discard() error {
 	e.workingContent = e.originalContent

@@ -315,6 +315,11 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 			}
 			continue
 		}
+		if skip, err := skipHiddenAVP("SCCRQ", attrType, flags); err != nil {
+			return sccrqInfo{}, err
+		} else if skip {
+			continue
+		}
 		if vendorID != 0 {
 			if flags&FlagMandatory != 0 {
 				return sccrqInfo{}, fmt.Errorf("l2tp: mandatory vendor %d AVP not recognized", vendorID)
@@ -495,6 +500,11 @@ func parseSCCCN(payload []byte) (scccnInfo, error) {
 			}
 			continue
 		}
+		if skip, err := skipHiddenAVP("SCCCN", attrType, flags); err != nil {
+			return scccnInfo{}, err
+		} else if skip {
+			continue
+		}
 		if vendorID != 0 {
 			if flags&FlagMandatory != 0 {
 				return scccnInfo{}, fmt.Errorf("l2tp: mandatory SCCCN vendor %d AVP not recognized", vendorID)
@@ -601,6 +611,11 @@ func parseStopCCN(payload []byte) (stopCCNInfo, error) {
 			if flags&FlagMandatory != 0 {
 				return stopCCNInfo{}, fmt.Errorf("l2tp: mandatory StopCCN AVP type %d with reserved bits set", attrType)
 			}
+			continue
+		}
+		if skip, err := skipHiddenAVP("StopCCN", attrType, flags); err != nil {
+			return stopCCNInfo{}, err
+		} else if skip {
 			continue
 		}
 		if vendorID != 0 {

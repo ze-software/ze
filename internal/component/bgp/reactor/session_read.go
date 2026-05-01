@@ -175,6 +175,21 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		//
 		// Loop detection (RFC 4271 S9, RFC 4456 S8) runs as an ingress filter
 		// in the reactor's message receiver callback (plugins/loop package).
+		if err := s.validateUpdateFamilies(wireUpdate.Payload()); err != nil {
+			if errors.Is(err, ErrFamilyNotNegotiated) {
+				s.mu.RLock()
+				conn := s.conn
+				s.mu.RUnlock()
+
+				// RFC 4760 Section 7: "The session SHOULD be terminated with the
+				// Notification message code/subcode indicating 'UPDATE Message Error'/
+				// 'Optional Attribute Error'."
+				s.logNotifyErr(conn, message.NotifyUpdateMessage, message.NotifyUpdateOptionalAttr, nil)
+				s.logFSMEvent(fsm.EventUpdateMsgErr)
+				s.closeConn()
+			}
+			return err, false
+		}
 	}
 
 	// RFC 4486: Check prefix limits BEFORE delivering to plugins.

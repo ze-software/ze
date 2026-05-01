@@ -14,13 +14,15 @@ import (
 
 // fakeEditor implements ConfigEditor for testing.
 type fakeEditor struct {
-	values    map[string]string
-	saved     bool
-	discarded bool
+	values          map[string]string
+	saved           bool
+	discarded       bool
+	originalContent string
+	restored        []string
 }
 
 func newFakeEditor() *fakeEditor {
-	return &fakeEditor{values: make(map[string]string)}
+	return &fakeEditor{values: make(map[string]string), originalContent: "# original\n"}
 }
 
 func (e *fakeEditor) SetValue(path []string, key, value string) error {
@@ -49,6 +51,12 @@ func (e *fakeEditor) Save() error {
 	return nil
 }
 
+func (e *fakeEditor) RestoreOriginalContent(content string) error {
+	e.restored = append(e.restored, content)
+	e.originalContent = content
+	return nil
+}
+
 func (e *fakeEditor) Discard() error {
 	e.discarded = true
 	e.values = make(map[string]string)
@@ -60,7 +68,7 @@ func (e *fakeEditor) WorkingContent() string {
 }
 
 func (e *fakeEditor) OriginalContent() string {
-	return "# original\n"
+	return e.originalContent
 }
 
 func fakeEditorFactory() ConfigEditorFactory {
@@ -83,12 +91,13 @@ func (e *serializingEditor) SetValue(_ []string, _, _ string) error {
 	return nil
 }
 
-func (e *serializingEditor) DeleteByPath(_ []string) error { return nil }
-func (e *serializingEditor) Diff() string                  { return "" }
-func (e *serializingEditor) Save() error                   { return nil }
-func (e *serializingEditor) Discard() error                { return nil }
-func (e *serializingEditor) OriginalContent() string       { return "" }
-func (e *serializingEditor) WorkingContent() string        { return "" }
+func (e *serializingEditor) DeleteByPath(_ []string) error       { return nil }
+func (e *serializingEditor) Diff() string                        { return "" }
+func (e *serializingEditor) Save() error                         { return nil }
+func (e *serializingEditor) RestoreOriginalContent(string) error { return nil }
+func (e *serializingEditor) Discard() error                      { return nil }
+func (e *serializingEditor) OriginalContent() string             { return "" }
+func (e *serializingEditor) WorkingContent() string              { return "" }
 
 // VALIDATES: AC-5 -- ConfigEnter + Set + Commit lifecycle.
 // PREVENTS: config session lifecycle broken.
@@ -159,6 +168,37 @@ func TestConfigSessionCommitHookFailureKeepsSession(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "runtime reload failed")
 	assert.Contains(t, err.Error(), "reload failed")
+
+	_, err = mgr.Diff("admin", id)
+	assert.NoError(t, err, "session should remain after failed hook")
+}
+
+// TestConfigSessionCommitHookFailureRollsBackSavedConfig verifies runtime
+// reload failure restores the previous file content before returning.
+//
+// VALIDATES: API commit is transactional across save and runtime reload.
+// PREVENTS: config file diverging from running state after reload rejects.
+func TestConfigSessionCommitHookFailureRollsBackSavedConfig(t *testing.T) {
+	editor := newFakeEditor()
+	mgr := NewConfigSessionManager(func() (ConfigEditor, error) { return editor, nil })
+	calls := 0
+	mgr.SetCommitHook(func() error {
+		calls++
+		return fmt.Errorf("candidate rejected")
+	})
+
+	id, err := mgr.Enter("admin")
+	require.NoError(t, err)
+	require.NoError(t, mgr.Set("admin", id, "bgp.router-id", "10.0.0.1"))
+
+	err = mgr.Commit("admin", id)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "runtime reload failed")
+	assert.Contains(t, err.Error(), "candidate rejected")
+	assert.Equal(t, 1, calls, "reload called once, file restored without second reload")
+	assert.Equal(t, []string{"# original\n"}, editor.restored)
+	assert.Equal(t, "# original\n", editor.OriginalContent())
+	assert.Equal(t, "# config\n", editor.WorkingContent(), "candidate should remain available for retry")
 
 	_, err = mgr.Diff("admin", id)
 	assert.NoError(t, err, "session should remain after failed hook")

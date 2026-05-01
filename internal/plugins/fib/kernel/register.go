@@ -100,9 +100,7 @@ func runFIBKernelPlugin(conn net.Conn) int {
 	var activeJournal *sdk.Journal
 	var pendingCfg fibConfig
 
-	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		return verifyFIBConfig(sections)
-	})
+	p.OnConfigVerify(verifyFIBConfig)
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		cfg, err := parseFIBConfig(sections)

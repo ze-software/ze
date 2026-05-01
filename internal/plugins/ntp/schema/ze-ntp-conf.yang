@@ -28,6 +28,16 @@ module ze-ntp-conf {
                 description "Sync interval in seconds";
             }
 
+            leaf max-step {
+                type uint32 {
+                    range "0..86400";
+                }
+                default 3600;
+                description
+                    "Maximum accepted NTP clock step in seconds. A value
+                     of 0 explicitly allows unlimited steps.";
+            }
+
             leaf persist-path {
                 type string;
                 default "/perm/ze/timefile";

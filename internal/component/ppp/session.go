@@ -46,6 +46,7 @@ type pppSession struct {
 	echoInterval      time.Duration
 	echoFailures      uint8
 	authTimeout       time.Duration
+	authRequired      bool
 	authFallbackOrder []AuthMethod
 	reauthInterval    time.Duration
 

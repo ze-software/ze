@@ -46,7 +46,7 @@ func TestSchema_ZeL2TPEntry(t *testing.T) {
 	l2tpRoot := entry.Dir["l2tp"]
 	require.NotNil(t, l2tpRoot, "root l2tp container should exist")
 
-	rootLeaves := []string{"enabled", "max-tunnels", "hello-interval", "shared-secret"}
+	rootLeaves := []string{"enabled", "max-tunnels", "max-sessions", "auth-method", "allow-no-auth", "hello-interval", "shared-secret"}
 	for _, name := range rootLeaves {
 		assert.NotNil(t, l2tpRoot.Dir[name], "root l2tp should have child %q", name)
 	}

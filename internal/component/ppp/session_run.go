@@ -485,6 +485,16 @@ func (s *pppSession) runAuthPhase() bool {
 
 	switch method {
 	case AuthMethodNone:
+		if s.authRequired {
+			reason := "no negotiated authentication method"
+			s.fail("auth: " + reason)
+			s.sendAuthEvent(EventAuthFailure{
+				TunnelID:  s.tunnelID,
+				SessionID: s.sessionID,
+				Reason:    reason,
+			})
+			return false
+		}
 		return s.runNoAuthPhase()
 	case AuthMethodPAP:
 		return s.runPAPAuthPhase()

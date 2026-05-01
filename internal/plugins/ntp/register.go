@@ -22,6 +22,8 @@ var (
 	eventBusRef ze.EventBus
 )
 
+const configRootEnvironment = "environment"
+
 func setEventBus(eb ze.EventBus) {
 	eventBusMu.Lock()
 	defer eventBusMu.Unlock()
@@ -45,7 +47,7 @@ func init() {
 		Description:             "NTP client: system clock synchronization",
 		Features:                "yang",
 		YANG:                    ntpschema.ZeNTPConfYANG,
-		ConfigRoots:             []string{"environment"},
+		ConfigRoots:             []string{configRootEnvironment},
 		InProcessConfigVerifier: verifyNTPConfig,
 		RunEngine:               runNTPPlugin,
 	}
@@ -69,7 +71,7 @@ func init() {
 
 func verifyNTPConfig(sections []sdk.ConfigSection) error {
 	for _, s := range sections {
-		if s.Root != "environment" {
+		if s.Root != configRootEnvironment {
 			continue
 		}
 		if _, err := parseNTPConfig(s.Data); err != nil {
@@ -121,7 +123,7 @@ func runNTPPlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, s := range sections {
-			if s.Root != "environment" {
+			if s.Root != configRootEnvironment {
 				continue
 			}
 			cfg, err := parseNTPConfig(s.Data)
@@ -136,7 +138,7 @@ func runNTPPlugin(conn net.Conn) int {
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		for _, s := range sections {
-			if s.Root != "environment" {
+			if s.Root != configRootEnvironment {
 				continue
 			}
 			cfg, err := parseNTPConfig(s.Data)
@@ -162,7 +164,7 @@ func runNTPPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"environment"},
+		WantsConfig:  []string{configRootEnvironment},
 		VerifyBudget: 2,
 		ApplyBudget:  5,
 	}); err != nil {

@@ -64,9 +64,7 @@ func runPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
 
-	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		return verifyShaperConfig(sections)
-	})
+	p.OnConfigVerify(verifyShaperConfig)
 
 	var pending *shaperConfig
 
