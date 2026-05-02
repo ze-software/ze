@@ -76,6 +76,11 @@ for complex orchestration. Precedent: `test/interop/run.py`, `test/interop/inter
 Advisory, not a sweep. Adopt opportunistically the next time you are in
 the relevant code.
 
+- **Early return over nested else.** Handle the error / edge case and
+  return immediately rather than wrapping the happy path in an else
+  block. Deep nesting makes control flow hard to follow; a sequence of
+  guard clauses followed by the main logic reads linearly. Applies to
+  `if err != nil { return }`, validation guards, and nil checks alike.
 - **Drain `time.NewTimer` on Stop.** If you use `time.NewTimer` directly
   and call `Stop()`, drain `.C` in a non-blocking select before `Reset()`,
   otherwise the next `Reset()` sees a stale firing and behaves wrong. The
