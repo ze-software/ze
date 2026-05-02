@@ -27,12 +27,13 @@ func init() { //nolint:gochecknoinits // logger bootstrap only
 // through this interface. Implementations are registered via RegisterBackend
 // and selected by the "backend" config leaf (default: "tc").
 //
-// Apply receives the full desired state keyed by interface name. The backend
-// reconciles qdiscs, classes, and filters on each interface.
+// Apply programs the desired state keyed by interface name. Backends that own
+// durable external objects must either reconcile removals inside Apply or
+// implement OriginalStateRestorer for explicit ownership release.
 //
 // Caller MUST call CloseBackend when done.
 type Backend interface {
-	// Apply receives full desired state and reconciles qdiscs/classes/filters.
+	// Apply programs qdiscs/classes/filters for the desired interfaces.
 	// The ctx is propagated from the component's plugin lifecycle: backends that
 	// can interrupt long-running kernel/IPC calls MUST honor cancellation so a
 	// daemon SIGTERM does not block on an unreachable service (e.g. VPP).
@@ -46,6 +47,13 @@ type Backend interface {
 
 	// Close releases resources held by the backend.
 	Close() error
+}
+
+// OriginalStateRestorer is implemented by backends that must preserve and
+// restore pre-Ze interface state when traffic-control ownership ends.
+// Backends that reconcile their own owned objects during Apply do not need it.
+type OriginalStateRestorer interface {
+	RestoreOriginal(ctx context.Context, ifaceName string) error
 }
 
 // DefaultBackendName returns the backend name used when the config does not

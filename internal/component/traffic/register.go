@@ -291,21 +291,21 @@ func runEngine(conn net.Conn) int {
 
 		b := GetBackend()
 
-		// Reset qdiscs on interfaces removed from config to kernel default.
-		if previousCfg != nil {
-			for name := range previousCfg.Interfaces {
-				if _, still := cfg.Interfaces[name]; !still {
-					reset := map[string]InterfaceQoS{name: {Qdisc: Qdisc{Type: QdiscFQCodel}}}
-					if cleanErr := b.Apply(runCtx, reset); cleanErr != nil {
-						log.Debug("traffic-control: cleanup removed interface", "name", name, "err", cleanErr)
-					}
-				}
-			}
-		}
-
 		j := sdk.NewJournal()
 		err := j.Record(
 			func() error {
+				if previousCfg != nil {
+					if restorer, ok := b.(OriginalStateRestorer); ok {
+						for name := range previousCfg.Interfaces {
+							if _, still := cfg.Interfaces[name]; still {
+								continue
+							}
+							if restoreErr := restorer.RestoreOriginal(runCtx, name); restoreErr != nil {
+								return fmt.Errorf("traffic-control cleanup removed interface %q: %w", name, restoreErr)
+							}
+						}
+					}
+				}
 				if applyErr := b.Apply(runCtx, cfg.Interfaces); applyErr != nil {
 					return fmt.Errorf("traffic-control reload: %w", applyErr)
 				}

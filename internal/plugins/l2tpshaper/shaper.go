@@ -88,10 +88,20 @@ func (s *shaperPlugin) onSessionUp(payload *l2tpevents.SessionUpPayload) {
 
 func (s *shaperPlugin) onSessionDown(payload *l2tpevents.SessionDownPayload) {
 	key := sessionKey{tunnelID: payload.TunnelID, sessionID: payload.SessionID}
-	if _, loaded := s.sessions.LoadAndDelete(key); loaded {
-		logger().Debug("l2tp-shaper: session removed from state",
-			"tunnel", payload.TunnelID, "session", payload.SessionID)
+	val, loaded := s.sessions.LoadAndDelete(key)
+	if !loaded {
+		return
 	}
+	if state, ok := val.(sessionState); ok {
+		if restorer, ok := traffic.GetBackend().(traffic.OriginalStateRestorer); ok {
+			if err := restorer.RestoreOriginal(context.Background(), state.iface); err != nil {
+				logger().Warn("l2tp-shaper: failed to restore original TC on session-down",
+					"interface", state.iface, "error", err)
+			}
+		}
+	}
+	logger().Debug("l2tp-shaper: session removed from state",
+		"tunnel", payload.TunnelID, "session", payload.SessionID)
 }
 
 func (s *shaperPlugin) onSessionRateChange(payload *l2tpevents.SessionRateChangePayload) {
