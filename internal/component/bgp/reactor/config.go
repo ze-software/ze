@@ -427,14 +427,25 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 		return nil, nil
 	}
 
+	peerNames := make([]string, 0, len(peerMap))
+	for peerName := range peerMap {
+		peerNames = append(peerNames, peerName)
+	}
+	slices.Sort(peerNames)
+
 	var peers []*PeerSettings
-	for peerName, val := range peerMap {
+	for _, peerName := range peerNames {
+		val := peerMap[peerName]
 		peerTree, ok := val.(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("peer %s: invalid config (expected map)", peerName)
 		}
 		ps, err := parsePeerFromTree(peerName, peerTree, localAS, routerID)
 		if err != nil {
+			if errors.Is(err, ErrIncompleteConfig) {
+				reactorLogger().Warn("skipping incomplete peer", "peer", peerName, "error", err)
+				continue
+			}
 			return nil, err
 		}
 

@@ -3,7 +3,7 @@
   <h2 class="wb-form-title">Recent Events</h2>
   <div class="wb-table-toolbar">
     <form method="get" action="/show/events/">
-      <select name="namespace" class="wb-form-input" onchange="this.form.submit()" aria-label="Namespace filter">
+      <select name="namespace" class="wb-form-input" data-action="submit-on-change" aria-label="Namespace filter">
         <option value="">All Namespaces</option>
         {{range .Namespaces}}<option value="{{.}}"{{if eq . $.SelectedNS}} selected{{end}}>{{.}}</option>{{end}}
       </select>

@@ -28,6 +28,18 @@
   var historyDraft = '';   // Saved input before browsing history.
   var selectedIndex = -1;  // Currently highlighted completion item (-1 = none).
 
+  function showBox(box) {
+    if (box) box.classList.remove('is-hidden');
+  }
+
+  function hideBox(box) {
+    if (box) box.classList.add('is-hidden');
+  }
+
+  function isBoxVisible(box) {
+    return !!box && !box.classList.contains('is-hidden');
+  }
+
   // Read CLI context path from the hidden element (updated via OOB swaps).
   function getContextPath() {
     var el = document.getElementById('cli-context-path');
@@ -40,7 +52,7 @@
     if (!input || !box) return;
 
     input.addEventListener('keydown', function(e) {
-      var dropdownVisible = box.style.display === 'block';
+      var dropdownVisible = isBoxVisible(box);
 
       // Arrow keys: dropdown navigation when visible, history when hidden.
       if (e.key === 'ArrowUp') {
@@ -91,7 +103,7 @@
             return;
           }
         }
-        box.style.display = 'none';
+        hideBox(box);
         cachedItems = null;
         selectedIndex = -1;
         var cmd = input.value.trim();
@@ -163,7 +175,7 @@
       }
 
       if (e.key === 'Escape') {
-        box.style.display = 'none';
+        hideBox(box);
         cachedItems = null;
         selectedIndex = -1;
         return;
@@ -194,7 +206,7 @@
       .then(function(r){ return r.json(); })
       .then(function(items){
         if (!items || items.length === 0) {
-          box.style.display = 'none';
+          hideBox(box);
           cachedItems = null;
           return;
         }
@@ -205,14 +217,14 @@
 
         if (items.length === 1) {
           input.value = cachedPrefix + items[0].text + ' ';
-          box.style.display = 'none';
+          hideBox(box);
           cachedItems = null;
           return;
         }
 
         showCompletions(input, box, items, cachedPrefix);
       })
-      .catch(function(){ box.style.display='none'; });
+      .catch(function(){ hideBox(box); });
   }
 
   function filterCached(input, box) {
@@ -223,7 +235,7 @@
     // If prefix changed (user typed a space = new token), clear cache.
     if (parts.prefix !== cachedPrefix) {
       cachedItems = null;
-      box.style.display = 'none';
+      hideBox(box);
       return;
     }
 
@@ -232,13 +244,13 @@
     });
 
     if (filtered.length === 0) {
-      box.style.display = 'none';
+      hideBox(box);
       return;
     }
 
     if (filtered.length === 1 && filtered[0].text.toLowerCase() === partial) {
       // Exact match, nothing more to show.
-      box.style.display = 'none';
+      hideBox(box);
       return;
     }
 
@@ -271,14 +283,14 @@
       }
       div.addEventListener('click', function() {
         input.value = prefix + c.text + ' ';
-        box.style.display = 'none';
+        hideBox(box);
         cachedItems = null;
         selectedIndex = -1;
         input.focus();
       });
       box.appendChild(div);
     });
-    box.style.display = 'block';
+    showBox(box);
     highlightItem(box, selectedIndex);
   }
 
@@ -338,6 +350,9 @@
       } else if (action === 'add-entry') {
         var baseURL = btn.getAttribute('data-base-url') || '/show/';
         showAddEntryOverlay(baseURL);
+      } else if (action === 'close-add-overlay') {
+        var addOverlay = document.getElementById('add-entry-overlay');
+        if (addOverlay) addOverlay.remove();
       } else if (action === 'rename-entry') {
         var url = btn.getAttribute('data-url');
         var key = btn.getAttribute('data-key');
@@ -371,6 +386,32 @@
       var openDropdown = document.querySelector('.portal-dropdown--open');
       if (openDropdown && !e.target.closest('.portal-menu')) {
         openDropdown.classList.remove('portal-dropdown--open');
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      if (e.target && e.target.classList && e.target.classList.contains('add-entry-overlay')) {
+        e.target.remove();
+      }
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Escape') return;
+      var overlay = document.getElementById('add-entry-overlay');
+      if (overlay && e.target && e.target.closest('#add-entry-overlay')) {
+        overlay.remove();
+      }
+    });
+
+    document.addEventListener('change', function(e) {
+      var control = e.target.closest('[data-action="submit-on-change"]');
+      if (control && control.form) control.form.submit();
+    });
+
+    document.addEventListener('htmx:afterRequest', function(e) {
+      if (e.target && e.target.matches('[data-close-on-after-request="true"]')) {
+        var overlay = document.getElementById('add-entry-overlay');
+        if (overlay) overlay.remove();
       }
     });
   }
@@ -594,7 +635,7 @@
     }
 
     input.addEventListener('keydown', function(e) {
-      var dropdownVisible = completionsBox && completionsBox.style.display === 'block';
+      var dropdownVisible = isBoxVisible(completionsBox);
 
       if (e.key === 'ArrowUp') {
         e.preventDefault();
@@ -644,7 +685,7 @@
             return;
           }
         }
-        if (completionsBox) { completionsBox.style.display = 'none'; }
+        hideBox(completionsBox);
         termCachedItems = null;
         termSelectedIndex = -1;
         var cmd = input.value.trim();
@@ -689,7 +730,7 @@
       }
 
       if (e.key === 'Escape') {
-        if (completionsBox) { completionsBox.style.display = 'none'; }
+        hideBox(completionsBox);
         termCachedItems = null;
         termSelectedIndex = -1;
         return;
@@ -710,7 +751,7 @@
         .then(function(r) { return r.json(); })
         .then(function(items) {
           if (!items || items.length === 0) {
-            if (box) box.style.display = 'none';
+              hideBox(box);
             termCachedItems = null;
             return;
           }
@@ -720,13 +761,13 @@
 
           if (items.length === 1) {
             inp.value = termCachedPrefix + items[0].text + ' ';
-            if (box) box.style.display = 'none';
+            hideBox(box);
             termCachedItems = null;
             return;
           }
           showCompletions(inp, box, items, termCachedPrefix);
         })
-        .catch(function() { if (box) box.style.display = 'none'; });
+        .catch(function() { hideBox(box); });
     }
 
     function filterTermCached(inp, box) {
@@ -735,18 +776,18 @@
       var partial = parts.partial.toLowerCase();
       if (parts.prefix !== termCachedPrefix) {
         termCachedItems = null;
-        if (box) box.style.display = 'none';
+          hideBox(box);
         return;
       }
       var filtered = termCachedItems.filter(function(c) {
         return c.text.toLowerCase().indexOf(partial) === 0;
       });
       if (filtered.length === 0) {
-        if (box) box.style.display = 'none';
+        hideBox(box);
         return;
       }
       if (filtered.length === 1 && filtered[0].text.toLowerCase() === partial) {
-        if (box) box.style.display = 'none';
+        hideBox(box);
         return;
       }
       showCompletions(inp, box, filtered, termCachedPrefix);

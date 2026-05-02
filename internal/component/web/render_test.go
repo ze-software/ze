@@ -3,11 +3,15 @@ package web
 import (
 	"errors"
 	"html/template"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 )
+
+var inlineHandlerPattern = regexp.MustCompile(`\s(?:on[a-z]+|hx-on(?:::|:)[^=]*)=`)
 
 // TestNewRenderer verifies that NewRenderer returns a non-nil renderer with no error.
 // VALIDATES: All embedded templates are valid html/template syntax.
@@ -32,6 +36,48 @@ func TestNewRenderer(t *testing.T) {
 
 	if r.assets == nil {
 		t.Error("renderer assets filesystem is nil")
+	}
+}
+
+// TestTemplatesAvoidInlineScriptAndStyle verifies templates stay compatible with strict CSP.
+// VALIDATES: Templates use external scripts/styles and delegated event handlers.
+// PREVENTS: Reintroducing inline JS/CSS that requires unsafe-inline CSP.
+func TestTemplatesAvoidInlineScriptAndStyle(t *testing.T) {
+	err := fs.WalkDir(templatesFS, "templates", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".html") {
+			return nil
+		}
+		contentBytes, readErr := templatesFS.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		content := string(contentBytes)
+		if strings.Contains(content, "<script>") {
+			t.Errorf("%s contains inline <script> block", path)
+		}
+		if strings.Contains(content, "style=") {
+			t.Errorf("%s contains inline style attribute", path)
+		}
+		if inlineHandlerPattern.MatchString(content) {
+			t.Errorf("%s contains inline event handler or hx-on attribute", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk templates: %v", err)
+	}
+}
+
+// TestHandleCLIPageAvoidsInlineStyle verifies generated CLI HTML also obeys strict CSP.
+// VALIDATES: Generated HTML uses CSS classes instead of inline style attributes.
+// PREVENTS: Strict CSP working for templates but failing on generated fragments.
+func TestHandleCLIPageAvoidsInlineStyle(t *testing.T) {
+	body := string(HandleCLIPage(nil))
+	if strings.Contains(body, "style=") {
+		t.Fatalf("HandleCLIPage contains inline style attribute: %s", body)
 	}
 }
 

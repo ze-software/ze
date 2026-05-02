@@ -138,9 +138,9 @@ func HandleCLIPage(renderer *Renderer) template.HTML {
 	fmt.Fprintf(&buf, `<span class="terminal-prompt" id="terminal-prompt">%s</span>`, template.HTMLEscapeString(prompt))
 	fmt.Fprintf(&buf, `<input type="text" class="terminal-input" id="terminal-input" `)
 	fmt.Fprintf(&buf, `autocomplete="off" spellcheck="false" name="command">`)
-	fmt.Fprintf(&buf, `<div class="terminal-completions" id="terminal-completions" style="display:none"></div>`)
+	fmt.Fprintf(&buf, `<div class="terminal-completions is-hidden" id="terminal-completions"></div>`)
 	fmt.Fprintf(&buf, `</div>`)
-	fmt.Fprintf(&buf, `<span id="cli-context-path" style="display:none"></span>`)
+	fmt.Fprintf(&buf, `<span id="cli-context-path" class="is-hidden"></span>`)
 	fmt.Fprintf(&buf, `</div>`)
 
 	return template.HTML(buf.String()) //nolint:gosec // trusted template output
@@ -1337,7 +1337,7 @@ func buildPathBarOOB(buf *strings.Builder, path []string, renderer *Renderer) {
 
 // buildContextOOB appends a hidden context path OOB swap element to buf.
 func buildContextOOB(buf *strings.Builder, path []string) {
-	fmt.Fprintf(buf, `<span id="cli-context-path" style="display:none" hx-swap-oob="true">%s</span>`,
+	fmt.Fprintf(buf, `<span id="cli-context-path" class="is-hidden" hx-swap-oob="true">%s</span>`,
 		template.HTMLEscapeString(strings.Join(path, "/")))
 }
 

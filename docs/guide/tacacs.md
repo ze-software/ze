@@ -11,7 +11,7 @@ device.
 |----------|--------|-------|
 | Authentication | Production | PAP (login over the SSH password callback). RFC 8907 §5. |
 | Accounting | Production | START + STOP records around every dispatched CLI command. |
-| Authorization | Wired (no `.ci` test) | `authorization true` switches per-command authorization on; the bridge falls back to local profiles on TACACS+ ERROR. |
+| Authorization | Production | `authorization true` switches per-command authorization on. By default the bridge falls back to local profiles on TACACS+ ERROR; `strict-fallback true` denies instead. |
 
 <!-- source: internal/component/tacacs/authenticator.go -- TacacsAuthenticator.Authenticate -->
 <!-- source: internal/component/tacacs/accounting.go -- TacacsAccountant.CommandStart/Stop -->
@@ -45,6 +45,7 @@ system {
 | `tacacs.timeout` | uint16 (1-300) | 5 | Per-server connection timeout in seconds |
 | `tacacs.source-address` | ip-address | none | Local source IP for outbound TACACS+ TCP |
 | `tacacs.authorization` | boolean | false | Enable per-command TACACS+ authorization |
+| `tacacs.strict-fallback` | boolean | false | Deny authorization when TACACS+ is unavailable instead of falling back to local RBAC |
 | `tacacs.accounting` | boolean | false | Enable START/STOP accounting records |
 | `tacacs-profile <N>.profile` | leaf-list | required | Maps priv-lvl `N` (0-15) to one or more local authz profiles |
 
@@ -127,6 +128,9 @@ The `.ci` tests in `test/plugin/` cover the main behaviours:
 | `tacacs-acct.ci` | `accounting true` -> mock receives ACCT START followed by STOP |
 | `tacacs-singleconnect.ci` | Single-connect mode TCP reuse |
 | `tacacs-show.ci` | `ze tacacs show` offline config display |
+
+Strict fallback is covered by `TestExtractConfigStrictFallback` and
+`TestTacacsAuthorizerStrictFallbackDeniesUnreachable` in the TACACS+ unit tests.
 
 For ad-hoc verification, point the daemon at a real TACACS+ server and
 run any command via `ze cli -c "summary"` -- the daemon log tags the

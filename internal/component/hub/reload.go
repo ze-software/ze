@@ -135,11 +135,7 @@ func (o *Orchestrator) Reload(configPath string) error {
 
 	startPlugin := func(p PluginDef) error {
 		reloadLogger().Info("reload: registering plugin", slog.String("plugin", p.Name))
-		o.subsystems.Register(pluginserver.SubsystemConfig{
-			Name:       p.Name,
-			Binary:     p.Run,
-			ConfigPath: configPath,
-		})
+		o.subsystems.Register(subsystemConfig(p, configPath))
 		if o.ctx == nil {
 			return nil
 		}
@@ -156,14 +152,39 @@ func (o *Orchestrator) Reload(configPath string) error {
 		return nil
 	}
 
-	// Start added plugins BEFORE stopping removed ones.
-	// If any fail, we abort the reload without having disrupted running plugins.
+	startReplacement := func(p PluginDef) (*pluginserver.SubsystemHandler, error) {
+		reloadLogger().Info("reload: starting changed plugin replacement", slog.String("plugin", p.Name))
+		handler := pluginserver.NewSubsystemHandler(subsystemConfig(p, configPath))
+		if o.ctx == nil {
+			return handler, nil
+		}
+		if err := handler.Start(o.ctx); err != nil {
+			handler.Stop()
+			reloadLogger().Error("reload: failed to start plugin",
+				slog.String("plugin", p.Name), slog.String("error", err.Error()))
+			return nil, fmt.Errorf("reload: start plugin %s: %w", p.Name, err)
+		}
+		return handler, nil
+	}
+
+	type replacement struct {
+		def     PluginDef
+		handler *pluginserver.SubsystemHandler
+	}
+	var replacements []replacement
 	var started []string
+
 	rollbackStarted := func() {
+		for _, repl := range replacements {
+			repl.handler.Stop()
+		}
 		for _, name := range started {
 			o.subsystems.Unregister(name)
 		}
 	}
+
+	// Start added plugins BEFORE stopping removed ones.
+	// If any fail, we abort the reload without having disrupted running plugins.
 	for _, p := range addedOnly {
 		if err := startPlugin(p); err != nil {
 			rollbackStarted()
@@ -171,18 +192,19 @@ func (o *Orchestrator) Reload(configPath string) error {
 		}
 		started = append(started, p.Name)
 	}
-	// Restart changed plugins: stop the old, then start the new. If the new
-	// definition fails to start, the plugin is lost for this reload attempt
-	// but the error aborts the entire reload and rollback cleans up any
-	// other newly-started plugins.
+	// Start changed-plugin replacements before unregistering the old handlers.
+	// If any replacement fails, the old plugin remains registered and running.
 	for _, p := range changed {
-		reloadLogger().Info("reload: restarting changed plugin", slog.String("plugin", p.Name))
-		o.subsystems.Unregister(p.Name)
-		if err := startPlugin(p); err != nil {
+		handler, err := startReplacement(p)
+		if err != nil {
 			rollbackStarted()
 			return err
 		}
-		started = append(started, p.Name)
+		replacements = append(replacements, replacement{def: p, handler: handler})
+	}
+	for _, repl := range replacements {
+		reloadLogger().Info("reload: replacing changed plugin", slog.String("plugin", repl.def.Name))
+		o.subsystems.Replace(repl.def.Name, repl.handler)
 	}
 
 	// All new plugins started — now safe to stop removed ones.
@@ -209,4 +231,12 @@ func (o *Orchestrator) Reload(configPath string) error {
 	o.config = newCfg
 
 	return nil
+}
+
+func subsystemConfig(p PluginDef, configPath string) pluginserver.SubsystemConfig {
+	return pluginserver.SubsystemConfig{
+		Name:       p.Name,
+		Binary:     p.Run,
+		ConfigPath: configPath,
+	}
 }

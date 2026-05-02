@@ -76,3 +76,20 @@ function initCQMChart(elemId, login) {
     }
   });
 }
+
+document.addEventListener("DOMContentLoaded", function() {
+  var chart = document.getElementById("cqm-chart");
+  if (chart) {
+    var login = chart.getAttribute("data-login");
+    if (login) initCQMChart("cqm-chart", login);
+  }
+
+  document.addEventListener("submit", function(e) {
+    var form = e.target.closest("[data-confirm]");
+    if (!form) return;
+    var message = form.getAttribute("data-confirm");
+    if (message && !window.confirm(message)) {
+      e.preventDefault();
+    }
+  });
+});

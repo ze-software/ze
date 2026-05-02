@@ -1,22 +1,19 @@
 {{define "add_form_overlay"}}
-<div class="add-entry-overlay" id="add-entry-overlay" onclick="if(event.target===this)this.remove()">
+<div class="add-entry-overlay" id="add-entry-overlay">
   <div class="add-entry-card">
     <h3>New {{.ListName}}</h3>
-    <form hx-post="{{.AddURL}}" hx-target="#detail" hx-swap="innerHTML"
-          hx-on::after-request="document.getElementById('add-entry-overlay')?.remove()">
+    <form hx-post="{{.AddURL}}" hx-target="#detail" hx-swap="innerHTML" data-close-on-after-request="true">
       {{if .Keyless}}
         {{if .DisplayKey}}
       <div class="add-entry-row">
-        <label class="add-entry-label">{{.DisplayKey}}</label>
-        <input type="text" class="add-entry-input" name="field:{{.DisplayKey}}" autofocus
-               onkeydown="if(event.key==='Escape'){document.getElementById('add-entry-overlay')?.remove()}">
+        <label class="add-entry-label" for="add-entry-key">{{.DisplayKey}}</label>
+        <input type="text" class="add-entry-input" id="add-entry-key" name="field:{{.DisplayKey}}" aria-label="{{.DisplayKey}}" autofocus>
       </div>
         {{end}}
       {{else}}
       <div class="add-entry-row">
-        <label class="add-entry-label">{{if .KeyName}}{{.KeyName}}{{else}}name{{end}}</label>
-        <input type="text" class="add-entry-input" name="name" required autofocus
-               onkeydown="if(event.key==='Escape'){document.getElementById('add-entry-overlay')?.remove()}">
+        <label class="add-entry-label" for="add-entry-key">{{if .KeyName}}{{.KeyName}}{{else}}name{{end}}</label>
+        <input type="text" class="add-entry-input" id="add-entry-key" name="name" aria-label="{{if .KeyName}}{{.KeyName}}{{else}}name{{end}}" required autofocus>
       </div>
       {{end}}
       {{range .Fields}}
@@ -30,7 +27,7 @@
       {{end}}
       <div class="add-entry-actions">
         <button type="submit" class="add-entry-submit">Create</button>
-        <button type="button" class="add-entry-cancel" onclick="document.getElementById('add-entry-overlay')?.remove()">Cancel</button>
+        <button type="button" class="add-entry-cancel" data-action="close-add-overlay">Cancel</button>
       </div>
     </form>
   </div>

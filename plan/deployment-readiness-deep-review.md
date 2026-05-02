@@ -1,6 +1,6 @@
 # Deployment Readiness Deep Review
 
-Date: 2026-05-01
+Date: 2026-05-02
 Scope: whole repository review for moving Ze out of experimental status.
 
 Method:
@@ -9,29 +9,31 @@ Method:
 - Original forked subsystem agents: BGP, config/engine/plugin framework, dataplane/network, access/AAA/subscriber protocols, UI/observability/API, docs/tests/release.
 - 2026-05-01 refresh: static cross-check of the current checkout against the original P0/P1/P2 findings, with direct file reads for the highest-risk open and resolved items.
 - 2026-05-01 remediation pass: code changes for the release gate, config/API validation, plugin reload, security policy, L2TP/PPP, DNS/NTP, and BGP unsupported-family handling.
-- 2026-05-02 local verification: `make ze-verify` passed after the remediation pass, including lint, cached unit tests, race unit tests, all 11 functional suites, and ExaBGP compatibility 37/37.
-- Current worktree is dirty with remediation edits and pre-existing unrelated changes. Treat this checkout as unsuitable for final release-candidate evidence until cleaned or intentionally incorporated and rerun on the target runner.
+- 2026-05-02 prior local verification: `make ze-verify` passed after the remediation pass, including lint, cached unit tests, race unit tests, all 11 functional suites, and ExaBGP compatibility 37/37.
+- 2026-05-02 static refresh: the refresh started from tracked-clean source code. `git status --short` showed one unrelated untracked file, `plan/comparison/mikrotik-winbox-vs-ze.md`. This review file is the only intended tracked edit from the refresh. No test, build, or lint command was rerun during this document update.
+- 2026-05-02 follow-up hardening pass: code/docs for BGP incomplete-peer handling, Web CSP inline removal, RADIUS Access-Accept exact-or-reject, bounded hub reload rollback, interface ownership-scoped deletion, VPP traffic startup orphan scan, stale docs/deferral drift, and a Docker-backed `make ze-linux-test` target for Linux-tagged Go unit tests from non-Linux workstations.
 
 Reference caveat: file:line references are snapshots from this review pass. Treat them as anchors to the cited function or block, not immutable coordinates; line numbers may drift as nearby code changes.
 
-Status: not deployment-ready. The original P0 surface has shrunk substantially, and several P1 security/protocol gaps are code-remediated. Release still depends on clean release-candidate gate evidence, global reload atomicity, interface/traffic rollback proof, RADIUS Access-Accept policy, CSP hardening, BGP incomplete-peer behavior, and privileged dataplane evidence.
+Status: not deployment-ready. The original P0 surface has shrunk substantially, and several P1 security/protocol gaps are code-remediated. Release still depends on clean release-candidate gate evidence from the target runner, privileged dataplane evidence, real VPP daemon evidence, and full L2TP peer/redistribution proof.
 
 Current state summary:
 
-- `make ze-verify` now targets lint, cached unit tests, race-on-changed unit tests, the 11-suite functional gate, and ExaBGP compatibility (`Makefile:353-358`). `.woodpecker/verify.yml` is present and runs `make ze-verify`.
-- The functional release gate is now 11 suites: encode, plugin, parse, decode, reload, ui, editor, managed, l2tp, firewall, and web (`Makefile:146-175`, `docs/functional-tests.md:17-21`). Makefile help and doc drift checks now derive or verify the same suite set.
-- Closed or code-remediated from the original P0 list: production/test plugin split, egress-filter wire assertions, SSH streaming authorization/accounting, API transport security, RADIUS client demux and CoA/DM replay cache plus `Message-Authenticator` enforcement, distinct route producer ownership IDs, scoped nft cleanup, and exact static route deletion.
-- Config validation is stronger than the previous review stated: YANG enum, range, and pattern checks are enforced; static/API/CLI validation runs registered in-process config verifiers; duplicate list keys are rejected by parser paths; API commit rolls disk config back on runtime reload failure. Live external plugin `OnConfigVerify` callbacks remain explicitly out of scope for static validation.
-- The current checkout has local green gate evidence, but it is not usable as final release-candidate evidence because the worktree is dirty with remediation edits and unrelated changes.
+- `make ze-verify` now targets lint, cached unit tests, race-on-changed unit tests, the 11-suite functional gate, and ExaBGP compatibility (`Makefile:356-362`). `.woodpecker/verify.yml` is present and runs `make ze-verify`.
+- The functional release gate is now 11 suites: encode, plugin, parse, decode, reload, ui, editor, managed, l2tp, firewall, and web (`Makefile:149-178`, `docs/functional-tests.md:17-21`). Makefile help and doc drift checks now derive or verify the same suite set.
+- Closed or code-remediated from the original P0/P1 list: production/test plugin split, egress-filter wire assertions, SSH streaming authorization/accounting, API transport security, RADIUS client demux and CoA/DM replay cache plus `Message-Authenticator` enforcement, distinct route producer ownership IDs, scoped nft cleanup, exact static route deletion, BGP incomplete-peer preservation of valid peers, strict Web CSP without inline script/style dependencies, unsupported RADIUS Access-Accept exact-or-reject policy, interface ownership-scoped deletion, and VPP traffic startup orphan policer scan.
+- Config validation is stronger than the previous review stated: YANG enum, range, and pattern checks are enforced; static/API/CLI validation runs registered in-process config verifiers; duplicate list keys are rejected by parser paths; API commit rolls disk config back on hook/reload failure. This does not close global runtime reload atomicity, which remains P0-4. Live external plugin `OnConfigVerify` callbacks remain explicitly out of scope for static validation.
+- The refresh started from tracked-clean source code with one unrelated untracked comparison document. This review file is the only intended tracked edit from the refresh. Prior local green gate evidence exists, but this static refresh did not rerun the gate, and no clean target-runner release-candidate result is recorded here.
+- Drift found during the 2026-05-02 static refresh has been corrected in this pass: `docs/functional-tests.md` now acknowledges `make ze-chaos-web-test`; `docs/features.md` reflects plugin autoload, reload-diff, provider/subsystem rollback, and transactional changed-plugin replacement; `docs/guide/tacacs.md` reflects strict fallback; the duplicate-key deferral row is closed; Makefile stress-test wording now says the in-tree ze-test peer injector; L2TP/RADIUS docs now reflect Access-Accept exact-or-reject behavior.
 
 ## P0 Release Blockers
 
 | ID | Area | Finding | Evidence | Risk | Required action |
 |----|------|---------|----------|------|-----------------|
-| P0-1 | Release gate evidence | Locally closed, release-candidate evidence still open. `.woodpecker/verify.yml` runs `make ze-verify`, Makefile help/drift checks agree with the 11-suite functional gate, and `make ze-verify` passed locally on 2026-05-02 after remediation. The worktree is still dirty, so this is not final release-candidate evidence. | `.woodpecker/verify.yml`, `Makefile:146-175`, `Makefile:353-358`, `scripts/docvalid/doc_drift.go`, `plan/known-failures.md:11-24`, `plan/known-failures.md:37-126`, `plan/known-failures.md:154-205` | A release can still ship without a clean, reproducible signal from the intended runner. The dirty checkout also prevents treating the local run as final release evidence. | Clean or intentionally incorporate the worktree changes, make `make ze-verify` green on a clean Linux runner, and triage every known failure as blocker, platform-only, or post-release. |
+| P0-1 | Release gate evidence | Locally closed, release-candidate evidence still open. `.woodpecker/verify.yml` runs `make ze-verify`, Makefile help/drift checks agree with the 11-suite functional gate, and `make ze-verify` passed locally on 2026-05-02 after remediation. This refresh started from tracked-clean source code with one unrelated untracked comparison document; this review file is the only intended tracked edit. The gate was not rerun and no target-runner result is recorded here. | `.woodpecker/verify.yml`, `Makefile:146-178`, `Makefile:356-362`, `scripts/docvalid/doc_drift.go`, `plan/known-failures.md:11-24`, `plan/known-failures.md:37-126`, `plan/known-failures.md:154-205`, `plan/known-failures.md:318-323` | A release can still ship without a clean, reproducible signal from the intended runner. Current source state is no longer blocked by tracked remediation edits, but the release-candidate evidence still has to come from the target environment. | Remove, ignore, or intentionally include the untracked comparison doc, make `make ze-verify` green on a clean Linux runner, and triage every known failure as blocker, platform-only, or post-release. |
 | P0-2 | Test evidence | Closed in code. Test-only plugins are excluded from production aggregation, and the eight egress-filter cases now assert destination-peer wire behavior. | `internal/component/plugin/all/all.go:81-139`, `cmd/ze/plugins_zetest.go:1-7`, `cmd/ze/main_test.go:22`, `test/plugin/community-strip.ci`, `test/plugin/forward-overflow-two-tier.ci`, `test/plugin/forward-two-tier-under-load.ci`, `test/plugin/role-otc-*.ci` | Regression risk if production aggregation imports test plugins again or wire assertions are weakened. | Preserve the production/test plugin split and keep destination `expect=bgp` assertions in the release gate. |
-| P0-3 | Config/API validation and commit | Closed in code. API commits validate before save and roll back the saved config if runtime reload fails; YANG enum/range/pattern checks are enforced; static/API/CLI validation runs registered in-process config verifiers; parser paths reject duplicate list keys; live external plugin `OnConfigVerify` callbacks are documented as reload/commit-time only. | `internal/component/api/config_session.go`, `internal/component/config/parser_list.go`, `internal/component/config/parser_freeform.go`, `internal/component/config/plugin_verify.go`, `internal/component/config/yang_schema.go:598-603`, `internal/component/config/schema.go:750-765` | Regression risk if rollback, duplicate-key rejection, or static/live plugin verifier scope drifts. | Keep rollback, duplicate-key, and verifier-scope tests/docs in the gate. |
-| P0-4 | Reload atomicity | Open. Plugin reload has transaction machinery (`plugin/server/reload.go` verify-apply with txLock and rollback), but the engine still iterates subsystems sequentially and returns on first error without rolling back already-reloaded subsystems. | `internal/component/hub/reload.go` (orchestrator plugin lifecycle), `internal/component/plugin/server/reload.go:228-247` (config reload transactions), `internal/component/engine/engine.go:121-132` (subsystem iteration, no rollback) | Failed reload can leave plugins, config provider, and subsystems on different versions. | Introduce all-or-nothing reload across plugin transactions, provider roots, and subsystem reload, or preflight all failing work before mutating shared runtime state. |
+| P0-3 | Config/API validation and commit | Closed in code for validation and saved-config rollback. API commits validate before save and roll back the saved config if the commit hook or reload path fails; YANG enum/range/pattern checks are enforced; static/API/CLI validation runs registered in-process config verifiers; parser paths reject duplicate list keys; live external plugin `OnConfigVerify` callbacks are documented as reload/commit-time only. | `internal/component/api/config_session.go`, `internal/component/config/parser_list.go`, `internal/component/config/parser_freeform.go`, `internal/component/config/plugin_verify.go`, `internal/component/config/yang_schema.go:583-603`, `internal/component/config/schema.go:748-783` | Regression risk if rollback, duplicate-key rejection, or static/live plugin verifier scope drifts. Runtime side effects after a later global reload failure remain covered by P0-4, not this row. | Keep rollback, duplicate-key, and verifier-scope tests/docs in the gate. |
+| P0-4 | Reload atomicity | Code-remediated for the reviewed reload paths. Hub `doReload` snapshots config-provider roots before mutation and rolls plugin config, provider roots, and subsystems back if subsystem reload fails. Plugin-server reload has transaction machinery (`plugin/server/reload.go` verify-apply with txLock and rollback). Orchestrator-mode changed-plugin replacement now pre-starts replacements before removing old handlers, and reload-added/replaced subsystems update the frozen dispatch snapshot. | `cmd/ze/hub/main.go` (provider snapshot + rollback), `cmd/ze/hub/main_test.go` (rollback regression), `internal/component/plugin/server/reload.go:232-266` (config reload transactions), `internal/component/hub/reload.go` (transactional changed-plugin replacement), `internal/component/hub/reload_test.go`, `internal/component/plugin/server/subsystem.go`, `internal/component/plugin/server/subsystem_test.go` | Regression risk if future reload paths mutate runtime state before verification or without rollback hooks. Privileged component side effects remain covered under dataplane evidence, not this row. | Keep provider/subsystem rollback, changed-plugin failure, and frozen-snapshot reload tests in the gate. |
 | P0-5 | Authorization | Closed in code. SSH streaming commands now use dispatcher authorization/accounting with user and remote-address propagation. | `cmd/ze/hub/infra_setup.go:213-236`, `internal/component/ssh/ssh.go:631-640` | Regression risk if future streaming paths bypass dispatcher wrappers. | Keep denied streaming-command and accounting tests in the gate. |
 | P0-6 | API transport security | Closed in code for the reviewed exposure. REST rejects non-loopback listeners because it has no TLS transport, and gRPC rejects non-loopback listeners unless auth and TLS are configured. | `internal/component/api/rest/server.go:99-126`, `internal/component/api/grpc/server.go:87-127` | Regression risk if listener policy is weakened or docs drift. | Keep transport policy tests and docs aligned with loopback REST and authenticated TLS gRPC. |
 | P0-7 | RADIUS/L2TP security | Closed in code for the original P0. RADIUS responses demux by `(server, identifier)` map key with per-waiter authenticator verification via `VerifyResponseAuth`; CoA/DM requires fresh `Event-Timestamp`; duplicates return cached responses without replaying side effects; CoA/DM now requires valid `Message-Authenticator`. | `internal/component/radius/client.go:46-49` (responseKey), `internal/component/radius/client.go:242-261` (dispatch + auth verify), `internal/component/radius/packet.go`, `internal/plugins/l2tpauthradius/coa.go`, `internal/plugins/l2tpauthradius/coa_test.go` | Regression risk if CoA/DM authentication or replay cache semantics are weakened. | Keep CoA/DM missing/invalid `Message-Authenticator`, replay, and demux tests in the gate. |
@@ -45,16 +47,16 @@ Resolved P1 findings now tracked as regression coverage: `SplitWireUpdate` nil s
 
 | Area | Finding | Evidence | Required action |
 |------|---------|----------|-----------------|
-| BGP config | One incomplete peer causes all peers to be dropped despite comments saying incomplete peers are skipped. | `internal/component/bgp/config/loader_create.go:89-98` | Return partial valid peer list plus per-peer warnings, or reject the config loudly. |
+| BGP config | Closed in code. Incomplete peers are skipped without dropping valid peers; hard peer errors still fail. | `internal/component/bgp/reactor/config.go`, `internal/component/bgp/reactor/config_test.go`, `internal/component/bgp/config/loader_create.go` | Keep partial-valid-peer and hard-error regression tests in the gate. |
 | BGP protocol | Closed in code for strict unsupported-family UPDATE handling. Non-negotiated MP_REACH_NLRI is rejected before plugin delivery, sends UPDATE Message Error / Optional Attribute Error, and closes the session. | `internal/component/bgp/reactor/session_read.go`, `internal/component/bgp/reactor/session_test.go` | Keep the non-negotiated MP family NOTIFICATION regression test in the gate. |
 | Plugin lifecycle | Closed in code. Config-path auto-load failures now fail closed during startup and reload when a required config-root plugin cannot load. | `internal/component/plugin/server/startup_autoload.go`, `internal/component/plugin/server/reload.go`, `internal/component/plugin/server/reload_test.go` | Keep reload auto-load fail-closed tests in the gate. |
 | Hub reload | Closed in code. Orchestrator-mode reload diffs the full plugin definition and restarts when executable/config source changes. | `internal/component/hub/reload.go`, `internal/component/hub/reload_test.go` | Keep same-name changed-`run` restart tests in the gate. |
-| Web CSP | CSP says `script-src 'self'`, but templates contain inline scripts; inline styles are still allowed. | `internal/component/web/auth.go:281-286`, `internal/component/web/templates/page/layout.html:35-64`, `internal/component/web/templates/page/workbench.html:40-69` | Move scripts to static assets or use nonce/hash-based CSP deliberately. |
-| Interface management | Reload deletes manageable link types absent from config based on type, not persistent ownership. | `internal/component/iface/config.go:1269-1282` | Add explicit ze ownership marker or adoption model before destructive reconciliation. |
-| Interface rollback | Interface apply/rollback is best-effort, continues after individual failures, and may delete/recreate tunnels. | `internal/component/iface/config.go:990-992`, `internal/component/iface/register.go:441-474`, `internal/component/iface/config.go:1045-1056` | Add transactional preflight, scoped inverse rollback, and privileged failure tests. |
-| Traffic control | Netlink cleanup does not restore original qdisc; VPP cleanup/rebind/orphan behavior has open gaps. | `internal/plugins/traffic/netlink/backend_linux.go:23-44`, `internal/component/traffic/register.go:278-287`, `plan/deferrals.md:204-213` | Add explicit reconcile semantics and real privileged/VPP evidence. |
+| Web CSP | Closed in code. CSP is now `default-src 'self'; script-src 'self'; style-src 'self'`, with inline scripts/styles/handlers moved to static assets or CSS classes. | `internal/component/web/auth.go`, `internal/component/web/assets/cli.js`, `internal/component/web/assets/notification.js`, `internal/component/web/render_test.go`, web templates | Keep security-header and no-inline-template tests in the gate. |
+| Interface management | Closed in code for destructive reconciliation ownership. Reload deletes only interfaces Ze managed in the previous config and which disappeared from the current config; first apply does not adopt/delete arbitrary existing manageable links. | `internal/component/iface/config.go`, `internal/component/iface/config_test.go` | Keep ownership-scoped deletion tests and add privileged kernel-state evidence. |
+| Interface rollback | Partially narrowed. Ownership-scoped deletion prevents rollback/reload from deleting unrelated manageable links, but interface apply is still best-effort and continues after individual failures; tunnel spec changes may still delete/recreate. | `internal/component/iface/config.go`, `internal/component/iface/register.go` | Add transactional preflight, scoped inverse rollback, and privileged failure tests. |
+| Traffic control | Partially code-remediated. VPP apply has undo-on-error, same-run removal reconciliation, stale-index tolerant deletes, and a startup scan that removes undesired `ze/` policers before re-applying desired state. Netlink cleanup still resets removed interfaces to `fq_codel`, not the original qdisc, and real-daemon/VPP idempotency evidence remains open. | `internal/plugins/traffic/netlink/backend_linux.go:23-44`, `internal/component/traffic/register.go:294-303`, `internal/plugins/traffic/vpp/backend_linux.go`, `internal/plugins/traffic/vpp/apply_test.go`, `plan/deferrals.md:204-213` | Define original-qdisc restore/reconcile semantics and produce real privileged/VPP evidence. |
 | L2TP/PPP | Closed in code for the reviewed safety policy. PPP required auth rejects `AuthMethodNone`; L2TP defaults have finite caps and CHAP-MD5 auth; no-auth requires explicit `allow-no-auth true`; hidden mandatory AVPs fail closed. | `internal/component/ppp/start_session.go`, `internal/component/ppp/session_run.go`, `internal/component/l2tp/config.go`, `internal/component/l2tp/avp.go`, `internal/component/l2tp/schema/ze-l2tp-conf.yang` | Keep PPP required-auth, L2TP auth-policy, caps, reload, CLI, and hidden mandatory AVP tests in the gate. |
-| RADIUS policy | Access-Accept mostly ignores deployment-critical attributes such as Framed-IP-Address, Framed-Pool, Filter-Id, timeouts, and rate policy. | `internal/plugins/l2tpauthradius/handler.go:109-119`, `internal/plugins/l2tppool/register.go:108-143`, `docs/features.md:87` | Implement or explicitly reject unsupported RADIUS attributes, and correct docs. |
+| RADIUS policy | Closed in code for exact-or-reject. Access-Accept rejects unsupported deployment-affecting attributes (`Framed-IP-Address`, `Framed-IP-Netmask`, `Framed-Pool`, `Filter-Id`, `Session-Timeout`, `Idle-Timeout`, `Acct-Interim-Interval`) instead of accepting and ignoring them. | `internal/plugins/l2tpauthradius/handler.go`, `internal/plugins/l2tpauthradius/handler_test.go`, `docs/guide/l2tp.md`, `docs/guide/plugins.md`, `docs/features.md` | Keep unsupported Access-Accept attribute rejection tests and docs aligned. |
 | RADIUS CoA policy | Closed in code. CoA/DM requires valid `Message-Authenticator`; missing or invalid packets are rejected before side effects. | `internal/plugins/l2tpauthradius/coa.go`, `internal/component/radius/packet.go`, `internal/plugins/l2tpauthradius/coa_test.go` | Keep missing/invalid `Message-Authenticator` tests in the gate. |
 | TACACS+ | Closed in code. Configurable `strict-fallback` denies local fallback on TACACS infrastructure failure when enabled. | `internal/component/tacacs/authorizer.go`, `internal/component/tacacs/config.go`, `internal/component/tacacs/schema/ze-tacacs-conf.yang` | Keep strict fallback config and authorizer tests in the gate. |
 | DNS/NTP | Closed in code for the reviewed production-safety policy. DNS resolver no longer falls back to public recursive DNS when no resolver is configured; NTP has bounded `max-step` with explicit `0` opt-out. | `internal/component/resolve/dns/resolver.go`, `internal/plugins/ntp/ntp.go`, `internal/plugins/ntp/schema/ze-ntp-conf.yang` | Keep no-public-fallback and NTP `max-step` tests in the gate. |
@@ -63,14 +65,14 @@ Resolved P1 findings now tracked as regression coverage: `SplitWireUpdate` nil s
 
 | Area | Finding | Evidence | Action |
 |------|---------|----------|--------|
-| Documentation | Closed in code for the functional gate claim. Functional-test docs, Makefile help, and drift checks agree on the 11-suite release gate. | `docs/functional-tests.md:17-36`, `Makefile:146-175`, `scripts/docvalid/doc_drift.go` | Keep gate claims derived or drift-checked when suite membership changes. |
-| Feature inventory | Current repo has `docs/features.md` status labels for every row: supported, experimental, partial, rejected, stub-backed, or future. It also includes explicit partial/stub caveats for REST/gRPC streaming, L2TP redistribution/access gaps, VPP, dataplane evidence, config validation, reload atomicity, TACACS strict mode, and DNS resolver policy. | `docs/features.md:5-113` | Keep status labels current as feature claims change. |
+| Documentation | Closed for drift found in this review pass. Functional-test docs, Makefile help, and drift checks agree on the 11-suite release gate; chaos-web and stress runner wording is current; TACACS strict fallback and RADIUS Access-Accept exact-or-reject docs are aligned. | `docs/functional-tests.md`, `Makefile`, `docs/guide/tacacs.md`, `docs/guide/l2tp.md`, `docs/guide/plugins.md`, `docs/features.md`, `scripts/docvalid/doc_drift.go` | Keep gate claims derived or drift-checked when suite membership changes. |
+| Feature inventory | Current repo has `docs/features.md` status labels for every row: supported, experimental, partial, rejected, stub-backed, or future. It includes explicit partial/stub caveats for REST/gRPC streaming, L2TP redistribution/access gaps, VPP, dataplane evidence, config validation, reload atomicity, TACACS strict mode, DNS resolver policy, RADIUS Access-Accept rejection, and VPP traffic orphan cleanup. | `docs/features.md:5-113` | Keep status labels current as feature claims change. |
 | Doc drift tooling | Closed in code for the release-gate help gap. Drift checks cover README test-count claims, feature inventory status labels, functional-test release-gate claims derived from the Makefile, and Makefile help drift. | `scripts/docvalid/doc_drift.go`, `Makefile:921-924` | Add new user-facing release docs and help claims to drift checks when they contain factual counts or status lists. |
 | README counts | README test counts are conservative, dated approximate claims instead of brittle exact totals. | `README.md:3`, `README.md:57-60` | Keep approximate/date wording or derive exact counts in generated docs. |
 | API streaming | Production docs now say REST/gRPC streaming hooks return `streaming not supported` because the hub passes nil stream backend, and OpenAPI remains generic execute-only. Runtime still exposes the REST handler and gRPC method, so wiring a real backend remains open if streaming is a supported production claim. | `cmd/ze/hub/api.go:187-196`, `internal/component/api/engine.go:123-126`, `docs/guide/api.md:77-83`, `docs/guide/api.md:173-179` | Either wire a production stream backend or keep the unsupported status explicit. |
-| Config sessions | Per-session serialization is implemented and covered. The remaining config-session issue is API save/reload rollback and is tracked as P0-3. | `internal/component/api/config_session.go:43-51`, `internal/component/api/config_session.go:207-239`, `internal/component/api/config_session_test.go:249-280` | Keep concurrency tests and close rollback under P0-3. |
+| Config sessions | Per-session serialization is implemented and covered. API saved-config rollback is also code-closed under P0-3; the remaining transactional issue is global runtime reload atomicity under P0-4. | `internal/component/api/config_session.go:43-51`, `internal/component/api/config_session.go:207-245`, `internal/component/api/config_session_test.go:249-280`, `cmd/ze/hub/main.go:817-865` | Keep concurrency and rollback tests, and close full runtime rollback under P0-4. |
 | Test infrastructure | Port allocation probes and releases ports before later bind, matching known flakes. | `internal/test/runner/ports.go:26-66`, `plan/known-failures.md:21-24`, `plan/known-failures.md:107-123` | Reserve ports for the lifetime of each test or use per-test network namespace/isolation. |
-| Open deferrals | Many open rows remain release-relevant: static/live plugin validation parity, L2TP peer tests and redistribution, RADIUS Access-Accept policy, VPP real-daemon CI, traffic privileged evidence, BMP Loc-RIB, and raw plugin IPC. Duplicate parser keys, L2TP auth/caps/hidden mandatory AVPs, and DNS/NTP safety policy are code-remediated. | `plan/deferrals.md:147-148`, `plan/deferrals.md:162-170`, `plan/deferrals.md:175-181`, `plan/deferrals.md:195`, `plan/deferrals.md:200-213`, `plan/deferrals.md:231` | Triage every open row into release blocker, scoped deployment exclusion, post-deployment backlog, or explicitly unsupported. |
+| Open deferrals | Open release-relevant rows remain for L2TP peer tests and redistribution, VPP real-daemon CI, traffic privileged evidence, BMP Loc-RIB, raw plugin IPC, and some static/live plugin validation parity work. Duplicate parser keys, L2TP auth/caps/hidden mandatory AVPs, DNS/NTP safety policy, RADIUS Access-Accept policy, and VPP traffic orphan scan are code-remediated or re-triaged. | `plan/deferrals.md:162-181`, `plan/deferrals.md:195`, `plan/deferrals.md:200-213`, `plan/deferrals.md:231` | Triage remaining open rows into release blocker, scoped deployment exclusion, post-deployment backlog, or explicitly unsupported. |
 
 ## Deployment Plan
 
@@ -80,7 +82,7 @@ Exit criteria:
 
 - Worktree is clean, or every dirty change is intentionally part of the release candidate.
 - `make ze-verify` green on a clean Linux runner.
-- GitHub or Codeberg CI runs at least `make ze-verify` on every PR.
+- Woodpecker/Codeberg CI runs at least `make ze-verify` on every PR.
 - `plan/known-failures.md` contains no untriaged release blockers.
 - Release-gate documentation, Makefile help, and drift checks agree on the same suite set.
 
@@ -89,6 +91,7 @@ Work items:
 - Keep the authoritative CI gate for `make ze-verify` documented and enabled.
 - Resolve or classify the known flakes and platform-only failures that remain in `plan/known-failures.md`.
 - Keep Makefile help, docs, and drift checks aligned for `ze-functional-test`.
+- Fix stale non-gate target wording for `ze-chaos-web-test` and the `ze-stress-test` runner message.
 - Keep the eight egress-filter tests on destination-peer wire assertions.
 - Keep production imports of `internal/test/plugins/*` excluded outside `zetest` builds.
 
@@ -110,7 +113,7 @@ Work items:
 - Keep CoA/DM `Message-Authenticator` requirements covered.
 - Keep L2TP mandatory auth, non-zero caps, and hidden mandatory AVP rejection covered.
 - Keep DNS no-public-fallback and NTP max-step policy covered.
-- Harden CSP without breaking HTMX/Finder behavior.
+- Keep strict CSP/no-inline coverage without breaking HTMX/Finder behavior.
 
 ### Phase 2: Configuration And Transaction Correctness
 
@@ -128,7 +131,7 @@ Work items:
 - Keep API commit rollback covered.
 - Keep duplicate list-key rejection covered.
 - Keep static validation semantics for live external plugin callbacks documented.
-- Add subsystem rollback or full reload preflight before provider mutation.
+- Keep hub subsystem/provider rollback and orchestrator changed-plugin replacement covered.
 - Keep reload config-path autoload fail-closed behavior covered.
 - Keep full plugin-definition diffing on hub reload covered.
 
@@ -147,9 +150,10 @@ Exit criteria:
 Work items:
 
 - Add privileged route/nft ownership and recovery tests for the code-remediated route owner split.
-- Add interface ownership/adoption model.
+- Keep interface ownership/adoption model covered.
 - Add interface transactional preflight and failure tests.
 - Define traffic-control original-qdisc restore/reconcile semantics.
+- Keep VPP traffic startup orphan scan covered, and add real-daemon proof.
 - Add VPP real-daemon CI for traffic/FIB idempotency and restart cases.
 
 ### Phase 4: BGP And Routing Correctness
@@ -164,7 +168,7 @@ Exit criteria:
 
 Work items:
 
-- Fix incomplete-peer handling.
+- Keep incomplete-peer handling covered.
 - Keep unsupported-family NOTIFICATION behavior tests covered.
 - Keep `SplitWireUpdate`, ADD-PATH, and enhanced route-refresh regression coverage in the gate.
 - Triage LLGR/BMP/RIB-inject open deferrals before support claims.
@@ -184,7 +188,7 @@ Exit criteria:
 Work items:
 
 - Add full L2TP + PPP + NCP functional peer test.
-- Implement or reject key RADIUS Access-Accept attributes.
+- Keep key RADIUS Access-Accept attributes implemented or explicitly rejected.
 - Keep mandatory-hidden AVP rejection covered.
 - Keep non-zero tunnel/session safety defaults covered.
 - Complete `spec-bgp-redistribute` plus `spec-l2tp-7c-redistribute`.
@@ -203,11 +207,12 @@ Work items:
 - Keep Makefile help text aligned for the functional gate.
 - Extend drift checks to any new release-gate/help/status claims.
 - Keep REST/gRPC API docs aligned with auth, TLS, streaming, and docs exposure behavior.
-- Correct L2TP, VPP, BMP, RIB inject, DNS/NTP, TACACS strict-mode, and reload-atomicity claims as those gaps close.
+- Correct L2TP, VPP, BMP, RIB inject, DNS/NTP, TACACS strict-mode, Modular Deployment, and reload-atomicity claims as those gaps close.
+- Re-triage stale deferral rows, especially duplicate list-key rejection and static validation parity.
 
 ## Verification Matrix
 
-Target status: the `make` targets below exist in the main `Makefile`. Some require Docker, root, CAP_NET_ADMIN, network namespaces, or external tools; those are real targets, not aspirational checks, but they need suitable runners. The `bin/ze-test firewall`, `bin/ze-test traffic`, and `bin/ze-test vpp` subcommands are registered in `cmd/ze-test`. The 2026-05-01 refresh did not rerun these gates.
+Target status: the `make` targets below exist in the main `Makefile`. Some require Docker, root, CAP_NET_ADMIN, network namespaces, or external tools; those are real targets, not aspirational checks, but they need suitable runners. The `bin/ze-test firewall`, `bin/ze-test traffic`, and `bin/ze-test vpp` subcommands are registered in `cmd/ze-test`. The 2026-05-02 static refresh did not rerun these gates.
 
 Minimum local gates before initial deployment:
 
@@ -227,6 +232,7 @@ make ze-interop-test       # requires Docker
 make ze-integration-test   # requires CAP_NET_ADMIN/root-capable runner
 make ze-stress-test        # requires Linux, root, netns, iproute2/ethtool; traffic uses in-tree ze-test peer injector, not BNG Blaster
 make ze-race-reactor       # reactor race stress, required for reactor concurrency changes
+make ze-linux-test         # Docker-backed Linux Go unit tests; defaults to traffic/vpp
 bin/ze-test firewall --all # requires nft/iptables privileges for kernel-state tests
 bin/ze-test traffic --all  # traffic-control runner, some cases need CAP_NET_ADMIN
 bin/ze-test vpp --all      # GoVPP-stub-backed VPP runner
@@ -236,7 +242,14 @@ python3 test/interop/run.py 33-bfd-frr # single BFD FRR interop scenario, requir
 Current verification status for this refresh:
 
 ```text
-2026-05-02 local run:
+2026-05-02 static refresh:
+No test, build, or lint command was rerun for this document update.
+git status --short shows one unrelated untracked file:
+?? plan/comparison/mikrotik-winbox-vs-ze.md
+
+Tracked files are clean before this document edit.
+
+Prior 2026-05-02 local run recorded by the remediation pass:
 make ze-verify
 PASS: lint, cached unit tests, race unit tests, build, all 11 functional suites, and ExaBGP compatibility 37/37.
 
@@ -248,8 +261,29 @@ PASS.
 make ze-exabgp-test
 PASS: 37/37.
 
-The checkout remains dirty with remediation edits and pre-existing unrelated changes.
-Do not treat this checkout as final release-candidate evidence until the worktree is cleaned or those changes are intentionally included and verified on the target runner.
+2026-05-02 follow-up hardening focused checks:
+go test ./internal/component/bgp/reactor ./internal/component/bgp/config -run 'TestPeersFromTree|TestCheckRequiredFields' -count=1
+PASS.
+go test ./internal/component/web -run 'TestSecurityHeaders|TestIntegration_SecurityHeaders|TestTemplatesAvoidInlineScriptAndStyle|TestHandleCLIPageAvoidsInlineStyle' -count=1
+PASS.
+go test ./internal/plugins/l2tpauthradius -run 'TestAccessAccept|TestRADIUSAuthAccessAcceptRejectsUnsupportedAttribute' -count=1
+PASS.
+go test ./cmd/ze/hub -run 'TestRollbackReloadRestoresProviderOnSubsystemFailure' -count=1
+PASS.
+go test ./internal/component/iface -run 'TestReconcileOnReady_(PreservesUnownedManageableInterface|PrunesPreviouslyManagedInterface)' -count=1
+PASS.
+go test ./internal/component/hub -run 'TestOrchestratorReloadChangedPlugin(StartFailurePreservesOld|RunKeepsSubsystem)' -count=1
+PASS.
+go test ./internal/component/plugin/server -run 'TestSubsystemManager(Register|Replace|Unregister)AfterFreeze' -count=1
+PASS.
+make ze-linux-test
+PASS: Docker-backed Linux Go unit tests for ./internal/plugins/traffic/vpp.
+make ze-doc-drift
+PASS: No documentation drift detected.
+git diff --check
+PASS.
+
+Do not treat this static refresh as final release-candidate evidence until the target runner verifies the release candidate with a clean or intentionally scoped worktree.
 ```
 
 Last recorded local verification result from the original remediation pass:

@@ -5,6 +5,7 @@ package l2tpauthradius
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -13,6 +14,16 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
 )
+
+var unsupportedAccessAcceptAttrs = map[uint8]string{
+	radius.AttrFramedIPAddress:     "Framed-IP-Address",
+	radius.AttrFramedIPNetmask:     "Framed-IP-Netmask",
+	radius.AttrFilterID:            "Filter-Id",
+	radius.AttrSessionTimeout:      "Session-Timeout",
+	radius.AttrIdleTimeout:         "Idle-Timeout",
+	radius.AttrAcctInterimInterval: "Acct-Interim-Interval",
+	radius.AttrFramedPool:          "Framed-Pool",
+}
 
 // radiusAuth holds the RADIUS client and implements the auth handler.
 type radiusAuth struct {
@@ -108,6 +119,15 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 
 	switch resp.Code {
 	case radius.CodeAccessAccept:
+		if attrName, ok := unsupportedAccessAcceptAttribute(resp); ok {
+			msg := fmt.Sprintf("unsupported RADIUS Access-Accept attribute: %s", attrName)
+			logger().Warn("l2tp-auth-radius: unsupported Access-Accept attribute",
+				"tunnel", req.TunnelID, "session", req.SessionID, "username", req.Username, "attribute", attrName)
+			if respErr := respond(false, msg, nil); respErr != nil {
+				logger().Warn("l2tp-auth-radius: respond failed", "error", respErr)
+			}
+			return
+		}
 		var authBlob []byte
 		if req.Method == ppp.AuthMethodMSCHAPv2 {
 			authBlob = extractMSCHAP2Success(resp)
@@ -136,6 +156,15 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 			logger().Warn("l2tp-auth-radius: respond failed", "error", respErr)
 		}
 	}
+}
+
+func unsupportedAccessAcceptAttribute(resp *radius.Packet) (string, bool) {
+	for _, attr := range resp.Attrs {
+		if name, ok := unsupportedAccessAcceptAttrs[attr.Type]; ok {
+			return name, true
+		}
+	}
+	return "", false
 }
 
 // RFC 2865 Section 5.2: User-Password stored as cleartext here;

@@ -7,8 +7,8 @@
            placeholder="type a command..."
            autocomplete="off" spellcheck="false"
            name="command">
-    <div class="cli-completions" id="cli-completions" style="display:none"></div>
+    <div class="cli-completions is-hidden" id="cli-completions"></div>
   </div>
-  <span id="cli-context-path" style="display:none">{{.CLIContextPath}}</span>
+  <span id="cli-context-path" class="is-hidden">{{.CLIContextPath}}</span>
 </footer>
 {{end}}

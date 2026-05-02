@@ -37,6 +37,7 @@ const (
 	AttrFilterID             = 11
 	AttrReplyMessage         = 18
 	AttrSessionTimeout       = 27
+	AttrIdleTimeout          = 28
 	AttrCalledStationID      = 30
 	AttrCallingStationID     = 31
 	AttrNASIdentifier        = 32
@@ -52,6 +53,7 @@ const (
 	AttrCHAPChallenge        = 60
 	AttrNASPortType          = 61
 	AttrMessageAuthenticator = 80
+	AttrAcctInterimInterval  = 85
 	AttrFramedPool           = 88
 	AttrErrorCause           = 101 // RFC 5176 Section 3.6
 	AttrVendorSpecific       = 26

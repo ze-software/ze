@@ -1,5 +1,5 @@
 .PHONY: all build ze chaos test analyse clean fmt vet tidy generate help
-.PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-race-reactor ze-test ze-verify ze-ci
+.PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-race-reactor ze-linux-test ze-test ze-verify ze-ci
 .PHONY: ze-lint-changed ze-unit-test-changed ze-verify-changed ze-clean-tmp
 .PHONY: ze-test-bgp ze-test-core ze-test-plugins ze-test-config ze-test-cli ze-test-rest ze-unit-test-cached ze-unit-test-race-changed
 .PHONY: _ze-verify-impl _ze-verify-changed-impl _ze-chaos-verify-impl
@@ -42,6 +42,8 @@ ZE_LDFLAGS := -X main.version=$(ZE_VERSION) -X main.buildDate=$(ZE_BUILD_DATE)
 GO_TEST_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); p=$$(( n - 3 )); [ $$p -lt 1 ] && p=1; echo $$p)
 GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test
 ZE_EXABGP_TIMEOUT ?= 180
+ZE_LINUX_GO_IMAGE ?= golang:1.25.9-alpine
+ZE_LINUX_TEST_PACKAGES ?= ./internal/plugins/traffic/vpp
 
 # Packages
 ZE_PACKAGES = $$(go list ./... | grep -v /cmd/ze-chaos)
@@ -340,6 +342,22 @@ ze-race-reactor:
 	@echo "Stress race-test reactor (count=20)..."
 	$(GO_TEST) -race -count=20 ./internal/component/bgp/reactor/...
 
+# Run Linux-only Go unit tests in Docker from non-Linux workstations.
+# Default scope is the VPP traffic backend because it is guarded by linux build
+# tags. Override packages with ZE_LINUX_TEST_PACKAGES="./pkg/a ./pkg/b".
+ze-linux-test:
+	@command -v docker >/dev/null || { echo "error: docker not found"; exit 1; }
+	@mkdir -p tmp/linux-go-cache tmp/linux-gomodcache
+	docker run --rm \
+		--user "$$(id -u):$$(id -g)" \
+		-v "$(CURDIR):/src" \
+		-w /src \
+		-e HOME=/tmp \
+		-e GOCACHE=/src/tmp/linux-go-cache \
+		-e GOMODCACHE=/src/tmp/linux-gomodcache \
+		$(ZE_LINUX_GO_IMAGE) \
+		go test $(ZE_LINUX_TEST_PACKAGES) -count=1
+
 # Run ExaBGP compatibility tests (Ze encoding matches ExaBGP)
 # Uses uv to auto-install psutil dependency
 ze-exabgp-test: bin/ze
@@ -469,7 +487,7 @@ ze-interop-test:
 STRESS_SCENARIO ?=
 
 ze-stress-test: bin/ze
-	@echo "Running stress tests with BNG Blaster (requires root + netns)..."
+	@echo "Running stress tests with ze-test peer injector (requires root + netns)..."
 	@sudo ZE_BINARY=$(CURDIR)/bin/ze VERBOSE=$(VERBOSE) SESSION_TIMEOUT=$(SESSION_TIMEOUT) \
 		python3 test/stress/run.py $(STRESS_SCENARIO)
 
@@ -925,6 +943,7 @@ help:
 	@echo "  ze-exabgp-test        - Run ExaBGP compatibility tests only"
 	@echo "  ze-fuzz-test          - Run all fuzz tests (15s per target)"
 	@echo "  ze-fuzz-one           - Run single fuzz target (FUZZ=name PKG=path TIME=30s)"
+	@echo "  ze-linux-test         - Run Linux-only Go unit tests in Docker (ZE_LINUX_TEST_PACKAGES=...)"
 	@echo "  ze-test               - Ze tests: lint + unit + functional + exabgp + fuzz"
 	@echo "  ze-verify             - Ze tests except fuzz (development)"
 	@echo "  ze-lint-changed       - Lint only packages with changed .go files (parallel-safe)"
@@ -945,7 +964,7 @@ help:
 	@echo "  Interop tests (Docker):"
 	@echo "  ze-interop-test          - Run interop tests against FRR and BIRD"
 	@echo "                             INTEROP_SCENARIO=name to run one scenario"
-	@echo "  ze-stress-test           - Run BGP stress tests with BNG Blaster (Linux, root)"
+	@echo "  ze-stress-test           - Run BGP stress tests with ze-test peer injector (Linux, root)"
 	@echo "                             STRESS_SCENARIO=name to run one scenario"
 	@echo "  ze-stress-bird-test      - Run BIRD baseline stress test (Linux, root, bird2)"
 	@echo "  ze-stress-profile        - Run 1M profile test, saves pprof to tmp/"

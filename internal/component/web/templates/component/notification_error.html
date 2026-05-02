@@ -4,24 +4,6 @@
     <span class="notification-message">{{.Message}}</span>
     <span class="notification-countdown" id="notif-countdown">30</span>
     <button class="notification-close" id="notif-close">&#10005;</button>
-    <script>
-    (function(){
-      var el = document.getElementById('notif-toast');
-      var cd = document.getElementById('notif-countdown');
-      var btn = document.getElementById('notif-close');
-      var secs = 30, tid;
-      function tick() {
-        secs--;
-        cd.textContent = secs;
-        if (secs <= 0) el.remove();
-        else tid = setTimeout(tick, 1000);
-      }
-      tid = setTimeout(tick, 1000);
-      cd.style.cursor = 'pointer';
-      cd.onclick = function() { clearTimeout(tid); cd.textContent = '\u23F8'; cd.title = 'paused'; };
-      btn.onclick = function() { clearTimeout(tid); el.remove(); };
-    })();
-    </script>
   </div>
 </div>
 {{end}}

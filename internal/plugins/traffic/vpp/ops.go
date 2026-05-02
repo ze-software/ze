@@ -15,10 +15,12 @@ import (
 // scripted fake (`fakeOps`) without a running VPP daemon. The production
 // path uses the `govppOps` adapter in `backend_linux.go`.
 //
-// Only four operations live here because only four are used:
+// Only six operations live here because only six are used:
 //   - dumpInterfaces: SwInterfaceDump -> name->swIfIndex map
+//   - dumpPolicers:   PolicerDump -> policer names
 //   - policerAddDel:  PolicerAddDel upsert, returns VPP-assigned index
 //   - policerDel:     PolicerDel(PolicerIndex)
+//   - deleteByName:    PolicerAddDel(IsAdd=false, Name) for startup cleanup
 //   - policerOutput:  PolicerOutput(Name, SwIfIndex, Apply=true|false)
 //
 // Extending the interface is cheap: add a method, implement on the
@@ -26,7 +28,9 @@ import (
 // regressions obvious.
 type vppOps interface {
 	dumpInterfaces() (map[string]interface_types.InterfaceIndex, error)
+	dumpPolicers() ([]string, error)
 	policerAddDel(req *policer.PolicerAddDel) (uint32, error)
 	policerDel(index uint32) error
+	policerDeleteByName(name string) error
 	policerOutput(name string, swIfIndex interface_types.InterfaceIndex, apply bool) error
 }

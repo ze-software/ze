@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -229,6 +230,43 @@ func TestOrchestratorReloadChangedPluginRunKeepsSubsystem(t *testing.T) {
 	require.Len(t, o.config.Plugins, 1)
 	assert.Equal(t, "echo new", o.config.Plugins[0].Run)
 	assert.NotNil(t, o.subsystems.Get("bgp"), "changed plugin should remain registered after restart")
+}
+
+// TestOrchestratorReloadChangedPluginStartFailurePreservesOld verifies that a
+// failed changed-plugin replacement leaves the previous subsystem registered.
+//
+// VALIDATES: Changed-plugin reload is transactional when replacement startup fails.
+// PREVENTS: SIGHUP losing a running plugin because its replacement cannot start.
+func TestOrchestratorReloadChangedPluginStartFailurePreservesOld(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.conf")
+
+	cfg := &HubConfig{
+		Plugins:    []PluginDef{{Name: "bgp", Run: "echo old"}},
+		Env:        map[string]string{},
+		Blocks:     map[string]any{},
+		ConfigPath: configPath,
+	}
+
+	newConfig := `plugin {
+	external bgp {
+		run "echo new";
+	}
+}
+`
+	require.NoError(t, os.WriteFile(configPath, []byte(newConfig), 0o644))
+
+	o := NewOrchestrator(cfg)
+	o.ctx = context.Background()
+	oldHandler := o.subsystems.Get("bgp")
+	require.NotNil(t, oldHandler)
+
+	err := o.Reload(configPath)
+	require.Error(t, err)
+
+	assert.Same(t, oldHandler, o.subsystems.Get("bgp"), "old subsystem should remain registered")
+	require.Len(t, o.config.Plugins, 1)
+	assert.Equal(t, "echo old", o.config.Plugins[0].Run)
 }
 
 // TestOrchestratorReloadConfigParseError verifies parse error preserves running config.

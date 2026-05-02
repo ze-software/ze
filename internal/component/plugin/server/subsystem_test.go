@@ -420,6 +420,40 @@ func TestSubsystemManagerUnregisterAfterFreeze(t *testing.T) {
 	assert.NotNil(t, manager.Get("rib"))
 }
 
+// TestSubsystemManagerRegisterAfterFreeze verifies Register publishes a new
+// frozen snapshot when reload adds a subsystem after startup.
+//
+// VALIDATES: Register updates the frozen Get path.
+// PREVENTS: Reload-added plugins being invisible after SubsystemManager.Freeze.
+func TestSubsystemManagerRegisterAfterFreeze(t *testing.T) {
+	manager := NewSubsystemManager()
+	manager.Register(SubsystemConfig{Name: "bgp"})
+	manager.Freeze()
+
+	manager.Register(SubsystemConfig{Name: "rib"})
+
+	assert.NotNil(t, manager.Get("bgp"))
+	assert.NotNil(t, manager.Get("rib"))
+}
+
+// TestSubsystemManagerReplaceAfterFreeze verifies Replace publishes a new frozen
+// snapshot when reload swaps in a pre-started changed-plugin handler.
+//
+// VALIDATES: Replace updates the frozen Get path.
+// PREVENTS: Reloaded changed plugins being hidden behind a stale frozen snapshot.
+func TestSubsystemManagerReplaceAfterFreeze(t *testing.T) {
+	manager := NewSubsystemManager()
+	manager.Register(SubsystemConfig{Name: "bgp", Binary: "old"})
+	manager.Freeze()
+	oldHandler := manager.Get("bgp")
+	require.NotNil(t, oldHandler)
+
+	newHandler := NewSubsystemHandler(SubsystemConfig{Name: "bgp", Binary: "new"})
+	manager.Replace("bgp", newHandler)
+
+	assert.Same(t, newHandler, manager.Get("bgp"))
+}
+
 // TestSubsystemManagerConcurrentGet verifies race safety after Freeze.
 //
 // VALIDATES: AC-6 equivalent for SubsystemManager -- concurrent Get calls are race-safe.

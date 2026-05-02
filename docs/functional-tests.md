@@ -32,10 +32,17 @@ must be run manually:
 | Chaos web | `bin/ze-test bgp chaos-web` | Chaos dashboard scenarios live under the BGP runner |
 
 There are no `make ze-static-test`, `make ze-traffic-test`, `make ze-vpp-test`,
-`make ze-l2tp-wire-test`, or `make ze-chaos-web-test` targets. Use the
-`bin/ze-test` runners directly.
+or `make ze-l2tp-wire-test` targets. Use the `bin/ze-test` runners directly
+for those suites. Chaos web is available through `make ze-chaos-web-test` and
+is also included in `make ze-chaos-test`.
+
+Linux-tagged Go unit tests are separate from the functional suites. From a
+non-Linux workstation, use `make ze-linux-test`; it runs the default Linux-only
+unit package set in Docker and can be narrowed or expanded with
+`ZE_LINUX_TEST_PACKAGES="./pkg/a ./pkg/b"`.
 <!-- source: cmd/ze-test/main.go -- subcommand registry -->
 <!-- source: cmd/ze-test/bgp.go -- chaos-web suite -->
+<!-- source: Makefile -- ze-linux-test -->
 
 ---
 

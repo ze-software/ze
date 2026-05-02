@@ -1,5 +1,6 @@
-# Test: ze config validate rejects peer missing required field
-# A standalone peer without session/asn/remote should fail validation.
+# Test: ze config validate skips peer missing required field
+# A standalone peer without session/asn/remote is incomplete and skipped
+# so the daemon can start for config editing with partial configs.
 stdin=config:terminator=EOF_CONF
 bgp {
     router-id 1.2.3.4
@@ -19,5 +20,5 @@ bgp {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
-expect=exit:code=1
-expect=stderr:contains=session/asn/remote
+expect=exit:code=0
+expect=stderr:contains=incomplete

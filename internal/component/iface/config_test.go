@@ -115,6 +115,7 @@ func TestReconcileOnVPPReady_RunsReconcile(t *testing.T) {
 	fb.ifaces["dum0"] = fakeIface{name: "dum0", linkType: zeTypeDummy}
 
 	cfg := testConfigWithAddresses()
+	cfg.previousManaged = map[string]bool{"dum0": true, "orphan-dum": true}
 	var activeCfg atomic.Pointer[ifaceConfig]
 	activeCfg.Store(cfg)
 
@@ -139,8 +140,10 @@ func TestReconcileOnVPPReady_InvokedOnEventConnected(t *testing.T) {
 	fb.ifaces["orphan-dum"] = fakeIface{name: "orphan-dum", linkType: zeTypeDummy}
 	fb.ifaces["dum0"] = fakeIface{name: "dum0", linkType: zeTypeDummy}
 
+	cfg := testConfigWithAddresses()
+	cfg.previousManaged = map[string]bool{"dum0": true, "orphan-dum": true}
 	var activeCfg atomic.Pointer[ifaceConfig]
-	activeCfg.Store(testConfigWithAddresses())
+	activeCfg.Store(cfg)
 
 	bus := newRecordingEventBus()
 	// Synchronous trigger for deterministic assertions; production uses a
@@ -315,25 +318,50 @@ func TestReconcileOnReady_AddsMissing(t *testing.T) {
 	require.ElementsMatch(t, []string{"10.0.0.1/24", "10.0.0.2/24"}, fb.addrs["dum0"])
 }
 
-// TestReconcileOnReady_PrunesNonConfigInterface verifies AC-4: when the
-// backend is ready and an unmanaged ze interface exists that is not in
-// cfg, reconcileOnReady deletes it (Phase 4).
+// TestReconcileOnReady_PreservesUnownedManageableInterface verifies that
+// first-apply reconciliation does not adopt arbitrary manageable kernel links
+// and delete them just because they are absent from config.
 //
-// VALIDATES: AC-4 -- full reconcile runs Phase 4.
-// PREVENTS: stale interfaces persisting after config apply.
-func TestReconcileOnReady_PrunesNonConfigInterface(t *testing.T) {
+// VALIDATES: first apply preserves unmanaged manageable links.
+// PREVENTS: Ze deleting operator-created dummy/veth/bridge/tunnel devices on startup.
+func TestReconcileOnReady_PreservesUnownedManageableInterface(t *testing.T) {
 	fb := &fakeBackend{
 		ifaces: map[string]fakeIface{
-			"dum0":       {name: "dum0", linkType: zeTypeDummy},
-			"orphan-dum": {name: "orphan-dum", linkType: zeTypeDummy},
+			"dum0":         {name: "dum0", linkType: zeTypeDummy},
+			"operator-dum": {name: "operator-dum", linkType: zeTypeDummy},
 		},
 	}
-	cfg := testConfigWithAddresses() // managed set = {dum0}
+	cfg := testConfigWithAddresses() // managed set = {dum0}; no previous ownership.
 
 	errs, deferred := reconcileOnReady(cfg, fb)
 	require.False(t, deferred)
 	require.Empty(t, errs)
-	require.True(t, fb.deleted["orphan-dum"], "orphan interface should be deleted")
+	require.False(t, fb.deleted["operator-dum"], "unowned manageable interface should NOT be deleted")
+	require.False(t, fb.deleted["dum0"], "configured interface should NOT be deleted")
+}
+
+// TestReconcileOnReady_PrunesPreviouslyManagedInterface verifies AC-4: when
+// the backend is ready and an interface Ze managed in the previous config is
+// absent from the new cfg, reconcileOnReady deletes it (Phase 4).
+//
+// VALIDATES: AC-4 -- full reconcile runs Phase 4.
+// PREVENTS: stale Ze-owned interfaces persisting after config apply.
+func TestReconcileOnReady_PrunesPreviouslyManagedInterface(t *testing.T) {
+	fb := &fakeBackend{
+		ifaces: map[string]fakeIface{
+			"dum0":         {name: "dum0", linkType: zeTypeDummy},
+			"removed-dum":  {name: "removed-dum", linkType: zeTypeDummy},
+			"operator-dum": {name: "operator-dum", linkType: zeTypeDummy},
+		},
+	}
+	cfg := testConfigWithAddresses() // managed set = {dum0}
+	cfg.previousManaged = map[string]bool{"dum0": true, "removed-dum": true}
+
+	errs, deferred := reconcileOnReady(cfg, fb)
+	require.False(t, deferred)
+	require.Empty(t, errs)
+	require.True(t, fb.deleted["removed-dum"], "previously managed interface should be deleted")
+	require.False(t, fb.deleted["operator-dum"], "unowned manageable interface should NOT be deleted")
 	require.False(t, fb.deleted["dum0"], "configured interface should NOT be deleted")
 }
 

@@ -232,8 +232,10 @@ l2tp {
 }
 ```
 
-RADIUS-directed pool selection is supported via the Framed-Pool
-attribute: the RADIUS Access-Accept can name a specific pool.
+Address allocation currently uses the configured Ze pool. RADIUS
+Access-Accept attributes that would change address selection, such as
+`Framed-IP-Address`, `Framed-IP-Netmask`, and `Framed-Pool`, are rejected
+explicitly rather than ignored.
 
 Session-down events release allocated addresses back to the pool.
 
@@ -242,8 +244,8 @@ Session-down events release allocated addresses back to the pool.
 ## Traffic shaping
 
 The `l2tp-shaper` plugin applies TC (traffic control) rules on `pppN`
-interfaces. Rates can be set at session establishment from RADIUS
-attributes and updated dynamically via RADIUS CoA.
+interfaces. Session establishment uses the configured default rate.
+RADIUS CoA can update the rate dynamically after the session is up.
 
 Configured under the `l2tp` config tree:
 
@@ -257,9 +259,10 @@ l2tp {
 }
 ```
 
-When RADIUS is configured, Access-Accept attributes can override the
-default rate per session. RADIUS CoA updates the rate dynamically
-without tearing down the session.
+RADIUS Access-Accept attributes that would change policy, such as
+`Filter-Id`, `Session-Timeout`, `Idle-Timeout`, and
+`Acct-Interim-Interval`, are rejected until Ze implements them exactly.
+RADIUS CoA rate updates do not tear down the session.
 
 <!-- source: internal/plugins/l2tpshaper/ -->
 

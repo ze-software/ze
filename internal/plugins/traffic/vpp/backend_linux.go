@@ -8,6 +8,7 @@ package trafficvpp
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +24,8 @@ import (
 // waitConnectedTimeout bounds how long Apply blocks waiting for VPP to be
 // reachable. Value is the 5s agreed in spec Decision 1.
 const waitConnectedTimeout = 5 * time.Second
+
+const policerNamePrefix = "ze/"
 
 // backend implements traffic.Backend on top of VPP's binary API.
 //
@@ -113,6 +116,9 @@ func (b *backend) applyWithOps(ops vppOps, desired map[string]traffic.InterfaceQ
 	if err != nil {
 		return fmt.Errorf("traffic-vpp: %w", err)
 	}
+	if err := b.cleanupStartupOrphans(ops, nameIndex, desired); err != nil {
+		return fmt.Errorf("traffic-vpp: %w", err)
+	}
 
 	newOutputPolicers := make(map[string]map[string]uint32)
 	newQdiscTypes := make(map[string]traffic.QdiscType, len(desired))
@@ -138,6 +144,70 @@ func (b *backend) applyWithOps(ops vppOps, desired map[string]traffic.InterfaceQ
 	b.interfaceOutputPolicers = newOutputPolicers
 	b.interfaceQdiscTypes = newQdiscTypes
 	return nil
+}
+
+// cleanupStartupOrphans runs only when this Ze process has no in-memory VPP
+// policer tracker yet. It removes old Ze-named policers that are present in
+// VPP but absent from the desired config, so daemon restart does not leave
+// stale traffic policing behind. Desired Ze policers are unbound, kept, and
+// then rebound by applyAll; foreign policers are ignored.
+//
+// Called with b.mu held.
+func (b *backend) cleanupStartupOrphans(
+	ops vppOps,
+	nameIndex map[string]interface_types.InterfaceIndex,
+	desired map[string]traffic.InterfaceQoS,
+) error {
+	if len(b.interfaceOutputPolicers) != 0 {
+		return nil
+	}
+	existing, err := ops.dumpPolicers()
+	if err != nil {
+		return fmt.Errorf("dump policers: %w", err)
+	}
+	desiredNames := desiredPolicerNames(desired)
+	for _, name := range existing {
+		if !strings.HasPrefix(name, policerNamePrefix) {
+			continue
+		}
+		if ifaceName, ok := ifaceNameFromPolicerName(name); ok {
+			if swIfIndex, present := nameIndex[ifaceName]; present {
+				if err := ops.policerOutput(name, swIfIndex, false); err != nil {
+					logger().Warn("traffic-vpp: unbind startup ze policer failed",
+						"policer", name, "iface", ifaceName, "err", err)
+				}
+			}
+		}
+		if desiredNames[name] {
+			continue
+		}
+		if err := ops.policerDeleteByName(name); err != nil {
+			return fmt.Errorf("delete startup orphan policer %q: %w", name, err)
+		}
+	}
+	return nil
+}
+
+func desiredPolicerNames(desired map[string]traffic.InterfaceQoS) map[string]bool {
+	names := make(map[string]bool)
+	for ifaceName, qos := range desired {
+		for _, cls := range qos.Qdisc.Classes {
+			names[policerName(ifaceName, cls.Name)] = true
+		}
+	}
+	return names
+}
+
+func ifaceNameFromPolicerName(name string) (string, bool) {
+	rest, ok := strings.CutPrefix(name, policerNamePrefix)
+	if !ok {
+		return "", false
+	}
+	ifaceName, _, ok := strings.Cut(rest, "/")
+	if !ok || ifaceName == "" {
+		return "", false
+	}
+	return ifaceName, true
 }
 
 // applyAll walks every interface in desired and programs its state.
@@ -343,7 +413,7 @@ func (b *backend) Close() error { return nil }
 // limits names to 64 bytes; the verifier rejects any class whose produced
 // name exceeds the limit, so this function does not truncate.
 func policerName(ifaceName, className string) string {
-	return fmt.Sprintf("ze/%s/%s", ifaceName, className)
+	return fmt.Sprintf("%s%s/%s", policerNamePrefix, ifaceName, className)
 }
 
 // govppOps is the production adapter that implements vppOps on top of a
@@ -378,6 +448,28 @@ func (g *govppOps) dumpInterfaces() (map[string]interface_types.InterfaceIndex, 
 	return out, nil
 }
 
+// dumpPolicers returns every policer name currently present in VPP. Used only
+// by startup orphan cleanup; normal reconciliation uses the in-memory tracker
+// because VPP does not expose enough binding state to reconstruct Ze's full
+// desired model.
+func (g *govppOps) dumpPolicers() ([]string, error) {
+	req := &policer.PolicerDump{}
+	rctx := g.ch.SendMultiRequest(req)
+	var names []string
+	for {
+		d := &policer.PolicerDetails{}
+		last, err := rctx.ReceiveReply(d)
+		if err != nil {
+			return nil, fmt.Errorf("PolicerDump: %w", err)
+		}
+		if last {
+			break
+		}
+		names = append(names, d.Name)
+	}
+	return names, nil
+}
+
 // policerAddDel wraps PolicerAddDel with retval checking. Retval != 0 is
 // decoded via api.RetvalToVPPApiError so the caller sees VPP's named error
 // (e.g. ENOMEM, INVALID_VALUE) instead of a raw integer. Returns the index
@@ -403,6 +495,20 @@ func (g *govppOps) policerDel(index uint32) error {
 	}
 	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
 		return fmt.Errorf("PolicerDel: %w", apiErr)
+	}
+	return nil
+}
+
+// policerDeleteByName removes a policer by name via the older add/del API.
+// Startup orphan cleanup only has names from PolicerDump, not VPP indexes.
+func (g *govppOps) policerDeleteByName(name string) error {
+	req := &policer.PolicerAddDel{IsAdd: false, Name: name}
+	reply := &policer.PolicerAddDelReply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("PolicerAddDel(delete): %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return fmt.Errorf("PolicerAddDel(delete): %w", apiErr)
 	}
 	return nil
 }

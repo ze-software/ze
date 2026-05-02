@@ -1,15 +1,46 @@
 package hub
 
 import (
+	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/engine"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+type reloadProbeSubsystem struct {
+	seen []string
+}
+
+func (s *reloadProbeSubsystem) Name() string { return "reload-probe" }
+
+func (s *reloadProbeSubsystem) Start(context.Context, ze.EventBus, ze.ConfigProvider) error {
+	return nil
+}
+
+func (s *reloadProbeSubsystem) Stop(context.Context) error { return nil }
+
+func (s *reloadProbeSubsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
+	root, err := cfg.Get("bgp")
+	if err != nil {
+		return err
+	}
+	marker, _ := root["marker"].(string)
+	s.seen = append(s.seen, marker)
+	if marker == "bad" {
+		return fmt.Errorf("bad marker")
+	}
+	return nil
+}
 
 // TestRunMissingConfig verifies error handling for missing config.
 //
@@ -18,6 +49,40 @@ import (
 func TestRunMissingConfig(t *testing.T) {
 	exit := Run(storage.NewFilesystem(), "/nonexistent/config.conf", nil, 0, -1, false, "", false, "", "")
 	assert.Equal(t, 1, exit)
+}
+
+// TestRollbackReloadRestoresProviderOnSubsystemFailure verifies failed subsystem reload restores provider roots.
+// VALIDATES: SIGHUP reload rolls the ConfigProvider back to its previous roots after subsystem failure.
+// PREVENTS: Provider and subsystems staying on different config versions after a failed reload.
+func TestRollbackReloadRestoresProviderOnSubsystemFailure(t *testing.T) {
+	cp := zeconfig.NewProvider()
+	cp.SetRoot("bgp", map[string]any{"marker": "old"})
+	cp.SetRoot("l2tp", map[string]any{"enabled": "true"})
+
+	eng := engine.NewEngine(nil, cp, nil)
+	probe := &reloadProbeSubsystem{}
+	require.NoError(t, eng.RegisterSubsystem(probe))
+
+	prior, err := snapshotProvider(cp)
+	require.NoError(t, err)
+	applyLoadedTreeToProvider(cp, map[string]any{
+		"bgp": map[string]any{"marker": "bad"},
+	})
+
+	err = eng.Reload(context.Background())
+	require.Error(t, err)
+	assert.Equal(t, []string{"bad"}, probe.seen)
+
+	err = rollbackReload(context.Background(), nil, eng, cp, prior)
+	require.NoError(t, err)
+
+	bgpRoot, err := cp.Get("bgp")
+	require.NoError(t, err)
+	assert.Equal(t, "old", bgpRoot["marker"])
+	l2tpRoot, err := cp.Get("l2tp")
+	require.NoError(t, err)
+	assert.Equal(t, "true", l2tpRoot["enabled"])
+	assert.Equal(t, []string{"bad", "old"}, probe.seen)
 }
 
 // TestRunInvalidConfig verifies error handling for invalid config.

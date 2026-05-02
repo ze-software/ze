@@ -949,8 +949,33 @@ func TestPeersFromTreeMissingLocalAS(t *testing.T) {
 			},
 		},
 	}
-	_, err := PeersFromTree(bgpTree)
-	require.ErrorIs(t, err, ErrIncompleteConfig, "peer without local-as should return ErrIncompleteConfig")
+	peers, err := PeersFromTree(bgpTree)
+	require.NoError(t, err)
+	assert.Empty(t, peers, "peer without local-as should be skipped")
+}
+
+// TestPeersFromTreeSkipsIncompleteAndKeepsValid verifies one incomplete peer does not drop valid peers.
+//
+// VALIDATES: PeersFromTree returns valid peers while skipping incomplete peers.
+// PREVENTS: One work-in-progress peer dropping all configured BGP sessions.
+func TestPeersFromTreeSkipsIncompleteAndKeepsValid(t *testing.T) {
+	bgpTree := map[string]any{
+		"router-id": "10.0.0.1",
+		"session":   map[string]any{"asn": map[string]any{"local": "65000"}},
+		"peer": map[string]any{
+			"valid": map[string]any{
+				"connection": map[string]any{"remote": map[string]any{"ip": "192.0.2.1"}, "local": map[string]any{"ip": "auto"}},
+				"session":    map[string]any{"asn": map[string]any{"remote": "65001"}},
+			},
+			"incomplete": map[string]any{},
+		},
+	}
+
+	peers, err := PeersFromTree(bgpTree)
+	require.NoError(t, err)
+	require.Len(t, peers, 1)
+	assert.Equal(t, "valid", peers[0].Name)
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), peers[0].Address)
 }
 
 // TestPeersFromTreePeerLocalASOverride verifies per-peer local-as override.
@@ -1069,7 +1094,7 @@ func TestPeersFromTreeConfiguredFamilies(t *testing.T) {
 	assert.Equal(t, 3, totalMPCaps, "should have 3 total MP capabilities across 2 peers")
 }
 
-// TestPeersFromTreePeerError verifies that an invalid peer is skipped with a warning.
+// TestPeersFromTreePeerError verifies that an incomplete peer is skipped.
 //
 // VALIDATES: PeersFromTree skips incomplete peers instead of failing.
 // PREVENTS: Daemon crash on work-in-progress config.
@@ -1079,8 +1104,9 @@ func TestPeersFromTreePeerError(t *testing.T) {
 		"session":   map[string]any{"asn": map[string]any{"local": "65000"}},
 		"peer":      map[string]any{"peer1": map[string]any{}},
 	}
-	_, err := PeersFromTree(bgpTree)
-	require.ErrorIs(t, err, ErrIncompleteConfig, "peer with empty config should return ErrIncompleteConfig")
+	peers, err := PeersFromTree(bgpTree)
+	require.NoError(t, err)
+	assert.Empty(t, peers, "peer with empty config should be skipped")
 }
 
 // TestFamilyModeParsing verifies all family mode string values.

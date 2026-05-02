@@ -829,40 +829,140 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 	if loadErr != nil {
 		return fmt.Errorf("reload: parse config: %w", loadErr)
 	}
+	var priorProvider map[string]map[string]any
+	if cp != nil {
+		var snapErr error
+		priorProvider, snapErr = snapshotProvider(cp)
+		if snapErr != nil {
+			return fmt.Errorf("reload: snapshot config provider: %w", snapErr)
+		}
+	}
 
 	if err := s.ReloadConfig(reloadCtx, newTree); err != nil {
 		return err
 	}
 
 	if cp != nil {
-		priorRoots := cp.Roots()
-		existing := make(map[string]struct{}, len(priorRoots))
-		for _, k := range priorRoots {
-			existing[k] = struct{}{}
-		}
-		for root, subtree := range newTree {
-			sub, ok := subtree.(map[string]any)
-			if !ok {
-				continue
-			}
-			cp.SetRoot(root, sub)
-			delete(existing, root)
-		}
-		// Any root left in `existing` disappeared from the new tree.
-		// DeleteRoot removes the entry entirely (not just emptied) so
-		// the next reload does not re-run the orphan path for the same
-		// root and re-fire watcher notifications.
-		for orphan := range existing {
-			cp.DeleteRoot(orphan)
-		}
+		applyLoadedTreeToProvider(cp, newTree)
 	}
 
 	if eng != nil {
 		if err := eng.Reload(reloadCtx); err != nil {
+			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider); rollbackErr != nil {
+				return fmt.Errorf("subsystem reload: %w (rollback failed: %w)", err, rollbackErr)
+			}
 			return fmt.Errorf("subsystem reload: %w", err)
 		}
 	}
 	return nil
+}
+
+func snapshotProvider(cp *zeconfig.Provider) (map[string]map[string]any, error) {
+	snapshot := make(map[string]map[string]any)
+	for _, root := range cp.Roots() {
+		tree, err := cp.Get(root)
+		if err != nil {
+			return nil, fmt.Errorf("root %s: %w", root, err)
+		}
+		snapshot[root] = cloneStringAnyMap(tree)
+	}
+	return snapshot, nil
+}
+
+func applyLoadedTreeToProvider(cp *zeconfig.Provider, tree map[string]any) {
+	existing := rootsSet(cp.Roots())
+	for root, subtree := range tree {
+		sub, ok := subtree.(map[string]any)
+		if !ok {
+			continue
+		}
+		cp.SetRoot(root, cloneStringAnyMap(sub))
+		delete(existing, root)
+	}
+	// Any root left in `existing` disappeared from the new tree. DeleteRoot
+	// removes the entry entirely so the next reload does not re-run the orphan
+	// path for the same root and re-fire watcher notifications.
+	for orphan := range existing {
+		cp.DeleteRoot(orphan)
+	}
+}
+
+func restoreProviderSnapshot(cp *zeconfig.Provider, snapshot map[string]map[string]any) {
+	existing := rootsSet(cp.Roots())
+	for root, subtree := range snapshot {
+		cp.SetRoot(root, cloneStringAnyMap(subtree))
+		delete(existing, root)
+	}
+	for orphan := range existing {
+		cp.DeleteRoot(orphan)
+	}
+}
+
+func rollbackReload(ctx context.Context, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, prior map[string]map[string]any) error {
+	if prior == nil {
+		return nil
+	}
+	var rollbackErrs []error
+	if s != nil {
+		if err := s.ReloadConfig(ctx, snapshotToLoadedTree(prior)); err != nil {
+			rollbackErrs = append(rollbackErrs, fmt.Errorf("plugin rollback: %w", err))
+		}
+	}
+	if cp != nil {
+		restoreProviderSnapshot(cp, prior)
+	}
+	if eng != nil && cp != nil {
+		if err := eng.Reload(ctx); err != nil {
+			rollbackErrs = append(rollbackErrs, fmt.Errorf("subsystem rollback: %w", err))
+		}
+	}
+	return errors.Join(rollbackErrs...)
+}
+
+func rootsSet(roots []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(roots))
+	for _, root := range roots {
+		set[root] = struct{}{}
+	}
+	return set
+}
+
+func snapshotToLoadedTree(snapshot map[string]map[string]any) map[string]any {
+	out := make(map[string]any, len(snapshot))
+	for root, subtree := range snapshot {
+		out[root] = cloneStringAnyMap(subtree)
+	}
+	return out
+}
+
+func cloneStringAnyMap(in map[string]any) map[string]any {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		out[k] = cloneAny(v)
+	}
+	return out
+}
+
+func cloneAny(v any) any {
+	switch typed := v.(type) {
+	case map[string]any:
+		return cloneStringAnyMap(typed)
+	case []any:
+		out := make([]any, len(typed))
+		for i, item := range typed {
+			out[i] = cloneAny(item)
+		}
+		return out
+	case []string:
+		out := make([]string, len(typed))
+		copy(out, typed)
+		return out
+	default:
+		return typed
+	}
 }
 
 // waitLoop dispatches signals: SIGHUP to reloadCh, others trigger shutdown return.

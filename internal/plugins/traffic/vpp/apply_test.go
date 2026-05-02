@@ -108,14 +108,18 @@ func TestApplyContextCancelMidWait(t *testing.T) {
 // specific call by name or on the Nth policerAddDel. See `vppOps` in ops.go
 // for the interface contract.
 type fakeOps struct {
-	ifaces  map[string]interface_types.InterfaceIndex
-	calls   []string
-	dumpErr error
+	ifaces         map[string]interface_types.InterfaceIndex
+	policerNames   []string
+	calls          []string
+	dumpErr        error
+	dumpPolicerErr error
 	// addDelFailOn: policer.Name → error to return from policerAddDel.
 	addDelFailOn map[string]error
 	// delFailOn: policer index → error to return from policerDel. Used to
 	// exercise reconcileRemovals' warn-on-delete-error branch.
 	delFailOn map[uint32]error
+	// deleteByNameFailOn: policer name → error to return from policerDeleteByName.
+	deleteByNameFailOn map[string]error
 	// outputFailOn: policer.Name → error to return from policerOutput(any
 	// apply flag). Used to exercise the warn-on-unbind-error branch.
 	outputFailOn map[string]error
@@ -129,10 +133,11 @@ type fakeOps struct {
 
 func newFakeOps(ifaces map[string]interface_types.InterfaceIndex) *fakeOps {
 	return &fakeOps{
-		ifaces:       ifaces,
-		addDelFailOn: map[string]error{},
-		delFailOn:    map[uint32]error{},
-		outputFailOn: map[string]error{},
+		ifaces:             ifaces,
+		addDelFailOn:       map[string]error{},
+		delFailOn:          map[uint32]error{},
+		deleteByNameFailOn: map[string]error{},
+		outputFailOn:       map[string]error{},
 	}
 }
 
@@ -162,6 +167,19 @@ func (f *fakeOps) policerAddDel(req *policer.PolicerAddDel) (uint32, error) {
 func (f *fakeOps) policerDel(idx uint32) error {
 	f.calls = append(f.calls, fmt.Sprintf("del:%d", idx))
 	return f.delFailOn[idx]
+}
+
+func (f *fakeOps) dumpPolicers() ([]string, error) {
+	f.calls = append(f.calls, "dumpPolicers")
+	if f.dumpPolicerErr != nil {
+		return nil, f.dumpPolicerErr
+	}
+	return append([]string(nil), f.policerNames...), nil
+}
+
+func (f *fakeOps) policerDeleteByName(name string) error {
+	f.calls = append(f.calls, "deleteByName:"+name)
+	return f.deleteByNameFailOn[name]
 }
 
 func (f *fakeOps) policerOutput(name string, swIfIndex interface_types.InterfaceIndex, apply bool) error {
@@ -230,6 +248,7 @@ func TestApplyCreatesPolicer(t *testing.T) {
 
 	want := []string{
 		"dump",
+		"dumpPolicers",
 		"addDel:ze/eth0/c1",
 		"output:ze/eth0/c1:on:idx=5",
 	}
@@ -242,6 +261,37 @@ func TestApplyCreatesPolicer(t *testing.T) {
 	}
 	if b.interfaceQdiscTypes["eth0"] != traffic.QdiscHTB {
 		t.Fatalf("interfaceQdiscTypes[eth0] = %v, want HTB", b.interfaceQdiscTypes["eth0"])
+	}
+}
+
+// VALIDATES: startup orphan scan deletes ze-owned VPP policers that are absent
+// from the desired config, while preserving desired ze policers and foreign
+// policers.
+// PREVENTS: old Ze process state continuing to police traffic after daemon restart.
+func TestStartupOrphanScanDeletesUndesiredZePolicers(t *testing.T) {
+	b := newOpsBackend()
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	fake.policerNames = []string{
+		"ze/eth0/old",
+		"ze/eth0/c1",
+		"foreign/policer",
+	}
+
+	if err := applyWithOpsLocked(b, fake, eth0OneClassHTB()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	want := []string{
+		"dump",
+		"dumpPolicers",
+		"output:ze/eth0/old:off:idx=5",
+		"deleteByName:ze/eth0/old",
+		"output:ze/eth0/c1:off:idx=5",
+		"addDel:ze/eth0/c1",
+		"output:ze/eth0/c1:on:idx=5",
+	}
+	if got := fake.calls; !equalSlices(got, want) {
+		t.Fatalf("calls = %v, want %v", got, want)
 	}
 }
 
@@ -311,13 +361,16 @@ func TestApplyUndoOnPartialFailure(t *testing.T) {
 	}
 
 	// Expected sequence (order-dependent on map iteration of successful iface):
-	//   dump, addDel:<first>, output:<first>:on, addDel:<second> (fails),
+	//   dump, dumpPolicers, addDel:<first>, output:<first>:on, addDel:<second> (fails),
 	//   output:<first>:off (undo 2), del:<first idx> (undo 1)
-	if got := len(fake.calls); got != 6 {
-		t.Fatalf("calls = %v (len=%d), want 6", fake.calls, got)
+	if got := len(fake.calls); got != 7 {
+		t.Fatalf("calls = %v (len=%d), want 7", fake.calls, got)
 	}
 	if fake.calls[0] != "dump" {
 		t.Fatalf("calls[0] = %q, want dump", fake.calls[0])
+	}
+	if fake.calls[1] != "dumpPolicers" {
+		t.Fatalf("calls[1] = %q, want dumpPolicers", fake.calls[1])
 	}
 	// Exactly 1 on-binding and 1 off-binding (the off from undo).
 	if n := fake.countPrefix("output:"); n != 2 {

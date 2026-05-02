@@ -287,6 +287,22 @@ func (m *SubsystemManager) Register(config SubsystemConfig) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.handlers[config.Name] = NewSubsystemHandler(config)
+	m.publishFrozenLocked(false)
+}
+
+// Replace swaps in an already-constructed handler and stops the previous one
+// after publishing the replacement. Used by reload paths that pre-start a
+// replacement before disrupting the old subsystem.
+func (m *SubsystemManager) Replace(name string, handler *SubsystemHandler) {
+	m.mu.Lock()
+	old := m.handlers[name]
+	m.handlers[name] = handler
+	m.publishFrozenLocked(false)
+	m.mu.Unlock()
+
+	if old != nil {
+		old.Stop()
+	}
 }
 
 // StartAll starts all registered subsystems.
@@ -326,6 +342,13 @@ func (m *SubsystemManager) Freeze() {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	m.publishFrozenLocked(true)
+}
+
+func (m *SubsystemManager) publishFrozenLocked(force bool) {
+	if !force && m.frozen.Load() == nil {
+		return
+	}
 	snap := &frozenSubsystems{
 		handlers: make(map[string]*SubsystemHandler, len(m.handlers)),
 	}
@@ -359,14 +382,7 @@ func (m *SubsystemManager) Unregister(name string) {
 	handler.Stop()
 	delete(m.handlers, name)
 
-	// If frozen, publish new snapshot reflecting the removal.
-	if m.frozen.Load() != nil {
-		snap := &frozenSubsystems{
-			handlers: make(map[string]*SubsystemHandler, len(m.handlers)),
-		}
-		maps.Copy(snap.handlers, m.handlers)
-		m.frozen.Store(snap)
-	}
+	m.publishFrozenLocked(false)
 }
 
 // Names returns the names of all registered subsystems.

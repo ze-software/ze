@@ -31,7 +31,7 @@
   {{if .Login}}
   <section class="l2tp-chart">
     <h3>CQM Graph</h3>
-    <div id="cqm-chart"></div>
+    <div id="cqm-chart" data-login="{{.Login}}"></div>
     <p><a href="/l2tp/{{.Login}}/samples.csv">Download CSV</a></p>
   </section>
   {{end}}
@@ -63,7 +63,7 @@
   <section class="l2tp-disconnect">
     <h3>Disconnect</h3>
     <form method="POST" action="/l2tp/{{.Session.LocalSID}}/disconnect"
-          onsubmit="return confirm('Disconnect session {{.Session.LocalSID}}?')">
+          data-confirm="Disconnect session {{.Session.LocalSID}}?">
       <label for="reason">Reason (required):</label>
       <input type="text" id="reason" name="reason" required maxlength="256" placeholder="maintenance window">
       <label for="cause">Disconnect Cause (optional):</label>
@@ -74,11 +74,6 @@
 </main>
 </div>
 
-{{if .Login}}
 <script src="/assets/l2tp-chart.js"></script>
-<script>
-  initCQMChart("cqm-chart", "{{.Login}}");
-</script>
-{{end}}
 </body>
 </html>

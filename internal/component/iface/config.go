@@ -24,15 +24,16 @@ const yangTrue = "true"
 
 // ifaceConfig is the parsed representation of the interface config section.
 type ifaceConfig struct {
-	Backend   string
-	DHCPAuto  bool // auto-discover first ethernet for DHCP
-	Ethernet  []ifaceEntry
-	Dummy     []ifaceEntry
-	Veth      []vethEntry
-	Bridge    []bridgeEntry
-	Tunnel    []tunnelEntry
-	Wireguard []wireguardEntry
-	Loopback  *loopbackEntry
+	Backend         string
+	DHCPAuto        bool // auto-discover first ethernet for DHCP
+	Ethernet        []ifaceEntry
+	Dummy           []ifaceEntry
+	Veth            []vethEntry
+	Bridge          []bridgeEntry
+	Tunnel          []tunnelEntry
+	Wireguard       []wireguardEntry
+	Loopback        *loopbackEntry
+	previousManaged map[string]bool // runtime-only: names Ze managed before this apply
 }
 
 // tunnelEntry represents a configured tunnel interface. The Spec carries
@@ -870,6 +871,35 @@ func zeManageable(linkType string) bool {
 	return kernelTunnelKinds[linkType]
 }
 
+// rememberPreviousManaged records the names Ze owned in the last successfully
+// applied config. Reconcile uses this runtime-only set as its deletion scope:
+// a manageable kernel link is eligible for deletion only if Ze managed it
+// before and it disappeared from the new config.
+func (cfg *ifaceConfig) rememberPreviousManaged(previous *ifaceConfig) {
+	cfg.previousManaged = nil
+	if previous == nil {
+		return
+	}
+	_, managed := previous.desiredState()
+	cfg.previousManaged = managed
+}
+
+// removedManagedNames returns the subset of previousManaged that is no longer
+// present in currentManaged.
+func removedManagedNames(previousManaged, currentManaged map[string]bool) map[string]bool {
+	if len(previousManaged) == 0 {
+		return nil
+	}
+	removed := make(map[string]bool)
+	for name := range previousManaged {
+		if currentManaged[name] {
+			continue
+		}
+		removed[name] = true
+	}
+	return removed
+}
+
 // indexTunnelSpecs returns a name -> Spec map for the previous config's
 // tunnel entries. Used by applyConfig to detect Spec changes across reloads
 // so that only changed tunnels are recreated. Returns an empty map if
@@ -992,6 +1022,7 @@ func wireguardPeerEqual(a, b WireguardPeerSpec) bool {
 func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	log := loggerPtr.Load()
 	var errs []error
+	cfg.rememberPreviousManaged(previous)
 
 	record := func(msg string, err error) {
 		log.Warn(msg, "err", err)
@@ -1266,13 +1297,16 @@ func reconcileOnReady(cfg *ifaceConfig, b Backend) (errs []error, deferred bool)
 		}
 	}
 
-	// Phase 4: Delete Ze-managed interfaces not in config.
+	// Phase 4: Delete interfaces Ze owned in the previous config but which are
+	// no longer in the current config. Do not adopt/delete arbitrary existing
+	// dummy/veth/bridge/tunnel devices just because their link type is manageable.
 	currentIfaces := currentIfaceSet(currentInfos)
+	removedManaged := removedManagedNames(cfg.previousManaged, managedNames)
 	for name, linkType := range currentIfaces {
 		if !zeManageable(linkType) {
 			continue
 		}
-		if managedNames[name] {
+		if !removedManaged[name] {
 			continue
 		}
 		if err := b.DeleteInterface(name); err != nil {
