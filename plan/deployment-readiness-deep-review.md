@@ -27,6 +27,7 @@ Current state summary:
 - 2026-05-02 handoff follow-up: local `make ze-verify` passed in this checkout. This is useful sanity evidence, but it is not clean target-runner release-candidate evidence because `target-runner` is not available here and the worktree still contains the review doc edit plus the untracked comparison document.
 - Drift found during the 2026-05-02 static refresh has been corrected in this pass: `docs/functional-tests.md` now acknowledges `make ze-chaos-web-test`; `docs/features.md` reflects plugin autoload, reload-diff, provider/subsystem rollback, and transactional changed-plugin replacement; `docs/guide/tacacs.md` reflects strict fallback; the duplicate-key deferral row is closed; Makefile stress-test wording now says the in-tree ze-test peer injector; L2TP/RADIUS docs now reflect Access-Accept exact-or-reject behavior.
 - 2026-05-03 follow-up: PPP LCP Opened-state RXR re-entry is code-remediated, and functional test port allocation now holds runner-level advisory reservations for the suite lifetime instead of only probing and releasing ports before later binds.
+- 2026-05-03 follow-up: interface apply no longer continues best-effort after individual mutating failures. Successful create, address, bridge-port, mirror, and selected property operations are journaled with scoped inverse callbacks, and the first apply failure rolls back the recorded steps before returning.
 
 ## P0 Release Blockers
 
@@ -55,7 +56,7 @@ Resolved P1 findings now tracked as regression coverage: `SplitWireUpdate` nil s
 | Hub reload | Closed in code. Orchestrator-mode reload diffs the full plugin definition and restarts when executable/config source changes. | `internal/component/hub/reload.go`, `internal/component/hub/reload_test.go` | Keep same-name changed-`run` restart tests in the gate. |
 | Web CSP | Closed in code. CSP is now `default-src 'self'; script-src 'self'; style-src 'self'`, with inline scripts/styles/handlers moved to static assets or CSS classes. | `internal/component/web/auth.go`, `internal/component/web/assets/cli.js`, `internal/component/web/assets/notification.js`, `internal/component/web/render_test.go`, web templates | Keep security-header and no-inline-template tests in the gate. |
 | Interface management | Closed in code for destructive reconciliation ownership. Reload deletes only interfaces Ze managed in the previous config and which disappeared from the current config; first apply does not adopt/delete arbitrary existing manageable links. | `internal/component/iface/config.go`, `internal/component/iface/config_test.go` | Keep ownership-scoped deletion tests and add privileged kernel-state evidence. |
-| Interface rollback | Partially narrowed. Ownership-scoped deletion prevents rollback/reload from deleting unrelated manageable links, but interface apply is still best-effort and continues after individual failures; tunnel spec changes may still delete/recreate. | `internal/component/iface/config.go`, `internal/component/iface/register.go` | Add transactional preflight, scoped inverse rollback, and privileged failure tests. |
+| Interface rollback | Code-remediated for reviewed in-process apply failures; privileged evidence still open. Ownership-scoped deletion prevents rollback/reload from deleting unrelated manageable links. Interface apply now aborts on the first mutating failure and rolls back successful steps that have exact inverses, including created interfaces, address changes, bridge ports, mirrors, and selected property changes; changed tunnel recreation journals the old tunnel recreate before creating the replacement. | `internal/component/iface/config.go`, `internal/component/iface/config_test.go`, `internal/component/iface/register.go` | Keep scoped rollback regression tests in the gate, and add privileged kernel-state failure tests. |
 | Traffic control | Code-remediated for reviewed in-process safety paths; privileged evidence still open. VPP apply has undo-on-error, same-run removal reconciliation, stale-index tolerant deletes, and a startup scan that removes undesired `ze/` policers before re-applying desired state. Netlink now snapshots the original root qdisc before replacement, persists the snapshot under the config state directory, restores via `RestoreOriginal`/`Close`, rejects generic qdiscs and root class/filter state before changing tc state, and no longer synthesizes `fq_codel` on traffic-control removal. Real privileged tc/VPP daemon idempotency evidence remains open. | `internal/plugins/traffic/netlink/backend_linux.go`, `internal/plugins/traffic/netlink/snapshot_linux.go`, `internal/plugins/traffic/netlink/backend_linux_test.go`, `internal/component/traffic/register.go`, `internal/plugins/traffic/vpp/backend_linux.go`, `internal/plugins/traffic/vpp/apply_test.go`, `plan/deferrals.md:200-213` | Produce privileged tc/VPP evidence for original-qdisc restore, route/nft ownership, real VPP daemon idempotency, and restart/recovery cases. |
 | L2TP/PPP | Closed in code for the reviewed safety policy. PPP required auth rejects `AuthMethodNone`; L2TP defaults have finite caps and CHAP-MD5 auth; no-auth requires explicit `allow-no-auth true`; hidden mandatory AVPs fail closed. | `internal/component/ppp/start_session.go`, `internal/component/ppp/session_run.go`, `internal/component/l2tp/config.go`, `internal/component/l2tp/avp.go`, `internal/component/l2tp/schema/ze-l2tp-conf.yang` | Keep PPP required-auth, L2TP auth-policy, caps, reload, CLI, and hidden mandatory AVP tests in the gate. |
 | RADIUS policy | Closed in code for exact-or-reject. Access-Accept rejects unsupported deployment-affecting attributes (`Framed-IP-Address`, `Framed-IP-Netmask`, `Framed-Pool`, `Filter-Id`, `Session-Timeout`, `Idle-Timeout`, `Acct-Interim-Interval`) instead of accepting and ignoring them. | `internal/plugins/l2tpauthradius/handler.go`, `internal/plugins/l2tpauthradius/handler_test.go`, `docs/guide/l2tp.md`, `docs/guide/plugins.md`, `docs/features.md` | Keep unsupported Access-Accept attribute rejection tests and docs aligned. |
@@ -153,7 +154,7 @@ Work items:
 
 - Add privileged route/nft ownership and recovery tests for the code-remediated route owner split.
 - Keep interface ownership/adoption model covered.
-- Add interface transactional preflight and failure tests.
+- Keep interface transactional apply rollback covered, and add privileged kernel-state failure tests.
 - Keep traffic-control original-qdisc restore/reconcile semantics covered, and add privileged kernel-state evidence.
 - Keep VPP traffic startup orphan scan covered, and add real-daemon proof.
 - Add VPP real-daemon CI for traffic/FIB idempotency and restart cases.
@@ -309,6 +310,18 @@ PASS.
 go test ./cmd/ze-test ./internal/test/runner -count=1
 PASS.
 go test -race ./internal/test/runner -count=1
+PASS.
+
+2026-05-03 follow-up interface rollback checks:
+go test ./internal/component/iface -run 'TestApplyConfigRollsBackCreatedInterfaceOnAddressFailure|TestApplyConfigStopsAfterFirstCreateFailure|TestReconcileOnReady|TestApplyTunnels|TestApplyWireguards|TestIfaceApplyJournal' -count=1
+PASS.
+go test ./internal/component/iface -count=1
+PASS.
+go test -race ./internal/component/iface -count=1
+PASS.
+make ze-lint
+PASS: 0 issues.
+git diff --check
 PASS.
 
 Do not treat this static refresh as final release-candidate evidence until the target runner verifies the release candidate with a clean or intentionally scoped worktree.

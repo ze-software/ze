@@ -1017,16 +1017,25 @@ func wireguardPeerEqual(a, b WireguardPeerSpec) bool {
 // only those tunnels are deleted-and-recreated; tunnels with unchanged Spec
 // stay up across SIGHUP, preserving any traffic flowing through them.
 //
-// Returns collected errors. Application continues past individual failures
-// so that one bad interface doesn't block the rest.
+// Returns collected errors. The first mutating failure aborts the apply and
+// rolls back successful steps that have an exact inverse.
 func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	log := loggerPtr.Load()
 	var errs []error
+	journal := sdk.NewJournal()
 	cfg.rememberPreviousManaged(previous)
 
-	record := func(msg string, err error) {
+	rollbackPartial := func() []error {
+		for _, err := range journal.Rollback() {
+			log.Warn("iface config: rollback partial apply", "err", err)
+			errs = append(errs, fmt.Errorf("rollback partial apply: %w", err))
+		}
+		return errs
+	}
+	record := func(msg string, err error) []error {
 		log.Warn(msg, "err", err)
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+		return rollbackPartial()
 	}
 
 	// Phase 1: Create missing interfaces.
@@ -1038,11 +1047,23 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		if e.Disable {
 			continue
 		}
-		if err := b.CreateDummy(e.Name); err != nil {
-			if _, getErr := b.GetInterface(e.Name); getErr != nil {
-				record(fmt.Sprintf("dummy %s create", e.Name), err)
-				continue
+		created := false
+		if err := applyBackendStep(journal, func() error {
+			if err := b.CreateDummy(e.Name); err != nil {
+				if _, getErr := b.GetInterface(e.Name); getErr != nil {
+					return err
+				}
+				return nil
 			}
+			created = true
+			return nil
+		}, func() error {
+			if !created {
+				return nil
+			}
+			return b.DeleteInterface(e.Name)
+		}); err != nil {
+			return record(fmt.Sprintf("dummy %s create", e.Name), err)
 		}
 	}
 	for _, e := range cfg.Veth {
@@ -1053,11 +1074,23 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		if peer == "" {
 			peer = e.Name + "-peer"
 		}
-		if err := b.CreateVeth(e.Name, peer); err != nil {
-			if _, getErr := b.GetInterface(e.Name); getErr != nil {
-				record(fmt.Sprintf("veth %s create", e.Name), err)
-				continue
+		created := false
+		if err := applyBackendStep(journal, func() error {
+			if err := b.CreateVeth(e.Name, peer); err != nil {
+				if _, getErr := b.GetInterface(e.Name); getErr != nil {
+					return err
+				}
+				return nil
 			}
+			created = true
+			return nil
+		}, func() error {
+			if !created {
+				return nil
+			}
+			return b.DeleteInterface(e.Name)
+		}); err != nil {
+			return record(fmt.Sprintf("veth %s create", e.Name), err)
 		}
 	}
 	previousTunnelSpecs := indexTunnelSpecs(previous)
@@ -1077,14 +1110,41 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			// Spec changed: delete-then-create. Linux does not support
 			// modifying most tunnel kinds in place; this matches VyOS's
 			// behavior for gretap/ip6gretap.
-			if err := b.DeleteInterface(e.Name); err != nil {
-				log.Debug("iface config: delete tunnel before recreate",
-					"name", e.Name, "err", err)
+			deleted := false
+			if err := applyBackendStep(journal, func() error {
+				if err := b.DeleteInterface(e.Name); err != nil {
+					if !interfaceExists(b, e.Name) {
+						log.Debug("iface config: tunnel already absent before recreate",
+							"name", e.Name, "err", err)
+						return nil
+					}
+					return err
+				}
+				deleted = true
+				return nil
+			}, func() error {
+				if !deleted {
+					return nil
+				}
+				return b.CreateTunnel(prev)
+			}); err != nil {
+				return record(fmt.Sprintf("tunnel %s delete before recreate", e.Name), err)
 			}
 		}
-		if err := b.CreateTunnel(e.Spec); err != nil {
-			record(fmt.Sprintf("tunnel %s create", e.Name), err)
-			continue
+		created := false
+		if err := applyBackendStep(journal, func() error {
+			if err := b.CreateTunnel(e.Spec); err != nil {
+				return err
+			}
+			created = true
+			return nil
+		}, func() error {
+			if !created {
+				return nil
+			}
+			return b.DeleteInterface(e.Name)
+		}); err != nil {
+			return record(fmt.Sprintf("tunnel %s create", e.Name), err)
 		}
 	}
 	previousWireguardSpecs := indexWireguardSpecs(previous)
@@ -1102,18 +1162,30 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		}
 		if !hadPrev {
 			// New wireguard interface: create the netdev first.
-			if err := b.CreateWireguardDevice(e.Name); err != nil {
-				// CreateWireguardDevice fails on "already exists" when
-				// the previous-state tracker is stale. That is harmless.
-				// A genuine failure (e.g. missing kernel module) means
-				// we must skip ConfigureWireguardDevice -- there is
-				// nothing to configure.
-				if _, getErr := b.GetInterface(e.Name); getErr != nil {
-					record(fmt.Sprintf("wireguard %s create", e.Name), err)
-					continue
+			created := false
+			if err := applyBackendStep(journal, func() error {
+				if err := b.CreateWireguardDevice(e.Name); err != nil {
+					// CreateWireguardDevice fails on "already exists" when
+					// the previous-state tracker is stale. That is harmless.
+					// A genuine failure (e.g. missing kernel module) means
+					// we must skip ConfigureWireguardDevice -- there is
+					// nothing to configure.
+					if _, getErr := b.GetInterface(e.Name); getErr != nil {
+						return err
+					}
+					log.Debug("iface config: create wireguard (already exists)",
+						"name", e.Name, "err", err)
+					return nil
 				}
-				log.Debug("iface config: create wireguard (already exists)",
-					"name", e.Name, "err", err)
+				created = true
+				return nil
+			}, func() error {
+				if !created {
+					return nil
+				}
+				return b.DeleteInterface(e.Name)
+			}); err != nil {
+				return record(fmt.Sprintf("wireguard %s create", e.Name), err)
 			}
 		}
 		// Whether newly created or spec-changed, push the full desired
@@ -1122,26 +1194,54 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		// with ReplacePeers: true -- peers that are still in the spec
 		// preserve their handshake state because the kernel matches
 		// them by public key.
-		if err := b.ConfigureWireguardDevice(e.Spec); err != nil {
-			record(fmt.Sprintf("wireguard %s configure", e.Name), err)
+		if err := applyBackendStep(journal, func() error {
+			return b.ConfigureWireguardDevice(e.Spec)
+		}, func() error {
+			if !hadPrev {
+				return nil
+			}
+			return b.ConfigureWireguardDevice(prev)
+		}); err != nil {
+			return record(fmt.Sprintf("wireguard %s configure", e.Name), err)
 		}
 	}
 	for _, e := range cfg.Bridge {
 		if e.Disable {
 			continue
 		}
-		if err := b.CreateBridge(e.Name); err != nil {
-			if _, getErr := b.GetInterface(e.Name); getErr != nil {
-				record(fmt.Sprintf("bridge %s create", e.Name), err)
-				continue
+		created := false
+		if err := applyBackendStep(journal, func() error {
+			if err := b.CreateBridge(e.Name); err != nil {
+				if _, getErr := b.GetInterface(e.Name); getErr != nil {
+					return err
+				}
+				return nil
 			}
+			created = true
+			return nil
+		}, func() error {
+			if !created {
+				return nil
+			}
+			return b.DeleteInterface(e.Name)
+		}); err != nil {
+			return record(fmt.Sprintf("bridge %s create", e.Name), err)
 		}
-		if err := b.BridgeSetSTP(e.Name, e.STP); err != nil {
-			record(fmt.Sprintf("bridge %s stp", e.Name), err)
+		oldSTP := !e.STP
+		if err := applyBackendStep(journal, func() error {
+			return b.BridgeSetSTP(e.Name, e.STP)
+		}, func() error {
+			return b.BridgeSetSTP(e.Name, oldSTP)
+		}); err != nil {
+			return record(fmt.Sprintf("bridge %s stp", e.Name), err)
 		}
 		for _, member := range e.Members {
-			if err := b.BridgeAddPort(e.Name, member); err != nil {
-				record(fmt.Sprintf("bridge %s add port %s", e.Name, member), err)
+			if err := applyBackendStep(journal, func() error {
+				return b.BridgeAddPort(e.Name, member)
+			}, func() error {
+				return b.BridgeDelPort(member)
+			}); err != nil {
+				return record(fmt.Sprintf("bridge %s add port %s", e.Name, member), err)
 			}
 		}
 	}
@@ -1168,13 +1268,32 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			continue
 		}
 		if e.MTU > 0 {
-			if err := b.SetMTU(e.Name, e.MTU); err != nil {
-				record(fmt.Sprintf("%s set mtu %d", e.Name, e.MTU), err)
+			oldMTU := 0
+			if info, err := b.GetInterface(e.Name); err == nil {
+				oldMTU = info.MTU
+			}
+			if err := applyBackendStep(journal, func() error {
+				return b.SetMTU(e.Name, e.MTU)
+			}, func() error {
+				if oldMTU <= 0 {
+					return nil
+				}
+				return b.SetMTU(e.Name, oldMTU)
+			}); err != nil {
+				return record(fmt.Sprintf("%s set mtu %d", e.Name, e.MTU), err)
 			}
 		}
 		if e.MACAddress != "" {
-			if err := b.SetMACAddress(e.Name, e.MACAddress); err != nil {
-				record(fmt.Sprintf("%s set mac", e.Name), err)
+			oldMAC, _ := b.GetMACAddress(e.Name)
+			if err := applyBackendStep(journal, func() error {
+				return b.SetMACAddress(e.Name, e.MACAddress)
+			}, func() error {
+				if oldMAC == "" {
+					return nil
+				}
+				return b.SetMACAddress(e.Name, oldMAC)
+			}); err != nil {
+				return record(fmt.Sprintf("%s set mac", e.Name), err)
 			}
 		}
 		for i := range e.Units {
@@ -1184,18 +1303,33 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			}
 			osName := e.Name
 			if u.VLANID > 0 {
-				if err := b.CreateVLAN(e.Name, u.VLANID); err != nil {
-					vlanName := fmt.Sprintf("%s.%d", e.Name, u.VLANID)
-					if _, getErr := b.GetInterface(vlanName); getErr != nil {
-						record(fmt.Sprintf("vlan %s create", vlanName), err)
-						continue
+				vlanName := fmt.Sprintf("%s.%d", e.Name, u.VLANID)
+				created := false
+				if err := applyBackendStep(journal, func() error {
+					if err := b.CreateVLAN(e.Name, u.VLANID); err != nil {
+						if _, getErr := b.GetInterface(vlanName); getErr != nil {
+							return err
+						}
+						return nil
 					}
+					created = true
+					return nil
+				}, func() error {
+					if !created {
+						return nil
+					}
+					return b.DeleteInterface(vlanName)
+				}); err != nil {
+					return record(fmt.Sprintf("vlan %s create", vlanName), err)
 				}
-				osName = fmt.Sprintf("%s.%d", e.Name, u.VLANID)
+				osName = vlanName
 			}
 			applySysctl(osName, *u)
 			applySysctlProfiles(osName, u.SysctlProfiles)
-			errs = append(errs, applyMirror(b, osName, *u)...)
+			if mirrorErrs := applyMirror(b, osName, *u, journal); len(mirrorErrs) > 0 {
+				errs = append(errs, mirrorErrs...)
+				return rollbackPartial()
+			}
 		}
 	}
 
@@ -1218,8 +1352,19 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		if e.Disable {
 			continue
 		}
-		if err := b.SetAdminUp(e.Name); err != nil {
-			record(fmt.Sprintf("%s admin up", e.Name), err)
+		wasDown := false
+		if info, err := b.GetInterface(e.Name); err == nil {
+			wasDown = info.State != "" && info.State != "up" && info.State != "UP"
+		}
+		if err := applyBackendStep(journal, func() error {
+			return b.SetAdminUp(e.Name)
+		}, func() error {
+			if !wasDown {
+				return nil
+			}
+			return b.SetAdminDown(e.Name)
+		}); err != nil {
+			return record(fmt.Sprintf("%s admin up", e.Name), err)
 		}
 	}
 
@@ -1228,13 +1373,16 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	// still in flight), log + defer: reconcile will re-run once
 	// vppevents.EventConnected fires. The additive-only fallback still
 	// applies desired addresses so the daemon is usable before vpp comes up.
-	reconcileErrs, deferred := reconcileOnReady(cfg, b)
+	reconcileErrs, deferred := reconcileOnReadyWithJournal(cfg, b, journal, previous)
 	if deferred {
 		log.Debug("iface reconcile deferred, backend not ready")
 		addDesiredAddresses(cfg, b)
 		return errs
 	}
-	errs = append(errs, reconcileErrs...)
+	if len(reconcileErrs) > 0 {
+		errs = append(errs, reconcileErrs...)
+		return rollbackPartial()
+	}
 
 	return errs
 }
@@ -1250,6 +1398,10 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 // callers can retry later. Returns (errs, false) with any operational
 // failures encountered during a normal reconcile.
 func reconcileOnReady(cfg *ifaceConfig, b Backend) (errs []error, deferred bool) {
+	return reconcileOnReadyWithJournal(cfg, b, nil, nil)
+}
+
+func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journal, previous *ifaceConfig) (errs []error, deferred bool) {
 	log := loggerPtr.Load()
 	desiredAddrs, managedNames := cfg.desiredState()
 
@@ -1276,8 +1428,13 @@ func reconcileOnReady(cfg *ifaceConfig, b Backend) (errs []error, deferred bool)
 			if current != nil && current[addr] {
 				continue
 			}
-			if err := b.AddAddress(osName, addr); err != nil {
+			if err := applyBackendStep(journal, func() error {
+				return b.AddAddress(osName, addr)
+			}, func() error {
+				return b.RemoveAddress(osName, addr)
+			}); err != nil {
 				record(fmt.Sprintf("%s add address %s", osName, addr), err)
+				return errs, false
 			}
 		}
 	}
@@ -1289,8 +1446,13 @@ func reconcileOnReady(cfg *ifaceConfig, b Backend) (errs []error, deferred bool)
 			if desired[addr] {
 				continue
 			}
-			if err := b.RemoveAddress(osName, addr); err != nil {
+			if err := applyBackendStep(journal, func() error {
+				return b.RemoveAddress(osName, addr)
+			}, func() error {
+				return b.AddAddress(osName, addr)
+			}); err != nil {
 				record(fmt.Sprintf("%s remove stale address %s", osName, addr), err)
+				return errs, false
 			} else {
 				log.Info("iface config: removed stale address", "iface", osName, "addr", addr)
 			}
@@ -1309,14 +1471,140 @@ func reconcileOnReady(cfg *ifaceConfig, b Backend) (errs []error, deferred bool)
 		if !removedManaged[name] {
 			continue
 		}
-		if err := b.DeleteInterface(name); err != nil {
+		if err := applyBackendStep(journal, func() error {
+			return b.DeleteInterface(name)
+		}, func() error {
+			return recreateManagedInterface(previous, name, b)
+		}); err != nil {
 			record(fmt.Sprintf("delete %s (%s)", name, linkType), err)
+			return errs, false
 		} else {
 			log.Info("iface config: deleted interface not in config", "name", name, "type", linkType)
 		}
 	}
 
 	return errs, false
+}
+
+func applyBackendStep(journal *sdk.Journal, apply, undo func() error) error {
+	if journal == nil {
+		return apply()
+	}
+	if undo == nil {
+		undo = func() error { return nil }
+	}
+	return journal.Record(apply, undo)
+}
+
+func interfaceExists(b Backend, name string) bool {
+	_, err := b.GetInterface(name)
+	return err == nil
+}
+
+func recreateManagedInterface(cfg *ifaceConfig, name string, b Backend) error {
+	if cfg == nil {
+		return nil
+	}
+	for _, e := range cfg.Dummy {
+		if !e.Disable && e.Name == name {
+			return b.CreateDummy(e.Name)
+		}
+	}
+	for _, e := range cfg.Veth {
+		if e.Disable || e.Name != name {
+			continue
+		}
+		peer := e.Peer
+		if peer == "" {
+			peer = e.Name + "-peer"
+		}
+		return b.CreateVeth(e.Name, peer)
+	}
+	for _, e := range cfg.Bridge {
+		if !e.Disable && e.Name == name {
+			return b.CreateBridge(e.Name)
+		}
+	}
+	for i := range cfg.Tunnel {
+		e := &cfg.Tunnel[i]
+		if !e.Disable && e.Name == name {
+			return b.CreateTunnel(e.Spec)
+		}
+	}
+	for i := range cfg.Wireguard {
+		e := &cfg.Wireguard[i]
+		if !e.Disable && e.Name == name {
+			if err := b.CreateWireguardDevice(e.Name); err != nil {
+				return err
+			}
+			return b.ConfigureWireguardDevice(e.Spec)
+		}
+	}
+	for _, e := range cfg.Ethernet {
+		if e.Disable {
+			continue
+		}
+		if err := recreateManagedVLAN(e.Name, e.Units, name, b); err != nil {
+			return err
+		}
+	}
+	for _, e := range cfg.Dummy {
+		if e.Disable {
+			continue
+		}
+		if err := recreateManagedVLAN(e.Name, e.Units, name, b); err != nil {
+			return err
+		}
+	}
+	for _, e := range cfg.Veth {
+		if e.Disable {
+			continue
+		}
+		if err := recreateManagedVLAN(e.Name, e.Units, name, b); err != nil {
+			return err
+		}
+	}
+	for _, e := range cfg.Bridge {
+		if e.Disable {
+			continue
+		}
+		if err := recreateManagedVLAN(e.Name, e.Units, name, b); err != nil {
+			return err
+		}
+	}
+	for i := range cfg.Tunnel {
+		e := &cfg.Tunnel[i]
+		if e.Disable {
+			continue
+		}
+		if err := recreateManagedVLAN(e.Name, e.Units, name, b); err != nil {
+			return err
+		}
+	}
+	for i := range cfg.Wireguard {
+		e := &cfg.Wireguard[i]
+		if e.Disable {
+			continue
+		}
+		if err := recreateManagedVLAN(e.Name, e.Units, name, b); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func recreateManagedVLAN(parent string, units []unitEntry, name string, b Backend) error {
+	for i := range units {
+		u := &units[i]
+		if u.Disable || u.VLANID <= 0 {
+			continue
+		}
+		if fmt.Sprintf("%s.%d", parent, u.VLANID) != name {
+			continue
+		}
+		return b.CreateVLAN(parent, u.VLANID)
+	}
+	return nil
 }
 
 // addDesiredAddresses adds every configured address without consulting the
@@ -1499,7 +1787,7 @@ func applySysctlProfiles(osName string, profiles []string) {
 // applyMirror configures traffic mirroring on an interface from unit config.
 // Only applied when at least one of ingress/egress destination is configured.
 // Returns errors for mirror operations that failed.
-func applyMirror(b Backend, osName string, u unitEntry) []error {
+func applyMirror(b Backend, osName string, u unitEntry, journal *sdk.Journal) []error {
 	if u.MirrorIngress == "" && u.MirrorEgress == "" {
 		return nil
 	}
@@ -1514,19 +1802,38 @@ func applyMirror(b Backend, osName string, u unitEntry) []error {
 	egress := u.MirrorEgress != ""
 
 	if ingress && egress && u.MirrorIngress == u.MirrorEgress {
-		if err := b.SetupMirror(osName, u.MirrorIngress, true, true); err != nil {
+		if err := applyBackendStep(journal, func() error {
+			return b.SetupMirror(osName, u.MirrorIngress, true, true)
+		}, func() error {
+			return b.RemoveMirror(osName)
+		}); err != nil {
 			fail("mirror", err)
 		}
 		return errs
 	}
 	if ingress {
-		if err := b.SetupMirror(osName, u.MirrorIngress, true, false); err != nil {
+		if err := applyBackendStep(journal, func() error {
+			return b.SetupMirror(osName, u.MirrorIngress, true, false)
+		}, func() error {
+			return b.RemoveMirror(osName)
+		}); err != nil {
 			fail("mirror ingress", err)
+			return errs
 		}
 	}
 	if egress {
-		if err := b.SetupMirror(osName, u.MirrorEgress, false, true); err != nil {
+		hadIngress := ingress
+		ingressDst := u.MirrorIngress
+		if err := applyBackendStep(journal, func() error {
+			return b.SetupMirror(osName, u.MirrorEgress, false, true)
+		}, func() error {
+			if hadIngress {
+				return b.SetupMirror(osName, ingressDst, true, false)
+			}
+			return b.RemoveMirror(osName)
+		}); err != nil {
 			fail("mirror egress", err)
+			return errs
 		}
 	}
 	return errs

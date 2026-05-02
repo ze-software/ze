@@ -1788,6 +1788,45 @@ func TestIfaceApplyJournalRollbackEvents(t *testing.T) {
 	assert.True(t, b.deleted["dummy0"], "dummy0 should be deleted after rollback")
 }
 
+func TestApplyConfigRollsBackCreatedInterfaceOnAddressFailure(t *testing.T) {
+	b := &fakeBackend{
+		ifaces:        map[string]fakeIface{},
+		addAddressErr: map[string]error{addressErrKey("dummy0", "10.0.0.1/24"): errors.New("address failed")},
+	}
+	cfg := &ifaceConfig{
+		Backend: "fake",
+		Dummy:   []ifaceEntry{{Name: "dummy0", Units: []unitEntry{{ID: 0, Addresses: []string{"10.0.0.1/24"}}}}},
+	}
+
+	errs := applyConfig(cfg, nil, b)
+
+	require.NotEmpty(t, errs)
+	assert.Contains(t, errs[0].Error(), "dummy0 add address 10.0.0.1/24")
+	assert.True(t, b.deleted["dummy0"], "created interface should be deleted by partial rollback")
+	assert.NotContains(t, b.ifaces, "dummy0", "created interface should not survive failed apply")
+}
+
+func TestApplyConfigStopsAfterFirstCreateFailure(t *testing.T) {
+	b := &fakeBackend{
+		ifaces:         map[string]fakeIface{},
+		createDummyErr: map[string]error{"dummy0": errors.New("create failed")},
+	}
+	cfg := &ifaceConfig{
+		Backend: "fake",
+		Dummy: []ifaceEntry{
+			{Name: "dummy0"},
+			{Name: "dummy1"},
+		},
+	}
+
+	errs := applyConfig(cfg, nil, b)
+
+	require.NotEmpty(t, errs)
+	assert.Contains(t, errs[0].Error(), "dummy dummy0 create")
+	assert.False(t, b.created["dummy1"], "apply must not continue after first failure")
+	assert.NotContains(t, b.ifaces, "dummy1")
+}
+
 // TestIfaceVerifyEstimate verifies that the verify callback computes an
 // estimate proportional to interface operations.
 //
@@ -1823,17 +1862,19 @@ type routeCall struct {
 
 // fakeBackend implements Backend for testing config application.
 type fakeBackend struct {
-	ifaces       map[string]fakeIface
-	created      map[string]bool
-	deleted      map[string]bool
-	addrs        map[string][]string
-	tunnels      map[string]TunnelSpec
-	wgConfigs    map[string]WireguardSpec
-	wgConfigCt   map[string]int
-	routeAdds    []routeCall
-	routeRemoves []routeCall
-	staleRoutes  []RouteInfo // returned by ListRoutes for stale cleanup tests
-	listErr      error       // if non-nil, ListInterfaces returns this instead of enumerating
+	ifaces         map[string]fakeIface
+	created        map[string]bool
+	deleted        map[string]bool
+	addrs          map[string][]string
+	tunnels        map[string]TunnelSpec
+	wgConfigs      map[string]WireguardSpec
+	wgConfigCt     map[string]int
+	routeAdds      []routeCall
+	routeRemoves   []routeCall
+	staleRoutes    []RouteInfo // returned by ListRoutes for stale cleanup tests
+	listErr        error       // if non-nil, ListInterfaces returns this instead of enumerating
+	createDummyErr map[string]error
+	addAddressErr  map[string]error
 }
 
 type fakeIface struct {
@@ -1842,6 +1883,9 @@ type fakeIface struct {
 }
 
 func (b *fakeBackend) ensureMaps() {
+	if b.ifaces == nil {
+		b.ifaces = make(map[string]fakeIface)
+	}
 	if b.created == nil {
 		b.created = make(map[string]bool)
 	}
@@ -1862,8 +1906,15 @@ func (b *fakeBackend) ensureMaps() {
 	}
 }
 
+func addressErrKey(ifaceName, cidr string) string {
+	return ifaceName + "|" + cidr
+}
+
 func (b *fakeBackend) CreateDummy(name string) error {
 	b.ensureMaps()
+	if err := b.createDummyErr[name]; err != nil {
+		return err
+	}
 	b.created[name] = true
 	b.ifaces[name] = fakeIface{name: name, linkType: "dummy"}
 	return nil
@@ -1929,6 +1980,9 @@ func (b *fakeBackend) DeleteInterface(name string) error {
 
 func (b *fakeBackend) AddAddress(ifaceName, cidr string) error {
 	b.ensureMaps()
+	if err := b.addAddressErr[addressErrKey(ifaceName, cidr)]; err != nil {
+		return err
+	}
 	b.addrs[ifaceName] = append(b.addrs[ifaceName], cidr)
 	return nil
 }
