@@ -125,6 +125,23 @@ reservation or a barrier between categories.
 Single-category runs (`bin/ze-test bgp plugin --all`) are stable and safe as
 a gate when the full suite flakes.
 
+2026-05-03 mitigation: `ze-test` BGP and VPP runners now call
+`runner.ReservePorts`, which holds advisory per-port locks for the suite
+lifetime. This prevents concurrent `ze-test` processes from selecting the
+same free range between probe and later bind. It does not protect against
+arbitrary external processes binding the selected ports, so keep this row
+open until a full release gate shows the flake shape is gone.
+
+Verification:
+
+```bash
+go test ./internal/test/runner -run 'TestFindFreePortRange|TestReservePorts|TestAllocatePorts|TestCheckPortAvailable|TestPortRangeString' -count=1
+go test ./cmd/ze-test ./internal/test/runner -count=1
+go test -race ./internal/test/runner -count=1
+```
+
+All passed locally on 2026-05-03.
+
 ## Egress-filter tests need forwarding-plugin redesign -- RESOLVED 2026-04-29
 
 The eight tests previously tracked here now use destination-peer wire
@@ -204,7 +221,7 @@ all pass green.
 **Parked.** Estimated >10 min per failure; not on the Phase 9
 critical path.
 
-## PPP LCP handleLCPPacket re-enters afterLCPOpen on Echo frames -- LOGGED 2026-04-17
+## PPP LCP handleLCPPacket re-enters afterLCPOpen on Echo frames -- RESOLVED 2026-05-03
 
 **File:** `internal/component/ppp/session_run.go` around line 696-726,
 combined with `internal/component/ppp/lcp_fsm.go:392-393`.
@@ -240,18 +257,24 @@ re-auth events fires every Echo but the session limps on. Likely
 produces stray EventAuthRequest / EventSessionUp events visible to
 plugins and in logs.
 
-**Fix:** Guard the Opened-branch in `handleLCPPacket` with
-`if cur != LCPStateOpened && tr.NewState == LCPStateOpened {`.
-Or separate "transition to Opened" from "stayed in Opened" in the
-FSM return value.
+**Resolution:** `handleLCPPacket` now runs the post-Opened side effects
+only when the FSM actually transitions into `LCPStateOpened`. The RXR
+action path now sends Echo-Reply only for Echo-Request; Echo-Reply and
+Discard-Request are consumed without a reply.
 
-**Related:** The FSM's mapping `(Opened, RXR) -> SER` is itself
-suspect for Echo-Reply and Discard-Request inputs (SER means "Send
-Echo-Reply" which is only the correct response to Echo-REQUEST). A
-clean fix handles Echo-Reply and Echo-Request on distinct FSM events.
+The FSM still maps `(Opened, RXR)` to `SER` to match the existing RFC
+1661 transition table model. The action layer now gates `SER` by packet
+code, so the shared RXR event no longer replies to Echo-Reply or
+Discard-Request.
 
-**Parked.** Not on the Phase 9 critical path; Phase 9 regression test
-rewritten to use IPCP (0x8021) which handleFrame drops cleanly.
+Verification:
+
+```bash
+go test ./internal/component/ppp -run 'TestHandleLCPPacketOpenedRXRDoesNotReenterOpened|TestLCPEcho|TestLCPFSMRXRInOpened' -count=1
+go test -race ./internal/component/ppp -count=1
+```
+
+Both passed locally on 2026-05-03.
 
 ## vpp-config-invalid-poll-interval / -invalid-hugepage parse tests -- RESOLVED 2026-04-29
 

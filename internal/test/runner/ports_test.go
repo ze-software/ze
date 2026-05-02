@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"fmt"
 	"net"
 	"testing"
 )
@@ -22,11 +23,64 @@ func TestFindFreePortRange(t *testing.T) {
 
 	// Verify all ports in range are actually free
 	for port := start; port < start+5; port++ {
-		ln, err := net.Listen("tcp", "127.0.0.1:"+string(rune('0'+port%10))) //nolint:noctx // test code
-		if err == nil {
-			_ = ln.Close()
+		ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port)) //nolint:noctx // test code
+		if err != nil {
+			t.Fatalf("allocated port %d is not bindable: %v", port, err)
 		}
+		_ = ln.Close()
 	}
+}
+
+// TestReservePortsExcludesHeldRange verifies suite-lifetime reservations.
+//
+// VALIDATES: Concurrent ze-test processes using ReservePorts do not receive
+// the same range while the first reservation is still held.
+// PREVENTS: Full-suite flakes where one category probes a free range, releases
+// it, and another category chooses the same ports before the first has finished.
+func TestReservePortsExcludesHeldRange(t *testing.T) {
+	base, err := FindFreePortRange(53000, 4)
+	if err != nil {
+		t.Fatalf("FindFreePortRange: %v", err)
+	}
+
+	first, _, err := ReservePorts(base, 2)
+	if err != nil {
+		t.Fatalf("first ReservePorts: %v", err)
+	}
+	defer first.Release()
+
+	second, shifted, err := ReservePorts(first.Start, 2)
+	if err != nil {
+		t.Fatalf("second ReservePorts: %v", err)
+	}
+	defer second.Release()
+
+	if !shifted {
+		t.Fatal("second reservation did not report shifted=true")
+	}
+	if second.Start == first.Start {
+		t.Fatalf("second reservation reused held start port %d", first.Start)
+	}
+}
+
+// TestReservePortsLeavesTCPPortsBindable verifies reservations are advisory.
+//
+// VALIDATES: Holding a reservation does not bind the TCP port, so ze and
+// ze-peer child processes can still listen on the assigned port.
+// PREVENTS: Replacing the old probe with a listener-held reservation that would
+// make the selected port unusable by the test itself.
+func TestReservePortsLeavesTCPPortsBindable(t *testing.T) {
+	reservation, _, err := ReservePorts(54000, 1)
+	if err != nil {
+		t.Fatalf("ReservePorts: %v", err)
+	}
+	defer reservation.Release()
+
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", reservation.Start)) //nolint:noctx // test code
+	if err != nil {
+		t.Fatalf("reserved port %d is not bindable: %v", reservation.Start, err)
+	}
+	_ = ln.Close()
 }
 
 // TestAllocatePorts verifies port allocation with fallback.

@@ -26,6 +26,7 @@ Current state summary:
 - The refresh started from tracked-clean source code with one unrelated untracked comparison document. This review file is the only intended tracked edit from the refresh. Prior local green gate evidence exists, but this static refresh did not rerun the gate, and no clean target-runner release-candidate result is recorded here.
 - 2026-05-02 handoff follow-up: local `make ze-verify` passed in this checkout. This is useful sanity evidence, but it is not clean target-runner release-candidate evidence because `target-runner` is not available here and the worktree still contains the review doc edit plus the untracked comparison document.
 - Drift found during the 2026-05-02 static refresh has been corrected in this pass: `docs/functional-tests.md` now acknowledges `make ze-chaos-web-test`; `docs/features.md` reflects plugin autoload, reload-diff, provider/subsystem rollback, and transactional changed-plugin replacement; `docs/guide/tacacs.md` reflects strict fallback; the duplicate-key deferral row is closed; Makefile stress-test wording now says the in-tree ze-test peer injector; L2TP/RADIUS docs now reflect Access-Accept exact-or-reject behavior.
+- 2026-05-03 follow-up: PPP LCP Opened-state RXR re-entry is code-remediated, and functional test port allocation now holds runner-level advisory reservations for the suite lifetime instead of only probing and releasing ports before later binds.
 
 ## P0 Release Blockers
 
@@ -72,7 +73,7 @@ Resolved P1 findings now tracked as regression coverage: `SplitWireUpdate` nil s
 | README counts | README test counts are conservative, dated approximate claims instead of brittle exact totals. | `README.md:3`, `README.md:57-60` | Keep approximate/date wording or derive exact counts in generated docs. |
 | API streaming | Production docs now say REST/gRPC streaming hooks return `streaming not supported` because the hub passes nil stream backend, and OpenAPI remains generic execute-only. Runtime still exposes the REST handler and gRPC method, so wiring a real backend remains open if streaming is a supported production claim. | `cmd/ze/hub/api.go:187-196`, `internal/component/api/engine.go:123-126`, `docs/guide/api.md:77-83`, `docs/guide/api.md:173-179` | Either wire a production stream backend or keep the unsupported status explicit. |
 | Config sessions | Per-session serialization is implemented and covered. API saved-config rollback is also code-closed under P0-3; reviewed runtime reload rollback paths are code-closed under P0-4. | `internal/component/api/config_session.go:43-51`, `internal/component/api/config_session.go:207-245`, `internal/component/api/config_session_test.go:249-280`, `cmd/ze/hub/main.go:817-865` | Keep concurrency, rollback, and reload transaction tests in the gate. |
-| Test infrastructure | Port allocation probes and releases ports before later bind, matching known flakes. | `internal/test/runner/ports.go:26-66`, `plan/known-failures.md:21-24`, `plan/known-failures.md:107-123` | Reserve ports for the lifetime of each test or use per-test network namespace/isolation. |
+| Test infrastructure | Code-remediated for runner-level self-collision. `ze-test` BGP and VPP runners now use `ReservePorts`, which holds advisory per-port locks for the suite lifetime while leaving the TCP ports bindable by child `ze` and `ze-peer` processes. This coordinates concurrent `ze-test` processes; it does not reserve ports from arbitrary external processes. | `internal/test/runner/ports.go`, `internal/test/runner/ports_test.go`, `cmd/ze-test/bgp.go`, `cmd/ze-test/vpp.go`, `plan/known-failures.md:92-126` | Keep runner reservation tests and continue investigating any remaining flakes caused by external port consumers, loopback alias setup, or process cleanup. |
 | Open deferrals | Open release-relevant rows remain for L2TP peer tests and redistribution, VPP real-daemon CI, traffic privileged evidence, BMP Loc-RIB, raw plugin IPC, and some static/live plugin validation parity work. Duplicate parser keys, L2TP auth/caps/hidden mandatory AVPs, DNS/NTP safety policy, RADIUS Access-Accept policy, and VPP traffic orphan scan are code-remediated or re-triaged. | `plan/deferrals.md:162-181`, `plan/deferrals.md:195`, `plan/deferrals.md:200-213`, `plan/deferrals.md:231` | Triage remaining open rows into release blocker, scoped deployment exclusion, post-deployment backlog, or explicitly unsupported. |
 
 ## Deployment Plan
@@ -297,6 +298,18 @@ go test ./internal/component/traffic ./internal/plugins/l2tpshaper -count=1
 PASS.
 make ze-linux-test ZE_LINUX_TEST_PACKAGES="./internal/plugins/traffic/netlink ./internal/plugins/traffic/vpp"
 PASS: Docker-backed Linux Go unit tests for tc netlink and VPP traffic backends.
+
+2026-05-03 follow-up PPP LCP and runner port checks:
+go test ./internal/component/ppp -run 'TestHandleLCPPacketOpenedRXRDoesNotReenterOpened|TestLCPEcho|TestLCPFSMRXRInOpened' -count=1
+PASS.
+go test -race ./internal/component/ppp -count=1
+PASS.
+go test ./internal/test/runner -run 'TestFindFreePortRange|TestReservePorts|TestAllocatePorts|TestCheckPortAvailable|TestPortRangeString' -count=1
+PASS.
+go test ./cmd/ze-test ./internal/test/runner -count=1
+PASS.
+go test -race ./internal/test/runner -count=1
+PASS.
 
 Do not treat this static refresh as final release-candidate evidence until the target runner verifies the release candidate with a clean or intentionally scoped worktree.
 ```

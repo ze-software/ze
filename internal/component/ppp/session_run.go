@@ -740,7 +740,7 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 		}
 	}
 
-	if tr.NewState == LCPStateOpened {
+	if cur != LCPStateOpened && tr.NewState == LCPStateOpened {
 		s.mu.Lock()
 		if s.negotiatedMRU == 0 {
 			// Peer did not propose an MRU; PPP default per
@@ -833,6 +833,9 @@ func (s *pppSession) performAction(act LCPAction, current LCPPacket) bool {
 	case LCPActSCJ:
 		return s.sendCodeReject(current)
 	case LCPActSER:
+		if current.Code != LCPEchoRequest {
+			return true
+		}
 		return s.sendEchoReply(current)
 	case LCPActIRC, LCPActZRC, LCPActTLU, LCPActTLD, LCPActTLS, LCPActTLF:
 		// IRC/ZRC: restart-counter management deferred to a 6a

@@ -3,6 +3,7 @@ package ppp
 import (
 	"bytes"
 	"errors"
+	"io"
 	"testing"
 )
 
@@ -181,4 +182,141 @@ func TestLCPEchoBytesStable(t *testing.T) {
 	if !bytes.Equal(a[:8], b[:8]) {
 		t.Errorf("non-deterministic encoding")
 	}
+}
+
+// VALIDATES: RXR packets received after LCP is already Opened do not
+//
+//	re-enter afterLCPOpen or rerun auth/NCP/session-up side effects.
+//	Only Echo-Request produces an Echo-Reply; Echo-Reply and
+//	Discard-Request are consumed without a reply.
+//
+// PREVENTS: regression of the known re-entry bug where every Echo
+//
+//	packet in Opened triggered setMRU, SetMTU, auth, NCP, and
+//	EventSessionUp again.
+func TestHandleLCPPacketOpenedRXRDoesNotReenterOpened(t *testing.T) {
+	cases := []struct {
+		name            string
+		code            uint8
+		wantReply       bool
+		wantOutstanding uint8
+	}{
+		{"echo request replies only", LCPEchoRequest, true, 2},
+		{"echo reply clears outstanding only", LCPEchoReply, false, 0},
+		{"discard request is silent", LCPDiscardRequest, false, 2},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			backend := &fakeBackend{}
+			ops, opsCalls, opsMu := newFakeOps()
+			eventsOut := make(chan Event, 4)
+			authEventsOut := make(chan AuthEvent, 4)
+			chanFile := &recordingChanFile{}
+			s := &pppSession{
+				tunnelID:             1,
+				sessionID:            2,
+				chanFile:             chanFile,
+				unitFD:               99,
+				unitNum:              7,
+				backend:              backend,
+				ops:                  ops,
+				eventsOut:            eventsOut,
+				authEventsOut:        authEventsOut,
+				authRespCh:           make(chan authResponseMsg, 1),
+				stopCh:               make(chan struct{}),
+				sessStop:             make(chan struct{}),
+				logger:               discardLogger(),
+				state:                LCPStateOpened,
+				negotiatedMRU:        1500,
+				configuredAuthMethod: AuthMethodNone,
+				magic:                0x01020304,
+				echoOutstanding:      2,
+				disableIPCP:          true,
+				disableIPv6CP:        true,
+			}
+			// If the old re-entry path runs, the preloaded decision keeps
+			// the test from hanging and lets the side effects become visible.
+			s.authRespCh <- authResponseMsg{accept: true}
+
+			terminated := s.handleLCPPacket(LCPPacket{
+				Code:       tc.code,
+				Identifier: 0x44,
+				Data:       []byte{0xAA, 0xBB, 0xCC, 0xDD},
+			})
+			if terminated {
+				t.Fatal("handleLCPPacket terminated the session")
+			}
+
+			s.mu.Lock()
+			state := s.state
+			outstanding := s.echoOutstanding
+			s.mu.Unlock()
+			if state != LCPStateOpened {
+				t.Fatalf("state = %s, want opened", state)
+			}
+			if outstanding != tc.wantOutstanding {
+				t.Fatalf("echoOutstanding = %d, want %d", outstanding, tc.wantOutstanding)
+			}
+
+			opsMu.Lock()
+			calls := append([]fakeOpsCall(nil), (*opsCalls)...)
+			opsMu.Unlock()
+			if len(calls) != 0 {
+				t.Fatalf("setMRU calls = %+v, want none", calls)
+			}
+			if calls := backend.MTUCalls(); len(calls) != 0 {
+				t.Fatalf("SetMTU calls = %+v, want none", calls)
+			}
+			if calls := backend.UpCalls(); len(calls) != 0 {
+				t.Fatalf("SetAdminUp calls = %+v, want none", calls)
+			}
+
+			select {
+			case ev := <-eventsOut:
+				t.Fatalf("unexpected lifecycle event %T", ev)
+			default:
+			}
+			select {
+			case ev := <-authEventsOut:
+				t.Fatalf("unexpected auth event %T", ev)
+			default:
+			}
+
+			if !tc.wantReply {
+				if chanFile.Len() != 0 {
+					t.Fatalf("wrote %x, want no reply", chanFile.Bytes())
+				}
+				return
+			}
+
+			proto, payload, _, err := ParseFrame(chanFile.Bytes())
+			if err != nil {
+				t.Fatalf("ParseFrame(reply): %v", err)
+			}
+			if proto != ProtoLCP {
+				t.Fatalf("reply proto = 0x%04x, want LCP", proto)
+			}
+			reply, err := ParseLCPPacket(payload)
+			if err != nil {
+				t.Fatalf("ParseLCPPacket(reply): %v", err)
+			}
+			if reply.Code != LCPEchoReply || reply.Identifier != 0x44 {
+				t.Fatalf("reply code/id = %d/0x%02x, want Echo-Reply/0x44",
+					reply.Code, reply.Identifier)
+			}
+		})
+	}
+}
+
+type recordingChanFile struct {
+	bytes.Buffer
+}
+
+func (r *recordingChanFile) Read([]byte) (int, error) {
+	return 0, io.EOF
+}
+
+func (r *recordingChanFile) Close() error {
+	return nil
 }

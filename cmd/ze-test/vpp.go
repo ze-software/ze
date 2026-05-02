@@ -103,10 +103,12 @@ func vppMain() error {
 	// VPP stub tests do not bind to network ports; the plugin tests'
 	// per-test port reservation is unnecessary here, but the runner expects
 	// at least some allocation. Reserve one port per test at a high base.
-	pr, shifted, err := runner.AllocatePorts(cli.port, tests.Count())
+	portReservation, shifted, err := runner.ReservePorts(cli.port, tests.Count())
 	if err != nil {
 		return fmt.Errorf("allocate ports: %w", err)
 	}
+	defer portReservation.Release()
+	pr := portReservation.PortRange
 	basePort := pr.Start
 	for _, rr := range tests.Registered() {
 		rr.Port = basePort
