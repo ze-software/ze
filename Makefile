@@ -247,14 +247,11 @@ ze-unit-test-cached:
 	$(GO_TEST) $(ZE_PACKAGES)
 
 # Race pass: -race only on component groups with changed .go files.
-# Falls back to full -race if changes touch "rest" (unmapped packages).
+# Unmapped packages are included individually, never as a full sweep.
 ze-unit-test-race-changed:
 	@groups=$$(scripts/dev/changed-groups.sh --pkgs 2>/dev/null); \
 	if [ -z "$$groups" ]; then \
-		echo "No changed .go files — skipping -race pass"; \
-	elif echo "$$groups" | grep -q '^ALL$$'; then \
-		echo "Unit tests: -race on ALL packages (changes outside named groups)..."; \
-		$(GO_TEST) -race $(ZE_PACKAGES); \
+		echo "No changed .go files -- skipping -race pass"; \
 	else \
 		echo "Unit tests: -race on changed groups: $$groups"; \
 		$(GO_TEST) -race $$groups; \

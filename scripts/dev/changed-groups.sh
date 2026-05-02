@@ -35,6 +35,12 @@ GROUP_PKG=(
     [plugins]="./internal/plugins/..."
     [config]="./internal/component/config/..."
     [cli]="./internal/component/cli/..."
+    [l2tp]="./internal/component/l2tp/..."
+    [ppp]="./internal/component/ppp/..."
+    [web]="./internal/component/web/..."
+    [api]="./internal/component/api/..."
+    [cmd]="./cmd/..."
+    [test]="./internal/test/..."
 )
 
 declare -A PREFIX_GROUP
@@ -44,11 +50,17 @@ PREFIX_GROUP=(
     [internal/plugins/]=plugins
     [internal/component/config/]=config
     [internal/component/cli/]=cli
+    [internal/component/l2tp/]=l2tp
+    [internal/component/ppp/]=ppp
+    [internal/component/web/]=web
+    [internal/component/api/]=api
+    [cmd/]=cmd
+    [internal/test/]=test
 )
 
 # Detect which groups have changes
 declare -A hit
-rest=0
+rest_pkgs=()
 
 while IFS= read -r file; do
     matched=0
@@ -60,26 +72,29 @@ while IFS= read -r file; do
         fi
     done
     if [ "$matched" = "0" ]; then
-        rest=1
+        # Derive the Go package directory from the file path.
+        pkg_dir=$(dirname "$file")
+        rest_pkgs+=("./$pkg_dir")
     fi
 done <<< "$changed"
 
-if [ "$rest" = "1" ]; then
-    hit[rest]=1
+# Deduplicate unmapped package directories.
+if [ ${#rest_pkgs[@]} -gt 0 ]; then
+    mapfile -t rest_pkgs < <(printf '%s\n' "${rest_pkgs[@]}" | sort -u)
 fi
 
 if [ "$mode" = "pkgs" ]; then
     for group in "${!hit[@]}"; do
-        if [ "$group" = "rest" ]; then
-            # "rest" = everything not in a named group. Emit all ZE_PACKAGES
-            # and let the caller de-dup or just run everything.
-            echo "ALL"
-        else
-            echo "${GROUP_PKG[$group]}"
-        fi
+        echo "${GROUP_PKG[$group]}"
+    done
+    for pkg in "${rest_pkgs[@]}"; do
+        echo "$pkg"
     done
 else
     for group in "${!hit[@]}"; do
         echo "$group"
     done
+    if [ ${#rest_pkgs[@]} -gt 0 ]; then
+        echo "rest"
+    fi
 fi
