@@ -29,6 +29,7 @@ Current state summary:
 - 2026-05-03 follow-up: PPP LCP Opened-state RXR re-entry is code-remediated, and functional test port allocation now holds runner-level advisory reservations for the suite lifetime instead of only probing and releasing ports before later binds.
 - 2026-05-03 follow-up: interface apply no longer continues best-effort after individual mutating failures. Successful create, address, bridge-port, mirror, and selected property operations are journaled with scoped inverse callbacks, and the first apply failure rolls back the recorded steps before returning.
 - 2026-05-03 follow-up: plugin gate flake hardening removed fixed sleeps from `nexthop`, `watchdog`, and `watchdog-med-override`, made `bfd-auth-meticulous-persist` wait for persisted sequence progress, and gated `show-errors-received` dispatch on plugin post-startup. The prefix-maximum flake remains tracked until a full release gate proves the shape is gone.
+- 2026-05-03 follow-up: the stale static-validation deferral for plugin `OnConfigVerify` parity is closed for in-process verifiers. `ze config validate`, CLI editor validation, and API pre-save validation now run side-effect-free `InProcessConfigVerifier` hooks; live external plugin callbacks remain intentionally reload/commit-only transaction participants.
 
 ## P0 Release Blockers
 
@@ -76,7 +77,7 @@ Resolved P1 findings now tracked as regression coverage: `SplitWireUpdate` nil s
 | API streaming | Production docs now say REST/gRPC streaming hooks return `streaming not supported` because the hub passes nil stream backend, and OpenAPI remains generic execute-only. Runtime still exposes the REST handler and gRPC method, so wiring a real backend remains open if streaming is a supported production claim. | `cmd/ze/hub/api.go:187-196`, `internal/component/api/engine.go:123-126`, `docs/guide/api.md:77-83`, `docs/guide/api.md:173-179` | Either wire a production stream backend or keep the unsupported status explicit. |
 | Config sessions | Per-session serialization is implemented and covered. API saved-config rollback is also code-closed under P0-3; reviewed runtime reload rollback paths are code-closed under P0-4. | `internal/component/api/config_session.go:43-51`, `internal/component/api/config_session.go:207-245`, `internal/component/api/config_session_test.go:249-280`, `cmd/ze/hub/main.go:817-865` | Keep concurrency, rollback, and reload transaction tests in the gate. |
 | Test infrastructure | Code-remediated for runner-level self-collision. `ze-test` BGP and VPP runners now use `ReservePorts`, which holds advisory per-port locks for the suite lifetime while leaving the TCP ports bindable by child `ze` and `ze-peer` processes. This coordinates concurrent `ze-test` processes; it does not reserve ports from arbitrary external processes. | `internal/test/runner/ports.go`, `internal/test/runner/ports_test.go`, `cmd/ze-test/bgp.go`, `cmd/ze-test/vpp.go`, `plan/known-failures.md:92-126` | Keep runner reservation tests and continue investigating any remaining flakes caused by external port consumers, loopback alias setup, or process cleanup. |
-| Open deferrals | Open release-relevant rows remain for L2TP peer tests and redistribution, VPP real-daemon CI, traffic privileged evidence, BMP Loc-RIB, raw plugin IPC, and some static/live plugin validation parity work. Duplicate parser keys, L2TP auth/caps/hidden mandatory AVPs, DNS/NTP safety policy, RADIUS Access-Accept policy, and VPP traffic orphan scan are code-remediated or re-triaged. | `plan/deferrals.md:162-181`, `plan/deferrals.md:195`, `plan/deferrals.md:200-213`, `plan/deferrals.md:231` | Triage remaining open rows into release blocker, scoped deployment exclusion, post-deployment backlog, or explicitly unsupported. |
+| Open deferrals | Open release-relevant rows remain for L2TP peer tests and redistribution, VPP real-daemon CI, traffic privileged evidence, BMP Loc-RIB, and raw plugin IPC. Duplicate parser keys, L2TP auth/caps/hidden mandatory AVPs, DNS/NTP safety policy, RADIUS Access-Accept policy, VPP traffic orphan scan, and in-process static plugin validation parity are code-remediated or re-triaged. | `plan/deferrals.md:162-181`, `plan/deferrals.md:195`, `plan/deferrals.md:200-213`, `plan/deferrals.md:231` | Triage remaining open rows into release blocker, scoped deployment exclusion, post-deployment backlog, or explicitly unsupported. |
 
 ## Deployment Plan
 
@@ -362,6 +363,20 @@ go test -race ./internal/component/bgp/reactor -run TestFwdPool_StopUnblocksDisp
 PASS.
 make ze-linux-test ZE_LINUX_TEST_PACKAGES="./internal/plugins/firewall/nft"
 PASS.
+git diff --check
+PASS.
+
+2026-05-03 follow-up static plugin validation deferral triage:
+go test ./internal/component/config -run 'TestVerifyPluginConfig|TestValidateTree' -count=1
+PASS.
+go test ./internal/component/cli -run TestValidateRunsPluginConfigVerifier -count=1
+PASS.
+go test ./cmd/ze/config -run Test -count=1
+PASS.
+make ze-doc-drift
+PASS: No documentation drift detected.
+make ze-exabgp-test
+PASS: 37/37.
 git diff --check
 PASS.
 
