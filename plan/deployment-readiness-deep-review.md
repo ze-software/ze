@@ -28,6 +28,7 @@ Current state summary:
 - Drift found during the 2026-05-02 static refresh has been corrected in this pass: `docs/functional-tests.md` now acknowledges `make ze-chaos-web-test`; `docs/features.md` reflects plugin autoload, reload-diff, provider/subsystem rollback, and transactional changed-plugin replacement; `docs/guide/tacacs.md` reflects strict fallback; the duplicate-key deferral row is closed; Makefile stress-test wording now says the in-tree ze-test peer injector; L2TP/RADIUS docs now reflect Access-Accept exact-or-reject behavior.
 - 2026-05-03 follow-up: PPP LCP Opened-state RXR re-entry is code-remediated, and functional test port allocation now holds runner-level advisory reservations for the suite lifetime instead of only probing and releasing ports before later binds.
 - 2026-05-03 follow-up: interface apply no longer continues best-effort after individual mutating failures. Successful create, address, bridge-port, mirror, and selected property operations are journaled with scoped inverse callbacks, and the first apply failure rolls back the recorded steps before returning.
+- 2026-05-03 follow-up: plugin gate flake hardening removed fixed sleeps from `nexthop`, `watchdog`, and `watchdog-med-override`, made `bfd-auth-meticulous-persist` wait for persisted sequence progress, and gated `show-errors-received` dispatch on plugin post-startup. The prefix-maximum flake remains tracked until a full release gate proves the shape is gone.
 
 ## P0 Release Blockers
 
@@ -321,6 +322,36 @@ go test -race ./internal/component/iface -count=1
 PASS.
 make ze-lint
 PASS: 0 issues.
+git diff --check
+PASS.
+
+2026-05-03 follow-up plugin flake checks:
+bin/ze-test bgp plugin nexthop -v
+PASS.
+bin/ze-test bgp plugin watchdog -v
+PASS.
+bin/ze-test bgp plugin watchdog-med-override -v
+PASS.
+bin/ze-test bgp plugin bfd-auth-meticulous-persist -v
+PASS.
+bin/ze-test bgp plugin prefix-maximum-enforce -v
+PASS.
+bin/ze-test bgp plugin show-errors-received -v
+PASS.
+bin/ze-test bgp plugin -c 3 nexthop
+PASS: 3/3.
+bin/ze-test bgp plugin -c 3 watchdog
+PASS: 3/3.
+bin/ze-test bgp plugin -c 3 watchdog-med-override
+PASS: 3/3.
+bin/ze-test bgp plugin -c 3 bfd-auth-meticulous-persist
+PASS: 3/3.
+bin/ze-test bgp plugin -c 3 prefix-maximum-enforce
+PASS: 3/3.
+bin/ze-test bgp plugin -c 3 show-errors-received
+PASS: 3/3.
+make ze-linux-test ZE_LINUX_TEST_PACKAGES="./internal/plugins/firewall/nft"
+PASS.
 git diff --check
 PASS.
 
