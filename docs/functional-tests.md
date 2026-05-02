@@ -174,12 +174,13 @@ and that timing remains flaky, the file should name that exact blocker and stay
 
 ### Test-Only Internal Plugins (`internal/test/plugins/`)
 
-Some `.ci` tests need a synthetic Go-side producer to drive features that
-have no real producer yet (e.g., bgp-redistribute waiting for L2TP route
-events). These plugins live under `internal/test/plugins/<name>/` and are
-loaded only by DUT builds compiled with the `zetest` tag. Normal production
-builds do not import `internal/test/plugins/all` and do not expose these
-registry entries.
+Some `.ci` tests need a synthetic Go-side producer to drive features whose
+real producer requires privileged or external infrastructure. `fakel2tp`, for
+example, drives L2TP route-change events without requiring kernel L2TP, PPP,
+or a peer daemon. These plugins live under `internal/test/plugins/<name>/`
+and are loaded only by DUT builds compiled with the `zetest` tag. Normal
+production builds do not import `internal/test/plugins/all` and do not expose
+these registry entries.
 
 First occupant: `internal/test/plugins/fakeredist/`. Pattern:
 

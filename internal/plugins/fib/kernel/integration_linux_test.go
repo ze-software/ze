@@ -3,7 +3,8 @@
 package fibkernel
 
 import (
-	"encoding/json"
+	"net"
+	"net/netip"
 	"runtime"
 	"strings"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/vishvananda/netns"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
 )
 
 // withNetNS creates an ephemeral network namespace, switches into it,
@@ -87,6 +89,57 @@ func addLoopback(t *testing.T, h *netlink.Handle) {
 	require.NoError(t, h.LinkSetUp(lo))
 }
 
+func addProtocolRoute(t *testing.T, h *netlink.Handle, prefix, nextHop string, proto int) {
+	t.Helper()
+	_, cidr, err := net.ParseCIDR(prefix)
+	require.NoError(t, err)
+	gw := net.ParseIP(nextHop)
+	require.NotNil(t, gw)
+	require.NoError(t, h.RouteAdd(&netlink.Route{
+		Dst:      cidr,
+		Gw:       gw,
+		Protocol: netlink.RouteProtocol(proto),
+	}))
+}
+
+func routesByProtocol(t *testing.T, h *netlink.Handle, proto int) []netlink.Route {
+	t.Helper()
+	routes, err := h.RouteList(nil, netlink.FAMILY_ALL)
+	require.NoError(t, err)
+	var out []netlink.Route
+	for i := range routes {
+		if routes[i].Protocol == netlink.RouteProtocol(proto) {
+			out = append(out, routes[i])
+		}
+	}
+	return out
+}
+
+func addChange(prefix, nextHop string) incomingChange {
+	return incomingChange{
+		Action:   bgptypes.RouteActionAdd,
+		Prefix:   netip.MustParsePrefix(prefix),
+		NextHop:  netip.MustParseAddr(nextHop),
+		Protocol: "bgp",
+	}
+}
+
+func updateChange(prefix, nextHop, protocol string) incomingChange {
+	return incomingChange{
+		Action:   bgptypes.RouteActionUpdate,
+		Prefix:   netip.MustParsePrefix(prefix),
+		NextHop:  netip.MustParseAddr(nextHop),
+		Protocol: protocol,
+	}
+}
+
+func withdrawChange(prefix string) incomingChange {
+	return incomingChange{
+		Action: bgptypes.RouteActionWithdraw,
+		Prefix: netip.MustParsePrefix(prefix),
+	}
+}
+
 // VALIDATES: AC-8 -- sysrib/best-change with action "add" installs route via netlink.
 // VALIDATES: AC-16 -- fib-kernel routes use their producer-specific rtm_protocol ID.
 // PREVENTS: netlink backend silently failing to program real kernel routes.
@@ -101,8 +154,8 @@ func TestNetlinkIntegration_AddRoute(t *testing.T) {
 		backend := newTestBackend(h)
 		f := newFIBKernel(backend)
 
-		event := makeTestEvent([]incomingChange{
-			{Action: bgptypes.RouteActionAdd, Prefix: "10.99.0.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
+		event := makeSysribPayload([]incomingChange{
+			addChange("10.99.0.0/24", "127.0.0.1"),
 		})
 		f.processEvent(event)
 
@@ -128,13 +181,13 @@ func TestNetlinkIntegration_RemoveRoute(t *testing.T) {
 		f := newFIBKernel(backend)
 
 		// Add then withdraw.
-		f.processEvent(makeTestPayload([]incomingChange{
-			{Action: bgptypes.RouteActionAdd, Prefix: "10.99.1.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
+		f.processEvent(makeSysribPayload([]incomingChange{
+			addChange("10.99.1.0/24", "127.0.0.1"),
 		}))
 		require.Len(t, zeRoutes(t, h), 1)
 
-		f.processEvent(makeTestPayload([]incomingChange{
-			{Action: bgptypes.RouteActionWithdraw, Prefix: "10.99.1.0/24"},
+		f.processEvent(makeSysribPayload([]incomingChange{
+			withdrawChange("10.99.1.0/24"),
 		}))
 
 		assert.Empty(t, zeRoutes(t, h), "route should be removed from kernel")
@@ -155,13 +208,13 @@ func TestNetlinkIntegration_ReplaceRoute(t *testing.T) {
 		f := newFIBKernel(backend)
 
 		// Add initial route.
-		f.processEvent(makeTestPayload([]incomingChange{
-			{Action: bgptypes.RouteActionAdd, Prefix: "10.99.2.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
+		f.processEvent(makeSysribPayload([]incomingChange{
+			addChange("10.99.2.0/24", "127.0.0.1"),
 		}))
 
 		// Update next-hop (still loopback, but verifies replace works).
-		f.processEvent(makeTestPayload([]incomingChange{
-			{Action: bgptypes.RouteActionUpdate, Prefix: "10.99.2.0/24", NextHop: "127.0.0.1", Protocol: "static"},
+		f.processEvent(makeSysribPayload([]incomingChange{
+			updateChange("10.99.2.0/24", "127.0.0.1", "static"),
 		}))
 
 		routes := zeRoutes(t, h)
@@ -184,9 +237,9 @@ func TestNetlinkIntegration_ListZeRoutes(t *testing.T) {
 		f := newFIBKernel(backend)
 
 		// Install two routes.
-		f.processEvent(makeTestPayload([]incomingChange{
-			{Action: bgptypes.RouteActionAdd, Prefix: "10.99.3.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
-			{Action: bgptypes.RouteActionAdd, Prefix: "10.99.4.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
+		f.processEvent(makeSysribPayload([]incomingChange{
+			addChange("10.99.3.0/24", "127.0.0.1"),
+			addChange("10.99.4.0/24", "127.0.0.1"),
 		}))
 
 		// List via backend.
@@ -229,8 +282,8 @@ func TestNetlinkIntegration_StartupSweep(t *testing.T) {
 		// Simulate sysrib refreshing only one route.
 		// Use "update" (replaceRoute) because the route already exists in kernel
 		// from the previous run. "add" would fail with EEXIST.
-		f.processEvent(makeTestPayload([]incomingChange{
-			{Action: bgptypes.RouteActionUpdate, Prefix: "10.99.5.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
+		f.processEvent(makeSysribPayload([]incomingChange{
+			updateChange("10.99.5.0/24", "127.0.0.1", "bgp"),
 		}))
 
 		// Sweep stale routes.
@@ -240,6 +293,33 @@ func TestNetlinkIntegration_StartupSweep(t *testing.T) {
 		routes := zeRoutes(t, h)
 		require.Len(t, routes, 1, "only refreshed route should remain")
 		assert.Equal(t, "10.99.5.0/24", routes[0].Dst.String())
+	})
+}
+
+// VALIDATES: P0-8 -- restart recovery only sweeps fib-kernel-owned routes.
+// PREVENTS: fib-kernel cleanup deleting routes owned by static or other Ze producers.
+func TestNetlinkIntegration_StartupSweepPreservesOtherZeProtocols(t *testing.T) {
+	withNetNS(t, func() {
+		h, err := netlink.NewHandle()
+		require.NoError(t, err)
+		defer h.Close()
+
+		addLoopback(t, h)
+
+		backend := newTestBackend(h)
+		require.NoError(t, backend.addRoute("10.99.9.0/24", "127.0.0.1"))
+		addProtocolRoute(t, h, "10.99.10.0/24", "127.0.0.1", rtproto.Static)
+
+		f := newFIBKernel(backend)
+		stale := f.startupSweep()
+		require.Equal(t, map[string]string{"10.99.9.0/24": "127.0.0.1"}, stale)
+
+		f.sweepStale(stale)
+
+		assert.Empty(t, zeRoutes(t, h), "fib-kernel stale route should be removed")
+		staticRoutes := routesByProtocol(t, h, rtproto.Static)
+		require.Len(t, staticRoutes, 1, "static-owned route must survive fib-kernel sweep")
+		assert.Equal(t, "10.99.10.0/24", staticRoutes[0].Dst.String())
 	})
 }
 
@@ -256,9 +336,9 @@ func TestNetlinkIntegration_FlushRoutes(t *testing.T) {
 		backend := newTestBackend(h)
 		f := newFIBKernel(backend)
 
-		f.processEvent(makeTestPayload([]incomingChange{
-			{Action: bgptypes.RouteActionAdd, Prefix: "10.99.7.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
-			{Action: bgptypes.RouteActionAdd, Prefix: "10.99.8.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
+		f.processEvent(makeSysribPayload([]incomingChange{
+			addChange("10.99.7.0/24", "127.0.0.1"),
+			addChange("10.99.8.0/24", "127.0.0.1"),
 		}))
 		require.Len(t, zeRoutes(t, h), 2)
 
@@ -266,14 +346,4 @@ func TestNetlinkIntegration_FlushRoutes(t *testing.T) {
 
 		assert.Empty(t, zeRoutes(t, h), "all ze routes should be flushed")
 	})
-}
-
-// makeTestPayload builds a (sysrib, best-change) JSON payload for testing.
-func makeTestPayload(changes []incomingChange) string {
-	batch := incomingBatch{
-		Family:  "ipv4/unicast",
-		Changes: changes,
-	}
-	data, _ := json.Marshal(batch)
-	return string(data)
 }

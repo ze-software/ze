@@ -30,6 +30,7 @@ Current state summary:
 - 2026-05-03 follow-up: interface apply no longer continues best-effort after individual mutating failures. Successful create, address, bridge-port, mirror, and selected property operations are journaled with scoped inverse callbacks, and the first apply failure rolls back the recorded steps before returning.
 - 2026-05-03 follow-up: plugin gate flake hardening removed fixed sleeps from `nexthop`, `watchdog`, and `watchdog-med-override`, made `bfd-auth-meticulous-persist` wait for persisted sequence progress, and gated `show-errors-received` dispatch on plugin post-startup. The prefix-maximum flake remains tracked until a full release gate proves the shape is gone.
 - 2026-05-03 follow-up: the stale static-validation deferral for plugin `OnConfigVerify` parity is closed for in-process verifiers. `ze config validate`, CLI editor validation, and API pre-save validation now run side-effect-free `InProcessConfigVerifier` hooks; live external plugin callbacks remain intentionally reload/commit-only transaction participants.
+- 2026-05-03 follow-up: L2TP route redistribution is no longer an open implementation deferral. The real RouteObserver emits add/remove batches, synthetic-producer functional tests cover BGP announce/withdraw and per-peer `NEXT_HOP self`, and the remaining L2TP gap is full external peer integration. FIB kernel integration coverage now includes a restart sweep test that preserves routes owned by other Ze route producers; privileged target-runner evidence is still required.
 
 ## P0 Release Blockers
 
@@ -42,7 +43,7 @@ Current state summary:
 | P0-5 | Authorization | Closed in code. SSH streaming commands now use dispatcher authorization/accounting with user and remote-address propagation. | `cmd/ze/hub/infra_setup.go:213-236`, `internal/component/ssh/ssh.go:631-640` | Regression risk if future streaming paths bypass dispatcher wrappers. | Keep denied streaming-command and accounting tests in the gate. |
 | P0-6 | API transport security | Closed in code for the reviewed exposure. REST rejects non-loopback listeners because it has no TLS transport, and gRPC rejects non-loopback listeners unless auth and TLS are configured. | `internal/component/api/rest/server.go:99-126`, `internal/component/api/grpc/server.go:87-127` | Regression risk if listener policy is weakened or docs drift. | Keep transport policy tests and docs aligned with loopback REST and authenticated TLS gRPC. |
 | P0-7 | RADIUS/L2TP security | Closed in code for the original P0. RADIUS responses demux by `(server, identifier)` map key with per-waiter authenticator verification via `VerifyResponseAuth`; CoA/DM requires fresh `Event-Timestamp`; duplicates return cached responses without replaying side effects; CoA/DM now requires valid `Message-Authenticator`. | `internal/component/radius/client.go:46-49` (responseKey), `internal/component/radius/client.go:242-261` (dispatch + auth verify), `internal/component/radius/packet.go`, `internal/plugins/l2tpauthradius/coa.go`, `internal/plugins/l2tpauthradius/coa_test.go` | Regression risk if CoA/DM authentication or replay cache semantics are weakened. | Keep CoA/DM missing/invalid `Message-Authenticator`, replay, and demux tests in the gate. |
-| P0-8 | Dataplane ownership | Code-remediated, evidence still open. FIB, static, and policyroute use distinct Linux route protocol IDs; FIB monitor ignores all Ze-owned producers; static route removal uses exact identity; nft cleanup no longer sweeps unknown `ze_*` tables by prefix alone. | `internal/core/rtproto/rtproto.go:5-30`, `internal/plugins/fib/kernel/monitor_linux.go:56-58`, `internal/plugins/static/backend_linux.go:40-54`, `internal/plugins/firewall/nft/backend_linux.go:49-82` | Ownership code looks correct, but recovery and privileged kernel-state behavior still need release evidence. | Add privileged Linux tests for route ownership, nft ownership, restart/recovery, and multi-producer non-interference. |
+| P0-8 | Dataplane ownership | Code-remediated, evidence still open. FIB, static, and policyroute use distinct Linux route protocol IDs; FIB monitor ignores all Ze-owned producers; static route removal uses exact identity; nft cleanup no longer sweeps unknown `ze_*` tables by prefix alone. FIB privileged integration coverage now includes restart-sweep preservation of another Ze route producer's protocol ID, but target-runner execution is still needed. | `internal/core/rtproto/rtproto.go:5-30`, `internal/plugins/fib/kernel/monitor_linux.go:56-58`, `internal/plugins/static/backend_linux.go:40-54`, `internal/plugins/firewall/nft/backend_linux.go:49-82`, `internal/plugins/fib/kernel/integration_linux_test.go` | Ownership code looks correct, but recovery and privileged kernel-state behavior still need release evidence from a runner with CAP_NET_ADMIN. | Run privileged Linux tests for route ownership, nft ownership, restart/recovery, and multi-producer non-interference. Add missing nft restart/recovery proof if the target runner exposes a gap. |
 
 Severity note: web CSRF is still not listed as P0 because the session cookie is `Secure`, `HttpOnly`, and `SameSite=Strict` (`internal/component/web/auth.go:245-252`), and authenticated mutating routes now share the same-origin wrapper (`cmd/ze/hub/main.go:1206-1265`). CSP hardening remains P1.
 
@@ -77,7 +78,7 @@ Resolved P1 findings now tracked as regression coverage: `SplitWireUpdate` nil s
 | API streaming | Production docs now say REST/gRPC streaming hooks return `streaming not supported` because the hub passes nil stream backend, and OpenAPI remains generic execute-only. Runtime still exposes the REST handler and gRPC method, so wiring a real backend remains open if streaming is a supported production claim. | `cmd/ze/hub/api.go:187-196`, `internal/component/api/engine.go:123-126`, `docs/guide/api.md:77-83`, `docs/guide/api.md:173-179` | Either wire a production stream backend or keep the unsupported status explicit. |
 | Config sessions | Per-session serialization is implemented and covered. API saved-config rollback is also code-closed under P0-3; reviewed runtime reload rollback paths are code-closed under P0-4. | `internal/component/api/config_session.go:43-51`, `internal/component/api/config_session.go:207-245`, `internal/component/api/config_session_test.go:249-280`, `cmd/ze/hub/main.go:817-865` | Keep concurrency, rollback, and reload transaction tests in the gate. |
 | Test infrastructure | Code-remediated for runner-level self-collision. `ze-test` BGP and VPP runners now use `ReservePorts`, which holds advisory per-port locks for the suite lifetime while leaving the TCP ports bindable by child `ze` and `ze-peer` processes. This coordinates concurrent `ze-test` processes; it does not reserve ports from arbitrary external processes. | `internal/test/runner/ports.go`, `internal/test/runner/ports_test.go`, `cmd/ze-test/bgp.go`, `cmd/ze-test/vpp.go`, `plan/known-failures.md:92-126` | Keep runner reservation tests and continue investigating any remaining flakes caused by external port consumers, loopback alias setup, or process cleanup. |
-| Open deferrals | Open release-relevant rows remain for L2TP peer tests and redistribution, VPP real-daemon CI, traffic privileged evidence, BMP Loc-RIB, and raw plugin IPC. Duplicate parser keys, L2TP auth/caps/hidden mandatory AVPs, DNS/NTP safety policy, RADIUS Access-Accept policy, VPP traffic orphan scan, and in-process static plugin validation parity are code-remediated or re-triaged. | `plan/deferrals.md:162-181`, `plan/deferrals.md:195`, `plan/deferrals.md:200-213`, `plan/deferrals.md:231` | Triage remaining open rows into release blocker, scoped deployment exclusion, post-deployment backlog, or explicitly unsupported. |
+| Open deferrals | Open release-relevant rows remain for full L2TP peer tests, VPP real-daemon CI, traffic privileged evidence, BMP Loc-RIB, and raw plugin IPC. L2TP route redistribution producer and synthetic BGP advertise/withdraw proof are now closed. Duplicate parser keys, L2TP auth/caps/hidden mandatory AVPs, DNS/NTP safety policy, RADIUS Access-Accept policy, VPP traffic orphan scan, and in-process static plugin validation parity are code-remediated or re-triaged. | `plan/deferrals.md:162-181`, `plan/deferrals.md:200-213`, `plan/deferrals.md:231` | Triage remaining open rows into release blocker, scoped deployment exclusion, post-deployment backlog, or explicitly unsupported. |
 
 ## Deployment Plan
 
@@ -204,7 +205,7 @@ Work items:
 - Keep key RADIUS Access-Accept attributes implemented or explicitly rejected.
 - Keep mandatory-hidden AVP rejection covered.
 - Keep non-zero tunnel/session safety defaults covered.
-- Complete `spec-bgp-redistribute` plus `spec-l2tp-7c-redistribute`.
+- Keep `spec-bgp-redistribute` and `spec-l2tp-7c-redistribute` regression coverage, and add the full L2TP + PPP peer integration proof.
 
 ### Phase 6: Documentation Truth Pass
 
@@ -377,6 +378,18 @@ make ze-doc-drift
 PASS: No documentation drift detected.
 make ze-exabgp-test
 PASS: 37/37.
+git diff --check
+PASS.
+
+2026-05-03 follow-up L2TP redistribute and FIB ownership triage:
+go test ./internal/plugins/fib/kernel -count=1
+PASS.
+go test ./internal/component/config/redistribute ./internal/component/bgp/plugins/redistribute_egress ./internal/component/l2tp -run 'TestEvaluator|TestHandleBatch|TestSubscribe|TestCommandText|TestWithdrawText|TestObserver|TestRegisterL2TPSources' -count=1
+PASS.
+docker run --rm --privileged -v "$PWD:/src" -w /src -e HOME=/tmp -e GOCACHE=/src/tmp/linux-go-cache -e GOMODCACHE=/src/tmp/linux-gomodcache golang:1.25.9-alpine go test -tags=integration ./internal/plugins/fib/kernel -count=1
+PASS.
+make ze-doc-drift
+PASS: No documentation drift detected.
 git diff --check
 PASS.
 
