@@ -235,6 +235,7 @@ func runAgentWithEnv(globalArgs []string, args ...string) error {
 		args = append(append([]string{}, globalArgs...), args...)
 	}
 	cmd := exec.CommandContext(ctx, agentBrowserBin, args...) //nolint:gosec // args are test-controlled, not user input
+	cmd.Env = agentEnv()
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
@@ -245,12 +246,23 @@ func runAgentOutput(args ...string) (string, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, agentBrowserBin, args...) //nolint:gosec // args are test-controlled, not user input
+	cmd.Env = agentEnv()
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {
 		return "", err
 	}
 	return string(out), nil
+}
+
+func agentEnv() []string {
+	env := os.Environ()
+	for _, e := range env {
+		if strings.HasPrefix(e, "AGENT_BROWSER_IDLE_TIMEOUT_MS=") {
+			return env
+		}
+	}
+	return append(env, "AGENT_BROWSER_IDLE_TIMEOUT_MS=60000")
 }
 
 // RunWBFile parses and executes a .wb test file.
