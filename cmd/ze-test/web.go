@@ -9,8 +9,10 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	webtesting "codeberg.org/thomas-mangin/ze/internal/component/web/testing"
@@ -136,6 +138,19 @@ Examples:
 		}
 	}
 
+	// Signal handling: close agent-browser daemon on interrupt.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
+	go func() {
+		<-sigCh
+		closeBrowser()
+		cancel()
+	}()
+
 	// Start ze web server.
 	listenAddr := "127.0.0.1:" + *port
 	baseURL := "https://" + listenAddr
@@ -147,15 +162,17 @@ Examples:
 	}
 	defer srv.stop()
 
-	// Close any existing browser session.
-	closeCmd := exec.CommandContext(context.Background(), "agent-browser", "--ignore-https-errors", "close", "--all") //nolint:gosec // fixed binary name
-	_ = closeCmd.Run()
+	closeBrowser()
+	defer closeBrowser()
 
 	// Run tests sequentially (one browser session, shared server).
 	colors := runner.NewColors()
 	passed, failed, skipped := 0, 0, 0
 
 	for _, t := range tests {
+		if ctx.Err() != nil {
+			break
+		}
 		result := webtesting.RunWBFile(t.Path, baseURL)
 		switch {
 		case result.Skipped:
@@ -175,10 +192,6 @@ Examples:
 		}
 	}
 
-	// Close browser.
-	closeCmd = exec.CommandContext(context.Background(), "agent-browser", "--ignore-https-errors", "close", "--all") //nolint:gosec // fixed binary name
-	_ = closeCmd.Run()
-
 	if skipped > 0 {
 		fmt.Fprintf(os.Stdout, "\n%d passed, %d failed, %d skipped\n", passed, failed, skipped) //nolint:errcheck // terminal output
 	} else {
@@ -189,6 +202,11 @@ Examples:
 		return fmt.Errorf("%d test(s) failed", failed)
 	}
 	return nil
+}
+
+func closeBrowser() {
+	cmd := exec.CommandContext(context.Background(), "agent-browser", "--ignore-https-errors", "close", "--all") //nolint:gosec // fixed binary name
+	_ = cmd.Run()
 }
 
 type webTest struct {
