@@ -350,6 +350,16 @@ bin/ze-test bgp plugin -c 3 prefix-maximum-enforce
 PASS: 3/3.
 bin/ze-test bgp plugin -c 3 show-errors-received
 PASS: 3/3.
+bin/ze-test bgp encode addpath -v
+PASS.
+bin/ze-test bgp plugin fib-vpp-coexist-with-fib-kernel -v
+PASS.
+bin/ze-test bgp plugin fib-vpp-plugin-load -v
+PASS.
+make ze-exabgp-test
+PASS: 37/37.
+go test -race ./internal/component/bgp/reactor -run TestFwdPool_StopUnblocksDispatch -count=500
+PASS.
 make ze-linux-test ZE_LINUX_TEST_PACKAGES="./internal/plugins/firewall/nft"
 PASS.
 git diff --check

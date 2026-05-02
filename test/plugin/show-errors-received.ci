@@ -50,6 +50,8 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
+    if not api.wait_for_post_startup(timeout=10.0):
+        runtime_fail('show-errors-received: post-startup callback not received')
 
     try:
         # Poll for the notification-received entry instead of a fixed sleep.

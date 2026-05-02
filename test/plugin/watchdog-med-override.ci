@@ -21,36 +21,40 @@ EOF_PEER
 tmpfs=watchdog-med.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 
-import os
-import time
-
-from ze_api import ready, send
+from ze_api import API, runtime_fail
 
 
 def main() -> None:
-    ready()
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    if not api.wait_for_post_startup():
+        runtime_fail('watchdog-med: post-startup callback not received')
 
-    # Wait for BGP session to establish and config routes to be sent.
-    time.sleep(1)
+    # Drain startup routes before watchdog commands, so MED overrides are sent
+    # as the explicit runtime updates asserted below.
+    api.wait_for_ack(expected_count=3)
 
-    while os.getppid() != 1:
-        # MED override to 500
-        send('watchdog announce dnsr med 500')
-        time.sleep(0.2)
+    # MED override to 500
+    api.send('watchdog announce dnsr med 500')
+    api.wait_for_ack()
 
-        # MED override to 1000 (dedup bypassed -- different MED)
-        send('watchdog announce dnsr med 1000')
-        time.sleep(0.2)
+    # MED override to 1000 (dedup bypassed -- different MED)
+    api.send('watchdog announce dnsr med 1000')
+    api.wait_for_ack()
 
-        # Withdraw
-        send('watchdog withdraw dnsr')
-        time.sleep(0.2)
+    # Withdraw
+    api.send('watchdog withdraw dnsr')
+    api.wait_for_ack()
 
-        # Re-announce with MED 200
-        send('watchdog announce dnsr med 200')
-        time.sleep(0.2)
+    # Re-announce with MED 200
+    api.send('watchdog announce dnsr med 200')
+    api.wait_for_ack()
 
-    time.sleep(1)
+    api.wait_for_shutdown()
 
 
 if __name__ == '__main__':

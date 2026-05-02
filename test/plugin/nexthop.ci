@@ -20,21 +20,20 @@ EOF_PEER
 tmpfs=nexthop.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 
-import time
-
-from ze_api import ready, send, wait_for_shutdown
+from ze_api import ready, send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:
     ready()
 
     send('peer * update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128')
-    time.sleep(0.2)
+    wait_for_ack()
 
     send('peer * update text origin igp local-preference 500 nhop 2001::2 nlri ipv6/unicast add 2605::2/128')
-    time.sleep(0.2)
+    wait_for_ack()
 
     send('peer * update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128')
+    wait_for_ack()
 
     wait_for_shutdown()
 

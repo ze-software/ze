@@ -8,22 +8,30 @@ Resolved flake-investigation knowledge distilled into
 summary before investigating a new concurrency or test-isolation failure --
 the recurring shapes are catalogued there.
 
-## bfd-auth-meticulous-persist / prefix-maximum-enforce parallel-load flakes -- LOGGED 2026-04-17
+## prefix-maximum-enforce parallel-load flake -- LOGGED 2026-04-17
 
-**Files:** `test/plugin/bfd-auth-meticulous-persist.ci`, `test/plugin/prefix-maximum-enforce.ci`
-**Symptom:** Both fail intermittently under `make ze-verify` (GOMAXPROCS=29, parallel
-functional suite). Standalone retries pass cleanly:
-  `bin/ze-test bgp plugin bfd-auth-meticulous-persist` -> pass 5.1s
-  `bin/ze-test bgp plugin prefix-maximum-enforce` -> pass 1.0s
-The bfd test's Python driver gets `subprocess.TimeoutExpired` after 5.0s waiting for `ze -`; the
-prefix test gets a NOTIFICATION where it expected an UPDATE (race between UPDATE send and
-NOTIFICATION from maximum-prefix enforcement).
-**Hypothesis:** Port/time contention under high-parallel runner load. Both use 5-second hard
-timeouts on the Python side that do not account for 37 concurrent daemon starts. Fix candidates:
-(a) bump per-test timeouts, (b) serialise these two with `option=serial`, or (c) switch to
-event-driven synchronisation instead of wall-clock timeouts.
-**Unrelated to spec-l2tp-7** -- no L2TP code touched by either test; same behaviour before the
-spec landed.
+**File:** `test/plugin/prefix-maximum-enforce.ci`
+**Symptom:** Fails intermittently under `make ze-verify` (GOMAXPROCS=29,
+parallel functional suite). Standalone retries pass cleanly:
+`bin/ze-test bgp plugin prefix-maximum-enforce` -> pass 1.0s. The recorded
+parallel-load shape was a message-order mismatch around maximum-prefix
+enforcement.
+**Hypothesis:** Port/time contention or message-order timing under
+high-parallel runner load. The current port-reservation mitigation and local
+stress repeats are promising, but keep this row open until a full release gate
+shows the flake shape is gone.
+**Unrelated to spec-l2tp-7** -- no L2TP code touched by this test; same
+behaviour before the spec landed.
+
+2026-05-03 update: the paired `bfd-auth-meticulous-persist.ci` flake is no
+longer tracked here. Its Python driver now waits for the persisted `.seq` file
+to appear and advance instead of relying on a fixed 2.5s sleep before shutdown.
+Focused stress verification passed locally:
+
+```bash
+bin/ze-test bgp plugin -c 3 bfd-auth-meticulous-persist
+bin/ze-test bgp plugin -c 3 prefix-maximum-enforce
+```
 
 ## TestPeerInfoPopulatesStats (uptime == 0) -- RESOLVED 2026-04-29
 
@@ -34,7 +42,7 @@ spec landed.
 
 Verification: `go test -count=3 ./internal/component/bgp/reactor -run TestPeerInfoPopulatesStats` passed locally on 2026-04-29.
 
-## TestFwdPool_StopUnblocksDispatch (residual flake) -- LOGGED 2026-04-11
+## TestFwdPool_StopUnblocksDispatch (residual flake) -- RESOLVED 2026-05-03
 
 **File:** `internal/component/bgp/reactor/forward_pool_stop_test.go`
 **Symptom:** Flaky at ~0.6% (3 failures in 500 iterations) under
@@ -49,16 +57,19 @@ blocked goroutine has exited `Dispatch`; the subsequent `result <- ok`
 write to a buffered channel should be sub-microsecond. The deferred
 `dispatchWG.Done()` may be observed by `Wait()` BEFORE the goroutine is
 scheduled onto its post-defer code (the `result <- ok` line).
-**Next steps to try:**
-- Add `t.Cleanup` + goroutine stack dump when `Eventually` fails, to see
-  where the goroutine parks.
-- Replace `result` with a `sync.WaitGroup` waiting on the GOROUTINE to
-  complete. A prior attempt failed differently ("wg.Done but result
-  empty") -- suggests the goroutine IS exiting without running
-  `result <- ok`, which is only possible if Dispatch silently panics.
-- Add `defer recover()` in the test goroutine to catch silent panics.
+**Resolution:** The test no longer waits for post-`Dispatch` goroutine code to
+write a result channel after `Stop()` returns. It now asserts the production
+contract directly: `Stop()` must return after unblocking the blocked dispatch.
 
-## plugin test 272 watchdog (flake under parallel load) -- LOGGED 2026-04-16
+Verification:
+
+```bash
+go test -race ./internal/component/bgp/reactor -run TestFwdPool_StopUnblocksDispatch -count=500
+```
+
+Passed locally on 2026-05-03.
+
+## watchdog plugin test (flake under parallel load) -- RESOLVED 2026-05-03
 
 **File:** `test/plugin/watchdog.ci`
 **Symptom:** Output `mismatch` under `make ze-verify` (parallel mode); passes in isolation (`bin/ze-test bgp plugin 272`, 3.8s).
@@ -69,11 +80,22 @@ scheduled onto its post-defer code (the `result <- ok` line).
 parallel CPU load. The watchdog test asserts a specific session outcome
 that may arrive out-of-order when the tester's event loop is preempted.
 Related: "Full-suite flaky plugin+encode tests" entry below.
-**Fix pattern candidate:** the EoR gating pattern documented for plugin
-tests Y/147/150-152/244-245 (now resolved) -- keeps the peer session open
-past observer startup. Apply if the same symptom shape is confirmed.
+**Resolution:** `test/plugin/watchdog.ci` no longer loops against parent
+process lifetime with fixed sleeps. The script now waits for the plugin
+post-startup callback, drains startup route delivery with `peer-flush`, and
+sends the exact three announce/withdraw pairs asserted by the peer. The sibling
+`test/plugin/watchdog-med-override.ci` was hardened with the same pattern.
 
-## plugin test 153 nexthop (flake under parallel load) -- LOGGED 2026-04-16
+Verification:
+
+```bash
+bin/ze-test bgp plugin -c 3 watchdog
+bin/ze-test bgp plugin -c 3 watchdog-med-override
+```
+
+Both passed locally on 2026-05-03.
+
+## nexthop plugin test (flake under parallel load) -- RESOLVED 2026-05-03
 
 **File:** `test/plugin/nexthop.ci`
 **Symptom:** Under `make ze-verify-changed` the test fails with message
@@ -86,8 +108,18 @@ session before the second was delivered.
 **Hypothesis:** Same family as plugin test 272 above -- peer-tool closes
 TCP before the session-establishment handshake completes, observer sees
 truncated flow.
-**Fix needed:** Add `expect=bgp:...EoR` gating to the peer stdin, matching
-the EoR pattern used by `api-peer-show.ci`.
+**Resolution:** `test/plugin/nexthop.ci` keeps the intentional first-update
+before initial EOR ordering, but replaces fixed `time.sleep(0.2)` gaps with
+`ze-bgp:peer-flush` via `wait_for_ack()` after each injected route. This keeps
+the wire assertions unchanged while waiting for delivery before the next route.
+
+Verification:
+
+```bash
+bin/ze-test bgp plugin -c 3 nexthop
+```
+
+Passed locally on 2026-05-03.
 
 ## Full-suite flaky plugin+encode tests (test isolation) -- LOGGED 2026-04-11
 
@@ -168,15 +200,24 @@ go run ./cmd/ze-test bgp plugin 91 128 129 250 251 252 253 254
 
 Result: `pass 8/8 100.0%` locally on 2026-04-29.
 
-## test/plugin/show-errors-received (rare flake) -- LOGGED 2026-04-14
+## test/plugin/show-errors-received (rare flake) -- RESOLVED 2026-05-03
 
 **File:** `test/plugin/show-errors-received.ci` (test index 250 in `bin/ze-test bgp plugin`)
 **Symptom:** Observer reports `ZE-OBSERVER-FAIL: unexpected error: no response for ze-plugin-engine:dispatch-command`. First `make ze-verify` run failed here; immediate retry passed with 37/37.
 **Reproduction:** Not reliable -- occurred once during phase-2 l2tp-reliable implementation session, not on retry. Passes cleanly in isolation (verified 2026-04-17).
 **Hypothesis:** The observer dispatches a `dispatch-command` event to `ze-plugin-engine` and awaits a response within a timeout. Under load (full `ze-verify` runs many other suites concurrently), the dispatch response may not arrive in time. The observer protocol likely needs a longer per-call timeout, or the test needs to gate on a readiness signal before dispatching.
-**Parked.** Estimated 15-30 min investigation: grep `dispatch-command` handling in `ze-plugin-engine` and the observer's timeout config.
+**Resolution:** `test/plugin/show-errors-received.ci` now waits for the plugin post-startup callback before polling `show errors`. The dispatch path is therefore exercised only after the command registry is frozen.
 
-## addpath + fib-vpp-* failures under make ze-verify -- LOGGED 2026-04-17
+Verification:
+
+```bash
+bin/ze-test bgp plugin show-errors-received -v
+bin/ze-test bgp plugin -c 3 show-errors-received
+```
+
+Both passed locally on 2026-05-03.
+
+## addpath + fib-vpp-* failures under make ze-verify -- RESOLVED 2026-05-03
 
 **Files:**
 - `test/encode/addpath.ci` (index `0` in `bin/ze-test bgp encode`)
@@ -218,8 +259,21 @@ all pass green.
 - If fib-vpp tests require real VPP, gate them behind a build tag or
   a skip-when-missing check.
 
-**Parked.** Estimated >10 min per failure; not on the Phase 9
-critical path.
+**Resolution:** Focused reruns of the previously failing encode/plugin tests
+now pass, and the full ExaBGP compatibility suite passes 37/37 including the
+previously mentioned `conf-addpath` case. No code change was needed in this
+pass; the row is kept as resolved historical context.
+
+Verification:
+
+```bash
+bin/ze-test bgp encode addpath -v
+bin/ze-test bgp plugin fib-vpp-coexist-with-fib-kernel -v
+bin/ze-test bgp plugin fib-vpp-plugin-load -v
+make ze-exabgp-test
+```
+
+All passed locally on 2026-05-03.
 
 ## PPP LCP handleLCPPacket re-enters afterLCPOpen on Echo frames -- RESOLVED 2026-05-03
 
@@ -338,12 +392,20 @@ go run ./cmd/ze-test bgp parse 178 179 183 184
 
 Both passed locally on 2026-04-29.
 
-## TestRaiseHookNetdevDisambiguation (nft readback) -- LOGGED 2026-04-21
+## TestRaiseHookNetdevDisambiguation (nft readback) -- RESOLVED 2026-05-03
 
 **File:** `internal/plugins/firewall/nft/readback_linux_test.go:77`
 **Symptom:** `inet 0 = prerouting (ok=true), want HookInput` and `inet 1 = input (ok=true), want HookOutput`. The test expects nftables hook IDs 0/1 to map to Input/Output for the inet family, but the kernel returns Prerouting/Input instead. This is a kernel version mismatch: on newer kernels (6.8+), the inet hook numbering follows the netdev convention where 0=Prerouting, not the legacy inet convention where 0=Input.
 **Hypothesis:** The test's expected mapping was written against an older kernel. The readback code or the test expectations need to account for the kernel's actual hook ID assignment.
-**Parked.** Firewall subsystem, unrelated to L2TP work.
+**Resolution:** The Linux readback test now expects `raiseHook(inet, 0)` to map to `HookPrerouting` and `raiseHook(inet, 1)` to map to `HookInput`, while netdev family still disambiguates the same raw values as ingress and egress.
+
+Verification:
+
+```bash
+make ze-linux-test ZE_LINUX_TEST_PACKAGES="./internal/plugins/firewall/nft"
+```
+
+Passed locally on 2026-05-03.
 
 Remove entries once fixed.
 

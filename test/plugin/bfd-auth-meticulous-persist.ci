@@ -52,7 +52,7 @@ bfd {{
 """
 
 
-def run_once(persist_dir: str, run_seconds: float) -> str:
+def run_once(persist_dir: str, run_seconds: float, min_seq: int = 0) -> str:
     env = os.environ.copy()
     env["ze.log.bfd"] = "debug"
     env["ze.bfd.test-parallel"] = "true"
@@ -68,9 +68,11 @@ def run_once(persist_dir: str, run_seconds: float) -> str:
     proc.stdin.write(build_config(persist_dir))
     proc.stdin.close()
 
-    # Let ze spin long enough to sign a handful of packets and flush
-    # the persister at least once (flush cadence is 500 ms).
-    time.sleep(run_seconds)
+    deadline = time.monotonic() + run_seconds
+    while time.monotonic() < deadline:
+        if persisted_seq(persist_dir) > min_seq:
+            break
+        time.sleep(0.1)
 
     proc.send_signal(signal.SIGTERM)
     try:
@@ -90,10 +92,21 @@ def run_once(persist_dir: str, run_seconds: float) -> str:
     return captured
 
 
+def persisted_seq(persist_dir: str) -> int:
+    try:
+        files = [f for f in os.listdir(persist_dir) if f.endswith(".seq")]
+        if not files:
+            return 0
+        with open(os.path.join(persist_dir, files[0]), encoding="utf-8") as fh:
+            return int(fh.read() or "0")
+    except (FileNotFoundError, ValueError):
+        return 0
+
+
 def main() -> int:
     persist_dir = tempfile.mkdtemp(prefix="ze-bfd-auth-persist-")
 
-    captured1 = run_once(persist_dir, 2.5)
+    captured1 = run_once(persist_dir, 10.0)
     if "bfd plugin running" not in captured1:
         sys.stderr.write("FAIL: first run did not reach 'bfd plugin running'\n")
         return 1
@@ -102,18 +115,16 @@ def main() -> int:
     if not files:
         sys.stderr.write(f"FAIL: no persisted .seq file in {persist_dir}\n")
         return 1
-    with open(os.path.join(persist_dir, files[0]), encoding="utf-8") as fh:
-        first_seq = int(fh.read())
+    first_seq = persisted_seq(persist_dir)
     if first_seq == 0:
         sys.stderr.write("FAIL: persisted sequence is zero\n")
         return 1
 
-    captured2 = run_once(persist_dir, 2.5)
+    captured2 = run_once(persist_dir, 10.0, min_seq=first_seq)
     if "bfd plugin running" not in captured2:
         sys.stderr.write("FAIL: second run did not reach 'bfd plugin running'\n")
         return 1
-    with open(os.path.join(persist_dir, files[0]), encoding="utf-8") as fh:
-        second_seq = int(fh.read())
+    second_seq = persisted_seq(persist_dir)
     if second_seq <= first_seq:
         sys.stderr.write(
             f"FAIL: second_seq={second_seq} not greater than first_seq={first_seq}\n"
