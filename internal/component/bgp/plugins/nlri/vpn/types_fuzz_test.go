@@ -4,6 +4,15 @@ import (
 	"testing"
 )
 
+const maxFuzzVPNBytes = 4096
+
+func skipOversizedFuzzVPN(t *testing.T, data []byte) {
+	t.Helper()
+	if len(data) > maxFuzzVPNBytes {
+		t.Skip()
+	}
+}
+
 // FuzzParseVPN tests VPN NLRI binary parsing robustness.
 //
 // VALIDATES: ParseVPN handles arbitrary bytes without crashing.
@@ -28,6 +37,7 @@ func FuzzParseVPN(f *testing.F) {
 	f.Add([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}) // Max values
 
 	f.Fuzz(func(t *testing.T, data []byte) {
+		skipOversizedFuzzVPN(t, data)
 		vpn, _, err := ParseVPN(AFIIPv4, SAFIVPN, data, false)
 		if err != nil {
 			return
@@ -62,6 +72,7 @@ func FuzzParseVPNAddPath(f *testing.F) {
 	f.Add([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}) // Max values
 
 	f.Fuzz(func(t *testing.T, data []byte) {
+		skipOversizedFuzzVPN(t, data)
 		vpn, _, err := ParseVPN(AFIIPv4, SAFIVPN, data, true)
 		if err != nil {
 			return

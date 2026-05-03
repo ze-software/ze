@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a real VPP daemon in Docker and prove ze can program its FIB."""
+"""Run a real VPP daemon in Docker and prove ze can program FIB and traffic."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ VPP_PLATFORM = os.environ.get("ZE_VPP_DOCKER_PLATFORM", "linux/amd64")
 GOARCH = os.environ.get("ZE_VPP_DOCKER_GOARCH", "amd64")
 PREFIX = "10.20.0.0/24"
 NEXT_HOP = "10.0.0.1"
+TRAFFIC_POLICER_CLASS = "default"
 
 
 def repo_root() -> Path:
@@ -135,10 +136,80 @@ def vppctl(container: str, command: str) -> subprocess.CompletedProcess[str]:
     ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
+def vppctl_text(container: str, command: str) -> str:
+    out = vppctl(container, command)
+    text = (out.stdout or "") + (out.stderr or "")
+    if out.returncode != 0:
+        raise SystemExit(f"vppctl {command!r} failed:\n{text}")
+    return text
+
+
 def route_present(container: str) -> tuple[bool, str]:
     out = vppctl(container, f"show ip fib {PREFIX}")
     text = (out.stdout or "") + (out.stderr or "")
     return PREFIX in text, text
+
+
+def create_loopback(container: str) -> str:
+    text = vppctl_text(container, "create loopback interface")
+    for token in text.replace("\n", " ").split():
+        if token.startswith("loop") and token[4:].isdigit():
+            iface = token
+            break
+    else:
+        iface = "loop0"
+    vppctl_text(container, f"set interface state {iface} up")
+    interfaces = vppctl_text(container, "show interface")
+    if iface not in interfaces:
+        raise SystemExit(f"created VPP loopback {iface!r} not visible in show interface:\n{interfaces}")
+    return iface
+
+
+def policer_name(iface: str) -> str:
+    return f"ze/{iface}/{TRAFFIC_POLICER_CLASS}"
+
+
+def policer_present(container: str, name: str) -> tuple[bool, str]:
+    text = vppctl_text(container, "show policer")
+    return name in text, text
+
+
+def policer_feature_bound(container: str, iface: str) -> tuple[bool, str]:
+    text = vppctl_text(container, f"show interface features {iface}")
+    return "policer" in text.lower(), text
+
+
+def wait_policer(container: str, name: str, want_present: bool, timeout_s: float) -> tuple[bool, str]:
+    last = ""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        present, text = policer_present(container, name)
+        last = text
+        if present == want_present:
+            return True, text
+        time.sleep(0.5)
+    return False, last
+
+
+def wait_policer_bound(container: str, iface: str, timeout_s: float) -> tuple[bool, str]:
+    last = ""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        present, text = policer_feature_bound(container, iface)
+        last = text
+        if present:
+            return True, text
+        time.sleep(0.5)
+    return False, last
+
+
+def wait_log(lines: list[str], needle: str, timeout_s: float) -> bool:
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        if any(needle in line for line in lines):
+            return True
+        time.sleep(0.1)
+    return False
 
 
 def stop_peer(container: str, process_name: str) -> None:
@@ -155,6 +226,209 @@ def wait_route(container: str, want_present: bool, timeout_s: float) -> tuple[bo
             return True, text
         time.sleep(0.5)
     return False, last
+
+
+def ze_env(container: str, ze: Path, root: Path, config_path: Path, port: int | None = None) -> list[str]:
+    env = [
+        "docker", "exec", "--interactive",
+        "--env", "ZE_LOG_VPP=info",
+        "--env", "ZE_LOG_FIB_VPP=debug",
+        "--env", "ZE_LOG_TRAFFIC=debug",
+        "--env", "ZE_LOG_TRAFFIC_VPP=debug",
+        "--env", "ZE_LOG_BGP=info",
+        "--env", "ZE_STORAGE_BLOB=false",
+        "--env", "ZE_CONFIG_DIR=/run/vpp/ze",
+    ]
+    if port is not None:
+        env.extend(["--env", f"ZE_TEST_BGP_PORT={port}"])
+    env.extend([container, f"/src/{ze.relative_to(root)}", str(config_path)])
+    return env
+
+
+def start_ze(container: str, ze: Path, root: Path, config_path: Path, port: int | None = None) -> tuple[subprocess.Popen[str], list[str]]:
+    daemon = subprocess.Popen(
+        ze_env(container, ze, root, config_path, port),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert daemon.stderr is not None
+    lines = drain("ze> ", daemon.stderr)
+    return daemon, lines
+
+
+def vpp_config(api_sock: Path) -> str:
+    return f"""vpp {{
+    enabled true;
+    external true;
+    api-socket {api_sock};
+    stats {{ socket-path /run/vpp/stats.sock; }}
+}}
+"""
+
+
+def fib_config(api_sock: Path) -> str:
+    return f"""bgp {{
+    peer peer1 {{
+        connection {{
+            remote {{ ip 127.0.0.1; }}
+            local  {{ ip 127.0.0.1; accept false; }}
+        }}
+        session {{
+            asn {{ local 1; remote 1; }}
+            router-id 1.2.3.4;
+            family {{ ipv4/unicast {{ prefix {{ maximum 10000; }} }} }}
+            capability {{ graceful-restart disable; }}
+        }}
+        behavior {{ group-updates disable; }}
+    }}
+}}
+
+{vpp_config(api_sock)}
+fib {{
+    vpp {{ enabled true; }}
+}}
+"""
+
+
+def traffic_config(api_sock: Path, iface: str, with_interface: bool) -> str:
+    if not with_interface:
+        return vpp_config(api_sock) + "\ntraffic-control {\n    backend vpp;\n}\n"
+    return vpp_config(api_sock) + f"""
+traffic-control {{
+    backend vpp;
+    interface {iface} {{
+        qdisc {{
+            type htb;
+            default-class {TRAFFIC_POLICER_CLASS};
+            class {TRAFFIC_POLICER_CLASS} {{
+                rate 1mbit;
+                ceil 2mbit;
+            }}
+        }}
+    }}
+}}
+"""
+
+
+def write_config(path: Path, content: str) -> None:
+    path.write_text(content, encoding="utf-8")
+
+
+def run_fib_evidence(container: str, root: Path, ze: Path, ze_test: Path, work: Path, api_sock: Path) -> int:
+    port = free_port()
+    peer_script = work / "peer-script"
+    peer_script.write_text(
+        "option=tcp_connections:value=1\n"
+        f"option=update:value=send-route:prefix={PREFIX}:next-hop={NEXT_HOP}:origin-as=65001\n",
+        encoding="utf-8",
+    )
+    peer = subprocess.Popen(
+        [
+            "docker", "exec", container,
+            f"/src/{ze_test.relative_to(root)}", "peer", "--mode", "sink", "--port", str(port), "/run/vpp/peer-script",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert peer.stderr is not None
+    drain("peer-err> ", peer.stderr)
+    if not wait_for_peer(peer, 5):
+        terminate(peer)
+        raise SystemExit("ze-test peer did not start")
+
+    config_path = work / "fib.conf"
+    write_config(config_path, fib_config(api_sock))
+    daemon, ze_lines = start_ze(container, ze, root, Path("/run/vpp/fib.conf"), port)
+    try:
+        ok, last_fib = wait_route(container, True, 25)
+        if not ok:
+            sys.stderr.write("FAIL: real VPP FIB route not observed\n")
+            sys.stderr.write(last_fib)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        print(f"OK: real VPP FIB contains {PREFIX}")
+
+        stop_peer(container, ze_test.name)
+        try:
+            peer.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            terminate(peer)
+        withdrawn, last_fib = wait_route(container, False, 15)
+        if withdrawn:
+            print(f"OK: real VPP FIB withdrew {PREFIX}")
+            return 0
+
+        sys.stderr.write("FAIL: real VPP FIB route was not withdrawn\n")
+        sys.stderr.write(last_fib)
+        sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+        return 1
+    finally:
+        terminate(daemon)
+        terminate(peer)
+
+
+def run_traffic_evidence(container: str, root: Path, ze: Path, work: Path, api_sock: Path, iface: str) -> int:
+    name = policer_name(iface)
+    config_path = work / "traffic.conf"
+    write_config(config_path, traffic_config(api_sock, iface, True))
+
+    daemon, ze_lines = start_ze(container, ze, root, Path("/run/vpp/traffic.conf"))
+    try:
+        if not wait_log(ze_lines, "traffic-control config applied", 25):
+            sys.stderr.write("FAIL: traffic-control apply log not observed\n")
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        ok, last = wait_policer(container, name, True, 15)
+        if not ok:
+            sys.stderr.write(f"FAIL: real VPP policer {name} not observed after apply\n")
+            sys.stderr.write(last)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        bound, features = wait_policer_bound(container, iface, 15)
+        if not bound:
+            sys.stderr.write(f"FAIL: real VPP policer feature not observed on {iface}\n")
+            sys.stderr.write(features)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        print(f"OK: real VPP traffic policer {name} exists and is bound to {iface}")
+
+    finally:
+        terminate(daemon)
+
+    write_config(config_path, traffic_config(api_sock, iface, True))
+    daemon, ze_lines = start_ze(container, ze, root, Path("/run/vpp/traffic.conf"))
+    try:
+        ok, last = wait_policer(container, name, True, 25)
+        if not ok:
+            sys.stderr.write(f"FAIL: real VPP policer {name} missing after ze restart with same config\n")
+            sys.stderr.write(last)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        bound, features = wait_policer_bound(container, iface, 15)
+        if not bound:
+            sys.stderr.write(f"FAIL: real VPP policer feature not observed on {iface} after ze restart\n")
+            sys.stderr.write(features)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        print(f"OK: real VPP traffic policer {name} survived ze restart with same config")
+    finally:
+        terminate(daemon)
+
+    write_config(config_path, traffic_config(api_sock, iface, False))
+    daemon, ze_lines = start_ze(container, ze, root, Path("/run/vpp/traffic.conf"))
+    try:
+        ok, last = wait_policer(container, name, False, 25)
+        if not ok:
+            sys.stderr.write(f"FAIL: real VPP orphan policer {name} survived ze restart cleanup\n")
+            sys.stderr.write(last)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        print(f"OK: real VPP startup cleanup removed orphan traffic policer {name}")
+        return 0
+    finally:
+        terminate(daemon)
 
 
 def main() -> int:
@@ -208,8 +482,6 @@ def main() -> int:
         sys.stderr.write(vpp.stderr or "")
         raise SystemExit("failed to start VPP container")
 
-    peer: subprocess.Popen[str] | None = None
-    daemon: subprocess.Popen[str] | None = None
     try:
         start_vpp = run(["docker", "exec", "--detach", container, "vpp", "-c", "/run/vpp/startup.conf"])
         if start_vpp.returncode != 0:
@@ -227,102 +499,14 @@ def main() -> int:
             raise SystemExit("vppctl show version failed")
         sys.stderr.write(version.stdout or "")
 
-        port = free_port()
-        peer_script = work / "peer-script"
-        peer_script.write_text(
-            "option=tcp_connections:value=1\n"
-            f"option=update:value=send-route:prefix={PREFIX}:next-hop={NEXT_HOP}:origin-as=65001\n",
-            encoding="utf-8",
-        )
-        peer = subprocess.Popen(
-            [
-                "docker", "exec", container,
-                f"/src/{ze_test.relative_to(root)}", "peer", "--mode", "sink", "--port", str(port), "/run/vpp/peer-script",
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        assert peer.stderr is not None
-        drain("peer-err> ", peer.stderr)
-        if not wait_for_peer(peer, 5):
-            raise SystemExit("ze-test peer did not start")
+        iface = create_loopback(container)
+        print(f"OK: created real VPP loopback interface {iface}")
 
-        config = f"""bgp {{
-    peer peer1 {{
-        connection {{
-            remote {{ ip 127.0.0.1; }}
-            local  {{ ip 127.0.0.1; accept false; }}
-        }}
-        session {{
-            asn {{ local 1; remote 1; }}
-            router-id 1.2.3.4;
-            family {{ ipv4/unicast {{ prefix {{ maximum 10000; }} }} }}
-            capability {{ graceful-restart disable; }}
-        }}
-        behavior {{ group-updates disable; }}
-    }}
-}}
-
-vpp {{
-    enabled true;
-    external true;
-    api-socket {api_sock};
-    stats {{ socket-path /run/vpp/stats.sock; }}
-}}
-
-fib {{
-    vpp {{ enabled true; }}
-}}
-"""
-
-        daemon = subprocess.Popen(
-            [
-                "docker", "exec", "--interactive",
-                "--env", "ZE_LOG_VPP=info",
-                "--env", "ZE_LOG_FIB_VPP=debug",
-                "--env", "ZE_LOG_BGP=info",
-                "--env", "ZE_STORAGE_BLOB=false",
-                "--env", "ZE_CONFIG_DIR=/run/vpp/ze",
-                "--env", f"ZE_TEST_BGP_PORT={port}",
-                container, f"/src/{ze.relative_to(root)}", "-",
-            ],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        assert daemon.stdin is not None
-        assert daemon.stderr is not None
-        daemon.stdin.write(config)
-        daemon.stdin.close()
-        ze_lines = drain("ze> ", daemon.stderr)
-
-        ok, last_fib = wait_route(container, True, 25)
-        if ok:
-            print(f"OK: real VPP FIB contains {PREFIX}")
-            stop_peer(container, ze_test.name)
-            try:
-                peer.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                terminate(peer)
-            withdrawn, last_fib = wait_route(container, False, 15)
-            if withdrawn:
-                print(f"OK: real VPP FIB withdrew {PREFIX}")
-                return 0
-
-            sys.stderr.write("FAIL: real VPP FIB route was not withdrawn\n")
-            sys.stderr.write(last_fib)
-            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
-            return 1
-
-        sys.stderr.write("FAIL: real VPP FIB route not observed\n")
-        sys.stderr.write(last_fib)
-        sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
-        return 1
+        fib_rc = run_fib_evidence(container, root, ze, ze_test, work, api_sock)
+        if fib_rc != 0:
+            return fib_rc
+        return run_traffic_evidence(container, root, ze, work, api_sock, iface)
     finally:
-        terminate(daemon)
-        terminate(peer)
         run(["docker", "rm", "-f", container], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 

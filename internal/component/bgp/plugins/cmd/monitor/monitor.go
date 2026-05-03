@@ -34,12 +34,6 @@ func init() {
 	pluginserver.RegisterMonitorEventFormatter(FormatMonitorLine)
 	// Register "monitor event" streaming handler at engine level (verb-first: <action> <module>).
 	pluginserver.RegisterStreamingHandler("monitor event", func(ctx context.Context, s *pluginserver.Server, w io.Writer, username string, args []string) error {
-		if d := s.Dispatcher(); d != nil {
-			cmdCtx := &pluginserver.CommandContext{Server: s, Username: username}
-			if !d.IsAuthorized(cmdCtx, "monitor event", true) {
-				return fmt.Errorf("unauthorized")
-			}
-		}
 		return pluginserver.StreamEventMonitor(ctx, s, w, username, args)
 	})
 

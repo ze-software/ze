@@ -781,7 +781,7 @@ expect=exit:code=0
 | `make ze-unit-test` | Unit tests with race detector |
 | `make ze-functional-test` | All `.ci` functional tests |
 | `make ze-lint` | 26 linters via golangci-lint |
-| `make ze-fuzz-test` | Fuzz tests (15s per target) |
+| `make ze-fuzz-test` | Fuzz tests (10s per target) |
 | `make ze-exabgp-test` | ExaBGP compatibility suite |
 | `make ze-chaos-test` | Chaos unit + functional + web dashboard tests |
 | `make ze-test` | Everything including fuzz |

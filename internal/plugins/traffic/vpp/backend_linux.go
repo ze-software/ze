@@ -25,6 +25,8 @@ import (
 // reachable. Value is the 5s agreed in spec Decision 1.
 const waitConnectedTimeout = 5 * time.Second
 
+const waitConnectorPoll = 50 * time.Millisecond
+
 const policerNamePrefix = "ze/"
 
 // backend implements traffic.Backend on top of VPP's binary API.
@@ -85,9 +87,11 @@ func (b *backend) Apply(ctx context.Context, desired map[string]traffic.Interfac
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	conn := b.connector()
-	if conn == nil {
-		return fmt.Errorf("traffic-vpp: vpp component not initialized")
+	connCtx, connCancel := context.WithTimeout(ctx, waitConnectedTimeout)
+	conn, err := b.waitConnector(connCtx)
+	connCancel()
+	if err != nil {
+		return fmt.Errorf("traffic-vpp: %w", err)
 	}
 	if err := conn.WaitConnected(ctx, waitConnectedTimeout); err != nil {
 		return fmt.Errorf("traffic-vpp: %w", err)
@@ -104,6 +108,30 @@ func (b *backend) Apply(ctx context.Context, desired map[string]traffic.Interfac
 	defer ch.Close()
 
 	return b.applyWithOps(&govppOps{ch: ch}, desired)
+}
+
+func (b *backend) waitConnector(ctx context.Context) (*vppcomp.Connector, error) {
+	if b.connector == nil {
+		return nil, fmt.Errorf("vpp component not initialized")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if conn := b.connector(); conn != nil {
+		return conn, nil
+	}
+	tick := time.NewTicker(waitConnectorPoll)
+	defer tick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-tick.C:
+			if conn := b.connector(); conn != nil {
+				return conn, nil
+			}
+		}
+	}
 }
 
 // applyWithOps runs the Apply pipeline against a vppOps seam. Split from Apply

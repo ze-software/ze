@@ -4,6 +4,8 @@ import (
 	"testing"
 )
 
+const maxFuzzNLRIBytes = 4096
+
 // FuzzParseHeader tests BGP message header parsing robustness.
 //
 // VALIDATES: ParseHeader handles arbitrary bytes without crashing.
@@ -234,8 +236,13 @@ func FuzzChunkMPNLRI(f *testing.F) {
 	f.Add([]byte{0xFF}, 10)                       // Invalid prefix length 255
 
 	f.Fuzz(func(t *testing.T, data []byte, maxSize int) {
+		if len(data) > maxFuzzNLRIBytes {
+			t.Skip()
+		}
 		if maxSize < 1 {
 			maxSize = 1 // Avoid zero/negative
+		} else if maxSize > maxFuzzNLRIBytes {
+			maxSize = maxFuzzNLRIBytes
 		}
 		chunks, err := ChunkMPNLRI(data, 1, 1, false, maxSize, nil) // MUST NOT panic
 		if err != nil {

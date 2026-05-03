@@ -1,0 +1,6 @@
+go test fuzz v1
+[]byte("he\xef\xdb\xdc7\xf3\x0ello")
+[]byte("he\xef")
+uint32(1234)
+byte('À')
+byte('\x01')

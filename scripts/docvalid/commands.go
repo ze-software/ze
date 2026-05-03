@@ -1,7 +1,7 @@
 // Design: (none -- build tool)
 //
 // validate-commands cross-checks YANG command tree declarations against
-// registered RPC handlers. Reports mismatches in both directions:
+// registered command handlers. Reports mismatches in both directions:
 //   - YANG ze:command referencing a handler that doesn't exist
 //   - Registered handler with no YANG ze:command entry
 //
@@ -15,8 +15,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
@@ -30,6 +35,8 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/schema"
 
 	// BGP cmd handler packages (register RPCs via init()).
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"
@@ -77,14 +84,17 @@ type CommandEntry struct {
 
 // ValidationResult holds the cross-check output.
 type ValidationResult struct {
-	YANGCommands    []CommandEntry `json:"yang-commands"`
-	Handlers        []string       `json:"handlers"`
-	OrphanYANG      []CommandEntry `json:"orphan-yang"`
-	OrphanHandlers  []string       `json:"orphan-handlers"`
-	SkippedHandlers []string       `json:"skipped-handlers"`
-	Total           int            `json:"total-yang"`
-	TotalHandlers   int            `json:"total-handlers"`
-	Valid           bool           `json:"valid"`
+	YANGCommands         []CommandEntry `json:"yang-commands"`
+	Handlers             []string       `json:"handlers"`
+	LocalHandlers        []string       `json:"local-handlers"`
+	OrphanYANG           []CommandEntry `json:"orphan-yang"`
+	OrphanHandlers       []string       `json:"orphan-handlers"`
+	OrphanLocalHandlers  []string       `json:"orphan-local-handlers"`
+	SkippedHandlers      []string       `json:"skipped-handlers"`
+	Total                int            `json:"total-yang"`
+	TotalHandlers        int            `json:"total-handlers"`
+	TotalLocal           int            `json:"total-local-handlers"`
+	Valid                bool           `json:"valid"`
 }
 
 func main() {
@@ -166,6 +176,13 @@ func validate() ValidationResult {
 	sort.Strings(handlers)
 	sort.Strings(skipped)
 
+	localHandlers := collectLocalHandlers()
+	localSet := make(map[string]bool, len(localHandlers))
+	for _, path := range localHandlers {
+		localSet[path] = true
+	}
+	sort.Strings(localHandlers)
+
 	// Build YANG command set.
 	yangSet := make(map[string]bool, len(commands))
 	for _, cmd := range commands {
@@ -175,7 +192,7 @@ func validate() ValidationResult {
 	// Cross-check.
 	var orphanYANG []CommandEntry
 	for _, cmd := range commands {
-		if !handlerSet[cmd.WireMethod] {
+		if !handlerSet[cmd.WireMethod] && !localSet[yangPathToCLIPath(cmd.YANGPath)] {
 			orphanYANG = append(orphanYANG, cmd)
 		}
 	}
@@ -187,16 +204,94 @@ func validate() ValidationResult {
 		}
 	}
 
-	return ValidationResult{
-		YANGCommands:    commands,
-		Handlers:        handlers,
-		OrphanYANG:      orphanYANG,
-		OrphanHandlers:  orphanHandlers,
-		SkippedHandlers: skipped,
-		Total:           len(commands),
-		TotalHandlers:   len(handlers),
-		Valid:           len(orphanYANG) == 0 && len(orphanHandlers) == 0,
+	yangCLIPathSet := make(map[string]bool, len(commands))
+	for _, cmd := range commands {
+		yangCLIPathSet[yangPathToCLIPath(cmd.YANGPath)] = true
 	}
+	var orphanLocalHandlers []string
+	for _, path := range localHandlers {
+		if !yangCLIPathSet[path] {
+			orphanLocalHandlers = append(orphanLocalHandlers, path)
+		}
+	}
+
+	return ValidationResult{
+		YANGCommands:         commands,
+		Handlers:             handlers,
+		LocalHandlers:        localHandlers,
+		OrphanYANG:           orphanYANG,
+		OrphanHandlers:       orphanHandlers,
+		OrphanLocalHandlers:  orphanLocalHandlers,
+		SkippedHandlers:      skipped,
+		Total:                len(commands),
+		TotalHandlers:        len(handlers),
+		TotalLocal:           len(localHandlers),
+		Valid:                len(orphanYANG) == 0 && len(orphanHandlers) == 0,
+	}
+}
+
+func yangPathToCLIPath(path string) string {
+	return strings.ReplaceAll(path, " > ", " ")
+}
+
+func collectLocalHandlers() []string {
+	paths := map[string]bool{}
+	for _, path := range localCommandRegistryFiles() {
+		collectLocalHandlersFromFile(path, paths)
+	}
+	out := make([]string, 0, len(paths))
+	for path := range paths {
+		out = append(out, path)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func localCommandRegistryFiles() []string {
+	files, err := filepath.Glob("cmd/ze/*/register.go")
+	if err != nil {
+		fatal("local command registry glob: " + err.Error())
+	}
+	files = append(files, "cmd/ze/main.go")
+	sort.Strings(files)
+	return files
+}
+
+func collectLocalHandlersFromFile(path string, paths map[string]bool) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, nil, 0)
+	if err != nil {
+		fatal("parse local command registry " + path + ": " + err.Error())
+	}
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok || len(call.Args) == 0 {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		pkg, ok := selector.X.(*ast.Ident)
+		if !ok || pkg.Name != "cmdregistry" {
+			return true
+		}
+		switch selector.Sel.Name {
+		case "MustRegisterLocal", "MustRegisterLocalMeta", "RegisterLocal", "RegisterLocalMeta":
+		default:
+			return true
+		}
+		literal, ok := call.Args[0].(*ast.BasicLit)
+		if !ok || literal.Kind != token.STRING {
+			return true
+		}
+		cmdPath, err := strconv.Unquote(literal.Value)
+		if err != nil {
+			fatal("unquote local command registry path in " + path + ": " + err.Error())
+		}
+		paths[cmdPath] = true
+		return true
+	})
 }
 
 func walkEntry(entry *gyang.Entry, path, module string, commands *[]CommandEntry) {
@@ -227,6 +322,7 @@ func printResult(r ValidationResult) {
 	fmt.Printf("# Command Validation\n\n")
 	fmt.Printf("YANG commands: %d\n", r.Total)
 	fmt.Printf("Registered handlers: %d\n", r.TotalHandlers)
+	fmt.Printf("Registered local handlers: %d\n", r.TotalLocal)
 	fmt.Printf("Skipped (editor-internal): %d\n\n", len(r.SkippedHandlers))
 
 	if len(r.OrphanYANG) > 0 {
@@ -241,6 +337,14 @@ func printResult(r ValidationResult) {
 		fmt.Printf("## Handlers with no YANG command (%d)\n\n", len(r.OrphanHandlers))
 		for _, wm := range r.OrphanHandlers {
 			fmt.Printf("  %s\n", wm)
+		}
+		fmt.Printf("\n")
+	}
+
+	if len(r.OrphanLocalHandlers) > 0 {
+		fmt.Printf("## Local handlers with no YANG command (%d)\n\n", len(r.OrphanLocalHandlers))
+		for _, path := range r.OrphanLocalHandlers {
+			fmt.Printf("  %s\n", path)
 		}
 		fmt.Printf("\n")
 	}

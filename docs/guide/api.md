@@ -79,7 +79,7 @@ warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or 
 | `GET` | `/api/v1/commands` | List all commands with metadata |
 | `GET` | `/api/v1/commands/{path}` | Describe one command (e.g., `/bgp/summary`) |
 | `POST` | `/api/v1/execute` | Execute any command |
-| `GET` | `/api/v1/execute/stream?command=...` | Internal streaming hook. Production hub does not wire a stream backend, so this returns `streaming not supported`; it is not advertised in generated OpenAPI. |
+| `GET` | `/api/v1/execute/stream?command=...` | Stream a registered streaming command, for example `monitor event`, as Server-Sent Events. It uses the same handler registry, authorization, and accounting path as SSH monitor commands. |
 | `GET` | `/api/v1/complete?partial=...` | Tab completion (future) |
 
 POST `/api/v1/execute` body:
@@ -173,7 +173,7 @@ Generic command execution and discovery.
 | RPC | Type | Purpose |
 |-----|------|---------|
 | `Execute` | unary | Run a command, get result |
-| `Stream` | server-stream | Internal streaming hook. Production hub does not wire a stream backend, so this returns `streaming not supported`. |
+| `Stream` | server-stream | Stream a registered streaming command, for example `monitor event`, over a gRPC server stream. It uses the same handler registry, authorization, and accounting path as SSH monitor commands. |
 | `ListCommands` | unary | Enumerate all commands |
 | `DescribeCommand` | unary | Metadata for one command |
 | `Complete` | unary | Tab completion (future) |

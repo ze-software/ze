@@ -257,9 +257,9 @@ ze-unit-test-race-changed:
 		$(GO_TEST) -race $$groups; \
 	fi
 
-# Run ze fuzz tests (all targets, 15s each)
+# Run ze fuzz tests (all targets, 10s each)
 # Note: multiple fuzz tests per package require individual enumeration (-fuzz=. fails with "matches more than one").
-# Config package uses exact path (no ...) because sub-packages would trigger "multiple packages" error.
+# Exact package paths avoid Go fuzz's "multiple packages" error where a tree has subpackages.
 ze-fuzz-test:
 	@echo "Running ze fuzz tests..."
 	$(GO_TEST) -fuzz=FuzzParseOrigin -fuzztime=10s -timeout=60s ./internal/component/bgp/attribute/...
@@ -283,9 +283,9 @@ ze-fuzz-test:
 	$(GO_TEST) -fuzz=FuzzParseIPv4Prefixes -fuzztime=10s -timeout=60s ./internal/component/bgp/wireu/...
 	$(GO_TEST) -fuzz=FuzzParseIPv6Prefixes -fuzztime=10s -timeout=60s ./internal/component/bgp/wireu/...
 	$(GO_TEST) -fuzz=FuzzParsePrefixes -fuzztime=10s -timeout=60s ./internal/component/bgp/wireu/...
-	$(GO_TEST) -fuzz=FuzzParseRouteDistinguisher -fuzztime=10s -timeout=60s ./internal/component/bgp/nlri/...
-	$(GO_TEST) -fuzz=FuzzParseRDString -fuzztime=10s -timeout=60s ./internal/component/bgp/nlri/...
-	$(GO_TEST) -fuzz=FuzzParseLabelStack -fuzztime=10s -timeout=60s ./internal/component/bgp/nlri/...
+	$(GO_TEST) -fuzz=FuzzParseRouteDistinguisher -fuzztime=10s -timeout=60s ./internal/component/bgp/nlri
+	$(GO_TEST) -fuzz=FuzzParseRDString -fuzztime=10s -timeout=60s ./internal/component/bgp/nlri
+	$(GO_TEST) -fuzz=FuzzParseLabelStack -fuzztime=10s -timeout=60s ./internal/component/bgp/nlri
 	$(GO_TEST) -fuzz=FuzzParseVPN$$ -fuzztime=10s -timeout=60s ./internal/component/bgp/plugins/nlri/vpn/...
 	$(GO_TEST) -fuzz=FuzzParseVPNAddPath -fuzztime=10s -timeout=60s ./internal/component/bgp/plugins/nlri/vpn/...
 	$(GO_TEST) -fuzz=FuzzParseEVPN -fuzztime=10s -timeout=60s ./internal/component/bgp/plugins/nlri/evpn/...
@@ -301,10 +301,10 @@ ze-fuzz-test:
 	$(GO_TEST) -fuzz=FuzzScanner -fuzztime=10s -timeout=60s ./internal/component/bgp/textparse/...
 	$(GO_TEST) -fuzz=FuzzConfigParser -fuzztime=10s -timeout=60s ./internal/component/config
 	$(GO_TEST) -fuzz=FuzzTokenizer -fuzztime=10s -timeout=60s ./internal/component/config
-	$(GO_TEST) -fuzz=FuzzParseMessageHeader -fuzztime=10s -timeout=60s ./internal/component/l2tp/...
-	$(GO_TEST) -fuzz=FuzzAVPIterator -fuzztime=10s -timeout=60s ./internal/component/l2tp/...
-	$(GO_TEST) -fuzz=FuzzHiddenDecrypt -fuzztime=10s -timeout=60s ./internal/component/l2tp/...
-	$(GO_TEST) -fuzz=FuzzOnReceiveSequence -fuzztime=10s -timeout=60s ./internal/component/l2tp/...
+	$(GO_TEST) -fuzz=FuzzParseMessageHeader -fuzztime=10s -timeout=60s ./internal/component/l2tp
+	$(GO_TEST) -fuzz=FuzzAVPIterator -fuzztime=10s -timeout=60s ./internal/component/l2tp
+	$(GO_TEST) -fuzz=FuzzHiddenDecrypt -fuzztime=10s -timeout=60s ./internal/component/l2tp
+	$(GO_TEST) -fuzz=FuzzOnReceiveSequence -fuzztime=10s -timeout=60s ./internal/component/l2tp
 	$(GO_TEST) -fuzz=FuzzAttrTLVParse -fuzztime=10s -timeout=60s ./internal/component/bgp/plugins/nlri/ls/...
 	$(GO_TEST) -fuzz=FuzzAuthDigest -fuzztime=10s -timeout=60s ./internal/plugins/bfd/auth/...
 	$(GO_TEST) -fuzz=FuzzParseControl -fuzztime=10s -timeout=60s ./internal/plugins/bfd/packet/...
@@ -317,8 +317,8 @@ ze-fuzz-test:
 	$(GO_TEST) -fuzz=FuzzParseCHAPResponse -fuzztime=10s -timeout=60s ./internal/component/ppp/...
 	$(GO_TEST) -fuzz=FuzzParsePAPRequest -fuzztime=10s -timeout=60s ./internal/component/ppp/...
 	$(GO_TEST) -fuzz=FuzzParseMSCHAPv2Response -fuzztime=10s -timeout=60s ./internal/component/ppp/...
-	$(GO_TEST) -fuzz=FuzzTacacsPacketUnmarshal -fuzztime=10s -timeout=60s ./internal/component/tacacs/...
-	$(GO_TEST) -fuzz=FuzzTacacsEncryptDecrypt -fuzztime=10s -timeout=60s ./internal/component/tacacs/...
+	$(GO_TEST) -fuzz=FuzzTacacsPacketUnmarshal -fuzztime=10s -timeout=60s ./internal/component/tacacs
+	$(GO_TEST) -fuzz=FuzzTacacsEncryptDecrypt -fuzztime=10s -timeout=60s ./internal/component/tacacs
 
 # Run a single fuzz target for longer (usage: make ze-fuzz-one FUZZ=FuzzParseNLRIs PKG=./internal/component/bgp/wireu/... TIME=30s)
 FUZZ ?= FuzzParseNLRIs
@@ -646,7 +646,7 @@ ze-command-list-json:
 ze-doc-drift:
 	@go run scripts/docvalid/doc_drift.go
 
-# Cross-check YANG command tree against registered handlers
+# Cross-check YANG command tree against registered RPC/local handlers
 ze-validate-commands:
 	@go run scripts/docvalid/commands.go
 
@@ -993,7 +993,7 @@ help:
 	@echo "  ze-ui-test            - Run UI functional tests only (completion)"
 	@echo "  ze-editor-test        - Run editor functional tests only"
 	@echo "  ze-exabgp-test        - Run ExaBGP compatibility tests only"
-	@echo "  ze-fuzz-test          - Run all fuzz tests (15s per target)"
+	@echo "  ze-fuzz-test          - Run all fuzz tests (10s per target)"
 	@echo "  ze-fuzz-one           - Run single fuzz target (FUZZ=name PKG=path TIME=30s)"
 	@echo "  ze-linux-test         - Run Linux-only Go unit tests in Docker (ZE_LINUX_TEST_PACKAGES=...)"
 	@echo "  ze-test               - Ze tests: lint + unit + functional + exabgp + fuzz"
@@ -1073,7 +1073,7 @@ help:
 	@echo "  Documentation testing:"
 	@echo "  ze-doc-test           - Run all doc tests (drift + YANG/handler contract)"
 	@echo "  ze-doc-drift          - Check docs claims vs live registry, Makefile, and filesystem"
-	@echo "  ze-validate-commands  - Cross-check YANG ze:command vs registered RPC handlers"
+	@echo "  ze-validate-commands  - Cross-check YANG ze:command vs registered RPC/local handlers"
 	@echo "  ze-consistency        - Code/doc consistency: design refs, cross-refs, stale refs"
 	@echo "  See docs/contributing/documentation-testing.md for the workflow."
 	@echo ""

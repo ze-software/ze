@@ -46,6 +46,10 @@ The target refuses a dirty worktree, clones the repository into an ephemeral
 Docker container, mirrors the Woodpecker dependency setup, and runs
 `make ze-verify` there.
 
+`ze-deployment-*` targets are deployment-grade external evidence. Some use
+Docker because the local runner needs a Linux system service; Docker-specific
+targets say so in the target name.
+
 Real VPP daemon evidence is separate from the stub-backed VPP functional suite:
 `make ze-deployment-vpp-test` starts VPP in a privileged Docker container and
 proves `fib-vpp` add and withdraw against VPP's real FIB.
@@ -1093,6 +1097,9 @@ make ze-deployment-l2tp-test       # Run real xl2tpd LAC control/session evidenc
 make ze-deployment-l2tp-ppp-test   # Run real xl2tpd/pppd PPP/NCP evidence on Linux
 make ze-deployment-l2tp-ppp-docker-test # Run the PPP/NCP evidence in Docker
 ```
+
+The `ze-deployment-*` prefix marks deployment-grade external evidence;
+Docker-specific variants include `docker` in the target name.
 
 `ze-deployment-preflight` is strict: Docker-backed substitutes are reported, but
 the target fails until target-runner evidence and full PPP/NCP L2TP peer

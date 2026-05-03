@@ -135,6 +135,7 @@ func init() {
 		Features:                "yang",
 		YANG:                    trafficschema.ZeTrafficControlConfYANG,
 		ConfigRoots:             []string{configRootTraffic},
+		OptionalDependencies:    []string{"vpp"},
 		InProcessConfigVerifier: verifyTrafficConfig,
 		RunEngine:               runEngine,
 		ConfigureEngineLogger: func(loggerName string) {

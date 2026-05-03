@@ -143,11 +143,17 @@ func (v *digestVerifier) AuthType() uint8 { return v.authType }
 // replay-protection, constant-time digest compare. data MUST span at
 // least c.Length bytes; shorter input returns ErrShortAuthBody.
 func (v *digestVerifier) Verify(data []byte, c packet.Control, seqState *SeqState) error {
-	if int(c.Length) < packet.MandatoryLen+v.bodyLen {
+	expectedLen := packet.MandatoryLen + v.bodyLen
+	if int(c.Length) < expectedLen {
 		return ErrShortAuthBody
 	}
 	if len(data) < int(c.Length) {
 		return ErrShortAuthBody
+	}
+	// RFC 5880 Section 6.8.7: transmitted Length is the mandatory
+	// control section plus the fixed authentication section length.
+	if int(c.Length) != expectedLen {
+		return ErrDigestMismatch
 	}
 	off := packet.MandatoryLen
 	if data[off+0] != v.authType {

@@ -4,6 +4,7 @@
 package hub
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -203,7 +204,7 @@ func buildAPIEngine(server *pluginserver.Server) *api.APIEngine {
 		// Bearer token auth handled at transport level.
 		return true
 	}
-	return api.NewAPIEngine(exec, cmds, auth, nil)
+	return api.NewAPIEngine(exec, cmds, auth, apiStreamSource(server))
 }
 
 // apiExecutor creates an Executor from the plugin server's dispatcher.
@@ -235,6 +236,164 @@ func apiExecutor(s *pluginserver.Server) api.Executor {
 			return string(b), nil
 		}
 		return data, nil
+	}
+}
+
+const (
+	apiStreamBuffer     = 64
+	apiStreamMaxLineLen = 1 << 20 // 1 MiB
+)
+
+// apiStreamSource adapts pluginserver streaming handlers to the API engine.
+func apiStreamSource(s *pluginserver.Server) api.StreamSource {
+	return func(ctx context.Context, caller api.CallerIdentity, command string) (<-chan string, func(), error) {
+		if s == nil {
+			return nil, nil, fmt.Errorf("server not ready")
+		}
+		d := s.Dispatcher()
+		if d == nil {
+			return nil, nil, fmt.Errorf("server not ready")
+		}
+
+		handler, args := pluginserver.GetStreamingHandlerForCommand(command)
+		if handler == nil {
+			return nil, nil, fmt.Errorf("unknown streaming command: %q", command)
+		}
+
+		cmdCtx := &pluginserver.CommandContext{
+			Server:         s,
+			RequestContext: ctx,
+			Username:       caller.Username,
+			RemoteAddr:     caller.RemoteAddr,
+		}
+		// Streaming commands are monitor-style read-only commands today.
+		// If write-capable streams are added, the registry must carry metadata.
+		if !d.IsAuthorized(cmdCtx, command, true) {
+			return nil, nil, api.ErrUnauthorized
+		}
+
+		streamCtx, cancel := context.WithCancel(ctx)
+		ch := make(chan string, apiStreamBuffer)
+		writer := newAPIStreamLineWriter(streamCtx, ch)
+
+		go func() {
+			defer close(ch)
+			defer d.BeginAccounting(cmdCtx, command)()
+			defer func() {
+				if r := recover(); r != nil {
+					writer.close(fmt.Errorf("streaming handler panic: %v", r))
+				}
+			}()
+			err := handler(streamCtx, s, writer, caller.Username, args)
+			writer.close(err)
+		}()
+
+		select {
+		case <-writer.ready():
+			if err := writer.startError(); err != nil {
+				cancel()
+				return nil, nil, err
+			}
+			return ch, cancel, nil
+		case <-ctx.Done():
+			cancel()
+			return nil, nil, ctx.Err()
+		}
+	}
+}
+
+type apiStreamLineWriter struct {
+	ctx context.Context
+	ch  chan<- string
+
+	readyCh chan struct{}
+	mu      sync.Mutex
+	started bool
+	err     error
+
+	buf []byte
+}
+
+func newAPIStreamLineWriter(ctx context.Context, ch chan<- string) *apiStreamLineWriter {
+	return &apiStreamLineWriter{
+		ctx:     ctx,
+		ch:      ch,
+		readyCh: make(chan struct{}),
+	}
+}
+
+func (w *apiStreamLineWriter) Write(p []byte) (int, error) {
+	total := len(p)
+	for len(p) > 0 {
+		idx := bytes.IndexByte(p, '\n')
+		if idx < 0 {
+			w.buf = append(w.buf, p...)
+			if len(w.buf) > apiStreamMaxLineLen {
+				w.buf = nil
+				return total, fmt.Errorf("streaming line exceeds %d bytes", apiStreamMaxLineLen)
+			}
+			return total, nil
+		}
+
+		// Build line string without merging into w.buf so a send
+		// failure leaves w.buf intact for correct retry semantics.
+		var line string
+		if len(w.buf) > 0 {
+			line = string(w.buf) + string(p[:idx])
+		} else {
+			line = string(p[:idx])
+		}
+		if n := len(line); n > 0 && line[n-1] == '\r' {
+			line = line[:n-1]
+		}
+		if err := w.send(line); err != nil {
+			return total - len(p), err
+		}
+		w.buf = nil
+		p = p[idx+1:]
+	}
+	return total, nil
+}
+
+func (w *apiStreamLineWriter) ready() <-chan struct{} {
+	return w.readyCh
+}
+
+func (w *apiStreamLineWriter) startError() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.err
+}
+
+func (w *apiStreamLineWriter) close(err error) {
+	if err == nil && len(w.buf) > 0 {
+		err = w.send(string(w.buf))
+		w.buf = nil
+	}
+	w.markReady(err)
+}
+
+func (w *apiStreamLineWriter) send(line string) error {
+	select {
+	case w.ch <- line:
+		w.markReady(nil)
+		return nil
+	case <-w.ctx.Done():
+		return w.ctx.Err()
+	}
+}
+
+func (w *apiStreamLineWriter) markReady(err error) {
+	var closeReady bool
+	w.mu.Lock()
+	if !w.started {
+		w.started = true
+		w.err = err
+		closeReady = true
+	}
+	w.mu.Unlock()
+	if closeReady {
+		close(w.readyCh)
 	}
 }
 

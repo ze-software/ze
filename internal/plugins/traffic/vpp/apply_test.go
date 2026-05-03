@@ -103,6 +103,93 @@ func TestApplyContextCancelMidWait(t *testing.T) {
 	}
 }
 
+// VALIDATES: trafficvpp waits for the VPP component connector to appear during cold startup.
+// PREVENTS: Config delivery racing ahead of the VPP plugin and failing with "component not initialized".
+func TestApplyWaitsForConnector(t *testing.T) {
+	conn := vppcomp.NewConnector("/nonexistent/vpp.sock")
+	ready := make(chan struct{})
+	polled := make(chan struct{}, 8)
+	b := &backend{
+		connector: func() *vppcomp.Connector {
+			select {
+			case <-ready:
+				return conn
+			default:
+				select {
+				case polled <- struct{}{}:
+				default:
+				}
+				return nil
+			}
+		},
+		interfaceOutputPolicers: make(map[string]map[string]uint32),
+		interfaceQdiscTypes:     make(map[string]traffic.QdiscType),
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- b.Apply(ctx, map[string]traffic.InterfaceQoS{})
+	}()
+
+	<-polled
+	close(ready)
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Apply err = %v, want wrapped context.Canceled after connector appeared", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("Apply did not return after connector appeared and ctx canceled")
+	}
+}
+
+// VALIDATES: trafficvpp honors cancellation while waiting for a missing VPP connector.
+// PREVENTS: daemon shutdown blocking until the connector wait deadline expires.
+func TestApplyConnectorWaitHonorsContextCancel(t *testing.T) {
+	polled := make(chan struct{}, 8)
+	b := &backend{
+		connector: func() *vppcomp.Connector {
+			select {
+			case polled <- struct{}{}:
+			default:
+			}
+			return nil
+		},
+		interfaceOutputPolicers: make(map[string]map[string]uint32),
+		interfaceQdiscTypes:     make(map[string]traffic.QdiscType),
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- b.Apply(ctx, map[string]traffic.InterfaceQoS{})
+	}()
+
+	<-polled
+	start := time.Now()
+	cancel()
+
+	select {
+	case err := <-errCh:
+		elapsed := time.Since(start)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Apply err = %v, want wrapped context.Canceled", err)
+		}
+		if elapsed > 500*time.Millisecond {
+			t.Fatalf("Apply took %v to honor ctx cancel while waiting for connector", elapsed)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("Apply did not return after ctx cancel while waiting for connector")
+	}
+}
+
 // fakeOps is a scripted vppOps double used by the Apply-path tests. It records
 // every call as a human-readable label and can be scripted to fail on a
 // specific call by name or on the Nth policerAddDel. See `vppOps` in ops.go

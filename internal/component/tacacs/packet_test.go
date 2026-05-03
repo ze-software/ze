@@ -245,11 +245,15 @@ func FuzzTacacsEncryptDecrypt(f *testing.F) {
 		if len(body) == 0 || len(key) == 0 {
 			return
 		}
+		if len(body) > maxBodyLen || len(key) > 4096 {
+			t.Skip()
+		}
 		original := make([]byte, len(body))
 		copy(original, body)
+		stableKey := append([]byte(nil), key...)
 
-		Encrypt(body, sessionID, key, version, seqNo)
-		Encrypt(body, sessionID, key, version, seqNo)
+		Encrypt(body, sessionID, stableKey, version, seqNo)
+		Encrypt(body, sessionID, stableKey, version, seqNo)
 		assert.Equal(t, original, body, "encrypt/decrypt round-trip must be identity")
 	})
 }

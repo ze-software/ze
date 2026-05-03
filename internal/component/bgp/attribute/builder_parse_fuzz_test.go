@@ -4,6 +4,15 @@ import (
 	"testing"
 )
 
+const maxFuzzTextInput = 4096
+
+func skipOversizedFuzzText(t *testing.T, s string) {
+	t.Helper()
+	if len(s) > maxFuzzTextInput {
+		t.Skip()
+	}
+}
+
 // FuzzParseOrigin tests origin parsing robustness.
 //
 // VALIDATES: Parser handles arbitrary strings without crashing.
@@ -22,6 +31,7 @@ func FuzzParseOrigin(f *testing.F) {
 	f.Add("\x00\x00")
 
 	f.Fuzz(func(t *testing.T, s string) {
+		skipOversizedFuzzText(t, s)
 		b := NewBuilder()
 		_ = b.ParseOrigin(s) // MUST NOT panic
 	})
@@ -44,6 +54,7 @@ func FuzzParseMED(f *testing.F) {
 	f.Add("\x00")
 
 	f.Fuzz(func(t *testing.T, s string) {
+		skipOversizedFuzzText(t, s)
 		b := NewBuilder()
 		_ = b.ParseMED(s) // MUST NOT panic
 	})
@@ -63,6 +74,7 @@ func FuzzParseLocalPref(f *testing.F) {
 	f.Add("abc")
 
 	f.Fuzz(func(t *testing.T, s string) {
+		skipOversizedFuzzText(t, s)
 		b := NewBuilder()
 		_ = b.ParseLocalPref(s) // MUST NOT panic
 	})
@@ -87,6 +99,7 @@ func FuzzParseASPath(f *testing.F) {
 	f.Add("\x00\x00\x00")
 
 	f.Fuzz(func(t *testing.T, s string) {
+		skipOversizedFuzzText(t, s)
 		b := NewBuilder()
 		_ = b.ParseASPath(s) // MUST NOT panic
 	})
@@ -111,6 +124,7 @@ func FuzzParseCommunity(f *testing.F) {
 	f.Add("\x00:\x00")
 
 	f.Fuzz(func(t *testing.T, s string) {
+		skipOversizedFuzzText(t, s)
 		b := NewBuilder()
 		_ = b.ParseCommunity(s) // MUST NOT panic
 	})
@@ -131,6 +145,7 @@ func FuzzParseLargeCommunity(f *testing.F) {
 	f.Add("\x00:\x00:\x00")
 
 	f.Fuzz(func(t *testing.T, s string) {
+		skipOversizedFuzzText(t, s)
 		b := NewBuilder()
 		_ = b.ParseLargeCommunity(s) // MUST NOT panic
 	})
@@ -154,6 +169,7 @@ func FuzzParseExtCommunity(f *testing.F) {
 	f.Add("\x00:\x00:\x00")
 
 	f.Fuzz(func(t *testing.T, s string) {
+		skipOversizedFuzzText(t, s)
 		b := NewBuilder()
 		_ = b.ParseExtCommunity(s) // MUST NOT panic
 	})

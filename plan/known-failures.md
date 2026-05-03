@@ -33,6 +33,10 @@ bin/ze-test bgp plugin -c 3 bfd-auth-meticulous-persist
 bin/ze-test bgp plugin -c 3 prefix-maximum-enforce
 ```
 
+2026-05-03 follow-up: `bin/ze-test bgp plugin -c 10 prefix-maximum-enforce`
+passed 10/10 locally. Keep this row open until a full release gate proves the
+parallel-load flake shape is gone.
+
 ## TestPeerInfoPopulatesStats (uptime == 0) -- RESOLVED 2026-04-29
 
 **File:** `internal/component/bgp/reactor/reactor_api_test.go:47`

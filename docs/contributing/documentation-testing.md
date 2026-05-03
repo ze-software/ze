@@ -18,7 +18,7 @@ documentation files, after adding/removing plugins, or as part of review.
 | Tool | Make target | What it validates |
 |------|-------------|-------------------|
 | `scripts/docvalid/doc_drift.go` | `ze-doc-drift` | `docs/DESIGN.md` plugin counts, family lists, `.ci` test totals, interop scenario count, fuzz target count, Go test count -- compared to the live plugin registry, family registry, and filesystem walk. Also `docs/comparison.md` family rows, README test-count claims, `docs/features.md` status labels, and `docs/functional-tests.md` release-gate suite claims derived from the Makefile. |
-| `scripts/docvalid/commands.go` | `ze-validate-commands` | Every YANG `ze:command` declaration has a registered RPC handler, and every registered RPC handler has a matching YANG declaration. |
+| `scripts/docvalid/commands.go` | `ze-validate-commands` | Every YANG `ze:command` declaration has a registered RPC or local CLI handler, and every registered RPC handler has a matching YANG declaration. |
 | `scripts/lint/consistency.go` | `ze-consistency` | Mixed code/doc consistency: `// Design:` references on `.go` files, cross-reference bidirectionality (`// Detail:` <-> `// Overview:`), stale package references in docs and scripts. |
 
 `ze-doc-test` runs the first two unconditionally and reports a combined
@@ -39,9 +39,9 @@ completeness) and is run as part of code review, not doc review.
 | After adding or renaming a YANG `ze:command` | `make ze-validate-commands` |
 | Before opening a documentation PR | `make ze-doc-test` |
 
-`make ze-doc-test` is **not** part of `make ze-verify` today because the
-YANG/handler contract checker still has an explicit backlog. Once that backlog
-is cleared, the target should be moved into `ze-verify`'s dependency list.
+`make ze-doc-test` is **not** part of `make ze-verify` today. Keep running it
+after documentation, command-tree, or command-handler changes until it moves
+into the release gate.
 
 ## How to interpret output
 
@@ -76,8 +76,8 @@ Registered handlers: 69
 ```
 
 Two-direction check. Both directions are contract bugs:
-- YANG declares a command but no Go code registered a handler -> dead command
-- Handler registered but YANG doesn't declare it -> command unreachable from CLI
+- YANG declares a command but no Go code registered an RPC or local handler -> dead command
+- RPC handler registered but YANG doesn't declare it -> command unreachable from CLI
 
 ## How to fix common issues
 
@@ -89,7 +89,7 @@ Two-direction check. Both directions are contract bugs:
 | Feature inventory row has no status | Add one of: Supported, Partial, Experimental, Stub-backed, Rejected, Future |
 | Functional test release-gate list wrong | Update `docs/functional-tests.md` to match `ze-functional-test` in the Makefile |
 | Plugin in registry but not in Shipped Plugins table | Add a row to `docs/DESIGN.md`'s Shipped Plugins table |
-| YANG `ze:command` with no handler | Remove the YANG declaration OR write the handler in `internal/component/<area>/cmd/` |
+| YANG `ze:command` with no handler | Remove the YANG declaration OR write the handler in `internal/component/<area>/cmd/` or `cmd/ze/<area>/register.go` |
 | Handler with no YANG `ze:command` | Add a YANG declaration in the appropriate `*-cmd.yang` schema |
 
 ## How the tools find drift

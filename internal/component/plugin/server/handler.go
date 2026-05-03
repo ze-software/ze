@@ -44,6 +44,14 @@ func RegisterStreamingHandler(prefix string, h StreamingHandler) {
 	streamingHandlersMu.Unlock()
 }
 
+// UnregisterStreamingHandler removes a previously registered streaming handler.
+func UnregisterStreamingHandler(prefix string) {
+	key := strings.ToLower(strings.TrimSpace(prefix))
+	streamingHandlersMu.Lock()
+	delete(streamingHandlers, key)
+	streamingHandlersMu.Unlock()
+}
+
 // GetStreamingHandlerForCommand returns the handler and extracted args for a command.
 // Matches the longest registered prefix. Returns (nil, nil) if no prefix matches.
 func GetStreamingHandlerForCommand(input string) (StreamingHandler, []string) {

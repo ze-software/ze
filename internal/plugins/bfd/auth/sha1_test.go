@@ -163,6 +163,33 @@ func TestVerifier_NonMeticulousEqual(t *testing.T) {
 	}
 }
 
+// VALIDATES: Verifier rejects a forged total Control Length that is
+// longer than the fixed digest auth section.
+// PREVENTS: panic when a packet has valid Auth Len but trailing bytes
+// make c.Length exceed the verifier scratch buffer.
+func TestVerifier_RejectsLengthWithTrailingBytes(t *testing.T) {
+	cfg := Settings{
+		Type:   packet.AuthTypeMeticulousKeyedMD5,
+		KeyID:  7,
+		Secret: []byte("k"),
+	}
+	signer, _ := NewSigner(cfg)
+	verifier, _ := NewVerifier(cfg)
+
+	buf := make([]byte, packet.MandatoryLen+signer.BodyLen()+1)
+	c := controlBytes(buf, signer.BodyLen())
+	signer.Sign(buf, packet.MandatoryLen, 10)
+	c.Length++
+
+	var state SeqState
+	if err := verifier.Verify(buf, c, &state); err == nil {
+		t.Fatal("Verify accepted digest auth packet with trailing bytes")
+	}
+	if state.Last() != 0 {
+		t.Fatalf("SeqState advanced on rejected packet: got %d", state.Last())
+	}
+}
+
 // VALIDATES: NewSigner / NewVerifier reject Auth Type 1 (Simple
 // Password) so the package surface cannot be used to send it.
 // PREVENTS: accidental enablement of an insecure type via
