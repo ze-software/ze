@@ -33,9 +33,7 @@ func init() {
 	// Register the compact one-liner formatter for monitor event display.
 	pluginserver.RegisterMonitorEventFormatter(FormatMonitorLine)
 	// Register "monitor event" streaming handler at engine level (verb-first: <action> <module>).
-	pluginserver.RegisterStreamingHandler("monitor event", func(ctx context.Context, s *pluginserver.Server, w io.Writer, username string, args []string) error {
-		return pluginserver.StreamEventMonitor(ctx, s, w, username, args)
-	})
+	pluginserver.RegisterStreamingHandler("monitor event", pluginserver.StreamEventMonitor)
 
 	// "monitor bgp" is the dashboard command, handled by the TUI model.
 	// Follows verb-first convention: <action> <module>.
