@@ -313,8 +313,8 @@ fake that records calls and can fail on the Nth request.
 
 `internal/plugins/traffic/vpp/` is the reference implementation:
 
-- `ops.go` defines `vppOps` (4 methods: `dumpInterfaces`, `policerAddDel`,
-  `policerDel`, `policerOutput`).
+- `ops.go` defines `vppOps` (6 methods: `dumpInterfaces`, `dumpPolicers`,
+  `policerAddDel`, `policerDel`, `policerDeleteByName`, `policerOutput`).
 - `backend_linux.go` exposes an internal `applyWithOps(ops, desired)` entry
   point and a `govppOps{ch api.Channel}` production adapter; `Apply`
   constructs a `govppOps` around the channel it opened and calls
@@ -329,7 +329,7 @@ require full-stack integration tests to cover every undo / reconcile branch.
 
 <!-- source: internal/plugins/traffic/vpp/ops.go -- vppOps interface -->
 <!-- source: internal/plugins/traffic/vpp/backend_linux.go -- applyWithOps, govppOps adapter -->
-<!-- source: internal/plugins/traffic/vpp/apply_test.go -- fakeOps + 7 tests -->
+<!-- source: internal/plugins/traffic/vpp/apply_test.go -- fakeOps + Apply-path tests -->
 
 ### 7. Decode Tests (`test/decode/`)
 

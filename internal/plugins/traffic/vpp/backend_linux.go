@@ -267,7 +267,7 @@ func (b *backend) applyAll(
 
 // applyInterface programs one interface's policers. Distinguishes CREATE
 // (name not in prior state) from UPDATE (name already tracked by a
-// previous Apply) to avoid two failure modes found in review:
+// previous Apply) to avoid undoing previously-working state:
 //
 //  1. Undo closures on UPDATE would tear down previously-working state
 //     if a later class/interface fails. The component's journal rollback
@@ -275,10 +275,10 @@ func (b *backend) applyAll(
 //     rollback the operator's traffic goes unshaped. Undo is queued
 //     only for CREATE operations.
 //
-//  2. `PolicerOutput(apply=true)` on an already-bound (policer, iface)
-//     pair has unverified VPP idempotency. Skipping the call for UPDATE
-//     avoids triggering whatever VPP does for "already bound" on every
-//     same-config reload.
+// UPDATE still replays `PolicerOutput(apply=true)`: VPP-side events can
+// remove the output binding while leaving Ze's in-memory tracker intact.
+// Rebinding on every successful Apply makes same-process reapply converge
+// back to the desired state.
 //
 // Called with b.mu held.
 func (b *backend) applyInterface(
@@ -329,14 +329,13 @@ func (b *backend) applyInterface(
 			})
 		}
 
-		// Bind only on CREATE. UPDATE case: previous Apply already bound
-		// the policer by name; VPP's feature-arc registration persists
-		// across PolicerAddDel upserts because the binding references
-		// the name, not the index.
+		// Bind on both CREATE and UPDATE. UPDATE rebinding repairs the
+		// same-process case where VPP loses the output feature binding
+		// between two Apply calls but Ze still tracks the policer as desired.
+		if err := ops.policerOutput(name, swIfIndex, true); err != nil {
+			return fmt.Errorf("class %q: %w", cls.Name, err)
+		}
 		if !isUpdate {
-			if err := ops.policerOutput(name, swIfIndex, true); err != nil {
-				return fmt.Errorf("class %q: %w", cls.Name, err)
-			}
 			boundName, boundIdx := name, swIfIndex
 			*undo = append(*undo, func() {
 				_ = ops.policerOutput(boundName, boundIdx, false)

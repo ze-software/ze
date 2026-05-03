@@ -382,13 +382,10 @@ func TestStartupOrphanScanDeletesUndesiredZePolicers(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-7 "Second Apply with identical config: Records PolicerAddDel
-// only (no PolicerOutput, no undo queued)". The "no undo queued" part is
-// observed indirectly -- a later failure on the same UPDATE would not rewind
-// the previous Apply's output binding, which this test demonstrates by
-// confirming zero output calls during the upsert.
-// PREVENTS: UPDATE path redundantly calling PolicerOutput on every reload or
-// queueing undo that would tear down a live binding on a later iface error.
+// VALIDATES: Second Apply with identical config replays PolicerOutput(apply=true)
+// for the existing policer.
+// PREVENTS: same-process drift where VPP loses the output feature binding
+// out-of-band and Ze skips rebind because the policer is already tracked.
 func TestApplyUpdatesPolicer(t *testing.T) {
 	b := newOpsBackend()
 	desired := eth0OneClassHTB()
@@ -405,9 +402,41 @@ func TestApplyUpdatesPolicer(t *testing.T) {
 		t.Fatalf("second apply: %v", err)
 	}
 
-	want := []string{"dump", "addDel:ze/eth0/c1"}
+	want := []string{"dump", "addDel:ze/eth0/c1", "output:ze/eth0/c1:on:idx=5"}
 	if got := fake2.calls; !equalSlices(got, want) {
 		t.Fatalf("second-apply calls = %v, want %v", got, want)
+	}
+}
+
+// VALIDATES: UPDATE rebind failure returns an error without queueing CREATE-style
+// delete/unbind undo for an existing policer.
+// PREVENTS: a failed same-process rebind tearing down previously-working traffic
+// shaping before the component journal can retry the previous desired state.
+func TestApplyUpdateRebindFailureDoesNotUndoExistingPolicer(t *testing.T) {
+	b := newOpsBackend()
+	desired := eth0OneClassHTB()
+
+	// First apply to establish prior state.
+	fake1 := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	if err := applyWithOpsLocked(b, fake1, desired); err != nil {
+		t.Fatalf("first apply: %v", err)
+	}
+
+	// Second apply updates the existing policer, then fails while rebinding it.
+	fake2 := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+	fake2.nextIdx = 99
+	fake2.outputFailOn["ze/eth0/c1"] = errors.New("scripted rebind failure")
+	err := applyWithOpsLocked(b, fake2, desired)
+	if err == nil {
+		t.Fatalf("second apply returned nil, want rebind error")
+	}
+
+	want := []string{"dump", "addDel:ze/eth0/c1", "output:ze/eth0/c1:on:idx=5"}
+	if got := fake2.calls; !equalSlices(got, want) {
+		t.Fatalf("second-apply calls = %v, want %v", got, want)
+	}
+	if got := b.interfaceOutputPolicers["eth0"]["ze/eth0/c1"]; got != 1 {
+		t.Fatalf("interfaceOutputPolicers[eth0][ze/eth0/c1] = %d, want prior idx 1", got)
 	}
 }
 
