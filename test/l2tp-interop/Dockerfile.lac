@@ -1,0 +1,8 @@
+# LAC peer image for L2TP PPP/NCP interop lab.
+# Runs xl2tpd in foreground; pppd is started by xl2tpd.
+
+FROM alpine:3.21
+
+RUN apk add --no-cache xl2tpd ppp iproute2 kmod iputils
+
+CMD ["xl2tpd", "-D", "-c", "/etc/xl2tpd/xl2tpd.conf"]

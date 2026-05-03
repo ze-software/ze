@@ -1,0 +1,20 @@
+# FRR daemons file for L2TP interop lab.
+zebra=yes
+bgpd=yes
+ospfd=no
+ospf6d=no
+ripd=no
+ripngd=no
+isisd=no
+pimd=no
+pim6d=no
+ldpd=no
+nhrpd=no
+eigrpd=no
+babeld=no
+sharpd=no
+pbrd=no
+bfdd=no
+fabricd=no
+vrrpd=no
+pathd=no

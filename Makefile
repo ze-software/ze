@@ -562,10 +562,11 @@ ze-deployment-l2tp-ppp-test:
 	@echo "Running full L2TP PPP/NCP peer deployment test (requires Linux root + xl2tpd + pppd + PPPoL2TP kernel support)..."
 	python3 scripts/evidence/effective-l2tp-ppp.py
 
-# Run the full L2TP PPP/NCP test in a privileged Linux container.
+# Run the full L2TP PPP/NCP peer-isolated Docker lab (Ze LNS + LAC + optional FRR).
+# Requires Docker and host kernel with PPPoL2TP support.
 ze-deployment-l2tp-ppp-docker-test:
-	@echo "Running full L2TP PPP/NCP peer deployment test in Docker (requires Docker host PPPoL2TP kernel support)..."
-	python3 scripts/evidence/docker-run.py scripts/evidence/effective-l2tp-ppp.py iproute2 kmod ppp python3 xl2tpd
+	@echo "Running L2TP PPP/NCP peer-isolated Docker lab (requires Docker host PPPoL2TP kernel support)..."
+	python3 test/l2tp-interop/run.py
 
 # Generic: run any evidence script in a privileged Linux container.
 # Usage: make ze-docker-evidence EVIDENCE_SCRIPT=scripts/evidence/effective-l2tp-ppp.py EVIDENCE_PACKAGES="iproute2 kmod ppp python3 xl2tpd"
@@ -1043,7 +1044,7 @@ help:
 	@echo "  ze-deployment-vpp-test - Run real VPP daemon deployment test in Docker"
 	@echo "  ze-deployment-l2tp-test - Run external L2TP peer deployment test in Docker"
 	@echo "  ze-deployment-l2tp-ppp-test - Run full L2TP PPP/NCP peer test on Linux"
-	@echo "  ze-deployment-l2tp-ppp-docker-test - Run full L2TP PPP/NCP peer test in Docker"
+	@echo "  ze-deployment-l2tp-ppp-docker-test - Run L2TP PPP/NCP peer-isolated Docker lab (Ze LNS + LAC + FRR)"
 	@echo "  ze-docker-evidence EVIDENCE_SCRIPT=... EVIDENCE_PACKAGES=... - Run any evidence script in Docker"
 	@echo "  ze-deployment-preflight - Check deployment test tooling"
 	@echo ""

@@ -1,0 +1,21 @@
+# Ze LNS image for L2TP PPP/NCP interop lab.
+# Privileged container shares the host kernel for PPPoL2TP.
+
+FROM golang:1.25.9-alpine AS builder
+
+RUN apk add --no-cache git
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+
+RUN CGO_ENABLED=0 go build -o /ze ./cmd/ze
+
+FROM alpine:3.21
+
+RUN apk add --no-cache tini python3 iproute2 kmod ppp
+
+COPY --from=builder /ze /usr/local/bin/ze
+
+ENTRYPOINT ["tini", "--", "ze"]

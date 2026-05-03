@@ -60,9 +60,14 @@ privileged Docker container, then proves the control tunnel and incoming-call
 session are established. Full PPP/NCP/kernel dataplane peer evidence is a
 separate Linux-only target: `make ze-deployment-l2tp-ppp-test` requires
 `xl2tpd`, `pppd`, `/dev/ppp`, `iproute2`, and PPPoL2TP kernel support.
-From macOS, `make ze-deployment-l2tp-ppp-docker-test` runs the same strict
-proof inside a privileged Linux container, but it still depends on the Docker
-host kernel exposing PPPoL2TP support.
+`make ze-deployment-l2tp-ppp-docker-test` runs a peer-isolated Docker lab
+with Ze LNS, a real `xl2tpd`/`pppd` LAC, and FRR as a BGP peer in separate
+containers on an isolated Docker bridge. It proves PPP LCP/IPCP, kernel
+`pppN` interface creation, dataplane ping, and BGP route redistribution from
+a live PPP session. The lab requires Docker and the host kernel (or Docker VM
+kernel) to have PPPoL2TP support; it refuses to run if `/dev/ppp`, `ip l2tp`,
+or the `l2tp_ppp`/`pppol2tp` module is missing. Run individual scenarios with
+`python3 test/l2tp-interop/run.py <scenario-name>`.
 <!-- source: cmd/ze-test/main.go -- subcommand registry -->
 <!-- source: cmd/ze-test/bgp.go -- chaos-web suite -->
 <!-- source: Makefile -- ze-linux-test -->
@@ -1095,7 +1100,7 @@ make ze-release-check              # Run clean Docker ze-verify release evidence
 make ze-deployment-vpp-test        # Run real VPP daemon FIB add/withdraw evidence
 make ze-deployment-l2tp-test       # Run real xl2tpd LAC control/session evidence
 make ze-deployment-l2tp-ppp-test   # Run real xl2tpd/pppd PPP/NCP evidence on Linux
-make ze-deployment-l2tp-ppp-docker-test # Run the PPP/NCP evidence in Docker
+make ze-deployment-l2tp-ppp-docker-test # Run L2TP PPP/NCP peer-isolated Docker lab (Ze LNS + LAC + FRR)
 ```
 
 The `ze-deployment-*` prefix marks deployment-grade external evidence;
