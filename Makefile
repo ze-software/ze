@@ -7,7 +7,7 @@
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
 .PHONY: ze-interop-test ze-stress-test ze-stress-bird-test ze-stress-profile ze-live-test ze-live-rpki-test
-.PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-preflight
+.PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test ze-deployment-l2tp-ppp-docker-test ze-docker-evidence ze-deployment-preflight
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
@@ -545,17 +545,35 @@ ze-integration-test: ze-integration-iface-test ze-integration-fib-test ze-integr
 # Run a real VPP daemon test in Docker.
 ze-deployment-vpp-test:
 	@echo "Running real VPP daemon deployment test (requires Docker + privileged container)..."
-	python3 scripts/evidence/vpp-real-daemon.py
+	python3 scripts/evidence/effective-vpp.py
 
 # Run clean release-candidate verification in Docker.
 ze-release-check:
 	@echo "Running clean release-candidate verification (requires Docker + clean worktree)..."
-	bash scripts/evidence/clean-verify-docker.sh
+	bash scripts/evidence/effective-verify.sh
 
 # Run a real xl2tpd LAC control/session test in Docker.
 ze-deployment-l2tp-test:
 	@echo "Running external L2TP peer deployment test (requires Docker + privileged container)..."
-	python3 scripts/evidence/l2tp-external-peer.py
+	python3 scripts/evidence/effective-l2tp-peer.py
+
+# Run a real xl2tpd/pppd LAC PPP/NCP test on a Linux target.
+ze-deployment-l2tp-ppp-test:
+	@echo "Running full L2TP PPP/NCP peer deployment test (requires Linux root + xl2tpd + pppd + PPPoL2TP kernel support)..."
+	python3 scripts/evidence/effective-l2tp-ppp.py
+
+# Run the full L2TP PPP/NCP test in a privileged Linux container.
+ze-deployment-l2tp-ppp-docker-test:
+	@echo "Running full L2TP PPP/NCP peer deployment test in Docker (requires Docker host PPPoL2TP kernel support)..."
+	python3 scripts/evidence/docker-run.py scripts/evidence/effective-l2tp-ppp.py iproute2 kmod ppp python3 xl2tpd
+
+# Generic: run any evidence script in a privileged Linux container.
+# Usage: make ze-docker-evidence EVIDENCE_SCRIPT=scripts/evidence/effective-l2tp-ppp.py EVIDENCE_PACKAGES="iproute2 kmod ppp python3 xl2tpd"
+EVIDENCE_SCRIPT ?=
+EVIDENCE_PACKAGES ?=
+ze-docker-evidence:
+	@test -n "$(EVIDENCE_SCRIPT)" || { echo "error: set EVIDENCE_SCRIPT=scripts/evidence/foo.py"; exit 1; }
+	python3 scripts/evidence/docker-run.py $(EVIDENCE_SCRIPT) $(EVIDENCE_PACKAGES)
 
 # Check external deployment-test tooling without running heavy suites.
 ze-deployment-preflight:
@@ -564,7 +582,7 @@ ze-deployment-preflight:
 	if command -v docker >/dev/null 2>&1; then echo "ok: docker for clean ze-verify substitute"; else echo "missing: docker (local clean ze-verify substitute)"; missing=1; fi; \
 	if command -v vpp >/dev/null 2>&1 && command -v vppctl >/dev/null 2>&1; then echo "ok: vpp + vppctl"; elif command -v docker >/dev/null 2>&1; then echo "ok: docker for real VPP daemon evidence"; else echo "missing: vpp/vppctl or docker (real VPP daemon evidence)"; missing=1; fi; \
 	if command -v docker >/dev/null 2>&1; then echo "ok: docker for xl2tpd L2TP control-session evidence"; else echo "missing: docker (L2TP control-session evidence)"; missing=1; fi; \
-	if { [ -e /proc/net/pppol2tp ] || [ -d /sys/module/l2tp_ppp ]; } && command -v xl2tpd >/dev/null 2>&1 && command -v pppd >/dev/null 2>&1; then echo "ok: xl2tpd + pppd + PPPoL2TP kernel support for full PPP/NCP peer evidence"; else echo "missing: xl2tpd + pppd + PPPoL2TP kernel support (full PPP/NCP peer evidence)"; missing=1; fi; \
+	if [ -e /dev/ppp ] && { [ -e /proc/net/pppol2tp ] || [ -d /sys/module/l2tp_ppp ] || [ -d /sys/module/pppol2tp ]; } && command -v ip >/dev/null 2>&1 && command -v xl2tpd >/dev/null 2>&1 && command -v pppd >/dev/null 2>&1; then echo "ok: xl2tpd + pppd + /dev/ppp + iproute2 + PPPoL2TP kernel support for full PPP/NCP peer evidence"; else echo "missing: xl2tpd + pppd + /dev/ppp + iproute2 + PPPoL2TP kernel support (full PPP/NCP peer evidence)"; missing=1; fi; \
 	exit $$missing
 
 # ─── Performance benchmarks ────────────────────────────────────────────────
@@ -1024,6 +1042,9 @@ help:
 	@echo "  ze-release-check - Run clean release check in Docker"
 	@echo "  ze-deployment-vpp-test - Run real VPP daemon deployment test in Docker"
 	@echo "  ze-deployment-l2tp-test - Run external L2TP peer deployment test in Docker"
+	@echo "  ze-deployment-l2tp-ppp-test - Run full L2TP PPP/NCP peer test on Linux"
+	@echo "  ze-deployment-l2tp-ppp-docker-test - Run full L2TP PPP/NCP peer test in Docker"
+	@echo "  ze-docker-evidence EVIDENCE_SCRIPT=... EVIDENCE_PACKAGES=... - Run any evidence script in Docker"
 	@echo "  ze-deployment-preflight - Check deployment test tooling"
 	@echo ""
 	@echo "  Live tests (Docker + internet):"

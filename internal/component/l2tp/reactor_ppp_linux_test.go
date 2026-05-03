@@ -5,10 +5,12 @@
 package l2tp
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -334,4 +336,109 @@ func TestL2TPReactorPPPEventInformationalIgnored(t *testing.T) {
 	// only on SessionDown / SessionRejected. If this changes in 6b, the
 	// test flips with the code.
 	require.True(t, stillThere, "informational events must NOT remove the session")
+}
+
+// newUnstartedReactorWithLogs is like newUnstartedReactor but returns
+// the lockedBuffer so callers can assert on log output.
+func newUnstartedReactorWithLogs(t *testing.T) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
+	t.Helper()
+	buf := &lockedBuffer{}
+	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
+	require.NoError(t, ln.Start(context.Background()))
+	r := NewL2TPReactor(ln, logger, ReactorParams{
+		Defaults: TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
+	})
+	stop := func() {
+		_ = ln.Stop()
+	}
+	return ln, r, buf, stop
+}
+
+func TestL2TPReactorSessionIPAssignedLogsValidIPv4(t *testing.T) {
+	// VALIDATES: handleSessionIPAssigned emits an Info log containing
+	// the tunnel-id, session-id, username, and address when the event
+	// carries a valid IPv4 peer address.
+	// PREVENTS: silent session IP assignment with no operator-visible
+	// evidence in the log stream.
+	_, r, logs, stop := newUnstartedReactorWithLogs(t)
+	defer stop()
+
+	tun := mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
+	sess := addEstablishedSession(tun, 1001, 2001, true)
+	sess.username = "alice"
+
+	r.handleSessionIPAssigned(ppp.EventSessionIPAssigned{
+		TunnelID:  100,
+		SessionID: 1001,
+		Family:    ppp.AddressFamilyIPv4,
+		Peer:      netip.MustParseAddr("10.100.0.2"),
+	})
+
+	got := logs.String()
+	require.Contains(t, got, "l2tp: session IP assigned")
+	require.Contains(t, got, "10.100.0.2")
+	require.Contains(t, got, "alice")
+}
+
+func TestL2TPReactorSessionIPAssignedNoLogOnInvalidAddr(t *testing.T) {
+	// VALIDATES: handleSessionIPAssigned does NOT emit the Info log
+	// when neither Peer nor Local+InterfaceID resolve to a valid addr.
+	// PREVENTS: spurious "session IP assigned" log noise on events
+	// where no NCP address was actually negotiated.
+	_, r, logs, stop := newUnstartedReactorWithLogs(t)
+	defer stop()
+
+	tun := mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
+	addEstablishedSession(tun, 1001, 2001, true)
+
+	r.handleSessionIPAssigned(ppp.EventSessionIPAssigned{
+		TunnelID:  100,
+		SessionID: 1001,
+	})
+
+	require.False(t, strings.Contains(logs.String(), "l2tp: session IP assigned"),
+		"no log expected when addr is invalid")
+}
+
+func TestL2TPReactorSessionUpLogsWithNilEventBus(t *testing.T) {
+	// VALIDATES: handleSessionUp emits the Info log even when the
+	// reactor has no eventBus wired (nil). Before the fix, the method
+	// returned early on nil eventBus, producing no log.
+	// PREVENTS: regression to the old early-return that silenced the
+	// PPP session-up log in standalone (no event-bus subscriber)
+	// deployments.
+	_, r, logs, stop := newUnstartedReactorWithLogs(t)
+	defer stop()
+
+	require.Nil(t, r.eventBus, "precondition: eventBus must be nil for this test")
+
+	tun := mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
+	sess := addEstablishedSession(tun, 1001, 2001, true)
+	sess.pppInterface = "ppp0"
+
+	r.handleSessionUp(ppp.EventSessionUp{TunnelID: 100, SessionID: 1001})
+
+	got := logs.String()
+	require.Contains(t, got, "l2tp: PPP session up")
+	require.Contains(t, got, "ppp0")
+}
+
+func TestL2TPReactorSessionUpNoLogOnEmptyInterface(t *testing.T) {
+	// VALIDATES: handleSessionUp returns early (no log, no event)
+	// when the session has no pppInterface name set. This happens if
+	// the kernel session setup didn't populate the interface name.
+	// PREVENTS: empty-interface log spam or panics on zero-value
+	// session fields.
+	_, r, logs, stop := newUnstartedReactorWithLogs(t)
+	defer stop()
+
+	tun := mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
+	addEstablishedSession(tun, 1001, 2001, true)
+	// pppInterface left as zero value ""
+
+	r.handleSessionUp(ppp.EventSessionUp{TunnelID: 100, SessionID: 1001})
+
+	require.False(t, strings.Contains(logs.String(), "l2tp: PPP session up"),
+		"no log expected when pppInterface is empty")
 }

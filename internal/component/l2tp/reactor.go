@@ -1060,6 +1060,14 @@ func (r *L2TPReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 		r.routeObserver.OnSessionIPUp(ev.SessionID, username, addr)
 	}
 
+	if addr.IsValid() {
+		r.logger.Info("l2tp: session IP assigned",
+			"tunnel-id", ev.TunnelID,
+			"session-id", ev.SessionID,
+			"username", username,
+			"address", addr.String())
+	}
+
 	if r.eventBus != nil && addr.IsValid() {
 		if _, err := l2tpevents.SessionIPAssigned.Emit(r.eventBus, &l2tpevents.SessionIPAssignedPayload{
 			TunnelID:  ev.TunnelID,
@@ -1076,9 +1084,6 @@ func (r *L2TPReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 // PPP session completes LCP, auth, and all NCPs. The shaper plugin
 // subscribes to this event to apply TC rules on the pppN interface.
 func (r *L2TPReactor) handleSessionUp(ev ppp.EventSessionUp) {
-	if r.eventBus == nil {
-		return
-	}
 	var ifaceName string
 	r.tunnelsMu.Lock()
 	if tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]; ok {
@@ -1088,6 +1093,13 @@ func (r *L2TPReactor) handleSessionUp(ev ppp.EventSessionUp) {
 	}
 	r.tunnelsMu.Unlock()
 	if ifaceName == "" {
+		return
+	}
+	r.logger.Info("l2tp: PPP session up",
+		"tunnel-id", ev.TunnelID,
+		"session-id", ev.SessionID,
+		"interface", ifaceName)
+	if r.eventBus == nil {
 		return
 	}
 	if _, err := l2tpevents.SessionUp.Emit(r.eventBus, &l2tpevents.SessionUpPayload{
