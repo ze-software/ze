@@ -178,6 +178,27 @@ func TestSysRIBWithdrawAll(t *testing.T) {
 	assert.Equal(t, netip.MustParsePrefix("2001:db8::/32"), changes[0].Prefix)
 }
 
+// VALIDATES: Loc-RIB remove notifications carry no protocol name but still
+// withdraw the whole prefix from sysrib.
+// PREVENTS: Session teardown leaving stale FIB routes when the last BGP path
+// disappears from the shared Loc-RIB.
+func TestSysRIBWithdrawAllWithoutProtocol(t *testing.T) {
+	s := newSysRIB()
+	pfx := netip.MustParsePrefix("10.0.0.0/24")
+
+	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
+		{Action: bgptypes.RouteActionAdd, Prefix: pfx, NextHop: netip.MustParseAddr("192.0.2.1"), Priority: 20},
+	}))
+
+	_, changes := s.processEvent(makePayload("", family.IPv4Unicast, []incomingChange{
+		{Action: bgptypes.RouteActionWithdraw, Prefix: pfx},
+	}))
+
+	require.Len(t, changes, 1)
+	assert.Equal(t, bgptypes.RouteActionWithdraw, changes[0].Action)
+	assert.Equal(t, pfx, changes[0].Prefix)
+}
+
 // VALIDATES: AC-4 -- System RIB emits (sysrib, best-change) on system best change.
 // PREVENTS: EventBus events not being published.
 func TestSysRIBPublishChange(t *testing.T) {
@@ -633,6 +654,7 @@ func waitFor(t *testing.T, timeout time.Duration, cond func() bool) {
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
+	t.Fatalf("condition not met within %s", timeout)
 }
 
 // captureSysribEvents returns every sysrib-namespace event seen by bus.

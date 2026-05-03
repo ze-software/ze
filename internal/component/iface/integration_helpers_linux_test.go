@@ -12,8 +12,6 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
-
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
 )
 
 // ensureBackendForIntegration loads the netlink backend if not already loaded.
@@ -107,7 +105,7 @@ func (b *collectingBus) Emit(namespace, eventType string, payload any) (int, err
 	b.events = append(b.events, collectedEvent{
 		Namespace: namespace,
 		EventType: eventType,
-		Payload:   payload,
+		Payload:   fmt.Sprint(payload),
 	})
 	b.mu.Unlock()
 	return 0, nil

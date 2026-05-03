@@ -6,6 +6,7 @@
 package ifacenetlink
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -16,7 +17,7 @@ import (
 )
 
 func isNotFound(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "no such")
+	return err != nil && (errors.Is(err, unix.ENOENT) || errors.Is(err, unix.EINVAL) || strings.Contains(err.Error(), "no such"))
 }
 
 func (b *netlinkBackend) SetupMirror(srcIface, dstIface string, ingress, egress bool) error {

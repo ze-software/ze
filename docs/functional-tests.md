@@ -40,9 +40,25 @@ Linux-tagged Go unit tests are separate from the functional suites. From a
 non-Linux workstation, use `make ze-linux-test`; it runs the default Linux-only
 unit package set in Docker and can be narrowed or expanded with
 `ZE_LINUX_TEST_PACKAGES="./pkg/a ./pkg/b"`.
+
+Clean release-candidate evidence can be run with `make ze-release-check`.
+The target refuses a dirty worktree, clones the repository into an ephemeral
+Docker container, mirrors the Woodpecker dependency setup, and runs
+`make ze-verify` there.
+
+Real VPP daemon evidence is separate from the stub-backed VPP functional suite:
+`make ze-deployment-vpp-test` starts VPP in a privileged Docker container and
+proves `fib-vpp` add and withdraw against VPP's real FIB.
+
+External L2TP peer evidence is separate from the in-tree L2TP fixture suite:
+`make ze-deployment-l2tp-test` starts Ze and a real `xl2tpd` LAC in a
+privileged Docker container, then proves the control tunnel and incoming-call
+session are established. Full PPP/NCP/kernel dataplane peer evidence still
+requires a host or target runner with `l2tp_ppp`/PPP support.
 <!-- source: cmd/ze-test/main.go -- subcommand registry -->
 <!-- source: cmd/ze-test/bgp.go -- chaos-web suite -->
 <!-- source: Makefile -- ze-linux-test -->
+<!-- source: scripts/evidence/clean-verify-docker.sh -- clean Docker ze-verify evidence -->
 
 ---
 
@@ -242,6 +258,11 @@ Functional tests that exercise `fib-vpp` end-to-end against a Python
 GoVPP-API stub. The stub replaces the real VPP process in CI: no DPDK,
 no vfio, no root. Each test runs against a fresh per-test Unix socket.
 <!-- source: test/scripts/vpp_stub.py -- stdlib-only GoVPP socket-client stub -->
+
+Real-daemon evidence uses `make ze-deployment-vpp-test`. That target starts
+`ligato/vpp-base` under Docker, runs Linux-built `ze` and `ze-test peer` inside
+the same container, and checks that VPP's FIB contains then withdraws the test
+route.
 
 **Runner:** `ze-test vpp [flags] [tests...]`
 
@@ -1044,22 +1065,38 @@ RPKI data, connects ze's RTR client, and validates known prefixes:
 
 ## Integration Tests (Network Namespaces)
 
-Integration tests exercise the `internal/component/iface/` package against the real Linux
-kernel inside ephemeral network namespaces. They require `CAP_NET_ADMIN` (typically root)
-and are excluded from all normal test targets.
+Integration tests exercise Linux dataplane packages against the real kernel inside
+ephemeral network namespaces. They require `CAP_NET_ADMIN` (typically root) and are
+excluded from all normal test targets.
 
 <!-- source: internal/component/iface/integration_helpers_linux_test.go -- withNetNS, waitForEvent -->
+<!-- source: internal/component/iface/config_integration_linux_test.go -- iface config ownership and rollback integration tests -->
+<!-- source: internal/plugins/fib/kernel/integration_linux_test.go -- route ownership integration tests -->
+<!-- source: internal/plugins/firewall/nft/integration_linux_test.go -- nft table ownership integration tests -->
+<!-- source: internal/plugins/traffic/netlink/integration_linux_test.go -- tc qdisc restore integration tests -->
 
 ```bash
-make ze-integration-test        # Run all integration tests
-make ze-integration-iface-test  # Run iface integration tests only
+make ze-integration-test           # Run all integration tests
+make ze-integration-iface-test     # Run iface integration tests only
+make ze-integration-fib-test       # Run FIB kernel integration tests only
+make ze-integration-firewall-test  # Run nft firewall integration tests only
+make ze-integration-traffic-test   # Run traffic-control netlink integration tests only
+make ze-deployment-preflight       # Strict tool check for complete deployment evidence
+make ze-release-check              # Run clean Docker ze-verify release evidence
+make ze-deployment-vpp-test        # Run real VPP daemon FIB add/withdraw evidence
+make ze-deployment-l2tp-test       # Run real xl2tpd LAC control/session evidence
 ```
+
+`ze-deployment-preflight` is strict: Docker-backed substitutes are reported, but
+the target fails until target-runner evidence and full PPP/NCP L2TP peer
+requirements are available. For Ze's current LNS path, that means a LAC peer
+such as `xl2tpd`, `pppd`, and PPPoL2TP kernel support.
 
 ### Build Tag
 
 Integration tests use `//go:build integration && linux`. They are excluded from
-`ze-unit-test`, `ze-functional-test`, and `ze-verify`. The `ze-integration-iface-test`
-make target passes `-tags integration` to include them.
+`ze-unit-test`, `ze-functional-test`, and `ze-verify`. The `ze-integration-*`
+make targets pass `-tags integration` to include them.
 
 ### How They Work
 
@@ -1078,11 +1115,20 @@ If namespace creation fails (missing `CAP_NET_ADMIN`), the test is skipped with 
 | File | Covers | Tests |
 |------|--------|-------|
 | `manage_integration_linux_test.go` | Interface CRUD, addresses, MTU | 9 tests |
+| `config_integration_linux_test.go` | Config apply ownership scope, reload deletion scope, rollback of created links | 3 tests |
 | `monitor_integration_linux_test.go` | Netlink event monitoring | 5 tests |
 | `sysctl_integration_linux_test.go` | Real /proc/sys writes | 2 tests |
 | `mirror_integration_linux_test.go` | tc qdisc/filter setup | 5 tests |
 | `dhcp_integration_linux_test.go` | DHCPv4 with in-process server | 2 tests |
 | `migrate_integration_linux_test.go` | Make-before-break migration | 2 tests |
+
+Additional dataplane integration packages:
+
+| File | Covers | Tests |
+|------|--------|-------|
+| `internal/plugins/fib/kernel/integration_linux_test.go` | FIB route add/remove/replace, restart sweep, producer protocol isolation, flush-on-stop | 8 tests |
+| `internal/plugins/firewall/nft/integration_linux_test.go` | nft table ownership, same-instance cleanup, restart reapply preservation | 2 tests |
+| `internal/plugins/traffic/netlink/integration_linux_test.go` | real tc qdisc snapshot, persisted restore after backend restart | 1 test |
 
 ### Shared Helpers
 
@@ -1115,6 +1161,11 @@ Run with `bin/ze-test l2tp`.
 ze-test l2tp --list    # List available tests
 ze-test l2tp --all     # Run all tests
 ```
+
+For external-peer evidence, run `make ze-deployment-l2tp-test`. It uses a
+real `xl2tpd` LAC to establish the L2TP control tunnel and incoming-call session
+against Ze. It intentionally does not claim full PPP/NCP dataplane proof when
+the Docker host lacks the `l2tp_ppp` kernel module.
 
 ### Tunnel lifecycle
 

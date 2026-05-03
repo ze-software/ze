@@ -34,6 +34,28 @@ func decodeMonitorPayload(t *testing.T, ev collectedEvent) monitorTestPayload {
 	return p
 }
 
+func waitForMonitorPayload(t *testing.T, bus *collectingBus, eventType string, match func(monitorTestPayload) bool) monitorTestPayload {
+	t.Helper()
+	deadline := time.Now().Add(monitorEventTimeout)
+	seen := 0
+	for time.Now().Before(deadline) {
+		events := bus.snapshot()
+		for i := seen; i < len(events); i++ {
+			if events[i].Namespace != "interface" || events[i].EventType != eventType {
+				continue
+			}
+			p := decodeMonitorPayload(t, events[i])
+			if match(p) {
+				return p
+			}
+		}
+		seen = len(events)
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for matching monitor event %q", eventType)
+	return monitorTestPayload{}
+}
+
 func TestIntegrationMonitorLinkCreated(t *testing.T) {
 	// VALIDATES: Monitor emits (interface, created) when a link appears.
 	// PREVENTS: Monitor not detecting new interfaces via netlink.
@@ -85,8 +107,9 @@ func TestIntegrationMonitorAddrAdded(t *testing.T) {
 			t.Fatalf("AddAddress: %v", err)
 		}
 
-		ev := waitForEvent(t, bus, "interface", ifaceevents.EventAddrAdded, monitorEventTimeout)
-		p := decodeMonitorPayload(t, ev)
+		p := waitForMonitorPayload(t, bus, ifaceevents.EventAddrAdded, func(p monitorTestPayload) bool {
+			return p.Address == "10.77.0.1" && p.Family == "ipv4"
+		})
 		if p.Address != "10.77.0.1" {
 			t.Errorf("event address = %q, want %q", p.Address, "10.77.0.1")
 		}
@@ -118,14 +141,17 @@ func TestIntegrationMonitorAddrRemoved(t *testing.T) {
 		if err := AddAddress("test0", "10.77.0.1/24"); err != nil {
 			t.Fatalf("AddAddress: %v", err)
 		}
-		waitForEvent(t, bus, "interface", ifaceevents.EventAddrAdded, monitorEventTimeout)
+		waitForMonitorPayload(t, bus, ifaceevents.EventAddrAdded, func(p monitorTestPayload) bool {
+			return p.Address == "10.77.0.1" && p.Family == "ipv4"
+		})
 
 		if err := RemoveAddress("test0", "10.77.0.1/24"); err != nil {
 			t.Fatalf("RemoveAddress: %v", err)
 		}
 
-		ev := waitForEvent(t, bus, "interface", ifaceevents.EventAddrRemoved, monitorEventTimeout)
-		p := decodeMonitorPayload(t, ev)
+		p := waitForMonitorPayload(t, bus, ifaceevents.EventAddrRemoved, func(p monitorTestPayload) bool {
+			return p.Address == "10.77.0.1" && p.Family == "ipv4"
+		})
 		if p.Address != "10.77.0.1" {
 			t.Errorf("event address = %q, want %q", p.Address, "10.77.0.1")
 		}

@@ -221,8 +221,8 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 	}
 	proto := batch.Protocol
 	fam := batch.Family
-	if proto == "" || (fam == family.Family{}) {
-		logger().Warn("sysrib: event missing protocol or family")
+	if fam == (family.Family{}) {
+		logger().Warn("sysrib: event missing family")
 		return family.Family{}, nil
 	}
 
@@ -248,6 +248,10 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 		key := prefixKey{family: fam, prefix: c.Prefix}
 
 		if c.Action == bgptypes.RouteActionAdd || c.Action == bgptypes.RouteActionUpdate {
+			if proto == "" {
+				logger().Warn("sysrib: event missing protocol", "prefix", c.Prefix)
+				continue
+			}
 			// Use per-change protocol type for admin distance override.
 			// Falls back to batch-level protocol if per-change type is absent.
 			protoType := c.ProtocolType.String()
@@ -267,10 +271,14 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 				incomingPriority: c.Priority,
 				metric:           c.Metric,
 			}
-		} else if c.Action == bgptypes.RouteActionWithdraw && s.routes[key] != nil {
-			delete(s.routes[key], proto)
-			if len(s.routes[key]) == 0 {
+		} else if c.Action == bgptypes.RouteActionWithdraw {
+			if proto == "" {
 				delete(s.routes, key)
+			} else if s.routes[key] != nil {
+				delete(s.routes[key], proto)
+				if len(s.routes[key]) == 0 {
+					delete(s.routes, key)
+				}
 			}
 		}
 

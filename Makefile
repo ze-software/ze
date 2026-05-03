@@ -7,7 +7,7 @@
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
 .PHONY: ze-interop-test ze-stress-test ze-stress-bird-test ze-stress-profile ze-live-test ze-live-rpki-test
-.PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test
+.PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-preflight
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
@@ -527,8 +527,45 @@ ze-integration-fib-test:
 	@echo "Running FIB kernel integration tests (requires CAP_NET_ADMIN)..."
 	$(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/fib/kernel/...
 
+# Run firewall nft integration tests (requires CAP_NET_ADMIN / root).
+# Tests actual nftables table ownership in isolated network namespaces.
+ze-integration-firewall-test:
+	@echo "Running firewall nft integration tests (requires CAP_NET_ADMIN)..."
+	$(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/firewall/nft/...
+
+# Run traffic-control netlink integration tests (requires CAP_NET_ADMIN / root).
+# Tests actual tc qdisc snapshot and restore in isolated network namespaces.
+ze-integration-traffic-test:
+	@echo "Running traffic-control netlink integration tests (requires CAP_NET_ADMIN)..."
+	$(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/traffic/netlink/...
+
 # Run all integration tests (requires CAP_NET_ADMIN / root).
-ze-integration-test: ze-integration-iface-test ze-integration-fib-test
+ze-integration-test: ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test
+
+# Run a real VPP daemon test in Docker.
+ze-deployment-vpp-test:
+	@echo "Running real VPP daemon deployment test (requires Docker + privileged container)..."
+	python3 scripts/evidence/vpp-real-daemon.py
+
+# Run clean release-candidate verification in Docker.
+ze-release-check:
+	@echo "Running clean release-candidate verification (requires Docker + clean worktree)..."
+	bash scripts/evidence/clean-verify-docker.sh
+
+# Run a real xl2tpd LAC control/session test in Docker.
+ze-deployment-l2tp-test:
+	@echo "Running external L2TP peer deployment test (requires Docker + privileged container)..."
+	python3 scripts/evidence/l2tp-external-peer.py
+
+# Check external deployment-test tooling without running heavy suites.
+ze-deployment-preflight:
+	@missing=0; \
+	if command -v target-runner >/dev/null 2>&1; then echo "ok: target-runner"; else echo "missing: target-runner (target environment release evidence)"; missing=1; fi; \
+	if command -v docker >/dev/null 2>&1; then echo "ok: docker for clean ze-verify substitute"; else echo "missing: docker (local clean ze-verify substitute)"; missing=1; fi; \
+	if command -v vpp >/dev/null 2>&1 && command -v vppctl >/dev/null 2>&1; then echo "ok: vpp + vppctl"; elif command -v docker >/dev/null 2>&1; then echo "ok: docker for real VPP daemon evidence"; else echo "missing: vpp/vppctl or docker (real VPP daemon evidence)"; missing=1; fi; \
+	if command -v docker >/dev/null 2>&1; then echo "ok: docker for xl2tpd L2TP control-session evidence"; else echo "missing: docker (L2TP control-session evidence)"; missing=1; fi; \
+	if { [ -e /proc/net/pppol2tp ] || [ -d /sys/module/l2tp_ppp ]; } && command -v xl2tpd >/dev/null 2>&1 && command -v pppd >/dev/null 2>&1; then echo "ok: xl2tpd + pppd + PPPoL2TP kernel support for full PPP/NCP peer evidence"; else echo "missing: xl2tpd + pppd + PPPoL2TP kernel support (full PPP/NCP peer evidence)"; missing=1; fi; \
+	exit $$missing
 
 # ─── Performance benchmarks ────────────────────────────────────────────────
 
@@ -982,6 +1019,12 @@ help:
 	@echo "  ze-integration-test      - Run all integration tests (network namespaces)"
 	@echo "  ze-integration-iface-test - Run iface integration tests"
 	@echo "  ze-integration-fib-test  - Run FIB kernel netlink integration tests"
+	@echo "  ze-integration-firewall-test - Run firewall nft integration tests"
+	@echo "  ze-integration-traffic-test - Run traffic-control netlink integration tests"
+	@echo "  ze-release-check - Run clean release check in Docker"
+	@echo "  ze-deployment-vpp-test - Run real VPP daemon deployment test in Docker"
+	@echo "  ze-deployment-l2tp-test - Run external L2TP peer deployment test in Docker"
+	@echo "  ze-deployment-preflight - Check deployment test tooling"
 	@echo ""
 	@echo "  Live tests (Docker + internet):"
 	@echo "  ze-live-test             - Run all live integration tests"

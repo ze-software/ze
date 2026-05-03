@@ -110,6 +110,29 @@ func desiredHTB(iface string) traffic.InterfaceQoS {
 	}
 }
 
+func TestTranslateHTBUsesKernelDefaults(t *testing.T) {
+	qdisc, err := translateQdisc(traffic.Qdisc{
+		Type:         traffic.QdiscHTB,
+		DefaultClass: "default",
+		Classes: []traffic.TrafficClass{
+			{Name: "default", Rate: 1_000_000, Ceil: 1_000_000},
+		},
+	}, 5)
+	if err != nil {
+		t.Fatalf("translateQdisc: %v", err)
+	}
+	htb, ok := qdisc.(*netlink.Htb)
+	if !ok {
+		t.Fatalf("translateQdisc returned %T, want *netlink.Htb", qdisc)
+	}
+	if htb.Version != 3 || htb.Rate2Quantum != 10 {
+		t.Fatalf("htb defaults = version %d rate2quantum %d, want version 3 rate2quantum 10", htb.Version, htb.Rate2Quantum)
+	}
+	if htb.Defcls != 1 {
+		t.Fatalf("htb default class = %d, want 1", htb.Defcls)
+	}
+}
+
 func TestApplySnapshotsOriginalBeforeReplace(t *testing.T) {
 	ops := newFakeTCOps()
 	ops.links["eth0"] = testLink("eth0", 5)

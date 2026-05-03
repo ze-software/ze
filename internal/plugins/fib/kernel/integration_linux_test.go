@@ -297,7 +297,7 @@ func TestNetlinkIntegration_StartupSweep(t *testing.T) {
 }
 
 // VALIDATES: P0-8 -- restart recovery only sweeps fib-kernel-owned routes.
-// PREVENTS: fib-kernel cleanup deleting routes owned by static or other Ze producers.
+// PREVENTS: fib-kernel cleanup deleting routes owned by static, policyroute, or other Ze producers.
 func TestNetlinkIntegration_StartupSweepPreservesOtherZeProtocols(t *testing.T) {
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
@@ -309,6 +309,7 @@ func TestNetlinkIntegration_StartupSweepPreservesOtherZeProtocols(t *testing.T) 
 		backend := newTestBackend(h)
 		require.NoError(t, backend.addRoute("10.99.9.0/24", "127.0.0.1"))
 		addProtocolRoute(t, h, "10.99.10.0/24", "127.0.0.1", rtproto.Static)
+		addProtocolRoute(t, h, "10.99.11.0/24", "127.0.0.1", rtproto.PolicyRoute)
 
 		f := newFIBKernel(backend)
 		stale := f.startupSweep()
@@ -320,6 +321,39 @@ func TestNetlinkIntegration_StartupSweepPreservesOtherZeProtocols(t *testing.T) 
 		staticRoutes := routesByProtocol(t, h, rtproto.Static)
 		require.Len(t, staticRoutes, 1, "static-owned route must survive fib-kernel sweep")
 		assert.Equal(t, "10.99.10.0/24", staticRoutes[0].Dst.String())
+		policyRoutes := routesByProtocol(t, h, rtproto.PolicyRoute)
+		require.Len(t, policyRoutes, 1, "policyroute-owned route must survive fib-kernel sweep")
+		assert.Equal(t, "10.99.11.0/24", policyRoutes[0].Dst.String())
+	})
+}
+
+// VALIDATES: P0-8 -- flush-on-stop only removes fib-kernel-owned routes.
+// PREVENTS: graceful shutdown cleanup deleting static or policyroute producers.
+func TestNetlinkIntegration_FlushRoutesPreservesOtherZeProtocols(t *testing.T) {
+	withNetNS(t, func() {
+		h, err := netlink.NewHandle()
+		require.NoError(t, err)
+		defer h.Close()
+
+		addLoopback(t, h)
+
+		backend := newTestBackend(h)
+		f := newFIBKernel(backend)
+		f.processEvent(makeSysribPayload([]incomingChange{
+			addChange("10.99.12.0/24", "127.0.0.1"),
+		}))
+		addProtocolRoute(t, h, "10.99.13.0/24", "127.0.0.1", rtproto.Static)
+		addProtocolRoute(t, h, "10.99.14.0/24", "127.0.0.1", rtproto.PolicyRoute)
+
+		f.flushRoutes()
+
+		assert.Empty(t, zeRoutes(t, h), "fib-kernel route should be removed")
+		staticRoutes := routesByProtocol(t, h, rtproto.Static)
+		require.Len(t, staticRoutes, 1, "static-owned route must survive fib-kernel flush")
+		assert.Equal(t, "10.99.13.0/24", staticRoutes[0].Dst.String())
+		policyRoutes := routesByProtocol(t, h, rtproto.PolicyRoute)
+		require.Len(t, policyRoutes, 1, "policyroute-owned route must survive fib-kernel flush")
+		assert.Equal(t, "10.99.14.0/24", policyRoutes[0].Dst.String())
 	})
 }
 

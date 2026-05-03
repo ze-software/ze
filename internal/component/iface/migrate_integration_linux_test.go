@@ -4,9 +4,12 @@ package iface
 
 import (
 	"encoding/json"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vishvananda/netns"
 
 	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 )
@@ -33,8 +36,27 @@ func TestIntegrationMigrateFullCycle(t *testing.T) {
 		}
 
 		// Run MigrateInterface in a goroutine since it blocks waiting for BGP readiness.
+		// The goroutine must enter the test namespace before netlink operations.
+		testNS, err := netns.Get()
+		if err != nil {
+			t.Fatalf("get test namespace: %v", err)
+		}
+		defer testNS.Close()
 		errCh := make(chan error, 1)
 		go func() {
+			runtime.LockOSThread()
+			defer runtime.UnlockOSThread()
+			origNS, err := netns.Get()
+			if err != nil {
+				errCh <- err
+				return
+			}
+			defer origNS.Close()
+			defer func() { _ = netns.Set(origNS) }()
+			if err := netns.Set(testNS); err != nil {
+				errCh <- err
+				return
+			}
 			errCh <- MigrateInterface(cfg, bus, 10*time.Second)
 		}()
 
