@@ -1017,7 +1017,7 @@ ze-setup:
 	go mod vendor
 	@echo ""
 	@echo "Installing golangci-lint..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
 	@echo ""
 	@echo "Installing system packages..."
 ifeq ($(shell uname -s),Darwin)

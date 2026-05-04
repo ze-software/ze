@@ -8,7 +8,7 @@ Resolved flake-investigation knowledge distilled into
 summary before investigating a new concurrency or test-isolation failure --
 the recurring shapes are catalogued there.
 
-## prefix-maximum-enforce parallel-load flake -- LOGGED 2026-04-17
+## prefix-maximum-enforce parallel-load flake -- RESOLVED 2026-05-05
 
 **File:** `test/plugin/prefix-maximum-enforce.ci`
 **Symptom:** Fails intermittently under `make ze-verify` (GOMAXPROCS=29,
@@ -34,8 +34,12 @@ bin/ze-test bgp plugin -c 3 prefix-maximum-enforce
 ```
 
 2026-05-03 follow-up: `bin/ze-test bgp plugin -c 10 prefix-maximum-enforce`
-passed 10/10 locally. Keep this row open until a full release gate proves the
-parallel-load flake shape is gone.
+passed 10/10 locally.
+
+2026-05-05 resolution: full local `make ze-verify` passed with all 11
+functional suites green, including the full plugin suite. This closes the
+tracked parallel-load flake shape. Clean release-candidate evidence remains
+tracked separately in `plan/deployment-readiness-deep-review.md`.
 
 ## TestPeerInfoPopulatesStats (uptime == 0) -- RESOLVED 2026-04-29
 
@@ -125,7 +129,7 @@ bin/ze-test bgp plugin -c 3 nexthop
 
 Passed locally on 2026-05-03.
 
-## Full-suite flaky plugin+encode tests (test isolation) -- LOGGED 2026-04-11
+## Full-suite flaky plugin+encode tests (test isolation) -- RESOLVED 2026-05-05
 
 **Files / test IDs observed:**
 - `test/encode/ebgp.ci` (Test 9, encode category)
@@ -165,8 +169,7 @@ a gate when the full suite flakes.
 `runner.ReservePorts`, which holds advisory per-port locks for the suite
 lifetime. This prevents concurrent `ze-test` processes from selecting the
 same free range between probe and later bind. It does not protect against
-arbitrary external processes binding the selected ports, so keep this row
-open until a full release gate shows the flake shape is gone.
+arbitrary external processes binding the selected ports.
 
 Verification:
 
@@ -177,6 +180,11 @@ go test -race ./internal/test/runner -count=1
 ```
 
 All passed locally on 2026-05-03.
+
+2026-05-05 resolution: full local `make ze-verify` passed with all 11
+functional suites green, including encode and plugin. This closes the tracked
+full-suite flake shape. Clean release-candidate evidence remains tracked
+separately in `plan/deployment-readiness-deep-review.md`.
 
 ## Egress-filter tests need forwarding-plugin redesign -- RESOLVED 2026-04-29
 
