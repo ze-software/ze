@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run ze against a real xl2tpd LAC peer with PPPoL2TP."""
+"""Run Ze and a real xl2tpd/pppd LAC peer in isolated Linux namespaces."""
 
 from __future__ import annotations
 
@@ -18,11 +18,20 @@ from pathlib import Path
 from typing import Callable
 
 
-ZE_LISTEN_IP = os.environ.get("ZE_L2TP_PPP_LISTEN_IP", "127.0.0.1")
+UNDERLAY_PREFIX = os.environ.get("ZE_L2TP_PPP_UNDERLAY_PREFIX", "24")
+ZE_UNDERLAY_IP = os.environ.get("ZE_L2TP_PPP_ZE_UNDERLAY_IP", "172.30.0.1")
+LAC_UNDERLAY_IP = os.environ.get("ZE_L2TP_PPP_LAC_UNDERLAY_IP", "172.30.0.2")
+ZE_LISTEN_IP = os.environ.get("ZE_L2TP_PPP_LISTEN_IP", ZE_UNDERLAY_IP)
 ZE_LISTEN_PORT = os.environ.get("ZE_L2TP_PPP_LISTEN_PORT", "1701")
 XL2TPD_SOURCE_PORT = os.environ.get("ZE_L2TP_PPP_XL2TPD_PORT", "1702")
 LOCAL_ADDR = "10.100.0.1"
 PEER_ADDR = "10.100.0.2"
+NS_SUFFIX = str(os.getpid())
+VETH_SUFFIX = NS_SUFFIX[-6:]
+ZE_NS = f"ze-l2tp-ppp-ze-{NS_SUFFIX}"
+LAC_NS = f"ze-l2tp-ppp-lac-{NS_SUFFIX}"
+VETH_ZE = f"zpppz{VETH_SUFFIX}"
+VETH_LAC = f"zpppl{VETH_SUFFIX}"
 
 
 def repo_root() -> Path:
@@ -35,6 +44,28 @@ def repo_root() -> Path:
 
 def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, text=True, check=False, **kwargs)
+
+
+def run_required(cmd: list[str], context: str, **kwargs) -> subprocess.CompletedProcess[str]:
+    result = run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+    if result.returncode != 0:
+        sys.stderr.write((result.stdout or "") + (result.stderr or ""))
+        raise RuntimeError(f"{context} failed")
+    return result
+
+
+def ns_run(ns: str, cmd: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+    return run(["ip", "netns", "exec", ns, *cmd], **kwargs)
+
+
+def ns_run_required(
+    ns: str, cmd: list[str], context: str, **kwargs
+) -> subprocess.CompletedProcess[str]:
+    return run_required(["ip", "netns", "exec", ns, *cmd], context, **kwargs)
+
+
+def ns_popen(ns: str, cmd: list[str], **kwargs) -> subprocess.Popen[str]:
+    return subprocess.Popen(["ip", "netns", "exec", ns, *cmd], **kwargs)
 
 
 def require_cmd(name: str) -> None:
@@ -73,6 +104,73 @@ def try_load_modules() -> None:
         return
     for mod in ["ppp_generic", "l2tp_core", "l2tp_netlink", "pppox", "l2tp_ppp"]:
         run([modprobe, mod], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def kill_netns_processes(ns: str, sig: signal.Signals) -> None:
+    pids = run(["ip", "netns", "pids", ns], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if pids.returncode != 0:
+        return
+    for raw in (pids.stdout or "").split():
+        try:
+            os.kill(int(raw), sig)
+        except (ValueError, ProcessLookupError, PermissionError):
+            pass
+
+
+def cleanup_netns() -> None:
+    for ns in [ZE_NS, LAC_NS]:
+        kill_netns_processes(ns, signal.SIGTERM)
+    time.sleep(0.2)
+    for ns in [ZE_NS, LAC_NS]:
+        kill_netns_processes(ns, signal.SIGKILL)
+    for link in [VETH_ZE, VETH_LAC]:
+        run(["ip", "link", "delete", link], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    for ns in [LAC_NS, ZE_NS]:
+        run(["ip", "netns", "delete", ns], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def setup_netns() -> None:
+    cleanup_netns()
+    Path("/run/netns").mkdir(parents=True, exist_ok=True)
+    run_required(["ip", "netns", "add", ZE_NS], f"create netns {ZE_NS}")
+    run_required(["ip", "netns", "add", LAC_NS], f"create netns {LAC_NS}")
+    run_required(
+        ["ip", "link", "add", VETH_ZE, "type", "veth", "peer", "name", VETH_LAC],
+        "create L2TP underlay veth pair",
+    )
+    run_required(["ip", "link", "set", VETH_ZE, "netns", ZE_NS], "move Ze veth")
+    run_required(["ip", "link", "set", VETH_LAC, "netns", LAC_NS], "move LAC veth")
+
+    ns_run_required(ZE_NS, ["ip", "link", "set", "lo", "up"], "bring up Ze loopback")
+    ns_run_required(LAC_NS, ["ip", "link", "set", "lo", "up"], "bring up LAC loopback")
+    ns_run_required(
+        ZE_NS,
+        ["ip", "addr", "add", f"{ZE_UNDERLAY_IP}/{UNDERLAY_PREFIX}", "dev", VETH_ZE],
+        "assign Ze underlay address",
+    )
+    ns_run_required(
+        LAC_NS,
+        ["ip", "addr", "add", f"{LAC_UNDERLAY_IP}/{UNDERLAY_PREFIX}", "dev", VETH_LAC],
+        "assign LAC underlay address",
+    )
+    ns_run_required(ZE_NS, ["ip", "link", "set", VETH_ZE, "up"], "bring up Ze veth")
+    ns_run_required(LAC_NS, ["ip", "link", "set", VETH_LAC, "up"], "bring up LAC veth")
+
+    ping = ns_run(
+        LAC_NS,
+        ["ping", "-c", "1", "-W", "2", ZE_UNDERLAY_IP],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if ping.returncode != 0:
+        sys.stderr.write((ping.stdout or "") + (ping.stderr or ""))
+        raise RuntimeError("LAC namespace cannot reach Ze namespace underlay")
+
+    for ns in [ZE_NS, LAC_NS]:
+        check = ns_run(ns, ["ip", "l2tp", "show", "tunnel"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if check.returncode != 0:
+            sys.stderr.write((check.stdout or "") + (check.stderr or ""))
+            raise RuntimeError(f"ip l2tp unavailable in namespace {ns}")
 
 
 def ensure_kernel_support() -> None:
@@ -224,8 +322,9 @@ def lines_contain_all(needles: list[str]) -> Callable[[list[str]], bool]:
     )
 
 
-def ppp_links() -> set[str]:
-    links = run(
+def ppp_links(ns: str) -> set[str]:
+    links = ns_run(
+        ns,
         ["ip", "-o", "link", "show", "type", "ppp"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -241,11 +340,15 @@ def ppp_links() -> set[str]:
     return found
 
 
-def l2tp_state() -> tuple[str, str]:
-    tunnel = run(
-        ["ip", "l2tp", "show", "tunnel"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+def l2tp_state(ns: str) -> tuple[str, str]:
+    tunnel = ns_run(
+        ns,
+        ["ip", "l2tp", "show", "tunnel"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
-    session = run(
+    session = ns_run(
+        ns,
         ["ip", "l2tp", "show", "session"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -257,24 +360,30 @@ def l2tp_state() -> tuple[str, str]:
     return tunnel.stdout or "", session.stdout or ""
 
 
-def discover_new_ppp_iface(initial: set[str], ze_lines: list[str]) -> str:
+def discover_new_ppp_iface(
+    ns: str, initial: set[str], ze_lines: list[str], role: str
+) -> str:
+    current = ppp_links(ns)
     for line in ze_lines:
         match = re.search(r"interface=([^\s]+)", line)
-        if match and match.group(1).startswith("ppp"):
-            return match.group(1).strip('"')
-    current = ppp_links()
+        if not match:
+            continue
+        candidate = match.group(1).strip('"')
+        if candidate.startswith("ppp") and candidate in current:
+            return candidate
     new_links = sorted(current - initial)
     if not new_links:
-        raise RuntimeError("no new pppN interface appeared")
+        raise RuntimeError(f"no new pppN interface appeared in {role} namespace")
     if len(new_links) > 1:
         raise RuntimeError(
-            f"more than one new PPP interface appeared: {', '.join(new_links)}"
+            f"more than one new PPP interface appeared in {role} namespace: {', '.join(new_links)}"
         )
     return new_links[0]
 
 
-def verify_ppp_address(iface: str) -> None:
-    addr = run(
+def verify_ppp_address(ns: str, iface: str, local: str, peer: str) -> None:
+    addr = ns_run(
+        ns,
         ["ip", "-o", "addr", "show", "dev", iface],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -283,14 +392,15 @@ def verify_ppp_address(iface: str) -> None:
         sys.stderr.write((addr.stdout or "") + (addr.stderr or ""))
         raise RuntimeError(f"ip addr show dev {iface} failed")
     out = addr.stdout or ""
-    if LOCAL_ADDR not in out or PEER_ADDR not in out:
+    if local not in out or peer not in out:
         raise RuntimeError(
-            f"{iface} lacks expected {LOCAL_ADDR} peer {PEER_ADDR} address state:\n{out}"
+            f"{iface} lacks expected {local} peer {peer} address state:\n{out}"
         )
 
 
 def verify_dataplane() -> None:
-    ping = run(
+    ping = ns_run(
+        LAC_NS,
         ["ping", "-c", "2", "-W", "3", LOCAL_ADDR],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -302,22 +412,39 @@ def verify_dataplane() -> None:
 
 
 def wait_for_cleanup(
-    initial_links: set[str], initial_l2tp: tuple[str, str], iface: str, timeout_s: float
+    initial_ze_links: set[str],
+    initial_lac_links: set[str],
+    initial_ze_l2tp: tuple[str, str],
+    initial_lac_l2tp: tuple[str, str],
+    ze_iface: str,
+    lac_iface: str,
+    timeout_s: float,
 ) -> None:
     deadline = time.time() + timeout_s
     last_error = ""
     while time.time() < deadline:
         try:
-            links = ppp_links()
-            state = l2tp_state()
+            ze_links = ppp_links(ZE_NS)
+            lac_links = ppp_links(LAC_NS)
+            ze_state = l2tp_state(ZE_NS)
+            lac_state = l2tp_state(LAC_NS)
         except RuntimeError as err:
             last_error = str(err)
             time.sleep(0.2)
             continue
-        if iface not in links and links == initial_links and state == initial_l2tp:
+        if (
+            ze_iface not in ze_links
+            and lac_iface not in lac_links
+            and ze_links == initial_ze_links
+            and lac_links == initial_lac_links
+            and ze_state == initial_ze_l2tp
+            and lac_state == initial_lac_l2tp
+        ):
             return
         last_error = (
-            f"ppp links={sorted(links)} l2tp_state_changed={state != initial_l2tp}"
+            f"ze_ppp={sorted(ze_links)} lac_ppp={sorted(lac_links)} "
+            f"ze_l2tp_changed={ze_state != initial_ze_l2tp} "
+            f"lac_l2tp_changed={lac_state != initial_lac_l2tp}"
         )
         time.sleep(0.2)
     raise RuntimeError(
@@ -358,6 +485,7 @@ def write_inputs(work: Path) -> None:
         "nodefaultroute\n"
         "ipcp-accept-local\n"
         "ipcp-accept-remote\n"
+        "noipv6\n"
         "debug\n"
         "nodetach\n",
         encoding="utf-8",
@@ -397,6 +525,7 @@ def main() -> int:
     if platform.system() != "Linux":
         raise SystemExit("full L2TP PPP/NCP evidence requires Linux")
     require_cmd("ip")
+    require_cmd("ping")
     require_cmd("xl2tpd")
     require_cmd("pppd")
     ensure_kernel_support()
@@ -408,13 +537,16 @@ def main() -> int:
     work = Path(tempfile.mkdtemp(prefix="effective-l2tp-ppp-", dir=tmp_parent))
     write_inputs(work)
 
-    initial_links = ppp_links()
-    initial_l2tp = l2tp_state()
-
     ze_proc: subprocess.Popen[str] | None = None
     xl2tpd: subprocess.Popen[str] | None = None
     success = False
     try:
+        setup_netns()
+        initial_ze_links = ppp_links(ZE_NS)
+        initial_lac_links = ppp_links(LAC_NS)
+        initial_ze_l2tp = l2tp_state(ZE_NS)
+        initial_lac_l2tp = l2tp_state(LAC_NS)
+
         env = os.environ.copy()
         env["ZE_LOG_L2TP"] = "debug"
         env["ZE_STORAGE_BLOB"] = "false"
@@ -425,7 +557,8 @@ def main() -> int:
         for key in ["ZE_L2TP_SKIP_KERNEL_PROBE", "ze.l2tp.skip-kernel-probe"]:
             env.pop(key, None)
 
-        ze_proc = subprocess.Popen(
+        ze_proc = ns_popen(
+            ZE_NS,
             [str(ze), str(work / "ze.conf")],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -443,7 +576,8 @@ def main() -> int:
         ):
             raise RuntimeError("ze L2TP listener did not start")
 
-        xl2tpd = subprocess.Popen(
+        xl2tpd = ns_popen(
+            LAC_NS,
             [
                 "xl2tpd",
                 "-D",
@@ -487,19 +621,21 @@ def main() -> int:
             )
 
         snapshot = ze_log.snapshot()
-        ip_assigned_lines = [l for l in snapshot if "l2tp: session IP assigned" in l]
-        if not any(f"address={PEER_ADDR}" in l for l in ip_assigned_lines):
+        ip_assigned_lines = [line for line in snapshot if "l2tp: session IP assigned" in line]
+        if not any(f"address={PEER_ADDR}" in line for line in ip_assigned_lines):
             raise RuntimeError(
                 f"session IP assigned log missing expected address={PEER_ADDR}"
             )
 
-        iface = discover_new_ppp_iface(initial_links, snapshot)
+        ze_iface = discover_new_ppp_iface(ZE_NS, initial_ze_links, snapshot, "Ze")
+        lac_iface = discover_new_ppp_iface(LAC_NS, initial_lac_links, [], "LAC")
 
-        session_up_lines = [l for l in ze_log.snapshot() if "l2tp: PPP session up" in l]
-        if not any(f"interface={iface}" in l for l in session_up_lines):
-            raise RuntimeError(f"PPP session up log missing expected interface={iface}")
+        session_up_lines = [line for line in ze_log.snapshot() if "l2tp: PPP session up" in line]
+        if not any(f"interface={ze_iface}" in line for line in session_up_lines):
+            raise RuntimeError(f"PPP session up log missing expected interface={ze_iface}")
 
-        verify_ppp_address(iface)
+        verify_ppp_address(ZE_NS, ze_iface, LOCAL_ADDR, PEER_ADDR)
+        verify_ppp_address(LAC_NS, lac_iface, PEER_ADDR, LOCAL_ADDR)
         verify_dataplane()
 
         terminate(xl2tpd)
@@ -510,10 +646,18 @@ def main() -> int:
             raise RuntimeError(
                 "subscriber route withdraw was not observed during teardown"
             )
-        wait_for_cleanup(initial_links, initial_l2tp, iface, 15)
+        wait_for_cleanup(
+            initial_ze_links,
+            initial_lac_links,
+            initial_ze_l2tp,
+            initial_lac_l2tp,
+            ze_iface,
+            lac_iface,
+            30,
+        )
 
         print(
-            f"OK: real xl2tpd/pppd peer completed PPP LCP, IPCP, {iface} address assignment, dataplane ping, route inject, and clean teardown"
+            f"OK: real xl2tpd/pppd peer completed PPP LCP, IPCP, Ze {ze_iface} and LAC {lac_iface} address assignment, dataplane ping, route inject, and clean teardown"
         )
         success = True
         return 0
@@ -526,6 +670,7 @@ def main() -> int:
     finally:
         terminate(xl2tpd)
         terminate(ze_proc)
+        cleanup_netns()
         if success:
             shutil.rmtree(work, ignore_errors=True)
 

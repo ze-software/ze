@@ -58,8 +58,9 @@ External L2TP peer evidence is separate from the in-tree L2TP fixture suite:
 `make ze-deployment-l2tp-test` starts Ze and a real `xl2tpd` LAC in a
 privileged Docker container, then proves the control tunnel and incoming-call
 session are established. Full PPP/NCP/kernel dataplane peer evidence is a
-separate Linux-only target: `make ze-deployment-l2tp-ppp-test` requires
-`xl2tpd`, `pppd`, `/dev/ppp`, `iproute2`, and PPPoL2TP kernel support.
+separate Linux-only target: `make ze-deployment-l2tp-ppp-test` creates Ze and
+LAC network namespaces joined by a veth underlay, then requires `xl2tpd`,
+`pppd`, `ping`, `/dev/ppp`, `iproute2`, and PPPoL2TP kernel support.
 `make ze-deployment-l2tp-ppp-docker-test` runs a peer-isolated Docker lab
 with Ze LNS, a real `xl2tpd`/`pppd` LAC, and FRR as a BGP peer in separate
 containers on an isolated Docker bridge. It proves PPP LCP/IPCP, kernel
@@ -1187,18 +1188,30 @@ against Ze. It intentionally does not claim full PPP/NCP dataplane proof when
 the Docker host lacks the `l2tp_ppp` kernel module.
 
 For full PPP/NCP peer evidence, run `make ze-deployment-l2tp-ppp-test` on a
-Linux host or target runner with `xl2tpd`, `pppd`, `/dev/ppp`, `iproute2`, and
-PPPoL2TP kernel support. The target refuses skip-kernel-probe mode, starts Ze
-as LNS, drives a real `xl2tpd`/`pppd` LAC, waits for PPP LCP/IPCP completion,
-verifies log field correctness (assigned address and pppN interface name),
-checks the resulting `pppN` address state, pings the LNS through the PPP
-tunnel to prove dataplane connectivity, observes subscriber route injection,
-and verifies teardown returns kernel L2TP/PPP state to its initial snapshot.
+Linux host or target runner with `xl2tpd`, `pppd`, `ping`, `/dev/ppp`,
+`iproute2`, and PPPoL2TP kernel support. The target refuses skip-kernel-probe
+mode, creates peer-isolated Ze and LAC network namespaces, starts Ze as LNS,
+drives a real `xl2tpd`/`pppd` LAC across the veth underlay, waits for PPP
+LCP/IPCP completion, verifies log field correctness (assigned address and pppN
+interface name), checks the resulting Ze and LAC `pppN` address state, pings
+the LNS through the PPP tunnel from the LAC namespace to prove dataplane
+connectivity, observes subscriber route injection, and verifies teardown
+returns both namespaces' kernel L2TP/PPP state to their initial snapshots.
 
-On macOS, `make ze-deployment-l2tp-ppp-docker-test` runs that same proof in a
-privileged Linux container. Docker is only a Linux userspace wrapper here: the
+On macOS, `make ze-deployment-l2tp-ppp-docker-test` runs that same proof in
+privileged Linux containers. Docker is only a Linux userspace wrapper here: the
 test still fails unless the Docker host kernel has `/dev/ppp`, Generic Netlink
 L2TP, and PPPoL2TP support.
+
+For appliance evidence, run `make ze-kernel` first, then
+`make ze-deployment-gokrazy-l2tp-ppp-test` on a Linux host or target runner
+with QEMU and the same PPPoL2TP LAC-side kernel support. The target builds a
+temporary gokrazy image with an L2TP first-boot template and proof-only runtime
+environment (`ze.l2tp.ncp.enable-ipv6cp=false`, because the static pool is
+IPv4-only), boots it under QEMU with UDP 1701 forwarded into the appliance,
+drives a real `xl2tpd`/`pppd` LAC from a Linux namespace, verifies PPP/IPCP and
+LAC `pppN` address state, pings the Ze LNS address through PPP, and observes
+appliance route inject/withdraw logs.
 
 ### Tunnel lifecycle
 

@@ -77,14 +77,20 @@ withdrawal.
 | Target | What it proves | PPPoL2TP required |
 |--------|---------------|-------------------|
 | `make ze-deployment-l2tp-test` | Control tunnel + incoming-call session (skip-kernel-probe) | No |
-| `make ze-deployment-l2tp-ppp-test` | Native Linux full PPP/NCP/kernel proof | Yes |
+| `make ze-deployment-l2tp-ppp-test` | Native Linux full PPP/NCP/kernel proof in peer-isolated netns | Yes |
 | `make ze-deployment-l2tp-ppp-docker-test` | Peer-isolated Docker lab (this) | Yes (host kernel) |
+| `make ze-deployment-gokrazy-l2tp-ppp-test` | QEMU gokrazy appliance LNS with real netns LAC | Yes (host LAC side and appliance kernel) |
 | `test/plugin/redistribute-l2tp-*.ci` | Synthetic BGP UPDATE rendering | No |
 
 The native proof and Docker lab catch different failure shapes. The native
-proof runs Ze, xl2tpd, and pppd in a single namespace; the Docker lab
-isolates them across a network bridge, proving that L2TP UDP packets transit
-correctly between containers.
+proof isolates Ze and the LAC in Linux network namespaces joined by a veth
+underlay; the Docker lab isolates them across a Docker bridge and adds the FRR
+BGP redistribution scenario.
+
+The gokrazy appliance proof reuses the native LAC shape but puts Ze behind the
+same gokrazy/QEMU image used for appliance deployment. QEMU forwards UDP 1701
+into the guest, so the LAC namespace still exercises a real host PPPoL2TP
+kernel path while the appliance kernel provides Ze's LNS-side PPPoL2TP support.
 
 ## Design Pattern
 
