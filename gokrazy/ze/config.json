@@ -2,8 +2,7 @@
     "Hostname": "ze",
     "Update": {},
     "Environment": [
-        "GOOS=linux",
-        "GOARCH=amd64"
+        "GOOS=linux"
     ],
     "Packages": [
         "github.com/gokrazy/serial-busybox",

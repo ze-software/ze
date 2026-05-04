@@ -7,7 +7,7 @@
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
 .PHONY: ze-interop-test ze-stress-test ze-stress-bird-test ze-stress-profile ze-live-test ze-live-rpki-test
-.PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test ze-deployment-l2tp-ppp-docker-test ze-docker-evidence ze-deployment-preflight
+.PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test ze-docker-evidence ze-deployment-preflight
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
@@ -557,9 +557,9 @@ ze-deployment-l2tp-test:
 	@echo "Running external L2TP peer deployment test (requires Docker + privileged container)..."
 	python3 scripts/evidence/effective-l2tp-peer.py
 
-# Run a real xl2tpd/pppd LAC PPP/NCP test on a Linux target.
+# Run a real xl2tpd/pppd LAC PPP/NCP test in peer-isolated Linux netns.
 ze-deployment-l2tp-ppp-test:
-	@echo "Running full L2TP PPP/NCP peer deployment test (requires Linux root + xl2tpd + pppd + PPPoL2TP kernel support)..."
+	@echo "Running full L2TP PPP/NCP peer deployment test (requires Linux root + xl2tpd + pppd + ping + PPPoL2TP kernel support)..."
 	python3 scripts/evidence/effective-l2tp-ppp.py
 
 # Run the full L2TP PPP/NCP peer-isolated Docker lab (Ze LNS + LAC + optional FRR).
@@ -568,8 +568,14 @@ ze-deployment-l2tp-ppp-docker-test:
 	@echo "Running L2TP PPP/NCP peer-isolated Docker lab (requires Docker host PPPoL2TP kernel support)..."
 	python3 test/l2tp-interop/run.py
 
+# Run a real xl2tpd/pppd LAC against the gokrazy Ze appliance in QEMU.
+# Requires Linux root/CAP_NET_ADMIN, QEMU, xl2tpd, pppd, and host PPPoL2TP support.
+ze-deployment-gokrazy-l2tp-ppp-test:
+	@echo "Running gokrazy appliance L2TP PPP/NCP deployment test (requires Linux root + QEMU + xl2tpd + pppd + PPPoL2TP support)..."
+	python3 scripts/evidence/effective-gokrazy-l2tp-ppp.py
+
 # Generic: run any evidence script in a privileged Linux container.
-# Usage: make ze-docker-evidence EVIDENCE_SCRIPT=scripts/evidence/effective-l2tp-ppp.py EVIDENCE_PACKAGES="iproute2 kmod ppp python3 xl2tpd"
+# Usage: make ze-docker-evidence EVIDENCE_SCRIPT=scripts/evidence/effective-l2tp-ppp.py EVIDENCE_PACKAGES="iproute2 iputils kmod ppp python3 xl2tpd"
 EVIDENCE_SCRIPT ?=
 EVIDENCE_PACKAGES ?=
 ze-docker-evidence:
@@ -583,7 +589,9 @@ ze-deployment-preflight:
 	if command -v docker >/dev/null 2>&1; then echo "ok: docker for clean ze-verify substitute"; else echo "missing: docker (local clean ze-verify substitute)"; missing=1; fi; \
 	if command -v vpp >/dev/null 2>&1 && command -v vppctl >/dev/null 2>&1; then echo "ok: vpp + vppctl"; elif command -v docker >/dev/null 2>&1; then echo "ok: docker for real VPP daemon evidence"; else echo "missing: vpp/vppctl or docker (real VPP daemon evidence)"; missing=1; fi; \
 	if command -v docker >/dev/null 2>&1; then echo "ok: docker for xl2tpd L2TP control-session evidence"; else echo "missing: docker (L2TP control-session evidence)"; missing=1; fi; \
-	if [ -e /dev/ppp ] && { [ -e /proc/net/pppol2tp ] || [ -d /sys/module/l2tp_ppp ] || [ -d /sys/module/pppol2tp ]; } && command -v ip >/dev/null 2>&1 && command -v xl2tpd >/dev/null 2>&1 && command -v pppd >/dev/null 2>&1; then echo "ok: xl2tpd + pppd + /dev/ppp + iproute2 + PPPoL2TP kernel support for full PPP/NCP peer evidence"; else echo "missing: xl2tpd + pppd + /dev/ppp + iproute2 + PPPoL2TP kernel support (full PPP/NCP peer evidence)"; missing=1; fi; \
+	case "$(GOKRAZY_ARCH)" in amd64) qemu_bin=qemu-system-x86_64 ;; arm64) qemu_bin=qemu-system-aarch64 ;; *) qemu_bin=qemu-system-x86_64 ;; esac; \
+	if command -v $$qemu_bin >/dev/null 2>&1; then echo "ok: $$qemu_bin for gokrazy appliance evidence (GOKRAZY_ARCH=$(GOKRAZY_ARCH))"; else echo "missing: $$qemu_bin (gokrazy appliance evidence, GOKRAZY_ARCH=$(GOKRAZY_ARCH))"; missing=1; fi; \
+	if [ -e /dev/ppp ] && { [ -e /proc/net/pppol2tp ] || [ -d /sys/module/l2tp_ppp ] || [ -d /sys/module/pppol2tp ]; } && command -v ip >/dev/null 2>&1 && command -v ping >/dev/null 2>&1 && command -v xl2tpd >/dev/null 2>&1 && command -v pppd >/dev/null 2>&1; then echo "ok: xl2tpd + pppd + ping + /dev/ppp + iproute2 + PPPoL2TP kernel support for full PPP/NCP peer evidence"; else echo "missing: xl2tpd + pppd + ping + /dev/ppp + iproute2 + PPPoL2TP kernel support (full PPP/NCP peer evidence)"; missing=1; fi; \
 	exit $$missing
 
 # ─── Performance benchmarks ────────────────────────────────────────────────
@@ -713,7 +721,9 @@ tidy:
 
 # ─── Gokrazy VM appliance ────────────────────────────────────────────────────
 #
-# Builds a bootable x86_64 VM image with Ze baked in.
+# Builds a bootable VM image with Ze baked in. The default architecture is
+# amd64 for N100-class mini PCs and common hypervisors; set GOKRAZY_ARCH=arm64
+# for a native Apple Silicon QEMU image.
 # Everything is vendored: gok tool source in gokrazy/tools/vendor/,
 # dependency pins in gokrazy/ze/builddir/*/go.mod.
 # After cloning, run `make ze-gokrazy-deps` once to populate the Go module cache
@@ -736,12 +746,14 @@ tidy:
 #   make ze-gokrazy-deps                    -- one-time: download gokrazy system packages
 #   make ze-gokrazy USER=admin PASS=secret CERTNAME=router.local  -- first build (cert cached per name)
 #   make ze-gokrazy USER=admin PASS=secret  -- first build (no cert caching without CERTNAME)
+#   make ze-gokrazy GOKRAZY_ARCH=arm64 USER=admin PASS=secret  -- native Apple Silicon VM image
 #   make ze-gokrazy                         -- rebuild: reuse existing credentials
 #   make ze-gokrazy ZEFS=/path/to/db.zefs   -- rebuild: use external database
 #   make ze-gokrazy-run                     -- boot image in QEMU
 
 GOKRAZY_INSTANCE   := ze
 GOKRAZY_DIR        := gokrazy
+GOKRAZY_ARCH       ?= amd64
 GOKRAZY_IMG        := tmp/gokrazy/ze.img
 GOKRAZY_IMG_SIZE   := 2147483648
 GOKRAZY_PERM_OFF   := 1157627904
@@ -749,6 +761,9 @@ GOKRAZY_PERM_BLK   := 966639
 GOKRAZY_PERM_4K    := 241660
 GOKRAZY_PERM_SKIP  := 282624
 E2FS               := /opt/homebrew/Cellar/e2fsprogs/1.47.4/sbin
+GOKRAZY_QEMU_ACCEL ?= tcg
+GOKRAZY_QEMU_AARCH64_BIOS ?= /opt/homebrew/share/qemu/edk2-aarch64-code.fd
+GOKRAZY_QEMU_AARCH64_CPU ?= max
 
 # Build ze-gok from vendored source (gokrazy/tools/).
 # ze-gok wraps gok with a repo-local GOMODCACHE so all module resolution
@@ -780,6 +795,7 @@ ze-gokrazy-deps: bin/gok
 # (stable fingerprint). Without CERTNAME=, a new cert is generated every time.
 GOKRAZY_ZEFS     := tmp/gokrazy/init/database.zefs
 GOKRAZY_CERT_DIR := tmp/gokrazy/certs/$(CERTNAME)
+GOKRAZY_TEMPLATE ?= gokrazy/ze/ze.conf
 
 ze-gokrazy: ze bin/gok
 	@test -f $(E2FS)/mkfs.ext4 || { echo "error: e2fsprogs not found (brew install e2fsprogs)"; exit 1; }
@@ -808,7 +824,7 @@ ze-gokrazy: ze bin/gok
 					env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes --web-cert 0.0.0.0:8080 2>&1; \
 			fi; \
 		fi; \
-		bin/ze data --path $(GOKRAZY_ZEFS) write file/template/ze.conf gokrazy/ze/ze.conf; \
+		bin/ze data --path $(GOKRAZY_ZEFS) write file/template/ze.conf $(GOKRAZY_TEMPLATE); \
 	elif [ ! -f $(GOKRAZY_ZEFS) ]; then \
 		echo "error: no database found. First build requires credentials:"; \
 		echo "  make ze-gokrazy USER=admin PASS=secret"; \
@@ -817,7 +833,7 @@ ze-gokrazy: ze bin/gok
 		echo "--- Reusing existing database ---"; \
 	fi
 	@echo "--- Building gokrazy image ---"
-	GOARCH=amd64 bin/gok --parent_dir $(GOKRAZY_DIR) -i $(GOKRAZY_INSTANCE) overwrite \
+	GOOS=linux GOARCH=$(GOKRAZY_ARCH) bin/gok --parent_dir $(GOKRAZY_DIR) -i $(GOKRAZY_INSTANCE) overwrite \
 		--full $(GOKRAZY_IMG) \
 		--target_storage_bytes $(GOKRAZY_IMG_SIZE)
 	@echo "--- Formatting /perm partition ---"
@@ -835,49 +851,80 @@ ze-gokrazy: ze bin/gok
 # Boot the VM image in QEMU with port forwarding.
 ze-gokrazy-run:
 	@test -f $(GOKRAZY_IMG) || { echo "error: $(GOKRAZY_IMG) not found (run: make ze-gokrazy USER=admin PASS=secret)"; exit 1; }
-	@command -v qemu-system-x86_64 >/dev/null || { echo "error: qemu not found (brew install qemu)"; exit 1; }
+	@case "$(GOKRAZY_ARCH)" in \
+		amd64) command -v qemu-system-x86_64 >/dev/null || { echo "error: qemu-system-x86_64 not found (brew install qemu)"; exit 1; } ;; \
+		arm64) command -v qemu-system-aarch64 >/dev/null || { echo "error: qemu-system-aarch64 not found (brew install qemu)"; exit 1; }; test -f $(GOKRAZY_QEMU_AARCH64_BIOS) || { echo "error: $(GOKRAZY_QEMU_AARCH64_BIOS) not found"; exit 1; } ;; \
+		*) echo "error: unsupported GOKRAZY_ARCH=$(GOKRAZY_ARCH) (expected amd64 or arm64)"; exit 1 ;; \
+	esac
 	@echo "Booting Ze gokrazy appliance..."
 	@echo "  Ze web:      https://localhost:28080/"
 	@echo "  Gokrazy:     https://localhost:28080/gokrazy/"
 	@echo "  Ze SSH:      ssh -p 2222 <user>@localhost"
 	@echo "  Quit:        Ctrl-A X"
 	@echo ""
-	qemu-system-x86_64 \
-		-machine accel=tcg \
-		-smp 2 -m 512 \
-		-drive file=$(GOKRAZY_IMG),format=raw \
-		-nographic -serial mon:stdio \
-		-nic user,model=e1000,hostfwd=tcp::28080-:8080,hostfwd=tcp::2222-:22
+	@case "$(GOKRAZY_ARCH)" in \
+		amd64) \
+			qemu-system-x86_64 \
+				-machine accel=$(GOKRAZY_QEMU_ACCEL) \
+				-smp 2 -m 512 \
+				-drive file=$(GOKRAZY_IMG),format=raw \
+				-nographic -serial mon:stdio \
+				-nic user,model=e1000,hostfwd=tcp::28080-:8080,hostfwd=tcp::2222-:22 ;; \
+		arm64) \
+			qemu-system-aarch64 \
+				-machine virt,highmem=off,accel=$(GOKRAZY_QEMU_ACCEL) \
+				-cpu $(GOKRAZY_QEMU_AARCH64_CPU) \
+				-smp 2 -m 512 \
+				-bios $(GOKRAZY_QEMU_AARCH64_BIOS) \
+				-drive file=$(GOKRAZY_IMG),format=raw \
+				-nographic -serial mon:stdio \
+				-netdev user,id=net0,hostfwd=tcp::28080-:8080,hostfwd=tcp::2222-:22 \
+				-device e1000,netdev=net0 ;; \
+	esac
 
 # ---------------------------------------------------------------------------
 # Custom kernel build (overrides the rtr7/kernel pin used by ze-gokrazy)
 # ---------------------------------------------------------------------------
 # ze-gokrazy normally uses the rtr7/kernel version pinned in
 # gokrazy/ze/builddir/github.com/rtr7/kernel/go.mod. ze-kernel builds a
-# different Linux version from kernel.org and points gokrazy at it via a
-# local-path replace directive.
+# kernel from kernel.org, appends Ze's L2TP/PPP deployment config, and overlays
+# the gitignored gokrazy module-cache copy of that pinned kernel package.
 #
 # Usage:
-#   make ze-kernel                          -- build the pinned version (default KVER)
+#   make ze-kernel                          -- build the pinned version (default KVER) with L2TP/PPP support
+#   make ze-kernel GOKRAZY_ARCH=arm64       -- build an arm64 kernel for native Apple Silicon QEMU
 #   make ze-kernel KVER=7.0                 -- build mainline 7.0
 #   make ze-kernel KVER=6.19.13             -- build latest 6.19 stable
 #   make ze-gokrazy USER=x PASS=y ...       -- picks up the custom kernel automatically
-#   make ze-kernel-clean                    -- drop replace, rm tmp/kernel, back to pin
+#   make ze-kernel-clean                    -- restore the pinned module-cache kernel
 #
 # Prerequisite: docker. Source is shallow-cloned from github.com/rtr7/kernel
 # into tmp/kernel/ (gitignored). The rtr7 _build/ scaffolding (patches,
 # config.addendum.txt) is reused; _build/upstream-url.txt is rewritten to the
-# tarball URL for KVER. Build takes ~5 min.
+# tarball URL for KVER. `gokrazy/kernel/l2tp.config.addendum.txt` is appended
+# before build so the resulting appliance kernel supports Ze L2TP deployment.
+# The pinned module-cache kernel is backed up before the first overlay.
+# Build takes ~5 min.
 
 KVER                 ?= 6.19.11
 KVER_MAJOR           := $(firstword $(subst ., ,$(KVER)))
 KERNEL_DIR           := tmp/kernel
 KERNEL_UPSTREAM_URL  := https://cdn.kernel.org/pub/linux/kernel/v$(KVER_MAJOR).x/linux-$(KVER).tar.xz
-KERNEL_BUILDDIR_MOD  := gokrazy/ze/builddir/github.com/rtr7/kernel
+KERNEL_MODULE        := github.com/rtr7/kernel
+KERNEL_BUILDDIR_MOD  := gokrazy/ze/builddir/$(KERNEL_MODULE)
+KERNEL_L2TP_CONFIG   := gokrazy/kernel/l2tp.config.addendum.txt
+KERNEL_ARCH          ?= $(GOKRAZY_ARCH)
+KERNEL_CONTAINER     ?= docker
+KERNEL_FLAVOR        ?= vanilla
+KERNEL_REBUILD_VER   ?= latest
+KERNEL_MODULE_VERSION := $(shell cd $(KERNEL_BUILDDIR_MOD) 2>/dev/null && $(GO) list -m -f '{{.Version}}' $(KERNEL_MODULE) 2>/dev/null)
+KERNEL_MODCACHE_DIR  := $(GOKRAZY_DIR)/modcache/$(KERNEL_MODULE)@$(KERNEL_MODULE_VERSION)
+KERNEL_PINNED_BACKUP := $(GOKRAZY_DIR)/modcache/.ze-pinned-kernel
 
 ze-kernel:
-	@command -v docker >/dev/null || { echo "error: docker not found (install Docker Desktop)"; exit 1; }
+	@command -v $(KERNEL_CONTAINER) >/dev/null || { echo "error: $(KERNEL_CONTAINER) not found (install Docker Desktop)"; exit 1; }
 	@command -v git >/dev/null    || { echo "error: git not found"; exit 1; }
+	@case "$(KERNEL_ARCH)" in amd64|arm64) : ;; *) echo "error: unsupported KERNEL_ARCH=$(KERNEL_ARCH) (expected amd64 or arm64)"; exit 1 ;; esac
 	@if [ ! -d $(KERNEL_DIR)/.git ]; then \
 		echo "--- Cloning rtr7/kernel (shallow) ---"; \
 		mkdir -p tmp; \
@@ -887,23 +934,51 @@ ze-kernel:
 	fi
 	@echo "--- Setting upstream to linux-$(KVER) ---"
 	@echo "$(KERNEL_UPSTREAM_URL)" > $(KERNEL_DIR)/_build/upstream-url.txt
-	@if [ ! -x $(KERNEL_DIR)/_build/gokr-rebuild-kernel ]; then \
-		echo "--- Installing gokr-rebuild-kernel ---"; \
-		GOBIN=$(CURDIR)/$(KERNEL_DIR)/_build $(GO) install github.com/gokrazy/autoupdate/cmd/gokr-rebuild-kernel@latest; \
+	@test -f $(KERNEL_L2TP_CONFIG) || { echo "error: $(KERNEL_L2TP_CONFIG) not found"; exit 1; }
+	@touch $(KERNEL_DIR)/_build/config.addendum.txt
+	@echo "--- Enabling Ze L2TP/PPP kernel config ---"
+	@if ! grep -q "Ze L2TP/PPP deployment support" $(KERNEL_DIR)/_build/config.addendum.txt; then \
+		printf '\n# Ze L2TP/PPP deployment support\n' >> $(KERNEL_DIR)/_build/config.addendum.txt; \
+		cat $(KERNEL_L2TP_CONFIG) >> $(KERNEL_DIR)/_build/config.addendum.txt; \
 	fi
-	@echo "--- Building kernel ($(KVER), ~5 min via docker) ---"
-	@cd $(KERNEL_DIR)/_build && ./gokr-rebuild-kernel
-	@echo "--- Wiring gokrazy to use $(CURDIR)/$(KERNEL_DIR) ---"
-	@cd $(KERNEL_BUILDDIR_MOD) && $(GO) mod edit -replace=github.com/rtr7/kernel=$(CURDIR)/$(KERNEL_DIR)
+	@echo "--- Building kernel ($(KVER), $(KERNEL_ARCH), ~5 min via $(KERNEL_CONTAINER)) ---"
+	@KERNEL_DIR=$(CURDIR)/$(KERNEL_DIR) \
+		KERNEL_UPSTREAM_URL=$(KERNEL_UPSTREAM_URL) \
+		KERNEL_ARCH=$(KERNEL_ARCH) \
+		KERNEL_CONTAINER=$(KERNEL_CONTAINER) \
+		KERNEL_FLAVOR=$(KERNEL_FLAVOR) \
+		KERNEL_REBUILD_VER=$(KERNEL_REBUILD_VER) \
+		bash scripts/dev/gokrazy-kernel-build.sh
+	@echo "--- Installing custom kernel into gokrazy module cache ---"
+	@test -n "$(KERNEL_MODULE_VERSION)" || { echo "error: could not resolve pinned $(KERNEL_MODULE) version"; exit 1; }
+	@test -d "$(KERNEL_MODCACHE_DIR)" || { echo "error: $(KERNEL_MODCACHE_DIR) not found (run: make ze-gokrazy-deps)"; exit 1; }
+	@if [ ! -d "$(KERNEL_PINNED_BACKUP)" ]; then \
+		echo "--- Backing up pinned kernel module cache ---"; \
+		cp -R "$(KERNEL_MODCACHE_DIR)" "$(KERNEL_PINNED_BACKUP)"; \
+	fi
+	@cp "$(KERNEL_DIR)/vmlinuz" "$(KERNEL_MODCACHE_DIR)/vmlinuz"
+	@mkdir -p "$(KERNEL_MODCACHE_DIR)/lib"
+	@rm -rf "$(KERNEL_MODCACHE_DIR)/lib/modules"
+	@cp -R "$(KERNEL_DIR)/lib/modules" "$(KERNEL_MODCACHE_DIR)/lib/"
+	@rm -f "$(KERNEL_MODCACHE_DIR)"/*.dtb
+	@cp "$(KERNEL_DIR)"/*.dtb "$(KERNEL_MODCACHE_DIR)"/ 2>/dev/null || true
+	@if [ -d "$(KERNEL_DIR)/overlays" ]; then \
+		rm -rf "$(KERNEL_MODCACHE_DIR)/overlays"; \
+		cp -R "$(KERNEL_DIR)/overlays" "$(KERNEL_MODCACHE_DIR)/"; \
+	fi
 	@echo ""
-	@echo "Custom kernel: $$(ls $(KERNEL_DIR)/lib/modules 2>/dev/null | head -1)"
+	@module_version=""; for d in $(KERNEL_DIR)/lib/modules/*; do [ -d "$$d" ] || continue; module_version="$${d##*/}"; break; done; echo "Custom kernel: $$module_version"
 	@ls -lh $(KERNEL_DIR)/vmlinuz 2>/dev/null || true
 	@echo "Next: make ze-gokrazy USER=... PASS=..."
 
 ze-kernel-clean:
-	@if [ -f $(KERNEL_BUILDDIR_MOD)/go.mod ]; then \
-		echo "--- Dropping kernel replace directive ---"; \
-		cd $(KERNEL_BUILDDIR_MOD) && $(GO) mod edit -dropreplace=github.com/rtr7/kernel 2>/dev/null || true; \
+	@if [ -d "$(KERNEL_PINNED_BACKUP)" ]; then \
+		echo "--- Restoring pinned kernel module cache ---"; \
+		rm -rf "$(KERNEL_MODCACHE_DIR)"; \
+		cp -R "$(KERNEL_PINNED_BACKUP)" "$(KERNEL_MODCACHE_DIR)"; \
+		rm -rf "$(KERNEL_PINNED_BACKUP)"; \
+	else \
+		echo "warning: no pinned kernel backup found; run make ze-gokrazy-deps to refresh the module cache if needed"; \
 	fi
 	@rm -rf $(KERNEL_DIR)
 	@echo "ze-gokrazy will now use the pinned rtr7/kernel."
@@ -1043,7 +1118,7 @@ help:
 	@echo "  ze-release-check - Run clean release check in Docker"
 	@echo "  ze-deployment-vpp-test - Run real VPP daemon deployment test in Docker"
 	@echo "  ze-deployment-l2tp-test - Run external L2TP peer deployment test in Docker"
-	@echo "  ze-deployment-l2tp-ppp-test - Run full L2TP PPP/NCP peer test on Linux"
+	@echo "  ze-deployment-l2tp-ppp-test - Run full L2TP PPP/NCP peer test in Linux netns"
 	@echo "  ze-deployment-l2tp-ppp-docker-test - Run L2TP PPP/NCP peer-isolated Docker lab (Ze LNS + LAC + FRR)"
 	@echo "  ze-docker-evidence EVIDENCE_SCRIPT=... EVIDENCE_PACKAGES=... - Run any evidence script in Docker"
 	@echo "  ze-deployment-preflight - Check deployment test tooling"
@@ -1078,11 +1153,13 @@ help:
 	@echo "  ze-consistency        - Code/doc consistency: design refs, cross-refs, stale refs"
 	@echo "  See docs/contributing/documentation-testing.md for the workflow."
 	@echo ""
-	@echo "  Gokrazy VM appliance (x86_64, see docs/guide/appliance.md):"
+	@echo "  Gokrazy VM appliance (amd64 default, see docs/guide/appliance.md):"
 	@echo "  ze-gokrazy-deps          - One-time: download gokrazy system packages into Go module cache"
 	@echo "  ze-gokrazy USER=x PASS=y - Build bootable VM image with Ze + SSH credentials"
 	@echo "  ze-gokrazy-run           - Boot the VM image in QEMU (Ctrl-A X to quit)"
-	@echo "  ze-kernel KVER=7.0       - Build a custom Linux kernel (mainline or stable) for ze-gokrazy"
+	@echo "  ze-kernel KVER=7.0       - Build custom ze-gokrazy kernel with L2TP/PPP support"
+	@echo "                             GOKRAZY_ARCH=arm64 for native Apple Silicon QEMU"
+	@echo "  ze-deployment-gokrazy-l2tp-ppp-test - Full L2TP PPP proof against QEMU appliance"
 	@echo "  ze-kernel-clean          - Drop the custom kernel, revert to the pinned rtr7/kernel"
 	@echo ""
 	@echo "  Utilities:"

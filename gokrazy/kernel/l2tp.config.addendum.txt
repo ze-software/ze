@@ -1,0 +1,13 @@
+# Ze L2TP/PPP deployment support.
+#
+# Keep these built into the gokrazy kernel. The appliance has no package
+# manager and Ze's LNS path creates PPPoL2TP sockets directly, so relying on
+# modules being present and loadable at runtime is the wrong failure mode.
+CONFIG_PPP=y
+CONFIG_PPPOL2TP=y
+CONFIG_L2TP=y
+CONFIG_L2TP_NETLINK=y
+
+# Useful for the local QEMU/netns evidence path and harmless for deployment.
+CONFIG_NAMESPACES=y
+CONFIG_NET_NS=y

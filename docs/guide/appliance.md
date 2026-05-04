@@ -1,6 +1,6 @@
 # VM Appliance
 
-Build a bootable x86_64 VM image with Ze baked in using [gokrazy](https://gokrazy.org). The result is a minimal Linux system that runs Ze as its only application, with no package manager, no shell (except emergency serial console), and automatic process supervision.
+Build a bootable VM image with Ze baked in using [gokrazy](https://gokrazy.org). The default target is x86_64; set `GOKRAZY_ARCH=arm64` for a native Apple Silicon QEMU image. The result is a minimal Linux system that runs Ze as its only application, with no package manager, no shell (except emergency serial console), and automatic process supervision.
 
 Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.
 <!-- source: gokrazy/ze/config.json -- Packages, KernelPackage, Environment -->
@@ -9,7 +9,7 @@ Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.
 
 | Component | Purpose |
 |-----------|---------|
-| Linux kernel (x86_64) | Boot and hardware drivers |
+| Linux kernel | Boot and hardware drivers |
 | Gokrazy init | Process supervisor, entropy seeding, watchdog heartbeat |
 | Ze | BGP daemon with DHCP client, NTP, and all internal plugins |
 | serial-busybox | Emergency shell on serial console (not started by default) |
@@ -45,6 +45,50 @@ After this, builds work offline.
 <!-- source: gokrazy/ze/builddir/github.com/rtr7/kernel/go.mod -- pinned kernel version -->
 <!-- source: gokrazy/ze/builddir/github.com/gokrazy/gokrazy/go.mod -- pinned gokrazy version -->
 
+## L2TP Kernel Support
+
+Ze's L2TP LNS path needs kernel PPPoL2TP support in the appliance kernel:
+`CONFIG_PPP`, `CONFIG_PPPOL2TP`, `CONFIG_L2TP`, and `CONFIG_L2TP_NETLINK`.
+The pinned upstream gokrazy kernel is not assumed to provide these options.
+Build the repo-local kernel before building an appliance intended to terminate
+L2TP subscribers:
+
+```bash
+make ze-kernel
+make ze-gokrazy USER=admin PASS=secret
+```
+
+On Apple Silicon, use a native arm64 VM image to avoid x86_64 emulation while
+still building the kernel with the same L2TP/PPP options:
+
+```bash
+make ze-kernel GOKRAZY_ARCH=arm64
+make ze-gokrazy GOKRAZY_ARCH=arm64 USER=admin PASS=secret
+make ze-gokrazy-run GOKRAZY_ARCH=arm64 GOKRAZY_QEMU_ACCEL=hvf
+```
+
+`make ze-kernel` appends `gokrazy/kernel/l2tp.config.addendum.txt` to the
+rtr7 kernel addendum, builds the kernel with gokrazy's rebuild tooling, and
+overlays the gitignored module-cache copy used by `make ze-gokrazy`. The first
+overlay backs up the pinned cache. Use `make ze-kernel-clean` to restore it.
+
+On a Linux runner with QEMU, `xl2tpd`, `pppd`, `/dev/ppp`, and PPPoL2TP kernel
+support, the deployment proof target builds an L2TP-enabled appliance image and
+drives a real LAC against it:
+
+```bash
+make ze-deployment-gokrazy-l2tp-ppp-test
+```
+
+The proof image is built from a temporary gokrazy instance config so the normal
+appliance config is left unchanged. It disables IPv6CP in that proof image
+because the current static L2TP pool is IPv4-only. Set
+`ZE_GOKRAZY_SKIP_BUILD=1` to run against an existing `tmp/gokrazy/ze.img` that
+was already built with the L2TP proof template and proof runtime environment.
+<!-- source: gokrazy/kernel/l2tp.config.addendum.txt -- Ze L2TP/PPP kernel config -->
+<!-- source: Makefile -- ze-kernel target -->
+<!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- appliance L2TP proof -->
+
 ## Build an image
 
 First build (creates SSH credentials and a TLS certificate):
@@ -65,11 +109,18 @@ To use a database from a running instance or another machine:
 make ze-gokrazy ZEFS=/path/to/database.zefs
 ```
 
+To build with a different first-boot template without editing
+`gokrazy/ze/ze.conf`:
+
+```bash
+make ze-gokrazy USER=admin PASS=secret GOKRAZY_TEMPLATE=tmp/my-ze.conf
+```
+
 The first build:
 
 1. Builds `bin/ze` for the host
 2. Runs `ze init` with credentials and generates a self-signed TLS certificate
-3. Cross-compiles Ze for linux/amd64 and builds a 2GB disk image
+3. Cross-compiles Ze for linux/`GOKRAZY_ARCH` and builds a 2GB disk image
 4. Formats the persistent `/perm` partition
 5. Injects `database.zefs` (credentials + TLS cert) into `/perm/ze/`
 
