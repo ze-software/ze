@@ -75,7 +75,7 @@ func loadTCSnapshots(path string) (map[string]tcInterfaceSnapshot, error) {
 	if path == "" {
 		return map[string]tcInterfaceSnapshot{}, nil
 	}
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // path is the Ze state-dir snapshot store, not external input
 	if errors.Is(err, os.ErrNotExist) {
 		return map[string]tcInterfaceSnapshot{}, nil
 	}
@@ -99,7 +99,7 @@ func saveTCSnapshots(path string, snapshots map[string]tcInterfaceSnapshot) erro
 	if path == "" {
 		return fmt.Errorf("tc snapshot store path is empty")
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("create tc snapshot store directory: %w", err)
 	}
 	if len(snapshots) == 0 {

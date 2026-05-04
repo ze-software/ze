@@ -340,7 +340,7 @@ func TestL2TPReactorPPPEventInformationalIgnored(t *testing.T) {
 
 // newUnstartedReactorWithLogs is like newUnstartedReactor but returns
 // the lockedBuffer so callers can assert on log output.
-func newUnstartedReactorWithLogs(t *testing.T) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
+func newUnstartedReactorWithLogs(t *testing.T) (*L2TPReactor, *lockedBuffer, func()) {
 	t.Helper()
 	buf := &lockedBuffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -352,7 +352,7 @@ func newUnstartedReactorWithLogs(t *testing.T) (*UDPListener, *L2TPReactor, *loc
 	stop := func() {
 		_ = ln.Stop()
 	}
-	return ln, r, buf, stop
+	return r, buf, stop
 }
 
 func TestL2TPReactorSessionIPAssignedLogsValidIPv4(t *testing.T) {
@@ -361,7 +361,7 @@ func TestL2TPReactorSessionIPAssignedLogsValidIPv4(t *testing.T) {
 	// carries a valid IPv4 peer address.
 	// PREVENTS: silent session IP assignment with no operator-visible
 	// evidence in the log stream.
-	_, r, logs, stop := newUnstartedReactorWithLogs(t)
+	r, logs, stop := newUnstartedReactorWithLogs(t)
 	defer stop()
 
 	tun := mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
@@ -386,7 +386,7 @@ func TestL2TPReactorSessionIPAssignedNoLogOnInvalidAddr(t *testing.T) {
 	// when neither Peer nor Local+InterfaceID resolve to a valid addr.
 	// PREVENTS: spurious "session IP assigned" log noise on events
 	// where no NCP address was actually negotiated.
-	_, r, logs, stop := newUnstartedReactorWithLogs(t)
+	r, logs, stop := newUnstartedReactorWithLogs(t)
 	defer stop()
 
 	tun := mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
@@ -408,7 +408,7 @@ func TestL2TPReactorSessionUpLogsWithNilEventBus(t *testing.T) {
 	// PREVENTS: regression to the old early-return that silenced the
 	// PPP session-up log in standalone (no event-bus subscriber)
 	// deployments.
-	_, r, logs, stop := newUnstartedReactorWithLogs(t)
+	r, logs, stop := newUnstartedReactorWithLogs(t)
 	defer stop()
 
 	require.Nil(t, r.eventBus, "precondition: eventBus must be nil for this test")
@@ -430,7 +430,7 @@ func TestL2TPReactorSessionUpNoLogOnEmptyInterface(t *testing.T) {
 	// the kernel session setup didn't populate the interface name.
 	// PREVENTS: empty-interface log spam or panics on zero-value
 	// session fields.
-	_, r, logs, stop := newUnstartedReactorWithLogs(t)
+	r, logs, stop := newUnstartedReactorWithLogs(t)
 	defer stop()
 
 	tun := mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))

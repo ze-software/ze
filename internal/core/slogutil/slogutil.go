@@ -123,6 +123,7 @@ func Subsystems() []SubsystemInfo {
 // Log level and backend string constants.
 const (
 	levelDisabled = "disabled"
+	levelError    = "error"
 	backendStdout = "stdout"
 	backendSyslog = "syslog"
 	backendStderr = "stderr"
@@ -353,7 +354,7 @@ func parseLevel(s string) (slog.Level, bool) {
 		return slog.LevelInfo, true
 	case "warn", "warning":
 		return slog.LevelWarn, true
-	case "err", "error":
+	case "err", levelError:
 		return slog.LevelError, true
 	default:
 		return slog.LevelInfo, false // unknown = disabled
@@ -515,7 +516,7 @@ func LevelString(level slog.Level) string {
 	case slog.LevelWarn:
 		return "warn"
 	case slog.LevelError:
-		return "error"
+		return levelError
 	}
 	// Non-standard level (e.g. custom numeric) — use stdlib formatting.
 	return level.String()

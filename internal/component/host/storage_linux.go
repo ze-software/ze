@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+const storageTransportNVMe = "nvme"
+
 // DetectStorage walks /sys/class/block/ collecting top-level block
 // devices (partitions are skipped by testing for the presence of a
 // /partition file).
@@ -57,7 +59,7 @@ func (d *Detector) readBlockDevice(name, dev string) StorageDevice {
 		Rotational: readFileInt(filepath.Join(dev, "queue", "rotational")) == 1,
 		Transport:  classifyTransport(name),
 	}
-	if strings.HasPrefix(name, "nvme") {
+	if strings.HasPrefix(name, storageTransportNVMe) {
 		s.NVMeFirmware = readFileString(filepath.Join(dev, "device", "firmware_rev"))
 	}
 	return s
@@ -71,8 +73,8 @@ func classifyTransport(name string) string {
 	if name == "" {
 		return "unknown"
 	}
-	if strings.HasPrefix(name, "nvme") {
-		return "nvme"
+	if strings.HasPrefix(name, storageTransportNVMe) {
+		return storageTransportNVMe
 	}
 	if strings.HasPrefix(name, "sd") {
 		return "sata"
