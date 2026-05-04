@@ -36,7 +36,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends build-essential curl git iproute2 iptables nftables python3 python3-venv util-linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
-export PATH="$HOME/.local/bin:$PATH"
+export PATH="/go/bin:/usr/local/go/bin:$HOME/.local/bin:$PATH"
 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 
 git config --global --add safe.directory /host
