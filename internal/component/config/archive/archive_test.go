@@ -184,7 +184,8 @@ func TestToFile_CreatesSubdir(t *testing.T) {
 // VALIDATES: Unwritable destination directory produces clear error.
 // PREVENTS: Silent failure or panic on permission errors.
 func TestToFile_PermissionError(t *testing.T) {
-	err := archive.ToFile([]byte("data"), "/nonexistent/path", "test.conf")
+	destDir := t.TempDir()
+	err := archive.ToFile([]byte("data"), destDir, ".")
 	assert.Error(t, err)
 }
 

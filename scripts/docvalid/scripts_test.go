@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	osexec "os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -35,7 +36,8 @@ const scriptTimeout = 60 * time.Second
 func TestValidateCommandsScriptRuns(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
 	defer cancel()
-	cmd := osexec.CommandContext(ctx, "go", "run", "commands.go")
+	cmd := osexec.CommandContext(ctx, "go", "run", "scripts/docvalid/commands.go")
+	cmd.Dir = repoRoot(t)
 	out, _ := cmd.CombinedOutput() //nolint:errcheck // exit code is informational; we assert on stdout
 	if !strings.Contains(string(out), "Command Validation") {
 		t.Fatalf("commands.go did not produce expected 'Command Validation' header:\n%s", out)
@@ -49,7 +51,8 @@ func TestValidateCommandsScriptRuns(t *testing.T) {
 func TestDocDriftScriptRuns(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
 	defer cancel()
-	cmd := osexec.CommandContext(ctx, "go", "run", "doc_drift.go")
+	cmd := osexec.CommandContext(ctx, "go", "run", "scripts/docvalid/doc_drift.go")
+	cmd.Dir = repoRoot(t)
 	out, _ := cmd.CombinedOutput() //nolint:errcheck // exit code is informational; we assert on stdout/stderr
 	s := string(out)
 	if !strings.Contains(s, "documentation drift") &&
@@ -57,4 +60,13 @@ func TestDocDriftScriptRuns(t *testing.T) {
 		!strings.Contains(s, "No documentation drift") {
 		t.Fatalf("doc_drift.go did not produce expected output:\n%s", s)
 	}
+}
+
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
+	}
+	return root
 }
