@@ -67,6 +67,11 @@ Examples:
 		return err
 	}
 
+	if _, lookErr := exec.LookPath("agent-browser"); lookErr != nil {
+		fmt.Fprintf(os.Stdout, "agent-browser not found in PATH, skipping web tests\n") //nolint:errcheck // terminal output
+		return nil
+	}
+
 	baseDir, err := findBaseDir()
 	if err != nil {
 		return fmt.Errorf("find base dir: %w", err)

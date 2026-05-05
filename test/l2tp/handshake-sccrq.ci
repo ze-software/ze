@@ -119,6 +119,7 @@ environment {
 EOF_CONF
 
 option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
 
 cmd=background:seq=1:exec=ze -:stdin=config
 cmd=foreground:seq=2:exec=python3 handshake.py $PORT:timeout=10s

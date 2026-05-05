@@ -26,6 +26,7 @@ if [ -n "$STATUS" ]; then
 fi
 
 docker run --rm \
+    --privileged \
     --platform "$PLATFORM" \
     -v "$ROOT:/host:ro" \
     "$IMAGE" \
@@ -34,7 +35,7 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update
-apt-get install -y --no-install-recommends build-essential curl git iproute2 iptables nftables python3 python3-venv util-linux
+apt-get install -y --no-install-recommends build-essential curl git iputils-ping iproute2 iptables nftables python3 python3-venv util-linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="/go/bin:/usr/local/go/bin:$HOME/.local/bin:$PATH"
 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
