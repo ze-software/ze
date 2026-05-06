@@ -46,7 +46,9 @@ def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, text=True, check=False, **kwargs)
 
 
-def run_required(cmd: list[str], context: str, **kwargs) -> subprocess.CompletedProcess[str]:
+def run_required(
+    cmd: list[str], context: str, **kwargs
+) -> subprocess.CompletedProcess[str]:
     result = run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
     if result.returncode != 0:
         sys.stderr.write((result.stdout or "") + (result.stderr or ""))
@@ -107,7 +109,9 @@ def try_load_modules() -> None:
 
 
 def kill_netns_processes(ns: str, sig: signal.Signals) -> None:
-    pids = run(["ip", "netns", "pids", ns], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    pids = run(
+        ["ip", "netns", "pids", ns], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     if pids.returncode != 0:
         return
     for raw in (pids.stdout or "").split():
@@ -124,9 +128,17 @@ def cleanup_netns() -> None:
     for ns in [ZE_NS, LAC_NS]:
         kill_netns_processes(ns, signal.SIGKILL)
     for link in [VETH_ZE, VETH_LAC]:
-        run(["ip", "link", "delete", link], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        run(
+            ["ip", "link", "delete", link],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
     for ns in [LAC_NS, ZE_NS]:
-        run(["ip", "netns", "delete", ns], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        run(
+            ["ip", "netns", "delete", ns],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
 
 def setup_netns() -> None:
@@ -167,7 +179,12 @@ def setup_netns() -> None:
         raise RuntimeError("LAC namespace cannot reach Ze namespace underlay")
 
     for ns in [ZE_NS, LAC_NS]:
-        check = ns_run(ns, ["ip", "l2tp", "show", "tunnel"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        check = ns_run(
+            ns,
+            ["ip", "l2tp", "show", "tunnel"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         if check.returncode != 0:
             sys.stderr.write((check.stdout or "") + (check.stderr or ""))
             raise RuntimeError(f"ip l2tp unavailable in namespace {ns}")
@@ -621,7 +638,9 @@ def main() -> int:
             )
 
         snapshot = ze_log.snapshot()
-        ip_assigned_lines = [line for line in snapshot if "l2tp: session IP assigned" in line]
+        ip_assigned_lines = [
+            line for line in snapshot if "l2tp: session IP assigned" in line
+        ]
         if not any(f"address={PEER_ADDR}" in line for line in ip_assigned_lines):
             raise RuntimeError(
                 f"session IP assigned log missing expected address={PEER_ADDR}"
@@ -630,9 +649,13 @@ def main() -> int:
         ze_iface = discover_new_ppp_iface(ZE_NS, initial_ze_links, snapshot, "Ze")
         lac_iface = discover_new_ppp_iface(LAC_NS, initial_lac_links, [], "LAC")
 
-        session_up_lines = [line for line in ze_log.snapshot() if "l2tp: PPP session up" in line]
+        session_up_lines = [
+            line for line in ze_log.snapshot() if "l2tp: PPP session up" in line
+        ]
         if not any(f"interface={ze_iface}" in line for line in session_up_lines):
-            raise RuntimeError(f"PPP session up log missing expected interface={ze_iface}")
+            raise RuntimeError(
+                f"PPP session up log missing expected interface={ze_iface}"
+            )
 
         verify_ppp_address(ZE_NS, ze_iface, LOCAL_ADDR, PEER_ADDR)
         verify_ppp_address(LAC_NS, lac_iface, PEER_ADDR, LOCAL_ADDR)

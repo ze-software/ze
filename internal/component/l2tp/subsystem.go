@@ -239,10 +239,19 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 
 		// Phase 6a: construct a PPP driver if an iface backend is loaded.
 		// The driver owns per-session goroutines that drive LCP and (in
-		// later specs) auth + NCPs. Skip when no backend is available
-		// (test paths, non-Linux, init order); the reactor logs a warning
-		// when a kernelSetupSucceeded arrives without a driver.
+		// later specs) auth + NCPs. The iface plugin delivers config
+		// asynchronously, so the backend may not be loaded yet. As a
+		// fallback, load the OS default backend directly; this is safe
+		// because LoadBackend is idempotent when the same backend is
+		// already active.
 		var pppDriver *ppp.Driver
+		if backend := ifaceBackendFn(); backend == nil {
+			if name := iface.DefaultBackendName(); name != "" {
+				if err := iface.LoadBackend(name); err != nil {
+					s.logger.Warn("l2tp: fallback iface backend load failed", "error", err.Error())
+				}
+			}
+		}
 		if backend := ifaceBackendFn(); backend != nil {
 			pppDriver = ppp.NewProductionDriver(s.logger.With("component", "ppp"), backend)
 			reactor.SetPPPDriver(pppDriver)
