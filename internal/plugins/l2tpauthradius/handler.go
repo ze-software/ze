@@ -62,6 +62,9 @@ func (a *radiusAuth) handle(req ppp.EventAuthRequest, respond l2tp.AuthRespondFu
 	a.mu.RUnlock()
 
 	if client == nil {
+		if req.Method == ppp.AuthMethodNone {
+			return l2tp.AuthResult{Accept: true, Message: "no-auth accepted (no RADIUS client)"}
+		}
 		logger().Warn("l2tp-auth-radius: no RADIUS client configured; rejecting",
 			"tunnel", req.TunnelID, "session", req.SessionID)
 		return l2tp.AuthResult{Accept: false, Message: "no RADIUS client"}

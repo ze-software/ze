@@ -200,10 +200,20 @@ func (s *pppSession) run(start StartSession) {
 		negoTimer  *time.Timer
 		negoTimerC <-chan time.Time
 	)
+	// RFC 1661 Section 4.6: restart timer retransmits ConfReq while
+	// in ReqSent or AckSent. Fires every 3s until LCP reaches Opened,
+	// then is stopped alongside negoTimer.
+	var (
+		restartTicker  *time.Ticker
+		restartTickerC <-chan time.Time
+	)
 	if !isProxy {
 		negoTimer = time.NewTimer(defaultNegoTimeout)
 		defer negoTimer.Stop()
 		negoTimerC = negoTimer.C
+		restartTicker = time.NewTicker(3 * time.Second)
+		defer restartTicker.Stop()
+		restartTickerC = restartTicker.C
 	}
 
 	// Echo ticker. Enabled after Opened. In the proxy path we are
@@ -288,6 +298,14 @@ func (s *pppSession) run(start StartSession) {
 			s.fail("LCP negotiation timeout after " + defaultNegoTimeout.String())
 			return
 
+		case <-restartTickerC:
+			s.mu.Lock()
+			st := s.state
+			s.mu.Unlock()
+			if st == LCPStateReqSent || st == LCPStateAckSent {
+				s.sendConfigureRequest()
+			}
+
 		case <-echoTickerC:
 			s.mu.Lock()
 			s.echoOutstanding++
@@ -347,6 +365,10 @@ func (s *pppSession) run(start StartSession) {
 				if negoTimer != nil {
 					negoTimer.Stop()
 					negoTimerC = nil
+				}
+				if restartTicker != nil {
+					restartTicker.Stop()
+					restartTickerC = nil
 				}
 				echoTickerC = echoTicker.C
 				// Initial auth has completed (afterLCPOpen ran

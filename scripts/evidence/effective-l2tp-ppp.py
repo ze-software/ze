@@ -504,7 +504,8 @@ def write_inputs(work: Path) -> None:
         "ipcp-accept-remote\n"
         "noipv6\n"
         "debug\n"
-        "nodetach\n",
+        "nodetach\n"
+        f"logfile {work / 'pppd.log'}\n",
         encoding="utf-8",
     )
     (work / "ze.conf").write_text(
@@ -592,6 +593,9 @@ def main() -> int:
             lines_contain("L2TP listener bound"), 20, ze_proc, fatal_pre_session
         ):
             raise RuntimeError("ze L2TP listener did not start")
+
+        if not ze_log.wait_for(lines_contain("l2tp-pool: configured"), 30, ze_proc):
+            raise RuntimeError("ze l2tp-pool plugin did not load")
 
         xl2tpd = ns_popen(
             LAC_NS,
@@ -689,6 +693,32 @@ def main() -> int:
         if ze_proc is not None:
             lines = ze_log.snapshot() if "ze_log" in locals() else []
             sys.stderr.write("ze log tail:\n" + "".join(lines[-100:]))
+        sys.stderr.write("\n--- diagnostics ---\n")
+        for ns_name in [ZE_NS, LAC_NS]:
+            for diag_cmd in [
+                ["ip", "l2tp", "show", "tunnel"],
+                ["ip", "l2tp", "show", "session"],
+                ["ip", "link", "show", "type", "ppp"],
+            ]:
+                r = ns_run(
+                    ns_name, diag_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                )
+                if r.returncode == 0 and r.stdout:
+                    sys.stderr.write(f"{ns_name} {' '.join(diag_cmd)}:\n{r.stdout}")
+        pppd_log = work / "pppd.log" if "work" in locals() else None
+        if pppd_log and pppd_log.is_file():
+            sys.stderr.write(f"\npppd.log:\n{pppd_log.read_text()}\n")
+        else:
+            sys.stderr.write("\npppd.log: not found\n")
+        for ns_name in [ZE_NS, LAC_NS]:
+            r = ns_run(
+                ns_name,
+                ["cat", "/proc/net/pppol2tp"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            if r.returncode == 0 and r.stdout:
+                sys.stderr.write(f"\n{ns_name} /proc/net/pppol2tp:\n{r.stdout}")
         return 1
     finally:
         terminate(xl2tpd)

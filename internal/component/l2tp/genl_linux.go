@@ -95,23 +95,85 @@ func resolveGenlFamily() (*genlConn, error) {
 // RFC 2661 Section 21: creates the kernel-side tunnel context that
 // intercepts L2TP data messages (T=0) on the UDP socket.
 //
-// Passes the listener's unconnected UDP socket fd. The kernel associates
-// the existing socket with the L2TP tunnel for data-plane interception.
+// Creates a connected UDP socket (SO_REUSEPORT, same local port as
+// the listener) per tunnel. The kernel L2TP module reads the peer
+// address from the socket's inet_daddr for outbound data packets;
+// an unconnected listener socket would leave daddr=0 and all TX fails.
+// The connected socket fd is returned for cleanup on tunnel delete.
 func (g *genlConn) tunnelCreate(localTID, remoteTID uint16, socketFD int, peerAddr netip.AddrPort) (connFD int, err error) {
+	connFD, err = connectedUDPSocket(socketFD, peerAddr)
+	if err != nil {
+		return -1, fmt.Errorf("l2tp: connected socket for tunnel (peer=%s): %w", peerAddr, err)
+	}
+
 	req := nl.NewNetlinkRequest(int(g.familyID), unix.NLM_F_ACK)
 	req.AddData(newGenlHeader(l2tpCmdTunnelCreate, genlL2TPVersion))
 	req.AddData(nl.NewRtAttr(l2tpAttrConnID, nl.Uint32Attr(uint32(localTID))))
 	req.AddData(nl.NewRtAttr(l2tpAttrPeerConnID, nl.Uint32Attr(uint32(remoteTID))))
 	req.AddData(nl.NewRtAttr(l2tpAttrProtoVersion, nl.Uint8Attr(2)))
 	req.AddData(nl.NewRtAttr(l2tpAttrEncapType, nl.Uint16Attr(l2tpEncapUDP)))
-	req.AddData(nl.NewRtAttr(l2tpAttrFD, nl.Uint32Attr(uint32(socketFD))))
+	req.AddData(nl.NewRtAttr(l2tpAttrFD, nl.Uint32Attr(uint32(connFD))))
 
 	_, execErr := req.Execute(unix.NETLINK_GENERIC, 0)
 	if execErr != nil {
-		return -1, fmt.Errorf("l2tp: genl tunnel create (local=%d peer=%d fd=%d): %w",
-			localTID, remoteTID, socketFD, execErr)
+		unix.Close(connFD) //nolint:errcheck // rollback
+		return -1, fmt.Errorf("l2tp: genl tunnel create (local=%d peer=%d): %w",
+			localTID, remoteTID, execErr)
 	}
-	return -1, nil
+	return connFD, nil
+}
+
+// connectedUDPSocket creates a new UDP socket bound to the same local
+// address as listenerFD (via SO_REUSEPORT) and connected to peerAddr.
+// The connected socket gives the kernel L2TP module a valid inet_daddr
+// for outbound data packets.
+func connectedUDPSocket(listenerFD int, peerAddr netip.AddrPort) (int, error) {
+	localSA, err := unix.Getsockname(listenerFD)
+	if err != nil {
+		return -1, fmt.Errorf("getsockname: %w", err)
+	}
+
+	var bindSA unix.Sockaddr
+	switch sa := localSA.(type) {
+	case *unix.SockaddrInet4:
+		bindSA = &unix.SockaddrInet4{Port: sa.Port}
+		copy(bindSA.(*unix.SockaddrInet4).Addr[:], sa.Addr[:])
+	case *unix.SockaddrInet6:
+		bindSA = &unix.SockaddrInet4{Port: sa.Port}
+	default:
+		return -1, fmt.Errorf("unsupported sockaddr type %T", localSA)
+	}
+
+	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, 0)
+	if err != nil {
+		return -1, fmt.Errorf("socket: %w", err)
+	}
+
+	if err := unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_REUSEPORT, 1); err != nil {
+		unix.Close(fd) //nolint:errcheck // rollback
+		return -1, fmt.Errorf("SO_REUSEPORT: %w", err)
+	}
+
+	if err := unix.Bind(fd, bindSA); err != nil {
+		unix.Close(fd) //nolint:errcheck // rollback
+		return -1, fmt.Errorf("bind: %w", err)
+	}
+
+	peer := peerAddr.Addr().Unmap()
+	if !peer.Is4() {
+		unix.Close(fd) //nolint:errcheck // rollback
+		return -1, fmt.Errorf("peer %s is not IPv4", peerAddr.Addr())
+	}
+	ip4 := peer.As4()
+	peerSA := &unix.SockaddrInet4{Port: int(peerAddr.Port())}
+	copy(peerSA.Addr[:], ip4[:])
+
+	if err := unix.Connect(fd, peerSA); err != nil {
+		unix.Close(fd) //nolint:errcheck // rollback
+		return -1, fmt.Errorf("connect: %w", err)
+	}
+
+	return fd, nil
 }
 
 // tunnelDelete sends L2TP_CMD_TUNNEL_DELETE to the kernel.

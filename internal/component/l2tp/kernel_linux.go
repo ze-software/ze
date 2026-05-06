@@ -250,7 +250,8 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 		ts = &kernelTunnelState{localTID: ev.localTID, connFD: connFD}
 		w.tunnels[ev.localTID] = ts
 		w.logger.Info("l2tp: kernel tunnel created",
-			"local-tid", ev.localTID, "remote-tid", ev.remoteTID)
+			"local-tid", ev.localTID, "remote-tid", ev.remoteTID,
+			"peer-addr", ev.peerAddr.String())
 	}
 
 	// Step 2: create kernel session.
