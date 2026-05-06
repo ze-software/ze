@@ -15,6 +15,13 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// sockaddrPPPoL2TPSize is the packed size of struct sockaddr_pppol2tp.
+// The kernel header uses __packed, so there is NO alignment padding
+// between sa_family (uint16) and sa_protocol (uint32). Go's struct
+// alignment would insert 2 bytes of padding, producing a 40-byte
+// struct instead of the kernel's 38 bytes.
+const sockaddrPPPoL2TPSize = 38
+
 // PPPoL2TP socket constants.
 // RFC 2661 Section 21: AF_PPPOX socket with PX_PROTO_OL2TP protocol.
 const (
@@ -38,48 +45,34 @@ const (
 // /dev/ppp ioctl numbers.
 // These are architecture-dependent but stable on x86_64 and arm64.
 const (
-	pppiocGChan   = 0x800437b4 // PPPIOCGCHAN: get PPP channel index
-	pppiocAttChan = 0x400437b8 // PPPIOCATTCHAN: attach channel to /dev/ppp fd
+	pppiocGChan   = 0x80047437 // PPPIOCGCHAN: _IOR('t', 55, int)
+	pppiocAttChan = 0x40047438 // PPPIOCATTCHAN: _IOW('t', 56, int)
 	pppiocNewUnit = 0xc004743e // PPPIOCNEWUNIT: allocate PPP unit (creates pppN)
 	pppiocConnect = 0x4004743a // PPPIOCCONNECT: connect channel to unit
 )
 
-// sockaddrPPPoL2TP is the binary layout of struct sockaddr_pppol2tp
-// for IPv4 L2TPv2 sessions. Used with connect() on AF_PPPOX sockets.
+// buildSockaddrPPPoL2TP constructs the packed binary representation of
+// struct sockaddr_pppol2tp for connect(). The peer address must be IPv4.
 //
-// The struct layout matches the kernel's sockaddr_pppol2tp:
+// The kernel struct is __packed (38 bytes). Go's natural alignment would
+// insert 2 bytes padding between sa_family (uint16) and sa_protocol
+// (uint32), producing 40 bytes. We serialize manually at packed offsets.
 //
-//	sa_family  (2 bytes): AF_PPPOX
-//	sa_protocol(4 bytes): PX_PROTO_OL2TP
-//	pid        (4 bytes): 0 (current process)
-//	fd         (4 bytes): tunnel UDP socket fd
-//	addr       (16 bytes): sockaddr_in (peer address)
-//	s_tunnel   (2 bytes): local tunnel ID
-//	s_session  (2 bytes): local session ID
-//	d_tunnel   (2 bytes): remote tunnel ID
-//	d_session  (2 bytes): remote session ID
-type sockaddrPPPoL2TP struct {
-	Family   uint16
-	Protocol uint32
-	PID      int32
-	FD       int32
-	Addr     rawSockaddrInet4
-	STunnel  uint16
-	SSession uint16
-	DTunnel  uint16
-	DSession uint16
-}
-
-// rawSockaddrInet4 is the binary layout of struct sockaddr_in.
-type rawSockaddrInet4 struct {
-	Family uint16
-	Port   uint16 // network byte order
-	Addr   [4]byte
-	Zero   [8]byte
-}
-
-// buildSockaddrPPPoL2TP constructs the binary representation of
-// sockaddr_pppol2tp for connect(). The peer address must be IPv4.
+// Packed layout:
+//
+//	[0:2]   sa_family   (uint16 LE): AF_PPPOX
+//	[2:6]   sa_protocol (uint32 LE): PX_PROTO_OL2TP
+//	[6:10]  pid         (int32  LE): 0
+//	[10:14] fd          (int32  LE): tunnel UDP socket fd
+//	[14:30] sockaddr_in:
+//	  [14:16] sin_family (uint16 LE): AF_INET
+//	  [16:18] sin_port   (uint16 BE): peer port
+//	  [18:22] sin_addr   (4 bytes):   peer IPv4
+//	  [22:30] sin_zero   (8 bytes):   zero
+//	[30:32] s_tunnel    (uint16 LE): local tunnel ID
+//	[32:34] s_session   (uint16 LE): local session ID
+//	[34:36] d_tunnel    (uint16 LE): remote tunnel ID
+//	[36:38] d_session   (uint16 LE): remote session ID
 func buildSockaddrPPPoL2TP(
 	socketFD int,
 	peerAddr netip.AddrPort,
@@ -89,37 +82,21 @@ func buildSockaddrPPPoL2TP(
 		return nil, fmt.Errorf("l2tp: pppol2tp sockaddr requires IPv4, got %s", peerAddr.Addr())
 	}
 
-	sa := sockaddrPPPoL2TP{
-		Family:   afPPPOX,
-		Protocol: pxProtoOL2TP,
-		PID:      0,
-		FD:       int32(socketFD),
-		Addr: rawSockaddrInet4{
-			Family: unix.AF_INET,
-			Port:   htons(peerAddr.Port()),
-			Addr:   peerAddr.Addr().As4(),
-		},
-		STunnel:  localTID,
-		SSession: localSID,
-		DTunnel:  remoteTID,
-		DSession: remoteSID,
-	}
-
-	size := unsafe.Sizeof(sa)
-	buf := make([]byte, size)
-	// sockaddr_pppol2tp has no Go-friendly accessor; the kernel reads
-	// the raw byte layout. #nosec G103 -- required for binary struct copy.
-	copy(buf, (*[128]byte)(unsafe.Pointer(&sa))[:size]) //nolint:gosec // sockaddr binary layout
+	buf := make([]byte, sockaddrPPPoL2TPSize)
+	binary.LittleEndian.PutUint16(buf[0:2], afPPPOX)
+	binary.LittleEndian.PutUint32(buf[2:6], pxProtoOL2TP)
+	binary.LittleEndian.PutUint32(buf[6:10], 0) // pid
+	binary.LittleEndian.PutUint32(buf[10:14], uint32(socketFD))
+	binary.LittleEndian.PutUint16(buf[14:16], unix.AF_INET)
+	binary.BigEndian.PutUint16(buf[16:18], peerAddr.Port())
+	ip4 := peerAddr.Addr().As4()
+	copy(buf[18:22], ip4[:])
+	// [22:30] sin_zero already zeroed
+	binary.LittleEndian.PutUint16(buf[30:32], localTID)
+	binary.LittleEndian.PutUint16(buf[32:34], localSID)
+	binary.LittleEndian.PutUint16(buf[34:36], remoteTID)
+	binary.LittleEndian.PutUint16(buf[36:38], remoteSID)
 	return buf, nil
-}
-
-// htons converts a uint16 from host to network byte order.
-func htons(v uint16) uint16 {
-	var buf [2]byte
-	binary.BigEndian.PutUint16(buf[:], v)
-	// Reinterpret the network-order bytes as a uint16 value whose native
-	// in-memory layout is the correct sockaddr_in::sin_port encoding.
-	return *(*uint16)(unsafe.Pointer(&buf[0])) //nolint:gosec // sockaddr port layout
 }
 
 // pppoxCreate creates a PPPoL2TP socket and connects it to the kernel
