@@ -152,19 +152,34 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 # Release evidence matrix: encode, plugin, parse, decode, reload, ui, editor,
 # managed, l2tp, firewall, web. Suites not in this list (static, traffic,
 # vpp, l2tp-wire, chaos-web) have runners but need platform deps or infra.
+# ZE_SKIP_SUITES: comma-separated list of suites to skip (e.g. firewall,web
+# for Docker environments without agent-browser or native process control).
+ZE_SKIP_SUITES ?=
 ze-functional-test: bin/ze bin/ze-test
-	@failed=0; failed_names=""; \
-	$(SUITE_RUN) bin/ze-test bgp encode --all -p $(ZE_ENCODE_PARALLEL) || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }encode"; }; \
-	$(SUITE_RUN) bin/ze-test bgp plugin --all -p $(ZE_PLUGIN_PARALLEL) || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }plugin"; }; \
-	$(SUITE_RUN) bin/ze-test bgp parse --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }parse"; }; \
-	$(SUITE_RUN) bin/ze-test bgp decode --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }decode"; }; \
-	$(SUITE_RUN) bin/ze-test bgp reload --all -p 1 || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }reload"; }; \
-	$(SUITE_RUN) bin/ze-test ui --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }ui"; }; \
-	$(SUITE_RUN) bin/ze-test editor || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }editor"; }; \
-	$(SUITE_RUN) bin/ze-test managed --all -p 1 || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }managed"; }; \
-	$(SUITE_RUN) bin/ze-test l2tp --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }l2tp"; }; \
-	$(SUITE_RUN) bin/ze-test firewall --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }firewall"; }; \
-	$(SUITE_RUN) bin/ze-test web --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }web"; }; \
+	@failed=0; failed_names=""; skipped_names=""; total=0; \
+	run_suite() { \
+		suite="$$1"; shift; \
+		if echo ",$(ZE_SKIP_SUITES)," | grep -q ",$$suite,"; then \
+			skipped_names="$${skipped_names:+$$skipped_names }$$suite"; \
+			return 0; \
+		fi; \
+		total=$$((total + 1)); \
+		"$$@" || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }$$suite"; }; \
+	}; \
+	run_suite encode $(SUITE_RUN) bin/ze-test bgp encode --all -p $(ZE_ENCODE_PARALLEL); \
+	run_suite plugin $(SUITE_RUN) bin/ze-test bgp plugin --all -p $(ZE_PLUGIN_PARALLEL); \
+	run_suite parse $(SUITE_RUN) bin/ze-test bgp parse --all; \
+	run_suite decode $(SUITE_RUN) bin/ze-test bgp decode --all; \
+	run_suite reload $(SUITE_RUN) bin/ze-test bgp reload --all -p 1; \
+	run_suite ui $(SUITE_RUN) bin/ze-test ui --all; \
+	run_suite editor $(SUITE_RUN) bin/ze-test editor; \
+	run_suite managed $(SUITE_RUN) bin/ze-test managed --all -p 1; \
+	run_suite l2tp $(SUITE_RUN) bin/ze-test l2tp --all; \
+	run_suite firewall $(SUITE_RUN) bin/ze-test firewall --all; \
+	run_suite web $(SUITE_RUN) bin/ze-test web --all; \
+	if [ -n "$$skipped_names" ]; then \
+		printf "\n\033[33mSKIPPED suites (ZE_SKIP_SUITES): %s\033[0m\n" "$$skipped_names"; \
+	fi; \
 	if [ $$failed -gt 0 ]; then \
 		printf "\n════════════════════════════════════════\n"; \
 		printf "\033[31mFAIL  %d suite(s) failed: %s\033[0m\n" $$failed "$$failed_names"; \
@@ -176,7 +191,7 @@ ze-functional-test: bin/ze bin/ze-test
 		exit 1; \
 	else \
 		printf "\n════════════════════════════════════════\n"; \
-		printf "\033[32mPASS  all 11 suites\033[0m\n\n"; \
+		printf "\033[32mPASS  all $$total suites\033[0m\n\n"; \
 	fi
 
 # Run ze functional test suites individually. Same SUITE_RUN wall-clock cap
