@@ -29,14 +29,21 @@ docker run --rm \
     --privileged \
     --platform "$PLATFORM" \
     -v "$ROOT:/host:ro" \
+    -v ze-gomod-cache:/go/pkg/mod \
+    -v ze-gobuild-cache:/root/.cache/go-build \
+    -v ze-apt-cache:/var/cache/apt \
+    -v ze-uv-cache:/root/.local/bin \
     "$IMAGE" \
     bash -lc '
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
+rm -f /etc/apt/apt.conf.d/docker-clean
 apt-get update
 apt-get install -y --no-install-recommends build-essential curl git iputils-ping iproute2 iptables nftables python3 python3-venv util-linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
+if ! command -v uv >/dev/null 2>&1; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
 export PATH="/go/bin:/usr/local/go/bin:$HOME/.local/bin:$PATH"
 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
 
