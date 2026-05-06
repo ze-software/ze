@@ -1,0 +1,21 @@
+# QEMU evidence VM support.
+#
+# These options let the gokrazy-built kernel boot Alpine Linux from its
+# ISO in QEMU, providing a full userspace for running evidence scripts
+# that need xl2tpd, pppd, and other tools unavailable in the appliance.
+CONFIG_ISO9660_FS=y
+CONFIG_CDROM=y
+CONFIG_BLK_DEV_SR=y
+CONFIG_SCSI=y
+CONFIG_SCSI_MOD=y
+CONFIG_ATA=y
+CONFIG_SQUASHFS=y
+CONFIG_SQUASHFS_XZ=y
+CONFIG_SQUASHFS_ZLIB=y
+CONFIG_OVERLAY_FS=y
+CONFIG_TMPFS=y
+CONFIG_LOOP=y
+CONFIG_9P_FS=y
+CONFIG_9P_FS_POSIX_ACL=y
+CONFIG_NET_9P=y
+CONFIG_NET_9P_VIRTIO=y

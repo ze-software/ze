@@ -7,7 +7,7 @@
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
 .PHONY: ze-interop-test ze-stress-test ze-stress-bird-test ze-stress-profile ze-live-test ze-live-rpki-test
-.PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test ze-docker-evidence ze-deployment-preflight
+.PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test ze-docker-evidence ze-deployment-preflight ze-qemu-integration-test ze-qemu-l2tp-ppp-test
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
@@ -609,6 +609,26 @@ ze-deployment-preflight:
 	if [ -e /dev/ppp ] && { [ -e /proc/net/pppol2tp ] || [ -d /sys/module/l2tp_ppp ] || [ -d /sys/module/pppol2tp ]; } && command -v ip >/dev/null 2>&1 && command -v ping >/dev/null 2>&1 && command -v xl2tpd >/dev/null 2>&1 && command -v pppd >/dev/null 2>&1; then echo "ok: xl2tpd + pppd + ping + /dev/ppp + iproute2 + PPPoL2TP kernel support for full PPP/NCP peer evidence"; else echo "missing: xl2tpd + pppd + ping + /dev/ppp + iproute2 + PPPoL2TP kernel support (full PPP/NCP peer evidence)"; missing=1; fi; \
 	exit $$missing
 
+# Run integration tests in a QEMU Linux VM (CAP_NET_ADMIN, netns, nft, tc).
+# Works on macOS -- no Docker Desktop kernel limitations.
+ze-qemu-integration-test:
+	@echo "Running integration tests in QEMU Linux VM (requires qemu + internet for first run)..."
+	python3 scripts/evidence/qemu-run.py \
+		--packages "nftables iproute2 iputils-ping kmod iptables" \
+		--run 'go test -tags integration -count=1 -timeout 120s ./internal/component/iface/... ./internal/plugins/fib/kernel/... ./internal/plugins/firewall/nft/... ./internal/plugins/traffic/netlink/...'
+
+# Run full L2TP PPP/NCP peer test in a QEMU Linux VM (PPPoL2TP kernel, xl2tpd, pppd).
+# Works on macOS -- uses the gokrazy kernel with built-in PPPoL2TP support.
+# Prerequisite: make ze-kernel GOKRAZY_ARCH=arm64  (or amd64)
+ze-qemu-l2tp-ppp-test:
+	@test -f tmp/kernel/vmlinuz || { echo "error: tmp/kernel/vmlinuz not found (run: make ze-kernel GOKRAZY_ARCH=arm64)"; exit 1; }
+	@echo "Running L2TP PPP/NCP peer test in QEMU Linux VM with gokrazy kernel..."
+	python3 scripts/evidence/qemu-run.py \
+		--kernel tmp/kernel/vmlinuz \
+		--packages "xl2tpd ppp iproute2 iputils-ping nftables kmod python3" \
+		--run 'python3 scripts/evidence/effective-l2tp-ppp.py' \
+		--timeout 600
+
 # ─── Performance benchmarks ────────────────────────────────────────────────
 
 # Build ze-perf binary
@@ -1137,6 +1157,8 @@ help:
 	@echo "  ze-deployment-l2tp-ppp-docker-test - Run L2TP PPP/NCP peer-isolated Docker lab (Ze LNS + LAC + FRR)"
 	@echo "  ze-docker-evidence EVIDENCE_SCRIPT=... EVIDENCE_PACKAGES=... - Run any evidence script in Docker"
 	@echo "  ze-deployment-preflight - Check deployment test tooling"
+	@echo "  ze-qemu-integration-test - Run integration tests in QEMU VM (macOS-friendly)"
+	@echo "  ze-qemu-l2tp-ppp-test - Run full L2TP PPP/NCP peer test in QEMU VM (macOS-friendly)"
 	@echo ""
 	@echo "  Live tests (Docker + internet):"
 	@echo "  ze-live-test             - Run all live integration tests"
