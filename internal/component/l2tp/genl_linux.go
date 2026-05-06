@@ -8,6 +8,7 @@ package l2tp
 import (
 	"encoding/binary"
 	"fmt"
+	"net/netip"
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
@@ -36,15 +37,19 @@ const (
 const (
 	l2tpAttrPwType        = 1  // NLA_U16: pseudowire type (7 = PPP)
 	l2tpAttrEncapType     = 2  // NLA_U16: encapsulation (0 = UDP)
-	l2tpAttrProtoVersion  = 7  // NLA_U8:  protocol version (2 for L2TPv2)
-	l2tpAttrConnID        = 8  // NLA_U32: local tunnel ID
-	l2tpAttrPeerConnID    = 9  // NLA_U32: peer tunnel ID
-	l2tpAttrSessionID     = 10 // NLA_U32: local session ID
-	l2tpAttrPeerSessionID = 11 // NLA_U32: peer session ID
-	l2tpAttrRecvSeq       = 17 // NLA_U8:  require sequence numbers on recv
-	l2tpAttrSendSeq       = 18 // NLA_U8:  include sequence numbers on send
-	l2tpAttrLNSMode       = 19 // NLA_U8:  LNS mode (auto-enables seq)
-	l2tpAttrFD            = 22 // NLA_U32: file descriptor of UDP socket
+	l2tpAttrProtoVersion  = 7  // NLA_U8:  protocol version
+	l2tpAttrConnID        = 9  // NLA_U32: local tunnel ID
+	l2tpAttrPeerConnID    = 10 // NLA_U32: peer tunnel ID
+	l2tpAttrSessionID     = 11 // NLA_U32: local session ID
+	l2tpAttrPeerSessionID = 12 // NLA_U32: peer session ID
+	l2tpAttrRecvSeq       = 18 // NLA_U8:  require sequence numbers on recv
+	l2tpAttrSendSeq       = 19 // NLA_U8:  include sequence numbers on send
+	l2tpAttrLNSMode       = 20 // NLA_U8:  LNS mode (auto-enables seq)
+	l2tpAttrFD            = 23 // NLA_U32: file descriptor of UDP socket
+	l2tpAttrIPSAddr       = 24 // NLA_U32: source IPv4 address
+	l2tpAttrIPDAddr       = 25 // NLA_U32: destination IPv4 address
+	l2tpAttrUDPSPort      = 26 // NLA_U16: source UDP port
+	l2tpAttrUDPDPort      = 27 // NLA_U16: destination UDP port
 )
 
 // L2TPv2 pseudowire type for PPP sessions.
@@ -52,6 +57,23 @@ const l2tpPWTypePPP uint16 = 7
 
 // l2tpEncapUDP is the encapsulation type for UDP.
 const l2tpEncapUDP uint16 = 0
+
+// genlHeader is a 4-byte Generic Netlink message header with an
+// explicitly zeroed reserved field. The vishvananda nl.Genlmsg struct
+// is only 2 bytes (cmd + version) but serializes 4 bytes via unsafe
+// pointer, leaking stack garbage into the reserved field. The kernel
+// L2TP module rejects non-zero reserved bytes with ERANGE.
+type genlHeader [4]byte
+
+func newGenlHeader(cmd, version uint8) *genlHeader {
+	var h genlHeader
+	h[0] = cmd
+	h[1] = version
+	return &h
+}
+
+func (h *genlHeader) Len() int          { return 4 }
+func (h *genlHeader) Serialize() []byte { return h[:] }
 
 // genlConn holds a resolved Generic Netlink family for the L2TP module.
 type genlConn struct {
@@ -72,33 +94,31 @@ func resolveGenlFamily() (*genlConn, error) {
 // tunnelCreate sends L2TP_CMD_TUNNEL_CREATE to the kernel.
 // RFC 2661 Section 21: creates the kernel-side tunnel context that
 // intercepts L2TP data messages (T=0) on the UDP socket.
-func (g *genlConn) tunnelCreate(localTID, remoteTID uint16, socketFD int) error {
+//
+// Passes the listener's unconnected UDP socket fd. The kernel associates
+// the existing socket with the L2TP tunnel for data-plane interception.
+func (g *genlConn) tunnelCreate(localTID, remoteTID uint16, socketFD int, peerAddr netip.AddrPort) (connFD int, err error) {
 	req := nl.NewNetlinkRequest(int(g.familyID), unix.NLM_F_ACK)
-	req.AddData(&nl.Genlmsg{
-		Command: l2tpCmdTunnelCreate,
-		Version: genlL2TPVersion,
-	})
+	req.AddData(newGenlHeader(l2tpCmdTunnelCreate, genlL2TPVersion))
 	req.AddData(nl.NewRtAttr(l2tpAttrConnID, nl.Uint32Attr(uint32(localTID))))
 	req.AddData(nl.NewRtAttr(l2tpAttrPeerConnID, nl.Uint32Attr(uint32(remoteTID))))
 	req.AddData(nl.NewRtAttr(l2tpAttrProtoVersion, nl.Uint8Attr(2)))
 	req.AddData(nl.NewRtAttr(l2tpAttrEncapType, nl.Uint16Attr(l2tpEncapUDP)))
 	req.AddData(nl.NewRtAttr(l2tpAttrFD, nl.Uint32Attr(uint32(socketFD))))
 
-	_, err := req.Execute(unix.NETLINK_GENERIC, 0)
-	if err != nil {
-		return fmt.Errorf("l2tp: genl tunnel create (local=%d peer=%d): %w", localTID, remoteTID, err)
+	_, execErr := req.Execute(unix.NETLINK_GENERIC, 0)
+	if execErr != nil {
+		return -1, fmt.Errorf("l2tp: genl tunnel create (local=%d peer=%d fd=%d): %w",
+			localTID, remoteTID, socketFD, execErr)
 	}
-	return nil
+	return -1, nil
 }
 
 // tunnelDelete sends L2TP_CMD_TUNNEL_DELETE to the kernel.
 // RFC 2661 Section 24.25: tunnel deletion after all sessions removed.
 func (g *genlConn) tunnelDelete(localTID uint16) error {
 	req := nl.NewNetlinkRequest(int(g.familyID), unix.NLM_F_ACK)
-	req.AddData(&nl.Genlmsg{
-		Command: l2tpCmdTunnelDelete,
-		Version: genlL2TPVersion,
-	})
+	req.AddData(newGenlHeader(l2tpCmdTunnelDelete, genlL2TPVersion))
 	req.AddData(nl.NewRtAttr(l2tpAttrConnID, nl.Uint32Attr(uint32(localTID))))
 
 	_, err := req.Execute(unix.NETLINK_GENERIC, 0)
@@ -124,10 +144,7 @@ type sessionCreateParams struct {
 // PPPoL2TP socket can connect (Section 24.21).
 func (g *genlConn) sessionCreate(p sessionCreateParams) error {
 	req := nl.NewNetlinkRequest(int(g.familyID), unix.NLM_F_ACK)
-	req.AddData(&nl.Genlmsg{
-		Command: l2tpCmdSessionCreate,
-		Version: genlL2TPVersion,
-	})
+	req.AddData(newGenlHeader(l2tpCmdSessionCreate, genlL2TPVersion))
 	req.AddData(nl.NewRtAttr(l2tpAttrConnID, nl.Uint32Attr(uint32(p.tunnelID))))
 	req.AddData(nl.NewRtAttr(l2tpAttrSessionID, nl.Uint32Attr(uint32(p.localSID))))
 	req.AddData(nl.NewRtAttr(l2tpAttrPeerSessionID, nl.Uint32Attr(uint32(p.remoteSID))))
@@ -155,10 +172,7 @@ func (g *genlConn) sessionCreate(p sessionCreateParams) error {
 // RFC 2661 Section 24.25: session deletion before tunnel deletion.
 func (g *genlConn) sessionDelete(tunnelID, localSID uint16) error {
 	req := nl.NewNetlinkRequest(int(g.familyID), unix.NLM_F_ACK)
-	req.AddData(&nl.Genlmsg{
-		Command: l2tpCmdSessionDelete,
-		Version: genlL2TPVersion,
-	})
+	req.AddData(newGenlHeader(l2tpCmdSessionDelete, genlL2TPVersion))
 	req.AddData(nl.NewRtAttr(l2tpAttrConnID, nl.Uint32Attr(uint32(tunnelID))))
 	req.AddData(nl.NewRtAttr(l2tpAttrSessionID, nl.Uint32Attr(uint32(localSID))))
 

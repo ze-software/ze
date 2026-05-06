@@ -36,14 +36,14 @@ type fakeKernelOps struct {
 
 func (f *fakeKernelOps) ops() kernelOps {
 	return kernelOps{
-		tunnelCreate: func(local, remote uint16, fd int) error {
+		tunnelCreate: func(local, remote uint16, fd int, _ netip.AddrPort) (int, error) {
 			f.mu.Lock()
 			defer f.mu.Unlock()
 			if f.failTunnelCreate != nil {
-				return f.failTunnelCreate
+				return -1, f.failTunnelCreate
 			}
 			f.tunnelCreated = append(f.tunnelCreated, local)
-			return nil
+			return -1, nil
 		},
 		tunnelDelete: func(local uint16) error {
 			f.mu.Lock()

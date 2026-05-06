@@ -99,17 +99,24 @@ func (u *UDPListener) Start(ctx context.Context) error {
 	// option Linux's default (`net.ipv6.bindv6only=0`) silently makes the
 	// socket dual-stack.
 	var lc net.ListenConfig
-	if isV6 {
-		lc.Control = func(_, _ string, c syscall.RawConn) error {
-			var opErr error
-			ctrlErr := c.Control(func(fd uintptr) {
-				opErr = unix.SetsockoptInt(int(fd), unix.IPPROTO_IPV6, unix.IPV6_V6ONLY, 1)
-			})
-			if ctrlErr != nil {
-				return ctrlErr
+	lc.Control = func(_, _ string, c syscall.RawConn) error {
+		var opErr error
+		ctrlErr := c.Control(func(fd uintptr) {
+			// SO_REUSEPORT allows the kernel tunnel worker to create a
+			// second connected socket on the same local port for
+			// L2TP_CMD_TUNNEL_CREATE.
+			opErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEPORT, 1)
+			if opErr != nil {
+				return
 			}
-			return opErr
+			if isV6 {
+				opErr = unix.SetsockoptInt(int(fd), unix.IPPROTO_IPV6, unix.IPV6_V6ONLY, 1)
+			}
+		})
+		if ctrlErr != nil {
+			return ctrlErr
 		}
+		return opErr
 	}
 	pc, err := lc.ListenPacket(ctx, network, u.bind.String())
 	if err != nil {

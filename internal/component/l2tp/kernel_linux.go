@@ -11,6 +11,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/netip"
+	"os"
 	"os/exec"
 	"sync"
 	"sync/atomic"
@@ -23,7 +25,7 @@ import (
 // Tests inject fakes via the struct fields. Production uses newKernelOps().
 type kernelOps struct {
 	// Generic Netlink operations.
-	tunnelCreate  func(localTID, remoteTID uint16, socketFD int) error
+	tunnelCreate  func(localTID, remoteTID uint16, socketFD int, peerAddr netip.AddrPort) (connFD int, err error)
 	tunnelDelete  func(localTID uint16) error
 	sessionCreate func(p sessionCreateParams) error
 	sessionDelete func(tunnelID, localSID uint16) error
@@ -94,6 +96,7 @@ func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
 // kernelTunnelState tracks kernel-side resources for one L2TP tunnel.
 type kernelTunnelState struct {
 	localTID     uint16
+	connFD       int // dup'd connected socket fd; closed on tunnel delete
 	sessionCount int // number of kernel sessions on this tunnel
 }
 
@@ -198,10 +201,7 @@ func (w *kernelWorker) TeardownAll() {
 		w.teardownSessionFDsLocked(key, fds)
 	}
 	for tid := range w.tunnels {
-		if err := w.ops.tunnelDelete(tid); err != nil {
-			w.logger.Warn("l2tp: kernel tunnel delete on shutdown",
-				"tunnel-id", tid, "error", err.Error())
-		}
+		w.deleteTunnelLocked(tid)
 	}
 	w.sessions = make(map[sessionKey]*pppSessionFDs)
 	w.tunnels = make(map[uint16]*kernelTunnelState)
@@ -239,13 +239,15 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 	// Step 1: ensure kernel tunnel exists.
 	ts, tunnelExisted := w.tunnels[ev.localTID]
 	if !tunnelExisted {
-		if err := w.ops.tunnelCreate(ev.localTID, ev.remoteTID, ev.socketFD); err != nil {
+		connFD, err := w.ops.tunnelCreate(ev.localTID, ev.remoteTID, ev.socketFD, ev.peerAddr)
+		if err != nil {
 			w.logger.Error("l2tp: kernel tunnel create failed",
-				"local-tid", ev.localTID, "error", err.Error())
+				"local-tid", ev.localTID, "remote-tid", ev.remoteTID,
+				"socket-fd", ev.socketFD, "error", err.Error())
 			w.reportError(ev.localTID, ev.localSID, err)
 			return
 		}
-		ts = &kernelTunnelState{localTID: ev.localTID}
+		ts = &kernelTunnelState{localTID: ev.localTID, connFD: connFD}
 		w.tunnels[ev.localTID] = ts
 		w.logger.Info("l2tp: kernel tunnel created",
 			"local-tid", ev.localTID, "remote-tid", ev.remoteTID)
@@ -345,14 +347,7 @@ func (w *kernelWorker) teardownSession(ev kernelTeardownEvent) {
 	if ok {
 		ts.sessionCount--
 		if ts.sessionCount <= 0 {
-			if err := w.ops.tunnelDelete(ev.localTID); err != nil {
-				w.logger.Warn("l2tp: kernel tunnel delete failed",
-					"tunnel-id", ev.localTID, "error", err.Error())
-			} else {
-				w.logger.Info("l2tp: kernel tunnel deleted (last session)",
-					"tunnel-id", ev.localTID)
-			}
-			delete(w.tunnels, ev.localTID)
+			w.deleteTunnelLocked(ev.localTID)
 		}
 	}
 }
@@ -387,6 +382,24 @@ func (w *kernelWorker) teardownSessionFDsLocked(key sessionKey, fds *pppSessionF
 	delete(w.sessions, key)
 }
 
+// deleteTunnelLocked deletes the kernel tunnel and closes its connected socket fd.
+func (w *kernelWorker) deleteTunnelLocked(tid uint16) {
+	ts, ok := w.tunnels[tid]
+	if !ok {
+		return
+	}
+	if err := w.ops.tunnelDelete(tid); err != nil {
+		w.logger.Warn("l2tp: kernel tunnel delete failed",
+			"tunnel-id", tid, "error", err.Error())
+	} else {
+		w.logger.Info("l2tp: kernel tunnel deleted", "tunnel-id", tid)
+	}
+	if ts.connFD >= 0 {
+		w.ops.closeFD(ts.connFD) //nolint:errcheck // best-effort cleanup
+	}
+	delete(w.tunnels, tid)
+}
+
 // cleanupTunnelIfNew deletes the kernel tunnel if it was freshly created
 // for this setup attempt and has no sessions.
 func (w *kernelWorker) cleanupTunnelIfNew(localTID uint16, tunnelExisted bool) {
@@ -398,10 +411,7 @@ func (w *kernelWorker) cleanupTunnelIfNew(localTID uint16, tunnelExisted bool) {
 		return
 	}
 	if ts.sessionCount <= 0 {
-		if err := w.ops.tunnelDelete(localTID); err != nil {
-			w.logger.Warn("l2tp: rollback tunnel delete", "error", err.Error())
-		}
-		delete(w.tunnels, localTID)
+		w.deleteTunnelLocked(localTID)
 	}
 }
 
@@ -425,6 +435,9 @@ func (w *kernelWorker) reportError(localTID, localSID uint16, err error) {
 // does not starve the fallback.
 func probeKernelModules() error {
 	for _, mod := range [...]string{"l2tp_ppp", "pppol2tp"} {
+		if moduleBuiltIn(mod) {
+			return nil
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		// mod is bound to literals from the array above; not user input.
 		err := exec.CommandContext(ctx, "modprobe", mod).Run() //nolint:gosec // mod is a compile-time constant
@@ -434,6 +447,11 @@ func probeKernelModules() error {
 		}
 	}
 	return fmt.Errorf("l2tp: failed to load kernel modules (tried l2tp_ppp, pppol2tp)")
+}
+
+func moduleBuiltIn(name string) bool {
+	_, err := os.Stat("/sys/module/" + name)
+	return err == nil
 }
 
 // newSubsystemKernelWorker constructs a kernel worker ready for wiring
