@@ -8,7 +8,7 @@ import (
 
 // VALIDATES: AC-8 -- TBF qdisc type parsed from config.
 func TestShaperConfigParsing_TBF(t *testing.T) {
-	data := `{"shaper":{"qdisc-type":"tbf","default-rate":"10mbit"}}`
+	data := `{"l2tp":{"shaper":{"qdisc-type":"tbf","default-rate":"10mbit"}}}`
 	cfg, found, err := parseShaperConfig(data)
 	if err != nil {
 		t.Fatal(err)
@@ -26,7 +26,7 @@ func TestShaperConfigParsing_TBF(t *testing.T) {
 
 // VALIDATES: AC-9 -- HTB qdisc type parsed from config.
 func TestShaperConfigParsing_HTB(t *testing.T) {
-	data := `{"shaper":{"qdisc-type":"htb","default-rate":"100mbit","upload-rate":"50mbit"}}`
+	data := `{"l2tp":{"shaper":{"qdisc-type":"htb","default-rate":"100mbit","upload-rate":"50mbit"}}}`
 	cfg, found, err := parseShaperConfig(data)
 	if err != nil {
 		t.Fatal(err)
@@ -68,7 +68,7 @@ func TestShaperConfigParsing_EmptyData(t *testing.T) {
 }
 
 func TestShaperConfigValidation_ZeroRate(t *testing.T) {
-	data := `{"shaper":{"qdisc-type":"tbf","default-rate":"0bit"}}`
+	data := `{"l2tp":{"shaper":{"qdisc-type":"tbf","default-rate":"0bit"}}}`
 	_, _, err := parseShaperConfig(data)
 	if err == nil {
 		t.Fatal("expected error for zero rate")
@@ -76,7 +76,7 @@ func TestShaperConfigValidation_ZeroRate(t *testing.T) {
 }
 
 func TestShaperConfigValidation_BadQdisc(t *testing.T) {
-	data := `{"shaper":{"qdisc-type":"fq_codel","default-rate":"10mbit"}}`
+	data := `{"l2tp":{"shaper":{"qdisc-type":"fq_codel","default-rate":"10mbit"}}}`
 	_, _, err := parseShaperConfig(data)
 	if err == nil {
 		t.Fatal("expected error for unsupported qdisc type")
@@ -84,7 +84,7 @@ func TestShaperConfigValidation_BadQdisc(t *testing.T) {
 }
 
 func TestShaperConfigValidation_MissingRate(t *testing.T) {
-	data := `{"shaper":{"qdisc-type":"tbf"}}`
+	data := `{"l2tp":{"shaper":{"qdisc-type":"tbf"}}}`
 	_, _, err := parseShaperConfig(data)
 	if err == nil {
 		t.Fatal("expected error for missing default-rate")
@@ -93,7 +93,7 @@ func TestShaperConfigValidation_MissingRate(t *testing.T) {
 
 // VALIDATES: default qdisc is tbf when omitted.
 func TestShaperConfigParsing_DefaultQdisc(t *testing.T) {
-	data := `{"shaper":{"default-rate":"5mbit"}}`
+	data := `{"l2tp":{"shaper":{"default-rate":"5mbit"}}}`
 	cfg, found, err := parseShaperConfig(data)
 	if err != nil {
 		t.Fatal(err)

@@ -1,4 +1,5 @@
-// Design: docs/research/l2tpv2-implementation-guide.md -- /dev/ppp PPPIOCSMRU
+// Design: docs/research/l2tpv2-implementation-guide.md -- /dev/ppp PPPIOCSMRU, PPPIOCCONNECT
+// Related: ops.go -- pppOps struct referencing realSetMRU, realConnect
 
 //go:build linux
 
@@ -29,6 +30,22 @@ func realSetMRU(unitFD int, mru uint16) error {
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
 		uintptr(unitFD),
 		uintptr(pppiocSMRU),
+		uintptr(unsafe.Pointer(&val)),
+	)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
+
+// pppiocConnect is PPPIOCCONNECT: _IOW('t', 58, int) = 0x4004743a.
+const pppiocConnect = 0x4004743a
+
+func realConnect(chanFD, unitNum int) error {
+	val := int32(unitNum) //nolint:gosec // unitNum is small
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
+		uintptr(chanFD),
+		uintptr(pppiocConnect),
 		uintptr(unsafe.Pointer(&val)),
 	)
 	if errno != 0 {

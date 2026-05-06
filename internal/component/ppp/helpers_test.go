@@ -154,6 +154,7 @@ func newFakeOps() (pppOps, *[]fakeOpsCall, *sync.Mutex) {
 			calls = append(calls, fakeOpsCall{fd, mru})
 			return nil
 		},
+		connect: func(chanFD, unitNum int) error { return nil },
 	}
 	return ops, &calls, &mu
 }
@@ -192,6 +193,8 @@ func installPipeRegistry(t *testing.T, reg *pipeRegistry) {
 	t.Helper()
 	prev := SetNewChanFileForTest(reg.wrap)
 	t.Cleanup(func() { RestoreNewChanFile(prev) })
+	prevUnit := SetNewUnitFileForTest(func(int) io.ReadCloser { return nil })
+	t.Cleanup(func() { RestoreNewUnitFile(prevUnit) })
 }
 
 // pipePair holds the two ends of a net.Pipe.

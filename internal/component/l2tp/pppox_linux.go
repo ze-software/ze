@@ -212,14 +212,22 @@ func devPPPSetup(pppoxFD int) (chanFD, unitFD, unitNum int, err error) {
 		return -1, -1, -1, fmt.Errorf("l2tp: PPPIOCNEWUNIT: %w", err)
 	}
 
-	// Step 4: connect the channel to the unit.
-	if err := ioctlSetInt(chanFD, pppiocConnect, unitNum); err != nil {
-		unix.Close(unitFD) //nolint:errcheck // rollback path; primary error is err
-		unix.Close(chanFD) //nolint:errcheck // rollback path; primary error is err
-		return -1, -1, -1, fmt.Errorf("l2tp: PPPIOCCONNECT: %w", err)
-	}
+	// Step 4 (PPPIOCCONNECT) is deferred until after LCP completes.
+	// Before CONNECT, received frames go to the channel fd's read queue
+	// (pch_is_link_up returns false). After CONNECT, they go to the
+	// unit's read queue. accel-ppp uses the same deferred-connect pattern.
 
 	return chanFD, unitFD, unitNum, nil
+}
+
+// pppConnect connects a PPP channel to its unit (step 4 of the PPP setup).
+// Must be called after LCP negotiation succeeds, before NCP begins.
+// After this call, received frames go to the unit fd's read queue.
+func pppConnect(chanFD, unitNum int) error {
+	if err := ioctlSetInt(chanFD, pppiocConnect, unitNum); err != nil {
+		return fmt.Errorf("l2tp: PPPIOCCONNECT: %w", err)
+	}
+	return nil
 }
 
 // openDevPPP opens /dev/ppp for read-write.

@@ -8,17 +8,19 @@ import (
 
 func TestParseConfigValid(t *testing.T) {
 	tree := map[string]any{
-		"auth": map[string]any{
-			"radius": map[string]any{
-				"nas-identifier": "ze-router",
-				"timeout":        float64(5),
-				"retries":        float64(2),
-				"acct-interval":  float64(120),
-				"server": []any{
-					map[string]any{
-						"address":    "10.0.0.1",
-						"port":       float64(1812),
-						"shared-key": "secret123",
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"radius": map[string]any{
+					"nas-identifier": "ze-router",
+					"timeout":        float64(5),
+					"retries":        float64(2),
+					"acct-interval":  float64(120),
+					"server": []any{
+						map[string]any{
+							"address":    "10.0.0.1",
+							"port":       float64(1812),
+							"shared-key": "secret123",
+						},
 					},
 				},
 			},
@@ -51,12 +53,14 @@ func TestParseConfigValid(t *testing.T) {
 
 func TestParseConfigDefaults(t *testing.T) {
 	tree := map[string]any{
-		"auth": map[string]any{
-			"radius": map[string]any{
-				"server": []any{
-					map[string]any{
-						"address":    "10.0.0.1",
-						"shared-key": "secret",
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"radius": map[string]any{
+					"server": []any{
+						map[string]any{
+							"address":    "10.0.0.1",
+							"shared-key": "secret",
+						},
 					},
 				},
 			},
@@ -90,8 +94,10 @@ func TestParseConfigNoAuthBlock(t *testing.T) {
 
 func TestParseConfigNoRadiusBlock(t *testing.T) {
 	tree := map[string]any{
-		"auth": map[string]any{
-			"local": map[string]any{},
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"local": map[string]any{},
+			},
 		},
 	}
 	_, err := parseConfigFromTree(tree)
@@ -102,11 +108,13 @@ func TestParseConfigNoRadiusBlock(t *testing.T) {
 
 func TestParseConfigMissingAddress(t *testing.T) {
 	tree := map[string]any{
-		"auth": map[string]any{
-			"radius": map[string]any{
-				"server": []any{
-					map[string]any{
-						"shared-key": "secret",
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"radius": map[string]any{
+					"server": []any{
+						map[string]any{
+							"shared-key": "secret",
+						},
 					},
 				},
 			},
@@ -120,11 +128,13 @@ func TestParseConfigMissingAddress(t *testing.T) {
 
 func TestParseConfigMissingSharedKey(t *testing.T) {
 	tree := map[string]any{
-		"auth": map[string]any{
-			"radius": map[string]any{
-				"server": []any{
-					map[string]any{
-						"address": "10.0.0.1",
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"radius": map[string]any{
+					"server": []any{
+						map[string]any{
+							"address": "10.0.0.1",
+						},
 					},
 				},
 			},
@@ -138,11 +148,13 @@ func TestParseConfigMissingSharedKey(t *testing.T) {
 
 func TestParseConfigBadTimeout(t *testing.T) {
 	tree := map[string]any{
-		"auth": map[string]any{
-			"radius": map[string]any{
-				"timeout": float64(0),
-				"server": []any{
-					map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"radius": map[string]any{
+					"timeout": float64(0),
+					"server": []any{
+						map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+					},
 				},
 			},
 		},
@@ -155,11 +167,13 @@ func TestParseConfigBadTimeout(t *testing.T) {
 
 func TestParseConfigBadRetries(t *testing.T) {
 	tree := map[string]any{
-		"auth": map[string]any{
-			"radius": map[string]any{
-				"retries": float64(11),
-				"server": []any{
-					map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"radius": map[string]any{
+					"retries": float64(11),
+					"server": []any{
+						map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+					},
 				},
 			},
 		},
@@ -172,13 +186,15 @@ func TestParseConfigBadRetries(t *testing.T) {
 
 func TestParseConfigBadPort(t *testing.T) {
 	tree := map[string]any{
-		"auth": map[string]any{
-			"radius": map[string]any{
-				"server": []any{
-					map[string]any{
-						"address":    "10.0.0.1",
-						"port":       float64(0),
-						"shared-key": "s",
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"radius": map[string]any{
+					"server": []any{
+						map[string]any{
+							"address":    "10.0.0.1",
+							"port":       float64(0),
+							"shared-key": "s",
+						},
 					},
 				},
 			},
@@ -192,11 +208,13 @@ func TestParseConfigBadPort(t *testing.T) {
 
 func TestParseConfigBadAcctInterval(t *testing.T) {
 	tree := map[string]any{
-		"auth": map[string]any{
-			"radius": map[string]any{
-				"acct-interval": float64(59),
-				"server": []any{
-					map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"radius": map[string]any{
+					"acct-interval": float64(59),
+					"server": []any{
+						map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+					},
 				},
 			},
 		},
@@ -209,11 +227,13 @@ func TestParseConfigBadAcctInterval(t *testing.T) {
 
 func TestParseConfigSourceAddress(t *testing.T) {
 	tree := map[string]any{
-		"auth": map[string]any{
-			"radius": map[string]any{
-				"source-address": "192.168.1.100",
-				"server": []any{
-					map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"radius": map[string]any{
+					"source-address": "192.168.1.100",
+					"server": []any{
+						map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+					},
 				},
 			},
 		},
@@ -233,11 +253,13 @@ func TestParseConfigSourceAddress(t *testing.T) {
 
 func TestParseConfigBadSourceAddress(t *testing.T) {
 	tree := map[string]any{
-		"auth": map[string]any{
-			"radius": map[string]any{
-				"source-address": "not-an-ip",
-				"server": []any{
-					map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"radius": map[string]any{
+					"source-address": "not-an-ip",
+					"server": []any{
+						map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+					},
 				},
 			},
 		},
@@ -251,11 +273,13 @@ func TestParseConfigBadSourceAddress(t *testing.T) {
 
 func TestParseConfigIPv6SourceAddress(t *testing.T) {
 	tree := map[string]any{
-		"auth": map[string]any{
-			"radius": map[string]any{
-				"source-address": "::1",
-				"server": []any{
-					map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"radius": map[string]any{
+					"source-address": "::1",
+					"server": []any{
+						map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+					},
 				},
 			},
 		},
@@ -269,10 +293,12 @@ func TestParseConfigIPv6SourceAddress(t *testing.T) {
 
 func TestParseConfigNoSourceAddress(t *testing.T) {
 	tree := map[string]any{
-		"auth": map[string]any{
-			"radius": map[string]any{
-				"server": []any{
-					map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"radius": map[string]any{
+					"server": []any{
+						map[string]any{"address": "10.0.0.1", "shared-key": "s"},
+					},
 				},
 			},
 		},
@@ -289,11 +315,13 @@ func TestParseConfigNoSourceAddress(t *testing.T) {
 
 func TestParseConfigMultipleServers(t *testing.T) {
 	tree := map[string]any{
-		"auth": map[string]any{
-			"radius": map[string]any{
-				"server": []any{
-					map[string]any{"address": "10.0.0.1", "shared-key": "s1"},
-					map[string]any{"address": "10.0.0.2", "port": float64(1813), "shared-key": "s2"},
+		"l2tp": map[string]any{
+			"auth": map[string]any{
+				"radius": map[string]any{
+					"server": []any{
+						map[string]any{"address": "10.0.0.1", "shared-key": "s1"},
+						map[string]any{"address": "10.0.0.2", "port": float64(1813), "shared-key": "s2"},
+					},
 				},
 			},
 		},

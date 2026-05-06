@@ -27,15 +27,15 @@ type pppSession struct {
 	tunnelID  uint16
 	sessionID uint16
 
-	// Underlying I/O. chanFile is the wrapped chan fd; closing it
-	// unblocks the goroutine's blocking Read and signals shutdown.
-	// chanFile is the authoritative WRITE target (wire frames sent
-	// by this session). Reads come from framesIn (fed by the single
-	// readFrames goroutine) -- never directly from chanFile once
-	// run() has started, because two concurrent readers on the same
-	// net.Pipe / kernel fd interleave undefined bytes.
+	// Underlying I/O. chanFile is the wrapped chan fd for WRITING
+	// PPP frames to the wire. unitFile is the wrapped unit fd for
+	// READING PPP frames (the kernel delivers received frames to the
+	// unit after PPPIOCCONNECT). framesIn is fed by readFrames which
+	// reads from unitFile.
 	chanFile io.ReadWriteCloser
+	unitFile io.ReadCloser
 	framesIn <-chan []byte
+	chanFD   int
 	unitFD   int
 	unitNum  int
 	lnsMode  bool
@@ -113,6 +113,11 @@ type pppSession struct {
 	disableIPCP   bool
 	disableIPv6CP bool
 	ipTimeout     time.Duration
+
+	// earlyNCPFrames buffers NCP frames that arrive on the chan fd
+	// before the NCP phase starts (race: peer sends IPCP before Ze
+	// processes the LCP ConfAck that triggers Opened).
+	earlyNCPFrames [][]byte
 
 	// Driver's shutdown signal (the goroutine selects on this and
 	// the chan fd's blocking read).

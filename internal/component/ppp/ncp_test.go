@@ -125,13 +125,9 @@ func TestIPResponseConfiguresInterface(t *testing.T) {
 		t.Errorf("p2p[0] = %+v, want ppp42 10.0.0.1/32 10.0.0.2/32", p2p[0])
 	}
 
-	route := td.backend.RouteAddCalls()
-	if len(route) != 1 || route[0].dest != "10.0.0.2/32" {
-		t.Errorf("AddRoute calls = %+v, want one 10.0.0.2/32", route)
-	}
 	up := td.backend.UpCalls()
-	if len(up) < 2 {
-		t.Errorf("SetAdminUp calls = %v, want at least 2 (post-LCP + post-IPCP)", up)
+	if len(up) < 1 {
+		t.Errorf("SetAdminUp calls = %v, want at least 1", up)
 	}
 }
 

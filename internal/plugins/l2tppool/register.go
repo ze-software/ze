@@ -179,6 +179,16 @@ func runPlugin(conn net.Conn) int {
 				pending = pool
 			}
 		}
+		// Initial startup: activate the pool immediately.
+		// OnConfigApply only fires during reload, not initial config delivery.
+		if pending != nil {
+			poolInstance.mu.Lock()
+			poolInstance.pool = pending
+			poolInstance.mu.Unlock()
+			total, _, _ := pending.stats()
+			logger().Info("l2tp-pool: configured", "total", total)
+			pending = nil
+		}
 		return nil
 	})
 
@@ -323,7 +333,12 @@ func parsePoolConfig(data string) (pool *ipv4Pool, found bool, err error) {
 		return nil, false, fmt.Errorf("%s: invalid config JSON: %w", Name, err)
 	}
 
-	poolBlock, ok := tree["pool"].(map[string]any)
+	// Config data is wrapped in the root key: {"l2tp": {"pool": {...}}}
+	l2tpBlock, ok := tree["l2tp"].(map[string]any)
+	if !ok {
+		return nil, false, nil
+	}
+	poolBlock, ok := l2tpBlock["pool"].(map[string]any)
 	if !ok {
 		return nil, false, nil
 	}

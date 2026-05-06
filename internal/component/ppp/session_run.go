@@ -444,23 +444,29 @@ func (s *pppSession) afterLCPOpen() bool {
 		mru = MaxFrameLen
 	}
 
+	if !s.runAuthPhase() {
+		return false
+	}
+
+	if !s.runNCPPhase() {
+		return false
+	}
+
+	// Post-NCP: connect channel to unit and bring interface up.
+	// PPPIOCCONNECT must happen after NCP because it changes frame
+	// routing from channel fd to unit fd (accel-ppp uses the same
+	// deferred-connect pattern). MRU/MTU/AdminUp follow.
+	if err := s.ops.connect(s.chanFD, s.unitNum); err != nil {
+		s.fail("PPPIOCCONNECT: " + err.Error())
+		return false
+	}
 	if err := s.ops.setMRU(s.unitFD, mru); err != nil {
 		s.fail("PPPIOCSMRU: " + err.Error())
 		return false
 	}
-
 	ifname := "ppp" + strconv.Itoa(s.unitNum)
-	// MTU at the netlink layer is the IP MTU = MRU - PPP encap (4).
-	// Clamp to minIPMTU so a small but RFC-1661-legal MRU (>= 64)
-	// never asks the kernel to set an MTU below the IPv4 minimum.
 	mtu := int(mru) - pppEncapOverhead
 	if mtu < minIPMTU {
-		// Info, not Warn: this is a peer-configuration observation,
-		// not a ze fault. At scale with many small-MRU peers the
-		// Warn level would be noisy; Info keeps it visible for
-		// operators who opt in to ppp.info.
-		s.logger.Info("ppp: clamping MTU up to IPv4 minimum",
-			"mru", mru, "computed-mtu", mtu, "clamped-mtu", minIPMTU)
 		mtu = minIPMTU
 	}
 	if err := s.backend.SetMTU(ifname, mtu); err != nil {
@@ -469,14 +475,6 @@ func (s *pppSession) afterLCPOpen() bool {
 	}
 	if err := s.backend.SetAdminUp(ifname); err != nil {
 		s.fail("iface SetAdminUp: " + err.Error())
-		return false
-	}
-
-	if !s.runAuthPhase() {
-		return false
-	}
-
-	if !s.runNCPPhase() {
 		return false
 	}
 
@@ -625,8 +623,14 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 		}
 		return s.handleLCPPacket(pkt)
 	case ProtoIPCP:
+		if s.ipcpState == LCPStateInitial {
+			buf := make([]byte, len(frame))
+			copy(buf, frame)
+			s.earlyNCPFrames = append(s.earlyNCPFrames, buf)
+			s.logger.Info("ppp: buffered early IPCP frame", "count", len(s.earlyNCPFrames), "len", len(frame))
+			return false
+		}
 		if s.disableIPCP {
-			s.logger.Debug("ppp: IPCP frame dropped (disabled)")
 			return false
 		}
 		if perr != nil {
@@ -635,8 +639,13 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 		}
 		return s.handleIPCPPacket(pkt)
 	case ProtoIPv6CP:
+		if s.ipv6cpState == LCPStateInitial {
+			buf := make([]byte, len(frame))
+			copy(buf, frame)
+			s.earlyNCPFrames = append(s.earlyNCPFrames, buf)
+			return false
+		}
 		if s.disableIPv6CP {
-			s.logger.Debug("ppp: IPv6CP frame dropped (disabled)")
 			return false
 		}
 		if perr != nil {

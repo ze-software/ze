@@ -116,6 +116,12 @@ func runPlugin(conn net.Conn) int {
 			}
 			pending = cfg
 		}
+		if pending != nil {
+			if applyErr := activateRadiusConfig(pending); applyErr != nil {
+				return applyErr
+			}
+			pending = nil
+		}
 		return nil
 	})
 
@@ -123,50 +129,9 @@ func runPlugin(conn net.Conn) int {
 		if pending == nil {
 			return nil
 		}
-		client, err := radius.NewClient(radius.ClientConfig{
-			Servers:       pending.Servers,
-			Timeout:       pending.Timeout,
-			Retries:       pending.Retries,
-			SourceAddress: pending.SourceAddress,
-			Logger:        logger(),
-		})
-		if err != nil {
-			return fmt.Errorf("%s: create client: %w", Name, err)
+		if err := activateRadiusConfig(pending); err != nil {
+			return err
 		}
-		var primaryAddr string
-		if len(pending.Servers) > 0 {
-			primaryAddr = pending.Servers[0].Address
-		}
-		oldClient := authInstance.swapClient(client, pending.NASIdentifier, primaryAddr, pending.SourceAddress)
-		acctInstance.setClient(client, pending.NASIdentifier, pending.AcctInterval, primaryAddr, pending.SourceAddress)
-		if oldClient != nil {
-			oldClient.Close() //nolint:errcheck // best-effort on replaced client
-		}
-		logger().Info("l2tp-auth-radius: configured",
-			"servers", len(pending.Servers), "timeout", pending.Timeout)
-
-		// Start or restart CoA/DM listener if configured.
-		eventBusMu.Lock()
-		bus := storedBus
-		eventBusMu.Unlock()
-		if activeCoA != nil {
-			if closeErr := activeCoA.Close(); closeErr != nil {
-				logger().Warn("l2tp-auth-radius: CoA listener close failed", "error", closeErr)
-			}
-			activeCoA = nil
-		}
-		if pending.CoAPort > 0 && len(pending.Servers) > 0 {
-			allowed := serverIPs(pending.Servers)
-			secrets := serverSecrets(pending.Servers)
-			cl, coaErr := newCoAListener(pending.CoAPort, secrets, pending.Servers[0].SharedKey, bus, allowed)
-			if coaErr != nil {
-				logger().Warn("l2tp-auth-radius: CoA listener failed to start", "error", coaErr)
-			} else {
-				activeCoA = cl
-				logger().Info("l2tp-auth-radius: CoA listener started", "port", pending.CoAPort)
-			}
-		}
-
 		pending = nil
 		return nil
 	})
@@ -191,6 +156,52 @@ func runPlugin(conn net.Conn) int {
 	acctInstance.Stop()
 	closeCoAListener()
 	return 0
+}
+
+func activateRadiusConfig(cfg *radiusConfig) error {
+	client, err := radius.NewClient(radius.ClientConfig{
+		Servers:       cfg.Servers,
+		Timeout:       cfg.Timeout,
+		Retries:       cfg.Retries,
+		SourceAddress: cfg.SourceAddress,
+		Logger:        logger(),
+	})
+	if err != nil {
+		return fmt.Errorf("%s: create client: %w", Name, err)
+	}
+	var primaryAddr string
+	if len(cfg.Servers) > 0 {
+		primaryAddr = cfg.Servers[0].Address
+	}
+	oldClient := authInstance.swapClient(client, cfg.NASIdentifier, primaryAddr, cfg.SourceAddress)
+	acctInstance.setClient(client, cfg.NASIdentifier, cfg.AcctInterval, primaryAddr, cfg.SourceAddress)
+	if oldClient != nil {
+		oldClient.Close() //nolint:errcheck // best-effort on replaced client
+	}
+	logger().Info("l2tp-auth-radius: configured",
+		"servers", len(cfg.Servers), "timeout", cfg.Timeout)
+
+	eventBusMu.Lock()
+	bus := storedBus
+	eventBusMu.Unlock()
+	if activeCoA != nil {
+		if closeErr := activeCoA.Close(); closeErr != nil {
+			logger().Warn("l2tp-auth-radius: CoA listener close failed", "error", closeErr)
+		}
+		activeCoA = nil
+	}
+	if cfg.CoAPort > 0 && len(cfg.Servers) > 0 {
+		allowed := serverIPs(cfg.Servers)
+		secrets := serverSecrets(cfg.Servers)
+		cl, coaErr := newCoAListener(cfg.CoAPort, secrets, cfg.Servers[0].SharedKey, bus, allowed)
+		if coaErr != nil {
+			logger().Warn("l2tp-auth-radius: CoA listener failed to start", "error", coaErr)
+		} else {
+			activeCoA = cl
+			logger().Info("l2tp-auth-radius: CoA listener started", "port", cfg.CoAPort)
+		}
+	}
+	return nil
 }
 
 func closeCoAListener() {

@@ -7,6 +7,7 @@ package ppp
 
 import (
 	"errors"
+	"io"
 	"log/slog"
 	"net/netip"
 	"sync"
@@ -58,6 +59,17 @@ type sessionKey struct {
 // runtime poller). Tests swap this via export_test.go to use
 // net.Pipe so the Driver can be exercised without /dev/ppp.
 var newChanFileFn = NewFDFile
+
+// newUnitFileFn wraps the unit fd for reading received PPP frames.
+// After PPPIOCCONNECT the kernel delivers incoming frames to the unit
+// fd, not the channel fd. Returns nil when fd <= 0 (test path), which
+// makes readFrames fall back to chanFile.
+var newUnitFileFn = func(fd int) io.ReadCloser {
+	if fd <= 0 {
+		return nil
+	}
+	return NewFDFile(fd, "ppp.unit")
+}
 
 // Driver owns all active PPP sessions. It accepts StartSession
 // payloads on SessionsIn(), spawns one long-lived goroutine per
@@ -200,8 +212,9 @@ func (d *Driver) Stop() {
 	// pattern; see goroutine-lifecycle.md.
 	d.mu.Lock()
 	for _, s := range d.sessions {
-		if s.chanFile != nil {
-			_ = s.chanFile.Close() //nolint:errcheck // shutdown best-effort
+		_ = s.chanFile.Close() //nolint:errcheck // shutdown best-effort
+		if s.unitFile != nil {
+			_ = s.unitFile.Close() //nolint:errcheck // shutdown best-effort
 		}
 	}
 	d.mu.Unlock()
@@ -367,6 +380,9 @@ func (d *Driver) StopSession(tunnelID, sessionID uint16) error {
 
 	s.sessStopOnce.Do(func() { close(s.sessStop) })
 	_ = s.chanFile.Close() //nolint:errcheck // shutdown best-effort
+	if s.unitFile != nil {
+		_ = s.unitFile.Close() //nolint:errcheck // shutdown best-effort
+	}
 	<-s.done
 	return nil
 }
@@ -450,6 +466,8 @@ func (d *Driver) spawnSession(start StartSession) {
 		tunnelID:             start.TunnelID,
 		sessionID:            start.SessionID,
 		chanFile:             newChanFileFn(start.ChanFD, "ppp.chan"),
+		unitFile:             newUnitFileFn(start.UnitFD),
+		chanFD:               start.ChanFD,
 		unitFD:               start.UnitFD,
 		unitNum:              start.UnitNum,
 		lnsMode:              start.LNSMode,

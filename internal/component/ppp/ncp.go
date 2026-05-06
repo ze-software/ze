@@ -48,9 +48,11 @@ func (s *pppSession) runNCPPhase() bool {
 		if !s.requestIPCPAddresses() {
 			return false
 		}
+		s.logger.Info("ppp: IPCP addresses obtained, starting NCP FSM")
 		if !s.startNCP(AddressFamilyIPv4) {
 			return false
 		}
+		s.logger.Info("ppp: IPCP FSM started, entering loop", "state", s.ipcpState.String())
 	}
 	if ipv6cpEnabled {
 		if !s.requestIPv6CPInterfaceID() {
@@ -67,6 +69,14 @@ func (s *pppSession) runNCPPhase() bool {
 	}
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
+
+	if len(s.earlyNCPFrames) > 0 {
+		s.logger.Info("ppp: draining early NCP frames", "count", len(s.earlyNCPFrames))
+	}
+	for _, early := range s.earlyNCPFrames {
+		s.handleFrame(early)
+	}
+	s.earlyNCPFrames = nil
 
 	for {
 		if s.ncpsComplete(ipcpEnabled, ipv6cpEnabled) {
@@ -99,6 +109,7 @@ func (s *pppSession) runNCPPhase() bool {
 				})
 				return false
 			}
+			s.logger.Debug("ppp: NCP loop got frame", "len", len(frame))
 			term := s.handleFrame(frame)
 			putFrameBuf(frame)
 			if term {
@@ -278,6 +289,7 @@ func ncpProto(family AddressFamily) uint16 {
 // RFC 1332 §3 reuses the LCP transition table; only the option codec
 // and the Protocol field differ.
 func (s *pppSession) handleIPCPPacket(pkt LCPPacket) bool {
+	s.logger.Debug("ppp: IPCP rx", "code", LCPCodeName(pkt.Code), "id", pkt.Identifier, "len", len(pkt.Data))
 	return s.handleNCPPacket(AddressFamilyIPv4, pkt, s.evalIPCPRequest, s.absorbIPCPNak, s.absorbIPCPReject)
 }
 
@@ -505,13 +517,11 @@ func (s *pppSession) sendNCPConfigureRequest(family AddressFamily) bool {
 func (s *pppSession) writeNCPOptions(family AddressFamily, buf []byte, off int) int {
 	switch family {
 	case AddressFamilyIPv4:
+		// RFC 1332: ConfReq carries only our own IP-Address.
+		// DNS is communicated via Nak to the peer's ConfReq (RFC 1877).
 		opts := IPCPOptions{
 			IPAddress:    s.localIPv4,
 			HasIPAddress: s.localIPv4.IsValid(),
-			PrimaryDNS:   s.dnsPrimary,
-			HasPrimary:   s.dnsPrimary.IsValid(),
-			SecondaryDNS: s.dnsSecondary,
-			HasSecondary: s.dnsSecondary.IsValid(),
 		}
 		return WriteIPCPOptions(buf, off, opts)
 	case AddressFamilyIPv6:
@@ -660,14 +670,6 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 		peerCIDR := s.peerIPv4.String() + "/32"
 		if err := s.backend.AddAddressP2P(ifname, localCIDR, peerCIDR); err != nil {
 			s.fail("iface AddAddressP2P: " + err.Error())
-			return false
-		}
-		if err := s.backend.AddRoute(ifname, peerCIDR, "", 0); err != nil {
-			s.fail("iface AddRoute: " + err.Error())
-			return false
-		}
-		if err := s.backend.SetAdminUp(ifname); err != nil {
-			s.fail("iface SetAdminUp (post-IPCP): " + err.Error())
 			return false
 		}
 		s.sendEvent(EventSessionIPAssigned{

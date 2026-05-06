@@ -81,6 +81,12 @@ func runPlugin(conn net.Conn) int {
 				pending = cfg
 			}
 		}
+		if pending != nil {
+			shaperInstance.cfgPtr.Store(pending)
+			logger().Info("l2tp-shaper: configured",
+				"qdisc", pending.QdiscType, "rate", pending.DefaultRate)
+			pending = nil
+		}
 		return nil
 	})
 

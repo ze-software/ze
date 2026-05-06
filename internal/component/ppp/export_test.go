@@ -16,3 +16,15 @@ func SetNewChanFileForTest(fn func(fd int, name string) io.ReadWriteCloser) func
 func RestoreNewChanFile(prev func(fd int, name string) io.ReadWriteCloser) {
 	newChanFileFn = prev
 }
+
+// SetNewUnitFileForTest replaces the unit fd wrapper. Returns previous.
+func SetNewUnitFileForTest(fn func(int) io.ReadCloser) func(int) io.ReadCloser {
+	prev := newUnitFileFn
+	newUnitFileFn = fn
+	return prev
+}
+
+// RestoreNewUnitFile resets the unit fd wrapper to production.
+func RestoreNewUnitFile(prev func(int) io.ReadCloser) {
+	newUnitFileFn = prev
+}

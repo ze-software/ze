@@ -81,6 +81,11 @@ func runPlugin(conn net.Conn) int {
 			}
 			pending = users
 		}
+		if pending != nil {
+			authInstance.setUsers(pending)
+			logger().Info("l2tp-auth-local: loaded users", "count", len(pending))
+			pending = nil
+		}
 		return nil
 	})
 
@@ -127,7 +132,11 @@ func parseUsersFromJSON(data string) (map[string]userEntry, error) {
 func parseUsersFromTree(tree map[string]any) (map[string]userEntry, error) {
 	users := make(map[string]userEntry)
 
-	authBlock, ok := tree["auth"].(map[string]any)
+	l2tpBlock, ok := tree["l2tp"].(map[string]any)
+	if !ok {
+		return users, nil
+	}
+	authBlock, ok := l2tpBlock["auth"].(map[string]any)
 	if !ok {
 		return users, nil
 	}

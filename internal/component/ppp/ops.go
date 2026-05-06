@@ -17,12 +17,18 @@ type pppOps struct {
 	// setMRU sets the maximum receive unit on a /dev/ppp unit fd
 	// via PPPIOCSMRU. Called once per session after LCP-Opened.
 	setMRU func(unitFD int, mru uint16) error
+
+	// connect links the PPP channel to its unit (PPPIOCCONNECT).
+	// Deferred until after LCP: before connect, received frames go
+	// to the channel fd; after, they go to the unit fd.
+	connect func(chanFD, unitNum int) error
 }
 
 // newPPPOps returns a pppOps populated with real syscall
 // implementations for the current platform.
 func newPPPOps() pppOps {
 	return pppOps{
-		setMRU: realSetMRU,
+		setMRU:  realSetMRU,
+		connect: realConnect,
 	}
 }

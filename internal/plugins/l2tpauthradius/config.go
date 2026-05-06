@@ -26,7 +26,11 @@ type radiusConfig struct {
 var errNoRADIUSConfig = fmt.Errorf("%s: no auth.radius block in config", Name)
 
 func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
-	authBlock, ok := tree["auth"].(map[string]any)
+	l2tpBlock, ok := tree["l2tp"].(map[string]any)
+	if !ok {
+		return nil, errNoRADIUSConfig
+	}
+	authBlock, ok := l2tpBlock["auth"].(map[string]any)
 	if !ok {
 		return nil, errNoRADIUSConfig
 	}
