@@ -6,6 +6,7 @@
 CONFIG_PPP=y
 CONFIG_PPPOL2TP=y
 CONFIG_L2TP=y
+CONFIG_L2TP_V3=y
 CONFIG_L2TP_NETLINK=y
 
 # Useful for the local QEMU/netns evidence path and harmless for deployment.
