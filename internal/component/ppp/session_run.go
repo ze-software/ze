@@ -465,10 +465,7 @@ func (s *pppSession) afterLCPOpen() bool {
 		return false
 	}
 	ifname := "ppp" + strconv.Itoa(s.unitNum)
-	mtu := int(mru) - pppEncapOverhead
-	if mtu < minIPMTU {
-		mtu = minIPMTU
-	}
+	mtu := max(int(mru)-pppEncapOverhead, minIPMTU)
 	if err := s.backend.SetMTU(ifname, mtu); err != nil {
 		s.fail("iface SetMTU: " + err.Error())
 		return false
