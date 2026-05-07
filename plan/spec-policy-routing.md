@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Depends | spec-fw-8-lns-gaps (interface wildcard, component reactor pattern), spec-static-routes (table 100 populated) |
 | Phase | 1/7 |
 | Updated | 2026-04-23 |
