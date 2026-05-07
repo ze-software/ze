@@ -30,11 +30,22 @@ type poolPlugin struct {
 	pool       *ipv4Pool
 	namedPools map[string]*ipv4Pool
 
+	v6mu         sync.RWMutex
+	v6pool       *ipv6PrefixPool
+	v6namedPools map[string]*ipv6PrefixPool
+
 	busMu sync.Mutex
 	bus   ze.EventBus
 	unsub func()
 
-	sessionAddrs sync.Map // sessionKey -> netip.Addr
+	sessionAddrs    sync.Map // sessionKey -> sessionAddr (IPv4)
+	sessionPrefixes sync.Map // sessionKey -> sessionPrefix (IPv6)
+}
+
+type sessionPrefix struct {
+	prefix   netip.Prefix
+	fromPool bool
+	poolName string
 }
 
 type sessionKey struct {
@@ -50,10 +61,12 @@ type sessionAddr struct {
 
 func init() {
 	l2tp.RegisterPoolHandler(poolInstance.handle)
+	l2tp.RegisterPrefixHandler(poolInstance.handlePrefix)
+	l2tp.RegisterPrefixReleaser(poolInstance.releasePrefix)
 
 	reg := registry.Registration{
 		Name:                    Name,
-		Description:             "Static IPv4 address pool for L2TP PPP sessions",
+		Description:             "IPv4 address and IPv6 prefix pool for L2TP PPP sessions",
 		Features:                "yang",
 		YANG:                    schema.ZeL2TPPoolConfYANG,
 		ConfigRoots:             []string{"l2tp"},
@@ -108,33 +121,119 @@ func (p *poolPlugin) setEventBus(eb ze.EventBus) {
 func (p *poolPlugin) onSessionDown(payload *l2tpevents.SessionDownPayload) {
 	key := sessionKey{tunnelID: payload.TunnelID, sessionID: payload.SessionID}
 	val, ok := p.sessionAddrs.LoadAndDelete(key)
-	if !ok {
-		return
+	if ok {
+		sa, ok2 := val.(sessionAddr)
+		if ok2 {
+			if !sa.fromPool {
+				logger().Info("l2tp-pool: RADIUS-assigned address cleared on session-down",
+					"tunnel", payload.TunnelID, "session", payload.SessionID, "address", sa.addr)
+			} else {
+				p.mu.RLock()
+				var pool *ipv4Pool
+				if sa.poolName != "" {
+					if p.namedPools != nil {
+						pool = p.namedPools[sa.poolName]
+					}
+				} else {
+					pool = p.pool
+				}
+				p.mu.RUnlock()
+				if pool != nil {
+					pool.release(sa.addr)
+					logger().Info("l2tp-pool: released address on session-down",
+						"tunnel", payload.TunnelID, "session", payload.SessionID,
+						"address", sa.addr, "pool", sa.poolName)
+				}
+			}
+		}
 	}
-	sa, ok := val.(sessionAddr)
-	if !ok {
-		return
+
+	p.releasePrefix(payload.TunnelID, payload.SessionID)
+}
+
+func (p *poolPlugin) handlePrefix(req l2tp.PrefixRequest) l2tp.PrefixResult {
+	key := sessionKey{tunnelID: req.TunnelID, sessionID: req.SessionID}
+	if _, already := p.sessionPrefixes.Load(key); already {
+		return l2tp.PrefixResult{OK: false, Reason: "prefix already allocated for this session"}
 	}
-	if !sa.fromPool {
-		logger().Info("l2tp-pool: RADIUS-assigned address cleared on session-down",
-			"tunnel", payload.TunnelID, "session", payload.SessionID, "address", sa.addr)
-		return
+
+	meta := l2tp.LoadSessionMetadata(req.TunnelID, req.SessionID)
+	if meta != nil && meta.DelegatedIPv6Prefix.IsValid() {
+		p.sessionPrefixes.Store(
+			sessionKey{tunnelID: req.TunnelID, sessionID: req.SessionID},
+			sessionPrefix{prefix: meta.DelegatedIPv6Prefix, fromPool: false},
+		)
+		logger().Info("l2tp-pool: using RADIUS-assigned IPv6 prefix",
+			"tunnel", req.TunnelID, "session", req.SessionID, "prefix", meta.DelegatedIPv6Prefix)
+		return l2tp.PrefixResult{OK: true, Prefix: meta.DelegatedIPv6Prefix}
 	}
-	p.mu.RLock()
-	var pool *ipv4Pool
-	if sa.poolName != "" {
-		if p.namedPools != nil {
-			pool = p.namedPools[sa.poolName]
+
+	poolName := req.PoolName
+	if poolName == "" && meta != nil && meta.FramedIPv6Pool != "" {
+		poolName = meta.FramedIPv6Pool
+	}
+
+	p.v6mu.RLock()
+	var pool *ipv6PrefixPool
+	if poolName != "" {
+		if p.v6namedPools != nil {
+			pool = p.v6namedPools[poolName]
 		}
 	} else {
-		pool = p.pool
+		pool = p.v6pool
 	}
-	p.mu.RUnlock()
+	p.v6mu.RUnlock()
+
+	if pool == nil {
+		return l2tp.PrefixResult{OK: false, Reason: "no IPv6 prefix pool configured"}
+	}
+
+	prefix, ok := pool.allocate()
+	if !ok {
+		logger().Warn("l2tp-pool: IPv6 prefix pool exhausted",
+			"tunnel", req.TunnelID, "session", req.SessionID)
+		return l2tp.PrefixResult{OK: false, Reason: "IPv6 prefix pool exhausted"}
+	}
+
+	p.sessionPrefixes.Store(
+		sessionKey{tunnelID: req.TunnelID, sessionID: req.SessionID},
+		sessionPrefix{prefix: prefix, fromPool: true, poolName: poolName},
+	)
+
+	logger().Info("l2tp-pool: allocated IPv6 prefix",
+		"tunnel", req.TunnelID, "session", req.SessionID, "prefix", prefix)
+	return l2tp.PrefixResult{OK: true, Prefix: prefix}
+}
+
+func (p *poolPlugin) releasePrefix(tunnelID, sessionID uint16) {
+	key := sessionKey{tunnelID: tunnelID, sessionID: sessionID}
+	val, ok := p.sessionPrefixes.LoadAndDelete(key)
+	if !ok {
+		return
+	}
+	sp, ok := val.(sessionPrefix)
+	if !ok {
+		return
+	}
+	if !sp.fromPool {
+		logger().Info("l2tp-pool: RADIUS-assigned IPv6 prefix cleared",
+			"tunnel", tunnelID, "session", sessionID, "prefix", sp.prefix)
+		return
+	}
+	p.v6mu.RLock()
+	var pool *ipv6PrefixPool
+	if sp.poolName != "" {
+		if p.v6namedPools != nil {
+			pool = p.v6namedPools[sp.poolName]
+		}
+	} else {
+		pool = p.v6pool
+	}
+	p.v6mu.RUnlock()
 	if pool != nil {
-		pool.release(sa.addr)
-		logger().Info("l2tp-pool: released address on session-down",
-			"tunnel", payload.TunnelID, "session", payload.SessionID,
-			"address", sa.addr, "pool", sa.poolName)
+		pool.release(sp.prefix)
+		logger().Info("l2tp-pool: released IPv6 prefix",
+			"tunnel", tunnelID, "session", sessionID, "prefix", sp.prefix)
 	}
 }
 
@@ -247,9 +346,17 @@ func runPlugin(conn net.Conn) int {
 			poolInstance.pool = pendingResult.defaultPool
 			poolInstance.namedPools = pendingResult.namedPools
 			poolInstance.mu.Unlock()
+			poolInstance.v6mu.Lock()
+			poolInstance.v6pool = pendingResult.defaultV6Pool
+			poolInstance.v6namedPools = pendingResult.namedV6Pools
+			poolInstance.v6mu.Unlock()
 			if pendingResult.defaultPool != nil {
 				total, _, _ := pendingResult.defaultPool.stats()
 				logger().Info("l2tp-pool: configured", "total", total, "named-pools", len(pendingResult.namedPools))
+			}
+			if pendingResult.defaultV6Pool != nil {
+				total, _, _ := pendingResult.defaultV6Pool.stats()
+				logger().Info("l2tp-pool: IPv6 configured", "total", total, "named-v6-pools", len(pendingResult.namedV6Pools))
 			}
 			pendingResult = nil
 		}
@@ -259,6 +366,7 @@ func runPlugin(conn net.Conn) int {
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
 		if pendingResult != nil {
 			poolInstance.mu.Lock()
+			poolInstance.v6mu.Lock()
 			var liveAllocs uint32
 			if old := poolInstance.pool; old != nil {
 				_, a, _ := old.stats()
@@ -268,17 +376,33 @@ func runPlugin(conn net.Conn) int {
 				_, a, _ := np.stats()
 				liveAllocs += a
 			}
+			if old := poolInstance.v6pool; old != nil {
+				_, a, _ := old.stats()
+				liveAllocs += a
+			}
+			for _, np := range poolInstance.v6namedPools {
+				_, a, _ := np.stats()
+				liveAllocs += a
+			}
 			if liveAllocs > 0 {
+				poolInstance.v6mu.Unlock()
 				poolInstance.mu.Unlock()
 				pendingResult = nil
 				return fmt.Errorf("l2tp-pool: cannot replace pools with %d live allocations; tear down sessions first", liveAllocs)
 			}
 			poolInstance.pool = pendingResult.defaultPool
 			poolInstance.namedPools = pendingResult.namedPools
+			poolInstance.v6pool = pendingResult.defaultV6Pool
+			poolInstance.v6namedPools = pendingResult.namedV6Pools
+			poolInstance.v6mu.Unlock()
 			poolInstance.mu.Unlock()
 			if pendingResult.defaultPool != nil {
 				total, _, _ := pendingResult.defaultPool.stats()
 				logger().Info("l2tp-pool: configured", "total", total, "named-pools", len(pendingResult.namedPools))
+			}
+			if pendingResult.defaultV6Pool != nil {
+				total, _, _ := pendingResult.defaultV6Pool.stats()
+				logger().Info("l2tp-pool: IPv6 configured", "total", total, "named-v6-pools", len(pendingResult.namedV6Pools))
 			}
 			pendingResult = nil
 		}
@@ -318,43 +442,61 @@ func (p *poolPlugin) showPool() string {
 	pool := p.pool
 	p.mu.RUnlock()
 
-	if pool == nil {
+	p.v6mu.RLock()
+	v6pool := p.v6pool
+	p.v6mu.RUnlock()
+
+	if pool == nil && v6pool == nil {
 		return `{"status":"no pool configured"}`
 	}
-	total, allocated, available := pool.stats()
-	end := uint32ToAddr(addrToUint32(pool.start) + pool.size - 1)
 
-	var sessions []sessionAlloc
-	p.sessionAddrs.Range(func(key, value any) bool {
-		sk, ok := key.(sessionKey)
-		if !ok {
+	var result poolShowResult
+
+	if pool != nil {
+		total, allocated, available := pool.stats()
+		end := uint32ToAddr(addrToUint32(pool.start) + pool.size - 1)
+		result.Gateway = pool.gateway.String()
+		result.RangeStart = pool.start.String()
+		result.RangeEnd = end.String()
+		result.DNSPrimary = pool.dnsPrimary.String()
+		result.DNSSecondary = pool.dnsSecondary.String()
+		result.Total = total
+		result.Allocated = allocated
+		result.Available = available
+
+		var sessions []sessionAlloc
+		p.sessionAddrs.Range(func(key, value any) bool {
+			sk, ok := key.(sessionKey)
+			if !ok {
+				return true
+			}
+			sa, ok := value.(sessionAddr)
+			if !ok {
+				return true
+			}
+			username := lookupSessionUsername(sk.tunnelID, sk.sessionID)
+			sessions = append(sessions, sessionAlloc{
+				TunnelID:  sk.tunnelID,
+				SessionID: sk.sessionID,
+				Address:   sa.addr.String(),
+				Username:  username,
+			})
 			return true
-		}
-		sa, ok := value.(sessionAddr)
-		if !ok {
-			return true
-		}
-		username := lookupSessionUsername(sk.tunnelID, sk.sessionID)
-		sessions = append(sessions, sessionAlloc{
-			TunnelID:  sk.tunnelID,
-			SessionID: sk.sessionID,
-			Address:   sa.addr.String(),
-			Username:  username,
 		})
-		return true
-	})
-
-	result := poolShowResult{
-		Gateway:      pool.gateway.String(),
-		RangeStart:   pool.start.String(),
-		RangeEnd:     end.String(),
-		DNSPrimary:   pool.dnsPrimary.String(),
-		DNSSecondary: pool.dnsSecondary.String(),
-		Total:        total,
-		Allocated:    allocated,
-		Available:    available,
-		Sessions:     sessions,
+		result.Sessions = sessions
 	}
+
+	if v6pool != nil {
+		v6Total, v6Allocated, v6Available := v6pool.stats()
+		result.IPv6PD = &poolV6ShowResult{
+			Block:            v6pool.block.String(),
+			DelegationLength: v6pool.delegLen,
+			Total:            v6Total,
+			Allocated:        v6Allocated,
+			Available:        v6Available,
+		}
+	}
+
 	b, err := json.Marshal(result)
 	if err != nil {
 		return fmt.Sprintf(`{"error":%q}`, err.Error())
@@ -363,15 +505,24 @@ func (p *poolPlugin) showPool() string {
 }
 
 type poolShowResult struct {
-	Gateway      string         `json:"gateway"`
-	RangeStart   string         `json:"range-start"`
-	RangeEnd     string         `json:"range-end"`
-	DNSPrimary   string         `json:"dns-primary"`
-	DNSSecondary string         `json:"dns-secondary"`
-	Total        uint32         `json:"total"`
-	Allocated    uint32         `json:"allocated"`
-	Available    uint32         `json:"available"`
-	Sessions     []sessionAlloc `json:"sessions"`
+	Gateway      string            `json:"gateway"`
+	RangeStart   string            `json:"range-start"`
+	RangeEnd     string            `json:"range-end"`
+	DNSPrimary   string            `json:"dns-primary"`
+	DNSSecondary string            `json:"dns-secondary"`
+	Total        uint32            `json:"total"`
+	Allocated    uint32            `json:"allocated"`
+	Available    uint32            `json:"available"`
+	Sessions     []sessionAlloc    `json:"sessions"`
+	IPv6PD       *poolV6ShowResult `json:"ipv6-pd,omitempty"`
+}
+
+type poolV6ShowResult struct {
+	Block            string `json:"block"`
+	DelegationLength int    `json:"delegation-length"`
+	Total            uint32 `json:"total"`
+	Allocated        uint32 `json:"allocated"`
+	Available        uint32 `json:"available"`
 }
 
 type sessionAlloc struct {
@@ -397,9 +548,11 @@ func lookupSessionUsername(tunnelID, sessionID uint16) string {
 }
 
 type poolConfigResult struct {
-	defaultPool *ipv4Pool
-	namedPools  map[string]*ipv4Pool
-	found       bool
+	defaultPool   *ipv4Pool
+	namedPools    map[string]*ipv4Pool
+	defaultV6Pool *ipv6PrefixPool
+	namedV6Pools  map[string]*ipv6PrefixPool
+	found         bool
 }
 
 func parsePoolConfig(data string) (pool *ipv4Pool, found bool, err error) {
@@ -446,6 +599,26 @@ func parseFullPoolConfig(data string) (poolConfigResult, error) {
 		}
 		if len(named) > 0 {
 			result.namedPools = named
+			result.found = true
+		}
+	}
+
+	if v6Block, ok := poolBlock["ipv6-pd"].(map[string]any); ok {
+		p, err := parseIPv6PDPool(v6Block)
+		if err != nil {
+			return poolConfigResult{}, err
+		}
+		result.defaultV6Pool = p
+		result.found = true
+	}
+
+	if v6NamedList, ok := poolBlock["named-ipv6-pool"].([]any); ok {
+		named, err := parseNamedIPv6Pools(v6NamedList)
+		if err != nil {
+			return poolConfigResult{}, err
+		}
+		if len(named) > 0 {
+			result.namedV6Pools = named
 			result.found = true
 		}
 	}
@@ -521,6 +694,49 @@ func parseNamedPools(list []any) (map[string]*ipv4Pool, error) {
 		pool, err := parseIPv4Pool(entry)
 		if err != nil {
 			return nil, fmt.Errorf("%s: named-pool %q: %w", Name, name, err)
+		}
+		pools[name] = pool
+	}
+	return pools, nil
+}
+
+func parseIPv6PDPool(block map[string]any) (*ipv6PrefixPool, error) {
+	blockStr, _ := block["block"].(string)
+	if blockStr == "" {
+		return nil, fmt.Errorf("%s: ipv6-pd requires block", Name)
+	}
+	prefix, err := netip.ParsePrefix(blockStr)
+	if err != nil {
+		return nil, fmt.Errorf("%s: invalid ipv6-pd block %q: %w", Name, blockStr, err)
+	}
+	if !prefix.Addr().Is6() || prefix.Addr().Is4In6() {
+		return nil, fmt.Errorf("%s: ipv6-pd block must be native IPv6", Name)
+	}
+
+	delegLen := 56
+	if v, ok := block["delegation-length"].(float64); ok {
+		delegLen = int(v)
+	} else {
+		logger().Warn("l2tp-pool: ipv6-pd delegation-length not set, defaulting to /56")
+	}
+
+	return newIPv6PrefixPool(prefix, delegLen)
+}
+
+func parseNamedIPv6Pools(list []any) (map[string]*ipv6PrefixPool, error) {
+	pools := make(map[string]*ipv6PrefixPool, len(list))
+	for _, item := range list {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		name, _ := entry["name"].(string)
+		if name == "" {
+			return nil, fmt.Errorf("%s: named-ipv6-pool requires a name", Name)
+		}
+		pool, err := parseIPv6PDPool(entry)
+		if err != nil {
+			return nil, fmt.Errorf("%s: named-ipv6-pool %q: %w", Name, name, err)
 		}
 		pools[name] = pool
 	}

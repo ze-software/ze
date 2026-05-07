@@ -9,6 +9,10 @@ import (
 	"sync"
 )
 
+// RFC 6911 Section 3: Framed-IPv6-Prefix (attr 97).
+// RFC 4818 Section 3: Delegated-IPv6-Prefix (attr 123).
+// RFC 6911 Section 3.1: Framed-IPv6-Pool (attr 100).
+
 // AuthMetadata carries RADIUS Access-Accept attributes extracted by
 // the auth handler. Stored per-session via StoreSessionMetadata so
 // downstream consumers (pool handler, reactor, shaper) can read
@@ -22,8 +26,11 @@ type AuthMetadata struct {
 	FramedIP            netip.Addr
 	FramedNetmask       net.IPMask
 	FramedPool          string
-	SessionTimeout      uint32 // seconds, 0 = not set
-	IdleTimeout         uint32 // seconds, 0 = not set
+	FramedIPv6Prefix    netip.Prefix // RFC 6911 attr 97
+	DelegatedIPv6Prefix netip.Prefix // RFC 4818 attr 123
+	FramedIPv6Pool      string       // RFC 6911 attr 100
+	SessionTimeout      uint32       // seconds, 0 = not set
+	IdleTimeout         uint32       // seconds, 0 = not set
 	FilterID            string
 	AcctInterimInterval uint32 // seconds, 0 = not set
 }

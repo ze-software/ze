@@ -23,6 +23,8 @@ var (
 	handlerMu         sync.RWMutex
 	authHandler       AuthHandler
 	poolHandler       PoolHandler
+	prefixHandler     PrefixHandler
+	prefixReleaser    PrefixReleaser
 	poolStatsProvider PoolStatsProvider
 )
 
@@ -76,6 +78,56 @@ func UnregisterPoolHandler() {
 	handlerMu.Lock()
 	defer handlerMu.Unlock()
 	poolHandler = nil
+}
+
+// RegisterPrefixHandler registers the production IPv6 prefix handler.
+// Called from plugin init(). Ignores nil handlers.
+func RegisterPrefixHandler(h PrefixHandler) {
+	if h == nil {
+		return
+	}
+	handlerMu.Lock()
+	defer handlerMu.Unlock()
+	prefixHandler = h
+}
+
+// GetPrefixHandler returns the registered prefix handler, or nil if none.
+func GetPrefixHandler() PrefixHandler {
+	handlerMu.RLock()
+	defer handlerMu.RUnlock()
+	return prefixHandler
+}
+
+// RegisterPrefixReleaser registers the function that releases an IPv6
+// prefix on session teardown. Called from plugin init().
+func RegisterPrefixReleaser(r PrefixReleaser) {
+	if r == nil {
+		return
+	}
+	handlerMu.Lock()
+	defer handlerMu.Unlock()
+	prefixReleaser = r
+}
+
+// GetPrefixReleaser returns the registered prefix releaser, or nil if none.
+func GetPrefixReleaser() PrefixReleaser {
+	handlerMu.RLock()
+	defer handlerMu.RUnlock()
+	return prefixReleaser
+}
+
+// UnregisterPrefixHandler removes the prefix handler. Only for use in tests.
+func UnregisterPrefixHandler() {
+	handlerMu.Lock()
+	defer handlerMu.Unlock()
+	prefixHandler = nil
+}
+
+// UnregisterPrefixReleaser removes the prefix releaser. Only for use in tests.
+func UnregisterPrefixReleaser() {
+	handlerMu.Lock()
+	defer handlerMu.Unlock()
+	prefixReleaser = nil
 }
 
 // RegisterPoolStatsProvider registers the function that returns pool

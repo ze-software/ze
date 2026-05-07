@@ -3,7 +3,11 @@
 
 package l2tp
 
-import "codeberg.org/thomas-mangin/ze/internal/component/ppp"
+import (
+	"net/netip"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
+)
 
 // AuthResult carries the auth handler's decision back to the drain
 // goroutine.
@@ -30,3 +34,26 @@ type AuthHandler func(req ppp.EventAuthRequest, respond AuthRespondFunc) AuthRes
 // PoolHandler allocates an IP address for a PPP session and returns
 // the response args. Called synchronously by the pool drain goroutine.
 type PoolHandler func(req ppp.EventIPRequest) ppp.IPResponseArgs
+
+// PrefixRequest carries the parameters for an IPv6 prefix allocation.
+type PrefixRequest struct {
+	TunnelID  uint16
+	SessionID uint16
+	PoolName  string // from RADIUS Framed-IPv6-Pool; "" = default pool
+}
+
+// PrefixResult carries the prefix allocation result.
+type PrefixResult struct {
+	OK     bool
+	Prefix netip.Prefix
+	Reason string
+}
+
+// PrefixHandler allocates an IPv6 prefix for DHCPv6-PD. Called by
+// the per-session DHCPv6 server on Solicit. Returns the delegated
+// prefix or a rejection reason.
+type PrefixHandler func(req PrefixRequest) PrefixResult
+
+// PrefixReleaser releases a previously allocated IPv6 prefix back to
+// the pool. Called on session teardown or DHCPv6 Release.
+type PrefixReleaser func(tunnelID, sessionID uint16)

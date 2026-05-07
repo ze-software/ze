@@ -5,9 +5,9 @@ module ze-l2tp-pool-conf {
     import ze-extensions { prefix ze; }
 
     description
-        "Static IPv4 address pool for L2TP PPP sessions.
-         Allocates addresses from configured ranges using a
-         bitmap-backed pool. Releases on session-down.";
+        "IPv4 address and IPv6 prefix pool for L2TP PPP sessions.
+         Allocates addresses/prefixes from configured ranges using
+         bitmap-backed pools. Releases on session-down.";
 
     container l2tp {
         container pool {
@@ -66,6 +66,49 @@ module ze-l2tp-pool-conf {
                 leaf dns-secondary {
                     type zt:ipv4-address;
                     description "Secondary DNS server pushed to subscribers.";
+                }
+            }
+            container ipv6-pd {
+                description
+                    "IPv6 prefix delegation pool. Allocates /N prefixes from
+                     a configured block for DHCPv6-PD. RFC 3633.";
+                leaf block {
+                    type string;
+                    description
+                        "Prefix block to allocate from (e.g. 2001:db8::/32).";
+                }
+                leaf delegation-length {
+                    type uint8 {
+                        range "48..64";
+                    }
+                    description
+                        "Prefix length delegated to each subscriber
+                         (e.g. 56 for /56 prefixes).";
+                }
+            }
+            list named-ipv6-pool {
+                key "name";
+                description
+                    "Named IPv6 prefix pools selected by RADIUS
+                     Framed-IPv6-Pool attribute (RFC 6911 attr 100).";
+                leaf name {
+                    type string;
+                    description
+                        "Pool name matching RADIUS Framed-IPv6-Pool value.";
+                }
+                leaf block {
+                    type string;
+                    mandatory true;
+                    description
+                        "Prefix block to allocate from (e.g. 2001:db8::/32).";
+                }
+                leaf delegation-length {
+                    type uint8 {
+                        range "48..64";
+                    }
+                    mandatory true;
+                    description
+                        "Prefix length delegated to each subscriber.";
                 }
             }
         }
