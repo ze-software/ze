@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -95,6 +96,11 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 
 	if client == nil {
 		return
+	}
+
+	// RFC 2866 Section 5.18: per-session Acct-Interim-Interval override.
+	if meta := l2tp.LoadSessionMetadata(payload.TunnelID, payload.SessionID); meta != nil && meta.AcctInterimInterval > 0 {
+		interval = time.Duration(clampAcctInterval(meta.AcctInterimInterval)) * time.Second
 	}
 
 	key := sessionKey{payload.TunnelID, payload.SessionID}
@@ -258,4 +264,22 @@ func (a *radiusAcct) Stop() {
 		}
 		sess.cancel()
 	}
+}
+
+const (
+	acctIntervalMin uint32 = 60
+	acctIntervalMax uint32 = 3600
+)
+
+// clampAcctInterval restricts a RADIUS Acct-Interim-Interval to
+// [60, 3600] seconds. Values below the floor are clamped up; values
+// above the ceiling are clamped down.
+func clampAcctInterval(v uint32) uint32 {
+	if v < acctIntervalMin {
+		return acctIntervalMin
+	}
+	if v > acctIntervalMax {
+		return acctIntervalMax
+	}
+	return v
 }

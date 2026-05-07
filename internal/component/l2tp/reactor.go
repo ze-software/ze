@@ -990,6 +990,7 @@ func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
 		r.tunnelsMu.Unlock()
 		return
 	}
+	cancelSessionTimeouts(sess)
 	username := sess.username
 	now := r.params.Clock()
 	outbound := tunnel.teardownSession(sess, cdnResultGeneralError, now, r.logger)
@@ -1014,6 +1015,8 @@ func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
 			r.logger.Warn("l2tp: session-down emit failed", "error", err)
 		}
 	}
+
+	ClearSessionMetadata(tid, sid)
 
 	r.logger.Info("l2tp: PPP requested session teardown; sending CDN",
 		"tunnel-id", tid, "session-id", sid, "reason", reason)
@@ -1109,6 +1112,9 @@ func (r *L2TPReactor) handleSessionUp(ev ppp.EventSessionUp) {
 	}); err != nil {
 		r.logger.Warn("l2tp: session-up emit failed", "error", err)
 	}
+
+	// RFC 2865 Section 5.27/5.28: start RADIUS-driven timeouts.
+	r.startSessionTimeouts(ev.TunnelID, ev.SessionID)
 }
 
 // handleEchoRTT relays a PPP echo round-trip measurement to the

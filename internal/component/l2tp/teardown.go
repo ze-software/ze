@@ -94,6 +94,8 @@ func (r *L2TPReactor) TeardownSessionByID(localSID uint16) error {
 		r.tunnelsMu.Unlock()
 		return fmt.Errorf("%w: local-sid=%d", ErrSessionNotFound, localSID)
 	}
+	cancelSessionTimeouts(sess)
+	tid := tunnel.localTID
 	now := r.params.Clock()
 	outbound := tunnel.teardownSession(sess, cdnResultAdministrative, now, r.logger)
 	teardowns := tunnel.drainPendingKernelTeardowns()
@@ -109,6 +111,7 @@ func (r *L2TPReactor) TeardownSessionByID(localSID uint16) error {
 		}
 	}
 	r.enqueueKernelEvents(nil, teardowns)
+	ClearSessionMetadata(tid, localSID)
 	return nil
 }
 
@@ -181,6 +184,7 @@ func (r *L2TPReactor) teardownSessionOnTunnel(localTID, localSID uint16) error {
 		r.tunnelsMu.Unlock()
 		return fmt.Errorf("%w: local-sid=%d", ErrSessionNotFound, localSID)
 	}
+	cancelSessionTimeouts(sess)
 	now := r.params.Clock()
 	outbound := t.teardownSession(sess, cdnResultAdministrative, now, r.logger)
 	teardowns := t.drainPendingKernelTeardowns()
@@ -196,6 +200,7 @@ func (r *L2TPReactor) teardownSessionOnTunnel(localTID, localSID uint16) error {
 		}
 	}
 	r.enqueueKernelEvents(nil, teardowns)
+	ClearSessionMetadata(localTID, localSID)
 	return nil
 }
 

@@ -26,8 +26,9 @@ import (
 var poolInstance = &poolPlugin{}
 
 type poolPlugin struct {
-	mu   sync.RWMutex
-	pool *ipv4Pool
+	mu         sync.RWMutex
+	pool       *ipv4Pool
+	namedPools map[string]*ipv4Pool
 
 	busMu sync.Mutex
 	bus   ze.EventBus
@@ -39,6 +40,12 @@ type poolPlugin struct {
 type sessionKey struct {
 	tunnelID  uint16
 	sessionID uint16
+}
+
+type sessionAddr struct {
+	addr     netip.Addr
+	fromPool bool   // false = RADIUS-assigned, skip pool.release
+	poolName string // "" = default pool, non-empty = named pool
 }
 
 func init() {
@@ -100,21 +107,34 @@ func (p *poolPlugin) setEventBus(eb ze.EventBus) {
 
 func (p *poolPlugin) onSessionDown(payload *l2tpevents.SessionDownPayload) {
 	key := sessionKey{tunnelID: payload.TunnelID, sessionID: payload.SessionID}
-	addrVal, ok := p.sessionAddrs.LoadAndDelete(key)
+	val, ok := p.sessionAddrs.LoadAndDelete(key)
 	if !ok {
 		return
 	}
-	addr, ok := addrVal.(netip.Addr)
+	sa, ok := val.(sessionAddr)
 	if !ok {
+		return
+	}
+	if !sa.fromPool {
+		logger().Info("l2tp-pool: RADIUS-assigned address cleared on session-down",
+			"tunnel", payload.TunnelID, "session", payload.SessionID, "address", sa.addr)
 		return
 	}
 	p.mu.RLock()
-	pool := p.pool
+	var pool *ipv4Pool
+	if sa.poolName != "" {
+		if p.namedPools != nil {
+			pool = p.namedPools[sa.poolName]
+		}
+	} else {
+		pool = p.pool
+	}
 	p.mu.RUnlock()
 	if pool != nil {
-		pool.release(addr)
+		pool.release(sa.addr)
 		logger().Info("l2tp-pool: released address on session-down",
-			"tunnel", payload.TunnelID, "session", payload.SessionID, "address", addr)
+			"tunnel", payload.TunnelID, "session", payload.SessionID,
+			"address", sa.addr, "pool", sa.poolName)
 	}
 }
 
@@ -125,10 +145,53 @@ func (p *poolPlugin) handle(req ppp.EventIPRequest) ppp.IPResponseArgs {
 
 	p.mu.RLock()
 	pool := p.pool
+	named := p.namedPools
 	p.mu.RUnlock()
 
 	if pool == nil {
 		return ppp.IPResponseArgs{Accept: false, Family: req.Family, Reason: "no pool configured"}
+	}
+
+	meta := l2tp.LoadSessionMetadata(req.TunnelID, req.SessionID)
+
+	var poolName string
+
+	// Framed-Pool selects a named pool (affects gateway/DNS for both
+	// pool-allocated and RADIUS-assigned IP paths).
+	if meta != nil && meta.FramedPool != "" {
+		if named == nil {
+			return ppp.IPResponseArgs{Accept: false, Family: req.Family,
+				Reason: "named pool " + meta.FramedPool + " not configured"}
+		}
+		namedPool, ok := named[meta.FramedPool]
+		if !ok {
+			logger().Warn("l2tp-pool: named pool not found",
+				"tunnel", req.TunnelID, "session", req.SessionID, "pool", meta.FramedPool)
+			return ppp.IPResponseArgs{Accept: false, Family: req.Family,
+				Reason: "named pool " + meta.FramedPool + " not found"}
+		}
+		pool = namedPool
+		poolName = meta.FramedPool
+	}
+
+	// RFC 2865 Section 5.8: Framed-IP-Address bypasses pool allocation.
+	// Uses the selected pool's gateway/DNS (named pool if Framed-Pool
+	// was also set, default pool otherwise).
+	if meta != nil && meta.FramedIP.IsValid() {
+		p.sessionAddrs.Store(
+			sessionKey{tunnelID: req.TunnelID, sessionID: req.SessionID},
+			sessionAddr{addr: meta.FramedIP, fromPool: false},
+		)
+		logger().Info("l2tp-pool: using RADIUS-assigned address",
+			"tunnel", req.TunnelID, "session", req.SessionID, "address", meta.FramedIP)
+		return ppp.IPResponseArgs{
+			Accept:       true,
+			Family:       ppp.AddressFamilyIPv4,
+			Local:        pool.gateway,
+			Peer:         meta.FramedIP,
+			DNSPrimary:   pool.dnsPrimary,
+			DNSSecondary: pool.dnsSecondary,
+		}
 	}
 
 	addr, ok := pool.allocate()
@@ -140,7 +203,7 @@ func (p *poolPlugin) handle(req ppp.EventIPRequest) ppp.IPResponseArgs {
 
 	p.sessionAddrs.Store(
 		sessionKey{tunnelID: req.TunnelID, sessionID: req.SessionID},
-		addr,
+		sessionAddr{addr: addr, fromPool: true, poolName: poolName},
 	)
 
 	logger().Info("l2tp-pool: allocated address",
@@ -164,57 +227,66 @@ func runPlugin(conn net.Conn) int {
 
 	p.OnConfigVerify(verifyPoolConfig)
 
-	var pending *ipv4Pool
+	var pendingResult *poolConfigResult
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, sec := range sections {
 			if sec.Root != "l2tp" {
 				continue
 			}
-			pool, ok, err := parsePoolConfig(sec.Data)
+			result, err := parseFullPoolConfig(sec.Data)
 			if err != nil {
 				return err
 			}
-			if ok {
-				pending = pool
+			if result.found {
+				pendingResult = &result
 			}
 		}
-		// Initial startup: activate the pool immediately.
-		// OnConfigApply only fires during reload, not initial config delivery.
-		if pending != nil {
+		if pendingResult != nil {
 			poolInstance.mu.Lock()
-			poolInstance.pool = pending
+			poolInstance.pool = pendingResult.defaultPool
+			poolInstance.namedPools = pendingResult.namedPools
 			poolInstance.mu.Unlock()
-			total, _, _ := pending.stats()
-			logger().Info("l2tp-pool: configured", "total", total)
-			pending = nil
+			if pendingResult.defaultPool != nil {
+				total, _, _ := pendingResult.defaultPool.stats()
+				logger().Info("l2tp-pool: configured", "total", total, "named-pools", len(pendingResult.namedPools))
+			}
+			pendingResult = nil
 		}
 		return nil
 	})
 
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
-		if pending != nil {
+		if pendingResult != nil {
 			poolInstance.mu.Lock()
-			old := poolInstance.pool
-			if old != nil {
-				_, oldAlloc, _ := old.stats()
-				if oldAlloc > 0 {
-					poolInstance.mu.Unlock()
-					pending = nil
-					return fmt.Errorf("l2tp-pool: cannot replace pool with %d live allocations; tear down sessions first", oldAlloc)
-				}
+			var liveAllocs uint32
+			if old := poolInstance.pool; old != nil {
+				_, a, _ := old.stats()
+				liveAllocs += a
 			}
-			poolInstance.pool = pending
+			for _, np := range poolInstance.namedPools {
+				_, a, _ := np.stats()
+				liveAllocs += a
+			}
+			if liveAllocs > 0 {
+				poolInstance.mu.Unlock()
+				pendingResult = nil
+				return fmt.Errorf("l2tp-pool: cannot replace pools with %d live allocations; tear down sessions first", liveAllocs)
+			}
+			poolInstance.pool = pendingResult.defaultPool
+			poolInstance.namedPools = pendingResult.namedPools
 			poolInstance.mu.Unlock()
-			total, _, _ := pending.stats()
-			logger().Info("l2tp-pool: configured", "total", total)
-			pending = nil
+			if pendingResult.defaultPool != nil {
+				total, _, _ := pendingResult.defaultPool.stats()
+				logger().Info("l2tp-pool: configured", "total", total, "named-pools", len(pendingResult.namedPools))
+			}
+			pendingResult = nil
 		}
 		return nil
 	})
 
 	p.OnConfigRollback(func(_ string) error {
-		pending = nil
+		pendingResult = nil
 		return nil
 	})
 
@@ -258,7 +330,7 @@ func (p *poolPlugin) showPool() string {
 		if !ok {
 			return true
 		}
-		addr, ok := value.(netip.Addr)
+		sa, ok := value.(sessionAddr)
 		if !ok {
 			return true
 		}
@@ -266,7 +338,7 @@ func (p *poolPlugin) showPool() string {
 		sessions = append(sessions, sessionAlloc{
 			TunnelID:  sk.tunnelID,
 			SessionID: sk.sessionID,
-			Address:   addr.String(),
+			Address:   sa.addr.String(),
 			Username:  username,
 		})
 		return true
@@ -324,78 +396,133 @@ func lookupSessionUsername(tunnelID, sessionID uint16) string {
 	return sess.Username
 }
 
+type poolConfigResult struct {
+	defaultPool *ipv4Pool
+	namedPools  map[string]*ipv4Pool
+	found       bool
+}
+
 func parsePoolConfig(data string) (pool *ipv4Pool, found bool, err error) {
+	result, err := parseFullPoolConfig(data)
+	if err != nil {
+		return nil, false, err
+	}
+	return result.defaultPool, result.found, nil
+}
+
+func parseFullPoolConfig(data string) (poolConfigResult, error) {
 	if data == "" {
-		return nil, false, nil
+		return poolConfigResult{}, nil
 	}
 	var tree map[string]any
 	if err := json.Unmarshal([]byte(data), &tree); err != nil {
-		return nil, false, fmt.Errorf("%s: invalid config JSON: %w", Name, err)
+		return poolConfigResult{}, fmt.Errorf("%s: invalid config JSON: %w", Name, err)
 	}
 
-	// Config data is wrapped in the root key: {"l2tp": {"pool": {...}}}
 	l2tpBlock, ok := tree["l2tp"].(map[string]any)
 	if !ok {
-		return nil, false, nil
+		return poolConfigResult{}, nil
 	}
 	poolBlock, ok := l2tpBlock["pool"].(map[string]any)
 	if !ok {
-		return nil, false, nil
-	}
-	ipv4Block, ok := poolBlock["ipv4"].(map[string]any)
-	if !ok {
-		return nil, false, nil
+		return poolConfigResult{}, nil
 	}
 
+	var result poolConfigResult
+
+	if ipv4Block, ok := poolBlock["ipv4"].(map[string]any); ok {
+		p, err := parseIPv4Pool(ipv4Block)
+		if err != nil {
+			return poolConfigResult{}, err
+		}
+		result.defaultPool = p
+		result.found = true
+	}
+
+	if namedList, ok := poolBlock["named-pool"].([]any); ok {
+		named, err := parseNamedPools(namedList)
+		if err != nil {
+			return poolConfigResult{}, err
+		}
+		if len(named) > 0 {
+			result.namedPools = named
+			result.found = true
+		}
+	}
+
+	return result, nil
+}
+
+func parseIPv4Pool(ipv4Block map[string]any) (*ipv4Pool, error) {
 	gwStr, _ := ipv4Block["gateway"].(string)
 	if gwStr == "" {
-		return nil, false, fmt.Errorf("%s: pool ipv4 requires gateway (NAS-side IP)", Name)
+		return nil, fmt.Errorf("%s: pool ipv4 requires gateway (NAS-side IP)", Name)
 	}
 	gateway, err := netip.ParseAddr(gwStr)
 	if err != nil {
-		return nil, false, fmt.Errorf("%s: invalid gateway address %q: %w", Name, gwStr, err)
+		return nil, fmt.Errorf("%s: invalid gateway address %q: %w", Name, gwStr, err)
 	}
 	if !gateway.Is4() {
-		return nil, false, fmt.Errorf("%s: gateway must be IPv4", Name)
+		return nil, fmt.Errorf("%s: gateway must be IPv4", Name)
 	}
 
 	startStr, _ := ipv4Block["start"].(string)
 	endStr, _ := ipv4Block["end"].(string)
 	if startStr == "" || endStr == "" {
-		return nil, false, fmt.Errorf("%s: pool ipv4 requires both start and end", Name)
+		return nil, fmt.Errorf("%s: pool ipv4 requires both start and end", Name)
 	}
 
 	start, err := netip.ParseAddr(startStr)
 	if err != nil {
-		return nil, false, fmt.Errorf("%s: invalid start address %q: %w", Name, startStr, err)
+		return nil, fmt.Errorf("%s: invalid start address %q: %w", Name, startStr, err)
 	}
 	end, err := netip.ParseAddr(endStr)
 	if err != nil {
-		return nil, false, fmt.Errorf("%s: invalid end address %q: %w", Name, endStr, err)
+		return nil, fmt.Errorf("%s: invalid end address %q: %w", Name, endStr, err)
 	}
 	if !start.Is4() || !end.Is4() {
-		return nil, false, fmt.Errorf("%s: pool addresses must be IPv4", Name)
+		return nil, fmt.Errorf("%s: pool addresses must be IPv4", Name)
 	}
 	if addrToUint32(end) < addrToUint32(start) {
-		return nil, false, fmt.Errorf("%s: end %s is before start %s", Name, end, start)
+		return nil, fmt.Errorf("%s: end %s is before start %s", Name, end, start)
 	}
 	if gateway == start || (addrToUint32(gateway) >= addrToUint32(start) && addrToUint32(gateway) <= addrToUint32(end)) {
-		return nil, false, fmt.Errorf("%s: gateway %s must not overlap pool range %s-%s", Name, gateway, start, end)
+		return nil, fmt.Errorf("%s: gateway %s must not overlap pool range %s-%s", Name, gateway, start, end)
 	}
 
 	var dnsPrimary, dnsSecondary netip.Addr
 	if s, ok := ipv4Block["dns-primary"].(string); ok && s != "" {
 		dnsPrimary, err = netip.ParseAddr(s)
 		if err != nil {
-			return nil, false, fmt.Errorf("%s: invalid dns-primary %q: %w", Name, s, err)
+			return nil, fmt.Errorf("%s: invalid dns-primary %q: %w", Name, s, err)
 		}
 	}
 	if s, ok := ipv4Block["dns-secondary"].(string); ok && s != "" {
 		dnsSecondary, err = netip.ParseAddr(s)
 		if err != nil {
-			return nil, false, fmt.Errorf("%s: invalid dns-secondary %q: %w", Name, s, err)
+			return nil, fmt.Errorf("%s: invalid dns-secondary %q: %w", Name, s, err)
 		}
 	}
 
-	return newIPv4Pool(gateway, start, end, dnsPrimary, dnsSecondary), true, nil
+	return newIPv4Pool(gateway, start, end, dnsPrimary, dnsSecondary), nil
+}
+
+func parseNamedPools(list []any) (map[string]*ipv4Pool, error) {
+	pools := make(map[string]*ipv4Pool, len(list))
+	for _, item := range list {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		name, _ := entry["name"].(string)
+		if name == "" {
+			return nil, fmt.Errorf("%s: named-pool requires a name", Name)
+		}
+		pool, err := parseIPv4Pool(entry)
+		if err != nil {
+			return nil, fmt.Errorf("%s: named-pool %q: %w", Name, name, err)
+		}
+		pools[name] = pool
+	}
+	return pools, nil
 }

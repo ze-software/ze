@@ -3,7 +3,7 @@ package l2tpauthradius
 import (
 	"encoding/binary"
 	"net"
-	"strings"
+	"net/netip"
 	"sync"
 	"testing"
 	"time"
@@ -233,40 +233,44 @@ func TestRADIUSAuthMSCHAPv2Accept(t *testing.T) {
 	}
 }
 
-// TestAccessAcceptUnsupportedAttributes verifies deployment-affecting attributes reject until applied.
-// VALIDATES: Access-Accept attributes that would affect address, pool, filter, timeout, or rate policy are explicit rejects.
-// PREVENTS: RADIUS policy being silently ignored while the session is accepted.
-func TestAccessAcceptUnsupportedAttributes(t *testing.T) {
+// TestAccessAcceptProfileAttributesAccepted verifies that Access-Accept
+// with subscriber profile attributes is accepted (not rejected) and metadata
+// is extracted. spec-bng-1 replaced the rejection logic with attribute consumption.
+// REPLACES: TestAccessAcceptUnsupportedAttributes with 7 subtests testing
+// acceptance instead of rejection. Per-attribute extraction in extract_test.go.
+func TestAccessAcceptProfileAttributesAccepted(t *testing.T) {
 	tests := []struct {
 		name string
 		attr radius.Attr
-		want string
 	}{
-		{"framed_ip", radius.Attr{Type: radius.AttrFramedIPAddress, Value: net.IPv4(198, 51, 100, 10).To4()}, "Framed-IP-Address"},
-		{"framed_pool", radius.Attr{Type: radius.AttrFramedPool, Value: radius.AttrString("pool-a")}, "Framed-Pool"},
-		{"filter_id", radius.Attr{Type: radius.AttrFilterID, Value: radius.AttrString("10mbit")}, "Filter-Id"},
-		{"session_timeout", radius.Attr{Type: radius.AttrSessionTimeout, Value: radius.AttrUint32(3600)}, "Session-Timeout"},
-		{"idle_timeout", radius.Attr{Type: radius.AttrIdleTimeout, Value: radius.AttrUint32(300)}, "Idle-Timeout"},
-		{"acct_interim", radius.Attr{Type: radius.AttrAcctInterimInterval, Value: radius.AttrUint32(60)}, "Acct-Interim-Interval"},
-		{"framed_netmask", radius.Attr{Type: radius.AttrFramedIPNetmask, Value: net.IPv4(255, 255, 255, 255).To4()}, "Framed-IP-Netmask"},
+		{"framed_ip", radius.Attr{Type: radius.AttrFramedIPAddress, Value: net.IPv4(198, 51, 100, 10).To4()}},
+		{"framed_pool", radius.Attr{Type: radius.AttrFramedPool, Value: radius.AttrString("pool-a")}},
+		{"filter_id", radius.Attr{Type: radius.AttrFilterID, Value: radius.AttrString("10mbit")}},
+		{"session_timeout", radius.Attr{Type: radius.AttrSessionTimeout, Value: radius.AttrUint32(3600)}},
+		{"idle_timeout", radius.Attr{Type: radius.AttrIdleTimeout, Value: radius.AttrUint32(300)}},
+		{"acct_interim", radius.Attr{Type: radius.AttrAcctInterimInterval, Value: radius.AttrUint32(60)}},
+		{"framed_netmask", radius.Attr{Type: radius.AttrFramedIPNetmask, Value: net.IPv4(255, 255, 255, 255).To4()}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, ok := unsupportedAccessAcceptAttribute(&radius.Packet{Attrs: []radius.Attr{tt.attr}})
-			if !ok || got != tt.want {
-				t.Fatalf("unsupportedAccessAcceptAttribute = %q, %v; want %q, true", got, ok, tt.want)
+			meta := extractAuthMetadata(&radius.Packet{Attrs: []radius.Attr{tt.attr}})
+			if meta == nil {
+				t.Fatal("expected metadata to be extracted")
 			}
 		})
 	}
 }
 
-// TestRADIUSAuthAccessAcceptRejectsUnsupportedAttribute verifies unsupported policy rejects the session.
-// VALIDATES: RADIUS Access-Accept with unsupported deployment policy returns reject to PPP.
-// PREVENTS: Accepting a subscriber while ignoring assigned address/policy attributes.
-func TestRADIUSAuthAccessAcceptRejectsUnsupportedAttribute(t *testing.T) {
+// TestRADIUSAuthAcceptsProfileAttributes verifies end-to-end that
+// Access-Accept with profile attributes accepts the session and stores
+// metadata for downstream consumers (pool, reactor, shaper).
+// REPLACES: TestRADIUSAuthAccessAcceptRejectsUnsupportedAttribute.
+// Spec-bng-1 wires attribute consumption; sessions are now accepted.
+func TestRADIUSAuthAcceptsProfileAttributes(t *testing.T) {
 	a, resp, cleanup := setupAuthWithAttrs(t, []byte("testing123"), radius.CodeAccessAccept, []radius.Attr{
 		{Type: radius.AttrFramedIPAddress, Value: net.IPv4(198, 51, 100, 10).To4()},
+		{Type: radius.AttrSessionTimeout, Value: radius.AttrUint32(3600)},
 	})
 	defer cleanup()
 
@@ -283,25 +287,51 @@ func TestRADIUSAuthAccessAcceptRejectsUnsupportedAttribute(t *testing.T) {
 	}
 
 	call := resp.waitOne(t)
-	if call.accept {
-		t.Fatal("expected reject for unsupported Access-Accept attribute")
+	if !call.accept {
+		t.Fatalf("expected accept, got reject: %s", call.message)
 	}
-	if !strings.Contains(call.message, "unsupported RADIUS Access-Accept attribute: Framed-IP-Address") {
-		t.Fatalf("reject message = %q", call.message)
+
+	meta := l2tp.LoadSessionMetadata(1, 5)
+	defer l2tp.ClearSessionMetadata(1, 5)
+	if meta == nil {
+		t.Fatal("expected session metadata to be stored")
+	}
+	if meta.FramedIP != netip.MustParseAddr("198.51.100.10") {
+		t.Errorf("FramedIP = %v, want 198.51.100.10", meta.FramedIP)
+	}
+	if meta.SessionTimeout != 3600 {
+		t.Errorf("SessionTimeout = %d, want 3600", meta.SessionTimeout)
 	}
 }
 
-// TestAccessAcceptAllowsMSCHAP2Success verifies authentication-only VSA remains accepted.
-// VALIDATES: MS-CHAPv2 success blobs are not treated as unsupported policy.
-// PREVENTS: Breaking MS-CHAPv2 Access-Accept while rejecting deployment attributes.
-func TestAccessAcceptAllowsMSCHAP2Success(t *testing.T) {
-	vsa, err := radius.EncodeVSA(radius.VendorMicrosoft, radius.MSCHAP2Success, []byte("S=ok"))
-	if err != nil {
-		t.Fatal(err)
+// TestRADIUSAuthAcceptNoProfileAttributes verifies that Access-Accept
+// without profile attributes still succeeds with no metadata stored.
+// REPLACES: TestAccessAcceptAllowsMSCHAP2Success. Rejection logic removed
+// in spec-bng-1; VSA attributes were never profile attributes.
+func TestRADIUSAuthAcceptNoProfileAttributes(t *testing.T) {
+	a, resp, cleanup := setupAuth(t, []byte("testing123"), radius.CodeAccessAccept)
+	defer cleanup()
+
+	result := a.handle(ppp.EventAuthRequest{
+		TunnelID:  1,
+		SessionID: 50,
+		Method:    ppp.AuthMethodPAP,
+		Username:  "plain-user",
+		Response:  []byte("password123"),
+	}, resp.respond)
+
+	if !result.Handled {
+		t.Fatal("expected Handled=true")
 	}
-	got, ok := unsupportedAccessAcceptAttribute(&radius.Packet{Attrs: []radius.Attr{{Type: radius.AttrVendorSpecific, Value: vsa[2:]}}})
-	if ok {
-		t.Fatalf("MS-CHAP2-Success marked unsupported as %q", got)
+
+	call := resp.waitOne(t)
+	if !call.accept {
+		t.Fatalf("expected accept, got reject: %s", call.message)
+	}
+
+	meta := l2tp.LoadSessionMetadata(1, 50)
+	if meta != nil {
+		t.Error("expected no metadata for plain accept")
 	}
 }
 

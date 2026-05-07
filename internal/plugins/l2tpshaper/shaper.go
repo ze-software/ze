@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -71,6 +72,21 @@ func (s *shaperPlugin) onSessionUp(payload *l2tpevents.SessionUpPayload) {
 	}
 	if state.uploadRate == 0 {
 		state.uploadRate = cfg.DefaultRate
+	}
+
+	// RFC 2865 Section 5.11: Filter-Id from RADIUS overrides default rate.
+	if meta := l2tp.LoadSessionMetadata(payload.TunnelID, payload.SessionID); meta != nil && meta.FilterID != "" {
+		if down, up, ok := parseFilterRate(meta.FilterID); ok {
+			state.downloadRate = down
+			state.uploadRate = up
+			logger().Info("l2tp-shaper: using RADIUS Filter-Id rate",
+				"tunnel", payload.TunnelID, "session", payload.SessionID,
+				"filter-id", meta.FilterID, "download-bps", down, "upload-bps", up)
+		} else {
+			logger().Debug("l2tp-shaper: Filter-Id present but not a rate; using default",
+				"tunnel", payload.TunnelID, "session", payload.SessionID,
+				"filter-id", meta.FilterID)
+		}
 	}
 
 	if err := s.applyTC(payload.Interface, cfg.QdiscType, state.downloadRate); err != nil {

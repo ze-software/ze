@@ -36,6 +36,38 @@ module ze-l2tp-pool-conf {
                     description "Secondary DNS server pushed to subscribers.";
                 }
             }
+            list named-pool {
+                key "name";
+                description
+                    "Named IPv4 pools selected by RADIUS Framed-Pool attribute.";
+                leaf name {
+                    type string;
+                    description "Pool name matching RADIUS Framed-Pool value.";
+                }
+                leaf gateway {
+                    type zt:ipv4-address;
+                    mandatory true;
+                    description "NAS-side IP for sessions using this pool.";
+                }
+                leaf start {
+                    type zt:ipv4-address;
+                    mandatory true;
+                    description "First address in the pool range.";
+                }
+                leaf end {
+                    type zt:ipv4-address;
+                    mandatory true;
+                    description "Last address in the pool range (inclusive).";
+                }
+                leaf dns-primary {
+                    type zt:ipv4-address;
+                    description "Primary DNS server pushed to subscribers.";
+                }
+                leaf dns-secondary {
+                    type zt:ipv4-address;
+                    description "Secondary DNS server pushed to subscribers.";
+                }
+            }
         }
     }
 }

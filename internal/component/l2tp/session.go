@@ -121,6 +121,12 @@ type L2TPSession struct {
 	// Used by SessionUp EventBus event so the shaper can apply TC.
 	pppInterface string
 
+	// RADIUS timeout cancellation. Set by handleSessionUp when the
+	// RADIUS Access-Accept carried Session-Timeout or Idle-Timeout.
+	// Canceled on session teardown. nil when no timeout is active.
+	sessionTimeoutCancel func()
+	idleTimeoutCancel    func()
+
 	fsmHistory *fsmHistoryRing
 }
 
@@ -243,6 +249,8 @@ func (t *L2TPTunnel) clearSessions() []*L2TPSession {
 	}
 	result := make([]*L2TPSession, 0, len(t.sessions))
 	for _, s := range t.sessions {
+		cancelSessionTimeouts(s)
+		ClearSessionMetadata(t.localTID, s.localSID)
 		if s.state == L2TPSessionEstablished {
 			t.pendingKernelTeardowns = append(t.pendingKernelTeardowns, kernelTeardownEvent{
 				localTID: t.localTID,
