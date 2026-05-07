@@ -330,6 +330,52 @@ func TestParseNamedPoolMissingName(t *testing.T) {
 	}
 }
 
+func TestPoolBitmapScale(t *testing.T) {
+	const poolSize = 2000
+	start := netip.MustParseAddr("10.0.0.1")
+	endU32 := addrToUint32(start) + poolSize - 1
+	end := uint32ToAddr(endU32)
+
+	p := newIPv4Pool(testGW, start, end, netip.Addr{}, netip.Addr{})
+
+	total, _, avail := p.stats()
+	if total != poolSize || avail != poolSize {
+		t.Fatalf("initial: total=%d avail=%d, want %d", total, avail, poolSize)
+	}
+
+	addrs := make([]netip.Addr, 0, poolSize)
+	seen := make(map[netip.Addr]bool, poolSize)
+	for range poolSize {
+		addr, ok := p.allocate()
+		if !ok {
+			t.Fatalf("allocation failed at %d", len(addrs))
+		}
+		if seen[addr] {
+			t.Fatalf("duplicate address: %s", addr)
+		}
+		seen[addr] = true
+		addrs = append(addrs, addr)
+	}
+
+	_, allocated, avail := p.stats()
+	if allocated != poolSize || avail != 0 {
+		t.Fatalf("after alloc: allocated=%d avail=%d", allocated, avail)
+	}
+
+	if _, ok := p.allocate(); ok {
+		t.Fatal("allocation should fail on exhausted pool")
+	}
+
+	for _, addr := range addrs {
+		p.release(addr)
+	}
+
+	_, allocated, avail = p.stats()
+	if allocated != 0 || avail != poolSize {
+		t.Fatalf("after release: allocated=%d avail=%d", allocated, avail)
+	}
+}
+
 func TestParseNoNamedPools(t *testing.T) {
 	data := `{"l2tp":{"pool":{"ipv4":{"gateway":"10.0.0.254","start":"10.0.0.1","end":"10.0.0.10"}}}}`
 

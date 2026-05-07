@@ -334,3 +334,13 @@ traffic counters read from the pppN kernel interface:
 | Acct-Output-Gigawords (53) | RFC 2869 S5.2 | Output octet counter wraps (present when >0) |
 
 <!-- source: internal/plugins/l2tpauthradius/acct.go -- buildAcctPacket, splitGigawords -->
+
+### Scale Validation
+
+Ze includes control-plane scale test infrastructure (`ze-test l2tp-scale`)
+that validates 2000 concurrent L2TP sessions across 10 tunnels on loopback.
+The test measures session establishment rate, RADIUS auth/accounting
+handling, IP pool allocation correctness, and teardown completeness without
+requiring root, kernel modules, or Docker.
+
+<!-- source: cmd/ze-test/l2tp_scale.go -- LAC simulator + mock RADIUS -->

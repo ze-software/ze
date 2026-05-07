@@ -1254,6 +1254,34 @@ appliance route inject/withdraw logs.
 <!-- source: cmd/ze-test/l2tp.go -- l2tpCmd runner dispatch -->
 <!-- source: internal/test/runner/record_parse.go -- .ci discovery and directive parsing -->
 
+### L2TP scale tests
+
+Scale tests (`test/l2tp-scale/`) validate Ze's L2TP control plane at
+2000 concurrent sessions across 10 tunnels. They run on loopback (no
+root, no Docker, no kernel modules) and measure session establishment
+rate, RADIUS round-trip handling, pool allocation correctness, and
+teardown completeness.
+
+The test tooling lives in `ze-test l2tp-scale`, which bundles a Go LAC
+simulator (speaking real L2TP wire protocol) and an embedded mock RADIUS
+server. A Python harness (`test/l2tp-scale/harness.py`) orchestrates Ze
+and the simulator.
+
+```bash
+python3 test/l2tp-scale/run.py                  # run all scenarios
+python3 test/l2tp-scale/run.py 2k-sessions       # run specific scenario
+ze-test l2tp-scale --help                        # simulator CLI help
+```
+
+| Scenario | Directory | What it validates |
+|----------|-----------|-------------------|
+| 2k sessions | `test/l2tp-scale/2k-sessions/` | All 2000 sessions established |
+| Clean teardown | `test/l2tp-scale/clean-teardown/` | No resource leaks after teardown |
+| Pool exhaustion | `test/l2tp-scale/pool-exhaustion/` | Sessions beyond pool size rejected |
+| Slow RADIUS | `test/l2tp-scale/slow-radius/` | Sessions established under 500ms RADIUS delay |
+
+<!-- source: cmd/ze-test/l2tp_scale.go -- LAC simulator + mock RADIUS -->
+
 ---
 
-**Updated:** 2026-04-15
+**Updated:** 2026-05-08
