@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Depends | spec-l2tp-8b-radius (done) |
-| Phase | 1/9 |
+| Phase | 7/9 |
 | Updated | 2026-05-07 |
 
 ## Post-Compaction Recovery
@@ -335,72 +335,170 @@ Add `// RFC 2865 Section 5.28` above Idle-Timeout enforcement.
 ## Implementation Summary
 
 ### What Was Implemented
-- (to be filled)
+- Removed `unsupportedAccessAcceptAttrs` rejection logic from RADIUS handler
+- RADIUS attribute extraction: `extractAuthMetadata()` in `extract.go` parses Framed-IP-Address, Framed-IP-Netmask, Framed-Pool, Session-Timeout, Idle-Timeout, Filter-Id, Acct-Interim-Interval from Access-Accept
+- Per-session metadata store: `session_metadata.go` with sync.Map-backed Store/Load/Clear
+- Pool bypass: Framed-IP-Address bypasses pool allocation, assigns directly; `sessionAddr.fromPool` tracks origin for correct teardown release
+- Named pools: `namedPools map[string]*ipv4Pool`, YANG `named-pool` list, config parsing via `parseNamedPools()`
+- Session-Timeout/Idle-Timeout: goroutine-based timers started in `handleSessionUp`, cancelled in both teardown paths
+- Idle-Timeout traffic detection: Linux `/sys/class/net/<iface>/statistics/rx_bytes`, non-Linux stub returns 0
+- Filter-Id initial rate: `parseFilterRate()` in `filter_rate.go`, applied by shaper at session-up
+- Per-session Acct-Interim-Interval: `clampAcctInterval()` [60,3600]s, overrides plugin-global interval in `interimLoop`
+- IP validation: `isValidSubscriberIP()` rejects multicast, broadcast, loopback, link-local, unspecified
+- Pre-existing lint fix: `session_run.go` modernized min-MTU clamp to use `max()` builtin
 
 ### Bugs Found/Fixed
-- (to be filled)
+- None. Clean implementation across all phases.
 
 ### Documentation Updates
-- (to be filled)
+- `docs/features.md`: updated L2TPv2 BNG feature description (RADIUS attributes consumed instead of rejected)
+- `docs/guide/plugins.md`: updated l2tp-auth-radius, l2tp-pool, l2tp-shaper descriptions
+- `docs/guide/configuration.md`: added L2TP Address Pool section with named pool config syntax
+- `docs/comparison.md`: added BNG / L2TP Capabilities section with RADIUS attribute table
 
 ### Deviations from Plan
-- (to be filled)
+- AC-2 (Framed-IP-Netmask applied to pppN interface): extracted but not consumed. PPP is point-to-point; netmask does not apply to the interface. Deferred to bng-3 where delegated-prefix routing needs prefix-length awareness.
+- Idle-Timeout traffic detection on non-Linux: stub returns 0, timer fires unconditionally. Acceptable for the target gokrazy/Linux appliance.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Remove rejection logic | Done | `handler.go:112-148` | `unsupportedAccessAcceptAttrs` map removed; `extractAuthMetadata` called on Accept |
+| Extract RADIUS attributes | Done | `extract.go:26-73` | All 7 attributes parsed from Access-Accept |
+| Store metadata per-session | Done | `session_metadata.go:43-68` | sync.Map keyed by (tunnelID, sessionID) |
+| Framed-IP-Address bypasses pool | Done | `register.go:180-195` | `fromPool: false`, direct IP response |
+| Named pool support | Done | `register.go:161-175`, `510-528` | YANG `named-pool` list, `parseNamedPools()` |
+| Session-Timeout enforcement | Done | `session_timeout.go:24-71` | goroutine per session, CDN on expiry |
+| Idle-Timeout enforcement | Done | `session_timeout.go:81-105` | periodic RX byte check, teardown on idle |
+| Filter-Id initial rate | Done | `shaper.go:78-88`, `filter_rate.go:24-44` | `parseFilterRate()` at session-up |
+| Acct-Interim-Interval override | Done | `acct.go:102-103`, `274-285` | per-session clamp [60,3600]s |
+| Timeout cancellation on teardown | Done | `teardown.go:97,114,187,203` | both teardown paths cancel + clear metadata |
+| IP validation | Done | `extract.go:77-89` | rejects multicast, broadcast, loopback, link-local |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `extract.go:30-35`, `register.go:180-195`, `TestExtractFramedIP`, `TestPoolHandleFramedIPBypass` | Pool bypass with direct IP |
+| AC-2 | Deferred | `extract.go:38-41` | Extracted but not consumed; PPP P2P has no netmask. Deferred to bng-3. |
+| AC-3 | Done | `register.go:161-175`, `TestPoolHandleNamedPool`, `TestParseNamedPoolConfig` | Named pool selection |
+| AC-4 | Done | `register.go:163-171`, `TestPoolHandleNamedPoolNotFound` | Rejects with error logged |
+| AC-5 | Done | `session_timeout.go:42-45,60-71`, `TestRunSessionTimeoutCanceled` | CDN on expiry |
+| AC-6 | Done | `session_timeout.go:48-52,81-105`, `TestRunIdleTimeoutCanceled` | Idle timer with RX check |
+| AC-7 | Done | `shaper.go:78-88`, `filter_rate.go:24-44`, `TestParseFilterRateAsymmetric` | Initial rate at session-up |
+| AC-8 | Done | `acct.go:102-103`, `TestClampAcctIntervalWithinRange` | Per-session interval override |
+| AC-9 | Done | `extract.go:69-71`, `TestExtractNoProfileAttributes`, `TestPoolHandleNoMetadataFallsThrough` | Returns nil, normal pool path |
+| AC-10 | Done | `extract.go:26-73`, `TestExtractMultipleAttributes` | All attributes processed |
+| AC-11 | Done | `session_timeout.go:60-71`, `teardown.go:97,114` | CDN + cancel + clear metadata |
+| AC-12 | Done | `session_timeout.go:89-93` | `currentRX > lastRX` resets timer |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestExtractFramedIP` | Done | `extract_test.go:11` | + 5 rejection variants (multicast, loopback, broadcast, link-local, short) |
+| `TestExtractFramedPool` | Done | `extract_test.go:75` | |
+| `TestExtractSessionTimeout` | Done | `extract_test.go:88` | |
+| `TestExtractIdleTimeout` | Done | `extract_test.go:101` | |
+| `TestExtractFilterId` | Done | `extract_test.go:114` | |
+| `TestExtractAcctInterimInterval` | Done | `extract_test.go:127` | |
+| `TestPoolHandleFramedIPBypass` | Done | `pool_test.go:143` | Also `TestPoolHandleFramedIPBypassTracksSession` (:183) |
+| `TestRunSessionTimeoutCanceled` | Done | `session_timeout_test.go:38` | |
+| `TestRunIdleTimeoutCanceled` | Done | `session_timeout_test.go:45` | |
+| `TestPoolHandleNamedPool` | Done | `pool_test.go:234` | Also `TestPoolHandleNamedPoolNotFound` (:273) |
+| `TestClampAcctInterval*` | Done | `acct_interval_test.go:11-27` | 4 tests: within range, below floor, above ceiling, boundaries |
+| `TestParseFilterRate*` | Done | `filter_rate_test.go:11-58` | 6 tests: symmetric, asymmetric, prefix, gbit, invalid |
+| `TestRADIUSAuthAcceptsProfileAttributes` | Done | `handler_test.go:270` | End-to-end: metadata stored on Accept |
+| `TestIsValidSubscriberIP` | Done | `extract_test.go:189` | Table-driven validation |
+| `TestCancelSessionTimeoutsNilSafe` | Done | `session_timeout_test.go:14` | |
+| `TestStartSessionTimeoutsNoMetadata` | Done | `session_timeout_test.go:33` | |
+| `radius-framed-ip.ci` | Done | `test/l2tp/radius-framed-ip.ci` | Functional: RADIUS + named pool config |
+| `radius-session-timeout.ci` | Done | `test/l2tp/radius-session-timeout.ci` | Functional: RADIUS + timeout attrs |
+| `radius-filter-rate.ci` | Done | `test/l2tp/radius-filter-rate.ci` | Functional: RADIUS + Filter-Id + Acct-Interim |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/plugins/l2tpauthradius/handler.go` | Modified | Rejection removed, extractAuthMetadata + StoreSessionMetadata on Accept |
+| `internal/plugins/l2tpauthradius/extract.go` | Created | extractAuthMetadata(), isValidSubscriberIP() |
+| `internal/plugins/l2tpauthradius/acct.go` | Modified | Per-session AcctInterimInterval override with clampAcctInterval |
+| `internal/component/l2tp/session_metadata.go` | Created | AuthMetadata, Store/Load/Clear on sync.Map |
+| `internal/component/l2tp/session_timeout.go` | Created | startSessionTimeouts, runSessionTimeout, runIdleTimeout, cancelSessionTimeouts |
+| `internal/component/l2tp/iface_stats_linux.go` | Created | Reads /sys/class/net/iface/statistics/rx_bytes |
+| `internal/component/l2tp/iface_stats_other.go` | Created | Non-Linux stub returns 0 |
+| `internal/component/l2tp/reactor.go` | Modified | handleSessionUp starts timeouts |
+| `internal/component/l2tp/session.go` | Modified | sessionTimeoutCancel/idleTimeoutCancel fields |
+| `internal/component/l2tp/teardown.go` | Modified | cancelSessionTimeouts + ClearSessionMetadata in both paths |
+| `internal/plugins/l2tppool/register.go` | Modified | sessionAddr{fromPool,poolName}, named pool resolution, RADIUS IP bypass |
+| `internal/plugins/l2tpshaper/shaper.go` | Modified | LoadSessionMetadata + parseFilterRate in onSessionUp |
+| `internal/plugins/l2tpshaper/filter_rate.go` | Created | Parses "rate:20mbit/5mbit", "10mbit", etc. |
+| `test/l2tp/radius-framed-ip.ci` | Created | Functional test: RADIUS + named pool config |
+| `test/l2tp/radius-session-timeout.ci` | Created | Functional test: RADIUS + timeout attrs |
+| `test/l2tp/radius-filter-rate.ci` | Created | Functional test: RADIUS + Filter-Id + Acct-Interim |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 58 (11 requirements, 12 ACs, 19 tests, 16 files)
+- **Done:** 57
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (AC-2 deferred to bng-3; extracted but not consumed)
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | NOTE | Pre-existing scripts/evidence build failure (l2tp-tunnel-diag.go, l2tp-pppox-diag.go redeclared symbols) | scripts/evidence/ | Not in scope |
 
 ### Fixes applied
-- (to be filled)
+- 3 review passes completed in prior session; all findings resolved before commit
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | - | Clean (0 BLOCKER, 0 ISSUE) | - | - |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/plugins/l2tpauthradius/extract.go` | Yes | `extractAuthMetadata`, `isValidSubscriberIP` |
+| `internal/component/l2tp/session_metadata.go` | Yes | `AuthMetadata`, `StoreSessionMetadata`, `LoadSessionMetadata`, `ClearSessionMetadata` |
+| `internal/component/l2tp/session_timeout.go` | Yes | `startSessionTimeouts`, `runSessionTimeout`, `runIdleTimeout`, `cancelSessionTimeouts` |
+| `internal/component/l2tp/iface_stats_linux.go` | Yes | `readIfaceRXBytes` (Linux) |
+| `internal/component/l2tp/iface_stats_other.go` | Yes | `readIfaceRXBytes` (stub) |
+| `internal/plugins/l2tpshaper/filter_rate.go` | Yes | `parseFilterRate` |
+| `test/l2tp/radius-framed-ip.ci` | Yes | Functional test |
+| `test/l2tp/radius-session-timeout.ci` | Yes | Functional test |
+| `test/l2tp/radius-filter-rate.ci` | Yes | Functional test |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Pool bypass | `register.go:180`: `meta.FramedIP.IsValid()` -> direct response, `fromPool: false` |
+| AC-2 | Deferred | `extract.go:38`: extracted only; bng-3 scope |
+| AC-3 | Named pool | `register.go:166`: `named[meta.FramedPool]` lookup |
+| AC-4 | Nonexistent pool rejected | `register.go:168-171`: Warn log + Accept=false |
+| AC-5 | Session-Timeout | `session_timeout.go:45`: `go r.runSessionTimeout(...)` |
+| AC-6 | Idle-Timeout | `session_timeout.go:52`: `go r.runIdleTimeout(...)` |
+| AC-7 | Filter-Id rate | `shaper.go:79`: `parseFilterRate(meta.FilterID)` |
+| AC-8 | Acct-Interim | `acct.go:102-103`: `clampAcctInterval(meta.AcctInterimInterval)` |
+| AC-9 | No attrs = normal | `extract.go:69-71`: returns nil, pool path unchanged |
+| AC-10 | Multiple attrs | `extract.go:26-73`: each attr checked independently |
+| AC-11 | Timeout fires = CDN | `session_timeout.go:65`: `TeardownSessionByID(sid)` |
+| AC-12 | Traffic resets idle | `session_timeout.go:90-91`: `currentRX > lastRX` -> continue |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| RADIUS Accept + Framed-IP + named pool | `test/l2tp/radius-framed-ip.ci` | pass |
+| RADIUS Accept + Session-Timeout + Idle-Timeout | `test/l2tp/radius-session-timeout.ci` | pass |
+| RADIUS Accept + Filter-Id + Acct-Interim-Interval | `test/l2tp/radius-filter-rate.ci` | pass |
 
 ## Checklist
 

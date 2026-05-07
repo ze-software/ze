@@ -1003,6 +1003,49 @@ PPP authentication (env var, YANG pending in spec-l2tp-7-subsystem):
 <!-- source: internal/component/l2tp/subsystem.go -- L2TPSubsystem lifecycle -->
 <!-- source: internal/component/l2tp/reactor.go -- handleKernelSuccess auth-timeout read -->
 
+### L2TP Address Pool
+
+The `l2tp-pool` plugin provides IPv4 address allocation for PPP sessions.
+A default pool and optional named pools are configured under `l2tp { pool { } }`.
+Named pools are selected per-session via the RADIUS `Framed-Pool` attribute;
+when `Framed-IP-Address` is present in Access-Accept, the pool is bypassed
+and the RADIUS-assigned address is used directly.
+
+```
+l2tp {
+    pool {
+        ipv4 {
+            gateway 10.255.0.1
+            start 10.255.0.10
+            end 10.255.0.254
+            dns-primary 8.8.8.8
+            dns-secondary 8.8.4.4
+        }
+        named-pool gold {
+            gateway 10.255.1.1
+            start 10.255.1.10
+            end 10.255.1.254
+            dns-primary 1.1.1.1
+            dns-secondary 1.0.0.1
+        }
+    }
+}
+```
+
+| Setting | Type | Description |
+|---------|------|-------------|
+| `gateway` | IPv4 address | NAS-side IP sent to the subscriber as the PPP peer address |
+| `start` | IPv4 address | First allocatable address in the pool range |
+| `end` | IPv4 address | Last allocatable address in the pool range |
+| `dns-primary` | IPv4 address | Primary DNS server sent via IPCP |
+| `dns-secondary` | IPv4 address | Secondary DNS server sent via IPCP |
+
+Named pools use the same settings nested under `named-pool <name> { }`.
+The gateway must not overlap the pool range.
+
+<!-- source: internal/plugins/l2tppool/register.go -- parseIPv4Pool, parseNamedPools -->
+<!-- source: internal/plugins/l2tppool/schema/ze-l2tp-pool-conf.yang -- YANG schema -->
+
 ## Hub Configuration
 
 The plugin hub provides TLS transport for plugin communication and fleet management.

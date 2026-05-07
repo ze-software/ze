@@ -177,9 +177,9 @@ ze --plugins
 | Plugin | Description |
 |--------|-------------|
 | `l2tp-auth-local` | Static user/password authentication for L2TP PPP sessions (PAP/CHAP-MD5/MS-CHAPv2) |
-| `l2tp-auth-radius` | RADIUS authentication (Access-Request), accounting (Start/Stop/Interim-Update), and CoA/DM listener |
-| `l2tp-pool` | Bitmap-backed IPv4 address pool using Ze configuration; unsupported RADIUS pool/address Access-Accept attributes are rejected |
-| `l2tp-shaper` | TC traffic shaping (TBF/HTB) on pppN interfaces with configured default rates and RADIUS CoA rate updates |
+| `l2tp-auth-radius` | RADIUS authentication (Access-Request), accounting (Start/Stop/Interim-Update), CoA/DM listener, and Access-Accept attribute extraction (Framed-IP-Address, Framed-Pool, Session-Timeout, Idle-Timeout, Filter-Id, Acct-Interim-Interval) |
+| `l2tp-pool` | Bitmap-backed IPv4 address pool with default and named pools; Framed-IP-Address bypasses pool (direct RADIUS IP assignment), Framed-Pool selects a named pool |
+| `l2tp-shaper` | TC traffic shaping (TBF/HTB) on pppN interfaces with configured default rates, RADIUS CoA rate updates, and initial rate from Filter-Id at session establishment |
 
 These plugins register via the L2TP handler registry (`RegisterAuthHandler`,
 `RegisterPoolHandler`) at init time. Only one auth handler is active at a

@@ -299,3 +299,24 @@ with 4000+ functional test cases. No programmatic API (CLI-only), no YANG model,
 logging. The own-stack design means Docker integration requires a raw socket bridge (rawInt.bin)
 between the container interface and freeRtr's virtual network layer.
 <!-- source: external -- codeberg.org/m36/freeRtr -->
+
+## BNG / L2TP Capabilities
+
+Ze includes a production BNG stack built on L2TPv2 (RFC 2661) with RADIUS
+integration (RFC 2865/2866). Most BGP daemons in the comparison table have
+no BNG functionality. The following RADIUS Access-Accept subscriber profile
+attributes are consumed:
+
+| Attribute | RFC | Ze Behavior |
+|-----------|-----|-------------|
+| Framed-IP-Address (8) | RFC 2865 S5.8 | Bypasses pool; assigns address directly to PPP session |
+| Framed-IP-Netmask (9) | RFC 2865 S5.9 | Extracted and stored (consumed by future PPP interface config) |
+| Framed-Pool (88) | RFC 2865 | Selects a named pool for IP allocation |
+| Session-Timeout (27) | RFC 2865 S5.27 | Enforces maximum session duration; CDN on expiry |
+| Idle-Timeout (28) | RFC 2865 S5.28 | Disconnects after inactivity period (Linux RX byte counters) |
+| Filter-Id (11) | RFC 2865 S5.11 | Sets initial shaping rate at session establishment |
+| Acct-Interim-Interval (85) | RFC 2866 S5.18 | Overrides per-session accounting update interval [60,3600]s |
+
+<!-- source: internal/plugins/l2tpauthradius/extract.go -- extractAuthMetadata -->
+<!-- source: internal/component/l2tp/session_timeout.go -- timeout enforcement -->
+<!-- source: internal/plugins/l2tpshaper/filter_rate.go -- Filter-Id rate parsing -->
