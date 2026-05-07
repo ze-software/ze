@@ -2,11 +2,13 @@ package l2tpauthradius
 
 import (
 	"encoding/binary"
+	"errors"
 	"net"
 	"sync"
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
 )
@@ -220,4 +222,224 @@ func TestRADIUSAcctInterim(t *testing.T) {
 	}
 
 	acct.Stop()
+}
+
+func TestSplitGigawords(t *testing.T) {
+	tests := []struct {
+		name     string
+		bytes    uint64
+		wantOct  uint32
+		wantGiga uint32
+	}{
+		{"zero", 0, 0, 0},
+		{"small", 1000, 1000, 0},
+		{"max_uint32", 0xFFFFFFFF, 0xFFFFFFFF, 0},
+		{"one_wrap", 0x100000000, 0, 1},
+		{"wrap_plus_remainder", 0x100000001, 1, 1},
+		{"large", 0x300000000 + 42, 42, 3},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			oct, giga := splitGigawords(tc.bytes)
+			if oct != tc.wantOct {
+				t.Errorf("octets: got %d, want %d", oct, tc.wantOct)
+			}
+			if giga != tc.wantGiga {
+				t.Errorf("gigawords: got %d, want %d", giga, tc.wantGiga)
+			}
+		})
+	}
+}
+
+func TestBuildAcctPacketWithCounters(t *testing.T) {
+	saved := acctGetStats
+	acctGetStats = func(name string) (*iface.InterfaceStats, error) {
+		return &iface.InterfaceStats{
+			RxBytes:   5000,
+			TxBytes:   3000,
+			RxPackets: 50,
+			TxPackets: 30,
+		}, nil
+	}
+	defer func() { acctGetStats = saved }()
+
+	acct := newRADIUSAcct()
+	sess := &acctSession{
+		username:     "alice",
+		acctSessID:   "1-2-1",
+		pppInterface: "ppp0",
+	}
+
+	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusInterimUpdate, 60)
+
+	assertAttrUint32(t, pkt, radius.AttrAcctInputOctets, 5000)
+	assertAttrUint32(t, pkt, radius.AttrAcctOutputOctets, 3000)
+	assertAttrUint32(t, pkt, radius.AttrAcctInputPackets, 50)
+	assertAttrUint32(t, pkt, radius.AttrAcctOutputPackets, 30)
+
+	if v := pkt.FindAttr(radius.AttrAcctInputGigawords); v != nil {
+		t.Error("gigawords should not be present for <4GB counters")
+	}
+	if v := pkt.FindAttr(radius.AttrAcctOutputGigawords); v != nil {
+		t.Error("gigawords should not be present for <4GB counters")
+	}
+}
+
+func TestBuildAcctPacketGigawords(t *testing.T) {
+	saved := acctGetStats
+	acctGetStats = func(name string) (*iface.InterfaceStats, error) {
+		return &iface.InterfaceStats{
+			RxBytes:   0x200000000 + 100, // 2 gigawords + 100 octets
+			TxBytes:   0x300000000 + 200, // 3 gigawords + 200 octets
+			RxPackets: 10,
+			TxPackets: 20,
+		}, nil
+	}
+	defer func() { acctGetStats = saved }()
+
+	acct := newRADIUSAcct()
+	sess := &acctSession{
+		username:     "bob",
+		acctSessID:   "1-3-1",
+		pppInterface: "ppp1",
+	}
+
+	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusStop, 120)
+
+	assertAttrUint32(t, pkt, radius.AttrAcctInputOctets, 100)
+	assertAttrUint32(t, pkt, radius.AttrAcctOutputOctets, 200)
+	assertAttrUint32(t, pkt, radius.AttrAcctInputGigawords, 2)
+	assertAttrUint32(t, pkt, radius.AttrAcctOutputGigawords, 3)
+	assertAttrUint32(t, pkt, radius.AttrAcctInputPackets, 10)
+	assertAttrUint32(t, pkt, radius.AttrAcctOutputPackets, 20)
+}
+
+func TestBuildAcctPacketStartZeroCounters(t *testing.T) {
+	called := false
+	saved := acctGetStats
+	acctGetStats = func(name string) (*iface.InterfaceStats, error) {
+		called = true
+		return &iface.InterfaceStats{RxBytes: 999}, nil
+	}
+	defer func() { acctGetStats = saved }()
+
+	acct := newRADIUSAcct()
+	sess := &acctSession{
+		username:     "carol",
+		acctSessID:   "1-4-1",
+		pppInterface: "ppp2",
+	}
+
+	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusStart, 0)
+
+	if called {
+		t.Error("GetStats should not be called for Start packets")
+	}
+	if v := pkt.FindAttr(radius.AttrAcctInputOctets); v != nil {
+		t.Error("Start packet should not include counter attributes")
+	}
+}
+
+func TestBuildAcctPacketMissingIface(t *testing.T) {
+	saved := acctGetStats
+	acctGetStats = func(name string) (*iface.InterfaceStats, error) {
+		t.Error("GetStats should not be called when pppInterface is empty")
+		return &iface.InterfaceStats{}, nil
+	}
+	defer func() { acctGetStats = saved }()
+
+	acct := newRADIUSAcct()
+	sess := &acctSession{
+		username:   "dave",
+		acctSessID: "1-5-1",
+	}
+
+	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusInterimUpdate, 60)
+
+	assertAttrUint32(t, pkt, radius.AttrAcctInputOctets, 0)
+	assertAttrUint32(t, pkt, radius.AttrAcctOutputOctets, 0)
+	assertAttrUint32(t, pkt, radius.AttrAcctInputPackets, 0)
+	assertAttrUint32(t, pkt, radius.AttrAcctOutputPackets, 0)
+}
+
+func TestBuildAcctPacketGetStatsError(t *testing.T) {
+	saved := acctGetStats
+	acctGetStats = func(name string) (*iface.InterfaceStats, error) {
+		return nil, errors.New("interface not found")
+	}
+	defer func() { acctGetStats = saved }()
+
+	acct := newRADIUSAcct()
+	sess := &acctSession{
+		username:     "frank",
+		acctSessID:   "1-6-1",
+		pppInterface: "ppp99",
+	}
+
+	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusInterimUpdate, 60)
+
+	assertAttrUint32(t, pkt, radius.AttrAcctInputOctets, 0)
+	assertAttrUint32(t, pkt, radius.AttrAcctOutputOctets, 0)
+	assertAttrUint32(t, pkt, radius.AttrAcctInputPackets, 0)
+	assertAttrUint32(t, pkt, radius.AttrAcctOutputPackets, 0)
+}
+
+func TestAcctSessionPppInterface(t *testing.T) {
+	sharedKey := []byte("accttest")
+	capture := newAcctCapture()
+	conn, addr := startAcctServer(t, sharedKey, capture)
+	defer conn.Close() //nolint:errcheck // test cleanup
+
+	client, err := radius.NewClient(radius.ClientConfig{
+		Servers: []radius.Server{{Address: addr, SharedKey: sharedKey}},
+		Timeout: 2 * time.Second,
+		Retries: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close() //nolint:errcheck // test cleanup
+
+	acct := newRADIUSAcct()
+	acct.setClient(client, "test-nas", 300*time.Second, addr, nil)
+
+	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
+		TunnelID:     1,
+		SessionID:    10,
+		Username:     "eve",
+		PeerAddr:     "10.0.0.5",
+		PppInterface: "ppp42",
+	})
+
+	capture.waitN(t, 1) // wait for start
+
+	acct.mu.Lock()
+	sess, ok := acct.sessions[sessionKey{1, 10}]
+	acct.mu.Unlock()
+
+	if !ok {
+		t.Fatal("session not found")
+	}
+	if sess.pppInterface != "ppp42" {
+		t.Errorf("pppInterface: got %q, want %q", sess.pppInterface, "ppp42")
+	}
+
+	acct.Stop()
+}
+
+func assertAttrUint32(t *testing.T, pkt *radius.Packet, attrType uint8, want uint32) {
+	t.Helper()
+	v := pkt.FindAttr(attrType)
+	if v == nil {
+		t.Errorf("attr %d: not found", attrType)
+		return
+	}
+	if len(v) != 4 {
+		t.Errorf("attr %d: length %d, want 4", attrType, len(v))
+		return
+	}
+	got := binary.BigEndian.Uint32(v)
+	if got != want {
+		t.Errorf("attr %d: got %d, want %d", attrType, got, want)
+	}
 }

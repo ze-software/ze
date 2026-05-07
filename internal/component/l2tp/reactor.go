@@ -1057,6 +1057,7 @@ func (r *L2TPReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 		sess.assignedAddr = ev.Local
 	}
 	username := sess.username
+	pppIface := sess.pppInterface
 	r.tunnelsMu.Unlock()
 
 	if r.routeObserver != nil && addr.IsValid() {
@@ -1073,10 +1074,11 @@ func (r *L2TPReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 
 	if r.eventBus != nil && addr.IsValid() {
 		if _, err := l2tpevents.SessionIPAssigned.Emit(r.eventBus, &l2tpevents.SessionIPAssignedPayload{
-			TunnelID:  ev.TunnelID,
-			SessionID: ev.SessionID,
-			Username:  username,
-			PeerAddr:  addr.String(),
+			TunnelID:     ev.TunnelID,
+			SessionID:    ev.SessionID,
+			Username:     username,
+			PeerAddr:     addr.String(),
+			PppInterface: pppIface,
 		}); err != nil {
 			r.logger.Warn("l2tp: session-ip-assigned emit failed", "error", err)
 		}

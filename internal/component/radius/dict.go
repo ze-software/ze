@@ -49,6 +49,8 @@ const (
 	AttrAcctSessionTime      = 46
 	AttrAcctInputPackets     = 47
 	AttrAcctOutputPackets    = 48
+	AttrAcctInputGigawords   = 52
+	AttrAcctOutputGigawords  = 53
 	AttrEventTimestamp       = 55
 	AttrCHAPChallenge        = 60
 	AttrNASPortType          = 61

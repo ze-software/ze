@@ -320,3 +320,17 @@ attributes are consumed:
 <!-- source: internal/plugins/l2tpauthradius/extract.go -- extractAuthMetadata -->
 <!-- source: internal/component/l2tp/session_timeout.go -- timeout enforcement -->
 <!-- source: internal/plugins/l2tpshaper/filter_rate.go -- Filter-Id rate parsing -->
+
+RADIUS Accounting (Interim-Update and Stop) includes real per-subscriber
+traffic counters read from the pppN kernel interface:
+
+| Attribute | RFC | Ze Behavior |
+|-----------|-----|-------------|
+| Acct-Input-Octets (42) | RFC 2866 S5.7 | Bytes received from subscriber (pppN rx_bytes mod 2^32) |
+| Acct-Output-Octets (43) | RFC 2866 S5.8 | Bytes sent to subscriber (pppN tx_bytes mod 2^32) |
+| Acct-Input-Packets (47) | RFC 2866 S5.9 | Packets received from subscriber |
+| Acct-Output-Packets (48) | RFC 2866 S5.10 | Packets sent to subscriber |
+| Acct-Input-Gigawords (52) | RFC 2869 S5.1 | Input octet counter wraps (present when >0) |
+| Acct-Output-Gigawords (53) | RFC 2869 S5.2 | Output octet counter wraps (present when >0) |
+
+<!-- source: internal/plugins/l2tpauthradius/acct.go -- buildAcctPacket, splitGigawords -->

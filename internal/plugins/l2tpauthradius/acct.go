@@ -10,21 +10,32 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
+var acctGetStats = iface.GetStats
+
 // acctSession tracks per-session accounting state.
 type acctSession struct {
-	tunnelID   uint16
-	sessionID  uint16
-	username   string
-	peerAddr   string
-	acctSessID string
-	startTime  time.Time
-	cancel     context.CancelFunc
+	tunnelID     uint16
+	sessionID    uint16
+	username     string
+	peerAddr     string
+	acctSessID   string
+	pppInterface string
+	startTime    time.Time
+	cancel       context.CancelFunc
+}
+
+// splitGigawords splits a uint64 byte count into a uint32 octets value
+// and a uint32 gigawords value for RADIUS encoding.
+// RFC 2869 Section 5.1: gigawords = total_bytes >> 32.
+func splitGigawords(bytes uint64) (octets, gigawords uint32) {
+	return uint32(bytes & 0xFFFFFFFF), uint32(bytes >> 32)
 }
 
 // radiusAcct manages RADIUS accounting lifecycle.
@@ -108,13 +119,14 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sess := &acctSession{
-		tunnelID:   payload.TunnelID,
-		sessionID:  payload.SessionID,
-		username:   payload.Username,
-		peerAddr:   payload.PeerAddr,
-		acctSessID: acctSessID,
-		startTime:  time.Now(),
-		cancel:     cancel,
+		tunnelID:     payload.TunnelID,
+		sessionID:    payload.SessionID,
+		username:     payload.Username,
+		peerAddr:     payload.PeerAddr,
+		acctSessID:   acctSessID,
+		pppInterface: payload.PppInterface,
+		startTime:    time.Now(),
+		cancel:       cancel,
 	}
 
 	a.mu.Lock()
@@ -197,11 +209,39 @@ func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, sourceAddr
 	}
 
 	if statusType == radius.AcctStatusStop || statusType == radius.AcctStatusInterimUpdate {
+		var rxBytes, txBytes uint64
+		var rxPkts, txPkts uint64
+		if sess.pppInterface != "" {
+			if stats, err := acctGetStats(sess.pppInterface); err == nil {
+				rxBytes = stats.RxBytes
+				txBytes = stats.TxBytes
+				rxPkts = stats.RxPackets
+				txPkts = stats.TxPackets
+			} else {
+				logger().Warn("l2tp-auth-radius: counter read failed",
+					"interface", sess.pppInterface, "error", err)
+			}
+		}
+
+		// RFC 2866 Section 5.7-5.10
+		inOct, inGiga := splitGigawords(rxBytes)
+		outOct, outGiga := splitGigawords(txBytes)
+
 		attrs = append(attrs,
 			radius.Attr{Type: radius.AttrAcctSessionTime, Value: radius.AttrUint32(sessionTime)},
-			radius.Attr{Type: radius.AttrAcctInputOctets, Value: radius.AttrUint32(0)},
-			radius.Attr{Type: radius.AttrAcctOutputOctets, Value: radius.AttrUint32(0)},
+			radius.Attr{Type: radius.AttrAcctInputOctets, Value: radius.AttrUint32(inOct)},
+			radius.Attr{Type: radius.AttrAcctOutputOctets, Value: radius.AttrUint32(outOct)},
+			radius.Attr{Type: radius.AttrAcctInputPackets, Value: radius.AttrUint32(uint32(rxPkts))},
+			radius.Attr{Type: radius.AttrAcctOutputPackets, Value: radius.AttrUint32(uint32(txPkts))},
 		)
+
+		// RFC 2869 Section 5.1-5.2: include gigaword attrs only when non-zero.
+		if inGiga > 0 {
+			attrs = append(attrs, radius.Attr{Type: radius.AttrAcctInputGigawords, Value: radius.AttrUint32(inGiga)})
+		}
+		if outGiga > 0 {
+			attrs = append(attrs, radius.Attr{Type: radius.AttrAcctOutputGigawords, Value: radius.AttrUint32(outGiga)})
+		}
 	}
 
 	return &radius.Packet{
