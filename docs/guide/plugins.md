@@ -163,6 +163,7 @@ ze --plugins
 | `rib` | System RIB: selects best route across protocols by admin distance | -- (Bus events, no peer binding) |
 | `fib-kernel` | FIB kernel: programs OS routes from system RIB via netlink | -- (Bus events, no peer binding) |
 | `fib-p4` | FIB P4: programs P4 switch from system RIB via gRPC/P4Runtime (noop backend) | -- (Bus events, no peer binding) |
+| `firewall-vpp` | VPP ACL backend for firewall: translates ze Match/Action types to VPP ACL rules, read-merge-write bindings preserving foreign ACLs | -- (registered as firewall backend) |
 | `sysctl` | Kernel tunable management: three-layer precedence (config > transient > default), restore on stop. Named profiles (dsr, router, hardened, multihomed, proxy) for interface units. User-defined profiles. | -- (Bus events, CLI commands) |
 <!-- source: internal/plugins/sysctl/register.go -- sysctl registration -->
 <!-- source: internal/component/iface/register.go -- iface registration -->
@@ -171,6 +172,7 @@ ze --plugins
 <!-- source: internal/plugins/sysrib/register.go -- rib plugin registration -->
 <!-- source: internal/plugins/fib/p4/register.go -- fib-p4 registration -->
 <!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel registration -->
+<!-- source: internal/plugins/firewall/vpp/register.go -- firewall-vpp backend registration -->
 
 ### L2TP
 
