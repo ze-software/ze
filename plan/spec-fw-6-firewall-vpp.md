@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | spec-fw-1-data-model, spec-vpp-1-lifecycle |
-| Phase | - |
-| Updated | 2026-04-13 |
+| Phase | 1/3 |
+| Updated | 2026-05-08 |
 
 ## Post-Compaction Recovery
 

@@ -161,6 +161,9 @@ func parseAndVerifyFirewallSections(sections []sdk.ConfigSection) (*firewallConf
 	if err := ValidateTables(cfg.Tables); err != nil {
 		return nil, err
 	}
+	if err := RunVerifier(cfg.Backend, cfg.Tables); err != nil {
+		return nil, err
+	}
 	return cfg, nil
 }
 

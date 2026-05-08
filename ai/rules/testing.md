@@ -57,6 +57,45 @@ All groups run with `-race`. Use the group matching your change during iteration
 | `make ze-chaos-test` | Chaos unit + functional + web |
 | `make ze-race-reactor` | Stress race-test reactor (`-race -count=20`) -- REQUIRED when touching reactor concurrency code |
 
+### Linux-Only Tests (QEMU)
+
+Code behind `//go:build linux` (VPP backends, kernel netlink, nftables) cannot
+run on macOS. These tests run in a QEMU Linux VM via `make ze-qemu-integration-test`.
+Docker is NOT sufficient for VPP or kernel-capability tests (no `CAP_NET_ADMIN`,
+no kernel modules, no VPP runtime).
+
+| Target | What it runs | When required |
+|--------|-------------|---------------|
+| `make ze-qemu-integration-test` | iface, fib/kernel, firewall/nft, firewall/vpp, traffic/netlink in QEMU Alpine VM | Any change to `//go:build linux` code |
+
+**Adding a new linux-only package:** add it to the `--run` argument in the
+`ze-qemu-integration-test` Makefile target. The QEMU runner installs Go,
+mounts the repo via virtio-9p, and runs `go test` inside the VM.
+
+**fakeOps pattern:** VPP backends use a `vppOps` interface seam so the Apply
+pipeline can be tested with a scripted fake without a running VPP daemon. The
+`apply_test.go` files are `//go:build linux` (they import linux-only binapi
+types) but do NOT need real VPP. They run in QEMU alongside the integration
+tests. See `internal/plugins/traffic/vpp/apply_test.go` for the reference
+pattern.
+
+### VPP Backend Testing Is Mandatory (BLOCKING)
+
+Every VPP backend must ship with functional tests. No exceptions, no deferrals.
+
+| Requirement | How |
+|-------------|-----|
+| Apply/Undo pipeline | `fakeOps` scripted tests in `apply_test.go` covering create, update, delete, partial-failure undo, and reconciliation |
+| Translate functions | Pure-function unit tests in `translate_test.go` for every supported config shape |
+| Verify/reject logic | `verify_test.go` asserting accepted configs pass and unsupported configs return clear errors |
+| Registration side-effects | `register_test.go` confirming `init()` wires the backend into the correct registry |
+
+"VPP needs a real daemon" is not a valid reason to skip tests. The `vppOps`
+interface seam exists precisely so Apply logic can be tested without VPP.
+Translate and Verify are pure functions with no VPP dependency at all. If a
+new backend cannot be tested with the fakeOps pattern, that is a design
+problem to fix before merging, not a deferral to log.
+
 ### Two-Pass Verification (how `ze-verify` works)
 
 `ze-verify` uses a two-pass strategy to avoid recompiling all 349 packages with

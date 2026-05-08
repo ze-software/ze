@@ -141,6 +141,7 @@ func resetBackends() {
 	backendsMu.Lock()
 	defer backendsMu.Unlock()
 	backends = map[string]func() (Backend, error){}
+	verifiers = map[string]Verifier{}
 	activeBackend = nil
 }
 

@@ -44,6 +44,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/pppoe/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/set/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe/schema"
@@ -57,6 +58,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/lg/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ssh/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/tacacs/schema"
@@ -123,6 +125,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/p4"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/vpp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/firewall/nft"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/firewall/vpp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/dhcp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/vpp"
@@ -152,3 +155,4 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )
+

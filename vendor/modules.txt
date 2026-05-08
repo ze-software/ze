@@ -230,6 +230,8 @@ go.fd.io/govpp/adapter
 go.fd.io/govpp/adapter/socketclient
 go.fd.io/govpp/adapter/statsclient
 go.fd.io/govpp/api
+go.fd.io/govpp/binapi/acl
+go.fd.io/govpp/binapi/acl_types
 go.fd.io/govpp/binapi/ethernet_types
 go.fd.io/govpp/binapi/fib_types
 go.fd.io/govpp/binapi/interface
