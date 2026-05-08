@@ -68,6 +68,11 @@ func TestFormatMatchTypes(t *testing.T) {
 		{"set ref dst addr", firewall.MatchInSet{SetName: "peers", MatchField: firewall.SetFieldDestAddr}, "destination address @peers"},
 		{"set ref src port", firewall.MatchInSet{SetName: "voip", MatchField: firewall.SetFieldSourcePort}, "source port @voip"},
 		{"set ref dst port", firewall.MatchInSet{SetName: "web", MatchField: firewall.SetFieldDestPort}, "destination port @web"},
+		{"icmp type", firewall.MatchICMPType{Type: 8}, "icmp type 8"},
+		{"icmpv6 type", firewall.MatchICMPv6Type{Type: 128}, "icmpv6 type 128"},
+		{"input iface exact", firewall.MatchInputInterface{Name: "eth0"}, "input interface eth0"},
+		{"input iface wildcard", firewall.MatchInputInterface{Name: "l2tp", Wildcard: true}, "input interface l2tp*"},
+		{"output iface wildcard", firewall.MatchOutputInterface{Name: "veth", Wildcard: true}, "output interface veth*"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

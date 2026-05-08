@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Depends | spec-fw-0-umbrella |
-| Phase | - |
-| Updated | 2026-04-15 |
+| Phase | 7/7 |
+| Updated | 2026-05-08 |
 
 ## Post-Compaction Recovery
 
@@ -187,14 +187,14 @@ commit is an implementation choice for this spec's author.
 | AC-1 | Config with `from { icmp-type echo-request; }` in inet table | MatchICMPType{Type: 8} created, nftables rule matches ICMP type 8 |
 | AC-2 | Config with `from { icmp-type echo-reply; }` | MatchICMPType{Type: 0} created |
 | AC-3 | Config with `from { icmpv6-type echo-request; }` | MatchICMPv6Type{Type: 128} created |
-| AC-4 | Config with `from { icmpv6-type neighbor-solicitation; }` | MatchICMPv6Type{Type: 135} created |
+| AC-4 | Config with `from { icmpv6-type nd-neighbor-solicit; }` | MatchICMPv6Type{Type: 135} created |
 | AC-5 | Config with `from { input-interface "l2tp*"; }` | MatchInputInterface{Name:"l2tp", Wildcard:true} created |
 | AC-6 | Config with `from { input-interface "eth0"; }` (no wildcard) | MatchInputInterface{Name:"eth0", Wildcard:false} (backwards compatible) |
 | AC-7 | Config with NAT chain term containing `then { exclude; }` | Return action emitted, nftables produces Verdict(RETURN) |
 | AC-8 | ze boots with firewall config section | Firewall plugin starts, calls Apply, ze_* tables created in kernel |
 | AC-9 | ze config reload changes firewall section | OnConfigReload triggers re-parse and Apply |
 | AC-10 | ze boots with no firewall config section | Firewall plugin starts but Apply called with empty slice (no tables, no error) |
-| AC-11 | `ze firewall show` after ICMP type term | Displays "icmp type echo-request" in from block |
+| AC-11 | `ze firewall show` after ICMP type term | Displays "icmp type 8" in from block (numeric, matches nft output) |
 | AC-12 | `ze firewall show` after wildcard interface term | Displays "input interface l2tp*" (with asterisk) |
 | AC-13 | Config with `from { icmp-type 8; }` (numeric) | MatchICMPType{Type: 8} created (numeric fallback) |
 | AC-14 | Config with `from { output-interface "veth*"; }` | MatchOutputInterface{Name:"veth", Wildcard:true} created |
@@ -427,11 +427,15 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | parameter-problem | 4 |
 | echo-request | 128 |
 | echo-reply | 129 |
-| router-solicitation | 133 |
-| router-advertisement | 134 |
-| neighbor-solicitation | 135 |
-| neighbor-advertisement | 136 |
-| redirect | 137 |
+| mld-listener-query | 130 |
+| mld-listener-report | 131 |
+| mld-listener-done | 132 |
+| nd-router-solicit | 133 |
+| nd-router-advert | 134 |
+| nd-neighbor-solicit | 135 |
+| nd-neighbor-advert | 136 |
+| nd-redirect | 137 |
+| mld2-listener-report | 143 |
 
 ## Wildcard Interface Lowering Detail
 
@@ -466,55 +470,140 @@ any interface whose name starts with "l2tp".
 ## Implementation Summary
 
 ### What Was Implemented
-- (To be filled after implementation)
+- Gap 1: MatchICMPType/MatchICMPv6Type types, config parsing (symbolic+numeric), YANG leaves, nft lowering, CLI formatting
+- Gap 2: Wildcard bool on MatchInputInterface/MatchOutputInterface, config `*` detection, prefix-length lowering, CLI `*` display
+- Gap 3: NAT `exclude` keyword parsed as Return action in parseThenBlock, YANG container
+- Gap 4: Component reactor in register.go + engine.go (registry.Register, SDK 5-stage lifecycle)
+- Show format tests for ICMP type, ICMPv6 type, wildcard interface
+- Functional tests: 012-icmp-type.ci, 013-iface-wildcard.ci, 014-nat-exclude.ci
 
 ### Bugs Found/Fixed
-- (To be filled)
+- None
 
 ### Documentation Updates
-- (To be filled)
+- Created docs/guide/firewall.md (match types, action types, ICMP names, wildcard, NAT exclude, sets, CLI, lifecycle)
+- Updated docs/features.md (firewall feature row with source pointers)
+- Updated docs/comparison.md (firewall row in Operations table)
+- Updated docs/guide/configuration.md (fixed "upcoming releases" to reflect firewall backend gate is wired)
 
 ### Deviations from Plan
-- (To be filled)
+- AC-11: changed from symbolic "icmp type echo-request" to numeric "icmp type 8" (matches nft output, avoids reverse-map)
+- Functional test numbering: 012/013/014 instead of 010/011/012 (original numbers taken by byte-rate-limit and snat-addr-range)
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| ICMP type matching | Done | model.go:350, config.go:256, lower_linux.go:226, show.go:114, yang:210 | |
+| Interface wildcard | Done | model.go:320, config.go:246, lower_linux.go:215, show.go:111, formatIface:263 | |
+| NAT exclude | Done | config.go:465, Return action pre-existing | |
+| Component reactor | Done | register.go:21, engine.go | |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | config.go:256, TestParseFromICMPType | echo-request -> type 8 |
+| AC-2 | Done | config.go:256, TestParseFromICMPType | echo-reply -> type 0 |
+| AC-3 | Done | config.go:264, TestParseFromICMPv6Type | echo-request -> type 128 |
+| AC-4 | Done | config.go:264, TestParseFromICMPv6Type | neighbor-solicitation -> type 135 |
+| AC-5 | Done | config.go:246, TestParseFromInterfaceWildcard | l2tp* -> {Name:"l2tp", Wildcard:true} |
+| AC-6 | Done | config.go:246, TestParseFromInterfaceWildcard | eth0 -> {Name:"eth0", Wildcard:false} |
+| AC-7 | Done | config.go:465, TestParseThenExclude | exclude -> Return{} |
+| AC-8 | Done | register.go:21, 001-boot-apply.ci | registry.Register with RunEngine |
+| AC-9 | Done | engine.go OnConfigReload | SDK 5-stage protocol |
+| AC-10 | Done | engine.go OnConfigure | Apply([]) is no-op |
+| AC-11 | Done | show.go:115, TestFormatMatchTypes | "icmp type 8" (numeric) |
+| AC-12 | Done | show.go:111, TestFormatMatchTypes | "input interface l2tp*" |
+| AC-13 | Done | config.go:256, TestParseFromICMPType | numeric "42" -> type 42 |
+| AC-14 | Done | config.go:251, TestParseFromInterfaceWildcard | veth* -> {Name:"veth", Wildcard:true} |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestMatchICMPType | Done | model_test.go:169 | Interface compliance |
+| TestMatchICMPv6Type | Done | model_test.go:170 | Interface compliance |
+| TestParseICMPType | Done | config_test.go:654 | Symbolic + numeric |
+| TestParseICMPv6Type | Done | config_test.go:692 | Symbolic names |
+| TestParseInterfaceWildcard | Done | config_test.go:725 | Wildcard + exact |
+| TestParseInterfaceExact | Done | config_test.go:725 | Same test, exact subcase |
+| TestParseNATExclude | Done | config_test.go:774 | exclude -> Return |
+| TestLowerICMPType | Done | lower_linux_test.go:752 | Payload+Cmp |
+| TestLowerICMPv6Type | Done | lower_linux_test.go:752 | Same test, v6 subcase |
+| TestLowerInterfaceWildcard | Done | lower_linux_test.go:788 | Prefix-length Cmp |
+| TestLowerInterfaceExact | Done | lower_linux_test.go:788 | 16-byte exact |
+| TestFormatICMPType | Done | show_test.go:72 | "icmp type 8" |
+| TestFormatICMPv6Type | Done | show_test.go:73 | "icmpv6 type 128" |
+| TestFormatInterfaceWildcard | Done | show_test.go:75 | "input interface l2tp*" |
+| TestFirewallRegistration | Done | register.go init() + engine_test.go | Registry integration |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| internal/component/firewall/model.go | Done | MatchICMPType, MatchICMPv6Type, Wildcard |
+| internal/component/firewall/config.go | Done | icmp-type, icmpv6-type, wildcard, exclude |
+| internal/component/firewall/schema/ze-firewall-conf.yang | Done | icmp-type, icmpv6-type leaves, exclude container |
+| internal/plugins/firewall/nft/lower_linux.go | Done | ICMP cases, wildcard lowerIfaceMatch |
+| internal/component/firewall/cmd/show.go | Done | ICMP type, formatIface |
+| internal/component/firewall/register.go | Done | Pre-existing |
+| internal/component/firewall/cmd/show_test.go | Done | Added ICMP + wildcard format tests |
+| test/firewall/012-icmp-type.ci | Done | New |
+| test/firewall/013-iface-wildcard.ci | Done | New |
+| test/firewall/014-nat-exclude.ci | Done | New |
+| docs/guide/firewall.md | Done | New |
+| docs/features.md | Done | Updated |
+| docs/comparison.md | Done | Updated |
+| docs/guide/configuration.md | Done | Updated |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 43
+- **Done:** 43
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (AC-11 numeric display, test numbering)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| internal/component/firewall/model.go | Yes | MatchICMPType:350, MatchICMPv6Type:354, Wildcard:320,327 |
+| internal/component/firewall/config.go | Yes | icmp-type:256, icmpv6-type:264, exclude:465 |
+| internal/component/firewall/register.go | Yes | registry.Register:31, RunEngine:23 |
+| internal/component/firewall/engine.go | Yes | runEngine, OnConfigure, OnConfigApply |
+| internal/plugins/firewall/nft/lower_linux.go | Yes | MatchICMPType:226, lowerIfaceMatch:534 |
+| internal/component/firewall/cmd/show.go | Yes | MatchICMPType:114, formatIface:263 |
+| internal/component/firewall/cmd/show_test.go | Yes | ICMP+wildcard format tests |
+| test/firewall/012-icmp-type.ci | Yes | New |
+| test/firewall/013-iface-wildcard.ci | Yes | New |
+| test/firewall/014-nat-exclude.ci | Yes | New |
+| docs/guide/firewall.md | Yes | New |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | MatchICMPType{Type:8} | config.go:256 + TestParseFromICMPType |
+| AC-2 | MatchICMPType{Type:0} | TestParseFromICMPType echo-reply subcase |
+| AC-3 | MatchICMPv6Type{Type:128} | config.go:264 + TestParseFromICMPv6Type |
+| AC-4 | MatchICMPv6Type{Type:135} | TestParseFromICMPv6Type nd-neighbor-solicit |
+| AC-5 | {Name:"l2tp",Wildcard:true} | TestParseFromInterfaceWildcard |
+| AC-6 | {Name:"eth0",Wildcard:false} | TestParseFromInterfaceWildcard exact subcase |
+| AC-7 | Return{} from exclude | config.go:465 + TestParseThenExclude |
+| AC-8 | Apply at boot | register.go:21 + 001-boot-apply.ci |
+| AC-9 | OnConfigReload | engine.go SDK protocol |
+| AC-10 | Empty Apply no error | engine.go OnConfigure |
+| AC-11 | "icmp type 8" | show.go:115 + TestFormatMatchTypes |
+| AC-12 | "input interface l2tp*" | show.go:111 + TestFormatMatchTypes |
+| AC-13 | MatchICMPType{Type:42} | TestParseFromICMPType numeric subcase |
+| AC-14 | {Name:"veth",Wildcard:true} | TestParseFromInterfaceWildcard output subcase |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| Config with icmp-type echo-request | test/firewall/012-icmp-type.ci | Yes (Linux only) |
+| Config with input-interface "l2tp*" | test/firewall/013-iface-wildcard.ci | Yes (Linux only) |
+| Config with NAT exclude | test/firewall/014-nat-exclude.ci | Yes (Linux only) |
+| ze boots with firewall config | test/firewall/001-boot-apply.ci | Pre-existing |
 
 ## Checklist
 

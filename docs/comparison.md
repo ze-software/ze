@@ -195,6 +195,7 @@ banner reads the same source, so nothing is silently hidden. See
 | Dynamic neighbors | No | No | Yes | No | Yes | Yes | Yes | No | No | Yes | Yes |
 | Looking glass | Yes | Yes | Yes | Yes | No | No | No | No | Yes | Yes | Yes |
 | BFD integration | Partial | No | Yes | No | No | Yes | No | No | No | Yes | Yes |
+| Firewall (nftables) | Yes | No | No | No | No | Yes | No | No | Yes | No | Yes |
 | Modular subsystem loading | Yes | No | Partial | No | No | No | No | No | No | Partial | No |
 | Chaos testing framework | Yes | No | No | No | No | No | No | No | No | No | No |
 | Atomic commit workflow | Yes | No | No | No | No | No | No | No | No | No | No |

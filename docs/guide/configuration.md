@@ -523,8 +523,8 @@ discovered OS interfaces when editing config interactively.
 
 ### Backend Capability Errors
 
-The `interface` and `traffic-control` components (and, in upcoming releases,
-`firewall`) carry a `backend` leaf. The YANG schema annotates feature nodes
+The `interface`, `traffic-control`, and `firewall` components carry a `backend`
+leaf. The YANG schema annotates feature nodes
 with a list of supporting backends via the `ze:backend` extension. When the
 config selects a backend that does not implement a used feature, commit and
 `ze config validate` reject the config before any Apply call runs.
