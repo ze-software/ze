@@ -415,7 +415,7 @@ func (d *Driver) dispatch() {
 			if !ok {
 				return
 			}
-			d.spawnSession(start)
+			d.spawnSession(&start)
 		}
 	}
 }
@@ -424,7 +424,7 @@ func (d *Driver) dispatch() {
 // launches its goroutine. Logs and drops if a duplicate
 // (tunnelID, sessionID) arrives, or if the StartSession contains
 // invalid file descriptors.
-func (d *Driver) spawnSession(start StartSession) {
+func (d *Driver) spawnSession(start *StartSession) {
 	// Reject sentinel zero / negative fd values. Production fds always
 	// come from socket()/open() and are >= 3 (stdio holds 0-2), so this
 	// is a defensive guard against uninitialized StartSession structs
@@ -531,7 +531,7 @@ func (d *Driver) spawnSession(start StartSession) {
 // the transport owns their lifecycle. Closing here could terminate
 // a DIFFERENT session that legitimately holds the same fd -- the
 // dedup key is (tunnelID, sessionID), not fd.
-func (d *Driver) emitRejection(start StartSession, reason string) {
+func (d *Driver) emitRejection(start *StartSession, reason string) {
 	select {
 	case d.eventsOut <- EventSessionRejected{
 		TunnelID:  start.TunnelID,

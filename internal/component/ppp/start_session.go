@@ -3,6 +3,7 @@
 package ppp
 
 import (
+	"net"
 	"net/netip"
 	"time"
 )
@@ -120,4 +121,11 @@ type StartSession struct {
 	// PeerAddr is informational, used for log fields. Not used for
 	// any I/O decision (the chan fd already routes to the peer).
 	PeerAddr netip.AddrPort
+
+	// PPPoE-specific fields for RADIUS attribute passthrough.
+	// Set by the PPPoE access concentrator; left empty for L2TP sessions.
+	AccessInterface string           // Access interface name (e.g. "eth0")
+	SubscriberMAC   net.HardwareAddr // Subscriber CPE MAC address
+	ServiceName     string           // PPPoE Service-Name from PADR
+	VendorTags      []byte           // Raw vendor-specific tags from PADI/PADR (TR-101 etc.)
 }

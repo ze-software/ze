@@ -43,12 +43,12 @@ type ncpTestDriver struct {
 // By default both NCPs are enabled so callers can test each in isolation.
 func newNCPTestDriver(t *testing.T) *ncpTestDriver {
 	t.Helper()
-	return newNCPTestDriverCfg(t, StartSession{})
+	return newNCPTestDriverCfg(t, &StartSession{})
 }
 
 // newNCPTestDriverCfg is the explicit variant; fields on overrides are
 // merged into the StartSession.
-func newNCPTestDriverCfg(t *testing.T, overrides StartSession) *ncpTestDriver {
+func newNCPTestDriverCfg(t *testing.T, overrides *StartSession) *ncpTestDriver {
 	t.Helper()
 	reg := newPipeRegistry()
 	installPipeRegistry(t, reg)

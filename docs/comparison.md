@@ -300,11 +300,13 @@ logging. The own-stack design means Docker integration requires a raw socket bri
 between the container interface and freeRtr's virtual network layer.
 <!-- source: external -- codeberg.org/m36/freeRtr -->
 
-## BNG / L2TP Capabilities
+## BNG Capabilities
 
-Ze includes a production BNG stack built on L2TPv2 (RFC 2661) with RADIUS
-integration (RFC 2865/2866). Most BGP daemons in the comparison table have
-no BNG functionality. The following RADIUS Access-Accept subscriber profile
+Ze includes a production BNG stack with two access methods: L2TPv2 (RFC 2661)
+and PPPoE (RFC 2516), both with RADIUS integration (RFC 2865/2866). Most BGP
+daemons in the comparison table have no BNG functionality. L2TP and PPPoE run
+concurrently on the same daemon and share the same auth, pool, and shaper
+plugins through the transport-agnostic PPP Driver. The following RADIUS Access-Accept subscriber profile
 attributes are consumed:
 
 | Attribute | RFC | Ze Behavior |

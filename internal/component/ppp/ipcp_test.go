@@ -141,7 +141,7 @@ func TestIPCPInitialRequestEmitsEvent(t *testing.T) {
 //
 //	IPv4 connectivity but L2TP reports the session as up.
 func TestIPCPRejectTearsDown(t *testing.T) {
-	td := newNCPTestDriverCfg(t, StartSession{DisableIPv6CP: true})
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
 	defer td.cleanup()
 
 	initial := td.readPeerNCPPacket(t, ProtoIPCP)

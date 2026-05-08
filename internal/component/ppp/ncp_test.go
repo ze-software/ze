@@ -100,7 +100,7 @@ func TestAuthSuccessStartsNCPs(t *testing.T) {
 //	Opened; ze programs pppN (AddAddressP2P + AddRoute + SetAdminUp)
 //	and emits EventSessionIPAssigned{ipv4}.
 func TestIPResponseConfiguresInterface(t *testing.T) {
-	td := newNCPTestDriverCfg(t, StartSession{DisableIPv6CP: true})
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
 	defer td.cleanup()
 
 	td.completeIPCP(t)
@@ -135,7 +135,7 @@ func TestIPResponseConfiguresInterface(t *testing.T) {
 //
 //	the DNS values supplied by the handler.
 func TestIPCPOpenedEmitsAssigned(t *testing.T) {
-	td := newNCPTestDriverCfg(t, StartSession{DisableIPv6CP: true})
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
 	defer td.cleanup()
 
 	td.completeIPCP(t)
@@ -154,7 +154,7 @@ func TestIPCPOpenedEmitsAssigned(t *testing.T) {
 //	EventSessionIPAssigned{ipv6} with the peer's Interface-ID; NO
 //	iface.Backend.AddAddressP2P call is made.
 func TestIPv6CPOpenedEmitsAssigned(t *testing.T) {
-	td := newNCPTestDriverCfg(t, StartSession{DisableIPCP: true})
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPCP: true})
 	defer td.cleanup()
 
 	td.completeIPv6CP(t)
@@ -194,7 +194,7 @@ func TestBothNCPsComplete(t *testing.T) {
 //
 //	fires on IPCP-Opened alone.
 func TestSingleNCPCompletes(t *testing.T) {
-	td := newNCPTestDriverCfg(t, StartSession{DisableIPv6CP: true})
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
 	defer td.cleanup()
 
 	td.completeIPCP(t)
@@ -253,7 +253,7 @@ func TestIPTimeout(t *testing.T) {
 //
 //	RemoveAddress and RemoveRoute on the backend.
 func TestSessionTeardownRemovesAddress(t *testing.T) {
-	td := newNCPTestDriverCfg(t, StartSession{DisableIPv6CP: true})
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
 	defer td.cleanup()
 
 	td.completeIPCP(t)
@@ -275,7 +275,7 @@ func TestSessionTeardownRemovesAddress(t *testing.T) {
 
 // VALIDATES: end-to-end IPCP via net.Pipe produces EventSessionUp.
 func TestIPCPNetPipe(t *testing.T) {
-	td := newNCPTestDriverCfg(t, StartSession{DisableIPv6CP: true})
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
 	defer td.cleanup()
 
 	td.completeIPCP(t)
@@ -287,7 +287,7 @@ func TestIPCPNetPipe(t *testing.T) {
 
 // VALIDATES: end-to-end IPv6CP via net.Pipe produces EventSessionUp.
 func TestIPv6CPNetPipe(t *testing.T) {
-	td := newNCPTestDriverCfg(t, StartSession{DisableIPCP: true})
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPCP: true})
 	defer td.cleanup()
 
 	td.completeIPv6CP(t)

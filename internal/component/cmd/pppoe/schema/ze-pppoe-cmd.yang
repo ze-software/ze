@@ -1,0 +1,49 @@
+module ze-pppoe-cmd {
+    namespace "urn:ze:pppoe:cmd";
+    prefix pppoecmd;
+
+    import ze-extensions    { prefix ze; }
+    import ze-cli-show-cmd  { prefix clishowcmd; }
+
+    description
+        "PPPoE CLI command tree. Augments the global `show` verb with
+         a `pppoe` sub-tree so operators type `show pppoe`, `show pppoe
+         sessions`, etc. Each leaf container maps to a ze-pppoe-api RPC
+         via the ze:command extension.";
+
+    revision 2026-05-08 {
+        description "Initial revision (spec-bng-5-pppoe).";
+    }
+
+    augment "/clishowcmd:show" {
+        container pppoe {
+            config false;
+            ze:command "ze-pppoe-api:summary";
+            description "PPPoE access concentrator observability commands.";
+
+            container sessions {
+                config false;
+                ze:command "ze-pppoe-api:sessions";
+                description "List every live PPPoE session.";
+            }
+
+            container session {
+                config false;
+                ze:command "ze-pppoe-api:session";
+                description "Show one PPPoE session by session ID.";
+            }
+
+            container statistics {
+                config false;
+                ze:command "ze-pppoe-api:statistics";
+                description "Show PPPoE protocol counters.";
+            }
+
+            container interfaces {
+                config false;
+                ze:command "ze-pppoe-api:interfaces";
+                description "Show configured PPPoE access interfaces.";
+            }
+        }
+    }
+}

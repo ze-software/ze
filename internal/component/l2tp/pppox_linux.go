@@ -9,7 +9,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/netip"
-	"os"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -40,15 +39,6 @@ const (
 	pppol2tpSORecvSeq = 2 // Require sequence numbers on received data
 	pppol2tpSOSendSeq = 3 // Include sequence numbers on sent data
 	pppol2tpSOLNSMode = 4 // LNS mode (auto-enables send+recv seq)
-)
-
-// /dev/ppp ioctl numbers.
-// These are architecture-dependent but stable on x86_64 and arm64.
-const (
-	pppiocGChan   = 0x80047437 // PPPIOCGCHAN: _IOR('t', 55, int)
-	pppiocAttChan = 0x40047438 // PPPIOCATTCHAN: _IOW('t', 56, int)
-	pppiocNewUnit = 0xc004743e // PPPIOCNEWUNIT: allocate PPP unit (creates pppN)
-	pppiocConnect = 0x4004743a // PPPIOCCONNECT: connect channel to unit
 )
 
 // buildSockaddrPPPoL2TP constructs the packed binary representation of
@@ -170,128 +160,4 @@ type pppSessionFDs struct {
 	chanFD  int // /dev/ppp fd attached to channel
 	unitFD  int // /dev/ppp fd with allocated PPP unit
 	unitNum int // pppN unit number (the N in pppN)
-}
-
-// devPPPSetup opens /dev/ppp, attaches the PPP channel from the PPPoL2TP
-// socket, allocates a PPP unit (creating the pppN interface), and connects
-// the channel to the unit.
-//
-// RFC 2661 Section 21: the full sequence is:
-//  1. PPPIOCGCHAN on pppoxFD -> channel index
-//  2. open /dev/ppp, PPPIOCATTCHAN -> channel fd
-//  3. open /dev/ppp, PPPIOCNEWUNIT -> unit fd + pppN interface
-//  4. PPPIOCCONNECT on channel fd -> connects channel to unit
-func devPPPSetup(pppoxFD int) (chanFD, unitFD, unitNum int, err error) {
-	// Step 1: get the PPP channel index from the PPPoL2TP socket.
-	chanIdx, err := ioctlGetInt(pppoxFD, pppiocGChan)
-	if err != nil {
-		return -1, -1, -1, fmt.Errorf("l2tp: PPPIOCGCHAN: %w", err)
-	}
-
-	// Step 2: open /dev/ppp and attach to the channel.
-	chanFD, err = openDevPPP()
-	if err != nil {
-		return -1, -1, -1, err
-	}
-	if err := ioctlSetInt(chanFD, pppiocAttChan, chanIdx); err != nil {
-		unix.Close(chanFD) //nolint:errcheck // rollback path; primary error is err
-		return -1, -1, -1, fmt.Errorf("l2tp: PPPIOCATTCHAN: %w", err)
-	}
-
-	// Step 3: open /dev/ppp and allocate a PPP unit (creates pppN).
-	unitFD, err = openDevPPP()
-	if err != nil {
-		unix.Close(chanFD) //nolint:errcheck // rollback path; primary error is err
-		return -1, -1, -1, err
-	}
-	unitNum = -1 // kernel assigns the unit number
-	unitNum, err = ioctlGetSetInt(unitFD, pppiocNewUnit, unitNum)
-	if err != nil {
-		unix.Close(unitFD) //nolint:errcheck // rollback path; primary error is err
-		unix.Close(chanFD) //nolint:errcheck // rollback path; primary error is err
-		return -1, -1, -1, fmt.Errorf("l2tp: PPPIOCNEWUNIT: %w", err)
-	}
-
-	// Step 4 (PPPIOCCONNECT) is deferred until after LCP completes.
-	// Before CONNECT, received frames go to the channel fd's read queue
-	// (pch_is_link_up returns false). After CONNECT, they go to the
-	// unit's read queue. accel-ppp uses the same deferred-connect pattern.
-
-	return chanFD, unitFD, unitNum, nil
-}
-
-// pppConnect connects a PPP channel to its unit (step 4 of the PPP setup).
-// Must be called after LCP negotiation succeeds, before NCP begins.
-// After this call, received frames go to the unit fd's read queue.
-func pppConnect(chanFD, unitNum int) error {
-	if err := ioctlSetInt(chanFD, pppiocConnect, unitNum); err != nil {
-		return fmt.Errorf("l2tp: PPPIOCCONNECT: %w", err)
-	}
-	return nil
-}
-
-// openDevPPP opens /dev/ppp for read-write.
-func openDevPPP() (int, error) {
-	fd, err := os.OpenFile("/dev/ppp", os.O_RDWR, 0)
-	if err != nil {
-		return -1, fmt.Errorf("l2tp: open /dev/ppp: %w", err)
-	}
-	// Extract the raw fd and prevent Go from closing it when the
-	// *os.File is garbage-collected. The caller manages the fd lifetime.
-	rawFD, err := dupFD(fd)
-	fd.Close() //nolint:errcheck // source *os.File replaced by rawFD below
-	if err != nil {
-		return -1, fmt.Errorf("l2tp: dup /dev/ppp fd: %w", err)
-	}
-	return rawFD, nil
-}
-
-// dupFD extracts the file descriptor from an *os.File. The returned fd
-// is a dup of the original, so the caller owns it independently.
-func dupFD(f *os.File) (int, error) {
-	raw, err := f.SyscallConn()
-	if err != nil {
-		return -1, err
-	}
-	var fd int
-	var opErr error
-	if err := raw.Control(func(fdp uintptr) {
-		fd, opErr = unix.Dup(int(fdp))
-	}); err != nil {
-		return -1, err
-	}
-	return fd, opErr
-}
-
-// ioctlGetInt performs an ioctl that reads an int value.
-func ioctlGetInt(fd int, req uint) (int, error) {
-	var val int32
-	// SYS_IOCTL takes a pointer; unsafe.Pointer is the only way to pass it.
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(unsafe.Pointer(&val))) //nolint:gosec // ioctl pointer arg
-	if errno != 0 {
-		return 0, errno
-	}
-	return int(val), nil
-}
-
-// ioctlSetInt performs an ioctl that writes an int value.
-func ioctlSetInt(fd int, req uint, val int) error {
-	v := int32(val)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(unsafe.Pointer(&v))) //nolint:gosec // ioctl pointer arg
-	if errno != 0 {
-		return errno
-	}
-	return nil
-}
-
-// ioctlGetSetInt performs an ioctl that both reads and writes an int.
-// Used by PPPIOCNEWUNIT which takes a suggested unit number (-1 = auto)
-// and returns the allocated number.
-func ioctlGetSetInt(fd int, req uint, val int) (int, error) {
-	v := int32(val)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(unsafe.Pointer(&v))) //nolint:gosec // ioctl pointer arg
-	if errno != 0 {
-		return 0, errno
-	}
-	return int(v), nil
 }

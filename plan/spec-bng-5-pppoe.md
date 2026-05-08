@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-bng-1-radius-attributes |
-| Phase | 1/9 |
+| Phase | 6/9 |
 | Updated | 2026-05-08 |
 
 ## Post-Compaction Recovery

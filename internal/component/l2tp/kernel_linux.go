@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"golang.org/x/sys/unix"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 )
 
 // kernelOps holds function pointers for the actual kernel syscalls.
@@ -79,7 +81,7 @@ func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
 		}
 	}
 
-	chanFD, unitFD, unitNum, err := devPPPSetup(pppoxFD)
+	chanFD, unitFD, unitNum, err := ppp.DevPPPSetup(pppoxFD)
 	if err != nil {
 		unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is err
 		return pppSessionFDs{}, err

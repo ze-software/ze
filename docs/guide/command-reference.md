@@ -1140,6 +1140,19 @@ The `clear l2tp session teardown` command accepts optional keyword arguments:
 <!-- source: internal/component/cmd/l2tp/schema/ze-l2tp-cmd.yang -->
 <!-- source: internal/component/cmd/l2tp/l2tp.go -- handleSessionTeardown, parseKeywordArgs -->
 
+### PPPoE Commands
+
+| Command | Mode | Description |
+|---------|------|-------------|
+| `show pppoe` | run | PPPoE subsystem summary (session/interface counts) |
+| `show pppoe sessions` | run | List all active PPPoE sessions |
+| `show pppoe session <sid>` | run | Show one session by session ID |
+| `show pppoe statistics` | run | Per-interface session counts and limits |
+| `show pppoe interfaces` | run | Configured PPPoE access interfaces |
+
+<!-- source: internal/component/cmd/pppoe/schema/ze-pppoe-cmd.yang -->
+<!-- source: internal/component/cmd/pppoe/pppoe.go -- RPC handlers -->
+
 ### L2TPv2 Web UI
 
 The web interface at `/l2tp` provides session management and CQM graphing.

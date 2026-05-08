@@ -147,8 +147,8 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/pppoe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )
-

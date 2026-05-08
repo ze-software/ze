@@ -1003,6 +1003,45 @@ PPP authentication (env var, YANG pending in spec-l2tp-7-subsystem):
 <!-- source: internal/component/l2tp/subsystem.go -- L2TPSubsystem lifecycle -->
 <!-- source: internal/component/l2tp/reactor.go -- handleKernelSuccess auth-timeout read -->
 
+### PPPoE Access
+
+PPPoE (RFC 2516) access concentrator configuration. PPPoE uses raw Ethernet
+sockets on configured access interfaces, with no UDP listener needed.
+Sessions use the same PPP Driver, auth, pool, and shaper plugins as L2TP.
+
+```
+pppoe {
+    enabled true;
+    ac-name "ze";
+    service-name "internet";
+    cookie-timeout 5;
+    max-sessions 65535;
+    padi-rate-limit 100;
+    interface eth0 {
+    }
+    interface eth0.100 {
+        service-name "vlan100-service";
+        max-sessions 1000;
+    }
+}
+```
+<!-- source: internal/component/pppoe/schema/ze-pppoe-conf.yang -- PPPoE YANG schema -->
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `enabled` | boolean | `true` | Presence of `pppoe {}` implies enabled. Use `enabled false` to disable. |
+| `ac-name` | string | `ze` | Access Concentrator Name advertised in PADO (RFC 2516 S5.2). |
+| `service-name` | leaf-list | (empty) | Accepted Service-Name values. Empty list means accept any Service-Name. |
+| `cookie-timeout` | uint16 | 5 | AC-Cookie validity in seconds (1-300). Older cookies rejected in PADR. |
+| `max-sessions` | uint16 | 65535 | Maximum concurrent PPPoE sessions per interface. |
+| `padi-rate-limit` | uint16 | 100 | Maximum PADI packets per second per source MAC (1-10000). |
+| `interface <name>` | list | (none) | Access interfaces for PPPoE discovery. Each gets independent SID space. |
+| `interface / service-name` | leaf-list | (global) | Per-interface Service-Name filter, overrides global list. |
+| `interface / max-sessions` | uint16 | (global) | Per-interface session limit, defaults to global max-sessions. |
+
+<!-- source: internal/component/pppoe/config.go -- ExtractParameters -->
+<!-- source: internal/component/pppoe/subsystem.go -- PPPoE subsystem lifecycle -->
+
 ### L2TP Address Pool
 
 The `l2tp-pool` plugin provides IPv4 address allocation for PPP sessions.

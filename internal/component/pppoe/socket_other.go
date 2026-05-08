@@ -31,8 +31,4 @@ func pppoeCreate(ifname string, sid uint16, remoteMAC [EthALen]byte) (int, error
 	return -1, errNotLinux
 }
 
-func devPPPSetup(pppoxFD int) (chanFD, unitFD, unitNum int, err error) {
-	return -1, -1, -1, errNotLinux
-}
-
 func closePPPoxFD(fd int) {}

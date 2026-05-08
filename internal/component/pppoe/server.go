@@ -155,7 +155,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	}
 	sess.PppoxFD = pppoxFD
 
-	chanFD, unitFD, unitNum, err := devPPPSetup(pppoxFD)
+	chanFD, unitFD, unitNum, err := ppp.DevPPPSetup(pppoxFD)
 	if err != nil {
 		s.logger.Error("pppoe: devPPPSetup failed", "sid", sid, "error", err)
 		closePPPoxFD(s.sessions.Remove(sid))
@@ -179,13 +179,17 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	sess.State = StateSession
 
 	start := ppp.StartSession{
-		TunnelID:  uint16(s.ifIndex),
-		SessionID: sid,
-		ChanFD:    chanFD,
-		UnitFD:    unitFD,
-		UnitNum:   unitNum,
-		LNSMode:   true,
-		MaxMRU:    PPPoEMaxMTU,
+		TunnelID:        uint16(s.ifIndex),
+		SessionID:       sid,
+		ChanFD:          chanFD,
+		UnitFD:          unitFD,
+		UnitNum:         unitNum,
+		LNSMode:         true,
+		MaxMRU:          PPPoEMaxMTU,
+		AccessInterface: s.ifName,
+		SubscriberMAC:   net.HardwareAddr(append([]byte(nil), pkt.SrcMAC[:]...)),
+		ServiceName:     pkt.ServiceNameString(),
+		VendorTags:      vendorTagsFromPacket(pkt),
 	}
 
 	s.pppDriver.SessionsIn() <- start
@@ -240,6 +244,14 @@ func (s *InterfaceServer) sendFrame(frame []byte) {
 	if err := sendDiscoveryFrame(s.discFD, s.ifIndex, frame); err != nil {
 		s.logger.Debug("pppoe: send failed", "error", err)
 	}
+}
+
+func vendorTagsFromPacket(pkt *Packet) []byte {
+	tag := pkt.FindTag(TagVendorSpecific)
+	if tag == nil {
+		return nil
+	}
+	return append([]byte(nil), tag.Value...)
 }
 
 func relayIDFromPacket(pkt *Packet) []byte {

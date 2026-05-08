@@ -115,7 +115,7 @@ func TestGenerateIPv6CPInterfaceID(t *testing.T) {
 //
 // PREVENTS: ze shipping with an all-zero or fixed identifier.
 func TestIPv6CPProposesInterfaceID(t *testing.T) {
-	td := newNCPTestDriverCfg(t, StartSession{DisableIPCP: true})
+	td := newNCPTestDriverCfg(t, &StartSession{DisableIPCP: true})
 	defer td.cleanup()
 
 	pkt := td.readPeerNCPPacket(t, ProtoIPv6CP)

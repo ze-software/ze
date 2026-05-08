@@ -92,7 +92,7 @@ func drainFramesToPool(frames <-chan []byte) {
 // avoid the double-reader race between negotiation and opened
 // phases. The main loop differentiates phases via timer channel
 // enablement (negoTimerC vs echoTickerC).
-func (s *pppSession) run(start StartSession) {
+func (s *pppSession) run(start *StartSession) {
 	// Teardown order must be: close chanFile (unblocks readFrames
 	// reads) -> wait for readFrames to exit -> drain leftover frames
 	// back to the pool. A single defer guarantees the sequence;

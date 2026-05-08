@@ -23,13 +23,6 @@ const (
 	pxProtoOE = 0
 )
 
-const (
-	pppiocGChan   = 0x80047437
-	pppiocAttChan = 0x40047438
-	pppiocNewUnit = 0xc004743e
-	pppiocConnect = 0x4004743a
-)
-
 // openDiscoverySocket creates a shared AF_PACKET/SOCK_RAW socket for
 // PPPoE discovery frames (ethertype 0x8863). One socket handles all
 // access interfaces; dispatch is by ifindex from recvfrom.
@@ -180,101 +173,6 @@ func probeKernelPPPoE() error {
 func moduleBuiltIn(name string) bool {
 	_, err := os.Stat("/sys/module/" + name)
 	return err == nil
-}
-
-// devPPPSetup opens /dev/ppp, attaches the PPP channel from the PPPoX
-// socket, allocates a PPP unit, and creates the pppN interface.
-func devPPPSetup(pppoxFD int) (chanFD, unitFD, unitNum int, err error) {
-	chanIdx, err := ioctlGetInt(pppoxFD, pppiocGChan)
-	if err != nil {
-		return -1, -1, -1, fmt.Errorf("pppoe: PPPIOCGCHAN: %w", err)
-	}
-
-	chanFD, err = openDevPPP()
-	if err != nil {
-		return -1, -1, -1, err
-	}
-	if err := ioctlSetInt(chanFD, pppiocAttChan, chanIdx); err != nil {
-		unix.Close(chanFD) //nolint:errcheck // rollback
-		return -1, -1, -1, fmt.Errorf("pppoe: PPPIOCATTCHAN: %w", err)
-	}
-
-	unitFD, err = openDevPPP()
-	if err != nil {
-		unix.Close(chanFD) //nolint:errcheck // rollback
-		return -1, -1, -1, err
-	}
-	unitNum = -1
-	unitNum, err = ioctlGetSetInt(unitFD, pppiocNewUnit, unitNum)
-	if err != nil {
-		unix.Close(unitFD) //nolint:errcheck // rollback
-		unix.Close(chanFD) //nolint:errcheck // rollback
-		return -1, -1, -1, fmt.Errorf("pppoe: PPPIOCNEWUNIT: %w", err)
-	}
-
-	return chanFD, unitFD, unitNum, nil
-}
-
-func pppConnect(chanFD, unitNum int) error {
-	if err := ioctlSetInt(chanFD, pppiocConnect, unitNum); err != nil {
-		return fmt.Errorf("pppoe: PPPIOCCONNECT: %w", err)
-	}
-	return nil
-}
-
-func openDevPPP() (int, error) {
-	f, err := os.OpenFile("/dev/ppp", os.O_RDWR, 0)
-	if err != nil {
-		return -1, fmt.Errorf("pppoe: open /dev/ppp: %w", err)
-	}
-	rawFD, err := dupFD(f)
-	f.Close() //nolint:errcheck // source replaced by rawFD
-	if err != nil {
-		return -1, fmt.Errorf("pppoe: dup /dev/ppp fd: %w", err)
-	}
-	return rawFD, nil
-}
-
-func dupFD(f *os.File) (int, error) {
-	raw, err := f.SyscallConn()
-	if err != nil {
-		return -1, err
-	}
-	var fd int
-	var opErr error
-	if err := raw.Control(func(fdp uintptr) {
-		fd, opErr = unix.Dup(int(fdp))
-	}); err != nil {
-		return -1, err
-	}
-	return fd, opErr
-}
-
-func ioctlGetInt(fd int, req uint) (int, error) {
-	var val int32
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(unsafe.Pointer(&val))) //nolint:gosec // ioctl pointer arg
-	if errno != 0 {
-		return 0, errno
-	}
-	return int(val), nil
-}
-
-func ioctlSetInt(fd int, req uint, val int) error {
-	v := int32(val)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(unsafe.Pointer(&v))) //nolint:gosec // ioctl pointer arg
-	if errno != 0 {
-		return errno
-	}
-	return nil
-}
-
-func ioctlGetSetInt(fd int, req uint, val int) (int, error) {
-	v := int32(val)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(unsafe.Pointer(&v))) //nolint:gosec // ioctl pointer arg
-	if errno != 0 {
-		return 0, errno
-	}
-	return int(v), nil
 }
 
 func htons(v uint16) uint16 {

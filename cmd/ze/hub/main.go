@@ -42,6 +42,7 @@ import (
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/component/pppoe"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 	resolvecmd "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
@@ -435,6 +436,17 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			return 1
 		}
 		zeweb.RegisterPortalService(zeweb.PortalService{Key: "l2tp", Title: "L2TP Sessions", Path: "/l2tp"})
+	}
+
+	// PPPoE subsystem. ExtractParameters returns defaults when the config
+	// tree has no `pppoe {}` block; we only register when the operator
+	// configured at least one access interface.
+	pppoeParams := pppoe.ExtractParameters(configTree)
+	if pppoeParams.Enabled && len(pppoeParams.Interfaces) > 0 {
+		if regErr := eng.RegisterSubsystem(pppoe.NewSubsystem(pppoeParams)); regErr != nil {
+			fmt.Fprintf(os.Stderr, "error: register pppoe subsystem: %v\n", regErr)
+			return 1
+		}
 	}
 
 	startCtx := context.Background()
