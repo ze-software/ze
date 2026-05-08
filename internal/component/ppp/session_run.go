@@ -483,7 +483,7 @@ func (s *pppSession) afterLCPOpen() bool {
 			LocalInterfaceID: s.localInterfaceID,
 			PeerInterfaceID:  s.peerInterfaceID,
 			Backend:          s.backend,
-		}, DHCPv6DUID{Type: DUIDTypeEN, EnterpriseNum: 12345}, nil, s.logger)
+		}, DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: append([]byte(nil), s.localInterfaceID[:]...)}, nil, s.logger)
 		if err != nil {
 			s.logger.Warn("ppp: IPv6 service start failed (non-fatal)", "error", err)
 		} else {

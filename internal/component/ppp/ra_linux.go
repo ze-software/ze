@@ -66,7 +66,9 @@ func startRASender(ifname string, logger *slog.Logger) (func(), error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go raSenderLoop(ctx, pc, allNodes, iface, ifname, logger)
+	rsCh := make(chan struct{}, 1)
+	go rsReaderLoop(ctx, pc, rsCh)
+	go raSenderLoop(ctx, pc, allNodes, iface, ifname, rsCh, logger)
 
 	return func() {
 		cancel()
@@ -74,7 +76,28 @@ func startRASender(ifname string, logger *slog.Logger) (func(), error) {
 	}, nil
 }
 
-func raSenderLoop(ctx context.Context, pc *ipv6.PacketConn, dst net.Addr, iface *net.Interface, ifname string, logger *slog.Logger) {
+func rsReaderLoop(ctx context.Context, pc *ipv6.PacketConn, rsCh chan<- struct{}) {
+	var buf [256]byte
+	for {
+		if ctx.Err() != nil {
+			return
+		}
+		if _, _, _, err := pc.ReadFrom(buf[:]); err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			continue
+		}
+		// capacity-1 channel coalesces RS bursts into one RA send
+		select {
+		case rsCh <- struct{}{}:
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func raSenderLoop(ctx context.Context, pc *ipv6.PacketConn, dst net.Addr, iface *net.Interface, ifname string, rsCh <-chan struct{}, logger *slog.Logger) {
 	sendRA := func() {
 		var buf [256]byte
 		n := BuildRA(buf[:], RAConfig{
@@ -94,6 +117,8 @@ func raSenderLoop(ctx context.Context, pc *ipv6.PacketConn, dst net.Addr, iface 
 		select {
 		case <-ctx.Done():
 			return
+		case <-rsCh:
+			sendRA()
 		case <-time.After(raInitialInterval):
 		}
 	}
@@ -105,6 +130,8 @@ func raSenderLoop(ctx context.Context, pc *ipv6.PacketConn, dst net.Addr, iface 
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			sendRA()
+		case <-rsCh:
 			sendRA()
 		}
 	}

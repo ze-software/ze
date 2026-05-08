@@ -25,6 +25,11 @@ func startDHCPv6Server(ifname string, svc *IPv6Service, serverID DHCPv6DUID, all
 		Control: func(_, _ string, c syscall.RawConn) error {
 			var opErr error
 			c.Control(func(fd uintptr) {
+				// SO_REUSEADDR allows concurrent sessions to each bind :547 on their own pppN
+				if err := unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEADDR, 1); err != nil {
+					opErr = err
+					return
+				}
 				opErr = unix.SetsockoptString(int(fd), unix.SOL_SOCKET, unix.SO_BINDTODEVICE, ifname)
 			})
 			return opErr
