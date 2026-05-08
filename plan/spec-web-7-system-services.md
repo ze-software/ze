@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | design |
 | Depends | spec-web-3-foundation |
 | Phase | 7/7 |
 | Updated | 2026-04-26 |

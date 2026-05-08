@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | design |
 | Depends | - |
 | Phase | 8/8 (browser verification pending) |
 | Updated | 2026-04-25 |
