@@ -697,6 +697,10 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 // reached Opened (s.ipcpState == LCPStateOpened). Best-effort: errors
 // are logged but do not block teardown.
 func (s *pppSession) teardownNCPResources() {
+	if s.ipv6Svc != nil {
+		s.ipv6Svc.Stop()
+		s.ipv6Svc = nil
+	}
 	if s.ipcpState != LCPStateOpened {
 		return
 	}

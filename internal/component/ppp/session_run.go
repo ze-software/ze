@@ -475,6 +475,22 @@ func (s *pppSession) afterLCPOpen() bool {
 		return false
 	}
 
+	if s.ipv6cpState == LCPStateOpened {
+		svc, err := startIPv6Service(IPv6ServiceConfig{
+			Ifname:           ifname,
+			TunnelID:         s.tunnelID,
+			SessionID:        s.sessionID,
+			LocalInterfaceID: s.localInterfaceID,
+			PeerInterfaceID:  s.peerInterfaceID,
+			Backend:          s.backend,
+		}, DHCPv6DUID{Type: DUIDTypeEN, EnterpriseNum: 12345}, nil, s.logger)
+		if err != nil {
+			s.logger.Warn("ppp: IPv6 service start failed (non-fatal)", "error", err)
+		} else {
+			s.ipv6Svc = svc
+		}
+	}
+
 	s.sendEvent(EventSessionUp{
 		TunnelID:  s.tunnelID,
 		SessionID: s.sessionID,

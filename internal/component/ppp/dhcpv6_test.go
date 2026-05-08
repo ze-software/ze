@@ -10,7 +10,7 @@ func testServerID() DHCPv6DUID {
 	return DHCPv6DUID{Type: DUIDTypeEN, EnterpriseNum: 12345, ID: []byte{0x01, 0x02}}
 }
 
-func buildSolicit(txnID [3]byte, clientID DHCPv6DUID, iaid uint32) []byte {
+func buildSolicit(txnID [3]byte, clientID DHCPv6DUID, iaid uint32) []byte { //nolint:unparam // test helper keeps param for symmetry with buildRenew/buildRelease
 	var buf [512]byte
 	off := 0
 
@@ -41,7 +41,7 @@ func buildSolicit(txnID [3]byte, clientID DHCPv6DUID, iaid uint32) []byte {
 	return buf[:off]
 }
 
-func buildRenew(txnID [3]byte, clientID, serverID DHCPv6DUID, iaid uint32) []byte {
+func buildRenew(txnID [3]byte, clientID, serverID DHCPv6DUID, iaid uint32) []byte { //nolint:unparam // test helper keeps param for symmetry with buildSolicit/buildRelease
 	var buf [512]byte
 	off := 0
 

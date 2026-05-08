@@ -162,6 +162,8 @@ type pppSession struct {
 	dnsSecondary     netip.Addr
 	localInterfaceID [8]byte
 	peerInterfaceID  [8]byte
+
+	ipv6Svc *IPv6Service
 }
 
 // SessionInfo is a snapshot of pppSession state suitable for `show
