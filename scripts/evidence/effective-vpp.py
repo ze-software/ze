@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a real VPP daemon in Docker and prove ze can program FIB and traffic."""
+"""Run a real VPP daemon in Docker and prove ze can program FIB, traffic, and firewall."""
 
 from __future__ import annotations
 
@@ -41,7 +41,11 @@ def require_cmd(name: str) -> None:
 
 
 def ensure_image() -> None:
-    inspect = run(["docker", "image", "inspect", VPP_IMAGE], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    inspect = run(
+        ["docker", "image", "inspect", VPP_IMAGE],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
     if inspect.returncode == 0:
         return
     print(f"pulling {VPP_IMAGE}...", file=sys.stderr)
@@ -129,11 +133,19 @@ def wait_for_peer(peer: subprocess.Popen[str], timeout_s: float) -> bool:
 
 
 def vppctl(container: str, command: str) -> subprocess.CompletedProcess[str]:
-    return run([
-        "docker", "exec", container,
-        "vppctl", "-s", "/run/vpp/cli.sock",
-        *command.split(),
-    ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return run(
+        [
+            "docker",
+            "exec",
+            container,
+            "vppctl",
+            "-s",
+            "/run/vpp/cli.sock",
+            *command.split(),
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
 
 
 def vppctl_text(container: str, command: str) -> str:
@@ -161,7 +173,9 @@ def create_loopback(container: str) -> str:
     vppctl_text(container, f"set interface state {iface} up")
     interfaces = vppctl_text(container, "show interface")
     if iface not in interfaces:
-        raise SystemExit(f"created VPP loopback {iface!r} not visible in show interface:\n{interfaces}")
+        raise SystemExit(
+            f"created VPP loopback {iface!r} not visible in show interface:\n{interfaces}"
+        )
     return iface
 
 
@@ -179,7 +193,9 @@ def policer_feature_bound(container: str, iface: str) -> tuple[bool, str]:
     return "policer" in text.lower(), text
 
 
-def wait_policer(container: str, name: str, want_present: bool, timeout_s: float) -> tuple[bool, str]:
+def wait_policer(
+    container: str, name: str, want_present: bool, timeout_s: float
+) -> tuple[bool, str]:
     last = ""
     deadline = time.time() + timeout_s
     while time.time() < deadline:
@@ -191,7 +207,9 @@ def wait_policer(container: str, name: str, want_present: bool, timeout_s: float
     return False, last
 
 
-def wait_policer_bound(container: str, iface: str, timeout_s: float) -> tuple[bool, str]:
+def wait_policer_bound(
+    container: str, iface: str, timeout_s: float
+) -> tuple[bool, str]:
     last = ""
     deadline = time.time() + timeout_s
     while time.time() < deadline:
@@ -213,10 +231,16 @@ def wait_log(lines: list[str], needle: str, timeout_s: float) -> bool:
 
 
 def stop_peer(container: str, process_name: str) -> None:
-    run(["docker", "exec", container, "pkill", "-TERM", "-f", process_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    run(
+        ["docker", "exec", container, "pkill", "-TERM", "-f", process_name],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
-def wait_route(container: str, want_present: bool, timeout_s: float) -> tuple[bool, str]:
+def wait_route(
+    container: str, want_present: bool, timeout_s: float
+) -> tuple[bool, str]:
     last = ""
     deadline = time.time() + timeout_s
     while time.time() < deadline:
@@ -228,16 +252,31 @@ def wait_route(container: str, want_present: bool, timeout_s: float) -> tuple[bo
     return False, last
 
 
-def ze_env(container: str, ze: Path, root: Path, config_path: Path, port: int | None = None) -> list[str]:
+def ze_env(
+    container: str, ze: Path, root: Path, config_path: Path, port: int | None = None
+) -> list[str]:
     env = [
-        "docker", "exec", "--interactive",
-        "--env", "ZE_LOG_VPP=info",
-        "--env", "ZE_LOG_FIB_VPP=debug",
-        "--env", "ZE_LOG_TRAFFIC=debug",
-        "--env", "ZE_LOG_TRAFFIC_VPP=debug",
-        "--env", "ZE_LOG_BGP=info",
-        "--env", "ZE_STORAGE_BLOB=false",
-        "--env", "ZE_CONFIG_DIR=/run/vpp/ze",
+        "docker",
+        "exec",
+        "--interactive",
+        "--env",
+        "ZE_LOG_VPP=info",
+        "--env",
+        "ZE_LOG_FIB_VPP=debug",
+        "--env",
+        "ZE_LOG_TRAFFIC=debug",
+        "--env",
+        "ZE_LOG_TRAFFIC_VPP=debug",
+        "--env",
+        "ZE_LOG_FIREWALL=debug",
+        "--env",
+        "ZE_LOG_FIREWALL_VPP=debug",
+        "--env",
+        "ZE_LOG_BGP=info",
+        "--env",
+        "ZE_STORAGE_BLOB=false",
+        "--env",
+        "ZE_CONFIG_DIR=/run/vpp/ze",
     ]
     if port is not None:
         env.extend(["--env", f"ZE_TEST_BGP_PORT={port}"])
@@ -245,7 +284,9 @@ def ze_env(container: str, ze: Path, root: Path, config_path: Path, port: int | 
     return env
 
 
-def start_ze(container: str, ze: Path, root: Path, config_path: Path, port: int | None = None) -> tuple[subprocess.Popen[str], list[str]]:
+def start_ze(
+    container: str, ze: Path, root: Path, config_path: Path, port: int | None = None
+) -> tuple[subprocess.Popen[str], list[str]]:
     daemon = subprocess.Popen(
         ze_env(container, ze, root, config_path, port),
         stdout=subprocess.PIPE,
@@ -294,7 +335,9 @@ fib {{
 def traffic_config(api_sock: Path, iface: str, with_interface: bool) -> str:
     if not with_interface:
         return vpp_config(api_sock) + "\ntraffic-control {\n    backend vpp;\n}\n"
-    return vpp_config(api_sock) + f"""
+    return (
+        vpp_config(api_sock)
+        + f"""
 traffic-control {{
     backend vpp;
     interface {iface} {{
@@ -309,13 +352,16 @@ traffic-control {{
     }}
 }}
 """
+    )
 
 
 def write_config(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def run_fib_evidence(container: str, root: Path, ze: Path, ze_test: Path, work: Path, api_sock: Path) -> int:
+def run_fib_evidence(
+    container: str, root: Path, ze: Path, ze_test: Path, work: Path, api_sock: Path
+) -> int:
     port = free_port()
     peer_script = work / "peer-script"
     peer_script.write_text(
@@ -325,8 +371,16 @@ def run_fib_evidence(container: str, root: Path, ze: Path, ze_test: Path, work: 
     )
     peer = subprocess.Popen(
         [
-            "docker", "exec", container,
-            f"/src/{ze_test.relative_to(root)}", "peer", "--mode", "sink", "--port", str(port), "/run/vpp/peer-script",
+            "docker",
+            "exec",
+            container,
+            f"/src/{ze_test.relative_to(root)}",
+            "peer",
+            "--mode",
+            "sink",
+            "--port",
+            str(port),
+            "/run/vpp/peer-script",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -369,7 +423,9 @@ def run_fib_evidence(container: str, root: Path, ze: Path, ze_test: Path, work: 
         terminate(peer)
 
 
-def run_traffic_evidence(container: str, root: Path, ze: Path, work: Path, api_sock: Path, iface: str) -> int:
+def run_traffic_evidence(
+    container: str, root: Path, ze: Path, work: Path, api_sock: Path, iface: str
+) -> int:
     name = policer_name(iface)
     config_path = work / "traffic.conf"
     write_config(config_path, traffic_config(api_sock, iface, True))
@@ -382,13 +438,17 @@ def run_traffic_evidence(container: str, root: Path, ze: Path, work: Path, api_s
             return 1
         ok, last = wait_policer(container, name, True, 15)
         if not ok:
-            sys.stderr.write(f"FAIL: real VPP policer {name} not observed after apply\n")
+            sys.stderr.write(
+                f"FAIL: real VPP policer {name} not observed after apply\n"
+            )
             sys.stderr.write(last)
             sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
             return 1
         bound, features = wait_policer_bound(container, iface, 15)
         if not bound:
-            sys.stderr.write(f"FAIL: real VPP policer feature not observed on {iface}\n")
+            sys.stderr.write(
+                f"FAIL: real VPP policer feature not observed on {iface}\n"
+            )
             sys.stderr.write(features)
             sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
             return 1
@@ -402,17 +462,23 @@ def run_traffic_evidence(container: str, root: Path, ze: Path, work: Path, api_s
     try:
         ok, last = wait_policer(container, name, True, 25)
         if not ok:
-            sys.stderr.write(f"FAIL: real VPP policer {name} missing after ze restart with same config\n")
+            sys.stderr.write(
+                f"FAIL: real VPP policer {name} missing after ze restart with same config\n"
+            )
             sys.stderr.write(last)
             sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
             return 1
         bound, features = wait_policer_bound(container, iface, 15)
         if not bound:
-            sys.stderr.write(f"FAIL: real VPP policer feature not observed on {iface} after ze restart\n")
+            sys.stderr.write(
+                f"FAIL: real VPP policer feature not observed on {iface} after ze restart\n"
+            )
             sys.stderr.write(features)
             sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
             return 1
-        print(f"OK: real VPP traffic policer {name} survived ze restart with same config")
+        print(
+            f"OK: real VPP traffic policer {name} survived ze restart with same config"
+        )
     finally:
         terminate(daemon)
 
@@ -421,11 +487,164 @@ def run_traffic_evidence(container: str, root: Path, ze: Path, work: Path, api_s
     try:
         ok, last = wait_policer(container, name, False, 25)
         if not ok:
-            sys.stderr.write(f"FAIL: real VPP orphan policer {name} survived ze restart cleanup\n")
+            sys.stderr.write(
+                f"FAIL: real VPP orphan policer {name} survived ze restart cleanup\n"
+            )
             sys.stderr.write(last)
             sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
             return 1
         print(f"OK: real VPP startup cleanup removed orphan traffic policer {name}")
+        return 0
+    finally:
+        terminate(daemon)
+
+
+FIREWALL_ACL_TAG = "ze/wan/input"
+
+
+def firewall_config(api_sock: Path, with_rules: bool) -> str:
+    if not with_rules:
+        return vpp_config(api_sock) + "\nfirewall {\n    backend vpp;\n}\n"
+    return (
+        vpp_config(api_sock)
+        + """
+firewall {
+    backend vpp;
+    table wan {
+        family inet;
+        chain input {
+            type filter;
+            hook input;
+            priority 0;
+            policy drop;
+            term allow-established {
+                from {
+                    connection state established,related;
+                }
+                then {
+                    accept;
+                }
+            }
+            term allow-ssh {
+                from {
+                    protocol tcp;
+                    destination port 22;
+                }
+                then {
+                    accept;
+                }
+            }
+            term drop-all {
+                then {
+                    drop;
+                }
+            }
+        }
+    }
+}
+"""
+    )
+
+
+def acl_present(container: str, tag: str) -> tuple[bool, str]:
+    text = vppctl_text(container, "show acl-plugin acl")
+    return tag in text, text
+
+
+def wait_acl(
+    container: str, tag: str, want_present: bool, timeout_s: float
+) -> tuple[bool, str]:
+    last = ""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        present, text = acl_present(container, tag)
+        last = text
+        if present == want_present:
+            return True, text
+        time.sleep(0.5)
+    return False, last
+
+
+def acl_bound_to_interface(container: str, iface: str) -> tuple[bool, str]:
+    text = vppctl_text(container, f"show acl-plugin interface {iface}")
+    return "input acl" in text.lower() or "inbound" in text.lower(), text
+
+
+def wait_acl_bound(container: str, iface: str, timeout_s: float) -> tuple[bool, str]:
+    last = ""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        bound, text = acl_bound_to_interface(container, iface)
+        last = text
+        if bound:
+            return True, text
+        time.sleep(0.5)
+    return False, last
+
+
+def run_firewall_evidence(
+    container: str, root: Path, ze: Path, work: Path, api_sock: Path, iface: str
+) -> int:
+    config_path = work / "firewall.conf"
+    write_config(config_path, firewall_config(api_sock, True))
+
+    daemon, ze_lines = start_ze(container, ze, root, Path("/run/vpp/firewall.conf"))
+    try:
+        if not wait_log(ze_lines, "firewall config applied", 25):
+            sys.stderr.write("FAIL: firewall config apply log not observed\n")
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        ok, last = wait_acl(container, FIREWALL_ACL_TAG, True, 15)
+        if not ok:
+            sys.stderr.write(
+                f"FAIL: real VPP ACL with tag {FIREWALL_ACL_TAG} not observed after apply\n"
+            )
+            sys.stderr.write(last)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        bound, features = wait_acl_bound(container, iface, 15)
+        if not bound:
+            sys.stderr.write(f"FAIL: real VPP ACL not bound to interface {iface}\n")
+            sys.stderr.write(features)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        print(
+            f"OK: real VPP firewall ACL {FIREWALL_ACL_TAG} exists and is bound to {iface}"
+        )
+    finally:
+        terminate(daemon)
+
+    write_config(config_path, firewall_config(api_sock, True))
+    daemon, ze_lines = start_ze(container, ze, root, Path("/run/vpp/firewall.conf"))
+    try:
+        ok, last = wait_acl(container, FIREWALL_ACL_TAG, True, 25)
+        if not ok:
+            sys.stderr.write(
+                f"FAIL: real VPP ACL {FIREWALL_ACL_TAG} missing after ze restart with same config\n"
+            )
+            sys.stderr.write(last)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        print(
+            f"OK: real VPP firewall ACL {FIREWALL_ACL_TAG} survived ze restart with same config"
+        )
+    finally:
+        terminate(daemon)
+
+    write_config(config_path, firewall_config(api_sock, False))
+    daemon, ze_lines = start_ze(container, ze, root, Path("/run/vpp/firewall.conf"))
+    try:
+        ok, last = wait_acl(container, FIREWALL_ACL_TAG, False, 25)
+        if not ok:
+            sys.stderr.write(
+                f"FAIL: real VPP orphan ACL {FIREWALL_ACL_TAG} survived ze restart cleanup\n"
+            )
+            sys.stderr.write(last)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        print(
+            f"OK: real VPP startup cleanup removed orphan firewall ACL {FIREWALL_ACL_TAG}"
+        )
         return 0
     finally:
         terminate(daemon)
@@ -467,27 +686,55 @@ def main() -> int:
     )
 
     container = f"ze-vpp-evidence-{os.getpid()}"
-    vpp = run([
-        "docker", "run", "--rm", "--detach", "--privileged",
-        "--platform", VPP_PLATFORM,
-        "--name", container,
-        "-v", f"{root}:/src",
-        "-v", f"{work}:/run/vpp",
-        "-w", "/src",
-        "--entrypoint", "sleep",
-        VPP_IMAGE,
-        "infinity",
-    ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    vpp = run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--detach",
+            "--privileged",
+            "--platform",
+            VPP_PLATFORM,
+            "--name",
+            container,
+            "-v",
+            f"{root}:/src",
+            "-v",
+            f"{work}:/run/vpp",
+            "-w",
+            "/src",
+            "--entrypoint",
+            "sleep",
+            VPP_IMAGE,
+            "infinity",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
     if vpp.returncode != 0:
         sys.stderr.write(vpp.stderr or "")
         raise SystemExit("failed to start VPP container")
 
     try:
-        start_vpp = run(["docker", "exec", "--detach", container, "vpp", "-c", "/run/vpp/startup.conf"])
+        start_vpp = run(
+            [
+                "docker",
+                "exec",
+                "--detach",
+                container,
+                "vpp",
+                "-c",
+                "/run/vpp/startup.conf",
+            ]
+        )
         if start_vpp.returncode != 0:
             raise SystemExit("failed to start VPP inside container")
         if not wait_for_path(work / "api.sock", 30):
-            logs = run(["docker", "logs", container], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            logs = run(
+                ["docker", "logs", container],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
             sys.stderr.write((logs.stdout or "") + (logs.stderr or ""))
             raise SystemExit("VPP API socket did not appear")
         if not wait_for_path(work / "cli.sock", 30):
@@ -505,9 +752,16 @@ def main() -> int:
         fib_rc = run_fib_evidence(container, root, ze, ze_test, work, api_sock)
         if fib_rc != 0:
             return fib_rc
-        return run_traffic_evidence(container, root, ze, work, api_sock, iface)
+        traffic_rc = run_traffic_evidence(container, root, ze, work, api_sock, iface)
+        if traffic_rc != 0:
+            return traffic_rc
+        return run_firewall_evidence(container, root, ze, work, api_sock, iface)
     finally:
-        run(["docker", "rm", "-f", container], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        run(
+            ["docker", "rm", "-f", container],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
 
 if __name__ == "__main__":

@@ -1151,7 +1151,7 @@ help:
 	@echo "  ze-integration-firewall-test - Run firewall nft integration tests"
 	@echo "  ze-integration-traffic-test - Run traffic-control netlink integration tests"
 	@echo "  ze-release-check - Run clean release check in Docker"
-	@echo "  ze-deployment-vpp-test - Run real VPP daemon deployment test in Docker"
+	@echo "  ze-deployment-vpp-test - Run real VPP daemon deployment test in Docker (FIB + traffic + firewall)"
 	@echo "  ze-deployment-l2tp-test - Run external L2TP peer deployment test in Docker"
 	@echo "  ze-deployment-l2tp-ppp-test - Run full L2TP PPP/NCP peer test in Linux netns"
 	@echo "  ze-deployment-l2tp-ppp-docker-test - Run L2TP PPP/NCP peer-isolated Docker lab (Ze LNS + LAC + FRR)"
