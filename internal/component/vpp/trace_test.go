@@ -4,7 +4,6 @@ package vpp
 
 import (
 	"net"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -80,7 +79,7 @@ func TestExecCLIEmptyResponse(t *testing.T) {
 }
 
 func TestCliSocketPathDefault(t *testing.T) {
-	os.Unsetenv("ZE_TEST_VPP_CLI_SOCKET")
+	t.Setenv("ZE_TEST_VPP_CLI_SOCKET", "")
 	if got := cliSocketPath(); got != defaultCLISocket {
 		t.Errorf("cliSocketPath() = %q, want %q", got, defaultCLISocket)
 	}
