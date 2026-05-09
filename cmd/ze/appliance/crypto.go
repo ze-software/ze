@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-1-builder.md — Argon2id KDF + ChaCha20-Poly1305 AEAD encryption
+// Design: plan/learned/675-appliance-1-builder.md — Argon2id KDF + ChaCha20-Poly1305 AEAD encryption
 
 package appliance
 

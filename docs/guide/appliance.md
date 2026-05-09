@@ -272,3 +272,87 @@ gokrazy/
 ```
 
 The `tools/vendor/` directory contains the gok build tool source (committed to git). The `builddir/` files are small text (go.mod + go.sum, ~27KB). System packages (kernel, init) live in the Go module cache after `make ze-gokrazy-deps`.
+
+## ze appliance (structured workflow)
+
+The `ze appliance` command replaces the `make ze-gokrazy USER=x PASS=y` workflow with structured appliance management. Each appliance has its own directory with a JSON config, encrypted secrets, and a TLS certificate.
+
+### Quick start
+
+```bash
+ze appliance init lab                  # interactive wizard
+ze appliance assemble lab              # build ZeFS database only
+ze appliance build lab                 # full image (assemble + gok + ext4)
+ze appliance list                      # show all appliances
+ze appliance show lab                  # config summary + cert expiry
+```
+
+### Appliance directory
+
+By default, appliances live in `~/.config/ze/appliances/`. Override with `--dir` or `ZE_APPLIANCE_DIR`.
+
+```
+~/.config/ze/appliances/
+  _shared/
+    ze.conf                    # optional base config for all appliances
+  lab/
+    appliance.json             # config (no credentials)
+    ze.conf                    # per-device config overrides
+    secrets/                   # 0700 permissions
+      .encrypted               # marker (present = secrets encrypted)
+      tls/
+        cert.pem               # public certificate (plaintext)
+        key.pem                # private key (encrypted if passphrase set)
+      password.hash            # bcrypt hash (encrypted if passphrase set)
+      update.token             # gokrazy OTA token (encrypted if passphrase set)
+      authorized_keys          # SSH public keys (plaintext)
+```
+
+### Encryption
+
+Secrets are encrypted at rest with Argon2id + XChaCha20-Poly1305 when an encryption passphrase is set during `ze appliance init`. The passphrase is never stored on disk. For fleet operations, `ze appliance unlock` starts a passphrase agent (like ssh-agent) that holds the derived key in memory.
+
+```bash
+ze appliance unlock                    # start agent (prompts for passphrase)
+ze appliance unlock --duration 15m     # auto-expire after 15 minutes
+ze appliance unlock --stop             # stop agent
+```
+
+### Day-2 operations
+
+```bash
+ze appliance passwd lab                # rotate SSH password
+ze appliance replace-cert lab          # regenerate self-signed cert
+ze appliance replace-cert lab --cert ca.pem --key ca.key   # use CA-signed cert
+ze appliance rekey lab                 # change encryption passphrase
+ze appliance clone lab lab2            # copy config (not secrets)
+```
+
+### Config layering
+
+Set `config-base` in `appliance.json` to share a base config across appliances:
+
+```json
+{
+  "config-base": "../_shared/ze.conf"
+}
+```
+
+The base config is read first, then per-appliance `ze.conf` is appended. Later `set` commands override earlier ones; `delete` commands remove settings from the base.
+
+### Commands reference
+
+| Command | Purpose |
+|---------|---------|
+| `init <name>` | Create appliance with config + encrypted secrets |
+| `assemble <name>` | Build ZeFS database only (auto-deletes; use `--keep` to retain) |
+| `build <name>` | Full image: assemble + gok + ext4 inject + checksum + manifest |
+| `build --all` | Build all appliances |
+| `passwd <name>` | Change SSH password |
+| `replace-cert <name>` | Replace TLS cert (regenerate or `--cert`/`--key` for CA) |
+| `rekey <name>` | Change encryption passphrase |
+| `clone <src> <dst>` | Copy config, not secrets |
+| `list` | List appliances with hostname and arch |
+| `show <name>` | Show config, cert expiry, managed status |
+| `run <name>` | Boot in QEMU with port forwarding |
+| `unlock` | Start passphrase agent |

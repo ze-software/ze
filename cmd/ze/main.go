@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	zeappliance "codeberg.org/thomas-mangin/ze/cmd/ze/appliance"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/bgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	zecompletion "codeberg.org/thomas-mangin/ze/cmd/ze/completion"
@@ -404,6 +405,8 @@ dispatch:
 		os.Exit(zetacacs.Run(args[1:]))
 	case "l2tp":
 		os.Exit(zel2tp.Run(args[1:]))
+	case "appliance":
+		os.Exit(zeappliance.Run(args[1:]))
 	case "run":
 		fmt.Fprintf(os.Stderr, "error: 'ze run' has been replaced by direct verb dispatch\n")
 		fmt.Fprintf(os.Stderr, "hint: use 'ze show <command>' for read-only commands\n")

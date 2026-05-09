@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-1-builder.md — ApplianceConfig struct and validation
+// Design: plan/learned/675-appliance-1-builder.md — ApplianceConfig struct and validation
 
 package appliance
 

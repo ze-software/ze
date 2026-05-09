@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-1-builder.md — TLS certificate replacement
+// Design: plan/learned/675-appliance-1-builder.md — TLS certificate replacement
 
 package appliance
 

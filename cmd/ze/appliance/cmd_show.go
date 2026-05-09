@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-1-builder.md — show appliance config and cert expiry
+// Design: plan/learned/675-appliance-1-builder.md — show appliance config and cert expiry
 
 package appliance
 

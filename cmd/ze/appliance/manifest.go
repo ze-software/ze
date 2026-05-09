@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-1-builder.md — build manifest and image checksums
+// Design: plan/learned/675-appliance-1-builder.md — build manifest and image checksums
 
 package appliance
 

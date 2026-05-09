@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-1-builder.md — appliance CLI dispatch
+// Design: plan/learned/675-appliance-1-builder.md — appliance CLI dispatch
 //
 // Package appliance provides the ze appliance subcommand for managing
 // gokrazy-based Ze appliance images.

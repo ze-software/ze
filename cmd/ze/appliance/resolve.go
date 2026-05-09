@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-1-builder.md — appliance directory resolution
+// Design: plan/learned/675-appliance-1-builder.md — appliance directory resolution
 
 package appliance
 

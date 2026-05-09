@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-1-builder.md — passphrase agent (key-on-socket)
+// Design: plan/learned/675-appliance-1-builder.md — passphrase agent (key-on-socket)
 
 package appliance
 
