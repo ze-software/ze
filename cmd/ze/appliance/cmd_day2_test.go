@@ -22,6 +22,7 @@ func TestPasswdUpdatesHash(t *testing.T) {
 	}
 
 	t.Setenv("ZE_APPLIANCE_SSH_PASSWORD", "new-password")
+	env.ResetCache()
 	code := runPasswd([]string{"pw"})
 	if code != exitOK {
 		t.Fatalf("passwd returned %d", code)
@@ -150,6 +151,7 @@ func TestRekeyPlaintextToEncrypted(t *testing.T) {
 	}
 
 	t.Setenv("ZE_APPLIANCE_NEW_PASSPHRASE", "add-pass")
+	env.ResetCache()
 	code := runRekey([]string{"toenc"})
 	if code != exitOK {
 		t.Fatalf("rekey returned %d", code)

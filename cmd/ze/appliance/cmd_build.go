@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 )
 
 func init() {
@@ -108,7 +109,7 @@ func buildAll() int {
 
 	var names []string
 	for _, e := range entries {
-		if !e.IsDir() || e.Name() == "_shared" || e.Name()[0] == '.' {
+		if !e.IsDir() || e.Name() == "_shared" || strings.HasPrefix(e.Name(), ".") {
 			continue
 		}
 		if _, loadErr := LoadConfig(ConfigPath(dir, e.Name())); loadErr == nil {

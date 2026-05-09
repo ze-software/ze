@@ -6,12 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 func TestListShowsAppliances(t *testing.T) {
 	dir := t.TempDir()
 	baseDir = dir
 	t.Setenv("ZE_APPLIANCE_SSH_PASSWORD", "pw")
+	env.ResetCache()
 
 	for _, name := range []string{"edge-01", "edge-02"} {
 		cfg := DefaultConfig(name)

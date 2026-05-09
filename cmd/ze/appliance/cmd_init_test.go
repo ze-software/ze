@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"golang.org/x/crypto/bcrypt"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 func initTestAppliance(t *testing.T, name string, passphrase []byte) string {
@@ -19,6 +21,7 @@ func initTestAppliance(t *testing.T, name string, passphrase []byte) string {
 	if len(passphrase) > 0 {
 		t.Setenv("ZE_APPLIANCE_PASSPHRASE", string(passphrase))
 	}
+	env.ResetCache()
 
 	cfg := DefaultConfig(name)
 	cfgPath := filepath.Join(dir, "input.json")
@@ -107,6 +110,7 @@ func TestInitFromConfigFile(t *testing.T) {
 	os.WriteFile(cfgPath, data, 0o644) //nolint:errcheck,gosec // test
 
 	t.Setenv("ZE_APPLIANCE_SSH_PASSWORD", "pw")
+	env.ResetCache()
 	code := runInit([]string{"--config", cfgPath, "fromfile"})
 	if code != exitOK {
 		t.Fatalf("init returned %d", code)
@@ -206,6 +210,7 @@ func TestInitWithAuthorizedKeys(t *testing.T) {
 	os.WriteFile(cfgPath, data, 0o644) //nolint:errcheck,gosec // test
 
 	t.Setenv("ZE_APPLIANCE_SSH_PASSWORD", "pw")
+	env.ResetCache()
 	code := runInit([]string{"--config", cfgPath, "keys"})
 	if code != exitOK {
 		t.Fatalf("init returned %d", code)
@@ -233,6 +238,7 @@ func TestInitAdminDisabled(t *testing.T) {
 	os.WriteFile(cfgPath, data, 0o644) //nolint:errcheck,gosec // test
 
 	t.Setenv("ZE_APPLIANCE_SSH_PASSWORD", "pw")
+	env.ResetCache()
 	code := runInit([]string{"--config", cfgPath, "noadmin"})
 	if code != exitOK {
 		t.Fatalf("init returned %d", code)
@@ -265,6 +271,7 @@ func TestInitAlreadyExists(t *testing.T) {
 
 	baseDir = dir
 	t.Setenv("ZE_APPLIANCE_SSH_PASSWORD", "pw")
+	env.ResetCache()
 
 	cfg := DefaultConfig("dup")
 	cfgPath := filepath.Join(dir, "input2.json")

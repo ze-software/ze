@@ -8,7 +8,16 @@ import (
 	"path/filepath"
 
 	"golang.org/x/term"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
+
+const newPassphraseKey = "ze.appliance.new.passphrase" //nolint:gosec // env var key name
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key: newPassphraseKey, Type: "string",
+	Description: "New encryption passphrase for rekey (CI only)",
+})
 
 func init() {
 	cmdRekey = runRekey
@@ -84,7 +93,7 @@ func runRekey(args []string) int {
 }
 
 func readNewPassphrase() []byte {
-	if envPass := os.Getenv("ZE_APPLIANCE_NEW_PASSPHRASE"); envPass != "" {
+	if envPass := env.Get(newPassphraseKey); envPass != "" {
 		fmt.Fprintf(os.Stderr, "WARNING: new passphrase from environment variable\n")
 		return []byte(envPass)
 	}

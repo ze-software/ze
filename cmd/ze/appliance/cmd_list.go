@@ -5,6 +5,7 @@ package appliance
 import (
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 )
 
@@ -38,7 +39,7 @@ func runList(args []string) int {
 			continue
 		}
 		name := e.Name()
-		if name == "_shared" || name[0] == '.' {
+		if name == "_shared" || strings.HasPrefix(name, ".") {
 			continue
 		}
 		cfg, loadErr := LoadConfig(ConfigPath(dir, name))

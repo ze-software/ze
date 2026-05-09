@@ -17,12 +17,19 @@ import (
 	"golang.org/x/term"
 
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 const (
 	updateTokenBytes = 32
 	secretsDirPerm   = 0o700
+	sshPasswordKey   = "ze.appliance.ssh.password" //nolint:gosec // env var key name
 )
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key: sshPasswordKey, Type: "string",
+	Description: "SSH password for appliance init/passwd (CI only)",
+})
 
 func init() {
 	cmdInit = runInit
@@ -98,6 +105,13 @@ func runInit(args []string) int {
 		return exitError
 	}
 
+	initFailed := true
+	defer func() {
+		if initFailed {
+			os.RemoveAll(appDir) //nolint:errcheck // best-effort cleanup of partial init
+		}
+	}()
+
 	password := readPasswordValue(&cfg)
 	if password == "" {
 		fmt.Fprintf(os.Stderr, "error: password is required\n")
@@ -165,6 +179,7 @@ func runInit(args []string) int {
 	}
 
 	ZeroBytes(passphrase)
+	initFailed = false
 	fmt.Printf("initialized appliance %q at %s\n", name, appDir)
 	return exitOK
 }
@@ -206,7 +221,7 @@ func prompt(scanner *bufio.Scanner, w io.Writer, text string) string {
 }
 
 func readPasswordValue(_ *ApplianceConfig) string {
-	if envPass := os.Getenv("ZE_APPLIANCE_SSH_PASSWORD"); envPass != "" {
+	if envPass := env.Get(sshPasswordKey); envPass != "" {
 		fmt.Fprintf(os.Stderr, "WARNING: password from environment variable\n")
 		return envPass
 	}
@@ -224,7 +239,7 @@ func readPasswordValue(_ *ApplianceConfig) string {
 
 func readPassphraseForInit() []byte {
 	if !isTerminal(os.Stdin) {
-		if envPass := os.Getenv("ZE_APPLIANCE_PASSPHRASE"); envPass != "" {
+		if envPass := env.Get(passphraseKey); envPass != "" {
 			fmt.Fprintf(os.Stderr, "WARNING: passphrase from environment variable (not recommended for production)\n")
 			return []byte(envPass)
 		}

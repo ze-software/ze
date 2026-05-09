@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -183,6 +184,7 @@ func TestAssembleWrongPassphraseFails(t *testing.T) {
 
 	baseDir = dir
 	t.Setenv("ZE_APPLIANCE_PASSPHRASE", "wrong-pass")
+	env.ResetCache()
 
 	code := runAssemble([]string{"wrongpw"})
 	if code != exitError {

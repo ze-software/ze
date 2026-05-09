@@ -8,6 +8,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 func init() {
@@ -60,7 +62,7 @@ func runPasswd(args []string) int {
 }
 
 func readNewPassword() string {
-	if envPass := os.Getenv("ZE_APPLIANCE_SSH_PASSWORD"); envPass != "" {
+	if envPass := env.Get(sshPasswordKey); envPass != "" {
 		fmt.Fprintf(os.Stderr, "WARNING: password from environment variable\n")
 		return envPass
 	}
