@@ -12,7 +12,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 )
 
-const bgpCaptureRingCapacity = 256
+const (
+	bgpCaptureRingCapacity = 256
+	capDirIn               = "in"
+	capDirOut              = "out"
+)
 
 // bgpCaptureRecord stores numeric fields only. String formatting at snapshot time.
 type bgpCaptureRecord struct {
@@ -37,9 +41,9 @@ type BGPCaptureEntry struct {
 }
 
 func (r *bgpCaptureRecord) format() BGPCaptureEntry {
-	dir := "in"
+	dir := capDirIn
 	if r.direction == 1 {
-		dir = "out"
+		dir = capDirOut
 	}
 	e := BGPCaptureEntry{
 		Timestamp: r.timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),

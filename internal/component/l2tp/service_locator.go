@@ -36,6 +36,9 @@ type Service interface {
 	TunnelFSMHistory(localTID uint16) []FSMTransition
 	SessionFSMHistory(localSID uint16) []FSMTransition
 	CaptureSnapshot(limit int, tunnelID uint16, peer string) []CaptureEntry
+	EnableRawCapture()
+	DisableRawCapture()
+	RawCaptureSnapshot(limit int) []RawCaptureEntry
 	RecordDisconnect(sessionID uint16, actor, reason string, cause uint32)
 }
 

@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -34,6 +35,8 @@ import (
 // runs while the L2TP subsystem has not been started (or has been
 // stopped). The handler converts it into a plugin.StatusError response
 // so the CLI prints a clear message.
+const argAll = "all"
+
 var errSubsystemUnavailable = errors.New("l2tp: subsystem not running")
 
 func init() {
@@ -56,6 +59,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:tunnel-teardown-all", Handler: handleTunnelTeardownAll},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:session-teardown", Handler: handleSessionTeardown},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:session-teardown-all", Handler: handleSessionTeardownAll},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:session-traffic", Handler: handleSessionTraffic},
 	)
 }
 
@@ -211,7 +215,7 @@ func handleObserver(_ *pluginserver.CommandContext, args []string) (*plugin.Resp
 		return errResponse(errSubsystemUnavailable), nil
 	}
 	arg := firstPositionalArg(args)
-	if arg == "all" || arg == "" {
+	if arg == argAll || arg == "" {
 		summaries := svc.SessionSummaries()
 		if summaries == nil {
 			return errResponse(fmt.Errorf("l2tp: observer not enabled (CQM disabled)")), nil
@@ -278,7 +282,7 @@ func handleCQM(_ *pluginserver.CommandContext, args []string) (*plugin.Response,
 		return errResponse(errSubsystemUnavailable), nil
 	}
 	arg := firstPositionalArg(args)
-	if arg == "all" || arg == "summary" || arg == "" {
+	if arg == argAll || arg == "summary" || arg == "" {
 		summaries := svc.LoginSummaries()
 		if summaries == nil {
 			return errResponse(fmt.Errorf("l2tp: observer not enabled (CQM disabled)")), nil
@@ -667,6 +671,84 @@ func parseKeywordArgs(args []string) (actor, reason string, cause uint32) {
 	}
 	reason = strings.Join(reasonParts, " ")
 	return actor, reason, cause
+}
+
+// -----------------------------------------------------------------
+// Per-session traffic handler (diag-0 remaining gap)
+// -----------------------------------------------------------------
+
+func handleSessionTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	svc := l2tp.LookupService()
+	if svc == nil {
+		return errResponse(errSubsystemUnavailable), nil
+	}
+
+	arg := firstPositionalArg(args)
+	if arg == "" || arg == argAll {
+		return sessionTrafficAll(svc)
+	}
+
+	sid, err := parseIDArg(args, "session-id")
+	if err != nil {
+		return errResponse(err), nil
+	}
+	ss, ok := svc.LookupSession(sid)
+	if !ok {
+		return errResponse(fmt.Errorf("l2tp: session %d not found", sid)), nil
+	}
+	row, err := sessionTrafficRow(ss)
+	if err != nil {
+		return errResponse(err), nil
+	}
+	return jsonResponse("l2tp session-traffic", row)
+}
+
+func sessionTrafficAll(svc l2tp.Service) (*plugin.Response, error) {
+	snap := svc.Snapshot()
+	rows := make([]map[string]any, 0)
+	for i := range snap.Tunnels {
+		for j := range snap.Tunnels[i].Sessions {
+			ss := snap.Tunnels[i].Sessions[j]
+			if ss.PppInterface == "" {
+				continue
+			}
+			row, err := sessionTrafficRow(ss)
+			if err != nil {
+				row = map[string]any{
+					"session-id":    int(ss.LocalSID),
+					"ppp-interface": ss.PppInterface,
+					"error":         err.Error(),
+				}
+			}
+			rows = append(rows, row)
+		}
+	}
+	return jsonResponse("l2tp session-traffic", map[string]any{
+		"sessions": rows,
+		"count":    len(rows),
+	})
+}
+
+func sessionTrafficRow(ss l2tp.SessionSnapshot) (map[string]any, error) {
+	if ss.PppInterface == "" {
+		return nil, fmt.Errorf("l2tp: session %d has no PPP interface", ss.LocalSID)
+	}
+	stats, err := iface.GetStats(ss.PppInterface)
+	if err != nil {
+		return nil, fmt.Errorf("l2tp: stats for %s: %w", ss.PppInterface, err)
+	}
+	return map[string]any{
+		"session-id":    int(ss.LocalSID),
+		"ppp-interface": ss.PppInterface,
+		"rx-bytes":      stats.RxBytes,
+		"tx-bytes":      stats.TxBytes,
+		"rx-packets":    stats.RxPackets,
+		"tx-packets":    stats.TxPackets,
+		"rx-errors":     stats.RxErrors,
+		"tx-errors":     stats.TxErrors,
+		"rx-dropped":    stats.RxDropped,
+		"tx-dropped":    stats.TxDropped,
+	}, nil
 }
 
 // jsonResponse marshals payload into a plugin.StatusDone response.

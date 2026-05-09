@@ -330,6 +330,40 @@ func (s *Subsystem) EnableCapture() {
 	}
 }
 
+// EnableRawCapture enables raw byte capture on all reactors.
+func (s *Subsystem) EnableRawCapture() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, r := range s.reactors {
+		r.EnableRawCapture()
+	}
+}
+
+// DisableRawCapture disables raw byte capture on all reactors.
+func (s *Subsystem) DisableRawCapture() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, r := range s.reactors {
+		r.DisableRawCapture()
+	}
+}
+
+// RawCaptureSnapshot returns raw captured bytes from the first reactor with data.
+func (s *Subsystem) RawCaptureSnapshot(limit int) []RawCaptureEntry {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.started {
+		return nil
+	}
+	for _, r := range s.reactors {
+		snap := r.RawCaptureSnapshot(limit)
+		if snap != nil {
+			return snap
+		}
+	}
+	return nil
+}
+
 // RecordDisconnect records a disconnect-requested event on the per-session
 // event ring. No-op when the observer is not enabled.
 func (s *Subsystem) RecordDisconnect(sessionID uint16, actor, reason string, cause uint32) {

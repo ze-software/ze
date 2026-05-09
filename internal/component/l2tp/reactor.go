@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
@@ -169,7 +170,8 @@ type L2TPReactor struct {
 	eventBus ze.EventBus
 
 	// diag-4: control packet capture ring.
-	capture *CaptureRing
+	capture    *CaptureRing
+	rawCapture atomic.Pointer[RawCaptureRing]
 
 	mu      sync.Mutex
 	stop    chan struct{}
@@ -218,6 +220,25 @@ func (r *L2TPReactor) CaptureSnapshot(limit int, tunnelID uint16, peer string) [
 		return nil
 	}
 	return r.capture.Snapshot(limit, tunnelID, peer)
+}
+
+// EnableRawCapture allocates the raw byte capture ring for pcap export.
+func (r *L2TPReactor) EnableRawCapture() {
+	r.rawCapture.CompareAndSwap(nil, NewRawCaptureRing())
+}
+
+// DisableRawCapture releases the raw capture ring.
+func (r *L2TPReactor) DisableRawCapture() {
+	r.rawCapture.Store(nil)
+}
+
+// RawCaptureSnapshot returns raw captured bytes. Nil-safe.
+func (r *L2TPReactor) RawCaptureSnapshot(limit int) []RawCaptureEntry {
+	rc := r.rawCapture.Load()
+	if rc == nil {
+		return nil
+	}
+	return rc.Snapshot(limit)
 }
 
 // Start launches the reactor goroutine. Returns an error if already started.
@@ -342,6 +363,9 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 	if r.capture != nil {
 		r.capture.AppendInbound(hdr.TunnelID, hdr.SessionID, extractMsgType(payload), pkt.from, int(hdr.Length), 0)
 	}
+	if rc := r.rawCapture.Load(); rc != nil {
+		rc.Append(0, pkt.bytes[:hdr.Length])
+	}
 
 	// For TunnelID=0 (expected to be SCCRQ) parse the full AVP body
 	// BEFORE grabbing tunnelsMu. A malformed body is rejected here,
@@ -433,6 +457,9 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 		if r.capture != nil && len(req.bytes) > 12 {
 			outSID := uint16(req.bytes[8])<<8 | uint16(req.bytes[9])
 			r.capture.AppendOutbound(localTID, outSID, extractMsgType(req.bytes[12:]), req.to, len(req.bytes))
+		}
+		if rc := r.rawCapture.Load(); rc != nil {
+			rc.Append(1, req.bytes)
 		}
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
 			r.logger.Warn("l2tp: outbound send failed",

@@ -66,6 +66,9 @@ func (f *fakeL2TPService) ReliableStats(_ uint16) *l2tp.ReliableStats           
 func (f *fakeL2TPService) TunnelFSMHistory(_ uint16) []l2tp.FSMTransition                { return nil }
 func (f *fakeL2TPService) SessionFSMHistory(_ uint16) []l2tp.FSMTransition               { return nil }
 func (f *fakeL2TPService) CaptureSnapshot(_ int, _ uint16, _ string) []l2tp.CaptureEntry { return nil }
+func (f *fakeL2TPService) EnableRawCapture()                                             {}
+func (f *fakeL2TPService) DisableRawCapture()                                            {}
+func (f *fakeL2TPService) RawCaptureSnapshot(_ int) []l2tp.RawCaptureEntry               { return nil }
 func (f *fakeL2TPService) RecordDisconnect(sid uint16, actor, reason string, cause uint32) {
 	f.disconnects = append(f.disconnects, fakeDisconnect{SID: sid, Actor: actor, Reason: reason, Cause: cause})
 }

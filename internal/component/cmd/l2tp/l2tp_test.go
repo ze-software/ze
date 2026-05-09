@@ -56,6 +56,9 @@ func (f *fakeService) ReliableStats(_ uint16) *l2tppkg.ReliableStats            
 func (f *fakeService) TunnelFSMHistory(_ uint16) []l2tppkg.FSMTransition                { return nil }
 func (f *fakeService) SessionFSMHistory(_ uint16) []l2tppkg.FSMTransition               { return nil }
 func (f *fakeService) CaptureSnapshot(_ int, _ uint16, _ string) []l2tppkg.CaptureEntry { return nil }
+func (f *fakeService) EnableRawCapture()                                                {}
+func (f *fakeService) DisableRawCapture()                                               {}
+func (f *fakeService) RawCaptureSnapshot(_ int) []l2tppkg.RawCaptureEntry               { return nil }
 func (f *fakeService) RecordDisconnect(_ uint16, _, _ string, _ uint32)                 {}
 
 // publishFake wires fake into the service locator and returns a

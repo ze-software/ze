@@ -33,12 +33,15 @@ import (
 // argCount is the CLI argument keyword that takes a positive integer
 // limit on the number of returned entries. Centralized so goconst stops
 // flagging the literal repetition across the show package.
-const argCount = "count"
+const (
+	argCount               = "count"
+	msgSubsystemNotRunning = "subsystem not running"
+)
 
 func init() {
 	health.Register("l2tp", func() (health.Status, string) {
 		if l2tp.LookupService() == nil {
-			return health.StatusDegraded, "subsystem not running"
+			return health.StatusDegraded, msgSubsystemNotRunning
 		}
 		return health.StatusHealthy, ""
 	})
@@ -533,7 +536,7 @@ func handleShowCapture(ctx *pluginserver.CommandContext, args []string) (*plugin
 				result["l2tp"] = "capture not enabled"
 			}
 		} else if protocol == capL2TP {
-			result["l2tp"] = "subsystem not running"
+			result["l2tp"] = msgSubsystemNotRunning
 		}
 	}
 

@@ -30,6 +30,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
@@ -257,7 +258,8 @@ type Reactor struct {
 	peerObservers []PeerLifecycleObserver
 	observersMu   sync.RWMutex
 
-	capture *BGPCaptureRing
+	capture    *BGPCaptureRing
+	rawCapture atomic.Pointer[BGPRawCaptureRing]
 
 	running   bool
 	startTime time.Time
@@ -706,6 +708,47 @@ func (r *Reactor) CaptureSnapshot(limit int, peer netip.Addr) []BGPCaptureEntry 
 		return nil
 	}
 	return r.capture.Snapshot(limit, peer)
+}
+
+// EnableRawCapture allocates the raw byte capture ring for pcap export.
+func (r *Reactor) EnableRawCapture() {
+	r.rawCapture.CompareAndSwap(nil, NewBGPRawCaptureRing(r.clock))
+}
+
+// DisableRawCapture releases the raw capture ring.
+func (r *Reactor) DisableRawCapture() {
+	r.rawCapture.Store(nil)
+}
+
+// RawCaptureSnapshot returns raw captured bytes. Nil-safe.
+func (r *Reactor) RawCaptureSnapshot(limit int) []BGPRawCaptureEntry {
+	rc := r.rawCapture.Load()
+	if rc == nil {
+		return nil
+	}
+	return rc.Snapshot(limit)
+}
+
+// BGPRawCaptureSnapshot satisfies plugin.BGPRawCaptureProvider.
+func (r *Reactor) BGPRawCaptureSnapshot(limit int) []plugin.BGPRawCaptureEntry {
+	rc := r.rawCapture.Load()
+	if rc == nil {
+		return nil
+	}
+	internal := rc.Snapshot(limit)
+	out := make([]plugin.BGPRawCaptureEntry, len(internal))
+	for i, e := range internal {
+		dir := capDirIn
+		if e.Direction == 1 {
+			dir = capDirOut
+		}
+		out[i] = plugin.BGPRawCaptureEntry{
+			Timestamp: e.Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			Direction: dir,
+			Data:      e.Data,
+		}
+	}
+	return out
 }
 
 // BGPCaptureSnapshot satisfies plugin.BGPCaptureProvider.

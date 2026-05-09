@@ -174,6 +174,21 @@ type BGPCaptureProvider interface {
 	BGPCaptureSnapshot(limit int, peer string) []BGPCaptureRecord
 }
 
+// BGPRawCaptureProvider is an optional interface for reactors that support
+// raw byte capture for pcap export. Handlers type-assert to this.
+type BGPRawCaptureProvider interface {
+	EnableRawCapture()
+	DisableRawCapture()
+	BGPRawCaptureSnapshot(limit int) []BGPRawCaptureEntry
+}
+
+// BGPRawCaptureEntry is one raw captured BGP message.
+type BGPRawCaptureEntry struct {
+	Timestamp string `json:"timestamp"`
+	Direction string `json:"direction"`
+	Data      []byte `json:"data"`
+}
+
 // ReactorPeerController manages BGP peer lifecycle: shutdown, teardown,
 // flow control, and dynamic peer add/remove.
 type ReactorPeerController interface {

@@ -174,6 +174,9 @@ func (f *fakeL2TPService) ReliableStats(uint16) *l2tp.ReliableStats             
 func (f *fakeL2TPService) TunnelFSMHistory(uint16) []l2tp.FSMTransition            { return nil }
 func (f *fakeL2TPService) SessionFSMHistory(uint16) []l2tp.FSMTransition           { return nil }
 func (f *fakeL2TPService) CaptureSnapshot(int, uint16, string) []l2tp.CaptureEntry { return nil }
+func (f *fakeL2TPService) EnableRawCapture()                                       {}
+func (f *fakeL2TPService) DisableRawCapture()                                      {}
+func (f *fakeL2TPService) RawCaptureSnapshot(int) []l2tp.RawCaptureEntry           { return nil }
 func (f *fakeL2TPService) RecordDisconnect(uint16, string, string, uint32)         {}
 
 func mustResolveUDP(t *testing.T, addr string) *net.UDPAddr {

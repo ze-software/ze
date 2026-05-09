@@ -229,6 +229,13 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		}
 		r.capture.Append(direction == rpc.DirectionSent, peerAddr, msgType, len(rawBytes), errCode, errSub)
 	}
+	if rc := r.rawCapture.Load(); rc != nil {
+		var dir uint8
+		if direction == rpc.DirectionSent {
+			dir = 1
+		}
+		rc.Append(dir, rawBytes)
+	}
 
 	r.mu.RUnlock()
 
