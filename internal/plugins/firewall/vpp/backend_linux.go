@@ -15,6 +15,9 @@ import (
 	govppacl "go.fd.io/govpp/binapi/acl"
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
+	"go.fd.io/govpp/binapi/ip_types"
+	"go.fd.io/govpp/binapi/nat44_ed"
+	"go.fd.io/govpp/binapi/nat_types"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
 	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
@@ -136,6 +139,11 @@ func (b *backend) applyWithOps(ops vppOps, desired []firewall.Table) error {
 	b.reconcileRemovals(ops, newACLIndexes)
 	b.aclIndexes = newACLIndexes
 	b.ifaceACLs = newIfaceACLs
+
+	if err := b.applyNATChains(ops, desired, nameIndex); err != nil {
+		return err
+	}
+
 	cp := make([]firewall.Table, len(desired))
 	copy(cp, desired)
 	b.lastApplied = cp
@@ -159,7 +167,9 @@ func (b *backend) cleanupStartupOrphans(ops vppOps, desired []firewall.Table) er
 			continue
 		}
 		if err := ops.aclDel(entry.Index); err != nil {
-			return fmt.Errorf("delete startup orphan ACL %q (index %d): %w", entry.Tag, entry.Index, err)
+			lg := logger()
+			lg.Warn("firewall-vpp: delete startup orphan ACL failed (treating as already gone)",
+				"tag", entry.Tag, "idx", entry.Index, "err", err)
 		}
 	}
 	return nil
@@ -187,7 +197,7 @@ func (b *backend) applyAll(
 		tbl := &desired[i]
 		for j := range tbl.Chains {
 			ch := &tbl.Chains[j]
-			if !ch.IsBase {
+			if !ch.IsBase || ch.Type == firewall.ChainNAT {
 				continue
 			}
 
@@ -263,7 +273,7 @@ func (b *backend) bindAllACLs(
 		tbl := &desired[i]
 		for j := range tbl.Chains {
 			ch := &tbl.Chains[j]
-			if !ch.IsBase {
+			if !ch.IsBase || ch.Type == firewall.ChainNAT {
 				continue
 			}
 			tag := aclTag(tbl.Name, ch.Name)
@@ -489,4 +499,117 @@ func (g *govppOps) aclInterfaceSetACLList(swIfIndex interface_types.InterfaceInd
 		return fmt.Errorf("ACLInterfaceSetACLList: %w", apiErr)
 	}
 	return nil
+}
+
+func (g *govppOps) nat44Enable() error {
+	req := &nat44_ed.Nat44EdPluginEnableDisable{
+		Enable: true,
+		Flags:  nat44_ed.NAT44_IS_ENDPOINT_DEPENDENT,
+	}
+	reply := &nat44_ed.Nat44EdPluginEnableDisableReply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("Nat44EdPluginEnableDisable: %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return fmt.Errorf("Nat44EdPluginEnableDisable: %w", apiErr)
+	}
+	return nil
+}
+
+func (g *govppOps) nat44AddDelAddressRange(first, last ip_types.IP4Address, isAdd bool) error {
+	req := &nat44_ed.Nat44AddDelAddressRange{
+		FirstIPAddress: first,
+		LastIPAddress:  last,
+		IsAdd:          isAdd,
+	}
+	reply := &nat44_ed.Nat44AddDelAddressRangeReply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("Nat44AddDelAddressRange: %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return fmt.Errorf("Nat44AddDelAddressRange: %w", apiErr)
+	}
+	return nil
+}
+
+func (g *govppOps) nat44AddDelStaticMapping(m natStaticMapping) error {
+	req := &nat44_ed.Nat44AddDelStaticMappingV2{
+		IsAdd:             m.IsAdd,
+		LocalIPAddress:    m.LocalAddr,
+		ExternalIPAddress: m.ExternalAddr,
+		Protocol:          m.Protocol,
+		LocalPort:         m.LocalPort,
+		ExternalPort:      m.ExternalPort,
+		ExternalSwIfIndex: m.ExternalSwIfIndex,
+		Tag:               m.Tag,
+	}
+	reply := &nat44_ed.Nat44AddDelStaticMappingV2Reply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("Nat44AddDelStaticMappingV2: %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return fmt.Errorf("Nat44AddDelStaticMappingV2: %w", apiErr)
+	}
+	return nil
+}
+
+func (g *govppOps) nat44AddDelOutputInterface(swIfIndex interface_types.InterfaceIndex, isAdd bool) error {
+	req := &nat44_ed.Nat44EdAddDelOutputInterface{
+		IsAdd:     isAdd,
+		SwIfIndex: swIfIndex,
+	}
+	reply := &nat44_ed.Nat44EdAddDelOutputInterfaceReply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("Nat44EdAddDelOutputInterface: %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return fmt.Errorf("Nat44EdAddDelOutputInterface: %w", apiErr)
+	}
+	return nil
+}
+
+func (g *govppOps) nat44AddDelInterfaceFeature(swIfIndex interface_types.InterfaceIndex, isInside bool, isAdd bool) error {
+	flags := nat_types.NAT_IS_OUTSIDE
+	if isInside {
+		flags = nat_types.NAT_IS_INSIDE
+	}
+	req := &nat44_ed.Nat44InterfaceAddDelFeature{
+		IsAdd:     isAdd,
+		Flags:     flags,
+		SwIfIndex: swIfIndex,
+	}
+	reply := &nat44_ed.Nat44InterfaceAddDelFeatureReply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("Nat44InterfaceAddDelFeature: %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return fmt.Errorf("Nat44InterfaceAddDelFeature: %w", apiErr)
+	}
+	return nil
+}
+
+func (g *govppOps) nat44StaticMappingDump() ([]natStaticMapping, error) {
+	req := &nat44_ed.Nat44StaticMappingDump{}
+	rctx := g.ch.SendMultiRequest(req)
+	var entries []natStaticMapping
+	for {
+		d := &nat44_ed.Nat44StaticMappingDetails{}
+		last, err := rctx.ReceiveReply(d)
+		if err != nil {
+			return nil, fmt.Errorf("Nat44StaticMappingDump: %w", err)
+		}
+		if last {
+			break
+		}
+		entries = append(entries, natStaticMapping{
+			Tag:               d.Tag,
+			Protocol:          d.Protocol,
+			LocalAddr:         d.LocalIPAddress,
+			LocalPort:         d.LocalPort,
+			ExternalAddr:      d.ExternalIPAddress,
+			ExternalPort:      d.ExternalPort,
+			ExternalSwIfIndex: d.ExternalSwIfIndex,
+		})
+	}
+	return entries, nil
 }

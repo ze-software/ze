@@ -1,6 +1,7 @@
 package firewallvpp
 
 import (
+	"net/netip"
 	"strings"
 	"testing"
 
@@ -203,9 +204,9 @@ func TestVerifyRejectsUnsupportedActions(t *testing.T) {
 		{"jump", firewall.Jump{Target: "other"}, "jump action"},
 		{"goto", firewall.Goto{Target: "other"}, "goto action"},
 		{"return", firewall.Return{}, "return action"},
-		{"snat", firewall.SNAT{}, "snat action"},
-		{"dnat", firewall.DNAT{}, "dnat action"},
-		{"masquerade", firewall.Masquerade{}, "masquerade action"},
+		{"snat", firewall.SNAT{}, "requires a NAT chain"},
+		{"dnat", firewall.DNAT{}, "requires a NAT chain"},
+		{"masquerade", firewall.Masquerade{}, "requires a NAT chain"},
 		{"redirect", firewall.Redirect{}, "redirect action"},
 		{"notrack", firewall.Notrack{}, "notrack action"},
 		{"set-mark", firewall.SetMark{Value: 1}, "mark-set action"},
@@ -328,5 +329,174 @@ func TestVerifyRejectsMultipleTablesCollectsAll(t *testing.T) {
 	msg := err.Error()
 	if !strings.Contains(msg, "t1") || !strings.Contains(msg, "t2") {
 		t.Errorf("should report errors from both tables, got %v", err)
+	}
+}
+
+func natChain(hook firewall.ChainHook, terms ...firewall.Term) firewall.Chain {
+	return firewall.Chain{
+		Name:   "natchain",
+		IsBase: true,
+		Type:   firewall.ChainNAT,
+		Hook:   hook,
+		Policy: firewall.PolicyAccept,
+		Terms:  terms,
+	}
+}
+
+func natTable(chains ...firewall.Chain) []firewall.Table {
+	return []firewall.Table{{Name: "nat", Family: firewall.FamilyInet, Chains: chains}}
+}
+
+func TestVerifyAcceptsMasqueradeInNATChain(t *testing.T) {
+	tables := natTable(natChain(firewall.HookPostrouting, firewall.Term{
+		Name:    "masq",
+		Actions: []firewall.Action{firewall.Masquerade{}},
+	}))
+	if err := Verify(tables); err != nil {
+		t.Fatalf("masquerade in NAT chain should be accepted, got %v", err)
+	}
+}
+
+func TestVerifyAcceptsSNATInNATChain(t *testing.T) {
+	tables := natTable(natChain(firewall.HookPostrouting, firewall.Term{
+		Name:    "snat",
+		Actions: []firewall.Action{firewall.SNAT{Address: netip.MustParseAddr("1.2.3.4")}},
+	}))
+	if err := Verify(tables); err != nil {
+		t.Fatalf("SNAT in NAT chain should be accepted, got %v", err)
+	}
+}
+
+func TestVerifyAcceptsDNATInNATChain(t *testing.T) {
+	tables := natTable(natChain(firewall.HookPrerouting, firewall.Term{
+		Name: "dnat",
+		Matches: []firewall.Match{
+			firewall.MatchProtocol{Protocol: "tcp"},
+			firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 80, Hi: 80}}},
+		},
+		Actions: []firewall.Action{firewall.DNAT{Address: netip.MustParseAddr("10.0.0.1"), Port: 8080}},
+	}))
+	if err := Verify(tables); err != nil {
+		t.Fatalf("DNAT with protocol+port match in NAT chain should be accepted, got %v", err)
+	}
+}
+
+func TestVerifyRejectsSNATWithDestMatch(t *testing.T) {
+	tables := natTable(natChain(firewall.HookPostrouting, firewall.Term{
+		Name:    "snat-filtered",
+		Matches: []firewall.Match{firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 80, Hi: 80}}}},
+		Actions: []firewall.Action{firewall.SNAT{Address: netip.MustParseAddr("1.2.3.4")}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("SNAT with destination match should be rejected")
+	}
+	if !strings.Contains(err.Error(), "destination/protocol match not supported with snat") {
+		t.Errorf("want destination match rejection message, got %v", err)
+	}
+}
+
+func TestVerifyRejectsNATTermWithoutNATAction(t *testing.T) {
+	tables := natTable(natChain(firewall.HookPostrouting, firewall.Term{
+		Name:    "filter-in-nat",
+		Actions: []firewall.Action{firewall.Accept{}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("NAT chain term without NAT action should be rejected")
+	}
+	if !strings.Contains(err.Error(), "no NAT action") {
+		t.Errorf("want 'no NAT action' message, got %v", err)
+	}
+}
+
+func TestVerifyRejectsUnsupportedActionInNATChain(t *testing.T) {
+	tables := natTable(natChain(firewall.HookPostrouting, firewall.Term{
+		Name:    "limit-in-nat",
+		Actions: []firewall.Action{firewall.Masquerade{}, firewall.Limit{Rate: 10, Unit: "second"}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("limit in NAT chain should be rejected")
+	}
+	if !strings.Contains(err.Error(), "not supported in NAT chain") {
+		t.Errorf("want 'not supported in NAT chain' message, got %v", err)
+	}
+}
+
+func TestVerifyRejectsUnsupportedMatchWithDNAT(t *testing.T) {
+	tables := natTable(natChain(firewall.HookPrerouting, firewall.Term{
+		Name:    "dnat-mark",
+		Matches: []firewall.Match{firewall.MatchMark{Value: 1, Mask: 1}},
+		Actions: []firewall.Action{firewall.DNAT{Address: netip.MustParseAddr("10.0.0.1"), Port: 80}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("DNAT with mark match should be rejected")
+	}
+	if !strings.Contains(err.Error(), "not supported with dnat") {
+		t.Errorf("want 'not supported with dnat' message, got %v", err)
+	}
+}
+
+func TestVerifyRejectsDNATWithoutProtocol(t *testing.T) {
+	tables := natTable(natChain(firewall.HookPrerouting, firewall.Term{
+		Name:    "dnat-no-proto",
+		Matches: []firewall.Match{firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 80, Hi: 80}}}},
+		Actions: []firewall.Action{firewall.DNAT{Address: netip.MustParseAddr("10.0.0.1"), Port: 8080}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("DNAT without protocol should be rejected")
+	}
+	if !strings.Contains(err.Error(), "dnat requires a protocol match") {
+		t.Errorf("want protocol requirement message, got %v", err)
+	}
+}
+
+func TestVerifyRejectsDNATWithoutPort(t *testing.T) {
+	tables := natTable(natChain(firewall.HookPrerouting, firewall.Term{
+		Name:    "dnat-no-port",
+		Matches: []firewall.Match{firewall.MatchProtocol{Protocol: "tcp"}},
+		Actions: []firewall.Action{firewall.DNAT{Address: netip.MustParseAddr("10.0.0.1"), Port: 8080}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("DNAT without destination port should be rejected")
+	}
+	if !strings.Contains(err.Error(), "dnat requires a destination port match") {
+		t.Errorf("want port requirement message, got %v", err)
+	}
+}
+
+func TestVerifyRejectsIPv6SNATAddress(t *testing.T) {
+	tables := natTable(natChain(firewall.HookPostrouting, firewall.Term{
+		Name:    "snat-v6",
+		Actions: []firewall.Action{firewall.SNAT{Address: netip.MustParseAddr("2001:db8::1")}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("IPv6 SNAT address should be rejected")
+	}
+	if !strings.Contains(err.Error(), "IPv6") {
+		t.Errorf("want IPv6 rejection message, got %v", err)
+	}
+}
+
+func TestVerifyRejectsIPv6DNATAddress(t *testing.T) {
+	tables := natTable(natChain(firewall.HookPrerouting, firewall.Term{
+		Name: "dnat-v6",
+		Matches: []firewall.Match{
+			firewall.MatchProtocol{Protocol: "tcp"},
+			firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 80, Hi: 80}}},
+		},
+		Actions: []firewall.Action{firewall.DNAT{Address: netip.MustParseAddr("2001:db8::1"), Port: 8080}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("IPv6 DNAT address should be rejected")
+	}
+	if !strings.Contains(err.Error(), "IPv6") {
+		t.Errorf("want IPv6 rejection message, got %v", err)
 	}
 }

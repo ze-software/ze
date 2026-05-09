@@ -5,6 +5,7 @@ package firewallvpp
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
 )
@@ -70,6 +71,9 @@ func verifyChain(tbl *firewall.Table, ch *firewall.Chain) error {
 		return fmt.Errorf("table %q chain %q: non-base chains (jump/goto targets) not supported by backend vpp (VPP ACL is flat rules, no chain traversal)",
 			tbl.Name, ch.Name)
 	}
+	if ch.Type == firewall.ChainNAT {
+		return verifyNATChain(tbl, ch)
+	}
 	var errs []error
 	for i := range ch.Terms {
 		if err := verifyTerm(tbl, ch, &ch.Terms[i]); err != nil {
@@ -77,6 +81,124 @@ func verifyChain(tbl *firewall.Table, ch *firewall.Chain) error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// verifyNATChain validates terms in a NAT chain for VPP NAT44-ED
+// compatibility. NAT chains use VPP's NAT44-ED plugin instead of ACLs.
+//
+// Accepted NAT actions: SNAT, DNAT, Masquerade.
+// Accepted matches in NAT terms: protocol, destination port, destination
+// address (these map to static mapping fields). Source address matches
+// are accepted but ignored (VPP NAT44 is interface-level, not per-source).
+//
+// SNAT and Masquerade only accept terms with no match constraints or
+// source-only matches (VPP NAT44 applies to all traffic on the interface).
+func verifyNATChain(tbl *firewall.Table, ch *firewall.Chain) error {
+	var errs []error
+	for i := range ch.Terms {
+		term := &ch.Terms[i]
+		tag := natTag(tbl.Name, ch.Name, term.Name)
+		if len(tag) > aclTagMaxLen {
+			errs = append(errs, fmt.Errorf("table %q chain %q term %q: NAT tag %q exceeds VPP's %d-byte limit; shorten names",
+				tbl.Name, ch.Name, term.Name, tag, aclTagMaxLen))
+			continue
+		}
+		prefix := fmt.Sprintf("table %q chain %q term %q", tbl.Name, ch.Name, term.Name)
+		if err := verifyNATTerm(prefix, term); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func verifyNATTerm(prefix string, term *firewall.Term) error {
+	var errs []error
+	var hasNATAction bool
+	var hasSrcNAT, hasDstNAT bool
+	for _, a := range term.Actions {
+		switch v := a.(type) {
+		case firewall.SNAT:
+			hasNATAction = true
+			hasSrcNAT = true
+			if err := verifyNATAddrFamily(prefix, "snat", v.Address, v.AddressEnd); err != nil {
+				errs = append(errs, err)
+			}
+		case firewall.Masquerade:
+			hasNATAction = true
+			hasSrcNAT = true
+		case firewall.DNAT:
+			hasNATAction = true
+			hasDstNAT = true
+			if err := verifyNATAddrFamily(prefix, "dnat", v.Address, v.AddressEnd); err != nil {
+				errs = append(errs, err)
+			}
+		case firewall.Accept, firewall.Drop, firewall.FlowOffload:
+			// Verdict actions are valid alongside NAT actions.
+		default:
+			errs = append(errs, fmt.Errorf("%s: action %T not supported in NAT chain by backend vpp", prefix, a))
+		}
+	}
+	if !hasNATAction {
+		errs = append(errs, fmt.Errorf("%s: NAT chain term has no NAT action (snat/dnat/masquerade)", prefix))
+	}
+	if hasSrcNAT {
+		if err := verifyNATSourceMatches(prefix, term); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if hasDstNAT {
+		if err := verifyNATDestMatches(prefix, term); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func verifyNATSourceMatches(prefix string, term *firewall.Term) error {
+	for _, m := range term.Matches {
+		switch m.(type) {
+		case firewall.MatchSourceAddress:
+			// Accepted but informational: VPP NAT44 is interface-level.
+		case firewall.MatchDestinationPort, firewall.MatchDestinationAddress,
+			firewall.MatchProtocol:
+			return fmt.Errorf("%s: destination/protocol match not supported with snat/masquerade by backend vpp (VPP NAT44 applies to all traffic on inside interfaces)", prefix)
+		default:
+			return fmt.Errorf("%s: match %T not supported in NAT chain by backend vpp", prefix, m)
+		}
+	}
+	return nil
+}
+
+func verifyNATDestMatches(prefix string, term *firewall.Term) error {
+	var hasProto, hasPort bool
+	for _, m := range term.Matches {
+		switch m.(type) {
+		case firewall.MatchProtocol:
+			hasProto = true
+		case firewall.MatchDestinationPort:
+			hasPort = true
+		case firewall.MatchDestinationAddress, firewall.MatchSourceAddress:
+			// Accepted: destination/source address narrow the mapping scope.
+		default:
+			return fmt.Errorf("%s: match %T not supported with dnat by backend vpp (only protocol, destination port/address, source address)", prefix, m)
+		}
+	}
+	if !hasProto {
+		return fmt.Errorf("%s: dnat requires a protocol match (VPP NAT44 static mapping needs an L4 protocol)", prefix)
+	}
+	if !hasPort {
+		return fmt.Errorf("%s: dnat requires a destination port match (VPP NAT44 static mapping needs an external port)", prefix)
+	}
+	return nil
+}
+
+func verifyNATAddrFamily(prefix, action string, addrs ...netip.Addr) error {
+	for _, a := range addrs {
+		if a.IsValid() && a.Is6() {
+			return fmt.Errorf("%s: %s address %s is IPv6, but VPP NAT44-ED only supports IPv4", prefix, action, a)
+		}
+	}
+	return nil
 }
 
 func verifyTerm(tbl *firewall.Table, ch *firewall.Chain, term *firewall.Term) error {
@@ -147,11 +269,11 @@ func verifyAction(prefix string, a firewall.Action) error {
 	case firewall.Return:
 		return fmt.Errorf("%s: return action not supported by backend vpp (VPP ACL is flat rules, no chain traversal)", prefix)
 	case firewall.SNAT:
-		return fmt.Errorf("%s: snat action not supported by backend vpp (deferred: VPP NAT44 plugin not yet integrated)", prefix)
+		return fmt.Errorf("%s: snat action requires a NAT chain (type nat), not a filter chain", prefix)
 	case firewall.DNAT:
-		return fmt.Errorf("%s: dnat action not supported by backend vpp (deferred: VPP NAT44 plugin not yet integrated)", prefix)
+		return fmt.Errorf("%s: dnat action requires a NAT chain (type nat), not a filter chain", prefix)
 	case firewall.Masquerade:
-		return fmt.Errorf("%s: masquerade action not supported by backend vpp (deferred: VPP NAT44 plugin not yet integrated)", prefix)
+		return fmt.Errorf("%s: masquerade action requires a NAT chain (type nat), not a filter chain", prefix)
 	case firewall.Redirect:
 		return fmt.Errorf("%s: redirect action not supported by backend vpp", prefix)
 	case firewall.Notrack:
@@ -196,4 +318,10 @@ func verifyConnState(prefix string, m firewall.MatchConnState) error {
 // rejects names whose tag exceeds the 64-byte limit.
 func aclTag(tableName, chainName string) string {
 	return fmt.Sprintf("ze/%s/%s", tableName, chainName)
+}
+
+// natTag builds the VPP NAT static mapping tag from table, chain, and
+// term names. Same 64-byte limit as ACL tags.
+func natTag(tableName, chainName, termName string) string {
+	return fmt.Sprintf("ze/%s/%s/%s", tableName, chainName, termName)
 }

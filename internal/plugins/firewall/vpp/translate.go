@@ -136,7 +136,7 @@ func applyMatch(rule *acl_types.ACLRule, m firewall.Match, isStateful, isICMP, h
 
 // prefixToVPP converts a Go netip.Prefix to a VPP ip_types.Prefix.
 func prefixToVPP(p netip.Prefix) ip_types.Prefix {
-	addr := p.Addr()
+	addr := p.Masked().Addr()
 	bits := p.Bits()
 	if addr.Is4() {
 		a4 := addr.As4()

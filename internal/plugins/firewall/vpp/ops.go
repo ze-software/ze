@@ -8,6 +8,7 @@ import (
 	"go.fd.io/govpp/binapi/acl"
 	"go.fd.io/govpp/binapi/acl_types"
 	"go.fd.io/govpp/binapi/interface_types"
+	"go.fd.io/govpp/binapi/ip_types"
 )
 
 // vppOps is the narrow VPP-call surface that firewallvpp's Apply path
@@ -21,6 +22,13 @@ type vppOps interface {
 	aclDump() ([]aclDumpEntry, error)
 	aclInterfaceListDump(swIfIndex interface_types.InterfaceIndex) (ifaceACLList, error)
 	aclInterfaceSetACLList(swIfIndex interface_types.InterfaceIndex, nInput uint8, acls []uint32) error
+
+	nat44Enable() error
+	nat44AddDelAddressRange(first, last ip_types.IP4Address, isAdd bool) error
+	nat44AddDelStaticMapping(m natStaticMapping) error
+	nat44AddDelOutputInterface(swIfIndex interface_types.InterfaceIndex, isAdd bool) error
+	nat44AddDelInterfaceFeature(swIfIndex interface_types.InterfaceIndex, isInside bool, isAdd bool) error
+	nat44StaticMappingDump() ([]natStaticMapping, error)
 }
 
 // ifaceACLList holds the current ACL binding for one interface as
@@ -35,4 +43,16 @@ type aclDumpEntry struct {
 	Index uint32
 	Tag   string
 	Rules []acl_types.ACLRule
+}
+
+// natStaticMapping holds one DNAT static mapping for add/del/dump.
+type natStaticMapping struct {
+	IsAdd             bool
+	Tag               string
+	Protocol          uint8
+	LocalAddr         ip_types.IP4Address
+	LocalPort         uint16
+	ExternalAddr      ip_types.IP4Address
+	ExternalPort      uint16
+	ExternalSwIfIndex interface_types.InterfaceIndex
 }

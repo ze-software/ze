@@ -5,11 +5,13 @@ package firewallvpp
 import (
 	"fmt"
 	"maps"
+	"net/netip"
 	"strings"
 	"testing"
 
 	govppacl "go.fd.io/govpp/binapi/acl"
 	"go.fd.io/govpp/binapi/interface_types"
+	"go.fd.io/govpp/binapi/ip_types"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
 )
@@ -73,6 +75,40 @@ func (f *fakeOps) aclInterfaceListDump(swIfIndex interface_types.InterfaceIndex)
 func (f *fakeOps) aclInterfaceSetACLList(swIfIndex interface_types.InterfaceIndex, nInput uint8, acls []uint32) error {
 	f.calls = append(f.calls, fmt.Sprintf("bind:%d:nIn=%d:acls=%v", swIfIndex, nInput, acls))
 	return f.bindFailOn[swIfIndex]
+}
+
+func (f *fakeOps) nat44Enable() error {
+	f.calls = append(f.calls, "nat44Enable")
+	return nil
+}
+
+func (f *fakeOps) nat44AddDelAddressRange(first, last ip_types.IP4Address, isAdd bool) error {
+	f.calls = append(f.calls, fmt.Sprintf("nat44AddrRange:%v-%v:add=%v", first, last, isAdd))
+	return nil
+}
+
+func (f *fakeOps) nat44AddDelStaticMapping(m natStaticMapping) error {
+	f.calls = append(f.calls, fmt.Sprintf("nat44Static:%s:add=%v", m.Tag, m.IsAdd))
+	return nil
+}
+
+func (f *fakeOps) nat44AddDelOutputInterface(swIfIndex interface_types.InterfaceIndex, isAdd bool) error {
+	f.calls = append(f.calls, fmt.Sprintf("nat44OutIface:%d:add=%v", swIfIndex, isAdd))
+	return nil
+}
+
+func (f *fakeOps) nat44AddDelInterfaceFeature(swIfIndex interface_types.InterfaceIndex, isInside bool, isAdd bool) error {
+	side := "outside"
+	if isInside {
+		side = "inside"
+	}
+	f.calls = append(f.calls, fmt.Sprintf("nat44IfaceFeature:%d:%s:add=%v", swIfIndex, side, isAdd))
+	return nil
+}
+
+func (f *fakeOps) nat44StaticMappingDump() ([]natStaticMapping, error) {
+	f.calls = append(f.calls, "nat44StaticDump")
+	return nil, nil
 }
 
 func (f *fakeOps) countPrefix(prefix string) int {
@@ -478,7 +514,7 @@ func TestReconcileRemovalsDeleteFailureContinues(t *testing.T) {
 	}
 }
 
-func TestCleanupStartupOrphansDeleteFailure(t *testing.T) {
+func TestCleanupStartupOrphansDeleteFailureContinues(t *testing.T) {
 	b := newOpsBackend()
 	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
 	fake.existingACL = []aclDumpEntry{
@@ -487,8 +523,11 @@ func TestCleanupStartupOrphansDeleteFailure(t *testing.T) {
 	fake.delFailOn[10] = fmt.Errorf("delete orphan failed")
 
 	err := applyWithOpsLocked(b, fake, oneChainTable())
-	if err == nil {
-		t.Fatal("expected error when orphan cleanup delete fails")
+	if err != nil {
+		t.Fatalf("orphan delete failure should warn, not fail Apply: %v", err)
+	}
+	if fake.countPrefix("del:10") < 1 {
+		t.Error("should have attempted to delete orphan ACL 10")
 	}
 }
 
@@ -546,6 +585,126 @@ func TestApplyUpdateUsesReplaceIndex(t *testing.T) {
 	}
 	if fake2.countPrefix("del:") != 0 {
 		t.Errorf("update should not delete, got %d del calls", fake2.countPrefix("del:"))
+	}
+}
+
+func natMasqueradeTable() []firewall.Table {
+	return []firewall.Table{{
+		Name:   "nat",
+		Family: firewall.FamilyInet,
+		Chains: []firewall.Chain{{
+			Name:   "postrouting",
+			IsBase: true,
+			Type:   firewall.ChainNAT,
+			Hook:   firewall.HookPostrouting,
+			Policy: firewall.PolicyAccept,
+			Terms: []firewall.Term{{
+				Name:    "masq",
+				Actions: []firewall.Action{firewall.Masquerade{}},
+			}},
+		}},
+	}}
+}
+
+func natDNATTable() []firewall.Table {
+	return []firewall.Table{{
+		Name:   "nat",
+		Family: firewall.FamilyInet,
+		Chains: []firewall.Chain{{
+			Name:   "prerouting",
+			IsBase: true,
+			Type:   firewall.ChainNAT,
+			Hook:   firewall.HookPrerouting,
+			Policy: firewall.PolicyAccept,
+			Terms: []firewall.Term{{
+				Name: "forward-web",
+				Matches: []firewall.Match{
+					firewall.MatchProtocol{Protocol: "tcp"},
+					firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 80, Hi: 80}}},
+				},
+				Actions: []firewall.Action{firewall.DNAT{
+					Address: netip.MustParseAddr("10.0.0.1"),
+					Port:    8080,
+				}},
+			}},
+		}},
+	}}
+}
+
+func TestApplyNATMasquerade(t *testing.T) {
+	b := newOpsBackend()
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+
+	if err := applyWithOpsLocked(b, fake, natMasqueradeTable()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	if fake.countPrefix("nat44Enable") != 1 {
+		t.Errorf("want 1 nat44Enable, got %d", fake.countPrefix("nat44Enable"))
+	}
+	if fake.countPrefix("nat44OutIface:") != 1 {
+		t.Errorf("want 1 output interface call, got %d", fake.countPrefix("nat44OutIface:"))
+	}
+}
+
+func TestApplyNATDNAT(t *testing.T) {
+	b := newOpsBackend()
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+
+	if err := applyWithOpsLocked(b, fake, natDNATTable()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	if fake.countPrefix("nat44Enable") != 1 {
+		t.Errorf("want 1 nat44Enable, got %d", fake.countPrefix("nat44Enable"))
+	}
+	if fake.countPrefix("nat44Static:") != 1 {
+		t.Errorf("want 1 static mapping, got %d", fake.countPrefix("nat44Static:"))
+	}
+}
+
+func TestApplyNATSNAT(t *testing.T) {
+	b := newOpsBackend()
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+
+	tables := []firewall.Table{{
+		Name:   "nat",
+		Family: firewall.FamilyInet,
+		Chains: []firewall.Chain{{
+			Name: "postrouting", IsBase: true, Type: firewall.ChainNAT,
+			Hook: firewall.HookPostrouting, Policy: firewall.PolicyAccept,
+			Terms: []firewall.Term{{
+				Name: "snat-pool",
+				Actions: []firewall.Action{firewall.SNAT{
+					Address:    netip.MustParseAddr("1.2.3.4"),
+					AddressEnd: netip.MustParseAddr("1.2.3.6"),
+				}},
+			}},
+		}},
+	}}
+
+	if err := applyWithOpsLocked(b, fake, tables); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	if fake.countPrefix("nat44AddrRange:") != 1 {
+		t.Errorf("want 1 address range call, got %d", fake.countPrefix("nat44AddrRange:"))
+	}
+	if fake.countPrefix("nat44IfaceFeature:") != 1 {
+		t.Errorf("want 1 interface feature call, got %d", fake.countPrefix("nat44IfaceFeature:"))
+	}
+}
+
+func TestApplyNoNATSkipsEnable(t *testing.T) {
+	b := newOpsBackend()
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+
+	if err := applyWithOpsLocked(b, fake, oneChainTable()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	if fake.countPrefix("nat44Enable") != 0 {
+		t.Error("filter-only table should not call nat44Enable")
 	}
 }
 
