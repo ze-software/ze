@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 2/7 |
+| Phase | 4/7 |
 | Updated | 2026-05-09 |
 | Split | This spec covers build-time tooling (phases 1-7). See also: `spec-appliance-2-remote` (push/config-push/batch/parallel, phases 8-12), `spec-appliance-3-recovery` (export/import, phase 13), `spec-appliance-4-device-config` (device-side config loading/revert) |
 

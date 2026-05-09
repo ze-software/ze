@@ -304,14 +304,14 @@ func GenerateWebCert() (certPEM, keyPEM []byte, err error) {
 // with SANs for localhost, 127.0.0.1, ::1, and the host portion of listenAddr
 // (if it parses as a valid IP not already covered by the defaults).
 func GenerateWebCertWithAddr(listenAddr string) (certPEM, keyPEM []byte, err error) {
-	return GenerateWebCertWithNames(listenAddr, nil)
+	return GenerateWebCertWithNames(listenAddr, nil, 0)
 }
 
 // GenerateWebCertWithNames creates a self-signed ECDSA P-256 certificate
 // with SANs for localhost, 127.0.0.1, ::1, the host portion of listenAddr,
 // and any extra DNS names provided. Extra names that parse as IPs are added
-// as IP SANs instead of DNS SANs.
-func GenerateWebCertWithNames(listenAddr string, extraNames []string) (certPEM, keyPEM []byte, err error) {
+// as IP SANs instead of DNS SANs. A zero validity uses the default (1 year).
+func GenerateWebCertWithNames(listenAddr string, extraNames []string, validity time.Duration) (certPEM, keyPEM []byte, err error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("generate ECDSA key: %w", err)
@@ -322,11 +322,15 @@ func GenerateWebCertWithNames(listenAddr string, extraNames []string) (certPEM, 
 		return nil, nil, fmt.Errorf("generate serial number: %w", err)
 	}
 
+	if validity <= 0 {
+		validity = certValidityDuration
+	}
+
 	now := time.Now()
 	template := x509.Certificate{
 		SerialNumber:          serialNumber,
 		NotBefore:             now,
-		NotAfter:              now.Add(certValidityDuration),
+		NotAfter:              now.Add(validity),
 		KeyUsage:              x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,

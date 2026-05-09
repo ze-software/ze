@@ -301,7 +301,7 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCer
 		if webCertName != "" {
 			extraNames = []string{webCertName}
 		}
-		certPEM, keyPEM, certErr := zeweb.GenerateWebCertWithNames(webCertAddr, extraNames)
+		certPEM, keyPEM, certErr := zeweb.GenerateWebCertWithNames(webCertAddr, extraNames, 0)
 		if certErr != nil {
 			fmt.Fprintf(os.Stderr, "error: generate TLS certificate: %v\n", certErr)
 			cleanupTmp()

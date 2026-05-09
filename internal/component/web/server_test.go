@@ -311,7 +311,7 @@ func TestGenerateWebCertWithNames(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			certPEM, _, err := GenerateWebCertWithNames(tt.listenAddr, tt.extraNames)
+			certPEM, _, err := GenerateWebCertWithNames(tt.listenAddr, tt.extraNames, 0)
 			require.NoError(t, err)
 
 			block, _ := pem.Decode(certPEM)
