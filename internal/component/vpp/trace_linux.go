@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"time"
 )
@@ -17,10 +18,18 @@ const (
 	cliTimeout       = 10 * time.Second
 )
 
+func cliSocketPath() string {
+	if v := os.Getenv("ZE_TEST_VPP_CLI_SOCKET"); v != "" {
+		return v
+	}
+	return defaultCLISocket
+}
+
 func execCLI(command string) (string, error) {
-	conn, err := net.DialTimeout("unix", defaultCLISocket, cliTimeout)
+	sock := cliSocketPath()
+	conn, err := net.DialTimeout("unix", sock, cliTimeout)
 	if err != nil {
-		return "", fmt.Errorf("vpp cli: dial %s: %w", defaultCLISocket, err)
+		return "", fmt.Errorf("vpp cli: dial %s: %w", sock, err)
 	}
 	defer conn.Close()
 

@@ -108,6 +108,12 @@ module ze-l2tp-cmd {
                 ze:command "ze-l2tp-api:session-history";
                 description "Show FSM transition history for a session.";
             }
+
+            container session-traffic {
+                config false;
+                ze:command "ze-l2tp-api:session-traffic";
+                description "Show per-session traffic statistics (RX/TX counters from PPP interface).";
+            }
         }
     }
 

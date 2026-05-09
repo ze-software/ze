@@ -160,6 +160,12 @@ module ze-cli-show-cmd {
             config false;
             ze:command "ze-show:capture";
             description "Show captured control messages (l2tp [tunnel-id N] [count N] [peer X])";
+
+            container raw {
+                config false;
+                ze:command "ze-show:capture-raw";
+                description "Raw byte capture: start/stop activation and pcap/json dump ([start|stop|dump] [l2tp|bgp] [pcap|json] [count N])";
+            }
         }
 
         container event {
@@ -439,6 +445,40 @@ module ze-cli-show-cmd {
             config false;
             ze:command "ze-show:kernel-routes";
             description "Kernel routing table via the iface backend. Optional positional CIDR (or 'default') narrows the dump; --limit N caps the response size. Rejects when VPP is the iface backend. Top-level shortcut for `show ip route`; same handler.";
+        }
+
+        container vpp {
+            config false;
+            description "VPP dataplane introspection";
+
+            container trace {
+                config false;
+                description "VPP packet trace operations";
+
+                container start {
+                    config false;
+                    ze:command "ze-show:vpp-trace-start";
+                    description "Start VPP dataplane packet trace ([node <input-node>] [count N])";
+                }
+
+                container show {
+                    config false;
+                    ze:command "ze-show:vpp-trace-show";
+                    description "Show captured VPP dataplane trace";
+                }
+
+                container clear {
+                    config false;
+                    ze:command "ze-show:vpp-trace-clear";
+                    description "Clear VPP trace buffer";
+                }
+            }
+
+            container runtime {
+                config false;
+                ze:command "ze-show:vpp-runtime";
+                description "Show VPP node runtime counters";
+            }
         }
 
         container firewall {
