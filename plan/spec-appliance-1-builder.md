@@ -2,10 +2,11 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-04-27 |
+| Phase | 2/7 |
+| Updated | 2026-05-09 |
+| Split | This spec covers build-time tooling (phases 1-7). See also: `spec-appliance-2-remote` (push/config-push/batch/parallel, phases 8-12), `spec-appliance-3-recovery` (export/import, phase 13), `spec-appliance-4-device-config` (device-side config loading/revert) |
 
 ## Post-Compaction Recovery
 
@@ -187,15 +188,12 @@ Replace the unintuitive `make ze-gokrazy USER=x PASS=y CERTNAME=z` workflow with
 | `ze appliance clone lab lab2` CLI | -> | `cmd/ze/appliance/cmd_clone.go:cmdClone()` | `TestCloneCopiesConfigNotSecrets` |
 | `ze appliance list` CLI | -> | `cmd/ze/appliance/cmd_list.go:cmdList()` | `TestListShowsAppliances` |
 | `ze appliance show lab` CLI | -> | `cmd/ze/appliance/cmd_show.go:cmdShow()` | `TestShowDisplaysConfigAndCertExpiry` |
-| `ze appliance init --batch m.json` CLI | -> | `cmd/ze/appliance/cmd_init.go:cmdBatchInit()` | `TestBatchInitCreatesMultiple` |
 | `ze appliance unlock` CLI | -> | `cmd/ze/appliance/cmd_unlock.go:cmdUnlock()` | `TestUnlockStartsAgent` |
-| `ze appliance push lab` CLI | -> | `cmd/ze/appliance/cmd_push.go:cmdPush()` | `TestPushSendsImage` |
-| `ze appliance config lab --merged` CLI | -> | `cmd/ze/appliance/cmd_config.go:cmdConfig()` | `TestConfigMergedOutput` |
 | `ze appliance build --all` CLI | -> | `cmd/ze/appliance/cmd_build.go:cmdBuildAll()` | `TestBuildAllIteratesAppliances` |
-| `ze appliance config-push lab` CLI | -> | `cmd/ze/appliance/cmd_config_push.go:cmdConfigPush()` | `TestConfigPushUploadsConfig` |
-| `ze appliance export lab` CLI | -> | `cmd/ze/appliance/cmd_export.go:cmdExport()` | `TestExportCreatesArchive` |
-| `ze appliance import archive.ze` CLI | -> | `cmd/ze/appliance/cmd_import.go:cmdImport()` | `TestImportRestoresAppliance` |
+| `ze appliance run lab` CLI | -> | `cmd/ze/appliance/cmd_run.go:cmdRun()` | `TestRunDetectsPortConflict` |
 | `cmd/ze/main.go` dispatch | -> | `cmd/ze/appliance/main.go:Run()` | `TestMainDispatchAppliance` |
+
+Wiring tests moved: batch init, push, config, config-push, export, import -> `spec-appliance-2-remote` / `spec-appliance-3-recovery`.
 
 ## Acceptance Criteria
 
@@ -228,7 +226,6 @@ Replace the unintuitive `make ze-gokrazy USER=x PASS=y CERTNAME=z` workflow with
 | AC-25 | `ze appliance build lab` with wrong admin password | Exit code 1, stderr "error: admin password does not match stored hash" |
 | AC-26 | `ze appliance build lab` with `ZE_APPLIANCE_SSH_PASSWORD` env var | Prints warning about env var; uses password from env |
 | AC-27 | `ze appliance init lab` with `admin_enabled: false` | appliance.json has `credentials.admin_enabled: false`; assemble produces `meta/instance/admin-disabled` in ZeFS |
-| AC-28 | `ze appliance init --batch manifest.json` with 3 entries | Creates 3 appliance directories, each with config + encrypted secrets |
 | AC-29 | `ze appliance build lab` produces image | Image filename is `ze-<timestamp>.img`, not `ze.img` |
 | AC-30 | `ze appliance run lab` with port 2222 already in use | Exit code 1, stderr lists conflicting port and process |
 | AC-31 | `ze appliance build lab` with `image.arch: "arm64"` | gok invoked with `GOARCH=arm64` |
@@ -239,42 +236,16 @@ Replace the unintuitive `make ze-gokrazy USER=x PASS=y CERTNAME=z` workflow with
 | AC-36 | `ze appliance unlock --duration 15m` | Agent exits after 15 minutes; key material zeroed |
 | AC-37 | `ze appliance build lab` with agent running | No passphrase prompt; passphrase obtained from agent socket |
 | AC-38 | `ze appliance unlock --stop` | Running agent stopped; socket removed |
-| AC-39 | `ze appliance push lab` after build | Image pushed to device via gokrazy HTTP update API; device reboots to new partition |
-| AC-40 | `ze appliance push lab --image ze-20260427-143022.img` | Specific image pushed (rollback to previous build) |
-| AC-41 | `ze appliance push lab` with device unreachable | Exit code 1, stderr "error: device edge-01 unreachable at <hostname>:<port>" |
 | AC-42 | `ze appliance build --all` with 3 appliances | All 3 images built sequentially; summary printed |
-| AC-43 | `ze appliance push --all` with 3 appliances | All 3 devices updated; per-device status printed |
 | AC-44 | `ze appliance build lab` produces checksum | `ze-<timestamp>.img.sha256` written alongside image; matches `sha256sum` output |
 | AC-45 | `ze appliance build lab` produces build manifest | `build.json` written: config_hash, timestamp, ze_version, arch, image_sha256 |
-| AC-46 | `ze appliance config lab --merged` | Prints effective config (base + overlay merged); no build performed |
-| AC-47 | `ze appliance config lab --merged` with config_base | Output shows base settings overridden by overlay |
 | AC-48 | `ze appliance init lab` with `credentials.ssh_authorized_keys` | Keys written to `secrets/authorized_keys`; baked into ZeFS as `meta/ssh/authorized_keys` |
 | AC-49 | `ze appliance init lab` generates update token | Random 32-byte token generated; stored encrypted in `secrets/update.token`; not the admin password |
 | AC-50 | `ze appliance show lab` with `managed: true` | Output explains: "managed: fleet mode (accepts remote config push, reports to hub)" |
-| AC-51 | `ze appliance init --batch manifest.json` with `"password": "generate"` | Each appliance gets a unique random password; passwords printed to stdout (sealed output) |
 | AC-52 | `ze appliance assemble lab` without `--keep` | database.zefs auto-deleted after assembly; warning printed |
 | AC-53 | `ze appliance assemble lab --keep` | database.zefs retained; sensitivity warning printed |
-| AC-54 | `ze appliance push lab` with wrong update token | Exit code 1, stderr "error: device rejected update (401 Unauthorized)" |
-| AC-55 | `ze appliance config-push lab` with valid config | Config uploaded to device via SSH; device validates and applies; bastion prints "config applied to edge-01" |
-| AC-56 | `ze appliance config-push lab` with invalid config | Device validates pushed config, rejects it, keeps previous config; bastion prints "error: device rejected config (validation failed: <detail>)" |
-| AC-57 | `ze appliance config-push lab` with device unreachable | Exit code 1, stderr "error: device edge-01 unreachable at <address>:<port>" |
-| AC-58 | `ze appliance config-push lab --dry-run` | Prints merged config that would be pushed; no SSH connection made |
-| AC-59 | `ze appliance config-push --all` with 3 appliances | All 3 devices updated; per-device status printed |
-| AC-60 | `ze appliance config-push lab` after config change | Device applies new config; old config saved as /perm/ze/config-previous.conf for manual recovery |
-| AC-61 | `ze appliance push --all --parallel 4` with 8 appliances | 4 concurrent uploads; all 8 devices updated; per-device status printed |
-| AC-62 | `ze appliance push --all --parallel 1` | Sequential push (same as without --parallel) |
-| AC-63 | `ze appliance config-push --all --parallel 4` | 4 concurrent SSH sessions; per-device status printed |
-| AC-64 | `ze appliance export lab` | Creates `lab.ze.enc` archive containing appliance.json + secrets/ + ze.conf; encrypted with passphrase |
-| AC-65 | `ze appliance export --all` | Creates `appliances-<timestamp>.ze.enc` archive containing all appliance directories |
-| AC-66 | `ze appliance import lab.ze.enc` | Restores appliance directory from archive; prompts before overwriting existing |
-| AC-67 | `ze appliance import lab.ze.enc` with wrong passphrase | Exit code 1, stderr "error: decryption failed" |
-| AC-68 | `ze appliance import lab.ze.enc --dir /new/bastion` | Restores to specified directory (bastion migration) |
-| AC-69 | `ze appliance export lab` without passphrase set | Exit code 1, stderr "error: export requires encryption passphrase (archives always encrypted)" |
-| AC-70 | `ze appliance build lab` produces last-known-good hash | ZeFS contains `meta/config/last-known-good` with SHA-256 of validated seed config |
-| AC-71 | `ze appliance config-push lab` with config that passes validation but causes runtime failure | Device detects failure (health check timeout), reverts to last-known-good config from ZeFS seed, prints revert reason to device log |
-| AC-72 | `ze appliance config-push lab` updates last-known-good | After device confirms applied config is healthy, device updates /perm/ze/last-known-good with new config hash |
-| AC-73 | Device boots with no config-pushed.conf | Uses ZeFS seed config (last-known-good baseline); normal boot path unchanged |
-| AC-74 | Device boots with config-pushed.conf that fails validation | Ignores pushed config, uses ZeFS seed config, logs warning |
+
+ACs moved to other specs: AC-28, AC-39-41, AC-43, AC-46-47, AC-51 -> `spec-appliance-2-remote`; AC-54-63 -> `spec-appliance-2-remote`; AC-64-69 -> `spec-appliance-3-recovery`; AC-70-74 -> `spec-appliance-4-device-config`.
 
 ## 🧪 TDD Test Plan
 
@@ -313,8 +284,6 @@ Replace the unintuitive `make ze-gokrazy USER=x PASS=y CERTNAME=z` workflow with
 | `TestRekeyChangesEncryption` | `cmd/ze/appliance/cmd_rekey_test.go` | Rekey with new passphrase; old passphrase fails; new succeeds; content identical | |
 | `TestRekeyPlaintextToEncrypted` | `cmd/ze/appliance/cmd_rekey_test.go` | Rekey on unencrypted appliance adds encryption | |
 | `TestRekeyEncryptedToPlaintext` | `cmd/ze/appliance/cmd_rekey_test.go` | Rekey with empty new passphrase removes encryption | |
-| `TestBatchInitCreatesMultiple` | `cmd/ze/appliance/cmd_init_test.go` | Batch manifest creates N appliance dirs with config + secrets | |
-| `TestBatchInitMissingEnvFails` | `cmd/ze/appliance/cmd_init_test.go` | Batch without ZE_APPLIANCE_SSH_PASSWORD env var fails | |
 | `TestBuildPromptsAdminPassword` | `cmd/ze/appliance/cmd_build_test.go` | Build verifies admin password against stored bcrypt hash | |
 | `TestBuildWrongAdminPasswordFails` | `cmd/ze/appliance/cmd_build_test.go` | Wrong admin password -> exit 1, clear error | |
 | `TestBuildDeletesDatabaseZeFS` | `cmd/ze/appliance/cmd_build_test.go` | After build, database.zefs does not exist in appliance dir | |
@@ -330,45 +299,18 @@ Replace the unintuitive `make ze-gokrazy USER=x PASS=y CERTNAME=z` workflow with
 | `TestUnlockDurationExpiry` | `cmd/ze/appliance/cmd_unlock_test.go` | Agent exits after configured duration; socket removed | |
 | `TestUnlockStop` | `cmd/ze/appliance/cmd_unlock_test.go` | --stop terminates running agent | |
 | `TestAgentPassphraseResolution` | `cmd/ze/appliance/crypto_test.go` | Passphrase resolved: agent > interactive > env var (in priority order) | |
-| `TestPushSendsImage` | `cmd/ze/appliance/cmd_push_test.go` | Push sends image to gokrazy HTTP update endpoint (mocked) | |
-| `TestPushUnreachableDevice` | `cmd/ze/appliance/cmd_push_test.go` | Unreachable device -> clear error with hostname | |
-| `TestPushWrongToken` | `cmd/ze/appliance/cmd_push_test.go` | 401 response -> clear error about update token | |
-| `TestPushSpecificImage` | `cmd/ze/appliance/cmd_push_test.go` | --image flag pushes specific image (rollback) | |
 | `TestBuildAllIteratesAppliances` | `cmd/ze/appliance/cmd_build_test.go` | --all builds every appliance in dir; summary printed | |
-| `TestPushAllIteratesAppliances` | `cmd/ze/appliance/cmd_push_test.go` | --all pushes to every appliance; per-device status | |
 | `TestBuildWritesChecksum` | `cmd/ze/appliance/cmd_build_test.go` | .img.sha256 written; content matches SHA-256 of image | |
 | `TestBuildWritesManifest` | `cmd/ze/appliance/cmd_build_test.go` | build.json written with config_hash, timestamp, ze_version, arch | |
-| `TestConfigMergedOutput` | `cmd/ze/appliance/cmd_config_test.go` | --merged prints effective config after base + overlay | |
-| `TestConfigMergedWithDelete` | `cmd/ze/appliance/cmd_config_test.go` | Overlay delete removes base setting from merged output | |
 | `TestInitGeneratesUpdateToken` | `cmd/ze/appliance/cmd_init_test.go` | Init generates random 32-byte update token in secrets/ | |
 | `TestInitWithAuthorizedKeys` | `cmd/ze/appliance/cmd_init_test.go` | SSH authorized keys written to secrets/authorized_keys | |
 | `TestAssembleIncludesAuthorizedKeys` | `cmd/ze/appliance/cmd_assemble_test.go` | ZeFS contains meta/ssh/authorized_keys | |
 | `TestAssembleAutoDeleteZeFS` | `cmd/ze/appliance/cmd_assemble_test.go` | database.zefs auto-deleted after assemble (no --keep) | |
 | `TestAssembleKeepRetainsZeFS` | `cmd/ze/appliance/cmd_assemble_test.go` | --keep flag retains database.zefs | |
-| `TestBatchInitPerDevicePasswords` | `cmd/ze/appliance/cmd_init_test.go` | password=generate creates unique password per device; passwords printed | |
 | `TestBuildManifestInZeFS` | `cmd/ze/appliance/cmd_build_test.go` | ZeFS contains meta/build/manifest with build metadata | |
 | `TestShowManagedExplanation` | `cmd/ze/appliance/cmd_show_test.go` | managed=true shows explanation of fleet mode behavior | |
-| `TestConfigPushUploadsConfig` | `cmd/ze/appliance/cmd_config_push_test.go` | Config pushed to device via SSH (mocked); device confirms apply | |
-| `TestConfigPushInvalidConfigReverts` | `cmd/ze/appliance/cmd_config_push_test.go` | Device rejects invalid config; previous config retained | |
-| `TestConfigPushUnreachableDevice` | `cmd/ze/appliance/cmd_config_push_test.go` | Unreachable device -> clear error with address | |
-| `TestConfigPushDryRun` | `cmd/ze/appliance/cmd_config_push_test.go` | --dry-run prints config without connecting | |
-| `TestConfigPushAllDevices` | `cmd/ze/appliance/cmd_config_push_test.go` | --all iterates all appliances with device.address set | |
-| `TestConfigPushSavesPrevious` | `cmd/ze/appliance/cmd_config_push_test.go` | Device saves old config as config-previous.conf before applying | |
-| `TestPushAllParallel` | `cmd/ze/appliance/cmd_push_test.go` | --parallel 4 runs 4 concurrent uploads; all succeed | |
-| `TestPushAllParallelPartialFailure` | `cmd/ze/appliance/cmd_push_test.go` | --parallel with 1 failure: other devices succeed; failure reported at end | |
-| `TestPushAllParallelDefault` | `cmd/ze/appliance/cmd_push_test.go` | --parallel 1 is equivalent to sequential push | |
-| `TestConfigPushAllParallel` | `cmd/ze/appliance/cmd_config_push_test.go` | --parallel 4 runs 4 concurrent SSH sessions | |
-| `TestExportCreatesArchive` | `cmd/ze/appliance/cmd_export_test.go` | Export produces encrypted .ze.enc file containing appliance dir | |
-| `TestExportAllCreatesArchive` | `cmd/ze/appliance/cmd_export_test.go` | --all exports all appliances into single archive | |
-| `TestExportRequiresPassphrase` | `cmd/ze/appliance/cmd_export_test.go` | Export without passphrase fails (archives always encrypted) | |
-| `TestImportRestoresAppliance` | `cmd/ze/appliance/cmd_import_test.go` | Import decrypts and restores appliance directory | |
-| `TestImportWrongPassphraseFails` | `cmd/ze/appliance/cmd_import_test.go` | Wrong passphrase -> AEAD auth error, exit 1 | |
-| `TestImportPromptsBeforeOverwrite` | `cmd/ze/appliance/cmd_import_test.go` | Existing appliance dir -> prompt for confirmation | |
-| `TestImportToNewDir` | `cmd/ze/appliance/cmd_import_test.go` | --dir flag restores to specified directory | |
-| `TestExportImportRoundtrip` | `cmd/ze/appliance/cmd_export_test.go` | Export then import produces identical directory tree | |
-| `TestBuildWritesLastKnownGood` | `cmd/ze/appliance/cmd_build_test.go` | ZeFS contains meta/config/last-known-good with SHA-256 of seed config | |
-| `TestAssembleWritesLastKnownGood` | `cmd/ze/appliance/cmd_assemble_test.go` | ZeFS contains meta/config/last-known-good after assemble | |
-| `TestLastKnownGoodHashMatchesSeedConfig` | `cmd/ze/appliance/cmd_build_test.go` | Hash in meta/config/last-known-good matches SHA-256 of file/template/ze.conf content | |
+
+Tests moved to other specs: batch init tests -> `spec-appliance-2-remote`; push/config-push/parallel tests -> `spec-appliance-2-remote`; config-merged tests -> `spec-appliance-2-remote`; export/import tests -> `spec-appliance-3-recovery`; last-known-good tests -> `spec-appliance-4-device-config`.
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -378,7 +320,7 @@ Replace the unintuitive `make ze-gokrazy USER=x PASS=y CERTNAME=z` workflow with
 | web.port | 1-65535 | 65535 | 0 | 65536 |
 | tls.validity_years | 1-25 | 25 | 0 | N/A (warn only) |
 | qemu.ssh_port | 1024-65535 | 65535 | 1023 | 65536 |
-| --parallel N | 1-64 | 64 | 0 | N/A (clamped to device count) |
+| --parallel N boundary moved to `spec-appliance-2-remote` |||||
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -386,19 +328,11 @@ Replace the unintuitive `make ze-gokrazy USER=x PASS=y CERTNAME=z` workflow with
 | `test-appliance-init-assemble` | `test/appliance/init-assemble.ci` | User inits then assembles; database.zefs has correct keys | |
 | `test-appliance-passwd` | `test/appliance/passwd.ci` | User changes password; new hash in database.zefs | |
 | `test-appliance-clone` | `test/appliance/clone.ci` | Clone + init secrets; both appliances build independently | |
-| `test-appliance-config-merged` | `test/appliance/config-merged.ci` | Config preview matches what assemble produces | |
-| `test-appliance-batch-init` | `test/appliance/batch-init.ci` | Batch init creates multiple appliances with unique credentials | |
-| `test-appliance-unlock-cycle` | `test/appliance/unlock-cycle.ci` | Unlock, build, push sequence without repeated prompts | |
-| `test-appliance-export-import` | `test/appliance/export-import.ci` | Export appliance, import to new dir, assemble from imported copy | |
-| `test-appliance-config-push` | `test/appliance/config-push.ci` | Config-push to test device (mocked SSH); verify config applied | |
+| `test-appliance-unlock-cycle` | `test/appliance/unlock-cycle.ci` | Unlock, build sequence without repeated prompts | |
 
 ### Future (if deferring any tests)
 - Full image build (gok invocation + ext4 inject) requires e2fsprogs + gok binary; functional test covers ZeFS assembly only
-- OTA push test requires running gokrazy instance; manual verification only
 - Passphrase agent integration test with concurrent builds requires multi-process coordination
-- Config-push integration test requires running ze device with SSH; mocked in unit tests
-- Parallel push stress test (high N) requires multiple running gokrazy instances
-- Last-known-good revert test requires a device that detects runtime config failure (health check); mocked in unit tests
 
 ## Files to Modify
 - `cmd/ze/main.go` - add "appliance" case to dispatch switch + import
@@ -465,17 +399,10 @@ Replace the unintuitive `make ze-gokrazy USER=x PASS=y CERTNAME=z` workflow with
 - `cmd/ze/appliance/main_test.go` - Dispatch + dir resolution tests
 - `cmd/ze/appliance/cmd_run_test.go` - QEMU port conflict detection tests
 - `cmd/ze/appliance/cmd_unlock_test.go` - Agent start/stop/expiry tests
-- `cmd/ze/appliance/cmd_push_test.go` - OTA push tests (mocked HTTP)
-- `cmd/ze/appliance/cmd_config_test.go` - Config preview tests
 - `cmd/ze/appliance/agent_test.go` - Agent protocol + socket tests
 - `cmd/ze/appliance/manifest_test.go` - Build manifest generation tests
-- `cmd/ze/appliance/cmd_config_push.go` - Config push to running device via SSH without rebuild
-- `cmd/ze/appliance/cmd_config_push_test.go` - Config push tests (mocked SSH)
-- `cmd/ze/appliance/cmd_export.go` - Export appliance dir to encrypted archive
-- `cmd/ze/appliance/cmd_export_test.go` - Export tests
-- `cmd/ze/appliance/cmd_import.go` - Import appliance dir from encrypted archive
-- `cmd/ze/appliance/cmd_import_test.go` - Import tests
-- `cmd/ze/appliance/parallel.go` - Parallel execution helper for --parallel N (push, config-push)
+
+Files moved to other specs: `cmd_push.go`, `cmd_config.go`, `cmd_config_push.go`, `cmd_export.go`, `cmd_import.go`, `parallel.go` + their tests -> `spec-appliance-2-remote` / `spec-appliance-3-recovery`.
 
 ## Implementation Steps
 
@@ -537,44 +464,16 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `cmd/ze/appliance/cmd_build.go`, `cmd/ze/appliance/cmd_run.go`, `cmd/ze/appliance/manifest.go`, `Makefile`
    - Verify: `make ze-gokrazy APPLIANCE=default` produces bootable image + checksum + manifest; `ze appliance run` boots in QEMU
 
-8. **Phase: OTA push** -- Push image to device via gokrazy HTTP update API, TLS verification (self-signed cert from secrets/), update token auth, --image for rollback, --all for fleet push
-   - Tests: `TestPushSendsImage`, `TestPushUnreachableDevice`, `TestPushWrongToken`, `TestPushSpecificImage`, `TestPushAllIteratesAppliances`
-   - Files: `cmd/ze/appliance/cmd_push.go`, `cmd/ze/appliance/cmd_push_test.go`
-   - Verify: tests fail -> implement -> tests pass
+Phases 8-13 moved to separate specs: `spec-appliance-2-remote` (8-12), `spec-appliance-3-recovery` (13).
 
-9. **Phase: Config preview** -- `ze appliance config <name> --merged` shows effective config after base + overlay; no build needed
-   - Tests: `TestConfigMergedOutput`, `TestConfigMergedWithDelete`
-   - Files: `cmd/ze/appliance/cmd_config.go`, `cmd/ze/appliance/cmd_config_test.go`
-   - Verify: tests fail -> implement -> tests pass
-
-10. **Phase: Batch init** -- `--batch <manifest.json>`, per-device password generation (`"password": "generate"`), env var requirements, independent crypto state per appliance
-   - Tests: `TestBatchInitCreatesMultiple`, `TestBatchInitMissingEnvFails`, `TestBatchInitPerDevicePasswords`
-   - Files: update `cmd/ze/appliance/cmd_init.go`
-   - Verify: tests fail -> implement -> tests pass
-
-11. **Phase: Config push** -- `ze appliance config-push <name>` pushes merged ze.conf to running device via SSH; device validates, applies, or auto-reverts; saves previous config for manual recovery; last-known-good hash embedded in ZeFS at build time
-    - Tests: `TestConfigPushUploadsConfig`, `TestConfigPushInvalidConfigReverts`, `TestConfigPushUnreachableDevice`, `TestConfigPushDryRun`, `TestConfigPushAllDevices`, `TestConfigPushSavesPrevious`, `TestBuildWritesLastKnownGood`, `TestAssembleWritesLastKnownGood`, `TestLastKnownGoodHashMatchesSeedConfig`
-    - Files: `cmd/ze/appliance/cmd_config_push.go`, `cmd/ze/appliance/cmd_config_push_test.go`
-    - Verify: tests fail -> implement -> tests pass
-
-12. **Phase: Parallel operations** -- `--parallel N` flag for `push --all` and `config-push --all`; bounded worker pool; per-device status; continues on individual failure
-    - Tests: `TestPushAllParallel`, `TestPushAllParallelPartialFailure`, `TestPushAllParallelDefault`, `TestConfigPushAllParallel`
-    - Files: `cmd/ze/appliance/parallel.go`, update `cmd/ze/appliance/cmd_push.go`, `cmd/ze/appliance/cmd_config_push.go`
-    - Verify: tests fail -> implement -> tests pass
-
-13. **Phase: Export/import** -- `ze appliance export` creates encrypted archive of appliance dir; `ze appliance import` restores from archive; bastion disaster recovery
-    - Tests: `TestExportCreatesArchive`, `TestExportAllCreatesArchive`, `TestExportRequiresPassphrase`, `TestImportRestoresAppliance`, `TestImportWrongPassphraseFails`, `TestImportPromptsBeforeOverwrite`, `TestImportToNewDir`, `TestExportImportRoundtrip`
-    - Files: `cmd/ze/appliance/cmd_export.go`, `cmd/ze/appliance/cmd_import.go`, `cmd/ze/appliance/cmd_export_test.go`, `cmd/ze/appliance/cmd_import_test.go`
-    - Verify: tests fail -> implement -> tests pass
-
-14. **Functional tests** -> Create after feature works. Cover user-visible behavior.
-15. **Full verification** -> `make ze-verify` (lint + all ze tests)
-16. **Complete spec** -> Fill audit tables, write learned summary.
+8. **Functional tests** -> Create after feature works. Cover user-visible behavior.
+9. **Full verification** -> `make ze-verify` (lint + all ze tests)
+10. **Complete spec** -> Fill audit tables, write learned summary.
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-1..AC-74 has implementation with file:line |
+| Completeness | Every AC in this spec (AC-1..AC-27, AC-29..AC-38, AC-42, AC-44-45, AC-48-50, AC-52-53) has implementation with file:line |
 | Correctness | Password hash stored in secrets/, never in appliance.json; cert reused across builds; managed flag in ZeFS |
 | Naming | JSON keys use snake_case (matching existing gokrazy/ze/config.json convention) |
 | Data flow | Secrets only flow from secrets/ dir, never from config JSON; config_base resolved relative to appliance dir |
@@ -595,25 +494,12 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Port conflict detection | `run` checks all ports before QEMU launch; clear error on conflict |
 | Env var warnings | Passphrase and password env vars produce stderr warnings |
 | Passphrase agent | Agent starts/stops cleanly; socket removed on stop; key zeroed on expiry; commands use agent when available |
-| OTA push | Push uses update token (not admin password); TLS verified against stored cert; --image for rollback |
 | Image integrity | SHA-256 checksum written alongside image; build manifest in build.json and ZeFS meta/build/manifest |
-| Config preview | `config --merged` shows effective config; matches what assemble would produce |
 | SSH authorized keys | Keys in config baked into ZeFS; password auth still works alongside |
 | Batch build | `build --all` iterates all appliances; fails clearly if any single build fails |
 | Managed flag documented | `show` explains what managed mode does at runtime |
-| Config push | `config-push` connects via SSH; uploads merged config; device validates before applying |
-| Config push revert | Device auto-reverts to previous config on validation failure; previous config saved |
-| Config push dry-run | `--dry-run` prints config without SSH connection |
-| Last-known-good | Build writes meta/config/last-known-good with SHA-256 of validated seed config |
-| Device boot with pushed config | Device loads config-pushed.conf from /perm if present; validates against last-known-good; reverts on failure |
-| Parallel push | `push --all --parallel N` runs N concurrent uploads; per-device status; partial failure handling |
-| Parallel config-push | `config-push --all --parallel N` runs N concurrent SSH sessions |
-| Export single | `export <name>` creates encrypted .ze.enc archive |
-| Export all | `export --all` creates single archive with all appliances |
-| Export requires passphrase | Archives are always encrypted; no unencrypted export |
-| Import restore | `import <archive>` decrypts and restores appliance dir |
-| Import to new dir | `--dir` flag allows import to different bastion |
-| Export/import roundtrip | Export then import produces byte-identical appliance dir |
+
+Checks moved to other specs: OTA push, config preview, config push, last-known-good, parallel, export/import -> `spec-appliance-2-remote` / `spec-appliance-3-recovery` / `spec-appliance-4-device-config`.
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
@@ -634,16 +520,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Image checksum | `sha256sum -c <name>/ze-*.img.sha256` passes |
 | Build manifest | `cat <name>/build.json` shows config_hash, timestamp, ze_version, arch |
 | Passphrase agent | `ze appliance unlock` starts agent; subsequent commands skip prompt |
-| OTA push | `ze appliance push <name>` pushes to device (manual verification with running gokrazy) |
-| Config preview | `ze appliance config <name> --merged` outputs effective config |
 | SSH authorized keys | `bin/ze data cat --path <db> meta/ssh/authorized_keys` shows keys |
 | Batch build | `ze appliance build --all --dir <testdir>` builds all appliances |
-| Config push | `ze appliance config-push <name>` pushes config to running device; device validates and applies |
-| Config push dry-run | `ze appliance config-push <name> --dry-run` prints merged config |
-| Parallel push | `ze appliance push --all --parallel 4` pushes to 4 devices concurrently |
-| Export | `ze appliance export <name>` produces .ze.enc archive |
-| Import | `ze appliance import <archive>` restores appliance dir from archive |
-| Last-known-good in ZeFS | `bin/ze data cat --path <db> meta/config/last-known-good` shows SHA-256 hash |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -667,21 +545,11 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | **Update token isolation** | Gokrazy update uses separate random token, not admin password; token in temp config.json; temp deleted after gok; token zeroed |
 | **Agent socket security** | Socket created 0600 in `$XDG_RUNTIME_DIR` or `/tmp`; only owner can connect; key material zeroed on agent exit/expiry |
 | **Image integrity** | SHA-256 checksum matches image; build manifest not tamperable (informational, not signed) |
-| **OTA push TLS** | Push verifies device TLS cert against stored cert.pem; rejects unknown certs; update token sent via HTTP basic auth |
 | **Env var warning** | `ZE_APPLIANCE_PASSPHRASE` and `ZE_APPLIANCE_SSH_PASSWORD` env vars print warning on stderr when detected |
 | **admin_enabled flag** | When false, verify ze auth layer rejects SSH/web login for the superuser; verify serial console still works |
-| **Batch init isolation** | Each appliance in a batch gets independent salt/nonce for encryption; no shared crypto state between appliances |
-| **Batch init per-device passwords** | `"password": "generate"` produces unique random password per device; passwords printed once, never stored in plaintext |
 | **SSH authorized keys** | Keys validated as proper SSH public key format before writing to ZeFS |
-| **Config push SSH auth** | Config-push uses SSH public key auth (operator's key in authorized_keys); no password transmitted over SSH |
-| **Config push no secret transfer** | Config-push transmits ze.conf only (routing config); no passwords, no TLS keys, no tokens cross the SSH channel |
-| **Config push revert safety** | Device saves previous config before applying new; auto-reverts on validation failure; no config loss |
-| **Config push validation** | Device validates pushed config (parse + semantic check) before applying; invalid config never activates |
-| **Parallel push isolation** | Each goroutine in parallel push has independent TLS connection, independent update token decryption; no shared mutable state |
-| **Export archive encryption** | Archives always encrypted (no `--no-encrypt`); uses same AEAD as secrets; archive passphrase can differ from secrets passphrase |
-| **Export archive integrity** | Archive includes HMAC of contents; import verifies before extracting |
-| **Import overwrite protection** | Import prompts before overwriting existing appliance dir; `--force` skips prompt |
-| **Last-known-good integrity** | Hash in meta/config/last-known-good is SHA-256 of the validated seed config; device trusts this as the fallback |
+
+Security checks moved to other specs: OTA push TLS, batch init isolation, batch init passwords, config push auth/revert/validation, parallel push isolation, export/import encryption/integrity/overwrite -> `spec-appliance-2-remote` / `spec-appliance-3-recovery` / `spec-appliance-4-device-config`.
 
 ### Failure Routing
 | Failure | Route To |
@@ -944,7 +812,7 @@ Typing the passphrase once per command is tolerable for single-device operations
 - The agent process has no network access; it only listens on a local Unix socket
 - If the agent is killed (SIGKILL), the OS reclaims the memory; no persistent state
 
-**Protocol:** the agent serves a simple request/response over the socket. Commands send a "decrypt" request with the encrypted file content; the agent decrypts using its held key and returns the plaintext. The plaintext is zeroed from the agent's buffer after each response. This avoids sending the raw key over the socket.
+**Protocol:** key-on-socket. The agent holds the derived 32-byte key in memory and sends it to any connecting client over the Unix socket. The caller decrypts locally. This is simpler than a decrypt-on-socket protocol (no variable-length framing, no serialization bottleneck for large files or parallel decrypts). The security boundary is the same-UID socket permission (0600); same-UID processes can ptrace each other anyway, so keeping the key in one process vs. two provides no meaningful additional protection.
 
 **Interaction with `--all` flags:** `ze appliance build --all` and `ze appliance push --all` require an active agent. They refuse to run with interactive prompts because prompting N times defeats the purpose of batch operations.
 
@@ -1361,6 +1229,10 @@ Development appliance data is ephemeral. Production appliance data lives on the 
 22. ~~Sequential fleet operations?~~ **`--parallel N` flag.** `push --all` and `config-push --all` support concurrent operations via a bounded worker pool. Default is sequential (N=1). Maximum is 64. Each goroutine is independent (no shared mutable state).
 23. ~~Bastion single point of failure?~~ **`ze appliance export/import`.** Export creates an encrypted archive of appliance directories (config + encrypted secrets, excluding images). Import restores on a fresh bastion. Archives are always encrypted, even if the appliance secrets are not. Operational recommendation: export after every fleet change, store on separate media.
 24. ~~Device-side config revert on failure?~~ **Last-known-good.** Build writes SHA-256 of validated seed config to `meta/config/last-known-good` in ZeFS. Device validates pushed config on load; reverts to seed config on failure. Two-tier revert chain: previous pushed config, then ZeFS seed config. The ZeFS seed config is immutable (cannot be modified by config-push).
+25. ~~Agent protocol: decrypt-on-socket vs key-on-socket?~~ **Key-on-socket.** Agent sends derived 32-byte key to connecting clients. Caller decrypts locally. Same-UID trust boundary makes the distinction moot; simpler protocol, no serialization bottleneck.
+26. ~~Cert generation: new function or modify existing?~~ **Add `validity time.Duration` parameter to `GenerateWebCertWithNames`.** Two callers, trivial update. `0` means default (365 days). Appliance passes 10-year duration.
+27. ~~Config-push device-side scope?~~ **Separate spec `appliance-4-device-config`.** Auto-revert, health-check, boot-time validation are runtime daemon changes in different packages.
+28. ~~Spec too large for one pass?~~ **Split into 4 specs.** `appliance-1-builder` (phases 1-7, build-time), `appliance-2-remote` (phases 8-12, push/config-push/batch/parallel), `appliance-3-recovery` (phase 13, export/import), `appliance-4-device-config` (device-side runtime).
 
 ## Mistake Log
 
@@ -1450,7 +1322,7 @@ Development appliance data is ephemeral. Production appliance data lives on the 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-74 all demonstrated
+- [ ] AC-1..AC-27, AC-29..AC-38, AC-42, AC-44-45, AC-48-50, AC-52-53 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean (Review Gate section filled)
 - [ ] `make ze-test` passes (lint + all ze tests)
