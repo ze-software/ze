@@ -573,6 +573,36 @@ func TestVerifyRejectsLongClassifyPolicerName(t *testing.T) {
 	}
 }
 
+func TestVerifyRejectsIPv6WithSetMark(t *testing.T) {
+	tables := simpleTable(baseChain(firewall.Term{
+		Name:    "mark-v6",
+		Matches: []firewall.Match{firewall.MatchSourceAddress{Prefix: netip.MustParsePrefix("2001:db8::/32")}},
+		Actions: []firewall.Action{firewall.SetMark{Value: 0x10}, firewall.Accept{}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("IPv6 source address with set-mark should be rejected")
+	}
+	if !strings.Contains(err.Error(), "IPv6 source address") {
+		t.Errorf("want IPv6 source address message, got %v", err)
+	}
+}
+
+func TestVerifyRejectsIPv6DstWithLimit(t *testing.T) {
+	tables := simpleTable(baseChain(firewall.Term{
+		Name:    "limit-v6",
+		Matches: []firewall.Match{firewall.MatchDestinationAddress{Prefix: netip.MustParsePrefix("2001:db8::1/128")}},
+		Actions: []firewall.Action{firewall.Limit{Rate: 100, Unit: "second"}, firewall.Accept{}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("IPv6 destination address with limit should be rejected")
+	}
+	if !strings.Contains(err.Error(), "IPv6 destination address") {
+		t.Errorf("want IPv6 destination address message, got %v", err)
+	}
+}
+
 func TestVerifyRejectsSetMarkAndLimitCombined(t *testing.T) {
 	tables := simpleTable(baseChain(firewall.Term{
 		Name:    "mark-and-limit",

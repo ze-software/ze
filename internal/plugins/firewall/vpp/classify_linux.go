@@ -148,27 +148,32 @@ func (b *backend) applyTermClassify(
 		return err
 	}
 
-	tableIdx, err := ops.classifyAddDelTable(cmask, true)
+	tableIdx, err := ops.classifyAddDelTable(^uint32(0), cmask, true)
 	if err != nil {
 		return fmt.Errorf("classify table: %w", err)
 	}
+	undoTable := func() { _, _ = ops.classifyAddDelTable(tableIdx, cmask, false) }
 
 	if markAction != nil {
 		if err := ops.classifyAddDelSession(tableIdx, cmatch, markAction.Value, true); err != nil {
+			undoTable()
 			return fmt.Errorf("classify session (mark): %w", err)
 		}
 	}
 
 	if limitAction != nil {
 		if err := ops.classifyAddDelSession(tableIdx, cmatch, 0, true); err != nil {
+			undoTable()
 			return fmt.Errorf("classify session (limit): %w", err)
 		}
 		polName := classifyPolicerName(tbl.Name, ch.Name, term.Name)
 		if _, err := b.createLimitPolicer(ops, polName, limitAction); err != nil {
+			undoTable()
 			return fmt.Errorf("policer: %w", err)
 		}
 		for _, swIfIndex := range nameIndex {
 			if err := ops.policerClassifySetInterface(swIfIndex, tableIdx, true); err != nil {
+				undoTable()
 				return fmt.Errorf("policer classify bind: %w", err)
 			}
 		}
@@ -177,6 +182,7 @@ func (b *backend) applyTermClassify(
 	if markAction != nil && limitAction == nil {
 		for _, swIfIndex := range nameIndex {
 			if err := ops.classifySetInterfaceIPTable(swIfIndex, tableIdx, true); err != nil {
+				undoTable()
 				return fmt.Errorf("classify interface bind: %w", err)
 			}
 		}
@@ -200,9 +206,6 @@ func (b *backend) createLimitPolicer(
 
 func limitToRate(limit *firewall.Limit) (uint32, error) {
 	rate := limit.Rate
-	if limit.Dimension == firewall.RateDimensionBytes {
-		rate = rate * 8 / 1000
-	}
 	switch limit.Unit {
 	case "second":
 		// rate is already per-second
@@ -212,6 +215,9 @@ func limitToRate(limit *firewall.Limit) (uint32, error) {
 		rate = rate / 3600
 	case "day":
 		rate = rate / 86400
+	}
+	if limit.Dimension == firewall.RateDimensionBytes {
+		rate = rate * 8 / 1000
 	}
 	if rate == 0 {
 		rate = 1

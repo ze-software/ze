@@ -132,6 +132,7 @@ func TestLimitToKbps(t *testing.T) {
 		{"packets-per-second", firewall.Limit{Rate: 1000, Unit: "second"}, 1000},
 		{"per-minute", firewall.Limit{Rate: 6000, Unit: "minute"}, 100},
 		{"minimum-1", firewall.Limit{Rate: 1, Unit: "day"}, 1},
+		{"bytes-per-minute", firewall.Limit{Rate: 120000, Unit: "minute", Dimension: firewall.RateDimensionBytes}, 16},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

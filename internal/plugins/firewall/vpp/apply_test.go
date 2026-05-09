@@ -17,24 +17,26 @@ import (
 )
 
 type fakeOps struct {
-	ifaces      map[string]interface_types.InterfaceIndex
-	existingACL []aclDumpEntry
-	ifaceLists  map[interface_types.InterfaceIndex]ifaceACLList
-	calls       []string
-	dumpErr     error
-	addFailOn   map[string]error
-	delFailOn   map[uint32]error
-	bindFailOn  map[interface_types.InterfaceIndex]error
-	nextIdx     uint32
+	ifaces          map[string]interface_types.InterfaceIndex
+	existingACL     []aclDumpEntry
+	ifaceLists      map[interface_types.InterfaceIndex]ifaceACLList
+	calls           []string
+	dumpErr         error
+	addFailOn       map[string]error
+	delFailOn       map[uint32]error
+	bindFailOn      map[interface_types.InterfaceIndex]error
+	natStaticFailOn map[string]error
+	nextIdx         uint32
 }
 
 func newFakeOps(ifaces map[string]interface_types.InterfaceIndex) *fakeOps {
 	return &fakeOps{
-		ifaces:     ifaces,
-		ifaceLists: make(map[interface_types.InterfaceIndex]ifaceACLList),
-		addFailOn:  map[string]error{},
-		delFailOn:  map[uint32]error{},
-		bindFailOn: map[interface_types.InterfaceIndex]error{},
+		ifaces:          ifaces,
+		ifaceLists:      make(map[interface_types.InterfaceIndex]ifaceACLList),
+		addFailOn:       map[string]error{},
+		delFailOn:       map[uint32]error{},
+		bindFailOn:      map[interface_types.InterfaceIndex]error{},
+		natStaticFailOn: map[string]error{},
 	}
 }
 
@@ -89,6 +91,11 @@ func (f *fakeOps) nat44AddDelAddressRange(first, last ip_types.IP4Address, isAdd
 
 func (f *fakeOps) nat44AddDelStaticMapping(m natStaticMapping) error {
 	f.calls = append(f.calls, fmt.Sprintf("nat44Static:%s:add=%v", m.Tag, m.IsAdd))
+	if m.IsAdd {
+		if err, ok := f.natStaticFailOn[m.Tag]; ok {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -111,8 +118,8 @@ func (f *fakeOps) nat44StaticMappingDump() ([]natStaticMapping, error) {
 	return nil, nil
 }
 
-func (f *fakeOps) classifyAddDelTable(mask []byte, isAdd bool) (uint32, error) {
-	f.calls = append(f.calls, fmt.Sprintf("classifyTable:add=%v:maskLen=%d", isAdd, len(mask)))
+func (f *fakeOps) classifyAddDelTable(tableIdx uint32, mask []byte, isAdd bool) (uint32, error) {
+	f.calls = append(f.calls, fmt.Sprintf("classifyTable:idx=%d:add=%v:maskLen=%d", tableIdx, isAdd, len(mask)))
 	f.nextIdx++
 	return f.nextIdx, nil
 }
@@ -732,6 +739,64 @@ func TestApplyNoNATSkipsEnable(t *testing.T) {
 
 	if fake.countPrefix("nat44Enable") != 0 {
 		t.Error("filter-only table should not call nat44Enable")
+	}
+}
+
+func TestApplyNATDNATUndoOnPartialFailure(t *testing.T) {
+	b := newOpsBackend()
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+
+	fake.natStaticFailOn["ze/nat/prerouting/forward-https"] = fmt.Errorf("scripted DNAT fail")
+
+	tables := []firewall.Table{{
+		Name:   "nat",
+		Family: firewall.FamilyInet,
+		Chains: []firewall.Chain{{
+			Name:   "prerouting",
+			IsBase: true,
+			Type:   firewall.ChainNAT,
+			Hook:   firewall.HookPrerouting,
+			Policy: firewall.PolicyAccept,
+			Terms: []firewall.Term{
+				{
+					Name: "forward-http",
+					Matches: []firewall.Match{
+						firewall.MatchProtocol{Protocol: "tcp"},
+						firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 80, Hi: 80}}},
+					},
+					Actions: []firewall.Action{firewall.DNAT{
+						Address: netip.MustParseAddr("10.0.0.1"),
+						Port:    8080,
+					}},
+				},
+				{
+					Name: "forward-https",
+					Matches: []firewall.Match{
+						firewall.MatchProtocol{Protocol: "tcp"},
+						firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 443, Hi: 443}}},
+					},
+					Actions: []firewall.Action{firewall.DNAT{
+						Address: netip.MustParseAddr("10.0.0.1"),
+						Port:    8443,
+					}},
+				},
+			},
+		}},
+	}}
+
+	err := applyWithOpsLocked(b, fake, tables)
+	if err == nil {
+		t.Fatal("expected error from second DNAT")
+	}
+
+	undoCalls := 0
+	for _, c := range fake.calls {
+		if strings.HasPrefix(c, "nat44Static:") && strings.Contains(c, "add=false") {
+			undoCalls++
+		}
+	}
+	if undoCalls < 1 {
+		t.Errorf("want at least 1 undo call for the first DNAT, got %d", undoCalls)
 	}
 }
 

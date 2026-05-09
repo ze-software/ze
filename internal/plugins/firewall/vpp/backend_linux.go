@@ -621,14 +621,14 @@ func (g *govppOps) nat44StaticMappingDump() ([]natStaticMapping, error) {
 	return entries, nil
 }
 
-func (g *govppOps) classifyAddDelTable(mask []byte, isAdd bool) (uint32, error) {
+func (g *govppOps) classifyAddDelTable(tableIdx uint32, mask []byte, isAdd bool) (uint32, error) {
 	nVectors := uint32(len(mask)) / 16
 	if nVectors == 0 {
 		nVectors = 1
 	}
 	req := &classify.ClassifyAddDelTable{
 		IsAdd:         isAdd,
-		TableIndex:    ^uint32(0),
+		TableIndex:    tableIdx,
 		Nbuckets:      2,
 		MemorySize:    1 << 20,
 		MatchNVectors: nVectors,

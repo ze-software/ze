@@ -261,6 +261,14 @@ func verifyClassifyConstraints(prefix string, term *firewall.Term) error {
 			if len(v.Ranges) > 0 && v.Ranges[0].Lo != v.Ranges[0].Hi {
 				errs = append(errs, fmt.Errorf("%s: destination port range %d-%d not supported with set-mark/limit by backend vpp (VPP classify needs exact port; use separate terms)", prefix, v.Ranges[0].Lo, v.Ranges[0].Hi))
 			}
+		case firewall.MatchSourceAddress:
+			if v.Prefix.Addr().Is6() {
+				errs = append(errs, fmt.Errorf("%s: IPv6 source address not supported with set-mark/limit by backend vpp (VPP classify table uses IPv4 header layout)", prefix))
+			}
+		case firewall.MatchDestinationAddress:
+			if v.Prefix.Addr().Is6() {
+				errs = append(errs, fmt.Errorf("%s: IPv6 destination address not supported with set-mark/limit by backend vpp (VPP classify table uses IPv4 header layout)", prefix))
+			}
 		}
 	}
 	return errors.Join(errs...)

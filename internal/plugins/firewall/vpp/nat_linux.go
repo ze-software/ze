@@ -104,16 +104,15 @@ func (b *backend) applyNATChain(
 				})
 			case firewall.DNAT:
 				tag := natTag(tbl.Name, ch.Name, term.Name)
-				if err := b.applyDNAT(ops, v, term, tag); err != nil {
+				mapping := buildDNATMapping(v, term, tag)
+				if err := b.applyDNAT(ops, mapping); err != nil {
 					undoNAT(undo)
 					return fmt.Errorf("term %q dnat: %w", term.Name, err)
 				}
-				capturedTag := tag
+				undoMapping := mapping
+				undoMapping.IsAdd = false
 				undo = append(undo, func() {
-					_ = ops.nat44AddDelStaticMapping(natStaticMapping{
-						IsAdd: false,
-						Tag:   capturedTag,
-					})
+					_ = ops.nat44AddDelStaticMapping(undoMapping)
 				})
 			}
 		}
@@ -168,12 +167,7 @@ func (b *backend) applySNAT(
 	return nil
 }
 
-func (b *backend) applyDNAT(
-	ops vppOps,
-	dnat firewall.DNAT,
-	term *firewall.Term,
-	tag string,
-) error {
+func buildDNATMapping(dnat firewall.DNAT, term *firewall.Term, tag string) natStaticMapping {
 	var proto uint8
 	var extPort uint16
 	for _, m := range term.Matches {
@@ -199,7 +193,7 @@ func (b *backend) applyDNAT(
 		localPort = extPort
 	}
 
-	return ops.nat44AddDelStaticMapping(natStaticMapping{
+	return natStaticMapping{
 		IsAdd:             true,
 		Tag:               tag,
 		Protocol:          proto,
@@ -208,7 +202,11 @@ func (b *backend) applyDNAT(
 		ExternalAddr:      ip_types.IP4Address{},
 		ExternalPort:      extPort,
 		ExternalSwIfIndex: ^interface_types.InterfaceIndex(0),
-	})
+	}
+}
+
+func (b *backend) applyDNAT(ops vppOps, m natStaticMapping) error {
+	return ops.nat44AddDelStaticMapping(m)
 }
 
 func (b *backend) cleanupNATOrphans(ops vppOps, desired []firewall.Table) error {

@@ -30,7 +30,7 @@ type vppOps interface {
 	nat44AddDelInterfaceFeature(swIfIndex interface_types.InterfaceIndex, isInside bool, isAdd bool) error
 	nat44StaticMappingDump() ([]natStaticMapping, error)
 
-	classifyAddDelTable(mask []byte, isAdd bool) (uint32, error)
+	classifyAddDelTable(tableIdx uint32, mask []byte, isAdd bool) (uint32, error)
 	classifyAddDelSession(tableIdx uint32, match []byte, opaqueIndex uint32, isAdd bool) error
 	classifySetInterfaceIPTable(swIfIndex interface_types.InterfaceIndex, tableIdx uint32, isAdd bool) error
 	policerClassifySetInterface(swIfIndex interface_types.InterfaceIndex, tableIdx uint32, isAdd bool) error
