@@ -242,6 +242,7 @@ go.fd.io/govpp/binapi/ip_types
 go.fd.io/govpp/binapi/l2
 go.fd.io/govpp/binapi/memclnt
 go.fd.io/govpp/binapi/mfib_types
+go.fd.io/govpp/binapi/classify
 go.fd.io/govpp/binapi/nat44_ed
 go.fd.io/govpp/binapi/nat_types
 go.fd.io/govpp/binapi/policer

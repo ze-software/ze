@@ -13,11 +13,14 @@ import (
 
 	"go.fd.io/govpp/api"
 	govppacl "go.fd.io/govpp/binapi/acl"
+	"go.fd.io/govpp/binapi/classify"
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/ip_types"
 	"go.fd.io/govpp/binapi/nat44_ed"
 	"go.fd.io/govpp/binapi/nat_types"
+	govpppolicer "go.fd.io/govpp/binapi/policer"
+	"go.fd.io/govpp/binapi/policer_types"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
 	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
@@ -141,6 +144,10 @@ func (b *backend) applyWithOps(ops vppOps, desired []firewall.Table) error {
 	b.ifaceACLs = newIfaceACLs
 
 	if err := b.applyNATChains(ops, desired, nameIndex); err != nil {
+		return err
+	}
+
+	if err := b.applyClassifyActions(ops, desired, nameIndex); err != nil {
 		return err
 	}
 
@@ -612,4 +619,130 @@ func (g *govppOps) nat44StaticMappingDump() ([]natStaticMapping, error) {
 		})
 	}
 	return entries, nil
+}
+
+func (g *govppOps) classifyAddDelTable(mask []byte, isAdd bool) (uint32, error) {
+	nVectors := uint32(len(mask)) / 16
+	if nVectors == 0 {
+		nVectors = 1
+	}
+	req := &classify.ClassifyAddDelTable{
+		IsAdd:         isAdd,
+		TableIndex:    ^uint32(0),
+		Nbuckets:      2,
+		MemorySize:    1 << 20,
+		MatchNVectors: nVectors,
+		MissNextIndex: ^uint32(0),
+		MaskLen:       uint32(len(mask)),
+		Mask:          mask,
+	}
+	reply := &classify.ClassifyAddDelTableReply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return 0, fmt.Errorf("ClassifyAddDelTable: %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return 0, fmt.Errorf("ClassifyAddDelTable: %w", apiErr)
+	}
+	return reply.NewTableIndex, nil
+}
+
+func (g *govppOps) classifyAddDelSession(tableIdx uint32, match []byte, opaqueIndex uint32, isAdd bool) error {
+	req := &classify.ClassifyAddDelSession{
+		IsAdd:       isAdd,
+		TableIndex:  tableIdx,
+		OpaqueIndex: opaqueIndex,
+		Action:      classify.CLASSIFY_API_ACTION_SET_METADATA,
+		Metadata:    opaqueIndex,
+		MatchLen:    uint32(len(match)),
+		Match:       match,
+	}
+	reply := &classify.ClassifyAddDelSessionReply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ClassifyAddDelSession: %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return fmt.Errorf("ClassifyAddDelSession: %w", apiErr)
+	}
+	return nil
+}
+
+func (g *govppOps) classifySetInterfaceIPTable(swIfIndex interface_types.InterfaceIndex, tableIdx uint32, isAdd bool) error {
+	idx := tableIdx
+	if !isAdd {
+		idx = ^uint32(0)
+	}
+	req := &classify.ClassifySetInterfaceIPTable{
+		SwIfIndex:  swIfIndex,
+		TableIndex: idx,
+	}
+	reply := &classify.ClassifySetInterfaceIPTableReply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ClassifySetInterfaceIPTable: %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return fmt.Errorf("ClassifySetInterfaceIPTable: %w", apiErr)
+	}
+	return nil
+}
+
+func (g *govppOps) policerClassifySetInterface(swIfIndex interface_types.InterfaceIndex, tableIdx uint32, isAdd bool) error {
+	idx := tableIdx
+	if !isAdd {
+		idx = ^uint32(0)
+	}
+	req := &classify.PolicerClassifySetInterface{
+		SwIfIndex:     swIfIndex,
+		IP4TableIndex: idx,
+		IP6TableIndex: ^uint32(0),
+		IsAdd:         isAdd,
+	}
+	reply := &classify.PolicerClassifySetInterfaceReply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("PolicerClassifySetInterface: %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return fmt.Errorf("PolicerClassifySetInterface: %w", apiErr)
+	}
+	return nil
+}
+
+func (g *govppOps) policerAddDel(name string, cir uint32, burst uint32, isPackets bool, isAdd bool) (uint32, error) {
+	cb := uint64(burst)
+	if cb == 0 {
+		cb = uint64(cir) * 1000 / 8
+	}
+	rateType := policer_types.SSE2_QOS_RATE_API_KBPS
+	if isPackets {
+		rateType = policer_types.SSE2_QOS_RATE_API_PPS
+		if cb == 0 {
+			cb = uint64(cir)
+		}
+	}
+	req := &govpppolicer.PolicerAddDel{
+		IsAdd:    isAdd,
+		Name:     name,
+		Cir:      cir,
+		Eir:      cir,
+		Cb:       cb,
+		Eb:       cb,
+		RateType: rateType,
+		Type:     policer_types.SSE2_QOS_POLICER_TYPE_API_1R2C,
+		ConformAction: policer_types.Sse2QosAction{
+			Type: policer_types.SSE2_QOS_ACTION_API_TRANSMIT,
+		},
+		ExceedAction: policer_types.Sse2QosAction{
+			Type: policer_types.SSE2_QOS_ACTION_API_DROP,
+		},
+		ViolateAction: policer_types.Sse2QosAction{
+			Type: policer_types.SSE2_QOS_ACTION_API_DROP,
+		},
+	}
+	reply := &govpppolicer.PolicerAddDelReply{}
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return 0, fmt.Errorf("PolicerAddDel: %w", err)
+	}
+	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
+		return 0, fmt.Errorf("PolicerAddDel: %w", apiErr)
+	}
+	return reply.PolicerIndex, nil
 }

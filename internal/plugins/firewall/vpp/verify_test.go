@@ -209,13 +209,11 @@ func TestVerifyRejectsUnsupportedActions(t *testing.T) {
 		{"masquerade", firewall.Masquerade{}, "requires a NAT chain"},
 		{"redirect", firewall.Redirect{}, "redirect action"},
 		{"notrack", firewall.Notrack{}, "notrack action"},
-		{"set-mark", firewall.SetMark{Value: 1}, "mark-set action"},
 		{"set-conn-mark", firewall.SetConnMark{Value: 1}, "connection-mark-set"},
 		{"set-dscp", firewall.SetDSCP{Value: 46}, "dscp-set action"},
 		{"set-tcp-mss", firewall.SetTCPMSS{Size: 1400}, "tcp-mss-set"},
 		{"counter", firewall.Counter{}, "counter action"},
 		{"log", firewall.Log{Prefix: "test"}, "log action"},
-		{"limit", firewall.Limit{Rate: 10, Unit: "second"}, "limit action"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -498,5 +496,98 @@ func TestVerifyRejectsIPv6DNATAddress(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "IPv6") {
 		t.Errorf("want IPv6 rejection message, got %v", err)
+	}
+}
+
+func TestVerifyAcceptsSetMarkInFilterChain(t *testing.T) {
+	tables := simpleTable(baseChain(firewall.Term{
+		Name:    "mark-voip",
+		Matches: []firewall.Match{firewall.MatchProtocol{Protocol: "udp"}},
+		Actions: []firewall.Action{firewall.SetMark{Value: 0x10, Mask: 0xffffffff}, firewall.Accept{}},
+	}))
+	if err := Verify(tables); err != nil {
+		t.Fatalf("SetMark in filter chain should be accepted, got %v", err)
+	}
+}
+
+func TestVerifyAcceptsLimitInFilterChain(t *testing.T) {
+	tables := simpleTable(baseChain(firewall.Term{
+		Name:    "rate-limit",
+		Matches: []firewall.Match{firewall.MatchProtocol{Protocol: "tcp"}, firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 22, Hi: 22}}}},
+		Actions: []firewall.Action{firewall.Limit{Rate: 100, Unit: "second"}, firewall.Accept{}},
+	}))
+	if err := Verify(tables); err != nil {
+		t.Fatalf("Limit in filter chain should be accepted, got %v", err)
+	}
+}
+
+func TestVerifyRejectsPortRangeWithSetMark(t *testing.T) {
+	tables := simpleTable(baseChain(firewall.Term{
+		Name:    "mark-range",
+		Matches: []firewall.Match{firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 1024, Hi: 65535}}}},
+		Actions: []firewall.Action{firewall.SetMark{Value: 0x10}, firewall.Accept{}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("port range with set-mark should be rejected (classify needs exact port)")
+	}
+	if !strings.Contains(err.Error(), "port range") {
+		t.Errorf("want port range message, got %v", err)
+	}
+}
+
+func TestVerifyRejectsPortRangeWithLimit(t *testing.T) {
+	tables := simpleTable(baseChain(firewall.Term{
+		Name:    "limit-range",
+		Matches: []firewall.Match{firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 80, Hi: 443}}}},
+		Actions: []firewall.Action{firewall.Limit{Rate: 10, Unit: "second"}, firewall.Accept{}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("port range with limit should be rejected")
+	}
+	if !strings.Contains(err.Error(), "port range") {
+		t.Errorf("want port range message, got %v", err)
+	}
+}
+
+func TestVerifyRejectsLongClassifyPolicerName(t *testing.T) {
+	longName := strings.Repeat("x", 50)
+	tables := simpleTable(firewall.Chain{
+		Name:   "chain",
+		IsBase: true,
+		Type:   firewall.ChainFilter,
+		Hook:   firewall.HookInput,
+		Policy: firewall.PolicyDrop,
+		Terms: []firewall.Term{{
+			Name:    longName,
+			Actions: []firewall.Action{firewall.Limit{Rate: 10, Unit: "second"}, firewall.Accept{}},
+		}},
+	})
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("long classify policer name should be rejected")
+	}
+	if !strings.Contains(err.Error(), "exceeds") {
+		t.Errorf("want exceeds message, got %v", err)
+	}
+}
+
+func TestVerifyRejectsSetMarkAndLimitCombined(t *testing.T) {
+	tables := simpleTable(baseChain(firewall.Term{
+		Name:    "mark-and-limit",
+		Matches: []firewall.Match{firewall.MatchProtocol{Protocol: "tcp"}},
+		Actions: []firewall.Action{
+			firewall.SetMark{Value: 0x10},
+			firewall.Limit{Rate: 100, Unit: "second"},
+			firewall.Accept{},
+		},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("SetMark + Limit on same term should be rejected")
+	}
+	if !strings.Contains(err.Error(), "cannot be combined") {
+		t.Errorf("want 'cannot be combined' message, got %v", err)
 	}
 }

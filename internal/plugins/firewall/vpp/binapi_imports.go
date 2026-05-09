@@ -9,6 +9,7 @@ package firewallvpp
 import (
 	_ "go.fd.io/govpp/binapi/acl"
 	_ "go.fd.io/govpp/binapi/acl_types"
+	_ "go.fd.io/govpp/binapi/classify"
 	_ "go.fd.io/govpp/binapi/nat44_ed"
 	_ "go.fd.io/govpp/binapi/nat_types"
 )

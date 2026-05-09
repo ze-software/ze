@@ -111,6 +111,33 @@ func (f *fakeOps) nat44StaticMappingDump() ([]natStaticMapping, error) {
 	return nil, nil
 }
 
+func (f *fakeOps) classifyAddDelTable(mask []byte, isAdd bool) (uint32, error) {
+	f.calls = append(f.calls, fmt.Sprintf("classifyTable:add=%v:maskLen=%d", isAdd, len(mask)))
+	f.nextIdx++
+	return f.nextIdx, nil
+}
+
+func (f *fakeOps) classifyAddDelSession(tableIdx uint32, match []byte, opaqueIndex uint32, isAdd bool) error {
+	f.calls = append(f.calls, fmt.Sprintf("classifySession:table=%d:opaque=%d:add=%v", tableIdx, opaqueIndex, isAdd))
+	return nil
+}
+
+func (f *fakeOps) classifySetInterfaceIPTable(swIfIndex interface_types.InterfaceIndex, tableIdx uint32, isAdd bool) error {
+	f.calls = append(f.calls, fmt.Sprintf("classifyIfaceIP:%d:table=%d:add=%v", swIfIndex, tableIdx, isAdd))
+	return nil
+}
+
+func (f *fakeOps) policerClassifySetInterface(swIfIndex interface_types.InterfaceIndex, tableIdx uint32, isAdd bool) error {
+	f.calls = append(f.calls, fmt.Sprintf("policerClassify:%d:table=%d:add=%v", swIfIndex, tableIdx, isAdd))
+	return nil
+}
+
+func (f *fakeOps) policerAddDel(name string, cir uint32, burst uint32, isPackets bool, isAdd bool) (uint32, error) {
+	f.calls = append(f.calls, fmt.Sprintf("policerAddDel:%s:cir=%d:pps=%v:add=%v", name, cir, isPackets, isAdd))
+	f.nextIdx++
+	return f.nextIdx, nil
+}
+
 func (f *fakeOps) countPrefix(prefix string) int {
 	n := 0
 	for _, c := range f.calls {
@@ -705,6 +732,85 @@ func TestApplyNoNATSkipsEnable(t *testing.T) {
 
 	if fake.countPrefix("nat44Enable") != 0 {
 		t.Error("filter-only table should not call nat44Enable")
+	}
+}
+
+func TestApplySetMark(t *testing.T) {
+	b := newOpsBackend()
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+
+	tables := []firewall.Table{{
+		Name:   "wan",
+		Family: firewall.FamilyInet,
+		Chains: []firewall.Chain{{
+			Name: "input", IsBase: true, Type: firewall.ChainFilter,
+			Hook: firewall.HookInput, Policy: firewall.PolicyDrop,
+			Terms: []firewall.Term{{
+				Name:    "mark-voip",
+				Matches: []firewall.Match{firewall.MatchProtocol{Protocol: "udp"}},
+				Actions: []firewall.Action{firewall.SetMark{Value: 0x10}, firewall.Accept{}},
+			}},
+		}},
+	}}
+
+	if err := applyWithOpsLocked(b, fake, tables); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	if fake.countPrefix("classifyTable:") != 1 {
+		t.Errorf("want 1 classify table, got %d", fake.countPrefix("classifyTable:"))
+	}
+	if fake.countPrefix("classifySession:") != 1 {
+		t.Errorf("want 1 classify session, got %d", fake.countPrefix("classifySession:"))
+	}
+	if fake.countPrefix("classifyIfaceIP:") != 1 {
+		t.Errorf("want 1 classify interface bind, got %d", fake.countPrefix("classifyIfaceIP:"))
+	}
+}
+
+func TestApplyLimit(t *testing.T) {
+	b := newOpsBackend()
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+
+	tables := []firewall.Table{{
+		Name:   "wan",
+		Family: firewall.FamilyInet,
+		Chains: []firewall.Chain{{
+			Name: "input", IsBase: true, Type: firewall.ChainFilter,
+			Hook: firewall.HookInput, Policy: firewall.PolicyDrop,
+			Terms: []firewall.Term{{
+				Name:    "rate-limit-ssh",
+				Matches: []firewall.Match{firewall.MatchProtocol{Protocol: "tcp"}, firewall.MatchDestinationPort{Ranges: []firewall.PortRange{{Lo: 22, Hi: 22}}}},
+				Actions: []firewall.Action{firewall.Limit{Rate: 1000, Unit: "second", Dimension: firewall.RateDimensionBytes}, firewall.Accept{}},
+			}},
+		}},
+	}}
+
+	if err := applyWithOpsLocked(b, fake, tables); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	if fake.countPrefix("classifyTable:") != 1 {
+		t.Errorf("want 1 classify table, got %d", fake.countPrefix("classifyTable:"))
+	}
+	if fake.countPrefix("policerAddDel:") != 1 {
+		t.Errorf("want 1 policer add, got %d", fake.countPrefix("policerAddDel:"))
+	}
+	if fake.countPrefix("policerClassify:") != 1 {
+		t.Errorf("want 1 policer classify bind, got %d", fake.countPrefix("policerClassify:"))
+	}
+}
+
+func TestApplyNoClassifyForPlainACL(t *testing.T) {
+	b := newOpsBackend()
+	fake := newFakeOps(map[string]interface_types.InterfaceIndex{"eth0": 5})
+
+	if err := applyWithOpsLocked(b, fake, oneChainTable()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	if fake.countPrefix("classifyTable:") != 0 {
+		t.Error("plain ACL should not create classify tables")
 	}
 }
 

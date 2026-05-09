@@ -246,9 +246,12 @@ func (b *backend) cleanupNATOrphans(ops vppOps, desired []firewall.Table) error 
 }
 
 // isNATTag returns true if tag matches the NAT format ze/<table>/<chain>/<term>
-// (4 segments), distinguishing from ACL tags ze/<table>/<chain> (3 segments).
+// (4 segments), distinguishing from ACL tags ze/<table>/<chain> (3 segments)
+// and classify policer names ze/fw/<table>/<chain>/<term> (5 segments).
 func isNATTag(tag string) bool {
-	return strings.HasPrefix(tag, natTagPrefix) && strings.Count(tag, "/") >= 3
+	return strings.HasPrefix(tag, natTagPrefix) &&
+		!strings.HasPrefix(tag, "ze/fw/") &&
+		strings.Count(tag, "/") >= 3
 }
 
 func addrToIP4(a netip.Addr) ip_types.IP4Address {

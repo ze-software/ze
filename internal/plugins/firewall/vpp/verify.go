@@ -214,6 +214,55 @@ func verifyTerm(tbl *firewall.Table, ch *firewall.Chain, term *firewall.Term) er
 			errs = append(errs, err)
 		}
 	}
+	if termUsesClassify(term) {
+		polName := classifyPolicerName(tbl.Name, ch.Name, term.Name)
+		if len(polName) > aclTagMaxLen {
+			errs = append(errs, fmt.Errorf("%s: classify policer name %q exceeds VPP's %d-byte limit; shorten names",
+				prefix, polName, aclTagMaxLen))
+		}
+		if err := verifyClassifyConstraints(prefix, term); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func termUsesClassify(term *firewall.Term) bool {
+	for _, a := range term.Actions {
+		switch a.(type) {
+		case firewall.SetMark, firewall.Limit:
+			return true
+		}
+	}
+	return false
+}
+
+func verifyClassifyConstraints(prefix string, term *firewall.Term) error {
+	var hasMark, hasLimit bool
+	for _, a := range term.Actions {
+		switch a.(type) {
+		case firewall.SetMark:
+			hasMark = true
+		case firewall.Limit:
+			hasLimit = true
+		}
+	}
+	if hasMark && hasLimit {
+		return fmt.Errorf("%s: set-mark and limit cannot be combined in the same term by backend vpp (VPP classify session key collision; use separate terms)", prefix)
+	}
+	var errs []error
+	for _, m := range term.Matches {
+		switch v := m.(type) {
+		case firewall.MatchSourcePort:
+			if len(v.Ranges) > 0 && v.Ranges[0].Lo != v.Ranges[0].Hi {
+				errs = append(errs, fmt.Errorf("%s: source port range %d-%d not supported with set-mark/limit by backend vpp (VPP classify needs exact port; use separate terms)", prefix, v.Ranges[0].Lo, v.Ranges[0].Hi))
+			}
+		case firewall.MatchDestinationPort:
+			if len(v.Ranges) > 0 && v.Ranges[0].Lo != v.Ranges[0].Hi {
+				errs = append(errs, fmt.Errorf("%s: destination port range %d-%d not supported with set-mark/limit by backend vpp (VPP classify needs exact port; use separate terms)", prefix, v.Ranges[0].Lo, v.Ranges[0].Hi))
+			}
+		}
+	}
 	return errors.Join(errs...)
 }
 
@@ -279,7 +328,7 @@ func verifyAction(prefix string, a firewall.Action) error {
 	case firewall.Notrack:
 		return fmt.Errorf("%s: notrack action not supported by backend vpp", prefix)
 	case firewall.SetMark:
-		return fmt.Errorf("%s: mark-set action not supported by backend vpp (deferred: VPP classifier pipeline not yet implemented)", prefix)
+		return nil
 	case firewall.SetConnMark:
 		return fmt.Errorf("%s: connection-mark-set action not supported by backend vpp", prefix)
 	case firewall.SetDSCP:
@@ -291,7 +340,7 @@ func verifyAction(prefix string, a firewall.Action) error {
 	case firewall.Log:
 		return fmt.Errorf("%s: log action not supported by backend vpp (deferred: VPP trace pipeline not yet integrated)", prefix)
 	case firewall.Limit:
-		return fmt.Errorf("%s: limit action not supported by backend vpp (deferred: VPP policer integration for per-rule rate limiting)", prefix)
+		return nil
 	}
 	return fmt.Errorf("%s: action type %T not recognized by backend vpp", prefix, a)
 }
@@ -324,4 +373,10 @@ func aclTag(tableName, chainName string) string {
 // term names. Same 64-byte limit as ACL tags.
 func natTag(tableName, chainName, termName string) string {
 	return fmt.Sprintf("ze/%s/%s/%s", tableName, chainName, termName)
+}
+
+// classifyPolicerName builds the VPP policer name for classify-backed
+// actions (Limit). Same 64-byte limit as ACL/NAT tags.
+func classifyPolicerName(tableName, chainName, termName string) string {
+	return fmt.Sprintf("ze/fw/%s/%s/%s", tableName, chainName, termName)
 }

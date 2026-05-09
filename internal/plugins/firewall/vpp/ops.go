@@ -29,6 +29,12 @@ type vppOps interface {
 	nat44AddDelOutputInterface(swIfIndex interface_types.InterfaceIndex, isAdd bool) error
 	nat44AddDelInterfaceFeature(swIfIndex interface_types.InterfaceIndex, isInside bool, isAdd bool) error
 	nat44StaticMappingDump() ([]natStaticMapping, error)
+
+	classifyAddDelTable(mask []byte, isAdd bool) (uint32, error)
+	classifyAddDelSession(tableIdx uint32, match []byte, opaqueIndex uint32, isAdd bool) error
+	classifySetInterfaceIPTable(swIfIndex interface_types.InterfaceIndex, tableIdx uint32, isAdd bool) error
+	policerClassifySetInterface(swIfIndex interface_types.InterfaceIndex, tableIdx uint32, isAdd bool) error
+	policerAddDel(name string, cir uint32, burst uint32, isPackets bool, isAdd bool) (uint32, error)
 }
 
 // ifaceACLList holds the current ACL binding for one interface as
