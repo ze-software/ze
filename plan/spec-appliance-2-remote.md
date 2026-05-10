@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Depends | appliance-1-builder |
 | Phase | - |
-| Updated | 2026-05-09 |
+| Updated | 2026-05-10 |
 | Split | Split from appliance-1-builder. Device-side config loading/revert is in appliance-4-device-config. |
 
 ## Post-Compaction Recovery
@@ -13,9 +13,12 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `spec-appliance-1-builder.md` Design section - inherited design details
-4. `cmd/ze/appliance/main.go` - dispatch (created by appliance-1-builder)
-5. `cmd/ze/appliance/crypto.go` - encryption primitives (created by appliance-1-builder)
+3. `plan/learned/675-appliance-1-builder.md` - learned summary (builder spec deleted after completion)
+4. `cmd/ze/appliance/main.go` - dispatch map, extractDirFlag, getBaseDir()
+5. `cmd/ze/appliance/crypto.go` - Encrypt/Decrypt/ResolvePassphrase/ReadSecret
+6. `cmd/ze/appliance/config.go` - ApplianceConfig (DeviceConfig.Address, DeviceConfig.UpdatePort)
+7. `cmd/ze/appliance/cmd_assemble.go` - resolveSeedConfig() for config layering logic
+8. `cmd/ze/appliance/agent.go` - passphrase agent (key-on-socket protocol)
 
 ## Task
 
@@ -28,62 +31,144 @@ Device-side behavior (config validation, auto-revert, last-known-good) is tracke
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `spec-appliance-1-builder.md` Design section - OTA push flow, config preview, config push protocol, parallel operations, batch init manifest format
+- [ ] `plan/learned/675-appliance-1-builder.md` - Builder learned summary; design decisions inherited
+  -> Decision: key-on-socket agent protocol; kebab-case JSON; spec split into 4 specs
+  -> Constraint: gok invocation and QEMU are stubs pending binary availability
 - [ ] `docs/guide/appliance.md` - appliance guide (updated by appliance-1-builder)
+  -> Constraint: update with push, config, config-push, batch init, parallel operations sections
 - [ ] `ai/patterns/cli-command.md` - CLI command structure
+  -> Constraint: follow same dispatch pattern as existing appliance commands
+
+### Source Files
+- [ ] `cmd/ze/appliance/main.go` (144L) - handlers map (line 21), extractDirFlag, getBaseDir(), stub pattern, usage()
+  -> Decision: add push, config, config-push to handlers map; add to usage() Sections
+- [ ] `cmd/ze/appliance/crypto.go` (195L) - Encrypt/Decrypt (AEAD envelope), ResolvePassphrase (agent > env > prompt), ReadSecret, ZeroBytes
+  -> Decision: push uses ReadSecret to decrypt update.token; --all requires agent (no interactive prompt)
+  -> Constraint: ZeroBytes(passphrase) and ZeroBytes(updateToken) after use
+- [ ] `cmd/ze/appliance/agent.go` (89L) - RunAgent (key-on-socket), requestKeyFromAgent (reads 32B key)
+  -> Constraint: --all operations refuse to run without agent; interactive passphrase not safe for batch
+- [ ] `cmd/ze/appliance/config.go` (198L) - ApplianceConfig with DeviceConfig{Address, UpdatePort}, LoadConfig, Validate
+  -> Decision: push reads device.address and device.update-port from config; --all iterates appliances with device.address set
+- [ ] `cmd/ze/appliance/cmd_init.go` (294L) - runInit, promptConfig, readPasswordValue, readPassphraseForInit
+  -> Decision: add --batch flag to runInit; batch reads manifest JSON, iterates entries
+- [ ] `cmd/ze/appliance/cmd_assemble.go` (197L) - assembleZeFS, resolveSeedConfig (base + overlay concatenation)
+  -> Decision: config preview reuses resolveSeedConfig() directly; config-push merges then pushes
+- [ ] `cmd/ze/appliance/cmd_build.go` (142L) - buildAll() directory iteration pattern (line 102)
+  -> Decision: push --all and config-push --all reuse same iteration pattern
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (created by appliance-1-builder, read before implementing this spec)
-- [ ] `cmd/ze/appliance/main.go` - dispatch (add push, config, config-push cases)
-- [ ] `cmd/ze/appliance/crypto.go` - passphrase resolution, encrypt/decrypt helpers
-- [ ] `cmd/ze/appliance/agent.go` - passphrase agent (key-on-socket protocol)
-- [ ] `cmd/ze/appliance/config.go` - ApplianceConfig struct
-- [ ] `cmd/ze/appliance/cmd_init.go` - init wizard (extend with --batch)
-- [ ] `cmd/ze/appliance/cmd_assemble.go` - config layering logic (reuse for config preview)
+**Source files read:**
+- [ ] `cmd/ze/appliance/main.go` (144L) - handlers map dispatches 11 subcommands. extractDirFlag handles --dir/--dir=. getBaseDir() returns resolved path. usage() lists commands in helpfmt.Page.
+- [ ] `cmd/ze/appliance/crypto.go` (195L) - Encrypt/Decrypt with XChaCha20-Poly1305. ResolvePassphrase: agent > env(ze.appliance.passphrase) > prompt callback. ReadSecret: read file, decrypt if passphrase provided. ZeroBytes for key zeroing.
+- [ ] `cmd/ze/appliance/agent.go` (89L) - RunAgent: listen on Unix socket, serve 32B derived key on each connection, expire after duration. requestKeyFromAgent: dial socket, read 32B key.
+- [ ] `cmd/ze/appliance/config.go` (198L) - ApplianceConfig struct. DeviceConfig has Address (string, omitempty) and UpdatePort (int, default 443). LoadConfig unmarshals JSON. SaveConfig writes with atomic rename.
+- [ ] `cmd/ze/appliance/cmd_init.go` (294L) - runInit: parse flags (--config, --cert, --key, --managed), create dirs, hash password, generate TLS cert, generate update token, write secrets, save config. No --batch flag yet.
+- [ ] `cmd/ze/appliance/cmd_assemble.go` (197L) - resolveSeedConfig(baseDir, name, cfg): reads ConfigBase (absolute or relative path), reads ze.conf overlay, concatenates base + "\n" + overlay. Used by assembleZeFS.
+- [ ] `cmd/ze/appliance/cmd_build.go` (142L) - buildAll(): ReadDir, skip _shared/dotfiles, LoadConfig to validate, iterate.
+- [ ] `cmd/ze/appliance/manifest.go` (66L) - BuildManifest, ImageTimestamp, ImageFileName, WriteImageChecksum, ConfigHash.
+
+**Appliance directory layout** (relevant for push):
+
+| Path | Role in remote ops |
+|------|--------------------|
+| appliance.json | DeviceConfig.Address + UpdatePort for push target |
+| ze.conf | Per-appliance config overlay (config preview, config-push) |
+| ze-*.img | Disk images (push sends these) |
+| ze-*.img.sha256 | Checksums (push verifies before sending) |
+| build.json | Manifest with image name |
+| secrets/update.token | Decrypted for HTTP basic auth during push |
+| secrets/tls/cert.pem | Device TLS cert (push verifies against this) |
 
 **Behavior to preserve:**
 - All appliance-1-builder functionality unchanged
-- Passphrase agent protocol (key-on-socket, 32-byte response)
-- Config layering semantics (base + overlay concatenation)
-- appliance.json schema
+- Passphrase agent protocol (key-on-socket, 32B derived key)
+- Config layering semantics: resolveSeedConfig(base + "\n" + overlay)
+- appliance.json schema (kebab-case JSON)
+- buildAll() iteration pattern for --all operations
 
 **Behavior to change:**
-- Add --batch flag to init
+- Add --batch flag to init (batch manifest JSON input)
 - Add push, config, config-push subcommands to dispatch
+- Add push, config, config-push to usage() help text
 
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `ze appliance push <name>` - push image to device
-- `ze appliance config <name> --merged` - preview merged config
-- `ze appliance config-push <name>` - push config to device via SSH
-- `ze appliance init --batch <manifest.json>` - batch init from manifest
+- `ze appliance push <name>` dispatched via handlers map in main.go
+- `ze appliance push --all` iterates appliances with device.address set
+- `ze appliance config <name> --merged` dispatched via handlers map
+- `ze appliance config-push <name>` dispatched via handlers map
+- `ze appliance config-push --all` iterates appliances with device.address set
+- `ze appliance init --batch <manifest.json>` extends existing runInit in cmd_init.go
 
 ### Transformation Path
-1. (push) Read appliance.json, decrypt update token, select image, HTTP PUT to device
-2. (config) Read appliance.json, resolve config_base, merge base + overlay, print
-3. (config-push) Read appliance.json, merge config, SSH to device, upload, device validates
-4. (batch init) Read manifest JSON, iterate entries, call init logic per entry
+
+**Push flow:**
+1. getBaseDir() + LoadConfig(ConfigPath(dir, name)) to load ApplianceConfig
+2. Read device.address and device.update-port from config; error if address empty
+3. ResolvePassphrase(prompt) if IsEncrypted(dir, name); for --all, ResolvePassphrase(nil) (agent-only)
+4. ReadSecret(secretFilePath(dir, name, "update.token"), passphrase) to decrypt update token
+5. Select image: --image flag, or most recent ze-*.img in AppliancePath(dir, name)
+6. If .sha256 exists, verify checksum before sending
+7. Load TLS cert from TLSDir(dir, name)/cert.pem; create TLS config trusting this cert
+8. HTTP PUT to https://device.address:device.update-port/update with basic auth (user: "", password: update token)
+9. Stream image body; print progress
+10. ZeroBytes(updateToken), ZeroBytes(passphrase) after use
+11. Print "Pushed <image> to <hostname> (<address>)"
+
+**Config preview flow:**
+1. getBaseDir() + LoadConfig(ConfigPath(dir, name))
+2. resolveSeedConfig(dir, name, cfg) (reuse from cmd_assemble.go)
+3. Print effective config to stdout
+4. If config is empty, print warning
+
+**Config push flow:**
+1. getBaseDir() + LoadConfig(ConfigPath(dir, name))
+2. resolveSeedConfig(dir, name, cfg) to merge base + overlay
+3. Validate merged config locally (parse check)
+4. If --dry-run: print merged config and exit
+5. Read device.address from config; error if empty
+6. SSH to device using operator's SSH key (standard ssh agent, not Ze's passphrase agent)
+7. Upload merged config to /perm/ze/config-staged.conf
+8. Execute remote: ze config validate /perm/ze/config-staged.conf
+9. If valid: remote saves previous as config-previous.conf, moves staged to config-pushed.conf
+10. If invalid: remote deletes staged, report error to bastion
+11. Print "config applied to <hostname>" or error
+
+**Batch init flow:**
+1. Parse --batch <manifest.json> flag in runInit
+2. json.Unmarshal manifest into slice of batch entries
+3. For each entry: construct ApplianceConfig, call existing init logic
+4. If password == "generate": generate random password per device, print to stdout
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Bastion -> device (push) | HTTPS PUT with update token as HTTP basic auth | [ ] |
-| Bastion -> device (config-push) | SSH with operator's public key | [ ] |
-| Manifest JSON -> Go structs | encoding/json Unmarshal | [ ] |
-| Encrypted secrets -> memory | Via passphrase agent (key-on-socket) | [ ] |
+| Bastion -> device (push) | HTTPS PUT, basic auth (empty user, update token as password), TLS verified against stored cert.pem | [ ] |
+| Bastion -> device (config-push) | SSH with operator's public key (ssh agent, not Ze agent) | [ ] |
+| Manifest JSON -> Go structs | encoding/json Unmarshal into batch entry slice | [ ] |
+| Encrypted update token -> memory | ReadSecret(path, passphrase) via ResolvePassphrase | [ ] |
+| Config files -> merged config | resolveSeedConfig() from cmd_assemble.go | [ ] |
 
 ### Integration Points
-- `cmd/ze/appliance/crypto.go` - passphrase resolution for update token decryption
-- `cmd/ze/appliance/cmd_assemble.go` - config layering logic reused by config preview and config-push
+- `cmd/ze/appliance/crypto.go:ResolvePassphrase` - passphrase for update token decryption
+- `cmd/ze/appliance/crypto.go:ReadSecret` - decrypt update.token file
+- `cmd/ze/appliance/crypto.go:ZeroBytes` - zero sensitive data after use
+- `cmd/ze/appliance/cmd_assemble.go:resolveSeedConfig` - config layering for preview and push
+- `cmd/ze/appliance/config.go:LoadConfig` - load appliance.json
+- `cmd/ze/appliance/config.go:DeviceConfig` - device.address and device.update-port
+- `cmd/ze/appliance/resolve.go` - ResolveDir, AppliancePath, SecretsDir, TLSDir
+- `cmd/ze/appliance/manifest.go` - ImageFileName pattern for finding latest image
 - `cmd/ze/appliance/agent.go` - passphrase agent required for --all operations
 
 ### Architectural Verification
-- [ ] No bypassed layers (reuses appliance-1-builder crypto and config layering)
-- [ ] No unintended coupling (push/config-push are independent subcommands)
-- [ ] No duplicated functionality (config merging reuses assemble logic)
-- [ ] Zero-copy preserved where applicable (N/A, offline CLI tool)
+- [ ] No bypassed layers (reuses crypto, config, resolve from appliance-1-builder)
+- [ ] No unintended coupling (push/config/config-push are independent subcommands)
+- [ ] No duplicated functionality (config merging reuses resolveSeedConfig)
+- [ ] Push TLS verification uses stored cert (not system CA pool)
+- [ ] Config-push SSH uses operator's ssh agent (not Ze's passphrase agent)
+- [ ] Zero-copy not applicable (offline CLI tool, not wire protocol)
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -294,17 +379,97 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Audit finds missing AC | Back to relevant phase and implement |
 | 3 fix attempts fail | STOP. Report all 3 approaches. Ask user. |
 
-## Design Reference
+## Design
 
-Full design details (OTA push flow, config preview, config push protocol, parallel operations, batch init manifest format) are documented in `spec-appliance-1-builder.md` Design section. This spec inherits those designs.
+### Key Design Decisions
 
-## Key Design Decisions
+| Decision | Rationale |
+|----------|-----------|
+| Push TLS verifies against stored cert.pem | Device uses self-signed cert generated at init; system CA pool won't trust it; stored cert is the trust anchor |
+| Push uses HTTP basic auth (empty user, update token as password) | Matches gokrazy's HTTP update API authentication scheme |
+| --all requires passphrase agent (refuses interactive prompt) | Interactive prompt per device is error-prone for batch; ResolvePassphrase(nil) refuses prompt |
+| Config preview reuses resolveSeedConfig() from cmd_assemble.go | Same merge logic; no divergence between "what preview shows" and "what assemble builds" |
+| Config-push device-side behavior (validation, revert, last-known-good) is in spec-appliance-4-device-config | Separation: this spec owns bastion-side SSH upload; device-side is a different component |
+| Batch init manifest supports "password": "generate" | Per-device unique passwords for fleet init; passwords printed once to stdout |
+| --parallel N bounded to 1-64, default 1 (sequential) | 1 is safe default; 64 is generous upper bound; real bottleneck is network bandwidth |
+| Config-push SSH uses operator's ssh agent, not Ze's passphrase agent | SSH key management is the operator's concern; Ze does not store SSH private keys |
+| Push selects most recent image by filename timestamp if --image not given | ze-YYYYMMDD-HHMMSS.img naming convention makes lexicographic sort give chronological order |
+| Export push progress as line-per-device status | Immediate feedback; no buffering until all complete |
 
-- Agent protocol: key-on-socket (agent sends 32-byte derived key, caller decrypts locally)
-- Config-push device-side (validation, revert, last-known-good) is in `spec-appliance-4-device-config`, not here
-- Batch init manifest supports `"password": "generate"` for per-device unique passwords
-- `--all` operations require passphrase agent (refuse interactive prompts for batch)
-- `--parallel N` bounded to 1-64; default sequential (N=1)
+### OTA Push Protocol
+
+Gokrazy devices expose HTTPS on the update port (default 443):
+- Endpoint: `PUT /update`
+- Auth: HTTP basic auth, username empty, password is the update token (base64-encoded)
+- TLS: self-signed cert generated at init, stored in secrets/tls/cert.pem
+- Body: raw disk image
+- Success: device reboots to new A/B partition
+- A/B fallback: gokrazy handles boot failure automatically (falls back to previous partition)
+
+### Config Push Protocol (Bastion Side)
+
+1. Merge config locally (same as preview)
+2. SSH to device at device.address
+3. Write merged config to /perm/ze/config-staged.conf
+4. Run remote validation: `ze config validate /perm/ze/config-staged.conf`
+5. On success: device moves staged to config-pushed.conf, saves old as config-previous.conf
+6. On failure: device deletes staged, bastion reports error
+
+Config-push does NOT send any secrets over SSH. Only ze.conf (routing/interface config).
+
+### Parallel Operations
+
+Bounded worker pool pattern:
+- `--parallel N` creates N goroutines from a channel of appliance names
+- Each goroutine: load config, resolve passphrase (from agent), operate independently
+- No shared mutable state between goroutines
+- Results printed as each device completes (not buffered)
+- Continue on individual failure; summary at end: "N succeeded, M failed"
+- Passphrase agent is required (single socket, concurrent reads are safe: each conn gets 32B key)
+
+### Batch Init Manifest Format
+
+JSON array of objects. Each entry maps to an ApplianceConfig with overrides.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| name | string | Yes | Appliance name (passed to init) |
+| hostname | string | No | Device hostname (defaults to name) |
+| password | string | Yes | SSH password, or "generate" for per-device random |
+| device.address | string | No | Device management IP |
+| ssh-authorized-keys | string array | No | SSH public keys for operator access |
+
+- "password": "generate" creates a unique random password (printed to stdout, not stored plaintext)
+- Missing fields use DefaultConfig(name) defaults
+- Each appliance gets independent crypto state (unique salt/nonce)
+- Requires ZE_APPLIANCE_SSH_PASSWORD env var OR "password" field per entry
+
+### Image Selection (Push)
+
+When --image is not specified:
+1. List files matching `ze-*.img` in AppliancePath(dir, name)
+2. Sort by filename (lexicographic = chronological due to timestamp format)
+3. Select the last (most recent) entry
+4. If no images found, error: "no images found; run `ze appliance build`"
+
+### Scope Boundary
+
+| In this spec (bastion side) | In appliance-4-device-config (device side) |
+|----------------------------|--------------------------------------------|
+| Push image via HTTPS | Device boots new partition |
+| Config-push: SSH upload + remote validate command | Config loading priority (pushed > seed) |
+| Config-push: --dry-run preview | Auto-revert on runtime failure |
+| Parallel operations | Last-known-good hash verification |
+| Batch init | Health check timeout detection |
+
+## Resolved Questions
+
+| # | Question | Answer |
+|---|----------|--------|
+| Q1 | How does push verify TLS? | Load cert.pem from secrets/tls/ into tls.Config.RootCAs; standard Go TLS verification against that pool |
+| Q2 | What SSH library for config-push? | golang.org/x/crypto/ssh; connect to device.address:22 |
+| Q3 | Can passphrase agent handle concurrent reads? | Yes. RunAgent accepts connections in a loop; each conn.Write(key) is independent. Safe for parallel --all |
+| Q4 | What if batch init has a failure partway through? | Continue remaining entries; report failed entries at end. Already-created appliances are not rolled back. |
 
 ## Mistake Log
 
