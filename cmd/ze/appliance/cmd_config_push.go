@@ -1,14 +1,21 @@
-// Design: plan/spec-appliance-2-remote.md — config push to device via SSH
+// Design: plan/learned/677-appliance-2-remote.md — config push to device via SSH
 
 package appliance
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net"
 	"os"
 	"strings"
+	"time"
+
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 )
+
+const sshDialTimeout = 10 * time.Second
 
 func init() {
 	cmdConfigPush = runConfigPush
@@ -126,8 +133,55 @@ func configPushAll(dryRun bool, parallel int) int {
 }
 
 func sshExecReal(addr, command, stdin string) sshResult {
-	_ = addr
-	_ = command
-	_ = stdin
-	return sshResult{Err: fmt.Errorf("SSH not yet implemented (requires golang.org/x/crypto/ssh)")}
+	sock := os.Getenv("SSH_AUTH_SOCK")
+	if sock == "" {
+		return sshResult{Err: fmt.Errorf("SSH_AUTH_SOCK not set (start ssh-agent or use eval $(ssh-agent))")}
+	}
+
+	var d net.Dialer
+	ctx, cancel := context.WithTimeout(context.Background(), sshDialTimeout)
+	defer cancel()
+
+	agentConn, err := d.DialContext(ctx, "unix", sock)
+	if err != nil {
+		return sshResult{Err: fmt.Errorf("connect to ssh-agent: %w", err)}
+	}
+	defer agentConn.Close() //nolint:errcheck // best-effort cleanup
+
+	agentClient := agent.NewClient(agentConn)
+
+	config := &ssh.ClientConfig{
+		User: "admin",
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeysCallback(agentClient.Signers),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), //nolint:gosec // appliance uses self-signed host keys
+		Timeout:         sshDialTimeout,
+	}
+
+	client, err := ssh.Dial("tcp", addr, config)
+	if err != nil {
+		return sshResult{Err: fmt.Errorf("connect to %s: %w", addr, err)}
+	}
+	defer client.Close() //nolint:errcheck // best-effort cleanup
+
+	session, err := client.NewSession()
+	if err != nil {
+		return sshResult{Err: fmt.Errorf("create session: %w", err)}
+	}
+	defer session.Close() //nolint:errcheck // best-effort cleanup
+
+	if stdin != "" {
+		session.Stdin = strings.NewReader(stdin)
+	}
+
+	output, err := session.CombinedOutput(command)
+	if err != nil {
+		return sshResult{
+			Output: string(output),
+			Err:    err,
+		}
+	}
+
+	return sshResult{Output: strings.TrimSpace(string(output))}
 }

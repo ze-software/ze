@@ -70,6 +70,10 @@ import (
 // loop checks this flag and attempts an OS-level reboot if set.
 var rebootRequested atomic.Bool
 
+// PeerLifecycleCallback is set by cmdStart when a pushed config was applied at boot.
+// The reactor factory wires it as a peer lifecycle observer for health-based auto-revert.
+var PeerLifecycleCallback registry.PeerLifecycleCallback
+
 // RunWebOnly starts only the web server (no BGP engine).
 // Used when ze start --web is called without a config.
 // listenAddr overrides the default "0.0.0.0:3443" when non-empty.
@@ -335,6 +339,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	coordinator.SetExtra("bgp.chaosSeed", chaosSeed)
 	coordinator.SetExtra("bgp.chaosRate", chaosRate)
 
+	if PeerLifecycleCallback != nil {
+		coordinator.SetExtra("health.peerCallback", PeerLifecycleCallback)
+	}
+
 	pm := pluginmgr.NewManager()
 
 	// Wire hub config into process manager for external plugin startup.
@@ -533,12 +541,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	sshCfg := bgpconfig.ExtractSSHConfig(loadResult.Tree)
 	if sshCfg.HasConfig && !hasBGPBlock {
 		cfg := zessh.Config{
-			Listen:      sshCfg.Listen,
-			ListenAddrs: sshCfg.ListenAddrs,
-			HostKeyPath: sshCfg.HostKeyPath,
-			IdleTimeout: sshCfg.IdleTimeout,
-			MaxSessions: sshCfg.MaxSessions,
-			Users:       sshCfg.Users,
+			Listen:       sshCfg.Listen,
+			ListenAddrs:  sshCfg.ListenAddrs,
+			HostKeyPath:  sshCfg.HostKeyPath,
+			HostCertPath: sshCfg.HostCertPath,
+			IdleTimeout:  sshCfg.IdleTimeout,
+			MaxSessions:  sshCfg.MaxSessions,
+			Users:        sshCfg.Users,
 		}
 		if zefsUsers, err := loadZefsUsers(); err == nil {
 			cfg.Users = append(zefsUsers, cfg.Users...)

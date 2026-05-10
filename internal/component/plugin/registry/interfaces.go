@@ -36,6 +36,13 @@ type ConfigJournal interface {
 	Discard()
 }
 
+// PeerLifecycleCallback receives peer state change notifications.
+// Used by external observers (e.g., HealthRevert) that cannot import bgp/reactor.
+type PeerLifecycleCallback interface {
+	OnPeerEstablished(peer any)
+	OnPeerClosed(peer any, reason string)
+}
+
 // BGPReactorHandle extends ProtocolReactorHandle with BGP-specific methods.
 // Provides reactor access without importing bgp/reactor (cycle avoidance).
 type BGPReactorHandle interface {
@@ -44,6 +51,7 @@ type BGPReactorHandle interface {
 	SetRestartUntil(t time.Time)
 	ReactorLifecycleAdapter() any // Returns ReactorLifecycle (any to avoid importing plugin types)
 	StartPeers() error
+	AddPeerLifecycleCallback(cb PeerLifecycleCallback)
 	// Transaction protocol: verify config and return peer change count for budget estimation.
 	PeerDiffCount(bgpTree map[string]any) (int, error)
 	// Transaction protocol: apply config with journal wrapping for rollback support.

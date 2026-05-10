@@ -117,6 +117,11 @@ module ze-ssh-conf {
                 description "Path to SSH host key file (default: config dir + ssh_host_ed25519_key, auto-generated if missing)";
             }
 
+            leaf host-certificate {
+                type string;
+                description "Path to SSH host certificate file (signed by a CA). Eliminates trust-on-first-use for clients that trust the CA.";
+            }
+
             leaf idle-timeout {
                 type uint32;
                 description "Idle timeout in seconds (default 600)";

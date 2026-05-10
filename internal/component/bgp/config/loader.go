@@ -400,6 +400,9 @@ func ExtractSSHConfig(tree *config.Tree) SSHExtractedConfig {
 	if v, ok := sshContainer.Get("host-key"); ok {
 		cfg.HostKeyPath = v
 	}
+	if v, ok := sshContainer.Get("host-certificate"); ok {
+		cfg.HostCertPath = v
+	}
 	if v, ok := sshContainer.Get("idle-timeout"); ok {
 		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
 			cfg.IdleTimeout = uint32(n)

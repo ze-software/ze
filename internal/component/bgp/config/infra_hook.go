@@ -16,13 +16,14 @@ import (
 // tree as plain data. The caller converts this to ssh.Config and creates the
 // server. This avoids bgpconfig importing the ssh package.
 type SSHExtractedConfig struct {
-	Listen      string
-	ListenAddrs []string
-	HostKeyPath string
-	IdleTimeout uint32
-	MaxSessions int
-	Users       []authz.UserConfig
-	HasConfig   bool // true if SSH block was present in config
+	Listen       string
+	ListenAddrs  []string
+	HostKeyPath  string
+	HostCertPath string
+	IdleTimeout  uint32
+	MaxSessions  int
+	Users        []authz.UserConfig
+	HasConfig    bool // true if SSH block was present in config
 }
 
 // LoginWarning holds a warning message and optional command for the SSH login banner.

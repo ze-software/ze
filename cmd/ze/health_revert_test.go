@@ -63,7 +63,7 @@ func TestAutoRevertOnRuntimeFailure(t *testing.T) {
 	hr := NewHealthRevert(store, "ze.conf")
 	hr.Start(prevConfig)
 
-	hr.OnPeerClosed("connection reset")
+	hr.OnPeerClosed(nil, "connection reset")
 
 	hr.Wait()
 
@@ -141,7 +141,7 @@ func TestRevertFallsBackToSeedConfig(t *testing.T) {
 	hr := NewHealthRevert(store, "ze.conf")
 	hr.Start([]byte("set environment log level info\n"))
 
-	hr.OnPeerClosed("connection reset")
+	hr.OnPeerClosed(nil, "connection reset")
 
 	hr.Wait()
 

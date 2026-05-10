@@ -35,10 +35,10 @@ func defaultWriteActiveHash(hash string) error {
 	return os.WriteFile(configActiveHash, []byte(hash), 0o644) //nolint:gosec // informational
 }
 
-func checkPushedConfig(store storage.Storage, configName string) {
+func checkPushedConfig(store storage.Storage, configName string) (applied bool, preChange []byte) {
 	data, err := readPushedConfig()
 	if err != nil {
-		return
+		return false, nil
 	}
 
 	_, parseErr := config.LoadConfig(string(data), "", nil)
@@ -47,15 +47,18 @@ func checkPushedConfig(store storage.Storage, configName string) {
 		if rmErr := removePushedConfig(); rmErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: remove invalid pushed config: %v\n", rmErr)
 		}
-		return
+		return false, nil
 	}
 
 	activeKey := zefs.KeyFileActive.Key(configName)
+	preChange, _ = store.ReadFile(activeKey)
+
 	if writeErr := store.WriteFile(activeKey, data, 0); writeErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: apply pushed config: %v\n", writeErr)
-		return
+		return false, nil
 	}
 	fmt.Fprintf(os.Stderr, "config: using pushed config from %s\n", pushedConfigPath)
+	return true, preChange
 }
 
 func writeConfigActiveHash(store storage.Storage, configName string) {

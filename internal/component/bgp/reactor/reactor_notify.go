@@ -55,6 +55,21 @@ func (r *Reactor) AddPeerObserver(obs PeerLifecycleObserver) {
 	r.peerObservers = append(r.peerObservers, obs)
 }
 
+// callbackAdapter wraps a registry.PeerLifecycleCallback as a PeerLifecycleObserver.
+type callbackAdapter struct {
+	cb registry.PeerLifecycleCallback
+}
+
+func (a *callbackAdapter) OnPeerEstablished(peer *Peer) { a.cb.OnPeerEstablished(peer) }
+func (a *callbackAdapter) OnPeerClosed(peer *Peer, reason string) {
+	a.cb.OnPeerClosed(peer, reason)
+}
+
+// AddPeerLifecycleCallback registers an external callback via the any-typed interface.
+func (r *Reactor) AddPeerLifecycleCallback(cb registry.PeerLifecycleCallback) {
+	r.AddPeerObserver(&callbackAdapter{cb: cb})
+}
+
 // notifyPeerEstablished calls all observers when peer reaches Established.
 func (r *Reactor) notifyPeerEstablished(peer *Peer) {
 	// Update weight tracker with actual negotiated family count (AC-28).

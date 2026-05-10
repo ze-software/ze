@@ -76,5 +76,9 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 	// GR marker from storage (RFC 4724 Section 4.1).
 	readGRMarker(r, store)
 
+	if cb, ok := coord.GetExtra("health.peerCallback").(registry.PeerLifecycleCallback); ok && cb != nil {
+		r.AddPeerLifecycleCallback(cb)
+	}
+
 	return r, nil
 }

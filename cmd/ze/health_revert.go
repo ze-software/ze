@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -48,6 +49,10 @@ type HealthRevert struct {
 	completed  bool
 }
 
+var _ registry.PeerLifecycleCallback = (*HealthRevert)(nil)
+
+func (h *HealthRevert) OnPeerEstablished(_ any) {}
+
 func NewHealthRevert(store storage.Storage, configName string) *HealthRevert {
 	return &HealthRevert{
 		store:      store,
@@ -69,7 +74,7 @@ func (h *HealthRevert) Start(preChangeConfig []byte) {
 	})
 }
 
-func (h *HealthRevert) OnPeerClosed(reason string) {
+func (h *HealthRevert) OnPeerClosed(_ any, reason string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 

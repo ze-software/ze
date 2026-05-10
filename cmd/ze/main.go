@@ -727,8 +727,14 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		}
 	}
 
-	checkPushedConfig(store, configName)
+	applied, preChange := checkPushedConfig(store, configName)
 	writeConfigActiveHash(store, configName)
+
+	if applied {
+		hr := NewHealthRevert(store, configName)
+		hr.Start(preChange)
+		hub.PeerLifecycleCallback = hr
+	}
 
 	ct := detectConfigType(store, configName)
 	if ct == config.ConfigTypeUnknown && webEnabled {

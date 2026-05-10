@@ -2,6 +2,10 @@ package ssh
 
 import (
 	"context"
+	"crypto/ed25519"
+	cryptoRand "crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"io"
 	"net"
 	"os"
@@ -12,6 +16,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	gossh "golang.org/x/crypto/ssh"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
@@ -19,6 +24,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
+
+func ed25519Generate() (ed25519.PublicKey, ed25519.PrivateKey, error) {
+	return ed25519.GenerateKey(cryptoRand.Reader)
+}
+
+func marshalED25519PrivateKey(t *testing.T, priv ed25519.PrivateKey) []byte {
+	t.Helper()
+	pkcs8, err := x509.MarshalPKCS8PrivateKey(priv)
+	require.NoError(t, err)
+	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: pkcs8})
+}
 
 // VALIDATES: AC-4 — SSH server created with config values.
 // PREVENTS: server ignoring configured address, timeouts, or user list.
@@ -188,6 +204,116 @@ func TestResolveHostKeyFilesystemMode(t *testing.T) {
 		_, statPubErr := os.Stat(keyPath + ".pub")
 		assert.True(t, os.IsNotExist(statPubErr), "pub file must not be created on filesystem")
 	})
+}
+
+// VALIDATES: host certificate is loaded and produces a valid ssh.Option.
+// PREVENTS: server failing to start when host-certificate is configured.
+func TestResolveHostKeyWithCertificate(t *testing.T) {
+	dir := t.TempDir()
+	keyPath := filepath.Join(dir, "host_key")
+	certPath := filepath.Join(dir, "host_key-cert.pub")
+
+	// Generate a host key.
+	_, hostPriv, err := ed25519Generate()
+	require.NoError(t, err)
+	hostSigner, err := gossh.NewSignerFromKey(hostPriv)
+	require.NoError(t, err)
+
+	// Write host key PEM to storage.
+	store := storage.NewFilesystem()
+	hostPEM := marshalED25519PrivateKey(t, hostPriv)
+	require.NoError(t, store.WriteFile(keyPath, hostPEM, 0o600))
+
+	// Generate a CA key and sign the host certificate.
+	_, caPriv, err := ed25519Generate()
+	require.NoError(t, err)
+	caSigner, err := gossh.NewSignerFromKey(caPriv)
+	require.NoError(t, err)
+
+	cert := &gossh.Certificate{
+		Key:             hostSigner.PublicKey(),
+		Serial:          1,
+		CertType:        gossh.HostCert,
+		KeyId:           "test-host",
+		ValidPrincipals: []string{"localhost"},
+		ValidAfter:      0,
+		ValidBefore:     gossh.CertTimeInfinity,
+	}
+	require.NoError(t, cert.SignCert(cryptoRand.Reader, caSigner))
+
+	certBytes := gossh.MarshalAuthorizedKey(cert)
+	require.NoError(t, os.WriteFile(certPath, certBytes, 0o644))
+
+	cfg := Config{
+		Listen:       "127.0.0.1:0",
+		HostKeyPath:  keyPath,
+		HostCertPath: certPath,
+		Storage:      store,
+	}
+	srv, srvErr := NewServer(cfg)
+	require.NoError(t, srvErr)
+
+	opt, optErr := srv.resolveHostKeyOption()
+	require.NoError(t, optErr)
+	assert.NotNil(t, opt)
+}
+
+// VALIDATES: missing certificate file produces a clear error.
+// PREVENTS: silent fallback when cert path is misconfigured.
+func TestResolveHostKeyWithCertificateMissing(t *testing.T) {
+	dir := t.TempDir()
+	keyPath := filepath.Join(dir, "host_key")
+
+	store := storage.NewFilesystem()
+	_, hostPriv, err := ed25519Generate()
+	require.NoError(t, err)
+	hostPEM := marshalED25519PrivateKey(t, hostPriv)
+	require.NoError(t, store.WriteFile(keyPath, hostPEM, 0o600))
+
+	cfg := Config{
+		Listen:       "127.0.0.1:0",
+		HostKeyPath:  keyPath,
+		HostCertPath: filepath.Join(dir, "nonexistent-cert.pub"),
+		Storage:      store,
+	}
+	srv, srvErr := NewServer(cfg)
+	require.NoError(t, srvErr)
+
+	_, optErr := srv.resolveHostKeyOption()
+	require.Error(t, optErr)
+	assert.Contains(t, optErr.Error(), "read host certificate")
+}
+
+// VALIDATES: plain public key (not a certificate) is rejected with a clear error.
+// PREVENTS: confusing failure when operator points host-certificate at a .pub file.
+func TestResolveHostKeyWithCertificateNotACert(t *testing.T) {
+	dir := t.TempDir()
+	keyPath := filepath.Join(dir, "host_key")
+	certPath := filepath.Join(dir, "not_a_cert.pub")
+
+	store := storage.NewFilesystem()
+	_, hostPriv, err := ed25519Generate()
+	require.NoError(t, err)
+	hostPEM := marshalED25519PrivateKey(t, hostPriv)
+	require.NoError(t, store.WriteFile(keyPath, hostPEM, 0o600))
+
+	hostSigner, err := gossh.NewSignerFromKey(hostPriv)
+	require.NoError(t, err)
+	pubBytes := gossh.MarshalAuthorizedKey(hostSigner.PublicKey())
+	require.NoError(t, os.WriteFile(certPath, pubBytes, 0o644))
+
+	cfg := Config{
+		Listen:       "127.0.0.1:0",
+		HostKeyPath:  keyPath,
+		HostCertPath: certPath,
+		Storage:      store,
+	}
+	srv, srvErr := NewServer(cfg)
+	require.NoError(t, srvErr)
+
+	_, optErr := srv.resolveHostKeyOption()
+	require.Error(t, optErr)
+	assert.Contains(t, optErr.Error(), "does not contain an SSH certificate")
 }
 
 // VALIDATES: explicit host-key is preserved.

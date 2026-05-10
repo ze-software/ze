@@ -62,7 +62,7 @@ func TestSchema_ZeSSHEntry(t *testing.T) {
 	require.NotNil(t, ssh, "ssh container should exist inside environment")
 
 	// After listener normalization: ssh has enabled leaf, server list, and config leaves.
-	expectedChildren := []string{"enabled", "server", "host-key", "idle-timeout", "max-sessions"}
+	expectedChildren := []string{"enabled", "server", "host-key", "host-certificate", "idle-timeout", "max-sessions"}
 	for _, name := range expectedChildren {
 		assert.NotNil(t, ssh.Dir[name], "ssh should have child %q", name)
 	}

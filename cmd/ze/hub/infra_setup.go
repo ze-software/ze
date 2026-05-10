@@ -115,6 +115,7 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 			Listen:        sshCfg.Listen,
 			ListenAddrs:   sshCfg.ListenAddrs,
 			HostKeyPath:   sshCfg.HostKeyPath,
+			HostCertPath:  sshCfg.HostCertPath,
 			IdleTimeout:   sshCfg.IdleTimeout,
 			MaxSessions:   sshCfg.MaxSessions,
 			Users:         users,

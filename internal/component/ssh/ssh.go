@@ -14,6 +14,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -25,6 +26,7 @@ import (
 	"charm.land/wish/v2/activeterm"
 	"charm.land/wish/v2/bubbletea"
 	"github.com/charmbracelet/ssh"
+	gossh "golang.org/x/crypto/ssh"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
@@ -77,6 +79,7 @@ type Config struct {
 	Listen        string
 	ListenAddrs   []string // all listen addresses (first == Listen)
 	HostKeyPath   string
+	HostCertPath  string          // optional: path to SSH host certificate (signed by CA)
 	ConfigDir     string          // directory of the config file; used for host-key default
 	ConfigPath    string          // path to config file; used by SSH sessions for concurrent editing
 	Storage       storage.Storage // when set, host key is read from/stored to blob
@@ -487,37 +490,97 @@ func (s *Server) Reload(_ context.Context, _ ze.ConfigProvider) error {
 // served from memory via WithHostKeyPEM. Never uses WithHostKeyPath, which
 // would auto-generate both .key and .pub files on the physical filesystem,
 // bypassing the zefs blob store.
+//
+// When HostCertPath is configured, the host key is wrapped with the certificate
+// via gossh.NewCertSigner so clients that trust the signing CA skip TOFU.
 func (s *Server) resolveHostKeyOption() (ssh.Option, error) {
 	store := s.config.Storage
 	keyPath := s.config.HostKeyPath
+
+	var keyPEM []byte
 
 	if store != nil && store.Exists(keyPath) {
 		data, err := store.ReadFile(keyPath)
 		if err != nil {
 			return nil, fmt.Errorf("read host key from storage: %w", err)
 		}
-		return wish.WithHostKeyPEM(data), nil
-	}
-
-	// Key not found in storage -- generate a new Ed25519 key.
-	_, priv, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		return nil, fmt.Errorf("generate host key: %w", err)
-	}
-	pkcs8Bytes, err := x509.MarshalPKCS8PrivateKey(priv)
-	if err != nil {
-		return nil, fmt.Errorf("marshal host key: %w", err)
-	}
-	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: pkcs8Bytes})
-
-	if store != nil {
-		if err := store.WriteFile(keyPath, pemBytes, 0o600); err != nil {
-			return nil, fmt.Errorf("store host key: %w", err)
+		keyPEM = data
+	} else {
+		_, priv, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			return nil, fmt.Errorf("generate host key: %w", err)
 		}
-	}
-	s.logger.Info("generated SSH host key", "path", keyPath)
+		pkcs8Bytes, err := x509.MarshalPKCS8PrivateKey(priv)
+		if err != nil {
+			return nil, fmt.Errorf("marshal host key: %w", err)
+		}
+		keyPEM = pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: pkcs8Bytes})
 
-	return wish.WithHostKeyPEM(pemBytes), nil
+		if store != nil {
+			if err := store.WriteFile(keyPath, keyPEM, 0o600); err != nil {
+				return nil, fmt.Errorf("store host key: %w", err)
+			}
+		}
+		s.logger.Info("generated SSH host key", "path", keyPath)
+	}
+
+	if s.config.HostCertPath == "" {
+		return wish.WithHostKeyPEM(keyPEM), nil
+	}
+
+	return s.hostKeyWithCertOption(keyPEM)
+}
+
+// hostKeyWithCertOption wraps the host key PEM with a certificate to produce
+// a CertSigner. Clients that trust the CA no longer see TOFU prompts.
+func (s *Server) hostKeyWithCertOption(keyPEM []byte) (ssh.Option, error) {
+	certPath := s.config.HostCertPath
+	store := s.config.Storage
+
+	var certBytes []byte
+	if store != nil && store.Exists(certPath) {
+		data, err := store.ReadFile(certPath)
+		if err != nil {
+			return nil, fmt.Errorf("read host certificate from storage: %w", err)
+		}
+		certBytes = data
+	} else {
+		data, err := readFileFromDisk(certPath)
+		if err != nil {
+			return nil, fmt.Errorf("read host certificate: %w", err)
+		}
+		certBytes = data
+	}
+
+	signer, err := gossh.ParsePrivateKey(keyPEM)
+	if err != nil {
+		return nil, fmt.Errorf("parse host key for certificate: %w", err)
+	}
+
+	pub, _, _, _, parseErr := gossh.ParseAuthorizedKey(certBytes)
+	if parseErr != nil {
+		return nil, fmt.Errorf("parse host certificate: %w", parseErr)
+	}
+	cert, ok := pub.(*gossh.Certificate)
+	if !ok {
+		return nil, fmt.Errorf("host-certificate file does not contain an SSH certificate")
+	}
+
+	certSigner, err := gossh.NewCertSigner(cert, signer)
+	if err != nil {
+		return nil, fmt.Errorf("create certificate signer: %w", err)
+	}
+
+	s.logger.Info("loaded SSH host certificate", "path", certPath)
+
+	return func(srv *ssh.Server) error {
+		srv.AddHostKey(certSigner)
+		return nil
+	}, nil
+}
+
+func readFileFromDisk(path string) ([]byte, error) {
+	return os.ReadFile(path) //nolint:gosec // path is from config, not user input
 }
 
 // maxSessionsMiddleware returns middleware that enforces the max sessions limit.
