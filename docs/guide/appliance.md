@@ -356,9 +356,56 @@ The base config is read first, then per-appliance `ze.conf` is appended. Later `
 | `show <name>` | Show config, cert expiry, managed status |
 | `run <name>` | Boot in QEMU with port forwarding |
 | `unlock` | Start passphrase agent |
+| `push <name>` | Push image to device via gokrazy OTA update |
+| `push --all` | Push to all appliances with device.address |
+| `config <name> --merged` | Show effective config (base + overlay) |
+| `config-push <name>` | Push config to running device via SSH |
+| `config-push --all` | Push config to all addressed devices |
+| `init --batch <manifest>` | Batch init from JSON manifest |
 | `export <name>` | Export appliance to encrypted archive (.ze.enc) |
 | `export --all` | Export all appliances to single encrypted archive |
 | `import <archive>` | Import appliance from encrypted archive |
+
+### Remote operations (push, config-push)
+
+Push a built image to a running gokrazy device via its HTTPS update endpoint:
+
+    ze appliance push lab
+    ze appliance push --image ze-20260427-143022.img lab   # rollback to older image
+    ze appliance push --all                                # all devices with address
+    ze appliance push --all --parallel 4                   # 4 concurrent uploads
+
+Push uses the update token (from `secrets/update.token`) for HTTP basic auth, and verifies the device TLS certificate against the stored `cert.pem`. No system CA pool is consulted.
+
+Preview the effective configuration (base + overlay merged) without building:
+
+    ze appliance config lab --merged
+
+Push a config change to a running device without rebuilding the image:
+
+    ze appliance config-push lab
+    ze appliance config-push --dry-run lab    # preview only, no SSH connection
+    ze appliance config-push --all            # all addressed devices
+    ze appliance config-push --all --parallel 4
+
+Config-push uses SSH (operator's key via ssh-agent) to upload the merged config to the device, which validates and applies it. No secrets are transmitted over SSH.
+
+### Batch init
+
+Initialize multiple appliances from a JSON manifest:
+
+    ze appliance init --batch manifest.json
+
+Manifest format (array of entries):
+
+```json
+[
+  {"name": "edge-01", "hostname": "edge-01.lab", "password": "secret1", "device.address": "10.0.0.1"},
+  {"name": "edge-02", "hostname": "edge-02.lab", "password": "generate"}
+]
+```
+
+Use `"password": "generate"` for per-device random passwords (printed to stdout once, never stored in plaintext). Each appliance receives independent cryptographic state (unique salt/nonce).
 
 ### Disaster recovery (export/import)
 

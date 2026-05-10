@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Depends | appliance-1-builder |
-| Phase | - |
+| Phase | 5/5 |
 | Updated | 2026-05-10 |
 | Split | Split from appliance-1-builder. Device-side config loading/revert is in appliance-4-device-config. |
 

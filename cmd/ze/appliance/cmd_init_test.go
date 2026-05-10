@@ -283,3 +283,100 @@ func TestInitAlreadyExists(t *testing.T) {
 		t.Errorf("init should fail for existing appliance, got %d", code)
 	}
 }
+
+func TestBatchInitCreatesMultiple(t *testing.T) {
+	dir := t.TempDir()
+	baseDir = dir
+
+	manifest := `[
+		{"name": "edge-01", "hostname": "edge-01.lab", "password": "pw1"},
+		{"name": "edge-02", "hostname": "edge-02.lab", "password": "pw2"},
+		{"name": "edge-03", "hostname": "edge-03.lab", "password": "pw3"}
+	]`
+	manifestPath := filepath.Join(dir, "manifest.json")
+	os.WriteFile(manifestPath, []byte(manifest), 0o644) //nolint:errcheck,gosec // test
+
+	env.ResetCache()
+	code := runInit([]string{"--batch", manifestPath})
+	if code != exitOK {
+		t.Fatalf("batch init returned %d, want 0", code)
+	}
+
+	for _, name := range []string{"edge-01", "edge-02", "edge-03"} {
+		appDir := filepath.Join(dir, name)
+		if _, err := os.Stat(filepath.Join(appDir, "appliance.json")); err != nil {
+			t.Errorf("%s: appliance.json missing", name)
+		}
+		if _, err := os.Stat(filepath.Join(appDir, "secrets", "password.hash")); err != nil {
+			t.Errorf("%s: password.hash missing", name)
+		}
+		if _, err := os.Stat(filepath.Join(appDir, "secrets", "update.token")); err != nil {
+			t.Errorf("%s: update.token missing", name)
+		}
+	}
+}
+
+func TestBatchInitMissingPasswordFails(t *testing.T) {
+	dir := t.TempDir()
+	baseDir = dir
+
+	manifest := `[{"name": "nopass"}]`
+	manifestPath := filepath.Join(dir, "manifest.json")
+	os.WriteFile(manifestPath, []byte(manifest), 0o644) //nolint:errcheck,gosec // test
+
+	t.Setenv("ZE_APPLIANCE_SSH_PASSWORD", "")
+	env.ResetCache()
+	code := runInit([]string{"--batch", manifestPath})
+	if code != exitError {
+		t.Errorf("batch init should fail without password, got %d", code)
+	}
+}
+
+func TestBatchInitPerDevicePasswords(t *testing.T) {
+	dir := t.TempDir()
+	baseDir = dir
+
+	manifest := `[
+		{"name": "gen1", "password": "generate"},
+		{"name": "gen2", "password": "generate"}
+	]`
+	manifestPath := filepath.Join(dir, "manifest.json")
+	os.WriteFile(manifestPath, []byte(manifest), 0o644) //nolint:errcheck,gosec // test
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	env.ResetCache()
+	code := runInit([]string{"--batch", manifestPath})
+
+	w.Close() //nolint:errcheck // test pipe
+	os.Stdout = old
+
+	if code != exitOK {
+		t.Fatalf("batch init returned %d, want 0", code)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	output := string(buf[:n])
+
+	if !strings.Contains(output, "gen1:") {
+		t.Errorf("output should contain gen1 password, got: %q", output)
+	}
+	if !strings.Contains(output, "gen2:") {
+		t.Errorf("output should contain gen2 password, got: %q", output)
+	}
+
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	passwords := make(map[string]bool)
+	for _, line := range lines {
+		parts := strings.SplitN(line, ": ", 2)
+		if len(parts) == 2 {
+			passwords[parts[1]] = true
+		}
+	}
+	if len(passwords) < 2 {
+		t.Errorf("generated passwords should be unique, got %d distinct values", len(passwords))
+	}
+}

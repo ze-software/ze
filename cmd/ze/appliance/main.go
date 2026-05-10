@@ -32,6 +32,9 @@ var handlers = map[string]func([]string) int{
 	"unlock":       cmdUnlock,
 	"export":       cmdExport,
 	"import":       cmdImport,
+	"push":         cmdPush,
+	"config":       cmdConfig,
+	"config-push":  cmdConfigPush,
 }
 
 // baseDir holds the resolved appliance directory for the current invocation.
@@ -111,6 +114,9 @@ var (
 	cmdUnlock      = stub
 	cmdExport      = stub
 	cmdImport      = stub
+	cmdPush        = stub
+	cmdConfig      = stub
+	cmdConfigPush  = stub
 )
 
 func usage() {
@@ -121,8 +127,14 @@ func usage() {
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "init <name>", Desc: "Create a new appliance with config and secrets"},
+				{Name: "init --batch <manifest>", Desc: "Batch init from JSON manifest"},
 				{Name: "assemble <name>", Desc: "Build ZeFS database only (fast path)"},
 				{Name: "build <name>", Desc: "Build full disk image (assemble + gok + ext4)"},
+				{Name: "push <name>", Desc: "Push image to device via OTA update"},
+				{Name: "push --all", Desc: "Push to all appliances with device.address"},
+				{Name: "config <name> --merged", Desc: "Show effective config (base + overlay)"},
+				{Name: "config-push <name>", Desc: "Push config to running device via SSH"},
+				{Name: "config-push --all", Desc: "Push config to all addressed devices"},
 				{Name: "passwd <name>", Desc: "Change SSH password"},
 				{Name: "replace-cert <name>", Desc: "Replace TLS certificate"},
 				{Name: "rekey <name>", Desc: "Change encryption passphrase"},

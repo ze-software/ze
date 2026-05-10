@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -41,6 +42,7 @@ func runInit(args []string) int {
 	certFile := fs.String("cert", "", "Path to CA-signed certificate (PEM)")
 	keyFile := fs.String("key", "", "Path to CA-signed private key (PEM)")
 	managedFlag := fs.Bool("managed", false, "Enable managed (fleet) mode")
+	batchFile := fs.String("batch", "", "Batch init from JSON manifest (array of entries)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: ze appliance init [options] <name>\n\n")
@@ -50,11 +52,17 @@ func runInit(args []string) int {
 		fmt.Fprintf(os.Stderr, "  ze appliance init lab\n")
 		fmt.Fprintf(os.Stderr, "  ze appliance init --config input.json lab\n")
 		fmt.Fprintf(os.Stderr, "  ze appliance init --cert ca.pem --key ca.key lab\n")
+		fmt.Fprintf(os.Stderr, "  ze appliance init --batch manifest.json\n")
 	}
 
 	if err := fs.Parse(args); err != nil {
 		return exitError
 	}
+
+	if *batchFile != "" {
+		return runBatchInit(*batchFile)
+	}
+
 	if fs.NArg() < 1 {
 		fmt.Fprintf(os.Stderr, "error: requires <name>\n")
 		fs.Usage()
@@ -291,4 +299,177 @@ func writeTLSSecrets(baseDir, name string, cfg *ApplianceConfig, certFile, keyFi
 
 func isTerminal(f *os.File) bool {
 	return term.IsTerminal(int(f.Fd()))
+}
+
+type batchEntry struct {
+	Name              string   `json:"name"`
+	Hostname          string   `json:"hostname"`
+	Password          string   `json:"password"` //nolint:gosec // manifest input, not stored
+	DeviceAddress     string   `json:"device.address"`
+	SSHAuthorizedKeys []string `json:"ssh-authorized-keys"`
+}
+
+func runBatchInit(manifestPath string) int {
+	data, err := os.ReadFile(manifestPath) //nolint:gosec // user-provided path
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: read manifest: %v\n", err)
+		return exitError
+	}
+
+	var entries []batchEntry
+	if err := json.Unmarshal(data, &entries); err != nil {
+		fmt.Fprintf(os.Stderr, "error: parse manifest: %v\n", err)
+		return exitError
+	}
+
+	if len(entries) == 0 {
+		fmt.Fprintf(os.Stderr, "error: manifest is empty\n")
+		return exitError
+	}
+
+	dir := getBaseDir()
+	passphrase := readPassphraseForInit()
+
+	succeeded, failed := 0, 0
+	for _, entry := range entries {
+		if entry.Name == "" {
+			fmt.Fprintf(os.Stderr, "error: manifest entry missing name\n")
+			failed++
+			continue
+		}
+
+		password := entry.Password
+		if password == "generate" {
+			genBytes := make([]byte, 24)
+			if _, randErr := io.ReadFull(rand.Reader, genBytes); randErr != nil {
+				fmt.Fprintf(os.Stderr, "error: generate password for %s: %v\n", entry.Name, randErr)
+				failed++
+				continue
+			}
+			password = base64.StdEncoding.EncodeToString(genBytes)
+			fmt.Printf("%s: %s\n", entry.Name, password)
+		}
+
+		if password == "" {
+			envPass := env.Get(sshPasswordKey)
+			if envPass == "" {
+				fmt.Fprintf(os.Stderr, "error: no password for %s (set password field or %s env var)\n", entry.Name, sshPasswordKey)
+				failed++
+				continue
+			}
+			password = envPass
+		}
+
+		if code := initOneFromBatch(dir, entry, password, passphrase); code != exitOK {
+			fmt.Fprintf(os.Stderr, "FAILED: %s\n", entry.Name)
+			failed++
+		} else {
+			succeeded++
+		}
+	}
+
+	ZeroBytes(passphrase)
+	fmt.Printf("%d succeeded, %d failed\n", succeeded, failed)
+	if failed > 0 {
+		return exitError
+	}
+	return exitOK
+}
+
+func initOneFromBatch(dir string, entry batchEntry, password string, passphrase []byte) int {
+	name := entry.Name
+	appDir := AppliancePath(dir, name)
+
+	if _, err := os.Stat(appDir); err == nil {
+		fmt.Fprintf(os.Stderr, "error: appliance %q already exists\n", name)
+		return exitError
+	}
+
+	cfg := DefaultConfig(name)
+	if entry.Hostname != "" {
+		cfg.Identity.Hostname = entry.Hostname
+	}
+	if entry.DeviceAddress != "" {
+		cfg.Device.Address = entry.DeviceAddress
+	}
+	if len(entry.SSHAuthorizedKeys) > 0 {
+		cfg.Credentials.SSHAuthorizedKeys = entry.SSHAuthorizedKeys
+	}
+
+	if err := cfg.Validate(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s: %v\n", name, err)
+		return exitError
+	}
+
+	if err := os.MkdirAll(TLSDir(dir, name), secretsDirPerm); err != nil {
+		fmt.Fprintf(os.Stderr, "error: create directories for %s: %v\n", name, err)
+		return exitError
+	}
+	if err := os.Chmod(SecretsDir(dir, name), secretsDirPerm); err != nil {
+		fmt.Fprintf(os.Stderr, "error: chmod secrets for %s: %v\n", name, err)
+		return exitError
+	}
+
+	initFailed := true
+	defer func() {
+		if initFailed {
+			os.RemoveAll(appDir) //nolint:errcheck // best-effort cleanup
+		}
+	}()
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: hash password for %s: %v\n", name, err)
+		return exitError
+	}
+
+	if err := WriteSecret(secretFilePath(dir, name, "password.hash"), hashedPassword, passphrase); err != nil {
+		fmt.Fprintf(os.Stderr, "error: write password hash for %s: %v\n", name, err)
+		return exitError
+	}
+
+	if err := writeTLSSecrets(dir, name, &cfg, "", "", passphrase); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s: %v\n", name, err)
+		return exitError
+	}
+
+	token := make([]byte, updateTokenBytes)
+	if _, err := io.ReadFull(rand.Reader, token); err != nil {
+		fmt.Fprintf(os.Stderr, "error: generate update token for %s: %v\n", name, err)
+		return exitError
+	}
+	encoded := []byte(base64.StdEncoding.EncodeToString(token))
+	if err := WriteSecret(secretFilePath(dir, name, "update.token"), encoded, passphrase); err != nil {
+		fmt.Fprintf(os.Stderr, "error: write update token for %s: %v\n", name, err)
+		return exitError
+	}
+
+	if len(cfg.Credentials.SSHAuthorizedKeys) > 0 {
+		var sb strings.Builder
+		for _, k := range cfg.Credentials.SSHAuthorizedKeys {
+			sb.WriteString(k)
+			sb.WriteByte('\n')
+		}
+		authKeysPath := secretFilePath(dir, name, "authorized_keys")
+		if err := os.WriteFile(authKeysPath, []byte(sb.String()), 0o600); err != nil {
+			fmt.Fprintf(os.Stderr, "error: write authorized_keys for %s: %v\n", name, err)
+			return exitError
+		}
+	}
+
+	if len(passphrase) > 0 {
+		if err := WriteEncryptedMarker(dir, name); err != nil {
+			fmt.Fprintf(os.Stderr, "error: write encryption marker for %s: %v\n", name, err)
+			return exitError
+		}
+	}
+
+	if err := SaveConfig(ConfigPath(dir, name), &cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s: %v\n", name, err)
+		return exitError
+	}
+
+	initFailed = false
+	fmt.Fprintf(os.Stderr, "initialized appliance %q\n", name)
+	return exitOK
 }

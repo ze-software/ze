@@ -68,7 +68,11 @@ type ApplianceConfig struct {
 	QEMU        QEMUConfig        `json:"qemu"`
 }
 
-const maxNameLen = 64
+const (
+	maxNameLen = 64
+	archAMD64  = "amd64"
+	archARM64  = "arm64"
+)
 
 var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
 
@@ -98,7 +102,7 @@ func DefaultConfig(name string) ApplianceConfig {
 			UpdatePort: 443,
 		},
 		Image: ImageConfig{
-			Arch:      "amd64",
+			Arch:      archAMD64,
 			SizeBytes: 2 * 1024 * 1024 * 1024, // 2 GiB
 		},
 		QEMU: QEMUConfig{
@@ -142,7 +146,7 @@ func (c *ApplianceConfig) Validate() error {
 	if c.TLS.ValidityYears > 25 {
 		return fmt.Errorf("tls.validity-years %d: maximum is 25", c.TLS.ValidityYears)
 	}
-	if c.Image.Arch != "amd64" && c.Image.Arch != "arm64" {
+	if c.Image.Arch != archAMD64 && c.Image.Arch != archARM64 {
 		return fmt.Errorf("image.arch %q: must be amd64 or arm64", c.Image.Arch)
 	}
 	if c.QEMU.SSHPort != 0 {
