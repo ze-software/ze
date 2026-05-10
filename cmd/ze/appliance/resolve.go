@@ -16,6 +16,7 @@ const (
 	secretsDirName   = "secrets"
 	tlsDirName       = "tls"
 	databaseFileName = "database.zefs"
+	sharedDirName    = "_shared"
 )
 
 var _ = env.MustRegister(env.EnvEntry{Key: applianceDirKey, Type: "string", Description: "Override appliance directory"})

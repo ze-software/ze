@@ -30,6 +30,8 @@ var handlers = map[string]func([]string) int{
 	"show":         cmdShow,
 	"run":          cmdRun,
 	"unlock":       cmdUnlock,
+	"export":       cmdExport,
+	"import":       cmdImport,
 }
 
 // baseDir holds the resolved appliance directory for the current invocation.
@@ -107,6 +109,8 @@ var (
 	cmdShow        = stub
 	cmdRun         = stub
 	cmdUnlock      = stub
+	cmdExport      = stub
+	cmdImport      = stub
 )
 
 func usage() {
@@ -127,6 +131,9 @@ func usage() {
 				{Name: "show <name>", Desc: "Show config summary and cert expiry"},
 				{Name: "run <name>", Desc: "Boot in QEMU"},
 				{Name: "unlock", Desc: "Start passphrase agent"},
+				{Name: "export <name>", Desc: "Export appliance to encrypted archive"},
+				{Name: "export --all", Desc: "Export all appliances to single encrypted archive"},
+				{Name: "import <archive>", Desc: "Import appliance from encrypted archive"},
 			}},
 			{Title: "Flags", Entries: []helpfmt.HelpEntry{
 				{Name: "--dir <path>", Desc: "Appliance directory (default: $ZE_APPLIANCE_DIR or ~/.config/ze/appliances)"},

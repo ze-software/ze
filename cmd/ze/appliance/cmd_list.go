@@ -39,7 +39,7 @@ func runList(args []string) int {
 			continue
 		}
 		name := e.Name()
-		if name == "_shared" || strings.HasPrefix(name, ".") {
+		if name == sharedDirName || strings.HasPrefix(name, ".") {
 			continue
 		}
 		cfg, loadErr := LoadConfig(ConfigPath(dir, name))

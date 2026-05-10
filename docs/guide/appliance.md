@@ -356,3 +356,30 @@ The base config is read first, then per-appliance `ze.conf` is appended. Later `
 | `show <name>` | Show config, cert expiry, managed status |
 | `run <name>` | Boot in QEMU with port forwarding |
 | `unlock` | Start passphrase agent |
+| `export <name>` | Export appliance to encrypted archive (.ze.enc) |
+| `export --all` | Export all appliances to single encrypted archive |
+| `import <archive>` | Import appliance from encrypted archive |
+
+### Disaster recovery (export/import)
+
+Export creates an encrypted archive of an appliance directory for offsite backup or bastion migration. Archives include config, secrets, and build metadata, but exclude images and ZeFS databases (both are rebuildable).
+
+Export a single appliance:
+
+    ze appliance export lab
+    # creates lab.ze.enc in the current directory
+
+Export all appliances:
+
+    ze appliance export --all
+    # creates appliances-YYYYMMDD-HHMMSS.ze.enc
+
+Import restores from an archive:
+
+    ze appliance import lab.ze.enc
+
+Import to a different bastion (migration):
+
+    ze appliance import lab.ze.enc --dir /path/to/new/bastion
+
+Archives are always encrypted using the same Argon2id + XChaCha20-Poly1305 scheme as secrets at rest. The archive passphrase can differ from the secrets passphrase. Use `--force` on import to overwrite existing appliance directories.
