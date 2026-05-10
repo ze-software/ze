@@ -1,5 +1,5 @@
 .PHONY: all build ze chaos test analyse clean fmt vet tidy generate help
-.PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-race-reactor ze-linux-test ze-test ze-verify ze-ci
+.PHONY: ze-lint ze-vet-evidence ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-race-reactor ze-linux-test ze-test ze-verify ze-ci
 .PHONY: ze-lint-changed ze-unit-test-changed ze-verify-changed ze-clean-tmp
 .PHONY: ze-test-bgp ze-test-core ze-test-plugins ze-test-config ze-test-cli ze-test-rest ze-unit-test-cached ze-unit-test-race-changed
 .PHONY: _ze-verify-impl _ze-verify-changed-impl _ze-chaos-verify-impl
@@ -118,6 +118,11 @@ bin/ze-analyse: $(shell find cmd/ze-analyse -name '*.go' 2>/dev/null)
 	$(GO) build -o bin/ze-analyse ./cmd/ze-analyse
 
 # ─── Ze tests ────────────────────────────────────────────────────────────────
+
+# Vet Linux-only evidence scripts (cross-compile; catches redeclaration/type errors on macOS)
+ze-vet-evidence:
+	@echo "Vetting evidence scripts (GOOS=linux)..."
+	@GOOS=linux go vet ./scripts/evidence/...
 
 # Run ze linter (excludes chaos and research packages — research excluded due to gosec v2.23.0 panic on Go 1.26)
 ze-lint:
@@ -388,7 +393,7 @@ ze-verify:
 
 # Two-pass unit tests: cached full pass (instant when clean) + -race only on
 # changed groups. Falls back to full -race when no groups can be determined.
-_ze-verify-impl: ze-lint ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
+_ze-verify-impl: ze-lint ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification passed"
 
 ZE_VERIFY_LOG ?= tmp/ze-verify.log
@@ -1108,6 +1113,7 @@ help:
 	@echo "  ze-fuzz-one           - Run single fuzz target (FUZZ=name PKG=path TIME=30s)"
 	@echo "  ze-linux-test         - Run Linux-only Go unit tests in Docker (ZE_LINUX_TEST_PACKAGES=...)"
 	@echo "  ze-test               - Ze tests: lint + unit + functional + exabgp + fuzz"
+	@echo "  ze-vet-evidence       - Vet Linux-only evidence scripts (GOOS=linux cross-compile)"
 	@echo "  ze-verify             - Ze tests except fuzz (development)"
 	@echo "  ze-lint-changed       - Lint only packages with changed .go files (parallel-safe)"
 	@echo "  ze-unit-test-changed  - Unit test only packages with changed .go files"

@@ -5,7 +5,7 @@
 // a network namespace with connectivity to isolate library vs process issues.
 //
 // Usage (inside QEMU VM):
-//   ip netns exec zens go run -buildvcs=false scripts/evidence/l2tp-tunnel-diag.go \
+//   ip netns exec zens go run -buildvcs=false scripts/evidence/l2tp-tunnel-diag/main.go \
 //       -local 172.30.0.1 -remote 172.30.0.2 -sport 1701 -dport 1702
 
 package main
