@@ -33,6 +33,10 @@ Split from `spec-appliance-1-builder` (design session 2026-05-09). The bastion s
   -> Constraint: ZeFS seed config is immutable (the ultimate fallback)
 
 ### Source Files
+- [ ] `cmd/ze/internal/ssh/client/client.go` (390L) - SSH client using charmbracelet/ssh (wish). ExecCommand, StreamCommand, OpenProtocolSession. Uses password auth from zefs Credentials.
+  -> Decision: config-push SSH stub (`cmd/ze/appliance/cmd_config_push.go:sshExecFunc`) must wire to this client
+  -> Constraint: config-push needs SSH agent auth (operator's key), not password auth; Credentials needs agent-auth variant
+  -> Constraint: gokrazy has no shell; commands must be Ze CLI commands (config stage/validate/apply/discard), not sh
 - [ ] `cmd/ze/main.go` (1034L) - cmdStart (line 644): resolveStorage -> resolveDefaultConfig -> bootstrapConfigFromTemplate -> hub.Run. Bootstrap reads file/template/ze.conf from ZeFS, merges with interface discovery, writes to file/active/<name>.
   -> Decision: config-pushed.conf support must integrate into this flow, after bootstrap but before hub.Run
   -> Constraint: first-boot bootstrap (template + discovery) must remain unchanged when no pushed config exists
