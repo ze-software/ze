@@ -30,6 +30,7 @@ set -e
 
 LOCKFILE="tmp/.ze-verify.lock"
 OWNER_FILE="tmp/.ze-verify.lock.owner"
+DURATION_FILE="tmp/.ze-verify-duration.txt"
 MAX_LOCK_AGE="${ZE_VERIFY_MAX_LOCK_AGE:-1800}"
 
 # ---- Inner mode: invoked by flock once lock is acquired ----
@@ -45,7 +46,20 @@ if [ "${1:-}" = "__inner__" ]; then
         printf 'STARTED=%s\n' "$(date +%s)"
         printf 'CMD=%s\n' "$*"
     } > "$OWNER_FILE"
-    trap 'rm -f "$OWNER_FILE"' EXIT INT TERM
+    if [ -f "$DURATION_FILE" ]; then
+        _prev=$(awk -F'\t' -v l="$LABEL" '$1==l{s=$2}END{if(s)print s}' "$DURATION_FILE")
+        if [ -n "$_prev" ]; then
+            printf '[%s] previous run took %dm%ds (%ds)\n' "$LABEL" $((_prev/60)) $((_prev%60)) "$_prev"
+        fi
+    fi
+    _start=$(date +%s)
+    _record_duration() {
+        _end=$(date +%s)
+        _elapsed=$(( _end - _start ))
+        printf '%s\t%s\t%s\n' "$LABEL" "$_elapsed" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$DURATION_FILE"
+        rm -f "$OWNER_FILE"
+    }
+    trap '_record_duration' EXIT INT TERM
     "$@"
     exit $?
 fi
