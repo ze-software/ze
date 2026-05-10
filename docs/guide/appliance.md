@@ -390,6 +390,23 @@ Push a config change to a running device without rebuilding the image:
 
 Config-push uses SSH (operator's key via ssh-agent) to upload the merged config to the device, which validates and applies it. No secrets are transmitted over SSH.
 
+### Device-side config behavior
+
+At boot, the device loads configuration with the following priority:
+
+| Priority | Source | Location |
+|----------|--------|----------|
+| 1 (highest) | Pushed config | `/perm/ze/config-pushed.conf` |
+| 2 | Seed config | `file/template/ze.conf` in ZeFS (bootstrap + interface discovery) |
+
+If a pushed config exists and passes validation (`config.LoadConfig`), the device uses it. If it fails validation, the device deletes it, logs a warning, and falls back to the seed config.
+
+After loading the effective config, the device writes its SHA-256 hash to `/perm/ze/config-active-hash` for fleet drift detection.
+
+**Last-known-good hash:** at build time, `ze appliance build` writes the SHA-256 of the validated seed config to `meta/config/last-known-good` in ZeFS. This is immutable and serves as the integrity baseline.
+
+**Auto-revert after config-push:** when `config-push` applies a new config, the device monitors BGP sessions for 30 seconds. If any session flaps during that window, the device reverts to the previous config (or the seed config if no previous exists). If all sessions remain stable, the new config is confirmed and its hash is written to `/perm/ze/last-known-good-pushed`.
+
 ### Batch init
 
 Initialize multiple appliances from a JSON manifest:

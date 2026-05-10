@@ -119,9 +119,10 @@ func assembleZeFS(baseDir, name string, cfg *ApplianceConfig, passphrase []byte,
 	}
 
 	if seedConfig != "" {
-		entries = append(entries, struct{ key, value string }{
-			zefs.KeyFileTemplate.Key("ze.conf"), seedConfig,
-		})
+		entries = append(entries,
+			struct{ key, value string }{zefs.KeyFileTemplate.Key("ze.conf"), seedConfig},
+			struct{ key, value string }{zefs.KeyConfigLastKnownGood.Pattern, ConfigHash(seedConfig)},
+		)
 	}
 
 	if !cfg.Credentials.AdminEnabled {

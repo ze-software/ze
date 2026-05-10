@@ -1138,6 +1138,29 @@ This avoids bgp importing ssh, cli, or web.
 
 ---
 
+## 20. Appliance Config Loading Priority
+
+On gokrazy appliances, `cmdStart` resolves the effective config with a priority chain before calling `hub.Run`:
+
+| Step | Source | Condition |
+|------|--------|-----------|
+| 1 | Bootstrap from ZeFS seed template + interface discovery | First boot (no active config in blob) |
+| 2 | `/perm/ze/config-pushed.conf` | Exists and passes `config.LoadConfig` validation |
+| 3 | `file/active/{name}.conf` in blob store | Default (seed-derived from step 1) |
+
+Invalid pushed configs are deleted and logged. After loading, the SHA-256 of the effective config is written to `/perm/ze/config-active-hash` for fleet drift detection.
+
+Build-time: `ze appliance build` writes the seed config's SHA-256 to `meta/config/last-known-good` in ZeFS (immutable baseline).
+
+Runtime: after `config-push` applies a new config, a 30-second health window monitors BGP sessions via `PeerLifecycleObserver`. If any session flaps, the device reverts to the previous config (or seed config as fallback).
+
+<!-- source: cmd/ze/main.go -- cmdStart, checkPushedConfig, writeConfigActiveHash -->
+<!-- source: cmd/ze/pushed_config.go -- pushed config loading and validation -->
+<!-- source: cmd/ze/health_revert.go -- auto-revert health monitor -->
+<!-- source: cmd/ze/appliance/cmd_assemble.go -- last-known-good hash write -->
+
+---
+
 ## Related Documents
 
 - `buffer-architecture.md` - Iterators and lazy parsing

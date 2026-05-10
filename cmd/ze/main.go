@@ -727,6 +727,9 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		}
 	}
 
+	checkPushedConfig(store, configName)
+	writeConfigActiveHash(store, configName)
+
 	ct := detectConfigType(store, configName)
 	if ct == config.ConfigTypeUnknown && webEnabled {
 		return hub.RunWebOnly(store, webListenAddr, insecureWeb)
