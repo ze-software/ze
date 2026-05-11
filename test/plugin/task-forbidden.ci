@@ -37,4 +37,5 @@ option=tcp_connections:value=0
 
 # task-call on a forbidden tool should print an error and exit non-zero
 cmd=background:seq=1:exec=ze --mcp $PORT2 -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=10s:expect-fail=true
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=10s
+expect=exit:code=1

@@ -1,10 +1,12 @@
-# task-cancel - create a task then cancel it before completion
-# Exercises: createTask on required tool -> tasks/cancel -> state is cancelled
+# task-cancel - create a task, wait for completion, then cancel
+# Exercises: createTask on required tool -> tasks/cancel on terminal task -> task-get
 # Uses ze_monitor (task-support: required) to exercise the required path.
+# cancel on an already-completed task is a no-op (returns current state).
 
-# MCP commands: run monitor bgp as a task (required), immediately cancel
+# MCP commands: run monitor bgp as a task (required), wait completion, then cancel
 stdin=mcp:terminator=EOF_MCP
 task-call ze_monitor {"action":"bgp"}
+task-wait $LAST completed
 task-cancel $LAST
 task-get $LAST
 EOF_MCP
@@ -40,3 +42,5 @@ option=tcp_connections:value=0
 
 cmd=background:seq=1:exec=ze --mcp $PORT2 -:stdin=ze-bgp
 cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=10s
+expect=exit:code=0
+expect=stdout:contains=completed

@@ -56,3 +56,4 @@ option=tcp_connections:value=0
 cmd=background:seq=1:exec=ze --mcp $PORT2 -:stdin=ze-bgp
 cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks --token alice-token:stdin=mcp1:timeout=10s
 cmd=foreground:seq=3:exec=ze-test mcp --port $PORT2 --tasks --token bob-token:stdin=mcp2:timeout=10s
+expect=exit:code=0
