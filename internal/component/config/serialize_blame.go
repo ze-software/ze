@@ -208,9 +208,6 @@ func serializeBlameTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, name
 		if n.Hidden || n.Ephemeral {
 			break
 		}
-		if name == InactiveLeafName {
-			break // Rendered as "inactive: " prefix on the parent
-		}
 		if v, ok := tree.values[name]; ok {
 			writeBlameGutter(b, meta, name)
 			b.WriteString(prefix)
@@ -317,7 +314,7 @@ func serializeBlameContainer(b *strings.Builder, tree *Tree, meta *MetaTree, nam
 		childMeta := metaContainerChild(meta, name)
 		writeOpenBraceGutter(b, childMeta)
 		b.WriteString(prefix)
-		if isInactiveTree(child) {
+		if child.IsInactive() {
 			b.WriteString("inactive: ")
 		}
 		b.WriteString(name)
@@ -355,7 +352,7 @@ func serializeBlameList(b *strings.Builder, tree *Tree, meta *MetaTree, name str
 		entryMeta := metaListEntry(meta, name, key)
 		writeOpenBraceGutter(b, entryMeta)
 		b.WriteString(prefix)
-		if isInactiveTree(entry) {
+		if entry.IsInactive() {
 			b.WriteString("inactive: ")
 		}
 		b.WriteString(name)

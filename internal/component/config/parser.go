@@ -118,12 +118,12 @@ func applyInactive(tree *Tree, name string, node Node, p *Parser, line int) {
 			return
 		}
 		if sub := tree.GetContainer(name); sub != nil {
-			sub.Set(InactiveLeafName, configTrue)
+			sub.SetInactive(true)
 			return
 		}
 	}
 	if sub := tree.GetContainer(name); sub != nil {
-		sub.Set(InactiveLeafName, configTrue)
+		sub.SetInactive(true)
 		return
 	}
 	if entries := tree.GetList(name); entries != nil {
@@ -131,7 +131,7 @@ func applyInactive(tree *Tree, name string, node Node, p *Parser, line int) {
 		if len(order) > 0 {
 			lastKey := order[len(order)-1]
 			if entry, ok := entries[lastKey]; ok {
-				entry.Set(InactiveLeafName, configTrue)
+				entry.SetInactive(true)
 				return
 			}
 		}

@@ -39,7 +39,7 @@ func TestPruneInactiveContainer(t *testing.T) {
             }
         }
     }
-    peer inactive-peer {
+    inactive: peer inactive-peer {
         connection {
             remote {
                 ip 10.0.0.2
@@ -50,7 +50,6 @@ func TestPruneInactiveContainer(t *testing.T) {
                 remote 65002
             }
         }
-        inactive enable
     }
 }`
 	parser := NewParser(schema)
@@ -181,8 +180,7 @@ func TestPruneInactiveNested(t *testing.T) {
         }
     }
     router-id 1.2.3.4
-    group mygroup {
-        inactive enable
+    inactive: group mygroup {
         session {
             asn {
                 remote 65001
@@ -255,8 +253,7 @@ func TestPruneInactiveListEntry(t *testing.T) {
                 ipv4/unicast add 10.0.0.0/24
             }
         }
-        update {
-            inactive enable
+        inactive: update {
             attribute {
                 origin igp
                 next-hop 10.0.0.1

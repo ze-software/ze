@@ -124,14 +124,6 @@ func serializeSetNode(b *strings.Builder, tree *Tree, parent childProvider, pref
 //
 //nolint:cyclop // exhaustive switch over all node types is intentional
 func serializeSetChild(b *strings.Builder, tree *Tree, name string, node Node, prefix string) {
-	// Suppress the schema-injected `inactive` leaf in the leaf walk:
-	// container/list-entry inactivity is rendered as an `inactive <path>`
-	// trailing line by the parent, not as `set ... inactive true`.
-	if name == InactiveLeafName {
-		if _, isLeaf := node.(*LeafNode); isLeaf {
-			return
-		}
-	}
 
 	switch n := node.(type) {
 	case *LeafNode:
@@ -238,18 +230,12 @@ func serializeSetContainer(b *strings.Builder, tree *Tree, name string, node *Co
 }
 
 // emitSetInactiveStructural emits `inactive <path>` for a container
-// or list entry whose schema-injected `inactive` leaf is set to true.
-// Replaces the legacy `set <path> inactive true` round-trip form so
-// the set output declares the inactive state with one keyword instead
-// of round-tripping the engine-internal injected leaf.
+// or list entry that is deactivated.
 func emitSetInactiveStructural(b *strings.Builder, sub *Tree, path string) {
 	if sub == nil {
 		return
 	}
-	sub.mu.RLock()
-	v, ok := sub.values[InactiveLeafName]
-	sub.mu.RUnlock()
-	if !ok || v != configTrue {
+	if !sub.IsInactive() {
 		return
 	}
 	b.WriteString("inactive ")
@@ -413,12 +399,6 @@ func serializeSetExtraValues(b *strings.Builder, tree *Tree, children []string, 
 	var extraKeys []string
 	for k := range tree.values {
 		if !schemaNames[k] {
-			// Skip the engine's `inactive` marker -- it is rendered as
-			// a `deactivate <path>` line on the parent, not as an
-			// extra-values `set ... inactive true` line.
-			if k == InactiveLeafName {
-				continue
-			}
 			extraKeys = append(extraKeys, k)
 		}
 	}

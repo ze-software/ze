@@ -325,6 +325,10 @@ func TreeEqual(a, b *Tree) bool {
 		return false
 	}
 
+	if a.inactive != b.inactive {
+		return false
+	}
+
 	// Compare values
 	if len(a.values) != len(b.values) {
 		return false

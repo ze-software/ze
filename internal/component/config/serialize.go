@@ -1,7 +1,7 @@
 // Design: docs/architecture/config/syntax.md — config parsing and loading
 // Related: tree.go — Tree data structure
 // Related: serialize_annotated.go — column-aware annotated serialization
-// Related: prune.go — inactive node pruning (uses isInactiveTree)
+// Related: prune.go — inactive node pruning
 
 package config
 
@@ -37,11 +37,7 @@ func canInlineContainer(tree *Tree) bool {
 	if len(tree.inactiveValues) > 0 {
 		return false
 	}
-	valueCount := len(tree.values)
-	if _, ok := tree.values[InactiveLeafName]; ok {
-		valueCount--
-	}
-	return (valueCount+len(tree.multiValues)) == 1 &&
+	return (len(tree.values)+len(tree.multiValues)) == 1 &&
 		len(tree.containers) == 0 && len(tree.lists) == 0
 }
 
@@ -53,18 +49,13 @@ func serializeContainerInline(b *strings.Builder, child *Tree, name string, node
 
 	prefix := strings.Repeat("\t", indent)
 	b.WriteString(prefix)
-	// Inline inactive-check: child.mu is already RLocked, cannot call
-	// isInactiveTree (which would re-enter Get).
-	if v, ok := child.values[InactiveLeafName]; ok && v == configTrue {
+	if child.inactive {
 		b.WriteString("inactive: ")
 	}
 	b.WriteString(name)
 
 	// Find the single child in schema order and write it inline.
 	for _, childName := range node.Children() {
-		if childName == InactiveLeafName {
-			continue
-		}
 		childNode := node.Get(childName)
 		if writeInlineLeaf(b, child, childName, childNode) {
 			b.WriteString("\n")
@@ -74,9 +65,6 @@ func serializeContainerInline(b *strings.Builder, child *Tree, name string, node
 
 	// Fallback: extra values not in schema.
 	for k, v := range child.values {
-		if k == InactiveLeafName {
-			continue
-		}
 		b.WriteString(" ")
 		b.WriteString(k)
 		b.WriteString(" ")
@@ -167,12 +155,6 @@ func normalizeBool(v string) string {
 	default:
 		return v
 	}
-}
-
-// isInactiveTree checks if a tree node has the inactive leaf set to true.
-func isInactiveTree(tree *Tree) bool {
-	v, ok := tree.Get(InactiveLeafName)
-	return ok && v == configTrue
 }
 
 // Serialize converts a Tree back to config text format.
@@ -269,9 +251,6 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 		if n.Hidden || n.Ephemeral {
 			break
 		}
-		if name == InactiveLeafName {
-			break // Rendered as "inactive: " prefix on the parent, not as a leaf
-		}
 		if v, ok := tree.values[name]; ok {
 			b.WriteString(prefix)
 			if tree.inactiveValues[name] {
@@ -343,7 +322,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 				serializeContainerInline(b, child, name, n, indent)
 			} else {
 				b.WriteString(prefix)
-				if isInactiveTree(child) {
+				if child.IsInactive() {
 					b.WriteString("inactive: ")
 				}
 				b.WriteString(name)
@@ -373,7 +352,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 				for _, key := range keys {
 					entry := entries[key]
 					b.WriteString(prefix)
-					if isInactiveTree(entry) {
+					if entry.IsInactive() {
 						b.WriteString("inactive: ")
 					}
 					b.WriteString(name)
@@ -634,7 +613,7 @@ func serializePresenceContainer(b *strings.Builder, tree *Tree, name string, nod
 	// Block form (container children)
 	if child := tree.containers[name]; child != nil {
 		b.WriteString(prefix)
-		if isInactiveTree(child) {
+		if child.IsInactive() {
 			b.WriteString("inactive: ")
 		}
 		b.WriteString(name)

@@ -30,8 +30,8 @@ inactive router-id
 	assert.True(t, tree.IsLeafInactive("router-id"))
 }
 
-// TestSetParseInactiveContainer verifies a container path emits the
-// schema-injected inactive leaf, mirroring the block-format behavior
+// TestSetParseInactiveContainer verifies a container path sets the
+// Tree-level inactive flag, mirroring the block-format behavior
 // for container deactivation.
 func TestSetParseInactiveContainer(t *testing.T) {
 	input := `set neighbor 1.1.1.1 peer-as 65001
@@ -41,9 +41,7 @@ inactive neighbor 1.1.1.1
 	require.NoError(t, err)
 	entry := tree.GetList("neighbor")["1.1.1.1"]
 	require.NotNil(t, entry)
-	v, ok := entry.Get(InactiveLeafName)
-	assert.True(t, ok)
-	assert.Equal(t, configTrue, v)
+	assert.True(t, entry.IsInactive())
 }
 
 // TestSetSerializeInactiveLeaf verifies the set-format serializer emits
@@ -62,20 +60,20 @@ func TestSetSerializeInactiveLeaf(t *testing.T) {
 }
 
 // TestSetSerializeInactiveContainer verifies a container with the
-// schema-injected inactive leaf set is rendered as a trailing
-// `inactive <path>` rather than the legacy `set ... inactive true`.
+// Tree-level inactive flag is rendered as a trailing
+// `inactive <path>` rather than `set ... inactive true`.
 func TestSetSerializeInactiveContainer(t *testing.T) {
 	tree := NewTree()
 	entry := NewTree()
 	entry.Set("peer-as", "65001")
-	entry.Set(InactiveLeafName, configTrue)
+	entry.SetInactive(true)
 	tree.AddListEntry("neighbor", "1.1.1.1", entry)
 
 	out := SerializeSet(tree, testSchema())
 	assert.Contains(t, out, "set neighbor 1.1.1.1 peer-as 65001")
 	assert.Contains(t, out, "inactive neighbor 1.1.1.1")
 	assert.NotContains(t, out, "set neighbor 1.1.1.1 inactive true",
-		"set ... inactive true must be replaced by the inactive keyword")
+		"set ... inactive true must not appear")
 }
 
 // TestSetRoundTripInactiveLeaf verifies parse->serialize->parse stays

@@ -84,7 +84,7 @@ func TestPruneInactiveLeafInsideInactiveContainer(t *testing.T) {
 			}
 		}
 		router-id 1.2.3.4
-		peer host-with-inactive-leaf {
+		inactive: peer host-with-inactive-leaf {
 			connection {
 				remote {
 					ip 10.0.0.2
@@ -95,7 +95,6 @@ func TestPruneInactiveLeafInsideInactiveContainer(t *testing.T) {
 					remote 65002
 				}
 			}
-			inactive enable
 		}
 	}`
 	tree, err := NewParser(schema).Parse(input)

@@ -225,13 +225,13 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 
 func (p *Parser) addParsedListEntry(tree *Tree, name string, node *ListNode, key string, entry *Tree, line int) error {
 	if entries := tree.GetList(name); entries != nil {
-		incomingInactive := isInactiveTree(entry)
+		incomingInactive := entry.IsInactive()
 		allowDuplicate := allowsDuplicateParsedListEntries(node, key)
 		for existingKey, existing := range entries {
 			if StripListKeySuffix(existingKey) != key {
 				continue
 			}
-			if allowDuplicate || incomingInactive || isInactiveTree(existing) {
+			if allowDuplicate || incomingInactive || existing.IsInactive() {
 				continue
 			}
 			return p.errorf(Token{Line: line}, "duplicate list key for %s: %s", name, key)

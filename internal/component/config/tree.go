@@ -24,6 +24,7 @@ import (
 // lock.
 type Tree struct {
 	mu             sync.RWMutex
+	inactive       bool // Container/list-entry level deactivation (set by parent via SetInactive)
 	values         map[string]string
 	valuesOrder    []string            // Preserves insertion order for value keys
 	multiValues    map[string][]string // For multiple inline values (e.g., multiple mup entries)
@@ -43,6 +44,20 @@ func NewTree() *Tree {
 		lists:          make(map[string]map[string]*Tree),
 		listOrder:      make(map[string][]string),
 	}
+}
+
+// SetInactive marks this tree node (container or list entry) as deactivated.
+func (t *Tree) SetInactive(v bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.inactive = v
+}
+
+// IsInactive reports whether this tree node is deactivated.
+func (t *Tree) IsInactive() bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.inactive
 }
 
 // SetLeafInactive records (or clears) leaf-level deactivation for name.
@@ -166,6 +181,7 @@ func (t *Tree) Clone() *Tree {
 	defer t.mu.RUnlock()
 
 	clone := NewTree()
+	clone.inactive = t.inactive
 
 	// Clone values
 	maps.Copy(clone.values, t.values)

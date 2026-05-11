@@ -1,6 +1,6 @@
 // Design: docs/architecture/config/syntax.md — config parsing and loading
 // Related: schema.go — schema types and validation
-// Related: prune.go — inactive node pruning (uses InactiveLeafName)
+// Related: prune.go — inactive node pruning
 //
 // Package config provides YANG-to-schema conversion.
 package config
@@ -623,19 +623,14 @@ func numericRangesFromType(typ *gyang.YangType, _ string) []NumericRange {
 	return ranges
 }
 
-// InactiveLeafName is the name of the auto-injected inactive boolean leaf.
-// Present on every container and list node in the schema.
+// InactiveLeafName is the token prefix used by the parser to recognize
+// "inactive:" annotations in config files.
 const InactiveLeafName = "inactive"
 
-// inactiveLeaf creates the auto-injected inactive boolean leaf.
-func inactiveLeaf() *LeafNode {
-	return &LeafNode{Type: TypeBool, Default: "false", Description: "Deactivate this configuration block"}
-}
-
-// hasStructuralChildren reports whether a ListNode has at least one
+// HasStructuralChildren reports whether a ListNode has at least one
 // non-leaf child (container or list). Positional lists with only leaf
 // children are compact data entries that don't benefit from inactive.
-func hasStructuralChildren(l *ListNode) bool {
+func (l *ListNode) HasStructuralChildren() bool {
 	for _, name := range l.Children() {
 		switch l.Get(name).(type) {
 		case *ContainerNode, *ListNode:
@@ -657,12 +652,6 @@ func yangToContainer(entry *gyang.Entry, path string) *ContainerNode {
 		}
 	}
 	container := Container(fields...)
-
-	// Auto-inject inactive leaf if not already present (from YANG).
-	if !container.Has(InactiveLeafName) {
-		container.children[InactiveLeafName] = inactiveLeaf()
-		container.order = append(container.order, InactiveLeafName)
-	}
 
 	// Check for ze:allow-unknown-fields extension
 	container.AllowUnknown = hasAllowUnknownExtension(entry)
@@ -733,13 +722,6 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 		}
 	}
 
-	// Auto-inject inactive leaf into structural lists (those with container/list children).
-	// Skip positional lists where all children are leaves (nlri, nexthop, add-path).
-	// These are compact data entries; deactivate the parent instead.
-	if !l.Has(InactiveLeafName) && hasStructuralChildren(l) {
-		l.children[InactiveLeafName] = inactiveLeaf()
-		l.order = append(l.order, InactiveLeafName)
-	}
 	l.KeyName = entry.Key
 	l.Hidden = hasHiddenExtension(entry)
 	l.Ephemeral = hasEphemeralExtension(entry)

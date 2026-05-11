@@ -376,8 +376,7 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 		return fmt.Errorf("line %d: inactive on leaf-list expects either no value or one value, got %d", lineNum, len(tokens))
 	}
 
-	// Container: mark via the schema-injected `inactive` leaf, mirror
-	// of the block-format `inactive: container { }` prefix.
+	// Container: mark via the Tree-level inactive bool.
 	if container, ok := node.(*ContainerNode); ok {
 		child := tree.GetContainer(name)
 		if child == nil {
@@ -385,7 +384,7 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 			tree.SetContainer(name, child)
 		}
 		if len(tokens) == 0 {
-			child.Set(InactiveLeafName, configTrue)
+			child.SetInactive(true)
 			return nil
 		}
 		return p.walkAndMarkInactive(child, container, tokens, lineNum)
@@ -405,7 +404,7 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 			tree.AddListEntry(name, key, entry)
 		}
 		if len(tokens) == 1 {
-			entry.Set(InactiveLeafName, configTrue)
+			entry.SetInactive(true)
 			return nil
 		}
 		return p.walkAndMarkInactive(entry, list, tokens[1:], lineNum)
@@ -418,7 +417,7 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 			tree.SetContainer(name, child)
 		}
 		if len(tokens) == 0 {
-			child.Set(InactiveLeafName, configTrue)
+			child.SetInactive(true)
 			return nil
 		}
 		return p.walkAndMarkInactive(child, flex, tokens, lineNum)

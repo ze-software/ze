@@ -205,9 +205,9 @@ func dispatchDeactivate(ed *cli.Editor, path []string, activate bool) error {
 		// Container or list entry: route through DeactivatePath, which
 		// rejects non-existent paths and surfaces idempotent "already in
 		// state" via sentinel errors. Positional lists with all-leaf
-		// children (e.g. nlri, nexthop, add-path) skip inactive
-		// injection -- reject those explicitly per AC-12.
-		if listNode, ok := schemaNode.(*config.ListNode); ok && !listNode.Has(config.InactiveLeafName) {
+		// children (e.g. nlri, nexthop, add-path) don't support
+		// deactivation -- reject those explicitly per AC-12.
+		if listNode, ok := schemaNode.(*config.ListNode); ok && !listNode.HasStructuralChildren() {
 			return fmt.Errorf("path %q is a positional list entry; deactivate the parent container instead", strings.Join(path, " "))
 		}
 		if activate {

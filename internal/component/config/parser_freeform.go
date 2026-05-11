@@ -438,12 +438,12 @@ func (p *Parser) addParsedInlineListEntry(
 	line int,
 ) error {
 	if entries := tree.GetList(name); entries != nil {
-		incomingInactive := isInactiveTree(entry)
+		incomingInactive := entry.IsInactive()
 		for existingKey, existing := range entries {
 			if StripListKeySuffix(existingKey) != key {
 				continue
 			}
-			if incomingInactive || isInactiveTree(existing) || allowsDuplicateInlineListEntry(node, existing, entry) {
+			if incomingInactive || existing.IsInactive() || allowsDuplicateInlineListEntry(node, existing, entry) {
 				continue
 			}
 			return p.errorf(Token{Line: line}, "duplicate list key for %s: %s", name, key)

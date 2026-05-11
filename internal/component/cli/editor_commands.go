@@ -444,7 +444,7 @@ func (e *Editor) ActivateLeaf(parentPath []string, leafName string) error {
 	return nil
 }
 
-// DeactivatePath sets the schema-injected `inactive` leaf to true on
+// DeactivatePath sets the inactive flag on
 // the container or list entry at path. Strict on path resolution: it
 // rejects non-existent paths rather than silently materializing them
 // (which is what plain SetValue + walkOrCreate would do).
@@ -460,16 +460,16 @@ func (e *Editor) DeactivatePath(path []string) error {
 	if target == nil {
 		return fmt.Errorf("%w: %s", ErrPathNotFound, strings.Join(path, " "))
 	}
-	if v, ok := target.Get(config.InactiveLeafName); ok && v == boolTrue {
+	if target.IsInactive() {
 		return fmt.Errorf("%w: %s", ErrPathAlreadyInactive, strings.Join(path, " "))
 	}
-	target.Set(config.InactiveLeafName, boolTrue)
+	target.SetInactive(true)
 	e.dirty.Store(true)
 	return nil
 }
 
-// ActivatePath clears the schema-injected `inactive` leaf on the
-// container or list entry at path. Strict on path resolution.
+// ActivatePath clears the inactive flag on the container or list entry
+// at path. Strict on path resolution.
 //
 // Returns ErrPathNotFound or ErrPathNotInactive (wrapped) for the
 // idempotent / mistyped-path cases.
@@ -481,10 +481,10 @@ func (e *Editor) ActivatePath(path []string) error {
 	if target == nil {
 		return fmt.Errorf("%w: %s", ErrPathNotFound, strings.Join(path, " "))
 	}
-	if v, ok := target.Get(config.InactiveLeafName); !ok || v != boolTrue {
+	if !target.IsInactive() {
 		return fmt.Errorf("%w: %s", ErrPathNotInactive, strings.Join(path, " "))
 	}
-	target.Delete(config.InactiveLeafName)
+	target.SetInactive(false)
 	e.dirty.Store(true)
 	return nil
 }

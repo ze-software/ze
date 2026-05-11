@@ -1,12 +1,10 @@
 // Design: docs/architecture/config/syntax.md — inactive node pruning
 // Related: tree.go — Tree data structure
-// Related: yang_schema.go — inactive leaf injection
-// Related: serialize.go — isInactiveTree shared helper
 
 package config
 
 // PruneInactive removes inactive containers and list entries from the tree.
-// A node is inactive if its "inactive" leaf value is "true".
+// A node is inactive if its Tree.inactive flag is set.
 // Pruning is recursive: an inactive parent removes its entire subtree.
 // The tree is modified in place. Call on a clone if the original must be preserved.
 //
@@ -45,7 +43,7 @@ func pruneActiveNode(tree *Tree, node Node) {
 			if sub == nil {
 				continue
 			}
-			if !isInactiveTree(sub) {
+			if !sub.IsInactive() {
 				tree.RemoveContainer(name)
 				continue
 			}
@@ -58,7 +56,7 @@ func pruneActiveNode(tree *Tree, node Node) {
 			}
 			var toRemove []string
 			for key, entry := range entries {
-				if !isInactiveTree(entry) {
+				if !entry.IsInactive() {
 					toRemove = append(toRemove, key)
 				}
 			}
@@ -90,7 +88,7 @@ func pruneNode(tree *Tree, node Node) {
 			if sub == nil {
 				continue
 			}
-			if isInactiveTree(sub) {
+			if sub.IsInactive() {
 				tree.RemoveContainer(name)
 				continue
 			}
@@ -104,7 +102,7 @@ func pruneNode(tree *Tree, node Node) {
 			// Collect keys to remove (avoid mutation during iteration).
 			var toRemove []string
 			for key, entry := range entries {
-				if isInactiveTree(entry) {
+				if entry.IsInactive() {
 					toRemove = append(toRemove, key)
 				}
 			}
