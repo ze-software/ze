@@ -38,6 +38,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/inprocess"
 	chaosmcp "codeberg.org/thomas-mangin/ze/internal/chaos/mcp"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/report"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/watchdog"
@@ -507,6 +509,7 @@ Control:
 		}
 
 		// Start chaos MCP server in in-process mode.
+		var ipConsumer report.Consumer
 		if *mcpAddr != "" && wd == nil {
 			fmt.Fprintf(os.Stderr, "error: --mcp requires --web (MCP reads dashboard state)\n")
 			return 1
@@ -540,6 +543,9 @@ Control:
 					fmt.Fprintf(os.Stderr, "error: shutting down MCP server: %v\n", err)
 				}
 			}()
+
+			// Fan out events to both the web dashboard and watchdog.
+			ipConsumer = &reporterConsumer{r: report.NewReporter(wd, ipWatchdog)}
 		}
 
 		ipCtx, ipCancel := context.WithTimeout(context.Background(), *duration+30*time.Second)
@@ -553,7 +559,11 @@ Control:
 			LocalAddr: *localAddr,
 		}
 		if wd != nil {
-			ipCfg.Consumer = wd
+			if ipConsumer != nil {
+				ipCfg.Consumer = ipConsumer
+			} else {
+				ipCfg.Consumer = wd
+			}
 			ipCfg.StepDelay = 1 * time.Second  // Real-time pacing for web dashboard.
 			ipCfg.StepDelayFunc = wd.StepDelay // Dynamic speed control from dashboard.
 		}
@@ -721,6 +731,11 @@ func writeConfig(config string, params scenario.ConfigParams, path string, quiet
 	}
 	return nil
 }
+
+type reporterConsumer struct{ r *report.Reporter }
+
+func (rc *reporterConsumer) ProcessEvent(ev peer.Event) { rc.r.Process(ev) }
+func (rc *reporterConsumer) Close() error               { return rc.r.Close() }
 
 func printAIHelp() {
 	tools := (&chaosmcp.Provider{}).Tools()
