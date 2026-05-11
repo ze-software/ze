@@ -18,12 +18,15 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/guard"
+	chaosmcp "codeberg.org/thomas-mangin/ze/internal/chaos/mcp"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/report"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/route"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/watchdog"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/web"
+	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 )
 
 // runOrchestrator launches N peer simulators and validates route propagation.
@@ -534,6 +537,44 @@ func setupReporting(cfg orchestratorConfig, peerCount int) (*reportingResult, er
 				}
 			})
 		}
+	}
+
+	// Watchdog consumer: always enabled for PROBLEM line detection.
+	wdCfg := watchdog.DefaultConfig()
+	wdCfg.Warmup = cfg.chaosCfg.Warmup
+	wd := watchdog.New(os.Stderr, wdCfg)
+	consumers = append(consumers, wd)
+
+	// Chaos MCP server: enabled when --mcp is set.
+	if cfg.mcpAddr != "" && webDashRef == nil {
+		return nil, fmt.Errorf("--mcp requires --web (MCP reads dashboard state)")
+	}
+	if cfg.mcpAddr != "" && webDashRef != nil {
+		provider := &chaosmcp.Provider{
+			State:       webDashRef.State(),
+			Watchdog:    wd,
+			Convergence: validation.NewConvergence(peerCount, cfg.convergenceDeadline),
+			Seed:        cfg.seed,
+			StartTime:   cfg.start,
+			PeerCount:   peerCount,
+		}
+		mcpHandler := zemcp.Handler(provider, "")
+		mcpMux := http.NewServeMux()
+		mcpMux.Handle("/", mcpHandler)
+		mcpSrv := &http.Server{Addr: cfg.mcpAddr, Handler: mcpMux, ReadHeaderTimeout: 10 * time.Second}
+		go func() {
+			if err := mcpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				fmt.Fprintf(os.Stderr, "error: chaos MCP server: %v\n", err)
+			}
+		}()
+		fmt.Fprintf(os.Stderr, "ze-chaos | MCP server: http://%s\n", cfg.mcpAddr)
+		cleanups = append(cleanups, func() {
+			shutCtx, shutCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer shutCancel()
+			if err := mcpSrv.Shutdown(shutCtx); err != nil {
+				fmt.Fprintf(os.Stderr, "error: shutting down MCP server: %v\n", err)
+			}
+		})
 	}
 
 	r := report.NewReporter(consumers...)

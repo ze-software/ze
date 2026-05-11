@@ -610,6 +610,26 @@ These are informational — `--replay` skips them (they're not peer events). The
 | **Phase 4: Route Flow Matrix** | Peer-to-peer heatmap with top-N filtering, family filter, count/latency toggle | Phase 1 |
 
 Each phase is independently testable and deployable. Phase 1 delivers a complete view-only dashboard. Phases 2-4 can be implemented in any order after Phase 1.
+
+## AI Integration
+
+### Chaos MCP Server
+
+The `--mcp :PORT` flag starts an MCP JSON-RPC server that exposes chaos state to AI assistants. Six tools: `chaos_status`, `chaos_problems`, `chaos_peers`, `chaos_scenario`, `chaos_control`, `chaos_execute`.
+
+The MCP server reads from `DashboardState` (via `RWMutex`) and the `Watchdog` consumer. It shares the same JSON-RPC protocol layer as the ze daemon's MCP server (`internal/component/mcp`), parameterized by the `ToolProvider` interface.
+
+Implementation: `internal/chaos/mcp/tools.go`.
+
+### Watchdog Consumer
+
+The Watchdog is a `report.Consumer` that detects anomalies in the event stream and prints structured `PROBLEM:` lines to stderr. It tracks four stateful anomalies (peer-stuck-down, route-plateau, route-regression, convergence-stall) and four instant anomalies (error, dropped-events, extra-routes, property-violation). Output is rate-limited per (anomaly-type, peer-index).
+
+Implementation: `internal/chaos/watchdog/watchdog.go`.
+
+### Per-Family Convergence
+
+The convergence tracker (`internal/chaos/validation/convergence.go`) supports per-family latency breakdown alongside the aggregate stats. When `RecordAnnounce` receives a family parameter, resolved latencies are stored per-family. `StatsByFamily()` returns independent min/max/avg/p99 per family.
 <!-- source: internal/chaos/web/dashboard.go -- Dashboard implementation -->
 <!-- source: internal/chaos/web/state.go -- state management -->
 <!-- source: internal/chaos/web/handlers_test.go -- handler tests -->

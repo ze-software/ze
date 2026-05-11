@@ -324,9 +324,23 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 	for _, chk := range checks {
 		url := strings.ReplaceAll(chk.URL, "$PORT2", fmt.Sprintf("%d", rec.Port+1))
 		url = strings.ReplaceAll(url, "$PORT", fmt.Sprintf("%d", rec.Port))
-		// Resolve bodyfile path relative to .ci file directory.
+		// Resolve bodyfile and sendfile paths relative to .ci file directory.
 		if chk.BodyFile != "" && !filepath.IsAbs(chk.BodyFile) {
 			chk.BodyFile = filepath.Join(ciDir, chk.BodyFile)
+		}
+		if chk.SendFile != "" && !filepath.IsAbs(chk.SendFile) {
+			// Resolve against tmpfs temp dir first (tmpfs= files land there),
+			// then fall back to the .ci file directory.
+			if rec.TmpfsTempDir != "" {
+				candidate := filepath.Join(rec.TmpfsTempDir, chk.SendFile)
+				if _, statErr := os.Stat(candidate); statErr == nil {
+					chk.SendFile = candidate
+				} else {
+					chk.SendFile = filepath.Join(ciDir, chk.SendFile)
+				}
+			} else {
+				chk.SendFile = filepath.Join(ciDir, chk.SendFile)
+			}
 		}
 		if err := r.executeOneHTTPCheck(ctx, client, chk, url); err != nil {
 			return err
@@ -348,9 +362,20 @@ func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, c
 			return fmt.Errorf("http %s %s: context canceled", chk.Method, url)
 		}
 
-		req, err := http.NewRequestWithContext(ctx, strings.ToUpper(chk.Method), url, http.NoBody)
+		var reqBody io.Reader = http.NoBody
+		if chk.SendFile != "" {
+			sendData, readErr := os.ReadFile(chk.SendFile) //nolint:gosec // test runner, path from .ci file
+			if readErr != nil {
+				return fmt.Errorf("http %s %s: read sendfile %q: %w", chk.Method, url, chk.SendFile, readErr)
+			}
+			reqBody = bytes.NewReader(sendData)
+		}
+		req, err := http.NewRequestWithContext(ctx, strings.ToUpper(chk.Method), url, reqBody)
 		if err != nil {
 			return fmt.Errorf("http %s %s: invalid request: %w", chk.Method, url, err)
+		}
+		if chk.SendFile != "" {
+			req.Header.Set("Content-Type", "application/json")
 		}
 
 		resp, err := client.Do(req)

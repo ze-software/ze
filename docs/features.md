@@ -77,6 +77,9 @@ Status values: `Supported` means implemented and covered in the normal release e
 <!-- source: internal/component/mcp/streamable.go -- Streamable HTTP transport -->
 <!-- source: internal/component/mcp/elicit.go -- server-initiated elicitation -->
 <!-- source: internal/component/mcp/handler.go -- ze_execute handcrafted tool -->
+| [Chaos MCP](guide/mcp/chaos.md) | Supported | AI-queryable chaos test state via MCP: 6 tools (status, problems, peers, scenario, control, execute), Watchdog anomaly detector with structured PROBLEM lines, per-family convergence tracking |
+<!-- source: internal/chaos/mcp/tools.go -- chaos MCP tools -->
+<!-- source: internal/chaos/watchdog/watchdog.go -- Watchdog consumer -->
 | [DNS Resolver](features/dns-resolver.md) | Supported | Built-in cached DNS resolver for all components. Uses configured `system.name-server` or resolv.conf, and fails closed with `no DNS server configured` when neither is available. It does not silently fall back to public recursive resolvers. |
 | Resolution CLI | Supported | Offline `ze resolve` tool for DNS, Team Cymru ASN names, PeeringDB prefix counts, and IRR AS-SET expansion |
 | [Netdata-compatible OS Telemetry](guide/monitoring.md#os-metrics-netdata-compatible) | Supported | 138 Prometheus metrics from /proc and /sys (CPU, memory, network, disk, IPv4/IPv6 protocols, conntrack, PSI, cpuidle, cpufreq, ZFS, btrfs, mdstat, SCTP, IPVS, wireless, etc) matching Netdata's naming and labels exactly. Drop-in replacement for Netdata's Prometheus exporter, existing Grafana dashboards keep working. Per-collector enable/disable, interval override, and prefix are scoped under `telemetry.prometheus.netdata` so Ze-native metrics keep their `ze_*` names. The Prometheus HTTP service defaults to loopback and can require HTTP Basic Auth. |

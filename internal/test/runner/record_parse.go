@@ -570,6 +570,7 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 	statusMarker := ":status="
 	containsMarker := ":contains="
 	bodyfileMarker := ":bodyfile="
+	sendfileMarker := ":sendfile="
 	timeoutMarker := ":timeout="
 
 	seqIdx := strings.Index(line, seqMarker)
@@ -577,6 +578,7 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 	statusIdx := strings.Index(line, statusMarker)
 	containsIdx := strings.Index(line, containsMarker)
 	bodyfileIdx := strings.Index(line, bodyfileMarker)
+	sendfileIdx := strings.Index(line, sendfileMarker)
 	timeoutIdx := strings.Index(line, timeoutMarker)
 
 	if seqIdx < 0 {
@@ -589,7 +591,7 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 		return fmt.Errorf("http= missing status=")
 	}
 
-	allMarkers := []string{seqMarker, urlMarker, statusMarker, containsMarker, bodyfileMarker, timeoutMarker}
+	allMarkers := []string{seqMarker, urlMarker, statusMarker, containsMarker, bodyfileMarker, sendfileMarker, timeoutMarker}
 
 	// Extract seq value: from after ":seq=" to next known marker or end.
 	seqStart := seqIdx + len(seqMarker)
@@ -630,6 +632,14 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 		bodyfile = line[bodyfileStart:bodyfileEnd]
 	}
 
+	// Extract optional sendfile value (path to request body for POST).
+	var sendfile string
+	if sendfileIdx >= 0 {
+		sendfileStart := sendfileIdx + len(sendfileMarker)
+		sendfileEnd := nextMarker(line, sendfileStart, allMarkers...)
+		sendfile = line[sendfileStart:sendfileEnd]
+	}
+
 	// Extract optional timeout value (wait only).
 	var timeout string
 	if timeoutIdx >= 0 {
@@ -648,6 +658,7 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 		Status:   status,
 		Contains: contains,
 		BodyFile: bodyfile,
+		SendFile: sendfile,
 		Timeout:  timeout,
 	}
 	if isWait {

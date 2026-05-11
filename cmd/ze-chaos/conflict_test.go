@@ -13,7 +13,7 @@ import (
 
 func TestChaosListenConflict_SamePort(t *testing.T) {
 	// --web-ui 8443 and --lg 8443 both bind 127.0.0.1:8443
-	err := validateChaosListenerConflicts(0, 8443, 8443, "", "", "", "")
+	err := validateChaosListenerConflicts(0, 8443, 8443, 0, "", "", "", "", "")
 	if err == nil {
 		t.Fatal("expected conflict error, got nil")
 	}
@@ -26,7 +26,7 @@ func TestChaosListenConflict_SamePort(t *testing.T) {
 // PREVENTS: false positive conflict detection
 
 func TestChaosListenConflict_NoConflict(t *testing.T) {
-	err := validateChaosListenerConflicts(2222, 3443, 8443, ":8000", ":6060", ":9090", ":6061")
+	err := validateChaosListenerConflicts(2222, 3443, 8443, 0, ":8000", ":6060", ":9090", ":6061", "")
 	if err != nil {
 		t.Errorf("expected no conflict, got: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestChaosListenConflict_NoConflict(t *testing.T) {
 
 func TestChaosListenConflict_DisabledExcluded(t *testing.T) {
 	// SSH=0 and web-ui=0 are disabled, only lg=8443 is active -- no conflict possible
-	err := validateChaosListenerConflicts(0, 0, 8443, "", "", "", "")
+	err := validateChaosListenerConflicts(0, 0, 8443, 0, "", "", "", "", "")
 	if err != nil {
 		t.Errorf("expected no conflict with disabled ports, got: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestChaosListenConflict_DisabledExcluded(t *testing.T) {
 
 func TestChaosListenConflict_AddrVsInt(t *testing.T) {
 	// --web :8443 (addr:port, wildcard) and --lg 8443 (int, localhost) conflict
-	err := validateChaosListenerConflicts(0, 0, 8443, "", "", "", ":8443")
+	err := validateChaosListenerConflicts(0, 0, 8443, 0, "", "", "", ":8443", "")
 	if err == nil {
 		t.Fatal("expected conflict between addr:port and int port, got nil")
 	}
@@ -60,7 +60,7 @@ func TestChaosListenConflict_AddrVsInt(t *testing.T) {
 func TestRangeConflict_InsideBGPRange(t *testing.T) {
 	// --port 1850, --peers 4 -> BGP range [1850, 1858)
 	// --web-ui 1852 falls inside
-	err := validateRangeConflicts(1850, 1950, 4, 0, 1852, 0, "", "", "", "")
+	err := validateRangeConflicts(1850, 1950, 4, 0, 1852, 0, 0, "", "", "", "", "")
 	if err == nil {
 		t.Fatal("expected range conflict, got nil")
 	}
@@ -75,7 +75,7 @@ func TestRangeConflict_InsideBGPRange(t *testing.T) {
 func TestRangeConflict_InsideListenRange(t *testing.T) {
 	// --listen-base 1950, --peers 4 -> listen range [1950, 1958)
 	// --ssh 1952 falls inside
-	err := validateRangeConflicts(1850, 1950, 4, 1952, 0, 0, "", "", "", "")
+	err := validateRangeConflicts(1850, 1950, 4, 1952, 0, 0, 0, "", "", "", "", "")
 	if err == nil {
 		t.Fatal("expected range conflict, got nil")
 	}
@@ -91,7 +91,7 @@ func TestRangeConflict_NoConflict(t *testing.T) {
 	// --port 1850, --listen-base 1950, --peers 4
 	// ranges: [1850,1858) and [1950,1958)
 	// --ssh 2222, --web-ui 3443, --lg 8443 all outside
-	err := validateRangeConflicts(1850, 1950, 4, 2222, 3443, 8443, ":8000", ":6060", ":9090", ":6061")
+	err := validateRangeConflicts(1850, 1950, 4, 2222, 3443, 8443, 0, ":8000", ":6060", ":9090", ":6061", "")
 	if err != nil {
 		t.Errorf("expected no range conflict, got: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestRangeConflict_NoConflict(t *testing.T) {
 func TestRangeConflict_AddrPortInsideRange(t *testing.T) {
 	// --port 1850, --peers 4 -> [1850, 1858)
 	// --web :1855 falls inside
-	err := validateRangeConflicts(1850, 1950, 4, 0, 0, 0, ":1855", "", "", "")
+	err := validateRangeConflicts(1850, 1950, 4, 0, 0, 0, 0, ":1855", "", "", "", "")
 	if err == nil {
 		t.Fatal("expected range conflict for addr:port, got nil")
 	}
@@ -115,7 +115,7 @@ func TestRangeConflict_AddrPortInsideRange(t *testing.T) {
 func TestRangeConflict_CustomBase(t *testing.T) {
 	// --port 2000, --peers 2 -> BGP range [2000, 2004)
 	// --ssh 2002 falls inside
-	err := validateRangeConflicts(2000, 3000, 2, 2002, 0, 0, "", "", "", "")
+	err := validateRangeConflicts(2000, 3000, 2, 2002, 0, 0, 0, "", "", "", "", "")
 	if err == nil {
 		t.Fatal("expected range conflict with custom base, got nil")
 	}
@@ -126,7 +126,7 @@ func TestRangeConflict_CustomBase(t *testing.T) {
 
 func TestRangeConflict_DisabledSkipped(t *testing.T) {
 	// All single-port flags disabled -- no range conflict possible
-	err := validateRangeConflicts(1850, 1950, 4, 0, 0, 0, "", "", "", "")
+	err := validateRangeConflicts(1850, 1950, 4, 0, 0, 0, 0, "", "", "", "", "")
 	if err != nil {
 		t.Errorf("expected no conflict with disabled ports, got: %v", err)
 	}

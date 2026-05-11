@@ -25,6 +25,14 @@ import (
 // maxRequestBody limits the size of MCP HTTP request bodies (1 MB).
 const maxRequestBody = 1 << 20
 
+// ToolProvider supplies tool definitions and handles tool calls for an MCP server.
+// Both ze and ze-chaos implement this interface with their own tools.
+type ToolProvider interface {
+	ServerName() string
+	Tools() []map[string]any
+	CallTool(name string, args json.RawMessage) map[string]any
+}
+
 // CommandDispatcher executes a Ze command and returns its output.
 // Username and remoteAddr carry the authenticated caller's identity so that
 // authorization and accounting apply to MCP surfaces, not only SSH.
@@ -34,14 +42,15 @@ type CommandDispatcher func(command, username, remoteAddr string) (string, error
 // Each POST carries a JSON-RPC request; the response is a JSON-RPC response.
 // Validates Content-Type to prevent CSRF from browser origins.
 //
+// The ToolProvider determines which tools are available and how they execute.
+// Use NewZeProvider for the ze daemon, or implement ToolProvider for other
+// MCP servers (e.g., ze-chaos).
+//
 // If token is non-empty, requests must include "Authorization: Bearer <token>".
-// If commands is non-nil, tools/list dynamically generates tools from registered
-// commands. New YANG commands appear as MCP tools without code changes.
-// If commands is nil, only the handcrafted tools are exposed.
 //
 // For the 2025-06-18 Streamable HTTP profile (sessions, SSE, GET/DELETE),
 // use NewStreamable instead.
-func Handler(dispatch CommandDispatcher, commands CommandLister, token string) http.Handler {
+func Handler(provider ToolProvider, token string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -83,10 +92,7 @@ func Handler(dispatch CommandDispatcher, commands CommandLister, token string) h
 			return
 		}
 
-		// Per-request server so ctx stays scoped to this call. The
-		// 2024-11-05 profile has no session registry; session stays
-		// nil and elicit-capable handlers fall back accordingly.
-		s := &server{dispatch: dispatch, commands: commands, ctx: r.Context(), remoteAddr: r.RemoteAddr}
+		s := &server{provider: provider, ctx: r.Context(), remoteAddr: r.RemoteAddr}
 		resp := s.handle(&req)
 		if resp == nil {
 			w.WriteHeader(http.StatusNoContent)
@@ -146,8 +152,9 @@ type callParams struct {
 // reads the field directly and degrades on nil (unit tests construct
 // *server directly without either).
 type server struct {
-	dispatch CommandDispatcher
-	commands CommandLister // nil = handcrafted tools only
+	provider ToolProvider      // when set, tools/list and tools/call delegate here
+	dispatch CommandDispatcher // used by Streamable path (provider is nil)
+	commands CommandLister     // used by Streamable path (provider is nil)
 	// session carries the active POST's session so tool handlers (notably
 	// ze_execute's missing-command branch) can call session.Elicit. Nil
 	// when dispatch runs outside a session context: the legacy Handler()
@@ -168,20 +175,29 @@ type server struct {
 // methods maps MCP method names to their handlers.
 var methods = map[string]func(s *server, req *request) *response{
 	"initialize": func(s *server, req *request) *response {
-		// MCP protocol uses camelCase (external spec). Build as maps.
+		name := "ze-mcp"
+		if s.provider != nil {
+			name = s.provider.ServerName()
+		}
 		return s.ok(req.ID, map[string]any{
 			"protocolVersion": "2024-11-05",
 			"capabilities":    map[string]any{"tools": map[string]any{}},
-			"serverInfo":      map[string]any{"name": "ze-mcp", "version": "1.0.0"},
+			"serverInfo":      map[string]any{"name": name, "version": "1.0.0"},
 		})
 	},
 	"notifications/initialized": func(_ *server, _ *request) *response {
 		return nil // notification -- no response
 	},
 	"tools/list": func(s *server, req *request) *response {
+		if s.provider != nil {
+			return s.ok(req.ID, map[string]any{"tools": s.provider.Tools()})
+		}
 		return s.ok(req.ID, map[string]any{"tools": s.allTools()})
 	},
 	"tools/call": func(s *server, req *request) *response {
+		if s.provider != nil {
+			return s.callToolViaProvider(req)
+		}
 		return s.callTool(req)
 	},
 }
@@ -202,17 +218,17 @@ var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]a
 			Command string `json:"command"`
 		}
 		if err := json.Unmarshal(args, &input); err != nil {
-			return errResult("invalid arguments: " + err.Error())
+			return ErrResult("invalid arguments: " + err.Error())
 		}
 		if s.dispatch == nil {
-			return errResult("dispatcher not available")
+			return ErrResult("dispatcher not available")
 		}
 		// Missing command: if the client declared the elicitation capability,
 		// prompt for one. Otherwise fail fast so the caller re-invokes with a
 		// command instead of blocking on an Elicit that will never be answered.
 		if input.Command == "" {
 			if s.session == nil || !s.session.ClientSupportsElicit() {
-				return errResult("missing required argument: command")
+				return ErrResult("missing required argument: command")
 			}
 			// Prefer the POST's context so a client disconnect unblocks the
 			// suspended handler; fall back to Background when the server was
@@ -234,19 +250,19 @@ var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]a
 					"required": []any{"command"},
 				})
 			if err != nil {
-				return errResult("elicit: " + err.Error())
+				return ErrResult("elicit: " + err.Error())
 			}
 			cmd, _ := content["command"].(string)
 			if cmd == "" {
-				return errResult("elicit returned empty command")
+				return ErrResult("elicit returned empty command")
 			}
 			input.Command = cmd
 		}
 		result, err := s.dispatch(input.Command, s.username, s.remoteAddr)
 		if err != nil {
-			return errResult(err.Error())
+			return ErrResult(err.Error())
 		}
-		return textResult(result)
+		return TextResult(result)
 	},
 }
 
@@ -275,6 +291,18 @@ func (s *server) allTools() []map[string]any {
 	copy(result, handcraftedTools)
 	result = append(result, generated...)
 	return result
+}
+
+func (s *server) callToolViaProvider(req *request) *response {
+	var params callParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return s.fail(req.ID, -32602, "invalid params: "+err.Error())
+	}
+	result := s.provider.CallTool(params.Name, params.Arguments)
+	if result == nil {
+		return s.fail(req.ID, -32602, fmt.Sprintf("unknown tool: %s", params.Name))
+	}
+	return s.ok(req.ID, result)
 }
 
 func (s *server) callTool(req *request) *response {
@@ -333,9 +361,9 @@ func noSpaces(field, value string) error {
 func (s *server) run(command string) map[string]any {
 	output, err := s.dispatch(command, s.username, s.remoteAddr)
 	if err != nil {
-		return errResult(err.Error())
+		return ErrResult(err.Error())
 	}
-	return textResult(output)
+	return TextResult(output)
 }
 
 func (s *server) ok(id *json.RawMessage, result any) *response {
@@ -346,13 +374,47 @@ func (s *server) fail(id *json.RawMessage, code int, msg string) *response {
 	return &response{JSONRPC: "2.0", ID: id, Error: &rpcError{Code: code, Message: msg}}
 }
 
-func textResult(s string) map[string]any {
+// ZeProvider implements ToolProvider for the ze daemon's MCP server.
+type ZeProvider struct {
+	dispatch CommandDispatcher
+	commands CommandLister
+}
+
+// NewZeProvider creates a ToolProvider wrapping ze's command dispatcher
+// and command registry for MCP tool generation.
+func NewZeProvider(dispatch CommandDispatcher, commands CommandLister) *ZeProvider {
+	return &ZeProvider{dispatch: dispatch, commands: commands}
+}
+
+func (p *ZeProvider) ServerName() string { return "ze-mcp" }
+
+func (p *ZeProvider) Tools() []map[string]any {
+	s := &server{commands: p.commands}
+	return s.allTools()
+}
+
+func (p *ZeProvider) CallTool(name string, args json.RawMessage) map[string]any {
+	s := &server{dispatch: p.dispatch, commands: p.commands}
+	if handler, ok := toolHandlers[name]; ok {
+		return handler(s, args)
+	}
+	if p.commands != nil {
+		if prefix, validActions, ok := s.findGeneratedTool(name); ok {
+			return s.dispatchGenerated(prefix, validActions, args)
+		}
+	}
+	return nil
+}
+
+// TextResult returns an MCP text content result.
+func TextResult(s string) map[string]any {
 	return map[string]any{
 		"content": []map[string]any{{"type": "text", "text": s}},
 	}
 }
 
-func errResult(msg string) map[string]any {
+// ErrResult returns an MCP error content result.
+func ErrResult(msg string) map[string]any {
 	return map[string]any{
 		"content": []map[string]any{{"type": "text", "text": "Error: " + msg}},
 		"isError": true,

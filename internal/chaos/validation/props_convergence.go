@@ -35,7 +35,7 @@ func (p *ConvergenceDeadline) ProcessEvent(ev peer.Event) {
 	p.lastTime = ev.Time
 	switch ev.Type { //nolint:exhaustive // only route-sent and route-received are relevant
 	case peer.EventRouteSent:
-		p.convergence.RecordAnnounce(ev.PeerIndex, ev.Prefix, ev.Time)
+		p.convergence.RecordAnnounce(ev.PeerIndex, ev.Prefix, ev.Time, ev.Family)
 	case peer.EventRouteReceived:
 		p.convergence.RecordReceive(ev.PeerIndex, ev.Prefix, ev.Time)
 	}

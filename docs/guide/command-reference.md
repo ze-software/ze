@@ -1276,3 +1276,22 @@ The daemon handles these Unix signals directly:
 | `SIGTERM` / `SIGINT` | Graceful shutdown |
 | `SIGUSR1` | Dump status to stderr |
 <!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler, SIGTERM/SIGINT/SIGHUP/SIGUSR1 -->
+
+## ze-chaos
+
+Chaos monkey for testing Ze BGP route server propagation.
+
+### AI Integration Flags
+
+| Flag | Description |
+|------|-------------|
+| `--mcp <addr:port>` | Start chaos MCP server for AI queries (e.g. `:8001`) |
+| `--ze-mcp <port>` | Inject Ze MCP server port into generated config |
+| `--ai-help` | Print chaos MCP tool definitions as JSON and exit |
+
+```bash
+ze-chaos --mcp :8001 --web :8000 --peers 4  # MCP + web dashboard
+ze-chaos --ze-mcp 9718 --peers 4             # Inject MCP into Ze config
+ze-chaos --ai-help                           # Print tool schemas
+```
+<!-- source: cmd/ze-chaos/main.go -- CLI flags -->

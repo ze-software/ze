@@ -184,3 +184,49 @@ func TestConvergenceZeroDeadline(t *testing.T) {
 	slow := c.CheckDeadline(announceTime)
 	assert.Equal(t, 1, len(slow))
 }
+
+// TestConvergencePerFamily verifies that per-family latency stats are tracked
+// alongside the aggregate when family is provided to RecordAnnounce.
+func TestConvergencePerFamily(t *testing.T) {
+	c := NewConvergence(2, 5*time.Second)
+	base := time.Now()
+
+	// Announce IPv4 routes with family tag.
+	c.RecordAnnounce(0, p("10.0.0.0/24"), base, "ipv4/unicast")
+	c.RecordAnnounce(0, p("10.0.1.0/24"), base, "ipv4/unicast")
+
+	// Announce IPv6 route with family tag.
+	c.RecordAnnounce(0, p("2001:db8::/32"), base, "ipv6/unicast")
+
+	// Announce route without family (aggregate only).
+	c.RecordAnnounce(0, p("10.0.2.0/24"), base)
+
+	// Resolve all with different latencies.
+	c.RecordReceive(1, p("10.0.0.0/24"), base.Add(50*time.Millisecond))
+	c.RecordReceive(1, p("10.0.1.0/24"), base.Add(100*time.Millisecond))
+	c.RecordReceive(1, p("2001:db8::/32"), base.Add(200*time.Millisecond))
+	c.RecordReceive(1, p("10.0.2.0/24"), base.Add(75*time.Millisecond))
+
+	// Aggregate stats include all 4.
+	stats := c.Stats()
+	assert.Equal(t, 4, stats.Resolved)
+
+	// Per-family stats.
+	byFamily := c.StatsByFamily()
+	require.Contains(t, byFamily, "ipv4/unicast")
+	require.Contains(t, byFamily, "ipv6/unicast")
+
+	ipv4 := byFamily["ipv4/unicast"]
+	assert.Equal(t, 2, ipv4.Resolved)
+	assert.InDelta(t, 50.0, float64(ipv4.Min/time.Millisecond), 1.0)
+	assert.InDelta(t, 100.0, float64(ipv4.Max/time.Millisecond), 1.0)
+	assert.InDelta(t, 75.0, float64(ipv4.Avg/time.Millisecond), 1.0)
+
+	ipv6 := byFamily["ipv6/unicast"]
+	assert.Equal(t, 1, ipv6.Resolved)
+	assert.InDelta(t, 200.0, float64(ipv6.Min/time.Millisecond), 1.0)
+
+	// No-family route should not appear in per-family breakdown.
+	_, hasEmpty := byFamily[""]
+	assert.False(t, hasEmpty, "empty family should not appear in StatsByFamily")
+}

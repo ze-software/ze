@@ -1,0 +1,426 @@
+// Design: plan/spec-chaos-3-ai.md -- Chaos MCP tools for AI queries
+
+package mcp
+
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+
+	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
+
+	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/watchdog"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/web"
+)
+
+// ControlDispatcher sends control commands to the chaos scheduler.
+type ControlDispatcher func(cmd web.ControlCommand) error
+
+// CommandDispatcher executes a chaos orchestrator command.
+type CommandDispatcher func(command string) (string, error)
+
+// Provider implements mcp.ToolProvider for the chaos MCP server.
+type Provider struct {
+	State       *web.DashboardState
+	Watchdog    *watchdog.Watchdog
+	Convergence *validation.Convergence
+	Control     ControlDispatcher
+	Execute     CommandDispatcher
+	Seed        uint64
+	StartTime   time.Time
+	PeerCount   int
+}
+
+func (p *Provider) ServerName() string { return "ze-chaos-mcp" }
+
+func (p *Provider) Tools() []map[string]any {
+	return chaosTools
+}
+
+func (p *Provider) CallTool(name string, args json.RawMessage) map[string]any {
+	handler, ok := toolHandlers[name]
+	if !ok {
+		return nil
+	}
+	return handler(p, args)
+}
+
+var toolHandlers = map[string]func(p *Provider, args json.RawMessage) map[string]any{
+	"chaos_status":   (*Provider).toolStatus,
+	"chaos_problems": (*Provider).toolProblems,
+	"chaos_peers":    (*Provider).toolPeers,
+	"chaos_scenario": (*Provider).toolScenario,
+	"chaos_control":  (*Provider).toolControl,
+	"chaos_execute":  (*Provider).toolExecute,
+}
+
+func (p *Provider) toolStatus(_ json.RawMessage) map[string]any {
+	p.State.RLock()
+	defer p.State.RUnlock()
+
+	percs := web.ComputeConvergencePercentiles(p.State.ConvergenceTrend)
+	hist := p.State.Convergence
+
+	buckets := make([]map[string]any, len(hist.Buckets))
+	for i, b := range &hist.Buckets {
+		buckets[i] = map[string]any{
+			"label": b.Label,
+			"count": b.Count,
+		}
+	}
+
+	convMap := map[string]any{
+		"min":       web.FormatDuration(hist.Min),
+		"avg":       web.FormatDuration(hist.Avg()),
+		"max":       web.FormatDuration(hist.Max),
+		"p50":       web.FormatDuration(percs.P50),
+		"p90":       web.FormatDuration(percs.P90),
+		"p99":       web.FormatDuration(percs.P99),
+		"histogram": buckets,
+	}
+
+	if p.Convergence != nil {
+		byFamily := p.Convergence.StatsByFamily()
+		if len(byFamily) > 0 {
+			famMap := make(map[string]any, len(byFamily))
+			for fam, stats := range byFamily {
+				famMap[fam] = map[string]any{
+					"min": web.FormatDuration(stats.Min),
+					"avg": web.FormatDuration(stats.Avg),
+					"max": web.FormatDuration(stats.Max),
+					"p99": web.FormatDuration(stats.P99),
+				}
+			}
+			convMap["per-family"] = famMap
+		}
+	}
+
+	properties := make([]map[string]any, len(p.State.Properties))
+	for i, prop := range p.State.Properties {
+		properties[i] = map[string]any{
+			"name":            prop.Name,
+			"status":          statusStr(prop.Pass),
+			"violation-count": len(prop.Violations),
+		}
+	}
+
+	result := map[string]any{
+		"seed":             p.Seed,
+		"elapsed":          time.Since(p.StartTime).Truncate(time.Millisecond).String(),
+		"peers-total":      p.State.PeerCount,
+		"peers-up":         p.State.PeersUp,
+		"peers-syncing":    p.State.PeersSyncing,
+		"routes-announced": p.State.TotalAnnounced,
+		"routes-received":  p.State.TotalReceived,
+		"routes-missing":   p.State.TotalMissing,
+		"routes-withdrawn": p.State.TotalWithdrawn,
+		"sync-duration":    p.State.SyncDuration.Truncate(time.Millisecond).String(),
+		"convergence":      convMap,
+		"chaos-events":     p.State.TotalChaos,
+		"chaos-rate":       p.State.ChaosRate(),
+		"throughput-in":    web.FormatBitRate(p.State.AggregateThroughput(false)),
+		"throughput-out":   web.FormatBitRate(p.State.AggregateThroughput(true)),
+		"dropped-events":   p.State.TotalDropped,
+		"properties":       properties,
+	}
+
+	data, err := json.Marshal(result)
+	if err != nil {
+		return zemcp.ErrResult("encoding status: " + err.Error())
+	}
+	return zemcp.TextResult(string(data))
+}
+
+func (p *Provider) toolProblems(_ json.RawMessage) map[string]any {
+	var problems []map[string]any
+
+	if p.Watchdog != nil {
+		for _, prob := range p.Watchdog.Problems() {
+			problems = append(problems, map[string]any{
+				"type":    prob.Type,
+				"peer":    prob.PeerIndex,
+				"message": prob.Message,
+				"time":    prob.Time.Format(time.RFC3339),
+			})
+		}
+	}
+
+	p.State.RLock()
+	defer p.State.RUnlock()
+
+	for idx, ps := range p.State.Peers {
+		if ps == nil {
+			continue
+		}
+		sent := ps.RoutesSent
+		recv := ps.RoutesRecv
+		missing := ps.Missing
+		if missing > 0 {
+			problems = append(problems, map[string]any{
+				"type":          "missing-routes",
+				"peer":          idx,
+				"expected":      sent,
+				"actual":        recv,
+				"missing-count": missing,
+			})
+		}
+	}
+
+	if problems == nil {
+		problems = []map[string]any{}
+	}
+
+	data, err := json.Marshal(problems)
+	if err != nil {
+		return zemcp.ErrResult("encoding problems: " + err.Error())
+	}
+	return zemcp.TextResult(string(data))
+}
+
+func (p *Provider) toolPeers(args json.RawMessage) map[string]any {
+	var input struct {
+		Peer *int `json:"peer"`
+	}
+	if args != nil {
+		if err := json.Unmarshal(args, &input); err != nil {
+			return zemcp.ErrResult("invalid arguments: " + err.Error())
+		}
+	}
+
+	p.State.RLock()
+	defer p.State.RUnlock()
+
+	if input.Peer != nil {
+		idx := *input.Peer
+		ps, ok := p.State.Peers[idx]
+		if !ok {
+			return zemcp.ErrResult(fmt.Sprintf("peer must be a valid index: %d", idx))
+		}
+		result := peerDetail(ps, true)
+		data, err := json.Marshal(result)
+		if err != nil {
+			return zemcp.ErrResult("encoding peer: " + err.Error())
+		}
+		return zemcp.TextResult(string(data))
+	}
+
+	peers := make([]map[string]any, 0, len(p.State.Peers))
+	for i := range p.State.PeerCount {
+		ps, ok := p.State.Peers[i]
+		if !ok {
+			continue
+		}
+		peers = append(peers, peerDetail(ps, false))
+	}
+
+	data, err := json.Marshal(peers)
+	if err != nil {
+		return zemcp.ErrResult("encoding peers: " + err.Error())
+	}
+	return zemcp.TextResult(string(data))
+}
+
+func peerDetail(ps *web.PeerState, detail bool) map[string]any {
+	families := make([]map[string]any, 0, len(ps.Families))
+	for _, fam := range ps.Families {
+		families = append(families, map[string]any{
+			"name":     fam,
+			"sent":     ps.FamilySent[fam],
+			"received": ps.FamilyRecv[fam],
+			"target":   ps.FamilySentTarget[fam],
+		})
+	}
+
+	m := map[string]any{
+		"index":           ps.Index,
+		"status":          ps.Status.String(),
+		"routes-sent":     ps.RoutesSent,
+		"routes-received": ps.RoutesRecv,
+		"missing":         ps.Missing,
+		"families":        families,
+		"chaos-count":     ps.ChaosCount,
+		"reconnects":      ps.Reconnects,
+		"bytes-sent":      ps.BytesSent,
+		"bytes-received":  ps.BytesRecv,
+		"last-event":      ps.LastEvent.String(),
+	}
+
+	if !ps.LastEventAt.IsZero() {
+		m["last-event-at"] = ps.LastEventAt.Format(time.RFC3339)
+	}
+
+	if detail {
+		events := ps.Events.All()
+		start := 0
+		if len(events) > 5 {
+			start = len(events) - 5
+		}
+		recent := make([]map[string]any, 0, 5)
+		for i := start; i < len(events); i++ {
+			recent = append(recent, map[string]any{
+				"time":   events[i].Time.Format(time.RFC3339),
+				"type":   events[i].Type.String(),
+				"action": events[i].ChaosAction,
+			})
+		}
+		m["recent-chaos"] = recent
+	}
+
+	return m
+}
+
+func (p *Provider) toolScenario(_ json.RawMessage) map[string]any {
+	result := map[string]any{
+		"seed":       p.Seed,
+		"peer-count": p.PeerCount,
+	}
+
+	data, err := json.Marshal(result)
+	if err != nil {
+		return zemcp.ErrResult("encoding scenario: " + err.Error())
+	}
+	return zemcp.TextResult(string(data))
+}
+
+func (p *Provider) toolControl(args json.RawMessage) map[string]any {
+	if p.Control == nil {
+		return zemcp.ErrResult("control not available")
+	}
+
+	var input struct {
+		Action      string   `json:"action"`
+		Peer        *int     `json:"peer"`
+		ChaosAction string   `json:"chaos-action"`
+		Value       *float64 `json:"value"`
+	}
+	if err := json.Unmarshal(args, &input); err != nil {
+		return zemcp.ErrResult("invalid arguments: " + err.Error())
+	}
+
+	validActions := map[string]bool{
+		"pause": true, "resume": true, "trigger": true, "rate": true, "stop": true,
+	}
+	if !validActions[input.Action] {
+		return zemcp.ErrResult(fmt.Sprintf("action must be one of: pause, resume, trigger, rate, stop; got %q", input.Action))
+	}
+
+	cmd := web.ControlCommand{Type: input.Action}
+	switch input.Action {
+	case "rate":
+		if input.Value == nil {
+			return zemcp.ErrResult("rate action requires value (0.0-1.0)")
+		}
+		if *input.Value < 0 || *input.Value > 1 {
+			return zemcp.ErrResult(fmt.Sprintf("rate must be 0.0-1.0, got %f", *input.Value))
+		}
+		cmd.Rate = *input.Value
+	case "trigger":
+		if input.ChaosAction == "" {
+			return zemcp.ErrResult("trigger action requires chaos-action")
+		}
+		trigger := &web.ManualTrigger{ActionType: input.ChaosAction}
+		if input.Peer != nil {
+			trigger.Peers = []int{*input.Peer}
+		}
+		cmd.Trigger = trigger
+	}
+
+	if err := p.Control(cmd); err != nil {
+		return zemcp.ErrResult("control: " + err.Error())
+	}
+
+	return zemcp.TextResult(fmt.Sprintf("ok: %s", input.Action))
+}
+
+func (p *Provider) toolExecute(args json.RawMessage) map[string]any {
+	if p.Execute == nil {
+		return zemcp.ErrResult("execute not available")
+	}
+
+	var input struct {
+		Command string `json:"command"`
+	}
+	if err := json.Unmarshal(args, &input); err != nil {
+		return zemcp.ErrResult("invalid arguments: " + err.Error())
+	}
+	if input.Command == "" {
+		return zemcp.ErrResult("missing required argument: command")
+	}
+
+	result, err := p.Execute(input.Command)
+	if err != nil {
+		return zemcp.ErrResult(err.Error())
+	}
+	return zemcp.TextResult(result)
+}
+
+func statusStr(pass bool) string {
+	if pass {
+		return "pass"
+	}
+	return "fail"
+}
+
+var chaosTools = []map[string]any{
+	{
+		"name":        "chaos_status",
+		"description": "Full chaos test status snapshot: peers, routes, convergence stats, throughput, properties.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
+	},
+	{
+		"name":        "chaos_problems",
+		"description": "Filtered list of actionable issues. Empty array means healthy.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
+	},
+	{
+		"name":        "chaos_peers",
+		"description": "Per-peer detail. Omit 'peer' for all peers summary, provide index for single peer with recent chaos history.",
+		"inputSchema": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"peer": map[string]any{
+					"type":        "integer",
+					"description": "Peer index for detail view. Omit for all peers.",
+				},
+			},
+		},
+	},
+	{
+		"name":        "chaos_scenario",
+		"description": "Static scenario metadata: seed, peer count.",
+		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
+	},
+	{
+		"name":        "chaos_control",
+		"description": "Control chaos scheduling. Use chaos_problems or chaos_status first to understand the situation before changing anything.",
+		"inputSchema": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"action": map[string]any{
+					"type":        "string",
+					"enum":        []string{"pause", "resume", "trigger", "rate", "stop"},
+					"description": "Control action to perform.",
+				},
+				"peer":         map[string]any{"type": "integer", "description": "Peer index for trigger action."},
+				"chaos-action": map[string]any{"type": "string", "description": "Chaos action name for trigger (e.g. tcp-disconnect)."},
+				"value":        map[string]any{"type": "number", "description": "New rate for rate action (0.0-1.0)."},
+			},
+			"required": []string{"action"},
+		},
+	},
+	{
+		"name":        "chaos_execute",
+		"description": "Execute a chaos orchestrator command. Prefer the specific tools when possible.",
+		"inputSchema": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"command": map[string]any{
+					"type":        "string",
+					"description": "Command to execute.",
+				},
+			},
+			"required": []string{"command"},
+		},
+	},
+}

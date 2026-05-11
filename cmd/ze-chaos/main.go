@@ -21,6 +21,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"math"
@@ -35,9 +37,12 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/inprocess"
+	chaosmcp "codeberg.org/thomas-mangin/ze/internal/chaos/mcp"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/watchdog"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/web"
+	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
@@ -52,6 +57,8 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.web", Type: "string", Default: "", Description: "ze-chaos live web dashboard (addr:port)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.metrics", Type: "string", Default: "", Description: "ze-chaos Prometheus metrics endpoint (addr:port)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.pprof", Type: "string", Default: "", Description: "ze-chaos pprof HTTP server (addr:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.mcp", Type: "string", Default: "", Description: "ze-chaos MCP server (addr:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.ze.mcp.port", Type: "int", Default: "0", Description: "Ze MCP server port injected into generated config (0 = disabled)"})
 )
 
 func main() {
@@ -115,6 +122,11 @@ func run(args []string) int {
 	pprofDefault, pprofDesc := env.AddrPortDefault("ze.chaos.pprof", "", "pprof HTTP server for ze-chaos (addr:port, e.g. :6060)")
 	pprofAddr := fs.String("pprof", pprofDefault, pprofDesc)
 	debugAddr := fs.String("ze-pprof", "", "pprof HTTP server for ze (injected into generated config, e.g. :6061)")
+	mcpDefault, mcpDesc := env.AddrPortDefault("ze.chaos.mcp", "", "MCP server for AI queries (addr:port, e.g. :8001)")
+	mcpAddr := fs.String("mcp", mcpDefault, mcpDesc)
+	zeMCPDefault, zeMCPDesc := env.PortDefault("ze.chaos.ze.mcp.port", 0, "Ze MCP port injected into generated config (0 = disabled)")
+	zeMCPPort := fs.Int("ze-mcp", zeMCPDefault, zeMCPDesc)
+	aiHelp := fs.Bool("ai-help", false, "Print chaos MCP tool definitions and exit")
 	quiet := fs.Bool("quiet", false, "Only errors and summary")
 	verbose := fs.Bool("verbose", false, "Extra debug output")
 	var debugLog bool
@@ -184,6 +196,8 @@ Output:
   --web <addr:port>          Live web dashboard (e.g. :8000)
   --pprof <addr:port>        pprof HTTP server for ze-chaos (e.g. :6060)
   --ze-pprof <addr:port>     pprof HTTP server for ze (injected into config, e.g. :6061)
+  --mcp <addr:port>          MCP server for AI queries (e.g. :8001)
+  --ai-help                  Print chaos MCP tool definitions and exit
   -d, --debug                Enable debug logging (sets ze.log=debug, implies --verbose)
   --quiet                    Only errors and summary
   --verbose                  Extra debug output
@@ -204,6 +218,7 @@ SSH:
 Ze Services (injected into generated config):
   --web-ui <port>            Enable Ze web UI on port (insecure, 127.0.0.1)
   --lg <port>                Enable Ze looking glass on port (127.0.0.1)
+  --ze-mcp <port>            Enable Ze MCP server on port (127.0.0.1)
 
 Control:
   --duration <dur>           Max runtime (default: 0 = run forever until Ctrl-C)
@@ -223,6 +238,12 @@ Control:
 		_ = os.Setenv("ze.log", "debug")
 		_ = os.Setenv("ze.log.relay", "debug")
 		*verbose = true
+	}
+
+	// AI help mode: print chaos MCP tool definitions and exit.
+	if *aiHelp {
+		printAIHelp()
+		return 0
 	}
 
 	// List properties mode: show available properties and exit.
@@ -329,13 +350,13 @@ Control:
 	}
 
 	// Check for listener port conflicts among single-port flags.
-	if err := validateChaosListenerConflicts(*sshPort, *webUIPort, *lgPort, *webAddr, *pprofAddr, *metricsAddr, *debugAddr); err != nil {
+	if err := validateChaosListenerConflicts(*sshPort, *webUIPort, *lgPort, *zeMCPPort, *webAddr, *pprofAddr, *metricsAddr, *debugAddr, *mcpAddr); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 
 	// Check for single-port listeners falling inside allocated port ranges.
-	if err := validateRangeConflicts(*port, *listenBase, *peers, *sshPort, *webUIPort, *lgPort, *webAddr, *pprofAddr, *metricsAddr, *debugAddr); err != nil {
+	if err := validateRangeConflicts(*port, *listenBase, *peers, *sshPort, *webUIPort, *lgPort, *zeMCPPort, *webAddr, *pprofAddr, *metricsAddr, *debugAddr, *mcpAddr); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
@@ -435,6 +456,7 @@ Control:
 		SSHPort:   *sshPort,
 		WebUIPort: *webUIPort,
 		LGPort:    *lgPort,
+		MCPPort:   *zeMCPPort,
 	}
 	zeConfig := scenario.GenerateConfig(configParams)
 
@@ -482,6 +504,42 @@ Control:
 			}
 			fmt.Fprintf(os.Stderr, "ze-chaos | web dashboard: %s\n", dashboardURL(*webAddr))
 			defer func() { _ = wd.Close() }()
+		}
+
+		// Start chaos MCP server in in-process mode.
+		if *mcpAddr != "" && wd == nil {
+			fmt.Fprintf(os.Stderr, "error: --mcp requires --web (MCP reads dashboard state)\n")
+			return 1
+		}
+		if *mcpAddr != "" && wd != nil {
+			wdCfg := watchdog.DefaultConfig()
+			wdCfg.Warmup = *warmup
+			ipWatchdog := watchdog.New(os.Stderr, wdCfg)
+			mcpProvider := &chaosmcp.Provider{
+				State:       wd.State(),
+				Watchdog:    ipWatchdog,
+				Convergence: validation.NewConvergence(len(profiles), *convergenceDeadline),
+				Seed:        *seed,
+				StartTime:   time.Now(),
+				PeerCount:   len(profiles),
+			}
+			mcpHandler := zemcp.Handler(mcpProvider, "")
+			mcpMux := http.NewServeMux()
+			mcpMux.Handle("/", mcpHandler)
+			mcpSrv := &http.Server{Addr: *mcpAddr, Handler: mcpMux, ReadHeaderTimeout: 10 * time.Second}
+			go func() {
+				if err := mcpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+					fmt.Fprintf(os.Stderr, "error: chaos MCP server: %v\n", err)
+				}
+			}()
+			fmt.Fprintf(os.Stderr, "ze-chaos | MCP server: http://%s\n", *mcpAddr)
+			defer func() {
+				shutCtx, shutCancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer shutCancel()
+				if err := mcpSrv.Shutdown(shutCtx); err != nil {
+					fmt.Fprintf(os.Stderr, "error: shutting down MCP server: %v\n", err)
+				}
+			}()
 		}
 
 		ipCtx, ipCancel := context.WithTimeout(context.Background(), *duration+30*time.Second)
@@ -591,6 +649,7 @@ Control:
 			eventLog:            *eventLog,
 			metricsAddr:         *metricsAddr,
 			webAddr:             *webAddr,
+			mcpAddr:             *mcpAddr,
 			properties:          *properties,
 			convergenceDeadline: *convergenceDeadline,
 			restartCh:           restartCh,
@@ -661,4 +720,14 @@ func writeConfig(config string, params scenario.ConfigParams, path string, quiet
 		return err
 	}
 	return nil
+}
+
+func printAIHelp() {
+	tools := (&chaosmcp.Provider{}).Tools()
+	data, err := json.MarshalIndent(tools, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: encoding tools: %v\n", err)
+		return
+	}
+	fmt.Println(string(data))
 }

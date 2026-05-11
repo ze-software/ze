@@ -21,6 +21,7 @@ type ConfigParams struct {
 	SSHPort   int    // When >0, add system { ssh + authentication } block with test/test user.
 	WebUIPort int    // When >0, add environment { web { insecure; } } block.
 	LGPort    int    // When >0, add environment { looking-glass { } } block.
+	MCPPort   int    // When >0, add environment { mcp { port N; } } block.
 }
 
 // GenerateConfig produces a Ze configuration string from the given parameters.
@@ -57,7 +58,7 @@ func GenerateConfig(params ConfigParams) string {
 	}
 
 	// Environment block — debug settings, SSH, web UI, looking glass.
-	hasEnv := params.PprofAddr != "" || params.SSHPort > 0 || params.WebUIPort > 0 || params.LGPort > 0
+	hasEnv := params.PprofAddr != "" || params.SSHPort > 0 || params.WebUIPort > 0 || params.LGPort > 0 || params.MCPPort > 0
 	if hasEnv {
 		fmt.Fprintf(&b, "environment {\n")
 		if params.PprofAddr != "" {
@@ -91,6 +92,11 @@ func GenerateConfig(params ConfigParams) string {
 			fmt.Fprintf(&b, "            ip 127.0.0.1;\n")
 			fmt.Fprintf(&b, "            port %d;\n", params.LGPort)
 			fmt.Fprintf(&b, "        }\n")
+			fmt.Fprintf(&b, "    }\n")
+		}
+		if params.MCPPort > 0 {
+			fmt.Fprintf(&b, "    mcp {\n")
+			fmt.Fprintf(&b, "        port %d;\n", params.MCPPort)
 			fmt.Fprintf(&b, "    }\n")
 		}
 		fmt.Fprintf(&b, "}\n\n")

@@ -1,0 +1,25 @@
+# mcp-status - verify chaos MCP server responds to status and tools/list
+# Tests --mcp flag and chaos_status tool
+
+cmd=background:seq=1:exec=ze-chaos --in-process --web :$PORT --mcp :$PORT2 --duration 10s --peers 2 --seed 42 --routes 5 --quiet
+
+# Wait for MCP server to be ready via initialize
+tmpfs=init.json:terminator=EOF_INIT
+{"jsonrpc":"2.0","id":1,"method":"initialize"}
+EOF_INIT
+
+http=post:seq=1:url=http://127.0.0.1:$PORT2/:status=200:contains=ze-chaos-mcp:sendfile=init.json
+
+# tools/list returns chaos tools
+tmpfs=list.json:terminator=EOF_LIST
+{"jsonrpc":"2.0","id":2,"method":"tools/list"}
+EOF_LIST
+
+http=post:seq=2:url=http://127.0.0.1:$PORT2/:status=200:contains=chaos_status:sendfile=list.json
+
+# chaos_status returns JSON with seed and route counts
+tmpfs=status.json:terminator=EOF_STATUS
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"chaos_status","arguments":{}}}
+EOF_STATUS
+
+http=post:seq=3:url=http://127.0.0.1:$PORT2/:status=200:contains=routes-announced:sendfile=status.json

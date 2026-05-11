@@ -356,7 +356,7 @@ func (s *server) dispatchGenerated(prefix string, validActions map[string]bool, 
 	// Unmarshal into a generic map to capture typed params alongside standard ones.
 	var all map[string]any
 	if err := json.Unmarshal(args, &all); err != nil {
-		return errResult("invalid arguments: " + err.Error())
+		return ErrResult("invalid arguments: " + err.Error())
 	}
 
 	action, _ := all["action"].(string)
@@ -365,17 +365,17 @@ func (s *server) dispatchGenerated(prefix string, validActions map[string]bool, 
 
 	if peer != "" {
 		if err := noSpaces("peer", peer); err != nil {
-			return errResult(err.Error())
+			return ErrResult(err.Error())
 		}
 	}
 	if action != "" && !validActions[action] {
-		return errResult(fmt.Sprintf("invalid action %q", action))
+		return ErrResult(fmt.Sprintf("invalid action %q", action))
 	}
 	if strings.ContainsAny(action, "\n\r") {
-		return errResult("action must not contain newlines")
+		return ErrResult("action must not contain newlines")
 	}
 	if strings.ContainsAny(arguments, "\n\r\t") {
-		return errResult("arguments must not contain newlines or tabs")
+		return ErrResult("arguments must not contain newlines or tabs")
 	}
 
 	var cmd strings.Builder
@@ -400,7 +400,7 @@ func (s *server) dispatchGenerated(prefix string, validActions map[string]bool, 
 			continue
 		}
 		if strings.ContainsAny(sval, "\n\r\t") {
-			return errResult(fmt.Sprintf("parameter %q must not contain newlines or tabs", key))
+			return ErrResult(fmt.Sprintf("parameter %q must not contain newlines or tabs", key))
 		}
 		cmd.WriteString(" ")
 		cmd.WriteString(key)

@@ -57,6 +57,7 @@ type orchestratorConfig struct {
 	eventLog            string
 	metricsAddr         string
 	webAddr             string
+	mcpAddr             string
 	properties          string
 	convergenceDeadline time.Duration
 
@@ -142,7 +143,7 @@ func (ep *EventProcessor) Process(ev peer.Event) {
 		// parse IPv4 NLRI from the trailing UPDATE section, so IPv6 routes
 		// would create permanently unresolved pending entries.
 		if ev.Prefix.Addr().Is4() {
-			ep.Convergence.RecordAnnounce(ev.PeerIndex, ev.Prefix, ev.Time)
+			ep.Convergence.RecordAnnounce(ev.PeerIndex, ev.Prefix, ev.Time, ev.Family)
 		}
 		ep.Announced++
 

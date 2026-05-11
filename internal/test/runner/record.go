@@ -164,6 +164,7 @@ type RunCommand struct {
 
 // HTTPCheck represents an HTTP request assertion in a .ci test.
 // Format: http=get:seq=N:url=URL:status=CODE[:contains=TEXT]
+// Format: http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:sendfile=FILE]
 // Format: http=wait:seq=N:url=URL:status=CODE[:contains=TEXT][:timeout=DUR]
 // "get"/"post" checks are assertions; "wait" polls until the condition is met
 // (retrying on both connection errors and content mismatches).
@@ -175,6 +176,7 @@ type HTTPCheck struct {
 	Status   int    // Expected HTTP status code
 	Contains string // Expected body substring (optional, empty = skip body check)
 	BodyFile string // Path to file with expected body content (exact match)
+	SendFile string // Path to file whose content is sent as the POST request body
 	Timeout  string // Poll timeout for wait checks (default "15s")
 }
 

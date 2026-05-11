@@ -19,6 +19,7 @@ type pendingKey struct {
 type pendingEntry struct {
 	source       int
 	announceTime time.Time
+	family       string
 }
 
 // SlowRoute describes a route that exceeded the convergence deadline.
@@ -51,36 +52,46 @@ type Convergence struct {
 
 	// latencies stores all resolved propagation durations.
 	latencies []time.Duration
+
+	// familyLatencies stores per-family resolved latencies alongside aggregate.
+	familyLatencies map[string][]time.Duration
 }
 
 // NewConvergence creates a convergence tracker for n peers with the given
 // propagation deadline.
 func NewConvergence(n int, deadline time.Duration) *Convergence {
 	return &Convergence{
-		peerCount: n,
-		deadline:  deadline,
-		pending:   make(map[pendingKey]pendingEntry),
+		peerCount:       n,
+		deadline:        deadline,
+		pending:         make(map[pendingKey]pendingEntry),
+		familyLatencies: make(map[string][]time.Duration),
 	}
 }
 
 // RecordAnnounce records that a peer announced a route at the given time.
 // Creates pending entries for all other peers (they should receive it).
-func (c *Convergence) RecordAnnounce(source int, prefix netip.Prefix, at time.Time) {
+// If family is provided, per-family latency is tracked when resolved.
+func (c *Convergence) RecordAnnounce(source int, prefix netip.Prefix, at time.Time, family ...string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	fam := ""
+	if len(family) > 0 {
+		fam = family[0]
+	}
 
 	for peer := range c.peerCount {
 		if peer == source {
 			continue
 		}
 		key := pendingKey{peer: peer, prefix: prefix}
-		c.pending[key] = pendingEntry{source: source, announceTime: at}
+		c.pending[key] = pendingEntry{source: source, announceTime: at, family: fam}
 	}
 }
 
 // RecordReceive records that a peer received a route at the given time.
 // If a pending entry exists for this (peer, prefix), it is resolved and
-// the latency recorded.
+// the latency recorded (both aggregate and per-family when family was set).
 func (c *Convergence) RecordReceive(peer int, prefix netip.Prefix, at time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -93,6 +104,9 @@ func (c *Convergence) RecordReceive(peer int, prefix netip.Prefix, at time.Time)
 
 	latency := at.Sub(entry.announceTime)
 	c.latencies = append(c.latencies, latency)
+	if entry.family != "" {
+		c.familyLatencies[entry.family] = append(c.familyLatencies[entry.family], latency)
+	}
 	delete(c.pending, key)
 }
 
@@ -122,18 +136,33 @@ func (c *Convergence) Stats() ConvergenceStats {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	return computeStats(c.latencies, len(c.pending))
+}
+
+// StatsByFamily returns per-family convergence statistics.
+func (c *Convergence) StatsByFamily() map[string]ConvergenceStats {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	result := make(map[string]ConvergenceStats, len(c.familyLatencies))
+	for fam, lats := range c.familyLatencies {
+		result[fam] = computeStats(lats, 0)
+	}
+	return result
+}
+
+func computeStats(latencies []time.Duration, pending int) ConvergenceStats {
 	stats := ConvergenceStats{
-		Resolved: len(c.latencies),
-		Pending:  len(c.pending),
+		Resolved: len(latencies),
+		Pending:  pending,
 	}
 
-	if len(c.latencies) == 0 {
+	if len(latencies) == 0 {
 		return stats
 	}
 
-	// Sort a copy to compute percentiles.
-	sorted := make([]time.Duration, len(c.latencies))
-	copy(sorted, c.latencies)
+	sorted := make([]time.Duration, len(latencies))
+	copy(sorted, latencies)
 	slices.Sort(sorted)
 
 	stats.Min = sorted[0]
@@ -145,7 +174,6 @@ func (c *Convergence) Stats() ConvergenceStats {
 	}
 	stats.Avg = total / time.Duration(len(sorted))
 
-	// P99: index at 99th percentile.
 	p99Idx := (len(sorted) * 99 / 100)
 	if p99Idx >= len(sorted) {
 		p99Idx = len(sorted) - 1

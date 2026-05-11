@@ -16,7 +16,7 @@ import (
 // because they allocate N ports per peer count.
 //
 // Flags with value 0 (int ports) or "" (addr:port) are disabled and excluded.
-func validateChaosListenerConflicts(sshPort, webUIPort, lgPort int, webAddr, pprofAddr, metricsAddr, zePprofAddr string) error {
+func validateChaosListenerConflicts(sshPort, webUIPort, lgPort, zeMCPPort int, webAddr, pprofAddr, metricsAddr, zePprofAddr, mcpAddr string) error {
 	var endpoints []config.ListenerEndpoint
 
 	// Integer port flags bind on 127.0.0.1 (ze-chaos default local-addr).
@@ -28,6 +28,7 @@ func validateChaosListenerConflicts(sshPort, webUIPort, lgPort int, webAddr, ppr
 		{"ssh", sshPort},
 		{"web-ui", webUIPort},
 		{"looking-glass", lgPort},
+		{"ze-mcp", zeMCPPort},
 	} {
 		if ep.port == 0 {
 			continue
@@ -48,6 +49,7 @@ func validateChaosListenerConflicts(sshPort, webUIPort, lgPort int, webAddr, ppr
 		{"chaos-pprof", pprofAddr},
 		{"chaos-metrics", metricsAddr},
 		{"ze-pprof", zePprofAddr},
+		{"chaos-mcp", mcpAddr},
 	} {
 		if ep.addr == "" {
 			continue
@@ -69,7 +71,7 @@ func validateChaosListenerConflicts(sshPort, webUIPort, lgPort int, webAddr, ppr
 // validateRangeConflicts checks whether any single-port listener falls inside
 // the port ranges allocated by --port or --listen-base. Each range is
 // [base, base + peers*2) since each peer gets 2 ports (one for ze, one for the tool).
-func validateRangeConflicts(bgpBase, listenBase, peers, sshPort, webUIPort, lgPort int, webAddr, pprofAddr, metricsAddr, zePprofAddr string) error {
+func validateRangeConflicts(bgpBase, listenBase, peers, sshPort, webUIPort, lgPort, zeMCPPort int, webAddr, pprofAddr, metricsAddr, zePprofAddr, mcpAddr string) error {
 	bgpEnd := bgpBase + peers*2
 	listenEnd := listenBase + peers*2
 
@@ -87,6 +89,7 @@ func validateRangeConflicts(bgpBase, listenBase, peers, sshPort, webUIPort, lgPo
 		{"ssh", sshPort},
 		{"web-ui", webUIPort},
 		{"looking-glass", lgPort},
+		{"ze-mcp", zeMCPPort},
 	} {
 		if ep.port != 0 {
 			singles = append(singles, entry{ep.name, ep.port})
@@ -101,6 +104,7 @@ func validateRangeConflicts(bgpBase, listenBase, peers, sshPort, webUIPort, lgPo
 		{"chaos-pprof", pprofAddr},
 		{"chaos-metrics", metricsAddr},
 		{"ze-pprof", zePprofAddr},
+		{"chaos-mcp", mcpAddr},
 	} {
 		if ep.addr == "" {
 			continue

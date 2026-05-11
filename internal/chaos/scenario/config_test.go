@@ -285,3 +285,28 @@ func TestConfigGenFallbackToIPv4(t *testing.T) {
 	config := GenerateConfig(params)
 	assert.Contains(t, config, "ipv4/unicast { prefix { maximum 10000; } }")
 }
+
+func TestConfigGenerateMCPPort(t *testing.T) {
+	profiles := []PeerProfile{
+		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"),
+			Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890},
+	}
+
+	params := ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		BasePort:  1790,
+		Profiles:  profiles,
+		MCPPort:   9718,
+	}
+
+	config := GenerateConfig(params)
+	assert.Contains(t, config, "mcp {")
+	assert.Contains(t, config, "port 9718;")
+
+	// MCPPort 0 should not emit mcp block.
+	params.MCPPort = 0
+	config = GenerateConfig(params)
+	assert.NotContains(t, config, "mcp {")
+}
