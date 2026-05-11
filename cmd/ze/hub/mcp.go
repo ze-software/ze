@@ -127,6 +127,29 @@ func parseTaskSupportLevel(s string) zemcp.TaskSupportLevel {
 	}
 }
 
+// lookupUIResource checks if a command path or any of its parent paths has
+// a ze:ui-resource annotation. Commands like "peer list" inherit the UI
+// resource from the "peer" grouping container.
+func lookupUIResource(cmdPath string, m map[string]yang.UIResourceEntry) (yang.UIResourceEntry, bool) {
+	if m == nil {
+		return yang.UIResourceEntry{}, false
+	}
+	if info, ok := m[cmdPath]; ok {
+		return info, true
+	}
+	for {
+		idx := strings.LastIndex(cmdPath, " ")
+		if idx < 0 {
+			break
+		}
+		cmdPath = cmdPath[:idx]
+		if info, ok := m[cmdPath]; ok {
+			return info, true
+		}
+	}
+	return yang.UIResourceEntry{}, false
+}
+
 // wireModule extracts the module prefix from a wire method (e.g. "ze-bgp:peer-list" -> "ze-bgp").
 func wireModule(wire string) string {
 	mod, _, ok := strings.Cut(wire, ":")

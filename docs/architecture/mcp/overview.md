@@ -29,7 +29,9 @@ migrated to the session-oriented transport.
 | `handler.go` | JSON-RPC 2.0 types (`request`, `response`, `rpcError`, `callParams`), handcrafted tool catalogue, tool runner helper (`server` struct with optional `*session`), legacy `Handler` factory |
 | `tools.go` | Command-registry -> MCP tool auto-generation: grouping, schema emission, dispatch |
 | `streamable.go` | MCP 2025-06-18 Streamable HTTP dispatcher: POST/GET/DELETE, Origin gate, Bearer check, method dispatch, `handleElicitResponse` correlation router |
-| `session.go` | Session registry (`sessionRegistry`), session state (`session`) with `clientElicit`/`clientTasks` bits and elicit correlation map, TTL garbage collection, SSE outbound queue, `onExpire` callback |
+| `session.go` | Session registry (`sessionRegistry`), session state (`session`) with `clientElicit`/`clientTasks`/`clientResources` bits and elicit correlation map, TTL garbage collection, SSE outbound queue, `onExpire` callback |
+| `resources.go` | MCP resources capability: `resources/list` (walks embedded FS), `resources/read` (serves `ui://` assets), MIME sniffer, URI validator |
+| `ui/embed.go` | `//go:embed` directive exposing UI bundles as `embed.FS` |
 | `elicit.go` | `session.Elicit`, schema validator (`validateElicitSchema`), elicit error sentinels |
 | `reply_sink.go` | `replySink` interface + JSON and SSE implementations that let a POST upgrade its reply shape mid-dispatch |
 | `task_state.go` | Typed `TaskState uint8` enum with `MarshalText`/`UnmarshalText` for wire serialization |
@@ -77,12 +79,13 @@ declared support.
 |-----|-------------|----------|
 | `clientElicit` | `capabilities.elicitation: {}` | `session.Elicit`, `ze_execute` missing-command branch |
 | `clientTasks` | `capabilities.tasks: {}` | `createTask`, task-augmented `tools/call` |
+| `clientResources` | `capabilities.resources: {}` | `resources/list`, `resources/read` capability gate |
 
 Missing, null, or non-object shapes (`capabilities.elicitation: null`,
 `capabilities.elicitation: false`) are treated as "not declared." Unknown
 capability keys are ignored.
 
-The server advertises both `tools` and `tasks` capabilities in its
+The server advertises `tools`, `tasks`, and `resources` capabilities in its
 `initialize` response.
 
 ## Session Lifecycle
@@ -164,6 +167,31 @@ collected.
 Session close (DELETE or TTL expiry) cancels all in-flight tasks for that
 session.
 
+## Resources Capability (MCP Apps)
+
+<!-- source: internal/component/mcp/resources.go -- resources/list, resources/read -->
+<!-- source: internal/component/mcp/ui/embed.go -- embedded UI assets -->
+
+The server advertises `resources: {}` in its `initialize` response and
+accepts `resources/list` and `resources/read` method calls from clients
+that declared `capabilities.resources = {}`. Clients that did not declare
+the capability receive `-32601 method not found`.
+
+UI assets are embedded at compile time via `//go:embed` in
+`internal/component/mcp/ui/embed.go`. `resources/list` derives the asset
+list from `fs.WalkDir` over the embedded FS (no hardcoded list).
+`resources/read` resolves `ui://` URIs to embedded files, validates
+against path traversal, and returns content as `text` (for text MIME
+types) or base64-encoded `blob` (for binary).
+
+Tool descriptors carry `_meta.ui.resourceUri` (plus optional `permissions`
+and `csp` fields) when the tool's YANG command group has a `ze:ui-resource`
+extension. This metadata is emitted unconditionally at `tools/list` time
+regardless of the client's `resources` capability, so clients can discover
+UI-capable tools before declaring support.
+
+The first shipped UI bundle is `bgp-peer/` (peer status panel).
+
 ## Security Model (Phase 1)
 
 - Default binding is `127.0.0.1`. Phase 2 adds an opt-in `bind-remote` leaf.
@@ -186,4 +214,4 @@ list as alternatives to the shared token.
 | 2 | `spec-mcp-2-remote-oauth.md` | Remote binding, OAuth 2.1, per-identity bearer list |
 | 3 | `plan/learned/NNN-mcp-3-elicitation.md` | Server-initiated `elicitation/create`; POST reply upgrades to SSE on demand (landed) |
 | 4 | `spec-mcp-4-tasks.md` | Task-augmented `tools/call`, `tasks/*` methods, task registry (landed) |
-| 5 | `spec-mcp-5-apps.md` | Resources capability, `ui://` UI-resource scheme |
+| 5 | `spec-mcp-5-apps.md` | Resources capability, `ui://` UI-resource scheme (landed) |

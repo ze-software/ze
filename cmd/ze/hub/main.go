@@ -1088,6 +1088,7 @@ func serverCommandLister(s *pluginserver.Server) zemcp.CommandLister {
 		metaOnce          sync.Once
 		paramsByPath      map[string][]zemcp.ParamInfo
 		taskSupportByPath map[string]string
+		uiResourceByPath  map[string]yangloader.UIResourceEntry
 	)
 
 	initMeta := func() {
@@ -1098,6 +1099,7 @@ func serverCommandLister(s *pluginserver.Server) zemcp.CommandLister {
 			}
 			paramsByPath = buildParamMap(loader)
 			taskSupportByPath = buildTaskSupportMap(loader)
+			uiResourceByPath = yangloader.PathToUIResource(loader)
 		})
 	}
 
@@ -1111,13 +1113,21 @@ func serverCommandLister(s *pluginserver.Server) zemcp.CommandLister {
 
 		var infos []zemcp.CommandInfo
 		for _, cmd := range d.Commands() {
-			infos = append(infos, zemcp.CommandInfo{
+			info := zemcp.CommandInfo{
 				Name:        cmd.Name,
 				Help:        cmd.Help,
 				ReadOnly:    cmd.ReadOnly,
 				Params:      paramsByPath[cmd.Name],
 				TaskSupport: parseTaskSupportLevel(taskSupportByPath[cmd.Name]),
-			})
+			}
+			if ui, ok := lookupUIResource(cmd.Name, uiResourceByPath); ok {
+				info.UIResource = &zemcp.UIResourceInfo{
+					Path:        ui.Path,
+					Permissions: ui.Permissions,
+					CSP:         ui.CSP,
+				}
+			}
+			infos = append(infos, info)
 		}
 
 		// Plugin-registered commands.

@@ -1043,6 +1043,23 @@ GET SSE stream for status.
 <!-- source: internal/component/mcp/elicit.go -- session.Elicit -->
 <!-- source: internal/component/mcp/streamable.go -- handleElicitResponse -->
 
+## MCP Resource Methods
+
+<!-- source: internal/component/mcp/resources.go -- resources/list, resources/read -->
+
+| Method | Direction | Description |
+|--------|-----------|-------------|
+| `resources/list` | Client -> server | List all available UI resources; response derived from embedded FS walk |
+| `resources/read` | Client -> server | Read a single resource by `ui://` URI; returns content as text or base64 blob |
+
+Both methods require the client to have declared `capabilities.resources = {}`
+at initialize. Without the capability, the server returns `-32601 method not found`.
+
+Tool descriptors in `tools/list` carry `_meta.ui.resourceUri` when the command
+group has a `ze:ui-resource` YANG extension. The `_meta.ui` block is emitted
+unconditionally (not gated by the resources capability) so clients can discover
+UI-capable tools before declaring support.
+
 ---
 
-**Last Updated:** 2026-05-11
+**Last Updated:** 2026-05-12

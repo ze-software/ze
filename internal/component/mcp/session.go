@@ -54,6 +54,7 @@ type session struct {
 	identity        Identity
 	clientElicit    bool // client declared capabilities.elicitation={} at initialize
 	clientTasks     bool // client declared capabilities.tasks={} at initialize
+	clientResources bool // client declared capabilities.resources={} at initialize
 
 	mu           sync.Mutex
 	lastSeenAt   time.Time
@@ -187,13 +188,14 @@ func newSessionRegistry(ttl, maxLifetime time.Duration, maxSessions int) *sessio
 // at initialize; when false, session.Elicit returns ErrElicitUnsupported
 // without sending a frame.
 // clientTasks is set from capabilities.tasks={} at initialize.
-func (r *sessionRegistry) CreateWithCapabilities(protocolVersion string, identity Identity, clientElicit, clientTasks bool) (*session, error) {
+func (r *sessionRegistry) CreateWithCapabilities(protocolVersion string, identity Identity, clientElicit, clientTasks, clientResources bool) (*session, error) {
 	s, err := r.Create(protocolVersion, identity)
 	if err != nil {
 		return nil, err
 	}
 	s.clientElicit = clientElicit
 	s.clientTasks = clientTasks
+	s.clientResources = clientResources
 	return s, nil
 }
 
@@ -356,6 +358,10 @@ func (s *session) ClientSupportsElicit() bool { return s.clientElicit }
 // ClientSupportsTasks reports whether the session's client declared
 // capabilities.tasks={} at initialize.
 func (s *session) ClientSupportsTasks() bool { return s.clientTasks }
+
+// ClientSupportsResources reports whether the session's client declared
+// capabilities.resources={} at initialize.
+func (s *session) ClientSupportsResources() bool { return s.clientResources }
 
 // RegisterElicit creates a fresh pending-elicitation entry and returns its
 // server-generated id plus a channel the caller blocks on. The id is a

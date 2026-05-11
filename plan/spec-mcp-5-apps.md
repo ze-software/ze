@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-04-20 |
+| Phase | 8/8 |
+| Updated | 2026-05-12 |
 
 ## Post-Compaction Recovery
 

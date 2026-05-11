@@ -286,6 +286,35 @@ module ze-extensions {
                      ze:ui-resource (MCP Apps); see spec-web-2 D16.";
     }
 
+    // Extension: ui-resource
+    // Annotates a command-tree container with a UI resource bundle URI for
+    // MCP Apps (2026-01-26). Applied to grouping containers (e.g., peer)
+    // so the auto-generated MCP tool descriptor carries _meta.ui.resourceUri.
+    // Argument is the relative path under the embedded ui/ FS (e.g.,
+    // "bgp-peer/index.html"). The ui:// scheme prefix is added at runtime.
+    extension ui-resource {
+        argument path;
+        description "Associates an embedded UI bundle with this command group.
+                     Argument: relative path to the root HTML document under
+                     internal/component/mcp/ui/. Applied to grouping containers.";
+    }
+
+    // Extension: ui-permissions
+    // Declares the MCP Apps permissions array for a UI resource bundle.
+    // Space-separated capability strings (e.g., 'network clipboard').
+    extension ui-permissions {
+        argument capabilities;
+        description "Space-separated list of MCP App permission capabilities
+                     advertised in _meta.ui.permissions.";
+    }
+
+    // Extension: ui-csp
+    // Declares the Content-Security-Policy for a UI resource bundle.
+    extension ui-csp {
+        argument policy;
+        description "CSP directive string advertised in _meta.ui.csp.";
+    }
+
     // Extension: bcrypt
     // Marks a leaf as a one-way bcrypt-hashed value. Distinct from ze:sensitive
     // (which uses $9$ reversible obfuscation). Parser does NOT apply $9$ decode.

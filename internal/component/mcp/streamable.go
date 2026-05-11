@@ -124,6 +124,8 @@ type Streamable struct {
 	// advertised authorization_servers[0] matches the value the token
 	// verifier enforces. Empty for non-OAuth modes.
 	oauthIssuer string
+
+	cachedResources []map[string]any // immutable after construction; from embedded FS walk
 }
 
 // NewStreamable returns a configured Streamable HTTP MCP server. Returns an
@@ -173,14 +175,15 @@ func NewStreamable(cfg StreamableConfig) (*Streamable, error) {
 		taskReg.CancelAllForSession(sessionID)
 	}
 	return &Streamable{
-		cfg:         cfg,
-		registry:    sessReg,
-		tasks:       taskReg,
-		maxBody:     maxB,
-		originSet:   originSet,
-		auth:        authRes.auth,
-		authMode:    mode,
-		oauthIssuer: authRes.canonicalIssuer,
+		cfg:             cfg,
+		registry:        sessReg,
+		tasks:           taskReg,
+		maxBody:         maxB,
+		originSet:       originSet,
+		auth:            authRes.auth,
+		authMode:        mode,
+		oauthIssuer:     authRes.canonicalIssuer,
+		cachedResources: listResources(),
 	}, nil
 }
 
@@ -1052,7 +1055,8 @@ func (s *Streamable) doInitialize(req *request, identity Identity) (*session, er
 	}
 	clientElicit := parseElicitationCapability(req)
 	clientTasks := parseTasksCapability(req)
-	sess, err := s.registry.CreateWithCapabilities(negotiated, identity, clientElicit, clientTasks)
+	clientResources := parseResourcesCapability(req)
+	sess, err := s.registry.CreateWithCapabilities(negotiated, identity, clientElicit, clientTasks, clientResources)
 	if err != nil {
 		return nil, err
 	}
@@ -1100,6 +1104,24 @@ func parseTasksCapability(req *request) bool {
 	return present
 }
 
+// parseResourcesCapability reports whether the client declared
+// capabilities.resources={} at initialize. Same pattern as tasks.
+func parseResourcesCapability(req *request) bool {
+	if len(req.Params) == 0 {
+		return false
+	}
+	var p map[string]any
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return false
+	}
+	caps, _ := p["capabilities"].(map[string]any)
+	if caps == nil {
+		return false
+	}
+	_, present := caps["resources"].(map[string]any)
+	return present
+}
+
 // buildInitializeResult assembles the InitializeResult body.
 // MCP uses camelCase JSON keys per the external spec; Ze's kebab-case rule
 // exempts MCP. Keys are built via map literals to preserve the spec shape.
@@ -1110,8 +1132,9 @@ func (s *Streamable) buildInitializeResult(req *request) *response {
 		Result: map[string]any{
 			"protocolVersion": ProtocolVersion,
 			"capabilities": map[string]any{
-				"tools": map[string]any{},
-				"tasks": map[string]any{},
+				"tools":     map[string]any{},
+				"tasks":     map[string]any{},
+				"resources": map[string]any{},
 			},
 			"serverInfo": map[string]any{
 				"name":    "ze-mcp",
@@ -1151,6 +1174,10 @@ func (s *Streamable) runMethod(ctx context.Context, sess *session, req *request,
 		return s.tasksResult(sess, req)
 	case "tasks/cancel":
 		return s.tasksCancel(sess, req)
+	case "resources/list":
+		return s.resourcesList(sess, req)
+	case "resources/read":
+		return s.resourcesRead(sess, req)
 	default:
 		return s.fail(req.ID, -32601, fmt.Sprintf("method not found: %s", req.Method))
 	}

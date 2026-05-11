@@ -242,6 +242,78 @@ func GetTaskSupportExtension(entry *gyang.Entry) string {
 	return ""
 }
 
+// UIResourceEntry holds the MCP Apps ui-resource metadata from YANG extensions.
+type UIResourceEntry struct {
+	Path        string
+	Permissions string
+	CSP         string
+}
+
+// PathToUIResource walks all -cmd YANG modules and builds a map from
+// CLI path to UIResourceEntry. The ze:ui-resource extension can appear on
+// grouping containers (not just ze:command nodes).
+func PathToUIResource(loader *Loader) map[string]UIResourceEntry {
+	result := make(map[string]UIResourceEntry)
+	if loader == nil {
+		return result
+	}
+
+	var cmdModules []string
+	for _, name := range loader.ModuleNames() {
+		if strings.HasSuffix(name, cmdModuleSuffix) {
+			cmdModules = append(cmdModules, name)
+		}
+	}
+	sort.Strings(cmdModules)
+
+	for _, name := range cmdModules {
+		entry := loader.GetEntry(name)
+		if entry == nil || entry.Dir == nil {
+			continue
+		}
+		collectUIResource(entry, "", result)
+	}
+	return result
+}
+
+func collectUIResource(entry *gyang.Entry, prefix string, result map[string]UIResourceEntry) {
+	if entry == nil || entry.Dir == nil {
+		return
+	}
+	for name, child := range entry.Dir {
+		if child.Config != gyang.TSFalse {
+			continue
+		}
+		path := name
+		if prefix != "" {
+			path = prefix + " " + name
+		}
+		if info := getUIResourceExtensions(child); info.Path != "" {
+			result[path] = info
+		}
+		collectUIResource(child, path, result)
+	}
+}
+
+func getUIResourceExtensions(entry *gyang.Entry) UIResourceEntry {
+	var info UIResourceEntry
+	for _, ext := range entry.Exts {
+		switch {
+		case ext.Keyword == "ze:ui-resource" || strings.HasSuffix(ext.Keyword, ":ui-resource"):
+			p := ext.Argument
+			if p == "" || strings.Contains(p, "..") || strings.HasPrefix(p, "/") {
+				continue
+			}
+			info.Path = p
+		case ext.Keyword == "ze:ui-permissions" || strings.HasSuffix(ext.Keyword, ":ui-permissions"):
+			info.Permissions = ext.Argument
+		case ext.Keyword == "ze:ui-csp" || strings.HasSuffix(ext.Keyword, ":ui-csp"):
+			info.CSP = ext.Argument
+		}
+	}
+	return info
+}
+
 // HasEditShortcutExtension returns true if the YANG entry has the ze:edit-shortcut extension.
 // This marks a command as available in edit mode as a shortcut (e.g., commit, save).
 func HasEditShortcutExtension(entry *gyang.Entry) bool {

@@ -12,7 +12,7 @@ func TestTaskWorker_ElicitFlipsInputRequired(t *testing.T) {
 
 	sessReg := newSessionRegistry(time.Minute, 0, 10)
 	defer sessReg.Close()
-	sess, err := sessReg.CreateWithCapabilities(ProtocolVersion, Identity{Name: "alice"}, true, true)
+	sess, err := sessReg.CreateWithCapabilities(ProtocolVersion, Identity{Name: "alice"}, true, true, false)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestTaskElicit_DeclineFails(t *testing.T) {
 
 	sessReg := newSessionRegistry(time.Minute, 0, 10)
 	defer sessReg.Close()
-	sess, err := sessReg.CreateWithCapabilities(ProtocolVersion, Identity{Name: "alice"}, true, true)
+	sess, err := sessReg.CreateWithCapabilities(ProtocolVersion, Identity{Name: "alice"}, true, true, false)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -128,7 +128,7 @@ func TestTaskElicit_CtxCancelUnblocks(t *testing.T) {
 
 	sessReg := newSessionRegistry(time.Minute, 0, 10)
 	defer sessReg.Close()
-	sess, err := sessReg.CreateWithCapabilities(ProtocolVersion, Identity{Name: "alice"}, true, true)
+	sess, err := sessReg.CreateWithCapabilities(ProtocolVersion, Identity{Name: "alice"}, true, true, false)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}

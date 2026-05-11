@@ -36,6 +36,13 @@ func (t TaskSupportLevel) String() string {
 	}
 }
 
+// UIResourceInfo holds MCP Apps UI resource metadata for a command group.
+type UIResourceInfo struct {
+	Path        string // relative path under ui/ FS (e.g. "bgp-peer/index.html")
+	Permissions string // space-separated capabilities (e.g. "network")
+	CSP         string // Content-Security-Policy directive
+}
+
 // CommandInfo describes a registered command for MCP tool generation.
 type CommandInfo struct {
 	Name        string           // Dispatch path, e.g. "bgp rib status", "show config dump"
@@ -43,6 +50,7 @@ type CommandInfo struct {
 	ReadOnly    bool             // True if read-only command
 	Params      []ParamInfo      // Input parameters from YANG RPC (nil = no typed params)
 	TaskSupport TaskSupportLevel // From YANG ze:task-support extension
+	UIResource  *UIResourceInfo  // From YANG ze:ui-resource extension (nil = no UI)
 }
 
 // ParamInfo describes a single input parameter from YANG RPC metadata.
@@ -62,6 +70,7 @@ type toolGroup struct {
 	prefix      string           // e.g. "bgp rib", "show config"
 	actions     []action         // subcommands within the group
 	taskSupport TaskSupportLevel // highest declared across actions
+	uiResource  *UIResourceInfo  // from any action with a UI bundle
 }
 
 // action is a single subcommand within a group.
@@ -71,6 +80,7 @@ type action struct {
 	full        string           // full command path for dispatch
 	params      []ParamInfo      // typed parameters from YANG (nil = generic arguments only)
 	taskSupport TaskSupportLevel // from YANG ze:task-support
+	uiResource  *UIResourceInfo  // from YANG ze:ui-resource
 }
 
 // groupCommands groups commands by their natural prefix.
@@ -86,6 +96,7 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 		help        string
 		params      []ParamInfo
 		taskSupport TaskSupportLevel
+		uiResource  *UIResourceInfo
 	}
 
 	// Index commands by first-token and first-two-tokens.
@@ -97,7 +108,7 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 		if len(tokens) == 0 {
 			continue
 		}
-		e := entry{full: cmd.Name, help: cmd.Help, params: cmd.Params, taskSupport: cmd.TaskSupport}
+		e := entry{full: cmd.Name, help: cmd.Help, params: cmd.Params, taskSupport: cmd.TaskSupport, uiResource: cmd.UIResource}
 		one := tokens[0]
 		byOne[one] = append(byOne[one], e)
 		if len(tokens) >= 2 {
@@ -139,11 +150,13 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 					full:        e.full,
 					params:      e.params,
 					taskSupport: e.taskSupport,
+					uiResource:  e.uiResource,
 				})
 				used[e.full] = true
 			}
 			sortActions(g.actions)
 			g.taskSupport = groupTaskSupport(g.actions)
+			g.uiResource = groupUIResource(g.actions)
 			groups = append(groups, g)
 		}
 		// Depth-1 commands under this prefix not in any depth-2 group.
@@ -154,8 +167,9 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 			tokens := strings.Fields(e.full)
 			if len(tokens) == 2 {
 				g := toolGroup{prefix: e.full}
-				g.actions = append(g.actions, action{name: "", help: e.help, full: e.full, params: e.params, taskSupport: e.taskSupport})
+				g.actions = append(g.actions, action{name: "", help: e.help, full: e.full, params: e.params, taskSupport: e.taskSupport, uiResource: e.uiResource})
 				g.taskSupport = e.taskSupport
+				g.uiResource = e.uiResource
 				used[e.full] = true
 				groups = append(groups, g)
 			}
@@ -186,11 +200,13 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 				full:        e.full,
 				params:      e.params,
 				taskSupport: e.taskSupport,
+				uiResource:  e.uiResource,
 			})
 			used[e.full] = true
 		}
 		sortActions(g.actions)
 		g.taskSupport = groupTaskSupport(g.actions)
+		g.uiResource = groupUIResource(g.actions)
 		groups = append(groups, g)
 	}
 
@@ -327,7 +343,29 @@ func buildToolDef(g toolGroup) map[string]any {
 	tool["execution"] = map[string]any{
 		"taskSupport": g.taskSupport.String(),
 	}
+	if g.uiResource != nil {
+		uiMap := map[string]any{
+			"resourceUri": uiScheme + g.uiResource.Path,
+		}
+		if g.uiResource.Permissions != "" {
+			uiMap["permissions"] = strings.Fields(g.uiResource.Permissions)
+		}
+		if g.uiResource.CSP != "" {
+			uiMap["csp"] = g.uiResource.CSP
+		}
+		tool["_meta"] = map[string]any{"ui": uiMap}
+	}
 	return tool
+}
+
+// groupUIResource returns the first non-nil UIResourceInfo from the actions.
+func groupUIResource(actions []action) *UIResourceInfo {
+	for _, a := range actions {
+		if a.uiResource != nil {
+			return a.uiResource
+		}
+	}
+	return nil
 }
 
 // groupTaskSupport derives the group-level taskSupport from its actions.

@@ -1,0 +1,51 @@
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --border: #0f3460;
+  --text: #e4e4e4;
+  --accent: #e94560;
+  --ok: #4ecca3;
+  --warn: #f0a500;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 1rem;
+}
+
+h1 {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  color: var(--accent);
+}
+
+.peer-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.peer-card .name {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.peer-card .state {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.peer-card .state.established { color: var(--ok); }
+.peer-card .state.idle { color: var(--warn); }
+
+.error {
+  color: var(--accent);
+  padding: 0.5rem;
+  font-size: 0.85rem;
+}

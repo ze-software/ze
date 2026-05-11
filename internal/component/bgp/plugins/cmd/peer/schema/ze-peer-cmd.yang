@@ -14,6 +14,9 @@ module ze-peer-cmd {
     container peer {
         config false;
         description "Peer operations";
+        ze:ui-resource "bgp-peer/index.html";
+        ze:ui-permissions "network";
+        ze:ui-csp "default-src 'self'";
 
         container list {
             config false;

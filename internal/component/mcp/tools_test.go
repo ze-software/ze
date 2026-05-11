@@ -924,3 +924,103 @@ func TestYANGTypeToJSON(t *testing.T) {
 		}
 	}
 }
+
+func TestToolDescriptor_UIMetaFromYANG(t *testing.T) {
+	commands := []CommandInfo{
+		{
+			Name: "bgp peer list",
+			Help: "List peers",
+			UIResource: &UIResourceInfo{
+				Path:        "bgp-peer/index.html",
+				Permissions: "network",
+				CSP:         "default-src 'self'",
+			},
+		},
+		{Name: "bgp peer detail", Help: "Peer details"},
+		{Name: "bgp rib status", Help: "RIB summary"},
+		{Name: "bgp rib routes", Help: "Show routes"},
+	}
+	groups := groupCommands(commands)
+	var peerGroup *toolGroup
+	for i := range groups {
+		if groups[i].prefix == "bgp peer" {
+			peerGroup = &groups[i]
+			break
+		}
+	}
+	if peerGroup == nil {
+		var names []string
+		for _, g := range groups {
+			names = append(names, g.prefix)
+		}
+		t.Fatalf("bgp peer group not found in %v", names)
+	}
+	tool := buildToolDef(*peerGroup)
+	if tool == nil {
+		t.Fatal("buildToolDef returned nil")
+	}
+	meta, ok := tool["_meta"].(map[string]any)
+	if !ok {
+		t.Fatal("tool missing _meta")
+	}
+	ui, ok := meta["ui"].(map[string]any)
+	if !ok {
+		t.Fatal("_meta missing ui")
+	}
+	if uri, _ := ui["resourceUri"].(string); uri != "ui://bgp-peer/index.html" {
+		t.Errorf("resourceUri = %q, want %q", uri, "ui://bgp-peer/index.html")
+	}
+}
+
+func TestToolDescriptor_UIMetaPermissionsAndCSP(t *testing.T) {
+	commands := []CommandInfo{
+		{
+			Name: "bgp peer list",
+			Help: "List peers",
+			UIResource: &UIResourceInfo{
+				Path:        "bgp-peer/index.html",
+				Permissions: "network clipboard",
+				CSP:         "default-src 'self'; script-src 'self'",
+			},
+		},
+	}
+	groups := groupCommands(commands)
+	if len(groups) == 0 {
+		t.Fatal("no groups")
+	}
+	tool := buildToolDef(groups[0])
+	if tool == nil {
+		t.Fatal("buildToolDef returned nil")
+	}
+	meta, _ := tool["_meta"].(map[string]any)
+	ui, _ := meta["ui"].(map[string]any)
+
+	perms, ok := ui["permissions"].([]string)
+	if !ok {
+		t.Fatal("permissions not []string")
+	}
+	if len(perms) != 2 || perms[0] != "network" || perms[1] != "clipboard" {
+		t.Errorf("permissions = %v, want [network clipboard]", perms)
+	}
+	csp, _ := ui["csp"].(string)
+	if csp != "default-src 'self'; script-src 'self'" {
+		t.Errorf("csp = %q, want %q", csp, "default-src 'self'; script-src 'self'")
+	}
+}
+
+func TestToolDescriptor_NoUIMetaWithoutResource(t *testing.T) {
+	commands := []CommandInfo{
+		{Name: "bgp rib status", Help: "RIB summary"},
+		{Name: "bgp rib routes", Help: "Show routes"},
+	}
+	groups := groupCommands(commands)
+	for _, g := range groups {
+		tool := buildToolDef(g)
+		if tool == nil {
+			continue
+		}
+		if tool["_meta"] != nil {
+			t.Errorf("tool %q has _meta but no UIResource", tool["name"])
+		}
+	}
+}

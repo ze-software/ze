@@ -178,6 +178,7 @@ banner reads the same source, so nothing is silently hidden. See
 | MCP (Model Context Protocol) server | Yes | No | No | No | No | No | No | No | No | No | No |
 | MCP elicitation (2025-06-18) | Yes | No | No | No | No | No | No | No | No | No | No |
 | MCP tasks (2025-11-25) | Yes | No | No | No | No | No | No | No | No | No | No |
+| MCP Apps (UI resources) | Yes | No | No | No | No | No | No | No | No | No | No |
 | SSH CLI access | Yes | No | No | No | No | No | No | No | No | No | Yes |
 
 ## Operations
