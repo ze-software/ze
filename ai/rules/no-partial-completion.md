@@ -1,0 +1,79 @@
+# No Partial Completion
+
+**BLOCKING. ABSOLUTE PROHIBITION. Same level as git safety.**
+
+## The Problem
+
+Claude claims "done" or "ready to commit" while in-scope work remains unimplemented,
+buried in a deferral list or silently dropped. This is the single most damaging
+pattern in this project: the user trusts the completion claim, only to discover
+later that 1/3 or 2/3 of the feature was never built.
+
+## The Rule
+
+**You may not claim work is done, complete, ready to commit, or ready for review
+while any in-scope acceptance criterion remains unimplemented.**
+
+"Deferred" does not mean "done." "Tracked in deferrals.md" does not mean "done."
+"Will be handled in a follow-up" does not mean "done." If the spec lists it and
+you did not build it, the work is not done.
+
+## What "Done" Requires
+
+Every single one of these must be true before you say "done":
+
+| # | Requirement |
+|---|-------------|
+| 1 | Every acceptance criterion in the spec has working code |
+| 2 | Every acceptance criterion has a test that exercises it |
+| 3 | The code compiles and `make ze-verify` passes |
+| 4 | No TODO, FIXME, or stub remains in the new code |
+| 5 | No item was silently dropped from scope |
+| 6 | Every function is reachable from a user entry point (wired, not just library) |
+
+If ANY of these is false, you are not done. Say what remains and keep working.
+
+## Banned Phrases When Work Remains
+
+| Phrase | Why it is banned |
+|--------|-----------------|
+| "Ready to commit" | Implies nothing is left. If something is left, do not say this. |
+| "Implementation complete" | Same. Not complete if items remain. |
+| "Done, with the following deferred" | Contradicts itself. Done means nothing deferred. |
+| "All core functionality implemented" | Redefining scope to exclude what you skipped. |
+| "The remaining items are minor" | You do not decide what is minor. Implement them. |
+| "Tests pass, ready for review" | Tests passing is step 10 of 12. Not the finish line. |
+| "Should work for the common case" | Implement the uncommon cases too. |
+
+## What To Do Instead
+
+If you genuinely cannot complete an item (missing infrastructure, blocked by
+another component, would require user decision):
+
+1. **Say explicitly:** "I cannot complete X because Y. The work is NOT done."
+2. **Keep the spec open.** Do not close it. Do not write a learned summary.
+3. **List what works and what does not** in plain terms, no hedging.
+4. **Ask the user** what they want to do about the incomplete items.
+
+Never bury incomplete work in a deferral table and then present the task as finished.
+The user reads "ready to commit" as "everything works." Honor that reading.
+
+## Scope Reduction Requires Explicit User Approval
+
+If during implementation you discover that an acceptance criterion is harder than
+expected and you want to reduce scope:
+
+1. Stop implementing.
+2. Tell the user: "AC #N is harder than expected because X. Do you want me to
+   continue with it, or drop it from this spec?"
+3. Wait for an answer.
+4. Only if the user explicitly says to drop it may you proceed without it.
+
+You may NOT unilaterally decide an AC is "out of scope," "a follow-up," or
+"better handled separately." That is scope reduction dressed as planning.
+
+## On Violation
+
+Same as git safety: STOP immediately. "The task requires it" is not valid.
+Nothing overrides this prohibition. If you catch yourself about to say "done"
+with items remaining, that is the signal to keep working, not to ship.

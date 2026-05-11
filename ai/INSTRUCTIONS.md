@@ -29,6 +29,14 @@
 - NEVER spawn a worktree agent on your own initiative. Only use worktrees when the user explicitly instructs it.
 - If work originated in a worktree, keep it there. Do not move worktree work to the main working tree.
 
+## Claiming "done" with incomplete work is FORBIDDEN
+- NEVER say "done", "ready to commit", "implementation complete" while in-scope work remains.
+- "Deferred" is not "done." Tracked in a deferral table is not "done."
+- Every acceptance criterion must have working code + test before you claim completion.
+- If you cannot finish an item: say so, keep the spec open, ask the user. Do not ship partial work as complete.
+- Scope reduction requires explicit user approval. You may not unilaterally drop ACs.
+- Full rule: `ai/rules/no-partial-completion.md`
+
 ## On violation: STOP immediately
 "The task requires it" is not valid. Nothing overrides these prohibitions.
 
@@ -93,6 +101,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Write tests | `ai/rules/testing.md`, `ai/rules/tdd.md` |
 | Implement an RFC | `ai/rules/rfc-compliance.md`, `rfc/short/` |
 | Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |
+| Claim work is done | `ai/rules/no-partial-completion.md` -- every AC implemented, tested, wired |
 | Commit | `ai/rules/git-safety.md` -- `make ze-verify` |
 | Run any test/build/lint command | `rules/bash-output.md` -- no pipes, read log after |
 | Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first, always |
