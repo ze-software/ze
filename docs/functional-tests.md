@@ -183,6 +183,24 @@ elicitation scenarios: `elicit-accept <json>`, `elicit-decline`,
 `elicit-cancel`. Each queues one reply; the client auto-cancels when an
 elicit frame arrives with nothing queued.
 
+### 3c. Task Tests (`test/plugin/task-*.ci`)
+
+Task-augmented `tools/call` scenarios using the `--tasks` flag on
+`ze-test mcp`. The client declares `capabilities.tasks={}` at
+initialize and uses task-specific directives.
+
+| File | What it covers |
+|------|----------------|
+| `task-rib-routes.ci` | `rib routes` as a task: createTask -> poll -> tasks/result returns route data |
+| `task-cancel.ci` | Create a long-running task, cancel it, verify state is cancelled |
+| `task-forbidden.ci` | `rib clear in` (forbidden) with `task:{}` is rejected with -32602 |
+| `task-identity-scope.ci` | Two bearer-list identities each create tasks; `tasks/list` returns only own tasks |
+
+Task directives: `task-call <tool> <args>`, `task-get <id>`,
+`task-result <id>`, `task-cancel <id>`, `task-list`,
+`task-wait <id> <state>`. `$LAST` substitutes the most recent directive
+output (typically the taskId from `task-call`).
+
 ### Forward-Path Claims
 
 Claims about forwarding, per-destination egress filters, or wire-visible

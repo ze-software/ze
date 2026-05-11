@@ -99,6 +99,18 @@ module ze-extensions {
                      the handler argument connects it to the registered handler.";
     }
 
+    // Extension: task-support
+    // Declares whether an MCP tool supports task-augmented calls.
+    // Used by tools.go to populate execution.taskSupport in tools/list.
+    // Values: "optional" (default), "required", "forbidden".
+    extension task-support {
+        argument level;
+        description "Declares the MCP task-support level for this command.
+                     'required' = must be called as a task,
+                     'optional' = sync or task (default if absent),
+                     'forbidden' = must not be called as a task.";
+    }
+
     // Extension: edit-shortcut
     // Marks a command as available in edit mode as a shortcut.
     // When typed in edit mode, implicitly runs as 'run <command>'.

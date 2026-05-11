@@ -1,0 +1,42 @@
+# task-cancel - create a task then cancel it before completion
+# Exercises: createTask on required tool -> tasks/cancel -> state is cancelled
+# Uses ze_monitor (task-support: required) to exercise the required path.
+
+# MCP commands: run monitor bgp as a task (required), immediately cancel
+stdin=mcp:terminator=EOF_MCP
+task-call ze_monitor {"action":"bgp"}
+task-cancel $LAST
+task-get $LAST
+EOF_MCP
+
+# Ze config: single peer (no peer needed to be established for this test)
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=tcp_connections:value=0
+
+cmd=background:seq=1:exec=ze --mcp $PORT2 -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=10s

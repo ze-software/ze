@@ -81,6 +81,8 @@ type StreamableConfig struct {
 	BearerList []BearerListEntry
 	// OAuth holds resource-server settings (AuthMode=OAuth). Phase F wires it.
 	OAuth OAuthConfig
+	// Tasks holds per-server task registry limits.
+	Tasks TaskRegistryConfig
 }
 
 // BearerListEntry is one row of the AuthMode=BearerList identity table.
@@ -111,6 +113,7 @@ type OAuthConfig struct {
 type Streamable struct {
 	cfg            StreamableConfig
 	registry       *sessionRegistry
+	tasks          *taskRegistry
 	maxBody        int64
 	originSet      map[string]struct{}
 	heartbeatEvery time.Duration // override for tests; 0 → sessionHeartbeatWindow
@@ -164,9 +167,15 @@ func NewStreamable(cfg StreamableConfig) (*Streamable, error) {
 	if err != nil {
 		return nil, err
 	}
+	taskReg := newTaskRegistry(cfg.Tasks)
+	sessReg := newSessionRegistry(cfg.SessionTTL, cfg.MaxSessionLifetime, maxSessions)
+	sessReg.onExpire = func(sessionID string) {
+		taskReg.CancelAllForSession(sessionID)
+	}
 	return &Streamable{
 		cfg:         cfg,
-		registry:    newSessionRegistry(cfg.SessionTTL, cfg.MaxSessionLifetime, maxSessions),
+		registry:    sessReg,
+		tasks:       taskReg,
 		maxBody:     maxB,
 		originSet:   originSet,
 		auth:        authRes.auth,
@@ -471,6 +480,7 @@ func buildOriginSet(origins []string) (map[string]struct{}, error) {
 
 // Close releases server resources. Idempotent.
 func (s *Streamable) Close() {
+	s.tasks.Close()
 	s.registry.Close()
 }
 
@@ -1023,6 +1033,7 @@ func (s *Streamable) handleDELETE(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Mcp-Session-Id header required", http.StatusBadRequest)
 		return
 	}
+	s.tasks.CancelAllForSession(id)
 	if !s.registry.Delete(id) {
 		http.Error(w, "session not found", http.StatusNotFound)
 		return
@@ -1040,7 +1051,8 @@ func (s *Streamable) doInitialize(req *request, identity Identity) (*session, er
 		return nil, err
 	}
 	clientElicit := parseElicitationCapability(req)
-	sess, err := s.registry.CreateWithCapabilities(negotiated, identity, clientElicit)
+	clientTasks := parseTasksCapability(req)
+	sess, err := s.registry.CreateWithCapabilities(negotiated, identity, clientElicit, clientTasks)
 	if err != nil {
 		return nil, err
 	}
@@ -1070,6 +1082,24 @@ func parseElicitationCapability(req *request) bool {
 	return present
 }
 
+// parseTasksCapability reports whether the client declared
+// capabilities.tasks={} at initialize. Same pattern as elicitation.
+func parseTasksCapability(req *request) bool {
+	if len(req.Params) == 0 {
+		return false
+	}
+	var p map[string]any
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return false
+	}
+	caps, _ := p["capabilities"].(map[string]any)
+	if caps == nil {
+		return false
+	}
+	_, present := caps["tasks"].(map[string]any)
+	return present
+}
+
 // buildInitializeResult assembles the InitializeResult body.
 // MCP uses camelCase JSON keys per the external spec; Ze's kebab-case rule
 // exempts MCP. Keys are built via map literals to preserve the spec shape.
@@ -1081,6 +1111,7 @@ func (s *Streamable) buildInitializeResult(req *request) *response {
 			"protocolVersion": ProtocolVersion,
 			"capabilities": map[string]any{
 				"tools": map[string]any{},
+				"tasks": map[string]any{},
 			},
 			"serverInfo": map[string]any{
 				"name":    "ze-mcp",
@@ -1112,6 +1143,14 @@ func (s *Streamable) runMethod(ctx context.Context, sess *session, req *request,
 		return s.ok(req.ID, map[string]any{"tools": s.allTools()})
 	case "tools/call":
 		return s.callTool(ctx, req, sess, remoteAddr)
+	case "tasks/list":
+		return s.tasksList(sess, req)
+	case "tasks/get":
+		return s.tasksGet(sess, req)
+	case "tasks/result":
+		return s.tasksResult(sess, req)
+	case "tasks/cancel":
+		return s.tasksCancel(sess, req)
 	default:
 		return s.fail(req.ID, -32601, fmt.Sprintf("method not found: %s", req.Method))
 	}
@@ -1142,6 +1181,16 @@ func (s *Streamable) callTool(ctx context.Context, req *request, sess *session, 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		return s.fail(req.ID, -32602, "invalid params: "+err.Error())
 	}
+	ts := s.lookupTaskSupport(params.Name)
+	if params.Task != nil {
+		if ts == TaskSupportForbidden {
+			return s.fail(req.ID, -32602, fmt.Sprintf("tool %s does not support task-augmented calls", params.Name))
+		}
+		return s.createTask(req, sess, remoteAddr, params)
+	}
+	if ts == TaskSupportRequired {
+		return s.fail(req.ID, -32602, fmt.Sprintf("tool %s requires task-augmented call (pass task: {})", params.Name))
+	}
 	var username string
 	if sess != nil {
 		username = sess.Identity().Name
@@ -1156,6 +1205,28 @@ func (s *Streamable) callTool(ctx context.Context, req *request, sess *session, 
 		}
 	}
 	return s.fail(req.ID, -32602, fmt.Sprintf("unknown tool: %s", params.Name))
+}
+
+// lookupTaskSupport returns the taskSupport level for a tool by name.
+// Handcrafted tools default to optional.
+func (s *Streamable) lookupTaskSupport(name string) TaskSupportLevel {
+	if s.cfg.Commands == nil {
+		return TaskSupportOptional
+	}
+	skip := handcraftedNames()
+	if skip[name] {
+		return TaskSupportOptional
+	}
+	groups := groupCommands(s.cfg.Commands())
+	for _, g := range groups {
+		if skip[toolName(g.prefix)] {
+			continue
+		}
+		if toolName(g.prefix) == name {
+			return g.taskSupport
+		}
+	}
+	return TaskSupportOptional
 }
 
 // findGeneratedTool maps an auto-generated tool name back to its command prefix.
@@ -1175,6 +1246,146 @@ func (s *Streamable) findGeneratedTool(name string) (string, map[string]bool, bo
 		}
 	}
 	return "", nil, false
+}
+
+// parseTaskID extracts the taskId field from JSON-RPC params (MCP camelCase).
+func parseTaskID(raw json.RawMessage) (string, error) {
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return "", err
+	}
+	id, _ := m["taskId"].(string)
+	if id == "" {
+		return "", errors.New("missing or empty taskId")
+	}
+	return id, nil
+}
+
+func (s *Streamable) tasksList(sess *session, req *request) *response {
+	if sess == nil || !sess.ClientSupportsTasks() {
+		return s.fail(req.ID, -32601, "method not found: tasks/list")
+	}
+	identity := sess.Identity().Name
+	tasks := s.tasks.List(identity)
+	items := make([]map[string]any, len(tasks))
+	for i, t := range tasks {
+		items[i] = t.ToWire()
+	}
+	return s.ok(req.ID, map[string]any{"tasks": items})
+}
+
+func (s *Streamable) tasksGet(sess *session, req *request) *response {
+	if sess == nil || !sess.ClientSupportsTasks() {
+		return s.fail(req.ID, -32601, "method not found: tasks/get")
+	}
+	taskID, err := parseTaskID(req.Params)
+	if err != nil {
+		return s.fail(req.ID, -32602, "invalid params: "+err.Error())
+	}
+	info, err := s.tasks.Get(sess.Identity().Name, taskID)
+	if err != nil {
+		return s.fail(req.ID, -32602, err.Error())
+	}
+	return s.ok(req.ID, info.ToWire())
+}
+
+func (s *Streamable) tasksResult(sess *session, req *request) *response {
+	if sess == nil || !sess.ClientSupportsTasks() {
+		return s.fail(req.ID, -32601, "method not found: tasks/result")
+	}
+	taskID, err := parseTaskID(req.Params)
+	if err != nil {
+		return s.fail(req.ID, -32602, "invalid params: "+err.Error())
+	}
+	result, err := s.tasks.Result(sess.Identity().Name, taskID)
+	if err != nil {
+		return s.fail(req.ID, -32602, err.Error())
+	}
+	return s.ok(req.ID, result)
+}
+
+func (s *Streamable) tasksCancel(sess *session, req *request) *response {
+	if sess == nil || !sess.ClientSupportsTasks() {
+		return s.fail(req.ID, -32601, "method not found: tasks/cancel")
+	}
+	taskID, err := parseTaskID(req.Params)
+	if err != nil {
+		return s.fail(req.ID, -32602, "invalid params: "+err.Error())
+	}
+	state, err := s.tasks.Cancel(sess.Identity().Name, taskID)
+	if err != nil {
+		return s.fail(req.ID, -32602, err.Error())
+	}
+	return s.ok(req.ID, map[string]any{"taskId": taskID, "status": state.String()})
+}
+
+// createTask handles tools/call with params.task present. It validates the
+// tool exists, registers a task, launches a worker, and returns CreateTaskResult.
+func (s *Streamable) createTask(req *request, sess *session, remoteAddr string, params callParams) *response {
+	if sess == nil || !sess.ClientSupportsTasks() {
+		return s.fail(req.ID, -32602, "client did not declare tasks capability")
+	}
+
+	// Resolve tool BEFORE allocating task entry (finding #1: avoid wasting
+	// concurrency slots on unknown tools).
+	handler, isHandcrafted := toolHandlers[params.Name]
+	var prefix string
+	var validActions map[string]bool
+	if !isHandcrafted && s.cfg.Commands != nil {
+		var found bool
+		prefix, validActions, found = s.findGeneratedTool(params.Name)
+		if !found {
+			return s.fail(req.ID, -32602, fmt.Sprintf("unknown tool: %s", params.Name))
+		}
+	} else if !isHandcrafted {
+		return s.fail(req.ID, -32602, fmt.Sprintf("unknown tool: %s", params.Name))
+	}
+
+	identity := sess.Identity().Name
+
+	var ttl time.Duration
+	if params.Task != nil {
+		var m map[string]any
+		if err := json.Unmarshal(params.Task, &m); err == nil {
+			if ms, ok := m["ttl"].(float64); ok && ms > 0 {
+				ttl = time.Duration(ms) * time.Millisecond
+			}
+		}
+	}
+
+	taskID, taskCtx, _, err := s.tasks.Create(identity, sess.ID(), ttl)
+	if err != nil {
+		return s.fail(req.ID, -32602, err.Error())
+	}
+
+	// Capture resolved dispatch path so the worker never calls
+	// groupCommands again (finding #3: avoid O(N) per-request).
+	capturedHandler := handler
+	capturedPrefix := prefix
+	capturedActions := validActions
+	capturedArgs := params.Arguments
+
+	work := func(wCtx context.Context) (map[string]any, error) {
+		runner := &server{
+			dispatch:   s.cfg.Dispatch,
+			commands:   s.cfg.Commands,
+			session:    sess,
+			ctx:        wCtx,
+			username:   identity,
+			remoteAddr: remoteAddr,
+		}
+		if isHandcrafted {
+			return capturedHandler(runner, capturedArgs), nil
+		}
+		return runner.dispatchGenerated(capturedPrefix, capturedActions, capturedArgs), nil
+	}
+
+	runTaskWorker(s.tasks, sess, taskID, taskCtx, work)
+
+	return s.ok(req.ID, map[string]any{
+		"taskId": taskID,
+		"status": TaskWorking.String(),
+	})
 }
 
 func (s *Streamable) ok(id *json.RawMessage, result any) *response {

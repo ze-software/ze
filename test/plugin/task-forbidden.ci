@@ -1,0 +1,40 @@
+# task-forbidden - calling a forbidden tool with task:{} is rejected
+# Exercises: taskSupport:forbidden + task param -> -32602 error
+
+# MCP commands: try to run rib clear in (forbidden) as a task
+stdin=mcp:terminator=EOF_MCP
+task-call ze_rib_clear {"action":"in","peer":"*"}
+EOF_MCP
+
+# Ze config
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=tcp_connections:value=0
+
+# task-call on a forbidden tool should print an error and exit non-zero
+cmd=background:seq=1:exec=ze --mcp $PORT2 -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=10s:expect-fail=true

@@ -35,9 +35,10 @@ func mcpCmd() int {
 	token := fs.String("token", "", "Bearer token for MCP authentication")
 	timeout := fs.Duration("timeout", 10*time.Second, "Connection timeout")
 	elicit := fs.Bool("elicit", false, "Declare capabilities.elicitation={} at initialize so the server may send elicitation/create")
+	tasks := fs.Bool("tasks", false, "Declare capabilities.tasks={} at initialize for task-augmented tools/call")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze-test mcp --port <port> [--token <token>] [--timeout <duration>] [--elicit]
+		fmt.Fprintf(os.Stderr, `Usage: ze-test mcp --port <port> [--token <token>] [--timeout <duration>] [--elicit] [--tasks]
 
 Send commands to a running Ze daemon via MCP.
 Reads commands from stdin, one per line.
@@ -51,6 +52,12 @@ Stdin directives (one per line):
   elicit-accept <json content>     -- queue an accept response for the next elicit
   elicit-decline                   -- queue a decline response for the next elicit
   elicit-cancel                    -- queue a cancel response for the next elicit
+  task-call <tool> <json args>     -- call tool with task:{}, print taskId
+  task-get <taskId>                -- call tasks/get, print status
+  task-result <taskId>             -- call tasks/result, print result
+  task-cancel <taskId>             -- call tasks/cancel
+  task-list                        -- call tasks/list, print task ids
+  task-wait <taskId> <state>       -- poll tasks/get until state matches
 
 Options:
 `)
@@ -70,6 +77,7 @@ Options:
 		addr:          "127.0.0.1:" + *port,
 		token:         *token,
 		declareElicit: *elicit,
+		declareTasks:  *tasks,
 		// No Timeout: http.Client.Timeout would cut off a valid slow tool
 		// call (or a long-lived SSE stream while Phase 4 tasks stream
 		// progress) before the .ci runner's outer `timeout=` fires. Rely on
@@ -96,6 +104,7 @@ Options:
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
+		line = strings.ReplaceAll(line, "$LAST", client.lastOutput)
 
 		if durStr, ok := strings.CutPrefix(line, "wait "); ok {
 			dur, err := time.ParseDuration(durStr)
@@ -149,6 +158,71 @@ Options:
 			continue
 		}
 
+		// Task directives.
+		if rest, ok := strings.CutPrefix(line, "task-call "); ok {
+			toolName, toolArgs, _ := strings.Cut(rest, " ")
+			if toolArgs == "" {
+				toolArgs = "{}"
+			}
+			taskID, err := client.taskCall(toolName, json.RawMessage(toolArgs))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: task-call: %v\n", err)
+				return 1
+			}
+			client.lastOutput = taskID
+			fmt.Println(taskID)
+			continue
+		}
+		if rest, ok := strings.CutPrefix(line, "task-get "); ok {
+			status, err := client.taskGet(strings.TrimSpace(rest))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: task-get: %v\n", err)
+				return 1
+			}
+			client.lastOutput = status
+			fmt.Println(status)
+			continue
+		}
+		if rest, ok := strings.CutPrefix(line, "task-result "); ok {
+			result, err := client.taskResult(strings.TrimSpace(rest))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: task-result: %v\n", err)
+				return 1
+			}
+			client.lastOutput = result
+			fmt.Println(result)
+			continue
+		}
+		if rest, ok := strings.CutPrefix(line, "task-cancel "); ok {
+			if err := client.taskCancel(strings.TrimSpace(rest)); err != nil {
+				fmt.Fprintf(os.Stderr, "error: task-cancel: %v\n", err)
+				return 1
+			}
+			continue
+		}
+		if line == "task-list" {
+			ids, err := client.taskList()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: task-list: %v\n", err)
+				return 1
+			}
+			client.lastOutput = ids
+			fmt.Println(ids)
+			continue
+		}
+		if rest, ok := strings.CutPrefix(line, "task-wait "); ok {
+			parts := strings.Fields(rest)
+			if len(parts) != 2 {
+				fmt.Fprintf(os.Stderr, "error: task-wait needs <taskId> <state>\n")
+				return 1
+			}
+			if err := client.taskWait(parts[0], parts[1], *timeout); err != nil {
+				fmt.Fprintf(os.Stderr, "error: task-wait: %v\n", err)
+				return 1
+			}
+			continue
+		}
+
 		// @tool_name {json} -- call a specific MCP tool with JSON arguments.
 		// Otherwise: send as ze_execute command.
 		if toolName, toolArgs, ok := strings.Cut(line, " "); ok && strings.HasPrefix(toolName, "@") {
@@ -194,12 +268,18 @@ type mcpClient struct {
 	id            int
 	sessionID     string // populated by initialize()
 	declareElicit bool   // declare capabilities.elicitation={} at initialize
+	declareTasks  bool   // declare capabilities.tasks={} at initialize
 
 	// http is a shared client (initialized with no Timeout; see mcpCmd).
 	// Kept as a field rather than http.DefaultClient so future knobs
 	// (cookie jar, custom Transport for TLS, ResponseHeaderTimeout for
 	// time-to-first-byte) can land here without touching every call site.
 	http *http.Client
+
+	// lastOutput holds the most recent line printed by a directive (e.g.,
+	// the taskId from task-call). $LAST in subsequent lines is replaced
+	// with this value.
+	lastOutput string
 
 	// elicitQueue is a FIFO of prepared responses consumed when the server
 	// sends elicitation/create over an SSE-upgraded POST. Each entry is
@@ -278,10 +358,18 @@ func (c *mcpClient) waitPeers(timeout time.Duration) error {
 // declareElicit is set, the params declare capabilities.elicitation={}
 // so the server is allowed to send elicitation/create.
 func (c *mcpClient) initialize() error {
-	params := json.RawMessage(`{"protocolVersion":"2025-06-18","capabilities":{}}`)
+	caps := map[string]any{}
 	if c.declareElicit {
-		params = json.RawMessage(`{"protocolVersion":"2025-06-18","capabilities":{"elicitation":{}}}`)
+		caps["elicitation"] = map[string]any{}
 	}
+	if c.declareTasks {
+		caps["tasks"] = map[string]any{}
+	}
+	paramMap := map[string]any{
+		"protocolVersion": "2025-06-18",
+		"capabilities":    caps,
+	}
+	params, _ := json.Marshal(paramMap)
 	sid, _, err := c.sendRaw("initialize", params)
 	if err != nil {
 		return err
@@ -542,4 +630,107 @@ func (c *mcpClient) answerServerRequest(method string, frame map[string]any) err
 		return fmt.Errorf("elicit reply status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+// taskCall sends tools/call with task:{} and returns the assigned taskId.
+func (c *mcpClient) taskCall(tool string, args json.RawMessage) (string, error) {
+	params, err := json.Marshal(map[string]any{
+		"name":      tool,
+		"arguments": args,
+		"task":      map[string]any{},
+	})
+	if err != nil {
+		return "", fmt.Errorf("marshal params: %w", err)
+	}
+	result, err := c.send("tools/call", json.RawMessage(params))
+	if err != nil {
+		return "", err
+	}
+	var r map[string]any
+	if err := json.Unmarshal(result, &r); err != nil {
+		return "", fmt.Errorf("parse CreateTaskResult: %w", err)
+	}
+	taskID, _ := r["taskId"].(string)
+	if taskID == "" {
+		return "", fmt.Errorf("CreateTaskResult missing taskId: %s", result)
+	}
+	return taskID, nil
+}
+
+// taskGet calls tasks/get and returns the status string.
+func (c *mcpClient) taskGet(taskID string) (string, error) {
+	params, _ := json.Marshal(map[string]any{"taskId": taskID})
+	result, err := c.send("tasks/get", json.RawMessage(params))
+	if err != nil {
+		return "", err
+	}
+	var r map[string]any
+	if err := json.Unmarshal(result, &r); err != nil {
+		return "", err
+	}
+	status, _ := r["status"].(string)
+	return status, nil
+}
+
+// taskResult calls tasks/result and returns the tool output text.
+func (c *mcpClient) taskResult(taskID string) (string, error) {
+	params, _ := json.Marshal(map[string]any{"taskId": taskID})
+	result, err := c.send("tasks/result", json.RawMessage(params))
+	if err != nil {
+		return "", err
+	}
+	return c.extractText(result)
+}
+
+// taskCancel calls tasks/cancel.
+func (c *mcpClient) taskCancel(taskID string) error {
+	params, _ := json.Marshal(map[string]any{"taskId": taskID})
+	_, err := c.send("tasks/cancel", json.RawMessage(params))
+	return err
+}
+
+// taskList calls tasks/list and returns a space-separated list of task IDs.
+func (c *mcpClient) taskList() (string, error) {
+	result, err := c.send("tasks/list", json.RawMessage(`{}`))
+	if err != nil {
+		return "", err
+	}
+	var r map[string]any
+	if err := json.Unmarshal(result, &r); err != nil {
+		return "", err
+	}
+	tasks, _ := r["tasks"].([]any)
+	var ids []string
+	for _, t := range tasks {
+		if m, ok := t.(map[string]any); ok {
+			if id, ok := m["taskId"].(string); ok {
+				ids = append(ids, id)
+			}
+		}
+	}
+	return strings.Join(ids, " "), nil
+}
+
+// taskTerminalStates are states that will never change.
+var taskTerminalStates = map[string]bool{
+	"completed": true,
+	"failed":    true,
+	"cancelled": true, //nolint:misspell // MCP spec wire value
+}
+
+// taskWait polls tasks/get until the task reaches the target state.
+// Fails fast if the task reaches a different terminal state.
+func (c *mcpClient) taskWait(taskID, targetState string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		status, err := c.taskGet(taskID)
+		if err == nil && status == targetState {
+			return nil
+		}
+		if err == nil && taskTerminalStates[status] && status != targetState {
+			return fmt.Errorf("task %s reached terminal state %q, wanted %q", taskID, status, targetState)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return fmt.Errorf("task %s did not reach %q within %v", taskID, targetState, timeout)
 }

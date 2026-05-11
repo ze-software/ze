@@ -8,6 +8,7 @@ module ze-cli-subscribe-cmd {
     container subscribe {
         config false;
         ze:command "ze-bgp:subscribe";
+        ze:task-support required;
         description "Subscribe to events";
     }
 

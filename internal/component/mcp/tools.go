@@ -10,12 +10,39 @@ import (
 	"strings"
 )
 
+// TaskSupportLevel declares whether a tool supports task-augmented calls.
+type TaskSupportLevel uint8
+
+const (
+	TaskSupportOptional  TaskSupportLevel = 0 // default: sync or task
+	TaskSupportRequired  TaskSupportLevel = 1 // must be called as a task
+	TaskSupportForbidden TaskSupportLevel = 2 // must not be called as a task
+)
+
+const (
+	taskSupportWireOptional  = "optional"
+	taskSupportWireRequired  = "required"
+	taskSupportWireForbidden = "forbidden"
+)
+
+func (t TaskSupportLevel) String() string {
+	switch t {
+	case TaskSupportRequired:
+		return taskSupportWireRequired
+	case TaskSupportForbidden:
+		return taskSupportWireForbidden
+	default:
+		return taskSupportWireOptional
+	}
+}
+
 // CommandInfo describes a registered command for MCP tool generation.
 type CommandInfo struct {
-	Name     string      // Dispatch path, e.g. "bgp rib status", "show config dump"
-	Help     string      // Description from YANG
-	ReadOnly bool        // True if read-only command
-	Params   []ParamInfo // Input parameters from YANG RPC (nil = no typed params)
+	Name        string           // Dispatch path, e.g. "bgp rib status", "show config dump"
+	Help        string           // Description from YANG
+	ReadOnly    bool             // True if read-only command
+	Params      []ParamInfo      // Input parameters from YANG RPC (nil = no typed params)
+	TaskSupport TaskSupportLevel // From YANG ze:task-support extension
 }
 
 // ParamInfo describes a single input parameter from YANG RPC metadata.
@@ -32,16 +59,18 @@ type CommandLister func() []CommandInfo
 
 // toolGroup is a set of related commands sharing a prefix.
 type toolGroup struct {
-	prefix  string   // e.g. "bgp rib", "show config"
-	actions []action // subcommands within the group
+	prefix      string           // e.g. "bgp rib", "show config"
+	actions     []action         // subcommands within the group
+	taskSupport TaskSupportLevel // highest declared across actions
 }
 
 // action is a single subcommand within a group.
 type action struct {
-	name   string      // action name (suffix after prefix), e.g. "status", "dump"
-	help   string      // description
-	full   string      // full command path for dispatch
-	params []ParamInfo // typed parameters from YANG (nil = generic arguments only)
+	name        string           // action name (suffix after prefix), e.g. "status", "dump"
+	help        string           // description
+	full        string           // full command path for dispatch
+	params      []ParamInfo      // typed parameters from YANG (nil = generic arguments only)
+	taskSupport TaskSupportLevel // from YANG ze:task-support
 }
 
 // groupCommands groups commands by their natural prefix.
@@ -53,9 +82,10 @@ type action struct {
 // Single commands with no siblings become their own group with no action param.
 func groupCommands(commands []CommandInfo) []toolGroup {
 	type entry struct {
-		full   string
-		help   string
-		params []ParamInfo
+		full        string
+		help        string
+		params      []ParamInfo
+		taskSupport TaskSupportLevel
 	}
 
 	// Index commands by first-token and first-two-tokens.
@@ -67,7 +97,7 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 		if len(tokens) == 0 {
 			continue
 		}
-		e := entry{full: cmd.Name, help: cmd.Help, params: cmd.Params}
+		e := entry{full: cmd.Name, help: cmd.Help, params: cmd.Params, taskSupport: cmd.TaskSupport}
 		one := tokens[0]
 		byOne[one] = append(byOne[one], e)
 		if len(tokens) >= 2 {
@@ -104,14 +134,16 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 					suffix = ""
 				}
 				g.actions = append(g.actions, action{
-					name:   suffix,
-					help:   e.help,
-					full:   e.full,
-					params: e.params,
+					name:        suffix,
+					help:        e.help,
+					full:        e.full,
+					params:      e.params,
+					taskSupport: e.taskSupport,
 				})
 				used[e.full] = true
 			}
 			sortActions(g.actions)
+			g.taskSupport = groupTaskSupport(g.actions)
 			groups = append(groups, g)
 		}
 		// Depth-1 commands under this prefix not in any depth-2 group.
@@ -122,7 +154,8 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 			tokens := strings.Fields(e.full)
 			if len(tokens) == 2 {
 				g := toolGroup{prefix: e.full}
-				g.actions = append(g.actions, action{name: "", help: e.help, full: e.full, params: e.params})
+				g.actions = append(g.actions, action{name: "", help: e.help, full: e.full, params: e.params, taskSupport: e.taskSupport})
+				g.taskSupport = e.taskSupport
 				used[e.full] = true
 				groups = append(groups, g)
 			}
@@ -148,14 +181,16 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 				suffix = ""
 			}
 			g.actions = append(g.actions, action{
-				name:   suffix,
-				help:   e.help,
-				full:   e.full,
-				params: e.params,
+				name:        suffix,
+				help:        e.help,
+				full:        e.full,
+				params:      e.params,
+				taskSupport: e.taskSupport,
 			})
 			used[e.full] = true
 		}
 		sortActions(g.actions)
+		g.taskSupport = groupTaskSupport(g.actions)
 		groups = append(groups, g)
 	}
 
@@ -284,11 +319,38 @@ func buildToolDef(g toolGroup) map[string]any {
 		return nil
 	}
 
-	return map[string]any{
+	tool := map[string]any{
 		"name":        name,
 		"description": desc.String(),
 		"inputSchema": json.RawMessage(schemaJSON),
 	}
+	tool["execution"] = map[string]any{
+		"taskSupport": g.taskSupport.String(),
+	}
+	return tool
+}
+
+// groupTaskSupport derives the group-level taskSupport from its actions.
+// If any action is required, the group is required. If all are forbidden,
+// the group is forbidden. Otherwise optional.
+func groupTaskSupport(actions []action) TaskSupportLevel {
+	hasRequired := false
+	allForbidden := true
+	for _, a := range actions {
+		if a.taskSupport == TaskSupportRequired {
+			hasRequired = true
+		}
+		if a.taskSupport != TaskSupportForbidden {
+			allForbidden = false
+		}
+	}
+	if hasRequired {
+		return TaskSupportRequired
+	}
+	if allForbidden && len(actions) > 0 {
+		return TaskSupportForbidden
+	}
+	return TaskSupportOptional
 }
 
 // addYANGParams collects typed parameters from YANG RPC metadata across all

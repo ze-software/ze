@@ -97,6 +97,34 @@ func collectDescriptions(node *command.Node, prefix string, result map[string]st
 	}
 }
 
+// PathToTaskSupport walks all -cmd YANG modules and builds a map from
+// CLI path to ze:task-support value. Paths without the extension are absent.
+func PathToTaskSupport(loader *Loader) map[string]string {
+	result := make(map[string]string)
+	if loader == nil {
+		return result
+	}
+	tree := BuildCommandTree(loader)
+	collectTaskSupport(tree, "", result)
+	return result
+}
+
+func collectTaskSupport(node *command.Node, prefix string, result map[string]string) {
+	if node == nil {
+		return
+	}
+	for name, child := range node.Children {
+		path := name
+		if prefix != "" {
+			path = prefix + " " + name
+		}
+		if child.TaskSupport != "" {
+			result[path] = child.TaskSupport
+		}
+		collectTaskSupport(child, path, result)
+	}
+}
+
 // BuildCommandTree walks all -cmd YANG modules in the loader and builds
 // a merged command.Node tree. Multiple modules contributing to the same
 // container path (e.g., 4 modules defining peer > ...) are merged.
@@ -156,6 +184,9 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 		if wm != "" && target.WireMethod == "" {
 			target.WireMethod = wm
 			target.Description = child.Description
+			if ts := GetTaskSupportExtension(child); ts != "" {
+				target.TaskSupport = ts
+			}
 		} else if target.Description == "" && child.Description != "" {
 			target.Description = child.Description
 		}
@@ -184,6 +215,31 @@ func GetCommandExtension(entry *gyang.Entry) string {
 // This marks a config false container as an executable command.
 func HasCommandExtension(entry *gyang.Entry) bool {
 	return GetCommandExtension(entry) != ""
+}
+
+// validTaskSupportValues are the accepted ze:task-support arguments.
+var validTaskSupportValues = map[string]bool{
+	"optional":  true,
+	"required":  true,
+	"forbidden": true,
+}
+
+// GetTaskSupportExtension reads the ze:task-support extension from a YANG entry.
+// Returns the level string ("required", "optional", "forbidden"), or empty
+// string if absent or if the value is not one of the three valid levels.
+func GetTaskSupportExtension(entry *gyang.Entry) string {
+	if entry == nil {
+		return ""
+	}
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:task-support" || strings.HasSuffix(ext.Keyword, ":task-support") {
+			if validTaskSupportValues[ext.Argument] {
+				return ext.Argument
+			}
+			return ""
+		}
+	}
+	return ""
 }
 
 // HasEditShortcutExtension returns true if the YANG entry has the ze:edit-shortcut extension.

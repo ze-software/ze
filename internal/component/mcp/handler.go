@@ -138,6 +138,7 @@ type rpcError struct {
 type callParams struct {
 	Name      string          `json:"name"`
 	Arguments json.RawMessage `json:"arguments"`
+	Task      json.RawMessage `json:"task,omitempty"`
 }
 
 // server handles MCP requests.
@@ -175,7 +176,7 @@ type server struct {
 // methods maps MCP method names to their handlers.
 var methods = map[string]func(s *server, req *request) *response{
 	"initialize": func(s *server, req *request) *response {
-		name := "ze-mcp"
+		name := mcpRealm
 		if s.provider != nil {
 			name = s.provider.ServerName()
 		}
@@ -386,7 +387,7 @@ func NewZeProvider(dispatch CommandDispatcher, commands CommandLister) *ZeProvid
 	return &ZeProvider{dispatch: dispatch, commands: commands}
 }
 
-func (p *ZeProvider) ServerName() string { return "ze-mcp" }
+func (p *ZeProvider) ServerName() string { return mcpRealm }
 
 func (p *ZeProvider) Tools() []map[string]any {
 	s := &server{commands: p.commands}

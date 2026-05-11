@@ -29,9 +29,11 @@ migrated to the session-oriented transport.
 | `handler.go` | JSON-RPC 2.0 types (`request`, `response`, `rpcError`, `callParams`), handcrafted tool catalogue, tool runner helper (`server` struct with optional `*session`), legacy `Handler` factory |
 | `tools.go` | Command-registry -> MCP tool auto-generation: grouping, schema emission, dispatch |
 | `streamable.go` | MCP 2025-06-18 Streamable HTTP dispatcher: POST/GET/DELETE, Origin gate, Bearer check, method dispatch, `handleElicitResponse` correlation router |
-| `session.go` | Session registry (`sessionRegistry`), session state (`session`) with `clientElicit` bit and elicit correlation map, TTL garbage collection, SSE outbound queue |
+| `session.go` | Session registry (`sessionRegistry`), session state (`session`) with `clientElicit`/`clientTasks` bits and elicit correlation map, TTL garbage collection, SSE outbound queue, `onExpire` callback |
 | `elicit.go` | `session.Elicit`, schema validator (`validateElicitSchema`), elicit error sentinels |
 | `reply_sink.go` | `replySink` interface + JSON and SSE implementations that let a POST upgrade its reply shape mid-dispatch |
+| `task_state.go` | Typed `TaskState uint8` enum with `MarshalText`/`UnmarshalText` for wire serialization |
+| `tasks.go` | Task registry (`taskRegistry`), worker goroutine orchestration, TTL GC, `TaskElicit` mid-task integration, `buildTaskStatusNotification` |
 | `schema/ze-mcp-conf.yang` | YANG configuration: server listener, token |
 
 ## Transport Shape (2025-06-18)
@@ -74,10 +76,14 @@ declared support.
 | Bit | Source leaf | Consumer |
 |-----|-------------|----------|
 | `clientElicit` | `capabilities.elicitation: {}` | `session.Elicit`, `ze_execute` missing-command branch |
+| `clientTasks` | `capabilities.tasks: {}` | `createTask`, task-augmented `tools/call` |
 
 Missing, null, or non-object shapes (`capabilities.elicitation: null`,
 `capabilities.elicitation: false`) are treated as "not declared." Unknown
 capability keys are ignored.
+
+The server advertises both `tools` and `tasks` capabilities in its
+`initialize` response.
 
 ## Session Lifecycle
 
@@ -123,6 +129,41 @@ a raw dispatch escape hatch.
 Tools are derived at every `tools/list` call, so newly registered commands
 become available without any MCP code changes (rule: `derive-not-hardcode`).
 
+## Task-Augmented tools/call
+
+<!-- source: internal/component/mcp/tasks.go -- task registry -->
+<!-- source: internal/component/mcp/streamable.go -- createTask, tasks/* dispatch -->
+
+A client that declares `capabilities.tasks = {}` at initialize may pass
+`"task": {}` on a `tools/call` request. The server returns a
+`CreateTaskResult` immediately with `status: "working"` and a
+cryptographically random `taskId`. A worker goroutine runs the tool
+dispatch and transitions the task through the state machine:
+
+    working -> completed | failed | cancelled
+    working -> input_required (mid-task elicit) -> working -> terminal
+
+Status notifications (`notifications/tasks/status`) ride the session's
+GET SSE stream via `session.Send`. The client polls via `tasks/get` or
+retrieves the final result via `tasks/result`.
+
+Each tool declares `execution.taskSupport` in its `tools/list` descriptor:
+`optional` (default), `required` (must be called as a task), or `forbidden`
+(rejects `task: {}`). The value is derived from the YANG `ze:task-support`
+extension on the command's `ze:command` container.
+
+Task identity scoping: each task is bound to the creating session's
+`Identity.Name`. `tasks/list`, `tasks/get`, `tasks/result`, and
+`tasks/cancel` reject cross-identity lookups with a uniform "not found"
+error that does not leak task existence.
+
+Concurrency is bounded per identity (default 8). Terminal tasks are
+retained for a configurable TTL (default 5 minutes) and then garbage
+collected.
+
+Session close (DELETE or TTL expiry) cancels all in-flight tasks for that
+session.
+
 ## Security Model (Phase 1)
 
 - Default binding is `127.0.0.1`. Phase 2 adds an opt-in `bind-remote` leaf.
@@ -144,5 +185,5 @@ list as alternatives to the shared token.
 | 1 | `spec-mcp-1-streamable-http.md` | This transport (landed) |
 | 2 | `spec-mcp-2-remote-oauth.md` | Remote binding, OAuth 2.1, per-identity bearer list |
 | 3 | `plan/learned/NNN-mcp-3-elicitation.md` | Server-initiated `elicitation/create`; POST reply upgrades to SSE on demand (landed) |
-| 4 | `spec-mcp-4-tasks.md` | Task-augmented `tools/call`, `tasks/*` methods, durable task registry |
+| 4 | `spec-mcp-4-tasks.md` | Task-augmented `tools/call`, `tasks/*` methods, task registry (landed) |
 | 5 | `spec-mcp-5-apps.md` | Resources capability, `ui://` UI-resource scheme |

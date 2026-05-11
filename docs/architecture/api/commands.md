@@ -1019,14 +1019,30 @@ contract negotiated at `initialize`.
 | Method | Direction | Purpose | Capability |
 |--------|-----------|---------|------------|
 | `elicitation/create` | Server -> client | Request a structured response for a field the server does not have. Carries a flat JSON-Schema object describing the expected shape | `capabilities.elicitation` declared by client |
+| `notifications/tasks/status` | Server -> client (GET stream) | Task state transition notification. Carries `taskId`, `status`, and `_meta.io.modelcontextprotocol/related-task` | `capabilities.tasks` declared by client |
 
 See [MCP Architecture Overview](../mcp/overview.md#capability-negotiation)
 for the capability bit, and [MCP Elicitation Guide](../../guide/mcp/elicitation.md)
 for the accept/decline/cancel semantics.
 
+## MCP Task Methods
+
+Task-augmented `tools/call` creates a background worker and returns
+`CreateTaskResult` immediately. The client polls or subscribes to the
+GET SSE stream for status.
+
+| Method | Direction | Purpose |
+|--------|-----------|---------|
+| `tasks/list` | Client -> server | List all tasks for the caller's identity |
+| `tasks/get` | Client -> server | Get current state of a task by `taskId` |
+| `tasks/result` | Client -> server | Retrieve the `CallToolResult` for a completed task |
+| `tasks/cancel` | Client -> server | Request cancellation of a working task |
+
+<!-- source: internal/component/mcp/tasks.go -- task registry -->
+<!-- source: internal/component/mcp/streamable.go -- tasksList, tasksGet, tasksResult, tasksCancel -->
 <!-- source: internal/component/mcp/elicit.go -- session.Elicit -->
 <!-- source: internal/component/mcp/streamable.go -- handleElicitResponse -->
 
 ---
 
-**Last Updated:** 2026-04-20
+**Last Updated:** 2026-05-11

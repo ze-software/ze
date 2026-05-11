@@ -862,6 +862,48 @@ func TestTypedParamsInToolSchema(t *testing.T) {
 	}
 }
 
+func TestToolDescriptor_TaskSupportField(t *testing.T) {
+	commands := []CommandInfo{
+		{Name: "bgp rib dump", Help: "Dump RIB", TaskSupport: TaskSupportRequired},
+		{Name: "bgp rib status", Help: "RIB summary", TaskSupport: TaskSupportOptional},
+	}
+	groups := groupCommands(commands)
+	tools := generateTools(groups, handcraftedNames())
+	if len(tools) == 0 {
+		t.Fatal("no tools generated")
+	}
+	for _, tool := range tools {
+		exec, ok := tool["execution"].(map[string]any)
+		if !ok {
+			t.Fatalf("tool %v missing execution field", tool["name"])
+		}
+		ts, ok := exec["taskSupport"].(string)
+		if !ok {
+			t.Fatalf("tool %v missing taskSupport", tool["name"])
+		}
+		if ts != "required" && ts != "optional" && ts != "forbidden" {
+			t.Errorf("tool %v: unexpected taskSupport %q", tool["name"], ts)
+		}
+	}
+
+	// Single-command group: forbidden propagates.
+	commands2 := []CommandInfo{
+		{Name: "ping host", Help: "Ping", TaskSupport: TaskSupportForbidden},
+	}
+	groups2 := groupCommands(commands2)
+	tools2 := generateTools(groups2, handcraftedNames())
+	if len(tools2) == 0 {
+		t.Fatal("no tools generated for forbidden case")
+	}
+	exec2, ok := tools2[0]["execution"].(map[string]any)
+	if !ok {
+		t.Fatal("missing execution field on forbidden tool")
+	}
+	if exec2["taskSupport"] != "forbidden" {
+		t.Errorf("expected forbidden, got %v", exec2["taskSupport"])
+	}
+}
+
 func TestYANGTypeToJSON(t *testing.T) {
 	tests := []struct {
 		yang string

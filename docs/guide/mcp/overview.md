@@ -214,6 +214,15 @@ Special stdin directives:
 | `wait-established` | Poll until a BGP peer is Established |
 | `@tool_name {json}` | Call a specific MCP tool with JSON arguments |
 | `<command>` | Run via `ze_execute` |
+| `task-call <tool> <json>` | Call tool with `task:{}`, print taskId |
+| `task-get <id>` | Get task status |
+| `task-result <id>` | Get completed task result |
+| `task-cancel <id>` | Cancel a running task |
+| `task-list` | List task IDs for current identity |
+| `task-wait <id> <state>` | Poll until task reaches state |
+
+`$LAST` substitutes the most recent directive output (e.g., taskId from `task-call`).
+Pass `--tasks` to declare `capabilities.tasks={}` at initialize.
 
 Example using typed tools:
 

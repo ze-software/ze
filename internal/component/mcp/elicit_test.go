@@ -61,7 +61,7 @@ func (m *mockSink) Frames() [][]byte {
 // session is released back to the registry.
 func newElicitTestSession(t *testing.T, r *sessionRegistry) (*session, *mockSink, func()) {
 	t.Helper()
-	sess, err := r.CreateWithCapabilities(ProtocolVersion, Identity{}, true)
+	sess, err := r.CreateWithCapabilities(ProtocolVersion, Identity{}, true, false)
 	if err != nil {
 		t.Fatalf("CreateWithCapabilities: %v", err)
 	}
@@ -315,7 +315,7 @@ func TestElicit_SchemaRejectsEnumOnNonString(t *testing.T) {
 // into a separate capability struct) silently dropping the flag.
 func TestRegistry_CreateWithCapabilities(t *testing.T) {
 	r := newElicitTestRegistry(t)
-	sess, err := r.CreateWithCapabilities(ProtocolVersion, Identity{}, true)
+	sess, err := r.CreateWithCapabilities(ProtocolVersion, Identity{}, true, false)
 	if err != nil {
 		t.Fatalf("CreateWithCapabilities: %v", err)
 	}
@@ -331,7 +331,7 @@ func TestRegistry_CreateWithCapabilities(t *testing.T) {
 		t.Errorf("registry.Get(id).ClientSupportsElicit() = false, want true")
 	}
 	// Zero (false) case for symmetry.
-	sess2, err := r.CreateWithCapabilities(ProtocolVersion, Identity{}, false)
+	sess2, err := r.CreateWithCapabilities(ProtocolVersion, Identity{}, false, false)
 	if err != nil {
 		t.Fatalf("CreateWithCapabilities(false): %v", err)
 	}

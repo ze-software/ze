@@ -12,12 +12,14 @@ module ze-monitor-cmd {
         container bgp {
             config false;
             ze:command "ze-bgp:monitor";
+            ze:task-support required;
             description "Live peer status dashboard";
         }
 
         container event {
             config false;
             ze:command "ze-event:monitor";
+            ze:task-support required;
             description "Stream live events with optional include/exclude filters";
         }
     }

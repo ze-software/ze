@@ -32,7 +32,8 @@ type sessionRegistry struct {
 	queueSize   int
 	maxSessions int // 0 = unlimited
 
-	now func() time.Time // injectable for tests
+	now      func() time.Time       // injectable for tests
+	onExpire func(sessionID string) // called before closing expired sessions
 
 	closeOnce sync.Once
 	stop      chan struct{}
@@ -52,6 +53,7 @@ type session struct {
 	protocolVersion string
 	identity        Identity
 	clientElicit    bool // client declared capabilities.elicitation={} at initialize
+	clientTasks     bool // client declared capabilities.tasks={} at initialize
 
 	mu           sync.Mutex
 	lastSeenAt   time.Time
@@ -184,12 +186,14 @@ func newSessionRegistry(ttl, maxLifetime time.Duration, maxSessions int) *sessio
 // clientElicit is set from the client's declared capabilities.elicitation
 // at initialize; when false, session.Elicit returns ErrElicitUnsupported
 // without sending a frame.
-func (r *sessionRegistry) CreateWithCapabilities(protocolVersion string, identity Identity, clientElicit bool) (*session, error) {
+// clientTasks is set from capabilities.tasks={} at initialize.
+func (r *sessionRegistry) CreateWithCapabilities(protocolVersion string, identity Identity, clientElicit, clientTasks bool) (*session, error) {
 	s, err := r.Create(protocolVersion, identity)
 	if err != nil {
 		return nil, err
 	}
 	s.clientElicit = clientElicit
+	s.clientTasks = clientTasks
 	return s, nil
 }
 
@@ -336,6 +340,9 @@ func (r *sessionRegistry) sweep() {
 	}
 	r.mu.Unlock()
 	for _, s := range expired {
+		if r.onExpire != nil {
+			r.onExpire(s.id)
+		}
 		s.close()
 	}
 }
@@ -345,6 +352,10 @@ func (r *sessionRegistry) sweep() {
 // the spec MUSTs that servers not emit elicitation/create without client
 // consent, and Elicit itself also guards — this helper is the cheap pre-check.
 func (s *session) ClientSupportsElicit() bool { return s.clientElicit }
+
+// ClientSupportsTasks reports whether the session's client declared
+// capabilities.tasks={} at initialize.
+func (s *session) ClientSupportsTasks() bool { return s.clientTasks }
 
 // RegisterElicit creates a fresh pending-elicitation entry and returns its
 // server-generated id plus a channel the caller blocks on. The id is a

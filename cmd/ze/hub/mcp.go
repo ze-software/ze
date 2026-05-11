@@ -54,11 +54,10 @@ func mcpConfigToStreamable(cfg zeconfig.MCPListenConfig, base zemcp.StreamableCo
 	return base
 }
 
-// buildParamMap creates a YANG loader, extracts all RPC metadata, and builds
+// buildParamMap extracts all RPC metadata from the YANG loader and builds
 // a map from CLI command path to input parameters.
-func buildParamMap() map[string][]zemcp.ParamInfo {
-	loader, err := yang.DefaultLoader()
-	if err != nil {
+func buildParamMap(loader *yang.Loader) map[string][]zemcp.ParamInfo {
+	if loader == nil {
 		return nil
 	}
 
@@ -106,6 +105,26 @@ func buildParamMap() map[string][]zemcp.ParamInfo {
 	}
 
 	return result
+}
+
+// buildTaskSupportMap extracts ze:task-support values from the YANG loader.
+func buildTaskSupportMap(loader *yang.Loader) map[string]string {
+	if loader == nil {
+		return nil
+	}
+	return yang.PathToTaskSupport(loader)
+}
+
+// parseTaskSupportLevel converts a YANG ze:task-support string to the typed enum.
+func parseTaskSupportLevel(s string) zemcp.TaskSupportLevel {
+	switch s {
+	case "required":
+		return zemcp.TaskSupportRequired
+	case "forbidden":
+		return zemcp.TaskSupportForbidden
+	default:
+		return zemcp.TaskSupportOptional
+	}
 }
 
 // wireModule extracts the module prefix from a wire method (e.g. "ze-bgp:peer-list" -> "ze-bgp").

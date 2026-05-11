@@ -1085,13 +1085,19 @@ func serverDispatcher(s *pluginserver.Server) func(command, username, remoteAddr
 // serverCommandLister creates a CommandLister from the plugin server's dispatcher.
 func serverCommandLister(s *pluginserver.Server) zemcp.CommandLister {
 	var (
-		paramOnce    sync.Once
-		paramsByPath map[string][]zemcp.ParamInfo
+		metaOnce          sync.Once
+		paramsByPath      map[string][]zemcp.ParamInfo
+		taskSupportByPath map[string]string
 	)
 
-	initParams := func() {
-		paramOnce.Do(func() {
-			paramsByPath = buildParamMap()
+	initMeta := func() {
+		metaOnce.Do(func() {
+			loader, err := yangloader.DefaultLoader()
+			if err != nil {
+				return
+			}
+			paramsByPath = buildParamMap(loader)
+			taskSupportByPath = buildTaskSupportMap(loader)
 		})
 	}
 
@@ -1101,15 +1107,16 @@ func serverCommandLister(s *pluginserver.Server) zemcp.CommandLister {
 			return nil
 		}
 
-		initParams()
+		initMeta()
 
 		var infos []zemcp.CommandInfo
 		for _, cmd := range d.Commands() {
 			infos = append(infos, zemcp.CommandInfo{
-				Name:     cmd.Name,
-				Help:     cmd.Help,
-				ReadOnly: cmd.ReadOnly,
-				Params:   paramsByPath[cmd.Name],
+				Name:        cmd.Name,
+				Help:        cmd.Help,
+				ReadOnly:    cmd.ReadOnly,
+				Params:      paramsByPath[cmd.Name],
+				TaskSupport: parseTaskSupportLevel(taskSupportByPath[cmd.Name]),
 			})
 		}
 

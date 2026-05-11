@@ -73,9 +73,10 @@ Status values: `Supported` means implemented and covered in the normal release e
 <!-- source: internal/component/config/yang/modules/ze-types.yang -- grouping listener -->
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension listener -->
 <!-- source: internal/component/config/listener.go -- CollectListeners, ValidateListenerConflicts -->
-| [MCP Integration](features/mcp-integration.md) | Supported | AI-assisted BGP operations via Model Context Protocol (Streamable HTTP 2025-06-18 transport, OAuth 2.1 resource server, server-initiated elicitation for prompting clients mid-dispatch) |
+| [MCP Integration](features/mcp-integration.md) | Supported | AI-assisted BGP operations via Model Context Protocol (Streamable HTTP 2025-06-18 transport, OAuth 2.1 resource server, server-initiated elicitation, task-augmented tools/call with background workers per MCP 2025-11-25) |
 <!-- source: internal/component/mcp/streamable.go -- Streamable HTTP transport -->
 <!-- source: internal/component/mcp/elicit.go -- server-initiated elicitation -->
+<!-- source: internal/component/mcp/tasks.go -- task registry and workers -->
 <!-- source: internal/component/mcp/handler.go -- ze_execute handcrafted tool -->
 | [Chaos MCP](guide/mcp/chaos.md) | Supported | AI-queryable chaos test state via MCP: 6 tools (status, problems, peers, scenario, control, execute), Watchdog anomaly detector with structured PROBLEM lines, per-family convergence tracking |
 <!-- source: internal/chaos/mcp/tools.go -- chaos MCP tools -->

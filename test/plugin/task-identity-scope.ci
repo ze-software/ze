@@ -1,0 +1,58 @@
+# task-identity-scope - tasks from one identity are invisible to another
+# Exercises: identity-scoped tasks/list isolation with bearer-list auth
+
+# MCP session 1 (alice): create a task, verify it appears in list
+stdin=mcp1:terminator=EOF_MCP1
+task-call ze_execute {"command":"peer list"}
+task-wait $LAST completed
+task-list
+EOF_MCP1
+
+# MCP session 2 (bob): should see no tasks
+stdin=mcp2:terminator=EOF_MCP2
+task-list
+EOF_MCP2
+
+# Ze config: bearer-list auth with two identities
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	mcp {
+		auth-mode bearer-list;
+		identity alice {
+			token alice-token;
+		}
+		identity bob {
+			token bob-token;
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=tcp_connections:value=0
+
+cmd=background:seq=1:exec=ze --mcp $PORT2 -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks --token alice-token:stdin=mcp1:timeout=10s
+cmd=foreground:seq=3:exec=ze-test mcp --port $PORT2 --tasks --token bob-token:stdin=mcp2:timeout=10s

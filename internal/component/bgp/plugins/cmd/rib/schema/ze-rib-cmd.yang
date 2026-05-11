@@ -18,6 +18,7 @@ module ze-rib-cmd {
         container routes {
             config false;
             ze:command "ze-rib-api:routes";
+            ze:task-support required;
             description "Routes (scope + filters + terminal)";
         }
 
@@ -40,12 +41,14 @@ module ze-rib-cmd {
             container in {
                 config false;
                 ze:command "ze-rib-api:clear-in";
+                ze:task-support forbidden;
                 description "Clear Adj-RIB-In routes";
             }
 
             container out {
                 config false;
                 ze:command "ze-rib-api:clear-out";
+                ze:task-support forbidden;
                 description "Resend Adj-RIB-Out routes";
             }
         }
@@ -53,12 +56,14 @@ module ze-rib-cmd {
         container inject {
             config false;
             ze:command "ze-rib-api:inject";
+            ze:task-support forbidden;
             description "Insert route into Adj-RIB-In";
         }
 
         container withdraw {
             config false;
             ze:command "ze-rib-api:withdraw";
+            ze:task-support forbidden;
             description "Remove route from Adj-RIB-In";
         }
     }

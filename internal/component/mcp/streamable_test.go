@@ -1132,3 +1132,113 @@ func TestStreamable_InitializeReadsClientCapabilities(t *testing.T) {
 		})
 	}
 }
+
+func initializeWithTasks(t *testing.T, hs *httptest.Server) string {
+	t.Helper()
+	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{"tasks":{}}}}`
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, hs.URL+Endpoint, strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := hs.Client().Do(req)
+	if err != nil {
+		t.Fatalf("initialize: %v", err)
+	}
+	defer closeBody(t, resp.Body)
+	return resp.Header.Get("Mcp-Session-Id")
+}
+
+func postTaskCall(t *testing.T, hs *httptest.Server, sid, body string) map[string]any {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, hs.URL+Endpoint, strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Mcp-Session-Id", sid)
+	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
+	resp, err := hs.Client().Do(req)
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer closeBody(t, resp.Body)
+	var result map[string]any
+	data, _ := io.ReadAll(resp.Body)
+	_ = json.Unmarshal(data, &result)
+	return result
+}
+
+func TestStreamable_ToolsCallForbiddenRejected(t *testing.T) {
+	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
+		Commands: func() []CommandInfo {
+			return []CommandInfo{
+				{Name: "fast cmd", Help: "Quick", TaskSupport: TaskSupportForbidden},
+			}
+		},
+	})
+	defer cleanup()
+
+	sid := initializeWithTasks(t, hs)
+	body := `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ze_fast","arguments":{"action":"cmd"},"task":{}}}`
+	result := postTaskCall(t, hs, sid, body)
+
+	if errObj, ok := result["error"].(map[string]any); ok {
+		msg, _ := errObj["message"].(string)
+		if !strings.Contains(msg, "does not support task") {
+			t.Errorf("expected forbidden rejection, got: %s", msg)
+		}
+	} else {
+		t.Errorf("expected error response, got: %v", result)
+	}
+}
+
+func TestStreamable_ToolsCallRequiredWithoutTaskRejected(t *testing.T) {
+	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
+		Commands: func() []CommandInfo {
+			return []CommandInfo{
+				{Name: "slow cmd", Help: "Long", TaskSupport: TaskSupportRequired},
+			}
+		},
+	})
+	defer cleanup()
+
+	sid := initializeWithTasks(t, hs)
+	body := `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ze_slow","arguments":{"action":"cmd"}}}`
+	result := postTaskCall(t, hs, sid, body)
+
+	if errObj, ok := result["error"].(map[string]any); ok {
+		msg, _ := errObj["message"].(string)
+		if !strings.Contains(msg, "requires task") {
+			t.Errorf("expected required rejection, got: %s", msg)
+		}
+	} else {
+		t.Errorf("expected error response, got: %v", result)
+	}
+}
+
+func TestStreamable_ToolsCallWithTaskParam(t *testing.T) {
+	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
+		Commands: func() []CommandInfo {
+			return []CommandInfo{
+				{Name: "demo cmd", Help: "Test"},
+			}
+		},
+	})
+	defer cleanup()
+
+	sid := initializeWithTasks(t, hs)
+	body := `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ze_demo","arguments":{"action":"cmd"},"task":{}}}`
+	result := postTaskCall(t, hs, sid, body)
+
+	res, ok := result["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected result, got: %v", result)
+	}
+	if res["taskId"] == nil {
+		t.Error("missing taskId in CreateTaskResult")
+	}
+	if res["status"] != "working" {
+		t.Errorf("status = %v, want working", res["status"])
+	}
+}
