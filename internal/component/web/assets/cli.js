@@ -582,6 +582,13 @@
         if (overlay) overlay.remove();
       }
     });
+    document.addEventListener('htmx:afterRequest', function(e) {
+      if (e.target && e.target.classList &&
+          e.target.classList.contains('tool-overlay-confirm-form')) {
+        var overlay = e.target.closest('.tool-overlay');
+        if (overlay) overlay.remove();
+      }
+    });
   }
 
   // CLI page: SSH-style terminal with output viewport, message area, and input.

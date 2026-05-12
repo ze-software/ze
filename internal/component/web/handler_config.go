@@ -832,6 +832,22 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 			fmt.Fprintf(&msg, "  %s: want %q, other (%s) has %q\n", c.Path, c.MyValue, c.OtherUser, c.OtherValue)
 		}
 
+		if r.Header.Get("HX-Request") == htmxRequestTrue {
+			type diffData struct {
+				Diff        string
+				ChangeCount int
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			modal := renderer.RenderFragment("diff_modal_open", diffData{
+				Diff:        msg.String(),
+				ChangeCount: mgr.ChangeCount(username),
+			})
+			if _, writeErr := w.Write([]byte(modal)); writeErr != nil {
+				return
+			}
+			return
+		}
+
 		layoutData := LayoutData{
 			Title:            "Commit Conflicts",
 			NotificationHTML: template.HTML("<pre>" + template.HTMLEscapeString(msg.String()) + "</pre>"), //nolint:gosec // escaped
