@@ -1,4 +1,5 @@
 // Design: plan/spec-host-0-inventory.md — hardware inventory detection
+// Related: smart_linux.go — SMART health detection per device
 
 //go:build linux
 
@@ -62,6 +63,7 @@ func (d *Detector) readBlockDevice(name, dev string) StorageDevice {
 	if strings.HasPrefix(name, storageTransportNVMe) {
 		s.NVMeFirmware = readFileString(filepath.Join(dev, "device", "firmware_rev"))
 	}
+	s.Smart = d.detectSMART(name)
 	return s
 }
 

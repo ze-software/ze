@@ -381,9 +381,17 @@ func BuildHostHardwareData() []HardwareSection {
 	if inv.Storage != nil && len(inv.Storage.Devices) > 0 {
 		var items []HardwareItem
 		for _, dev := range inv.Storage.Devices {
+			detail := fmt.Sprintf("%s, %s", formatBytes(dev.SizeBytes), dev.Model)
+			if dev.Smart != nil && !dev.Smart.Unavailable {
+				detail += fmt.Sprintf(", SMART: %s %d°C %dh",
+					smartHealthLabel(dev.Smart.Healthy), dev.Smart.TempCelsius, dev.Smart.PowerOnHours)
+				if dev.Smart.ErrorCount > 0 {
+					detail += fmt.Sprintf(" (%d errors)", dev.Smart.ErrorCount)
+				}
+			}
 			items = append(items, HardwareItem{
 				Key:   dev.Name,
-				Value: fmt.Sprintf("%s, %s", formatBytes(dev.SizeBytes), dev.Model),
+				Value: detail,
 			})
 		}
 		sections = append(sections, HardwareSection{Title: "Storage", Items: items})
@@ -559,6 +567,13 @@ func BuildSysctlProfilesTableData(profiles []sysctlProfileEntry) WorkbenchTableD
 		EmptyMessage: "No sysctl profiles configured.",
 		EmptyHint:    "Create a profile to group kernel tunables for interface units.",
 	}
+}
+
+func smartHealthLabel(healthy bool) string {
+	if healthy {
+		return "OK"
+	}
+	return "FAILING"
 }
 
 // HandleSysctlProfilesPage renders the Sysctl Profiles table.

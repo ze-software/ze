@@ -1,4 +1,6 @@
 // Design: plan/spec-host-0-inventory.md — hardware inventory detection
+// Detail: cached.go — CachedDetector with TTL wrapping Detector
+// Detail: metrics.go — Prometheus export of inventory gauges
 
 package host
 
@@ -289,13 +291,27 @@ type StorageInfo struct {
 
 // StorageDevice describes one block device.
 type StorageDevice struct {
-	Name         string `json:"name"`
-	SizeBytes    uint64 `json:"size-bytes"`
-	Model        string `json:"model,omitempty"`
-	Serial       string `json:"serial,omitempty"`
-	Transport    string `json:"transport,omitempty"`
-	Rotational   bool   `json:"rotational"`
-	NVMeFirmware string `json:"nvme-firmware-version,omitempty"`
+	Name         string     `json:"name"`
+	SizeBytes    uint64     `json:"size-bytes"`
+	Model        string     `json:"model,omitempty"`
+	Serial       string     `json:"serial,omitempty"`
+	Transport    string     `json:"transport,omitempty"`
+	Rotational   bool       `json:"rotational"`
+	NVMeFirmware string     `json:"nvme-firmware-version,omitempty"`
+	Smart        *SmartInfo `json:"smart,omitempty"`
+}
+
+// SmartInfo holds SMART health data obtained from smartctl.
+// A nil SmartInfo means SMART detection was not attempted or smartctl
+// is not installed. A non-nil SmartInfo with Unavailable set means
+// the device does not support SMART.
+type SmartInfo struct {
+	Healthy         bool   `json:"healthy"`
+	TempCelsius     int    `json:"temp-celsius,omitempty"`
+	PowerOnHours    uint64 `json:"power-on-hours,omitempty"`
+	ErrorCount      uint64 `json:"error-count"`
+	Unavailable     bool   `json:"unavailable,omitempty"`
+	UnavailableNote string `json:"unavailable-note,omitempty"`
 }
 
 // KernelInfo reports /proc/version, /proc/cmdline, and selected CPU
@@ -333,14 +349,29 @@ type Detector struct {
 // defaultDetector reads from the real root.
 var defaultDetector = &Detector{}
 
+// globalCached is set by SetGlobalCachedDetector at daemon startup.
+// When set, Detect() returns the cached inventory instead of running
+// a fresh detection. This ensures show-host RPCs, metrics scrapes,
+// and any other caller share one cache with a single TTL.
+var globalCached *CachedDetector
+
+// SetGlobalCachedDetector installs a process-wide CachedDetector.
+// After this call, Detect() uses the cache. Called once at daemon
+// startup from the metrics init path.
+func SetGlobalCachedDetector(cd *CachedDetector) {
+	globalCached = cd
+}
+
 // Path helpers (sysfsPath, procPath, root) live in fsroot_linux.go
 // because they are only used by Linux-specific detectors. Non-Linux
 // platforms return ErrUnsupported before reaching sysfs/procfs.
 
-// Detect returns the full Inventory. Section-level failures populate
-// Errors but do NOT return an error from Detect; the top-level error
-// is only returned for setup failures.
+// Detect returns the full Inventory. Uses the global CachedDetector
+// when set (daemon mode), otherwise runs a fresh detection (CLI mode).
 func Detect() (*Inventory, error) {
+	if globalCached != nil {
+		return globalCached.Detect()
+	}
 	return defaultDetector.Detect()
 }
 

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | done |
 | Depends | spec-host-0-inventory (done) |
-| Phase | - |
-| Updated | 2026-04-29 |
+| Phase | 4/4 |
+| Updated | 2026-05-12 |
 
 ## Post-Compaction Recovery
 

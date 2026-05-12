@@ -332,7 +332,7 @@ share the same detection library; the JSON shapes are identical.
 | `dmi` | `system-vendor`, `system-product`, `board-*`, `bios-*`, `chassis-*` |
 | `memory` | `total-bytes`, `free-bytes`, `available-bytes`, `buffers-bytes`, `cached-bytes`, `swap-total-bytes`, `swap-free-bytes`, `ecc-correctable-errors`, `ecc-uncorrectable-errors`, `ecc-present` |
 | `thermal` | `sensors[]` (hwmon: `name`, `device`, `temp-mc`, `alarm`), `throttle[]` (per-CPU `core-throttle-count`, `package-throttle-count`) |
-| `storage` | `devices[]` with `name`, `size-bytes`, `model`, `serial`, `transport` (`nvme`/`sata`/`mmc`/`virtio`/`unknown`), `rotational`, `nvme-firmware-version` (NVMe only) |
+| `storage` | `devices[]` with `name`, `size-bytes`, `model`, `serial`, `transport` (`nvme`/`sata`/`mmc`/`virtio`/`unknown`), `rotational`, `nvme-firmware-version` (NVMe only), `smart` (when smartctl installed: `healthy`, `temp-celsius`, `power-on-hours`, `error-count`; `unavailable` + `unavailable-note` when device lacks SMART) |
 | `kernel` | `release`, `version`, `architecture`, `cmdline`, `boot-time` (RFC3339), `boot-time-unix`, `microcode-revision`, `arch-flags[]` (security-relevant subset: `smep`, `smap`, `ibt`, `user_shstk`, `ibrs`, `ibrs_enhanced`, `ssbd`) |
 
 All temperatures are reported in **millicelsius** (kernel hwmon convention).
