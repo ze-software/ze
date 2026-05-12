@@ -13,7 +13,7 @@ import (
 // host detection is unsupported.
 func TestRegisterMetrics_NoPanic(t *testing.T) {
 	var reg metrics.NopRegistry
-	m := RegisterMetrics(reg)
+	m := RegisterMetrics(reg, NewCachedDetector(&Detector{}, 0))
 	if m == nil {
 		t.Fatal("RegisterMetrics returned nil")
 	}
@@ -29,7 +29,7 @@ func TestRegisterMetrics_NoPanic(t *testing.T) {
 // populated (e.g. Memory present but CPU absent).
 func TestCollectFrom_PartialInventory(t *testing.T) {
 	var reg metrics.NopRegistry
-	m := RegisterMetrics(reg)
+	m := RegisterMetrics(reg, NewCachedDetector(&Detector{}, 0))
 
 	// Only Memory populated; all other sections nil.
 	inv := &Inventory{
@@ -47,7 +47,7 @@ func TestCollectFrom_PartialInventory(t *testing.T) {
 // gauge-vec With() calls.
 func TestCollectFrom_FullInventory(t *testing.T) {
 	var reg metrics.NopRegistry
-	m := RegisterMetrics(reg)
+	m := RegisterMetrics(reg, NewCachedDetector(&Detector{}, 0))
 
 	inv := &Inventory{
 		CPU: &CPUInfo{
@@ -87,6 +87,6 @@ func TestCollectFrom_FullInventory(t *testing.T) {
 // PREVENTS: nil-pointer dereference when Detect returns nil.
 func TestCollectFrom_NilInventory(t *testing.T) {
 	var reg metrics.NopRegistry
-	m := RegisterMetrics(reg)
+	m := RegisterMetrics(reg, NewCachedDetector(&Detector{}, 0))
 	m.collectFrom(nil) // must not panic
 }

@@ -1,5 +1,7 @@
 // Design: plan/spec-host-0-inventory.md -- Prometheus export of inventory
 // Related: inventory.go -- Inventory struct and Detect() entry point
+// Related: cached.go -- CachedDetector wraps Detect with TTL
+// Related: diff.go -- DiffInventory compares snapshots for change events
 
 package host
 
@@ -7,6 +9,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
 
 // HostMetrics holds the Prometheus gauges and gauge-vecs for host
@@ -28,13 +31,15 @@ type HostMetrics struct {
 
 	thermalTemp metrics.GaugeVec
 
+	cached *CachedDetector
+	prev   *Inventory
 	stopCh chan struct{}
 }
 
 // RegisterMetrics creates and registers all host inventory gauges on
-// the given registry. The returned HostMetrics can be used to call
-// CollectOnce whenever a scrape-time refresh is desired.
-func RegisterMetrics(reg metrics.Registry) *HostMetrics {
+// the given registry. Uses the provided CachedDetector for efficient
+// inventory access and emits hardware-change events to the report bus.
+func RegisterMetrics(reg metrics.Registry, cd *CachedDetector) *HostMetrics {
 	return &HostMetrics{
 		memTotal:     reg.Gauge("ze_host_memory_total_bytes", "Total physical memory in bytes"),
 		memAvailable: reg.Gauge("ze_host_memory_available_bytes", "Available physical memory in bytes"),
@@ -50,19 +55,21 @@ func RegisterMetrics(reg metrics.Registry) *HostMetrics {
 		storageSize: reg.GaugeVec("ze_host_storage_size_bytes", "Block device size in bytes", []string{"name"}),
 
 		thermalTemp: reg.GaugeVec("ze_host_thermal_temp_mc", "Thermal sensor reading in millicelsius", []string{"name", "device"}),
+
+		cached: cd,
 	}
 }
 
-// CollectOnce runs a full inventory detection and sets all gauge
-// values from the result. Errors from detection are silently ignored;
-// gauges for unavailable sections remain at their previous value (or
-// zero if never set). This is intentional: a scrape should not fail
-// because one sensor is temporarily unreadable.
+// CollectOnce runs inventory detection via the CachedDetector, sets
+// all gauge values, and emits report bus events for any hardware
+// changes since the last collection.
 func (m *HostMetrics) CollectOnce() {
-	inv, err := Detect()
+	inv, err := m.cached.Detect()
 	if err != nil {
 		return
 	}
+	m.emitDiffEvents(m.prev, inv)
+	m.prev = inv
 	m.collectFrom(inv)
 }
 
@@ -89,6 +96,18 @@ func (m *HostMetrics) StartRefresh(interval time.Duration) {
 func (m *HostMetrics) Stop() {
 	if m.stopCh != nil {
 		close(m.stopCh)
+	}
+}
+
+func (m *HostMetrics) emitDiffEvents(prev, curr *Inventory) {
+	events := DiffInventory(prev, curr)
+	for _, e := range events {
+		switch e.Code {
+		case "ecc-error":
+			report.RaiseError("host", e.Code, e.Subject, e.Message, e.Detail)
+		default:
+			report.RaiseWarning("host", e.Code, e.Subject, e.Message, e.Detail)
+		}
 	}
 }
 

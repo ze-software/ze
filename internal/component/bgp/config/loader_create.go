@@ -209,7 +209,9 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 			}
 			r.SetMetricsRegistry(reg)
 			registry.SetMetricsRegistry(reg)
-			hostMetrics := host.RegisterMetrics(reg)
+			cd := host.NewCachedDetector(&host.Detector{}, 60*time.Second)
+			host.SetGlobalCachedDetector(cd)
+			hostMetrics := host.RegisterMetrics(reg, cd)
 			hostMetrics.CollectOnce()
 			hostMetrics.StartRefresh(30 * time.Second)
 

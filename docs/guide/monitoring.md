@@ -257,6 +257,25 @@ diff nd.txt ze.txt
 ```
 <!-- source: internal/component/telemetry/collector/ -- Netdata-compatible OS collectors -->
 
+### Host Inventory Metrics
+<!-- source: internal/component/host/metrics.go -- RegisterMetrics, collectFrom -->
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_host_memory_total_bytes` | gauge | - | Total physical memory in bytes |
+| `ze_host_memory_available_bytes` | gauge | - | Available physical memory in bytes |
+| `ze_host_cpu_logical_count` | gauge | - | Number of logical CPUs |
+| `ze_host_cpu_physical_cores` | gauge | - | Number of physical CPU cores |
+| `ze_host_uptime_seconds` | gauge | - | Host uptime in seconds |
+| `ze_host_ecc_correctable_errors_total` | gauge | - | ECC correctable error count |
+| `ze_host_ecc_uncorrectable_errors_total` | gauge | - | ECC uncorrectable error count |
+| `ze_host_nic_link_speed_mbps` | gauge | `name` | NIC link speed in Mbps |
+| `ze_host_nic_carrier` | gauge | `name` | NIC carrier state (1=up, 0=down) |
+| `ze_host_storage_size_bytes` | gauge | `name` | Block device size in bytes |
+| `ze_host_thermal_temp_mc` | gauge | `name`, `device` | Thermal sensor reading in millicelsius |
+
+Host metrics are refreshed on a configurable interval (default 60 seconds). Linux only; on other platforms no host metrics are registered.
+
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
 
