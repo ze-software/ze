@@ -398,7 +398,7 @@ var sectionDetectors = map[string]func(*Detector) (any, error){
 	"thermal": func(d *Detector) (any, error) { return d.DetectThermal() },
 	"storage": func(d *Detector) (any, error) { return d.DetectStorage() },
 	"kernel":  func(d *Detector) (any, error) { return d.DetectKernel() },
-	"all":     func(d *Detector) (any, error) { return d.Detect() },
+	"all":     func(_ *Detector) (any, error) { return Detect() },
 }
 
 // SectionNames returns the sorted list of valid section names. The

@@ -13,11 +13,29 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 3. **Understand intent via history:** For each changed region, run `git log --oneline -5` and `git blame` on the modified lines. Understand WHY the old code existed. Flag if the change removes a guard, workaround, or constraint that was added deliberately.
 4. **Check code comments:** Read WARNING, INVARIANT, NOTE, and TODO comments in modified files. Verify the changes do not violate stated invariants or ignore documented constraints.
 5. **Trace data flow:** For each changed component, trace data from entry through transformations to exit. Verify boundaries are respected.
-6. **Apply edge case techniques:** Apply EVERY technique in the table below to every changed component.
-7. **Security review:** Apply the security checklist to every user-controlled input.
-8. **Allocation review:** Check every `make()` in changed code for unbounded sizes.
-9. **Plugin traversal check:** If config structure changed, grep for all code reading the old structure.
-10. **Project rules cross-check:** For each changed file, verify compliance with applicable rules:
+6. **Wiring verification (MANDATORY, NON-SKIPPABLE):** For every new function, type, handler, route, config option, CLI command, or plugin introduced in the diff, prove it is reachable from a user entry point. This step catches the project's most recurring defect class (see `plan/learned/RECURRING-PATTERNS.md`).
+
+    For each new symbol, answer: **"What user action reaches this code?"** If you cannot name one, it is a BLOCKER.
+
+    | New code type | Wiring check |
+    |---------------|-------------|
+    | Exported function/method | `grep` or LSP `findReferences` for at least one caller outside its own file and test files |
+    | Struct / type | Same: at least one non-test consumer |
+    | HTTP handler / web route | Registered on a mux (`srv.Handle`, `mux.HandleFunc`, etc.) and reachable from `hub/main.go` or `web/server.go` |
+    | CLI command | Registered via `cmdregistry.MustRegisterLocal` or `cmdregistry.RegisterRoot` in a `register.go` with a blank import chain to `main.go` |
+    | Plugin | Has `register.go` with `registry.Register()`, appears in generated `all.go` (or will after `make generate`) |
+    | Config option / YANG leaf | YANG module registered, leaf read by runtime code (not just parsed) |
+    | Env var | `env.MustRegister()` call exists, `env.Get*()` call exists |
+    | Metrics | Metric created AND updated somewhere reachable |
+    | Event / send type | Listed in plugin `Registration.EventTypes`/`SendTypes`, at least one subscriber/caller |
+
+    **Do not skip this step.** "The code compiles" and "tests pass" do not prove wiring. A function with zero callers outside tests is dead code in production. Report every unwired symbol as a BLOCKER finding.
+
+7. **Apply edge case techniques:** Apply EVERY technique in the table below to every changed component.
+8. **Security review:** Apply the security checklist to every user-controlled input.
+9. **Allocation review:** Check every `make()` in changed code for unbounded sizes.
+10. **Plugin traversal check:** If config structure changed, grep for all code reading the old structure.
+11. **Project rules cross-check:** For each changed file, verify compliance with applicable rules:
 
 | Changed code touches | Check against |
 |---------------------|---------------|
@@ -29,7 +47,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 | Config parsing | `config-design.md` -- fail on unknown keys, no version numbers |
 | New data wrapper/struct | `design-principles.md` -- lazy over eager, no identity wrappers |
 
-11. **Filter false positives:** Before reporting, discard findings that match any of these:
+12. **Filter false positives:** Before reporting, discard findings that match any of these:
 
 | False positive | Why discard |
 |----------------|-------------|
@@ -40,7 +58,9 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 | General quality concern not tied to a specific bug | Too vague to act on |
 | Contradicts a project rule but has an explicit override comment in code | Intentional exception |
 
-12. **Report findings** as a numbered list with severity:
+    **Never discard wiring findings.** An unwired symbol is not a false positive, a pre-existing issue, or a quality concern. It is dead code in production. Wiring BLOCKERs from step 6 always survive this filter.
+
+13. **Report findings** as a numbered list with severity:
     - **BLOCKER:** Bug that will cause incorrect behavior, crash, or security vulnerability
     - **ISSUE:** Missing test, edge case not handled, or quality problem
     - **NOTE:** Suggestion or minor observation
