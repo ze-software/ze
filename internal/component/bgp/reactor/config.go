@@ -609,8 +609,8 @@ func parsePrefixLimitFromFamily(familyKey string, entryMap map[string]any, ps *P
 		ps.PrefixTeardown = v != valFalse
 	}
 
-	if v, ok := mapUint32(prefixMap, "idle-timeout"); ok {
-		ps.PrefixIdleTimeout = uint16(v) //nolint:gosec // Bounded by YANG uint16 range
+	if v, ok := mapUint16(prefixMap, "idle-timeout"); ok {
+		ps.PrefixIdleTimeout = v
 	}
 
 	if v, ok := mapString(prefixMap, "updated"); ok {
@@ -824,6 +824,19 @@ func mapUint8(m map[string]any, key string) (uint8, bool) {
 		return 0, false
 	}
 	return uint8(n), true
+}
+
+// mapUint16 extracts a uint16 value from a map (stored as string).
+func mapUint16(m map[string]any, key string) (uint16, bool) {
+	s, ok := mapString(m, key)
+	if !ok {
+		return 0, false
+	}
+	n, err := strconv.ParseUint(s, 10, 16)
+	if err != nil {
+		return 0, false
+	}
+	return uint16(n), true
 }
 
 // mapMap extracts a nested map from a map.

@@ -272,7 +272,7 @@ func LoginHandler(store *SessionStore, authenticator authz.Authenticator, loginR
 // Only same-origin paths starting with "/" are accepted; everything else
 // falls back to "/".
 func sanitizeReturnTo(raw string) string {
-	if raw == "" || raw[0] != '/' || strings.HasPrefix(raw, "//") {
+	if raw == "" || raw[0] != '/' || strings.HasPrefix(raw, "//") || (len(raw) > 1 && raw[1] == '\\') {
 		return "/"
 	}
 	return raw
