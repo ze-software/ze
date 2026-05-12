@@ -1,0 +1,215 @@
+# Configuration Reference
+
+A concise reference for Ze's configuration syntax. For the full guide with
+examples for every feature, see [guide/configuration.md](guide/configuration.md).
+
+## Syntax
+
+Ze uses a JUNOS-like hierarchical format. YANG-driven parsing: each config
+node's type (leaf, leaf-list, container, list) determines how it is parsed.
+Unknown keys are rejected with a suggestion for the closest valid key.
+<!-- source: internal/component/config/tokenizer.go -- tokenizer for JUNOS-like syntax -->
+<!-- source: internal/component/config/yang/loader.go -- YANG-driven config parsing -->
+
+| Element | Syntax | Example |
+|---------|--------|---------|
+| Blocks | `name { ... }` | `bgp { ... }` |
+| Values | `key value` or `key value;` | `router-id 1.2.3.4` |
+| Comments | `#` to end of line | `# this is a comment` |
+| Lists | `[ item1 item2 ]` | `receive [ update state ]` |
+| Strings | Unquoted or `"double quoted"` | `run "/usr/bin/my-plugin"` |
+| Terminators | Optional semicolons | Both `router-id 1.2.3.4` and `router-id 1.2.3.4;` work |
+| Inline blocks | `name { key value; key value; }` | `remote { ip 10.0.0.1; as 65001; }` |
+
+Indentation is not significant.
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- BGP config YANG schema -->
+
+## Minimal Example
+
+```
+bgp {
+    router-id 1.2.3.4;
+    local { as 65000; }
+
+    group upstream {
+        family {
+            ipv4/unicast { prefix { maximum 1000000; } }
+            ipv6/unicast { prefix { maximum 200000; } }
+        }
+
+        peer transit-a {
+            remote { ip 10.0.0.1; as 65001; }
+        }
+    }
+}
+
+plugin {
+    internal bgp-rib;
+}
+```
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
+
+## Inheritance
+
+Three-level deep-merge for containers:
+
+| Level | Scope | Example |
+|-------|-------|---------|
+| BGP | All peers | `bgp { router-id 1.2.3.4; }` |
+| Group | Peers in group | `group upstream { timer { receive-hold-time 180; } }` |
+| Peer | Single peer | `peer transit-a { timer { receive-hold-time 90; } }` |
+
+Containers (like `capability`, `family`, `timer`) are deep-merged across levels.
+Leaf values override at the more specific level.
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree, inheritance merging -->
+
+## Peer Settings
+
+Peers are keyed by name: `peer <name> { }` where the name must start with a letter.
+
+| Setting | Description | Required |
+|---------|-------------|----------|
+| `remote { ip; as; }` | Peer IP and AS number | Yes |
+| `local { ip; as; }` | Local bind address and AS | Yes (ip can be `auto`) |
+| `router-id` | BGP router ID | Yes (or inherited) |
+| `description` | Human-readable description | No |
+| `timer { receive-hold-time; send-hold-time; connect-retry; }` | Timer container | No |
+| `remote { connect }` | Initiate outbound TCP (`true`/`false`, default: `true`) | No |
+| `local { accept }` | Accept inbound TCP (`true`/`false`, default: `true`) | No |
+| `port` | TCP port (default: 179) | No |
+| `md5-password` | TCP MD5 authentication (RFC 2385) | No |
+| `ttl-security` | Minimum TTL for incoming packets (RFC 5082) | No |
+<!-- source: internal/component/bgp/config/peers.go -- PeersFromTree -->
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- peer settings -->
+
+## Capabilities
+
+Configured under `capability { }` at any inheritance level.
+
+| Capability | Config | Notes |
+|------------|--------|-------|
+| 4-byte ASN | `asn4` | Enabled by default |
+| Route Refresh | `route-refresh` | RFC 2918 |
+| Extended Message | `extended-message` | RFC 8654, raises max message to 65535 bytes |
+| Graceful Restart | `graceful-restart { restart-time 120; }` | RFC 4724 |
+| ADD-PATH | `add-path send/receive` | RFC 7911 |
+| Extended Next Hop | `nexthop { ipv4/unicast ipv6; }` | RFC 8950, per-family NH mapping |
+| BGP Role | `role provider` | RFC 9234: provider, customer, rs, rs-client, peer |
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- capability definitions -->
+
+## Address Families
+
+Configured under `family { }`. Each family requires a `prefix { maximum N; }` block.
+
+```
+family {
+    ipv4/unicast { prefix { maximum 1000000; } }
+    ipv6/unicast { prefix { maximum 200000; } }
+    l2vpn/evpn { prefix { maximum 10000; } }
+}
+```
+
+IPv4/IPv6 unicast and multicast are built into the engine. Other families
+(VPN, FlowSpec, EVPN, VPLS, BGP-LS, MPLS, MUP, MVPN, RTC) are loaded
+automatically when you configure the corresponding family.
+<!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin registrations with Families field -->
+
+## Plugin Loading
+
+Plugins are declared in the `plugin { }` block:
+
+```
+plugin {
+    internal bgp-rib;
+    internal bgp-gr;
+    external my-plugin {
+        run "/path/to/binary";
+        encoder json;
+    }
+}
+```
+
+`internal` plugins run as goroutines via DirectBridge (zero IPC overhead).
+`external` plugins run as separate processes with TLS connect-back.
+
+BGP itself is config-driven: if `bgp { }` is present, BGP loads. If not, ze
+starts without BGP. The same mechanism works for `interface { }`, `firewall { }`,
+and other top-level sections. Plugins can be added or removed at runtime via
+config reload (SIGHUP).
+<!-- source: internal/component/plugin/server/startup_autoload.go -- config-driven plugin loading -->
+
+## Process Bindings
+
+Plugins receive BGP events through `process` blocks on each peer:
+
+```
+peer transit-a {
+    process rib {
+        receive [ update state ]
+        send [ update ]
+    }
+}
+```
+
+| Event | Description |
+|-------|-------------|
+| `update` | Route announcements and withdrawals |
+| `state` | Peer state changes (up/down) |
+| `open` | OPEN message |
+| `notification` | NOTIFICATION message |
+| `keepalive` | KEEPALIVE message |
+| `refresh` | Route refresh request |
+| `negotiated` | Capability negotiation results |
+| `eor` | End-of-RIB marker |
+| `rpki` | RPKI validation results |
+<!-- source: internal/component/bgp/event.go -- event type definitions -->
+
+## Configuration Database
+
+Ze stores configuration in ZeFS, a netcapstring-framed blob store. Configuration
+is managed through an interactive editor with draft/commit workflow, not by
+editing text files and sending SIGHUP (though SIGHUP reload is also supported).
+<!-- source: pkg/zefs/store.go -- ZeFS blob store -->
+
+| Command | Purpose |
+|---------|---------|
+| `ze config edit` | Interactive editor with YANG-aware tab completion |
+| `ze config validate <file>` | Validate a config file offline |
+| `ze config import <file>` | Import a config file into the blob store |
+| `ze config migrate <file>` | Convert ExaBGP config to ze-native format |
+| `ze signal reload` | Trigger config reload (same as SIGHUP) |
+<!-- source: cmd/ze/config/main.go -- config domain commands -->
+
+## System Configuration
+
+```
+system {
+    name-server 8.8.8.8;
+    dns {
+        timeout 5;
+        cache-size 1000;
+    }
+    peeringdb {
+        url "https://www.peeringdb.com";
+        margin 10;
+    }
+}
+```
+<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- system config -->
+
+## Environment Variables
+
+Ze uses typed, registered environment variables for runtime tuning. See
+[guide/environment-variables.md](guide/environment-variables.md) for the full list.
+<!-- source: internal/core/env/env.go -- env var registry -->
+
+## Further Reading
+
+| Topic | Document |
+|-------|----------|
+| Full configuration guide | [guide/configuration.md](guide/configuration.md) |
+| Architecture overview | [architecture.md](architecture.md) |
+| Plugin guide | [guide/plugins.md](guide/plugins.md) |
+| Quick start | [guide/quickstart.md](guide/quickstart.md) |
+| ExaBGP migration | [guide/exabgp-migration.md](guide/exabgp-migration.md) |
+| Command reference | [guide/command-reference.md](guide/command-reference.md) |

@@ -94,7 +94,7 @@ Requires **Go 1.25+**. See the [Quick Start guide](docs/guide/quickstart.md).
 | Restart without dropping routes | [Graceful Restart](docs/guide/graceful-restart.md) |
 | Validate routes against RPKI | [RPKI](docs/guide/rpki.md) |
 | Write a plugin (Go, Python, Rust) | [Plugin Development](docs/plugin-development/) |
-| Understand the internals | [Design Document](docs/DESIGN.md) |
+| Understand the internals | [Architecture](docs/architecture.md) |
 | Build a route server at an IXP | [Route Reflection](docs/guide/route-reflection.md) (please don't, not yet) |
 | Run Ze in production | [Operations](docs/guide/operations.md) |
 | Build a dedicated network appliance | [VM Appliance](docs/guide/appliance.md) |
@@ -104,8 +104,9 @@ Requires **Go 1.25+**. See the [Quick Start guide](docs/guide/quickstart.md).
 
 | | |
 |-|-|
+| **[Architecture](docs/architecture.md)** | One-page overview: components, data flow, key abstractions |
 | **[User Guide](docs/guide/)** | Configuration, plugins, operations, and feature guides |
-| **[Design Document](docs/DESIGN.md)** | Architecture, goals, and design rationale |
+| **[Design Document](docs/DESIGN.md)** | Full design rationale, wire format details, performance analysis |
 | **[Feature Inventory](docs/features.md)** | Protocols, attributes, capabilities, CLI commands |
 | **[Command Reference](docs/guide/command-reference.md)** | All shell and runtime commands |
 | **[Plugin Development](docs/plugin-development/)** | Writing external plugins, IPC protocol, SDK |
