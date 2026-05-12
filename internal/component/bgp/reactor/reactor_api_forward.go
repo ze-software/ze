@@ -15,6 +15,7 @@ import (
 	"net/netip"
 	"slices"
 	"sync"
+	"unsafe"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -445,16 +446,9 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				fwdLogger().Debug("attrs extraction for export filter",
 					"peer", peer.Settings().Address, "error", attrErr)
 			}
-			// Stack-local scratch for zero-alloc AppendUpdateForFilter path.
-			// One `string(scratch)` conversion at the IPC boundary below.
-			// Size rationale: 4096B covers typical UPDATEs (12 attrs,
-			// 50-500B each) including extreme community / large-community
-			// lists up to ~2-4KB. Pathological inputs (200+ large-communities)
-			// spill to heap via `append` growth -- correct but not zero alloc.
-			// See plan/learned/614-fmt-0-append.md invariant 4.
-			var scratchArr [4096]byte
+			var scratchArr [65536]byte
 			scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, update.WireUpdate, nil)
-			updateText := string(scratch)
+			updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
 			action, modifiedText := PolicyFilterChain(exportFilters, "export", peer.Settings().Address.String(), peer.Settings().PeerAS,
 				updateText, a.r.policyFilterFunc(update.WireUpdate.Payload()),
 			)
