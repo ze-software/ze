@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -987,93 +986,38 @@ func atomicWriteFile(path string, data []byte) error {
 	return nil
 }
 
-// rollbackDir returns the rollback subdirectory for storing config snapshots.
-// Junos-style: backups live in a dedicated rollback/ folder alongside the config.
-func (e *Editor) rollbackDir() string {
-	return filepath.Join(filepath.Dir(e.originalPath), "rollback")
-}
-
-// createBackup creates a backup of the given content in the rollback/ subdirectory.
-// Filename uses a full timestamp (YYYYMMDD-HHMMSS.mmm) for natural date ordering.
-// The content parameter is what was on disk before the overwrite -- callers pass
-// freshly-read data to avoid backing up stale cached content.
+// createBackup creates a dated version of the given content.
 // When guard is non-nil (inside a lock), writes through the guard to avoid deadlock.
 // When guard is nil (outside a lock), writes through e.store.
 func (e *Editor) createBackup(content string, guard storage.WriteGuard) error {
-	base := filepath.Base(e.originalPath)
-	ext := filepath.Ext(base)
-	name := strings.TrimSuffix(base, ext)
-
-	rollback := e.rollbackDir()
-
 	now := time.Now()
-	stamp := fmt.Sprintf("%s.%03d", now.Format("20060102-150405"), now.Nanosecond()/1e6)
-	backupPath := filepath.Join(rollback, fmt.Sprintf("%s-%s.conf", name, stamp))
-
 	if guard != nil {
-		return guard.WriteFile(backupPath, []byte(content), 0o600)
+		return guard.WriteVersion(e.originalPath, []byte(content), now)
 	}
-	return e.store.WriteFile(backupPath, []byte(content), 0o600)
+	return e.store.WriteVersion(e.originalPath, []byte(content), now)
 }
 
 // ListBackups returns available backup files, sorted by timestamp descending.
-// Looks in the rollback/ subdirectory for date-stamped config snapshots.
 func (e *Editor) ListBackups() ([]BackupInfo, error) {
-	base := filepath.Base(e.originalPath)
-	ext := filepath.Ext(base)
-	name := strings.TrimSuffix(base, ext)
-
-	rollback := e.rollbackDir()
-
-	// List all files in rollback directory, then filter by name pattern.
-	matches, err := e.store.List(rollback)
+	versions, err := e.store.ListVersions(e.originalPath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil // No rollback directory = no backups
-		}
 		return nil, err
 	}
-
-	// Filter to files matching this config's backup pattern.
-	prefix := name + "-"
-	filtered := matches[:0]
-	for _, m := range matches {
-		if b := filepath.Base(m); strings.HasPrefix(b, prefix) {
-			filtered = append(filtered, m)
-		}
+	backups := make([]BackupInfo, len(versions))
+	for i, v := range versions {
+		backups[i] = BackupInfo{Path: v.Path, Timestamp: v.Date}
 	}
-	matches = filtered
-
-	backups := make([]BackupInfo, 0, len(matches))
-	re := regexp.MustCompile(`-(\d{8}-\d{6})\.(\d{3})\.conf$`)
-
-	for _, path := range matches {
-		m := re.FindStringSubmatch(path)
-		if len(m) < 3 {
-			continue
-		}
-
-		ts, err := time.ParseInLocation("20060102-150405", m[1], time.Local)
-		if err != nil {
-			continue
-		}
-
-		// Add milliseconds back to timestamp
-		ms, _ := strconv.Atoi(m[2])
-		ts = ts.Add(time.Duration(ms) * time.Millisecond)
-
-		backups = append(backups, BackupInfo{
-			Path:      path,
-			Timestamp: ts,
-		})
-	}
-
-	// Sort by timestamp descending (newest first)
-	sort.Slice(backups, func(i, j int) bool {
-		return backups[i].Timestamp.After(backups[j].Timestamp)
-	})
-
 	return backups, nil
+}
+
+// ReadBackupContent reads the content of a backup by its path.
+func (e *Editor) ReadBackupContent(path string) ([]byte, error) {
+	return e.store.ReadFile(path)
+}
+
+// HasDraft returns true if a draft file exists for this config.
+func (e *Editor) HasDraft() bool {
+	return e.store.Exists(DraftPath(e.originalPath))
 }
 
 // LivePath returns the path to the .live.conf file.

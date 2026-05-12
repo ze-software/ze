@@ -64,11 +64,14 @@ func cmdHistoryImpl(store storage.Storage, args []string) int {
 		return exitError
 	}
 
-	if len(backups) == 0 {
+	if len(backups) == 0 && !ed.HasDraft() {
 		fmt.Println("No rollback revisions found")
 		return exitOK
 	}
 
+	if ed.HasDraft() {
+		fmt.Println("draft  (editing in progress)")
+	}
 	for i, b := range backups {
 		fmt.Printf("%d  %s  %s\n", i+1, b.Timestamp.Format("2006-01-02 15:04:05"), b.Path)
 	}

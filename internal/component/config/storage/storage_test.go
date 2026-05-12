@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -911,4 +912,122 @@ func TestBlobStorageRename(t *testing.T) {
 	data, err := s.ReadFile(newPath)
 	require.NoError(t, err)
 	assert.Equal(t, "blob content", string(data))
+}
+
+// --- Version API tests ---
+
+func TestFilesystemWriteVersionAndList(t *testing.T) {
+	dir := t.TempDir()
+	s := NewFilesystem()
+	configPath := filepath.Join(dir, "router.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte("current"), 0o600))
+
+	t1 := time.Date(2026, 3, 18, 10, 0, 0, 0, time.Local)
+	t2 := time.Date(2026, 3, 19, 11, 30, 0, 500_000_000, time.Local)
+
+	require.NoError(t, s.WriteVersion(configPath, []byte("v1"), t1))
+	require.NoError(t, s.WriteVersion(configPath, []byte("v2"), t2))
+
+	versions, err := s.ListVersions(configPath)
+	require.NoError(t, err)
+	require.Len(t, versions, 2)
+
+	assert.Equal(t, "20260319-113000.500", versions[0].Stamp, "newest first")
+	assert.Equal(t, "20260318-100000.000", versions[1].Stamp)
+
+	data, err := s.ReadFile(versions[1].Path)
+	require.NoError(t, err)
+	assert.Equal(t, "v1", string(data))
+}
+
+func TestFilesystemListVersionsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	s := NewFilesystem()
+	configPath := filepath.Join(dir, "router.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte("current"), 0o600))
+
+	versions, err := s.ListVersions(configPath)
+	require.NoError(t, err)
+	assert.Empty(t, versions)
+}
+
+func TestBlobWriteVersionAndList(t *testing.T) {
+	s := newBlobStorage(t)
+	configPath := "/etc/ze/router.conf"
+	require.NoError(t, s.WriteFile(configPath, []byte("current"), 0o600))
+
+	t1 := time.Date(2026, 3, 18, 10, 0, 0, 0, time.Local)
+	t2 := time.Date(2026, 3, 19, 11, 30, 0, 500_000_000, time.Local)
+
+	require.NoError(t, s.WriteVersion(configPath, []byte("v1"), t1))
+	require.NoError(t, s.WriteVersion(configPath, []byte("v2"), t2))
+
+	versions, err := s.ListVersions(configPath)
+	require.NoError(t, err)
+	require.Len(t, versions, 2)
+
+	assert.Equal(t, "20260319-113000.500", versions[0].Stamp, "newest first")
+	assert.Equal(t, "20260318-100000.000", versions[1].Stamp)
+	assert.Equal(t, "file/20260318-100000.000/router.conf", versions[1].Path)
+
+	data, err := s.ReadFile(versions[1].Path)
+	require.NoError(t, err)
+	assert.Equal(t, "v1", string(data))
+
+	data2, err := s.ReadFile(versions[0].Path)
+	require.NoError(t, err)
+	assert.Equal(t, "v2", string(data2))
+}
+
+func TestBlobListVersionsEmpty(t *testing.T) {
+	s := newBlobStorage(t)
+	configPath := "/etc/ze/router.conf"
+	require.NoError(t, s.WriteFile(configPath, []byte("current"), 0o600))
+
+	versions, err := s.ListVersions(configPath)
+	require.NoError(t, err)
+	assert.Empty(t, versions)
+}
+
+func TestBlobWriteVersionViaGuard(t *testing.T) {
+	s := newBlobStorage(t)
+	configPath := "/etc/ze/router.conf"
+	require.NoError(t, s.WriteFile(configPath, []byte("current"), 0o600))
+
+	guard, err := s.AcquireLock(configPath)
+	require.NoError(t, err)
+
+	stamp := time.Date(2026, 5, 13, 14, 0, 0, 0, time.Local)
+	require.NoError(t, guard.WriteVersion(configPath, []byte("guarded-v1"), stamp))
+	require.NoError(t, guard.Release())
+
+	versions, err := s.ListVersions(configPath)
+	require.NoError(t, err)
+	require.Len(t, versions, 1)
+	assert.Equal(t, "20260513-140000.000", versions[0].Stamp)
+
+	data, err := s.ReadFile(versions[0].Path)
+	require.NoError(t, err)
+	assert.Equal(t, "guarded-v1", string(data))
+}
+
+func TestVersionStampRoundTrip(t *testing.T) {
+	original := time.Date(2026, 3, 18, 10, 30, 45, 123_000_000, time.Local)
+	stamp := FormatVersionStamp(original)
+	assert.Equal(t, "20260318-103045.123", stamp)
+
+	parsed, err := ParseVersionStamp(stamp)
+	require.NoError(t, err)
+	assert.Equal(t, original.Truncate(time.Millisecond), parsed)
+}
+
+func TestParseVersionStampRejectsTraversal(t *testing.T) {
+	_, err := ParseVersionStamp("../../../etc/shadow")
+	require.Error(t, err)
+}
+
+func TestParseVersionStampRejectsOversizeMillis(t *testing.T) {
+	_, err := ParseVersionStamp("20260318-100000.1234")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "milliseconds out of range")
 }

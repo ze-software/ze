@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | spec-blob-namespaces (provides `file/<qualifier>/` key structure) |
-| Phase | - |
-| Updated | 2026-03-18 |
+| Phase | 1/3 |
+| Updated | 2026-05-13 |
 
 ## Post-Compaction Recovery
 

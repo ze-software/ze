@@ -269,11 +269,14 @@ func (m *Model) cmdHistory() (commandResult, error) {
 		return commandResult{}, err
 	}
 
-	if len(backups) == 0 {
+	if len(backups) == 0 && !m.editor.HasDraft() {
 		return commandResult{output: "No backups found"}, nil
 	}
 
 	var b strings.Builder
+	if m.editor.HasDraft() {
+		fmt.Fprintf(&b, "draft  (editing in progress)\n")
+	}
 	for i, backup := range backups {
 		fmt.Fprintf(&b, "%d. %s  %s\n",
 			i+1,

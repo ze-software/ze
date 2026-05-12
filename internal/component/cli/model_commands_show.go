@@ -6,7 +6,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -271,7 +270,7 @@ func (m *Model) resolveRollbackBaseline(nStr string) (string, error) {
 		return "", fmt.Errorf("backup %d not found (have %d backups)", n, len(backups))
 	}
 
-	data, err := os.ReadFile(backups[n-1].Path)
+	data, err := m.editor.ReadBackupContent(backups[n-1].Path)
 	if err != nil {
 		return "", fmt.Errorf("cannot read backup %d: %w", n, err)
 	}

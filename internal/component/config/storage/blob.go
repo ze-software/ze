@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -159,6 +160,60 @@ func (s *blobStorage) List(prefix string) ([]string, error) {
 	return result, nil
 }
 
+func (s *blobStorage) WriteVersion(name string, data []byte, stamp time.Time) error {
+	basename := resolvePathToKey(name, s.configDir)
+	stampStr := FormatVersionStamp(stamp)
+	key := zefs.KeyFileVersion.Key(stampStr, basename)
+	if err := s.store.WriteFile(key, data, 0); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	if s.metas[key] == nil {
+		s.metas[key] = &fileMeta{}
+	}
+	s.metas[key].modTime = stamp
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *blobStorage) ListVersions(name string) ([]VersionInfo, error) {
+	basename := resolvePathToKey(name, s.configDir)
+
+	entries, err := s.store.ReadDir("file")
+	if err != nil {
+		return nil, nil //nolint:nilerr // no "file" directory means no versions
+	}
+
+	reserved := map[string]bool{"active": true, "draft": true, "template": true}
+	var versions []VersionInfo
+
+	for _, entry := range entries {
+		if !entry.IsDir() || reserved[entry.Name()] {
+			continue
+		}
+		stamp := entry.Name()
+		date, parseErr := ParseVersionStamp(stamp)
+		if parseErr != nil {
+			continue
+		}
+		key := zefs.KeyFileVersion.Key(stamp, basename)
+		if !s.store.Has(key) {
+			continue
+		}
+		versions = append(versions, VersionInfo{
+			Stamp: stamp,
+			Date:  date,
+			Path:  key,
+		})
+	}
+
+	sort.Slice(versions, func(i, j int) bool {
+		return versions[i].Date.After(versions[j].Date)
+	})
+
+	return versions, nil
+}
+
 func (s *blobStorage) AcquireLock(_ string) (WriteGuard, error) {
 	wl, err := s.store.Lock()
 	if err != nil {
@@ -211,6 +266,23 @@ func (g *blobGuard) Release() error {
 
 func (g *blobGuard) SetModifier(sessionID string) {
 	g.modifier = sessionID
+}
+
+func (g *blobGuard) WriteVersion(name string, data []byte, stamp time.Time) error {
+	basename := resolvePathToKey(name, g.configDir)
+	stampStr := FormatVersionStamp(stamp)
+	key := zefs.KeyFileVersion.Key(stampStr, basename)
+	if err := g.wl.WriteFile(key, data, 0); err != nil {
+		return err
+	}
+	g.parent.mu.Lock()
+	if g.parent.metas[key] == nil {
+		g.parent.metas[key] = &fileMeta{}
+	}
+	g.parent.metas[key].modTime = stamp
+	g.parent.metas[key].modifiedBy = g.modifier
+	g.parent.mu.Unlock()
+	return nil
 }
 
 // pathToKey converts an absolute filesystem path to a blob key
