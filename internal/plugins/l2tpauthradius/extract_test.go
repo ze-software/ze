@@ -186,6 +186,126 @@ func TestExtractMultipleAttributes(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-5 -- Framed-Route "10.0.0.0/8 0.0.0.0 1" parsed correctly.
+func TestExtractFramedRoute(t *testing.T) {
+	resp := &radius.Packet{Attrs: []radius.Attr{
+		{Type: radius.AttrFramedRoute, Value: radius.AttrString("10.0.0.0/8 0.0.0.0 1")},
+	}}
+	meta := extractAuthMetadata(resp)
+	if meta == nil {
+		t.Fatal("expected metadata")
+	}
+	if len(meta.FramedRoutes) != 1 {
+		t.Fatalf("FramedRoutes len = %d, want 1", len(meta.FramedRoutes))
+	}
+	if meta.FramedRoutes[0].Prefix != netip.MustParsePrefix("10.0.0.0/8") {
+		t.Errorf("prefix = %v, want 10.0.0.0/8", meta.FramedRoutes[0].Prefix)
+	}
+	if meta.FramedRoutes[0].Metric != 1 {
+		t.Errorf("metric = %d, want 1", meta.FramedRoutes[0].Metric)
+	}
+}
+
+// VALIDATES: AC-9 -- Framed-IPv6-Route parsed correctly.
+func TestExtractFramedIPv6Route(t *testing.T) {
+	resp := &radius.Packet{Attrs: []radius.Attr{
+		{Type: radius.AttrFramedIPv6Route, Value: radius.AttrString("2001:db8::/32 :: 1")},
+	}}
+	meta := extractAuthMetadata(resp)
+	if meta == nil {
+		t.Fatal("expected metadata")
+	}
+	if len(meta.FramedRoutes) != 1 {
+		t.Fatalf("FramedRoutes len = %d, want 1", len(meta.FramedRoutes))
+	}
+	if meta.FramedRoutes[0].Prefix != netip.MustParsePrefix("2001:db8::/32") {
+		t.Errorf("prefix = %v, want 2001:db8::/32", meta.FramedRoutes[0].Prefix)
+	}
+	if meta.FramedRoutes[0].Metric != 1 {
+		t.Errorf("metric = %d, want 1", meta.FramedRoutes[0].Metric)
+	}
+}
+
+// VALIDATES: AC-8 -- multiple Framed-Route attributes all parsed.
+func TestExtractMultipleFramedRoutes(t *testing.T) {
+	resp := &radius.Packet{Attrs: []radius.Attr{
+		{Type: radius.AttrFramedRoute, Value: radius.AttrString("10.0.0.0/8 0.0.0.0 1")},
+		{Type: radius.AttrFramedRoute, Value: radius.AttrString("172.16.0.0/12 0.0.0.0 2")},
+		{Type: radius.AttrFramedIPv6Route, Value: radius.AttrString("2001:db8::/32 :: 5")},
+	}}
+	meta := extractAuthMetadata(resp)
+	if meta == nil {
+		t.Fatal("expected metadata")
+	}
+	if len(meta.FramedRoutes) != 3 {
+		t.Fatalf("FramedRoutes len = %d, want 3", len(meta.FramedRoutes))
+	}
+}
+
+func TestExtractFramedRouteNoMetric(t *testing.T) {
+	resp := &radius.Packet{Attrs: []radius.Attr{
+		{Type: radius.AttrFramedRoute, Value: radius.AttrString("10.0.0.0/8 0.0.0.0")},
+	}}
+	meta := extractAuthMetadata(resp)
+	if meta == nil {
+		t.Fatal("expected metadata")
+	}
+	if len(meta.FramedRoutes) != 1 {
+		t.Fatalf("FramedRoutes len = %d, want 1", len(meta.FramedRoutes))
+	}
+	if meta.FramedRoutes[0].Metric != 0 {
+		t.Errorf("metric = %d, want 0", meta.FramedRoutes[0].Metric)
+	}
+}
+
+func TestExtractFramedRouteMalformed(t *testing.T) {
+	resp := &radius.Packet{Attrs: []radius.Attr{
+		{Type: radius.AttrFramedRoute, Value: radius.AttrString("not-a-prefix")},
+	}}
+	meta := extractAuthMetadata(resp)
+	if meta != nil {
+		t.Error("malformed Framed-Route should not produce metadata")
+	}
+}
+
+func TestParseFramedRoute(t *testing.T) {
+	tests := []struct {
+		name   string
+		text   string
+		wantOK bool
+		prefix string
+		metric uint32
+	}{
+		{"basic", "10.0.0.0/8 0.0.0.0 1", true, "10.0.0.0/8", 1},
+		{"no metric", "192.168.0.0/16 0.0.0.0", true, "192.168.0.0/16", 0},
+		{"ipv6", "2001:db8::/32 :: 5", true, "2001:db8::/32", 5},
+		{"max metric", "10.0.0.0/8 0.0.0.0 4294967295", true, "10.0.0.0/8", 4294967295},
+		{"host masked", "10.0.0.1/8 0.0.0.0 0", true, "10.0.0.0/8", 0},
+		{"empty", "", false, "", 0},
+		{"one field", "10.0.0.0/8", false, "", 0},
+		{"bad prefix", "not-a-prefix 0.0.0.0 1", false, "", 0},
+		{"bad metric", "10.0.0.0/8 0.0.0.0 abc", false, "", 0},
+		{"metric overflow", "10.0.0.0/8 0.0.0.0 99999999999", false, "", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, ok := parseFramedRoute(tt.text)
+			if ok != tt.wantOK {
+				t.Fatalf("ok = %v, want %v", ok, tt.wantOK)
+			}
+			if !ok {
+				return
+			}
+			if r.Prefix != netip.MustParsePrefix(tt.prefix) {
+				t.Errorf("prefix = %v, want %v", r.Prefix, tt.prefix)
+			}
+			if r.Metric != tt.metric {
+				t.Errorf("metric = %d, want %d", r.Metric, tt.metric)
+			}
+		})
+	}
+}
+
 func TestIsValidSubscriberIP(t *testing.T) {
 	tests := []struct {
 		name string

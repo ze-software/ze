@@ -283,14 +283,15 @@ Filters can declare `overrides` to remove default filters from the chain
 route-change events into BGP UPDATE announcements. Unlike the redistribution
 filter chain above (which gates intra-BGP traffic), `bgp-redistribute-egress` lets
 operators advertise locally-originated routes from other protocols (L2TP
-sessions today, future connected / static / OSPF / ISIS) to BGP peers.
+sessions, connected interface prefixes, static routes, future OSPF / ISIS) to BGP peers.
 
 Config:
 
 ```
 redistribute {
+    import connected;
+    import static;
     import l2tp { family [ ipv4/unicast ipv6/unicast ]; }
-    import fakeredist;          # all families
 }
 ```
 

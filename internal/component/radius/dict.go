@@ -35,6 +35,7 @@ const (
 	AttrFramedIPAddress      = 8
 	AttrFramedIPNetmask      = 9
 	AttrFilterID             = 11
+	AttrFramedRoute          = 22 // RFC 2865 Section 5.22
 	AttrReplyMessage         = 18
 	AttrSessionTimeout       = 27
 	AttrIdleTimeout          = 28
@@ -57,6 +58,7 @@ const (
 	AttrMessageAuthenticator = 80
 	AttrAcctInterimInterval  = 85
 	AttrFramedPool           = 88
+	AttrFramedIPv6Route      = 99  // RFC 6911 Section 3.2
 	AttrErrorCause           = 101 // RFC 5176 Section 3.6
 	AttrVendorSpecific       = 26
 )

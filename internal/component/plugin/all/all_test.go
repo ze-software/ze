@@ -53,6 +53,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"bgp-rs",
 		"bgp-softver",
 		"bgp-watchdog",
+		"connected",
 		"fib-kernel",
 		"fib-p4",
 		"fib-vpp",

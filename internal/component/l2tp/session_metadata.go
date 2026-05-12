@@ -9,6 +9,15 @@ import (
 	"sync"
 )
 
+// FramedRoute is a static route learned from RADIUS Framed-Route (attr 22)
+// or Framed-IPv6-Route (attr 99). The prefix is the destination network
+// and metric is the route priority.
+// RFC 2865 Section 5.22, RFC 6911 Section 3.2.
+type FramedRoute struct {
+	Prefix netip.Prefix
+	Metric uint32
+}
+
 // RFC 6911 Section 3: Framed-IPv6-Prefix (attr 97).
 // RFC 4818 Section 3: Delegated-IPv6-Prefix (attr 123).
 // RFC 6911 Section 3.1: Framed-IPv6-Pool (attr 100).
@@ -32,7 +41,8 @@ type AuthMetadata struct {
 	SessionTimeout      uint32       // seconds, 0 = not set
 	IdleTimeout         uint32       // seconds, 0 = not set
 	FilterID            string
-	AcctInterimInterval uint32 // seconds, 0 = not set
+	AcctInterimInterval uint32        // seconds, 0 = not set
+	FramedRoutes        []FramedRoute // RFC 2865 attr 22 + RFC 6911 attr 99
 }
 
 type metadataKey struct {

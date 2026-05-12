@@ -7,10 +7,14 @@ import (
 	"encoding/binary"
 	"net"
 	"net/netip"
+	"strconv"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
 )
+
+const maxFramedRoutesPerSession = 64
 
 // extractAuthMetadata extracts subscriber profile attributes from a
 // RADIUS Access-Accept response. Returns nil when no profile
@@ -66,10 +70,72 @@ func extractAuthMetadata(resp *radius.Packet) *l2tp.AuthMetadata {
 		found = true
 	}
 
+	// RFC 2865 Section 5.22: Framed-Route (multi-valued, text).
+	// RFC 6911 Section 3.2: Framed-IPv6-Route (multi-valued, text).
+	routes := extractFramedRoutes(resp)
+	if len(routes) > 0 {
+		meta.FramedRoutes = routes
+		found = true
+	}
+
 	if !found {
 		return nil
 	}
 	return &meta
+}
+
+// extractFramedRoutes parses all Framed-Route (attr 22) and
+// Framed-IPv6-Route (attr 99) attributes from a RADIUS response.
+// RFC 2865 Section 5.22: format is "destination[/mask] gateway [metric]".
+// RFC 6911 Section 3.2: format is "prefix/len gateway [metric]".
+// Malformed entries are silently skipped.
+func extractFramedRoutes(resp *radius.Packet) []l2tp.FramedRoute {
+	var routes []l2tp.FramedRoute
+	for _, raw := range resp.FindAllAttr(radius.AttrFramedRoute) {
+		if r, ok := parseFramedRoute(string(raw)); ok {
+			routes = append(routes, r)
+			if len(routes) >= maxFramedRoutesPerSession {
+				return routes
+			}
+		}
+	}
+	for _, raw := range resp.FindAllAttr(radius.AttrFramedIPv6Route) {
+		if r, ok := parseFramedRoute(string(raw)); ok {
+			routes = append(routes, r)
+			if len(routes) >= maxFramedRoutesPerSession {
+				return routes
+			}
+		}
+	}
+	return routes
+}
+
+// parseFramedRoute parses a single Framed-Route or Framed-IPv6-Route
+// text value. Format: "prefix[/len] gateway [metric]".
+// The gateway field (fields[1]) is intentionally ignored: in the BNG
+// use case the subscriber is always the next-hop, so the route is
+// emitted with NextHop=zero (nhop self per-peer substitution).
+// Returns the parsed route and true on success, zero value and false
+// on any parse error.
+func parseFramedRoute(text string) (l2tp.FramedRoute, bool) {
+	fields := strings.Fields(text)
+	if len(fields) < 2 {
+		return l2tp.FramedRoute{}, false
+	}
+	prefix, err := netip.ParsePrefix(fields[0])
+	if err != nil {
+		return l2tp.FramedRoute{}, false
+	}
+	prefix = prefix.Masked()
+	var metric uint32
+	if len(fields) >= 3 {
+		m, err := strconv.ParseUint(fields[2], 10, 32)
+		if err != nil {
+			return l2tp.FramedRoute{}, false
+		}
+		metric = uint32(m)
+	}
+	return l2tp.FramedRoute{Prefix: prefix, Metric: metric}, true
 }
 
 // isValidSubscriberIP checks that an address is suitable for

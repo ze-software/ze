@@ -30,19 +30,24 @@ import (
 type RouteObserver interface {
 	// OnSessionIPUp fires when one NCP (IPCP or IPv6CP) successfully
 	// negotiates a peer IP. Called once per family per session.
-	OnSessionIPUp(sessionID uint16, username string, addr netip.Addr)
+	// tunnelID is needed to look up RADIUS metadata (framed routes).
+	OnSessionIPUp(tunnelID, sessionID uint16, username string, addr netip.Addr)
 
 	// OnSessionDown fires when the session's per-session goroutine
 	// exits (peer CDN, local teardown, auth failure, NCP timeout).
-	OnSessionDown(sessionID uint16)
+	// tunnelID is needed to look up RADIUS metadata (framed routes).
+	OnSessionDown(tunnelID, sessionID uint16)
 }
 
 // routeRecord is the live state the observer tracks per session.
 type routeRecord struct {
-	sessionID uint16
-	username  string
-	v4        netip.Addr
-	v6        netip.Addr
+	tunnelID      uint16
+	sessionID     uint16
+	username      string
+	v4            netip.Addr
+	v6            netip.Addr
+	framedRoutes  []FramedRoute
+	framedEmitted bool
 }
 
 // subscriberRouteObserver is the concrete RouteObserver the Subsystem
@@ -83,8 +88,9 @@ func newSubscriberRouteObserver(logger *slog.Logger, bus ze.EventBus) *subscribe
 
 // OnSessionIPUp records the new NCP-assigned address and logs the
 // event. IPv4 and IPv6 are tracked side-by-side under the same
-// session record.
-func (o *subscriberRouteObserver) OnSessionIPUp(sessionID uint16, username string, addr netip.Addr) {
+// session record. Also loads RADIUS framed routes from metadata
+// on the first call per session.
+func (o *subscriberRouteObserver) OnSessionIPUp(tunnelID, sessionID uint16, username string, addr netip.Addr) {
 	if !addr.IsValid() {
 		return
 	}
@@ -92,8 +98,12 @@ func (o *subscriberRouteObserver) OnSessionIPUp(sessionID uint16, username strin
 	o.mu.Lock()
 	r := o.records[sessionID]
 	if r == nil {
-		r = &routeRecord{sessionID: sessionID, username: username}
+		r = &routeRecord{tunnelID: tunnelID, sessionID: sessionID, username: username}
 		o.records[sessionID] = r
+		if meta := LoadSessionMetadata(tunnelID, sessionID); meta != nil && len(meta.FramedRoutes) > 0 {
+			r.framedRoutes = make([]FramedRoute, len(meta.FramedRoutes))
+			copy(r.framedRoutes, meta.FramedRoutes)
+		}
 	}
 	if username != "" && r.username == "" {
 		r.username = username
@@ -104,6 +114,11 @@ func (o *subscriberRouteObserver) OnSessionIPUp(sessionID uint16, username strin
 	} else {
 		prev = r.v6
 		r.v6 = addr
+	}
+	var emitFramed []FramedRoute
+	if !r.framedEmitted && len(r.framedRoutes) > 0 {
+		emitFramed = r.framedRoutes
+		r.framedEmitted = true
 	}
 	o.injectedTotal++
 	o.mu.Unlock()
@@ -116,11 +131,15 @@ func (o *subscriberRouteObserver) OnSessionIPUp(sessionID uint16, username strin
 		o.emitRemove(prev)
 	}
 	o.emitAdd(addr)
+	if len(emitFramed) > 0 {
+		o.emitFramedRoutes(redistevents.ActionAdd, emitFramed)
+	}
 }
 
 // OnSessionDown clears the session's record and bumps the
 // withdrawn counter once for each family that had been reported.
-func (o *subscriberRouteObserver) OnSessionDown(sessionID uint16) {
+// Also withdraws any RADIUS framed routes for this session.
+func (o *subscriberRouteObserver) OnSessionDown(tunnelID, sessionID uint16) {
 	o.mu.Lock()
 	r, ok := o.records[sessionID]
 	if !ok {
@@ -137,12 +156,16 @@ func (o *subscriberRouteObserver) OnSessionDown(sessionID uint16) {
 		withdrawn++
 		o.withdrawnTotal++
 	}
+	framedRoutes := r.framedRoutes
 	o.mu.Unlock()
 	if r.v4.IsValid() {
 		o.emitRemove(r.v4)
 	}
 	if r.v6.IsValid() {
 		o.emitRemove(r.v6)
+	}
+	if len(framedRoutes) > 0 {
+		o.emitFramedRoutes(redistevents.ActionRemove, framedRoutes)
 	}
 	o.logger.Info("l2tp: subscriber routes withdrawn",
 		"session-id", sessionID,
@@ -195,6 +218,46 @@ func (o *subscriberRouteObserver) emitRemove(addr netip.Addr) {
 		Action: redistevents.ActionRemove,
 		Prefix: prefixForAddr(addr),
 	})
+	if _, err := l2tpevents.RouteChange.Emit(o.bus, b); err != nil {
+		o.logger.Warn("l2tp: route-change emit failed", "error", err)
+	}
+}
+
+// emitFramedRoutes emits a batch per address family for the given
+// framed routes. Groups routes by AFI so each batch has a consistent
+// family header.
+func (o *subscriberRouteObserver) emitFramedRoutes(action redistevents.RouteAction, routes []FramedRoute) {
+	if o.bus == nil || len(routes) == 0 {
+		return
+	}
+	var v4, v6 []redistevents.RouteChangeEntry
+	for _, fr := range routes {
+		entry := redistevents.RouteChangeEntry{
+			Action: action,
+			Prefix: fr.Prefix,
+			Metric: fr.Metric,
+		}
+		if fr.Prefix.Addr().Is4() {
+			v4 = append(v4, entry)
+		} else {
+			v6 = append(v6, entry)
+		}
+	}
+	if len(v4) > 0 {
+		o.emitBatch(family.IPv4Unicast, v4)
+	}
+	if len(v6) > 0 {
+		o.emitBatch(family.IPv6Unicast, v6)
+	}
+}
+
+func (o *subscriberRouteObserver) emitBatch(fam family.Family, entries []redistevents.RouteChangeEntry) {
+	b := redistevents.AcquireBatch()
+	defer redistevents.ReleaseBatch(b)
+	b.Protocol = l2tpevents.ProtocolID
+	b.AFI = uint16(fam.AFI)
+	b.SAFI = uint8(fam.SAFI)
+	b.Entries = append(b.Entries, entries...)
 	if _, err := l2tpevents.RouteChange.Emit(o.bus, b); err != nil {
 		o.logger.Warn("l2tp: route-change emit failed", "error", err)
 	}

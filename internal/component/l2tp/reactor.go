@@ -1028,7 +1028,7 @@ func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
 	// goes on the wire so subscriber routes are withdrawn promptly
 	// even if the outbound send blocks.
 	if r.routeObserver != nil {
-		r.routeObserver.OnSessionDown(sid)
+		r.routeObserver.OnSessionDown(tid, sid)
 	}
 
 	// spec-l2tp-8a: emit (l2tp, session-down) so the pool plugin
@@ -1088,7 +1088,7 @@ func (r *L2TPReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 	r.tunnelsMu.Unlock()
 
 	if r.routeObserver != nil && addr.IsValid() {
-		r.routeObserver.OnSessionIPUp(ev.SessionID, username, addr)
+		r.routeObserver.OnSessionIPUp(ev.TunnelID, ev.SessionID, username, addr)
 	}
 
 	if addr.IsValid() {

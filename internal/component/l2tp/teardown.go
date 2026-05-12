@@ -56,7 +56,7 @@ func (r *L2TPReactor) TeardownTunnelByID(localTID uint16) error {
 
 	if r.routeObserver != nil {
 		for _, sid := range torn {
-			r.routeObserver.OnSessionDown(sid)
+			r.routeObserver.OnSessionDown(localTID, sid)
 		}
 	}
 	for _, req := range outbound {
@@ -102,7 +102,7 @@ func (r *L2TPReactor) TeardownSessionByID(localSID uint16) error {
 	r.tunnelsMu.Unlock()
 
 	if r.routeObserver != nil {
-		r.routeObserver.OnSessionDown(localSID)
+		r.routeObserver.OnSessionDown(tid, localSID)
 	}
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
@@ -191,7 +191,7 @@ func (r *L2TPReactor) teardownSessionOnTunnel(localTID, localSID uint16) error {
 	r.tunnelsMu.Unlock()
 
 	if r.routeObserver != nil {
-		r.routeObserver.OnSessionDown(localSID)
+		r.routeObserver.OnSessionDown(localTID, localSID)
 	}
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {

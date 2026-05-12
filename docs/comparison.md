@@ -70,8 +70,8 @@ Last updated: 2026-03-25
 
 ## Cross-Protocol Redistribute
 
-Ze advertises locally-originated routes from non-BGP protocols (L2TP, static;
-future connected / OSPF / ISIS) into BGP via the
+Ze advertises locally-originated routes from non-BGP protocols (connected,
+static, L2TP; future OSPF / ISIS) into BGP via the
 `bgp-redistribute-egress` plugin. Operators enable it per-source via
 `redistribute { import <source> { family [...]; } }`. The same config block
 also drives the intra-BGP `IngressFilter` ACL when the source is `ibgp` /
