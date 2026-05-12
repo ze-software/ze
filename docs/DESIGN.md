@@ -350,6 +350,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `l2tp-pool` | L2TP IP address pool management |
 | `l2tp-shaper` | L2TP per-subscriber traffic shaping |
 | `ntp` | NTP time synchronization |
+| `connected` | Redistribute directly connected interface prefixes |
 | `policy-routes` | Policy-based routing |
 | `vpp` | VPP lifecycle and telemetry management |
 

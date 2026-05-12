@@ -140,9 +140,9 @@ func zeTestSuiteFromMakeLine(line string) (string, bool) {
 			if i+2 >= len(fields) {
 				return "", false
 			}
-			return fields[i+2], true
+			return strings.TrimRight(fields[i+2], ";"), true
 		}
-		return fields[i+1], true
+		return strings.TrimRight(fields[i+1], ";"), true
 	}
 	return "", false
 }

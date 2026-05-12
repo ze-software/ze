@@ -1102,7 +1102,7 @@ help:
 	@echo "  ze-test-config        - Unit tests: config component group (-race)"
 	@echo "  ze-test-cli           - Unit tests: CLI component group (-race)"
 	@echo "  ze-test-rest          - Unit tests: everything not in a named group (-race)"
-	@echo "  ze-functional-test    - Run ze functional tests (encode, plugin, parse, decode, reload, ui, editor, managed, l2tp, firewall, web)"
+	@echo "  ze-functional-test    - Run ze functional tests (encode, plugin, parse, decode, reload, ui, editor, managed, l2tp, firewall, policy, web)"
 	@echo "  ze-encode-test        - Run encode functional tests only"
 	@echo "  ze-plugin-test        - Run plugin functional tests only"
 	@echo "  ze-decode-test        - Run decode functional tests only"
