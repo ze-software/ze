@@ -45,6 +45,15 @@ type LayoutData struct {
 	Insecure         bool
 	Services         []PortalService
 	ActiveUI         string // "workbench", "finder", or "cli" — controls which nav buttons appear
+	RouterIdentity   string // Resolved display name: system/host > bgp/router-id > "ze"
+	FleetPeers       []FleetPeer
+}
+
+// FleetPeer is one entry in the fleet selector dropdown.
+type FleetPeer struct {
+	Name   string
+	URL    string
+	Active bool
 }
 
 // LoginData holds the data passed to the login template.

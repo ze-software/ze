@@ -2306,11 +2306,60 @@ body.ui-workbench {
 }
 
 .workbench-brand-name { font-size: 1.05rem; }
+.workbench-identity {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  padding-left: 0.3rem;
+  border-left: 1px solid var(--border);
+  margin-left: 0.1rem;
+}
 .workbench-brand-mode {
   font-size: 0.75rem;
   text-transform: uppercase;
   color: var(--accent);
   letter-spacing: 0.05em;
+}
+.fleet-menu { position: relative; }
+.fleet-toggle {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.6rem;
+  padding: 0;
+  line-height: 1;
+}
+.fleet-toggle:hover { color: var(--accent); }
+.fleet-dropdown {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 0.25rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  min-width: 10rem;
+  z-index: 100;
+}
+.fleet-menu:hover .fleet-dropdown,
+.fleet-menu:focus-within .fleet-dropdown {
+  display: block;
+}
+.fleet-item {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.fleet-item:hover { background: var(--accent-subtle); color: var(--accent); }
+.fleet-item--active {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .workbench-breadcrumb {
@@ -2803,3 +2852,12 @@ body.ui-workbench {
 .wb-dashboard-event:last-child { border-bottom: none; }
 .wb-dashboard-event-time { color: var(--text-muted); margin-right: 0.5rem; }
 .wb-dashboard-event-component { font-weight: 600; margin-right: 0.5rem; }
+
+/* Host Hardware page */
+.wb-hardware { padding: 0 0.5rem; }
+.wb-hardware-section { margin-bottom: 1.5rem; }
+.wb-hardware-section h3 { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.5rem 0; }
+.wb-hardware-up td:last-child { color: var(--success, #22c55e); }
+.wb-hardware-down td:last-child { color: var(--error, #ef4444); }
+.wb-hardware-alarm { background: rgba(239, 68, 68, 0.08); }
+.wb-hardware-alarm td:last-child { color: var(--error, #ef4444); font-weight: 600; }

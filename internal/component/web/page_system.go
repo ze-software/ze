@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/core/version"
 )
 
@@ -76,6 +77,58 @@ func BuildSystemIdentityFormData(tree *config.Tree) WorkbenchFormData {
 func HandleSystemIdentityPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 	formData := BuildSystemIdentityFormData(viewTree)
 	return renderer.RenderFragment("workbench_form", formData)
+}
+
+// --- Router Identity Resolution ---
+
+// ResolveRouterIdentity returns a display name for this router instance.
+// Priority: system/host (configured hostname), then bgp/router-id, then "ze".
+func ResolveRouterIdentity(tree *config.Tree) string {
+	if tree != nil {
+		if sys := tree.GetContainer("system"); sys != nil {
+			if h, ok := sys.Get("host"); ok && h != "" {
+				return h
+			}
+		}
+		if bgp := tree.GetContainer("bgp"); bgp != nil {
+			if rid, ok := bgp.Get("router-id"); ok && rid != "" {
+				return rid
+			}
+		}
+	}
+	return "ze"
+}
+
+// CollectFleetPeers reads system/fleet/peer[] from the config tree and
+// returns a list of fleet peer entries for the topbar selector. The
+// current instance is marked Active.
+func CollectFleetPeers(tree *config.Tree, currentIdentity string) []FleetPeer {
+	if tree == nil {
+		return nil
+	}
+	sys := tree.GetContainer("system")
+	if sys == nil {
+		return nil
+	}
+	fleet := sys.GetContainer("fleet")
+	if fleet == nil {
+		return nil
+	}
+	var peers []FleetPeer
+	for _, entry := range fleet.GetListOrdered("peer") {
+		url := ""
+		if entry.Value != nil {
+			if u, ok := entry.Value.Get("url"); ok {
+				url = u
+			}
+		}
+		peers = append(peers, FleetPeer{
+			Name:   entry.Key,
+			URL:    url,
+			Active: entry.Key == currentIdentity,
+		})
+	}
+	return peers
 }
 
 // --- System > Users ---
@@ -241,40 +294,169 @@ type HardwareSection struct {
 
 // HardwareItem is one key-value pair in a hardware section.
 type HardwareItem struct {
-	Key   string
-	Value string
+	Key      string
+	Value    string
+	CSSClass string // optional CSS class for visual indicators (e.g., "up", "down", "alarm")
 }
 
-// BuildHostHardwareData returns placeholder hardware sections. In v1, real
-// data requires dispatching show host/* RPCs. The sections mirror the
-// host.Inventory struct: CPU, NIC, Storage, Memory, Thermal, DMI.
+// BuildHostHardwareData detects the host inventory and returns hardware
+// sections for display. Detection errors are non-fatal: partial data is
+// shown with error items appended to the relevant section.
 func BuildHostHardwareData() []HardwareSection {
-	return []HardwareSection{
-		{Title: "CPU", Items: []HardwareItem{
-			{Key: "Status", Value: "Requires show host/cpu command dispatch"},
-		}},
-		{Title: "NIC", Items: []HardwareItem{
-			{Key: "Status", Value: "Requires show host/nic command dispatch"},
-		}},
-		{Title: "Storage", Items: []HardwareItem{
-			{Key: "Status", Value: "Requires show host/storage command dispatch"},
-		}},
-		{Title: "Memory", Items: []HardwareItem{
-			{Key: "Status", Value: "Requires show host/memory command dispatch"},
-		}},
-		{Title: "Thermal", Items: []HardwareItem{
-			{Key: "Status", Value: "Requires show host/thermal command dispatch"},
-		}},
-		{Title: "DMI", Items: []HardwareItem{
-			{Key: "Status", Value: "Requires show host/dmi command dispatch"},
-		}},
+	inv, err := host.Detect()
+	if err != nil {
+		return []HardwareSection{
+			{Title: "Detection Error", Items: []HardwareItem{
+				{Key: "Error", Value: err.Error()},
+			}},
+		}
 	}
+
+	var sections []HardwareSection
+
+	if inv.CPU != nil {
+		items := []HardwareItem{
+			{Key: "Model", Value: inv.CPU.ModelName},
+			{Key: "Vendor", Value: inv.CPU.Vendor.String()},
+			{Key: "Logical CPUs", Value: fmt.Sprintf("%d", inv.CPU.LogicalCPUs)},
+			{Key: "Physical Cores", Value: fmt.Sprintf("%d", inv.CPU.PhysicalCores)},
+		}
+		if inv.CPU.BaseFreqMHz > 0 {
+			items = append(items, HardwareItem{Key: "Base Frequency", Value: fmt.Sprintf("%d MHz", inv.CPU.BaseFreqMHz)})
+		}
+		if inv.CPU.MaxFreqMHz > 0 {
+			items = append(items, HardwareItem{Key: "Max Frequency", Value: fmt.Sprintf("%d MHz", inv.CPU.MaxFreqMHz)})
+		}
+		for i := range inv.CPU.Cores {
+			c := &inv.CPU.Cores[i]
+			freq := ""
+			if c.CurrentFreqMHz > 0 {
+				freq = fmt.Sprintf(", %d MHz", c.CurrentFreqMHz)
+			}
+			role := ""
+			if c.Role != host.CoreRoleUniform && c.Role != host.CoreRoleUnknown {
+				role = fmt.Sprintf(", %s", c.Role)
+			}
+			items = append(items, HardwareItem{
+				Key:   fmt.Sprintf("Core %d (pkg %d)", c.CoreID, c.PhysicalPackage),
+				Value: fmt.Sprintf("cpu%d%s%s", c.CPU, freq, role),
+			})
+		}
+		sections = append(sections, HardwareSection{Title: "CPU", Items: items})
+	}
+
+	if len(inv.NICs) > 0 {
+		var items []HardwareItem
+		for i := range inv.NICs {
+			nic := &inv.NICs[i]
+			speed := "-"
+			if nic.LinkSpeedMbps > 0 {
+				speed = fmt.Sprintf("%d Mbps", nic.LinkSpeedMbps)
+			}
+			carrier := "down"
+			cssClass := "down"
+			if nic.Carrier {
+				carrier = "up"
+				cssClass = "up"
+			}
+			items = append(items, HardwareItem{
+				Key:      nic.Name,
+				Value:    fmt.Sprintf("%s, %s, %s, %s", nic.Driver, nic.MAC, speed, carrier),
+				CSSClass: cssClass,
+			})
+		}
+		sections = append(sections, HardwareSection{Title: "NIC", Items: items})
+	}
+
+	if inv.Memory != nil {
+		sections = append(sections, HardwareSection{Title: "Memory", Items: []HardwareItem{
+			{Key: "Total", Value: formatBytes(inv.Memory.TotalBytes)},
+			{Key: "Available", Value: formatBytes(inv.Memory.AvailableBytes)},
+			{Key: "Free", Value: formatBytes(inv.Memory.FreeBytes)},
+			{Key: "Swap Total", Value: formatBytes(inv.Memory.SwapTotalBytes)},
+			{Key: "Swap Free", Value: formatBytes(inv.Memory.SwapFreeBytes)},
+		}})
+	}
+
+	if inv.Storage != nil && len(inv.Storage.Devices) > 0 {
+		var items []HardwareItem
+		for _, dev := range inv.Storage.Devices {
+			items = append(items, HardwareItem{
+				Key:   dev.Name,
+				Value: fmt.Sprintf("%s, %s", formatBytes(dev.SizeBytes), dev.Model),
+			})
+		}
+		sections = append(sections, HardwareSection{Title: "Storage", Items: items})
+	}
+
+	if inv.Thermal != nil && len(inv.Thermal.Sensors) > 0 {
+		var items []HardwareItem
+		for i := range inv.Thermal.Sensors {
+			s := &inv.Thermal.Sensors[i]
+			tempC := float64(s.TempMC) / 1000.0
+			alarm := ""
+			cssClass := ""
+			if s.Alarm {
+				alarm = " [ALARM]"
+				cssClass = "alarm"
+			}
+			items = append(items, HardwareItem{
+				Key:      s.Name,
+				Value:    fmt.Sprintf("%.1f°C%s", tempC, alarm),
+				CSSClass: cssClass,
+			})
+		}
+		sections = append(sections, HardwareSection{Title: "Thermal", Items: items})
+	}
+
+	if inv.DMI != nil {
+		var items []HardwareItem
+		addIfSet := func(k, v string) {
+			if v != "" {
+				items = append(items, HardwareItem{Key: k, Value: v})
+			}
+		}
+		addIfSet("System Vendor", inv.DMI.SystemVendor)
+		addIfSet("System Product", inv.DMI.SystemProduct)
+		addIfSet("System Version", inv.DMI.SystemVersion)
+		addIfSet("Board Vendor", inv.DMI.BoardVendor)
+		addIfSet("Board Product", inv.DMI.BoardProduct)
+		addIfSet("BIOS Vendor", inv.DMI.BIOSVendor)
+		addIfSet("BIOS Version", inv.DMI.BIOSVersion)
+		addIfSet("BIOS Date", inv.DMI.BIOSDate)
+		addIfSet("Chassis Type", inv.DMI.ChassisType)
+		if len(items) > 0 {
+			sections = append(sections, HardwareSection{Title: "DMI", Items: items})
+		}
+	}
+
+	if inv.Kernel != nil {
+		items := []HardwareItem{
+			{Key: "Release", Value: inv.Kernel.Release},
+		}
+		if inv.Kernel.Architecture != "" {
+			items = append(items, HardwareItem{Key: "Architecture", Value: inv.Kernel.Architecture})
+		}
+		if inv.Kernel.BootTime != "" {
+			items = append(items, HardwareItem{Key: "Boot Time", Value: inv.Kernel.BootTime})
+		}
+		sections = append(sections, HardwareSection{Title: "Kernel", Items: items})
+	}
+
+	if len(sections) == 0 {
+		sections = append(sections, HardwareSection{
+			Title: "Info",
+			Items: []HardwareItem{{Key: "Status", Value: "No hardware information detected"}},
+		})
+	}
+
+	return sections
 }
 
 // buildHostHardwareHTML renders the hardware inventory as HTML.
 func buildHostHardwareHTML(sections []HardwareSection) template.HTML {
 	var b strings.Builder
-	b.WriteString(`<div class="wb-hardware">`)
+	b.WriteString(`<div class="wb-hardware" hx-get="/show/system/hardware/" hx-trigger="every 10s" hx-swap="innerHTML">`)
 	b.WriteString(`<h2 class="wb-form-title">Host Hardware</h2>`)
 
 	for _, sec := range sections {
@@ -282,7 +464,7 @@ func buildHostHardwareHTML(sections []HardwareSection) template.HTML {
 		fmt.Fprintf(&b, `<h3>%s</h3>`, template.HTMLEscapeString(sec.Title))
 		b.WriteString(`<table class="wb-detail-kv">`)
 		for _, item := range sec.Items {
-			writeKV(&b, item.Key, item.Value)
+			writeHardwareKV(&b, item)
 		}
 		b.WriteString(`</table>`)
 		b.WriteString(`</div>`)
@@ -294,6 +476,19 @@ func buildHostHardwareHTML(sections []HardwareSection) template.HTML {
 
 	b.WriteString(`</div>`)
 	return template.HTML(b.String()) //nolint:gosec // trusted builder output
+}
+
+// writeHardwareKV writes a key-value table row with optional CSS class for
+// visual indicators (NIC carrier status, thermal alarms).
+func writeHardwareKV(b *strings.Builder, item HardwareItem) {
+	if item.CSSClass != "" {
+		fmt.Fprintf(b, `<tr class="wb-hardware-%s">`, template.HTMLEscapeString(item.CSSClass))
+	} else {
+		b.WriteString(`<tr>`)
+	}
+	fmt.Fprintf(b, `<td class="wb-detail-kv-key">%s</td>`, template.HTMLEscapeString(item.Key))
+	fmt.Fprintf(b, `<td class="wb-detail-kv-val">%s</td>`, template.HTMLEscapeString(item.Value))
+	b.WriteString(`</tr>`)
 }
 
 // HandleHostHardwarePage renders the Host Hardware inventory.

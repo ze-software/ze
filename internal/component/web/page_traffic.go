@@ -103,15 +103,15 @@ func trafficCells(tr TrafficRow) []string {
 }
 
 // BuildTrafficPageContent renders the traffic page content as HTML.
+// The outer div uses hx-get with a 5-second polling interval so traffic
+// counters refresh automatically without a full page reload.
 func BuildTrafficPageContent(renderer *Renderer) template.HTML {
-	infos, err := iface.ListInterfaces()
-	if err != nil {
-		tableData := BuildTrafficTableData(nil)
-		return renderer.RenderFragment("workbench_table", tableData)
-	}
-
+	infos, _ := iface.ListInterfaces()
 	tableData := BuildTrafficTableData(infos)
-	return renderer.RenderFragment("workbench_table", tableData)
+	table := renderer.RenderFragment("workbench_table", tableData)
+	return template.HTML(`<div hx-get="/show/iface/traffic/" hx-trigger="every 5s" hx-swap="innerHTML">`) + //nolint:gosec // trusted builder output
+		table +
+		template.HTML(`</div>`) //nolint:gosec // trusted builder output
 }
 
 // HandleTrafficPage renders the traffic monitoring page for direct HTTP responses.

@@ -69,6 +69,9 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 			}
 		}
 
+		routerIdentity := ResolveRouterIdentity(viewTree)
+		fleetPeers := CollectFleetPeers(viewTree, routerIdentity)
+
 		// Purpose-built pages handle their own data sourcing and do not
 		// walk the YANG schema. Detect them before the generic schema walk.
 		if pageContent, handled := renderPageContent(renderer, r, path, viewTree, cfg.dispatch, cfg.broker); handled {
@@ -99,6 +102,8 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 					Username:       data.Username,
 					Insecure:       insecure,
 					ActiveUI:       uiModeTokenWorkbench,
+					RouterIdentity: routerIdentity,
+					FleetPeers:     fleetPeers,
 				},
 				Sections: WorkbenchSections(path),
 			}
@@ -173,6 +178,8 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 				Username:       data.Username,
 				Insecure:       insecure,
 				ActiveUI:       uiModeTokenWorkbench,
+				RouterIdentity: routerIdentity,
+				FleetPeers:     fleetPeers,
 			},
 			Sections: WorkbenchSections(path),
 		}
