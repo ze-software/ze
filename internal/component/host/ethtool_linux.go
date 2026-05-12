@@ -5,6 +5,7 @@
 package host
 
 import (
+	"fmt"
 	"strings"
 	"unsafe"
 
@@ -49,6 +50,7 @@ type ringparam struct {
 const (
 	ethtoolGDrvinfo   = 0x00000003
 	ethtoolGRingparam = 0x00000010
+	ethtoolSRingparam = 0x00000011
 )
 
 // enrichNICEthtool populates FirmwareVersion, RingRx, RingTx via the
@@ -118,4 +120,38 @@ func trimCString(b []byte) string {
 		}
 	}
 	return strings.TrimSpace(string(b))
+}
+
+// openEthtoolSocket opens an AF_INET DGRAM socket for ethtool ioctls.
+func openEthtoolSocket() (int, error) {
+	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, 0)
+	if err != nil {
+		return -1, fmt.Errorf("ethtool socket: %w", err)
+	}
+	return fd, nil
+}
+
+// closeEthtoolSocket closes an ethtool socket. Close errors on sockets
+// are non-actionable so the error is intentionally not propagated.
+func closeEthtoolSocket(fd int) {
+	unix.Close(fd) //nolint:errcheck // socket close error is non-actionable
+}
+
+// getEthtoolRingParam reads the current ring parameters for the named interface.
+func getEthtoolRingParam(fd int, ifname string) (ringparam, error) {
+	var r ringparam
+	r.cmd = ethtoolGRingparam
+	if !ethtoolIoctl(fd, ifname, unsafe.Pointer(&r)) { //nolint:gosec // ETHTOOL ioctl requires raw struct pointer
+		return r, fmt.Errorf("ETHTOOL_GRINGPARAM failed for %s", ifname)
+	}
+	return r, nil
+}
+
+// setEthtoolRingParam writes ring parameters for the named interface.
+func setEthtoolRingParam(fd int, ifname string, r ringparam) error {
+	r.cmd = ethtoolSRingparam
+	if !ethtoolIoctl(fd, ifname, unsafe.Pointer(&r)) { //nolint:gosec // ETHTOOL ioctl requires raw struct pointer
+		return fmt.Errorf("ETHTOOL_SRINGPARAM failed for %s", ifname)
+	}
+	return nil
 }

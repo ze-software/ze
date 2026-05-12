@@ -81,6 +81,70 @@ module ze-system-conf {
             }
         }
 
+        // Hardware tuning (Linux only, requires root/CAP_SYS_ADMIN)
+        container tuning {
+            description "Runtime hardware tuning applied at startup and on config commit";
+
+            container cpu {
+                description "CPU frequency scaling tuning";
+                leaf governor {
+                    type enumeration {
+                        enum performance { description "Maximum frequency"; }
+                        enum powersave { description "Minimum frequency"; }
+                        enum ondemand { description "Dynamic frequency scaling"; }
+                        enum conservative { description "Gradual frequency scaling"; }
+                        enum schedutil { description "Scheduler-driven frequency scaling"; }
+                    }
+                    description "CPU scaling governor applied to all cores";
+                }
+            }
+
+            list irq-affinity {
+                key "interface";
+                description "Pin NIC IRQs to specific CPUs";
+
+                leaf interface {
+                    type string {
+                        length "1..15";
+                    }
+                    description "Network interface name (max 15 chars, kernel IFNAMSIZ-1)";
+                }
+                leaf cpus {
+                    type string {
+                        length "1..256";
+                    }
+                    description "CPU list (e.g. 0,2,4-7)";
+                }
+            }
+
+            list ethtool {
+                key "interface";
+                description "Per-interface ethtool settings";
+
+                leaf interface {
+                    type string {
+                        length "1..15";
+                    }
+                    description "Network interface name (max 15 chars, kernel IFNAMSIZ-1)";
+                }
+                container ring {
+                    description "Ring buffer sizes";
+                    leaf rx {
+                        type uint16 {
+                            range "1..65535";
+                        }
+                        description "Receive ring buffer size";
+                    }
+                    leaf tx {
+                        type uint16 {
+                            range "1..65535";
+                        }
+                        description "Transmit ring buffer size";
+                    }
+                }
+            }
+        }
+
         // Named archive blocks
         list archive {
             key "name";

@@ -33,6 +33,7 @@ import (
 	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	zegokrazy "codeberg.org/thomas-mangin/ze/internal/component/gokrazy"
+	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
@@ -506,6 +507,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
+	applyHostTuning(sc)
+
 	if webEnabled {
 		if len(webAddrs) == 0 {
 			webAddrs = []string{"0.0.0.0:3443"}
@@ -875,6 +878,9 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 			return fmt.Errorf("subsystem reload: %w", err)
 		}
 	}
+
+	applyHostTuningFromMap(newTree)
+
 	return nil
 }
 
@@ -1708,6 +1714,39 @@ func newResolvers(sc system.SystemConfig) *resolve.Resolvers {
 		Cymru:     cymru.New(txtResolver, nil),
 		PeeringDB: peeringdb.NewPeeringDB(sc.PeeringDBURL),
 		IRR:       irr.NewIRR(""),
+	}
+}
+
+// applyHostTuning extracts tuning config and applies it. Errors are
+// logged as warnings (tuning is best-effort, never blocks startup).
+func applyHostTuning(sc system.SystemConfig) {
+	cfg := sc.Tuning.ToHostTuningConfig()
+	if cfg.CPUGovernor == "" && len(cfg.IRQAffinity) == 0 && len(cfg.Ethtool) == 0 {
+		return
+	}
+	result := host.ApplyTuning(cfg)
+	for _, applied := range result.Applied {
+		slogutil.Logger("host").Info("tuning applied", "op", applied)
+	}
+	for _, te := range result.Errors {
+		slogutil.Logger("host").Warn("tuning failed", "op", te.Operation, "subject", te.Subject, "error", te.Err)
+	}
+}
+
+// applyHostTuningFromMap extracts tuning from a map tree (reload path)
+// and applies it.
+func applyHostTuningFromMap(tree map[string]any) {
+	tc := system.ExtractTuningFromMap(tree)
+	cfg := tc.ToHostTuningConfig()
+	if cfg.CPUGovernor == "" && len(cfg.IRQAffinity) == 0 && len(cfg.Ethtool) == 0 {
+		return
+	}
+	result := host.ApplyTuning(cfg)
+	for _, applied := range result.Applied {
+		slogutil.Logger("host").Info("tuning applied (reload)", "op", applied)
+	}
+	for _, te := range result.Errors {
+		slogutil.Logger("host").Warn("tuning failed (reload)", "op", te.Operation, "subject", te.Subject, "error", te.Err)
 	}
 }
 

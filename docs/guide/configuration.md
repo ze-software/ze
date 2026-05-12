@@ -188,6 +188,40 @@ Run `ze update bgp peer * prefix` to query PeeringDB and update prefix maximums.
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- prefix limit enforcement; internal/component/bgp/schema/ze-bgp-conf.yang -- prefix config -->
 <!-- source: internal/component/config/system/schema/ze-system-conf.yang -- peeringdb config -->
 
+## Hardware Tuning
+
+Ze can apply hardware tuning at startup and on config commit. Tuning operations are Linux-only and require root or `CAP_SYS_ADMIN`.
+
+```
+system {
+    tuning {
+        cpu {
+            governor performance;
+        }
+        irq-affinity eth0 {
+            cpus 0,2,4-7;
+        }
+        ethtool eth0 {
+            ring {
+                rx 4096;
+                tx 4096;
+            }
+        }
+    }
+}
+```
+
+| Path | Description |
+|------|-------------|
+| `tuning/cpu/governor` | CPU scaling governor: `performance`, `powersave`, `ondemand`, `conservative`, `schedutil` |
+| `tuning/irq-affinity` | Per-interface IRQ CPU affinity (CPU list format: `0,2,4-7`) |
+| `tuning/ethtool/ring/rx` | Receive ring buffer size (1-65535) |
+| `tuning/ethtool/ring/tx` | Transmit ring buffer size (1-65535) |
+
+Tuning is idempotent: only changed parameters are written. Write failures are reported but do not block the config commit. On non-Linux platforms the tuning block is accepted but no operations are applied.
+<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- tuning config -->
+<!-- source: internal/component/host/tuning.go -- ApplyTuning engine -->
+
 ## Process Bindings
 
 Plugins are bound to peers via `process` blocks. Each process block names a plugin and configures what events it receives.
