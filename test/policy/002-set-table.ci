@@ -1,0 +1,68 @@
+# Test: "table 100" action creates fwmark + ip rule.
+# VALIDATES: spec-policy-routing AC-4 -- "table 100" in then-block produces
+#            nftables SetMark action and kernel ip rule mapping fwmark to
+#            routing table 100.
+# PREVENTS: fwmark or ip rule not created for table action.
+#
+# Requires CAP_NET_ADMIN.
+
+option=skip-os:value=darwin
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, signal, subprocess, sys, time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+
+nft_out = subprocess.check_output(["nft", "list", "table", "inet", "ze_pr"], text=True)
+sys.stdout.write(nft_out)
+
+rule_out = subprocess.check_output(["ip", "rule", "show"], text=True)
+for line in rule_out.splitlines():
+    if "lookup 100" in line and "fwmark" in line:
+        sys.stdout.write("IP_RULE: " + line + "\n")
+
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+}
+policy {
+	route test-table {
+		interface eth0;
+		rule redirect {
+			from {
+				destination-port 80,443;
+				protocol tcp;
+			}
+			then {
+				table 100;
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.policy-routes:value=info
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=policy routes applied
+expect=stdout:contains=table inet ze_pr
+expect=stdout:contains=meta mark set
+expect=stdout:contains=IP_RULE:
+expect=stdout:contains=lookup 100

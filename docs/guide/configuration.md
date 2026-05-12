@@ -1180,6 +1180,16 @@ BFD failover, blackhole/reject, IPv6, and redistribute examples.
 <!-- source: internal/plugins/static/schema/ze-static-conf.yang -- YANG schema -->
 <!-- source: internal/plugins/static/register.go -- plugin registration -->
 
+## Policy Routing
+
+Policy-based routing steers traffic to alternate routing tables or
+next-hops based on L3/L4 match criteria. Configured under `policy { route <name> { ... } }`.
+
+See [Policy Routing Guide](policy-routing.md) for configuration syntax,
+match criteria, actions, reserved ranges, and CLI usage.
+<!-- source: internal/plugins/policyroute/schema/ze-policyroute-conf.yang -- YANG schema -->
+<!-- source: internal/plugins/policyroute/register.go -- plugin registration -->
+
 ## ExaBGP Migration
 
 Ze auto-detects and migrates ExaBGP configuration files:

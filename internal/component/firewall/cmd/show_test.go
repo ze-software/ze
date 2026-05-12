@@ -73,6 +73,8 @@ func TestFormatMatchTypes(t *testing.T) {
 		{"input iface exact", firewall.MatchInputInterface{Name: "eth0"}, "input interface eth0"},
 		{"input iface wildcard", firewall.MatchInputInterface{Name: "l2tp", Wildcard: true}, "input interface l2tp*"},
 		{"output iface wildcard", firewall.MatchOutputInterface{Name: "veth", Wildcard: true}, "output interface veth*"},
+		{"tcp flags syn", firewall.MatchTCPFlags{Flags: firewall.TCPFlagSYN, Mask: firewall.TCPFlagSYN}, "tcp flags syn"},
+		{"tcp flags syn,ack", firewall.MatchTCPFlags{Flags: firewall.TCPFlagSYN | firewall.TCPFlagACK, Mask: firewall.TCPFlagSYN | firewall.TCPFlagACK}, "tcp flags syn,ack"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

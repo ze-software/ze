@@ -1,0 +1,107 @@
+# Test: Policy change reconciled on config reload.
+# VALIDATES: spec-policy-routing AC-8, AC-9 -- config reload removes old
+#            policy nftables table and ip rules, applies new config.
+# PREVENTS: stale nftables rules or ip rules after config change.
+#
+# Requires CAP_NET_ADMIN.
+
+option=skip-os:value=darwin
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, shutil, signal, subprocess, sys, time
+
+def nft_table_exists(name):
+    try:
+        subprocess.check_output(["nft", "list", "table", "inet", name],
+                                stderr=subprocess.DEVNULL, text=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+
+if not nft_table_exists("ze_pr"):
+    sys.exit("Phase 1 FAIL: ze_pr table missing after boot")
+
+before = subprocess.check_output(["nft", "list", "table", "inet", "ze_pr"], text=True)
+if "accept" not in before:
+    sys.exit("Phase 1 FAIL: accept rule missing; got:\n" + before)
+sys.stdout.write("PHASE1_OK\n")
+
+shutil.copy("config2.conf", "ze-bgp.conf")
+os.kill(pid, signal.SIGHUP)
+time.sleep(1.5)
+
+if not nft_table_exists("ze_pr"):
+    sys.exit("Phase 2 FAIL: ze_pr table missing after reload")
+
+after = subprocess.check_output(["nft", "list", "table", "inet", "ze_pr"], text=True)
+if "accept" in after:
+    sys.exit("Phase 2 FAIL: old accept rule still present after reload; got:\n" + after)
+if "drop" not in after:
+    sys.exit("Phase 2 FAIL: new drop rule missing after reload; got:\n" + after)
+
+sys.stdout.write("PHASE2_OK\n")
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+}
+policy {
+	route test-reload {
+		interface eth0;
+		rule r1 {
+			from {
+				protocol tcp;
+				destination-port 80;
+			}
+			then {
+				accept;
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+firewall {
+	backend nft;
+}
+policy {
+	route test-reload {
+		interface eth0;
+		rule r1 {
+			from {
+				protocol tcp;
+				destination-port 80;
+			}
+			then {
+				drop;
+			}
+		}
+	}
+}
+EOF_CONF2
+
+option=env:var=ze.log.policy-routes:value=info
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=policy routes applied
+expect=stdout:contains=PHASE1_OK
+expect=stdout:contains=PHASE2_OK

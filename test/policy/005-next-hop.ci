@@ -1,0 +1,78 @@
+# Test: next-hop auto-allocates table, adds route, fwmark + ip rule.
+# VALIDATES: spec-policy-routing AC-14 -- next-hop action auto-allocates
+#            a kernel routing table from 2000-2999, adds a default route
+#            via the next-hop, and creates fwmark + ip rule.
+# PREVENTS: next-hop parsed but kernel table/route/rule not created.
+#
+# Requires CAP_NET_ADMIN.
+
+option=skip-os:value=darwin
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, signal, subprocess, sys, time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+
+nft_out = subprocess.check_output(["nft", "list", "table", "inet", "ze_pr"], text=True)
+sys.stdout.write(nft_out)
+
+rule_out = subprocess.check_output(["ip", "rule", "show"], text=True)
+for line in rule_out.splitlines():
+    if "fwmark" in line and "lookup" in line:
+        tbl = line.split("lookup")[-1].strip()
+        try:
+            tbl_num = int(tbl)
+            if 2000 <= tbl_num <= 2999:
+                sys.stdout.write("IP_RULE_AUTO: " + line + "\n")
+        except ValueError:
+            pass
+
+route_out = subprocess.check_output(["ip", "route", "show", "table", "all"], text=True)
+for line in route_out.splitlines():
+    if "10.0.0.1" in line and "proto" in line:
+        sys.stdout.write("AUTO_ROUTE: " + line + "\n")
+
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+}
+policy {
+	route redirect-alt {
+		interface eth1;
+		rule web-to-alt {
+			from {
+				destination-port 80,443;
+				protocol tcp;
+			}
+			then {
+				next-hop 10.0.0.1;
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.policy-routes:value=info
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=policy routes applied
+expect=stdout:contains=table inet ze_pr
+expect=stdout:contains=meta mark set
+expect=stdout:contains=IP_RULE_AUTO:

@@ -41,6 +41,10 @@ Status values: `Supported` means implemented and covered in the normal release e
 <!-- source: internal/plugins/static/register.go -- plugin registration -->
 <!-- source: internal/plugins/static/inject.go -- BFD integration, ECMP group management -->
 <!-- source: internal/plugins/static/backend_linux.go -- netlink multipath backend -->
+| [Policy Routing](guide/policy-routing.md) | Experimental | Policy-based routing via nftables packet marking and kernel ip rules. Steers traffic to alternate routing tables or next-hops based on L3/L4 match criteria (address, port, protocol, TCP flags, set references). Actions: accept (bypass), drop, table N (fwmark + ip rule), next-hop (auto-managed table from 2000-2999), tcp-mss clamping. Interface wildcard binding (e.g., `l2tp*`). Config reload reconciles nftables tables, ip rules, and auto-managed routes. |
+<!-- source: internal/plugins/policyroute/register.go -- plugin registration -->
+<!-- source: internal/plugins/policyroute/translate.go -- config to nftables translation -->
+<!-- source: internal/plugins/policyroute/rules_linux.go -- ip rule and auto-route management -->
 | Route Installation | Experimental | FIB pipeline: protocol RIB best-path tracking, system RIB selection by admin distance, kernel route programming via per-producer netlink protocol ownership, crash recovery via stale-mark-sweep, external change monitoring. Local privileged integration covers FIB restart sweep and flush-on-stop preserving static and policyroute-owned routes; target-runner evidence is still required before production deployment claims. |
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeEntry, publishBestChanges -->
 <!-- source: internal/plugins/sysrib/sysrib.go -- system-rib topic, admin distance selection -->

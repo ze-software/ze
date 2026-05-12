@@ -155,8 +155,9 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 
 # Run ze functional tests (all types, continue on failure to show all results)
 # Release evidence matrix: encode, plugin, parse, decode, reload, ui, editor,
-# managed, l2tp, firewall, web. Suites not in this list (static, traffic,
-# vpp, l2tp-wire, chaos-web) have runners but need platform deps or infra.
+# managed, l2tp, firewall, policy, web. Suites not in this list (static,
+# traffic, vpp, l2tp-wire, chaos-web) have runners but need platform deps
+# or infra.
 # ZE_SKIP_SUITES: comma-separated list of suites to skip (e.g. firewall,web
 # for Docker environments without agent-browser or native process control).
 ZE_SKIP_SUITES ?=
@@ -181,6 +182,7 @@ ze-functional-test: bin/ze bin/ze-test
 	run_suite managed $(SUITE_RUN) bin/ze-test managed --all -p 1; \
 	run_suite l2tp $(SUITE_RUN) bin/ze-test l2tp --all; \
 	run_suite firewall $(SUITE_RUN) bin/ze-test firewall --all; \
+	run_suite policy $(SUITE_RUN) bin/ze-test policy --all; \
 	run_suite web $(SUITE_RUN) bin/ze-test web --all; \
 	if [ -n "$$skipped_names" ]; then \
 		printf "\n\033[33mSKIPPED suites (ZE_SKIP_SUITES): %s\033[0m\n" "$$skipped_names"; \

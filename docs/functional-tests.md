@@ -2,7 +2,7 @@
 
 ## Overview
 
-Functional tests exercise release-gate behavior across BGP wire encoding and decoding, plugin behavior, config parsing, reloads, UI/editor flows, managed config, L2TP, firewall, and the web UI.
+Functional tests exercise release-gate behavior across BGP wire encoding and decoding, plugin behavior, config parsing, reloads, UI/editor flows, managed config, L2TP, firewall, policy routing, and the web UI.
 
 ```bash
 # Quick start
@@ -16,8 +16,8 @@ make ze-reload-test       # Reload tests only
 
 `make ze-verify` runs: lint, unit tests (two-pass:
 cached full + `-race` on changed groups), `ze-functional-test`, and exabgp-compat.
-The functional test target runs 11 suites: encode, plugin, parse, decode, reload,
-ui, editor, managed, l2tp, firewall, web.
+The functional test target runs 12 suites: encode, plugin, parse, decode, reload,
+ui, editor, managed, l2tp, firewall, policy, web.
 <!-- source: Makefile -- ze-functional-test -->
 
 The following shipped test suites are **not in the default release gate** and

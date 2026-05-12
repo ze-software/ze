@@ -190,6 +190,7 @@ banner reads the same source, so nothing is silently hidden. See
 | Fuzz testing | Yes | Yes | No | Yes | No | No | No | No | No | No | No |
 | Interop test suite | Yes | Yes | No | Partial | No | No | No | No | No | No | Yes |
 | Static routes (ECMP+BFD) | Yes | No | Yes | No | No | Yes | No | No | Yes | Yes | Yes |
+| Policy-based routing (PBR) | Yes | No | No | No | No | Yes | No | No | No | No | Yes |
 | FIB/kernel integration | Yes | No | Yes | Yes | No | Yes | Yes | No | Yes | Yes | Yes |
 | Sysctl management | Yes | No | No | No | No | Partial | No | No | Partial | No | No |
 | Sysctl profiles | Yes | No | No | No | No | No | No | No | No | No | No |
