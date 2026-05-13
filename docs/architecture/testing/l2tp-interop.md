@@ -67,8 +67,8 @@ type ppp`).
 ### 02-ppp-bgp-redistribute-frr
 
 Proves: FRR establishes BGP with Ze, a PPP-assigned subscriber /32 appears
-in FRR's BGP table via Ze's `redistribute import l2tp` (real RouteObserver
-and `bgp-redistribute-egress` path), and the route is withdrawn from FRR
+in FRR's BGP table via Ze's `redistribute destination bgp { import l2tp }` (real RouteObserver
+and `redistribute-orchestrator` path), and the route is withdrawn from FRR
 after LAC session teardown. BGP session stability is verified after
 withdrawal.
 

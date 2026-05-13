@@ -25,7 +25,9 @@ bgp {
 }
 
 redistribute {
-	import rip;
+	destination bgp {
+		import rip;
+	}
 }
 EOF_CONF
 

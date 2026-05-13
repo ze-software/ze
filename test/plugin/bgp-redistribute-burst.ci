@@ -54,8 +54,8 @@ plugin {
 		run ./burst-test.run
 		encoder json
 	}
-	external bgp-redistribute-egress {
-		use bgp-redistribute-egress
+	external redistribute-orchestrator {
+		use redistribute-orchestrator
 		encoder json
 	}
 	external fakeredist {
@@ -65,8 +65,10 @@ plugin {
 }
 
 redistribute {
-	import fakeredist {
-		family [ ipv4/unicast ];
+	destination bgp {
+		import fakeredist {
+			family [ ipv4/unicast ];
+		}
 	}
 }
 

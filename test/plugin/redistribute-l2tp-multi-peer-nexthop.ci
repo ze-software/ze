@@ -68,8 +68,8 @@ plugin {
 		run ./l2tp-nexthop-test.run
 		encoder json
 	}
-	external bgp-redistribute-egress {
-		use bgp-redistribute-egress
+	external redistribute-orchestrator {
+		use redistribute-orchestrator
 		encoder json
 	}
 	external fakel2tp {
@@ -79,8 +79,10 @@ plugin {
 }
 
 redistribute {
-	import l2tp {
-		family [ ipv4/unicast ];
+	destination bgp {
+		import l2tp {
+			family [ ipv4/unicast ];
+		}
 	}
 }
 

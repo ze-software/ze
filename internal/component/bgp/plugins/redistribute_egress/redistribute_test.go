@@ -15,29 +15,50 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// recordedDispatch captures an UpdateRoute call.
-type recordedDispatch struct {
-	selector string
-	command  string
+type injectedEntry struct {
+	fam   family.Family
+	entry configredist.RouteEntry
 }
 
-type fakeDispatcher struct {
-	mu    sync.Mutex
-	calls []recordedDispatch
+type withdrawnEntry struct {
+	fam    family.Family
+	prefix string
 }
 
-func (f *fakeDispatcher) UpdateRoute(_ context.Context, selector, command string) (uint32, uint32, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.calls = append(f.calls, recordedDispatch{selector: selector, command: command})
-	return 1, 1, nil
+type stubConsumer struct {
+	name      string
+	mu        sync.Mutex
+	injected  []injectedEntry
+	withdrawn []withdrawnEntry
 }
 
-func (f *fakeDispatcher) snapshot() []recordedDispatch {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	out := make([]recordedDispatch, len(f.calls))
-	copy(out, f.calls)
+func (s *stubConsumer) Name() string { return s.name }
+
+func (s *stubConsumer) InjectRoute(_ context.Context, fam family.Family, entry configredist.RouteEntry) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.injected = append(s.injected, injectedEntry{fam: fam, entry: entry})
+}
+
+func (s *stubConsumer) WithdrawRoute(_ context.Context, fam family.Family, prefix string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.withdrawn = append(s.withdrawn, withdrawnEntry{fam: fam, prefix: prefix})
+}
+
+func (s *stubConsumer) snapshotInjected() []injectedEntry {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]injectedEntry, len(s.injected))
+	copy(out, s.injected)
+	return out
+}
+
+func (s *stubConsumer) snapshotWithdrawn() []withdrawnEntry {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]withdrawnEntry, len(s.withdrawn))
+	copy(out, s.withdrawn)
 	return out
 }
 
@@ -95,12 +116,29 @@ func resetState(t *testing.T) {
 	t.Helper()
 	redistevents.ResetForTest()
 	configredist.SetGlobal(nil)
+	configredist.ResetConsumersForTest()
 	eventBusPtr.Store(nil)
 	t.Cleanup(func() {
 		redistevents.ResetForTest()
 		configredist.SetGlobal(nil)
+		configredist.ResetConsumersForTest()
 		eventBusPtr.Store(nil)
 	})
+}
+
+func registerBGPConsumer(t *testing.T) *stubConsumer {
+	t.Helper()
+	c := &stubConsumer{name: "bgp"}
+	require.NoError(t, configredist.RegisterConsumer(c))
+	return c
+}
+
+func skipIDs(ids ...redistevents.ProtocolID) map[redistevents.ProtocolID]bool {
+	m := make(map[redistevents.ProtocolID]bool, len(ids))
+	for _, id := range ids {
+		m[id] = true
+	}
+	return m
 }
 
 func addBatch(p redistevents.ProtocolID, afi uint16, prefix, nh string) *redistevents.RouteChangeBatch {
@@ -133,153 +171,149 @@ const (
 	safiUnicst = 1
 )
 
-// VALIDATES: AC-2 -- accepted add for ipv4/unicast produces the canonical
-// announce text with `nhop self`.
-// PREVENTS: Reactor parse errors caused by syntax drift in the announce text.
+// VALIDATES: AC-10 -- accepted add dispatches to consumer's InjectRoute.
+// PREVENTS: Orchestrator not dispatching to registered consumers.
 func TestHandleBatchAcceptedAddDispatches(t *testing.T) {
 	resetState(t)
 
 	id := redistevents.RegisterProtocol("fakeredist")
+	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
 		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
-	disp := &fakeDispatcher{}
-	bgpID, _ := redistevents.ProtocolIDOf("bgp")
-	handleBatch(context.Background(), disp, bgpID, addBatch(id, afiIPv4, "10.0.0.1/32", ""))
+	consumer := registerBGPConsumer(t)
+	handleBatch(context.Background(), skipIDs(bgpID), addBatch(id, afiIPv4, "10.0.0.1/32", ""))
 
-	calls := disp.snapshot()
-	require.Len(t, calls, 1)
-	assert.Equal(t, "*", calls[0].selector)
-	assert.Equal(t, "update text origin incomplete nhop self nlri ipv4/unicast add 10.0.0.1/32", calls[0].command)
+	inj := consumer.snapshotInjected()
+	require.Len(t, inj, 1)
+	assert.Equal(t, family.IPv4Unicast, inj[0].fam)
+	assert.Equal(t, "10.0.0.1/32", inj[0].entry.Prefix)
+	assert.Equal(t, "", inj[0].entry.NextHop)
 }
 
-// VALIDATES: AC-3 -- accepted add for ipv6/unicast renders /128 with the
-// ipv6 family token.
-// PREVENTS: IPv6 path mis-stringifying the family or prefix.
+// VALIDATES: AC-10 -- IPv6 add dispatches correctly.
+// PREVENTS: IPv6 family lost through orchestrator dispatch.
 func TestHandleBatchAcceptedAddIPv6(t *testing.T) {
 	resetState(t)
 
 	id := redistevents.RegisterProtocol("fakeredist")
+	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
 		{Source: "fakeredist", Families: []family.Family{family.IPv6Unicast}},
 	}))
 
-	disp := &fakeDispatcher{}
-	bgpID, _ := redistevents.ProtocolIDOf("bgp")
-	handleBatch(context.Background(), disp, bgpID, addBatch(id, afiIPv6, "2001:db8::1/128", ""))
+	consumer := registerBGPConsumer(t)
+	handleBatch(context.Background(), skipIDs(bgpID), addBatch(id, afiIPv6, "2001:db8::1/128", ""))
 
-	calls := disp.snapshot()
-	require.Len(t, calls, 1)
-	assert.Equal(t, "update text origin incomplete nhop self nlri ipv6/unicast add 2001:db8::1/128", calls[0].command)
+	inj := consumer.snapshotInjected()
+	require.Len(t, inj, 1)
+	assert.Equal(t, family.IPv6Unicast, inj[0].fam)
+	assert.Equal(t, "2001:db8::1/128", inj[0].entry.Prefix)
 }
 
-// VALIDATES: AC-11 -- non-zero NextHop produces explicit `nhop <addr>` (NOT
-// `nhop self`).
-// PREVENTS: Reactor accidentally substituting LocalAddress when the producer
-// supplied a real next-hop.
+// VALIDATES: AC-10 -- explicit next-hop preserved through dispatch.
+// PREVENTS: NextHop silently replaced with empty.
 func TestHandleBatchExplicitNextHop(t *testing.T) {
 	resetState(t)
 
 	id := redistevents.RegisterProtocol("fakeredist")
+	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
 		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
-	disp := &fakeDispatcher{}
-	bgpID, _ := redistevents.ProtocolIDOf("bgp")
-	handleBatch(context.Background(), disp, bgpID, addBatch(id, afiIPv4, "10.0.0.1/32", "192.0.2.1"))
+	consumer := registerBGPConsumer(t)
+	handleBatch(context.Background(), skipIDs(bgpID), addBatch(id, afiIPv4, "10.0.0.1/32", "192.0.2.1"))
 
-	calls := disp.snapshot()
-	require.Len(t, calls, 1)
-	assert.Equal(t, "update text origin incomplete nhop 192.0.2.1 nlri ipv4/unicast add 10.0.0.1/32", calls[0].command)
+	inj := consumer.snapshotInjected()
+	require.Len(t, inj, 1)
+	assert.Equal(t, "192.0.2.1", inj[0].entry.NextHop)
 }
 
-// VALIDATES: AC-4 / AC-5 -- batch family or protocol not in any import rule
-// triggers zero UpdateRoute calls.
+// VALIDATES: Evaluator rejects batch family not in import rule.
 // PREVENTS: Routes leaking past the evaluator.
 func TestHandleBatchRejectedAddNoop(t *testing.T) {
 	resetState(t)
 
 	id := redistevents.RegisterProtocol("fakeredist")
+	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
 		{Source: "fakeredist", Families: []family.Family{family.IPv6Unicast}},
 	}))
 
-	disp := &fakeDispatcher{}
-	bgpID, _ := redistevents.ProtocolIDOf("bgp")
-	handleBatch(context.Background(), disp, bgpID, addBatch(id, afiIPv4, "10.0.0.1/32", ""))
+	consumer := registerBGPConsumer(t)
+	handleBatch(context.Background(), skipIDs(bgpID), addBatch(id, afiIPv4, "10.0.0.1/32", ""))
 
-	assert.Empty(t, disp.snapshot())
+	assert.Empty(t, consumer.snapshotInjected())
 }
 
-// VALIDATES: AC-8 -- accepted remove dispatches the canonical withdraw text.
-// PREVENTS: Withdraw building wrong nlri spec.
+// VALIDATES: AC-11 -- accepted remove dispatches to consumer's WithdrawRoute.
+// PREVENTS: Withdraw not reaching consumer.
 func TestHandleBatchRemoveDispatches(t *testing.T) {
 	resetState(t)
 
 	id := redistevents.RegisterProtocol("fakeredist")
+	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
 		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
-	disp := &fakeDispatcher{}
-	bgpID, _ := redistevents.ProtocolIDOf("bgp")
-	handleBatch(context.Background(), disp, bgpID, removeBatch(id, afiIPv4, "10.0.0.1/32"))
+	consumer := registerBGPConsumer(t)
+	handleBatch(context.Background(), skipIDs(bgpID), removeBatch(id, afiIPv4, "10.0.0.1/32"))
 
-	calls := disp.snapshot()
-	require.Len(t, calls, 1)
-	assert.Equal(t, "update text nlri ipv4/unicast del 10.0.0.1/32", calls[0].command)
+	wd := consumer.snapshotWithdrawn()
+	require.Len(t, wd, 1)
+	assert.Equal(t, family.IPv4Unicast, wd[0].fam)
+	assert.Equal(t, "10.0.0.1/32", wd[0].prefix)
 }
 
-// VALIDATES: AC-1 -- evaluator nil means no dispatch and no panic.
+// VALIDATES: Evaluator nil means no dispatch and no panic.
 // PREVENTS: Plugin crashing when redistribute is unconfigured.
 func TestHandleBatchNoEvaluatorNoop(t *testing.T) {
 	resetState(t)
 
 	id := redistevents.RegisterProtocol("fakeredist")
-	disp := &fakeDispatcher{}
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 
-	handleBatch(context.Background(), disp, bgpID, addBatch(id, afiIPv4, "10.0.0.1/32", ""))
+	consumer := registerBGPConsumer(t)
+	handleBatch(context.Background(), skipIDs(bgpID), addBatch(id, afiIPv4, "10.0.0.1/32", ""))
 
-	assert.Empty(t, disp.snapshot())
+	assert.Empty(t, consumer.snapshotInjected())
 }
 
-// VALIDATES: AC-9 / AC-10 -- atomic swap of the global evaluator changes
-// subsequent accept decisions.
-// PREVENTS: Plugin holding a stale evaluator pointer after reload.
+// VALIDATES: Atomic swap of the global evaluator changes subsequent accept decisions.
+// PREVENTS: Orchestrator holding a stale evaluator pointer after reload.
 func TestHandleBatchReloadApplies(t *testing.T) {
 	resetState(t)
 
 	id := redistevents.RegisterProtocol("fakeredist")
-	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
-	configredist.SetGlobal(configredist.NewEvaluator(nil)) // empty rules: rejects all
-
-	disp := &fakeDispatcher{}
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
+	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
+	configredist.SetGlobal(configredist.NewEvaluator(nil))
+
+	consumer := registerBGPConsumer(t)
 	batch := addBatch(id, afiIPv4, "10.0.0.1/32", "")
 
-	handleBatch(context.Background(), disp, bgpID, batch)
-	assert.Empty(t, disp.snapshot(), "first call should be rejected by empty rules")
+	handleBatch(context.Background(), skipIDs(bgpID), batch)
+	assert.Empty(t, consumer.snapshotInjected(), "first call should be rejected by empty rules")
 
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
 		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
-	handleBatch(context.Background(), disp, bgpID, batch)
-	assert.Len(t, disp.snapshot(), 1, "second call should be accepted after reload")
+	handleBatch(context.Background(), skipIDs(bgpID), batch)
+	assert.Len(t, consumer.snapshotInjected(), 1, "second call should be accepted after reload")
 }
 
-// VALIDATES: AC-6 -- batches whose protocol matches BGP are dropped at the
-// handler entry, regardless of the evaluator.
-// PREVENTS: BGP-sourced batches being re-dispatched, creating a loop.
-func TestHandleBatchBGPSourceSkipped(t *testing.T) {
+// VALIDATES: Batches whose protocol matches a consumer are dropped.
+// PREVENTS: Consumer-sourced batches being re-dispatched, creating a loop.
+func TestHandleBatchConsumerSourceSkipped(t *testing.T) {
 	resetState(t)
 
 	bgpID := redistevents.RegisterProtocol("bgp")
@@ -288,34 +322,32 @@ func TestHandleBatchBGPSourceSkipped(t *testing.T) {
 		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
-	disp := &fakeDispatcher{}
-	handleBatch(context.Background(), disp, bgpID, addBatch(bgpID, afiIPv4, "10.0.0.1/32", ""))
+	consumer := registerBGPConsumer(t)
+	handleBatch(context.Background(), skipIDs(bgpID), addBatch(bgpID, afiIPv4, "10.0.0.1/32", ""))
 
-	assert.Empty(t, disp.snapshot())
+	assert.Empty(t, consumer.snapshotInjected())
 }
 
-// VALIDATES: Defense-in-depth -- batch with an unregistered ProtocolID is
-// dropped (handler logs a warn and returns).
+// VALIDATES: Defense-in-depth -- batch with an unregistered ProtocolID is dropped.
 // PREVENTS: Memory corruption / drive-by injection via a forged ProtocolID.
 func TestHandleBatchUnknownProtocol(t *testing.T) {
 	resetState(t)
 
+	bgpID, _ := redistevents.ProtocolIDOf("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
 		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
-	disp := &fakeDispatcher{}
-	bgpID, _ := redistevents.ProtocolIDOf("bgp")
-	handleBatch(context.Background(), disp, bgpID, addBatch(redistevents.ProtocolID(99), afiIPv4, "10.0.0.1/32", ""))
+	consumer := registerBGPConsumer(t)
+	handleBatch(context.Background(), skipIDs(bgpID), addBatch(redistevents.ProtocolID(99), afiIPv4, "10.0.0.1/32", ""))
 
-	assert.Empty(t, disp.snapshot())
+	assert.Empty(t, consumer.snapshotInjected())
 }
 
-// VALIDATES: subscribe() enumerates non-BGP producers and registers per-
-// protocol typed handlers (skips BGP ID).
+// VALIDATES: subscribe() skips consumer protocol IDs.
 // PREVENTS: Consumer wiring up its own protocol's events back into itself.
-func TestSubscribeSkipsOwnProtocol(t *testing.T) {
+func TestSubscribeSkipsConsumerProtocol(t *testing.T) {
 	resetState(t)
 
 	bgpID := redistevents.RegisterProtocol("bgp")
@@ -325,8 +357,7 @@ func TestSubscribeSkipsOwnProtocol(t *testing.T) {
 
 	bus := newTestBus()
 	setEventBus(bus)
-	disp := &fakeDispatcher{}
-	unsubs := subscribe(context.Background(), disp, bus, bgpID)
+	unsubs := subscribe(context.Background(), bus, skipIDs(bgpID))
 	defer func() {
 		for _, u := range unsubs {
 			u()
@@ -336,10 +367,9 @@ func TestSubscribeSkipsOwnProtocol(t *testing.T) {
 	require.Len(t, unsubs, 1, "only fakeredist should be subscribed (BGP skipped)")
 }
 
-// VALIDATES: subscribe() builds a typed handle per producer; emit on that
-// handle is delivered to handleBatch.
+// VALIDATES: subscribe() builds a typed handle per producer; emit is delivered.
 // PREVENTS: Wrong namespace / event type being subscribed.
-func TestSubscribeNonBGPProducers(t *testing.T) {
+func TestSubscribeNonConsumerProducers(t *testing.T) {
 	resetState(t)
 
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
@@ -352,9 +382,9 @@ func TestSubscribeNonBGPProducers(t *testing.T) {
 
 	bus := newTestBus()
 	setEventBus(bus)
-	disp := &fakeDispatcher{}
+	consumer := registerBGPConsumer(t)
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
-	unsubs := subscribe(context.Background(), disp, bus, bgpID)
+	unsubs := subscribe(context.Background(), bus, skipIDs(bgpID))
 	defer func() {
 		for _, u := range unsubs {
 			u()
@@ -364,90 +394,7 @@ func TestSubscribeNonBGPProducers(t *testing.T) {
 	_, err := bus.Emit("fakeredist", redistevents.EventType, addBatch(fakeID, afiIPv4, "10.0.0.1/32", ""))
 	require.NoError(t, err)
 
-	calls := disp.snapshot()
-	require.Len(t, calls, 1, "subscriber should receive emitted batch")
-	assert.Contains(t, calls[0].command, "10.0.0.1/32")
-}
-
-// VALIDATES: command-text builder shape across families.
-// PREVENTS: Per-family text drift.
-func TestCommandTextAllFamilies(t *testing.T) {
-	cases := []struct {
-		name  string
-		fam   string
-		entry redistevents.RouteChangeEntry
-		want  string
-	}{
-		{
-			name: "ipv4/unicast /32 self",
-			fam:  "ipv4/unicast",
-			entry: redistevents.RouteChangeEntry{
-				Action: redistevents.ActionAdd,
-				Prefix: netip.MustParsePrefix("10.0.0.1/32"),
-			},
-			want: "update text origin incomplete nhop self nlri ipv4/unicast add 10.0.0.1/32",
-		},
-		{
-			name: "ipv4/unicast /24 explicit nhop",
-			fam:  "ipv4/unicast",
-			entry: redistevents.RouteChangeEntry{
-				Action:  redistevents.ActionAdd,
-				Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-				NextHop: netip.MustParseAddr("192.0.2.1"),
-			},
-			want: "update text origin incomplete nhop 192.0.2.1 nlri ipv4/unicast add 10.0.0.0/24",
-		},
-		{
-			name: "ipv6/unicast /128 self",
-			fam:  "ipv6/unicast",
-			entry: redistevents.RouteChangeEntry{
-				Action: redistevents.ActionAdd,
-				Prefix: netip.MustParsePrefix("2001:db8::1/128"),
-			},
-			want: "update text origin incomplete nhop self nlri ipv6/unicast add 2001:db8::1/128",
-		},
-		{
-			name: "ipv6/unicast /64 explicit nhop",
-			fam:  "ipv6/unicast",
-			entry: redistevents.RouteChangeEntry{
-				Action:  redistevents.ActionAdd,
-				Prefix:  netip.MustParsePrefix("2001:db8::/64"),
-				NextHop: netip.MustParseAddr("2001:db8::1"),
-			},
-			want: "update text origin incomplete nhop 2001:db8::1 nlri ipv6/unicast add 2001:db8::/64",
-		},
-	}
-
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			got := formatAnnounce(tt.fam, &tt.entry)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-// VALIDATES: withdraw text shape across families.
-// PREVENTS: Withdraw command picking up announce-only fragments.
-func TestWithdrawTextAllFamilies(t *testing.T) {
-	cases := []struct {
-		fam    string
-		prefix string
-		want   string
-	}{
-		{"ipv4/unicast", "10.0.0.1/32", "update text nlri ipv4/unicast del 10.0.0.1/32"},
-		{"ipv4/unicast", "10.0.0.0/24", "update text nlri ipv4/unicast del 10.0.0.0/24"},
-		{"ipv6/unicast", "2001:db8::1/128", "update text nlri ipv6/unicast del 2001:db8::1/128"},
-		{"ipv6/unicast", "2001:db8::/64", "update text nlri ipv6/unicast del 2001:db8::/64"},
-	}
-
-	for _, tt := range cases {
-		t.Run(tt.fam+" "+tt.prefix, func(t *testing.T) {
-			entry := redistevents.RouteChangeEntry{
-				Action: redistevents.ActionRemove,
-				Prefix: netip.MustParsePrefix(tt.prefix),
-			}
-			got := formatWithdraw(tt.fam, &entry)
-			assert.Equal(t, tt.want, got)
-		})
-	}
+	inj := consumer.snapshotInjected()
+	require.Len(t, inj, 1, "subscriber should receive emitted batch")
+	assert.Equal(t, "10.0.0.1/32", inj[0].entry.Prefix)
 }

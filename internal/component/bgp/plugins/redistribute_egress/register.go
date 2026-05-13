@@ -4,6 +4,8 @@ import (
 	"context"
 	"net"
 
+	bgpredist "codeberg.org/thomas-mangin/ze/internal/component/bgp/redistribute"
+	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
@@ -14,9 +16,12 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:         Name,
-		Description:  "Egress redistribute: turns non-BGP protocol route events into BGP UPDATEs",
-		ConfigRoots:  []string{"redistribute"},
+		Name:        Name,
+		Description: "Redistribute orchestrator: dispatches protocol route events to registered consumers",
+		ConfigRoots: []string{"redistribute"},
+		// BGP dependency: the orchestrator registers a BGP consumer whose
+		// UpdateRoute dispatches via this plugin's SDK connection to the reactor.
+		// When future protocols add consumers, each will register in its own plugin.
 		Dependencies: []string{"bgp"},
 		RunEngine:    runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -52,7 +57,11 @@ func runPlugin(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	p.OnStarted(func(ctx context.Context) error {
-		go run(ctx, p)
+		consumer := bgpredist.NewBGPConsumer(p)
+		if err := configredist.RegisterConsumer(consumer); err != nil {
+			logger().Warn("failed to register BGP consumer", "error", err)
+		}
+		go run(ctx)
 		return nil
 	})
 

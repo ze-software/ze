@@ -23,10 +23,12 @@ bgp {
 }
 
 redistribute {
-	import ebgp {
-		family [ ipv4/unicast ipv4/vpn ];
+	destination bgp {
+		import ebgp {
+			family [ ipv4/unicast ipv4/vpn ];
+		}
+		import ibgp;
 	}
-	import ibgp;
 }
 EOF_CONF
 

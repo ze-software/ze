@@ -16,25 +16,38 @@ module ze-redistribute-conf {
         ze:hidden true;
         description
             "Route redistribution between protocols.
-             Import routes from registered sources (ibgp, ebgp, static, connected, ...),
-             optionally restricted to specific address families per source.";
+             Each destination protocol has its own container with import rules.
+             Adding a new destination protocol means adding a new key here.";
 
-        list import {
-            key "source";
-            description "Import routes from a source.
-                         When family is omitted, all families are imported.";
+        list destination {
+            key "protocol";
+            description "Destination protocol for redistributed routes.
+                         Each entry names a registered consumer (bgp, ospf, ...).";
 
-            leaf source {
+            leaf protocol {
                 type string;
-                ze:validate "redistribute-source";
-                description "Route source name (ibgp, ebgp, static, connected, ...)";
+                // No ze:validate here: consumers register at plugin startup,
+                // after YANG parse. Validated at runtime by the orchestrator.
+                description "Destination protocol name (bgp, ospf, isis, ...)";
             }
 
-            leaf-list family {
-                type string;
-                ze:validate "registered-address-family";
-                description "Address families to import from this source.
-                             Empty means all families.";
+            list import {
+                key "source";
+                description "Import routes from a source into this destination.
+                             When family is omitted, all families are imported.";
+
+                leaf source {
+                    type string;
+                    ze:validate "redistribute-source";
+                    description "Route source name (ibgp, ebgp, static, connected, ...)";
+                }
+
+                leaf-list family {
+                    type string;
+                    ze:validate "registered-address-family";
+                    description "Address families to import from this source.
+                                 Empty means all families.";
+                }
             }
         }
     }

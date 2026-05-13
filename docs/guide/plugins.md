@@ -277,31 +277,35 @@ Filters can declare `overrides` to remove default filters from the chain
 
 <!-- source: plan/spec-redistribution-filter.md -- redistribution filter design -->
 
-### Cross-Protocol Redistribute (`bgp-redistribute-egress`)
+### Cross-Protocol Redistribute (`redistribute-orchestrator`)
 
-`bgp-redistribute-egress` is the single subscriber that turns non-BGP protocol
-route-change events into BGP UPDATE announcements. Unlike the redistribution
-filter chain above (which gates intra-BGP traffic), `bgp-redistribute-egress` lets
-operators advertise locally-originated routes from other protocols (L2TP
-sessions, connected interface prefixes, static routes, future OSPF / ISIS) to BGP peers.
+`redistribute-orchestrator` is the single subscriber that dispatches non-consumer
+protocol route-change events to registered `RedistConsumer` implementations.
+Unlike the redistribution filter chain above (which gates intra-BGP traffic),
+the orchestrator lets operators redistribute locally-originated routes from
+other protocols (L2TP sessions, connected interface prefixes, static routes,
+future OSPF / ISIS) into destination protocols (BGP, future OSPF/ISIS).
 
 Config:
 
 ```
 redistribute {
-    import connected;
-    import static;
-    import l2tp { family [ ipv4/unicast ipv6/unicast ]; }
+    destination bgp {
+        import connected;
+        import static;
+        import l2tp { family [ ipv4/unicast ipv6/unicast ]; }
+    }
 }
 ```
 
-Each `import <source>` enables one non-BGP protocol. The import rule's
+Each `destination <protocol>` names a registered consumer. Under it,
+`import <source>` enables one non-consumer protocol. The import rule's
 `source` is the protocol's canonical name registered via
 `redistribute.RegisterSource`. Per-source `family` lists narrow which
-address families are advertised; an empty list means "all families".
+address families are redistributed; an empty list means "all families".
 
-The egress consumer **auto-loads** when `redistribute {}` appears in the
-config. No `plugin { external bgp-redistribute-egress { use bgp-redistribute-egress } }`
+The orchestrator **auto-loads** when `redistribute {}` appears in the
+config. No `plugin { external redistribute-orchestrator { use redistribute-orchestrator } }`
 block is required. Add an explicit block only if you need to override
 plugin defaults (encoder, respawn policy, etc).
 

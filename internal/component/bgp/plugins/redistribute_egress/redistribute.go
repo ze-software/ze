@@ -1,27 +1,25 @@
-// Design: docs/architecture/core-design.md -- bgp-redistribute egress consumer
+// Design: docs/architecture/core-design.md -- redistribute orchestrator
 //
-// Package redistributeegress implements the bgp-redistribute-egress plugin:
-// the single EventBus subscriber that turns non-BGP protocol route-change
-// events into BGP UPDATE announcements.
+// Package redistributeegress implements the redistribute-orchestrator plugin:
+// the single EventBus subscriber that turns non-consumer protocol route-change
+// events into dispatches to registered RedistConsumer implementations.
 //
-// Architecture (see plan/spec-bgp-redistribute.md):
+// Architecture:
 //
-//	protocol producer --(redistevents.RouteChangeBatch)--> EventBus --> bgp-redistribute-egress
+//	protocol producer --(redistevents.RouteChangeBatch)--> EventBus --> redistribute-orchestrator
 //	   |                                                                      |
 //	   +---- L2TP, connected, future static/OSPF/ISIS ----+                   |
 //	                                                       |                   v
-//	                                                       |          configredist.Accept(route, "bgp")
+//	                                                       |          for each consumer:
+//	                                                       |            configredist.Accept(route, consumer.Name())
 //	                                                       |                   |
 //	                                                       |                   v
-//	                                                       |          plugin.UpdateRoute(ctx, "*", text)
+//	                                                       |            consumer.InjectRoute / WithdrawRoute
 //	                                                       |                   |
 //	                                                       |                   v
-//	                                                       |          reactor per-peer dispatch
-//	                                                       |                   |
-//	                                                       |                   v
-//	                                                       |          UPDATE on wire (NEXT_HOP=Self)
+//	                                                       |            protocol-specific dispatch
 //
-// The plugin enumerates non-BGP producers via `redistevents.Producers()` at
+// The plugin enumerates non-consumer producers via `redistevents.Producers()` at
 // startup, builds its OWN local typed handles via
 // `events.Register[*RouteChangeBatch](name, redistevents.EventType)`, and
 // subscribes. No handle pointer crosses a plugin boundary.
@@ -32,7 +30,6 @@ import (
 	"context"
 	"log/slog"
 	"sync/atomic"
-	"time"
 
 	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
@@ -44,10 +41,10 @@ import (
 )
 
 // Name is the canonical plugin name registered with the plugin registry.
-const Name = "bgp-redistribute-egress"
+const Name = "redistribute-orchestrator"
 
 // Subsystem is the dotted log subsystem key used by slogutil.
-const Subsystem = "bgp.redistribute.egress"
+const Subsystem = "redistribute.orchestrator"
 
 var loggerPtr atomic.Pointer[slog.Logger]
 
@@ -92,9 +89,9 @@ var metricsPtr atomic.Pointer[pluginMetrics]
 func setMetricsRegistry(reg metrics.Registry) {
 	m := &pluginMetrics{
 		eventsReceived:        reg.Counter("ze_bgp_redistribute_events_received", "Route-change batches received from the EventBus."),
-		announcements:         reg.Counter("ze_bgp_redistribute_announcements", "Accepted add entries dispatched to peers as announcements."),
-		withdrawals:           reg.Counter("ze_bgp_redistribute_withdrawals", "Accepted remove entries dispatched to peers as withdrawals."),
-		filteredProtocolTotal: reg.Counter("ze_bgp_redistribute_filtered_protocol_total", "Batches filtered by the BGP-protocol skip (own protocol)."),
+		announcements:         reg.Counter("ze_bgp_redistribute_announcements", "Accepted add entries dispatched to consumers as announcements."),
+		withdrawals:           reg.Counter("ze_bgp_redistribute_withdrawals", "Accepted remove entries dispatched to consumers as withdrawals."),
+		filteredProtocolTotal: reg.Counter("ze_bgp_redistribute_filtered_protocol_total", "Batches filtered by the consumer-protocol skip."),
 		filteredRuleTotal:     reg.Counter("ze_bgp_redistribute_filtered_rule_total", "Entries rejected by the redistribute evaluator."),
 	}
 	metricsPtr.Store(m)
@@ -102,40 +99,46 @@ func setMetricsRegistry(reg metrics.Registry) {
 
 func getMetrics() *pluginMetrics { return metricsPtr.Load() }
 
-const updateRouteTimeout = 10 * time.Second
-
-type routeDispatcher interface {
-	UpdateRoute(ctx context.Context, peerSelector, command string) (uint32, uint32, error)
+func consumerProtocolIDs() map[redistevents.ProtocolID]bool {
+	names := configredist.ConsumerNames()
+	ids := make(map[redistevents.ProtocolID]bool, len(names))
+	for _, n := range names {
+		if id, ok := redistevents.ProtocolIDOf(n); ok {
+			ids[id] = true
+		}
+	}
+	return ids
 }
 
-const bgpProtocolName = "bgp"
-
-func run(ctx context.Context, dispatcher routeDispatcher) {
+func run(ctx context.Context) {
 	bus := getEventBus()
 	if bus == nil {
 		logger().Warn(Name + ": no event bus configured")
 		return
 	}
 
-	bgpID, _ := redistevents.ProtocolIDOf(bgpProtocolName)
+	// Snapshot: consumers registered after this point won't be skipped
+	// as producers. The evaluator's loop prevention handles correctness;
+	// this is an optimization to avoid subscribing to own-protocol events.
+	skipIDs := consumerProtocolIDs()
 
-	unsubs := subscribe(ctx, dispatcher, bus, bgpID)
+	unsubs := subscribe(ctx, bus, skipIDs)
 	defer func() {
 		for _, u := range unsubs {
 			u()
 		}
 	}()
 
-	logger().Info(Name+": running", "non-bgp-producers", len(unsubs))
+	logger().Info(Name+": running", "producers", len(unsubs))
 	<-ctx.Done()
 	logger().Info(Name + ": stopped")
 }
 
-func subscribe(ctx context.Context, dispatcher routeDispatcher, bus ze.EventBus, bgpID redistevents.ProtocolID) []func() {
+func subscribe(ctx context.Context, bus ze.EventBus, skipIDs map[redistevents.ProtocolID]bool) []func() {
 	prods := redistevents.Producers()
 	out := make([]func(), 0, len(prods))
 	for _, id := range prods {
-		if id == bgpID {
+		if skipIDs[id] {
 			continue
 		}
 		name := redistevents.ProtocolName(id)
@@ -145,13 +148,13 @@ func subscribe(ctx context.Context, dispatcher routeDispatcher, bus ze.EventBus,
 		}
 		handle := events.Register[*redistevents.RouteChangeBatch](name, redistevents.EventType)
 		out = append(out, handle.Subscribe(bus, func(b *redistevents.RouteChangeBatch) {
-			handleBatch(ctx, dispatcher, bgpID, b)
+			handleBatch(ctx, skipIDs, b)
 		}))
 	}
 	return out
 }
 
-func handleBatch(ctx context.Context, dispatcher routeDispatcher, bgpID redistevents.ProtocolID, b *redistevents.RouteChangeBatch) {
+func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, b *redistevents.RouteChangeBatch) {
 	if m := getMetrics(); m != nil {
 		m.eventsReceived.Inc()
 	}
@@ -163,7 +166,7 @@ func handleBatch(ctx context.Context, dispatcher routeDispatcher, bgpID redistev
 		logger().Warn(Name + ": batch with unspecified protocol")
 		return
 	}
-	if b.Protocol == bgpID {
+	if skipIDs[b.Protocol] {
 		if m := getMetrics(); m != nil {
 			m.filteredProtocolTotal.Inc()
 		}
@@ -188,51 +191,55 @@ func handleBatch(ctx context.Context, dispatcher routeDispatcher, bgpID redistev
 		Source: name,
 	}
 
-	if !ev.Accept(route, bgpProtocolName) {
-		if m := getMetrics(); m != nil {
-			for range b.Entries {
-				m.filteredRuleTotal.Inc()
-			}
-		}
+	consumers := configredist.ConsumerNames()
+	if len(consumers) == 0 {
+		logger().Warn(Name+": no consumers registered, dropping batch", "source", name)
 		return
 	}
-
-	famStr := famVal.String()
-	for i := range b.Entries {
-		dispatchEntry(ctx, dispatcher, famStr, &b.Entries[i])
+	for _, cname := range consumers {
+		consumer, ok := configredist.LookupConsumer(cname)
+		if !ok {
+			continue
+		}
+		if !ev.Accept(route, cname) {
+			if m := getMetrics(); m != nil {
+				for range b.Entries {
+					m.filteredRuleTotal.Inc()
+				}
+			}
+			continue
+		}
+		for i := range b.Entries {
+			dispatchEntryToConsumer(ctx, consumer, famVal, &b.Entries[i])
+		}
 	}
 }
 
-func dispatchEntry(ctx context.Context, dispatcher routeDispatcher, fam string, entry *redistevents.RouteChangeEntry) {
+func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistConsumer, fam family.Family, entry *redistevents.RouteChangeEntry) {
 	if !entry.Prefix.IsValid() {
 		logger().Warn(Name+": skipping entry with invalid prefix", "action", entry.Action)
 		return
 	}
-	cmd, ok := buildCommand(fam, entry)
-	if !ok {
-		logger().Warn(Name+": skipping entry with invalid action", "action", entry.Action, "prefix", entry.Prefix)
-		return
-	}
-
-	cctx, cancel := context.WithTimeout(ctx, updateRouteTimeout)
-	defer cancel()
-	if _, _, err := dispatcher.UpdateRoute(cctx, "*", cmd); err != nil {
-		logger().Warn(Name+": update-route failed", "error", err, "command", cmd)
-	}
-}
-
-func buildCommand(fam string, entry *redistevents.RouteChangeEntry) (string, bool) {
 	if entry.Action == redistevents.ActionAdd {
 		if m := getMetrics(); m != nil {
 			m.announcements.Inc()
 		}
-		return formatAnnounce(fam, entry), true
+		nhop := ""
+		if entry.NextHop.IsValid() {
+			nhop = entry.NextHop.String()
+		}
+		consumer.InjectRoute(ctx, fam, configredist.RouteEntry{
+			Prefix:  entry.Prefix.String(),
+			NextHop: nhop,
+		})
+		return
 	}
 	if entry.Action == redistevents.ActionRemove {
 		if m := getMetrics(); m != nil {
 			m.withdrawals.Inc()
 		}
-		return formatWithdraw(fam, entry), true
+		consumer.WithdrawRoute(ctx, fam, entry.Prefix.String())
+		return
 	}
-	return "", false
+	logger().Warn(Name+": skipping entry with invalid action", "action", entry.Action, "prefix", entry.Prefix)
 }

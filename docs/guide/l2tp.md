@@ -414,14 +414,16 @@ EventBus with the assigned peer IP as a /32 (IPv4) or /128 (IPv6)
 prefix. Session-down emits matching remove batches, one per address
 family that was up.
 
-The `bgp-redistribute` plugin discovers L2TP as a producer at startup,
-subscribes to its events, and advertises the prefixes to BGP peers when
-a matching import rule is configured:
+The redistribute orchestrator discovers L2TP as a producer at startup,
+subscribes to its events, and dispatches the prefixes to registered consumers
+(BGP) when a matching import rule is configured:
 
 ```
 redistribute {
-    import l2tp {
-        family [ ipv4/unicast ipv6/unicast ];
+    destination bgp {
+        import l2tp {
+            family [ ipv4/unicast ipv6/unicast ];
+        }
     }
 }
 ```

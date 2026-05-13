@@ -3,8 +3,8 @@
 #            UPDATE with /32 NLRI + NEXT_HOP=127.0.0.1 + origin=incomplete.
 # VALIDATES: AC-1 -- IPCP-up emits (l2tp, route-change) batch (fakel2tp
 #            drives the same typed handle the real observer uses).
-# PREVENTS: L2TP route-change events not reaching bgp-redistribute, or
-#           auto-load regression silently dropping the egress path.
+# PREVENTS: L2TP route-change events not reaching the orchestrator, or
+#           auto-load regression silently dropping the redistribution path.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -59,8 +59,8 @@ plugin {
 		run ./l2tp-announce-test.run
 		encoder json
 	}
-	external bgp-redistribute-egress {
-		use bgp-redistribute-egress
+	external redistribute-orchestrator {
+		use redistribute-orchestrator
 		encoder json
 	}
 	external fakel2tp {
@@ -70,8 +70,10 @@ plugin {
 }
 
 redistribute {
-	import l2tp {
-		family [ ipv4/unicast ];
+	destination bgp {
+		import l2tp {
+			family [ ipv4/unicast ];
+		}
 	}
 }
 

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
 | Updated | 2026-05-13 |
@@ -381,72 +381,151 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Implementation Summary
 
 ### What Was Implemented
-- [pending]
+- RedistConsumer interface and consumer registry (RegisterConsumer, LookupConsumer, ConsumerNames)
+- BGP consumer wrapping UpdateRoute dispatch via RouteDispatcher interface
+- Orchestrator plugin (renamed from bgp-redistribute-egress to redistribute-orchestrator)
+- YANG destination list wrapping import list
+- Config loader traversing destination key before import list
+- BGP consumer registered at orchestrator startup via SDK plugin connection
 
 ### Bugs Found/Fixed
-- [pending]
+- Review found BGP consumer never registered in production (BLOCKER, fixed)
+- Review found BGPConsumer silently discarding UpdateRoute errors (BLOCKER, fixed)
 
 ### Documentation Updates
-- [pending]
+- docs/guide/configuration.md, l2tp.md, plugins.md, comparison.md
+- docs/plugin-overview.md, DESIGN.md
+- docs/architecture/testing/l2tp-interop.md
 
 ### Deviations from Plan
-- [pending]
+- Config syntax is `redistribute { destination bgp { ... } }` not `redistribute { bgp { ... } }` (YANG list key rendering)
+- format.go deleted (functions moved to bgp/redistribute/consumer.go)
+- Orchestrator registers BGP consumer itself (consumer needs SDK dispatcher, only available in plugin runtime)
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Destination-protocol nesting | done | ze-redistribute-conf.yang:22 | list destination key protocol |
+| RedistConsumer interface | done | config/redistribute/consumer.go:21 | Name, InjectRoute, WithdrawRoute |
+| Consumer registry | done | config/redistribute/consumer.go:40-75 | RegisterConsumer, LookupConsumer, ConsumerNames |
+| BGP consumer | done | bgp/redistribute/consumer.go:26 | Wraps RouteDispatcher |
+| Orchestrator | done | redistribute_egress/redistribute.go:113 | Iterates consumers per batch |
+| Config loader update | done | loader_redistribute.go:21 | Traverses destination list |
+| Test config updates | done | 12 .ci files | destination bgp wrapping |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | done | TestExtractRedistributeRules_Basic | Parses destination bgp config |
+| AC-2 | done | YANG schema change | Old flat shape fails YANG validation |
+| AC-3 | done | TestHandleBatchNoEvaluatorNoop | Nil evaluator, no crash |
+| AC-4 | done | register.go ConfigRoots | ConfigRoots unchanged |
+| AC-5 | done | .ci file updates | All 12 configs updated |
+| AC-6 | done | TestExtractRedistributeRules updates | Parse tests updated |
+| AC-7 | done | YANG list destination | Future protocols add key |
+| AC-8 | done | register.go:60-61 | RegisterConsumer(NewBGPConsumer(p)) |
+| AC-9 | done | TestConsumerNames | Returns sorted consumer names |
+| AC-10 | done | TestHandleBatchAcceptedAddDispatches | InjectRoute dispatched |
+| AC-11 | done | TestHandleBatchRemoveDispatches | WithdrawRoute dispatched |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestRegisterConsumer | done | internal/component/config/redistribute/consumer_test.go | Registry add/lookup |
+| TestLookupConsumer | done | internal/component/config/redistribute/consumer_test.go | Missing name returns false |
+| TestConsumerNames | done | internal/component/config/redistribute/consumer_test.go | Sorted names |
+| TestBGPConsumerInjectRoute | done | internal/component/bgp/redistribute/consumer_test.go | Announce command |
+| TestBGPConsumerWithdrawRoute | done | internal/component/bgp/redistribute/consumer_test.go | Withdraw command |
+| TestExtractRedistributeRules | done | internal/component/config/loader_redistribute_test.go | Destination key traversal |
+| TestEvaluatorAccept | done | internal/component/config/redistribute/evaluator_test.go | Unchanged, passes |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| config/redistribute/consumer.go | done | Created: interface + registry |
+| config/redistribute/consumer_test.go | done | Created: 4 tests |
+| bgp/redistribute/consumer.go | done | Created: BGP consumer |
+| bgp/redistribute/consumer_test.go | done | Created: 6 tests |
+| redistribute_egress/redistribute.go | done | Refactored to orchestrator |
+| redistribute_egress/register.go | done | Name + consumer registration |
+| redistribute_egress/format.go | done | Deleted (moved to bgp consumer) |
+| ze-redistribute-conf.yang | done | Destination list added |
+| loader_redistribute.go | done | Destination traversal |
+| 12 .ci files | done | Config shape updated |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 35
+- **Done:** 35
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (deviations noted above)
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | BGP consumer never registered in production | register.go | Fixed |
+| 2 | BLOCKER | BGPConsumer silently discards errors | consumer.go:41,48 | Fixed |
+| 3 | ISSUE | YANG destination.protocol has no validator | yang:27-29 | Documented |
+| 4 | ISSUE | Dependencies stale for generic orchestrator | register.go:20 | Documented |
+| 5 | ISSUE | skipIDs computed once at startup | redistribute.go:120 | Documented |
+| 6 | NOTE | Metrics names unchanged | redistribute.go:91-96 | Kept |
+| 7 | NOTE | Destination key not validated at extraction | loader.go:30 | Warning added |
 
 ### Fixes applied
-- [pending]
+- #1: RegisterConsumer(NewBGPConsumer(p)) in OnStarted before run(ctx)
+- #2: slog.Warn on UpdateRoute error in InjectRoute/WithdrawRoute
+- #3: YANG comment + orchestrator no-consumers warning
+- #4: Comment on Dependencies explaining BGP SDK need
+- #5: Comment on skipIDs snapshot
+- #7: logger.Warn when len(consumers) == 0
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | - | Clean pass, no new findings | - | - |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| internal/component/config/redistribute/consumer.go | yes | ls confirmed |
+| internal/component/config/redistribute/consumer_test.go | yes | ls confirmed |
+| internal/component/bgp/redistribute/consumer.go | yes | ls confirmed |
+| internal/component/bgp/redistribute/consumer_test.go | yes | ls confirmed |
+| internal/component/config/redistribute/schema/ze-redistribute-conf.yang | yes | ls confirmed |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Config parses | TestExtractRedistributeRules_Basic passes |
+| AC-2 | Old shape rejected | YANG list destination key required |
+| AC-3 | No redistribute = nil evaluator | TestHandleBatchNoEvaluatorNoop passes |
+| AC-4 | Auto-starts via ConfigRoots | grep redistribute register.go |
+| AC-5 | All .ci tests structured | grep -A1 redistribute shows destination |
+| AC-6 | Parse tests pass | TestExtractRedistributeRules_* all pass |
+| AC-7 | Destination list extensible | YANG list destination with string key |
+| AC-8 | BGP consumer registered | LSP findReferences RegisterConsumer: register.go:61 |
+| AC-9 | ConsumerNames returns names | TestConsumerNames passes |
+| AC-10 | InjectRoute dispatched | TestHandleBatchAcceptedAddDispatches passes |
+| AC-11 | WithdrawRoute dispatched | TestHandleBatchRemoveDispatches passes |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| redistribute { destination bgp { import fakeredist } } | bgp-redistribute-announce.ci | yes |
+| redistribute { destination bgp { import l2tp } } | redistribute-l2tp-announce.ci | yes |
+| redistribute { destination bgp { import ebgp } } parse | redistribute-family-filter.ci | yes |
+| redistribute { destination bgp { import rip } } parse | redistribute-invalid-source.ci | yes |
+| BGP startup RegisterConsumer | bgp-redistribute-announce.ci | yes |
 
 ## Checklist
 

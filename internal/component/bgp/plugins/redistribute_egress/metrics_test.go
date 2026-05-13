@@ -99,17 +99,19 @@ func resetMetricsState(t *testing.T) {
 	t.Helper()
 	redistevents.ResetForTest()
 	configredist.SetGlobal(nil)
+	configredist.ResetConsumersForTest()
 	metricsPtr.Store(nil)
 	t.Cleanup(func() {
 		redistevents.ResetForTest()
 		configredist.SetGlobal(nil)
+		configredist.ResetConsumersForTest()
 		metricsPtr.Store(nil)
 	})
 }
 
 // VALIDATES: AC-14 -- counters increment at the documented cadences for a known
 // event sequence (3 accepted adds, 1 accepted remove, 1 rule-rejected entry,
-// 1 BGP-protocol-skipped batch).
+// 1 consumer-protocol-skipped batch).
 // PREVENTS: Counter drift from reality.
 func TestMetricsCadence(t *testing.T) {
 	resetMetricsState(t)
@@ -121,21 +123,24 @@ func TestMetricsCadence(t *testing.T) {
 		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
+	consumer := &stubConsumer{name: "bgp"}
+	require.NoError(t, configredist.RegisterConsumer(consumer))
+
 	rec := newRecordingRegistry()
 	setMetricsRegistry(rec)
 
-	disp := &fakeDispatcher{}
+	skip := skipIDs(bgpID)
 
 	// 3 accepted adds.
 	for _, p := range []string{"10.0.0.1/32", "10.0.0.2/32", "10.0.0.3/32"} {
-		handleBatch(context.Background(), disp, bgpID, addBatch(id, afiIPv4, p, ""))
+		handleBatch(context.Background(), skip, addBatch(id, afiIPv4, p, ""))
 	}
 	// 1 accepted remove.
-	handleBatch(context.Background(), disp, bgpID, removeBatch(id, afiIPv4, "10.0.0.1/32"))
+	handleBatch(context.Background(), skip, removeBatch(id, afiIPv4, "10.0.0.1/32"))
 	// 1 batch rejected by rule (ipv6/unicast not allowed).
-	handleBatch(context.Background(), disp, bgpID, addBatch(id, afiIPv6, "2001:db8::1/128", ""))
+	handleBatch(context.Background(), skip, addBatch(id, afiIPv6, "2001:db8::1/128", ""))
 	// 1 batch with BGP protocol -- should be skipped at handler entry.
-	handleBatch(context.Background(), disp, bgpID, addBatch(bgpID, afiIPv4, "10.0.0.99/32", ""))
+	handleBatch(context.Background(), skip, addBatch(bgpID, afiIPv4, "10.0.0.99/32", ""))
 
 	assert.Equal(t, int64(6), rec.value("ze_bgp_redistribute_events_received"), "5 accepted batches + 1 skipped = 6 received")
 	assert.Equal(t, int64(3), rec.value("ze_bgp_redistribute_announcements"))
@@ -143,5 +148,6 @@ func TestMetricsCadence(t *testing.T) {
 	assert.Equal(t, int64(1), rec.value("ze_bgp_redistribute_filtered_protocol_total"))
 	assert.Equal(t, int64(1), rec.value("ze_bgp_redistribute_filtered_rule_total"), "ipv6/unicast batch had 1 entry")
 
-	assert.Len(t, disp.snapshot(), 4)
+	assert.Len(t, consumer.snapshotInjected(), 3)
+	assert.Len(t, consumer.snapshotWithdrawn(), 1)
 }

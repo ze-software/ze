@@ -29,15 +29,13 @@ func TestExtractRedistributeRules_Basic(t *testing.T) {
 	tree := NewTree()
 	redist := NewTree()
 	tree.SetContainer("redistribute", redist)
-
-	// import ebgp { family [ ipv4/unicast ipv4/mpls-vpn ]; }
+	dest := NewTree()
 	ebgpEntry := NewTree()
 	ebgpEntry.SetSlice("family", []string{"ipv4/unicast", "ipv4/mpls-vpn"})
-	redist.AddListEntry("import", "ebgp", ebgpEntry)
-
-	// import ibgp;
+	dest.AddListEntry("import", "ebgp", ebgpEntry)
 	ibgpEntry := NewTree()
-	redist.AddListEntry("import", "ibgp", ibgpEntry)
+	dest.AddListEntry("import", "ibgp", ibgpEntry)
+	redist.AddListEntry("destination", "bgp", dest)
 
 	rules, err := ExtractRedistributeRules(tree)
 	require.NoError(t, err)
@@ -62,7 +60,7 @@ func TestExtractRedistributeRules_NoRedistribute(t *testing.T) {
 	assert.Nil(t, rules)
 }
 
-// TestExtractRedistributeRules_EmptyRedistribute verifies nil return when container has no imports.
+// TestExtractRedistributeRules_EmptyRedistribute verifies nil return when container has no destinations.
 //
 // VALIDATES: Empty redistribute container returns nil, no error.
 // PREVENTS: Empty slice vs nil confusion.
@@ -84,7 +82,9 @@ func TestExtractRedistributeRules_UnknownSource(t *testing.T) {
 	tree := NewTree()
 	redist := NewTree()
 	tree.SetContainer("redistribute", redist)
-	redist.AddListEntry("import", "rip", NewTree())
+	dest := NewTree()
+	dest.AddListEntry("import", "rip", NewTree())
+	redist.AddListEntry("destination", "bgp", dest)
 
 	_, err := ExtractRedistributeRules(tree)
 	require.Error(t, err)
@@ -102,9 +102,11 @@ func TestExtractRedistributeRules_UnknownFamily(t *testing.T) {
 	tree := NewTree()
 	redist := NewTree()
 	tree.SetContainer("redistribute", redist)
+	dest := NewTree()
 	entry := NewTree()
 	entry.SetSlice("family", []string{"ipv4/unicast", "ipv9/bogus"})
-	redist.AddListEntry("import", "ebgp", entry)
+	dest.AddListEntry("import", "ebgp", entry)
+	redist.AddListEntry("destination", "bgp", dest)
 
 	_, err := ExtractRedistributeRules(tree)
 	require.Error(t, err)
@@ -123,10 +125,11 @@ func TestExtractRedistributeRules_PreservesOrder(t *testing.T) {
 	tree := NewTree()
 	redist := NewTree()
 	tree.SetContainer("redistribute", redist)
-
-	redist.AddListEntry("import", "connected", NewTree())
-	redist.AddListEntry("import", "ospf", NewTree())
-	redist.AddListEntry("import", "ebgp", NewTree())
+	dest := NewTree()
+	dest.AddListEntry("import", "connected", NewTree())
+	dest.AddListEntry("import", "ospf", NewTree())
+	dest.AddListEntry("import", "ebgp", NewTree())
+	redist.AddListEntry("destination", "bgp", dest)
 
 	rules, err := ExtractRedistributeRules(tree)
 	require.NoError(t, err)

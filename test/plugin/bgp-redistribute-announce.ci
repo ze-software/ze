@@ -3,12 +3,12 @@
 #            UPDATE on the wire whose attributes / NLRI match the canonical
 #            `update text origin incomplete nhop self nlri ipv4/unicast add 10.0.0.1/32` shape.
 # VALIDATES: auto-load via ConfigRoots -- this scenario deliberately omits an
-#            explicit `external bgp-redistribute-egress { use bgp-redistribute-egress }`
-#            block, so the only way the consumer runs is via the auto-load
+#            explicit `external redistribute-orchestrator { use redistribute-orchestrator }`
+#            block, so the only way the orchestrator runs is via the auto-load
 #            triggered by the `redistribute {}` config root.
-# PREVENTS: bgp-redistribute consumer not wired to UpdateRoute, or fakeredist event
+# PREVENTS: redistribute-orchestrator not wired to consumers, or fakeredist event
 #           not reaching the consumer, or auto-load regression silently dropping
-#           the egress path.
+#           the orchestrator.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -63,10 +63,10 @@ plugin {
 		run ./announce-test.run
 		encoder json
 	}
-	# bgp-redistribute-egress is intentionally NOT listed here. The
+	# redistribute-orchestrator is intentionally NOT listed here. The
 	# `redistribute {}` block below carries `ConfigRoots: ["redistribute"]`,
-	# which auto-loads the egress consumer. This validates the auto-load
-	# wiring -- if the consumer fails to start, no UPDATE reaches the peer
+	# which auto-loads the orchestrator. This validates the auto-load
+	# wiring -- if the orchestrator fails to start, no UPDATE reaches the peer
 	# and the test times out.
 	external fakeredist {
 		use fakeredist
@@ -75,8 +75,10 @@ plugin {
 }
 
 redistribute {
-	import fakeredist {
-		family [ ipv4/unicast ];
+	destination bgp {
+		import fakeredist {
+			family [ ipv4/unicast ];
+		}
 	}
 }
 

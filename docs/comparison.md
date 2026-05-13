@@ -72,8 +72,8 @@ Last updated: 2026-03-25
 
 Ze advertises locally-originated routes from non-BGP protocols (connected,
 static, L2TP; future OSPF / ISIS) into BGP via the
-`bgp-redistribute-egress` plugin. Operators enable it per-source via
-`redistribute { import <source> { family [...]; } }`. The same config block
+`redistribute-orchestrator` plugin. Operators enable it per-destination and per-source via
+`redistribute { destination <proto> { import <source> { family [...]; } } }`. The same config block
 also drives the intra-BGP `IngressFilter` ACL when the source is `ibgp` /
 `ebgp`. Per-peer NEXT_HOP substitution (`nhop self`) is automatic; explicit
 producer-supplied NEXT_HOP is passed through verbatim.

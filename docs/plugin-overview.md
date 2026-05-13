@@ -104,7 +104,7 @@ when you configure the corresponding address family. You do not need to declare 
 | `bgp-healthcheck` | Health-dependent route withdrawal |
 | `bgp-bmp` | BMP monitoring station (RFC 7854) |
 | `bgp-redistribute` | Redistribute learned routes into system RIB |
-| `bgp-redistribute-egress` | Redistribute system routes into BGP |
+| `redistribute-orchestrator` | Dispatch redistributed routes to registered protocol consumers |
 | `loop` | Route loop detection (RFC 4271 S9, RFC 4456 S8) |
 <!-- source: internal/component/bgp/plugins/ -- BGP plugin implementations -->
 
