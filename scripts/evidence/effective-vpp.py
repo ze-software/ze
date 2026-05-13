@@ -20,6 +20,8 @@ VPP_PLATFORM = os.environ.get("ZE_VPP_DOCKER_PLATFORM", "linux/amd64")
 GOARCH = os.environ.get("ZE_VPP_DOCKER_GOARCH", "amd64")
 PREFIX = "10.20.0.0/24"
 NEXT_HOP = "10.0.0.1"
+MPLS_PREFIX = "10.30.0.0/24"
+MPLS_LABEL = 100
 TRAFFIC_POLICER_CLASS = "default"
 
 
@@ -423,6 +425,122 @@ def run_fib_evidence(
         terminate(peer)
 
 
+def mpls_fib_config(api_sock: Path) -> str:
+    return f"""bgp {{
+    peer peer1 {{
+        connection {{
+            remote {{ ip 127.0.0.1; }}
+            local  {{ ip 127.0.0.1; accept false; }}
+        }}
+        session {{
+            asn {{ local 1; remote 1; }}
+            router-id 1.2.3.4;
+            family {{
+                ipv4/unicast {{ prefix {{ maximum 10000; }} }}
+                ipv4/mpls-label {{ prefix {{ maximum 10000; }} }}
+            }}
+            capability {{ graceful-restart disable; }}
+        }}
+        behavior {{ group-updates disable; }}
+    }}
+}}
+
+{vpp_config(api_sock)}
+fib {{
+    vpp {{ enabled true; }}
+}}
+"""
+
+
+def mpls_route_present(container: str) -> tuple[bool, str]:
+    out = vppctl(container, f"show ip fib {MPLS_PREFIX}")
+    text = (out.stdout or "") + (out.stderr or "")
+    has_prefix = MPLS_PREFIX in text
+    has_label = str(MPLS_LABEL) in text and "label" in text.lower()
+    return has_prefix and has_label, text
+
+
+def wait_mpls_route(
+    container: str, want_present: bool, timeout_s: float
+) -> tuple[bool, str]:
+    last = ""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        present, text = mpls_route_present(container)
+        last = text
+        if present == want_present:
+            return True, text
+        time.sleep(0.5)
+    return False, last
+
+
+def run_mpls_evidence(
+    container: str, root: Path, ze: Path, ze_test: Path, work: Path, api_sock: Path
+) -> int:
+    port = free_port()
+    peer_script = work / "mpls-peer-script"
+    peer_script.write_text(
+        "option=tcp_connections:value=1\n"
+        f"option=update:value=send-route:prefix={MPLS_PREFIX}:next-hop={NEXT_HOP}:origin-as=65001:label={MPLS_LABEL}\n",
+        encoding="utf-8",
+    )
+    peer = subprocess.Popen(
+        [
+            "docker",
+            "exec",
+            container,
+            f"/src/{ze_test.relative_to(root)}",
+            "peer",
+            "--mode",
+            "sink",
+            "--port",
+            str(port),
+            "/run/vpp/mpls-peer-script",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert peer.stderr is not None
+    drain("mpls-peer-err> ", peer.stderr)
+    if not wait_for_peer(peer, 5):
+        terminate(peer)
+        raise SystemExit("ze-test peer (mpls) did not start")
+
+    config_path = work / "mpls-fib.conf"
+    write_config(config_path, mpls_fib_config(api_sock))
+    daemon, ze_lines = start_ze(
+        container, ze, root, Path("/run/vpp/mpls-fib.conf"), port
+    )
+    try:
+        ok, last_fib = wait_mpls_route(container, True, 25)
+        if not ok:
+            sys.stderr.write("FAIL: real VPP MPLS label push route not observed\n")
+            sys.stderr.write(last_fib)
+            sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+            return 1
+        print(f"OK: real VPP FIB contains {MPLS_PREFIX} with MPLS label {MPLS_LABEL}")
+
+        stop_peer(container, ze_test.name)
+        try:
+            peer.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            terminate(peer)
+
+        withdrawn, last_fib = wait_mpls_route(container, False, 15)
+        if withdrawn:
+            print(f"OK: real VPP FIB withdrew MPLS route {MPLS_PREFIX}")
+            return 0
+
+        sys.stderr.write("FAIL: real VPP MPLS route was not withdrawn\n")
+        sys.stderr.write(last_fib)
+        sys.stderr.write("\nze log tail:\n" + "".join(ze_lines[-80:]))
+        return 1
+    finally:
+        terminate(daemon)
+        terminate(peer)
+
+
 def run_traffic_evidence(
     container: str, root: Path, ze: Path, work: Path, api_sock: Path, iface: str
 ) -> int:
@@ -752,6 +870,9 @@ def main() -> int:
         fib_rc = run_fib_evidence(container, root, ze, ze_test, work, api_sock)
         if fib_rc != 0:
             return fib_rc
+        mpls_rc = run_mpls_evidence(container, root, ze, ze_test, work, api_sock)
+        if mpls_rc != 0:
+            return mpls_rc
         traffic_rc = run_traffic_evidence(container, root, ze, work, api_sock, iface)
         if traffic_rc != 0:
             return traffic_rc
