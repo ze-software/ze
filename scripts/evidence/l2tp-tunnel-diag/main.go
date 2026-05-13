@@ -1,3 +1,5 @@
+//go:build linux
+
 // Design: docs/research/l2tpv2-ze-integration.md -- kernel netlink diagnostic
 //
 // Standalone diagnostic: creates an L2TP kernel tunnel using the same

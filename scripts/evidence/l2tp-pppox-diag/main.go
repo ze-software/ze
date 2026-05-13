@@ -1,3 +1,5 @@
+//go:build linux
+
 // Design: docs/research/l2tpv2-ze-integration.md -- PPPoL2TP socket diagnostic
 //
 // Diagnostic: exercises the full Ze L2TP PPPoL2TP code path.
