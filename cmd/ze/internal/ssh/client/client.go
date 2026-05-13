@@ -354,7 +354,7 @@ func readKey(store *zefs.BlobStore, key string) (string, error) {
 func hostKeyCallback(host string) (ssh.HostKeyCallback, error) {
 	switch host {
 	case "127.0.0.1", "::1", "localhost":
-		return ssh.InsecureIgnoreHostKey(), nil //nolint:gosec // localhost daemon connection
+		return ssh.InsecureIgnoreHostKey(), nil //nolint:gosec // ze owns the host; localhost resolution trusted
 	default:
 		if env.IsEnabled("ze.ssh.insecure") {
 			return ssh.InsecureIgnoreHostKey(), nil //nolint:gosec // explicit opt-in via ze.ssh.insecure
