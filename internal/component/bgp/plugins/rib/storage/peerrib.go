@@ -5,6 +5,7 @@ package storage
 import (
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
@@ -259,6 +260,58 @@ func (r *PeerRIB) StaleCount() int {
 		total += rib.StaleCount()
 	}
 	return total
+}
+
+// SetLabelsIfRouteExists stores MPLS labels as side-data for a CIDR NLRI
+// (label-stripped). Returns false if the family does not exist, is not
+// labeled, or the NLRI bytes are malformed, so the caller can release the
+// handle on failure.
+func (r *PeerRIB) SetLabelsIfRouteExists(fam family.Family, nlriBytes []byte, h attrpool.Handle) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	rib, exists := r.families[fam]
+	if !exists || !rib.IsLabeled() {
+		return false
+	}
+	_, pfx, ok := rib.parseNLRIKey(nlriBytes)
+	if !ok {
+		return false
+	}
+	rib.SetLabels(pfx, h)
+	return true
+}
+
+// RemoveLabels deletes MPLS label side-data for a CIDR NLRI.
+func (r *PeerRIB) RemoveLabels(fam family.Family, nlriBytes []byte) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	rib, exists := r.families[fam]
+	if !exists || !rib.IsLabeled() {
+		return
+	}
+	_, pfx, ok := rib.parseNLRIKey(nlriBytes)
+	if !ok {
+		return
+	}
+	rib.RemoveLabels(pfx)
+}
+
+// LookupLabels returns the MPLS label handle for a CIDR NLRI, or InvalidHandle.
+func (r *PeerRIB) LookupLabels(fam family.Family, nlriBytes []byte) attrpool.Handle {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	rib, exists := r.families[fam]
+	if !exists || !rib.IsLabeled() {
+		return attrpool.InvalidHandle
+	}
+	_, pfx, ok := rib.parseNLRIKey(nlriBytes)
+	if !ok {
+		return attrpool.InvalidHandle
+	}
+	return rib.LookupLabels(pfx)
 }
 
 // getOrCreateFamily returns the FamilyRIB, creating if needed.

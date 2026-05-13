@@ -42,14 +42,21 @@ type FamilyRIB struct {
 	fam     family.Family
 	addPath bool
 	cidr    bool
-	direct  *store.Store[RouteEntry] // cidr && !addPath
-	multi   *store.Store[pathSet]    // cidr && addPath
-	opaque  map[string]RouteEntry    // !cidr
+	labeled bool                          // SAFI 4: labels stored as side-data
+	direct  *store.Store[RouteEntry]      // cidr && !addPath
+	multi   *store.Store[pathSet]         // cidr && addPath
+	opaque  map[string]RouteEntry         // !cidr
+	labels  *store.Store[attrpool.Handle] // labeled && cidr: parallel BART for label handles
 }
 
 // NewFamilyRIB creates a FamilyRIB for the given address family.
 func NewFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
-	r := &FamilyRIB{fam: fam, addPath: addPath, cidr: isCIDRFamily(fam)}
+	r := &FamilyRIB{
+		fam:     fam,
+		addPath: addPath,
+		cidr:    isCIDRFamily(fam),
+		labeled: fam.SAFI == family.SAFIMPLSLabel,
+	}
 	switch {
 	case !r.cidr:
 		r.opaque = make(map[string]RouteEntry)
@@ -58,6 +65,9 @@ func NewFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
 	default:
 		r.direct = store.NewStore[RouteEntry](fam)
 	}
+	if r.labeled && r.cidr {
+		r.labels = store.NewStore[attrpool.Handle](fam)
+	}
 	return r
 }
 
@@ -65,7 +75,9 @@ func NewFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
 // NLRI wire format that BART can key on. Mirrors the CIDR set recognized
 // by rib.isSimplePrefixFamily (IPv4/IPv6 unicast + multicast).
 func isCIDRFamily(fam family.Family) bool {
-	if fam.SAFI != family.SAFIUnicast && fam.SAFI != family.SAFIMulticast {
+	switch fam.SAFI {
+	case family.SAFIUnicast, family.SAFIMulticast, family.SAFIMPLSLabel:
+	default:
 		return false
 	}
 	return fam.AFI == family.AFIIPv4 || fam.AFI == family.AFIIPv6
@@ -223,6 +235,7 @@ func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
 			return false
 		}
 		entry.Release()
+		r.RemoveLabels(pfx)
 		return r.direct.Delete(pfx)
 	}
 
@@ -237,6 +250,7 @@ func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
 	removed.Release()
 	if ps.len() == 0 {
 		r.multi.Delete(pfx)
+		r.RemoveLabels(pfx)
 	} else {
 		r.multi.Insert(pfx, ps)
 	}
@@ -337,6 +351,15 @@ func (r *FamilyRIB) Release() {
 		r.multi.ModifyAll(func(ps *pathSet) { ps.releaseAll() })
 		r.multi.Reset()
 	}
+	if r.labels != nil {
+		r.labels.Iterate(func(_ netip.Prefix, h attrpool.Handle) bool {
+			if h.IsValid() {
+				_ = pool.Labels.Release(h)
+			}
+			return true
+		})
+		r.labels.Reset()
+	}
 }
 
 // ModifyEntry calls fn with a pointer to the entry for the given NLRI. fn
@@ -419,6 +442,43 @@ func (r *FamilyRIB) Family() family.Family { return r.fam }
 // HasAddPath returns whether ADD-PATH is enabled.
 func (r *FamilyRIB) HasAddPath() bool { return r.addPath }
 
+// IsLabeled returns whether this is a labeled unicast family (SAFI 4).
+func (r *FamilyRIB) IsLabeled() bool { return r.labeled }
+
+// SetLabels stores an MPLS label handle for a prefix (side-data, not on RouteEntry).
+func (r *FamilyRIB) SetLabels(pfx netip.Prefix, h attrpool.Handle) {
+	if r.labels == nil {
+		return
+	}
+	if old, exists := r.labels.Lookup(pfx); exists && old.IsValid() {
+		_ = pool.Labels.Release(old)
+	}
+	r.labels.Insert(pfx, h)
+}
+
+// LookupLabels returns the label handle for a prefix, or InvalidHandle.
+func (r *FamilyRIB) LookupLabels(pfx netip.Prefix) attrpool.Handle {
+	if r.labels == nil {
+		return attrpool.InvalidHandle
+	}
+	h, ok := r.labels.Lookup(pfx)
+	if !ok {
+		return attrpool.InvalidHandle
+	}
+	return h
+}
+
+// RemoveLabels deletes and releases the label handle for a prefix.
+func (r *FamilyRIB) RemoveLabels(pfx netip.Prefix) {
+	if r.labels == nil {
+		return
+	}
+	if old, exists := r.labels.Lookup(pfx); exists && old.IsValid() {
+		_ = pool.Labels.Release(old)
+	}
+	r.labels.Delete(pfx)
+}
+
 // MarkStale sets StaleLevel on all routes in this family.
 func (r *FamilyRIB) MarkStale(level uint8) {
 	r.ModifyAll(func(entry *RouteEntry) { entry.StaleLevel = level })
@@ -453,6 +513,7 @@ func (r *FamilyRIB) PurgeStale() int {
 			if entry, ok := r.direct.Lookup(pfx); ok {
 				entry.Release()
 				r.direct.Delete(pfx)
+				r.RemoveLabels(pfx)
 			}
 		}
 		return len(stalePfx)
@@ -482,6 +543,7 @@ func (r *FamilyRIB) PurgeStale() int {
 		removed.Release()
 		if ps.len() == 0 {
 			r.multi.Delete(k.pfx)
+			r.RemoveLabels(k.pfx)
 		} else {
 			r.multi.Insert(k.pfx, ps)
 		}

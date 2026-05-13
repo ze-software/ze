@@ -1,4 +1,5 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — RIB storage internals
+// Related: pathset.go -- per-prefix path-id bookkeeping used under ADD-PATH
 
 package storage
 

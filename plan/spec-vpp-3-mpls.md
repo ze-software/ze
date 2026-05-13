@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-vpp-2-fib (done) |
-| Phase | 1/5 |
+| Phase | 5/5 |
 | Updated | 2026-05-13 |
 
 ## Post-Compaction Recovery
@@ -513,16 +513,39 @@ as `BestChangeEntry.Labels` field. Structurally identical to both.
 ## Implementation Summary
 
 ### What Was Implemented
-- (To be filled after implementation)
+- NLRI splitter: `SplitLabeled` + `ExtractLabels` in `nlrisplit/labeled.go`, registered for ipv4/ipv6 mpls-label
+- RIB label storage: `pool/labels.go` (pool idx 15), `FamilyRIB.labels` parallel BART store (side-data, not on RouteEntry per user design decision)
+- `isCIDRFamily` extended for SAFI 4 so labeled unicast enters BART trie after label stripping
+- `BestChangeEntry.Labels []uint32` on both bgp-rib and sysrib event structs (omitempty for backward compat)
+- Label propagation: `checkBestPathChange` populates labels from winning peer's label pool; `sysRIB.processEvent` passes through; `recomputeBest` includes labels in same-best comparison
+- `rib_structured.go`: `insertLabeled`/`removeLabeled` strip labels, insert CIDR, store labels as side-data
+- `mplsBackend` interface + `govppMPLSBackend`: push (IPRouteAddDel+LabelStack), swap/pop (MplsRouteAddDel), interface enable (SwInterfaceSetMplsEnable)
+- `fibvpp.processEvent` dispatches to MPLS when Labels present or prefix in mplsInstalled map
+- `flushRoutes` cleans up both IP and MPLS installed routes
+- `showInstalled` includes MPLS routes in JSON output
+- Test peer `buildLabeledRouteMsg`: MP_REACH_NLRI with RFC 8277 label encoding, multi-label stack support
+- VPP stub: `mpls_route_add_del` and `sw_interface_set_mpls_enable` handlers with field logging, `ip_route_add_del` extended to log LabelStack
+- Functional test: `test/vpp/005-mpls-push.ci`
 
 ### Bugs Found/Fixed
-- (To be filled)
+- `flushRoutes` did not flush MPLS routes (found in review pass 1)
+- `govppMPLSBackend` never wired in `register.go` (found in review pass 1)
+- `FamilyRIB.Remove`/`PurgeStale` leaked label side-data (found in review pass 1)
+- `recomputeBest` same-best check ignored label changes (found in review pass 1)
+- `insertLabeled` leaked label pool handle on insert failure (found in review pass 1)
+- `lookupLabelsForBest` had race with peer departure after shard unlock (found in review pass 1)
+- Label 0 (IPv4 Explicit NULL) rejected by test peer dispatch (found by user)
 
 ### Documentation Updates
-- (To be filled)
+- `docs/features.md`: VPP Data Plane row updated with MPLS capabilities
+- `docs/guide/plugins.md`: added fib-vpp row to plugin table
+- `docs/guide/vpp.md`: vpp-3 phase updated from deferred to in-tree
+- `docs/comparison.md`: Ze description updated to mention MPLS from BGP
+- `docs/architecture/core-design.md`: best-change tracking and FIB VPP sections added
 
 ### Deviations from Plan
-- (To be filled)
+- Labels stored as FamilyRIB side-data (parallel BART store) instead of on RouteEntry, per user design decision to keep RouteEntry as a pure attribute cache unit
+- Spec deliverable "RouteEntry has label handle" no longer applicable
 
 ## Implementation Audit
 

@@ -58,6 +58,7 @@ type BestChangeEntry struct {
 	Priority     int                      `json:"priority"`
 	Metric       uint32                   `json:"metric"`
 	ProtocolType bgptypes.BGPProtocolType `json:"protocol-type,omitempty"`
+	Labels       []uint32                 `json:"labels,omitempty"`
 }
 
 // BestChangeBatch is the payload of (bgp-rib, best-change). One batch is

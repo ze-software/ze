@@ -31,6 +31,7 @@ type BestChangeEntry struct {
 	Prefix   netip.Prefix         `json:"prefix"`
 	NextHop  netip.Addr           `json:"next-hop,omitzero"`
 	Protocol string               `json:"protocol"`
+	Labels   []uint32             `json:"labels,omitempty"`
 }
 
 // BestChangeBatch is the payload of (system-rib, best-change). One batch is

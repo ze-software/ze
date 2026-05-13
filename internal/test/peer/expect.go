@@ -198,6 +198,12 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) {
 					}
 				}
 			}
+			if v := kv["label"]; v != "" {
+				l, err := strconv.ParseUint(v, 10, 32)
+				if err == nil {
+					route.Labels = []uint32{uint32(l)} //nolint:gosec // range checked
+				}
+			}
 			config.SendRoutes = append(config.SendRoutes, route)
 		}
 

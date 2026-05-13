@@ -16,4 +16,10 @@ func init() {
 		Register(fam, SplitCIDR)
 	}
 	Register(family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}, SplitEVPN)
+	for _, fam := range []family.Family{
+		{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel},
+		{AFI: family.AFIIPv6, SAFI: family.SAFIMPLSLabel},
+	} {
+		Register(fam, SplitLabeled)
+	}
 }

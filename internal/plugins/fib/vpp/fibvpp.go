@@ -129,15 +129,18 @@ type incomingChange = sysribevents.BestChangeEntry
 
 // fibVPP manages VPP FIB route programming.
 type fibVPP struct {
-	installed map[string]string // prefix -> next-hop
-	backend   vppBackend
-	mu        sync.RWMutex
+	installed     map[string]string // prefix -> next-hop (IP routes)
+	mplsInstalled map[string]bool   // prefix -> true (MPLS labeled routes)
+	backend       vppBackend
+	mplsBackend   mplsBackend
+	mu            sync.RWMutex
 }
 
 func newFibVPP(backend vppBackend) *fibVPP {
 	return &fibVPP{
-		installed: make(map[string]string),
-		backend:   backend,
+		installed:     make(map[string]string),
+		mplsInstalled: make(map[string]bool),
+		backend:       backend,
 	}
 }
 
@@ -154,6 +157,10 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 	for _, c := range batch.Changes {
 		if !c.Prefix.IsValid() {
 			logger().Warn("fib-vpp: skipping change with empty prefix")
+			continue
+		}
+		if len(c.Labels) > 0 || f.mplsInstalled[c.Prefix.String()] {
+			f.processMPLSChange(c)
 			continue
 		}
 		switch c.Action {
@@ -192,6 +199,36 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 	}
 }
 
+// processMPLSChange handles a single best-change entry with MPLS labels.
+// Caller must hold f.mu.
+func (f *fibVPP) processMPLSChange(c incomingChange) {
+	if f.mplsBackend == nil {
+		logger().Warn("fib-vpp: MPLS change but no MPLS backend configured", "prefix", c.Prefix)
+		return
+	}
+	pfxStr := c.Prefix.String()
+	switch c.Action { //nolint:exhaustive // Unspecified is a no-op for MPLS
+	case bgptypes.RouteActionAdd, bgptypes.RouteActionUpdate:
+		if err := f.mplsBackend.addMPLSRoute(c.Prefix, c.NextHop, c.Labels); err != nil {
+			logger().Error("fib-vpp: MPLS add failed", "prefix", c.Prefix, "error", err)
+			return
+		}
+		f.mplsInstalled[pfxStr] = true
+		if m := fibVPPMetricsPtr.Load(); m != nil {
+			m.routeInstalls.Inc()
+		}
+	case bgptypes.RouteActionWithdraw, bgptypes.RouteActionDel:
+		if err := f.mplsBackend.delMPLSRoute(c.Prefix, c.Labels); err != nil {
+			logger().Error("fib-vpp: MPLS del failed", "prefix", c.Prefix, "error", err)
+			return
+		}
+		delete(f.mplsInstalled, pfxStr)
+		if m := fibVPPMetricsPtr.Load(); m != nil {
+			m.routeRemovals.Inc()
+		}
+	}
+}
+
 // flushRoutes removes all installed entries from VPP FIB.
 func (f *fibVPP) flushRoutes() {
 	f.mu.Lock()
@@ -208,6 +245,19 @@ func (f *fibVPP) flushRoutes() {
 	}
 	f.installed = make(map[string]string)
 
+	if f.mplsBackend != nil {
+		for prefixStr := range f.mplsInstalled {
+			prefix, err := netip.ParsePrefix(prefixStr)
+			if err != nil {
+				continue
+			}
+			if err := f.mplsBackend.delMPLSRoute(prefix, nil); err != nil {
+				logger().Warn("fib-vpp: flush MPLS del failed", "prefix", prefixStr, "error", err)
+			}
+		}
+	}
+	f.mplsInstalled = make(map[string]bool)
+
 	if m := fibVPPMetricsPtr.Load(); m != nil {
 		m.routesInstalled.Set(0)
 	}
@@ -220,12 +270,16 @@ func (f *fibVPP) showInstalled() string {
 
 	type entry struct {
 		Prefix  string `json:"prefix"`
-		NextHop string `json:"next-hop"`
+		NextHop string `json:"next-hop,omitempty"`
+		MPLS    bool   `json:"mpls,omitempty"`
 	}
 
-	entries := make([]entry, 0, len(f.installed))
+	entries := make([]entry, 0, len(f.installed)+len(f.mplsInstalled))
 	for prefix, nextHop := range f.installed {
 		entries = append(entries, entry{Prefix: prefix, NextHop: nextHop})
+	}
+	for prefix := range f.mplsInstalled {
+		entries = append(entries, entry{Prefix: prefix, MPLS: true})
 	}
 
 	data, err := json.Marshal(entries)

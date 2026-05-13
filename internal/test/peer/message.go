@@ -137,11 +137,21 @@ type RouteToSend struct {
 	ASPath       []uint32 // Explicit AS_PATH sequence (overrides OriginAS if set)
 	OriginatorID uint32   // ORIGINATOR_ID attribute (type 9); 0 = omit
 	ClusterList  []uint32 // CLUSTER_LIST attribute (type 10); nil = omit
+
+	// Labeled unicast (SAFI 4) fields.
+	Labels []uint32 // MPLS label stack; nil = not labeled unicast
 }
 
 // BuildRouteMsg constructs a BGP UPDATE message with the given route.
 // Uses 4-byte ASN encoding (ASN4 capability assumed).
 func BuildRouteMsg(route RouteToSend) ([]byte, error) {
+	if len(route.Labels) > 0 {
+		return buildLabeledRouteMsg(route)
+	}
+	return buildIPv4RouteMsg(route)
+}
+
+func buildIPv4RouteMsg(route RouteToSend) ([]byte, error) {
 	// Parse prefix
 	prefixIP, prefixNet, err := net.ParseCIDR(route.Prefix)
 	if err != nil {
@@ -234,6 +244,92 @@ func BuildRouteMsg(route RouteToSend) ([]byte, error) {
 	msg = append(msg, Marker...)
 	header := []byte{byte(msgLen >> 8), byte(msgLen), MsgUPDATE} //nolint:gosec // msgLen < 4096
 	msg = append(msg, header...)
+	msg = append(msg, body...)
+
+	return msg, nil
+}
+
+// buildLabeledRouteMsg constructs a BGP UPDATE with MP_REACH_NLRI for
+// ipv4/mpls-label (AFI 1, SAFI 4). The label is encoded per RFC 8277.
+func buildLabeledRouteMsg(route RouteToSend) ([]byte, error) {
+	_, prefixNet, err := net.ParseCIDR(route.Prefix)
+	if err != nil {
+		return nil, fmt.Errorf("invalid prefix %q: %w", route.Prefix, err)
+	}
+	prefixLen, _ := prefixNet.Mask.Size()
+
+	nhIP := net.ParseIP(route.NextHop)
+	if nhIP == nil {
+		return nil, fmt.Errorf("invalid next-hop %q", route.NextHop)
+	}
+	nhIP = nhIP.To4()
+	if nhIP == nil {
+		return nil, fmt.Errorf("next-hop must be IPv4: %q", route.NextHop)
+	}
+
+	origin := []byte{0x40, 0x01, 0x01, 0x00}
+
+	segType := byte(0x02)
+	asns := route.ASPath
+	if len(asns) == 0 && route.OriginAS != 0 {
+		asns = []uint32{route.OriginAS}
+	}
+	asPathData := make([]byte, 0, 2+len(asns)*4)
+	if len(asns) > 0 {
+		asPathData = append(asPathData, segType, byte(len(asns)))
+		for _, asn := range asns {
+			asPathData = append(asPathData, byte(asn>>24), byte(asn>>16), byte(asn>>8), byte(asn))
+		}
+	}
+	asPath := make([]byte, 0, 3+len(asPathData))
+	asPath = append(asPath, 0x40, 0x02, byte(len(asPathData)))
+	asPath = append(asPath, asPathData...)
+
+	localPref := []byte{0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64}
+
+	// RFC 8277 labeled NLRI: [totalBits][label(3)*N][prefix-bytes]
+	labelBytes := make([]byte, 0, len(route.Labels)*3)
+	for i, label := range route.Labels {
+		sbit := byte(0x00)
+		if i == len(route.Labels)-1 {
+			sbit = 0x01
+		}
+		labelBytes = append(labelBytes, byte(label>>12), byte(label>>4), byte(label<<4)|sbit)
+	}
+	prefixBytes := (prefixLen + 7) / 8
+	totalBits := len(route.Labels)*24 + prefixLen
+	nlri := make([]byte, 0, 1+3+prefixBytes)
+	nlri = append(nlri, byte(totalBits)) //nolint:gosec // totalBits < 256
+	nlri = append(nlri, labelBytes...)
+	nlri = append(nlri, prefixNet.IP.To4()[:prefixBytes]...)
+
+	// MP_REACH_NLRI (type 14): AFI(2) + SAFI(1) + NH-len(1) + NH(4) + reserved(1) + NLRI
+	mpReachValue := make([]byte, 0, 2+1+1+4+1+len(nlri))
+	mpReachValue = append(mpReachValue, 0x00, 0x01, 0x04, 0x04) // AFI 1, SAFI 4, NH-len 4
+	mpReachValue = append(mpReachValue, nhIP...)
+	mpReachValue = append(mpReachValue, 0x00) // reserved
+	mpReachValue = append(mpReachValue, nlri...)
+
+	// flags 0x90 = optional(0x80) + extended-length(0x10) for MP_REACH_NLRI
+	mpReach := make([]byte, 0, 4+len(mpReachValue))
+	mpReach = append(mpReach, 0x90, 0x0E, byte(len(mpReachValue)>>8), byte(len(mpReachValue)))
+	mpReach = append(mpReach, mpReachValue...)
+
+	attrs := make([]byte, 0, len(origin)+len(asPath)+len(localPref)+len(mpReach))
+	attrs = append(attrs, origin...)
+	attrs = append(attrs, asPath...)
+	attrs = append(attrs, localPref...)
+	attrs = append(attrs, mpReach...)
+
+	// UPDATE body: withdrawn(2) + attr-len(2) + attrs (no legacy NLRI)
+	body := make([]byte, 0, 4+len(attrs))
+	body = append(body, 0x00, 0x00, byte(len(attrs)>>8), byte(len(attrs))) //nolint:gosec // len < 4096
+	body = append(body, attrs...)
+
+	msgLen := HeaderLen + len(body)
+	msg := make([]byte, 0, msgLen)
+	msg = append(msg, Marker...)
+	msg = append(msg, byte(msgLen>>8), byte(msgLen), MsgUPDATE) //nolint:gosec // msgLen < 4096
 	msg = append(msg, body...)
 
 	return msg, nil

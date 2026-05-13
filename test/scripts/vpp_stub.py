@@ -360,10 +360,86 @@ def handle_ip_route_add_del(state, sock, context, body):
             (proto,) = struct.unpack_from(">I", body, path_off + 22)
             nh_un = body[path_off + 26 : path_off + 42]
             fields["next_hop"] = _parse_ip_address(proto, nh_un)
+        if n_paths >= 1 and len(body) >= 29 + 55:
+            path_off = 29
+            n_labels = body[path_off + 54]
+            if n_labels > 0:
+                labels = []
+                for li in range(min(n_labels, 16)):
+                    label_off = path_off + 55 + li * 7
+                    if label_off + 7 <= len(body):
+                        (lbl,) = struct.unpack_from(">I", body, label_off + 1)
+                        labels.append(lbl)
+                fields["labels"] = labels
     state.log("ip_route_add_del", context, fields)
     # Reply body: Retval i32, StatsIndex u32
     body_out = struct.pack(">iI", 0, 0)
     reply = build_reply(state, "ip_route_add_del_reply", context, body_out)
+    write_frame(sock, reply)
+
+
+def handle_mpls_route_add_del(state, sock, context, body):
+    """Parse MplsRouteAddDel body and log fields.
+
+    Body layout after 10-byte msg header:
+      0       MrIsAdd (bool/u8)
+      1       MrIsMultipath (bool/u8)
+      2..5    MrRoute.MrTableID (u32 BE)
+      6..9    MrRoute.MrLabel (u32 BE)
+      10      MrRoute.MrEos (u8)
+      11      MrRoute.MrEosProto (u8)
+      12      MrRoute.MrIsMulticast (bool/u8)
+      13      MrRoute.MrNPaths (u8)
+      14+     Paths[MrNPaths] (each 167 bytes)
+    """
+    fields = {}
+    if len(body) >= 14:
+        is_add = body[0] != 0
+        (table_id,) = struct.unpack_from(">I", body, 2)
+        (mr_label,) = struct.unpack_from(">I", body, 6)
+        mr_eos = body[10]
+        n_paths = body[13]
+        fields["is_add"] = is_add
+        fields["table_id"] = table_id
+        fields["label"] = mr_label
+        fields["eos"] = mr_eos
+        fields["n_paths"] = n_paths
+        if n_paths >= 1 and len(body) >= 14 + 55:
+            path_off = 14
+            (proto,) = struct.unpack_from(">I", body, path_off + 22)
+            nh_un = body[path_off + 26 : path_off + 42]
+            fields["next_hop"] = _parse_ip_address(proto, nh_un)
+            n_labels = body[path_off + 54]
+            if n_labels > 0:
+                out_labels = []
+                for li in range(min(n_labels, 16)):
+                    label_off = path_off + 55 + li * 7
+                    if label_off + 7 <= len(body):
+                        (lbl,) = struct.unpack_from(">I", body, label_off + 1)
+                        out_labels.append(lbl)
+                fields["out_labels"] = out_labels
+    state.log("mpls_route_add_del", context, fields)
+    body_out = struct.pack(">iI", 0, 0)
+    reply = build_reply(state, "mpls_route_add_del_reply", context, body_out)
+    write_frame(sock, reply)
+
+
+def handle_sw_interface_set_mpls_enable(state, sock, context, body):
+    """Parse SwInterfaceSetMplsEnable and log fields.
+
+    Body layout after 10-byte msg header:
+      0..3    SwIfIndex (u32 BE)
+      4       Enable (bool/u8)
+    """
+    fields = {}
+    if len(body) >= 5:
+        (sw_if_index,) = struct.unpack_from(">I", body, 0)
+        enable = body[4] != 0
+        fields["sw_if_index"] = sw_if_index
+        fields["enable"] = enable
+    state.log("sw_interface_set_mpls_enable", context, fields)
+    body_out = struct.pack(">i", 0)
+    reply = build_reply(state, "sw_interface_set_mpls_enable_reply", context, body_out)
     write_frame(sock, reply)
 
 
@@ -372,6 +448,8 @@ HANDLERS = {
     "sockclnt_delete": handle_sockclnt_delete,
     "control_ping": handle_control_ping,
     "ip_route_add_del": handle_ip_route_add_del,
+    "mpls_route_add_del": handle_mpls_route_add_del,
+    "sw_interface_set_mpls_enable": handle_sw_interface_set_mpls_enable,
 }
 
 

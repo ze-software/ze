@@ -15,6 +15,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri/nlrisplit"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -157,9 +158,14 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			if len(nlriBytes) > 0 {
 				addPath := ctx != nil && ctx.AddPath(fam)
 				prefixes, _ := nlrisplit.Split(fam, nlriBytes, addPath)
+				isLabeled := fam.SAFI == family.SAFIMPLSLabel
 				for _, wirePrefix := range prefixes {
-					peerRIB.Insert(fam, attrBytes, wirePrefix)
-					affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wirePrefix, addPath: addPath})
+					if isLabeled {
+						r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, &affected)
+					} else {
+						peerRIB.Insert(fam, attrBytes, wirePrefix)
+						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wirePrefix, addPath: addPath})
+					}
 				}
 			}
 		}
@@ -174,9 +180,14 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			if len(wdBytes) > 0 {
 				addPath := ctx != nil && ctx.AddPath(fam)
 				withdrawns, _ := nlrisplit.Split(fam, wdBytes, addPath)
+				isLabeled := fam.SAFI == family.SAFIMPLSLabel
 				for _, wd := range withdrawns {
-					peerRIB.Remove(fam, wd)
-					affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wd, addPath: addPath})
+					if isLabeled {
+						r.removeLabeled(peerRIB, fam, wd, addPath, &affected)
+					} else {
+						peerRIB.Remove(fam, wd)
+						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wd, addPath: addPath})
+					}
 				}
 			}
 		}
@@ -516,6 +527,36 @@ func extractNextHop(attrs *attribute.AttributesWire) string {
 		return ""
 	}
 	return nh.Addr.String()
+}
+
+// insertLabeled handles a single labeled unicast NLRI announce. It strips
+// MPLS labels from the wire entry, stores the route under CIDR bytes (same
+// as FRR's SAFI remap), and stores labels as side-data on the FamilyRIB.
+func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, attrBytes, wireEntry []byte, addPath bool, affected *[]affectedPrefix) {
+	labels, cidrBytes, err := nlrisplit.ExtractLabels(wireEntry, addPath)
+	if err != nil || len(cidrBytes) == 0 {
+		return
+	}
+	peerRIB.Insert(fam, attrBytes, cidrBytes)
+	labelHandle := pool.InternLabels(labels)
+	if !peerRIB.SetLabelsIfRouteExists(fam, cidrBytes, labelHandle) {
+		if labelHandle.IsValid() {
+			_ = pool.Labels.Release(labelHandle)
+		}
+		return
+	}
+	*affected = append(*affected, affectedPrefix{fam: fam, nlriBytes: cidrBytes, addPath: addPath})
+}
+
+// removeLabeled handles a single labeled unicast NLRI withdrawal.
+func (r *RIBManager) removeLabeled(peerRIB *storage.PeerRIB, fam family.Family, wireEntry []byte, addPath bool, affected *[]affectedPrefix) {
+	_, cidrBytes, err := nlrisplit.ExtractLabels(wireEntry, addPath)
+	if err != nil || len(cidrBytes) == 0 {
+		return
+	}
+	peerRIB.Remove(fam, cidrBytes)
+	peerRIB.RemoveLabels(fam, cidrBytes)
+	*affected = append(*affected, affectedPrefix{fam: fam, nlriBytes: cidrBytes, addPath: addPath})
 }
 
 // wirePrefixToString converts NLRI wire prefix bytes [prefix-len][prefix-bytes...] to "ip/len" string.

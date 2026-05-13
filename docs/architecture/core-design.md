@@ -997,7 +997,9 @@ The `bgp-rib` plugin detects best-path changes in real time. After each INSERT o
 REMOVE, the affected prefix is checked for best-path changes. Changes are collected
 into a batch under the RIB lock, then published to `bgp-rib/best-change/bgp` after lock
 release. Each entry contains the prefix, action (add/update/withdraw), next-hop,
-priority (admin distance), and metric (MED).
+priority (admin distance), metric (MED), and optional MPLS label stack (for labeled
+unicast, SAFI 4). Labels are stored as side-data on FamilyRIB (not on RouteEntry) and
+populated from the winning peer's label pool handle at emission time.
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeEntry, publishBestChanges -->
 
 ### System RIB
@@ -1021,6 +1023,18 @@ when overwritten.
 <!-- source: internal/plugins/fib/kernel/backend_linux.go -- netlink backend, RTPROT_ZE -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route change detection -->
 <!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel plugin registration -->
+
+### FIB VPP
+
+The `fib-vpp` plugin subscribes to `system-rib/best-change` and programs VPP's FIB
+via GoVPP binary API. For entries with MPLS labels, it dispatches to the MPLS backend:
+label push uses `IPRouteAddDel` with `LabelStack` on the FibPath, label swap/pop uses
+`MplsRouteAddDel`. Entries without labels use standard `IPRouteAddDel`. The MPLS table
+(0) is created implicitly by VPP on first use. Interface MPLS enable uses
+`SwInterfaceSetMplsEnable`.
+<!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent, processMPLSChange -->
+<!-- source: internal/plugins/fib/vpp/mpls.go -- govppMPLSBackend, mplsBackend interface -->
+<!-- source: internal/plugins/fib/vpp/register.go -- fib-vpp plugin registration -->
 
 ### Sysctl
 

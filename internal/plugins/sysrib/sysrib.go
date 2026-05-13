@@ -123,6 +123,7 @@ type protocolRoute struct {
 	priority         int // effective admin distance (lower wins)
 	incomingPriority int // original priority from protocol RIB (before override)
 	metric           uint32
+	labels           []uint32 // MPLS label stack (nil for unlabeled routes)
 }
 
 // prefixKey identifies a unique prefix in the system RIB.
@@ -270,6 +271,7 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 				priority:         priority,
 				incomingPriority: c.Priority,
 				metric:           c.Metric,
+				labels:           c.Labels,
 			}
 		} else if c.Action == bgptypes.RouteActionWithdraw {
 			if proto == "" {
@@ -369,11 +371,13 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 			Prefix:   key.prefix,
 			NextHop:  winner.nextHop,
 			Protocol: winner.protocol,
+			Labels:   winner.labels,
 		}
 	}
 
 	if prev.protocol == winner.protocol && prev.nextHop == winner.nextHop &&
-		prev.priority == winner.priority && prev.metric == winner.metric {
+		prev.priority == winner.priority && prev.metric == winner.metric &&
+		labelsEqual(prev.labels, winner.labels) {
 		// Update the pointer so s.best[key] tracks the current route object
 		// even when the values are unchanged (the old struct may be stale).
 		s.best[key] = winner
@@ -386,7 +390,20 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		Prefix:   key.prefix,
 		NextHop:  winner.nextHop,
 		Protocol: winner.protocol,
+		Labels:   winner.labels,
 	}
+}
+
+func labelsEqual(a, b []uint32) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // publishChanges emits one event on (system-rib, best-change) via the
@@ -423,6 +440,7 @@ func (s *sysRIB) replayBest() {
 			Prefix:   key.prefix,
 			NextHop:  route.nextHop,
 			Protocol: route.protocol,
+			Labels:   route.labels,
 		})
 	}
 	s.mu.RUnlock()

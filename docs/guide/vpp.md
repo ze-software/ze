@@ -257,12 +257,11 @@ still available through the CLI socket ze writes to `/run/vpp/cli.sock`.
 ## What is not yet wired
 
 Today, VPP process lifecycle, IPv4/IPv6 FIB programming, and stats
-telemetry are in the tree. The remaining phases are designed but not
-implemented:
+telemetry are in the tree. The remaining phases:
 
 | Phase | What it adds | Why not yet |
 |-------|--------------|-------------|
-| vpp-3 | MPLS label push / swap / pop driven from BGP labelled unicast | Requires a labels field in the sysRIB event payload, which is a separate design task. |
+| vpp-3 | MPLS label push / swap / pop driven from BGP labelled unicast | **In tree.** Labels stripped at NLRI parse (SplitLabeled, RFC 8277), stored as FamilyRIB side-data, propagated through bgp-rib and sysRIB BestChangeEntry.Labels, programmed into VPP via IPRouteAddDel with LabelStack (push) or MplsRouteAddDel (swap/pop). 20-bit label range and stack depth 16 validated before GoVPP call. |
 | vpp-4 | VPP-native `iface.Backend`: managing interfaces directly via GoVPP instead of through the kernel | **In tree.** Backend registers as `"vpp"` and loads cleanly under `interface { backend vpp; }`. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (`ListInterfaces`, `GetInterface`, `GetMACAddress`, `SetMACAddress`), and monitor (`WantInterfaceEvents` -> EventBus) all wired against vendored GoVPP. Tunnels (VXLAN/GRE/IPIP), LCP TAP pairs, VPP stats segment, mirror, and wireguard are deferred to vpp-4b/4c/5/6b (each blocked on vendoring the matching `go.fd.io/govpp/binapi/*` package). Iface-component reconciliation also currently races the vpp handshake at startup and degrades to additive-only -- tracked in `spec-iface-vpp-ready-gate`. |
 | vpp-5 | L2 cross-connect, bridge domains, VXLAN tunnels, policers, ACLs, SRv6, sFlow | Depends on vpp-4. Each feature is independent. |
 
@@ -283,7 +282,7 @@ and converging sub-second on a full table.
 | IPng.ch blog, VPP + LCP series (2021-08 to 2021-09, 7 parts) | How the LCP plugin works, end to end |
 | IPng.ch blog, VPP configuration series (2022-03 / 2022-04) | vppcfg's DAG-based declarative config (the non-ze way) |
 | IPng.ch blog, VPP monitoring (2023-04) | Stats segment interpretation, vectors-per-call |
-| IPng.ch blog, VPP MPLS series (2023-05, 4 parts) | Context for the deferred vpp-3 phase |
+| IPng.ch blog, VPP MPLS series (2023-05, 4 parts) | MPLS label operations in VPP (context for vpp-3) |
 | IPng.ch blog, VPP sFlow series (2024-09 to 2025-02, 3 parts) | Context for future vpp-5 sFlow feature |
 | go.fd.io/govpp documentation | Binary API client, stats client, binapi code generation |
 | VPP 25.02 documentation | API reference for the modules ze targets |

@@ -702,12 +702,16 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	// under peerMu.Lock) and deadlock against it. Lock order contract:
 	// r.peerMu -> shard.mu, never shard.mu -> r.peerMu.
 	var (
-		nextHop netip.Addr
-		isEBGP  bool
+		nextHop    netip.Addr
+		isEBGP     bool
+		bestLabels []uint32
 	)
 	if newBest != nil {
 		nextHop = r.bestCandidateNextHopAddr(fam, nlriBytes, newBest)
 		isEBGP = r.protocolType(newBest) == bgptypes.BGPProtocolEBGP
+		if fam.SAFI == family.SAFIMPLSLabel {
+			bestLabels = r.lookupLabelsForBest(fam, nlriBytes, newBest.PeerAddr)
+		}
 	}
 
 	// Parse prefix once so we can route to the owning shard. Malformed
@@ -806,7 +810,22 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	if havePrev {
 		action = ribevents.BestChangeUpdate
 	}
-	return newRec.resolve(r.bestPathInterner, action, pfx, pathID, addPath), true
+	entry := newRec.resolve(r.bestPathInterner, action, pfx, pathID, addPath)
+	entry.Labels = bestLabels
+	return entry, true
+}
+
+// lookupLabelsForBest retrieves MPLS labels from the winning peer's PeerRIB
+// for a labeled unicast prefix. Caller must not hold r.peerMu.
+func (r *RIBManager) lookupLabelsForBest(fam family.Family, nlriBytes []byte, peerAddr string) []uint32 {
+	r.peerMu.RLock()
+	peerRIB := r.ribInPool[peerAddr]
+	r.peerMu.RUnlock()
+	if peerRIB == nil {
+		return nil
+	}
+	h := peerRIB.LookupLabels(fam, nlriBytes)
+	return pool.ResolveLabels(h)
 }
 
 // protocolType returns the protocol-type label for a candidate based on
