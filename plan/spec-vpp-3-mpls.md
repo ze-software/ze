@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-vpp-2-fib (done) |
-| Phase | - |
+| Phase | 1/5 |
 | Updated | 2026-05-13 |
 
 ## Post-Compaction Recovery

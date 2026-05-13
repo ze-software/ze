@@ -205,37 +205,64 @@ that is missing, not the piece that is broken.
 - `internal/component/api/rest/convert.go` - JSON/URL ↔ domain helpers
 - `internal/component/api/rest/convert_test.go`
 
-## Open Design Questions
+## Design Decisions
 
-These are decided at `/ze-spec` time, not now.
+Resolved during `/ze-design` session (2026-05-13).
 
-1. **Engine signature change or optional?** Option A: rewrite every engine
-   method to take `*api.<Method>Request`. Option B: keep the primitive
-   signatures, add the domain types only at the transport side. Option A
-   pushes type safety all the way to the engine; Option B is smaller churn.
+| # | Question | Decision | Rationale |
+|---|----------|----------|-----------|
+| 1 | Engine signature: rewrite to take `*Request` structs, or keep primitives? | All engine methods take `*Request` structs | Uniformity, AC-4 three-line handlers, positional safety for config session methods (e.g. can't swap Path and Value) |
+| 2 | Naming: `<Method>Request` vs `<Method>Params` vs verb-first? | `<Method>Request` (e.g. `api.ExecuteRequest`, `api.ConfigSetRequest`) | Package qualifier disambiguates from proto names (`zepb.CommandRequest` vs `api.ExecuteRequest`); matches engine method names |
+| 3 | `Execute` gets typed `Params map[string]string` or pre-flattened `Command string`? | Pre-flattened `Command string`; shared `api.BuildCommand` helper deduplicates the flatten logic | Dispatcher is string-based, consumers send CLI-style strings, no structured dispatch planned. Spec explicitly scopes out dispatcher changes |
+| 4 | REST: full convert-helper pattern (`rest/convert.go`) or keep inline decode? | Full convert helpers in `rest/convert.go`, mirroring `grpc/convert.go` | Structural symmetry between transports; AC-4 uniform three-line handlers; conversion logic independently testable |
+| 5 | `CallerIdentity`: embedded in request struct or separate parameter? | Embedded as `Caller CallerIdentity` field in every request struct | Consistent with Decision 1 (request struct is the single arg); keeps handlers at three lines; convert helper is the right place to inject transport-sourced identity |
 
-2. **`*Request` struct name collision.** `api.ConfigSetRequest` shadows the
-   proto `zepb.ConfigSetRequest` semantically. Both exist, one for each
-   layer. Naming: keep them identical (`api.ConfigSetRequest` vs
-   `zepb.ConfigSetRequest`) or rename the domain side to something like
-   `api.SetConfigParams` to avoid confusion in reviews.
+### Resulting Engine Signatures
 
-3. **`Execute` stays string-based or gets typed parameters?** Today the
-   engine flattens typed params into a `"command key value key value"`
-   string. Pattern #7 would argue for `ExecuteRequest { Command string;
-   Params map[string]any }`. Deciding this affects how many downstream
-   consumers (dispatcher, YANG validators, authorization) have to change.
+```go
+// engine.go
+func (e *APIEngine) Execute(ctx context.Context, req *ExecuteRequest) (*ExecResult, error)
+func (e *APIEngine) ListCommands(req *ListCommandsRequest) []CommandMeta
+func (e *APIEngine) DescribeCommand(req *DescribeCommandRequest) (CommandMeta, error)
+func (e *APIEngine) Stream(ctx context.Context, req *StreamRequest) (<-chan string, func(), error)
 
-4. **REST: is a middle conversion layer worth it?** REST is a thinner
-   format (JSON decode directly into a Go struct), so the "convert at the
-   edge" pattern has less payoff than on the gRPC side where proto types
-   carry unwanted ergonomics. Decide whether REST handlers get the full
-   convert helper or keep their inline decode.
+// config_session.go
+func (m *ConfigSessionManager) Set(req *ConfigSetRequest) error
+func (m *ConfigSessionManager) Delete(req *ConfigDeleteRequest) error
+func (m *ConfigSessionManager) Diff(req *ConfigDiffRequest) (string, error)
+func (m *ConfigSessionManager) Commit(req *ConfigCommitRequest) error
+func (m *ConfigSessionManager) Discard(req *ConfigDiscardRequest) error
+```
 
-5. **Where does `AuthContext` get constructed?** Today each transport
-   builds it from its own auth metadata. If the domain request carries
-   `Auth AuthContext` as an embedded field, the engine signature
-   simplifies to `engine.Execute(ctx, req)`.
+### Resulting Handler Pattern (both transports)
+
+```go
+// gRPC
+func (s *zeServiceImpl) Execute(ctx context.Context, pb *zepb.CommandRequest) (*zepb.CommandResponse, error) {
+    req := fromProtoExecuteRequest(pb, callerIdentityFromContext(ctx))
+    result, err := s.engine.Execute(ctx, req)
+    return toProtoExecuteResponse(result), grpcError(err)
+}
+
+// REST
+func (s *RESTServer) handleExecute(w http.ResponseWriter, r *http.Request) {
+    req, err := fromRESTExecuteRequest(r)
+    if err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
+    result, execErr := s.engine.Execute(r.Context(), req)
+    writeResult(w, result, execErr)
+}
+```
+
+### Shared Helper
+
+```go
+// api/build_command.go (or in requests.go)
+func BuildCommand(command string, params map[string]string) (string, error)
+```
+
+Moved from duplicated implementations in `grpc/server.go:buildCommand` and
+`rest/server.go` inline loop. Called by transport convert helpers before
+setting `ExecuteRequest.Command`.
 
 ## Mistake Log
 
