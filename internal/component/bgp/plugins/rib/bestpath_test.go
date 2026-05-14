@@ -1,6 +1,7 @@
 package rib
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,7 +25,7 @@ func TestSelectBestExplain_Empty(t *testing.T) {
 // VALIDATES: cmd-9 reason terminal for degenerate "only one path" prefixes.
 // PREVENTS: Off-by-one panic when len(candidates) == 1.
 func TestSelectBestExplain_Single(t *testing.T) {
-	c := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100}
+	c := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100}
 	exp := SelectBestExplain([]*Candidate{c})
 	require.NotNil(t, exp)
 	assert.Same(t, c, exp.Winner)
@@ -38,8 +39,8 @@ func TestSelectBestExplain_Single(t *testing.T) {
 // VALIDATES: cmd-9 AC -- reason terminal names the deciding step and values.
 // PREVENTS: Silent wins -- the user needs to see WHY a path beat another.
 func TestSelectBestExplain_LocalPref(t *testing.T) {
-	lo := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 3}
-	hi := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 200, ASPathLen: 5}
+	lo := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100, ASPathLen: 3}
+	hi := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 200, ASPathLen: 5}
 
 	exp := SelectBestExplain([]*Candidate{lo, hi})
 	require.NotNil(t, exp)
@@ -60,8 +61,8 @@ func TestSelectBestExplain_LocalPref(t *testing.T) {
 // PREVENTS: Misattributing the winner to a later step when an earlier one
 // resolved the tie.
 func TestSelectBestExplain_ASPathLen(t *testing.T) {
-	short := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 2}
-	long := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, ASPathLen: 5}
+	short := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100, ASPathLen: 2}
+	long := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, ASPathLen: 5}
 
 	exp := SelectBestExplain([]*Candidate{long, short})
 	require.NotNil(t, exp)
@@ -76,8 +77,8 @@ func TestSelectBestExplain_ASPathLen(t *testing.T) {
 // VALIDATES: cmd-9 AC -- ORIGIN step (IGP < EGP < INCOMPLETE) is reported.
 // PREVENTS: Step reported as ASPathLen when only Origin differs.
 func TestSelectBestExplain_Origin(t *testing.T) {
-	igp := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 3, Origin: OriginIGP}
-	inc := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, ASPathLen: 3, Origin: OriginIncomplete}
+	igp := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100, ASPathLen: 3, Origin: OriginIGP}
+	inc := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, ASPathLen: 3, Origin: OriginIncomplete}
 
 	exp := SelectBestExplain([]*Candidate{inc, igp})
 	require.NotNil(t, exp)
@@ -92,8 +93,8 @@ func TestSelectBestExplain_Origin(t *testing.T) {
 // VALIDATES: cmd-9 AC -- falls through to the peer-address tiebreak.
 // PREVENTS: Reason terminal reporting "equal" for a valid tiebreak.
 func TestSelectBestExplain_PeerAddrTiebreak(t *testing.T) {
-	a := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 3, Origin: OriginIGP}
-	b := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, ASPathLen: 3, Origin: OriginIGP}
+	a := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100, ASPathLen: 3, Origin: OriginIGP}
+	b := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, ASPathLen: 3, Origin: OriginIGP}
 
 	exp := SelectBestExplain([]*Candidate{b, a})
 	require.NotNil(t, exp)
@@ -112,9 +113,9 @@ func TestSelectBestExplain_PeerAddrTiebreak(t *testing.T) {
 // PREVENTS: Mis-indexing the incumbent after a challenger wins mid-reduction.
 func TestSelectBestExplain_ThreeCandidates(t *testing.T) {
 	// c0 has local-pref 100, c1 has 200 (beats c0), c2 has 150 (loses to c1).
-	c0 := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100}
-	c1 := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 200}
-	c2 := &Candidate{PeerAddr: "10.0.0.3", LocalPref: 150}
+	c0 := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100}
+	c1 := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 200}
+	c2 := &Candidate{PeerAddr: "10.0.0.3", PeerIP: netip.MustParseAddr("10.0.0.3"), LocalPref: 150}
 
 	exp := SelectBestExplain([]*Candidate{c0, c1, c2})
 	require.NotNil(t, exp)
@@ -163,7 +164,7 @@ func TestBestStep_String(t *testing.T) {
 // PREVENTS: Nil return when exactly one candidate exists.
 func TestBestPath_SingleCandidate(t *testing.T) {
 	c := &Candidate{
-		PeerAddr:  "10.0.0.1",
+		PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"),
 		LocalPref: 100,
 	}
 	best := SelectBest([]*Candidate{c})
@@ -199,20 +200,20 @@ func TestBestPath_LocalPref(t *testing.T) {
 	}{
 		{
 			name:     "higher local-pref wins",
-			a:        &Candidate{PeerAddr: "10.0.0.1", LocalPref: 200},
-			b:        &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100},
+			a:        &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 200},
+			b:        &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100},
 			wantAddr: "10.0.0.1",
 		},
 		{
 			name:     "lower local-pref loses",
-			a:        &Candidate{PeerAddr: "10.0.0.1", LocalPref: 50},
-			b:        &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100},
+			a:        &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 50},
+			b:        &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100},
 			wantAddr: "10.0.0.2",
 		},
 		{
 			name:     "equal local-pref falls through",
-			a:        &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 1},
-			b:        &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, ASPathLen: 3},
+			a:        &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100, ASPathLen: 1},
+			b:        &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, ASPathLen: 3},
 			wantAddr: "10.0.0.1", // falls to AS_PATH step
 		},
 	}
@@ -238,14 +239,14 @@ func TestBestPath_ASPathLength(t *testing.T) {
 	}{
 		{
 			name:     "shorter as-path wins",
-			a:        &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 2},
-			b:        &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, ASPathLen: 5},
+			a:        &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100, ASPathLen: 2},
+			b:        &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, ASPathLen: 5},
 			wantAddr: "10.0.0.1",
 		},
 		{
 			name:     "empty as-path beats non-empty",
-			a:        &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 0},
-			b:        &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, ASPathLen: 1},
+			a:        &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100, ASPathLen: 0},
+			b:        &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, ASPathLen: 1},
 			wantAddr: "10.0.0.1",
 		},
 	}
@@ -272,20 +273,20 @@ func TestBestPath_Origin(t *testing.T) {
 	}{
 		{
 			name:     "igp beats egp",
-			a:        &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, Origin: OriginIGP},
-			b:        &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, Origin: OriginEGP},
+			a:        &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100, Origin: OriginIGP},
+			b:        &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, Origin: OriginEGP},
 			wantAddr: "10.0.0.1",
 		},
 		{
 			name:     "egp beats incomplete",
-			a:        &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, Origin: OriginEGP},
-			b:        &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, Origin: OriginIncomplete},
+			a:        &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100, Origin: OriginEGP},
+			b:        &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, Origin: OriginIncomplete},
 			wantAddr: "10.0.0.1",
 		},
 		{
 			name:     "igp beats incomplete",
-			a:        &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, Origin: OriginIGP},
-			b:        &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, Origin: OriginIncomplete},
+			a:        &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100, Origin: OriginIGP},
+			b:        &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, Origin: OriginIncomplete},
 			wantAddr: "10.0.0.1",
 		},
 	}
@@ -313,11 +314,11 @@ func TestBestPath_MED_SameNeighborAS(t *testing.T) {
 		{
 			name: "lower med wins same neighbor as",
 			a: &Candidate{
-				PeerAddr: "10.0.0.1", LocalPref: 100,
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100,
 				MED: 100, FirstAS: 65001,
 			},
 			b: &Candidate{
-				PeerAddr: "10.0.0.2", LocalPref: 100,
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100,
 				MED: 200, FirstAS: 65001,
 			},
 			wantAddr: "10.0.0.1",
@@ -325,11 +326,11 @@ func TestBestPath_MED_SameNeighborAS(t *testing.T) {
 		{
 			name: "med not compared different neighbor as",
 			a: &Candidate{
-				PeerAddr: "10.0.0.1", LocalPref: 100,
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100,
 				MED: 999, FirstAS: 65001,
 			},
 			b: &Candidate{
-				PeerAddr: "10.0.0.2", LocalPref: 100,
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100,
 				MED: 1, FirstAS: 65002,
 			},
 			// Different neighbor AS — MED not compared — fall to next step.
@@ -339,11 +340,11 @@ func TestBestPath_MED_SameNeighborAS(t *testing.T) {
 		{
 			name: "absent med treated as zero",
 			a: &Candidate{
-				PeerAddr: "10.0.0.1", LocalPref: 100,
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100,
 				FirstAS: 65001,
 			},
 			b: &Candidate{
-				PeerAddr: "10.0.0.2", LocalPref: 100,
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100,
 				MED: 100, FirstAS: 65001,
 			},
 			wantAddr: "10.0.0.1", // MED=0 (default) < MED=100
@@ -373,11 +374,11 @@ func TestBestPath_EBGPOverIBGP(t *testing.T) {
 		{
 			name: "ebgp beats ibgp",
 			a: &Candidate{
-				PeerAddr: "10.0.0.2", LocalPref: 100,
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100,
 				PeerASN: 65002, LocalASN: 65001, // eBGP
 			},
 			b: &Candidate{
-				PeerAddr: "10.0.0.1", LocalPref: 100,
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100,
 				PeerASN: 65001, LocalASN: 65001, // iBGP
 			},
 			wantAddr: "10.0.0.2", // eBGP wins despite higher peer address
@@ -385,11 +386,11 @@ func TestBestPath_EBGPOverIBGP(t *testing.T) {
 		{
 			name: "both ebgp falls through",
 			a: &Candidate{
-				PeerAddr: "10.0.0.2", LocalPref: 100,
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100,
 				PeerASN: 65002, LocalASN: 65001,
 			},
 			b: &Candidate{
-				PeerAddr: "10.0.0.1", LocalPref: 100,
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100,
 				PeerASN: 65003, LocalASN: 65001,
 			},
 			wantAddr: "10.0.0.1", // both eBGP — peer address tiebreak
@@ -397,11 +398,11 @@ func TestBestPath_EBGPOverIBGP(t *testing.T) {
 		{
 			name: "both ibgp falls through",
 			a: &Candidate{
-				PeerAddr: "10.0.0.2", LocalPref: 100,
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100,
 				PeerASN: 65001, LocalASN: 65001,
 			},
 			b: &Candidate{
-				PeerAddr: "10.0.0.1", LocalPref: 100,
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100,
 				PeerASN: 65001, LocalASN: 65001,
 			},
 			wantAddr: "10.0.0.1", // both iBGP — peer address tiebreak
@@ -409,11 +410,11 @@ func TestBestPath_EBGPOverIBGP(t *testing.T) {
 		{
 			name: "unknown local asn skips step",
 			a: &Candidate{
-				PeerAddr: "10.0.0.2", LocalPref: 100,
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100,
 				PeerASN: 65002, LocalASN: 0, // unknown
 			},
 			b: &Candidate{
-				PeerAddr: "10.0.0.1", LocalPref: 100,
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100,
 				PeerASN: 65001, LocalASN: 0, // unknown
 			},
 			wantAddr: "10.0.0.1", // can't determine — peer address tiebreak
@@ -443,23 +444,23 @@ func TestBestPath_OriginatorID(t *testing.T) {
 		{
 			name: "lower originator-id wins",
 			a: &Candidate{
-				PeerAddr: "10.0.0.2", LocalPref: 100,
-				OriginatorID: "1.1.1.1",
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100,
+				OriginatorIP: netip.MustParseAddr("1.1.1.1"),
 			},
 			b: &Candidate{
-				PeerAddr: "10.0.0.1", LocalPref: 100,
-				OriginatorID: "2.2.2.2",
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100,
+				OriginatorIP: netip.MustParseAddr("2.2.2.2"),
 			},
 			wantAddr: "10.0.0.2", // lower originator-id wins despite higher peer addr
 		},
 		{
 			name: "only one has originator-id skips step",
 			a: &Candidate{
-				PeerAddr: "10.0.0.2", LocalPref: 100,
-				OriginatorID: "1.1.1.1",
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100,
+				OriginatorIP: netip.MustParseAddr("1.1.1.1"),
 			},
 			b: &Candidate{
-				PeerAddr: "10.0.0.1", LocalPref: 100,
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100,
 			},
 			wantAddr: "10.0.0.1", // can't compare — peer address tiebreak
 		},
@@ -479,8 +480,8 @@ func TestBestPath_OriginatorID(t *testing.T) {
 // VALIDATES: AC-8 — peer address is final tiebreak, lowest wins.
 // PREVENTS: Higher peer address preferred.
 func TestBestPath_PeerAddress(t *testing.T) {
-	a := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100}
-	b := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100}
+	a := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100}
+	b := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100}
 	best := SelectBest([]*Candidate{a, b})
 	if best.PeerAddr != "10.0.0.1" {
 		t.Errorf("want 10.0.0.1, got %s", best.PeerAddr)
@@ -493,10 +494,10 @@ func TestBestPath_PeerAddress(t *testing.T) {
 // PREVENTS: Pairwise comparison only working for exactly 2.
 func TestBestPath_MultipleCandidate(t *testing.T) {
 	candidates := []*Candidate{
-		{PeerAddr: "10.0.0.4", LocalPref: 100, ASPathLen: 3},
-		{PeerAddr: "10.0.0.3", LocalPref: 200, ASPathLen: 5}, // highest local-pref
-		{PeerAddr: "10.0.0.2", LocalPref: 100, ASPathLen: 1},
-		{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 2},
+		{PeerAddr: "10.0.0.4", PeerIP: netip.MustParseAddr("10.0.0.4"), LocalPref: 100, ASPathLen: 3},
+		{PeerAddr: "10.0.0.3", PeerIP: netip.MustParseAddr("10.0.0.3"), LocalPref: 200, ASPathLen: 5}, // highest local-pref
+		{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, ASPathLen: 1},
+		{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100, ASPathLen: 2},
 	}
 	best := SelectBest(candidates)
 	if best.PeerAddr != "10.0.0.3" {
@@ -511,7 +512,7 @@ func TestBestPath_MultipleCandidate(t *testing.T) {
 // PREVENTS: Steps skipped or evaluated out of order.
 func TestBestPath_FullTiebreak(t *testing.T) {
 	a := &Candidate{
-		PeerAddr:  "10.0.0.2",
+		PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"),
 		PeerASN:   65002,
 		LocalASN:  65001,
 		LocalPref: 100,
@@ -521,7 +522,7 @@ func TestBestPath_FullTiebreak(t *testing.T) {
 		FirstAS:   65002,
 	}
 	b := &Candidate{
-		PeerAddr:  "10.0.0.1",
+		PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"),
 		PeerASN:   65003,
 		LocalASN:  65001,
 		LocalPref: 100,
@@ -656,8 +657,8 @@ func TestFirstASInPath(t *testing.T) {
 // VALIDATES: ComparePair returns -1 when a is better, 1 when b is better.
 // PREVENTS: Inverted comparison results.
 func TestComparePair(t *testing.T) {
-	a := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 200}
-	b := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100}
+	a := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 200}
+	b := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100}
 
 	if got := ComparePair(a, b); got != -1 {
 		t.Errorf("a has higher local-pref, want -1, got %d", got)
@@ -667,29 +668,30 @@ func TestComparePair(t *testing.T) {
 	}
 }
 
-// TestCompareAddrs verifies numeric IP comparison across digit-count boundaries.
+// TestAddrCompare verifies numeric IP comparison across digit-count boundaries
+// using netip.Addr.Compare directly (the mechanism comparePair now uses).
 // RFC 4271: BGP Identifier is a 32-bit unsigned integer, not a string.
 //
-// VALIDATES: IP addresses compared numerically, not lexicographically.
+// VALIDATES: IP addresses compared numerically via netip.Addr.Compare.
 // PREVENTS: "9.0.0.1" > "10.0.0.1" (string comparison gives wrong result).
-func TestCompareAddrs(t *testing.T) {
+func TestAddrCompare(t *testing.T) {
 	tests := []struct {
 		name string
-		a, b string
+		a, b netip.Addr
 		want int // -1=a<b, 0=equal, 1=a>b
 	}{
-		{name: "same", a: "10.0.0.1", b: "10.0.0.1", want: 0},
-		{name: "lower first octet", a: "1.0.0.1", b: "10.0.0.1", want: -1},
-		{name: "higher first octet", a: "10.0.0.1", b: "1.0.0.1", want: 1},
-		{name: "9 vs 10 numeric", a: "9.0.0.1", b: "10.0.0.1", want: -1},
-		{name: "last octet", a: "10.0.0.1", b: "10.0.0.2", want: -1},
-		{name: "unparseable fallback", a: "zzz", b: "aaa", want: 1},
+		{name: "same", a: netip.MustParseAddr("10.0.0.1"), b: netip.MustParseAddr("10.0.0.1"), want: 0},
+		{name: "lower first octet", a: netip.MustParseAddr("1.0.0.1"), b: netip.MustParseAddr("10.0.0.1"), want: -1},
+		{name: "higher first octet", a: netip.MustParseAddr("10.0.0.1"), b: netip.MustParseAddr("1.0.0.1"), want: 1},
+		{name: "9 vs 10 numeric", a: netip.MustParseAddr("9.0.0.1"), b: netip.MustParseAddr("10.0.0.1"), want: -1},
+		{name: "last octet", a: netip.MustParseAddr("10.0.0.1"), b: netip.MustParseAddr("10.0.0.2"), want: -1},
+		{name: "zero addrs equal", a: netip.Addr{}, b: netip.Addr{}, want: 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := compareAddrs(tt.a, tt.b)
+			got := tt.a.Compare(tt.b)
 			if got != tt.want {
-				t.Errorf("compareAddrs(%q, %q) = %d, want %d", tt.a, tt.b, got, tt.want)
+				t.Errorf("Compare(%s, %s) = %d, want %d", tt.a, tt.b, got, tt.want)
 			}
 		})
 	}
@@ -701,8 +703,8 @@ func TestCompareAddrs(t *testing.T) {
 // VALIDATES: Peer address tiebreak uses numeric IP comparison.
 // PREVENTS: Wrong best-path when peers have different digit-count IPs.
 func TestBestPath_PeerAddressNumeric(t *testing.T) {
-	a := &Candidate{PeerAddr: "9.0.0.1", LocalPref: 100}
-	b := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100}
+	a := &Candidate{PeerAddr: "9.0.0.1", PeerIP: netip.MustParseAddr("9.0.0.1"), LocalPref: 100}
+	b := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100}
 	best := SelectBest([]*Candidate{a, b})
 	if best.PeerAddr != "9.0.0.1" {
 		t.Errorf("want 9.0.0.1 (numerically lower), got %s", best.PeerAddr)
@@ -718,8 +720,8 @@ func TestBestPath_PeerAddressNumeric(t *testing.T) {
 func TestSelectBest_LLGRStaleDepreference(t *testing.T) {
 	t.Parallel()
 	// LLGR-stale route has higher LOCAL_PREF but should still lose
-	stale := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 300, StaleLevel: 2}
-	normal := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100}
+	stale := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 300, StaleLevel: 2}
+	normal := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100}
 
 	best := SelectBest([]*Candidate{stale, normal})
 	if best.PeerAddr != "10.0.0.2" {
@@ -739,8 +741,8 @@ func TestSelectBest_LLGRStaleDepreference(t *testing.T) {
 // PREVENTS: All LLGR-stale routes treated as equal.
 func TestSelectBest_BothLLGRStale(t *testing.T) {
 	t.Parallel()
-	a := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 200, StaleLevel: 2}
-	b := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, StaleLevel: 2}
+	a := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 200, StaleLevel: 2}
+	b := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, StaleLevel: 2}
 
 	best := SelectBest([]*Candidate{a, b})
 	if best.PeerAddr != "10.0.0.1" {
@@ -755,9 +757,9 @@ func TestSelectBest_BothLLGRStale(t *testing.T) {
 func TestSelectBest_OnlyLLGRStale(t *testing.T) {
 	t.Parallel()
 	candidates := []*Candidate{
-		{PeerAddr: "10.0.0.3", LocalPref: 100, ASPathLen: 3, StaleLevel: 2},
-		{PeerAddr: "10.0.0.2", LocalPref: 100, ASPathLen: 1, StaleLevel: 2}, // shortest path
-		{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 2, StaleLevel: 2},
+		{PeerAddr: "10.0.0.3", PeerIP: netip.MustParseAddr("10.0.0.3"), LocalPref: 100, ASPathLen: 3, StaleLevel: 2},
+		{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, ASPathLen: 1, StaleLevel: 2}, // shortest path
+		{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100, ASPathLen: 2, StaleLevel: 2},
 	}
 
 	best := SelectBest(candidates)
@@ -772,8 +774,8 @@ func TestSelectBest_OnlyLLGRStale(t *testing.T) {
 // PREVENTS: Inverted LLGR depreference.
 func TestComparePair_LLGRStale(t *testing.T) {
 	t.Parallel()
-	normal := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100}
-	stale := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, StaleLevel: 2}
+	normal := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100}
+	stale := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, StaleLevel: 2}
 
 	if got := ComparePair(normal, stale); got != -1 {
 		t.Errorf("normal vs LLGR-stale: want -1, got %d", got)
@@ -782,7 +784,7 @@ func TestComparePair_LLGRStale(t *testing.T) {
 		t.Errorf("LLGR-stale vs normal: want 1, got %d", got)
 	}
 	// Both LLGR-stale: falls through to normal comparison
-	stale2 := &Candidate{PeerAddr: "10.0.0.3", LocalPref: 100, StaleLevel: 2}
+	stale2 := &Candidate{PeerAddr: "10.0.0.3", PeerIP: netip.MustParseAddr("10.0.0.3"), LocalPref: 100, StaleLevel: 2}
 	if got := ComparePair(stale, stale2); got != -1 {
 		t.Errorf("both LLGR-stale, lower peer addr: want -1, got %d", got)
 	}
@@ -795,8 +797,8 @@ func TestComparePair_LLGRStale(t *testing.T) {
 func TestComparePair_GRStaleCompetesNormally(t *testing.T) {
 	t.Parallel()
 	// Level 1 (GR-stale) with higher LOCAL_PREF should beat level 0 (fresh)
-	grStale := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 200, StaleLevel: 1}
-	fresh := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, StaleLevel: 0}
+	grStale := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 200, StaleLevel: 1}
+	fresh := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, StaleLevel: 0}
 
 	best := SelectBest([]*Candidate{grStale, fresh})
 	if best.PeerAddr != "10.0.0.1" {
@@ -811,8 +813,8 @@ func TestComparePair_GRStaleCompetesNormally(t *testing.T) {
 func TestComparePair_GRStaleBeatsLLGRStale(t *testing.T) {
 	t.Parallel()
 	// Level 1 with worse attributes should still beat level 2
-	grStale := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 50, StaleLevel: 1}
-	llgrStale := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 200, StaleLevel: 2}
+	grStale := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 50, StaleLevel: 1}
+	llgrStale := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 200, StaleLevel: 2}
 
 	best := SelectBest([]*Candidate{grStale, llgrStale})
 	if best.PeerAddr != "10.0.0.1" {
@@ -826,8 +828,8 @@ func TestComparePair_GRStaleBeatsLLGRStale(t *testing.T) {
 // PREVENTS: All deprioritized routes treated as equal.
 func TestComparePair_BothDeprefDifferentLevels(t *testing.T) {
 	t.Parallel()
-	level2 := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, StaleLevel: 2}
-	level3 := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, StaleLevel: 3}
+	level2 := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100, StaleLevel: 2}
+	level3 := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100, StaleLevel: 3}
 
 	best := SelectBest([]*Candidate{level2, level3})
 	if best.PeerAddr != "10.0.0.1" {
@@ -844,12 +846,12 @@ func TestComparePair_BothDeprefDifferentLevels(t *testing.T) {
 // default (relaxASPath=false) content check passes.
 func twoEqualCostCandidates(handle attrpool.Handle) (*Candidate, *Candidate) {
 	a := &Candidate{
-		PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000,
+		PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), PeerASN: 65001, LocalASN: 65000,
 		LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, MED: 50,
 		ASPathHandle: handle,
 	}
 	b := &Candidate{
-		PeerAddr: "10.0.0.2", PeerASN: 65001, LocalASN: 65000,
+		PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), PeerASN: 65001, LocalASN: 65000,
 		LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, MED: 50,
 		ASPathHandle: handle,
 	}
@@ -913,10 +915,10 @@ func TestSelectMultipath_CappedAtMaxPaths(t *testing.T) {
 	t.Parallel()
 	h := attrpool.Handle(42)
 	cands := []*Candidate{
-		{PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, ASPathHandle: h},
-		{PeerAddr: "10.0.0.2", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, ASPathHandle: h},
-		{PeerAddr: "10.0.0.3", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, ASPathHandle: h},
-		{PeerAddr: "10.0.0.4", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, ASPathHandle: h},
+		{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, ASPathHandle: h},
+		{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, ASPathHandle: h},
+		{PeerAddr: "10.0.0.3", PeerIP: netip.MustParseAddr("10.0.0.3"), PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, ASPathHandle: h},
+		{PeerAddr: "10.0.0.4", PeerIP: netip.MustParseAddr("10.0.0.4"), PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, ASPathHandle: h},
 	}
 
 	primary, siblings := SelectMultipath(cands, 3, false)
@@ -934,12 +936,12 @@ func TestSelectMultipath_DifferentASPathContent(t *testing.T) {
 	t.Parallel()
 	// Same length, same FirstAS, different pool handles (= different bytes).
 	a := &Candidate{
-		PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000,
+		PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), PeerASN: 65001, LocalASN: 65000,
 		LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP,
 		ASPathHandle: attrpool.Handle(42),
 	}
 	b := &Candidate{
-		PeerAddr: "10.0.0.2", PeerASN: 65001, LocalASN: 65000,
+		PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), PeerASN: 65001, LocalASN: 65000,
 		LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP,
 		ASPathHandle: attrpool.Handle(99),
 	}
@@ -959,12 +961,12 @@ func TestSelectMultipath_DifferentASPathContent(t *testing.T) {
 func TestSelectMultipath_RelaxASPath(t *testing.T) {
 	t.Parallel()
 	a := &Candidate{
-		PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000,
+		PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), PeerASN: 65001, LocalASN: 65000,
 		LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP,
 		ASPathHandle: attrpool.Handle(42),
 	}
 	b := &Candidate{
-		PeerAddr: "10.0.0.2", PeerASN: 65002, LocalASN: 65000,
+		PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), PeerASN: 65002, LocalASN: 65000,
 		LocalPref: 100, ASPathLen: 3, FirstAS: 65002, Origin: OriginIGP,
 		ASPathHandle: attrpool.Handle(99),
 	}
@@ -982,8 +984,8 @@ func TestSelectMultipath_RelaxASPath(t *testing.T) {
 // PREVENTS: Low-LP routes being promoted to ECMP alongside high-LP winners.
 func TestSelectMultipath_LocalPrefMismatch(t *testing.T) {
 	t.Parallel()
-	a := &Candidate{PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000, LocalPref: 200, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP}
-	b := &Candidate{PeerAddr: "10.0.0.2", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP}
+	a := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), PeerASN: 65001, LocalASN: 65000, LocalPref: 200, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP}
+	b := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP}
 
 	primary, siblings := SelectMultipath([]*Candidate{a, b}, 4, true)
 	assert.Same(t, a, primary)
@@ -999,8 +1001,8 @@ func TestSelectMultipath_LocalPrefMismatch(t *testing.T) {
 // causes non-deterministic FIB behavior.
 func TestSelectMultipath_EBGPvsIBGP(t *testing.T) {
 	t.Parallel()
-	ebgp := &Candidate{PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP}
-	ibgp := &Candidate{PeerAddr: "10.0.0.2", PeerASN: 65000, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP}
+	ebgp := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP}
+	ibgp := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), PeerASN: 65000, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP}
 
 	primary, siblings := SelectMultipath([]*Candidate{ebgp, ibgp}, 4, true)
 	require.NotNil(t, primary)
@@ -1017,8 +1019,8 @@ func TestSelectMultipath_EBGPvsIBGP(t *testing.T) {
 func TestSelectMultipath_MEDMismatchSameNeighbor(t *testing.T) {
 	t.Parallel()
 	h := attrpool.Handle(42)
-	a := &Candidate{PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, MED: 100, ASPathHandle: h}
-	b := &Candidate{PeerAddr: "10.0.0.2", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, MED: 200, ASPathHandle: h}
+	a := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, MED: 100, ASPathHandle: h}
+	b := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, MED: 200, ASPathHandle: h}
 
 	primary, siblings := SelectMultipath([]*Candidate{a, b}, 4, false)
 	require.NotNil(t, primary)
@@ -1037,8 +1039,8 @@ func TestSelectMultipath_MEDMismatchSameNeighbor(t *testing.T) {
 func TestSelectMultipath_DifferentNeighborIgnoresMED(t *testing.T) {
 	t.Parallel()
 	h := attrpool.Handle(42)
-	a := &Candidate{PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, MED: 100, ASPathHandle: h}
-	b := &Candidate{PeerAddr: "10.0.0.2", PeerASN: 65002, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65002, Origin: OriginIGP, MED: 999, ASPathHandle: h}
+	a := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, MED: 100, ASPathHandle: h}
+	b := &Candidate{PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), PeerASN: 65002, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65002, Origin: OriginIGP, MED: 999, ASPathHandle: h}
 
 	primary, siblings := SelectMultipath([]*Candidate{a, b}, 4, false)
 	require.NotNil(t, primary)
@@ -1057,7 +1059,7 @@ func TestSelectMultipath_EmptyAndSingle(t *testing.T) {
 	assert.Nil(t, primary)
 	assert.Nil(t, siblings)
 
-	solo := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100}
+	solo := &Candidate{PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100}
 	primary, siblings = SelectMultipath([]*Candidate{solo}, 4, false)
 	assert.Same(t, solo, primary)
 	assert.Nil(t, siblings, "single candidate has no siblings")

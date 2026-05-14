@@ -1,6 +1,7 @@
 package lg
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -404,6 +405,34 @@ func TestLGBGPProtocolsExcludesBMP(t *testing.T) {
 		if name == "bmp" {
 			t.Error("BGP protocols should not include BMP entries")
 		}
+	}
+}
+
+func TestTransformCommunities(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		in   any
+		want any
+	}{
+		{"numeric pair", []any{"65000:100"}, []any{[]any{65000, 100}}},
+		{"well-known NO_EXPORT", []any{"NO_EXPORT"}, []any{[]any{65535, 65281}}},
+		{"well-known NO_ADVERTISE", []any{"NO_ADVERTISE"}, []any{[]any{65535, 65282}}},
+		{"well-known NOPEER", []any{"NOPEER"}, []any{[]any{65535, 65284}}},
+		{"well-known LLGR_STALE", []any{"LLGR_STALE"}, []any{[]any{65535, 6}}},
+		{"well-known NO_LLGR", []any{"NO_LLGR"}, []any{[]any{65535, 7}}},
+		{"mixed", []any{"65000:100", "NO_EXPORT"}, []any{[]any{65000, 100}, []any{65535, 65281}}},
+		{"nil input", nil, nil},
+		{"empty array", []any{}, []any(nil)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := transformCommunities(tt.in)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("transformCommunities(%v) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
 	}
 }
 

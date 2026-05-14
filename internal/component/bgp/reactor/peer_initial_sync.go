@@ -4,9 +4,7 @@
 package reactor
 
 import (
-	"encoding/hex"
 	"errors"
-	"fmt"
 	"net/netip"
 	"runtime"
 	"sort"
@@ -511,15 +509,22 @@ func isMVPNBuildError(err error) bool {
 // Routes with same cluster IDs in different order traversed different paths
 // and MUST NOT be grouped together. ClusterList is intentionally not sorted.
 func mvpnRouteGroupKey(r MVPNRoute) string {
-	return fmt.Sprintf("%s|%d|%d|%d|%s|%d|%v",
-		r.NextHop.String(),
-		r.Origin,
-		r.LocalPreference,
-		r.MED,
-		hex.EncodeToString(r.ExtCommunityBytes),
-		r.OriginatorID,
-		r.ClusterList,
-	)
+	var b keyBuilder
+	b.Grow(64)
+	b.Addr(r.NextHop)
+	b.Sep()
+	b.Uint(uint64(r.Origin))
+	b.Sep()
+	b.Uint(uint64(r.LocalPreference))
+	b.Sep()
+	b.Uint(uint64(r.MED))
+	b.Sep()
+	b.Hex(r.ExtCommunityBytes)
+	b.Sep()
+	b.Uint(uint64(r.OriginatorID))
+	b.Sep()
+	b.Uint32Slice(r.ClusterList)
+	return b.String()
 }
 
 // groupMVPNRoutesByKey groups MVPN routes by attribute key.

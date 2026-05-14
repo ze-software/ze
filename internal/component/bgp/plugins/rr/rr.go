@@ -25,6 +25,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
@@ -187,7 +189,7 @@ func (rr *RouteReflector) forwardUpdate(msgID uint64) {
 	if rr.stopping.Load() {
 		return
 	}
-	rr.updateRoute("*", fmt.Sprintf("cache %d forward *", msgID))
+	rr.updateRoute("*", cacheForwardAllCmd(msgID))
 }
 
 // updateRoute sends a route update command to matching peers via the engine.
@@ -276,7 +278,7 @@ func (rr *RouteReflector) handleStateDown(peerAddr string) {
 		for fam, prefixes := range byFamily {
 			for i := 0; i < len(prefixes); i += withdrawalBatchSize {
 				end := min(i+withdrawalBatchSize, len(prefixes))
-				rr.updateRoute("!"+peerAddr, fmt.Sprintf("update text nlri %s del %s", fam, strings.Join(prefixes[i:end], ",")))
+				rr.updateRoute("!"+peerAddr, nlriDelCmd(fam, strings.Join(prefixes[i:end], ",")))
 			}
 		}
 	}()
@@ -455,7 +457,7 @@ func (rr *RouteReflector) replayForPeer(peerAddr string, gen uint64) {
 	defer cancel()
 
 	// Full replay from adj-rib-in index 0.
-	cmd := fmt.Sprintf("adj-rib-in replay %s 0", peerAddr)
+	cmd := replayCmd(peerAddr, 0)
 	status, data, err := rr.dispatchCommand(ctx, cmd)
 	if err != nil || status != statusDone {
 		// Replay failure is non-fatal: the peer will still receive new routes
@@ -476,7 +478,7 @@ func (rr *RouteReflector) replayForPeer(peerAddr string, gen uint64) {
 		if i > 0 {
 			time.Sleep(replayConvergenceDelay)
 		}
-		deltaCmd := fmt.Sprintf("adj-rib-in replay %s %d", peerAddr, lastIndex)
+		deltaCmd := replayCmd(peerAddr, lastIndex)
 		_, deltaData, deltaErr := rr.dispatchCommand(ctx, deltaCmd)
 		if deltaErr != nil {
 			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)
@@ -519,7 +521,7 @@ func (rr *RouteReflector) sendEOR(peerAddr string, gen uint64) {
 
 	sort.Strings(families)
 	for _, fam := range families {
-		rr.updateRoute(peerAddr, fmt.Sprintf("update text nlri %s eor", fam))
+		rr.updateRoute(peerAddr, rrEORCmd(fam))
 	}
 	logger().Info("sent EOR", "peer", peerAddr, "families", families)
 }
@@ -534,4 +536,24 @@ func parseReplayResponse(data string) (lastIndex uint64, replayed int) {
 		return 0, 0
 	}
 	return resp.LastIndex, resp.Replayed
+}
+
+func cacheForwardAllCmd(msgID uint64) string {
+	var b textbuf.Buffer
+	return b.Str("cache ").Uint(msgID).Str(" forward *").String()
+}
+
+func replayCmd(peerAddr string, fromIndex uint64) string {
+	var b textbuf.Buffer
+	return b.Str("adj-rib-in replay ").Str(peerAddr).Byte(' ').Uint(fromIndex).String()
+}
+
+func nlriDelCmd(fam, prefixes string) string {
+	var b textbuf.Buffer
+	return b.Str("update text nlri ").Str(fam).Str(" del ").Str(prefixes).String()
+}
+
+func rrEORCmd(fam string) string {
+	var b textbuf.Buffer
+	return b.Str("update text nlri ").Str(fam).Str(" eor").String()
 }

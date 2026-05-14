@@ -6,12 +6,12 @@
 package reactor
 
 import (
-	"fmt"
 	"net/netip"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // NextHopMode values for PeerSettings.NextHopMode.
@@ -151,7 +151,8 @@ func (r *StaticRoute) RouteKey() string {
 	if r.RD != "" {
 		key = r.RD + ":" + key
 	}
-	return fmt.Sprintf("%s#%d", key, r.PathID)
+	var b textbuf.Buffer
+	return b.Str(key).Byte('#').Uint32(r.PathID).String()
 }
 
 // MVPNRoute represents an MVPN route (RFC 6514).

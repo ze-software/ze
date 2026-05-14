@@ -4,16 +4,16 @@
 package reactor
 
 import (
-	"encoding/hex"
-	"fmt"
 	"net/netip"
 	"slices"
 	"sort"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func toVPLSParams(r VPLSRoute) message.VPLSParams {
@@ -281,24 +281,44 @@ func routeGroupKey(r *StaticRoute) string {
 	if !r.Prefix.Addr().Is4() {
 		prefixKey = r.Prefix.String()
 	}
-	return fmt.Sprintf("%s|%d|%d|%d|%v|%v|%s|%s|%v|%s|%v|%v|%d|%v|%d|%v",
-		r.NextHop.String(),
-		r.Origin,
-		r.LocalPreference,
-		r.MED,
-		comms,
-		lcs,
-		hex.EncodeToString(r.ExtCommunityBytes),
-		r.RD,
-		r.Prefix.Addr().Is4(),
-		prefixKey,
-		r.ASPath,
-		r.AtomicAggregate,
-		r.AggregatorASN,
-		r.AggregatorIP,
-		r.OriginatorID,
-		r.ClusterList,
-	)
+	var b keyBuilder
+	b.Grow(128)
+	if r.NextHop.IsSelf() {
+		b.WriteString("self")
+	} else {
+		b.Addr(r.NextHop.Addr)
+	}
+	b.Sep()
+	b.Uint(uint64(r.Origin))
+	b.Sep()
+	b.Uint(uint64(r.LocalPreference))
+	b.Sep()
+	b.Uint(uint64(r.MED))
+	b.Sep()
+	b.Uint32Slice(comms)
+	b.Sep()
+	b.LargeComms(lcs)
+	b.Sep()
+	b.Hex(r.ExtCommunityBytes)
+	b.Sep()
+	b.WriteString(r.RD)
+	b.Sep()
+	b.Bool(r.Prefix.Addr().Is4())
+	b.Sep()
+	b.WriteString(prefixKey)
+	b.Sep()
+	b.Uint32Slice(r.ASPath)
+	b.Sep()
+	b.Bool(r.AtomicAggregate)
+	b.Sep()
+	b.Uint(uint64(r.AggregatorASN))
+	b.Sep()
+	b.Addr(netip.AddrFrom4(r.AggregatorIP))
+	b.Sep()
+	b.Uint(uint64(r.OriginatorID))
+	b.Sep()
+	b.Uint32Slice(r.ClusterList)
+	return b.String()
 }
 
 // groupRoutesByAttributes groups routes by their attribute key.
@@ -336,4 +356,50 @@ func groupRoutesByAttributes(routes []StaticRoute) [][]StaticRoute {
 	})
 
 	return result
+}
+
+type keyBuilder struct{ strings.Builder }
+
+func (b *keyBuilder) Sep()          { b.WriteByte('|') }
+func (b *keyBuilder) Uint(v uint64) { var buf [20]byte; b.Write(textbuf.AppendUint(buf[:0], v)) }
+func (b *keyBuilder) Addr(addr netip.Addr) {
+	var buf [39]byte
+	b.Write(textbuf.AppendAddr(buf[:0], addr))
+}
+func (b *keyBuilder) Hex(data []byte) { var buf [64]byte; b.Write(textbuf.AppendHex(buf[:0], data)) }
+
+func (b *keyBuilder) Bool(v bool) {
+	if v {
+		b.WriteString("true")
+	} else {
+		b.WriteString("false")
+	}
+}
+
+func (b *keyBuilder) Uint32Slice(s []uint32) {
+	b.WriteByte('[')
+	for i, v := range s {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+		b.Uint(uint64(v))
+	}
+	b.WriteByte(']')
+}
+
+func (b *keyBuilder) LargeComms(lcs [][3]uint32) {
+	b.WriteByte('[')
+	for i, lc := range lcs {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+		b.WriteByte('[')
+		b.Uint(uint64(lc[0]))
+		b.WriteByte(' ')
+		b.Uint(uint64(lc[1]))
+		b.WriteByte(' ')
+		b.Uint(uint64(lc[2]))
+		b.WriteByte(']')
+	}
+	b.WriteByte(']')
 }

@@ -7,11 +7,10 @@
 package rib
 
 import (
-	"encoding/hex"
-	"fmt"
-
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // enrichRouteMapFromEntry adds path attributes from a pool-based RouteEntry to a route map.
@@ -97,7 +96,7 @@ func enrichRouteMapFromRoute(routeMap map[string]any, rt *Route) {
 	if len(rt.ExtendedCommunities) > 0 {
 		strs := make([]string, len(rt.ExtendedCommunities))
 		for i, ec := range rt.ExtendedCommunities {
-			strs[i] = hex.EncodeToString(ec[:])
+			strs[i] = textbuf.Hex(ec[:])
 		}
 		routeMap["extended-community"] = strs
 	}
@@ -119,7 +118,8 @@ func formatOrigin(data []byte) string {
 	if name, ok := originNames[data[0]]; ok {
 		return name
 	}
-	return fmt.Sprintf("unknown(%d)", data[0])
+	var b textbuf.Buffer
+	return b.Str("unknown(").Uint8(data[0]).Byte(')').String()
 }
 
 // formatASPath converts raw AS_PATH pool bytes to a flat ASN slice.
@@ -158,17 +158,17 @@ func formatUint32Attr(data []byte) (uint32, bool) {
 	return v, true
 }
 
-// formatCommunities converts raw COMMUNITIES pool bytes to "high:low" strings.
-// RFC 1997: each community is 4 bytes — 2-byte high : 2-byte low.
+// formatCommunities converts raw COMMUNITIES pool bytes to display strings.
+// RFC 1997: each community is 4 bytes. Uses attribute.Community.String()
+// which resolves well-known names (no-export, no-advertise, etc.).
 func formatCommunities(data []byte) []string {
 	if len(data) == 0 || len(data)%4 != 0 {
 		return nil
 	}
 	result := make([]string, 0, len(data)/4)
 	for i := 0; i+4 <= len(data); i += 4 {
-		high := uint16(data[i])<<8 | uint16(data[i+1])
-		low := uint16(data[i+2])<<8 | uint16(data[i+3])
-		result = append(result, fmt.Sprintf("%d:%d", high, low))
+		c := attribute.CommunityFrom4([4]byte(data[i : i+4]))
+		result = append(result, c.String())
 	}
 	return result
 }

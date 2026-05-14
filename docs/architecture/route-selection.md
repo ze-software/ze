@@ -93,8 +93,8 @@ decides.
 
 Before comparison, each route's attributes are extracted from pool handles into a
 flat `Candidate` struct: LocalPref, ASPathLen, FirstAS, Origin, MED, PeerASN,
-LocalASN, OriginatorID, PeerAddr, StaleLevel. The comparison functions operate on
-these extracted values with no pool dependency.
+LocalASN, OriginatorIP, PeerIP, PeerAddr, StaleLevel. Router ID and peer address
+comparisons use typed `netip.Addr` fields for zero-allocation numeric ordering.
 
 ### Not Yet Implemented
 

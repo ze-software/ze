@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
@@ -914,8 +915,10 @@ func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte)
 // extractCandidate builds a Candidate from a RouteEntry by reading pool handles.
 // Extracts attribute values needed for RFC 4271 §9.1.2 comparison.
 func (r *RIBManager) extractCandidate(peerAddr string, entry storage.RouteEntry) *Candidate {
+	peerIP, _ := netip.ParseAddr(peerAddr)
 	c := &Candidate{
 		PeerAddr:  peerAddr,
+		PeerIP:    peerIP,
 		LocalPref: 100, // RFC 4271 default
 	}
 
@@ -968,12 +971,15 @@ func (r *RIBManager) extractCandidate(peerAddr string, entry storage.RouteEntry)
 	// otherwise fall back to the peer's BGP Identifier (Router ID).
 	if entry.HasOriginatorID() {
 		if data, err := pool.OriginatorID.Get(entry.OriginatorID); err == nil {
-			c.OriginatorID = formatNextHop(data) // same 4-byte IP format
+			if addr, ok := netip.AddrFromSlice(data); ok {
+				c.OriginatorIP = addr
+			}
 		}
 	}
-	if c.OriginatorID == "" {
+	if !c.OriginatorIP.IsValid() {
 		if meta := r.peerMeta[peerAddr]; meta != nil && meta.RouterID != 0 {
-			c.OriginatorID = formatRouterID(meta.RouterID)
+			id := meta.RouterID
+			c.OriginatorIP = netip.AddrFrom4([4]byte{byte(id >> 24), byte(id >> 16), byte(id >> 8), byte(id)})
 		}
 	}
 

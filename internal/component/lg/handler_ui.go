@@ -603,10 +603,7 @@ func (s *LGServer) extractBMPPeers(ze map[string]any) []map[string]any {
 		bgpID := getStr(peer, "peer-bgp-id")
 		isUp := getBool(peer, "up")
 
-		state := "down"
-		if isUp {
-			state = "up"
-		}
+		state := peerState(isUp)
 
 		entry := map[string]any{
 			"Router":     router,

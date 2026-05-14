@@ -74,6 +74,11 @@ var communityNames = map[Community]string{
 	CommunityNoPeer:            "NOPEER",
 }
 
+// CommunityFrom4 constructs a Community from 4 raw bytes (network byte order).
+func CommunityFrom4(b [4]byte) Community {
+	return Community(uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3]))
+}
+
 // RegisterCommunityName registers a display name for a well-known community value.
 // Called by plugins during init() to add their community names without modifying
 // the attribute package. Idempotent: re-registering the same value+name is a no-op.
@@ -99,7 +104,8 @@ func (c Community) String() string {
 	if name, ok := communityNames[c]; ok {
 		return name
 	}
-	return fmt.Sprintf("%d:%d", c>>16, c&0xFFFF)
+	var buf [11]byte
+	return string(appendCommunityText(buf[:0], uint32(c)))
 }
 
 // Communities represents the COMMUNITIES attribute.
@@ -261,7 +267,8 @@ type LargeCommunity struct {
 // separated from the next by a single colon. Numbers MUST NOT contain leading
 // zeros; a zero value MUST be represented with a single zero.
 func (l LargeCommunity) String() string {
-	return fmt.Sprintf("%d:%d:%d", l.GlobalAdmin, l.LocalData1, l.LocalData2)
+	var buf [32]byte
+	return string(l.AppendText(buf[:0]))
 }
 
 // LargeCommunities represents the LARGE_COMMUNITIES attribute.

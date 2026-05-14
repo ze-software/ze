@@ -8,9 +8,11 @@ package rib
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // parseFamily converts a family string like "ipv4/unicast" to family.Family.
@@ -141,16 +143,19 @@ func wireToPrefix(fam family.Family, wire []byte, addPath bool) (string, uint32,
 		return "", 0, fmt.Errorf("truncated NLRI prefix")
 	}
 
-	// Reconstruct IP
-	var ip net.IP
+	var addr netip.Addr
 	if fam.AFI == family.AFIIPv4 {
-		ip = make(net.IP, 4)
+		var b4 [4]byte
+		copy(b4[:], wire[offset+1:offset+1+prefixBytes])
+		addr = netip.AddrFrom4(b4)
 	} else {
-		ip = make(net.IP, 16)
+		var b16 [16]byte
+		copy(b16[:], wire[offset+1:offset+1+prefixBytes])
+		addr = netip.AddrFrom16(b16)
 	}
-	copy(ip, wire[offset+1:offset+1+prefixBytes])
 
-	return fmt.Sprintf("%s/%d", ip.String(), prefixLen), pathID, nil
+	var tb textbuf.Buffer
+	return tb.Addr(addr).Byte('/').Int(int64(prefixLen)).String(), pathID, nil
 }
 
 // formatNLRIAsPrefix converts wire NLRI bytes to human-readable prefix string.
@@ -163,10 +168,12 @@ func formatNLRIAsPrefix(fam family.Family, nlriBytes []byte, addPath ...bool) st
 	ap := len(addPath) > 0 && addPath[0]
 	prefix, pathID, err := wireToPrefix(fam, nlriBytes, ap)
 	if err != nil {
-		return fmt.Sprintf("hex:%x", nlriBytes)
+		var tb textbuf.Buffer
+		return tb.Str("hex:").Hex(nlriBytes).String()
 	}
 	if ap && pathID != 0 {
-		return fmt.Sprintf("%s [pathID=%d]", prefix, pathID)
+		var tb textbuf.Buffer
+		return tb.Str(prefix).Str(" [pathID=").Uint32(pathID).Byte(']').String()
 	}
 	return prefix
 }
@@ -185,7 +192,8 @@ func formatFamily(fam family.Family) string {
 	case family.AFIBGPLS:
 		afi = "bgp-ls"
 	default: // numeric fallback for unknown AFI
-		afi = fmt.Sprintf("afi-%d", fam.AFI)
+		var tb textbuf.Buffer
+		afi = tb.Str("afi-").Uint16(uint16(fam.AFI)).String()
 	}
 
 	switch fam.SAFI { //nolint:exhaustive // Common families only, default handles rest
@@ -204,7 +212,8 @@ func formatFamily(fam family.Family) string {
 	case family.SAFIBGPLinkState:
 		safi = "bgp-ls"
 	default: // numeric fallback for unknown SAFI
-		safi = fmt.Sprintf("safi-%d", fam.SAFI)
+		var tb textbuf.Buffer
+		safi = tb.Str("safi-").Uint16(uint16(fam.SAFI)).String()
 	}
 
 	return afi + "/" + safi
@@ -214,24 +223,12 @@ func formatFamily(fam family.Family) string {
 func formatNextHop(data []byte) string {
 	switch len(data) {
 	case 4:
-		// IPv4.
-		return fmt.Sprintf("%d.%d.%d.%d", data[0], data[1], data[2], data[3])
+		return textbuf.Addr(netip.AddrFrom4([4]byte{data[0], data[1], data[2], data[3]}))
 	case 16:
-		// IPv6.
-		return fmt.Sprintf("%x:%x:%x:%x:%x:%x:%x:%x",
-			uint16(data[0])<<8|uint16(data[1]),
-			uint16(data[2])<<8|uint16(data[3]),
-			uint16(data[4])<<8|uint16(data[5]),
-			uint16(data[6])<<8|uint16(data[7]),
-			uint16(data[8])<<8|uint16(data[9]),
-			uint16(data[10])<<8|uint16(data[11]),
-			uint16(data[12])<<8|uint16(data[13]),
-			uint16(data[14])<<8|uint16(data[15]))
-	default: // unknown length - return hex
-		return fmt.Sprintf("%x", data)
+		var b16 [16]byte
+		copy(b16[:], data)
+		return textbuf.Addr(netip.AddrFrom16(b16))
+	default:
+		return textbuf.Hex(data)
 	}
-}
-
-func formatRouterID(id uint32) string {
-	return fmt.Sprintf("%d.%d.%d.%d", id>>24, (id>>16)&0xff, (id>>8)&0xff, id&0xff)
 }

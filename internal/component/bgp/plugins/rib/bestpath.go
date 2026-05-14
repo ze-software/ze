@@ -10,9 +10,8 @@
 package rib
 
 import (
-	"bytes"
 	"fmt"
-	"net"
+	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
@@ -79,7 +78,8 @@ const (
 // Candidate holds extracted attribute values for best-path comparison.
 // Built from pool handles by the caller -- this struct has no pool dependency.
 type Candidate struct {
-	PeerAddr     string           // peer IP address (tiebreak step 8)
+	PeerAddr     string           // peer IP address string (map keys, JSON, internPeer)
+	PeerIP       netip.Addr       // parsed peer address (zero-alloc comparison)
 	PeerASN      uint32           // peer's AS number
 	LocalASN     uint32           // local AS number (0 = unknown)
 	LocalPref    uint32           // LOCAL_PREF value (default 100 if absent)
@@ -87,7 +87,7 @@ type Candidate struct {
 	FirstAS      uint32           // first AS in path (for MED neighbor comparison)
 	Origin       attribute.Origin // ORIGIN: 0=IGP, 1=EGP, 2=INCOMPLETE
 	MED          uint32           // MED value (default 0 if absent)
-	OriginatorID string           // ORIGINATOR_ID as IP string (RFC 4456, Router ID tiebreak)
+	OriginatorIP netip.Addr       // ORIGINATOR_ID or Router ID (RFC 4456, zero-alloc comparison)
 	StaleLevel   uint8            // Route staleness level (0=fresh; plugin-defined higher levels)
 	ASPathHandle attrpool.Handle  // AS_PATH pool handle (for content-equal multipath comparison)
 }
@@ -272,13 +272,98 @@ func SelectBestExplain(candidates []*Candidate) *BestPathExplanation {
 // Returns -1 if a is better, 1 if b is better, 0 if equal (should not happen
 // with peer address tiebreak, but returned for defensive correctness).
 func ComparePair(a, b *Candidate) int {
-	result, _, _ := comparePairWithReason(a, b)
+	result, _ := comparePair(a, b)
 	return result
+}
+
+// comparePair is the zero-allocation hot-path variant of the RFC 4271 §9.1.2
+// decision process. Returns the comparison result and the deciding step, but
+// no textual reason. Used by ComparePair (called per-route in SelectBest).
+// KEEP IN SYNC with comparePairWithReason below (same steps, adds reason strings).
+func comparePair(a, b *Candidate) (int, BestStep) {
+	// Step 0: Stale-level depreference.
+	aDepref := a.StaleLevel >= storage.DepreferenceThreshold
+	bDepref := b.StaleLevel >= storage.DepreferenceThreshold
+	if aDepref != bDepref {
+		if !aDepref {
+			return -1, BestStepStale
+		}
+		return 1, BestStepStale
+	}
+	if aDepref && a.StaleLevel != b.StaleLevel {
+		if a.StaleLevel < b.StaleLevel {
+			return -1, BestStepStale
+		}
+		return 1, BestStepStale
+	}
+
+	// Step 1: Highest LOCAL_PREF wins.
+	if a.LocalPref != b.LocalPref {
+		if a.LocalPref > b.LocalPref {
+			return -1, BestStepLocalPref
+		}
+		return 1, BestStepLocalPref
+	}
+
+	// Step 2: Shortest AS_PATH wins.
+	if a.ASPathLen != b.ASPathLen {
+		if a.ASPathLen < b.ASPathLen {
+			return -1, BestStepASPathLen
+		}
+		return 1, BestStepASPathLen
+	}
+
+	// Step 3: Lowest ORIGIN wins (IGP < EGP < INCOMPLETE).
+	if a.Origin != b.Origin {
+		if a.Origin < b.Origin {
+			return -1, BestStepOrigin
+		}
+		return 1, BestStepOrigin
+	}
+
+	// Step 4: Lowest MED wins — only when same neighbor AS.
+	if a.FirstAS != 0 && b.FirstAS != 0 && a.FirstAS == b.FirstAS {
+		if a.MED != b.MED {
+			if a.MED < b.MED {
+				return -1, BestStepMED
+			}
+			return 1, BestStepMED
+		}
+	}
+
+	// Step 5: Prefer eBGP over iBGP.
+	if a.LocalASN != 0 && b.LocalASN != 0 {
+		aEBGP := a.PeerASN != a.LocalASN
+		bEBGP := b.PeerASN != b.LocalASN
+		if aEBGP != bEBGP {
+			if aEBGP {
+				return -1, BestStepEBGPOverIBGP
+			}
+			return 1, BestStepEBGPOverIBGP
+		}
+	}
+
+	// Step 6: Lowest IGP cost to NEXT_HOP — deferred.
+
+	// Step 7: Lowest Router ID.
+	if a.OriginatorIP.IsValid() && b.OriginatorIP.IsValid() {
+		if cmp := a.OriginatorIP.Compare(b.OriginatorIP); cmp != 0 {
+			return cmp, BestStepRouterID
+		}
+	}
+
+	// Step 8: Lowest peer address (final tiebreak).
+	if a.PeerIP != b.PeerIP {
+		return a.PeerIP.Compare(b.PeerIP), BestStepPeerAddr
+	}
+
+	return 0, BestStepEqual
 }
 
 // comparePairWithReason runs the full RFC 4271 §9.1.2 decision process and
 // additionally reports the deciding step and a short textual reason. Used by
-// SelectBestExplain; ComparePair is a thin wrapper that discards the narrative.
+// SelectBestExplain; the hot-path comparePair skips the narrative.
+// KEEP IN SYNC with comparePair above (same steps, without reason strings).
 func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 	// Step 0: Stale-level depreference.
 	// Routes at or above DepreferenceThreshold lose to routes below it.
@@ -363,16 +448,16 @@ func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 
 	// Step 7: Lowest Router ID (use ORIGINATOR_ID when present, RFC 4456).
 	// RFC 4271: BGP Identifier is a 32-bit unsigned integer — compare as IP bytes, not strings.
-	if a.OriginatorID != "" && b.OriginatorID != "" {
-		if cmp := compareAddrs(a.OriginatorID, b.OriginatorID); cmp != 0 {
-			return cmp, BestStepRouterID, fmt.Sprintf("router-id %s vs %s", a.OriginatorID, b.OriginatorID)
+	if a.OriginatorIP.IsValid() && b.OriginatorIP.IsValid() {
+		if cmp := a.OriginatorIP.Compare(b.OriginatorIP); cmp != 0 {
+			return cmp, BestStepRouterID, fmt.Sprintf("router-id %s vs %s", a.OriginatorIP, b.OriginatorIP)
 		}
 	}
 
 	// Step 8: Lowest peer address (final tiebreak).
 	// RFC 4271 §9.1.2.2(g): "prefer the route received from the peer with the lowest BGP Identifier"
-	if a.PeerAddr != b.PeerAddr {
-		return compareAddrs(a.PeerAddr, b.PeerAddr), BestStepPeerAddr,
+	if a.PeerIP != b.PeerIP {
+		return a.PeerIP.Compare(b.PeerIP), BestStepPeerAddr,
 			fmt.Sprintf("peer-address %s vs %s", a.PeerAddr, b.PeerAddr)
 	}
 
@@ -389,25 +474,6 @@ func ebgpLabel(isEBGP bool) bgptypes.BGPProtocolType {
 		return bgptypes.BGPProtocolEBGP
 	}
 	return bgptypes.BGPProtocolIBGP
-}
-
-// compareAddrs compares two IP address strings numerically.
-// RFC 4271: BGP Identifier and peer address are 32-bit unsigned integers.
-// String comparison gives wrong results across digit-count boundaries
-// (e.g., "9.0.0.1" vs "10.0.0.1"). Falls back to string comparison if parsing fails.
-func compareAddrs(a, b string) int {
-	ipA := net.ParseIP(a)
-	ipB := net.ParseIP(b)
-	if ipA == nil || ipB == nil {
-		if a < b {
-			return -1
-		}
-		if a > b {
-			return 1
-		}
-		return 0
-	}
-	return bytes.Compare(ipA.To16(), ipB.To16())
 }
 
 // asPathLength counts the number of ASes in an AS_PATH attribute value.

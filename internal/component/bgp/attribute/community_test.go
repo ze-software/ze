@@ -91,6 +91,31 @@ func TestCommunityRegistryFallback(t *testing.T) {
 	assert.Equal(t, "65001:100", unknown.String())
 }
 
+func TestCommunityFrom4(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		raw  [4]byte
+		want Community
+	}{
+		{"NO_EXPORT", [4]byte{0xFF, 0xFF, 0xFF, 0x01}, CommunityNoExport},
+		{"NO_ADVERTISE", [4]byte{0xFF, 0xFF, 0xFF, 0x02}, CommunityNoAdvertise},
+		{"NO_EXPORT_SUBCONFED", [4]byte{0xFF, 0xFF, 0xFF, 0x03}, CommunityNoExportSubconfed},
+		{"NOPEER", [4]byte{0xFF, 0xFF, 0xFF, 0x04}, CommunityNoPeer},
+		{"65001:100", [4]byte{0xFD, 0xE9, 0x00, 0x64}, Community(0xFDE90064)},
+		{"zero", [4]byte{0, 0, 0, 0}, Community(0)},
+		{"max", [4]byte{0xFF, 0xFF, 0xFF, 0xFF}, Community(0xFFFFFFFF)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := CommunityFrom4(tt.raw)
+			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want.String(), got.String())
+		})
+	}
+}
+
 func TestCommunitiesContains(t *testing.T) {
 	t.Parallel()
 	comms := Communities{Community(0xFDE90064), CommunityNoExport}

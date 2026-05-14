@@ -10,7 +10,30 @@ import (
 //
 // VALIDATES: Raw pool bytes correctly mapped to RFC 4271 origin names.
 // PREVENTS: Wrong origin name for IGP/EGP/INCOMPLETE values.
+func TestFormatNextHop(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		data []byte
+		want string
+	}{
+		{"ipv4", []byte{10, 0, 0, 1}, "10.0.0.1"},
+		{"ipv6", []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01}, "2001:db8::1"},
+		{"ipv6_loopback", []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, "::1"},
+		{"odd_length", []byte{0xaa, 0xbb, 0xcc}, "aabbcc"},
+		{"nil", nil, ""},
+		{"empty", []byte{}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, formatNextHop(tt.data))
+		})
+	}
+}
+
 func TestFormatOrigin(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -25,6 +48,7 @@ func TestFormatOrigin(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, formatOrigin(tt.data))
 		})
 	}
@@ -35,6 +59,7 @@ func TestFormatOrigin(t *testing.T) {
 // VALIDATES: AS_SEQUENCE segments parsed into flat ASN list per RFC 4271.
 // PREVENTS: AS_PATH corruption from segment header misparse.
 func TestFormatASPath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -67,6 +92,7 @@ func TestFormatASPath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, formatASPath(tt.data))
 		})
 	}
@@ -77,6 +103,7 @@ func TestFormatASPath(t *testing.T) {
 // VALIDATES: MED and LOCAL_PREF raw bytes correctly converted to uint32.
 // PREVENTS: Byte order confusion in numeric attribute parsing.
 func TestFormatUint32Attr(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -92,6 +119,7 @@ func TestFormatUint32Attr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, ok := formatUint32Attr(tt.data)
 			assert.Equal(t, tt.ok, ok)
 			if ok {
@@ -101,11 +129,13 @@ func TestFormatUint32Attr(t *testing.T) {
 	}
 }
 
-// TestFormatCommunities verifies community 4-byte pairs to "high:low" strings.
+// TestFormatCommunities verifies community 4-byte pairs to display strings.
 //
 // VALIDATES: RFC 1997 community wire format correctly converted to display format.
+// Well-known communities (NO_EXPORT, NO_ADVERTISE, etc.) resolve to names.
 // PREVENTS: Byte offset errors in community pair parsing.
 func TestFormatCommunities(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -122,12 +152,28 @@ func TestFormatCommunities(t *testing.T) {
 			[]byte{0xFD, 0xE8, 0x00, 0x64, 0x00, 0x01, 0x00, 0x02},
 			[]string{"65000:100", "1:2"},
 		},
+		{
+			"no_export",
+			[]byte{0xFF, 0xFF, 0xFF, 0x01},
+			[]string{"NO_EXPORT"},
+		},
+		{
+			"no_advertise",
+			[]byte{0xFF, 0xFF, 0xFF, 0x02},
+			[]string{"NO_ADVERTISE"},
+		},
+		{
+			"mixed_wellknown_and_normal",
+			[]byte{0xFD, 0xE8, 0x00, 0x64, 0xFF, 0xFF, 0xFF, 0x01},
+			[]string{"65000:100", "NO_EXPORT"},
+		},
 		{"empty", []byte{}, nil},
 		{"nil", nil, nil},
 		{"odd_bytes", []byte{0x01, 0x02, 0x03}, nil}, // not multiple of 4
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, formatCommunities(tt.data))
 		})
 	}

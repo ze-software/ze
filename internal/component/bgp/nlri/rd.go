@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // RDType represents Route Distinguisher type.
@@ -113,24 +114,22 @@ func (rd RouteDistinguisher) CheckedWriteTo(buf []byte, off int) (int, error) {
 // The type prefix is required for unambiguous parsing since Type 0 and Type 2
 // would otherwise be indistinguishable for ASNs <= 65535.
 func (rd RouteDistinguisher) String() string {
+	var b textbuf.Buffer
 	switch rd.Type {
 	case RDType0:
-		// RFC 4364 Section 4.2 Type 0: 2-byte ASN : 4-byte assigned
 		asn := binary.BigEndian.Uint16(rd.Value[:2])
 		assigned := binary.BigEndian.Uint32(rd.Value[2:6])
-		return fmt.Sprintf("0:%d:%d", asn, assigned)
+		return b.Str("0:").Uint16(asn).Byte(':').Uint32(assigned).String()
 	case RDType1:
-		// RFC 4364 Section 4.2 Type 1: 4-byte IP : 2-byte assigned
 		ip := netip.AddrFrom4([4]byte(rd.Value[:4]))
 		assigned := binary.BigEndian.Uint16(rd.Value[4:6])
-		return fmt.Sprintf("1:%s:%d", ip, assigned)
+		return b.Str("1:").Addr(ip).Byte(':').Uint16(assigned).String()
 	case RDType2:
-		// RFC 4364 Section 4.2 Type 2: 4-byte ASN : 2-byte assigned
 		asn := binary.BigEndian.Uint32(rd.Value[:4])
 		assigned := binary.BigEndian.Uint16(rd.Value[4:6])
-		return fmt.Sprintf("2:%d:%d", asn, assigned)
+		return b.Str("2:").Uint32(asn).Byte(':').Uint16(assigned).String()
 	default:
-		return fmt.Sprintf("rd-type%d:%x", rd.Type, rd.Value)
+		return b.Str("rd-type").Uint16(uint16(rd.Type)).Byte(':').Hex(rd.Value[:]).String()
 	}
 }
 

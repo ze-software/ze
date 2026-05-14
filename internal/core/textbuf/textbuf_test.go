@@ -1,0 +1,145 @@
+package textbuf
+
+import (
+	"math"
+	"net/netip"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestUint(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "0", Uint(0))
+	assert.Equal(t, "1", Uint(1))
+	assert.Equal(t, "255", Uint(255))
+	assert.Equal(t, "18446744073709551615", Uint(math.MaxUint64))
+}
+
+func TestUint8(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "0", Uint8(0))
+	assert.Equal(t, "255", Uint8(math.MaxUint8))
+}
+
+func TestUint16(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "0", Uint16(0))
+	assert.Equal(t, "65535", Uint16(math.MaxUint16))
+}
+
+func TestUint32(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "0", Uint32(0))
+	assert.Equal(t, "4294967295", Uint32(math.MaxUint32))
+}
+
+func TestInt(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "0", Int(0))
+	assert.Equal(t, "-1", Int(-1))
+	assert.Equal(t, "9223372036854775807", Int(math.MaxInt64))
+	assert.Equal(t, "-9223372036854775808", Int(math.MinInt64))
+}
+
+func TestAddr(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "10.0.0.1", Addr(netip.MustParseAddr("10.0.0.1")))
+	assert.Equal(t, "2001:db8::1", Addr(netip.MustParseAddr("2001:db8::1")))
+	assert.Equal(t, "0.0.0.0", Addr(netip.AddrFrom4([4]byte{})))
+	assert.Equal(t, "::", Addr(netip.AddrFrom16([16]byte{})))
+}
+
+func TestHex(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "", Hex(nil))
+	assert.Equal(t, "", Hex([]byte{}))
+	assert.Equal(t, "deadbeef", Hex([]byte{0xde, 0xad, 0xbe, 0xef}))
+	assert.Equal(t, "00ff", Hex([]byte{0x00, 0xff}))
+}
+
+func TestHexLargeData(t *testing.T) {
+	t.Parallel()
+	data := make([]byte, 64)
+	for i := range data {
+		data[i] = byte(i)
+	}
+	got := Hex(data)
+	assert.Len(t, got, 128)
+	assert.True(t, strings.HasPrefix(got, "000102"))
+	assert.True(t, strings.HasSuffix(got, "3f"))
+}
+
+func TestBufferChain(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	got := b.Str("hello").Byte(' ').Uint32(42).Byte(':').Addr(netip.MustParseAddr("10.0.0.1")).String()
+	assert.Equal(t, "hello 42:10.0.0.1", got)
+}
+
+func TestBufferAllTypes(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	got := b.
+		Uint8(1).Byte('-').
+		Uint16(2).Byte('-').
+		Uint32(3).Byte('-').
+		Uint(4).Byte('-').
+		Int(-5).Byte('-').
+		Hex([]byte{0xab}).Byte('-').
+		Addr(netip.MustParseAddr("::1")).
+		String()
+	assert.Equal(t, "1-2-3-4--5-ab-::1", got)
+}
+
+func TestBufferGrowBeyond128(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	long := strings.Repeat("x", 200)
+	got := b.Str(long).String()
+	assert.Equal(t, long, got)
+	assert.Len(t, got, 200)
+}
+
+func TestBufferEmpty(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	assert.Equal(t, "", b.String())
+}
+
+func TestAppendUint(t *testing.T) {
+	t.Parallel()
+	dst := []byte("prefix:")
+	dst = AppendUint(dst, 42)
+	assert.Equal(t, "prefix:42", string(dst))
+}
+
+func TestAppendInt(t *testing.T) {
+	t.Parallel()
+	dst := []byte("val=")
+	dst = AppendInt(dst, -7)
+	assert.Equal(t, "val=-7", string(dst))
+}
+
+func TestAppendAddr(t *testing.T) {
+	t.Parallel()
+	dst := []byte("nh=")
+	dst = AppendAddr(dst, netip.MustParseAddr("192.168.1.1"))
+	assert.Equal(t, "nh=192.168.1.1", string(dst))
+}
+
+func TestAppendHex(t *testing.T) {
+	t.Parallel()
+	dst := []byte("0x")
+	dst = AppendHex(dst, []byte{0xca, 0xfe})
+	assert.Equal(t, "0xcafe", string(dst))
+}
+
+func TestAppendToEmptyDst(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "99", string(AppendUint(nil, 99)))
+	assert.Equal(t, "-1", string(AppendInt(nil, -1)))
+	assert.Equal(t, "10.0.0.1", string(AppendAddr(nil, netip.MustParseAddr("10.0.0.1"))))
+	assert.Equal(t, "ff", string(AppendHex(nil, []byte{0xff})))
+}

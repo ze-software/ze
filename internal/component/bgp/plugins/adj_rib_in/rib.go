@@ -13,7 +13,6 @@ package adj_rib_in
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/netip"
@@ -29,6 +28,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -569,8 +569,8 @@ func (r *AdjRIBInManager) buildReplayCommands(targetPeer string, fromIndex uint6
 
 // formatHexCommand builds the "update hex" command string from a RawRoute.
 func formatHexCommand(rt *RawRoute) string {
-	return fmt.Sprintf("update hex attr set %s nhop set %s nlri %s add %s",
-		rt.AttrHex, rt.NHopHex, rt.Family, rt.NLRIHex)
+	var b textbuf.Buffer
+	return b.Str("update hex attr set ").Str(rt.AttrHex).Str(" nhop set ").Str(rt.NHopHex).Str(" nlri ").Str(rt.Family.String()).Str(" add ").Str(rt.NLRIHex).String()
 }
 
 // nhopToHex converts a next-hop IP address string to wire hex.

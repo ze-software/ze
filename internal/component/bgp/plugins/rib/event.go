@@ -6,9 +6,8 @@
 package rib
 
 import (
-	"fmt"
-
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Type aliases — these are the same types, not wrappers.
@@ -41,5 +40,6 @@ func outRouteKey(prefix string, pathID uint32) string {
 	if pathID == 0 {
 		return prefix
 	}
-	return fmt.Sprintf("%s:%d", prefix, pathID)
+	var b textbuf.Buffer
+	return b.Str(prefix).Byte(':').Uint32(pathID).String()
 }

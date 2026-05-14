@@ -208,10 +208,7 @@ func transformBMPProtocols(ze map[string]any) map[string]any {
 		bgpID := getStr(peer, "peer-bgp-id")
 		isUp := getBool(peer, "up")
 
-		state := "down"
-		if isUp {
-			state = "up"
-		}
+		state := peerState(isUp)
 
 		name := router + ":" + bgpID
 		protocols[name] = map[string]any{
@@ -554,8 +551,8 @@ func transformRoutes(ze map[string]any, peerName string) map[string]any {
 	return result
 }
 
-// transformCommunities converts Ze community strings ("65000:100") to birdwatcher
-// integer-pair format ([[65000, 100], ...]).
+// transformCommunities converts Ze community strings ("65000:100" or well-known
+// names like "NO_EXPORT") to birdwatcher integer-pair format ([[65000, 100], ...]).
 func transformCommunities(v any) any {
 	arr, ok := v.([]any)
 	if !ok || arr == nil {
@@ -567,6 +564,11 @@ func transformCommunities(v any) any {
 		s, ok := c.(string)
 		if !ok {
 			result = append(result, c)
+			continue
+		}
+
+		if pair, ok := wellKnownCommunityPair(s); ok {
+			result = append(result, pair)
 			continue
 		}
 
@@ -587,6 +589,23 @@ func transformCommunities(v any) any {
 	}
 
 	return result
+}
+
+var wellKnownCommunities = map[string][2]int{
+	"NO_EXPORT":           {65535, 65281},
+	"NO_ADVERTISE":        {65535, 65282},
+	"NO_EXPORT_SUBCONFED": {65535, 65283},
+	"NOPEER":              {65535, 65284},
+	"LLGR_STALE":          {65535, 6},
+	"NO_LLGR":             {65535, 7},
+}
+
+func wellKnownCommunityPair(name string) ([]any, bool) {
+	pair, ok := wellKnownCommunities[name]
+	if !ok {
+		return nil, false
+	}
+	return []any{pair[0], pair[1]}, true
 }
 
 // transformLargeCommunities converts Ze large community strings ("65000:0:100") to
@@ -623,6 +642,13 @@ func transformLargeCommunities(v any) any {
 	}
 
 	return result
+}
+
+func peerState(up bool) string {
+	if up {
+		return "up"
+	}
+	return "down"
 }
 
 // getStr extracts a string value from a map, returning empty string if missing or nil.
