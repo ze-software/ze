@@ -93,6 +93,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Start a session | `rules/session-start.md` |
 | Design or implement anything | `ai/rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
 | Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/` |
+| Format strings or errors | `ai/rules/no-sprintf-alloc.md` -- no fmt.Sprintf on hot paths, use append-based alternatives |
 | Write a backend or config translator | `ai/rules/exact-or-reject.md` -- no silent approximation, lossy translation rejects at verify |
 | Touch wire encoding | `ai/rules/buffer-first.md` |
 | Touch registration | `ai/patterns/registration.md` |
