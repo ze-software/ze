@@ -135,6 +135,45 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 - Route-monitoring-policy controls which direction(s) are streamed
 - Sends Termination before graceful disconnect
 
+## Looking Glass Integration
+
+When the BMP receiver is enabled, monitored routes are stored in the RIB
+under a separate "bmp" protocol namespace. These routes are visible through
+dedicated looking glass endpoints and CLI commands but never enter best-path
+selection or the FIB.
+
+### CLI
+
+| Command | Description |
+|---------|-------------|
+| `ze bmp rib show` | Show all BMP-monitored routes |
+
+BMP routes are separate from BGP routes: `ze bgp rib show` excludes
+BMP-monitored routes, and `ze bmp rib show` excludes real BGP routes.
+
+### API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/looking-glass/protocols/bmp` | List BMP-monitored peers |
+| `GET /api/looking-glass/routes/bmp/{name}` | Routes from a specific BMP peer |
+
+The `{name}` parameter is the composite peer key in `<router>:<peer-address>`
+format (e.g., `10.0.0.1:12345:192.168.1.1`).
+
+Responses follow the birdwatcher format for compatibility with Alice-LG and
+other looking glass frontends.
+
+### Route Lifecycle
+
+- **Injection:** Route Monitoring messages inject BGP UPDATE routes under
+  `bmpProtocolID` with composite keys `<router>:<peer-address>`.
+- **Peer Down:** All routes for the monitored peer are withdrawn.
+- **Session disconnect:** All routes for all peers of that router are withdrawn.
+- **Best-path isolation:** BMP routes are stored under a separate ProtocolID.
+  The best-path algorithm only iterates BGP peers, so BMP routes are
+  automatically excluded with zero filter code.
+
 ## Limitations
 
 - **Sender OPEN messages are synthetic:** the plugin event system does not

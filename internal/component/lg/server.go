@@ -218,6 +218,10 @@ func (s *LGServer) registerRoutes() error {
 	s.mux.HandleFunc("GET /api/looking-glass/routes/prefix", s.handleAPIRoutesPrefix)
 	s.mux.HandleFunc("GET /api/looking-glass/routes/search", s.handleAPIRoutesSearch)
 
+	// BMP-specific API endpoints (separate from BGP looking glass).
+	s.mux.HandleFunc("GET /api/looking-glass/protocols/bmp", s.handleAPIBMPProtocols)
+	s.mux.HandleFunc("GET /api/looking-glass/routes/bmp/{name}", s.handleAPIBMPRoutes)
+
 	// UI handlers (HTMX web pages with tab layout).
 	s.mux.HandleFunc("GET /lg/peers", s.handleUIPeers)
 	s.mux.HandleFunc("GET /lg/search", s.handleUISearchForm)

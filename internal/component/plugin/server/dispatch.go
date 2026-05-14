@@ -742,6 +742,14 @@ func (s *Server) wireBridgeDispatch(proc *process.Process) {
 	proc.Bridge().SetReleaseCached(func(_ context.Context, ids []uint64) error {
 		return s.releaseCached(proc, ids)
 	})
+	// bmp-6: typed fast path for inject-wire-route (BMP -> RIB zero-copy).
+	proc.Bridge().SetInjectWireRoute(func(protocol, peerKey string, updateBody []byte) error {
+		fn := rpc.GetRouteInjector()
+		if fn == nil {
+			return errors.New("inject-wire-route: no route injector registered")
+		}
+		return fn(protocol, peerKey, updateBody)
+	})
 }
 
 // handleForwardCachedRPC handles ze-plugin-engine:forward-cached from a plugin

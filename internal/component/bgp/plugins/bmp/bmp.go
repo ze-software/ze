@@ -240,6 +240,7 @@ func RunBMPPlugin(conn net.Conn) int {
 			{Name: "bmp sessions", Description: "Show BMP receiver sessions"},
 			{Name: "bmp peers", Description: "Show monitored BGP peers"},
 			{Name: "bmp collectors", Description: "Show BMP sender collector status"},
+			{Name: "bmp rib show", Description: "Show BMP-monitored routes"},
 		},
 		WantsConfig: []string{"bgp", "environment"},
 	})
@@ -391,8 +392,20 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 
 	remote := conn.RemoteAddr().String()
 	logger().Info("bmp: session started", "remote", remote)
+	terminated := false
 	bp.state.addRouter(remote)
 	defer bp.state.removeRouter(remote)
+	defer func() {
+		if bp.plugin == nil || terminated {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_, _, err := bp.plugin.DispatchCommand(ctx, "bgp rib withdraw-router bmp "+remote)
+		if err != nil {
+			logger().Debug("bmp: withdraw-router failed on session end", "remote", remote, "error", err)
+		}
+	}()
 	defer logger().Info("bmp: session ended", "remote", remote)
 
 	headerBuf := make([]byte, CommonHeaderSize)
@@ -443,6 +456,9 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 			return
 		}
 
+		if _, ok := msg.(*Termination); ok {
+			terminated = true
+		}
 		bp.processMessage(remote, msg)
 	}
 }
@@ -459,6 +475,17 @@ func (bp *BMPPlugin) handleCommand(command string) (string, string, error) {
 		senders := bp.senders
 		bp.mu.RUnlock()
 		return bp.state.collectorsCommand(senders)
+	case "bmp rib show":
+		if bp.plugin == nil {
+			return statusError, "", fmt.Errorf("plugin not initialized")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		status, data, err := bp.plugin.DispatchCommand(ctx, "bgp rib show-protocol bmp")
+		if err != nil {
+			return statusError, "", err
+		}
+		return status, data, nil
 	}
 	return statusError, "", fmt.Errorf("unknown command: %s", command)
 }
@@ -502,6 +529,29 @@ func (bp *BMPPlugin) processInitiation(remote string, m *Initiation) {
 
 func (bp *BMPPlugin) processTermination(remote string, _ *Termination) {
 	logger().Info("bmp: termination received", "remote", remote)
+
+	if bp.plugin != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_, _, err := bp.plugin.DispatchCommand(ctx, "bgp rib withdraw-router bmp "+remote)
+		if err != nil {
+			logger().Debug("bmp: withdraw-router failed on termination", "remote", remote, "error", err)
+		}
+	}
+}
+
+// bmpCompositeKey builds the composite peer identity "<router>:<peer-address>"
+// used as the key in ribInPool[bmpProtocolID].
+func bmpCompositeKey(router string, ph PeerHeader) string {
+	return router + ":" + peerAddressString(ph)
+}
+
+// peerAddressString formats the PeerHeader address as a string.
+func peerAddressString(ph PeerHeader) string {
+	if ph.IsIPv6() {
+		return net.IP(ph.Address[:]).String()
+	}
+	return net.IP(ph.Address[12:16]).String()
 }
 
 func (bp *BMPPlugin) processPeerUp(remote string, m *PeerUp) {
@@ -522,14 +572,37 @@ func (bp *BMPPlugin) processPeerDown(remote string, m *PeerDown) {
 		"peer-as", m.Peer.PeerAS,
 		"reason", m.Reason,
 	)
+
+	if bp.plugin != nil {
+		peerKey := bmpCompositeKey(remote, m.Peer)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_, _, err := bp.plugin.DispatchCommand(ctx, "bgp rib withdraw-protocol bmp "+peerKey)
+		if err != nil {
+			logger().Debug("bmp: withdraw-protocol failed on peer down", "peer", peerKey, "error", err)
+		}
+	}
 }
 
 func (bp *BMPPlugin) processRouteMonitoring(remote string, m *RouteMonitoring) {
-	logger().Debug("bmp: route monitoring",
-		"remote", remote,
-		"peer-as", m.Peer.PeerAS,
-		"update-len", len(m.BGPUpdate),
-	)
+	if bp.plugin == nil {
+		return
+	}
+	if len(m.BGPUpdate) < bgpHeaderSize {
+		logger().Debug("bmp: route monitoring UPDATE too short", "remote", remote, "len", len(m.BGPUpdate))
+		return
+	}
+
+	updateBody := m.BGPUpdate[bgpHeaderSize:]
+	peerKey := bmpCompositeKey(remote, m.Peer)
+
+	if err := bp.plugin.InjectWireRoute("bmp", peerKey, updateBody); err != nil {
+		logger().Debug("bmp: inject-wire-route failed",
+			"remote", remote,
+			"peer", peerKey,
+			"error", err,
+		)
+	}
 }
 
 func (bp *BMPPlugin) processStatisticsReport(remote string, m *StatisticsReport) {

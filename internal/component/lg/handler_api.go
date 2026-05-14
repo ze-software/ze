@@ -148,6 +148,94 @@ func (s *LGServer) handleAPIRoutesTable(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, bw)
 }
 
+// handleAPIBMPProtocols returns BMP-monitored peers (GET /api/looking-glass/protocols/bmp).
+func (s *LGServer) handleAPIBMPProtocols(w http.ResponseWriter, _ *http.Request) {
+	result := s.query("bmp peers")
+
+	zeData := parseJSON(result)
+	if zeData == nil {
+		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
+		return
+	}
+
+	bw := transformBMPProtocols(zeData)
+	writeJSON(w, bw)
+}
+
+// handleAPIBMPRoutes returns routes from a BMP-monitored peer (GET /api/looking-glass/routes/bmp/{name}).
+func (s *LGServer) handleAPIBMPRoutes(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if name == "" {
+		writeJSONError(w, http.StatusBadRequest, "peer name required")
+		return
+	}
+
+	if !isValidPeerName(name) {
+		writeJSONError(w, http.StatusBadRequest, "invalid peer name")
+		return
+	}
+
+	result := s.query(fmt.Sprintf("bgp rib show-protocol bmp %s", name))
+
+	zeData := parseJSON(result)
+	if zeData == nil {
+		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
+		return
+	}
+
+	if errMsg, ok := zeData["error"].(string); ok {
+		writeJSONError(w, http.StatusNotFound, errMsg)
+		return
+	}
+
+	bw := transformRoutes(zeData, name)
+	writeJSON(w, bw)
+}
+
+// transformBMPProtocols converts BMP peer data to birdwatcher protocols format.
+func transformBMPProtocols(ze map[string]any) map[string]any {
+	peers, _ := ze["peers"].([]any)
+
+	protocols := make(map[string]any)
+	for _, p := range peers {
+		peer, ok := p.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		router := getStr(peer, "router")
+		peerAS := getNum(peer, "peer-as")
+		bgpID := getStr(peer, "peer-bgp-id")
+		isUp := getBool(peer, "up")
+
+		state := "down"
+		if isUp {
+			state = "up"
+		}
+
+		name := router + ":" + bgpID
+		protocols[name] = map[string]any{
+			"bird_protocol":   name,
+			"state":           state,
+			"neighbor_as":     peerAS,
+			"description":     "BMP monitored",
+			"table":           "bmp",
+			"routes_received": 0,
+			"routes_imported": 0,
+			"routes_exported": 0,
+			"routes_filtered": 0,
+			"routes": map[string]any{
+				"imported":  0,
+				"filtered":  0,
+				"exported":  0,
+				"preferred": 0,
+			},
+		}
+	}
+
+	return apiEnvelope("protocols", protocols)
+}
+
 // handleAPIRoutesFiltered returns filtered routes per peer.
 // Ze does not track import-filtered routes (BIRD's "import keep filtered on").
 // Returns an empty route list for API compatibility.

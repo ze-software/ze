@@ -58,7 +58,7 @@ Status values: `Supported` means implemented and covered in the normal release e
 | [Fleet Management](features/fleet-management.md) | Experimental | Centralized config distribution over TLS |
 | [Performance Benchmarking](features/benchmarking.md) | Supported | Cross-implementation latency benchmarking with ze-perf |
 | [Web Interface](features/web-interface.md) | Supported | HTTPS config editor with YANG-driven UI, CLI bar, and L2TP session management (CQM graph, event timeline, disconnect) |
-| [Looking Glass](features/looking-glass.md) | Supported | Public BGP looking glass with birdwatcher API and AS path graphs |
+| [Looking Glass](features/looking-glass.md) | Supported | Public BGP looking glass with birdwatcher API, AS path graphs, and BMP-monitored route display |
 | [AI-First Design](features/ai-first.md) | Supported | Self-describing CLI-as-API with MCP transport for AI assistants |
 | [Self-Documenting System](features/introspection.md) | Supported | Runtime introspection of plugins, env vars, RPCs, schemas, commands |
 | Host Inventory | Supported | Structured hardware inventory for ISP fleet monitoring: CPU (vendor, topology, hybrid P/E layout, scaling driver, frequencies, throttle counts), physical NICs (driver, PCI IDs, link speed, queue counts, firmware, rings), DMI board identity, memory with ECC counters, hwmon thermal sensors + per-CPU throttle, block devices with NVMe firmware, kernel release/cmdline/microcode/arch flags. Read-only sysfs/procfs, no daemon required. Online via `show host cpu`/`nic`/..., offline via `ze host show`; JSON by default for pipeline consumption. |

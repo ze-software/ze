@@ -43,21 +43,23 @@ type BridgeCallbackResult struct {
 }
 
 type DirectBridge struct {
-	deliverEvents     func(events []string) error
-	deliverStructured func(events []any) error
-	hasStructured     atomic.Bool // set atomically when deliverStructured is written
-	dispatchRPC       func(method string, params json.RawMessage) (json.RawMessage, error)
-	dispatchCommand   DispatchCommandHandler // Typed fast path (no JSON)
-	hasDispatchCmd    atomic.Bool            // set atomically when dispatchCommand is written
-	emitEvent         EmitEventHandler       // Typed fast path (no JSON)
-	hasEmitEvent      atomic.Bool            // set atomically when emitEvent is written
-	forwardCached     ForwardCachedHandler   // Typed fast path (no JSON) -- rs-fastpath-3
-	hasForwardCached  atomic.Bool            // set atomically when forwardCached is written
-	releaseCached     ReleaseCachedHandler   // Typed fast path (no JSON) -- rs-fastpath-3
-	hasReleaseCached  atomic.Bool            // set atomically when releaseCached is written
-	callbackCh        chan BridgeCallback    // Engine->plugin callbacks (replaces pipe after startup)
-	closeOnce         sync.Once              // Guards callbackCh close (Stop may be called multiple times)
-	ready             atomic.Bool
+	deliverEvents      func(events []string) error
+	deliverStructured  func(events []any) error
+	hasStructured      atomic.Bool // set atomically when deliverStructured is written
+	dispatchRPC        func(method string, params json.RawMessage) (json.RawMessage, error)
+	dispatchCommand    DispatchCommandHandler // Typed fast path (no JSON)
+	hasDispatchCmd     atomic.Bool            // set atomically when dispatchCommand is written
+	emitEvent          EmitEventHandler       // Typed fast path (no JSON)
+	hasEmitEvent       atomic.Bool            // set atomically when emitEvent is written
+	forwardCached      ForwardCachedHandler   // Typed fast path (no JSON) -- rs-fastpath-3
+	hasForwardCached   atomic.Bool            // set atomically when forwardCached is written
+	releaseCached      ReleaseCachedHandler   // Typed fast path (no JSON) -- rs-fastpath-3
+	hasReleaseCached   atomic.Bool            // set atomically when releaseCached is written
+	injectWireRoute    InjectWireRouteHandler // Typed fast path (no JSON) -- bmp-6
+	hasInjectWireRoute atomic.Bool            // set atomically when injectWireRoute is written
+	callbackCh         chan BridgeCallback    // Engine->plugin callbacks (replaces pipe after startup)
+	closeOnce          sync.Once              // Guards callbackCh close (Stop may be called multiple times)
+	ready              atomic.Bool
 }
 
 // NewDirectBridge creates a bridge. Both sides must register handlers and call
@@ -292,6 +294,55 @@ func (b *DirectBridge) ReleaseCached(ctx context.Context, ids []uint64) error {
 // HasReleaseCached reports whether the typed release-cached handler is set.
 func (b *DirectBridge) HasReleaseCached() bool {
 	return b.ready.Load() && b.hasReleaseCached.Load()
+}
+
+// InjectWireRouteHandler is the typed handler for inject-wire-route via DirectBridge.
+// Skips JSON entirely -- takes raw BGP UPDATE body bytes. bmp-6.
+// protocol identifies the source (e.g. "bmp"); peerKey identifies the peer
+// within that protocol's namespace; updateBody is the BGP UPDATE payload
+// (RFC 4271 Section 4.3, without the 19-byte BGP header).
+type InjectWireRouteHandler func(protocol, peerKey string, updateBody []byte) error
+
+// globalRouteInjector holds the process-wide InjectWireRouteHandler registered
+// by the RIB plugin. The engine-side bridge handler reads this to dispatch
+// inject-wire-route calls from any plugin to the RIB.
+var globalRouteInjector atomic.Value
+
+// RegisterRouteInjector stores the route injector handler (called by the RIB
+// plugin at startup). Thread-safe via atomic.Value.
+func RegisterRouteInjector(fn InjectWireRouteHandler) {
+	globalRouteInjector.Store(fn)
+}
+
+// GetRouteInjector returns the registered route injector, or nil.
+func GetRouteInjector() InjectWireRouteHandler {
+	v := globalRouteInjector.Load()
+	if v == nil {
+		return nil
+	}
+	fn, _ := v.(InjectWireRouteHandler)
+	return fn
+}
+
+// SetInjectWireRoute registers the engine-side typed inject-wire-route handler.
+// Called by the engine after startup alongside SetDispatchRPC.
+func (b *DirectBridge) SetInjectWireRoute(fn InjectWireRouteHandler) {
+	b.injectWireRoute = fn
+	b.hasInjectWireRoute.Store(fn != nil)
+}
+
+// InjectWireRoute calls the engine's typed inject-wire-route handler directly.
+// Returns error if the handler is not set.
+func (b *DirectBridge) InjectWireRoute(protocol, peerKey string, updateBody []byte) error {
+	if !b.hasInjectWireRoute.Load() {
+		return errors.New("inject-wire-route handler not set")
+	}
+	return b.injectWireRoute(protocol, peerKey, updateBody)
+}
+
+// HasInjectWireRoute reports whether the typed inject-wire-route handler is set.
+func (b *DirectBridge) HasInjectWireRoute() bool {
+	return b.ready.Load() && b.hasInjectWireRoute.Load()
 }
 
 // DispatchRPC calls the engine's RPC handler directly. Returns error if

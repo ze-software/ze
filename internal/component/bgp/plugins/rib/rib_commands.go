@@ -207,6 +207,8 @@ func doRegisterBuiltinCommands() {
 	// Generic community manipulation commands. Plugins compose these
 	// to implement protocol-specific behavior (e.g., GR/LLGR stale handling).
 	registerCommunityCommands()
+
+	registerInjectCommands()
 }
 
 // injectRoute inserts a route into adj-rib-in as if received from a peer.

@@ -439,6 +439,8 @@ func (r *RIBManager) updateMetrics() {
 // shares the same numeric identity when it publishes into Loc-RIB.
 var bgpProtocolID = redistevents.RegisterProtocol("bgp")
 
+var bmpProtocolID = redistevents.RegisterProtocol("bmp")
+
 // SetLocRIB wires the shared cross-protocol Loc-RIB into the RIBManager.
 // Every BGP best-path change will be mirrored into loc so non-BGP
 // consumers (sysrib, FIB, observability) can see one consistent view.
@@ -477,6 +479,7 @@ func NewRIBManager(plugin *sdk.Plugin) *RIBManager {
 		plugin: plugin,
 		ribInPool: map[redistevents.ProtocolID]map[string]*storage.PeerRIB{
 			bgpProtocolID: bgpInner,
+			bmpProtocolID: make(map[string]*storage.PeerRIB),
 		},
 		bgpPeers:         bgpInner,
 		ribOut:           make(map[string]map[family.Family]map[string]*Route),
@@ -510,6 +513,8 @@ func RunRIBPlugin(conn net.Conn) int {
 	// the cross-protocol store. locrib.Default() returns nil in forked
 	// plugin subprocesses; SetLocRIB is nil-safe (mirroring is disabled).
 	r.SetLocRIB(locrib.Default())
+
+	rpc.RegisterRouteInjector(r.handleInjectWireRoute)
 
 	// Structured event handler for DirectBridge delivery.
 	// Eliminates JSON round-trip: reads peer metadata from StructuredEvent fields,
@@ -624,6 +629,10 @@ func RunRIBPlugin(conn net.Conn) int {
 			// Route injection (manual RIB manipulation)
 			{Name: "bgp rib inject"},
 			{Name: "bgp rib withdraw"},
+			// Protocol-scoped route management (BMP integration)
+			{Name: "bgp rib show-protocol"},
+			{Name: "bgp rib withdraw-protocol"},
+			{Name: "bgp rib withdraw-router"},
 			// Meta-commands (introspection)
 			{Name: "bgp rib help"},
 			{Name: "bgp rib command list"},

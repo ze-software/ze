@@ -1,0 +1,238 @@
+// Design: docs/architecture/plugin/rib-storage-design.md — BMP wire route injection
+// Overview: rib.go — RIB plugin core types and event handlers
+// Related: rib_structured.go — handleReceivedStructured (BGP UPDATE parsing precedent)
+
+package rib
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri/nlrisplit"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+)
+
+// handleInjectWireRoute stores BGP UPDATE routes under a named protocol's
+// namespace in the two-level ribInPool. Used by BMP Route Monitoring to
+// inject monitored routes without entering best-path selection.
+//
+// updateBody is the BGP UPDATE payload (RFC 4271 Section 4.3, without
+// the 19-byte BGP header). Parsing uses the same WireUpdate path as
+// handleReceivedStructured. No encoding context is available (BMP does
+// not negotiate capabilities), so add-path is always false.
+func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody []byte) error {
+	if len(updateBody) < 4 {
+		logger().Warn("inject-wire-route: UPDATE body too short", "protocol", protocol, "peer", peerKey, "len", len(updateBody))
+		return nil
+	}
+
+	protoID, ok := redistevents.ProtocolIDOf(protocol)
+	if !ok {
+		logger().Warn("inject-wire-route: unknown protocol", "protocol", protocol)
+		return nil
+	}
+
+	wu := wireu.NewWireUpdate(updateBody, 0)
+
+	var attrBytes []byte
+	attrs, err := wu.Attrs()
+	if err == nil && attrs != nil {
+		attrBytes = attrs.Packed()
+	}
+
+	r.peerMu.Lock()
+	protoPeers := r.ribInPool[protoID]
+	if protoPeers == nil {
+		protoPeers = make(map[string]*storage.PeerRIB)
+		r.ribInPool[protoID] = protoPeers
+	}
+	peerRIB := protoPeers[peerKey]
+	if peerRIB == nil {
+		peerRIB = storage.NewPeerRIB(peerKey)
+		protoPeers[peerKey] = peerRIB
+	}
+	r.peerMu.Unlock()
+
+	ipv4Family := family.Family{AFI: 1, SAFI: 1}
+
+	nlriData, err := wu.NLRI()
+	if err == nil && len(nlriData) > 0 && nlrisplit.Supported(ipv4Family) {
+		prefixes, _ := nlrisplit.Split(ipv4Family, nlriData, false)
+		for _, wirePrefix := range prefixes {
+			peerRIB.Insert(ipv4Family, attrBytes, wirePrefix)
+		}
+	}
+
+	wdData, err := wu.Withdrawn()
+	if err == nil && len(wdData) > 0 && nlrisplit.Supported(ipv4Family) {
+		withdrawns, _ := nlrisplit.Split(ipv4Family, wdData, false)
+		for _, wd := range withdrawns {
+			peerRIB.Remove(ipv4Family, wd)
+		}
+	}
+
+	mpReach, err := wu.MPReach()
+	if err == nil && mpReach != nil {
+		fam := mpReach.Family()
+		if nlrisplit.Supported(fam) {
+			nlriBytes := mpReach.NLRIBytes()
+			if len(nlriBytes) > 0 {
+				prefixes, _ := nlrisplit.Split(fam, nlriBytes, false)
+				for _, wirePrefix := range prefixes {
+					peerRIB.Insert(fam, attrBytes, wirePrefix)
+				}
+			}
+		}
+	}
+
+	mpUnreach, err := wu.MPUnreach()
+	if err == nil && mpUnreach != nil {
+		fam := mpUnreach.Family()
+		if nlrisplit.Supported(fam) {
+			wdBytes := mpUnreach.WithdrawnBytes()
+			if len(wdBytes) > 0 {
+				withdrawns, _ := nlrisplit.Split(fam, wdBytes, false)
+				for _, wd := range withdrawns {
+					peerRIB.Remove(fam, wd)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// registerInjectCommands registers commands for protocol-scoped route management.
+// Called from doRegisterBuiltinCommands.
+func registerInjectCommands() {
+	cmds := []struct {
+		name    string
+		help    string
+		handler CommandHandler
+	}{
+		{"bgp rib show-protocol", "Show routes for a specific protocol: <protocol> [peer-selector] [pipeline-args...]",
+			func(r *RIBManager, _ string, args []string) (string, string, error) {
+				if len(args) < 1 {
+					return statusError, "", fmt.Errorf("show-protocol requires <protocol>")
+				}
+				selector := ""
+				pipelineArgs := args[1:]
+				if len(args) >= 2 && !filterKeywords[args[1]] && !terminalKeywords[args[1]] && scopeKeywords[args[1]] == "" {
+					selector = args[1]
+					pipelineArgs = args[2:]
+				}
+				return statusDone, r.showProtocolPipeline(args[0], selector, pipelineArgs), nil
+			}},
+		{"bgp rib withdraw-protocol", "Withdraw all routes for a peer under a protocol",
+			func(r *RIBManager, _ string, args []string) (string, string, error) {
+				if len(args) < 2 {
+					return statusError, "", fmt.Errorf("withdraw-protocol requires <protocol> <peer-key>")
+				}
+				r.withdrawAllForPeer(args[0], args[1])
+				return statusDone, `{"withdrawn":true}`, nil
+			}},
+		{"bgp rib withdraw-router", "Withdraw all routes for a router under a protocol",
+			func(r *RIBManager, _ string, args []string) (string, string, error) {
+				if len(args) < 2 {
+					return statusError, "", fmt.Errorf("withdraw-router requires <protocol> <router-prefix>")
+				}
+				r.withdrawAllForRouter(args[0], args[1])
+				return statusDone, `{"withdrawn":true}`, nil
+			}},
+	}
+	for _, c := range cmds {
+		if err := registerCommand(c.name, c.help, c.handler); err != nil {
+			logger().Warn("inject command registration failed", "command", c.name, "error", err)
+		}
+	}
+}
+
+// showProtocolPipeline runs the show pipeline filtered to a single protocol's peers.
+func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []string) string {
+	protoID, ok := redistevents.ProtocolIDOf(protocol)
+	if !ok {
+		return `{"error":"unknown protocol"}`
+	}
+
+	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
+
+	protoPeers := r.ribInPool[protoID]
+	if len(protoPeers) == 0 {
+		return `{"adj-rib-in":{}}`
+	}
+
+	_, stages, errMsg := parsePipelineArgs(args)
+	if errMsg != "" {
+		data, _ := json.Marshal(map[string]any{"error": errMsg})
+		return string(data)
+	}
+
+	source := PipelineIterator(newProtocolInboundSource(r, protoID, selector))
+
+	current := source
+	for _, stage := range stages {
+		current = stage.apply(current)
+	}
+
+	if !hasTerminal(stages) {
+		jt := newJSONTerminal(current)
+		return jt.Meta().JSON
+	}
+
+	meta := current.Meta()
+	if meta.JSON != "" {
+		return meta.JSON
+	}
+	return fmt.Sprintf(`{"count":%d}`, meta.Count)
+}
+
+// withdrawAllForPeer removes all routes for a peer under a given protocol.
+// Used by BMP Peer Down to clean up monitored routes.
+func (r *RIBManager) withdrawAllForPeer(protocol, peerKey string) {
+	protoID, ok := redistevents.ProtocolIDOf(protocol)
+	if !ok {
+		return
+	}
+
+	r.peerMu.Lock()
+	defer r.peerMu.Unlock()
+
+	protoPeers := r.ribInPool[protoID]
+	if protoPeers == nil {
+		return
+	}
+	if peerRIB := protoPeers[peerKey]; peerRIB != nil {
+		peerRIB.Release()
+		delete(protoPeers, peerKey)
+	}
+}
+
+// withdrawAllForRouter removes all routes for all peers of a given router
+// under a protocol. The router prefix is matched against composite keys
+// that start with "<router>:".
+func (r *RIBManager) withdrawAllForRouter(protocol, routerPrefix string) {
+	protoID, ok := redistevents.ProtocolIDOf(protocol)
+	if !ok {
+		return
+	}
+
+	r.peerMu.Lock()
+	defer r.peerMu.Unlock()
+
+	protoPeers := r.ribInPool[protoID]
+	if protoPeers == nil {
+		return
+	}
+
+	prefix := routerPrefix + ":"
+	for key, peerRIB := range protoPeers {
+		if len(key) > len(prefix) && key[:len(prefix)] == prefix {
+			peerRIB.Release()
+			delete(protoPeers, key)
+		}
+	}
+}

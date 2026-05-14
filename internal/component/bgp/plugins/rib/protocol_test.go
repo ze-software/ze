@@ -72,7 +72,10 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	assert.Contains(t, commandNames, "bgp rib help")
 	assert.Contains(t, commandNames, "bgp rib command list")
 	assert.Contains(t, commandNames, "bgp rib event list")
-	assert.Len(t, regInput.Commands, 16, "bgp rib registers exactly 16 commands")
+	assert.Contains(t, commandNames, "bgp rib show-protocol")
+	assert.Contains(t, commandNames, "bgp rib withdraw-protocol")
+	assert.Contains(t, commandNames, "bgp rib withdraw-router")
+	assert.Len(t, regInput.Commands, 19, "bgp rib registers exactly 19 commands")
 
 	require.NoError(t, mux.SendOK(ctx, stage1.ID))
 

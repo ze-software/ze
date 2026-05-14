@@ -72,6 +72,16 @@ func (p *Plugin) ReleaseCached(ctx context.Context, updateIDs []uint64) error {
 	return err
 }
 
+// InjectWireRoute sends raw BGP UPDATE body bytes to the RIB under a named
+// protocol. Zero-copy via DirectBridge typed handler (no hex encoding).
+// Used by the BMP plugin to inject Route Monitoring routes.
+func (p *Plugin) InjectWireRoute(protocol, peerKey string, updateBody []byte) error {
+	if p.bridge != nil && p.bridge.HasInjectWireRoute() {
+		return p.bridge.InjectWireRoute(protocol, peerKey, updateBody)
+	}
+	return fmt.Errorf("inject-wire-route: bridge not available")
+}
+
 // DispatchCommand dispatches a command through the engine's command dispatcher.
 // Returns the status and data from the target handler's response. This enables
 // inter-plugin communication: the engine routes the command to the target plugin

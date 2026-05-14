@@ -316,6 +316,97 @@ func TestGetStr(t *testing.T) {
 	}
 }
 
+func TestTransformBMPProtocolsFields(t *testing.T) {
+	ze := map[string]any{
+		"peers": []any{
+			map[string]any{
+				"router":      "10.0.0.1:12345",
+				"peer-as":     float64(64501),
+				"peer-bgp-id": "192.168.1.1",
+				"up":          true,
+			},
+			map[string]any{
+				"router":      "10.0.0.1:12345",
+				"peer-as":     float64(64502),
+				"peer-bgp-id": "192.168.2.1",
+				"up":          false,
+			},
+		},
+	}
+
+	bw := transformBMPProtocols(ze)
+
+	protocols, ok := bw["protocols"].(map[string]any)
+	if !ok {
+		t.Fatal("missing protocols map")
+	}
+
+	if len(protocols) != 2 {
+		t.Fatalf("expected 2 protocols, got %d", len(protocols))
+	}
+
+	p1, ok := protocols["10.0.0.1:12345:192.168.1.1"].(map[string]any)
+	if !ok {
+		t.Fatal("missing protocol for first peer")
+	}
+	if p1["state"] != "up" {
+		t.Errorf("state = %v, want up", p1["state"])
+	}
+	if p1["neighbor_as"] != float64(64501) {
+		t.Errorf("neighbor_as = %v, want 64501", p1["neighbor_as"])
+	}
+	if p1["table"] != "bmp" {
+		t.Errorf("table = %v, want bmp", p1["table"])
+	}
+
+	p2, ok := protocols["10.0.0.1:12345:192.168.2.1"].(map[string]any)
+	if !ok {
+		t.Fatal("missing protocol for second peer")
+	}
+	if p2["state"] != "down" {
+		t.Errorf("state = %v, want down", p2["state"])
+	}
+}
+
+func TestTransformBMPProtocolsEmpty(t *testing.T) {
+	ze := map[string]any{}
+
+	bw := transformBMPProtocols(ze)
+
+	protocols, ok := bw["protocols"].(map[string]any)
+	if !ok {
+		t.Fatal("missing protocols map")
+	}
+	if len(protocols) != 0 {
+		t.Errorf("expected 0 protocols, got %d", len(protocols))
+	}
+}
+
+func TestLGBGPProtocolsExcludesBMP(t *testing.T) {
+	ze := map[string]any{
+		"peers": []any{
+			map[string]any{
+				"name":         "peer1",
+				"peer-address": "10.0.0.1",
+				"state":        "established",
+				"remote-as":    float64(64501),
+			},
+		},
+	}
+
+	bw := transformProtocols(ze)
+
+	protocols, ok := bw["protocols"].(map[string]any)
+	if !ok {
+		t.Fatal("missing protocols map")
+	}
+	for name := range protocols {
+		if name == "bmp" {
+			t.Error("BGP protocols should not include BMP entries")
+		}
+	}
+}
+
 func TestGetNum(t *testing.T) {
 	// VALIDATES: numeric extraction from map with type handling.
 	// PREVENTS: panic or wrong value for different numeric types.

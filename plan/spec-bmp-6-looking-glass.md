@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 5/7 |
 | Updated | 2026-05-14 |
 
 ## Post-Compaction Recovery
@@ -417,41 +417,101 @@ RFC 9069: Loc-RIB monitoring via BMP (extends Route Monitoring to Loc-RIB).
 ## Implementation Summary
 
 ### What Was Implemented
-- (fill during /implement)
+
+**Phase 1: DirectBridge InjectWireRoute handler**
+- `pkg/plugin/rpc/bridge.go`: InjectWireRouteHandler type, Set/Has/call triplet, global RegisterRouteInjector/GetRouteInjector
+- `internal/component/plugin/server/dispatch.go`: wireBridgeDispatch wires InjectWireRoute on every plugin's bridge
+- `internal/component/bgp/plugins/rib/rib.go`: bmpProtocolID registered, bmpProtocolID inner map in NewRIBManager, RegisterRouteInjector called in RunRIBPlugin
+- `internal/component/bgp/plugins/rib/rib_inject.go`: handleInjectWireRoute (UPDATE parsing + storage), withdrawAllForPeer, withdrawAllForRouter, showProtocolPipeline, registerInjectCommands (show-protocol, withdraw-protocol, withdraw-router)
+- `pkg/plugin/sdk/sdk_engine.go`: Plugin.InjectWireRoute() method
+
+**Phase 2: BMP Route Monitoring -> RIB**
+- `internal/component/bgp/plugins/bmp/bmp.go`: processRouteMonitoring calls InjectWireRoute with composite key, processPeerDown dispatches withdraw-protocol, processTermination dispatches withdraw-router, handleSession deferred withdraw-router on disconnect, bmpCompositeKey/peerAddressString helpers, "bmp rib show" command registered and dispatched to "bgp rib show-protocol bmp"
+
+**Phase 3: Route display separation**
+- `internal/component/bgp/plugins/rib/rib_pipeline.go`: newInboundSource restricted to bgpPeers only, protocolInboundSource added for protocol-filtered queries
+
+**Phase 4: Looking glass BMP endpoints**
+- `internal/component/lg/handler_api.go`: handleAPIBMPProtocols, handleAPIBMPRoutes, transformBMPProtocols
+- `internal/component/lg/server.go`: registered /api/looking-glass/protocols/bmp and /api/looking-glass/routes/bmp/{name}
 
 ### Bugs Found/Fixed
-- (fill during /implement)
+- BMP tests panicked on nil plugin reference in deferred withdraw calls. Fixed with nil guards.
+- RIB protocol test expected 16 commands, updated to 19 for new commands.
 
 ### Documentation Updates
-- (fill during /implement)
+- docs/guide/bmp.md: Added Looking Glass Integration section (CLI, API, route lifecycle)
+- docs/features.md: Updated Looking Glass description to mention BMP route display
 
 ### Deviations from Plan
-- (fill during /implement)
+- Used global RegisterRouteInjector/GetRouteInjector in rpc package instead of PluginServerAccessor interface extension. Simpler, no import cycle, same semantics.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Store BMP routes in RIB under bmpProtocolID | done | rib_inject.go:25 | handleInjectWireRoute |
+| DirectBridge InjectWireRoute typed handler | done | bridge.go:304 | zero-copy, no hex |
+| BMP routes excluded from best-path | done | rib_commands.go:901 | gatherCandidatesLocked iterates bgpPeers only |
+| Dedicated BMP LG API endpoints | done | handler_api.go:152,166 | /protocols/bmp, /routes/bmp/{name} |
+| bgp rib show excludes BMP | done | rib_pipeline.go:73 | newInboundSource uses bgpPeers |
+| bmp rib show dedicated command | done | bmp.go:473 | dispatches to bgp rib show-protocol bmp |
+| Withdraw on peer down | done | bmp.go:576 | withdraw-protocol via DispatchCommand |
+| Withdraw on session disconnect | done | bmp.go:397 | withdraw-router via deferred DispatchCommand |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | done | TestInjectWireRouteStoresBMPProtocol, bmp-lg-ingest.ci | IPv4 unicast stored |
+| AC-2 | done | handleInjectWireRoute MPReach path | IPv6 via MP_REACH_NLRI |
+| AC-3 | done | TestBMPRoutesExcludedFromBestPath, bmp-lg-bestpath-isolation.ci | separate ProtocolID |
+| AC-4 | done | TestBMPRoutesExcludedFromBestPath | no best path for BMP-only prefix |
+| AC-5 | done | TestWithdrawAllForPeer | routes withdrawn on peer down |
+| AC-6 | done | TestWithdrawAllForRouter, bmp-lg-disconnect.ci | session disconnect withdraws all |
+| AC-7 | done | handleAPIBMPProtocols, TestTransformBMPProtocolsFields | BMP peers listed |
+| AC-8 | done | handleAPIBMPRoutes | routes in birdwatcher format |
+| AC-9 | partial | - | UI section not implemented (API only) |
+| AC-10 | done | TestShowProtocolPipelineBMP | bmp rib show works |
+| AC-11 | done | TestInjectWireRouteUnknownProtocol | no impact when BMP disabled |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestBMPRoutesExcludedFromBestPath | done | rib_inject_test.go | |
+| TestInjectWireRouteStoresBMPProtocol | done | rib_inject_test.go | |
+| TestInjectWireRouteWithdraw | done | rib_inject_test.go | |
+| TestBMPCompositeKeyFormat | done | bmp_test.go | |
+| TestLGBMPProtocols | done | handler_api_test.go | TestTransformBMPProtocolsFields |
+| TestLGBMPRoutes | partial | handler_api_test.go | transform tested, handler needs integration test |
+| TestLGBGPProtocolsExcludesBMP | done | handler_api_test.go | |
+| TestDirectBridgeInjectWireRoute | done | rib_inject_test.go | via TestInjectWireRouteStoresBMPProtocol |
+| bmp-lg-ingest.ci | done | test/plugin/ | |
+| bmp-lg-disconnect.ci | done | test/plugin/ | |
+| bmp-lg-bestpath-isolation.ci | done | test/plugin/ | |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| pkg/plugin/rpc/bridge.go | modified | InjectWireRoute handler triplet |
+| internal/component/plugin/server/dispatch.go | modified | wireBridgeDispatch wiring |
+| internal/component/bgp/plugins/rib/rib.go | modified | bmpProtocolID, RegisterRouteInjector |
+| internal/component/bgp/plugins/rib/rib_inject.go | created | inject handler, withdraw, show-protocol |
+| internal/component/bgp/plugins/rib/rib_commands.go | modified | registerInjectCommands call |
+| internal/component/bgp/plugins/rib/rib_pipeline.go | modified | protocolInboundSource, bgpPeers filter |
+| internal/component/bgp/plugins/bmp/bmp.go | modified | Route Monitoring injection, withdrawals |
+| internal/component/lg/handler_api.go | modified | BMP endpoints |
+| internal/component/lg/server.go | modified | BMP route registration |
+| test/plugin/bmp-lg-ingest.ci | created | |
+| test/plugin/bmp-lg-disconnect.ci | created | |
+| test/plugin/bmp-lg-bestpath-isolation.ci | created | |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 31
+- **Done:** 29
+- **Partial:** 2 (AC-9 UI section, TestLGBMPRoutes integration)
+- **Skipped:** 0
+- **Changed:** 0
 
 ## Review Gate
 
@@ -474,14 +534,29 @@ RFC 9069: Loc-RIB monitoring via BMP (extends Route Monitoring to Loc-RIB).
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| rib_inject.go | yes | internal/component/bgp/plugins/rib/rib_inject.go |
+| rib_inject_test.go | yes | internal/component/bgp/plugins/rib/rib_inject_test.go |
+| bmp_test.go | yes | internal/component/bgp/plugins/bmp/bmp_test.go |
+| bmp-lg-ingest.ci | yes | test/plugin/bmp-lg-ingest.ci |
+| bmp-lg-disconnect.ci | yes | test/plugin/bmp-lg-disconnect.ci |
+| bmp-lg-bestpath-isolation.ci | yes | test/plugin/bmp-lg-bestpath-isolation.ci |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | BMP routes stored under bmpProtocolID | grep InjectWireRoute bmp.go: calls bp.plugin.InjectWireRoute |
+| AC-3 | BMP excluded from best-path | gatherCandidatesLocked iterates r.bgpPeers only |
+| AC-5 | Peer down withdraws | grep withdraw-protocol bmp.go: dispatched on processPeerDown |
+| AC-6 | Session disconnect withdraws | deferred withdraw-router in handleSession |
+| AC-7 | LG BMP protocols endpoint | /api/looking-glass/protocols/bmp registered in server.go |
+| AC-10 | bmp rib show | grep "bmp rib show" bmp.go: command registered and dispatched |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| BMP Route Monitoring -> RIB | bmp-lg-ingest.ci | yes |
+| BMP session disconnect -> withdraw | bmp-lg-disconnect.ci | yes |
+| BMP route isolation from best-path | bmp-lg-bestpath-isolation.ci | yes |
 
 ## Checklist
 

@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -71,11 +72,9 @@ type inboundSource struct {
 
 func newInboundSource(r *RIBManager, selector string) *inboundSource {
 	var peers []string
-	for _, protoPeers := range r.ribInPool {
-		for peer := range protoPeers {
-			if matchesPeer(peer, selector) {
-				peers = append(peers, peer)
-			}
+	for peer := range r.bgpPeers {
+		if matchesPeer(peer, selector) {
+			peers = append(peers, peer)
 		}
 	}
 	return &inboundSource{r: r, selector: selector, peers: peers}
@@ -101,13 +100,7 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 		s.items = s.items[:0]
 		s.itemIdx = 0
 
-		var peerRIB *storage.PeerRIB
-		for _, protoPeers := range s.r.ribInPool {
-			if p := protoPeers[peer]; p != nil {
-				peerRIB = p
-				break
-			}
-		}
+		peerRIB := s.r.bgpPeers[peer]
 		if peerRIB == nil {
 			continue
 		}
@@ -128,6 +121,73 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 }
 
 func (s *inboundSource) Meta() PipelineMeta {
+	return PipelineMeta{Count: s.count}
+}
+
+// protocolInboundSource iterates over adj-rib-in routes for a single protocol's peers.
+// Caller must hold at least RLock on RIBManager.
+type protocolInboundSource struct {
+	r        *RIBManager
+	protoID  redistevents.ProtocolID
+	selector string
+	peers    []string
+	peerIdx  int
+	items    []RouteItem
+	itemIdx  int
+	count    int
+}
+
+func newProtocolInboundSource(r *RIBManager, protoID redistevents.ProtocolID, selector string) *protocolInboundSource {
+	protoPeers := r.ribInPool[protoID]
+	var peers []string
+	for peer := range protoPeers {
+		if selector == "" || matchesPeer(peer, selector) {
+			peers = append(peers, peer)
+		}
+	}
+	return &protocolInboundSource{r: r, protoID: protoID, selector: selector, peers: peers}
+}
+
+func (s *protocolInboundSource) Next() (RouteItem, bool) {
+	for {
+		if s.itemIdx < len(s.items) {
+			item := s.items[s.itemIdx]
+			s.itemIdx++
+			s.count++
+			return item, true
+		}
+
+		if s.peerIdx >= len(s.peers) {
+			return RouteItem{}, false
+		}
+
+		peer := s.peers[s.peerIdx]
+		s.peerIdx++
+		s.items = s.items[:0]
+		s.itemIdx = 0
+
+		protoPeers := s.r.ribInPool[s.protoID]
+		peerRIB := protoPeers[peer]
+		if peerRIB == nil {
+			continue
+		}
+
+		peerRIB.Iterate(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
+			prefixStr := formatNLRIAsPrefix(fam, nlriBytes, peerRIB.IsAddPath(fam))
+			s.items = append(s.items, RouteItem{
+				Peer:       peer,
+				Family:     fam,
+				Prefix:     prefixStr,
+				Direction:  rpc.DirectionReceived,
+				HasInEntry: true,
+				InEntry:    entry,
+			})
+			return true
+		})
+	}
+}
+
+func (s *protocolInboundSource) Meta() PipelineMeta {
 	return PipelineMeta{Count: s.count}
 }
 
