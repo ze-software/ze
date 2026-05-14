@@ -51,19 +51,21 @@ func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]
 
 	// Caller bestPipeline holds r.peerMu.RLock across this function; the
 	// ribInPool iteration below is protected by that outer lock.
-	for peer, peerRIB := range r.ribInPool {
-		if !matchesPeer(peer, selector) {
-			continue
-		}
-		peerRIB.Iterate(func(fam family.Family, nlriBytes []byte, _ storage.RouteEntry) bool {
-			fStr := formatFamily(fam)
-			pStr := formatNLRIAsPrefix(fam, nlriBytes, peerRIB.IsAddPath(fam))
-			key := fStr + "|" + string(nlriBytes)
-			if _, ok := seen[key]; !ok {
-				seen[key] = routeKey{fam: fam, nlriKey: string(nlriBytes), familyS: fStr, prefixS: pStr}
+	for _, protoPeers := range r.ribInPool {
+		for peer, peerRIB := range protoPeers {
+			if !matchesPeer(peer, selector) {
+				continue
 			}
-			return true
-		})
+			peerRIB.Iterate(func(fam family.Family, nlriBytes []byte, _ storage.RouteEntry) bool {
+				fStr := formatFamily(fam)
+				pStr := formatNLRIAsPrefix(fam, nlriBytes, peerRIB.IsAddPath(fam))
+				key := fStr + "|" + string(nlriBytes)
+				if _, ok := seen[key]; !ok {
+					seen[key] = routeKey{fam: fam, nlriKey: string(nlriBytes), familyS: fStr, prefixS: pStr}
+				}
+				return true
+			})
+		}
 	}
 
 	// Snapshot the multipath config once per call. The atomic fields are
@@ -95,7 +97,7 @@ func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]
 		// Attach the pool entry from the winning peer for attribute access.
 		// Caller bestPipeline holds r.peerMu.RLock; this ribInPool read is
 		// protected by that outer lock.
-		if peerRIB := r.ribInPool[best.PeerAddr]; peerRIB != nil {
+		if peerRIB := r.bgpPeers[best.PeerAddr]; peerRIB != nil {
 			if entry, ok := peerRIB.Lookup(rk.fam, []byte(rk.nlriKey)); ok {
 				item.HasInEntry = true
 				item.InEntry = entry

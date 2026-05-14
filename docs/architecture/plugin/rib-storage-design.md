@@ -538,6 +538,14 @@ type FamilyKey struct {
     SAFI uint8
 }
 
+// RIBManager.ribInPool is a two-level map:
+//   map[redistevents.ProtocolID]map[string]*PeerRIB
+// The outer key is the source protocol (BGP, BMP, etc.); the inner key
+// is the peer address. bgpPeers caches ribInPool[bgpProtocolID] so the
+// BGP hot path has zero extra indirection. Best-path selection
+// (gatherCandidatesLocked) iterates only the BGP slot; show commands
+// and metrics iterate all protocol slots.
+
 // PeerRIB is the Adj-RIB-In for one peer
 // Each peer has its own RIB, but all share the global pool
 type PeerRIB struct {

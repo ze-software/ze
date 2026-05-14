@@ -70,10 +70,12 @@ type inboundSource struct {
 }
 
 func newInboundSource(r *RIBManager, selector string) *inboundSource {
-	peers := make([]string, 0, len(r.ribInPool))
-	for peer := range r.ribInPool {
-		if matchesPeer(peer, selector) {
-			peers = append(peers, peer)
+	var peers []string
+	for _, protoPeers := range r.ribInPool {
+		for peer := range protoPeers {
+			if matchesPeer(peer, selector) {
+				peers = append(peers, peer)
+			}
 		}
 	}
 	return &inboundSource{r: r, selector: selector, peers: peers}
@@ -99,7 +101,13 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 		s.items = s.items[:0]
 		s.itemIdx = 0
 
-		peerRIB := s.r.ribInPool[peer]
+		var peerRIB *storage.PeerRIB
+		for _, protoPeers := range s.r.ribInPool {
+			if p := protoPeers[peer]; p != nil {
+				peerRIB = p
+				break
+			}
+		}
 		if peerRIB == nil {
 			continue
 		}

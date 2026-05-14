@@ -208,9 +208,15 @@ type RIBManager struct {
 	// plugin is the SDK plugin handle for engine RPCs (update-route, subscribe-events).
 	plugin *sdk.Plugin
 
-	// ribInPool stores routes received FROM peers (Adj-RIB-In)
-	// Uses pool storage for memory efficiency (attributes deduplicated)
-	ribInPool map[string]*storage.PeerRIB // peerAddr -> PeerRIB
+	// ribInPool stores routes received FROM peers (Adj-RIB-In), keyed by
+	// source protocol then peer address. Uses pool storage for memory
+	// efficiency (attributes deduplicated).
+	ribInPool map[redistevents.ProtocolID]map[string]*storage.PeerRIB
+
+	// bgpPeers is a cached reference to ribInPool[bgpProtocolID], set once
+	// at construction. BGP handlers use this directly so the hot path has
+	// zero additional indirection compared to the pre-two-level-map layout.
+	bgpPeers map[string]*storage.PeerRIB
 
 	// ribOut stores routes sent TO peers (Adj-RIB-Out), keyed per-family.
 	// Enables per-family operations (route refresh, LLGR readvertisement).
@@ -290,7 +296,7 @@ type RIBManager struct {
 	// for iBGP peers. Default 200; see adminDistanceEBGP.
 	adminDistanceIBGP atomic.Uint32
 
-	// peerMu protects the peer-keyed maps ONLY: ribInPool, ribOut, peerUp,
+	// peerMu protects the peer-keyed maps ONLY: ribInPool (and bgpPeers), ribOut, peerUp,
 	// peerMeta, retainedPeers, grState. bestPrev is sharded (see
 	// bestprev_shard.go) and has its own per-shard locks. bestPathInterner
 	// has its own per-table mutexes. Readers take peerMu.RLock for brief
@@ -340,13 +346,15 @@ func (r *RIBManager) updateMetrics() {
 
 	r.peerMu.RLock()
 
-	currentIn := make(map[string]bool, len(r.ribInPool))
+	currentIn := make(map[string]bool)
 	totalIn := 0
-	for peer, peerRIB := range r.ribInPool {
-		count := peerRIB.Len()
-		m.routesInVec.With(peer).Set(float64(count))
-		currentIn[peer] = true
-		totalIn += count
+	for _, protoPeers := range r.ribInPool {
+		for peer, peerRIB := range protoPeers {
+			count := peerRIB.Len()
+			m.routesInVec.With(peer).Set(float64(count))
+			currentIn[peer] = true
+			totalIn += count
+		}
 	}
 
 	currentOut := make(map[string]bool, len(r.ribOut))
@@ -464,9 +472,13 @@ func (r *RIBManager) SetLocRIB(loc *locrib.RIB) {
 // This is the only constructor; bypassing it with a zero-value struct literal
 // panics on the first intern call against the nil map.
 func NewRIBManager(plugin *sdk.Plugin) *RIBManager {
+	bgpInner := make(map[string]*storage.PeerRIB)
 	r := &RIBManager{
-		plugin:           plugin,
-		ribInPool:        make(map[string]*storage.PeerRIB),
+		plugin: plugin,
+		ribInPool: map[redistevents.ProtocolID]map[string]*storage.PeerRIB{
+			bgpProtocolID: bgpInner,
+		},
+		bgpPeers:         bgpInner,
 		ribOut:           make(map[string]map[family.Family]map[string]*Route),
 		peerUp:           make(map[string]bool),
 		peerMeta:         make(map[string]*PeerMeta),
@@ -802,10 +814,10 @@ func (r *RIBManager) handleReceived(event *Event) {
 // Caller must hold write lock.
 func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 	// Initialize PeerRIB if needed
-	if r.ribInPool[peerAddr] == nil {
-		r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
+	if r.bgpPeers[peerAddr] == nil {
+		r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
 	}
-	peerRIB := r.ribInPool[peerAddr]
+	peerRIB := r.bgpPeers[peerAddr]
 
 	// Get raw attribute bytes
 	attrBytes := event.GetRawAttributesBytes()
@@ -940,9 +952,9 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 		if r.retainedPeers[peerAddr] {
 			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
 		} else {
-			if peerRIB := r.ribInPool[peerAddr]; peerRIB != nil {
+			if peerRIB := r.bgpPeers[peerAddr]; peerRIB != nil {
 				peerRIB.Release()
-				delete(r.ribInPool, peerAddr)
+				delete(r.bgpPeers, peerAddr)
 			}
 			delete(r.peerMeta, peerAddr)
 			// Purge bestPrev records belonging to the departing peer so
@@ -999,9 +1011,9 @@ func (r *RIBManager) handleState(event *Event) {
 		if r.retainedPeers[peerAddr] {
 			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
 		} else {
-			if peerRIB := r.ribInPool[peerAddr]; peerRIB != nil {
+			if peerRIB := r.bgpPeers[peerAddr]; peerRIB != nil {
 				peerRIB.Release()
-				delete(r.ribInPool, peerAddr)
+				delete(r.bgpPeers, peerAddr)
 			}
 			delete(r.peerMeta, peerAddr)
 			// See handleStructuredState for the emit-after-unlock contract.

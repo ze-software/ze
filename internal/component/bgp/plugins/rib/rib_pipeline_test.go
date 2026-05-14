@@ -60,7 +60,7 @@ func TestRouteItemFromInbound(t *testing.T) {
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Use the source iterator
 	src := newInboundSource(r, "*")
@@ -276,7 +276,7 @@ func TestBuildPipeline(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	tests := []struct {
 		name     string
@@ -362,7 +362,7 @@ func TestShowPipelineBothDirections(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Add outbound route
 	r.ribOut["192.0.2.2"] = map[family.Family]map[string]*Route{
@@ -393,7 +393,7 @@ func TestShowPipelineReceivedScope(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	r.ribOut["192.0.2.2"] = map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
@@ -422,7 +422,7 @@ func TestShowPipelineSentScope(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	r.ribOut["192.0.2.2"] = map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
@@ -484,7 +484,7 @@ func TestHandleCommandRibShow(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	status, data, err := r.handleCommand("bgp rib show", "*", nil)
 	assert.Equal(t, statusDone, status)
@@ -507,7 +507,7 @@ func TestHandleCommandRibShowCount(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	status, data, err := r.handleCommand("bgp rib show", "*", []string{"count"})
 	assert.Equal(t, statusDone, status)
@@ -658,7 +658,7 @@ func TestFilterMatchCrossFieldInEntry(t *testing.T) {
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Match on AS-path value "65001"
 	result := r.showPipeline("*", []string{"received", "match", "65001", "count"})
@@ -726,7 +726,7 @@ func TestShowPipelineCountZeroWithFilter(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Path filter for ASN 99999 — no routes have this ASN
 	result := r.showPipeline("*", []string{"received", "path", "99999", "count"})
@@ -750,7 +750,7 @@ func TestShowPipelineExplicitSentReceived(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Add outbound route
 	r.ribOut["192.0.2.2"] = map[family.Family]map[string]*Route{
@@ -788,13 +788,13 @@ func TestBestPipeline_WithFilter(t *testing.T) {
 	attr1 := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireCommunity)
 	peerRIB1 := storage.NewPeerRIB("192.0.2.1")
 	peerRIB1.Insert(fam, attr1, nlri1)
-	r.ribInPool["192.0.2.1"] = peerRIB1
+	r.bgpPeers["192.0.2.1"] = peerRIB1
 
 	// Peer 2: 172.16.0.0/24 with no community (just origin + nexthop)
 	attr2 := concatBytes(testWireOriginIGP, testWireNextHop)
 	peerRIB2 := storage.NewPeerRIB("192.0.2.2")
 	peerRIB2.Insert(fam, attr2, nlri2)
-	r.ribInPool["192.0.2.2"] = peerRIB2
+	r.bgpPeers["192.0.2.2"] = peerRIB2
 
 	// Best pipeline with community filter: should only return the route with 65000:100
 	result := r.bestPipeline("*", []string{"community", "65000:100"})
@@ -826,7 +826,7 @@ func TestBestPipeline_CountTerminal(t *testing.T) {
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlri1)
 	peerRIB.Insert(fam, attrBytes, nlri2)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	result := r.bestPipeline("*", []string{"count"})
 	var parsed map[string]any
@@ -919,7 +919,7 @@ func TestGraphTerminalViaPipeline(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	result := r.showPipeline("*", []string{"received", "graph"})
 	require.NotEmpty(t, result)
@@ -942,7 +942,7 @@ func TestGraphTerminalViaBestPipeline(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	result := r.bestPipeline("*", []string{"graph"})
 	require.NotEmpty(t, result)

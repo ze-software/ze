@@ -68,7 +68,7 @@ func TestParallelCheckBestPathChangeNoLostWrites(t *testing.T) {
 	fam := family.Family{AFI: 1, SAFI: 1}
 	peerAddr := "10.0.0.1"
 	peerRIB := storage.NewPeerRIB(peerAddr)
-	r.ribInPool[peerAddr] = peerRIB
+	r.bgpPeers[peerAddr] = peerRIB
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
 	var wg sync.WaitGroup
@@ -127,10 +127,10 @@ func TestConcurrentDownVsUpdate(t *testing.T) {
 		defer wg.Done()
 		for i := range iterations {
 			r.peerMu.Lock()
-			peerRIB := r.ribInPool[peerAddr]
+			peerRIB := r.bgpPeers[peerAddr]
 			if peerRIB == nil {
 				peerRIB = storage.NewPeerRIB(peerAddr)
-				r.ribInPool[peerAddr] = peerRIB
+				r.bgpPeers[peerAddr] = peerRIB
 			}
 			r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 			r.peerMu.Unlock()
@@ -147,9 +147,9 @@ func TestConcurrentDownVsUpdate(t *testing.T) {
 		defer wg.Done()
 		for range iterations {
 			r.peerMu.Lock()
-			if peerRIB := r.ribInPool[peerAddr]; peerRIB != nil {
+			if peerRIB := r.bgpPeers[peerAddr]; peerRIB != nil {
 				peerRIB.Release()
-				delete(r.ribInPool, peerAddr)
+				delete(r.bgpPeers, peerAddr)
 			}
 			delete(r.peerMeta, peerAddr)
 			r.peerMu.Unlock()
@@ -165,7 +165,7 @@ func TestConcurrentDownVsUpdate(t *testing.T) {
 	// vice versa) would indicate a forgotten map update in one of the
 	// paths.
 	r.peerMu.RLock()
-	_, hasRIB := r.ribInPool[peerAddr]
+	_, hasRIB := r.bgpPeers[peerAddr]
 	_, hasMeta := r.peerMeta[peerAddr]
 	r.peerMu.RUnlock()
 	assert.Equal(t, hasRIB, hasMeta, "ribInPool and peerMeta must be consistent for this peer")
@@ -202,7 +202,7 @@ func TestParallelMultiPeerNoLostWrites(t *testing.T) {
 			// rib_structured.go::handleReceivedStructured.
 			r.peerMu.Lock()
 			peerRIB := storage.NewPeerRIB(peerAddr)
-			r.ribInPool[peerAddr] = peerRIB
+			r.bgpPeers[peerAddr] = peerRIB
 			r.peerMeta[peerAddr] = &PeerMeta{PeerASN: uint32(65000 + p + 1), LocalASN: 65000}
 			r.peerMu.Unlock()
 

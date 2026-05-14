@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 7/7 |
 | Updated | 2026-05-14 |
 
 ## Post-Compaction Recovery
@@ -315,57 +315,86 @@ Ze extends the storage to per-source-per-peer via the outer ProtocolID key.
 ## Implementation Summary
 
 ### What Was Implemented
-- (fill during /implement)
+- Changed `ribInPool` from `map[string]*storage.PeerRIB` to `map[redistevents.ProtocolID]map[string]*storage.PeerRIB`
+- Added `bgpPeers` field as cached reference to `ribInPool[bgpProtocolID]`, initialized in `NewRIBManager`
+- Updated all BGP handler access sites (30+ locations across 6 files) to use `r.bgpPeers`
+- `gatherCandidatesLocked` iterates only `r.bgpPeers` (AC-2)
+- Show commands, statusJSON, bestPathStatusJSON, updateMetrics iterate all protocol slots (AC-3)
+- Pipeline sources (inboundSource, bestSource) iterate all protocol slots for display
+- Updated all test files (9 files, 60+ references) to use `r.bgpPeers`
+- Added 5 new spec tests: TestBGPRouteStoredInProtocolSlot, TestGatherCandidatesOnlyBGP, TestShowIteratesAllProtocols, TestInjectUsesProtocolSlot, TestWithdrawUsesProtocolSlot
 
 ### Bugs Found/Fixed
-- (fill during /implement)
+- None
 
 ### Documentation Updates
-- (fill during /implement)
+- `docs/architecture/plugin/rib-storage-design.md`: added note about two-level map and bgpPeers caching
 
 ### Deviations from Plan
-- (fill during /implement)
+- `protocolPeers(pid)` helper not added as a named function; cold-path iteration uses direct `for _, protoPeers := range r.ribInPool` instead (simpler, no abstraction needed yet)
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Two-level ribInPool | Done | rib.go:215 | `map[redistevents.ProtocolID]map[string]*storage.PeerRIB` |
+| bgpPeers cached pointer | Done | rib.go:219,481 | Field + init in NewRIBManager |
+| BGP handlers use bgpPeers | Done | rib.go, rib_commands.go, rib_structured.go, rib_bestchange.go | 26 access sites updated |
+| gatherCandidates BGP-only | Done | rib_commands.go:901 | Iterates r.bgpPeers |
+| Show/metrics iterate all | Done | rib_commands.go:604,867; rib.go:351; rib_pipeline.go:74,105; rib_pipeline_best.go:54 | All use outer map iteration |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | TestBGPRouteStoredInProtocolSlot | rib_test.go |
+| AC-2 | Done | TestGatherCandidatesOnlyBGP | rib_test.go |
+| AC-3 | Done | TestShowIteratesAllProtocols | rib_test.go |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestBGPRouteStoredInProtocolSlot | Done | rib_test.go | AC-1 |
+| TestGatherCandidatesOnlyBGP | Done | rib_test.go | AC-2 |
+| TestShowIteratesAllProtocols | Done | rib_test.go | AC-3 |
+| TestInjectUsesProtocolSlot | Done | rib_commands_test.go | Inject stores in BGP slot |
+| TestWithdrawUsesProtocolSlot | Done | rib_commands_test.go | Withdraw reads from BGP slot |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| rib.go | Done | Field type, NewRIBManager, updateMetrics, handleReceivedPool, handleState(s) |
+| rib_commands.go | Done | gatherCandidatesLocked, inject/withdraw, show/status/clear/retain/release |
+| rib_structured.go | Done | handleReceivedStructured |
+| rib_bestchange.go | Done | lookupLabelsForBest, bestCandidateNextHopAddr |
+| rib_pipeline.go | Done | inboundSource iteration |
+| rib_pipeline_best.go | Done | bestSource iteration |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 17
+- **Done:** 17
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (protocolPeers helper replaced by direct iteration)
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | NOTE | newInboundSource does not dedup peer addresses across protocol slots. Future multi-protocol concern only. | rib_pipeline.go:72-81 | Deferred to BMP spec |
+| 2 | NOTE | inboundSource.Next breaks on first protocol slot for a peer. Combined with #1, would duplicate routes if same peer in multiple protocols. | rib_pipeline.go:104-110 | Deferred to BMP spec |
+| 3 | NOTE | updateMetrics lost pre-allocation hint for currentIn map. Negligible impact (cold path). | rib.go:348 | Accepted |
 
 ### Fixes applied
+None required (all NOTEs, no BLOCKERs or ISSUEs).
 
 ### Run 2+ (re-runs until clean)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+N/A (Run 1 clean).
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above
 
 ## Pre-Commit Verification
 

@@ -14,6 +14,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 )
 
 func originPtr(o attribute.Origin) *attribute.Origin { return &o }
@@ -194,19 +195,19 @@ func TestHandleReceived_StoresRoutes(t *testing.T) {
 
 	r.handleReceived(event)
 
-	require.NotNil(t, r.ribInPool["10.0.0.1"], "PeerRIB should be created")
-	assert.Equal(t, 2, r.ribInPool["10.0.0.1"].Len(), "should have 2 routes in pool")
+	require.NotNil(t, r.bgpPeers["10.0.0.1"], "PeerRIB should be created")
+	assert.Equal(t, 2, r.bgpPeers["10.0.0.1"].Len(), "should have 2 routes in pool")
 
 	// Verify specific NLRIs are stored (not just the count)
 	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
 	nlri1, err := prefixToWire(family.IPv4Unicast.String(), "10.0.0.0/24", 0, false)
 	require.NoError(t, err)
-	_, found1 := r.ribInPool["10.0.0.1"].Lookup(ipv4Uni, nlri1)
+	_, found1 := r.bgpPeers["10.0.0.1"].Lookup(ipv4Uni, nlri1)
 	assert.True(t, found1, "10.0.0.0/24 should be in RIB")
 
 	nlri2, err := prefixToWire(family.IPv4Unicast.String(), "10.0.1.0/24", 0, false)
 	require.NoError(t, err)
-	_, found2 := r.ribInPool["10.0.0.1"].Lookup(ipv4Uni, nlri2)
+	_, found2 := r.bgpPeers["10.0.0.1"].Lookup(ipv4Uni, nlri2)
 	assert.True(t, found2, "10.0.1.0/24 should be in RIB")
 }
 
@@ -231,7 +232,7 @@ func TestHandleReceived_Withdraw(t *testing.T) {
 		},
 	}
 	r.handleReceived(announce)
-	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
+	require.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
 
 	// Then withdraw
 	withdraw := &Event{
@@ -245,7 +246,7 @@ func TestHandleReceived_Withdraw(t *testing.T) {
 		},
 	}
 	r.handleReceived(withdraw)
-	assert.Equal(t, 0, r.ribInPool["10.0.0.1"].Len())
+	assert.Equal(t, 0, r.bgpPeers["10.0.0.1"].Len())
 }
 
 // TestHandleState_PeerUp verifies internal state on peer up.
@@ -296,7 +297,7 @@ func TestHandleState_PeerDown(t *testing.T) {
 		},
 	}
 	r.handleReceived(announce)
-	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
+	require.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
 
 	// Pre-populate ribOut
 	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
@@ -315,7 +316,7 @@ func TestHandleState_PeerDown(t *testing.T) {
 	r.handleState(event)
 
 	// ribInPool should be cleared (PeerRIB deleted)
-	_, exists := r.ribInPool["10.0.0.1"]
+	_, exists := r.bgpPeers["10.0.0.1"]
 	assert.False(t, exists, "PeerRIB should be deleted on peer down")
 	// peerMeta should be cleared alongside ribInPool
 	_, metaExists := r.peerMeta["10.0.0.1"]
@@ -404,7 +405,7 @@ func TestDispatch_RoutesToCorrectHandler(t *testing.T) {
 			r.dispatch(tt.event)
 
 			totalIn := 0
-			for _, peerRIB := range r.ribInPool {
+			for _, peerRIB := range r.bgpPeers {
 				totalIn += peerRIB.Len()
 			}
 			totalOut := 0
@@ -743,10 +744,10 @@ func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 	assert.Contains(t, data, `"cleared":1`)
 
 	// 10.0.0.1 should be emptied (PeerRIB deleted)
-	_, exists1 := r.ribInPool["10.0.0.1"]
+	_, exists1 := r.bgpPeers["10.0.0.1"]
 	assert.False(t, exists1, "peer 10.0.0.1 PeerRIB should be deleted")
 	// 10.0.0.2 should remain
-	assert.Equal(t, 1, r.ribInPool["10.0.0.2"].Len())
+	assert.Equal(t, 1, r.bgpPeers["10.0.0.2"].Len())
 }
 
 // TestHandleCommand_RIBShowSent verifies sent show with selector.
@@ -1069,8 +1070,8 @@ func TestHandleReceived_PoolStorage(t *testing.T) {
 	r.handleReceived(event)
 
 	// Should be stored in pool storage
-	assert.NotNil(t, r.ribInPool["10.0.0.1"], "PeerRIB should be created")
-	assert.Equal(t, 1, r.ribInPool["10.0.0.1"].Len(), "should have 1 route in pool")
+	assert.NotNil(t, r.bgpPeers["10.0.0.1"], "PeerRIB should be created")
+	assert.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len(), "should have 1 route in pool")
 }
 
 // TestHandleReceived_PoolStorage_MultipleNLRIs verifies multiple NLRIs in one UPDATE.
@@ -1093,7 +1094,7 @@ func TestHandleReceived_PoolStorage_MultipleNLRIs(t *testing.T) {
 
 	r.handleReceived(event)
 
-	assert.Equal(t, 2, r.ribInPool["10.0.0.1"].Len(), "should have 2 routes in pool")
+	assert.Equal(t, 2, r.bgpPeers["10.0.0.1"].Len(), "should have 2 routes in pool")
 }
 
 // TestHandleReceived_PoolStorage_Withdraw verifies withdrawal removes from pool.
@@ -1115,7 +1116,7 @@ func TestHandleReceived_PoolStorage_Withdraw(t *testing.T) {
 		},
 	}
 	r.handleReceived(announce)
-	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
+	require.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
 
 	// Then: withdraw
 	withdraw := &Event{
@@ -1128,7 +1129,7 @@ func TestHandleReceived_PoolStorage_Withdraw(t *testing.T) {
 	}
 	r.handleReceived(withdraw)
 
-	assert.Equal(t, 0, r.ribInPool["10.0.0.1"].Len(), "route should be withdrawn")
+	assert.Equal(t, 0, r.bgpPeers["10.0.0.1"].Len(), "route should be withdrawn")
 }
 
 // TestHandleState_PeerDown_ClearsPoolStorage verifies pool cleared on peer down.
@@ -1151,7 +1152,7 @@ func TestHandleState_PeerDown_ClearsPoolStorage(t *testing.T) {
 	}
 	r.handleReceived(announce)
 	r.peerUp["10.0.0.1"] = true
-	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
+	require.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
 
 	// Peer goes down
 	stateDown := &Event{
@@ -1162,7 +1163,7 @@ func TestHandleState_PeerDown_ClearsPoolStorage(t *testing.T) {
 	r.handleState(stateDown)
 
 	// Pool should be cleared
-	if peerRIB := r.ribInPool["10.0.0.1"]; peerRIB != nil {
+	if peerRIB := r.bgpPeers["10.0.0.1"]; peerRIB != nil {
 		assert.Equal(t, 0, peerRIB.Len(), "pool should be empty after peer down")
 	}
 }
@@ -1189,8 +1190,8 @@ func TestHandleReceived_PoolStorage_IPv6(t *testing.T) {
 
 	r.handleReceived(event)
 
-	assert.NotNil(t, r.ribInPool["::1"], "PeerRIB should be created for IPv6 peer")
-	assert.Equal(t, 1, r.ribInPool["::1"].Len(), "should have 1 IPv6 route in pool")
+	assert.NotNil(t, r.bgpPeers["::1"], "PeerRIB should be created for IPv6 peer")
+	assert.Equal(t, 1, r.bgpPeers["::1"].Len(), "should have 1 IPv6 route in pool")
 }
 
 // TestHandleReceived_PoolStorage_StoresEVPN verifies EVPN NLRIs reach the
@@ -1215,7 +1216,7 @@ func TestHandleReceived_PoolStorage_StoresEVPN(t *testing.T) {
 
 	r.handleReceived(event)
 
-	peerRIB := r.ribInPool["10.0.0.1"]
+	peerRIB := r.bgpPeers["10.0.0.1"]
 	require.NotNil(t, peerRIB, "PeerRIB should be created for EVPN peer")
 	assert.Equal(t, 1, peerRIB.Len(), "one EVPN NLRI should be stored")
 }
@@ -1266,7 +1267,7 @@ func TestHandleCommand_InboundShow_PoolStorage(t *testing.T) {
 	r.handleReceived(event)
 
 	// Verify route is in pool
-	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
+	require.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
 
 	// Call show command via handleCommand (unified pipeline, received scope)
 	status, data, err := r.handleCommand("bgp rib show", "*", []string{"received"})
@@ -1296,7 +1297,7 @@ func TestHandleCommand_InboundEmpty_PoolStorage(t *testing.T) {
 		},
 	}
 	r.handleReceived(event)
-	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
+	require.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
 
 	// Call empty command via handleCommand
 	status, data, err := r.handleCommand("bgp rib adjacent inbound empty", "*", []string{"10.0.0.1"})
@@ -1305,7 +1306,7 @@ func TestHandleCommand_InboundEmpty_PoolStorage(t *testing.T) {
 	assert.Contains(t, data, `"cleared":1`)
 
 	// Verify pool is cleared (entry deleted to avoid memory leak)
-	_, exists := r.ribInPool["10.0.0.1"]
+	_, exists := r.bgpPeers["10.0.0.1"]
 	assert.False(t, exists, "pool entry should be deleted")
 }
 
@@ -1644,15 +1645,15 @@ func TestHandleReceived_AddPathNLRI(t *testing.T) {
 
 	r.handleReceived(event)
 
-	require.NotNil(t, r.ribInPool["10.0.0.1"], "PeerRIB should be created")
-	assert.Equal(t, 2, r.ribInPool["10.0.0.1"].Len(), "should have 2 ADD-PATH routes in pool")
+	require.NotNil(t, r.bgpPeers["10.0.0.1"], "PeerRIB should be created")
+	assert.Equal(t, 2, r.bgpPeers["10.0.0.1"].Len(), "should have 2 ADD-PATH routes in pool")
 
 	// Verify actual stored wire bytes contain correct ADD-PATH NLRIs (not garbage from wrong parsing).
 	// With addPath=true: key is [path-id:4][prefix-len:1][prefix-bytes].
 	// With addPath=false: path-id bytes would be misread as prefix-lengths, producing different keys.
 	ipv4u := family.IPv4Unicast
-	_, found42 := r.ribInPool["10.0.0.1"].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2a, 0x18, 0x0a, 0x00, 0x00})
-	_, found43 := r.ribInPool["10.0.0.1"].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2b, 0x18, 0x0a, 0x00, 0x01})
+	_, found42 := r.bgpPeers["10.0.0.1"].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2a, 0x18, 0x0a, 0x00, 0x00})
+	_, found43 := r.bgpPeers["10.0.0.1"].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2b, 0x18, 0x0a, 0x00, 0x01})
 	assert.True(t, found42, "route with path-id 42 (10.0.0.0/24) must be stored with correct ADD-PATH wire key")
 	assert.True(t, found43, "route with path-id 43 (10.0.1.0/24) must be stored with correct ADD-PATH wire key")
 }
@@ -1682,7 +1683,7 @@ func TestHandleReceived_AddPathWithdraw(t *testing.T) {
 
 	// Verify announcement stored with correct ADD-PATH wire key
 	ipv4u := family.IPv4Unicast
-	_, found := r.ribInPool["10.0.0.1"].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2a, 0x18, 0x0a, 0x00, 0x00})
+	_, found := r.bgpPeers["10.0.0.1"].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2a, 0x18, 0x0a, 0x00, 0x00})
 	require.True(t, found, "route must be stored with ADD-PATH wire key before withdrawal")
 
 	// Then withdraw with ADD-PATH
@@ -1698,7 +1699,7 @@ func TestHandleReceived_AddPathWithdraw(t *testing.T) {
 		},
 	}
 	r.handleReceived(withdraw)
-	assert.Equal(t, 0, r.ribInPool["10.0.0.1"].Len(), "ADD-PATH withdrawal should remove the route")
+	assert.Equal(t, 0, r.bgpPeers["10.0.0.1"].Len(), "ADD-PATH withdrawal should remove the route")
 }
 
 // TestExtractCandidate_PoolWiring verifies extractCandidate reads pool handles correctly.
@@ -1738,7 +1739,7 @@ func TestExtractCandidate_PoolWiring(t *testing.T) {
 	assert.Equal(t, uint32(65000), r.peerMeta["10.0.0.1"].LocalASN)
 
 	// Extract candidate from pool entry.
-	peerRIB := r.ribInPool["10.0.0.1"]
+	peerRIB := r.bgpPeers["10.0.0.1"]
 	require.NotNil(t, peerRIB)
 
 	var entry storage.RouteEntry
@@ -1789,7 +1790,7 @@ func TestPeerMetaCleanup_ClearAndRelease(t *testing.T) {
 
 		r.inboundEmptyJSON("*")
 
-		_, ribExists := r.ribInPool["10.0.0.1"]
+		_, ribExists := r.bgpPeers["10.0.0.1"]
 		assert.False(t, ribExists, "ribInPool should be cleared")
 		_, metaExists := r.peerMeta["10.0.0.1"]
 		assert.False(t, metaExists, "peerMeta should be cleared with ribInPool")
@@ -1818,7 +1819,7 @@ func TestPeerMetaCleanup_ClearAndRelease(t *testing.T) {
 		r.retainedPeers["10.0.0.1"] = true
 		r.releaseRoutesJSON("*")
 
-		_, ribExists := r.ribInPool["10.0.0.1"]
+		_, ribExists := r.bgpPeers["10.0.0.1"]
 		assert.False(t, ribExists, "ribInPool should be cleared on release")
 		_, metaExists := r.peerMeta["10.0.0.1"]
 		assert.False(t, metaExists, "peerMeta should be cleared on release")
@@ -2153,8 +2154,8 @@ func TestInboundEmptySelectorFromArgs(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Two peers with routes in ribInPool
-	r.ribInPool["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
-	r.ribInPool["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
+	r.bgpPeers["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
+	r.bgpPeers["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
 
 	// Clear only 10.0.0.1
 	status, data, err := r.handleCommand("bgp rib clear in", "*", []string{"10.0.0.1"})
@@ -2163,8 +2164,8 @@ func TestInboundEmptySelectorFromArgs(t *testing.T) {
 	assert.Contains(t, data, `"cleared"`)
 
 	// 10.0.0.1 should be gone, 10.0.0.2 should remain
-	_, has1 := r.ribInPool["10.0.0.1"]
-	_, has2 := r.ribInPool["10.0.0.2"]
+	_, has1 := r.bgpPeers["10.0.0.1"]
+	_, has2 := r.bgpPeers["10.0.0.2"]
 	assert.False(t, has1, "10.0.0.1 should be cleared")
 	assert.True(t, has2, "10.0.0.2 should remain")
 }
@@ -2177,8 +2178,8 @@ func TestRetainRoutesSelectorFromArgs(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Two peers with routes
-	r.ribInPool["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
-	r.ribInPool["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
+	r.bgpPeers["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
+	r.bgpPeers["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
 
 	// Retain only 10.0.0.1
 	status, data, err := r.handleCommand("bgp rib retain-routes", "*", []string{"10.0.0.1"})
@@ -2198,8 +2199,8 @@ func TestReleaseRoutesSelectorFromArgs(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Two retained peers
-	r.ribInPool["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
-	r.ribInPool["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
+	r.bgpPeers["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
+	r.bgpPeers["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
 	r.retainedPeers["10.0.0.1"] = true
 	r.retainedPeers["10.0.0.2"] = true
 
@@ -2241,7 +2242,7 @@ func TestInjectRoute_Basic(t *testing.T) {
 	assert.Contains(t, data, `"peer":"10.0.0.1"`)
 
 	// Verify route is in RIB.
-	peerRIB := r.ribInPool["10.0.0.1"]
+	peerRIB := r.bgpPeers["10.0.0.1"]
 	require.NotNil(t, peerRIB, "PeerRIB should exist after inject")
 	assert.Equal(t, 1, peerRIB.FamilyLen(family.Family{AFI: 1, SAFI: 1}))
 }
@@ -2265,7 +2266,7 @@ func TestInjectRoute_AllAttributes(t *testing.T) {
 	assert.Equal(t, "done", status)
 
 	// Verify route exists and has attributes by looking it up.
-	peerRIB := r.ribInPool["10.0.0.1"]
+	peerRIB := r.bgpPeers["10.0.0.1"]
 	require.NotNil(t, peerRIB)
 
 	nlriBytes, err := prefixToWire(family.IPv4Unicast.String(), "10.0.0.0/24", 0, false)
@@ -2293,7 +2294,7 @@ func TestWithdrawRoute_Basic(t *testing.T) {
 	assert.Contains(t, data, `"existed":true`)
 
 	// Verify route is gone.
-	peerRIB := r.ribInPool["10.0.0.1"]
+	peerRIB := r.bgpPeers["10.0.0.1"]
 	assert.Equal(t, 0, peerRIB.FamilyLen(family.Family{AFI: 1, SAFI: 1}))
 }
 
@@ -2382,7 +2383,7 @@ func TestInjectRoute_IPv6(t *testing.T) {
 	assert.Equal(t, "done", status)
 	assert.Contains(t, data, `"injected":"2001:db8::/32"`)
 
-	peerRIB := r.ribInPool["10.0.0.1"]
+	peerRIB := r.bgpPeers["10.0.0.1"]
 	require.NotNil(t, peerRIB)
 	assert.Equal(t, 1, peerRIB.FamilyLen(family.Family{AFI: 2, SAFI: 1}))
 }
@@ -2420,7 +2421,7 @@ func TestInjectRoute_ImplicitWithdraw(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should still be exactly 1 route (implicit withdraw replaced the old one).
-	peerRIB := r.ribInPool["10.0.0.1"]
+	peerRIB := r.bgpPeers["10.0.0.1"]
 	require.NotNil(t, peerRIB)
 	assert.Equal(t, 1, peerRIB.FamilyLen(family.Family{AFI: 1, SAFI: 1}))
 }
@@ -2542,7 +2543,7 @@ func TestInjectRoute_IPv4Multicast(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
-	peerRIB := r.ribInPool["10.0.0.1"]
+	peerRIB := r.bgpPeers["10.0.0.1"]
 	require.NotNil(t, peerRIB)
 	assert.Equal(t, 1, peerRIB.FamilyLen(family.Family{AFI: 1, SAFI: 2}))
 }
@@ -2574,7 +2575,7 @@ func TestInjectRoute_NoAttributes(t *testing.T) {
 
 	nlriBytes, err := prefixToWire(family.IPv4Unicast.String(), "10.0.0.0/24", 0, false)
 	require.NoError(t, err)
-	entry, found := r.ribInPool["10.0.0.1"].Lookup(family.Family{AFI: 1, SAFI: 1}, nlriBytes)
+	entry, found := r.bgpPeers["10.0.0.1"].Lookup(family.Family{AFI: 1, SAFI: 1}, nlriBytes)
 	require.True(t, found)
 	require.NotNil(t, entry)
 }
@@ -2688,4 +2689,82 @@ func TestParseASNList(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// TestBGPRouteStoredInProtocolSlot verifies that BGP routes land in
+// ribInPool[bgpProtocolID], accessible via the cached bgpPeers pointer.
+func TestBGPRouteStoredInProtocolSlot(t *testing.T) {
+	r := newTestRIBManager(t)
+	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
+
+	event := &Event{
+		Message:       &MessageInfo{Type: "update"},
+		Peer:          mustMarshal(t, map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": uint32(65001)}}),
+		RawAttributes: "40010100",
+		RawNLRI:       map[family.Family]string{ipv4Uni: "180a0000"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			ipv4Uni: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+	r.handleReceived(event)
+
+	require.NotNil(t, r.bgpPeers["10.0.0.1"])
+	assert.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
+
+	// Verify bgpPeers is the same underlying map as ribInPool[bgpProtocolID]:
+	// a write via one is visible via the other.
+	assert.Equal(t, r.ribInPool[bgpProtocolID]["10.0.0.1"], r.bgpPeers["10.0.0.1"])
+}
+
+// TestGatherCandidatesOnlyBGP verifies gatherCandidatesLocked iterates
+// only the BGP protocol slot, ignoring other protocol slots.
+func TestGatherCandidatesOnlyBGP(t *testing.T) {
+	r := newTestRIBManager(t)
+	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
+	nlri := []byte{24, 10, 0, 0}
+	attrBytes := []byte{0x40, 0x01, 0x01, 0x00}
+
+	r.bgpPeers["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
+	r.bgpPeers["10.0.0.1"].Insert(ipv4Uni, attrBytes, nlri)
+
+	monitorID := redistevents.RegisterProtocol("test-monitor")
+	monitorPeers := make(map[string]*storage.PeerRIB)
+	monitorPeers["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
+	monitorPeers["10.0.0.2"].Insert(ipv4Uni, attrBytes, nlri)
+	r.ribInPool[monitorID] = monitorPeers
+
+	r.peerMu.RLock()
+	candidates := r.gatherCandidatesLocked(ipv4Uni, nlri)
+	r.peerMu.RUnlock()
+
+	require.Len(t, candidates, 1)
+	assert.Equal(t, "10.0.0.1", candidates[0].PeerAddr)
+}
+
+// TestShowIteratesAllProtocols verifies statusJSON counts routes from
+// all protocol slots, not just BGP.
+func TestShowIteratesAllProtocols(t *testing.T) {
+	r := newTestRIBManager(t)
+	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
+	attrBytes := []byte{0x40, 0x01, 0x01, 0x00}
+
+	r.bgpPeers["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
+	r.bgpPeers["10.0.0.1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0})
+
+	monitorID := redistevents.RegisterProtocol("test-show-monitor")
+	monitorPeers := make(map[string]*storage.PeerRIB)
+	monitorPeers["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
+	monitorPeers["10.0.0.2"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1})
+	r.ribInPool[monitorID] = monitorPeers
+
+	r.peerMu.RLock()
+	result := r.statusJSON()
+	r.peerMu.RUnlock()
+
+	var status map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &status))
+
+	routesIn, ok := status["routes-in"].(float64)
+	require.True(t, ok)
+	assert.Equal(t, float64(2), routesIn)
 }

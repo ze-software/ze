@@ -819,7 +819,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 // for a labeled unicast prefix. Caller must not hold r.peerMu.
 func (r *RIBManager) lookupLabelsForBest(fam family.Family, nlriBytes []byte, peerAddr string) []uint32 {
 	r.peerMu.RLock()
-	peerRIB := r.ribInPool[peerAddr]
+	peerRIB := r.bgpPeers[peerAddr]
 	r.peerMu.RUnlock()
 	if peerRIB == nil {
 		return nil
@@ -847,12 +847,12 @@ func (r *RIBManager) protocolType(c *Candidate) bgptypes.BGPProtocolType {
 // emission path.
 // For IPv4, reads from the NEXT_HOP attribute (code 3).
 // For IPv6 and other MP families, extracts from MP_REACH_NLRI (code 14) in OtherAttrs.
-// Acquires r.peerMu.RLock internally for the brief ribInPool read; PeerRIB
+// Acquires r.peerMu.RLock internally for the brief bgpPeers read; PeerRIB
 // content reads (peerRIB.Lookup) use PeerRIB's own lock. Safe to call
 // without any outer lock held.
 func (r *RIBManager) bestCandidateNextHopAddr(fam family.Family, nlriBytes []byte, best *Candidate) netip.Addr {
 	r.peerMu.RLock()
-	peerRIB := r.ribInPool[best.PeerAddr]
+	peerRIB := r.bgpPeers[best.PeerAddr]
 	r.peerMu.RUnlock()
 	if peerRIB == nil {
 		return netip.Addr{}

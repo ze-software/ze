@@ -90,7 +90,7 @@ func TestInboundShowWithAttributes(t *testing.T) {
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	route := requireFirstRoute(t, r.showPipeline("*", []string{"received"}), "adj-rib-in", "192.0.2.1")
 
@@ -127,7 +127,7 @@ func TestInboundShowMinimalAttributes(t *testing.T) {
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	route := requireFirstRoute(t, r.showPipeline("192.0.2.1", []string{"received"}), "adj-rib-in", "192.0.2.1")
 
@@ -213,7 +213,7 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(ipv4Family, attrBytes, nlriIPv4)
 	peerRIB.Insert(ipv6Family, attrBytes, nlriIPv6)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Without filter: both families
 	allRoutes := requirePeerRoutes(t, r.showPipeline("*", []string{"received"}), "adj-rib-in", "192.0.2.1")
@@ -242,7 +242,7 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlri1)
 	peerRIB.Insert(fam, attrBytes, nlri2)
-	r.ribInPool["192.0.2.1"] = peerRIB
+	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Filter by prefix (exact prefix string match)
 	routes := requirePeerRoutes(t, r.showPipeline("*", []string{"received", "prefix", "10.0.0.0/24"}), "adj-rib-in", "192.0.2.1")
@@ -280,4 +280,48 @@ func TestOutboundShowMinimalAttributes(t *testing.T) {
 	assert.False(t, hasOrigin, "origin should be absent when empty")
 	_, hasMED := route["med"]
 	assert.False(t, hasMED, "MED should be absent when nil")
+}
+
+// TestInjectUsesProtocolSlot verifies bgp rib inject stores in bgpPeers.
+func TestInjectUsesProtocolSlot(t *testing.T) {
+	r := newTestRIBManager(t)
+	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
+
+	status, _, err := r.handleCommand("bgp rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+
+	require.NotNil(t, r.bgpPeers["10.0.0.1"])
+	assert.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
+
+	nlri, err := prefixToWire("ipv4/unicast", "10.0.0.0/24", 0, false)
+	require.NoError(t, err)
+	_, found := r.bgpPeers["10.0.0.1"].Lookup(ipv4Uni, nlri)
+	assert.True(t, found)
+}
+
+// TestWithdrawUsesProtocolSlot verifies bgp rib withdraw reads from bgpPeers.
+func TestWithdrawUsesProtocolSlot(t *testing.T) {
+	r := newTestRIBManager(t)
+	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
+
+	_, _, err := r.handleCommand("bgp rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
+
+	status, data, err := r.handleCommand("bgp rib withdraw", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+	assert.Contains(t, data, `"existed":true`)
+
+	nlri, err := prefixToWire("ipv4/unicast", "10.0.0.0/24", 0, false)
+	require.NoError(t, err)
+	_, found := r.bgpPeers["10.0.0.1"].Lookup(ipv4Uni, nlri)
+	assert.False(t, found)
 }

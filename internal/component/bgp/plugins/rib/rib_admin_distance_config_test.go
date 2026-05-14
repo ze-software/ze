@@ -149,8 +149,8 @@ func TestAdminDistanceAppliedEBGP(t *testing.T) {
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
-	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
 
 	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, ok)
@@ -180,8 +180,8 @@ func TestAdminDistanceAppliedIBGP(t *testing.T) {
 	prefix := ipv4Prefix(24, 10, 1, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 2})
 
-	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
 
 	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, ok)

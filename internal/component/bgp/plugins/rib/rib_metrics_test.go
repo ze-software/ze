@@ -85,7 +85,7 @@ func TestUpdateMetrics(t *testing.T) {
 	// Insert some routes (use dummy family + wire bytes)
 	peerRIB.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 0})
 	peerRIB.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 1})
-	r.ribInPool["10.0.0.1"] = peerRIB
+	r.bgpPeers["10.0.0.1"] = peerRIB
 
 	// Populate ribOut with a peer having routes
 	r.ribOut["10.0.0.2"] = map[family.Family]map[string]*Route{
@@ -159,8 +159,8 @@ func TestUpdateMetricsMultiplePeers(t *testing.T) {
 	peer2 := storage.NewPeerRIB("10.0.0.2")
 	peer2.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 1, 0})
 	peer2.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 1, 1})
-	r.ribInPool["10.0.0.1"] = peer1
-	r.ribInPool["10.0.0.2"] = peer2
+	r.bgpPeers["10.0.0.1"] = peer1
+	r.bgpPeers["10.0.0.2"] = peer2
 
 	// Two peers in ribOut
 	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
@@ -207,8 +207,8 @@ func TestUpdateMetricsStalePeerCleanup(t *testing.T) {
 	peer1.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 0, 0})
 	peer2 := storage.NewPeerRIB("10.0.0.2")
 	peer2.Insert(ipv4Unicast, []byte{0x40, 0x01, 0x01, 0x00}, []byte{24, 10, 1, 0})
-	r.ribInPool["10.0.0.1"] = peer1
-	r.ribInPool["10.0.0.2"] = peer2
+	r.bgpPeers["10.0.0.1"] = peer1
+	r.bgpPeers["10.0.0.2"] = peer2
 
 	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
@@ -224,7 +224,7 @@ func TestUpdateMetricsStalePeerCleanup(t *testing.T) {
 	assert.Contains(t, body, `ze_rib_routes_out{peer="10.0.0.1"} 1`)
 
 	// Cycle 2: remove peer 10.0.0.2 from ribInPool and 10.0.0.1 from ribOut
-	delete(r.ribInPool, "10.0.0.2")
+	delete(r.bgpPeers, "10.0.0.2")
 	delete(r.ribOut, "10.0.0.1")
 
 	r.updateMetrics()

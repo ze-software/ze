@@ -52,7 +52,7 @@ func (r *RIBManager) autoExpireStale(peerAddr string, owner *peerGRState) {
 		return
 	}
 
-	peerRIB := r.ribInPool[peerAddr]
+	peerRIB := r.bgpPeers[peerAddr]
 	if peerRIB != nil {
 		for _, fam := range peerRIB.Families() {
 			ap := peerRIB.IsAddPath(fam)
@@ -306,10 +306,10 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error
 	}
 
 	r.peerMu.Lock()
-	if r.ribInPool[peer] == nil {
-		r.ribInPool[peer] = storage.NewPeerRIB(peer)
+	if r.bgpPeers[peer] == nil {
+		r.bgpPeers[peer] = storage.NewPeerRIB(peer)
 	}
-	r.ribInPool[peer].Insert(fam, attrBytes, nlriBytes)
+	r.bgpPeers[peer].Insert(fam, attrBytes, nlriBytes)
 	r.peerMu.Unlock()
 
 	r.reconcileBestPath(fam, nlriBytes)
@@ -380,7 +380,7 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, string, err
 	}
 
 	r.peerMu.RLock()
-	peerRIB := r.ribInPool[peer]
+	peerRIB := r.bgpPeers[peer]
 	r.peerMu.RUnlock()
 
 	if peerRIB == nil {
@@ -507,13 +507,13 @@ func (r *RIBManager) inboundEmptyJSON(selector string) string {
 	cleared := 0
 	var purgedPeers []string
 
-	for peer, peerRIB := range r.ribInPool {
+	for peer, peerRIB := range r.bgpPeers {
 		if !matchesPeer(peer, selector) {
 			continue
 		}
 		cleared += peerRIB.Len()
 		peerRIB.Release()
-		delete(r.ribInPool, peer)
+		delete(r.bgpPeers, peer)
 		delete(r.peerMeta, peer)
 		purgedPeers = append(purgedPeers, peer)
 	}
@@ -601,9 +601,11 @@ func (r *RIBManager) statusJSON() string {
 
 	routesIn := 0
 	staleRoutes := 0
-	for _, peerRIB := range r.ribInPool {
-		routesIn += peerRIB.Len()
-		staleRoutes += peerRIB.StaleCount()
+	for _, protoPeers := range r.ribInPool {
+		for _, peerRIB := range protoPeers {
+			routesIn += peerRIB.Len()
+			staleRoutes += peerRIB.StaleCount()
+		}
 	}
 
 	routesOut := 0
@@ -646,7 +648,7 @@ func (r *RIBManager) retainRoutesJSON(selector string) string {
 	defer r.peerMu.Unlock()
 
 	retained := 0
-	for peer := range r.ribInPool {
+	for peer := range r.bgpPeers {
 		if !matchesPeer(peer, selector) {
 			continue
 		}
@@ -671,9 +673,9 @@ func (r *RIBManager) releaseRoutesJSON(selector string) string {
 			continue
 		}
 		delete(r.retainedPeers, peer)
-		if peerRIB := r.ribInPool[peer]; peerRIB != nil {
+		if peerRIB := r.bgpPeers[peer]; peerRIB != nil {
 			peerRIB.Release()
-			delete(r.ribInPool, peer)
+			delete(r.bgpPeers, peer)
 			purgedPeers = append(purgedPeers, peer)
 		}
 		delete(r.peerMeta, peer)
@@ -724,7 +726,7 @@ func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
 	defer r.peerMu.Unlock()
 
 	marked := 0
-	peerRIB := r.ribInPool[peerAddr]
+	peerRIB := r.bgpPeers[peerAddr]
 	if peerRIB != nil {
 		peerRIB.MarkAllStale(staleLevel)
 		marked = peerRIB.StaleCount()
@@ -794,7 +796,7 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, string, error) {
 	r.peerMu.Lock()
 
 	purged := 0
-	peerRIB := r.ribInPool[peerAddr]
+	peerRIB := r.bgpPeers[peerAddr]
 
 	type staleNLRI struct {
 		fam     family.Family
@@ -860,10 +862,13 @@ func (r *RIBManager) bestPathStatusJSON() string {
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 
-	totalPeers := len(r.ribInPool)
+	totalPeers := 0
 	totalRoutes := 0
-	for _, peerRIB := range r.ribInPool {
-		totalRoutes += peerRIB.Len()
+	for _, protoPeers := range r.ribInPool {
+		for _, peerRIB := range protoPeers {
+			totalPeers++
+			totalRoutes += peerRIB.Len()
+		}
 	}
 
 	data, _ := json.Marshal(map[string]any{
@@ -893,7 +898,7 @@ func (r *RIBManager) gatherCandidates(fam family.Family, nlriBytes []byte) []*Ca
 // PeerRIB content reads (peerRIB.Lookup) use PeerRIB's own lock.
 func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte) []*Candidate {
 	var candidates []*Candidate
-	for peer, peerRIB := range r.ribInPool {
+	for peer, peerRIB := range r.bgpPeers {
 		entry, ok := peerRIB.Lookup(fam, nlriBytes)
 		if !ok {
 			continue
@@ -1025,7 +1030,7 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, string, erro
 
 	r.peerMu.Lock()
 
-	peerRIB := r.ribInPool[peerAddr]
+	peerRIB := r.bgpPeers[peerAddr]
 	if peerRIB == nil {
 		r.peerMu.Unlock()
 		data, _ := json.Marshal(map[string]any{"attached": 0})
@@ -1093,7 +1098,7 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, string, 
 
 	r.peerMu.Lock()
 
-	peerRIB := r.ribInPool[peerAddr]
+	peerRIB := r.bgpPeers[peerAddr]
 	if peerRIB == nil {
 		r.peerMu.Unlock()
 		data, _ := json.Marshal(map[string]any{"deleted": 0})

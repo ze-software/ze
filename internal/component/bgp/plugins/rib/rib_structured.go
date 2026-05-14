@@ -93,7 +93,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	//
 	// Race with handleStructuredState DOWN: if a DOWN event lands between
 	// here and Phase 3, that handler takes r.peerMu.Lock, calls
-	// peerRIB.Release, and delete(r.ribInPool, peerAddr). Phase 2 below
+	// peerRIB.Release, and delete(r.bgpPeers, peerAddr). Phase 2 below
 	// keeps writing to the local peerRIB pointer -- those writes land on
 	// an orphan PeerRIB that no future gatherCandidates sees. Semantics
 	// stay correct because Phase 3's checkBestPathChange still emits
@@ -115,10 +115,10 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		m := candidate
 		r.peerMeta[peerAddr] = &m
 	}
-	peerRIB := r.ribInPool[peerAddr]
+	peerRIB := r.bgpPeers[peerAddr]
 	if peerRIB == nil {
 		peerRIB = storage.NewPeerRIB(peerAddr)
-		r.ribInPool[peerAddr] = peerRIB
+		r.bgpPeers[peerAddr] = peerRIB
 	}
 	r.peerMu.Unlock()
 
