@@ -210,6 +210,9 @@ tbody tr.best-route { background: var(--best-bg); }
 /* ASN name */
 .asn-name { color: var(--th-text); font-size: 0.8rem; margin-left: 0.3rem; }
 
+/* BMP peers section */
+.bmp-peers-table { border-left: 3px solid var(--state-unknown); }
+
 /* Error and empty states */
 .error-banner { padding: 0.8rem 1rem; background: var(--error-bg); border: 1px solid var(--error-border); border-radius: 6px; color: var(--error-text); margin-bottom: 1rem; font-weight: 500; }
 .empty-state { padding: 2rem; text-align: center; color: var(--state-unknown); font-style: italic; }

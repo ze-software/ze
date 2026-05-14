@@ -2,6 +2,10 @@
 <h1>BGP Peers</h1>
 {{template "error_banner" .}}
 {{template "peers_content" .}}
+{{if .BMPPeers}}
+<h2>BMP Monitored Peers</h2>
+{{template "bmp_peers_content" .}}
+{{end}}
 {{template "peer_detail_area" .}}
 {{end}}
 
@@ -30,6 +34,25 @@
 <td>{{formatNum .UpdatesSent}}</td>
 <td>{{.Description}}</td>
 </tr>{{end}}
+{{end}}
+
+{{define "bmp_peers_content"}}
+<table class="peers-table bmp-peers-table">
+<thead>
+<tr>
+<th>Router</th><th>Peer BGP ID</th><th>Remote AS</th><th>State</th><th>Family</th>
+</tr>
+</thead>
+<tbody>{{range .BMPPeers}}
+<tr class="{{if eq .State "up"}}state-up{{else}}state-down{{end}}">
+<td>{{.Router}}</td>
+<td>{{.BGPID}}</td>
+<td>{{.PeerAS}}{{if .PeerASName}}<span class="asn-name">{{.PeerASName}}</span>{{end}}</td>
+<td class="state">{{.State}}</td>
+<td>{{if .IPv6}}IPv6{{else}}IPv4{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
 {{end}}
 
 {{define "peer_detail_area"}}

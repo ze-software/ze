@@ -28,9 +28,15 @@ func (s *LGServer) handleUIPeers(w http.ResponseWriter, r *http.Request) {
 
 	peers := s.extractPeers(zeData)
 
+	bmpResult := s.query("bmp peers")
+	bmpData := parseJSON(bmpResult)
+	bmpPeers := s.extractBMPPeers(bmpData)
+
 	data := map[string]any{
 		"Peers":     peers,
-		"Title":     "BGP Peers",
+		"BGPPeers":  peers,
+		"BMPPeers":  bmpPeers,
+		"Title":     "Peers",
 		"ActiveTab": "peers",
 		"Error":     engineError(zeData),
 	}
@@ -569,6 +575,49 @@ func (s *LGServer) extractPeers(ze map[string]any) []map[string]any {
 		}
 		return string(ipI.To16()) < string(ipJ.To16())
 	})
+
+	return result
+}
+
+// extractBMPPeers converts BMP peer data into template-friendly format.
+// Returns nil when BMP is not configured or has no peers.
+func (s *LGServer) extractBMPPeers(ze map[string]any) []map[string]any {
+	if ze == nil {
+		return nil
+	}
+
+	peers, _ := ze["peers"].([]any)
+	if len(peers) == 0 {
+		return nil
+	}
+
+	var result []map[string]any
+	for _, p := range peers {
+		peer, ok := p.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		router := getStr(peer, "router")
+		peerAS := getStr(peer, "peer-as")
+		bgpID := getStr(peer, "peer-bgp-id")
+		isUp := getBool(peer, "up")
+
+		state := "down"
+		if isUp {
+			state = "up"
+		}
+
+		entry := map[string]any{
+			"Router":     router,
+			"PeerAS":     peerAS,
+			"PeerASName": s.resolveASN(peerAS),
+			"BGPID":      bgpID,
+			"State":      state,
+			"IPv6":       getBool(peer, "ipv6"),
+		}
+		result = append(result, entry)
+	}
 
 	return result
 }
