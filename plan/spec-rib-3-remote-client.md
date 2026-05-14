@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | deferred |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-04-11 |
+| Updated | 2026-05-13 |
 
 ## Post-Compaction Recovery
 
@@ -59,9 +59,9 @@ Out of scope:
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/bgp/plugins/rib/` - RIB plugin, `rib inject` handler
-- [ ] `internal/component/bgp/reactor/` - peer lifecycle, UpdateSource interface
-- [ ] `internal/component/bgp/plugins/` - plugin registration pattern
+- [ ] `internal/component/bgp/plugins/rib/rib.go` - RIB plugin, `rib inject` handler
+- [ ] `internal/component/bgp/reactor/peer.go` - peer lifecycle, UpdateSource interface
+- [ ] `internal/component/bgp/plugins/rib/register.go` - plugin registration pattern
 - [ ] `internal/yang/modules/ze-bgp-conf.yang` - where to put the new config node
 
 **Behavior to preserve:**
