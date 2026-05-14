@@ -136,7 +136,7 @@ func (s *LGServer) handleAPIRoutesTable(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result := s.query(fmt.Sprintf("bgp bgp rib show best %s", fam))
+	result := s.query(fmt.Sprintf("bgp rib show best %s", fam))
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -234,7 +234,7 @@ func (s *LGServer) handleAPIRoutesPrefix(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	result := s.query(fmt.Sprintf("bgp bgp rib show prefix %s", prefix))
+	result := s.query(fmt.Sprintf("bgp rib show prefix %s", prefix))
 
 	zeData := parseJSON(result)
 	if zeData == nil {

@@ -115,7 +115,7 @@ func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build pipeline command with all provided filters.
-	cmd := "bgp bgp rib show"
+	cmd := "bgp rib show"
 	if prefix != "" {
 		cmd += " prefix " + prefix
 	}
@@ -401,7 +401,7 @@ func (s *LGServer) handleUIRouteDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.query(fmt.Sprintf("bgp bgp rib show prefix %s", prefix))
+	result := s.query(fmt.Sprintf("bgp rib show prefix %s", prefix))
 	zeData := parseJSON(result)
 	routes := extractRoutes(zeData)
 
