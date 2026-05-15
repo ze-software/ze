@@ -1011,18 +1011,41 @@ system best changes, it publishes a batch to `system-rib/best-change`.
 <!-- source: internal/plugins/sysrib/sysrib.go -- protocolRoute, admin distance, outgoingBatch -->
 <!-- source: internal/plugins/sysrib/register.go -- rib plugin registration -->
 
+### Shared Route Watcher
+
+The `routewatch` package (`internal/core/routewatch/`) owns a single netlink route
+subscription with `ListExisting: true`. It parses each `RouteUpdate`, applies common
+filters (nil Dst, non-NEWROUTE/DELROUTE, `rtproto.IsZe()`), and fans out parsed
+`RouteEvent` values to registered consumers via synchronous callbacks. Both `fib-kernel`
+(route re-assertion) and `kernel` (BGP redistribution) register as consumers. Late
+registration is supported; the handler slice is snapshotted on each event. On non-Linux,
+`subscribe()` blocks without delivering events.
+<!-- source: internal/core/routewatch/routewatch.go -- Watcher, Register, deliver -->
+<!-- source: internal/core/routewatch/routewatch_linux.go -- netlink subscription -->
+
 ### FIB Kernel
 
 The `fib-kernel` plugin subscribes to `system-rib/best-change` and programs OS routes
 via netlink on Linux. It uses a custom rtm_protocol ID (RTPROT_ZE=250) so ze-installed
 routes are distinguishable from other routing daemons. On startup, existing ze routes
-are marked stale; after reconvergence, stale routes are swept. A kernel route monitor
+are marked stale; after reconvergence, stale routes are swept. A routewatch consumer
 detects external modifications (other daemons, manual changes) and re-asserts ze routes
 when overwritten.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- routeBackend, startupSweep, sweepStale -->
 <!-- source: internal/plugins/fib/kernel/backend_linux.go -- netlink backend, RTPROT_ZE -->
-<!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route change detection -->
+<!-- source: internal/plugins/fib/kernel/monitor_linux.go -- routewatch consumer for external change detection -->
 <!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel plugin registration -->
+
+### Kernel Route Redistribution
+
+The `kernel` plugin registers as a routewatch consumer and emits `redistevents.RouteChangeBatch`
+events for externally-installed kernel routes. Consumer-side filtering excludes RTPROT_KERNEL (2)
+to avoid overlap with the `connected` plugin and RTPROT_REDIRECT (1) to avoid transient ICMP
+redirect churn. Routes from DHCP (16), PPP/manual (BOOT=3), and admin static (STATIC=4) are
+redistributed. Tracks announced prefixes; withdraws all on shutdown. Configured via
+`redistribute { destination bgp { import kernel; } }`.
+<!-- source: internal/plugins/kernel/kernel.go -- routeObserver, handleRouteEvent, withdrawAll -->
+<!-- source: internal/plugins/kernel/events/events.go -- redistevents producer registration -->
 
 ### FIB VPP
 

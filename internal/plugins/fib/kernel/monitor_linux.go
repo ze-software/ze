@@ -1,12 +1,11 @@
 // Design: docs/architecture/core-design.md -- FIB Linux route monitor
 // Overview: fibkernel.go -- FIB kernel plugin
 // Related: monitor.go -- external change handling (platform-independent)
-// Related: backend_linux.go -- Linux netlink backend
 //
-// Monitors kernel routing table changes via netlink multicast groups
-// RTNLGRP_IPV4_ROUTE and RTNLGRP_IPV6_ROUTE. Detects external route
-// modifications (from other daemons or manual ip route commands) and
-// triggers re-assertion of ze-managed routes.
+// Registers as a routewatch consumer to detect external route modifications
+// on ze-managed prefixes and trigger re-assertion. The shared routewatch
+// Watcher owns the single netlink subscription; this consumer receives
+// parsed RouteEvent values with Ze-owned routes already filtered.
 
 //go:build linux
 
@@ -15,65 +14,28 @@ package fibkernel
 import (
 	"context"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
-
-	"github.com/vishvananda/netlink"
-	"golang.org/x/sys/unix"
+	"codeberg.org/thomas-mangin/ze/internal/core/routewatch"
 )
 
-// runMonitor subscribes to kernel route change notifications via netlink
-// multicast groups. Filters by rtm_protocol: ignores ze's own changes,
-// calls handleExternalChange for modifications on ze-managed prefixes.
-// Blocks until ctx is canceled.
 func (f *fibKernel) runMonitor(ctx context.Context) {
-	updates := make(chan netlink.RouteUpdate, 64)
-	done := make(chan struct{})
-	defer close(done) // Always signal netlink to stop, preventing goroutine leak.
+	w := routewatch.Global()
 
-	opts := netlink.RouteSubscribeOptions{
-		ListExisting:  false,
-		ErrorCallback: func(err error) { logger().Warn("fib-kernel: monitor error", "error", err) },
-	}
-	if err := netlink.RouteSubscribeWithOptions(updates, done, opts); err != nil {
-		logger().Error("fib-kernel: route subscribe failed", "error", err)
-		return
-	}
-
-	logger().Info("fib-kernel: route monitor started")
-
-	for {
-		select {
-		case <-ctx.Done():
-			logger().Info("fib-kernel: route monitor stopped")
-			return
-
-		case update, ok := <-updates:
-			if !ok {
-				logger().Warn("fib-kernel: route update channel closed")
-				return
-			}
-
-			// Ignore route changes from any Ze route producer.
-			if rtproto.IsZe(int(update.Protocol)) {
-				continue
-			}
-
-			// Handle both route additions/replacements and deletions on ze-managed prefixes.
-			if update.Type != unix.RTM_NEWROUTE && update.Type != unix.RTM_DELROUTE {
-				continue
-			}
-
-			if update.Dst == nil {
-				continue
-			}
-
-			prefix := update.Dst.String()
-			var nextHop string
-			if update.Gw != nil {
-				nextHop = update.Gw.String()
-			}
-
-			f.handleExternalChange(prefix, nextHop, int(update.Protocol))
+	unreg := w.Register(func(ev routewatch.RouteEvent) {
+		var nextHop string
+		if ev.NextHop.IsValid() {
+			nextHop = ev.NextHop.String()
 		}
-	}
+		f.handleExternalChange(ev.Prefix.String(), nextHop, ev.Protocol)
+	})
+	defer unreg()
+
+	w.Start(func(err error) {
+		logger().Warn("routewatch: monitor error", "error", err)
+	})
+
+	logger().Info("fib-kernel: route monitor started (routewatch consumer)")
+
+	<-ctx.Done()
+
+	logger().Info("fib-kernel: route monitor stopped")
 }

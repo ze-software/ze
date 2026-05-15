@@ -73,6 +73,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/p4/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/vpp/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/kernel/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthlocal/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthradius/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tppool/schema"
@@ -133,6 +134,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/dhcp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/vpp"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/kernel"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthlocal"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthradius"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tppool"
@@ -159,4 +161,3 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )
-

@@ -1,0 +1,20 @@
+module ze-kernel-conf {
+    namespace "urn:ze:kernel:conf";
+    prefix kernel;
+
+    import ze-extensions { prefix ze; }
+
+    description
+        "Kernel route redistribution for Ze.
+         When present, externally-installed kernel routes (DHCP, PPP,
+         manual) are advertised into BGP via the redistribute event bus.";
+
+    revision 2026-05-15 {
+        description "Initial revision.";
+    }
+
+    container kernel {
+        description "Kernel route redistribution. Presence enables the plugin.";
+        ze:config-root "kernel";
+    }
+}

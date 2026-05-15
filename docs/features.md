@@ -44,6 +44,10 @@ Status values: `Supported` means implemented and covered in the normal release e
 <!-- source: internal/plugins/connected/connected.go -- route observer -->
 <!-- source: internal/plugins/connected/events/events.go -- redistevents producer -->
 <!-- source: internal/plugins/static/backend_linux.go -- netlink multipath backend -->
+| Kernel Routes | Experimental | Redistribute externally-installed kernel routes into BGP via `redistribute { import kernel }`. Consumes parsed route events from a shared netlink route watcher (`internal/core/routewatch/`), filtering Ze-owned routes (rtproto 250-252), RTPROT_KERNEL (2), and RTPROT_REDIRECT (1). Emits RouteChangeBatch for DHCP (16), PPP/manual (BOOT=3), admin static (STATIC=4) routes. Tracks announced prefixes; withdraws all on shutdown. IPv4 and IPv6. Shares a single netlink subscription with fib-kernel (route re-assertion). |
+<!-- source: internal/plugins/kernel/kernel.go -- route observer -->
+<!-- source: internal/plugins/kernel/events/events.go -- redistevents producer -->
+<!-- source: internal/core/routewatch/routewatch.go -- shared netlink subscription -->
 | [Policy Routing](guide/policy-routing.md) | Experimental | Policy-based routing via nftables packet marking and kernel ip rules. Steers traffic to alternate routing tables or next-hops based on L3/L4 match criteria (address, port, protocol, TCP flags, set references). Actions: accept (bypass), drop, table N (fwmark + ip rule), next-hop (auto-managed table from 2000-2999), tcp-mss clamping. Interface wildcard binding (e.g., `l2tp*`). Config reload reconciles nftables tables, ip rules, and auto-managed routes. |
 <!-- source: internal/plugins/policyroute/register.go -- plugin registration -->
 <!-- source: internal/plugins/policyroute/translate.go -- config to nftables translation -->
