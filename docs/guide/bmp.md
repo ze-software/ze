@@ -97,9 +97,9 @@ per RFC 7854 recommendations.
 
 | Command | Description |
 |---------|-------------|
-| `ze bmp sessions` | Show active BMP receiver sessions (router address, sysName, uptime) |
-| `ze bmp peers` | Show monitored BGP peers (AS, BGP ID, up/down status) |
-| `ze bmp collectors` | Show sender collector connection status |
+| `ze show bmp sessions` | Show active BMP receiver sessions (router address, sysName, uptime) |
+| `ze show bmp peers` | Show monitored BGP peers (AS, BGP ID, up/down status) |
+| `ze show bmp collectors` | Show sender collector connection status |
 
 ## Protocol Details
 
@@ -146,10 +146,10 @@ selection or the FIB.
 
 | Command | Description |
 |---------|-------------|
-| `ze bmp rib show` | Show all BMP-monitored routes |
+| `ze show bmp rib` | Show all BMP-monitored routes |
 
 BMP routes are separate from BGP routes: `ze bgp rib show` excludes
-BMP-monitored routes, and `ze bmp rib show` excludes real BGP routes.
+BMP-monitored routes, and `ze show bmp rib` excludes real BGP routes.
 
 ### API Endpoints
 

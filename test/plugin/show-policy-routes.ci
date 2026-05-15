@@ -1,7 +1,11 @@
-# Test: static show returns structured JSON with routes, next-hops, weights.
-# VALIDATES: spec-static-routes AC-11 -- static show CLI displays
-#            prefix, next-hops with weight, action, metric, tag.
-# PREVENTS: show command returns empty or malformed JSON.
+# Test: show policy-routes returns JSON with configured PBR rules
+# VALIDATES: spec-cli-1-command-grammar AC-2 -- show policy-routes returns JSON with PBR policy routes
+# PREVENTS: show command returns empty or malformed JSON after CLI grammar migration
+#
+# Requires CAP_NET_ADMIN (nftables).
+
+option=skip-os:value=darwin
+option=timeout:value=15s
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
@@ -23,7 +27,7 @@ out = None
 for _ in range(50):
     try:
         out = subprocess.check_output(
-            ["ze", "cli", "-c", "show static"],
+            ["ze", "cli", "-c", "show policy-routes"],
             text=True, stderr=subprocess.STDOUT)
         break
     except subprocess.CalledProcessError as e:
@@ -32,43 +36,47 @@ for _ in range(50):
 if out is None:
     sys.exit("ze cli never became ready: %s" % last_err.output)
 
-# Verify JSON is parseable
 try:
     data = json.loads(out)
 except json.JSONDecodeError as e:
-    sys.exit("invalid JSON from static show: %s\noutput: %s" % (e, out))
+    sys.exit("invalid JSON from show policy-routes: %s\noutput: %s" % (e, out))
 
-# Verify structure
 if not isinstance(data, list) or len(data) == 0:
     sys.exit("expected non-empty list, got: %s" % out)
 
-# Print for expect matching
+entry = data[0]
+if 'name' not in entry:
+    sys.exit("policy entry missing 'name' field: %s" % entry)
+
 sys.stdout.write(out)
 os.kill(pid, signal.SIGTERM)
 EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
-static {
-    route 0.0.0.0/0 {
-        description "default with weighted ECMP"
-        metric 100
-        tag 42
-        next-hop 10.0.0.1 { weight 3; }
-        next-hop 10.0.0.2 { weight 1; }
-    }
-    route 192.0.2.0/24 {
-        blackhole { }
+firewall {
+    backend nft;
+}
+policy {
+    route test-pbr {
+        interface "lo";
+        rule allow-http {
+            from {
+                destination-port 80;
+                protocol tcp;
+            }
+            then {
+                accept;
+            }
+        }
     }
 }
 EOF_CONF
 
-option=env:var=ze.log.static:value=info
+option=env:var=ze.log.policy-routes:value=info
+option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
 expect=exit:code=0
-expect=stdout:contains="prefix"
-expect=stdout:contains="weight"
-expect=stdout:contains=0.0.0.0/0
-expect=stdout:contains=192.0.2.0/24
-expect=stdout:contains=blackhole
+expect=stdout:contains=test-pbr
+expect=stdout:contains=allow-http

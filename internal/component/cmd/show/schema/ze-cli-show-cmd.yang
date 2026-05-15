@@ -481,6 +481,64 @@ module ze-cli-show-cmd {
             }
         }
 
+        container static {
+            config false;
+            ze:command "ze-show:static";
+            description "Show configured static routes";
+        }
+
+        container policy-routes {
+            config false;
+            ze:command "ze-show:policy-routes";
+            description "Show policy-based routing rules";
+        }
+
+        container bmp {
+            config false;
+            description "BMP (BGP Monitoring Protocol) introspection";
+
+            container sessions {
+                config false;
+                ze:command "ze-show:bmp-sessions";
+                description "Show BMP receiver sessions";
+            }
+
+            container peers {
+                config false;
+                ze:command "ze-show:bmp-peers";
+                description "Show BMP monitored BGP peers";
+            }
+
+            container collectors {
+                config false;
+                ze:command "ze-show:bmp-collectors";
+                description "Show BMP sender collector status";
+            }
+
+            container rib {
+                config false;
+                ze:command "ze-show:bmp-rib";
+                description "Show BMP-monitored routes";
+            }
+        }
+
+        container rr {
+            config false;
+            description "Route reflector introspection";
+
+            container status {
+                config false;
+                ze:command "ze-show:rr-status";
+                description "Show route reflector running state";
+            }
+
+            container peers {
+                config false;
+                ze:command "ze-show:rr-peers";
+                description "Show route reflector peer states";
+            }
+        }
+
         container firewall {
             config false;
             description "Firewall (nftables) introspection";

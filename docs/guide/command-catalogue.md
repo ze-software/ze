@@ -151,7 +151,7 @@ close to fully shipped.
 | BGP pause/resume peer | - | - | `tools perform router bgp neighbor ... enable/disable` | ~ | - | `peer <sel> pause/resume` | shipped | bgp | Ze-unique (flow control) |
 | BGP inject route | ~ (conf-set only) | - | - | - | static + redist | `rib inject`, `peer ... update text` | shipped | bgp | Ze-unique (test tool) |
 | BGP update dump (live) | - | `monitor traffic protocol bgp` | `debug router bgp peer ... events` | - | `debug bgp updates` | `bgp monitor` | shipped | bgp | SSE stream |
-| BGP monitoring protocol (BMP) | ~ | ~ | `show router bmp` | `show bgp bmp` | `show bmp` | `bmp sessions/peers/collectors` | shipped | bgp | |
+| BGP monitoring protocol (BMP) | ~ | ~ | `show router bmp` | `show bgp bmp` | `show bmp` | `show bmp sessions/peers/collectors/rib` | shipped | bgp | |
 | BGP FlowSpec rules | - | `show firewall filter detail` | `show filter ip-filter` | - | `show bgp ipv4 flowspec detailed` | installed via fibkernel; no dedicated view | partial | bgp+nl | Add `show bgp flowspec` |
 | BGP ASPA verification | - | - | - | - | ~ | | planned | bgp | spec-bgp-2-aspa |
 | BGP AIGP | - | - | - | - | ~ | | planned | bgp | spec-bgp-3-aigp |
@@ -171,7 +171,7 @@ internal; kernel / VPP FIB view is not yet exposed.
 | Route summary counts | `show ip route summary` | `show route summary` | `show router route-table summary` | `show ip route summary` | `show ip route summary` | | planned | nl+vpp-fib | |
 | FIB (forwarding) table | ~ | `show route forwarding-table` | `show router fib` | `show ip route vrf` (close) | `show fib` | | planned | nl+vpp-fib | Separates RIB from FIB |
 | Static routes installed | `show ip route static` | `show route protocol static` | `show router static-route` | `show ip route static` | `show ip route static` | `show ip route static` | planned | nl+vpp-fib | Requires RTPROT filter on `show ip route`. Static route plugin programs routes with RTPROT_ZE=250. |
-| Static route config | `show protocols static` | `show configuration protocols static` | `show router static-route` | `show running-config section static` | `show running-config static` | `static show` | shipped | static | JSON output: configured routes with prefix, next-hops, weights, BFD active status. |
+| Static route config | `show protocols static` | `show configuration protocols static` | `show router static-route` | `show running-config section static` | `show running-config static` | `show static` | shipped | static | JSON output: configured routes with prefix, next-hops, weights, BFD active status. |
 | VRF route table | `show ip route vrf <name>` | `show route table <vrf>.inet.0` | `show router <vrf> route-table` | `show ip route vrf <name>` | `show ip route vrf <name>` | | scope | - | VRF not yet shipped |
 | Kernel-programmed (by ze) | ~ | - | - | - | `show ip route bgp` | fib-kernel `showInstalled` | shipped | nl | |
 
@@ -232,7 +232,7 @@ Stateful filter and ACL visibility.
 | NAT translations / pool | `show nat source translations` | `show security nat source pool all` | `show service nat pool` | `show ip nat translations` | - | | planned | nft / vpp-acl | |
 | Drop a conntrack entry | `reset conntrack-sync entry` | `clear security flow session` | - | `clear flow` | - | | planned | nl(conntrack) | |
 | Firewall ruleset resequence | `generate firewall rule-resequence <n>` | ~ | ~ | ~ | - | | scope | - | Config management convenience |
-| Policy-based routing view | `show policy route-map <name>` | `show policy <name>` | `show router policy-options` | `show route-map <name>` | `show route-map <name>` | `policy show` | shipped | config+nft | Returns JSON with policy routes, interfaces, rules, actions |
+| Policy-based routing view | `show policy route-map <name>` | `show policy <name>` | `show router policy-options` | `show route-map <name>` | `show route-map <name>` | `show policy-routes` | shipped | config+nft | Returns JSON with policy routes, interfaces, rules, actions |
 | QoS / traffic-control view | `show queueing interface <i>` | `show class-of-service interface <i>` | `show qos egress-queue-scheduler <i>` | `show qos interfaces <i>` | - | | planned | nl(tc) / vpp-stats | `tc`/VPP policer |
 
 ## 6. VPN / Tunnel / Services

@@ -5,7 +5,7 @@
 # 1. ze starts with BMP receiver on $PORT2
 # 2. Observer sends Initiation + Peer Up + Route Monitoring (inject route)
 # 3. Observer closes TCP connection (session disconnect)
-# 4. Plugin queries "bmp rib show" and verifies routes are gone
+# 4. Plugin queries "show bmp rib" and verifies routes are gone
 
 option=env:var=ze.log.bgp.bmp:value=info
 option=env:var=ze.log.bgp.rib:value=info
@@ -97,7 +97,7 @@ def main():
     time.sleep(1.0)
 
     # Verify route exists before disconnect
-    result = dispatch(api, 'bmp rib show')
+    result = dispatch(api, 'show bmp rib')
     data = result.get('data', '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
     rib_in = parsed.get('adj-rib-in', {})
@@ -110,7 +110,7 @@ def main():
     time.sleep(2.0)
 
     # Verify routes are withdrawn
-    result = dispatch(api, 'bmp rib show')
+    result = dispatch(api, 'show bmp rib')
     data = result.get('data', '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
     rib_in = parsed.get('adj-rib-in', {})

@@ -181,7 +181,7 @@ func runStaticPlugin(conn net.Conn) int {
 	})
 
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
-		if command == "static show" {
+		if command == "show static" {
 			data := rm.showRoutes()
 			out, err := json.Marshal(data)
 			if err != nil {
@@ -199,7 +199,7 @@ func runStaticPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  2,
 		Commands: []sdk.CommandDecl{
-			{Name: "static show"},
+			{Name: "show static"},
 		},
 	})
 	if err != nil {

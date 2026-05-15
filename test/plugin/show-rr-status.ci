@@ -1,0 +1,115 @@
+# Test: show rr status and show rr peers return valid JSON
+# VALIDATES: spec-cli-1-command-grammar AC-6 -- show rr status returns JSON with running state
+# VALIDATES: spec-cli-1-command-grammar AC-7 -- show rr peers returns JSON array of RR peers
+#
+# Flow:
+# 1. ze starts with BGP + RR plugin enabled
+# 2. Test plugin queries "show rr status" and verifies {"running":true}
+# 3. Test plugin queries "show rr peers" and verifies JSON array
+
+option=env:var=ze.log.bgp:value=info
+option=timeout:value=20s
+
+tmpfs=rr-status.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(1.0)
+
+    result = dispatch(api, 'show rr status')
+    status = result.get('status')
+    if status != 'done':
+        print(f'FAIL: show rr status status={status} data={result.get("data")}', flush=True)
+        sys.exit(1)
+
+    data = result.get('data', '{}')
+    parsed = json.loads(data) if isinstance(data, str) else data
+    if not isinstance(parsed, dict) or not parsed.get('running'):
+        print(f'FAIL: expected {{"running":true}}, got: {data}', flush=True)
+        sys.exit(1)
+
+    print('PASS: show rr status returned running=true', flush=True)
+
+    result = dispatch(api, 'show rr peers')
+    status = result.get('status')
+    if status != 'done':
+        print(f'FAIL: show rr peers status={status} data={result.get("data")}', flush=True)
+        sys.exit(1)
+
+    data = result.get('data', '[]')
+    parsed = json.loads(data) if isinstance(data, str) else data
+    if not isinstance(parsed, list):
+        print(f'FAIL: expected peer list, got: {data}', flush=True)
+        sys.exit(1)
+
+    print(f'PASS: show rr peers returned {len(parsed)} peer(s)', flush=True)
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external rr-status-test {
+        run ./rr-status.run;
+        encoder json;
+    }
+}
+bgp {
+    router-id 1.2.3.5;
+    peer test-client {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 65000;
+                remote 65001;
+            }
+            router-id 1.2.3.5;
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            route-reflector-client true
+        }
+        process rr-status-test {
+            receive [ state ];
+        }
+    }
+}
+EOF_CONF
+
+stdin=peer:terminator=EOF_PEER
+EOF_PEER
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-rr -:stdin=ze-bgp
+expect=exit:code=0
+expect=stdout:pattern=PASS: show rr status
+expect=stdout:pattern=PASS: show rr peers

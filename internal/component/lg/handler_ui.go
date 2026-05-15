@@ -28,7 +28,7 @@ func (s *LGServer) handleUIPeers(w http.ResponseWriter, r *http.Request) {
 
 	peers := s.extractPeers(zeData)
 
-	bmpResult := s.query("bmp peers")
+	bmpResult := s.query("show bmp peers")
 	bmpData := parseJSON(bmpResult)
 	bmpPeers := s.extractBMPPeers(bmpData)
 

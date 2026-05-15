@@ -169,8 +169,8 @@ func RunRouteReflector(conn net.Conn) int {
 		CacheConsumer:          true,
 		CacheConsumerUnordered: true,
 		Commands: []sdk.CommandDecl{
-			{Name: "rr status", Description: "Show RR status"},
-			{Name: "rr peers", Description: "Show peer states"},
+			{Name: "show rr status", Description: "Show RR status"},
+			{Name: "show rr peers", Description: "Show peer states"},
 		},
 	})
 
@@ -419,9 +419,9 @@ func (rr *RouteReflector) dispatchText(text string) {
 // handleCommand processes command requests via SDK execute-command callback.
 func (rr *RouteReflector) handleCommand(command string) (string, string, error) {
 	switch command {
-	case "rr status":
+	case "show rr status":
 		return statusDone, `{"running":true}`, nil
-	case "rr peers":
+	case "show rr peers":
 		return statusDone, rr.peersJSON(), nil
 	default: // fail on unknown command
 		return statusError, "", fmt.Errorf("unknown command: %s", command)

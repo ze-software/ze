@@ -97,8 +97,8 @@ def main():
     sock.sendall(bmp_route_monitoring())
     time.sleep(1.0)
 
-    # Verify BMP route exists in bmp rib show
-    result = dispatch(api, 'bmp rib show')
+    # Verify BMP route exists in show bmp rib
+    result = dispatch(api, 'show bmp rib')
     data = result.get('data', '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
     rib_in = parsed.get('adj-rib-in', {})

@@ -146,7 +146,7 @@ func runPolicyRoutePlugin(conn net.Conn) int {
 	})
 
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
-		if command == "policy show" {
+		if command == "show policy-routes" {
 			mu.Lock()
 			policies := currentPolicies
 			mu.Unlock()
@@ -166,7 +166,7 @@ func runPolicyRoutePlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  2,
 		Commands: []sdk.CommandDecl{
-			{Name: "policy show"},
+			{Name: "show policy-routes"},
 		},
 	})
 	if err != nil {

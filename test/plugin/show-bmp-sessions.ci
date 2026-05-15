@@ -1,19 +1,19 @@
-# Test: BMP receiver ingests routes, visible via show bmp rib
-# VALIDATES: AC-1 -- Route Monitoring IPv4 unicast stored under bmpProtocolID
-# VALIDATES: AC-10 -- show bmp rib displays BMP routes
+# Test: show bmp sessions returns session data after BMP observer connects
+# VALIDATES: spec-cli-1-command-grammar AC-3 -- show bmp sessions returns JSON array
+# VALIDATES: show bmp collectors returns JSON (no senders configured)
 #
 # Flow:
 # 1. ze starts with BMP receiver on $PORT2
-# 2. Observer connects TCP, sends Initiation + Peer Up + Route Monitoring
-# 3. Plugin queries "show bmp rib" and verifies route is present
+# 2. Observer connects TCP, sends Initiation + Peer Up
+# 3. Plugin queries "show bmp sessions" and verifies session is present
+# 4. Plugin queries "show bmp collectors" and verifies JSON returned
 
 option=env:var=ze.log.bgp.bmp:value=info
-option=env:var=ze.log.bgp.rib:value=info
 option=timeout:value=20s
 
-tmpfs=bmp-ingest.run:mode=755:terminator=EOF_RUN
+tmpfs=bmp-sessions.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""BMP test client: sends Route Monitoring with IPv4 UPDATE, verifies via show bmp rib."""
+"""BMP test client: sends Initiation + Peer Up, verifies via show bmp sessions."""
 import json
 import socket
 import struct
@@ -51,26 +51,6 @@ def bmp_peer_up():
     payload = ph + local_addr + ports + sent_open + recv_open
     return bmp_header(3, 6 + len(payload)) + payload
 
-def bgp_update_announce(prefix_bytes, prefix_len):
-    """Build a BGP UPDATE announcing a single IPv4 prefix with minimal attributes."""
-    marker = b'\xff' * 16
-    withdrawn_len = struct.pack('!H', 0)
-    origin = struct.pack('!BBB', 0x40, 1, 1) + b'\x00'
-    as_path = struct.pack('!BBB', 0x40, 2, 0)
-    next_hop = struct.pack('!BBB', 0x40, 3, 4) + bytes([10, 0, 0, 100])
-    attrs = origin + as_path + next_hop
-    attr_len = struct.pack('!H', len(attrs))
-    nlri = bytes([prefix_len]) + prefix_bytes
-    body = withdrawn_len + attr_len + attrs + nlri
-    length = 19 + len(body)
-    return marker + struct.pack('!HB', length, 2) + body
-
-def bmp_route_monitoring():
-    ph = bmp_peer_header()
-    update = bgp_update_announce(bytes([10, 0, 0]), 24)
-    payload = ph + update
-    return bmp_header(0, 6 + len(payload)) + payload
-
 def dispatch(api, command):
     resp = api._call_engine(
         'ze-plugin-engine:dispatch-command', {'command': command})
@@ -93,28 +73,36 @@ def main():
     sock.sendall(bmp_initiation())
     time.sleep(0.2)
     sock.sendall(bmp_peer_up())
-    time.sleep(0.2)
-    sock.sendall(bmp_route_monitoring())
     time.sleep(1.0)
 
-    result = dispatch(api, 'show bmp rib')
-    data = result.get('data', '{}')
-    parsed = json.loads(data) if isinstance(data, str) else data
-    rib_in = parsed.get('adj-rib-in', {})
-    found = False
-    for peer, routes in rib_in.items():
-        for route in routes:
-            if '10.0.0.0' in route.get('prefix', ''):
-                found = True
-                break
-
-    if not found:
-        print(f'FAIL: route 10.0.0.0/24 not found in show bmp rib, got: {data}', flush=True)
+    result = dispatch(api, 'show bmp sessions')
+    status = result.get('status')
+    if status != 'done':
+        print(f'FAIL: show bmp sessions status={status}', flush=True)
         import sys; sys.exit(1)
 
-    print('PASS: BMP route 10.0.0.0/24 found in show bmp rib', flush=True)
-    sock.close()
+    data = result.get('data', '[]')
+    parsed = json.loads(data) if isinstance(data, str) else data
+    if not isinstance(parsed, list) or len(parsed) == 0:
+        print(f'FAIL: expected non-empty session list, got: {data}', flush=True)
+        import sys; sys.exit(1)
 
+    session = parsed[0]
+    if 'sys_name' not in session and 'sysName' not in session:
+        print(f'FAIL: session missing sysName field: {session}', flush=True)
+        import sys; sys.exit(1)
+
+    print(f'PASS: show bmp sessions returned {len(parsed)} session(s)', flush=True)
+
+    result = dispatch(api, 'show bmp collectors')
+    status = result.get('status')
+    if status != 'done':
+        print(f'FAIL: show bmp collectors status={status}', flush=True)
+        import sys; sys.exit(1)
+
+    print('PASS: show bmp collectors returned valid response', flush=True)
+
+    sock.close()
     time.sleep(0.5)
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
@@ -134,8 +122,8 @@ environment {
     }
 }
 plugin {
-    external bmp-ingest {
-        run ./bmp-ingest.run;
+    external bmp-sessions-test {
+        run ./bmp-sessions.run;
         encoder json;
     }
 }
@@ -161,7 +149,7 @@ bgp {
                 ipv4/unicast { prefix { maximum 10000; } }
             }
         }
-        process bmp-ingest {
+        process bmp-sessions-test {
             receive [ state ];
         }
     }
@@ -176,4 +164,5 @@ cmd=foreground:seq=2:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
 expect=exit:code=0
 expect=stderr:pattern=bmp: receiver listening
 expect=stderr:pattern=bmp: session started
-expect=stdout:pattern=PASS: BMP route
+expect=stdout:pattern=PASS: show bmp sessions
+expect=stdout:pattern=PASS: show bmp collectors

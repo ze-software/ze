@@ -37,7 +37,7 @@ out = None
 for _ in range(50):
     try:
         out = subprocess.check_output(
-            ["ze", "cli", "-c", "static show"],
+            ["ze", "cli", "-c", "show static"],
             text=True, stderr=subprocess.STDOUT)
         break
     except subprocess.CalledProcessError as e:

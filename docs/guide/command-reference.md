@@ -1049,10 +1049,11 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `bmp sessions` | read-only | Show active BMP receiver sessions (router address, sysName, uptime) |
-| `bmp peers` | read-only | Show monitored BGP peers (AS, BGP ID, up/down status) |
-| `bmp collectors` | read-only | Show BMP sender collector connection status |
-<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- handleCommand -->
+| `show bmp sessions` | read-only | Show active BMP receiver sessions (router address, sysName, uptime) |
+| `show bmp peers` | read-only | Show monitored BGP peers (AS, BGP ID, up/down status) |
+| `show bmp collectors` | read-only | Show BMP sender collector connection status |
+| `show bmp rib` | read-only | Show BMP-monitored routes |
+<!-- source: internal/component/cmd/show/show_bmp.go -- ForwardToPlugin proxy -->
 
 ### Commit (Atomic Updates)
 
@@ -1084,10 +1085,10 @@ Batch operations: `cache <id1>,<id2> <action> [args]`.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `static show` | read-only | Show all configured static routes in JSON: prefix, action, next-hops with address/weight/BFD status, metric, tag |
+| `show static` | read-only | Show all configured static routes in JSON: prefix, action, next-hops with address/weight/BFD status, metric, tag |
 
 The static route plugin programs routes directly to the kernel (netlink multipath) or VPP. It auto-loads when the config contains a `static { }` section. See [Static Routes Guide](static-routes.md).
-<!-- source: internal/plugins/static/register.go -- OnExecuteCommand "static show" -->
+<!-- source: internal/component/cmd/show/show_static.go -- ForwardToPlugin proxy -->
 
 ### Sysctl (Kernel Tunables)
 

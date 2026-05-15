@@ -150,7 +150,7 @@ func (s *LGServer) handleAPIRoutesTable(w http.ResponseWriter, r *http.Request) 
 
 // handleAPIBMPProtocols returns BMP-monitored peers (GET /api/looking-glass/protocols/bmp).
 func (s *LGServer) handleAPIBMPProtocols(w http.ResponseWriter, _ *http.Request) {
-	result := s.query("bmp peers")
+	result := s.query("show bmp peers")
 
 	zeData := parseJSON(result)
 	if zeData == nil {

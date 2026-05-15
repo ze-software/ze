@@ -131,11 +131,20 @@ the bus from buggy or malicious producers.
 | `ze-show:warnings` | `handleShowWarnings` in `internal/component/cmd/show/show.go` | `{"warnings": [Issue, ...], "count": N}` |
 | `ze-show:errors` | `handleShowErrors` in `internal/component/cmd/show/show.go` | `{"errors": [Issue, ...], "count": N}` |
 | `ze-show:traffic` | `handleShowTraffic` in `internal/component/cmd/show/show.go` | `{"interfaces": [...], "count": N}` or single interface detail |
+| `ze-show:static` | `forwardShowStatic` in `internal/component/cmd/show/show_static.go` | JSON array of configured static routes (proxy to static plugin) |
+| `ze-show:policy-routes` | `forwardShowPolicyRoutes` in `internal/component/cmd/show/show_policy_routes.go` | JSON array of PBR policy routes (proxy to policyroute plugin) |
+| `ze-show:bmp-sessions` | `forwardShowBMPSessions` in `internal/component/cmd/show/show_bmp.go` | JSON array of BMP receiver sessions (proxy to BMP plugin) |
+| `ze-show:bmp-peers` | `forwardShowBMPPeers` in `internal/component/cmd/show/show_bmp.go` | JSON array of BMP monitored peers (proxy to BMP plugin) |
+| `ze-show:bmp-collectors` | `forwardShowBMPCollectors` in `internal/component/cmd/show/show_bmp.go` | JSON array of BMP sender collectors (proxy to BMP plugin) |
+| `ze-show:bmp-rib` | `forwardShowBMPRib` in `internal/component/cmd/show/show_bmp.go` | BMP-monitored routes (proxy to BMP plugin, dispatches to RIB) |
+| `ze-show:rr-status` | `forwardShowRRStatus` in `internal/component/cmd/show/show_rr.go` | `{"running": true}` (proxy to RR plugin) |
+| `ze-show:rr-peers` | `forwardShowRRPeers` in `internal/component/cmd/show/show_rr.go` | JSON array of RR peer states (proxy to RR plugin) |
 
 Both warnings/errors handlers accept optional `source <name>` filter and
 errors accepts `count <N>` limit. Return a non-nil empty slice when empty.
 
 <!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->
+<!-- source: internal/component/cmd/show/show_static.go, show_policy_routes.go, show_bmp.go, show_rr.go -- ForwardToPlugin proxies -->
 <!-- source: internal/component/cmd/show/schema/ze-cli-show-cmd.yang -- top-level warnings / errors containers -->
 
 ### Issue JSON shape

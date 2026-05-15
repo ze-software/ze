@@ -240,10 +240,10 @@ func RunBMPPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			{Name: "bmp sessions", Description: "Show BMP receiver sessions"},
-			{Name: "bmp peers", Description: "Show monitored BGP peers"},
-			{Name: "bmp collectors", Description: "Show BMP sender collector status"},
-			{Name: "bmp rib show", Description: "Show BMP-monitored routes"},
+			{Name: "show bmp sessions", Description: "Show BMP receiver sessions"},
+			{Name: "show bmp peers", Description: "Show monitored BGP peers"},
+			{Name: "show bmp collectors", Description: "Show BMP sender collector status"},
+			{Name: "show bmp rib", Description: "Show BMP-monitored routes"},
 		},
 		WantsConfig: []string{"bgp", "environment"},
 	})
@@ -469,16 +469,16 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 // handleCommand dispatches BMP CLI commands to the appropriate handler.
 func (bp *BMPPlugin) handleCommand(command string) (string, string, error) {
 	switch command {
-	case "bmp sessions":
+	case "show bmp sessions":
 		return bp.state.sessionsCommand()
-	case "bmp peers":
+	case "show bmp peers":
 		return bp.state.peersCommand()
-	case "bmp collectors":
+	case "show bmp collectors":
 		bp.mu.RLock()
 		senders := bp.senders
 		bp.mu.RUnlock()
 		return bp.state.collectorsCommand(senders)
-	case "bmp rib show":
+	case "show bmp rib":
 		if bp.plugin == nil {
 			return statusError, "", errPluginNotInitialized
 		}

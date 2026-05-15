@@ -134,7 +134,7 @@ static {
 ## CLI
 
 ```
-ze> static show
+ze> show static
 ```
 
 Shows all configured static routes with their prefixes, next-hops,
