@@ -1,12 +1,13 @@
-# Test: Config reload removes a static route.
-# VALIDATES: spec-static-routes AC-9 -- SIGHUP with route removed,
-#            route no longer appears in static show output.
-# PREVENTS: reload accepted but removed routes left in kernel
-#           (diff engine reports no removal).
+# Test: Static routes with named tables and interface-only next-hops.
+# VALIDATES: spec-gap-2 AC-1 (table route), AC-2 (interface-only),
+#            AC-4 (table + interface), AC-5 (gateway unchanged),
+#            AC-8 (same prefix different tables).
+# PREVENTS: table name not resolved, interface-only route rejected,
+#           same prefix in different tables collides.
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
-import os, signal, subprocess, sys, time
+import json, os, signal, subprocess, sys, time
 
 for _ in range(200):
     if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
@@ -19,21 +20,6 @@ with open("daemon.pid") as f:
     pid = int(f.read().strip())
 
 time.sleep(0.5)
-
-# Rewrite config to remove the second route
-with open("ze-bgp.conf", "w") as f:
-    f.write("""static {
-    table default {
-        route 10.0.0.0/8 {
-            next-hop 192.168.1.1 { }
-        }
-    }
-}
-""")
-
-os.kill(pid, signal.SIGHUP)
-time.sleep(1.0)
-
 last_err = None
 out = None
 for _ in range(50):
@@ -47,27 +33,51 @@ for _ in range(50):
         time.sleep(0.1)
 if out is None:
     sys.exit("ze cli never became ready: %s" % last_err.output)
+
+data = json.loads(out)
+if not isinstance(data, list):
+    sys.exit("expected list, got: %s" % out)
+
+# Should have 3 routes: default 0.0.0.0/0, default 10.0.0.0/8, lns 0.0.0.0/0
+if len(data) < 3:
+    sys.exit("expected at least 3 routes, got %d: %s" % (len(data), out))
+
 sys.stdout.write(out)
 os.kill(pid, signal.SIGTERM)
 EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
+routing-table {
+    table lns {
+        id 100
+    }
+}
+
 static {
     table default {
         route 10.0.0.0/8 {
             next-hop 192.168.1.1 { }
         }
-        route 172.16.0.0/12 {
+        route 0.0.0.0/0 {
             next-hop 10.0.0.1 { }
+        }
+    }
+    table lns {
+        route 0.0.0.0/0 {
+            interface-next-hop tun100 { }
         }
     }
 }
 EOF_CONF
 
 option=env:var=ze.log.static:value=info
+option=env:var=ze.log.routing-table:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
 expect=exit:code=0
-expect=stderr:contains=static routes reloaded
-expect=stdout:!contains=172.16.0.0/12
+expect=stderr:contains=static routes loaded
+expect=stderr:contains=routing-table registry loaded
+expect=stdout:contains=10.0.0.0/8
+expect=stdout:contains=0.0.0.0/0
+expect=stdout:contains="table"

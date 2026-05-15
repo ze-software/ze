@@ -1236,26 +1236,32 @@ Each probe runs a shell command periodically. When the service is UP, routes in 
 ## Static Routes
 
 Static routes are programmed directly to the kernel or VPP. The plugin
-auto-loads when the config contains a `static { }` section.
+auto-loads when the config contains a `static { }` section. Routes are
+grouped under named tables for policy-based routing support.
 
 ```
 static {
-    route 0.0.0.0/0 {
-        next-hop 10.0.0.1 { weight 3; }
-        next-hop 10.0.0.2 { weight 1; }
-    }
-    route 192.0.2.0/24 {
-        blackhole { }
+    table default {
+        route 0.0.0.0/0 {
+            next-hop 10.0.0.1 { weight 3; }
+            next-hop 10.0.0.2 { weight 1; }
+        }
+        route 192.0.2.0/24 {
+            blackhole { }
+        }
     }
 }
 ```
 
-Multiple next-hops create an ECMP multipath route. Weight controls
-traffic distribution (higher = more). BFD failover removes a next-hop
-from the ECMP group on session DOWN and re-adds on UP.
+Named tables require a `routing-table` section mapping names to kernel
+table IDs. Interface-only next-hops (no gateway) are supported for
+point-to-point links. Multiple next-hops create an ECMP multipath route.
+Weight controls traffic distribution (higher = more). BFD failover
+removes a next-hop from the ECMP group on session DOWN and re-adds on UP.
 
-See [Static Routes Guide](static-routes.md) for ECMP, weighted ECMP,
-BFD failover, blackhole/reject, IPv6, and redistribute examples.
+See [Static Routes Guide](static-routes.md) for named tables,
+interface-only next-hops, mixed ECMP, BFD failover, blackhole/reject,
+IPv6, and redistribute examples.
 <!-- source: internal/plugins/static/schema/ze-static-conf.yang -- YANG schema -->
 <!-- source: internal/plugins/static/register.go -- plugin registration -->
 

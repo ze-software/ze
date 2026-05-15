@@ -49,15 +49,17 @@ EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 static {
-    route 0.0.0.0/0 {
-        description "default with weighted ECMP"
-        metric 100
-        tag 42
-        next-hop 10.0.0.1 { weight 3; }
-        next-hop 10.0.0.2 { weight 1; }
-    }
-    route 192.0.2.0/24 {
-        blackhole { }
+    table default {
+        route 0.0.0.0/0 {
+            description "default with weighted ECMP"
+            metric 100
+            tag 42
+            next-hop 10.0.0.1 { weight 3; }
+            next-hop 10.0.0.2 { weight 1; }
+        }
+        route 192.0.2.0/24 {
+            blackhole { }
+        }
     }
 }
 EOF_CONF

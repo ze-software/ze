@@ -1,0 +1,90 @@
+// Design: plan/spec-gap-2-static-route-enhancements.md -- routing-table plugin registration
+
+package routingtable
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"os"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	rtschema "codeberg.org/thomas-mangin/ze/internal/plugins/routingtable/schema"
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+)
+
+const pluginName = "routing-table"
+
+func init() {
+	reg := registry.Registration{
+		Name:                    pluginName,
+		Description:             "Named routing table registry: maps names to kernel table IDs",
+		Features:                "yang",
+		YANG:                    rtschema.ZeRoutingTableConfYANG,
+		ConfigRoots:             []string{"routing-table"},
+		InProcessConfigVerifier: verifyRoutingTableConfig,
+		RunEngine:               runRoutingTablePlugin,
+		ConfigureEngineLogger: func(loggerName string) {
+			setLogger(slogutil.Logger(loggerName))
+		},
+	}
+	reg.CLIHandler = func(args []string) int {
+		cfg := cli.BaseConfig(&reg)
+		cfg.ConfigLogger = func(level string) {
+			setLogger(slogutil.PluginLogger(reg.Name, level))
+		}
+		return cli.RunPlugin(cfg, args)
+	}
+	if err := registry.Register(reg); err != nil {
+		fmt.Fprintf(os.Stderr, "routing-table: registration failed: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func verifyRoutingTableConfig(sections []sdk.ConfigSection) error {
+	for _, section := range sections {
+		if section.Root != "routing-table" {
+			continue
+		}
+		if _, err := parseRoutingTableConfig(section.Data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func runRoutingTablePlugin(conn net.Conn) int {
+	logger().Debug("routing-table plugin starting")
+
+	p := sdk.NewWithConn(pluginName, conn)
+	defer func() { _ = p.Close() }()
+
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		for _, section := range sections {
+			if section.Root != "routing-table" {
+				continue
+			}
+			tables, err := parseRoutingTableConfig(section.Data)
+			if err != nil {
+				return err
+			}
+			SetRegistry(New(tables))
+			logger().Info("routing-table registry loaded", "count", len(tables))
+		}
+		return nil
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	err := p.Run(ctx, sdk.Registration{
+		WantsConfig: []string{"routing-table"},
+	})
+	if err != nil {
+		logger().Error("routing-table plugin failed", "error", err)
+		return 1
+	}
+
+	return 0
+}

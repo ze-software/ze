@@ -1,8 +1,9 @@
-// Design: plan/spec-static-routes.md -- BFD integration and active NH tracking
+// Design: plan/spec-gap-2-static-route-enhancements.md -- BFD integration and active NH tracking
 
 package static
 
 import (
+	"cmp"
 	"errors"
 	"net/netip"
 	"slices"
@@ -28,17 +29,22 @@ type routeState struct {
 	emitted  bool
 }
 
+type routeKey struct {
+	table  uint32
+	prefix netip.Prefix
+}
+
 type routeManager struct {
 	mu      sync.Mutex
 	backend routeBackend
-	routes  map[netip.Prefix]*routeState
+	routes  map[routeKey]*routeState
 	bfd     bfdapi.Service
 }
 
 func newRouteManager(backend routeBackend) *routeManager {
 	return &routeManager{
 		backend: backend,
-		routes:  make(map[netip.Prefix]*routeState),
+		routes:  make(map[routeKey]*routeState),
 	}
 }
 
@@ -58,23 +64,24 @@ func (rm *routeManager) applyRoutes(routes []staticRoute) error {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
-	newMap := make(map[netip.Prefix]staticRoute, len(routes))
+	newMap := make(map[routeKey]staticRoute, len(routes))
 	for _, r := range routes {
-		newMap[r.Prefix] = r
+		newMap[routeKey{table: r.Table, prefix: r.Prefix}] = r
 	}
 
 	var errs []error
-	for pfx, rs := range rm.routes {
-		if _, keep := newMap[pfx]; !keep {
+	for key, rs := range rm.routes {
+		if _, keep := newMap[key]; !keep {
 			if err := rm.removeRouteLocked(rs); err != nil {
 				errs = append(errs, err)
 			}
-			delete(rm.routes, pfx)
+			delete(rm.routes, key)
 		}
 	}
 
 	for _, r := range routes {
-		existing := rm.routes[r.Prefix]
+		key := routeKey{table: r.Table, prefix: r.Prefix}
+		existing := rm.routes[key]
 		if existing != nil && routesEqual(existing.route, r) {
 			continue
 		}
@@ -87,7 +94,8 @@ func (rm *routeManager) applyRoutes(routes []staticRoute) error {
 }
 
 func (rm *routeManager) applyRouteLocked(r staticRoute) error {
-	if existing := rm.routes[r.Prefix]; existing != nil {
+	key := routeKey{table: r.Table, prefix: r.Prefix}
+	if existing := rm.routes[key]; existing != nil {
 		if existing.emitted && r.Action != actionForward {
 			rm.emitRouteChange(redistevents.ActionRemove, existing.route)
 		}
@@ -107,14 +115,14 @@ func (rm *routeManager) applyRouteLocked(r staticRoute) error {
 		rm.setupBFDLocked(rs)
 	}
 
-	rm.routes[r.Prefix] = rs
+	rm.routes[key] = rs
 	return rm.programRouteLocked(rs)
 }
 
 func (rm *routeManager) removeRouteLocked(rs *routeState) error {
 	rm.teardownRouteLocked(rs)
 	if err := rm.backend.removeRoute(rs.route); err != nil {
-		logger().Warn("static: remove route failed", "prefix", rs.route.Prefix, "error", err)
+		logger().Warn("static: remove route failed", "prefix", rs.route.Prefix, "table", rs.route.Table, "error", err)
 		return err
 	}
 	if rs.emitted {
@@ -132,7 +140,7 @@ func (rm *routeManager) teardownRouteLocked(rs *routeState) {
 func (rm *routeManager) programRouteLocked(rs *routeState) error {
 	if rs.route.Action != actionForward {
 		if err := rm.backend.applyRoute(rs.route); err != nil {
-			logger().Warn("static: apply route failed", "prefix", rs.route.Prefix, "error", err)
+			logger().Warn("static: apply route failed", "prefix", rs.route.Prefix, "table", rs.route.Table, "error", err)
 			return err
 		}
 		return nil
@@ -141,7 +149,7 @@ func (rm *routeManager) programRouteLocked(rs *routeState) error {
 	active := activeNextHops(rs)
 	if len(active) == 0 {
 		if err := rm.backend.removeRoute(rs.route); err != nil {
-			logger().Warn("static: withdraw route (all NHs down)", "prefix", rs.route.Prefix, "error", err)
+			logger().Warn("static: withdraw route (all NHs down)", "prefix", rs.route.Prefix, "table", rs.route.Table, "error", err)
 			return err
 		}
 		if rs.emitted {
@@ -154,7 +162,7 @@ func (rm *routeManager) programRouteLocked(rs *routeState) error {
 	programmed := rs.route
 	programmed.NextHops = active
 	if err := rm.backend.applyRoute(programmed); err != nil {
-		logger().Warn("static: apply route failed", "prefix", programmed.Prefix, "error", err)
+		logger().Warn("static: apply route failed", "prefix", programmed.Prefix, "table", programmed.Table, "error", err)
 		return err
 	}
 	if !rs.emitted {
@@ -189,18 +197,18 @@ func (rm *routeManager) setupBFDLocked(rs *routeState) {
 		nhs.handle = handle
 		ch := handle.Subscribe()
 
-		prefix := rs.route.Prefix
+		key := routeKey{table: rs.route.Table, prefix: rs.route.Prefix}
 		idx := i
 		done := rs.done
 		nhs.unsub = func() {
 			handle.Unsubscribe(ch)
 		}
 
-		go rm.watchBFD(prefix, idx, ch, done)
+		go rm.watchBFD(key, idx, ch, done)
 	}
 }
 
-func (rm *routeManager) watchBFD(prefix netip.Prefix, nhIdx int, ch <-chan bfdapi.StateChange, done <-chan struct{}) {
+func (rm *routeManager) watchBFD(key routeKey, nhIdx int, ch <-chan bfdapi.StateChange, done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
@@ -210,17 +218,15 @@ func (rm *routeManager) watchBFD(prefix netip.Prefix, nhIdx int, ch <-chan bfdap
 				return
 			}
 			rm.mu.Lock()
-			rs, exists := rm.routes[prefix]
+			rs, exists := rm.routes[key]
 			if !exists || nhIdx >= len(rs.nhStates) {
 				rm.mu.Unlock()
 				continue
 			}
 
-			select {
-			case <-rs.done:
+			if isDone(rs.done) {
 				rm.mu.Unlock()
 				return
-			default:
 			}
 
 			wasActive := rs.nhStates[nhIdx].active
@@ -230,13 +236,23 @@ func (rm *routeManager) watchBFD(prefix netip.Prefix, nhIdx int, ch <-chan bfdap
 				rs.nhStates[nhIdx].active = nowActive
 				_ = rm.programRouteLocked(rs)
 				logger().Info("static: BFD state change",
-					"prefix", prefix,
+					"prefix", key.prefix,
+					"table", key.table,
 					"nh", rs.nhStates[nhIdx].nh.Address,
 					"state", sc.State,
 				)
 			}
 			rm.mu.Unlock()
 		}
+	}
+}
+
+func isDone(ch <-chan struct{}) bool {
+	select {
+	case <-ch:
+		return true
+	default: //nolint:staticcheck // non-blocking done check, not a silent ignore
+		return false
 	}
 }
 
@@ -260,9 +276,9 @@ func (rm *routeManager) releaseBFDLocked(rs *routeState) {
 func (rm *routeManager) shutdown() {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
-	for pfx, rs := range rm.routes {
+	for key, rs := range rm.routes {
 		_ = rm.removeRouteLocked(rs)
-		delete(rm.routes, pfx)
+		delete(rm.routes, key)
 	}
 }
 
@@ -278,6 +294,7 @@ func activeNextHops(rs *routeState) []nextHop {
 
 type showRoute struct {
 	Prefix      string   `json:"prefix"`
+	Table       uint32   `json:"table"`
 	Action      string   `json:"action"`
 	NextHops    []showNH `json:"next-hops,omitempty"`
 	Metric      uint32   `json:"metric"`
@@ -301,6 +318,7 @@ func (rm *routeManager) showRoutes() []showRoute {
 	for _, rs := range rm.routes {
 		sr := showRoute{
 			Prefix:      rs.route.Prefix.String(),
+			Table:       rs.route.Table,
 			Action:      rs.route.Action.String(),
 			Metric:      rs.route.Metric,
 			Tag:         rs.route.Tag,
@@ -318,18 +336,18 @@ func (rm *routeManager) showRoutes() []showRoute {
 		out = append(out, sr)
 	}
 	slices.SortFunc(out, func(a, b showRoute) int {
-		if a.Prefix < b.Prefix {
-			return -1
+		if c := cmp.Compare(a.Prefix, b.Prefix); c != 0 {
+			return c
 		}
-		if a.Prefix > b.Prefix {
-			return 1
-		}
-		return 0
+		return cmp.Compare(a.Table, b.Table)
 	})
 	return out
 }
 
 func (rm *routeManager) emitRouteChange(action redistevents.RouteAction, r staticRoute) {
+	if r.Table != 0 {
+		return
+	}
 	bus := getEventBus()
 	if bus == nil {
 		return
@@ -351,6 +369,7 @@ func (rm *routeManager) emitRouteChange(action redistevents.RouteAction, r stati
 		Action: action,
 		Prefix: r.Prefix,
 		Metric: r.Metric,
+		Table:  r.Table,
 	})
 	if _, err := staticevents.RouteChange.Emit(bus, b); err != nil {
 		logger().Warn("static: route-change emit failed", "error", err)

@@ -69,6 +69,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"policy-routes",
 		"redistribute-orchestrator",
 		"rib",
+		"routing-table",
 		"static",
 		"sysctl",
 		"traffic",

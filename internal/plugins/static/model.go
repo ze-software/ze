@@ -33,6 +33,7 @@ type nextHop struct {
 
 type staticRoute struct {
 	Prefix      netip.Prefix
+	Table       uint32
 	Description string
 	Metric      uint32
 	Tag         uint32

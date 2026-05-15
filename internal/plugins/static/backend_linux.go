@@ -67,7 +67,14 @@ func (b *netlinkStaticBackend) listRoutes() ([]installedStaticRoute, error) {
 		if routes[i].Dst == nil {
 			continue
 		}
-		ir := installedStaticRoute{prefix: routes[i].Dst.String()}
+		tbl := uint32(routes[i].Table)
+		if tbl == 254 {
+			tbl = 0 // RT_TABLE_MAIN -> our internal representation
+		}
+		ir := installedStaticRoute{
+			prefix: routes[i].Dst.String(),
+			table:  tbl,
+		}
 		if routes[i].Gw != nil {
 			ir.nextHop = routes[i].Gw.String()
 		}
@@ -90,6 +97,7 @@ func (b *netlinkStaticBackend) buildRoute(r staticRoute) (*netlink.Route, error)
 		Dst:      dst,
 		Protocol: rtprotStatic,
 		Priority: int(r.Metric),
+		Table:    int(r.Table),
 	}
 
 	switch r.Action {
@@ -107,7 +115,9 @@ func (b *netlinkStaticBackend) buildRoute(r staticRoute) (*netlink.Route, error)
 
 	if len(r.NextHops) == 1 {
 		nh := r.NextHops[0]
-		route.Gw = nh.Address.AsSlice()
+		if nh.Address.IsValid() {
+			route.Gw = nh.Address.AsSlice()
+		}
 		if nh.Interface != "" {
 			link, err := b.handle.LinkByName(nh.Interface)
 			if err != nil {
@@ -121,8 +131,10 @@ func (b *netlinkStaticBackend) buildRoute(r staticRoute) (*netlink.Route, error)
 	var multipath []*netlink.NexthopInfo
 	for _, nh := range r.NextHops {
 		nhi := &netlink.NexthopInfo{
-			Gw:   nh.Address.AsSlice(),
 			Hops: int(nh.Weight) - 1,
+		}
+		if nh.Address.IsValid() {
+			nhi.Gw = nh.Address.AsSlice()
 		}
 		if nh.Interface != "" {
 			link, err := b.handle.LinkByName(nh.Interface)

@@ -14,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	bfdapi "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/routingtable"
 	staticschema "codeberg.org/thomas-mangin/ze/internal/plugins/static/schema"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -28,6 +29,7 @@ func init() {
 		Features:                "yang",
 		YANG:                    staticschema.ZeStaticConfYANG,
 		ConfigRoots:             []string{pluginName},
+		Dependencies:            []string{"routing-table"},
 		InProcessConfigVerifier: verifyStaticConfig,
 		RunEngine:               runStaticPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -57,7 +59,7 @@ func verifyStaticConfig(sections []sdk.ConfigSection) error {
 		if section.Root != pluginName {
 			continue
 		}
-		if _, err := parseStaticConfig(section.Data); err != nil {
+		if _, err := parseStaticConfig(section.Data, routingtable.GetRegistry()); err != nil {
 			return err
 		}
 	}
@@ -82,7 +84,7 @@ func runStaticPlugin(conn net.Conn) int {
 			if section.Root != pluginName {
 				continue
 			}
-			routes, err := parseStaticConfig(section.Data)
+			routes, err := parseStaticConfig(section.Data, routingtable.GetRegistry())
 			if err != nil {
 				return err
 			}
@@ -98,7 +100,7 @@ func runStaticPlugin(conn net.Conn) int {
 			if section.Root != pluginName {
 				continue
 			}
-			routes, err := parseStaticConfig(section.Data)
+			routes, err := parseStaticConfig(section.Data, routingtable.GetRegistry())
 			if err != nil {
 				return err
 			}

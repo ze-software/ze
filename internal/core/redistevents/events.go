@@ -1,4 +1,6 @@
 // Design: docs/architecture/core-design.md -- cross-protocol route-change events
+// Detail: pool.go -- batch pool allocation
+// Detail: registry.go -- protocol ID registration
 //
 // Package redistevents owns the shared, value-typed payload that protocol
 // route producers (L2TP, connected, future static/OSPF/ISIS) publish on the
@@ -88,6 +90,7 @@ type RouteChangeEntry struct {
 	Prefix  netip.Prefix
 	NextHop netip.Addr
 	Metric  uint32
+	Table   uint32
 }
 
 // RouteChangeBatch is the payload of (<protocol>, "route-change"). One batch

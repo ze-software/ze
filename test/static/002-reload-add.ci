@@ -23,11 +23,13 @@ time.sleep(0.5)
 # Rewrite config to add a new route
 with open("ze-bgp.conf", "w") as f:
     f.write("""static {
-    route 10.0.0.0/8 {
-        next-hop 192.168.1.1 { }
-    }
-    route 172.16.0.0/12 {
-        next-hop 10.0.0.1 { }
+    table default {
+        route 10.0.0.0/8 {
+            next-hop 192.168.1.1 { }
+        }
+        route 172.16.0.0/12 {
+            next-hop 10.0.0.1 { }
+        }
     }
 }
 """)
@@ -54,8 +56,10 @@ EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 static {
-    route 10.0.0.0/8 {
-        next-hop 192.168.1.1 { }
+    table default {
+        route 10.0.0.0/8 {
+            next-hop 192.168.1.1 { }
+        }
     }
 }
 EOF_CONF

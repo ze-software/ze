@@ -1,4 +1,4 @@
-// Design: plan/spec-static-routes.md -- config parsing
+// Design: plan/spec-gap-2-static-route-enhancements.md -- config parsing
 
 package static
 
@@ -8,55 +8,74 @@ import (
 	"fmt"
 	"math"
 	"net/netip"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugins/routingtable"
 )
 
 var (
-	errRouteMissingPrefix    = errors.New("route missing prefix")
-	errNextHopMissingAddress = errors.New("next-hop missing address")
+	errRouteMissingPrefix = errors.New("route missing prefix")
 )
 
-func parseStaticConfig(jsonData string) ([]staticRoute, error) {
-	var tree map[string]any
-	if err := json.Unmarshal([]byte(jsonData), &tree); err != nil {
+// parseStaticConfig parses the static config JSON (map format from Tree.ToMap).
+// The tree shape is:
+//
+//	{"static": {"table": {"<name>": {"route": {"<prefix>": {...}}}}}}
+//
+// Lists are keyed maps (list key = map key), not arrays.
+func parseStaticConfig(jsonData string, reg *routingtable.Registry) ([]staticRoute, error) {
+	var data map[string]any
+	if err := json.Unmarshal([]byte(jsonData), &data); err != nil {
 		return nil, fmt.Errorf("unmarshal static config: %w", err)
 	}
 
-	staticTree, ok := tree["static"].(map[string]any)
+	staticTree, ok := data["static"].(map[string]any)
 	if !ok {
 		return nil, nil
 	}
 
-	routeList, ok := staticTree["route"].([]any)
+	tableMap, ok := staticTree["table"].(map[string]any)
 	if !ok {
 		return nil, nil
 	}
 
-	seen := make(map[netip.Prefix]bool, len(routeList))
 	var routes []staticRoute
-	for _, item := range routeList {
-		entry, ok := item.(map[string]any)
+	for tableName, tableValue := range tableMap {
+		tableTree, ok := tableValue.(map[string]any)
 		if !ok {
 			continue
 		}
 
-		r, err := parseRoute(entry)
+		tableID, err := reg.Resolve(tableName)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("static table %q: %w", tableName, err)
 		}
-		if seen[r.Prefix] {
-			return nil, fmt.Errorf("duplicate route prefix %s", r.Prefix)
+
+		routeMap, ok := tableTree["route"].(map[string]any)
+		if !ok {
+			continue
 		}
-		seen[r.Prefix] = true
-		routes = append(routes, r)
+
+		for prefixStr, routeValue := range routeMap {
+			routeTree, ok := routeValue.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			r, err := parseRoute(prefixStr, routeTree)
+			if err != nil {
+				return nil, err
+			}
+			r.Table = tableID
+			routes = append(routes, r)
+		}
 	}
 
 	return routes, nil
 }
 
-func parseRoute(entry map[string]any) (staticRoute, error) {
+func parseRoute(prefixStr string, entry map[string]any) (staticRoute, error) {
 	var r staticRoute
 
-	prefixStr, _ := entry["prefix"].(string)
 	if prefixStr == "" {
 		return r, errRouteMissingPrefix
 	}
@@ -68,13 +87,13 @@ func parseRoute(entry map[string]any) (staticRoute, error) {
 
 	r.Description, _ = entry["description"].(string)
 
-	metric, err := jsonUint32(entry, "metric")
+	metric, err := mapUint32(entry, "metric")
 	if err != nil {
 		return r, fmt.Errorf("route %s: %w", prefixStr, err)
 	}
 	r.Metric = metric
 
-	tag, err := jsonUint32(entry, "tag")
+	tag, err := mapUint32(entry, "tag")
 	if err != nil {
 		return r, fmt.Errorf("route %s: %w", prefixStr, err)
 	}
@@ -89,18 +108,33 @@ func parseRoute(entry map[string]any) (staticRoute, error) {
 		return r, nil
 	}
 
-	nhList, ok := entry["next-hop"].([]any)
-	if !ok || len(nhList) == 0 {
-		return r, fmt.Errorf("route %s: must have next-hop, blackhole, or reject", prefixStr)
+	nhMap, _ := entry["next-hop"].(map[string]any)
+	ifNHMap, _ := entry["interface-next-hop"].(map[string]any)
+
+	if len(nhMap) == 0 && len(ifNHMap) == 0 {
+		return r, fmt.Errorf("route %s: must have next-hop, interface-next-hop, blackhole, or reject", prefixStr)
 	}
 
 	r.Action = actionForward
-	for _, nhItem := range nhList {
-		nhMap, ok := nhItem.(map[string]any)
+
+	for addr, nhValue := range nhMap {
+		nhTree, ok := nhValue.(map[string]any)
 		if !ok {
-			continue
+			nhTree = map[string]any{}
 		}
-		nh, err := parseNextHop(nhMap)
+		nh, err := parseNextHop(addr, nhTree)
+		if err != nil {
+			return r, fmt.Errorf("route %s: %w", prefixStr, err)
+		}
+		r.NextHops = append(r.NextHops, nh)
+	}
+
+	for ifName, ifValue := range ifNHMap {
+		ifTree, ok := ifValue.(map[string]any)
+		if !ok {
+			ifTree = map[string]any{}
+		}
+		nh, err := parseInterfaceNextHop(ifName, ifTree)
 		if err != nil {
 			return r, fmt.Errorf("route %s: %w", prefixStr, err)
 		}
@@ -114,12 +148,11 @@ func parseRoute(entry map[string]any) (staticRoute, error) {
 	return r, nil
 }
 
-func parseNextHop(entry map[string]any) (nextHop, error) {
+func parseNextHop(addrStr string, entry map[string]any) (nextHop, error) {
 	var nh nextHop
 
-	addrStr, _ := entry["address"].(string)
 	if addrStr == "" {
-		return nh, errNextHopMissingAddress
+		return nh, fmt.Errorf("next-hop missing address")
 	}
 	addr, err := netip.ParseAddr(addrStr)
 	if err != nil {
@@ -130,7 +163,7 @@ func parseNextHop(entry map[string]any) (nextHop, error) {
 	nh.Interface, _ = entry["interface"].(string)
 	nh.BFDProfile, _ = entry["bfd-profile"].(string)
 
-	w, err := jsonUint32(entry, "weight")
+	w, err := mapUint32(entry, "weight")
 	if err != nil {
 		return nh, err
 	}
@@ -146,26 +179,45 @@ func parseNextHop(entry map[string]any) (nextHop, error) {
 	return nh, nil
 }
 
-func jsonUint32(m map[string]any, key string) (uint32, error) {
+func parseInterfaceNextHop(ifName string, entry map[string]any) (nextHop, error) {
+	var nh nextHop
+
+	if ifName == "" {
+		return nh, fmt.Errorf("interface-next-hop missing interface name")
+	}
+	nh.Interface = ifName
+
+	if bfd, _ := entry["bfd-profile"].(string); bfd != "" {
+		return nh, fmt.Errorf("interface-next-hop %q: BFD profile not allowed (BFD requires a peer address)", nh.Interface)
+	}
+
+	w, err := mapUint32(entry, "weight")
+	if err != nil {
+		return nh, err
+	}
+	switch {
+	case w == 0:
+		nh.Weight = 1
+	case w > 65535:
+		return nh, fmt.Errorf("weight %d exceeds maximum 65535", w)
+	default:
+		nh.Weight = uint16(w)
+	}
+
+	return nh, nil
+}
+
+func mapUint32(m map[string]any, key string) (uint32, error) {
 	v, ok := m[key]
 	if !ok {
 		return 0, nil
 	}
-	switch n := v.(type) {
-	case float64:
-		if n < 0 || n > math.MaxUint32 {
-			return 0, fmt.Errorf("%s: value %v out of uint32 range", key, n)
-		}
-		return uint32(n), nil
-	case json.Number:
-		i, err := n.Int64()
-		if err != nil {
-			return 0, fmt.Errorf("%s: %w", key, err)
-		}
-		if i < 0 || i > math.MaxUint32 {
-			return 0, fmt.Errorf("%s: value %d out of uint32 range", key, i)
-		}
-		return uint32(i), nil
+	n, ok := v.(float64)
+	if !ok {
+		return 0, nil
 	}
-	return 0, nil
+	if n < 0 || n > math.MaxUint32 {
+		return 0, fmt.Errorf("%s: value %v out of uint32 range", key, n)
+	}
+	return uint32(n), nil
 }

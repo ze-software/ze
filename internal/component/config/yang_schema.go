@@ -703,12 +703,24 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	// Use YANG definition order for list children so inline positional
 	// assignment matches the schema author's intent. Fall back to
 	// alphabetical when the AST is unavailable (generated entries).
+	// Choice/case nodes are flattened: inner data nodes appear as
+	// direct children (same treatment as yangToContainer).
 	names := yangChildOrder(entry)
 	for _, name := range names {
 		if name == entry.Key {
 			continue // Key is not a child field
 		}
 		child := entry.Dir[name]
+		if child != nil && child.IsChoice() {
+			for _, nc := range flattenChoiceCases(child) {
+				childPath := AppendPath(path, nc.name)
+				node := yangToNode(nc.entry, childPath)
+				if node != nil {
+					fields = append(fields, Field(nc.name, node))
+				}
+			}
+			continue
+		}
 		childPath := AppendPath(path, name)
 		node := yangToNode(child, childPath)
 		if node != nil {

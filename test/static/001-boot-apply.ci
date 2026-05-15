@@ -39,12 +39,14 @@ EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
 static {
-    route 10.0.0.0/8 {
-        next-hop 192.168.1.1 { }
-    }
-    route 0.0.0.0/0 {
-        next-hop 10.0.0.1 { weight 3; }
-        next-hop 10.0.0.2 { weight 1; }
+    table default {
+        route 10.0.0.0/8 {
+            next-hop 192.168.1.1 { }
+        }
+        route 0.0.0.0/0 {
+            next-hop 10.0.0.1 { weight 3; }
+            next-hop 10.0.0.2 { weight 1; }
+        }
     }
 }
 EOF_CONF

@@ -74,3 +74,25 @@ func TestRoutesEqualActionDiffers(t *testing.T) {
 		t.Error("different actions should not be equal")
 	}
 }
+
+func TestRoutesEqualWithTable(t *testing.T) {
+	a := staticRoute{Prefix: pfx("10.0.0.0/8"), Table: 0, Action: actionForward, NextHops: []nextHop{{Address: addr("1.1.1.1"), Weight: 1}}}
+	b := staticRoute{Prefix: pfx("10.0.0.0/8"), Table: 100, Action: actionForward, NextHops: []nextHop{{Address: addr("1.1.1.1"), Weight: 1}}}
+	if routesEqual(a, b) {
+		t.Error("routes differing only by Table should not be equal")
+	}
+}
+
+func TestSortedNextHopsInterfaceTiebreak(t *testing.T) {
+	nhs := []nextHop{
+		{Interface: "pppoe1", Weight: 1},
+		{Interface: "pppoe0", Weight: 1},
+	}
+	sorted := sortedNextHops(nhs)
+	if sorted[0].Interface != "pppoe0" {
+		t.Errorf("sorted[0].Interface = %q, want pppoe0", sorted[0].Interface)
+	}
+	if sorted[1].Interface != "pppoe1" {
+		t.Errorf("sorted[1].Interface = %q, want pppoe1", sorted[1].Interface)
+	}
+}
