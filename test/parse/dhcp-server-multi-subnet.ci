@@ -1,0 +1,34 @@
+# Valid config: DHCP server with multiple subnets in a shared network.
+# AC-8: multiple subnets in same shared-network accepted.
+stdin=config:terminator=EOF_CONF
+service {
+    dhcp-server {
+        enabled true
+        listen-interface br0
+        shared-network office {
+            subnet 10.1.0.0/24 {
+                range {
+                    start 10.1.0.100
+                    stop 10.1.0.200
+                }
+                lease-time 86400
+                default-router 10.1.0.1
+                dns-server 10.1.0.1
+            }
+            subnet 10.2.0.0/24 {
+                range {
+                    start 10.2.0.100
+                    stop 10.2.0.200
+                }
+                lease-time 3600
+                default-router 10.2.0.1
+                dns-server 10.2.0.1
+                domain-name guest.lan
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

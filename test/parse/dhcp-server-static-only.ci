@@ -1,0 +1,28 @@
+# Valid config: DHCP server with static mappings only, no dynamic range.
+# AC-4: static mapping subnet without range is accepted.
+stdin=config:terminator=EOF_CONF
+service {
+    dhcp-server {
+        enabled true
+        listen-interface br0
+        shared-network LAN {
+            subnet 192.168.1.0/24 {
+                lease-time 7200
+                default-router 192.168.1.1
+                dns-server 8.8.8.8
+                static-mapping printer {
+                    mac-address aa:bb:cc:dd:ee:ff
+                    ip-address 192.168.1.10
+                }
+                static-mapping phone {
+                    mac-address 11:22:33:44:55:66
+                    ip-address 192.168.1.20
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

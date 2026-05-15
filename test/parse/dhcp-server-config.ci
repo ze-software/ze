@@ -1,0 +1,29 @@
+# Valid config: DHCP server with subnet, range, static mapping, options.
+# AC-1: dhcp-server config parses and validates successfully.
+stdin=config:terminator=EOF_CONF
+service {
+    dhcp-server {
+        enabled true
+        listen-interface br0
+        shared-network LAN {
+            subnet 192.168.1.0/24 {
+                range {
+                    start 192.168.1.100
+                    stop 192.168.1.200
+                }
+                lease-time 3600
+                default-router 192.168.1.1
+                dns-server [8.8.8.8 8.8.4.4]
+                domain-name home.lan
+                static-mapping printer {
+                    mac-address aa:bb:cc:dd:ee:ff
+                    ip-address 192.168.1.10
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

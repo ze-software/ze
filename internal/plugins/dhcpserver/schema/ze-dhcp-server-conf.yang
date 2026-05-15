@@ -1,0 +1,106 @@
+module ze-dhcp-server-conf {
+    namespace "urn:ze:dhcp-server:conf";
+    prefix dhcpsrv;
+
+    description "DHCP server configuration for Ze (RFC 2131/2132)";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    container service {
+        description "Service settings";
+
+        container dhcp-server {
+            description "DHCP server settings";
+
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Enable DHCP server";
+            }
+
+            leaf-list listen-interface {
+                type string;
+                description "Interfaces to serve DHCP on";
+            }
+
+            list shared-network {
+                key "name";
+                description "Named network grouping of subnets";
+
+                leaf name {
+                    type string;
+                    description "Shared network name";
+                }
+
+                list subnet {
+                    key "prefix";
+                    description "Subnet with address pool and options";
+
+                    leaf prefix {
+                        type string;
+                        description "Subnet prefix (e.g. 192.168.1.0/24)";
+                    }
+
+                    container range {
+                        description "Dynamic address pool range";
+
+                        leaf start {
+                            type string;
+                            description "First allocatable address";
+                        }
+
+                        leaf stop {
+                            type string;
+                            description "Last allocatable address";
+                        }
+                    }
+
+                    leaf lease-time {
+                        type uint32 {
+                            range "60..604800";
+                        }
+                        default 86400;
+                        description "Lease duration in seconds";
+                    }
+
+                    leaf default-router {
+                        type string;
+                        description "Default gateway address (option 3)";
+                    }
+
+                    leaf-list dns-server {
+                        type string;
+                        description "DNS server addresses (option 6)";
+                    }
+
+                    leaf domain-name {
+                        type string;
+                        description "Domain name for clients (option 15)";
+                    }
+
+                    list static-mapping {
+                        key "name";
+                        description "Static MAC-to-IP binding";
+
+                        leaf name {
+                            type string;
+                            description "Mapping name";
+                        }
+
+                        leaf mac-address {
+                            type string;
+                            description "Client MAC address (xx:xx:xx:xx:xx:xx)";
+                        }
+
+                        leaf ip-address {
+                            type string;
+                            description "Fixed IP address for this client";
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

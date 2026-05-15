@@ -1,0 +1,215 @@
+// Design: plan/spec-cpe-2-dhcp-server.md -- DHCP server plugin registration
+
+package dhcpserver
+
+import (
+	"fmt"
+	"log/slog"
+	"net"
+	"net/netip"
+	"os"
+	"sync/atomic"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	dhcpschema "codeberg.org/thomas-mangin/ze/internal/plugins/dhcpserver/schema"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+)
+
+const configRootService = "service"
+
+var loggerPtr atomic.Pointer[slog.Logger]
+
+func init() {
+	loggerPtr.Store(slogutil.DiscardLogger())
+
+	reg := registry.Registration{
+		Name:                    "dhcpserver",
+		Description:             "DHCP server: address assignment for LAN clients (RFC 2131)",
+		Features:                "yang",
+		YANG:                    dhcpschema.ZeDHCPServerConfYANG,
+		ConfigRoots:             []string{configRootService},
+		InProcessConfigVerifier: verifyDHCPConfig,
+		RunEngine:               runDHCPServerPlugin,
+	}
+	reg.CLIHandler = func(_ []string) int { return 1 }
+	reg.ConfigureEngineLogger = func(loggerName string) {
+		l := slogutil.Logger(loggerName)
+		if l != nil {
+			loggerPtr.Store(l)
+		}
+	}
+	if err := registry.Register(reg); err != nil {
+		fmt.Fprintf(os.Stderr, "dhcpserver: registration failed: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func verifyDHCPConfig(sections []sdk.ConfigSection) error {
+	for _, s := range sections {
+		if s.Root != configRootService {
+			continue
+		}
+		if _, err := parseConfig(s.Data); err != nil {
+			return fmt.Errorf("dhcpserver: %w", err)
+		}
+	}
+	return nil
+}
+
+func runDHCPServerPlugin(conn net.Conn) int {
+	log := loggerPtr.Load()
+	log.Debug("dhcpserver plugin starting")
+
+	p := sdk.NewWithConn("dhcpserver", conn)
+	defer closeLogged(p, log, "plugin conn")
+
+	var handlers []*dhcpHandler
+	var listeners []*net.UDPConn
+
+	stopListeners := func() {
+		for _, ln := range listeners {
+			closeLogged(ln, log, "udp listener")
+		}
+		for _, h := range handlers {
+			h.leases.stop()
+		}
+		handlers = nil
+		listeners = nil
+	}
+
+	startServer := func(cfg serverConfig) {
+		stopListeners()
+
+		if !cfg.Enabled {
+			log.Debug("dhcpserver: disabled in config")
+			return
+		}
+
+		for si := range cfg.SharedNetworks {
+			for subi := range cfg.SharedNetworks[si].Subnets {
+				sub := &cfg.SharedNetworks[si].Subnets[subi]
+				serverIP := sub.DefaultRouter
+				if !serverIP.IsValid() {
+					serverIP = sub.RangeStart
+				}
+				if !serverIP.IsValid() {
+					serverIP = sub.Prefix.Addr()
+				}
+				h := newDHCPHandler(*sub, serverIP)
+				handlers = append(handlers, h)
+			}
+		}
+
+		for _, iface := range cfg.ListenInterfaces {
+			ln, err := listenDHCP(iface)
+			if err != nil {
+				log.Error("dhcpserver: listen failed",
+					"interface", iface, "error", err)
+				continue
+			}
+			listeners = append(listeners, ln)
+			go serveMulti(ln, handlers, log)
+		}
+
+		log.Info("dhcpserver: started",
+			"shared-networks", len(cfg.SharedNetworks),
+			"interfaces", cfg.ListenInterfaces)
+	}
+
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		for _, s := range sections {
+			if s.Root != configRootService {
+				continue
+			}
+			cfg, err := parseConfig(s.Data)
+			if err != nil {
+				return fmt.Errorf("dhcpserver: %w", err)
+			}
+			startServer(cfg)
+			return nil
+		}
+		return nil
+	})
+
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
+	if err := p.Run(ctx, sdk.Registration{
+		WantsConfig:  []string{configRootService},
+		VerifyBudget: 2,
+		ApplyBudget:  5,
+	}); err != nil {
+		log.Error("dhcpserver plugin failed", "error", err)
+		stopListeners()
+		return 1
+	}
+
+	stopListeners()
+	log.Info("dhcpserver plugin stopped")
+	return 0
+}
+
+type closer interface {
+	Close() error
+}
+
+func closeLogged(c closer, log *slog.Logger, what string) {
+	if err := c.Close(); err != nil {
+		log.Debug("dhcpserver: close failed", "what", what, "error", err)
+	}
+}
+
+func serveMulti(conn *net.UDPConn, handlers []*dhcpHandler, log *slog.Logger) {
+	buf := make([]byte, 1500)
+	for {
+		n, _, err := conn.ReadFromUDP(buf)
+		if err != nil {
+			return
+		}
+		pkt := make([]byte, n)
+		copy(pkt, buf[:n])
+
+		var resp []byte
+		for _, h := range handlers {
+			resp = h.handle(pkt)
+			if resp != nil {
+				break
+			}
+		}
+		if resp == nil {
+			continue
+		}
+
+		dst := responseAddr(pkt, resp)
+		if _, writeErr := conn.WriteToUDP(resp, dst); writeErr != nil {
+			log.Debug("dhcpserver: write failed", "dst", dst.String(), "error", writeErr)
+		}
+	}
+}
+
+// RFC 2131 Section 4.1: response delivery rules.
+func responseAddr(req, resp []byte) *net.UDPAddr {
+	giaddr := netip.AddrFrom4([4]byte(req[24:28]))
+	if giaddr.IsValid() && !giaddr.IsUnspecified() {
+		return &net.UDPAddr{IP: giaddr.AsSlice(), Port: 67}
+	}
+
+	ciaddr := netip.AddrFrom4([4]byte(req[12:16]))
+	if ciaddr.IsValid() && !ciaddr.IsUnspecified() {
+		return &net.UDPAddr{IP: ciaddr.AsSlice(), Port: 68}
+	}
+
+	// RFC 2131 Section 4.1: if BROADCAST flag is set, broadcast.
+	flags := uint16(req[10])<<8 | uint16(req[11])
+	if flags&0x8000 != 0 {
+		return &net.UDPAddr{IP: net.IPv4bcast, Port: 68}
+	}
+
+	// BROADCAST flag clear: unicast to yiaddr.
+	yiaddr := netip.AddrFrom4([4]byte(resp[16:20]))
+	if yiaddr.IsValid() && !yiaddr.IsUnspecified() {
+		return &net.UDPAddr{IP: yiaddr.AsSlice(), Port: 68}
+	}
+
+	return &net.UDPAddr{IP: net.IPv4bcast, Port: 68}
+}
