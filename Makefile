@@ -622,7 +622,7 @@ ze-qemu-integration-test:
 	@echo "Running integration tests in QEMU Linux VM (requires qemu + internet for first run)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "nftables iproute2 iputils-ping kmod iptables" \
-		--run 'go test -tags integration -count=1 -timeout 120s ./internal/component/iface/... ./internal/plugins/fib/kernel/... ./internal/plugins/firewall/nft/... ./internal/plugins/firewall/vpp/... ./internal/plugins/traffic/netlink/...'
+		--run 'go test -tags integration -count=1 -timeout 120s ./internal/component/iface/... ./internal/core/routewatch/... ./internal/plugins/fib/kernel/... ./internal/plugins/firewall/nft/... ./internal/plugins/firewall/vpp/... ./internal/plugins/traffic/netlink/...'
 
 # Run full L2TP PPP/NCP peer test in a QEMU Linux VM (PPPoL2TP kernel, xl2tpd, pppd).
 # Works on macOS -- uses the gokrazy kernel with built-in PPPoL2TP support.
