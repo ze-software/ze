@@ -1,0 +1,19 @@
+# Test: offload block accepted on bridge (interface-l2 grouping)
+# VALIDATES: spec-gap-4-iface-offload AC-6 -- offload available on all L2 types
+# PREVENTS: offload container restricted to ethernet only
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	bridge br0 {
+		mac-address 02:00:00:00:00:03;
+		offload {
+			gro true;
+			tso false;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

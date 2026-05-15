@@ -2598,3 +2598,191 @@ func TestLinkDownIPv6NoRouters(t *testing.T) {
 	assert.Empty(t, fb.routeRemoves, "should not attempt any route changes")
 	assert.Empty(t, fb.routeAdds, "should not attempt any route changes")
 }
+
+// VALIDATES: AC-1 - offload { gro true } parsed into offloadConfig with GRO=true.
+// PREVENTS: offload container silently ignored by parseIfaceEntry.
+func TestOffloadConfigParseEnable(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"offload": {
+						"gro": "true",
+						"tso": "true"
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	e := cfg.Ethernet[0]
+	require.NotNil(t, e.Offload, "offload block must be parsed")
+	require.NotNil(t, e.Offload.GRO)
+	assert.True(t, *e.Offload.GRO)
+	require.NotNil(t, e.Offload.TSO)
+	assert.True(t, *e.Offload.TSO)
+	assert.Nil(t, e.Offload.GSO, "absent leaf must be nil")
+	assert.Nil(t, e.Offload.SG, "absent leaf must be nil")
+	assert.Nil(t, e.Offload.LRO, "absent leaf must be nil")
+	assert.Nil(t, e.Offload.HWTCOffload, "absent leaf must be nil")
+	assert.Nil(t, e.Offload.RPS, "absent leaf must be nil")
+	assert.Nil(t, e.Offload.RFS, "absent leaf must be nil")
+}
+
+// VALIDATES: AC-2 - offload { tso false } parsed into offloadConfig with TSO=false.
+// PREVENTS: explicit disable treated as enable.
+func TestOffloadConfigParseExplicitDisable(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"offload": {
+						"tso": "false",
+						"lro": "false"
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	e := cfg.Ethernet[0]
+	require.NotNil(t, e.Offload)
+	require.NotNil(t, e.Offload.TSO)
+	assert.False(t, *e.Offload.TSO)
+	require.NotNil(t, e.Offload.LRO)
+	assert.False(t, *e.Offload.LRO)
+}
+
+// VALIDATES: AC-3 - absence of offload container means nil (no ethtool calls).
+// PREVENTS: empty offloadConfig struct created when container is absent.
+func TestOffloadAbsencePreservesDefault(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"mtu": "9000"
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	assert.Nil(t, cfg.Ethernet[0].Offload, "no offload block = nil")
+}
+
+// VALIDATES: AC-4 - all 8 offload features parsed when all set to true.
+// PREVENTS: missing feature in parseOffloadConfig.
+func TestOffloadConfigParseAll8(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"offload": {
+						"gro": "true",
+						"gso": "true",
+						"sg": "true",
+						"tso": "true",
+						"lro": "true",
+						"hw-tc-offload": "true",
+						"rps": "true",
+						"rfs": "true"
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	o := cfg.Ethernet[0].Offload
+	require.NotNil(t, o)
+	require.NotNil(t, o.GRO)
+	assert.True(t, *o.GRO)
+	require.NotNil(t, o.GSO)
+	assert.True(t, *o.GSO)
+	require.NotNil(t, o.SG)
+	assert.True(t, *o.SG)
+	require.NotNil(t, o.TSO)
+	assert.True(t, *o.TSO)
+	require.NotNil(t, o.LRO)
+	assert.True(t, *o.LRO)
+	require.NotNil(t, o.HWTCOffload)
+	assert.True(t, *o.HWTCOffload)
+	require.NotNil(t, o.RPS)
+	assert.True(t, *o.RPS)
+	require.NotNil(t, o.RFS)
+	assert.True(t, *o.RFS)
+}
+
+// VALIDATES: AC-3 - empty offload container (no leaves) returns nil.
+// PREVENTS: empty offloadConfig struct created for empty container.
+func TestOffloadEmptyContainerIsNil(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"offload": {}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	assert.Nil(t, cfg.Ethernet[0].Offload, "empty offload container = nil")
+}
+
+// VALIDATES: AC-6 - offload container parsed on dummy (interface-l2 grouping).
+// PREVENTS: offload only working on ethernet.
+func TestOffloadOnDummy(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"dummy": {
+				"dum0": {
+					"offload": {
+						"gro": "false"
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Dummy, 1)
+	require.NotNil(t, cfg.Dummy[0].Offload)
+	require.NotNil(t, cfg.Dummy[0].Offload.GRO)
+	assert.False(t, *cfg.Dummy[0].Offload.GRO)
+}
+
+// VALIDATES: AC-6 - offload container parsed on veth (interface-l2 grouping).
+// PREVENTS: offload only working on ethernet.
+func TestOffloadOnVeth(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"veth": {
+				"veth0": {
+					"offload": {
+						"tso": "true"
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Veth, 1)
+	require.NotNil(t, cfg.Veth[0].Offload)
+	require.NotNil(t, cfg.Veth[0].Offload.TSO)
+	assert.True(t, *cfg.Veth[0].Offload.TSO)
+}
+
+// VALIDATES: AC-6 - offload container parsed on bridge (interface-l2 grouping).
+// PREVENTS: offload only working on ethernet.
+func TestOffloadOnBridge(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"bridge": {
+				"br0": {
+					"offload": {
+						"gro": "true"
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Bridge, 1)
+	require.NotNil(t, cfg.Bridge[0].Offload)
+	require.NotNil(t, cfg.Bridge[0].Offload.GRO)
+	assert.True(t, *cfg.Bridge[0].Offload.GRO)
+}

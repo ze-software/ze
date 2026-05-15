@@ -560,6 +560,46 @@ discovered OS interfaces when editing config interactively.
 
 <!-- source: internal/component/config/validators.go -- MACAddressValidator -->
 
+### Interface Offload and Steering
+
+L2 interfaces (ethernet, dummy, veth, bridge) support an `offload` container with
+boolean leaves for hardware offload and software packet steering features. Each leaf
+uses three-state semantics: `true` enables, `false` disables, absent preserves the OS
+default (no kernel call is made).
+
+<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- offload container in interface-l2 grouping -->
+
+| Feature | Mechanism | Description |
+|---------|-----------|-------------|
+| `gro` | kernel ioctl | Generic Receive Offload: aggregates incoming packets |
+| `gso` | kernel ioctl | Generic Segmentation Offload: delays outgoing segmentation |
+| `sg` | kernel ioctl | Scatter-Gather I/O: multi-buffer frame assembly |
+| `tso` | kernel ioctl | TCP Segmentation Offload: hardware TCP segmentation |
+| `lro` | kernel ioctl | Large Receive Offload: hardware RX coalescing (disable on routers) |
+| `hw-tc-offload` | kernel ioctl | Hardware TC offload: NIC executes TC rules in hardware |
+| `rps` | sysfs | Receive Packet Steering: distribute RX across CPUs |
+| `rfs` | sysfs | Receive Flow Steering: steer RX to application CPU |
+
+Ze talks to the kernel directly via ethtool ioctls and sysfs writes. The `ethtool(8)`
+CLI program is not required.
+
+```
+interface {
+    ethernet uplink {
+        mac-address 00:1a:2b:3c:4d:5e;
+        offload {
+            gro true;
+            tso true;
+            lro false;
+            rps true;
+        }
+    }
+}
+```
+
+Tunnel, wireguard, and PPPoE interfaces do not support offloads (the `offload` container
+is part of the `interface-l2` YANG grouping, not `interface-common`).
+
 ### Backend Capability Errors
 
 The `interface`, `traffic-control`, and `firewall` components carry a `backend`

@@ -1,0 +1,25 @@
+# Test: offload block with boolean leaves parses on ethernet
+# VALIDATES: spec-gap-4-iface-offload AC-1,AC-4 -- all 8 offload features accepted
+# PREVENTS: YANG offload container rejected by config validate
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	ethernet eth0 {
+		mac-address 02:00:00:00:00:01;
+		offload {
+			gro true;
+			gso true;
+			sg true;
+			tso true;
+			lro false;
+			hw-tc-offload false;
+			rps true;
+			rfs true;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

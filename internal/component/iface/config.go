@@ -88,7 +88,22 @@ type ifaceEntry struct {
 	MTU        int
 	MACAddress string
 	Disable    bool
+	Offload    *offloadConfig
 	Units      []unitEntry
+}
+
+// offloadConfig holds per-interface ethtool offload and sysfs steering
+// settings. Pointer fields: nil = not configured (preserve OS default),
+// non-nil = set explicitly. Matches ipv4Sysctl/ipv6Sysctl three-state pattern.
+type offloadConfig struct {
+	GRO         *bool
+	GSO         *bool
+	SG          *bool
+	TSO         *bool
+	LRO         *bool
+	HWTCOffload *bool
+	RPS         *bool
+	RFS         *bool
 }
 
 // vethEntry extends ifaceEntry with a peer name.
@@ -665,6 +680,7 @@ func parseIfaceEntry(name string, m map[string]any) ifaceEntry {
 	if _, ok := m["disable"]; ok {
 		entry.Disable = true
 	}
+	entry.Offload = parseOffloadConfig(m)
 	entry.Units = parseUnits(m)
 	return entry
 }
@@ -787,6 +803,36 @@ func parseIPv6Sysctl(um map[string]any) *ipv6Sysctl {
 		return nil
 	}
 	return s
+}
+
+func parseOffloadConfig(m map[string]any) *offloadConfig {
+	om, ok := m["offload"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	o := &offloadConfig{}
+	set := false
+	parseBool := func(key string) *bool {
+		v, ok := om[key].(string)
+		if !ok {
+			return nil
+		}
+		set = true
+		b := v == yangTrue
+		return &b
+	}
+	o.GRO = parseBool("gro")
+	o.GSO = parseBool("gso")
+	o.SG = parseBool("sg")
+	o.TSO = parseBool("tso")
+	o.LRO = parseBool("lro")
+	o.HWTCOffload = parseBool("hw-tc-offload")
+	o.RPS = parseBool("rps")
+	o.RFS = parseBool("rfs")
+	if !set {
+		return nil
+	}
+	return o
 }
 
 // parseDHCPv4Config reads the "dhcp" container from a unit map and returns
@@ -1400,6 +1446,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 				return record(fmt.Sprintf("%s set mac", e.Name), err)
 			}
 		}
+		applyOffloads(e.Name, e.Offload)
 		for i := range e.Units {
 			u := &e.Units[i]
 			if u.Disable {
@@ -1436,6 +1483,8 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			}
 		}
 	}
+
+	applyRFSGlobal(cfg)
 
 	// Phase 2b: Apply sysctl for loopback units.
 	if cfg.Loopback != nil {

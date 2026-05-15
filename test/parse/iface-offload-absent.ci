@@ -1,0 +1,15 @@
+# Test: ethernet without offload block still parses (AC-3 absence)
+# VALIDATES: spec-gap-4-iface-offload AC-3 -- absence preserves OS default
+# PREVENTS: offload container becoming mandatory
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	ethernet eth0 {
+		mac-address 02:00:00:00:00:01;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

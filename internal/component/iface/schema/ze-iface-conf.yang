@@ -58,6 +58,112 @@ module ze-iface-conf {
             ze:validate "mac-address";
             description "Hardware MAC address";
         }
+
+        container offload {
+            description "Network offload and packet steering features.
+                         Applied directly via kernel ioctl (the ethtool
+                         SIOCETHTOOL interface) or sysfs writes after the
+                         interface is created. The ethtool(8) CLI program is
+                         NOT required; ze talks to the kernel directly.
+                         Boolean leaves: true = explicitly enable the feature,
+                         false = explicitly disable, absent = preserve whatever
+                         the OS default is (no kernel call is made).
+                         Offload availability depends on the NIC driver and
+                         kernel version; unsupported features are logged as
+                         warnings and do not block the config commit.";
+
+            leaf gro {
+                type boolean;
+                description "Generic Receive Offload. Aggregates small incoming
+                             packets into larger ones before passing them up the
+                             network stack, reducing per-packet CPU overhead.
+                             Software-based (works on all NIC types including
+                             veth and dummy). Applied via kernel ioctl
+                             (ETHTOOL_SGRO). Equivalent to: ethtool -K <dev>
+                             gro on|off.";
+            }
+
+            leaf gso {
+                type boolean;
+                description "Generic Segmentation Offload. Delays segmentation
+                             of large outgoing packets until just before the NIC
+                             driver transmit path, reducing CPU work in the upper
+                             stack. Software-based counterpart of TSO. Applied
+                             via kernel ioctl (ETHTOOL_SGSO). Equivalent to:
+                             ethtool -K <dev> gso on|off.";
+            }
+
+            leaf sg {
+                type boolean;
+                description "Scatter-Gather I/O. Allows the NIC to assemble a
+                             single frame from multiple non-contiguous memory
+                             buffers, avoiding data copies. Required by TSO and
+                             GSO on most drivers. Applied via kernel ioctl
+                             (ETHTOOL_SSG). Equivalent to: ethtool -K <dev>
+                             sg on|off.";
+            }
+
+            leaf tso {
+                type boolean;
+                description "TCP Segmentation Offload. Offloads TCP segmentation
+                             to the NIC hardware, allowing the kernel to hand off
+                             large (up to 64 KB) TCP segments that the NIC splits
+                             into MTU-sized frames on the wire. Requires NIC
+                             hardware support. Disable when passing traffic to
+                             VPP or virtual switches that cannot handle oversized
+                             frames. Applied via kernel ioctl (ETHTOOL_STSO).
+                             Equivalent to: ethtool -K <dev> tso on|off.";
+            }
+
+            leaf lro {
+                type boolean;
+                description "Large Receive Offload. Hardware-based counterpart of
+                             GRO: the NIC coalesces incoming TCP segments before
+                             DMA. Can break forwarding and bridging because the
+                             coalesced frame no longer matches the original wire
+                             format. Disable on routers or bridges that forward
+                             traffic between interfaces. Applied via kernel ioctl
+                             (ETHTOOL_SLRO). Equivalent to: ethtool -K <dev>
+                             lro on|off.";
+            }
+
+            leaf hw-tc-offload {
+                type boolean;
+                description "Hardware Traffic Control Offload. Enables the NIC to
+                             execute TC flower / u32 filter rules in hardware,
+                             bypassing kernel processing for matched flows.
+                             Requires NIC firmware support (common on mlx5, bnxt,
+                             nfp). Applied via kernel ioctl (ETHTOOL_SFEATURES).
+                             Equivalent to: ethtool -K <dev> hw-tc-offload
+                             on|off.";
+            }
+
+            leaf rps {
+                type boolean;
+                description "Receive Packet Steering. Software-based distribution
+                             of incoming packets across multiple CPUs by hashing
+                             the packet header and steering to a target CPU receive
+                             queue. Useful when the NIC has fewer hardware RSS
+                             queues than available CPUs. When enabled, ze writes
+                             a bitmask covering all online CPUs to each rx queue
+                             sysfs entry (/sys/class/net/<dev>/queues/rx-*/
+                             rps_cpus). When disabled, ze writes 0 to each entry.
+                             Not an ethtool feature; uses sysfs directly.";
+            }
+
+            leaf rfs {
+                type boolean;
+                description "Receive Flow Steering. Extension of RPS that steers
+                             incoming packets to the CPU where the application
+                             consuming that flow is running, improving cache
+                             locality and reducing cross-CPU cache bounces. When
+                             enabled, ze sets /proc/sys/net/core/
+                             rps_sock_flow_entries to 32768 and distributes
+                             per-queue rps_flow_cnt evenly across rx queues.
+                             RPS should also be enabled for RFS to be effective.
+                             Not an ethtool feature; uses sysfs directly.";
+            }
+        }
     }
 
     grouping interface-unit {
