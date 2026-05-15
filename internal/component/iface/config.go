@@ -45,6 +45,7 @@ type ifaceConfig struct {
 	Bridge          []bridgeEntry
 	Tunnel          []tunnelEntry
 	Wireguard       []wireguardEntry
+	PPPoEClient     []pppoeClientEntry
 	Loopback        *loopbackEntry
 	previousManaged map[string]bool // runtime-only: names Ze managed before this apply
 }
@@ -64,6 +65,21 @@ type tunnelEntry struct {
 type wireguardEntry struct {
 	ifaceEntry
 	Spec WireguardSpec
+}
+
+// pppoeClientEntry represents a configured PPPoE client interface.
+// The PPP session is created dynamically via PPPoE discovery and LCP/NCP
+// negotiation; addresses are assigned by the server via IPCP/IPv6CP.
+type pppoeClientEntry struct {
+	Name            string
+	SourceInterface string
+	Username        string
+	AuthSecret      string //nolint:gosec // not a hardcoded credential; parsed from ze:sensitive YANG leaf
+	ServiceName     string
+	ACName          string
+	NoDefaultRoute  bool
+	MTU             int
+	Disable         bool
 }
 
 // ifaceEntry represents a configured interface (ethernet or dummy).
@@ -270,6 +286,20 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 				return nil, fmt.Errorf("wireguard %q: %w", name, err)
 			}
 			cfg.Wireguard = append(cfg.Wireguard, entry)
+		}
+	}
+
+	if pppoeMap, ok := ifaceMap["pppoe-client"].(map[string]any); ok {
+		for name, v := range pppoeMap {
+			if err := ValidateIfaceName(name); err != nil {
+				return nil, fmt.Errorf("pppoe-client: %w", err)
+			}
+			m, _ := v.(map[string]any)
+			entry, err := parsePPPoEClientEntry(name, m)
+			if err != nil {
+				return nil, fmt.Errorf("pppoe-client %q: %w", name, err)
+			}
+			cfg.PPPoEClient = append(cfg.PPPoEClient, entry)
 		}
 	}
 
@@ -558,6 +588,67 @@ func parseWireguardPeer(name string, m map[string]any) (WireguardPeerSpec, error
 	}
 
 	return peer, nil
+}
+
+// RFC 2516 Section 4: PPPoE adds 6 bytes of header on top of Ethernet,
+// leaving 1494 bytes for PPP. The 2-byte PPP protocol field further
+// reduces the IP MTU to 1492 for a standard 1500-byte Ethernet link.
+const pppoeDefaultMTU = 1492
+
+func parsePPPoEClientEntry(name string, m map[string]any) (pppoeClientEntry, error) {
+	entry := pppoeClientEntry{Name: name, MTU: pppoeDefaultMTU}
+	if m == nil {
+		return entry, errors.New("empty pppoe-client entry")
+	}
+
+	src, ok := m["source-interface"].(string)
+	if !ok || src == "" {
+		return entry, errors.New("source-interface is required")
+	}
+	if err := ValidateIfaceName(src); err != nil {
+		return entry, fmt.Errorf("source-interface: %w", err)
+	}
+	entry.SourceInterface = src
+
+	authMap, _ := m["authentication"].(map[string]any)
+	if authMap == nil {
+		return entry, errors.New("authentication block is required")
+	}
+	user, ok := authMap["username"].(string)
+	if !ok || user == "" {
+		return entry, errors.New("authentication username is required")
+	}
+	entry.Username = user
+	pass, ok := authMap["password"].(string)
+	if !ok || pass == "" {
+		return entry, errors.New("authentication password is required")
+	}
+	entry.AuthSecret = pass
+
+	if sn, ok := m["service-name"].(string); ok {
+		entry.ServiceName = sn
+	}
+	if ac, ok := m["ac-name"].(string); ok {
+		entry.ACName = ac
+	}
+	if _, ok := m["no-default-route"]; ok {
+		entry.NoDefaultRoute = true
+	}
+	if _, ok := m["disable"]; ok {
+		entry.Disable = true
+	}
+	if mtuStr, ok := m["mtu"].(string); ok && mtuStr != "" {
+		mtu, err := strconv.Atoi(mtuStr)
+		if err != nil {
+			return entry, fmt.Errorf("mtu %q: %w", mtuStr, err)
+		}
+		if mtu < 68 || mtu > pppoeDefaultMTU {
+			return entry, fmt.Errorf("mtu %d out of range 68..%d", mtu, pppoeDefaultMTU)
+		}
+		entry.MTU = mtu
+	}
+
+	return entry, nil
 }
 
 func parseIfaceEntry(name string, m map[string]any) ifaceEntry {

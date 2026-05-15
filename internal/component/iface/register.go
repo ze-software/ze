@@ -276,6 +276,10 @@ func runEngine(conn net.Conn) int {
 	activeDHCP := make(map[dhcpUnitKey]dhcpEntry)
 	var dhcpMu sync.Mutex
 
+	// activePPPoE tracks running PPPoE client sessions keyed by config name.
+	activePPPoE := make(map[string]*PPPoEClient)
+	var pppoeMu sync.Mutex
+
 	// activeRouters tracks IPv6 routers discovered via NTF_ROUTER neighbor events.
 	// Protected by dhcpMu (shared lock, short critical sections).
 	activeRouters := make(map[routerKey]routerEntry)
@@ -368,6 +372,11 @@ func runEngine(conn net.Conn) int {
 		} else {
 			log.Info("interface monitor started")
 		}
+
+		// Reconcile PPPoE clients.
+		pppoeMu.Lock()
+		reconcilePPPoEClients(cfg, activePPPoE, b, log)
+		pppoeMu.Unlock()
 
 		// Start DHCP clients for units that have DHCP enabled.
 		dhcpMu.Lock()
@@ -523,6 +532,11 @@ func runEngine(conn net.Conn) int {
 		activeJournal = j
 		log.Info("interface config reloaded via transaction")
 
+		// Reconcile PPPoE clients on reload.
+		pppoeMu.Lock()
+		reconcilePPPoEClients(cfg, activePPPoE, b, log)
+		pppoeMu.Unlock()
+
 		// Reconcile DHCP clients and IPv6 RA suppression after successful reload.
 		eb := GetEventBus()
 		if eb != nil {
@@ -572,6 +586,14 @@ func runEngine(conn net.Conn) int {
 	// unsubscribers above have run so no further sends race the close.
 	close(vppReconcileCh)
 	<-vppReconcileDone
+
+	// Stop all PPPoE clients on shutdown.
+	pppoeMu.Lock()
+	for name, client := range activePPPoE {
+		log.Debug("interface: stopping PPPoE client on shutdown", "name", name)
+		client.Stop()
+	}
+	pppoeMu.Unlock()
 
 	// Stop all DHCP clients on shutdown.
 	dhcpMu.Lock()

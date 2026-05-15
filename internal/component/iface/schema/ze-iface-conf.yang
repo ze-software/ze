@@ -809,6 +809,80 @@ module ze-iface-conf {
             uses interface-unit;
         }
 
+        list pppoe-client {
+            key "name";
+            ze:os "linux";
+            ze:backend "netlink";
+            description "PPPoE client interface (RFC 2516). Dials an access
+                         concentrator over a physical Ethernet interface,
+                         negotiates LCP/auth/IPCP, and presents the resulting
+                         PPP session as a routable interface with server-
+                         assigned addresses. The kernel pppN interface is
+                         created dynamically; the name leaf is a config key
+                         only (the OS interface name is pppN).";
+
+            leaf name {
+                type string;
+                description "Config-level interface name (e.g. pppoe0)";
+            }
+
+            leaf source-interface {
+                mandatory true;
+                type string;
+                description "Physical Ethernet interface for PPPoE discovery
+                             (e.g. eth2). Must exist and be admin-up.";
+            }
+
+            container authentication {
+                description "PPPoE authentication credentials (PAP or CHAP)";
+
+                leaf username {
+                    mandatory true;
+                    type string {
+                        length "1..255";
+                    }
+                    description "Authentication username sent to the AC";
+                }
+
+                leaf password {
+                    mandatory true;
+                    type string {
+                        length "1..255";
+                    }
+                    ze:sensitive;
+                    description "Authentication password. Stored $9$-encoded
+                                 on disk via the standard ze sensitive-leaf
+                                 pattern.";
+                }
+            }
+
+            leaf service-name {
+                type string {
+                    length "0..255";
+                }
+                description "Desired PPPoE service name. Empty or absent
+                             means accept any service (RFC 2516 Section 5.1).";
+            }
+
+            leaf ac-name {
+                type string {
+                    length "0..255";
+                }
+                description "Desired access concentrator name. When set,
+                             only PADO frames from this AC are accepted.
+                             Empty or absent means accept any AC.";
+            }
+
+            leaf no-default-route {
+                type empty;
+                description "Do not install a default route via the PPP
+                             interface. When absent (default), a default
+                             route is installed after IPCP completes.";
+            }
+
+            uses interface-common;
+        }
+
         container loopback {
             description "Loopback interface";
 

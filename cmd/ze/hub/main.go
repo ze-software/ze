@@ -44,6 +44,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/pppoe"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoeclient"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 	resolvecmd "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"

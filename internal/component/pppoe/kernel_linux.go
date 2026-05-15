@@ -178,3 +178,39 @@ func moduleBuiltIn(name string) bool {
 func htons(v uint16) uint16 {
 	return (v<<8)&0xff00 | (v>>8)&0x00ff
 }
+
+// Exported wrappers for cross-package use (PPPoE client in iface).
+
+// OpenDiscoverySocket creates a shared AF_PACKET socket for PPPoE discovery.
+func OpenDiscoverySocket() (int, error) { return openDiscoverySocket() }
+
+// CloseDiscoveryFD closes a discovery socket file descriptor.
+func CloseDiscoveryFD(fd int) { closeDiscoverySocket(fd) }
+
+// ReadDiscoveryFrame reads a single discovery frame from the socket.
+func ReadDiscoveryFrame(fd int, buf []byte) (int, int, error) { return readDiscoveryFrame(fd, buf) }
+
+// SendDiscoveryFrame sends a raw discovery frame on the specified interface.
+func SendDiscoveryFrame(fd, ifindex int, frame []byte) error {
+	return sendDiscoveryFrame(fd, ifindex, frame)
+}
+
+// ResolveInterface looks up an interface by name.
+func ResolveInterface(name string) (int, [EthALen]byte, int, error) { return resolveInterface(name) }
+
+// PPPoECreate creates a PPPoE session socket.
+func PPPoECreate(ifname string, sid uint16, remoteMAC [EthALen]byte) (int, error) {
+	return pppoeCreate(ifname, sid, remoteMAC)
+}
+
+// ClosePPPoxFD closes a PPPoX socket file descriptor.
+func ClosePPPoxFD(fd int) { closePPPoxFD(fd) }
+
+// SetRecvTimeout sets SO_RCVTIMEO on a socket so blocking reads return
+// periodically, allowing the caller to check stop signals.
+func SetRecvTimeout(fd int, d time.Duration) error {
+	sec := int64(d / time.Second)
+	usec := int64((d % time.Second) / time.Microsecond)
+	tv := unix.Timeval{Sec: sec, Usec: usec}
+	return unix.SetsockoptTimeval(fd, unix.SOL_SOCKET, unix.SO_RCVTIMEO, &tv)
+}

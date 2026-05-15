@@ -1,0 +1,26 @@
+# Test: pppoe-client is accepted under the default netlink backend
+# AC-1: Config with pppoe-client, source-interface, and auth credentials
+# parses and validates. Mirrors the VyOS home.conf PPPoE section.
+# PLATFORM: pppoe-client is ze:os "linux"; skip on darwin.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+interface {
+    backend netlink
+    ethernet eth2 {
+        mac-address 60:be:b4:20:70:6e
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication {
+            username exa-211124-01@dsl.exa-networks.co.uk
+            password secret123
+        }
+        mtu 1492
+        no-default-route
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

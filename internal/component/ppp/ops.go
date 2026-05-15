@@ -32,3 +32,9 @@ func newPPPOps() pppOps {
 		connect: realConnect,
 	}
 }
+
+// SetMRU sets the maximum receive unit on a /dev/ppp unit fd.
+func SetMRU(unitFD int, mru uint16) error { return realSetMRU(unitFD, mru) }
+
+// Connect links a PPP channel to its unit (PPPIOCCONNECT).
+func Connect(chanFD, unitNum int) error { return realConnect(chanFD, unitNum) }

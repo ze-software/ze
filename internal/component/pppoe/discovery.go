@@ -297,6 +297,39 @@ func (b *Builder) Finish() []byte {
 	return b.buf[:b.tagOff]
 }
 
+// BuildPADI constructs a PADI frame for PPPoE client discovery
+// (RFC 2516 Section 5.1). Sent to the broadcast address to solicit
+// PADO responses from access concentrators. The hostUniq tag is
+// included so the client can correlate responses.
+func BuildPADI(buf []byte, srcMAC [EthALen]byte, serviceName string, hostUniq []byte) []byte {
+	b := NewBuilder(buf, srcMAC, [EthALen]byte(BroadcastMAC), CodePADI, 0)
+
+	b.AddTagString(TagServiceName, serviceName)
+	if len(hostUniq) > 0 {
+		b.AddTag(TagHostUniq, hostUniq)
+	}
+
+	return b.Finish()
+}
+
+// BuildPADR constructs a PADR frame for PPPoE client discovery
+// (RFC 2516 Section 5.3). Sent unicast to the selected AC after
+// receiving a PADO. Echoes the AC-Cookie and Service-Name from the
+// PADO. The hostUniq tag is included for correlation.
+func BuildPADR(buf []byte, srcMAC [EthALen]byte, pado *Packet, serviceName string, hostUniq []byte) []byte {
+	b := NewBuilder(buf, srcMAC, pado.SrcMAC, CodePADR, 0)
+
+	b.AddTagString(TagServiceName, serviceName)
+	// RFC 2516 Section 5.3: MUST echo AC-Cookie and Relay-Session-Id if present.
+	b.AddTagCopy(pado.FindTag(TagACCookie))
+	b.AddTagCopy(pado.FindTag(TagRelaySessionID))
+	if len(hostUniq) > 0 {
+		b.AddTag(TagHostUniq, hostUniq)
+	}
+
+	return b.Finish()
+}
+
 // BuildPADO constructs a PADO frame in response to a PADI. It echoes
 // the Host-Uniq and Relay-Session-Id tags from the PADI if present.
 func BuildPADO(buf []byte, acMAC [EthALen]byte, padi *Packet, acName string, serviceNames []string, cookie []byte) []byte {
