@@ -252,6 +252,46 @@ func TestParsePeerFromTreeSendHoldTimeDefault(t *testing.T) {
 	assert.Equal(t, time.Duration(0), ps.SendHoldTime, "default send-hold-time should be 0 (auto)")
 }
 
+// TestParsePeerFromTreeKeepaliveBoundary verifies keepalive vs hold-time validation.
+//
+// VALIDATES: AC-3 — keepalive >= hold-time rejected; keepalive 0 and < hold-time accepted.
+// PREVENTS: Accepting keepalive values that would cause session flap.
+// BOUNDARY: 0 (valid/auto), 89 (valid, last valid for hold=90), 90 (invalid, equals hold), 91 (invalid, exceeds hold).
+func TestParsePeerFromTreeKeepaliveBoundary(t *testing.T) {
+	tests := []struct {
+		name    string
+		ka      string
+		ht      string
+		wantErr bool
+		wantDur time.Duration
+	}{
+		{"keepalive_0_auto", "0", "90", false, 0},
+		{"keepalive_10", "10", "90", false, 10 * time.Second},
+		{"keepalive_89_last_valid", "89", "90", false, 89 * time.Second},
+		{"keepalive_90_equals_hold", "90", "90", true, 0},
+		{"keepalive_91_exceeds_hold", "91", "90", true, 0},
+		{"keepalive_with_hold_0", "10", "0", false, 10 * time.Second},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := map[string]any{
+				"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
+				"session":    map[string]any{"asn": map[string]any{"remote": "65001"}},
+				"timer":      map[string]any{"receive-hold-time": tt.ht, "keepalive": tt.ka},
+			}
+			ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "keepalive")
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.wantDur, ps.KeepaliveTime)
+			}
+		})
+	}
+}
+
 // TestParsePeerFamilies verifies family parsing from a config tree.
 //
 // VALIDATES: Address families are parsed into Multiprotocol capabilities with correct modes.

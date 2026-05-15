@@ -291,6 +291,10 @@ type PeerSettings struct {
 	// Explicit value >= 480s overrides the formula.
 	SendHoldTime time.Duration
 
+	// KeepaliveTime is the explicit keepalive interval (RFC 4271 Section 10).
+	// 0 = auto: holdTime/3. Non-zero overrides the derivation.
+	KeepaliveTime time.Duration
+
 	// ConnectRetry is the initial connect retry interval (default 5s).
 	// Used as the base for exponential backoff in peer.run().
 	ConnectRetry time.Duration

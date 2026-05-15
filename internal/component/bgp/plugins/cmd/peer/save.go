@@ -115,7 +115,7 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 				return saveFieldError(p.Address, "session router-id", err)
 			}
 		}
-		// Timer container: receive-hold-time, send-hold-time, and connect-retry (only if non-default).
+		// Timer container (only if non-default).
 		timerPath := append(slices.Clone(peerPath), "timer")
 		if p.ReceiveHoldTime != defaultReceiveHoldTime {
 			if err := ed.SetValue(timerPath, "receive-hold-time", strconv.Itoa(int(p.ReceiveHoldTime.Seconds()))); err != nil {
@@ -125,6 +125,11 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 		if p.SendHoldTime != 0 {
 			if err := ed.SetValue(timerPath, "send-hold-time", strconv.Itoa(int(p.SendHoldTime.Seconds()))); err != nil {
 				return saveFieldError(p.Address, "send-hold-time", err)
+			}
+		}
+		if p.KeepaliveTime != 0 {
+			if err := ed.SetValue(timerPath, "keepalive", strconv.Itoa(int(p.KeepaliveTime.Seconds()))); err != nil {
+				return saveFieldError(p.Address, "keepalive", err)
 			}
 		}
 		if p.ConnectRetry != 0 && p.ConnectRetry != defaultConnectRetry {

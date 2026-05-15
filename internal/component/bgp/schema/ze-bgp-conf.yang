@@ -720,6 +720,12 @@ module ze-bgp-conf {
                 description "Send hold time in seconds (RFC 9687). 0 = auto: max(480, 2x receive-hold-time).";
             }
 
+            leaf keepalive {
+                type uint16;
+                default 0;
+                description "Keepalive interval in seconds (RFC 4271 Section 10). 0 = auto: hold-time/3.";
+            }
+
             leaf connect-retry {
                 type uint16;
                 default 120;

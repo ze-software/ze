@@ -146,6 +146,7 @@ func HandleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 		timer := map[string]any{
 			"receive-hold-time": int(p.ReceiveHoldTime.Seconds()),
 			"send-hold-time":    int(p.SendHoldTime.Seconds()),
+			"keepalive":         int(p.KeepaliveTime.Seconds()),
 			"connect-retry":     int(p.ConnectRetry.Seconds()),
 		}
 		row := map[string]any{

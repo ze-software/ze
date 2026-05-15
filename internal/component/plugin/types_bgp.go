@@ -56,6 +56,7 @@ type PeerInfo struct {
 	RouterID        uint32
 	ReceiveHoldTime time.Duration // Configured receive hold time (RFC 4271)
 	SendHoldTime    time.Duration // Configured send hold time (RFC 9687, 0=auto)
+	KeepaliveTime   time.Duration // Configured keepalive interval (RFC 4271, 0=hold/3)
 	ConnectRetry    time.Duration // Connect retry interval
 	Connect         bool          // Initiate outbound connections
 	Accept          bool          // Accept inbound connections

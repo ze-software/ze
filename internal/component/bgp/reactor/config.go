@@ -153,6 +153,13 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 			}
 			ps.SendHoldTime = time.Duration(v) * time.Second
 		}
+		if v, ok := mapUint32(timerMap, "keepalive"); ok {
+			// RFC 4271 Section 4.4: keepalive must leave room for hold timer failure detection.
+			if v > 0 && ps.ReceiveHoldTime > 0 && time.Duration(v)*time.Second >= ps.ReceiveHoldTime {
+				return nil, fmt.Errorf("peer %s: keepalive %ds must be less than receive-hold-time %ds", name, v, uint32(ps.ReceiveHoldTime/time.Second))
+			}
+			ps.KeepaliveTime = time.Duration(v) * time.Second
+		}
 		if v, ok := mapUint32(timerMap, "connect-retry"); ok {
 			ps.ConnectRetry = time.Duration(v) * time.Second
 		}

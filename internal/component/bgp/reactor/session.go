@@ -358,6 +358,7 @@ func NewSession(settings *PeerSettings) *Session {
 
 	// Configure timers.
 	s.timers.SetHoldTime(settings.ReceiveHoldTime)
+	s.timers.SetKeepaliveTime(settings.KeepaliveTime)
 
 	// Wire up timer callbacks.
 	s.timers.OnHoldTimerExpires(func() {

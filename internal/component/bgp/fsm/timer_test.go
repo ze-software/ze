@@ -298,3 +298,126 @@ func TestTimersHoldTimeZeroDisables(t *testing.T) {
 		// Expected — no timers running
 	}
 }
+
+// TestKeepaliveDefaultDerivation verifies keepalive defaults to holdTime/3.
+//
+// VALIDATES: AC-2 — keepalive 0 (default) uses hold-time/3 (RFC 4271 Section 10).
+//
+// PREVENTS: Changing default keepalive derivation.
+func TestKeepaliveDefaultDerivation(t *testing.T) {
+	timers := NewTimers()
+	timers.SetHoldTime(90 * time.Millisecond) // keepalive = 30ms
+
+	require.Equal(t, time.Duration(0), timers.KeepaliveTime())
+
+	fired := make(chan time.Time, 5)
+	start := time.Now()
+	timers.OnKeepaliveTimerExpires(func() {
+		fired <- time.Now()
+	})
+
+	timers.StartKeepaliveTimer()
+
+	select {
+	case ts := <-fired:
+		elapsed := ts.Sub(start)
+		require.InDelta(t, 30*time.Millisecond, elapsed, float64(20*time.Millisecond))
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("keepalive timer did not fire")
+	}
+}
+
+// TestKeepaliveExplicit verifies non-zero keepalive overrides holdTime/3.
+//
+// VALIDATES: AC-1 — explicit keepalive overrides derivation.
+//
+// PREVENTS: Explicit keepalive being ignored.
+func TestKeepaliveExplicit(t *testing.T) {
+	timers := NewTimers()
+	timers.SetHoldTime(120 * time.Millisecond) // default keepalive would be 40ms
+	timers.SetKeepaliveTime(20 * time.Millisecond)
+
+	require.Equal(t, 20*time.Millisecond, timers.KeepaliveTime())
+
+	fired := make(chan time.Time, 5)
+	start := time.Now()
+	timers.OnKeepaliveTimerExpires(func() {
+		fired <- time.Now()
+	})
+
+	timers.StartKeepaliveTimer()
+
+	select {
+	case ts := <-fired:
+		elapsed := ts.Sub(start)
+		require.InDelta(t, 20*time.Millisecond, elapsed, float64(15*time.Millisecond))
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("keepalive timer did not fire")
+	}
+}
+
+// TestKeepaliveClampedOnNegotiation verifies keepalive falls back to holdTime/3
+// when the configured keepalive exceeds the (negotiated) hold-time.
+// This simulates the session_negotiate.go clamping path.
+//
+// VALIDATES: RFC 4271 Section 10 — keepalive clamped when hold-time shrinks.
+//
+// PREVENTS: Session flap when peer proposes lower hold-time.
+func TestKeepaliveClampedOnNegotiation(t *testing.T) {
+	timers := NewTimers()
+	timers.SetHoldTime(90 * time.Millisecond)
+	timers.SetKeepaliveTime(25 * time.Millisecond)
+
+	// Simulate negotiation: peer proposes hold=20ms, so negotiated hold=20ms.
+	// Configured keepalive (25ms) >= negotiated hold (20ms), so clamp.
+	negotiatedHold := 20 * time.Millisecond
+	timers.SetHoldTime(negotiatedHold)
+	timers.SetKeepaliveTime(negotiatedHold / 3) // ~6ms
+
+	require.Equal(t, negotiatedHold/3, timers.KeepaliveTime())
+
+	fired := make(chan time.Time, 5)
+	start := time.Now()
+	timers.OnKeepaliveTimerExpires(func() {
+		fired <- time.Now()
+	})
+
+	timers.StartKeepaliveTimer()
+
+	select {
+	case ts := <-fired:
+		elapsed := ts.Sub(start)
+		require.InDelta(t, float64(negotiatedHold/3), float64(elapsed), float64(10*time.Millisecond))
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("keepalive timer did not fire after clamping")
+	}
+}
+
+// TestKeepaliveWithZeroHoldTime verifies hold-time 0 disables keepalive regardless.
+//
+// VALIDATES: RFC 4271 Section 4.4 — zero hold-time disables keepalive.
+//
+// PREVENTS: Sending keepalives when hold-time is 0.
+func TestKeepaliveWithZeroHoldTime(t *testing.T) {
+	timers := NewTimers()
+	timers.SetHoldTime(0)
+	timers.SetKeepaliveTime(10 * time.Millisecond)
+
+	fired := make(chan struct{}, 1)
+	timers.OnKeepaliveTimerExpires(func() {
+		select {
+		case fired <- struct{}{}:
+		default:
+		}
+	})
+
+	timers.StartKeepaliveTimer()
+	require.False(t, timers.IsKeepaliveTimerRunning())
+
+	select {
+	case <-fired:
+		t.Fatal("keepalive must not fire when hold-time is 0")
+	case <-time.After(50 * time.Millisecond):
+		// Expected
+	}
+}

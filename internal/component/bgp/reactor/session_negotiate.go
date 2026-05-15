@@ -60,6 +60,12 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 
 	s.negotiated.HoldTime = uint16(negotiatedHold / time.Second) //nolint:gosec // Hold time max 65535s
 	s.timers.SetHoldTime(negotiatedHold)
+
+	// RFC 4271 Section 10: clamp keepalive when negotiated hold-time shrinks.
+	// A configured keepalive >= negotiated hold-time would cause session flap.
+	if ka := s.settings.KeepaliveTime; ka > 0 && negotiatedHold > 0 && ka >= negotiatedHold {
+		s.timers.SetKeepaliveTime(negotiatedHold / 3)
+	}
 }
 
 // sendOpen sends an OPEN message.

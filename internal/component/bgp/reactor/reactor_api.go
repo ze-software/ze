@@ -100,6 +100,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			RouterID:             s.RouterID,
 			ReceiveHoldTime:      s.ReceiveHoldTime,
 			SendHoldTime:         s.SendHoldTime,
+			KeepaliveTime:        s.KeepaliveTime,
 			ConnectRetry:         s.ConnectRetry,
 			Connect:              s.Connection.Connect,
 			Accept:               s.Connection.Accept,
@@ -655,6 +656,15 @@ func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 				settings.SendHoldTime = time.Duration(sht) * time.Second
 			}
 		}
+		if v, ok := fields["keepalive"].(string); ok {
+			var ka uint32
+			parseUint32FromString(v, &ka)
+			if ka > 0 && settings.ReceiveHoldTime > 0 && time.Duration(ka)*time.Second >= settings.ReceiveHoldTime {
+				reactorLogger().Warn("invalid keepalive in peer config, ignoring", "peer", peerName, "value", ka)
+			} else {
+				settings.KeepaliveTime = time.Duration(ka) * time.Second
+			}
+		}
 		if v, ok := fields["connect-retry"].(string); ok {
 			var cr uint32
 			parseUint32FromString(v, &cr)
@@ -733,6 +743,7 @@ func peerSettingsEqual(a, b *PeerSettings) bool {
 	// Compare behavior fields.
 	if a.ReceiveHoldTime != b.ReceiveHoldTime ||
 		a.SendHoldTime != b.SendHoldTime ||
+		a.KeepaliveTime != b.KeepaliveTime ||
 		a.ConnectRetry != b.ConnectRetry ||
 		a.GroupUpdates != b.GroupUpdates ||
 		a.IgnoreFamilyMismatch != b.IgnoreFamilyMismatch ||

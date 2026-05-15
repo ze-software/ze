@@ -62,6 +62,7 @@ type Timers struct {
 
 	// Timer durations
 	holdTime         time.Duration
+	keepaliveTime    time.Duration // 0 = derive from holdTime/3 (RFC 4271 Section 10)
 	connectRetryTime time.Duration
 
 	// Active timers
@@ -114,6 +115,23 @@ func (t *Timers) HoldTime() time.Duration {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return t.holdTime
+}
+
+// SetKeepaliveTime sets an explicit keepalive interval.
+// 0 means derive from holdTime/3 (RFC 4271 Section 10 default).
+// Non-zero overrides the derivation. The FSM clamps this at negotiation
+// time if the negotiated hold-time is smaller than the configured value.
+func (t *Timers) SetKeepaliveTime(d time.Duration) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.keepaliveTime = d
+}
+
+// KeepaliveTime returns the configured keepalive time (0 = auto).
+func (t *Timers) KeepaliveTime() time.Duration {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.keepaliveTime
 }
 
 // SetConnectRetryTime sets the connect retry timer duration.
@@ -268,6 +286,9 @@ func (t *Timers) StartKeepaliveTimer() {
 	t.stopKeepaliveTimerLocked()
 
 	keepaliveInterval := t.holdTime / 3
+	if t.keepaliveTime > 0 {
+		keepaliveInterval = t.keepaliveTime
+	}
 
 	var timerFunc func()
 	timerFunc = func() {
