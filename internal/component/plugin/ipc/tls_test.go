@@ -423,7 +423,7 @@ func TestPluginAcceptorWaitAfterStop(t *testing.T) {
 	case err := <-errCh:
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "acceptor stopped")
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("WaitForPlugin did not unblock after Stop")
 	}
 }

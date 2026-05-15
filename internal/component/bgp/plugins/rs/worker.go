@@ -165,11 +165,12 @@ func (wp *workerPool) Dispatch(key workerKey, item workItem) bool {
 	}
 	wp.mu.Unlock()
 
-	// Non-blocking enqueue. If overflow is non-empty, all new items must go
-	// through overflow to preserve FIFO order. Otherwise, try channel first.
+	// Non-blocking enqueue. If overflow is non-empty or the drain goroutine
+	// has an in-flight item, all new items must go through overflow to
+	// preserve FIFO order. Otherwise, try channel first.
 	w.overflowMu.Lock()
-	if len(w.overflow) > 0 {
-		// Overflow active — append to maintain FIFO.
+	if len(w.overflow) > 0 || w.draining {
+		// Overflow or drain in flight — append to maintain FIFO.
 		w.overflow = append(w.overflow, item)
 		w.overflowMu.Unlock()
 	} else {
