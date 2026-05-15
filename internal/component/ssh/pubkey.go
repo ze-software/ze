@@ -3,6 +3,7 @@
 package ssh
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -10,6 +11,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 )
+
+var errMissingTypeOrKeyData = errors.New("missing type or key data")
 
 // matchPublicKey checks whether the presented SSH public key matches any of
 // the configured keys for the given username. Returns the matched user's
@@ -41,7 +44,7 @@ func matchPublicKey(users []authz.UserConfig, username string, presented ssh.Pub
 // authorized_keys format and parsed by ssh.ParseAuthorizedKey.
 func parseConfiguredKey(keyType, keyData string) (ssh.PublicKey, error) {
 	if keyType == "" || keyData == "" {
-		return nil, fmt.Errorf("missing type or key data")
+		return nil, errMissingTypeOrKeyData
 	}
 	line := keyType + " " + keyData
 	key, _, _, _, err := ssh.ParseAuthorizedKey([]byte(line))

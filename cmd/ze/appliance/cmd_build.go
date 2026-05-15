@@ -5,6 +5,7 @@ package appliance
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -14,6 +15,8 @@ import (
 	"strings"
 	"time"
 )
+
+var errNoPartitionsFoundInGpt = errors.New("no partitions found in GPT")
 
 func init() {
 	cmdBuild = runBuild
@@ -281,7 +284,7 @@ func findLastPartition(imgPath string) (offsetBytes, sizeBytes int64, err error)
 	}
 
 	if lastStart == 0 {
-		return 0, 0, fmt.Errorf("no partitions found in GPT")
+		return 0, 0, errNoPartitionsFoundInGpt
 	}
 
 	return int64(lastStart) * gptSectorSize, int64(lastEnd-lastStart+1) * gptSectorSize, nil

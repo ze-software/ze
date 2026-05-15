@@ -10,6 +10,23 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+var (
+	errTreeOrSchemaNotAvailable            = errors.New("tree or schema not available")
+	errPathNotFound                        = errors.New("path not found")
+	errEmptyPath                           = errors.New("empty path")
+	errSchemaNotAvailable                  = errors.New("schema not available")
+	errCopyNotSupportedInSessionMode       = errors.New("copy not supported in session mode")
+	errInsertNotSupportedInSessionMode     = errors.New("insert not supported in session mode")
+	errDeactivateNotSupportedInSessionMode = errors.New("deactivate not supported in session mode")
+	errActivateNotSupportedInSessionMode   = errors.New("activate not supported in session mode")
+	errPathTooShortForListEntry            = errors.New("path too short for list entry")
+	errCannotRenameAnonymousListEntry      = errors.New("cannot rename anonymous list entry")
+	errPathDoesNotEndAtA                   = errors.New("path does not end at a list entry")
+	errRenameTargetMustBeTheLast           = errors.New("rename target must be the last element in the path")
+	errSaveNotAllowedWithActiveSession     = errors.New("Save() not allowed with active session; use CommitSession()")
+	errNoSessionSet                        = errors.New("no session set")
+)
+
 // SaveEditState saves the current working content to the .edit file.
 func (e *Editor) SaveEditState() error {
 	if !e.dirty.Load() {
@@ -51,7 +68,7 @@ func (e *Editor) SetWorkingContent(content string) {
 // that requires explicit list keys (used with full set-command paths).
 func (e *Editor) walkOrCreate(path []string) (*config.Tree, error) {
 	if e.tree == nil || e.schema == nil {
-		return nil, fmt.Errorf("tree or schema not available")
+		return nil, errTreeOrSchemaNotAvailable
 	}
 	if len(path) == 0 {
 		return e.tree, nil
@@ -165,7 +182,7 @@ func (e *Editor) DeleteValue(path []string, key string) error {
 	}
 	target := e.WalkPath(path)
 	if target == nil {
-		return fmt.Errorf("path not found")
+		return errPathNotFound
 	}
 	target.Delete(key)
 	e.dirty.Store(true)
@@ -181,7 +198,7 @@ func (e *Editor) DeleteContainer(path []string, name string) error {
 		target = e.WalkPath(path)
 	}
 	if target == nil {
-		return fmt.Errorf("path not found")
+		return errPathNotFound
 	}
 	target.DeleteContainer(name)
 	e.dirty.Store(true)
@@ -193,10 +210,10 @@ func (e *Editor) DeleteContainer(path []string, name string) error {
 // the appropriate delete method.
 func (e *Editor) DeleteByPath(fullPath []string) error {
 	if len(fullPath) == 0 {
-		return fmt.Errorf("empty path")
+		return errEmptyPath
 	}
 	if e.schema == nil {
-		return fmt.Errorf("schema not available")
+		return errSchemaNotAvailable
 	}
 
 	// Walk the schema to find what the second-to-last element is.
@@ -263,7 +280,7 @@ func (e *Editor) DeleteListEntry(path []string, listName, key string) error {
 		target = e.WalkPath(path)
 	}
 	if target == nil {
-		return fmt.Errorf("path not found")
+		return errPathNotFound
 	}
 	target.RemoveListEntry(listName, key)
 	e.dirty.Store(true)
@@ -285,7 +302,7 @@ func (e *Editor) RenameListEntry(parentPath []string, listName, oldKey, newKey s
 		target = e.WalkPath(parentPath)
 	}
 	if target == nil {
-		return fmt.Errorf("path not found")
+		return errPathNotFound
 	}
 	if err := target.RenameListEntry(listName, oldKey, newKey); err != nil {
 		return err
@@ -299,7 +316,7 @@ func (e *Editor) RenameListEntry(parentPath []string, listName, oldKey, newKey s
 // MetaTree is not updated because copy is blocked in session mode (meta is session-only).
 func (e *Editor) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
 	if e.session != nil {
-		return fmt.Errorf("copy not supported in session mode")
+		return errCopyNotSupportedInSessionMode
 	}
 	var target *config.Tree
 	if len(parentPath) == 0 {
@@ -308,7 +325,7 @@ func (e *Editor) CopyListEntry(parentPath []string, listName, srcKey, dstKey str
 		target = e.WalkPath(parentPath)
 	}
 	if target == nil {
-		return fmt.Errorf("path not found")
+		return errPathNotFound
 	}
 	if err := target.CopyListEntry(listName, srcKey, dstKey); err != nil {
 		return err
@@ -323,7 +340,7 @@ func (e *Editor) CopyListEntry(parentPath []string, listName, srcKey, dstKey str
 // reference value for before/after.
 func (e *Editor) InsertLeafListValue(path []string, leafListName, value, position, ref string) error {
 	if e.session != nil {
-		return fmt.Errorf("insert not supported in session mode")
+		return errInsertNotSupportedInSessionMode
 	}
 	var target *config.Tree
 	if len(path) == 0 {
@@ -332,7 +349,7 @@ func (e *Editor) InsertLeafListValue(path []string, leafListName, value, positio
 		target = e.WalkPath(path)
 	}
 	if target == nil {
-		return fmt.Errorf("path not found")
+		return errPathNotFound
 	}
 	if err := target.InsertMultiValue(leafListName, value, position, ref); err != nil {
 		return err
@@ -344,7 +361,7 @@ func (e *Editor) InsertLeafListValue(path []string, leafListName, value, positio
 // DeactivateLeafListValue adds "inactive:" prefix to a value in a leaf-list.
 func (e *Editor) DeactivateLeafListValue(path []string, leafListName, value string) error {
 	if e.session != nil {
-		return fmt.Errorf("deactivate not supported in session mode")
+		return errDeactivateNotSupportedInSessionMode
 	}
 	var target *config.Tree
 	if len(path) == 0 {
@@ -353,7 +370,7 @@ func (e *Editor) DeactivateLeafListValue(path []string, leafListName, value stri
 		target = e.WalkPath(path)
 	}
 	if target == nil {
-		return fmt.Errorf("path not found")
+		return errPathNotFound
 	}
 	if err := target.DeactivateMultiValue(leafListName, value); err != nil {
 		return err
@@ -365,7 +382,7 @@ func (e *Editor) DeactivateLeafListValue(path []string, leafListName, value stri
 // ActivateLeafListValue removes "inactive:" prefix from a value in a leaf-list.
 func (e *Editor) ActivateLeafListValue(path []string, leafListName, value string) error {
 	if e.session != nil {
-		return fmt.Errorf("activate not supported in session mode")
+		return errActivateNotSupportedInSessionMode
 	}
 	var target *config.Tree
 	if len(path) == 0 {
@@ -374,7 +391,7 @@ func (e *Editor) ActivateLeafListValue(path []string, leafListName, value string
 		target = e.WalkPath(path)
 	}
 	if target == nil {
-		return fmt.Errorf("path not found")
+		return errPathNotFound
 	}
 	if err := target.ActivateMultiValue(leafListName, value); err != nil {
 		return err
@@ -406,7 +423,7 @@ var (
 // marked, so callers can use errors.Is for idempotent flows.
 func (e *Editor) DeactivateLeaf(parentPath []string, leafName string) error {
 	if e.session != nil {
-		return fmt.Errorf("deactivate not supported in session mode")
+		return errDeactivateNotSupportedInSessionMode
 	}
 	target := e.tree
 	if len(parentPath) > 0 {
@@ -427,7 +444,7 @@ func (e *Editor) DeactivateLeaf(parentPath []string, leafName string) error {
 // Returns ErrLeafNotInactive (wrapped) when the leaf is already active.
 func (e *Editor) ActivateLeaf(parentPath []string, leafName string) error {
 	if e.session != nil {
-		return fmt.Errorf("activate not supported in session mode")
+		return errActivateNotSupportedInSessionMode
 	}
 	target := e.tree
 	if len(parentPath) > 0 {
@@ -454,7 +471,7 @@ func (e *Editor) ActivateLeaf(parentPath []string, leafName string) error {
 // already set, so callers can use errors.Is for idempotent flows.
 func (e *Editor) DeactivatePath(path []string) error {
 	if e.session != nil {
-		return fmt.Errorf("deactivate not supported in session mode")
+		return errDeactivateNotSupportedInSessionMode
 	}
 	target := e.WalkPath(path)
 	if target == nil {
@@ -475,7 +492,7 @@ func (e *Editor) DeactivatePath(path []string) error {
 // idempotent / mistyped-path cases.
 func (e *Editor) ActivatePath(path []string) error {
 	if e.session != nil {
-		return fmt.Errorf("activate not supported in session mode")
+		return errActivateNotSupportedInSessionMode
 	}
 	target := e.WalkPath(path)
 	if target == nil {
@@ -494,10 +511,10 @@ func (e *Editor) ActivatePath(path []string) error {
 // and the entry key. Returns an error if the path does not end at a list entry.
 func (e *Editor) resolveListTarget(fullPath []string) (parentPath []string, listName, key string, err error) {
 	if e.schema == nil {
-		return nil, "", "", fmt.Errorf("schema not available")
+		return nil, "", "", errSchemaNotAvailable
 	}
 	if len(fullPath) < 2 {
-		return nil, "", "", fmt.Errorf("path too short for list entry")
+		return nil, "", "", errPathTooShortForListEntry
 	}
 
 	var currentSchema schemaGetter = e.schema
@@ -522,7 +539,7 @@ func (e *Editor) resolveListTarget(fullPath []string) (parentPath []string, list
 			}
 			// Check if next element is a child (anonymous) or a key
 			if n.Get(fullPath[i+1]) != nil {
-				return nil, "", "", fmt.Errorf("cannot rename anonymous list entry")
+				return nil, "", "", errCannotRenameAnonymousListEntry
 			}
 			lastListIdx = i
 			lastListName = name
@@ -538,12 +555,12 @@ func (e *Editor) resolveListTarget(fullPath []string) (parentPath []string, list
 	}
 
 	if lastListIdx == -1 {
-		return nil, "", "", fmt.Errorf("path does not end at a list entry")
+		return nil, "", "", errPathDoesNotEndAtA
 	}
 
 	// The last list entry must be at the end of the path
 	if lastListIdx+2 != len(fullPath) {
-		return nil, "", "", fmt.Errorf("rename target must be the last element in the path")
+		return nil, "", "", errRenameTargetMustBeTheLast
 	}
 
 	return fullPath[:lastListIdx], lastListName, lastKey, nil
@@ -553,7 +570,7 @@ func (e *Editor) resolveListTarget(fullPath []string) (parentPath []string, list
 // Returns an error when a session is active -- use CommitSession() instead.
 func (e *Editor) Save() error {
 	if e.session != nil {
-		return fmt.Errorf("Save() not allowed with active session; use CommitSession()")
+		return errSaveNotAllowedWithActiveSession
 	}
 	if !e.dirty.Load() {
 		return nil

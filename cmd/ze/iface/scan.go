@@ -14,6 +14,8 @@ import (
 	ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
+var errAtMostOneOfJsonYaml = errors.New("at most one of --json, --yaml, --config may be set")
+
 // cmdScan walks the OS for network interfaces, classifies each by Ze type,
 // and renders the result in the chosen output format. The default is a
 // nushell-style table via command.ApplyTable; --json emits raw JSON for
@@ -95,7 +97,7 @@ func validateScanFlags(jsonOut, yamlOut, configOut bool) error {
 		}
 	}
 	if n > 1 {
-		return fmt.Errorf("at most one of --json, --yaml, --config may be set")
+		return errAtMostOneOfJsonYaml
 	}
 	return nil
 }

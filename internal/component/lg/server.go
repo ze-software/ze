@@ -44,6 +44,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/version"
 )
 
+var (
+	errLgServerAtLeastOneListen            = errors.New("lg server: at least one listen address is required")
+	errLgServerListenAddressMustNot        = errors.New("lg server: listen address must not be empty")
+	errLgServerCommandDispatcherIsRequired = errors.New("lg server: command dispatcher is required")
+	errLgServerTlsEnabledButCertificate    = errors.New("lg server: TLS enabled but certificate/key PEM data missing")
+)
+
 // lgLogger is the structured logger for the looking glass subsystem.
 var lgLogger = slogutil.Logger("lg.server")
 
@@ -119,14 +126,14 @@ type LGServer struct {
 // Requires at least one entry in cfg.ListenAddrs.
 func NewLGServer(cfg LGConfig) (*LGServer, error) {
 	if len(cfg.ListenAddrs) == 0 {
-		return nil, fmt.Errorf("lg server: at least one listen address is required")
+		return nil, errLgServerAtLeastOneListen
 	}
 	if slices.Contains(cfg.ListenAddrs, "") {
-		return nil, fmt.Errorf("lg server: listen address must not be empty")
+		return nil, errLgServerListenAddressMustNot
 	}
 
 	if cfg.Dispatch == nil {
-		return nil, fmt.Errorf("lg server: command dispatcher is required")
+		return nil, errLgServerCommandDispatcherIsRequired
 	}
 
 	log := cfg.Logger
@@ -137,7 +144,7 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 	var tlsCfg *tls.Config
 	if cfg.TLS {
 		if len(cfg.CertPEM) == 0 || len(cfg.KeyPEM) == 0 {
-			return nil, fmt.Errorf("lg server: TLS enabled but certificate/key PEM data missing")
+			return nil, errLgServerTlsEnabledButCertificate
 		}
 
 		cert, err := tls.X509KeyPair(cfg.CertPEM, cfg.KeyPEM)

@@ -13,12 +13,24 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"slices"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+)
+
+var (
+	errRelatedResolverNilTool                    = errors.New("related resolver: nil tool")
+	errRelatedResolverUnterminatedPlaceholder    = errors.New("related resolver: unterminated placeholder")
+	errRelatedResolverkeyTakesNoArguments        = errors.New("related resolver: ${key} takes no arguments")
+	errRelatedResolverEmptyRelativePath          = errors.New("related resolver: empty relative path")
+	errRelatedResolverRelativePathMustNot        = errors.New("related resolver: relative path must not start or end with '/'")
+	errRelatedResolverEmptySegmentInRelative     = errors.New("related resolver: empty segment in relative path")
+	errRelatedResolverUnsafeValueContainsControl = errors.New("related resolver: unsafe value: contains control or whitespace")
+	errRelatedResolverUnsafeValueBracketsOnly    = errors.New("related resolver: unsafe value: brackets only allowed for IPv6 literal")
 )
 
 // Resolution is the outcome of resolving one RelatedTool against a row's
@@ -65,7 +77,7 @@ const (
 //     should never reach an end user as a successful response.
 func (r *RelatedResolver) Resolve(tool *config.RelatedTool, contextPath []string) (*Resolution, error) {
 	if tool == nil {
-		return nil, fmt.Errorf("related resolver: nil tool")
+		return nil, errRelatedResolverNilTool
 	}
 
 	// Walk the working tree to the row subtree.
@@ -154,7 +166,7 @@ func (r *RelatedResolver) substitute(template string, contextPath []string, rowS
 		i += next + 2 // consume ${
 		end := strings.Index(template[i:], "}")
 		if end < 0 {
-			return "", false, fmt.Errorf("related resolver: unterminated placeholder")
+			return "", false, errRelatedResolverUnterminatedPlaceholder
 		}
 		body := template[i : i+end]
 		i += end + 1 // consume }
@@ -186,7 +198,7 @@ func (r *RelatedResolver) resolvePlaceholder(body string, contextPath []string, 
 	switch source {
 	case "key":
 		if hasArgs {
-			return "", false, fmt.Errorf("related resolver: ${key} takes no arguments")
+			return "", false, errRelatedResolverkeyTakesNoArguments
 		}
 		key := lastListEntryKey(contextPath)
 		if key == "" {
@@ -281,7 +293,7 @@ func validatePlaceholderDepths(template string) error {
 		i += next + 2
 		end := strings.Index(template[i:], "}")
 		if end < 0 {
-			return fmt.Errorf("related resolver: unterminated placeholder")
+			return errRelatedResolverUnterminatedPlaceholder
 		}
 		body := template[i : i+end]
 		i += end + 1
@@ -309,14 +321,14 @@ func validatePlaceholderDepths(template string) error {
 func splitRelativePath(rel string) ([]string, error) {
 	rel = strings.TrimSpace(rel)
 	if rel == "" {
-		return nil, fmt.Errorf("related resolver: empty relative path")
+		return nil, errRelatedResolverEmptyRelativePath
 	}
 	if strings.HasPrefix(rel, "/") || strings.HasSuffix(rel, "/") {
-		return nil, fmt.Errorf("related resolver: relative path must not start or end with '/'")
+		return nil, errRelatedResolverRelativePathMustNot
 	}
 	parts := strings.Split(rel, "/")
 	if slices.Contains(parts, "") {
-		return nil, fmt.Errorf("related resolver: empty segment in relative path")
+		return nil, errRelatedResolverEmptySegmentInRelative
 	}
 	return parts, nil
 }
@@ -379,7 +391,7 @@ func validateResolvedValue(v string) error {
 	}
 	for _, r := range v {
 		if r <= ' ' || r == 0x7f {
-			return fmt.Errorf("related resolver: unsafe value: contains control or whitespace")
+			return errRelatedResolverUnsafeValueContainsControl
 		}
 		if isShellMeta(r) {
 			return fmt.Errorf("related resolver: unsafe value: contains shell metacharacter %q", r)
@@ -389,7 +401,7 @@ func validateResolvedValue(v string) error {
 			// parses as a bracketed IPv6 address literal.
 			if r == '[' || r == ']' {
 				if !isBracketedIPv6(v) {
-					return fmt.Errorf("related resolver: unsafe value: brackets only allowed for IPv6 literal")
+					return errRelatedResolverUnsafeValueBracketsOnly
 				}
 				continue
 			}

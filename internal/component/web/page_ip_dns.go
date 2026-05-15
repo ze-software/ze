@@ -7,6 +7,7 @@ package web
 import (
 	"fmt"
 	"html/template"
+	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
@@ -81,7 +82,7 @@ func BuildDNSWorkbenchForm(data DNSFormData) WorkbenchFormData {
 			Name:        "cache-size",
 			Label:       "Cache Size",
 			Type:        "number",
-			Value:       fmt.Sprintf("%d", data.CacheSize),
+			Value:       strconv.Itoa(int(data.CacheSize)),
 			Description: "Maximum number of cached DNS entries (0 disables cache)",
 		},
 	}

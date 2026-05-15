@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -511,7 +512,7 @@ func isAllDigits(s string) bool {
 
 // formatNumber formats a number with comma separators.
 func formatNumber(n uint64) string {
-	s := fmt.Sprintf("%d", n)
+	s := strconv.Itoa(int(n))
 	result := make([]byte, 0, len(s)+(len(s)-1)/3)
 	for i, c := range s {
 		if i > 0 && (len(s)-i)%3 == 0 {

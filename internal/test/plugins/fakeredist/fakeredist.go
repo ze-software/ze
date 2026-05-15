@@ -26,6 +26,7 @@
 package fakeredist
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/netip"
@@ -38,6 +39,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
+)
+
+var (
+	errFakeredistNoEventBus                     = errors.New("fakeredist: no event bus")
+	errFakeredistProtocolIdNotRegistered        = errors.New("fakeredist: protocol id not registered")
+	errUsageFakeredistEmitAddremoveFamilyPrefix = errors.New("usage: fakeredist emit <add|remove> <family> <prefix> [<nexthop>]")
+	errUsageFakeredistEmitBurstNAddremove       = errors.New("usage: fakeredist emit-burst <N> <add|remove> <family> <base-prefix>")
 )
 
 // Name is the canonical plugin name.
@@ -96,11 +104,11 @@ var ProtocolID redistevents.ProtocolID
 func emitOnce(action redistevents.RouteAction, fam family.Family, prefix netip.Prefix, nh netip.Addr) (int, error) {
 	bus := getEventBus()
 	if bus == nil {
-		return 0, fmt.Errorf("fakeredist: no event bus")
+		return 0, errFakeredistNoEventBus
 	}
 	if ProtocolID == redistevents.ProtocolUnspecified {
 		// Defensive: should never happen because init() registers.
-		return 0, fmt.Errorf("fakeredist: protocol id not registered")
+		return 0, errFakeredistProtocolIdNotRegistered
 	}
 	b := redistevents.AcquireBatch()
 	defer redistevents.ReleaseBatch(b)
@@ -141,7 +149,7 @@ func parseFamily(token string) (family.Family, error) {
 func parseEmitArgs(args []string) (redistevents.RouteAction, family.Family, netip.Prefix, netip.Addr, error) {
 	if len(args) < 3 || len(args) > 4 {
 		return 0, family.Family{}, netip.Prefix{}, netip.Addr{},
-			fmt.Errorf("usage: fakeredist emit <add|remove> <family> <prefix> [<nexthop>]")
+			errUsageFakeredistEmitAddremoveFamilyPrefix
 	}
 	action, err := parseAction(args[0])
 	if err != nil {
@@ -191,7 +199,7 @@ const burstMaxN = 1_000_000
 // base prefix auto-incremented (so peers see N distinct prefixes).
 func runEmitBurst(args []string) (string, error) {
 	if len(args) != 4 {
-		return "", fmt.Errorf("usage: fakeredist emit-burst <N> <add|remove> <family> <base-prefix>")
+		return "", errUsageFakeredistEmitBurstNAddremove
 	}
 	n, err := strconv.Atoi(args[0])
 	if err != nil || n <= 0 {

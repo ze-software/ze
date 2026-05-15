@@ -7,6 +7,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os/exec"
@@ -21,6 +22,8 @@ import (
 	// Blank import triggers YANG schema registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd/schema"
 )
+
+var errTargetMustNotBeEmpty = errors.New("target must not be empty")
 
 // resolvers holds the shared resolver instances. Set once at hub startup
 // via SetResolvers, read by handler functions. Safe because SetResolvers
@@ -90,7 +93,7 @@ func dnsResult(records []string, resolveErr error) (*plugin.Response, error) {
 
 func validateTarget(s string) error {
 	if s == "" {
-		return fmt.Errorf("target must not be empty")
+		return errTargetMustNotBeEmpty
 	}
 	if net.ParseIP(s) != nil {
 		return nil

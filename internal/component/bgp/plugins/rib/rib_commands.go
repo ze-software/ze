@@ -10,6 +10,7 @@ package rib
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -24,6 +25,20 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+)
+
+var (
+	errBgpRibClearInRequiresA                     = errors.New("bgp rib clear in requires a selector (* for all peers)")
+	errBgpRibClearOutRequiresA                    = errors.New("bgp rib clear out requires a selector (* for all peers)")
+	errBgpRibRetainRoutesRequiresA                = errors.New("bgp rib retain-routes requires a selector (* for all peers)")
+	errBgpRibReleaseRoutesRequiresA               = errors.New("bgp rib release-routes requires a selector (* for all peers)")
+	errUsageRibInjectPeerFamilyPrefix             = errors.New("usage: rib inject <peer> <family> <prefix> [origin <val>] [nhop <ip>] [aspath <asn,...>] [localpref <n>] [med <n>]")
+	errUsageRibWithdrawPeerFamilyPrefix           = errors.New("usage: rib withdraw <peer> <family> <prefix>")
+	errMarkStaleRequiresPeerRestartTime           = errors.New("mark-stale requires <peer> <restart-time> [level]")
+	errStaleLevelMustBe00                         = errors.New("stale level must be > 0 (0 means fresh)")
+	errPurgeStaleRequiresPeer                     = errors.New("purge-stale requires <peer>")
+	errAttachCommunityRequiresPeerFamilyCommunity = errors.New("attach-community requires <peer> <family> <community-hex>")
+	errDeleteWithCommunityRequiresPeerFamily      = errors.New("delete-with-community requires <peer> <family> <community-hex>")
 )
 
 // grTimerMargin is the extra time added to restart-time for the RIB's safety-net timer.
@@ -132,14 +147,14 @@ func doRegisterBuiltinCommands() {
 		{[]string{"bgp rib clear in", "bgp rib adjacent inbound empty"}, "Clear Adj-RIB-In routes",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				if len(args) == 0 {
-					return statusError, "", fmt.Errorf("bgp rib clear in requires a selector (* for all peers)")
+					return statusError, "", errBgpRibClearInRequiresA
 				}
 				return statusDone, r.inboundEmptyJSON(args[0]), nil
 			}},
 		{[]string{"bgp rib clear out", "bgp rib adjacent outbound resend"}, "Resend Adj-RIB-Out routes",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				if len(args) == 0 {
-					return statusError, "", fmt.Errorf("bgp rib clear out requires a selector (* for all peers)")
+					return statusError, "", errBgpRibClearOutRequiresA
 				}
 				var family string
 				if len(args) >= 2 && strings.Contains(args[1], "/") {
@@ -150,14 +165,14 @@ func doRegisterBuiltinCommands() {
 		{[]string{"bgp rib retain-routes"}, "Mark peer RIB for retention",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				if len(args) == 0 {
-					return statusError, "", fmt.Errorf("bgp rib retain-routes requires a selector (* for all peers)")
+					return statusError, "", errBgpRibRetainRoutesRequiresA
 				}
 				return statusDone, r.retainRoutesJSON(args[0]), nil
 			}},
 		{[]string{"bgp rib release-routes"}, "Release retained peer RIB",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				if len(args) == 0 {
-					return statusError, "", fmt.Errorf("bgp rib release-routes requires a selector (* for all peers)")
+					return statusError, "", errBgpRibReleaseRoutesRequiresA
 				}
 				return statusDone, r.releaseRoutesJSON(args[0]), nil
 			}},
@@ -217,7 +232,7 @@ func doRegisterBuiltinCommands() {
 // The peer address is a label; no live BGP session required.
 func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error) {
 	if len(args) < 3 {
-		return statusError, "", fmt.Errorf("usage: rib inject <peer> <family> <prefix> [origin <val>] [nhop <ip>] [aspath <asn,...>] [localpref <n>] [med <n>]")
+		return statusError, "", errUsageRibInjectPeerFamilyPrefix
 	}
 
 	peer := args[0]
@@ -361,7 +376,7 @@ func (r *RIBManager) validateIPv6NextHop(peer string, fam family.Family) error {
 // The peer address is a label; no live BGP session required.
 func (r *RIBManager) withdrawRoute(_ string, args []string) (string, string, error) {
 	if len(args) < 3 {
-		return statusError, "", fmt.Errorf("usage: rib withdraw <peer> <family> <prefix>")
+		return statusError, "", errUsageRibWithdrawPeerFamilyPrefix
 	}
 
 	peer := args[0]
@@ -702,7 +717,7 @@ func (r *RIBManager) releaseRoutesJSON(selector string) string {
 // Args: [0]=peer address, [1]=restart time in seconds, [2]=optional stale level (default 1).
 func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
 	if len(args) < 2 {
-		return statusError, "", fmt.Errorf("mark-stale requires <peer> <restart-time> [level]")
+		return statusError, "", errMarkStaleRequiresPeerRestartTime
 	}
 
 	peerAddr := args[0]
@@ -720,7 +735,7 @@ func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
 			return statusError, "", fmt.Errorf("invalid stale level %q: %w", args[2], lvlErr)
 		}
 		if lvl == 0 {
-			return statusError, "", fmt.Errorf("stale level must be > 0 (0 means fresh)")
+			return statusError, "", errStaleLevelMustBe00
 		}
 		staleLevel = uint8(lvl)
 	}
@@ -784,7 +799,7 @@ func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
 // Args: [0]=peer address, [1]=optional family (e.g., "ipv4/unicast").
 func (r *RIBManager) purgeStaleCommand(args []string) (string, string, error) {
 	if len(args) < 1 {
-		return statusError, "", fmt.Errorf("purge-stale requires <peer>")
+		return statusError, "", errPurgeStaleRequiresPeer
 	}
 
 	peerAddr := args[0]
@@ -1019,7 +1034,7 @@ func registerCommunityCommands() {
 // Args: [0]=peer, [1]=family, [2]=community as 8-char hex (e.g., "ffff0006").
 func (r *RIBManager) attachCommunityCommand(args []string) (string, string, error) {
 	if len(args) < 3 {
-		return statusError, "", fmt.Errorf("attach-community requires <peer> <family> <community-hex>")
+		return statusError, "", errAttachCommunityRequiresPeerFamilyCommunity
 	}
 
 	peerAddr := args[0]
@@ -1087,7 +1102,7 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, string, erro
 // Args: [0]=peer, [1]=family, [2]=community as 8-char hex.
 func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, string, error) {
 	if len(args) < 3 {
-		return statusError, "", fmt.Errorf("delete-with-community requires <peer> <family> <community-hex>")
+		return statusError, "", errDeleteWithCommunityRequiresPeerFamily
 	}
 
 	peerAddr := args[0]

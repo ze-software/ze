@@ -2,6 +2,7 @@ package policyroute
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/netip"
 	"sort"
@@ -9,6 +10,11 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+)
+
+var (
+	errTcpMssValueMustBe1   = errors.New("tcp-mss: value must be 1-65535, got 0")
+	errTableValueMustBe1Got = errors.New("table: value must be >= 1, got 0")
 )
 
 const (
@@ -165,7 +171,7 @@ func parsePolicyAction(m map[string]any) (PolicyAction, error) {
 			return PolicyAction{}, fmt.Errorf("tcp-mss: invalid value %q: %w", v, err)
 		}
 		if mss == 0 {
-			return PolicyAction{}, fmt.Errorf("tcp-mss: value must be 1-65535, got 0")
+			return PolicyAction{}, errTcpMssValueMustBe1
 		}
 		action.TCPMSS = uint16(mss)
 	}
@@ -195,7 +201,7 @@ func parsePolicyAction(m map[string]any) (PolicyAction, error) {
 			return PolicyAction{}, fmt.Errorf("table: invalid value %q: %w", v, err)
 		}
 		if tbl == 0 {
-			return PolicyAction{}, fmt.Errorf("table: value must be >= 1, got 0")
+			return PolicyAction{}, errTableValueMustBe1Got
 		}
 		if tbl >= 253 && tbl <= 255 {
 			return PolicyAction{}, fmt.Errorf("table: value %d is a kernel system table (253=default, 254=main, 255=local)", tbl)

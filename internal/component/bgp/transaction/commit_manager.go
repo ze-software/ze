@@ -3,6 +3,7 @@
 package transaction
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -12,11 +13,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
+var (
+	errCommitAlreadyExists = errors.New("commit already exists")
+	errCommitNotFound      = errors.New("commit not found")
+	errCommitNameRequired  = errors.New("commit name required")
+)
+
 // Transaction errors for named commits.
 var (
-	ErrCommitExists   = fmt.Errorf("commit already exists")
-	ErrCommitNotFound = fmt.Errorf("commit not found")
-	ErrEmptyName      = fmt.Errorf("commit name required")
+	ErrCommitExists   = errCommitAlreadyExists
+	ErrCommitNotFound = errCommitNotFound
+	ErrEmptyName      = errCommitNameRequired
 )
 
 // Transaction holds routes for a single named commit.

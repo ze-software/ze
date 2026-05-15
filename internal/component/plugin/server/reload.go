@@ -18,6 +18,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
+var (
+	errNoConfigLoaderConfigured = errors.New("no config loader configured")
+	errNoReactorConfigured      = errors.New("no reactor configured")
+)
+
 // affectedPlugin pairs a plugin process with the config sections that changed
 // under its declared roots. Shared between reload.go (which builds the slice
 // by walking WantsConfigRoots over the diff) and reload_tx.go (which converts
@@ -111,7 +116,7 @@ func (s *Server) HasConfigLoader() bool {
 // Returns error if the loader is not set, parsing fails, or reload fails.
 func (s *Server) ReloadFromDisk(ctx context.Context) error {
 	if s.configLoader == nil {
-		return fmt.Errorf("no config loader configured")
+		return errNoConfigLoaderConfigured
 	}
 
 	newTree, err := s.configLoader()
@@ -139,7 +144,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	defer s.txLock.release()
 
 	if s.reactor == nil {
-		return fmt.Errorf("no reactor configured")
+		return errNoReactorConfigured
 	}
 
 	logger().Info("config reload started")

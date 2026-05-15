@@ -9,6 +9,7 @@ package firewall
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -18,6 +19,11 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+)
+
+var (
+	errFirewallNoBackendConfiguredAndNo      = errors.New("firewall: no backend configured and no OS default available")
+	errFirewallConfigApplyNoBackendAvailable = errors.New("firewall config apply: no backend available")
 )
 
 // configRootFirewall is the YANG config root the firewall plugin owns.
@@ -153,7 +159,7 @@ func parseAndVerifyFirewallSections(sections []sdk.ConfigSection) (*firewallConf
 		return cfg, nil
 	}
 	if cfg.Backend == "" {
-		return nil, fmt.Errorf("firewall: no backend configured and no OS default available")
+		return nil, errFirewallNoBackendConfiguredAndNo
 	}
 	if err := validateBackendGate(sections, cfg.Backend); err != nil {
 		return nil, err
@@ -205,7 +211,7 @@ func runEngine(conn net.Conn) int {
 			return nil
 		}
 		if cfg.Backend == "" {
-			return fmt.Errorf("firewall: no backend configured and no OS default available")
+			return errFirewallNoBackendConfiguredAndNo
 		}
 
 		if err := validateBackendGate(sections, cfg.Backend); err != nil {
@@ -263,7 +269,7 @@ func runEngine(conn net.Conn) int {
 			desiredBackend = defaultBackendName
 		}
 		if desiredBackend == "" {
-			return fmt.Errorf("firewall config apply: no backend available")
+			return errFirewallConfigApplyNoBackendAvailable
 		}
 
 		if GetBackend() == nil || (previousCfg != nil && previousCfg.Backend != desiredBackend) {

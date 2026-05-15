@@ -6,6 +6,7 @@ package monitor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -15,6 +16,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+)
+
+var (
+	errMissingValueForPeer      = errors.New("missing value for 'peer'")
+	errEmptyPeerSelector        = errors.New("empty peer selector")
+	errMissingValueForEvent     = errors.New("missing value for 'event'")
+	errEmptyEventTypeInList     = errors.New("empty event type in list")
+	errMissingValueForDirection = errors.New("missing value for 'direction'")
 )
 
 // WireMethod is the YANG RPC wire method for the monitor command.
@@ -207,12 +216,12 @@ func parseMonitorArgs(args []string) (*monitorOpts, error) {
 		switch keyword {
 		case "peer":
 			if i+1 >= len(args) {
-				return nil, fmt.Errorf("missing value for 'peer'")
+				return nil, errMissingValueForPeer
 			}
 			i++
 			peer := args[i]
 			if peer == "" {
-				return nil, fmt.Errorf("empty peer selector")
+				return nil, errEmptyPeerSelector
 			}
 			if peer[0] == '!' {
 				rest := peer[1:]
@@ -227,13 +236,13 @@ func parseMonitorArgs(args []string) (*monitorOpts, error) {
 
 		case "event":
 			if i+1 >= len(args) {
-				return nil, fmt.Errorf("missing value for 'event'")
+				return nil, errMissingValueForEvent
 			}
 			i++
 			types := strings.Split(args[i], ",")
 			for _, t := range types {
 				if t == "" {
-					return nil, fmt.Errorf("empty event type in list")
+					return nil, errEmptyEventTypeInList
 				}
 				if !events.IsValidEvent(bgpevents.Namespace, t) {
 					return nil, fmt.Errorf("invalid event type: %s (valid: %s)", t, events.ValidEventNames(bgpevents.Namespace))
@@ -243,7 +252,7 @@ func parseMonitorArgs(args []string) (*monitorOpts, error) {
 
 		case "direction":
 			if i+1 >= len(args) {
-				return nil, fmt.Errorf("missing value for 'direction'")
+				return nil, errMissingValueForDirection
 			}
 			i++
 			dir := args[i]

@@ -4,11 +4,18 @@
 package meta
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+)
+
+var (
+	errMissingEncodingBgpPluginEncodingJsontext        = errors.New("missing encoding: bgp plugin encoding <json|text>")
+	errMissingFormatBgpPluginFormatHexbase64parsedfull = errors.New("missing format: bgp plugin format <hex|base64|parsed|full>")
+	errMissingModeBgpPluginAckSyncasync                = errors.New("missing mode: bgp plugin ack <sync|async>")
 )
 
 func init() {
@@ -23,7 +30,7 @@ func init() {
 // Syntax: bgp plugin encoding <json|text>.
 func handleBgpPluginEncoding(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
-		return nil, fmt.Errorf("missing encoding: bgp plugin encoding <json|text>")
+		return nil, errMissingEncodingBgpPluginEncodingJsontext
 	}
 
 	enc := strings.ToLower(args[0])
@@ -48,7 +55,7 @@ func handleBgpPluginEncoding(ctx *pluginserver.CommandContext, args []string) (*
 // Syntax: bgp plugin format <hex|base64|parsed|full>.
 func handleBgpPluginFormat(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
-		return nil, fmt.Errorf("missing format: bgp plugin format <hex|base64|parsed|full>")
+		return nil, errMissingFormatBgpPluginFormatHexbase64parsedfull
 	}
 
 	format := strings.ToLower(args[0])
@@ -73,7 +80,7 @@ func handleBgpPluginFormat(ctx *pluginserver.CommandContext, args []string) (*pl
 // Syntax: bgp plugin ack <sync|async>.
 func handleBgpPluginAck(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
-		return nil, fmt.Errorf("missing mode: bgp plugin ack <sync|async>")
+		return nil, errMissingModeBgpPluginAckSyncasync
 	}
 
 	mode := strings.ToLower(args[0])

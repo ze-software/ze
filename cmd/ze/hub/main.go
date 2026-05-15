@@ -63,6 +63,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
+var (
+	errCannotResolveConfigDirectory = errors.New("cannot resolve config directory")
+	errEmptyUsernameInZefs          = errors.New("empty username in zefs")
+)
+
 // Env var registrations are centralized in internal/component/config/environment.go.
 // No duplicate registrations here -- import that package to trigger init.
 
@@ -1066,7 +1071,7 @@ func serverDispatcher(s *pluginserver.Server) func(command, username, remoteAddr
 	return func(input, username, remoteAddr string) (string, error) {
 		d := s.Dispatcher()
 		if d == nil {
-			return "", fmt.Errorf("server not ready")
+			return "", errServerNotReady
 		}
 		ctx := &pluginserver.CommandContext{Server: s, Username: username, RemoteAddr: remoteAddr}
 		resp, err := d.Dispatch(ctx, input)
@@ -1461,7 +1466,7 @@ func loadZefsUsers() ([]authz.UserConfig, error) {
 		dir = paths.DefaultConfigDir()
 	}
 	if dir == "" {
-		return nil, fmt.Errorf("cannot resolve config directory")
+		return nil, errCannotResolveConfigDirectory
 	}
 	dbPath := filepath.Join(dir, "database.zefs")
 	db, err := zefs.Open(dbPath)
@@ -1479,7 +1484,7 @@ func loadZefsUsers() ([]authz.UserConfig, error) {
 	}
 	name := string(username)
 	if name == "" {
-		return nil, fmt.Errorf("empty username in zefs")
+		return nil, errEmptyUsernameInZefs
 	}
 	return []authz.UserConfig{{Name: name, Hash: string(hash)}}, nil
 }

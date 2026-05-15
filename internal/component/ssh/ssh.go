@@ -36,6 +36,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
+var (
+	errHostKeyPathCannotBeResolved       = errors.New("host-key path cannot be resolved: set host-key in config or run from a standard install location")
+	errSshServerAlreadyStarted           = errors.New("SSH server already started")
+	errHostCertificateFileDoesNotContain = errors.New("host-certificate file does not contain an SSH certificate")
+)
+
 // Compile-time interface check.
 var _ ze.Subsystem = (*Server)(nil)
 
@@ -159,7 +165,7 @@ func NewServer(cfg Config) (*Server, error) {
 			dir = paths.DefaultConfigDir()
 		}
 		if dir == "" {
-			return nil, fmt.Errorf("host-key path cannot be resolved: set host-key in config or run from a standard install location")
+			return nil, errHostKeyPathCannotBeResolved
 		}
 		cfg.HostKeyPath = filepath.Join(dir, defaultHostKeyFile)
 	}
@@ -347,7 +353,7 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 	defer s.mu.Unlock()
 
 	if s.wish != nil {
-		return fmt.Errorf("SSH server already started")
+		return errSshServerAlreadyStarted
 	}
 
 	// Resolve host key: from storage (blob mode) or filesystem path.
@@ -563,7 +569,7 @@ func (s *Server) hostKeyWithCertOption(keyPEM []byte) (ssh.Option, error) {
 	}
 	cert, ok := pub.(*gossh.Certificate)
 	if !ok {
-		return nil, fmt.Errorf("host-certificate file does not contain an SSH certificate")
+		return nil, errHostCertificateFileDoesNotContain
 	}
 
 	certSigner, err := gossh.NewCertSigner(cert, signer)

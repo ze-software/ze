@@ -14,6 +14,7 @@
 package trafficvpp
 
 import (
+	"errors"
 	"fmt"
 
 	"go.fd.io/govpp/binapi/policer"
@@ -21,6 +22,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
 )
+
+var errRatetokbpsRateMustBe0 = errors.New("rateToKbps: rate must be > 0")
 
 // kbpsPerBps is the divisor for bps -> kbps conversion.
 const kbpsPerBps = 1000
@@ -36,7 +39,7 @@ const maxBpsForKbpsFit = uint64(^uint32(0)) * kbpsPerBps
 // the uint64 arithmetic.
 func rateToKbps(bps uint64) (uint32, error) {
 	if bps == 0 {
-		return 0, fmt.Errorf("rateToKbps: rate must be > 0")
+		return 0, errRatetokbpsRateMustBe0
 	}
 	if bps > maxBpsForKbpsFit {
 		return 0, fmt.Errorf("rateToKbps: %d bps exceeds uint32 kbps range", bps)

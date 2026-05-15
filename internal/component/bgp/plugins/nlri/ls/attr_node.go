@@ -7,8 +7,10 @@ package ls
 
 import (
 	"encoding/binary"
-	"fmt"
 	"net/netip"
+	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Node attribute TLV type codes.
@@ -134,7 +136,7 @@ func (t *LsISISAreaID) WriteTo(buf []byte, off int) int {
 
 func (t *LsISISAreaID) ToJSON() map[string]any {
 	return map[string]any{
-		"area-id": fmt.Sprintf("0x%X", t.AreaID),
+		"area-id": "0x" + strings.ToUpper(textbuf.Hex(t.AreaID)),
 	}
 }
 

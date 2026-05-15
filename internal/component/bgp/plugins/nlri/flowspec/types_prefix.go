@@ -7,7 +7,6 @@
 package flowspec
 
 import (
-	"fmt"
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
@@ -86,7 +85,7 @@ func (c *prefixComponent) Bytes() []byte {
 // String returns command-style format: "<type> <prefix>".
 // Example: "destination 10.0.0.0/24" or "source 192.168.0.0/16".
 func (c *prefixComponent) String() string {
-	return fmt.Sprintf("%s %s", c.compType, c.prefix)
+	return c.compType.String() + " " + c.prefix.String()
 }
 
 // Len returns the wire-format length in bytes.

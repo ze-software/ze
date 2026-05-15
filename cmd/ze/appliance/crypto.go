@@ -4,6 +4,7 @@ package appliance
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -14,6 +15,12 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+)
+
+var (
+	errCiphertextTooShort                 = errors.New("ciphertext too short")
+	errDecryptionFailed                   = errors.New("decryption failed")
+	errNoPassphraseSourceAvailableNoAgent = errors.New("no passphrase source available (no agent, no env var, no prompt)")
 )
 
 const (
@@ -72,7 +79,7 @@ func Decrypt(envelope, passphrase []byte) ([]byte, error) {
 	minSize := saltSize + nonceSize + overhead
 
 	if len(envelope) < minSize {
-		return nil, fmt.Errorf("ciphertext too short")
+		return nil, errCiphertextTooShort
 	}
 
 	salt := envelope[:saltSize]
@@ -89,7 +96,7 @@ func Decrypt(envelope, passphrase []byte) ([]byte, error) {
 
 	plaintext, err := aead.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return nil, fmt.Errorf("decryption failed")
+		return nil, errDecryptionFailed
 	}
 
 	return plaintext, nil
@@ -168,7 +175,7 @@ func ResolvePassphrase(prompt func() ([]byte, error)) ([]byte, string, error) {
 	}
 
 	if prompt == nil {
-		return nil, "", fmt.Errorf("no passphrase source available (no agent, no env var, no prompt)")
+		return nil, "", errNoPassphraseSourceAvailableNoAgent
 	}
 	pass, err := prompt()
 	if err != nil {

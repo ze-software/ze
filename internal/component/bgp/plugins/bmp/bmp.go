@@ -9,6 +9,7 @@ package bmp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"hash/fnv"
@@ -26,6 +27,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+var errPluginNotInitialized = errors.New("plugin not initialized")
 
 // maxBMPMsgSize is the upper bound on a single BMP message.
 // BGP max (4096) + BMP framing (48) with generous headroom for TLVs.
@@ -477,7 +480,7 @@ func (bp *BMPPlugin) handleCommand(command string) (string, string, error) {
 		return bp.state.collectorsCommand(senders)
 	case "bmp rib show":
 		if bp.plugin == nil {
-			return statusError, "", fmt.Errorf("plugin not initialized")
+			return statusError, "", errPluginNotInitialized
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()

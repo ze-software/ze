@@ -5,6 +5,7 @@ package l2tpshaper
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -15,6 +16,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+var errNoTrafficBackendLoadedConfigureTraffic = errors.New("no traffic backend loaded; configure traffic-control or wait for it to start")
 
 type shaperPlugin struct {
 	cfgPtr   atomic.Pointer[shaperConfig]
@@ -159,7 +162,7 @@ func (s *shaperPlugin) onSessionRateChange(payload *l2tpevents.SessionRateChange
 func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, rateBps uint64) error {
 	backend := traffic.GetBackend()
 	if backend == nil {
-		return fmt.Errorf("no traffic backend loaded; configure traffic-control or wait for it to start")
+		return errNoTrafficBackendLoadedConfigureTraffic
 	}
 
 	qos := traffic.InterfaceQoS{

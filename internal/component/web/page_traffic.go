@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"net/http"
 	"sort"
+	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
@@ -91,14 +92,14 @@ func buildTrafficRows(infos []iface.InterfaceInfo) []WorkbenchTableRow {
 func trafficCells(tr TrafficRow) []string {
 	return []string{
 		tr.Interface,
-		fmt.Sprintf("%d", tr.RxBytes),
-		fmt.Sprintf("%d", tr.RxPackets),
-		fmt.Sprintf("%d", tr.RxErrors),
-		fmt.Sprintf("%d", tr.RxDropped),
-		fmt.Sprintf("%d", tr.TxBytes),
-		fmt.Sprintf("%d", tr.TxPackets),
-		fmt.Sprintf("%d", tr.TxErrors),
-		fmt.Sprintf("%d", tr.TxDropped),
+		strconv.Itoa(int(tr.RxBytes)),
+		strconv.Itoa(int(tr.RxPackets)),
+		strconv.Itoa(int(tr.RxErrors)),
+		strconv.Itoa(int(tr.RxDropped)),
+		strconv.Itoa(int(tr.TxBytes)),
+		strconv.Itoa(int(tr.TxPackets)),
+		strconv.Itoa(int(tr.TxErrors)),
+		strconv.Itoa(int(tr.TxDropped)),
 	}
 }
 

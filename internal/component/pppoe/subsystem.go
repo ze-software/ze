@@ -17,6 +17,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
+var errPppoeSubsystemAlreadyStarted = errors.New("pppoe: subsystem already started")
+
 var _ ze.Subsystem = (*Subsystem)(nil)
 
 const SubsystemName = "pppoe"
@@ -63,7 +65,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	defer s.mu.Unlock()
 
 	if s.started {
-		return fmt.Errorf("pppoe: subsystem already started")
+		return errPppoeSubsystemAlreadyStarted
 	}
 
 	if !s.params.Enabled {

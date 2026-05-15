@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -135,7 +136,7 @@ func formatNumCommas(v any) string {
 		n = -n
 	}
 
-	s := fmt.Sprintf("%d", n)
+	s := strconv.Itoa(int(n))
 	length := len(s)
 
 	var result strings.Builder

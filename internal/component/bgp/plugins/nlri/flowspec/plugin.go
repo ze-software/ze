@@ -14,6 +14,7 @@ package flowspec
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -24,6 +25,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+var errNoValidFlowspecDecoded = errors.New("no valid FlowSpec decoded")
 
 // flowLogger is the package-level logger, disabled by default.
 var flowLogger = slogutil.DiscardLogger()
@@ -80,7 +83,7 @@ func DecodeNLRIHex(family, hexStr string) (string, error) {
 
 	result := decodeFlowSpecNLRI(family, data)
 	if result == nil {
-		return "", fmt.Errorf("no valid FlowSpec decoded")
+		return "", errNoValidFlowspecDecoded
 	}
 
 	jsonBytes, err := json.Marshal(result)

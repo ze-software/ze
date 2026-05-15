@@ -4,6 +4,7 @@
 package vpn
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -12,6 +13,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 )
+
+var errMissingRouteCommand = errors.New("missing route command")
 
 // EncodeRoute encodes an L3VPN (mpls-vpn) route command into UPDATE body bytes and NLRI bytes.
 // This implements the InProcessRouteEncoder signature for the plugin registry.
@@ -23,7 +26,7 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 	// Parse route command - expects "<prefix> rd <rd> next-hop <addr> label <label> [attributes...]"
 	args := strings.Fields(routeCmd)
 	if len(args) < 1 {
-		return nil, nil, fmt.Errorf("missing route command")
+		return nil, nil, errMissingRouteCommand
 	}
 
 	// Parse using API parser

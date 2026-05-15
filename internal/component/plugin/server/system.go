@@ -5,12 +5,19 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"runtime"
 	"strings"
 
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+)
+
+var (
+	errMissingCommand              = errors.New("missing command")
+	errDispatcherNotAvailable      = errors.New("dispatcher not available")
+	errRebootFunctionNotConfigured = errors.New("reboot function not configured")
 )
 
 func init() {
@@ -40,7 +47,7 @@ func handleSystemDispatch(ctx *CommandContext, args []string) (*plugin.Response,
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "usage: system dispatch \"<command>\"",
-		}, fmt.Errorf("missing command")
+		}, errMissingCommand
 	}
 
 	d := ctx.Dispatcher()
@@ -48,7 +55,7 @@ func handleSystemDispatch(ctx *CommandContext, args []string) (*plugin.Response,
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "dispatcher not available",
-		}, fmt.Errorf("dispatcher not available")
+		}, errDispatcherNotAvailable
 	}
 
 	command := strings.Join(args, " ")
@@ -145,7 +152,7 @@ func handleDaemonReboot(ctx *CommandContext, _ []string) (*plugin.Response, erro
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "reboot not available",
-		}, fmt.Errorf("reboot function not configured")
+		}, errRebootFunctionNotConfigured
 	}
 	ctx.Server.rebootFunc()
 	return &plugin.Response{
@@ -315,7 +322,7 @@ func handleSystemCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "usage: system command help \"<name>\"",
-		}, fmt.Errorf("missing command name")
+		}, errMissingCommandName
 	}
 
 	return LookupCommandHelp(ctx, args[0], "command")
@@ -366,7 +373,7 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "usage: system command complete \"<partial>\"",
-		}, fmt.Errorf("missing partial input")
+		}, errMissingPartialInput
 	}
 
 	partial := args[0]

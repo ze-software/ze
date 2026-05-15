@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strconv"
 	"sync"
 )
 
@@ -34,7 +35,7 @@ func (p *Peer) runConnMapRouterID(ctx context.Context) Result {
 			host = "::1"
 		}
 	}
-	addr := net.JoinHostPort(host, fmt.Sprintf("%d", p.config.Port))
+	addr := net.JoinHostPort(host, strconv.Itoa(p.config.Port))
 
 	var lc net.ListenConfig
 	ln, err := lc.Listen(ctx, "tcp", addr)

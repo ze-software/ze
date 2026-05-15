@@ -10,9 +10,12 @@ package message
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"unicode/utf8"
 )
+
+var errShutdownMessageContainsInvalidUtf8 = errors.New("shutdown message contains invalid UTF-8")
 
 // RFC 4271 Section 4.5 - Error Code is a 1-octet unsigned integer indicating the type of NOTIFICATION.
 // NotifyErrorCode represents NOTIFICATION error codes.
@@ -271,7 +274,7 @@ func (n *Notification) ShutdownMessage() (string, error) {
 	// RFC 9003 Section 2: Message MUST be UTF-8 encoded
 	msg := payload[:msgLen]
 	if !utf8.Valid(msg) {
-		return "", fmt.Errorf("shutdown message contains invalid UTF-8")
+		return "", errShutdownMessageContainsInvalidUtf8
 	}
 
 	return string(msg), nil

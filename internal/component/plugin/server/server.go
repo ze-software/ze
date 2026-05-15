@@ -28,6 +28,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
+var errFilterUpdateNoProcessManager = errors.New("filter-update: no process manager")
+
 // logger is the plugin server subsystem logger (lazy initialization).
 // Controlled by ze.log.plugin.server environment variable.
 var logger = slogutil.LazyLogger("plugin.server")
@@ -362,7 +364,7 @@ func (s *Server) SetProcessSpawner(sp plugin.ProcessSpawner) {
 func (s *Server) CallFilterUpdate(ctx context.Context, pluginName string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
 	pm := s.procManager.Load()
 	if pm == nil {
-		return nil, fmt.Errorf("filter-update: no process manager")
+		return nil, errFilterUpdateNoProcessManager
 	}
 	proc := pm.GetProcess(pluginName)
 	if proc == nil {

@@ -58,6 +58,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
 )
 
+var errServerNotReady = errors.New("server not ready")
+
 // Reactor env var registrations (ze.fwd.*, ze.buf.*, ze.cache.safety.valve,
 // ze.metrics.interval) are centralized in
 // internal/component/config/environment.go.
@@ -647,7 +649,7 @@ func (r *Reactor) SetRestartUntil(t time.Time) {
 // an error if the API server is not yet initialized.
 func (r *Reactor) ExecuteCommand(input string) (string, error) {
 	if r.api == nil {
-		return "", fmt.Errorf("server not ready")
+		return "", errServerNotReady
 	}
 	ctx := &pluginserver.CommandContext{Server: r.api}
 	resp, err := r.api.Dispatcher().Dispatch(ctx, input)

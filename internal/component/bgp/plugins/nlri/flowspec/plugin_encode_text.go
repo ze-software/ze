@@ -7,12 +7,24 @@
 package flowspec
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+)
+
+var (
+	errFlowspecRequiresAtLeastOneComponent = errors.New("flowspec requires at least one component")
+	errRdRequiredForVpnFamily              = errors.New("rd required for VPN family")
+	errExpectedComponent                   = errors.New("expected component")
+	errIpv4PrefixForIpv6Flowspec           = errors.New("IPv4 prefix for IPv6 flowspec")
+	errIpv6PrefixForIpv4Flowspec           = errors.New("IPv6 prefix for IPv4 flowspec")
+	errProtocolRequiresValue               = errors.New("protocol requires value")
+	errTcpFlagsRequiresValue               = errors.New("tcp-flags requires value")
+	errFragmentRequiresValue               = errors.New("fragment requires value")
 )
 
 // FlowSpec component keywords.
@@ -129,12 +141,12 @@ func EncodeFlowSpecComponents(fam Family, args []string) ([]byte, error) {
 	// Return wire bytes
 	if fsv != nil {
 		if len(fsv.Components()) == 0 {
-			return nil, fmt.Errorf("flowspec requires at least one component")
+			return nil, errFlowspecRequiresAtLeastOneComponent
 		}
 		return fsv.Bytes(), nil
 	}
 	if len(fs.Components()) == 0 {
-		return nil, fmt.Errorf("flowspec requires at least one component")
+		return nil, errFlowspecRequiresAtLeastOneComponent
 	}
 	return fs.Bytes(), nil
 }
@@ -150,14 +162,14 @@ func parseRDFromArgs(args []string) (RouteDistinguisher, int, error) {
 			return rd, 2, nil
 		}
 	}
-	return RouteDistinguisher{}, 0, fmt.Errorf("rd required for VPN family")
+	return RouteDistinguisher{}, 0, errRdRequiredForVpnFamily
 }
 
 // parseComponentText parses a single FlowSpec component from args.
 // Named differently from parseFlowComponent in types.go (which parses wire format).
 func parseComponentText(args []string, fam Family) (FlowComponent, int, error) {
 	if len(args) == 0 {
-		return nil, 0, fmt.Errorf("expected component")
+		return nil, 0, errExpectedComponent
 	}
 
 	keyword := strings.ToLower(args[0])
@@ -211,10 +223,10 @@ func parsePrefixComponentText(args []string, compType FlowComponentType, fam Fam
 
 	// Validate AFI match
 	if prefix.Addr().Is4() && fam.AFI != AFIIPv4 {
-		return nil, 0, fmt.Errorf("IPv4 prefix for IPv6 flowspec")
+		return nil, 0, errIpv4PrefixForIpv6Flowspec
 	}
 	if prefix.Addr().Is6() && fam.AFI != AFIIPv6 {
-		return nil, 0, fmt.Errorf("IPv6 prefix for IPv4 flowspec")
+		return nil, 0, errIpv6PrefixForIpv4Flowspec
 	}
 
 	if compType == FlowDestPrefix {
@@ -254,7 +266,7 @@ func parseProtocolComponentText(args []string) (FlowComponent, int, error) {
 	}
 
 	if len(protocols) == 0 {
-		return nil, 0, fmt.Errorf("protocol requires value")
+		return nil, 0, errProtocolRequiresValue
 	}
 
 	return NewFlowIPProtocolComponent(protocols...), consumed + 1, nil
@@ -329,7 +341,7 @@ func parseTCPFlagsComponentText(args []string) (FlowComponent, int, error) {
 	}
 
 	if len(matches) == 0 {
-		return nil, 0, fmt.Errorf("tcp-flags requires value")
+		return nil, 0, errTcpFlagsRequiresValue
 	}
 
 	return NewFlowTCPFlagsMatchComponent(matches), consumed + 1, nil
@@ -363,7 +375,7 @@ func parseFragmentComponentText(args []string) (FlowComponent, int, error) {
 	}
 
 	if len(matches) == 0 {
-		return nil, 0, fmt.Errorf("fragment requires value")
+		return nil, 0, errFragmentRequiresValue
 	}
 
 	return NewFlowFragmentMatchComponent(matches), consumed + 1, nil

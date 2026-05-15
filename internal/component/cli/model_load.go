@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,17 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+)
+
+var (
+	errTimeoutMustBeAtLeast1           = errors.New("timeout must be at least 1 second")
+	errTimeoutMustBeAtMost3600         = errors.New("timeout must be at most 3600 seconds (1 hour)")
+	errCommitSucceededButNoBackupFound = errors.New("commit succeeded but no backup found for rollback")
+	errNoPendingCommitToConfirm        = errors.New("no pending commit to confirm")
+	errNoPendingCommitToAbort          = errors.New("no pending commit to abort")
+	errUsageLoadFile                   = errors.New("usage: load <file>")
+	errUsageLoadMergeFile              = errors.New("usage: load merge <file>")
+	errNoCommandBeforePipe             = errors.New("no command before pipe")
 )
 
 // --- Commit Confirmed (VyOS-style safe commit with auto-revert) ---
@@ -32,10 +44,10 @@ import (
 func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, error) {
 	// Boundary validation: 1-3600 seconds
 	if seconds < 1 {
-		return commandResult{}, fmt.Errorf("timeout must be at least 1 second")
+		return commandResult{}, errTimeoutMustBeAtLeast1
 	}
 	if seconds > 3600 {
-		return commandResult{}, fmt.Errorf("timeout must be at most 3600 seconds (1 hour)")
+		return commandResult{}, errTimeoutMustBeAtMost3600
 	}
 
 	// Validate before commit.
@@ -94,7 +106,7 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 	// Get the most recent backup path for potential rollback
 	backups, err := m.editor.ListBackups()
 	if err != nil || len(backups) == 0 {
-		return commandResult{}, fmt.Errorf("commit succeeded but no backup found for rollback")
+		return commandResult{}, errCommitSucceededButNoBackupFound
 	}
 
 	return commandResult{
@@ -112,7 +124,7 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 // The .conf already has the new content. We just clean up .live.conf and stop the timer.
 func (m *Model) cmdConfirm() (commandResult, error) {
 	if !m.confirmTimerActive {
-		return commandResult{}, fmt.Errorf("no pending commit to confirm")
+		return commandResult{}, errNoPendingCommitToConfirm
 	}
 
 	// Clean up .live.conf — .conf already has the confirmed content
@@ -137,7 +149,7 @@ func (m *Model) cmdConfirm() (commandResult, error) {
 // Restores .conf from backup, deletes .live.conf, notifies daemon.
 func (m *Model) cmdAbort() (commandResult, error) {
 	if !m.confirmTimerActive {
-		return commandResult{}, fmt.Errorf("no pending commit to abort")
+		return commandResult{}, errNoPendingCommitToAbort
 	}
 
 	return m.rollbackConfirmed()
@@ -204,7 +216,7 @@ func (m Model) handleConfirmCountdown() (tea.Model, tea.Cmd) {
 // cmdLoad loads configuration from a file, replacing current content.
 func (m *Model) cmdLoad(args []string) (commandResult, error) {
 	if len(args) < 1 {
-		return commandResult{}, fmt.Errorf("usage: load <file>")
+		return commandResult{}, errUsageLoadFile
 	}
 
 	loadPath := m.resolveConfigPath(args[0])
@@ -227,7 +239,7 @@ func (m *Model) cmdLoad(args []string) (commandResult, error) {
 // cmdLoadMerge loads configuration from a file and merges with current content.
 func (m *Model) cmdLoadMerge(args []string) (commandResult, error) {
 	if len(args) < 1 {
-		return commandResult{}, fmt.Errorf("usage: load merge <file>")
+		return commandResult{}, errUsageLoadMergeFile
 	}
 
 	loadPath := m.resolveConfigPath(args[0])
@@ -796,7 +808,7 @@ func FindPipeIndex(tokens []string) int {
 // dispatchWithPipe handles commands with pipe filters.
 func (m *Model) dispatchWithPipe(cmdTokens, pipeTokens []string) (commandResult, error) {
 	if len(cmdTokens) == 0 {
-		return commandResult{}, fmt.Errorf("no command before pipe")
+		return commandResult{}, errNoCommandBeforePipe
 	}
 
 	// Parse pipe filters

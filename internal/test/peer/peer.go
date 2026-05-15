@@ -29,6 +29,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/decode"
 )
 
+var errContextCanceled = errors.New("context canceled")
+
 // ErrOpenMismatch is returned when the received OPEN message doesn't match expectations.
 var ErrOpenMismatch = errors.New("OPEN mismatch")
 
@@ -198,7 +200,7 @@ func (p *Peer) Run(ctx context.Context) Result {
 			host = "::1"
 		}
 	}
-	addr := net.JoinHostPort(host, fmt.Sprintf("%d", p.config.Port))
+	addr := net.JoinHostPort(host, strconv.Itoa(p.config.Port))
 
 	var lc net.ListenConfig
 	ln, err := lc.Listen(ctx, "tcp", addr)
@@ -273,7 +275,7 @@ func (p *Peer) Run(ctx context.Context) Result {
 			p.printf("\nwaiting for next connection (%d/%d)...\n", connCount, maxConns)
 			continue
 		case <-ctx.Done():
-			return Result{Success: false, Error: fmt.Errorf("context canceled")}
+			return Result{Success: false, Error: errContextCanceled}
 		}
 	}
 }
@@ -430,7 +432,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 	for {
 		select {
 		case <-ctx.Done():
-			return Result{Success: false, Error: fmt.Errorf("context canceled")}
+			return Result{Success: false, Error: errContextCanceled}
 		default:
 		}
 

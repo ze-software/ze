@@ -26,6 +26,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
+var (
+	errInterfaceNoBackendConfiguredAndNo   = errors.New("interface: no backend configured and no OS default available")
+	errInterfaceConfigApplyNoBackendLoaded = errors.New("interface config apply: no backend loaded")
+)
+
 // configRootInterface is the top-level YANG config root that the iface
 // plugin owns. Used to select the right ConfigSection and to name the
 // subtree walked by the backend feature gate.
@@ -165,7 +170,7 @@ func parseAndVerifyIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, er
 		return nil, fmt.Errorf("interface config: %w", err)
 	}
 	if cfg.Backend == "" {
-		return nil, fmt.Errorf("interface: no backend configured and no OS default available")
+		return nil, errInterfaceNoBackendConfiguredAndNo
 	}
 	return cfg, nil
 }
@@ -327,7 +332,7 @@ func runEngine(conn net.Conn) int {
 		}
 
 		if cfg.Backend == "" {
-			return fmt.Errorf("interface: no backend configured and no OS default available")
+			return errInterfaceNoBackendConfiguredAndNo
 		}
 
 		if err := validateBackendGate(sections, cfg.Backend); err != nil {
@@ -476,7 +481,7 @@ func runEngine(conn net.Conn) int {
 
 		b := GetBackend()
 		if b == nil {
-			return fmt.Errorf("interface config apply: no backend loaded")
+			return errInterfaceConfigApplyNoBackendLoaded
 		}
 		j := sdk.NewJournal()
 		err := j.Record(

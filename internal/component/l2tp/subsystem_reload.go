@@ -6,6 +6,7 @@ package l2tp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
@@ -15,6 +16,15 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
+)
+
+var (
+	errNilConfigProvider               = errors.New("nil config provider")
+	errHelloIntervalMustBe0            = errors.New("hello-interval: must be > 0")
+	errAuthMethodNoneRequiresAllowNo   = errors.New("auth-method none requires allow-no-auth true")
+	errMaxLoginsMustBe11000000         = errors.New("max-logins: must be 1-1000000")
+	errEventRingSizePerSessionMust     = errors.New("event-ring-size-per-session: must be 16-4096")
+	errSampleRetentionSecondsMustBe100 = errors.New("sample-retention-seconds: must be 100-86400")
 )
 
 // Reload re-reads L2TP configuration from the supplied ConfigProvider
@@ -162,7 +172,7 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 // without going through config.Tree.
 func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 	if cfg == nil {
-		return Parameters{}, fmt.Errorf("nil config provider")
+		return Parameters{}, errNilConfigProvider
 	}
 	l2tpRoot, err := cfg.Get("l2tp")
 	if err != nil {
@@ -190,7 +200,7 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("hello-interval: %w", perr)
 		}
 		if n == 0 {
-			return Parameters{}, fmt.Errorf("hello-interval: must be > 0")
+			return Parameters{}, errHelloIntervalMustBe0
 		}
 		p.HelloInterval = time.Duration(n) * time.Second
 	}
@@ -219,7 +229,7 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 		p.AllowNoAuth = v == configTrue
 	}
 	if p.AuthMethod == ppp.AuthMethodNone && !p.AllowNoAuth {
-		return Parameters{}, fmt.Errorf("auth-method none requires allow-no-auth true")
+		return Parameters{}, errAuthMethodNoneRequiresAllowNo
 	}
 	if v, ok := l2tpRoot["cqm-enabled"].(string); ok {
 		p.CQMEnabled = v == configTrue
@@ -231,7 +241,7 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("max-logins: %w", perr)
 		}
 		if n == 0 || n > 1000000 {
-			return Parameters{}, fmt.Errorf("max-logins: must be 1-1000000")
+			return Parameters{}, errMaxLoginsMustBe11000000
 		}
 		p.MaxLogins = int(n)
 	}
@@ -242,7 +252,7 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("event-ring-size-per-session: %w", perr)
 		}
 		if n < 16 || n > 4096 {
-			return Parameters{}, fmt.Errorf("event-ring-size-per-session: must be 16-4096")
+			return Parameters{}, errEventRingSizePerSessionMust
 		}
 		p.EventRingSizePerSession = int(n)
 	}
@@ -253,7 +263,7 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("sample-retention-seconds: %w", perr)
 		}
 		if n < 100 || n > 86400 {
-			return Parameters{}, fmt.Errorf("sample-retention-seconds: must be 100-86400")
+			return Parameters{}, errSampleRetentionSecondsMustBe100
 		}
 		p.SampleRetentionSeconds = int(n)
 	}

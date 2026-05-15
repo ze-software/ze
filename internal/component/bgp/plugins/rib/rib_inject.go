@@ -6,6 +6,7 @@ package rib
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri/nlrisplit"
@@ -13,6 +14,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+)
+
+var (
+	errShowProtocolRequiresProtocol               = errors.New("show-protocol requires <protocol>")
+	errWithdrawProtocolRequiresProtocolPeerKey    = errors.New("withdraw-protocol requires <protocol> <peer-key>")
+	errWithdrawRouterRequiresProtocolRouterPrefix = errors.New("withdraw-router requires <protocol> <router-prefix>")
 )
 
 // handleInjectWireRoute stores BGP UPDATE routes under a named protocol's
@@ -116,7 +123,7 @@ func registerInjectCommands() {
 		{"bgp rib show-protocol", "Show routes for a specific protocol: <protocol> [peer-selector] [pipeline-args...]",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				if len(args) < 1 {
-					return statusError, "", fmt.Errorf("show-protocol requires <protocol>")
+					return statusError, "", errShowProtocolRequiresProtocol
 				}
 				selector := ""
 				pipelineArgs := args[1:]
@@ -129,7 +136,7 @@ func registerInjectCommands() {
 		{"bgp rib withdraw-protocol", "Withdraw all routes for a peer under a protocol",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				if len(args) < 2 {
-					return statusError, "", fmt.Errorf("withdraw-protocol requires <protocol> <peer-key>")
+					return statusError, "", errWithdrawProtocolRequiresProtocolPeerKey
 				}
 				r.withdrawAllForPeer(args[0], args[1])
 				return statusDone, `{"withdrawn":true}`, nil
@@ -137,7 +144,7 @@ func registerInjectCommands() {
 		{"bgp rib withdraw-router", "Withdraw all routes for a router under a protocol",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				if len(args) < 2 {
-					return statusError, "", fmt.Errorf("withdraw-router requires <protocol> <router-prefix>")
+					return statusError, "", errWithdrawRouterRequiresProtocolRouterPrefix
 				}
 				r.withdrawAllForRouter(args[0], args[1])
 				return statusDone, `{"withdrawn":true}`, nil

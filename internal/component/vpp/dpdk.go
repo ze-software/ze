@@ -4,11 +4,14 @@
 package vpp
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+var errLoadmoduleNotImplementedOnThisPlatform = errors.New("loadModule not implemented on this platform")
 
 // DPDKBinder manages DPDK NIC driver binding and unbinding.
 // It saves original drivers so they can be restored on teardown.
@@ -200,7 +203,7 @@ func loadVFIOModules() error {
 // loadModule loads a kernel module via modprobe.
 // This is a platform-specific operation; see dpdk_linux.go and dpdk_other.go.
 var loadModule = func(_ string) error {
-	return fmt.Errorf("loadModule not implemented on this platform")
+	return errLoadmoduleNotImplementedOnThisPlatform
 }
 
 // writeSysfs writes a value to a sysfs path.

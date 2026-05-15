@@ -11,9 +11,11 @@ package flowspec
 
 import (
 	"errors"
-	"fmt"
 	"slices"
+
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -116,7 +118,8 @@ func (t FlowComponentType) String() string {
 	case FlowFlowLabel:
 		return "flow-label"
 	default:
-		return fmt.Sprintf("type(%d)", t)
+		var b textbuf.Buffer
+		return b.Str("type(").Uint8(uint8(t)).Str(")").String()
 	}
 }
 

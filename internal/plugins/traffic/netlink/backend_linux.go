@@ -18,6 +18,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
 )
 
+var errNoRootQdiscFound = errors.New("no root qdisc found")
+
 // backend implements traffic.Backend using vishvananda/netlink tc API.
 type backend struct {
 	mu               sync.Mutex
@@ -176,7 +178,7 @@ func rootQdisc(qdiscs []netlink.Qdisc) (netlink.Qdisc, error) {
 			return qdisc, nil
 		}
 	}
-	return nil, fmt.Errorf("no root qdisc found")
+	return nil, errNoRootQdiscFound
 }
 
 // RestoreOriginal restores and drops the pre-Ze qdisc snapshot for ifaceName.

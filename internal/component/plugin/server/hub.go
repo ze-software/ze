@@ -4,12 +4,18 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+)
+
+var (
+	errExpectedJsonDataOrCommitRollback       = errors.New("expected JSON data or commit/rollback/diff")
+	errExpectedNamespaceActionOrNamespacePath = errors.New("expected '<namespace> <action>' or '<namespace> <path> <action>'")
 )
 
 // Hub orchestrates plugin communication and command routing.
@@ -184,7 +190,7 @@ func ParseCommand(line string) (*ConfigBlock, error) {
 				}, nil
 			}
 		}
-		return nil, fmt.Errorf("expected JSON data or commit/rollback/diff")
+		return nil, errExpectedJsonDataOrCommitRollback
 	}
 
 	// Parse namespace, path, action from before JSON.
@@ -218,6 +224,6 @@ func ParseCommand(line string) (*ConfigBlock, error) {
 		}, nil
 
 	default:
-		return nil, fmt.Errorf("expected '<namespace> <action>' or '<namespace> <path> <action>'")
+		return nil, errExpectedNamespaceActionOrNamespacePath
 	}
 }

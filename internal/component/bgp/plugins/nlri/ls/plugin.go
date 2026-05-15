@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -16,8 +17,11 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+var errNoValidBgpLsNlrisDecoded = errors.New("no valid BGP-LS NLRIs decoded")
 
 // bgplsLogger is the package-level logger, disabled by default.
 var bgplsLogger = slogutil.DiscardLogger()
@@ -50,7 +54,7 @@ func RunBGPLSPlugin(conn net.Conn) int {
 
 		results := decodeBGPLSNLRI(data)
 		if len(results) == 0 {
-			return "", fmt.Errorf("no valid BGP-LS NLRIs decoded")
+			return "", errNoValidBgpLsNlrisDecoded
 		}
 
 		// Single object for single NLRI, array for multiple.
@@ -259,7 +263,7 @@ func decodeBGPLSNLRI(data []byte) []map[string]any {
 	if len(data) < 4 {
 		results = append(results, map[string]any{
 			"parsed": false,
-			"raw":    fmt.Sprintf("%X", data),
+			"raw":    strings.ToUpper(textbuf.Hex(data)),
 		})
 		return results
 	}
@@ -272,7 +276,7 @@ func decodeBGPLSNLRI(data []byte) []map[string]any {
 			// Add remaining as unparsed
 			results = append(results, map[string]any{
 				"parsed": false,
-				"raw":    fmt.Sprintf("%X", remaining),
+				"raw":    strings.ToUpper(textbuf.Hex(remaining)),
 			})
 			break
 		}
@@ -343,7 +347,8 @@ func bgplsNLRITypeString(nlriType uint16) string {
 	}
 	// RFC 7752: Unknown NLRI types are valid and should be labeled generically.
 	// This is forward-compatibility, not silent ignore.
-	return fmt.Sprintf("bgpls-type-%d", nlriType)
+	var b textbuf.Buffer
+	return b.Str("bgpls-type-").Uint16(nlriType).String()
 }
 
 // prefixDescriptorInfo holds parsed prefix descriptor information.
@@ -476,12 +481,12 @@ func parseBGPLSLinkTLVs(data []byte) (localDescs, remoteDescs []any, info linkDe
 		case 259: // IPv4 Interface Address
 			if len(value) == 4 {
 				info.ifAddrs = append(info.ifAddrs,
-					fmt.Sprintf("%d.%d.%d.%d", value[0], value[1], value[2], value[3]))
+					textbuf.Addr(netip.AddrFrom4([4]byte(value[:4]))))
 			}
 		case 260: // IPv4 Neighbor Address
 			if len(value) == 4 {
 				info.neighAddrs = append(info.neighAddrs,
-					fmt.Sprintf("%d.%d.%d.%d", value[0], value[1], value[2], value[3]))
+					textbuf.Addr(netip.AddrFrom4([4]byte(value[:4]))))
 			}
 		case 261: // IPv6 Interface Address
 			if len(value) == 16 {
@@ -531,13 +536,13 @@ func parseNodeDescriptorSubTLVs(data []byte) []any {
 		case 513: // BGP-LS Identifier
 			if len(value) >= 4 {
 				descs = append(descs, map[string]any{
-					"bgp-ls-identifier": fmt.Sprintf("%d", binary.BigEndian.Uint32(value)),
+					"bgp-ls-identifier": textbuf.Uint32(binary.BigEndian.Uint32(value)),
 				})
 			}
 		case 514: // OSPF Area-ID
 			if len(value) >= 4 {
 				descs = append(descs, map[string]any{
-					"ospf-area-id": fmt.Sprintf("%d.%d.%d.%d", value[0], value[1], value[2], value[3]),
+					"ospf-area-id": textbuf.Addr(netip.AddrFrom4([4]byte(value[:4]))),
 				})
 			}
 		case 515: // IGP Router-ID
@@ -547,14 +552,14 @@ func parseNodeDescriptorSubTLVs(data []byte) []any {
 			case 8:
 				// OSPF pseudonode: Router-ID + DR interface
 				descs = append(descs, map[string]any{
-					"router-id":            fmt.Sprintf("%d.%d.%d.%d", value[0], value[1], value[2], value[3]),
-					"designated-router-id": fmt.Sprintf("%d.%d.%d.%d", value[4], value[5], value[6], value[7]),
+					"router-id":            textbuf.Addr(netip.AddrFrom4([4]byte(value[:4]))),
+					"designated-router-id": textbuf.Addr(netip.AddrFrom4([4]byte(value[4:8]))),
 				})
 			case 7:
 				// IS-IS pseudonode: System-ID + PSN
 				descs = append(descs, map[string]any{
 					"router-id": routerID,
-					"psn":       fmt.Sprintf("%d", value[6]),
+					"psn":       textbuf.Uint8(value[6]),
 				})
 			// RFC 7752: 4-byte (OSPF) and 6-byte (IS-IS) are standard lengths.
 			case 4, 6:
@@ -578,18 +583,17 @@ func parseNodeDescriptorSubTLVs(data []byte) []any {
 func formatRouterID(id []byte) string {
 	switch len(id) {
 	case 4:
-		return fmt.Sprintf("%d.%d.%d.%d", id[0], id[1], id[2], id[3])
+		return textbuf.Addr(netip.AddrFrom4([4]byte(id[:4])))
 	case 6:
-		return fmt.Sprintf("%02x%02x%02x%02x%02x%02x", id[0], id[1], id[2], id[3], id[4], id[5])
+		return textbuf.Hex(id)
 	case 7:
-		return fmt.Sprintf("%02x%02x%02x%02x%02x%02x%02x", id[0], id[1], id[2], id[3], id[4], id[5], id[6])
+		return textbuf.Hex(id)
 	case 8:
-		routerID := fmt.Sprintf("%d.%d.%d.%d", id[0], id[1], id[2], id[3])
-		ifAddr := fmt.Sprintf("%d.%d.%d.%d", id[4], id[5], id[6], id[7])
-		return routerID + "," + ifAddr
+		var b textbuf.Buffer
+		return b.Addr(netip.AddrFrom4([4]byte(id[:4]))).Byte(',').Addr(netip.AddrFrom4([4]byte(id[4:8]))).String()
 	}
 	// Unknown length: return hex (forward-compatibility).
-	return fmt.Sprintf("%X", id)
+	return strings.ToUpper(textbuf.Hex(id))
 }
 
 // formatIPReachability formats the IP Reachability Information TLV.
@@ -611,18 +615,20 @@ func formatIPReachability(data []byte, nlriType BGPLSNLRIType) string {
 	if nlriType == BGPLSPrefixV6NLRI {
 		addr := make([]byte, 16)
 		copy(addr, prefixBytes)
-		return formatIPv6Compressed(addr) + "/" + fmt.Sprintf("%d", prefixLen)
+		var b textbuf.Buffer
+		return b.Str(formatIPv6Compressed(addr)).Byte('/').Int(int64(prefixLen)).String()
 	}
 
-	addr := make([]byte, 4)
-	copy(addr, prefixBytes)
-	return fmt.Sprintf("%d.%d.%d.%d/%d", addr[0], addr[1], addr[2], addr[3], prefixLen)
+	var b4 [4]byte
+	copy(b4[:], prefixBytes)
+	var b textbuf.Buffer
+	return b.Addr(netip.AddrFrom4(b4)).Byte('/').Int(int64(prefixLen)).String()
 }
 
 // formatIPv6Compressed formats a 16-byte IPv6 address with zero compression.
 func formatIPv6Compressed(addr []byte) string {
 	if len(addr) != 16 {
-		return fmt.Sprintf("%X", addr)
+		return strings.ToUpper(textbuf.Hex(addr))
 	}
 	ip := netip.AddrFrom16([16]byte(addr))
 	return ip.String()
@@ -645,10 +651,12 @@ func formatBGPLSTextSingle(result map[string]any) string {
 		parts = append(parts, v)
 	}
 	if v, ok := result["protocol-id"].(int); ok {
-		parts = append(parts, fmt.Sprintf("proto=%d", v))
+		var b textbuf.Buffer
+		parts = append(parts, b.Str("proto=").Int(int64(v)).String())
 	}
 	if v, ok := result["l3-routing-topology"].(uint64); ok {
-		parts = append(parts, fmt.Sprintf("id=%d", v))
+		var b textbuf.Buffer
+		parts = append(parts, b.Str("id=").Uint(v).String())
 	}
 
 	if len(parts) == 0 {

@@ -5,11 +5,14 @@ package appliance
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 )
+
+var errNoPemBlock = errors.New("no PEM block")
 
 func init() {
 	cmdShow = runShow
@@ -72,7 +75,7 @@ func certExpiry(certPath string) (time.Time, error) {
 	}
 	block, _ := pem.Decode(data)
 	if block == nil {
-		return time.Time{}, fmt.Errorf("no PEM block")
+		return time.Time{}, errNoPemBlock
 	}
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {

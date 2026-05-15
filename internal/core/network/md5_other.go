@@ -6,13 +6,15 @@
 package network
 
 import (
-	"fmt"
+	"errors"
 	"net"
 )
 
+var errTcpMd5AuthenticationRfc2385Is = errors.New("TCP MD5 authentication (RFC 2385) is not supported on this platform")
+
 // setTCPMD5Sig returns an error on unsupported platforms.
 func setTCPMD5Sig(_ int, _ net.IP, _ string) error {
-	return fmt.Errorf("TCP MD5 authentication (RFC 2385) is not supported on this platform")
+	return errTcpMd5AuthenticationRfc2385Is
 }
 
 // tcpMD5Supported reports whether TCP MD5 is supported on this platform.

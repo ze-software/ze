@@ -8,6 +8,7 @@ package web
 import (
 	"fmt"
 	"html/template"
+	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
@@ -50,8 +51,8 @@ func BuildL2TPSessionsTableData() WorkbenchTableData {
 				Key: fmt.Sprintf("%d/%d", t.LocalTID, s.LocalSID),
 				URL: fmt.Sprintf("/l2tp/%d", s.LocalSID),
 				Cells: []string{
-					fmt.Sprintf("%d", t.LocalTID),
-					fmt.Sprintf("%d", s.LocalSID),
+					strconv.Itoa(int(t.LocalTID)),
+					strconv.Itoa(int(s.LocalSID)),
 					s.Username,
 					t.PeerAddr.String(),
 					s.State,
@@ -199,9 +200,9 @@ func BuildL2TPHealthTableData() WorkbenchTableData {
 		for j := range t.Sessions {
 			s := &t.Sessions[j]
 			rows = append(rows, WorkbenchTableRow{
-				Key: fmt.Sprintf("%d", s.LocalSID),
+				Key: strconv.Itoa(int(s.LocalSID)),
 				Cells: []string{
-					fmt.Sprintf("%d", s.LocalSID),
+					strconv.Itoa(int(s.LocalSID)),
 					s.Username,
 					t.PeerAddr.String(),
 					s.State,

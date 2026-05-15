@@ -6,6 +6,7 @@ package bgp
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -206,7 +207,7 @@ func formatASPathHuman(sb *strings.Builder, asPath map[string]any) {
 	// AS_PATH is keyed by segment index ("0", "1", etc.)
 	var asns []string
 	for i := 0; ; i++ {
-		seg, ok := asPath[fmt.Sprintf("%d", i)].(map[string]any)
+		seg, ok := asPath[strconv.Itoa(i)].(map[string]any)
 		if !ok {
 			break
 		}
@@ -303,7 +304,7 @@ func formatNLRIFieldHuman(sb *strings.Builder, key string, value any, indent str
 func formatNumber(v any) string {
 	if n, ok := v.(float64); ok {
 		if n == float64(int64(n)) {
-			return fmt.Sprintf("%d", int64(n))
+			return strconv.Itoa(int(int64(n)))
 		}
 		return fmt.Sprintf("%v", n)
 	}

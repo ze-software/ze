@@ -22,6 +22,7 @@
 package filter_modify
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sync/atomic"
@@ -30,6 +31,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+var errFilterModifyInvalidBgpConfigJson = errors.New("filter-modify: invalid bgp config JSON")
 
 var logger = slogutil.LazyLogger("bgp.filter.modify")
 
@@ -49,7 +52,7 @@ func RunFilterModify(conn net.Conn) int {
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
 			if !ok {
-				return fmt.Errorf("filter-modify: invalid bgp config JSON")
+				return errFilterModifyInvalidBgpConfigJson
 			}
 			defs, err := parseModifyDefs(bgpCfg)
 			if err != nil {

@@ -5,11 +5,14 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+var errAlreadyStarted = errors.New("already started")
 
 // Engine implements ze.Engine.
 // It composes EventBus, ConfigProvider, and PluginManager, and manages
@@ -65,7 +68,7 @@ func (e *Engine) Start(ctx context.Context) error {
 	defer e.mu.Unlock()
 
 	if e.started {
-		return fmt.Errorf("already started")
+		return errAlreadyStarted
 	}
 
 	// Start plugins via PluginManager.

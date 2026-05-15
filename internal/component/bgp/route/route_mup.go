@@ -5,6 +5,7 @@
 package route
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,6 +13,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+)
+
+var (
+	errMissingMupRouteType             = errors.New("missing MUP route type")
+	errMissingPrefixAddressForMupRoute = errors.New("missing prefix/address for MUP route")
+	errMissingRdValue                  = errors.New("missing rd value")
+	errMissingNextHopValue             = errors.New("missing next-hop value")
+	errMissingTeidValue                = errors.New("missing teid value")
+	errMissingQfiValue                 = errors.New("missing qfi value")
+	errMissingEndpointValue            = errors.New("missing endpoint value")
+	errMissingSourceValue              = errors.New("missing source value")
+	errMissingBgpPrefixSidSrv6Value    = errors.New("missing bgp-prefix-sid-srv6 value")
 )
 
 // MUP route type constants.
@@ -39,7 +52,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
 	}
 
 	if len(args) < 1 {
-		return spec, fmt.Errorf("missing MUP route type")
+		return spec, errMissingMupRouteType
 	}
 
 	// First arg is route type
@@ -50,7 +63,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
 	spec.RouteType = routeType
 
 	if len(args) < 2 {
-		return spec, fmt.Errorf("missing prefix/address for MUP route")
+		return spec, errMissingPrefixAddressForMupRoute
 	}
 
 	// Second arg is prefix or address depending on route type
@@ -73,7 +86,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
 		switch key {
 		case "rd":
 			if i+1 >= len(args) {
-				return spec, fmt.Errorf("missing rd value")
+				return spec, errMissingRdValue
 			}
 			spec.RD = args[i+1]
 			i++
@@ -81,7 +94,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
 
 		case "next-hop":
 			if i+1 >= len(args) {
-				return spec, fmt.Errorf("missing next-hop value")
+				return spec, errMissingNextHopValue
 			}
 			spec.NextHop = args[i+1]
 			i++
@@ -89,7 +102,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
 
 		case "teid":
 			if i+1 >= len(args) {
-				return spec, fmt.Errorf("missing teid value")
+				return spec, errMissingTeidValue
 			}
 			spec.TEID = args[i+1]
 			i++
@@ -97,7 +110,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
 
 		case "qfi":
 			if i+1 >= len(args) {
-				return spec, fmt.Errorf("missing qfi value")
+				return spec, errMissingQfiValue
 			}
 			qfi, err := strconv.ParseUint(args[i+1], 10, 8)
 			if err != nil {
@@ -109,7 +122,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
 
 		case "endpoint":
 			if i+1 >= len(args) {
-				return spec, fmt.Errorf("missing endpoint value")
+				return spec, errMissingEndpointValue
 			}
 			spec.Endpoint = args[i+1]
 			i++
@@ -117,7 +130,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
 
 		case "source":
 			if i+1 >= len(args) {
-				return spec, fmt.Errorf("missing source value")
+				return spec, errMissingSourceValue
 			}
 			spec.Source = args[i+1]
 			i++
@@ -125,7 +138,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
 
 		case "extended-community":
 			if i+1 >= len(args) {
-				return spec, fmt.Errorf("missing extended-community value")
+				return spec, errMissingExtendedCommunityValue
 			}
 			// Collect bracketed value - must set spec.ExtCommunity for MUP
 			tokens, consumed := attribute.ParseBracketedList(args[i+1:])
@@ -135,7 +148,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
 
 		case "bgp-prefix-sid-srv6":
 			if i+1 >= len(args) {
-				return spec, fmt.Errorf("missing bgp-prefix-sid-srv6 value")
+				return spec, errMissingBgpPrefixSidSrv6Value
 			}
 			// Parse parenthesized value
 			value, consumed, err := parseParenthesizedValue(args[i+1:])

@@ -19,6 +19,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 )
 
+var (
+	errCannotResolveConfigDirectory = errors.New("cannot resolve config directory")
+	errLinuxBootIdIsEmpty           = errors.New("linux boot id is empty")
+	errTcSnapshotStorePathIsEmpty   = errors.New("tc snapshot store path is empty")
+)
+
 const tcSnapshotVersion = 1
 
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.config.dir", Type: "string", Description: "Override default config directory"})
@@ -54,7 +60,7 @@ func defaultSnapshotPath() (string, error) {
 		dir = paths.DefaultConfigDir()
 	}
 	if dir == "" {
-		return "", fmt.Errorf("cannot resolve config directory")
+		return "", errCannotResolveConfigDirectory
 	}
 	return filepath.Join(dir, "state", "traffic-tc-snapshots.json"), nil
 }
@@ -66,7 +72,7 @@ func currentBootID() (string, error) {
 	}
 	id := strings.TrimSpace(string(b))
 	if id == "" {
-		return "", fmt.Errorf("linux boot id is empty")
+		return "", errLinuxBootIdIsEmpty
 	}
 	return id, nil
 }
@@ -97,7 +103,7 @@ func loadTCSnapshots(path string) (map[string]tcInterfaceSnapshot, error) {
 
 func saveTCSnapshots(path string, snapshots map[string]tcInterfaceSnapshot) error {
 	if path == "" {
-		return fmt.Errorf("tc snapshot store path is empty")
+		return errTcSnapshotStorePathIsEmpty
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("create tc snapshot store directory: %w", err)

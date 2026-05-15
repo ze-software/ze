@@ -5,6 +5,7 @@
 package fibvpp
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 
@@ -14,6 +15,8 @@ import (
 	"go.fd.io/govpp/binapi/ip"
 	"go.fd.io/govpp/binapi/mpls"
 )
+
+var errMplsEmptyLabelStack = errors.New("mpls: empty label stack")
 
 const (
 	maxMPLSLabel   = 1048575 // 20-bit, RFC 3032
@@ -36,7 +39,7 @@ type mplsBackend interface {
 // the stack does not exceed the VPP FibPath limit.
 func validateLabels(labels []uint32) error {
 	if len(labels) == 0 {
-		return fmt.Errorf("mpls: empty label stack")
+		return errMplsEmptyLabelStack
 	}
 	if len(labels) > maxLabelStack {
 		return fmt.Errorf("mpls: label stack depth %d exceeds limit %d", len(labels), maxLabelStack)

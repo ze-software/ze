@@ -10,7 +10,9 @@ package message
 
 import (
 	"encoding/binary"
-	"fmt"
+	"net/netip"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // AS_TRANS is the 2-byte AS used when the real AS is 4 bytes (RFC 6793).
@@ -221,12 +223,8 @@ func UnpackOpen(data []byte) (*Open, error) {
 // RFC 4271 Section 4.2 - BGP Identifier is a 4-octet unsigned integer
 // representing an IP address assigned to the BGP speaker.
 func (o *Open) RouterID() string {
-	return fmt.Sprintf("%d.%d.%d.%d",
-		(o.BGPIdentifier>>24)&0xFF,
-		(o.BGPIdentifier>>16)&0xFF,
-		(o.BGPIdentifier>>8)&0xFF,
-		o.BGPIdentifier&0xFF,
-	)
+	id := o.BGPIdentifier
+	return textbuf.Addr(netip.AddrFrom4([4]byte{byte(id >> 24), byte(id >> 16), byte(id >> 8), byte(id)}))
 }
 
 // ValidateHoldTime checks the Hold Time value per RFC 4271.
@@ -252,6 +250,6 @@ func (o *Open) String() string {
 	if o.ASN4 > 0 {
 		as = o.ASN4
 	}
-	return fmt.Sprintf("OPEN AS%d RouterID=%s HoldTime=%d",
-		as, o.RouterID(), o.HoldTime)
+	var b textbuf.Buffer
+	return b.Str("OPEN AS").Uint32(as).Str(" RouterID=").Str(o.RouterID()).Str(" HoldTime=").Uint16(o.HoldTime).String()
 }

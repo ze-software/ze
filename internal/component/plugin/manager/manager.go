@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -17,6 +18,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
+)
+
+var (
+	errAlreadyStarted = errors.New("already started")
+	errNotStarted     = errors.New("not started")
 )
 
 // logger is the plugin manager subsystem logger (lazy initialization).
@@ -112,7 +118,7 @@ func (m *Manager) StartAll(ctx context.Context, eventBus ze.EventBus, config ze.
 	defer m.mu.Unlock()
 
 	if m.started {
-		return fmt.Errorf("already started")
+		return errAlreadyStarted
 	}
 
 	m.ctx, m.cancel = context.WithCancel(ctx)
@@ -135,7 +141,7 @@ func (m *Manager) SpawnMore(configs []parent.PluginConfig) error {
 	defer m.mu.Unlock()
 
 	if !m.started {
-		return fmt.Errorf("not started")
+		return errNotStarted
 	}
 	if len(configs) == 0 {
 		return nil

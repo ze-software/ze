@@ -11,11 +11,14 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
+
+var errNotConnected = errors.New("not connected")
 
 // RFC 7854 suggested reconnection intervals.
 const (
@@ -73,7 +76,7 @@ func newSenderSession(name string, cfg collectorConfig) *senderSession {
 // and enters a loop that reconnects on failure.
 func (ss *senderSession) run() {
 	defer ss.cancel()
-	addr := net.JoinHostPort(ss.address, fmt.Sprintf("%d", ss.port))
+	addr := net.JoinHostPort(ss.address, strconv.Itoa(int(ss.port)))
 	reconnectWait := reconnectMin
 
 	for {
@@ -182,7 +185,7 @@ func (ss *senderSession) writeMsg(data []byte) error {
 	ss.connMu.Unlock()
 
 	if c == nil {
-		return fmt.Errorf("not connected")
+		return errNotConnected
 	}
 
 	return ss.writeRaw(c, data)

@@ -7,7 +7,8 @@ package ls
 
 import (
 	"encoding/binary"
-	"fmt"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // BGPLSNode represents a Node NLRI.
@@ -52,7 +53,8 @@ func (n *BGPLSNode) Len() int {
 // String returns command-style format for API round-trip compatibility.
 // Format: node protocol <proto> asn <n>.
 func (n *BGPLSNode) String() string {
-	return fmt.Sprintf("node protocol %s asn %d", n.protocolID, n.LocalNode.ASN)
+	var b textbuf.Buffer
+	return b.Str("node protocol ").Str(n.protocolID.String()).Str(" asn ").Uint32(n.LocalNode.ASN).String()
 }
 
 // WriteTo writes the Node NLRI directly to buf at offset.
@@ -134,7 +136,8 @@ func (l *BGPLSLink) Len() int {
 // String returns command-style format for API round-trip compatibility.
 // Format: link protocol <proto> local-asn <n> remote-asn <m>.
 func (l *BGPLSLink) String() string {
-	return fmt.Sprintf("link protocol %s local-asn %d remote-asn %d", l.protocolID, l.LocalNode.ASN, l.RemoteNode.ASN)
+	var b textbuf.Buffer
+	return b.Str("link protocol ").Str(l.protocolID.String()).Str(" local-asn ").Uint32(l.LocalNode.ASN).Str(" remote-asn ").Uint32(l.RemoteNode.ASN).String()
 }
 
 // WriteTo writes the Link NLRI directly to buf at offset.
@@ -238,7 +241,8 @@ func (p *BGPLSPrefix) Len() int {
 // String returns command-style format for API round-trip compatibility.
 // Format: reachability protocol <proto> type <type> asn <n>.
 func (p *BGPLSPrefix) String() string {
-	return fmt.Sprintf("reachability protocol %s type %s asn %d", p.protocolID, p.nlriType, p.LocalNode.ASN)
+	var b textbuf.Buffer
+	return b.Str("reachability protocol ").Str(p.protocolID.String()).Str(" type ").Str(p.nlriType.String()).Str(" asn ").Uint32(p.LocalNode.ASN).String()
 }
 
 // WriteTo writes the Prefix NLRI directly to buf at offset.

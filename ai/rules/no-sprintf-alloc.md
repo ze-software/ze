@@ -74,6 +74,9 @@ Before writing any `fmt.Sprintf` (or `Fprintf`, `Errorf`):
 | `addr.String() + "/" + strconv.Itoa(n)` on hot path | Stack buffer: `addr.AppendTo(buf[:0])` + `strconv.AppendInt` |
 | Storing `string` then parsing back for comparison | Store `netip.Addr` (or typed value), compare directly |
 | `net.ParseIP(s)` in a comparison function | Store `netip.Addr` at construction, use `.Compare()` |
+| `">" + textbuf.Uint(v)` in a loop | `textbuf.Buffer` outside loop: `b.Byte('>').Uint(v)` |
+| `parts[i] = prefix + strconv.Itoa(n)` in a loop | Single Buffer: `b.Str(prefix).Uint(uint64(n))` |
+| `strings.Join(parts, " ")` after building parts from values | Build directly into a Buffer with `.Byte(' ')` separators |
 
 ## Typed Comparison Rule
 
@@ -211,6 +214,32 @@ func (t *MyType) String() string {
 }
 ```
 
+## Loop Anti-Pattern
+
+**BLOCKING.** Never build strings with `+` concatenation inside a loop. Each
+`">" + textbuf.Uint(v)` allocates twice (the Uint result and the concat),
+and collecting into `[]string` + `strings.Join` adds a third. Use a single
+`textbuf.Buffer` declared before the loop:
+
+```go
+// BAD: N*2 + 1 allocations
+parts := make([]string, len(items))
+for i, m := range items {
+    parts[i] = ">" + textbuf.Uint(m.Value)
+}
+return strings.Join(parts, " ")
+
+// GOOD: 1 allocation (String())
+var b textbuf.Buffer
+for _, m := range items {
+    b.Byte(' ').Byte('>').Uint(m.Value)
+}
+return b.String()
+```
+
+The standalone `textbuf.Uint32(v)` functions are for **single-value returns**
+outside loops. Inside a loop, always chain into a Buffer.
+
 ## Self-Check
 
 Before submitting code that builds strings:
@@ -221,4 +250,5 @@ Before submitting code that builds strings:
 4. Am I calling `.String()` just to concatenate? Use `textbuf.Buffer.Addr()` etc.
 5. Am I storing a string that will be parsed back for comparison? Store the typed value.
 6. Am I building a string that gets immediately discarded? Split the function.
+7. Am I building strings with `+` inside a loop? Use a single Buffer outside the loop.
 7. Could this error be a package-level sentinel?

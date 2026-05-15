@@ -2,7 +2,12 @@
 
 package types
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var errTypesUnspecifiedRouteactionIsInvalidOn = errors.New("types: unspecified RouteAction is invalid on the wire")
 
 // RouteAction is the typed wire token describing what happened to a route.
 // "add"/"del" are emitted by FamilyOperation (the wire-level command);
@@ -52,7 +57,7 @@ func (a RouteAction) AppendTo(buf []byte) []byte { return append(buf, a.String()
 
 func (a RouteAction) MarshalText() ([]byte, error) {
 	if a == RouteActionUnspecified {
-		return nil, fmt.Errorf("types: unspecified RouteAction is invalid on the wire")
+		return nil, errTypesUnspecifiedRouteactionIsInvalidOn
 	}
 	return []byte(a.String()), nil
 }

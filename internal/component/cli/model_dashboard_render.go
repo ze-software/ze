@@ -7,6 +7,7 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -171,7 +172,7 @@ func peerColumnValue(p dashboardPeer, col dashboardSortColumn, ds *dashboardStat
 	case sortColumnAddress:
 		return p.Address
 	case sortColumnASN:
-		return fmt.Sprintf("%d", p.RemoteAS)
+		return strconv.Itoa(int(p.RemoteAS))
 	case sortColumnState:
 		return stateStyled(p.State)
 	case sortColumnUptime:
@@ -225,7 +226,7 @@ func renderDashboardDetail(ds *dashboardState) string {
 	sb.WriteString("\n\n")
 
 	rows := []struct{ label, value string }{
-		{"Remote ASN", fmt.Sprintf("%d", peer.RemoteAS)},
+		{"Remote ASN", strconv.Itoa(int(peer.RemoteAS))},
 		{"State", stateStyled(peer.State)},
 		{"Uptime", peer.Uptime},
 		{"Updates Rx", formatCounter(peer.UpdatesReceived)},
@@ -243,7 +244,7 @@ func renderDashboardDetail(ds *dashboardState) string {
 			rows = append(rows, struct{ label, value string }{"Router ID", rid})
 		}
 		if las, ok := d["local-as"].(float64); ok {
-			rows = append(rows, struct{ label, value string }{"Local ASN", fmt.Sprintf("%d", int(las))})
+			rows = append(rows, struct{ label, value string }{"Local ASN", strconv.Itoa(int(las))})
 		}
 		if timer, ok := d["timer"].(map[string]any); ok {
 			if rht, ok := timer["receive-hold-time"].(float64); ok {
@@ -286,9 +287,9 @@ func renderDashboardDetail(ds *dashboardState) string {
 // formatCounter formats an integer counter with thousands separators.
 func formatCounter(n uint32) string {
 	if n < 1000 {
-		return fmt.Sprintf("%d", n)
+		return strconv.Itoa(int(n))
 	}
-	s := fmt.Sprintf("%d", n)
+	s := strconv.Itoa(int(n))
 	// Insert commas from the right.
 	var result []byte
 	for i, c := range s {

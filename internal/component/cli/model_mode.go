@@ -6,13 +6,15 @@
 package cli
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 )
+
+var errNoDaemonConnectionCommandModeRequires = errors.New("no daemon connection (command mode requires a running daemon)")
 
 // EditorMode represents the current editor mode.
 type EditorMode int
@@ -129,7 +131,7 @@ func (m Model) executeOperationalCommand(input string) tea.Cmd {
 	return func() tea.Msg {
 		if executor == nil {
 			return commandResultMsg{
-				err: fmt.Errorf("no daemon connection (command mode requires a running daemon)"),
+				err: errNoDaemonConnectionCommandModeRequires,
 			}
 		}
 		cmdStr, formatFn := command.ProcessPipesDefaultTable(input)

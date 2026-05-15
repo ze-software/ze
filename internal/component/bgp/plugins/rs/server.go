@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -611,7 +612,7 @@ func formatCapInfo(cap capability.Capability) []CapabilityInfo {
 	case *capability.Multiprotocol:
 		return []CapabilityInfo{{Code: code, Name: "multiprotocol", Value: fmt.Sprintf("%s/%s", c.AFI, c.SAFI)}}
 	case *capability.ASN4:
-		return []CapabilityInfo{{Code: code, Name: "asn4", Value: fmt.Sprintf("%d", c.ASN)}}
+		return []CapabilityInfo{{Code: code, Name: "asn4", Value: strconv.Itoa(int(c.ASN))}}
 	case *capability.ExtendedMessage:
 		return []CapabilityInfo{{Code: code, Name: "extended-message"}}
 	case *capability.AddPath:

@@ -3,6 +3,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"strings"
@@ -13,6 +14,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
+
+var errCommandNameCannotBeEmpty = errors.New("command name cannot be empty")
 
 // frozenCommands holds an immutable snapshot of the CommandRegistry's command
 // map. Created by Freeze() after startup, used by Lookup() on the hot path
@@ -25,7 +28,7 @@ type frozenCommands struct {
 // Prevents command shadowing via prefix matching with special characters.
 func validateCommandName(name string) error {
 	if name == "" {
-		return fmt.Errorf("command name cannot be empty")
+		return errCommandNameCannotBeEmpty
 	}
 	for _, r := range name {
 		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != ' ' && r != '-' {

@@ -5,12 +5,15 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
+
+var errMissingFamily = errors.New("missing family")
 
 func init() {
 	pluginserver.RegisterRPCs(
@@ -65,7 +68,7 @@ func handleRefreshMarker(
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("usage: bgp peer <selector> %s <family>", cmd),
-		}, fmt.Errorf("missing family")
+		}, errMissingFamily
 	}
 
 	// Parse family (e.g., "ipv4/unicast")

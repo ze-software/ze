@@ -25,6 +25,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 )
 
+var errPasswordsDoNotMatch = errors.New("passwords do not match")
+
 // Run executes the passwd subcommand. Returns an exit code.
 func Run(args []string) int {
 	fs := flag.NewFlagSet("passwd", flag.ContinueOnError)
@@ -122,7 +124,7 @@ func readPlaintextTTY(tty *os.File, errOut io.Writer) (string, error) {
 		return "", fmt.Errorf("read confirmation: %w", err)
 	}
 	if !bytes.Equal(first, second) {
-		return "", fmt.Errorf("passwords do not match")
+		return "", errPasswordsDoNotMatch
 	}
 	return string(first), nil
 }

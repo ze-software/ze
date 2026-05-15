@@ -3,9 +3,12 @@
 package ipc
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
+
+var errEmptyMethodName = errors.New("empty method name")
 
 // MaxMethodLength is the maximum allowed method name length.
 const MaxMethodLength = 256
@@ -14,7 +17,7 @@ const MaxMethodLength = 256
 // Returns an error if the format is invalid.
 func ParseMethod(method string) (module, rpc string, err error) {
 	if method == "" {
-		return "", "", fmt.Errorf("empty method name")
+		return "", "", errEmptyMethodName
 	}
 	if len(method) > MaxMethodLength {
 		return "", "", fmt.Errorf("method name too long: %d > %d", len(method), MaxMethodLength)

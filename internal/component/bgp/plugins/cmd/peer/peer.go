@@ -8,6 +8,7 @@ package peer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -17,6 +18,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+)
+
+var (
+	errReactorNotAvailable     = errors.New("reactor not available")
+	errMissingCeaseSubcode     = errors.New("missing cease subcode")
+	errNoPeerSpecified         = errors.New("no peer specified")
+	errEmptyString             = errors.New("empty string")
+	errMissingRequiredRemoteAs = errors.New("missing required remote as")
 )
 
 func init() {
@@ -42,7 +51,7 @@ func init() {
 // peer name, or ASN ("as<N>" format).
 func filterPeersBySelector(ctx *pluginserver.CommandContext) ([]plugin.PeerInfo, *plugin.Response, error) {
 	if ctx.Reactor() == nil {
-		return nil, &plugin.Response{Status: plugin.StatusError, Data: "reactor not available"}, fmt.Errorf("reactor not available")
+		return nil, &plugin.Response{Status: plugin.StatusError, Data: "reactor not available"}, errReactorNotAvailable
 	}
 	allPeers := ctx.Reactor().Peers()
 	selector := ctx.PeerSelector()
@@ -211,7 +220,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "usage: peer <ip> teardown <subcode> [message]",
-		}, fmt.Errorf("missing cease subcode")
+		}, errMissingCeaseSubcode
 	}
 
 	// Parse peer selector from context (name or IP).
@@ -220,7 +229,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "teardown requires specific peer: peer <name> teardown <subcode>",
-		}, fmt.Errorf("no peer specified")
+		}, errNoPeerSpecified
 	}
 
 	// Resolve peer selector to address (supports both name and IP).
@@ -295,7 +304,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 // Uses strconv.ParseUint for correct overflow detection.
 func parseUint(s string) (uint64, error) {
 	if s == "" {
-		return 0, fmt.Errorf("empty string")
+		return 0, errEmptyString
 	}
 	return strconv.ParseUint(s, 10, 64)
 }
@@ -332,7 +341,7 @@ func preparePeerTree(selector string, nodeTree map[string]any) (*plugin.Response
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "remote as is required: set bgp peer <ip> with session asn remote <asn>",
-		}, fmt.Errorf("missing required remote as")
+		}, errMissingRequiredRemoteAs
 	}
 
 	// Inject connection.remote.ip from the peer selector address.
@@ -365,7 +374,7 @@ func HandleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "remove requires specific peer: peer <ip> remove",
-		}, fmt.Errorf("no peer specified")
+		}, errNoPeerSpecified
 	}
 
 	addr, err := netip.ParseAddr(peer)
@@ -421,7 +430,7 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("%s requires specific peer: peer <ip> %s", action, action),
-		}, fmt.Errorf("no peer specified")
+		}, errNoPeerSpecified
 	}
 
 	addr, err := netip.ParseAddr(peer)

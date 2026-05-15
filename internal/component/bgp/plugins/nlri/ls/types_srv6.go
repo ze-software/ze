@@ -8,7 +8,8 @@ package ls
 
 import (
 	"encoding/binary"
-	"fmt"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
 )
@@ -113,7 +114,8 @@ func (s *BGPLSSRv6SID) Len() int {
 // String returns command-style format for API round-trip compatibility.
 // Format: srv6-sid protocol <proto> asn <n>.
 func (s *BGPLSSRv6SID) String() string {
-	return fmt.Sprintf("srv6-sid protocol %s asn %d", s.protocolID, s.LocalNode.ASN)
+	var b textbuf.Buffer
+	return b.Str("srv6-sid protocol ").Str(s.protocolID.String()).Str(" asn ").Uint32(s.LocalNode.ASN).String()
 }
 
 // WriteTo writes the SRv6 SID NLRI directly to buf at offset.

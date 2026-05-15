@@ -6,11 +6,14 @@ package message
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/iter"
 )
+
+var errMalformedNlri = errors.New("malformed NLRI")
 
 // NewNLRIElements creates a generic element iterator for NLRI wire bytes.
 // The iterator yields one NLRI at a time as subslices of nlriData.
@@ -91,7 +94,7 @@ func ChunkMPNLRI(nlriData []byte, afi family.AFI, safi family.SAFI, addPath bool
 }
 
 // ErrNLRIMalformed is returned when NLRI structure is invalid.
-var ErrNLRIMalformed = fmt.Errorf("malformed NLRI")
+var ErrNLRIMalformed = errMalformedNlri
 
 // SplitMPNLRI splits MP family NLRIs, returning fitting slice and remaining.
 // Returns subslices for zero-copy efficiency.

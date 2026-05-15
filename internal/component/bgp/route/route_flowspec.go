@@ -5,6 +5,7 @@
 package route
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -12,6 +13,12 @@ import (
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+)
+
+var (
+	errMissingRateLimitValue = errors.New("missing rate limit value")
+	errMissingRedirectTarget = errors.New("missing redirect target")
+	errMissingDscpValue      = errors.New("missing DSCP value")
 )
 
 // ParseFlowSpecArgs parses FlowSpec command arguments.
@@ -112,7 +119,7 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 				route.Actions.Discard = true
 			case "rate-limit":
 				if i+1 >= len(args) {
-					return route, fmt.Errorf("missing rate limit value")
+					return route, errMissingRateLimitValue
 				}
 				rate, err := strconv.ParseUint(args[i+1], 10, 32)
 				if err != nil {
@@ -122,13 +129,13 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 				i++
 			case "redirect":
 				if i+1 >= len(args) {
-					return route, fmt.Errorf("missing redirect target")
+					return route, errMissingRedirectTarget
 				}
 				route.Actions.Redirect = args[i+1]
 				i++
 			case "mark":
 				if i+1 >= len(args) {
-					return route, fmt.Errorf("missing DSCP value")
+					return route, errMissingDscpValue
 				}
 				dscp, err := strconv.ParseUint(args[i+1], 10, 8)
 				if err != nil {

@@ -9,6 +9,7 @@ package l2tp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/netip"
@@ -22,6 +23,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 )
+
+var errL2tpFailedToLoadKernelModules = errors.New("l2tp: failed to load kernel modules (tried l2tp_ppp, pppol2tp)")
 
 // kernelOps holds function pointers for the actual kernel syscalls.
 // Tests inject fakes via the struct fields. Production uses newKernelOps().
@@ -449,7 +452,7 @@ func probeKernelModules() error {
 			return nil
 		}
 	}
-	return fmt.Errorf("l2tp: failed to load kernel modules (tried l2tp_ppp, pppol2tp)")
+	return errL2tpFailedToLoadKernelModules
 }
 
 func moduleBuiltIn(name string) bool {

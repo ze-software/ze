@@ -5,6 +5,7 @@ package show
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -14,6 +15,12 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+)
+
+var (
+	errPingCountRequiresAValue       = errors.New("ping: count requires a value")
+	errPingTimeoutRequiresAValueE    = errors.New("ping: timeout requires a value (e.g. 5s)")
+	errPingMissingDestinationAddress = errors.New("ping: missing destination address")
 )
 
 const (
@@ -44,7 +51,7 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {
 		switch args[i] {
 		case "count": //nolint:goconst // CLI arg, unrelated to map key uses in show.go
 			if i+1 >= len(args) {
-				return dest, 0, 0, fmt.Errorf("ping: count requires a value")
+				return dest, 0, 0, errPingCountRequiresAValue
 			}
 			n, err := strconv.Atoi(args[i+1])
 			if err != nil || n < 1 || n > maxPingCount {
@@ -54,7 +61,7 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {
 			i++
 		case "timeout":
 			if i+1 >= len(args) {
-				return dest, 0, 0, fmt.Errorf("ping: timeout requires a value (e.g. 5s)")
+				return dest, 0, 0, errPingTimeoutRequiresAValueE
 			}
 			d, err := time.ParseDuration(args[i+1])
 			if err != nil || d < time.Second || d > maxPingTimeout {
@@ -73,7 +80,7 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {
 		}
 	}
 	if !dest.IsValid() {
-		return dest, 0, 0, fmt.Errorf("ping: missing destination address")
+		return dest, 0, 0, errPingMissingDestinationAddress
 	}
 	return dest, count, timeout, nil
 }

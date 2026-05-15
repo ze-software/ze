@@ -9,6 +9,7 @@ package fibvpp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/netip"
@@ -21,6 +22,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
+)
+
+var (
+	errFibVppConfigSectionMissingFib  = errors.New("fib-vpp: config section missing 'fib' root")
+	errFibVppConfigSectionMissingFib2 = errors.New("fib-vpp: config section missing 'fib/vpp' subtree")
 )
 
 // loggerPtr is the package-level logger, disabled by default.
@@ -79,7 +85,7 @@ func parseFibVPPConfigSection(data string) (*fibVPPConfig, error) {
 	}
 	fibRaw, ok := outer["fib"]
 	if !ok {
-		return nil, fmt.Errorf("fib-vpp: config section missing 'fib' root")
+		return nil, errFibVppConfigSectionMissingFib
 	}
 	var fib map[string]json.RawMessage
 	if err := json.Unmarshal(fibRaw, &fib); err != nil {
@@ -87,7 +93,7 @@ func parseFibVPPConfigSection(data string) (*fibVPPConfig, error) {
 	}
 	vppRaw, ok := fib["vpp"]
 	if !ok {
-		return nil, fmt.Errorf("fib-vpp: config section missing 'fib/vpp' subtree")
+		return nil, errFibVppConfigSectionMissingFib2
 	}
 	return parseFibVPPConfig(string(vppRaw))
 }

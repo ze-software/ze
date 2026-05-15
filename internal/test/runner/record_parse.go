@@ -6,6 +6,7 @@ package runner
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,6 +18,29 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/test/ci"
 	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
+)
+
+var (
+	errOptionFileMissingPath            = errors.New("option:file missing path=")
+	errOptionAsnMissingValue            = errors.New("option:asn missing value=")
+	errOptionBindMissingValue           = errors.New("option:bind missing value=")
+	errOptionTimeoutMissingValue        = errors.New("option:timeout missing value=")
+	errOptionTcpConnectionsMissingValue = errors.New("option:tcp_connections missing value=")
+	errOptionOpenMissingValue           = errors.New("option:open missing value=")
+	errOptionUpdateMissingValue         = errors.New("option:update missing value=")
+	errOptionEnvMissingVar              = errors.New("option:env missing var=")
+	errOptionSkipOsMissingValue         = errors.New("option:skip-os missing value=")
+	errExpectBgpMissingHex              = errors.New("expect:bgp missing hex=")
+	errExpectJsonMissingJson            = errors.New("expect:json missing json=")
+	errExpectExitMissingCode            = errors.New("expect:exit missing code=")
+	errActionSendMissingHex             = errors.New("action:send missing hex=")
+	errActionRewriteMissingSource       = errors.New("action:rewrite missing source=")
+	errActionRewriteMissingDest         = errors.New("action:rewrite missing dest=")
+	errHttpMissingSeq                   = errors.New("http= missing seq=")
+	errHttpMissingUrl                   = errors.New("http= missing url=")
+	errHttpMissingStatus                = errors.New("http= missing status=")
+	errMissingConn                      = errors.New("missing conn=")
+	errMissingSeq                       = errors.New("missing seq=")
 )
 
 // EncodingTests manages encoding test discovery.
@@ -207,7 +231,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 	case "file":
 		configName := kv["path"]
 		if configName == "" {
-			return fmt.Errorf("option:file missing path=")
+			return errOptionFileMissingPath
 		}
 		configPath := filepath.Join(filepath.Dir(ciFile), configName)
 		absConfig, err := filepath.Abs(configPath)
@@ -228,7 +252,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 	case "asn":
 		value := kv["value"]
 		if value == "" {
-			return fmt.Errorf("option:asn missing value=")
+			return errOptionAsnMissingValue
 		}
 		r.Extra["asn"] = value
 		r.Options = append(r.Options, fmt.Sprintf("option=asn:value=%s", value))
@@ -236,7 +260,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 	case "bind":
 		value := kv["value"]
 		if value == "" {
-			return fmt.Errorf("option:bind missing value=")
+			return errOptionBindMissingValue
 		}
 		r.Extra["bind"] = value
 		r.Options = append(r.Options, fmt.Sprintf("option=bind:value=%s", value))
@@ -244,28 +268,28 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 	case "timeout":
 		value := kv["value"]
 		if value == "" {
-			return fmt.Errorf("option:timeout missing value=")
+			return errOptionTimeoutMissingValue
 		}
 		r.Extra["timeout"] = value
 
 	case "tcp_connections":
 		value := kv["value"]
 		if value == "" {
-			return fmt.Errorf("option:tcp_connections missing value=")
+			return errOptionTcpConnectionsMissingValue
 		}
 		r.Options = append(r.Options, fmt.Sprintf("option=tcp_connections:value=%s", value))
 
 	case "open":
 		value := kv["value"]
 		if value == "" {
-			return fmt.Errorf("option:open missing value=")
+			return errOptionOpenMissingValue
 		}
 		r.Options = append(r.Options, fmt.Sprintf("option=open:value=%s", value))
 
 	case "update":
 		value := kv["value"]
 		if value == "" {
-			return fmt.Errorf("option:update missing value=")
+			return errOptionUpdateMissingValue
 		}
 		r.Options = append(r.Options, fmt.Sprintf("option=update:value=%s", value))
 
@@ -273,7 +297,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		varName := kv["var"]
 		value := kv["value"]
 		if varName == "" {
-			return fmt.Errorf("option:env missing var=")
+			return errOptionEnvMissingVar
 		}
 		// Store as KEY=VALUE for environment setting
 		r.EnvVars = append(r.EnvVars, fmt.Sprintf("%s=%s", varName, value))
@@ -281,7 +305,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 	case "skip-os":
 		value := kv["value"]
 		if value == "" {
-			return fmt.Errorf("option:skip-os missing value=")
+			return errOptionSkipOsMissingValue
 		}
 		// Record a skip reason when the current GOOS is in the skip list.
 		// The .ci format has no build tags, so OS-specific features (e.g.
@@ -313,7 +337,7 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		}
 		hexData := kv["hex"]
 		if hexData == "" {
-			return fmt.Errorf("expect:bgp missing hex=")
+			return errExpectBgpMissingHex
 		}
 		idx := connSeqToIndex(conn, seq)
 		msg := r.getOrCreateMessage(idx)
@@ -331,7 +355,7 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		}
 		jsonData := kv["json"]
 		if jsonData == "" {
-			return fmt.Errorf("expect:json missing json=")
+			return errExpectJsonMissingJson
 		}
 		idx := connSeqToIndex(conn, seq)
 		msg := r.getOrCreateMessage(idx)
@@ -340,7 +364,7 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 	case "exit":
 		codeStr := kv["code"]
 		if codeStr == "" {
-			return fmt.Errorf("expect:exit missing code=")
+			return errExpectExitMissingCode
 		}
 		code, err := strconv.Atoi(codeStr)
 		if err != nil {
@@ -409,7 +433,7 @@ func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]st
 		}
 		hexData := kv["hex"]
 		if hexData == "" {
-			return fmt.Errorf("action:send missing hex=")
+			return errActionSendMissingHex
 		}
 		// Add to Expects for testpeer (new format).
 		r.Expects = append(r.Expects, fmt.Sprintf("action=send:conn=%d:seq=%d:hex=%s", conn, seq, hexData))
@@ -421,11 +445,11 @@ func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]st
 		}
 		source := kv["source"]
 		if source == "" {
-			return fmt.Errorf("action:rewrite missing source=")
+			return errActionRewriteMissingSource
 		}
 		dest := kv["dest"]
 		if dest == "" {
-			return fmt.Errorf("action:rewrite missing dest=")
+			return errActionRewriteMissingDest
 		}
 		// Add to Expects for testpeer (new format).
 		r.Expects = append(r.Expects, fmt.Sprintf("action=rewrite:conn=%d:seq=%d:source=%s:dest=%s", conn, seq, source, dest))
@@ -582,13 +606,13 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 	timeoutIdx := strings.Index(line, timeoutMarker)
 
 	if seqIdx < 0 {
-		return fmt.Errorf("http= missing seq=")
+		return errHttpMissingSeq
 	}
 	if urlIdx < 0 {
-		return fmt.Errorf("http= missing url=")
+		return errHttpMissingUrl
 	}
 	if statusIdx < 0 {
-		return fmt.Errorf("http= missing status=")
+		return errHttpMissingStatus
 	}
 
 	allMarkers := []string{seqMarker, urlMarker, statusMarker, containsMarker, bodyfileMarker, sendfileMarker, timeoutMarker}
@@ -677,10 +701,10 @@ func parseConnSeq(kv map[string]string) (conn, seq int, err error) {
 	seqStr := kv["seq"]
 
 	if connStr == "" {
-		return 0, 0, fmt.Errorf("missing conn=")
+		return 0, 0, errMissingConn
 	}
 	if seqStr == "" {
-		return 0, 0, fmt.Errorf("missing seq=")
+		return 0, 0, errMissingSeq
 	}
 
 	conn, err = strconv.Atoi(connStr)

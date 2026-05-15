@@ -16,6 +16,25 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+var (
+	errCommitConfirmedNotYetSupportedIn         = errors.New("commit confirmed not yet supported in session mode (use 'commit')")
+	errUsageCommitforceConfirmedSeconds         = errors.New("usage: commit [force] confirmed <seconds>")
+	errWhoRequiresAnActiveEditingSession        = errors.New("who requires an active editing session")
+	errDisconnectRequiresAnActiveEditingSession = errors.New("disconnect requires an active editing session")
+	errUsageEditPath                            = errors.New("usage: edit <path>")
+	errTemplateEditingWildcardNotYetSupported   = errors.New("template editing (wildcard *) not yet supported in tree mode")
+	errUsageRollbackNumber                      = errors.New("usage: rollback <number>")
+	errUsageSetPathValue                        = errors.New("usage: set <path> <value>")
+	errUsageDeletePath                          = errors.New("usage: delete <path>")
+	errUsageInsertPathValueFirstlastbeforeRef   = errors.New("usage: insert <path> <value> first|last|before <ref>|after <ref>")
+	errInsertFailedTargetIsNotA                 = errors.New("insert failed: target is not a leaf-list")
+	errCommitForceNotYetSupportedIn             = errors.New("commit force not yet supported in session mode (use 'commit')")
+	errDiscardRequiresPathOrAllIn               = errors.New("discard requires path or 'all' in session mode")
+	errUsageDisconnectSessionId                 = errors.New("usage: disconnect <session-id>")
+	errUsageRenamePathOldNameTo                 = errors.New("usage: rename <path> <old-name> to <new-name>")
+	errUsageCopyPathSourceToDestination         = errors.New("usage: copy <path> <source> to <destination>")
+)
+
 // executeCommand dispatches a command for execution.
 // Returns a tea.Cmd that produces a commandResultMsg for the Update handler.
 func (m Model) executeCommand(input string) tea.Cmd {
@@ -84,10 +103,10 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		// "commit [force] confirmed <N>" -- commit with auto-rollback
 		if len(commitArgs) >= 1 && commitArgs[0] == cmdConfirmed {
 			if m.editor.HasSession() {
-				return commandResult{}, fmt.Errorf("commit confirmed not yet supported in session mode (use 'commit')")
+				return commandResult{}, errCommitConfirmedNotYetSupportedIn
 			}
 			if len(commitArgs) < 2 {
-				return commandResult{}, fmt.Errorf("usage: commit [force] confirmed <seconds>")
+				return commandResult{}, errUsageCommitforceConfirmedSeconds
 			}
 			seconds, err := strconv.Atoi(commitArgs[1])
 			if err != nil {
@@ -150,13 +169,13 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 
 	case cmdWho:
 		if !m.editor.HasSession() {
-			return commandResult{}, fmt.Errorf("who requires an active editing session")
+			return commandResult{}, errWhoRequiresAnActiveEditingSession
 		}
 		return m.cmdWho()
 
 	case cmdDisconnect:
 		if !m.editor.HasSession() {
-			return commandResult{}, fmt.Errorf("disconnect requires an active editing session")
+			return commandResult{}, errDisconnectRequiresAnActiveEditingSession
 		}
 		return m.cmdDisconnectSession(args)
 	case cmdRename:
@@ -219,13 +238,13 @@ func (m *Model) cmdUp() (commandResult, error) {
 
 func (m *Model) cmdEdit(args []string) (commandResult, error) {
 	if len(args) == 0 {
-		return commandResult{}, fmt.Errorf("usage: edit <path>")
+		return commandResult{}, errUsageEditPath
 	}
 
 	// Check for wildcard template (e.g., "edit peer *")
 	if len(args) >= 2 && args[len(args)-1] == "*" {
 		// Template editing deferred to Part 2/3
-		return commandResult{}, fmt.Errorf("template editing (wildcard *) not yet supported in tree mode")
+		return commandResult{}, errTemplateEditingWildcardNotYetSupported
 	}
 
 	// Build full path: current context + args (JUNOS-style relative navigation)
@@ -309,7 +328,7 @@ func formatValidationErrors(errs []ConfigValidationError) string {
 
 func (m *Model) cmdRollback(args []string) (commandResult, error) {
 	if len(args) != 1 {
-		return commandResult{}, fmt.Errorf("usage: rollback <number>")
+		return commandResult{}, errUsageRollbackNumber
 	}
 
 	n, err := strconv.Atoi(args[0])
@@ -340,7 +359,7 @@ func (m *Model) cmdRollback(args []string) (commandResult, error) {
 
 func (m *Model) cmdSet(args []string) (commandResult, error) {
 	if len(args) < 2 {
-		return commandResult{}, fmt.Errorf("usage: set <path> <value>")
+		return commandResult{}, errUsageSetPathValue
 	}
 
 	// tokenizeCommand already handles quotes, so args are clean tokens.
@@ -353,7 +372,7 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	path := fullPath[:len(fullPath)-1]
 
 	if len(path) < 1 {
-		return commandResult{}, fmt.Errorf("usage: set <path> <value>")
+		return commandResult{}, errUsageSetPathValue
 	}
 
 	key := path[len(path)-1]
@@ -481,7 +500,7 @@ func joinTokensWithQuotes(tokens []string) string {
 
 func (m *Model) cmdDelete(args []string) (commandResult, error) {
 	if len(args) < 1 {
-		return commandResult{}, fmt.Errorf("usage: delete <path>")
+		return commandResult{}, errUsageDeletePath
 	}
 
 	// Build full path with context
@@ -633,7 +652,7 @@ func (m *Model) resolveLeafListValue(fullPath []string) (parentPath []string, le
 // ambiguous with position keywords. Quote them if needed.
 func (m *Model) cmdInsert(args []string) (commandResult, error) {
 	if len(args) < 3 {
-		return commandResult{}, fmt.Errorf("usage: insert <path> <value> first|last|before <ref>|after <ref>")
+		return commandResult{}, errUsageInsertPathValueFirstlastbeforeRef
 	}
 
 	// Parse position from the end of args.
@@ -654,11 +673,11 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 	}
 
 	if position == "" {
-		return commandResult{}, fmt.Errorf("usage: insert <path> <value> first|last|before <ref>|after <ref>")
+		return commandResult{}, errUsageInsertPathValueFirstlastbeforeRef
 	}
 
 	if len(pathAndValue) < 2 {
-		return commandResult{}, fmt.Errorf("usage: insert <path> <value> first|last|before <ref>|after <ref>")
+		return commandResult{}, errUsageInsertPathValueFirstlastbeforeRef
 	}
 
 	value := pathAndValue[len(pathAndValue)-1]
@@ -676,7 +695,7 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 	probePath[len(fullPath)] = "__probe__"
 	containerPath, leafListName, isLeafList := m.resolveLeafListValue(probePath)
 	if !isLeafList {
-		return commandResult{}, fmt.Errorf("insert failed: target is not a leaf-list")
+		return commandResult{}, errInsertFailedTargetIsNotA
 	}
 
 	if err := m.editor.InsertLeafListValue(containerPath, leafListName, value, position, ref); err != nil {
@@ -779,7 +798,7 @@ func (m *Model) cmdCommitForce() (commandResult, error) {
 	// Session mode uses CommitSession which has its own validation path.
 	// Force-skip of warnings is not yet supported there.
 	if m.editor.HasSession() {
-		return commandResult{}, fmt.Errorf("commit force not yet supported in session mode (use 'commit')")
+		return commandResult{}, errCommitForceNotYetSupportedIn
 	}
 
 	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
@@ -886,7 +905,7 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 // cmdDiscardSession discards session changes, requiring path or cmdAll.
 func (m *Model) cmdDiscardSession(args []string) (commandResult, error) {
 	if len(args) == 0 {
-		return commandResult{}, fmt.Errorf("discard requires path or 'all' in session mode")
+		return commandResult{}, errDiscardRequiresPathOrAllIn
 	}
 
 	var path []string
@@ -1023,7 +1042,7 @@ func (m *Model) cmdWho() (commandResult, error) {
 // RBAC gating deferred to a future spec when ze gains a role/permission system.
 func (m *Model) cmdDisconnectSession(args []string) (commandResult, error) {
 	if len(args) == 0 {
-		return commandResult{}, fmt.Errorf("usage: disconnect <session-id>")
+		return commandResult{}, errUsageDisconnectSessionId
 	}
 	targetSession := args[0]
 	if targetSession == m.editor.SessionID() {
@@ -1130,11 +1149,11 @@ func (m *Model) cmdRename(args []string) (commandResult, error) {
 	// "to" must be second-to-last: <path...> <old-key> to <new-key>
 	// Searching from a fixed position avoids ambiguity when a list key is literally "to".
 	if len(args) < 4 {
-		return commandResult{}, fmt.Errorf("usage: rename <path> <old-name> to <new-name>")
+		return commandResult{}, errUsageRenamePathOldNameTo
 	}
 	toIdx := len(args) - 2
 	if args[toIdx] != "to" {
-		return commandResult{}, fmt.Errorf("usage: rename <path> <old-name> to <new-name>")
+		return commandResult{}, errUsageRenamePathOldNameTo
 	}
 
 	newKey := args[toIdx+1]
@@ -1190,11 +1209,11 @@ func (m *Model) cmdRename(args []string) (commandResult, error) {
 func (m *Model) cmdCopy(args []string) (commandResult, error) {
 	// "to" must be second-to-last: <path...> <src-key> to <dst-key>
 	if len(args) < 4 {
-		return commandResult{}, fmt.Errorf("usage: copy <path> <source> to <destination>")
+		return commandResult{}, errUsageCopyPathSourceToDestination
 	}
 	toIdx := len(args) - 2
 	if args[toIdx] != "to" {
-		return commandResult{}, fmt.Errorf("usage: copy <path> <source> to <destination>")
+		return commandResult{}, errUsageCopyPathSourceToDestination
 	}
 
 	dstKey := args[toIdx+1]

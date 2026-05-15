@@ -6,12 +6,21 @@ package firewall
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
+)
+
+var (
+	errTcpMssSetValueMustBe = errors.New("tcp-mss-set: value must be 1-65535, got 0")
+	errEmptyPortSpec        = errors.New("empty port spec")
+	errPortMustBe165535Got  = errors.New("port must be 1-65535, got 0")
+	errEmptyNatTarget       = errors.New("empty NAT target")
+	errEmptyTcpFlags        = errors.New("empty TCP flags")
 )
 
 // thenBlockKeys lists container-type keywords in the then block.
@@ -377,7 +386,7 @@ func parseThenBlock(m map[string]any) ([]Action, error) {
 			return nil, fmt.Errorf("tcp-mss-set: invalid value %q: %w", v, err)
 		}
 		if mss == 0 {
-			return nil, fmt.Errorf("tcp-mss-set: value must be 1-65535, got 0")
+			return nil, errTcpMssSetValueMustBe
 		}
 		actions = append(actions, SetTCPMSS{Size: uint16(mss)})
 	}
@@ -570,7 +579,7 @@ const maxPortRanges = 128
 // or "5060-5061,16384-32767") and returns the canonical []PortRange.
 func ParsePortSpec(v string) ([]PortRange, error) {
 	if v == "" {
-		return nil, fmt.Errorf("empty port spec")
+		return nil, errEmptyPortSpec
 	}
 	var ranges []PortRange
 	for entry := range strings.SplitSeq(v, ",") {
@@ -653,7 +662,7 @@ func parsePortNumber(s string) (uint16, error) {
 		return 0, fmt.Errorf("invalid port %q: %w", s, err)
 	}
 	if n == 0 {
-		return 0, fmt.Errorf("port must be 1-65535, got 0")
+		return 0, errPortMustBe165535Got
 	}
 	return uint16(n), nil
 }
@@ -822,7 +831,7 @@ func parseRateSpec(v string) (Limit, error) {
 // as something unintended.
 func parseNATSpec(v string) (addr, addrEnd netip.Addr, port, portEnd uint16, err error) {
 	if v == "" {
-		return netip.Addr{}, netip.Addr{}, 0, 0, fmt.Errorf("empty NAT target")
+		return netip.Addr{}, netip.Addr{}, 0, 0, errEmptyNatTarget
 	}
 	// Fast path for the two most common single-address forms.
 	if ap, perr := netip.ParseAddrPort(v); perr == nil {
@@ -921,7 +930,7 @@ func ParseTCPFlags(v string) (TCPFlags, TCPFlags, error) {
 		flags |= f
 	}
 	if flags == 0 {
-		return 0, 0, fmt.Errorf("empty TCP flags")
+		return 0, 0, errEmptyTcpFlags
 	}
 	return flags, flags, nil
 }

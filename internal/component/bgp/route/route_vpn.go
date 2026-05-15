@@ -5,6 +5,7 @@
 package route
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -13,6 +14,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
+
+var errMissingRtValue = errors.New("missing rt value")
 
 // parseL3VPNAttributes parses L3VPN route attributes from args.
 // Args format: <prefix> [keyword value]...
@@ -65,7 +68,7 @@ func parseL3VPNAttributes(args []string) (bgptypes.L3VPNRoute, error) {
 
 		case "rt":
 			if i+1 >= len(args) {
-				return bgptypes.L3VPNRoute{}, fmt.Errorf("missing rt value")
+				return bgptypes.L3VPNRoute{}, errMissingRtValue
 			}
 			route.RT = args[i+1]
 			i++

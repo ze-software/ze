@@ -5,6 +5,7 @@
 package collector
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -12,6 +13,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 )
+
+var errMalformedProcUptime = errors.New("malformed /proc/uptime")
 
 type uptimeCollector struct {
 	gauge metrics.GaugeVec
@@ -38,7 +41,7 @@ func (c *uptimeCollector) Collect() error {
 	}
 	fields := strings.Fields(string(b))
 	if len(fields) < 1 {
-		return fmt.Errorf("malformed /proc/uptime")
+		return errMalformedProcUptime
 	}
 	secs, err := strconv.ParseFloat(fields[0], 64)
 	if err != nil {

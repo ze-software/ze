@@ -20,6 +20,7 @@ package irr
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -31,6 +32,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cache"
 )
+
+var errIrrEmptyAsSetName = errors.New("irr: empty AS-SET name")
 
 const (
 	defaultPort    = "43"
@@ -260,7 +263,7 @@ func (c *IRR) query(ctx context.Context, command string) (string, error) {
 // like "RIPE::AS-FOO"), periods.
 func validateASSetName(name string) error {
 	if name == "" {
-		return fmt.Errorf("irr: empty AS-SET name")
+		return errIrrEmptyAsSetName
 	}
 	for _, c := range name {
 		if c < 0x20 || c == 0x7f {

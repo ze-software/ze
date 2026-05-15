@@ -18,7 +18,7 @@ func decodeUpdateMessage(data []byte, _ string, hasHeader bool) (map[string]any,
 	body := data
 	if hasHeader {
 		if len(data) < message.HeaderLen {
-			return nil, fmt.Errorf("data too short for header")
+			return nil, errDataTooShortForHeader
 		}
 		body = data[message.HeaderLen:]
 	}

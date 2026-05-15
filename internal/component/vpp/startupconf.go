@@ -6,6 +6,7 @@ package vpp
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -39,7 +40,7 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings) error {
 
 	b.section("cpu", func() {
 		if s.CPU.MainCore != nil {
-			b.kv("main-core", fmt.Sprintf("%d", *s.CPU.MainCore))
+			b.kv("main-core", strconv.Itoa(int(*s.CPU.MainCore)))
 		}
 		if s.CPU.Workers != nil && *s.CPU.Workers > 0 {
 			var mainCore uint8
@@ -51,7 +52,7 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings) error {
 	})
 
 	b.section("buffers", func() {
-		b.kv("buffers-per-numa", fmt.Sprintf("%d", s.Memory.Buffers))
+		b.kv("buffers-per-numa", strconv.Itoa(int(s.Memory.Buffers)))
 		b.kv("default-data-size", "2048")
 		b.kv("page-size", pageSize(s.Memory.HugepageSize))
 	})
@@ -118,7 +119,7 @@ func workerCoreList(mainCore, count uint8) string {
 	start := int(mainCore) + 1
 	end := start + int(count) - 1
 	if start == end {
-		return fmt.Sprintf("%d", start)
+		return strconv.Itoa(start)
 	}
 	return fmt.Sprintf("%d-%d", start, end)
 }

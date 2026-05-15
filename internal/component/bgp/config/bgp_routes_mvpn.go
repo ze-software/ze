@@ -4,6 +4,7 @@
 package bgpconfig
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,12 +12,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+var errMvpnNlriRequiresRouteTypeAnd = errors.New("mvpn nlri requires route type and fields")
+
 // parseMVPNNLRILine parses an MVPN NLRI line like:
 // "ipv4/mvpn add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000".
 func parseMVPNNLRILine(line string, attr *config.Tree) (MVPNRouteConfig, error) {
 	parts := strings.Fields(line)
 	if len(parts) < 2 {
-		return MVPNRouteConfig{}, fmt.Errorf("mvpn nlri requires route type and fields")
+		return MVPNRouteConfig{}, errMvpnNlriRequiresRouteTypeAnd
 	}
 
 	fam := parts[0]

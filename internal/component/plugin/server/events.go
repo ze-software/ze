@@ -6,16 +6,19 @@ package server
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 )
+
+var errServerNotConfiguredForPlugins = errors.New("server not configured for plugins")
 
 // EncodeNLRI encodes NLRI by routing to the appropriate family plugin via RPC.
 // Returns error if no plugin registered or plugin not running.
 func (s *Server) EncodeNLRI(family string, args []string) ([]byte, error) {
 	pm := s.procManager.Load()
 	if s.registry == nil || pm == nil {
-		return nil, fmt.Errorf("server not configured for plugins")
+		return nil, errServerNotConfiguredForPlugins
 	}
 
 	pluginName := s.registry.LookupFamily(family)
@@ -54,7 +57,7 @@ func (s *Server) EncodeNLRI(family string, args []string) ([]byte, error) {
 func (s *Server) DecodeNLRI(family, hexData string) (string, error) {
 	pm := s.procManager.Load()
 	if s.registry == nil || pm == nil {
-		return "", fmt.Errorf("server not configured for plugins")
+		return "", errServerNotConfiguredForPlugins
 	}
 
 	pluginName := s.registry.LookupFamily(family)

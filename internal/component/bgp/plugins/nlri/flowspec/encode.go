@@ -4,6 +4,7 @@
 package flowspec
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -15,6 +16,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
+var errMissingFlowspecCommand = errors.New("missing FlowSpec command")
+
 // EncodeRoute encodes a FlowSpec route command into UPDATE body bytes and NLRI bytes.
 // This implements the InProcessRouteEncoder signature for the plugin registry.
 func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error) {
@@ -25,7 +28,7 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 	// Parse route command - expects "match <spec> then <action>"
 	args := strings.Fields(routeCmd)
 	if len(args) < 1 {
-		return nil, nil, fmt.Errorf("missing FlowSpec command")
+		return nil, nil, errMissingFlowspecCommand
 	}
 
 	// Parse using API parser

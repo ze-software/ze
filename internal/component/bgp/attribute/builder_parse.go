@@ -4,11 +4,14 @@ package attribute
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
 )
+
+var errEmptyOriginValue = errors.New("empty origin value")
 
 // Origin string constants for parsing.
 const (
@@ -21,7 +24,7 @@ const (
 // Replaces any previously set origin value.
 func (b *Builder) ParseOrigin(s string) error {
 	if s == "" {
-		return fmt.Errorf("empty origin value")
+		return errEmptyOriginValue
 	}
 	switch strings.ToLower(s) {
 	case originIGP:

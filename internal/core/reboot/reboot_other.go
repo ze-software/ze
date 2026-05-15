@@ -7,10 +7,14 @@
 
 package reboot
 
-import "fmt"
+import (
+	"errors"
+)
+
+var errSystemRebootIsOnlySupportedOn = errors.New("system reboot is only supported on Linux")
 
 // Reboot is not supported on non-Linux platforms.
 // Ze targets Linux (including gokrazy) for system reboot.
 func Reboot() error {
-	return fmt.Errorf("system reboot is only supported on Linux")
+	return errSystemRebootIsOnlySupportedOn
 }

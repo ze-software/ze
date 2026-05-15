@@ -11,10 +11,19 @@
 package selector
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
 	"strings"
+)
+
+var (
+	errEmptySelector                        = errors.New("empty selector")
+	errInvalidSelectorCannotExcludeAllPeers = errors.New("invalid selector: cannot exclude all peers")
+	errInvalidSelectorNegationWithMultiIp   = errors.New("invalid selector: negation with multi-IP not supported")
+	errInvalidSelectorEmptyExclude          = errors.New("invalid selector: empty exclude")
+	errInvalidSelectorEmptyIpInList         = errors.New("invalid selector: empty IP in list")
 )
 
 // Selector represents a peer selection pattern.
@@ -43,7 +52,7 @@ func Parse(s string) (*Selector, error) {
 	s = strings.TrimSpace(s)
 
 	if s == "" {
-		return nil, fmt.Errorf("empty selector")
+		return nil, errEmptySelector
 	}
 
 	if s == "*" {
@@ -51,14 +60,14 @@ func Parse(s string) (*Selector, error) {
 	}
 
 	if s == "!*" {
-		return nil, fmt.Errorf("invalid selector: cannot exclude all peers")
+		return nil, errInvalidSelectorCannotExcludeAllPeers
 	}
 
 	// Check for multi-IP (comma-separated) before checking negation
 	if strings.Contains(s, ",") {
 		// Negation with multi-IP not supported
 		if strings.HasPrefix(s, "!") {
-			return nil, fmt.Errorf("invalid selector: negation with multi-IP not supported")
+			return nil, errInvalidSelectorNegationWithMultiIp
 		}
 		return parseMultiIP(s)
 	}
@@ -66,7 +75,7 @@ func Parse(s string) (*Selector, error) {
 	if strings.HasPrefix(s, "!") {
 		rest := strings.TrimSpace(s[1:])
 		if rest == "" {
-			return nil, fmt.Errorf("invalid selector: empty exclude")
+			return nil, errInvalidSelectorEmptyExclude
 		}
 		ip, err := netip.ParseAddr(rest)
 		if err != nil {
@@ -90,7 +99,7 @@ func parseMultiIP(s string) (*Selector, error) {
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 		if part == "" {
-			return nil, fmt.Errorf("invalid selector: empty IP in list")
+			return nil, errInvalidSelectorEmptyIpInList
 		}
 		ip, err := netip.ParseAddr(part)
 		if err != nil {

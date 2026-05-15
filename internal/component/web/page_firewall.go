@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
@@ -59,8 +60,8 @@ func BuildFirewallTablesTableData(entries []tableEntry) WorkbenchTableData {
 			Cells: []string{
 				e.Name,
 				e.Family,
-				fmt.Sprintf("%d", e.ChainCount),
-				fmt.Sprintf("%d", e.SetCount),
+				strconv.Itoa(e.ChainCount),
+				strconv.Itoa(e.SetCount),
 			},
 			Actions: []WorkbenchRowAction{
 				{Label: "View Chains", URL: fmt.Sprintf("/show/firewall/chain/?table=%s", e.Name)},
@@ -163,7 +164,7 @@ func BuildFirewallChainsTableData(entries []chainEntry, filterTable string) Work
 	for _, ce := range entries {
 		priorityStr := "-"
 		if ce.IsBase {
-			priorityStr = fmt.Sprintf("%d", ce.Priority)
+			priorityStr = strconv.Itoa(int(ce.Priority))
 		}
 
 		rows = append(rows, WorkbenchTableRow{
@@ -176,7 +177,7 @@ func BuildFirewallChainsTableData(entries []chainEntry, filterTable string) Work
 				valueOrDash(ce.Hook),
 				priorityStr,
 				valueOrDash(ce.Policy),
-				fmt.Sprintf("%d", ce.RuleCount),
+				strconv.Itoa(ce.RuleCount),
 			},
 			Actions: []WorkbenchRowAction{
 				{Label: "View Rules", URL: fmt.Sprintf("/show/firewall/rule/?table=%s&chain=%s", ce.Table, ce.Name)},
@@ -283,8 +284,8 @@ func collectRules(filterTable, filterChain string) []ruleEntry {
 				// Look up counters for this term.
 				if tableCounters, ok := counterMap[tableName]; ok {
 					if tc, ok := tableCounters[term.Name]; ok {
-						re.Packets = fmt.Sprintf("%d", tc.Packets)
-						re.Bytes = fmt.Sprintf("%d", tc.Bytes)
+						re.Packets = strconv.Itoa(int(tc.Packets))
+						re.Bytes = strconv.Itoa(int(tc.Bytes))
 					}
 				}
 
@@ -354,7 +355,7 @@ func formatPortRanges(ranges []firewall.PortRange) string {
 	parts := make([]string, 0, len(ranges))
 	for _, r := range ranges {
 		if r.Lo == r.Hi {
-			parts = append(parts, fmt.Sprintf("%d", r.Lo))
+			parts = append(parts, strconv.Itoa(int(r.Lo)))
 		} else {
 			parts = append(parts, fmt.Sprintf("%d-%d", r.Lo, r.Hi))
 		}
@@ -472,7 +473,7 @@ func BuildFirewallRulesTableData(entries []ruleEntry, filterTable, filterChain s
 			Flags:     flagStr,
 			FlagClass: flagClass,
 			Cells: []string{
-				fmt.Sprintf("%d", re.Order),
+				strconv.Itoa(re.Order),
 				flagStr,
 				re.Chain,
 				re.Match,
@@ -607,7 +608,7 @@ func BuildFirewallSetsTableData(entries []setEntry) WorkbenchTableData {
 				se.Name,
 				se.Type,
 				se.Flags,
-				fmt.Sprintf("%d", se.ElementCount),
+				strconv.Itoa(se.ElementCount),
 			},
 			Actions: []WorkbenchRowAction{
 				{Label: "View Elements", URL: fmt.Sprintf("/show/firewall/table/%s/set/%s/", se.Table, se.Name)},

@@ -7,6 +7,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	"strings"
@@ -18,6 +19,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+var errNewKeyMustDifferFromCurrent = errors.New("new key must differ from current key")
 
 var draftLogger = slogutil.Logger("cli.editor.draft")
 
@@ -156,7 +159,7 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 	// Verify path exists in in-memory tree before mutating.
 	target := walkPath(e.tree, e.schema, path)
 	if target == nil {
-		return fmt.Errorf("path not found")
+		return errPathNotFound
 	}
 
 	// Read change file.
@@ -214,7 +217,7 @@ func (e *Editor) writeThroughRename(parentPath []string, listName, oldKey, newKe
 	guard.SetModifier(e.session.ID)
 
 	if oldKey == newKey {
-		return fmt.Errorf("new key must differ from current key")
+		return errNewKeyMustDifferFromCurrent
 	}
 
 	working := e.tree.Clone()
@@ -225,7 +228,7 @@ func (e *Editor) writeThroughRename(parentPath []string, listName, oldKey, newKe
 		validateTarget = walkPath(working, e.schema, parentPath)
 	}
 	if validateTarget == nil {
-		return fmt.Errorf("path not found")
+		return errPathNotFound
 	}
 	if err := validateTarget.RenameListEntry(listName, oldKey, newKey); err != nil {
 		return err
@@ -281,7 +284,7 @@ func (e *Editor) writeThroughRename(parentPath []string, listName, oldKey, newKe
 		target = walkPath(e.tree, e.schema, parentPath)
 	}
 	if target == nil {
-		return fmt.Errorf("path not found")
+		return errPathNotFound
 	}
 	if err := target.RenameListEntry(listName, oldKey, newKey); err != nil {
 		return err
@@ -322,7 +325,7 @@ func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*c
 // Creates a new draft (base + own changes), then deletes the change file.
 func (e *Editor) SaveDraft() error {
 	if e.session == nil {
-		return fmt.Errorf("no session set")
+		return errNoSessionSet
 	}
 
 	guard, err := e.store.AcquireLock(e.originalPath)
@@ -686,7 +689,7 @@ func (e *Editor) readCommittedTree(guard storage.WriteGuard) *config.Tree {
 // Used when a user reconnects and wants to take over an orphaned session's changes.
 func (e *Editor) AdoptSession(oldSessionID string) error {
 	if e.session == nil {
-		return fmt.Errorf("no session set")
+		return errNoSessionSet
 	}
 
 	guard, err := e.store.AcquireLock(e.originalPath)

@@ -17,9 +17,17 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+)
+
+var (
+	errMissingConfigVerbExpectedConfigVerb = errors.New("missing config verb, expected /config/<verb>/<path>")
+	errEmptyPathSegmentDoubleSlash         = errors.New("empty path segment (double slash)")
+	errPathTraversalNotAllowed             = errors.New("path traversal not allowed")
+	errNullByteInPathSegment               = errors.New("null byte in path segment")
 )
 
 // Tier represents the authorization tier of a request.
@@ -145,7 +153,7 @@ func ParseURL(r *http.Request) (ParsedURL, error) {
 // parseConfigURL handles /config/<verb>/<yang-path> URLs.
 func parseConfigURL(segments []string, format string) (ParsedURL, error) {
 	if len(segments) == 0 {
-		return ParsedURL{}, fmt.Errorf("missing config verb, expected /config/<verb>/<path>")
+		return ParsedURL{}, errMissingConfigVerbExpectedConfigVerb
 	}
 
 	verb := segments[0]
@@ -167,13 +175,13 @@ func parseConfigURL(segments []string, format string) (ParsedURL, error) {
 func ValidatePathSegments(segments []string) error {
 	for _, seg := range segments {
 		if seg == "" {
-			return fmt.Errorf("empty path segment (double slash)")
+			return errEmptyPathSegmentDoubleSlash
 		}
 		if seg == ".." {
-			return fmt.Errorf("path traversal not allowed")
+			return errPathTraversalNotAllowed
 		}
 		if strings.ContainsRune(seg, 0) {
-			return fmt.Errorf("null byte in path segment")
+			return errNullByteInPathSegment
 		}
 		for _, ch := range seg {
 			if !isYANGIdentChar(ch) {

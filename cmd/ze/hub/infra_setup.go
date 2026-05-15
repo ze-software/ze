@@ -5,6 +5,7 @@ package hub
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -22,6 +23,8 @@ import (
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+var errNoCommandProvided = errors.New("no command provided")
 
 // buildAAABundle composes the AAA bundle through the pluggable backend
 // registry. The hub does not import any backend package by name: every
@@ -214,7 +217,7 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 				sshSrv.SetStreamingExecutorFactory(func(username, remoteAddr string) zessh.StreamingExecutor {
 					return func(ctx context.Context, w io.Writer, args []string) error {
 						if len(args) == 0 {
-							return fmt.Errorf("no command provided")
+							return errNoCommandProvided
 						}
 						input := args[0]
 						cmdCtx := &pluginserver.CommandContext{

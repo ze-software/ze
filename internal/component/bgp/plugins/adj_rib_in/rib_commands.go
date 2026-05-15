@@ -5,12 +5,20 @@ package adj_rib_in
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+)
+
+var (
+	errAdjRibInReplayRequiresTarget         = errors.New("adj-rib-in replay requires target peer address")
+	errAcceptRoutesRequiresPeerFamilyPrefix = errors.New("accept-routes requires: <peer> <family> <prefix> <pathID> <state>")
+	errRejectRoutesRequiresPeerFamilyPrefix = errors.New("reject-routes requires: <peer> <family> <prefix> <pathID>")
+	errRevalidateRequiresFamilyPrefix       = errors.New("revalidate requires: <family> <prefix>")
 )
 
 // handleCommand processes command requests via SDK execute-command callback.
@@ -101,7 +109,7 @@ func (r *AdjRIBInManager) showJSON(selector string) string {
 func (r *AdjRIBInManager) replayCommand(selector string) (string, string, error) {
 	parts := strings.Fields(selector)
 	if len(parts) == 0 {
-		return statusError, "", fmt.Errorf("adj-rib-in replay requires target peer address")
+		return statusError, "", errAdjRibInReplayRequiresTarget
 	}
 
 	targetPeer := parts[0]
@@ -141,7 +149,7 @@ func (r *AdjRIBInManager) enableValidationCommand() (string, string, error) {
 func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, string, error) {
 	parts := strings.Fields(selector)
 	if len(parts) < 5 {
-		return statusError, "", fmt.Errorf("accept-routes requires: <peer> <family> <prefix> <pathID> <state>")
+		return statusError, "", errAcceptRoutesRequiresPeerFamilyPrefix
 	}
 
 	peerAddr := parts[0]
@@ -177,7 +185,7 @@ func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, string, 
 func (r *AdjRIBInManager) rejectRoutesCommand(selector string) (string, string, error) {
 	parts := strings.Fields(selector)
 	if len(parts) < 4 {
-		return statusError, "", fmt.Errorf("reject-routes requires: <peer> <family> <prefix> <pathID>")
+		return statusError, "", errRejectRoutesRequiresPeerFamilyPrefix
 	}
 
 	peerAddr := parts[0]
@@ -208,7 +216,7 @@ func (r *AdjRIBInManager) rejectRoutesCommand(selector string) (string, string, 
 func (r *AdjRIBInManager) revalidateCommand(selector string) (string, string, error) {
 	parts := strings.Fields(selector)
 	if len(parts) < 2 {
-		return statusError, "", fmt.Errorf("revalidate requires: <family> <prefix>")
+		return statusError, "", errRevalidateRequiresFamilyPrefix
 	}
 
 	famStr := parts[0]

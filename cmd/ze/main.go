@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -79,6 +80,11 @@ import (
 	// Import all AAA backends so their init() fires and aaa.Default
 	// contains the backend factories before the hub calls aaa.Default.Build.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/aaa/all"
+)
+
+var (
+	errAuthRejected           = errors.New("auth rejected")
+	errHubReturnedEmptyConfig = errors.New("hub returned empty config")
 )
 
 // Env var registrations for storage and config.
@@ -909,7 +915,7 @@ func fetchInitialConfig(server, name, token string) ([]byte, error) {
 	// Parse: #<id> <verb> [payload]. Verb must be "ok".
 	_, verb, _, parseErr := rpc.ParseLine(authLine)
 	if parseErr != nil || verb != "ok" {
-		return nil, fmt.Errorf("auth rejected")
+		return nil, errAuthRejected
 	}
 
 	rc := rpc.NewConn(conn, conn)
@@ -922,7 +928,7 @@ func fetchInitialConfig(server, name, token string) ([]byte, error) {
 	}
 
 	if resp.Config == "" {
-		return nil, fmt.Errorf("hub returned empty config")
+		return nil, errHubReturnedEmptyConfig
 	}
 
 	data, err := base64.StdEncoding.DecodeString(resp.Config)
@@ -1121,7 +1127,7 @@ func printPlugins(jsonOutput bool) {
 		if len(info.Capabilities) > 0 {
 			capStrs := make([]string, len(info.Capabilities))
 			for i, c := range info.Capabilities {
-				capStrs[i] = fmt.Sprintf("%d", c)
+				capStrs[i] = strconv.Itoa(c)
 			}
 			caps = strings.Join(capStrs, ", ")
 		}

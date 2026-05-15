@@ -11,6 +11,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
 )
 
+var (
+	errFilterDscpNotSupportedByBackend     = errors.New("filter dscp: not supported by backend vpp (deferred: VPP QoS record+mark pipeline not yet implemented)")
+	errFilterProtocolNotSupportedByBackend = errors.New("filter protocol: not supported by backend vpp (deferred: VPP classify table attachment not yet implemented)")
+	errFilterMarkNotSupportedByBackend     = errors.New("filter mark: not supported by backend vpp (VPP classifier matches packet-header bytes, not Linux SKB metadata)")
+)
+
 // maxPolicerNameLen is VPP's string[64] limit on policer names. The
 // backend uses the format "ze/<iface>/<class>"; if the resulting name
 // would exceed this, two classes could truncate to the same name and
@@ -170,11 +176,11 @@ func verifyQdiscType(q traffic.QdiscType) error {
 func verifyFilter(f traffic.TrafficFilter) error {
 	switch f.Type {
 	case traffic.FilterDSCP:
-		return fmt.Errorf("filter dscp: not supported by backend vpp (deferred: VPP QoS record+mark pipeline not yet implemented)")
+		return errFilterDscpNotSupportedByBackend
 	case traffic.FilterProtocol:
-		return fmt.Errorf("filter protocol: not supported by backend vpp (deferred: VPP classify table attachment not yet implemented)")
+		return errFilterProtocolNotSupportedByBackend
 	case traffic.FilterMark:
-		return fmt.Errorf("filter mark: not supported by backend vpp (VPP classifier matches packet-header bytes, not Linux SKB metadata)")
+		return errFilterMarkNotSupportedByBackend
 	}
 	// Fallthrough for an enum value outside the known set. Use the
 	// numeric type code directly because FilterType.String() returns

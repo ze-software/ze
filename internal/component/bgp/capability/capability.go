@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
@@ -521,7 +522,7 @@ func (g *GracefulRestart) WriteTo(buf []byte, off int) int {
 // Returns scoped keys per RFC 4724.
 func (g *GracefulRestart) ConfigValues() map[string]string {
 	return map[string]string{
-		"rfc4724:restart-time": fmt.Sprintf("%d", g.RestartTime),
+		"rfc4724:restart-time": strconv.Itoa(int(g.RestartTime)),
 	}
 }
 

@@ -6,15 +6,18 @@ package role
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 )
+
+var errEmptyRoleCapability = errors.New("empty Role capability")
 
 // decodeRole decodes a Role capability wire value.
 // RFC 9234 Section 4.1: Capability length MUST be 1.
 func decodeRole(data []byte) (string, error) {
 	if len(data) == 0 {
-		return "", fmt.Errorf("empty Role capability")
+		return "", errEmptyRoleCapability
 	}
 	if len(data) != 1 {
 		return "", fmt.Errorf("invalid Role capability length: want 1, got %d", len(data))

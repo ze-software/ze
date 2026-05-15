@@ -3,11 +3,16 @@
 package commit
 
 import (
-	"fmt"
+	"errors"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+)
+
+var (
+	errReactorNotAvailable    = errors.New("reactor not available")
+	errBgpReactorNotAvailable = errors.New("BGP reactor not available")
 )
 
 // requireBGPReactor returns the reactor as a BGPReactor or an error response.
@@ -19,14 +24,14 @@ func requireBGPReactor(ctx *pluginserver.CommandContext) (bgptypes.BGPReactor, *
 		return nil, &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "reactor not available",
-		}, fmt.Errorf("reactor not available")
+		}, errReactorNotAvailable
 	}
 	bgp, ok := r.(bgptypes.BGPReactor)
 	if !ok {
 		return nil, &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "BGP reactor not available",
-		}, fmt.Errorf("BGP reactor not available")
+		}, errBgpReactorNotAvailable
 	}
 	return bgp, nil, nil
 }

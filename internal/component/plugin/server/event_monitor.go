@@ -6,6 +6,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -13,6 +14,19 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+)
+
+var (
+	errDuplicateKeywordInclude               = errors.New("duplicate keyword: include")
+	errIncludeAndExcludeAreMutuallyExclusive = errors.New("include and exclude are mutually exclusive")
+	errIncludeRequiresACommaSeparatedList    = errors.New("include requires a comma-separated list of event types")
+	errDuplicateKeywordExclude               = errors.New("duplicate keyword: exclude")
+	errExcludeRequiresACommaSeparatedList    = errors.New("exclude requires a comma-separated list of event types")
+	errDuplicateKeywordPeer                  = errors.New("duplicate keyword: peer")
+	errPeerRequiresASelectorIpName           = errors.New("peer requires a selector (IP, name, or !exclusion)")
+	errDuplicateKeywordDirection             = errors.New("duplicate keyword: direction")
+	errDirectionRequiresReceivedOrSent       = errors.New("direction requires 'received' or 'sent'")
+	errEmptyEventTypeInListCheck             = errors.New("empty event type in list (check for trailing comma)")
 )
 
 // EventMonitorOpts holds parsed arguments for the event monitor command.
@@ -88,15 +102,15 @@ func ParseEventMonitorArgs(args []string) (*EventMonitorOpts, error) {
 
 		if kw == "include" {
 			if seen["include"] {
-				return nil, fmt.Errorf("duplicate keyword: include")
+				return nil, errDuplicateKeywordInclude
 			}
 			if seen["exclude"] {
-				return nil, fmt.Errorf("include and exclude are mutually exclusive")
+				return nil, errIncludeAndExcludeAreMutuallyExclusive
 			}
 			seen["include"] = true
 			i++
 			if i >= len(args) {
-				return nil, fmt.Errorf("include requires a comma-separated list of event types")
+				return nil, errIncludeRequiresACommaSeparatedList
 			}
 			types, err := parseEventTypeList(args[i])
 			if err != nil {
@@ -108,15 +122,15 @@ func ParseEventMonitorArgs(args []string) (*EventMonitorOpts, error) {
 
 		if kw == "exclude" {
 			if seen["exclude"] {
-				return nil, fmt.Errorf("duplicate keyword: exclude")
+				return nil, errDuplicateKeywordExclude
 			}
 			if seen["include"] {
-				return nil, fmt.Errorf("include and exclude are mutually exclusive")
+				return nil, errIncludeAndExcludeAreMutuallyExclusive
 			}
 			seen["exclude"] = true
 			i++
 			if i >= len(args) {
-				return nil, fmt.Errorf("exclude requires a comma-separated list of event types")
+				return nil, errExcludeRequiresACommaSeparatedList
 			}
 			types, err := parseEventTypeList(args[i])
 			if err != nil {
@@ -128,12 +142,12 @@ func ParseEventMonitorArgs(args []string) (*EventMonitorOpts, error) {
 
 		if kw == kwPeer {
 			if seen[kwPeer] {
-				return nil, fmt.Errorf("duplicate keyword: peer")
+				return nil, errDuplicateKeywordPeer
 			}
 			seen[kwPeer] = true
 			i++
 			if i >= len(args) {
-				return nil, fmt.Errorf("peer requires a selector (IP, name, or !exclusion)")
+				return nil, errPeerRequiresASelectorIpName
 			}
 			peer := args[i]
 			if peer == "" || peer == "!" || peer == "!!" {
@@ -148,12 +162,12 @@ func ParseEventMonitorArgs(args []string) (*EventMonitorOpts, error) {
 
 		if kw == kwDirection {
 			if seen[kwDirection] {
-				return nil, fmt.Errorf("duplicate keyword: direction")
+				return nil, errDuplicateKeywordDirection
 			}
 			seen[kwDirection] = true
 			i++
 			if i >= len(args) {
-				return nil, fmt.Errorf("direction requires 'received' or 'sent'")
+				return nil, errDirectionRequiresReceivedOrSent
 			}
 			d := strings.ToLower(args[i])
 			if d != events.DirectionReceived && d != events.DirectionSent {
@@ -177,7 +191,7 @@ func parseEventTypeList(raw string) ([]string, error) {
 	for _, p := range parts {
 		t := strings.TrimSpace(p)
 		if t == "" {
-			return nil, fmt.Errorf("empty event type in list (check for trailing comma)")
+			return nil, errEmptyEventTypeInListCheck
 		}
 		if err := validateEventTypeAnyNamespace(t); err != nil {
 			return nil, err

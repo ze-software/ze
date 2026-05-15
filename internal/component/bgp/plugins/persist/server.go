@@ -6,7 +6,7 @@ package persist
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"log/slog"
 	"maps"
 	"net"
@@ -28,6 +28,16 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+)
+
+var (
+	errMissingPeerPrefix    = errors.New("missing peer prefix")
+	errMissingPeerAddress   = errors.New("missing peer address")
+	errMissingRemoteKeyword = errors.New("missing remote keyword")
+	errMissingAsKeyword     = errors.New("missing as keyword")
+	errMissingAsnValue      = errors.New("missing asn value")
+	errMissingDispatchToken = errors.New("missing dispatch token")
+	errMissingEventType     = errors.New("missing event type")
 )
 
 // persistMetrics holds Prometheus metrics for the persist plugin.
@@ -690,29 +700,29 @@ func quickParsePersistEvent(text string) (string, uint64, string, string, error)
 
 	// peer
 	if tok, ok := s.Next(); !ok || tok != "peer" {
-		return "", 0, "", "", fmt.Errorf("missing peer prefix")
+		return "", 0, "", "", errMissingPeerPrefix
 	}
 	// <addr>
 	peerAddr, ok := s.Next()
 	if !ok {
-		return "", 0, "", "", fmt.Errorf("missing peer address")
+		return "", 0, "", "", errMissingPeerAddress
 	}
 	// remote as
 	if tok, ok := s.Next(); !ok || tok != "remote" {
-		return "", 0, "", "", fmt.Errorf("missing remote keyword")
+		return "", 0, "", "", errMissingRemoteKeyword
 	}
 	if tok, ok := s.Next(); !ok || tok != "as" {
-		return "", 0, "", "", fmt.Errorf("missing as keyword")
+		return "", 0, "", "", errMissingAsKeyword
 	}
 	// <n>
 	if _, ok := s.Next(); !ok {
-		return "", 0, "", "", fmt.Errorf("missing asn value")
+		return "", 0, "", "", errMissingAsnValue
 	}
 
 	// Next token: "state" or <direction>
 	dispatchTok, ok := s.Next()
 	if !ok {
-		return "", 0, "", "", fmt.Errorf("missing dispatch token")
+		return "", 0, "", "", errMissingDispatchToken
 	}
 	if dispatchTok == persistEventState {
 		return persistEventState, 0, peerAddr, text, nil
@@ -721,7 +731,7 @@ func quickParsePersistEvent(text string) (string, uint64, string, string, error)
 	// <direction> was consumed, next is <type> <id>
 	eventType, ok := s.Next()
 	if !ok {
-		return "", 0, "", "", fmt.Errorf("missing event type")
+		return "", 0, "", "", errMissingEventType
 	}
 	idStr, ok := s.Next()
 	if !ok {

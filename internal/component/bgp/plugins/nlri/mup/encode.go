@@ -6,6 +6,7 @@ package mup
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -14,6 +15,24 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+)
+
+var (
+	errRouteTypeRequiresValue  = errors.New("route-type requires value")
+	errRdRequiresValue         = errors.New("rd requires value")
+	errPrefixRequiresValue     = errors.New("prefix requires value")
+	errAddressRequiresValue    = errors.New("address requires value")
+	errTeidRequiresValue       = errors.New("teid requires value")
+	errQfiRequiresValue        = errors.New("qfi requires value")
+	errEndpointRequiresValue   = errors.New("endpoint requires value")
+	errSourceRequiresValue     = errors.New("source requires value")
+	errIpv6RequiresValue       = errors.New("ipv6 requires value")
+	errRouteTypeRequiredForMup = errors.New("route-type required for MUP")
+	errMissingMupCommand       = errors.New("missing MUP command")
+	errMupIsdRequiresPrefix    = errors.New("MUP ISD requires prefix")
+	errMupDsdRequiresAddress   = errors.New("MUP DSD requires address")
+	errMupT1stRequiresPrefix   = errors.New("MUP T1ST requires prefix")
+	errMupT2stRequiresAddress  = errors.New("MUP T2ST requires address")
 )
 
 // mupParsed holds parsed route-type fields and computed data size.
@@ -45,37 +64,37 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 		case "route-type":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("route-type requires value")
+				return "", errRouteTypeRequiresValue
 			}
 			spec.RouteType = args[i]
 		case "rd":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("rd requires value")
+				return "", errRdRequiresValue
 			}
 			spec.RD = args[i]
 		case "prefix":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("prefix requires value")
+				return "", errPrefixRequiresValue
 			}
 			spec.Prefix = args[i]
 		case "address":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("address requires value")
+				return "", errAddressRequiresValue
 			}
 			spec.Address = args[i]
 		case "teid":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("teid requires value")
+				return "", errTeidRequiresValue
 			}
 			spec.TEID = args[i]
 		case "qfi":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("qfi requires value")
+				return "", errQfiRequiresValue
 			}
 			v, err := strconv.ParseUint(args[i], 10, 8)
 			if err != nil {
@@ -85,26 +104,26 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 		case "endpoint":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("endpoint requires value")
+				return "", errEndpointRequiresValue
 			}
 			spec.Endpoint = args[i]
 		case "source":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("source requires value")
+				return "", errSourceRequiresValue
 			}
 			spec.Source = args[i]
 		case "ipv6":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("ipv6 requires value")
+				return "", errIpv6RequiresValue
 			}
 			spec.IsIPv6 = args[i] == "true"
 		}
 	}
 
 	if spec.RouteType == "" {
-		return "", fmt.Errorf("route-type required for MUP")
+		return "", errRouteTypeRequiredForMup
 	}
 
 	// MUP NLRIs are small (max ~68 bytes for T1ST with IPv6).
@@ -127,7 +146,7 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 	// Parse route command
 	args := strings.Fields(routeCmd)
 	if len(args) < 1 {
-		return nil, nil, fmt.Errorf("missing MUP command")
+		return nil, nil, errMissingMupCommand
 	}
 
 	// Parse using API parser
@@ -253,7 +272,7 @@ func parseMUPRouteType(s string) (MUPRouteType, error) {
 // parseISDFields validates and computes size for ISD route type.
 func parseISDFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 	if spec.Prefix == "" {
-		return mupParsed{}, fmt.Errorf("MUP ISD requires prefix")
+		return mupParsed{}, errMupIsdRequiresPrefix
 	}
 	prefix, err := netip.ParsePrefix(spec.Prefix)
 	if err != nil {
@@ -265,7 +284,7 @@ func parseISDFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 // parseDSDFields validates and computes size for DSD route type.
 func parseDSDFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 	if spec.Address == "" {
-		return mupParsed{}, fmt.Errorf("MUP DSD requires address")
+		return mupParsed{}, errMupDsdRequiresAddress
 	}
 	addr, err := netip.ParseAddr(spec.Address)
 	if err != nil {
@@ -277,7 +296,7 @@ func parseDSDFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 // parseT1STFields validates and computes size for T1ST route type.
 func parseT1STFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 	if spec.Prefix == "" {
-		return mupParsed{}, fmt.Errorf("MUP T1ST requires prefix")
+		return mupParsed{}, errMupT1stRequiresPrefix
 	}
 	prefix, err := netip.ParsePrefix(spec.Prefix)
 	if err != nil {
@@ -323,7 +342,7 @@ func parseT1STFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 // parseT2STFields validates and computes size for T2ST route type.
 func parseT2STFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 	if spec.Address == "" {
-		return mupParsed{}, fmt.Errorf("MUP T2ST requires address")
+		return mupParsed{}, errMupT2stRequiresAddress
 	}
 	ep, err := netip.ParseAddr(spec.Address)
 	if err != nil {

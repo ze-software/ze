@@ -16,6 +16,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
+var errIfaceMirrorAtLeastOneOf = errors.New("iface: mirror: at least one of ingress or egress must be true")
+
 func isNotFound(err error) bool {
 	return err != nil && (errors.Is(err, unix.ENOENT) || errors.Is(err, unix.EINVAL) || strings.Contains(err.Error(), "no such"))
 }
@@ -28,7 +30,7 @@ func (b *netlinkBackend) SetupMirror(srcIface, dstIface string, ingress, egress 
 		return fmt.Errorf("iface: mirror: dst: %w", err)
 	}
 	if !ingress && !egress {
-		return fmt.Errorf("iface: mirror: at least one of ingress or egress must be true")
+		return errIfaceMirrorAtLeastOneOf
 	}
 
 	src, err := netlink.LinkByName(srcIface)

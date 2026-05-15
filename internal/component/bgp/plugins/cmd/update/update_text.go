@@ -42,6 +42,20 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 )
 
+var (
+	errMissingOriginValue            = errors.New("missing origin value")
+	errMissingLocalPreferenceValue   = errors.New("missing local-preference value")
+	errMissingMedValue               = errors.New("missing med value")
+	errMissingAsPathValue            = errors.New("missing as-path value")
+	errMissingCommunityValue         = errors.New("missing community value")
+	errMissingLargeCommunityValue    = errors.New("missing large-community value")
+	errMissingExtendedCommunityValue = errors.New("missing extended-community value")
+	errSetDelKeywordsRemovedUseNext  = errors.New("set/del keywords removed; use: next-hop <address|self>")
+	errSetDelKeywordsRemovedUseRd    = errors.New("set/del keywords removed; use: rd <value>")
+	errSetDelKeywordsRemovedUseLabel = errors.New("set/del keywords removed; use: label <value>")
+	errUsagePeerAddrUpdateTexthexb64 = errors.New("usage: peer <addr> update <text|hex|b64>")
+)
+
 // YANG schema paths for attribute validation.
 const (
 	yangPathOrigin    = "bgp/peer/update/attribute/origin"
@@ -202,7 +216,7 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 	switch key {
 	case kwOrigin:
 		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing origin value")
+			return 0, errMissingOriginValue
 		}
 		// YANG validation for origin enum (single source of truth)
 		if plugin.YANGValidator() != nil {
@@ -219,7 +233,7 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 
 	case "local-preference":
 		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing local-preference value")
+			return 0, errMissingLocalPreferenceValue
 		}
 		lp, err := strconv.ParseUint(args[idx+1], 10, 32)
 		if err != nil {
@@ -237,7 +251,7 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 
 	case "med":
 		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing med value")
+			return 0, errMissingMedValue
 		}
 		med, err := strconv.ParseUint(args[idx+1], 10, 32)
 		if err != nil {
@@ -255,7 +269,7 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 
 	case "as-path":
 		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing as-path value")
+			return 0, errMissingAsPathValue
 		}
 		tokens, consumed := parseBracketedListText(args[idx+1:])
 		asPath := make([]uint32, 0, len(tokens))
@@ -271,7 +285,7 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 
 	case kwCommunity:
 		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing community value")
+			return 0, errMissingCommunityValue
 		}
 		tokens, consumed := parseBracketedListText(args[idx+1:])
 		communities := make([]uint32, 0, len(tokens))
@@ -287,7 +301,7 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 
 	case kwLargeCommunity:
 		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing large-community value")
+			return 0, errMissingLargeCommunityValue
 		}
 		tokens, consumed := parseBracketedListText(args[idx+1:])
 		lcs := make([]bgptypes.LargeCommunity, 0, len(tokens))
@@ -303,7 +317,7 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 
 	case kwExtendedCommunity:
 		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing extended-community value")
+			return 0, errMissingExtendedCommunityValue
 		}
 		// Use route.ParseExtendedCommunities which handles both function syntax
 		// (traffic-rate, discard, redirect, traffic-marking) and list syntax.
@@ -581,7 +595,7 @@ func parseNhopFlat(args []string, accum *parsedAttrs) (int, error) {
 	}
 	// Reject old set/del syntax.
 	if args[1] == kwSet || args[1] == kwDel {
-		return 0, fmt.Errorf("set/del keywords removed; use: next-hop <address|self>")
+		return 0, errSetDelKeywordsRemovedUseNext
 	}
 	value := args[1]
 	if value == kwSelf {
@@ -606,7 +620,7 @@ func parseRDFlat(args []string, accum *parsedAttrs) (int, error) {
 		return 0, errors.New("rd requires a value (ASN:NN or IP:NN)")
 	}
 	if args[1] == kwSet || args[1] == kwDel {
-		return 0, fmt.Errorf("set/del keywords removed; use: rd <value>")
+		return 0, errSetDelKeywordsRemovedUseRd
 	}
 	rd, err := nlri.ParseRDString(args[1])
 	if err != nil {
@@ -624,7 +638,7 @@ func parseLabelFlat(args []string, accum *parsedAttrs) (int, error) {
 		return 0, errors.New("label requires a value (0-1048575)")
 	}
 	if args[1] == kwSet || args[1] == kwDel {
-		return 0, fmt.Errorf("set/del keywords removed; use: label <value>")
+		return 0, errSetDelKeywordsRemovedUseLabel
 	}
 	label, err := strconv.ParseUint(args[1], 10, 32)
 	if err != nil {
@@ -652,7 +666,7 @@ func handleUpdate(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 	}
 
 	if len(args) < 1 {
-		return nil, fmt.Errorf("usage: peer <addr> update <text|hex|b64>")
+		return nil, errUsagePeerAddrUpdateTexthexb64
 	}
 
 	encoding := strings.ToLower(args[0])

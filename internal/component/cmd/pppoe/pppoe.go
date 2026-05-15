@@ -20,6 +20,11 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/schema"     // register ze-pppoe-api.yang
 )
 
+var (
+	errPppoeMissingSessionIdArgument  = errors.New("pppoe: missing session-id argument")
+	errPppoeInvalidSessionId0Reserved = errors.New("pppoe: invalid session-id 0 (reserved by RFC 2516)")
+)
+
 var errSubsystemUnavailable = errors.New("pppoe: subsystem not running")
 
 func init() {
@@ -147,14 +152,14 @@ func parseIDArg(args []string) (uint16, error) {
 		break
 	}
 	if raw == "" {
-		return 0, fmt.Errorf("pppoe: missing session-id argument")
+		return 0, errPppoeMissingSessionIdArgument
 	}
 	n, err := strconv.ParseUint(raw, 10, 16)
 	if err != nil {
 		return 0, fmt.Errorf("pppoe: invalid session-id %q: %w", raw, err)
 	}
 	if n == 0 {
-		return 0, fmt.Errorf("pppoe: invalid session-id 0 (reserved by RFC 2516)")
+		return 0, errPppoeInvalidSessionId0Reserved
 	}
 	return uint16(n), nil
 }

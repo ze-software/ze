@@ -7,6 +7,7 @@ package web
 import (
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -15,6 +16,11 @@ import (
 	"unicode/utf8"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
+)
+
+var (
+	errMissingSessionId     = errors.New("missing session ID")
+	errSessionId0IsReserved = errors.New("session ID 0 is reserved")
 )
 
 // L2TPHandlers holds the dependencies for L2TP web UI handlers.
@@ -433,14 +439,14 @@ func parseL2TPID(r *http.Request) (uint16, error) {
 	path = strings.TrimSuffix(path, "/")
 	parts := strings.SplitN(path, "/", 2)
 	if len(parts) == 0 || parts[0] == "" {
-		return 0, fmt.Errorf("missing session ID")
+		return 0, errMissingSessionId
 	}
 	n, err := strconv.ParseUint(parts[0], 10, 16)
 	if err != nil {
 		return 0, fmt.Errorf("invalid session ID: %w", err)
 	}
 	if n == 0 {
-		return 0, fmt.Errorf("session ID 0 is reserved")
+		return 0, errSessionId0IsReserved
 	}
 	return uint16(n), nil
 }

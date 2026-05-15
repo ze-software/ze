@@ -7,13 +7,18 @@
 package flowspec
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
+
+var errNoValidComponentsInJson = errors.New("no valid components in JSON")
 
 // isValidFlowSpecFamily checks if family is a FlowSpec family.
 func isValidFlowSpecFamily(family string) bool {
@@ -155,7 +160,8 @@ func componentToJSON(comp FlowComponent, isIPv6 bool) (string, [][]string) {
 		return "flow-label", formatNumericMatches(comp, compType)
 
 	default: // unknown component type — format as type-N
-		return fmt.Sprintf("type-%d", compType), [][]string{}
+		var b textbuf.Buffer
+		return b.Str("type-").Uint8(uint8(compType)).String(), [][]string{}
 	}
 }
 
@@ -171,7 +177,8 @@ func formatPrefixWithOffset(comp FlowComponent) string {
 		offset = oc.Offset()
 	}
 
-	return fmt.Sprintf("%s/%d", prefix, offset)
+	var b textbuf.Buffer
+	return b.Str(prefix).Byte('/').Uint8(offset).String()
 }
 
 // protocolNumberToName maps protocol numbers to names for output.
@@ -231,7 +238,7 @@ func formatNumericValue(m FlowMatch, compType FlowComponentType) string {
 	}
 
 	// Format with operator prefix
-	return formatWithOperator(fmt.Sprintf("%d", m.Value), m.Op)
+	return formatWithOperator(textbuf.Uint(m.Value), m.Op)
 }
 
 // formatWithOperator adds operator prefix to a value string.
@@ -327,7 +334,8 @@ func formatBitmaskValue(m FlowMatch, flagMap map[uint8]string) []string {
 	}
 
 	if len(names) == 0 {
-		return []string{fmt.Sprintf("%s%d", prefix, flags)}
+		var b textbuf.Buffer
+		return []string{b.Str(prefix).Uint8(flags).String()}
 	}
 
 	// Prefix only on first flag, rest are bare names
@@ -388,11 +396,22 @@ func formatComponentValue(_ string, val any) string {
 	case []string:
 		return strings.Join(v, ",")
 	case float64:
-		return fmt.Sprintf("%.0f", v)
+		return strconv.FormatFloat(v, 'f', 0, 64)
 	case int:
-		return fmt.Sprintf("%d", v)
+		return strconv.Itoa(v)
+	case uint64:
+		return textbuf.Uint(v)
+	case uint32:
+		return textbuf.Uint32(v)
+	case [][]string:
+		var parts []string
+		for _, group := range v {
+			parts = append(parts, strings.Join(group, " "))
+		}
+		return strings.Join(parts, " ")
+	default:
+		return fmt.Sprint(val)
 	}
-	return fmt.Sprintf("%v", val)
 }
 
 // formatNestedValues formats FlowSpec nested array values.
@@ -405,7 +424,7 @@ func formatNestedValues(vals []any) string {
 			// Inner array - AND group
 			andParts := make([]string, 0, len(inner))
 			for _, item := range inner {
-				andParts = append(andParts, fmt.Sprintf("%v", item))
+				andParts = append(andParts, formatComponentValue("", item))
 			}
 			parts = append(parts, strings.Join(andParts, "&"))
 		case string:
@@ -522,7 +541,7 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 	}
 
 	if len(args) == 0 {
-		return nil, fmt.Errorf("no valid components in JSON")
+		return nil, errNoValidComponentsInJson
 	}
 
 	return args, nil

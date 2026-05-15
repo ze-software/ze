@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -23,6 +24,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
+
+var errServerNotReady = errors.New("server not ready")
 
 // apiServers holds running API servers for shutdown.
 type apiServers struct {
@@ -212,7 +215,7 @@ func apiExecutor(s *pluginserver.Server) api.Executor {
 	return func(ctx context.Context, auth api.CallerIdentity, command string) (string, error) {
 		d := s.Dispatcher()
 		if d == nil {
-			return "", fmt.Errorf("server not ready")
+			return "", errServerNotReady
 		}
 		cmdCtx := &pluginserver.CommandContext{
 			Server:         s,
@@ -248,11 +251,11 @@ const (
 func apiStreamSource(s *pluginserver.Server) api.StreamSource {
 	return func(ctx context.Context, caller api.CallerIdentity, command string) (<-chan string, func(), error) {
 		if s == nil {
-			return nil, nil, fmt.Errorf("server not ready")
+			return nil, nil, errServerNotReady
 		}
 		d := s.Dispatcher()
 		if d == nil {
-			return nil, nil, fmt.Errorf("server not ready")
+			return nil, nil, errServerNotReady
 		}
 
 		handler, args := pluginserver.GetStreamingHandlerForCommand(command)

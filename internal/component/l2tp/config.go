@@ -4,6 +4,7 @@
 package l2tp
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -12,6 +13,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+)
+
+var (
+	errL2tpAuthMethodNoneRequiresAllow  = errors.New("l2tp auth-method none requires allow-no-auth true")
+	errL2tpHelloIntervalMustBe0         = errors.New("l2tp hello-interval: must be > 0")
+	errL2tpMaxLoginsMustBe1             = errors.New("l2tp max-logins: must be 1-1000000")
+	errL2tpEventRingSizePerSession      = errors.New("l2tp event-ring-size-per-session: must be 16-4096")
+	errL2tpSampleRetentionSecondsMustBe = errors.New("l2tp sample-retention-seconds: must be 100-86400")
 )
 
 // Env var registrations. Each YANG leaf under `environment/l2tp/` that has
@@ -161,7 +170,7 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 		p.AllowNoAuth = v == configTrue
 	}
 	if p.AuthMethod == ppp.AuthMethodNone && !p.AllowNoAuth {
-		return Parameters{}, fmt.Errorf("l2tp auth-method none requires allow-no-auth true")
+		return Parameters{}, errL2tpAuthMethodNoneRequiresAllow
 	}
 
 	if v, ok := l2tpRoot.Get("hello-interval"); ok {
@@ -170,7 +179,7 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("l2tp hello-interval: %w", err)
 		}
 		if n == 0 {
-			return Parameters{}, fmt.Errorf("l2tp hello-interval: must be > 0")
+			return Parameters{}, errL2tpHelloIntervalMustBe0
 		}
 		p.HelloInterval = time.Duration(n) * time.Second
 	}
@@ -190,7 +199,7 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("l2tp max-logins: %w", err)
 		}
 		if n == 0 || n > 1000000 {
-			return Parameters{}, fmt.Errorf("l2tp max-logins: must be 1-1000000")
+			return Parameters{}, errL2tpMaxLoginsMustBe1
 		}
 		p.MaxLogins = int(n)
 	}
@@ -201,7 +210,7 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("l2tp event-ring-size-per-session: %w", err)
 		}
 		if n < 16 || n > 4096 {
-			return Parameters{}, fmt.Errorf("l2tp event-ring-size-per-session: must be 16-4096")
+			return Parameters{}, errL2tpEventRingSizePerSession
 		}
 		p.EventRingSizePerSession = int(n)
 	}
@@ -212,7 +221,7 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("l2tp sample-retention-seconds: %w", err)
 		}
 		if n < 100 || n > 86400 {
-			return Parameters{}, fmt.Errorf("l2tp sample-retention-seconds: must be 100-86400")
+			return Parameters{}, errL2tpSampleRetentionSecondsMustBe
 		}
 		p.SampleRetentionSeconds = int(n)
 	}

@@ -6,6 +6,7 @@ package bgpconfig
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -13,6 +14,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/parse"
 )
+
+var errRawAttributeNeedsAtLeastCode = errors.New("raw attribute needs at least code and flags")
 
 // Origin represents the ORIGIN path attribute.
 // RFC 4271: 0=IGP, 1=EGP, 2=INCOMPLETE.
@@ -293,7 +296,7 @@ type RawAttribute struct {
 func ParseRawAttribute(s string) (RawAttribute, error) {
 	parts := strings.Fields(s)
 	if len(parts) < 2 {
-		return RawAttribute{}, fmt.Errorf("raw attribute needs at least code and flags")
+		return RawAttribute{}, errRawAttributeNeedsAtLeastCode
 	}
 
 	// Parse attribute type code

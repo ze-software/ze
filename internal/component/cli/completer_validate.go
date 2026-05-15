@@ -4,6 +4,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"slices"
@@ -12,6 +13,8 @@ import (
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 )
+
+var errNoSchemaLoaded = errors.New("no schema loaded")
 
 // isConfigFalse checks if any node in the path has config false set.
 // YANG config false is inherited: if a container is config false, all children are too.
@@ -34,10 +37,10 @@ func (c *Completer) isConfigFalse(path []string) bool {
 // Returns the leaf entry at the end of the path, or an error if the path is invalid.
 func (c *Completer) validateTokenPath(tokens []string) (*gyang.Entry, error) {
 	if c.loader == nil {
-		return nil, fmt.Errorf("no schema loaded")
+		return nil, errNoSchemaLoaded
 	}
 	if len(tokens) == 0 {
-		return nil, fmt.Errorf("empty path")
+		return nil, errEmptyPath
 	}
 
 	entry := c.findModuleEntry(tokens[0])

@@ -1,9 +1,9 @@
 // Design: docs/architecture/api/commands.md — BGP cache operation handlers
-// Overview: doc.go — bgp-cmd-cache plugin registration
 
 package cache
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,6 +11,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
+)
+
+var (
+	errMissingAction   = errors.New("missing action")
+	errMissingSelector = errors.New("missing selector")
 )
 
 func init() {
@@ -49,7 +54,7 @@ func handleBgpCache(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "usage: bgp cache <id> retain|release|expire|forward <sel>",
-		}, fmt.Errorf("missing action")
+		}, errMissingAction
 	}
 
 	action := args[1]
@@ -193,7 +198,7 @@ func handleBgpCacheForward(ctx *pluginserver.CommandContext, id uint64, args []s
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "usage: bgp cache <id> forward <selector>",
-		}, fmt.Errorf("missing selector")
+		}, errMissingSelector
 	}
 
 	sel, err := selector.Parse(args[0])

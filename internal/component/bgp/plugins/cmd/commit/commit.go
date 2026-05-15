@@ -16,6 +16,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
+var (
+	errMissingCommitArguments   = errors.New("missing commit arguments")
+	errMissingWithdrawArguments = errors.New("missing withdraw arguments")
+	errExpectedRouteKeyword     = errors.New("expected 'route' keyword")
+	errMissingPrefix            = errors.New("missing prefix")
+)
+
 // Sentinel errors for commit handlers.
 var (
 	// ErrCommitManagerNotAvailable is returned when the commit manager is nil.
@@ -73,7 +80,7 @@ func handleCommit(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "usage: commit <name> <start|end|eor|rollback|show> or commit list",
-		}, fmt.Errorf("missing commit arguments")
+		}, errMissingCommitArguments
 	}
 
 	// Guard reactor access
@@ -114,7 +121,7 @@ func handleCommit(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 			return &plugin.Response{
 				Status: plugin.StatusError,
 				Data:   "usage: commit <name> withdraw route <prefix>",
-			}, fmt.Errorf("missing withdraw arguments")
+			}, errMissingWithdrawArguments
 		}
 		return handleNamedCommitWithdraw(ctx, name, args[2:])
 	default: // unknown commit action — return explicit error
@@ -311,14 +318,14 @@ func handleNamedCommitWithdraw(ctx *pluginserver.CommandContext, name string, ar
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "usage: commit <name> withdraw route <prefix>",
-		}, fmt.Errorf("expected 'route' keyword")
+		}, errExpectedRouteKeyword
 	}
 
 	if len(args) < 2 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "usage: commit <name> withdraw route <prefix>",
-		}, fmt.Errorf("missing prefix")
+		}, errMissingPrefix
 	}
 
 	// Parse prefix

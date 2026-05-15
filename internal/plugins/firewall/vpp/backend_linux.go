@@ -6,6 +6,7 @@ package firewallvpp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -25,6 +26,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
 	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
 )
+
+var errVppComponentNotInitialized = errors.New("vpp component not initialized")
 
 const waitConnectedTimeout = 5 * time.Second
 const waitConnectorPoll = 50 * time.Millisecond
@@ -88,7 +91,7 @@ func (b *backend) Apply(desired []firewall.Table) error {
 
 func (b *backend) waitConnector(ctx context.Context) (*vppcomp.Connector, error) {
 	if b.connector == nil {
-		return nil, fmt.Errorf("vpp component not initialized")
+		return nil, errVppComponentNotInitialized
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

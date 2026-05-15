@@ -4,12 +4,16 @@
 package rpki
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 )
+
+var errRtrCacheResetReceivedWillDo = errors.New("rtr: cache reset received, will do full sync")
 
 // RTR session states.
 const (
@@ -90,7 +94,7 @@ func (s *RTRSession) stopped() bool {
 
 // connectAndSync establishes TCP connection and runs the RTR protocol.
 func (s *RTRSession) connectAndSync() error {
-	addr := net.JoinHostPort(s.address, fmt.Sprintf("%d", s.port))
+	addr := net.JoinHostPort(s.address, strconv.Itoa(int(s.port)))
 	dialer := &net.Dialer{Timeout: 30 * time.Second}
 	conn, err := dialer.Dial("tcp", addr)
 	if err != nil {
@@ -254,7 +258,7 @@ func (s *RTRSession) handlePDU(hdr RTRHeader, buf []byte) (bool, error) {
 		s.mu.Lock()
 		s.serial = 0
 		s.mu.Unlock()
-		return true, fmt.Errorf("rtr: cache reset received, will do full sync")
+		return true, errRtrCacheResetReceivedWillDo
 
 	case pduSerialNotify:
 		// Ignore during sync per RFC 8210 Section 7.

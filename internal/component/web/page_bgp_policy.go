@@ -7,6 +7,7 @@ package web
 import (
 	"fmt"
 	"html/template"
+	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
@@ -124,7 +125,7 @@ func BuildBGPPolicyTableData(entries []policyEntry) WorkbenchTableData {
 			Cells: []string{
 				pe.Name,
 				pe.Type,
-				fmt.Sprintf("%d", pe.RuleCount),
+				strconv.Itoa(pe.RuleCount),
 			},
 			Actions: []WorkbenchRowAction{
 				{Label: "Edit", URL: fmt.Sprintf("/show/bgp/policy/%s/", pe.Name)},

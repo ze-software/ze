@@ -4,11 +4,14 @@
 package bgpconfig
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
+
+var errFlowspecNlriRequiresMatchCriteria = errors.New("flowspec nlri requires match criteria")
 
 // parseFlowSpecNLRILine parses a FlowSpec NLRI line like:
 // "ipv4/flow source-ipv4 10.0.0.1/32 destination-port =80 protocol =tcp".
@@ -16,7 +19,7 @@ import (
 func parseFlowSpecNLRILine(line string, attr *config.Tree) (FlowSpecRouteConfig, error) {
 	parts := strings.Fields(line)
 	if len(parts) < 2 {
-		return FlowSpecRouteConfig{}, fmt.Errorf("flowspec nlri requires match criteria")
+		return FlowSpecRouteConfig{}, errFlowspecNlriRequiresMatchCriteria
 	}
 
 	fam := parts[0]

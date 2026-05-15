@@ -25,6 +25,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
+var errSessionIdRequired = errors.New("session ID required")
+
 var logger = slogutil.Logger("api.rest")
 
 // maxRequestBody limits the size of request bodies (1 MB).
@@ -738,7 +740,7 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 // Session IDs are 16-char hex strings from generateSessionID.
 func validateSessionID(id string) error {
 	if id == "" {
-		return fmt.Errorf("session ID required")
+		return errSessionIdRequired
 	}
 	if strings.ContainsAny(id, "/ \t\n\r") {
 		return fmt.Errorf("invalid session ID: %q", id)

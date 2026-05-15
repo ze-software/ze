@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -322,8 +323,8 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 
 	ciDir := filepath.Dir(rec.CIFile)
 	for _, chk := range checks {
-		url := strings.ReplaceAll(chk.URL, "$PORT2", fmt.Sprintf("%d", rec.Port+1))
-		url = strings.ReplaceAll(url, "$PORT", fmt.Sprintf("%d", rec.Port))
+		url := strings.ReplaceAll(chk.URL, "$PORT2", strconv.Itoa(rec.Port+1))
+		url = strings.ReplaceAll(url, "$PORT", strconv.Itoa(rec.Port))
 		// Resolve bodyfile and sendfile paths relative to .ci file directory.
 		if chk.BodyFile != "" && !filepath.IsAbs(chk.BodyFile) {
 			chk.BodyFile = filepath.Join(ciDir, chk.BodyFile)
@@ -453,8 +454,8 @@ func (r *Runner) executeHTTPWaits(ctx context.Context, rec *Record) error {
 	client := &http.Client{Timeout: 5 * time.Second}
 
 	for _, w := range waits {
-		url := strings.ReplaceAll(w.URL, "$PORT2", fmt.Sprintf("%d", rec.Port+1))
-		url = strings.ReplaceAll(url, "$PORT", fmt.Sprintf("%d", rec.Port))
+		url := strings.ReplaceAll(w.URL, "$PORT2", strconv.Itoa(rec.Port+1))
+		url = strings.ReplaceAll(url, "$PORT", strconv.Itoa(rec.Port))
 		if err := r.executeOneHTTPWait(ctx, client, w, url); err != nil {
 			return err
 		}

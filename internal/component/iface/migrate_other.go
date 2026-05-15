@@ -6,13 +6,15 @@
 package iface
 
 import (
-	"fmt"
+	"errors"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
+var errInterfaceMigrationIsOnlySupportedOn = errors.New("interface migration is only supported on Linux")
+
 // MigrateInterface is not supported on non-Linux platforms.
 func MigrateInterface(_ MigrateConfig, _ ze.EventBus, _ time.Duration) error {
-	return fmt.Errorf("interface migration is only supported on Linux")
+	return errInterfaceMigrationIsOnlySupportedOn
 }

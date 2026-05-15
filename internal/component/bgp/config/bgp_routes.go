@@ -8,6 +8,7 @@
 package bgpconfig
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -16,6 +17,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
+
+var errMissingNlriBlockInUpdate = errors.New("missing nlri block in update")
 
 // NLRI operation keywords.
 const (
@@ -135,7 +138,7 @@ func extractRoutesFromUpdateBlock(update *config.Tree) (*UpdateBlockRoutes, erro
 	// Parse nlri list entries - each has key=family and content=operation+payload
 	nlriEntries := update.GetListOrdered("nlri")
 	if len(nlriEntries) == 0 {
-		return nil, fmt.Errorf("missing nlri block in update")
+		return nil, errMissingNlriBlockInUpdate
 	}
 
 	for _, nlriEntry := range nlriEntries {

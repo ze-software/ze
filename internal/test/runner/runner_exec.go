@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -22,6 +23,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/syslog"
 	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
 )
+
+var errEmptyExecCommand = errors.New("empty exec command")
 
 const modeForeground = "foreground"
 
@@ -148,8 +151,8 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		for path, content := range rec.TmpfsFiles {
 			// Expand $PORT2 before $PORT in tmpfs content (scripts, configs)
 			s := string(content)
-			s = strings.ReplaceAll(s, "$PORT2", fmt.Sprintf("%d", rec.Port+1))
-			s = strings.ReplaceAll(s, "$PORT", fmt.Sprintf("%d", rec.Port))
+			s = strings.ReplaceAll(s, "$PORT2", strconv.Itoa(rec.Port+1))
+			s = strings.ReplaceAll(s, "$PORT", strconv.Itoa(rec.Port))
 			v.AddFile(path, []byte(s))
 		}
 		tmpfsTempDir, cleanup, err := v.WriteToTemp()
@@ -191,7 +194,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	defer func() { _ = os.Remove(expectFile) }()
 
 	// Build peer args (ze-test peer ...)
-	peerArgs := []string{"peer", "--port", fmt.Sprintf("%d", rec.Port)}
+	peerArgs := []string{"peer", "--port", strconv.Itoa(rec.Port)}
 	if asn, ok := rec.Extra["asn"]; ok {
 		peerArgs = append(peerArgs, "--asn", asn)
 	}
@@ -468,13 +471,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// Execute commands in order
 	for cmdIdx, cmd := range cmds {
 		// Expand $PORT2 before $PORT to avoid partial match ("$PORT2" contains "$PORT")
-		execStr := strings.ReplaceAll(cmd.Exec, "$PORT2", fmt.Sprintf("%d", rec.Port+1))
-		execStr = strings.ReplaceAll(execStr, "$PORT", fmt.Sprintf("%d", rec.Port))
+		execStr := strings.ReplaceAll(cmd.Exec, "$PORT2", strconv.Itoa(rec.Port+1))
+		execStr = strings.ReplaceAll(execStr, "$PORT", strconv.Itoa(rec.Port))
 
 		// Parse command and args
 		cmdParts := strings.Fields(execStr)
 		if len(cmdParts) == 0 {
-			rec.Error = fmt.Errorf("empty exec command")
+			rec.Error = errEmptyExecCommand
 			return false
 		}
 
@@ -517,8 +520,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			}
 			// Expand $PORT2 before $PORT in stdin content (config files, scripts)
 			s := string(stdinContent)
-			s = strings.ReplaceAll(s, "$PORT2", fmt.Sprintf("%d", rec.Port+1))
-			s = strings.ReplaceAll(s, "$PORT", fmt.Sprintf("%d", rec.Port))
+			s = strings.ReplaceAll(s, "$PORT2", strconv.Itoa(rec.Port+1))
+			s = strings.ReplaceAll(s, "$PORT", strconv.Itoa(rec.Port))
 			stdinContent = []byte(s)
 		}
 

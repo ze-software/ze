@@ -10,11 +10,18 @@ package vpp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+)
+
+var (
+	errVppLcpNetnsMustNotBe           = errors.New("vpp lcp: netns must not be empty")
+	errVppConfigSectionMissingVppRoot = errors.New("vpp: config section missing 'vpp' root")
+	errVppMemoryBuffersMustBe0        = errors.New("vpp: memory buffers must be > 0")
 )
 
 // VPPSettings holds parsed VPP configuration from the YANG config tree.
@@ -107,7 +114,7 @@ func validateSocketPath(field, path string) error {
 // validateNetns checks that a network namespace name is reasonable.
 func validateNetns(name string) error {
 	if name == "" {
-		return fmt.Errorf("vpp lcp: netns must not be empty")
+		return errVppLcpNetnsMustNotBe
 	}
 	if strings.ContainsAny(name, "/\\") {
 		return fmt.Errorf("vpp lcp: netns must not contain path separators, got %q", name)
@@ -167,7 +174,7 @@ func ParseConfigSection(data string) (*VPPSettings, error) {
 	}
 	inner, ok := wrapped["vpp"]
 	if !ok {
-		return nil, fmt.Errorf("vpp: config section missing 'vpp' root")
+		return nil, errVppConfigSectionMissingVppRoot
 	}
 	parsed, err := ParseSettings(inner)
 	if err != nil {
@@ -262,7 +269,7 @@ func (s *VPPSettings) Validate() error {
 		return err
 	}
 	if s.Memory.Buffers == 0 {
-		return fmt.Errorf("vpp: memory buffers must be > 0")
+		return errVppMemoryBuffersMustBe0
 	}
 
 	if err := validateSize("stats segment-size", s.Stats.SegmentSize); err != nil {

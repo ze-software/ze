@@ -5,10 +5,10 @@ package mvpn
 
 import (
 	"errors"
-	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Type aliases for shared nlri types.
@@ -71,7 +71,7 @@ func (t MVPNRouteType) String() string {
 	case MVPNSourceTreeJoin:
 		return "source-tree-join"
 	default:
-		return fmt.Sprintf("type(%d)", t)
+		return "type(" + textbuf.Uint8(uint8(t)) + ")"
 	}
 }
 
@@ -184,7 +184,7 @@ func (m *MVPN) SupportsAddPath() bool { return false }
 // String returns command-style format for API round-trip compatibility.
 func (m *MVPN) String() string {
 	if hasRD(m.rd) {
-		return fmt.Sprintf("%s rd %s", m.routeType, m.rd)
+		return m.routeType.String() + " rd " + m.rd.String()
 	}
 	return m.routeType.String()
 }

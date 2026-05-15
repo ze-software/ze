@@ -5,9 +5,9 @@
 package web
 
 import (
-	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
@@ -67,7 +67,7 @@ func BuildRouteTableData(routes []iface.KernelRoute, filterProtocol string) Work
 			Cells: []string{
 				route.Destination,
 				gw,
-				fmt.Sprintf("%d", route.Metric),
+				strconv.Itoa(route.Metric),
 				route.Protocol,
 				dev,
 				route.Family,

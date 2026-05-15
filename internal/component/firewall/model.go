@@ -9,9 +9,16 @@
 package firewall
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"regexp"
+)
+
+var (
+	errFirewallNameMustNotBeEmpty = errors.New("firewall: name must not be empty")
+	errFirewallPortMustBe165535   = errors.New("firewall: port must be 1-65535, got 0")
+	errFirewallRateMustBe1Got     = errors.New("firewall: rate must be >= 1, got 0")
 )
 
 const unknownStr = "unknown"
@@ -25,7 +32,7 @@ const maxNameLen = 255
 // ValidateName checks that a name is a non-empty valid identifier within kernel limits.
 func ValidateName(name string) error {
 	if name == "" {
-		return fmt.Errorf("firewall: name must not be empty")
+		return errFirewallNameMustNotBeEmpty
 	}
 	if len(name) > maxNameLen {
 		return fmt.Errorf("firewall: name %q exceeds maximum length %d", name, maxNameLen)
@@ -39,7 +46,7 @@ func ValidateName(name string) error {
 // ValidatePort checks that a port number is in 1-65535.
 func ValidatePort(port uint16) error {
 	if port == 0 {
-		return fmt.Errorf("firewall: port must be 1-65535, got 0")
+		return errFirewallPortMustBe165535
 	}
 	return nil
 }
@@ -47,7 +54,7 @@ func ValidatePort(port uint16) error {
 // ValidateRate checks that a rate value is at least 1.
 func ValidateRate(rate uint64) error {
 	if rate == 0 {
-		return fmt.Errorf("firewall: rate must be >= 1, got 0")
+		return errFirewallRateMustBe1Got
 	}
 	return nil
 }

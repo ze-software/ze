@@ -7,6 +7,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -16,6 +17,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
+
+var errEmptyListenAddress = errors.New("empty listen address")
 
 // Env var registrations. YANG `environment/<name>` leaves that drive runtime
 // behavior live here; domain-specific registrations (BGP reactor tuning,
@@ -144,7 +147,7 @@ func (e ListenEndpoint) String() string {
 func ParseCompoundListen(s string) ([]ListenEndpoint, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return nil, fmt.Errorf("empty listen address")
+		return nil, errEmptyListenAddress
 	}
 
 	var endpoints []ListenEndpoint

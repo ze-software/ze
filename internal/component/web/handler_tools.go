@@ -15,6 +15,7 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -24,6 +25,11 @@ import (
 	"unicode/utf8"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+)
+
+var (
+	errMalformedOriginHeader  = errors.New("malformed Origin header")
+	errMalformedRefererHeader = errors.New("malformed Referer header")
 )
 
 // Output buffering and rendering caps. The spec's Boundary Tests row defines
@@ -490,7 +496,7 @@ forwardedLoop:
 	if origin := r.Header.Get("Origin"); origin != "" {
 		u, err := url.Parse(origin)
 		if err != nil || u.Host == "" {
-			return fmt.Errorf("malformed Origin header")
+			return errMalformedOriginHeader
 		}
 		if !hostMatchesAny(u.Host, accepted) {
 			return fmt.Errorf("origin %q does not match host %q (accepted %v)", u.Host, r.Host, accepted)
@@ -500,7 +506,7 @@ forwardedLoop:
 	if referer := r.Header.Get("Referer"); referer != "" {
 		u, err := url.Parse(referer)
 		if err != nil || u.Host == "" {
-			return fmt.Errorf("malformed Referer header")
+			return errMalformedRefererHeader
 		}
 		if !hostMatchesAny(u.Host, accepted) {
 			return fmt.Errorf("referer %q does not match host %q (accepted %v)", u.Host, r.Host, accepted)

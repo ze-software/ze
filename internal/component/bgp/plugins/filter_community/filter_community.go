@@ -10,6 +10,7 @@
 package filter_community
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -19,6 +20,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+var errFilterCommunityInvalidBgpConfigJson = errors.New("filter-community: invalid bgp config JSON")
 
 var logger = slogutil.LazyLogger("bgp.filter.community")
 
@@ -43,7 +46,7 @@ func RunFilterCommunity(conn net.Conn) int {
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
 			if !ok {
-				return fmt.Errorf("filter-community: invalid bgp config JSON")
+				return errFilterCommunityInvalidBgpConfigJson
 			}
 			if err := configureCommunityFilter(bgpCfg); err != nil {
 				return fmt.Errorf("filter-community: %w", err)

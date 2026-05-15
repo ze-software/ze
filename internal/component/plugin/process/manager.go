@@ -7,7 +7,6 @@ package process
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -15,6 +14,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 )
+
+var errProcessmanagerStartmoreCalledBeforeStartwithcontext = errors.New("ProcessManager: StartMore called before StartWithContext")
 
 const (
 	// RespawnLimit is max respawns per RespawnWindow before disabling.
@@ -139,7 +140,7 @@ func (pm *ProcessManager) StartWithContext(ctx context.Context) error {
 // Returns an error if the manager has not been started yet.
 func (pm *ProcessManager) StartMore(configs []plugin.PluginConfig) error {
 	if pm.ctx == nil {
-		return fmt.Errorf("ProcessManager: StartMore called before StartWithContext")
+		return errProcessmanagerStartmoreCalledBeforeStartwithcontext
 	}
 	if len(configs) == 0 {
 		return nil

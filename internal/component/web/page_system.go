@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html/template"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -200,7 +201,7 @@ func BuildUsersTableData(users []userEntry) WorkbenchTableData {
 		rows = append(rows, WorkbenchTableRow{
 			Key:   u.Name,
 			URL:   fmt.Sprintf("/show/system/authentication/user/%s/", u.Name),
-			Cells: []string{u.Name, profileStr, fmt.Sprintf("%d", u.KeyCount)},
+			Cells: []string{u.Name, profileStr, strconv.Itoa(u.KeyCount)},
 			Actions: []WorkbenchRowAction{
 				{Label: "Edit", URL: fmt.Sprintf("/show/system/authentication/user/%s/", u.Name)},
 			},
@@ -266,12 +267,12 @@ func buildResourcesHTML(data ResourcesData) template.HTML {
 	b.WriteString(`<table class="wb-detail-kv">`)
 	writeKV(&b, "Version", data.Version)
 	writeKV(&b, "Uptime", data.Uptime)
-	writeKV(&b, "CPU Cores", fmt.Sprintf("%d", data.CPUCount))
-	writeKV(&b, "GOMAXPROCS", fmt.Sprintf("%d", data.GOMAXPROCS))
-	writeKV(&b, "Goroutines", fmt.Sprintf("%d", data.Goroutines))
+	writeKV(&b, "CPU Cores", strconv.Itoa(data.CPUCount))
+	writeKV(&b, "GOMAXPROCS", strconv.Itoa(data.GOMAXPROCS))
+	writeKV(&b, "Goroutines", strconv.Itoa(data.Goroutines))
 	writeKV(&b, "Memory Allocated", data.MemAlloc)
 	writeKV(&b, "Memory System", data.MemSys)
-	writeKV(&b, "GC Runs", fmt.Sprintf("%d", data.GCRuns))
+	writeKV(&b, "GC Runs", strconv.Itoa(int(data.GCRuns)))
 	writeKV(&b, "Current Time", data.CurrentTime)
 	b.WriteString(`</table>`)
 	b.WriteString(`</div>`)
@@ -318,8 +319,8 @@ func BuildHostHardwareData() []HardwareSection {
 		items := []HardwareItem{
 			{Key: "Model", Value: inv.CPU.ModelName},
 			{Key: "Vendor", Value: inv.CPU.Vendor.String()},
-			{Key: "Logical CPUs", Value: fmt.Sprintf("%d", inv.CPU.LogicalCPUs)},
-			{Key: "Physical Cores", Value: fmt.Sprintf("%d", inv.CPU.PhysicalCores)},
+			{Key: "Logical CPUs", Value: strconv.Itoa(inv.CPU.LogicalCPUs)},
+			{Key: "Physical Cores", Value: strconv.Itoa(inv.CPU.PhysicalCores)},
 		}
 		if inv.CPU.BaseFreqMHz > 0 {
 			items = append(items, HardwareItem{Key: "Base Frequency", Value: fmt.Sprintf("%d MHz", inv.CPU.BaseFreqMHz)})
@@ -549,7 +550,7 @@ func BuildSysctlProfilesTableData(profiles []sysctlProfileEntry) WorkbenchTableD
 			URL: fmt.Sprintf("/show/sysctl/profile/%s/", p.Name),
 			Cells: []string{
 				p.Name,
-				fmt.Sprintf("%d", p.SettingCount),
+				strconv.Itoa(p.SettingCount),
 			},
 			Actions: []WorkbenchRowAction{
 				{Label: "View", URL: fmt.Sprintf("/show/sysctl/profile/%s/", p.Name)},

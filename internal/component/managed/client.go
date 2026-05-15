@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -17,6 +18,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/fleet"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+)
+
+var (
+	errAuthRejected     = errors.New("auth rejected")
+	errConnectionClosed = errors.New("connection closed")
+	errHeartbeatTimeout = errors.New("heartbeat timeout")
 )
 
 const (
@@ -115,7 +122,7 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 	// Parse response: #<id> <verb> [payload]
 	_, verb, _, parseErr := rpc.ParseLine(authLine)
 	if parseErr != nil || verb != "ok" {
-		return fmt.Errorf("auth rejected")
+		return errAuthRejected
 	}
 
 	// Auth succeeded -- reset backoff for fresh retry delays on next disconnect.
@@ -201,15 +208,15 @@ func notificationLoop(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, h
 		select {
 		case req, ok := <-mc.Requests():
 			if !ok {
-				return fmt.Errorf("connection closed")
+				return errConnectionClosed
 			}
 			handleHubRequest(ctx, mc, req, cfg)
 
 		case <-hbDone:
-			return fmt.Errorf("heartbeat timeout")
+			return errHeartbeatTimeout
 
 		case <-mc.Done():
-			return fmt.Errorf("connection closed")
+			return errConnectionClosed
 
 		case <-ctx.Done():
 			return ctx.Err()

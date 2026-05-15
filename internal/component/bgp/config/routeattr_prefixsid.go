@@ -4,10 +4,18 @@
 package bgpconfig
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
 	"strings"
+)
+
+var (
+	errInvalidPrefixSidFormatExpectedIndex = errors.New("invalid prefix-sid format: expected 'index, [(base,range)...]'")
+	errUnmatchedParenthesisInSrgbList      = errors.New("unmatched parenthesis in SRGB list")
+	errInvalidSrv6PrefixSidExpectedL3      = errors.New("invalid srv6 prefix-sid: expected l3-service or l2-service")
+	errInvalidSrv6PrefixSidUnmatched       = errors.New("invalid srv6 prefix-sid: unmatched [ in SID structure")
 )
 
 // PrefixSID represents BGP Prefix-SID (RFC 8669).
@@ -82,7 +90,7 @@ func parsePrefixSIDWithSRGB(s string) (PrefixSID, error) {
 	// Format: "300, [( 800000,4096) ,( 1000000,5000)]"
 	parts := strings.SplitN(s, ",", 2)
 	if len(parts) < 2 {
-		return PrefixSID{}, fmt.Errorf("invalid prefix-sid format: expected 'index, [(base,range)...]'")
+		return PrefixSID{}, errInvalidPrefixSidFormatExpectedIndex
 	}
 
 	// Parse label index
@@ -168,7 +176,7 @@ func parseSRGBList(s string) ([]srgbEntry, error) {
 		}
 		end := strings.Index(s, ")")
 		if end == -1 {
-			return nil, fmt.Errorf("unmatched parenthesis in SRGB list")
+			return nil, errUnmatchedParenthesisInSrgbList
 		}
 
 		pair := s[start+1 : end]
@@ -238,7 +246,7 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 		serviceType = 6 // TLV Type 6: SRv6 L2 Service
 		s = strings.TrimPrefix(s, "l2-service")
 	default:
-		return PrefixSID{}, fmt.Errorf("invalid srv6 prefix-sid: expected l3-service or l2-service")
+		return PrefixSID{}, errInvalidSrv6PrefixSidExpectedL3
 	}
 	s = strings.TrimSpace(s)
 
@@ -293,7 +301,7 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 	if strings.HasPrefix(s, "[") {
 		end := strings.Index(s, "]")
 		if end == -1 {
-			return PrefixSID{}, fmt.Errorf("invalid srv6 prefix-sid: unmatched [ in SID structure")
+			return PrefixSID{}, errInvalidSrv6PrefixSidUnmatched
 		}
 		structStr := s[1:end]
 		parts := strings.Split(structStr, ",")

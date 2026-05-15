@@ -3,10 +3,12 @@
 package firewall
 
 import (
-	"fmt"
+	"errors"
 	"sort"
 	"sync"
 )
+
+var errFirewallBackendNotLoaded = errors.New("firewall backend not loaded")
 
 var tableRegistry = struct {
 	mu     sync.Mutex
@@ -52,7 +54,7 @@ func ApplyAll() error {
 	backendsMu.Unlock()
 
 	if b == nil {
-		return fmt.Errorf("firewall backend not loaded")
+		return errFirewallBackendNotLoaded
 	}
 	return b.Apply(all)
 }

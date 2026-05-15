@@ -5,11 +5,13 @@
 package iface
 
 import (
-	"fmt"
+	"errors"
 	"net/netip"
 )
 
+var errRouteLookupNotAvailableOnThis = errors.New("route lookup not available on this platform")
+
 // RouteLookup is not available on non-linux platforms.
 func RouteLookup(_ netip.Addr) (map[string]any, error) {
-	return nil, fmt.Errorf("route lookup not available on this platform")
+	return nil, errRouteLookupNotAvailableOnThis
 }

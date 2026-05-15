@@ -17,8 +17,11 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
+
+var errNoImagesFoundRunzeAppliance = errors.New("no images found; run `ze appliance build`")
 
 func init() {
 	cmdPush = runPush
@@ -108,7 +111,7 @@ func pushOne(name, imageFile string) int {
 		port = 443
 	}
 
-	hostPort := net.JoinHostPort(cfg.Device.Address, fmt.Sprintf("%d", port))
+	hostPort := net.JoinHostPort(cfg.Device.Address, strconv.Itoa(port))
 	endpoint := fmt.Sprintf("https://%s/update", hostPort)
 
 	if err := verifyImageChecksum(imgPath); err != nil {
@@ -240,7 +243,7 @@ func resolveImagePath(baseDir, name, imageFile string) (string, error) {
 	}
 
 	if len(images) == 0 {
-		return "", fmt.Errorf("no images found; run `ze appliance build`")
+		return "", errNoImagesFoundRunzeAppliance
 	}
 
 	sort.Strings(images)

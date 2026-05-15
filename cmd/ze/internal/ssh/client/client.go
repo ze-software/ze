@@ -7,6 +7,7 @@ package client
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -21,6 +22,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
+
+var errCannotDetermineDatabaseLocation = errors.New("cannot determine database location")
 
 // Env var registration. ze.config.dir is also registered in cmd/ze/main.go,
 // but completion tests in sibling packages (cmd/ze/completion) construct the
@@ -389,7 +392,7 @@ func LoadCredentials() (Credentials, error) {
 func LoadCredentialsWithFlags(cliUser string) (Credentials, error) {
 	dbPath := ResolveDBPath()
 	if dbPath == "" {
-		return Credentials{}, fmt.Errorf("cannot determine database location")
+		return Credentials{}, errCannotDetermineDatabaseLocation
 	}
 	return ReadCredentialsWithFlags(dbPath, cliUser)
 }

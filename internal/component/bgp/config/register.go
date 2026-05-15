@@ -3,6 +3,7 @@
 package bgpconfig
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -11,6 +12,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
+
+var errBgpCoordinatorMissingBgpStore = errors.New("bgp: coordinator missing bgp.store")
 
 func init() {
 	zeconfig.RegisterPluginExtractor(extractBGPInlinePlugins)
@@ -26,7 +29,7 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 
 	storeAny := coord.GetExtra("bgp.store")
 	if storeAny == nil {
-		return nil, fmt.Errorf("bgp: coordinator missing bgp.store")
+		return nil, errBgpCoordinatorMissingBgpStore
 	}
 	store, ok := storeAny.(storage.Storage)
 	if !ok {

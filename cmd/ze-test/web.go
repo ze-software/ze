@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -137,7 +138,7 @@ Examples:
 			ln.Close() //nolint:errcheck // best-effort cleanup
 			return fmt.Errorf("unexpected listener address type: %T", ln.Addr())
 		}
-		*port = fmt.Sprintf("%d", tcpAddr.Port)
+		*port = strconv.Itoa(tcpAddr.Port)
 		if closeErr := ln.Close(); closeErr != nil {
 			return fmt.Errorf("close temp listener: %w", closeErr)
 		}

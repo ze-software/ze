@@ -7,11 +7,13 @@
 package tacacs
 
 import (
-	"fmt"
 	"log/slog"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // acctMsg is an accounting request queued for the background worker.
@@ -150,11 +152,11 @@ func (a *TacacsAccountant) isStopped() bool {
 // CommandStart sends an accounting START record. Returns a task ID for correlation.
 // Never blocks: enqueues to the worker. Drops with a warning if the queue is full.
 func (a *TacacsAccountant) CommandStart(username, remoteAddr, command string) string {
-	taskID := fmt.Sprintf("%d", a.taskSeq.Add(1))
+	taskID := strconv.Itoa(int(a.taskSeq.Add(1)))
 
 	args := append(splitTacacsArgs(command),
 		"task_id="+taskID,
-		"start_time="+fmt.Sprintf("%d", time.Now().Unix()),
+		"start_time="+textbuf.Int(time.Now().Unix()),
 	)
 	req := &AcctRequest{
 		Flags:         AcctFlagStart,
@@ -181,7 +183,7 @@ func (a *TacacsAccountant) CommandStart(username, remoteAddr, command string) st
 func (a *TacacsAccountant) CommandStop(taskID, username, remoteAddr, command string) {
 	stopArgs := append(splitTacacsArgs(command),
 		"task_id="+taskID,
-		"stop_time="+fmt.Sprintf("%d", time.Now().Unix()),
+		"stop_time="+textbuf.Int(time.Now().Unix()),
 	)
 	req := &AcctRequest{
 		Flags:         AcctFlagStop,

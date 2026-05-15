@@ -10,6 +10,7 @@ package sysctl
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -19,6 +20,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
 )
+
+var errSysctlEmptyKey = errors.New("sysctl: empty key")
 
 // layer identifies the source of a sysctl value.
 type layer int
@@ -95,7 +98,7 @@ const maxKeyLen = 256
 // validateKey rejects keys that are empty, too long, or contain path traversal.
 func validateKey(key string) error {
 	if key == "" {
-		return fmt.Errorf("sysctl: empty key")
+		return errSysctlEmptyKey
 	}
 	if len(key) > maxKeyLen {
 		return fmt.Errorf("sysctl: key too long (%d > %d)", len(key), maxKeyLen)

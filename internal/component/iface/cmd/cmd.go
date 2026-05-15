@@ -10,6 +10,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -18,6 +19,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+)
+
+var (
+	errFromRequiresAValue          = errors.New("--from requires a value")
+	errToRequiresAValue            = errors.New("--to requires a value")
+	errAddressRequiresAValue       = errors.New("--address requires a value")
+	errCreateRequiresAValue        = errors.New("--create requires a value")
+	errTimeoutRequiresAValue       = errors.New("--timeout requires a value")
+	errFromToAndAddressAreRequired = errors.New("--from, --to, and --address are required")
 )
 
 func init() {
@@ -76,7 +86,7 @@ func parseMigrateArgs(args []string) (iface.MigrateConfig, time.Duration, error)
 		switch args[i] {
 		case "--from":
 			if i+1 >= len(args) {
-				return cfg, 0, fmt.Errorf("--from requires a value")
+				return cfg, 0, errFromRequiresAValue
 			}
 			i++
 			name, unit, ok := parseIfaceUnit(args[i])
@@ -87,7 +97,7 @@ func parseMigrateArgs(args []string) (iface.MigrateConfig, time.Duration, error)
 			cfg.OldUnit = unit
 		case "--to":
 			if i+1 >= len(args) {
-				return cfg, 0, fmt.Errorf("--to requires a value")
+				return cfg, 0, errToRequiresAValue
 			}
 			i++
 			name, unit, ok := parseIfaceUnit(args[i])
@@ -98,19 +108,19 @@ func parseMigrateArgs(args []string) (iface.MigrateConfig, time.Duration, error)
 			cfg.NewUnit = unit
 		case "--address":
 			if i+1 >= len(args) {
-				return cfg, 0, fmt.Errorf("--address requires a value")
+				return cfg, 0, errAddressRequiresAValue
 			}
 			i++
 			cfg.Address = args[i]
 		case "--create":
 			if i+1 >= len(args) {
-				return cfg, 0, fmt.Errorf("--create requires a value")
+				return cfg, 0, errCreateRequiresAValue
 			}
 			i++
 			cfg.NewIfaceType = args[i]
 		case "--timeout":
 			if i+1 >= len(args) {
-				return cfg, 0, fmt.Errorf("--timeout requires a value")
+				return cfg, 0, errTimeoutRequiresAValue
 			}
 			i++
 			d, err := time.ParseDuration(args[i])
@@ -124,7 +134,7 @@ func parseMigrateArgs(args []string) (iface.MigrateConfig, time.Duration, error)
 	}
 
 	if cfg.OldIface == "" || cfg.NewIface == "" || cfg.Address == "" {
-		return cfg, 0, fmt.Errorf("--from, --to, and --address are required")
+		return cfg, 0, errFromToAndAddressAreRequired
 	}
 
 	return cfg, timeout, nil

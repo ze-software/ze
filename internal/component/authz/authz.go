@@ -7,11 +7,14 @@
 package authz
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 	"sync"
 )
+
+var errProfileNameCannotBeEmpty = errors.New("profile name cannot be empty")
 
 // Action represents an authorization decision.
 type Action int
@@ -221,7 +224,7 @@ func (p *Profile) Authorize(command string, isReadOnly bool) Action {
 // Validate checks that the profile is well-formed.
 func (p *Profile) Validate() error {
 	if p.Name == "" {
-		return fmt.Errorf("profile name cannot be empty")
+		return errProfileNameCannotBeEmpty
 	}
 	for i := range p.Run.Entries {
 		if err := p.Run.Entries[i].Validate(); err != nil {

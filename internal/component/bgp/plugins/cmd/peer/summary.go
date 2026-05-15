@@ -4,6 +4,7 @@
 package peer
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"regexp"
@@ -14,6 +15,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+)
+
+var (
+	errFamilyArgumentIsEmpty = errors.New("family argument is empty")
+	errNoMatchingPeers       = errors.New("no matching peers")
 )
 
 func init() {
@@ -59,7 +65,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "reactor not available",
-		}, fmt.Errorf("reactor not available")
+		}, errReactorNotAvailable
 	}
 
 	var familyFilter string
@@ -151,7 +157,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 // ever reach the charset check). Do not reorder.
 func validateFamilyArg(in string) error {
 	if in == "" {
-		return fmt.Errorf("family argument is empty")
+		return errFamilyArgumentIsEmpty
 	}
 	if len(in) > maxFamilyArgLen {
 		return fmt.Errorf("family argument too long (%d > %d chars)", len(in), maxFamilyArgLen)
@@ -220,7 +226,7 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, _ []string) (*p
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "no matching peers",
-		}, fmt.Errorf("no matching peers")
+		}, errNoMatchingPeers
 	}
 
 	reactor := ctx.Reactor()
@@ -278,7 +284,7 @@ func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, _ []string) (*plu
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "no matching peers",
-		}, fmt.Errorf("no matching peers")
+		}, errNoMatchingPeers
 	}
 
 	results := make([]map[string]any, len(peers))

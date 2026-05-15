@@ -29,6 +29,8 @@ import (
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 )
 
+var errMcpRequiresWebMcpReadsDashboard = errors.New("--mcp requires --web (MCP reads dashboard state)")
+
 // runOrchestrator launches N peer simulators and validates route propagation.
 // When chaos is enabled (chaosCfg.Rate > 0), it also starts the chaos scheduler
 // and wraps each peer in a reconnection loop.
@@ -547,7 +549,7 @@ func setupReporting(cfg orchestratorConfig, peerCount int) (*reportingResult, er
 
 	// Chaos MCP server: enabled when --mcp is set.
 	if cfg.mcpAddr != "" && webDashRef == nil {
-		return nil, fmt.Errorf("--mcp requires --web (MCP reads dashboard state)")
+		return nil, errMcpRequiresWebMcpReadsDashboard
 	}
 	if cfg.mcpAddr != "" && webDashRef != nil {
 		provider := &chaosmcp.Provider{

@@ -4,12 +4,25 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+)
+
+var (
+	errEnvironmentMcpBindRemoteRequiresAuth   = errors.New("environment.mcp: bind-remote requires auth-mode != none")
+	errEnvironmentMcpAuthModeBearerRequires   = errors.New("environment.mcp: auth-mode=bearer requires token")
+	errEnvironmentMcpAuthModeBearerList       = errors.New("environment.mcp: auth-mode=bearer-list requires at least one identity")
+	errEnvironmentMcpIdentityEntryMissingName = errors.New("environment.mcp: identity entry missing name")
+	errEnvironmentMcpAuthModeOauthRequires    = errors.New("environment.mcp: auth-mode=oauth requires oauth.authorization-server")
+	errEnvironmentMcpAuthModeOauthRequires2   = errors.New("environment.mcp: auth-mode=oauth requires oauth.audience")
+	errEnvironmentMcpAuthModeOauthRequires3   = errors.New("environment.mcp: auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners")
+	errEnvironmentMcpTlsCertSetWithout        = errors.New("environment.mcp.tls: cert set without key")
+	errEnvironmentMcpTlsKeySetWithout         = errors.New("environment.mcp.tls: key set without cert")
 )
 
 // loaderLogger is the config loader subsystem logger (lazy initialization).
@@ -180,23 +193,23 @@ func (c MCPListenConfig) Validate() error {
 	}
 
 	if c.BindRemote && (c.AuthMode == "" || c.AuthMode == mcpAuthNone) {
-		return fmt.Errorf("environment.mcp: bind-remote requires auth-mode != none")
+		return errEnvironmentMcpBindRemoteRequiresAuth
 	}
 
 	switch c.AuthMode {
 	case mcpAuthBearer:
 		if c.Token == "" {
-			return fmt.Errorf("environment.mcp: auth-mode=bearer requires token")
+			return errEnvironmentMcpAuthModeBearerRequires
 		}
 	case mcpAuthBearerList:
 		if len(c.Identities) == 0 {
-			return fmt.Errorf("environment.mcp: auth-mode=bearer-list requires at least one identity")
+			return errEnvironmentMcpAuthModeBearerList
 		}
 		seenNames := make(map[string]bool, len(c.Identities))
 		seenTokens := make(map[string]bool, len(c.Identities))
 		for _, id := range c.Identities {
 			if id.Name == "" {
-				return fmt.Errorf("environment.mcp: identity entry missing name")
+				return errEnvironmentMcpIdentityEntryMissingName
 			}
 			if id.Token == "" {
 				return fmt.Errorf("environment.mcp.identity %q: token is required", id.Name)
@@ -216,19 +229,19 @@ func (c MCPListenConfig) Validate() error {
 		}
 	case mcpAuthOAuth:
 		if c.OAuth.AuthorizationServer == "" {
-			return fmt.Errorf("environment.mcp: auth-mode=oauth requires oauth.authorization-server")
+			return errEnvironmentMcpAuthModeOauthRequires
 		}
 		if c.OAuth.Audience == "" {
-			return fmt.Errorf("environment.mcp: auth-mode=oauth requires oauth.audience")
+			return errEnvironmentMcpAuthModeOauthRequires2
 		}
 		if c.AnyListenerNonLoopback() && c.TLS.Cert == "" {
-			return fmt.Errorf("environment.mcp: auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners")
+			return errEnvironmentMcpAuthModeOauthRequires3
 		}
 		if c.TLS.Cert != "" && c.TLS.Key == "" {
-			return fmt.Errorf("environment.mcp.tls: cert set without key")
+			return errEnvironmentMcpTlsCertSetWithout
 		}
 		if c.TLS.Key != "" && c.TLS.Cert == "" {
-			return fmt.Errorf("environment.mcp.tls: key set without cert")
+			return errEnvironmentMcpTlsKeySetWithout
 		}
 	}
 

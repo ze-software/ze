@@ -5,6 +5,7 @@ package shrink
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/netip"
@@ -12,6 +13,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
 )
+
+var errEmptyEventLog = errors.New("empty event log")
 
 // LogMeta holds metadata from the NDJSON event log header.
 type LogMeta struct {
@@ -65,7 +68,7 @@ func ParseLog(r io.Reader) (*LogMeta, []peer.Event, error) {
 
 	// Parse header line.
 	if !scanner.Scan() {
-		return nil, nil, fmt.Errorf("empty event log")
+		return nil, nil, errEmptyEventLog
 	}
 
 	var hdr logHeader

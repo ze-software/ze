@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
@@ -78,7 +79,7 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 			URL:       fmt.Sprintf("/show/iface/detail/%s", info.Name),
 			Flags:     flags,
 			FlagClass: flagClass,
-			Cells:     []string{info.Name, info.Type, info.State, fmt.Sprintf("%d", info.MTU), mac, addrStr},
+			Cells:     []string{info.Name, info.Type, info.State, strconv.Itoa(info.MTU), mac, addrStr},
 			Actions: []WorkbenchRowAction{
 				{Label: "Detail", URL: fmt.Sprintf("/show/iface/detail/%s", info.Name)},
 			},
@@ -155,7 +156,7 @@ func buildDetailConfigHTML(info *iface.InterfaceInfo) template.HTML {
 	b.WriteString(`<table class="wb-detail-kv">`)
 	writeKV(&b, "Name", info.Name)
 	writeKV(&b, "Type", info.Type)
-	writeKV(&b, "MTU", fmt.Sprintf("%d", info.MTU))
+	writeKV(&b, "MTU", strconv.Itoa(info.MTU))
 	if info.MAC != "" {
 		writeKV(&b, "MAC", info.MAC)
 	}
@@ -182,13 +183,13 @@ func buildDetailStatusHTML(info *iface.InterfaceInfo) template.HTML {
 	b.WriteString(`<div class="wb-detail-section">`)
 	b.WriteString(`<table class="wb-detail-kv">`)
 	writeKV(&b, "Link State", info.State)
-	writeKV(&b, "Index", fmt.Sprintf("%d", info.Index))
-	writeKV(&b, "MTU (actual)", fmt.Sprintf("%d", info.MTU))
+	writeKV(&b, "Index", strconv.Itoa(info.Index))
+	writeKV(&b, "MTU (actual)", strconv.Itoa(info.MTU))
 	if info.ParentIndex > 0 {
-		writeKV(&b, "Parent Index", fmt.Sprintf("%d", info.ParentIndex))
+		writeKV(&b, "Parent Index", strconv.Itoa(info.ParentIndex))
 	}
 	if info.VlanID > 0 {
-		writeKV(&b, "VLAN ID", fmt.Sprintf("%d", info.VlanID))
+		writeKV(&b, "VLAN ID", strconv.Itoa(info.VlanID))
 	}
 	b.WriteString(`</table>`)
 	b.WriteString(`</div>`)
@@ -210,14 +211,14 @@ func formatCountersTable(stats *iface.InterfaceStats) string {
 	var b strings.Builder
 	b.WriteString(`<table class="wb-detail-kv">`)
 	if stats != nil {
-		writeKV(&b, "RX Bytes", fmt.Sprintf("%d", stats.RxBytes))
-		writeKV(&b, "RX Packets", fmt.Sprintf("%d", stats.RxPackets))
-		writeKV(&b, "RX Errors", fmt.Sprintf("%d", stats.RxErrors))
-		writeKV(&b, "RX Dropped", fmt.Sprintf("%d", stats.RxDropped))
-		writeKV(&b, "TX Bytes", fmt.Sprintf("%d", stats.TxBytes))
-		writeKV(&b, "TX Packets", fmt.Sprintf("%d", stats.TxPackets))
-		writeKV(&b, "TX Errors", fmt.Sprintf("%d", stats.TxErrors))
-		writeKV(&b, "TX Dropped", fmt.Sprintf("%d", stats.TxDropped))
+		writeKV(&b, "RX Bytes", strconv.Itoa(int(stats.RxBytes)))
+		writeKV(&b, "RX Packets", strconv.Itoa(int(stats.RxPackets)))
+		writeKV(&b, "RX Errors", strconv.Itoa(int(stats.RxErrors)))
+		writeKV(&b, "RX Dropped", strconv.Itoa(int(stats.RxDropped)))
+		writeKV(&b, "TX Bytes", strconv.Itoa(int(stats.TxBytes)))
+		writeKV(&b, "TX Packets", strconv.Itoa(int(stats.TxPackets)))
+		writeKV(&b, "TX Errors", strconv.Itoa(int(stats.TxErrors)))
+		writeKV(&b, "TX Dropped", strconv.Itoa(int(stats.TxDropped)))
 	} else {
 		writeKV(&b, "Counters", "not available")
 	}

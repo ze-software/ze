@@ -10,6 +10,7 @@ package lg
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 )
 
 // maxGraphNodes caps the number of nodes in the topology graph.
@@ -118,7 +119,7 @@ func (s *LGServer) handleNextHopGraph(w http.ResponseWriter, routes []any, forma
 // decorateGraphNodes resolves ASN names for all graph nodes via the decorator.
 func (s *LGServer) decorateGraphNodes(g *Graph) {
 	for i := range g.Nodes {
-		g.Nodes[i].Name = s.resolveASN(fmt.Sprintf("%d", g.Nodes[i].ASN))
+		g.Nodes[i].Name = s.resolveASN(strconv.Itoa(int(g.Nodes[i].ASN)))
 	}
 }
 

@@ -6,6 +6,7 @@ package ifacevpp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"sync"
@@ -17,6 +18,8 @@ import (
 	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+var errIfacevppStartmonitorRequiresNonNilEvent = errors.New("ifacevpp: StartMonitor requires non-nil event bus")
 
 // monitor drives the VPP interface event loop. It subscribes to
 // sw_interface_event notifications via WantInterfaceEvents + the GoVPP
@@ -60,7 +63,7 @@ type stateEventPayload struct {
 // the subscription.
 func (b *vppBackendImpl) StartMonitor(eb ze.EventBus) error {
 	if eb == nil {
-		return fmt.Errorf("ifacevpp: StartMonitor requires non-nil event bus")
+		return errIfacevppStartmonitorRequiresNonNilEvent
 	}
 	if err := b.ensureChannel(); err != nil {
 		return err

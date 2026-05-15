@@ -9,6 +9,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"net/netip"
@@ -17,6 +18,14 @@ import (
 	"strings"
 
 	configyang "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+)
+
+var (
+	errBgpNodeNotFoundInSchema       = errors.New("bgp node not found in schema")
+	errBgpIsNotAContainernode        = errors.New("bgp is not a ContainerNode")
+	errCapabilityIsNotAContainernode = errors.New("capability is not a ContainerNode")
+	errEmptyDuration                 = errors.New("empty duration")
+	errNoNumberInDuration            = errors.New("no number in duration")
 )
 
 // ValueType represents the type of a leaf value.
@@ -332,12 +341,12 @@ func (s *Schema) Lookup(path string) (Node, error) {
 func (s *Schema) ExtendCapability(name string, fields ...FieldDef) error {
 	bgpNode := s.Get("bgp")
 	if bgpNode == nil {
-		return fmt.Errorf("bgp node not found in schema")
+		return errBgpNodeNotFoundInSchema
 	}
 
 	bgpContainer, ok := bgpNode.(*ContainerNode)
 	if !ok {
-		return fmt.Errorf("bgp is not a ContainerNode")
+		return errBgpIsNotAContainernode
 	}
 
 	// Extend standalone peers: bgp.peer.capability
@@ -383,7 +392,7 @@ func (s *Schema) extendPeerListCapability(parent *ContainerNode, listName, capNa
 
 	container, ok := capNode.(*ContainerNode)
 	if !ok {
-		return fmt.Errorf("capability is not a ContainerNode")
+		return errCapabilityIsNotAContainernode
 	}
 
 	container.children[capName] = Flex(fields...)
@@ -872,7 +881,7 @@ func parseDuration(s string) (int64, error) {
 	// Handle simple cases manually to avoid importing time in schema
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return 0, fmt.Errorf("empty duration")
+		return 0, errEmptyDuration
 	}
 
 	// Find where the number ends and unit begins
@@ -881,7 +890,7 @@ func parseDuration(s string) (int64, error) {
 		i++
 	}
 	if i == 0 {
-		return 0, fmt.Errorf("no number in duration")
+		return 0, errNoNumberInDuration
 	}
 
 	numStr := s[:i]

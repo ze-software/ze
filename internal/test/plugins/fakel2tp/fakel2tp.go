@@ -17,6 +17,7 @@
 package fakel2tp
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/netip"
@@ -28,6 +29,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
+)
+
+var (
+	errFakel2tpNoEventBus                     = errors.New("fakel2tp: no event bus")
+	errUsageFakel2tpEmitAddremoveFamilyPrefix = errors.New("usage: fakel2tp emit <add|remove> <family> <prefix>")
 )
 
 // Name is the canonical plugin name.
@@ -66,7 +72,7 @@ func getEventBus() ze.EventBus {
 func emitOnce(action redistevents.RouteAction, fam family.Family, prefix netip.Prefix) (int, error) {
 	bus := getEventBus()
 	if bus == nil {
-		return 0, fmt.Errorf("fakel2tp: no event bus")
+		return 0, errFakel2tpNoEventBus
 	}
 	b := redistevents.AcquireBatch()
 	defer redistevents.ReleaseBatch(b)
@@ -99,7 +105,7 @@ func parseFamily(token string) (family.Family, error) {
 
 func runEmit(args []string) (string, error) {
 	if len(args) != 3 {
-		return "", fmt.Errorf("usage: fakel2tp emit <add|remove> <family> <prefix>")
+		return "", errUsageFakel2tpEmitAddremoveFamilyPrefix
 	}
 	action, err := parseAction(args[0])
 	if err != nil {

@@ -4,9 +4,15 @@ package static
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/netip"
+)
+
+var (
+	errRouteMissingPrefix    = errors.New("route missing prefix")
+	errNextHopMissingAddress = errors.New("next-hop missing address")
 )
 
 func parseStaticConfig(jsonData string) ([]staticRoute, error) {
@@ -52,7 +58,7 @@ func parseRoute(entry map[string]any) (staticRoute, error) {
 
 	prefixStr, _ := entry["prefix"].(string)
 	if prefixStr == "" {
-		return r, fmt.Errorf("route missing prefix")
+		return r, errRouteMissingPrefix
 	}
 	pfx, err := netip.ParsePrefix(prefixStr)
 	if err != nil {
@@ -113,7 +119,7 @@ func parseNextHop(entry map[string]any) (nextHop, error) {
 
 	addrStr, _ := entry["address"].(string)
 	if addrStr == "" {
-		return nh, fmt.Errorf("next-hop missing address")
+		return nh, errNextHopMissingAddress
 	}
 	addr, err := netip.ParseAddr(addrStr)
 	if err != nil {

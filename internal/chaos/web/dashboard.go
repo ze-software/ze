@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -728,7 +729,7 @@ func renderPeerRemoval(idx int) string {
 
 // itoa is a simple int-to-string helper to avoid importing strconv for HTML rendering.
 func itoa(n int) string {
-	return fmt.Sprintf("%d", n)
+	return strconv.Itoa(n)
 }
 
 // droppedStat returns a warning stat span when events were dropped, or empty string otherwise.

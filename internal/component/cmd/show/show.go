@@ -766,7 +766,7 @@ func showInterfaceBrief() (*plugin.Response, error) {
 			"mtu":   ifaces[i].MTU,
 		}
 		if len(ifaces[i].Addresses) > 0 {
-			row["address"] = ifaces[i].Addresses[0].Address + "/" + fmt.Sprintf("%d", ifaces[i].Addresses[0].PrefixLength)
+			row["address"] = ifaces[i].Addresses[0].Address + "/" + strconv.Itoa(ifaces[i].Addresses[0].PrefixLength)
 		}
 		rows = append(rows, row)
 	}

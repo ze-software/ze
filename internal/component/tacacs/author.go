@@ -8,8 +8,11 @@ package tacacs
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 )
+
+var errAuthorResponseTruncatedWithArgs = errors.New("author response truncated with args")
 
 // Authorization constants. RFC 8907 Section 6.
 const (
@@ -155,7 +158,7 @@ func UnmarshalAuthorResponse(data []byte) (*AuthorResponse, error) {
 		totalArgLen += al
 	}
 	if len(data) < off+serverMsgLen+dataLen+totalArgLen {
-		return nil, fmt.Errorf("author response truncated with args")
+		return nil, errAuthorResponseTruncatedWithArgs
 	}
 
 	serverMsg := string(data[off : off+serverMsgLen])

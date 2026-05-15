@@ -4,11 +4,14 @@ package appliance
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
 	"strconv"
 )
+
+var errIdentityNameIsRequired = errors.New("identity.name is required")
 
 type IdentityConfig struct {
 	Name     string `json:"name"`
@@ -120,7 +123,7 @@ const (
 
 func (c *ApplianceConfig) Validate() error {
 	if c.Identity.Name == "" {
-		return fmt.Errorf("identity.name is required")
+		return errIdentityNameIsRequired
 	}
 	if len(c.Identity.Name) > maxNameLen {
 		return fmt.Errorf("identity.name: maximum length is %d characters", maxNameLen)

@@ -452,6 +452,17 @@
         "hooks": [
           {
             "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-sprintf-new.sh",
+            "timeout": 5000,
+            "blocking": true
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/require-design-ref.sh",
             "timeout": 5000,
             "blocking": true

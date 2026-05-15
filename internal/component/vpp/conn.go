@@ -5,6 +5,7 @@ package vpp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -12,6 +13,12 @@ import (
 	"go.fd.io/govpp/adapter/socketclient"
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/core"
+)
+
+var (
+	errGovppConnectAlreadyInProgress    = errors.New("govpp: connect already in progress")
+	errGovppNotConnected                = errors.New("govpp: not connected")
+	errGovppWaitconnectedTimeoutMustBe0 = errors.New("govpp WaitConnected: timeout must be > 0")
 )
 
 // Connector manages the GoVPP connection to VPP's binary API socket.
@@ -42,7 +49,7 @@ func (c *Connector) Connect(ctx context.Context, maxAttempts int, retryInterval 
 	}
 	if c.connecting {
 		c.mu.Unlock()
-		return fmt.Errorf("govpp: connect already in progress")
+		return errGovppConnectAlreadyInProgress
 	}
 	c.connecting = true
 	c.mu.Unlock()
@@ -88,7 +95,7 @@ func (c *Connector) NewChannel() (api.Channel, error) {
 	defer c.mu.Unlock()
 
 	if !c.connected || c.conn == nil {
-		return nil, fmt.Errorf("govpp: not connected")
+		return nil, errGovppNotConnected
 	}
 
 	ch, err := c.conn.NewAPIChannel()
@@ -117,7 +124,7 @@ func (c *Connector) IsConnected() bool {
 // happen from any goroutine and we do not want to re-architect the mutex.
 func (c *Connector) WaitConnected(ctx context.Context, timeout time.Duration) error {
 	if timeout <= 0 {
-		return fmt.Errorf("govpp WaitConnected: timeout must be > 0")
+		return errGovppWaitconnectedTimeoutMustBe0
 	}
 	if err := ctx.Err(); err != nil {
 		return err

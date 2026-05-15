@@ -180,7 +180,7 @@ func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bo
 	})
 
 	if !pr.Run(context.Background()) {
-		return fmt.Errorf("tests failed")
+		return errTestsFailed
 	}
 
 	return nil

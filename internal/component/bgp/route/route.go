@@ -21,6 +21,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 )
 
+var (
+	errMissingOriginValue             = errors.New("missing origin value")
+	errMissingLocalPreferenceValue    = errors.New("missing local-preference value")
+	errMissingMedValue                = errors.New("missing med value")
+	errMissingAsPathValue             = errors.New("missing as-path value")
+	errMissingCommunityValue          = errors.New("missing community value")
+	errMissingLargeCommunityValue     = errors.New("missing large-community value")
+	errMissingExtendedCommunityValue  = errors.New("missing extended-community value")
+	errEmptyArgsForParenthesizedValue = errors.New("empty args for parenthesized value")
+	errUnclosedParenthesisInValue     = errors.New("unclosed parenthesis in value")
+)
+
 // Errors for route parsing.
 var (
 	ErrMissingPrefix      = errors.New("missing prefix")
@@ -234,7 +246,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 	switch key {
 	case "origin":
 		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing origin value")
+			return 0, errMissingOriginValue
 		}
 		if err := b.ParseOrigin(args[idx+1]); err != nil {
 			return 0, err
@@ -243,7 +255,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 
 	case "local-preference":
 		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing local-preference value")
+			return 0, errMissingLocalPreferenceValue
 		}
 		if err := b.ParseLocalPref(args[idx+1]); err != nil {
 			return 0, err
@@ -252,7 +264,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 
 	case "med":
 		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing med value")
+			return 0, errMissingMedValue
 		}
 		if err := b.ParseMED(args[idx+1]); err != nil {
 			return 0, err
@@ -261,7 +273,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 
 	case "as-path":
 		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing as-path value")
+			return 0, errMissingAsPathValue
 		}
 		// Collect tokens until boundary or end
 		tokens, consumed := attribute.ParseBracketedList(args[idx+1:])
@@ -272,7 +284,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 
 	case "community":
 		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing community value")
+			return 0, errMissingCommunityValue
 		}
 		// Collect tokens until boundary or end
 		tokens, consumed := attribute.ParseBracketedList(args[idx+1:])
@@ -283,7 +295,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 
 	case "large-community":
 		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing large-community value")
+			return 0, errMissingLargeCommunityValue
 		}
 		tokens, consumed := attribute.ParseBracketedList(args[idx+1:])
 		if err := b.ParseLargeCommunity(strings.Join(tokens, " ")); err != nil {
@@ -293,7 +305,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 
 	case "extended-community":
 		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing extended-community value")
+			return 0, errMissingExtendedCommunityValue
 		}
 		tokens, consumed := attribute.ParseBracketedList(args[idx+1:])
 		if err := b.ParseExtCommunity(strings.Join(tokens, " ")); err != nil {
@@ -389,7 +401,7 @@ func parseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRout
 // Returns the parsed AS numbers and how many tokens were consumed.
 func parseASPath(args []string) ([]uint32, int, error) {
 	if len(args) == 0 {
-		return nil, 0, fmt.Errorf("missing as-path value")
+		return nil, 0, errMissingAsPathValue
 	}
 
 	tokens, consumed := attribute.ParseBracketedList(args)
@@ -410,7 +422,7 @@ func parseASPath(args []string) ([]uint32, int, error) {
 // Returns the content between parentheses as a single string, and consumed count.
 func parseParenthesizedValue(args []string) (string, int, error) {
 	if len(args) == 0 {
-		return "", 0, fmt.Errorf("empty args for parenthesized value")
+		return "", 0, errEmptyArgsForParenthesizedValue
 	}
 
 	// Must start with "("
@@ -436,7 +448,7 @@ func parseParenthesizedValue(args []string) (string, int, error) {
 		parts = append(parts, arg)
 	}
 
-	return "", 0, fmt.Errorf("unclosed parenthesis in value")
+	return "", 0, errUnclosedParenthesisInValue
 }
 
 // ErrMissingNLRI is returned when nlri keyword or prefixes are missing.

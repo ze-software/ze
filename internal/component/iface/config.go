@@ -19,6 +19,19 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
+var (
+	errMissingEncapsulationBlock           = errors.New("missing encapsulation block")
+	errEncapsulationBlockHasNoKindSelected = errors.New("encapsulation block has no kind selected")
+	errLocalIpAndLocalInterfaceAre         = errors.New("local ip and local interface are mutually exclusive")
+	errLocalIpOrLocalInterfaceRequired     = errors.New("local ip or local interface required")
+	errEmptyWireguardEntry                 = errors.New("empty wireguard entry")
+	errPrivateKeyIsRequired                = errors.New("private-key is required")
+	errEmptyPeerEntry                      = errors.New("empty peer entry")
+	errPublicKeyIsRequired                 = errors.New("public-key is required")
+	errEndpointHasIpButNoPort              = errors.New("endpoint has ip but no port")
+	errEndpointHasPortButNoIp              = errors.New("endpoint has port but no ip")
+)
+
 // yangTrue is the string representation of boolean true in YANG config JSON.
 const yangTrue = "true"
 
@@ -287,7 +300,7 @@ func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
 
 	encMap, ok := m["encapsulation"].(map[string]any)
 	if !ok {
-		return entry, fmt.Errorf("missing encapsulation block")
+		return entry, errMissingEncapsulationBlock
 	}
 
 	var matchedKind TunnelKind
@@ -305,7 +318,7 @@ func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
 		matchedCase = caseMap
 	}
 	if matchedKind == TunnelKindUnknown {
-		return entry, fmt.Errorf("encapsulation block has no kind selected")
+		return entry, errEncapsulationBlockHasNoKindSelected
 	}
 	entry.Spec.Kind = matchedKind
 	if err := parseTunnelLeaves(&entry.Spec, matchedCase); err != nil {
@@ -319,10 +332,10 @@ func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
 		}
 	}
 	if entry.Spec.LocalAddress != "" && entry.Spec.LocalInterface != "" {
-		return entry, fmt.Errorf("local ip and local interface are mutually exclusive")
+		return entry, errLocalIpAndLocalInterfaceAre
 	}
 	if entry.Spec.LocalAddress == "" && entry.Spec.LocalInterface == "" {
-		return entry, fmt.Errorf("local ip or local interface required")
+		return entry, errLocalIpOrLocalInterfaceRequired
 	}
 	if !matchedKind.IsBridgeable() {
 		for i := range entry.Units {
@@ -430,12 +443,12 @@ func parseWireguardEntry(name string, m map[string]any) (wireguardEntry, error) 
 	entry.Spec.Name = name
 
 	if m == nil {
-		return entry, fmt.Errorf("empty wireguard entry")
+		return entry, errEmptyWireguardEntry
 	}
 
 	privStr, ok := m["private-key"].(string)
 	if !ok || privStr == "" {
-		return entry, fmt.Errorf("private-key is required")
+		return entry, errPrivateKeyIsRequired
 	}
 	priv, err := wgtypes.ParseKey(privStr)
 	if err != nil {
@@ -488,7 +501,7 @@ func parseWireguardPeer(name string, m map[string]any) (WireguardPeerSpec, error
 	peer := WireguardPeerSpec{Name: name}
 
 	if m == nil {
-		return peer, fmt.Errorf("empty peer entry")
+		return peer, errEmptyPeerEntry
 	}
 
 	if _, ok := m["disable"]; ok {
@@ -497,7 +510,7 @@ func parseWireguardPeer(name string, m map[string]any) (WireguardPeerSpec, error
 
 	pubStr, ok := m["public-key"].(string)
 	if !ok || pubStr == "" {
-		return peer, fmt.Errorf("public-key is required")
+		return peer, errPublicKeyIsRequired
 	}
 	pub, err := wgtypes.ParseKey(pubStr)
 	if err != nil {
@@ -527,10 +540,10 @@ func parseWireguardPeer(name string, m map[string]any) (WireguardPeerSpec, error
 		}
 		// Endpoint requires both ip and port together.
 		if peer.EndpointIP != "" && peer.EndpointPort == 0 {
-			return peer, fmt.Errorf("endpoint has ip but no port")
+			return peer, errEndpointHasIpButNoPort
 		}
 		if peer.EndpointIP == "" && peer.EndpointPort != 0 {
-			return peer, fmt.Errorf("endpoint has port but no ip")
+			return peer, errEndpointHasPortButNoIp
 		}
 	}
 

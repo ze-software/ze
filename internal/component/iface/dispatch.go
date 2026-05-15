@@ -5,16 +5,18 @@
 package iface
 
 import (
-	"fmt"
+	"errors"
 
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+var errIfaceNoBackendLoaded = errors.New("iface: no backend loaded")
 
 // backendOrErr returns the active backend or an error if none is loaded.
 func backendOrErr() (Backend, error) {
 	b := GetBackend()
 	if b == nil {
-		return nil, fmt.Errorf("iface: no backend loaded")
+		return nil, errIfaceNoBackendLoaded
 	}
 	return b, nil
 }

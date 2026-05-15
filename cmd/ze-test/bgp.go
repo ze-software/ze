@@ -20,6 +20,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
 
+var (
+	errPeerCheckFailed     = errors.New("peer check failed")
+	errCouldNotFindGoModIn = errors.New("could not find go.mod in parent directories")
+)
+
 // errTestsFailed is returned when tests fail (not an error, but indicates exit code 1).
 var errTestsFailed = errors.New("tests failed")
 
@@ -464,7 +469,7 @@ func runServerOnly(ctx context.Context, cli *runCLIFlags, tests *runner.Encoding
 		return result.Error
 	}
 	if !result.Success {
-		return fmt.Errorf("peer check failed")
+		return errPeerCheckFailed
 	}
 
 	fmt.Println("successful")
@@ -691,5 +696,5 @@ func findBaseDir() (string, error) {
 		dir = parent
 	}
 
-	return "", fmt.Errorf("could not find go.mod in parent directories")
+	return "", errCouldNotFindGoModIn
 }

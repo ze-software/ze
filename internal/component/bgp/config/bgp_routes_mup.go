@@ -5,6 +5,7 @@
 package bgpconfig
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,12 +13,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+var errMupNlriRequiresRouteTypeAnd = errors.New("mup nlri requires route type and fields")
+
 // parseMUPNLRILine parses a MUP NLRI line like:
 // "ipv4/mup mup-isd 10.0.1.0/24 rd 100:100".
 func parseMUPNLRILine(line string, attr *config.Tree) (MUPRouteConfig, error) {
 	parts := strings.Fields(line)
 	if len(parts) < 2 {
-		return MUPRouteConfig{}, fmt.Errorf("mup nlri requires route type and fields")
+		return MUPRouteConfig{}, errMupNlriRequiresRouteTypeAnd
 	}
 
 	fam := parts[0]

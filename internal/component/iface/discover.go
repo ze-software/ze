@@ -5,7 +5,6 @@
 package iface
 
 import (
-	"fmt"
 	"sort"
 )
 
@@ -70,7 +69,7 @@ var kernelTunnelKinds = map[string]bool{
 func DiscoverInterfaces() ([]DiscoveredInterface, error) {
 	b := GetBackend()
 	if b == nil {
-		return nil, fmt.Errorf("iface: no backend loaded")
+		return nil, errIfaceNoBackendLoaded
 	}
 	infos, err := b.ListInterfaces()
 	if err != nil {

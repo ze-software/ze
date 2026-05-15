@@ -31,6 +31,11 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/schema"     // register ze-l2tp-api.yang
 )
 
+var (
+	errL2tpObserverNotEnabledCqmDisabled = errors.New("l2tp: observer not enabled (CQM disabled)")
+	errL2tpMissingLoginArgument          = errors.New("l2tp: missing login argument")
+)
+
 // errSubsystemUnavailable is returned when any show/teardown command
 // runs while the L2TP subsystem has not been started (or has been
 // stopped). The handler converts it into a plugin.StatusError response
@@ -218,7 +223,7 @@ func handleObserver(_ *pluginserver.CommandContext, args []string) (*plugin.Resp
 	if arg == argAll || arg == "" {
 		summaries := svc.SessionSummaries()
 		if summaries == nil {
-			return errResponse(fmt.Errorf("l2tp: observer not enabled (CQM disabled)")), nil
+			return errResponse(errL2tpObserverNotEnabledCqmDisabled), nil
 		}
 		out := make([]map[string]any, 0, len(summaries))
 		for i := range summaries {
@@ -285,7 +290,7 @@ func handleCQM(_ *pluginserver.CommandContext, args []string) (*plugin.Response,
 	if arg == argAll || arg == "summary" || arg == "" {
 		summaries := svc.LoginSummaries()
 		if summaries == nil {
-			return errResponse(fmt.Errorf("l2tp: observer not enabled (CQM disabled)")), nil
+			return errResponse(errL2tpObserverNotEnabledCqmDisabled), nil
 		}
 		out := make([]map[string]any, 0, len(summaries))
 		for i := range summaries {
@@ -333,7 +338,7 @@ func handleEcho(_ *pluginserver.CommandContext, args []string) (*plugin.Response
 	}
 	login := firstPositionalArg(args)
 	if login == "" {
-		return errResponse(fmt.Errorf("l2tp: missing login argument")), nil
+		return errResponse(errL2tpMissingLoginArgument), nil
 	}
 	state := svc.EchoState(login)
 	if state == nil {

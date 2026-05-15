@@ -4,6 +4,7 @@
 package evpn
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -12,6 +13,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+)
+
+var (
+	errMissingEvpnRouteType      = errors.New("missing EVPN route type")
+	errMissingRouteType          = errors.New("missing route type")
+	errMissingRouteDistinguisher = errors.New("missing route-distinguisher")
+	errMissingMacAddress         = errors.New("missing mac address")
+	errMissingPrefix             = errors.New("missing prefix")
 )
 
 // EncodeRoute encodes an EVPN route command into UPDATE body bytes and NLRI bytes.
@@ -23,7 +32,7 @@ func EncodeRoute(routeCmd, _ string, localAS uint32, isIBGP, asn4, addPath bool)
 	// Parse route command - expects "mac-ip|ip-prefix|... <args>"
 	args := strings.Fields(routeCmd)
 	if len(args) < 1 {
-		return nil, nil, fmt.Errorf("missing EVPN route type")
+		return nil, nil, errMissingEvpnRouteType
 	}
 
 	// Parse using L2VPN argument parser
@@ -147,7 +156,7 @@ func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, error) {
 	var route bgptypes.L2VPNRoute
 
 	if len(args) < 1 {
-		return route, fmt.Errorf("missing route type")
+		return route, errMissingRouteType
 	}
 
 	// First argument is route type
@@ -229,15 +238,15 @@ func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, error) {
 
 	// Validate required fields based on route type
 	if route.RD == "" {
-		return route, fmt.Errorf("missing route-distinguisher")
+		return route, errMissingRouteDistinguisher
 	}
 
 	if route.RouteType == "mac-ip" && route.MAC == "" {
-		return route, fmt.Errorf("missing mac address")
+		return route, errMissingMacAddress
 	}
 
 	if route.RouteType == RouteNameIPPrefix && !route.Prefix.IsValid() {
-		return route, fmt.Errorf("missing prefix")
+		return route, errMissingPrefix
 	}
 
 	return route, nil

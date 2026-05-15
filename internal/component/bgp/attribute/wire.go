@@ -4,11 +4,14 @@
 package attribute
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 )
+
+var errNilEncodingContext = errors.New("nil encoding context")
 
 // attrIndex caches attribute location and parsed value within packed bytes.
 // Built lazily on first scan, reused for subsequent lookups.
@@ -393,7 +396,7 @@ func init() {
 // REQUIRES: ctx != nil (caller must validate context exists).
 func parseKnownAttribute(code AttributeCode, data []byte, ctx *bgpctx.EncodingContext) (Attribute, error) {
 	if ctx == nil {
-		return nil, fmt.Errorf("nil encoding context")
+		return nil, errNilEncodingContext
 	}
 
 	fn := knownAttrParsers[code]

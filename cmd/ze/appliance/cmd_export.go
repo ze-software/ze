@@ -5,6 +5,7 @@ package appliance
 import (
 	"archive/tar"
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -15,6 +16,8 @@ import (
 
 	"golang.org/x/term"
 )
+
+var errExportRequiresEncryptionPassphraseArchivesAlways = errors.New("export requires encryption passphrase (archives always encrypted)")
 
 func init() {
 	cmdExport = runExport
@@ -78,7 +81,7 @@ func runExport(args []string) int {
 func resolveExportPassphrase() ([]byte, error) {
 	passphrase, _, err := ResolvePassphrase(func() ([]byte, error) {
 		if !term.IsTerminal(int(os.Stdin.Fd())) {
-			return nil, fmt.Errorf("export requires encryption passphrase (archives always encrypted)")
+			return nil, errExportRequiresEncryptionPassphraseArchivesAlways
 		}
 		fmt.Fprint(os.Stderr, "Archive encryption passphrase: ")
 		pass, readErr := term.ReadPassword(int(os.Stdin.Fd()))
@@ -87,22 +90,22 @@ func resolveExportPassphrase() ([]byte, error) {
 			return nil, readErr
 		}
 		if len(pass) == 0 {
-			return nil, fmt.Errorf("export requires encryption passphrase (archives always encrypted)")
+			return nil, errExportRequiresEncryptionPassphraseArchivesAlways
 		}
 		return pass, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("export requires encryption passphrase (archives always encrypted)")
+		return nil, errExportRequiresEncryptionPassphraseArchivesAlways
 	}
 	if len(passphrase) == 0 {
-		return nil, fmt.Errorf("export requires encryption passphrase (archives always encrypted)")
+		return nil, errExportRequiresEncryptionPassphraseArchivesAlways
 	}
 	return passphrase, nil
 }
 
 func exportAppliance(baseDir, name string, passphrase []byte, outDir string) (string, error) {
 	if len(passphrase) == 0 {
-		return "", fmt.Errorf("export requires encryption passphrase (archives always encrypted)")
+		return "", errExportRequiresEncryptionPassphraseArchivesAlways
 	}
 
 	appDir := AppliancePath(baseDir, name)
@@ -130,7 +133,7 @@ func exportAppliance(baseDir, name string, passphrase []byte, outDir string) (st
 
 func exportAll(baseDir string, passphrase []byte, outDir string) (string, error) {
 	if len(passphrase) == 0 {
-		return "", fmt.Errorf("export requires encryption passphrase (archives always encrypted)")
+		return "", errExportRequiresEncryptionPassphraseArchivesAlways
 	}
 
 	names, err := listAppliances(baseDir)

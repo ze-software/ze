@@ -3,11 +3,13 @@
 package rpki
 
 import (
-	"fmt"
+	"errors"
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
 )
+
+var errRpkiInvalidBgpConfigJson = errors.New("rpki: invalid BGP config JSON")
 
 // cacheServerConfig holds parsed config for a single RTR cache server.
 type cacheServerConfig struct {
@@ -28,7 +30,7 @@ type rpkiConfig struct {
 func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 	bgpTree, ok := configjson.ParseBGPSubtree(jsonStr)
 	if !ok {
-		return nil, fmt.Errorf("rpki: invalid BGP config JSON")
+		return nil, errRpkiInvalidBgpConfigJson
 	}
 
 	cfg := &rpkiConfig{}

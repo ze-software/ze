@@ -18,6 +18,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
+var errPathIsEmpty = errors.New("path is empty")
+
 // alreadyInRequestedState reports whether err signals that the target
 // node was already in the state we asked for. The CLI verb treats this
 // as success (idempotent, AC-8) and emits a "no change" status. The
@@ -172,7 +174,7 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 // the TUI and CLI surfaces.
 func dispatchDeactivate(ed *cli.Editor, path []string, activate bool) error {
 	if len(path) == 0 {
-		return fmt.Errorf("path is empty")
+		return errPathIsEmpty
 	}
 
 	// Leaf-list value: `... import no-self-as` (path ends at a value

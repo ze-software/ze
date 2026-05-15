@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"strconv"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
@@ -39,7 +40,7 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "config path not available",
-		}, fmt.Errorf("config path not set")
+		}, errConfigPathNotSet
 	}
 
 	// Get peers matching selector
@@ -51,7 +52,7 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "no peers found matching selector",
-		}, fmt.Errorf("no peers matched")
+		}, errNoPeersMatched
 	}
 
 	// Open config file via Editor (YANG-aware, creates backup on save)
@@ -85,7 +86,7 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 		connLocalPath := append(slices.Clone(peerPath), "connection", "local")
 
 		// session > asn > remote is required
-		if err := ed.SetValue(sessionASNPath, "remote", fmt.Sprintf("%d", p.PeerAS)); err != nil {
+		if err := ed.SetValue(sessionASNPath, "remote", strconv.Itoa(int(p.PeerAS))); err != nil {
 			return saveFieldError(p.Address, "session asn remote", err)
 		}
 
@@ -96,7 +97,7 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 
 		// Only write optional fields if they differ from defaults
 		if p.LocalAS != 0 && p.LocalAS != stats.LocalAS {
-			if err := ed.SetValue(sessionASNPath, "local", fmt.Sprintf("%d", p.LocalAS)); err != nil {
+			if err := ed.SetValue(sessionASNPath, "local", strconv.Itoa(int(p.LocalAS))); err != nil {
 				return saveFieldError(p.Address, "session asn local", err)
 			}
 		}
@@ -117,17 +118,17 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 		// Timer container: receive-hold-time, send-hold-time, and connect-retry (only if non-default).
 		timerPath := append(slices.Clone(peerPath), "timer")
 		if p.ReceiveHoldTime != defaultReceiveHoldTime {
-			if err := ed.SetValue(timerPath, "receive-hold-time", fmt.Sprintf("%d", int(p.ReceiveHoldTime.Seconds()))); err != nil {
+			if err := ed.SetValue(timerPath, "receive-hold-time", strconv.Itoa(int(p.ReceiveHoldTime.Seconds()))); err != nil {
 				return saveFieldError(p.Address, "receive-hold-time", err)
 			}
 		}
 		if p.SendHoldTime != 0 {
-			if err := ed.SetValue(timerPath, "send-hold-time", fmt.Sprintf("%d", int(p.SendHoldTime.Seconds()))); err != nil {
+			if err := ed.SetValue(timerPath, "send-hold-time", strconv.Itoa(int(p.SendHoldTime.Seconds()))); err != nil {
 				return saveFieldError(p.Address, "send-hold-time", err)
 			}
 		}
 		if p.ConnectRetry != 0 && p.ConnectRetry != defaultConnectRetry {
-			if err := ed.SetValue(timerPath, "connect-retry", fmt.Sprintf("%d", int(p.ConnectRetry.Seconds()))); err != nil {
+			if err := ed.SetValue(timerPath, "connect-retry", strconv.Itoa(int(p.ConnectRetry.Seconds()))); err != nil {
 				return saveFieldError(p.Address, "connect-retry", err)
 			}
 		}

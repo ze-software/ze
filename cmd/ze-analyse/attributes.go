@@ -15,6 +15,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -317,7 +318,7 @@ func attrExtractCommunities(typeCode uint8, value []byte, peer *attrPeerStats, s
 func runBucket(length uint64) string {
 	switch {
 	case length <= 5:
-		return fmt.Sprintf("%d", length)
+		return strconv.Itoa(int(length))
 	case length <= 10:
 		return "6-10"
 	case length <= 20:
@@ -421,7 +422,7 @@ func attrPrintJSON(w io.Writer, st *attrAnalysis) {
 		if p.Updates > 0 {
 			hr = float64(p.Updates-ub) / float64(p.Updates)
 		}
-		out.PerPeer[fmt.Sprintf("%d", idx)] = &attrJSONPeer{Updates: p.Updates, UniqueBundles: ub, CacheHitRate: hr}
+		out.PerPeer[strconv.Itoa(int(idx))] = &attrJSONPeer{Updates: p.Updates, UniqueBundles: ub, CacheHitRate: hr}
 
 		ce := &attrJSONCommunity{Updates: p.Updates}
 		var savings uint64
@@ -450,7 +451,7 @@ func attrPrintJSON(w io.Writer, st *attrAnalysis) {
 			ce.Variable = ce.Variable[:10]
 		}
 		ce.SavingsBytes = savings
-		out.CommunityData[fmt.Sprintf("%d", idx)] = ce
+		out.CommunityData[strconv.Itoa(int(idx))] = ce
 	}
 
 	enc := json.NewEncoder(w)

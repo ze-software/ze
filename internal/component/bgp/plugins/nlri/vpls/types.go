@@ -7,10 +7,10 @@ package vpls
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Type aliases for shared nlri types.
@@ -155,7 +155,8 @@ func (v *VPLS) SupportsAddPath() bool { return false }
 
 // String returns command-style format for API round-trip compatibility.
 func (v *VPLS) String() string {
-	return fmt.Sprintf("rd %s ve-id %d label %d", v.rd, v.veID, v.labelBase)
+	var b textbuf.Buffer
+	return b.Str("rd ").Str(v.rd.String()).Str(" ve-id ").Uint16(v.veID).Str(" label ").Uint32(v.labelBase).String()
 }
 
 // WriteTo writes the VPLS NLRI directly to buf at offset.

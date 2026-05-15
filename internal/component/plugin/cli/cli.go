@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -24,6 +25,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
+
+var errZePluginHubTokenMustBe = errors.New("ze.plugin.hub.token must be set")
 
 // Env var registrations for plugin CLI.
 var (
@@ -225,7 +228,7 @@ func availableFeatures(cfg PluginConfig) string {
 func connFromEnv() (net.Conn, error) {
 	token := env.Get("ze.plugin.hub.token")
 	if token == "" {
-		return nil, fmt.Errorf("ze.plugin.hub.token must be set")
+		return nil, errZePluginHubTokenMustBe
 	}
 	host := env.Get("ze.plugin.hub.host")
 	if host == "" {

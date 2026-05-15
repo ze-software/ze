@@ -4,9 +4,12 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
+
+var errParseinlineargsParentSchemaNodeMustNot = errors.New("ParseInlineArgs: parent schema node must not be nil")
 
 // ParseInlineArgs builds a Tree from a flat sequence of schema-driven key-value
 // tokens. The schema determines how many tokens each field consumes:
@@ -20,7 +23,7 @@ import (
 // parent MUST NOT be nil.
 func ParseInlineArgs(parent Node, args []string) (*Tree, error) {
 	if parent == nil {
-		return nil, fmt.Errorf("ParseInlineArgs: parent schema node must not be nil")
+		return nil, errParseinlineargsParentSchemaNodeMustNot
 	}
 	tree := NewTree()
 	remaining := args

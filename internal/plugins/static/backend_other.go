@@ -4,9 +4,13 @@
 
 package static
 
-import "fmt"
+import (
+	"errors"
+)
 
-var errUnsupportedPlatform = fmt.Errorf("static routes: not supported on this platform (Linux required)")
+var errStaticRoutesNotSupportedOnThis = errors.New("static routes: not supported on this platform (Linux required)")
+
+var errUnsupportedPlatform = errStaticRoutesNotSupportedOnThis
 
 type unsupportedStaticBackend struct{}
 

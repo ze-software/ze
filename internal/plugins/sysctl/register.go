@@ -3,6 +3,7 @@ package sysctl
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"net"
@@ -18,6 +19,12 @@ import (
 	sysctlschema "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/schema"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
+)
+
+var (
+	errSysctlDescribeRequiresKeyArgument        = errors.New("sysctl describe: requires key argument")
+	errSysctlDescribeProfileRequiresProfileName = errors.New("sysctl describe-profile: requires profile name argument")
+	errSysctlSetRequiresKeyAndValue             = errors.New("sysctl set: requires key and value arguments")
 )
 
 // eventBusMu guards eventBusRef. An interface cannot be stored in
@@ -358,19 +365,19 @@ func runSysctlPlugin(conn net.Conn) int {
 			return statusDone, listKnownKeys(), nil
 		case "sysctl describe":
 			if len(args) < 1 {
-				return statusError, "", fmt.Errorf("sysctl describe: requires key argument")
+				return statusError, "", errSysctlDescribeRequiresKeyArgument
 			}
 			return statusDone, s.describeKey(args[0]), nil
 		case "sysctl list-profiles":
 			return statusDone, listProfiles(), nil
 		case "sysctl describe-profile":
 			if len(args) < 1 {
-				return statusError, "", fmt.Errorf("sysctl describe-profile: requires profile name argument")
+				return statusError, "", errSysctlDescribeProfileRequiresProfileName
 			}
 			return statusDone, describeProfile(args[0]), nil
 		case "sysctl set":
 			if len(args) < 2 {
-				return statusError, "", fmt.Errorf("sysctl set: requires key and value arguments")
+				return statusError, "", errSysctlSetRequiresKeyAndValue
 			}
 			applied, err := s.setTransient(args[0], args[1])
 			if err != nil {

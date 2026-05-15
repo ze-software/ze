@@ -19,6 +19,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
 )
 
+var (
+	errNoConfigContentOrCommandsFound        = errors.New("no config content or commands found")
+	errExpectedFailureButValidationSucceeded = errors.New("expected failure but validation succeeded")
+	errEmptyCommand                          = errors.New("empty command")
+)
+
 // ciCommand holds a parsed cmd= line and its associated expectations.
 type ciCommand struct {
 	Seq       int
@@ -353,7 +359,7 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
 	}
 
 	if test.InlineConfig == nil && len(test.TmpfsFiles) == 0 && len(test.Commands) == 0 {
-		return nil, fmt.Errorf("no config content or commands found")
+		return nil, errNoConfigContentOrCommandsFound
 	}
 
 	return test, nil
@@ -644,7 +650,7 @@ func (r *ParsingRunner) runLegacyTest(ctx context.Context, test *ParsingTest) bo
 
 	if isNegative {
 		if runErr == nil {
-			test.Error = fmt.Errorf("expected failure but validation succeeded")
+			test.Error = errExpectedFailureButValidationSucceeded
 			return false
 		}
 		if test.IsRegexMatch {
@@ -714,7 +720,7 @@ func splitCommand(s string) ([]string, error) {
 		args = append(args, current.String())
 	}
 	if len(args) == 0 {
-		return nil, fmt.Errorf("empty command")
+		return nil, errEmptyCommand
 	}
 	return args, nil
 }

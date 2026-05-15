@@ -19,6 +19,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
+var errSubsystemConnectionClosedBeforeProtocol = errors.New("subsystem connection closed before protocol")
+
 // frozenSubsystems holds an immutable snapshot of the SubsystemManager's handler
 // map. Created by Freeze() after startup, used by Get() and FindHandler()
 // on the hot path to avoid RLock.
@@ -129,7 +131,7 @@ func (h *SubsystemHandler) completeProtocol(ctx context.Context) error {
 
 	conn := h.proc.Conn()
 	if conn == nil {
-		return fmt.Errorf("subsystem connection closed before protocol")
+		return errSubsystemConnectionClosedBeforeProtocol
 	}
 
 	// Stage 1: Read declare-registration from plugin (plugin-initiated)

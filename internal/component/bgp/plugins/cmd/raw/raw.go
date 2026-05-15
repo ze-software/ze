@@ -6,6 +6,7 @@ package raw
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -14,6 +15,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+)
+
+var (
+	errRawRequiresSpecificPeer       = errors.New("raw requires specific peer")
+	errRawRequiresAtLeastEncodingAnd = errors.New("raw requires at least encoding and data")
+	errMissingEncodingAfterType      = errors.New("missing encoding after type")
 )
 
 func init() {
@@ -40,7 +47,7 @@ func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Respons
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "raw requires specific peer: bgp peer <addr> raw ...",
-		}, fmt.Errorf("raw requires specific peer")
+		}, errRawRequiresSpecificPeer
 	}
 
 	peerAddr, err := netip.ParseAddr(ctx.Peer)
@@ -55,7 +62,7 @@ func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Respons
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "usage: raw [<type>] <encoding> <data>",
-		}, fmt.Errorf("raw requires at least encoding and data")
+		}, errRawRequiresAtLeastEncodingAnd
 	}
 
 	// Parse arguments: [type] encoding data
@@ -70,7 +77,7 @@ func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Respons
 			return &plugin.Response{
 				Status: plugin.StatusError,
 				Data:   "usage: raw <type> <encoding> <data>",
-			}, fmt.Errorf("missing encoding after type")
+			}, errMissingEncodingAfterType
 		}
 		encoding = args[1]
 		if len(args) > 2 {

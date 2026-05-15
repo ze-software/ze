@@ -21,6 +21,7 @@
 package filter_community_match
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sync/atomic"
@@ -29,6 +30,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+var errFilterCommunityMatchInvalidBgpConfig = errors.New("filter-community-match: invalid bgp config JSON")
 
 var logger = slogutil.LazyLogger("bgp.filter.community.match")
 
@@ -48,7 +51,7 @@ func RunFilterCommunityMatch(conn net.Conn) int {
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
 			if !ok {
-				return fmt.Errorf("filter-community-match: invalid bgp config JSON")
+				return errFilterCommunityMatchInvalidBgpConfig
 			}
 			lists, err := parseCommunityLists(bgpCfg)
 			if err != nil {

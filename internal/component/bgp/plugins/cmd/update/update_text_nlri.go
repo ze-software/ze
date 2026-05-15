@@ -19,6 +19,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
+var errFlowspecParsingRequiresParseflowspecsection = errors.New("flowspec parsing requires parseFlowSpecSection")
+
 // parseNLRISection parses nlri <family> [path-information <id>] [rd <value>] [label <value>] <nlri-op>+
 // <nlri-op> := add <prefix>+ [watchdog set <name>] | del <prefix>+
 // accum contains NLRI accumulators: pathID, RD, labels.
@@ -238,7 +240,7 @@ func parseNLRI(token string, fam family.Family, accum nlriAccum) (nlri.NLRI, int
 		return parseLabeledNLRI(token, fam, accum)
 	case family.SAFIFlowSpec, family.SAFIFlowSpecVPN:
 		// FlowSpec uses special parsing - should not reach here
-		return nil, 0, fmt.Errorf("flowspec parsing requires parseFlowSpecSection")
+		return nil, 0, errFlowspecParsingRequiresParseflowspecsection
 	default: // INET unicast/multicast families
 		return parseINETNLRI(token, fam, accum.PathID)
 	}

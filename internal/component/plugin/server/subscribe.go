@@ -5,11 +5,22 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+)
+
+var (
+	errMissingPeerSelector   = errors.New("missing peer selector")
+	errMissingPluginName     = errors.New("missing plugin name")
+	errMissingNamespace      = errors.New("missing namespace")
+	errExpectedEventKeyword  = errors.New("expected 'event' keyword")
+	errMissingEventType      = errors.New("missing event type")
+	errMissingDirectionValue = errors.New("missing direction value")
+	errEmptyPeerSelector     = errors.New("empty peer selector")
 )
 
 // Subscribe/unsubscribe handlers are in component/cmd/subscribe/subscribe.go.
@@ -176,7 +187,7 @@ func ParseSubscription(args []string) (*Subscription, error) {
 	// Optional peer/plugin filter
 	if len(args) > i && args[i] == kwPeer {
 		if len(args) < i+2 {
-			return nil, fmt.Errorf("missing peer selector")
+			return nil, errMissingPeerSelector
 		}
 		selector := args[i+1]
 		if err := validatePeerSelector(selector); err != nil {
@@ -186,7 +197,7 @@ func ParseSubscription(args []string) (*Subscription, error) {
 		i += 2
 	} else if len(args) > i && args[i] == cmdPlugin {
 		if len(args) < i+2 {
-			return nil, fmt.Errorf("missing plugin name")
+			return nil, errMissingPluginName
 		}
 		sub.PluginFilter = args[i+1]
 		i += 2
@@ -194,7 +205,7 @@ func ParseSubscription(args []string) (*Subscription, error) {
 
 	// Namespace
 	if len(args) <= i {
-		return nil, fmt.Errorf("missing namespace")
+		return nil, errMissingNamespace
 	}
 	ns := args[i]
 	if !events.IsValidNamespace(ns) {
@@ -205,13 +216,13 @@ func ParseSubscription(args []string) (*Subscription, error) {
 
 	// "event" keyword
 	if len(args) <= i || args[i] != "event" {
-		return nil, fmt.Errorf("expected 'event' keyword")
+		return nil, errExpectedEventKeyword
 	}
 	i++
 
 	// Event type
 	if len(args) <= i {
-		return nil, fmt.Errorf("missing event type")
+		return nil, errMissingEventType
 	}
 	eventType := args[i]
 	if err := validateEventType(ns, eventType); err != nil {
@@ -223,7 +234,7 @@ func ParseSubscription(args []string) (*Subscription, error) {
 	// Optional direction
 	if len(args) > i && args[i] == kwDirection {
 		if len(args) <= i+1 {
-			return nil, fmt.Errorf("missing direction value")
+			return nil, errMissingDirectionValue
 		}
 		dir := args[i+1]
 		switch dir {
@@ -241,7 +252,7 @@ func ParseSubscription(args []string) (*Subscription, error) {
 // Accepts: "*" (all), "!<sel>" (exclusion), IP addresses, peer names.
 func validatePeerSelector(selector string) error {
 	if selector == "" {
-		return fmt.Errorf("empty peer selector")
+		return errEmptyPeerSelector
 	}
 
 	if selector == "*" {

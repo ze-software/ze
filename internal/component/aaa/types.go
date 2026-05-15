@@ -14,6 +14,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+var (
+	errNoAuthenticationBackendsConfigured = errors.New("no authentication backends configured")
+	errAllAuthenticationBackendsFailed    = errors.New("all authentication backends failed")
+	errAaaBackendHasEmptyName             = errors.New("aaa backend has empty name")
+	errNoAuthenticationBackendConfigured  = errors.New("no authentication backend configured")
+)
+
 // SSHPublicKey holds a single named SSH public key for key-based authentication.
 type SSHPublicKey struct {
 	Name string // key identifier (e.g. "jdoe@laptop")
@@ -104,7 +111,7 @@ type ChainAuthenticator struct {
 // Authenticate walks the chain in registration order.
 func (c *ChainAuthenticator) Authenticate(request AuthRequest) (AuthResult, error) {
 	if len(c.Backends) == 0 {
-		return AuthResult{}, fmt.Errorf("no authentication backends configured")
+		return AuthResult{}, errNoAuthenticationBackendsConfigured
 	}
 	var lastErr error
 	for _, backend := range c.Backends {
@@ -120,7 +127,7 @@ func (c *ChainAuthenticator) Authenticate(request AuthRequest) (AuthResult, erro
 	if lastErr != nil {
 		return AuthResult{}, fmt.Errorf("all authentication backends failed: %w", lastErr)
 	}
-	return AuthResult{}, fmt.Errorf("all authentication backends failed")
+	return AuthResult{}, errAllAuthenticationBackendsFailed
 }
 
 // Close invokes every contributed Close function in registration order.
@@ -178,7 +185,7 @@ func (r *BackendRegistry) Register(b Backend) error {
 	}
 	name := b.Name()
 	if name == "" {
-		return fmt.Errorf("aaa backend has empty name")
+		return errAaaBackendHasEmptyName
 	}
 	if _, dup := r.names[name]; dup {
 		return fmt.Errorf("aaa backend %q already registered", name)
@@ -245,7 +252,7 @@ func (r *BackendRegistry) Build(params BuildParams) (*Bundle, error) {
 	}
 
 	if len(authChain) == 0 {
-		return nil, fmt.Errorf("no authentication backend configured")
+		return nil, errNoAuthenticationBackendConfigured
 	}
 	if len(authChain) == 1 {
 		bundle.Authenticator = authChain[0]

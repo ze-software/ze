@@ -5,6 +5,7 @@ package vpls
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -13,6 +14,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+)
+
+var (
+	errRdRequiresValue            = errors.New("rd requires value")
+	errVeIdRequiresValue          = errors.New("ve-id requires value")
+	errVeBlockOffsetRequiresValue = errors.New("ve-block-offset requires value")
+	errVeBlockSizeRequiresValue   = errors.New("ve-block-size requires value")
+	errLabelRequiresValue         = errors.New("label requires value")
+	errRdRequiredForVpls          = errors.New("rd required for VPLS")
+	errMissingVplsCommand         = errors.New("missing VPLS command")
+	errMissingRouteDistinguisher  = errors.New("missing route-distinguisher")
 )
 
 // EncodeNLRIHex encodes VPLS NLRI from CLI-style args and returns uppercase hex.
@@ -33,7 +45,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 		case "rd":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("rd requires value")
+				return "", errRdRequiresValue
 			}
 			parsed, err := ParseRDString(args[i])
 			if err != nil {
@@ -44,7 +56,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 		case "ve-id":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("ve-id requires value")
+				return "", errVeIdRequiresValue
 			}
 			v, err := strconv.ParseUint(args[i], 10, 16)
 			if err != nil {
@@ -54,7 +66,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 		case "ve-block-offset":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("ve-block-offset requires value")
+				return "", errVeBlockOffsetRequiresValue
 			}
 			v, err := strconv.ParseUint(args[i], 10, 16)
 			if err != nil {
@@ -64,7 +76,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 		case "ve-block-size":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("ve-block-size requires value")
+				return "", errVeBlockSizeRequiresValue
 			}
 			v, err := strconv.ParseUint(args[i], 10, 16)
 			if err != nil {
@@ -74,7 +86,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 		case "label-base", "label":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("label requires value")
+				return "", errLabelRequiresValue
 			}
 			v, err := strconv.ParseUint(args[i], 10, 32)
 			if err != nil {
@@ -85,7 +97,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 	}
 
 	if !hasRD {
-		return "", fmt.Errorf("rd required for VPLS")
+		return "", errRdRequiredForVpls
 	}
 
 	v := NewVPLSFull(rd, veID, veBlockOffset, veBlockSize, labelBase)
@@ -101,7 +113,7 @@ func EncodeRoute(routeCmd, _ string, localAS uint32, isIBGP, asn4, addPath bool)
 	// Parse route command
 	args := strings.Fields(routeCmd)
 	if len(args) < 1 {
-		return nil, nil, fmt.Errorf("missing VPLS command")
+		return nil, nil, errMissingVplsCommand
 	}
 
 	// Parse using VPLS argument parser
@@ -193,7 +205,7 @@ func parseVPLSArgs(args []string) (bgptypes.VPLSRoute, error) {
 	}
 
 	if route.RD == "" {
-		return route, fmt.Errorf("missing route-distinguisher")
+		return route, errMissingRouteDistinguisher
 	}
 
 	return route, nil

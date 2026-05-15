@@ -35,6 +35,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
+var (
+	errWebServerAtLeastOneListen     = errors.New("web server: at least one listen address is required")
+	errWebServerListenAddressMustNot = errors.New("web server: listen address must not be empty")
+	errWebServerCertificateAndKeyPem = errors.New("web server: certificate and key PEM data are required")
+)
+
 // serverLogger is the structured logger for the web server subsystem.
 // The auth logger is declared separately in auth.go as "web.auth".
 var serverLogger = slogutil.Logger("web.server")
@@ -116,10 +122,10 @@ type WebServer struct {
 // calling NewWebServer.
 func NewWebServer(cfg WebConfig) (*WebServer, error) {
 	if len(cfg.ListenAddrs) == 0 {
-		return nil, fmt.Errorf("web server: at least one listen address is required")
+		return nil, errWebServerAtLeastOneListen
 	}
 	if slices.Contains(cfg.ListenAddrs, "") {
-		return nil, fmt.Errorf("web server: listen address must not be empty")
+		return nil, errWebServerListenAddressMustNot
 	}
 
 	log := cfg.Logger
@@ -128,7 +134,7 @@ func NewWebServer(cfg WebConfig) (*WebServer, error) {
 	}
 
 	if len(cfg.CertPEM) == 0 || len(cfg.KeyPEM) == 0 {
-		return nil, fmt.Errorf("web server: certificate and key PEM data are required")
+		return nil, errWebServerCertificateAndKeyPem
 	}
 
 	tlsCfg, err := NewTLSConfig(cfg.CertPEM, cfg.KeyPEM)

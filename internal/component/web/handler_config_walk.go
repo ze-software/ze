@@ -5,11 +5,14 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
+
+var errEmptySchemaPath = errors.New("empty schema path")
 
 // schemaGetter is the interface shared by Schema, ContainerNode, ListNode,
 // FlexNode, and InlineListNode for walking the schema tree.
@@ -38,7 +41,7 @@ func walkConfigPath(schema *config.Schema, tree *config.Tree, path []string) (co
 }
 
 // errEmptyPath is returned when walkSchema is called with an empty path.
-var errEmptyPath = fmt.Errorf("empty schema path")
+var errEmptyPath = errEmptySchemaPath
 
 // walkSchema walks the schema tree following path segments and returns the
 // node at the path end. List keys consume 2 path segments (name + key value),

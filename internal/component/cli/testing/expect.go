@@ -3,6 +3,7 @@
 package testing
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,34 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+)
+
+var (
+	errContextExpectationRequiresRootOrPath            = errors.New("context expectation requires 'root' or 'path' key")
+	errExpectedDirtyFalseGotTrue                       = errors.New("expected dirty:false, got true")
+	errDirtyExpectationRequiresTrueOrFalse             = errors.New("dirty expectation requires 'true' or 'false' key")
+	errErrorExpectationRequiresNoneOrContains          = errors.New("error expectation requires 'none' or 'contains' key")
+	errCompletionExpectationRequiresEmptyCountContains = errors.New("completion expectation requires 'empty', 'count', 'contains', or 'exact' key")
+	errGhostExpectationRequiresEmptyOrText             = errors.New("ghost expectation requires 'empty' or 'text' key")
+	errErrorsExpectationRequiresCountOrContains        = errors.New("errors expectation requires 'count' or 'contains' key")
+	errWarningsExpectationRequiresCountOrContains      = errors.New("warnings expectation requires 'count' or 'contains' key")
+	errContentExpectationRequiresContainsNotContains   = errors.New("content expectation requires 'contains', 'not-contains', or 'lines' key")
+	errStatusExpectationRequiresEmptyOrContains        = errors.New("status expectation requires 'empty' or 'contains' key")
+	errExpectedTemplateTrueGotFalse                    = errors.New("expected template:true, got false")
+	errExpectedTemplateFalseGotTrue                    = errors.New("expected template:false, got true")
+	errTemplateExpectationRequiresTrueOrFalse          = errors.New("template expectation requires 'true' or 'false' key")
+	errExpectedDropdownVisibleGotHidden                = errors.New("expected dropdown:visible, got hidden")
+	errExpectedDropdownHiddenGotVisible                = errors.New("expected dropdown:hidden, got visible")
+	errDropdownExpectationRequiresVisibleOrHidden      = errors.New("dropdown expectation requires 'visible' or 'hidden' key")
+	errPromptExpectationRequiresContainsKey            = errors.New("prompt expectation requires 'contains' key")
+	errViewportExpectationRequiresContainsOrNot        = errors.New("viewport expectation requires 'contains' or 'not-contains' key")
+	errModeExpectationRequiresIsKeyE                   = errors.New("mode expectation requires 'is' key (e.g., mode:is=edit or mode:is=command)")
+	errExpectedTimerActiveGotInactive                  = errors.New("expected timer:active, got inactive")
+	errExpectedTimerInactiveGotActive                  = errors.New("expected timer:inactive, got active")
+	errTimerExpectationRequiresActiveOrInactive        = errors.New("timer expectation requires 'active' or 'inactive' key")
+	errInputExpectationRequiresValueOrEmpty            = errors.New("input expectation requires 'value' or 'empty' key")
+	errFileExpectationRequiresTmpdir                   = errors.New("file expectation requires TmpDir")
+	errFileExpectationRequiresPathKey                  = errors.New("file expectation requires 'path' key")
 )
 
 // State interface defines what can be queried from the editor model for assertions.
@@ -82,7 +111,7 @@ func checkContext(exp Expectation, state State) error {
 		return nil
 	}
 
-	return fmt.Errorf("context expectation requires 'root' or 'path' key")
+	return errContextExpectationRequiresRootOrPath
 }
 
 // checkDirty verifies dirty flag expectations.
@@ -101,12 +130,12 @@ func checkDirty(exp Expectation, state State) error {
 
 	if _, hasFalse := exp.Values["false"]; hasFalse {
 		if state.Dirty() {
-			return fmt.Errorf("expected dirty:false, got true")
+			return errExpectedDirtyFalseGotTrue
 		}
 		return nil
 	}
 
-	return fmt.Errorf("dirty expectation requires 'true' or 'false' key")
+	return errDirtyExpectationRequiresTrueOrFalse
 }
 
 // checkError verifies command error expectations.
@@ -128,7 +157,7 @@ func checkError(exp Expectation, state State) error {
 		return nil
 	}
 
-	return fmt.Errorf("error expectation requires 'none' or 'contains' key")
+	return errErrorExpectationRequiresNoneOrContains
 }
 
 // checkCompletion verifies completion list expectations.
@@ -192,7 +221,7 @@ func checkCompletion(exp Expectation, state State) error {
 		return nil
 	}
 
-	return fmt.Errorf("completion expectation requires 'empty', 'count', 'contains', or 'exact' key")
+	return errCompletionExpectationRequiresEmptyCountContains
 }
 
 // completionTexts extracts text values from completions for error messages.
@@ -220,7 +249,7 @@ func checkGhost(exp Expectation, state State) error {
 		return nil
 	}
 
-	return fmt.Errorf("ghost expectation requires 'empty' or 'text' key")
+	return errGhostExpectationRequiresEmptyOrText
 }
 
 // checkErrors verifies validation error expectations.
@@ -247,7 +276,7 @@ func checkErrors(exp Expectation, state State) error {
 		return fmt.Errorf("no validation error contains %q", expected)
 	}
 
-	return fmt.Errorf("errors expectation requires 'count' or 'contains' key")
+	return errErrorsExpectationRequiresCountOrContains
 }
 
 // checkWarnings verifies validation warning expectations.
@@ -274,7 +303,7 @@ func checkWarnings(exp Expectation, state State) error {
 		return fmt.Errorf("no validation warning contains %q", expected)
 	}
 
-	return fmt.Errorf("warnings expectation requires 'count' or 'contains' key")
+	return errWarningsExpectationRequiresCountOrContains
 }
 
 // checkContent verifies content expectations.
@@ -316,7 +345,7 @@ func checkContent(exp Expectation, state State) error {
 		return nil
 	}
 
-	return fmt.Errorf("content expectation requires 'contains', 'not-contains', or 'lines' key")
+	return errContentExpectationRequiresContainsNotContains
 }
 
 // checkStatus verifies status message expectations.
@@ -337,45 +366,45 @@ func checkStatus(exp Expectation, state State) error {
 		return nil
 	}
 
-	return fmt.Errorf("status expectation requires 'empty' or 'contains' key")
+	return errStatusExpectationRequiresEmptyOrContains
 }
 
 // checkTemplate verifies template mode expectations.
 func checkTemplate(exp Expectation, state State) error {
 	if _, hasTrue := exp.Values["true"]; hasTrue {
 		if !state.IsTemplate() {
-			return fmt.Errorf("expected template:true, got false")
+			return errExpectedTemplateTrueGotFalse
 		}
 		return nil
 	}
 
 	if _, hasFalse := exp.Values["false"]; hasFalse {
 		if state.IsTemplate() {
-			return fmt.Errorf("expected template:false, got true")
+			return errExpectedTemplateFalseGotTrue
 		}
 		return nil
 	}
 
-	return fmt.Errorf("template expectation requires 'true' or 'false' key")
+	return errTemplateExpectationRequiresTrueOrFalse
 }
 
 // checkDropdown verifies dropdown visibility expectations.
 func checkDropdown(exp Expectation, state State) error {
 	if _, hasVisible := exp.Values["visible"]; hasVisible {
 		if !state.ShowDropdown() {
-			return fmt.Errorf("expected dropdown:visible, got hidden")
+			return errExpectedDropdownVisibleGotHidden
 		}
 		return nil
 	}
 
 	if _, hasHidden := exp.Values["hidden"]; hasHidden {
 		if state.ShowDropdown() {
-			return fmt.Errorf("expected dropdown:hidden, got visible")
+			return errExpectedDropdownHiddenGotVisible
 		}
 		return nil
 	}
 
-	return fmt.Errorf("dropdown expectation requires 'visible' or 'hidden' key")
+	return errDropdownExpectationRequiresVisibleOrHidden
 }
 
 // checkPrompt verifies prompt text expectations.
@@ -400,7 +429,7 @@ func checkPrompt(exp Expectation, state State) error {
 		return nil
 	}
 
-	return fmt.Errorf("prompt expectation requires 'contains' key")
+	return errPromptExpectationRequiresContainsKey
 }
 
 // checkViewport verifies viewport content expectations.
@@ -422,7 +451,7 @@ func checkViewport(exp Expectation, state State) error {
 		return nil
 	}
 
-	return fmt.Errorf("viewport expectation requires 'contains' or 'not-contains' key")
+	return errViewportExpectationRequiresContainsOrNot
 }
 
 // checkMode verifies editor mode expectations.
@@ -436,26 +465,26 @@ func checkMode(exp Expectation, state State) error {
 		return nil
 	}
 
-	return fmt.Errorf("mode expectation requires 'is' key (e.g., mode:is=edit or mode:is=command)")
+	return errModeExpectationRequiresIsKeyE
 }
 
 // checkTimer verifies commit confirm timer state.
 func checkTimer(exp Expectation, state State) error {
 	if _, hasActive := exp.Values["active"]; hasActive {
 		if !state.ConfirmTimerActive() {
-			return fmt.Errorf("expected timer:active, got inactive")
+			return errExpectedTimerActiveGotInactive
 		}
 		return nil
 	}
 
 	if _, hasInactive := exp.Values["inactive"]; hasInactive {
 		if state.ConfirmTimerActive() {
-			return fmt.Errorf("expected timer:inactive, got active")
+			return errExpectedTimerInactiveGotActive
 		}
 		return nil
 	}
 
-	return fmt.Errorf("timer expectation requires 'active' or 'inactive' key")
+	return errTimerExpectationRequiresActiveOrInactive
 }
 
 // checkInput verifies text input value expectations.
@@ -476,7 +505,7 @@ func checkInput(exp Expectation, state State) error {
 		return nil
 	}
 
-	return fmt.Errorf("input expectation requires 'value' or 'empty' key")
+	return errInputExpectationRequiresValueOrEmpty
 }
 
 // checkFile verifies on-disk file content relative to TmpDir.
@@ -484,12 +513,12 @@ func checkInput(exp Expectation, state State) error {
 func checkFile(exp Expectation, state State) error {
 	dir := state.TmpDir()
 	if dir == "" {
-		return fmt.Errorf("file expectation requires TmpDir")
+		return errFileExpectationRequiresTmpdir
 	}
 
 	path, ok := exp.Values["path"]
 	if !ok {
-		return fmt.Errorf("file expectation requires 'path' key")
+		return errFileExpectationRequiresPathKey
 	}
 	if filepath.IsAbs(path) || strings.Contains(path, "..") {
 		return fmt.Errorf("file expectation path must be relative without '..': %s", path)

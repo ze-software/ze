@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
@@ -271,7 +272,7 @@ func formatPort(keyword string, ranges []firewall.PortRange) string {
 	parts := make([]string, 0, len(ranges))
 	for _, r := range ranges {
 		if r.Lo == r.Hi {
-			parts = append(parts, fmt.Sprintf("%d", r.Lo))
+			parts = append(parts, strconv.Itoa(int(r.Lo)))
 		} else {
 			parts = append(parts, fmt.Sprintf("%d-%d", r.Lo, r.Hi))
 		}

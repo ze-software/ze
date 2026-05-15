@@ -9,11 +9,14 @@
 package cmdregistry
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 	"sync"
 )
+
+var errCmdregistryRegisterlocalEmptyPath = errors.New("cmdregistry.RegisterLocal: empty path")
 
 // LocalHandler runs a CLI command in-process (no daemon required).
 type LocalHandler func(args []string) int
@@ -53,7 +56,7 @@ var (
 // space-separated command. Called at startup before dispatch.
 func RegisterLocal(path string, handler LocalHandler) error {
 	if path == "" {
-		return fmt.Errorf("cmdregistry.RegisterLocal: empty path")
+		return errCmdregistryRegisterlocalEmptyPath
 	}
 	if handler == nil {
 		return fmt.Errorf("cmdregistry.RegisterLocal: nil handler for %q", path)

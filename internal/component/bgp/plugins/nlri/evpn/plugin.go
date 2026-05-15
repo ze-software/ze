@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -19,7 +20,14 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+)
+
+var (
+	errNoValidEvpnRoutesDecoded = errors.New("no valid EVPN routes decoded")
+	errEmptyArgs                = errors.New("empty args")
+	errRdRequiredForEvpn        = errors.New("rd required for EVPN")
 )
 
 // evpnLogger is the package-level logger, disabled by default.
@@ -73,7 +81,7 @@ func DecodeNLRIHex(family, hexStr string) (string, error) {
 
 	results := decodeEVPNNLRI(data)
 	if len(results) == 0 {
-		return "", fmt.Errorf("no valid EVPN routes decoded")
+		return "", errNoValidEvpnRoutesDecoded
 	}
 
 	jsonBytes, err := json.Marshal(results)
@@ -97,7 +105,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 		return "", fmt.Errorf("unsupported family: %s", family)
 	}
 	if len(args) == 0 {
-		return "", fmt.Errorf("empty args")
+		return "", errEmptyArgs
 	}
 
 	routeType := args[0]
@@ -153,7 +161,7 @@ func parseEVPNEncodeArgs(kvArgs []string) (*evpnEncodeParams, error) {
 		}
 	}
 	if !p.hasRD {
-		return nil, fmt.Errorf("rd required for EVPN")
+		return nil, errRdRequiredForEvpn
 	}
 	return p, nil
 }
@@ -430,7 +438,7 @@ func decodeEVPNNLRI(data []byte) []map[string]any {
 			results = append(results, map[string]any{
 				"code":   int(routeType),
 				"parsed": false,
-				"raw":    fmt.Sprintf("%X", remaining),
+				"raw":    strings.ToUpper(hex.EncodeToString(remaining)),
 			})
 			break
 		}
@@ -444,7 +452,7 @@ func decodeEVPNNLRI(data []byte) []map[string]any {
 			results = append(results, map[string]any{
 				"code":   int(routeType),
 				"parsed": false,
-				"raw":    fmt.Sprintf("%X", routeData),
+				"raw":    strings.ToUpper(hex.EncodeToString(routeData)),
 			})
 		} else {
 			results = append(results, evpnToJSON(evpn, routeData))
@@ -465,14 +473,14 @@ func evpnToJSON(e EVPN, rawData []byte) map[string]any {
 	if _, ok := e.(*EVPNGeneric); ok {
 		result["code"] = int(e.RouteType())
 		result["parsed"] = false
-		result["raw"] = fmt.Sprintf("%X", rawData)
+		result["raw"] = strings.ToUpper(hex.EncodeToString(rawData))
 		return result
 	}
 
 	// Match expected format: code, parsed, raw, name, rd, etc.
 	result["code"] = int(e.RouteType())
 	result["parsed"] = true
-	result["raw"] = fmt.Sprintf("%X", rawData)
+	result["raw"] = strings.ToUpper(hex.EncodeToString(rawData))
 	result["name"] = evpnRouteName(e.RouteType())
 	result["rd"] = e.RD().String()
 
@@ -526,7 +534,7 @@ func evpnRouteName(t EVPNRouteType) string {
 	case EVPNRouteType5:
 		return "IP Prefix"
 	}
-	return fmt.Sprintf("EVPN Type %d", t)
+	return "EVPN Type " + strconv.Itoa(int(t))
 }
 
 // formatESIForJSON formats ESI for JSON output ("-" if zero).
@@ -539,8 +547,7 @@ func formatESIForJSON(esi ESI) string {
 
 // formatMACUpper formats MAC address in uppercase.
 func formatMACUpper(mac [6]byte) string {
-	return fmt.Sprintf("%02X:%02X:%02X:%02X:%02X:%02X",
-		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5])
+	return strings.ToUpper(appendColonHex(nil, mac[:]))
 }
 
 // formatLabelsForJSON formats labels as nested array [[label1], [label2], ...].
@@ -557,51 +564,69 @@ func formatLabelsForJSON(labels []uint32) [][]int {
 
 // formatMAC formats a MAC address as colon-separated hex.
 func formatMAC(mac [6]byte) string {
-	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
-		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5])
+	return appendColonHex(nil, mac[:])
 }
 
 // formatEVPNTextSingle formats a single EVPN route as human-readable text.
 func formatEVPNTextSingle(result map[string]any) string {
-	var parts []string
+	var b textbuf.Buffer
+	n := 0
+	field := func(prefix, val string) {
+		if n > 0 {
+			b.Byte(' ')
+		}
+		b.Str(prefix).Str(val)
+		n++
+	}
 
 	if v, ok := result["name"].(string); ok {
-		parts = append(parts, v)
+		b.Str(v)
+		n++
 	}
 	if v, ok := result["rd"].(string); ok {
-		parts = append(parts, "rd="+v)
+		field("rd=", v)
 	}
 	if v, ok := result["esi"].(string); ok && v != "00:00:00:00:00:00:00:00:00:00" {
-		parts = append(parts, "esi="+v)
+		field("esi=", v)
 	}
 	if v, ok := result["mac"].(string); ok {
-		parts = append(parts, "mac="+v)
+		field("mac=", v)
 	}
 	if v, ok := result["ip"].(string); ok {
-		parts = append(parts, "ip="+v)
+		field("ip=", v)
 	}
 	if v, ok := result["prefix"].(string); ok {
-		parts = append(parts, "prefix="+v)
+		field("prefix=", v)
 	}
 	if v, ok := result["originator"].(string); ok {
-		parts = append(parts, "originator="+v)
+		field("originator=", v)
 	}
 	if v, ok := result["gateway"].(string); ok {
-		parts = append(parts, "gateway="+v)
+		field("gateway=", v)
 	}
 	if v, ok := result["ethernet-tag"].(uint32); ok && v != 0 {
-		parts = append(parts, fmt.Sprintf("etag=%d", v))
+		if n > 0 {
+			b.Byte(' ')
+		}
+		b.Str("etag=").Uint32(v)
+		n++
 	}
 	if v, ok := result["labels"].([]uint32); ok && len(v) > 0 {
-		labels := make([]string, len(v))
-		for i, l := range v {
-			labels[i] = fmt.Sprintf("%d", l)
+		if n > 0 {
+			b.Byte(' ')
 		}
-		parts = append(parts, "labels="+strings.Join(labels, ","))
+		b.Str("labels=")
+		for i, l := range v {
+			if i > 0 {
+				b.Byte(',')
+			}
+			b.Uint32(l)
+		}
+		n++
 	}
 
-	if len(parts) == 0 {
+	if n == 0 {
 		return "(empty)"
 	}
-	return strings.Join(parts, " ")
+	return b.String()
 }

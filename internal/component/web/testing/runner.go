@@ -6,12 +6,15 @@ package webtesting
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 )
+
+var errPressActionRequiresKeyParameter = errors.New("press action requires key= parameter")
 
 // WBTestResult holds the outcome of a single .wb test.
 type WBTestResult struct {
@@ -335,7 +338,7 @@ func executeAction(b *Browser, a *WBAction) error {
 	case "press":
 		key := a.Values["key"]
 		if key == "" {
-			return fmt.Errorf("press action requires key= parameter")
+			return errPressActionRequiresKeyParameter
 		}
 		if id, ok := a.Values["id"]; ok {
 			return b.PressOnID(id, key)

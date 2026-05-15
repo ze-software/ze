@@ -11,6 +11,7 @@ package plugin
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -147,7 +148,7 @@ type HubServerConfig struct {
 
 // Address returns "host:port" for net.Listen.
 func (s HubServerConfig) Address() string {
-	return s.Host + ":" + fmt.Sprintf("%d", s.Port)
+	return s.Host + ":" + strconv.Itoa(int(s.Port))
 }
 
 // HubClientConfig holds a hub-level client block (outbound connection).
@@ -161,7 +162,7 @@ type HubClientConfig struct {
 
 // Address returns "host:port" for net.Dial.
 func (c HubClientConfig) Address() string {
-	return c.Host + ":" + fmt.Sprintf("%d", c.Port)
+	return c.Host + ":" + strconv.Itoa(int(c.Port))
 }
 
 // HubConfig holds plugin transport configuration.

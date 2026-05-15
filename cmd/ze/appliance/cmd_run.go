@@ -4,6 +4,7 @@ package appliance
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -12,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 )
+
+var errPortAlreadyInUse = errors.New("port already in use")
 
 func init() {
 	cmdRun = runRun
@@ -169,7 +172,7 @@ func checkPortAvailable(port int) error {
 	var lc net.ListenConfig
 	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:"+strconv.Itoa(port))
 	if err != nil {
-		return fmt.Errorf("port already in use")
+		return errPortAlreadyInUse
 	}
 	ln.Close() //nolint:errcheck // probe only
 	return nil

@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -29,6 +30,16 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+)
+
+var (
+	errInvalidTmpfsHeader                       = errors.New("invalid tmpfs header")
+	errEmptyPath                                = errors.New("empty path")
+	errMissingOrEmptyTerminator                 = errors.New("missing or empty terminator")
+	errInvalidStdinHeaderMissingFormatSpecifier = errors.New("invalid stdin header: missing format specifier")
+	errEmptyStdinName                           = errors.New("empty stdin name")
+	errMissingTerminatorHexOrTextIn             = errors.New("missing terminator, hex=, or text= in stdin block")
+	errOddLengthHexString                       = errors.New("odd length hex string")
 )
 
 // File represents a single file in the Tmpfs.
@@ -207,13 +218,13 @@ func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limit
 	// Parse all key=value pairs
 	parts := strings.Split(rest, ":")
 	if len(parts) == 0 {
-		return nil, startLine, fmt.Errorf("invalid tmpfs header")
+		return nil, startLine, errInvalidTmpfsHeader
 	}
 
 	// First part is the path
 	path := parts[0]
 	if path == "" {
-		return nil, startLine, fmt.Errorf("empty path")
+		return nil, startLine, errEmptyPath
 	}
 
 	// Validate path length and depth
@@ -255,7 +266,7 @@ func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limit
 
 	// Validate terminator
 	if terminator == "" {
-		return nil, startLine, fmt.Errorf("missing or empty terminator")
+		return nil, startLine, errMissingOrEmptyTerminator
 	}
 	if !validTerminator.MatchString(terminator) {
 		return nil, startLine, fmt.Errorf("invalid terminator %q: must be alphanumeric and underscore only", terminator)
@@ -339,13 +350,13 @@ func parseStdinBlock(scanner *bufio.Scanner, header string, startLine int, seenT
 	// Parse parts
 	parts := strings.Split(rest, ":")
 	if len(parts) < 2 {
-		return "", nil, startLine, fmt.Errorf("invalid stdin header: missing format specifier")
+		return "", nil, startLine, errInvalidStdinHeaderMissingFormatSpecifier
 	}
 
 	// First part is the name
 	name = parts[0]
 	if name == "" {
-		return "", nil, startLine, fmt.Errorf("empty stdin name")
+		return "", nil, startLine, errEmptyStdinName
 	}
 
 	// Check for single-line formats (hex= or text=)
@@ -375,7 +386,7 @@ func parseStdinBlock(scanner *bufio.Scanner, header string, startLine int, seenT
 
 	// Validate terminator
 	if terminator == "" {
-		return "", nil, startLine, fmt.Errorf("missing terminator, hex=, or text= in stdin block")
+		return "", nil, startLine, errMissingTerminatorHexOrTextIn
 	}
 	if !validTerminator.MatchString(terminator) {
 		return "", nil, startLine, fmt.Errorf("invalid terminator %q: must be alphanumeric and underscore only", terminator)
@@ -413,7 +424,7 @@ func decodeHex(s string) ([]byte, error) {
 	s = strings.ReplaceAll(s, " ", "")
 
 	if len(s)%2 != 0 {
-		return nil, fmt.Errorf("odd length hex string")
+		return nil, errOddLengthHexString
 	}
 	result := make([]byte, len(s)/2)
 	for i := 0; i < len(s); i += 2 {

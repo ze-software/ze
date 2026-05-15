@@ -4,12 +4,22 @@
 package rs
 
 import (
-	"fmt"
+	"errors"
 	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+)
+
+var (
+	errInvalidTextEventMissingPeerPrefix    = errors.New("invalid text event: missing peer prefix")
+	errInvalidTextEventMissingPeerAddress   = errors.New("invalid text event: missing peer address")
+	errInvalidTextEventMissingRemoteKeyword = errors.New("invalid text event: missing remote keyword")
+	errInvalidTextEventMissingAsKeyword     = errors.New("invalid text event: missing as keyword")
+	errInvalidTextEventMissingAsValue       = errors.New("invalid text event: missing as value")
+	errInvalidTextEventMissingDispatchToken = errors.New("invalid text event: missing dispatch token")
+	errInvalidTextEventMissingEventType     = errors.New("invalid text event: missing event type")
 )
 
 // Event represents a parsed BGP event (from text format).
@@ -120,29 +130,29 @@ func quickParseTextEvent(text string) (string, uint64, string, string, error) {
 
 	// peer
 	if tok, ok := s.Next(); !ok || tok != "peer" {
-		return "", 0, "", "", fmt.Errorf("invalid text event: missing peer prefix")
+		return "", 0, "", "", errInvalidTextEventMissingPeerPrefix
 	}
 	// <addr>
 	peerAddr, ok := s.Next()
 	if !ok {
-		return "", 0, "", "", fmt.Errorf("invalid text event: missing peer address")
+		return "", 0, "", "", errInvalidTextEventMissingPeerAddress
 	}
 	// remote as <n>
 	if tok, ok := s.Next(); !ok || tok != tokenRemote {
-		return "", 0, "", "", fmt.Errorf("invalid text event: missing remote keyword")
+		return "", 0, "", "", errInvalidTextEventMissingRemoteKeyword
 	}
 	if tok, ok := s.Next(); !ok || tok != tokenAS {
-		return "", 0, "", "", fmt.Errorf("invalid text event: missing as keyword")
+		return "", 0, "", "", errInvalidTextEventMissingAsKeyword
 	}
 	// <n> (ASN value — consumed but not returned; available from payload)
 	if _, ok := s.Next(); !ok {
-		return "", 0, "", "", fmt.Errorf("invalid text event: missing as value")
+		return "", 0, "", "", errInvalidTextEventMissingAsValue
 	}
 
 	// Next token: either "state" or <direction>
 	dispatchTok, ok := s.Next()
 	if !ok {
-		return "", 0, "", "", fmt.Errorf("invalid text event: missing dispatch token")
+		return "", 0, "", "", errInvalidTextEventMissingDispatchToken
 	}
 	if dispatchTok == eventState {
 		return eventState, 0, peerAddr, text, nil
@@ -151,7 +161,7 @@ func quickParseTextEvent(text string) (string, uint64, string, string, error) {
 	// Message events: <direction> was consumed as dispatchTok, next is <type> <id>
 	eventType, ok := s.Next()
 	if !ok {
-		return "", 0, "", "", fmt.Errorf("invalid text event: missing event type")
+		return "", 0, "", "", errInvalidTextEventMissingEventType
 	}
 	idStr, ok := s.Next()
 	if !ok {

@@ -7,6 +7,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -19,6 +20,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+)
+
+var (
+	errNoProcessspawnerSetCallSetprocessspawner = errors.New("no ProcessSpawner set — call SetProcessSpawner before Start")
+	errSpawnerDidNotProduceAValid               = errors.New("spawner did not produce a valid ProcessManager")
+	errFamilyDeclarationMissingName             = errors.New("family declaration missing name")
 )
 
 // Family mode constants (mirrored from root registration.go — unexported, not cross-package accessible).
@@ -311,14 +318,14 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 
 	// Step (a): Spawn processes via PluginManager (ProcessSpawner).
 	if s.spawner == nil {
-		return fmt.Errorf("no ProcessSpawner set — call SetProcessSpawner before Start")
+		return errNoProcessspawnerSetCallSetprocessspawner
 	}
 	if err := s.spawner.SpawnMore(plugins); err != nil {
 		return err
 	}
 	pm, ok := s.spawner.GetProcessManager().(*process.ProcessManager)
 	if !ok || pm == nil {
-		return fmt.Errorf("spawner did not produce a valid ProcessManager")
+		return errSpawnerDidNotProduceAValid
 	}
 	s.procManager.Store(pm)
 
@@ -745,7 +752,7 @@ func ExtractConfigSubtree(configTree map[string]any, path string) any {
 func registerPluginFamilies(families []rpc.FamilyDecl) error {
 	for _, fam := range families {
 		if fam.Name == "" {
-			return fmt.Errorf("family declaration missing name")
+			return errFamilyDeclarationMissingName
 		}
 		parts := strings.SplitN(fam.Name, "/", 2)
 		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {

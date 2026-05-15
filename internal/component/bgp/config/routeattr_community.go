@@ -5,6 +5,7 @@ package bgpconfig
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"net/netip"
@@ -13,6 +14,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 )
+
+var err4ByteAsnWithIpValue = errors.New("4-byte ASN with IP value not supported")
 
 // Community represents standard BGP communities (RFC 1997).
 // Each community is 4 bytes: high 16 bits = ASN, low 16 bits = value.
@@ -431,7 +434,7 @@ func parseRouteTargetOrOrigin(subtype byte, asnStr, numStr string) ([]byte, erro
 			}, nil
 		}
 		// 4-byte ASN not valid with 4-byte IP
-		return nil, fmt.Errorf("4-byte ASN with IP value not supported")
+		return nil, err4ByteAsnWithIpValue
 	}
 
 	num, err := strconv.ParseUint(numStr, 10, 32)

@@ -5,6 +5,7 @@
 package collector
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -12,6 +13,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 )
+
+var errMalformedProcSysFsFileNr = errors.New("malformed /proc/sys/fs/file-nr")
 
 type fileNRCollector struct {
 	gauge metrics.GaugeVec
@@ -38,7 +41,7 @@ func (c *fileNRCollector) Collect() error {
 	}
 	fields := strings.Fields(string(b))
 	if len(fields) < 3 {
-		return fmt.Errorf("malformed /proc/sys/fs/file-nr")
+		return errMalformedProcSysFsFileNr
 	}
 	allocated, _ := strconv.ParseFloat(fields[0], 64)
 	freeNR, _ := strconv.ParseFloat(fields[1], 64)

@@ -10,11 +10,14 @@
 package transaction
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
 )
+
+var errPluginNameMustNotBeEmpty = errors.New("plugin name must not be empty")
 
 // Namespace re-exported for transaction code clarity.
 const Namespace = "config"
@@ -67,7 +70,7 @@ var ReservedPluginNames = map[string]bool{
 // registry.
 func ValidatePluginName(name string) error {
 	if name == "" {
-		return fmt.Errorf("plugin name must not be empty")
+		return errPluginNameMustNotBeEmpty
 	}
 	if strings.ContainsAny(name, " \t\n\r") {
 		return fmt.Errorf("plugin name %q must not contain whitespace", name)

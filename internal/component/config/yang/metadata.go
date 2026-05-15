@@ -4,11 +4,17 @@
 package yang
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/openconfig/goyang/pkg/yang"
+)
+
+var (
+	errEmptyYangContent           = errors.New("empty YANG content")
+	errNoModuleFoundInYangContent = errors.New("no module found in YANG content")
 )
 
 // Metadata contains extracted information from a YANG module.
@@ -22,7 +28,7 @@ type Metadata struct {
 // Returns an error if the YANG is invalid or empty.
 func ParseYANGMetadata(content string) (*Metadata, error) {
 	if content == "" {
-		return nil, fmt.Errorf("empty YANG content")
+		return nil, errEmptyYangContent
 	}
 
 	// Create a new modules collection for parsing
@@ -41,7 +47,7 @@ func ParseYANGMetadata(content string) (*Metadata, error) {
 	}
 
 	if mod == nil {
-		return nil, fmt.Errorf("no module found in YANG content")
+		return nil, errNoModuleFoundInYangContent
 	}
 
 	return ExtractMetadata(mod), nil

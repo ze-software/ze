@@ -18,6 +18,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
+var errReadBufferExhaustedPoolAtMaximum = errors.New("read buffer exhausted: pool at maximum allocation")
+
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         "ze.bgp.reactor.coalesce",
 	Type:        "bool",
@@ -54,7 +56,7 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 		if err := s.flushCoalesce(); err != nil {
 			return err
 		}
-		return fmt.Errorf("read buffer exhausted: pool at maximum allocation")
+		return errReadBufferExhaustedPoolAtMaximum
 	}
 
 	kept := false

@@ -7,12 +7,21 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+)
+
+var (
+	errMissingTypeLine                  = errors.New("missing type line")
+	errMissingHexLine                   = errors.New("missing hex line")
+	errMissingJsonLine                  = errors.New("missing json line")
+	errMissingHexPayloadUseStdinPayload = errors.New("missing hex payload (use stdin=payload:hex= or decode=)")
+	errMissingExpectJsonLine            = errors.New("missing expect=json: line")
 )
 
 // Message type constants.
@@ -100,19 +109,19 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*DecodingTest, error) {
 
 	// Line 1: type [fam]
 	if !scanner.Scan() {
-		return nil, fmt.Errorf("missing type line")
+		return nil, errMissingTypeLine
 	}
 	typeLine := strings.TrimSpace(scanner.Text())
 
 	// Line 2: hex payload
 	if !scanner.Scan() {
-		return nil, fmt.Errorf("missing hex line")
+		return nil, errMissingHexLine
 	}
 	hexPayload := strings.TrimSpace(scanner.Text())
 
 	// Line 3: expected JSON
 	if !scanner.Scan() {
-		return nil, fmt.Errorf("missing json line")
+		return nil, errMissingJsonLine
 	}
 	expectedJSON := strings.TrimSpace(scanner.Text())
 
@@ -239,10 +248,10 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 		msgType = msgTypeUpdate // Default to update
 	}
 	if hexPayload == "" {
-		return nil, fmt.Errorf("missing hex payload (use stdin=payload:hex= or decode=)")
+		return nil, errMissingHexPayloadUseStdinPayload
 	}
 	if expectedJSON == "" {
-		return nil, fmt.Errorf("missing expect=json: line")
+		return nil, errMissingExpectJsonLine
 	}
 
 	name := strings.TrimSuffix(filepath.Base(filePath), ".ci")

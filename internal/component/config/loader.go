@@ -4,6 +4,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,6 +16,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+var errPluginAutoNotYetImplemented = errors.New("plugin 'auto' not yet implemented")
 
 // LoadConfigResult holds the output of LoadConfig: a parsed config tree,
 // resolved plugin list, and derived config directory.
@@ -297,7 +300,7 @@ func MergeCliPlugins(plugins []plugin.PluginConfig, cliPlugins []string) ([]plug
 			return nil, fmt.Errorf("plugin %q: %w", ps, err)
 		}
 		if resolved.Type == plugin.PluginTypeAuto {
-			return nil, fmt.Errorf("plugin 'auto' not yet implemented")
+			return nil, errPluginAutoNotYetImplemented
 		}
 		if existing[resolved.Name] {
 			continue

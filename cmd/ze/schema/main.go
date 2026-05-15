@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -22,6 +23,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
+
+var errNoPluginCommandSpecified = errors.New("no plugin command specified")
 
 // Plugin ID prefix for internal plugins (e.g., "ze.bgp", "ze.gr").
 const internalPluginPrefix = "ze."
@@ -693,7 +696,7 @@ func getPluginYANG(pluginSpec string) (string, string, error) {
 func getExternalPluginYANG(pluginSpec string) (string, error) {
 	args := strings.Fields(pluginSpec)
 	if len(args) == 0 {
-		return "", fmt.Errorf("no plugin command specified")
+		return "", errNoPluginCommandSpecified
 	}
 
 	// Append --yang to get YANG output

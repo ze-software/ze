@@ -5,6 +5,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"regexp"
@@ -19,6 +20,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
+
+var errPort0IsNotValidIn = errors.New("port 0 is not valid in port spec")
 
 // baseSendTypes are the built-in send types (handled by dedicated bool fields
 // in peer config, not plugin-registered). Used by SendMessageValidator for completion.
@@ -339,7 +342,7 @@ func parsePortSpecNumber(s string) (uint16, error) {
 		return 0, fmt.Errorf("invalid port %q", s)
 	}
 	if n == 0 {
-		return 0, fmt.Errorf("port 0 is not valid in port spec")
+		return 0, errPort0IsNotValidIn
 	}
 	return uint16(n), nil
 }

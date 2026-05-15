@@ -4,18 +4,25 @@
 
 package policyroute
 
-import "fmt"
+import (
+	"errors"
+)
+
+var (
+	errPolicyrouteIpRuleManagementRequiresLinux = errors.New("policyroute: ip rule management requires Linux")
+	errPolicyrouteNotSupportedOnThisPlatform    = errors.New("policyroute: not supported on this platform")
+)
 
 type linuxRuleManager struct{}
 
 func newRuleManager() (*linuxRuleManager, error) {
-	return nil, fmt.Errorf("policyroute: ip rule management requires Linux")
+	return nil, errPolicyrouteIpRuleManagementRequiresLinux
 }
 
 func (rm *linuxRuleManager) close() {}
 
 func (rm *linuxRuleManager) applyAll(_ *translationResult) error {
-	return fmt.Errorf("policyroute: not supported on this platform")
+	return errPolicyrouteNotSupportedOnThisPlatform
 }
 
 func (rm *linuxRuleManager) removeAll(_ *translationResult) {}

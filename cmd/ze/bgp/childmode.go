@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -23,6 +24,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+var errNoConfigReceived = errors.New("no config received")
 
 // Env var registration for child mode. Chaos vars are centralized in config/environment.go.
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.child.mode", Type: "bool", Description: "Run as hub child process"})
@@ -133,7 +136,7 @@ func parseChildConfig(r io.Reader) (map[string]any, error) {
 		return nil, fmt.Errorf("reading config: %w", err)
 	}
 
-	return nil, fmt.Errorf("no config received")
+	return nil, errNoConfigReceived
 }
 
 // runChildModeWithArgs runs BGP as a hub child process using the 5-stage protocol.

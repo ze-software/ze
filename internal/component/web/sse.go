@@ -6,6 +6,7 @@ package web
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 	"sync"
 	"time"
 )
+
+var errInvalidSseEventTypeContainsNewline = errors.New("invalid SSE event type: contains newline")
 
 // sseEvent is a server-sent event with a named event type and data payload.
 type sseEvent struct {
@@ -187,7 +190,7 @@ func writeSSEEvent(w http.ResponseWriter, ev sseEvent) error {
 
 	if ev.eventType != "" {
 		if strings.ContainsAny(ev.eventType, "\n\r") {
-			return fmt.Errorf("invalid SSE event type: contains newline")
+			return errInvalidSseEventTypeContainsNewline
 		}
 		_, err = fmt.Fprintf(w, "event: %s\n", ev.eventType)
 	}

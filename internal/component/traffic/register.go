@@ -7,6 +7,7 @@ package traffic
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -20,6 +21,11 @@ import (
 	trafficschema "codeberg.org/thomas-mangin/ze/internal/component/traffic/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+)
+
+var (
+	errTrafficControlNoBackendConfiguredAnd = errors.New("traffic-control: no backend configured and no OS default available")
+	errTrafficControlConfigApplyNoBackend   = errors.New("traffic-control config apply: no backend available")
 )
 
 // configRootTraffic is the top-level YANG config root that the traffic plugin
@@ -168,7 +174,7 @@ func parseAndVerifyTrafficSections(sections []sdk.ConfigSection) (*trafficConfig
 		return cfg, nil
 	}
 	if cfg.Backend == "" {
-		return nil, fmt.Errorf("traffic-control: no backend configured and no OS default available")
+		return nil, errTrafficControlNoBackendConfiguredAnd
 	}
 	if err := validateBackendGate(sections, cfg.Backend); err != nil {
 		return nil, err
@@ -225,7 +231,7 @@ func runEngine(conn net.Conn) int {
 		}
 
 		if cfg.Backend == "" {
-			return fmt.Errorf("traffic-control: no backend configured and no OS default available")
+			return errTrafficControlNoBackendConfiguredAnd
 		}
 
 		if err := validateBackendGate(sections, cfg.Backend); err != nil {
@@ -280,7 +286,7 @@ func runEngine(conn net.Conn) int {
 			desiredBackend = defaultBackendName
 		}
 		if desiredBackend == "" {
-			return fmt.Errorf("traffic-control config apply: no backend available")
+			return errTrafficControlConfigApplyNoBackend
 		}
 
 		if GetBackend() == nil || (previousCfg != nil && previousCfg.Backend != desiredBackend) {

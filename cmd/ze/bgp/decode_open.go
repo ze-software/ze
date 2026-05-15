@@ -5,12 +5,16 @@
 package bgp
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
+
+var errDataTooShortForHeader = errors.New("data too short for header")
 
 // pluginCapabilityMap maps capability codes to plugin names.
 // Populated from plugin registry at init time.
@@ -25,7 +29,7 @@ func decodeOpenMessage(data []byte, hasHeader bool) (map[string]any, error) {
 	body := data
 	if hasHeader {
 		if len(data) < message.HeaderLen {
-			return nil, fmt.Errorf("data too short for header")
+			return nil, errDataTooShortForHeader
 		}
 		body = data[message.HeaderLen:]
 	}
@@ -74,7 +78,7 @@ func capabilityToZeJSON(c capability.Capability) map[string]any {
 	case *capability.Multiprotocol:
 		return map[string]any{"code": code, "name": "multiprotocol", "value": cap.AFI.String() + "/" + cap.SAFI.String()}
 	case *capability.ASN4:
-		return map[string]any{"code": code, "name": "asn4", "value": fmt.Sprintf("%d", cap.ASN)}
+		return map[string]any{"code": code, "name": "asn4", "value": strconv.Itoa(int(cap.ASN))}
 	case *capability.ExtendedMessage:
 		return map[string]any{"code": code, "name": "extended-message"}
 	case *capability.AddPath:

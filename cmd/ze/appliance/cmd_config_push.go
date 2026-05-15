@@ -4,6 +4,7 @@ package appliance
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -14,6 +15,8 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 )
+
+var errSshAuthSockNotSetStart = errors.New("SSH_AUTH_SOCK not set (start ssh-agent or use eval $(ssh-agent))")
 
 const sshDialTimeout = 10 * time.Second
 
@@ -135,7 +138,7 @@ func configPushAll(dryRun bool, parallel int) int {
 func sshExecReal(addr, command, stdin string) sshResult {
 	sock := os.Getenv("SSH_AUTH_SOCK")
 	if sock == "" {
-		return sshResult{Err: fmt.Errorf("SSH_AUTH_SOCK not set (start ssh-agent or use eval $(ssh-agent))")}
+		return sshResult{Err: errSshAuthSockNotSetStart}
 	}
 
 	var d net.Dialer

@@ -5,12 +5,15 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
+
+var errNoPeerSpecified = errors.New("no peer specified")
 
 func init() {
 	pluginserver.RegisterRPCs(
@@ -32,7 +35,7 @@ func handleBgpPeerClearSoft(ctx *pluginserver.CommandContext, _ []string) (*plug
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "clear soft requires specific peer: bgp peer <ip> clear soft",
-		}, fmt.Errorf("no peer specified")
+		}, errNoPeerSpecified
 	}
 
 	addr, err := netip.ParseAddr(peer)

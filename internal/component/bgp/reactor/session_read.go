@@ -58,7 +58,7 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 	// Get buffer from multiplexer.
 	buf := s.getReadBuffer()
 	if buf.Buf == nil {
-		return fmt.Errorf("read buffer exhausted: pool at maximum allocation")
+		return errReadBufferExhaustedPoolAtMaximum
 	}
 
 	// Defer ensures buffer is returned even if processMessage panics.

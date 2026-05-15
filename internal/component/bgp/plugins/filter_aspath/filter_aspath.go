@@ -20,6 +20,7 @@
 package filter_aspath
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sync/atomic"
@@ -28,6 +29,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+var errFilterAspathInvalidBgpConfigJson = errors.New("filter-aspath: invalid bgp config JSON")
 
 var logger = slogutil.LazyLogger("bgp.filter.aspath")
 
@@ -49,7 +52,7 @@ func RunFilterAsPath(conn net.Conn) int {
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
 			if !ok {
-				return fmt.Errorf("filter-aspath: invalid bgp config JSON")
+				return errFilterAspathInvalidBgpConfigJson
 			}
 			lists, err := parseAsPathLists(bgpCfg)
 			if err != nil {

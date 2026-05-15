@@ -29,6 +29,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 )
 
+var errNoEstablishedPeersToForwardTo = errors.New("no established peers to forward to")
+
 // AnnounceEOR sends an End-of-RIB marker for the given address family.
 // Inlined peer iteration (not sendToMatchingPeers) to count EOR sent per peer.
 func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi uint8) error {
@@ -643,7 +645,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	}
 
 	if dispatchedCount == 0 {
-		return fmt.Errorf("no established peers to forward to")
+		return errNoEstablishedPeersToForwardTo
 	}
 
 	return nil

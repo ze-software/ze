@@ -5,7 +5,11 @@
 
 package sysctl
 
-import "fmt"
+import (
+	"errors"
+)
+
+var errSysctlNotSupportedOnThisPlatform = errors.New("sysctl: not supported on this platform")
 
 type otherBackend struct{}
 
@@ -14,9 +18,9 @@ func newBackend() backend {
 }
 
 func (b *otherBackend) read(key string) (string, error) {
-	return "", fmt.Errorf("sysctl: not supported on this platform")
+	return "", errSysctlNotSupportedOnThisPlatform
 }
 
 func (b *otherBackend) write(key, value string) error {
-	return fmt.Errorf("sysctl: not supported on this platform")
+	return errSysctlNotSupportedOnThisPlatform
 }

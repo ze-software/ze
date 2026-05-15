@@ -5,6 +5,7 @@
 package bgpconfig
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,12 +13,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+var (
+	errVplsNlriRequiresFields           = errors.New("vpls nlri requires fields")
+	errMissingOperationKeywordAddDelEor = errors.New("missing operation keyword (add/del/eor) for family l2vpn/vpls")
+)
+
 // parseVPLSNLRILine parses a VPLS NLRI line like:
 // "l2vpn/vpls rd 192.168.201.1:123 ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10702".
 func parseVPLSNLRILine(line string, attr *config.Tree) (VPLSRouteConfig, error) {
 	parts := strings.Fields(line)
 	if len(parts) < 2 {
-		return VPLSRouteConfig{}, fmt.Errorf("vpls nlri requires fields")
+		return VPLSRouteConfig{}, errVplsNlriRequiresFields
 	}
 
 	vr := VPLSRouteConfig{}
@@ -30,7 +36,7 @@ func parseVPLSNLRILine(line string, attr *config.Tree) (VPLSRouteConfig, error) 
 		remaining = remaining[2:]
 	}
 	if len(remaining) == 0 {
-		return VPLSRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family l2vpn/vpls")
+		return VPLSRouteConfig{}, errMissingOperationKeywordAddDelEor
 	}
 	op := remaining[0]
 	if op != opAdd && op != opDel && op != opEor {

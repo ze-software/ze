@@ -11,6 +11,7 @@ package ntp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
@@ -26,6 +27,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	ntpevents "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
+)
+
+var (
+	errEmptyServerAddress                    = errors.New("empty server address")
+	errServerAddressContainsControlCharacter = errors.New("server address contains control character")
 )
 
 // loggerPtr is the package-level logger, disabled by default.
@@ -340,14 +346,14 @@ const maxServerAddrLen = 253 // max DNS hostname length
 
 func validateServerAddress(addr string) error {
 	if addr == "" {
-		return fmt.Errorf("empty server address")
+		return errEmptyServerAddress
 	}
 	if len(addr) > maxServerAddrLen {
 		return fmt.Errorf("server address too long (%d > %d)", len(addr), maxServerAddrLen)
 	}
 	for _, c := range addr {
 		if c < 0x20 || c == 0x7f {
-			return fmt.Errorf("server address contains control character")
+			return errServerAddressContainsControlCharacter
 		}
 	}
 	return nil

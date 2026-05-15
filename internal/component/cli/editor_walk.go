@@ -13,7 +13,7 @@ import (
 // walkOrCreateIn is like walkOrCreate but operates on an arbitrary tree (not e.tree).
 func (e *Editor) walkOrCreateIn(tree *config.Tree, path []string) (*config.Tree, error) {
 	if tree == nil || e.schema == nil {
-		return nil, fmt.Errorf("tree or schema not available")
+		return nil, errTreeOrSchemaNotAvailable
 	}
 	if len(path) == 0 {
 		return tree, nil

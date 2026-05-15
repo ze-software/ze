@@ -14,10 +14,10 @@ package ls
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Type aliases for nlri types used by BGP-LS.
@@ -86,7 +86,8 @@ func (t BGPLSNLRIType) String() string {
 	case BGPLSSRv6SIDNLRI:
 		return "srv6-sid"
 	default: // format unknown NLRI types numerically
-		return fmt.Sprintf("type(%d)", t)
+		var b textbuf.Buffer
+		return b.Str("type(").Uint16(uint16(t)).Str(")").String()
 	}
 }
 
@@ -139,7 +140,8 @@ func (p BGPLSProtocolID) String() string {
 	case ProtoBGP:
 		return "bgp"
 	default: // format unknown protocols numerically
-		return fmt.Sprintf("proto(%d)", p)
+		var b textbuf.Buffer
+		return b.Str("proto(").Uint8(uint8(p)).Str(")").String()
 	}
 }
 

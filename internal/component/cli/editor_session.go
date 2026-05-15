@@ -5,11 +5,14 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
 )
+
+var errEmptyUser = errors.New("empty user")
 
 // EditSession represents an editing session identity for concurrent config editing.
 // Each editor instance gets a unique session, used to track authorship in the draft file.
@@ -90,7 +93,7 @@ func sanitizeUser(user string) string {
 // Returns an error for empty strings, "..", or any character outside the whitelist.
 func ValidateUser(user string) error {
 	if user == "" {
-		return fmt.Errorf("empty user")
+		return errEmptyUser
 	}
 	if user == "." || user == ".." {
 		return fmt.Errorf("invalid user: %q", user)

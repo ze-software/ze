@@ -7,14 +7,19 @@
 // them to VPP policer and scheduler APIs.
 package traffic
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var errTrafficRateMustBe1Got = errors.New("traffic: rate must be >= 1, got 0")
 
 const unknownStr = "unknown"
 
 // ValidateRate checks that a rate value is at least 1 bps.
 func ValidateRate(rate uint64) error {
 	if rate == 0 {
-		return fmt.Errorf("traffic: rate must be >= 1, got 0")
+		return errTrafficRateMustBe1Got
 	}
 	return nil
 }

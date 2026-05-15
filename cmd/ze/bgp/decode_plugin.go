@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -20,6 +21,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
+
+var errEmptyAddressFamily = errors.New("empty address family")
 
 // PluginMode represents how a plugin should be invoked.
 type PluginMode int
@@ -415,7 +418,7 @@ func parsePluginResponse(output string) any {
 // must be non-empty and contain "afi/safi" structure.
 func validateDecodeFamily(family string) error {
 	if family == "" {
-		return fmt.Errorf("empty address family")
+		return errEmptyAddressFamily
 	}
 	parts := strings.SplitN(family, "/", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {

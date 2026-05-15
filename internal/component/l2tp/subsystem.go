@@ -23,6 +23,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
+var errL2tpSubsystemAlreadyStarted = errors.New("l2tp: subsystem already started")
+
 // ifaceBackendFn returns the active iface backend wrapped in the small
 // interface ppp.Driver consumes. Production wires iface.GetBackend();
 // if no backend is loaded the subsystem skips PPP driver construction.
@@ -123,7 +125,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	defer s.mu.Unlock()
 
 	if s.started {
-		return fmt.Errorf("l2tp: subsystem already started")
+		return errL2tpSubsystemAlreadyStarted
 	}
 
 	if !s.params.Enabled {

@@ -16,6 +16,8 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
 
+var errMissingPathIdValue = errors.New("missing path-id value")
+
 // ErrMissingLabel is returned when label is required but not provided.
 var ErrMissingLabel = errors.New("missing label")
 
@@ -134,7 +136,7 @@ func parseLabeledUnicastAttributes(args []string) (bgptypes.LabeledUnicastRoute,
 		case "path-id":
 			// RFC 7911 ADD-PATH identifier
 			if i+1 >= len(args) {
-				return bgptypes.LabeledUnicastRoute{}, fmt.Errorf("missing path-id value")
+				return bgptypes.LabeledUnicastRoute{}, errMissingPathIdValue
 			}
 			var pathID uint64
 			pathID, err = strconv.ParseUint(args[i+1], 10, 32)

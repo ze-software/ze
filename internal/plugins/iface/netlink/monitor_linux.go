@@ -7,6 +7,7 @@ package ifacenetlink
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"runtime/debug"
@@ -21,6 +22,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
+)
+
+var (
+	errIfaceMonitorAlreadyStarted = errors.New("iface monitor: already started")
+	errIfaceNetlinkEventBusIsNil  = errors.New("iface-netlink: event bus is nil")
 )
 
 // monitor watches OS interface changes via netlink multicast and emits
@@ -55,7 +61,7 @@ func newMonitor(eb ze.EventBus) *monitor {
 
 func (m *monitor) start() error {
 	if !m.started.CompareAndSwap(false, true) {
-		return fmt.Errorf("iface monitor: already started")
+		return errIfaceMonitorAlreadyStarted
 	}
 
 	linkCh := make(chan netlink.LinkUpdate, 64)
@@ -363,7 +369,7 @@ func addrFamily(cidr string) (string, bool) {
 
 func (b *netlinkBackend) StartMonitor(eb ze.EventBus) error {
 	if eb == nil {
-		return fmt.Errorf("iface-netlink: event bus is nil")
+		return errIfaceNetlinkEventBusIsNil
 	}
 	b.mon = newMonitor(eb)
 	return b.mon.start()

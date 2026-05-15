@@ -5,6 +5,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -12,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 )
+
+var errNoConfigPathSpecified = errors.New("no config path specified")
 
 // SchemaInfo holds schema information for handler routing.
 type SchemaInfo struct {
@@ -274,7 +277,7 @@ func (r *Reader) Reload() ([]BlockChange, error) {
 // parseConfig parses the config file into a BlockState using the frontend.
 func (r *Reader) parseConfig() (*BlockState, error) {
 	if r.configPath == "" {
-		return nil, fmt.Errorf("no config path specified")
+		return nil, errNoConfigPathSpecified
 	}
 
 	content, err := os.ReadFile(r.configPath) //nolint:gosec // Config file path from caller

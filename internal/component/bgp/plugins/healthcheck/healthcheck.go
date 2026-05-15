@@ -13,6 +13,7 @@ package healthcheck
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -23,6 +24,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+var errMissingProbeName = errors.New("missing probe name")
 
 const (
 	statusDone  = "done"
@@ -398,7 +401,7 @@ func (m *probeManager) handleShow(args []string) (string, string, error) {
 // Holds the lock for the entire operation to prevent TOCTOU with concurrent applyConfig (#10).
 func (m *probeManager) handleReset(args []string) (string, string, error) {
 	if len(args) < 1 {
-		return statusError, "", fmt.Errorf("missing probe name")
+		return statusError, "", errMissingProbeName
 	}
 	name := args[0]
 

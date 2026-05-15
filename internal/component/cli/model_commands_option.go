@@ -5,9 +5,12 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 )
+
+var errUsageOptionBlamechangesauthordatesourceallnoneenabledisable = errors.New("usage: option <blame|changes|author|date|source|all|none> [enable|disable]")
 
 // isOptionColumn returns true if the name is a valid display column.
 var optionColumnNames = []string{colAuthor, colDate, colSource, colChanges}
@@ -23,7 +26,7 @@ func (m *Model) cmdOption(args []string) (commandResult, error) {
 	}
 
 	if len(args) == 0 {
-		return commandResult{}, fmt.Errorf("usage: option <blame|changes|author|date|source|all|none> [enable|disable]")
+		return commandResult{}, errUsageOptionBlamechangesauthordatesourceallnoneenabledisable
 	}
 
 	// Column toggles: option <column> enable|disable

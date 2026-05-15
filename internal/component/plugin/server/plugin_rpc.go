@@ -4,9 +4,15 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+)
+
+var (
+	errMissingCommandName  = errors.New("missing command name")
+	errMissingPartialInput = errors.New("missing partial input")
 )
 
 func init() {
@@ -55,7 +61,7 @@ func handlePluginCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "usage: plugin command help \"<name>\"",
-		}, fmt.Errorf("missing command name")
+		}, errMissingCommandName
 	}
 
 	name := args[0]
@@ -86,7 +92,7 @@ func handlePluginCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "usage: plugin command complete \"<partial>\"",
-		}, fmt.Errorf("missing partial input")
+		}, errMissingPartialInput
 	}
 
 	partial := args[0]

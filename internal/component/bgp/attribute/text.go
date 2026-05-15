@@ -12,9 +12,16 @@
 package attribute
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+)
+
+var (
+	errMissingAsPathValue         = errors.New("missing as-path value")
+	errMissingCommunityValue      = errors.New("missing community value")
+	errMissingLargeCommunityValue = errors.New("missing large-community value")
 )
 
 // Well-known community values per RFC 1997 and RFC 7999.
@@ -195,7 +202,7 @@ func ParseBracketedList(args []string) ([]string, int) {
 // Returns the parsed AS numbers and how many tokens were consumed.
 func ParseASPathText(args []string) ([]uint32, int, error) {
 	if len(args) == 0 {
-		return nil, 0, fmt.Errorf("missing as-path value")
+		return nil, 0, errMissingAsPathValue
 	}
 
 	tokens, consumed := ParseBracketedList(args)
@@ -215,7 +222,7 @@ func ParseASPathText(args []string) ([]uint32, int, error) {
 // Returns the parsed communities and how many tokens were consumed.
 func ParseCommunitiesText(args []string) ([]uint32, int, error) {
 	if len(args) == 0 {
-		return nil, 0, fmt.Errorf("missing community value")
+		return nil, 0, errMissingCommunityValue
 	}
 
 	tokens, consumed := ParseBracketedList(args)
@@ -235,7 +242,7 @@ func ParseCommunitiesText(args []string) ([]uint32, int, error) {
 // Returns the parsed communities and how many tokens were consumed.
 func ParseLargeCommunitiesText(args []string) ([]LargeCommunity, int, error) {
 	if len(args) == 0 {
-		return nil, 0, fmt.Errorf("missing large-community value")
+		return nil, 0, errMissingLargeCommunityValue
 	}
 
 	tokens, consumed := ParseBracketedList(args)

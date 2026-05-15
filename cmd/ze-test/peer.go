@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"net/netip"
@@ -15,6 +16,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/test/peer"
 )
+
+var errModeInjectRequiresInjectPrefixInject = errors.New("--mode inject requires --inject-prefix, --inject-count (>0), --inject-nexthop, --inject-asn (>0)")
 
 // ze.test.bgp.port is a test-only env var: ze-test peer listens on it, and the
 // ze-test harness sets it when launching ze as a BGP client (see cmd/ze-test/bgp.go).
@@ -206,7 +209,7 @@ func parsePeerFlags() (*peer.Config, bool) {
 // All inject-* flags are required when --mode inject is set.
 func buildInjectSpec(prefixStr string, count int, nextHopStr string, asn uint, dwell time.Duration) (*peer.InjectSpec, error) {
 	if prefixStr == "" || nextHopStr == "" || count <= 0 || asn == 0 {
-		return nil, fmt.Errorf("--mode inject requires --inject-prefix, --inject-count (>0), --inject-nexthop, --inject-asn (>0)")
+		return nil, errModeInjectRequiresInjectPrefixInject
 	}
 	prefix, err := netip.ParsePrefix(prefixStr)
 	if err != nil {

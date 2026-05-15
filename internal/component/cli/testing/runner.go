@@ -3,6 +3,7 @@
 package testing
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,11 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+)
+
+var (
+	errNoConfigFileSpecifiedUseOption = errors.New("no config file specified (use option=file:path=...)")
+	errDaemonNotReachable             = errors.New("daemon not reachable")
 )
 
 // TestResult represents the outcome of running an .et test.
@@ -181,7 +187,7 @@ func runTestCase(tc *TestCase) *TestResult {
 			return NewHeadlessCommandModel(), nil
 		}
 		if configPath == "" {
-			return nil, fmt.Errorf("no config file specified (use option=file:path=...)")
+			return nil, errNoConfigFileSpecifiedUseOption
 		}
 		if _, statErr := os.Stat(configPath); os.IsNotExist(statErr) {
 			return nil, fmt.Errorf("config file not found: %s", configPath)
@@ -216,7 +222,7 @@ func runTestCase(tc *TestCase) *TestResult {
 	case "success":
 		hm.SetReloadNotifier(func() error { return nil })
 	case "fail":
-		hm.SetReloadNotifier(func() error { return fmt.Errorf("daemon not reachable") })
+		hm.SetReloadNotifier(func() error { return errDaemonNotReachable })
 	}
 
 	// Configure mock lifecycle callbacks (shutdown/restart) if requested.

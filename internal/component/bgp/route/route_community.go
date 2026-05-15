@@ -5,6 +5,7 @@
 package route
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -15,11 +16,18 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
 
+var (
+	errTrafficRateRequiresAsnRate = errors.New("traffic-rate requires <asn> <rate>")
+	errRedirectRequiresAsnTarget  = errors.New("redirect requires <asn> <target>")
+	errTrafficMarkingRequiresDscp = errors.New("traffic-marking requires <dscp>")
+	errEmptyExtendedCommunity     = errors.New("empty extended community")
+)
+
 // parseCommunities parses communities in format [ASN:VAL ASN:VAL ...].
 // Returns the parsed communities and how many tokens were consumed.
 func parseCommunities(args []string) ([]uint32, int, error) {
 	if len(args) == 0 {
-		return nil, 0, fmt.Errorf("missing community value")
+		return nil, 0, errMissingCommunityValue
 	}
 
 	tokens, consumed := attribute.ParseBracketedList(args)
@@ -38,7 +46,7 @@ func parseCommunities(args []string) ([]uint32, int, error) {
 // parseLargeCommunities parses large communities in format [GA:LD1:LD2 ...].
 func parseLargeCommunities(args []string) ([]bgptypes.LargeCommunity, int, error) {
 	if len(args) == 0 {
-		return nil, 0, fmt.Errorf("missing large-community value")
+		return nil, 0, errMissingLargeCommunityValue
 	}
 
 	tokens, consumed := attribute.ParseBracketedList(args)
@@ -74,7 +82,7 @@ func parseLargeCommunities(args []string) ([]bgptypes.LargeCommunity, int, error
 //   - traffic-marking <dscp> - Set DSCP value
 func ParseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int, error) {
 	if len(args) == 0 {
-		return nil, 0, fmt.Errorf("missing extended-community value")
+		return nil, 0, errMissingExtendedCommunityValue
 	}
 
 	// Check for function-style syntax (FlowSpec actions)
@@ -110,7 +118,7 @@ func ParseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int
 // Rate of 0 means discard (drop all matching traffic).
 func parseTrafficRateFunction(args []string) ([]attribute.ExtendedCommunity, int, error) {
 	if len(args) < 3 {
-		return nil, 0, fmt.Errorf("traffic-rate requires <asn> <rate>")
+		return nil, 0, errTrafficRateRequiresAsnRate
 	}
 
 	asn, err := strconv.ParseUint(args[1], 10, 16)
@@ -151,7 +159,7 @@ func parseDiscardFunction() ([]attribute.ExtendedCommunity, int, error) {
 // Note: 4-byte ASN redirect (Type 0x82) not yet supported.
 func parseRedirectFunction(args []string) ([]attribute.ExtendedCommunity, int, error) {
 	if len(args) < 3 {
-		return nil, 0, fmt.Errorf("redirect requires <asn> <target>")
+		return nil, 0, errRedirectRequiresAsnTarget
 	}
 
 	asn, err := strconv.ParseUint(args[1], 10, 16)
@@ -179,7 +187,7 @@ func parseRedirectFunction(args []string) ([]attribute.ExtendedCommunity, int, e
 // Sets the DSCP bits in the IP TOS/Traffic Class field.
 func parseTrafficMarkingFunction(args []string) ([]attribute.ExtendedCommunity, int, error) {
 	if len(args) < 2 {
-		return nil, 0, fmt.Errorf("traffic-marking requires <dscp>")
+		return nil, 0, errTrafficMarkingRequiresDscp
 	}
 
 	dscp, err := strconv.ParseUint(args[1], 10, 8)
@@ -210,7 +218,7 @@ func parseTrafficMarkingFunction(args []string) ([]attribute.ExtendedCommunity, 
 //   - rate-limit:bps    -> Type 0x80, Subtype 0x06 (IEEE 754 float rate)
 func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 	if s == "" {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("empty extended community")
+		return attribute.ExtendedCommunity{}, errEmptyExtendedCommunity
 	}
 
 	// Split on first colon to get type prefix

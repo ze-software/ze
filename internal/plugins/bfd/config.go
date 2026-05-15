@@ -17,6 +17,7 @@ package bfd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -25,6 +26,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/packet"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/session"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+)
+
+var (
+	errBfdSingleHopSessionMissingPeer = errors.New("bfd: single-hop-session: missing peer")
+	errBfdMultiHopSessionMissingPeer  = errors.New("bfd: multi-hop-session: missing peer")
 )
 
 // pluginConfig is the validated, in-memory shape of a `bfd { ... }` block.
@@ -303,7 +309,7 @@ func parseSingleHopSession(listKey string, fields map[string]any, profiles map[s
 		peerStr = listKey
 	}
 	if peerStr == "" {
-		return sessionConfig{}, fmt.Errorf("bfd: single-hop-session: missing peer")
+		return sessionConfig{}, errBfdSingleHopSessionMissingPeer
 	}
 	peer, err := netip.ParseAddr(peerStr)
 	if err != nil {
@@ -346,7 +352,7 @@ func parseMultiHopSession(listKey string, fields map[string]any, profiles map[st
 		peerStr = listKey
 	}
 	if peerStr == "" {
-		return sessionConfig{}, fmt.Errorf("bfd: multi-hop-session: missing peer")
+		return sessionConfig{}, errBfdMultiHopSessionMissingPeer
 	}
 	peer, err := netip.ParseAddr(peerStr)
 	if err != nil {

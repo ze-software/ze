@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -42,7 +43,7 @@ type ErrorData struct {
 // and opens the error panel. Renders via the oob_error template.
 func WriteOOBError(w http.ResponseWriter, renderer *Renderer, path, message string, status int) {
 	data := ErrorData{
-		ID:      fmt.Sprintf("%d", len(message)+len(path)),
+		ID:      strconv.Itoa(len(message) + len(path)),
 		Path:    path,
 		Message: message,
 	}

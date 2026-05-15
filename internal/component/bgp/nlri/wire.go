@@ -4,10 +4,13 @@ package nlri
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
+
+var errMalformedNlriAddpathFlagSetBut = errors.New("malformed NLRI: addpath flag set but data < 4 bytes")
 
 // WireNLRI wraps raw wire-encoded NLRI bytes.
 // Implements NLRI interface for use in NLRIGroup.
@@ -28,7 +31,7 @@ type WireNLRI struct {
 // Returns error if hasAddPath but len(data) < 4 (malformed).
 func NewWireNLRI(fam family.Family, data []byte, hasAddPath bool) (*WireNLRI, error) {
 	if hasAddPath && len(data) < 4 {
-		return nil, fmt.Errorf("malformed NLRI: addpath flag set but data < 4 bytes")
+		return nil, errMalformedNlriAddpathFlagSetBut
 	}
 	return &WireNLRI{fam: fam, data: data, hasAddPath: hasAddPath}, nil
 }

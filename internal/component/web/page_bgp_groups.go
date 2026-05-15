@@ -7,6 +7,7 @@ package web
 import (
 	"fmt"
 	"html/template"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -83,7 +84,7 @@ func BuildBGPGroupsTableData(groups []groupEntry) WorkbenchTableData {
 			URL: fmt.Sprintf("/show/bgp/group/%s/", ge.Name),
 			Cells: []string{
 				ge.Name,
-				fmt.Sprintf("%d", ge.PeerCount),
+				strconv.Itoa(ge.PeerCount),
 				valueOrDash(ge.RemoteAS),
 				valueOrDash(ge.Families),
 			},

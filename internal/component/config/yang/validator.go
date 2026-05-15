@@ -11,6 +11,8 @@ import (
 	"github.com/openconfig/goyang/pkg/yang"
 )
 
+var errEmptyPath = errors.New("empty path")
+
 // ErrorType represents the type of validation error.
 type ErrorType int
 
@@ -119,7 +121,7 @@ func (v *Validator) ValidateContainer(path string, data map[string]any) error {
 func (v *Validator) findSchemaNode(path string) (*yang.Entry, error) {
 	parts := strings.Split(path, "/")
 	if len(parts) == 0 {
-		return nil, fmt.Errorf("empty path")
+		return nil, errEmptyPath
 	}
 
 	// First part should be a module prefix (e.g., "bgp")
@@ -254,7 +256,7 @@ func (v *Validator) validateString(path string, yangType *yang.YangType, value a
 				Type:     ErrTypeLength,
 				Message:  fmt.Sprintf("string length %d is outside allowed range", strLen),
 				Expected: yangType.Length.String(),
-				Got:      fmt.Sprintf("%d", strLen),
+				Got:      strconv.Itoa(int(strLen)),
 			}
 		}
 	}
@@ -303,7 +305,7 @@ func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value
 				Type:     ErrTypeType,
 				Message:  "expected unsigned integer",
 				Expected: yangType.Name,
-				Got:      fmt.Sprintf("%d", n),
+				Got:      strconv.Itoa(n),
 			}
 		}
 		num = uint64(n)
@@ -314,7 +316,7 @@ func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value
 				Type:     ErrTypeType,
 				Message:  "expected unsigned integer",
 				Expected: yangType.Name,
-				Got:      fmt.Sprintf("%d", n),
+				Got:      strconv.Itoa(int(n)),
 			}
 		}
 		num = uint64(n)
@@ -360,7 +362,7 @@ func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value
 				Type:     ErrTypeRange,
 				Message:  fmt.Sprintf("value %d is outside range", num),
 				Expected: yangType.Range.String(),
-				Got:      fmt.Sprintf("%d", num),
+				Got:      strconv.Itoa(int(num)),
 			}
 		}
 	}
@@ -425,7 +427,7 @@ func (v *Validator) validateSigned(path string, yangType *yang.YangType, value a
 				Type:     ErrTypeRange,
 				Message:  fmt.Sprintf("value %d is outside range", num),
 				Expected: yangType.Range.String(),
-				Got:      fmt.Sprintf("%d", num),
+				Got:      strconv.Itoa(int(num)),
 			}
 		}
 	}
@@ -668,7 +670,7 @@ func checkCardinality(path string, entry *yang.Entry, count uint64, errs *[]Vali
 			Type:     ErrTypeCardinality,
 			Message:  fmt.Sprintf("too few entries: %d (minimum %d)", count, entry.ListAttr.MinElements),
 			Expected: fmt.Sprintf(">=%d", entry.ListAttr.MinElements),
-			Got:      fmt.Sprintf("%d", count),
+			Got:      strconv.Itoa(int(count)),
 		})
 	}
 	if entry.ListAttr.MaxElements > 0 && count > entry.ListAttr.MaxElements {
@@ -677,7 +679,7 @@ func checkCardinality(path string, entry *yang.Entry, count uint64, errs *[]Vali
 			Type:     ErrTypeCardinality,
 			Message:  fmt.Sprintf("too many entries: %d (maximum %d)", count, entry.ListAttr.MaxElements),
 			Expected: fmt.Sprintf("<=%d", entry.ListAttr.MaxElements),
-			Got:      fmt.Sprintf("%d", count),
+			Got:      strconv.Itoa(int(count)),
 		})
 	}
 }

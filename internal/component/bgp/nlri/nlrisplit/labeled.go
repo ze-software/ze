@@ -5,7 +5,16 @@
 
 package nlrisplit
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var (
+	errNlrisplitTruncatedLabeledNlri         = errors.New("nlrisplit: truncated labeled NLRI")
+	errNlrisplitTruncatedLabelStack          = errors.New("nlrisplit: truncated label stack")
+	errNlrisplitTruncatedPrefixInLabeledNlri = errors.New("nlrisplit: truncated prefix in labeled NLRI")
+)
 
 // SplitLabeled is the Splitter for labeled unicast families (SAFI 4,
 // RFC 8277). Each NLRI is framed as:
@@ -87,7 +96,7 @@ func ExtractLabels(entry []byte, addPath bool) ([]uint32, []byte, error) {
 		head = 4
 	}
 	if len(entry) < head+4 { // minimum: [path-id?] + totalBits + 3 label bytes
-		return nil, nil, fmt.Errorf("nlrisplit: truncated labeled NLRI")
+		return nil, nil, errNlrisplitTruncatedLabeledNlri
 	}
 
 	totalBits := int(entry[head])
@@ -96,7 +105,7 @@ func ExtractLabels(entry []byte, addPath bool) ([]uint32, []byte, error) {
 	var labels []uint32
 	for {
 		if pos+3 > len(entry) {
-			return nil, nil, fmt.Errorf("nlrisplit: truncated label stack")
+			return nil, nil, errNlrisplitTruncatedLabelStack
 		}
 		label := uint32(entry[pos])<<12 | uint32(entry[pos+1])<<4 | uint32(entry[pos+2])>>4
 		labels = append(labels, label)
@@ -113,7 +122,7 @@ func ExtractLabels(entry []byte, addPath bool) ([]uint32, []byte, error) {
 	}
 	prefixBytes := (prefixBits + 7) / 8
 	if pos+prefixBytes > len(entry) {
-		return nil, nil, fmt.Errorf("nlrisplit: truncated prefix in labeled NLRI")
+		return nil, nil, errNlrisplitTruncatedPrefixInLabeledNlri
 	}
 
 	// Build CIDR wire bytes: [path-id?][prefixBits][prefix-bytes]

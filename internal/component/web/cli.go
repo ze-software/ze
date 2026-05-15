@@ -7,6 +7,7 @@ package web
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -17,6 +18,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+)
+
+var (
+	errNoEditorManager = errors.New("no editor manager")
+	errNoSavedDraft    = errors.New("no saved draft")
 )
 
 const configEditPath = "/config/edit/"
@@ -952,18 +958,18 @@ func compareTargetLabel(target string) string {
 
 func savedDraftTree(mgr *EditorManager, schema *config.Schema) (*config.Tree, error) {
 	if mgr == nil {
-		return nil, fmt.Errorf("no editor manager")
+		return nil, errNoEditorManager
 	}
 	data, err := mgr.store.ReadFile(cli.DraftPath(mgr.configPath))
 	if err != nil {
-		return nil, fmt.Errorf("no saved draft")
+		return nil, errNoSavedDraft
 	}
 	return parseConfigContent(string(data), schema)
 }
 
 func rollbackTree(mgr *EditorManager, username string, schema *config.Schema, target string) (*config.Tree, error) {
 	if mgr == nil {
-		return nil, fmt.Errorf("no editor manager")
+		return nil, errNoEditorManager
 	}
 	nText := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(target), "rollback "))
 	n, err := strconv.Atoi(nText)

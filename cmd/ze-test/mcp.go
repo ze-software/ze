@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -15,6 +16,11 @@ import (
 	"os"
 	"strings"
 	"time"
+)
+
+var (
+	errCommandErrorNoDetail            = errors.New("command error (no detail)")
+	errElicitationCreateFrameMissingId = errors.New("elicitation/create frame missing id")
 )
 
 // mcpCmd runs the MCP client subcommand.
@@ -421,7 +427,7 @@ func (c *mcpClient) extractText(result json.RawMessage) (string, error) {
 				return "", fmt.Errorf("command error: %s", entry["text"])
 			}
 		}
-		return "", fmt.Errorf("command error (no detail)")
+		return "", errCommandErrorNoDetail
 	}
 
 	content, ok := toolResult["content"].([]any)
@@ -586,7 +592,7 @@ func (c *mcpClient) answerServerRequest(method string, frame map[string]any) err
 	}
 	id, _ := frame["id"].(string)
 	if id == "" {
-		return fmt.Errorf("elicitation/create frame missing id")
+		return errElicitationCreateFrameMissingId
 	}
 	var reply elicitReply
 	if len(c.elicitQueue) > 0 {

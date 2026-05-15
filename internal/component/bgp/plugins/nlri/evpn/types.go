@@ -86,7 +86,7 @@ func (t EVPNRouteType) String() string {
 	case EVPNRouteType5:
 		return RouteNameIPPrefix
 	}
-	return fmt.Sprintf("evpn-type-%d", t)
+	return "evpn-type-" + strconv.Itoa(int(t))
 }
 
 // ESI represents a 10-byte Ethernet Segment Identifier.
@@ -98,8 +98,20 @@ func (e ESI) IsZero() bool { return e == ESI{} }
 
 // String returns hex representation.
 func (e ESI) String() string {
-	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
-		e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7], e[8], e[9])
+	return appendColonHex(nil, e[:])
+}
+
+func appendColonHex(dst, data []byte) string {
+	const hextable = "0123456789abcdef"
+	buf := make([]byte, 0, len(data)*3-1)
+	buf = append(buf, dst...)
+	for i, b := range data {
+		if i > 0 {
+			buf = append(buf, ':')
+		}
+		buf = append(buf, hextable[b>>4], hextable[b&0x0f])
+	}
+	return string(buf)
 }
 
 // ParseESIString parses an Ethernet Segment Identifier from string format.
@@ -934,7 +946,7 @@ func (e *EVPNGeneric) HasPathID() bool          { return e.hasPath }
 func (e *EVPNGeneric) SupportsAddPath() bool    { return true }
 func (e *EVPNGeneric) Bytes() []byte            { return e.data }
 func (e *EVPNGeneric) Len() int                 { return len(e.data) + 2 }
-func (e *EVPNGeneric) String() string           { return fmt.Sprintf("evpn-type%d", e.routeType) }
+func (e *EVPNGeneric) String() string           { return "evpn-type" + strconv.Itoa(int(e.routeType)) }
 func (e *EVPNGeneric) WriteTo(buf []byte, off int) int {
 	return copy(buf[off:], e.Bytes())
 }

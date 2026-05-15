@@ -14,6 +14,8 @@ import (
 	ifacecmd "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )
 
+var errInterfaceNameMustNotBeEmpty = errors.New("interface name must not be empty")
+
 // maxIfaceNameLen matches IFNAMSIZ (16 bytes including the NUL) so the
 // CLI rejects over-long names with a clear message before the kernel
 // returns a less specific EINVAL. Mirrors the early-validation done
@@ -26,7 +28,7 @@ const maxIfaceNameLen = 15
 // surfaces the kernel's own reject reason.
 func validateIfaceName(name string) error {
 	if name == "" {
-		return fmt.Errorf("interface name must not be empty")
+		return errInterfaceNameMustNotBeEmpty
 	}
 	if len(name) > maxIfaceNameLen {
 		return fmt.Errorf("interface name %q exceeds %d-byte limit (IFNAMSIZ)", name, maxIfaceNameLen)

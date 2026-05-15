@@ -6,6 +6,7 @@
 package reactor
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"sync"
@@ -15,6 +16,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 )
+
+var errEbgpWireBufferExhaustedPoolAt = errors.New("EBGP wire buffer exhausted: pool at maximum allocation")
 
 // msgIDCounter generates unique message IDs.
 // Atomic for concurrent access from multiple peer goroutines.
@@ -115,7 +118,7 @@ func (u *ReceivedUpdate) EBGPWire(localASN uint32, srcASN4, dstASN4 bool) (*wire
 	extendedMessage := len(payload) > message.MaxMsgLen-message.HeaderLen
 	dst := getReadBuf(extendedMessage)
 	if dst.Buf == nil {
-		return nil, fmt.Errorf("EBGP wire buffer exhausted: pool at maximum allocation")
+		return nil, errEbgpWireBufferExhaustedPoolAt
 	}
 
 	n, err := wireu.RewriteASPath(dst.Buf, payload, localASN, srcASN4, dstASN4)

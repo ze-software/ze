@@ -5,6 +5,7 @@ package labeled
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -15,6 +16,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+)
+
+var (
+	errTruncatedLabeledUnicastNlri         = errors.New("truncated labeled unicast NLRI")
+	errTruncatedPrefixInLabeledUnicastNlri = errors.New("truncated prefix in labeled unicast NLRI")
+	errPrefixRequiresValue                 = errors.New("prefix requires value")
+	errLabelRequiresValue                  = errors.New("label requires value")
+	errPathIdRequiresValue                 = errors.New("path-id requires value")
+	errPrefixRequiredForLabeledUnicast     = errors.New("prefix required for labeled unicast")
+	errLabelRequiredForLabeledUnicast      = errors.New("label required for labeled unicast")
+	errMissingRouteCommand                 = errors.New("missing route command")
 )
 
 // DecodeNLRIHex decodes labeled unicast NLRI from hex and returns JSON.
@@ -37,7 +49,7 @@ func DecodeNLRIHex(famName, hexStr string) (string, error) {
 	}
 
 	if len(data) < 4 { // minimum: 1 length + 3 label bytes
-		return "", fmt.Errorf("truncated labeled unicast NLRI")
+		return "", errTruncatedLabeledUnicastNlri
 	}
 
 	totalBits := int(data[0])
@@ -63,7 +75,7 @@ func DecodeNLRIHex(famName, hexStr string) (string, error) {
 
 	prefixBytes := nlri.PrefixBytes(prefixBits)
 	if pos+prefixBytes > len(data) {
-		return "", fmt.Errorf("truncated prefix in labeled unicast NLRI")
+		return "", errTruncatedPrefixInLabeledUnicastNlri
 	}
 
 	var addr netip.Addr
@@ -121,7 +133,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 		case "prefix":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("prefix requires value")
+				return "", errPrefixRequiresValue
 			}
 			p, err := netip.ParsePrefix(args[i])
 			if err != nil {
@@ -132,7 +144,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 		case "label":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("label requires value")
+				return "", errLabelRequiresValue
 			}
 			v, err := strconv.ParseUint(args[i], 10, 32)
 			if err != nil {
@@ -142,7 +154,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 		case "path-id":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("path-id requires value")
+				return "", errPathIdRequiresValue
 			}
 			v, err := strconv.ParseUint(args[i], 10, 32)
 			if err != nil {
@@ -153,10 +165,10 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 	}
 
 	if !hasPrefix {
-		return "", fmt.Errorf("prefix required for labeled unicast")
+		return "", errPrefixRequiredForLabeledUnicast
 	}
 	if len(labels) == 0 {
-		return "", fmt.Errorf("label required for labeled unicast")
+		return "", errLabelRequiredForLabeledUnicast
 	}
 
 	n := NewLabeledUnicast(fam, prefix, labels, pathID)
@@ -175,7 +187,7 @@ func EncodeRoute(routeCmd, famName string, localAS uint32, isIBGP, asn4, addPath
 	// Parse route command - expects "<prefix> next-hop <addr> label <label> [attributes...]"
 	args := strings.Fields(routeCmd)
 	if len(args) < 1 {
-		return nil, nil, fmt.Errorf("missing route command")
+		return nil, nil, errMissingRouteCommand
 	}
 
 	// Parse using API parser

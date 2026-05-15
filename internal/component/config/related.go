@@ -13,10 +13,22 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
+)
+
+var (
+	errZeRelatedIdMustNotBe                   = errors.New("ze:related: id must not be empty")
+	errZeRelatedLabelMustNotBe                = errors.New("ze:related: label must not be empty")
+	errZeRelatedCommandMustNotBe              = errors.New("ze:related: command must not be empty")
+	errZeRelatedMissingRequiredFieldId        = errors.New("ze:related: missing required field id")
+	errZeRelatedMissingRequiredFieldLabel     = errors.New("ze:related: missing required field label")
+	errZeRelatedMissingRequiredFieldCommand   = errors.New("ze:related: missing required field command")
+	errZeRelatedTrailingBackslashInsideQuoted = errors.New("ze:related: trailing backslash inside quoted value")
+	errZeRelatedUnterminatedQuotedValue       = errors.New("ze:related: unterminated quoted value")
 )
 
 // RelatedPlacement describes where a related tool should appear in the UI.
@@ -184,7 +196,7 @@ func ParseRelatedDescriptor(arg string) (*RelatedTool, error) {
 		switch f.key {
 		case "id":
 			if f.value == "" {
-				return nil, fmt.Errorf("ze:related: id must not be empty")
+				return nil, errZeRelatedIdMustNotBe
 			}
 			if len(f.value) > relatedIDMaxLen {
 				return nil, fmt.Errorf("ze:related: id length %d exceeds max %d", len(f.value), relatedIDMaxLen)
@@ -193,7 +205,7 @@ func ParseRelatedDescriptor(arg string) (*RelatedTool, error) {
 
 		case "label":
 			if f.value == "" {
-				return nil, fmt.Errorf("ze:related: label must not be empty")
+				return nil, errZeRelatedLabelMustNotBe
 			}
 			if len(f.value) > relatedLabelMaxLen {
 				return nil, fmt.Errorf("ze:related: label length %d exceeds max %d", len(f.value), relatedLabelMaxLen)
@@ -202,7 +214,7 @@ func ParseRelatedDescriptor(arg string) (*RelatedTool, error) {
 
 		case "command":
 			if f.value == "" {
-				return nil, fmt.Errorf("ze:related: command must not be empty")
+				return nil, errZeRelatedCommandMustNotBe
 			}
 			if len(f.value) > relatedCommandMaxLen {
 				return nil, fmt.Errorf("ze:related: command length %d exceeds max %d", len(f.value), relatedCommandMaxLen)
@@ -249,13 +261,13 @@ func ParseRelatedDescriptor(arg string) (*RelatedTool, error) {
 	}
 
 	if tool.ID == "" {
-		return nil, fmt.Errorf("ze:related: missing required field id")
+		return nil, errZeRelatedMissingRequiredFieldId
 	}
 	if tool.Label == "" {
-		return nil, fmt.Errorf("ze:related: missing required field label")
+		return nil, errZeRelatedMissingRequiredFieldLabel
 	}
 	if tool.Command == "" {
-		return nil, fmt.Errorf("ze:related: missing required field command")
+		return nil, errZeRelatedMissingRequiredFieldCommand
 	}
 
 	return tool, nil
@@ -377,7 +389,7 @@ func readQuotedValue(s string, i int) (string, int, error) {
 			return b.String(), i + 1, nil
 		case '\\':
 			if i+1 >= len(s) {
-				return "", i, fmt.Errorf("ze:related: trailing backslash inside quoted value")
+				return "", i, errZeRelatedTrailingBackslashInsideQuoted
 			}
 			next := s[i+1]
 			switch next {
@@ -403,7 +415,7 @@ func readQuotedValue(s string, i int) (string, int, error) {
 			i++
 		}
 	}
-	return "", i, fmt.Errorf("ze:related: unterminated quoted value")
+	return "", i, errZeRelatedUnterminatedQuotedValue
 }
 
 // splitRequires walks the value, separating on bare commas while honoring

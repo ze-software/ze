@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -19,7 +20,19 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+)
+
+var (
+	errNoValidVpnRoutesDecoded = errors.New("no valid VPN routes decoded")
+	errRdRequiresValue         = errors.New("rd requires value")
+	errLabelRequiresValue      = errors.New("label requires value")
+	errPrefixRequiresValue     = errors.New("prefix requires value")
+	errPathIdRequiresValue     = errors.New("path-id requires value")
+	errRdRequiredForVpn        = errors.New("rd required for VPN")
+	errLabelRequiredForVpn     = errors.New("label required for VPN")
+	errPrefixRequiredForVpn    = errors.New("prefix required for VPN")
 )
 
 // vpnLogger is the package-level logger, disabled by default.
@@ -74,7 +87,7 @@ func DecodeNLRIHex(family, hexStr string) (string, error) {
 
 	results := decodeVPNNLRI(family, data)
 	if len(results) == 0 {
-		return "", fmt.Errorf("no valid VPN routes decoded")
+		return "", errNoValidVpnRoutesDecoded
 	}
 
 	var jsonBytes []byte
@@ -113,7 +126,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 		case "rd":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("rd requires value")
+				return "", errRdRequiresValue
 			}
 			parsed, err := ParseRDString(args[i])
 			if err != nil {
@@ -124,7 +137,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 		case "label":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("label requires value")
+				return "", errLabelRequiresValue
 			}
 			v, err := strconv.ParseUint(args[i], 10, 32)
 			if err != nil {
@@ -134,7 +147,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 		case "prefix":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("prefix requires value")
+				return "", errPrefixRequiresValue
 			}
 			p, err := netip.ParsePrefix(args[i])
 			if err != nil {
@@ -145,7 +158,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 		case "path-id":
 			i++
 			if i >= len(args) {
-				return "", fmt.Errorf("path-id requires value")
+				return "", errPathIdRequiresValue
 			}
 			v, err := strconv.ParseUint(args[i], 10, 32)
 			if err != nil {
@@ -156,13 +169,13 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 	}
 
 	if !hasRD {
-		return "", fmt.Errorf("rd required for VPN")
+		return "", errRdRequiredForVpn
 	}
 	if len(labels) == 0 {
-		return "", fmt.Errorf("label required for VPN")
+		return "", errLabelRequiredForVpn
 	}
 	if !hasPrefix {
-		return "", fmt.Errorf("prefix required for VPN")
+		return "", errPrefixRequiredForVpn
 	}
 
 	v := NewVPN(fam, rd, labels, prefix, pathID)
@@ -369,7 +382,7 @@ func decodeVPNNLRI(family string, data []byte) []map[string]any {
 			// Add as unparsed
 			results = append(results, map[string]any{
 				"parsed": false,
-				"raw":    fmt.Sprintf("%X", remaining),
+				"raw":    strings.ToUpper(hex.EncodeToString(remaining)),
 			})
 			break
 		}
@@ -406,38 +419,38 @@ func vpnToJSON(v *VPN) map[string]any {
 
 // formatVPNTextSingle formats a single VPN route as human-readable text.
 func formatVPNTextSingle(result map[string]any) string {
-	var parts []string
+	var b textbuf.Buffer
 
-	// Determine fam from prefix
 	fam := "VPNv4"
 	if prefix, ok := result["prefix"].(string); ok && strings.Contains(prefix, ":") {
 		fam = "VPNv6"
 	}
-	parts = append(parts, fam)
+	b.Str(fam)
 
 	if v, ok := result["rd"].(string); ok {
-		parts = append(parts, "rd="+v)
+		b.Str(" rd=").Str(v)
 	}
 	if v, ok := result["prefix"].(string); ok {
-		parts = append(parts, "prefix="+v)
+		b.Str(" prefix=").Str(v)
 	}
 	if v, ok := result["labels"].([][]int); ok && len(v) > 0 {
-		var labelStrs []string
+		b.Str(" label=")
+		first := true
 		for _, l := range v {
 			if len(l) > 0 {
-				labelStrs = append(labelStrs, fmt.Sprintf("%d", l[0]))
+				if !first {
+					b.Byte(',')
+				}
+				b.Int(int64(l[0]))
+				first = false
 			}
 		}
-		parts = append(parts, "label="+strings.Join(labelStrs, ","))
 	}
 	if v, ok := result["path-id"].(uint32); ok && v != 0 {
-		parts = append(parts, fmt.Sprintf("path-id=%d", v))
+		b.Str(" path-id=").Uint32(v)
 	}
 
-	if len(parts) == 0 {
-		return "(empty)"
-	}
-	return strings.Join(parts, " ")
+	return b.String()
 }
 
 // LookupFamily wraps family.LookupFamily for use by this package.

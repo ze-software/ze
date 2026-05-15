@@ -3,12 +3,18 @@
 package bgpconfig
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"sort"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+)
+
+var (
+	errMissingRequiredBgpBlock   = errors.New("missing required bgp { } block")
+	errInvalidGroupNameMustNotBe = errors.New("invalid group name: must not be empty")
 )
 
 // cumulativePaths lists config paths where leaf-list values should accumulate across
@@ -32,7 +38,7 @@ var cumulativePaths = map[string]bool{
 func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 	bgp := tree.GetContainer("bgp")
 	if bgp == nil {
-		return nil, fmt.Errorf("missing required bgp { } block")
+		return nil, errMissingRequiredBgpBlock
 	}
 
 	// Build result map with global bgp values.
@@ -342,7 +348,7 @@ func validatePeerName(name string) error {
 // Group names follow the same character and length rules as peer names.
 func validateGroupName(name string) error {
 	if name == "" {
-		return fmt.Errorf("invalid group name: must not be empty")
+		return errInvalidGroupNameMustNotBe
 	}
 	if len(name) > maxPeerNameLen {
 		return fmt.Errorf("invalid group name %q: exceeds maximum length %d", name, maxPeerNameLen)

@@ -13,13 +13,21 @@ package web
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+)
+
+var (
+	errPathTooShortForListEntry       = errors.New("path too short for list entry")
+	errCannotRenameKeylessListEntries = errors.New("cannot rename keyless list entries")
+	errPathDoesNotEndAtA              = errors.New("path does not end at a named list entry")
 )
 
 const (
@@ -264,7 +272,7 @@ func HandleConfigAdd(mgr *EditorManager, schema *config.Schema, renderer *Render
 			// Keyless list: auto-generate a sequential key.
 			if listNode, ok := findListNode(schema, path); ok && listNode.KeyName == "" {
 				existing := collectListKeys(mgr.Tree(username), schema, path)
-				path = append(path, fmt.Sprintf("%d", len(existing)+1))
+				path = append(path, strconv.Itoa(len(existing)+1))
 			}
 		}
 
@@ -451,7 +459,7 @@ func HandleConfigRename(mgr *EditorManager, schema *config.Schema) http.HandlerF
 
 func resolveNamedListEntryPath(schema *config.Schema, fullPath []string) (parentPath []string, listName, key string, err error) {
 	if len(fullPath) < 2 {
-		return nil, "", "", fmt.Errorf("path too short for list entry")
+		return nil, "", "", errPathTooShortForListEntry
 	}
 
 	var currentSchema schemaGetter = schema
@@ -471,13 +479,13 @@ func resolveNamedListEntryPath(schema *config.Schema, fullPath []string) (parent
 			i++
 		case *config.ListNode:
 			if n.KeyName == "" {
-				return nil, "", "", fmt.Errorf("cannot rename keyless list entries")
+				return nil, "", "", errCannotRenameKeylessListEntries
 			}
 			if i+1 >= len(fullPath) {
 				return nil, "", "", fmt.Errorf("list %s requires a key", name)
 			}
 			if n.Get(fullPath[i+1]) != nil {
-				return nil, "", "", fmt.Errorf("path does not end at a named list entry")
+				return nil, "", "", errPathDoesNotEndAtA
 			}
 			lastListIdx = i
 			listName = name
@@ -488,12 +496,12 @@ func resolveNamedListEntryPath(schema *config.Schema, fullPath []string) (parent
 			currentSchema = n
 			i++
 		default:
-			return nil, "", "", fmt.Errorf("path does not end at a named list entry")
+			return nil, "", "", errPathDoesNotEndAtA
 		}
 	}
 
 	if lastListIdx == -1 || lastListIdx+2 != len(fullPath) {
-		return nil, "", "", fmt.Errorf("path does not end at a named list entry")
+		return nil, "", "", errPathDoesNotEndAtA
 	}
 
 	return fullPath[:lastListIdx], listName, key, nil

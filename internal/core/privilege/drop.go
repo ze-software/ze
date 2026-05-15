@@ -8,12 +8,15 @@
 package privilege
 
 import (
+	"errors"
 	"fmt"
 	"os/user"
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
+
+var errEmptyUser = errors.New("empty user")
 
 // Env var registrations for privilege dropping.
 var (
@@ -43,7 +46,7 @@ func DropConfigFromEnv() DropConfig {
 // If group is empty, uses the primary group of the user.
 func resolveIDs(cfg DropConfig) (uid, gid int, suppGroups []int, err error) {
 	if cfg.User == "" {
-		return 0, 0, nil, fmt.Errorf("empty user")
+		return 0, 0, nil, errEmptyUser
 	}
 
 	u, err := lookupUser(cfg.User)

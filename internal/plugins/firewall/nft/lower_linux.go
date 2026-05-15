@@ -29,6 +29,7 @@ package firewallnft
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -39,6 +40,19 @@ import (
 	"golang.org/x/sys/unix"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+)
+
+var (
+	errKernelTableFamilyIsUnspecified               = errors.New("kernel table family is unspecified")
+	errEmptyPortRanges                              = errors.New("empty port ranges")
+	errMultiRangePortMatchRequiresA                 = errors.New("multi-range port match requires a table context")
+	errInterfaceNameMustNotBeEmpty                  = errors.New("interface name must not be empty")
+	errLimitRateDimensionUnsetParseratespecBypassed = errors.New("limit-rate dimension unset (parseRateSpec bypassed?)")
+	errTcpMssSetValueMustBe                         = errors.New("tcp-mss-set: value must be 1-65535, got 0")
+	errNatAddressRangeMixedIpv4Ipv6                 = errors.New("NAT address range: mixed IPv4/IPv6 bounds")
+	errNatPortRangeRequiresALower                   = errors.New("NAT port range requires a lower bound")
+	errInvalidNatAddress                            = errors.New("invalid NAT address")
+	errUnsupportedSetTypeForElementEncoding         = errors.New("unsupported set type for element encoding")
 )
 
 // lowerFamily converts a ze TableFamily to nftables.TableFamily.
@@ -81,7 +95,7 @@ func raiseFamily(f nftables.TableFamily) (firewall.TableFamily, error) {
 	case nftables.TableFamilyNetdev:
 		return firewall.FamilyNetdev, nil
 	case nftables.TableFamilyUnspecified:
-		return 0, fmt.Errorf("kernel table family is unspecified")
+		return 0, errKernelTableFamilyIsUnspecified
 	}
 	return 0, fmt.Errorf("unknown kernel table family %d", f)
 }
@@ -399,7 +413,7 @@ func lowerAddrMatch(prefix netip.Prefix, isSource bool) ([]expr.Any, error) {
 // from the multi-entry path rather than silently truncating to the first entry.
 func lowerPortMatch(ctx *lowerCtx, ranges []firewall.PortRange, offset uint32) ([]expr.Any, error) {
 	if len(ranges) == 0 {
-		return nil, fmt.Errorf("empty port ranges")
+		return nil, errEmptyPortRanges
 	}
 	if len(ranges) == 1 {
 		r := ranges[0]
@@ -421,7 +435,7 @@ func lowerPortMatch(ctx *lowerCtx, ranges []firewall.PortRange, offset uint32) (
 	}
 
 	if ctx == nil || ctx.conn == nil || ctx.table == nil {
-		return nil, fmt.Errorf("multi-range port match requires a table context")
+		return nil, errMultiRangePortMatchRequiresA
 	}
 	set := &nftables.Set{
 		Table:     ctx.table,
@@ -533,7 +547,7 @@ func lowerConnMarkMatch(value, mask uint32) ([]expr.Any, error) {
 // targets only the first len(data) bytes.
 func lowerIfaceMatch(key expr.MetaKey, name string, wildcard bool) ([]expr.Any, error) {
 	if name == "" {
-		return nil, fmt.Errorf("interface name must not be empty")
+		return nil, errInterfaceNameMustNotBeEmpty
 	}
 	var data []byte
 	if wildcard {
@@ -605,7 +619,7 @@ func lowerLimit(l firewall.Limit) ([]expr.Any, error) {
 	case firewall.RateDimensionBytes:
 		limitType = expr.LimitTypePktBytes
 	default:
-		return nil, fmt.Errorf("limit-rate dimension unset (parseRateSpec bypassed?)")
+		return nil, errLimitRateDimensionUnsetParseratespecBypassed
 	}
 	return []expr.Any{&expr.Limit{
 		Type:  limitType,
@@ -739,7 +753,7 @@ func lowerTCPFlagsMatch(flags, mask firewall.TCPFlags) ([]expr.Any, error) {
 // within the option (after the 1-byte kind and 1-byte length fields).
 func lowerSetTCPMSS(mss uint16) ([]expr.Any, error) {
 	if mss == 0 {
-		return nil, fmt.Errorf("tcp-mss-set: value must be 1-65535, got 0")
+		return nil, errTcpMssSetValueMustBe
 	}
 	mssBytes := make([]byte, 2)
 	binary.BigEndian.PutUint16(mssBytes, mss)
@@ -833,7 +847,7 @@ func lowerNAT(addr, addrEnd netip.Addr, port, portEnd uint16, flags uint32, natT
 	}
 	if addrEnd.IsValid() {
 		if addr.Is4() != addrEnd.Is4() {
-			return nil, fmt.Errorf("NAT address range: mixed IPv4/IPv6 bounds")
+			return nil, errNatAddressRangeMixedIpv4Ipv6
 		}
 		if addrEnd.Less(addr) {
 			return nil, fmt.Errorf("NAT address range %s-%s is inverted", addr, addrEnd)
@@ -853,7 +867,7 @@ func lowerNAT(addr, addrEnd netip.Addr, port, portEnd uint16, flags uint32, natT
 	}
 	if portEnd != 0 {
 		if port == 0 {
-			return nil, fmt.Errorf("NAT port range requires a lower bound")
+			return nil, errNatPortRangeRequiresALower
 		}
 		if portEnd < port {
 			return nil, fmt.Errorf("NAT port range %d-%d is inverted", port, portEnd)
@@ -872,7 +886,7 @@ func lowerNAT(addr, addrEnd netip.Addr, port, portEnd uint16, flags uint32, natT
 // forgot to populate Addr cannot emit a zero-valued immediate.
 func natAddrBytes(a netip.Addr) ([]byte, error) {
 	if !a.IsValid() {
-		return nil, fmt.Errorf("invalid NAT address")
+		return nil, errInvalidNatAddress
 	}
 	if a.Is4() {
 		b := a.As4()
@@ -1028,7 +1042,7 @@ func encodeSetElementKey(st firewall.SetType, value string) ([]byte, error) {
 	case firewall.SetTypeIfname:
 		return ifnameBytes(value), nil
 	}
-	return nil, fmt.Errorf("unsupported set type for element encoding")
+	return nil, errUnsupportedSetTypeForElementEncoding
 }
 
 // decodeSetElementKey is the inverse of encodeSetElementKey. It

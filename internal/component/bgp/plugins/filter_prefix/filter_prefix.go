@@ -19,6 +19,7 @@
 package filter_prefix
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sync/atomic"
@@ -27,6 +28,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+var errFilterPrefixInvalidBgpConfigJson = errors.New("filter-prefix: invalid bgp config JSON")
 
 var logger = slogutil.LazyLogger("bgp.filter.prefix")
 
@@ -48,7 +51,7 @@ func RunFilterPrefix(conn net.Conn) int {
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
 			if !ok {
-				return fmt.Errorf("filter-prefix: invalid bgp config JSON")
+				return errFilterPrefixInvalidBgpConfigJson
 			}
 			lists, err := parsePrefixLists(bgpCfg)
 			if err != nil {

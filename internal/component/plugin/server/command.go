@@ -16,6 +16,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
 
+var errReactorNotAvailable = errors.New("reactor not available")
+
 // ErrUnknownCommand is returned when a command is not recognized.
 var ErrUnknownCommand = errors.New("unknown command")
 
@@ -179,7 +181,7 @@ func RequireReactor(ctx *CommandContext) (plugin.ReactorLifecycle, *plugin.Respo
 		return nil, &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "reactor not available",
-		}, fmt.Errorf("reactor not available")
+		}, errReactorNotAvailable
 	}
 	return r, nil, nil
 }

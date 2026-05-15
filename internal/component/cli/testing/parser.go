@@ -5,8 +5,21 @@ package testing
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"strings"
+)
+
+var (
+	errTmpfsRequiresAtLeastPathAnd            = errors.New("tmpfs requires at least path and terminator")
+	errTmpfsRequiresTerminator                = errors.New("tmpfs requires terminator")
+	errOptionRequiresType                     = errors.New("option requires type")
+	errInputRequiresActionType                = errors.New("input requires action type")
+	errExpectRequiresType                     = errors.New("expect requires type")
+	errWaitRequiresType                       = errors.New("wait requires type")
+	errSessionRequiresAName                   = errors.New("session requires a name")
+	errSessionCreationRequiresUserParameter   = errors.New("session creation requires user parameter")
+	errSessionCreationRequiresOriginParameter = errors.New("session creation requires origin parameter")
 )
 
 // StepType identifies the type of a test step.
@@ -203,7 +216,7 @@ func (tc *TestCase) parseTmpfs(rest string, scanner *bufio.Scanner, lineNum *int
 	// First segment is the path
 	segments := strings.Split(rest, ":")
 	if len(segments) < 2 {
-		return fmt.Errorf("tmpfs requires at least path and terminator")
+		return errTmpfsRequiresAtLeastPathAnd
 	}
 
 	block.Path = segments[0]
@@ -223,7 +236,7 @@ func (tc *TestCase) parseTmpfs(rest string, scanner *bufio.Scanner, lineNum *int
 	}
 
 	if terminator == "" {
-		return fmt.Errorf("tmpfs requires terminator")
+		return errTmpfsRequiresTerminator
 	}
 
 	// Read content until terminator
@@ -263,7 +276,7 @@ func (tc *TestCase) parseOption(rest string) error {
 	// First segment is the type
 	segments := strings.Split(rest, ":")
 	if len(segments) < 1 {
-		return fmt.Errorf("option requires type")
+		return errOptionRequiresType
 	}
 
 	opt.Type = segments[0]
@@ -301,7 +314,7 @@ func (tc *TestCase) parseInput(rest string) error {
 	// Parse type:key=value:key=value...
 	segments := strings.Split(rest, ":")
 	if len(segments) < 1 {
-		return fmt.Errorf("input requires action type")
+		return errInputRequiresActionType
 	}
 
 	inp.Action = segments[0]
@@ -341,7 +354,7 @@ func (tc *TestCase) parseExpect(rest string) error {
 	// Parse type:key=value:key=value...
 	segments := strings.Split(rest, ":")
 	if len(segments) < 1 {
-		return fmt.Errorf("expect requires type")
+		return errExpectRequiresType
 	}
 
 	exp.Type = segments[0]
@@ -385,7 +398,7 @@ func (tc *TestCase) parseWait(rest string) error {
 	// Parse type:value or just type
 	segments := strings.Split(rest, ":")
 	if len(segments) < 1 {
-		return fmt.Errorf("wait requires type")
+		return errWaitRequiresType
 	}
 
 	// First segment might be key=value or just key
@@ -414,7 +427,7 @@ func (tc *TestCase) parseSession(rest string) error {
 	parts := strings.SplitN(rest, ":", 2)
 	name := parts[0]
 	if name == "" {
-		return fmt.Errorf("session requires a name")
+		return errSessionRequiresAName
 	}
 
 	sa := SessionAction{Name: name}
@@ -440,10 +453,10 @@ func (tc *TestCase) parseSession(rest string) error {
 			}
 		}
 		if sa.User == "" {
-			return fmt.Errorf("session creation requires user parameter")
+			return errSessionCreationRequiresUserParameter
 		}
 		if sa.Origin == "" {
-			return fmt.Errorf("session creation requires origin parameter")
+			return errSessionCreationRequiresOriginParameter
 		}
 	}
 

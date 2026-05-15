@@ -5,8 +5,8 @@
 package runner
 
 import (
-	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -205,7 +205,7 @@ func GenerateNick(_ string) string {
 
 	idx := nickIndex
 	nickIndex++
-	return fmt.Sprintf("%d", idx)
+	return strconv.Itoa(idx)
 }
 
 // ResetNickCounter resets the nick counter (for testing).

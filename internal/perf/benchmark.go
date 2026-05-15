@@ -20,12 +20,15 @@ import (
 	"net"
 	"net/netip"
 	"sort"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
+
+var errBuildrouteReturnedNilForProbePrefix = errors.New("BuildRoute returned nil for probe prefix")
 
 // rawMessage holds a raw BGP UPDATE message and its receive timestamp.
 // Used to defer prefix extraction until after the receive loop completes,
@@ -192,8 +195,8 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		senderPort = cfg.SenderPort
 	}
 
-	receiverAddr := net.JoinHostPort(cfg.DUTAddr, fmt.Sprintf("%d", receiverPort))
-	senderDUTAddr := net.JoinHostPort(cfg.DUTAddr, fmt.Sprintf("%d", senderPort))
+	receiverAddr := net.JoinHostPort(cfg.DUTAddr, strconv.Itoa(receiverPort))
+	senderDUTAddr := net.JoinHostPort(cfg.DUTAddr, strconv.Itoa(senderPort))
 
 	type connResult struct {
 		conn net.Conn
@@ -320,7 +323,7 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		// how many NLRIs fit within the RFC 4271 4096-byte maximum.
 		probe := sender.BuildRoute(prefixes[0])
 		if probe == nil {
-			return IterationResult{}, fmt.Errorf("BuildRoute returned nil for probe prefix")
+			return IterationResult{}, errBuildrouteReturnedNilForProbePrefix
 		}
 
 		perNLRI := 1 + (prefixes[0].Bits()+7)/8 // wire size per prefix

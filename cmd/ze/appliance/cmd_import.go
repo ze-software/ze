@@ -5,6 +5,7 @@ package appliance
 import (
 	"archive/tar"
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -13,6 +14,11 @@ import (
 	"strings"
 
 	"golang.org/x/term"
+)
+
+var (
+	errImportRequiresDecryptionPassphrase    = errors.New("import requires decryption passphrase")
+	errArchiveContainsNoApplianceDirectories = errors.New("archive contains no appliance directories")
 )
 
 func init() {
@@ -66,7 +72,7 @@ func runImport(args []string) int {
 func resolveImportPassphrase() ([]byte, error) {
 	passphrase, _, err := ResolvePassphrase(func() ([]byte, error) {
 		if !term.IsTerminal(int(os.Stdin.Fd())) {
-			return nil, fmt.Errorf("import requires decryption passphrase")
+			return nil, errImportRequiresDecryptionPassphrase
 		}
 		fmt.Fprint(os.Stderr, "Archive decryption passphrase: ")
 		pass, readErr := term.ReadPassword(int(os.Stdin.Fd()))
@@ -157,7 +163,7 @@ func validateArchiveStructure(tarBytes []byte) ([]string, error) {
 	}
 
 	if len(names) == 0 {
-		return nil, fmt.Errorf("archive contains no appliance directories")
+		return nil, errArchiveContainsNoApplianceDirectories
 	}
 
 	return names, nil

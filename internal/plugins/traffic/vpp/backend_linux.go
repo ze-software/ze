@@ -7,6 +7,7 @@ package trafficvpp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -20,6 +21,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
 	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
 )
+
+var errVppComponentNotInitialized = errors.New("vpp component not initialized")
 
 // waitConnectedTimeout bounds how long Apply blocks waiting for VPP to be
 // reachable. Value is the 5s agreed in spec Decision 1.
@@ -112,7 +115,7 @@ func (b *backend) Apply(ctx context.Context, desired map[string]traffic.Interfac
 
 func (b *backend) waitConnector(ctx context.Context) (*vppcomp.Connector, error) {
 	if b.connector == nil {
-		return nil, fmt.Errorf("vpp component not initialized")
+		return nil, errVppComponentNotInitialized
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

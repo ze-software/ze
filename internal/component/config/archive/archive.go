@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,6 +19,11 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
+)
+
+var (
+	errEmptyTriggerValue    = errors.New("empty trigger value")
+	errEmptyArchiveLocation = errors.New("empty archive location")
 )
 
 // Archive URL schemes.
@@ -102,7 +108,7 @@ func ValidateTrigger(trigger string) error {
 	case TriggerCommit, TriggerManual, TriggerDaily, TriggerHourly:
 		return nil
 	case "":
-		return fmt.Errorf("empty trigger value")
+		return errEmptyTriggerValue
 	}
 
 	return fmt.Errorf("invalid trigger %q (valid: commit, manual, daily, hourly)", trigger)
@@ -112,7 +118,7 @@ func ValidateTrigger(trigger string) error {
 // Supported schemes: file, http, https.
 func ValidateLocation(rawURL string) error {
 	if rawURL == "" {
-		return fmt.Errorf("empty archive location")
+		return errEmptyArchiveLocation
 	}
 
 	parsed, err := url.Parse(rawURL)

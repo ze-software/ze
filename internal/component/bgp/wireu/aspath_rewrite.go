@@ -6,10 +6,13 @@ package wireu
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 )
+
+var errRewriteAsPathNoAsnsTo = errors.New("rewrite AS_PATH: no ASNs to prepend")
 
 // RewriteASPath rewrites an UPDATE payload by prepending localASN to the AS_PATH.
 //
@@ -57,7 +60,7 @@ func RewriteASPathDual(dst, payload []byte, primaryASN, secondaryASN uint32, src
 // UPDATE body to dst.
 func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 bool) (int, error) {
 	if len(asns) == 0 {
-		return 0, fmt.Errorf("rewrite AS_PATH: no ASNs to prepend")
+		return 0, errRewriteAsPathNoAsnsTo
 	}
 	// Parse UPDATE body layout: wdLen(2) + withdrawn(wdLen) + attrLen(2) + attrs(attrLen) + nlri
 	if len(payload) < 4 {

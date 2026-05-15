@@ -20,7 +20,7 @@ import (
 //nolint:cyclop // commit protocol has inherently many steps
 func (e *Editor) CommitSession() (*CommitResult, error) {
 	if e.session == nil {
-		return nil, fmt.Errorf("no session set")
+		return nil, errNoSessionSet
 	}
 
 	// Check for live conflicts before saving (scanning change files).
@@ -192,7 +192,7 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 // If path is nil, discards all changes (deletes change file, reloads from base).
 func (e *Editor) DiscardSessionPath(path []string) error {
 	if e.session == nil {
-		return fmt.Errorf("no session set")
+		return errNoSessionSet
 	}
 
 	guard, err := e.store.AcquireLock(e.originalPath)
@@ -359,7 +359,7 @@ func renameMatchesPath(op config.StructuralOp, pathPrefix string) bool {
 // so disconnect simply deletes the other user's change file.
 func (e *Editor) DisconnectSession(sessionID string) error {
 	if e.session == nil {
-		return fmt.Errorf("no session set")
+		return errNoSessionSet
 	}
 
 	// Extract user from session ID (format: "user@origin%time").

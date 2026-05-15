@@ -11,6 +11,7 @@ package process
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -30,6 +31,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+var errNoRawConnectionAvailable = errors.New("no raw connection available")
 
 // logger is the plugin subsystem logger (lazy initialization).
 // Controlled by ze.log.plugin environment variable.
@@ -218,7 +221,7 @@ func (p *Process) InitConns() error {
 		if p.conn != nil {
 			return nil // already initialized (e.g., set by test)
 		}
-		return fmt.Errorf("no raw connection available")
+		return errNoRawConnectionAvailable
 	}
 
 	raw := p.rawConn

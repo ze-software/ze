@@ -6,10 +6,6 @@
 
 package flowspec
 
-import (
-	"fmt"
-)
-
 // ============================================================================
 // FlowSpec VPN (RFC 8955 Section 8, SAFI 134)
 // ============================================================================
@@ -111,9 +107,9 @@ func (f *FlowSpecVPN) SupportsAddPath() bool {
 func (f *FlowSpecVPN) String() string {
 	compStr := f.flowSpec.ComponentString()
 	if compStr == "" {
-		return fmt.Sprintf("flow-vpn rd %s", f.rd)
+		return "flow-vpn rd " + f.rd.String()
 	}
-	return fmt.Sprintf("flow-vpn rd %s %s", f.rd, compStr)
+	return "flow-vpn rd " + f.rd.String() + " " + compStr
 }
 
 // ParseFlowSpecVPN parses a FlowSpec VPN from wire format per RFC 8955 Section 8.

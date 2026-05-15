@@ -17,6 +17,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/big"
@@ -27,6 +28,14 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+)
+
+var (
+	errAuthFailedInvalidToken         = errors.New("auth failed: invalid token")
+	errServerPresentedNoCertificates  = errors.New("server presented no certificates")
+	errCertificateFingerprintMismatch = errors.New("certificate fingerprint mismatch")
+	errNoListenAddressesConfigured    = errors.New("no listen addresses configured")
+	errAcceptorStopped                = errors.New("acceptor stopped")
 )
 
 // setTCPNoDelay disables Nagle's algorithm on a connection if it wraps a TCP socket.
@@ -115,7 +124,7 @@ func Authenticate(ctx context.Context, conn net.Conn, expectedToken string) (str
 	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
 		writeErrorRaw(conn, id, "auth failed")
 		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
-		return "", fmt.Errorf("auth failed: invalid token")
+		return "", errAuthFailedInvalidToken
 	}
 
 	if !validPluginName.MatchString(params.Name) {
@@ -197,7 +206,7 @@ func AuthenticateWithLookup(ctx context.Context, conn net.Conn, sharedSecret str
 	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
 		writeErrorRaw(conn, id, "auth failed")
 		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
-		return "", fmt.Errorf("auth failed: invalid token")
+		return "", errAuthFailedInvalidToken
 	}
 
 	if _, writeErr := conn.Write(append(rpc.FormatOK(id), '\n')); writeErr != nil {
@@ -308,7 +317,7 @@ func AuthenticateWithName(ctx context.Context, conn net.Conn, expectedToken, exp
 	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
 		writeErrorRaw(conn, id, "auth failed")
 		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
-		return "", fmt.Errorf("auth failed: invalid token")
+		return "", errAuthFailedInvalidToken
 	}
 
 	// Name binding: the presented name must match what the engine expects for this token.
@@ -353,12 +362,12 @@ func TLSConfigWithFingerprint(fingerprint string) *tls.Config {
 		MinVersion:         tls.VersionTLS13,
 		VerifyConnection: func(cs tls.ConnectionState) error {
 			if len(cs.PeerCertificates) == 0 {
-				return fmt.Errorf("server presented no certificates")
+				return errServerPresentedNoCertificates
 			}
 			actual := sha256.Sum256(cs.PeerCertificates[0].Raw)
 			actualHex := hex.EncodeToString(actual[:])
 			if subtle.ConstantTimeCompare([]byte(actualHex), []byte(fingerprint)) != 1 {
-				return fmt.Errorf("certificate fingerprint mismatch")
+				return errCertificateFingerprintMismatch
 			}
 			return nil
 		},
@@ -405,7 +414,7 @@ func GenerateSelfSignedCert() (tls.Certificate, error) {
 // On error, all successfully created listeners are closed before returning.
 func StartListeners(addrs []string, cert tls.Certificate) ([]net.Listener, error) {
 	if len(addrs) == 0 {
-		return nil, fmt.Errorf("no listen addresses configured")
+		return nil, errNoListenAddressesConfigured
 	}
 
 	tlsConf := &tls.Config{
@@ -538,7 +547,7 @@ func (pa *PluginAcceptor) WaitForPlugin(ctx context.Context, name string) (net.C
 	case <-pa.ctx.Done():
 		pa.pending.Delete(name)
 		pa.drainConnChan(ch)
-		return nil, fmt.Errorf("acceptor stopped")
+		return nil, errAcceptorStopped
 	}
 }
 

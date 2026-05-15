@@ -8,10 +8,10 @@ package flowspec
 
 import (
 	"encoding/binary"
-	"fmt"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Numeric components (Types 3-12)
@@ -102,59 +102,55 @@ func (c *numericComponent) String() string {
 // Special case: protocol component uses a custom parser that accepts plain numeric
 // values without operator prefix, so we output "protocol 6" not "protocol =6".
 func (c *numericComponent) numericString() string {
-	parts := make([]string, len(c.matches))
-	for i, m := range c.matches {
-		// Protocol uses custom parser that doesn't handle operator prefix
-		if c.compType == FlowIPProtocol {
-			parts[i] = fmt.Sprintf("%d", m.Value)
-			continue
+	var b textbuf.Buffer
+	b.Str(c.compType.String())
+	for _, m := range c.matches {
+		b.Byte(' ')
+		if c.compType != FlowIPProtocol {
+			switch m.Op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask) { //nolint:exhaustive // Mask out non-comparison bits
+			case FlowOpGreater:
+				b.Byte('>')
+			case FlowOpLess:
+				b.Byte('<')
+			case FlowOpEqual:
+				b.Byte('=')
+			case FlowOpNotEq:
+				b.Str("!=")
+			case FlowOpGreater | FlowOpEqual:
+				b.Str(">=")
+			case FlowOpLess | FlowOpEqual:
+				b.Str("<=")
+			default:
+				b.Byte('=')
+			}
 		}
-
-		switch m.Op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask) { //nolint:exhaustive // Mask out non-comparison bits
-		case FlowOpGreater:
-			parts[i] = fmt.Sprintf(">%d", m.Value)
-		case FlowOpLess:
-			parts[i] = fmt.Sprintf("<%d", m.Value)
-		case FlowOpEqual:
-			parts[i] = fmt.Sprintf("=%d", m.Value)
-		case FlowOpNotEq:
-			parts[i] = fmt.Sprintf("!=%d", m.Value)
-		case FlowOpGreater | FlowOpEqual:
-			parts[i] = fmt.Sprintf(">=%d", m.Value)
-		case FlowOpLess | FlowOpEqual:
-			parts[i] = fmt.Sprintf("<=%d", m.Value)
-		default: // no operator bits set — treat as equality
-			parts[i] = fmt.Sprintf("=%d", m.Value)
-		}
+		b.Uint(m.Value)
 	}
-	return fmt.Sprintf("%s %s", c.compType, strings.Join(parts, " "))
+	return b.String()
 }
 
 // bitmaskString formats TCP flags and Fragment components with named flags.
 func (c *numericComponent) bitmaskString() string {
-	parts := make([]string, len(c.matches))
+	var b textbuf.Buffer
+	b.Str(c.compType.String())
 	for i, m := range c.matches {
-		var prefix string
+		b.Byte(' ')
 		if m.And && i > 0 {
-			prefix = "&"
+			b.Byte('&')
 		}
-		// Check for bitmask operator bits (NOT, Match)
 		if m.Op&FlowOpNot != 0 {
-			prefix += "!"
+			b.Byte('!')
 		}
 		if m.Op&FlowOpMatch != 0 {
-			prefix += "="
+			b.Byte('=')
 		}
-
-		var flagStr string
 		if c.compType == FlowTCPFlags {
-			flagStr = tcpFlagsToString(uint8(m.Value)) //nolint:gosec // TCP flags are 8-bit
+			b.Str(tcpFlagsToString(uint8(m.Value))) //nolint:gosec // TCP flags are 8-bit
 		} else {
-			flagStr = fragmentFlagsToString(FlowFragmentFlag(m.Value))
+			b.Str(fragmentFlagsToString(FlowFragmentFlag(m.Value)))
 		}
-		parts[i] = prefix + flagStr
 	}
-	return fmt.Sprintf("%s %s", c.compType, strings.Join(parts, " "))
+	return b.String()
 }
 
 // tcpFlagsToString converts TCP flags byte to named flags.

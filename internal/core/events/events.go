@@ -11,10 +11,19 @@
 package events
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 	"sync"
+)
+
+var (
+	errNamespaceMustNotBeEmpty     = errors.New("namespace must not be empty")
+	errNamespaceIdOverflowMax255   = errors.New("namespace ID overflow (max 255)")
+	errEventTypeIdOverflowMax65535 = errors.New("event type ID overflow (max 65535)")
+	errEventTypeMustNotBeEmpty     = errors.New("event type must not be empty")
+	errSendTypeMustNotBeEmpty      = errors.New("send type must not be empty")
 )
 
 // Direction constants for event filtering.
@@ -155,7 +164,7 @@ func AllValidEventNames() string {
 // Safe for concurrent use.
 func RegisterNamespace(namespace string, eventTypes ...string) error {
 	if namespace == "" {
-		return fmt.Errorf("namespace must not be empty")
+		return errNamespaceMustNotBeEmpty
 	}
 	eventsMu.Lock()
 	defer eventsMu.Unlock()
@@ -171,7 +180,7 @@ func RegisterNamespace(namespace string, eventTypes ...string) error {
 	// ID assignment under the same eventsMu already held above.
 	if _, ok := namespaceIDs[namespace]; !ok {
 		if nextNS == 0 {
-			return fmt.Errorf("namespace ID overflow (max 255)")
+			return errNamespaceIdOverflowMax255
 		}
 		namespaceIDs[namespace] = nextNS
 		namespaceNames[nextNS] = namespace
@@ -180,7 +189,7 @@ func RegisterNamespace(namespace string, eventTypes ...string) error {
 	for _, e := range eventTypes {
 		if _, ok := eventTypeIDs[e]; !ok {
 			if nextET == 0 {
-				return fmt.Errorf("event type ID overflow (max 65535)")
+				return errEventTypeIdOverflowMax65535
 			}
 			eventTypeIDs[e] = nextET
 			eventTypeNames[nextET] = e
@@ -197,7 +206,7 @@ func RegisterNamespace(namespace string, eventTypes ...string) error {
 // Safe for concurrent use.
 func RegisterEventType(namespace, eventType string) error {
 	if eventType == "" {
-		return fmt.Errorf("event type must not be empty")
+		return errEventTypeMustNotBeEmpty
 	}
 	if strings.ContainsAny(eventType, " \t\n\r") {
 		return fmt.Errorf("event type %q must not contain whitespace", eventType)
@@ -213,7 +222,7 @@ func RegisterEventType(namespace, eventType string) error {
 	// ID assignment under the same eventsMu already held above.
 	if _, ok := eventTypeIDs[eventType]; !ok {
 		if nextET == 0 {
-			return fmt.Errorf("event type ID overflow (max 65535)")
+			return errEventTypeIdOverflowMax65535
 		}
 		eventTypeIDs[eventType] = nextET
 		eventTypeNames[nextET] = eventType
@@ -250,7 +259,7 @@ var ValidSendTypes = map[string]bool{}
 // Safe for concurrent use.
 func RegisterSendType(sendType string) error {
 	if sendType == "" {
-		return fmt.Errorf("send type must not be empty")
+		return errSendTypeMustNotBeEmpty
 	}
 	if strings.ContainsAny(sendType, " \t\n\r") {
 		return fmt.Errorf("send type %q must not contain whitespace", sendType)

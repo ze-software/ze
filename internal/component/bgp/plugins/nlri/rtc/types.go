@@ -7,10 +7,11 @@ package rtc
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
+	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Type aliases for shared nlri types.
@@ -53,21 +54,22 @@ func (rt RouteTarget) Bytes() []byte {
 //
 // RFC 4360 Section 3 defines extended community types.
 func (rt RouteTarget) String() string {
+	var b textbuf.Buffer
 	switch rt.Type >> 8 {
 	case 0x00: // 2-byte ASN (RFC 4360 Section 3.1)
 		asn := binary.BigEndian.Uint16(rt.Value[:2])
 		assigned := binary.BigEndian.Uint32(rt.Value[2:6])
-		return fmt.Sprintf("%d:%d", asn, assigned)
+		return b.Uint16(asn).Byte(':').Uint32(assigned).String()
 	case 0x01: // IPv4 address (RFC 4360 Section 3.2)
-		ip := fmt.Sprintf("%d.%d.%d.%d", rt.Value[0], rt.Value[1], rt.Value[2], rt.Value[3])
+		ip := netip.AddrFrom4([4]byte(rt.Value[:4]))
 		assigned := binary.BigEndian.Uint16(rt.Value[4:6])
-		return fmt.Sprintf("%s:%d", ip, assigned)
+		return b.Addr(ip).Byte(':').Uint16(assigned).String()
 	case 0x02: // 4-byte ASN (RFC 5668)
 		asn := binary.BigEndian.Uint32(rt.Value[:4])
 		assigned := binary.BigEndian.Uint16(rt.Value[4:6])
-		return fmt.Sprintf("%d:%d", asn, assigned)
+		return b.Uint32(asn).Byte(':').Uint16(assigned).String()
 	default:
-		return fmt.Sprintf("rt-type%d:%x", rt.Type, rt.Value)
+		return b.Str("rt-type").Uint16(rt.Type).Byte(':').Hex(rt.Value[:]).String()
 	}
 }
 
@@ -176,7 +178,8 @@ func (r *RTC) String() string {
 	if r.IsDefault() {
 		return "default"
 	}
-	return fmt.Sprintf("origin-as %d rt %s", r.originAS, r.routeTarget)
+	var b textbuf.Buffer
+	return b.Str("origin-as ").Uint32(r.originAS).Str(" rt ").Str(r.routeTarget.String()).String()
 }
 
 // WriteTo writes the RTC NLRI directly to buf at offset.

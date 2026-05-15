@@ -26,6 +26,8 @@ import (
 	"golang.org/x/net/idna"
 )
 
+var errMcpOauthAsMetadataEmptyIssuer = errors.New("mcp oauth: AS metadata: empty issuer")
+
 // ProtocolVersion is the negotiated MCP protocol version this server speaks.
 const ProtocolVersion = "2025-06-18"
 
@@ -224,7 +226,7 @@ func buildAuthForMode(mode AuthMode, cfg StreamableConfig) (authBuildResult, err
 		return authBuildResult{}, fmt.Errorf("mcp oauth: AS metadata: %w", err)
 	}
 	if md.Issuer == "" {
-		return authBuildResult{}, fmt.Errorf("mcp oauth: AS metadata: empty issuer")
+		return authBuildResult{}, errMcpOauthAsMetadataEmptyIssuer
 	}
 	// RFC 8414 §3.3: issuer MUST match the authorization server URL
 	// (URL-canonical compare: scheme + host + optional port elision +

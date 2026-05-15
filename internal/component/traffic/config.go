@@ -6,10 +6,13 @@ package traffic
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 )
+
+var errEmptyFilterValue = errors.New("empty filter value")
 
 // ParseTrafficConfig parses the traffic-control config section JSON into a map
 // of interface name to InterfaceQoS. The JSON is wrapped:
@@ -163,7 +166,7 @@ func ParseRateBps(v string) (uint64, error) {
 
 func parseFilterValue(ft FilterType, v string) (uint32, error) {
 	if v == "" {
-		return 0, fmt.Errorf("empty filter value")
+		return 0, errEmptyFilterValue
 	}
 	switch ft { //nolint:exhaustive // filterUnknown rejected by ParseFilterType before reaching here
 	case FilterMark:

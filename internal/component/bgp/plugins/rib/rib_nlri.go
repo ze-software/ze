@@ -6,6 +6,7 @@
 package rib
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -13,6 +14,12 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
+
+var (
+	errTruncatedAddPathNlri = errors.New("truncated ADD-PATH NLRI")
+	errTruncatedNlri        = errors.New("truncated NLRI")
+	errTruncatedNlriPrefix  = errors.New("truncated NLRI prefix")
 )
 
 // parseFamily converts a family string like "ipv4/unicast" to family.Family.
@@ -126,21 +133,21 @@ func wireToPrefix(fam family.Family, wire []byte, addPath bool) (string, uint32,
 
 	if addPath {
 		if len(wire) < 5 {
-			return "", 0, fmt.Errorf("truncated ADD-PATH NLRI")
+			return "", 0, errTruncatedAddPathNlri
 		}
 		pathID = uint32(wire[0])<<24 | uint32(wire[1])<<16 | uint32(wire[2])<<8 | uint32(wire[3])
 		offset = 4
 	}
 
 	if offset >= len(wire) {
-		return "", 0, fmt.Errorf("truncated NLRI")
+		return "", 0, errTruncatedNlri
 	}
 
 	prefixLen := int(wire[offset])
 	prefixBytes := (prefixLen + 7) / 8
 
 	if offset+1+prefixBytes > len(wire) {
-		return "", 0, fmt.Errorf("truncated NLRI prefix")
+		return "", 0, errTruncatedNlriPrefix
 	}
 
 	var addr netip.Addr

@@ -4,9 +4,13 @@
 
 package ppp
 
-import "fmt"
+import (
+	"errors"
+)
+
+var errPppDevPppNotAvailableOn = errors.New("ppp: /dev/ppp not available on this platform")
 
 // DevPPPSetup is not available on non-Linux platforms.
 func DevPPPSetup(_ int) (int, int, int, error) {
-	return -1, -1, -1, fmt.Errorf("ppp: /dev/ppp not available on this platform")
+	return -1, -1, -1, errPppDevPppNotAvailableOn
 }

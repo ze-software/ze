@@ -10,6 +10,7 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -23,6 +24,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
+)
+
+var (
+	errBgpNoPluginServerAvailable    = errors.New("bgp: no plugin server available")
+	errBgpServerReactorIsNotA        = errors.New("bgp: server reactor is not a Coordinator")
+	errBgpNoReactorFactoryRegistered = errors.New("bgp: no reactor factory registered")
+	errBgpApplyNoReactorAvailable    = errors.New("bgp apply: no reactor available")
 )
 
 var (
@@ -93,18 +101,18 @@ func runBGPEngine(conn net.Conn) int {
 		bgpMu.Unlock()
 
 		if server == nil {
-			return fmt.Errorf("bgp: no plugin server available")
+			return errBgpNoPluginServerAvailable
 		}
 
 		coord, ok := server.ReactorAny().(registry.CoordinatorAccessor)
 		if !ok {
-			return fmt.Errorf("bgp: server reactor is not a Coordinator")
+			return errBgpServerReactorIsNotA
 		}
 
 		// Create reactor using the factory registered by bgp/config.
 		factoryFn := registry.GetReactorFactory()
 		if factoryFn == nil {
-			return fmt.Errorf("bgp: no reactor factory registered")
+			return errBgpNoReactorFactoryRegistered
 		}
 
 		var err error
@@ -195,7 +203,7 @@ func runBGPEngine(conn net.Conn) int {
 			return nil
 		}
 		if bgpReactor == nil {
-			return fmt.Errorf("bgp apply: no reactor available")
+			return errBgpApplyNoReactorAvailable
 		}
 		j := sdk.NewJournal()
 		if err := bgpReactor.ReconcilePeersWithJournal(tree, j); err != nil {

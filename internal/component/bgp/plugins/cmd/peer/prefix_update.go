@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +17,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
+)
+
+var (
+	errConfigPathNotSet = errors.New("config path not set")
+	errNoPeersMatched   = errors.New("no peers matched")
 )
 
 const (
@@ -57,7 +63,7 @@ func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "config path not available",
-		}, fmt.Errorf("config path not set")
+		}, errConfigPathNotSet
 	}
 
 	peers, errResp, err := filterPeersBySelector(ctx)
@@ -68,7 +74,7 @@ func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "no peers found matching selector",
-		}, fmt.Errorf("no peers matched")
+		}, errNoPeersMatched
 	}
 
 	// Open config to read PeeringDB settings and update values.
@@ -199,7 +205,7 @@ func updatePeerPrefixConfig(ed *cli.Editor, p *plugin.PeerInfo, counts peeringdb
 	if counts.IPv4 > 0 {
 		newMax := peeringdb.ApplyMargin(counts.IPv4, margin)
 		familyPath := append(basePath, "session", "family", "ipv4/unicast", "prefix") //nolint:gocritic // append to copy is intentional
-		if setErr := ed.SetValue(familyPath, "maximum", fmt.Sprintf("%d", newMax)); setErr != nil {
+		if setErr := ed.SetValue(familyPath, "maximum", strconv.Itoa(int(newMax))); setErr != nil {
 			result.Status = statusError
 			result.Error = fmt.Sprintf("set ipv4 maximum: %v", setErr)
 			return false
@@ -216,7 +222,7 @@ func updatePeerPrefixConfig(ed *cli.Editor, p *plugin.PeerInfo, counts peeringdb
 	if counts.IPv6 > 0 {
 		newMax := peeringdb.ApplyMargin(counts.IPv6, margin)
 		familyPath := append(basePath, "session", "family", "ipv6/unicast", "prefix") //nolint:gocritic // append to copy is intentional
-		if setErr := ed.SetValue(familyPath, "maximum", fmt.Sprintf("%d", newMax)); setErr != nil {
+		if setErr := ed.SetValue(familyPath, "maximum", strconv.Itoa(int(newMax))); setErr != nil {
 			result.Status = statusError
 			result.Error = fmt.Sprintf("set ipv6 maximum: %v", setErr)
 			return false

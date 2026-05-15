@@ -3,12 +3,18 @@
 package shrink
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
+)
+
+var (
+	errNoEventsToShrink           = errors.New("no events to shrink")
+	errNoViolationFoundInEventLog = errors.New("no violation found in event log")
 )
 
 // Config holds parameters for the shrink engine.
@@ -57,7 +63,7 @@ func verbosef(cfg Config, format string, args ...any) {
 //  3. Single-step elimination: try removing each event (with causal dependents).
 func Run(events []peer.Event, cfg Config) (*Result, error) {
 	if len(events) == 0 {
-		return nil, fmt.Errorf("no events to shrink")
+		return nil, errNoEventsToShrink
 	}
 
 	original := len(events)
@@ -67,7 +73,7 @@ func Run(events []peer.Event, cfg Config) (*Result, error) {
 	violation := findViolation(events, cfg)
 	iterations++
 	if violation == nil {
-		return nil, fmt.Errorf("no violation found in event log")
+		return nil, errNoViolationFoundInEventLog
 	}
 	property := violation.Property
 

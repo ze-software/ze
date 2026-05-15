@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
 )
 
@@ -91,11 +92,11 @@ func decodeOpen(msg *DecodedMessage, body []byte) {
 	optParamLen := body[9]
 
 	msg.Attributes = append(msg.Attributes,
-		DecodedAttribute{Name: "version", Value: fmt.Sprintf("%d", version)},
-		DecodedAttribute{Name: "asn", Value: fmt.Sprintf("%d", asn)},
-		DecodedAttribute{Name: "hold-time", Value: fmt.Sprintf("%d", holdTime)},
+		DecodedAttribute{Name: "version", Value: strconv.Itoa(int(version))},
+		DecodedAttribute{Name: "asn", Value: strconv.Itoa(int(asn))},
+		DecodedAttribute{Name: "hold-time", Value: strconv.Itoa(int(holdTime))},
 		DecodedAttribute{Name: "router-id", Value: routerID.String()},
-		DecodedAttribute{Name: "opt-param-len", Value: fmt.Sprintf("%d", optParamLen)},
+		DecodedAttribute{Name: "opt-param-len", Value: strconv.Itoa(int(optParamLen))},
 	)
 }
 
@@ -144,7 +145,7 @@ func decodeNotification(msg *DecodedMessage, body []byte) {
 
 	msg.Attributes = append(msg.Attributes,
 		DecodedAttribute{Name: "error-code", Value: fmt.Sprintf("%d (%s)", errCode, notificationErrorName(errCode))},
-		DecodedAttribute{Name: "error-subcode", Value: fmt.Sprintf("%d", errSubcode)},
+		DecodedAttribute{Name: "error-subcode", Value: strconv.Itoa(int(errSubcode))},
 	)
 
 	if len(body) > 2 {
@@ -298,13 +299,13 @@ func decodeAttrValue(code byte, value []byte) string {
 
 	case 4: // MED
 		if len(value) == 4 {
-			return fmt.Sprintf("%d", binary.BigEndian.Uint32(value))
+			return strconv.Itoa(int(binary.BigEndian.Uint32(value)))
 		}
 		return hex.EncodeToString(value)
 
 	case 5: // LOCAL_PREF
 		if len(value) == 4 {
-			return fmt.Sprintf("%d", binary.BigEndian.Uint32(value))
+			return strconv.Itoa(int(binary.BigEndian.Uint32(value)))
 		}
 		return hex.EncodeToString(value)
 
@@ -353,7 +354,7 @@ func decodeASPath(data []byte) string {
 			} else {
 				asn = uint32(binary.BigEndian.Uint16(data[offset : offset+2]))
 			}
-			asns = append(asns, fmt.Sprintf("%d", asn))
+			asns = append(asns, strconv.Itoa(int(asn)))
 			offset += asnSize
 		}
 

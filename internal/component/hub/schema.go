@@ -3,6 +3,7 @@
 package hub
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -10,6 +11,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
+
+var errUnknownConfigState = errors.New("unknown config state")
 
 // ConfigState represents which config state to query.
 type ConfigState int
@@ -70,7 +73,7 @@ func (s *ConfigStore) Query(state ConfigState, path string) (any, error) {
 	case ConfigEdit:
 		cfg = s.edit
 	default:
-		return nil, fmt.Errorf("unknown config state")
+		return nil, errUnknownConfigState
 	}
 
 	if cfg == nil {

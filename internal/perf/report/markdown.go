@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/perf"
@@ -166,7 +167,7 @@ func fmtNum(n int) string {
 		return "-" + fmtNum(-n)
 	}
 
-	s := fmt.Sprintf("%d", n)
+	s := strconv.Itoa(n)
 	if len(s) <= 3 {
 		return s
 	}
