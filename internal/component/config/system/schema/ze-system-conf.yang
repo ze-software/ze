@@ -145,6 +145,35 @@ module ze-system-conf {
             }
         }
 
+        // Serial console devices for out-of-band management
+        container console {
+            description "Serial console configuration for headless CPE devices";
+
+            list device {
+                key "name";
+                description "Serial device to configure as console";
+
+                leaf name {
+                    type string {
+                        length "1..32";
+                    }
+                    description "Serial device name (e.g., ttyS0, ttyUSB0). Bare name, not a path.";
+                }
+
+                leaf speed {
+                    type enumeration {
+                        enum 9600 { description "9600 baud"; }
+                        enum 19200 { description "19200 baud"; }
+                        enum 38400 { description "38400 baud"; }
+                        enum 57600 { description "57600 baud"; }
+                        enum 115200 { description "115200 baud"; }
+                    }
+                    default "115200";
+                    description "Baud rate (default 115200)";
+                }
+            }
+        }
+
         // Named archive blocks
         list archive {
             key "name";

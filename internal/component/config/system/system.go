@@ -32,6 +32,9 @@ type SystemConfig struct {
 
 	// Hardware tuning (from system { tuning {} }).
 	Tuning TuningSystemConfig
+
+	// Console devices (from system { console { device ... } }).
+	ConsoleDevices []ConsoleDeviceEntry
 }
 
 // TuningSystemConfig holds hardware tuning settings from config.
@@ -203,6 +206,7 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 	}
 
 	sc.Tuning = extractTuning(sys)
+	sc.ConsoleDevices = extractConsole(sys)
 
 	pdb := sys.GetContainer("peeringdb")
 	if pdb == nil {

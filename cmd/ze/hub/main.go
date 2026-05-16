@@ -514,6 +514,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	applyHostTuning(sc)
+	applyConsole(sc)
 
 	if webEnabled {
 		if len(webAddrs) == 0 {
@@ -886,6 +887,7 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 	}
 
 	applyHostTuningFromMap(newTree)
+	applyConsoleFromMap(newTree)
 
 	return nil
 }
@@ -1723,6 +1725,24 @@ func newResolvers(sc system.SystemConfig) *resolve.Resolvers {
 	}
 }
 
+// applyConsole configures serial console devices via termios.
+// Best-effort: logs warnings on failure or getty conflict, never blocks startup.
+func applyConsole(sc system.SystemConfig) {
+	if len(sc.ConsoleDevices) == 0 {
+		return
+	}
+	result := system.ApplyConsole(sc.ConsoleDevices)
+	for _, applied := range result.Applied {
+		slogutil.Logger("console").Info("serial console configured", "device", applied)
+	}
+	for _, skip := range result.Skipped {
+		slogutil.Logger("console").Warn("serial console skipped", "device", skip.Device, "reason", skip.Reason)
+	}
+	for _, ce := range result.Errors {
+		slogutil.Logger("console").Warn("serial console failed", "device", ce.Device, "error", ce.Err)
+	}
+}
+
 // applyHostTuning extracts tuning config and applies it. Errors are
 // logged as warnings (tuning is best-effort, never blocks startup).
 func applyHostTuning(sc system.SystemConfig) {
@@ -1753,6 +1773,25 @@ func applyHostTuningFromMap(tree map[string]any) {
 	}
 	for _, te := range result.Errors {
 		slogutil.Logger("host").Warn("tuning failed (reload)", "op", te.Operation, "subject", te.Subject, "error", te.Err)
+	}
+}
+
+// applyConsoleFromMap extracts console config from a map tree (reload path)
+// and applies it.
+func applyConsoleFromMap(tree map[string]any) {
+	devices := system.ExtractConsoleFromMap(tree)
+	if len(devices) == 0 {
+		return
+	}
+	result := system.ApplyConsole(devices)
+	for _, applied := range result.Applied {
+		slogutil.Logger("console").Info("serial console configured (reload)", "device", applied)
+	}
+	for _, skip := range result.Skipped {
+		slogutil.Logger("console").Warn("serial console skipped (reload)", "device", skip.Device, "reason", skip.Reason)
+	}
+	for _, ce := range result.Errors {
+		slogutil.Logger("console").Warn("serial console failed (reload)", "device", ce.Device, "error", ce.Err)
 	}
 }
 
