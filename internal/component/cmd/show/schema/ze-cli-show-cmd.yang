@@ -53,6 +53,12 @@ module ze-cli-show-cmd {
                     description "List available subsystems with their state";
                 }
             }
+
+            container conntrack {
+                config false;
+                ze:command "ze-show:system-conntrack";
+                description "Show netfilter conntrack table statistics, timeouts, and loaded modules";
+            }
         }
 
         container host {
