@@ -159,8 +159,9 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, string, 
 		if entry.StaleLevel == storage.StaleLevelFresh {
 			return true
 		}
-		if entry.HasCommunities() {
-			if data, getErr := pool.Communities.Get(entry.Communities); getErr == nil {
+		eb := entry.GetBundle()
+		if eb.HasCommunities() {
+			if data, getErr := pool.Communities.Get(eb.Communities); getErr == nil {
 				if containsCommunity(data, commBytes) {
 					nlriCopy := make([]byte, len(nlriBytes))
 					copy(nlriCopy, nlriBytes)
@@ -213,10 +214,11 @@ func containsCommunity(data, community []byte) bool {
 // Pool handles are updated: old handle released, new handle interned.
 // Returns true on success (or already present).
 func (r *RIBManager) attachCommunity(entry *storage.RouteEntry, comm []byte) bool {
+	b := entry.GetBundle()
 	var newData []byte
 
-	if entry.HasCommunities() {
-		oldData, err := pool.Communities.Get(entry.Communities)
+	if b.HasCommunities() {
+		oldData, err := pool.Communities.Get(b.Communities)
 		if err != nil {
 			return false
 		}
@@ -231,14 +233,27 @@ func (r *RIBManager) attachCommunity(entry *storage.RouteEntry, comm []byte) boo
 		copy(newData, comm)
 	}
 
-	newHandle, err := pool.Communities.Intern(newData)
+	newCommHandle, err := pool.Communities.Intern(newData)
 	if err != nil {
 		return false
 	}
 
-	if entry.HasCommunities() {
-		_ = pool.Communities.Release(entry.Communities)
+	// AddRef the old bundle's 12 handles (we need fresh refs for Bundles.Intern).
+	// Communities gets AddRef'd here too, but we immediately release it since
+	// newCommHandle already carries a fresh ref from the Intern above.
+	if err := b.AddRefInnerHandles(); err != nil {
+		_ = pool.Communities.Release(newCommHandle)
+		return false
 	}
-	entry.Communities = newHandle
+	if b.HasCommunities() {
+		_ = pool.Communities.Release(b.Communities)
+	}
+
+	newBundle := b
+	newBundle.Communities = newCommHandle
+
+	newBundleHandle := storage.Bundles.Intern(newBundle)
+	storage.Bundles.Release(entry.Bundle)
+	entry.Bundle = newBundleHandle
 	return true
 }

@@ -74,7 +74,7 @@ func TestFamilyRIB_OpaqueImplicitWithdraw(t *testing.T) {
 
 	rib.Insert(attrs1, nlri)
 	entry1, _ := rib.LookupEntry(nlri)
-	originSlot := entry1.Origin.Slot()
+	originSlot := entry1.GetBundle().Origin.Slot()
 
 	// Mark stale, then re-insert with identical attrs -- stale flag clears,
 	// handles stay the same.
@@ -83,7 +83,7 @@ func TestFamilyRIB_OpaqueImplicitWithdraw(t *testing.T) {
 	entry2, ok := rib.LookupEntry(nlri)
 	require.True(t, ok)
 	assert.Equal(t, StaleLevelFresh, entry2.StaleLevel, "stale flag cleared on re-insert")
-	assert.Equal(t, originSlot, entry2.Origin.Slot(), "handles reused on identical attrs")
+	assert.Equal(t, originSlot, entry2.GetBundle().Origin.Slot(), "handles reused on identical attrs")
 	assert.Equal(t, 1, rib.Len())
 }
 
@@ -116,13 +116,13 @@ func TestFamilyRIB_PerAttrDedup(t *testing.T) {
 	require.True(t, ok, "route 2 should exist")
 
 	// ORIGIN and LOCAL_PREF should share pool slots (same values).
-	assert.Equal(t, entry1.Origin.Slot(), entry2.Origin.Slot(),
+	assert.Equal(t, entry1.GetBundle().Origin.Slot(), entry2.GetBundle().Origin.Slot(),
 		"ORIGIN should share pool slot")
-	assert.Equal(t, entry1.LocalPref.Slot(), entry2.LocalPref.Slot(),
+	assert.Equal(t, entry1.GetBundle().LocalPref.Slot(), entry2.GetBundle().LocalPref.Slot(),
 		"LOCAL_PREF should share pool slot")
 
 	// MED should have different slots (different values).
-	assert.NotEqual(t, entry1.MED.Slot(), entry2.MED.Slot(),
+	assert.NotEqual(t, entry1.GetBundle().MED.Slot(), entry2.GetBundle().MED.Slot(),
 		"MED should have different pool slots")
 }
 
@@ -143,9 +143,9 @@ func TestFamilyRIB_Insert(t *testing.T) {
 
 	entry, ok := rib.LookupEntry(nlriBytes)
 	require.True(t, ok)
-	assert.True(t, entry.HasOrigin())
+	assert.True(t, entry.GetBundle().HasOrigin())
 	assert.True(t, entry.HasASPath())
-	assert.True(t, entry.HasNextHop())
+	assert.True(t, entry.GetBundle().HasNextHop())
 }
 
 // TestFamilyRIB_ImplicitWithdraw verifies implicit withdraw behavior.
@@ -165,8 +165,8 @@ func TestFamilyRIB_ImplicitWithdraw(t *testing.T) {
 	entry1, ok := rib.LookupEntry(nlriBytes)
 	require.True(t, ok)
 	// Save slot values before implicit withdraw releases the entry.
-	origin1Slot := entry1.Origin.Slot()
-	med1Slot := entry1.MED.Slot()
+	origin1Slot := entry1.GetBundle().Origin.Slot()
+	med1Slot := entry1.GetBundle().MED.Slot()
 
 	// Second insert with MED=20 (implicit withdraw).
 	wireMED20 := []byte{0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x14}
@@ -177,11 +177,11 @@ func TestFamilyRIB_ImplicitWithdraw(t *testing.T) {
 	require.True(t, ok)
 
 	// ORIGIN should share pool slot (same value interned twice).
-	assert.Equal(t, origin1Slot, entry2.Origin.Slot(),
+	assert.Equal(t, origin1Slot, entry2.GetBundle().Origin.Slot(),
 		"ORIGIN should share pool slot after implicit withdraw")
 
 	// MED should be different (different values).
-	assert.NotEqual(t, med1Slot, entry2.MED.Slot(),
+	assert.NotEqual(t, med1Slot, entry2.GetBundle().MED.Slot(),
 		"MED should have different slot after implicit withdraw")
 
 	// Still only 1 route.
@@ -228,8 +228,8 @@ func TestFamilyRIB_IterateEntry(t *testing.T) {
 	var count int
 	rib.IterateEntry(func(nlriBytes []byte, entry RouteEntry) bool {
 		count++
-		assert.True(t, entry.HasOrigin())
-		assert.True(t, entry.HasLocalPref())
+		assert.True(t, entry.GetBundle().HasOrigin())
+		assert.True(t, entry.GetBundle().HasLocalPref())
 		return true
 	})
 
@@ -250,13 +250,13 @@ func TestFamilyRIB_NoOpUpdate(t *testing.T) {
 	// Insert twice with same data.
 	rib.Insert(attrs, nlriBytes)
 	entry1, _ := rib.LookupEntry(nlriBytes)
-	originSlot1 := entry1.Origin.Slot()
+	originSlot1 := entry1.GetBundle().Origin.Slot()
 
 	rib.Insert(attrs, nlriBytes)
 	entry2, _ := rib.LookupEntry(nlriBytes)
 
 	// Should be same entry (or at least same slots).
-	assert.Equal(t, originSlot1, entry2.Origin.Slot())
+	assert.Equal(t, originSlot1, entry2.GetBundle().Origin.Slot())
 	assert.Equal(t, 1, rib.Len())
 }
 
@@ -288,15 +288,15 @@ func TestFamilyRIB_ToWireBytes(t *testing.T) {
 	defer entry2.Release()
 
 	// Verify values match by comparing pool data.
-	origData1, _ := attrpool.Origin.Get(entry.Origin)
-	origData2, _ := attrpool.Origin.Get(entry2.Origin)
+	origData1, _ := attrpool.Origin.Get(entry.GetBundle().Origin)
+	origData2, _ := attrpool.Origin.Get(entry2.GetBundle().Origin)
 	assert.Equal(t, origData1, origData2, "ORIGIN should match")
 
-	lpData1, _ := attrpool.LocalPref.Get(entry.LocalPref)
-	lpData2, _ := attrpool.LocalPref.Get(entry2.LocalPref)
+	lpData1, _ := attrpool.LocalPref.Get(entry.GetBundle().LocalPref)
+	lpData2, _ := attrpool.LocalPref.Get(entry2.GetBundle().LocalPref)
 	assert.Equal(t, lpData1, lpData2, "LOCAL_PREF should match")
 
-	medData1, _ := attrpool.MED.Get(entry.MED)
-	medData2, _ := attrpool.MED.Get(entry2.MED)
+	medData1, _ := attrpool.MED.Get(entry.GetBundle().MED)
+	medData2, _ := attrpool.MED.Get(entry2.GetBundle().MED)
 	assert.Equal(t, medData1, medData2, "MED should match")
 }

@@ -646,8 +646,9 @@ func TestAttachCommunity(t *testing.T) {
 	entry, found := r.bgpPeers["192.0.2.1"].Lookup(ipv4Family, []byte{24, 10, 0, 0})
 	require.True(t, found)
 	assert.True(t, entry.StaleLevel >= storage.DepreferenceThreshold, "StaleLevel should be raised")
-	assert.True(t, entry.HasCommunities(), "route should have communities")
-	commData, err := pool.Communities.Get(entry.Communities)
+	grBundle := entry.GetBundle()
+	assert.True(t, grBundle.HasCommunities(), "route should have communities")
+	commData, err := pool.Communities.Get(grBundle.Communities)
 	require.NoError(t, err)
 	assert.True(t, containsCommunity(commData, testCommunityA), "community should be attached")
 }
@@ -716,7 +717,7 @@ func TestAttachCommunity_Idempotent(t *testing.T) {
 	// Verify only one community (4 bytes, not 8)
 	entry, found := peerRIB.Lookup(ipv4Family, nlriBytes)
 	require.True(t, found)
-	commData, err := pool.Communities.Get(entry.Communities)
+	commData, err := pool.Communities.Get(entry.GetBundle().Communities)
 	require.NoError(t, err)
 	assert.Equal(t, 4, len(commData), "community data should be exactly 4 bytes")
 }
@@ -749,8 +750,9 @@ func TestAttachCommunity_NoCommunities(t *testing.T) {
 
 	entry, found := peerRIB.Lookup(ipv4Family, []byte{24, 10, 0, 0})
 	require.True(t, found)
-	assert.True(t, entry.HasCommunities(), "community should be created")
-	commData, err := pool.Communities.Get(entry.Communities)
+	entryBundle := entry.GetBundle()
+	assert.True(t, entryBundle.HasCommunities(), "community should be created")
+	commData, err := pool.Communities.Get(entryBundle.Communities)
 	require.NoError(t, err)
 	assert.Equal(t, 4, len(commData))
 	assert.True(t, containsCommunity(commData, testCommunityA))

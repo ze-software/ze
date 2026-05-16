@@ -10,111 +10,123 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 )
 
-// attrInterner binds a pool to a RouteEntry field for table-driven internment.
-type attrInterner struct {
+// bundleInterner binds a pool to a Bundle field for table-driven internment.
+type bundleInterner struct {
 	pool *attrpool.Pool
 	name string
-	get  func(*RouteEntry) attrpool.Handle
-	set  func(*RouteEntry, attrpool.Handle)
+	get  func(*Bundle) attrpool.Handle
+	set  func(*Bundle, attrpool.Handle)
 }
 
-// attrInterners maps attribute type codes to their pool+field bindings.
-// nil entries route to OtherAttrs accumulation.
-// Closures take *RouteEntry so ParseAttributes can pass a pointer to a local value.
-var attrInterners [256]*attrInterner
+// bundleInterners maps non-AS_PATH attribute type codes to their pool+field bindings.
+// AS_PATH (type 2) is handled separately (stays on RouteEntry).
+var bundleInterners [256]*bundleInterner
 
 func init() {
 	reg := func(code attribute.AttributeCode, p *attrpool.Pool, name string,
-		get func(*RouteEntry) attrpool.Handle, set func(*RouteEntry, attrpool.Handle),
+		get func(*Bundle) attrpool.Handle, set func(*Bundle, attrpool.Handle),
 	) {
-		attrInterners[code] = &attrInterner{pool: p, name: name, get: get, set: set}
+		bundleInterners[code] = &bundleInterner{pool: p, name: name, get: get, set: set}
 	}
 
 	reg(attribute.AttrOrigin, pool.Origin, "origin",
-		func(e *RouteEntry) attrpool.Handle { return e.Origin },
-		func(e *RouteEntry, h attrpool.Handle) { e.Origin = h })
-	reg(attribute.AttrASPath, pool.ASPath, "as-path",
-		func(e *RouteEntry) attrpool.Handle { return e.ASPath },
-		func(e *RouteEntry, h attrpool.Handle) { e.ASPath = h })
+		func(b *Bundle) attrpool.Handle { return b.Origin },
+		func(b *Bundle, h attrpool.Handle) { b.Origin = h })
 	reg(attribute.AttrNextHop, pool.NextHop, "next-hop",
-		func(e *RouteEntry) attrpool.Handle { return e.NextHop },
-		func(e *RouteEntry, h attrpool.Handle) { e.NextHop = h })
+		func(b *Bundle) attrpool.Handle { return b.NextHop },
+		func(b *Bundle, h attrpool.Handle) { b.NextHop = h })
 	reg(attribute.AttrMED, pool.MED, "med",
-		func(e *RouteEntry) attrpool.Handle { return e.MED },
-		func(e *RouteEntry, h attrpool.Handle) { e.MED = h })
+		func(b *Bundle) attrpool.Handle { return b.MED },
+		func(b *Bundle, h attrpool.Handle) { b.MED = h })
 	reg(attribute.AttrLocalPref, pool.LocalPref, "local-pref",
-		func(e *RouteEntry) attrpool.Handle { return e.LocalPref },
-		func(e *RouteEntry, h attrpool.Handle) { e.LocalPref = h })
+		func(b *Bundle) attrpool.Handle { return b.LocalPref },
+		func(b *Bundle, h attrpool.Handle) { b.LocalPref = h })
 	reg(attribute.AttrAtomicAggregate, pool.AtomicAggregate, "atomic-aggregate",
-		func(e *RouteEntry) attrpool.Handle { return e.AtomicAggregate },
-		func(e *RouteEntry, h attrpool.Handle) { e.AtomicAggregate = h })
+		func(b *Bundle) attrpool.Handle { return b.AtomicAggregate },
+		func(b *Bundle, h attrpool.Handle) { b.AtomicAggregate = h })
 	reg(attribute.AttrAggregator, pool.Aggregator, "aggregator",
-		func(e *RouteEntry) attrpool.Handle { return e.Aggregator },
-		func(e *RouteEntry, h attrpool.Handle) { e.Aggregator = h })
+		func(b *Bundle) attrpool.Handle { return b.Aggregator },
+		func(b *Bundle, h attrpool.Handle) { b.Aggregator = h })
 	reg(attribute.AttrCommunity, pool.Communities, "communities",
-		func(e *RouteEntry) attrpool.Handle { return e.Communities },
-		func(e *RouteEntry, h attrpool.Handle) { e.Communities = h })
+		func(b *Bundle) attrpool.Handle { return b.Communities },
+		func(b *Bundle, h attrpool.Handle) { b.Communities = h })
 	reg(attribute.AttrLargeCommunity, pool.LargeCommunities, "large-communities",
-		func(e *RouteEntry) attrpool.Handle { return e.LargeCommunities },
-		func(e *RouteEntry, h attrpool.Handle) { e.LargeCommunities = h })
+		func(b *Bundle) attrpool.Handle { return b.LargeCommunities },
+		func(b *Bundle, h attrpool.Handle) { b.LargeCommunities = h })
 	reg(attribute.AttrExtCommunity, pool.ExtCommunities, "ext-communities",
-		func(e *RouteEntry) attrpool.Handle { return e.ExtCommunities },
-		func(e *RouteEntry, h attrpool.Handle) { e.ExtCommunities = h })
+		func(b *Bundle) attrpool.Handle { return b.ExtCommunities },
+		func(b *Bundle, h attrpool.Handle) { b.ExtCommunities = h })
 	reg(attribute.AttrClusterList, pool.ClusterList, "cluster-list",
-		func(e *RouteEntry) attrpool.Handle { return e.ClusterList },
-		func(e *RouteEntry, h attrpool.Handle) { e.ClusterList = h })
+		func(b *Bundle) attrpool.Handle { return b.ClusterList },
+		func(b *Bundle, h attrpool.Handle) { b.ClusterList = h })
 	reg(attribute.AttrOriginatorID, pool.OriginatorID, "originator-id",
-		func(e *RouteEntry) attrpool.Handle { return e.OriginatorID },
-		func(e *RouteEntry, h attrpool.Handle) { e.OriginatorID = h })
+		func(b *Bundle) attrpool.Handle { return b.OriginatorID },
+		func(b *Bundle, h attrpool.Handle) { b.OriginatorID = h })
 }
 
 // ParseAttributes parses raw attribute wire bytes into a RouteEntry.
-// Each known attribute type is interned in its dedicated pool via the attrInterners table.
-// Unknown attributes are accumulated into OtherAttrs as a blob.
-//
-// Uses AttrIterator for zero-allocation iteration over attributes.
-// Returns a RouteEntry with all handles set (InvalidHandle for missing attrs).
+// Individual attributes are interned in per-type pools. The 12 non-AS_PATH
+// handles are grouped into a Bundle and interned in BundlePool. AS_PATH is
+// stored directly on RouteEntry.
 //
 // Caller must call Release() on the returned RouteEntry when done.
 func ParseAttributes(raw []byte) (RouteEntry, error) {
-	entry := NewRouteEntry()
+	bundle := NewBundle()
+	aspathHandle := attrpool.InvalidHandle
 
 	if len(raw) == 0 {
-		return entry, nil
+		h := Bundles.Intern(bundle)
+		return RouteEntry{Bundle: h, ASPath: aspathHandle}, nil
 	}
 
 	var otherAttrs []byte
 
 	iter := attribute.NewAttrIterator(raw)
 	for typeCode, flags, value, ok := iter.Next(); ok; typeCode, flags, value, ok = iter.Next() {
-		if h := attrInterners[typeCode]; h != nil {
-			// Release previous handle if duplicate attribute (malformed but handle it).
-			if cur := h.get(&entry); cur.IsValid() {
+		if typeCode == attribute.AttrASPath {
+			if aspathHandle.IsValid() {
+				_ = pool.ASPath.Release(aspathHandle)
+			}
+			h, err := pool.ASPath.Intern(value)
+			if err != nil {
+				bundle.releaseInnerHandles()
+				return RouteEntry{}, fmt.Errorf("intern %s: %w", "as-path", err)
+			}
+			aspathHandle = h
+			continue
+		}
+		if h := bundleInterners[typeCode]; h != nil {
+			if cur := h.get(&bundle); cur.IsValid() {
 				_ = h.pool.Release(cur)
 			}
 			handle, err := h.pool.Intern(value)
 			if err != nil {
-				entry.Release()
+				bundle.releaseInnerHandles()
+				if aspathHandle.IsValid() {
+					_ = pool.ASPath.Release(aspathHandle)
+				}
 				return RouteEntry{}, fmt.Errorf("intern %s: %w", h.name, err)
 			}
-			h.set(&entry, handle)
+			h.set(&bundle, handle)
 		} else {
-			// Unknown or known-but-not-pooled — accumulate for OtherAttrs.
 			otherAttrs = appendOtherAttr(otherAttrs, flags, typeCode, value)
 		}
 	}
 
-	// Intern accumulated unknown attributes.
 	if len(otherAttrs) > 0 {
-		var err error
-		entry.OtherAttrs, err = pool.OtherAttrs.Intern(otherAttrs)
+		h, err := pool.OtherAttrs.Intern(otherAttrs)
 		if err != nil {
-			entry.Release()
+			bundle.releaseInnerHandles()
+			if aspathHandle.IsValid() {
+				_ = pool.ASPath.Release(aspathHandle)
+			}
 			return RouteEntry{}, fmt.Errorf("intern %s: %w", "other-attrs", err)
 		}
+		bundle.OtherAttrs = h
 	}
 
-	return entry, nil
+	bundleHandle := Bundles.Intern(bundle)
+	return RouteEntry{Bundle: bundleHandle, ASPath: aspathHandle}, nil
 }
 
 // appendOtherAttr appends an attribute in wire format for OtherAttrs storage.

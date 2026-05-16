@@ -95,7 +95,7 @@ func TestPeerRIB_Lookup(t *testing.T) {
 	entry, found := rib.Lookup(family.IPv4Unicast, prefix)
 	require.True(t, found)
 	require.NotNil(t, entry)
-	assert.True(t, entry.HasOrigin(), "should have ORIGIN attribute")
+	assert.True(t, entry.GetBundle().HasOrigin(), "should have ORIGIN attribute")
 
 	// Non-existent.
 	_, found = rib.Lookup(family.IPv4Unicast, []byte{24, 10, 0, 1})
@@ -124,7 +124,7 @@ func TestPeerRIB_Iterate(t *testing.T) {
 	count := 0
 	rib.Iterate(func(fam family.Family, nlriBytes []byte, entry RouteEntry) bool {
 		count++
-		assert.True(t, entry.HasOrigin())
+		assert.True(t, entry.GetBundle().HasOrigin())
 		return true
 	})
 

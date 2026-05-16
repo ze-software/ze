@@ -928,20 +928,16 @@ func (r *RIBManager) extractCandidate(peerAddr string, entry storage.RouteEntry)
 		c.LocalASN = meta.LocalASN
 	}
 
-	// LOCAL_PREF (type 5): 4 bytes, higher wins.
-	if entry.HasLocalPref() {
-		if data, err := pool.LocalPref.Get(entry.LocalPref); err == nil {
+	b := entry.GetBundle()
+
+	if b.HasLocalPref() {
+		if data, err := pool.LocalPref.Get(b.LocalPref); err == nil {
 			if v, ok := formatUint32Attr(data); ok {
 				c.LocalPref = v
 			}
 		}
 	}
 
-	// AS_PATH (type 2): wire bytes, count length and extract first AS.
-	// ASPathHandle is also stashed: because the attribute pool deduplicates
-	// identical byte sequences to the same handle, two candidates with
-	// byte-equal AS_PATHs share a handle and SelectMultipath can compare
-	// them in O(1) without re-reading the underlying bytes.
 	if entry.HasASPath() {
 		c.ASPathHandle = entry.ASPath
 		if data, err := pool.ASPath.Get(entry.ASPath); err == nil {
@@ -950,27 +946,22 @@ func (r *RIBManager) extractCandidate(peerAddr string, entry storage.RouteEntry)
 		}
 	}
 
-	// ORIGIN (type 1): 1 byte (0=IGP, 1=EGP, 2=INCOMPLETE).
-	if entry.HasOrigin() {
-		if data, err := pool.Origin.Get(entry.Origin); err == nil && len(data) > 0 {
+	if b.HasOrigin() {
+		if data, err := pool.Origin.Get(b.Origin); err == nil && len(data) > 0 {
 			c.Origin = attribute.Origin(data[0])
 		}
 	}
 
-	// MED (type 4): 4 bytes, lower wins.
-	if entry.HasMED() {
-		if data, err := pool.MED.Get(entry.MED); err == nil {
+	if b.HasMED() {
+		if data, err := pool.MED.Get(b.MED); err == nil {
 			if v, ok := formatUint32Attr(data); ok {
 				c.MED = v
 			}
 		}
 	}
 
-	// ORIGINATOR_ID (type 9): 4 bytes, used as Router ID tiebreak (RFC 4456).
-	// RFC 4271 step 7: use ORIGINATOR_ID when present (reflected routes),
-	// otherwise fall back to the peer's BGP Identifier (Router ID).
-	if entry.HasOriginatorID() {
-		if data, err := pool.OriginatorID.Get(entry.OriginatorID); err == nil {
+	if b.HasOriginatorID() {
+		if data, err := pool.OriginatorID.Get(b.OriginatorID); err == nil {
 			if addr, ok := netip.AddrFromSlice(data); ok {
 				c.OriginatorIP = addr
 			}

@@ -52,11 +52,11 @@ func TestParseAttributes_Origin(t *testing.T) {
 	require.NoError(t, err)
 	defer entry.Release()
 
-	assert.True(t, entry.HasOrigin(), "ORIGIN should be present")
-	assert.Equal(t, uint8(2), entry.Origin.PoolIdx(), "should use Origin pool (idx=2)")
+	b := entry.GetBundle()
+	assert.True(t, b.HasOrigin(), "ORIGIN should be present")
+	assert.Equal(t, uint8(2), b.Origin.PoolIdx(), "should use Origin pool (idx=2)")
 
-	// Verify value
-	data, err := pool.Origin.Get(entry.Origin)
+	data, err := pool.Origin.Get(b.Origin)
 	require.NoError(t, err)
 	assert.Equal(t, []byte{0x00}, data, "ORIGIN value should be IGP (0)")
 }
@@ -79,7 +79,6 @@ func TestParseAttributes_ASPath(t *testing.T) {
 // VALIDATES: Each attribute type goes to its dedicated pool.
 // PREVENTS: Attributes being misrouted to wrong pools.
 func TestParseAttributes_AllTypes(t *testing.T) {
-	// Concatenate multiple attributes
 	raw := concat(
 		wireOriginIGP,
 		wireASPath65001,
@@ -93,20 +92,20 @@ func TestParseAttributes_AllTypes(t *testing.T) {
 	require.NoError(t, err)
 	defer entry.Release()
 
-	assert.True(t, entry.HasOrigin(), "ORIGIN should be present")
+	b := entry.GetBundle()
+	assert.True(t, b.HasOrigin(), "ORIGIN should be present")
 	assert.True(t, entry.HasASPath(), "AS_PATH should be present")
-	assert.True(t, entry.HasNextHop(), "NEXT_HOP should be present")
-	assert.True(t, entry.HasMED(), "MED should be present")
-	assert.True(t, entry.HasLocalPref(), "LOCAL_PREF should be present")
-	assert.True(t, entry.HasCommunities(), "COMMUNITIES should be present")
+	assert.True(t, b.HasNextHop(), "NEXT_HOP should be present")
+	assert.True(t, b.HasMED(), "MED should be present")
+	assert.True(t, b.HasLocalPref(), "LOCAL_PREF should be present")
+	assert.True(t, b.HasCommunities(), "COMMUNITIES should be present")
 
-	// Verify pool indices
-	assert.Equal(t, uint8(2), entry.Origin.PoolIdx(), "Origin pool idx")
+	assert.Equal(t, uint8(2), b.Origin.PoolIdx(), "Origin pool idx")
 	assert.Equal(t, uint8(3), entry.ASPath.PoolIdx(), "ASPath pool idx")
-	assert.Equal(t, uint8(6), entry.NextHop.PoolIdx(), "NextHop pool idx")
-	assert.Equal(t, uint8(5), entry.MED.PoolIdx(), "MED pool idx")
-	assert.Equal(t, uint8(4), entry.LocalPref.PoolIdx(), "LocalPref pool idx")
-	assert.Equal(t, uint8(7), entry.Communities.PoolIdx(), "Communities pool idx")
+	assert.Equal(t, uint8(6), b.NextHop.PoolIdx(), "NextHop pool idx")
+	assert.Equal(t, uint8(5), b.MED.PoolIdx(), "MED pool idx")
+	assert.Equal(t, uint8(4), b.LocalPref.PoolIdx(), "LocalPref pool idx")
+	assert.Equal(t, uint8(7), b.Communities.PoolIdx(), "Communities pool idx")
 }
 
 // TestParseAttributes_Optional verifies missing optional attributes.
@@ -114,20 +113,20 @@ func TestParseAttributes_AllTypes(t *testing.T) {
 // VALIDATES: Missing attributes have InvalidHandle, not zero handle.
 // PREVENTS: Spurious pool lookups for absent attributes.
 func TestParseAttributes_Optional(t *testing.T) {
-	// Only ORIGIN - all others missing
 	entry, err := ParseAttributes(wireOriginIGP)
 	require.NoError(t, err)
 	defer entry.Release()
 
-	assert.True(t, entry.HasOrigin(), "ORIGIN should be present")
+	b := entry.GetBundle()
+	assert.True(t, b.HasOrigin(), "ORIGIN should be present")
 	assert.False(t, entry.HasASPath(), "AS_PATH should be absent")
-	assert.False(t, entry.HasNextHop(), "NEXT_HOP should be absent")
-	assert.False(t, entry.HasMED(), "MED should be absent")
-	assert.False(t, entry.HasLocalPref(), "LOCAL_PREF should be absent")
-	assert.False(t, entry.HasCommunities(), "COMMUNITIES should be absent")
+	assert.False(t, b.HasNextHop(), "NEXT_HOP should be absent")
+	assert.False(t, b.HasMED(), "MED should be absent")
+	assert.False(t, b.HasLocalPref(), "LOCAL_PREF should be absent")
+	assert.False(t, b.HasCommunities(), "COMMUNITIES should be absent")
 
 	assert.Equal(t, attrpool.InvalidHandle, entry.ASPath)
-	assert.Equal(t, attrpool.InvalidHandle, entry.MED)
+	assert.Equal(t, attrpool.InvalidHandle, b.MED)
 }
 
 // TestParseAttributes_Unknown verifies unknown attributes go to OtherAttrs.
@@ -139,11 +138,11 @@ func TestParseAttributes_Unknown(t *testing.T) {
 	require.NoError(t, err)
 	defer entry.Release()
 
-	assert.True(t, entry.HasOtherAttrs(), "OtherAttrs should be present")
-	assert.Equal(t, uint8(14), entry.OtherAttrs.PoolIdx(), "should use OtherAttrs pool (idx=14)")
+	b := entry.GetBundle()
+	assert.True(t, b.HasOtherAttrs(), "OtherAttrs should be present")
+	assert.Equal(t, uint8(14), b.OtherAttrs.PoolIdx(), "should use OtherAttrs pool (idx=14)")
 
-	// Known attributes should be absent
-	assert.False(t, entry.HasOrigin())
+	assert.False(t, b.HasOrigin())
 	assert.False(t, entry.HasASPath())
 }
 
@@ -158,9 +157,9 @@ func TestParseAttributes_MixedKnownUnknown(t *testing.T) {
 	require.NoError(t, err)
 	defer entry.Release()
 
-	assert.True(t, entry.HasOrigin(), "ORIGIN should be present")
-	assert.True(t, entry.HasLocalPref(), "LOCAL_PREF should be present")
-	assert.True(t, entry.HasOtherAttrs(), "OtherAttrs should be present")
+	assert.True(t, entry.GetBundle().HasOrigin(), "ORIGIN should be present")
+	assert.True(t, entry.GetBundle().HasLocalPref(), "LOCAL_PREF should be present")
+	assert.True(t, entry.GetBundle().HasOtherAttrs(), "OtherAttrs should be present")
 }
 
 // TestParseAttributes_Empty verifies empty input handling.
@@ -172,9 +171,9 @@ func TestParseAttributes_Empty(t *testing.T) {
 	require.NoError(t, err)
 	defer entry.Release()
 
-	assert.False(t, entry.HasOrigin())
+	assert.False(t, entry.GetBundle().HasOrigin())
 	assert.False(t, entry.HasASPath())
-	assert.False(t, entry.HasOtherAttrs())
+	assert.False(t, entry.GetBundle().HasOtherAttrs())
 }
 
 // TestParseAttributes_Deduplication verifies same attrs return same handles.
@@ -190,7 +189,7 @@ func TestParseAttributes_Deduplication(t *testing.T) {
 	require.NoError(t, err)
 	defer entry2.Release()
 
-	assert.Equal(t, entry1.Origin.Slot(), entry2.Origin.Slot(),
+	assert.Equal(t, entry1.GetBundle().Origin.Slot(), entry2.GetBundle().Origin.Slot(),
 		"same ORIGIN should share pool slot")
 }
 
@@ -215,9 +214,9 @@ func TestParseAttributes_ExtendedLength(t *testing.T) {
 	require.NoError(t, err)
 	defer entry.Release()
 
-	assert.True(t, entry.HasCommunities(), "COMMUNITIES should be present")
+	assert.True(t, entry.GetBundle().HasCommunities(), "COMMUNITIES should be present")
 
-	data, err := pool.Communities.Get(entry.Communities)
+	data, err := pool.Communities.Get(entry.GetBundle().Communities)
 	require.NoError(t, err)
 	assert.Len(t, data, 256, "should have 256 bytes of community data")
 }
@@ -235,11 +234,11 @@ func TestParseAttributes_PreservesFlags(t *testing.T) {
 	require.NoError(t, err)
 	defer entry.Release()
 
-	assert.True(t, entry.HasOtherAttrs())
+	assert.True(t, entry.GetBundle().HasOtherAttrs())
 
 	// OtherAttrs uses storage format: [type][flags][length_16bit][value].
 	// This allows sorting by type code during reconstruction.
-	data, err := pool.OtherAttrs.Get(entry.OtherAttrs)
+	data, err := pool.OtherAttrs.Get(entry.GetBundle().OtherAttrs)
 	require.NoError(t, err)
 
 	// Expected: type=0x63, flags=0xE0, length=0x0002, value=0xAB 0xCD.
@@ -267,11 +266,11 @@ func TestParseAttributes_ExtendedLengthInOther(t *testing.T) {
 	require.NoError(t, err)
 	defer entry.Release()
 
-	assert.True(t, entry.HasOtherAttrs())
+	assert.True(t, entry.GetBundle().HasOtherAttrs())
 
 	// OtherAttrs uses storage format: [type][flags][length_16bit][value].
 	// For 256-byte value: type=0x63, flags=0xD0, length=0x0100, value=256 bytes.
-	data, err := pool.OtherAttrs.Get(entry.OtherAttrs)
+	data, err := pool.OtherAttrs.Get(entry.GetBundle().OtherAttrs)
 	require.NoError(t, err)
 
 	// Header: 4 bytes (type + flags + length_16bit) + 256 bytes value = 260 bytes.
@@ -296,7 +295,7 @@ func TestParseAttributes_DuplicateAttribute(t *testing.T) {
 	defer entry.Release()
 
 	// Should have the second value (EGP).
-	data, err := pool.Origin.Get(entry.Origin)
+	data, err := pool.Origin.Get(entry.GetBundle().Origin)
 	require.NoError(t, err)
 	assert.Equal(t, []byte{0x01}, data, "should have EGP (second occurrence)")
 }
@@ -326,8 +325,8 @@ func TestParseAttributes_BoundaryOrigin(t *testing.T) {
 			require.NoError(t, err)
 			defer entry.Release()
 
-			assert.True(t, entry.HasOrigin())
-			data, err := pool.Origin.Get(entry.Origin)
+			assert.True(t, entry.GetBundle().HasOrigin())
+			data, err := pool.Origin.Get(entry.GetBundle().Origin)
 			require.NoError(t, err)
 			assert.Equal(t, []byte{tt.value}, data)
 		})
@@ -356,8 +355,8 @@ func TestParseAttributes_BoundaryLocalPref(t *testing.T) {
 			require.NoError(t, err)
 			defer entry.Release()
 
-			assert.True(t, entry.HasLocalPref())
-			data, err := pool.LocalPref.Get(entry.LocalPref)
+			assert.True(t, entry.GetBundle().HasLocalPref())
+			data, err := pool.LocalPref.Get(entry.GetBundle().LocalPref)
 			require.NoError(t, err)
 			assert.Equal(t, tt.value, data)
 		})
@@ -386,8 +385,8 @@ func TestParseAttributes_BoundaryMED(t *testing.T) {
 			require.NoError(t, err)
 			defer entry.Release()
 
-			assert.True(t, entry.HasMED())
-			data, err := pool.MED.Get(entry.MED)
+			assert.True(t, entry.GetBundle().HasMED())
+			data, err := pool.MED.Get(entry.GetBundle().MED)
 			require.NoError(t, err)
 			assert.Equal(t, tt.value, data)
 		})

@@ -1540,12 +1540,23 @@ Route A: ORIGIN=IGP, AS_PATH=[65001], LP=100, MED=0
 Route B: ORIGIN=IGP, AS_PATH=[65001], LP=100, MED=50
          ↓
 RouteEntry {
-    Origin:    pool.Origin.Intern([IGP])      → SHARED (same handle)
-    ASPath:    pool.ASPath.Intern([65001])    → SHARED (same handle)
-    LocalPref: pool.LocalPref.Intern([100])   → SHARED (same handle)
-    MED:       pool.MED.Intern([0 or 50])     → DIFFERENT handles
+    StaleLevel: 0
+    Bundle:     BundlePool.Intern(Bundle{Origin, NextHop, LP, MED, ...}) → SHARED if identical
+    ASPath:     pool.ASPath.Intern([65001])                              → separate handle
 }
 ```
+
+RouteEntry is 12 bytes (stale + Bundle handle + ASPath handle). The 12 non-AS_PATH
+attribute handles live in a `Bundle` struct (48 bytes) stored in `BundlePool`.
+97% of routes share identical non-AS_PATH attributes, so most routes point to
+the same few bundles. 5 routes fit per cache line instead of 1.
+
+`Bundle` is a comparable Go struct (12 Handle fields), used directly as a
+`map[Bundle]uint32` key for zero-serialization dedup. BundlePool manages
+refcounting; when a bundle's refcount reaches zero, all 12 inner attribute
+handles are cascade-released.
+
+<!-- source: internal/component/bgp/plugins/rib/storage/bundle.go — Bundle, BundlePool -->
 
 **Benefit:** 1M routes with same ORIGIN/LP but different MED → ~3 ORIGIN refs + ~100 LP refs vs 1M blobs.
 

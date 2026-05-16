@@ -495,9 +495,12 @@ func (f *communityFilter) hasCommunity(item RouteItem) bool {
 	if item.OutRoute != nil {
 		return slices.Contains(item.OutRoute.Communities, f.community)
 	}
-	if item.HasInEntry && item.InEntry.HasCommunities() {
-		if data, err := pool.Communities.Get(item.InEntry.Communities); err == nil {
-			return poolContainsCommunity(data, f.community)
+	if item.HasInEntry {
+		ib := item.InEntry.GetBundle()
+		if ib.HasCommunities() {
+			if data, err := pool.Communities.Get(ib.Communities); err == nil {
+				return poolContainsCommunity(data, f.community)
+			}
 		}
 	}
 	return false
@@ -602,17 +605,16 @@ func (f *matchFilter) matchOutRoute(rt *Route) bool {
 
 // matchInEntry checks InEntry pool attributes: next-hop, origin, AS-path, communities, MED, local-pref.
 func (f *matchFilter) matchInEntry(entry storage.RouteEntry) bool {
-	// Next-hop
-	if entry.HasNextHop() {
-		if data, err := pool.NextHop.Get(entry.NextHop); err == nil {
+	b := entry.GetBundle()
+	if b.HasNextHop() {
+		if data, err := pool.NextHop.Get(b.NextHop); err == nil {
 			if strings.Contains(strings.ToLower(formatNextHop(data)), f.pattern) {
 				return true
 			}
 		}
 	}
-	// Origin
-	if entry.HasOrigin() {
-		if data, err := pool.Origin.Get(entry.Origin); err == nil {
+	if b.HasOrigin() {
+		if data, err := pool.Origin.Get(b.Origin); err == nil {
 			if strings.Contains(strings.ToLower(formatOrigin(data)), f.pattern) {
 				return true
 			}
@@ -628,9 +630,8 @@ func (f *matchFilter) matchInEntry(entry storage.RouteEntry) bool {
 			}
 		}
 	}
-	// Communities
-	if entry.HasCommunities() {
-		if data, err := pool.Communities.Get(entry.Communities); err == nil {
+	if b.HasCommunities() {
+		if data, err := pool.Communities.Get(b.Communities); err == nil {
 			for _, c := range formatCommunities(data) {
 				if strings.Contains(strings.ToLower(c), f.pattern) {
 					return true
@@ -638,9 +639,8 @@ func (f *matchFilter) matchInEntry(entry storage.RouteEntry) bool {
 			}
 		}
 	}
-	// MED
-	if entry.HasMED() {
-		if data, err := pool.MED.Get(entry.MED); err == nil {
+	if b.HasMED() {
+		if data, err := pool.MED.Get(b.MED); err == nil {
 			if v, ok := formatUint32Attr(data); ok {
 				if strings.Contains(strconv.FormatUint(uint64(v), 10), f.pattern) {
 					return true
@@ -648,9 +648,8 @@ func (f *matchFilter) matchInEntry(entry storage.RouteEntry) bool {
 			}
 		}
 	}
-	// LOCAL_PREF
-	if entry.HasLocalPref() {
-		if data, err := pool.LocalPref.Get(entry.LocalPref); err == nil {
+	if b.HasLocalPref() {
+		if data, err := pool.LocalPref.Get(b.LocalPref); err == nil {
 			if v, ok := formatUint32Attr(data); ok {
 				if strings.Contains(strconv.FormatUint(uint64(v), 10), f.pattern) {
 					return true

@@ -20,13 +20,14 @@ func enrichRouteMapFromEntry(routeMap map[string]any, entry storage.RouteEntry) 
 		routeMap["stale"] = true
 		routeMap["stale-level"] = entry.StaleLevel
 	}
-	if entry.HasNextHop() {
-		if data, err := pool.NextHop.Get(entry.NextHop); err == nil {
+	b := entry.GetBundle()
+	if b.HasNextHop() {
+		if data, err := pool.NextHop.Get(b.NextHop); err == nil {
 			routeMap["next-hop"] = formatNextHop(data)
 		}
 	}
-	if entry.HasOrigin() {
-		if data, err := pool.Origin.Get(entry.Origin); err == nil {
+	if b.HasOrigin() {
+		if data, err := pool.Origin.Get(b.Origin); err == nil {
 			if origin := formatOrigin(data); origin != "" {
 				routeMap["origin"] = origin
 			}
@@ -39,22 +40,22 @@ func enrichRouteMapFromEntry(routeMap map[string]any, entry storage.RouteEntry) 
 			}
 		}
 	}
-	if entry.HasMED() {
-		if data, err := pool.MED.Get(entry.MED); err == nil {
+	if b.HasMED() {
+		if data, err := pool.MED.Get(b.MED); err == nil {
 			if v, ok := formatUint32Attr(data); ok {
 				routeMap["med"] = v
 			}
 		}
 	}
-	if entry.HasLocalPref() {
-		if data, err := pool.LocalPref.Get(entry.LocalPref); err == nil {
+	if b.HasLocalPref() {
+		if data, err := pool.LocalPref.Get(b.LocalPref); err == nil {
 			if v, ok := formatUint32Attr(data); ok {
 				routeMap["local-preference"] = v
 			}
 		}
 	}
-	if entry.HasCommunities() {
-		if data, err := pool.Communities.Get(entry.Communities); err == nil {
+	if b.HasCommunities() {
+		if data, err := pool.Communities.Get(b.Communities); err == nil {
 			if communities := formatCommunities(data); communities != nil {
 				routeMap["community"] = communities
 			}

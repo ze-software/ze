@@ -585,19 +585,7 @@ func (r *FamilyRIB) StaleCount() int {
 // entriesEqual checks if two RouteEntries have the same attribute handles.
 // Used for no-op detection (same NLRI + same attrs = skip).
 func entriesEqual(a, b RouteEntry) bool {
-	return a.Origin == b.Origin &&
-		a.ASPath == b.ASPath &&
-		a.NextHop == b.NextHop &&
-		a.LocalPref == b.LocalPref &&
-		a.MED == b.MED &&
-		a.AtomicAggregate == b.AtomicAggregate &&
-		a.Aggregator == b.Aggregator &&
-		a.Communities == b.Communities &&
-		a.LargeCommunities == b.LargeCommunities &&
-		a.ExtCommunities == b.ExtCommunities &&
-		a.ClusterList == b.ClusterList &&
-		a.OriginatorID == b.OriginatorID &&
-		a.OtherAttrs == b.OtherAttrs
+	return a.Bundle == b.Bundle && a.ASPath == b.ASPath
 }
 
 // ToWireBytes reconstructs attribute wire bytes from the RouteEntry.
@@ -612,18 +600,17 @@ func entriesEqual(a, b RouteEntry) bool {
 // For exact wire reproduction, use msg-id cache forwarding instead.
 func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 	var result []byte
+	b := e.GetBundle()
 
-	// Parse OtherAttrs into a map by type code for sorted insertion.
 	otherByType := make(map[uint8][]byte)
-	if e.HasOtherAttrs() {
-		data, err := pool.OtherAttrs.Get(e.OtherAttrs)
+	if b.HasOtherAttrs() {
+		data, err := pool.OtherAttrs.Get(b.OtherAttrs)
 		if err != nil {
 			return nil, err
 		}
 		otherByType = parseOtherAttrs(data)
 	}
 
-	// Helper to write pooled attr or check OtherAttrs for this type.
 	writeAttr := func(code attribute.AttributeCode, flags byte, p *attrpool.Pool, h attrpool.Handle) error {
 		if h.IsValid() {
 			data, err := p.Get(h)
@@ -638,51 +625,37 @@ func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 		return nil
 	}
 
-	// Write in RFC 4271 type-code order.
-
-	// ORIGIN (type 1) - well-known mandatory.
-	if err := writeAttr(attribute.AttrOrigin, 0x40, pool.Origin, e.Origin); err != nil {
+	if err := writeAttr(attribute.AttrOrigin, 0x40, pool.Origin, b.Origin); err != nil {
 		return nil, err
 	}
-	// AS_PATH (type 2) - well-known mandatory.
 	if err := writeAttr(attribute.AttrASPath, 0x40, pool.ASPath, e.ASPath); err != nil {
 		return nil, err
 	}
-	// NEXT_HOP (type 3) - well-known mandatory (IPv4 unicast).
-	if err := writeAttr(attribute.AttrNextHop, 0x40, pool.NextHop, e.NextHop); err != nil {
+	if err := writeAttr(attribute.AttrNextHop, 0x40, pool.NextHop, b.NextHop); err != nil {
 		return nil, err
 	}
-	// MED (type 4) - optional non-transitive.
-	if err := writeAttr(attribute.AttrMED, 0x80, pool.MED, e.MED); err != nil {
+	if err := writeAttr(attribute.AttrMED, 0x80, pool.MED, b.MED); err != nil {
 		return nil, err
 	}
-	// LOCAL_PREF (type 5) - well-known (IBGP only).
-	if err := writeAttr(attribute.AttrLocalPref, 0x40, pool.LocalPref, e.LocalPref); err != nil {
+	if err := writeAttr(attribute.AttrLocalPref, 0x40, pool.LocalPref, b.LocalPref); err != nil {
 		return nil, err
 	}
-	// ATOMIC_AGGREGATE (type 6) - well-known discretionary.
-	if err := writeAttr(attribute.AttrAtomicAggregate, 0x40, pool.AtomicAggregate, e.AtomicAggregate); err != nil {
+	if err := writeAttr(attribute.AttrAtomicAggregate, 0x40, pool.AtomicAggregate, b.AtomicAggregate); err != nil {
 		return nil, err
 	}
-	// AGGREGATOR (type 7) - optional transitive.
-	if err := writeAttr(attribute.AttrAggregator, 0xC0, pool.Aggregator, e.Aggregator); err != nil {
+	if err := writeAttr(attribute.AttrAggregator, 0xC0, pool.Aggregator, b.Aggregator); err != nil {
 		return nil, err
 	}
-	// COMMUNITIES (type 8) - optional transitive.
-	if err := writeAttr(attribute.AttrCommunity, 0xC0, pool.Communities, e.Communities); err != nil {
+	if err := writeAttr(attribute.AttrCommunity, 0xC0, pool.Communities, b.Communities); err != nil {
 		return nil, err
 	}
-	// ORIGINATOR_ID (type 9) - optional non-transitive.
-	if err := writeAttr(attribute.AttrOriginatorID, 0x80, pool.OriginatorID, e.OriginatorID); err != nil {
+	if err := writeAttr(attribute.AttrOriginatorID, 0x80, pool.OriginatorID, b.OriginatorID); err != nil {
 		return nil, err
 	}
-	// CLUSTER_LIST (type 10) - optional non-transitive.
-	if err := writeAttr(attribute.AttrClusterList, 0x80, pool.ClusterList, e.ClusterList); err != nil {
+	if err := writeAttr(attribute.AttrClusterList, 0x80, pool.ClusterList, b.ClusterList); err != nil {
 		return nil, err
 	}
 
-	// Write remaining OtherAttrs in type-code order.
-	// Collect and sort type codes.
 	var codes []uint8
 	for code := range otherByType {
 		codes = append(codes, code)

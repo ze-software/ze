@@ -863,8 +863,9 @@ func (r *RIBManager) bestCandidateNextHopAddr(fam family.Family, nlriBytes []byt
 	}
 
 	// Try IPv4 NEXT_HOP attribute (code 3) first.
-	if entry.HasNextHop() {
-		data, err := pool.NextHop.Get(entry.NextHop)
+	b := entry.GetBundle()
+	if b.HasNextHop() {
+		data, err := pool.NextHop.Get(b.NextHop)
 		if err == nil {
 			if a := parseNextHopAddr(data); a.IsValid() {
 				return a
@@ -874,8 +875,8 @@ func (r *RIBManager) bestCandidateNextHopAddr(fam family.Family, nlriBytes []byt
 
 	// For IPv6/multiprotocol: extract next-hop from MP_REACH_NLRI (code 14) in OtherAttrs.
 	// MP_REACH wire format: AFI(2) + SAFI(1) + NH_len(1) + NH(variable) + reserved(1) + NLRIs.
-	if entry.HasOtherAttrs() {
-		return extractMPNextHopAddr(entry)
+	if b.HasOtherAttrs() {
+		return extractMPNextHopAddr(b)
 	}
 
 	return netip.Addr{}
@@ -885,8 +886,8 @@ func (r *RIBManager) bestCandidateNextHopAddr(fam family.Family, nlriBytes []byt
 // OtherAttrs as a netip.Addr. Returns zero Addr on missing / malformed input.
 // OtherAttrs format: [type(1)][flags(1)][length_16bit(2)][value(n)]...
 // MP_REACH value: AFI(2) + SAFI(1) + NH_len(1) + NH(variable) + ...
-func extractMPNextHopAddr(entry storage.RouteEntry) netip.Addr {
-	data, err := pool.OtherAttrs.Get(entry.OtherAttrs)
+func extractMPNextHopAddr(b storage.Bundle) netip.Addr {
+	data, err := pool.OtherAttrs.Get(b.OtherAttrs)
 	if err != nil {
 		return netip.Addr{}
 	}
