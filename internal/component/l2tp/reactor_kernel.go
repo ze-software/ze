@@ -1,0 +1,454 @@
+// Design: docs/research/l2tpv2-ze-integration.md -- Kernel and PPP event handling
+// Related: reactor.go -- core L2TP reactor loop
+
+package l2tp
+
+import (
+	"fmt"
+	"net/netip"
+	"time"
+
+	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
+	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
+)
+
+// collectKernelEventsLocked scans the tunnel for sessions that need
+// kernel setup and for pending kernel teardowns. Clears the flags and
+// drains the teardown list. Caller MUST hold tunnelsMu.
+func (r *L2TPReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSetupEvent, []kernelTeardownEvent) {
+	if r.kernelWorker == nil {
+		return nil, nil
+	}
+
+	var setups []kernelSetupEvent
+	socketFD := -1 // resolved lazily below
+
+	for _, sess := range tunnel.sessions {
+		if !sess.kernelSetupNeeded {
+			continue
+		}
+		if socketFD < 0 {
+			fd, err := r.listener.SocketFD()
+			if err != nil {
+				r.logger.Warn("l2tp: cannot get socket fd for kernel setup", "error", err.Error())
+				// Do NOT clear kernelSetupNeeded: retry on next dispatch.
+				continue
+			}
+			socketFD = fd
+		}
+		sess.kernelSetupNeeded = false
+		setups = append(setups, kernelSetupEvent{
+			localTID:                   tunnel.localTID,
+			remoteTID:                  tunnel.remoteTID,
+			peerAddr:                   tunnel.peerAddr,
+			localSID:                   sess.localSID,
+			remoteSID:                  sess.remoteSID,
+			socketFD:                   socketFD,
+			lnsMode:                    sess.lnsMode,
+			sequencing:                 sess.sequencingRequired,
+			proxyInitialRecvLCPConfReq: sess.proxyInitialRecvLCPConfReq,
+			proxyLastSentLCPConfReq:    sess.proxyLastSentLCPConfReq,
+			proxyLastRecvLCPConfReq:    sess.proxyLastRecvLCPConfReq,
+		})
+	}
+
+	teardowns := tunnel.pendingKernelTeardowns
+	tunnel.pendingKernelTeardowns = nil
+
+	return setups, teardowns
+}
+
+// enqueueKernelEvents sends setup and teardown events to the kernel
+// worker. Called after releasing tunnelsMu.
+func (r *L2TPReactor) enqueueKernelEvents(setups []kernelSetupEvent, teardowns []kernelTeardownEvent) {
+	if r.kernelWorker == nil {
+		return
+	}
+	// Index rather than range-copy: kernelSetupEvent grew past 128 bytes
+	// when it gained the proxy LCP slices, making a value copy per
+	// iteration wasteful (gocritic rangeValCopy).
+	for i := range setups {
+		r.kernelWorker.Enqueue(setups[i])
+	}
+	for i := range teardowns {
+		r.kernelWorker.Enqueue(teardowns[i])
+	}
+}
+
+// handleKernelSuccess processes a successful kernel-side session setup
+// reported by the kernel worker. Builds a ppp.StartSession from the
+// event and writes it to the PPP driver's SessionsIn channel.
+//
+// When pppDriver is nil (no iface backend configured, test paths,
+// non-Linux platforms), the success is logged and the fds remain owned
+// by the kernel worker; the worker will close them on TeardownAll.
+func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
+	if r.pppDriver == nil {
+		r.logger.Warn("l2tp: kernel session ready but no PPP driver wired; fds remain in worker",
+			"tunnel-id", ksucc.localTID, "session-id", ksucc.localSID,
+			"ppp-unit", ksucc.fds.unitNum)
+		return
+	}
+
+	// PeerAddr is informational for ppp logs only. Look it up under
+	// tunnelsMu so the read is consistent; if the tunnel was discarded
+	// in the meantime, fall back to a zero-value addr.
+	var peerAddr netip.AddrPort
+	r.tunnelsMu.Lock()
+	if tunnel, ok := r.tunnelsByLocalID[ksucc.localTID]; ok {
+		peerAddr = tunnel.peerAddr
+	}
+	r.tunnelsMu.Unlock()
+
+	// ze.l2tp.auth.timeout (registered in internal/component/config/environment.go)
+	// bounds the PPP auth phase. spec-l2tp-7-subsystem will wire this to a
+	// YANG leaf; until then the env var is the only config surface. Inline
+	// parse rather than env.GetDuration so malformed operator input surfaces
+	// as a WARN instead of silently falling back to 30s.
+	authTimeout := 30 * time.Second
+	if raw := env.Get("ze.l2tp.auth.timeout"); raw != "" {
+		if d, err := time.ParseDuration(raw); err == nil {
+			authTimeout = d
+		} else {
+			r.logger.Warn("l2tp: invalid ze.l2tp.auth.timeout; falling back to 30s",
+				"value", raw, "err", err)
+		}
+	}
+
+	// ze.l2tp.auth.reauth-interval (spec-l2tp-6b-auth Phase 9). Zero
+	// disables periodic CHAP re-auth (default). Same inline-parse
+	// pattern as auth.timeout so operator typos are visible at WARN.
+	// A positive value below reauthIntervalFloor (5s) is clamped up
+	// to that floor with a WARN: values in the microsecond or
+	// millisecond range would create a reauth storm that starves the
+	// session of useful throughput.
+	reauthInterval := clampReauthInterval(r.logger, env.Get("ze.l2tp.auth.reauth-interval"))
+
+	// spec-l2tp-6c-ncp: NCP enablement and timeout drawn from env vars.
+	// Defaults: both NCPs enabled, 30s ip-timeout. Inline parsing so
+	// operator typos log at WARN instead of silently defaulting.
+	disableIPCP := !env.GetBool("ze.l2tp.ncp.enable-ipcp", true)
+	disableIPv6CP := !env.GetBool("ze.l2tp.ncp.enable-ipv6cp", true)
+	ipTimeout := 30 * time.Second
+	if raw := env.Get("ze.l2tp.ncp.ip-timeout"); raw != "" {
+		if d, err := time.ParseDuration(raw); err == nil {
+			ipTimeout = d
+		} else {
+			r.logger.Warn("l2tp: invalid ze.l2tp.ncp.ip-timeout; falling back to 30s",
+				"value", raw, "err", err)
+		}
+	}
+
+	start := ppp.StartSession{
+		TunnelID:            ksucc.localTID,
+		SessionID:           ksucc.localSID,
+		ChanFD:              ksucc.fds.chanFD,
+		UnitFD:              ksucc.fds.unitFD,
+		UnitNum:             ksucc.fds.unitNum,
+		LNSMode:             ksucc.lnsMode,
+		PeerAddr:            peerAddr,
+		AuthMethod:          r.params.AuthMethod,
+		AuthRequired:        r.params.AuthRequired,
+		AuthTimeout:         authTimeout,
+		ReauthInterval:      reauthInterval,
+		DisableIPCP:         disableIPCP,
+		DisableIPv6CP:       disableIPv6CP,
+		IPTimeout:           ipTimeout,
+		ProxyLCPInitialRecv: ksucc.proxyInitialRecvLCPConfReq,
+		ProxyLCPLastSent:    ksucc.proxyLastSentLCPConfReq,
+		ProxyLCPLastRecv:    ksucc.proxyLastRecvLCPConfReq,
+		EchoInterval:        r.params.CQMEchoInterval,
+	}
+
+	ifaceName := fmt.Sprintf("ppp%d", ksucc.fds.unitNum)
+	r.tunnelsMu.Lock()
+	if tunnel, ok := r.tunnelsByLocalID[ksucc.localTID]; ok {
+		if sess := tunnel.lookupSession(ksucc.localSID); sess != nil {
+			sess.pppInterface = ifaceName
+		}
+	}
+	r.tunnelsMu.Unlock()
+
+	select {
+	case r.pppDriver.SessionsIn() <- start:
+	case <-r.stop:
+	}
+}
+
+// handlePPPEvent reacts to a PPP lifecycle event. EventSessionDown and
+// EventSessionRejected mean the L2TP session is no longer carrying PPP
+// traffic; emit a CDN to the peer so the L2TP-side state matches.
+// EventLCPUp / EventLCPDown / EventSessionUp are informational in 6a;
+// subsystem-level metrics consume them in later phases.
+//
+// EXHAUSTIVENESS: every ppp.Event concrete type MUST appear in this
+// switch. Adding a new event type (e.g., spec-6b's auth events) without
+// updating this switch would silently fall through and hit the WARN
+// below. The compile-time assertion in `var _ [...]` below freezes the
+// set at the count the reactor knows about; bumping the count in a
+// future spec forces the author to handle the new type here too.
+func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
+	// spec-l2tp-9: EventEchoRTT carries LCP echo round-trip time
+	// for CQM aggregation. Relay to EventBus.
+	if echoRTT, ok := ev.(ppp.EventEchoRTT); ok {
+		r.handleEchoRTT(echoRTT)
+		return
+	}
+
+	// spec-l2tp-7 Phase 6: EventSessionIPAssigned drives the route
+	// observer. Handled before the teardown switch so it does not
+	// accidentally reach the "unknown ppp.Event" fallback.
+	if ipAssigned, ok := ev.(ppp.EventSessionIPAssigned); ok {
+		r.handleSessionIPAssigned(ipAssigned)
+		return
+	}
+
+	var tid, sid uint16
+	var reason string
+	switch e := ev.(type) {
+	case ppp.EventSessionDown:
+		tid, sid, reason = e.TunnelID, e.SessionID, e.Reason
+	case ppp.EventSessionRejected:
+		tid, sid, reason = e.TunnelID, e.SessionID, e.Reason
+	case ppp.EventLCPUp, ppp.EventLCPDown:
+		return
+	case ppp.EventSessionUp:
+		r.handleSessionUp(e)
+		return
+	}
+	if tid == 0 && sid == 0 {
+		r.logger.Warn("l2tp: unknown ppp.Event type ignored; handlePPPEvent needs an updated switch",
+			"type", fmt.Sprintf("%T", ev))
+		return
+	}
+
+	r.tunnelsMu.Lock()
+	tunnel, ok := r.tunnelsByLocalID[tid]
+	if !ok {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	sess := tunnel.lookupSession(sid)
+	if sess == nil {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	cancelSessionTimeouts(sess)
+	username := sess.username
+	now := r.params.Clock()
+	outbound := tunnel.teardownSession(sess, cdnResultGeneralError, now, r.logger)
+	teardowns := tunnel.drainPendingKernelTeardowns()
+	r.tunnelsMu.Unlock()
+
+	// spec-l2tp-7 Phase 6: notify the route observer before the CDN
+	// goes on the wire so subscriber routes are withdrawn promptly
+	// even if the outbound send blocks.
+	if r.routeObserver != nil {
+		r.routeObserver.OnSessionDown(tid, sid)
+	}
+
+	// spec-l2tp-8a: emit (l2tp, session-down) so the pool plugin
+	// can release the allocated IP address.
+	if r.eventBus != nil {
+		if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
+			TunnelID:  tid,
+			SessionID: sid,
+			Username:  username,
+		}); err != nil {
+			r.logger.Warn("l2tp: session-down emit failed", "error", err)
+		}
+	}
+
+	ClearSessionMetadata(tid, sid)
+
+	r.logger.Info("l2tp: PPP requested session teardown; sending CDN",
+		"tunnel-id", tid, "session-id", sid, "reason", reason)
+	for _, req := range outbound {
+		if err := r.listener.Send(req.to, req.bytes); err != nil {
+			r.logger.Warn("l2tp: outbound send failed (PPP teardown CDN)",
+				"to", req.to.String(), "error", err.Error())
+		}
+	}
+	r.enqueueKernelEvents(nil, teardowns)
+}
+
+// handleSessionIPAssigned records the NCP-negotiated peer IP on the
+// session struct and calls RouteObserver.OnSessionIPUp. Called from
+// handlePPPEvent for every EventSessionIPAssigned (once per family
+// per session in dual-stack flows).
+func (r *L2TPReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
+	r.tunnelsMu.Lock()
+	tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]
+	if !ok {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	sess := tunnel.lookupSession(ev.SessionID)
+	if sess == nil {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	var addr netip.Addr
+	switch {
+	case ev.Peer.IsValid():
+		addr = ev.Peer
+		sess.assignedAddr = ev.Peer
+	case ev.Local.IsValid() && ev.InterfaceID != [8]byte{}:
+		// IPv6CP negotiates only an interface identifier; derive an
+		// fe80::/64 link-local for snapshot display.
+		addr = ev.Local
+		sess.assignedAddr = ev.Local
+	}
+	username := sess.username
+	pppIface := sess.pppInterface
+	r.tunnelsMu.Unlock()
+
+	if r.routeObserver != nil && addr.IsValid() {
+		r.routeObserver.OnSessionIPUp(ev.TunnelID, ev.SessionID, username, addr)
+	}
+
+	if addr.IsValid() {
+		r.logger.Info("l2tp: session IP assigned",
+			"tunnel-id", ev.TunnelID,
+			"session-id", ev.SessionID,
+			"username", username,
+			"address", addr.String())
+	}
+
+	if r.eventBus != nil && addr.IsValid() {
+		if _, err := l2tpevents.SessionIPAssigned.Emit(r.eventBus, &l2tpevents.SessionIPAssignedPayload{
+			TunnelID:     ev.TunnelID,
+			SessionID:    ev.SessionID,
+			Username:     username,
+			PeerAddr:     addr.String(),
+			PppInterface: pppIface,
+		}); err != nil {
+			r.logger.Warn("l2tp: session-ip-assigned emit failed", "error", err)
+		}
+	}
+}
+
+// handleSessionUp emits the (l2tp, session-up) EventBus event when a
+// PPP session completes LCP, auth, and all NCPs. The shaper plugin
+// subscribes to this event to apply TC rules on the pppN interface.
+func (r *L2TPReactor) handleSessionUp(ev ppp.EventSessionUp) {
+	var ifaceName string
+	r.tunnelsMu.Lock()
+	if tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]; ok {
+		if sess := tunnel.lookupSession(ev.SessionID); sess != nil {
+			ifaceName = sess.pppInterface
+		}
+	}
+	r.tunnelsMu.Unlock()
+	if ifaceName == "" {
+		return
+	}
+	r.logger.Info("l2tp: PPP session up",
+		"tunnel-id", ev.TunnelID,
+		"session-id", ev.SessionID,
+		"interface", ifaceName)
+	if r.eventBus == nil {
+		return
+	}
+	if _, err := l2tpevents.SessionUp.Emit(r.eventBus, &l2tpevents.SessionUpPayload{
+		TunnelID:  ev.TunnelID,
+		SessionID: ev.SessionID,
+		Interface: ifaceName,
+	}); err != nil {
+		r.logger.Warn("l2tp: session-up emit failed", "error", err)
+	}
+
+	// RFC 2865 Section 5.27/5.28: start RADIUS-driven timeouts.
+	r.startSessionTimeouts(ev.TunnelID, ev.SessionID)
+}
+
+// handleEchoRTT relays a PPP echo round-trip measurement to the
+// EventBus for CQM aggregation (spec-l2tp-9-observer AC-3).
+func (r *L2TPReactor) handleEchoRTT(ev ppp.EventEchoRTT) {
+	if r.eventBus == nil {
+		return
+	}
+	var username string
+	r.tunnelsMu.Lock()
+	if tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]; ok {
+		if sess := tunnel.lookupSession(ev.SessionID); sess != nil {
+			username = sess.username
+		}
+	}
+	r.tunnelsMu.Unlock()
+	if _, err := l2tpevents.EchoRTT.Emit(r.eventBus, &l2tpevents.EchoRTTPayload{
+		TunnelID:  ev.TunnelID,
+		SessionID: ev.SessionID,
+		RTT:       ev.RTT,
+		Username:  username,
+	}); err != nil {
+		r.logger.Warn("l2tp: echo-rtt emit failed", "error", err)
+	}
+}
+
+// handleKernelError processes a setup failure reported by the kernel
+// worker. Grabs tunnelsMu, looks up the session, and sends a CDN to
+// the peer if the session still exists.
+func (r *L2TPReactor) handleKernelError(kerr kernelSetupFailed) {
+	r.tunnelsMu.Lock()
+	tunnel, ok := r.tunnelsByLocalID[kerr.localTID]
+	if !ok {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	sess := tunnel.lookupSession(kerr.localSID)
+	if sess == nil {
+		// Session was already removed (CDN arrived from peer concurrently).
+		r.tunnelsMu.Unlock()
+		return
+	}
+	now := r.params.Clock()
+	outbound := tunnel.teardownSession(sess, cdnResultGeneralError, now, r.logger)
+	r.tunnelsMu.Unlock()
+
+	for _, req := range outbound {
+		if err := r.listener.Send(req.to, req.bytes); err != nil {
+			r.logger.Warn("l2tp: outbound send failed (kernel error CDN)",
+				"to", req.to.String(), "error", err.Error())
+		}
+	}
+}
+
+// SetKernelWorker configures the kernel worker for this reactor.
+// Called by the subsystem after creating the worker. MUST be called
+// before Start(); the goroutine creation barrier in Start synchronizes
+// the writes here with reads in r.run().
+//
+// Calling SetKernelWorker more than once is a programmer error -- the
+// reactor goroutine could observe a torn read of the channel triple.
+// Panics on second call, even when arguments are nil.
+//
+// successCh may be nil for tests that exercise the failure path only.
+func (r *L2TPReactor) SetKernelWorker(w *kernelWorker, errCh <-chan kernelSetupFailed, successCh <-chan kernelSetupSucceeded) {
+	if r.kernelWorkerSet {
+		panic("BUG: SetKernelWorker called twice on the same reactor")
+	}
+	r.kernelWorkerSet = true
+	r.kernelWorker = w
+	r.kernelErrCh = errCh
+	r.kernelSuccessCh = successCh
+}
+
+// SetPPPDriver wires the reactor's success-event dispatch to a PPP
+// driver. The reactor sends ppp.StartSession on the driver's
+// SessionsIn() channel after every kernelSetupSucceeded event, and
+// reads ppp.Event values from EventsOut() to react to peer-side
+// teardown signals.
+//
+// MUST be called before Start(); the goroutine creation barrier in
+// Start synchronizes the writes here with reads in r.run(). If never
+// called, the reactor falls back to logging success events without
+// dispatching, which is acceptable on non-Linux or when the iface
+// backend is unavailable.
+func (r *L2TPReactor) SetPPPDriver(d pppDriverIface) {
+	r.pppDriver = d
+	if d != nil {
+		r.pppEventsOut = d.EventsOut()
+	}
+}

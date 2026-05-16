@@ -16,6 +16,9 @@ Before creating a file: "one concern?" Before adding to one: "belongs to this fi
 
 ## Splitting
 
+- **Tool:** `go build -o bin/go_extract ./scripts/dev/go_extract.go && bin/go_extract <source.go> <dest.go> <symbol1> [symbol2 ...]`
+  Moves named declarations (with doc comments) to dest, runs `goimports` on both.
+  Note: `goimports` cannot resolve aliased imports; add those manually to the new file.
 - Zero semantic effect — Go compiles all files in a package together
 - File-local types move with their functions
 - Shared test helpers stay in base `_test.go`
@@ -23,6 +26,10 @@ Before creating a file: "one concern?" Before adding to one: "belongs to this fi
 - Name after concern: `reactor_announce.go`, `session_handlers.go`
 - New files: copy `// Design:` from original, review topic annotation (`rules/design-doc-references.md`)
 - All resulting files: `// Related:` to siblings (`rules/related-refs.md`)
+
+## Exempt: Test Files
+
+`_test.go` files are not subject to line-count thresholds. Tests grow with coverage and table-driven cases; splitting them adds navigation cost without improving production code clarity.
 
 ## NOT a Reason to Split
 
