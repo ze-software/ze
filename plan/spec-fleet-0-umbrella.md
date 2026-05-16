@@ -1,0 +1,356 @@
+# Spec: fleet-0 -- Fleet Management (Umbrella)
+
+| Field | Value |
+|-------|-------|
+| Status | design |
+| Depends | - |
+| Phase | - |
+| Updated | 2026-05-15 |
+
+## Post-Compaction Recovery
+
+**Re-read these after context compaction:**
+1. This spec file (you're reading it now)
+2. `.claude/rules/planning.md` -- workflow rules
+3. `docs/architecture/fleet-config.md` -- existing fleet config architecture
+4. `internal/component/plugin/server/managed.go` -- hub-side managed config service
+5. `internal/component/managed/` -- client-side managed lifecycle
+6. `pkg/fleet/` -- shared RPC types and version hashing
+7. Child specs: `spec-fleet-1-*` through `spec-fleet-5-*`
+
+## Task
+
+Extend Ze's fleet management from a config-distribution mechanism into a usable fleet
+operations platform. The foundation is solid: TLS transport, per-client auth, config
+fetch/push, transactional commits with rollback, health checks, rich hardware inventory,
+and Prometheus metrics all exist at the single-device level. The gap is entirely hub-side:
+collecting, storing, querying, and acting on fleet-wide state.
+
+An operator managing 10-1000 Ze instances currently cannot answer basic fleet questions:
+"which devices are online?", "what config version is each running?", "which devices have
+degraded health?". They cannot push config changes to groups of devices, audit who changed
+what, or do staged rollouts. This spec set addresses those gaps incrementally, each child
+spec building on the previous.
+
+### Existing Foundation
+
+| Capability | Package | Status |
+|------------|---------|--------|
+| TLS 1.3 transport, MuxConn RPC | `pkg/plugin/rpc/`, `internal/component/plugin/ipc/tls.go` | Implemented |
+| Per-client token auth | `internal/component/plugin/ipc/tls.go` (AuthenticateWithLookup) | Implemented |
+| Config fetch/push (1:1) | `pkg/fleet/`, `internal/component/managed/`, `internal/component/plugin/server/managed.go` | Implemented |
+| Heartbeat + reconnect with backoff | `internal/component/managed/heartbeat.go`, `reconnect.go` | Implemented |
+| Local ZeFS config cache | `internal/component/managed/handler.go` | Implemented |
+| Connected client tracking (in-memory) | `ManagedConfigService.connected` map | Implemented |
+| Per-device health registry | `internal/core/health/` | Implemented |
+| Hardware inventory (CPU, NIC, DMI, storage, SMART) | `internal/component/host/inventory.go` | Implemented |
+| ~20 Prometheus collectors | `internal/component/telemetry/collector/` | Implemented |
+| Transactional config commits with rollback | `internal/component/config/transaction/` | Implemented |
+| Config archive (named destinations, triggers) | `internal/component/config/archive/` | Implemented |
+| Appliance OTA push (--all --parallel N) | `cmd/ze/appliance/cmd_push.go` | Implemented |
+| Appliance config push via SSH | `cmd/ze/appliance/cmd_config_push.go` | Implemented |
+| Web fleet peer selector | `internal/component/web/page_system.go` (CollectFleetPeers) | Implemented (UI-only, config-declared peer URLs) |
+
+### Design Principles
+
+| Principle | Detail |
+|-----------|--------|
+| Extend hub, not new server | The existing plugin hub has TLS, auth, MuxConn, connection tracking. Fleet management adds hub-side state, not a separate fleet server. Consistent with learned decision 444 |
+| New RPC verbs on existing transport | Fleet RPCs (inventory-report, health-report, etc.) are additional verbs on the same `#id verb [json]\n` framing. No new protocol |
+| Hub-side persistent state in ZeFS | Device registry, audit log, and fleet state stored in the hub's ZeFS blob. Same storage as client configs. No external database |
+| Config templates are config, not code | Template variables and group assignment declared in YANG schema under `fleet {}`. Operators manage them through the existing CLI editor and web config editor |
+| Device reports, hub aggregates | Devices push inventory and health to the hub. The hub stores and exposes aggregated views. Devices remain self-contained; the hub is additive |
+| Offline appliance toolchain unchanged | `ze appliance push/config-push` continues to work for SSH/HTTP-based operations. The runtime fleet protocol is a parallel path for always-connected devices |
+
+### Scope
+
+**In Scope:**
+
+| Area | Description |
+|------|-------------|
+| Device registry | Persistent hub-side registry of all known devices with metadata, config version, health, last-seen |
+| Fleet CLI + web dashboard | `show fleet devices`, `show fleet device <name>`, web page listing fleet state |
+| Config templates | Named templates with variable substitution, group-based assignment |
+| Device grouping | Labels/tags on devices, group-based targeting for config and operations |
+| Audit trail | Centralized log of config pushes, acks, rejections, device connects/disconnects |
+| Inventory + health aggregation | Devices report inventory and health upstream; hub stores and exposes aggregated views |
+| Staged rollout | Percentage-based config push with automatic pause on ACK failure |
+
+**Out of Scope:**
+
+| Area | Reason |
+|------|--------|
+| PKI/certificate lifecycle | Separate concern; current ephemeral self-signed certs + token auth works for the target scale. Future spec if needed |
+| Multi-hub replication | Explicitly a non-goal (learned 444). HA via client cached config |
+| Zero-touch provisioning (ZTP) | Requires DHCP option integration and unsigned bootstrap. Separate spec |
+| Firmware distribution | Covered by existing `spec-cpe-5-firmware-update.md` (version check) and `ze appliance push` (OTA delivery) |
+| Maintenance windows | Requires alerting integration not yet in Ze. Future spec |
+| Fleet-wide rollback | Achievable as staged rollout with 100% targeting + previous config version. No separate mechanism needed |
+| External metrics aggregation | Operators already use Prometheus. Fleet provides the scrape target list, not a replacement metrics store |
+
+### Child Specs
+
+| Phase | Spec | Scope | Depends |
+|-------|------|-------|---------|
+| 1 | `spec-fleet-1-device-registry.md` | Hub-side persistent device registry. `show fleet` CLI. Web fleet dashboard. Device metadata (name, config version, health, last-seen, labels). YANG schema for fleet config | - |
+| 2 | `spec-fleet-2-config-templates.md` | Named config templates with variable substitution. Group-based assignment. Template rendering at config-fetch time. YANG schema for templates and groups | fleet-1 |
+| 3 | `spec-fleet-3-audit-trail.md` | Centralized audit log for fleet operations: config push/ack/reject, device connect/disconnect, template changes. CLI and web views. Structured log entries in ZeFS | fleet-1 |
+| 4 | `spec-fleet-4-inventory-health.md` | New `inventory-report` and `health-report` RPC verbs. Devices push on connect and periodically. Hub stores per-device inventory and health. CLI and web aggregated views | fleet-1 |
+| 5 | `spec-fleet-5-staged-rollout.md` | Percentage-based config push targeting device groups. Rollout state machine (pending, rolling, paused, complete, failed). Automatic pause on ACK failure threshold. CLI rollout commands | fleet-2, fleet-4 |
+
+Phases 2, 3, and 4 are independent of each other (all depend only on fleet-1) and can proceed in parallel. Phase 5 depends on templates (for group targeting) and health reporting (for rollout health gates).
+
+### Relationship to Existing Specs
+
+| Spec | Relationship |
+|------|-------------|
+| `spec-cpe-5-firmware-update.md` | Complementary. Firmware version check reports to the fleet dashboard. Fleet-5 staged rollout could orchestrate firmware updates, but the check mechanism itself is independent |
+| `spec-vrf-0-umbrella.md` | Independent. VRF is per-device topology; fleet is multi-device management. Fleet devices may run VRFs internally |
+
+### Key Architectural Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Device registry in ZeFS blob, not SQL | Ze has no SQL dependency. ZeFS blob is the universal storage. Device count target (hundreds, not millions) fits blob well |
+| Labels are flat key=value pairs | Simple, proven (Kubernetes, Prometheus). No hierarchical grouping needed at this scale |
+| Config templates rendered hub-side at fetch time | Client gets final config, never sees templates. Simplifies client (unchanged). Template changes trigger config-changed notifications for affected devices |
+| Audit log is append-only blob entries | No rotation needed at fleet scale (hundreds of devices, ~KB per event). External log shipping is a future concern |
+| Staged rollout is hub-side orchestration | Client protocol unchanged. Hub controls which devices get notified and when. Rollout state persisted in ZeFS for crash recovery |
+| Health reporting via new RPC verb, not Prometheus scrape | Hub needs structured health data (component-level status), not raw metrics. Prometheus remains for detailed metrics. Health is for fleet-level operational decisions |
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `docs/architecture/fleet-config.md` -- existing fleet config architecture (all 17 ACs implemented)
+  -> Decision: extend hub, not new server. Config-as-identity. Two-phase config change
+  -> Constraint: preserve existing protocol and architecture
+- [ ] `docs/architecture/core-design.md` -- component lifecycle, event bus, registration pattern
+  -> Constraint: fleet component follows registration pattern; fleet events use EventBus
+- [ ] `internal/component/plugin/server/managed.go` -- hub-side ManagedConfigService
+  -> Decision: extend ManagedConfigService with persistent registry, not parallel service
+
+**Key insights:**
+- ManagedConfigService.connected is a `map[string]struct{}` (memory-only, no metadata)
+- Four RPC verbs on `#id verb [json]\n` framing; new fleet RPCs follow same pattern
+- Client is self-contained; fleet-1 through fleet-3 require zero client changes
+- ZeFS blob is the universal storage for both hub and client side
+
+## Current Behavior (MANDATORY)
+
+**Source files read:**
+- [ ] `internal/component/plugin/server/managed.go` -- hub-side managed config service: ConfigReader, ManagedConfigService with RegisterClient/UnregisterClient, HandleConfigFetch, BuildConfigChanged. Connected clients tracked in `map[string]struct{}` (memory-only, no persistence, no metadata)
+  -> Constraint: ManagedConfigService is the natural anchor for fleet state. Extend it, don't replace it
+- [ ] `pkg/fleet/envelope.go` -- four RPC verbs: config-fetch, config-changed, config-ack, ping. Line-oriented `#id verb [json]\n` framing
+  -> Constraint: new fleet RPCs must follow the same framing convention
+- [ ] `internal/component/managed/client.go` -- RunManagedClient: TLS connect, auth, config fetch, heartbeat+notification loop. CheckManaged callback before each reconnect
+  -> Constraint: client remains unchanged for fleet-1 through fleet-3. Fleet-4 adds reporting calls to the client loop
+- [ ] `internal/core/health/` -- health registry: component checks (healthy/degraded/down), aggregated report, HTTP endpoint
+  -> Decision: health-report RPC sends the same structured data as the HTTP endpoint
+- [ ] `internal/component/host/inventory.go` -- hardware inventory: CPU, NIC, DMI, memory, thermal, storage, SMART. Cached detection with TTL
+  -> Decision: inventory-report RPC sends a subset (no raw SMART data; summary only)
+- [ ] `docs/architecture/fleet-config.md` -- full architecture doc for existing fleet config implementation
+  -> Constraint: all fleet-0 children must preserve the existing protocol and architecture described here
+
+**Behavior to preserve:**
+- Existing config-fetch/config-changed/config-ack/ping protocol unchanged
+- Per-client auth and config isolation unchanged
+- Client cached config for partition resilience unchanged
+- Appliance toolchain (ze appliance push/config-push) unchanged
+- Web fleet peer selector (config-declared peer URLs) preserved alongside new fleet dashboard
+
+**Behavior to change:**
+- Hub-side ManagedConfigService extended with persistent device registry
+- New YANG `fleet {}` container for fleet configuration (device labels, templates, groups)
+- New RPC verbs for inventory and health reporting (fleet-4)
+- Config fetch extended to support template rendering (fleet-2)
+- New CLI commands under `show fleet` and `fleet rollout` (fleet-1, fleet-5)
+- New web pages for fleet dashboard (fleet-1)
+
+## Data Flow (MANDATORY)
+
+### Entry Point
+- Device connects to hub via TLS (existing path)
+- Hub-initiated config-changed notifications (existing path)
+- New: device-initiated inventory-report and health-report RPCs (fleet-4)
+- New: operator CLI/web commands for fleet management
+
+### Transformation Path
+1. Device connects, authenticates (existing)
+2. Hub registers device in persistent registry with metadata (fleet-1, extends existing RegisterClient)
+3. Device requests config via config-fetch (existing)
+4. Hub renders config from template if group-assigned (fleet-2, intercepts existing HandleConfigFetch)
+5. Device reports inventory and health (fleet-4, new RPC handling)
+6. Hub stores device state, exposes via CLI/web/API (fleet-1)
+7. Operator initiates staged rollout (fleet-5), hub orchestrates notifications
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Device to Hub | TLS + MuxConn RPC (existing transport) | [ ] |
+| Hub to ZeFS | Blob read/write for device registry, audit log, templates | [ ] |
+| Hub to CLI/Web | Event bus + query API for fleet state | [ ] |
+| Template to Config | Hub-side rendering at config-fetch time | [ ] |
+
+### Integration Points
+- `ManagedConfigService` -- extend with registry, template lookup, audit logging
+- `PluginAcceptor.handleConn` -- hook device registration on auth success
+- EventBus -- fleet events for web SSE and internal consumers
+- YANG schema -- `fleet {}` container alongside existing `plugin { hub {} }`
+- CLI command tree -- `show fleet`, `fleet rollout`
+- Web pages -- fleet dashboard, device detail, rollout status
+
+### Architectural Verification
+- [ ] No bypassed layers (fleet uses existing TLS/auth/MuxConn path)
+- [ ] No unintended coupling (fleet is additive; standalone devices unaffected)
+- [ ] No duplicated functionality (extends ManagedConfigService, not parallel)
+- [ ] Zero-copy preserved where applicable
+
+## Acceptance Criteria (Umbrella-Level)
+
+These are the top-level outcomes. Each child spec has its own detailed ACs.
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | Hub with 10+ managed clients connected | `show fleet devices` lists all with name, config version, health status, last-seen |
+| AC-2 | Device disconnects and reconnects | Registry shows offline period, last-seen updates on reconnect |
+| AC-3 | Config template assigned to a group | All devices in the group receive rendered config on next fetch |
+| AC-4 | Operator pushes config change to a group | Audit trail records: who, when, which template, which devices, ack/reject per device |
+| AC-5 | Device reports inventory to hub | `show fleet device edge-01 inventory` shows CPU, NIC, memory, storage summary |
+| AC-6 | Device reports degraded health | Fleet dashboard shows device as degraded; `show fleet health` aggregates fleet-wide status |
+| AC-7 | Staged rollout at 20% with failure | Rollout pauses automatically; `show fleet rollout` shows pause reason and affected devices |
+| AC-8 | Standalone device (not managed) | Zero fleet overhead; no fleet YANG required; existing behavior unchanged |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | -> | Feature Code | Test |
+|-------------|---|--------------|------|
+| Device connects to hub with per-client auth | -> | DeviceRegistry.Register persists device record | `test/managed/fleet-device-register.ci` |
+| `show fleet devices` CLI command | -> | Fleet query returns all registered devices | `test/managed/fleet-show-devices.ci` |
+| Config template assigned to device group | -> | HandleConfigFetch renders template for group member | `test/managed/fleet-template-fetch.ci` |
+| Device sends inventory-report RPC | -> | Hub stores inventory, queryable via CLI | `test/managed/fleet-inventory-report.ci` |
+| Staged rollout initiated for group | -> | Rollout state machine progresses, pauses on failure | `test/managed/fleet-staged-rollout.ci` |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestDeviceRegistryRegister` | `internal/component/plugin/server/registry_test.go` | Device registration persists to blob | |
+| `TestDeviceRegistryLabels` | `internal/component/plugin/server/registry_test.go` | Label assignment and selector matching | |
+| `TestConfigTemplateRender` | `internal/component/plugin/server/template_test.go` | Variable substitution in config templates | |
+| `TestAuditLogAppend` | `internal/component/plugin/server/audit_test.go` | Audit entries appended to blob | |
+| `TestInventoryReportHandler` | `internal/component/plugin/server/fleet_report_test.go` | Inventory RPC parsed and stored | |
+| `TestHealthReportHandler` | `internal/component/plugin/server/fleet_report_test.go` | Health RPC parsed and stored | |
+| `TestRolloutStateMachine` | `internal/component/plugin/server/rollout_test.go` | State transitions: pending, rolling, paused, complete, failed | |
+| `TestRolloutPauseOnFailure` | `internal/component/plugin/server/rollout_test.go` | Automatic pause when ACK failure exceeds threshold | |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `fleet-device-register` | `test/managed/fleet-device-register.ci` | Device connects, appears in registry | |
+| `fleet-show-devices` | `test/managed/fleet-show-devices.ci` | `show fleet devices` lists connected devices | |
+| `fleet-template-fetch` | `test/managed/fleet-template-fetch.ci` | Group member receives rendered config | |
+| `fleet-audit-log` | `test/managed/fleet-audit-log.ci` | Config push/ack recorded in audit trail | |
+| `fleet-inventory-report` | `test/managed/fleet-inventory-report.ci` | Device reports inventory, hub stores and shows | |
+| `fleet-staged-rollout` | `test/managed/fleet-staged-rollout.ci` | Rollout progresses through group, pauses on failure | |
+
+## Files to Modify
+- `internal/component/plugin/server/managed.go` -- extend ManagedConfigService with persistent registry
+- `pkg/fleet/envelope.go` -- add new RPC verb constants (inventory-report, health-report)
+- `internal/component/managed/client.go` -- add inventory and health reporting to client loop (fleet-4)
+- `cmd/ze/hub/main.go` -- wire fleet registry, audit, template, rollout at startup
+- `internal/component/web/page_system.go` -- fleet dashboard web page
+- `internal/component/plugin/schema/ze-plugin-conf.yang` -- fleet YANG container
+
+## Files to Create
+- `internal/component/plugin/server/registry.go` -- DeviceRegistry: persistent device state
+- `internal/component/plugin/server/template.go` -- config template rendering
+- `internal/component/plugin/server/audit.go` -- fleet audit log
+- `internal/component/plugin/server/rollout.go` -- staged rollout state machine
+- `internal/component/plugin/server/fleet_report.go` -- inventory and health report handlers
+- `pkg/fleet/report.go` -- inventory-report and health-report envelope types
+- `internal/component/web/page_fleet.go` -- fleet dashboard web page
+- `test/managed/fleet-*.ci` -- functional tests (6 files)
+
+## Implementation Steps
+
+### Implementation Phases
+
+Each phase corresponds to a child spec. Phases are ordered by dependency.
+
+1. **Phase: Device Registry (fleet-1)** -- persistent device state, fleet CLI, web dashboard
+   - Tests: `TestDeviceRegistryRegister`, `TestDeviceRegistryLabels`, `fleet-device-register.ci`, `fleet-show-devices.ci`
+   - Files: `registry.go`, `managed.go`, `cmd/ze/hub/main.go`, `page_fleet.go`
+   - Verify: devices appear in registry on connect, queryable via CLI and web
+
+2. **Phase: Config Templates (fleet-2)** -- template rendering, group assignment
+   - Tests: `TestConfigTemplateRender`, `fleet-template-fetch.ci`
+   - Files: `template.go`, `managed.go` (HandleConfigFetch intercept)
+   - Verify: group members receive rendered config, template change triggers config-changed
+
+3. **Phase: Audit Trail (fleet-3)** -- centralized fleet operation logging
+   - Tests: `TestAuditLogAppend`, `fleet-audit-log.ci`
+   - Files: `audit.go`, `managed.go` (hook audit on connect/config-ack/disconnect)
+   - Verify: audit entries queryable via CLI and web
+
+4. **Phase: Inventory + Health (fleet-4)** -- device reporting, hub aggregation
+   - Tests: `TestInventoryReportHandler`, `TestHealthReportHandler`, `fleet-inventory-report.ci`
+   - Files: `fleet_report.go`, `report.go`, `client.go` (add reporting to client loop)
+   - Verify: device inventory and health visible on hub via CLI and web
+
+5. **Phase: Staged Rollout (fleet-5)** -- orchestrated config push with failure gates
+   - Tests: `TestRolloutStateMachine`, `TestRolloutPauseOnFailure`, `fleet-staged-rollout.ci`
+   - Files: `rollout.go`, `managed.go` (rollout-aware config-changed dispatch)
+   - Verify: rollout progresses through group, pauses on failure threshold
+
+### Critical Review Checklist
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every child spec AC-N has implementation with file:line |
+| Correctness | Existing config-fetch protocol unchanged; templates transparent to client |
+| Naming | Fleet YANG uses kebab-case; RPC verbs use kebab-case; CLI uses `show fleet` prefix |
+| Data flow | Device to hub to ZeFS to CLI/web; no bypassed layers |
+| Rule: wiring-completeness | Every new exported symbol called from cmd/ze/hub/main.go or web handlers |
+| Rule: no-partial-completion | No child spec marked done without wiring test passing |
+
+### Deliverables Checklist
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Device registry with persistence | `grep -rn DeviceRegistry internal/component/plugin/server/` |
+| `show fleet devices` CLI command | `grep -rn 'fleet.*devices' internal/component/cli/` |
+| Fleet web dashboard | `ls internal/component/web/page_fleet.go` |
+| Config template rendering | `grep -rn ConfigTemplate internal/component/plugin/server/` |
+| Audit log with query API | `grep -rn AuditLog internal/component/plugin/server/` |
+| Inventory + health reporting | `grep -rn inventory-report pkg/fleet/` |
+| Staged rollout state machine | `grep -rn Rollout internal/component/plugin/server/` |
+| 6 functional tests | `ls test/managed/fleet-*.ci` |
+
+### Security Review Checklist
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | Inventory and health report payloads bounded (max size, field count) |
+| Label injection | Label keys/values validated (alphanumeric + limited punctuation, no control chars) |
+| Template injection | Template variables use safe substitution (no eval, no shell expansion) |
+| Audit integrity | Audit log is append-only; no delete or modify API |
+| Auth scope | Fleet CLI commands require admin authorization profile |
+| DoS | Rate-limit inventory/health reports per client to prevent blob growth |
+
+## Checklist
+
+### Design
+- [ ] No premature abstraction (each child spec is a concrete deliverable)
+- [ ] No speculative features (every child addresses a gap identified in analysis)
+- [ ] Single responsibility per child spec
+- [ ] Explicit > implicit behavior
+- [ ] Minimal coupling (children are independent where possible)
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-8 all demonstrated across child specs
+- [ ] Wiring Test table complete
+- [ ] `make ze-test` passes
+- [ ] Feature code integrated (`internal/*`, `cmd/*`)
+- [ ] Architecture docs updated
+
+### Quality Gates (SHOULD pass)
+- [ ] Implementation Audit complete
+- [ ] Mistake Log escalation reviewed
