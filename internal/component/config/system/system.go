@@ -35,6 +35,9 @@ type SystemConfig struct {
 
 	// Console devices (from system { console { device ... } }).
 	ConsoleDevices []ConsoleDeviceEntry
+
+	// Connection tracking (from system { conntrack {} }).
+	Conntrack ConntrackConfig
 }
 
 // TuningSystemConfig holds hardware tuning settings from config.
@@ -207,6 +210,7 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 
 	sc.Tuning = extractTuning(sys)
 	sc.ConsoleDevices = extractConsole(sys)
+	sc.Conntrack = extractConntrack(sys)
 
 	pdb := sys.GetContainer("peeringdb")
 	if pdb == nil {

@@ -119,7 +119,7 @@ func cmdArchiveImpl(store storage.Storage, args []string) int {
 	}
 
 	// Archive to the named destination
-	notifier := archive.NewNotifier(configPath, []archive.ArchiveConfig{*ac}, sys)
+	notifier := archive.NewNotifier(configPath, []archive.ArchiveConfig{*ac}, &sys)
 	errs := notifier(data)
 
 	if len(errs) > 0 {

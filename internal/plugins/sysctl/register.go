@@ -97,6 +97,9 @@ func verifySysctlConfig(sections []sdk.ConfigSection) error {
 			if err := validateKey(key); err != nil {
 				return err
 			}
+			if err := sysctlreg.CheckManaged(key); err != nil {
+				return err
+			}
 			if err := sysctlreg.Validate(key, value); err != nil {
 				return err
 			}
@@ -104,6 +107,9 @@ func verifySysctlConfig(sections []sdk.ConfigSection) error {
 		for _, prof := range parseSysctlProfileConfig(sec.Data) {
 			for _, setting := range prof.Settings {
 				if err := validateKey(setting.Key); err != nil {
+					return fmt.Errorf("profile %s: %w", prof.Name, err)
+				}
+				if err := sysctlreg.CheckManaged(setting.Key); err != nil {
 					return fmt.Errorf("profile %s: %w", prof.Name, err)
 				}
 				if err := sysctlreg.Validate(setting.Key, setting.Value); err != nil {

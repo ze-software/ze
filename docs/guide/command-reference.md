@@ -287,6 +287,7 @@ Each response is a flat JSON map with kebab-case keys:
 | `show system memory` | `alloc`, `total-alloc`, `sys`, `heap-alloc`, `heap-sys`, `heap-in-use`, `heap-objects`, `stack-in-use`, `num-gc`, `gc-cpu-pct`, `hardware` (optional: physical memory + ECC from `host.DetectMemory()`) |
 | `show system cpu` | `num-cpu`, `num-goroutines`, `max-procs`, `go-version`, `hardware` (optional: `host.DetectCPU()`) |
 | `show system date` | `time` (RFC3339), `unix`, `unix-nano`, `timezone`, `utc-offset-secs` |
+| `show system conntrack` | `count`, `max`, `buckets`, `expect-max`, `accounting`, `timestamp`, `checksum`, `log-invalid`, `modules` (loaded nf_conntrack_* list), `timeouts` (per-protocol), `tcp-behavior` (be-liberal, loose, max-retrans, ignore-invalid-rst) |
 
 The `hardware` subobject under `memory` and `cpu` mirrors the data
 returned by `show host memory` / `show host cpu`. Both paths are

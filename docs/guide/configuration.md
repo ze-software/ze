@@ -820,6 +820,54 @@ The `<iface>` placeholder is substituted with the actual interface name at apply
 <!-- source: internal/core/sysctl/profiles.go -- ProfileDef, builtinProfiles, ResolveProfileSettings -->
 <!-- source: internal/component/iface/config.go -- applySysctlProfiles -->
 
+## Connection Tracking (Conntrack)
+
+Declarative connection tracking management under `system { conntrack {} }`. Covers helper module loading, table sizing, protocol timeouts, and TCP behavior flags:
+
+```
+system {
+    conntrack {
+        module ftp
+        module sip
+        module tftp
+
+        table-size 262144
+        hash-size 65536
+        expect-max 1024
+
+        accounting
+        timestamp
+        log-invalid tcp
+
+        timeout {
+            generic 600
+            tcp {
+                established 432000
+                close-wait 60
+            }
+            udp {
+                timeout 30
+                stream 120
+            }
+        }
+
+        tcp {
+            be-liberal false
+            loose true
+            max-retrans 3
+        }
+    }
+}
+```
+
+**Helper modules:** Load kernel conntrack ALG helpers via `modprobe`. Valid modules: ftp, h323, sip, pptp, tftp, sane, irc, amanda, netbios-ns, snmp. Modules are load-only (removing from config stops loading on next boot but does not unload at runtime). On gokrazy, modules are built-in and loading is skipped.
+
+**Dual-setting prevention:** Sysctl keys managed by conntrack (e.g., `nf_conntrack_max`) are rejected if also set in `sysctl { setting { ... } }`. The error message names the friendly conntrack config option to use instead.
+
+**Monitoring:** Use `show system conntrack` to view current entry count, configured max, loaded modules, per-protocol timeouts, and TCP behavior flags.
+<!-- source: internal/component/config/system/conntrack.go -- ConntrackConfig, sysctl key mapping -->
+<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- conntrack container -->
+
 ## Environment Block
 
 Global settings outside BGP:

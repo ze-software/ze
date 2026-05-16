@@ -27,7 +27,7 @@ func TestFormatFilename(t *testing.T) {
 	sys := system.SystemConfig{Host: "router1", Domain: "dc1.example.com"}
 	ts := time.Date(2026, 3, 9, 14, 30, 45, 0, time.UTC)
 
-	name := archive.FormatFilename("{name}-{host}-{date}-{time}", "myconfig.conf", sys, "backup", ts)
+	name := archive.FormatFilename("{name}-{host}-{date}-{time}", "myconfig.conf", &sys, "backup", ts)
 	assert.Equal(t, "myconfig-router1-20260309-143045.conf", name)
 }
 
@@ -39,7 +39,7 @@ func TestFormatFilename_Default(t *testing.T) {
 	sys := system.SystemConfig{Host: "host1"}
 	ts := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	name := archive.FormatFilename("", "config.conf", sys, "test", ts)
+	name := archive.FormatFilename("", "config.conf", &sys, "test", ts)
 	assert.Equal(t, "config-host1-20260101-000000.conf", name)
 }
 
@@ -53,7 +53,7 @@ func TestFormatFilename_AllTokens(t *testing.T) {
 
 	name := archive.FormatFilename(
 		"{name}_{host}_{domain}_{date}_{time}_{archive}",
-		"test.conf", sys, "offsite", ts,
+		"test.conf", &sys, "offsite", ts,
 	)
 	assert.Equal(t, "test_r1_lab.net_20260310_120000_offsite.conf", name)
 }
@@ -66,7 +66,7 @@ func TestFormatFilename_NoExtension(t *testing.T) {
 	sys := system.SystemConfig{Host: "host"}
 	ts := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	name := archive.FormatFilename("{name}-{host}", "config", sys, "test", ts)
+	name := archive.FormatFilename("{name}-{host}", "config", &sys, "test", ts)
 	assert.Equal(t, "config-host.conf", name)
 }
 
@@ -267,7 +267,7 @@ func TestNewNotifier(t *testing.T) {
 		},
 	}
 
-	notifier := archive.NewNotifier("test.conf", configs, sys)
+	notifier := archive.NewNotifier("test.conf", configs, &sys)
 	errs := notifier([]byte("config content"))
 	assert.Empty(t, errs)
 

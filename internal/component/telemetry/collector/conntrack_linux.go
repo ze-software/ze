@@ -19,11 +19,12 @@ type conntrackCollector struct {
 	fs       procfs.FS
 	interval time.Duration
 
-	sockets metrics.GaugeVec
-	newConn metrics.GaugeVec
-	changes metrics.GaugeVec
-	errors  metrics.GaugeVec
-	search  metrics.GaugeVec
+	sockets  metrics.GaugeVec
+	maxGauge metrics.GaugeVec
+	newConn  metrics.GaugeVec
+	changes  metrics.GaugeVec
+	errors   metrics.GaugeVec
+	search   metrics.GaugeVec
 
 	prev  conntrackTotals
 	first bool
@@ -64,6 +65,7 @@ func (c *conntrackCollector) Name() string { return "conntrack" }
 func (c *conntrackCollector) Init(reg metrics.Registry, prefix string) {
 	labels := []string{"chart", "dimension", "family"}
 	c.sockets = reg.GaugeVec(prefix+"_netfilter_conntrack_sockets_active_connections_average", "Conntrack Connections", labels)
+	c.maxGauge = reg.GaugeVec(prefix+"_netfilter_conntrack_sockets_max_connections_average", "Conntrack Max", labels)
 	c.newConn = reg.GaugeVec(prefix+"_netfilter_conntrack_new_connections_persec_average", "Conntrack New", labels)
 	c.changes = reg.GaugeVec(prefix+"_netfilter_conntrack_changes_changes_persec_average", "Conntrack Changes", labels)
 	c.errors = reg.GaugeVec(prefix+"_netfilter_conntrack_errors_events_persec_average", "Conntrack Errors", labels)
@@ -78,6 +80,9 @@ func (c *conntrackCollector) Collect() error {
 
 	count := readConntrackCount()
 	c.sockets.With("netfilter.conntrack_sockets", "connections", "conntrack").Set(float64(count))
+
+	max := readConntrackMax()
+	c.maxGauge.With("netfilter.conntrack_sockets", "max", "conntrack").Set(float64(max))
 
 	cur := sumConntrack(entries)
 
@@ -111,7 +116,15 @@ func (c *conntrackCollector) Collect() error {
 }
 
 func readConntrackCount() uint64 {
-	b, err := os.ReadFile("/proc/sys/net/netfilter/nf_conntrack_count")
+	return readProcUint64("/proc/sys/net/netfilter/nf_conntrack_count")
+}
+
+func readConntrackMax() uint64 {
+	return readProcUint64("/proc/sys/net/netfilter/nf_conntrack_max")
+}
+
+func readProcUint64(path string) uint64 {
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return 0
 	}

@@ -61,6 +61,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/reboot"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -85,7 +87,7 @@ var PeerLifecycleCallback registry.PeerLifecycleCallback
 // Used when ze start --web is called without a config.
 // listenAddr overrides the default "0.0.0.0:3443" when non-empty.
 func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int {
-	resolvers := newResolvers(system.SystemConfig{DNSTimeout: 5, DNSCacheSize: 10000, DNSCacheTTL: 86400})
+	resolvers := newResolvers(&system.SystemConfig{DNSTimeout: 5, DNSCacheSize: 10000, DNSCacheTTL: 86400})
 	defer resolvers.Close()
 
 	var listenAddrs []string
@@ -332,6 +334,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// namespaced pub/sub backbone serves everyone.
 
 	configTree := loadResult.Tree.ToMap()
+	system.RegisterConntrackManagedKeys()
 	// Register infrastructure hook before engine starts.
 	// The BGP plugin calls this when creating the reactor.
 	setupInfraHook()
@@ -503,7 +506,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Create shared resolvers for web UI, looking glass, and MCP.
 	sc := system.ExtractSystemConfig(loadResult.Tree)
 	iface.SetDHCPSystemConfig(sc.ResolvConfPath, len(sc.NameServers) > 0)
-	resolvers := newResolvers(sc)
+	resolvers := newResolvers(&sc)
 	defer resolvers.Close()
 	resolvecmd.SetResolvers(resolvers)
 
@@ -513,8 +516,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	applyHostTuning(sc)
-	applyConsole(sc)
+	applyHostTuning(&sc)
+	applyConsole(&sc)
+	applyConntrack(&sc, apiServer)
 
 	if webEnabled {
 		if len(webAddrs) == 0 {
@@ -888,6 +892,7 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 
 	applyHostTuningFromMap(newTree)
 	applyConsoleFromMap(newTree)
+	applyConntrackFromMap(newTree, s)
 
 	return nil
 }
@@ -1699,7 +1704,7 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 
 // newResolvers creates a shared Resolvers struct with a single DNS instance
 // and a Cymru resolver wired to it. Called once at hub startup.
-func newResolvers(sc system.SystemConfig) *resolve.Resolvers {
+func newResolvers(sc *system.SystemConfig) *resolve.Resolvers {
 	cfg := resolveDNS.ResolverConfig{
 		Timeout:        sc.DNSTimeout,
 		ResolvConfPath: sc.ResolvConfPath,
@@ -1727,7 +1732,7 @@ func newResolvers(sc system.SystemConfig) *resolve.Resolvers {
 
 // applyConsole configures serial console devices via termios.
 // Best-effort: logs warnings on failure or getty conflict, never blocks startup.
-func applyConsole(sc system.SystemConfig) {
+func applyConsole(sc *system.SystemConfig) {
 	if len(sc.ConsoleDevices) == 0 {
 		return
 	}
@@ -1745,7 +1750,7 @@ func applyConsole(sc system.SystemConfig) {
 
 // applyHostTuning extracts tuning config and applies it. Errors are
 // logged as warnings (tuning is best-effort, never blocks startup).
-func applyHostTuning(sc system.SystemConfig) {
+func applyHostTuning(sc *system.SystemConfig) {
 	cfg := sc.Tuning.ToHostTuningConfig()
 	if cfg.CPUGovernor == "" && len(cfg.IRQAffinity) == 0 && len(cfg.Ethtool) == 0 {
 		return
@@ -1792,6 +1797,62 @@ func applyConsoleFromMap(tree map[string]any) {
 	}
 	for _, ce := range result.Errors {
 		slogutil.Logger("console").Warn("serial console failed (reload)", "device", ce.Device, "error", ce.Err)
+	}
+}
+
+// applyConntrack loads conntrack modules and sends sysctl values to the sysctl
+// plugin via EventBus. Best-effort: logs warnings on failure, never blocks startup.
+func applyConntrack(sc *system.SystemConfig, eb ze.EventBus) {
+	cc := sc.Conntrack
+	if !cc.HasConfig() {
+		return
+	}
+	applyConntrackConfig(&cc, eb)
+}
+
+// applyConntrackFromMap extracts conntrack config from a map tree (reload path)
+// and applies it.
+func applyConntrackFromMap(tree map[string]any, eb ze.EventBus) {
+	cc := system.ExtractConntrackFromMap(tree)
+	if !cc.HasConfig() {
+		return
+	}
+	applyConntrackConfig(&cc, eb)
+}
+
+type conntrackSysctlEvent struct {
+	Key    string `json:"key"`
+	Value  string `json:"value"`
+	Source string `json:"source"`
+}
+
+func applyConntrackConfig(cc *system.ConntrackConfig, eb ze.EventBus) {
+	log := slogutil.Logger("conntrack")
+
+	if err := cc.ValidateModules(); err != nil {
+		log.Warn("conntrack module validation failed", "error", err)
+	} else if len(cc.Modules) > 0 {
+		loaded, errs := system.LoadConntrackModules(cc.Modules)
+		for _, m := range loaded {
+			log.Info("conntrack module loaded", "module", m)
+		}
+		for _, err := range errs {
+			log.Warn("conntrack module load failed", "error", err)
+		}
+	}
+
+	if eb == nil {
+		return
+	}
+	keys := cc.ConntrackSysctlKeys()
+	for key, value := range keys {
+		payload, _ := json.Marshal(conntrackSysctlEvent{Key: key, Value: value, Source: "system-conntrack"})
+		if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventDefault, string(payload)); err != nil {
+			log.Warn("conntrack sysctl emit failed", "key", key, "error", err)
+		}
+	}
+	if len(keys) > 0 {
+		log.Info("conntrack sysctl values emitted", "keys", len(keys))
 	}
 }
 

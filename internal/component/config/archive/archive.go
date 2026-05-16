@@ -61,7 +61,7 @@ type Notifier func(content []byte) []error
 
 // NewNotifier creates a Notifier for the given named archive configs.
 // Uses fan-out: all configs are attempted regardless of individual failures.
-func NewNotifier(configFile string, configs []ArchiveConfig, sys system.SystemConfig) Notifier {
+func NewNotifier(configFile string, configs []ArchiveConfig, sys *system.SystemConfig) Notifier {
 	return func(content []byte) []error {
 		var errs []error
 		ts := time.Now()
@@ -81,7 +81,7 @@ func NewNotifier(configFile string, configs []ArchiveConfig, sys system.SystemCo
 // Tokens: {name} = config basename, {host} = system host, {domain} = system domain,
 // {date} = YYYYMMDD, {time} = HHMMSS, {archive} = archive block name.
 // Always appends .conf extension.
-func FormatFilename(format, configFile string, sys system.SystemConfig, archiveName string, ts time.Time) string {
+func FormatFilename(format, configFile string, sys *system.SystemConfig, archiveName string, ts time.Time) string {
 	if format == "" {
 		format = DefaultFilenameFormat
 	}

@@ -517,6 +517,28 @@ func TestDescribeProfileUnknown(t *testing.T) {
 	}
 }
 
+func TestConntrackDualSettingPrevention(t *testing.T) {
+	// VALIDATES: AC-10 -- nf_conntrack_max in sysctl {} rejected when conntrack manages it.
+	// PREVENTS: Conflicting config between system conntrack and sysctl blocks.
+	sysctlreg.RegisterManagedKeys(map[string]string{
+		"net.netfilter.nf_conntrack_max": "table-size",
+	})
+	t.Cleanup(sysctlreg.ResetManaged)
+
+	err := sysctlreg.CheckManaged("net.netfilter.nf_conntrack_max")
+	if err == nil {
+		t.Fatal("expected error for managed key")
+	}
+	if !strings.Contains(err.Error(), "managed by system conntrack table-size") {
+		t.Errorf("unexpected error message: %v", err)
+	}
+
+	err = sysctlreg.CheckManaged("net.ipv4.conf.all.forwarding")
+	if err != nil {
+		t.Errorf("non-managed key should not error: %v", err)
+	}
+}
+
 func TestDescribeUnknown(t *testing.T) {
 	// VALIDATES: AC-8 -- describe-result returns current value only for unknown key.
 	// PREVENTS: Crash on unknown key describe.
