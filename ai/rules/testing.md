@@ -59,18 +59,13 @@ All groups run with `-race`. Use the group matching your change during iteration
 
 ### Linux-Only Tests (QEMU)
 
-Code behind `//go:build linux` (VPP backends, kernel netlink, nftables) cannot
-run on macOS. These tests run in a QEMU Linux VM via `make ze-qemu-integration-test`.
-Docker is NOT sufficient for VPP or kernel-capability tests (no `CAP_NET_ADMIN`,
-no kernel modules, no VPP runtime).
+**Full rule: `ai/rules/qemu-testing.md`** (build tags, virtual substitutes,
+Makefile wiring, reference implementations). Read it before writing any
+`//go:build linux` code.
 
 | Target | What it runs | When required |
 |--------|-------------|---------------|
-| `make ze-qemu-integration-test` | iface, fib/kernel, firewall/nft, firewall/vpp, traffic/netlink in QEMU Alpine VM | Any change to `//go:build linux` code |
-
-**Adding a new linux-only package:** add it to the `--run` argument in the
-`ze-qemu-integration-test` Makefile target. The QEMU runner installs Go,
-mounts the repo via virtio-9p, and runs `go test` inside the VM.
+| `make ze-qemu-integration-test` | iface, config/system, fib/kernel, firewall/nft, firewall/vpp, traffic/netlink in QEMU Alpine VM | Any change to `//go:build linux` code |
 
 **fakeOps pattern:** VPP backends use a `vppOps` interface seam so the Apply
 pipeline can be tested with a scripted fake without a running VPP daemon. The

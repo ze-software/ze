@@ -97,6 +97,54 @@ ze-test bgp encode --count 10 0 1
 
 ---
 
+## Unit Tests
+
+Unit tests are standard Go `_test.go` files throughout the codebase. Running
+all ~349 packages with `-race` takes ~5 minutes. During development, use
+component-group targets to test only the area you changed:
+
+| Target | Scope | Approx time |
+|--------|-------|-------------|
+| `make ze-test-bgp` | `./internal/component/bgp/...` (96 pkgs) | ~1:30 |
+| `make ze-test-core` | `./internal/core/...` (26 pkgs) | ~30s |
+| `make ze-test-plugins` | `./internal/plugins/...` (44 pkgs) | ~40s |
+| `make ze-test-config` | `./internal/component/config/...` (13 pkgs) | ~20s |
+| `make ze-test-cli` | `./internal/component/cli/...` (3 pkgs) | ~10s |
+| `make ze-test-rest` | Everything not in a named group (~70 pkgs) | ~1:00 |
+| `make ze-unit-test` | All packages with `-race` | ~5 min |
+
+All groups run with `-race`.
+
+### Development Workflow
+
+Use the narrowest test scope that covers your change, then widen before committing:
+
+```
+single test  →  single package  →  component group  →  ze-verify
+```
+
+```bash
+go test -race -run TestMyThing ./internal/component/config/system/...  # single test
+make ze-test-config                                                     # component group
+make ze-verify                                                          # pre-commit gate
+```
+
+`make ze-verify` is the pre-commit gate. It runs a two-pass strategy:
+1. Cached full pass (all packages, no `-race`; completes in <1s when nothing changed)
+2. Race pass on changed groups only (detects data races in what you touched)
+3. All functional test suites
+4. ExaBGP compatibility
+
+Output is captured to `tmp/ze-verify.log`. On failure, search with:
+
+```bash
+grep -E "^--- FAIL|^FAIL|TEST FAILURE" tmp/ze-verify.log
+```
+<!-- source: Makefile -- ze-test-bgp, ze-test-core, ze-test-plugins, ze-test-config, ze-test-cli, ze-test-rest -->
+<!-- source: Makefile -- ze-verify two-pass strategy, scripts/dev/changed-groups.sh -->
+
+---
+
 ## Test Types
 
 ### 1. Encode Tests (`test/encode/`)
@@ -1061,6 +1109,64 @@ Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using he
 
 ---
 
+## Fuzz Testing
+
+Ze includes 54 fuzz targets covering all wire parsers, NLRI codecs, config
+parsing, cryptographic operations, and protocol state machines. Fuzz tests
+catch crashes, panics, and memory corruption on malformed input.
+
+```bash
+make ze-fuzz-test                                    # All fuzz targets, 15s each
+make ze-fuzz-one FUZZ=FuzzParseUpdate TIME=30s       # Single target, custom duration
+```
+
+Fuzz tests are not part of `make ze-verify` (they're time-bounded, not pass/fail
+in the traditional sense). Run them periodically or before releases.
+
+### Fuzz Target Areas
+
+| Area | Targets | Examples |
+|------|---------|---------|
+| BGP messages | 6 | `FuzzParseHeader`, `FuzzUnpackOpen`, `FuzzUnpackUpdate`, `FuzzUnpackNotification` |
+| BGP attributes | 8 | `FuzzParseOrigin`, `FuzzParseMED`, `FuzzParseASPath`, `FuzzParseCommunity` |
+| NLRI codecs | 13 | `FuzzParseVPN`, `FuzzParseEVPN`, `FuzzParseFlowSpec`, `FuzzParseBGPLS`, `FuzzParseMUP` |
+| Wire encoding | 4 | `FuzzParseIPv4Prefixes`, `FuzzParseIPv6Prefixes`, `FuzzRewriteASPath`, `FuzzParseNLRIs` |
+| Config parser | 2 | `FuzzConfigParser`, `FuzzTokenizer` |
+| L2TP | 4 | `FuzzParseMessageHeader`, `FuzzAVPIterator`, `FuzzHiddenDecrypt`, `FuzzOnReceiveSequence` |
+| BFD | 3 | `FuzzParseControl`, `FuzzParseAuth`, `FuzzAuthDigest` |
+| PPP | 6 | `FuzzParseLCPPacket`, `FuzzParseCHAPResponse`, `FuzzParsePAPRequest`, `FuzzParseFrame` |
+| TACACS+ | 2 | `FuzzTacacsPacketUnmarshal`, `FuzzTacacsEncryptDecrypt` |
+| Other | 6 | `FuzzHandleRoundTrip`, `FuzzEncodeDecode`, `FuzzScanner`, `FuzzParseRDString` |
+<!-- source: internal/component/bgp/message/fuzz_test.go -- BGP message fuzz targets -->
+<!-- source: internal/component/bgp/attribute/builder_parse_fuzz_test.go -- attribute parser fuzz targets -->
+<!-- source: internal/component/bgp/wireu/prefix_fuzz_test.go -- NLRI prefix fuzz targets -->
+<!-- source: internal/component/config/fuzz_test.go -- config parser fuzz targets -->
+<!-- source: internal/component/l2tp/ -- L2TP wire fuzz targets -->
+<!-- source: internal/plugins/bfd/ -- BFD packet/auth fuzz targets -->
+<!-- source: internal/component/ppp/ -- PPP frame/protocol fuzz targets -->
+
+### Writing a New Fuzz Target
+
+```go
+func FuzzParseMyProtocol(f *testing.F) {
+    // Seed with known-good wire bytes
+    f.Add([]byte{0x01, 0x02, 0x03})
+
+    f.Fuzz(func(t *testing.T, data []byte) {
+        // Must not panic on any input
+        result, err := ParseMyProtocol(data)
+        if err != nil {
+            return  // Parse errors are expected
+        }
+        // Optionally: round-trip check
+        encoded := result.Marshal()
+        // ...
+    })
+}
+```
+
+---
+
 ## Live Tests (Docker + Internet)
 
 Live tests run against real external infrastructure inside Docker containers.
@@ -1108,12 +1214,35 @@ excluded from all normal test targets.
 <!-- source: internal/plugins/firewall/nft/integration_linux_test.go -- nft table ownership integration tests -->
 <!-- source: internal/plugins/traffic/netlink/integration_linux_test.go -- tc qdisc restore integration tests -->
 
+### Running on Linux
+
 ```bash
 make ze-integration-test           # Run all integration tests
 make ze-integration-iface-test     # Run iface integration tests only
 make ze-integration-fib-test       # Run FIB kernel integration tests only
 make ze-integration-firewall-test  # Run nft firewall integration tests only
 make ze-integration-traffic-test   # Run traffic-control netlink integration tests only
+```
+
+### Running on macOS (QEMU)
+
+macOS cannot run these tests natively. Use the QEMU Alpine VM:
+
+```bash
+make ze-qemu-integration-test     # Boots Alpine VM, runs all integration tests
+```
+
+This is the standard workflow for macOS developers. The QEMU runner boots an
+Alpine Linux VM, mounts the repo via virtio-9p, and runs `go test -tags integration`
+inside the VM. First run downloads the Alpine ISO and Go toolchain (~1 min);
+subsequent runs reuse the cache (~30s boot + test time).
+
+See [testing/qemu-integration.md](architecture/testing/qemu-integration.md) for
+details on how to write QEMU integration tests and add new packages.
+
+### Deployment Evidence
+
+```bash
 make ze-deployment-preflight       # Strict tool check for complete deployment evidence
 make ze-release-check              # Run clean Docker ze-verify release evidence
 make ze-deployment-vpp-test        # Run real VPP daemon FIB add/withdraw evidence

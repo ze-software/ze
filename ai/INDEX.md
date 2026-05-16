@@ -10,6 +10,7 @@
 | Create a plugin | `patterns/plugin.md` | `rules/plugin-design.md` |
 | Add a config option | `patterns/config-option.md` | `rules/config-design.md` |
 | Add a .ci functional test | `patterns/functional-test.md` | `docs/architecture/testing/ci-format.md` |
+| Test linux-only code (QEMU) | `rules/qemu-testing.md` | `rules/testing.md` (Linux-Only Tests section) |
 | Modify wire encoding | `rules/buffer-first.md` | `docs/architecture/buffer-architecture.md` |
 | Add route processing | `rules/architecture-summary.md` | `docs/architecture/core-design.md` |
 | Add NLRI family support | `patterns/plugin.md` (NLRI codec section) | `docs/architecture/wire/nlri.md` |
