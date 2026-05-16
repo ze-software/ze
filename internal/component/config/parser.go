@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // KeyDefault is the key used for anonymous list entries (e.g., "api { ... }").
@@ -44,7 +45,8 @@ func (p *Parser) Warnings() []string {
 
 func (p *Parser) warn(line int, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
-	p.warnings = append(p.warnings, fmt.Sprintf("line %d: %s", line, msg))
+	var b textbuf.Buffer
+	p.warnings = append(p.warnings, b.Reset().Str("line ").Int(int64(line)).Str(": ").Str(msg).String())
 }
 
 // parseRoot parses the top level of the config.

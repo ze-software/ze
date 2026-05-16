@@ -38,7 +38,7 @@ func (s *Streamable) runMethod(ctx context.Context, sess *session, req *request,
 	case "resources/read":
 		return s.resourcesRead(sess, req)
 	default:
-		return s.fail(req.ID, -32601, fmt.Sprintf("method not found: %s", req.Method))
+		return s.fail(req.ID, -32601, "method not found: "+req.Method)
 	}
 }
 
@@ -70,12 +70,12 @@ func (s *Streamable) callTool(ctx context.Context, req *request, sess *session, 
 	ts := s.lookupTaskSupport(params.Name)
 	if params.Task != nil {
 		if ts == TaskSupportForbidden {
-			return s.fail(req.ID, -32602, fmt.Sprintf("tool %s does not support task-augmented calls", params.Name))
+			return s.fail(req.ID, -32602, "tool "+params.Name+" does not support task-augmented calls")
 		}
 		return s.createTask(req, sess, remoteAddr, params)
 	}
 	if ts == TaskSupportRequired {
-		return s.fail(req.ID, -32602, fmt.Sprintf("tool %s requires task-augmented call (pass task: {})", params.Name))
+		return s.fail(req.ID, -32602, "tool "+params.Name+" requires task-augmented call (pass task: {})")
 	}
 	var username string
 	if sess != nil {
@@ -90,7 +90,7 @@ func (s *Streamable) callTool(ctx context.Context, req *request, sess *session, 
 			return s.ok(req.ID, runner.dispatchGenerated(prefix, validActions, params.Arguments))
 		}
 	}
-	return s.fail(req.ID, -32602, fmt.Sprintf("unknown tool: %s", params.Name))
+	return s.fail(req.ID, -32602, "unknown tool: "+params.Name)
 }
 
 // lookupTaskSupport returns the taskSupport level for a tool by name.
@@ -221,10 +221,10 @@ func (s *Streamable) createTask(req *request, sess *session, remoteAddr string, 
 		var found bool
 		prefix, validActions, found = s.findGeneratedTool(params.Name)
 		if !found {
-			return s.fail(req.ID, -32602, fmt.Sprintf("unknown tool: %s", params.Name))
+			return s.fail(req.ID, -32602, "unknown tool: "+params.Name)
 		}
 	} else if !isHandcrafted {
-		return s.fail(req.ID, -32602, fmt.Sprintf("unknown tool: %s", params.Name))
+		return s.fail(req.ID, -32602, "unknown tool: "+params.Name)
 	}
 
 	identity := sess.Identity().Name

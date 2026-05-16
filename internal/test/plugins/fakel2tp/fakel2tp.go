@@ -27,6 +27,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -125,7 +126,8 @@ func runEmit(args []string) (string, error) {
 	}
 	logger().Debug("fakel2tp: emitted",
 		"action", action, "family", fam, "prefix", prefix, "delivered", delivered)
-	return fmt.Sprintf(`{"delivered":%d}`, delivered), nil
+	var b textbuf.Buffer
+	return b.Reset().Str(`{"delivered":`).Int(int64(delivered)).Byte('}').String(), nil
 }
 
 // dispatchCommand is the OnExecuteCommand entry point.

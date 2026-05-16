@@ -217,7 +217,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get prefix-length summary (fast, constant memory).
-	result := s.query(fmt.Sprintf("peer %s bgp rib show prefix-summary", address))
+	result := s.query("peer " + address + " bgp rib show prefix-summary")
 	zeData := parseJSON(result)
 
 	totalCount := 0
@@ -231,7 +231,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]any{
-		"Title":         fmt.Sprintf("Routes from %s", address),
+		"Title":         "Routes from " + address,
 		"ActiveTab":     "peers",
 		"Address":       address,
 		"Peer":          peerInfo,
@@ -242,7 +242,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 
 	// For small route tables, also fetch individual routes.
 	if totalCount > 0 && totalCount <= maxDisplayRoutes {
-		routeResult := s.query(fmt.Sprintf("peer %s bgp rib show", address))
+		routeResult := s.query("peer " + address + " bgp rib show")
 		routeData := parseJSON(routeResult)
 		if routeData != nil {
 			if _, isErr := routeData["error"].(string); !isErr {
@@ -271,7 +271,7 @@ func (s *LGServer) handleUIPeerDownload(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result := s.query(fmt.Sprintf("peer %s bgp rib show", address))
+	result := s.query("peer " + address + " bgp rib show")
 	zeData := parseJSON(result)
 
 	if zeData == nil {
@@ -287,7 +287,7 @@ func (s *LGServer) handleUIPeerDownload(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/gzip")
 	w.Header().Set("Content-Disposition",
-		fmt.Sprintf("attachment; filename=\"routes-%s.csv.gz\"", address))
+		"attachment; filename=\"routes-"+address+".csv.gz\"")
 
 	gz := gzip.NewWriter(w)
 	defer func() { _ = gz.Close() }()
@@ -407,7 +407,7 @@ func (s *LGServer) handleUIRouteDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.query(fmt.Sprintf("bgp rib show prefix %s", prefix))
+	result := s.query("bgp rib show prefix " + prefix)
 	zeData := parseJSON(result)
 	routes := extractRoutes(zeData)
 

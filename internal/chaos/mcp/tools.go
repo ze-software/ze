@@ -8,6 +8,7 @@ import (
 	"time"
 
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/watchdog"
@@ -195,7 +196,8 @@ func (p *Provider) toolPeers(args json.RawMessage) map[string]any {
 		idx := *input.Peer
 		ps, ok := p.State.Peers[idx]
 		if !ok {
-			return zemcp.ErrResult(fmt.Sprintf("peer must be a valid index: %d", idx))
+			var b textbuf.Buffer
+			return zemcp.ErrResult(b.Reset().Str("peer must be a valid index: ").Int(int64(idx)).String())
 		}
 		result := peerDetail(ps, true)
 		data, err := json.Marshal(result)
@@ -330,7 +332,7 @@ func (p *Provider) toolControl(args json.RawMessage) map[string]any {
 		return zemcp.ErrResult("control: " + err.Error())
 	}
 
-	return zemcp.TextResult(fmt.Sprintf("ok: %s", input.Action))
+	return zemcp.TextResult("ok: " + input.Action)
 }
 
 func (p *Provider) toolExecute(args json.RawMessage) map[string]any {

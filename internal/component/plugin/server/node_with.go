@@ -43,14 +43,14 @@ func HandleNodeWith(
 	if selector == "*" || selector == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("set requires specific %s selector", treeKey),
+			Data:   "set requires specific " + treeKey + " selector",
 		}, fmt.Errorf("no %s specified", treeKey)
 	}
 
 	if len(args) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("set %s requires configuration arguments", treeKey),
+			Data:   "set " + treeKey + " requires configuration arguments",
 		}, fmt.Errorf("no config args for %s", treeKey)
 	}
 
@@ -117,7 +117,7 @@ func GetSchemaNode(path string) config.Node {
 func ParseInlineArgsForSchema(schemaPath string, args []string) (map[string]any, *plugin.Response, error) {
 	node := GetSchemaNode(schemaPath)
 	if node == nil {
-		msg := fmt.Sprintf("internal error: schema %s not available", schemaPath)
+		msg := "internal error: schema " + schemaPath + " not available"
 		return nil, &plugin.Response{Status: plugin.StatusError, Data: msg}, fmt.Errorf("%s", msg)
 	}
 

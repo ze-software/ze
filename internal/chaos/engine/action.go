@@ -4,7 +4,7 @@
 // for the ze-chaos testing tool.
 package engine
 
-import "fmt"
+import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 // ActionType identifies the kind of chaos event.
 type ActionType int
@@ -85,7 +85,8 @@ func (a ActionType) String() string {
 	if name, ok := actionNames[a]; ok {
 		return name
 	}
-	return fmt.Sprintf("unknown(%d)", a)
+	var b textbuf.Buffer
+	return b.Reset().Str("unknown(").Int(int64(a)).Byte(')').String()
 }
 
 // ActionTypeFromString parses a kebab-case action name into an ActionType.

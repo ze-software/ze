@@ -5,7 +5,6 @@
 package web
 
 import (
-	"fmt"
 	"html/template"
 	"net/http"
 	"sort"
@@ -82,7 +81,7 @@ func buildTrafficRows(infos []iface.InterfaceInfo) []WorkbenchTableRow {
 	for _, tr := range tRows {
 		rows = append(rows, WorkbenchTableRow{
 			Key:   tr.Interface,
-			URL:   fmt.Sprintf("/show/iface/detail/%s", tr.Interface),
+			URL:   "/show/iface/detail/" + tr.Interface,
 			Cells: trafficCells(tr),
 		})
 	}

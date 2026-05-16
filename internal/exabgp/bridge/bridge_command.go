@@ -6,7 +6,6 @@
 package bridge
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 )
@@ -53,14 +52,14 @@ func ExabgpToZebgpCommand(line string) string {
 	}
 
 	// Unknown command - pass through with peer prefix change
-	return fmt.Sprintf("peer %s %s", peerIP, rest)
+	return "peer " + peerIP + " " + rest
 }
 
 func convertAnnounce(peerIP, routeStr string) string {
 	routeStr = strings.TrimSpace(routeStr)
 	parts := strings.Fields(routeStr)
 	if len(parts) == 0 {
-		return fmt.Sprintf("peer %s update text nlri ipv4/unicast add", peerIP)
+		return "peer " + peerIP + " update text nlri ipv4/unicast add"
 	}
 
 	prefix := parts[0]
@@ -68,7 +67,7 @@ func convertAnnounce(peerIP, routeStr string) string {
 
 	// Parse attributes
 	var cmdParts []string
-	cmdParts = append(cmdParts, fmt.Sprintf("peer %s update text", peerIP))
+	cmdParts = append(cmdParts, "peer "+peerIP+" update text")
 
 	i := 0
 	for i < len(attrs) {
@@ -76,14 +75,14 @@ func convertAnnounce(peerIP, routeStr string) string {
 		switch key {
 		case "next-hop":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("nhop %s", attrs[i+1]))
+				cmdParts = append(cmdParts, "nhop "+attrs[i+1])
 				i += 2
 			} else {
 				i++
 			}
 		case "origin":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("origin %s", strings.ToLower(attrs[i+1])))
+				cmdParts = append(cmdParts, "origin "+strings.ToLower(attrs[i+1]))
 				i += 2
 			} else {
 				i++
@@ -104,35 +103,35 @@ func convertAnnounce(peerIP, routeStr string) string {
 				asp = strings.Trim(asp, "[]")
 				asp = strings.TrimSpace(asp)
 				if asp != "" {
-					cmdParts = append(cmdParts, fmt.Sprintf("as-path %s", asp))
+					cmdParts = append(cmdParts, "as-path "+asp)
 				}
 			} else {
 				i++
 			}
 		case "med":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("med %s", attrs[i+1]))
+				cmdParts = append(cmdParts, "med "+attrs[i+1])
 				i += 2
 			} else {
 				i++
 			}
 		case "local-preference":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("local-preference %s", attrs[i+1]))
+				cmdParts = append(cmdParts, "local-preference "+attrs[i+1])
 				i += 2
 			} else {
 				i++
 			}
 		case "community":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("community %s", attrs[i+1]))
+				cmdParts = append(cmdParts, "community "+attrs[i+1])
 				i += 2
 			} else {
 				i++
 			}
 		case "large-community":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("large-community %s", attrs[i+1]))
+				cmdParts = append(cmdParts, "large-community "+attrs[i+1])
 				i += 2
 			} else {
 				i++
@@ -147,7 +146,7 @@ func convertAnnounce(peerIP, routeStr string) string {
 	if strings.Contains(prefix, ":") {
 		fam = "ipv6/unicast"
 	}
-	cmdParts = append(cmdParts, fmt.Sprintf("nlri %s add %s", fam, prefix))
+	cmdParts = append(cmdParts, "nlri "+fam+" add "+prefix)
 
 	return strings.Join(cmdParts, " ")
 }
@@ -156,7 +155,7 @@ func convertWithdraw(peerIP, routeStr string) string {
 	routeStr = strings.TrimSpace(routeStr)
 	parts := strings.Fields(routeStr)
 	if len(parts) == 0 {
-		return fmt.Sprintf("peer %s update text nlri ipv4/unicast del", peerIP)
+		return "peer " + peerIP + " update text nlri ipv4/unicast del"
 	}
 
 	prefix := parts[0]
@@ -164,7 +163,7 @@ func convertWithdraw(peerIP, routeStr string) string {
 	if strings.Contains(prefix, ":") {
 		fam = "ipv6/unicast"
 	}
-	return fmt.Sprintf("peer %s update text nlri %s del %s", peerIP, fam, prefix)
+	return "peer " + peerIP + " update text nlri " + fam + " del " + prefix
 }
 
 func convertAnnounceFamily(peerIP, rest string) string {
@@ -175,12 +174,12 @@ func convertAnnounceFamily(peerIP, rest string) string {
 		afi := strings.ToLower(match[1])
 		safi := strings.ToLower(match[2])
 		routeStr := match[3]
-		fam := fmt.Sprintf("%s/%s", afi, safi)
+		fam := afi + "/" + safi
 		return convertAnnounceWithFamily(peerIP, fam, routeStr)
 	}
 
 	// Fall back to basic conversion
-	return fmt.Sprintf("peer %s announce %s", peerIP, rest)
+	return "peer " + peerIP + " announce " + rest
 }
 
 func convertWithdrawFamily(peerIP, rest string) string {
@@ -191,25 +190,25 @@ func convertWithdrawFamily(peerIP, rest string) string {
 		afi := strings.ToLower(match[1])
 		safi := strings.ToLower(match[2])
 		prefix := strings.Fields(match[3])[0]
-		fam := fmt.Sprintf("%s/%s", afi, safi)
-		return fmt.Sprintf("peer %s update text nlri %s del %s", peerIP, fam, prefix)
+		fam := afi + "/" + safi
+		return "peer " + peerIP + " update text nlri " + fam + " del " + prefix
 	}
 
-	return fmt.Sprintf("peer %s withdraw %s", peerIP, rest)
+	return "peer " + peerIP + " withdraw " + rest
 }
 
 func convertAnnounceWithFamily(peerIP, family, routeStr string) string {
 	routeStr = strings.TrimSpace(routeStr)
 	parts := strings.Fields(routeStr)
 	if len(parts) == 0 {
-		return fmt.Sprintf("peer %s update text nlri %s add", peerIP, family)
+		return "peer " + peerIP + " update text nlri " + family + " add"
 	}
 
 	prefix := parts[0]
 	attrs := parts[1:]
 
 	var cmdParts []string
-	cmdParts = append(cmdParts, fmt.Sprintf("peer %s update text", peerIP))
+	cmdParts = append(cmdParts, "peer "+peerIP+" update text")
 
 	i := 0
 	for i < len(attrs) {
@@ -217,28 +216,28 @@ func convertAnnounceWithFamily(peerIP, family, routeStr string) string {
 		switch key {
 		case "next-hop":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("nhop %s", attrs[i+1]))
+				cmdParts = append(cmdParts, "nhop "+attrs[i+1])
 				i += 2
 			} else {
 				i++
 			}
 		case "origin":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("origin %s", strings.ToLower(attrs[i+1])))
+				cmdParts = append(cmdParts, "origin "+strings.ToLower(attrs[i+1]))
 				i += 2
 			} else {
 				i++
 			}
 		case "label":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("label %s", attrs[i+1]))
+				cmdParts = append(cmdParts, "label "+attrs[i+1])
 				i += 2
 			} else {
 				i++
 			}
 		case "rd":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("rd %s", attrs[i+1]))
+				cmdParts = append(cmdParts, "rd "+attrs[i+1])
 				i += 2
 			} else {
 				i++
@@ -248,6 +247,6 @@ func convertAnnounceWithFamily(peerIP, family, routeStr string) string {
 		}
 	}
 
-	cmdParts = append(cmdParts, fmt.Sprintf("nlri %s add %s", family, prefix))
+	cmdParts = append(cmdParts, "nlri "+family+" add "+prefix)
 	return strings.Join(cmdParts, " ")
 }

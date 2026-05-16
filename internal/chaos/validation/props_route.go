@@ -3,9 +3,8 @@
 package validation
 
 import (
-	"fmt"
-
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // RouteConsistency checks that after convergence, every eligible peer has
@@ -55,17 +54,23 @@ func (p *RouteConsistency) Violations() []Violation {
 	for i, pr := range result.Peers {
 		for _, pfx := range pr.Missing.All() {
 			violations = append(violations, Violation{
-				Property:  p.Name(),
-				RFC:       p.RFC(),
-				Message:   fmt.Sprintf("peer %d missing route %s", i, pfx),
+				Property: p.Name(),
+				RFC:      p.RFC(),
+				Message: func() string {
+					var b textbuf.Buffer
+					return b.Reset().Str("peer ").Int(int64(i)).Str(" missing route ").Str(pfx.String()).String()
+				}(),
 				PeerIndex: i,
 			})
 		}
 		for _, pfx := range pr.Extra.All() {
 			violations = append(violations, Violation{
-				Property:  p.Name(),
-				RFC:       p.RFC(),
-				Message:   fmt.Sprintf("peer %d has unexpected route %s", i, pfx),
+				Property: p.Name(),
+				RFC:      p.RFC(),
+				Message: func() string {
+					var b textbuf.Buffer
+					return b.Reset().Str("peer ").Int(int64(i)).Str(" has unexpected route ").Str(pfx.String()).String()
+				}(),
 				PeerIndex: i,
 			})
 		}

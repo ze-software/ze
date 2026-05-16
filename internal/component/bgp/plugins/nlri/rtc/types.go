@@ -59,7 +59,7 @@ func (rt RouteTarget) String() string {
 	case 0x00: // 2-byte ASN (RFC 4360 Section 3.1)
 		asn := binary.BigEndian.Uint16(rt.Value[:2])
 		assigned := binary.BigEndian.Uint32(rt.Value[2:6])
-		return b.Uint16(asn).Byte(':').Uint32(assigned).String()
+		return b.Reset().Uint16(asn).Byte(':').Uint32(assigned).String()
 	case 0x01: // IPv4 address (RFC 4360 Section 3.2)
 		ip := netip.AddrFrom4([4]byte(rt.Value[:4]))
 		assigned := binary.BigEndian.Uint16(rt.Value[4:6])
@@ -179,7 +179,7 @@ func (r *RTC) String() string {
 		return "default"
 	}
 	var b textbuf.Buffer
-	return b.Str("origin-as ").Uint32(r.originAS).Str(" rt ").Str(r.routeTarget.String()).String()
+	return b.Reset().Str("origin-as ").Uint32(r.originAS).Str(" rt ").Str(r.routeTarget.String()).String()
 }
 
 // WriteTo writes the RTC NLRI directly to buf at offset.

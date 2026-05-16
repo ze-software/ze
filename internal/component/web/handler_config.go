@@ -18,10 +18,10 @@ import (
 	"html/template"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -272,7 +272,7 @@ func HandleConfigAdd(mgr *EditorManager, schema *config.Schema, renderer *Render
 			// Keyless list: auto-generate a sequential key.
 			if listNode, ok := findListNode(schema, path); ok && listNode.KeyName == "" {
 				existing := collectListKeys(mgr.Tree(username), schema, path)
-				path = append(path, strconv.Itoa(len(existing)+1))
+				path = append(path, textbuf.Int(int64(len(existing)+1)))
 			}
 		}
 

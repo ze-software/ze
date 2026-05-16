@@ -111,7 +111,7 @@ func (m *Model) cmdShowFiltered(filter string, textFilters []PipeFilter) (comman
 	}
 
 	if content == "" {
-		return commandResult{output: fmt.Sprintf("(no %s configuration)", filter)}, nil
+		return commandResult{output: "(no " + filter + " configuration)"}, nil
 	}
 
 	if len(textFilters) == 0 {

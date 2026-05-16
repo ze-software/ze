@@ -2,10 +2,7 @@
 
 package scenario
 
-import (
-	"fmt"
-	"net/netip"
-)
+import "net/netip"
 
 // FlowSpecRoute represents a generated FlowSpec rule.
 type FlowSpecRoute struct {
@@ -49,7 +46,7 @@ func GenerateFlowSpecRoutes(seed uint64, peerIndex, count, totalPeers int, ipv6 
 			DestPrefix:   dest,
 			SourcePrefix: src,
 			IsIPv6:       ipv6,
-			Key:          fmt.Sprintf("flow:%s->%s", dest, src),
+			Key:          "flow:" + dest.String() + "->" + src.String(),
 		}
 	}
 

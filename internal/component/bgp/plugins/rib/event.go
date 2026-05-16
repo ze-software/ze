@@ -41,5 +41,5 @@ func outRouteKey(prefix string, pathID uint32) string {
 		return prefix
 	}
 	var b textbuf.Buffer
-	return b.Str(prefix).Byte(':').Uint32(pathID).String()
+	return b.Reset().Str(prefix).Byte(':').Uint32(pathID).String()
 }

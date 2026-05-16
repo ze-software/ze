@@ -19,6 +19,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -571,8 +573,8 @@ func (rp *RPKIPlugin) statusCommand() (string, string, error) {
 	defer rp.mu.RUnlock()
 
 	v4, v6 := rp.cache.Count()
-	data := fmt.Sprintf(`{"running":true,"vrp-count-ipv4":%d,"vrp-count-ipv6":%d,"sessions":%d}`,
-		v4, v6, len(rp.sessions))
+	var b textbuf.Buffer
+	data := b.Reset().Str(`{"running":true,"vrp-count-ipv4":`).Int(int64(v4)).Str(`,"vrp-count-ipv6":`).Int(int64(v6)).Str(`,"sessions":`).Int(int64(len(rp.sessions))).Str("}").String()
 	return statusDone, data, nil
 }
 
@@ -586,12 +588,14 @@ func (rp *RPKIPlugin) cacheCommand() (string, string, error) {
 
 func (rp *RPKIPlugin) roaCommand() (string, string, error) {
 	v4, v6 := rp.cache.Count()
-	data := fmt.Sprintf(`{"total-vrps":%d,"ipv4-vrps":%d,"ipv6-vrps":%d}`, v4+v6, v4, v6)
+	var b2 textbuf.Buffer
+	data := b2.Reset().Str(`{"total-vrps":`).Int(int64(v4 + v6)).Str(`,"ipv4-vrps":`).Int(int64(v4)).Str(`,"ipv6-vrps":`).Int(int64(v6)).Str("}").String()
 	return statusDone, data, nil
 }
 
 func (rp *RPKIPlugin) summaryCommand() (string, string, error) {
 	v4, v6 := rp.cache.Count()
-	data := fmt.Sprintf(`{"vrp-count":%d,"validation-enabled":true}`, v4+v6)
+	var b3 textbuf.Buffer
+	data := b3.Reset().Str(`{"vrp-count":`).Int(int64(v4 + v6)).Str(`,"validation-enabled":true}`).String()
 	return statusDone, data, nil
 }

@@ -15,6 +15,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/core/version"
 )
 
@@ -200,10 +201,10 @@ func BuildUsersTableData(users []userEntry) WorkbenchTableData {
 		}
 		rows = append(rows, WorkbenchTableRow{
 			Key:   u.Name,
-			URL:   fmt.Sprintf("/show/system/authentication/user/%s/", u.Name),
+			URL:   "/show/system/authentication/user/" + u.Name + "/",
 			Cells: []string{u.Name, profileStr, strconv.Itoa(u.KeyCount)},
 			Actions: []WorkbenchRowAction{
-				{Label: "Edit", URL: fmt.Sprintf("/show/system/authentication/user/%s/", u.Name)},
+				{Label: "Edit", URL: "/show/system/authentication/user/" + u.Name + "/"},
 			},
 		})
 	}
@@ -323,24 +324,29 @@ func BuildHostHardwareData() []HardwareSection {
 			{Key: "Physical Cores", Value: strconv.Itoa(inv.CPU.PhysicalCores)},
 		}
 		if inv.CPU.BaseFreqMHz > 0 {
-			items = append(items, HardwareItem{Key: "Base Frequency", Value: fmt.Sprintf("%d MHz", inv.CPU.BaseFreqMHz)})
+			var bBase textbuf.Buffer
+			items = append(items, HardwareItem{Key: "Base Frequency", Value: bBase.Reset().Int(int64(inv.CPU.BaseFreqMHz)).Str(" MHz").String()})
 		}
 		if inv.CPU.MaxFreqMHz > 0 {
-			items = append(items, HardwareItem{Key: "Max Frequency", Value: fmt.Sprintf("%d MHz", inv.CPU.MaxFreqMHz)})
+			var bMax textbuf.Buffer
+			items = append(items, HardwareItem{Key: "Max Frequency", Value: bMax.Reset().Int(int64(inv.CPU.MaxFreqMHz)).Str(" MHz").String()})
 		}
 		for i := range inv.CPU.Cores {
 			c := &inv.CPU.Cores[i]
 			freq := ""
 			if c.CurrentFreqMHz > 0 {
-				freq = fmt.Sprintf(", %d MHz", c.CurrentFreqMHz)
+				var bFreq textbuf.Buffer
+				freq = bFreq.Reset().Str(", ").Int(int64(c.CurrentFreqMHz)).Str(" MHz").String()
 			}
 			role := ""
 			if c.Role != host.CoreRoleUniform && c.Role != host.CoreRoleUnknown {
-				role = fmt.Sprintf(", %s", c.Role)
+				role = ", " + c.Role.String()
 			}
+			var bKey textbuf.Buffer
+			var bVal textbuf.Buffer
 			items = append(items, HardwareItem{
-				Key:   fmt.Sprintf("Core %d (pkg %d)", c.CoreID, c.PhysicalPackage),
-				Value: fmt.Sprintf("cpu%d%s%s", c.CPU, freq, role),
+				Key:   bKey.Reset().Str("Core ").Int(int64(c.CoreID)).Str(" (pkg ").Int(int64(c.PhysicalPackage)).Byte(')').String(),
+				Value: bVal.Reset().Str("cpu").Int(int64(c.CPU)).Str(freq).Str(role).String(),
 			})
 		}
 		sections = append(sections, HardwareSection{Title: "CPU", Items: items})
@@ -352,7 +358,8 @@ func BuildHostHardwareData() []HardwareSection {
 			nic := &inv.NICs[i]
 			speed := "-"
 			if nic.LinkSpeedMbps > 0 {
-				speed = fmt.Sprintf("%d Mbps", nic.LinkSpeedMbps)
+				var bSpd textbuf.Buffer
+				speed = bSpd.Reset().Int(int64(nic.LinkSpeedMbps)).Str(" Mbps").String()
 			}
 			carrier := "down"
 			cssClass := "down"
@@ -362,7 +369,7 @@ func BuildHostHardwareData() []HardwareSection {
 			}
 			items = append(items, HardwareItem{
 				Key:      nic.Name,
-				Value:    fmt.Sprintf("%s, %s, %s, %s", nic.Driver, nic.MAC, speed, carrier),
+				Value:    nic.Driver + ", " + nic.MAC + ", " + speed + ", " + carrier,
 				CSSClass: cssClass,
 			})
 		}
@@ -382,12 +389,13 @@ func BuildHostHardwareData() []HardwareSection {
 	if inv.Storage != nil && len(inv.Storage.Devices) > 0 {
 		var items []HardwareItem
 		for _, dev := range inv.Storage.Devices {
-			detail := fmt.Sprintf("%s, %s", formatBytes(dev.SizeBytes), dev.Model)
+			detail := formatBytes(dev.SizeBytes) + ", " + dev.Model
 			if dev.Smart != nil && !dev.Smart.Unavailable {
-				detail += fmt.Sprintf(", SMART: %s %d°C %dh",
-					smartHealthLabel(dev.Smart.Healthy), dev.Smart.TempCelsius, dev.Smart.PowerOnHours)
+				var bSmart textbuf.Buffer
+				detail += bSmart.Reset().Str(", SMART: ").Str(smartHealthLabel(dev.Smart.Healthy)).Byte(' ').Int(int64(dev.Smart.TempCelsius)).Str("°C ").Int(int64(dev.Smart.PowerOnHours)).Str("h").String()
 				if dev.Smart.ErrorCount > 0 {
-					detail += fmt.Sprintf(" (%d errors)", dev.Smart.ErrorCount)
+					var bErr textbuf.Buffer
+					detail += bErr.Reset().Str(" (").Int(int64(dev.Smart.ErrorCount)).Str(" errors)").String()
 				}
 			}
 			items = append(items, HardwareItem{
@@ -547,14 +555,14 @@ func BuildSysctlProfilesTableData(profiles []sysctlProfileEntry) WorkbenchTableD
 	for _, p := range profiles {
 		rows = append(rows, WorkbenchTableRow{
 			Key: p.Name,
-			URL: fmt.Sprintf("/show/sysctl/profile/%s/", p.Name),
+			URL: "/show/sysctl/profile/" + p.Name + "/",
 			Cells: []string{
 				p.Name,
 				strconv.Itoa(p.SettingCount),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "View", URL: fmt.Sprintf("/show/sysctl/profile/%s/", p.Name)},
-				{Label: "Edit", URL: fmt.Sprintf("/show/sysctl/profile/%s/", p.Name)},
+				{Label: "View", URL: "/show/sysctl/profile/" + p.Name + "/"},
+				{Label: "Edit", URL: "/show/sysctl/profile/" + p.Name + "/"},
 			},
 		})
 	}

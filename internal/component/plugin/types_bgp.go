@@ -13,11 +13,11 @@ package plugin
 
 import (
 	"context"
-	"fmt"
 	"net/netip"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -42,7 +42,7 @@ func (s PeerState) String() string {
 	case PeerStateEstablished:
 		return "established"
 	}
-	return fmt.Sprintf("unknown(%d)", s)
+	return textbuf.StrIntStr("unknown(", int64(s), ")")
 }
 
 // PeerInfo is a snapshot of BGP peer state for API output.

@@ -5,7 +5,6 @@ package l2tpauthradius
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -79,7 +79,8 @@ func (a *radiusAcct) genSessionID(tunnelID, sessionID uint16) string {
 	a.nextSess++
 	n := a.nextSess
 	a.mu.Unlock()
-	return fmt.Sprintf("%d-%d-%d", tunnelID, sessionID, n)
+	var b textbuf.Buffer
+	return b.Reset().Int(int64(tunnelID)).Byte('-').Int(int64(sessionID)).Byte('-').Int(int64(n)).String()
 }
 
 // SubscribeEventBus subscribes to session lifecycle events for accounting.

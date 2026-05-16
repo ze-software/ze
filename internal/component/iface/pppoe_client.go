@@ -7,9 +7,10 @@ import (
 	"errors"
 	"log/slog"
 	"net/netip"
-	"strconv"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // PPPoE client session states.
@@ -131,7 +132,7 @@ func (c *PPPoEClient) status() pppoeClientStatus {
 
 	pppIface := ""
 	if c.pppUnit >= 0 {
-		pppIface = "ppp" + strconv.Itoa(c.pppUnit)
+		pppIface = textbuf.StrInt("ppp", int64(c.pppUnit))
 	}
 
 	var uptime time.Duration
@@ -238,7 +239,7 @@ func (c *PPPoEClient) runSession() error {
 	}
 	defer sess.Cleanup()
 
-	ifname := "ppp" + strconv.Itoa(sess.UnitNum)
+	ifname := textbuf.StrInt("ppp", int64(sess.UnitNum))
 
 	// AC-7: Set MTU on the ppp interface.
 	if c.backend != nil {

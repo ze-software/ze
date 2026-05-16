@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // formatNATTarget renders the `to` leaf of a NAT action in the shape
@@ -20,15 +21,17 @@ import (
 func formatNATTarget(addr, addrEnd netip.Addr, port, portEnd uint16) string {
 	addrStr := addr.String()
 	if addrEnd.IsValid() {
-		addrStr = fmt.Sprintf("%s-%s", addr, addrEnd)
+		addrStr = addrStr + "-" + addrEnd.String()
 	}
 	if port == 0 {
 		return addrStr
 	}
 	if portEnd == 0 {
-		return fmt.Sprintf("%s:%d", addrStr, port)
+		var b textbuf.Buffer
+		return b.Reset().Str(addrStr).Byte(':').Int(int64(port)).String()
 	}
-	return fmt.Sprintf("%s:%d-%d", addrStr, port, portEnd)
+	var b textbuf.Buffer
+	return b.Reset().Str(addrStr).Byte(':').Int(int64(port)).Byte('-').Int(int64(portEnd)).String()
 }
 
 // logKeyword is the config keyword for the log action, accessed via variable
@@ -99,35 +102,35 @@ func formatTerm(b *strings.Builder, t *firewall.Term) {
 func formatMatch(m firewall.Match) string {
 	switch v := m.(type) {
 	case firewall.MatchSourceAddress:
-		return fmt.Sprintf("source address %s", v.Prefix)
+		return "source address " + v.Prefix.String()
 	case firewall.MatchDestinationAddress:
-		return fmt.Sprintf("destination address %s", v.Prefix)
+		return "destination address " + v.Prefix.String()
 	case firewall.MatchSourcePort:
 		return formatPort("source port", v.Ranges)
 	case firewall.MatchDestinationPort:
 		return formatPort("destination port", v.Ranges)
 	case firewall.MatchProtocol:
-		return fmt.Sprintf("protocol %s", v.Protocol)
+		return "protocol " + v.Protocol
 	case firewall.MatchInputInterface:
-		return fmt.Sprintf("input interface %s", formatIface(v.Name, v.Wildcard))
+		return "input interface " + formatIface(v.Name, v.Wildcard)
 	case firewall.MatchOutputInterface:
-		return fmt.Sprintf("output interface %s", formatIface(v.Name, v.Wildcard))
+		return "output interface " + formatIface(v.Name, v.Wildcard)
 	case firewall.MatchICMPType:
-		return fmt.Sprintf("icmp type %d", v.Type)
+		return textbuf.StrInt("icmp type ", int64(v.Type))
 	case firewall.MatchICMPv6Type:
-		return fmt.Sprintf("icmpv6 type %d", v.Type)
+		return textbuf.StrInt("icmpv6 type ", int64(v.Type))
 	case firewall.MatchConnState:
-		return fmt.Sprintf("connection state %s", formatConnState(v.States))
+		return "connection state " + formatConnState(v.States)
 	case firewall.MatchMark:
-		return fmt.Sprintf("mark 0x%x/0x%x", v.Value, v.Mask)
+		return "mark 0x" + hexUint32(v.Value) + "/0x" + hexUint32(v.Mask)
 	case firewall.MatchDSCP:
-		return fmt.Sprintf("dscp %d", v.Value)
+		return textbuf.StrInt("dscp ", int64(v.Value))
 	case firewall.MatchInSet:
 		return formatInSet(v)
 	case firewall.MatchTCPFlags:
-		return fmt.Sprintf("tcp flags %s", formatTCPFlags(v.Flags))
+		return "tcp flags " + formatTCPFlags(v.Flags)
 	}
-	return fmt.Sprintf("<%T>", m)
+	return "<" + matchTypeName(m) + ">"
 }
 
 func formatAction(a firewall.Action) string {
@@ -138,18 +141,18 @@ func formatAction(a firewall.Action) string {
 		return "drop"
 	case firewall.Reject:
 		if v.Type != "" {
-			return fmt.Sprintf("reject with %s", v.Type)
+			return "reject with " + v.Type
 		}
 		return "reject"
 	case firewall.Jump:
-		return fmt.Sprintf("jump %s", v.Target)
+		return "jump " + v.Target
 	case firewall.Goto:
-		return fmt.Sprintf("goto %s", v.Target)
+		return "goto " + v.Target
 	case firewall.Return:
 		return "return"
 	case firewall.Counter:
 		if v.Name != "" {
-			return fmt.Sprintf("counter %s", v.Name)
+			return "counter " + v.Name
 		}
 		return "counter"
 	case firewall.Log:
@@ -164,12 +167,12 @@ func formatAction(a firewall.Action) string {
 	case firewall.SetConnMark:
 		return fmt.Sprintf("connection-mark set 0x%x", v.Value)
 	case firewall.SetDSCP:
-		return fmt.Sprintf("dscp set %d", v.Value)
+		return textbuf.StrInt("dscp set ", int64(v.Value))
 	case firewall.SetTCPMSS:
-		return fmt.Sprintf("tcp-mss set %d", v.Size)
+		return textbuf.StrInt("tcp-mss set ", int64(v.Size))
 	case firewall.Redirect:
 		if v.Port != 0 {
-			return fmt.Sprintf("redirect to %d", v.Port)
+			return textbuf.StrInt("redirect to ", int64(v.Port))
 		}
 		return "redirect"
 	case firewall.Masquerade:
@@ -177,11 +180,11 @@ func formatAction(a firewall.Action) string {
 	case firewall.Notrack:
 		return "notrack"
 	case firewall.FlowOffload:
-		return fmt.Sprintf("flow offload @%s", v.FlowtableName)
+		return "flow offload @" + v.FlowtableName
 	case firewall.SNAT:
-		return fmt.Sprintf("snat to %s", formatNATTarget(v.Address, v.AddressEnd, v.Port, v.PortEnd))
+		return "snat to " + formatNATTarget(v.Address, v.AddressEnd, v.Port, v.PortEnd)
 	case firewall.DNAT:
-		return fmt.Sprintf("dnat to %s", formatNATTarget(v.Address, v.AddressEnd, v.Port, v.PortEnd))
+		return "dnat to " + formatNATTarget(v.Address, v.AddressEnd, v.Port, v.PortEnd)
 	}
 	return fmt.Sprintf("<%T>", a)
 }
@@ -193,11 +196,12 @@ func formatAction(a firewall.Action) string {
 // stays as `1048576bytes/second` only when it is NOT a clean 1Mi; the
 // loop below downgrades the suffix when the rate is exactly divisible).
 func formatLimit(l firewall.Limit) string {
+	var b textbuf.Buffer
 	if l.Dimension == firewall.RateDimensionBytes {
 		rate, suffix := byteRateSuffix(l.Rate)
-		return fmt.Sprintf("limit rate %d%s/%s burst %d", rate, suffix, l.Unit, l.Burst)
+		return b.Reset().Str("limit rate ").Uint(rate).Str(suffix).Byte('/').Str(l.Unit).Str(" burst ").Uint32(l.Burst).String()
 	}
-	return fmt.Sprintf("limit rate %d/%s burst %d", l.Rate, l.Unit, l.Burst)
+	return b.Str("limit rate ").Uint(l.Rate).Byte('/').Str(l.Unit).Str(" burst ").Uint32(l.Burst).String()
 }
 
 // byteRateSuffix picks the largest byte prefix (gbytes, mbytes, kbytes,
@@ -228,15 +232,15 @@ func byteRateSuffix(rate uint64) (uint64, string) {
 func formatInSet(m firewall.MatchInSet) string {
 	switch m.MatchField {
 	case firewall.SetFieldSourceAddr:
-		return fmt.Sprintf("source address @%s", m.SetName)
+		return "source address @" + m.SetName
 	case firewall.SetFieldDestAddr:
-		return fmt.Sprintf("destination address @%s", m.SetName)
+		return "destination address @" + m.SetName
 	case firewall.SetFieldSourcePort:
-		return fmt.Sprintf("source port @%s", m.SetName)
+		return "source port @" + m.SetName
 	case firewall.SetFieldDestPort:
-		return fmt.Sprintf("destination port @%s", m.SetName)
+		return "destination port @" + m.SetName
 	}
-	return fmt.Sprintf("@%s", m.SetName)
+	return "@" + m.SetName
 }
 
 func formatTCPFlags(flags firewall.TCPFlags) string {
@@ -274,10 +278,11 @@ func formatPort(keyword string, ranges []firewall.PortRange) string {
 		if r.Lo == r.Hi {
 			parts = append(parts, strconv.Itoa(int(r.Lo)))
 		} else {
-			parts = append(parts, fmt.Sprintf("%d-%d", r.Lo, r.Hi))
+			var bRange textbuf.Buffer
+			parts = append(parts, bRange.Reset().Int(int64(r.Lo)).Byte('-').Int(int64(r.Hi)).String())
 		}
 	}
-	return fmt.Sprintf("%s %s", keyword, strings.Join(parts, ","))
+	return keyword + " " + strings.Join(parts, ",")
 }
 
 func formatConnState(s firewall.ConnState) string {
@@ -337,6 +342,45 @@ func FormatCounters(counters []firewall.ChainCounters) string {
 // StripPrefix removes the ze_ prefix for display.
 func StripPrefix(name string) string {
 	return strings.TrimPrefix(name, "ze_")
+}
+
+func hexUint32(v uint32) string {
+	var buf [8]byte
+	return string(strconv.AppendUint(buf[:0], uint64(v), 16))
+}
+
+func matchTypeName(m firewall.Match) string {
+	switch m.(type) {
+	case firewall.MatchSourceAddress:
+		return "firewall.MatchSourceAddress"
+	case firewall.MatchDestinationAddress:
+		return "firewall.MatchDestinationAddress"
+	case firewall.MatchSourcePort:
+		return "firewall.MatchSourcePort"
+	case firewall.MatchDestinationPort:
+		return "firewall.MatchDestinationPort"
+	case firewall.MatchProtocol:
+		return "firewall.MatchProtocol"
+	case firewall.MatchInputInterface:
+		return "firewall.MatchInputInterface"
+	case firewall.MatchOutputInterface:
+		return "firewall.MatchOutputInterface"
+	case firewall.MatchICMPType:
+		return "firewall.MatchICMPType"
+	case firewall.MatchICMPv6Type:
+		return "firewall.MatchICMPv6Type"
+	case firewall.MatchConnState:
+		return "firewall.MatchConnState"
+	case firewall.MatchMark:
+		return "firewall.MatchMark"
+	case firewall.MatchDSCP:
+		return "firewall.MatchDSCP"
+	case firewall.MatchInSet:
+		return "firewall.MatchInSet"
+	case firewall.MatchTCPFlags:
+		return "firewall.MatchTCPFlags"
+	}
+	return "firewall.Match"
 }
 
 // Ensure slog is used (package references log keyword).

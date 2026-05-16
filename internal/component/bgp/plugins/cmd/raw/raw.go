@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -54,7 +55,7 @@ func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Respons
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid peer address: %s", ctx.Peer),
+			Data:   "invalid peer address: " + ctx.Peer,
 		}, fmt.Errorf("invalid peer address: %w", err)
 	}
 
@@ -162,7 +163,7 @@ func msgTypeName(t uint8) string {
 	case message.TypeROUTEREFRESH:
 		return "route-refresh"
 	default: // numeric fallback for unknown types
-		return fmt.Sprintf("type-%d", t)
+		return textbuf.StrInt("type-", int64(t))
 	}
 }
 

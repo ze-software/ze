@@ -1,9 +1,13 @@
+// Design: docs/architecture/core-design.md — policy-based routing mark allocation
+
 package policyroute
 
 import (
 	"fmt"
 	"net/netip"
 	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -79,9 +83,9 @@ func (a *allocator) allocateTable(nh netip.Addr) (uint32, bool, error) {
 }
 
 func markKey(policyName string, table uint32) string {
-	return fmt.Sprintf("%s:%d", policyName, table)
+	return policyName + ":" + textbuf.Uint32(table)
 }
 
 func markKeyNextHop(policyName string, nh netip.Addr) string {
-	return fmt.Sprintf("%s:nh:%s", policyName, nh.String())
+	return policyName + ":nh:" + nh.String()
 }

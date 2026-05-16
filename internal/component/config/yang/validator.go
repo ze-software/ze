@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/openconfig/goyang/pkg/yang"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errEmptyPath = errors.New("empty path")
@@ -61,9 +63,10 @@ type ValidationError struct {
 
 func (e *ValidationError) Error() string {
 	if e.LineNumber > 0 {
-		return fmt.Sprintf("line %d: %s error at %s: %s", e.LineNumber, e.Type, e.Path, e.Message)
+		var b textbuf.Buffer
+		return b.Reset().Str("line ").Int(int64(e.LineNumber)).Str(": ").Str(e.Type.String()).Str(" error at ").Str(e.Path).Str(": ").Str(e.Message).String()
 	}
-	return fmt.Sprintf("%s error at %s: %s", e.Type, e.Path, e.Message)
+	return e.Type.String() + " error at " + e.Path + ": " + e.Message
 }
 
 // Validator validates configuration data against YANG schemas.
@@ -254,7 +257,7 @@ func (v *Validator) validateString(path string, yangType *yang.YangType, value a
 			return &ValidationError{
 				Path:     path,
 				Type:     ErrTypeLength,
-				Message:  fmt.Sprintf("string length %d is outside allowed range", strLen),
+				Message:  textbuf.StrIntStr("string length ", int64(strLen), " is outside allowed range"),
 				Expected: yangType.Length.String(),
 				Got:      strconv.Itoa(int(strLen)),
 			}
@@ -360,9 +363,9 @@ func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value
 			return &ValidationError{
 				Path:     path,
 				Type:     ErrTypeRange,
-				Message:  fmt.Sprintf("value %d is outside range", num),
+				Message:  textbuf.StrUintStr("value ", num, " is outside range"),
 				Expected: yangType.Range.String(),
-				Got:      strconv.Itoa(int(num)),
+				Got:      textbuf.Uint(num),
 			}
 		}
 	}
@@ -425,9 +428,9 @@ func (v *Validator) validateSigned(path string, yangType *yang.YangType, value a
 			return &ValidationError{
 				Path:     path,
 				Type:     ErrTypeRange,
-				Message:  fmt.Sprintf("value %d is outside range", num),
+				Message:  textbuf.StrIntStr("value ", num, " is outside range"),
 				Expected: yangType.Range.String(),
-				Got:      strconv.Itoa(int(num)),
+				Got:      textbuf.Int(num),
 			}
 		}
 	}
@@ -665,21 +668,23 @@ func checkCardinality(path string, entry *yang.Entry, count uint64, errs *[]Vali
 		return
 	}
 	if entry.ListAttr.MinElements > 0 && count < entry.ListAttr.MinElements {
+		var bMsg textbuf.Buffer
 		*errs = append(*errs, ValidationError{
 			Path:     path,
 			Type:     ErrTypeCardinality,
-			Message:  fmt.Sprintf("too few entries: %d (minimum %d)", count, entry.ListAttr.MinElements),
-			Expected: fmt.Sprintf(">=%d", entry.ListAttr.MinElements),
-			Got:      strconv.Itoa(int(count)),
+			Message:  bMsg.Reset().Str("too few entries: ").Uint(count).Str(" (minimum ").Uint(entry.ListAttr.MinElements).Byte(')').String(),
+			Expected: textbuf.StrUint(">=", entry.ListAttr.MinElements),
+			Got:      textbuf.Uint(count),
 		})
 	}
 	if entry.ListAttr.MaxElements > 0 && count > entry.ListAttr.MaxElements {
+		var bMsg textbuf.Buffer
 		*errs = append(*errs, ValidationError{
 			Path:     path,
 			Type:     ErrTypeCardinality,
-			Message:  fmt.Sprintf("too many entries: %d (maximum %d)", count, entry.ListAttr.MaxElements),
-			Expected: fmt.Sprintf("<=%d", entry.ListAttr.MaxElements),
-			Got:      strconv.Itoa(int(count)),
+			Message:  bMsg.Reset().Str("too many entries: ").Uint(count).Str(" (maximum ").Uint(entry.ListAttr.MaxElements).Byte(')').String(),
+			Expected: textbuf.StrUint("<=", entry.ListAttr.MaxElements),
+			Got:      textbuf.Uint(count),
 		})
 	}
 }

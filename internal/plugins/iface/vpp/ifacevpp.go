@@ -26,6 +26,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // allSwIfIndex is the VPP sentinel meaning "match every interface". Passed to
@@ -253,7 +254,8 @@ func (b *vppBackendImpl) CreateVLAN(parentName string, vlanID int) error {
 	if reply.Retval != 0 {
 		return fmt.Errorf("ifacevpp: CreateVlanSubif retval=%d", reply.Retval)
 	}
-	subName := fmt.Sprintf("%s.%d", parentName, vlanID)
+	var bSub textbuf.Buffer
+	subName := bSub.Reset().Str(parentName).Byte('.').Int(int64(vlanID)).String()
 	b.names.Add(subName, uint32(reply.SwIfIndex), subName)
 	return nil
 }

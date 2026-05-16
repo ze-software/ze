@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Config holds Watchdog tuning parameters.
@@ -122,9 +123,9 @@ func (w *Watchdog) ProcessEvent(ev peer.Event) {
 		}
 		w.updateRouteState(ev.PeerIndex, ev.Time)
 		if !w.chaosWithdrawal[ev.PeerIndex] && w.routesRecv[ev.PeerIndex] < w.routesHWM[ev.PeerIndex] {
+			var bRegr textbuf.Buffer
 			w.emit(ev.Time, "route-regression", ev.PeerIndex,
-				fmt.Sprintf("PROBLEM: peer %d lost routes (was %d, now %d) -- no withdrawal",
-					ev.PeerIndex, w.routesHWM[ev.PeerIndex], w.routesRecv[ev.PeerIndex]))
+				bRegr.Reset().Str("PROBLEM: peer ").Int(int64(ev.PeerIndex)).Str(" lost routes (was ").Int(int64(w.routesHWM[ev.PeerIndex])).Str(", now ").Int(int64(w.routesRecv[ev.PeerIndex])).Str(") -- no withdrawal").String())
 		}
 
 	case peer.EventWithdrawalSent:
@@ -135,13 +136,14 @@ func (w *Watchdog) ProcessEvent(ev peer.Event) {
 		if ev.Err != nil {
 			msg = ev.Err.Error()
 		}
+		var bErr textbuf.Buffer
 		w.emit(ev.Time, "error", ev.PeerIndex,
-			fmt.Sprintf("PROBLEM: peer %d error: %s", ev.PeerIndex, msg))
+			bErr.Reset().Str("PROBLEM: peer ").Int(int64(ev.PeerIndex)).Str(" error: ").Str(msg).String())
 
 	case peer.EventDroppedEvents:
+		var bDrop textbuf.Buffer
 		w.emit(ev.Time, "dropped-events", ev.PeerIndex,
-			fmt.Sprintf("PROBLEM: peer %d dropped %d events (overloaded)",
-				ev.PeerIndex, ev.Count))
+			bDrop.Reset().Str("PROBLEM: peer ").Int(int64(ev.PeerIndex)).Str(" dropped ").Int(int64(ev.Count)).Str(" events (overloaded)").String())
 
 	case peer.EventEORSent:
 		// EOR clears convergence stall tracking.
@@ -177,7 +179,7 @@ func (w *Watchdog) SetPropertyResult(name string, pass bool, firstViolation stri
 
 	if known && wasPassing && !pass {
 		w.emit(at, "property-violation", -1,
-			fmt.Sprintf("PROBLEM: property %s FAILED: %s", name, firstViolation))
+			"PROBLEM: property "+name+" FAILED: "+firstViolation)
 	}
 }
 
@@ -185,9 +187,9 @@ func (w *Watchdog) checkStateful(now time.Time) {
 	// Peer not reconnecting.
 	for peerIdx, disconnectedAt := range w.disconnectedAt {
 		if now.Sub(disconnectedAt) >= w.cfg.ReconnectTimeout {
+			var bStuck textbuf.Buffer
 			w.emit(now, "peer-stuck-down", peerIdx,
-				fmt.Sprintf("PROBLEM: peer %d not reconnected after %s",
-					peerIdx, now.Sub(disconnectedAt).Truncate(time.Second)))
+				bStuck.Reset().Str("PROBLEM: peer ").Int(int64(peerIdx)).Str(" not reconnected after ").Str(now.Sub(disconnectedAt).Truncate(time.Second).String()).String())
 		}
 	}
 
@@ -196,9 +198,9 @@ func (w *Watchdog) checkStateful(now time.Time) {
 		sent := w.routesSent[peerIdx]
 		recv := w.routesRecv[peerIdx]
 		if recv < sent && recv == rs.lastRecvCount && now.Sub(rs.lastChangeAt) >= w.cfg.PlateauDuration {
+			var bPlat textbuf.Buffer
 			w.emit(now, "route-plateau", peerIdx,
-				fmt.Sprintf("PROBLEM: peer %d stuck at %d/%d routes (no change for %s)",
-					peerIdx, recv, sent, now.Sub(rs.lastChangeAt).Truncate(time.Second)))
+				bPlat.Reset().Str("PROBLEM: peer ").Int(int64(peerIdx)).Str(" stuck at ").Int(int64(recv)).Byte('/').Int(int64(sent)).Str(" routes (no change for ").Str(now.Sub(rs.lastChangeAt).Truncate(time.Second).String()).Byte(')').String())
 		}
 	}
 
@@ -206,9 +208,9 @@ func (w *Watchdog) checkStateful(now time.Time) {
 	eorDeadline := time.Duration(float64(w.cfg.Warmup) * w.cfg.WarmupMultiplier)
 	for peerIdx, estAt := range w.establishedAt {
 		if now.Sub(estAt) >= eorDeadline {
+			var bStall textbuf.Buffer
 			w.emit(now, "convergence-stall", peerIdx,
-				fmt.Sprintf("PROBLEM: peer %d initial sync stalled (no EOR after %s)",
-					peerIdx, now.Sub(estAt).Truncate(time.Second)))
+				bStall.Reset().Str("PROBLEM: peer ").Int(int64(peerIdx)).Str(" initial sync stalled (no EOR after ").Str(now.Sub(estAt).Truncate(time.Second).String()).Byte(')').String())
 		}
 	}
 }

@@ -6,12 +6,12 @@
 package web
 
 import (
-	"fmt"
 	"html/template"
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // --- L2TP > Sessions ---
@@ -47,24 +47,26 @@ func BuildL2TPSessionsTableData() WorkbenchTableData {
 		t := &snap.Tunnels[i]
 		for j := range t.Sessions {
 			s := &t.Sessions[j]
+			sidStr := strconv.Itoa(int(s.LocalSID))
+			var bKey textbuf.Buffer
 			rows = append(rows, WorkbenchTableRow{
-				Key: fmt.Sprintf("%d/%d", t.LocalTID, s.LocalSID),
-				URL: fmt.Sprintf("/l2tp/%d", s.LocalSID),
+				Key: bKey.Reset().Int(int64(t.LocalTID)).Byte('/').Str(sidStr).String(),
+				URL: "/l2tp/" + sidStr,
 				Cells: []string{
 					strconv.Itoa(int(t.LocalTID)),
-					strconv.Itoa(int(s.LocalSID)),
+					sidStr,
 					s.Username,
 					t.PeerAddr.String(),
 					s.State,
 					s.PppInterface,
 				},
 				Actions: []WorkbenchRowAction{
-					{Label: "Detail", URL: fmt.Sprintf("/l2tp/%d", s.LocalSID)},
+					{Label: "Detail", URL: "/l2tp/" + sidStr},
 					{
 						Label:   "Disconnect",
-						HxPost:  fmt.Sprintf("/l2tp/%d/disconnect", s.LocalSID),
+						HxPost:  "/l2tp/" + sidStr + "/disconnect",
 						Class:   "danger",
-						Confirm: fmt.Sprintf("Disconnect session %d (user %s)?", s.LocalSID, s.Username),
+						Confirm: "Disconnect session " + sidStr + " (user " + s.Username + ")?",
 					},
 				},
 			})

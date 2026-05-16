@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -42,7 +43,7 @@ func (s *Session) Connect(ctx context.Context) error {
 	}
 	s.mu.Unlock()
 
-	addr := net.JoinHostPort(s.settings.Address.String(), fmt.Sprintf("%d", s.settings.Port))
+	addr := net.JoinHostPort(s.settings.Address.String(), strconv.Itoa(int(s.settings.Port)))
 
 	conn, err := s.dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {

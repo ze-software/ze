@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -26,7 +27,8 @@ func (cfg *ifaceConfig) desiredState() (addrs map[string]map[string]bool, manage
 			}
 			osName := name
 			if u.VLANID > 0 {
-				osName = fmt.Sprintf("%s.%d", name, u.VLANID)
+				var bName textbuf.Buffer
+				osName = bName.Reset().Str(name).Byte('.').Int(int64(u.VLANID)).String()
 				managed[osName] = true
 			}
 			if addrs[osName] == nil {
@@ -108,7 +110,8 @@ func currentAddrSet(infos []InterfaceInfo) map[string]map[string]bool {
 		}
 		m := make(map[string]bool, len(infos[i].Addresses))
 		for _, a := range infos[i].Addresses {
-			cidr := fmt.Sprintf("%s/%d", a.Address, a.PrefixLength)
+			var bCidr textbuf.Buffer
+			cidr := bCidr.Reset().Str(a.Address).Byte('/').Int(int64(a.PrefixLength)).String()
 			m[cidr] = true
 		}
 		result[infos[i].Name] = m
@@ -327,7 +330,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			}
 			return b.DeleteInterface(e.Name)
 		}); err != nil {
-			return record(fmt.Sprintf("dummy %s create", e.Name), err)
+			return record("dummy "+e.Name+" create", err)
 		}
 	}
 	for _, e := range cfg.Veth {
@@ -354,7 +357,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			}
 			return b.DeleteInterface(e.Name)
 		}); err != nil {
-			return record(fmt.Sprintf("veth %s create", e.Name), err)
+			return record("veth "+e.Name+" create", err)
 		}
 	}
 	previousTunnelSpecs := indexTunnelSpecs(previous)
@@ -392,7 +395,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 				}
 				return b.CreateTunnel(prev)
 			}); err != nil {
-				return record(fmt.Sprintf("tunnel %s delete before recreate", e.Name), err)
+				return record("tunnel "+e.Name+" delete before recreate", err)
 			}
 		}
 		created := false
@@ -408,7 +411,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			}
 			return b.DeleteInterface(e.Name)
 		}); err != nil {
-			return record(fmt.Sprintf("tunnel %s create", e.Name), err)
+			return record("tunnel "+e.Name+" create", err)
 		}
 	}
 	previousWireguardSpecs := indexWireguardSpecs(previous)
@@ -449,7 +452,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 				}
 				return b.DeleteInterface(e.Name)
 			}); err != nil {
-				return record(fmt.Sprintf("wireguard %s create", e.Name), err)
+				return record("wireguard "+e.Name+" create", err)
 			}
 		}
 		// Whether newly created or spec-changed, push the full desired
@@ -466,7 +469,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			}
 			return b.ConfigureWireguardDevice(prev)
 		}); err != nil {
-			return record(fmt.Sprintf("wireguard %s configure", e.Name), err)
+			return record("wireguard "+e.Name+" configure", err)
 		}
 	}
 	for _, e := range cfg.Bridge {
@@ -489,7 +492,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			}
 			return b.DeleteInterface(e.Name)
 		}); err != nil {
-			return record(fmt.Sprintf("bridge %s create", e.Name), err)
+			return record("bridge "+e.Name+" create", err)
 		}
 		oldSTP := !e.STP
 		if err := applyBackendStep(journal, func() error {
@@ -497,7 +500,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		}, func() error {
 			return b.BridgeSetSTP(e.Name, oldSTP)
 		}); err != nil {
-			return record(fmt.Sprintf("bridge %s stp", e.Name), err)
+			return record("bridge "+e.Name+" stp", err)
 		}
 		for _, member := range e.Members {
 			if err := applyBackendStep(journal, func() error {
@@ -505,7 +508,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			}, func() error {
 				return b.BridgeDelPort(member)
 			}); err != nil {
-				return record(fmt.Sprintf("bridge %s add port %s", e.Name, member), err)
+				return record("bridge "+e.Name+" add port "+member, err)
 			}
 		}
 	}
@@ -544,7 +547,8 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 				}
 				return b.SetMTU(e.Name, oldMTU)
 			}); err != nil {
-				return record(fmt.Sprintf("%s set mtu %d", e.Name, e.MTU), err)
+				var bMtu textbuf.Buffer
+				return record(bMtu.Reset().Str(e.Name).Str(" set mtu ").Int(int64(e.MTU)).String(), err)
 			}
 		}
 		if e.MACAddress != "" {
@@ -557,7 +561,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 				}
 				return b.SetMACAddress(e.Name, oldMAC)
 			}); err != nil {
-				return record(fmt.Sprintf("%s set mac", e.Name), err)
+				return record(e.Name+" set mac", err)
 			}
 		}
 		applyOffloads(e.Name, e.Offload)
@@ -568,7 +572,8 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			}
 			osName := e.Name
 			if u.VLANID > 0 {
-				vlanName := fmt.Sprintf("%s.%d", e.Name, u.VLANID)
+				var bVlan textbuf.Buffer
+				vlanName := bVlan.Reset().Str(e.Name).Byte('.').Int(int64(u.VLANID)).String()
 				created := false
 				if err := applyBackendStep(journal, func() error {
 					if err := b.CreateVLAN(e.Name, u.VLANID); err != nil {
@@ -585,7 +590,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 					}
 					return b.DeleteInterface(vlanName)
 				}); err != nil {
-					return record(fmt.Sprintf("vlan %s create", vlanName), err)
+					return record("vlan "+vlanName+" create", err)
 				}
 				osName = vlanName
 			}
@@ -631,7 +636,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			}
 			return b.SetAdminDown(e.Name)
 		}); err != nil {
-			return record(fmt.Sprintf("%s admin up", e.Name), err)
+			return record(e.Name+" admin up", err)
 		}
 	}
 
@@ -700,7 +705,7 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 			}, func() error {
 				return b.RemoveAddress(osName, addr)
 			}); err != nil {
-				record(fmt.Sprintf("%s add address %s", osName, addr), err)
+				record(osName+" add address "+addr, err)
 				return errs, false
 			}
 		}
@@ -718,7 +723,7 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 			}, func() error {
 				return b.AddAddress(osName, addr)
 			}); err != nil {
-				record(fmt.Sprintf("%s remove stale address %s", osName, addr), err)
+				record(osName+" remove stale address "+addr, err)
 				return errs, false
 			} else {
 				log.Info("iface config: removed stale address", "iface", osName, "addr", addr)
@@ -743,7 +748,7 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 		}, func() error {
 			return recreateManagedInterface(previous, name, b)
 		}); err != nil {
-			record(fmt.Sprintf("delete %s (%s)", name, linkType), err)
+			record("delete "+name+" ("+linkType+")", err)
 			return errs, false
 		} else {
 			log.Info("iface config: deleted interface not in config", "name", name, "type", linkType)
@@ -866,7 +871,8 @@ func recreateManagedVLAN(parent string, units []unitEntry, name string, b Backen
 		if u.Disable || u.VLANID <= 0 {
 			continue
 		}
-		if fmt.Sprintf("%s.%d", parent, u.VLANID) != name {
+		var bCheck textbuf.Buffer
+		if bCheck.Reset().Str(parent).Byte('.').Int(int64(u.VLANID)).String() != name {
 			continue
 		}
 		return b.CreateVLAN(parent, u.VLANID)

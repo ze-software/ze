@@ -42,7 +42,7 @@ func handleBgpPeerClearSoft(ctx *pluginserver.CommandContext, _ []string) (*plug
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid peer address: %s", peer),
+			Data:   "invalid peer address: " + peer,
 		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
 	}
 

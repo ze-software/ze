@@ -5,8 +5,7 @@
 package rib
 
 import (
-	"fmt"
-
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/graph"
 )
 
@@ -57,7 +56,8 @@ func (gt *graphTerminal) drain() {
 	}
 
 	if len(g.Nodes) > graph.MaxNodes {
-		gt.meta.JSON = fmt.Sprintf("graph too many nodes (%d, limit %d)\n", len(g.Nodes), graph.MaxNodes)
+		var b textbuf.Buffer
+		gt.meta.JSON = b.Reset().Str("graph too many nodes (").Int(int64(len(g.Nodes))).Str(", limit ").Int(int64(graph.MaxNodes)).Str(")\n").String()
 		return
 	}
 

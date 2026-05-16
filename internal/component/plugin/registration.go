@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -48,7 +49,7 @@ func (s PluginStage) String() string {
 	case StageRunning:
 		return "Running"
 	default:
-		return fmt.Sprintf("Unknown(%d)", s)
+		return textbuf.StrIntStr("Unknown(", int64(s), ")")
 	}
 }
 

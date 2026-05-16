@@ -14,6 +14,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // terminalResponse is the JSON envelope returned by the terminal endpoint.
@@ -111,11 +112,11 @@ func terminalFeedback(cmd cliCommand, output string) string {
 	switch cmd.Verb {
 	case verbSet:
 		if len(cmd.Args) >= 2 { //nolint:mnd // set <key> <value>
-			return fmt.Sprintf("set %s = %s", cmd.Args[0], strings.Join(cmd.Args[1:], " "))
+			return "set " + cmd.Args[0] + " = " + strings.Join(cmd.Args[1:], " ")
 		}
 	case verbDelete:
 		if len(cmd.Args) >= 1 {
-			return fmt.Sprintf("deleted %s", cmd.Args[0])
+			return "deleted " + cmd.Args[0]
 		}
 	case verbCommit:
 		if strings.HasPrefix(output, "error") || strings.HasPrefix(output, "commit conflicts") {
@@ -141,7 +142,7 @@ func terminalFeedback(cmd cliCommand, output string) string {
 // using the same cli.ApplyPipeFilter as the SSH CLI.
 func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username string, contextPath []string, cmd cliCommand) (newPath []string, output string) {
 	if !knownCLIVerbs[cmd.Verb] && cmd.Verb != "" {
-		return nil, fmt.Sprintf("unknown command: %s", cmd.Verb)
+		return nil, "unknown command: " + cmd.Verb
 	}
 
 	// Check for pipe in args: split into command args and pipe filters.
@@ -151,7 +152,7 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		filters := cli.ParsePipeFilters(allTokens[pipeIdx+1:])
 		opts, classErr := cli.ClassifyShowPipes(filters)
 		if classErr != nil {
-			return nil, fmt.Sprintf("pipe error: %s", classErr)
+			return nil, "pipe error: " + classErr.Error()
 		}
 
 		newPath, output = executeTerminalNav(schema, viewTree, mgr, username, contextPath, baseCmd)
@@ -174,7 +175,7 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		for _, f := range opts.TextFilters {
 			filtered, err := cli.ApplyPipeFilter(output, f)
 			if err != nil {
-				return newPath, fmt.Sprintf("pipe error: %s", err)
+				return newPath, "pipe error: " + err.Error()
 			}
 			output = filtered
 		}
@@ -186,7 +187,7 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		target := append(append([]string{}, contextPath...), cmd.Args...)
 		if len(target) > 0 {
 			if _, err := walkSchema(schema, target); err != nil {
-				return nil, fmt.Sprintf("invalid path: %s", err)
+				return nil, "invalid path: " + err.Error()
 			}
 		}
 		return target, ""
@@ -208,7 +209,7 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		return nil, executeTerminalCommit(mgr, username)
 	case verbDiscard:
 		if err := mgr.Discard(username); err != nil {
-			return nil, fmt.Sprintf("error: %s", err)
+			return nil, "error: " + err.Error()
 		}
 		return nil, "changes discarded"
 	case verbWho:
@@ -230,13 +231,13 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		return nil, compareTargetAtPath(viewTree, mgr, username, schema, contextPath, target, cli.FmtTree)
 	case verbSave:
 		if err := mgr.SaveDraft(username); err != nil {
-			return nil, fmt.Sprintf("error: %s", err)
+			return nil, "error: " + err.Error()
 		}
 		return nil, "changes saved to draft"
 	case verbHistory:
 		backups, err := mgr.ListBackups(username)
 		if err != nil {
-			return nil, fmt.Sprintf("error: %s", err)
+			return nil, "error: " + err.Error()
 		}
 		if len(backups) == 0 {
 			return nil, "no backups found"
@@ -252,19 +253,20 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		}
 		n, err := strconv.Atoi(cmd.Args[0])
 		if err != nil {
-			return nil, fmt.Sprintf("invalid backup number: %s", cmd.Args[0])
+			return nil, "invalid backup number: " + cmd.Args[0]
 		}
 		backups, bErr := mgr.ListBackups(username)
 		if bErr != nil {
-			return nil, fmt.Sprintf("error: %s", bErr)
+			return nil, "error: " + bErr.Error()
 		}
 		if n < 1 || n > len(backups) {
-			return nil, fmt.Sprintf("backup %d not found (have %d backups)", n, len(backups))
+			var bMsg textbuf.Buffer
+			return nil, bMsg.Reset().Str("backup ").Int(int64(n)).Str(" not found (have ").Int(int64(len(backups))).Str(" backups)").String()
 		}
 		if err := mgr.Rollback(username, backups[n-1].Path); err != nil {
-			return nil, fmt.Sprintf("error: %s", err)
+			return nil, "error: " + err.Error()
 		}
-		return nil, fmt.Sprintf("rolled back to %s", backups[n-1].Path)
+		return nil, "rolled back to " + backups[n-1].Path
 	case verbRename:
 		if len(cmd.Args) < 4 || cmd.Args[len(cmd.Args)-2] != "to" {
 			return nil, "usage: rename <list> <old-name> to <new-name>"
@@ -279,9 +281,9 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		listName := fullPath[len(fullPath)-2]
 		parentPath := fullPath[:len(fullPath)-2]
 		if err := mgr.RenameListEntry(username, parentPath, listName, oldKey, newKey); err != nil {
-			return nil, fmt.Sprintf("error: %s", err)
+			return nil, "error: " + err.Error()
 		}
-		return nil, fmt.Sprintf("renamed %s %s to %s", listName, oldKey, newKey)
+		return nil, "renamed " + listName + " " + oldKey + " to " + newKey
 	case verbCopy:
 		if len(cmd.Args) < 4 || cmd.Args[len(cmd.Args)-2] != "to" {
 			return nil, "usage: copy <list> <source> to <destination>"
@@ -296,36 +298,36 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		listName := fullPath[len(fullPath)-2]
 		parentPath := fullPath[:len(fullPath)-2]
 		if err := mgr.CopyListEntry(username, parentPath, listName, srcKey, dstKey); err != nil {
-			return nil, fmt.Sprintf("error: %s", err)
+			return nil, "error: " + err.Error()
 		}
-		return nil, fmt.Sprintf("copied %s %s to %s", listName, srcKey, dstKey)
+		return nil, "copied " + listName + " " + srcKey + " to " + dstKey
 	case verbInsert:
 		if len(cmd.Args) < 1 {
 			return nil, "usage: insert <path>"
 		}
 		insertPath := append(append([]string{}, contextPath...), cmd.Args...)
 		if err := mgr.CreateEntry(username, insertPath); err != nil {
-			return nil, fmt.Sprintf("error: %s", err)
+			return nil, "error: " + err.Error()
 		}
-		return nil, fmt.Sprintf("inserted entry at %s", strings.Join(cmd.Args, " "))
+		return nil, "inserted entry at " + strings.Join(cmd.Args, " ")
 	case verbDeactivate:
 		if len(cmd.Args) < 1 {
 			return nil, "usage: deactivate <path>"
 		}
 		fullPath := append(append([]string{}, contextPath...), cmd.Args...)
 		if err := mgr.DeactivatePath(username, fullPath); err != nil {
-			return nil, fmt.Sprintf("error: %s", err)
+			return nil, "error: " + err.Error()
 		}
-		return nil, fmt.Sprintf("deactivated %s", strings.Join(cmd.Args, " "))
+		return nil, "deactivated " + strings.Join(cmd.Args, " ")
 	case verbActivate:
 		if len(cmd.Args) < 1 {
 			return nil, "usage: activate <path>"
 		}
 		fullPath := append(append([]string{}, contextPath...), cmd.Args...)
 		if err := mgr.ActivatePath(username, fullPath); err != nil {
-			return nil, fmt.Sprintf("error: %s", err)
+			return nil, "error: " + err.Error()
 		}
-		return nil, fmt.Sprintf("activated %s", strings.Join(cmd.Args, " "))
+		return nil, "activated " + strings.Join(cmd.Args, " ")
 	case verbErrors:
 		return nil, mgr.Compare(username)
 	case verbDisconnect:
@@ -333,9 +335,9 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 			return nil, "usage: disconnect <session-id>"
 		}
 		if err := mgr.DisconnectSession(username, cmd.Args[0]); err != nil {
-			return nil, fmt.Sprintf("error: %s", err)
+			return nil, "error: " + err.Error()
 		}
-		return nil, fmt.Sprintf("disconnected session %s", cmd.Args[0])
+		return nil, "disconnected session " + cmd.Args[0]
 	case verbHelp:
 		return nil, `commands:
   edit <path>          Enter a subsection context
@@ -371,7 +373,7 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 func compareTargetAtPath(committed *config.Tree, mgr *EditorManager, username string, schema *config.Schema, path []string, target, format string) string {
 	baseline, err := compareBaselineTree(committed, mgr, username, schema, target)
 	if err != nil {
-		return fmt.Sprintf("compare %s: %s", compareTargetLabel(target), err)
+		return "compare " + compareTargetLabel(target) + ": " + err.Error()
 	}
 	return compareTreesAtPath(baseline, displayTree(committed, mgr, username), schema, path, format)
 }
@@ -601,14 +603,14 @@ func executeTerminalSet(mgr *EditorManager, username string, contextPath, args [
 	}
 
 	if err := ValidatePathSegments([]string{args[0]}); err != nil {
-		return fmt.Sprintf("error: invalid leaf name: %s", args[0])
+		return "error: invalid leaf name: " + args[0]
 	}
 
 	if err := mgr.SetValue(username, contextPath, args[0], strings.Join(args[1:], " ")); err != nil {
-		return fmt.Sprintf("error: %s", err)
+		return "error: " + err.Error()
 	}
 
-	return fmt.Sprintf("set %s = %s", args[0], strings.Join(args[1:], " "))
+	return "set " + args[0] + " = " + strings.Join(args[1:], " ")
 }
 
 // executeTerminalDelete handles the delete command in terminal mode.
@@ -618,21 +620,21 @@ func executeTerminalDelete(mgr *EditorManager, username string, contextPath, arg
 	}
 
 	if err := ValidatePathSegments([]string{args[0]}); err != nil {
-		return fmt.Sprintf("error: invalid leaf name: %s", args[0])
+		return "error: invalid leaf name: " + args[0]
 	}
 
 	if err := mgr.DeleteValue(username, contextPath, args[0]); err != nil {
-		return fmt.Sprintf("error: %s", err)
+		return "error: " + err.Error()
 	}
 
-	return fmt.Sprintf("deleted %s", args[0])
+	return "deleted " + args[0]
 }
 
 // executeTerminalCommit handles the commit command in terminal mode.
 func executeTerminalCommit(mgr *EditorManager, username string) string {
 	result, err := mgr.Commit(username)
 	if err != nil {
-		return fmt.Sprintf("error: %s", err)
+		return "error: " + err.Error()
 	}
 
 	if len(result.Conflicts) > 0 {

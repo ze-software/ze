@@ -5,7 +5,6 @@
 package reactor
 
 import (
-	"fmt"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
@@ -13,6 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // reportSourceBGP is the report bus source name for BGP-originated issues.
@@ -48,11 +48,12 @@ func raiseNotificationError(dir, peerAddr string, code, subcode uint8) {
 	} else {
 		reportCode = reportCodeNotificationReceived
 	}
+	var b textbuf.Buffer
 	report.RaiseError(
 		reportSourceBGP,
 		reportCode,
 		peerAddr,
-		fmt.Sprintf("BGP NOTIFICATION %s (code %d subcode %d)", dir, code, subcode),
+		b.Reset().Str("BGP NOTIFICATION ").Str(dir).Str(" (code ").Int(int64(code)).Str(" subcode ").Int(int64(subcode)).Str(")").String(),
 		map[string]any{"code": code, "subcode": subcode, "direction": dir},
 	)
 }
@@ -65,7 +66,7 @@ func raiseSessionDropped(peerAddr, reason string) {
 		reportSourceBGP,
 		reportCodeSessionDropped,
 		peerAddr,
-		fmt.Sprintf("BGP session dropped: %s", reason),
+		"BGP session dropped: "+reason,
 		map[string]any{"reason": reason},
 	)
 }
@@ -81,11 +82,12 @@ func prefixThresholdSubject(peerAddr, family string) string {
 // The producer is responsible for hot-path dedup (prefixCounts.warned), so
 // this is called only on the upward edge.
 func raisePrefixThreshold(peerAddr, fam string, count, warning, maximum uint32) {
+	var b textbuf.Buffer
 	report.RaiseWarning(
 		reportSourceBGP,
 		reportCodePrefixThreshold,
 		prefixThresholdSubject(peerAddr, fam),
-		fmt.Sprintf("%s prefix count %d at or above warning threshold %d (max %d)", fam, count, warning, maximum),
+		b.Reset().Str(fam).Str(" prefix count ").Uint32(count).Str(" at or above warning threshold ").Uint32(warning).Str(" (max ").Uint32(maximum).Str(")").String(),
 		map[string]any{
 			"family":  fam,
 			"count":   count,
@@ -115,7 +117,7 @@ func RaisePrefixStale(peerAddr, prefixUpdated string, now time.Time) {
 			reportSourceBGP,
 			reportCodePrefixStale,
 			peerAddr,
-			fmt.Sprintf("prefix data updated %s (>180 days old)", prefixUpdated),
+			"prefix data updated "+prefixUpdated+" (>180 days old)",
 			map[string]any{"updated": prefixUpdated},
 		)
 		return

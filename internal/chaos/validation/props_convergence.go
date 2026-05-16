@@ -3,10 +3,10 @@
 package validation
 
 import (
-	"fmt"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ConvergenceDeadline checks that all announced routes are received by
@@ -45,9 +45,10 @@ func (p *ConvergenceDeadline) Violations() []Violation {
 	slow := p.convergence.CheckDeadline(p.lastTime)
 	violations := make([]Violation, 0, len(slow))
 	for _, s := range slow {
+		var b textbuf.Buffer
 		violations = append(violations, Violation{
 			Property:  p.Name(),
-			Message:   fmt.Sprintf("route %s from peer %d not received by peer %d after %s (deadline %s)", s.Prefix, s.Source, s.Peer, s.Age, p.deadline),
+			Message:   b.Reset().Str("route ").Str(s.Prefix.String()).Str(" from peer ").Int(int64(s.Source)).Str(" not received by peer ").Int(int64(s.Peer)).Str(" after ").Str(s.Age.String()).Str(" (deadline ").Str(p.deadline.String()).Byte(')').String(),
 			PeerIndex: s.Peer,
 			Time:      p.lastTime,
 		})

@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -156,13 +157,14 @@ func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 		}
 	}
 
+	var b textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"results": results,
 			"updated": updated,
 			"total":   len(peers),
-			"message": fmt.Sprintf("updated %d of %d peer(s) -- run 'ze config commit' to apply", updated, len(peers)),
+			"message": b.Reset().Str("updated ").Int(int64(updated)).Str(" of ").Int(int64(len(peers))).Str(" peer(s) -- run 'ze config commit' to apply").String(),
 		},
 	}, nil
 }

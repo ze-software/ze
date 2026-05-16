@@ -20,6 +20,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cache"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -90,7 +91,7 @@ func NewPeeringDB(baseURL string) *PeeringDB {
 // Results are cached for 1h keyed by ASN.
 // Returns an error if the ASN is not found in PeeringDB.
 func (c *PeeringDB) LookupASN(ctx context.Context, asn uint32) (PrefixCounts, error) {
-	key := fmt.Sprintf("prefix:%d", asn)
+	key := "prefix:" + textbuf.Uint32(asn)
 	if cached, ok := c.prefixCache.Get(key); ok {
 		return cached, nil
 	}
@@ -116,7 +117,7 @@ func (c *PeeringDB) LookupASN(ctx context.Context, asn uint32) (PrefixCounts, er
 // Returns an empty slice (not error) if the ASN exists but has no AS-SET registered.
 // Returns an error if the ASN is not found in PeeringDB.
 func (c *PeeringDB) LookupASSet(ctx context.Context, asn uint32) ([]string, error) {
-	key := fmt.Sprintf("asset:%d", asn)
+	key := "asset:" + textbuf.Uint32(asn)
 	if cached, ok := c.asSetCache.Get(key); ok {
 		return cached, nil
 	}
@@ -164,7 +165,7 @@ func parseASSetField(raw string) []string {
 // fetchNetFields queries the PeeringDB net endpoint for the given ASN
 // and returns the first record's fields as a generic map.
 func (c *PeeringDB) fetchNetFields(ctx context.Context, asn uint32) (map[string]any, error) {
-	reqURL := fmt.Sprintf("%s/api/net?asn=%d", c.baseURL, asn)
+	reqURL := c.baseURL + "/api/net?asn=" + textbuf.Uint32(asn)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, http.NoBody)
 	if err != nil {

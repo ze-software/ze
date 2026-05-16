@@ -20,6 +20,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/core/version"
 )
 
@@ -130,15 +131,16 @@ func formatUptime(d time.Duration) string {
 	d -= time.Duration(minutes) * time.Minute
 	seconds := int(d.Seconds())
 
+	var b textbuf.Buffer
 	switch {
 	case days > 0:
-		return fmt.Sprintf("%dd %dh %dm", days, hours, minutes)
+		return b.Reset().Int(int64(days)).Str("d ").Int(int64(hours)).Str("h ").Int(int64(minutes)).Str("m").String()
 	case hours > 0:
-		return fmt.Sprintf("%dh %dm %ds", hours, minutes, seconds)
+		return b.Reset().Int(int64(hours)).Str("h ").Int(int64(minutes)).Str("m ").Int(int64(seconds)).Str("s").String()
 	case minutes > 0:
-		return fmt.Sprintf("%dm %ds", minutes, seconds)
+		return b.Reset().Int(int64(minutes)).Str("m ").Int(int64(seconds)).Str("s").String()
 	default:
-		return fmt.Sprintf("%ds", seconds)
+		return b.Reset().Int(int64(seconds)).Str("s").String()
 	}
 }
 
@@ -216,6 +218,7 @@ func formatBytes(b uint64) string {
 	case b >= kib:
 		return fmt.Sprintf("%.1f KiB", float64(b)/float64(kib))
 	default:
-		return fmt.Sprintf("%d B", b)
+		var buf textbuf.Buffer
+		return buf.Reset().Int(int64(b)).Str(" B").String()
 	}
 }

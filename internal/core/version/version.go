@@ -82,7 +82,7 @@ func Short() string {
 	mu.RLock()
 	v, d := release, buildDate
 	mu.RUnlock()
-	return fmt.Sprintf("ze %s (built %s)", v, d)
+	return "ze " + v + " (built " + d + ")"
 }
 
 // Extended returns multi-line version details including VCS and build metadata.
@@ -132,5 +132,5 @@ func HTTPHeader() string {
 		}
 		parts = append([]string{commit}, parts...)
 	}
-	return fmt.Sprintf("ze/%s (%s)", v, strings.Join(parts, "; "))
+	return "ze/" + v + " (" + strings.Join(parts, "; ") + ")"
 }

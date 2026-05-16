@@ -3,10 +3,10 @@
 package validation
 
 import (
-	"fmt"
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // NoDuplicateRoutes checks that no peer announces the same prefix twice
@@ -41,8 +41,11 @@ func (p *NoDuplicateRoutes) ProcessEvent(ev peer.Event) {
 	case peer.EventRouteSent:
 		if p.announced[ev.PeerIndex][ev.Prefix] {
 			p.violations = append(p.violations, Violation{
-				Property:  p.Name(),
-				Message:   fmt.Sprintf("peer %d announced %s twice without withdrawal", ev.PeerIndex, ev.Prefix),
+				Property: p.Name(),
+				Message: func() string {
+					var b textbuf.Buffer
+					return b.Reset().Str("peer ").Int(int64(ev.PeerIndex)).Str(" announced ").Str(ev.Prefix.String()).Str(" twice without withdrawal").String()
+				}(),
 				PeerIndex: ev.PeerIndex,
 				Time:      ev.Time,
 			})

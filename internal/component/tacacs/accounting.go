@@ -156,7 +156,7 @@ func (a *TacacsAccountant) CommandStart(username, remoteAddr, command string) st
 
 	args := append(splitTacacsArgs(command),
 		"task_id="+taskID,
-		"start_time="+textbuf.Int(time.Now().Unix()),
+		textbuf.StrInt("start_time=", time.Now().Unix()),
 	)
 	req := &AcctRequest{
 		Flags:         AcctFlagStart,
@@ -183,7 +183,7 @@ func (a *TacacsAccountant) CommandStart(username, remoteAddr, command string) st
 func (a *TacacsAccountant) CommandStop(taskID, username, remoteAddr, command string) {
 	stopArgs := append(splitTacacsArgs(command),
 		"task_id="+taskID,
-		"stop_time="+textbuf.Int(time.Now().Unix()),
+		textbuf.StrInt("stop_time=", time.Now().Unix()),
 	)
 	req := &AcctRequest{
 		Flags:         AcctFlagStop,

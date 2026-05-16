@@ -12,9 +12,10 @@
 package filter_modify
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // modifyDef is a named modifier definition loaded from config.
@@ -30,19 +31,19 @@ func buildDelta(setBlock map[string]any) string {
 	var parts []string
 
 	if v, ok := readOptionalUint32(setBlock["local-preference"]); ok {
-		parts = append(parts, fmt.Sprintf("local-preference %d", v))
+		parts = append(parts, textbuf.StrInt("local-preference ", int64(v)))
 	}
 	if v, ok := readOptionalUint32(setBlock["med"]); ok {
-		parts = append(parts, fmt.Sprintf("med %d", v))
+		parts = append(parts, textbuf.StrInt("med ", int64(v)))
 	}
 	if s, ok := setBlock["origin"].(string); ok && s != "" {
-		parts = append(parts, fmt.Sprintf("origin %s", s))
+		parts = append(parts, "origin "+s)
 	}
 	if s, ok := setBlock["next-hop"].(string); ok && s != "" {
-		parts = append(parts, fmt.Sprintf("next-hop %s", s))
+		parts = append(parts, "next-hop "+s)
 	}
 	if v, ok := readOptionalUint32(setBlock["as-path-prepend"]); ok && v >= 1 && v <= 32 {
-		parts = append(parts, fmt.Sprintf("as-path-prepend %d", v))
+		parts = append(parts, textbuf.StrInt("as-path-prepend ", int64(v)))
 	}
 
 	return strings.Join(parts, " ")

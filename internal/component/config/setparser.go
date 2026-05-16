@@ -11,6 +11,8 @@ import (
 	"bufio"
 	"fmt"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -187,7 +189,8 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 
 	if node == nil {
 		if p.preMigration {
-			p.warnings = append(p.warnings, fmt.Sprintf("line %d: unknown field: %s (needs migration)", lineNum, name))
+			var bw textbuf.Buffer
+			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
 		return fmt.Errorf("line %d: unknown field: %s", lineNum, name)
@@ -341,7 +344,8 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 		// errors so that a renamed YANG path can still parse and the
 		// migration step can rewrite it. Mirror the set / delete paths.
 		if p.preMigration {
-			p.warnings = append(p.warnings, fmt.Sprintf("line %d: unknown field: %s (needs migration)", lineNum, name))
+			var bw textbuf.Buffer
+			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
 		return fmt.Errorf("line %d: unknown field: %s", lineNum, name)
@@ -449,7 +453,8 @@ func (p *SetParser) walkAndDelete(tree *Tree, parent Node, tokens []string, line
 	node := resolveSchemaNode(p.schema, parent, name)
 	if node == nil {
 		if p.preMigration {
-			p.warnings = append(p.warnings, fmt.Sprintf("line %d: unknown field: %s (needs migration)", lineNum, name))
+			var bw textbuf.Buffer
+			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
 		return fmt.Errorf("line %d: unknown field: %s", lineNum, name)

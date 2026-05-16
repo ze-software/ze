@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // InterfaceTypes returns the list of interface types available for creation.
@@ -62,7 +63,8 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 
 		addrs := make([]string, 0, len(info.Addresses))
 		for _, a := range info.Addresses {
-			addrs = append(addrs, fmt.Sprintf("%s/%d", a.Address, a.PrefixLength))
+			var bAddr textbuf.Buffer
+			addrs = append(addrs, bAddr.Reset().Str(a.Address).Byte('/').Int(int64(a.PrefixLength)).String())
 		}
 		addrStr := strings.Join(addrs, ", ")
 		if addrStr == "" {
@@ -76,19 +78,19 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 
 		rows = append(rows, WorkbenchTableRow{
 			Key:       info.Name,
-			URL:       fmt.Sprintf("/show/iface/detail/%s", info.Name),
+			URL:       "/show/iface/detail/" + info.Name,
 			Flags:     flags,
 			FlagClass: flagClass,
 			Cells:     []string{info.Name, info.Type, info.State, strconv.Itoa(info.MTU), mac, addrStr},
 			Actions: []WorkbenchRowAction{
-				{Label: "Detail", URL: fmt.Sprintf("/show/iface/detail/%s", info.Name)},
+				{Label: "Detail", URL: "/show/iface/detail/" + info.Name},
 			},
 		})
 	}
 
 	emptyMsg := "No interfaces found."
 	if filterType != "" {
-		emptyMsg = fmt.Sprintf("No %s interfaces found.", filterType)
+		emptyMsg = "No " + filterType + " interfaces found."
 	}
 
 	title := "All Interfaces"
@@ -139,7 +141,7 @@ func BuildInterfaceDetailData(info *iface.InterfaceInfo) WorkbenchDetailData {
 	}
 
 	tools := []WorkbenchDetailTool{
-		{Label: "Clear Counters", HxPost: fmt.Sprintf("/admin/iface/clear-counters/%s", info.Name), Class: "danger", Confirm: "Clear counters for " + info.Name + "?"},
+		{Label: "Clear Counters", HxPost: "/admin/iface/clear-counters/" + info.Name, Class: "danger", Confirm: "Clear counters for " + info.Name + "?"},
 	}
 
 	return WorkbenchDetailData{

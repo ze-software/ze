@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/graph"
 )
 
@@ -85,7 +86,7 @@ func renderGraphText(g *Graph) string {
 	var sb strings.Builder
 	sb.WriteString("mode aspath\n")
 	for _, n := range g.Nodes {
-		label := fmt.Sprintf("AS%d", n.ASN)
+		label := textbuf.StrInt("AS", int64(n.ASN))
 		if n.Name != "" {
 			label += " " + n.Name
 		}

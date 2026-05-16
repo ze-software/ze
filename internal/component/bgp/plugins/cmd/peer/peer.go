@@ -249,7 +249,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 		if !found {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   fmt.Sprintf("unknown peer: %s", peer),
+				Data:   "unknown peer: " + peer,
 			}, fmt.Errorf("unknown peer %s", peer)
 		}
 	}
@@ -259,13 +259,13 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid subcode: %s", args[0]),
+			Data:   "invalid subcode: " + args[0],
 		}, fmt.Errorf("invalid subcode %s: %w", args[0], err)
 	}
 	if code > 255 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid subcode: %s (must be 0-255)", args[0]),
+			Data:   "invalid subcode: " + args[0] + " (must be 0-255)",
 		}, fmt.Errorf("subcode out of range: %d", code)
 	}
 	subcode := uint8(code)
@@ -328,7 +328,7 @@ func preparePeerTree(selector string, nodeTree map[string]any) (*plugin.Response
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid peer address: %s", selector),
+			Data:   "invalid peer address: " + selector,
 		}, fmt.Errorf("invalid peer address %s: %w", selector, err)
 	}
 
@@ -382,7 +382,7 @@ func HandleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid peer address: %s", peer),
+			Data:   "invalid peer address: " + peer,
 		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
 	}
 
@@ -430,7 +430,7 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 	if peer == "*" || peer == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("%s requires specific peer: peer <ip> %s", action, action),
+			Data:   action + " requires specific peer: peer <ip> " + action,
 		}, errNoPeerSpecified
 	}
 
@@ -438,7 +438,7 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid peer address: %s", peer),
+			Data:   "invalid peer address: " + peer,
 		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
 	}
 
@@ -561,7 +561,7 @@ func handlePeerHistory(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 	addr := peers[0].Address.String()
 	transitions := hp.PeerFSMHistory(addr)
 	if transitions == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("no history for peer %s", addr)}, nil
+		return &plugin.Response{Status: plugin.StatusError, Data: "no history for peer " + addr}, nil
 	}
 	out := make([]map[string]any, 0, len(transitions))
 	for i := range transitions {

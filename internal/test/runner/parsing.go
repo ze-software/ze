@@ -334,7 +334,7 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
 		if after, ok := strings.CutPrefix(trimmed, "option=skip-os:value="); ok {
 			for skipOS := range strings.SplitSeq(after, ",") {
 				if strings.TrimSpace(skipOS) == runtime.GOOS {
-					test.SkipReason = fmt.Sprintf("skip-os=%s (current GOOS=%s)", after, runtime.GOOS)
+					test.SkipReason = "skip-os=" + after + " (current GOOS=" + runtime.GOOS + ")"
 					break
 				}
 			}

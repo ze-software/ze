@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // FormatQoS formats an InterfaceQoS for human-readable CLI output.
@@ -62,11 +63,11 @@ func formatClass(b *strings.Builder, c *traffic.TrafficClass) {
 func formatRate(bps uint64) string {
 	switch {
 	case bps >= 1_000_000_000 && bps%1_000_000_000 == 0:
-		return fmt.Sprintf("%dgbit", bps/1_000_000_000)
+		return textbuf.UintStr(bps/1_000_000_000, "gbit")
 	case bps >= 1_000_000 && bps%1_000_000 == 0:
-		return fmt.Sprintf("%dmbit", bps/1_000_000)
+		return textbuf.UintStr(bps/1_000_000, "mbit")
 	case bps >= 1_000 && bps%1_000 == 0:
-		return fmt.Sprintf("%dkbit", bps/1_000)
+		return textbuf.UintStr(bps/1_000, "kbit")
 	}
-	return fmt.Sprintf("%dbit", bps)
+	return textbuf.UintStr(bps, "bit")
 }

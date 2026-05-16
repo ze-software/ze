@@ -8,6 +8,8 @@ import (
 	"io"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // maxPrefixesShown limits prefix lists in failure output to avoid noise.
@@ -153,10 +155,12 @@ func (s *Summary) Write(w io.Writer) int {
 			}
 			var parts []string
 			if len(pf.Missing) > 0 {
-				parts = append(parts, fmt.Sprintf("%d missing", len(pf.Missing)))
+				var bm textbuf.Buffer
+				parts = append(parts, bm.Reset().Int(int64(len(pf.Missing))).Str(" missing").String())
 			}
 			if len(pf.Extra) > 0 {
-				parts = append(parts, fmt.Sprintf("%d extra", len(pf.Extra)))
+				var be textbuf.Buffer
+				parts = append(parts, be.Reset().Int(int64(len(pf.Extra))).Str(" extra").String())
 			}
 			rw.printf("    peer %d: %s (expected %d, have %d)\n",
 				pf.PeerIndex, strings.Join(parts, ", "), pf.ExpectedCount, pf.ActualCount)
@@ -233,10 +237,10 @@ func formatDuration(d time.Duration) string {
 		return "0"
 	}
 	if d < time.Millisecond {
-		return fmt.Sprintf("%dµs", d.Microseconds())
+		return textbuf.IntStr(d.Microseconds(), "µs")
 	}
 	if d < time.Second {
-		return fmt.Sprintf("%dms", d.Milliseconds())
+		return textbuf.IntStr(d.Milliseconds(), "ms")
 	}
 	return d.Truncate(time.Millisecond).String()
 }

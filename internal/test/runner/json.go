@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // JSON envelope type constant.
@@ -232,9 +233,9 @@ func jsonFieldDiff(expected, actual map[string]any, prefix string) string {
 
 		switch {
 		case !inExp && inAct:
-			diffs = append(diffs, fmt.Sprintf("  added:   %s = %s", path, formatJSONValue(actVal)))
+			diffs = append(diffs, "  added:   "+path+" = "+formatJSONValue(actVal))
 		case inExp && !inAct:
-			diffs = append(diffs, fmt.Sprintf("  removed: %s = %s", path, formatJSONValue(expVal)))
+			diffs = append(diffs, "  removed: "+path+" = "+formatJSONValue(expVal))
 		case !reflect.DeepEqual(expVal, actVal):
 			// Both present but different — recurse into nested structures
 			expMap, expIsMap := expVal.(map[string]any)
@@ -251,7 +252,7 @@ func jsonFieldDiff(expected, actual map[string]any, prefix string) string {
 					diffs = append(diffs, nested)
 				}
 			default:
-				diffs = append(diffs, fmt.Sprintf("  changed: %s = %s (expected %s)", path, formatJSONValue(actVal), formatJSONValue(expVal)))
+				diffs = append(diffs, "  changed: "+path+" = "+formatJSONValue(actVal)+" (expected "+formatJSONValue(expVal)+")")
 			}
 		}
 	}
@@ -264,12 +265,12 @@ func jsonSliceDiff(expected, actual []any, path string) string {
 	var diffs []string
 	maxLen := max(len(expected), len(actual))
 	for i := range maxLen {
-		elemPath := fmt.Sprintf("%s[%d]", path, i)
+		elemPath := path + textbuf.StrIntStr("[", int64(i), "]")
 		switch {
 		case i >= len(expected):
-			diffs = append(diffs, fmt.Sprintf("  added:   %s = %s", elemPath, formatJSONValue(actual[i])))
+			diffs = append(diffs, "  added:   "+elemPath+" = "+formatJSONValue(actual[i]))
 		case i >= len(actual):
-			diffs = append(diffs, fmt.Sprintf("  removed: %s = %s", elemPath, formatJSONValue(expected[i])))
+			diffs = append(diffs, "  removed: "+elemPath+" = "+formatJSONValue(expected[i]))
 		case !reflect.DeepEqual(expected[i], actual[i]):
 			expMap, expIsMap := expected[i].(map[string]any)
 			actMap, actIsMap := actual[i].(map[string]any)
@@ -285,7 +286,7 @@ func jsonSliceDiff(expected, actual []any, path string) string {
 					diffs = append(diffs, nested)
 				}
 			default:
-				diffs = append(diffs, fmt.Sprintf("  changed: %s = %s (expected %s)", elemPath, formatJSONValue(actual[i]), formatJSONValue(expected[i])))
+				diffs = append(diffs, "  changed: "+elemPath+" = "+formatJSONValue(actual[i])+" (expected "+formatJSONValue(expected[i])+")")
 			}
 		}
 	}

@@ -251,5 +251,5 @@ func (o *Open) String() string {
 		as = o.ASN4
 	}
 	var b textbuf.Buffer
-	return b.Str("OPEN AS").Uint32(as).Str(" RouterID=").Str(o.RouterID()).Str(" HoldTime=").Uint16(o.HoldTime).String()
+	return b.Reset().Str("OPEN AS").Uint32(as).Str(" RouterID=").Str(o.RouterID()).Str(" HoldTime=").Uint16(o.HoldTime).String()
 }

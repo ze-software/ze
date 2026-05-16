@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/ci"
 	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
 )
@@ -255,7 +256,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 			return errOptionAsnMissingValue
 		}
 		r.Extra["asn"] = value
-		r.Options = append(r.Options, fmt.Sprintf("option=asn:value=%s", value))
+		r.Options = append(r.Options, "option=asn:value="+value)
 
 	case "bind":
 		value := kv["value"]
@@ -263,7 +264,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 			return errOptionBindMissingValue
 		}
 		r.Extra["bind"] = value
-		r.Options = append(r.Options, fmt.Sprintf("option=bind:value=%s", value))
+		r.Options = append(r.Options, "option=bind:value="+value)
 
 	case "timeout":
 		value := kv["value"]
@@ -277,21 +278,21 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		if value == "" {
 			return errOptionTcpConnectionsMissingValue
 		}
-		r.Options = append(r.Options, fmt.Sprintf("option=tcp_connections:value=%s", value))
+		r.Options = append(r.Options, "option=tcp_connections:value="+value)
 
 	case "open":
 		value := kv["value"]
 		if value == "" {
 			return errOptionOpenMissingValue
 		}
-		r.Options = append(r.Options, fmt.Sprintf("option=open:value=%s", value))
+		r.Options = append(r.Options, "option=open:value="+value)
 
 	case "update":
 		value := kv["value"]
 		if value == "" {
 			return errOptionUpdateMissingValue
 		}
-		r.Options = append(r.Options, fmt.Sprintf("option=update:value=%s", value))
+		r.Options = append(r.Options, "option=update:value="+value)
 
 	case "env":
 		varName := kv["var"]
@@ -300,7 +301,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 			return errOptionEnvMissingVar
 		}
 		// Store as KEY=VALUE for environment setting
-		r.EnvVars = append(r.EnvVars, fmt.Sprintf("%s=%s", varName, value))
+		r.EnvVars = append(r.EnvVars, varName+"="+value)
 
 	case "skip-os":
 		value := kv["value"]
@@ -316,7 +317,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		// accumulate; any match skips.
 		for skipOS := range strings.SplitSeq(value, ",") {
 			if strings.TrimSpace(skipOS) == runtime.GOOS {
-				r.SkipReason = fmt.Sprintf("skip-os=%s (current GOOS=%s)", value, runtime.GOOS)
+				r.SkipReason = "skip-os=" + value + " (current GOOS=" + runtime.GOOS + ")"
 				return nil
 			}
 		}
@@ -346,7 +347,8 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 			msg.Raw = rawBytes
 		}
 		// Add to Expects for testpeer (new format).
-		r.Expects = append(r.Expects, fmt.Sprintf("expect=bgp:conn=%d:seq=%d:hex=%s", conn, seq, hexData))
+		var eb textbuf.Buffer
+		r.Expects = append(r.Expects, eb.Reset().Str("expect=bgp:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).Str(":hex=").Str(hexData).String())
 
 	case "json":
 		conn, seq, err := parseConnSeq(kv)
@@ -424,7 +426,8 @@ func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]st
 		}
 		text := kv["text"]
 		// Add to Expects for testpeer (new format).
-		r.Expects = append(r.Expects, fmt.Sprintf("action=notification:conn=%d:seq=%d:text=%s", conn, seq, text))
+		var eb textbuf.Buffer
+		r.Expects = append(r.Expects, eb.Reset().Str("action=notification:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).Str(":text=").Str(text).String())
 
 	case "send":
 		conn, seq, err := parseConnSeq(kv)
@@ -436,7 +439,8 @@ func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]st
 			return errActionSendMissingHex
 		}
 		// Add to Expects for testpeer (new format).
-		r.Expects = append(r.Expects, fmt.Sprintf("action=send:conn=%d:seq=%d:hex=%s", conn, seq, hexData))
+		var eb textbuf.Buffer
+		r.Expects = append(r.Expects, eb.Reset().Str("action=send:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).Str(":hex=").Str(hexData).String())
 
 	case "rewrite":
 		conn, seq, err := parseConnSeq(kv)
@@ -452,7 +456,8 @@ func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]st
 			return errActionRewriteMissingDest
 		}
 		// Add to Expects for testpeer (new format).
-		r.Expects = append(r.Expects, fmt.Sprintf("action=rewrite:conn=%d:seq=%d:source=%s:dest=%s", conn, seq, source, dest))
+		var eb textbuf.Buffer
+		r.Expects = append(r.Expects, eb.Reset().Str("action=rewrite:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).Str(":source=").Str(source).Str(":dest=").Str(dest).String())
 
 	case "sighup":
 		conn, seq, err := parseConnSeq(kv)
@@ -460,7 +465,8 @@ func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]st
 			return fmt.Errorf("action:sighup: %w", err)
 		}
 		// Add to Expects for testpeer (new format).
-		r.Expects = append(r.Expects, fmt.Sprintf("action=sighup:conn=%d:seq=%d", conn, seq))
+		var eb textbuf.Buffer
+		r.Expects = append(r.Expects, eb.Reset().Str("action=sighup:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).String())
 
 	case "sigterm":
 		conn, seq, err := parseConnSeq(kv)
@@ -468,7 +474,8 @@ func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]st
 			return fmt.Errorf("action:sigterm: %w", err)
 		}
 		// Add to Expects for testpeer (new format).
-		r.Expects = append(r.Expects, fmt.Sprintf("action=sigterm:conn=%d:seq=%d", conn, seq))
+		var eb textbuf.Buffer
+		r.Expects = append(r.Expects, eb.Reset().Str("action=sigterm:conn=").Int(int64(conn)).Str(":seq=").Int(int64(seq)).String())
 
 	default:
 		return fmt.Errorf("unknown action type %q", actType)

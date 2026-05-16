@@ -56,6 +56,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errServerNotReady = errors.New("server not ready")
@@ -906,11 +907,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// Register BGP metrics into the injected registry (if set by caller).
 	if r.metricsRegistry != nil {
 		version, _ := pluginserver.GetVersion()
-		routerID := fmt.Sprintf("%d.%d.%d.%d",
-			r.config.RouterID>>24&0xFF, r.config.RouterID>>16&0xFF,
-			r.config.RouterID>>8&0xFF, r.config.RouterID&0xFF)
+		var ridBuf textbuf.Buffer
+		routerID := ridBuf.Reset().Uint(uint64(r.config.RouterID >> 24 & 0xFF)).Byte('.').Uint(uint64(r.config.RouterID >> 16 & 0xFF)).Byte('.').Uint(uint64(r.config.RouterID >> 8 & 0xFF)).Byte('.').Uint(uint64(r.config.RouterID & 0xFF)).String()
 		r.rmetrics = initReactorMetrics(r.metricsRegistry, version,
-			routerID, strconv.FormatUint(uint64(r.config.LocalAS), 10))
+			routerID, textbuf.Uint(uint64(r.config.LocalAS)))
 		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
 		go r.metricsUpdateLoop()
 	}

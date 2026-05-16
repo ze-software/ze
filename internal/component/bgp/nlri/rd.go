@@ -119,7 +119,7 @@ func (rd RouteDistinguisher) String() string {
 	case RDType0:
 		asn := binary.BigEndian.Uint16(rd.Value[:2])
 		assigned := binary.BigEndian.Uint32(rd.Value[2:6])
-		return b.Str("0:").Uint16(asn).Byte(':').Uint32(assigned).String()
+		return b.Reset().Str("0:").Uint16(asn).Byte(':').Uint32(assigned).String()
 	case RDType1:
 		ip := netip.AddrFrom4([4]byte(rd.Value[:4]))
 		assigned := binary.BigEndian.Uint16(rd.Value[4:6])

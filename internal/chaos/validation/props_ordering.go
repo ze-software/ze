@@ -3,9 +3,8 @@
 package validation
 
 import (
-	"fmt"
-
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // MessageOrdering checks that route events only occur after a peer has
@@ -43,9 +42,12 @@ func (p *MessageOrdering) ProcessEvent(ev peer.Event) {
 	case peer.EventRouteSent, peer.EventRouteReceived:
 		if !p.established[ev.PeerIndex] {
 			p.violations = append(p.violations, Violation{
-				Property:  p.Name(),
-				RFC:       p.RFC(),
-				Message:   fmt.Sprintf("peer %d: route event %s before established", ev.PeerIndex, ev.Type),
+				Property: p.Name(),
+				RFC:      p.RFC(),
+				Message: func() string {
+					var b textbuf.Buffer
+					return b.Reset().Str("peer ").Int(int64(ev.PeerIndex)).Str(": route event ").Str(ev.Type.String()).Str(" before established").String()
+				}(),
 				PeerIndex: ev.PeerIndex,
 				Time:      ev.Time,
 			})

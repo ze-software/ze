@@ -151,7 +151,7 @@ func dumpKernelRoutes(args []string, usage string, defaultLimit int) (*plugin.Re
 			if filter != "" {
 				return &plugin.Response{
 					Status: plugin.StatusError,
-					Data:   fmt.Sprintf("too many positional arguments; %s", usage),
+					Data:   "too many positional arguments; " + usage,
 				}, nil
 			}
 			if args[i] != "default" {

@@ -10,7 +10,8 @@ package lg
 import (
 	"fmt"
 	"net/http"
-	"strconv"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // maxGraphNodes caps the number of nodes in the topology graph.
@@ -59,7 +60,7 @@ func (s *LGServer) handleGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.query(fmt.Sprintf("bgp rib show prefix %s", prefix))
+	result := s.query("bgp rib show prefix " + prefix)
 	zeData := parseJSON(result)
 	routes := extractRoutes(zeData)
 
@@ -79,7 +80,7 @@ func (s *LGServer) handleASPathGraph(w http.ResponseWriter, routes []any, format
 		return
 	}
 	if len(graph.Nodes) > maxGraphNodes {
-		writeEmpty(w, format, fmt.Sprintf("Too many ASes (%d) for graph", len(graph.Nodes)))
+		writeEmpty(w, format, textbuf.StrIntStr("Too many ASes (", int64(len(graph.Nodes)), ") for graph"))
 		return
 	}
 
@@ -103,7 +104,7 @@ func (s *LGServer) handleNextHopGraph(w http.ResponseWriter, routes []any, forma
 		return
 	}
 	if len(graph.Nodes) > maxGraphNodes {
-		writeEmpty(w, format, fmt.Sprintf("Too many routers (%d) for graph", len(graph.Nodes)))
+		writeEmpty(w, format, textbuf.StrIntStr("Too many routers (", int64(len(graph.Nodes)), ") for graph"))
 		return
 	}
 
@@ -119,7 +120,7 @@ func (s *LGServer) handleNextHopGraph(w http.ResponseWriter, routes []any, forma
 // decorateGraphNodes resolves ASN names for all graph nodes via the decorator.
 func (s *LGServer) decorateGraphNodes(g *Graph) {
 	for i := range g.Nodes {
-		g.Nodes[i].Name = s.resolveASN(strconv.Itoa(int(g.Nodes[i].ASN)))
+		g.Nodes[i].Name = s.resolveASN(textbuf.Int(int64(g.Nodes[i].ASN)))
 	}
 }
 
@@ -129,9 +130,8 @@ func writeEmpty(w http.ResponseWriter, format, msg string) {
 		writeText(w, msg+"\n")
 		return
 	}
-	writeSVG(w, fmt.Sprintf(
-		`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="50">`+
-			`<text x="10" y="30" font-family="monospace" font-size="14" fill="currentColor">%s</text></svg>`, msg))
+	writeSVG(w, `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="50">`+
+		`<text x="10" y="30" font-family="monospace" font-size="14" fill="currentColor">`+msg+`</text></svg>`)
 }
 
 // writeText writes a plain text response.

@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // PortRange holds a range of ports for testing.
@@ -32,7 +34,8 @@ func (p PortRange) End() int {
 
 // String returns a human-readable representation.
 func (p PortRange) String() string {
-	return fmt.Sprintf("%d-%d", p.Start, p.End()-1)
+	var b textbuf.Buffer
+	return b.Reset().Int(int64(p.Start)).Byte('-').Int(int64(p.End() - 1)).String()
 }
 
 // Release drops the advisory port locks. It is safe to call more than once.
@@ -76,7 +79,7 @@ func isPortRangeFree(start, count int) bool {
 	}()
 
 	for port := start; port < start+count; port++ {
-		ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port)) //nolint:noctx // port probing, no context needed
+		ln, err := net.Listen("tcp", textbuf.StrInt("127.0.0.1:", int64(port))) //nolint:noctx // port probing, no context needed
 		if err != nil {
 			return false // Port in use
 		}
@@ -117,7 +120,7 @@ func ReservePorts(base, count int) (*PortReservation, bool, error) {
 
 // CheckPortAvailable checks if a single port is available.
 func CheckPortAvailable(port int) bool {
-	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port)) //nolint:noctx // port probing, no context needed
+	ln, err := net.Listen("tcp", textbuf.StrInt("127.0.0.1:", int64(port))) //nolint:noctx // port probing, no context needed
 	if err != nil {
 		return false
 	}
@@ -175,7 +178,7 @@ func reservePortLocks(start, count int) (*PortReservation, bool, error) {
 		files:     make([]*os.File, 0, count),
 	}
 	for port := start; port < start+count; port++ {
-		path := filepath.Join(lockDir, fmt.Sprintf("%d.lock", port))
+		path := filepath.Join(lockDir, textbuf.IntStr(int64(port), ".lock"))
 		f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600) //nolint:gosec // path is lockDir (TempDir constant) + integer port number
 		if err != nil {
 			reservation.Release()

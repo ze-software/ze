@@ -7,7 +7,6 @@ package rib
 
 import (
 	"encoding/json"
-	"fmt"
 	"sort"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
@@ -244,11 +243,11 @@ func parseBestPipelineArgs(args []string) ([]pipelineStage, string) {
 
 		if filterKeywords[keyword] {
 			if sawTerminal {
-				return nil, fmt.Sprintf("filter after terminal: %s", keyword)
+				return nil, "filter after terminal: " + keyword
 			}
 			i++
 			if i >= len(args) {
-				return nil, fmt.Sprintf("%s requires a value", keyword)
+				return nil, keyword + " requires a value"
 			}
 			if keyword == filterPath {
 				if errMsg := validatePathPattern(args[i]); errMsg != "" {
@@ -270,7 +269,7 @@ func parseBestPipelineArgs(args []string) ([]pipelineStage, string) {
 			continue
 		}
 
-		return nil, fmt.Sprintf("unknown keyword: %s", keyword)
+		return nil, "unknown keyword: " + keyword
 	}
 	return stages, ""
 }

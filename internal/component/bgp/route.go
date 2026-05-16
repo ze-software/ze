@@ -12,11 +12,11 @@ package bgp
 
 import (
 	"encoding/hex"
-	"fmt"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Route represents a stored route with full path attributes.
@@ -70,7 +70,8 @@ func RouteKey(family, prefix string, pathID uint32) string {
 	if pathID == 0 {
 		return family + ":" + prefix
 	}
-	return fmt.Sprintf("%s:%s:%d", family, prefix, pathID)
+	var b textbuf.Buffer
+	return b.Reset().Str(family).Byte(':').Str(prefix).Byte(':').Int(int64(pathID)).String()
 }
 
 // ParseCommunityStrings converts string-form communities ("ASN:Value") to typed values.

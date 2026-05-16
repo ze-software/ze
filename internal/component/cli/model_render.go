@@ -7,13 +7,14 @@
 package cli
 
 import (
-	"fmt"
 	"strings"
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/muesli/reflow/ansi"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // sanitizeForDisplay strips or escapes non-printable characters and ANSI escape
@@ -391,9 +392,9 @@ func (m Model) idleInfoLine() string {
 
 	// Validation indicator
 	if len(m.validationErrors) > 0 {
-		info += errorStyle.Render(fmt.Sprintf(" %d error(s)", len(m.validationErrors)))
+		info += errorStyle.Render(textbuf.StrIntStr(" ", int64(len(m.validationErrors)), " error(s)"))
 	} else if len(m.validationWarnings) > 0 {
-		info += dimStyle.Render(fmt.Sprintf(" %d warning(s)", len(m.validationWarnings)))
+		info += dimStyle.Render(textbuf.StrIntStr(" ", int64(len(m.validationWarnings)), " warning(s)"))
 	}
 
 	info += dimStyle.Render("  (Tab/?: complete, Enter: execute, Esc: quit)")
@@ -682,7 +683,7 @@ func (m Model) renderDropdownBox(availableHeight int) string {
 	}
 
 	if len(m.completions) > maxShow {
-		more := fmt.Sprintf("  ... %d more", len(m.completions)-maxShow)
+		more := textbuf.StrIntStr("  ... ", int64(len(m.completions)-maxShow), " more")
 		for len(more) < innerWidth {
 			more += " "
 		}

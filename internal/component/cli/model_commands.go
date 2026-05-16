@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -310,7 +311,8 @@ func formatValidationErrors(errs []ConfigValidationError) string {
 	if len(errs) == 1 {
 		e := errs[0]
 		if e.Line > 0 {
-			return fmt.Sprintf("line %d: %s", e.Line, e.Message)
+			var b textbuf.Buffer
+			return b.Reset().Str("line ").Int(int64(e.Line)).Str(": ").Str(e.Message).String()
 		}
 		return e.Message
 	}
@@ -351,7 +353,7 @@ func (m *Model) cmdRollback(args []string) (commandResult, error) {
 	m.searchCache = "" // tree changed, invalidate cached set-view
 
 	return commandResult{
-		statusMessage: fmt.Sprintf("Rolled back to %s", backups[n-1].Path),
+		statusMessage: "Rolled back to " + backups[n-1].Path,
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
@@ -398,11 +400,11 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	m.completer.SetTree(m.editor.Tree())
 
 	displayPath := append(append([]string{}, containerPath...), key)
-	msg := fmt.Sprintf("set %s = %s", strings.Join(displayPath, " "), value)
+	msg := "set " + strings.Join(displayPath, " ") + " = " + value
 
 	// Detect conflicts with other users' change files after each edit.
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+		msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
 	}
 
 	return commandResult{
@@ -516,11 +518,11 @@ func (m *Model) cmdDelete(args []string) (commandResult, error) {
 	// Update completer with mutated tree
 	m.completer.SetTree(m.editor.Tree())
 
-	msg := fmt.Sprintf("Deleted %s", strings.Join(fullPath, " "))
+	msg := "Deleted " + strings.Join(fullPath, " ")
 
 	// Detect conflicts with other users' change files after each edit.
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+		msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
 	}
 
 	return commandResult{
@@ -579,9 +581,9 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 				return commandResult{}, fmt.Errorf("%s failed: %w", verb, llErr)
 			}
 			m.completer.SetTree(m.editor.Tree())
-			msg := fmt.Sprintf("%s %s in %s", pastTense, value, leafListName)
+			msg := pastTense + " " + value + " in " + leafListName
 			if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-				msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+				msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
 			}
 			return commandResult{
 				statusMessage: msg,
@@ -617,7 +619,7 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 		if errors.Is(opErr, ErrLeafAlreadyInactive) || errors.Is(opErr, ErrPathAlreadyInactive) ||
 			errors.Is(opErr, ErrLeafNotInactive) || errors.Is(opErr, ErrPathNotInactive) {
 			return commandResult{
-				statusMessage: fmt.Sprintf("%s already %s", strings.Join(fullPath, " "), alreadyState),
+				statusMessage: strings.Join(fullPath, " ") + " already " + alreadyState,
 				configView:    m.configViewAtPath(m.contextPath),
 			}, nil
 		}
@@ -625,9 +627,9 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 	}
 
 	m.completer.SetTree(m.editor.Tree())
-	msg := fmt.Sprintf("%s %s", pastTense, strings.Join(fullPath, " "))
+	msg := pastTense + " " + strings.Join(fullPath, " ")
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+		msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
 	}
 	return commandResult{
 		statusMessage: msg,
@@ -705,13 +707,13 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 	m.completer.SetTree(m.editor.Tree())
 	m.searchCache = ""
 
-	msg := fmt.Sprintf("Inserted %s into %s %s", value, leafListName, position)
+	msg := "Inserted " + value + " into " + leafListName + " " + position
 	if ref != "" {
 		msg += " " + ref
 	}
 
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+		msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
 	}
 
 	return commandResult{
@@ -772,8 +774,9 @@ func (m *Model) cmdCommit() (commandResult, error) {
 	issues = append(issues, result.Errors...)
 	issues = append(issues, result.Warnings...)
 	if len(issues) > 0 {
+		var b textbuf.Buffer
 		return commandResult{
-			statusMessage: fmt.Sprintf("commit blocked: %d issue(s), type 'errors' for details", len(issues)),
+			statusMessage: b.Reset().Str("commit blocked: ").Int(int64(len(issues))).Str(" issue(s), type 'errors' for details").String(),
 			configView:    m.configViewAtPath(m.contextPath),
 		}, nil
 	}
@@ -804,13 +807,13 @@ func (m *Model) cmdCommitForce() (commandResult, error) {
 	result := m.validator.ValidateTransition(m.editor.OriginalContent(), m.editor.WorkingContent())
 	if len(result.Errors) > 0 {
 		return commandResult{
-			statusMessage: fmt.Sprintf("commit blocked: %d error(s), type 'errors' for details", len(result.Errors)),
+			statusMessage: textbuf.StrIntStr("commit blocked: ", int64(len(result.Errors)), " error(s), type 'errors' for details"),
 			configView:    m.configViewAtPath(m.contextPath),
 		}, nil
 	}
 
 	if len(result.Warnings) > 0 {
-		m.statusMessage = fmt.Sprintf("commit force: skipping %d warning(s)", len(result.Warnings))
+		m.statusMessage = textbuf.StrIntStr("commit force: skipping ", int64(len(result.Warnings)), " warning(s)")
 	}
 
 	return m.commitSaveAndReload()
@@ -828,7 +831,7 @@ func (m *Model) commitSaveAndReload() (commandResult, error) {
 	if m.editor.HasArchiveNotifier() {
 		content := []byte(m.editor.WorkingContent())
 		if errs := m.editor.NotifyArchive(content); len(errs) > 0 {
-			archiveMsg = fmt.Sprintf(" (archive: %d error(s))", len(errs))
+			archiveMsg = textbuf.StrIntStr(" (archive: ", int64(len(errs)), " error(s))")
 		}
 	}
 
@@ -851,7 +854,7 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 	issues = append(issues, result.Warnings...)
 	if len(issues) > 0 {
 		return commandResult{
-			statusMessage: fmt.Sprintf("commit blocked: %d issue(s), type 'errors' for details", len(issues)),
+			statusMessage: textbuf.StrIntStr("commit blocked: ", int64(len(issues)), " issue(s), type 'errors' for details"),
 			configView:    m.configViewAtPath(m.contextPath),
 		}, nil
 	}
@@ -875,22 +878,22 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 		b.WriteString("Re-set conflicting values to resolve.")
 		return commandResult{
 			output:        b.String(),
-			statusMessage: fmt.Sprintf("commit blocked: %d conflict(s)", len(commitResult.Conflicts)),
+			statusMessage: textbuf.StrIntStr("commit blocked: ", int64(len(commitResult.Conflicts)), " conflict(s)"),
 		}, nil
 	}
 
 	m.searchCache = "" // tree changed, invalidate cached set-view
 
-	msg := fmt.Sprintf("Session committed: %d change(s) applied", commitResult.Applied)
+	msg := textbuf.StrIntStr("Session committed: ", int64(commitResult.Applied), " change(s) applied")
 	if commitResult.MigrationWarning != "" {
-		msg += fmt.Sprintf(" (warning: %s)", commitResult.MigrationWarning)
+		msg += " (warning: " + commitResult.MigrationWarning + ")"
 	}
 
 	// Archive config to remote locations (best-effort, non-fatal).
 	if m.editor.HasArchiveNotifier() {
 		content := []byte(m.editor.OriginalContent())
 		if errs := m.editor.NotifyArchive(content); len(errs) > 0 {
-			msg += fmt.Sprintf(" (archive: %d error(s))", len(errs))
+			msg += textbuf.StrIntStr(" (archive: ", int64(len(errs)), " error(s))")
 		}
 	}
 
@@ -920,7 +923,7 @@ func (m *Model) cmdDiscardSession(args []string) (commandResult, error) {
 
 	msg := "Session changes discarded"
 	if len(path) > 0 {
-		msg = fmt.Sprintf("Discarded: %s", strings.Join(path, " "))
+		msg = "Discarded: " + strings.Join(path, " ")
 	}
 
 	return commandResult{
@@ -951,7 +954,7 @@ func (m *Model) cmdShowChanges(args []string) (commandResult, error) {
 		}, nil
 	}
 
-	msg := fmt.Sprintf("%d pending", len(changes))
+	msg := textbuf.IntStr(int64(len(changes)), " pending")
 	if len(changes) == 1 {
 		msg += " change"
 	} else {
@@ -979,7 +982,7 @@ func formatChangeEntry(b *strings.Builder, change config.PendingChange) {
 		annotation := "(new)"
 		if change.Previous != "" {
 			marker = '*'
-			annotation = fmt.Sprintf("(was: %s)", change.Previous)
+			annotation = "(was: " + change.Previous + ")"
 		}
 		fmt.Fprintf(b, "  %c set %s %s  %s\n", marker, change.Path, change.Value, annotation)
 	}
@@ -999,13 +1002,13 @@ func (m *Model) cmdShowChangesAll() (commandResult, error) {
 	for _, sid := range sessions {
 		total += len(m.editor.PendingChanges(sid))
 	}
-	msg := fmt.Sprintf("%d pending", total)
+	msg := textbuf.IntStr(int64(total), " pending")
 	if total == 1 {
 		msg += " change"
 	} else {
 		msg += " changes"
 	}
-	msg += fmt.Sprintf(" across %d sessions", len(sessions))
+	msg += textbuf.StrIntStr(" across ", int64(len(sessions)), " sessions")
 	return commandResult{
 		statusMessage: msg,
 		configView:    m.configViewAtPath(m.contextPath),
@@ -1054,7 +1057,7 @@ func (m *Model) cmdDisconnectSession(args []string) (commandResult, error) {
 	}
 
 	return commandResult{
-		statusMessage: fmt.Sprintf("Disconnected session: %s", targetSession),
+		statusMessage: "Disconnected session: " + targetSession,
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
@@ -1187,11 +1190,11 @@ func (m *Model) cmdRename(args []string) (commandResult, error) {
 	m.completer.SetTree(m.editor.Tree())
 	m.searchCache = "" // tree changed, invalidate cached set-view
 
-	msg := fmt.Sprintf("Renamed %s %s to %s", listName, oldKey, newKey)
+	msg := "Renamed " + listName + " " + oldKey + " to " + newKey
 
 	// Detect conflicts with other users' change files after each edit.
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+		msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
 	}
 
 	return commandResult{
@@ -1247,10 +1250,10 @@ func (m *Model) cmdCopy(args []string) (commandResult, error) {
 	m.completer.SetTree(m.editor.Tree())
 	m.searchCache = "" // tree changed, invalidate cached set-view
 
-	msg := fmt.Sprintf("Copied %s %s to %s", listName, srcKey, dstKey)
+	msg := "Copied " + listName + " " + srcKey + " to " + dstKey
 
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+		msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
 	}
 
 	return commandResult{

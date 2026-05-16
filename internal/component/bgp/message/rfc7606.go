@@ -6,10 +6,10 @@ package message
 
 import (
 	"encoding/binary"
-	"fmt"
 	"slices"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // RFC7606Action represents the error handling action per RFC 7606.
@@ -103,19 +103,21 @@ func validateAttributeFlags(code, flags uint8) *RFC7606ValidationResult {
 
 	// Well-known attribute: must NOT be optional
 	if flags&attrFlagOptional != 0 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
-			Description: fmt.Sprintf("RFC 7606 Section 3.c: well-known attribute %d marked as optional", code),
+			Description: b.Reset().Str("RFC 7606 Section 3.c: well-known attribute ").Int(int64(code)).Str(" marked as optional").String(),
 		}
 	}
 
 	// Well-known attribute: must be transitive
 	if flags&attrFlagTransitive == 0 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
-			Description: fmt.Sprintf("RFC 7606 Section 3.c: well-known attribute %d not transitive", code),
+			Description: b.Reset().Str("RFC 7606 Section 3.c: well-known attribute ").Int(int64(code)).Str(" not transitive").String(),
 		}
 	}
 
@@ -219,10 +221,11 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI, isIBGP, asn4 bool) *RFC760
 		if pos+attrLen > len(pathAttrs) {
 			// RFC 7606 Section 4: "attribute length ... exceeds the amount of data"
 			// Structural error — can't continue parsing remaining attributes.
+			var b textbuf.Buffer
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionTreatAsWithdraw,
 				AttrCode:    attrCode,
-				Description: fmt.Sprintf("RFC 7606 Section 4: attribute %d length %d exceeds remaining data", attrCode, attrLen),
+				Description: b.Reset().Str("RFC 7606 Section 4: attribute ").Int(int64(attrCode)).Str(" length ").Int(int64(attrLen)).Str(" exceeds remaining data").String(),
 			}
 		}
 
@@ -333,7 +336,7 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI, isIBGP, asn4 bool) *RFC760
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionSessionReset,
 			AttrCode:    strongestCode,
-			Description: fmt.Sprintf("RFC 7606 Section 5.2: %s (escalated — attrs with no NLRI)", strongestDesc),
+			Description: "RFC 7606 Section 5.2: " + strongestDesc + " (escalated — attrs with no NLRI)",
 		}
 	}
 
@@ -384,17 +387,19 @@ func validateAttribute(code uint8, length int, attrData []byte, isIBGP, asn4 boo
 // RFC 7606 Section 7.1: ORIGIN must be length 1, value 0-2.
 func validateOriginAttr(code uint8, length int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
 	if length != 1 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
-			Description: fmt.Sprintf("RFC 7606 Section 7.1: ORIGIN length %d != 1", length),
+			Description: b.Reset().Str("RFC 7606 Section 7.1: ORIGIN length ").Int(int64(length)).Str(" != 1").String(),
 		}
 	}
 	if len(attrData) > 0 && attrData[0] > 2 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
-			Description: fmt.Sprintf("RFC 7606 Section 7.1: ORIGIN undefined value %d", attrData[0]),
+			Description: b.Reset().Str("RFC 7606 Section 7.1: ORIGIN undefined value ").Int(int64(attrData[0])).String(),
 		}
 	}
 	return nil
@@ -408,10 +413,11 @@ func validateASPathAttr(_ uint8, _ int, attrData []byte, _, asn4 bool) *RFC7606V
 // RFC 7606 Section 7.3: NEXT_HOP must be length 4.
 func validateNextHopAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
 	if length != 4 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
-			Description: fmt.Sprintf("RFC 7606 Section 7.3: NEXT_HOP length %d != 4", length),
+			Description: b.Reset().Str("RFC 7606 Section 7.3: NEXT_HOP length ").Int(int64(length)).Str(" != 4").String(),
 		}
 	}
 	return nil
@@ -420,10 +426,11 @@ func validateNextHopAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606Va
 // RFC 7606 Section 7.4: MED must be length 4.
 func validateMEDAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
 	if length != 4 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
-			Description: fmt.Sprintf("RFC 7606 Section 7.4: MED length %d != 4", length),
+			Description: b.Reset().Str("RFC 7606 Section 7.4: MED length ").Int(int64(length)).Str(" != 4").String(),
 		}
 	}
 	return nil
@@ -440,10 +447,11 @@ func validateLocalPrefAttr(code uint8, length int, _ []byte, isIBGP, _ bool) *RF
 		}
 	}
 	if length != 4 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
-			Description: fmt.Sprintf("RFC 7606 Section 7.5: LOCAL_PREF length %d != 4", length),
+			Description: b.Reset().Str("RFC 7606 Section 7.5: LOCAL_PREF length ").Int(int64(length)).Str(" != 4").String(),
 		}
 	}
 	return nil
@@ -452,11 +460,12 @@ func validateLocalPrefAttr(code uint8, length int, _ []byte, isIBGP, _ bool) *RF
 // RFC 7606 Section 7.6: ATOMIC_AGGREGATE must be length 0 (attribute-discard).
 func validateAtomicAggAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
 	if length != 0 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionAttributeDiscard,
 			AttrCode:    code,
 			Reason:      DiscardReasonInvalidLength,
-			Description: fmt.Sprintf("RFC 7606 Section 7.6: ATOMIC_AGGREGATE length %d != 0", length),
+			Description: b.Reset().Str("RFC 7606 Section 7.6: ATOMIC_AGGREGATE length ").Int(int64(length)).Str(" != 0").String(),
 		}
 	}
 	return nil
@@ -469,11 +478,12 @@ func validateAggregatorAttr(code uint8, length int, _ []byte, _, asn4 bool) *RFC
 		expectedLen = 8
 	}
 	if length != expectedLen {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionAttributeDiscard,
 			AttrCode:    code,
 			Reason:      DiscardReasonInvalidLength,
-			Description: fmt.Sprintf("RFC 7606 Section 7.7: AGGREGATOR length %d, expected %d (asn4=%t)", length, expectedLen, asn4),
+			Description: b.Reset().Str("RFC 7606 Section 7.7: AGGREGATOR length ").Int(int64(length)).Str(", expected ").Int(int64(expectedLen)).Str(" (asn4=").Bool(asn4).Byte(')').String(),
 		}
 	}
 	return nil
@@ -482,10 +492,11 @@ func validateAggregatorAttr(code uint8, length int, _ []byte, _, asn4 bool) *RFC
 // RFC 7606 Section 7.8: Community must be non-zero multiple of 4.
 func validateCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
 	if length == 0 || length%4 != 0 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
-			Description: fmt.Sprintf("RFC 7606 Section 7.8: Community length %d not multiple of 4", length),
+			Description: b.Reset().Str("RFC 7606 Section 7.8: Community length ").Int(int64(length)).Str(" not multiple of 4").String(),
 		}
 	}
 	return nil
@@ -502,10 +513,11 @@ func validateOriginatorIDAttr(code uint8, length int, _ []byte, isIBGP, _ bool) 
 		}
 	}
 	if length != 4 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
-			Description: fmt.Sprintf("RFC 7606 Section 7.9: ORIGINATOR_ID length %d != 4", length),
+			Description: b.Reset().Str("RFC 7606 Section 7.9: ORIGINATOR_ID length ").Int(int64(length)).Str(" != 4").String(),
 		}
 	}
 	return nil
@@ -522,10 +534,11 @@ func validateClusterListAttr(code uint8, length int, _ []byte, isIBGP, _ bool) *
 		}
 	}
 	if length == 0 || length%4 != 0 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
-			Description: fmt.Sprintf("RFC 7606 Section 7.10: CLUSTER_LIST length %d not multiple of 4", length),
+			Description: b.Reset().Str("RFC 7606 Section 7.10: CLUSTER_LIST length ").Int(int64(length)).Str(" not multiple of 4").String(),
 		}
 	}
 	return nil
@@ -534,10 +547,11 @@ func validateClusterListAttr(code uint8, length int, _ []byte, isIBGP, _ bool) *
 // RFC 7606 Section 7.14: Extended Community must be non-zero multiple of 8.
 func validateExtCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
 	if length == 0 || length%8 != 0 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
-			Description: fmt.Sprintf("RFC 7606 Section 7.14: Extended Community length %d not multiple of 8", length),
+			Description: b.Reset().Str("RFC 7606 Section 7.14: Extended Community length ").Int(int64(length)).Str(" not multiple of 8").String(),
 		}
 	}
 	return nil
@@ -546,10 +560,11 @@ func validateExtCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7
 // RFC 8092 Section 5: Large Community must be non-zero multiple of 12.
 func validateLargeCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
 	if length == 0 || length%12 != 0 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
-			Description: fmt.Sprintf("RFC 8092 Section 5: Large Community length %d not multiple of 12", length),
+			Description: b.Reset().Str("RFC 8092 Section 5: Large Community length ").Int(int64(length)).Str(" not multiple of 12").String(),
 		}
 	}
 	return nil
@@ -558,10 +573,11 @@ func validateLargeCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RF
 // RFC 7606 Section 5.3/7.11: MP_REACH_NLRI minimum length 5, next-hop validation.
 func validateMPReachAttr(code uint8, length int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
 	if length < 5 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionSessionReset,
 			AttrCode:    code,
-			Description: fmt.Sprintf("RFC 7606 Section 5.3: MP_REACH_NLRI length %d < 5", length),
+			Description: b.Reset().Str("RFC 7606 Section 5.3: MP_REACH_NLRI length ").Int(int64(length)).Str(" < 5").String(),
 		}
 	}
 	return validateMPReachNextHop(attrData)
@@ -570,10 +586,11 @@ func validateMPReachAttr(code uint8, length int, attrData []byte, _, _ bool) *RF
 // RFC 7606 Section 5.3: MP_UNREACH_NLRI minimum length 3.
 func validateMPUnreachAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
 	if length < 3 {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionSessionReset,
 			AttrCode:    code,
-			Description: fmt.Sprintf("RFC 7606 Section 5.3: MP_UNREACH_NLRI length %d < 3", length),
+			Description: b.Reset().Str("RFC 7606 Section 5.3: MP_UNREACH_NLRI length ").Int(int64(length)).Str(" < 3").String(),
 		}
 	}
 	return nil
@@ -629,10 +646,11 @@ func validateASPath(data []byte, asn4 bool) *RFC7606ValidationResult {
 
 		// RFC 7606 Section 7.2: Validate segment type (1-4 are valid)
 		if segType < asPathTypeASSet || segType > asPathTypeConfedSet {
+			var b textbuf.Buffer
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionTreatAsWithdraw,
 				AttrCode:    attrCodeASPath,
-				Description: fmt.Sprintf("RFC 7606 Section 7.2: unrecognized AS_PATH segment type %d", segType),
+				Description: b.Reset().Str("RFC 7606 Section 7.2: unrecognized AS_PATH segment type ").Int(int64(segType)).String(),
 			}
 		}
 
@@ -648,10 +666,11 @@ func validateASPath(data []byte, asn4 bool) *RFC7606ValidationResult {
 		// RFC 7606 Section 7.2: Check for overrun
 		segDataLen := segLen * asSize
 		if pos+segDataLen > len(data) {
+			var b textbuf.Buffer
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionTreatAsWithdraw,
 				AttrCode:    attrCodeASPath,
-				Description: fmt.Sprintf("RFC 7606 Section 7.2: AS_PATH segment overrun (need %d bytes, have %d)", segDataLen, len(data)-pos),
+				Description: b.Reset().Str("RFC 7606 Section 7.2: AS_PATH segment overrun (need ").Int(int64(segDataLen)).Str(" bytes, have ").Int(int64(len(data) - pos)).Str(")").String(),
 			}
 		}
 		pos += segDataLen
@@ -688,10 +707,11 @@ func validateMPReachNextHop(data []byte) *RFC7606ValidationResult {
 	// Use the shared valid-length table. nil means unknown AFI/SAFI -- be permissive.
 	validLens := attribute.ValidNextHopLens(attribute.AFI(afi), attribute.SAFI(safi))
 	if validLens != nil && !slices.Contains(validLens, nhLen) {
+		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionSessionReset,
 			AttrCode:    attrCodeMPReachNLRI,
-			Description: fmt.Sprintf("RFC 7606 Section 7.11: invalid next-hop length %d for AFI=%d SAFI=%d", nhLen, afi, safi),
+			Description: b.Reset().Str("RFC 7606 Section 7.11: invalid next-hop length ").Int(int64(nhLen)).Str(" for AFI=").Int(int64(afi)).Str(" SAFI=").Int(int64(safi)).String(),
 		}
 	}
 
@@ -727,9 +747,10 @@ func ValidateNLRISyntax(nlri []byte, isIPv6 bool) *RFC7606ValidationResult {
 
 		// RFC 7606 Section 5.3: Prefix length must not exceed max for address family
 		if prefixLen > maxLen {
+			var b textbuf.Buffer
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionTreatAsWithdraw,
-				Description: fmt.Sprintf("RFC 7606 Section 5.3: prefix length %d > %d", prefixLen, maxLen),
+				Description: b.Reset().Str("RFC 7606 Section 5.3: prefix length ").Int(int64(prefixLen)).Str(" > ").Int(int64(maxLen)).String(),
 			}
 		}
 
@@ -741,9 +762,10 @@ func ValidateNLRISyntax(nlri []byte, isIPv6 bool) *RFC7606ValidationResult {
 		// possible ... the 'session reset' approach ... MUST be followed."
 		// Overrun means the field cannot be fully parsed — session-reset required.
 		if pos+prefixBytes > len(nlri) {
+			var b textbuf.Buffer
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionSessionReset,
-				Description: fmt.Sprintf("RFC 7606 Section 5.3/3(j): NLRI overrun (need %d bytes, have %d)", prefixBytes, len(nlri)-pos),
+				Description: b.Reset().Str("RFC 7606 Section 5.3/3(j): NLRI overrun (need ").Int(int64(prefixBytes)).Str(" bytes, have ").Int(int64(len(nlri) - pos)).Str(")").String(),
 			}
 		}
 

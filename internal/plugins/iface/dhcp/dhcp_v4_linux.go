@@ -6,7 +6,6 @@
 package ifacedhcp
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4/nclient4"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // runV4 is the long-lived DHCPv4 worker. It performs DORA (Discover-Offer-
@@ -170,7 +170,8 @@ func (c *DHCPClient) handleV4Lease(ack *dhcpv4.DHCPv4, topic string) {
 			"iface", c.ifaceName, "address", ip.String())
 	}
 
-	cidr := fmt.Sprintf("%s/%d", ip.String(), ones)
+	var bCidr textbuf.Buffer
+	cidr := bCidr.Reset().Str(ip.String()).Byte('/').Int(int64(ones)).String()
 	leaseTime := c.v4LeaseTime(ack)
 	lftSec := int(leaseTime.Seconds())
 
@@ -214,7 +215,8 @@ func (c *DHCPClient) removeV4Addr(ack *dhcpv4.DHCPv4) {
 		ones = 24
 	}
 
-	cidr := fmt.Sprintf("%s/%d", ip.String(), ones)
+	var bCidr textbuf.Buffer
+	cidr := bCidr.Reset().Str(ip.String()).Byte('/').Int(int64(ones)).String()
 
 	if err := iface.RemoveAddress(c.ifaceName, cidr); err != nil {
 		logger.Debug("iface dhcp v4: addr removal failed",

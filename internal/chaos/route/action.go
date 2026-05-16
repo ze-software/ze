@@ -5,7 +5,7 @@
 // behavior (churn, withdrawals) as opposed to chaos (session disruption).
 package route
 
-import "fmt"
+import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 // ActionType identifies the kind of route dynamics event.
 type ActionType int
@@ -30,7 +30,8 @@ func (a ActionType) String() string {
 	case ActionFullWithdraw:
 		return "full-withdraw"
 	default:
-		return fmt.Sprintf("unknown(%d)", a)
+		var b textbuf.Buffer
+		return b.Reset().Str("unknown(").Int(int64(a)).Byte(')').String()
 	}
 }
 

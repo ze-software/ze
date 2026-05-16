@@ -13,6 +13,7 @@ import (
 	mdns "github.com/miekg/dns"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ResolverConfig holds DNS resolver configuration from YANG.
@@ -196,7 +197,8 @@ func extractRecords(resp *mdns.Msg) ([]string, uint32, error) {
 		case *mdns.NS:
 			records = append(records, v.Ns)
 		case *mdns.SRV:
-			records = append(records, fmt.Sprintf("%s:%d", v.Target, v.Port))
+			var bSrv textbuf.Buffer
+			records = append(records, bSrv.Reset().Str(v.Target).Byte(':').Uint16(v.Port).String())
 		}
 	}
 

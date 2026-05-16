@@ -87,7 +87,7 @@ func (t BGPLSNLRIType) String() string {
 		return "srv6-sid"
 	default: // format unknown NLRI types numerically
 		var b textbuf.Buffer
-		return b.Str("type(").Uint16(uint16(t)).Str(")").String()
+		return b.Reset().Str("type(").Uint16(uint16(t)).Str(")").String()
 	}
 }
 
@@ -141,7 +141,7 @@ func (p BGPLSProtocolID) String() string {
 		return "bgp"
 	default: // format unknown protocols numerically
 		var b textbuf.Buffer
-		return b.Str("proto(").Uint8(uint8(p)).Str(")").String()
+		return b.Reset().Str("proto(").Uint8(uint8(p)).Str(")").String()
 	}
 }
 

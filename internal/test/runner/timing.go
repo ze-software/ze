@@ -165,9 +165,9 @@ func FormatTimingLine(suite string, records []*Record, timings Timings, colors *
 		dur := formatDuration(rec.Duration)
 		slow, _ := timings.IsSlow(suite, rec.Name, rec.Duration)
 		if slow {
-			parts = append(parts, fmt.Sprintf("%s:%s", rec.Nick, colors.Yellow(dur+"!")))
+			parts = append(parts, rec.Nick+":"+colors.Yellow(dur+"!"))
 		} else {
-			parts = append(parts, fmt.Sprintf("%s:%s", rec.Nick, dur))
+			parts = append(parts, rec.Nick+":"+dur)
 		}
 	}
 
@@ -175,7 +175,7 @@ func FormatTimingLine(suite string, records []*Record, timings Timings, colors *
 		return ""
 	}
 	const prefix = "timing: " // 8 chars — joinWrap continuation indent matches this
-	return fmt.Sprintf("%s %s", colors.Gray("timing:"), joinWrap(parts, summaryWidth-len(prefix)))
+	return colors.Gray("timing:") + " " + joinWrap(parts, summaryWidth-len(prefix))
 }
 
 // FormatSlowTests returns detail lines for slow tests.
@@ -188,10 +188,7 @@ func FormatSlowTests(suite string, records []*Record, timings Timings, colors *C
 		}
 		slow, expected := timings.IsSlow(suite, rec.Name, rec.Duration)
 		if slow {
-			lines = append(lines, fmt.Sprintf("  %s %s %s (avg %s)",
-				colors.Yellow(rec.Nick), rec.Name,
-				colors.Yellow(formatDuration(rec.Duration)),
-				formatDuration(expected)))
+			lines = append(lines, "  "+colors.Yellow(rec.Nick)+" "+rec.Name+" "+colors.Yellow(formatDuration(rec.Duration))+" (avg "+formatDuration(expected)+")")
 		}
 	}
 	if len(lines) == 0 {

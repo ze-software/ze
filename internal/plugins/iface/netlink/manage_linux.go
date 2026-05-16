@@ -14,6 +14,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // linkTypeBridge is the netlink link type string for bridge interfaces.
@@ -117,7 +118,8 @@ func (b *netlinkBackend) CreateVLAN(parentName string, vlanID int) error {
 	if err != nil {
 		return fmt.Errorf("iface: create vlan: parent %q not found: %w", parentName, err)
 	}
-	vlanName := fmt.Sprintf("%s.%d", parentName, vlanID)
+	var bVlan textbuf.Buffer
+	vlanName := bVlan.Reset().Str(parentName).Byte('.').Int(int64(vlanID)).String()
 	if err := iface.ValidateIfaceName(vlanName); err != nil {
 		return fmt.Errorf("iface: create vlan: composed name too long: %w", err)
 	}

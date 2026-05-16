@@ -11,8 +11,9 @@ package plugin
 
 import (
 	"fmt"
-	"strconv"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Encoding constants for process output formatting.
@@ -148,7 +149,8 @@ type HubServerConfig struct {
 
 // Address returns "host:port" for net.Listen.
 func (s HubServerConfig) Address() string {
-	return s.Host + ":" + strconv.Itoa(int(s.Port))
+	var b textbuf.Buffer
+	return b.Reset().Str(s.Host).Byte(':').Uint16(s.Port).String()
 }
 
 // HubClientConfig holds a hub-level client block (outbound connection).
@@ -162,7 +164,8 @@ type HubClientConfig struct {
 
 // Address returns "host:port" for net.Dial.
 func (c HubClientConfig) Address() string {
-	return c.Host + ":" + strconv.Itoa(int(c.Port))
+	var b textbuf.Buffer
+	return b.Reset().Str(c.Host).Byte(':').Uint16(c.Port).String()
 }
 
 // HubConfig holds plugin transport configuration.

@@ -18,9 +18,9 @@ package attribute
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Errors for attribute parsing and validation.
@@ -93,7 +93,8 @@ func (c AttributeCode) String() string {
 	if name, ok := attrCodeNames[c]; ok {
 		return name
 	}
-	return fmt.Sprintf("UNKNOWN(%d)", c)
+	var b textbuf.Buffer
+	return b.Reset().Str("UNKNOWN(").Int(int64(c)).Byte(')').String()
 }
 
 // AttributeFlags are the attribute flags (RFC 4271 Section 4.3).

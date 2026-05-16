@@ -570,7 +570,7 @@ func (r *AdjRIBInManager) buildReplayCommands(targetPeer string, fromIndex uint6
 // formatHexCommand builds the "update hex" command string from a RawRoute.
 func formatHexCommand(rt *RawRoute) string {
 	var b textbuf.Buffer
-	return b.Str("update hex attr set ").Str(rt.AttrHex).Str(" nhop set ").Str(rt.NHopHex).Str(" nlri ").Str(rt.Family.String()).Str(" add ").Str(rt.NLRIHex).String()
+	return b.Reset().Str("update hex attr set ").Str(rt.AttrHex).Str(" nhop set ").Str(rt.NHopHex).Str(" nlri ").Str(rt.Family.String()).Str(" add ").Str(rt.NLRIHex).String()
 }
 
 // nhopToHex converts a next-hop IP address string to wire hex.

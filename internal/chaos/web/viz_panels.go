@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // vizTab describes a visualization that can appear in a panel slot.
@@ -81,7 +83,7 @@ func (d *Dashboard) handleVizPanelContent(w http.ResponseWriter, r *http.Request
 func panelSelectionsFromRequest(r *http.Request) [maxPanels]string {
 	selections := defaultPanelSelections
 	for i := range maxPanels {
-		if v := r.URL.Query().Get("p" + strconv.Itoa(i)); isValidVizName(v) {
+		if v := r.URL.Query().Get(textbuf.StrInt("p", int64(i))); isValidVizName(v) {
 			selections[i] = v
 		}
 	}

@@ -247,7 +247,7 @@ var knownCLIVerbs = map[string]bool{
 // Returns an error notification for unrecognized verbs.
 func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, contextPath []string, mgr *EditorManager, schema *config.Schema, renderer *Renderer, username string) {
 	if !knownCLIVerbs[cmd.Verb] {
-		writeCLINotification(w, fmt.Sprintf("unknown command: %s", cmd.Verb), "error")
+		writeCLINotification(w, "unknown command: "+cmd.Verb, "error")
 		return
 	}
 
@@ -279,7 +279,7 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 // new breadcrumb + content for the target path.
 func handleCLIEdit(w http.ResponseWriter, contextPath, args []string, schema *config.Schema, renderer *Renderer, mgr *EditorManager, username string) {
 	if err := ValidatePathSegments(args); err != nil {
-		writeCLINotification(w, fmt.Sprintf("invalid path: %s", err), "error")
+		writeCLINotification(w, "invalid path: "+err.Error(), "error")
 		return
 	}
 
@@ -288,7 +288,7 @@ func handleCLIEdit(w http.ResponseWriter, contextPath, args []string, schema *co
 	// Validate the path exists in schema.
 	if len(newPath) > 0 {
 		if _, err := walkSchema(schema, newPath); err != nil {
-			writeCLINotification(w, fmt.Sprintf("invalid path: %s", err), "error")
+			writeCLINotification(w, "invalid path: "+err.Error(), "error")
 			return
 		}
 	}
@@ -296,7 +296,7 @@ func handleCLIEdit(w http.ResponseWriter, contextPath, args []string, schema *co
 	tree := mgr.Tree(username)
 	viewData, err := buildConfigViewData(schema, tree, newPath)
 	if err != nil {
-		writeCLINotification(w, fmt.Sprintf("view error: %s", err), "error")
+		writeCLINotification(w, "view error: "+err.Error(), "error")
 		return
 	}
 
@@ -330,14 +330,14 @@ func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []st
 		lookupPath := config.JoinPath(append(setPath, key)...)
 		if node, err := schema.Lookup(lookupPath); err == nil {
 			if node.Kind() != config.NodeLeaf {
-				writeCLINotification(w, fmt.Sprintf("%s is not a leaf -- did you forget a value?", key), "error")
+				writeCLINotification(w, key+" is not a leaf -- did you forget a value?", "error")
 				return
 			}
 		}
 	}
 
 	if err := mgr.SetValue(username, setPath, key, value); err != nil {
-		writeCLINotification(w, fmt.Sprintf("set error: %s", err), "error")
+		writeCLINotification(w, "set error: "+err.Error(), "error")
 		return
 	}
 
@@ -359,7 +359,7 @@ func handleCLIDelete(w http.ResponseWriter, r *http.Request, contextPath, args [
 	}
 
 	if err := mgr.DeleteValue(username, contextPath, key); err != nil {
-		writeCLINotification(w, fmt.Sprintf("delete error: %s", err), "error")
+		writeCLINotification(w, "delete error: "+err.Error(), "error")
 		return
 	}
 
@@ -385,7 +385,7 @@ func handleCLIWho(w http.ResponseWriter, mgr *EditorManager) {
 // handleCLIShow processes the "show" verb: renders config text in the content area.
 func handleCLIShow(w http.ResponseWriter, contextPath, args []string, renderer *Renderer, mgr *EditorManager, username string) {
 	if err := ValidatePathSegments(args); err != nil {
-		writeCLINotification(w, fmt.Sprintf("invalid path: %s", err), "error")
+		writeCLINotification(w, "invalid path: "+err.Error(), "error")
 		return
 	}
 
@@ -411,7 +411,7 @@ func handleCLITop(w http.ResponseWriter, schema *config.Schema, renderer *Render
 	tree := mgr.Tree(username)
 	viewData, err := buildConfigViewData(schema, tree, nil)
 	if err != nil {
-		writeCLINotification(w, fmt.Sprintf("view error: %s", err), "error")
+		writeCLINotification(w, "view error: "+err.Error(), "error")
 		return
 	}
 
@@ -428,7 +428,7 @@ func handleCLIUp(w http.ResponseWriter, contextPath []string, schema *config.Sch
 	tree := mgr.Tree(username)
 	viewData, err := buildConfigViewData(schema, tree, newPath)
 	if err != nil {
-		writeCLINotification(w, fmt.Sprintf("view error: %s", err), "error")
+		writeCLINotification(w, "view error: "+err.Error(), "error")
 		return
 	}
 
@@ -439,7 +439,7 @@ func handleCLIUp(w http.ResponseWriter, contextPath []string, schema *config.Sch
 func handleCLICommit(w http.ResponseWriter, r *http.Request, mgr *EditorManager, username string) {
 	result, err := mgr.Commit(username)
 	if err != nil {
-		writeCLINotification(w, fmt.Sprintf("commit error: %s", err), "error")
+		writeCLINotification(w, "commit error: "+err.Error(), "error")
 		return
 	}
 
@@ -462,7 +462,7 @@ func handleCLICommit(w http.ResponseWriter, r *http.Request, mgr *EditorManager,
 // handleCLIDiscard processes the "discard" verb.
 func handleCLIDiscard(w http.ResponseWriter, r *http.Request, mgr *EditorManager, username string) {
 	if err := mgr.Discard(username); err != nil {
-		writeCLINotification(w, fmt.Sprintf("discard error: %s", err), "error")
+		writeCLINotification(w, "discard error: "+err.Error(), "error")
 		return
 	}
 

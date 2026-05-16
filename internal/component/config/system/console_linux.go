@@ -8,9 +8,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 
 	"golang.org/x/sys/unix"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var baudRates = map[int]uint32{
@@ -73,7 +74,8 @@ func ApplyConsole(devices []ConsoleDeviceEntry) ConsoleResult {
 			continue
 		}
 
-		result.Applied = append(result.Applied, dev.Name+" at "+strconv.Itoa(dev.Speed))
+		var bApplied textbuf.Buffer
+		result.Applied = append(result.Applied, bApplied.Reset().Str(dev.Name).Str(" at ").Int(int64(dev.Speed)).String())
 	}
 
 	return result

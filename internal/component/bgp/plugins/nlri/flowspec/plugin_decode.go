@@ -161,7 +161,7 @@ func componentToJSON(comp FlowComponent, isIPv6 bool) (string, [][]string) {
 
 	default: // unknown component type — format as type-N
 		var b textbuf.Buffer
-		return b.Str("type-").Uint8(uint8(compType)).String(), [][]string{}
+		return b.Reset().Str("type-").Uint8(uint8(compType)).String(), [][]string{}
 	}
 }
 
@@ -178,7 +178,7 @@ func formatPrefixWithOffset(comp FlowComponent) string {
 	}
 
 	var b textbuf.Buffer
-	return b.Str(prefix).Byte('/').Uint8(offset).String()
+	return b.Reset().Str(prefix).Byte('/').Uint8(offset).String()
 }
 
 // protocolNumberToName maps protocol numbers to names for output.
@@ -335,7 +335,7 @@ func formatBitmaskValue(m FlowMatch, flagMap map[uint8]string) []string {
 
 	if len(names) == 0 {
 		var b textbuf.Buffer
-		return []string{b.Str(prefix).Uint8(flags).String()}
+		return []string{b.Reset().Str(prefix).Uint8(flags).String()}
 	}
 
 	// Prefix only on first flag, rest are bare names

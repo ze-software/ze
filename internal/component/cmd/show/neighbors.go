@@ -53,7 +53,7 @@ func handleShowNeighbors(_ *pluginserver.CommandContext, args []string) (*plugin
 	default:
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("too many arguments; %s", usage),
+			Data:   "too many arguments; " + usage,
 		}, nil
 	}
 

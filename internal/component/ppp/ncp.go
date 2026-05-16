@@ -10,8 +10,9 @@ package ppp
 
 import (
 	"net/netip"
-	"strconv"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // defaultIPTimeout bounds the time between emitting EventIPRequest and
@@ -663,7 +664,7 @@ func ncpSetLength(body []byte, length uint16) {
 // backend call is made (kernel auto-derives link-local). Both emit
 // EventSessionIPAssigned.
 func (s *pppSession) onNCPOpened(family AddressFamily) bool {
-	ifname := "ppp" + strconv.Itoa(s.unitNum)
+	ifname := textbuf.StrInt("ppp", int64(s.unitNum))
 	switch family {
 	case AddressFamilyIPv4:
 		localCIDR := s.localIPv4.String() + "/32"
@@ -704,7 +705,7 @@ func (s *pppSession) teardownNCPResources() {
 	if s.ipcpState != LCPStateOpened {
 		return
 	}
-	ifname := "ppp" + strconv.Itoa(s.unitNum)
+	ifname := textbuf.StrInt("ppp", int64(s.unitNum))
 	peerCIDR := s.peerIPv4.String() + "/32"
 	localCIDR := s.localIPv4.String() + "/32"
 	if err := s.backend.RemoveRoute(ifname, peerCIDR, "", 0); err != nil {

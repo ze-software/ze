@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ControlCommand represents a command from the web dashboard to the orchestrator.
@@ -572,10 +573,10 @@ func FormatDuration(d time.Duration) string {
 		return "0"
 	}
 	if d < time.Millisecond {
-		return fmt.Sprintf("%dµs", d.Microseconds())
+		return textbuf.IntStr(d.Microseconds(), "µs")
 	}
 	if d < time.Second {
-		return fmt.Sprintf("%dms", d.Milliseconds())
+		return textbuf.IntStr(d.Milliseconds(), "ms")
 	}
 	return d.Truncate(time.Millisecond).String()
 }
@@ -584,20 +585,23 @@ func FormatDuration(d time.Duration) string {
 // Less precise than FormatDuration — sub-second precision is noise for elapsed times.
 func FormatElapsed(d time.Duration) string {
 	if d < time.Second {
-		return fmt.Sprintf("%dms", d.Milliseconds())
+		return textbuf.IntStr(d.Milliseconds(), "ms")
 	}
 	s := int(d.Seconds())
 	if s < 60 {
-		return fmt.Sprintf("%ds", s)
+		var b2 textbuf.Buffer
+		return b2.Reset().Int(int64(s)).Str("s").String()
 	}
 	m := s / 60
 	s %= 60
 	if m < 60 {
-		return fmt.Sprintf("%dm%ds", m, s)
+		var b textbuf.Buffer
+		return b.Reset().Int(int64(m)).Str("m").Int(int64(s)).Str("s").String()
 	}
 	h := m / 60
 	m %= 60
-	return fmt.Sprintf("%dh%dm", h, m)
+	var b textbuf.Buffer
+	return b.Reset().Int(int64(h)).Str("h").Int(int64(m)).Str("m").String()
 }
 
 // throughputEMAAlpha is the smoothing factor for the throughput exponential moving average.
@@ -679,7 +683,7 @@ func (s *DashboardState) AggregateThroughput(out bool) float64 {
 func FormatBytes(n int64) string {
 	switch {
 	case n < 1024:
-		return fmt.Sprintf("%d B", n)
+		return textbuf.IntStr(n, " B")
 	case n < 1024*1024:
 		return fmt.Sprintf("%.1f KB", float64(n)/1024)
 	case n < 1024*1024*1024:
@@ -695,7 +699,8 @@ func pctOf(value, total int) string {
 		return "-"
 	}
 	pct := min(value*100/total, 100)
-	return fmt.Sprintf("%d%%", pct)
+	var b textbuf.Buffer
+	return b.Reset().Int(int64(pct)).Byte('%').String()
 }
 
 // FormatBitRate formats a bytes-per-second rate as a human-readable bit rate.

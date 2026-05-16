@@ -111,7 +111,7 @@ func verifyInterface(ifaceName string, iqos traffic.InterfaceQoS) error {
 	// Reject class names that would produce a policer name longer
 	// than VPP's 64-byte limit. Silent truncation there would let
 	// two distinct classes collide on the same name.
-	fullName := fmt.Sprintf("ze/%s/%s", ifaceName, cls.Name)
+	fullName := "ze/" + ifaceName + "/" + cls.Name
 	if len(fullName) > maxPolicerNameLen {
 		return fmt.Errorf("class %q: policer name %q exceeds VPP's %d-byte limit; shorten interface or class name",
 			cls.Name, fullName, maxPolicerNameLen)

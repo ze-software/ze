@@ -7,6 +7,8 @@ package parse
 import (
 	"fmt"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Origin parses a BGP ORIGIN attribute string value.
@@ -41,5 +43,6 @@ func OriginString(v uint8) string {
 	case 2:
 		return "incomplete"
 	}
-	return fmt.Sprintf("unknown(%d)", v)
+	var b textbuf.Buffer
+	return b.Reset().Str("unknown(").Int(int64(v)).Byte(')').String()
 }

@@ -90,6 +90,7 @@ type RouteReflector struct {
 	plugin   *sdk.Plugin
 	peers    map[string]*peerState
 	mu       sync.RWMutex
+	buf      textbuf.Buffer
 	stopping atomic.Bool
 
 	// withdrawalMu protects the withdrawals map.
@@ -189,7 +190,7 @@ func (rr *RouteReflector) forwardUpdate(msgID uint64) {
 	if rr.stopping.Load() {
 		return
 	}
-	rr.updateRoute("*", cacheForwardAllCmd(msgID))
+	rr.updateRoute("*", rr.buf.Reset().Str("cache ").Uint(msgID).Str(" forward *").Slice())
 }
 
 // updateRoute sends a route update command to matching peers via the engine.
@@ -538,22 +539,17 @@ func parseReplayResponse(data string) (lastIndex uint64, replayed int) {
 	return resp.LastIndex, resp.Replayed
 }
 
-func cacheForwardAllCmd(msgID uint64) string {
-	var b textbuf.Buffer
-	return b.Str("cache ").Uint(msgID).Str(" forward *").String()
-}
-
 func replayCmd(peerAddr string, fromIndex uint64) string {
 	var b textbuf.Buffer
-	return b.Str("adj-rib-in replay ").Str(peerAddr).Byte(' ').Uint(fromIndex).String()
+	return b.Reset().Str("adj-rib-in replay ").Str(peerAddr).Byte(' ').Uint(fromIndex).String()
 }
 
 func nlriDelCmd(fam, prefixes string) string {
 	var b textbuf.Buffer
-	return b.Str("update text nlri ").Str(fam).Str(" del ").Str(prefixes).String()
+	return b.Reset().Str("update text nlri ").Str(fam).Str(" del ").Str(prefixes).String()
 }
 
 func rrEORCmd(fam string) string {
 	var b textbuf.Buffer
-	return b.Str("update text nlri ").Str(fam).Str(" eor").String()
+	return b.Reset().Str("update text nlri ").Str(fam).Str(" eor").String()
 }

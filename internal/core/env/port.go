@@ -3,7 +3,11 @@
 
 package env
 
-import "strconv"
+import (
+	"strconv"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
 
 // PortDefault resolves an integer port flag's default value and builds a
 // description string that shows the env var name, the hardcoded default,
@@ -24,9 +28,11 @@ func PortDefault(key string, fallback int, desc string) (int, string) {
 		return val, desc + " (disabled, env: " + key + ")"
 	}
 	if envVal != "" && envVal != strconv.Itoa(fallback) {
-		return val, desc + " (default: " + strconv.Itoa(fallback) + ", configured: " + envVal + " via " + key + ")"
+		var b1 textbuf.Buffer
+		return val, b1.Str(desc).Str(" (default: ").Int(int64(fallback)).Str(", configured: ").Str(envVal).Str(" via ").Str(key).Byte(')').String()
 	}
-	return val, desc + " (default: " + strconv.Itoa(fallback) + ", env: " + key + ")"
+	var b2 textbuf.Buffer
+	return val, b2.Str(desc).Str(" (default: ").Int(int64(fallback)).Str(", env: ").Str(key).Byte(')').String()
 }
 
 // AddrPortDefault resolves a string addr:port flag's default value and builds

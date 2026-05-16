@@ -10,9 +10,12 @@ package message
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"unicode/utf8"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errShutdownMessageContainsInvalidUtf8 = errors.New("shutdown message contains invalid UTF-8")
@@ -155,7 +158,8 @@ func (c NotifyErrorCode) String() string {
 	case NotifySendHoldTimerExpired:
 		return "Send Hold Timer Expired"
 	default: // Unknown codes exist in the wild (vendor extensions)
-		return fmt.Sprintf("Unknown(%d)", c)
+		var bc textbuf.Buffer
+		return bc.Reset().Str("Unknown(").Int(int64(c)).Byte(')').String()
 	}
 }
 
@@ -226,9 +230,9 @@ func UnpackNotification(data []byte) (*Notification, error) {
 func (n *Notification) String() string {
 	subcodeStr := n.subcodeString()
 	if len(n.Data) > 0 {
-		return fmt.Sprintf("%s/%s (data: %x)", n.ErrorCode, subcodeStr, n.Data)
+		return n.ErrorCode.String() + "/" + subcodeStr + " (data: " + hex.EncodeToString(n.Data) + ")"
 	}
-	return fmt.Sprintf("%s/%s", n.ErrorCode, subcodeStr)
+	return n.ErrorCode.String() + "/" + subcodeStr
 }
 
 // Error implements the error interface, allowing *Notification to be returned
@@ -344,7 +348,8 @@ func (n *Notification) subcodeString() string {
 		if n.ErrorSubcode == 0 {
 			return subcodeUnspecific
 		}
-		return fmt.Sprintf("Subcode(%d)", n.ErrorSubcode)
+		var bs textbuf.Buffer
+		return bs.Reset().Str("Subcode(").Int(int64(n.ErrorSubcode)).Byte(')').String()
 	}
 }
 
@@ -361,7 +366,8 @@ func headerSubcodeString(subcode uint8) string {
 	case NotifyHeaderBadType:
 		return "Bad Message Type"
 	default:
-		return fmt.Sprintf("Subcode(%d)", subcode)
+		var bsc textbuf.Buffer
+		return bsc.Reset().Str("Subcode(").Int(int64(subcode)).Byte(')').String()
 	}
 }
 
@@ -378,7 +384,8 @@ func fsmSubcodeString(subcode uint8) string {
 	case NotifyFSMUnexpectedEstablished:
 		return "Receive Unexpected Message in Established State"
 	default:
-		return fmt.Sprintf("Subcode(%d)", subcode)
+		var bsc textbuf.Buffer
+		return bsc.Reset().Str("Subcode(").Int(int64(subcode)).Byte(')').String()
 	}
 }
 
@@ -391,7 +398,8 @@ func routeRefreshSubcodeString(subcode uint8) string {
 	case NotifyRouteRefreshInvalidLength:
 		return "Invalid Message Length"
 	default:
-		return fmt.Sprintf("Subcode(%d)", subcode)
+		var bsc textbuf.Buffer
+		return bsc.Reset().Str("Subcode(").Int(int64(subcode)).Byte(')').String()
 	}
 }
 
@@ -422,7 +430,8 @@ func CeaseSubcodeString(subcode uint8) string {
 	case NotifyCeaseBFDDown:
 		return "BFD Down"
 	default:
-		return fmt.Sprintf("Subcode(%d)", subcode)
+		var bsc textbuf.Buffer
+		return bsc.Reset().Str("Subcode(").Int(int64(subcode)).Byte(')').String()
 	}
 }
 
@@ -445,7 +454,8 @@ func openSubcodeString(subcode uint8) string {
 	case NotifyOpenRoleMismatch:
 		return "Role Mismatch"
 	default:
-		return fmt.Sprintf("Subcode(%d)", subcode)
+		var bsc textbuf.Buffer
+		return bsc.Reset().Str("Subcode(").Int(int64(subcode)).Byte(')').String()
 	}
 }
 
@@ -474,6 +484,7 @@ func updateSubcodeString(subcode uint8) string {
 	case NotifyUpdateMalformedASPath:
 		return "Malformed AS_PATH"
 	default:
-		return fmt.Sprintf("Subcode(%d)", subcode)
+		var bsc textbuf.Buffer
+		return bsc.Reset().Str("Subcode(").Int(int64(subcode)).Byte(')').String()
 	}
 }

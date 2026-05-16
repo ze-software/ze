@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/syslog"
 	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
 )
@@ -205,7 +206,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 	// Start peer (server)
 	peerEnv := append(os.Environ(),
-		fmt.Sprintf("ze_test_bgp_port=%d", rec.Port),
+		textbuf.StrInt("ze_test_bgp_port=", int64(rec.Port)),
 	)
 	peerCmd := exec.CommandContext(testCtx, r.testPath, peerArgs...) //nolint:gosec // test runner, paths from temp dir
 	peerCmd.Env = peerEnv
@@ -262,9 +263,9 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	zeDir := filepath.Dir(r.zePath)
 	existingPath := os.Getenv("PATH")
 	clientEnv := append(os.Environ(),
-		fmt.Sprintf("ze_test_bgp_port=%d", rec.Port),
+		textbuf.StrInt("ze_test_bgp_port=", int64(rec.Port)),
 		// NOTE: ze_bgp_tcp_bind removed - listeners now derived from peer LocalAddress
-		fmt.Sprintf("PATH=%s:%s", zeDir, existingPath),
+		"PATH="+zeDir+":"+existingPath,
 		"SLOG_LEVEL=DEBUG",            // Enable debug logging for tracing
 		"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
 	)
@@ -279,7 +280,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	if syslogSrv != nil {
 		clientEnv = append(clientEnv,
 			"ze.log.backend=syslog",
-			fmt.Sprintf("ze.log.destination=127.0.0.1:%d", syslogSrv.Port()),
+			textbuf.StrInt("ze.log.destination=127.0.0.1:", int64(syslogSrv.Port())),
 		)
 	}
 
@@ -598,15 +599,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		zeDir := filepath.Dir(r.zePath)
 		existingPath := os.Getenv("PATH")
 		proc.Env = append(os.Environ(),
-			fmt.Sprintf("PYTHONPATH=%s", filepath.Join(r.baseDir, "test", "scripts")),
-			fmt.Sprintf("PATH=%s:%s", zeDir, existingPath),
+			"PYTHONPATH="+filepath.Join(r.baseDir, "test", "scripts"),
+			"PATH="+zeDir+":"+existingPath,
 			"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
 		)
 		// Only set ze_test_bgp_port for ze and ze-peer binaries. Other processes
 		// (e.g., ze-chaos --in-process) manage their own port configuration and
 		// the override breaks their mock network setup.
 		if binName == "ze" || binName == binNameZePeer {
-			proc.Env = append(proc.Env, fmt.Sprintf("ze_test_bgp_port=%d", rec.Port))
+			proc.Env = append(proc.Env, textbuf.StrInt("ze_test_bgp_port=", int64(rec.Port)))
 		}
 		// Point ze at the test syslog server when one was started. Uses the
 		// ze.log.backend / ze.log.destination convention from slogutil.go.
@@ -614,7 +615,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		if binName == "ze" && syslogSrv != nil {
 			proc.Env = append(proc.Env,
 				"ze.log.backend=syslog",
-				fmt.Sprintf("ze.log.destination=127.0.0.1:%d", syslogSrv.Port()),
+				textbuf.StrInt("ze.log.destination=127.0.0.1:", int64(syslogSrv.Port())),
 			)
 		}
 		// Add test-specific environment variables (option=env:var=KEY:value=VALUE)
@@ -624,7 +625,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// writing daemon.pid, eliminating a startup race condition.
 		if cmd.Mode == modeForeground && binName == "ze" && rec.TmpfsTempDir != "" {
 			proc.Env = append(proc.Env,
-				fmt.Sprintf("ZE_READY_FILE=%s", filepath.Join(rec.TmpfsTempDir, "daemon.ready")))
+				"ZE_READY_FILE="+filepath.Join(rec.TmpfsTempDir, "daemon.ready"))
 		}
 
 		// Set working directory to tmpfs temp dir if available (for finding tmpfs files)

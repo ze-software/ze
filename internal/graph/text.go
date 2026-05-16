@@ -5,8 +5,9 @@
 package graph
 
 import (
-	"fmt"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // RenderText renders the graph as Unicode box-drawing art on a character grid.
@@ -17,7 +18,8 @@ func RenderText(g *Graph) string {
 	}
 
 	if len(g.Nodes) > MaxNodes {
-		return fmt.Sprintf("graph too many nodes (%d, limit %d)\n", len(g.Nodes), MaxNodes)
+		var b textbuf.Buffer
+		return b.Reset().Str("graph too many nodes (").Int(int64(len(g.Nodes))).Str(", limit ").Int(int64(MaxNodes)).Str(")\n").String()
 	}
 
 	cfg := TextConfig()

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -279,22 +280,25 @@ func (m *probeManager) runProbe(ctx context.Context, rp *runningProbe) {
 func (m *probeManager) dispatchStateAction(ctx context.Context, cfg ProbeConfig, state State) {
 	switch state {
 	case StateUp:
-		cmd := fmt.Sprintf("watchdog announce %s med %d", cfg.Group, cfg.UpMetric)
+		var b textbuf.Buffer
+		cmd := b.Reset().Str("watchdog announce ").Str(cfg.Group).Str(" med ").Int(int64(cfg.UpMetric)).String()
 		m.dispatchCommand(ctx, cfg.Name, cmd)
 	case StateDown:
 		if cfg.WithdrawOnDown {
-			m.dispatchCommand(ctx, cfg.Name, fmt.Sprintf("watchdog withdraw %s", cfg.Group))
+			m.dispatchCommand(ctx, cfg.Name, "watchdog withdraw "+cfg.Group)
 		} else {
-			m.dispatchCommand(ctx, cfg.Name, fmt.Sprintf("watchdog announce %s med %d", cfg.Group, cfg.DownMetric))
+			var b textbuf.Buffer
+			m.dispatchCommand(ctx, cfg.Name, b.Reset().Str("watchdog announce ").Str(cfg.Group).Str(" med ").Int(int64(cfg.DownMetric)).String())
 		}
 	case StateDisabled:
 		if cfg.WithdrawOnDown {
-			m.dispatchCommand(ctx, cfg.Name, fmt.Sprintf("watchdog withdraw %s", cfg.Group))
+			m.dispatchCommand(ctx, cfg.Name, "watchdog withdraw "+cfg.Group)
 		} else {
-			m.dispatchCommand(ctx, cfg.Name, fmt.Sprintf("watchdog announce %s med %d", cfg.Group, cfg.DisabledMetric))
+			var b textbuf.Buffer
+			m.dispatchCommand(ctx, cfg.Name, b.Reset().Str("watchdog announce ").Str(cfg.Group).Str(" med ").Int(int64(cfg.DisabledMetric)).String())
 		}
 	case StateExit:
-		m.dispatchCommand(ctx, cfg.Name, fmt.Sprintf("watchdog withdraw %s", cfg.Group))
+		m.dispatchCommand(ctx, cfg.Name, "watchdog withdraw "+cfg.Group)
 	case StateInit, StateRising, StateFalling, StateEnd:
 		// No watchdog action for intermediate or terminal states.
 	}

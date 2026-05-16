@@ -18,6 +18,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
@@ -568,7 +570,7 @@ func handleShowVersion(_ *pluginserver.CommandContext, _ []string) (*plugin.Resp
 	v, d := pluginserver.GetVersion()
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   fmt.Sprintf("ze %s (built %s)", v, d),
+		Data:   "ze " + v + " (built " + d + ")",
 	}, nil
 }
 
@@ -770,7 +772,7 @@ func showInterfaceBrief() (*plugin.Response, error) {
 			"mtu":   ifaces[i].MTU,
 		}
 		if len(ifaces[i].Addresses) > 0 {
-			row["address"] = ifaces[i].Addresses[0].Address + "/" + strconv.Itoa(ifaces[i].Addresses[0].PrefixLength)
+			row["address"] = ifaces[i].Addresses[0].Address + textbuf.StrInt("/", int64(ifaces[i].Addresses[0].PrefixLength))
 		}
 		rows = append(rows, row)
 	}

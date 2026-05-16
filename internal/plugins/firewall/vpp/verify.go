@@ -374,17 +374,17 @@ func verifyConnState(prefix string, m firewall.MatchConnState) error {
 // tags are descriptive strings stored alongside the ACL; the verifier
 // rejects names whose tag exceeds the 64-byte limit.
 func aclTag(tableName, chainName string) string {
-	return fmt.Sprintf("ze/%s/%s", tableName, chainName)
+	return "ze/" + tableName + "/" + chainName
 }
 
 // natTag builds the VPP NAT static mapping tag from table, chain, and
 // term names. Same 64-byte limit as ACL tags.
 func natTag(tableName, chainName, termName string) string {
-	return fmt.Sprintf("ze/%s/%s/%s", tableName, chainName, termName)
+	return "ze/" + tableName + "/" + chainName + "/" + termName
 }
 
 // classifyPolicerName builds the VPP policer name for classify-backed
 // actions (Limit). Same 64-byte limit as ACL/NAT tags.
 func classifyPolicerName(tableName, chainName, termName string) string {
-	return fmt.Sprintf("ze/fw/%s/%s/%s", tableName, chainName, termName)
+	return "ze/fw/" + tableName + "/" + chainName + "/" + termName
 }

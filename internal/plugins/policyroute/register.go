@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	policyrouteschema "codeberg.org/thomas-mangin/ze/internal/plugins/policyroute/schema"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -268,9 +269,10 @@ func formatPolicies(policies []PolicyRoute) (string, error) {
 			case ActionDrop:
 				action = "drop"
 			case ActionTable:
-				action = fmt.Sprintf("table %d", r.Action.Table)
+				var bAct textbuf.Buffer
+				action = bAct.Reset().Str("table ").Int(int64(r.Action.Table)).String()
 			case ActionNextHop:
-				action = fmt.Sprintf("next-hop %s", r.Action.NextHop)
+				action = "next-hop " + r.Action.NextHop.String()
 			}
 			sp.Rules = append(sp.Rules, showRule{Name: r.Name, Action: action})
 		}

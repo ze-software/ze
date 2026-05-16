@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -159,59 +161,66 @@ func (d *Display) Status() {
 	if d.parallel > 0 && d.parallel < d.total {
 		totalBatches := (d.total + d.parallel - 1) / d.parallel // ceil division
 		currentBatch := min((completed/d.parallel)+1, totalBatches)
-		parts = append(parts, fmt.Sprintf("batch[%d/%d]", currentBatch, totalBatches))
+		var b textbuf.Buffer
+		parts = append(parts, b.Reset().Str("batch[").Int(int64(currentBatch)).Byte('/').Int(int64(totalBatches)).Str("]").String())
 	}
 
 	// Timer: longest running test elapsed vs max timeout of running tests
 	if running > 0 && maxRunningTimeout > 0 {
 		elapsed := int(maxRunningElapsed.Seconds())
 		timeout := int(maxRunningTimeout.Seconds())
-		parts = append(parts, fmt.Sprintf("[%d/%ds]", elapsed, timeout))
+		var b2 textbuf.Buffer
+		parts = append(parts, b2.Reset().Byte('[').Int(int64(elapsed)).Byte('/').Int(int64(timeout)).Str("s]").String())
 	}
 
 	// Passed count
-	parts = append(parts, fmt.Sprintf("%s %d", d.colors.Green("passed"), passed))
+	var bPassed textbuf.Buffer
+	parts = append(parts, bPassed.Reset().Str(d.colors.Green("passed")).Byte(' ').Int(int64(passed)).String())
 
 	// Running count with test names when <= 5
 	if running > 0 {
-		runningStr := fmt.Sprintf("%s %d", d.colors.Cyan("running"), running)
+		var bRunning textbuf.Buffer
+		runningStr := bRunning.Reset().Str(d.colors.Cyan("running")).Byte(' ').Int(int64(running)).String()
 		if running <= 5 && len(runningTests) > 0 {
-			runningStr += fmt.Sprintf(" [%s]", strings.Join(runningTests, ", "))
+			runningStr += " [" + strings.Join(runningTests, ", ") + "]"
 		}
 		parts = append(parts, runningStr)
 	}
 
 	// Failed tests with nick:name
 	if failed > 0 {
-		failedStr := fmt.Sprintf("%s %d", d.colors.Red("failed"), failed)
+		var bFailed textbuf.Buffer
+		failedStr := bFailed.Reset().Str(d.colors.Red("failed")).Byte(' ').Int(int64(failed)).String()
 		if len(failedTests) > 0 {
 			shown := failedTests
 			if len(shown) > 3 {
 				shown = shown[:3]
 			}
-			failedStr += fmt.Sprintf(" [%s]", strings.Join(shown, ", "))
+			failedStr += " [" + strings.Join(shown, ", ") + "]"
 		}
 		parts = append(parts, failedStr)
 	}
 
 	// Timed out tests with nick:name
 	if timedOut > 0 {
-		timedOutStr := fmt.Sprintf("%s %d", d.colors.Yellow("timed out"), timedOut)
+		var bTimeout textbuf.Buffer
+		timedOutStr := bTimeout.Reset().Str(d.colors.Yellow("timed out")).Byte(' ').Int(int64(timedOut)).String()
 		if len(timedOutTests) > 0 {
 			shown := timedOutTests
 			if len(shown) > 3 {
 				shown = shown[:3]
 			}
-			timedOutStr += fmt.Sprintf(" [%s]", strings.Join(shown, ", "))
+			timedOutStr += " [" + strings.Join(shown, ", ") + "]"
 		}
 		parts = append(parts, timedOutStr)
 	}
 
 	// Pending count (show names when <= 5 remaining)
 	if pending > 0 {
-		pendingStr := fmt.Sprintf("%s %d", d.colors.Gray("pending"), pending)
+		var bPending textbuf.Buffer
+		pendingStr := bPending.Reset().Str(d.colors.Gray("pending")).Byte(' ').Int(int64(pending)).String()
 		if pending <= 5 {
-			pendingStr += fmt.Sprintf(" [%s]", strings.Join(pendingTests, ", "))
+			pendingStr += " [" + strings.Join(pendingTests, ", ") + "]"
 		}
 		parts = append(parts, pendingStr)
 	}
@@ -489,7 +498,7 @@ func formatDuration(d time.Duration) string {
 		return "-"
 	}
 	if d < time.Second {
-		return fmt.Sprintf("%dms", d.Milliseconds())
+		return textbuf.IntStr(d.Milliseconds(), "ms")
 	}
 	return fmt.Sprintf("%.1fs", d.Seconds())
 }

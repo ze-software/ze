@@ -710,7 +710,7 @@ func describeProfile(name string) string {
 	if !ok {
 		data, _ := json.Marshal(struct {
 			Error string `json:"error"`
-		}{Error: fmt.Sprintf("unknown profile: %s", name)})
+		}{Error: "unknown profile: " + name})
 		return string(data)
 	}
 

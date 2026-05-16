@@ -115,7 +115,7 @@ func (s *BGPLSSRv6SID) Len() int {
 // Format: srv6-sid protocol <proto> asn <n>.
 func (s *BGPLSSRv6SID) String() string {
 	var b textbuf.Buffer
-	return b.Str("srv6-sid protocol ").Str(s.protocolID.String()).Str(" asn ").Uint32(s.LocalNode.ASN).String()
+	return b.Reset().Str("srv6-sid protocol ").Str(s.protocolID.String()).Str(" asn ").Uint32(s.LocalNode.ASN).String()
 }
 
 // WriteTo writes the SRv6 SID NLRI directly to buf at offset.

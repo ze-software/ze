@@ -56,7 +56,7 @@ func requireArg(args []string, name string) (string, *plugin.Response) {
 	if len(args) == 0 {
 		return "", &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("usage: resolve ... <%s>", name),
+			Data:   "usage: resolve ... <" + name + ">",
 		}
 	}
 	return args[0], nil

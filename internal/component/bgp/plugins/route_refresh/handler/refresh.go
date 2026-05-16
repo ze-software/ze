@@ -67,7 +67,7 @@ func handleRefreshMarker(
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("usage: bgp peer <selector> %s <family>", cmd),
+			Data:   "usage: bgp peer <selector> " + cmd + " <family>",
 		}, errMissingFamily
 	}
 
@@ -76,7 +76,7 @@ func handleRefreshMarker(
 	if !ok {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid family: %s", args[0]),
+			Data:   "invalid family: " + args[0],
 		}, fmt.Errorf("invalid family: %s", args[0])
 	}
 

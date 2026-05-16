@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -646,7 +647,8 @@ func speedTitle(factor int) string {
 	case 1000:
 		return "1000x (1ms/step)"
 	default:
-		return fmt.Sprintf("%dx", factor)
+		var b textbuf.Buffer
+		return b.Reset().Int(int64(factor)).Str("x").String()
 	}
 }
 

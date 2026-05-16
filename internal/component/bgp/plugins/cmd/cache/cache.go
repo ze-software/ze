@@ -70,7 +70,7 @@ func handleBgpCache(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid cache id: %s", args[0]),
+			Data:   "invalid cache id: " + args[0],
 		}, fmt.Errorf("invalid cache id: %w", err)
 	}
 
@@ -86,7 +86,7 @@ func handleBgpCache(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	default: // unknown cache action — return explicit error
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("unknown cache action: %s", action),
+			Data:   "unknown cache action: " + action,
 		}, fmt.Errorf("unknown action: %s", action)
 	}
 }
@@ -258,7 +258,7 @@ func handleBgpCacheBatch(ctx *pluginserver.CommandContext, idList, action string
 		default: // unknown action — reject entire batch
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   fmt.Sprintf("unknown cache action: %s", action),
+				Data:   "unknown cache action: " + action,
 			}, fmt.Errorf("unknown action: %s", action)
 		}
 		if actionErr != nil {

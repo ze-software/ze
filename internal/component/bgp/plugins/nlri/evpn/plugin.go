@@ -534,7 +534,7 @@ func evpnRouteName(t EVPNRouteType) string {
 	case EVPNRouteType5:
 		return "IP Prefix"
 	}
-	return "EVPN Type " + strconv.Itoa(int(t))
+	return textbuf.StrInt("EVPN Type ", int64(t))
 }
 
 // formatESIForJSON formats ESI for JSON output ("-" if zero).
@@ -573,7 +573,7 @@ func formatEVPNTextSingle(result map[string]any) string {
 	n := 0
 	field := func(prefix, val string) {
 		if n > 0 {
-			b.Byte(' ')
+			b.Reset().Byte(' ')
 		}
 		b.Str(prefix).Str(val)
 		n++

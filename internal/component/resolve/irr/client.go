@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cache"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errIrrEmptyAsSetName = errors.New("irr: empty AS-SET name")
@@ -127,7 +128,7 @@ func (c *IRR) resolveASSetRecursive(ctx context.Context, asSet string, seen map[
 	}
 	seen[upper] = true
 
-	response, err := c.query(ctx, fmt.Sprintf("!i%s", asSet))
+	response, err := c.query(ctx, "!i"+asSet)
 	if err != nil {
 		return fmt.Errorf("irr: resolve AS-SET %s: %w", asSet, err)
 	}
@@ -200,7 +201,8 @@ func (c *IRR) LookupPrefixes(ctx context.Context, asSet string) (PrefixList, err
 
 // lookupFamilyPrefixes queries a single address family (4 or 6) for the given AS-SET.
 func (c *IRR) lookupFamilyPrefixes(ctx context.Context, asSet string, family int) ([]netip.Prefix, error) {
-	response, err := c.query(ctx, fmt.Sprintf("!a%d%s", family, asSet))
+	var bQuery textbuf.Buffer
+	response, err := c.query(ctx, bQuery.Reset().Str("!a").Int(int64(family)).Str(asSet).String())
 	if err != nil {
 		return nil, fmt.Errorf("irr: lookup prefixes %s (IPv%d): %w", asSet, family, err)
 	}

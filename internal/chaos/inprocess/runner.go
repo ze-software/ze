@@ -94,7 +94,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	// so per-peer TCP ports are meaningless. Without this, the reactor creates
 	// per-port listeners (tcp:127.0.0.1:1850, etc.) that the runner can't find.
 	for i := range cfg.Profiles {
-		cfg.Profiles[i].Address = netip.MustParseAddr(fmt.Sprintf("127.0.0.%d", 2+i))
+		cfg.Profiles[i].Address = netip.AddrFrom4([4]byte{127, 0, 0, byte(2 + i)})
 		cfg.Profiles[i].Mode = scenario.ModePassive
 		cfg.Profiles[i].ZePort = 0
 	}
@@ -197,7 +197,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 
 		// Wrap reactor end with TCP addresses so handleConnection can do
 		// its *net.TCPAddr type assertion and peer lookup.
-		peerIP := net.ParseIP(fmt.Sprintf("127.0.0.%d", 2+i))
+		peerIP := net.IPv4(127, 0, 0, byte(2+i))
 		remoteTCPAddr := &net.TCPAddr{IP: peerIP, Port: 0}
 		wrappedReactorEnd := mocknet.NewConnWithAddr(reactorEnd, localTCPAddr, remoteTCPAddr)
 
@@ -304,7 +304,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 			if collisionErr != nil {
 				fmt.Fprintf(os.Stderr, "collision reconnect pair: %v\n", collisionErr)
 			} else {
-				peerIP := net.ParseIP(fmt.Sprintf("127.0.0.%d", 2))
+				peerIP := net.IPv4(127, 0, 0, 2)
 				remoteTCPAddr := &net.TCPAddr{IP: peerIP, Port: 0}
 				wrappedEnd := mocknet.NewConnWithAddr(newReactorEnd, localTCPAddr, remoteTCPAddr)
 				ml.QueueConn(wrappedEnd)
@@ -365,7 +365,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 			if reconnErr != nil {
 				fmt.Fprintf(os.Stderr, "delayed reconnect pair: %v\n", reconnErr)
 			} else {
-				peerIP := net.ParseIP(fmt.Sprintf("127.0.0.%d", 2))
+				peerIP := net.IPv4(127, 0, 0, 2)
 				remoteTCPAddr := &net.TCPAddr{IP: peerIP, Port: 0}
 				wrappedEnd := mocknet.NewConnWithAddr(newReactorEnd, localTCPAddr, remoteTCPAddr)
 				ml.QueueConn(wrappedEnd)

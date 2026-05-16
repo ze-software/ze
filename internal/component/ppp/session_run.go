@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Defaults applied per session when StartSession leaves a field zero.
@@ -314,8 +316,7 @@ func (s *pppSession) run(start *StartSession) {
 			if out > echoMax {
 				s.sendEvent(EventSessionDown{
 					TunnelID: s.tunnelID, SessionID: s.sessionID,
-					Reason: "echo timeout: " + strconv.Itoa(int(out)) +
-						" consecutive failures",
+					Reason: textbuf.StrIntStr("echo timeout: ", int64(out), " consecutive failures"),
 				})
 				return
 			}
@@ -403,8 +404,7 @@ func generateMagic() (uint32, error) {
 			return v, nil
 		}
 	}
-	return 0, errors.New("ppp: crypto/rand returned zero " +
-		strconv.Itoa(magicDrawMaxAttempts) + " times")
+	return 0, errors.New(textbuf.StrIntStr("ppp: crypto/rand returned zero ", int64(magicDrawMaxAttempts), " times"))
 }
 
 // fail emits EventSessionDown with the reason and logs at warn.
@@ -464,7 +464,7 @@ func (s *pppSession) afterLCPOpen() bool {
 		s.fail("PPPIOCSMRU: " + err.Error())
 		return false
 	}
-	ifname := "ppp" + strconv.Itoa(s.unitNum)
+	ifname := textbuf.StrInt("ppp", int64(s.unitNum))
 	mtu := max(int(mru)-pppEncapOverhead, minIPMTU)
 	if err := s.backend.SetMTU(ifname, mtu); err != nil {
 		s.fail("iface SetMTU: " + err.Error())
@@ -541,7 +541,7 @@ func (s *pppSession) runAuthPhase() bool {
 	// AuthMethod.String() would itself panic on such a value, so
 	// stringify the numeric code directly to preserve the intent of
 	// "fail cleanly, do not crash the session goroutine."
-	s.fail("auth: unknown method " + strconv.Itoa(int(method)))
+	s.fail(textbuf.StrInt("auth: unknown method ", int64(method)))
 	return false
 }
 

@@ -4,10 +4,11 @@
 package vpp
 
 import (
-	"fmt"
 	"io"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // vppLogPath is the VPP process logfile path used in startup.conf.
@@ -121,7 +122,8 @@ func workerCoreList(mainCore, count uint8) string {
 	if start == end {
 		return strconv.Itoa(start)
 	}
-	return fmt.Sprintf("%d-%d", start, end)
+	var b textbuf.Buffer
+	return b.Reset().Int(int64(start)).Byte('-').Int(int64(end)).String()
 }
 
 // pageSize converts YANG hugepage-size enum to VPP page-size value.
@@ -179,13 +181,13 @@ func (b *confBuilder) flag(name string) {
 func (b *confBuilder) devEntry(iface DPDKInterface) {
 	var parts []string
 	if iface.Name != "" {
-		parts = append(parts, fmt.Sprintf("name %s", iface.Name))
+		parts = append(parts, "name "+iface.Name)
 	}
 	if iface.RxQueues != nil {
-		parts = append(parts, fmt.Sprintf("num-rx-queues %d", *iface.RxQueues))
+		parts = append(parts, textbuf.StrInt("num-rx-queues ", int64(*iface.RxQueues)))
 	}
 	if iface.TxQueues != nil {
-		parts = append(parts, fmt.Sprintf("num-tx-queues %d", *iface.TxQueues))
+		parts = append(parts, textbuf.StrInt("num-tx-queues ", int64(*iface.TxQueues)))
 	}
 	if len(parts) == 0 {
 		b.line("dev " + iface.PCIAddress)

@@ -5,12 +5,12 @@
 package collector
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/prometheus/procfs"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 type softNetPerCPUCollector struct {
@@ -55,7 +55,7 @@ func (c *softNetPerCPUCollector) Collect() error {
 			break
 		}
 		p := c.prev[i]
-		chart := "cpu.cpu" + strconv.Itoa(i) + "_softnet_stat"
+		chart := textbuf.StrIntStr("cpu.cpu", int64(i), "_softnet_stat")
 		family := "softnet"
 
 		c.gauge.With(chart, "processed", family).Set(float64(safeDelta(uint64(s.Processed), uint64(p.Processed))) / secs)

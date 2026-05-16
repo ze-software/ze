@@ -425,7 +425,7 @@ func formatVPNTextSingle(result map[string]any) string {
 	if prefix, ok := result["prefix"].(string); ok && strings.Contains(prefix, ":") {
 		fam = "VPNv6"
 	}
-	b.Str(fam)
+	b.Reset().Str(fam)
 
 	if v, ok := result["rd"].(string); ok {
 		b.Str(" rd=").Str(v)

@@ -120,7 +120,7 @@ func (r *Runner) saveTestOutput(rec *Record, out *testOutput, saveDir string) er
 	}
 
 	// Create test directory (nick-name for easy identification)
-	dirName := fmt.Sprintf("%s-%s", rec.Nick, sanitizeFilename(rec.Name))
+	dirName := rec.Nick + "-" + sanitizeFilename(rec.Name)
 	testDir := filepath.Join(saveDir, dirName)
 	if err := os.MkdirAll(testDir, 0o700); err != nil {
 		return fmt.Errorf("create save dir: %w", err)

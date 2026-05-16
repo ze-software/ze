@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ParseWithMeta parses set-format input with optional metadata prefixes.
@@ -239,7 +241,8 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 	node := resolveSchemaNode(p.schema, parent, name)
 	if node == nil {
 		if p.preMigration {
-			p.warnings = append(p.warnings, fmt.Sprintf("line %d: unknown field: %s (needs migration)", lineNum, name))
+			var bw textbuf.Buffer
+			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
 		return fmt.Errorf("line %d: unknown field: %s", lineNum, name)

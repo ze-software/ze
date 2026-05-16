@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // handleUnknownType handles unknown message types (exabgp-compatible).
@@ -22,7 +23,7 @@ func (s *Session) handleUnknownType(msgType message.MessageType) error {
 	s.mu.RUnlock()
 
 	// ExaBGP format: Message Header Error (1), subcode 0, text message.
-	errMsg := fmt.Sprintf("can not decode update message of type \"%d\"", msgType)
+	errMsg := textbuf.StrIntStr("can not decode update message of type \"", int64(msgType), "\"")
 	s.logNotifyErr(conn,
 		message.NotifyMessageHeader,
 		0, // ExaBGP uses subcode 0

@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Dashboard styles.
@@ -222,7 +224,7 @@ func renderDashboardDetail(ds *dashboardState) string {
 	rate := ds.peerRate(peer.Address)
 
 	var sb strings.Builder
-	sb.WriteString(dashHeaderStyle.Render(fmt.Sprintf("  Peer Detail: %s", peer.Address)))
+	sb.WriteString(dashHeaderStyle.Render("  Peer Detail: " + peer.Address))
 	sb.WriteString("\n\n")
 
 	rows := []struct{ label, value string }{
@@ -248,13 +250,13 @@ func renderDashboardDetail(ds *dashboardState) string {
 		}
 		if timer, ok := d["timer"].(map[string]any); ok {
 			if rht, ok := timer["receive-hold-time"].(float64); ok {
-				rows = append(rows, struct{ label, value string }{"Recv Hold Time", fmt.Sprintf("%ds", int(rht))})
+				rows = append(rows, struct{ label, value string }{"Recv Hold Time", textbuf.IntStr(int64(rht), "s")})
 			}
 			if sht, ok := timer["send-hold-time"].(float64); ok {
-				rows = append(rows, struct{ label, value string }{"Send Hold Time", fmt.Sprintf("%ds", int(sht))})
+				rows = append(rows, struct{ label, value string }{"Send Hold Time", textbuf.IntStr(int64(sht), "s")})
 			}
 			if cr, ok := timer["connect-retry"].(float64); ok {
-				rows = append(rows, struct{ label, value string }{"Connect Retry", fmt.Sprintf("%ds", int(cr))})
+				rows = append(rows, struct{ label, value string }{"Connect Retry", textbuf.IntStr(int64(cr), "s")})
 			}
 		}
 		if conn, ok := d["connect"].(bool); ok {

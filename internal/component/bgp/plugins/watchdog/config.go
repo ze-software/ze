@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	routepkg "codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // parseConfig extracts per-peer watchdog route pools from a BGP config JSON tree.
@@ -304,7 +305,8 @@ func watchdogRouteKey(prefix, rd string, pathID uint32) string {
 	if rd != "" {
 		key = rd + ":" + key
 	}
-	return fmt.Sprintf("%s#%d", key, pathID)
+	var b textbuf.Buffer
+	return b.Reset().Str(key).Byte('#').Int(int64(pathID)).String()
 }
 
 // parseASPath parses space or comma-separated AS numbers.

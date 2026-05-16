@@ -3,8 +3,6 @@
 
 package host
 
-import "fmt"
-
 // TuningConfig holds the desired hardware tuning state extracted from
 // the YANG config tree. Zero-valued fields mean "do not touch".
 type TuningConfig struct {
@@ -41,7 +39,7 @@ type TuningError struct {
 
 // Error implements the error interface.
 func (e TuningError) Error() string {
-	return fmt.Sprintf("tuning %s %s: %s", e.Operation, e.Subject, e.Err)
+	return "tuning " + e.Operation + " " + e.Subject + ": " + e.Err.Error()
 }
 
 // Unwrap returns the underlying error.

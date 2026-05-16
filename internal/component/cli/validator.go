@@ -241,9 +241,9 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 		setPath := strings.ReplaceAll(yangErrs[i].Path, ".", " ")
 		var msg string
 		if yangErrs[i].Type == yang.ErrTypeMissing {
-			msg = fmt.Sprintf("missing required field %q (set %s <value>)", field, setPath)
+			msg = "missing required field \"" + field + "\" (set " + setPath + " <value>)"
 		} else {
-			msg = fmt.Sprintf("%s: %s", field, yangErrs[i].Message)
+			msg = field + ": " + yangErrs[i].Message
 		}
 		severity := severityError
 		if yangErrs[i].Type == yang.ErrTypeMissing {
@@ -310,7 +310,7 @@ func (v *ConfigValidator) validatePeer(peerAddr, groupName string, peerTree, gro
 				}
 				*warns = append(*warns, ConfigValidationError{
 					Line:     findDeepestParentLine(lines, peerAddr, reqPath, peerTree),
-					Message:  fmt.Sprintf("peer %s: missing required field %q (%s)", peerAddr, fieldStr, setHint),
+					Message:  "peer " + peerAddr + ": missing required field \"" + fieldStr + "\" (" + setHint + ")",
 					Severity: severityWarning,
 				})
 			}
@@ -446,15 +446,15 @@ func formatPeerError(peerAddr, field string, yerr yang.ValidationError) string {
 	if yerr.Type == yang.ErrTypeMissing {
 		setPath := strings.ReplaceAll(yerr.Path, ".", " ")
 		setPath = strings.Replace(setPath, "bgp peer", "bgp peer "+peerAddr, 1)
-		return fmt.Sprintf("peer %s: missing required field %q (set %s <value>)", peerAddr, field, setPath)
+		return "peer " + peerAddr + ": missing required field \"" + field + "\" (set " + setPath + " <value>)"
 	}
 	if yerr.Type == yang.ErrTypeEnum {
 		if yerr.Expected != "" {
-			return fmt.Sprintf("peer %s: %q must be one of: %s (got %q)", peerAddr, field, yerr.Expected, yerr.Got)
+			return "peer " + peerAddr + ": \"" + field + "\" must be one of: " + yerr.Expected + " (got \"" + yerr.Got + "\")"
 		}
-		return fmt.Sprintf("peer %s: %q has invalid value %q", peerAddr, field, yerr.Got)
+		return "peer " + peerAddr + ": \"" + field + "\" has invalid value \"" + yerr.Got + "\""
 	}
-	return fmt.Sprintf("peer %s: %q — %s", peerAddr, field, yerr.Message)
+	return "peer " + peerAddr + ": \"" + field + "\" - " + yerr.Message
 }
 
 // findErrorLine returns the source line for a YANG error.
@@ -585,7 +585,7 @@ func (v *ConfigValidator) checkDuplicateRemoteIPs(bgp *config.Tree, lines []stri
 		if firstPeer, exists := seen[ip]; exists {
 			*errs = append(*errs, ConfigValidationError{
 				Line:     findPeerLine(lines, peerName),
-				Message:  fmt.Sprintf("duplicate remote IP %s in peer %s (already used by peer %s)", ip, peerName, firstPeer),
+				Message:  "duplicate remote IP " + ip + " in peer " + peerName + " (already used by peer " + firstPeer + ")",
 				Severity: severityError,
 			})
 			return

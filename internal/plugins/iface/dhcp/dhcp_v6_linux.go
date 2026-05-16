@@ -6,7 +6,6 @@
 package ifacedhcp
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -166,7 +165,7 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 				continue
 			}
 
-			cidr := fmt.Sprintf("%s/128", ip.String())
+			cidr := ip.String() + "/128"
 			validLft := int(iaAddr.ValidLifetime.Seconds())
 			preferredLft := int(iaAddr.PreferredLifetime.Seconds())
 
@@ -262,7 +261,7 @@ func (c *DHCPClient) removeV6Addrs(msg *dhcpv6.Message) {
 			if ip == nil {
 				continue
 			}
-			cidr := fmt.Sprintf("%s/128", ip.String())
+			cidr := ip.String() + "/128"
 			if err := iface.RemoveAddress(c.ifaceName, cidr); err != nil {
 				loggerPtr.Load().Debug("iface dhcp v6: addr removal failed",
 					"iface", c.ifaceName, "addr", cidr, "err", err)

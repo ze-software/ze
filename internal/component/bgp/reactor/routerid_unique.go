@@ -5,11 +5,11 @@ package reactor
 
 import (
 	"encoding/binary"
-	"fmt"
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // routerIDConflictError is returned when a peer's BGP Identifier conflicts
@@ -22,8 +22,8 @@ type routerIDConflictError struct {
 }
 
 func (e *routerIDConflictError) Error() string {
-	return fmt.Sprintf("duplicate router-id %s in AS %d (conflicts with established peer %s)",
-		bgpIDString(e.bgpID), e.peerAS, e.conflictAddr)
+	var b textbuf.Buffer
+	return b.Reset().Str("duplicate router-id ").Str(bgpIDString(e.bgpID)).Str(" in AS ").Int(int64(e.peerAS)).Str(" (conflicts with established peer ").Str(e.conflictAddr.String()).Byte(')').String()
 }
 
 // NotifyCodes returns OPEN Message Error / Bad BGP Identifier.

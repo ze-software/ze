@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func applyTuning(cfg TuningConfig) TuningResult {
@@ -73,7 +75,7 @@ func applyGovernor(governor string, r *TuningResult) {
 			})
 			continue
 		}
-		r.Applied = append(r.Applied, fmt.Sprintf("governor %s=%s", e.Name(), governor))
+		r.Applied = append(r.Applied, "governor "+e.Name()+"="+governor)
 	}
 }
 
@@ -109,7 +111,7 @@ func applyIRQAffinity(cfg IRQAffinityConfig, r *TuningResult) {
 		if writeErr := os.WriteFile(affinityPath, []byte(cfg.CPUs), 0o644); writeErr != nil { //nolint:gosec // procfs path
 			r.Errors = append(r.Errors, TuningError{
 				Operation: "irq-affinity",
-				Subject:   fmt.Sprintf("%s/irq%s", cfg.Interface, irqNum),
+				Subject:   cfg.Interface + "/irq" + irqNum,
 				Err:       writeErr,
 			})
 			continue
@@ -117,7 +119,7 @@ func applyIRQAffinity(cfg IRQAffinityConfig, r *TuningResult) {
 		applied = true
 	}
 	if applied {
-		r.Applied = append(r.Applied, fmt.Sprintf("irq-affinity %s cpus=%s", cfg.Interface, cfg.CPUs))
+		r.Applied = append(r.Applied, "irq-affinity "+cfg.Interface+" cpus="+cfg.CPUs)
 	}
 }
 
@@ -185,5 +187,6 @@ func setEthtoolRing(iface string, rx, tx int) (string, error) {
 	if err := setEthtoolRingParam(fd, iface, rp); err != nil {
 		return "", fmt.Errorf("set ring params %s: %w", iface, err)
 	}
-	return fmt.Sprintf("ethtool-ring %s rx=%d tx=%d", iface, rp.rxPending, rp.txPending), nil
+	var b textbuf.Buffer
+	return b.Reset().Str("ethtool-ring ").Str(iface).Str(" rx=").Int(int64(rp.rxPending)).Str(" tx=").Int(int64(rp.txPending)).String(), nil
 }

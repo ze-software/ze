@@ -98,7 +98,7 @@ func handleShowSession(_ *pluginserver.CommandContext, args []string) (*plugin.R
 	}
 	session, ok := svc.SessionDetail(peer)
 	if !ok {
-		return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("bfd: no session for peer %s", peer)}, nil
+		return &plugin.Response{Status: plugin.StatusError, Data: "bfd: no session for peer " + peer}, nil
 	}
 	data, err := json.Marshal(session)
 	if err != nil {

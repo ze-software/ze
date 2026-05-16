@@ -5,8 +5,8 @@ package role
 
 import (
 	"encoding/hex"
-	"fmt"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -103,13 +103,13 @@ func validateOpenRolePair(cfg *peerRoleConfig, input *sdk.ValidateOpenInput) *sd
 		localName, _ := roleValueToName(localRole)
 		peerName, nameOK := roleValueToName(peerRole)
 		if !nameOK {
-			peerName = fmt.Sprintf("unknown(%d)", peerRole)
+			peerName = textbuf.StrIntStr("unknown(", int64(peerRole), ")")
 		}
 		return &sdk.ValidateOpenOutput{
 			Accept:        false,
 			NotifyCode:    2,
 			NotifySubcode: 11,
-			Reason:        fmt.Sprintf("role mismatch: local=%s peer=%s", localName, peerName),
+			Reason:        "role mismatch: local=" + localName + " peer=" + peerName,
 		}
 	}
 

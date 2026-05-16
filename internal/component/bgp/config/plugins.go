@@ -97,7 +97,7 @@ func ValidatePluginReferences(tree *config.Tree, plugins []reactor.PluginConfig)
 		for _, peerEntry := range groupTree.GetListOrdered("peer") {
 			addr := peerEntry.Key
 			peerTree := peerEntry.Value
-			if err := validatePeerProcessRefs(peerTree, pluginNames, fmt.Sprintf("bgp/group %s peer %s", groupName, addr)); err != nil {
+			if err := validatePeerProcessRefs(peerTree, pluginNames, "bgp/group "+groupName+" peer "+addr); err != nil {
 				return err
 			}
 		}
@@ -107,7 +107,7 @@ func ValidatePluginReferences(tree *config.Tree, plugins []reactor.PluginConfig)
 	for _, entry := range bgpContainer.GetListOrdered("peer") {
 		addr := entry.Key
 		peerTree := entry.Value
-		if err := validatePeerProcessRefs(peerTree, pluginNames, fmt.Sprintf("bgp/peer %s", addr)); err != nil {
+		if err := validatePeerProcessRefs(peerTree, pluginNames, "bgp/peer "+addr); err != nil {
 			return err
 		}
 	}

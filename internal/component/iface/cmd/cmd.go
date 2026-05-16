@@ -73,7 +73,7 @@ func handleInterfaceMigrate(_ *pluginserver.CommandContext, args []string) (*plu
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   fmt.Sprintf("migration complete: %s -> %s (%s)", cfg.OldIface, cfg.NewIface, cfg.Address),
+		Data:   "migration complete: " + cfg.OldIface + " -> " + cfg.NewIface + " (" + cfg.Address + ")",
 	}, nil
 }
 

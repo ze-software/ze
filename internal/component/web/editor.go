@@ -14,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // userSession holds the per-user editor state for web-based config editing.
@@ -470,7 +471,8 @@ func (m *EditorManager) ActiveSessions() []string {
 		if count == 1 {
 			changeWord = "change"
 		}
-		result = append(result, fmt.Sprintf("%s - %d pending %s", sid, count, changeWord))
+		var bLine textbuf.Buffer
+		result = append(result, bLine.Reset().Str(sid).Str(" - ").Int(int64(count)).Str(" pending ").Str(changeWord).String())
 	}
 	return result
 }

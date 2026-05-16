@@ -31,6 +31,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // configLogger is the config subsystem logger (lazy initialization).
@@ -511,7 +512,7 @@ func collectPrefixWarnings(rl plugin.ReactorIntrospector) []LoginWarning {
 		case "prefix-stale":
 			label := peerLabelFromSubject(issue.Subject, peerNames)
 			warnings = append(warnings, LoginWarning{
-				Message: fmt.Sprintf("%s has stale prefix data (updated %s)", label, detailString(issue.Detail, "updated")),
+				Message: label + " has stale prefix data (updated " + detailString(issue.Detail, "updated") + ")",
 				Command: "update bgp peer " + issue.Subject + " prefix",
 			})
 		case "prefix-threshold":
@@ -523,7 +524,7 @@ func collectPrefixWarnings(rl plugin.ReactorIntrospector) []LoginWarning {
 			}
 			label := peerLabelFromSubject(peerAddr, peerNames)
 			warnings = append(warnings, LoginWarning{
-				Message: fmt.Sprintf("%s %s prefix count exceeds warning threshold", label, fam),
+				Message: label + " " + fam + " prefix count exceeds warning threshold",
 			})
 		}
 	}
@@ -535,7 +536,7 @@ func collectPrefixWarnings(rl plugin.ReactorIntrospector) []LoginWarning {
 		return warnings
 	}
 	return []LoginWarning{{
-		Message: fmt.Sprintf("%d warnings", len(warnings)),
+		Message: textbuf.IntStr(int64(len(warnings)), " warnings"),
 		Command: "show warnings",
 	}}
 }
@@ -564,7 +565,7 @@ func peerLabelFromSubject(addr string, lookup map[string]plugin.PeerInfo) string
 	if p, ok := lookup[addr]; ok {
 		return peerLabel(&p)
 	}
-	return fmt.Sprintf("peer %s", addr)
+	return "peer " + addr
 }
 
 // splitThresholdSubject parses the composite subject "<addr>/<afi>/<safi>"
@@ -598,8 +599,9 @@ func detailString(detail map[string]any, key string) string {
 
 // peerLabel returns a human-readable label for a peer (name or IP + AS).
 func peerLabel(p *plugin.PeerInfo) string {
+	var b textbuf.Buffer
 	if p.Name != "" {
-		return fmt.Sprintf("peer %s (AS%d)", p.Name, p.PeerAS)
+		return b.Reset().Str("peer ").Str(p.Name).Str(" (AS").Int(int64(p.PeerAS)).Byte(')').String()
 	}
-	return fmt.Sprintf("peer %s (AS%d)", p.Address, p.PeerAS)
+	return b.Str("peer ").Addr(p.Address).Str(" (AS").Int(int64(p.PeerAS)).Byte(')').String()
 }

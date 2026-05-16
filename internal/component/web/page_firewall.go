@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // --- Tables page ---
@@ -56,7 +57,7 @@ func BuildFirewallTablesTableData(entries []tableEntry) WorkbenchTableData {
 	for _, e := range entries {
 		rows = append(rows, WorkbenchTableRow{
 			Key: e.Name,
-			URL: fmt.Sprintf("/show/firewall/chain/?table=%s", e.Name),
+			URL: "/show/firewall/chain/?table=" + e.Name,
 			Cells: []string{
 				e.Name,
 				e.Family,
@@ -64,10 +65,10 @@ func BuildFirewallTablesTableData(entries []tableEntry) WorkbenchTableData {
 				strconv.Itoa(e.SetCount),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "View Chains", URL: fmt.Sprintf("/show/firewall/chain/?table=%s", e.Name)},
-				{Label: "Edit", URL: fmt.Sprintf("/show/firewall/table/%s/", e.Name)},
-				{Label: "Delete", HxPost: fmt.Sprintf("/show/firewall/table/%s/delete", e.Name),
-					Class: "danger", Confirm: fmt.Sprintf("Delete table %q and all its chains, rules, and sets?", e.Name)},
+				{Label: "View Chains", URL: "/show/firewall/chain/?table=" + e.Name},
+				{Label: "Edit", URL: "/show/firewall/table/" + e.Name + "/"},
+				{Label: "Delete", HxPost: "/show/firewall/table/" + e.Name + "/delete",
+					Class: "danger", Confirm: "Delete table " + strconv.Quote(e.Name) + " and all its chains, rules, and sets?"},
 			},
 		})
 	}
@@ -169,7 +170,7 @@ func BuildFirewallChainsTableData(entries []chainEntry, filterTable string) Work
 
 		rows = append(rows, WorkbenchTableRow{
 			Key: ce.Table + "/" + ce.Name,
-			URL: fmt.Sprintf("/show/firewall/rule/?table=%s&chain=%s", ce.Table, ce.Name),
+			URL: "/show/firewall/rule/?table=" + ce.Table + "&chain=" + ce.Name,
 			Cells: []string{
 				ce.Table,
 				ce.Name,
@@ -180,17 +181,17 @@ func BuildFirewallChainsTableData(entries []chainEntry, filterTable string) Work
 				strconv.Itoa(ce.RuleCount),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "View Rules", URL: fmt.Sprintf("/show/firewall/rule/?table=%s&chain=%s", ce.Table, ce.Name)},
-				{Label: "Edit", URL: fmt.Sprintf("/show/firewall/table/%s/chain/%s/", ce.Table, ce.Name)},
-				{Label: "Delete", HxPost: fmt.Sprintf("/show/firewall/table/%s/chain/%s/delete", ce.Table, ce.Name),
-					Class: "danger", Confirm: fmt.Sprintf("Delete chain %q and all its rules?", ce.Name)},
+				{Label: "View Rules", URL: "/show/firewall/rule/?table=" + ce.Table + "&chain=" + ce.Name},
+				{Label: "Edit", URL: "/show/firewall/table/" + ce.Table + "/chain/" + ce.Name + "/"},
+				{Label: "Delete", HxPost: "/show/firewall/table/" + ce.Table + "/chain/" + ce.Name + "/delete",
+					Class: "danger", Confirm: "Delete chain " + strconv.Quote(ce.Name) + " and all its rules?"},
 			},
 		})
 	}
 
 	emptyMsg := "No chains configured."
 	if filterTable != "" {
-		emptyMsg = fmt.Sprintf("No chains configured in table %q.", filterTable)
+		emptyMsg = "No chains configured in table " + strconv.Quote(filterTable) + "."
 	}
 
 	return WorkbenchTableData{
@@ -334,11 +335,14 @@ func matchSummary(matches []firewall.Match) string {
 		case firewall.MatchMark:
 			parts = append(parts, fmt.Sprintf("mark 0x%x/0x%x", v.Value, v.Mask))
 		case firewall.MatchDSCP:
-			parts = append(parts, fmt.Sprintf("dscp %d", v.Value))
+			var bDscp textbuf.Buffer
+			parts = append(parts, bDscp.Reset().Str("dscp ").Int(int64(v.Value)).String())
 		case firewall.MatchICMPType:
-			parts = append(parts, fmt.Sprintf("icmp type %d", v.Type))
+			var bIcmp textbuf.Buffer
+			parts = append(parts, bIcmp.Reset().Str("icmp type ").Int(int64(v.Type)).String())
 		case firewall.MatchICMPv6Type:
-			parts = append(parts, fmt.Sprintf("icmpv6 type %d", v.Type))
+			var bIcmp6 textbuf.Buffer
+			parts = append(parts, bIcmp6.Reset().Str("icmpv6 type ").Int(int64(v.Type)).String())
 		case firewall.MatchInSet:
 			parts = append(parts, "in set "+v.SetName)
 		case firewall.MatchTCPFlags:
@@ -357,7 +361,8 @@ func formatPortRanges(ranges []firewall.PortRange) string {
 		if r.Lo == r.Hi {
 			parts = append(parts, strconv.Itoa(int(r.Lo)))
 		} else {
-			parts = append(parts, fmt.Sprintf("%d-%d", r.Lo, r.Hi))
+			var bRange textbuf.Buffer
+			parts = append(parts, bRange.Reset().Int(int64(r.Lo)).Byte('-').Int(int64(r.Hi)).String())
 		}
 	}
 	return strings.Join(parts, ",")
@@ -416,7 +421,8 @@ func actionSummary(actions []firewall.Action) string {
 		case firewall.Masquerade:
 			parts = append(parts, "masquerade")
 		case firewall.Redirect:
-			parts = append(parts, fmt.Sprintf("redirect :%d", v.Port))
+			var bRedir textbuf.Buffer
+			parts = append(parts, bRedir.Reset().Str("redirect :").Int(int64(v.Port)).String())
 		case firewall.Notrack:
 			parts = append(parts, "notrack")
 		case firewall.FlowOffload:
@@ -434,11 +440,14 @@ func actionSummary(actions []firewall.Action) string {
 		case firewall.SetConnMark:
 			parts = append(parts, fmt.Sprintf("ct mark 0x%x", v.Value))
 		case firewall.SetDSCP:
-			parts = append(parts, fmt.Sprintf("dscp %d", v.Value))
+			var bDscp2 textbuf.Buffer
+			parts = append(parts, bDscp2.Reset().Str("dscp ").Int(int64(v.Value)).String())
 		case firewall.SetTCPMSS:
-			parts = append(parts, fmt.Sprintf("tcp-mss %d", v.Size))
+			var bMss textbuf.Buffer
+			parts = append(parts, bMss.Reset().Str("tcp-mss ").Int(int64(v.Size)).String())
 		case firewall.Limit:
-			parts = append(parts, fmt.Sprintf("limit %d/%s", v.Rate, v.Unit))
+			var bLim textbuf.Buffer
+			parts = append(parts, bLim.Reset().Str("limit ").Int(int64(v.Rate)).Byte('/').Str(v.Unit).String())
 		default:
 			parts = append(parts, fmt.Sprintf("%T", a))
 		}
@@ -468,8 +477,9 @@ func BuildFirewallRulesTableData(entries []ruleEntry, filterTable, filterChain s
 			flagClass = flagClassGrey
 		}
 
+		ruleBase := "/show/firewall/table/" + re.Table + "/chain/" + re.Chain + "/rule/" + re.Name
 		rows = append(rows, WorkbenchTableRow{
-			Key:       fmt.Sprintf("%s/%s/%s", re.Table, re.Chain, re.Name),
+			Key:       re.Table + "/" + re.Chain + "/" + re.Name,
 			Flags:     flagStr,
 			FlagClass: flagClass,
 			Cells: []string{
@@ -483,31 +493,30 @@ func BuildFirewallRulesTableData(entries []ruleEntry, filterTable, filterChain s
 				valueOrDash(re.Comment),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "Edit", URL: fmt.Sprintf("/show/firewall/table/%s/chain/%s/rule/%s/", re.Table, re.Chain, re.Name)},
-				{Label: "Toggle", HxPost: fmt.Sprintf("/show/firewall/table/%s/chain/%s/rule/%s/toggle", re.Table, re.Chain, re.Name),
-					Confirm: fmt.Sprintf("Toggle rule %q?", re.Name)},
-				{Label: "Move Up", HxPost: fmt.Sprintf("/show/firewall/table/%s/chain/%s/rule/%s/move-up", re.Table, re.Chain, re.Name)},
-				{Label: "Move Down", HxPost: fmt.Sprintf("/show/firewall/table/%s/chain/%s/rule/%s/move-down", re.Table, re.Chain, re.Name)},
-				{Label: "Clone", HxPost: fmt.Sprintf("/show/firewall/table/%s/chain/%s/rule/%s/clone", re.Table, re.Chain, re.Name)},
-				{Label: "Delete", HxPost: fmt.Sprintf("/show/firewall/table/%s/chain/%s/rule/%s/delete", re.Table, re.Chain, re.Name),
-					Class: "danger", Confirm: fmt.Sprintf("Delete rule %q?", re.Name)},
+				{Label: "Edit", URL: ruleBase + "/"},
+				{Label: "Toggle", HxPost: ruleBase + "/toggle",
+					Confirm: "Toggle rule " + strconv.Quote(re.Name) + "?"},
+				{Label: "Move Up", HxPost: ruleBase + "/move-up"},
+				{Label: "Move Down", HxPost: ruleBase + "/move-down"},
+				{Label: "Clone", HxPost: ruleBase + "/clone"},
+				{Label: "Delete", HxPost: ruleBase + "/delete",
+					Class: "danger", Confirm: "Delete rule " + strconv.Quote(re.Name) + "?"},
 			},
 		})
 	}
 
 	emptyMsg := "No rules configured."
 	if filterChain != "" {
-		emptyMsg = fmt.Sprintf("No rules in chain %q.", filterChain)
+		emptyMsg = "No rules in chain " + strconv.Quote(filterChain) + "."
 	}
 	emptyHint := "Add a rule to start filtering traffic."
 	if filterChain != "" {
-		// Show the chain's default policy in the empty hint.
-		emptyHint = fmt.Sprintf("Chain %q has no rules. Traffic follows the chain's default policy.", filterChain)
+		emptyHint = "Chain " + strconv.Quote(filterChain) + " has no rules. Traffic follows the chain's default policy."
 	}
 
 	addURL := "/show/firewall/rule/add"
 	if filterTable != "" && filterChain != "" {
-		addURL = fmt.Sprintf("/show/firewall/table/%s/chain/%s/rule/add", filterTable, filterChain)
+		addURL = "/show/firewall/table/" + filterTable + "/chain/" + filterChain + "/rule/add"
 	}
 
 	return WorkbenchTableData{
@@ -611,9 +620,9 @@ func BuildFirewallSetsTableData(entries []setEntry) WorkbenchTableData {
 				strconv.Itoa(se.ElementCount),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "View Elements", URL: fmt.Sprintf("/show/firewall/table/%s/set/%s/", se.Table, se.Name)},
-				{Label: "Delete", HxPost: fmt.Sprintf("/show/firewall/table/%s/set/%s/delete", se.Table, se.Name),
-					Class: "danger", Confirm: fmt.Sprintf("Delete set %q?", se.Name)},
+				{Label: "View Elements", URL: "/show/firewall/table/" + se.Table + "/set/" + se.Name + "/"},
+				{Label: "Delete", HxPost: "/show/firewall/table/" + se.Table + "/set/" + se.Name + "/delete",
+					Class: "danger", Confirm: "Delete set " + strconv.Quote(se.Name) + "?"},
 			},
 		})
 	}

@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -91,7 +92,7 @@ func StreamMonitor(ctx context.Context, mm *pluginserver.MonitorManager, w io.Wr
 	clientCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	id := fmt.Sprintf("monitor-%d", nextMonitorID.Add(1))
+	id := textbuf.StrInt("monitor-", int64(nextMonitorID.Add(1)))
 	mc := pluginserver.NewMonitorClient(clientCtx, id, subs, monitorChanSize)
 	mm.Add(mc)
 	defer mm.Remove(id)
@@ -111,7 +112,7 @@ func StreamMonitor(ctx context.Context, mm *pluginserver.MonitorManager, w io.Wr
 			}
 			// Check for dropped events and prepend warning.
 			if d := mc.Dropped.Swap(0); d > 0 {
-				warning := fmt.Sprintf("--- WARNING: dropped %d events (slow reader)", d)
+				warning := textbuf.StrIntStr("--- WARNING: dropped ", int64(d), " events (slow reader)")
 				if _, err := fmt.Fprintln(w, warning); err != nil {
 					return err
 				}

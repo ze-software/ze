@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -61,7 +63,8 @@ func execCLI(command string) (string, error) {
 
 // TraceStart sends "trace add <inputNode> <count>" to VPP.
 func TraceStart(inputNode string, count int) (string, error) {
-	cmd := fmt.Sprintf("trace add %s %d", inputNode, count)
+	var b textbuf.Buffer
+	cmd := b.Reset().Str("trace add ").Str(inputNode).Byte(' ').Int(int64(count)).String()
 	return execCLI(cmd)
 }
 

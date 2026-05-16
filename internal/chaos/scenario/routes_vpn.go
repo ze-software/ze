@@ -4,9 +4,10 @@ package scenario
 
 import (
 	"encoding/binary"
-	"fmt"
 	"math/rand"
 	"net/netip"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // VPNRoute represents a generated VPN route with RD, labels, and prefix.
@@ -57,11 +58,12 @@ func GenerateVPNRoutes(seed uint64, peerIndex, count, totalPeers int, ipv6 bool)
 		// Label: base + jitter for realism. 20-bit max = 1048575.
 		label := uint32(100000 + peerIndex*1000 + rng.Intn(900)) //nolint:gosec // deterministic, not crypto.
 
+		var b textbuf.Buffer
 		routes[i] = VPNRoute{
 			RDBytes: rd,
 			Labels:  []uint32{label},
 			Prefix:  prefixes[i],
-			Key:     fmt.Sprintf("%d:%d:%s", peerIndex, i, prefixes[i]),
+			Key:     b.Reset().Int(int64(peerIndex)).Byte(':').Int(int64(i)).Byte(':').Str(prefixes[i].String()).String(),
 		}
 	}
 

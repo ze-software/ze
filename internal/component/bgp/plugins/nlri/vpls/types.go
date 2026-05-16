@@ -156,7 +156,7 @@ func (v *VPLS) SupportsAddPath() bool { return false }
 // String returns command-style format for API round-trip compatibility.
 func (v *VPLS) String() string {
 	var b textbuf.Buffer
-	return b.Str("rd ").Str(v.rd.String()).Str(" ve-id ").Uint16(v.veID).Str(" label ").Uint32(v.labelBase).String()
+	return b.Reset().Str("rd ").Str(v.rd.String()).Str(" ve-id ").Uint16(v.veID).Str(" label ").Uint32(v.labelBase).String()
 }
 
 // WriteTo writes the VPLS NLRI directly to buf at offset.

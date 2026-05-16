@@ -152,7 +152,7 @@ func (r *StaticRoute) RouteKey() string {
 		key = r.RD + ":" + key
 	}
 	var b textbuf.Buffer
-	return b.Str(key).Byte('#').Uint32(r.PathID).String()
+	return b.Reset().Str(key).Byte('#').Uint32(r.PathID).String()
 }
 
 // MVPNRoute represents an MVPN route (RFC 6514).

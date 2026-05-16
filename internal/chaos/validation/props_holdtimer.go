@@ -3,10 +3,10 @@
 package validation
 
 import (
-	"fmt"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // HoldTimerEnforcement checks that when a hold-timer-expiry chaos event
@@ -55,9 +55,12 @@ func (p *HoldTimerEnforcement) Violations() []Violation {
 	violations := make([]Violation, 0, len(p.pendingExpiry))
 	for peerIdx, chaosTime := range p.pendingExpiry {
 		violations = append(violations, Violation{
-			Property:  p.Name(),
-			RFC:       p.RFC(),
-			Message:   fmt.Sprintf("peer %d: hold-timer-expiry at %s but session not torn down", peerIdx, chaosTime.Format(time.RFC3339)),
+			Property: p.Name(),
+			RFC:      p.RFC(),
+			Message: func() string {
+				var b textbuf.Buffer
+				return b.Reset().Str("peer ").Int(int64(peerIdx)).Str(": hold-timer-expiry at ").Str(chaosTime.Format(time.RFC3339)).Str(" but session not torn down").String()
+			}(),
 			PeerIndex: peerIdx,
 			Time:      chaosTime,
 		})

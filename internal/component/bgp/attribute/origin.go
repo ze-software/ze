@@ -8,6 +8,7 @@ import (
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Origin represents the ORIGIN path attribute.
@@ -63,7 +64,8 @@ func (o Origin) String() string {
 	if name, ok := originNames[o]; ok {
 		return name
 	}
-	return fmt.Sprintf("UNKNOWN(%d)", o)
+	var b textbuf.Buffer
+	return b.Reset().Str("UNKNOWN(").Int(int64(o)).Byte(')').String()
 }
 
 // MarshalText returns the lowercase wire/JSON name ("igp", "egp", "incomplete").

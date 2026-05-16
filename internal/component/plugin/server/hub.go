@@ -63,9 +63,9 @@ func (h *Hub) RouteCommand(ctx context.Context, block *ConfigBlock) error {
 	// If path is empty (handler is just namespace), omit it.
 	var cmd string
 	if path == "" {
-		cmd = fmt.Sprintf("%s %s %s", namespace, block.Action, block.Data)
+		cmd = namespace + " " + block.Action + " " + block.Data
 	} else {
-		cmd = fmt.Sprintf("%s %s %s %s", namespace, path, block.Action, block.Data)
+		cmd = namespace + " " + path + " " + block.Action + " " + block.Data
 	}
 
 	// Send command to plugin.
@@ -146,7 +146,7 @@ func (h *Hub) routeTransaction(ctx context.Context, namespace, action string) er
 		return fmt.Errorf("plugin not found for namespace %s: %s", namespace, schema.Plugin)
 	}
 
-	cmd := fmt.Sprintf("%s %s", namespace, action)
+	cmd := namespace + " " + action
 
 	resp, err := handler.Handle(ctx, cmd)
 	if err != nil {

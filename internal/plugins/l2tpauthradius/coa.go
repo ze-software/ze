@@ -16,6 +16,7 @@ import (
 	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -49,7 +50,8 @@ type coaReplayEntry struct {
 const coaReplayWindow = 5 * time.Minute
 
 func newCoAListener(port int, secrets map[string][]byte, defaultSecret []byte, bus ze.EventBus, allowedSources []net.IP) (*coaListener, error) {
-	addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf(":%d", port))
+	var bAddr textbuf.Buffer
+	addr, err := net.ResolveUDPAddr("udp4", bAddr.Reset().Byte(':').Int(int64(port)).String())
 	if err != nil {
 		return nil, fmt.Errorf("coa: resolve: %w", err)
 	}
@@ -239,7 +241,8 @@ func (cl *coaListener) findSession(pkt *radius.Packet) (uint16, bool) {
 		snap := svc.Snapshot()
 		for i := range snap.Tunnels {
 			for j := range snap.Tunnels[i].Sessions {
-				prefix := fmt.Sprintf("%d-%d-", snap.Tunnels[i].LocalTID, snap.Tunnels[i].Sessions[j].LocalSID)
+				var pb textbuf.Buffer
+				prefix := pb.Reset().Int(int64(snap.Tunnels[i].LocalTID)).Byte('-').Int(int64(snap.Tunnels[i].Sessions[j].LocalSID)).Byte('-').String()
 				if strings.HasPrefix(string(acctSessID), prefix) {
 					return snap.Tunnels[i].Sessions[j].LocalSID, true
 				}

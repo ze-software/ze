@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // diffEvent holds the fields compared during diff.
@@ -71,8 +73,8 @@ func Diff(r1, r2 io.Reader, w io.Writer) int {
 		}
 
 		// Store for context.
-		recent[lineNum%contextSize] = fmt.Sprintf("  seq %d: %s peer=%d prefix=%s",
-			ev1.Seq, ev1.EventType, ev1.PeerIndex, ev1.Prefix)
+		var bCtx textbuf.Buffer
+		recent[lineNum%contextSize] = bCtx.Reset().Str("  seq ").Uint(ev1.Seq).Str(": ").Str(ev1.EventType).Str(" peer=").Int(int64(ev1.PeerIndex)).Str(" prefix=").Str(ev1.Prefix).String()
 
 		if ev1.EventType != ev2.EventType || ev1.PeerIndex != ev2.PeerIndex || ev1.Prefix != ev2.Prefix {
 			rw := reportWriter{w: w}

@@ -6,8 +6,9 @@ package monitor
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const maxDisplayPrefixes = 5
@@ -22,7 +23,7 @@ func FormatMonitorLine(raw string) string {
 
 	dir := formatDirection(ev.BGP.Message.Direction)
 	peer := ev.BGP.Peer.Address
-	asn := fmt.Sprintf("AS%d", ev.BGP.Peer.Remote.AS)
+	asn := textbuf.StrInt("AS", int64(ev.BGP.Peer.Remote.AS))
 
 	switch ev.BGP.Message.Type {
 	case "update":
@@ -30,18 +31,18 @@ func FormatMonitorLine(raw string) string {
 	case "state":
 		return formatState(peer, asn, ev)
 	case "keepalive":
-		return fmt.Sprintf("%s KALIVE %s %s", dir, peer, asn)
+		return dir + " KALIVE " + peer + " " + asn
 	case "eor":
 		fam := ev.BGP.EOR.Family
-		return fmt.Sprintf("---- EOR    %s %s %s", peer, asn, fam)
+		return "---- EOR    " + peer + " " + asn + " " + fam
 	case "open":
 		return formatOpen(dir, peer, asn, ev)
 	case "notification":
 		return formatNotification(dir, peer, asn, ev)
 	case "refresh":
-		return fmt.Sprintf("%s RFRSH  %s %s", dir, peer, asn)
+		return dir + " RFRSH  " + peer + " " + asn
 	case "negotiated":
-		return fmt.Sprintf("---- NEGOT  %s %s", peer, asn)
+		return "---- NEGOT  " + peer + " " + asn
 	}
 
 	return raw
@@ -82,7 +83,7 @@ func formatUpdate(dir, peer, asn string, ev monitorEvent) string {
 				parts = append(parts, prefix+n)
 			}
 			if truncated > 0 {
-				parts = append(parts, fmt.Sprintf("(+%d more)", truncated))
+				parts = append(parts, textbuf.StrIntStr("(+", int64(truncated), " more)"))
 			}
 
 			if entry.NextHop != "" {
@@ -91,7 +92,7 @@ func formatUpdate(dir, peer, asn string, ev monitorEvent) string {
 		}
 	}
 
-	return fmt.Sprintf("%s UPDATE %s %s %s", dir, peer, asn, strings.Join(parts, " "))
+	return dir + " UPDATE " + peer + " " + asn + " " + strings.Join(parts, " ")
 }
 
 func formatState(peer, asn string, ev monitorEvent) string {
@@ -99,19 +100,21 @@ func formatState(peer, asn string, ev monitorEvent) string {
 	if ev.BGP.Reason != "" {
 		state += " (" + ev.BGP.Reason + ")"
 	}
-	return fmt.Sprintf("---- STATE  %s %s %s", peer, asn, state)
+	return "---- STATE  " + peer + " " + asn + " " + state
 }
 
 func formatOpen(dir, peer, asn string, ev monitorEvent) string {
 	hold := ev.BGP.Open.Timer.HoldTime
 	id := ev.BGP.Open.RouterID
-	return fmt.Sprintf("%s OPEN   %s %s hold=%d id=%s", dir, peer, asn, hold, id)
+	var b textbuf.Buffer
+	return b.Reset().Str(dir).Str(" OPEN   ").Str(peer).Byte(' ').Str(asn).Str(" hold=").Int(int64(hold)).Str(" id=").Str(id).String()
 }
 
 func formatNotification(dir, peer, asn string, ev monitorEvent) string {
 	code := ev.BGP.Notification.Code
 	subcode := ev.BGP.Notification.Subcode
-	return fmt.Sprintf("%s NOTIF  %s %s %d/%d", dir, peer, asn, code, subcode)
+	var b textbuf.Buffer
+	return b.Reset().Str(dir).Str(" NOTIF  ").Str(peer).Byte(' ').Str(asn).Byte(' ').Int(int64(code)).Byte('/').Int(int64(subcode)).String()
 }
 
 // knownFamilies lists address families to scan in JSON events.

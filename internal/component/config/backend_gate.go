@@ -23,6 +23,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ValidateBackendFeatures walks the parsed JSON config tree under
@@ -187,7 +189,8 @@ func walkBackendListMap(
 		}
 	case []any:
 		for i, item := range v {
-			entryPath := fmt.Sprintf("%s[%d]", path, i)
+			var bp textbuf.Buffer
+			entryPath := bp.Reset().Str(path).Byte('[').Int(int64(i)).Byte(']').String()
 			entrySpoke, entryAccepts := walkBackendListEntry(list, item, entryPath, active, errs)
 			if entrySpoke {
 				descSpoke = true

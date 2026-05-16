@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // radiusConfig holds parsed RADIUS server configuration.
@@ -127,7 +128,10 @@ func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
 			return nil, fmt.Errorf("%s: server %s missing shared-key", Name, address)
 		}
 		cfg.Servers = append(cfg.Servers, radius.Server{
-			Address:   fmt.Sprintf("%s:%d", address, port),
+			Address: func() string {
+				var b textbuf.Buffer
+				return b.Reset().Str(address).Byte(':').Int(int64(port)).String()
+			}(),
 			SharedKey: []byte(sharedKey),
 		})
 	}

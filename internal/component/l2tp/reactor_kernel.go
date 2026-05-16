@@ -11,6 +11,7 @@ import (
 	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // collectKernelEventsLocked scans the tunnel for sessions that need
@@ -161,7 +162,7 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		EchoInterval:        r.params.CQMEchoInterval,
 	}
 
-	ifaceName := fmt.Sprintf("ppp%d", ksucc.fds.unitNum)
+	ifaceName := textbuf.StrInt("ppp", int64(ksucc.fds.unitNum))
 	r.tunnelsMu.Lock()
 	if tunnel, ok := r.tunnelsByLocalID[ksucc.localTID]; ok {
 		if sess := tunnel.lookupSession(ksucc.localSID); sess != nil {

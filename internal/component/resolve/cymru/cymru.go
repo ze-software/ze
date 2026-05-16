@@ -14,11 +14,11 @@ package cymru
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cache"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // defaultCacheTTL is the cache duration for Cymru results.
@@ -50,14 +50,14 @@ func New(resolveTXT TXTResolver, c *cache.Cache[string]) *CymruResolver {
 // LookupASNName returns the organization name for the given ASN.
 // Returns ("", nil) on any failure -- graceful degradation, never error.
 func (r *CymruResolver) LookupASNName(ctx context.Context, asn uint32) (string, error) {
-	key := fmt.Sprintf("asn:%d", asn)
+	key := "asn:" + textbuf.Uint32(asn)
 
 	// Check cache first.
 	if name, ok := r.cache.Get(key); ok {
 		return name, nil
 	}
 
-	query := fmt.Sprintf("AS%d.asn.cymru.com.", asn)
+	query := "AS" + textbuf.Uint32(asn) + ".asn.cymru.com."
 
 	records, err := r.resolveTXT(ctx, query)
 	if err != nil {

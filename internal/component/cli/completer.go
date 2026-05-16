@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"slices"
 	"sort"
-
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
@@ -240,7 +240,7 @@ func (c *Completer) completeSetPath(tokens, contextPath []string, endsWithSpace 
 				hint := c.typeHint(keyEntry.Type)
 				return []Completion{{
 					Text:        token,
-					Description: fmt.Sprintf("invalid %s key (expected %s)", listName, hint),
+					Description: "invalid " + listName + " key (expected " + hint + ")",
 					Type:        "error",
 				}}
 			}
@@ -516,7 +516,7 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 	for i, entry := range orderedEntries {
 		if isDefaultKey(entry.Key) {
 			// Unnamed entry — show as positional ID
-			id := fmt.Sprintf("#%d", i+1)
+			id := textbuf.StrInt("#", int64(i+1))
 			if prefix == "" || strings.HasPrefix(id, prefix) {
 				completions = append(completions, Completion{
 					Text:        id,
@@ -556,7 +556,7 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 			hint := c.typeHint(keyEntry.Type)
 			completions = append(completions, Completion{
 				Text:        prefix,
-				Description: fmt.Sprintf("invalid %s key (expected %s)", listName, hint),
+				Description: "invalid " + listName + " key (expected " + hint + ")",
 				Type:        "warning",
 			})
 		}

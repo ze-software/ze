@@ -5,9 +5,9 @@ package nlri
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errMalformedNlriAddpathFlagSetBut = errors.New("malformed NLRI: addpath flag set but data < 4 bytes")
@@ -49,7 +49,8 @@ func (w *WireNLRI) Len() int {
 
 // String returns a human-readable representation.
 func (w *WireNLRI) String() string {
-	return fmt.Sprintf("wire[%s](%d bytes)", w.fam, len(w.data))
+	var b textbuf.Buffer
+	return b.Reset().Str("wire[").Str(w.fam.String()).Str("](").Int(int64(len(w.data))).Str(" bytes)").String()
 }
 
 // HasAddPath returns true if data includes path-id prefix.

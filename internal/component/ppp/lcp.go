@@ -8,7 +8,8 @@ package ppp
 import (
 	"encoding/binary"
 	"errors"
-	"strconv"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // LCP code values from RFC 1661 Section 5. NCPs (IPCP, IPv6CP) reuse
@@ -124,5 +125,5 @@ func LCPCodeName(code uint8) string {
 	case LCPDiscardRequest:
 		return "discard-request"
 	}
-	return "code-" + strconv.Itoa(int(code))
+	return textbuf.StrInt("code-", int64(code))
 }

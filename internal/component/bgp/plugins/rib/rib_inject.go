@@ -7,13 +7,13 @@ package rib
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri/nlrisplit"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -194,7 +194,7 @@ func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []stri
 	if meta.JSON != "" {
 		return meta.JSON
 	}
-	return fmt.Sprintf(`{"count":%d}`, meta.Count)
+	return textbuf.StrIntStr(`{"count":`, int64(meta.Count), "}")
 }
 
 // withdrawAllForPeer removes all routes for a peer under a given protocol.

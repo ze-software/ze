@@ -7,7 +7,7 @@
 // large RIBs where many routes share common attributes (e.g., AS_PATH, communities).
 package attrpool
 
-import "fmt"
+import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 // Handle is an opaque reference to data stored in a Pool.
 // Handles are stable across compaction operations.
@@ -88,5 +88,6 @@ func (h Handle) String() string {
 	if h == InvalidHandle {
 		return "InvalidHandle"
 	}
-	return fmt.Sprintf("Handle(%d)", h)
+	var b textbuf.Buffer
+	return b.Reset().Str("Handle(").Int(int64(h)).Byte(')').String()
 }

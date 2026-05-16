@@ -16,6 +16,7 @@ import (
 	"go.fd.io/govpp/binapi/interface_types"
 
 	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -174,7 +175,8 @@ func (m *monitor) handleEvent(ev *interfaces.SwInterfaceEvent) {
 	idx := uint32(ev.SwIfIndex)
 	name, hasName := m.b.names.LookupName(idx)
 	if !hasName {
-		name = fmt.Sprintf("sw_if_index_%d", idx)
+		var bIdx textbuf.Buffer
+		name = bIdx.Reset().Str("sw_if_index_").Int(int64(idx)).String()
 	}
 	if ev.Deleted {
 		m.b.names.Remove(name)

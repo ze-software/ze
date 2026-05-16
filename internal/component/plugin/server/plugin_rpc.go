@@ -82,7 +82,7 @@ func handlePluginCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 
 	return &plugin.Response{
 		Status: plugin.StatusError,
-		Data:   fmt.Sprintf("unknown plugin command: %s", name),
+		Data:   "unknown plugin command: " + name,
 	}, fmt.Errorf("unknown plugin command: %s", name)
 }
 

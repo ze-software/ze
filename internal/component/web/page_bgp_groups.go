@@ -5,7 +5,6 @@
 package web
 
 import (
-	"fmt"
 	"html/template"
 	"strconv"
 	"strings"
@@ -81,7 +80,7 @@ func BuildBGPGroupsTableData(groups []groupEntry) WorkbenchTableData {
 	for _, ge := range groups {
 		rows = append(rows, WorkbenchTableRow{
 			Key: ge.Name,
-			URL: fmt.Sprintf("/show/bgp/group/%s/", ge.Name),
+			URL: "/show/bgp/group/" + ge.Name + "/",
 			Cells: []string{
 				ge.Name,
 				strconv.Itoa(ge.PeerCount),
@@ -89,8 +88,8 @@ func BuildBGPGroupsTableData(groups []groupEntry) WorkbenchTableData {
 				valueOrDash(ge.Families),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "View Peers", URL: fmt.Sprintf("/show/bgp/peer/?group=%s", ge.Name)},
-				{Label: "Edit", URL: fmt.Sprintf("/show/bgp/group/%s/", ge.Name)},
+				{Label: "View Peers", URL: "/show/bgp/peer/?group=" + ge.Name},
+				{Label: "Edit", URL: "/show/bgp/group/" + ge.Name + "/"},
 			},
 		})
 	}

@@ -9,7 +9,6 @@ package rib
 
 import (
 	"encoding/json"
-	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -353,7 +352,7 @@ func validatePathPattern(pattern string) string {
 			continue
 		}
 		if _, err := strconv.ParseUint(s, 10, 32); err != nil {
-			return fmt.Sprintf("invalid ASN in path pattern: %s", s)
+			return "invalid ASN in path pattern: " + s
 		}
 	}
 	return ""
@@ -1025,11 +1024,11 @@ func parsePipelineArgs(args []string) (string, []pipelineStage, string) {
 
 		if filterKeywords[keyword] {
 			if sawTerminal {
-				return "", nil, fmt.Sprintf("filter after terminal: %s", keyword)
+				return "", nil, "filter after terminal: " + keyword
 			}
 			i++
 			if i >= len(args) {
-				return "", nil, fmt.Sprintf("%s requires a value", keyword)
+				return "", nil, keyword + " requires a value"
 			}
 			if keyword == filterPath {
 				if errMsg := validatePathPattern(args[i]); errMsg != "" {
@@ -1051,7 +1050,7 @@ func parsePipelineArgs(args []string) (string, []pipelineStage, string) {
 			continue
 		}
 
-		return "", nil, fmt.Sprintf("unknown keyword: %s", keyword)
+		return "", nil, "unknown keyword: " + keyword
 	}
 
 	return scope, stages, ""

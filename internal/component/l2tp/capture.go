@@ -4,10 +4,11 @@
 package l2tp
 
 import (
-	"fmt"
 	"net/netip"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const captureRingCapacity = 256
@@ -193,6 +194,6 @@ func (m MessageType) String() string {
 	case 0:
 		return "ZLB"
 	default:
-		return fmt.Sprintf("MSG-%d", uint16(m))
+		return textbuf.StrInt("MSG-", int64(uint16(m)))
 	}
 }

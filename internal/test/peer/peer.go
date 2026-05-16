@@ -26,6 +26,7 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/decode"
 )
 
@@ -463,7 +464,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 		if p.config.Mode == ModeSink {
 			counter++
 			p.printPayload("msg  recv", header, body)
-			p.printPayload(fmt.Sprintf("sank    #%d", counter), header, body)
+			p.printPayload(textbuf.StrInt("sank    #", int64(counter)), header, body)
 			_, _ = conn.Write(KeepaliveMsg())
 			continue
 		}
@@ -471,7 +472,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 		if p.config.Mode == ModeEcho {
 			counter++
 			p.printPayload("msg  recv", header, body)
-			p.printPayload(fmt.Sprintf("echo'd  #%d", counter), header, body)
+			p.printPayload(textbuf.StrInt("echo'd  #", int64(counter)), header, body)
 			_, _ = conn.Write(append(header, body...))
 			continue
 		}

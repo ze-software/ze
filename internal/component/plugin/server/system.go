@@ -359,7 +359,7 @@ func LookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 
 	return &plugin.Response{
 		Status: plugin.StatusError,
-		Data:   fmt.Sprintf("unknown %s: %s", kind, name),
+		Data:   "unknown " + kind + ": " + name,
 	}, fmt.Errorf("unknown %s: %s", kind, name)
 }
 

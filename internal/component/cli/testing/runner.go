@@ -79,7 +79,7 @@ func runTestCase(tc *TestCase) *TestResult {
 
 		// Guard against path traversal (e.g., "../../../etc/cron.d/malicious").
 		if !strings.HasPrefix(filepath.Clean(filePath), filepath.Clean(tmpDir)+string(os.PathSeparator)) {
-			result.Error = fmt.Sprintf("path traversal in tmpfs: %s", tf.Path)
+			result.Error = "path traversal in tmpfs: " + tf.Path
 			return result
 		}
 

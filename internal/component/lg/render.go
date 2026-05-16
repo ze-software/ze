@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // lgFuncMap defines the template functions available to LG templates.
@@ -90,15 +92,16 @@ func formatUptime(v string) string {
 	mins := (total % 3600) / 60
 	secs := total % 60
 
+	var b textbuf.Buffer
 	switch {
 	case days > 0:
-		return fmt.Sprintf("%dd %dh %dm", days, hours, mins)
+		return b.Reset().Int(int64(days)).Str("d ").Int(int64(hours)).Str("h ").Int(int64(mins)).Str("m").String()
 	case hours > 0:
-		return fmt.Sprintf("%dh %dm %ds", hours, mins, secs)
+		return b.Reset().Int(int64(hours)).Str("h ").Int(int64(mins)).Str("m ").Int(int64(secs)).Str("s").String()
 	case mins > 0:
-		return fmt.Sprintf("%dm %ds", mins, secs)
+		return b.Reset().Int(int64(mins)).Str("m ").Int(int64(secs)).Str("s").String()
 	}
-	return fmt.Sprintf("%ds", secs)
+	return b.Reset().Int(int64(secs)).Str("s").String()
 }
 
 // formatNumCommas formats a value as an integer with comma separators.

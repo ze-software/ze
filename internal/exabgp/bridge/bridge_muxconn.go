@@ -13,7 +13,10 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
+
 	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // parseMuxLine parses a MuxConn wire format line: #<id> <verb> [<payload>].
@@ -42,7 +45,7 @@ func parseMuxLine(line string) (id uint64, verb, payload string, err error) {
 
 // formatMuxOK formats a successful MuxConn response: #<id> ok.
 func formatMuxOK(id uint64) string {
-	return fmt.Sprintf("#%d ok", id)
+	return textbuf.StrUintStr("#", id, " ok")
 }
 
 // formatDispatchRequest formats a MuxConn dispatch-command request:
@@ -54,7 +57,8 @@ func formatDispatchRequest(id uint64, command string) string {
 		// Log defensively and fall back to unescaped embedding.
 		return fmt.Sprintf("#%d ze-plugin-engine:dispatch-command {\"command\":%q}", id, command)
 	}
-	return fmt.Sprintf("#%d ze-plugin-engine:dispatch-command %s", id, string(payload))
+	var b textbuf.Buffer
+	return b.Reset().Byte('#').Uint(id).Str(" ze-plugin-engine:dispatch-command ").Str(string(payload)).String()
 }
 
 // extractBatchEvents extracts event strings from a deliver-batch JSON payload.
@@ -76,7 +80,8 @@ func formatFlushRequest(id uint64, selector string) string {
 	if err != nil {
 		return fmt.Sprintf("#%d ze-bgp:peer-flush {\"selector\":%q}", id, selector)
 	}
-	return fmt.Sprintf("#%d ze-bgp:peer-flush %s", id, string(payload))
+	var b2 textbuf.Buffer
+	return b2.Reset().Byte('#').Uint(id).Str(" ze-bgp:peer-flush ").Str(string(payload)).String()
 }
 
 // ExtractPeerAddress extracts the peer address from a translated ZeBGP command.

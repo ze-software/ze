@@ -4,9 +4,10 @@
 package capability
 
 import (
-	"fmt"
 	"maps"
 	"sort"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // RFC 5492: Capabilities Advertisement with BGP-4
@@ -32,7 +33,8 @@ type Mismatch struct {
 // String returns a human-readable description of the mismatch.
 func (m Mismatch) String() string {
 	if m.Family != nil {
-		familyStr := fmt.Sprintf("AFI=%d/SAFI=%d", m.Family.AFI, m.Family.SAFI)
+		var fb textbuf.Buffer
+		familyStr := fb.Reset().Str("AFI=").Int(int64(m.Family.AFI)).Str("/SAFI=").Int(int64(m.Family.SAFI)).String()
 		if m.LocalSupported && !m.PeerSupported {
 			return "local supports " + familyStr + ", peer does not"
 		}

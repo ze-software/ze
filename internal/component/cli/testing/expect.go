@@ -419,7 +419,7 @@ func checkPrompt(exp Expectation, state State) error {
 			if len(path) == 0 {
 				prompt = "ze#"
 			} else {
-				prompt = fmt.Sprintf("ze[%s]#", strings.Join(path, " "))
+				prompt = "ze[" + strings.Join(path, " ") + "]#"
 			}
 		}
 

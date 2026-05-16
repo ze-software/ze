@@ -11,6 +11,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -48,12 +49,8 @@ func openMessageToRPC(open *message.Open) rpc.ValidateOpenMessage {
 	}
 
 	// Convert BGP Identifier (uint32) to dotted IP string
-	routerID := fmt.Sprintf("%d.%d.%d.%d",
-		(open.BGPIdentifier>>24)&0xFF,
-		(open.BGPIdentifier>>16)&0xFF,
-		(open.BGPIdentifier>>8)&0xFF,
-		open.BGPIdentifier&0xFF,
-	)
+	var ridBuf textbuf.Buffer
+	routerID := ridBuf.Reset().Uint(uint64((open.BGPIdentifier >> 24) & 0xFF)).Byte('.').Uint(uint64((open.BGPIdentifier >> 16) & 0xFF)).Byte('.').Uint(uint64((open.BGPIdentifier >> 8) & 0xFF)).Byte('.').Uint(uint64(open.BGPIdentifier & 0xFF)).String()
 
 	msg := rpc.ValidateOpenMessage{
 		ASN:      asn,

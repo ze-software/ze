@@ -54,7 +54,7 @@ func (n *BGPLSNode) Len() int {
 // Format: node protocol <proto> asn <n>.
 func (n *BGPLSNode) String() string {
 	var b textbuf.Buffer
-	return b.Str("node protocol ").Str(n.protocolID.String()).Str(" asn ").Uint32(n.LocalNode.ASN).String()
+	return b.Reset().Str("node protocol ").Str(n.protocolID.String()).Str(" asn ").Uint32(n.LocalNode.ASN).String()
 }
 
 // WriteTo writes the Node NLRI directly to buf at offset.
@@ -137,7 +137,7 @@ func (l *BGPLSLink) Len() int {
 // Format: link protocol <proto> local-asn <n> remote-asn <m>.
 func (l *BGPLSLink) String() string {
 	var b textbuf.Buffer
-	return b.Str("link protocol ").Str(l.protocolID.String()).Str(" local-asn ").Uint32(l.LocalNode.ASN).Str(" remote-asn ").Uint32(l.RemoteNode.ASN).String()
+	return b.Reset().Str("link protocol ").Str(l.protocolID.String()).Str(" local-asn ").Uint32(l.LocalNode.ASN).Str(" remote-asn ").Uint32(l.RemoteNode.ASN).String()
 }
 
 // WriteTo writes the Link NLRI directly to buf at offset.
@@ -242,7 +242,7 @@ func (p *BGPLSPrefix) Len() int {
 // Format: reachability protocol <proto> type <type> asn <n>.
 func (p *BGPLSPrefix) String() string {
 	var b textbuf.Buffer
-	return b.Str("reachability protocol ").Str(p.protocolID.String()).Str(" type ").Str(p.nlriType.String()).Str(" asn ").Uint32(p.LocalNode.ASN).String()
+	return b.Reset().Str("reachability protocol ").Str(p.protocolID.String()).Str(" type ").Str(p.nlriType.String()).Str(" asn ").Uint32(p.LocalNode.ASN).String()
 }
 
 // WriteTo writes the Prefix NLRI directly to buf at offset.

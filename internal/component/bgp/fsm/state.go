@@ -8,7 +8,7 @@
 // specified in Section 8.2.2.
 package fsm
 
-import "fmt"
+import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 // State represents the BGP FSM state.
 // Values are bit flags for efficient comparison and logging.
@@ -69,7 +69,8 @@ func (s State) String() string {
 	if name, ok := stateNames[s]; ok {
 		return name
 	}
-	return fmt.Sprintf("UNKNOWN(%d)", s)
+	var b textbuf.Buffer
+	return b.Reset().Str("UNKNOWN(").Int(int64(s)).Byte(')').String()
 }
 
 // Event represents a BGP FSM event.
@@ -174,5 +175,6 @@ func (e Event) String() string {
 	if name, ok := eventNames[e]; ok {
 		return name
 	}
-	return fmt.Sprintf("UNKNOWN(%d)", e)
+	var b2 textbuf.Buffer
+	return b2.Reset().Str("UNKNOWN(").Int(int64(e)).Byte(')').String()
 }

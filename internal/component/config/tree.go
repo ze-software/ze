@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Tree represents parsed configuration data.
@@ -383,7 +385,8 @@ func (t *Tree) AddListEntry(name, key string, entry *Tree) {
 	if _, exists := t.lists[name][key]; exists {
 		// Find next available suffix
 		for i := 1; ; i++ {
-			uniqueKey = fmt.Sprintf("%s#%d", key, i)
+			var bk textbuf.Buffer
+			uniqueKey = bk.Reset().Str(key).Byte('#').Int(int64(i)).String()
 			if _, exists := t.lists[name][uniqueKey]; !exists {
 				break
 			}

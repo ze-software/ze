@@ -348,7 +348,7 @@ func bgplsNLRITypeString(nlriType uint16) string {
 	// RFC 7752: Unknown NLRI types are valid and should be labeled generically.
 	// This is forward-compatibility, not silent ignore.
 	var b textbuf.Buffer
-	return b.Str("bgpls-type-").Uint16(nlriType).String()
+	return b.Reset().Str("bgpls-type-").Uint16(nlriType).String()
 }
 
 // prefixDescriptorInfo holds parsed prefix descriptor information.
@@ -590,7 +590,7 @@ func formatRouterID(id []byte) string {
 		return textbuf.Hex(id)
 	case 8:
 		var b textbuf.Buffer
-		return b.Addr(netip.AddrFrom4([4]byte(id[:4]))).Byte(',').Addr(netip.AddrFrom4([4]byte(id[4:8]))).String()
+		return b.Reset().Addr(netip.AddrFrom4([4]byte(id[:4]))).Byte(',').Addr(netip.AddrFrom4([4]byte(id[4:8]))).String()
 	}
 	// Unknown length: return hex (forward-compatibility).
 	return strings.ToUpper(textbuf.Hex(id))
@@ -616,13 +616,13 @@ func formatIPReachability(data []byte, nlriType BGPLSNLRIType) string {
 		addr := make([]byte, 16)
 		copy(addr, prefixBytes)
 		var b textbuf.Buffer
-		return b.Str(formatIPv6Compressed(addr)).Byte('/').Int(int64(prefixLen)).String()
+		return b.Reset().Str(formatIPv6Compressed(addr)).Byte('/').Int(int64(prefixLen)).String()
 	}
 
 	var b4 [4]byte
 	copy(b4[:], prefixBytes)
 	var b textbuf.Buffer
-	return b.Addr(netip.AddrFrom4(b4)).Byte('/').Int(int64(prefixLen)).String()
+	return b.Reset().Addr(netip.AddrFrom4(b4)).Byte('/').Int(int64(prefixLen)).String()
 }
 
 // formatIPv6Compressed formats a 16-byte IPv6 address with zero compression.
@@ -652,11 +652,11 @@ func formatBGPLSTextSingle(result map[string]any) string {
 	}
 	if v, ok := result["protocol-id"].(int); ok {
 		var b textbuf.Buffer
-		parts = append(parts, b.Str("proto=").Int(int64(v)).String())
+		parts = append(parts, b.Reset().Str("proto=").Int(int64(v)).String())
 	}
 	if v, ok := result["l3-routing-topology"].(uint64); ok {
 		var b textbuf.Buffer
-		parts = append(parts, b.Str("id=").Uint(v).String())
+		parts = append(parts, b.Reset().Str("id=").Uint(v).String())
 	}
 
 	if len(parts) == 0 {

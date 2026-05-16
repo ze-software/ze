@@ -33,14 +33,14 @@ func NewEditSession(user, origin string) *EditSession {
 	return &EditSession{
 		User:      safe,
 		Origin:    origin,
-		ID:        fmt.Sprintf("%s@%s%%%s", safe, origin, now.UTC().Format(time.RFC3339)),
+		ID:        safe + "@" + origin + "%" + now.UTC().Format(time.RFC3339),
 		StartTime: now,
 	}
 }
 
 // UserAtOrigin returns "user@origin" for metadata prefixes.
 func (s *EditSession) UserAtOrigin() string {
-	return fmt.Sprintf("%s@%s", s.User, s.Origin)
+	return s.User + "@" + s.Origin
 }
 
 // OrphanedSessions filters a list of session IDs to those belonging to the same

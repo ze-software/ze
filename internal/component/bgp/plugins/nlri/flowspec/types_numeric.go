@@ -103,7 +103,7 @@ func (c *numericComponent) String() string {
 // values without operator prefix, so we output "protocol 6" not "protocol =6".
 func (c *numericComponent) numericString() string {
 	var b textbuf.Buffer
-	b.Str(c.compType.String())
+	b.Reset().Str(c.compType.String())
 	for _, m := range c.matches {
 		b.Byte(' ')
 		if c.compType != FlowIPProtocol {
@@ -132,7 +132,7 @@ func (c *numericComponent) numericString() string {
 // bitmaskString formats TCP flags and Fragment components with named flags.
 func (c *numericComponent) bitmaskString() string {
 	var b textbuf.Buffer
-	b.Str(c.compType.String())
+	b.Reset().Str(c.compType.String())
 	for i, m := range c.matches {
 		b.Byte(' ')
 		if m.And && i > 0 {

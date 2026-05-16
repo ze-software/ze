@@ -119,7 +119,7 @@ func (t FlowComponentType) String() string {
 		return "flow-label"
 	default:
 		var b textbuf.Buffer
-		return b.Str("type(").Uint8(uint8(t)).Str(")").String()
+		return b.Reset().Str("type(").Uint8(uint8(t)).Str(")").String()
 	}
 }
 

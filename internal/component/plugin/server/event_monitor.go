@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -51,7 +52,7 @@ func StreamEventMonitor(ctx context.Context, s *Server, w io.Writer, _ string, a
 	}
 
 	subs := BuildEventMonitorSubscriptions(opts)
-	id := fmt.Sprintf("event-monitor-%d", atomic.AddUint64(&nextEventMonitorID, 1))
+	id := textbuf.StrUint("event-monitor-", atomic.AddUint64(&nextEventMonitorID, 1))
 
 	clientCtx, cancel := context.WithCancel(ctx)
 	defer cancel()

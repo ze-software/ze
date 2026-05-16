@@ -5,7 +5,6 @@
 package collector
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 type cpuFreqCollector struct {
@@ -44,11 +44,11 @@ func (c *cpuFreqCollector) Collect() error {
 	curPkg := make(map[int]uint64, len(cpus))
 
 	for _, cpu := range cpus {
-		base := fmt.Sprintf("/sys/devices/system/cpu/cpu%d", cpu)
+		base := textbuf.StrInt("/sys/devices/system/cpu/cpu", int64(cpu))
 
 		// Current frequency in kHz -> MHz
 		if khz := readSysInt(filepath.Join(base, "cpufreq", "scaling_cur_freq")); khz > 0 {
-			c.freq.With("cpufreq.cpufreq", fmt.Sprintf("cpu%d", cpu), "cpufreq").Set(float64(khz) / 1000)
+			c.freq.With("cpufreq.cpufreq", textbuf.StrInt("cpu", int64(cpu)), "cpufreq").Set(float64(khz) / 1000)
 		}
 
 		curCore[cpu] = readSysUint64(filepath.Join(base, "thermal_throttle", "core_throttle_count"))
@@ -64,7 +64,7 @@ func (c *cpuFreqCollector) Collect() error {
 
 	secs := c.interval.Seconds()
 	for _, cpu := range cpus {
-		dim := fmt.Sprintf("cpu%d", cpu)
+		dim := textbuf.StrInt("cpu", int64(cpu))
 		if prev, ok := c.prevCore[cpu]; ok {
 			c.throttle.With("cpu.core_throttling", dim, "throttling").Set(float64(safeDelta(curCore[cpu], prev)) / secs)
 		}

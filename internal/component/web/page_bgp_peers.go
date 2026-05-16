@@ -6,8 +6,8 @@
 package web
 
 import (
-	"fmt"
 	"html/template"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -106,9 +106,9 @@ func extractPeerEntry(name string, peerTree *config.Tree, group string) peerEntr
 
 	// Build edit URL
 	if group != "" {
-		pe.EditURL = fmt.Sprintf("/show/bgp/group/%s/peer/%s/", group, name)
+		pe.EditURL = "/show/bgp/group/" + group + "/peer/" + name + "/"
 	} else {
-		pe.EditURL = fmt.Sprintf("/show/bgp/peer/%s/", name)
+		pe.EditURL = "/show/bgp/peer/" + name + "/"
 	}
 
 	return pe
@@ -189,11 +189,10 @@ func BuildBGPPeersTableData(peers []peerEntry, filterGroup string) WorkbenchTabl
 					Class:  "inspect",
 				},
 				WorkbenchRowAction{
-					Label:  "Teardown",
-					HxPost: "/tools/related/run",
-					Class:  "danger",
-					Confirm: fmt.Sprintf("Tear down BGP session with %s (%s)?",
-						pe.Name, pe.RemoteIP),
+					Label:   "Teardown",
+					HxPost:  "/tools/related/run",
+					Class:   "danger",
+					Confirm: "Tear down BGP session with " + pe.Name + " (" + pe.RemoteIP + ")?",
 				},
 			)
 			_ = contextPath // context_path sent via hidden form fields in the template
@@ -211,7 +210,7 @@ func BuildBGPPeersTableData(peers []peerEntry, filterGroup string) WorkbenchTabl
 
 	emptyMsg := "No BGP peers configured."
 	if filterGroup != "" {
-		emptyMsg = fmt.Sprintf("No peers in group %q.", filterGroup)
+		emptyMsg = "No peers in group " + strconv.Quote(filterGroup) + "."
 	}
 
 	return WorkbenchTableData{
@@ -301,13 +300,14 @@ func buildPeerActionsHTML(pe peerEntry) template.HTML {
 		if pe.Group != "" {
 			contextPath = "bgp/group/" + pe.Group + "/peer/" + pe.Name
 		}
-		fmt.Fprintf(&b,
-			`<button class="wb-detail-tool" hx-post="/tools/related/run" hx-vals='{"tool_id":"peer-flush","context_path":"%s"}' type="button">Flush</button>`,
-			template.HTMLEscapeString(contextPath))
-		fmt.Fprintf(&b,
-			`<button class="wb-detail-tool wb-detail-tool--danger" hx-post="/tools/related/run" hx-vals='{"tool_id":"peer-teardown","context_path":"%s"}' hx-confirm="Tear down BGP session with %s?" type="button">Teardown</button>`,
-			template.HTMLEscapeString(contextPath),
-			template.HTMLEscapeString(pe.Name))
+		b.WriteString(`<button class="wb-detail-tool" hx-post="/tools/related/run" hx-vals='{"tool_id":"peer-flush","context_path":"`)
+		b.WriteString(template.HTMLEscapeString(contextPath))
+		b.WriteString(`"}' type="button">Flush</button>`)
+		b.WriteString(`<button class="wb-detail-tool wb-detail-tool--danger" hx-post="/tools/related/run" hx-vals='{"tool_id":"peer-teardown","context_path":"`)
+		b.WriteString(template.HTMLEscapeString(contextPath))
+		b.WriteString(`"}' hx-confirm="Tear down BGP session with `)
+		b.WriteString(template.HTMLEscapeString(pe.Name))
+		b.WriteString(`?" type="button">Teardown</button>`)
 	}
 	b.WriteString(`</div>`)
 	b.WriteString(`</div>`)

@@ -18,6 +18,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -117,13 +118,13 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		if len(path) > 0 {
 			schemaNode, walkErr := walkSchema(schema, path)
 			if walkErr != nil || schemaNode == nil {
-				target := "/show/?error=" + url.QueryEscape(fmt.Sprintf("invalid path: %s", strings.Join(path, "/")))
+				target := "/show/?error=" + url.QueryEscape("invalid path: "+strings.Join(path, "/"))
 				http.Redirect(w, r, target, http.StatusFound)
 				return
 			}
 			if isListEntryPath(schema, path) && walkTree(viewTree, schema, path) == nil {
 				entryKey := path[len(path)-1]
-				target := "/show/?error=" + url.QueryEscape(fmt.Sprintf("entry %q does not exist", entryKey))
+				target := "/show/?error=" + url.QueryEscape("entry "+strconv.Quote(entryKey)+" does not exist")
 				http.Redirect(w, r, target, http.StatusFound)
 				return
 			}

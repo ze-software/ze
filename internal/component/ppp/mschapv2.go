@@ -16,6 +16,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"strconv"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // MS-CHAPv2 packet codes. Section 4 inherits the CHAP framing from
@@ -406,9 +408,8 @@ func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 	// WriteMSCHAPv2Success still panics on wrong-length blobs from
 	// DIRECT callers (programmer error).
 	if decision.accept && len(decision.authResponseBlob) != mschapv2AuthenticatorResponseLen {
-		s.fail("chap-v2: auth handler returned authResponseBlob length " +
-			strconv.Itoa(len(decision.authResponseBlob)) + ", want " +
-			strconv.Itoa(mschapv2AuthenticatorResponseLen))
+		var bFail textbuf.Buffer
+		s.fail(bFail.Reset().Str("chap-v2: auth handler returned authResponseBlob length ").Int(int64(len(decision.authResponseBlob))).Str(", want ").Int(int64(mschapv2AuthenticatorResponseLen)).String())
 		s.sendAuthEvent(EventAuthFailure{
 			TunnelID:  s.tunnelID,
 			SessionID: s.sessionID,

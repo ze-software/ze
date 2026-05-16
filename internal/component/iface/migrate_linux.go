@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
 	"time"
 
@@ -44,7 +45,8 @@ func resolveOSName(iface string, unit int) string {
 	if unit == 0 {
 		return iface
 	}
-	return fmt.Sprintf("%s.%d", iface, unit)
+	var b textbuf.Buffer
+	return b.Reset().Str(iface).Byte('.').Int(int64(unit)).String()
 }
 
 // bgpListenerReadyPayload is the JSON payload emitted by the BGP reactor

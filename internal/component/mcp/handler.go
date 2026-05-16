@@ -206,7 +206,7 @@ var methods = map[string]func(s *server, req *request) *response{
 func (s *server) handle(req *request) *response {
 	handler, ok := methods[req.Method]
 	if !ok {
-		return s.fail(req.ID, -32601, fmt.Sprintf("method not found: %s", req.Method))
+		return s.fail(req.ID, -32601, "method not found: "+req.Method)
 	}
 	return handler(s, req)
 }
@@ -301,7 +301,7 @@ func (s *server) callToolViaProvider(req *request) *response {
 	}
 	result := s.provider.CallTool(params.Name, params.Arguments)
 	if result == nil {
-		return s.fail(req.ID, -32602, fmt.Sprintf("unknown tool: %s", params.Name))
+		return s.fail(req.ID, -32602, "unknown tool: "+params.Name)
 	}
 	return s.ok(req.ID, result)
 }
@@ -324,7 +324,7 @@ func (s *server) callTool(req *request) *response {
 		}
 	}
 
-	return s.fail(req.ID, -32602, fmt.Sprintf("unknown tool: %s", params.Name))
+	return s.fail(req.ID, -32602, "unknown tool: "+params.Name)
 }
 
 // findGeneratedTool maps an auto-generated tool name back to its command prefix

@@ -4,7 +4,6 @@ package healthcheck
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"syscall"
@@ -70,7 +69,7 @@ func runSingleHook(probeName, command, sName string) {
 		"PATH=" + os.Getenv("PATH"),
 		"HOME=" + os.Getenv("HOME"),
 		"USER=" + os.Getenv("USER"),
-		fmt.Sprintf("STATE=%s", sName),
+		"STATE=" + sName,
 	}
 
 	if err := cmd.Run(); err != nil {

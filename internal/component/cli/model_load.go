@@ -12,6 +12,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -110,7 +112,7 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 	}
 
 	return commandResult{
-		statusMessage:         fmt.Sprintf("Committed%s. Confirm within %ds or auto-revert. Use 'confirm' or 'abort'.", reloadWarning, seconds),
+		statusMessage:         "Committed" + reloadWarning + ". Confirm within " + textbuf.IntStr(int64(seconds), "s or auto-revert. Use 'confirm' or 'abort'."),
 		refreshConfig:         true,
 		revalidate:            true,
 		setConfirmTimer:       true,
@@ -207,7 +209,7 @@ func (m Model) handleConfirmCountdown() (tea.Model, tea.Cmd) {
 	}
 
 	// Update countdown display
-	m.statusMessage = fmt.Sprintf("Confirm within %ds or auto-revert. Use 'confirm' or 'abort'.", m.confirmSecondsLeft)
+	m.statusMessage = textbuf.StrIntStr("Confirm within ", int64(m.confirmSecondsLeft), "s or auto-revert. Use 'confirm' or 'abort'.")
 	return m, tea.Tick(time.Second, func(_ time.Time) tea.Msg {
 		return confirmCountdownMsg{}
 	})
@@ -230,7 +232,7 @@ func (m *Model) cmdLoad(args []string) (commandResult, error) {
 	m.editor.MarkDirty()
 
 	return commandResult{
-		statusMessage: fmt.Sprintf("Configuration loaded from %s", args[0]),
+		statusMessage: "Configuration loaded from " + args[0],
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
@@ -259,7 +261,7 @@ func (m *Model) cmdLoadMerge(args []string) (commandResult, error) {
 	m.editor.MarkDirty()
 
 	return commandResult{
-		statusMessage: fmt.Sprintf("Configuration merged from %s", args[0]),
+		statusMessage: "Configuration merged from " + args[0],
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
@@ -357,7 +359,7 @@ func (m *Model) applyLoadAbsolute(action, content, path string) (commandResult, 
 		m.editor.SetWorkingContent(content)
 		m.editor.MarkDirty()
 		return commandResult{
-			statusMessage: fmt.Sprintf("Configuration loaded from %s", path),
+			statusMessage: "Configuration loaded from " + path,
 			configView:    m.configViewAtPath(m.contextPath),
 			revalidate:    true,
 		}, nil
@@ -369,7 +371,7 @@ func (m *Model) applyLoadAbsolute(action, content, path string) (commandResult, 
 	m.editor.SetWorkingContent(merged)
 	m.editor.MarkDirty()
 	return commandResult{
-		statusMessage: fmt.Sprintf("Configuration merged from %s", path),
+		statusMessage: "Configuration merged from " + path,
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
@@ -401,7 +403,7 @@ func (m *Model) applyLoadRelative(action, content, path string) (commandResult, 
 	}
 
 	return commandResult{
-		statusMessage: fmt.Sprintf("Configuration %s from %s at %s", verb, path, strings.Join(m.contextPath, " ")),
+		statusMessage: "Configuration " + verb + " from " + path + " at " + strings.Join(m.contextPath, " "),
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil

@@ -10,7 +10,6 @@ package rs
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net"
 	"strconv"
@@ -26,6 +25,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -610,7 +610,7 @@ func formatCapInfo(cap capability.Capability) []CapabilityInfo {
 	code := int(cap.Code())
 	switch c := cap.(type) {
 	case *capability.Multiprotocol:
-		return []CapabilityInfo{{Code: code, Name: "multiprotocol", Value: fmt.Sprintf("%s/%s", c.AFI, c.SAFI)}}
+		return []CapabilityInfo{{Code: code, Name: "multiprotocol", Value: c.AFI.String() + "/" + c.SAFI.String()}}
 	case *capability.ASN4:
 		return []CapabilityInfo{{Code: code, Name: "asn4", Value: strconv.Itoa(int(c.ASN))}}
 	case *capability.ExtendedMessage:
@@ -628,14 +628,14 @@ func formatCapInfo(cap capability.Capability) []CapabilityInfo {
 				mode = "send-receive"
 			}
 			if mode != "" {
-				results = append(results, CapabilityInfo{Code: code, Name: "addpath", Value: fmt.Sprintf("%s/%s %s", f.AFI, f.SAFI, mode)})
+				results = append(results, CapabilityInfo{Code: code, Name: "addpath", Value: f.AFI.String() + "/" + f.SAFI.String() + " " + mode})
 			}
 		}
 		return results
 	case *capability.GracefulRestart:
 		return []CapabilityInfo{{Code: code, Name: "graceful-restart"}}
 	}
-	return []CapabilityInfo{{Code: code, Name: fmt.Sprintf("unknown-%d", code)}}
+	return []CapabilityInfo{{Code: code, Name: textbuf.StrInt("unknown-", int64(code))}}
 }
 
 // parseStructuredRefresh converts a StructuredEvent ROUTEREFRESH to an rs Event.

@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -189,7 +190,7 @@ func HandleL2TPSamplesCSV() http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "text/csv")
-		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s-cqm.csv\"", login))
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+login+"-cqm.csv\"")
 		cw := csv.NewWriter(w)
 		if err := cw.Write([]string{"timestamp", "state", "echo_count", "min_rtt_us", "avg_rtt_us", "max_rtt_us"}); err != nil {
 			return
@@ -314,7 +315,8 @@ func (h *L2TPHandlers) HandleL2TPDisconnect() http.HandlerFunc {
 			return
 		}
 		if utf8.RuneCountInString(reason) > maxReasonLen {
-			http.Error(w, fmt.Sprintf("reason too long (max %d chars)", maxReasonLen), http.StatusBadRequest)
+			var bLen textbuf.Buffer
+			http.Error(w, bLen.Reset().Str("reason too long (max ").Int(int64(maxReasonLen)).Str(" chars)").String(), http.StatusBadRequest)
 			return
 		}
 		causeStr := r.FormValue("cause")
@@ -323,14 +325,16 @@ func (h *L2TPHandlers) HandleL2TPDisconnect() http.HandlerFunc {
 		if actor == "" {
 			actor = "web"
 		}
-		cmd := fmt.Sprintf("clear l2tp session teardown %d actor %s reason %s", sid, actor, quoteForDispatch(reason))
+		var bCmd textbuf.Buffer
+		cmd := bCmd.Reset().Str("clear l2tp session teardown ").Int(int64(sid)).Byte(' ').Str("actor ").Str(actor).Str(" reason ").Str(quoteForDispatch(reason)).String()
 		if causeStr != "" {
 			causeVal, parseErr := strconv.ParseUint(causeStr, 10, 16)
 			if parseErr != nil || causeVal > maxCauseVal {
 				http.Error(w, "invalid cause code", http.StatusBadRequest)
 				return
 			}
-			cmd = fmt.Sprintf("%s cause %d", cmd, causeVal)
+			var bCause textbuf.Buffer
+			cmd += bCause.Reset().Str(" cause ").Int(int64(causeVal)).String()
 		}
 
 		if h.Dispatch == nil {

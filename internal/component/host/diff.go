@@ -4,7 +4,9 @@
 
 package host
 
-import "fmt"
+import (
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
 
 // DiffEvent describes a single hardware state change between two
 // inventory snapshots. Callers translate DiffEvents into report bus
@@ -52,7 +54,7 @@ func diffNICCarrier(prev, curr []NICInfo) []DiffEvent {
 			events = append(events, DiffEvent{
 				Code:    "carrier-change",
 				Subject: nic.Name,
-				Message: fmt.Sprintf("NIC %s carrier %s", nic.Name, state),
+				Message: "NIC " + nic.Name + " carrier " + state,
 				Detail:  map[string]any{"carrier": nic.Carrier},
 			})
 		}
@@ -71,11 +73,11 @@ func diffECC(prev, curr *MemoryInfo) []DiffEvent {
 	events := make([]DiffEvent, 0, 1)
 	if curr.ECCCorrectableErrors > prev.ECCCorrectableErrors ||
 		curr.ECCUncorrectableErrors > prev.ECCUncorrectableErrors {
+		var b textbuf.Buffer
 		events = append(events, DiffEvent{
 			Code:    "ecc-error",
 			Subject: "memory",
-			Message: fmt.Sprintf("ECC errors: correctable=%d uncorrectable=%d",
-				curr.ECCCorrectableErrors, curr.ECCUncorrectableErrors),
+			Message: b.Reset().Str("ECC errors: correctable=").Uint(curr.ECCCorrectableErrors).Str(" uncorrectable=").Uint(curr.ECCUncorrectableErrors).String(),
 			Detail: map[string]any{
 				"correctable":   curr.ECCCorrectableErrors,
 				"uncorrectable": curr.ECCUncorrectableErrors,
@@ -100,11 +102,11 @@ func diffThrottle(prev, curr *CPUInfo) []DiffEvent {
 		if pc, ok := prevMap[c.CPU]; ok {
 			if c.CoreThrottleCount > pc.CoreThrottleCount ||
 				c.PackageThrottleCount > pc.PackageThrottleCount {
+				var b textbuf.Buffer
 				events = append(events, DiffEvent{
 					Code:    "throttle",
-					Subject: fmt.Sprintf("cpu%d", c.CPU),
-					Message: fmt.Sprintf("CPU %d throttle: core=%d pkg=%d",
-						c.CPU, c.CoreThrottleCount, c.PackageThrottleCount),
+					Subject: textbuf.StrInt("cpu", int64(c.CPU)),
+					Message: b.Reset().Str("CPU ").Int(int64(c.CPU)).Str(" throttle: core=").Int(int64(c.CoreThrottleCount)).Str(" pkg=").Int(int64(c.PackageThrottleCount)).String(),
 					Detail: map[string]any{
 						"cpu":              c.CPU,
 						"core-throttle":    c.CoreThrottleCount,

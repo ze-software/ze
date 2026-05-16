@@ -7,7 +7,8 @@ package message
 
 import (
 	"encoding/binary"
-	"fmt"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // RFC 4271 Section 4.1 - BGP message header constants.
@@ -64,7 +65,8 @@ func (t MessageType) String() string {
 	case TypeROUTEREFRESH:
 		return "ROUTE-REFRESH"
 	default:
-		return fmt.Sprintf("UNKNOWN(%d)", t)
+		var b textbuf.Buffer
+		return b.Reset().Str("UNKNOWN(").Int(int64(t)).Byte(')').String()
 	}
 }
 

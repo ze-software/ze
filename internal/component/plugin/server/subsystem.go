@@ -91,12 +91,12 @@ func (h *SubsystemHandler) Start(ctx context.Context) error {
 	// - Otherwise, add --mode=<name>
 	cmd := h.config.Binary
 	if !strings.Contains(cmd, " ") {
-		cmd = fmt.Sprintf("%s --mode=%s", cmd, h.config.Name)
+		cmd = cmd + " --mode=" + h.config.Name
 	}
 
 	// Append config path if provided
 	if h.config.ConfigPath != "" {
-		cmd = fmt.Sprintf("%s --config %s", cmd, h.config.ConfigPath)
+		cmd = cmd + " --config " + h.config.ConfigPath
 	}
 
 	// Create process config

@@ -37,6 +37,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -185,7 +186,8 @@ func runEmit(args []string) (string, error) {
 	}
 	logger().Debug("fakeredist: emitted",
 		"action", action, "family", fam, "prefix", prefix, "delivered", delivered)
-	return fmt.Sprintf(`{"delivered":%d}`, delivered), nil
+	var bDel textbuf.Buffer
+	return bDel.Reset().Str(`{"delivered":`).Int(int64(delivered)).Byte('}').String(), nil
 }
 
 // burstMaxN is the upper bound on a single emit-burst invocation. Sized to
@@ -228,7 +230,8 @@ func runEmitBurst(args []string) (string, error) {
 	delivered := 0
 	emitted := 0
 	for range n {
-		entry, err := netip.ParsePrefix(addr.String() + "/" + strconv.Itoa(bits))
+		var bPfx textbuf.Buffer
+		entry, err := netip.ParsePrefix(bPfx.Reset().Str(addr.String()).Byte('/').Int(int64(bits)).String())
 		if err != nil {
 			return "", fmt.Errorf("internal: build entry prefix: %w", err)
 		}
@@ -245,7 +248,8 @@ func runEmitBurst(args []string) (string, error) {
 			break
 		}
 	}
-	return fmt.Sprintf(`{"delivered":%d,"emitted":%d}`, delivered, emitted), nil
+	var b textbuf.Buffer
+	return b.Reset().Str(`{"delivered":`).Int(int64(delivered)).Str(`,"emitted":`).Int(int64(emitted)).Byte('}').String(), nil
 }
 
 // dispatchCommand is the OnExecuteCommand entry point. The engine routes

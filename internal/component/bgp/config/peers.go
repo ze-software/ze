@@ -180,10 +180,10 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 		return nil, err
 	}
 	for _, ps := range peers {
-		if err := filterReg.ValidateFilterNames(ps.ImportFilters, fmt.Sprintf("peer %s import", ps.Name)); err != nil {
+		if err := filterReg.ValidateFilterNames(ps.ImportFilters, "peer "+ps.Name+" import"); err != nil {
 			return nil, err
 		}
-		if err := filterReg.ValidateFilterNames(ps.ExportFilters, fmt.Sprintf("peer %s export", ps.Name)); err != nil {
+		if err := filterReg.ValidateFilterNames(ps.ExportFilters, "peer "+ps.Name+" export"); err != nil {
 			return nil, err
 		}
 	}

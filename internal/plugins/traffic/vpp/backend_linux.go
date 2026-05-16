@@ -443,7 +443,7 @@ func (b *backend) Close() error { return nil }
 // limits names to 64 bytes; the verifier rejects any class whose produced
 // name exceeds the limit, so this function does not truncate.
 func policerName(ifaceName, className string) string {
-	return fmt.Sprintf("%s%s/%s", policerNamePrefix, ifaceName, className)
+	return policerNamePrefix + ifaceName + "/" + className
 }
 
 // govppOps is the production adapter that implements vppOps on top of a

@@ -272,7 +272,7 @@ func buildToolDef(g toolGroup) map[string]any {
 		for i, a := range namedActions {
 			actionEnums[i] = a.name
 			if a.help != "" {
-				actionDescs = append(actionDescs, fmt.Sprintf("%s: %s", a.name, a.help))
+				actionDescs = append(actionDescs, a.name+": "+a.help)
 			}
 		}
 

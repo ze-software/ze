@@ -20,10 +20,10 @@ package capability
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Errors.
@@ -81,7 +81,7 @@ func (c Code) String() string {
 	case CodeFQDN:
 		return "FQDN(73)"
 	default:
-		return fmt.Sprintf("Unknown(%d)", c)
+		return textbuf.StrIntStr("Unknown(", int64(c), ")")
 	}
 }
 

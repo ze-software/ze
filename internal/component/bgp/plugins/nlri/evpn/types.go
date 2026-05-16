@@ -17,6 +17,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Type aliases for nlri types used by EVPN.
@@ -86,7 +87,7 @@ func (t EVPNRouteType) String() string {
 	case EVPNRouteType5:
 		return RouteNameIPPrefix
 	}
-	return "evpn-type-" + strconv.Itoa(int(t))
+	return textbuf.StrInt("evpn-type-", int64(t))
 }
 
 // ESI represents a 10-byte Ethernet Segment Identifier.
@@ -946,7 +947,7 @@ func (e *EVPNGeneric) HasPathID() bool          { return e.hasPath }
 func (e *EVPNGeneric) SupportsAddPath() bool    { return true }
 func (e *EVPNGeneric) Bytes() []byte            { return e.data }
 func (e *EVPNGeneric) Len() int                 { return len(e.data) + 2 }
-func (e *EVPNGeneric) String() string           { return "evpn-type" + strconv.Itoa(int(e.routeType)) }
+func (e *EVPNGeneric) String() string           { return textbuf.StrInt("evpn-type", int64(e.routeType)) }
 func (e *EVPNGeneric) WriteTo(buf []byte, off int) int {
 	return copy(buf[off:], e.Bytes())
 }

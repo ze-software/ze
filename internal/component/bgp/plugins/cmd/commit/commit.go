@@ -1,5 +1,4 @@
 // Design: docs/architecture/api/commands.md — BGP commit workflow handlers
-// Overview: doc.go — bgp-cmd-commit plugin registration
 
 package commit
 
@@ -14,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -127,7 +127,7 @@ func handleCommit(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 	default: // unknown commit action — return explicit error
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("unknown commit action: %s", action),
+			Data:   "unknown commit action: " + action,
 		}, fmt.Errorf("unknown commit action: %s", action)
 	}
 }
@@ -283,7 +283,8 @@ func handleNamedCommitShow(ctx *pluginserver.CommandContext, name string) (*plug
 	families := tx.Families()
 	familyStrs := make([]string, len(families))
 	for i, f := range families {
-		familyStrs[i] = fmt.Sprintf("%d/%d", f.AFI, f.SAFI)
+		var b textbuf.Buffer
+		familyStrs[i] = b.Reset().Int(int64(f.AFI)).Byte('/').Int(int64(f.SAFI)).String()
 	}
 
 	return &plugin.Response{
@@ -333,7 +334,7 @@ func handleNamedCommitWithdraw(ctx *pluginserver.CommandContext, name string, ar
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid prefix: %s", args[1]),
+			Data:   "invalid prefix: " + args[1],
 		}, err
 	}
 

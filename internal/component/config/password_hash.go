@@ -47,8 +47,7 @@ func checkBcryptLeavesWalk(tree *Tree, node Node, prefix string, warnings *[]str
 		if leaf, ok := child.(*LeafNode); ok && leaf.Bcrypt {
 			if val, present := tree.Get(childName); present && val != "" && !IsBcryptHash(val) {
 				*warnings = append(*warnings,
-					fmt.Sprintf("%s: not a valid bcrypt hash; use plaintext-%s or 'ze passwd' to set",
-						path, childName))
+					path+": not a valid bcrypt hash; use plaintext-"+childName+" or 'ze passwd' to set")
 			}
 			continue
 		}

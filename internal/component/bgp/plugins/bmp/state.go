@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -106,10 +108,11 @@ func (s *bmpState) peerUp(remote string, ph PeerHeader) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	key := peerKey{router: remote, distinguisher: ph.Distinguisher, address: ph.Address}
+	var b textbuf.Buffer
 	s.peers[key] = &monitoredPeer{
 		Router:    remote,
 		PeerAS:    ph.PeerAS,
-		PeerBGPID: fmt.Sprintf("%d.%d.%d.%d", ph.PeerBGPID>>24, (ph.PeerBGPID>>16)&0xFF, (ph.PeerBGPID>>8)&0xFF, ph.PeerBGPID&0xFF),
+		PeerBGPID: b.Reset().Uint(uint64(ph.PeerBGPID >> 24)).Byte('.').Uint(uint64((ph.PeerBGPID >> 16) & 0xFF)).Byte('.').Uint(uint64((ph.PeerBGPID >> 8) & 0xFF)).Byte('.').Uint(uint64(ph.PeerBGPID & 0xFF)).String(),
 		IsIPv6:    ph.IsIPv6(),
 		IsUp:      true,
 	}

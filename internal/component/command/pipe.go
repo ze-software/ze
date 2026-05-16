@@ -9,9 +9,9 @@ package command
 
 import (
 	"encoding/json"
-	"fmt"
-	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // pipeKind identifies the type of pipe operator.
@@ -168,7 +168,7 @@ func ApplyPipes(output string, ops []pipeOp) (string, string) {
 		case pipeYAML:
 			result = applyYAML(result)
 		case pipeUnknown:
-			return "", fmt.Sprintf("unknown pipe operator: %s", op.arg)
+			return "", "unknown pipe operator: " + op.arg
 		}
 	}
 	return result, ""
@@ -208,7 +208,7 @@ func applyCount(input string) string {
 	trimmed := strings.TrimSpace(input)
 	var data any
 	if err := json.Unmarshal([]byte(trimmed), &data); err == nil {
-		return "{\"count\":" + strconv.Itoa(countItems(data)) + "}\n"
+		return textbuf.StrIntStr("{\"count\":", int64(countItems(data)), "}\n")
 	}
 	// Fallback: count non-empty lines.
 	n := 0
@@ -217,7 +217,7 @@ func applyCount(input string) string {
 			n++
 		}
 	}
-	return "{\"count\":" + strconv.Itoa(n) + "}\n"
+	return textbuf.StrIntStr("{\"count\":", int64(n), "}\n")
 }
 
 // countItems counts the number of items in a JSON value.

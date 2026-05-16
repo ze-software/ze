@@ -119,7 +119,7 @@ func formatOrigin(data []byte) string {
 		return name
 	}
 	var b textbuf.Buffer
-	return b.Str("unknown(").Uint8(data[0]).Byte(')').String()
+	return b.Reset().Str("unknown(").Uint8(data[0]).Byte(')').String()
 }
 
 // formatASPath converts raw AS_PATH pool bytes to a flat ASN slice.

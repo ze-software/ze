@@ -5,7 +5,6 @@
 package collector
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 type cpuIdleCollector struct {
@@ -58,10 +58,10 @@ func (c *cpuIdleCollector) Collect() error {
 
 	cpus := listCPUs()
 	for _, cpu := range cpus {
-		chart := fmt.Sprintf("cpuidle.cpu%d_cpuidle", cpu)
+		chart := textbuf.StrIntStr("cpuidle.cpu", int64(cpu), "_cpuidle")
 		family := "cpuidle"
 
-		prefix := fmt.Sprintf("cpu%d:", cpu)
+		prefix := textbuf.StrIntStr("cpu", int64(cpu), ":")
 		var totalIdleDelta uint64
 		for k, v := range cur {
 			if strings.HasPrefix(k, prefix) {
@@ -94,7 +94,7 @@ func readCPUIdleStats() map[string]uint64 {
 	cpus := listCPUs()
 	result := make(map[string]uint64, len(cpus)*8)
 	for _, cpu := range cpus {
-		base := fmt.Sprintf("/sys/devices/system/cpu/cpu%d/cpuidle", cpu)
+		base := textbuf.StrIntStr("/sys/devices/system/cpu/cpu", int64(cpu), "/cpuidle")
 		states, err := filepath.Glob(filepath.Join(base, "state*"))
 		if err != nil || len(states) == 0 {
 			continue
@@ -105,7 +105,7 @@ func readCPUIdleStats() map[string]uint64 {
 				name = filepath.Base(st)
 			}
 			timeUs := readCPUIdleUint64(filepath.Join(st, "time"))
-			key := fmt.Sprintf("cpu%d:%s", cpu, name)
+			key := textbuf.StrIntStr("cpu", int64(cpu), ":") + name
 			result[key] = timeUs
 		}
 	}

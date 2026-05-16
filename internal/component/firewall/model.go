@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"net/netip"
 	"regexp"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -589,7 +591,7 @@ func (s SetType) String() string {
 	case SetTypeIfname:
 		return "ifname"
 	}
-	return fmt.Sprintf("unknown(%d)", uint8(s))
+	return textbuf.StrIntStr("unknown(", int64(s), ")")
 }
 
 // SetFlags are bitmask flags for set behavior.

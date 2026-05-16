@@ -394,7 +394,7 @@ func (r *Reader) walkListEntries(handler string, entries map[string]any, state *
 			continue
 		}
 
-		entryPath := fmt.Sprintf("%s[key=%s]", handler, listKey)
+		entryPath := handler + "[key=" + listKey + "]"
 
 		// Extract flat fields.
 		flatEntry := make(map[string]any)

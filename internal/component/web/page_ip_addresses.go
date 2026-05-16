@@ -5,13 +5,13 @@
 package web
 
 import (
-	"fmt"
 	"html/template"
 	"net/http"
 	"net/netip"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // AddressRow holds one row of the IP addresses table.
@@ -49,7 +49,8 @@ func BuildAddressTableData(infos []iface.InterfaceInfo, filterIface, filterProto
 			continue
 		}
 		for _, addr := range info.Addresses {
-			cidr := fmt.Sprintf("%s/%d", addr.Address, addr.PrefixLength)
+			var bCidr textbuf.Buffer
+			cidr := bCidr.Reset().Str(addr.Address).Byte('/').Int(int64(addr.PrefixLength)).String()
 			family := addrFamily(addr)
 
 			if filterProtocol != "" && !strings.EqualFold(family, filterProtocol) {
@@ -62,7 +63,7 @@ func BuildAddressTableData(infos []iface.InterfaceInfo, filterIface, filterProto
 				Key:   cidr,
 				Cells: []string{cidr, network, info.Name, family},
 				Actions: []WorkbenchRowAction{
-					{Label: "Go to Interface", URL: fmt.Sprintf("/show/iface/detail/%s", info.Name)},
+					{Label: "Go to Interface", URL: "/show/iface/detail/" + info.Name},
 				},
 			})
 		}

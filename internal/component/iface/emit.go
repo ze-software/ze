@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // EmitConfig produces Ze config syntax for a slice of DiscoveredInterfaces.
@@ -88,7 +89,7 @@ func emitWireguardBlock(b *strings.Builder, di *DiscoveredInterface) {
 	}
 	for idx := range spec.Peers {
 		p := &spec.Peers[idx]
-		peerName := fmt.Sprintf("peer%d", idx)
+		peerName := textbuf.StrInt("peer", int64(idx))
 		fmt.Fprintf(b, "        peer %s {\n", peerName)
 		fmt.Fprintf(b, "            public-key \"%s\";\n", p.PublicKey.String())
 		if p.HasPresharedKey {
@@ -153,7 +154,7 @@ func EmitSetConfig(discovered []DiscoveredInterface) string {
 
 // emitWireguardSet writes set-command lines for a discovered wireguard device.
 func emitWireguardSet(b *strings.Builder, di *DiscoveredInterface) {
-	prefix := fmt.Sprintf("set interface wireguard %s", di.Name)
+	prefix := "set interface wireguard " + di.Name
 	fmt.Fprintf(b, "%s os-name %s\n", prefix, di.Name)
 	spec := di.Wireguard
 	if spec == nil {
@@ -170,7 +171,8 @@ func emitWireguardSet(b *strings.Builder, di *DiscoveredInterface) {
 	}
 	for idx := range spec.Peers {
 		p := &spec.Peers[idx]
-		peerPrefix := fmt.Sprintf("%s peer peer%d", prefix, idx)
+		var bPrefix textbuf.Buffer
+		peerPrefix := bPrefix.Reset().Str(prefix).Str(" peer peer").Int(int64(idx)).String()
 		fmt.Fprintf(b, "%s public-key \"%s\"\n", peerPrefix, p.PublicKey.String())
 		if p.HasPresharedKey {
 			if encoded, err := secret.Encode(p.PresharedKey.String()); err == nil {

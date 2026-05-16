@@ -5,7 +5,6 @@
 package web
 
 import (
-	"fmt"
 	"html/template"
 	"strconv"
 
@@ -121,14 +120,14 @@ func BuildBGPPolicyTableData(entries []policyEntry) WorkbenchTableData {
 	for _, pe := range entries {
 		rows = append(rows, WorkbenchTableRow{
 			Key: pe.Name,
-			URL: fmt.Sprintf("/show/bgp/policy/%s/", pe.Name),
+			URL: "/show/bgp/policy/" + pe.Name + "/",
 			Cells: []string{
 				pe.Name,
 				pe.Type,
 				strconv.Itoa(pe.RuleCount),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "Edit", URL: fmt.Sprintf("/show/bgp/policy/%s/", pe.Name)},
+				{Label: "Edit", URL: "/show/bgp/policy/" + pe.Name + "/"},
 			},
 		})
 	}

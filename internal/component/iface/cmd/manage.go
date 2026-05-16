@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func handleCreateDummy(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
@@ -22,7 +23,7 @@ func handleCreateDummy(_ *pluginserver.CommandContext, args []string) (*plugin.R
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   fmt.Sprintf("created dummy interface %s", args[0]),
+		Data:   "created dummy interface " + args[0],
 	}, nil
 }
 
@@ -35,7 +36,7 @@ func handleCreateVeth(_ *pluginserver.CommandContext, args []string) (*plugin.Re
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   fmt.Sprintf("created veth pair %s <-> %s", args[0], args[1]),
+		Data:   "created veth pair " + args[0] + " <-> " + args[1],
 	}, nil
 }
 
@@ -48,7 +49,7 @@ func handleCreateBridge(_ *pluginserver.CommandContext, args []string) (*plugin.
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   fmt.Sprintf("created bridge interface %s", args[0]),
+		Data:   "created bridge interface " + args[0],
 	}, nil
 }
 
@@ -61,7 +62,7 @@ func handleDelete(_ *pluginserver.CommandContext, args []string) (*plugin.Respon
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   fmt.Sprintf("deleted interface %s", args[0]),
+		Data:   "deleted interface " + args[0],
 	}, nil
 }
 
@@ -74,7 +75,7 @@ func handleAddrAdd(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   fmt.Sprintf("added %s to %s", args[1], args[0]),
+		Data:   "added " + args[1] + " to " + args[0],
 	}, nil
 }
 
@@ -87,7 +88,7 @@ func handleAddrDel(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   fmt.Sprintf("removed %s from %s", args[1], args[0]),
+		Data:   "removed " + args[1] + " from " + args[0],
 	}, nil
 }
 
@@ -97,14 +98,15 @@ func handleUnitAdd(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 	}
 	vid, parseErr := strconv.Atoi(args[1])
 	if parseErr != nil || vid < 1 || vid > 4094 {
-		return errResp(fmt.Sprintf("invalid VLAN ID %q (must be 1-4094)", args[1]))
+		return errResp("invalid VLAN ID " + args[1] + " (must be 1-4094)")
 	}
 	if err := iface.CreateVLAN(args[0], vid); err != nil {
 		return errResp(err.Error())
 	}
+	var bData textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   fmt.Sprintf("created unit %s.%d", args[0], vid),
+		Data:   bData.Reset().Str("created unit ").Str(args[0]).Byte('.').Int(int64(vid)).String(),
 	}, nil
 }
 
@@ -117,7 +119,7 @@ func handleUnitDel(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   fmt.Sprintf("deleted unit %s", args[0]),
+		Data:   "deleted unit " + args[0],
 	}, nil
 }
 
@@ -131,7 +133,7 @@ func handleInterfaceUp(_ *pluginserver.CommandContext, args []string) (*plugin.R
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   fmt.Sprintf("interface %s up", args[0]),
+		Data:   "interface " + args[0] + " up",
 	}, nil
 }
 
@@ -145,7 +147,7 @@ func handleInterfaceDown(_ *pluginserver.CommandContext, args []string) (*plugin
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   fmt.Sprintf("interface %s down", args[0]),
+		Data:   "interface " + args[0] + " down",
 	}, nil
 }
 
@@ -174,14 +176,16 @@ func handleInterfaceMTU(_ *pluginserver.CommandContext, args []string) (*plugin.
 		return errResp(fmt.Sprintf("invalid MTU %q: %v", args[1], parseErr))
 	}
 	if mtu < MTUMin || mtu > MTUMax {
-		return errResp(fmt.Sprintf("MTU %d out of range %d..%d", mtu, MTUMin, MTUMax))
+		var bMsg textbuf.Buffer
+		return errResp(bMsg.Reset().Str("MTU ").Int(int64(mtu)).Str(" out of range ").Int(int64(MTUMin)).Str("..").Int(int64(MTUMax)).String())
 	}
 	if err := iface.SetMTU(args[0], mtu); err != nil {
 		return errResp(err.Error())
 	}
+	var bMtu textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   fmt.Sprintf("interface %s mtu %d", args[0], mtu),
+		Data:   bMtu.Reset().Str("interface ").Str(args[0]).Str(" mtu ").Int(int64(mtu)).String(),
 	}, nil
 }
 
@@ -209,13 +213,13 @@ func handleInterfaceMAC(_ *pluginserver.CommandContext, args []string) (*plugin.
 		return errResp("usage: interface mac <name> <mac>")
 	}
 	if !IsValidMACAddress(args[1]) {
-		return errResp(fmt.Sprintf("invalid MAC address %q (expected xx:xx:xx:xx:xx:xx)", args[1]))
+		return errResp("invalid MAC address " + args[1] + " (expected xx:xx:xx:xx:xx:xx)")
 	}
 	if err := iface.SetMACAddress(args[0], args[1]); err != nil {
 		return errResp(err.Error())
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   fmt.Sprintf("interface %s mac %s", args[0], args[1]),
+		Data:   "interface " + args[0] + " mac " + args[1],
 	}, nil
 }

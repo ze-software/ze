@@ -8,6 +8,8 @@ import (
 	"io"
 	"sort"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // readOnlyVerbs are verbs that do not modify state.
@@ -146,8 +148,8 @@ func describeChildren(node *Node) string {
 	sort.Strings(names)
 
 	if len(names) > 4 {
-		return fmt.Sprintf("subcommands: %s, %s, %s, ... (%d total)",
-			names[0], names[1], names[2], len(names))
+		var b textbuf.Buffer
+		return b.Reset().Str("subcommands: ").Str(names[0]).Str(", ").Str(names[1]).Str(", ").Str(names[2]).Str(", ... (").Int(int64(len(names))).Str(" total)").String()
 	}
 
 	return "subcommands: " + strings.Join(names, ", ")

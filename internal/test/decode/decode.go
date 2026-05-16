@@ -11,6 +11,8 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // DecodedMessage holds a human-readable representation of a BGP message.
@@ -74,7 +76,7 @@ func DecodeMessageBytes(data []byte) (*DecodedMessage, error) {
 	case 5:
 		msg.Type = "ROUTE-REFRESH"
 	default:
-		msg.Type = fmt.Sprintf("UNKNOWN(%d)", msg.TypeCode)
+		msg.Type = textbuf.StrIntStr("UNKNOWN(", int64(msg.TypeCode), ")")
 	}
 
 	return msg, nil
@@ -144,8 +146,8 @@ func decodeNotification(msg *DecodedMessage, body []byte) {
 	errSubcode := body[1]
 
 	msg.Attributes = append(msg.Attributes,
-		DecodedAttribute{Name: "error-code", Value: fmt.Sprintf("%d (%s)", errCode, notificationErrorName(errCode))},
-		DecodedAttribute{Name: "error-subcode", Value: strconv.Itoa(int(errSubcode))},
+		DecodedAttribute{Name: "error-code", Value: textbuf.StrIntStr("", int64(errCode), " ("+notificationErrorName(errCode)+")")},
+		DecodedAttribute{Name: "error-subcode", Value: textbuf.Int(int64(errSubcode))},
 	)
 
 	if len(body) > 2 {
@@ -273,7 +275,7 @@ func AttrCodeName(code byte) string {
 	if name, ok := names[code]; ok {
 		return name
 	}
-	return fmt.Sprintf("ATTR_%d", code)
+	return textbuf.StrInt("ATTR_", int64(code))
 }
 
 func decodeAttrValue(code byte, value []byte) string {
@@ -376,7 +378,8 @@ func decodeCommunities(data []byte) string {
 	for i := 0; i+4 <= len(data); i += 4 {
 		high := binary.BigEndian.Uint16(data[i : i+2])
 		low := binary.BigEndian.Uint16(data[i+2 : i+4])
-		comms = append(comms, fmt.Sprintf("%d:%d", high, low))
+		var b textbuf.Buffer
+		comms = append(comms, b.Reset().Uint16(high).Byte(':').Uint16(low).String())
 	}
 	return strings.Join(comms, " ")
 }
@@ -384,7 +387,7 @@ func decodeCommunities(data []byte) string {
 func decodeExtCommunities(data []byte) string {
 	var comms []string
 	for i := 0; i+8 <= len(data); i += 8 {
-		comms = append(comms, fmt.Sprintf("0x%s", hex.EncodeToString(data[i:i+8])))
+		comms = append(comms, "0x"+hex.EncodeToString(data[i:i+8]))
 	}
 	return strings.Join(comms, " ")
 }
@@ -503,12 +506,14 @@ func FindByteDiff(exp, rcv string) string {
 		end := min(i+2, minLen)
 		if exp[i:end] != rcv[i:end] {
 			bytePos := i / 2
-			return fmt.Sprintf("byte %d: %s vs %s", bytePos, exp[i:end], rcv[i:end])
+			var bDiff textbuf.Buffer
+			return bDiff.Reset().Str("byte ").Int(int64(bytePos)).Str(": ").Str(exp[i:end]).Str(" vs ").Str(rcv[i:end]).String()
 		}
 	}
 
 	if len(exp) != len(rcv) {
-		return fmt.Sprintf("length: %d vs %d", len(exp)/2, len(rcv)/2)
+		var b textbuf.Buffer
+		return b.Reset().Str("length: ").Int(int64(len(exp) / 2)).Str(" vs ").Int(int64(len(rcv) / 2)).String()
 	}
 
 	return ""

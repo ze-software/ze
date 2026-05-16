@@ -59,11 +59,11 @@ Before writing any `fmt.Sprintf` (or `Fprintf`, `Errorf`):
 
 | Pattern | Replacement |
 |---------|-------------|
-| `fmt.Sprintf("%d", n)` | `strconv.Itoa(n)` |
+| `fmt.Sprintf("%d", n)` | `textbuf.Int(int64(n))` (standalone) or `b.Int(int64(n))` (in chain) |
 | `fmt.Sprintf("%s", s)` | `s` |
-| `fmt.Sprintf("%s/%s", a, b)` | `a + "/" + b` |
-| `fmt.Sprintf("%s:%d", s, n)` | `s + ":" + strconv.Itoa(n)` |
-| `fmt.Sprintf("%d:%d", a, b)` | `strconv.Itoa(a) + ":" + strconv.Itoa(b)` |
+| `fmt.Sprintf("%s/%s", a, b)` | `a + "/" + b` (pure string concat, no numeric conversion) |
+| `fmt.Sprintf("%s:%d", s, n)` | `var b textbuf.Buffer; b.Str(s).Byte(':').Int(int64(n)).String()` |
+| `fmt.Sprintf("%d:%d", a, b)` | `var b textbuf.Buffer; b.Int(int64(a)).Byte(':').Int(int64(b)).String()` |
 | `fmt.Sprintf("%d.%d.%d.%d", a,b,c,d)` | `netip.AddrFrom4` + `AppendTo` into stack buffer |
 | `fmt.Sprintf("%02x:%02x:...", mac...)` | hex digit table or `appendMAC` helper |
 | `fmt.Sprintf("%x", data)` | `hex.EncodeToString(data)` or `hex.AppendEncode` |
@@ -71,7 +71,7 @@ Before writing any `fmt.Sprintf` (or `Fprintf`, `Errorf`):
 | `fmt.Fprintf(w, "%s", s)` | `io.WriteString(w, s)` |
 | `fmt.Fprintf(w, "%d", n)` | `io.WriteString(w, strconv.Itoa(n))` |
 | Sprintf in a function that discards the result | Split into no-alloc + with-string variants |
-| `addr.String() + "/" + strconv.Itoa(n)` on hot path | Stack buffer: `addr.AppendTo(buf[:0])` + `strconv.AppendInt` |
+| `addr.String() + "/" + strconv.Itoa(n)` | `var b textbuf.Buffer; b.Addr(addr).Byte('/').Int(int64(n)).String()` |
 | Storing `string` then parsing back for comparison | Store `netip.Addr` (or typed value), compare directly |
 | `net.ParseIP(s)` in a comparison function | Store `netip.Addr` at construction, use `.Compare()` |
 | `">" + textbuf.Uint(v)` in a loop | `textbuf.Buffer` outside loop: `b.Byte('>').Uint(v)` |

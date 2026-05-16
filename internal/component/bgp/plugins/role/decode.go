@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errEmptyRoleCapability = errors.New("empty Role capability")
@@ -25,7 +27,7 @@ func decodeRole(data []byte) (string, error) {
 
 	name, ok := roleValueToName(data[0])
 	if !ok {
-		return fmt.Sprintf("unknown(%d)", data[0]), nil
+		return textbuf.StrIntStr("unknown(", int64(data[0]), ")"), nil
 	}
 	return name, nil
 }

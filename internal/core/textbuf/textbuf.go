@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"net/netip"
 	"strconv"
+	"unsafe"
 )
 
 func Uint(v uint64) string {
@@ -44,22 +45,28 @@ type Buffer struct {
 	b   []byte
 }
 
-func (b *Buffer) grow() {
-	if b.b == nil {
+func (b *Buffer) Reset(size ...int) *Buffer {
+	if len(size) > 0 && size[0] > len(b.arr) {
+		b.b = make([]byte, 0, size[0])
+	} else {
 		b.b = b.arr[:0]
 	}
+	return b
 }
 
-func (b *Buffer) Str(s string) *Buffer      { b.grow(); b.b = append(b.b, s...); return b }
-func (b *Buffer) Byte(c byte) *Buffer       { b.grow(); b.b = append(b.b, c); return b }
-func (b *Buffer) Uint(v uint64) *Buffer     { b.grow(); b.b = strconv.AppendUint(b.b, v, 10); return b }
+func (b *Buffer) Str(s string) *Buffer      { b.b = append(b.b, s...); return b }
+func (b *Buffer) Byte(c byte) *Buffer       { b.b = append(b.b, c); return b }
+func (b *Buffer) Uint(v uint64) *Buffer     { b.b = strconv.AppendUint(b.b, v, 10); return b }
 func (b *Buffer) Uint8(v uint8) *Buffer     { return b.Uint(uint64(v)) }
 func (b *Buffer) Uint16(v uint16) *Buffer   { return b.Uint(uint64(v)) }
 func (b *Buffer) Uint32(v uint32) *Buffer   { return b.Uint(uint64(v)) }
-func (b *Buffer) Int(v int64) *Buffer       { b.grow(); b.b = strconv.AppendInt(b.b, v, 10); return b }
-func (b *Buffer) Addr(a netip.Addr) *Buffer { b.grow(); b.b = a.AppendTo(b.b); return b }
-func (b *Buffer) Hex(data []byte) *Buffer   { b.grow(); b.b = hex.AppendEncode(b.b, data); return b }
+func (b *Buffer) Int(v int64) *Buffer       { b.b = strconv.AppendInt(b.b, v, 10); return b }
+func (b *Buffer) Addr(a netip.Addr) *Buffer { b.b = a.AppendTo(b.b); return b }
+func (b *Buffer) Hex(data []byte) *Buffer   { b.b = hex.AppendEncode(b.b, data); return b }
+func (b *Buffer) Bool(v bool) *Buffer       { b.b = strconv.AppendBool(b.b, v); return b }
+func (b *Buffer) Len() int                  { return len(b.b) }
 func (b *Buffer) String() string            { return string(b.b) }
+func (b *Buffer) Slice() string             { return unsafe.String(unsafe.SliceData(b.b), len(b.b)) } //nolint:gosec // zero-copy; caller does not own the memory, invalid after Reset()
 
 func AppendUint(dst []byte, v uint64) []byte {
 	return strconv.AppendUint(dst, v, 10)
@@ -75,4 +82,34 @@ func AppendAddr(dst []byte, addr netip.Addr) []byte {
 
 func AppendHex(dst, data []byte) []byte {
 	return hex.AppendEncode(dst, data)
+}
+
+func IntStr(v int64, suffix string) string {
+	var b Buffer
+	return b.Reset().Int(v).Str(suffix).String()
+}
+
+func UintStr(v uint64, suffix string) string {
+	var b Buffer
+	return b.Reset().Uint(v).Str(suffix).String()
+}
+
+func StrInt(prefix string, v int64) string {
+	var b Buffer
+	return b.Reset().Str(prefix).Int(v).String()
+}
+
+func StrUint(prefix string, v uint64) string {
+	var b Buffer
+	return b.Reset().Str(prefix).Uint(v).String()
+}
+
+func StrIntStr(prefix string, v int64, suffix string) string {
+	var b Buffer
+	return b.Reset().Str(prefix).Int(v).Str(suffix).String()
+}
+
+func StrUintStr(prefix string, v uint64, suffix string) string {
+	var b Buffer
+	return b.Reset().Str(prefix).Uint(v).Str(suffix).String()
 }

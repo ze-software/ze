@@ -11,13 +11,14 @@
 package web
 
 import (
-	"fmt"
 	"html/template"
 	"net/http"
 	"net/netip"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ToolPageData is the template payload for tool page forms. The form renders
@@ -85,7 +86,7 @@ func handlePingSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageData 
 	}
 
 	if _, err := netip.ParseAddr(dest); err != nil {
-		return ToolPageData{Error: fmt.Sprintf("Invalid IP address: %s", dest)}
+		return ToolPageData{Error: "Invalid IP address: " + dest}
 	}
 
 	countStr := strings.TrimSpace(r.PostFormValue("count"))
@@ -108,7 +109,8 @@ func handlePingSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageData 
 		timeout = v
 	}
 
-	cmd := fmt.Sprintf("show ping %s count %d timeout %ds", dest, count, timeout)
+	var bCmd textbuf.Buffer
+	cmd := bCmd.Reset().Str("show ping ").Str(dest).Str(" count ").Int(int64(count)).Str(" timeout ").Int(int64(timeout)).Str("s").String()
 
 	return dispatchToolCommand(r, dispatch, cmd)
 }
@@ -147,7 +149,7 @@ func handleBGPDecodeSubmit(r *http.Request, dispatch CommandDispatcher) ToolPage
 		return ToolPageData{Error: "Hex input exceeds maximum length (65535 bytes)."}
 	}
 
-	cmd := fmt.Sprintf("show bgp/decode %s", compact)
+	cmd := "show bgp/decode " + compact
 
 	return dispatchToolCommand(r, dispatch, cmd)
 }
@@ -177,7 +179,8 @@ func handleMetricsSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageDa
 	}
 
 	if len(name) > maxMetricNameLen {
-		return ToolPageData{Error: fmt.Sprintf("Metric name exceeds maximum length (%d characters).", maxMetricNameLen)}
+		var bErr textbuf.Buffer
+		return ToolPageData{Error: bErr.Reset().Str("Metric name exceeds maximum length (").Int(int64(maxMetricNameLen)).Str(" characters).").String()}
 	}
 
 	if !validMetricNamePattern.MatchString(name) {
@@ -222,14 +225,15 @@ func handleCaptureSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageDa
 			return ToolPageData{Error: "Tunnel ID must be between 0 and 65535."}
 		}
 		if v > 0 {
-			parts = append(parts, fmt.Sprintf("tunnel-id %d", v))
+			var bTun textbuf.Buffer
+			parts = append(parts, bTun.Reset().Str("tunnel-id ").Int(int64(v)).String())
 		}
 	}
 
 	peer := strings.TrimSpace(r.PostFormValue("peer"))
 	if peer != "" {
 		if _, err := netip.ParseAddr(peer); err != nil {
-			return ToolPageData{Error: fmt.Sprintf("Invalid peer IP address: %s", peer)}
+			return ToolPageData{Error: "Invalid peer IP address: " + peer}
 		}
 		parts = append(parts, "peer "+peer)
 	}
@@ -243,7 +247,8 @@ func handleCaptureSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageDa
 		}
 		captureCount = v
 	}
-	parts = append(parts, fmt.Sprintf("count %d", captureCount))
+	var bCount textbuf.Buffer
+	parts = append(parts, bCount.Reset().Str("count ").Int(int64(captureCount)).String())
 
 	cmd := strings.Join(parts, " ")
 

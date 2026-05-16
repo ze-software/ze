@@ -5,6 +5,8 @@ package runner
 import (
 	"fmt"
 	"syscall"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // LimitCheck holds ulimit check results.
@@ -69,11 +71,12 @@ func CheckUlimit(parallel int) (*LimitCheck, error) {
 
 // String returns a human-readable status.
 func (l *LimitCheck) String() string {
+	var b textbuf.Buffer
 	if l.Raised {
-		return fmt.Sprintf("raised %d → %d", l.Current-l.RaisedTo+l.Current, l.RaisedTo)
+		return b.Reset().Str("raised ").Uint(l.Current - l.RaisedTo + l.Current).Str(" → ").Uint(l.RaisedTo).String()
 	}
 	if l.RaiseNeeded {
-		return fmt.Sprintf("low (%d < %d)", l.Current, l.Required)
+		return b.Reset().Str("low (").Uint(l.Current).Str(" < ").Uint(l.Required).Byte(')').String()
 	}
-	return fmt.Sprintf("ok (%d)", l.Current)
+	return b.Reset().Str("ok (").Uint(l.Current).Byte(')').String()
 }

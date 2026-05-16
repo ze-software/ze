@@ -33,6 +33,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -150,7 +151,8 @@ func truncateProfiles(profiles []string) string {
 	if n <= maxLoggedProfiles {
 		return "[" + strings.Join(profiles, " ") + "]"
 	}
-	return fmt.Sprintf("[%s +%d more]", strings.Join(profiles[:maxLoggedProfiles], " "), n-maxLoggedProfiles)
+	var b textbuf.Buffer
+	return b.Reset().Str("[").Str(strings.Join(profiles[:maxLoggedProfiles], " ")).Str(" +").Int(int64(n - maxLoggedProfiles)).Str(" more]").String()
 }
 
 // NewServer creates a new SSH server with the given configuration.

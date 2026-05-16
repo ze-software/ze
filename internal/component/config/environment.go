@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errEmptyListenAddress = errors.New("empty listen address")
@@ -135,10 +136,11 @@ type ListenEndpoint struct {
 
 // String returns the endpoint as "ip:port", using bracket notation for IPv6.
 func (e ListenEndpoint) String() string {
+	var b textbuf.Buffer
 	if strings.Contains(e.IP, ":") {
-		return "[" + e.IP + "]:" + strconv.Itoa(e.Port)
+		return b.Reset().Byte('[').Str(e.IP).Str("]:").Int(int64(e.Port)).String()
 	}
-	return e.IP + ":" + strconv.Itoa(e.Port)
+	return b.Str(e.IP).Byte(':').Int(int64(e.Port)).String()
 }
 
 // ParseCompoundListen parses compound listen format "ip:port[,ip:port]..."

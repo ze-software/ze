@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // defaultReceiveHoldTime is the default receive hold time per RFC 4271 Section 10 (90 seconds).
@@ -164,7 +165,7 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 		Data: map[string]any{
 			"saved":   saved,
 			"config":  configPath,
-			"message": fmt.Sprintf("saved %d peer(s) to config", len(saved)),
+			"message": textbuf.StrIntStr("saved ", int64(len(saved)), " peer(s) to config"),
 		},
 	}, nil
 }

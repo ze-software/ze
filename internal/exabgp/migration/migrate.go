@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ErrNilTree is returned when a nil tree is passed.
@@ -272,7 +273,8 @@ func derivePeerName(neighborTree *config.Tree, counter *int) string {
 		}
 	}
 	*counter++
-	return fmt.Sprintf("peer-%d", *counter)
+	var b textbuf.Buffer
+	return b.Reset().Str("peer-").Int(int64(*counter)).String()
 }
 
 // sanitizePeerName converts a description into a valid peer name.

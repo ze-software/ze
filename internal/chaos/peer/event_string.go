@@ -2,7 +2,7 @@
 
 package peer
 
-import "fmt"
+import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 // String returns a kebab-case human-readable name for the event type.
 // Unknown values return "unknown-N" to prevent panics in logging paths.
@@ -33,6 +33,7 @@ func (et EventType) String() string {
 	case EventDroppedEvents:
 		return "dropped-events"
 	default:
-		return fmt.Sprintf("unknown-%d", int(et))
+		var b textbuf.Buffer
+		return b.Reset().Str("unknown-").Int(int64(et)).String()
 	}
 }

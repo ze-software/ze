@@ -31,6 +31,7 @@ import (
 	"syscall"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
 )
 
@@ -149,10 +150,13 @@ func (u *UDP) Start() error {
 	if isV6 {
 		network = "udp6"
 	}
-	addr := fmt.Sprintf("[%s]:%d", u.Bind.Addr().String(), u.Bind.Port())
-	if !isV6 {
-		addr = fmt.Sprintf("%s:%d", u.Bind.Addr().String(), u.Bind.Port())
+	var bAddr textbuf.Buffer
+	if isV6 {
+		bAddr.Reset().Byte('[').Addr(u.Bind.Addr()).Str("]:").Int(int64(u.Bind.Port()))
+	} else {
+		bAddr.Reset().Addr(u.Bind.Addr()).Byte(':').Int(int64(u.Bind.Port()))
 	}
+	addr := bAddr.String()
 	pc, err := lc.ListenPacket(context.Background(), network, addr)
 	if err != nil {
 		if ctrlErr != nil {

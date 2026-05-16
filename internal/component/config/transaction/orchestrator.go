@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func logger() *slog.Logger { return slogutil.Logger("config.transaction") }
@@ -135,7 +136,7 @@ func NewTxCoordinator(gateway EventGateway, participants []Participant, restartF
 		gateway:        gateway,
 		participants:   participants,
 		restartFn:      restartFn,
-		txID:           fmt.Sprintf("tx-%d", time.Now().UnixNano()),
+		txID:           textbuf.StrInt("tx-", time.Now().UnixNano()),
 		verifyAcks:     make(map[string]VerifyAck),
 		applyAcks:      make(map[string]ApplyAck),
 		rollbackAcks:   make(map[string]RollbackAck),
@@ -563,7 +564,7 @@ func (o *TxCoordinator) publishAbort(reason string) {
 		reportSourceConfig,
 		reportCodeCommitAborted,
 		o.txID,
-		fmt.Sprintf("config commit aborted during verify: %s", reason),
+		"config commit aborted during verify: "+reason,
 		map[string]any{"reason": reason, "phase": "verify"},
 	)
 }
@@ -582,7 +583,7 @@ func (o *TxCoordinator) publishRollback(reason string) {
 		reportSourceConfig,
 		reportCodeCommitRollback,
 		o.txID,
-		fmt.Sprintf("config commit rolled back during apply: %s", reason),
+		"config commit rolled back during apply: "+reason,
 		map[string]any{"reason": reason, "phase": "apply"},
 	)
 }
@@ -722,7 +723,7 @@ func (o *TxCoordinator) writeConfigFile() bool {
 			reportSourceConfig,
 			reportCodeCommitSaveFail,
 			o.txID,
-			fmt.Sprintf("config commit succeeded but file write failed: %s", err.Error()),
+			"config commit succeeded but file write failed: "+err.Error(),
 			map[string]any{"error": err.Error(), "phase": "save"},
 		)
 		return false

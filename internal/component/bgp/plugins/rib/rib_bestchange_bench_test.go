@@ -36,7 +36,7 @@ func BenchmarkBestPathRecordHeapFootprint(b *testing.B) {
 				// deployment shape.
 				peerIdxs := make([]uint16, 2000)
 				for i := range peerIdxs {
-					idx, ok := interner.internPeer(fmt.Sprintf("10.0.%d.%d", i/256, i%256))
+					idx, ok := interner.internPeer(netip.AddrFrom4([4]byte{10, 0, byte(i / 256), byte(i % 256)}).String())
 					if !ok {
 						b.Fatalf("peer fill %d: interner unexpectedly saturated (cap=%d)", i, internerCap)
 					}

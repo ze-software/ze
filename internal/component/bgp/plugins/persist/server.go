@@ -118,6 +118,7 @@ type PersistServer struct {
 	peers  map[string]*PersistPeer
 	ribOut map[string]map[family.Family]map[string]*StoredRoute // peer → family → prefix → StoredRoute
 	mu     sync.RWMutex
+	buf    textbuf.Buffer
 
 	// updateRouteHook is called instead of updateRoute for test inspection.
 	// Nil in production.
@@ -230,14 +231,14 @@ func (ps *PersistServer) handleSentUpdate(peerAddr string, msgID uint64, text st
 					}
 					// Release old entry if replacing.
 					if old, exists := ps.ribOut[peerAddr][fam][prefix]; exists && old.MsgID != msgID {
-						ps.updateRoute(peerAddr, cacheReleaseCmd(old.MsgID))
+						ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(old.MsgID).Str(" release").Slice())
 					}
 					ps.ribOut[peerAddr][fam][prefix] = &StoredRoute{
 						MsgID:  msgID,
 						Family: fam,
 						Prefix: prefix,
 					}
-					ps.updateRoute(peerAddr, cacheRetainCmd(msgID))
+					ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(msgID).Str(" retain").Slice())
 
 				case "del":
 					familyRoutes := ps.ribOut[peerAddr][fam]
@@ -245,7 +246,7 @@ func (ps *PersistServer) handleSentUpdate(peerAddr string, msgID uint64, text st
 						continue
 					}
 					if old, exists := familyRoutes[prefix]; exists {
-						ps.updateRoute(peerAddr, cacheReleaseCmd(old.MsgID))
+						ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(old.MsgID).Str(" release").Slice())
 						delete(familyRoutes, prefix)
 					}
 					// Clean up empty maps
@@ -362,17 +363,17 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 						ps.ribOut[peerAddr][fam] = make(map[string]*StoredRoute)
 					}
 					if old, exists := ps.ribOut[peerAddr][fam][prefix]; exists && old.MsgID != msgID {
-						ps.updateRoute(peerAddr, cacheReleaseCmd(old.MsgID))
+						ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(old.MsgID).Str(" release").Slice())
 					}
 					ps.ribOut[peerAddr][fam][prefix] = &StoredRoute{MsgID: msgID, Family: fam, Prefix: prefix}
-					ps.updateRoute(peerAddr, cacheRetainCmd(msgID))
+					ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(msgID).Str(" retain").Slice())
 				} else if op.Action == "del" {
 					familyRoutes := ps.ribOut[peerAddr][fam]
 					if familyRoutes == nil {
 						continue
 					}
 					if old, exists := familyRoutes[prefix]; exists {
-						ps.updateRoute(peerAddr, cacheReleaseCmd(old.MsgID))
+						ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(old.MsgID).Str(" release").Slice())
 						delete(familyRoutes, prefix)
 					}
 					if len(familyRoutes) == 0 {
@@ -506,7 +507,7 @@ func persistWireNLRIs(data []byte, addPath, isIPv6 bool) []any {
 		prefix := netip.PrefixFrom(addr, prefixLen).String()
 		if addPath {
 			var tb textbuf.Buffer
-			prefix = tb.Uint32(pathID).Byte(':').Str(prefix).String()
+			prefix = tb.Reset().Uint32(pathID).Byte(':').Str(prefix).String()
 		}
 		result = append(result, prefix)
 	}
@@ -644,7 +645,7 @@ func (ps *PersistServer) replayForPeer(peerAddr string, gen uint64) {
 		}
 		ps.mu.RUnlock()
 
-		ps.updateRoute(peerAddr, cacheForwardCmd(entry.msgID, peerAddr))
+		ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(entry.msgID).Str(" forward ").Str(peerAddr).Slice())
 	}
 
 	ps.sendEOR(peerAddr, families)
@@ -664,7 +665,7 @@ func (ps *PersistServer) peerFamilies(peerAddr string) map[family.Family]bool {
 // sendEOR sends End-of-RIB markers for each negotiated family.
 func (ps *PersistServer) sendEOR(peerAddr string, families map[family.Family]bool) {
 	for fam := range families {
-		ps.updateRoute(peerAddr, persistEORCmd(fam))
+		ps.updateRoute(peerAddr, ps.buf.Reset().Str("update text nlri ").Str(fam.String()).Str(" eor").Slice())
 	}
 }
 
@@ -979,24 +980,4 @@ func parsePersistOpen(text string) *persistEvent {
 	}
 
 	return event
-}
-
-func cacheReleaseCmd(msgID uint64) string {
-	var b textbuf.Buffer
-	return b.Str("cache ").Uint(msgID).Str(" release").String()
-}
-
-func cacheRetainCmd(msgID uint64) string {
-	var b textbuf.Buffer
-	return b.Str("cache ").Uint(msgID).Str(" retain").String()
-}
-
-func cacheForwardCmd(msgID uint64, peer string) string {
-	var b textbuf.Buffer
-	return b.Str("cache ").Uint(msgID).Str(" forward ").Str(peer).String()
-}
-
-func persistEORCmd(fam family.Family) string {
-	var b textbuf.Buffer
-	return b.Str("update text nlri ").Str(fam.String()).Str(" eor").String()
 }

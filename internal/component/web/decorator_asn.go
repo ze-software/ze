@@ -6,9 +6,10 @@ package web
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // txtResolver is a function that resolves TXT records for a DNS name.
@@ -47,7 +48,8 @@ func (d *asnNameDecorator) Decorate(value string) (string, error) {
 		return "", nil
 	}
 
-	query := fmt.Sprintf("AS%d.asn.cymru.com.", asn)
+	var bQuery textbuf.Buffer
+	query := bQuery.Reset().Str("AS").Int(int64(asn)).Str(".asn.cymru.com.").String()
 
 	records, err := d.resolve(query)
 	if err != nil {

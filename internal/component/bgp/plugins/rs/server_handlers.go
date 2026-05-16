@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // errUnknownCommandMarker is the engine's ErrUnknownCommand text ("unknown
@@ -156,7 +157,7 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 	defer cancel()
 
 	// Full replay from index 0.
-	cmd := fmt.Sprintf("adj-rib-in replay %s 0", peerAddr)
+	cmd := "adj-rib-in replay " + peerAddr + " 0"
 	status, data, err := rs.dispatchCommand(ctx, cmd)
 	if err != nil || status != statusDone {
 		// Graceful soft-dep fallback: when bgp-adj-rib-in is an
@@ -221,7 +222,8 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 		if i > 0 {
 			time.Sleep(replayConvergenceDelay)
 		}
-		deltaCmd := fmt.Sprintf("adj-rib-in replay %s %d", peerAddr, lastIndex)
+		var bCmd textbuf.Buffer
+		deltaCmd := bCmd.Reset().Str("adj-rib-in replay ").Str(peerAddr).Byte(' ').Int(int64(lastIndex)).String()
 		_, deltaData, deltaErr := rs.dispatchCommand(ctx, deltaCmd)
 		if deltaErr != nil {
 			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)
@@ -259,7 +261,7 @@ func (rs *RouteServer) sendEOR(peerAddr string, gen uint64) {
 	sort.Strings(families)
 
 	for _, fam := range families {
-		rs.updateRoute(peerAddr, fmt.Sprintf("update text nlri %s eor", fam))
+		rs.updateRoute(peerAddr, "update text nlri "+fam+" eor")
 	}
 	logger().Info("sent EOR", "peer", peerAddr, "families", families)
 }

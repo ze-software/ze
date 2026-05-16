@@ -80,7 +80,7 @@ func (m *Model) cmdOptionColumnToggle(args []string) (commandResult, error) {
 		if err != nil {
 			return result, err
 		}
-		result.statusMessage = fmt.Sprintf("%s: %s", args[0], state)
+		result.statusMessage = args[0] + ": " + state
 		return result, nil
 	}
 
@@ -104,7 +104,7 @@ func (m *Model) cmdOptionColumnToggle(args []string) (commandResult, error) {
 	if err != nil {
 		return result, err
 	}
-	result.statusMessage = fmt.Sprintf("%s column %sd", args[0], args[1])
+	result.statusMessage = args[0] + " column " + args[1] + "d"
 	return result, nil
 }
 

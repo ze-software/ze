@@ -162,7 +162,7 @@ func wireToPrefix(fam family.Family, wire []byte, addPath bool) (string, uint32,
 	}
 
 	var tb textbuf.Buffer
-	return tb.Addr(addr).Byte('/').Int(int64(prefixLen)).String(), pathID, nil
+	return tb.Reset().Addr(addr).Byte('/').Int(int64(prefixLen)).String(), pathID, nil
 }
 
 // formatNLRIAsPrefix converts wire NLRI bytes to human-readable prefix string.
@@ -176,11 +176,11 @@ func formatNLRIAsPrefix(fam family.Family, nlriBytes []byte, addPath ...bool) st
 	prefix, pathID, err := wireToPrefix(fam, nlriBytes, ap)
 	if err != nil {
 		var tb textbuf.Buffer
-		return tb.Str("hex:").Hex(nlriBytes).String()
+		return tb.Reset().Str("hex:").Hex(nlriBytes).String()
 	}
 	if ap && pathID != 0 {
 		var tb textbuf.Buffer
-		return tb.Str(prefix).Str(" [pathID=").Uint32(pathID).Byte(']').String()
+		return tb.Reset().Str(prefix).Str(" [pathID=").Uint32(pathID).Byte(']').String()
 	}
 	return prefix
 }
@@ -200,7 +200,7 @@ func formatFamily(fam family.Family) string {
 		afi = "bgp-ls"
 	default: // numeric fallback for unknown AFI
 		var tb textbuf.Buffer
-		afi = tb.Str("afi-").Uint16(uint16(fam.AFI)).String()
+		afi = tb.Reset().Str("afi-").Uint16(uint16(fam.AFI)).String()
 	}
 
 	switch fam.SAFI { //nolint:exhaustive // Common families only, default handles rest
@@ -220,7 +220,7 @@ func formatFamily(fam family.Family) string {
 		safi = "bgp-ls"
 	default: // numeric fallback for unknown SAFI
 		var tb textbuf.Buffer
-		safi = tb.Str("safi-").Uint16(uint16(fam.SAFI)).String()
+		safi = tb.Reset().Str("safi-").Uint16(uint16(fam.SAFI)).String()
 	}
 
 	return afi + "/" + safi

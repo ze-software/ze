@@ -12,6 +12,7 @@ import (
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -129,7 +130,8 @@ func (r *AdjRIBInManager) replayCommand(selector string) (string, string, error)
 		r.updateRoute(targetPeer, cmd)
 	}
 
-	data := fmt.Sprintf(`{"last-index":%d,"replayed":%d}`, maxSeq, len(cmds))
+	var b textbuf.Buffer
+	data := b.Reset().Str(`{"last-index":`).Int(int64(maxSeq)).Str(`,"replayed":`).Int(int64(len(cmds))).Str("}").String()
 	return statusDone, data, nil
 }
 

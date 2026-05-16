@@ -249,7 +249,7 @@ func BroadcastConfigChange(broker *EventBroker, username, reason string) {
 	}
 
 	data := notificationBannerData{
-		Reason:     fmt.Sprintf("Config changed by %s: %s", username, reason),
+		Reason:     "Config changed by " + username + ": " + reason,
 		RefreshURL: "/show/",
 	}
 

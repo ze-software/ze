@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Report generates AI-friendly failure output.
@@ -101,7 +103,7 @@ func (r *Report) printTimeoutReport(rec *Record) {
 	if waitingFor <= expectedCount {
 		r.writef("  %s            %s\n",
 			c.Gray("status:"),
-			c.Red(fmt.Sprintf("waiting for message %d", waitingFor)))
+			c.Red(textbuf.StrInt("waiting for message ", int64(waitingFor))))
 	}
 	r.writeln("")
 
@@ -399,8 +401,8 @@ func likelyCauseTimeout(rec *Record) string {
 	}
 
 	if received < expected {
-		return fmt.Sprintf("Partial exchange (%d/%d messages) — check message %d expectations against config",
-			received, expected, received+1)
+		var b textbuf.Buffer
+		return b.Reset().Str("Partial exchange (").Int(int64(received)).Byte('/').Int(int64(expected)).Str(" messages) — check message ").Int(int64(received + 1)).Str(" expectations against config").String()
 	}
 
 	return "All expected messages received but test still timed out — check for extra unexpected messages"

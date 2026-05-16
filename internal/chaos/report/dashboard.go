@@ -3,12 +3,12 @@
 package report
 
 import (
-	"fmt"
 	"io"
 	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // DashboardConfig configures the live terminal dashboard.
@@ -97,7 +97,8 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 
 // printLifecycle prints a single-line event for non-route events.
 func (d *Dashboard) printLifecycle(ev peer.Event) {
-	line := fmt.Sprintf("peer %d | %s", ev.PeerIndex, ev.Type.String())
+	var bLine textbuf.Buffer
+	line := bLine.Reset().Str("peer ").Int(int64(ev.PeerIndex)).Str(" | ").Str(ev.Type.String()).String()
 
 	if ev.ChaosAction != "" {
 		line += " | " + ev.ChaosAction
