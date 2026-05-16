@@ -50,8 +50,9 @@ and default route, while BGP peering and subscriber routing happen in the defaul
 | Policy routing | Cross-VRF mechanism. Lives outside VRF hierarchy. nftables marks + ip rules steer flows between VRFs |
 | Route redistribution | Cross-VRF EventBus subscriptions. Redistribution plugin bridges source VRF topics to destination VRF sysRIB |
 | EventBus scoping | Topics gain VRF name segment: `rib/best-change/<vrf-name>/bgp`. Prefix matching still works. Cross-VRF subscription natural |
-| VRF context delivery | Via config fields (vrf.name, vrf.table, vrf.device), not SDK API changes. Components read from config. Components that don't care ignore the fields |
+| VRF context delivery | Via config fields (vrf.name, vrf.table, vrf.device, vrf.zone), not SDK API changes. Components read from config. Components that don't care ignore the fields |
 | Firewall table prefix | Non-default VRFs use `ze_<vrf>_` prefix. Default VRF keeps `ze_` for backwards compatibility |
+| Conntrack zones | Each VRF gets a conntrack zone ID (uint16). The firewall generates `ct zone set <N>` rules in the raw/prerouting chain for interfaces bound to that VRF. Default VRF uses zone 0. This gives per-VRF connection tracking isolation (same 5-tuple in two VRFs tracked independently) without network namespaces or veth overhead. Conntrack helpers and nf_conntrack_max remain global (system-level). Per-VRF timeout overrides use nftables `ct timeout` objects assigned per chain |
 
 ### Scope
 
@@ -70,6 +71,7 @@ and default route, while BGP peering and subscriber routing happen in the defaul
 | Service socket binding | SO_BINDTODEVICE for SSH, HTTPS API, NTP, syslog per VRF |
 | Cross-VRF route leaking | Route redistribution between VRF sysRIB instances via EventBus |
 | Policy routing integration | `then { vrf <name> }` resolves to VRF table, fwmark + ip rule |
+| Conntrack zone isolation | Per-VRF conntrack zones via nftables `ct zone set`. Firewall generates zone rules automatically from VRF context |
 
 **Out of Scope:**
 
@@ -90,6 +92,7 @@ and default route, while BGP peering and subscriber routing happen in the defaul
 | 5 | `spec-vrf-5-services.md` | VRF-aware service sockets. SO_BINDTODEVICE helper in internal/core/vrfnet/. SSH, HTTPS, NTP, syslog VRF binding | vrf-3 |
 | 6 | `spec-vrf-6-dynamic.md` | Runtime VRF create/delete. Graceful drain. Hot reconfiguration | vrf-4 |
 | 7 | `spec-vrf-7-redistribution.md` | Route redistribution between VRFs. Import/export policy. Cross-VRF EventBus subscriptions | vrf-3 |
+| 8 | `spec-vrf-8-conntrack-zones.md` | Per-VRF conntrack zone assignment. VRF orchestrator assigns zone IDs, firewall generates `ct zone set` rules in raw/prerouting. Per-VRF `ct timeout` objects for timeout overrides. Depends on global conntrack (spec-cpe-4) for helpers and table-size | vrf-3, cpe-4 |
 
 Note: Reactor multi-instance was analyzed and requires no code changes -- all global state is safe to share across VRF instances. The reactor is already instantiable N times.
 
@@ -265,6 +268,9 @@ The following global state in `internal/component/bgp/reactor/` was analyzed for
 | AC-18 | Config reload removes a VRF | Components stopped, kernel state cleaned, VRF device deleted |
 | AC-19 | Implicit default + explicit VRF coexist | Top-level config in default VRF, explicit VRF runs in parallel |
 | AC-20 | VRF surfprotect has no BGP config | No BGP instance spawned for surfprotect (only components with config) |
+| AC-21 | Two VRFs with overlapping 5-tuples | Connections tracked independently via conntrack zones (zone 0 vs zone 100) |
+| AC-22 | VRF context includes zone ID | `vrf.zone` field present in config delivered to firewall component |
+| AC-23 | Firewall generates ct zone rules | raw/prerouting chain contains `ct zone set <N>` for each VRF's interfaces |
 
 ## Open Questions
 
@@ -274,8 +280,9 @@ The following global state in `internal/component/bgp/reactor/` was analyzed for
 | Q2 | ~~Process model~~ | ~~Goroutine-based shared state vs separate plugin instances~~ | **Resolved:** one process per component per VRF. Easier to understand and debug |
 | Q3 | ~~Implicit default~~ | ~~Explicit wrapper required vs top-level = default~~ | **Resolved:** implicit default. Top-level config belongs to vrf default (table 254). Can change later to explicit-only |
 | Q4 | ~~Service socket binding~~ | ~~SO_BINDTODEVICE vs tcp_l3mdev_accept vs multiple listeners~~ | **Resolved:** SO_BINDTODEVICE. Per-socket, per-service, no global sysctl |
-| Q5 | VRF-specific sysctl | Per-VRF `net.ipv4.conf.<vrfdev>.forwarding` etc. managed by sysctl plugin or VRF orchestrator? | Unresolved. Likely sysctl plugin with VRF context |
+| Q5 | ~~VRF-specific sysctl~~ | ~~Per-VRF `net.ipv4.conf.<vrfdev>.forwarding` etc. managed by sysctl plugin or VRF orchestrator?~~ | **Resolved:** sysctl plugin with VRF context. Per-VRF device keys (e.g. `net.ipv4.conf.<vrfdev>.forwarding`) go through sysctl plugin as profile defaults keyed by VRF device name. Global conntrack sysctl (nf_conntrack_max, timeouts) stays under `system conntrack` (spec-cpe-4), not per-VRF |
 | Q6 | EventBus per-VRF vs shared | Separate Bus per VRF (stronger isolation) vs shared Bus with topic scoping (simpler cross-VRF) | Leaning shared Bus with VRF-scoped topics |
+| Q7 | ~~Conntrack isolation model~~ | ~~Network namespaces (full isolation) vs VRF devices (no conntrack isolation) vs conntrack zones (middle ground)~~ | **Resolved:** conntrack zones. Each VRF gets a zone ID (uint16). Firewall generates `ct zone set <N>` in raw/prerouting for VRF-bound interfaces. Gives per-VRF connection tracking isolation without namespace overhead. Helpers and nf_conntrack_max remain global. Per-VRF timeout overrides via nftables `ct timeout` objects. Full namespace isolation is out of scope but not architecturally blocked |
 
 ## Per-VRF Component Spawning
 
@@ -285,19 +292,19 @@ Each component gets its own RunEngine call with VRF-scoped config:
 ```
 VRF Orchestrator
 │
-├── vrf "default" (table 254, no VRF device)
-│   ├── spawn("bgp",        config=bgp_subtree,     vrf={name:"default", table:254, device:""})
-│   ├── spawn("interface",   config=iface_subtree,   vrf={name:"default", table:254, device:""})
-│   ├── spawn("firewall",    config=fw_subtree,      vrf={name:"default", table:254, device:""})
-│   ├── spawn("fib-kernel",  config=fib_subtree,     vrf={name:"default", table:254, device:""})
-│   ├── spawn("rib",         config=rib_subtree,     vrf={name:"default", table:254, device:""})
-│   ├── spawn("ssh",         config=ssh_subtree,     vrf={name:"default", table:254, device:""})
-│   └── spawn("ntp",         config=ntp_subtree,     vrf={name:"default", table:254, device:""})
+├── vrf "default" (table 254, zone 0, no VRF device)
+│   ├── spawn("bgp",        config=bgp_subtree,     vrf={name:"default", table:254, device:"", zone:0})
+│   ├── spawn("interface",   config=iface_subtree,   vrf={name:"default", table:254, device:"", zone:0})
+│   ├── spawn("firewall",    config=fw_subtree,      vrf={name:"default", table:254, device:"", zone:0})
+│   ├── spawn("fib-kernel",  config=fib_subtree,     vrf={name:"default", table:254, device:"", zone:0})
+│   ├── spawn("rib",         config=rib_subtree,     vrf={name:"default", table:254, device:"", zone:0})
+│   ├── spawn("ssh",         config=ssh_subtree,     vrf={name:"default", table:254, device:"", zone:0})
+│   └── spawn("ntp",         config=ntp_subtree,     vrf={name:"default", table:254, device:"", zone:0})
 │
-├── vrf "surfprotect" (table 100, device "surfprotect")
-│   ├── spawn("interface",    config=iface_subtree,  vrf={name:"surfprotect", table:100, device:"surfprotect"})
-│   ├── spawn("staticroute",  config=static_subtree, vrf={name:"surfprotect", table:100, device:"surfprotect"})
-│   └── spawn("fib-kernel",   config=fib_subtree,    vrf={name:"surfprotect", table:100, device:"surfprotect"})
+├── vrf "surfprotect" (table 100, zone 100, device "surfprotect")
+│   ├── spawn("interface",    config=iface_subtree,  vrf={name:"surfprotect", table:100, device:"surfprotect", zone:100})
+│   ├── spawn("staticroute",  config=static_subtree, vrf={name:"surfprotect", table:100, device:"surfprotect", zone:100})
+│   └── spawn("fib-kernel",   config=fib_subtree,    vrf={name:"surfprotect", table:100, device:"surfprotect", zone:100})
 │
 └── cross-VRF (no VRF context, orchestrator-level)
     ├── policy routing (nftables + ip rules, steers flows between VRFs)
@@ -308,7 +315,7 @@ VRF context is delivered as config fields, not SDK API changes:
 
 ```json
 {
-    "vrf": { "name": "surfprotect", "table": 100, "device": "surfprotect" },
+    "vrf": { "name": "surfprotect", "table": 100, "device": "surfprotect", "zone": 100 },
     "interface": { "tun100": { ... } },
     "static": { ... }
 }
@@ -325,7 +332,7 @@ awareness ignore these fields. No SDK changes needed.
 | **sysRIB** | Publishes to rib/best-change/<vrf.name>/... |
 | **BGP** | Binds TCP sessions via SO_BINDTODEVICE(vrf.device) if non-default |
 | **interfaces** | Calls `ip link set <iface> master <vrf.device>` for non-default VRF |
-| **firewall** | Table prefix ze_<vrf.name>_ for non-default, ze_ for default |
+| **firewall** | Table prefix ze_<vrf.name>_ for non-default, ze_ for default. Generates `ct zone set <vrf.zone>` in raw/prerouting for VRF-bound interfaces |
 | **static routes** | Route.Table = vrf.table |
 | **SSH** | SO_BINDTODEVICE(vrf.device) on listener |
 | **HTTPS API** | SO_BINDTODEVICE(vrf.device) on listener |
@@ -420,14 +427,18 @@ redistribute {
 
 ## Forward Compatibility of Phase 1 Specs
 
-The Phase 1 specs (fw-8-lns-gaps, static-routes, policy-routing) use explicit table IDs.
-When VRF is implemented, table IDs come from VRF context instead of explicit config:
+Phase 1 introduces a `routing-table` registry plugin (`spec-gap-2`) that maps names to kernel table IDs.
+When VRF is implemented, the `routing-table` section stays: each VRF name must match a `routing-table` entry,
+so the table ID lives in one place. The VRF orchestrator reads `routing-table` to get the table ID for each VRF.
 
 | Phase 1 spec | VRF transition |
 |---|---|
 | spec-fw-8-lns-gaps | Firewall reactor receives VRF context in config. ze_ prefix unchanged for default VRF |
-| spec-static-routes | table N in config becomes vrf.table from VRF context. Backend unchanged |
-| spec-policy-routing | then { table 100 } becomes then { vrf surfprotect }. Same table, same fwmark + ip rule |
+| spec-gap-2 routing-table | Kept as-is. VRF name must match a routing-table entry. `vrf surfprotect { ... }` requires `routing-table { surfprotect { id 100 } }`. Single source of name-to-table-ID mapping |
+| spec-gap-2 static routes | Static routes already use named tables via registry. Inside a VRF, the `table` wrapper is implicit (VRF context provides the table name). Backend unchanged |
+| spec-policy-routing | then { table 100 } becomes then { vrf surfprotect }. Resolves via routing-table registry. Same table, same fwmark + ip rule |
+
+| spec-cpe-4 conntrack helpers | Global conntrack config (helpers, table-size, default timeouts) under `system conntrack`. Stays global when VRF is implemented: helpers are kernel modules (global), nf_conntrack_max is per-netns (global in Ze's single-netns model). Per-VRF conntrack isolation added later via conntrack zones (spec-vrf-8), per-VRF timeout overrides via nftables `ct timeout` objects in the firewall spec |
 
 No Phase 1 work needs to be redone when VRF is implemented.
 
@@ -444,6 +455,7 @@ No Phase 1 work needs to be redone when VRF is implemented.
 | **Phase 7** | Dynamic VRF create/delete (spec-vrf-6) | Phase 5 | No |
 | **Phase 8** | Route redistribution (spec-vrf-7) | Phase 4 | No |
 | **Phase 9** | `vrf <name>` sugar in policy routing | Phase 4 | No |
+| **Phase 10** | Conntrack zone isolation (spec-vrf-8) | Phase 4 + cpe-4 | No |
 
 ## Design Insights
 
@@ -456,3 +468,6 @@ No Phase 1 work needs to be redone when VRF is implemented.
 - Policy routing and route redistribution are inherently cross-VRF. They sit outside the VRF hierarchy, operating on the seams between routing domains.
 - SO_BINDTODEVICE is the right mechanism for service VRF binding: per-socket, per-service, no global sysctl changes.
 - For the LNS, the surfprotect VRF needs no services (no SSH, no BGP). Only interfaces, static routes, and fibkernel. The VRF orchestrator only spawns the components that have config in that VRF block.
+- Conntrack zones (uint16) give per-VRF connection tracking isolation without network namespaces. The firewall assigns `ct zone set <N>` in raw/prerouting for each VRF's interfaces. This means the same 5-tuple in two VRFs is tracked as two independent connections. Zone 0 is the default VRF. Zone ID can default to the routing table ID (both uint, both per-VRF, natural 1:1 mapping) or be explicitly configured.
+- Conntrack helpers (modprobe) and nf_conntrack_max are global (per-netns, and Ze uses one netns). They belong under `system conntrack`, not per-VRF. Per-VRF timeout overrides are possible via nftables `ct timeout` objects assigned per firewall chain, which is a firewall feature, not a system config feature.
+- Network namespaces remain an option for hard isolation if the market demands it (regulatory, multi-tenant). The architecture does not block this: a future `vrf <name> { isolation namespace; }` could switch the backend from VRF device to netns. But the process model implications are significant (separate sockets, separate conntrack, separate sysctl) and would be a separate design effort.
