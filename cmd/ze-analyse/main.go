@@ -31,6 +31,8 @@ func main() {
 		os.Exit(runCommunities(args))
 	case "count-attrs":
 		os.Exit(runCountAttrs(args))
+	case "aspath":
+		os.Exit(runASPath(args))
 	case "mrt-dump":
 		os.Exit(runMRTDump(args))
 	case "help", "-h", "--help":
@@ -55,6 +57,7 @@ Commands:
   attributes     Analyze attribute repetition patterns for caching decisions
   communities    Generate per-ASN community defaults from MRT files
   count-attrs    Count attributes per route (distribution table)
+  aspath         AS_PATH suffix sharing analysis (reversed trie compression)
   mrt-dump       Dump MRT records as BGP UPDATE hex (one per line)
 
 Data sources:
