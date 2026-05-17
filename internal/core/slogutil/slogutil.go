@@ -130,6 +130,9 @@ const (
 	backendKmsg   = "kmsg"
 )
 
+// validLevelNames lists accepted level strings for parseLevel (excluding "disabled").
+var validLevelNames = []string{"debug", "info", "warn", "warning", "err", "error"}
+
 // levelRegistry tracks subsystem names to their *slog.LevelVar for runtime level changes.
 // Only loggers created via Logger() or LazyLogger() are registered (not disabled ones).
 var levelRegistry sync.Map // map[string]*slog.LevelVar
@@ -490,7 +493,7 @@ func ListLevels() map[string]string {
 func SetLevel(subsystem, levelStr string) error {
 	lvl, enabled := parseLevel(levelStr)
 	if !enabled {
-		return fmt.Errorf("invalid level %q (valid: debug, info, warn, warning, err, error)", levelStr)
+		return fmt.Errorf("invalid level %q (valid: %s)", levelStr, strings.Join(validLevelNames, ", "))
 	}
 
 	val, ok := levelRegistry.Load(subsystem)

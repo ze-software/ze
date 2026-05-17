@@ -5,6 +5,9 @@ package mcp
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
@@ -14,6 +17,19 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/watchdog"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/web"
 )
+
+var validControlActions = map[string]bool{
+	"pause": true, "resume": true, "trigger": true, "rate": true, "stop": true,
+}
+
+var sortedControlActions = func() string {
+	keys := make([]string, 0, len(validControlActions))
+	for k := range validControlActions {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	return strings.Join(keys, ", ")
+}()
 
 // ControlDispatcher sends control commands to the chaos scheduler.
 type ControlDispatcher func(cmd web.ControlCommand) error
@@ -300,11 +316,8 @@ func (p *Provider) toolControl(args json.RawMessage) map[string]any {
 		return zemcp.ErrResult("invalid arguments: " + err.Error())
 	}
 
-	validActions := map[string]bool{
-		"pause": true, "resume": true, "trigger": true, "rate": true, "stop": true,
-	}
-	if !validActions[input.Action] {
-		return zemcp.ErrResult(fmt.Sprintf("action must be one of: pause, resume, trigger, rate, stop; got %q", input.Action))
+	if !validControlActions[input.Action] {
+		return zemcp.ErrResult("action must be one of: " + sortedControlActions + "; got " + strconv.Quote(input.Action))
 	}
 
 	cmd := web.ControlCommand{Type: input.Action}

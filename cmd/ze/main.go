@@ -1044,6 +1044,15 @@ func bootstrapConfigFromTemplate(store storage.Storage, configName string) bool 
 	return true
 }
 
+func rootToolEntries() []helpfmt.HelpEntry {
+	roots := cmdregistry.ListRoot()
+	entries := make([]helpfmt.HelpEntry, len(roots))
+	for i, rc := range roots {
+		entries[i] = helpfmt.HelpEntry{Name: rc.Name, Desc: rc.Meta.Description}
+	}
+	return entries
+}
+
 func usage() {
 	// Dynamic verb list from YANG tree.
 	verbTree := cli.BuildCommandTree(false)
@@ -1062,27 +1071,7 @@ func usage() {
 		},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Verbs (dispatched via YANG command tree)", Entries: verbEntries},
-			{Title: "Tools", Entries: []helpfmt.HelpEntry{
-				{Name: "start", Desc: "Start daemon (--web <port>, --insecure-web, --mcp <port>)"},
-				{Name: "init", Desc: "Bootstrap database with SSH credentials"},
-				{Name: "config", Desc: "Configuration management (validate, edit, migrate, ...)"},
-				{Name: "data", Desc: "Blob store management"},
-				{Name: "schema", Desc: "Schema discovery"},
-				{Name: "yang", Desc: "YANG tree analysis and command docs"},
-				{Name: "cli", Desc: "Interactive CLI for running daemons"},
-				{Name: "status", Desc: "Check if daemon is running"},
-				{Name: "bgp", Desc: "BGP protocol tools (decode, encode)"},
-				{Name: "plugin", Desc: "Plugin system (rib, rr, gr, etc.)"},
-				{Name: "signal", Desc: "Send signals to running daemon (reload, stop, quit)"},
-				{Name: "interface", Desc: "Manage OS network interfaces"},
-				{Name: "sysctl", Desc: "Inspect and manage kernel tunables"},
-				{Name: "l2tp", Desc: "L2TPv2 offline tools (decode wire messages)"},
-				{Name: "resolve", Desc: "Query DNS, Cymru, PeeringDB, and IRR services"},
-				{Name: "exabgp", Desc: "ExaBGP bridge tools"},
-				{Name: "completion", Desc: "Generate shell completion scripts"},
-				{Name: "version", Desc: "Show version (--extended for build details)"},
-				{Name: "help", Desc: "Show this help (--ai for machine-readable reference)"},
-			}},
+			{Title: "Tools", Entries: rootToolEntries()},
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "-d, --debug", Desc: "Enable debug logging (sets ze.log=debug for all subsystems)"},
 				{Name: "-f <file>", Desc: "Use filesystem directly, bypass blob store"},
