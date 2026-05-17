@@ -60,8 +60,8 @@ func applySysctl(osName string, u unitEntry) {
 		if s.ArpIgnore != nil {
 			emit("net.ipv4.conf."+osName+".arp_ignore", strconv.Itoa(*s.ArpIgnore))
 		}
-		if s.RPFilter != nil {
-			emit("net.ipv4.conf."+osName+".rp_filter", strconv.Itoa(*s.RPFilter))
+		if s.RPFCheck != nil {
+			emit("net.ipv4.conf."+osName+".rp_filter", strconv.Itoa(s.RPFCheck.rpfSysctlValue()))
 		}
 	}
 	if s := u.IPv6; s != nil {
@@ -73,6 +73,9 @@ func applySysctl(osName string, u unitEntry) {
 		}
 		if s.Forwarding != nil {
 			emit("net.ipv6.conf."+osName+".forwarding", boolVal(*s.Forwarding))
+		}
+		if s.RPFCheck != nil && log != nil {
+			log.Warn("iface: IPv6 rpf-check requires VPP data plane, ignored on Linux", "iface", osName)
 		}
 	}
 }

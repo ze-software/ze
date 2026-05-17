@@ -154,6 +154,31 @@ type dhcpv6UnitConfig struct {
 	DUID     string
 }
 
+type rpfMode int
+
+const (
+	rpfModeDisable rpfMode = 0
+	rpfModeStrict  rpfMode = 1
+	rpfModeLoose   rpfMode = 2
+)
+
+func parseRPFMode(s string) (rpfMode, bool) {
+	switch s {
+	case "disable":
+		return rpfModeDisable, true
+	case "strict":
+		return rpfModeStrict, true
+	case "loose":
+		return rpfModeLoose, true
+	default:
+		return 0, false
+	}
+}
+
+func (m rpfMode) rpfSysctlValue() int {
+	return int(m)
+}
+
 // ipv4Settings holds per-interface IPv4 configuration: addresses and sysctl knobs.
 // Pointer fields: nil = not configured (leave OS default), non-nil = set.
 type ipv4Settings struct {
@@ -164,7 +189,7 @@ type ipv4Settings struct {
 	ProxyARP    *bool
 	ArpAnnounce *int
 	ArpIgnore   *int
-	RPFilter    *int
+	RPFCheck    *rpfMode
 	DHCP        *dhcpUnitConfig
 }
 
@@ -175,6 +200,7 @@ type ipv6Settings struct {
 	Autoconf   *bool
 	AcceptRA   *int
 	Forwarding *bool
+	RPFCheck   *rpfMode
 }
 
 // parseIfaceSections finds the "interface" section and parses it. Returns a
@@ -824,11 +850,23 @@ func parseIPv4Settings(um map[string]any) (*ipv4Settings, error) {
 			set = true
 		}
 	}
-	if v, ok := v4["rp-filter"].(string); ok {
+	if v, ok := v4["rpf-check"].(string); ok {
+		m, valid := parseRPFMode(v)
+		if !valid {
+			return nil, fmt.Errorf("ipv4 rpf-check: invalid value %q (expected strict, loose, or disable)", v)
+		}
+		s.RPFCheck = &m
+		set = true
+	} else if v, ok := v4["rp-filter"].(string); ok {
 		n, err := strconv.Atoi(v)
-		if err == nil {
-			s.RPFilter = &n
-			set = true
+		if err != nil || n < 0 || n > 2 {
+			return nil, fmt.Errorf("ipv4 rp-filter: invalid value %q (expected 0, 1, or 2)", v)
+		}
+		m := rpfMode(n)
+		s.RPFCheck = &m
+		set = true
+		if log := loggerPtr.Load(); log != nil {
+			log.Warn("iface: rp-filter is deprecated, use rpf-check (strict|loose|disable)")
 		}
 	}
 	s.DHCP = parseDHCPv4Config(v4)
@@ -876,6 +914,14 @@ func parseIPv6Settings(um map[string]any) (*ipv6Settings, error) {
 	if v, ok := v6["forwarding"].(string); ok {
 		b := v == yangTrue
 		s.Forwarding = &b
+		set = true
+	}
+	if v, ok := v6["rpf-check"].(string); ok {
+		m, valid := parseRPFMode(v)
+		if !valid {
+			return nil, fmt.Errorf("ipv6 rpf-check: invalid value %q (expected strict, loose, or disable)", v)
+		}
+		s.RPFCheck = &m
 		set = true
 	}
 	s.DHCPv6 = parseDHCPv6Config(v6)

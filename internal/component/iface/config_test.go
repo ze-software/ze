@@ -3170,3 +3170,159 @@ func TestParseUnit_LegacyNumeric(t *testing.T) {
 	assert.True(t, labels["0"])
 	assert.True(t, labels["100"])
 }
+
+// VALIDATES: AC-1 -- rpf-check strict parsed to rpfModeStrict.
+// PREVENTS: rpf-check enum value silently ignored by parseIPv4Settings.
+func TestParseRPFCheck_Strict(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"dummy": {
+				"dum0": {
+					"unit": {
+						"0": {
+							"ipv4": {
+								"rpf-check": "strict"
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Dummy, 1)
+	require.Len(t, cfg.Dummy[0].Units, 1)
+	u := cfg.Dummy[0].Units[0]
+	require.NotNil(t, u.IPv4)
+	require.NotNil(t, u.IPv4.RPFCheck)
+	assert.Equal(t, rpfModeStrict, *u.IPv4.RPFCheck)
+}
+
+// VALIDATES: AC-2 -- rpf-check loose parsed to rpfModeLoose.
+// PREVENTS: loose/strict enum values swapped.
+func TestParseRPFCheck_Loose(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"dummy": {
+				"dum0": {
+					"unit": {
+						"0": {
+							"ipv4": {
+								"rpf-check": "loose"
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Dummy, 1)
+	u := cfg.Dummy[0].Units[0]
+	require.NotNil(t, u.IPv4)
+	require.NotNil(t, u.IPv4.RPFCheck)
+	assert.Equal(t, rpfModeLoose, *u.IPv4.RPFCheck)
+}
+
+// VALIDATES: AC-3 -- rpf-check disable parsed to rpfModeDisable.
+// PREVENTS: disable treated as unconfigured (nil).
+func TestParseRPFCheck_Disable(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"dummy": {
+				"dum0": {
+					"unit": {
+						"0": {
+							"ipv4": {
+								"rpf-check": "disable"
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Dummy, 1)
+	u := cfg.Dummy[0].Units[0]
+	require.NotNil(t, u.IPv4)
+	require.NotNil(t, u.IPv4.RPFCheck)
+	assert.Equal(t, rpfModeDisable, *u.IPv4.RPFCheck)
+}
+
+// VALIDATES: AC-5 -- legacy rp-filter integer maps to rpfMode enum.
+// PREVENTS: backward-compat break when old configs use rp-filter N.
+func TestParseRPFCheck_Legacy(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		expected rpfMode
+	}{
+		{"strict", "1", rpfModeStrict},
+		{"loose", "2", rpfModeLoose},
+		{"disable", "0", rpfModeDisable},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := mustParseIfaceJSON(t, fmt.Sprintf(`{
+				"interface": {
+					"dummy": {
+						"dum0": {
+							"unit": {
+								"0": {
+									"ipv4": {
+										"rp-filter": %q
+									}
+								}
+							}
+						}
+					}
+				}
+			}`, tt.value))
+			require.Len(t, cfg.Dummy, 1)
+			u := cfg.Dummy[0].Units[0]
+			require.NotNil(t, u.IPv4)
+			require.NotNil(t, u.IPv4.RPFCheck, "legacy rp-filter %s must map to RPFCheck", tt.value)
+			assert.Equal(t, tt.expected, *u.IPv4.RPFCheck)
+		})
+	}
+}
+
+// VALIDATES: AC-4 -- rpf-check parsed in IPv6 container.
+// PREVENTS: rpf-check silently ignored in parseIPv6Settings.
+func TestParseRPFCheck_IPv6(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"dummy": {
+				"dum0": {
+					"unit": {
+						"0": {
+							"ipv6": {
+								"rpf-check": "loose"
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Dummy, 1)
+	u := cfg.Dummy[0].Units[0]
+	require.NotNil(t, u.IPv6)
+	require.NotNil(t, u.IPv6.RPFCheck)
+	assert.Equal(t, rpfModeLoose, *u.IPv6.RPFCheck)
+}
+
+// VALIDATES: AC-1/AC-2/AC-3 -- rpfMode sysctl integer mapping.
+// PREVENTS: enum-to-sysctl value mismatch (strict must be 1, not 2).
+func TestApplyRPFCheck_Sysctl(t *testing.T) {
+	tests := []struct {
+		mode     rpfMode
+		expected int
+	}{
+		{rpfModeDisable, 0},
+		{rpfModeStrict, 1},
+		{rpfModeLoose, 2},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.expected, tt.mode.rpfSysctlValue(),
+			"rpfMode(%d).rpfSysctlValue()", tt.mode)
+	}
+}

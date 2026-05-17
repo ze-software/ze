@@ -682,6 +682,39 @@ goes down, its metric becomes 1025 (1 + 1024), so backup (metric 5) takes over. 
 uplink recovers, its metric returns to 1 and traffic shifts back. The default value
 is 0 (kernel default), which preserves existing behavior when not configured.
 
+### Reverse Path Filtering (rpf-check)
+
+The `rpf-check` leaf in the `ipv4` and `ipv6` unit containers controls unicast
+Reverse Path Forwarding verification. Three modes are available:
+
+| Value | Linux sysctl | Behavior |
+|-------|-------------|----------|
+| `disable` | `rp_filter=0` | No source address validation |
+| `strict` | `rp_filter=1` | Packet must arrive on the interface the kernel would use to reach the source |
+| `loose` | `rp_filter=2` | Source address must be reachable via any interface |
+
+```
+interface {
+    ethernet eth0 {
+        mac-address 02:00:00:00:00:01;
+        unit default {
+            ipv4 {
+                rpf-check strict;
+            }
+        }
+    }
+}
+```
+
+IPv6 `rpf-check` is accepted in config but only enforced with the VPP data plane.
+On Linux without VPP, a warning is logged and the setting has no effect.
+
+The legacy `rp-filter 0|1|2` integer syntax is still accepted for backward
+compatibility but emits a deprecation warning. Use `rpf-check` in new configs.
+
+<!-- source: internal/component/iface/config.go -- parseIPv4Settings, parseIPv6Settings, RPFMode -->
+<!-- source: internal/component/iface/config_sysctl.go -- applySysctl -->
+
 ## Authentication Users
 
 Local SSH login users are declared under `system.authentication.user`. The

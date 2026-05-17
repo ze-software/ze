@@ -62,6 +62,7 @@ YANG schema, migration, config reload, editor, environment variables.
 - [184](plan/learned/184-exabgp-to-yang-migration.md) -- ExaBGP syntax to YANG migration
 - [226](plan/learned/226-config-reload-6-remove-bgpconfig.md) -- BGPConfig removal, map[string]any
 - [232](plan/learned/232-editor-tree-canonical.md) -- Editor tree canonical representation
+- [716](plan/learned/716-iface-2-urpf.md) -- rpf-check enum over raw sysctl integer; three-state nil/disable/value pattern; sysctl profile ordering issue
 
 ## CLI/API
 

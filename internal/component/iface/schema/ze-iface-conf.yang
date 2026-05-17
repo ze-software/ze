@@ -271,11 +271,13 @@ module ze-iface-conf {
                     description "ARP ignore level: 0=reply any, 1=reply only if target on incoming iface, 2=plus sender subnet check";
                 }
 
-                leaf rp-filter {
-                    type uint8 {
-                        range "0..2";
+                leaf rpf-check {
+                    type enumeration {
+                        enum disable;
+                        enum strict;
+                        enum loose;
                     }
-                    description "Reverse path filtering: 0=disabled, 1=strict, 2=loose";
+                    description "Reverse path filtering mode";
                 }
 
                 container dhcp {
@@ -328,6 +330,15 @@ module ze-iface-conf {
                 leaf forwarding {
                     type boolean;
                     description "Enable IPv6 forwarding";
+                }
+
+                leaf rpf-check {
+                    type enumeration {
+                        enum disable;
+                        enum strict;
+                        enum loose;
+                    }
+                    description "Reverse path filtering mode (VPP data plane only on IPv6)";
                 }
 
                 container dhcpv6 {

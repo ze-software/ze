@@ -18,7 +18,7 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 | 11. Deliverables review | **Deliverables Checklist** (verification methods per deliverable) |
 | 12. Security review | **Security Review Checklist** (feature-specific concerns) |
 | 14. Documentation review | **Documentation Update Checklist** (per-category doc updates) |
-| 16. Close spec | Entire spec (extraction recipe), `plan/learned/METHODOLOGY.md` |
+| 15. Close + commit | Entire spec (extraction recipe), `plan/learned/METHODOLOGY.md` |
 
 ## Steps
 
@@ -78,20 +78,26 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
     - Categories: feature list, user guide, config syntax, CLI reference, API/RPC docs, plugin SDK, wire format, RFC compliance, comparison table, test infrastructure, architecture design.
     - If the spec has no Documentation Update Checklist, use `ai/rules/planning.md` "Documentation Update Checklist" as the reference and fill it for the spec.
     - Write the doc updates. Include them in the commit.
-15. **Present summary:** List all changes made (files modified/created, tests added, docs updated, issues found and fixed). Ask user to commit.
-16. **Close spec (BLOCKING -- after the user commits the implementation):**
-    This step runs after the user has executed the commit script from step 15.
-    Do NOT wait for the user to ask. Do NOT skip. Do NOT say "I'll do it later."
+15. **Close spec and present commit (BLOCKING -- do ALL of this BEFORE presenting the commit script):**
+    The user expects that running the commit script completes ALL work. Nothing may be left
+    over, deferred, or require a second script. Do everything below before showing the script.
     a. Write the learned summary to `plan/learned/NNN-<spec-stem>.md` following `plan/learned/METHODOLOGY.md`.
-       Number NNN = next unused number (check `ls plan/learned/`). Use the extraction recipe: Context from Task + Current Behavior, Decisions from Key Design Decisions + annotations, Consequences from Design Insights + Limitations, Gotchas from Deviations + Mistake Log.
+       Number NNN = next unused number. To find it: `for f in plan/learned/[0-9]*.md; do basename "$f"; done | grep -oE '^[0-9]+' | sort -rn | head -1`
+       then add 1. Use the extraction recipe: Context from Task + Current Behavior, Decisions from Key Design Decisions + annotations, Consequences from Design Insights + Limitations, Gotchas from Deviations + Mistake Log.
     b. Update `ai/LEARNED-INDEX.md` if the summary contains a structural decision (not just task completion).
-    c. Prepare a second commit script (`tmp/commit-SESSION-close.sh`) that:
+    c. Remove your line from `tmp/session/selected-spec`.
+    d. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
+    e. Prepare ONE commit script (`tmp/commit-SESSION.sh`) that does EVERYTHING in a single commit:
+       - `git add` all implementation files (code, tests, docs, schema)
        - `git add plan/learned/NNN-<spec-stem>.md`
        - `git add ai/LEARNED-INDEX.md` (if updated)
        - `git rm plan/<spec-name>`
-       - Commit message: `chore(<area>): close <spec-stem>, write learned summary`
-    d. Remove your line from `tmp/session/selected-spec`.
-    e. Present the commit script to the user.
+       - Commit message file with both the feature description and the spec closure
+    f. Present the commit script to the user.
+
+    **Why one script, one commit:** the user runs the script and the work is done. No second
+    script, no "now run this other thing", no leftover steps. If there are ANY remaining
+    actions after the user runs the script, the step is not complete. Go back and include them.
 
 ## Rules
 

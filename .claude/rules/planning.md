@@ -28,14 +28,14 @@ output into the spec. NOTE-only findings do NOT block.
 | Start research | First action of `/ze-spec` Step 2 |
 | Spec approved | After user approves in `/ze-spec` Step 4 |
 | Start coding | First action of `/ze-implement`, before audit |
-| Implementation complete | `/ze-implement` step 16: write learned summary, `git rm` spec, second commit script |
+| Implementation complete | `/ze-implement` step 15: write learned summary, `git rm` spec, all in one commit script |
 
 ## Spec Closure (BLOCKING)
 
 **A spec that passes its Review Gate is not done until it is deleted from `plan/`.**
 
 The lifecycle is: `in-progress` -> Review Gate clean -> write learned summary -> `git rm` spec.
-All three happen in `/ze-implement` step 16, in the same session that finished the work.
+All three happen in `/ze-implement` step 15, in one commit script the user runs once.
 Leaving a completed spec in `plan/` causes every future session to count it as open work.
 
 | Banned | Why |

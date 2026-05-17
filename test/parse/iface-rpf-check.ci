@@ -1,0 +1,25 @@
+# Test: rpf-check enum values accepted in ipv4 and ipv6 containers
+# VALIDATES: AC-1/AC-2/AC-3 -- rpf-check strict/loose/disable parsed.
+#            AC-4 -- rpf-check accepted in ipv6 container.
+# PREVENTS: rpf-check enum silently rejected by YANG or parser.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	ethernet eth0 {
+		mac-address 02:00:00:00:00:99;
+		unit 0 {
+			ipv4 {
+				rpf-check strict;
+			}
+			ipv6 {
+				rpf-check loose;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid
