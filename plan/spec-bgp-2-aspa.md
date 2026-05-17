@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-03-21 |
+| Phase | 4/4 |
+| Updated | 2026-05-17 |
 
 ## Post-Compaction Recovery
 
@@ -32,7 +32,7 @@ This spec fulfills the deferral "D5: ASPA deferred" from `spec-rpki-0-umbrella.m
 | In scope | Out of scope |
 |----------|-------------|
 | ASPA record storage (customer-AS to authorized-provider set) | ROA validation changes (already in rpki-0) |
-| RTR PDU type for ASPA (receive from cache server) | RTR v2 protocol changes beyond ASPA PDU |
+| RTR v2 version negotiation + ASPA PDU (receive from cache server) | RTR v2 features beyond negotiation and ASPA PDU |
 | Upstream path verification algorithm | Downstream path verification |
 | ASPA validation states (Valid, Invalid, Unknown) | Policy actions based on ASPA state (separate concern) |
 | Per-route ASPA validation integrated into RPKI plugin | ASPA-aware best-path selection in RIB |
@@ -43,36 +43,53 @@ This spec fulfills the deferral "D5: ASPA deferred" from `spec-rpki-0-umbrella.m
 
 ### Architecture Docs
 - [ ] `docs/architecture/plugin/rib-storage-design.md` - RPKI plugin integration pattern
-  -> Decision:
-  -> Constraint:
+  -> Decision: RPKI plugin is an "API mode" plugin (not RIB mode). Receives WireUpdate via DirectBridge, extracts attrs via lazy parse. Does not own RIB storage.
+  -> Constraint: Plugin reads from WireUpdate (zero-copy, buf owned by WireUpdate). Must not hold references past event callback return.
 - [ ] `docs/architecture/wire/attributes.md` - AS_PATH attribute format (needed for verification)
-  -> Decision:
-  -> Constraint:
+  -> Decision: AS_PATH is type code 2, flags 0x40 (well-known mandatory). Parsed via `attribute.ParseASPath(data, fourByte)` returning `*ASPath` with `Segments []ASPathSegment`.
+  -> Constraint: Segment types 1-4 (ASSet, ASSequence, ASConfedSequence, ASConfedSet). ASN4 encoding when both peers support 4-byte capability. MaxASPathTotalLength = 1000.
 - [ ] `docs/architecture/api/architecture.md` - plugin event format
-  -> Decision:
-  -> Constraint:
+  -> Decision: Engine sends events via DirectBridge (StructuredEvent) or JSON fallback. RPKI uses both paths. Event JSON envelope: `{"type":"bgp","bgp":{"peer":{...},"message":{...},"rpki":{...}}}`.
+  -> Constraint: Plugin emits events via `p.EmitEvent(ctx, root, eventType, direction, peer, jsonStr)`. Event JSON must be kebab-case keys per json-format.md.
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc6811.md` - ROA validation (existing, for pattern reference)
-  -> Constraint:
+  -> Constraint: Origin AS derived from rightmost AS in final AS_SEQUENCE; AS_SET yields NONE (can never match). Re-validation MUST fire on VRP cache change (Section 4).
 - [ ] `rfc/short/rfc8210.md` - RTR v1 protocol (PDU types, session lifecycle)
-  -> Constraint:
-- [ ] RFC summary for ASPA verification (draft-ietf-sidrops-aspa-verification-24, no RFC number yet) - MUST CREATE
-  -> Constraint:
+  -> Constraint: Version negotiation Section 7: client sends highest version, server responds or sends error code 4. PDU types 0-10 in v1. End of Data is 24 bytes with timing params.
+- [ ] `rfc/short/rfc9582.md` - RTR v2 protocol (ASPA PDU type 11) - CREATED
+  -> Constraint: ASPA PDU type 11, v2 only. Fixed 16 bytes + 4*N providers. AFI flags byte (0=both, 1=IPv4, 2=IPv6). Announce replaces entire provider set (not delta). Providers MUST be sorted ascending. Min 1 provider per PDU.
+- [ ] `rfc/short/draft-ietf-sidrops-aspa-verification.md` - Upstream path verification algorithm - CREATED
+  -> Constraint: Normalize path (strip consecutive-dup prepends, remove confed segments). AS_SET -> Unknown. Walk adjacent pairs from neighbor toward origin: check_pair(provider_candidate, customer_as). "Not Provider+" on any hop -> Invalid. All "Provider+" -> Valid. Any "No Attestation" -> Unknown. Re-validation MUST on ASPA data change.
 
 **Key insights:** (summary of all checkpoint lines -- minimal context to resume after compaction)
-- [to be filled during design phase]
+- RTR v2 negotiation required: ASPA PDU only sent in v2 sessions; v1 fallback means ROA-only
+- ASPA PDU is replace-semantics (announce = full provider set replacement, not incremental)
+- Verification is per-UPDATE not per-prefix (AS_PATH shared across all NLRIs in one UPDATE)
+- Algorithm input: normalized unique-hop list + ASPA database; output: Valid/Invalid/Unknown
+- Re-validation on cache change is MUST (both RFC 6811 Section 4 and ASPA draft Section 7). Handled inside RPKI plugin via route tracker (no cross-plugin dependency).
+- AFI flags in ASPA PDU: cache key should be (customer-AS, AFI) or simplified to customer-AS if MAY (ignore AFI) is chosen
+- `*attribute.ASPath` with full Segments available from AttrsWire; need segment types for AS_SET detection
+- RPKI plugin owns its own route state for re-validation: tracker stores normalized paths + reverse index by customer-AS
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
-- [ ] `internal/component/bgp/plugins/rpki/rpki.go` - RPKI plugin entry point, ROA validation gate
-- [ ] `internal/component/bgp/plugins/rpki/validate.go` - RFC 6811 origin validation: Validate(prefix, originAS) returns state
-- [ ] `internal/component/bgp/plugins/rpki/roa_cache.go` - ROA cache VRP storage, covering-prefix lookup
-- [ ] `internal/component/bgp/plugins/rpki/rtr_pdu.go` - RTR PDU types (v1), no ASPA PDU yet
-- [ ] `internal/component/bgp/plugins/rpki/rtr_session.go` - RTR session lifecycle
-- [ ] `internal/component/bgp/plugins/rpki/rpki_config.go` - RPKI config parsing
-- [ ] `internal/component/bgp/plugins/rpki/emit.go` - RPKI event JSON building
+- [ ] `internal/component/bgp/plugins/rpki/rpki.go` (601L) - Plugin entry point. RPKIPlugin struct holds `*ROACache`, `validateCh chan`, sessions. OnStructuredEvent extracts `*ASPath` via `rpkiOriginASFromWire(msg.AttrsWire)`. Runs validation worker goroutine. OnAllPluginsReady enables validation gate. Registration: commands rpki {status,cache,roa,summary}, WantsConfig: ["bgp"].
+  -> Constraint: ASPA verification must not block OnStructuredEvent callback. Must use same async pattern (channel + worker) or run inline if cheap enough.
+  -> Constraint: `rpkiOriginASFromWire` already gets `*attribute.ASPath` via `attrs.Get(attribute.AttrASPath)`. ASPA can reuse same access path for full segments.
+- [ ] `internal/component/bgp/plugins/rpki/validate.go` (149L) - RFC 6811 origin validation. `ROACache.Validate(prefix, originAS) uint8`. States: NotValidated=0, Valid=1, NotFound=2, Invalid=3. OriginNone=0xFFFFFFFF sentinel for AS_SET.
+  -> Constraint: ASPA uses different state semantics (Valid/Invalid/Unknown vs Valid/Invalid/NotFound). Must not reuse same constants. Needs own state type.
+- [ ] `internal/component/bgp/plugins/rpki/roa_cache.go` (252L) - Thread-safe ROA cache. `map[string][]vrpEntry` keyed by prefix. Add/Remove/ApplyDelta/Clear/FindCovering. maxVRPs=1_000_000. Own `sync.RWMutex`.
+  -> Constraint: Pattern to follow: separate struct, own mutex, Add/Remove/ApplyDelta/Clear methods, size limit. ASPA cache is simpler (no covering-prefix search, just direct uint32 key lookup).
+- [ ] `internal/component/bgp/plugins/rpki/rtr_pdu.go` (161L) - RTR v1 PDU types 0-10. `rtrVersion uint8 = 1` package const. VRP struct, RTRHeader struct. Parse functions: `parseHeader`, `parseIPv4Prefix`, `parseIPv6Prefix`, `parseEndOfData`. Write: `writeResetQuery`, `writeSerialQuery`.
+  -> Constraint: `rtrVersion` is package const used by write functions. Must become per-session or parameter. pduASPA=11 needs adding. Parse function pattern: `parseASPAPDU(buf []byte) (ASPARecord, bool, error)` matching prefix parse signature.
+- [ ] `internal/component/bgp/plugins/rpki/rtr_session.go` (300L) - RTRSession struct with Run() goroutine. connectAndSync -> readLoop -> handlePDU switch. Accumulates pendingVRPs/pendingDels between CacheResp and EndOfData, applies atomically via `cache.ApplyDelta`. Retry with `retryInterval` on failure.
+  -> Constraint: Session needs `aspaCache *ASPACache` field + `pendingASPA`/`pendingASPADels` slices. Version negotiation: if error code 4 received, downgrade `s.version` from 2 to 1 and retry in same Run() loop iteration.
+- [ ] `internal/component/bgp/plugins/rpki/rpki_config.go` (87L) - Parses `rpki` subtree from BGP config JSON. `rpkiConfig` struct: CacheServers, ValidationTimeout. Uses `configjson.ParseBGPSubtree`.
+  -> Constraint: Add `ASPAEnabled bool` field (default true when ASPA cache has data). Config key: `"aspa-validation"` (kebab-case, boolean).
+- [ ] `internal/component/bgp/plugins/rpki/emit.go` (110L) - Builds rpki event JSON via `json.Marshal` of typed structs. `rpkiEventJSON` envelope. `buildRPKIEvent` for per-prefix states, `buildRPKIEventUnavailable` for empty cache.
+  -> Constraint: Add `"aspa-state"` field to rpki event. Must be sibling of existing rpki section. Value: "valid"/"invalid"/"unknown". Use same struct-based json.Marshal pattern (not string concatenation).
 
 **Behavior to preserve:** (unless user explicitly said to change)
 - Existing ROA validation algorithm and states
@@ -82,39 +99,44 @@ This spec fulfills the deferral "D5: ASPA deferred" from `spec-rpki-0-umbrella.m
 - Config structure for cache server
 
 **Behavior to change:** (only if user explicitly requested)
-- Add ASPA record cache alongside ROA cache
-- Add ASPA RTR PDU parsing
-- Add upstream path verification algorithm
-- Add ASPA validation state to event output
-- Extend config to enable/disable ASPA
+- Add ASPA record cache alongside ROA cache (separate `ASPACache` struct)
+- RTR version negotiation: send v2 query, fall back to v1 if error code 4 (ASPA unavailable at v1)
+- Add ASPA RTR PDU type 11 parsing (v2 sessions only)
+- Add upstream path verification algorithm (normalize + walk hop pairs)
+- Add ASPA validation state to rpki event JSON output (informational, no accept/reject change)
+- Extend config to enable/disable ASPA verification
 
 ## Data Flow (MANDATORY - see `rules/data-flow-tracing.md`)
 
 ### Entry Point
-- RTR cache server sends ASPA PDUs (customer-AS, provider-AS set) during sync
+- RTR cache server sends ASPA PDUs (type 11, v2 only) during sync between Cache Response and End of Data
 - BGP UPDATE received with AS_PATH attribute triggers ASPA verification
 
 ### Transformation Path
-1. RTR session receives ASPA PDU -> parse customer-AS and provider-AS-set
-2. ASPA cache stores customer-AS -> set of authorized providers (with AFI)
-3. Route received -> extract AS_PATH from UPDATE
-4. Upstream verification: walk AS_PATH, check each hop's provider authorization
-5. Result: Valid (all hops authorized), Invalid (unauthorized hop found), Unknown (no ASPA records)
-6. Validation state included in event to RIB plugin
+1. RTR session receives ASPA PDU (16 bytes fixed + 4*N provider ASNs) -> parse flags, AFI, customer-AS, provider-AS-set
+2. ASPA cache stores (customer-AS, AFI) -> set of authorized providers. Announce = full replacement of provider set.
+3. At End of Data: apply accumulated ASPA changes atomically (same as ROA ApplyDelta pattern)
+4. Route received -> extract `*attribute.ASPath` from AttrsWire (already parsed, lazy)
+5. Normalize: remove consecutive-dup prepends, strip AS_CONFED_SEQUENCE, flag AS_SET -> Unknown
+6. Upstream verification: walk normalized path from neighbor toward origin, check_pair(provider_candidate, customer_as) per hop
+7. Result: Valid (all "Provider+"), Invalid (any "Not Provider+"), Unknown (any "No Attestation" and none "Not Provider+")
+8. ASPA state included in rpki event JSON (AC-6). Does NOT affect accept/reject dispatch (policy actions are out of scope). ROA-only flow unchanged.
+9. Route withdrawn -> tracker removes entry for (peer, family, prefix, pathID) from primary map and reverse index. No event emitted for withdrawals.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| RTR cache -> ASPA cache | ASPA PDU parsing -> cache storage | [ ] |
-| Engine -> RPKI plugin | JSON event with AS_PATH and peer info | [ ] |
-| RPKI plugin -> RIB plugin | accept/reject command with ASPA state | [ ] |
+| RTR cache -> ASPA cache | ASPA PDU type 11 parsing -> ASPACache storage (v2 sessions only) | [ ] |
+| Engine -> RPKI plugin | StructuredEvent with RawMessage containing AttrsWire (AS_PATH) + PeerAS | [ ] |
+| RPKI plugin -> event consumers | EmitEvent with `"aspa-state"` field in rpki event JSON (informational, no dispatch change) | [ ] |
+| ASPA cache update -> route tracker | End of Data triggers re-validation of tracked routes whose path includes changed customer-AS | [ ] |
 
 ### Integration Points
-- `rtr_pdu.go` - add ASPA PDU type constant and parser
-- `rtr_session.go` - handle ASPA PDU in session receive loop
-- `rpki.go` - call ASPA verification after ROA validation
-- `validate.go` or new `aspa_verify.go` - upstream verification algorithm
-- New `aspa_cache.go` - ASPA record storage
+- `rtr_pdu.go` - add `pduASPA uint8 = 11`, `pduASPAFixedLen = 16`, parse function: extract flags/AFI/customer-AS/provider-list from wire bytes
+- `rtr_session.go` - handle ASPA PDU in `handlePDU` switch (accumulate in pendingASPA slices alongside pendingVRPs); requires RTR v2 negotiation (per-session version field replacing package const `rtrVersion`)
+- `rpki.go` - call ASPA verification once per UPDATE (not per-prefix) after extracting `*attribute.ASPath`; pass result to emit (informational only, no dispatch change)
+- New `aspa_verify.go` - upstream path verification algorithm per draft-ietf-sidrops-aspa-verification Section 6
+- New `aspa_cache.go` - ASPA record storage: `map[uint32]map[uint32]struct{}` (customer-AS -> provider-AS set); separate struct with own mutex
 
 ### Architectural Verification
 - [ ] No bypassed layers (data flows through intended path)
@@ -126,9 +148,10 @@ This spec fulfills the deferral "D5: ASPA deferred" from `spec-rpki-0-umbrella.m
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| RTR session with ASPA PDU | -> | ASPA cache populated | [to be determined] |
-| UPDATE with AS_PATH + ASPA enabled | -> | upstream verification runs | [to be determined] |
-| Config with ASPA enabled | -> | ASPA validation active in plugin | [to be determined] |
+| RTR v2 session receives ASPA PDU type 11 | -> | ASPACache.Lookup returns provider set | `TestParseASPAPDU` + `TestASPACacheAdd` |
+| UPDATE with AS_PATH + ASPA cache populated | -> | ASPA verification runs, event emitted with aspa-state | `rpki-aspa-valid.ci` / `rpki-aspa-invalid.ci` |
+| ASPA cache updated at End of Data | -> | Tracker re-validates affected routes, emits updated events | `TestASPATrackerRevalidate` |
+| Config with `aspa-validation: false` | -> | ASPA verification skipped, no aspa-state in event | `rpki-aspa-disabled.ci` |
 
 ## Acceptance Criteria
 
@@ -138,11 +161,12 @@ This spec fulfills the deferral "D5: ASPA deferred" from `spec-rpki-0-umbrella.m
 | AC-2 | Route with AS_PATH where all hops have authorized providers | ASPA state = Valid |
 | AC-3 | Route with AS_PATH containing unauthorized provider hop | ASPA state = Invalid |
 | AC-4 | Route with AS_PATH where some hops have no ASPA records | ASPA state = Unknown |
-| AC-5 | ASPA cache update (new/withdrawn records) | Affected routes re-validated |
+| AC-5 | ASPA cache update (new/withdrawn records) | RPKI plugin re-validates tracked routes internally, emits updated events for routes whose ASPA state changed |
 | AC-6 | JSON event output includes ASPA validation state | `"aspa-state"` field in event JSON |
 | AC-7 | ASPA disabled in config | No ASPA verification performed, ROA-only |
 | AC-8 | Malformed ASPA PDU from RTR | Error logged, PDU skipped, session continues |
 | AC-9 | AS_PATH with AS_SET segments | ASPA verification result = Unknown (cannot verify sets) |
+| AC-10 | RTR cache only supports v1 (no ASPA PDU) | Session operates at v1, ASPA cache empty, no aspa-state in events (ROA-only) |
 
 ## TDD Test Plan
 
@@ -152,30 +176,46 @@ This spec fulfills the deferral "D5: ASPA deferred" from `spec-rpki-0-umbrella.m
 | `TestASPACacheAdd` | `rpki/aspa_cache_test.go` | Add ASPA record to cache | |
 | `TestASPACacheRemove` | `rpki/aspa_cache_test.go` | Withdraw ASPA record | |
 | `TestASPACacheLookup` | `rpki/aspa_cache_test.go` | Lookup providers for customer AS | |
+| `TestASPACacheReplace` | `rpki/aspa_cache_test.go` | Announce replaces entire provider set (not delta) | |
+| `TestRTRVersionNegotiationV2` | `rpki/rtr_session_test.go` | Session negotiates v2 when server supports it | |
+| `TestRTRVersionFallbackV1` | `rpki/rtr_session_test.go` | Session falls back to v1 on error code 4 | |
+| `TestRTRVersionMismatchError` | `rpki/rtr_session_test.go` | Error code 8 after negotiation drops session | |
+| `TestParseASPAPDU` | `rpki/rtr_pdu_test.go` | Parse ASPA PDU (type 11) from wire bytes: flags, AFI, customer-AS, provider list | |
+| `TestParseASPAPDUMalformed` | `rpki/rtr_pdu_test.go` | Malformed ASPA PDU: too short, zero providers, length mismatch | |
+| `TestParseASPAPDUUnknownAFI` | `rpki/rtr_pdu_test.go` | Unknown AFI value (>=3) ignored per RFC 9582 | |
+| `TestParseASPAPDUSelfRef` | `rpki/rtr_pdu_test.go` | Customer AS in own provider set -> malformed, skip | |
+| `TestParseASPAPDUUnsorted` | `rpki/rtr_pdu_test.go` | Provider ASNs not ascending -> malformed, skip | |
 | `TestASPAVerifyValid` | `rpki/aspa_verify_test.go` | All hops authorized -> Valid | |
 | `TestASPAVerifyInvalid` | `rpki/aspa_verify_test.go` | Unauthorized hop -> Invalid | |
 | `TestASPAVerifyUnknown` | `rpki/aspa_verify_test.go` | Missing ASPA records -> Unknown | |
 | `TestASPAVerifyASSet` | `rpki/aspa_verify_test.go` | AS_SET in path -> Unknown | |
-| `TestASPAVerifySingleHop` | `rpki/aspa_verify_test.go` | Single-hop AS_PATH edge case | |
-| `TestASPAVerifyEmptyPath` | `rpki/aspa_verify_test.go` | Empty AS_PATH edge case | |
-| `TestParseASPAPDU` | `rpki/rtr_pdu_test.go` | Parse ASPA PDU from wire bytes | |
-| `TestParseASPAPDUMalformed` | `rpki/rtr_pdu_test.go` | Malformed ASPA PDU handling | |
+| `TestASPAVerifySingleHop` | `rpki/aspa_verify_test.go` | Single-hop AS_PATH (trivially Valid) | |
+| `TestASPAVerifyEmptyPath` | `rpki/aspa_verify_test.go` | Empty AS_PATH -> Valid | |
+| `TestASPANormalizePrepends` | `rpki/aspa_verify_test.go` | [A,A,B,B,B] -> [A,B]; [A,B,A] unchanged | |
+| `TestASPANormalizeConfed` | `rpki/aspa_verify_test.go` | AS_CONFED_SEQUENCE stripped from path | |
+| `TestASPATrackerAdd` | `rpki/aspa_tracker_test.go` | Track route with normalized path, reverse index populated | |
+| `TestASPATrackerRemove` | `rpki/aspa_tracker_test.go` | Withdraw removes route from tracker and reverse index | |
+| `TestASPATrackerRevalidate` | `rpki/aspa_tracker_test.go` | Cache change triggers re-verification of affected routes only | |
+| `TestASPATrackerReverseIndex` | `rpki/aspa_tracker_test.go` | Lookup by customer-AS returns correct route refs | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| Customer AS | 1 - 2^32-1 | 0xFFFFFFFE | 0 (reserved) | N/A (uint32) |
-| Provider AS | 1 - 2^32-1 | 0xFFFFFFFE | 0 (reserved) | N/A (uint32) |
-| Provider count per ASPA | 1+ | 1 (minimum) | 0 (empty set) | implementation limit |
-| AS_PATH length for verification | 0 - 1000 | 1000 (MaxASPathTotalLength) | N/A | 1001 (already rejected) |
+| Customer AS | 1 - 2^32-2 | 0xFFFFFFFE | 0 (reserved, RFC 9582) | 0xFFFFFFFF (reserved) |
+| Provider AS | 1 - 2^32-2 | 0xFFFFFFFE | 0 (reserved, RFC 9582) | 0xFFFFFFFF (reserved) |
+| Provider count per ASPA | 1+ | 1 (minimum, RFC 9582 Section 5.12) | 0 (malformed: PDU length=16 with no providers) | implementation limit |
+| ASPA PDU length | 20 (min: 16+4) | 65536 (max PDU) | 16 (no providers = malformed) | >65536 (rejected by readLoop) |
+| AFI flags | 0-2 | 2 (IPv6-only) | N/A | 3+ (unknown, MUST ignore per RFC 9582) |
+| AS_PATH length for verification | 0 - 1000 | 1000 (MaxASPathTotalLength) | N/A | 1001 (already rejected by ParseASPath) |
+| Normalized path length | 0 (empty = Valid) | 1000 | N/A | N/A (bounded by AS_PATH max) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `rpki-aspa-valid` | `test/plugin/*.ci` | Route with fully authorized path -> accepted | |
-| `rpki-aspa-invalid` | `test/plugin/*.ci` | Route with unauthorized hop -> rejected | |
-| `rpki-aspa-unknown` | `test/plugin/*.ci` | Route with no ASPA coverage -> accepted (policy) | |
-| `rpki-aspa-disabled` | `test/plugin/*.ci` | ASPA disabled, only ROA validation runs | |
+| `rpki-aspa-valid` | `test/plugin/*.ci` | Route with fully authorized path -> event contains `"aspa-state":"valid"` | |
+| `rpki-aspa-invalid` | `test/plugin/*.ci` | Route with unauthorized hop -> event contains `"aspa-state":"invalid"` | |
+| `rpki-aspa-unknown` | `test/plugin/*.ci` | Route with no ASPA coverage -> event contains `"aspa-state":"unknown"` | |
+| `rpki-aspa-disabled` | `test/plugin/*.ci` | ASPA disabled in config -> no `aspa-state` field in event | |
 
 ### Future (if deferring any tests)
 - Downstream path verification (separate algorithm, separate spec)
@@ -207,6 +247,8 @@ This spec fulfills the deferral "D5: ASPA deferred" from `spec-rpki-0-umbrella.m
 - `internal/component/bgp/plugins/rpki/aspa_cache_test.go` - cache unit tests
 - `internal/component/bgp/plugins/rpki/aspa_verify.go` - upstream path verification algorithm
 - `internal/component/bgp/plugins/rpki/aspa_verify_test.go` - verification unit tests
+- `internal/component/bgp/plugins/rpki/aspa_tracker.go` - route tracker: stores normalized AS_PATH + ASPA state per active route, reverse index (customer-AS -> routes), handles re-validation on cache change
+- `internal/component/bgp/plugins/rpki/aspa_tracker_test.go` - tracker unit tests
 - `test/plugin/rpki-aspa-*.ci` - functional tests
 
 ### Documentation Update Checklist (BLOCKING)
@@ -251,32 +293,40 @@ This spec fulfills the deferral "D5: ASPA deferred" from `spec-rpki-0-umbrella.m
 
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Phase: RFC summary** -- Create RFC summary for ASPA verification (confirm RFC number)
-   - Verify: summary exists, covers verification algorithm, PDU format, validation states
-2. **Phase: ASPA cache** -- Customer-AS to provider-set storage
-   - Tests: `TestASPACacheAdd`, `TestASPACacheRemove`, `TestASPACacheLookup`
+1. **Phase: RFC summary** -- Create RFC summaries for ASPA verification and RTR v2
+   - Verify: `rfc/short/rfc9582.md` and `rfc/short/draft-ietf-sidrops-aspa-verification.md` exist -- DONE
+2. **Phase: ASPA cache** -- Customer-AS to provider-set storage (`map[uint32]map[uint32]struct{}`)
+   - Tests: `TestASPACacheAdd`, `TestASPACacheRemove`, `TestASPACacheLookup`, `TestASPACacheReplace` (announce = full replace)
    - Files: `aspa_cache.go`
    - Verify: tests fail -> implement -> tests pass
-3. **Phase: RTR ASPA PDU** -- Parse ASPA PDU from RTR cache server
-   - Tests: `TestParseASPAPDU`, `TestParseASPAPDUMalformed`
-   - Files: `rtr_pdu.go`, `rtr_session.go`
+3. **Phase: RTR v2 negotiation** -- Per-session version field, v2 query with v1 fallback
+   - Tests: `TestRTRVersionNegotiationV2`, `TestRTRVersionFallbackV1`, `TestRTRVersionMismatchError`
+   - Files: `rtr_pdu.go` (version const -> session field), `rtr_session.go` (negotiation logic in connectAndSync)
+   - Verify: tests fail -> implement -> tests pass; existing RTR v1 tests still pass
+4. **Phase: RTR ASPA PDU** -- Parse ASPA PDU type 11 from RTR cache server
+   - Tests: `TestParseASPAPDU`, `TestParseASPAPDUMalformed`, `TestParseASPAPDUUnknownAFI`
+   - Files: `rtr_pdu.go` (parser), `rtr_session.go` (handlePDU case + pending ASPA accumulation)
    - Verify: tests fail -> implement -> tests pass
-4. **Phase: Upstream verification** -- Walk AS_PATH, check provider authorization per hop
-   - Tests: `TestASPAVerifyValid`, `TestASPAVerifyInvalid`, `TestASPAVerifyUnknown`, `TestASPAVerifyASSet`, `TestASPAVerifySingleHop`, `TestASPAVerifyEmptyPath`
+5. **Phase: Upstream verification** -- Normalize AS_PATH, walk hop pairs, check provider authorization
+   - Tests: `TestASPAVerifyValid`, `TestASPAVerifyInvalid`, `TestASPAVerifyUnknown`, `TestASPAVerifyASSet`, `TestASPAVerifySingleHop`, `TestASPAVerifyEmptyPath`, `TestASPANormalizePrepends`, `TestASPANormalizeConfed`
    - Files: `aspa_verify.go`
    - Verify: tests fail -> implement -> tests pass
-5. **Phase: Plugin integration** -- Wire ASPA verification into RPKI plugin event flow
-   - Tests: integration-level tests
-   - Files: `rpki.go`, `emit.go`, `rpki_config.go`
+6. **Phase: Route tracker** -- Track active routes with normalized AS_PATH for re-validation (AC-5)
+   - Tests: `TestASPATrackerAdd`, `TestASPATrackerRemove`, `TestASPATrackerRevalidate`, `TestASPATrackerReverseIndex`
+   - Files: `aspa_tracker.go` (stores per-route: peer+family+prefix+pathID -> normalized path + ASPA state; reverse index: customer-AS -> route refs; re-validation method; must handle withdrawals to remove stale entries from both primary map and reverse index)
    - Verify: tests fail -> implement -> tests pass
-6. **Phase: Config and YANG** -- ASPA enable/disable config
+7. **Phase: Plugin integration** -- Wire ASPA verification into RPKI plugin event flow (once per UPDATE, state in event JSON, track for re-validation)
+   - Tests: integration-level tests (verify aspa-state appears in emitted event, verify re-validation emits on cache change, verify no dispatch change)
+   - Files: `rpki.go` (call verify after extracting ASPath, track route, pass result to emit), `emit.go` (add `"aspa-state"` field to rpki event JSON)
+   - Verify: tests fail -> implement -> tests pass; existing ROA accept/reject behavior unchanged
+8. **Phase: Config and YANG** -- ASPA enable/disable config
    - Tests: config parsing tests
    - Files: `rpki_config.go`, `schema/ze-rpki.yang`
    - Verify: tests fail -> implement -> tests pass
-7. **Functional tests** -- Create .ci tests for ASPA validation scenarios
-8. **RFC refs** -- Add `// RFC NNNN Section X.Y` comments
-9. **Full verification** -- `make ze-verify`
-10. **Complete spec** -- Fill audit tables, write learned summary
+9. **Functional tests** -- Create .ci tests for ASPA validation scenarios
+10. **RFC refs** -- Add `// RFC 9582 Section X.Y` and `// draft-ietf-sidrops-aspa-verification Section X` comments
+11. **Full verification** -- `make ze-verify`
+12. **Complete spec** -- Fill audit tables, write learned summary
 
 ### Critical Review Checklist (/implement stage 5)
 
@@ -285,7 +335,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Completeness | Every AC-N has implementation with file:line |
 | Correctness | Upstream verification algorithm matches RFC exactly (hop-by-hop check) |
 | Naming | JSON key is `"aspa-state"` (kebab-case), cache types follow rpki naming |
-| Data flow | ASPA verification runs after ROA validation, before accept/reject decision |
+| Data flow | ASPA verification runs per-UPDATE alongside ROA per-prefix; ASPA state reported in event JSON, does not alter accept/reject |
 | Rule: no-layering | ASPA extends existing RPKI plugin, does not create parallel validation |
 | Rule: single-responsibility | aspa_cache.go and aspa_verify.go are separate concerns from ROA |
 
@@ -299,7 +349,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | ASPA verification called from rpki.go | `grep -n aspa internal/component/bgp/plugins/rpki/rpki.go` |
 | Unit tests pass | `go test -race ./internal/component/bgp/plugins/rpki/... -run ASPA -v` |
 | Functional tests exist | `ls test/plugin/rpki-aspa-*.ci` |
-| RFC summary exists | `ls rfc/short/rfc*.md` for ASPA RFC |
+| RFC summaries exist | `ls rfc/short/rfc9582.md rfc/short/draft-ietf-sidrops-aspa-verification.md` |
 | YANG schema updated | `grep -n aspa internal/component/bgp/plugins/rpki/schema/ze-rpki.yang` |
 
 ### Security Review Checklist (/implement stage 10)
@@ -307,7 +357,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | ASPA PDU length validation, provider-AS count bounds |
-| Resource exhaustion | ASPA cache size limits (large number of ASPA records from cache server) |
+| Resource exhaustion (cache) | ASPA cache size limits (large number of ASPA records from cache server) |
+| Resource exhaustion (tracker) | Route tracker size limit (malicious peer flooding routes to exhaust tracker memory). maxTrackedRoutes enforced. |
 | Path verification DoS | Verification time bounded by AS_PATH length (already capped at 1000) |
 | Cache poisoning | RTR session auth ensures trusted cache server only |
 
@@ -340,10 +391,26 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Design Insights
 <!-- LIVE -- write IMMEDIATELY when you learn something -->
 
+- RTR version must become per-session (not package const): `rtrVersion` at rtr_pdu.go:13 is currently `uint8 = 1`. Needs to be a field on `RTRSession` with negotiation logic.
+- ASPA PDU announce = full provider set replacement (not incremental delta like ROA). Cache storage is simpler: store/overwrite entire set on announce, delete on withdraw.
+- Verification runs once per UPDATE, not per-prefix. AS_PATH is shared across all NLRIs in one message. ROA is per-prefix, ASPA is per-message.
+- ASPA state is INFORMATIONAL ONLY in this spec. Does not drive accept/reject. Policy actions are out of scope (spec scope table). The event JSON carries `"aspa-state"` for observability. Future policy spec will use it for decisions.
+- AFI flags field in ASPA PDU: RFC 9582 allows router to MAY ignore AFI and apply to all families. Simplest initial implementation: treat AFI=0 (both) as default, store per-customer-AS without AFI dimension. Can add AFI-awareness later if needed.
+- AC-5 re-validation stays INSIDE the RPKI plugin. Plugin maintains its own route tracker: per-route (peer, family, prefix, pathID) -> normalized AS_PATH + current ASPA state. On ASPA cache change at End of Data, plugin walks affected routes (those whose path includes changed customer-AS), re-verifies, emits updated events. No adj-rib-in involvement.
+- Reverse index for efficient re-validation: RPKI plugin keeps map[uint32][]routeRef (customer-AS -> routes that traverse it). Built incrementally as UPDATEs arrive. Withdrawn routes removed from index. Tracker size bounded by maxTrackedRoutes (same order as maxVRPs: 1M). Drop oldest on overflow with warning log.
+- Pre-normalized AS_PATH stored per tracked route as owned `[]uint32` (copied from parsed ASPath). MUST NOT hold references into WireUpdate buffer past callback return. Tracker owns its data.
+- Existing `rpkiOriginASFromWire` calls `attrs.Get(attribute.AttrASPath)` and gets `*attribute.ASPath`. Same call provides full Segments for ASPA verification. No additional parsing needed.
+- Path normalization (prepend removal, confed stripping) must be consecutive-duplicate only. [A, B, A] is NOT reduced. This is a correctness-critical detail.
+- `NewRTRSession` signature needs change: must accept `*ASPACache` alongside `*ROACache`. Current: `NewRTRSession(address, port, pref, cache, stopCh)`.
+- RFC 9582: "Customer AS MUST NOT appear in its own provider set" - need validation on PDU parse.
+- RFC 9582: "Provider ASNs MUST be sorted ascending" - malformed if unsorted. Log and skip PDU.
+- ASPA withdraw semantics differ from ROA: withdraw needs only (customer-AS, AFI) match, not full provider set match. Simpler than ROA removal.
+
 ## RFC Documentation
 
-Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
-MUST document: validation states, upstream verification steps, ASPA PDU format, AS_SET handling.
+Add `// RFC 9582 Section X.Y: "<quoted requirement>"` for PDU format and cache semantics.
+Add `// draft-ietf-sidrops-aspa-verification Section X: "<quoted requirement>"` for verification algorithm.
+MUST document: validation states, upstream verification steps, ASPA PDU format, AS_SET handling, normalization rules, version negotiation.
 
 ## Implementation Summary
 
@@ -401,7 +468,7 @@ MUST document: validation states, upstream verification steps, ASPA PDU format, 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-9 all demonstrated
+- [ ] AC-1..AC-10 all demonstrated
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
