@@ -16,6 +16,7 @@ cross-commit. Package add + commit into a single user-triggered script.
 4. `chmod +x` every script you hand the user (commit, delete, helper) at creation. User runs it directly (`./tmp/...`), not via `bash`.
 5. Never end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. Put path on its own line or follow with a space.
 6. Report what was done and what is left. User decides when to commit.
+7. Before writing a commit script, read `.gitignore` and never `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. Only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
 
 `git commit`/`git add` inside the script is fine -- the ban is on
 direct AI tool invocations, not on what the script does when the user
@@ -35,6 +36,7 @@ git commit -F tmp/commit-msg-<SESSION>-a.txt
 # Commit B (optional; e.g., spec-preservation)
 git rm plan/spec-<name>.md
 git add plan/learned/NNN-<name>.md
+git add plan/learned/.counter   # bumped to NNN+1
 git commit -F tmp/commit-msg-<SESSION>-b.txt
 ```
 
@@ -115,7 +117,8 @@ loops. Wait for completion.
 
 ```
 [ ] 3. Spec completion gate (if driven by a plan/ spec):
-      [ ] Learned summary written to plan/learned/NNN-<name>.md
+      [ ] Learned summary written to plan/learned/NNN-<name>.md (NNN from .counter)
+      [ ] plan/learned/.counter bumped to NNN+1
       [ ] Spec file staged for deletion (git rm)
       Not done -> STOP.
 [ ] 4. Executive Summary Report (rules/planning.md). What was done, what is left.

@@ -102,4 +102,10 @@ At spec completion, the Executive Summary (already BLOCKING before commit) maps 
 
 One additional step: scan Design Insights + Known Limitations for **Consequences** bullets not already covered by the Executive Summary mapping. This takes 30 seconds when context is fresh.
 
+## Numbering
+
+`plan/learned/.counter` contains the next available number. Read it, use it as NNN, then bump it (write NNN+1) and `git add plan/learned/.counter` in the commit script.
+
+If `.counter` is missing or wrong, run `make ze-learned-counter` to rebuild it from the directory.
+
 Write the summary to `plan/learned/NNN-<name>.md` instead of moving the full spec to `done/`.

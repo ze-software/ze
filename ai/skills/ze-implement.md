@@ -79,25 +79,30 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
     - If the spec has no Documentation Update Checklist, use `ai/rules/planning.md` "Documentation Update Checklist" as the reference and fill it for the spec.
     - Write the doc updates. Include them in the commit.
 15. **Close spec and present commit (BLOCKING -- do ALL of this BEFORE presenting the commit script):**
-    The user expects that running the commit script completes ALL work. Nothing may be left
-    over, deferred, or require a second script. Do everything below before showing the script.
+    The user runs the commit script and considers the work FINISHED. They will not come back
+    to ask "what's next" or "close the spec now." There is no step 16. The script is the
+    final deliverable. Everything below MUST be in that single script.
+
     a. Write the learned summary to `plan/learned/NNN-<spec-stem>.md` following `plan/learned/METHODOLOGY.md`.
-       Number NNN = next unused number. To find it: `for f in plan/learned/[0-9]*.md; do basename "$f"; done | grep -oE '^[0-9]+' | sort -rn | head -1`
-       then add 1. Use the extraction recipe: Context from Task + Current Behavior, Decisions from Key Design Decisions + annotations, Consequences from Design Insights + Limitations, Gotchas from Deviations + Mistake Log.
+       Number NNN: read `plan/learned/.counter` (contains the next available number).
+       Use the extraction recipe: Context from Task + Current Behavior, Decisions from Key Design Decisions + annotations, Consequences from Design Insights + Limitations, Gotchas from Deviations + Mistake Log.
     b. Update `ai/LEARNED-INDEX.md` if the summary contains a structural decision (not just task completion).
     c. Remove your line from `tmp/session/selected-spec`.
     d. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
     e. Prepare ONE commit script (`tmp/commit-SESSION.sh`) that does EVERYTHING in a single commit:
+       - Guard: `if ls plan/learned/NNN-*.md 1>/dev/null 2>&1; then echo "ERROR: NNN already taken, re-read .counter"; exit 1; fi`
        - `git add` all implementation files (code, tests, docs, schema)
        - `git add plan/learned/NNN-<spec-stem>.md`
        - `git add ai/LEARNED-INDEX.md` (if updated)
        - `git rm plan/<spec-name>`
-       - Commit message file with both the feature description and the spec closure
-    f. Present the commit script to the user.
+       - Bump `plan/learned/.counter` to NNN+1 and `git add plan/learned/.counter`
+       - Commit message file with both the feature description AND the spec closure
+    f. Present the commit script to the user. This is the end.
 
-    **Why one script, one commit:** the user runs the script and the work is done. No second
-    script, no "now run this other thing", no leftover steps. If there are ANY remaining
-    actions after the user runs the script, the step is not complete. Go back and include them.
+    **Why one script, one commit, no follow-up:** the user will not ask for a second step.
+    They will not remember that the spec needs closing. They will not prompt you for the
+    learned summary. If closure is not in the script, it will never happen and the spec
+    rots in `plan/` forever. Include everything. There is nothing after this step.
 
 ## Rules
 

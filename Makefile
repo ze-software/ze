@@ -675,6 +675,12 @@ ze-spec-status:
 ze-spec-status-json:
 	@go run scripts/status/spec_status.go --json
 
+# Rebuild plan/learned/.counter from directory contents (recovery)
+ze-learned-counter:
+	@n=$$(ls plan/learned/[0-9]*.md 2>/dev/null | sed 's/.*\///' | grep -oE '^[0-9]+' | sort -rn | head -1); \
+	echo $$(( $${n:-0} + 1 )) > plan/learned/.counter; \
+	echo "plan/learned/.counter set to $$(cat plan/learned/.counter)"
+
 # ─── Inventory ──────────────────────────────────────────────────────────
 
 # Generate project inventory (plugins, YANG, RPCs, tests, packages)

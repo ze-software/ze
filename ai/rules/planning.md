@@ -167,17 +167,19 @@ If a spec describes work that is **already implemented**, run the full Completio
 [ ] 6. Critical Review (BLOCKING — rules/quality.md)
 [ ] 7. Review Mistake Log — check MEMORY.md, promote if seen before
 [ ] 7. Update spec — Implementation Summary, Documentation Updates, Deviations
-[ ] 7. Write learned summary: plan/learned/NNN-<name>.md (see plan/TEMPLATE.md for summary format)
+[ ] 7. Write learned summary: plan/learned/NNN-<name>.md (NNN from plan/learned/.counter; bump after)
 [ ] 7. Verify: `make ze-verify` + git status + git diff, no unintended changes
 [ ] 7. Executive Summary Report — present to user with what was done and what is left (including deferred).
         BLOCKING: learned summary (step 10) must exist. Name the file in the report.
         Do NOT ask to commit. The user will tell you when to commit.
-[ ] 7. Commit (when user says so) — TWO commits, in order:
-        **Commit A:** code + tests + docs + completed spec (with filled audit/verification tables).
-        This preserves the completed spec in git history for future review.
-        **Commit B:** delete spec (`git rm plan/spec-<name>.md`) + add learned summary (`plan/learned/NNN-<name>.md`).
-        The learned summary replaces the spec as the durable artifact.
-        Disjoint systems (e.g., CLI and BGP encoding) get separate commit pairs.
+[ ] 7. Commit (when user says so) — ONE script, ONE commit, everything included:
+        - `git add` all implementation files (code, tests, docs, schema)
+        - `git add plan/learned/NNN-<name>.md` (learned summary)
+        - `git rm plan/spec-<name>.md` (spec closure)
+        - Bump `plan/learned/.counter` and `git add plan/learned/.counter`
+        The user runs the script and the work is done. They will not come back for a
+        second step. If spec closure or learned summary is missing, it never happens.
+        Disjoint systems (e.g., CLI and BGP encoding) get separate commits.
 ```
 
 ## Deferred Work (BLOCKING)
@@ -232,14 +234,9 @@ Every row must be answered Yes/No. Every Yes must name the file and what to add.
 
 ## Writing Learned Summaries
 
-When a spec is complete, write a concise summary to `plan/learned/` using the next available number:
-
-```bash
-LAST=$(for f in plan/learned/[0-9]*-*.md; do basename "$f" | cut -d- -f1; done 2>/dev/null | sort -n | tail -1)
-test -z "$LAST" && LAST=0
-NEXT=$(printf "%03d" $((LAST + 1)))
-# Write summary to plan/learned/${NEXT}-<name>.md (see TEMPLATE.md for format)
-```
+When a spec is complete, write a concise summary to `plan/learned/` using the next available number.
+`plan/learned/.counter` contains the next number. Read it, use it, bump it in the commit script.
+Recovery: `make ze-learned-counter`.
 
 The summary (~25-35 lines) uses this fixed 5-section format:
 

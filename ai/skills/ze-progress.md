@@ -43,7 +43,7 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
    - Are there uncommitted files in the spec scope (code, tests, docs, or the spec file itself)?
    - If uncommitted spec-scoped files remain: STAGE = 4. Go to step 9.
 8. **Stage 5 -- Commit B (closure):** Check:
-   - Does `plan/learned/NNN-<spec-stem>.md` exist? Compute the next `NNN` from `ls plan/learned/ | sort | tail -1` if it does not.
+   - Does `plan/learned/NNN-<spec-stem>.md` exist? If not, read `plan/learned/.counter` for the next NNN.
    - Is `plan/spec-<name>.md` still tracked by git (`git ls-files plan/spec-<name>.md`)?
    - If the learned summary is missing OR the spec file is still tracked: STAGE = 5. Go to step 9.
    - Otherwise: STAGE = done.
