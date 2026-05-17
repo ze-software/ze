@@ -66,5 +66,11 @@ module ze-rib-cmd {
             ze:task-support forbidden;
             description "Remove route from Adj-RIB-In";
         }
+
+        container rpf {
+            config false;
+            ze:command "ze-rib-api:rpf";
+            description "RPF lookup (longest-prefix-match in Loc-RIB)";
+        }
     }
 }

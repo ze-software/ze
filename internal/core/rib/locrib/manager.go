@@ -311,6 +311,47 @@ func (r *RIB) Best(fam family.Family, prefix netip.Prefix) (Path, bool) {
 	return g.best()
 }
 
+// LPM performs a longest-prefix-match lookup for addr within the given
+// family. Queries all shards and returns the best Path from the PathGroup
+// stored under the most specific covering prefix. Returns (zero, invalid,
+// false) when no prefix in the family covers addr.
+func (r *RIB) LPM(fam family.Family, addr netip.Addr) (Path, netip.Prefix, bool) {
+	if !addr.IsValid() {
+		return Path{}, netip.Prefix{}, false
+	}
+	r.famMu.RLock()
+	fs, ok := r.families[fam]
+	r.famMu.RUnlock()
+	if !ok {
+		return Path{}, netip.Prefix{}, false
+	}
+
+	var bestPath Path
+	var bestPfx netip.Prefix
+	found := false
+
+	for i := range fs.shards {
+		sh := &fs.shards[i]
+		sh.mu.RLock()
+		g, pfx, ok := sh.store.LookupLPM(addr)
+		sh.mu.RUnlock()
+		if !ok {
+			continue
+		}
+		if !found || pfx.Bits() > bestPfx.Bits() {
+			if p, have := g.best(); have {
+				bestPath = p
+				bestPfx = pfx
+				found = true
+			}
+		}
+	}
+	if !found {
+		return Path{}, netip.Prefix{}, false
+	}
+	return bestPath, bestPfx, true
+}
+
 // Families returns the set of address families that currently hold at
 // least one prefix. Order is unspecified.
 func (r *RIB) Families() []family.Family {

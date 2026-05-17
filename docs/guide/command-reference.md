@@ -1035,6 +1035,7 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `rib clear out <selector> [family]` | write | Regenerate and re-advertise Adj-RIB-Out (`*` for all peers, optional family filter) |
 | `rib inject <peer> <family> <prefix> [attrs...]` | write | Insert route into Adj-RIB-In as if received from peer |
 | `rib withdraw <peer> <family> <prefix>` | write | Remove route from Adj-RIB-In |
+| `rib rpf <family> <source-addr>` | read | RPF lookup: longest-prefix-match against Loc-RIB for CIDR families |
 <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin -->
 
 ### Healthcheck Commands

@@ -92,6 +92,33 @@ func (s *Store[T]) ModifyAllKeyed(fn func(pfx netip.Prefix, v *T)) {
 	}
 }
 
+// LookupLPM performs a longest-prefix-match lookup for addr. Iterates all
+// entries and returns the value under the most specific prefix containing
+// addr. Returns (zero, invalid, false) when no prefix covers addr or addr
+// is invalid.
+func (s *Store[T]) LookupLPM(addr netip.Addr) (T, netip.Prefix, bool) {
+	var zero T
+	if !addr.IsValid() {
+		return zero, netip.Prefix{}, false
+	}
+	var bestVal T
+	var bestPfx netip.Prefix
+	found := false
+	for pfx, v := range s.routes {
+		if pfx.Contains(addr) {
+			if !found || pfx.Bits() > bestPfx.Bits() {
+				bestVal = v
+				bestPfx = pfx
+				found = true
+			}
+		}
+	}
+	if !found {
+		return zero, netip.Prefix{}, false
+	}
+	return bestVal, bestPfx, true
+}
+
 // Reset clears every entry. Callers that need per-entry cleanup must run
 // ModifyAll first.
 func (s *Store[T]) Reset() {

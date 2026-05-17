@@ -417,3 +417,52 @@ func BenchmarkLocribInsertForwardHandle(b *testing.B) {
 		r.InsertForward(famV4, pfx, p, h)
 	}
 }
+
+func TestLocRIB_LPM(t *testing.T) {
+	r := NewRIB()
+
+	r.Insert(famV4, netip.MustParsePrefix("10.0.0.0/8"), pathBGP(1, 100))
+	r.Insert(famV4, netip.MustParsePrefix("10.1.0.0/16"), pathBGP(2, 50))
+	r.Insert(famV4, netip.MustParsePrefix("10.1.2.0/24"), pathBGP(3, 10))
+
+	best, pfx, ok := r.LPM(famV4, netip.MustParseAddr("10.1.2.5"))
+	require.True(t, ok)
+	assert.Equal(t, netip.MustParsePrefix("10.1.2.0/24"), pfx)
+	assert.Equal(t, uint32(3), best.Instance)
+}
+
+func TestLocRIB_LPM_NoFamily(t *testing.T) {
+	r := NewRIB()
+
+	_, _, ok := r.LPM(family.IPv6Multicast, netip.MustParseAddr("ff00::1"))
+	assert.False(t, ok)
+}
+
+func TestLocRIB_LPM_BestPath(t *testing.T) {
+	r := NewRIB()
+	fam := family.IPv4Multicast
+
+	r.Insert(fam, netip.MustParsePrefix("224.0.0.0/4"), pathOSPF(100))
+	r.Insert(fam, netip.MustParsePrefix("224.0.0.0/4"), pathStatic())
+
+	best, pfx, ok := r.LPM(fam, netip.MustParseAddr("224.1.2.3"))
+	require.True(t, ok)
+	assert.Equal(t, netip.MustParsePrefix("224.0.0.0/4"), pfx)
+	assert.Equal(t, idStatic, best.Source, "LPM returns the best path (lowest admin distance)")
+}
+
+func TestLocRIB_LPM_NoMatch(t *testing.T) {
+	r := NewRIB()
+	r.Insert(famV4, netip.MustParsePrefix("10.0.0.0/8"), pathBGP(1, 10))
+
+	_, _, ok := r.LPM(famV4, netip.MustParseAddr("192.168.1.1"))
+	assert.False(t, ok)
+}
+
+func TestLocRIB_LPM_InvalidAddr(t *testing.T) {
+	r := NewRIB()
+	r.Insert(famV4, netip.MustParsePrefix("10.0.0.0/8"), pathBGP(1, 10))
+
+	_, _, ok := r.LPM(famV4, netip.Addr{})
+	assert.False(t, ok)
+}

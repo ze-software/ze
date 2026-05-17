@@ -196,6 +196,10 @@ func doRegisterBuiltinCommands() {
 			func(r *RIBManager, sel string, args []string) (string, string, error) {
 				return r.withdrawRoute(sel, args)
 			}},
+		{[]string{"bgp rib rpf"}, "RPF lookup: <family> <source-addr> (longest-prefix-match in Loc-RIB)",
+			func(r *RIBManager, _ string, args []string) (string, string, error) {
+				return r.rpfLookup(args)
+			}},
 	}
 
 	for _, b := range builtins {
@@ -394,6 +398,63 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, string, err
 	r.reconcileBestPath(fam, nlriBytes)
 
 	data, _ := json.Marshal(map[string]any{"withdrawn": prefix, "peer": peer, "family": familyStr, "existed": removed})
+	return statusDone, string(data), nil
+}
+
+// rpfLookup performs a Reverse Path Forwarding lookup: longest-prefix-match
+// against the Loc-RIB for a given family and source address.
+func (r *RIBManager) rpfLookup(args []string) (string, string, error) {
+	if len(args) < 2 {
+		return statusError, "", fmt.Errorf("usage: bgp rib rpf <family> <source-addr>")
+	}
+
+	familyStr := args[0]
+	addrStr := args[1]
+
+	fam, ok := parseFamily(familyStr)
+	if !ok {
+		return statusError, "", fmt.Errorf("unknown family: %s", familyStr)
+	}
+	if !isSimplePrefixFamily(fam) {
+		return statusError, "", fmt.Errorf("rpf only supports CIDR families (IPv4/IPv6 unicast/multicast), not %s", familyStr)
+	}
+
+	addr, err := netip.ParseAddr(addrStr)
+	if err != nil {
+		return statusError, "", fmt.Errorf("invalid source address: %s", addrStr)
+	}
+
+	r.peerMu.RLock()
+	loc := r.locRIB
+	r.peerMu.RUnlock()
+
+	if loc == nil {
+		return statusError, "", fmt.Errorf("loc-rib not available")
+	}
+
+	best, pfx, found := loc.LPM(fam, addr)
+	if !found {
+		data, _ := json.Marshal(map[string]any{
+			"source": addrStr,
+			"family": familyStr,
+			"found":  false,
+		})
+		return statusDone, string(data), nil
+	}
+
+	nextHop := ""
+	if best.NextHop.IsValid() {
+		nextHop = best.NextHop.String()
+	}
+	data, _ := json.Marshal(map[string]any{
+		"source":         addrStr,
+		"family":         familyStr,
+		"found":          true,
+		"matched-prefix": pfx.String(),
+		"next-hop":       nextHop,
+		"admin-distance": best.AdminDistance,
+		"metric":         best.Metric,
+	})
 	return statusDone, string(data), nil
 }
 

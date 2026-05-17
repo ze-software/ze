@@ -112,6 +112,23 @@ func (s *Store[T]) ModifyAllKeyed(fn func(pfx netip.Prefix, v *T)) {
 	}
 }
 
+// LookupLPM performs a longest-prefix-match lookup for addr. Returns the
+// value stored under the most specific prefix containing addr, that prefix,
+// and true. Returns (zero, invalid, false) when no prefix covers addr or
+// addr is invalid.
+func (s *Store[T]) LookupLPM(addr netip.Addr) (T, netip.Prefix, bool) {
+	var zero T
+	if !addr.IsValid() {
+		return zero, netip.Prefix{}, false
+	}
+	hostPfx := netip.PrefixFrom(addr, addr.BitLen())
+	pfx, val, ok := s.trie.LookupPrefixLPM(hostPfx)
+	if !ok {
+		return zero, netip.Prefix{}, false
+	}
+	return val, pfx, true
+}
+
 // Reset clears every entry. The backing trie is replaced with an empty one.
 // Callers that need per-entry cleanup (e.g. releasing pool handles on
 // RouteEntry) must run ModifyAll first.

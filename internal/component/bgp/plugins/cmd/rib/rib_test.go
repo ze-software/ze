@@ -24,7 +24,7 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 		}
 	}
 
-	assert.Len(t, found, 8, "expected 8 RIB proxy RPCs")
+	assert.Len(t, found, 9, "expected 9 RIB proxy RPCs")
 
 	// Build lookup for assertions
 	byWire := make(map[string]bool, len(found))
@@ -40,6 +40,7 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 		"ze-rib-api:best-status",
 		"ze-rib-api:clear-in",
 		"ze-rib-api:clear-out",
+		"ze-rib-api:rpf",
 	} {
 		assert.True(t, byWire[wire], "missing RPC: %s", wire)
 	}
@@ -57,6 +58,7 @@ func TestRibProxyHandlersNonNil(t *testing.T) {
 		"bestStatus": forwardRibBestStatus,
 		"clearIn":    forwardRibClearIn,
 		"clearOut":   forwardRibClearOut,
+		"rpf":        forwardRibRPF,
 	}
 	for name, h := range handlers {
 		assert.NotNil(t, h, "handler %s must not be nil", name)

@@ -54,6 +54,9 @@ Status values: `Supported` means implemented and covered in the normal release e
 <!-- source: internal/plugins/policyroute/register.go -- plugin registration -->
 <!-- source: internal/plugins/policyroute/translate.go -- config to nftables translation -->
 <!-- source: internal/plugins/policyroute/rules_linux.go -- ip rule and auto-route management -->
+| RPF Lookup | Supported | Reverse Path Forwarding query: longest-prefix-match against Loc-RIB for any CIDR family (IPv4/IPv6 unicast/multicast). Exposes `bgp rib rpf <family> <source-addr>` command returning matched prefix, next-hop, admin distance, and metric as JSON. Generic LPM on the sharded Loc-RIB (queries all shards, picks most specific). |
+<!-- source: internal/core/rib/locrib/manager.go -- LPM method -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- rpfLookup -->
 | Route Installation | Experimental | FIB pipeline: protocol RIB best-path tracking, system RIB selection by admin distance, kernel route programming via per-producer netlink protocol ownership, crash recovery via stale-mark-sweep, external change monitoring. Local privileged integration covers FIB restart sweep and flush-on-stop preserving static and policyroute-owned routes; target-runner evidence is still required before production deployment claims. |
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeEntry, publishBestChanges -->
 <!-- source: internal/plugins/sysrib/sysrib.go -- system-rib topic, admin distance selection -->

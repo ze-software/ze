@@ -26,6 +26,7 @@ const (
 	cmdRibClearOut   = "bgp rib clear out"
 	cmdRibInject     = "bgp rib inject"
 	cmdRibWithdraw   = "bgp rib withdraw"
+	cmdRibRPF        = "bgp rib rpf"
 )
 
 func init() {
@@ -40,6 +41,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:clear-out", Handler: forwardRibClearOut, PluginCommand: cmdRibClearOut},
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:inject", Handler: forwardRibInject, PluginCommand: cmdRibInject},
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:withdraw", Handler: forwardRibWithdraw, PluginCommand: cmdRibWithdraw},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:rpf", Handler: forwardRibRPF, PluginCommand: cmdRibRPF},
 	)
 }
 
@@ -73,4 +75,8 @@ func forwardRibInject(ctx *pluginserver.CommandContext, args []string) (*plugin.
 
 func forwardRibWithdraw(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibWithdraw, args, ctx.PeerSelector())
+}
+
+func forwardRibRPF(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibRPF, args, ctx.PeerSelector())
 }

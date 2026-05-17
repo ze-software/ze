@@ -3,6 +3,7 @@ package rib
 import (
 	"encoding/json"
 	"net"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 )
 
 func originPtr(o attribute.Origin) *attribute.Origin { return &o }
@@ -2767,4 +2769,91 @@ func TestShowIteratesAllProtocols(t *testing.T) {
 	routesIn, ok := status["routes-in"].(float64)
 	require.True(t, ok)
 	assert.Equal(t, float64(2), routesIn)
+}
+
+func newTestRIBManagerWithLocRIB(t *testing.T) *RIBManager {
+	t.Helper()
+	r := newTestRIBManager(t)
+	loc := locrib.NewRIB()
+	r.SetLocRIB(loc)
+
+	loc.Insert(family.IPv4Multicast,
+		netip.MustParsePrefix("224.0.0.0/4"),
+		locrib.Path{
+			Source:        redistevents.ProtocolID(1),
+			Instance:      1,
+			NextHop:       netip.MustParseAddr("10.0.0.1"),
+			AdminDistance: 20,
+			Metric:        100,
+		})
+	loc.Insert(family.IPv4Multicast,
+		netip.MustParsePrefix("224.1.0.0/16"),
+		locrib.Path{
+			Source:        redistevents.ProtocolID(1),
+			Instance:      2,
+			NextHop:       netip.MustParseAddr("10.0.0.2"),
+			AdminDistance: 20,
+			Metric:        50,
+		})
+	return r
+}
+
+func TestRPFCommand_IPv4Multicast(t *testing.T) {
+	r := newTestRIBManagerWithLocRIB(t)
+
+	status, data, err := r.handleCommand("bgp rib rpf", "", []string{"ipv4/multicast", "224.1.2.5"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal([]byte(data), &resp))
+	assert.Equal(t, true, resp["found"])
+	assert.Equal(t, "224.1.0.0/16", resp["matched-prefix"])
+	assert.Equal(t, "10.0.0.2", resp["next-hop"])
+}
+
+func TestRPFCommand_IPv6Multicast(t *testing.T) {
+	r := newTestRIBManager(t)
+	loc := locrib.NewRIB()
+	r.SetLocRIB(loc)
+
+	loc.Insert(family.IPv6Multicast,
+		netip.MustParsePrefix("ff00::/8"),
+		locrib.Path{
+			Source:        redistevents.ProtocolID(1),
+			Instance:      1,
+			NextHop:       netip.MustParseAddr("2001:db8::1"),
+			AdminDistance: 20,
+		})
+
+	status, data, err := r.handleCommand("bgp rib rpf", "", []string{"ipv6/multicast", "ff02::1"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal([]byte(data), &resp))
+	assert.Equal(t, true, resp["found"])
+	assert.Equal(t, "ff00::/8", resp["matched-prefix"])
+	assert.Equal(t, "2001:db8::1", resp["next-hop"])
+}
+
+func TestRPFCommand_NoRoute(t *testing.T) {
+	r := newTestRIBManagerWithLocRIB(t)
+
+	status, data, err := r.handleCommand("bgp rib rpf", "", []string{"ipv4/multicast", "192.168.1.1"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal([]byte(data), &resp))
+	assert.Equal(t, false, resp["found"])
+}
+
+func TestRPFCommand_NonCIDR(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("bgp rib rpf", "", []string{"l2vpn/evpn", "10.0.0.1"})
+	assert.Equal(t, "error", status)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "CIDR families")
 }

@@ -523,6 +523,7 @@ rib clear in <selector>                      # Clear Adj-RIB-In (* for all peers
 rib clear out <selector> [family]           # Resend Adj-RIB-Out (* for all, optional family)
 rib inject <peer> <family> <prefix> [attrs] # Insert route into Adj-RIB-In (no session needed)
 rib withdraw <peer> <family> <prefix>       # Remove route from Adj-RIB-In
+rib rpf <family> <source-addr>              # RPF lookup (longest-prefix-match in Loc-RIB)
 ```
 
 Inject attributes: `origin <igp|egp|incomplete>`, `nhop <ip>`, `aspath <asn,asn,...>`, `localpref <n>`, `med <n>`. Peer address is a label (valid IP, no session required). Only simple prefix families (IPv4/IPv6 unicast/multicast). IPv4-mapped IPv6 next-hops accepted.
