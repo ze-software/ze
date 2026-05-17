@@ -145,6 +145,11 @@ func registerLocalCommands() {
 		Mode:        "offline",
 		Subs:        "--extended",
 	})
+	cmdregistry.RegisterRoot("update-serve", cmdregistry.Meta{
+		Description: "Serve version.json and binary for update checks",
+		Mode:        "offline",
+		Subs:        "--listen <addr>",
+	})
 	cmdregistry.RegisterRoot("help", cmdregistry.Meta{
 		Description: "Show help",
 		Mode:        "offline",
@@ -424,6 +429,8 @@ dispatch:
 	case "version":
 		printVersion(slices.Contains(args[1:], "--extended"))
 		os.Exit(0)
+	case "update-serve":
+		os.Exit(runUpdateServe(args[1:]))
 	case "start":
 		if len(args) > 1 && isHelpArg(args[1]) {
 			p := helpfmt.Page{

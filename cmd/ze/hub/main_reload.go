@@ -107,6 +107,7 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 	applyHostTuningFromMap(newTree)
 	applyConsoleFromMap(newTree)
 	applyConntrackFromMap(newTree, s)
+	applyUpdateCheckerFromMap(newTree)
 
 	return nil
 }

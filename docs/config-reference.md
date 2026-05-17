@@ -193,9 +193,59 @@ system {
         url "https://www.peeringdb.com";
         margin 10;
     }
+    update-check {
+        url "https://archive.example.com/ze/version.json";
+        interval 3600;
+    }
 }
 ```
 <!-- source: internal/component/config/system/schema/ze-system-conf.yang -- system config -->
+
+### Firmware Update Check
+
+The `update-check` block configures periodic version checking against a remote manifest.
+Ze fetches the URL and compares the remote version against its own release version
+(lexicographic comparison, matching ze's `YY.MM.DD` date-based versioning).
+
+Each request includes an `X-Ze-Arch` header (e.g., `linux/arm64`) so the server can
+reject requests from incompatible architectures.
+
+The remote endpoint must serve a JSON object with a `version` field:
+
+```json
+{"version": "26.05.17"}
+```
+
+| Leaf | Default | Description |
+|------|---------|-------------|
+| `url` | (none, feature disabled) | HTTPS URL of the version manifest. HTTP allowed only for localhost. |
+| `interval` | 86400 (daily) | Check interval in seconds (range: 60 to 604800). |
+
+When a newer version is detected, a warning appears in `show warnings` and `show system update`.
+Ze never downloads or applies updates; it only reports availability.
+
+### Serving Updates
+
+Ze includes a built-in command to serve the version manifest and binary from build/release infrastructure:
+
+```
+ze update-serve --listen :8080
+```
+
+This starts a minimal HTTP server with three endpoints:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /` | Index page showing version, architecture, and available endpoints |
+| `GET /version.json` | Version manifest (`{"version":"26.05.17"}`). Returns 404 if the request's `X-Ze-Arch` header does not match the server's architecture. |
+| `GET /<goos>/<goarch>` | The running binary (e.g., `GET /linux/arm64`) |
+
+The architecture check ensures a router only sees an update when a matching binary is
+available. A mismatched request (e.g., `arm64` router checking an `amd64` server) gets
+a 404, which the checker logs as "check failed" and retries at the next interval.
+
+Run it on a build server after compiling Ze so that deployed routers can check for updates.
+The router's web interface does not expose its own version (to avoid helping attackers fingerprint the device).
 
 ## Environment Variables
 

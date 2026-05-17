@@ -36,6 +36,10 @@ type SystemConfig struct {
 	// Console devices (from system { console { device ... } }).
 	ConsoleDevices []ConsoleDeviceEntry
 
+	// Update check (from system { update-check {} }).
+	UpdateCheckURL      string
+	UpdateCheckInterval uint32
+
 	// Connection tracking (from system { conntrack {} }).
 	Conntrack ConntrackConfig
 }
@@ -211,6 +215,19 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 	sc.Tuning = extractTuning(sys)
 	sc.ConsoleDevices = extractConsole(sys)
 	sc.Conntrack = extractConntrack(sys)
+
+	if uc := sys.GetContainer("update-check"); uc != nil {
+		if url, ok := uc.Get("url"); ok {
+			sc.UpdateCheckURL = url
+		}
+		sc.UpdateCheckInterval = 86400
+		if v, ok := uc.Get("interval"); ok {
+			var n int
+			if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n >= 60 && n <= 604800 {
+				sc.UpdateCheckInterval = uint32(n) //nolint:gosec // Bounded by range check above
+			}
+		}
+	}
 
 	pdb := sys.GetContainer("peeringdb")
 	if pdb == nil {

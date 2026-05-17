@@ -97,6 +97,10 @@ func init() {
 			Handler:    handleShowSystemConntrack,
 		},
 		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:system-update",
+			Handler:    handleShowSystemUpdate,
+		},
+		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:traffic",
 			Handler:    handleShowTraffic,
 		},

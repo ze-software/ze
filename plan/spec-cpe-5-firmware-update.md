@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-05-15 |
+| Phase | 1/8 |
+| Updated | 2026-05-17 |
 
 ## Post-Compaction Recovery
 
@@ -39,6 +39,9 @@ Modeled as a system config extension (alongside host, dns, tuning) with a backgr
 - Result exposed via CLI (`show system update`) and web UI system page
 - No auto-update: check and report only
 - On non-gokrazy platforms, running version comes from build-time ldflags
+- Each check request sends `X-Ze-Arch: <goos>/<goarch>` header
+- `ze update-serve` provides the server side: version.json (with arch validation), binary download at `/<goos>/<goarch>`, and an index page
+- The router's web interface never exposes version info (security hardening)
 
 ## Current Behavior (MANDATORY)
 
@@ -132,25 +135,32 @@ Modeled as a system config extension (alongside host, dns, tuning) with a backgr
 
 ## Files to Modify
 - `internal/component/config/system/schema/ze-system-conf.yang` - add update-check container
-- `internal/component/gokrazy/gokrazy.go` - wire update check goroutine (if gokrazy-specific)
+- `internal/component/config/system/system.go` - add UpdateCheckURL/UpdateCheckInterval to SystemConfig
+- `internal/component/cmd/show/show.go` - register ze-show:system-update RPC
+- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` - add show system update node
+- `cmd/ze/hub/main.go` - wire startUpdateChecker at startup
+- `cmd/ze/hub/main_system.go` - startUpdateChecker, applyUpdateCheckerFromMap, stopActiveUpdateChecker
+- `cmd/ze/hub/main_reload.go` - wire reload path
+- `cmd/ze/main.go` - register and dispatch update-serve command
 
 ## Files to Create
-- `internal/component/config/system/update.go` - update check logic (fetch, compare, emit)
+- `internal/component/config/system/update.go` - update check logic (fetch, compare, report bus)
 - `internal/component/config/system/update_test.go` - unit tests
-- `test/system/update-check.ci` - functional test
+- `internal/component/cmd/show/update.go` - show system update RPC handler
+- `cmd/ze/update_serve.go` - standalone update server (version.json + binary download)
 
 ## Implementation Steps
 
 ### Implementation Phases
 
 1. **Phase: YANG schema** - Add update-check container to ze-system-conf.yang (url, interval)
-2. **Phase: Config parsing** - Extract update-check config from tree
-3. **Phase: Version fetch** - HTTP GET + JSON parse with httptest-based tests
-4. **Phase: Version compare** - Semantic version comparison logic
-5. **Phase: Bus event** - Emit `system.update.available` on newer version
-6. **Phase: CLI integration** - `show system update` command
-7. **Phase: Web UI** - Update status on system page
-8. **Phase: Functional tests** - End-to-end with mock HTTP server
+2. **Phase: Config parsing** - Extract update-check config from tree, add to SystemConfig
+3. **Phase: Version fetch** - HTTP GET + JSON parse with httptest-based tests, X-Ze-Arch header
+4. **Phase: Version compare** - Date-based lexicographic comparison with non-numeric guard
+5. **Phase: Report bus** - RaiseWarning/ClearWarning on update availability
+6. **Phase: CLI integration** - `show system update` RPC handler + YANG node
+7. **Phase: Daemon wiring** - Startup, reload, and shutdown lifecycle
+8. **Phase: Update server** - `ze update-serve` CLI command (version.json + binary + arch validation)
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -163,9 +173,44 @@ Modeled as a system config extension (alongside host, dns, tuning) with a backgr
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | URL must be HTTPS (or explicit opt-in for HTTP); JSON response bounded |
-| Network safety | HTTP timeout configured, response size limited |
+| Input validation | URL must be HTTPS (or explicit opt-in for HTTP localhost only); JSON response bounded |
+| Network safety | HTTP timeout configured (30s), response size limited (64 KiB) |
 | No auto-update | Check only, never download or apply images |
+| No version exposure | Router web UI does not serve /version.json or binary; only `ze update-serve` does |
+| Arch validation | Server rejects version requests from mismatched architectures |
+
+## Deliverables Checklist
+
+| Deliverable | Verification Method |
+|-------------|---------------------|
+| YANG schema `update-check` container | `grep -n "update-check" internal/component/config/system/schema/ze-system-conf.yang` |
+| Config extraction in SystemConfig | `grep -n "UpdateCheck" internal/component/config/system/system.go` |
+| Update checker logic (fetch + compare) | `ls internal/component/config/system/update.go` |
+| CLI `show system update` RPC handler | `grep -n "system-update" internal/component/cmd/show/show.go` |
+| YANG show command node | `grep -n "update" internal/component/cmd/show/schema/ze-cli-show-cmd.yang` |
+| Report bus warning on new version | `grep -n "report\." internal/component/config/system/update.go` |
+| Unit tests | `go test ./internal/component/config/system/ -run TestUpdateCheck -v` |
+| Graceful shutdown on config removal | `grep -n "Stop\|cancel\|close" internal/component/config/system/update.go` |
+| X-Ze-Arch header sent on check | `grep -n "X-Ze-Arch" internal/component/config/system/update.go` |
+| URL validation (HTTPS + localhost) | `grep -n "ValidateUpdateCheckURL" cmd/ze/hub/main_system.go` |
+| `ze update-serve` command | `grep -n "update-serve" cmd/ze/main.go` |
+| Arch validation on server side | `grep -n "X-Ze-Arch" cmd/ze/update_serve.go` |
+| Binary download endpoint | `grep -n "ServeFile" cmd/ze/update_serve.go` |
+
+## Documentation Update Checklist
+
+| Category | Applicable | File | Update |
+|----------|-----------|------|--------|
+| Feature list | Yes | `docs/architecture/core-design.md` | Add update-check to system config features |
+| User guide | No | - | - |
+| Config syntax | Yes | YANG schema is self-documenting | - |
+| CLI reference | Yes | `docs/guide/command-catalogue.md` | Add `show system update` |
+| API/RPC docs | No | - | - |
+| Plugin SDK | No | - | - |
+| Wire format | No | - | - |
+| RFC compliance | No | - | - |
+| Test infrastructure | No | - | - |
+| Architecture design | No | - | - |
 
 ## Checklist
 

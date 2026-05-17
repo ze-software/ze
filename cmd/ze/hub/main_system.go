@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 	"syscall"
 	"time"
 
@@ -209,6 +210,82 @@ func applyConntrackConfig(cc *system.ConntrackConfig, eb ze.EventBus) {
 	}
 	if len(keys) > 0 {
 		log.Info("conntrack sysctl values emitted", "keys", len(keys))
+	}
+}
+
+// startUpdateChecker starts the periodic firmware update checker if configured.
+// Returns the checker (for deferred Stop) or nil if not configured.
+func startUpdateChecker(sc *system.SystemConfig) *system.UpdateChecker {
+	if sc.UpdateCheckURL == "" {
+		return nil
+	}
+	if err := system.ValidateUpdateCheckURL(sc.UpdateCheckURL); err != nil {
+		slogutil.Logger("update-check").Warn("invalid config", "error", err)
+		return nil
+	}
+	interval := sc.UpdateCheckInterval
+	if interval == 0 {
+		interval = 86400
+	}
+	uc := system.NewUpdateChecker(sc.UpdateCheckURL, interval)
+	system.SetActiveChecker(uc)
+	uc.Start(context.Background())
+	activeCheckerMu.Lock()
+	activeCheckerInstance = uc
+	activeCheckerMu.Unlock()
+	slogutil.Logger("update-check").Info("started", "url", sc.UpdateCheckURL, "interval", interval)
+	return uc
+}
+
+// applyUpdateCheckerFromMap restarts the update checker on config reload.
+func applyUpdateCheckerFromMap(tree map[string]any) {
+	cfg := system.ExtractUpdateCheckFromMap(tree)
+
+	activeCheckerMu.Lock()
+	prev := activeCheckerInstance
+	activeCheckerMu.Unlock()
+
+	if prev != nil {
+		prev.Stop()
+		system.SetActiveChecker(nil)
+		activeCheckerMu.Lock()
+		activeCheckerInstance = nil
+		activeCheckerMu.Unlock()
+	}
+
+	if cfg.URL == "" {
+		return
+	}
+
+	if err := system.ValidateUpdateCheckURL(cfg.URL); err != nil {
+		slogutil.Logger("update-check").Warn("invalid config on reload", "error", err)
+		return
+	}
+
+	uc := system.NewUpdateChecker(cfg.URL, cfg.Interval)
+	system.SetActiveChecker(uc)
+	uc.Start(context.Background())
+	activeCheckerMu.Lock()
+	activeCheckerInstance = uc
+	activeCheckerMu.Unlock()
+	slogutil.Logger("update-check").Info("reloaded", "url", cfg.URL, "interval", cfg.Interval)
+}
+
+var (
+	activeCheckerMu       sync.Mutex
+	activeCheckerInstance *system.UpdateChecker
+)
+
+// stopActiveUpdateChecker stops whichever update checker is currently active
+// (whether created at startup or by a reload). Called at daemon shutdown.
+func stopActiveUpdateChecker() {
+	activeCheckerMu.Lock()
+	uc := activeCheckerInstance
+	activeCheckerInstance = nil
+	activeCheckerMu.Unlock()
+	if uc != nil {
+		uc.Stop()
+		system.SetActiveChecker(nil)
 	}
 }
 

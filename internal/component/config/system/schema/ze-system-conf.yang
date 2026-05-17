@@ -320,6 +320,24 @@ module ze-system-conf {
             }
         }
 
+        // Firmware update check (gokrazy appliance or generic)
+        container update-check {
+            description "Periodic firmware version check against a remote manifest";
+
+            leaf url {
+                type string;
+                description "HTTPS URL serving a JSON object with a 'version' field, e.g. {\"version\":\"26.05.17\"}. Ze compares this value lexicographically against its own release version.";
+            }
+
+            leaf interval {
+                type uint32 {
+                    range "60..604800";
+                }
+                default 86400;
+                description "Check interval in seconds (default 86400 = daily, minimum 60)";
+            }
+        }
+
         // Named archive blocks
         list archive {
             key "name";

@@ -59,6 +59,12 @@ module ze-cli-show-cmd {
                 ze:command "ze-show:system-conntrack";
                 description "Show netfilter conntrack table statistics, timeouts, and loaded modules";
             }
+
+            container update {
+                config false;
+                ze:command "ze-show:system-update";
+                description "Show firmware update check status: last check time, running version, available version";
+            }
         }
 
         container host {

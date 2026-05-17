@@ -500,6 +500,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	applyHostTuning(&sc)
 	applyConsole(&sc)
 	applyConntrack(&sc, apiServer)
+	startUpdateChecker(&sc)
+	defer stopActiveUpdateChecker()
 
 	if webEnabled {
 		if len(webAddrs) == 0 {
