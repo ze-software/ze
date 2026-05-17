@@ -35,7 +35,7 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 	}
 
 	cfg := &rpkiConfig{
-		ASPAValidation: true, // enabled by default
+		ASPAValidation: false,
 	}
 
 	rpkiMap, ok := bgpTree["rpki"].(map[string]any)
@@ -43,9 +43,9 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 		return cfg, nil // No RPKI config section -- empty config
 	}
 
-	// Parse aspa-validation (default true).
+	// Parse aspa-validation (default false, opt-in).
 	if aspaStr, ok := rpkiMap["aspa-validation"].(string); ok {
-		cfg.ASPAValidation = aspaStr != "false" && aspaStr != "0"
+		cfg.ASPAValidation = aspaStr == "true" || aspaStr == "1"
 	}
 
 	// Parse validation-timeout

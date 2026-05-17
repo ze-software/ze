@@ -37,7 +37,7 @@ module ze-rpki {
 
       leaf aspa-validation {
         type boolean;
-        default "true";
+        default "false";
         description "Enable ASPA path verification using RTR v2 ASPA records";
       }
 

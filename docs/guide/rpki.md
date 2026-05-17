@@ -59,6 +59,7 @@ bgp {
 | `rpki / cache-server / port` | uint16 | 323 | RTR TCP port |
 | `rpki / cache-server / preference` | uint8 | 100 | Server preference (lower preferred) |
 | `rpki / validation-timeout` | uint16 | 30 | Seconds before fail-open on pending routes |
+| `rpki / aspa-validation` | boolean | false | Enable ASPA path verification using RTR v2 ASPA records |
 | `rpki / policy / invalid-action` | enum | reject | Action for Invalid routes: reject, log-only, accept |
 | `rpki / policy / not-found-action` | enum | accept | Action for NotFound routes: accept, reject, log-only |
 
@@ -194,6 +195,82 @@ The merged event contains the full UPDATE JSON with an `rpki` section injected:
 
 If the RPKI validation does not arrive within the timeout (2 seconds), the event is emitted without the `rpki` section (graceful degradation).
 <!-- source: internal/component/bgp/plugins/rpki_decorator/register.go -- bgp-rpki-decorator registration -->
+
+## ASPA Path Verification
+
+ASPA (Autonomous System Provider Authorization) verifies that AS_PATH hops are authorized by provider-customer relationships. ASPA records are distributed via RTR v2 (RFC 9582) alongside VRPs. Ze implements the verification algorithm from draft-ietf-sidrops-aspa-verification Section 6.
+
+ASPA is opt-in. Enable it with `aspa-validation true` under the `rpki` block. It operates in informational mode: the result is included in the RPKI event JSON but does not trigger accept/reject decisions.
+
+### Configuration
+
+```
+bgp {
+    rpki {
+        cache-server 192.0.2.1 {
+            port 323;
+        }
+        aspa-validation true;
+    }
+}
+```
+
+### ASPA Validation States
+
+Each route receives one of three ASPA states:
+
+| State | Meaning |
+|-------|---------|
+| Valid | Every hop pair in the AS_PATH is authorized by an ASPA record |
+| Invalid | At least one hop pair has an ASPA record that does not list the provider candidate |
+| Unknown | No ASPA records exist for one or more customer ASNs in the path |
+
+### How It Works
+
+1. The RTR session negotiates v2 (with v1 fallback on error code 4)
+2. The cache server sends ASPA PDUs (type 11) alongside VRPs
+3. For each received UPDATE, the plugin normalizes the AS_PATH: removes consecutive duplicate ASNs (prepend artifacts), strips AS_CONFED_SEQUENCE segments, and flags AS_SET or AS_CONFED_SET as unverifiable
+4. Each adjacent pair (provider candidate, customer) is checked against the ASPA cache
+5. The result is included as `"aspa-state"` in the RPKI event JSON
+
+### ASPA Event Format
+
+The `"aspa-state"` field is included alongside per-prefix origin validation results:
+
+```json
+{
+  "type": "bgp",
+  "bgp": {
+    "peer": {"address": "10.0.0.1", "name": "upstream", "remote": {"as": 65001}},
+    "message": {"id": 42, "type": "rpki"},
+    "rpki": {
+      "ipv4/unicast": {
+        "10.0.1.0/24": "valid"
+      },
+      "aspa-state": "valid"
+    }
+  }
+}
+```
+
+When ASPA validation is disabled or the cache has no ASPA records, the `"aspa-state"` field is omitted.
+
+### Re-validation on Cache Change
+
+Routes are tracked with their normalized AS_PATH. When ASPA cache data changes (new records from the RTR server), affected routes are automatically re-validated and updated events are emitted for any route whose ASPA state changed.
+
+### Testing ASPA
+
+The `ze-test rtr-mock` command supports ASPA records with the `--aspa` flag:
+
+```
+ze-test rtr-mock --port 3323 \
+    --vrp 10.0.0.0/8,24,65001 \
+    --aspa 64502:64501 \
+    --aspa 64501:64500
+```
+
+The format is `customer:provider1,provider2,...` (repeatable). When ASPA records are present, the mock server uses RTR v2. Four functional tests cover the ASPA states: `rpki-aspa-valid.ci`, `rpki-aspa-invalid.ci`, `rpki-aspa-unknown.ci`, and `rpki-aspa-disabled.ci`.
 
 ## Testing RPKI Locally
 
