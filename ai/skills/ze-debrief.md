@@ -1,4 +1,4 @@
-# Recap
+# Debrief
 
 Summarize the current session state so the user can quickly understand where things stand.
 
@@ -24,10 +24,10 @@ See also: `/ze-status` (wider cross-project view), `/ze-handoff` (prepare for ne
    - Test coverage gaps acknowledged but not filled
    - Work described as "later", "next", "for now", or "good enough"
    - Decisions to simplify or cut scope
-7. **Present the recap** using this format:
+7. **Present the debrief** using this format:
 
 ```
-## Recap
+## Debrief
 
 **Spec:** [name and status, or "none selected"]
 **Branch:** [branch name]

@@ -4,7 +4,7 @@ Generate a session handoff document for continuing work in a new session.
 
 The output is a self-contained document that a fresh session can execute without re-reading the full codebase.
 
-See also: `/ze-recap` (current session state), `/ze-status` (cross-project attention view)
+See also: `/ze-debrief` (current session state), `/ze-status` (cross-project attention view)
 
 ## Steps
 

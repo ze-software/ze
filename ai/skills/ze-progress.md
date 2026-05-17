@@ -4,7 +4,7 @@ Check the lifecycle stage of the currently selected spec and recommend the singl
 
 Answers: **"Where am I in the spec lifecycle, and what do I do next?"**
 
-See also: `/ze-status` (cross-project dashboard), `/ze-recap` (session summary), `/ze-audit` (pre-impl), `/ze-review-spec` (post-impl verification), `/ze-commit` (prepare commit)
+See also: `/ze-status` (cross-project dashboard), `/ze-debrief` (session summary), `/ze-audit` (pre-impl), `/ze-review-spec` (post-impl verification), `/ze-commit` (prepare commit)
 
 ## Lifecycle Stages
 

@@ -20,7 +20,7 @@ are available inside Claude Code when working in the ze repository.
 | `/ze-review-spec` | Post-implementation: did we build what the spec says? |
 | `/ze-review-docs` | Documentation accuracy, completeness, and quality |
 | `/ze-commit` | Prepare a scoped commit script (does not commit directly) |
-| `/ze-recap` | Summarize current session state |
+| `/ze-debrief` | Summarize current session state |
 | `/ze-handoff` | Generate a handoff document for the next session |
 | `/ze-rfc` | Generate an implementation summary from an RFC |
 | `/ze-find-alloc` | Scan encoding paths for allocations that should use buffers |
@@ -64,7 +64,7 @@ are available inside Claude Code when working in the ze repository.
 
 ```
 /ze-status                 -- what needs attention across everything?
-/ze-recap                  -- where am I in the current task?
+/ze-debrief                -- where am I in the current task?
 /ze-handoff                -- prepare state for a new session
 ```
 

@@ -2,7 +2,7 @@
 
 Unified attention view across all project concerns. Shows what needs attention, with suggested next actions.
 
-See also: `/ze-recap` (deep dive on current session/spec)
+See also: `/ze-debrief` (deep dive on current session/spec)
 
 ## Steps
 
