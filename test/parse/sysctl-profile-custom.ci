@@ -1,5 +1,6 @@
 # Valid config: user-defined profile in sysctl config, referenced by interface
 # AC-5: user-defined profile parsed and referenced by unit.
+option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 sysctl {
     profile my-edge {
@@ -16,7 +17,9 @@ interface {
     ethernet eth0 {
         unit 0 {
             sysctl-profile [ my-edge ]
-            address [ 10.0.0.1/24 ]
+            ipv4 {
+                address [ 10.0.0.1/24 ]
+            }
         }
     }
 }

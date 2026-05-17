@@ -1,12 +1,15 @@
 # Valid config: combined DSR + hardened profiles on one unit
 # AC-2: sysctl-profile [ dsr hardened ] accepted by config validate.
+option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
     backend netlink
     ethernet eth0 {
         unit 0 {
             sysctl-profile [ dsr hardened ]
-            address [ 192.168.1.10/24 ]
+            ipv4 {
+                address [ 192.168.1.10/24 ]
+            }
         }
     }
 }

@@ -1,16 +1,21 @@
 # Valid config: route-priority on ethernet unit for IPv6 RA management
 # AC-1: route-priority 5 on unit with IPv6 address triggers accept_ra_defrtr suppression.
 # AC-3: unit without route-priority uses kernel default (no ze intervention).
+option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
     backend netlink
     ethernet eth0 {
         unit 0 {
             route-priority 5
-            address [ 2001:db8::1/64 ]
+            ipv6 {
+                address [ 2001:db8::1/64 ]
+            }
         }
         unit 1 {
-            address [ 2001:db8:1::1/64 ]
+            ipv6 {
+                address [ 2001:db8:1::1/64 ]
+            }
         }
     }
 }

@@ -1,12 +1,15 @@
 # Valid config: DSR sysctl profile on ethernet unit
 # AC-1: sysctl-profile [ dsr ] accepted by config validate.
+option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
     backend netlink
     ethernet eth0 {
         unit 0 {
             sysctl-profile [ dsr ]
-            address [ 192.168.1.10/24 ]
+            ipv4 {
+                address [ 192.168.1.10/24 ]
+            }
         }
     }
 }

@@ -1,11 +1,14 @@
 # Valid config: interface unit without DHCP (static address)
 # AC-2: No dhcp block means no DHCP client, config valid.
+option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
     backend netlink
     ethernet eth0 {
         unit 0 {
-            address [10.0.0.1/24]
+            ipv4 {
+                address [10.0.0.1/24]
+            }
         }
     }
 }
