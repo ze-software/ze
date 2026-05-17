@@ -35,6 +35,9 @@ following the Junos/Nokia model.
 - Created a memory entry for "no backward compat" without checking that
   `ai/rules/compatibility.md` already covers it. Rule: always grep rules before
   creating memories.
+- Left 7 `.ci` parse tests using the old flat `address` in `unit`. Tests that
+  reference the changed schema must be updated in the same commit as the schema
+  change. Rule: grep `test/` for any field you remove or relocate in YANG.
 
 ## Follow-Up
 
