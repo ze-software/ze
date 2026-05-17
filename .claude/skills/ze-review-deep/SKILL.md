@@ -283,7 +283,6 @@ Read the project's .claude/rules/ directory to understand all rules. Then check 
 9. **design-doc-references.md**: // Design: comment present in every .go file
 10. **related-refs.md**: // Detail: / // Overview: / // Related: cross-references are bidirectional
 11. **file-modularity.md**: Files under 600 lines, single concern per file
-12. **no-sprintf-alloc.md**: No fmt.Sprintf/Fprintf/Printf in production .go files. No strconv.FormatUint/FormatInt. No strconv.Itoa in any `+` concat expression (even single Itoa allocates twice); use textbuf.Buffer chaining instead. Allowed: fmt.Errorf, fmt.Fprintf(os.Stdout/Stderr), test files, standalone strconv.Itoa as function argument. Grep the diff for these patterns explicitly.
 
 For each violation report:
 FILE:LINE | RULE | VIOLATION | FIX

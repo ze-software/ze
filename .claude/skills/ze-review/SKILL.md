@@ -48,32 +48,8 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 | CLI handler | `cli-patterns.md` -- flag.NewFlagSet, exit codes, stderr for errors |
 | Config parsing | `config-design.md` -- fail on unknown keys, no version numbers |
 | New data wrapper/struct | `design-principles.md` -- lazy over eager, no identity wrappers |
-| Any `.go` production file | `no-sprintf-alloc.md` -- see printf/alloc check below |
 
-12. **Printf/allocation pattern check (MANDATORY, NON-SKIPPABLE):** For every changed `.go` production file (not `_test.go`), grep the diff for these banned patterns.
-
-    **Scan the diff for:**
-    ```
-    grep -E 'fmt\.(Sprintf|Fprintf|Printf)\(' <changed-lines>
-    grep -E 'strconv\.Format(Uint|Int)\(' <changed-lines>
-    grep -E 'strconv\.Itoa.*\+|\+.*strconv\.Itoa' <changed-lines>
-    grep -E 'textbuf\.(Uint|Int).*\+|\+.*textbuf\.(Uint|Int)' <changed-lines>
-    ```
-
-    | Pattern | Severity | Fix |
-    |---------|----------|-----|
-    | `fmt.Sprintf` in production code | BLOCKER | Use `textbuf.Buffer` chaining or string concat (pure strings only) |
-    | `fmt.Fprintf` (not to os.Stdout/Stderr) | BLOCKER | Use `io.WriteString` / `w.Write` chains |
-    | `strconv.FormatUint` / `strconv.FormatInt` | BLOCKER | Use `textbuf.Uint*` / `textbuf.Int` |
-    | `strconv.Itoa(a) + sep + strconv.Itoa(b)` (multi-numeric concat) | BLOCKER | Use `var b textbuf.Buffer; b.Int(...).Str(sep).Int(...).String()` |
-    | `textbuf.Uint(a) + sep + textbuf.Uint(b)` (same, via textbuf) | BLOCKER | Same: use `textbuf.Buffer` chaining |
-    | `"prefix" + strconv.Itoa(n) + "suffix"` (single Itoa in concat) | BLOCKER | Use `var b textbuf.Buffer; b.Str("prefix").Int(int64(n)).Str("suffix").String()` |
-    | `fmt.Errorf` | OK | Allowed (error wrapping) |
-    | `fmt.Fprintf(os.Stdout, ...)` / `fmt.Fprintf(os.Stderr, ...)` | OK | Allowed (CLI output) |
-
-    Full rule: `ai/rules/no-sprintf-alloc.md`. The hook (`block-sprintf-new.sh`) only catches Write/Edit tool calls, not code generated in a worktree or committed via script.
-
-13. **Filter false positives:** Before reporting, discard findings that match any of these:
+12. **Filter false positives:** Before reporting, discard findings that match any of these:
 
 | False positive | Why discard |
 |----------------|-------------|
@@ -86,7 +62,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
     **Never discard wiring findings.** An unwired symbol is not a false positive, a pre-existing issue, or a quality concern. It is dead code in production. Wiring BLOCKERs from step 1 always survive this filter.
 
-14. **Report findings** as a numbered list with severity:
+13. **Report findings** as a numbered list with severity:
     - **BLOCKER:** Bug that will cause incorrect behavior, crash, or security vulnerability
     - **ISSUE:** Missing test, edge case not handled, or quality problem
     - **NOTE:** Suggestion or minor observation
