@@ -439,6 +439,8 @@ func New(config *Config) *Reactor {
 	// and emit events to subscribed plugins.
 	// These fire from ForwardUpdate caller goroutines (onCongested) and worker
 	// goroutines (onResumed). They must not block.
+	// .String() allocates here but these are rare transitions, not per-UPDATE;
+	// using r.mu.RLock to look up a cached label would violate the must-not-block contract.
 	r.fwdPool.onCongested = func(peerAddr netip.AddrPort) {
 		reactorLogger().Warn("forward peer congested", "peer", peerAddr)
 		r.emitCongestionEvent(peerAddr.Addr(), bgpevents.EventCongested)

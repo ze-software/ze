@@ -7,7 +7,7 @@ package config
 import (
 	"errors"
 	"fmt"
-	"net"
+	"net/netip"
 	"regexp"
 	"slices"
 	"sort"
@@ -144,14 +144,11 @@ func NonzeroIPv4Validator() yang.CustomValidator {
 			if !ok {
 				return fmt.Errorf("expected string, got %T", value)
 			}
-			ip := net.ParseIP(str)
-			if ip == nil {
+			addr, err := netip.ParseAddr(str)
+			if err != nil || !addr.Is4() {
 				return fmt.Errorf("%q is not a valid IPv4 address for %s", str, path)
 			}
-			if ip.To4() == nil {
-				return fmt.Errorf("%q is not a valid IPv4 address for %s", str, path)
-			}
-			if ip.Equal(net.IPv4zero) {
+			if addr == netip.IPv4Unspecified() {
 				return fmt.Errorf("0.0.0.0 is not valid for %s", path)
 			}
 			return nil
@@ -204,8 +201,8 @@ func IPv4AddressValidator() yang.CustomValidator {
 			if !ok {
 				return fmt.Errorf("expected string, got %T", value)
 			}
-			ip := net.ParseIP(str)
-			if ip == nil || ip.To4() == nil {
+			addr, err := netip.ParseAddr(str)
+			if err != nil || !addr.Is4() {
 				return fmt.Errorf("%q is not a valid IPv4 address for %s", str, path)
 			}
 			return nil
@@ -221,8 +218,7 @@ func IPv6AddressValidator() yang.CustomValidator {
 			if !ok {
 				return fmt.Errorf("expected string, got %T", value)
 			}
-			ip := net.ParseIP(str)
-			if ip == nil {
+			if _, err := netip.ParseAddr(str); err != nil {
 				return fmt.Errorf("%q is not a valid IPv6 address for %s", str, path)
 			}
 			return nil
@@ -238,11 +234,11 @@ func IPv4PrefixValidator() yang.CustomValidator {
 			if !ok {
 				return fmt.Errorf("expected string, got %T", value)
 			}
-			ip, _, err := net.ParseCIDR(str)
+			pfx, err := netip.ParsePrefix(str)
 			if err != nil {
 				return fmt.Errorf("%q is not a valid IPv4 prefix for %s: %w", str, path, err)
 			}
-			if ip.To4() == nil {
+			if !pfx.Addr().Is4() {
 				return fmt.Errorf("%q is not an IPv4 prefix for %s", str, path)
 			}
 			return nil
@@ -258,8 +254,7 @@ func IPv6PrefixValidator() yang.CustomValidator {
 			if !ok {
 				return fmt.Errorf("expected string, got %T", value)
 			}
-			_, _, err := net.ParseCIDR(str)
-			if err != nil {
+			if _, err := netip.ParsePrefix(str); err != nil {
 				return fmt.Errorf("%q is not a valid IPv6 prefix for %s: %w", str, path, err)
 			}
 			return nil

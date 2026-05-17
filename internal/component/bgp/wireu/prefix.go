@@ -18,6 +18,7 @@ func ParseIPv6Prefixes(data []byte) []netip.Prefix {
 // ParsePrefixes parses a sequence of IP prefixes with the given address size (4 or 16).
 func ParsePrefixes(data []byte, addrSize int) []netip.Prefix {
 	var prefixes []netip.Prefix
+	var buf [16]byte
 	for i := 0; i < len(data); {
 		prefixLen := int(data[i])
 		i++
@@ -25,15 +26,15 @@ func ParsePrefixes(data []byte, addrSize int) []netip.Prefix {
 		if i+prefixBytes > len(data) {
 			break
 		}
-		addrBytes := make([]byte, addrSize)
-		copy(addrBytes, data[i:i+prefixBytes])
+		clear(buf[:addrSize])
+		copy(buf[:addrSize], data[i:i+prefixBytes])
 		i += prefixBytes
 
 		var addr netip.Addr
 		if addrSize == 4 {
-			addr = netip.AddrFrom4([4]byte(addrBytes))
+			addr = netip.AddrFrom4([4]byte(buf[:4]))
 		} else {
-			addr = netip.AddrFrom16([16]byte(addrBytes))
+			addr = netip.AddrFrom16(buf)
 		}
 		prefixes = append(prefixes, netip.PrefixFrom(addr, prefixLen))
 	}

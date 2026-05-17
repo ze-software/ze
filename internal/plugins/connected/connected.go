@@ -112,12 +112,8 @@ func (o *routeObserver) parsePayload(payload any) (addrPayload, bool) {
 }
 
 func (o *routeObserver) toNetworkPrefix(p addrPayload) (netip.Prefix, bool) {
-	ip := net.ParseIP(p.Address)
-	if ip == nil {
-		return netip.Prefix{}, false
-	}
-	addr, ok := netip.AddrFromSlice(ip)
-	if !ok {
+	addr, err := netip.ParseAddr(p.Address)
+	if err != nil {
 		return netip.Prefix{}, false
 	}
 	addr = addr.Unmap()

@@ -490,7 +490,7 @@ func ListLevels() map[string]string {
 func SetLevel(subsystem, levelStr string) error {
 	lvl, enabled := parseLevel(levelStr)
 	if !enabled {
-		return fmt.Errorf("invalid level %q (valid: debug, info, warn, err)", levelStr)
+		return fmt.Errorf("invalid level %q (valid: debug, info, warn, warning, err, error)", levelStr)
 	}
 
 	val, ok := levelRegistry.Load(subsystem)

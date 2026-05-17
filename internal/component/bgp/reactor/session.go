@@ -292,6 +292,9 @@ type Session struct {
 	// Set by Peer in runOnce(). Nil when metrics are not enabled.
 	prefixMetrics *reactorMetrics
 
+	// addrLabel caches settings.Address.String() to avoid per-message allocations.
+	addrLabel string
+
 	// onNotifSent is called when a NOTIFICATION is sent to the peer.
 	// Set by Peer in runOnce() for Prometheus notification counter.
 	onNotifSent func(code, subcode uint8)
@@ -347,6 +350,7 @@ func NewSession(settings *PeerSettings) *Session {
 		done:            make(chan struct{}),
 		prefixCounts:    &prefixCounts{counts: make(map[uint32]int64), warned: make(map[uint32]bool)},
 		coalesceEnabled: coalesceEnabled(),
+		addrLabel:       settings.Address.String(),
 	}
 
 	// Configure FSM connection mode: passive if active bit is NOT set.

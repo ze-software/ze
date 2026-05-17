@@ -81,7 +81,7 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 		}
 		// Actual read error (timeout, network failure): count it.
 		if s.prefixMetrics != nil {
-			s.prefixMetrics.wireReadErrors.With(s.settings.Address.String()).Inc()
+			s.prefixMetrics.wireReadErrors.With(s.addrLabel).Inc()
 		}
 		return err
 	}
@@ -123,7 +123,7 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 
 	// Track wire bytes received.
 	if s.prefixMetrics != nil {
-		s.prefixMetrics.wireBytesRecv.With(s.settings.Address.String()).Add(float64(hdr.Length))
+		s.prefixMetrics.wireBytesRecv.With(s.addrLabel).Add(float64(hdr.Length))
 	}
 
 	// Process message - callback returns kept=true if it took buffer ownership

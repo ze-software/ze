@@ -40,8 +40,8 @@ func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi ui
 	var errs []error
 	sentCount := 0
 
-	for addrPort, peer := range a.r.peers {
-		if !ipGlobMatch(peerSelector, addrPort.Addr().String()) {
+	for _, peer := range a.r.peers {
+		if !ipGlobMatch(peerSelector, peer.addrString) {
 			continue
 		}
 		if peer.State() != PeerStateEstablished {
@@ -114,8 +114,8 @@ func (a *reactorAPIAdapter) sendRouteRefresh(peerSelector string, afi uint16, sa
 	defer a.r.mu.RUnlock()
 
 	var errs []error
-	for addrPort, peer := range a.r.peers {
-		if !ipGlobMatch(peerSelector, addrPort.Addr().String()) {
+	for _, peer := range a.r.peers {
+		if !ipGlobMatch(peerSelector, peer.addrString) {
 			continue
 		}
 

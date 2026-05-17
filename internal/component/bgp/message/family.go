@@ -6,10 +6,10 @@ package message
 
 import (
 	"sort"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Type aliases so message package code uses family types directly without casts.
@@ -47,7 +47,14 @@ const (
 func ValidFamilyConfigNames() string {
 	names := family.RegisteredFamilyNames()
 	sort.Strings(names)
-	return strings.Join(names, ", ")
+	var b textbuf.Buffer
+	for i, n := range names {
+		if i > 0 {
+			b.Str(", ")
+		}
+		b.Str(n)
+	}
+	return b.String()
 }
 
 // AFISAFIToFamily converts AFI/SAFI to canonical family string.

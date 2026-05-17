@@ -3,6 +3,7 @@
 package routingtable
 
 import (
+	"errors"
 	"fmt"
 	"sync/atomic"
 )
@@ -37,7 +38,7 @@ func (r *Registry) Resolve(name string) (uint32, error) {
 // Reserved: 0 (use "default"), 253 (RT_TABLE_DEFAULT), 254 (RT_TABLE_MAIN), 255 (RT_TABLE_LOCAL).
 func ValidateTableID(id uint32) (uint32, error) {
 	if id == 0 {
-		return 0, fmt.Errorf("table ID 0 is reserved (use name \"default\")")
+		return 0, errors.New("table ID 0 is reserved (use name \"default\")")
 	}
 	if id >= 253 && id <= 255 {
 		return 0, fmt.Errorf("table ID %d is reserved (253=default, 254=main, 255=local)", id)

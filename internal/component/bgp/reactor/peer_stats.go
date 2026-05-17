@@ -4,9 +4,10 @@
 package reactor
 
 import (
-	"strconv"
 	"sync/atomic"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // msgTypeUpdate is the Prometheus label value for UPDATE messages.
@@ -149,7 +150,7 @@ func (p *Peer) IncrNotificationSent(code, subcode uint8) {
 		p.reactor.rmetrics.notifSent.With(
 			p.peerAddrLabel(),
 			notificationCodeLabel(code),
-			strconv.FormatUint(uint64(subcode), 10),
+			textbuf.Uint8(subcode),
 		).Inc()
 		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "notification").Inc()
 	}
@@ -167,7 +168,7 @@ func (p *Peer) IncrNotificationReceived(code, subcode uint8) {
 		p.reactor.rmetrics.notifRecv.With(
 			p.peerAddrLabel(),
 			notificationCodeLabel(code),
-			strconv.FormatUint(uint64(subcode), 10),
+			textbuf.Uint8(subcode),
 		).Inc()
 		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "notification").Inc()
 	}

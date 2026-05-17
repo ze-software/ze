@@ -152,7 +152,7 @@ func parseNextHop(addrStr string, entry map[string]any) (nextHop, error) {
 	var nh nextHop
 
 	if addrStr == "" {
-		return nh, fmt.Errorf("next-hop missing address")
+		return nh, errors.New("next-hop missing address")
 	}
 	addr, err := netip.ParseAddr(addrStr)
 	if err != nil {
@@ -183,7 +183,7 @@ func parseInterfaceNextHop(ifName string, entry map[string]any) (nextHop, error)
 	var nh nextHop
 
 	if ifName == "" {
-		return nh, fmt.Errorf("interface-next-hop missing interface name")
+		return nh, errors.New("interface-next-hop missing interface name")
 	}
 	nh.Interface = ifName
 

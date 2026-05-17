@@ -4,6 +4,7 @@
 package meta
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -90,7 +91,7 @@ func handleBgpCommandList(ctx *pluginserver.CommandContext, args []string) (*plu
 // handleBgpCommandHelp returns detailed help for a command.
 func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
-		return nil, fmt.Errorf("usage: command help \"<name>\"")
+		return nil, errors.New("usage: command help \"<name>\"")
 	}
 
 	name := args[0]
@@ -114,7 +115,7 @@ func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plu
 // handleBgpCommandComplete returns completions for commands.
 func handleBgpCommandComplete(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
-		return nil, fmt.Errorf("usage: command complete \"<partial>\"")
+		return nil, errors.New("usage: command complete \"<partial>\"")
 	}
 
 	partial := args[0]

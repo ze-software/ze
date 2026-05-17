@@ -292,10 +292,11 @@ type fwdPoolConfig struct {
 
 // fwdWorker is a single long-lived goroutine processing items for one destination peer.
 type fwdWorker struct {
-	ch       chan fwdItem
-	done     chan struct{} // closed when goroutine exits
-	pending  atomic.Int32  // items about to be sent (between mu.Unlock and channel send)
-	batchBuf []fwdItem     // reusable drain buffer — owned by runWorker goroutine
+	ch        chan fwdItem
+	done      chan struct{} // closed when goroutine exits
+	pending   atomic.Int32  // items about to be sent (between mu.Unlock and channel send)
+	batchBuf  []fwdItem     // reusable drain buffer — owned by runWorker goroutine
+	addrLabel string        // cached key.peerAddr.Addr().String(), computed once at creation
 
 	// Overflow buffer for non-blocking dispatch (TryDispatch fallback).
 	// Protected by overflowMu. Items are moved to the channel by the worker
@@ -367,6 +368,7 @@ type fwdPool struct {
 type fwdSourceStats struct {
 	forwarded  atomic.Int64 // successfully dispatched via TryDispatch
 	overflowed atomic.Int64 // fell through to DispatchOverflow
+	addrLabel  string       // cached addr.String(), computed once at creation
 }
 
 // newFwdPool creates a new forward pool with the given handler and configuration.
@@ -571,7 +573,7 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 	// destination peer is the worst offender, skip pool acquisition. The item
 	// still goes to unbounded overflow (routes never dropped), but the denial
 	// signal feeds into teardown decisions.
-	denied := fp.congestion.ShouldDeny(key.peerAddr.Addr().String())
+	denied := fp.congestion.ShouldDeny(w.addrLabel)
 
 	// Acquire overflow MixedBufMux handle if available and not denied.
 	// Skip for sentinel items (peer == nil) — they carry no route data
@@ -651,8 +653,9 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 // Caller must hold fp.mu.
 func (fp *fwdPool) newWorker(key fwdKey) *fwdWorker {
 	w := &fwdWorker{
-		ch:   make(chan fwdItem, fp.cfg.chanSize),
-		done: make(chan struct{}),
+		ch:        make(chan fwdItem, fp.cfg.chanSize),
+		done:      make(chan struct{}),
+		addrLabel: key.peerAddr.Addr().String(),
 	}
 	fp.workers[key] = w
 	fp.count.Add(1)
@@ -729,9 +732,9 @@ func (fp *fwdPool) WorkerCount() int {
 func (fp *fwdPool) OverflowDepths() map[string]int {
 	fp.mu.Lock()
 	result := make(map[string]int, len(fp.workers))
-	for key, w := range fp.workers {
+	for _, w := range fp.workers {
 		w.overflowMu.Lock()
-		result[key.peerAddr.Addr().String()] += len(w.overflow)
+		result[w.addrLabel] += len(w.overflow)
 		w.overflowMu.Unlock()
 	}
 	fp.mu.Unlock()
@@ -765,7 +768,7 @@ func (fp *fwdPool) getSourceStats(sourcePeer netip.Addr) *fwdSourceStats {
 	fp.srcStatsMu.Lock()
 	s, ok := fp.srcStats[sourcePeer]
 	if !ok {
-		s = &fwdSourceStats{}
+		s = &fwdSourceStats{addrLabel: sourcePeer.String()}
 		fp.srcStats[sourcePeer] = s
 	}
 	fp.srcStatsMu.Unlock()
@@ -778,14 +781,14 @@ func (fp *fwdPool) getSourceStats(sourcePeer netip.Addr) *fwdSourceStats {
 func (fp *fwdPool) SourceOverflowRatios() map[string]float64 {
 	fp.srcStatsMu.Lock()
 	result := make(map[string]float64, len(fp.srcStats))
-	for peer, s := range fp.srcStats {
+	for _, s := range fp.srcStats {
 		fwd := s.forwarded.Load()
 		ovf := s.overflowed.Load()
 		total := fwd + ovf
 		if total == 0 {
-			result[peer.String()] = 0.0
+			result[s.addrLabel] = 0.0
 		} else {
-			result[peer.String()] = float64(ovf) / float64(total)
+			result[s.addrLabel] = float64(ovf) / float64(total)
 		}
 	}
 	fp.srcStatsMu.Unlock()

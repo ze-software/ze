@@ -5,6 +5,7 @@ package system
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -92,7 +93,7 @@ func NewUpdateChecker(url string, intervalSecs uint32) *UpdateChecker {
 // HTTPS is required; HTTP is permitted only for 127.0.0.1 and localhost.
 func ValidateUpdateCheckURL(rawURL string) error {
 	if rawURL == "" {
-		return fmt.Errorf("update-check url is empty")
+		return errors.New("update-check url is empty")
 	}
 	if strings.HasPrefix(rawURL, "https://") {
 		return nil

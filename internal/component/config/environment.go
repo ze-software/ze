@@ -9,7 +9,7 @@ package config
 import (
 	"errors"
 	"fmt"
-	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -198,8 +198,10 @@ func parseOneEndpoint(s string) (ListenEndpoint, error) {
 		portStr = s[lastColon+1:]
 	}
 
-	if ip != "" && net.ParseIP(ip) == nil {
-		return ListenEndpoint{}, fmt.Errorf("invalid IP address %q in endpoint %q", ip, s)
+	if ip != "" {
+		if _, err := netip.ParseAddr(ip); err != nil {
+			return ListenEndpoint{}, fmt.Errorf("invalid IP address %q in endpoint %q", ip, s)
+		}
 	}
 
 	if portStr == "" {
