@@ -502,6 +502,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	applyConntrack(&sc, apiServer)
 	startUpdateChecker(&sc)
 	defer stopActiveUpdateChecker()
+	startArchiveScheduler(loadResult.Tree, configPath, apiServer)
+	defer stopArchiveScheduler()
 
 	if webEnabled {
 		if len(webAddrs) == 0 {

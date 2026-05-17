@@ -159,10 +159,15 @@ func ExpandEnvValue(s string) string {
 
 // ExtractSystemConfig extracts system identity config from a parsed Tree.
 // Reads system.host and system.domain, applying $ENV expansion.
-// Returns defaults (host="unknown", domain="") if the system block is absent.
+// Defaults host to os.Hostname() (or "unknown" if that fails) when unset.
 func ExtractSystemConfig(tree *config.Tree) SystemConfig {
+	host := "unknown"
+	if h, err := os.Hostname(); err == nil && h != "" {
+		host = h
+	}
+
 	sc := SystemConfig{
-		Host:            "unknown",
+		Host:            host,
 		DNSTimeout:      5,
 		DNSCacheSize:    10000,
 		DNSCacheTTL:     86400,

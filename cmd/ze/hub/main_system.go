@@ -14,8 +14,10 @@ import (
 	"time"
 
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
 	resolveDNS "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
@@ -344,4 +346,70 @@ func startStandaloneTelemetry(tree *zeconfig.Tree) *standaloneTelemetry {
 		st.manager = collector.StartOSCollectors(reg, telemetryCfg.Netdata.Prefix, time.Duration(telemetryCfg.Netdata.Interval)*time.Second, overrides, slog.Default())
 	}
 	return st
+}
+
+var (
+	archiveSchedulerMu     sync.Mutex
+	archiveSchedulerCancel context.CancelFunc
+)
+
+// startArchiveScheduler launches the background scheduler for time-based
+// archive triggers (daily/hourly). The scheduler goroutine stops when the
+// cancel function is called (at shutdown or config reload).
+func startArchiveScheduler(tree *zeconfig.Tree, configPath string, srv *pluginserver.Server) {
+	archiveSchedulerMu.Lock()
+	defer archiveSchedulerMu.Unlock()
+
+	if archiveSchedulerCancel != nil {
+		archiveSchedulerCancel()
+		archiveSchedulerCancel = nil
+	}
+
+	configs := archive.ExtractConfigs(tree)
+	if len(configs) == 0 {
+		return
+	}
+
+	var eventFn archive.EventEmitter
+	if srv != nil {
+		eventFn = func(_, _ string, content []byte) {
+			srv.EmitEngineEvent("config", "archive", content) //nolint:errcheck // best-effort
+		}
+	}
+
+	sched := archive.NewScheduler(configs, configPath, archive.ReadConfigFromPath(configPath), eventFn)
+
+	parent := context.Background()
+	if srv != nil {
+		parent = srv.Context()
+	}
+
+	ctx, cancel := context.WithCancel(parent)
+	archiveSchedulerCancel = cancel
+
+	go sched.Run(ctx)
+}
+
+// applyArchiveSchedulerFromMap restarts the archive scheduler on config reload.
+func applyArchiveSchedulerFromMap(configPath string, srv *pluginserver.Server) {
+	readConfig := archive.ReadConfigFromPath(configPath)
+	data, tree, err := readConfig()
+	if err != nil {
+		slogutil.Logger("archive").Warn("reload: read config", "error", err)
+		return
+	}
+	_ = data
+
+	startArchiveScheduler(tree, configPath, srv)
+}
+
+// stopArchiveScheduler stops the active archive scheduler.
+func stopArchiveScheduler() {
+	archiveSchedulerMu.Lock()
+	defer archiveSchedulerMu.Unlock()
+
+	if archiveSchedulerCancel != nil {
+		archiveSchedulerCancel()
+		archiveSchedulerCancel = nil
+	}
 }

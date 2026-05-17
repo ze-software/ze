@@ -143,3 +143,4 @@ Reusable lessons extracted from gotchas sections across summaries.
 - (652) Verify "does not exist" claims during child spec RESEARCH; umbrella assumed show interface was missing but it was fully implemented
 - (652) subsystem-list was hardcoded to ["bgp"]; always check stub implementations before assuming real data flows
 - (708) Boolean three-state offloads avoid VyOS bootstrap activation script; ethtool_sset_info.sset_mask is __u64 not __u32; cap kernel-reported feature count before allocating
+- (720) Editor commit-triggered archives run in CLI process, cannot emit daemon events; EventEmitter callback pattern enables future plugin backends

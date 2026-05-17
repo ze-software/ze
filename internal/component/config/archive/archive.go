@@ -61,7 +61,8 @@ type Notifier func(content []byte) []error
 
 // NewNotifier creates a Notifier for the given named archive configs.
 // Uses fan-out: all configs are attempted regardless of individual failures.
-func NewNotifier(configFile string, configs []ArchiveConfig, sys *system.SystemConfig) Notifier {
+// eventFn is called after each successful archive (may be nil).
+func NewNotifier(configFile string, configs []ArchiveConfig, sys *system.SystemConfig, eventFn EventEmitter) Notifier {
 	return func(content []byte) []error {
 		var errs []error
 		ts := time.Now()
@@ -70,6 +71,10 @@ func NewNotifier(configFile string, configs []ArchiveConfig, sys *system.SystemC
 			filename := FormatFilename(ac.Filename, configFile, sys, ac.Name, ts)
 			if err := archiveToLocation(content, ac.Location, filename, ac.Timeout); err != nil {
 				errs = append(errs, fmt.Errorf("archive %s: %w", ac.Name, err))
+				continue
+			}
+			if eventFn != nil {
+				eventFn(ac.Name, filename, content)
 			}
 		}
 

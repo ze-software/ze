@@ -144,7 +144,7 @@ func usage() {
 			{Title: "History", Entries: []helpfmt.HelpEntry{
 				{Name: "history <file>", Desc: "List rollback revisions"},
 				{Name: "rollback <N> <file>", Desc: "Restore from rollback revision N"},
-				{Name: "archive <name> <file>", Desc: "Archive to a named destination"},
+				{Name: "archive <name>", Desc: "Archive to a named destination (via daemon)"},
 			}},
 			{Title: "Migration", Entries: []helpfmt.HelpEntry{
 				{Name: "migrate <file>", Desc: "Convert old format to current"},

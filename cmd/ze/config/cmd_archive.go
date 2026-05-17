@@ -1,134 +1,68 @@
-// Design: docs/architecture/config/syntax.md — config archive command
-// Overview: main.go — dispatch and exit codes
+// Design: docs/architecture/config/syntax.md -- config archive command
+// Overview: main.go -- dispatch and exit codes
 
 package config
 
 import (
 	"flag"
 	"fmt"
-	"io"
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
-	iconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
+	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 )
 
-func cmdArchiveWithStorage(store storage.Storage, args []string) int {
-	return cmdArchiveImpl(store, args)
+func cmdArchiveWithStorage(_ storage.Storage, args []string) int {
+	return cmdArchiveImpl(args)
 }
 
-func cmdArchive(args []string) int {
-	return cmdArchiveImpl(storage.NewFilesystem(), args)
-}
-
-func cmdArchiveImpl(store storage.Storage, args []string) int {
+func cmdArchiveImpl(args []string) int {
 	fs := flag.NewFlagSet("config archive", flag.ExitOnError)
+	user := fs.String("user", "", "SSH user for daemon connection")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command: "ze config archive",
-			Summary: "Archive a configuration file to a named archive destination",
-			Usage:   []string{"ze config archive [options] <name> <config-file>"},
+			Summary: "Trigger a named config archive via the daemon",
+			Usage:   []string{"ze config archive [options] <name>"},
 			Examples: []string{
-				"ze config archive local-backup config.conf",
-				"ze config archive offsite config.conf",
+				"ze config archive local-backup",
+				"ze config archive offsite",
 			},
 		}
 		p.Write()
 		fmt.Fprintf(os.Stderr, "\nThe named archive block must be defined in the config's system { archive { } } section.\n")
-		fmt.Fprintf(os.Stderr, "Supported schemes: file://, http://, https://\n")
+		fmt.Fprintf(os.Stderr, "The daemon must be running. Archive settings come from the daemon's config.\n")
 	}
 
 	if err := fs.Parse(args); err != nil {
 		return exitError
 	}
 
-	if fs.NArg() < 2 {
-		fmt.Fprintf(os.Stderr, "error: requires <name> and <config-file>\n")
+	if fs.NArg() < 1 {
+		fmt.Fprintf(os.Stderr, "error: requires <name>\n")
 		fs.Usage()
 		return exitError
 	}
 
 	archiveName := fs.Arg(0)
-	configPath := fs.Arg(1)
 
-	// Read config file via storage backend (stdin supported)
-	var data []byte
-	var err error
-	if configPath == "-" {
-		data, err = io.ReadAll(os.Stdin)
-	} else {
-		data, err = store.ReadFile(configPath)
-	}
+	creds, err := sshclient.LoadCredentialsWithFlags(*user)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
 
-	// Parse config to extract system and archive settings
-	schema, err := iconfig.YANGSchema()
+	result, err := sshclient.ExecCommand(creds, "config archive "+archiveName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
 
-	parser := iconfig.NewParser(schema)
-	tree, err := parser.Parse(string(data))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: cannot parse config: %v\n", err)
-		return exitError
+	if result != "" {
+		fmt.Fprint(os.Stderr, result)
 	}
 
-	// Extract system config and archive blocks
-	sys := system.ExtractSystemConfig(tree)
-	configs := archive.ExtractConfigs(tree)
-	if len(configs) == 0 {
-		fmt.Fprintf(os.Stderr, "error: no archive blocks configured in system { archive { } }\n")
-		return exitError
-	}
-
-	// Find the named archive block
-	var ac *archive.ArchiveConfig
-	for i := range configs {
-		if configs[i].Name == archiveName {
-			ac = &configs[i]
-			break
-		}
-	}
-
-	if ac == nil {
-		fmt.Fprintf(os.Stderr, "error: archive block %q not found\n", archiveName)
-		fmt.Fprintf(os.Stderr, "available: ")
-		for i, c := range configs {
-			if i > 0 {
-				fmt.Fprintf(os.Stderr, ", ")
-			}
-			fmt.Fprintf(os.Stderr, "%s", c.Name)
-		}
-		fmt.Fprintln(os.Stderr)
-		return exitError
-	}
-
-	// Validate location
-	if err := archive.ValidateLocation(ac.Location); err != nil {
-		fmt.Fprintf(os.Stderr, "error: invalid location for %q: %v\n", archiveName, err)
-		return exitError
-	}
-
-	// Archive to the named destination
-	notifier := archive.NewNotifier(configPath, []archive.ArchiveConfig{*ac}, &sys)
-	errs := notifier(data)
-
-	if len(errs) > 0 {
-		for _, archiveErr := range errs {
-			fmt.Fprintf(os.Stderr, "error: %v\n", archiveErr)
-		}
-		return exitError
-	}
-
-	fmt.Fprintf(os.Stderr, "archived %q to %s\n", archiveName, ac.Location)
 	return exitOK
 }

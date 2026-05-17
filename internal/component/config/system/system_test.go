@@ -77,13 +77,13 @@ func TestExtractSystemConfig_EnvExpansion(t *testing.T) {
 
 // TestExtractSystemConfig_Missing verifies defaults when no system block exists.
 //
-// VALIDATES: Missing system block produces default values (host="unknown", domain="").
+// VALIDATES: Missing system block defaults host to os.Hostname() (never empty).
 // PREVENTS: Nil pointer or panic when system block is absent.
 func TestExtractSystemConfig_Missing(t *testing.T) {
 	tree := config.NewTree()
 
 	sc := system.ExtractSystemConfig(tree)
-	assert.Equal(t, "unknown", sc.Host)
+	assert.NotEmpty(t, sc.Host, "host must default to os.Hostname(), never empty")
 	assert.Equal(t, "", sc.Domain)
 	assert.Equal(t, "https://www.peeringdb.com", sc.PeeringDBURL)
 	assert.Equal(t, uint8(10), sc.PeeringDBMargin)

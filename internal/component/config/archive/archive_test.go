@@ -267,7 +267,7 @@ func TestNewNotifier(t *testing.T) {
 		},
 	}
 
-	notifier := archive.NewNotifier("test.conf", configs, &sys)
+	notifier := archive.NewNotifier("test.conf", configs, &sys, nil)
 	errs := notifier([]byte("config content"))
 	assert.Empty(t, errs)
 
@@ -275,6 +275,39 @@ func TestNewNotifier(t *testing.T) {
 	require.NoError(t, readErr)
 	assert.Len(t, entries, 1)
 	assert.Contains(t, entries[0].Name(), "test-myhost-")
+}
+
+// TestNewNotifier_EventEmission verifies event emitter is called on successful archive.
+//
+// VALIDATES: AC-12 -- archive event emitted for plugin subscribers.
+// PREVENTS: Event emission being silently skipped.
+func TestNewNotifier_EventEmission(t *testing.T) {
+	destDir := t.TempDir()
+	sys := system.SystemConfig{Host: "evhost"}
+	configs := []archive.ArchiveConfig{
+		{
+			Name:     "ev-test",
+			Location: "file://" + destDir,
+			Filename: "{archive}",
+			Timeout:  5 * time.Second,
+			Trigger:  archive.TriggerCommit,
+		},
+	}
+
+	var emittedName, emittedFilename string
+	var emittedContent []byte
+	eventFn := func(name, filename string, content []byte) {
+		emittedName = name
+		emittedFilename = filename
+		emittedContent = content
+	}
+
+	notifier := archive.NewNotifier("test.conf", configs, &sys, eventFn)
+	errs := notifier([]byte("config data"))
+	assert.Empty(t, errs)
+	assert.Equal(t, "ev-test", emittedName)
+	assert.Equal(t, "ev-test.conf", emittedFilename)
+	assert.Equal(t, []byte("config data"), emittedContent)
 }
 
 // --- ExtractConfigs tests ---

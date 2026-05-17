@@ -108,6 +108,7 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 	applyConsoleFromMap(newTree)
 	applyConntrackFromMap(newTree, s)
 	applyUpdateCheckerFromMap(newTree)
+	applyArchiveSchedulerFromMap(s.ConfigPath(), s)
 
 	return nil
 }

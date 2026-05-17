@@ -551,7 +551,7 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, d
 		allConfigs := archive.ExtractConfigs(ed.Tree())
 		commitConfigs := archive.FilterByTrigger(allConfigs, archive.TriggerCommit)
 		if len(commitConfigs) > 0 {
-			ed.SetArchiveNotifier(archive.NewNotifier(configPath, commitConfigs, &sys))
+			ed.SetArchiveNotifier(archive.NewNotifier(configPath, commitConfigs, &sys, nil))
 		}
 	}
 
