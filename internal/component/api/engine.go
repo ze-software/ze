@@ -8,7 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -62,14 +62,14 @@ func NewAPIEngine(exec Executor, cmds CommandSource, auth AuthChecker, stream St
 // ListCommands returns all available commands with metadata.
 // If prefix is non-empty, only commands whose name starts with prefix are returned.
 // This is a byte-level prefix match, not word-boundary: "peer" matches "peering" too.
-func (e *APIEngine) ListCommands(prefix string) []CommandMeta {
+func (e *APIEngine) ListCommands(req *ListCommandsRequest) []CommandMeta {
 	all := e.commands()
-	if prefix == "" {
+	if req.Prefix == "" {
 		return all
 	}
 	var filtered []CommandMeta
 	for _, cmd := range all {
-		if strings.HasPrefix(cmd.Name, prefix) {
+		if strings.HasPrefix(cmd.Name, req.Prefix) {
 			filtered = append(filtered, cmd)
 		}
 	}
@@ -78,9 +78,9 @@ func (e *APIEngine) ListCommands(prefix string) []CommandMeta {
 
 // DescribeCommand returns metadata for a single command.
 // Returns ErrNotFound if the command does not exist.
-func (e *APIEngine) DescribeCommand(path string) (CommandMeta, error) {
+func (e *APIEngine) DescribeCommand(req *DescribeCommandRequest) (CommandMeta, error) {
 	for _, cmd := range e.commands() {
-		if cmd.Name == path {
+		if cmd.Name == req.Path {
 			return cmd, nil
 		}
 	}
@@ -89,15 +89,15 @@ func (e *APIEngine) DescribeCommand(path string) (CommandMeta, error) {
 
 // Execute runs a command and returns the result.
 // Returns ErrUnauthorized if the auth checker denies the request.
-func (e *APIEngine) Execute(ctx context.Context, caller CallerIdentity, command string) (*ExecResult, error) {
-	if e.auth != nil && !e.auth(caller.Username, command) {
+func (e *APIEngine) Execute(ctx context.Context, req *ExecuteRequest) (*ExecResult, error) {
+	if e.auth != nil && !e.auth(req.Caller.Username, req.Command) {
 		return &ExecResult{
 			Status: StatusError,
-			Error:  fmt.Sprintf("authorization denied for %q", command),
+			Error:  "authorization denied for " + strconv.Quote(req.Command),
 		}, ErrUnauthorized
 	}
 
-	output, err := e.executor(ctx, caller, command)
+	output, err := e.executor(ctx, req.Caller, req.Command)
 	if err != nil {
 		return &ExecResult{
 			Status: StatusError,
@@ -120,12 +120,12 @@ func (e *APIEngine) Execute(ctx context.Context, caller CallerIdentity, command 
 // The caller MUST call the returned cancel function when done.
 // Returns ErrUnauthorized if the auth checker denies the request.
 // Returns an error if streaming is not configured.
-func (e *APIEngine) Stream(ctx context.Context, caller CallerIdentity, command string) (<-chan string, func(), error) {
+func (e *APIEngine) Stream(ctx context.Context, req *StreamRequest) (<-chan string, func(), error) {
 	if e.stream == nil {
 		return nil, nil, errors.New("streaming not supported")
 	}
-	if e.auth != nil && !e.auth(caller.Username, command) {
+	if e.auth != nil && !e.auth(req.Caller.Username, req.Command) {
 		return nil, nil, ErrUnauthorized
 	}
-	return e.stream(ctx, caller, command)
+	return e.stream(ctx, req.Caller, req.Command)
 }

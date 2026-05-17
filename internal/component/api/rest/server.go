@@ -332,7 +332,7 @@ func (s *RESTServer) callerIdentity(r *http.Request) api.CallerIdentity {
 
 func (s *RESTServer) handleListCommands(w http.ResponseWriter, r *http.Request) {
 	prefix := r.URL.Query().Get("prefix")
-	writeJSON(w, http.StatusOK, s.engine.ListCommands(prefix))
+	writeJSON(w, http.StatusOK, s.engine.ListCommands(fromRESTListCommandsRequest(prefix)))
 }
 
 func (s *RESTServer) handleDescribeCommand(w http.ResponseWriter, r *http.Request) {
@@ -341,7 +341,7 @@ func (s *RESTServer) handleDescribeCommand(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusBadRequest, "command path required")
 		return
 	}
-	cmd, err := s.engine.DescribeCommand(path)
+	cmd, err := s.engine.DescribeCommand(fromRESTDescribeCommandRequest(path))
 	if errors.Is(err, api.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "command not found: "+path)
 		return
@@ -350,43 +350,26 @@ func (s *RESTServer) handleDescribeCommand(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *RESTServer) handleExecute(w http.ResponseWriter, r *http.Request) {
-	var req struct {
+	var body struct {
 		Command string         `json:"command"`
 		Params  map[string]any `json:"params"`
 	}
-	if err := readJSON(r, &req); err != nil {
+	if err := readJSON(r, &body); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if req.Command == "" {
+	if body.Command == "" {
 		writeError(w, http.StatusBadRequest, "command is required")
 		return
 	}
 
-	// Append typed params as "key value" pairs after the command.
-	var cmd strings.Builder
-	cmd.WriteString(req.Command)
-	for key, val := range req.Params {
-		if strings.ContainsAny(key, " \t\n\r") {
-			writeError(w, http.StatusBadRequest, fmt.Sprintf("parameter key %q must not contain whitespace", key))
-			return
-		}
-		sval := fmt.Sprint(val)
-		if sval == "" {
-			continue
-		}
-		if strings.ContainsAny(sval, " \t\n\r") {
-			writeError(w, http.StatusBadRequest, fmt.Sprintf("parameter %q must not contain whitespace", key))
-			return
-		}
-		cmd.WriteString(" ")
-		cmd.WriteString(key)
-		cmd.WriteString(" ")
-		cmd.WriteString(sval)
+	domainReq, buildErr := fromRESTExecuteRequest(s.callerIdentity(r), body.Command, body.Params)
+	if buildErr != nil {
+		writeError(w, http.StatusBadRequest, buildErr.Error())
+		return
 	}
-	command := cmd.String()
 
-	result, execErr := s.engine.Execute(r.Context(), s.callerIdentity(r), command)
+	result, execErr := s.engine.Execute(r.Context(), domainReq)
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
@@ -396,7 +379,7 @@ func (s *RESTServer) handleExecute(w http.ResponseWriter, r *http.Request) {
 
 func (s *RESTServer) handleConvenience(command string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		result, execErr := s.engine.Execute(r.Context(), s.callerIdentity(r), command)
+		result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: command})
 		if errors.Is(execErr, api.ErrUnauthorized) {
 			writeError(w, http.StatusForbidden, result.Error)
 			return
@@ -415,7 +398,7 @@ func (s *RESTServer) handlePeerByName(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	result, execErr := s.engine.Execute(r.Context(), s.callerIdentity(r), "peer "+name+" detail")
+	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: "peer " + name + " detail"})
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
@@ -434,7 +417,7 @@ func (s *RESTServer) handlePeerAction(action string) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		result, execErr := s.engine.Execute(r.Context(), s.callerIdentity(r), "peer "+name+" "+action)
+		result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: "peer " + name + " " + action})
 		if errors.Is(execErr, api.ErrUnauthorized) {
 			writeError(w, http.StatusForbidden, result.Error)
 			return
@@ -454,7 +437,7 @@ func (s *RESTServer) handlePeerRefresh(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	result, execErr := s.engine.Execute(r.Context(), s.callerIdentity(r), "peer "+name+" refresh")
+	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: "peer " + name + " refresh"})
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
@@ -482,7 +465,7 @@ func (s *RESTServer) handleRIB(w http.ResponseWriter, r *http.Request) {
 		}
 		command = "rib routes " + path
 	}
-	result, execErr := s.engine.Execute(r.Context(), s.callerIdentity(r), command)
+	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: command})
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
@@ -491,7 +474,7 @@ func (s *RESTServer) handleRIB(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *RESTServer) handleConfigRunning(w http.ResponseWriter, r *http.Request) {
-	result, execErr := s.engine.Execute(r.Context(), s.callerIdentity(r), "show config dump")
+	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: "show config dump"})
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
@@ -531,7 +514,7 @@ func (s *RESTServer) handleConfigSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username := s.callerIdentity(r).Username
-	if err := s.sessions.Set(username, id, req.Path, req.Value); err != nil {
+	if err := s.sessions.Set(fromRESTConfigSetRequest(username, id, req.Path, req.Value)); err != nil {
 		writeSessionError(w, err)
 		return
 	}
@@ -552,7 +535,7 @@ func (s *RESTServer) handleConfigDeleteOrDiscard(w http.ResponseWriter, r *http.
 	}
 	username := s.callerIdentity(r).Username
 	if len(parts) == 1 {
-		if err := s.sessions.Discard(username, id); err != nil {
+		if err := s.sessions.Discard(fromRESTConfigDiscardRequest(username, id)); err != nil {
 			writeSessionError(w, err)
 			return
 		}
@@ -560,7 +543,7 @@ func (s *RESTServer) handleConfigDeleteOrDiscard(w http.ResponseWriter, r *http.
 		return
 	}
 	configPath := strings.ReplaceAll(parts[1], "/", ".")
-	if err := s.sessions.Delete(username, id, configPath); err != nil {
+	if err := s.sessions.Delete(fromRESTConfigDeleteRequest(username, id, configPath)); err != nil {
 		writeSessionError(w, err)
 		return
 	}
@@ -582,7 +565,7 @@ func (s *RESTServer) handleConfigDiff(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	diff, err := s.sessions.Diff(s.callerIdentity(r).Username, id)
+	diff, err := s.sessions.Diff(fromRESTConfigDiffRequest(s.callerIdentity(r).Username, id))
 	if err != nil {
 		writeSessionError(w, err)
 		return
@@ -605,7 +588,7 @@ func (s *RESTServer) handleConfigCommit(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := s.sessions.Commit(s.callerIdentity(r).Username, id); err != nil {
+	if err := s.sessions.Commit(fromRESTConfigCommitRequest(s.callerIdentity(r).Username, id)); err != nil {
 		writeSessionError(w, err)
 		return
 	}
@@ -633,7 +616,7 @@ func (s *RESTServer) handleStream(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "streaming not supported")
 		return
 	}
-	ch, cancel, err := s.engine.Stream(r.Context(), s.callerIdentity(r), command)
+	ch, cancel, err := s.engine.Stream(r.Context(), fromRESTStreamRequest(s.callerIdentity(r), command))
 	if errors.Is(err, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, "unauthorized")
 		return

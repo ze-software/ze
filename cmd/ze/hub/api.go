@@ -83,7 +83,7 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 	)
 	lazySpec := func() []byte {
 		specOnce.Do(func() {
-			cmds := engine.ListCommands("")
+			cmds := engine.ListCommands(&api.ListCommandsRequest{})
 			var err error
 			specData, err = api.OpenAPISchema(cmds)
 			if err != nil {

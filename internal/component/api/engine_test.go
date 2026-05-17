@@ -53,7 +53,7 @@ func allowAllAuth() AuthChecker {
 func TestEngineListCommands(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
-	cmds := eng.ListCommands("")
+	cmds := eng.ListCommands(&ListCommandsRequest{})
 	assert.Len(t, cmds, 5)
 
 	// Verify all expected commands are present.
@@ -73,7 +73,7 @@ func TestEngineListCommands(t *testing.T) {
 func TestEngineListCommandsWithPrefix(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
-	cmds := eng.ListCommands("bgp rib")
+	cmds := eng.ListCommands(&ListCommandsRequest{Prefix: "bgp rib"})
 	assert.Len(t, cmds, 2)
 	for _, cmd := range cmds {
 		assert.Contains(t, cmd.Name, "bgp rib")
@@ -85,7 +85,7 @@ func TestEngineListCommandsWithPrefix(t *testing.T) {
 func TestEngineDescribeCommand(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
-	cmd, err := eng.DescribeCommand("bgp rib routes")
+	cmd, err := eng.DescribeCommand(&DescribeCommandRequest{Path: "bgp rib routes"})
 	require.NoError(t, err)
 	assert.Equal(t, "bgp rib routes", cmd.Name)
 	assert.True(t, cmd.ReadOnly)
@@ -98,7 +98,7 @@ func TestEngineDescribeCommand(t *testing.T) {
 func TestEngineDescribeCommandNotFound(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
-	_, err := eng.DescribeCommand("nonexistent command")
+	_, err := eng.DescribeCommand(&DescribeCommandRequest{Path: "nonexistent command"})
 	assert.ErrorIs(t, err, ErrNotFound)
 }
 
@@ -107,7 +107,7 @@ func TestEngineDescribeCommandNotFound(t *testing.T) {
 func TestEngineExecuteDispatch(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
-	result, err := eng.Execute(t.Context(), CallerIdentity{Username: "admin"}, "bgp summary")
+	result, err := eng.Execute(t.Context(), &ExecuteRequest{Caller: CallerIdentity{Username: "admin"}, Command: "bgp summary"})
 	require.NoError(t, err)
 	assert.Equal(t, StatusDone, result.Status)
 
@@ -123,7 +123,7 @@ func TestEngineExecuteDispatch(t *testing.T) {
 func TestEngineExecuteStringOutput(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
-	result, err := eng.Execute(t.Context(), CallerIdentity{Username: "admin"}, "daemon reload")
+	result, err := eng.Execute(t.Context(), &ExecuteRequest{Caller: CallerIdentity{Username: "admin"}, Command: "daemon reload"})
 	require.NoError(t, err)
 	assert.Equal(t, StatusDone, result.Status)
 	assert.Equal(t, "reload initiated", result.Data)
@@ -134,7 +134,7 @@ func TestEngineExecuteStringOutput(t *testing.T) {
 func TestEngineExecuteUnauthorized(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), denyAllAuth(), nil)
 
-	result, err := eng.Execute(t.Context(), CallerIdentity{Username: "readonly"}, "daemon reload")
+	result, err := eng.Execute(t.Context(), &ExecuteRequest{Caller: CallerIdentity{Username: "readonly"}, Command: "daemon reload"})
 	assert.ErrorIs(t, err, ErrUnauthorized)
 	assert.Equal(t, StatusError, result.Status)
 	assert.Contains(t, result.Error, "authorization denied")
@@ -148,7 +148,7 @@ func TestEngineExecuteError(t *testing.T) {
 	}
 	eng := NewAPIEngine(errExec, fakeCommands(), allowAllAuth(), nil)
 
-	result, err := eng.Execute(t.Context(), CallerIdentity{Username: "admin"}, "bgp summary")
+	result, err := eng.Execute(t.Context(), &ExecuteRequest{Caller: CallerIdentity{Username: "admin"}, Command: "bgp summary"})
 	require.Error(t, err)
 	assert.Equal(t, StatusError, result.Status)
 	assert.Equal(t, "connection refused", result.Error)
@@ -159,7 +159,7 @@ func TestEngineExecuteError(t *testing.T) {
 func TestEngineExecuteNilAuth(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), nil, nil)
 
-	result, err := eng.Execute(t.Context(), CallerIdentity{Username: ""}, "bgp summary")
+	result, err := eng.Execute(t.Context(), &ExecuteRequest{Caller: CallerIdentity{Username: ""}, Command: "bgp summary"})
 	require.NoError(t, err)
 	assert.Equal(t, StatusDone, result.Status)
 }
@@ -182,7 +182,7 @@ func TestEngineStream(t *testing.T) {
 	events := []string{`{"type":"update","peer":"10.0.0.1"}`, `{"type":"update","peer":"10.0.0.2"}`}
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), fakeStream(events))
 
-	ch, cancel, err := eng.Stream(t.Context(), CallerIdentity{Username: "admin"}, "bgp monitor")
+	ch, cancel, err := eng.Stream(t.Context(), &StreamRequest{Caller: CallerIdentity{Username: "admin"}, Command: "bgp monitor"})
 	require.NoError(t, err)
 	defer cancel()
 
@@ -198,7 +198,7 @@ func TestEngineStream(t *testing.T) {
 func TestEngineStreamUnauthorized(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), denyAllAuth(), fakeStream(nil))
 
-	_, _, err := eng.Stream(t.Context(), CallerIdentity{Username: "nobody"}, "bgp monitor")
+	_, _, err := eng.Stream(t.Context(), &StreamRequest{Caller: CallerIdentity{Username: "nobody"}, Command: "bgp monitor"})
 	assert.ErrorIs(t, err, ErrUnauthorized)
 }
 
@@ -207,7 +207,7 @@ func TestEngineStreamUnauthorized(t *testing.T) {
 func TestEngineStreamNotSupported(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
-	_, _, err := eng.Stream(t.Context(), CallerIdentity{Username: "admin"}, "bgp monitor")
+	_, _, err := eng.Stream(t.Context(), &StreamRequest{Caller: CallerIdentity{Username: "admin"}, Command: "bgp monitor"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "streaming not supported")
 }

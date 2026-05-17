@@ -167,35 +167,32 @@ func (m *ConfigSessionManager) Enter(username string) (string, error) {
 }
 
 // Set modifies a config path in the session's candidate.
-// username must match the session owner.
-func (m *ConfigSessionManager) Set(username, sessionID, path, value string) error {
-	session, err := m.getLocked(username, sessionID)
+func (m *ConfigSessionManager) Set(req *ConfigSetRequest) error {
+	session, err := m.getLocked(req.Username, req.SessionID)
 	if err != nil {
 		return err
 	}
 	defer session.mu.Unlock()
-	parts := splitPath(path)
+	parts := splitPath(req.Path)
 	if len(parts) < 2 { //nolint:mnd // path needs at least parent + leaf
-		return fmt.Errorf("path too short: %q", path)
+		return fmt.Errorf("path too short: %q", req.Path)
 	}
-	return session.Editor.SetValue(parts[:len(parts)-1], parts[len(parts)-1], value)
+	return session.Editor.SetValue(parts[:len(parts)-1], parts[len(parts)-1], req.Value)
 }
 
 // Delete removes a config path from the session's candidate.
-// username must match the session owner.
-func (m *ConfigSessionManager) Delete(username, sessionID, path string) error {
-	session, err := m.getLocked(username, sessionID)
+func (m *ConfigSessionManager) Delete(req *ConfigDeleteRequest) error {
+	session, err := m.getLocked(req.Username, req.SessionID)
 	if err != nil {
 		return err
 	}
 	defer session.mu.Unlock()
-	return session.Editor.DeleteByPath(splitPath(path))
+	return session.Editor.DeleteByPath(splitPath(req.Path))
 }
 
 // Diff returns the pending changes for a session.
-// username must match the session owner.
-func (m *ConfigSessionManager) Diff(username, sessionID string) (string, error) {
-	session, err := m.getLocked(username, sessionID)
+func (m *ConfigSessionManager) Diff(req *ConfigDiffRequest) (string, error) {
+	session, err := m.getLocked(req.Username, req.SessionID)
 	if err != nil {
 		return "", err
 	}
@@ -204,9 +201,8 @@ func (m *ConfigSessionManager) Diff(username, sessionID string) (string, error) 
 }
 
 // Commit applies the pending changes.
-// username must match the session owner.
-func (m *ConfigSessionManager) Commit(username, sessionID string) error {
-	session, err := m.getLocked(username, sessionID)
+func (m *ConfigSessionManager) Commit(req *ConfigCommitRequest) error {
+	session, err := m.getLocked(req.Username, req.SessionID)
 	if err != nil {
 		return err
 	}
@@ -237,17 +233,16 @@ func (m *ConfigSessionManager) Commit(username, sessionID string) error {
 	}
 	session.closed = true
 	m.mu.Lock()
-	if m.sessions[sessionID] == session {
-		delete(m.sessions, sessionID)
+	if m.sessions[req.SessionID] == session {
+		delete(m.sessions, req.SessionID)
 	}
 	m.mu.Unlock()
 	return nil
 }
 
 // Discard throws away the session's candidate changes.
-// username must match the session owner.
-func (m *ConfigSessionManager) Discard(username, sessionID string) error {
-	session, err := m.getLocked(username, sessionID)
+func (m *ConfigSessionManager) Discard(req *ConfigDiscardRequest) error {
+	session, err := m.getLocked(req.Username, req.SessionID)
 	if err != nil {
 		return err
 	}
@@ -257,8 +252,8 @@ func (m *ConfigSessionManager) Discard(username, sessionID string) error {
 	}
 	session.closed = true
 	m.mu.Lock()
-	if m.sessions[sessionID] == session {
-		delete(m.sessions, sessionID)
+	if m.sessions[req.SessionID] == session {
+		delete(m.sessions, req.SessionID)
 	}
 	m.mu.Unlock()
 	return nil

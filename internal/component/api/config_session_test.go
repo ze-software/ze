@@ -110,20 +110,20 @@ func TestEngineConfigSession(t *testing.T) {
 	assert.NotEmpty(t, id)
 
 	// Set a value.
-	err = mgr.Set("admin", id, "bgp.router-id", "10.0.0.1")
+	err = mgr.Set(&ConfigSetRequest{Username: "admin", SessionID: id, Path: "bgp.router-id", Value: "10.0.0.1"})
 	require.NoError(t, err)
 
 	// Diff shows changes.
-	diff, err := mgr.Diff("admin", id)
+	diff, err := mgr.Diff(&ConfigDiffRequest{Username: "admin", SessionID: id})
 	require.NoError(t, err)
 	assert.NotEmpty(t, diff)
 
 	// Commit applies changes.
-	err = mgr.Commit("admin", id)
+	err = mgr.Commit(&ConfigCommitRequest{Username: "admin", SessionID: id})
 	require.NoError(t, err)
 
 	// Session is gone after commit.
-	_, err = mgr.Diff("admin", id)
+	_, err = mgr.Diff(&ConfigDiffRequest{Username: "admin", SessionID: id})
 	assert.Error(t, err)
 }
 
@@ -142,12 +142,12 @@ func TestConfigSessionCommitHook(t *testing.T) {
 
 	id, err := mgr.Enter("admin")
 	require.NoError(t, err)
-	require.NoError(t, mgr.Set("admin", id, "bgp.router-id", "10.0.0.1"))
+	require.NoError(t, mgr.Set(&ConfigSetRequest{Username: "admin", SessionID: id, Path: "bgp.router-id", Value: "10.0.0.1"}))
 
-	require.NoError(t, mgr.Commit("admin", id))
+	require.NoError(t, mgr.Commit(&ConfigCommitRequest{Username: "admin", SessionID: id}))
 	assert.True(t, called, "commit hook should be called")
 
-	_, err = mgr.Diff("admin", id)
+	_, err = mgr.Diff(&ConfigDiffRequest{Username: "admin", SessionID: id})
 	assert.Error(t, err, "session should be removed after successful hook")
 }
 
@@ -162,14 +162,14 @@ func TestConfigSessionCommitHookFailureKeepsSession(t *testing.T) {
 
 	id, err := mgr.Enter("admin")
 	require.NoError(t, err)
-	require.NoError(t, mgr.Set("admin", id, "bgp.router-id", "10.0.0.1"))
+	require.NoError(t, mgr.Set(&ConfigSetRequest{Username: "admin", SessionID: id, Path: "bgp.router-id", Value: "10.0.0.1"}))
 
-	err = mgr.Commit("admin", id)
+	err = mgr.Commit(&ConfigCommitRequest{Username: "admin", SessionID: id})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "runtime reload failed")
 	assert.Contains(t, err.Error(), "reload failed")
 
-	_, err = mgr.Diff("admin", id)
+	_, err = mgr.Diff(&ConfigDiffRequest{Username: "admin", SessionID: id})
 	assert.NoError(t, err, "session should remain after failed hook")
 }
 
@@ -189,9 +189,9 @@ func TestConfigSessionCommitHookFailureRollsBackSavedConfig(t *testing.T) {
 
 	id, err := mgr.Enter("admin")
 	require.NoError(t, err)
-	require.NoError(t, mgr.Set("admin", id, "bgp.router-id", "10.0.0.1"))
+	require.NoError(t, mgr.Set(&ConfigSetRequest{Username: "admin", SessionID: id, Path: "bgp.router-id", Value: "10.0.0.1"}))
 
-	err = mgr.Commit("admin", id)
+	err = mgr.Commit(&ConfigCommitRequest{Username: "admin", SessionID: id})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "runtime reload failed")
 	assert.Contains(t, err.Error(), "candidate rejected")
@@ -200,7 +200,7 @@ func TestConfigSessionCommitHookFailureRollsBackSavedConfig(t *testing.T) {
 	assert.Equal(t, "# original\n", editor.OriginalContent())
 	assert.Equal(t, "# config\n", editor.WorkingContent(), "candidate should remain available for retry")
 
-	_, err = mgr.Diff("admin", id)
+	_, err = mgr.Diff(&ConfigDiffRequest{Username: "admin", SessionID: id})
 	assert.NoError(t, err, "session should remain after failed hook")
 }
 
@@ -220,15 +220,15 @@ func TestConfigSessionValidationHookFailurePreventsSave(t *testing.T) {
 
 	id, err := mgr.Enter("admin")
 	require.NoError(t, err)
-	require.NoError(t, mgr.Set("admin", id, "bgp.router-id", "10.0.0.1"))
+	require.NoError(t, mgr.Set(&ConfigSetRequest{Username: "admin", SessionID: id, Path: "bgp.router-id", Value: "10.0.0.1"}))
 
-	err = mgr.Commit("admin", id)
+	err = mgr.Commit(&ConfigCommitRequest{Username: "admin", SessionID: id})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "commit validation")
 	assert.Contains(t, err.Error(), "plugin rejected config")
 	assert.False(t, editor.saved, "validation failure must prevent Save")
 
-	_, err = mgr.Diff("admin", id)
+	_, err = mgr.Diff(&ConfigDiffRequest{Username: "admin", SessionID: id})
 	assert.NoError(t, err, "session should remain after validation failure")
 }
 
@@ -240,14 +240,14 @@ func TestEngineConfigDiscard(t *testing.T) {
 	id, err := mgr.Enter("admin")
 	require.NoError(t, err)
 
-	err = mgr.Set("admin", id, "bgp.router-id", "10.0.0.1")
+	err = mgr.Set(&ConfigSetRequest{Username: "admin", SessionID: id, Path: "bgp.router-id", Value: "10.0.0.1"})
 	require.NoError(t, err)
 
-	err = mgr.Discard("admin", id)
+	err = mgr.Discard(&ConfigDiscardRequest{Username: "admin", SessionID: id})
 	require.NoError(t, err)
 
 	// Session is gone after discard.
-	_, err = mgr.Diff("admin", id)
+	_, err = mgr.Diff(&ConfigDiffRequest{Username: "admin", SessionID: id})
 	assert.Error(t, err)
 }
 
@@ -256,7 +256,7 @@ func TestEngineConfigDiscard(t *testing.T) {
 func TestConfigSessionNotFound(t *testing.T) {
 	mgr := NewConfigSessionManager(fakeEditorFactory())
 
-	err := mgr.Set("admin", "nonexistent", "bgp.router-id", "10.0.0.1")
+	err := mgr.Set(&ConfigSetRequest{Username: "admin", SessionID: "nonexistent", Path: "bgp.router-id", Value: "10.0.0.1"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -275,13 +275,13 @@ func TestConfigSessionIndependence(t *testing.T) {
 	assert.NotEqual(t, id1, id2)
 
 	// Set different values in each (using correct owner).
-	require.NoError(t, mgr.Set("alice", id1, "bgp.router-id", "1.1.1.1"))
-	require.NoError(t, mgr.Set("bob", id2, "bgp.router-id", "2.2.2.2"))
+	require.NoError(t, mgr.Set(&ConfigSetRequest{Username: "alice", SessionID: id1, Path: "bgp.router-id", Value: "1.1.1.1"}))
+	require.NoError(t, mgr.Set(&ConfigSetRequest{Username: "bob", SessionID: id2, Path: "bgp.router-id", Value: "2.2.2.2"}))
 
 	// Commit one, other still exists.
-	require.NoError(t, mgr.Commit("alice", id1))
+	require.NoError(t, mgr.Commit(&ConfigCommitRequest{Username: "alice", SessionID: id1}))
 
-	diff, err := mgr.Diff("bob", id2)
+	diff, err := mgr.Diff(&ConfigDiffRequest{Username: "bob", SessionID: id2})
 	require.NoError(t, err)
 	assert.NotEmpty(t, diff)
 }
@@ -306,7 +306,7 @@ func TestConfigSessionSerializesConcurrentOperations(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			<-start
-			errCh <- mgr.Set("admin", id, "bgp.router-id", fmt.Sprintf("10.0.0.%d", i))
+			errCh <- mgr.Set(&ConfigSetRequest{Username: "admin", SessionID: id, Path: "bgp.router-id", Value: fmt.Sprintf("10.0.0.%d", i)})
 		}(i)
 	}
 	close(start)
@@ -328,20 +328,20 @@ func TestConfigSessionOwnership(t *testing.T) {
 	require.NoError(t, err)
 
 	// Bob tries to hijack alice's session.
-	err = mgr.Set("bob", id, "bgp.router-id", "9.9.9.9")
+	err = mgr.Set(&ConfigSetRequest{Username: "bob", SessionID: id, Path: "bgp.router-id", Value: "9.9.9.9"})
 	assert.ErrorIs(t, err, ErrSessionForbidden)
 
-	_, err = mgr.Diff("bob", id)
+	_, err = mgr.Diff(&ConfigDiffRequest{Username: "bob", SessionID: id})
 	assert.ErrorIs(t, err, ErrSessionForbidden)
 
-	err = mgr.Commit("bob", id)
+	err = mgr.Commit(&ConfigCommitRequest{Username: "bob", SessionID: id})
 	assert.ErrorIs(t, err, ErrSessionForbidden)
 
-	err = mgr.Discard("bob", id)
+	err = mgr.Discard(&ConfigDiscardRequest{Username: "bob", SessionID: id})
 	assert.ErrorIs(t, err, ErrSessionForbidden)
 
 	// Alice can still use her session.
-	require.NoError(t, mgr.Set("alice", id, "bgp.router-id", "1.1.1.1"))
+	require.NoError(t, mgr.Set(&ConfigSetRequest{Username: "alice", SessionID: id, Path: "bgp.router-id", Value: "1.1.1.1"}))
 }
 
 // VALIDATES: path too short returns error.
@@ -352,7 +352,7 @@ func TestConfigSessionSetShortPath(t *testing.T) {
 	id, err := mgr.Enter("admin")
 	require.NoError(t, err)
 
-	err = mgr.Set("admin", id, "single", "value")
+	err = mgr.Set(&ConfigSetRequest{Username: "admin", SessionID: id, Path: "single", Value: "value"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "path too short")
 }
@@ -402,12 +402,12 @@ func TestConfigSessionCleanExpired(t *testing.T) {
 
 	id, err := mgr.Enter("admin")
 	require.NoError(t, err)
-	require.NoError(t, mgr.Set("admin", id, "bgp.router-id", "10.0.0.1"))
+	require.NoError(t, mgr.Set(&ConfigSetRequest{Username: "admin", SessionID: id, Path: "bgp.router-id", Value: "10.0.0.1"}))
 
 	cleaned := mgr.CleanExpired()
 	assert.Equal(t, 1, cleaned)
 
 	// Session is gone.
-	_, err = mgr.Diff("admin", id)
+	_, err = mgr.Diff(&ConfigDiffRequest{Username: "admin", SessionID: id})
 	assert.Error(t, err)
 }

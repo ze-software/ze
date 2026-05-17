@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"net"
 	"slices"
-	"strings"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -341,14 +340,11 @@ func (s *zeServiceImpl) Execute(ctx context.Context, req *zepb.CommandRequest) (
 	if req.GetCommand() == "" {
 		return nil, status.Error(codes.InvalidArgument, "command is required")
 	}
-
-	// Append params as "key value" pairs, same as REST transport.
-	command, buildErr := buildCommand(req.GetCommand(), req.GetParams())
+	domainReq, buildErr := fromProtoExecuteRequest(req, callerIdentityFromContext(ctx))
 	if buildErr != nil {
 		return nil, status.Error(codes.InvalidArgument, buildErr.Error())
 	}
-
-	result, err := s.engine.Execute(ctx, callerIdentityFromContext(ctx), command)
+	result, err := s.engine.Execute(ctx, domainReq)
 	if errors.Is(err, api.ErrUnauthorized) {
 		return nil, status.Error(codes.PermissionDenied, result.Error)
 	}
@@ -359,11 +355,11 @@ func (s *zeServiceImpl) Stream(req *zepb.CommandRequest, stream zepb.ZeService_S
 	if req.GetCommand() == "" {
 		return status.Error(codes.InvalidArgument, "command is required")
 	}
-	command, buildErr := buildCommand(req.GetCommand(), req.GetParams())
+	domainReq, buildErr := fromProtoStreamRequest(req, callerIdentityFromContext(stream.Context()))
 	if buildErr != nil {
 		return status.Error(codes.InvalidArgument, buildErr.Error())
 	}
-	ch, cancel, err := s.engine.Stream(stream.Context(), callerIdentityFromContext(stream.Context()), command)
+	ch, cancel, err := s.engine.Stream(stream.Context(), domainReq)
 	if errors.Is(err, api.ErrUnauthorized) {
 		return status.Error(codes.PermissionDenied, "unauthorized")
 	}
@@ -392,7 +388,7 @@ func (s *zeServiceImpl) Stream(req *zepb.CommandRequest, stream zepb.ZeService_S
 }
 
 func (s *zeServiceImpl) ListCommands(_ context.Context, req *zepb.ListCommandsRequest) (*zepb.ListCommandsResponse, error) {
-	cmds := s.engine.ListCommands(req.GetPrefix())
+	cmds := s.engine.ListCommands(fromProtoListCommandsRequest(req))
 	resp := &zepb.ListCommandsResponse{
 		Commands: make([]*zepb.CommandInfo, len(cmds)),
 	}
@@ -403,7 +399,7 @@ func (s *zeServiceImpl) ListCommands(_ context.Context, req *zepb.ListCommandsRe
 }
 
 func (s *zeServiceImpl) DescribeCommand(_ context.Context, req *zepb.DescribeCommandRequest) (*zepb.CommandDescription, error) {
-	cmd, err := s.engine.DescribeCommand(req.GetPath())
+	cmd, err := s.engine.DescribeCommand(fromProtoDescribeCommandRequest(req))
 	if errors.Is(err, api.ErrNotFound) {
 		return nil, status.Error(codes.NotFound, "command not found: "+req.GetPath())
 	}
@@ -423,11 +419,13 @@ type zeConfigServiceImpl struct {
 }
 
 func (s *zeConfigServiceImpl) GetRunningConfig(ctx context.Context, _ *zepb.Empty) (*zepb.ConfigResponse, error) {
-	result, err := s.engine.Execute(ctx, callerIdentityFromContext(ctx), "show config dump")
+	result, err := s.engine.Execute(ctx, &api.ExecuteRequest{
+		Caller:  callerIdentityFromContext(ctx),
+		Command: "show config dump",
+	})
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	// Data may be string (plain text) or structured (parsed JSON). Marshal non-string data.
 	if str, ok := result.Data.(string); ok {
 		return &zepb.ConfigResponse{Config: str}, nil
 	}
@@ -453,7 +451,7 @@ func (s *zeConfigServiceImpl) SetConfig(ctx context.Context, req *zepb.ConfigSet
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.sessions.Set(usernameFromContext(ctx), req.GetSessionId(), req.GetPath(), req.GetValue()); err != nil {
+	if err := s.sessions.Set(fromProtoConfigSetRequest(req, usernameFromContext(ctx))); err != nil {
 		return nil, sessionStatusError(err)
 	}
 	return &zepb.ConfigSetResponse{Success: true}, nil
@@ -463,7 +461,7 @@ func (s *zeConfigServiceImpl) DeleteConfig(ctx context.Context, req *zepb.Config
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.sessions.Delete(usernameFromContext(ctx), req.GetSessionId(), req.GetPath()); err != nil {
+	if err := s.sessions.Delete(fromProtoConfigDeleteRequest(req, usernameFromContext(ctx))); err != nil {
 		return nil, sessionStatusError(err)
 	}
 	return &zepb.ConfigDeleteResponse{Success: true}, nil
@@ -473,7 +471,7 @@ func (s *zeConfigServiceImpl) DiffSession(ctx context.Context, req *zepb.Session
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	diff, err := s.sessions.Diff(usernameFromContext(ctx), req.GetSessionId())
+	diff, err := s.sessions.Diff(fromProtoSessionRequest(req, usernameFromContext(ctx)))
 	if err != nil {
 		return nil, sessionStatusError(err)
 	}
@@ -484,7 +482,7 @@ func (s *zeConfigServiceImpl) CommitSession(ctx context.Context, req *zepb.Commi
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.sessions.Commit(usernameFromContext(ctx), req.GetSessionId()); err != nil {
+	if err := s.sessions.Commit(fromProtoCommitRequest(req, usernameFromContext(ctx))); err != nil {
 		return nil, sessionStatusError(err)
 	}
 	return &zepb.CommitResponse{Success: true}, nil
@@ -494,7 +492,7 @@ func (s *zeConfigServiceImpl) DiscardSession(ctx context.Context, req *zepb.Sess
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.sessions.Discard(usernameFromContext(ctx), req.GetSessionId()); err != nil {
+	if err := s.sessions.Discard(fromProtoDiscardRequest(req, usernameFromContext(ctx))); err != nil {
 		return nil, sessionStatusError(err)
 	}
 	return &zepb.DiscardResponse{Success: true}, nil
@@ -507,69 +505,4 @@ func sessionStatusError(err error) error {
 		return status.Error(codes.PermissionDenied, err.Error())
 	}
 	return status.Error(codes.InvalidArgument, err.Error())
-}
-
-// --- Helpers ---
-
-func execResultToProto(r *api.ExecResult) *zepb.CommandResponse {
-	if r == nil {
-		return &zepb.CommandResponse{Status: api.StatusError, Error: "nil result"}
-	}
-	resp := &zepb.CommandResponse{
-		Status: r.Status,
-		Error:  r.Error,
-	}
-	if r.Data != nil {
-		data, err := json.Marshal(r.Data)
-		if err == nil {
-			resp.Data = data
-		}
-	}
-	return resp
-}
-
-// buildCommand appends params as "key value" pairs to a command string.
-// Matches the REST transport's param handling for equivalence.
-func buildCommand(command string, params map[string]string) (string, error) {
-	if len(params) == 0 {
-		return command, nil
-	}
-	var b strings.Builder
-	b.WriteString(command)
-	for key, val := range params {
-		if strings.ContainsAny(key, " \t\n\r") {
-			return "", fmt.Errorf("parameter key %q must not contain whitespace", key)
-		}
-		if val == "" {
-			continue
-		}
-		if strings.ContainsAny(val, " \t\n\r") {
-			return "", fmt.Errorf("parameter %q must not contain whitespace", key)
-		}
-		b.WriteString(" ")
-		b.WriteString(key)
-		b.WriteString(" ")
-		b.WriteString(val)
-	}
-	return b.String(), nil
-}
-
-func commandMetaToProto(cmd api.CommandMeta) *zepb.CommandInfo {
-	info := &zepb.CommandInfo{
-		Name:        cmd.Name,
-		Description: cmd.Description,
-		ReadOnly:    cmd.ReadOnly,
-	}
-	if len(cmd.Params) > 0 {
-		info.Params = make([]*zepb.ParamInfo, len(cmd.Params))
-		for i, p := range cmd.Params {
-			info.Params[i] = &zepb.ParamInfo{
-				Name:        p.Name,
-				Type:        p.Type,
-				Description: p.Description,
-				Required:    p.Required,
-			}
-		}
-	}
-	return info
 }

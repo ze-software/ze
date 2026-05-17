@@ -54,7 +54,7 @@ func testEngine() *api.APIEngine {
 func testServer(t *testing.T) *RESTServer {
 	t.Helper()
 	engine := testEngine()
-	openAPI, err := api.OpenAPISchema(engine.ListCommands(""))
+	openAPI, err := api.OpenAPISchema(engine.ListCommands(&api.ListCommandsRequest{}))
 	require.NoError(t, err)
 
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
@@ -192,7 +192,7 @@ func TestExecutePropagatesRequestContextAndRemoteAddr(t *testing.T) {
 		nil,
 	)
 
-	openAPI, err := api.OpenAPISchema(engine.ListCommands(""))
+	openAPI, err := api.OpenAPISchema(engine.ListCommands(&api.ListCommandsRequest{}))
 	require.NoError(t, err)
 
 	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}}, engine, nil, func() []byte { return openAPI })
