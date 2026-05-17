@@ -8,12 +8,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
 ## Steps
 
-1. **Identify changed files:** Run `git diff --name-only HEAD` to find all modified files.
-2. **Read the actual code:** For every changed file, read the diff. Understand what changed.
-3. **Understand intent via history:** For each changed region, run `git log --oneline -5` and `git blame` on the modified lines. Understand WHY the old code existed. Flag if the change removes a guard, workaround, or constraint that was added deliberately.
-4. **Check code comments:** Read WARNING, INVARIANT, NOTE, and TODO comments in modified files. Verify the changes do not violate stated invariants or ignore documented constraints.
-5. **Trace data flow:** For each changed component, trace data from entry through transformations to exit. Verify boundaries are respected.
-6. **Wiring verification (MANDATORY, NON-SKIPPABLE):** For every new function, type, handler, route, config option, CLI command, or plugin introduced in the diff, prove it is reachable from a user entry point. This step catches the project's most recurring defect class (see `plan/learned/RECURRING-PATTERNS.md`).
+1. **Wiring verification (FIRST — before any other analysis):** For every new function, type, handler, route, config option, CLI command, or plugin introduced in the diff, prove it is reachable from a user entry point. This is the FIRST step because it catches the project's most recurring defect class (see `plan/learned/RECURRING-PATTERNS.md`). If new code has no caller in production, nothing else in this review matters.
 
     For each new symbol, answer: **"What user action reaches this code?"** If you cannot name one, it is a BLOCKER.
 
@@ -31,6 +26,13 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
     **Do not skip this step.** "The code compiles" and "tests pass" do not prove wiring. A function with zero callers outside tests is dead code in production. Report every unwired symbol as a BLOCKER finding.
 
+    **If any wiring BLOCKER is found:** report it immediately. Do not proceed to the remaining review steps until the user acknowledges. Unwired code means the feature does not exist from the user's perspective, so reviewing its correctness, security, or edge cases is premature.
+
+2. **Identify changed files:** Run `git diff --name-only HEAD` to find all modified files.
+3. **Read the actual code:** For every changed file, read the diff. Understand what changed.
+4. **Understand intent via history:** For each changed region, run `git log --oneline -5` and `git blame` on the modified lines. Understand WHY the old code existed. Flag if the change removes a guard, workaround, or constraint that was added deliberately.
+5. **Check code comments:** Read WARNING, INVARIANT, NOTE, and TODO comments in modified files. Verify the changes do not violate stated invariants or ignore documented constraints.
+6. **Trace data flow:** For each changed component, trace data from entry through transformations to exit. Verify boundaries are respected.
 7. **Apply edge case techniques:** Apply EVERY technique in the table below to every changed component.
 8. **Security review:** Apply the security checklist to every user-controlled input.
 9. **Allocation review:** Check every `make()` in changed code for unbounded sizes.
@@ -82,7 +84,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 | General quality concern not tied to a specific bug | Too vague to act on |
 | Contradicts a project rule but has an explicit override comment in code | Intentional exception |
 
-    **Never discard wiring findings.** An unwired symbol is not a false positive, a pre-existing issue, or a quality concern. It is dead code in production. Wiring BLOCKERs from step 6 always survive this filter.
+    **Never discard wiring findings.** An unwired symbol is not a false positive, a pre-existing issue, or a quality concern. It is dead code in production. Wiring BLOCKERs from step 1 always survive this filter.
 
 14. **Report findings** as a numbered list with severity:
     - **BLOCKER:** Bug that will cause incorrect behavior, crash, or security vulnerability

@@ -98,6 +98,39 @@ leave later identifiers alone.
 
 ---
 
+### Feature implemented but not wired to any user entry point
+
+**Symptom.** Feature code exists, unit tests pass, but no user action
+(CLI command, web page, config option, API call) reaches the code.
+The feature is invisible in production.
+
+**Cause.** Implementation phases are ordered feature-first: storage,
+parsing, logic, then "wire it up" as the last phase. By that point
+the session is context-starved and rationalizes that wiring is
+someone else's job. The wiring check fires only at review/completion
+time, when the architecture may not easily accommodate it.
+
+**Evidence.** This is the project's most recurring defect class.
+488 -> 498 (looking-glass decorator wiring), plus numerous instances
+flagged by the user across sessions.
+
+**Avoid it by.**
+1. Spec design: fill the Wiring Test table with concrete entry points
+   before implementation starts.
+2. `/ze-implement` step 4: create entry point skeleton + failing
+   wiring test BEFORE any feature code. Phase 1 in the spec template
+   is always wiring.
+3. `/ze-review` step 1: wiring check runs first, blocks the rest of
+   the review if any symbol is unreachable.
+4. `before-writing-code.md` item 5: name the entry point and file:line
+   before writing any feature code.
+
+**Recover if you hit it.** Identify every unwired symbol via
+`grep -rn 'Symbol' internal/ cmd/ --include="*.go" | grep -v _test.go`.
+Wire each one to its entry point before claiming done.
+
+---
+
 ## Correctness traps
 
 ### Silent fall-through in parser or dispatch

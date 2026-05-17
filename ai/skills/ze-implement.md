@@ -11,12 +11,13 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 | 1. Read spec | Entire spec |
 | 2. Update status | Spec metadata |
 | 3. Audit | Files to Modify, Files to Create, TDD Test Plan |
-| 4. Implement | Implementation Phases, TDD Test Plan, Acceptance Criteria |
-| 5. Verify | (make targets) |
-| 6. Critical review | **Critical Review Checklist** (feature-specific checks) |
-| 10. Deliverables review | **Deliverables Checklist** (verification methods per deliverable) |
-| 11. Security review | **Security Review Checklist** (feature-specific concerns) |
-| 13. Documentation review | **Documentation Update Checklist** (per-category doc updates) |
+| 4. Wiring phase | **Wiring Test** table (entry points, registration, skeleton) |
+| 5. Implement | Implementation Phases, TDD Test Plan, Acceptance Criteria |
+| 6. Verify | (make targets) |
+| 7. Critical review | **Critical Review Checklist** (feature-specific checks) |
+| 11. Deliverables review | **Deliverables Checklist** (verification methods per deliverable) |
+| 12. Security review | **Security Review Checklist** (feature-specific concerns) |
+| 14. Documentation review | **Documentation Update Checklist** (per-category doc updates) |
 
 ## Steps
 
@@ -28,26 +29,34 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
    **Why this is BLOCKING:** other sessions check spec status to avoid collisions. A spec that
    stays in `design` or `ready` during implementation lies about its state.
 3. **Audit first:** Run `/ze-audit` logic. Check Files to Modify, Files to Create, and TDD Test Plan against the codebase. Identify what's already implemented, partially done, or missing. Do not redo existing work.
-4. **Implement:** Follow the spec's **Implementation Phases** section in order. For each phase:
-   - Write the tests listed for that phase (TDD -- test must fail before implementation)
+4. **Wiring phase (MANDATORY FIRST — before any feature code):**
+   Read the spec's **Wiring Test** table. For each row:
+   - Identify the entry point (CLI command, web route, config leaf, plugin event, RPC handler).
+   - If the entry point does not exist yet: implement the registration/skeleton now (handler that returns "not implemented" or equivalent). This is Phase 1 regardless of what the spec's Implementation Phases say.
+   - If the entry point exists: verify it with `grep` or LSP and record file:line.
+   - Write the wiring test (the `.ci` or `_test.go` that exercises entry-point-to-feature-code). It should fail because the feature logic is a stub.
+   Gate: every Wiring Test row has a registered entry point and a failing test before proceeding.
+5. **Implement feature phases:** Follow the spec's **Implementation Phases** section in order, filling in the stubs created in step 4. For each phase:
+   - Write the tests listed for that phase (TDD — test must fail before implementation)
    - Implement minimal code to pass
    - Run `make ze-unit-test` until green
+   - Confirm the wiring test from step 4 now passes (or progresses) after each phase
    - Move to next phase
-5. **Run full verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
-6. **Critical review:** Use the spec's **Critical Review Checklist** table. For each row:
+6. **Run full verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
+7. **Critical review:** Use the spec's **Critical Review Checklist** table. For each row:
    - Verify the "What to verify" column against the actual implementation
    - Document pass/fail for each check
    - Also apply generic checks from `ai/rules/quality.md` (Correctness, Simplicity, Consistency, Completeness, Quality, Tests)
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
-7. **Fix every issue found** in the review
-8. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
-9. **Repeat steps 6-8** until the review finds zero issues and all tests pass. No cap on review passes -- each fix is new code that needs a fresh review. Stop only when a pass finds nothing.
-10. **Deliverables review:** Use the spec's **Deliverables Checklist** table. For each row:
+8. **Fix every issue found** in the review
+9. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
+10. **Repeat steps 7-9** until the review finds zero issues and all tests pass. No cap on review passes -- each fix is new code that needs a fresh review. Stop only when a pass finds nothing.
+11. **Deliverables review:** Use the spec's **Deliverables Checklist** table. For each row:
     - Run the verification method specified in the table
     - Paste evidence (grep output, test output, ls output)
     - If anything is missing or incomplete, go back to step 4 and implement it
     - Also re-read Acceptance Criteria -- verify each AC-N with file:line evidence
-11. **Security review:** Use the spec's **Security Review Checklist** table as the starting point. For each row:
+12. **Security review:** Use the spec's **Security Review Checklist** table as the starting point. For each row:
     - Check the specific concern described
     - Also apply generic security checks:
       - Injection flaws (command injection, SQL injection, format string)
@@ -61,14 +70,14 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
       - Information leakage (error messages exposing internals, sensitive data in logs)
       - Any OWASP Top 10 relevant to the code's context
     - Fix every issue found. If a fix requires design changes, present to user before proceeding.
-12. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
-13. **Documentation review (BLOCKING):** Use the spec's **Documentation Update Checklist** table. For each row:
+13. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
+14. **Documentation review (BLOCKING):** Use the spec's **Documentation Update Checklist** table. For each row:
     - Answer Yes or No. Every Yes MUST name the file and describe the update needed.
     - Do NOT say "update the docs." Name the specific file, the specific section, and what to add.
     - Categories: feature list, user guide, config syntax, CLI reference, API/RPC docs, plugin SDK, wire format, RFC compliance, comparison table, test infrastructure, architecture design.
     - If the spec has no Documentation Update Checklist, use `ai/rules/planning.md` "Documentation Update Checklist" as the reference and fill it for the spec.
     - Write the doc updates. Include them in the commit.
-14. **Present summary:** List all changes made (files modified/created, tests added, docs updated, issues found and fixed). Ask user to commit.
+15. **Present summary:** List all changes made (files modified/created, tests added, docs updated, issues found and fixed). Ask user to commit.
 
 ## Rules
 
