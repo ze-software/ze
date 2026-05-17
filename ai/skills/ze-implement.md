@@ -18,6 +18,7 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 | 11. Deliverables review | **Deliverables Checklist** (verification methods per deliverable) |
 | 12. Security review | **Security Review Checklist** (feature-specific concerns) |
 | 14. Documentation review | **Documentation Update Checklist** (per-category doc updates) |
+| 16. Close spec | Entire spec (extraction recipe), `plan/learned/METHODOLOGY.md` |
 
 ## Steps
 
@@ -78,6 +79,19 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
     - If the spec has no Documentation Update Checklist, use `ai/rules/planning.md` "Documentation Update Checklist" as the reference and fill it for the spec.
     - Write the doc updates. Include them in the commit.
 15. **Present summary:** List all changes made (files modified/created, tests added, docs updated, issues found and fixed). Ask user to commit.
+16. **Close spec (BLOCKING -- after the user commits the implementation):**
+    This step runs after the user has executed the commit script from step 15.
+    Do NOT wait for the user to ask. Do NOT skip. Do NOT say "I'll do it later."
+    a. Write the learned summary to `plan/learned/NNN-<spec-stem>.md` following `plan/learned/METHODOLOGY.md`.
+       Number NNN = next unused number (check `ls plan/learned/`). Use the extraction recipe: Context from Task + Current Behavior, Decisions from Key Design Decisions + annotations, Consequences from Design Insights + Limitations, Gotchas from Deviations + Mistake Log.
+    b. Update `ai/LEARNED-INDEX.md` if the summary contains a structural decision (not just task completion).
+    c. Prepare a second commit script (`tmp/commit-SESSION-close.sh`) that:
+       - `git add plan/learned/NNN-<spec-stem>.md`
+       - `git add ai/LEARNED-INDEX.md` (if updated)
+       - `git rm plan/<spec-name>`
+       - Commit message: `chore(<area>): close <spec-stem>, write learned summary`
+    d. Remove your line from `tmp/session/selected-spec`.
+    e. Present the commit script to the user.
 
 ## Rules
 
