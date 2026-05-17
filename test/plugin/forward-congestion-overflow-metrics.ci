@@ -46,7 +46,7 @@ def main():
     api.ready()
 
     # Wait for BGP session to establish
-    time.sleep(1.0)
+    api.wait_for_post_startup(timeout=5.0)
 
     # Test: metrics values should contain overflow metric names
     r = dispatch(api, 'metrics values')

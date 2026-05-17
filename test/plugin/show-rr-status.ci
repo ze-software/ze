@@ -31,7 +31,8 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
-    time.sleep(1.0)
+    api.wait_for_post_startup(timeout=5.0)
+    time.sleep(0.5)
 
     result = dispatch(api, 'show rr status')
     status = result.get('status')
@@ -47,19 +48,25 @@ def main():
 
     print('PASS: show rr status returned running=true', flush=True)
 
+    # Drain any pending callbacks (e.g. post-startup) queued during the
+    # first dispatch, so the second dispatch-command RPC does not race
+    # with an unacknowledged callback on the TLS mux.
+    api.read_line(timeout=0.1)
+
     result = dispatch(api, 'show rr peers')
     status = result.get('status')
     if status != 'done':
         print(f'FAIL: show rr peers status={status} data={result.get("data")}', flush=True)
         sys.exit(1)
 
-    data = result.get('data', '[]')
+    data = result.get('data', '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
-    if not isinstance(parsed, list):
+    peers = parsed.get('peers', []) if isinstance(parsed, dict) else parsed
+    if not isinstance(peers, list):
         print(f'FAIL: expected peer list, got: {data}', flush=True)
         sys.exit(1)
 
-    print(f'PASS: show rr peers returned {len(parsed)} peer(s)', flush=True)
+    print(f'PASS: show rr peers returned {len(peers)} peer(s)', flush=True)
 
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()

@@ -70,7 +70,7 @@ def main():
     api.ready()
 
     # Wait for rib plugin
-    time.sleep(1.0)
+    api.wait_for_post_startup(timeout=5.0)
     for _ in range(20):
         r = dispatch(api, 'bgp rib status')
         if r.get('status') == 'done':

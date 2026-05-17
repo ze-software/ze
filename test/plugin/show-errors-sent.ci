@@ -50,7 +50,7 @@ def main():
     api.wait_for_registry()
     api.ready()
     # Wait for the BGP session to reach Established before tearing it down.
-    time.sleep(1.0)
+    api.wait_for_post_startup(timeout=5.0)
 
     try:
         # Send teardown 4 (Administrative Reset) -> ze sends NOTIFICATION code=6 subcode=4.

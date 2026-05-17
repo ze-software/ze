@@ -69,7 +69,7 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    time.sleep(1.0)
+    api.wait_for_post_startup(timeout=5.0)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(('127.0.0.1', $PORT2))

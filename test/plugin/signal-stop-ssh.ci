@@ -36,7 +36,7 @@ def main():
     api.ready()
 
     # Wait for BGP session
-    time.sleep(1.0)
+    api.wait_for_post_startup(timeout=5.0)
 
     # Send shutdown command
     resp = api._call_engine(

@@ -56,7 +56,7 @@ def main():
     api.ready()
 
     # Wait for BGP session to establish
-    time.sleep(1.0)
+    api.wait_for_post_startup(timeout=5.0)
 
     # Get initial levels to find a subsystem to modify
     r = dispatch(api, 'log levels')

@@ -68,7 +68,7 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
-    time.sleep(1.0)
+    api.wait_for_post_startup(timeout=5.0)
 
     initial_port = read_listener_port(api, 'before')
     if not isinstance(initial_port, int) or initial_port == 0:

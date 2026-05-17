@@ -129,7 +129,7 @@ def main():
     # Wait for BGP session to establish, routes to arrive, and RIB to process.
     # Poll rib status until the forked rib plugin has completed startup and
     # registered its commands (ForwardToPlugin fails if commands aren't registered).
-    time.sleep(1.0)
+    api.wait_for_post_startup(timeout=5.0)
     for _ in range(20):
         r = dispatch(api, 'bgp rib status')
         if r.get('status') == 'done':

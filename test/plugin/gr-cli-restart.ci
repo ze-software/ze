@@ -45,7 +45,7 @@ def main():
     api.ready()
 
     # Wait for BGP session to establish
-    time.sleep(1.0)
+    api.wait_for_post_startup(timeout=5.0)
 
     # Verify daemon lifecycle dispatch works (same mechanism restart uses)
     resp = api._call_engine(

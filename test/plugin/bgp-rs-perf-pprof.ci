@@ -35,7 +35,7 @@ def main():
 
     # Give the pprof HTTP server a moment to start (goroutine spawned in
     # cmd/ze/pprof.go:startPprof).
-    time.sleep(1.0)
+    api.wait_for_post_startup(timeout=5.0)
 
     url = "http://127.0.0.1:$PORT2/debug/pprof/"
     try:

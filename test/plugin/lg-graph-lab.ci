@@ -65,7 +65,7 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
-    time.sleep(1.0)
+    api.wait_for_post_startup(timeout=5.0)
 
     # --- Prefix 10.10.1.0/24: dual transit (NTT at th-1, Cogent at man-1) ---
     p1 = '10.10.1.0/24'
