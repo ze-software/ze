@@ -73,6 +73,12 @@ func init() {
 func ParseAttributes(raw []byte) (RouteEntry, error) {
 	bundle := NewBundle()
 	aspathHandle := attrpool.InvalidHandle
+	cleanup := func() {
+		bundle.releaseInnerHandles()
+		if aspathHandle.IsValid() {
+			_ = pool.ASPath.Release(aspathHandle)
+		}
+	}
 
 	if len(raw) == 0 {
 		h := Bundles.Intern(bundle)
@@ -80,31 +86,29 @@ func ParseAttributes(raw []byte) (RouteEntry, error) {
 	}
 
 	var otherAttrs []byte
+	var seen [256]bool
 
 	iter := attribute.NewAttrIterator(raw)
 	for typeCode, flags, value, ok := iter.Next(); ok; typeCode, flags, value, ok = iter.Next() {
+		if seen[typeCode] {
+			cleanup()
+			return RouteEntry{}, fmt.Errorf("duplicate attribute %s", typeCode)
+		}
+		seen[typeCode] = true
+
 		if typeCode == attribute.AttrASPath {
-			if aspathHandle.IsValid() {
-				_ = pool.ASPath.Release(aspathHandle)
-			}
 			h, err := pool.ASPath.Intern(value)
 			if err != nil {
-				bundle.releaseInnerHandles()
+				cleanup()
 				return RouteEntry{}, fmt.Errorf("intern %s: %w", "as-path", err)
 			}
 			aspathHandle = h
 			continue
 		}
 		if h := bundleInterners[typeCode]; h != nil {
-			if cur := h.get(&bundle); cur.IsValid() {
-				_ = h.pool.Release(cur)
-			}
 			handle, err := h.pool.Intern(value)
 			if err != nil {
-				bundle.releaseInnerHandles()
-				if aspathHandle.IsValid() {
-					_ = pool.ASPath.Release(aspathHandle)
-				}
+				cleanup()
 				return RouteEntry{}, fmt.Errorf("intern %s: %w", h.name, err)
 			}
 			h.set(&bundle, handle)
@@ -112,14 +116,15 @@ func ParseAttributes(raw []byte) (RouteEntry, error) {
 			otherAttrs = appendOtherAttr(otherAttrs, flags, typeCode, value)
 		}
 	}
+	if iter.Remaining() != 0 {
+		cleanup()
+		return RouteEntry{}, fmt.Errorf("malformed attribute list at offset %d", iter.Offset())
+	}
 
 	if len(otherAttrs) > 0 {
 		h, err := pool.OtherAttrs.Intern(otherAttrs)
 		if err != nil {
-			bundle.releaseInnerHandles()
-			if aspathHandle.IsValid() {
-				_ = pool.ASPath.Release(aspathHandle)
-			}
+			cleanup()
 			return RouteEntry{}, fmt.Errorf("intern %s: %w", "other-attrs", err)
 		}
 		bundle.OtherAttrs = h

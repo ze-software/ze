@@ -148,6 +148,24 @@ func TestFamilyRIB_Insert(t *testing.T) {
 	assert.True(t, entry.GetBundle().HasNextHop())
 }
 
+// TestFamilyRIB_InsertRejectsMalformedAttributes verifies malformed attributes are not installed.
+//
+// VALIDATES: Insert drops updates whose path attribute list cannot be parsed completely.
+// PREVENTS: Remote malformed UPDATE bytes from creating routes with missing attributes.
+func TestFamilyRIB_InsertRejectsMalformedAttributes(t *testing.T) {
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	defer rib.Release()
+
+	attrs := []byte{0x40, 0x01, 0x64, 0x00, 0x00} // ORIGIN length says 100, only 2 bytes present.
+	nlriBytes := []byte{24, 192, 168, 1}
+
+	rib.Insert(attrs, nlriBytes)
+
+	assert.Equal(t, 0, rib.Len())
+	_, ok := rib.LookupEntry(nlriBytes)
+	assert.False(t, ok)
+}
+
 // TestFamilyRIB_ImplicitWithdraw verifies implicit withdraw behavior.
 //
 // VALIDATES: Same NLRI with new attrs releases old entry.

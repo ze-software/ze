@@ -281,23 +281,18 @@ func TestParseAttributes_ExtendedLengthInOther(t *testing.T) {
 	assert.Equal(t, byte(0x00), data[3], "length low byte")
 }
 
-// TestParseAttributes_DuplicateAttribute verifies duplicate attrs don't leak handles.
+// TestParseAttributes_DuplicateAttribute verifies duplicate attrs are rejected.
 //
-// VALIDATES: Second occurrence of same attr releases first handle.
-// PREVENTS: Handle leak when malformed input has duplicate attributes.
+// VALIDATES: Duplicate path attributes return an error.
+// PREVENTS: Ambiguous RIB state from malformed UPDATE attributes.
 func TestParseAttributes_DuplicateAttribute(t *testing.T) {
-	// Two ORIGIN attributes (malformed but must handle gracefully).
+	// Two ORIGIN attributes are a malformed attribute list.
 	wireOriginEGP := []byte{0x40, 0x01, 0x01, 0x01}
 	raw := concat(wireOriginIGP, wireOriginEGP) // IGP then EGP
 
 	entry, err := ParseAttributes(raw)
-	require.NoError(t, err)
-	defer entry.Release()
-
-	// Should have the second value (EGP).
-	data, err := pool.Origin.Get(entry.GetBundle().Origin)
-	require.NoError(t, err)
-	assert.Equal(t, []byte{0x01}, data, "should have EGP (second occurrence)")
+	require.Error(t, err)
+	assert.Equal(t, RouteEntry{}, entry)
 }
 
 // TestParseAttributes_BoundaryOrigin verifies ORIGIN value boundary.
@@ -314,7 +309,7 @@ func TestParseAttributes_BoundaryOrigin(t *testing.T) {
 		{"EGP_1", 0x01},
 		{"INCOMPLETE_2", 0x02},
 		// Note: Values 3+ are invalid per RFC but we store them anyway.
-		// Validation is not the parser's job - it just stores.
+		// Semantic validation is not the storage parser's job.
 		{"invalid_3", 0x03},
 	}
 
@@ -425,13 +420,19 @@ func TestParseAttributes_BoundaryLengths(t *testing.T) {
 			name: "length_exceeds_data",
 			// Length says 100 but only 2 bytes of value.
 			attr:    []byte{0x40, 0x01, 0x64, 0x00, 0x00},
-			wantErr: false, // Iterator stops gracefully.
+			wantErr: true,
 		},
 		{
 			name: "truncated_extended_length",
 			// Extended length flag but missing second length byte.
 			attr:    []byte{0x50, 0x01, 0x00},
-			wantErr: false, // Iterator stops gracefully.
+			wantErr: true,
+		},
+		{
+			name: "truncated_second_attr",
+			// Valid first ORIGIN followed by a partial second attribute header.
+			attr:    []byte{0x40, 0x01, 0x01, 0x00, 0x40},
+			wantErr: true,
 		},
 	}
 
