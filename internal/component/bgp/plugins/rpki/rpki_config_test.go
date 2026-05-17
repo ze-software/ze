@@ -111,3 +111,19 @@ func TestParseRPKIConfigInvalidJSON(t *testing.T) {
 	_, err := parseRPKIConfig("not-json")
 	assert.Error(t, err)
 }
+
+func TestParseRPKIConfigASPAValidationDefault(t *testing.T) {
+	jsonStr := `{"rpki": {"cache-server": {"10.0.0.1": {}}}}`
+
+	cfg, err := parseRPKIConfig(jsonStr)
+	require.NoError(t, err)
+	assert.True(t, cfg.ASPAValidation)
+}
+
+func TestParseRPKIConfigASPAValidationDisabled(t *testing.T) {
+	jsonStr := `{"rpki": {"aspa-validation": "false", "cache-server": {"10.0.0.1": {}}}}`
+
+	cfg, err := parseRPKIConfig(jsonStr)
+	require.NoError(t, err)
+	assert.False(t, cfg.ASPAValidation)
+}

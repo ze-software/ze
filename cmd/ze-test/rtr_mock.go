@@ -21,7 +21,7 @@ import (
 	"strings"
 )
 
-// RTR PDU types (RFC 8210 Section 5).
+// RTR PDU types (RFC 8210 Section 5, RFC 9582 Section 5.12).
 const (
 	rtrMockPDUSerialQuery = 1
 	rtrMockPDUResetQuery  = 2
@@ -29,8 +29,9 @@ const (
 	rtrMockPDUIPv4Prefix  = 4
 	rtrMockPDUIPv6Prefix  = 6
 	rtrMockPDUEndOfData   = 7
+	rtrMockPDUASPA        = 11
 
-	rtrMockVersion1  = 1
+	rtrMockVersion2  = 2
 	rtrMockHeaderLen = 8
 )
 
@@ -43,7 +44,7 @@ type vrpFlag struct {
 
 type vrpList []vrpFlag
 
-func (v *vrpList) String() string { return fmt.Sprintf("%d VRPs", len(*v)) }
+func (v *vrpList) String() string { return strconv.Itoa(len(*v)) + " VRPs" }
 
 func (v *vrpList) Set(s string) error {
 	// Format: prefix,maxlen,asn (e.g. "10.0.0.0/8,24,65001")
@@ -75,18 +76,57 @@ func (v *vrpList) Set(s string) error {
 	return nil
 }
 
+// aspaFlag describes an ASPA record from command-line flags.
+type aspaFlag struct {
+	customerAS uint32
+	providers  []uint32
+}
+
+type aspaList []aspaFlag
+
+func (a *aspaList) String() string { return strconv.Itoa(len(*a)) + " ASPAs" }
+
+func (a *aspaList) Set(s string) error {
+	parts := strings.SplitN(s, ":", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("expected customer:provider1,provider2,... got %q", s)
+	}
+
+	customer, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return fmt.Errorf("invalid customer AS %q: %w", parts[0], err)
+	}
+
+	provStrs := strings.Split(parts[1], ",")
+	providers := make([]uint32, 0, len(provStrs))
+	for _, ps := range provStrs {
+		p, err := strconv.ParseUint(strings.TrimSpace(ps), 10, 32)
+		if err != nil {
+			return fmt.Errorf("invalid provider AS %q: %w", ps, err)
+		}
+		providers = append(providers, uint32(p)) //nolint:gosec // range checked
+	}
+
+	*a = append(*a, aspaFlag{
+		customerAS: uint32(customer), //nolint:gosec // range checked
+		providers:  providers,
+	})
+	return nil
+}
+
 var _ = register("rtr-mock", "Mock RTR cache server (explicit VRPs for RPKI testing)", rtrMockCmd)
 
 func rtrMockCmd() int {
 	var (
-		port   int
-		serial uint32
-		vrps   vrpList
+		port  int
+		vrps  vrpList
+		aspas aspaList
 	)
 
 	fs := flag.NewFlagSet("ze-test rtr-mock", flag.ExitOnError)
 	fs.IntVar(&port, "port", 0, "TCP listen port (0 = auto)")
 	fs.Var(&vrps, "vrp", "VRP entry: prefix,maxlen,asn (repeatable)")
+	fs.Var(&aspas, "aspa", "ASPA record: customer:provider1,provider2,... (repeatable)")
 	serialFlag := fs.Uint("serial", 1, "initial serial number")
 
 	fs.Usage = func() {
@@ -97,46 +137,44 @@ func rtrMockCmd() int {
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		return 1
 	}
-	serial = uint32(*serialFlag) //nolint:gosec // serial number fits uint32
+	serial := uint32(*serialFlag) //nolint:gosec // serial number fits uint32
 
 	lc := &net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	ln, err := lc.Listen(context.Background(), "tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: listen: %v\n", err)
 		return 1
 	}
 	defer func() { _ = ln.Close() }()
 
-	// Print the actual port for test infrastructure to discover.
 	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
-	fmt.Fprintf(os.Stderr, "ze-test rtr-mock: listening on port %s with %d VRPs\n", portStr, len(vrps))
+	fmt.Fprintf(os.Stderr, "ze-test rtr-mock: listening on port %s with %d VRPs, %d ASPAs\n", portStr, len(vrps), len(aspas))
 
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			return 0 // Listener closed
+			return 0
 		}
-		go rtrMockHandleConn(conn, vrps, serial)
+		go rtrMockHandleConn(conn, vrps, aspas, serial)
 	}
 }
 
-func rtrMockHandleConn(conn net.Conn, vrps vrpList, serial uint32) {
+func rtrMockHandleConn(conn net.Conn, vrps vrpList, aspas aspaList, serial uint32) {
 	defer func() { _ = conn.Close() }()
 
 	header := make([]byte, rtrMockHeaderLen)
 	for {
 		if _, err := io.ReadFull(conn, header); err != nil {
-			return // Connection closed
+			return
 		}
 
+		clientVersion := header[0]
 		pduType := header[1]
 		pduLen := binary.BigEndian.Uint32(header[4:8])
 
-		// Read remaining bytes if any.
-		// Cap to prevent unbounded allocation from malformed PDU length.
 		remaining := int(pduLen) - rtrMockHeaderLen
 		if remaining > 4096 {
-			return // Malformed PDU, close connection.
+			return
 		}
 		if remaining > 0 {
 			discard := make([]byte, remaining)
@@ -147,21 +185,20 @@ func rtrMockHandleConn(conn net.Conn, vrps vrpList, serial uint32) {
 
 		switch pduType {
 		case rtrMockPDUResetQuery, rtrMockPDUSerialQuery:
-			if err := rtrMockSendResponse(conn, vrps, serial); err != nil {
+			if err := rtrMockSendResponse(conn, vrps, aspas, serial, clientVersion); err != nil {
 				return
 			}
 		default:
-			// Ignore unknown PDUs
 		}
 	}
 }
 
-func rtrMockSendResponse(conn net.Conn, vrps vrpList, serial uint32) error {
+func rtrMockSendResponse(conn net.Conn, vrps vrpList, aspas aspaList, serial uint32, version uint8) error {
 	sessionID := uint16(1)
 
 	// Cache Response PDU
 	cr := make([]byte, rtrMockHeaderLen)
-	cr[0] = rtrMockVersion1
+	cr[0] = version
 	cr[1] = rtrMockPDUCacheResp
 	binary.BigEndian.PutUint16(cr[2:4], sessionID)
 	binary.BigEndian.PutUint32(cr[4:8], rtrMockHeaderLen)
@@ -169,23 +206,32 @@ func rtrMockSendResponse(conn net.Conn, vrps vrpList, serial uint32) error {
 		return err
 	}
 
-	// Send each VRP as IPv4 or IPv6 Prefix PDU
+	// Send each VRP as IPv4 or IPv6 Prefix PDU.
 	for _, vrp := range vrps {
-		if err := rtrMockSendPrefixPDU(conn, vrp); err != nil {
+		if err := rtrMockSendPrefixPDU(conn, vrp, version); err != nil {
 			return err
 		}
 	}
 
-	// End of Data PDU (version 1: 24 bytes)
+	// Send ASPA PDUs (v2 only, RFC 9582).
+	if version >= rtrMockVersion2 {
+		for _, aspa := range aspas {
+			if err := rtrMockSendASPAPDU(conn, aspa); err != nil {
+				return err
+			}
+		}
+	}
+
+	// End of Data PDU (24 bytes).
 	eod := make([]byte, 24)
-	eod[0] = rtrMockVersion1
+	eod[0] = version
 	eod[1] = rtrMockPDUEndOfData
 	binary.BigEndian.PutUint16(eod[2:4], sessionID)
 	binary.BigEndian.PutUint32(eod[4:8], 24)
 	binary.BigEndian.PutUint32(eod[8:12], serial)
-	binary.BigEndian.PutUint32(eod[12:16], 3600) // refresh interval
-	binary.BigEndian.PutUint32(eod[16:20], 600)  // retry interval
-	binary.BigEndian.PutUint32(eod[20:24], 7200) // expire interval
+	binary.BigEndian.PutUint32(eod[12:16], 3600)
+	binary.BigEndian.PutUint32(eod[16:20], 600)
+	binary.BigEndian.PutUint32(eod[20:24], 7200)
 	if _, err := conn.Write(eod); err != nil {
 		return err
 	}
@@ -193,38 +239,51 @@ func rtrMockSendResponse(conn net.Conn, vrps vrpList, serial uint32) error {
 	return nil
 }
 
-func rtrMockSendPrefixPDU(conn net.Conn, vrp vrpFlag) error {
+func rtrMockSendPrefixPDU(conn net.Conn, vrp vrpFlag, version uint8) error {
 	ip4 := vrp.prefix.IP.To4()
 	if ip4 != nil {
-		// IPv4 Prefix PDU: 20 bytes
 		pdu := make([]byte, 20)
-		pdu[0] = rtrMockVersion1
+		pdu[0] = version
 		pdu[1] = rtrMockPDUIPv4Prefix
-		// bytes 2-3: zero (reserved)
-		binary.BigEndian.PutUint32(pdu[4:8], 20) // length
-		pdu[8] = 1                               // flags: announce
+		binary.BigEndian.PutUint32(pdu[4:8], 20)
+		pdu[8] = 1 // flags: announce
 		prefixLen, _ := vrp.prefix.Mask.Size()
 		pdu[9] = byte(prefixLen) //nolint:gosec // prefixLen 0-32
 		pdu[10] = vrp.maxLength
-		// pdu[11] = 0 // zero
 		copy(pdu[12:16], ip4)
 		binary.BigEndian.PutUint32(pdu[16:20], vrp.asn)
 		_, err := conn.Write(pdu)
 		return err
 	}
 
-	// IPv6 Prefix PDU: 32 bytes
 	ip6 := vrp.prefix.IP.To16()
 	pdu := make([]byte, 32)
-	pdu[0] = rtrMockVersion1
+	pdu[0] = version
 	pdu[1] = rtrMockPDUIPv6Prefix
-	binary.BigEndian.PutUint32(pdu[4:8], 32) // length
-	pdu[8] = 1                               // flags: announce
+	binary.BigEndian.PutUint32(pdu[4:8], 32)
+	pdu[8] = 1 // flags: announce
 	prefixLen, _ := vrp.prefix.Mask.Size()
 	pdu[9] = byte(prefixLen) //nolint:gosec // prefixLen 0-128
 	pdu[10] = vrp.maxLength
 	copy(pdu[12:28], ip6)
 	binary.BigEndian.PutUint32(pdu[28:32], vrp.asn)
+	_, err := conn.Write(pdu)
+	return err
+}
+
+// rtrMockSendASPAPDU sends an ASPA PDU (type 11, RFC 9582 Section 5.12).
+func rtrMockSendASPAPDU(conn net.Conn, aspa aspaFlag) error {
+	pduLen := 16 + 4*len(aspa.providers)
+	pdu := make([]byte, pduLen)
+	pdu[0] = rtrMockVersion2
+	pdu[1] = rtrMockPDUASPA
+	binary.BigEndian.PutUint32(pdu[4:8], uint32(pduLen)) //nolint:gosec // bounded by provider count
+	pdu[8] = 1                                           // flags: announce
+	pdu[9] = 0                                           // AFI: both
+	binary.BigEndian.PutUint32(pdu[12:16], aspa.customerAS)
+	for i, p := range aspa.providers {
+		binary.BigEndian.PutUint32(pdu[16+i*4:16+i*4+4], p)
+	}
 	_, err := conn.Write(pdu)
 	return err
 }

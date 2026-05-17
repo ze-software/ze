@@ -24,6 +24,8 @@ type ROACache struct {
 	// ipv6 stores VRPs indexed by prefix string.
 	ipv6 map[string][]vrpEntry
 
+	total int // running count, avoids O(N) totalLocked() per add
+
 	mu sync.RWMutex
 }
 
@@ -51,41 +53,30 @@ func (c *ROACache) Add(vrp VRP) {
 	entry := vrpEntry{MaxLength: vrp.MaxLength, ASN: vrp.ASN}
 
 	if vrp.Prefix.IP.To4() != nil {
-		// Check for duplicates.
 		for _, e := range c.ipv4[key] {
 			if e.ASN == entry.ASN && e.MaxLength == entry.MaxLength {
 				return
 			}
 		}
-		if c.totalLocked() >= maxVRPs {
+		if c.total >= maxVRPs {
 			logger().Warn("roa: cache full, dropping VRP", "prefix", key)
 			return
 		}
 		c.ipv4[key] = append(c.ipv4[key], entry)
+		c.total++
 	} else {
 		for _, e := range c.ipv6[key] {
 			if e.ASN == entry.ASN && e.MaxLength == entry.MaxLength {
 				return
 			}
 		}
-		if c.totalLocked() >= maxVRPs {
+		if c.total >= maxVRPs {
 			logger().Warn("roa: cache full, dropping VRP", "prefix", key)
 			return
 		}
 		c.ipv6[key] = append(c.ipv6[key], entry)
+		c.total++
 	}
-}
-
-// totalLocked returns total VRP count. Caller must hold at least read lock.
-func (c *ROACache) totalLocked() int {
-	total := 0
-	for _, entries := range c.ipv4 {
-		total += len(entries)
-	}
-	for _, entries := range c.ipv6 {
-		total += len(entries)
-	}
-	return total
 }
 
 // Remove deletes a VRP from the cache.
@@ -100,12 +91,16 @@ func (c *ROACache) Remove(vrp VRP) {
 	entry := vrpEntry{MaxLength: vrp.MaxLength, ASN: vrp.ASN}
 
 	if vrp.Prefix.IP.To4() != nil {
+		before := len(c.ipv4[key])
 		c.ipv4[key] = removeEntry(c.ipv4[key], entry)
+		c.total -= before - len(c.ipv4[key])
 		if len(c.ipv4[key]) == 0 {
 			delete(c.ipv4, key)
 		}
 	} else {
+		before := len(c.ipv6[key])
 		c.ipv6[key] = removeEntry(c.ipv6[key], entry)
+		c.total -= before - len(c.ipv6[key])
 		if len(c.ipv6[key]) == 0 {
 			delete(c.ipv6, key)
 		}
@@ -169,11 +164,7 @@ func (c *ROACache) Count() (int, int) {
 	for _, entries := range c.ipv4 {
 		v4 += len(entries)
 	}
-	v6 := 0
-	for _, entries := range c.ipv6 {
-		v6 += len(entries)
-	}
-	return v4, v6
+	return v4, c.total - v4
 }
 
 // ApplyDelta atomically removes and adds VRPs in a single lock acquisition.
@@ -204,20 +195,22 @@ func (c *ROACache) addLocked(vrp VRP) {
 				return
 			}
 		}
-		if c.totalLocked() >= maxVRPs {
+		if c.total >= maxVRPs {
 			return
 		}
 		c.ipv4[key] = append(c.ipv4[key], entry)
+		c.total++
 	} else {
 		for _, e := range c.ipv6[key] {
 			if e.ASN == entry.ASN && e.MaxLength == entry.MaxLength {
 				return
 			}
 		}
-		if c.totalLocked() >= maxVRPs {
+		if c.total >= maxVRPs {
 			return
 		}
 		c.ipv6[key] = append(c.ipv6[key], entry)
+		c.total++
 	}
 }
 
@@ -230,12 +223,16 @@ func (c *ROACache) removeLocked(vrp VRP) {
 	entry := vrpEntry{MaxLength: vrp.MaxLength, ASN: vrp.ASN}
 
 	if vrp.Prefix.IP.To4() != nil {
+		before := len(c.ipv4[key])
 		c.ipv4[key] = removeEntry(c.ipv4[key], entry)
+		c.total -= before - len(c.ipv4[key])
 		if len(c.ipv4[key]) == 0 {
 			delete(c.ipv4, key)
 		}
 	} else {
+		before := len(c.ipv6[key])
 		c.ipv6[key] = removeEntry(c.ipv6[key], entry)
+		c.total -= before - len(c.ipv6[key])
 		if len(c.ipv6[key]) == 0 {
 			delete(c.ipv6, key)
 		}
@@ -248,4 +245,5 @@ func (c *ROACache) Clear() {
 	defer c.mu.Unlock()
 	c.ipv4 = make(map[string][]vrpEntry)
 	c.ipv6 = make(map[string][]vrpEntry)
+	c.total = 0
 }

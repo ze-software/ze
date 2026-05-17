@@ -59,17 +59,26 @@ type rpkiEventMessage struct {
 // buildRPKIEvent builds a JSON rpki event string for the given validation results.
 // Per-prefix states are grouped under the family key. If results is nil or empty,
 // the rpki section is an empty object (withdrawal).
-func buildRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, family string, results map[string]uint8) string {
+// When aspaState != aspaStateNone, an "aspa-state" field is included.
+func buildRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, family string, results map[string]uint8, aspaState uint8) string {
 	// Build per-prefix state strings.
 	var rpkiSection any
 	if len(results) == 0 {
-		rpkiSection = map[string]any{}
+		section := map[string]any{}
+		if aspaState != aspaStateNone {
+			section["aspa-state"] = aspaStateString(aspaState)
+		}
+		rpkiSection = section
 	} else {
 		prefixStates := make(map[string]string, len(results))
 		for prefix, state := range results {
 			prefixStates[prefix] = validationStateString(state)
 		}
-		rpkiSection = map[string]any{family: prefixStates}
+		section := map[string]any{family: prefixStates}
+		if aspaState != aspaStateNone {
+			section["aspa-state"] = aspaStateString(aspaState)
+		}
+		rpkiSection = section
 	}
 
 	evt := rpkiEventJSON{

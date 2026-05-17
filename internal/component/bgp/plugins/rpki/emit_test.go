@@ -14,7 +14,7 @@ func TestBuildRPKIEvent(t *testing.T) {
 		"192.168.0.0/16": ValidationNotFound,
 	}
 
-	event := buildRPKIEvent("10.0.0.1", "upstream1", uint32(65001), uint64(42), "ipv4/unicast", results)
+	event := buildRPKIEvent("10.0.0.1", "upstream1", uint32(65001), uint64(42), "ipv4/unicast", results, aspaStateNone)
 
 	var parsed map[string]any
 	if err := json.Unmarshal([]byte(event), &parsed); err != nil {
@@ -80,7 +80,7 @@ func TestBuildRPKIEventSinglePrefix(t *testing.T) {
 		"10.0.1.0/24": ValidationValid,
 	}
 
-	event := buildRPKIEvent("10.0.0.1", "upstream1", uint32(65001), uint64(1), "ipv4/unicast", results)
+	event := buildRPKIEvent("10.0.0.1", "upstream1", uint32(65001), uint64(1), "ipv4/unicast", results, aspaStateNone)
 
 	var parsed map[string]any
 	if err := json.Unmarshal([]byte(event), &parsed); err != nil {
@@ -138,7 +138,7 @@ func TestBuildRPKIEventUnavailable(t *testing.T) {
 }
 
 func TestBuildRPKIEventWithdrawal(t *testing.T) {
-	event := buildRPKIEvent("10.0.0.1", "upstream1", uint32(65001), uint64(3), "ipv4/unicast", nil)
+	event := buildRPKIEvent("10.0.0.1", "upstream1", uint32(65001), uint64(3), "ipv4/unicast", nil, aspaStateNone)
 
 	var parsed map[string]any
 	if err := json.Unmarshal([]byte(event), &parsed); err != nil {
@@ -166,7 +166,7 @@ func TestBuildRPKIEventEscaping(t *testing.T) {
 		`10.0.0.0/24"inject`: ValidationValid,
 	}
 
-	event := buildRPKIEvent(`peer"addr`, "test-peer", uint32(65001), uint64(1), `ipv4/"unicast`, results)
+	event := buildRPKIEvent(`peer"addr`, "test-peer", uint32(65001), uint64(1), `ipv4/"unicast`, results, aspaStateNone)
 
 	var parsed map[string]any
 	if err := json.Unmarshal([]byte(event), &parsed); err != nil {
@@ -183,6 +183,70 @@ func TestBuildRPKIEventEscaping(t *testing.T) {
 	}
 	if peerMap["address"] != `peer"addr` {
 		t.Fatalf("peer address not preserved through escaping: %v", peerMap["address"])
+	}
+}
+
+func TestBuildRPKIEventWithASPAState(t *testing.T) {
+	results := map[string]uint8{
+		"10.0.1.0/24": ValidationValid,
+	}
+
+	event := buildRPKIEvent("10.0.0.1", "peer1", uint32(64500), uint64(5), "ipv4/unicast", results, ASPAValid)
+
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(event), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	bgpMap, ok := parsed["bgp"].(map[string]any)
+	if !ok {
+		t.Fatal("missing bgp key")
+	}
+	rpkiMap, ok := bgpMap["rpki"].(map[string]any)
+	if !ok {
+		t.Fatal("missing rpki key")
+	}
+
+	aspaState, ok := rpkiMap["aspa-state"].(string)
+	if !ok {
+		t.Fatal("missing aspa-state key in rpki section")
+	}
+	if aspaState != "valid" {
+		t.Fatalf("expected aspa-state=valid, got %v", aspaState)
+	}
+
+	familyMap, ok := rpkiMap["ipv4/unicast"].(map[string]any)
+	if !ok {
+		t.Fatal("missing ipv4/unicast key in rpki")
+	}
+	if familyMap["10.0.1.0/24"] != stateStringValid {
+		t.Fatalf("expected valid for 10.0.1.0/24, got %v", familyMap["10.0.1.0/24"])
+	}
+}
+
+func TestBuildRPKIEventASPAStateNone(t *testing.T) {
+	results := map[string]uint8{
+		"10.0.1.0/24": ValidationValid,
+	}
+
+	event := buildRPKIEvent("10.0.0.1", "peer1", uint32(64500), uint64(5), "ipv4/unicast", results, aspaStateNone)
+
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(event), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	bgpMap, ok := parsed["bgp"].(map[string]any)
+	if !ok {
+		t.Fatal("missing bgp key")
+	}
+	rpkiMap, ok := bgpMap["rpki"].(map[string]any)
+	if !ok {
+		t.Fatal("missing rpki key")
+	}
+
+	if _, ok := rpkiMap["aspa-state"]; ok {
+		t.Fatal("aspa-state should not appear when aspaStateNone")
 	}
 }
 

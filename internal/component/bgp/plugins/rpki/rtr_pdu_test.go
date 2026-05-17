@@ -14,9 +14,9 @@ import (
 // PREVENTS: Malformed Reset Query causing cache rejection.
 func TestWriteResetQuery(t *testing.T) {
 	buf := make([]byte, 16)
-	n := writeResetQuery(buf, 0)
+	n := writeResetQuery(buf, 0, rtrVersionMax)
 	assert.Equal(t, 8, n)
-	assert.Equal(t, rtrVersion, buf[0])
+	assert.Equal(t, rtrVersionMax, buf[0])
 	assert.Equal(t, pduResetQuery, buf[1])
 	assert.Equal(t, uint16(0), binary.BigEndian.Uint16(buf[2:4]))
 	assert.Equal(t, uint32(8), binary.BigEndian.Uint32(buf[4:8]))
@@ -28,9 +28,9 @@ func TestWriteResetQuery(t *testing.T) {
 // PREVENTS: Wrong session/serial causing cache to reset instead of incremental.
 func TestWriteSerialQuery(t *testing.T) {
 	buf := make([]byte, 16)
-	n := writeSerialQuery(buf, 0, 0x1234, 0xABCD0001)
+	n := writeSerialQuery(buf, 0, rtrVersionMax, 0x1234, 0xABCD0001)
 	assert.Equal(t, 12, n)
-	assert.Equal(t, rtrVersion, buf[0])
+	assert.Equal(t, rtrVersionMax, buf[0])
 	assert.Equal(t, pduSerialQuery, buf[1])
 	assert.Equal(t, uint16(0x1234), binary.BigEndian.Uint16(buf[2:4]))
 	assert.Equal(t, uint32(12), binary.BigEndian.Uint32(buf[4:8]))
@@ -44,7 +44,7 @@ func TestWriteSerialQuery(t *testing.T) {
 func TestParseIPv4Prefix(t *testing.T) {
 	// Build a valid IPv4 Prefix PDU: 10.0.0.0/8, maxLen=24, ASN=65001, announce
 	buf := make([]byte, 20)
-	buf[0] = rtrVersion
+	buf[0] = rtrVersionMin
 	buf[1] = pduIPv4Prefix
 	binary.BigEndian.PutUint32(buf[4:8], 20)
 	buf[8] = 1   // flags: announce
@@ -71,7 +71,7 @@ func TestParseIPv4Prefix(t *testing.T) {
 // PREVENTS: Treating withdrawals as announcements.
 func TestParseIPv4PrefixWithdraw(t *testing.T) {
 	buf := make([]byte, 20)
-	buf[0] = rtrVersion
+	buf[0] = rtrVersionMin
 	buf[1] = pduIPv4Prefix
 	binary.BigEndian.PutUint32(buf[4:8], 20)
 	buf[8] = 0    // flags: withdraw
@@ -95,7 +95,7 @@ func TestParseIPv4PrefixWithdraw(t *testing.T) {
 // PREVENTS: Invalid prefix length causing panics.
 func TestParseIPv4PrefixInvalidLength(t *testing.T) {
 	buf := make([]byte, 20)
-	buf[0] = rtrVersion
+	buf[0] = rtrVersionMin
 	buf[1] = pduIPv4Prefix
 	binary.BigEndian.PutUint32(buf[4:8], 20)
 	buf[9] = 33 // invalid prefix length
@@ -112,7 +112,7 @@ func TestParseIPv4PrefixInvalidLength(t *testing.T) {
 // PREVENTS: Impossible VRP from entering cache.
 func TestParseIPv4PrefixMaxLenLessThanPrefixLen(t *testing.T) {
 	buf := make([]byte, 20)
-	buf[0] = rtrVersion
+	buf[0] = rtrVersionMin
 	buf[1] = pduIPv4Prefix
 	binary.BigEndian.PutUint32(buf[4:8], 20)
 	buf[9] = 24  // prefix length
@@ -129,7 +129,7 @@ func TestParseIPv4PrefixMaxLenLessThanPrefixLen(t *testing.T) {
 // PREVENTS: IPv6 address parsing errors.
 func TestParseIPv6Prefix(t *testing.T) {
 	buf := make([]byte, 32)
-	buf[0] = rtrVersion
+	buf[0] = rtrVersionMin
 	buf[1] = pduIPv6Prefix
 	binary.BigEndian.PutUint32(buf[4:8], 32)
 	buf[8] = 1   // announce
@@ -156,7 +156,7 @@ func TestParseIPv6Prefix(t *testing.T) {
 // PREVENTS: Timing parameters being ignored or misread.
 func TestParseEndOfData(t *testing.T) {
 	buf := make([]byte, 24)
-	buf[0] = rtrVersion
+	buf[0] = rtrVersionMin
 	buf[1] = pduEndOfData
 	binary.BigEndian.PutUint16(buf[2:4], 0x5678) // session ID
 	binary.BigEndian.PutUint32(buf[4:8], 24)     // length
@@ -193,4 +193,126 @@ func TestIsFatalError(t *testing.T) {
 	assert.False(t, isFatalError(2)) // No Data Available
 	assert.True(t, isFatalError(3))  // Invalid Request
 	assert.True(t, isFatalError(8))  // Unexpected Version
+}
+
+// TestParseASPAPDU verifies ASPA PDU parsing from wire bytes.
+//
+// VALIDATES: AC-1 — ASPA PDU type 11 parsed: flags, AFI, customer-AS, provider list.
+// PREVENTS: Incorrect extraction of ASPA record fields.
+func TestParseASPAPDU(t *testing.T) {
+	// Build valid ASPA PDU: customer=64500, providers=[100, 200, 300], announce.
+	buf := make([]byte, 28) // 16 fixed + 3*4 providers
+	buf[0] = rtrVersionMax
+	buf[1] = pduASPA
+	binary.BigEndian.PutUint32(buf[4:8], 28) // length
+	buf[8] = 1                               // flags: announce
+	buf[9] = 0                               // AFI: both
+	binary.BigEndian.PutUint32(buf[12:16], 64500)
+	binary.BigEndian.PutUint32(buf[16:20], 100)
+	binary.BigEndian.PutUint32(buf[20:24], 200)
+	binary.BigEndian.PutUint32(buf[24:28], 300)
+
+	rec, announce, err := parseASPAPDU(buf)
+	require.NoError(t, err)
+	assert.True(t, announce)
+	assert.Equal(t, uint32(64500), rec.CustomerAS)
+	assert.Equal(t, []uint32{100, 200, 300}, rec.Providers)
+}
+
+// TestParseASPAPDUWithdraw verifies withdraw flag parsing.
+//
+// VALIDATES: flags=0 means withdraw.
+// PREVENTS: Withdrawals treated as announcements.
+func TestParseASPAPDUWithdraw(t *testing.T) {
+	buf := make([]byte, 20) // 16 fixed + 1 provider
+	buf[0] = rtrVersionMax
+	buf[1] = pduASPA
+	binary.BigEndian.PutUint32(buf[4:8], 20)
+	buf[8] = 0 // flags: withdraw
+	buf[9] = 0
+	binary.BigEndian.PutUint32(buf[12:16], 64501)
+	binary.BigEndian.PutUint32(buf[16:20], 100)
+
+	rec, announce, err := parseASPAPDU(buf)
+	require.NoError(t, err)
+	assert.False(t, announce)
+	assert.Equal(t, uint32(64501), rec.CustomerAS)
+}
+
+// TestParseASPAPDUMalformed verifies malformed ASPA PDU handling.
+//
+// VALIDATES: AC-8 — malformed ASPA PDU returns error (too short, zero providers, length mismatch).
+// PREVENTS: Panics or cache corruption from malformed wire data.
+func TestParseASPAPDUMalformed(t *testing.T) {
+	// Too short.
+	_, _, err := parseASPAPDU(make([]byte, 16))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "too short")
+
+	// Zero providers (length = 16, no provider bytes).
+	buf := make([]byte, 16)
+	buf[1] = pduASPA
+	binary.BigEndian.PutUint32(buf[4:8], 16)
+	binary.BigEndian.PutUint32(buf[12:16], 64500)
+	_, _, err = parseASPAPDU(buf)
+	assert.Error(t, err)
+}
+
+// TestParseASPAPDUUnknownAFI verifies unknown AFI handling.
+//
+// VALIDATES: RFC 9582 — router MUST ignore PDUs with unknown AFI (>=3).
+// PREVENTS: Unknown AFI causing errors or being stored.
+func TestParseASPAPDUUnknownAFI(t *testing.T) {
+	buf := make([]byte, 20)
+	buf[0] = rtrVersionMax
+	buf[1] = pduASPA
+	binary.BigEndian.PutUint32(buf[4:8], 20)
+	buf[8] = 1 // announce
+	buf[9] = 3 // unknown AFI
+	binary.BigEndian.PutUint32(buf[12:16], 64500)
+	binary.BigEndian.PutUint32(buf[16:20], 100)
+
+	rec, _, err := parseASPAPDU(buf)
+	assert.NoError(t, err)
+	assert.Equal(t, uint32(0), rec.CustomerAS) // zero = skip
+}
+
+// TestParseASPAPDUSelfRef verifies customer AS in own provider set is rejected.
+//
+// VALIDATES: RFC 9582 — customer AS MUST NOT appear in own provider set.
+// PREVENTS: Self-referencing ASPA records entering cache.
+func TestParseASPAPDUSelfRef(t *testing.T) {
+	buf := make([]byte, 24) // 16 + 2 providers
+	buf[0] = rtrVersionMax
+	buf[1] = pduASPA
+	binary.BigEndian.PutUint32(buf[4:8], 24)
+	buf[8] = 1
+	buf[9] = 0
+	binary.BigEndian.PutUint32(buf[12:16], 64500)
+	binary.BigEndian.PutUint32(buf[16:20], 100)
+	binary.BigEndian.PutUint32(buf[20:24], 64500) // self-reference
+
+	_, _, err := parseASPAPDU(buf)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "own provider set")
+}
+
+// TestParseASPAPDUUnsorted verifies unsorted providers are rejected.
+//
+// VALIDATES: RFC 9582 — provider ASNs MUST be sorted ascending.
+// PREVENTS: Unsorted provider lists entering cache.
+func TestParseASPAPDUUnsorted(t *testing.T) {
+	buf := make([]byte, 24) // 16 + 2 providers
+	buf[0] = rtrVersionMax
+	buf[1] = pduASPA
+	binary.BigEndian.PutUint32(buf[4:8], 24)
+	buf[8] = 1
+	buf[9] = 0
+	binary.BigEndian.PutUint32(buf[12:16], 64500)
+	binary.BigEndian.PutUint32(buf[16:20], 300) // not ascending
+	binary.BigEndian.PutUint32(buf[20:24], 100)
+
+	_, _, err := parseASPAPDU(buf)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not sorted")
 }

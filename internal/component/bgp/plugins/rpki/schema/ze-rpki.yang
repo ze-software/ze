@@ -35,6 +35,12 @@ module ze-rpki {
         description "Fail-open timeout for pending routes";
       }
 
+      leaf aspa-validation {
+        type boolean;
+        default "true";
+        description "Enable ASPA path verification using RTR v2 ASPA records";
+      }
+
       container policy {
         leaf invalid-action {
           type enumeration {

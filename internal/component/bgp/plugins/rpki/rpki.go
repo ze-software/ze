@@ -25,6 +25,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -87,9 +88,12 @@ type validationRequest struct {
 // It manages RTR sessions to RPKI cache servers, maintains the ROA cache,
 // and validates received routes against VRPs.
 type RPKIPlugin struct {
-	plugin *sdk.Plugin
-	cache  *ROACache
-	mu     sync.RWMutex
+	plugin      *sdk.Plugin
+	cache       *ROACache
+	aspaCache   *ASPACache
+	aspaTracker *ASPATracker
+	aspaEnabled atomic.Bool
+	mu          sync.RWMutex
 
 	// sessions holds active RTR sessions to cache servers.
 	sessions []*RTRSession
@@ -118,10 +122,12 @@ func RunRPKIPlugin(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	rp := &RPKIPlugin{
-		plugin:     p,
-		cache:      NewROACache(),
-		validateCh: make(chan validationRequest, 4096),
-		stopCh:     make(chan struct{}),
+		plugin:      p,
+		cache:       NewROACache(),
+		aspaCache:   NewASPACache(),
+		aspaTracker: NewASPATracker(),
+		validateCh:  make(chan validationRequest, 4096),
+		stopCh:      make(chan struct{}),
 	}
 
 	// Start async validation worker (long-lived goroutine per Ze rules).
@@ -232,12 +238,14 @@ func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
 	}
 
 	rp.active.Store(true)
+	rp.aspaEnabled.Store(cfg.ASPAValidation)
 
 	rp.mu.Lock()
 	defer rp.mu.Unlock()
 
 	for _, cs := range cfg.CacheServers {
-		session := NewRTRSession(cs.Address, cs.Port, cs.Preference, rp.cache, rp.stopCh)
+		session := NewRTRSession(cs.Address, cs.Port, cs.Preference, rp.cache, rp.aspaCache, rp.stopCh)
+		session.onASPAChange = rp.handleASPAChange
 		rp.sessions = append(rp.sessions, session)
 		rp.sessionWg.Go(session.Run)
 		logger().Info("rpki: started RTR session", "address", cs.Address, "port", cs.Port)
@@ -261,8 +269,9 @@ func (rp *RPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 		return
 	}
 
-	// Extract origin AS from AttrsWire (lazy parse of AS_PATH only).
-	originAS := rpkiOriginASFromWire(msg.AttrsWire)
+	// Extract AS_PATH once for both origin AS and ASPA verification.
+	asp := rpkiASPathFromWire(msg.AttrsWire)
+	originAS := rpkiOriginASFromASPath(asp)
 	if originAS == OriginNone {
 		return
 	}
@@ -277,12 +286,30 @@ func (rp *RPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	v4, v6 := rp.cache.Count()
 	cacheEmpty := v4+v6 == 0
 
+	// ASPA verification (once per UPDATE, not per-prefix).
+	aspaState := aspaStateNone
+	var normalizedPath []uint32
+	if rp.aspaEnabled.Load() && asp != nil {
+		var hasASSet bool
+		normalizedPath, hasASSet = normalizeASPath(asp.Segments)
+		if hasASSet {
+			aspaState = ASPAUnknown
+		} else {
+			aspaState = verifyASPA(rp.aspaCache, normalizedPath)
+		}
+	}
+
 	// Validate IPv4 unicast NLRIs.
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(family.Family{AFI: 1, SAFI: 1})
 		rp.validateNLRIs(peerAddr, peerName, peerASN, msgID, "ipv4/unicast",
-			nlriData, addPath, false, originAS, cacheEmpty)
+			nlriData, addPath, false, originAS, cacheEmpty, aspaState)
+		// Track announced routes for ASPA re-validation (AC-5).
+		if aspaState != aspaStateNone {
+			rp.trackNLRIs(peerAddr, peerName, peerASN, msgID, "ipv4/unicast",
+				nlriData, addPath, false, normalizedPath, aspaState)
+		}
 	}
 
 	// Validate MP_REACH_NLRI announces.
@@ -293,40 +320,23 @@ func (rp *RPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 		if len(nlriBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
 			rp.validateNLRIs(peerAddr, peerName, peerASN, msgID, fam.String(),
-				nlriBytes, addPath, fam.AFI == 2, originAS, cacheEmpty)
+				nlriBytes, addPath, fam.AFI == 2, originAS, cacheEmpty, aspaState)
+			if aspaState != aspaStateNone {
+				rp.trackNLRIs(peerAddr, peerName, peerASN, msgID, fam.String(),
+					nlriBytes, addPath, fam.AFI == 2, normalizedPath, aspaState)
+			}
 		}
 	}
-}
 
-// rpkiOriginASFromWire extracts the origin AS from AttrsWire's AS_PATH attribute.
-func rpkiOriginASFromWire(attrs *attribute.AttributesWire) uint32 {
-	if attrs == nil {
-		return OriginNone
+	// Remove withdrawn routes from ASPA tracker.
+	if rp.aspaEnabled.Load() {
+		rp.removeWithdrawnFromTracker(peerAddr, wu, ctx)
 	}
-	attr, err := attrs.Get(attribute.AttrASPath)
-	if err != nil || attr == nil {
-		return OriginNone
-	}
-	asp, ok := attr.(*attribute.ASPath)
-	if !ok || len(asp.Segments) == 0 {
-		return OriginNone
-	}
-	// Flatten segments and take last ASN.
-	var lastASN uint32
-	for _, seg := range asp.Segments {
-		if len(seg.ASNs) > 0 {
-			lastASN = seg.ASNs[len(seg.ASNs)-1]
-		}
-	}
-	if lastASN == 0 {
-		return OriginNone
-	}
-	return lastASN
 }
 
 // validateNLRIs walks wire NLRI bytes and validates each prefix against the ROA cache.
 func (rp *RPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, msgID uint64,
-	family string, nlriData []byte, addPath, isIPv6 bool, originAS uint32, cacheEmpty bool) {
+	family string, nlriData []byte, addPath, isIPv6 bool, originAS uint32, cacheEmpty bool, aspaState uint8) {
 
 	addrLen := 4
 	if isIPv6 {
@@ -382,7 +392,7 @@ func (rp *RPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, m
 	}
 
 	if len(familyResults) > 0 || cacheEmpty {
-		rp.emitRPKIEvent(peerAddr, peerName, peerASN, msgID, family, familyResults, cacheEmpty)
+		rp.emitRPKIEvent(peerAddr, peerName, peerASN, msgID, family, familyResults, cacheEmpty, aspaState)
 	}
 }
 
@@ -415,6 +425,15 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 	// Check if ROA cache is empty (unavailable).
 	v4, v6 := rp.cache.Count()
 	cacheEmpty := v4+v6 == 0
+
+	// ASPA verification on JSON fallback path.
+	// event.ASPath is a flat []uint32 without segment types, so AS_SET
+	// detection is unavailable. Consecutive-dup removal is applied.
+	aspaState := aspaStateNone
+	if rp.aspaEnabled.Load() && len(event.ASPath) > 0 {
+		path := deduplicateASPath(event.ASPath)
+		aspaState = verifyASPA(rp.aspaCache, path)
+	}
 
 	// Validate each NLRI prefix against the ROA cache.
 	// Collect per-family results for rpki event emission.
@@ -453,19 +472,20 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 
 		// Emit rpki event only if there were "add" operations (skip pure withdrawals).
 		if len(familyResults) > 0 || cacheEmpty {
-			rp.emitRPKIEvent(peerAddr, peerName, event.GetPeerASN(), event.GetMsgID(), famName, familyResults, cacheEmpty)
+			rp.emitRPKIEvent(peerAddr, peerName, event.GetPeerASN(), event.GetMsgID(), famName, familyResults, cacheEmpty, aspaState)
 		}
 	}
 }
 
 // emitRPKIEvent emits an rpki validation event via the SDK EmitEvent RPC.
 // Called after validating all prefixes in a family for a single UPDATE.
-func (rp *RPKIPlugin) emitRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, famName string, results map[string]uint8, cacheEmpty bool) {
+// aspaState is included when != aspaStateNone.
+func (rp *RPKIPlugin) emitRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, famName string, results map[string]uint8, cacheEmpty bool, aspaState uint8) {
 	var event string
 	if cacheEmpty {
 		event = buildRPKIEventUnavailable(peerAddr, peerName, peerASN, msgID)
 	} else {
-		event = buildRPKIEvent(peerAddr, peerName, peerASN, msgID, famName, results)
+		event = buildRPKIEvent(peerAddr, peerName, peerASN, msgID, famName, results, aspaState)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -551,6 +571,171 @@ func originASFromParsed(asPath []uint32) uint32 {
 		return OriginNone
 	}
 	return asPath[len(asPath)-1]
+}
+
+// trackNLRIs walks wire NLRI bytes and tracks each route in the ASPA tracker.
+// Called after ASPA verification to enable re-validation when cache data changes (AC-5).
+func (rp *RPKIPlugin) trackNLRIs(peerAddr, peerName string, peerASN uint32, msgID uint64,
+	fam string, nlriData []byte, addPath, isIPv6 bool, normalizedPath []uint32, aspaState uint8) {
+
+	addrLen := 4
+	if isIPv6 {
+		addrLen = 16
+	}
+
+	// Make an owned copy of the path for the tracker.
+	pathCopy := make([]uint32, len(normalizedPath))
+	copy(pathCopy, normalizedPath)
+
+	offset := 0
+	for offset < len(nlriData) {
+		var pathID uint32
+		if addPath {
+			if offset+4 >= len(nlriData) {
+				break
+			}
+			pathID = uint32(nlriData[offset])<<24 | uint32(nlriData[offset+1])<<16 |
+				uint32(nlriData[offset+2])<<8 | uint32(nlriData[offset+3])
+			offset += 4
+		}
+		if offset >= len(nlriData) {
+			break
+		}
+		prefixLen := int(nlriData[offset])
+		byteCount := (prefixLen + 7) / 8
+		offset++
+		if offset+byteCount > len(nlriData) {
+			break
+		}
+		var buf [16]byte
+		clear(buf[:])
+		copy(buf[:], nlriData[offset:offset+byteCount])
+		offset += byteCount
+
+		addr, ok := netip.AddrFromSlice(buf[:addrLen])
+		if !ok {
+			continue
+		}
+		prefix := netip.PrefixFrom(addr, prefixLen).String()
+
+		rp.aspaTracker.Track(trackedRoute{
+			key:       routeKey{peerAddr: peerAddr, family: fam, prefix: prefix, pathID: pathID},
+			peerName:  peerName,
+			peerASN:   peerASN,
+			msgID:     msgID,
+			path:      pathCopy,
+			aspaState: aspaState,
+		})
+	}
+}
+
+// removeWithdrawnFromTracker removes withdrawn routes from the ASPA tracker.
+func (rp *RPKIPlugin) removeWithdrawnFromTracker(peerAddr string, wu *wireu.WireUpdate, ctx *bgpctx.EncodingContext) {
+	// IPv4 withdrawn routes.
+	wdData, err := wu.Withdrawn()
+	if err == nil && len(wdData) > 0 {
+		addPath := ctx != nil && ctx.AddPath(family.Family{AFI: 1, SAFI: 1})
+		rp.removeTrackedNLRIs(peerAddr, "ipv4/unicast", wdData, addPath, false)
+	}
+
+	// MP_UNREACH_NLRI withdrawn routes.
+	mpUnreach, err := wu.MPUnreach()
+	if err == nil && mpUnreach != nil {
+		fam := mpUnreach.Family()
+		wdBytes := mpUnreach.WithdrawnBytes()
+		if len(wdBytes) > 0 {
+			addPath := ctx != nil && ctx.AddPath(fam)
+			rp.removeTrackedNLRIs(peerAddr, fam.String(), wdBytes, addPath, fam.AFI == 2)
+		}
+	}
+}
+
+// removeTrackedNLRIs walks wire NLRI bytes and removes each from the ASPA tracker.
+func (rp *RPKIPlugin) removeTrackedNLRIs(peerAddr, fam string, nlriData []byte, addPath, isIPv6 bool) {
+	addrLen := 4
+	if isIPv6 {
+		addrLen = 16
+	}
+
+	offset := 0
+	for offset < len(nlriData) {
+		var pathID uint32
+		if addPath {
+			if offset+4 >= len(nlriData) {
+				break
+			}
+			pathID = uint32(nlriData[offset])<<24 | uint32(nlriData[offset+1])<<16 |
+				uint32(nlriData[offset+2])<<8 | uint32(nlriData[offset+3])
+			offset += 4
+		}
+		if offset >= len(nlriData) {
+			break
+		}
+		prefixLen := int(nlriData[offset])
+		byteCount := (prefixLen + 7) / 8
+		offset++
+		if offset+byteCount > len(nlriData) {
+			break
+		}
+		var buf [16]byte
+		clear(buf[:])
+		copy(buf[:], nlriData[offset:offset+byteCount])
+		offset += byteCount
+
+		addr, ok := netip.AddrFromSlice(buf[:addrLen])
+		if !ok {
+			continue
+		}
+		prefix := netip.PrefixFrom(addr, prefixLen).String()
+
+		rp.aspaTracker.Remove(routeKey{peerAddr: peerAddr, family: fam, prefix: prefix, pathID: pathID})
+	}
+}
+
+// handleASPAChange is called by RTR sessions when ASPA cache data changes.
+// Re-validates tracked routes and emits updated events for state changes.
+func (rp *RPKIPlugin) handleASPAChange(changedCustomers []uint32) {
+	if !rp.aspaEnabled.Load() {
+		return
+	}
+	changed := rp.aspaTracker.Revalidate(rp.aspaCache, changedCustomers)
+	for _, rt := range changed {
+		rp.emitRPKIEvent(rt.key.peerAddr, rt.peerName, rt.peerASN, rt.msgID,
+			rt.key.family, nil, false, rt.aspaState)
+	}
+}
+
+// rpkiASPathFromWire extracts the full *attribute.ASPath from AttrsWire.
+func rpkiASPathFromWire(attrs *attribute.AttributesWire) *attribute.ASPath {
+	if attrs == nil {
+		return nil
+	}
+	attr, err := attrs.Get(attribute.AttrASPath)
+	if err != nil || attr == nil {
+		return nil
+	}
+	asp, ok := attr.(*attribute.ASPath)
+	if !ok {
+		return nil
+	}
+	return asp
+}
+
+// rpkiOriginASFromASPath extracts the origin AS from an already-parsed ASPath.
+func rpkiOriginASFromASPath(asp *attribute.ASPath) uint32 {
+	if asp == nil || len(asp.Segments) == 0 {
+		return OriginNone
+	}
+	var lastASN uint32
+	for _, seg := range asp.Segments {
+		if len(seg.ASNs) > 0 {
+			lastASN = seg.ASNs[len(seg.ASNs)-1]
+		}
+	}
+	if lastASN == 0 {
+		return OriginNone
+	}
+	return lastASN
 }
 
 // handleCommand processes RPKI CLI commands.

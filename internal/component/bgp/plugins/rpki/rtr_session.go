@@ -13,7 +13,10 @@ import (
 	"time"
 )
 
-var errRtrCacheResetReceivedWillDo = errors.New("rtr: cache reset received, will do full sync")
+var (
+	errRtrCacheResetReceivedWillDo = errors.New("rtr: cache reset received, will do full sync")
+	errRtrVersionDowngrade         = errors.New("rtr: version downgrade required")
+)
 
 // RTR session states.
 const (
@@ -32,6 +35,7 @@ type RTRSession struct {
 	state     string
 	sessionID uint16
 	serial    uint32
+	version   uint8 // negotiated RTR protocol version (starts at rtrVersionMax)
 
 	// Timing parameters from End of Data.
 	refreshInterval time.Duration
@@ -42,32 +46,48 @@ type RTRSession struct {
 	pendingVRPs []VRP
 	pendingDels []VRP
 
-	mu     sync.Mutex
-	stopCh <-chan struct{}
-	cache  *ROACache
+	// pendingASPAs accumulates ASPA records between Cache Response and End of Data.
+	pendingASPAs    []ASPARecord
+	pendingASPADels []uint32
+
+	mu        sync.Mutex
+	stopCh    <-chan struct{}
+	cache     *ROACache
+	aspaCache *ASPACache
+
+	// onASPAChange is called after ASPA data changes at End of Data.
+	// The argument is the set of customer ASNs that were modified.
+	onASPAChange func([]uint32)
 }
 
 // NewRTRSession creates a new RTR session for the given cache server.
-func NewRTRSession(address string, port uint16, pref uint8, cache *ROACache, stopCh <-chan struct{}) *RTRSession {
+func NewRTRSession(address string, port uint16, pref uint8, cache *ROACache, aspaCache *ASPACache, stopCh <-chan struct{}) *RTRSession {
 	return &RTRSession{
 		address:         address,
 		port:            port,
 		preference:      pref,
 		state:           sessionIdle,
+		version:         rtrVersionMax,
 		refreshInterval: 3600 * time.Second,
 		retryInterval:   600 * time.Second,
 		expireInterval:  7200 * time.Second,
 		cache:           cache,
+		aspaCache:       aspaCache,
 		stopCh:          stopCh,
 	}
 }
 
 // Run is the long-lived goroutine for this RTR session.
 // It connects, queries, receives VRPs, and reconnects on failure.
+// On version mismatch (error code 4), downgrades and retries immediately.
 func (s *RTRSession) Run() {
 	for !s.stopped() {
 		err := s.connectAndSync()
 		if err != nil {
+			if errors.Is(err, errRtrVersionDowngrade) {
+				s.close()
+				continue
+			}
 			logger().Warn("rtr: session error, will retry",
 				"address", s.address, "error", err)
 		}
@@ -112,15 +132,15 @@ func (s *RTRSession) connectAndSync() error {
 		s.mu.Unlock()
 	}()
 
-	// Send initial query.
+	// Send initial query with current negotiated version.
 	buf := make([]byte, pduSerialQueryLen)
 	if s.serial == 0 {
-		n := writeResetQuery(buf, 0)
+		n := writeResetQuery(buf, 0, s.version)
 		if _, err := conn.Write(buf[:n]); err != nil {
 			return fmt.Errorf("write reset query: %w", err)
 		}
 	} else {
-		n := writeSerialQuery(buf, 0, s.sessionID, s.serial)
+		n := writeSerialQuery(buf, 0, s.version, s.sessionID, s.serial)
 		if _, err := conn.Write(buf[:n]); err != nil {
 			return fmt.Errorf("write serial query: %w", err)
 		}
@@ -185,6 +205,8 @@ func (s *RTRSession) handlePDU(hdr RTRHeader, buf []byte) (bool, error) {
 		s.state = sessionEstablish
 		s.pendingVRPs = nil
 		s.pendingDels = nil
+		s.pendingASPAs = nil
+		s.pendingASPADels = nil
 		s.mu.Unlock()
 		return false, nil
 
@@ -216,6 +238,27 @@ func (s *RTRSession) handlePDU(hdr RTRHeader, buf []byte) (bool, error) {
 		s.mu.Unlock()
 		return false, nil
 
+	case pduASPA:
+		if s.version < 2 {
+			return false, fmt.Errorf("rtr: ASPA PDU received in v%d session (protocol violation)", s.version)
+		}
+		rec, announce, err := parseASPAPDU(buf)
+		if err != nil {
+			logger().Warn("rtr: malformed ASPA PDU, skipping", "error", err)
+			return false, nil
+		}
+		if rec.CustomerAS == 0 {
+			return false, nil
+		}
+		s.mu.Lock()
+		if announce {
+			s.pendingASPAs = append(s.pendingASPAs, rec)
+		} else {
+			s.pendingASPADels = append(s.pendingASPADels, rec.CustomerAS)
+		}
+		s.mu.Unlock()
+		return false, nil
+
 	case pduEndOfData:
 		params, err := parseEndOfData(buf)
 		if err != nil {
@@ -238,7 +281,23 @@ func (s *RTRSession) handlePDU(hdr RTRHeader, buf []byte) (bool, error) {
 		s.cache.ApplyDelta(s.pendingDels, s.pendingVRPs)
 		s.pendingVRPs = nil
 		s.pendingDels = nil
+
+		// Apply accumulated ASPA records.
+		aspaAnnounced := len(s.pendingASPAs)
+		aspaWithdrawn := len(s.pendingASPADels)
+		var aspaChanged []uint32
+		if s.aspaCache != nil && (aspaAnnounced > 0 || aspaWithdrawn > 0) {
+			aspaChanged = s.aspaCache.ChangedCustomers(s.pendingASPADels, s.pendingASPAs)
+			s.aspaCache.ApplyDelta(s.pendingASPADels, s.pendingASPAs)
+		}
+		s.pendingASPAs = nil
+		s.pendingASPADels = nil
 		s.mu.Unlock()
+
+		// Notify ASPA change callback (re-validation trigger).
+		if len(aspaChanged) > 0 && s.onASPAChange != nil {
+			s.onASPAChange(aspaChanged)
+		}
 
 		if m := rpkiMetricsPtr.Load(); m != nil {
 			v4, v6 := s.cache.Count()
@@ -250,6 +309,8 @@ func (s *RTRSession) handlePDU(hdr RTRHeader, buf []byte) (bool, error) {
 			"serial", params.SerialNumber,
 			"announced", announced,
 			"withdrawn", withdrawn,
+			"aspa-announced", aspaAnnounced,
+			"aspa-withdrawn", aspaWithdrawn,
 			"refresh", params.RefreshInterval)
 		return true, nil
 
@@ -266,6 +327,12 @@ func (s *RTRSession) handlePDU(hdr RTRHeader, buf []byte) (bool, error) {
 
 	case pduErrorRpt:
 		errCode := hdr.SessionID // Error code is in bytes 2-3.
+		// RFC 9582 Section 7: Unsupported Protocol Version -> downgrade.
+		if errCode == errUnsupportedVersion && s.version > rtrVersionMin {
+			s.version--
+			logger().Info("rtr: version downgrade", "address", s.address, "new-version", s.version)
+			return false, errRtrVersionDowngrade
+		}
 		if isFatalError(errCode) {
 			return false, fmt.Errorf("rtr: fatal error code %d from cache", errCode)
 		}

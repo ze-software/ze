@@ -22,6 +22,7 @@ type cacheServerConfig struct {
 type rpkiConfig struct {
 	CacheServers      []cacheServerConfig
 	ValidationTimeout uint16 // seconds, 0 = use default (30s)
+	ASPAValidation    bool   // enable/disable ASPA path verification (default true)
 }
 
 // parseRPKIConfig extracts RPKI configuration from a BGP config JSON string.
@@ -33,11 +34,18 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 		return nil, errRpkiInvalidBgpConfigJson
 	}
 
-	cfg := &rpkiConfig{}
+	cfg := &rpkiConfig{
+		ASPAValidation: true, // enabled by default
+	}
 
 	rpkiMap, ok := bgpTree["rpki"].(map[string]any)
 	if !ok {
 		return cfg, nil // No RPKI config section -- empty config
+	}
+
+	// Parse aspa-validation (default true).
+	if aspaStr, ok := rpkiMap["aspa-validation"].(string); ok {
+		cfg.ASPAValidation = aspaStr != "false" && aspaStr != "0"
 	}
 
 	// Parse validation-timeout

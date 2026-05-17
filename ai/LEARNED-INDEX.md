@@ -39,6 +39,7 @@ Buffer-first, zero-copy, attribute pools, UPDATE building, NLRI parsing.
 - [105](plan/learned/105-pathattributes-removal.md) -- PathAttributes struct removal (lazy over eager)
 - [176](plan/learned/176-per-attribute-deduplication.md) -- Per-attribute-type pool dedup design
 - [204](plan/learned/204-update-shared-parsing.md) -- Shared UPDATE parsing for wire/API
+- [721](plan/learned/721-bgp-2-aspa.md) -- ASPA path verification: RTR v2 per-session version, ROACache O(1) counter, route tracker for re-validation
 
 ## Plugin System
 
