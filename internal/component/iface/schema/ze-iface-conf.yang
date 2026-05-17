@@ -277,6 +277,27 @@ module ze-iface-conf {
                     }
                     description "Reverse path filtering: 0=disabled, 1=strict, 2=loose";
                 }
+
+                container dhcp {
+                    ze:backend "netlink";
+                    description "DHCPv4 client configuration";
+
+                    leaf enabled {
+                        type boolean;
+                        default false;
+                        description "Enable DHCPv4 client";
+                    }
+
+                    leaf client-id {
+                        type string;
+                        description "Client identifier";
+                    }
+
+                    leaf hostname {
+                        type string;
+                        description "Hostname in DHCP requests";
+                    }
+                }
             }
 
             container ipv6 {
@@ -308,55 +329,32 @@ module ze-iface-conf {
                     type boolean;
                     description "Enable IPv6 forwarding";
                 }
-            }
 
-            container dhcp {
-                ze:os "linux";
-                ze:backend "netlink";
-                description "DHCPv4 client configuration";
+                container dhcpv6 {
+                    ze:backend "netlink";
+                    description "DHCPv6 client configuration";
 
-                leaf enabled {
-                    type boolean;
-                    default false;
-                    description "Enable DHCPv4 client";
-                }
-
-                leaf client-id {
-                    type string;
-                    description "Client identifier";
-                }
-
-                leaf hostname {
-                    type string;
-                    description "Hostname in DHCP requests";
-                }
-            }
-
-            container dhcpv6 {
-                ze:os "linux";
-                ze:backend "netlink";
-                description "DHCPv6 client configuration";
-
-                leaf enabled {
-                    type boolean;
-                    default false;
-                    description "Enable DHCPv6 client";
-                }
-
-                container pd {
-                    description "Prefix delegation";
-
-                    leaf length {
-                        type uint8 {
-                            range "48..64";
-                        }
-                        description "Requested prefix length";
+                    leaf enabled {
+                        type boolean;
+                        default false;
+                        description "Enable DHCPv6 client";
                     }
-                }
 
-                leaf duid {
-                    type string;
-                    description "DUID override";
+                    container pd {
+                        description "Prefix delegation";
+
+                        leaf length {
+                            type uint8 {
+                                range "48..64";
+                            }
+                            description "Requested prefix length";
+                        }
+                    }
+
+                    leaf duid {
+                        type string;
+                        description "DUID override";
+                    }
                 }
             }
 

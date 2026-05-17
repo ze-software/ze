@@ -1,6 +1,6 @@
-# Valid config: DHCPv4 enabled on ethernet unit
-# AC-1: dhcp { enabled true } accepted by config validate.
-# PLATFORM: the `dhcp` container is `ze:os "linux"`; the YANG walker
+# Valid config: DHCPv4 enabled inside ipv4 family container
+# AC-1: ipv4 { dhcp { enabled true } } accepted by config validate.
+# PLATFORM: the `ipv4` container is `ze:os "linux"`; the YANG walker
 # prunes it on non-Linux so the parser rejects it as unknown. Skip on
 # darwin per rules/os-specific-tests.md.
 option=skip-os:value=darwin
@@ -9,9 +9,11 @@ interface {
     backend netlink
     ethernet eth0 {
         unit 0 {
-            dhcp {
-                enabled true
-                hostname ze-router
+            ipv4 {
+                dhcp {
+                    enabled true
+                    hostname ze-router
+                }
             }
         }
     }

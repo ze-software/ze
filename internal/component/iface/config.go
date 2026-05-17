@@ -136,12 +136,10 @@ type unitEntry struct {
 	IPv6           *ipv6Settings
 	MirrorIngress  string // destination interface name, empty = not configured
 	MirrorEgress   string
-	DHCP           *dhcpUnitConfig
-	DHCPv6         *dhcpv6UnitConfig
 }
 
 // dhcpUnitConfig holds DHCPv4 client settings parsed from the YANG
-// "dhcp" container inside an interface unit.
+// "dhcp" container inside the ipv4 family container.
 type dhcpUnitConfig struct {
 	Enabled  bool
 	Hostname string
@@ -149,7 +147,7 @@ type dhcpUnitConfig struct {
 }
 
 // dhcpv6UnitConfig holds DHCPv6 client settings parsed from the YANG
-// "dhcpv6" container inside an interface unit.
+// "dhcpv6" container inside the ipv6 family container.
 type dhcpv6UnitConfig struct {
 	Enabled  bool
 	PDLength int // 0 = not set (server decides)
@@ -167,11 +165,13 @@ type ipv4Settings struct {
 	ArpAnnounce *int
 	ArpIgnore   *int
 	RPFilter    *int
+	DHCP        *dhcpUnitConfig
 }
 
 // ipv6Settings holds per-interface IPv6 configuration: addresses and sysctl knobs.
 type ipv6Settings struct {
 	Addresses  []string
+	DHCPv6     *dhcpv6UnitConfig
 	Autoconf   *bool
 	AcceptRA   *int
 	Forwarding *bool
@@ -764,8 +764,6 @@ func parseUnits(m map[string]any) ([]unitEntry, error) {
 				u.MirrorIngress, _ = mirrorMap["ingress"].(string)
 				u.MirrorEgress, _ = mirrorMap["egress"].(string)
 			}
-			u.DHCP = parseDHCPv4Config(um)
-			u.DHCPv6 = parseDHCPv6Config(um)
 		}
 		units = append(units, u)
 	}
@@ -833,6 +831,10 @@ func parseIPv4Settings(um map[string]any) (*ipv4Settings, error) {
 			set = true
 		}
 	}
+	s.DHCP = parseDHCPv4Config(v4)
+	if s.DHCP != nil {
+		set = true
+	}
 	if !set {
 		return nil, nil //nolint:nilnil // no ipv4 knobs configured, not an error
 	}
@@ -876,6 +878,10 @@ func parseIPv6Settings(um map[string]any) (*ipv6Settings, error) {
 		s.Forwarding = &b
 		set = true
 	}
+	s.DHCPv6 = parseDHCPv6Config(v6)
+	if s.DHCPv6 != nil {
+		set = true
+	}
 	if !set {
 		return nil, nil //nolint:nilnil // no ipv6 knobs configured, not an error
 	}
@@ -912,8 +918,6 @@ func parseOffloadConfig(m map[string]any) *offloadConfig {
 	return o
 }
 
-// parseDHCPv4Config reads the "dhcp" container from a unit map and returns
-// a dhcpUnitConfig if the container is present. Returns nil when absent.
 func parseDHCPv4Config(um map[string]any) *dhcpUnitConfig {
 	dm, ok := um["dhcp"].(map[string]any)
 	if !ok {
@@ -932,8 +936,6 @@ func parseDHCPv4Config(um map[string]any) *dhcpUnitConfig {
 	return cfg
 }
 
-// parseDHCPv6Config reads the "dhcpv6" container from a unit map and returns
-// a dhcpv6UnitConfig if the container is present. Returns nil when absent.
 func parseDHCPv6Config(um map[string]any) *dhcpv6UnitConfig {
 	dm, ok := um["dhcpv6"].(map[string]any)
 	if !ok {

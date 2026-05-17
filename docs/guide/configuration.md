@@ -656,8 +656,10 @@ interface {
         mac-address 00:1a:2b:3c:4d:5e;
         unit default {
             route-priority 1;
-            dhcp {
-                enabled true;
+            ipv4 {
+                dhcp {
+                    enabled true;
+                }
             }
         }
     }
@@ -665,8 +667,10 @@ interface {
         mac-address 00:1a:2b:3c:4d:5f;
         unit default {
             route-priority 5;
-            dhcp {
-                enabled true;
+            ipv4 {
+                dhcp {
+                    enabled true;
+                }
             }
         }
     }

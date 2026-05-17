@@ -702,20 +702,28 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 	collectDHCPUnits := func(name string, units []unitEntry) {
 		for i := range units {
 			u := &units[i]
-			v4 := u.DHCP != nil && u.DHCP.Enabled
-			v6 := u.DHCPv6 != nil && u.DHCPv6.Enabled
+			var dhcp *dhcpUnitConfig
+			var dhcpv6 *dhcpv6UnitConfig
+			if u.IPv4 != nil {
+				dhcp = u.IPv4.DHCP
+			}
+			if u.IPv6 != nil {
+				dhcpv6 = u.IPv6.DHCPv6
+			}
+			v4 := dhcp != nil && dhcp.Enabled
+			v6 := dhcpv6 != nil && dhcpv6.Enabled
 			if !v4 && !v6 {
 				continue
 			}
 			key := dhcpUnitKey{ifaceName: name, unit: u.Label}
 			p := dhcpParams{v4: v4, v6: v6, routePriority: u.RoutePriority}
-			if u.DHCP != nil {
-				p.hostname = u.DHCP.Hostname
-				p.clientID = u.DHCP.ClientID
+			if dhcp != nil {
+				p.hostname = dhcp.Hostname
+				p.clientID = dhcp.ClientID
 			}
-			if u.DHCPv6 != nil {
-				p.pdLength = u.DHCPv6.PDLength
-				p.duid = u.DHCPv6.DUID
+			if dhcpv6 != nil {
+				p.pdLength = dhcpv6.PDLength
+				p.duid = dhcpv6.DUID
 			}
 			desired[key] = p
 		}
