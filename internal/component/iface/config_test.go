@@ -3106,10 +3106,11 @@ func TestParseUnit_InvalidName(t *testing.T) {
 		unitKey string
 		wantErr string
 	}{
-		{"uppercase", "Firewall", "invalid character"},
 		{"space", "fire wall", "invalid character"},
 		{"starts with hyphen", "-test", "invalid character"},
-		{"underscore", "fire_wall", "invalid character"},
+		{"starts with dot", ".test", "invalid character"},
+		{"slash", "a/b", "invalid character"},
+		{"colon", "a:b", "invalid character"},
 		{"empty", "", "length"},
 		{"too long", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "length"},
 	}

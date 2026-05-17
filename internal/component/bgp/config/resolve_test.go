@@ -437,7 +437,7 @@ func TestResolveBGPTree_PeerNameValidation(t *testing.T) {
 		{
 			name:     "ip_like_name",
 			peerName: "10.0.0.1",
-			wantErr:  "invalid peer name",
+			wantErr:  "must not be a valid IP address",
 		},
 		{
 			// Dots are allowed in peer names (FQDN-style: router.east.dc1).
@@ -449,22 +449,22 @@ func TestResolveBGPTree_PeerNameValidation(t *testing.T) {
 		{
 			name:     "contains_spaces",
 			peerName: "router east",
-			wantErr:  "invalid peer name",
+			wantErr:  "invalid character",
 		},
 		{
 			name:     "contains_comma",
 			peerName: "router,east",
-			wantErr:  "invalid peer name",
+			wantErr:  "invalid character",
 		},
 		{
 			name:     "contains_colon",
 			peerName: "router:east",
-			wantErr:  "invalid peer name",
+			wantErr:  "invalid character",
 		},
 		{
 			name:     "wildcard",
 			peerName: "*",
-			wantErr:  "invalid peer name",
+			wantErr:  "reserved wildcard",
 		},
 	}
 
@@ -851,7 +851,7 @@ func TestResolveBGPTree_PeerNameUnicodeRejected(t *testing.T) {
 
 			_, err := ResolveBGPTree(tree)
 			require.Error(t, err, "unicode peer name %q should be rejected", tt.peerName)
-			assert.Contains(t, err.Error(), "invalid peer name")
+			assert.Contains(t, err.Error(), "invalid character")
 		})
 	}
 }
@@ -866,13 +866,8 @@ func TestResolveBGPTree_PeerNamePunctuationOnly(t *testing.T) {
 		peerName string
 		wantErr  string
 	}{
-		// Names starting with underscore pass first-char but fail alphanumeric check.
-		{"underscores_only", "___", "at least one letter or digit"},
-		{"mixed_punctuation", "_-_-_", "at least one letter or digit"},
-		{"single_underscore", "_", "at least one letter or digit"},
-		// Names starting with hyphen fail at first-char check (before alphanumeric check).
-		{"hyphens_only", "---", "first character must be alphanumeric or underscore"},
-		{"single_hyphen", "-", "first character must be alphanumeric or underscore"},
+		{"hyphens_only", "---", "invalid character"},
+		{"single_hyphen", "-", "invalid character"},
 	}
 
 	for _, tt := range tests {
@@ -921,7 +916,7 @@ func TestResolveBGPTree_PeerNameTooLong(t *testing.T) {
 
 	_, err := ResolveBGPTree(tree)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "exceeds maximum length")
+	assert.Contains(t, err.Error(), "length")
 }
 
 // TestResolveBGPTree_PeerNameAtMaxLength verifies names exactly at the limit are accepted.
@@ -989,10 +984,10 @@ func TestResolveBGPTree_GroupNameValidation(t *testing.T) {
 		wantErr   string
 	}{
 		{"contains_dots_is_valid", "group.one", ""}, // dots allowed (FQDN-style)
-		{"contains_spaces", "group one", "invalid group name"},
-		{"contains_colon", "group:one", "invalid group name"},
-		{"punctuation_only", "---", "first character must be alphanumeric or underscore"},
-		{"unicode", "\u00e9quipe", "invalid group name"},
+		{"contains_spaces", "group one", "invalid character"},
+		{"contains_colon", "group:one", "invalid character"},
+		{"punctuation_only", "---", "invalid character"},
+		{"unicode", "\u00e9quipe", "invalid character"},
 	}
 
 	for _, tt := range tests {
@@ -1049,7 +1044,7 @@ func TestResolveBGPTree_GroupNameTooLong(t *testing.T) {
 
 	_, err := ResolveBGPTree(tree)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "exceeds maximum length")
+	assert.Contains(t, err.Error(), "length")
 }
 
 // TestResolveBGPTree_ValidGroupNames verifies valid group names are accepted.
@@ -1590,7 +1585,7 @@ func TestValidatePeerName(t *testing.T) {
 		{"unicode_accent", "\u00e9quipe", true},
 		{"cjk", "\u8def\u7531\u5668", true},
 		{"punctuation_only_hyphens", "---", true},
-		{"punctuation_only_underscores", "___", true},
+		{"punctuation_only_underscores", "___", false},
 		{"too_long", strings.Repeat("a", 256), true},
 		{"at_limit", strings.Repeat("a", 255), false},
 		{"reserved_list", "list", true},

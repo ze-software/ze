@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/naming"
 )
 
 var (
@@ -253,29 +254,7 @@ func checkDuplicateRemoteIPs(peerMap map[string]any) error {
 // Note: validateAndTrackPeerName was removed. Peer name validation is now done
 // directly in the resolve loops since the name IS the list key, not a field in resolved.
 
-// isASCIILetterOrDigit returns true if the character is an ASCII letter or digit.
-func isASCIILetterOrDigit(ch rune) bool {
-	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')
-}
-
-// isValidPeerNameFirstChar returns true if the character is allowed as the first
-// character of a peer name. Only ASCII letters, digits, and underscores.
-// Dots and hyphens are not allowed as the first character to avoid ambiguity
-// with IP addresses (dot) and CLI flags (hyphen).
-func isValidPeerNameFirstChar(ch rune) bool {
-	return isASCIILetterOrDigit(ch) || ch == '_'
-}
-
-// isValidPeerNameChar returns true if the character is allowed in a peer name
-// at the second position or later. Allowed: ASCII letters, digits, hyphens,
-// underscores, and dots. Non-ASCII letters (unicode.IsLetter accepts CJK,
-// accents, etc.) are rejected to avoid display issues and CLI ambiguity.
-func isValidPeerNameChar(ch rune) bool {
-	return isASCIILetterOrDigit(ch) || ch == '-' || ch == '_' || ch == '.'
-}
-
 // maxPeerNameLen is the maximum length for peer names.
-// Limits JSON response size and prevents DoS via long names.
 const maxPeerNameLen = 255
 
 // reservedPeerNames contains names that collide with "peer <subcommand>"
@@ -290,89 +269,27 @@ var reservedPeerNames = map[string]bool{
 	"clear": true, "plugin": true,
 }
 
-// validatePeerName checks that a peer name is valid for use as a CLI selector.
-// First character must be ASCII alphanumeric or underscore.
-// Subsequent characters may also include hyphens and dots.
-// Names must not parse as IP addresses or look like glob patterns.
-// Names must contain at least one letter or digit.
-// Names must not collide with "peer" subcommand keywords.
 func validatePeerName(name string) error {
 	if name == "*" {
 		return fmt.Errorf("invalid peer name %q: reserved wildcard", name)
 	}
-
-	if len(name) > maxPeerNameLen {
-		return fmt.Errorf("invalid peer name %q: exceeds maximum length %d", name, maxPeerNameLen)
+	if err := naming.ValidateNodeName("peer", name, maxPeerNameLen); err != nil {
+		return err
 	}
-
-	// Reject names that collide with CLI subcommand keywords.
 	if reservedPeerNames[name] {
 		return fmt.Errorf("invalid peer name %q: conflicts with \"peer\" subcommand", name)
 	}
-
-	// Reject names containing invalid characters.
-	// First character: ASCII letters, digits, underscores only.
-	// Subsequent characters: also allow hyphens and dots.
-	for i, ch := range name {
-		if i == 0 {
-			if !isValidPeerNameFirstChar(ch) {
-				return fmt.Errorf("invalid peer name %q: first character must be alphanumeric or underscore", name)
-			}
-		} else if !isValidPeerNameChar(ch) {
-			return fmt.Errorf("invalid peer name %q: only alphanumeric, hyphens, underscores, and dots allowed", name)
-		}
-	}
-
-	// Reject names that are only punctuation (hyphens/underscores).
-	// Such names are confusing as CLI selectors and provide no useful identification.
-	hasAlphanumeric := false
-	for _, ch := range name {
-		if isASCIILetterOrDigit(ch) {
-			hasAlphanumeric = true
-			break
-		}
-	}
-	if !hasAlphanumeric {
-		return fmt.Errorf("invalid peer name %q: must contain at least one letter or digit", name)
-	}
-
-	// Reject names that parse as valid IP addresses.
 	if _, err := netip.ParseAddr(name); err == nil {
 		return fmt.Errorf("invalid peer name %q: must not be a valid IP address", name)
 	}
-
 	return nil
 }
 
-// validateGroupName checks that a group name is valid.
-// Group names follow the same character and length rules as peer names.
 func validateGroupName(name string) error {
 	if name == "" {
 		return errInvalidGroupNameMustNotBe
 	}
-	if len(name) > maxPeerNameLen {
-		return fmt.Errorf("invalid group name %q: exceeds maximum length %d", name, maxPeerNameLen)
-	}
-	for i, ch := range name {
-		if i == 0 {
-			if !isValidPeerNameFirstChar(ch) {
-				return fmt.Errorf("invalid group name %q: first character must be alphanumeric or underscore", name)
-			}
-		} else if !isValidPeerNameChar(ch) {
-			return fmt.Errorf("invalid group name %q: only alphanumeric, hyphens, underscores, and dots allowed", name)
-		}
-	}
-	hasAlphanumeric := false
-	for _, ch := range name {
-		if isASCIILetterOrDigit(ch) {
-			hasAlphanumeric = true
-			break
-		}
-	}
-	if !hasAlphanumeric {
-		return fmt.Errorf("invalid group name %q: must contain at least one letter or digit", name)
-	}
-	return nil
+	return naming.ValidateNodeName("group", name, maxPeerNameLen)
 }
 
 // deepCopyMap returns a deep copy of a map, recursively copying nested maps.

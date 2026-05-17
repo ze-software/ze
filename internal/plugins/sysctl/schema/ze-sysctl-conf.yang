@@ -2,6 +2,8 @@ module ze-sysctl-conf {
     namespace "urn:ze:sysctl:conf";
     prefix sysctl;
 
+    import ze-types { prefix zt; }
+
     description
         "Sysctl configuration for Ze.
          Generic key/value list for kernel tunables.
@@ -42,10 +44,7 @@ module ze-sysctl-conf {
                  Overrides built-in profiles with the same name.";
 
             leaf name {
-                type string {
-                    length "1..64";
-                    pattern "[a-z0-9][a-z0-9-]*";
-                }
+                type zt:node-name;
                 description "Profile name (lowercase alphanumeric with hyphens).";
             }
 

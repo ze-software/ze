@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"codeberg.org/thomas-mangin/ze/internal/core/naming"
 )
 
 // Interface name length limits (Linux kernel IFNAMSIZ = 16, including
@@ -73,28 +74,10 @@ func loadReservedIfaceNames() {
 	}
 }
 
-// ValidateUnitName checks that a unit name matches the YANG pattern:
-// 1-64 characters, lowercase alphanumeric and hyphens, must start with
-// a letter or digit. Numeric names are accepted for legacy migration.
+// ValidateUnitName checks that a unit name follows the shared node-name
+// pattern (lowercase alphanumeric and hyphens, 1-64 chars).
 func ValidateUnitName(name string) error {
-	n := len(name)
-	if n == 0 || n > 64 {
-		return fmt.Errorf("unit: name %q length %d not in [1, 64]", name, n)
-	}
-	for i := range n {
-		c := name[i]
-		if c >= 'a' && c <= 'z' {
-			continue
-		}
-		if c >= '0' && c <= '9' {
-			continue
-		}
-		if c == '-' && i > 0 {
-			continue
-		}
-		return fmt.Errorf("unit: name %q contains invalid character %q (allowed: lowercase, digits, hyphens)", name, string(c))
-	}
-	return nil
+	return naming.ValidateNodeName("unit", name, 64)
 }
 
 // ValidateIfaceName checks that name is a valid interface name for

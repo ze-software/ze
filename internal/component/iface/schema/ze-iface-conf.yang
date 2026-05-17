@@ -174,10 +174,7 @@ module ze-iface-conf {
             description "Logical interface unit";
 
             leaf name {
-                type string {
-                    length "1..64";
-                    pattern "[a-z0-9][a-z0-9-]*";
-                }
+                type zt:node-name;
                 description "Unit name (lowercase alphanumeric and hyphens)";
             }
 
@@ -217,10 +214,7 @@ module ze-iface-conf {
             }
 
             leaf-list sysctl-profile {
-                type string {
-                    length "1..64";
-                    pattern "[a-z0-9][a-z0-9-]*";
-                }
+                type zt:node-name;
                 max-elements 10;
                 ze:syntax "bracket";
                 description "Named sysctl profiles to apply to this unit.

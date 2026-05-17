@@ -13,9 +13,12 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+
 	"sort"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/naming"
 )
 
 var (
@@ -125,15 +128,8 @@ func validateNetns(name string) error {
 	return nil
 }
 
-// ifaceNameRE validates VPP interface short names (alphanumeric + hyphen/underscore).
-var ifaceNameRE = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]{0,14}$`)
-
-// validateIfaceName checks that an interface name is safe for startup.conf.
 func validateIfaceName(name string) error {
-	if !ifaceNameRE.MatchString(name) {
-		return fmt.Errorf("vpp: interface name %q invalid (alphanumeric, 1-15 chars, starts with letter)", name)
-	}
-	return nil
+	return naming.ValidateNodeName("vpp interface", name, 15)
 }
 
 // unknownKeys returns an error if raw contains any key not in known.

@@ -12,37 +12,24 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
-	"regexp"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/naming"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
-	errFirewallNameMustNotBeEmpty = errors.New("firewall: name must not be empty")
-	errFirewallPortMustBe165535   = errors.New("firewall: port must be 1-65535, got 0")
-	errFirewallRateMustBe1Got     = errors.New("firewall: rate must be >= 1, got 0")
+	errFirewallPortMustBe165535 = errors.New("firewall: port must be 1-65535, got 0")
+	errFirewallRateMustBe1Got   = errors.New("firewall: rate must be >= 1, got 0")
 )
 
 const unknownStr = "unknown"
-
-// nameRe matches valid identifiers: alphanumeric, hyphens, underscores.
-var nameRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`)
 
 // maxNameLen is the nftables kernel limit for table/chain names (NFT_NAME_MAXLEN).
 const maxNameLen = 255
 
 // ValidateName checks that a name is a non-empty valid identifier within kernel limits.
 func ValidateName(name string) error {
-	if name == "" {
-		return errFirewallNameMustNotBeEmpty
-	}
-	if len(name) > maxNameLen {
-		return fmt.Errorf("firewall: name %q exceeds maximum length %d", name, maxNameLen)
-	}
-	if !nameRe.MatchString(name) {
-		return fmt.Errorf("firewall: invalid name %q (must be alphanumeric with hyphens/underscores)", name)
-	}
-	return nil
+	return naming.ValidateNodeName("firewall", name, maxNameLen)
 }
 
 // ValidatePort checks that a port number is in 1-65535.

@@ -57,6 +57,18 @@ module ze-types {
         }
     }
 
+    typedef node-name {
+        type string {
+            length "1..255";
+            pattern "[a-zA-Z0-9_][a-zA-Z0-9_.-]*";
+        }
+        description "Configuration node name: ASCII alphanumeric, hyphens,
+                     underscores, and dots. Must start with a letter, digit,
+                     or underscore. Used for BGP peers/groups, firewall
+                     tables/chains, interface units, sysctl profiles, and
+                     other named config entries.";
+    }
+
     typedef ip-address {
         type union {
             type ipv4-address;
