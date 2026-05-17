@@ -573,7 +573,7 @@ func formatEVPNTextSingle(result map[string]any) string {
 	n := 0
 	field := func(prefix, val string) {
 		if n > 0 {
-			b.Reset().Byte(' ')
+			b.Byte(' ')
 		}
 		b.Str(prefix).Str(val)
 		n++
