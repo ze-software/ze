@@ -19,7 +19,7 @@ func benchSetupRIB(b *testing.B, n int) (*FamilyRIB, [][]byte) {
 			netip.AddrFrom4([4]byte{byte(10 + i>>16), byte(i >> 8), byte(i), 0}).String() + "/24",
 		)
 		nlris[i] = store.PrefixToNLRI(pfx)
-		rib.Insert(attrs, nlris[i])
+		rib.Insert(attrs, nlris[i], true)
 	}
 	return rib, nlris
 }
@@ -88,7 +88,7 @@ func BenchmarkRIBInsertNoOp(b *testing.B) {
 	b.ResetTimer()
 	for range b.N {
 		for _, nlri := range nlris {
-			rib.Insert(attrs, nlri)
+			rib.Insert(attrs, nlri, true)
 		}
 	}
 }

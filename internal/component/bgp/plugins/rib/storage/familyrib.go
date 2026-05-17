@@ -134,8 +134,9 @@ func (r *FamilyRIB) buildNLRIBytes(pathID uint32, pfx netip.Prefix, buf []byte) 
 // old entry) unless the new attributes are bit-identical, in which case the
 // new handles are released and the old entry is retained with its stale
 // flag cleared.
-func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
-	newEntry, err := ParseAttributes(attrBytes)
+// asn4 indicates whether the source uses 4-byte ASN encoding.
+func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte, asn4 bool) {
+	newEntry, err := ParseAttributes(attrBytes, asn4)
 	if err != nil {
 		return
 	}

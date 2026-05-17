@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri/nlrisplit"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
@@ -50,6 +51,19 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 		attrBytes = attrs.Packed()
 	}
 
+	// RFC 7606: validate path attributes before storing.
+	// BMP does not negotiate capabilities, so assume eBGP + ASN4.
+	nlriData, err := wu.NLRI()
+	hasNLRI := len(nlriData) > 0
+	if len(attrBytes) > 0 || hasNLRI {
+		result := message.ValidateUpdateRFC7606(attrBytes, hasNLRI, false, true)
+		if result.Action >= message.RFC7606ActionTreatAsWithdraw {
+			logger().Debug("inject-wire-route: RFC 7606 treat-as-withdraw",
+				"protocol", protocol, "peer", peerKey, "description", result.Description)
+			return nil
+		}
+	}
+
 	r.peerMu.Lock()
 	protoPeers := r.ribInPool[protoID]
 	if protoPeers == nil {
@@ -65,11 +79,11 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 
 	ipv4Family := family.Family{AFI: 1, SAFI: 1}
 
-	nlriData, err := wu.NLRI()
+	// nlriData already fetched above for validation.
 	if err == nil && len(nlriData) > 0 && nlrisplit.Supported(ipv4Family) {
 		prefixes, _ := nlrisplit.Split(ipv4Family, nlriData, false)
 		for _, wirePrefix := range prefixes {
-			peerRIB.Insert(ipv4Family, attrBytes, wirePrefix)
+			peerRIB.Insert(ipv4Family, attrBytes, wirePrefix, true)
 		}
 	}
 
@@ -89,7 +103,7 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 			if len(nlriBytes) > 0 {
 				prefixes, _ := nlrisplit.Split(fam, nlriBytes, false)
 				for _, wirePrefix := range prefixes {
-					peerRIB.Insert(fam, attrBytes, wirePrefix)
+					peerRIB.Insert(fam, attrBytes, wirePrefix, true)
 				}
 			}
 		}

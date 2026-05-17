@@ -26,13 +26,13 @@ func setupGRTestRIB(t *testing.T) *RIBManager {
 
 	// Peer 1: two families
 	peer1RIB := storage.NewPeerRIB("192.0.2.1")
-	peer1RIB.Insert(ipv4Family, attrBytes, []byte{24, 10, 0, 0})               // 10.0.0.0/24
-	peer1RIB.Insert(ipv6Family, attrBytes, []byte{32, 0x20, 0x01, 0x0d, 0xb8}) // 2001:db8::/32
+	peer1RIB.Insert(ipv4Family, attrBytes, []byte{24, 10, 0, 0}, true)               // 10.0.0.0/24
+	peer1RIB.Insert(ipv6Family, attrBytes, []byte{32, 0x20, 0x01, 0x0d, 0xb8}, true) // 2001:db8::/32
 	r.bgpPeers["192.0.2.1"] = peer1RIB
 
 	// Peer 2: one family
 	peer2RIB := storage.NewPeerRIB("192.0.2.2")
-	peer2RIB.Insert(ipv4Family, attrBytes, []byte{24, 172, 16, 0}) // 172.16.0.0/24
+	peer2RIB.Insert(ipv4Family, attrBytes, []byte{24, 172, 16, 0}, true) // 172.16.0.0/24
 	r.bgpPeers["192.0.2.2"] = peer2RIB
 
 	return r
@@ -208,7 +208,7 @@ func TestRIBPurgeStaleCommand(t *testing.T) {
 
 	// Insert a fresh route for peer 1 (new NLRI, should have Stale=false).
 	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
-	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, attrBytes, []byte{24, 192, 168, 0}) // 192.168.0.0/24
+	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, attrBytes, []byte{24, 192, 168, 0}, true) // 192.168.0.0/24
 
 	// Peer 1 now has 3 routes: 2 stale + 1 fresh.
 	assert.Equal(t, 3, r.bgpPeers["192.0.2.1"].Len())
@@ -275,7 +275,7 @@ func TestRIBPurgeStalePreservesFresh(t *testing.T) {
 
 	// Re-announce the IPv4 route with different attributes (implicit unstale via replacement).
 	newAttrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireMED100)
-	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, newAttrBytes, []byte{24, 10, 0, 0}) // 10.0.0.0/24
+	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, newAttrBytes, []byte{24, 10, 0, 0}, true) // 10.0.0.0/24
 
 	// Now: ipv4 route is fresh (replaced), ipv6 route is still stale.
 	assert.Equal(t, 1, r.bgpPeers["192.0.2.1"].StaleCount(), "only ipv6 should be stale")
@@ -315,10 +315,10 @@ func TestGRFlowMarkAndPurge(t *testing.T) {
 
 	// Step 2: Peer reconnects, sends fresh UPDATEs for IPv4 (same NLRI, different attrs)
 	freshAttr := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
-	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, freshAttr, []byte{24, 10, 0, 0}) // re-announce 10.0.0.0/24
+	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, freshAttr, []byte{24, 10, 0, 0}, true) // re-announce 10.0.0.0/24
 
 	// Also sends a brand new route
-	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, freshAttr, []byte{24, 10, 1, 0}) // new 10.1.0.0/24
+	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, freshAttr, []byte{24, 10, 1, 0}, true) // new 10.1.0.0/24
 
 	// Step 3: EOR received for ipv4/unicast → purge stale for that family
 	_, data, err := r.handleCommand("bgp rib purge-stale", "*", []string{"192.0.2.1", "ipv4/unicast"})
@@ -364,7 +364,7 @@ func TestGRConsecutiveRestart(t *testing.T) {
 
 	// Peer reconnects, re-announces only IPv4 (IPv6 stays stale).
 	freshAttr := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
-	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, freshAttr, []byte{24, 10, 0, 0}) // refreshes 10.0.0.0/24
+	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, freshAttr, []byte{24, 10, 0, 0}, true) // refreshes 10.0.0.0/24
 	assert.Equal(t, 1, r.bgpPeers["192.0.2.1"].StaleCount(), "only ipv6 stale after refresh")
 
 	// Second disconnect before EOR! Consecutive restart.
@@ -428,7 +428,7 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 
 	// Insert a fresh route so we can verify mixed output.
 	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
-	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, attrBytes, []byte{24, 192, 168, 0}) // fresh 192.168.0.0/24
+	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, attrBytes, []byte{24, 192, 168, 0}, true) // fresh 192.168.0.0/24
 
 	// Show received should have "stale": true on stale routes, no "stale" on fresh.
 	_, data, err = r.handleCommand("bgp rib show", "192.0.2.1", []string{"received"})
@@ -666,7 +666,7 @@ func TestDeleteWithCommunity(t *testing.T) {
 	// Insert route WITH testCommunityB
 	attrWithComm := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireCommunityB)
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(ipv4Family, attrWithComm, []byte{24, 10, 0, 0})
+	peerRIB.Insert(ipv4Family, attrWithComm, []byte{24, 10, 0, 0}, true)
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Mark stale
@@ -697,7 +697,7 @@ func TestAttachCommunity_Idempotent(t *testing.T) {
 
 	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(ipv4Family, attrBytes, []byte{24, 10, 0, 0})
+	peerRIB.Insert(ipv4Family, attrBytes, []byte{24, 10, 0, 0}, true)
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	nlriBytes := []byte{24, 10, 0, 0}
@@ -734,7 +734,7 @@ func TestAttachCommunity_NoCommunities(t *testing.T) {
 
 	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(ipv4Family, attrBytes, []byte{24, 10, 0, 0})
+	peerRIB.Insert(ipv4Family, attrBytes, []byte{24, 10, 0, 0}, true)
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Mark stale + attach community

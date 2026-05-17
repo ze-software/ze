@@ -45,12 +45,13 @@ func (r *PeerRIB) SetAddPath(fam family.Family, enabled bool) {
 
 // Insert adds an NLRI with its attributes to the RIB.
 // Creates the family RIB if it doesn't exist.
-func (r *PeerRIB) Insert(fam family.Family, attrBytes, nlriBytes []byte) {
+// asn4 indicates whether the source uses 4-byte ASN encoding.
+func (r *PeerRIB) Insert(fam family.Family, attrBytes, nlriBytes []byte, asn4 bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	rib := r.getOrCreateFamily(fam)
-	rib.Insert(attrBytes, nlriBytes)
+	rib.Insert(attrBytes, nlriBytes, asn4)
 }
 
 // Remove withdraws an NLRI from the RIB.

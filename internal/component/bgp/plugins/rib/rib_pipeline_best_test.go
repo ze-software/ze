@@ -36,13 +36,13 @@ func TestBestPipelineReason_LocalPrefWinner(t *testing.T) {
 	// Peer A: LOCAL_PREF=100 (loser)
 	attrA := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
 	peerA := storage.NewPeerRIB("192.0.2.1")
-	peerA.Insert(fam, attrA, nlriBytes)
+	peerA.Insert(fam, attrA, nlriBytes, true)
 	r.bgpPeers["192.0.2.1"] = peerA
 
 	// Peer B: LOCAL_PREF=200 (winner)
 	attrB := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref200)
 	peerB := storage.NewPeerRIB("192.0.2.2")
-	peerB.Insert(fam, attrB, nlriBytes)
+	peerB.Insert(fam, attrB, nlriBytes, true)
 	r.bgpPeers["192.0.2.2"] = peerB
 
 	result := r.bestPipeline("*", []string{"reason"})
@@ -91,7 +91,7 @@ func TestBestPipelineReason_SingleCandidate(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 	attrA := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
 	peerA := storage.NewPeerRIB("192.0.2.1")
-	peerA.Insert(fam, attrA, nlriBytes)
+	peerA.Insert(fam, attrA, nlriBytes, true)
 	r.bgpPeers["192.0.2.1"] = peerA
 
 	result := r.bestPipeline("*", []string{"reason"})
@@ -126,8 +126,8 @@ func TestBestPipelineReason_WithPrefixFilter(t *testing.T) {
 	attr := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
 
 	peer := storage.NewPeerRIB("192.0.2.1")
-	peer.Insert(fam, attr, nlri1)
-	peer.Insert(fam, attr, nlri2)
+	peer.Insert(fam, attr, nlri1, true)
+	peer.Insert(fam, attr, nlri2, true)
 	r.bgpPeers["192.0.2.1"] = peer
 
 	result := r.bestPipeline("*", []string{"prefix", "10.0.0.0/24", "reason"})
@@ -181,11 +181,11 @@ func TestBestPipeline_MultipathPeersInOutput(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0} // 10.0.0.0/24
 
 	peerA := storage.NewPeerRIB("192.0.2.1")
-	peerA.Insert(fam, attrBytes, nlriBytes)
+	peerA.Insert(fam, attrBytes, nlriBytes, true)
 	r.bgpPeers["192.0.2.1"] = peerA
 
 	peerB := storage.NewPeerRIB("192.0.2.2")
-	peerB.Insert(fam, attrBytes, nlriBytes)
+	peerB.Insert(fam, attrBytes, nlriBytes, true)
 	r.bgpPeers["192.0.2.2"] = peerB
 
 	result := r.bestPipeline("*", nil)
@@ -224,10 +224,10 @@ func TestBestPipeline_MultipathDisabledDefaults(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 
 	peerA := storage.NewPeerRIB("192.0.2.1")
-	peerA.Insert(fam, attrBytes, nlriBytes)
+	peerA.Insert(fam, attrBytes, nlriBytes, true)
 	r.bgpPeers["192.0.2.1"] = peerA
 	peerB := storage.NewPeerRIB("192.0.2.2")
-	peerB.Insert(fam, attrBytes, nlriBytes)
+	peerB.Insert(fam, attrBytes, nlriBytes, true)
 	r.bgpPeers["192.0.2.2"] = peerB
 
 	result := r.bestPipeline("*", nil)

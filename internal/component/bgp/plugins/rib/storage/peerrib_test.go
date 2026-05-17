@@ -20,7 +20,7 @@ func TestPeerRIB_Insert(t *testing.T) {
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 	prefix := []byte{24, 10, 0, 0}
 
-	rib.Insert(family.IPv4Unicast, attrs, prefix)
+	rib.Insert(family.IPv4Unicast, attrs, prefix, true)
 
 	assert.Equal(t, 1, rib.Len())
 	assert.Equal(t, 1, rib.FamilyLen(family.IPv4Unicast))
@@ -39,8 +39,8 @@ func TestPeerRIB_MultipleFamilies(t *testing.T) {
 	v4prefix := []byte{24, 10, 0, 0}
 	v6prefix := []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}
 
-	rib.Insert(family.IPv4Unicast, attrs, v4prefix)
-	rib.Insert(family.IPv6Unicast, attrs, v6prefix)
+	rib.Insert(family.IPv4Unicast, attrs, v4prefix, true)
+	rib.Insert(family.IPv6Unicast, attrs, v6prefix, true)
 
 	assert.Equal(t, 2, rib.Len())
 	assert.Equal(t, 1, rib.FamilyLen(family.IPv4Unicast))
@@ -63,8 +63,8 @@ func TestPeerRIB_Remove(t *testing.T) {
 	prefix1 := []byte{24, 10, 0, 0}
 	prefix2 := []byte{24, 10, 0, 1}
 
-	rib.Insert(family.IPv4Unicast, attrs, prefix1)
-	rib.Insert(family.IPv4Unicast, attrs, prefix2)
+	rib.Insert(family.IPv4Unicast, attrs, prefix1, true)
+	rib.Insert(family.IPv4Unicast, attrs, prefix2, true)
 
 	removed := rib.Remove(family.IPv4Unicast, prefix1)
 	assert.True(t, removed)
@@ -90,7 +90,7 @@ func TestPeerRIB_Lookup(t *testing.T) {
 	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN=IGP
 	prefix := []byte{24, 10, 0, 0}
 
-	rib.Insert(family.IPv4Unicast, attrs, prefix)
+	rib.Insert(family.IPv4Unicast, attrs, prefix, true)
 
 	entry, found := rib.Lookup(family.IPv4Unicast, prefix)
 	require.True(t, found)
@@ -117,9 +117,9 @@ func TestPeerRIB_Iterate(t *testing.T) {
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 
 	// Add routes to multiple families.
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 1})
-	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0}, true)
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 1}, true)
+	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}, true)
 
 	count := 0
 	rib.Iterate(func(fam family.Family, nlriBytes []byte, entry RouteEntry) bool {
@@ -141,9 +141,9 @@ func TestPeerRIB_IterateFamily(t *testing.T) {
 
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 1})
-	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0}, true)
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 1}, true)
+	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}, true)
 
 	v4count := 0
 	rib.IterateFamily(family.IPv4Unicast, func(nlriBytes []byte, entry RouteEntry) bool {
@@ -169,8 +169,8 @@ func TestPeerRIB_Clear(t *testing.T) {
 	rib := NewPeerRIB("192.0.2.1")
 
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
-	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0}, true)
+	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}, true)
 
 	assert.Equal(t, 2, rib.Len())
 
@@ -196,8 +196,8 @@ func TestPeerRIB_AddPath(t *testing.T) {
 	nlri1 := []byte{0, 0, 0, 1, 24, 10, 0, 0}
 	nlri2 := []byte{0, 0, 0, 2, 24, 10, 0, 0}
 
-	rib.Insert(family.IPv4Unicast, attrs, nlri1)
-	rib.Insert(family.IPv4Unicast, attrs, nlri2)
+	rib.Insert(family.IPv4Unicast, attrs, nlri1, true)
+	rib.Insert(family.IPv4Unicast, attrs, nlri2, true)
 
 	assert.Equal(t, 2, rib.Len())
 }

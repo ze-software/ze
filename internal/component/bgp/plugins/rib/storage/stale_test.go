@@ -35,9 +35,9 @@ func TestFamilyRIB_MarkStale(t *testing.T) {
 	nlri2 := []byte{24, 10, 0, 1}
 	nlri3 := []byte{24, 10, 0, 2}
 
-	rib.Insert(attrs, nlri1)
-	rib.Insert(attrs, nlri2)
-	rib.Insert(attrs, nlri3)
+	rib.Insert(attrs, nlri1, true)
+	rib.Insert(attrs, nlri2, true)
+	rib.Insert(attrs, nlri3, true)
 
 	// Before marking: all fresh
 	entry1, _ := rib.LookupEntry(nlri1)
@@ -68,7 +68,7 @@ func TestFamilyRIB_MarkStaleHigherLevel(t *testing.T) {
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
-	rib.Insert(attrs, []byte{24, 10, 0, 0})
+	rib.Insert(attrs, []byte{24, 10, 0, 0}, true)
 
 	rib.MarkStale(2) // level 2 (LLGR-stale equivalent)
 
@@ -91,8 +91,8 @@ func TestFamilyRIB_PurgeStale(t *testing.T) {
 	freshNLRI := []byte{24, 10, 0, 1}
 
 	// Insert two routes
-	rib.Insert(attrs, staleNLRI)
-	rib.Insert(attrs, freshNLRI)
+	rib.Insert(attrs, staleNLRI, true)
+	rib.Insert(attrs, freshNLRI, true)
 
 	// Mark all as stale
 	rib.MarkStale(1)
@@ -100,7 +100,7 @@ func TestFamilyRIB_PurgeStale(t *testing.T) {
 	// Insert fresh route (replaces stale for freshNLRI -- implicit unstale)
 	wireMED20 := []byte{0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x14}
 	freshAttrs := concat(wireOriginIGP, wireLocalPref100, wireMED20)
-	rib.Insert(freshAttrs, freshNLRI)
+	rib.Insert(freshAttrs, freshNLRI, true)
 
 	// freshNLRI should be fresh (new entry replaces stale one)
 	freshEntry, ok := rib.LookupEntry(freshNLRI)
@@ -131,8 +131,8 @@ func TestFamilyRIB_PurgeStaleEmpty(t *testing.T) {
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
-	rib.Insert(attrs, []byte{24, 10, 0, 0})
-	rib.Insert(attrs, []byte{24, 10, 0, 1})
+	rib.Insert(attrs, []byte{24, 10, 0, 0}, true)
+	rib.Insert(attrs, []byte{24, 10, 0, 1}, true)
 
 	purged := rib.PurgeStale()
 	assert.Equal(t, 0, purged, "no routes should be purged")
@@ -152,7 +152,7 @@ func TestFamilyRIB_InsertClearsStale(t *testing.T) {
 	attrs := concat(wireOriginIGP, wireLocalPref100)
 	nlriBytes := []byte{24, 10, 0, 0}
 
-	rib.Insert(attrs, nlriBytes)
+	rib.Insert(attrs, nlriBytes, true)
 	rib.MarkStale(1)
 
 	entry, _ := rib.LookupEntry(nlriBytes)
@@ -161,7 +161,7 @@ func TestFamilyRIB_InsertClearsStale(t *testing.T) {
 	// Re-insert with different attrs (implicit withdraw + fresh insert)
 	wireMED20 := []byte{0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x14}
 	newAttrs := concat(wireOriginIGP, wireLocalPref100, wireMED20)
-	rib.Insert(newAttrs, nlriBytes)
+	rib.Insert(newAttrs, nlriBytes, true)
 
 	entry, _ = rib.LookupEntry(nlriBytes)
 	assert.Equal(t, StaleLevelFresh, entry.StaleLevel, "should be fresh after re-insert")
@@ -180,11 +180,11 @@ func TestFamilyRIB_InsertNewDuringStale(t *testing.T) {
 	attrs := concat(wireOriginIGP, wireLocalPref100)
 
 	// Insert initial route, then mark stale
-	rib.Insert(attrs, []byte{24, 10, 0, 0})
+	rib.Insert(attrs, []byte{24, 10, 0, 0}, true)
 	rib.MarkStale(1)
 
 	// Insert a NEW route (not replacing an existing one)
-	rib.Insert(attrs, []byte{24, 10, 0, 1})
+	rib.Insert(attrs, []byte{24, 10, 0, 1}, true)
 
 	newEntry, ok := rib.LookupEntry([]byte{24, 10, 0, 1})
 	require.True(t, ok)
@@ -205,9 +205,9 @@ func TestFamilyRIB_StaleCount(t *testing.T) {
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
-	rib.Insert(attrs, []byte{24, 10, 0, 0})
-	rib.Insert(attrs, []byte{24, 10, 0, 1})
-	rib.Insert(attrs, []byte{24, 10, 0, 2})
+	rib.Insert(attrs, []byte{24, 10, 0, 0}, true)
+	rib.Insert(attrs, []byte{24, 10, 0, 1}, true)
+	rib.Insert(attrs, []byte{24, 10, 0, 2}, true)
 
 	assert.Equal(t, 0, rib.StaleCount(), "no stale routes initially")
 
@@ -216,7 +216,7 @@ func TestFamilyRIB_StaleCount(t *testing.T) {
 
 	// Insert fresh replacement for one
 	wireMED20 := []byte{0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x14}
-	rib.Insert(concat(wireOriginIGP, wireLocalPref100, wireMED20), []byte{24, 10, 0, 1})
+	rib.Insert(concat(wireOriginIGP, wireLocalPref100, wireMED20), []byte{24, 10, 0, 1}, true)
 	assert.Equal(t, 2, rib.StaleCount(), "2 stale after one refreshed")
 
 	rib.PurgeStale()
@@ -238,8 +238,8 @@ func TestPeerRIB_MarkFamilyStale(t *testing.T) {
 	v4prefix := []byte{24, 10, 0, 0}
 	v6prefix := []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}
 
-	rib.Insert(family.IPv4Unicast, attrs, v4prefix)
-	rib.Insert(family.IPv6Unicast, attrs, v6prefix)
+	rib.Insert(family.IPv4Unicast, attrs, v4prefix, true)
+	rib.Insert(family.IPv6Unicast, attrs, v6prefix, true)
 
 	rib.MarkFamilyStale(family.IPv4Unicast, 1)
 
@@ -266,8 +266,8 @@ func TestPeerRIB_MarkAllStale(t *testing.T) {
 
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
-	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0}, true)
+	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}, true)
 
 	rib.MarkAllStale(1)
 
@@ -290,13 +290,13 @@ func TestPeerRIB_PurgeFamilyStale(t *testing.T) {
 
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 1})
-	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0}, true)
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 1}, true)
+	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}, true)
 
 	// Mark all stale, then refresh one IPv4 route
 	rib.MarkAllStale(1)
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0}) // refresh
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0}, true) // refresh
 
 	// Purge only IPv4 stale -- should remove 10.0.1.0/24 but keep 10.0.0.0/24
 	purged := rib.PurgeFamilyStale(family.IPv4Unicast)
@@ -323,14 +323,14 @@ func TestPeerRIB_PurgeAllStale(t *testing.T) {
 
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 1})
-	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0}, true)
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 1}, true)
+	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}, true)
 
 	rib.MarkAllStale(1)
 
 	// Refresh one IPv4 route
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0}, true)
 
 	purged := rib.PurgeAllStale()
 	assert.Equal(t, 2, purged, "should purge 2 stale routes")
@@ -353,16 +353,16 @@ func TestPeerRIB_StaleCount(t *testing.T) {
 
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 1})
-	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0}, true)
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 1}, true)
+	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}, true)
 
 	assert.Equal(t, 0, rib.StaleCount())
 
 	rib.MarkAllStale(1)
 	assert.Equal(t, 3, rib.StaleCount())
 
-	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0}) // refresh
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0}, true) // refresh
 	assert.Equal(t, 2, rib.StaleCount())
 }
 

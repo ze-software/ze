@@ -150,7 +150,7 @@ func TestAdminDistanceAppliedEBGP(t *testing.T) {
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, ok)
@@ -181,7 +181,7 @@ func TestAdminDistanceAppliedIBGP(t *testing.T) {
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 2})
 
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, ok)

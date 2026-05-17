@@ -79,7 +79,7 @@ func TestParallelCheckBestPathChangeNoLostWrites(t *testing.T) {
 			for i := range perRoutine {
 				prefix := []byte{32, 10, byte(g), byte(i >> 8), byte(i)}
 				attrs := makeAttrBytes([4]byte{10, byte(g), byte(i >> 8), byte(i)})
-				peerRIB.Insert(fam, attrs, prefix)
+				peerRIB.Insert(fam, attrs, prefix, true)
 				_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 				if !ok {
 					t.Errorf("checkBestPathChange returned (zero, false) for g=%d i=%d", g, i)
@@ -137,7 +137,7 @@ func TestConcurrentDownVsUpdate(t *testing.T) {
 
 			prefix := []byte{32, 10, 0, 0, byte(i)}
 			attrs := makeAttrBytes([4]byte{10, 0, 0, byte(i)})
-			peerRIB.Insert(fam, attrs, prefix)
+			peerRIB.Insert(fam, attrs, prefix, true)
 			r.checkBestPathChange(fam, prefix, false, nil)
 		}
 	}()
@@ -211,7 +211,7 @@ func TestParallelMultiPeerNoLostWrites(t *testing.T) {
 			for i := range perRoutine {
 				prefix := []byte{32, 172, byte(p), byte(i >> 8), byte(i)}
 				attrs := makeAttrBytes([4]byte{172, byte(p), byte(i >> 8), byte(i)})
-				peerRIB.Insert(fam, attrs, prefix)
+				peerRIB.Insert(fam, attrs, prefix, true)
 				_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 				if !ok {
 					t.Errorf("checkBestPathChange returned (zero, false) for peer=%s i=%d", peerAddr, i)

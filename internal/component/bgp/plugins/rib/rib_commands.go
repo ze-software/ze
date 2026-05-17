@@ -315,7 +315,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error
 	if r.bgpPeers[peer] == nil {
 		r.bgpPeers[peer] = storage.NewPeerRIB(peer)
 	}
-	r.bgpPeers[peer].Insert(fam, attrBytes, nlriBytes)
+	r.bgpPeers[peer].Insert(fam, attrBytes, nlriBytes, true)
 	r.peerMu.Unlock()
 
 	r.reconcileBestPath(fam, nlriBytes)

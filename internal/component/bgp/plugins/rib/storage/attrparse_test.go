@@ -48,7 +48,7 @@ var (
 // VALIDATES: ORIGIN attribute parsed and interned in Origin pool.
 // PREVENTS: ORIGIN being stored in wrong pool or blob.
 func TestParseAttributes_Origin(t *testing.T) {
-	entry, err := ParseAttributes(wireOriginIGP)
+	entry, err := ParseAttributes(wireOriginIGP, true)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -66,7 +66,7 @@ func TestParseAttributes_Origin(t *testing.T) {
 // VALIDATES: AS_PATH attribute parsed and interned in ASPath pool.
 // PREVENTS: AS_PATH being stored in wrong pool.
 func TestParseAttributes_ASPath(t *testing.T) {
-	entry, err := ParseAttributes(wireASPath65001)
+	entry, err := ParseAttributes(wireASPath65001, true)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -88,7 +88,7 @@ func TestParseAttributes_AllTypes(t *testing.T) {
 		wireCommunity,
 	)
 
-	entry, err := ParseAttributes(raw)
+	entry, err := ParseAttributes(raw, true)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -113,7 +113,7 @@ func TestParseAttributes_AllTypes(t *testing.T) {
 // VALIDATES: Missing attributes have InvalidHandle, not zero handle.
 // PREVENTS: Spurious pool lookups for absent attributes.
 func TestParseAttributes_Optional(t *testing.T) {
-	entry, err := ParseAttributes(wireOriginIGP)
+	entry, err := ParseAttributes(wireOriginIGP, true)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -134,7 +134,7 @@ func TestParseAttributes_Optional(t *testing.T) {
 // VALIDATES: Unknown attribute types stored in OtherAttrs pool as blob.
 // PREVENTS: Unknown attributes being silently dropped.
 func TestParseAttributes_Unknown(t *testing.T) {
-	entry, err := ParseAttributes(wireUnknown)
+	entry, err := ParseAttributes(wireUnknown, true)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -153,7 +153,7 @@ func TestParseAttributes_Unknown(t *testing.T) {
 func TestParseAttributes_MixedKnownUnknown(t *testing.T) {
 	raw := concat(wireOriginIGP, wireUnknown, wireLocalPref100)
 
-	entry, err := ParseAttributes(raw)
+	entry, err := ParseAttributes(raw, true)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -167,7 +167,7 @@ func TestParseAttributes_MixedKnownUnknown(t *testing.T) {
 // VALIDATES: Empty input returns valid entry with all InvalidHandle.
 // PREVENTS: Panic or error on empty attribute bytes.
 func TestParseAttributes_Empty(t *testing.T) {
-	entry, err := ParseAttributes([]byte{})
+	entry, err := ParseAttributes([]byte{}, true)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -181,11 +181,11 @@ func TestParseAttributes_Empty(t *testing.T) {
 // VALIDATES: Parsing same raw bytes twice returns same pool slots.
 // PREVENTS: Duplicate storage of identical attributes.
 func TestParseAttributes_Deduplication(t *testing.T) {
-	entry1, err := ParseAttributes(wireOriginIGP)
+	entry1, err := ParseAttributes(wireOriginIGP, true)
 	require.NoError(t, err)
 	defer entry1.Release()
 
-	entry2, err := ParseAttributes(wireOriginIGP)
+	entry2, err := ParseAttributes(wireOriginIGP, true)
 	require.NoError(t, err)
 	defer entry2.Release()
 
@@ -210,7 +210,7 @@ func TestParseAttributes_ExtendedLength(t *testing.T) {
 		largeCommunities[i] = byte(i)
 	}
 
-	entry, err := ParseAttributes(largeCommunities)
+	entry, err := ParseAttributes(largeCommunities, true)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -230,7 +230,7 @@ func TestParseAttributes_PreservesFlags(t *testing.T) {
 	// Flags: 0xE0 (optional transitive partial), Type: 99, Length: 2, Value: 0xAB 0xCD.
 	wirePartial := []byte{0xE0, 0x63, 0x02, 0xAB, 0xCD}
 
-	entry, err := ParseAttributes(wirePartial)
+	entry, err := ParseAttributes(wirePartial, true)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -262,7 +262,7 @@ func TestParseAttributes_ExtendedLengthInOther(t *testing.T) {
 		wireExtUnknown[i] = byte(i)
 	}
 
-	entry, err := ParseAttributes(wireExtUnknown)
+	entry, err := ParseAttributes(wireExtUnknown, true)
 	require.NoError(t, err)
 	defer entry.Release()
 
@@ -290,7 +290,7 @@ func TestParseAttributes_DuplicateAttribute(t *testing.T) {
 	wireOriginEGP := []byte{0x40, 0x01, 0x01, 0x01}
 	raw := concat(wireOriginIGP, wireOriginEGP) // IGP then EGP
 
-	entry, err := ParseAttributes(raw)
+	entry, err := ParseAttributes(raw, true)
 	require.Error(t, err)
 	assert.Equal(t, RouteEntry{}, entry)
 }
@@ -316,7 +316,7 @@ func TestParseAttributes_BoundaryOrigin(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wire := []byte{0x40, 0x01, 0x01, tt.value}
-			entry, err := ParseAttributes(wire)
+			entry, err := ParseAttributes(wire, true)
 			require.NoError(t, err)
 			defer entry.Release()
 
@@ -346,7 +346,7 @@ func TestParseAttributes_BoundaryLocalPref(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wire := append([]byte{0x40, 0x05, 0x04}, tt.value...)
-			entry, err := ParseAttributes(wire)
+			entry, err := ParseAttributes(wire, true)
 			require.NoError(t, err)
 			defer entry.Release()
 
@@ -376,7 +376,7 @@ func TestParseAttributes_BoundaryMED(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wire := append([]byte{0x80, 0x04, 0x04}, tt.value...)
-			entry, err := ParseAttributes(wire)
+			entry, err := ParseAttributes(wire, true)
 			require.NoError(t, err)
 			defer entry.Release()
 
@@ -438,7 +438,7 @@ func TestParseAttributes_BoundaryLengths(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			entry, err := ParseAttributes(tt.attr)
+			entry, err := ParseAttributes(tt.attr, true)
 			if tt.wantErr {
 				if err == nil {
 					t.Error("expected error, got nil")
@@ -477,6 +477,83 @@ func makeExtAttr(flags, code byte, n int) []byte {
 }
 
 // concat concatenates multiple byte slices.
+func TestExpandASPath2to4(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  []byte
+		expect []byte
+	}{
+		{
+			name:   "empty",
+			input:  []byte{},
+			expect: []byte{},
+		},
+		{
+			name:   "single_sequence_one_asn",
+			input:  []byte{2, 1, 0x00, 0x41}, // AS_SEQUENCE, count=1, ASN=65
+			expect: []byte{2, 1, 0, 0, 0x00, 0x41},
+		},
+		{
+			name:   "single_sequence_two_asns",
+			input:  []byte{2, 2, 0x00, 0x41, 0xFF, 0xFF}, // ASN=65, ASN=65535
+			expect: []byte{2, 2, 0, 0, 0x00, 0x41, 0, 0, 0xFF, 0xFF},
+		},
+		{
+			name:   "as_set",
+			input:  []byte{1, 1, 0x00, 0x01}, // AS_SET, count=1, ASN=1
+			expect: []byte{1, 1, 0, 0, 0x00, 0x01},
+		},
+		{
+			name:   "truncated_segment",
+			input:  []byte{2, 3, 0x00, 0x01}, // claims 3 ASNs but only has 1
+			expect: nil,
+		},
+		{
+			name:   "trailing_byte",
+			input:  []byte{2, 1, 0x00, 0x01, 0xFF}, // valid segment + trailing junk
+			expect: nil,
+		},
+		{
+			name:   "zero_count_segment",
+			input:  []byte{2, 0}, // AS_SEQUENCE with 0 ASNs
+			expect: []byte{2, 0},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := expandASPath2to4(tt.input)
+			assert.Equal(t, tt.expect, got)
+		})
+	}
+}
+
+func TestCanonicalizeASPath(t *testing.T) {
+	asPath2Byte := []byte{2, 1, 0x00, 0x41}            // AS_SEQUENCE[65] in 2-byte
+	asPath4Byte := []byte{2, 1, 0, 0, 0x00, 0x41}      // AS_SEQUENCE[65] in 4-byte
+	as4Path := []byte{2, 1, 0, 0, 0xFD, 0xE8, 0, 0x01} // AS_SEQUENCE[65000:1] in 4-byte
+
+	t.Run("asn4_true_returns_aspath_as_is", func(t *testing.T) {
+		got := canonicalizeASPath(asPath4Byte, nil, true)
+		assert.Equal(t, asPath4Byte, got)
+	})
+
+	t.Run("asn4_false_expands_2byte", func(t *testing.T) {
+		got := canonicalizeASPath(asPath2Byte, nil, false)
+		assert.Equal(t, []byte{2, 1, 0, 0, 0x00, 0x41}, got)
+	})
+
+	t.Run("as4path_preferred_over_aspath", func(t *testing.T) {
+		got := canonicalizeASPath(asPath2Byte, as4Path, true)
+		assert.Equal(t, as4Path, got)
+	})
+
+	t.Run("nil_aspath_returns_nil", func(t *testing.T) {
+		got := canonicalizeASPath(nil, nil, true)
+		assert.Nil(t, got)
+	})
+}
+
 func concat(slices ...[]byte) []byte {
 	var total int
 	for _, s := range slices {

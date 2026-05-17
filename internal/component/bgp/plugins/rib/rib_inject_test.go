@@ -13,15 +13,25 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
+// minimalAttrs is a valid attribute set with ORIGIN(IGP) + AS_PATH(empty) + NEXT_HOP(10.0.0.1).
+// Satisfies RFC 7606 mandatory attribute requirements for UPDATE with NLRI.
+var minimalAttrs = []byte{
+	0x40, 0x01, 0x01, 0x00, // ORIGIN: flags=0x40, type=1, len=1, value=IGP(0)
+	0x40, 0x02, 0x00, // AS_PATH: flags=0x40, type=2, len=0 (empty)
+	0x40, 0x03, 0x04, 10, 0, 0, 1, // NEXT_HOP: flags=0x40, type=3, len=4, value=10.0.0.1
+}
+
 // ipv4UpdateBody builds a minimal BGP UPDATE body (no header) announcing
-// the given IPv4 prefix. No attributes, no withdrawals.
-// Wire format: withdrawn_len(2) + attr_len(2) + NLRI(prefix_len_byte + prefix_bytes).
+// the given IPv4 prefix with mandatory attributes.
+// Wire format: withdrawn_len(2) + attr_len(2) + attrs + NLRI(prefix_len_byte + prefix_bytes).
 func ipv4UpdateBody(prefixLen byte, prefixBytes ...byte) []byte {
+	attrLen := len(minimalAttrs)
 	buf := []byte{
 		0x00, 0x00, // withdrawn routes length = 0
-		0x00, 0x00, // total path attribute length = 0
-		prefixLen, // NLRI prefix length
+		byte(attrLen >> 8), byte(attrLen), // total path attribute length
 	}
+	buf = append(buf, minimalAttrs...)
+	buf = append(buf, prefixLen)
 	return append(buf, prefixBytes...)
 }
 
@@ -78,11 +88,11 @@ func TestBMPRoutesExcludedFromBestPath(t *testing.T) {
 
 	// Insert same prefix via both BGP and BMP.
 	r.bgpPeers["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
-	r.bgpPeers["10.0.0.1"].Insert(ipv4Uni, attrBytes, nlri)
+	r.bgpPeers["10.0.0.1"].Insert(ipv4Uni, attrBytes, nlri, true)
 
 	bmpPeers := r.ribInPool[bmpProtocolID]
 	bmpPeers["router1:10.0.0.2"] = storage.NewPeerRIB("router1:10.0.0.2")
-	bmpPeers["router1:10.0.0.2"].Insert(ipv4Uni, attrBytes, nlri)
+	bmpPeers["router1:10.0.0.2"].Insert(ipv4Uni, attrBytes, nlri, true)
 
 	r.peerMu.RLock()
 	candidates := r.gatherCandidatesLocked(ipv4Uni, nlri)
@@ -132,10 +142,10 @@ func TestWithdrawAllForPeer(t *testing.T) {
 
 	bmpPeers := r.ribInPool[bmpProtocolID]
 	bmpPeers["router1:peer1"] = storage.NewPeerRIB("router1:peer1")
-	bmpPeers["router1:peer1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0})
-	bmpPeers["router1:peer1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1})
+	bmpPeers["router1:peer1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0}, true)
+	bmpPeers["router1:peer1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1}, true)
 	bmpPeers["router1:peer2"] = storage.NewPeerRIB("router1:peer2")
-	bmpPeers["router1:peer2"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 2})
+	bmpPeers["router1:peer2"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 2}, true)
 
 	r.withdrawAllForPeer("bmp", "router1:peer1")
 
@@ -156,11 +166,11 @@ func TestWithdrawAllForRouter(t *testing.T) {
 
 	bmpPeers := r.ribInPool[bmpProtocolID]
 	bmpPeers["192.168.1.1:5678:peer1"] = storage.NewPeerRIB("192.168.1.1:5678:peer1")
-	bmpPeers["192.168.1.1:5678:peer1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0})
+	bmpPeers["192.168.1.1:5678:peer1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0}, true)
 	bmpPeers["192.168.1.1:5678:peer2"] = storage.NewPeerRIB("192.168.1.1:5678:peer2")
-	bmpPeers["192.168.1.1:5678:peer2"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1})
+	bmpPeers["192.168.1.1:5678:peer2"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1}, true)
 	bmpPeers["192.168.2.1:9999:peer3"] = storage.NewPeerRIB("192.168.2.1:9999:peer3")
-	bmpPeers["192.168.2.1:9999:peer3"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 2})
+	bmpPeers["192.168.2.1:9999:peer3"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 2}, true)
 
 	r.withdrawAllForRouter("bmp", "192.168.1.1:5678")
 
@@ -181,12 +191,12 @@ func TestShowProtocolPipelineBMP(t *testing.T) {
 
 	// Insert BGP route.
 	r.bgpPeers["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
-	r.bgpPeers["10.0.0.1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0})
+	r.bgpPeers["10.0.0.1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0}, true)
 
 	// Insert BMP route.
 	bmpPeers := r.ribInPool[bmpProtocolID]
 	bmpPeers["router1:peer1"] = storage.NewPeerRIB("router1:peer1")
-	bmpPeers["router1:peer1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1})
+	bmpPeers["router1:peer1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1}, true)
 
 	result := r.showProtocolPipeline("bmp", "", nil)
 
@@ -211,9 +221,9 @@ func TestShowProtocolPipelineSelector(t *testing.T) {
 
 	bmpPeers := r.ribInPool[bmpProtocolID]
 	bmpPeers["router1:peer1"] = storage.NewPeerRIB("router1:peer1")
-	bmpPeers["router1:peer1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0})
+	bmpPeers["router1:peer1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0}, true)
 	bmpPeers["router1:peer2"] = storage.NewPeerRIB("router1:peer2")
-	bmpPeers["router1:peer2"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1})
+	bmpPeers["router1:peer2"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1}, true)
 
 	result := r.showProtocolPipeline("bmp", "router1:peer1", nil)
 
@@ -265,11 +275,11 @@ func TestBGPShowExcludesBMP(t *testing.T) {
 	attrBytes := []byte{0x40, 0x01, 0x01, 0x00}
 
 	r.bgpPeers["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
-	r.bgpPeers["10.0.0.1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0})
+	r.bgpPeers["10.0.0.1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0}, true)
 
 	bmpPeers := r.ribInPool[bmpProtocolID]
 	bmpPeers["router1:peer1"] = storage.NewPeerRIB("router1:peer1")
-	bmpPeers["router1:peer1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1})
+	bmpPeers["router1:peer1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1}, true)
 
 	result := r.showPipeline("*", nil)
 

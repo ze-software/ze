@@ -69,8 +69,13 @@ func init() {
 // handles are grouped into a Bundle and interned in BundlePool. AS_PATH is
 // stored directly on RouteEntry.
 //
+// asn4 indicates whether the source session negotiated 4-byte ASN capability.
+// When false, AS_PATH values use 2-byte encoding and are expanded to 4-byte
+// before interning. When AS4_PATH (type 17) is present alongside AS_PATH,
+// AS4_PATH is preferred per RFC 6793 Section 4.2.3.
+//
 // Caller must call Release() on the returned RouteEntry when done.
-func ParseAttributes(raw []byte) (RouteEntry, error) {
+func ParseAttributes(raw []byte, asn4 bool) (RouteEntry, error) {
 	bundle := NewBundle()
 	aspathHandle := attrpool.InvalidHandle
 	cleanup := func() {
@@ -87,6 +92,8 @@ func ParseAttributes(raw []byte) (RouteEntry, error) {
 
 	var otherAttrs []byte
 	var seen [256]bool
+	var aspathValue []byte
+	var as4pathValue []byte
 
 	iter := attribute.NewAttrIterator(raw)
 	for typeCode, flags, value, ok := iter.Next(); ok; typeCode, flags, value, ok = iter.Next() {
@@ -97,12 +104,11 @@ func ParseAttributes(raw []byte) (RouteEntry, error) {
 		seen[typeCode] = true
 
 		if typeCode == attribute.AttrASPath {
-			h, err := pool.ASPath.Intern(value)
-			if err != nil {
-				cleanup()
-				return RouteEntry{}, fmt.Errorf("intern %s: %w", "as-path", err)
-			}
-			aspathHandle = h
+			aspathValue = value
+			continue
+		}
+		if typeCode == attribute.AttrAS4Path {
+			as4pathValue = value
 			continue
 		}
 		if h := bundleInterners[typeCode]; h != nil {
@@ -121,6 +127,19 @@ func ParseAttributes(raw []byte) (RouteEntry, error) {
 		return RouteEntry{}, fmt.Errorf("malformed attribute list at offset %d", iter.Offset())
 	}
 
+	// RFC 6793 Section 4.2.3: When AS4_PATH is present, the AS_PATH uses
+	// 2-byte encoding with AS_TRANS placeholders. Use AS4_PATH (always 4-byte).
+	// When only AS_PATH is present and asn4=false, expand 2-byte to 4-byte.
+	canonASPath := canonicalizeASPath(aspathValue, as4pathValue, asn4)
+	if canonASPath != nil {
+		h, err := pool.ASPath.Intern(canonASPath)
+		if err != nil {
+			cleanup()
+			return RouteEntry{}, fmt.Errorf("intern %s: %w", "as-path", err)
+		}
+		aspathHandle = h
+	}
+
 	if len(otherAttrs) > 0 {
 		h, err := pool.OtherAttrs.Intern(otherAttrs)
 		if err != nil {
@@ -132,6 +151,64 @@ func ParseAttributes(raw []byte) (RouteEntry, error) {
 
 	bundleHandle := Bundles.Intern(bundle)
 	return RouteEntry{Bundle: bundleHandle, ASPath: aspathHandle}, nil
+}
+
+// canonicalizeASPath returns AS_PATH value bytes in canonical 4-byte encoding.
+// RFC 6793 Section 4.2.3: when AS4_PATH is present, it carries the real
+// 4-byte AS path; AS_PATH in that case has 2-byte encoding with AS_TRANS
+// placeholders. When only AS_PATH is present and asn4=false, each 2-byte
+// segment is expanded to 4-byte.
+func canonicalizeASPath(aspathValue, as4pathValue []byte, asn4 bool) []byte {
+	if len(as4pathValue) > 0 {
+		return as4pathValue
+	}
+	if aspathValue == nil {
+		return nil
+	}
+	if asn4 {
+		return aspathValue
+	}
+	return expandASPath2to4(aspathValue)
+}
+
+// expandASPath2to4 converts 2-byte encoded AS_PATH segments to 4-byte encoding.
+func expandASPath2to4(data []byte) []byte {
+	if len(data) == 0 {
+		return data
+	}
+	// Pre-scan to validate and compute output size.
+	segments := 0
+	totalASNs := 0
+	offset := 0
+	for offset+2 <= len(data) {
+		segments++
+		count := int(data[offset+1])
+		offset += 2
+		needed := count * 2
+		if offset+needed > len(data) {
+			return nil
+		}
+		totalASNs += count
+		offset += needed
+	}
+	if offset != len(data) {
+		return nil
+	}
+
+	out := make([]byte, 0, segments*2+totalASNs*4)
+	offset = 0
+	for offset+2 <= len(data) {
+		segType := data[offset]
+		count := int(data[offset+1])
+		out = append(out, segType, data[offset+1])
+		offset += 2
+		for range count {
+			asn16 := uint16(data[offset])<<8 | uint16(data[offset+1])
+			out = append(out, 0, 0, byte(asn16>>8), byte(asn16))
+			offset += 2
+		}
+	}
+	return out
 }
 
 // appendOtherAttr appends an attribute in wire format for OtherAttrs storage.

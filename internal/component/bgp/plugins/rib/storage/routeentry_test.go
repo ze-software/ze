@@ -176,14 +176,14 @@ func TestRouteEntry_WireRoundTrip(t *testing.T) {
 
 	original := concat(wireOrigin, wireASPath, wireNextHop, wireLocalPref, wireMED)
 
-	entry, err := ParseAttributes(original)
+	entry, err := ParseAttributes(original, true)
 	require.NoError(t, err)
 	defer entry.Release()
 
 	reconstructed, err := entry.ToWireBytes()
 	require.NoError(t, err)
 
-	entry2, err := ParseAttributes(reconstructed)
+	entry2, err := ParseAttributes(reconstructed, true)
 	require.NoError(t, err)
 	defer entry2.Release()
 

@@ -122,7 +122,7 @@ func TestRIBBestChangePublish(t *testing.T) {
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	// Check best-path change under lock.
 	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
@@ -192,11 +192,11 @@ func TestPurgeBestPrevForPeer(t *testing.T) {
 	attrsSurviving := makeAttrBytes([4]byte{192, 168, 2, 2})
 
 	for _, p := range leavingPrefixes {
-		r.bgpPeers[leavingPeer].Insert(fam, attrsLeaving, p)
+		r.bgpPeers[leavingPeer].Insert(fam, attrsLeaving, p, true)
 		_, ok := r.checkBestPathChange(fam, p, false, nil)
 		require.True(t, ok, "seed checkBestPathChange must record the prefix")
 	}
-	r.bgpPeers[survivingPeer].Insert(fam, attrsSurviving, survivingPrefix)
+	r.bgpPeers[survivingPeer].Insert(fam, attrsSurviving, survivingPrefix, true)
 	_, ok := r.checkBestPathChange(fam, survivingPrefix, false, nil)
 	require.True(t, ok, "seed surviving prefix must record")
 
@@ -285,7 +285,7 @@ func TestPurgeBestPrevForPeerLocRIB(t *testing.T) {
 
 	prefix := ipv4Prefix(24, 10, 7, 0) // 10.7.0.0/24
 	attrs := makeAttrBytes([4]byte{192, 168, 7, 7})
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, ok, "seed must record prefix in bestPrev and locrib")
 
@@ -345,13 +345,13 @@ func TestPurgeBestPrevForPeerAddPath(t *testing.T) {
 
 	for _, pid := range []uint32{1, 2} {
 		nlri := apPrefix(pid, 24, 10, 20, 0)
-		r.bgpPeers[leavingPeer].Insert(fam, attrsLeaving, nlri)
+		r.bgpPeers[leavingPeer].Insert(fam, attrsLeaving, nlri, true)
 		_, ok := r.checkBestPathChange(fam, nlri, true, nil)
 		require.True(t, ok, "AP seed %d must record", pid)
 	}
 	// Third path-id from the surviving peer on the same prefix.
 	nlriSurviving := apPrefix(3, 24, 10, 20, 0)
-	r.bgpPeers[survivingPeer].Insert(fam, attrsSurviving, nlriSurviving)
+	r.bgpPeers[survivingPeer].Insert(fam, attrsSurviving, nlriSurviving, true)
 	_, ok := r.checkBestPathChange(fam, nlriSurviving, true, nil)
 	require.True(t, ok, "AP seed surviving must record")
 
@@ -405,7 +405,7 @@ func TestBestChangeEntryPathIDPropagation(t *testing.T) {
 
 	// Add path-id 7 for 10.30.0.0/24.
 	nlri7 := apPrefix(7, 24, 10, 30, 0)
-	r.bgpPeers[leavingPeer].Insert(fam, attrs, nlri7)
+	r.bgpPeers[leavingPeer].Insert(fam, attrs, nlri7, true)
 	addEntry, ok := r.checkBestPathChange(fam, nlri7, true, nil)
 	require.True(t, ok)
 	assert.Equal(t, ribevents.BestChangeAdd, addEntry.Action)
@@ -423,8 +423,8 @@ func TestBestChangeEntryPathIDPropagation(t *testing.T) {
 	// Re-seed with two path-ids (11, 22) so the purge multi branch fires.
 	nlri11 := apPrefix(11, 24, 10, 31, 0)
 	nlri22 := apPrefix(22, 24, 10, 31, 0)
-	r.bgpPeers[leavingPeer].Insert(fam, attrs, nlri11)
-	r.bgpPeers[leavingPeer].Insert(fam, attrs, nlri22)
+	r.bgpPeers[leavingPeer].Insert(fam, attrs, nlri11, true)
+	r.bgpPeers[leavingPeer].Insert(fam, attrs, nlri22, true)
 	for _, nlri := range [][]byte{nlri11, nlri22} {
 		_, ok := r.checkBestPathChange(fam, nlri, true, nil)
 		require.True(t, ok)
@@ -475,7 +475,7 @@ func TestBestChangeEntryPathIDNonAddPath(t *testing.T) {
 	attrs := makeAttrBytes([4]byte{192, 168, 40, 40})
 
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	entry, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, ok)
@@ -516,7 +516,7 @@ func TestBestChangeEntryAddPathZeroPathID(t *testing.T) {
 	// ADD-PATH NLRI with pathID=0: [00 00 00 00][18 0a 29 00] = 10.41.0.0/24.
 	nlri := []byte{0, 0, 0, 0, 24, 10, 41, 0}
 	attrs := makeAttrBytes([4]byte{192, 168, 41, 41})
-	r.bgpPeers[peerAddr].Insert(fam, attrs, nlri)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, nlri, true)
 
 	entry, ok := r.checkBestPathChange(fam, nlri, true, nil)
 	require.True(t, ok)
@@ -552,7 +552,7 @@ func TestPurgeBestPrevForPeerMultiFamily(t *testing.T) {
 	// IPv4 NLRI.
 	v4prefix := ipv4Prefix(24, 10, 30, 0)
 	v4attrs := makeAttrBytes([4]byte{192, 168, 30, 30})
-	r.bgpPeers[peerAddr].Insert(family4, v4attrs, v4prefix)
+	r.bgpPeers[peerAddr].Insert(family4, v4attrs, v4prefix, true)
 	_, ok := r.checkBestPathChange(family4, v4prefix, false, nil)
 	require.True(t, ok, "v4 seed must record")
 
@@ -563,7 +563,7 @@ func TestPurgeBestPrevForPeerMultiFamily(t *testing.T) {
 	// IPv6 attrs include an MP_REACH_NLRI; for this test we just need a
 	// seeded route, not wire accuracy. Use the same v4-shaped attrs --
 	// gatherCandidates keys off ribInPool presence, not attr shape.
-	r.bgpPeers[peerAddr].Insert(family6, v4attrs, v6prefix)
+	r.bgpPeers[peerAddr].Insert(family6, v4attrs, v6prefix, true)
 	_, ok = r.checkBestPathChange(family6, v6prefix, false, nil)
 	require.True(t, ok, "v6 seed must record")
 
@@ -613,7 +613,7 @@ func TestPurgeBestPrevForPeerHandleState(t *testing.T) {
 
 	prefix := ipv4Prefix(24, 10, 40, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 40, 40})
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, ok, "seed must record")
 
@@ -646,14 +646,14 @@ func TestRIBBestChangeNoPublishSameBest(t *testing.T) {
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	// First check: detects new best.
 	_, ok1 := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, ok1)
 
 	// Re-insert same route (implicit withdraw + re-add with same attrs).
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	// Second check: same best, no change.
 	_, ok2 := r.checkBestPathChange(fam, prefix, false, nil)
@@ -675,7 +675,7 @@ func TestRIBBestChangeWithdraw(t *testing.T) {
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	// Establish best path.
 	r.checkBestPathChange(fam, prefix, false, nil)
@@ -711,7 +711,7 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
 	for _, p := range prefixes {
-		r.bgpPeers[peerAddr].Insert(fam, attrs, p)
+		r.bgpPeers[peerAddr].Insert(fam, attrs, p, true)
 	}
 
 	// Establish best paths for all prefixes.
@@ -764,7 +764,7 @@ func TestRIBBestChangeEBGPMetadata(t *testing.T) {
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
 
@@ -793,7 +793,7 @@ func TestRIBBestChangeIBGPMetadata(t *testing.T) {
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
 
@@ -815,7 +815,7 @@ func TestRIBBestChangeEBGPPriority(t *testing.T) {
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
 
@@ -837,7 +837,7 @@ func TestRIBBestChangeIBGPPriority(t *testing.T) {
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
 
@@ -858,7 +858,7 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 	peer1 := "192.0.2.1"
 	r.peerMeta[peer1] = &PeerMeta{PeerASN: 65000, LocalASN: 65000}
 	r.bgpPeers[peer1] = storage.NewPeerRIB(peer1)
-	r.bgpPeers[peer1].Insert(fam, makeAttrBytes([4]byte{10, 0, 0, 1}), prefix)
+	r.bgpPeers[peer1].Insert(fam, makeAttrBytes([4]byte{10, 0, 0, 1}), prefix, true)
 
 	change1, ok1 := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, ok1)
@@ -868,7 +868,7 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 	peer2 := "192.0.2.2"
 	r.peerMeta[peer2] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 	r.bgpPeers[peer2] = storage.NewPeerRIB(peer2)
-	r.bgpPeers[peer2].Insert(fam, makeAttrBytes([4]byte{10, 0, 0, 2}), prefix)
+	r.bgpPeers[peer2].Insert(fam, makeAttrBytes([4]byte{10, 0, 0, 2}), prefix, true)
 
 	change2, ok2 := r.checkBestPathChange(fam, prefix, false, nil)
 
@@ -895,7 +895,7 @@ func TestRIBReplayOnSubscribe(t *testing.T) {
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	r.checkBestPathChange(fam, prefix, false, nil)
 
@@ -1090,7 +1090,7 @@ func TestBestPrevInternerOverflow(t *testing.T) {
 		prefix := ipv4Prefix(24, 10, 0, 0)
 		attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 		r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
-		r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+		r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 		require.NotPanics(t, func() {
 			entry, ok := r.checkBestPathChange(fam, prefix, false, nil)
@@ -1246,7 +1246,7 @@ func TestPurgeBestPrevForPeerReclaimsInternerSlot(t *testing.T) {
 
 	prefix := ipv4Prefix(24, 10, 9, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 9, 9})
-	r.bgpPeers[peerA].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerA].Insert(fam, attrs, prefix, true)
 	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, ok, "seed must intern peerA and store a bestPrev record")
 
@@ -1454,7 +1454,7 @@ func TestLocRIBMirror(t *testing.T) {
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, ok)
@@ -1496,7 +1496,7 @@ func TestLocRIBMirrorPropagatesForwardHandle(t *testing.T) {
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix)
+	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	// Simulate the wire buffer as handleReceivedStructured would see it.
 	wire := []byte{0xde, 0xad, 0xbe, 0xef, 0x01, 0x02, 0x03}

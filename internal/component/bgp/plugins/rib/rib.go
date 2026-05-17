@@ -856,7 +856,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 			logger().Warn("pool: split error, inserting parsed prefix", "peer", peerAddr, "family", famStr, "error", err, "parsed", len(prefixes))
 		}
 		for _, wirePrefix := range prefixes {
-			peerRIB.Insert(fam, attrBytes, wirePrefix)
+			peerRIB.Insert(fam, attrBytes, wirePrefix, true)
 		}
 
 		if m := metricsPtr.Load(); m != nil {

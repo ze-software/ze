@@ -89,7 +89,7 @@ func TestInboundShowWithAttributes(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	route := requireFirstRoute(t, r.showPipeline("*", []string{"received"}), "adj-rib-in", "192.0.2.1")
@@ -126,7 +126,7 @@ func TestInboundShowMinimalAttributes(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	route := requireFirstRoute(t, r.showPipeline("192.0.2.1", []string{"received"}), "adj-rib-in", "192.0.2.1")
@@ -211,8 +211,8 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 	nlriIPv6 := []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, 0x00, 0x00} // 2001:db8:1::/64
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(ipv4Family, attrBytes, nlriIPv4)
-	peerRIB.Insert(ipv6Family, attrBytes, nlriIPv6)
+	peerRIB.Insert(ipv4Family, attrBytes, nlriIPv4, true)
+	peerRIB.Insert(ipv6Family, attrBytes, nlriIPv6, true)
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Without filter: both families
@@ -240,8 +240,8 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 	nlri2 := []byte{24, 172, 16, 0} // 172.16.0.0/24
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(fam, attrBytes, nlri1)
-	peerRIB.Insert(fam, attrBytes, nlri2)
+	peerRIB.Insert(fam, attrBytes, nlri1, true)
+	peerRIB.Insert(fam, attrBytes, nlri2, true)
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Filter by prefix (exact prefix string match)
