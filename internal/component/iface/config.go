@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"strconv"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -93,7 +94,7 @@ type ifaceEntry struct {
 
 // offloadConfig holds per-interface ethtool offload and sysfs steering
 // settings. Pointer fields: nil = not configured (preserve OS default),
-// non-nil = set explicitly. Matches ipv4Sysctl/ipv6Sysctl three-state pattern.
+// non-nil = set explicitly. Matches ipv4Settings/ipv6Settings three-state pattern.
 type offloadConfig struct {
 	GRO         *bool
 	GSO         *bool
@@ -131,8 +132,8 @@ type unitEntry struct {
 	Disable        bool
 	RoutePriority  int // route metric for DHCP default routes (0 = kernel default)
 	SysctlProfiles []string
-	IPv4           *ipv4Sysctl
-	IPv6           *ipv6Sysctl
+	IPv4           *ipv4Settings
+	IPv6           *ipv6Settings
 	MirrorIngress  string // destination interface name, empty = not configured
 	MirrorEgress   string
 	DHCP           *dhcpUnitConfig
@@ -155,9 +156,10 @@ type dhcpv6UnitConfig struct {
 	DUID     string
 }
 
-// ipv4Sysctl holds per-interface IPv4 sysctl settings.
+// ipv4Settings holds per-interface IPv4 configuration: addresses and sysctl knobs.
 // Pointer fields: nil = not configured (leave OS default), non-nil = set.
-type ipv4Sysctl struct {
+type ipv4Settings struct {
+	Addresses   []string
 	Forwarding  *bool
 	ArpFilter   *bool
 	ArpAccept   *bool
@@ -167,8 +169,9 @@ type ipv4Sysctl struct {
 	RPFilter    *int
 }
 
-// ipv6Sysctl holds per-interface IPv6 sysctl settings.
-type ipv6Sysctl struct {
+// ipv6Settings holds per-interface IPv6 configuration: addresses and sysctl knobs.
+type ipv6Settings struct {
+	Addresses  []string
 	Autoconf   *bool
 	AcceptRA   *int
 	Forwarding *bool
@@ -223,7 +226,11 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 				return nil, fmt.Errorf("ethernet: %w", err)
 			}
 			m, _ := v.(map[string]any)
-			cfg.Ethernet = append(cfg.Ethernet, parseIfaceEntry(name, m))
+			entry, err := parseIfaceEntry(name, m)
+			if err != nil {
+				return nil, fmt.Errorf("ethernet %q: %w", name, err)
+			}
+			cfg.Ethernet = append(cfg.Ethernet, entry)
 		}
 	}
 
@@ -233,7 +240,11 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 				return nil, fmt.Errorf("dummy: %w", err)
 			}
 			m, _ := v.(map[string]any)
-			cfg.Dummy = append(cfg.Dummy, parseIfaceEntry(name, m))
+			entry, err := parseIfaceEntry(name, m)
+			if err != nil {
+				return nil, fmt.Errorf("dummy %q: %w", name, err)
+			}
+			cfg.Dummy = append(cfg.Dummy, entry)
 		}
 	}
 
@@ -243,7 +254,11 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 				return nil, fmt.Errorf("veth: %w", err)
 			}
 			m, _ := v.(map[string]any)
-			entry := vethEntry{ifaceEntry: parseIfaceEntry(name, m)}
+			iface, err := parseIfaceEntry(name, m)
+			if err != nil {
+				return nil, fmt.Errorf("veth %q: %w", name, err)
+			}
+			entry := vethEntry{ifaceEntry: iface}
 			if peer, ok := m["peer"].(string); ok {
 				if err := ValidateIfaceName(peer); err != nil {
 					return nil, fmt.Errorf("veth %q peer: %w", name, err)
@@ -260,7 +275,11 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 				return nil, fmt.Errorf("bridge: %w", err)
 			}
 			m, _ := v.(map[string]any)
-			entry := bridgeEntry{ifaceEntry: parseIfaceEntry(name, m)}
+			iface, err := parseIfaceEntry(name, m)
+			if err != nil {
+				return nil, fmt.Errorf("bridge %q: %w", name, err)
+			}
+			entry := bridgeEntry{ifaceEntry: iface}
 			if stp, ok := m["stp"].(string); ok {
 				entry.STP = stp == yangTrue
 			}
@@ -319,7 +338,11 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 
 	if loMap, ok := ifaceMap["loopback"].(map[string]any); ok {
 		lo := &loopbackEntry{}
-		lo.Units = parseUnits(loMap)
+		var err error
+		lo.Units, err = parseUnits(loMap)
+		if err != nil {
+			return nil, fmt.Errorf("loopback: %w", err)
+		}
 		cfg.Loopback = lo
 	}
 
@@ -335,7 +358,11 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 // not allow VLAN tagging on netdevs that do not carry Ethernet frames; only
 // gretap/ip6gretap (the L2/bridgeable kinds) accept VLAN sub-interfaces.
 func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
-	entry := tunnelEntry{ifaceEntry: parseIfaceEntry(name, m)}
+	iface, err := parseIfaceEntry(name, m)
+	if err != nil {
+		return tunnelEntry{}, err
+	}
+	entry := tunnelEntry{ifaceEntry: iface}
 	// MAC address for tunnels comes from inside the encapsulation case
 	// container (gretap/ip6gretap only), not from the list level. Clear
 	// any list-level mac-address that parseIfaceEntry may have read.
@@ -479,7 +506,11 @@ func parseTunnelLeaves(spec *TunnelSpec, caseMap map[string]any) error {
 // already plaintext at this layer -- the config parser's parseLeaf has
 // decoded any $9$ prefix before the tree reaches us.
 func parseWireguardEntry(name string, m map[string]any) (wireguardEntry, error) {
-	entry := wireguardEntry{ifaceEntry: parseIfaceEntry(name, m)}
+	iface, err := parseIfaceEntry(name, m)
+	if err != nil {
+		return wireguardEntry{}, err
+	}
+	entry := wireguardEntry{ifaceEntry: iface}
 	// Wireguard uses interface-common (no mac-address leaf). Clear any
 	// list-level mac-address that parseIfaceEntry may have read from a
 	// hand-edited config. Same defense-in-depth as parseTunnelEntry.
@@ -665,10 +696,10 @@ func parsePPPoEClientEntry(name string, m map[string]any) (pppoeClientEntry, err
 	return entry, nil
 }
 
-func parseIfaceEntry(name string, m map[string]any) ifaceEntry {
+func parseIfaceEntry(name string, m map[string]any) (ifaceEntry, error) {
 	entry := ifaceEntry{Name: name}
 	if m == nil {
-		return entry
+		return entry, nil
 	}
 	if mtu, ok := m["mtu"].(string); ok {
 		entry.MTU, _ = strconv.Atoi(mtu)
@@ -680,14 +711,18 @@ func parseIfaceEntry(name string, m map[string]any) ifaceEntry {
 		entry.Disable = true
 	}
 	entry.Offload = parseOffloadConfig(m)
-	entry.Units = parseUnits(m)
-	return entry
+	var err error
+	entry.Units, err = parseUnits(m)
+	if err != nil {
+		return entry, fmt.Errorf("%s: %w", name, err)
+	}
+	return entry, nil
 }
 
-func parseUnits(m map[string]any) []unitEntry {
+func parseUnits(m map[string]any) ([]unitEntry, error) {
 	unitMap, ok := m["unit"].(map[string]any)
 	if !ok {
-		return nil
+		return nil, nil //nolint:nilnil // no unit container means no units, not an error
 	}
 	var units []unitEntry
 	for idStr, v := range unitMap {
@@ -704,10 +739,25 @@ func parseUnits(m map[string]any) []unitEntry {
 			if rp, ok := um["route-priority"].(string); ok {
 				u.RoutePriority, _ = strconv.Atoi(rp)
 			}
-			u.Addresses = parseStringList(um, "address")
 			u.SysctlProfiles = parseStringList(um, "sysctl-profile")
-			u.IPv4 = parseIPv4Sysctl(um)
-			u.IPv6 = parseIPv6Sysctl(um)
+			var err error
+			u.IPv4, err = parseIPv4Settings(um)
+			if err != nil {
+				return nil, fmt.Errorf("unit %d: %w", id, err)
+			}
+			u.IPv6, err = parseIPv6Settings(um)
+			if err != nil {
+				return nil, fmt.Errorf("unit %d: %w", id, err)
+			}
+
+			// Merge per-family addresses into flat list for the apply path.
+			if u.IPv4 != nil {
+				u.Addresses = append(u.Addresses, u.IPv4.Addresses...)
+			}
+			if u.IPv6 != nil {
+				u.Addresses = append(u.Addresses, u.IPv6.Addresses...)
+			}
+
 			if mirrorMap, ok := um["mirror"].(map[string]any); ok {
 				u.MirrorIngress, _ = mirrorMap["ingress"].(string)
 				u.MirrorEgress, _ = mirrorMap["egress"].(string)
@@ -717,16 +767,29 @@ func parseUnits(m map[string]any) []unitEntry {
 		}
 		units = append(units, u)
 	}
-	return units
+	return units, nil
 }
 
-func parseIPv4Sysctl(um map[string]any) *ipv4Sysctl {
+func parseIPv4Settings(um map[string]any) (*ipv4Settings, error) {
 	v4, ok := um["ipv4"].(map[string]any)
 	if !ok {
-		return nil
+		return nil, nil //nolint:nilnil // absent container means unconfigured, not an error
 	}
-	s := &ipv4Sysctl{}
+	s := &ipv4Settings{}
 	set := false
+	s.Addresses = parseStringList(v4, "address")
+	for _, a := range s.Addresses {
+		p, err := netip.ParsePrefix(a)
+		if err != nil {
+			return nil, fmt.Errorf("ipv4 address %q: %w", a, err)
+		}
+		if !p.Addr().Is4() {
+			return nil, fmt.Errorf("ipv4 address %q: not an IPv4 address", a)
+		}
+	}
+	if len(s.Addresses) > 0 {
+		set = true
+	}
 	if v, ok := v4["forwarding"].(string); ok {
 		b := v == yangTrue
 		s.Forwarding = &b
@@ -769,18 +832,31 @@ func parseIPv4Sysctl(um map[string]any) *ipv4Sysctl {
 		}
 	}
 	if !set {
-		return nil
+		return nil, nil //nolint:nilnil // no ipv4 knobs configured, not an error
 	}
-	return s
+	return s, nil
 }
 
-func parseIPv6Sysctl(um map[string]any) *ipv6Sysctl {
+func parseIPv6Settings(um map[string]any) (*ipv6Settings, error) {
 	v6, ok := um["ipv6"].(map[string]any)
 	if !ok {
-		return nil
+		return nil, nil //nolint:nilnil // absent container means unconfigured, not an error
 	}
-	s := &ipv6Sysctl{}
+	s := &ipv6Settings{}
 	set := false
+	s.Addresses = parseStringList(v6, "address")
+	for _, a := range s.Addresses {
+		p, err := netip.ParsePrefix(a)
+		if err != nil {
+			return nil, fmt.Errorf("ipv6 address %q: %w", a, err)
+		}
+		if !p.Addr().Is6() || p.Addr().Is4In6() {
+			return nil, fmt.Errorf("ipv6 address %q: not an IPv6 address", a)
+		}
+	}
+	if len(s.Addresses) > 0 {
+		set = true
+	}
 	if v, ok := v6["autoconf"].(string); ok {
 		b := v == yangTrue
 		s.Autoconf = &b
@@ -799,9 +875,9 @@ func parseIPv6Sysctl(um map[string]any) *ipv6Sysctl {
 		set = true
 	}
 	if !set {
-		return nil
+		return nil, nil //nolint:nilnil // no ipv6 knobs configured, not an error
 	}
-	return s
+	return s, nil
 }
 
 func parseOffloadConfig(m map[string]any) *offloadConfig {

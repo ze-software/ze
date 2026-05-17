@@ -219,6 +219,8 @@ tab press, returning MAC addresses from currently active OS interfaces.
   (`ifacedhcp`) that uses the backend for address operations.
 - **Pure netlink, no shell-outs.** The netlink backend uses `github.com/vishvananda/netlink`.
 - **Event-driven.** Monitor publishes to bus; consumers subscribe and react. No polling.
+- **Per-family addresses.** Addresses live inside `ipv4 { address [...]; }` and
+  `ipv6 { address [...]; }` containers within each unit, following the Junos/Nokia model.
 - **DAD-aware.** IPv6 addresses with `IFA_F_TENTATIVE` flag are held until DAD completes.
 - **Make-before-break.** Migration adds new address, waits for BGP readiness, then removes old.
   Prevents session loss during address moves.
@@ -247,7 +249,9 @@ interface {
             }
         }
         unit 0 {
-            address 10.0.0.1/30
+            ipv4 {
+                address 10.0.0.1/30
+            }
         }
     }
 
@@ -259,7 +263,9 @@ interface {
             }
         }
         unit 0 {
-            address 2001:db8::1/64
+            ipv6 {
+                address 2001:db8::1/64
+            }
         }
     }
 
@@ -358,7 +364,9 @@ interface {
             persistent-keepalive 25
         }
         unit 0 {
-            address 10.0.0.1/24
+            ipv4 {
+                address 10.0.0.1/24
+            }
         }
     }
 }

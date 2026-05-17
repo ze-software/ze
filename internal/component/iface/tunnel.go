@@ -121,7 +121,7 @@ func (k TunnelKind) IsBridgeable() bool {
 //
 // Optional fields use a "set" sentinel where Go's zero value is a valid
 // configured value: KeySet, TTLSet, TosSet, etc. This avoids the need for
-// pointer fields and matches the existing ipv4Sysctl pattern in config.go.
+// pointer fields and matches the existing ipv4Settings pattern in config.go.
 type TunnelSpec struct {
 	Kind            TunnelKind
 	Name            string

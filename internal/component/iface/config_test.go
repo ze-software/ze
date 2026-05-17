@@ -1333,7 +1333,9 @@ func TestParseUnitDHCPDisabledDefault(t *testing.T) {
 				"eth0": {
 					"unit": {
 						"0": {
-							"address": ["10.0.0.1/24"]
+							"ipv4": {
+								"address": ["10.0.0.1/24"]
+							}
 						}
 					}
 				}
@@ -1419,7 +1421,9 @@ func TestParseUnitDHCPWithStaticAddress(t *testing.T) {
 				"eth0": {
 					"unit": {
 						"0": {
-							"address": ["10.0.0.1/24"],
+							"ipv4": {
+								"address": ["10.0.0.1/24"]
+							},
 							"dhcp": {"enabled": "true"}
 						}
 					}
@@ -2387,7 +2391,9 @@ func TestSuppressRAForConfigNoRoutePriority(t *testing.T) {
 				"eth0": {
 					"unit": {
 						"0": {
-							"address": ["10.0.0.1/24"]
+							"ipv4": {
+								"address": ["10.0.0.1/24"]
+							}
 						}
 					}
 				}
@@ -2418,7 +2424,9 @@ func TestSuppressRAForConfigWithRoutePriority(t *testing.T) {
 					"unit": {
 						"0": {
 							"route-priority": "5",
-							"address": ["10.0.0.1/24"]
+							"ipv4": {
+								"address": ["10.0.0.1/24"]
+							}
 						}
 					}
 				}
@@ -2453,7 +2461,9 @@ func TestSuppressRAForConfigRestore(t *testing.T) {
 				"eth0": {
 					"unit": {
 						"0": {
-							"address": ["10.0.0.1/24"]
+							"ipv4": {
+								"address": ["10.0.0.1/24"]
+							}
 						}
 					}
 				}
@@ -2785,4 +2795,224 @@ func TestOffloadOnBridge(t *testing.T) {
 	require.NotNil(t, cfg.Bridge[0].Offload)
 	require.NotNil(t, cfg.Bridge[0].Offload.GRO)
 	assert.True(t, *cfg.Bridge[0].Offload.GRO)
+}
+
+// --- Per-family address tests (spec-iface-1-per-family-address) ---
+
+// VALIDATES: AC-1 -- IPv4 address in ipv4 container applied.
+func TestParseAddress_IPv4InFamily(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"dummy": {
+				"dum0": {
+					"unit": {
+						"0": {
+							"ipv4": {
+								"address": ["10.0.0.1/24", "10.0.0.2/24"]
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Dummy, 1)
+	require.Len(t, cfg.Dummy[0].Units, 1)
+	u := cfg.Dummy[0].Units[0]
+	require.NotNil(t, u.IPv4)
+	assert.Equal(t, []string{"10.0.0.1/24", "10.0.0.2/24"}, u.IPv4.Addresses)
+	assert.Nil(t, u.IPv6)
+	assert.Equal(t, []string{"10.0.0.1/24", "10.0.0.2/24"}, u.Addresses,
+		"merged flat list must contain ipv4 addresses")
+}
+
+// VALIDATES: AC-2 -- IPv6 address in ipv6 container applied.
+func TestParseAddress_IPv6InFamily(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"dummy": {
+				"dum0": {
+					"unit": {
+						"0": {
+							"ipv6": {
+								"address": ["fd00::1/64"]
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Dummy, 1)
+	require.Len(t, cfg.Dummy[0].Units, 1)
+	u := cfg.Dummy[0].Units[0]
+	assert.Nil(t, u.IPv4)
+	require.NotNil(t, u.IPv6)
+	assert.Equal(t, []string{"fd00::1/64"}, u.IPv6.Addresses)
+	assert.Equal(t, []string{"fd00::1/64"}, u.Addresses)
+}
+
+// VALIDATES: AC-3 -- both families configured.
+func TestParseAddress_BothFamilies(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"dummy": {
+				"dum0": {
+					"unit": {
+						"0": {
+							"ipv4": {
+								"address": ["10.0.0.1/24"]
+							},
+							"ipv6": {
+								"address": ["fd00::1/64"]
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Dummy, 1)
+	u := cfg.Dummy[0].Units[0]
+	require.NotNil(t, u.IPv4)
+	require.NotNil(t, u.IPv6)
+	assert.Equal(t, []string{"10.0.0.1/24"}, u.IPv4.Addresses)
+	assert.Equal(t, []string{"fd00::1/64"}, u.IPv6.Addresses)
+	assert.Len(t, u.Addresses, 2, "merged flat list must contain both families")
+}
+
+// Flat address at unit level is no longer supported.
+func TestParseAddress_FlatIgnored(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"dummy": {
+				"dum0": {
+					"unit": {
+						"0": {
+							"address": ["10.0.0.1/24", "fd00::1/64"]
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Dummy, 1)
+	u := cfg.Dummy[0].Units[0]
+	assert.Nil(t, u.IPv4)
+	assert.Nil(t, u.IPv6)
+	assert.Empty(t, u.Addresses, "flat address at unit level must be ignored")
+}
+
+// VALIDATES: AC-5 -- IPv4 address in ipv6 container rejected.
+func TestParseAddress_WrongFamily_V4inV6(t *testing.T) {
+	_, err := parseIfaceConfig(`{
+		"interface": {
+			"dummy": {
+				"dum0": {
+					"unit": {
+						"0": {
+							"ipv6": {
+								"address": ["10.0.0.1/24"]
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not an IPv6 address")
+}
+
+// VALIDATES: AC-6 -- IPv6 address in ipv4 container rejected.
+func TestParseAddress_WrongFamily_V6inV4(t *testing.T) {
+	_, err := parseIfaceConfig(`{
+		"interface": {
+			"dummy": {
+				"dum0": {
+					"unit": {
+						"0": {
+							"ipv4": {
+								"address": ["fd00::1/64"]
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not an IPv4 address")
+}
+
+// VALIDATES: AC-1,AC-5 -- multiple addresses per family.
+func TestParseAddress_Multiple(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"dummy": {
+				"dum0": {
+					"unit": {
+						"0": {
+							"ipv4": {
+								"address": ["10.0.0.1/24", "10.0.0.2/24", "192.168.1.1/32"]
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Dummy, 1)
+	u := cfg.Dummy[0].Units[0]
+	require.NotNil(t, u.IPv4)
+	assert.Len(t, u.IPv4.Addresses, 3)
+	assert.Len(t, u.Addresses, 3)
+}
+
+// VALIDATES: AC-9 -- desiredState produces same address set from per-family config.
+func TestDesiredState_PerFamilyAddresses(t *testing.T) {
+	cfg := &ifaceConfig{
+		Backend: defaultBackendName,
+		Dummy: []ifaceEntry{{
+			Name: "dum0",
+			Units: []unitEntry{{
+				IPv4:      &ipv4Settings{Addresses: []string{"10.0.0.1/24"}},
+				IPv6:      &ipv6Settings{Addresses: []string{"fd00::1/64"}},
+				Addresses: []string{"10.0.0.1/24", "fd00::1/64"},
+			}},
+		}},
+	}
+	addrs, managed := cfg.desiredState()
+	assert.True(t, managed["dum0"])
+	assert.True(t, addrs["dum0"]["10.0.0.1/24"])
+	assert.True(t, addrs["dum0"]["fd00::1/64"])
+}
+
+// VALIDATES: AC-1 -- per-family addresses on ethernet (most common interface type).
+func TestParseAddress_Ethernet(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {
+							"ipv4": {
+								"address": ["192.168.1.1/24"]
+							},
+							"ipv6": {
+								"address": ["2001:db8::1/48"]
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	u := cfg.Ethernet[0].Units[0]
+	require.NotNil(t, u.IPv4)
+	require.NotNil(t, u.IPv6)
+	assert.Equal(t, []string{"192.168.1.1/24"}, u.IPv4.Addresses)
+	assert.Equal(t, []string{"2001:db8::1/48"}, u.IPv6.Addresses)
+	assert.Len(t, u.Addresses, 2)
 }
