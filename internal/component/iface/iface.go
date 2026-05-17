@@ -86,7 +86,7 @@ type InterfaceStats struct {
 // Field names use kebab-case per rules/json-format.md.
 type DHCPPayload struct {
 	Name         string   `json:"name"`
-	Unit         int      `json:"unit"`
+	Unit         string   `json:"unit"`
 	Address      string   `json:"address"`
 	PrefixLength int      `json:"prefix-length"`
 	Router       string   `json:"router,omitempty"`

@@ -126,7 +126,7 @@ type loopbackEntry struct {
 
 // unitEntry represents a logical unit on an interface.
 type unitEntry struct {
-	ID             int
+	Label          string
 	VLANID         int
 	Addresses      []string
 	Disable        bool
@@ -725,10 +725,12 @@ func parseUnits(m map[string]any) ([]unitEntry, error) {
 		return nil, nil //nolint:nilnil // no unit container means no units, not an error
 	}
 	var units []unitEntry
-	for idStr, v := range unitMap {
-		id, _ := strconv.Atoi(idStr)
+	for name, v := range unitMap {
+		if err := ValidateUnitName(name); err != nil {
+			return nil, fmt.Errorf("unit %q: %w", name, err)
+		}
 		um, _ := v.(map[string]any)
-		u := unitEntry{ID: id}
+		u := unitEntry{Label: name}
 		if um != nil {
 			if vid, ok := um["vlan-id"].(string); ok {
 				u.VLANID, _ = strconv.Atoi(vid)
@@ -743,11 +745,11 @@ func parseUnits(m map[string]any) ([]unitEntry, error) {
 			var err error
 			u.IPv4, err = parseIPv4Settings(um)
 			if err != nil {
-				return nil, fmt.Errorf("unit %d: %w", id, err)
+				return nil, fmt.Errorf("unit %q: %w", name, err)
 			}
 			u.IPv6, err = parseIPv6Settings(um)
 			if err != nil {
-				return nil, fmt.Errorf("unit %d: %w", id, err)
+				return nil, fmt.Errorf("unit %q: %w", name, err)
 			}
 
 			// Merge per-family addresses into flat list for the apply path.

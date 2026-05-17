@@ -88,7 +88,7 @@ func TestNewDHCPClientValidation(t *testing.T) {
 	tests := []struct {
 		name      string
 		ifaceName string
-		unit      int
+		unit      string
 		eventBus  ze.EventBus
 		v4        bool
 		v6        bool
@@ -97,7 +97,7 @@ func TestNewDHCPClientValidation(t *testing.T) {
 		{
 			name:      "nil eventBus",
 			ifaceName: "eth0",
-			unit:      0,
+			unit:      "default",
 			eventBus:  nil,
 			v4:        true,
 			v6:        false,
@@ -106,7 +106,7 @@ func TestNewDHCPClientValidation(t *testing.T) {
 		{
 			name:      "both v4 and v6 false",
 			ifaceName: "eth0",
-			unit:      0,
+			unit:      "default",
 			eventBus:  bus,
 			v4:        false,
 			v6:        false,
@@ -115,7 +115,7 @@ func TestNewDHCPClientValidation(t *testing.T) {
 		{
 			name:      "empty interface name",
 			ifaceName: "",
-			unit:      0,
+			unit:      "default",
 			eventBus:  bus,
 			v4:        true,
 			v6:        false,
@@ -124,7 +124,7 @@ func TestNewDHCPClientValidation(t *testing.T) {
 		{
 			name:      "interface name too long",
 			ifaceName: strings.Repeat("x", 16),
-			unit:      0,
+			unit:      "default",
 			eventBus:  bus,
 			v4:        true,
 			v6:        false,
@@ -133,7 +133,7 @@ func TestNewDHCPClientValidation(t *testing.T) {
 		{
 			name:      "interface name with slash",
 			ifaceName: "eth/0",
-			unit:      0,
+			unit:      "default",
 			eventBus:  bus,
 			v4:        true,
 			v6:        false,
@@ -142,7 +142,7 @@ func TestNewDHCPClientValidation(t *testing.T) {
 		{
 			name:      "interface name with path traversal",
 			ifaceName: "eth..0",
-			unit:      0,
+			unit:      "default",
 			eventBus:  bus,
 			v4:        true,
 			v6:        false,
@@ -151,7 +151,7 @@ func TestNewDHCPClientValidation(t *testing.T) {
 		{
 			name:      "valid v4 only",
 			ifaceName: "eth0",
-			unit:      0,
+			unit:      "default",
 			eventBus:  bus,
 			v4:        true,
 			v6:        false,
@@ -160,7 +160,7 @@ func TestNewDHCPClientValidation(t *testing.T) {
 		{
 			name:      "valid v6 only",
 			ifaceName: "eth0",
-			unit:      100,
+			unit:      "uplink",
 			eventBus:  bus,
 			v4:        false,
 			v6:        true,
@@ -169,7 +169,7 @@ func TestNewDHCPClientValidation(t *testing.T) {
 		{
 			name:      "valid dual stack",
 			ifaceName: "lo",
-			unit:      0,
+			unit:      "default",
 			eventBus:  bus,
 			v4:        true,
 			v6:        true,
@@ -200,7 +200,7 @@ func TestV4RequestModifiersHostname(t *testing.T) {
 	// PREVENTS: hostname silently dropped from DHCP packets.
 
 	bus := stubEventBus{}
-	client, err := NewDHCPClient("eth0", 0, bus, true, false, DHCPConfig{
+	client, err := NewDHCPClient("eth0", "default", bus, true, false, DHCPConfig{
 		Hostname: "ze-router",
 		ClientID: "ze:01",
 	})
@@ -217,7 +217,7 @@ func TestV4RequestModifiersEmpty(t *testing.T) {
 	// PREVENTS: nil/empty modifier accidentally injected.
 
 	bus := stubEventBus{}
-	client, err := NewDHCPClient("eth0", 0, bus, true, false, DHCPConfig{})
+	client, err := NewDHCPClient("eth0", "default", bus, true, false, DHCPConfig{})
 	require.NoError(t, err)
 
 	mods := client.v4RequestModifiers()
@@ -232,7 +232,7 @@ func TestSleepOrStopWithClosedChannel(t *testing.T) {
 	// PREVENTS: goroutine hangs when Stop() races with retry backoff.
 
 	bus := stubEventBus{}
-	client, err := NewDHCPClient("eth0", 0, bus, true, false, DHCPConfig{})
+	client, err := NewDHCPClient("eth0", "default", bus, true, false, DHCPConfig{})
 	require.NoError(t, err)
 
 	// Close the stop channel directly to simulate a stopped client.

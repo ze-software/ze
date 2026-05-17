@@ -654,7 +654,7 @@ removal, `accept_ra_defrtr` is restored to 1.
 interface {
     ethernet uplink {
         mac-address 00:1a:2b:3c:4d:5e;
-        unit 0 {
+        unit default {
             route-priority 1;
             dhcp {
                 enabled true;
@@ -663,7 +663,7 @@ interface {
     }
     ethernet backup {
         mac-address 00:1a:2b:3c:4d:5f;
-        unit 0 {
+        unit default {
             route-priority 5;
             dhcp {
                 enabled true;
@@ -791,7 +791,7 @@ Apply profiles to an interface unit:
 ```
 interface {
     ethernet eth0 {
-        unit 0 {
+        unit default {
             sysctl-profile [ dsr hardened ]
         }
     }

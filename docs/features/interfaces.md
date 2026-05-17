@@ -1,7 +1,7 @@
 # Interface Management
 
 Ze manages Linux network interfaces via pure netlink (no iproute2 shell-outs).
-JunOS-style two-layer model: physical interfaces with logical units.
+JunOS-style two-layer model: physical interfaces with named logical units.
 
 <!-- source: internal/component/iface/schema/ze-iface-conf.yang — interface container -->
 <!-- source: internal/component/iface/register.go — registration -->
@@ -248,7 +248,7 @@ interface {
                 key 42
             }
         }
-        unit 0 {
+        unit default {
             ipv4 {
                 address 10.0.0.1/30
             }
@@ -262,7 +262,7 @@ interface {
                 remote { ip 198.51.100.1; }
             }
         }
-        unit 0 {
+        unit default {
             ipv6 {
                 address 2001:db8::1/64
             }
@@ -363,7 +363,7 @@ interface {
             allowed-ips [ 10.0.0.2/32 192.168.10.0/24 ]
             persistent-keepalive 25
         }
-        unit 0 {
+        unit default {
             ipv4 {
                 address 10.0.0.1/24
             }

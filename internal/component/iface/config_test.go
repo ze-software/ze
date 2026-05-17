@@ -236,6 +236,7 @@ func testConfigWithAddresses() *ifaceConfig {
 		Dummy: []ifaceEntry{{
 			Name: "dum0",
 			Units: []unitEntry{{
+				Label:     "default",
 				Addresses: []string{"10.0.0.1/24", "10.0.0.2/24"},
 			}},
 		}},
@@ -1221,7 +1222,7 @@ func TestApplyTunnelsCreate(t *testing.T) {
 			{
 				ifaceEntry: ifaceEntry{
 					Name:  "gre0",
-					Units: []unitEntry{{ID: 0, Addresses: []string{"10.0.0.1/30"}}},
+					Units: []unitEntry{{Label: "default", Addresses: []string{"10.0.0.1/30"}}},
 				},
 				Spec: TunnelSpec{
 					Kind:          TunnelKindGRE,
@@ -1517,14 +1518,14 @@ func TestParseUnitRoutePriorityDefault(t *testing.T) {
 // PREVENTS: Link failover silently does nothing because gateway is empty.
 func TestHandleDHCPLeaseEventStoresGateway(t *testing.T) {
 	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{v4: true}},
+		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{v4: true}},
 	}
 	logger := slog.Default()
 
-	data := `{"name":"eth0","unit":0,"router":"192.168.1.1","address":"192.168.1.50","prefix-length":24}`
+	data := `{"name":"eth0","unit":"default","router":"192.168.1.1","address":"192.168.1.50","prefix-length":24}`
 	handleDHCPLeaseEvent(data, active, logger)
 
-	entry := active[dhcpUnitKey{ifaceName: "eth0", unit: 0}]
+	entry := active[dhcpUnitKey{ifaceName: "eth0", unit: "default"}]
 	assert.Equal(t, "192.168.1.1", entry.gateway)
 }
 
@@ -1535,15 +1536,15 @@ func TestHandleDHCPLeaseEventStoresGateway(t *testing.T) {
 // PREVENTS: Map write for interface not in activeDHCP.
 func TestHandleDHCPLeaseEventNoMatch(t *testing.T) {
 	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{v4: true}},
+		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{v4: true}},
 	}
 	logger := slog.Default()
 
-	data := `{"name":"eth1","unit":0,"router":"10.0.0.1"}`
+	data := `{"name":"eth1","unit":"default","router":"10.0.0.1"}`
 	handleDHCPLeaseEvent(data, active, logger)
 
 	// eth0 gateway unchanged (still empty).
-	entry := active[dhcpUnitKey{ifaceName: "eth0", unit: 0}]
+	entry := active[dhcpUnitKey{ifaceName: "eth0", unit: "default"}]
 	assert.Equal(t, "", entry.gateway)
 }
 
@@ -1561,7 +1562,7 @@ func TestHandleLinkDownWithRoutePriority(t *testing.T) {
 	defer func() { _ = CloseBackend() }()
 
 	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: 0}: {
+		{ifaceName: "eth0", unit: "default"}: {
 			params:  dhcpParams{v4: true, routePriority: 5},
 			gateway: "192.168.1.1",
 		},
@@ -1593,7 +1594,7 @@ func TestHandleLinkUpWithRoutePriority(t *testing.T) {
 	defer func() { _ = CloseBackend() }()
 
 	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: 0}: {
+		{ifaceName: "eth0", unit: "default"}: {
 			params:  dhcpParams{v4: true, routePriority: 5},
 			gateway: "192.168.1.1",
 		},
@@ -1625,7 +1626,7 @@ func TestHandleLinkDownDefaultMetric(t *testing.T) {
 	defer func() { _ = CloseBackend() }()
 
 	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: 0}: {
+		{ifaceName: "eth0", unit: "default"}: {
 			params:  dhcpParams{v4: true},
 			gateway: "10.0.0.1",
 		},
@@ -1655,7 +1656,7 @@ func TestHandleLinkDownThenUp(t *testing.T) {
 	defer func() { _ = CloseBackend() }()
 
 	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: 0}: {
+		{ifaceName: "eth0", unit: "default"}: {
 			params:  dhcpParams{v4: true, routePriority: 5},
 			gateway: "192.168.1.1",
 		},
@@ -1689,7 +1690,7 @@ func TestIfaceApplyJournalCreate(t *testing.T) {
 
 	cfg := &ifaceConfig{
 		Backend: "fake",
-		Dummy:   []ifaceEntry{{Name: "dummy0", Units: []unitEntry{{ID: 0, Addresses: []string{"10.0.0.1/24"}}}}},
+		Dummy:   []ifaceEntry{{Name: "dummy0", Units: []unitEntry{{Label: "default", Addresses: []string{"10.0.0.1/24"}}}}},
 	}
 
 	j := sdk.NewJournal()
@@ -1728,7 +1729,7 @@ func TestIfaceApplyJournalAddress(t *testing.T) {
 
 	cfg := &ifaceConfig{
 		Backend:  "fake",
-		Ethernet: []ifaceEntry{{Name: "eth0", Units: []unitEntry{{ID: 0, Addresses: []string{"10.0.0.1/24", "10.0.0.2/24"}}}}},
+		Ethernet: []ifaceEntry{{Name: "eth0", Units: []unitEntry{{Label: "default", Addresses: []string{"10.0.0.1/24", "10.0.0.2/24"}}}}},
 	}
 
 	j := sdk.NewJournal()
@@ -1765,7 +1766,7 @@ func TestIfaceApplyJournalRollbackEvents(t *testing.T) {
 	// New config: creates dummy0.
 	newCfg := &ifaceConfig{
 		Backend: "fake",
-		Dummy:   []ifaceEntry{{Name: "dummy0", Units: []unitEntry{{ID: 0, Addresses: []string{"10.0.0.1/24"}}}}},
+		Dummy:   []ifaceEntry{{Name: "dummy0", Units: []unitEntry{{Label: "default", Addresses: []string{"10.0.0.1/24"}}}}},
 	}
 
 	j := sdk.NewJournal()
@@ -1799,7 +1800,7 @@ func TestApplyConfigRollsBackCreatedInterfaceOnAddressFailure(t *testing.T) {
 	}
 	cfg := &ifaceConfig{
 		Backend: "fake",
-		Dummy:   []ifaceEntry{{Name: "dummy0", Units: []unitEntry{{ID: 0, Addresses: []string{"10.0.0.1/24"}}}}},
+		Dummy:   []ifaceEntry{{Name: "dummy0", Units: []unitEntry{{Label: "default", Addresses: []string{"10.0.0.1/24"}}}}},
 	}
 
 	errs := applyConfig(cfg, nil, b)
@@ -2091,7 +2092,7 @@ func TestNeighRouterDetected(t *testing.T) {
 	fb := setupFakeBackendForTest(t)
 	routers := make(map[routerKey]routerEntry)
 	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{v6: true, routePriority: 5}},
+		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{v6: true, routePriority: 5}},
 	}
 	logger := slog.Default()
 
@@ -2170,7 +2171,7 @@ func TestNeighRouterDetectedNoRoutePriority(t *testing.T) {
 	_ = setupFakeBackendForTest(t)
 	routers := make(map[routerKey]routerEntry)
 	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{v6: true, routePriority: 0}},
+		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{v6: true, routePriority: 0}},
 	}
 	logger := slog.Default()
 
@@ -2189,7 +2190,7 @@ func TestMultipleRoutersOnSameLink(t *testing.T) {
 	fb := setupFakeBackendForTest(t)
 	routers := make(map[routerKey]routerEntry)
 	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{v6: true, routePriority: 5}},
+		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{v6: true, routePriority: 5}},
 	}
 	logger := slog.Default()
 
@@ -2211,7 +2212,7 @@ func TestNeighRouterDuplicateIgnored(t *testing.T) {
 	fb := setupFakeBackendForTest(t)
 	routers := make(map[routerKey]routerEntry)
 	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{v6: true, routePriority: 5}},
+		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{v6: true, routePriority: 5}},
 	}
 	logger := slog.Default()
 
@@ -2233,7 +2234,7 @@ func TestReloadMetricChange(t *testing.T) {
 		{ifaceName: "eth0", routerIP: "fe80::1"}: {metric: 5},
 	}
 	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{v6: true, routePriority: 10}},
+		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{v6: true, routePriority: 10}},
 	}
 	logger := slog.Default()
 
@@ -2552,8 +2553,8 @@ func TestRestoreNotSuppressed(t *testing.T) {
 // PREVENTS: Zero returned when a non-zero route-priority exists.
 func TestRoutePriorityForInterfaceMultiUnit(t *testing.T) {
 	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{routePriority: 0}},
-		{ifaceName: "eth0", unit: 1}: {params: dhcpParams{routePriority: 7}},
+		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{routePriority: 0}},
+		{ifaceName: "eth0", unit: "backup"}:  {params: dhcpParams{routePriority: 7}},
 	}
 
 	result := routePriorityForInterface("eth0", active)
@@ -2567,7 +2568,7 @@ func TestRoutePriorityForInterfaceMultiUnit(t *testing.T) {
 // PREVENTS: Non-zero metric for unconfigured interface.
 func TestRoutePriorityForInterfaceNoMatch(t *testing.T) {
 	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{routePriority: 5}},
+		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{routePriority: 5}},
 	}
 
 	result := routePriorityForInterface("eth1", active)
@@ -2582,7 +2583,7 @@ func TestRouterDiscoveredBadJSON(t *testing.T) {
 	_ = setupFakeBackendForTest(t)
 	routers := make(map[routerKey]routerEntry)
 	active := map[dhcpUnitKey]dhcpEntry{
-		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{routePriority: 5}},
+		{ifaceName: "eth0", unit: "default"}: {params: dhcpParams{routePriority: 5}},
 	}
 	logger := slog.Default()
 
@@ -2976,6 +2977,7 @@ func TestDesiredState_PerFamilyAddresses(t *testing.T) {
 		Dummy: []ifaceEntry{{
 			Name: "dum0",
 			Units: []unitEntry{{
+				Label:     "default",
 				IPv4:      &ipv4Settings{Addresses: []string{"10.0.0.1/24"}},
 				IPv6:      &ipv6Settings{Addresses: []string{"fd00::1/64"}},
 				Addresses: []string{"10.0.0.1/24", "fd00::1/64"},
@@ -3015,4 +3017,136 @@ func TestParseAddress_Ethernet(t *testing.T) {
 	assert.Equal(t, []string{"192.168.1.1/24"}, u.IPv4.Addresses)
 	assert.Equal(t, []string{"2001:db8::1/48"}, u.IPv6.Addresses)
 	assert.Len(t, u.Addresses, 2)
+}
+
+// VALIDATES: AC-1 -- named unit with vlan-id parsed correctly.
+func TestParseUnit_NamedKey(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"firewall-3": {
+							"vlan-id": "100",
+							"ipv4": { "address": ["10.0.100.1/24"] }
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 1)
+	u := cfg.Ethernet[0].Units[0]
+	assert.Equal(t, "firewall-3", u.Label)
+	assert.Equal(t, 100, u.VLANID)
+	assert.Equal(t, []string{"10.0.100.1/24"}, u.IPv4.Addresses)
+}
+
+// VALIDATES: AC-2 -- base unit without vlan-id works.
+func TestParseUnit_DefaultNoVLAN(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"default": {
+							"ipv4": { "address": ["10.0.0.1/24"] }
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 1)
+	u := cfg.Ethernet[0].Units[0]
+	assert.Equal(t, "default", u.Label)
+	assert.Equal(t, 0, u.VLANID)
+}
+
+// VALIDATES: AC-3 -- multiple named units parsed with correct labels.
+func TestParseUnit_MultipleNamed(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"default": {
+							"ipv4": { "address": ["10.0.0.1/24"] }
+						},
+						"firewall-3": {
+							"vlan-id": "100",
+							"ipv4": { "address": ["10.0.100.1/24"] }
+						},
+						"supplier-acme": {
+							"vlan-id": "200",
+							"ipv6": { "address": ["2001:db8::1/64"] }
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 3)
+	labels := make(map[string]bool)
+	for _, u := range cfg.Ethernet[0].Units {
+		labels[u.Label] = true
+	}
+	assert.True(t, labels["default"])
+	assert.True(t, labels["firewall-3"])
+	assert.True(t, labels["supplier-acme"])
+}
+
+// VALIDATES: AC-5 -- invalid unit names rejected.
+func TestParseUnit_InvalidName(t *testing.T) {
+	tests := []struct {
+		name    string
+		unitKey string
+		wantErr string
+	}{
+		{"uppercase", "Firewall", "invalid character"},
+		{"space", "fire wall", "invalid character"},
+		{"starts with hyphen", "-test", "invalid character"},
+		{"underscore", "fire_wall", "invalid character"},
+		{"empty", "", "length"},
+		{"too long", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "length"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateUnitName(tt.unitKey)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+// VALIDATES: AC-8 -- legacy numeric unit names accepted.
+func TestParseUnit_LegacyNumeric(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {
+							"ipv4": { "address": ["10.0.0.1/24"] }
+						},
+						"100": {
+							"vlan-id": "100",
+							"ipv4": { "address": ["10.0.100.1/24"] }
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 2)
+	labels := make(map[string]bool)
+	for _, u := range cfg.Ethernet[0].Units {
+		labels[u.Label] = true
+	}
+	assert.True(t, labels["0"])
+	assert.True(t, labels["100"])
 }

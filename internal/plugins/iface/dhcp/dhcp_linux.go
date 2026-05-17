@@ -27,7 +27,7 @@ import (
 // Stop is safe to call multiple times (protected by sync.Once).
 type DHCPClient struct {
 	ifaceName string
-	unit      int
+	unit      string
 	eventBus  ze.EventBus
 	config    DHCPConfig
 	stop      chan struct{}
@@ -41,7 +41,7 @@ type DHCPClient struct {
 // NewDHCPClient creates a DHCP client for the named interface.
 // eventBus must not be nil. At least one of v4 or v6 must be true.
 // cfg carries optional parameters (hostname, client-id) from the config.
-func NewDHCPClient(ifaceName string, unit int, eventBus ze.EventBus, v4, v6 bool, cfg DHCPConfig) (*DHCPClient, error) {
+func NewDHCPClient(ifaceName string, unit string, eventBus ze.EventBus, v4, v6 bool, cfg DHCPConfig) (*DHCPClient, error) {
 	if eventBus == nil {
 		return nil, errors.New("iface dhcp: event bus is nil")
 	}
@@ -174,7 +174,7 @@ func (c *DHCPClient) publishDHCP(topic string, payload iface.DHCPPayload) {
 	if payload.Name == "" {
 		payload.Name = c.ifaceName
 	}
-	if payload.Unit == 0 {
+	if payload.Unit == "" {
 		payload.Unit = c.unit
 	}
 	data, err := json.Marshal(payload)

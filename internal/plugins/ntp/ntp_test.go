@@ -254,7 +254,7 @@ func TestHandleDHCPEvent(t *testing.T) {
 	w := newSyncWorker(cfg, nil)
 
 	// Simulate a DHCP lease event with NTP servers.
-	data := `{"name":"eth0","unit":0,"address":"10.0.0.5","prefix-length":24,"ntp-servers":["192.168.1.1","192.168.1.2"]}`
+	data := `{"name":"eth0","unit":"default","address":"10.0.0.5","prefix-length":24,"ntp-servers":["192.168.1.1","192.168.1.2"]}`
 	w.handleDHCPEvent(data)
 
 	w.mu.Lock()

@@ -170,14 +170,15 @@ module ze-iface-conf {
         description "Logical interface unit properties";
 
         list unit {
-            key "id";
+            key "name";
             description "Logical interface unit";
 
-            leaf id {
-                type uint32 {
-                    range "0..16385";
+            leaf name {
+                type string {
+                    length "1..64";
+                    pattern "[a-z0-9][a-z0-9-]*";
                 }
-                description "Unit number";
+                description "Unit name (lowercase alphanumeric and hyphens)";
             }
 
             leaf vlan-id {

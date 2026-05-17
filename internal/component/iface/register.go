@@ -207,7 +207,7 @@ func setLogger(l *slog.Logger) {
 // dhcpUnitKey uniquely identifies a DHCP client by interface + unit.
 type dhcpUnitKey struct {
 	ifaceName string
-	unit      int
+	unit      string
 }
 
 // routerKey identifies an IPv6 router discovered via NDP neighbor events.
@@ -648,11 +648,11 @@ type DHCPStopper interface {
 // SetDHCPClientFactory. It returns a started DHCP client or an error.
 // The interface plugin calls this to create clients without importing
 // the ifacedhcp package.
-var dhcpClientFactory func(ifaceName string, unit int, eb ze.EventBus, v4, v6 bool, hostname, clientID string, pdLength int, duid, resolvConfPath string, hasStaticNameServers bool, routeMetric int) (DHCPStopper, error)
+var dhcpClientFactory func(ifaceName string, unit string, eb ze.EventBus, v4, v6 bool, hostname, clientID string, pdLength int, duid, resolvConfPath string, hasStaticNameServers bool, routeMetric int) (DHCPStopper, error)
 
 // SetDHCPClientFactory registers the factory function used to create
 // DHCP clients. Called from ifacedhcp's init().
-func SetDHCPClientFactory(f func(string, int, ze.EventBus, bool, bool, string, string, int, string, string, bool, int) (DHCPStopper, error)) {
+func SetDHCPClientFactory(f func(string, string, ze.EventBus, bool, bool, string, string, int, string, string, bool, int) (DHCPStopper, error)) {
 	dhcpClientFactory = f
 }
 
@@ -707,7 +707,7 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 			if !v4 && !v6 {
 				continue
 			}
-			key := dhcpUnitKey{ifaceName: name, unit: u.ID}
+			key := dhcpUnitKey{ifaceName: name, unit: u.Label}
 			p := dhcpParams{v4: v4, v6: v6, routePriority: u.RoutePriority}
 			if u.DHCP != nil {
 				p.hostname = u.DHCP.Hostname
@@ -754,7 +754,7 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 					log.Warn("interface: dhcp-auto: failed to bring up", "iface", name, "err", err)
 				}
 			}
-			key := dhcpUnitKey{ifaceName: name, unit: 0}
+			key := dhcpUnitKey{ifaceName: name, unit: "default"}
 			desired[key] = dhcpParams{v4: true}
 			log.Info("interface: dhcp-auto discovered primary ethernet", "iface", name)
 		}
@@ -817,7 +817,7 @@ const deprioritizedMetric = 1024
 func handleDHCPLeaseEvent(data string, active map[dhcpUnitKey]dhcpEntry, log *slog.Logger) {
 	var payload struct {
 		Name   string `json:"name"`
-		Unit   int    `json:"unit"`
+		Unit   string `json:"unit"`
 		Router string `json:"router"`
 	}
 	if err := json.Unmarshal([]byte(data), &payload); err != nil || payload.Router == "" {
