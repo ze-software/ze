@@ -156,14 +156,14 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 // metricsUpdateLoop periodically refreshes gauges that are read from snapshots
 // rather than incremented on events. Runs until the reactor context is canceled.
 func (r *Reactor) metricsUpdateLoop() {
-	ticker := time.NewTicker(metricsUpdateInterval())
+	ticker := r.clock.NewTicker(metricsUpdateInterval())
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-r.ctx.Done():
 			return
-		case <-ticker.C:
+		case <-ticker.C():
 			r.updatePeriodicMetrics()
 		}
 	}

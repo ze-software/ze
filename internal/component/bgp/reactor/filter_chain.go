@@ -6,11 +6,11 @@ package reactor
 
 import (
 	"context"
-	"fmt"
 	"maps"
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -222,7 +222,7 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 		// AC-15: If filter declared raw=true, include hex-encoded raw UPDATE body.
 		var rawHex string
 		if wantsRaw && len(rawPayload) > 0 {
-			rawHex = fmt.Sprintf("%X", rawPayload)
+			rawHex = textbuf.HexUpper(rawPayload)
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), policyFilterTimeout)

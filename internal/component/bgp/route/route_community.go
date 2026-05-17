@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -290,15 +290,15 @@ func parseOriginExtCommunity(value string) (attribute.ExtendedCommunity, error) 
 	// If first part contains '.', it's IP:ASN format
 	if strings.Contains(parts[0], ".") {
 		// Type 0x01: IP:ASN format
-		ip := net.ParseIP(parts[0])
-		if ip == nil || ip.To4() == nil {
+		addr, err := netip.ParseAddr(parts[0])
+		if err != nil || !addr.Unmap().Is4() {
 			return attribute.ExtendedCommunity{}, fmt.Errorf("invalid IPv4 in origin: %s", parts[0])
 		}
 		asn, err := strconv.ParseUint(parts[1], 10, 16)
 		if err != nil {
 			return attribute.ExtendedCommunity{}, fmt.Errorf("invalid ASN in origin: %s", parts[1])
 		}
-		ip4 := ip.To4()
+		ip4 := addr.Unmap().As4()
 		return attribute.ExtendedCommunity{
 			0x01, 0x03, // Type=1, Subtype=3 (Origin)
 			ip4[0], ip4[1], ip4[2], ip4[3], // IPv4 address
@@ -311,11 +311,11 @@ func parseOriginExtCommunity(value string) (attribute.ExtendedCommunity, error) 
 	if err != nil {
 		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid ASN in origin: %s", parts[0])
 	}
-	ip := net.ParseIP(parts[1])
-	if ip == nil || ip.To4() == nil {
+	addr, err := netip.ParseAddr(parts[1])
+	if err != nil || !addr.Unmap().Is4() {
 		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid IPv4 in origin: %s", parts[1])
 	}
-	ip4 := ip.To4()
+	ip4 := addr.Unmap().As4()
 	return attribute.ExtendedCommunity{
 		0x00, 0x03, // Type=0, Subtype=3 (Origin)
 		byte(asn >> 8), byte(asn), // 2-byte ASN

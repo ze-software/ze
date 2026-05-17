@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Protocol constants for request/response handling.
@@ -199,7 +200,8 @@ func handleEncodeNLRIFromJSON(parts []string, output io.Writer, writeError func(
 		return
 	}
 
-	protocolWrite(output, "encoded hex "+strings.ToUpper(hex.EncodeToString(wireBytes))+"\n")
+	var b textbuf.Buffer
+	protocolWrite(output, b.Str("encoded hex ").HexUpper(wireBytes).Byte('\n').String())
 }
 
 // handleEncodeNLRI handles: encode nlri <family> <components...>
@@ -231,5 +233,6 @@ func handleEncodeNLRI(parts []string, output io.Writer, writeError func(string))
 		return
 	}
 
-	protocolWrite(output, "encoded hex "+strings.ToUpper(hex.EncodeToString(wireBytes))+"\n")
+	var b textbuf.Buffer
+	protocolWrite(output, b.Str("encoded hex ").HexUpper(wireBytes).Byte('\n').String())
 }

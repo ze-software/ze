@@ -866,7 +866,7 @@ func (r *Reactor) Stats() *Stats {
 		LocalAS:   r.config.LocalAS,
 	}
 	if r.running {
-		stats.Uptime = time.Since(r.startTime)
+		stats.Uptime = r.clock.Now().Sub(r.startTime)
 	}
 	return stats
 }

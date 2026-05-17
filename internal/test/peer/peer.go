@@ -738,8 +738,8 @@ func applyCapabilityOverrides(open []byte, overrides []CapabilityOverride) []byt
 }
 
 func (p *Peer) printPayload(prefix string, header, body []byte) {
-	h := strings.ToUpper(hex.EncodeToString(header))
-	b := strings.ToUpper(hex.EncodeToString(body))
+	h := textbuf.HexUpper(header)
+	b := textbuf.HexUpper(body)
 
 	if len(h) >= 38 {
 		p.printf("%-12s%s:%s:%s:%s\n", prefix, h[:32], h[32:36], h[36:38], b)

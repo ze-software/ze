@@ -27,8 +27,6 @@ var (
 
 const tcSnapshotVersion = 1
 
-var _ = env.MustRegister(env.EnvEntry{Key: "ze.config.dir", Type: "string", Description: "Override default config directory"})
-
 type tcSnapshotStore struct {
 	Version    int                            `json:"version"`
 	Interfaces map[string]tcInterfaceSnapshot `json:"interfaces"`

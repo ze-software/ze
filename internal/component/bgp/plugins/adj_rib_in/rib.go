@@ -574,16 +574,18 @@ func formatHexCommand(rt *RawRoute) string {
 }
 
 // nhopToHex converts a next-hop IP address string to wire hex.
-// IPv4: "10.0.0.1" → "0a000001", IPv6: "::1" → 32 hex chars.
+// IPv4: "10.0.0.1" -> "0a000001", IPv6: "::1" -> 32 hex chars.
 func nhopToHex(ipStr string) string {
-	ip := net.ParseIP(ipStr)
-	if ip == nil {
+	addr, err := netip.ParseAddr(ipStr)
+	if err != nil {
 		return ""
 	}
-	if ip4 := ip.To4(); ip4 != nil {
-		return hex.EncodeToString(ip4)
+	if addr.Unmap().Is4() {
+		b := addr.Unmap().As4()
+		return hex.EncodeToString(b[:])
 	}
-	return hex.EncodeToString(ip.To16())
+	b := addr.As16()
+	return hex.EncodeToString(b[:])
 }
 
 // splitRawNLRIHex splits concatenated raw NLRI hex into individual entries.

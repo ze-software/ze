@@ -5,7 +5,6 @@ package mup
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -15,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -133,7 +133,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 		return "", err
 	}
 
-	return strings.ToUpper(hex.EncodeToString(buf[:n])), nil
+	return textbuf.HexUpper(buf[:n]), nil
 }
 
 // EncodeRoute encodes a MUP route command into UPDATE body bytes and NLRI bytes.

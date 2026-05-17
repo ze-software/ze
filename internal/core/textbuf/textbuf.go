@@ -37,6 +37,24 @@ func Hex(data []byte) string {
 	return string(hex.AppendEncode(dst, data))
 }
 
+const upperHexDigits = "0123456789ABCDEF"
+
+func HexUpper(data []byte) string {
+	var buf [128]byte
+	n := len(data) * 2
+	var dst []byte
+	if n <= len(buf) {
+		dst = buf[:n]
+	} else {
+		dst = make([]byte, n)
+	}
+	for i, b := range data {
+		dst[i*2] = upperHexDigits[b>>4]
+		dst[i*2+1] = upperHexDigits[b&0x0f]
+	}
+	return string(dst)
+}
+
 // Buffer is a stack-allocated string builder for zero-intermediate-alloc
 // formatting. Declare as `var b textbuf.Buffer`, chain methods, call String().
 // The 128-byte backing array stays on the stack; only String() allocates.
@@ -63,10 +81,16 @@ func (b *Buffer) Uint32(v uint32) *Buffer   { return b.Uint(uint64(v)) }
 func (b *Buffer) Int(v int64) *Buffer       { b.b = strconv.AppendInt(b.b, v, 10); return b }
 func (b *Buffer) Addr(a netip.Addr) *Buffer { b.b = a.AppendTo(b.b); return b }
 func (b *Buffer) Hex(data []byte) *Buffer   { b.b = hex.AppendEncode(b.b, data); return b }
-func (b *Buffer) Bool(v bool) *Buffer       { b.b = strconv.AppendBool(b.b, v); return b }
-func (b *Buffer) Len() int                  { return len(b.b) }
-func (b *Buffer) String() string            { return string(b.b) }
-func (b *Buffer) Slice() string             { return unsafe.String(unsafe.SliceData(b.b), len(b.b)) } //nolint:gosec // zero-copy; caller does not own the memory, invalid after Reset()
+func (b *Buffer) HexUpper(data []byte) *Buffer {
+	for _, v := range data {
+		b.b = append(b.b, upperHexDigits[v>>4], upperHexDigits[v&0x0f])
+	}
+	return b
+}
+func (b *Buffer) Bool(v bool) *Buffer { b.b = strconv.AppendBool(b.b, v); return b }
+func (b *Buffer) Len() int            { return len(b.b) }
+func (b *Buffer) String() string      { return string(b.b) }
+func (b *Buffer) Slice() string       { return unsafe.String(unsafe.SliceData(b.b), len(b.b)) } //nolint:gosec // zero-copy; caller does not own the memory, invalid after Reset()
 
 func AppendUint(dst []byte, v uint64) []byte {
 	return strconv.AppendUint(dst, v, 10)

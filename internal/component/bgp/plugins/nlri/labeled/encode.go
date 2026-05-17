@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -174,7 +175,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 	n := NewLabeledUnicast(fam, prefix, labels, pathID)
 	nlriBytes := n.Bytes()
 
-	return strings.ToUpper(hex.EncodeToString(nlriBytes)), nil
+	return textbuf.HexUpper(nlriBytes), nil
 }
 
 // EncodeRoute encodes a labeled unicast (nlri-mpls) route command into UPDATE body bytes and NLRI bytes.

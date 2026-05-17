@@ -4,7 +4,6 @@
 package vpls
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -14,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -101,7 +101,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 	}
 
 	v := NewVPLSFull(rd, veID, veBlockOffset, veBlockSize, labelBase)
-	return strings.ToUpper(hex.EncodeToString(v.Bytes())), nil
+	return textbuf.HexUpper(v.Bytes()), nil
 }
 
 // EncodeRoute encodes a VPLS route command into UPDATE body bytes and NLRI bytes.

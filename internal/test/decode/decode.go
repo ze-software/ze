@@ -58,7 +58,7 @@ func DecodeMessageBytes(data []byte) (*DecodedMessage, error) {
 	msg := &DecodedMessage{
 		Length:   int(binary.BigEndian.Uint16(data[16:18])),
 		TypeCode: data[18],
-		Raw:      strings.ToUpper(hex.EncodeToString(data)),
+		Raw:      textbuf.HexUpper(data),
 	}
 
 	switch msg.TypeCode {

@@ -19,10 +19,10 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -112,7 +112,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 		return "", err
 	}
 
-	return strings.ToUpper(hex.EncodeToString(wireBytes)), nil
+	return textbuf.HexUpper(wireBytes), nil
 }
 
 // GetFlowSpecYANG returns the embedded YANG schema for the flowspec plugin.

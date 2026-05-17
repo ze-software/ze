@@ -16,6 +16,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/netip"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -855,14 +856,11 @@ func peerHeaderFromEvent(se *rpc.StructuredEvent) PeerHeader {
 // parseIPInto parses an IP string into a 16-byte BMP address field.
 // IPv4 is stored as ::ffff:x.x.x.x per RFC 7854.
 func parseIPInto(addr string, out *[16]byte) {
-	ip := net.ParseIP(addr)
-	if ip == nil {
+	parsed, err := netip.ParseAddr(addr)
+	if err != nil {
 		return
 	}
-	ip16 := ip.To16()
-	if ip16 != nil {
-		copy(out[:], ip16)
-	}
+	*out = parsed.As16()
 }
 
 // peerDownReasonFromString maps a ze close reason string to a BMP Peer Down reason code.

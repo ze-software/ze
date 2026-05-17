@@ -11,7 +11,6 @@ package rib
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/netip"
 	"sort"
 	"strconv"
@@ -225,7 +224,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error
 	prefix := args[2]
 
 	// Validate peer looks like an IP address.
-	if net.ParseIP(peer) == nil {
+	if _, err := netip.ParseAddr(peer); err != nil {
 		return statusError, "", fmt.Errorf("invalid peer address: %s", peer)
 	}
 
@@ -261,12 +260,12 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error
 			continue
 		}
 		if key == "nhop" {
-			ip := net.ParseIP(val)
-			if ip == nil {
+			nhAddr, err := netip.ParseAddr(val)
+			if err != nil {
 				return statusError, "", fmt.Errorf("invalid next-hop IP: %s", val)
 			}
-			if ip4 := ip.To4(); ip4 != nil {
-				ab.SetNextHop([4]byte(ip4))
+			if nhAddr.Unmap().Is4() {
+				ab.SetNextHop(nhAddr.Unmap().As4())
 			} else if err := r.validateIPv6NextHop(peer, fam); err != nil {
 				return statusError, "", err
 			}
@@ -368,7 +367,7 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, string, err
 	familyStr := args[1]
 	prefix := args[2]
 
-	if net.ParseIP(peer) == nil {
+	if _, err := netip.ParseAddr(peer); err != nil {
 		return statusError, "", fmt.Errorf("invalid peer address: %s", peer)
 	}
 

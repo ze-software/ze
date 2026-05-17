@@ -6,14 +6,14 @@ package peer
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"syscall"
 	"unicode/utf8"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // BGP message types.
@@ -64,7 +64,7 @@ func (m *Message) IsEOR() bool {
 
 // Stream returns the hex-encoded message.
 func (m *Message) Stream() string {
-	return strings.ToUpper(hex.EncodeToString(append(m.Header, m.Body...)))
+	return textbuf.HexUpper(append(m.Header, m.Body...))
 }
 
 // ReadMessage reads a BGP message from a connection.

@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 )
@@ -258,14 +258,11 @@ func parseSingleExtCommunity(s string) (ExtendedCommunity, error) {
 	if strings.Contains(parts[1], ".") {
 		// IPv4 address format: target:1.2.3.4:100
 		// Type 0x01 (IPv4 Address), 4-byte IP, 2-byte value
-		ip := net.ParseIP(parts[1])
-		if ip == nil {
-			return ExtendedCommunity{}, fmt.Errorf("invalid extended-community IPv4 address: %s", parts[1])
-		}
-		ip4 := ip.To4()
-		if ip4 == nil {
+		addr, err := netip.ParseAddr(parts[1])
+		if err != nil || !addr.Unmap().Is4() {
 			return ExtendedCommunity{}, fmt.Errorf("extended-community requires IPv4 address, got: %s", parts[1])
 		}
+		ip4 := addr.Unmap().As4()
 
 		val, err := strconv.ParseUint(parts[2], 10, 16)
 		if err != nil {
@@ -274,7 +271,7 @@ func parseSingleExtCommunity(s string) (ExtendedCommunity, error) {
 
 		ec[0] = 0x01 // Type: IPv4 Address
 		ec[1] = subtype
-		copy(ec[2:6], ip4)
+		copy(ec[2:6], ip4[:])
 		binary.BigEndian.PutUint16(ec[6:8], uint16(val)) //nolint:gosec // G115: bounded by ParseUint 16-bit
 	} else {
 		// ASN format: try to determine 2-byte vs 4-byte
