@@ -453,6 +453,12 @@ module ze-cli-show-cmd {
             description "Kernel neighbor table (ARP/ND) via the iface backend. Optional positional 'ipv4', 'ipv6', or 'any' narrows the dump. Top-level shortcut for `show ip arp`; use whichever reads better in your session.";
         }
 
+        container crashes {
+            config false;
+            ze:command "ze-show:crashes";
+            description "Crash reports. No argument lists files. Positional 'latest' or a filename shows report content.";
+        }
+
         container kernel-routes {
             config false;
             ze:command "ze-show:kernel-routes";

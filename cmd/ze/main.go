@@ -55,6 +55,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
@@ -71,6 +72,10 @@ import (
 	// wireguard keypair with cmdregistry. Not referenced by main()
 	// directly because dispatch goes through the registry fallback.
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/diag"
+
+	// Blank import: crashes' init() registers `crashes show` with
+	// cmdregistry. Reads crash files from disk (no daemon required).
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/crashes"
 
 	// Blank import: host's init() registers `host show` with
 	// cmdregistry. Dispatch via the registry fallback — there is no
@@ -119,7 +124,16 @@ func printVersion(extended bool) {
 // Root commands (`ze bgp`, `ze ping`, ...) are also registered by
 // their package's init() for the same reason; main.go's dispatch
 // switch stays, but help enumeration is driven by the registry.
-//
+func withPanicCapture(fn func() int) (exitCode int) {
+	defer func() {
+		if r := recover(); r != nil {
+			crashlog.HandlePanic(r)
+			exitCode = 2
+		}
+	}()
+	return fn()
+}
+
 // Storage-dependent config subcommands are bound here via
 // zeconfig.BindStorageCommands because the blob store is opened only
 // after global flag parsing.
@@ -161,6 +175,8 @@ func registerLocalCommands() {
 }
 
 func main() {
+	crashlog.Init()
+
 	zeversion.Stamp(version, buildDate)
 	pluginserver.SetVersion(version, buildDate)
 	registerLocalCommands()
@@ -325,7 +341,9 @@ dispatch:
 		fileOverride = config.ResolveConfigPath(fileOverride)
 		switch detectConfigType(store, fileOverride) {
 		case config.ConfigTypeBGP, config.ConfigTypeHub, config.ConfigTypeUnknown:
-			os.Exit(hub.Run(store, fileOverride, plugins, chaosSeed, chaosRate, false, "", false, "", ""))
+			os.Exit(withPanicCapture(func() int {
+				return hub.Run(store, fileOverride, plugins, chaosSeed, chaosRate, false, "", false, "", "")
+			}))
 		}
 	}
 
@@ -495,7 +513,9 @@ dispatch:
 		// For stdin, config data comes from stdin but we still need blob
 		// storage for TLS certs, SSH host keys, and other persistent state.
 		if arg == "-" {
-			os.Exit(hub.Run(resolveStorage(), arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken))
+			os.Exit(withPanicCapture(func() int {
+				return hub.Run(resolveStorage(), arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
+			}))
 		}
 		store := resolveStorage()
 		// Search XDG config paths if not found locally
@@ -513,7 +533,9 @@ dispatch:
 		}
 		switch detectConfigType(store, arg) {
 		case config.ConfigTypeBGP, config.ConfigTypeHub, config.ConfigTypeUnknown:
-			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken))
+			os.Exit(withPanicCapture(func() int {
+				return hub.Run(store, arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
+			}))
 		}
 	}
 
@@ -732,7 +754,7 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		case bootstrapConfigFromTemplate(store, configName):
 			fmt.Fprintf(os.Stderr, "bootstrap: created config from template + discovery\n")
 		case webEnabled:
-			return hub.RunWebOnly(store, webListenAddr, insecureWeb)
+			return withPanicCapture(func() int { return hub.RunWebOnly(store, webListenAddr, insecureWeb) })
 		default:
 			fmt.Fprintf(os.Stderr, "error: no config found in database (run ze config edit first)\n")
 			return 1
@@ -750,10 +772,12 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 
 	ct := detectConfigType(store, configName)
 	if ct == config.ConfigTypeUnknown && webEnabled {
-		return hub.RunWebOnly(store, webListenAddr, insecureWeb)
+		return withPanicCapture(func() int { return hub.RunWebOnly(store, webListenAddr, insecureWeb) })
 	}
 
-	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
+	return withPanicCapture(func() int {
+		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
+	})
 }
 
 // isManaged returns true if the blob has meta/instance/managed=true.
@@ -780,7 +804,9 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 			go managed.RunManagedClient(ctx, *clientCfg)
 		}
 
-		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false, "", "")
+		return withPanicCapture(func() int {
+			return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false, "", "")
+		})
 	}
 
 	// No cached config: first boot after ze init --managed.
@@ -830,7 +856,9 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 		go managed.RunManagedClient(ctx, *clientCfg)
 	}
 
-	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false, "", "")
+	return withPanicCapture(func() int {
+		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false, "", "")
+	})
 }
 
 // extractManagedClientConfig reads config from blob and extracts the hub client block.

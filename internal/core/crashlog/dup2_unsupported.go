@@ -1,0 +1,13 @@
+// Design: plan/spec-diag-crash-capture.md -- fd2 redirect stub for non-unix
+
+//go:build !unix
+
+package crashlog
+
+import "errors"
+
+var errNoDup2 = errors.New("crashlog: stderr redirect not supported on this platform")
+
+func dupStderr(_ int) error {
+	return errNoDup2
+}

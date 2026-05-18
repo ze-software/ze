@@ -495,6 +495,29 @@ Thin wrappers over the OS's `ping` and `traceroute` binaries.
 
 <!-- source: cmd/ze/diag/diag.go -- RunPing, RunTraceroute -->
 
+### show crashes / ze crashes show
+
+**Online (daemon running):**
+```
+show crashes           # List crash files with timestamp and size
+show crashes latest    # Display full content of most recent crash report
+```
+
+**Offline (no daemon required):**
+```
+ze crashes show          # List crash files (JSON)
+ze crashes show latest   # Display most recent crash report
+```
+
+Crash reports contain the panic stack trace, ring buffer context (last 64
+log entries before the crash), version, build date, and uptime. Crash files
+are stored in the autodetected crash directory (see `ze.crash.dir` env var).
+
+The offline variant works when the daemon is down (which is when you need
+it most, after a crash).
+
+<!-- source: internal/component/cmd/show/crashes.go, cmd/ze/crashes/crashes.go -->
+
 ### clear interface counters
 
 ```

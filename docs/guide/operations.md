@@ -281,6 +281,40 @@ Symptom: session establishes briefly then NOTIFICATION received
    ze cli -c "rpki status"
    ```
 
+### Crash Capture
+
+Ze automatically captures panic stack traces and forwards them to syslog. On
+restart after a crash, `show crashes` displays saved crash reports with ring
+buffer context (the last 64 log entries before the panic).
+
+**Configuration (environment variables):**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ze.crash.dir` | autodetect | Override crash file directory |
+| `ze.crash.keep` | `5` | Number of crash files to retain (1-100) |
+
+Crash dir autodetection probes in order: `/perm/ze/crash/` (gokrazy),
+`<config-dir>/crash/`, `/var/lib/ze/crash/`, `/tmp/ze-crash/`. The resolved
+path is printed at startup.
+
+Syslog forwarding uses `ze.log.destination` (no separate config). Crash
+messages use `LOG_CRIT` facility for filtering.
+
+**CLI (online, daemon running):**
+
+```
+show crashes           # list crash files with timestamps
+show crashes latest    # display most recent crash report
+```
+
+**CLI (offline, no daemon required):**
+
+```
+ze crashes show          # list crash files (JSON)
+ze crashes show latest   # display most recent crash report
+```
+
 ### Collecting Debug Information
 
 For bug reports, collect:

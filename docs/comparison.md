@@ -185,6 +185,7 @@ banner reads the same source, so nothing is silently hidden. See
 
 | Feature | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Crash capture (syslog + file) | Yes | No | No | No | No | No | No | No | No | No | No |
 | Config error diagnostics | Yes | Yes | No | Partial | No | No | No | No | No | No | Partial |
 | Docker image | No | Yes | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes |
 | Fuzz testing | Yes | Yes | No | Yes | No | No | No | No | No | No | No |
