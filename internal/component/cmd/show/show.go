@@ -478,6 +478,7 @@ func handleShowEventNamespaces(ctx *pluginserver.CommandContext, _ []string) (*p
 const (
 	capL2TP = "l2tp"
 	capBGP  = "bgp"
+	capBFD  = "bfd"
 )
 
 func handleShowHealth(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {

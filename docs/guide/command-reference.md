@@ -467,6 +467,119 @@ reactor is absent).
 
 <!-- source: internal/component/cmd/show/show.go -- handleShowUptime -->
 
+### show system sockets
+
+```
+ze show system sockets                          # All TCP and UDP sockets
+ze show system sockets tcp                      # TCP only
+ze show system sockets tcp state ESTABLISHED    # Filter by state
+ze show system sockets tcp port 179             # Filter by port
+```
+
+Returns JSON array of sockets with protocol, local-addr, local-port,
+remote-addr, remote-port, state, tx-queue, rx-queue. Linux only.
+
+<!-- source: internal/component/cmd/show/sockets_linux.go -- handleShowSystemSockets -->
+
+### show system kernel-log
+
+```
+ze show system kernel-log                       # Last 50 entries
+ze show system kernel-log count 20              # Last 20 entries
+ze show system kernel-log level err             # Errors and above
+ze show system kernel-log level err count 10    # Combined
+```
+
+Reads /dev/kmsg. Returns entries with level, sequence, timestamp-us, message.
+Levels: emerg, alert, crit, err, warning, notice, info, debug. Linux only.
+
+<!-- source: internal/component/cmd/show/kernel_log_linux.go -- handleShowSystemKernelLog -->
+
+### show system goroutines
+
+```
+ze show system goroutines summary    # Count by state
+ze show system goroutines blocked    # Only waiting goroutines
+ze show system goroutines full       # Full stack dump
+```
+
+The `full` mode uses singleflight deduplication: concurrent requests share
+a single 16 MB allocation.
+
+<!-- source: internal/component/cmd/show/goroutines.go -- handleShowSystemGoroutines -->
+
+### show tcp-check
+
+```
+ze show tcp-check <host> <port>                    # Basic connectivity test
+ze show tcp-check <host> <port> timeout 3s         # Custom timeout (1s-30s)
+ze show tcp-check <host> <port> source 10.0.0.1    # Bind source IP
+```
+
+Returns result (connected/refused/timeout) and latency-ms.
+
+<!-- source: internal/component/cmd/show/tcp_check.go -- handleTCPCheck -->
+
+### show system file-descriptors
+
+```
+ze show system file-descriptors summary    # Counts by type + limits
+ze show system file-descriptors detail     # Full FD list with targets
+```
+
+Returns total, by-type (socket/pipe/file/anon_inode), soft-limit, hard-limit.
+Linux only.
+
+<!-- source: internal/component/cmd/show/fd_linux.go -- handleShowSystemFD -->
+
+### show dns lookup
+
+```
+ze show dns lookup example.com                 # A record (default)
+ze show dns lookup example.com type AAAA       # AAAA record
+ze show dns lookup example.com type MX         # MX record
+```
+
+Returns structured JSON with name, type, records, count, query-time-ms.
+Supported types: A, AAAA, MX, NS, TXT, CNAME, PTR.
+
+<!-- source: internal/component/cmd/show/dns.go -- handleDNSLookup -->
+
+### show dns cache
+
+```
+ze show dns cache stats    # Cache hit/miss/eviction counters
+```
+
+Returns entries, capacity, hits, misses, evictions, expired.
+
+<!-- source: internal/component/cmd/show/dns.go -- handleDNSCache -->
+
+### show system profile
+
+```
+ze show system profile heap                     # Heap profile
+ze show system profile cpu duration 10s         # CPU profile (1s-60s)
+ze show system profile goroutine                # Goroutine profile
+ze show system profile allocs                   # Allocation profile
+```
+
+Returns base64-encoded pprof data. CPU profiling is mutex-protected:
+concurrent requests return an error.
+
+<!-- source: internal/component/cmd/show/profile.go -- handleShowSystemProfile -->
+
+### show system memory-map
+
+```
+ze show system memory-map    # Process memory from /proc/self/status
+```
+
+Returns vm-rss-kb, vm-size-kb, vm-swap-kb, vm-peak-kb, vm-data-kb,
+vm-stack-kb, threads. Linux only.
+
+<!-- source: internal/component/cmd/show/memory_map_linux.go -- handleShowSystemMemoryMap -->
+
 ### show bgp summary
 
 ```

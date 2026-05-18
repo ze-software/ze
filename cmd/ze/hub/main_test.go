@@ -17,6 +17,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
+func init() {
+	skipRootCheck = true
+}
+
 type reloadProbeSubsystem struct {
 	seen []string
 }

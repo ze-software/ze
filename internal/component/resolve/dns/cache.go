@@ -24,14 +24,28 @@ type cacheEntry struct {
 	element *list.Element // Position in LRU list for O(1) removal/touch.
 }
 
+// CacheStats holds DNS cache hit/miss/eviction counters.
+type CacheStats struct {
+	Entries   int    `json:"entries"`
+	Capacity  uint32 `json:"capacity"`
+	Hits      uint64 `json:"hits"`
+	Misses    uint64 `json:"misses"`
+	Evictions uint64 `json:"evictions"`
+	Expired   uint64 `json:"expired"`
+}
+
 // cache is an in-memory DNS cache with TTL-based expiry and LRU eviction.
 // Safe for concurrent use.
 type cache struct {
-	mu      sync.Mutex
-	maxSize uint32
-	maxTTL  uint32 // Seconds. 0 means use response TTL only.
-	entries map[cacheKey]*cacheEntry
-	lru     *list.List // Front = oldest (evict first), Back = newest.
+	mu        sync.Mutex
+	maxSize   uint32
+	maxTTL    uint32 // Seconds. 0 means use response TTL only.
+	entries   map[cacheKey]*cacheEntry
+	lru       *list.List // Front = oldest (evict first), Back = newest.
+	hits      uint64
+	misses    uint64
+	evictions uint64
+	expired   uint64
 }
 
 // newCache creates a DNS cache. maxSize=0 disables caching.
@@ -58,13 +72,18 @@ func (c *cache) get(name string, qtype uint16) ([]string, bool) {
 	key := cacheKey{name: name, qtype: qtype}
 	entry, ok := c.entries[key]
 	if !ok {
+		c.misses++
 		return nil, false
 	}
 
 	if time.Now().After(entry.expires) {
 		c.removeLocked(entry)
+		c.expired++
+		c.misses++
 		return nil, false
 	}
+
+	c.hits++
 
 	// Move to back of LRU list (most recently used).
 	c.lru.MoveToBack(entry.element)
@@ -115,6 +134,7 @@ func (c *cache) put(name string, qtype uint16, records []string, responseTTL uin
 			break
 		}
 		c.removeLocked(entry)
+		c.evictions++
 	}
 
 	stored := make([]string, len(records))
@@ -133,4 +153,18 @@ func (c *cache) put(name string, qtype uint16, records []string, responseTTL uin
 func (c *cache) removeLocked(entry *cacheEntry) {
 	delete(c.entries, entry.key)
 	c.lru.Remove(entry.element)
+}
+
+// Stats returns a snapshot of cache counters. Safe for concurrent use.
+func (c *cache) Stats() CacheStats {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return CacheStats{
+		Entries:   len(c.entries),
+		Capacity:  c.maxSize,
+		Hits:      c.hits,
+		Misses:    c.misses,
+		Evictions: c.evictions,
+		Expired:   c.expired,
+	}
 }

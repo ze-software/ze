@@ -78,6 +78,11 @@ func resolveSystemDNS(resolvConfPath string) string {
 	return net.JoinHostPort(config.Servers[0], config.Port)
 }
 
+// CacheStats returns a snapshot of DNS cache counters.
+func (r *Resolver) CacheStats() CacheStats {
+	return r.cache.Stats()
+}
+
 // Close releases resolver resources.
 func (r *Resolver) Close() {
 	// Currently no persistent connections to close.
@@ -104,6 +109,24 @@ func (r *Resolver) Resolve(name string, qtype uint16) ([]string, error) {
 	}
 
 	return records, nil
+}
+
+// ResolveWithTTL queries DNS and returns records plus the response TTL in seconds.
+func (r *Resolver) ResolveWithTTL(name string, qtype uint16) ([]string, uint32, error) {
+	if records, ok := r.cache.get(name, qtype); ok {
+		return records, 0, nil
+	}
+
+	records, ttl, err := r.query(name, qtype)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if len(records) > 0 {
+		r.cache.put(name, qtype, records, ttl)
+	}
+
+	return records, ttl, nil
 }
 
 // ResolveTXT queries for TXT records.

@@ -115,6 +115,8 @@ type Loop struct {
 
 	metricsHook atomic.Pointer[MetricsHook]
 
+	rawCapture atomic.Pointer[RawCaptureRing]
+
 	stopCh  chan struct{}
 	doneCh  chan struct{}
 	started atomic.Bool

@@ -139,6 +139,15 @@ the bus from buggy or malicious producers.
 | `ze-show:bmp-rib` | `forwardShowBMPRib` in `internal/component/cmd/show/show_bmp.go` | BMP-monitored routes (proxy to BMP plugin, dispatches to RIB) |
 | `ze-show:rr-status` | `forwardShowRRStatus` in `internal/component/cmd/show/show_rr.go` | `{"running": true}` (proxy to RR plugin) |
 | `ze-show:rr-peers` | `forwardShowRRPeers` in `internal/component/cmd/show/show_rr.go` | JSON array of RR peer states (proxy to RR plugin) |
+| `ze-show:system-sockets` | `handleShowSystemSockets` in `sockets_linux.go` | `{"sockets": [...], "count": N}` (Linux only) |
+| `ze-show:system-kernel-log` | `handleShowSystemKernelLog` in `kernel_log_linux.go` | `{"entries": [...], "count": N}` (Linux only) |
+| `ze-show:system-goroutines` | `handleShowSystemGoroutines` in `goroutines.go` | `{"total": N, "by-state": {...}, "mode": "..."}` |
+| `ze-show:tcp-check` | `handleTCPCheck` in `tcp_check.go` | `{"host": "...", "port": N, "result": "...", "latency-ms": N}` |
+| `ze-show:system-file-descriptors` | `handleShowSystemFD` in `fd_linux.go` | `{"total": N, "by-type": {...}, "soft-limit": N, "hard-limit": N}` (Linux only) |
+| `ze-show:dns-lookup` | `handleDNSLookup` in `dns.go` | `{"name": "...", "type": "...", "records": [...], "query-time-ms": N}` |
+| `ze-show:dns-cache` | `handleDNSCache` in `dns.go` | `{"entries": N, "capacity": N, "hits": N, "misses": N, "evictions": N, "expired": N}` |
+| `ze-show:system-profile` | `handleShowSystemProfile` in `profile.go` | `{"type": "...", "format": "pprof-base64", "data": "..."}` |
+| `ze-show:system-memory-map` | `handleShowSystemMemoryMap` in `memory_map_linux.go` | `{"vm-rss-kb": N, "vm-size-kb": N, ...}` (Linux only) |
 
 Both warnings/errors handlers accept optional `source <name>` filter and
 errors accepts `count <N>` limit. Return a non-nil empty slice when empty.

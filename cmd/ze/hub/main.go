@@ -24,6 +24,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	showCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
@@ -58,7 +59,10 @@ var (
 // rebootRequested is set by the SSH/RPC reboot handler before triggering
 // reactor.Stop(). After the graceful shutdown sequence completes, the main
 // loop checks this flag and attempts an OS-level reboot if set.
-var rebootRequested atomic.Bool
+var (
+	rebootRequested atomic.Bool
+	skipRootCheck   bool
+)
 
 // PeerLifecycleCallback is set by cmdStart when a pushed config was applied at boot.
 // The reactor factory wires it as a peer lifecycle observer for health-based auto-revert.
@@ -114,6 +118,11 @@ func forceExitOnSignal(sigCh <-chan os.Signal) {
 // chaosSeed > 0 enables chaos self-test mode; chaosRate < 0 means "use default".
 // Returns exit code.
 func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string) int {
+	if !skipRootCheck && os.Getuid() != 0 {
+		fmt.Fprintln(os.Stderr, "ze requires root privileges")
+		return 1
+	}
+
 	// Read config content first (to probe type without parsing).
 	// When reading from stdin, we look for a NUL sentinel that signals
 	// "config complete but pipe stays open for liveness monitoring."
@@ -490,6 +499,34 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	resolvers := newResolvers(&sc)
 	defer resolvers.Close()
 	resolvecmd.SetResolvers(resolvers)
+	if resolvers.DNS != nil {
+		showCmd.RegisterDNSStatsProvider(func() map[string]any {
+			s := resolvers.DNS.CacheStats()
+			total := s.Hits + s.Misses
+			var hitRate, missRate float64
+			if total > 0 {
+				hitRate = float64(s.Hits) / float64(total) * 100
+				missRate = float64(s.Misses) / float64(total) * 100
+			}
+			return map[string]any{
+				"entries":   s.Entries,
+				"capacity":  s.Capacity,
+				"hits":      s.Hits,
+				"misses":    s.Misses,
+				"hit-rate":  hitRate,
+				"miss-rate": missRate,
+				"evictions": s.Evictions,
+				"expired":   s.Expired,
+			}
+		})
+		showCmd.RegisterDNSLookupProvider(func(name string, qtype uint16) (*showCmd.DNSLookupResult, error) {
+			records, ttl, err := resolvers.DNS.ResolveWithTTL(name, qtype)
+			if err != nil {
+				return nil, err
+			}
+			return &showCmd.DNSLookupResult{Records: records, TTL: ttl}, nil
+		})
+	}
 
 	if len(sc.NameServers) > 0 {
 		if err := system.WriteResolvConf(sc.ResolvConfPath, sc.NameServers); err != nil {

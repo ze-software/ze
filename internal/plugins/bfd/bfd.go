@@ -28,6 +28,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	showCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
+	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
@@ -70,9 +72,10 @@ type loopKey struct {
 // (verify/configure/apply run sequentially per the SDK contract) so the
 // fields do not need their own lock.
 type runtimeState struct {
-	loops  map[loopKey]*engine.Loop
-	pinned map[api.Key]api.SessionHandle
-	cfg    *pluginConfig
+	loops          map[loopKey]*engine.Loop
+	pinned         map[api.Key]api.SessionHandle
+	cfg            *pluginConfig
+	captureEnabled bool
 }
 
 func newRuntimeState() *runtimeState {
@@ -112,6 +115,9 @@ func (r *runtimeState) loopFor(key loopKey, device string) (*engine.Loop, error)
 			}
 		}
 		return nil, fmt.Errorf("bfd: start engine loop for %s (vrf=%s device=%s): %w", key.mode, key.vrf, device, startErr)
+	}
+	if r.captureEnabled {
+		loop.EnableRawCapture()
 	}
 	r.loops[key] = loop
 	logger().Info("bfd loop started",
@@ -560,6 +566,47 @@ func (s *pluginService) Profiles() []api.ProfileState {
 	return out
 }
 
+func (s *pluginService) EnableRawCapture() {
+	runtimeStateGuard.Lock()
+	defer runtimeStateGuard.Unlock()
+	s.state.captureEnabled = true
+	for _, loop := range s.state.loops {
+		loop.EnableRawCapture()
+	}
+}
+
+func (s *pluginService) DisableRawCapture() {
+	runtimeStateGuard.Lock()
+	defer runtimeStateGuard.Unlock()
+	s.state.captureEnabled = false
+	for _, loop := range s.state.loops {
+		loop.DisableRawCapture()
+	}
+}
+
+func (s *pluginService) BFDRawCaptureSnapshot(limit int) []zePlugin.BGPRawCaptureEntry {
+	runtimeStateGuard.Lock()
+	defer runtimeStateGuard.Unlock()
+	var all []zePlugin.BGPRawCaptureEntry
+	for _, loop := range s.state.loops {
+		entries := loop.RawCaptureSnapshot(0)
+		for _, e := range entries {
+			all = append(all, zePlugin.BGPRawCaptureEntry{
+				Timestamp: e.Timestamp,
+				Direction: e.Direction,
+				Data:      e.Data,
+			})
+		}
+	}
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].Timestamp > all[j].Timestamp
+	})
+	if limit > 0 && len(all) > limit {
+		all = all[:limit]
+	}
+	return all
+}
+
 func verifyBFDConfig(sections []sdk.ConfigSection) error {
 	_, err := parseSections(sections)
 	return err
@@ -581,6 +628,7 @@ func RunBFDPlugin(conn net.Conn) int {
 		// clients see nil and skip BFD wiring instead of receiving a
 		// handle whose underlying loop is about to tear down.
 		api.SetService(nil)
+		showCmd.SetBFDRawCaptureProvider(nil)
 		runtimeStateGuard.Lock()
 		defer runtimeStateGuard.Unlock()
 		state.stopAll()
@@ -654,7 +702,9 @@ func RunBFDPlugin(conn net.Conn) int {
 		// importing internal/plugins/bfd/engine. Published last,
 		// after all configured loops have started, so an early BGP
 		// EnsureSession does not race the loop creation.
-		api.SetService(&pluginService{state: state})
+		svc := &pluginService{state: state}
+		api.SetService(svc)
+		showCmd.SetBFDRawCaptureProvider(svc)
 
 		// Re-bind the Prometheus registry at OnStarted time in case
 		// the registry was not yet installed when ConfigureMetrics

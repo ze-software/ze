@@ -65,6 +65,42 @@ module ze-cli-show-cmd {
                 ze:command "ze-show:system-update";
                 description "Show firmware update check status: last check time, running version, available version";
             }
+
+            container sockets {
+                config false;
+                ze:command "ze-show:system-sockets";
+                description "Show TCP/UDP socket state ([tcp|udp] [state <STATE>] [port <N>])";
+            }
+
+            container kernel-log {
+                config false;
+                ze:command "ze-show:system-kernel-log";
+                description "Show kernel log messages from /dev/kmsg ([level <LEVEL>] [count <N>])";
+            }
+
+            container goroutines {
+                config false;
+                ze:command "ze-show:system-goroutines";
+                description "Show goroutine dump ([summary|blocked|full])";
+            }
+
+            container file-descriptors {
+                config false;
+                ze:command "ze-show:system-file-descriptors";
+                description "Show open file descriptors ([summary|detail])";
+            }
+
+            container profile {
+                config false;
+                ze:command "ze-show:system-profile";
+                description "Capture runtime profile ([cpu|heap|goroutine|allocs] [duration <D>])";
+            }
+
+            container memory-map {
+                config false;
+                ze:command "ze-show:system-memory-map";
+                description "Show process memory map from /proc/self/status (VmRSS, VmSize, VmSwap, Threads)";
+            }
         }
 
         container host {
@@ -142,6 +178,29 @@ module ze-cli-show-cmd {
             config false;
             ze:command "ze-show:ping";
             description "ICMP ping from the router (<dest> [count N] [timeout Ns])";
+        }
+
+        container tcp-check {
+            config false;
+            ze:command "ze-show:tcp-check";
+            description "TCP port connectivity test (<host> <port> [source <IP>] [timeout <D>])";
+        }
+
+        container dns {
+            config false;
+            description "DNS diagnostics";
+
+            container lookup {
+                config false;
+                ze:command "ze-show:dns-lookup";
+                description "DNS lookup (<hostname> [type <A|AAAA|MX|NS|TXT|CNAME|PTR>])";
+            }
+
+            container cache {
+                config false;
+                ze:command "ze-show:dns-cache";
+                description "DNS cache statistics (stats)";
+            }
         }
 
         container l2tp-health {

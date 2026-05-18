@@ -68,6 +68,8 @@ func (l *Loop) run() {
 func (l *Loop) handleInbound(in transport.Inbound) {
 	defer in.Release()
 
+	l.captureRx(in.Bytes)
+
 	c, _, err := packet.ParseControl(in.Bytes)
 	if err != nil {
 		return
@@ -233,6 +235,7 @@ func (l *Loop) sendLocked(entry *sessionEntry, c packet.Control) {
 		Mode:      key.Mode,
 		Bytes:     buf[:n],
 	}
+	l.captureTx(out.Bytes)
 	if err := l.transport.Send(out); err != nil {
 		engineLog().Debug("transport send failed", "peer", out.To, "err", err)
 		return

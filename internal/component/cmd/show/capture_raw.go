@@ -14,6 +14,20 @@ import (
 
 const fmtPcap = "pcap"
 
+// BFDRawCaptureProvider is satisfied by the BFD plugin when it supports
+// raw byte capture. Set via SetBFDRawCaptureProvider at plugin startup.
+type BFDRawCaptureProvider interface {
+	EnableRawCapture()
+	DisableRawCapture()
+	BFDRawCaptureSnapshot(limit int) []plugin.BGPRawCaptureEntry
+}
+
+var bfdRawCapture BFDRawCaptureProvider
+
+func SetBFDRawCaptureProvider(p BFDRawCaptureProvider) {
+	bfdRawCapture = p
+}
+
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-show:capture-raw", Handler: handleCaptureRaw},
@@ -29,7 +43,7 @@ func handleCaptureRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.
 		switch a {
 		case "start", "stop", "dump":
 			action = a
-		case capL2TP, capBGP:
+		case capL2TP, capBGP, capBFD:
 			protocol = a
 		case fmtPcap, "json":
 			format = a
@@ -48,12 +62,12 @@ func handleCaptureRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	default:
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: capture-raw [start|stop|dump] [l2tp|bgp] [pcap|json] [count N]",
+			Data:   "usage: capture-raw [start|stop|dump] [l2tp|bgp|bfd] [pcap|json] [count N]",
 		}, nil
 	}
 }
 
-func captureRawStart(ctx *pluginserver.CommandContext, protocol string) (*plugin.Response, error) {
+func captureRawStart(ctx *pluginserver.CommandContext, protocol string) (*plugin.Response, error) { //nolint:dupl // start/stop symmetry is intentional
 	started := []string{}
 	if protocol == "" || protocol == capL2TP {
 		svc := l2tp.LookupService()
@@ -70,6 +84,12 @@ func captureRawStart(ctx *pluginserver.CommandContext, protocol string) (*plugin
 			}
 		}
 	}
+	if protocol == "" || protocol == capBFD {
+		if bfdRawCapture != nil {
+			bfdRawCapture.EnableRawCapture()
+			started = append(started, capBFD)
+		}
+	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: map[string]any{
@@ -79,7 +99,7 @@ func captureRawStart(ctx *pluginserver.CommandContext, protocol string) (*plugin
 	}, nil
 }
 
-func captureRawStop(ctx *pluginserver.CommandContext, protocol string) (*plugin.Response, error) {
+func captureRawStop(ctx *pluginserver.CommandContext, protocol string) (*plugin.Response, error) { //nolint:dupl // start/stop symmetry is intentional
 	stopped := []string{}
 	if protocol == "" || protocol == capL2TP {
 		svc := l2tp.LookupService()
@@ -94,6 +114,12 @@ func captureRawStop(ctx *pluginserver.CommandContext, protocol string) (*plugin.
 				rcp.DisableRawCapture()
 				stopped = append(stopped, capBGP)
 			}
+		}
+	}
+	if protocol == "" || protocol == capBFD {
+		if bfdRawCapture != nil {
+			bfdRawCapture.DisableRawCapture()
+			stopped = append(stopped, capBFD)
 		}
 	}
 	return &plugin.Response{
@@ -162,6 +188,39 @@ func captureRawDump(ctx *pluginserver.CommandContext, protocol, format string, l
 			}
 		} else if protocol == capBGP {
 			result["bgp"] = "reactor not available"
+		}
+	}
+
+	if protocol == "" || protocol == capBFD {
+		if bfdRawCapture == nil {
+			if protocol == capBFD {
+				result["bfd"] = "BFD plugin not loaded"
+			}
+		} else {
+			entries := bfdRawCapture.BFDRawCaptureSnapshot(limit)
+			switch {
+			case entries == nil:
+				result["bfd"] = "raw capture not enabled (use capture-raw start bfd)"
+			case format == fmtPcap:
+				pcapData, err := exportBGPPcap(entries)
+				if err != nil {
+					result["bfd-error"] = err.Error()
+				} else {
+					result["bfd-pcap"] = base64.StdEncoding.EncodeToString(pcapData)
+					result["bfd-packets"] = len(entries)
+				}
+			default:
+				rows := make([]map[string]any, 0, len(entries))
+				for _, e := range entries {
+					rows = append(rows, map[string]any{
+						"timestamp": e.Timestamp,
+						"direction": e.Direction,
+						"bytes":     len(e.Data),
+					})
+				}
+				result["bfd"] = rows
+				result["bfd-count"] = len(rows)
+			}
 		}
 	}
 

@@ -1,0 +1,324 @@
+<!-- Design: plan/spec-diag-core.md -- symptom-based diagnostic guide -->
+
+# Production Diagnostics Guide
+
+Symptom-based troubleshooting using Ze's built-in diagnostic commands. All commands work on gokrazy appliances without external Linux tools.
+
+## Quick Reference
+
+| Symptom | First Command |
+|---------|--------------|
+| BGP session won't establish | `show tcp-check <peer-ip> 179` |
+| BGP session flapping | `show system kernel-log level warning count 50` |
+| High CPU | `show system profile cpu duration 10s` |
+| Memory leak | `show system profile heap` |
+| FD exhaustion | `show system file-descriptors summary` |
+| Goroutine leak | `show system goroutines summary` |
+| DNS failure | `show dns lookup <name> type A` |
+| Process killed | `show system kernel-log level err` |
+
+## Failure Categories
+
+### 1. BGP Session Won't Establish
+
+**Verify TCP connectivity:**
+
+```
+show tcp-check <peer-ip> 179
+```
+
+If "refused": peer is not listening. If "timeout": firewall or routing issue.
+
+**Check sockets for existing connections:**
+
+```
+show system sockets tcp state ESTABLISHED port 179
+```
+
+**Check DNS resolution of peer hostname:**
+
+```
+show dns lookup <peer-hostname>
+```
+
+**Inspect raw BGP messages:**
+
+```
+show capture-raw start bgp
+# Wait for connection attempt, then:
+show capture-raw dump bgp
+```
+
+### 2. BGP Session Flapping
+
+**Check kernel log for link events:**
+
+```
+show system kernel-log level warning count 50
+```
+
+**Check socket state churn:**
+
+```
+show system sockets tcp port 179
+```
+
+**Inspect raw packets during flap:**
+
+```
+show capture-raw start bgp
+show capture-raw dump bgp pcap
+```
+
+### 3. BGP Routes Not Received
+
+```
+show bgp peer <selector>
+show capture-raw start bgp
+```
+
+Check UPDATE messages in the capture for the expected NLRI.
+
+### 4. BGP Routes Not Advertised
+
+```
+show bgp peer <selector>
+```
+
+Check advertised route counts, filter configuration, and export policy.
+
+### 5. High CPU Usage
+
+**Capture CPU profile:**
+
+```
+show system profile cpu duration 10s
+```
+
+Decode the base64 output with `go tool pprof`.
+
+**Check goroutine distribution:**
+
+```
+show system goroutines summary
+```
+
+A large count in one state (e.g., "running") suggests a hot loop.
+
+**Check system metrics:**
+
+```
+show system cpu
+```
+
+### 6. Memory Leak / High Memory
+
+**Capture heap profile:**
+
+```
+show system profile heap
+```
+
+**Check process memory from the kernel's perspective:**
+
+```
+show system memory-map
+```
+
+Compare VmRSS with Go's heap-in-use from `show system memory`:
+
+```
+show system memory
+```
+
+If VmRSS is much larger than heap-in-use, memory is held outside Go's heap (cgo, mmap).
+
+**Check goroutines for leaks:**
+
+```
+show system goroutines summary
+show system goroutines blocked
+```
+
+### 7. File Descriptor Exhaustion
+
+**Check FD usage and limits:**
+
+```
+show system file-descriptors summary
+```
+
+If total is close to soft-limit, the process is near exhaustion.
+
+**Inspect individual FDs:**
+
+```
+show system file-descriptors detail
+```
+
+Look for unexpected socket or pipe accumulation.
+
+**Cross-reference with sockets:**
+
+```
+show system sockets
+```
+
+### 8. Goroutine Leak
+
+**Get current count and distribution:**
+
+```
+show system goroutines summary
+```
+
+Normal count depends on configuration. A steadily increasing count indicates a leak.
+
+**Find blocked goroutines:**
+
+```
+show system goroutines blocked
+```
+
+Large numbers stuck in "chan receive" or "select" with the same stack suggest leaked goroutines.
+
+**Full stack dump for analysis:**
+
+```
+show system goroutines full
+```
+
+### 9. Process Killed (OOM / Signal)
+
+**Check kernel log for OOM killer or signal events:**
+
+```
+show system kernel-log level err
+```
+
+Look for "Out of memory" or "Killed process" messages.
+
+**Check current memory state:**
+
+```
+show system memory-map
+```
+
+**Review warnings and errors:**
+
+```
+show warnings
+show errors
+```
+
+### 10. Interface Down / Link Flap
+
+```
+show interface
+show system kernel-log level warning
+```
+
+### 11. Kernel Route Missing
+
+```
+show kernel-routes
+show system sockets
+```
+
+### 12. DNS Resolution Failure
+
+**Test resolution directly:**
+
+```
+show dns lookup <hostname> type A
+```
+
+**Check cache state:**
+
+```
+show dns cache stats
+```
+
+High miss rate with low hit rate suggests upstream resolver issues.
+
+**Verify socket connectivity to resolver:**
+
+```
+show tcp-check <dns-server> 53
+```
+
+### 13. Config Commit Failure
+
+```
+show errors
+show config diff
+```
+
+### 14. Plugin Crash / Restart Loop
+
+```
+show errors count 20
+show warnings
+show system goroutines summary
+show system kernel-log level err count 20
+```
+
+### 15. CLI / SSH Unresponsive
+
+**If the daemon is reachable via another path (web, MCP):**
+
+```
+show system goroutines blocked
+show system sockets
+show system file-descriptors summary
+```
+
+Look for goroutines stuck in "semacquire" or "IO wait".
+
+### 16. Web UI Unreachable
+
+```
+show tcp-check <router-ip> 3443
+show system sockets tcp port 3443
+show system goroutines summary
+show errors
+```
+
+### 17. Telemetry / Metrics Gaps
+
+```
+show metrics-query ze_bgp_sessions
+show system sockets
+show system profile cpu duration 5s
+```
+
+## Profiling Workflow
+
+### CPU Profile
+
+```
+show system profile cpu duration 10s
+```
+
+Save the base64 output, decode, and analyze:
+
+```bash
+echo '<base64-data>' | base64 -d > cpu.pprof
+go tool pprof cpu.pprof
+```
+
+### Heap Profile
+
+```
+show system profile heap
+```
+
+Same workflow: decode base64, analyze with `go tool pprof`.
+
+### Concurrent Profiling
+
+CPU profiling is mutex-protected. A second concurrent request returns an error. This prevents resource contention from overlapping profiles.
+
+## Platform Notes
+
+Commands that read `/proc` (sockets, kernel-log, file-descriptors, memory-map) are Linux-only. On other platforms they return "not available on this platform". The remaining commands (tcp-check, goroutines, dns, profile) work on all platforms.
