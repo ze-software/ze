@@ -753,8 +753,8 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 	}
 
 	configName := resolveDefaultConfig(store)
-	if !store.Exists(configName) || isEmptyConfig(store, configName) {
-		// First-boot bootstrap: merge template + interface discovery.
+	if !store.Exists(configName) {
+		// Config does not exist at all: try first-boot bootstrap.
 		switch {
 		case bootstrapConfigFromTemplate(store, configName):
 			fmt.Fprintf(os.Stderr, "bootstrap: created config from template + discovery\n")
@@ -1020,23 +1020,6 @@ func resolveDefaultConfig(store storage.Storage) string {
 		return "ze.conf"
 	}
 	return name + ".conf"
-}
-
-// isEmptyConfig returns true if the active config contains only
-// comments and whitespace (the stub that ze init writes when
-// interface discovery is unavailable on the build host).
-func isEmptyConfig(store storage.Storage, configName string) bool {
-	data, err := store.ReadFile(configName)
-	if err != nil {
-		return true
-	}
-	for line := range strings.SplitSeq(string(data), "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-			return false
-		}
-	}
-	return true
 }
 
 // bootstrapConfigFromTemplate reads file/template/ze.conf from zefs,

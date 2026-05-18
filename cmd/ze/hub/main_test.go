@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,6 +15,7 @@ import (
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -53,6 +55,55 @@ func (s *reloadProbeSubsystem) Reload(_ context.Context, cfg ze.ConfigProvider) 
 func TestRunMissingConfig(t *testing.T) {
 	exit := Run(storage.NewFilesystem(), "/nonexistent/config.conf", nil, 0, -1, false, "", false, "", "")
 	assert.Equal(t, 1, exit)
+}
+
+// TestEphemeralDaemonStartsSSH verifies that an ephemeral daemon (started by
+// config edit) creates an SSH listener and writes the address file even with
+// an empty config that has no ssh{} or bgp{} block.
+//
+// VALIDATES: Ephemeral SSH starts for any config type and writes address file.
+// PREVENTS: "command executor not ready" when config edit runs operational commands.
+func TestEphemeralDaemonStartsSSH(t *testing.T) {
+	addrFile := filepath.Join(t.TempDir(), "ephemeral-ssh.addr")
+	require.NoError(t, env.Set("ze.ssh.ephemeral", addrFile))
+	defer func() { require.NoError(t, env.Set("ze.ssh.ephemeral", "")) }()
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "empty.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte{}, 0o600))
+
+	// Run daemon in a goroutine; it blocks on signal wait when startup succeeds.
+	// Send SIGINT after a short delay to unblock it.
+	exitCh := make(chan int, 1)
+	go func() {
+		exitCh <- Run(storage.NewFilesystem(), configPath, nil, 0, -1, false, "", false, "", "")
+	}()
+
+	// Wait for the ephemeral address file to appear (SSH started).
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		if data, readErr := os.ReadFile(addrFile); readErr == nil && len(data) > 0 {
+			// SSH started and wrote address file: ephemeral mode works.
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	data, readErr := os.ReadFile(addrFile)
+	require.NoError(t, readErr, "ephemeral SSH address file should exist")
+	assert.NotEmpty(t, data, "ephemeral SSH address file should contain an address")
+
+	// Send SIGINT to stop the daemon.
+	proc, procErr := os.FindProcess(os.Getpid())
+	require.NoError(t, procErr)
+	require.NoError(t, proc.Signal(os.Interrupt))
+
+	select {
+	case exit := <-exitCh:
+		assert.Equal(t, 0, exit)
+	case <-time.After(10 * time.Second):
+		t.Fatal("daemon did not exit after SIGINT")
+	}
 }
 
 // TestRollbackReloadRestoresProviderOnSubsystemFailure verifies failed subsystem reload restores provider roots.

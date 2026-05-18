@@ -84,7 +84,7 @@ func startEphemeralDaemon(configPath, host, port string, extraArgs []string) (*o
 
 	proc, err := os.StartProcess(exe, argv, &os.ProcAttr{
 		Env:   daemonEnv,
-		Files: []*os.File{devnull, os.Stderr, os.Stderr},
+		Files: []*os.File{devnull, devnull, os.Stderr},
 	})
 	devnull.Close() //nolint:errcheck // devnull close is non-fatal
 	if err != nil {
@@ -137,7 +137,7 @@ func startWebOnlyDaemon(configPath, webPort string, extraArgs []string) (*os.Pro
 
 	proc, err := os.StartProcess(exe, argv, &os.ProcAttr{
 		Env:   os.Environ(),
-		Files: []*os.File{devnull, os.Stderr, os.Stderr},
+		Files: []*os.File{devnull, devnull, os.Stderr},
 	})
 	devnull.Close() //nolint:errcheck // devnull close is non-fatal
 	if err != nil {
@@ -494,32 +494,31 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, d
 
 	// Probe daemon SSH port at startup.
 	// If no daemon is running and credentials are available, start an ephemeral daemon.
-	// Skip ephemeral daemon when config has no recognized block (bgp, plugin) — the
-	// daemon would reject it with "no recognized block" and exit immediately.
-	// When --web is requested and config type is unknown, the daemon runs in web-only
+	// The daemon handles all config types (BGP, hub, unknown) via runYANGConfig.
+	// When --web is requested without SSH in the config, the daemon runs in web-only
 	// mode (no SSH), so we poll the web port instead.
 	creds, credsErr := sshclient.LoadCredentialsWithFlags(user)
 	var ephemeralProc *os.Process
 	daemonReachable := false
-	configType := config.ProbeConfigType(ed.OriginalContent())
 	if credsErr == nil {
 		if probeDaemonSSH(creds.Host, creds.Port) {
 			daemonReachable = true
-		} else if configType != config.ConfigTypeUnknown {
-			// Start ephemeral daemon; it starts SSH on a random port if config has none.
+		} else {
 			proc, sshAddr, ephErr := startEphemeralDaemon(configPath, creds.Host, creds.Port, daemonArgs)
 			if ephErr != nil {
 				fmt.Fprintf(os.Stderr, "warning: ephemeral daemon: %v\n", ephErr)
 			} else {
 				ephemeralProc = proc
 				daemonReachable = true
-				// Update credentials to use the actual SSH address (may differ from config).
 				if sshHost, sshPort, splitErr := net.SplitHostPort(sshAddr); splitErr == nil {
 					creds.Host = sshHost
 					creds.Port = sshPort
 				}
 			}
 		}
+		// Reload notifier only when a daemon is confirmed reachable;
+		// otherwise commit succeeds silently (blob write) without a
+		// confusing SSH error from a missing daemon.
 		if daemonReachable {
 			ed.SetReloadNotifier(func() error {
 				_, err := sshclient.ExecCommand(creds, "reload")
@@ -528,15 +527,18 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, d
 		}
 	}
 
-	// Web-only daemon: config has no recognized block but --web was requested.
-	// The daemon runs RunWebOnly (no SSH), so poll the web port instead.
+	// Web-only daemon: no ephemeral daemon started (SSH probe succeeded or
+	// ephemeral failed) but --web was requested.
 	webPort := extractWebPort(daemonArgs)
-	if ephemeralProc == nil && webPort != "" && configType == config.ConfigTypeUnknown {
-		proc, ephErr := startWebOnlyDaemon(configPath, webPort, daemonArgs)
-		if ephErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: web daemon: %v\n", ephErr)
-		} else {
-			ephemeralProc = proc
+	if ephemeralProc == nil && webPort != "" {
+		configType := config.ProbeConfigType(ed.OriginalContent())
+		if configType == config.ConfigTypeUnknown {
+			proc, ephErr := startWebOnlyDaemon(configPath, webPort, daemonArgs)
+			if ephErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: web daemon: %v\n", ephErr)
+			} else {
+				ephemeralProc = proc
+			}
 		}
 	}
 
@@ -643,9 +645,11 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, d
 	}
 
 	// Wire command mode: completer from RPC registrations, executor via SSH.
-	// Command mode is best-effort - works without a running daemon (completions only).
+	// Executor is wired whenever credentials are available, not only when the
+	// daemon was reachable at startup. ExecCommand connects per-call, so a
+	// daemon that starts after the editor (or was missed by the probe) still works.
 	m.SetCommandCompleter(cli.NewCommandCompleter(buildEditorCommandTree()))
-	if credsErr == nil && daemonReachable {
+	if credsErr == nil {
 		wireSSHCommandExecutor(&m, creds)
 	}
 

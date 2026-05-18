@@ -43,6 +43,7 @@ import (
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/reboot"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
@@ -118,9 +119,10 @@ func forceExitOnSignal(sigCh <-chan os.Signal) {
 // chaosSeed > 0 enables chaos self-test mode; chaosRate < 0 means "use default".
 // Returns exit code.
 func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string) int {
-	if !skipRootCheck && os.Getuid() != 0 {
-		fmt.Fprintln(os.Stderr, "ze requires root privileges")
-		return 1
+	if !skipRootCheck {
+		for _, w := range privilege.CheckPrivileges() {
+			fmt.Fprintln(os.Stderr, "warning: "+w)
+		}
 	}
 
 	// Read config content first (to probe type without parsing).
@@ -575,6 +577,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	sshCfg := bgpconfig.ExtractSSHConfig(loadResult.Tree)
+	ephemeralFile := env.Get("ze.ssh.ephemeral")
+	if !sshCfg.HasConfig && !hasBGPBlock && ephemeralFile != "" {
+		sshCfg = bgpconfig.SSHExtractedConfig{
+			Listen:    "127.0.0.1:0",
+			HasConfig: true,
+		}
+	}
 	if sshCfg.HasConfig && !hasBGPBlock {
 		cfg := zessh.Config{
 			Listen:       sshCfg.Listen,
@@ -617,10 +626,22 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				ConfigPath: configPath,
 				Store:      cfg.Storage,
 			}))
+			// Wire executor factory for non-interactive exec commands
+			// (e.g., config edit's "run show traceroute" via SSH exec).
+			sshSrv.SetExecutorFactory(func(username, remoteAddr string) zessh.CommandExecutor {
+				return func(input string) (string, error) {
+					return dispatch(input, username, remoteAddr)
+				}
+			})
 			if startErr := sshSrv.Start(context.Background(), nil, nil); startErr != nil {
 				slog.Warn("SSH server failed to start", "error", startErr)
 			} else {
 				slog.Info("SSH server listening", "address", sshSrv.Address())
+				if ephemeralFile != "" {
+					if writeErr := os.WriteFile(ephemeralFile, []byte(sshSrv.Address()), 0o600); writeErr != nil {
+						slog.Warn("failed to write ephemeral SSH address", "error", writeErr)
+					}
+				}
 				defer func() {
 					shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 					defer shutdownCancel()
