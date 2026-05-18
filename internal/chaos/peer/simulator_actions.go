@@ -101,6 +101,30 @@ func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 			readDelayNs.Store(0)
 		}
 		return ChaosResult{Disconnected: false}
+
+	case engine.ActionClockDrift:
+		executeClockDrift(ctx, action, conn, p, emit)
+		return ChaosResult{Disconnected: false}
+
+	case engine.ActionRouteBurst:
+		executeRouteBurst(ctx, action, conn, p, cfg, emit)
+		return ChaosResult{Disconnected: false}
+
+	case engine.ActionWithdrawalBurst:
+		executeWithdrawalBurst(action, conn, p, cfg, emit)
+		return ChaosResult{Disconnected: false}
+
+	case engine.ActionRouteFlap:
+		executeRouteFlap(ctx, action, conn, p, cfg, emit)
+		return ChaosResult{Disconnected: false}
+
+	case engine.ActionSlowPeer:
+		go executeSlowPeer(ctx, action, conn, emit)
+		return ChaosResult{Disconnected: false}
+
+	case engine.ActionZeroWindow:
+		go executeZeroWindow(ctx, action, conn, emit)
+		return ChaosResult{Disconnected: false}
 	}
 	return ChaosResult{}
 }

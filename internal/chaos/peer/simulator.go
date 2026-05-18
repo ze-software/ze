@@ -492,7 +492,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 			}
 		case action := <-chaosCh:
 			result := executeChaos(ctx, action, conn, keepaliveStop, p, cfg, emit, &readDelayNs)
-			emit(Event{Type: EventChaosExecuted, ChaosAction: action.Type.String()})
+			emit(Event{Type: EventChaosExecuted, ChaosAction: action.Type.String(), ChaosParams: action.Params})
 			if result.Disconnected {
 				conn.Close() //nolint:errcheck,gosec // best-effort close to unblock readLoop
 				<-readerDone

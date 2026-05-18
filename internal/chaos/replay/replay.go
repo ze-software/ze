@@ -31,15 +31,16 @@ type logHeader struct {
 
 // logEvent is a parsed event line from an event log.
 type logEvent struct {
-	RecordType   string `json:"record-type"`
-	Seq          uint64 `json:"seq"`
-	TimeOffsetMS int64  `json:"time-offset-ms"`
-	EventType    string `json:"event-type"`
-	PeerIndex    int    `json:"peer-index"`
-	Prefix       string `json:"prefix,omitempty"`
-	Count        int    `json:"count,omitempty"`
-	ChaosAction  string `json:"chaos-action,omitempty"`
-	Error        string `json:"error,omitempty"`
+	RecordType   string            `json:"record-type"`
+	Seq          uint64            `json:"seq"`
+	TimeOffsetMS int64             `json:"time-offset-ms"`
+	EventType    string            `json:"event-type"`
+	PeerIndex    int               `json:"peer-index"`
+	Prefix       string            `json:"prefix,omitempty"`
+	Count        int               `json:"count,omitempty"`
+	ChaosAction  string            `json:"chaos-action,omitempty"`
+	ChaosParams  map[string]string `json:"chaos-params,omitempty"`
+	Error        string            `json:"error,omitempty"`
 }
 
 // eventTypeFromString maps kebab-case event type strings to EventType constants.

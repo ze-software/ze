@@ -49,15 +49,16 @@ type jsonControl struct {
 // jsonEvent is the NDJSON representation of a peer event.
 // All keys use kebab-case per project JSON convention.
 type jsonEvent struct {
-	RecordType   string `json:"record-type"`
-	Seq          uint64 `json:"seq"`
-	TimeOffsetMS int64  `json:"time-offset-ms"`
-	EventType    string `json:"event-type"`
-	PeerIndex    int    `json:"peer-index"`
-	Prefix       string `json:"prefix,omitempty"`
-	Count        int    `json:"count,omitempty"`
-	ChaosAction  string `json:"chaos-action,omitempty"`
-	Error        string `json:"error,omitempty"`
+	RecordType   string            `json:"record-type"`
+	Seq          uint64            `json:"seq"`
+	TimeOffsetMS int64             `json:"time-offset-ms"`
+	EventType    string            `json:"event-type"`
+	PeerIndex    int               `json:"peer-index"`
+	Prefix       string            `json:"prefix,omitempty"`
+	Count        int               `json:"count,omitempty"`
+	ChaosAction  string            `json:"chaos-action,omitempty"`
+	ChaosParams  map[string]string `json:"chaos-params,omitempty"`
+	Error        string            `json:"error,omitempty"`
 }
 
 // JSONLog writes events as NDJSON (one JSON object per line) to a writer.
@@ -125,6 +126,9 @@ func (j *JSONLog) ProcessEvent(ev peer.Event) {
 
 	if ev.ChaosAction != "" {
 		entry.ChaosAction = ev.ChaosAction
+		if len(ev.ChaosParams) > 0 {
+			entry.ChaosParams = ev.ChaosParams
+		}
 	}
 
 	if ev.Err != nil {

@@ -23,6 +23,11 @@ type SchedulerConfig struct {
 
 	// Warmup is the duration before chaos events begin.
 	Warmup time.Duration
+
+	// EnabledActions is the set of v2 action types enabled for scheduling.
+	// When nil or empty, only legacy actions (v1) are used.
+	// Only v2 actions listed here are added to the weight pool.
+	EnabledActions []ActionType
 }
 
 // ScheduledAction pairs a chaos action with its target peer.
@@ -40,9 +45,8 @@ type actionWeight struct {
 	weight int
 }
 
-// defaultWeights defines the weighted distribution of chaos events.
-// Weights are from the master design document.
-var defaultWeights = []actionWeight{
+// legacyWeights defines the weighted distribution of legacy (v1) chaos events.
+var legacyWeights = []actionWeight{
 	{ActionTCPDisconnect, 25},
 	{ActionNotificationCease, 15},
 	{ActionHoldTimerExpiry, 15},
@@ -53,31 +57,51 @@ var defaultWeights = []actionWeight{
 	{ActionConfigReload, 5},
 }
 
-// totalWeight is the sum of all action weights.
-var totalWeight int
-
-func init() {
-	for _, w := range defaultWeights {
-		totalWeight += w.weight
-	}
+// v2Weights defines the weights for new parameterized actions.
+var v2Weights = map[ActionType]int{
+	ActionClockDrift:      5,
+	ActionRouteBurst:      5,
+	ActionWithdrawalBurst: 10,
+	ActionRouteFlap:       10,
+	ActionSlowPeer:        5,
+	ActionZeroWindow:      5,
 }
 
 // Scheduler generates deterministic chaos events based on a seed.
 type Scheduler struct {
-	rng       *rand.Rand
-	cfg       SchedulerConfig
-	nextTick  time.Time
-	startTime time.Time
-	started   bool
+	rng         *rand.Rand
+	cfg         SchedulerConfig
+	nextTick    time.Time
+	startTime   time.Time
+	started     bool
+	weights     []actionWeight
+	totalWeight int
 }
 
 // NewScheduler creates a new chaos scheduler with the given config.
 func NewScheduler(cfg SchedulerConfig) *Scheduler {
 	//nolint:gosec // Deterministic PRNG is intentional — reproducibility from seed.
 	rng := rand.New(rand.NewSource(int64(cfg.Seed)))
+
+	weights := make([]actionWeight, len(legacyWeights))
+	copy(weights, legacyWeights)
+
+	for _, at := range cfg.EnabledActions {
+		if w, ok := v2Weights[at]; ok {
+			weights = append(weights, actionWeight{at, w})
+		}
+	}
+
+	total := 0
+	for _, w := range weights {
+		total += w.weight
+	}
+
 	return &Scheduler{
-		rng: rng,
-		cfg: cfg,
+		rng:         rng,
+		cfg:         cfg,
+		weights:     weights,
+		totalWeight: total,
 	}
 }
 
@@ -133,9 +157,9 @@ func (s *Scheduler) Tick(now time.Time, established []bool) []ScheduledAction {
 
 // selectAction picks a chaos action type using weighted random selection.
 func (s *Scheduler) selectAction() ChaosAction {
-	roll := s.rng.Intn(totalWeight)
+	roll := s.rng.Intn(s.totalWeight)
 	cumulative := 0
-	for _, w := range defaultWeights {
+	for _, w := range s.weights {
 		cumulative += w.weight
 		if roll < cumulative {
 			return ChaosAction{Type: w.action}

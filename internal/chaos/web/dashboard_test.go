@@ -872,10 +872,10 @@ func TestWriteTriggerButtons(t *testing.T) {
 	if !strings.Contains(html, "trigger-grid") {
 		t.Error("missing trigger-grid container")
 	}
-	// Should have 9 trigger buttons (count class="badge trigger-btn").
+	// Should have 15 trigger buttons (9 legacy + 6 v2).
 	count := strings.Count(html, `class="badge trigger-btn"`)
-	if count != 9 {
-		t.Errorf("expected 9 trigger buttons, got %d", count)
+	if count != 15 {
+		t.Errorf("expected 15 trigger buttons, got %d", count)
 	}
 	// No dropdown elements.
 	if strings.Contains(html, "<select") || strings.Contains(html, "<option") {

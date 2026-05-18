@@ -448,6 +448,12 @@ func chaosActionTypes() []string {
 		engine.NameMalformedUpdate,
 		engine.NameConfigReload,
 		engine.NameSlowRead,
+		engine.NameClockDrift,
+		engine.NameRouteBurst,
+		engine.NameWithdrawalBurst,
+		engine.NameRouteFlap,
+		engine.NameSlowPeer,
+		engine.NameZeroWindow,
 	}
 }
 
@@ -473,6 +479,18 @@ func chaosActionImpact(action string) string {
 		return "Sends SIGHUP to the Ze process. Triggers config re-read. Sessions stay up unless config changed."
 	case engine.NameSlowRead:
 		return "Toggles slow reading on this peer. TCP backpressure blocks Ze's writes, testing forward pool overflow and congestion callbacks. Click again to restore normal speed."
+	case engine.NameClockDrift:
+		return "Skews keepalive timing by a configurable drift. Positive = late, negative = early. Tests hold-timer tolerance."
+	case engine.NameRouteBurst:
+		return "Announces extra routes in rapid succession. Tests throughput and backpressure handling."
+	case engine.NameWithdrawalBurst:
+		return "Withdraws a configurable number of routes rapidly. Clamped to announced count."
+	case engine.NameRouteFlap:
+		return "Withdraws and re-announces routes in cycles. Tests rapid state change handling."
+	case engine.NameSlowPeer:
+		return "Reduces TCP write buffer for a duration, creating write-side backpressure. Restores after duration."
+	case engine.NameZeroWindow:
+		return "Sets TCP receive buffer to minimum for a duration, simulating zero-window. Tests Ze's write buffering."
 	default:
 		return ""
 	}
@@ -499,6 +517,18 @@ func chaosActionIcon(action string) string {
 		return "\U0001f504" // 🔄
 	case engine.NameSlowRead:
 		return "\U0001f422" // 🐢
+	case engine.NameClockDrift:
+		return "⏰"
+	case engine.NameRouteBurst:
+		return "📨"
+	case engine.NameWithdrawalBurst:
+		return "🗑"
+	case engine.NameRouteFlap:
+		return "🔃"
+	case engine.NameSlowPeer:
+		return "🐌"
+	case engine.NameZeroWindow:
+		return "🚫"
 	default:
 		return "\u2753" // ❓
 	}
@@ -525,6 +555,18 @@ func chaosActionLabel(action string) string {
 		return "Reload"
 	case engine.NameSlowRead:
 		return "Slow Read"
+	case engine.NameClockDrift:
+		return "Clock Drift"
+	case engine.NameRouteBurst:
+		return "Route Burst"
+	case engine.NameWithdrawalBurst:
+		return "WD Burst"
+	case engine.NameRouteFlap:
+		return "Route Flap"
+	case engine.NameSlowPeer:
+		return "Slow Peer"
+	case engine.NameZeroWindow:
+		return "Zero Window"
 	default:
 		return action
 	}

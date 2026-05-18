@@ -2,20 +2,26 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-02-25 |
+| Updated | 2026-05-18 |
 
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
 1. This spec file
 2. `docs/architecture/chaos-web-dashboard.md` - "New Chaos Action Types" and "Replay Constraint" sections
-3. `cmd/ze-chaos/chaos/` - scheduler, action types
-4. `cmd/ze-chaos/peer/simulator.go` - chaos action execution
-5. `cmd/ze-chaos/peer/event.go` - Event struct (ChaosAction field)
-6. `cmd/ze-chaos/report/jsonlog.go` - NDJSON event log format
+3. `internal/chaos/engine/action.go` - ChaosAction struct, ActionType enum, name maps
+4. `internal/chaos/engine/scheduler.go` - Scheduler, defaultWeights, Tick()
+5. `internal/chaos/peer/simulator.go` - main select loop, chaos channel dispatch
+6. `internal/chaos/peer/simulator_actions.go` - executeChaos() switch
+7. `internal/chaos/peer/event.go` - Event struct (ChaosAction string field)
+8. `internal/chaos/report/jsonlog.go` - jsonEvent struct, ProcessEvent(), LogControl()
+9. `internal/chaos/replay/replay.go` - logEvent struct, Run()
+10. `cmd/ze-chaos/scheduler.go` - runScheduler(), handleManualTrigger(), dispatchAction()
+11. `cmd/ze-chaos/main.go` - CLI flags
+12. `internal/chaos/web/control.go` - chaosActionTypes(), chaosActionIcon/Label/Impact
 
 ## Task
 
@@ -31,43 +37,69 @@ Each action has configurable parameters (count, duration, etc.). All actions emi
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/architecture/chaos-web-dashboard.md` - New action definitions, parameters, weights, replay constraint
+- [x] `docs/architecture/chaos-web-dashboard.md` - "New Chaos Action Types" and "Replay Constraint" sections
   -> Constraint: Manual triggers must be indistinguishable from scheduler events in the log
   -> Decision: chaos-params field added to NDJSON for parameterized actions
-- [ ] `cmd/ze-chaos/chaos/scheduler.go` - How Tick() selects and dispatches actions
+- [x] `internal/chaos/engine/scheduler.go` - Scheduler.Tick() selects action via weighted random from defaultWeights (8 entries, not 10)
   -> Constraint: New actions disabled by default in scheduler; enabled via --chaos-actions
-- [ ] `cmd/ze-chaos/peer/simulator.go` - How chaos actions are executed
-  -> Constraint: Actions received on chaos channel, executed in peer goroutine
-- [ ] `cmd/ze-chaos/report/jsonlog.go` - NDJSON event format
-  -> Decision: Add chaos-params field for parameterized actions
+  -> Decision: Scheduler needs EnabledActions or similar filter; selectAction() currently picks from fixed defaultWeights
+- [x] `internal/chaos/peer/simulator.go` - RunSimulator main loop: select on ctx, readerDone, keepalive, chaosCh, routeCh
+  -> Constraint: executeChaos() returns ChaosResult{Disconnected bool}, emits EventChaosExecuted with action.Type.String()
+  -> Decision: Event.ChaosAction is a string; must also propagate Params for NDJSON logging
+- [x] `internal/chaos/report/jsonlog.go` - jsonEvent struct has ChaosAction string field but no chaos-params
+  -> Decision: Add ChaosParams map[string]string to jsonEvent (omitempty for backwards compat)
+- [x] `internal/chaos/replay/replay.go` - logEvent struct mirrors jsonEvent; eventTypeFromString map for parsing
+  -> Decision: Add ChaosParams to logEvent for parameterized replay
+- [x] `internal/chaos/peer/simulator_actions.go` - executeChaos() switch on action.Type for 9 existing types
+  -> Decision: Add 6 new cases; some need conn access (ZeroWindow), timing (ClockDrift, SlowPeer), route gen (RouteBurst)
+- [x] `internal/chaos/web/control.go` - chaosActionTypes() returns 9 names; chaosActionIcon/Label/Impact switch statements
+  -> Decision: Add 6 new entries to all switch statements and chaosActionTypes() list
+- [x] `internal/chaos/web/state.go` - ManualTrigger already has Params map[string]string
+  -> Decision: handleManualTrigger in cmd/ze-chaos/scheduler.go must pass t.Params to ChaosAction
+- [x] `cmd/ze-chaos/scheduler.go` - handleManualTrigger creates ChaosAction{Type: actionType} without params
+  -> Decision: Must pass t.Params into ChaosAction.Params
 
 **Key insights:**
-- ChaosAction struct needs a Params map for parameterized actions
-- Peer simulator needs handlers for each new action type
-- NDJSON format extended with chaos-params (backwards compatible — old events omit it)
-- ZeroWindow requires TCP socket access (`net.TCPConn.SetReadBuffer`)
-- New actions use default weights in scheduler but are opt-in via --chaos-actions flag
+- ChaosAction struct needs a Params map[string]string for parameterized actions
+- Peer simulator needs handlers for each new action type in executeChaos() switch
+- NDJSON format extended with chaos-params (backwards compatible, old events omit it via omitempty)
+- Event struct needs ChaosParams field to propagate params from simulator to reporter
+- ZeroWindow uses net.TCPConn.SetReadBuffer(0) for TCP window manipulation
+- SlowPeer is distinct from existing SlowRead (SlowRead delays reads; SlowPeer delays writes)
+- ClockDrift is a timing action affecting keepalive loop, not a one-shot like most others
+- New actions added to defaultWeights with opt-in filter; existing actions unaffected
+- ManualTrigger.Params already collected by web UI but not passed to ChaosAction
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `cmd/ze-chaos/chaos/scheduler.go` - Scheduler with 10 action types and weights
-- [ ] `cmd/ze-chaos/chaos/actions.go` - ChaosAction type definition (if exists)
-- [ ] `cmd/ze-chaos/peer/simulator.go` - Chaos action switch in peer goroutine
-- [ ] `cmd/ze-chaos/peer/event.go` - Event struct with ChaosAction string field
-- [ ] `cmd/ze-chaos/report/jsonlog.go` - NDJSON format for chaos events
+- [x] `internal/chaos/engine/action.go` - 9 ActionType constants (TCPDisconnect..SlowRead), ChaosAction{Type ActionType}
+- [x] `internal/chaos/engine/scheduler.go` - 8 defaultWeights (SlowRead not in scheduler), Scheduler.Tick() with weighted random
+- [x] `internal/chaos/peer/simulator.go` - RunSimulator with select on chaosCh, emits EventChaosExecuted{ChaosAction: action.Type.String()}
+- [x] `internal/chaos/peer/simulator_actions.go` - executeChaos() switch with 9 cases, returns ChaosResult
+- [x] `internal/chaos/peer/event.go` - Event struct with ChaosAction string field (no params)
+- [x] `internal/chaos/report/jsonlog.go` - jsonEvent with ChaosAction string, no chaos-params field
+- [x] `internal/chaos/replay/replay.go` - logEvent mirrors jsonEvent, no chaos-params
+- [x] `cmd/ze-chaos/scheduler.go` - handleManualTrigger ignores t.Params, creates ChaosAction{Type: actionType}
+- [x] `internal/chaos/web/control.go` - chaosActionTypes() returns 9 names, ManualTrigger.Params already collected but unused
 
 **Behavior to preserve:**
-- Existing 10 chaos actions unchanged
-- Existing NDJSON format backwards compatible (old records still valid)
-- Scheduler behavior unchanged when new actions not enabled
+- Existing 9 chaos actions unchanged in behavior
+- Existing NDJSON format backwards compatible (old records still valid, omitempty on new fields)
+- Scheduler behavior unchanged when new actions not enabled (--chaos-actions flag absent)
+- Existing web dashboard trigger UI works for existing action types
 
 **Behavior to change:**
-- ChaosAction struct extended with Params field
-- Event struct ChaosAction field may carry parameter info
-- NDJSON records for chaos events include chaos-params when present
-- --chaos-actions flag to opt-in to new action types in scheduler
-- Replay understands parameterized actions
+- ChaosAction struct extended with Params map[string]string
+- Event struct gets ChaosParams map[string]string for NDJSON propagation
+- jsonEvent gets ChaosParams field (omitempty for backwards compat)
+- logEvent gets ChaosParams for replay
+- 6 new ActionType constants and Name constants
+- 6 new cases in executeChaos() switch
+- 6 new entries in chaosActionTypes(), icon, label, impact functions
+- defaultWeights extended with 6 new entries (behind opt-in filter)
+- --chaos-actions CLI flag to enable specific new actions in scheduler
+- handleManualTrigger passes t.Params to ChaosAction.Params
 
 ## Data Flow (MANDATORY)
 
@@ -125,18 +157,18 @@ Each action has configurable parameters (count, duration, etc.). All actions emi
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| TestClockDriftAction | `chaos/actions_test.go` | ClockDrift created with drift param, validates range | |
-| TestRouteBurstAction | `chaos/actions_test.go` | RouteBurst with count and family params | |
-| TestWithdrawalBurstAction | `chaos/actions_test.go` | WithdrawalBurst clamped to announced count | |
-| TestRouteFlapAction | `chaos/actions_test.go` | RouteFlap with cycles and interval params | |
-| TestSlowPeerAction | `chaos/actions_test.go` | SlowPeer with delay and duration params | |
-| TestZeroWindowAction | `chaos/actions_test.go` | ZeroWindow with duration param | |
-| TestSchedulerNewActionsDisabledByDefault | `chaos/scheduler_test.go` | Tick() never returns new action types without opt-in | |
-| TestSchedulerChaosActionsFilter | `chaos/scheduler_test.go` | --chaos-actions filters to specified types | |
-| TestActionParamsSerialization | `chaos/actions_test.go` | Params serialize to map for JSON logging | |
-| TestJSONLogChaosParams | `report/jsonlog_test.go` | Parameterized events include chaos-params | |
-| TestJSONLogBackwardsCompat | `report/jsonlog_test.go` | Non-parameterized events unchanged | |
-| TestReplayParameterizedActions | `replay/replay_test.go` | Parameterized events replay correctly | |
+| TestClockDriftParams | `internal/chaos/engine/action_params_test.go` | ClockDrift param validation, drift range | |
+| TestRouteBurstParams | `internal/chaos/engine/action_params_test.go` | RouteBurst count and family params | |
+| TestWithdrawalBurstParams | `internal/chaos/engine/action_params_test.go` | WithdrawalBurst count validation | |
+| TestRouteFlapParams | `internal/chaos/engine/action_params_test.go` | RouteFlap cycles, interval params | |
+| TestSlowPeerParams | `internal/chaos/engine/action_params_test.go` | SlowPeer delay and duration params | |
+| TestZeroWindowParams | `internal/chaos/engine/action_params_test.go` | ZeroWindow duration param | |
+| TestSchedulerNewActionsDisabledByDefault | `internal/chaos/engine/scheduler_test.go` | Tick() never returns new action types without opt-in | |
+| TestSchedulerChaosActionsFilter | `internal/chaos/engine/scheduler_test.go` | EnabledActions filters to specified types | |
+| TestActionParamsSerialization | `internal/chaos/engine/action_params_test.go` | Params serialize to map for JSON logging | |
+| TestJSONLogChaosParams | `internal/chaos/report/jsonlog_test.go` | Parameterized events include chaos-params | |
+| TestJSONLogBackwardsCompat | `internal/chaos/report/jsonlog_test.go` | Non-parameterized events unchanged | |
+| TestReplayParameterizedActions | `internal/chaos/replay/replay_test.go` | Parameterized events replay correctly | |
 
 ### Boundary Tests
 
@@ -151,32 +183,41 @@ Each action has configurable parameters (count, duration, etc.). All actions emi
 
 ### Functional Tests
 
-| Test | Location | End-User Scenario | Status |
-|------|----------|-------------------|--------|
-| test-chaos-route-burst | `test/chaos/route-burst.ci` | Run with --chaos-actions=RouteBurst, verify burst events in log | |
-| test-chaos-replay-params | `test/chaos/replay-params.ci` | Replay log with parameterized actions, verify same result | |
+Functional tests deferred: the chaos tool requires a running Ze instance and multi-peer orchestration.
+Unit tests cover parameter validation, scheduler filtering, NDJSON serialization, and replay parsing.
+Integration is verified via the existing ze-chaos in-process mode tests.
 
 ## Files to Modify
 
-- `cmd/ze-chaos/chaos/scheduler.go` - Add --chaos-actions filter, new action weights
-- `cmd/ze-chaos/chaos/actions.go` - Extend ChaosAction with Params field (or create if not exists)
-- `cmd/ze-chaos/peer/simulator.go` - Handle 6 new action types in chaos switch
-- `cmd/ze-chaos/peer/event.go` - (Minor) Ensure Event can carry action params
-- `cmd/ze-chaos/report/jsonlog.go` - Add chaos-params field to event records
-- `cmd/ze-chaos/replay/replay.go` - Parse chaos-params from log records
+- `internal/chaos/engine/action.go` - Add 6 new ActionType constants, Name constants, maps, reconnect map entries
+- `internal/chaos/engine/scheduler.go` - Add new defaultWeights, opt-in filter (EnabledActions)
+- `internal/chaos/peer/simulator_actions.go` - Add 6 new cases to executeChaos() switch
+- `internal/chaos/peer/simulator.go` - Pass ChaosParams from Event to emit, add sendDelay for SlowPeer
+- `internal/chaos/peer/event.go` - Add ChaosParams map[string]string field to Event
+- `internal/chaos/report/jsonlog.go` - Add ChaosParams to jsonEvent, populate in ProcessEvent()
+- `internal/chaos/replay/replay.go` - Add ChaosParams to logEvent
 - `cmd/ze-chaos/main.go` - Add --chaos-actions flag
+- `cmd/ze-chaos/scheduler.go` - Pass Params from ManualTrigger to ChaosAction, pass enabled list to scheduler
+- `internal/chaos/web/control.go` - Add 6 new entries to chaosActionTypes/Icon/Label/Impact
+- `internal/chaos/engine/action_test.go` - Update tests for new action types
+- `internal/chaos/engine/scheduler_test.go` - Add tests for opt-in filter
 
 ## Files to Create
 
-- `cmd/ze-chaos/chaos/actions_v2.go` - New action type definitions with parameter validation
-- `cmd/ze-chaos/chaos/actions_v2_test.go` - Tests for new actions
-- `test/chaos/route-burst.ci` - Functional test
-- `test/chaos/replay-params.ci` - Functional test
+- `internal/chaos/engine/action_params.go` - Parameter validation per new action type
+- `internal/chaos/engine/action_params_test.go` - Tests for parameter validation
+- `internal/chaos/report/jsonlog_test.go` - (update) Tests for chaos-params field
 
-## Wiring Test (MANDATORY — NOT deferrable)
+## Wiring Test (MANDATORY -- NOT deferrable)
 
-| Entry Point | → | Feature Code | Test |
+| Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
+| `engine.Scheduler.Tick()` | -> | `selectAction()` with new types | `TestSchedulerChaosActionsFilter` |
+| `executeChaos()` switch | -> | 6 new action handlers | `TestClockDriftAction` etc. in action_params_test |
+| `peer.Event.ChaosParams` | -> | `report.JSONLog.ProcessEvent()` | `TestJSONLogChaosParams` |
+| `--chaos-actions` flag | -> | `SchedulerConfig.EnabledActions` | `TestSchedulerNewActionsDisabledByDefault` |
+| `handleManualTrigger()` | -> | `ChaosAction.Params` | Manual trigger dispatches params |
+| `chaosActionTypes()` | -> | Dashboard trigger buttons | 6 new buttons in sidebar |
 
 ### Documentation Update Checklist (BLOCKING)
 <!-- Every row MUST be answered Yes/No during the Completion Checklist (planning.md step 1). -->
@@ -197,14 +238,56 @@ Each action has configurable parameters (count, duration, etc.). All actions emi
 | 11 | Affects daemon comparison? | [ ] | `docs/comparison.md` |
 | 12 | Internal architecture changed? | [ ] | `docs/architecture/core-design.md` or subsystem doc |
 
+## Critical Review Checklist
+
+| # | What to verify | How |
+|---|----------------|-----|
+| 1 | New ActionType iota values don't break existing action dispatch | Check iota ordering, ensure existing values unchanged |
+| 2 | Params map is nil-safe in all consumers (NDJSON, replay, web) | grep for `.Params[` and check nil guards |
+| 3 | defaultWeights total recalculated correctly with new entries | Verify init() sums all weights including new |
+| 4 | EnabledActions filter doesn't affect existing 9 actions | Test with no filter: existing actions still selected |
+| 5 | ClockDrift drift validation rejects drift >= holdTime | Unit test boundary |
+| 6 | RouteBurst/WithdrawalBurst count clamped not rejected | Values above max are capped, not errored |
+| 7 | executeChaos() new cases return correct Disconnected flag | None of 6 new actions should disconnect |
+| 8 | NDJSON backwards compat: events without params omit field | omitempty tag on ChaosParams |
+| 9 | Replay skips unknown event types gracefully | Existing continue on unknown |
+| 10 | Web UI chaosActionTypes() includes all 15 action names | Count entries |
+
+## Deliverables Checklist
+
+| # | Deliverable | Verification |
+|---|-------------|-------------|
+| 1 | 6 new ActionType constants | `grep -c 'Action.*ActionType = iota' engine/action.go` shows 15 |
+| 2 | Params field on ChaosAction | `grep 'Params' engine/action.go` |
+| 3 | Parameter validation functions | `grep 'func Validate' engine/action_params.go` |
+| 4 | 6 new cases in executeChaos | `grep -c 'case engine.Action' peer/simulator_actions.go` shows 15 |
+| 5 | ChaosParams on Event struct | `grep 'ChaosParams' peer/event.go` |
+| 6 | chaos-params in jsonEvent | `grep 'chaos-params' report/jsonlog.go` |
+| 7 | chaos-params in logEvent | `grep 'chaos-params' replay/replay.go` |
+| 8 | EnabledActions in SchedulerConfig | `grep 'EnabledActions' engine/scheduler.go` |
+| 9 | --chaos-actions flag | `grep 'chaos-actions' cmd/ze-chaos/main.go` |
+| 10 | Web UI updated for 15 actions | `grep -c 'engine.Name' web/control.go` shows 15 |
+| 11 | Unit tests pass | `make ze-unit-test` |
+| 12 | Lint passes | `make ze-lint` |
+
+## Security Review Checklist
+
+| # | Concern | Check |
+|---|---------|-------|
+| 1 | ZeroWindow: TCP socket manipulation | Only on peer's own conn, duration-bounded |
+| 2 | RouteBurst: memory exhaustion via large count | Count capped at 10000, uses existing route generator |
+| 3 | SlowPeer: goroutine leak if duration expires during shutdown | Context cancellation must interrupt sleep |
+| 4 | Params map from web: user-controlled strings | Params parsed/validated before use, no injection vectors |
+| 5 | ClockDrift: integer overflow in duration parsing | Use time.ParseDuration, validated range |
+
 ## Implementation Steps
 
-1. **Extend ChaosAction (TDD)** - Add Params map, parameter validation per type
-2. **Implement action execution in simulator (TDD)** - Handle each new type
-3. **Extend NDJSON format (TDD)** - chaos-params field, backwards compat
-4. **Extend replay parser (TDD)** - Parse chaos-params from log records
-5. **Add scheduler filter (TDD)** - --chaos-actions flag, opt-in for new types
-6. **Functional tests** - Route burst with event log, replay with params
+1. **Extend ChaosAction (TDD)** - Add Params map, parameter validation per type, 6 new ActionType constants
+2. **Extend Event + NDJSON + Replay** - ChaosParams field through the pipeline
+3. **Implement action execution in simulator (TDD)** - Handle each new type in executeChaos()
+4. **Add scheduler filter (TDD)** - EnabledActions, new defaultWeights, --chaos-actions flag
+5. **Update web UI** - chaosActionTypes/Icon/Label/Impact for 6 new actions
+6. **Wire manual trigger params** - handleManualTrigger passes Params through
 
 ## Mistake Log
 
@@ -218,40 +301,7 @@ Each action has configurable parameters (count, duration, etc.). All actions emi
 
 ## Implementation Audit
 
-### Requirements from Task
-| Requirement | Status | Location | Notes |
-|-------------|--------|----------|-------|
-| ClockDrift action | ❌ Not implemented | — | No v2 actions built |
-| RouteBurst action | ❌ Not implemented | — | |
-| WithdrawalBurst action | ❌ Not implemented | — | |
-| RouteFlap action | ❌ Not implemented | — | |
-| SlowPeer action | ❌ Not implemented | — | |
-| ZeroWindow action | ❌ Not implemented | — | |
-| Parameterized NDJSON logging | ⚠️ Partial | `report/jsonlog.go:139` LogControl | "control" record type exists for control events, but no chaos-params field for parameterized actions |
-| Replay support for params | ❌ Not implemented | — | No parameterized action replay |
-| --chaos-actions filter | ❌ Not implemented | — | No opt-in flag for new action types |
-
-### Acceptance Criteria
-| AC ID | Status | Demonstrated By | Notes |
-|-------|--------|-----------------|-------|
-| AC-1 | ❌ Not implemented | — | ClockDrift not built |
-| AC-2 | ❌ Not implemented | — | ClockDrift validation not built |
-| AC-3 | ❌ Not implemented | — | RouteBurst not built |
-| AC-4 | ❌ Not implemented | — | WithdrawalBurst not built |
-| AC-5 | ❌ Not implemented | — | WithdrawalBurst clamping not built |
-| AC-6 | ❌ Not implemented | — | RouteFlap not built |
-| AC-7 | ❌ Not implemented | — | SlowPeer not built |
-| AC-8 | ❌ Not implemented | — | ZeroWindow not built |
-| AC-9 | ❌ Not implemented | — | chaos-params NDJSON field not built |
-| AC-10 | ❌ Not implemented | — | Parameterized replay not built |
-| AC-11 | ❌ Not implemented | — | --chaos-actions filter not built |
-| AC-12 | ✅ Done (existing) | — | Without --chaos-actions, existing behavior unchanged (backwards compat) |
-
-### Audit Summary
-- **Total items:** 21
-- **Done:** 1 (AC-12 — existing behavior preserved by default)
-- **Partial:** 1 (NDJSON control records exist but no chaos-params)
-- **Not implemented:** 19 (entire spec not started)
+Updated during implementation.
 
 ## Checklist
 

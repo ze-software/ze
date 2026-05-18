@@ -249,3 +249,65 @@ func TestSchedulerActionTypes(t *testing.T) {
 		}
 	}
 }
+
+// TestSchedulerNewActionsDisabledByDefault verifies that v2 actions never
+// appear when EnabledActions is empty.
+//
+// VALIDATES: Backwards compatibility of scheduler.
+// PREVENTS: New action types leaking into runs without opt-in.
+func TestSchedulerNewActionsDisabledByDefault(t *testing.T) {
+	cfg := SchedulerConfig{
+		Seed:      42,
+		PeerCount: 4,
+		Rate:      1.0,
+		Interval:  1 * time.Second,
+		Warmup:    0,
+	}
+
+	s := NewScheduler(cfg)
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	established := []bool{true, true, true, true}
+
+	for i := range 100 {
+		now := start.Add(time.Duration(i) * time.Second)
+		for _, a := range s.Tick(now, established) {
+			assert.False(t, IsV2Action(a.Action.Type),
+				"v2 action %s should not appear without opt-in", a.Action.Type)
+		}
+	}
+}
+
+// TestSchedulerChaosActionsFilter verifies that EnabledActions adds v2
+// actions to the weight pool.
+//
+// VALIDATES: --chaos-actions flag selects specific v2 types.
+// PREVENTS: Enabled v2 actions not appearing in scheduling.
+func TestSchedulerChaosActionsFilter(t *testing.T) {
+	cfg := SchedulerConfig{
+		Seed:           42,
+		PeerCount:      4,
+		Rate:           1.0,
+		Interval:       1 * time.Second,
+		Warmup:         0,
+		EnabledActions: []ActionType{ActionRouteBurst, ActionRouteFlap},
+	}
+
+	s := NewScheduler(cfg)
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	established := []bool{true, true, true, true}
+
+	seen := make(map[ActionType]bool)
+	for i := range 200 {
+		now := start.Add(time.Duration(i) * time.Second)
+		for _, a := range s.Tick(now, established) {
+			seen[a.Action.Type] = true
+			if IsV2Action(a.Action.Type) {
+				assert.True(t, a.Action.Type == ActionRouteBurst || a.Action.Type == ActionRouteFlap,
+					"only enabled v2 actions should appear, got %s", a.Action.Type)
+			}
+		}
+	}
+	assert.True(t, seen[ActionRouteBurst], "RouteBurst should appear when enabled")
+	assert.True(t, seen[ActionRouteFlap], "RouteFlap should appear when enabled")
+	assert.False(t, seen[ActionClockDrift], "ClockDrift should not appear when not enabled")
+}

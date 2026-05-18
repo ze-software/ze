@@ -54,11 +54,12 @@ func runPeerLoop(ctx context.Context, cfg peer.SimulatorConfig, peerIndex int, e
 // (pause, resume, rate change, manual trigger, stop).
 func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount int, es *establishedState, guard *guard.Guard, channels []chan engine.ChaosAction, controlCh <-chan web.ControlCommand, quiet bool) {
 	sched := engine.NewScheduler(engine.SchedulerConfig{
-		Seed:      seed,
-		PeerCount: peerCount,
-		Rate:      cfg.Rate,
-		Interval:  cfg.Interval,
-		Warmup:    cfg.Warmup,
+		Seed:           seed,
+		PeerCount:      peerCount,
+		Rate:           cfg.Rate,
+		Interval:       cfg.Interval,
+		Warmup:         cfg.Warmup,
+		EnabledActions: cfg.EnabledActions,
 	})
 
 	ticker := time.NewTicker(cfg.Interval)
@@ -187,7 +188,7 @@ func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedSta
 			}
 			continue
 		}
-		action := engine.ChaosAction{Type: actionType}
+		action := engine.ChaosAction{Type: actionType, Params: t.Params}
 		if !quiet {
 			fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | manual %s -> peer %d\n",
 				actionType, idx)

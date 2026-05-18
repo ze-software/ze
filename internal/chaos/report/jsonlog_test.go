@@ -387,3 +387,57 @@ func TestJSONLogConcurrentSafety(t *testing.T) {
 	}
 	assert.Len(t, seqs, numEvents+numControls, "all sequence numbers unique")
 }
+
+// TestJSONLogChaosParams verifies chaos-params field appears for parameterized actions.
+//
+// VALIDATES: chaos-params included in NDJSON when Event.ChaosParams is non-nil.
+// PREVENTS: Parameterized action data lost during serialization.
+func TestJSONLogChaosParams(t *testing.T) {
+	var buf bytes.Buffer
+	start := time.Now()
+	jlog := NewJSONLog(&buf, JSONLogConfig{Start: start, Seed: 1, Peers: 4})
+
+	jlog.ProcessEvent(peer.Event{
+		Type:        peer.EventChaosExecuted,
+		PeerIndex:   1,
+		Time:        start.Add(time.Second),
+		ChaosAction: "route-burst",
+		ChaosParams: map[string]string{"count": "500", "family": "ipv4/unicast"},
+	})
+	require.NoError(t, jlog.Close())
+
+	parsed := parseNDJSON(t, &buf)
+	require.Len(t, parsed, 2)
+
+	event := parsed[1]
+	assert.Equal(t, "route-burst", event["chaos-action"])
+	params, ok := event["chaos-params"].(map[string]any)
+	require.True(t, ok, "chaos-params should be an object")
+	assert.Equal(t, "500", params["count"])
+	assert.Equal(t, "ipv4/unicast", params["family"])
+}
+
+// TestJSONLogChaosParamsBackwardsCompat verifies non-parameterized events omit chaos-params.
+//
+// VALIDATES: Events without ChaosParams do not include chaos-params field.
+// PREVENTS: Null chaos-params breaking consumers expecting the field to be absent.
+func TestJSONLogChaosParamsBackwardsCompat(t *testing.T) {
+	var buf bytes.Buffer
+	start := time.Now()
+	jlog := NewJSONLog(&buf, JSONLogConfig{Start: start, Seed: 1, Peers: 4})
+
+	jlog.ProcessEvent(peer.Event{
+		Type:        peer.EventChaosExecuted,
+		PeerIndex:   0,
+		Time:        start.Add(time.Second),
+		ChaosAction: "tcp-disconnect",
+	})
+	require.NoError(t, jlog.Close())
+
+	parsed := parseNDJSON(t, &buf)
+	require.Len(t, parsed, 2)
+
+	event := parsed[1]
+	assert.Equal(t, "tcp-disconnect", event["chaos-action"])
+	assert.NotContains(t, event, "chaos-params", "non-parameterized events should not have chaos-params")
+}

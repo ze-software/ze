@@ -36,6 +36,7 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/inprocess"
 	chaosmcp "codeberg.org/thomas-mangin/ze/internal/chaos/mcp"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
@@ -92,6 +93,7 @@ func run(args []string) int {
 	// Chaos flags
 	chaosRate := fs.Float64("chaos-rate", 0.1, "Per-peer probability of chaos per interval (0.0-1.0)")
 	chaosInterval := fs.Duration("chaos-interval", 1*time.Second, "Time between chaos checks")
+	chaosActions := fs.String("chaos-actions", "", "Enable v2 chaos actions (comma-sep: clock-drift,route-burst,withdrawal-burst,route-flap,slow-peer,zero-window)")
 
 	// Route dynamics flags
 	routeRate := fs.Float64("route-rate", 0.0, "Per-peer probability of route action per interval (0.0-1.0, 0=disabled)")
@@ -181,6 +183,7 @@ Backpressure:
 Chaos:
   --chaos-rate <float>       Per-peer probability of chaos per interval (default: 0.1)
   --chaos-interval <dur>     Time between chaos checks (default: 1s)
+  --chaos-actions <list>     Enable v2 actions (comma-sep: clock-drift,route-burst,withdrawal-burst,route-flap,slow-peer,zero-window)
 
 Route Dynamics:
   --route-rate <float>       Per-peer probability of route action per interval (default: 0, disabled)
@@ -619,9 +622,10 @@ Control:
 	restartCh := make(chan uint64, 1)
 
 	chaosCfg := ChaosConfig{
-		Rate:     *chaosRate,
-		Interval: *chaosInterval,
-		Warmup:   *warmup,
+		Rate:           *chaosRate,
+		Interval:       *chaosInterval,
+		Warmup:         *warmup,
+		EnabledActions: parseChaosActions(*chaosActions),
 	}
 
 	routeCfg := RouteConfig{
@@ -736,6 +740,28 @@ type reporterConsumer struct{ r *report.Reporter }
 
 func (rc *reporterConsumer) ProcessEvent(ev peer.Event) { rc.r.Process(ev) }
 func (rc *reporterConsumer) Close() error               { return rc.r.Close() }
+
+// parseChaosActions parses a comma-separated list of v2 action names into ActionTypes.
+// Unknown names are silently skipped.
+func parseChaosActions(s string) []engine.ActionType {
+	if s == "" {
+		return nil
+	}
+	seen := make(map[engine.ActionType]bool)
+	var actions []engine.ActionType
+	for name := range strings.SplitSeq(s, ",") {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		at, ok := engine.ActionTypeFromString(name)
+		if ok && engine.IsV2Action(at) && !seen[at] {
+			seen[at] = true
+			actions = append(actions, at)
+		}
+	}
+	return actions
+}
 
 func printAIHelp() {
 	tools := (&chaosmcp.Provider{}).Tools()

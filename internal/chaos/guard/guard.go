@@ -103,7 +103,13 @@ func (g *Guard) AllowChaos(idx int, action engine.ActionType) (bool, string) {
 		engine.ActionConnectionCollision,
 		engine.ActionMalformedUpdate,
 		engine.ActionConfigReload,
-		engine.ActionSlowRead:
+		engine.ActionSlowRead,
+		engine.ActionClockDrift,
+		engine.ActionRouteBurst,
+		engine.ActionWithdrawalBurst,
+		engine.ActionRouteFlap,
+		engine.ActionSlowPeer,
+		engine.ActionZeroWindow:
 		// No additional guards — these are always valid on an established peer.
 	}
 

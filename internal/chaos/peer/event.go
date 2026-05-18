@@ -62,6 +62,10 @@ type Event struct {
 	// ChaosAction is the action name for EventChaosExecuted events.
 	ChaosAction string
 
+	// ChaosParams holds action-specific parameters for parameterized chaos events.
+	// Nil for non-parameterized actions.
+	ChaosParams map[string]string
+
 	// RouteAction is the action name for EventRouteAction events.
 	RouteAction string
 

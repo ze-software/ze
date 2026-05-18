@@ -24,6 +24,12 @@ func TestActionTypeString(t *testing.T) {
 		{ActionMalformedUpdate, "malformed-update"},
 		{ActionConfigReload, "config-reload"},
 		{ActionSlowRead, "slow-read"},
+		{ActionClockDrift, "clock-drift"},
+		{ActionRouteBurst, "route-burst"},
+		{ActionWithdrawalBurst, "withdrawal-burst"},
+		{ActionRouteFlap, "route-flap"},
+		{ActionSlowPeer, "slow-peer"},
+		{ActionZeroWindow, "zero-window"},
 	}
 
 	for _, tt := range tests {
@@ -61,6 +67,12 @@ func TestActionNeedsReconnect(t *testing.T) {
 		{ActionMalformedUpdate, false},
 		{ActionConfigReload, false},
 		{ActionSlowRead, false},
+		{ActionClockDrift, false},
+		{ActionRouteBurst, false},
+		{ActionWithdrawalBurst, false},
+		{ActionRouteFlap, false},
+		{ActionSlowPeer, false},
+		{ActionZeroWindow, false},
 	}
 
 	for _, tt := range tests {
@@ -89,6 +101,12 @@ func TestActionTypeFromString(t *testing.T) {
 		{NameMalformedUpdate, ActionMalformedUpdate, true},
 		{NameConfigReload, ActionConfigReload, true},
 		{NameSlowRead, ActionSlowRead, true},
+		{NameClockDrift, ActionClockDrift, true},
+		{NameRouteBurst, ActionRouteBurst, true},
+		{NameWithdrawalBurst, ActionWithdrawalBurst, true},
+		{NameRouteFlap, ActionRouteFlap, true},
+		{NameSlowPeer, ActionSlowPeer, true},
+		{NameZeroWindow, ActionZeroWindow, true},
 		{"unknown-action", 0, false},
 		{"", 0, false},
 	}

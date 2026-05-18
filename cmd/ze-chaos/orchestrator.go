@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
@@ -24,6 +25,10 @@ type ChaosConfig struct {
 
 	// Warmup is the delay before chaos events begin firing.
 	Warmup time.Duration
+
+	// EnabledActions is the set of v2 action types enabled for scheduling.
+	// Parsed from --chaos-actions flag. Nil means only legacy actions.
+	EnabledActions []engine.ActionType
 }
 
 // RouteConfig holds route dynamics parameters passed from CLI flags.

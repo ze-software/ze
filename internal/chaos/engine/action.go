@@ -28,6 +28,18 @@ const (
 	ActionConfigReload
 	// ActionSlowRead toggles slow reading to create TCP backpressure on Ze's writes.
 	ActionSlowRead
+	// ActionClockDrift skews keepalive timing to test hold-timer tolerance.
+	ActionClockDrift
+	// ActionRouteBurst announces extra routes in rapid succession.
+	ActionRouteBurst
+	// ActionWithdrawalBurst withdraws a configurable number of routes rapidly.
+	ActionWithdrawalBurst
+	// ActionRouteFlap withdraws and re-announces routes in cycles.
+	ActionRouteFlap
+	// ActionSlowPeer delays all outgoing messages for a duration.
+	ActionSlowPeer
+	// ActionZeroWindow sets TCP receive window to zero for a duration.
+	ActionZeroWindow
 )
 
 // Kebab-case action names used in JSON events, web UI, and CLI.
@@ -41,6 +53,12 @@ const (
 	NameMalformedUpdate       = "malformed-update"
 	NameConfigReload          = "config-reload"
 	NameSlowRead              = "slow-read"
+	NameClockDrift            = "clock-drift"
+	NameRouteBurst            = "route-burst"
+	NameWithdrawalBurst       = "withdrawal-burst"
+	NameRouteFlap             = "route-flap"
+	NameSlowPeer              = "slow-peer"
+	NameZeroWindow            = "zero-window"
 )
 
 // actionNames maps ActionType to kebab-case name. Package-level to avoid
@@ -55,6 +73,12 @@ var actionNames = map[ActionType]string{
 	ActionMalformedUpdate:       NameMalformedUpdate,
 	ActionConfigReload:          NameConfigReload,
 	ActionSlowRead:              NameSlowRead,
+	ActionClockDrift:            NameClockDrift,
+	ActionRouteBurst:            NameRouteBurst,
+	ActionWithdrawalBurst:       NameWithdrawalBurst,
+	ActionRouteFlap:             NameRouteFlap,
+	ActionSlowPeer:              NameSlowPeer,
+	ActionZeroWindow:            NameZeroWindow,
 }
 
 // actionTypes maps kebab-case name to ActionType. Package-level to avoid
@@ -69,6 +93,12 @@ var actionTypes = map[string]ActionType{
 	NameMalformedUpdate:       ActionMalformedUpdate,
 	NameConfigReload:          ActionConfigReload,
 	NameSlowRead:              ActionSlowRead,
+	NameClockDrift:            ActionClockDrift,
+	NameRouteBurst:            ActionRouteBurst,
+	NameWithdrawalBurst:       ActionWithdrawalBurst,
+	NameRouteFlap:             ActionRouteFlap,
+	NameSlowPeer:              ActionSlowPeer,
+	NameZeroWindow:            ActionZeroWindow,
 }
 
 // actionReconnect tracks which action types cause session teardown.
@@ -108,4 +138,7 @@ func (a ActionType) NeedsReconnect() bool {
 type ChaosAction struct {
 	// Type identifies what kind of chaos to perform.
 	Type ActionType
+	// Params holds action-specific parameters for parameterized actions.
+	// Nil for non-parameterized actions.
+	Params map[string]string
 }
