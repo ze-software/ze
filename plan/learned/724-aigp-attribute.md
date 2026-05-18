@@ -19,7 +19,7 @@ Ze needed AIGP (Accumulated IGP Metric) attribute support for wire parsing, enco
 - Wire parsing and encoding work end-to-end (builder round-trip test proves it).
 - JSON output emits `"aigp":<metric>` for attributes with a metric TLV; attributes with only unknown TLVs fall through to hex format.
 - Filter policies can `set aigp <value>` via the delta handler path.
-- Pool dedup (AC-6) is not wired. The attrpool system needs a type-specific registration.
+- Pool dedup (AC-6) deliberately skipped. AIGP metrics are typically unique per route (accumulated cost varies per path), so a dedicated pool would have near-zero dedup ratio. The per-slot overhead (~47 bytes) exceeds the data size (11 bytes). AIGP attributes that flow through the RIB are already handled by the `OtherAttrs` catch-all pool (idx=14). Adding a dedicated AIGP field to the Bundle struct would require touching Bundle, NewBundle, releaseInnerHandles, AddRefInnerHandles, familyrib wire reconstruction, and all Bundle tests for no user-visible benefit.
 
 ## Gotchas
 
