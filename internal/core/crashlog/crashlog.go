@@ -42,10 +42,6 @@ func Init() {
 		crashDir = resolveCrashDir()
 		crashKeep = parseCrashKeep()
 
-		if crashDir != "" {
-			writeMsg(origStderr, "crash dir: "+crashDir+"\n")
-		}
-
 		if err := redirectStderr(syslogAddr, crashDir); err != nil {
 			writeMsg(origStderr, "warning: crash capture: "+err.Error()+"\n")
 		}

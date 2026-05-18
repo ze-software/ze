@@ -4,10 +4,17 @@
 
 package crashlog
 
-import "errors"
+import (
+	"errors"
+	"os"
+)
 
 var errNoDup2 = errors.New("crashlog: stderr redirect not supported on this platform")
 
 func dupStderr(_ int) error {
 	return errNoDup2
+}
+
+func saveStderr() *os.File {
+	return nil
 }

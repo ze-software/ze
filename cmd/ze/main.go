@@ -124,6 +124,11 @@ func printVersion(extended bool) {
 // Root commands (`ze bgp`, `ze ping`, ...) are also registered by
 // their package's init() for the same reason; main.go's dispatch
 // switch stays, but help enumeration is driven by the registry.
+func exit(code int) {
+	crashlog.Flush()
+	os.Exit(code)
+}
+
 func withPanicCapture(fn func() int) (exitCode int) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -183,7 +188,7 @@ func main() {
 
 	if len(os.Args) < 2 {
 		usage()
-		os.Exit(1)
+		exit(1)
 	}
 
 	// Parse global flags before command dispatch
@@ -202,28 +207,28 @@ func main() {
 		case "-f":
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: -f requires a file path\n")
-				os.Exit(1)
+				exit(1)
 			}
 			fileOverride = args[1]
 			args = args[2:]
 		case "--server":
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --server requires host:port\n")
-				os.Exit(1)
+				exit(1)
 			}
 			_ = env.Set("ze.managed.server", args[1])
 			args = args[2:]
 		case "--name":
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --name requires client name\n")
-				os.Exit(1)
+				exit(1)
 			}
 			_ = env.Set("ze.managed.name", args[1])
 			args = args[2:]
 		case "--token":
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --token requires auth token\n")
-				os.Exit(1)
+				exit(1)
 			}
 			_ = env.Set("ze.managed.token", args[1])
 			args = args[2:]
@@ -234,71 +239,71 @@ func main() {
 		case "--plugin":
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --plugin requires an argument\n")
-				os.Exit(1)
+				exit(1)
 			}
 			plugins = append(plugins, args[1])
 			args = args[2:]
 		case "--pprof":
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --pprof requires an address (e.g. :6060)\n")
-				os.Exit(1)
+				exit(1)
 			}
 			pprofAddr = args[1]
 			args = args[2:]
 		case "--chaos-seed":
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --chaos-seed requires an argument\n")
-				os.Exit(1)
+				exit(1)
 			}
 			n, err := strconv.ParseInt(args[1], 10, 64)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: invalid --chaos-seed: %v\n", err)
-				os.Exit(1)
+				exit(1)
 			}
 			chaosSeed = n
 			args = args[2:]
 		case "--chaos-rate":
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --chaos-rate requires an argument\n")
-				os.Exit(1)
+				exit(1)
 			}
 			f, err := strconv.ParseFloat(args[1], 64)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: invalid --chaos-rate: %v\n", err)
-				os.Exit(1)
+				exit(1)
 			}
 			if f < 0 || f > 1.0 {
 				fmt.Fprintf(os.Stderr, "error: --chaos-rate must be 0.0-1.0, got %.2f\n", f)
-				os.Exit(1)
+				exit(1)
 			}
 			chaosRate = f
 			args = args[2:]
 		case "--mcp":
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --mcp requires a port\n")
-				os.Exit(1)
+				exit(1)
 			}
 			if !validPort(args[1]) {
 				fmt.Fprintf(os.Stderr, "error: --mcp port must be 1-65535, got %q\n", args[1])
-				os.Exit(1)
+				exit(1)
 			}
 			mcpAddr = "127.0.0.1:" + args[1]
 			args = args[2:]
 		case "--mcp-token":
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --mcp-token requires a value\n")
-				os.Exit(1)
+				exit(1)
 			}
 			mcpToken = args[1]
 			args = args[2:]
 		case "--web":
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --web requires a port\n")
-				os.Exit(1)
+				exit(1)
 			}
 			if !validPort(args[1]) {
 				fmt.Fprintf(os.Stderr, "error: --web port must be 1-65535, got %q\n", args[1])
-				os.Exit(1)
+				exit(1)
 			}
 			webPort = args[1]
 			args = args[2:]
@@ -317,10 +322,10 @@ func main() {
 			goto dispatch
 		case "--version", "-V":
 			printVersion(false)
-			os.Exit(0)
+			exit(0)
 		case "--extended-version":
 			printVersion(true)
-			os.Exit(0)
+			exit(0)
 		case "--help", "-h": //nolint:goconst // consistent pattern across cmd files
 			args = args[0:]
 			goto dispatch
@@ -341,7 +346,7 @@ dispatch:
 		fileOverride = config.ResolveConfigPath(fileOverride)
 		switch detectConfigType(store, fileOverride) {
 		case config.ConfigTypeBGP, config.ConfigTypeHub, config.ConfigTypeUnknown:
-			os.Exit(withPanicCapture(func() int {
+			exit(withPanicCapture(func() int {
 				return hub.Run(store, fileOverride, plugins, chaosSeed, chaosRate, false, "", false, "", "")
 			}))
 		}
@@ -349,7 +354,7 @@ dispatch:
 
 	if len(args) < 1 {
 		usage()
-		os.Exit(1)
+		exit(1)
 	}
 
 	arg := args[0]
@@ -375,7 +380,7 @@ dispatch:
 				fmt.Fprintf(os.Stderr, "  (no commands registered)\n")
 			}
 			fmt.Fprintln(os.Stderr)
-			os.Exit(0)
+			exit(0)
 		}
 		// ReadOnly is determined by the verb, not a flag on the registration.
 		readOnly := command.IsReadOnlyVerb(arg)
@@ -383,71 +388,71 @@ dispatch:
 		if code == -1 {
 			fmt.Fprintf(os.Stderr, "unknown %s command: %s\n", arg, strings.Join(args[1:], " "))
 			fmt.Fprintf(os.Stderr, "hint: run 'ze %s help' for available commands\n", arg)
-			os.Exit(1)
+			exit(1)
 		}
-		os.Exit(code)
+		exit(code)
 	}
 
 	// Static dispatch for commands not yet migrated to YANG verb registration.
 	switch arg {
 	case "bgp":
-		os.Exit(bgp.Run(args[1:]))
+		exit(bgp.Run(args[1:]))
 	case "plugin":
-		os.Exit(zeplugin.Run(args[1:]))
+		exit(zeplugin.Run(args[1:]))
 	case "cli":
-		os.Exit(cli.Run(args[1:]))
+		exit(cli.Run(args[1:]))
 	case "config":
 		store := resolveStorage()
 		code := zeconfig.RunWithStorage(store, args[1:])
 		store.Close() //nolint:errcheck // best-effort cleanup before exit
-		os.Exit(code)
+		exit(code)
 	case "init":
-		os.Exit(zeinit.Run(args[1:]))
+		exit(zeinit.Run(args[1:]))
 	case "passwd":
-		os.Exit(zepasswd.Run(args[1:]))
+		exit(zepasswd.Run(args[1:]))
 	case "data":
-		os.Exit(zedata.Run(args[1:]))
+		exit(zedata.Run(args[1:]))
 	case "schema":
-		os.Exit(schema.Run(args[1:], plugins))
+		exit(schema.Run(args[1:], plugins))
 	case "yang":
-		os.Exit(zeyang.Run(args[1:]))
+		exit(zeyang.Run(args[1:]))
 	case "interface":
-		os.Exit(zeiface.Run(args[1:]))
+		exit(zeiface.Run(args[1:]))
 	case "firewall":
-		os.Exit(zefirewall.Run(args[1:]))
+		exit(zefirewall.Run(args[1:]))
 	case "traffic-control":
-		os.Exit(zetc.Run(args[1:]))
+		exit(zetc.Run(args[1:]))
 	case "resolve":
-		os.Exit(zeresolve.Run(args[1:]))
+		exit(zeresolve.Run(args[1:]))
 	case "exabgp":
-		os.Exit(exabgp.Run(args[1:]))
+		exit(exabgp.Run(args[1:]))
 	case "signal":
-		os.Exit(zesignal.Run(args[1:]))
+		exit(zesignal.Run(args[1:]))
 	case "status":
-		os.Exit(zesignal.RunStatus(args[1:]))
+		exit(zesignal.RunStatus(args[1:]))
 	case "env":
-		os.Exit(zeenv.Run(args[1:]))
+		exit(zeenv.Run(args[1:]))
 	case "sysctl":
-		os.Exit(zesysctl.Run(args[1:]))
+		exit(zesysctl.Run(args[1:]))
 	case "tacacs":
-		os.Exit(zetacacs.Run(args[1:]))
+		exit(zetacacs.Run(args[1:]))
 	case "l2tp":
-		os.Exit(zel2tp.Run(args[1:]))
+		exit(zel2tp.Run(args[1:]))
 	case "appliance":
-		os.Exit(zeappliance.Run(args[1:]))
+		exit(zeappliance.Run(args[1:]))
 	case "run":
 		fmt.Fprintf(os.Stderr, "error: 'ze run' has been replaced by direct verb dispatch\n")
 		fmt.Fprintf(os.Stderr, "hint: use 'ze show <command>' for read-only commands\n")
 		fmt.Fprintf(os.Stderr, "hint: use 'ze set/del/update <command>' for mutations\n")
 		fmt.Fprintf(os.Stderr, "hint: run 'ze help' for available verbs\n")
-		os.Exit(1)
+		exit(1)
 	case "completion":
-		os.Exit(zecompletion.Run(args[1:]))
+		exit(zecompletion.Run(args[1:]))
 	case "version":
 		printVersion(slices.Contains(args[1:], "--extended"))
-		os.Exit(0)
+		exit(0)
 	case "update-serve":
-		os.Exit(runUpdateServe(args[1:]))
+		exit(runUpdateServe(args[1:]))
 	case "start":
 		if len(args) > 1 && isHelpArg(args[1]) {
 			p := helpfmt.Page{
@@ -473,9 +478,9 @@ dispatch:
 				},
 			}
 			p.Write()
-			os.Exit(0)
+			exit(0)
 		}
-		os.Exit(cmdStart(args[1:], plugins, chaosSeed, chaosRate, mcpAddr, mcpToken, webPort, insecureWeb))
+		exit(cmdStart(args[1:], plugins, chaosSeed, chaosRate, mcpAddr, mcpToken, webPort, insecureWeb))
 	case "help", "-h", "--help": //nolint:goconst // case labels can't call functions
 		subArgs := args[1:]
 		switch {
@@ -486,12 +491,12 @@ dispatch:
 		default:
 			usage()
 		}
-		os.Exit(0)
+		exit(0)
 	case "--plugins":
 		// Check for --json flag
 		jsonOutput := len(os.Args) > 2 && os.Args[2] == "--json"
 		printPlugins(jsonOutput)
-		os.Exit(0)
+		exit(0)
 	}
 
 	// Derive web settings from global flags.
@@ -505,7 +510,7 @@ dispatch:
 	}
 	if insecureWeb && !webEnabled {
 		fmt.Fprintf(os.Stderr, "error: --insecure-web requires --web <port>\n")
-		os.Exit(1)
+		exit(1)
 	}
 
 	// If arg looks like a config file, dispatch based on content
@@ -513,7 +518,7 @@ dispatch:
 		// For stdin, config data comes from stdin but we still need blob
 		// storage for TLS certs, SSH host keys, and other persistent state.
 		if arg == "-" {
-			os.Exit(withPanicCapture(func() int {
+			exit(withPanicCapture(func() int {
 				return hub.Run(resolveStorage(), arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
 			}))
 		}
@@ -533,7 +538,7 @@ dispatch:
 		}
 		switch detectConfigType(store, arg) {
 		case config.ConfigTypeBGP, config.ConfigTypeHub, config.ConfigTypeUnknown:
-			os.Exit(withPanicCapture(func() int {
+			exit(withPanicCapture(func() int {
 				return hub.Run(store, arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
 			}))
 		}
@@ -545,7 +550,7 @@ dispatch:
 	// multi-word commands ("generate wireguard keypair") win over
 	// shorter prefixes.
 	if handler, remaining := cmdregistry.LookupLocal(args); handler != nil {
-		os.Exit(handler(remaining))
+		exit(handler(remaining))
 	}
 
 	// Unknown command
@@ -559,7 +564,7 @@ dispatch:
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", suggestion)
 	}
 	usage()
-	os.Exit(1)
+	exit(1)
 }
 
 // yangVerbs are the top-level verbs dispatched through the unified YANG command tree.

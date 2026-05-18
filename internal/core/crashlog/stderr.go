@@ -7,16 +7,31 @@ import (
 	"log/syslog"
 	"os"
 	"regexp"
+	"sync"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 var panicPattern = regexp.MustCompile(`^goroutine \d+ \[running\]:`)
 
+var (
+	pipeW      *os.File
+	readerDone chan struct{}
+	flushOnce  sync.Once
+)
+
 func redirectStderr(syslogAddress, crashDirPath string) error {
 	pr, pw, err := os.Pipe()
 	if err != nil {
 		return err
+	}
+
+	// Save fd 2 to a new fd before dup2 overwrites it with the pipe.
+	// Without this, origStderr wraps fd 2 which becomes the pipe,
+	// and the reader goroutine would write back into its own pipe.
+	if saved := saveStderr(); saved != nil {
+		origStderr = saved
 	}
 
 	if err := dupStderr(int(pw.Fd())); err != nil {
@@ -26,6 +41,8 @@ func redirectStderr(syslogAddress, crashDirPath string) error {
 	}
 
 	os.Stderr = pw
+	pipeW = pw
+	readerDone = make(chan struct{})
 
 	var syslogW *syslog.Writer
 	if syslogAddress != "" {
@@ -41,7 +58,29 @@ func redirectStderr(syslogAddress, crashDirPath string) error {
 	return nil
 }
 
+// Flush drains the stderr pipe so buffered output reaches the terminal.
+// Safe to call multiple times; only the first call acts.
+func Flush() {
+	flushOnce.Do(func() {
+		if pipeW == nil {
+			return
+		}
+		// Restore fd 2 to the original stderr. This closes the dup2'd
+		// reference to the pipe write end on fd 2, so that closing pipeW
+		// below fully closes the pipe and the reader goroutine sees EOF.
+		_ = dupStderr(int(origStderr.Fd()))
+		pipeW.Close() //nolint:errcheck // triggers EOF on the reader goroutine
+		select {
+		case <-readerDone:
+		case <-time.After(500 * time.Millisecond):
+		}
+		os.Stderr = origStderr
+	})
+}
+
 func stderrReader(pr *os.File, syslogW *syslog.Writer, crashDirPath string) {
+	defer close(readerDone)
+
 	scanner := bufio.NewScanner(pr)
 	scanner.Buffer(make([]byte, 0, 256*1024), 256*1024)
 	var panicBuf []byte
