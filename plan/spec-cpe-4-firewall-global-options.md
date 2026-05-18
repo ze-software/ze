@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
 | Updated | 2026-05-18 |
@@ -210,8 +210,13 @@ Note: `enable`/`disable` for the `*_ignore_*` sysctls have inverted semantics (e
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| global-options should enter at sysctl config layer | Must use default layer so explicit `sysctl { setting }` (config layer) wins per AC-6 | Analyzing three-layer priority model | Spec annotation corrected; using EventBus `(sysctl, default)` like fib-kernel and iface |
 
 ## Design Insights
+
+-> Decision: global-options emit via `(sysctl, default)` EventBus event with source `"firewall:global-options"`. This reuses the existing three-layer priority model so explicit `sysctl { setting }` (config layer) automatically wins. Same pattern as fib-kernel forwarding defaults and iface profile defaults.
+
+-> Decision: `RawData` field added to `firewallConfig` struct to carry JSON from verify into apply, so `ExtractGlobalOptions()` can be called at both OnConfigure and OnConfigApply without re-parsing sections.
 
 ## Checklist
 

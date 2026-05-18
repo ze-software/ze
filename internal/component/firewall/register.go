@@ -6,11 +6,30 @@ package firewall
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	firewallschema "codeberg.org/thomas-mangin/ze/internal/component/firewall/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+var (
+	eventBusMu  sync.Mutex
+	eventBusRef ze.EventBus
+)
+
+func setEventBusRef(eb ze.EventBus) {
+	eventBusMu.Lock()
+	defer eventBusMu.Unlock()
+	eventBusRef = eb
+}
+
+func getEventBusRef() ze.EventBus {
+	eventBusMu.Lock()
+	defer eventBusMu.Unlock()
+	return eventBusRef
+}
 
 func init() { //nolint:gochecknoinits // plugin registration
 	reg := registry.Registration{
@@ -23,6 +42,11 @@ func init() { //nolint:gochecknoinits // plugin registration
 		RunEngine:               runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureEventBus: func(eb any) {
+			if e, ok := eb.(ze.EventBus); ok {
+				setEventBusRef(e)
+			}
 		},
 	}
 	reg.CLIHandler = func(_ []string) int {

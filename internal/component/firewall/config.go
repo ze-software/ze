@@ -1172,5 +1172,87 @@ func parseFlowtable(name string, m map[string]any) (Flowtable, error) {
 	return ft, nil
 }
 
+// globalOptionMapping defines the static keyword-to-sysctl translation.
+// Each entry maps a YANG leaf name to its sysctl key and the value
+// produced by enable/disable (or the three-way source-validation enum).
+type globalOptionDef struct {
+	SysctlKey    string
+	EnableValue  string
+	DisableValue string
+}
+
+var globalOptionDefs = map[string]globalOptionDef{
+	"all-ping":               {SysctlKey: "net.ipv4.icmp_echo_ignore_all", EnableValue: "0", DisableValue: "1"},
+	"broadcast-ping":         {SysctlKey: "net.ipv4.icmp_echo_ignore_broadcasts", EnableValue: "0", DisableValue: "1"},
+	"syn-cookies":            {SysctlKey: "net.ipv4.tcp_syncookies", EnableValue: "1", DisableValue: "0"},
+	"receive-redirects":      {SysctlKey: "net.ipv4.conf.all.accept_redirects", EnableValue: "1", DisableValue: "0"},
+	"send-redirects":         {SysctlKey: "net.ipv4.conf.all.send_redirects", EnableValue: "1", DisableValue: "0"},
+	"log-martians":           {SysctlKey: "net.ipv4.conf.all.log_martians", EnableValue: "1", DisableValue: "0"},
+	"ipv6-receive-redirects": {SysctlKey: "net.ipv6.conf.all.accept_redirects", EnableValue: "1", DisableValue: "0"},
+	"ipv6-src-route":         {SysctlKey: "net.ipv6.conf.all.accept_source_route", EnableValue: "1", DisableValue: "0"},
+}
+
+const sourceValidationKey = "net.ipv4.conf.all.rp_filter"
+
+var sourceValidationValues = map[string]string{
+	"disable": "0",
+	"strict":  "1",
+	"loose":   "2",
+}
+
+// ExtractGlobalOptions parses the firewall global-options container and
+// returns a map of sysctl key -> value pairs. Returns an empty map if
+// the container is absent.
+func ExtractGlobalOptions(data string) (map[string]string, error) {
+	var root map[string]any
+	if err := json.Unmarshal([]byte(data), &root); err != nil {
+		return nil, fmt.Errorf("firewall global-options: unmarshal: %w", err)
+	}
+
+	fwMap, ok := root["firewall"].(map[string]any)
+	if !ok {
+		return map[string]string{}, nil
+	}
+
+	goMap, ok := fwMap["global-options"].(map[string]any)
+	if !ok {
+		return map[string]string{}, nil
+	}
+
+	result := make(map[string]string, len(goMap))
+
+	for keyword, raw := range goMap {
+		val, ok := raw.(string)
+		if !ok {
+			return nil, fmt.Errorf("firewall global-options: %s: expected string value", keyword)
+		}
+
+		if keyword == "source-validation" {
+			sysctlVal, known := sourceValidationValues[val]
+			if !known {
+				return nil, fmt.Errorf("firewall global-options: source-validation: unknown value %q", val)
+			}
+			result[sourceValidationKey] = sysctlVal
+			continue
+		}
+
+		def, known := globalOptionDefs[keyword]
+		if !known {
+			return nil, fmt.Errorf("firewall global-options: unknown keyword %q", keyword)
+		}
+
+		switch val {
+		case "enable":
+			result[def.SysctlKey] = def.EnableValue
+		case "disable":
+			result[def.SysctlKey] = def.DisableValue
+		default:
+			return nil, fmt.Errorf("firewall global-options: %s: expected enable/disable, got %q", keyword, val)
+		}
+	}
+
+	return result, nil
+}
+
 // Ensure slog is used (package has loggerPtr in backend.go).
 var _ = slog.Default

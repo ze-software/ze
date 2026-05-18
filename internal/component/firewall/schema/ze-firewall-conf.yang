@@ -395,6 +395,127 @@ module ze-firewall-conf {
                          primitives.";
         }
 
+        container global-options {
+            description "Network security defaults mapped to kernel sysctls.
+                         Provides VyOS-compatible keyword toggles for common
+                         settings. At apply time each keyword translates to a
+                         sysctl key/value pair emitted to the sysctl plugin.
+                         Explicit sysctl settings always override these.";
+
+            leaf all-ping {
+                type enumeration {
+                    enum enable {
+                        description "Allow ICMP echo replies (icmp_echo_ignore_all=0)";
+                    }
+                    enum disable {
+                        description "Ignore all ICMP echo requests (icmp_echo_ignore_all=1)";
+                    }
+                }
+                description "Control ICMP echo (ping) responses.
+                             Inverted sysctl: enable sets icmp_echo_ignore_all to 0.";
+            }
+
+            leaf broadcast-ping {
+                type enumeration {
+                    enum enable {
+                        description "Allow broadcast ICMP echo (icmp_echo_ignore_broadcasts=0)";
+                    }
+                    enum disable {
+                        description "Ignore broadcast ICMP echo (icmp_echo_ignore_broadcasts=1)";
+                    }
+                }
+                description "Control broadcast ICMP echo responses.
+                             Inverted sysctl: enable sets icmp_echo_ignore_broadcasts to 0.";
+            }
+
+            leaf syn-cookies {
+                type enumeration {
+                    enum enable {
+                        description "Enable TCP SYN cookies (tcp_syncookies=1)";
+                    }
+                    enum disable {
+                        description "Disable TCP SYN cookies (tcp_syncookies=0)";
+                    }
+                }
+                description "TCP SYN cookie protection against SYN flood attacks.";
+            }
+
+            leaf receive-redirects {
+                type enumeration {
+                    enum enable {
+                        description "Accept ICMP redirects (accept_redirects=1)";
+                    }
+                    enum disable {
+                        description "Reject ICMP redirects (accept_redirects=0)";
+                    }
+                }
+                description "Control acceptance of IPv4 ICMP redirect messages.";
+            }
+
+            leaf send-redirects {
+                type enumeration {
+                    enum enable {
+                        description "Send ICMP redirects (send_redirects=1)";
+                    }
+                    enum disable {
+                        description "Do not send ICMP redirects (send_redirects=0)";
+                    }
+                }
+                description "Control sending of IPv4 ICMP redirect messages.";
+            }
+
+            leaf source-validation {
+                type enumeration {
+                    enum disable {
+                        description "No source address validation (rp_filter=0)";
+                    }
+                    enum strict {
+                        description "Strict reverse path filtering (rp_filter=1)";
+                    }
+                    enum loose {
+                        description "Loose reverse path filtering (rp_filter=2)";
+                    }
+                }
+                description "Reverse path filtering mode for source address validation.";
+            }
+
+            leaf log-martians {
+                type enumeration {
+                    enum enable {
+                        description "Log martian packets (log_martians=1)";
+                    }
+                    enum disable {
+                        description "Do not log martian packets (log_martians=0)";
+                    }
+                }
+                description "Log packets with impossible source addresses.";
+            }
+
+            leaf ipv6-receive-redirects {
+                type enumeration {
+                    enum enable {
+                        description "Accept IPv6 ICMP redirects (accept_redirects=1)";
+                    }
+                    enum disable {
+                        description "Reject IPv6 ICMP redirects (accept_redirects=0)";
+                    }
+                }
+                description "Control acceptance of IPv6 ICMP redirect messages.";
+            }
+
+            leaf ipv6-src-route {
+                type enumeration {
+                    enum enable {
+                        description "Accept IPv6 source-routed packets (accept_source_route=1)";
+                    }
+                    enum disable {
+                        description "Reject IPv6 source-routed packets (accept_source_route=0)";
+                    }
+                }
+                description "Control acceptance of IPv6 packets with source routing headers.";
+            }
+        }
+
         list table {
             key "name";
             description "Named firewall table";

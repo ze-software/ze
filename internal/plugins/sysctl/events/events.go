@@ -19,4 +19,5 @@ const (
 	EventDescribeRequest      = "describe-request"       // CLI -> sysctl: request detail for one key
 	EventDescribeResult       = "describe-result"        // sysctl -> requester: key detail JSON
 	EventClearProfileDefaults = "clear-profile-defaults" // iface -> sysctl: clear all profile defaults
+	EventClearSourceDefaults  = "clear-source-defaults"  // any -> sysctl: clear all defaults from a named source
 )

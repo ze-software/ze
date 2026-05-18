@@ -18,7 +18,9 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 var (
@@ -79,10 +81,11 @@ func validateBackendGate(sections []sdk.ConfigSection, activeBackend string) err
 
 // firewallConfig carries parsed firewall state from OnConfigVerify into
 // OnConfigApply. Backend is the selected backend name; Tables is the
-// desired kernel state.
+// desired kernel state. RawData carries the JSON for global-options extraction.
 type firewallConfig struct {
 	Backend string
 	Tables  []Table
+	RawData string
 }
 
 // parseFirewallSections extracts the firewall section from the SDK
@@ -107,6 +110,7 @@ func parseFirewallSections(sections []sdk.ConfigSection) (*firewallConfig, error
 			return nil, fmt.Errorf("firewall config: %w", err)
 		}
 		cfg.Tables = tables
+		cfg.RawData = s.Data
 		return cfg, nil
 	}
 	return cfg, nil
@@ -161,6 +165,9 @@ func parseAndVerifyFirewallSections(sections []sdk.ConfigSection) (*firewallConf
 	if cfg.Backend == "" {
 		return nil, errFirewallNoBackendConfiguredAndNo
 	}
+	if _, err := ExtractGlobalOptions(cfg.RawData); err != nil {
+		return nil, err
+	}
 	if err := validateBackendGate(sections, cfg.Backend); err != nil {
 		return nil, err
 	}
@@ -180,6 +187,46 @@ func setLogger(l *slog.Logger) {
 	}
 }
 
+const globalOptionsSource = "firewall:global-options"
+
+// emitGlobalOptionsSysctlDefaults extracts global-options from the config
+// section and emits each as a sysctl default via EventBus. The sysctl
+// plugin receives these at the default layer, so explicit sysctl config
+// settings always win. On reload, clears previous defaults first so
+// removed global-options revert to the original OS value.
+func emitGlobalOptionsSysctlDefaults(eb ze.EventBus, data string, reload bool, log *slog.Logger) {
+	if eb == nil {
+		return
+	}
+	opts, err := ExtractGlobalOptions(data)
+	if err != nil {
+		log.Warn("firewall: global-options extraction failed", "err", err)
+		return
+	}
+	if reload {
+		clearPayload, _ := json.Marshal(struct {
+			Source string `json:"source"`
+		}{Source: globalOptionsSource})
+		if _, emitErr := eb.Emit(sysctlevents.Namespace, sysctlevents.EventClearSourceDefaults, string(clearPayload)); emitErr != nil {
+			log.Warn("firewall: clear global-options defaults failed", "err", emitErr)
+		}
+	}
+	type sysctlDefault struct {
+		Key    string `json:"key"`
+		Value  string `json:"value"`
+		Source string `json:"source"`
+	}
+	for key, value := range opts {
+		payload, _ := json.Marshal(sysctlDefault{Key: key, Value: value, Source: globalOptionsSource})
+		if _, emitErr := eb.Emit(sysctlevents.Namespace, sysctlevents.EventDefault, string(payload)); emitErr != nil {
+			log.Warn("firewall: emit sysctl default failed", "key", key, "err", emitErr)
+		}
+	}
+	if len(opts) > 0 {
+		log.Info("firewall: emitted global-options sysctl defaults", "keys", len(opts))
+	}
+}
+
 // runEngine is the engine-mode entry point for the firewall plugin.
 // Mirrors the traffic plugin's 5-stage lifecycle: the first Apply
 // happens in OnConfigure; subsequent reloads go through
@@ -190,6 +237,8 @@ func runEngine(conn net.Conn) int {
 
 	p := sdk.NewWithConn("firewall", conn)
 	defer func() { _ = p.Close() }()
+
+	eb := getEventBusRef()
 
 	// pendingCfg carries the verified config from OnConfigVerify into
 	// OnConfigApply. Cleared once OnConfigApply consumes it.
@@ -233,6 +282,8 @@ func runEngine(conn net.Conn) int {
 		StoreLastApplied(cfg.Tables)
 		activeCfg.Store(cfg)
 		log.Info("firewall config applied", "tables", len(cfg.Tables))
+
+		emitGlobalOptionsSysctlDefaults(eb, cfg.RawData, false, log)
 		return nil
 	})
 
@@ -309,6 +360,8 @@ func runEngine(conn net.Conn) int {
 		activeCfg.Store(cfg)
 		activeJournal = j
 		log.Info("firewall config reloaded", "tables", len(cfg.Tables))
+
+		emitGlobalOptionsSysctlDefaults(eb, cfg.RawData, true, log)
 		return nil
 	})
 

@@ -527,6 +527,34 @@ func valueTypeName(t sysctlreg.ValueType) string {
 	return "unknown"
 }
 
+// clearSourceDefaults removes all default-layer entries whose source
+// matches exactly. Called before re-emitting defaults from a component
+// to ensure removed keys revert to their original OS value.
+func (s *store) clearSourceDefaults(source string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, e := range s.entries {
+		if e.defaultSource != source {
+			continue
+		}
+		e.defaultValue = ""
+		e.defaultSource = ""
+
+		val, l := e.effective()
+		if val != "" {
+			if err := s.be.write(e.key, val); err != nil {
+				s.log.Warn("sysctl: clear-source write failed", "key", e.key, "err", err)
+			}
+			_ = l
+		} else if e.hasSaved {
+			if err := s.be.write(e.key, e.original); err != nil {
+				s.log.Warn("sysctl: clear-source restore failed", "key", e.key, "err", err)
+			}
+		}
+	}
+}
+
 // parseSysctlConfig parses config JSON into a key->value map.
 // YANG shape: {"sysctl": {"setting": {"key1": {"value": "v1"}, ...}}}.
 func parseSysctlConfig(data string) map[string]string {

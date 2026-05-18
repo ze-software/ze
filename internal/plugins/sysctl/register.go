@@ -53,6 +53,7 @@ func init() {
 		sysctlevents.EventListRequest, sysctlevents.EventListResult,
 		sysctlevents.EventDescribeRequest, sysctlevents.EventDescribeResult,
 		sysctlevents.EventClearProfileDefaults,
+		sysctlevents.EventClearSourceDefaults,
 	)
 
 	reg := registry.Registration{
@@ -220,6 +221,17 @@ func runSysctlPlugin(conn net.Conn) int {
 					return
 				}
 				s.clearProfileDefaults(ev.Interface)
+			})),
+			// Clear all defaults from a named source (before re-emission on reload).
+			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventClearSourceDefaults, events.AsString(func(payload string) {
+				var ev struct {
+					Source string `json:"source"`
+				}
+				if err := json.Unmarshal([]byte(payload), &ev); err != nil {
+					log.Warn("sysctl: bad clear-source-defaults event", "err", err)
+					return
+				}
+				s.clearSourceDefaults(ev.Source)
 			})),
 			// Query: describe one key.
 			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventDescribeRequest, events.AsString(func(payload string) {

@@ -555,3 +555,49 @@ func TestDescribeUnknown(t *testing.T) {
 	// Unknown key should still have value from store if set.
 	fmt.Println("describe unknown result:", result)
 }
+
+// VALIDATES: spec-cpe-4 AC-7 -- Removed global-option reverts sysctl to original value.
+func TestClearSourceDefaults(t *testing.T) {
+	s, fb := newTestStore()
+
+	fb.values["net.ipv4.icmp_echo_ignore_all"] = "1"
+
+	if _, err := s.setDefault("net.ipv4.icmp_echo_ignore_all", "0", "firewall:global-options"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.setDefault("net.ipv4.tcp_syncookies", "1", "firewall:global-options"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.setDefault("net.ipv4.conf.all.forwarding", "1", "fib-kernel"); err != nil {
+		t.Fatal(err)
+	}
+
+	if fb.values["net.ipv4.icmp_echo_ignore_all"] != "0" {
+		t.Fatal("icmp_echo not set")
+	}
+	if fb.values["net.ipv4.tcp_syncookies"] != "1" {
+		t.Fatal("syncookies not set")
+	}
+
+	s.clearSourceDefaults("firewall:global-options")
+
+	if fb.values["net.ipv4.icmp_echo_ignore_all"] != "1" {
+		t.Errorf("icmp_echo should revert to original 1, got %q", fb.values["net.ipv4.icmp_echo_ignore_all"])
+	}
+	if fb.values["net.ipv4.tcp_syncookies"] != "0" {
+		t.Errorf("syncookies should revert to OS default 0, got %q", fb.values["net.ipv4.tcp_syncookies"])
+	}
+	if fb.values["net.ipv4.conf.all.forwarding"] != "1" {
+		t.Errorf("forwarding should be untouched, got %q", fb.values["net.ipv4.conf.all.forwarding"])
+	}
+
+	s.mu.RLock()
+	e := s.entries["net.ipv4.icmp_echo_ignore_all"]
+	s.mu.RUnlock()
+	if e.defaultValue != "" {
+		t.Errorf("defaultValue should be cleared, got %q", e.defaultValue)
+	}
+	if e.defaultSource != "" {
+		t.Errorf("defaultSource should be cleared, got %q", e.defaultSource)
+	}
+}

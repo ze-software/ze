@@ -1133,3 +1133,151 @@ func TestParseFlowtable(t *testing.T) {
 		t.Errorf("Devices len = %d, want 2", len(ft.Devices))
 	}
 }
+
+// --- Global Options tests. ---
+
+// VALIDATES: AC-1 all-ping enable -> icmp_echo_ignore_all=0.
+// VALIDATES: AC-2 syn-cookies disable -> tcp_syncookies=0.
+func TestExtractGlobalOptions(t *testing.T) {
+	data := `{"firewall":{"global-options":{"all-ping":"enable","syn-cookies":"disable","log-martians":"enable"}}}`
+	got, err := ExtractGlobalOptions(data)
+	if err != nil {
+		t.Fatalf("ExtractGlobalOptions: %v", err)
+	}
+	want := map[string]string{
+		"net.ipv4.icmp_echo_ignore_all":  "0",
+		"net.ipv4.tcp_syncookies":        "0",
+		"net.ipv4.conf.all.log_martians": "1",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d entries, want %d: %v", len(got), len(want), got)
+	}
+	for k, wv := range want {
+		if gv, ok := got[k]; !ok || gv != wv {
+			t.Errorf("key %s = %q, want %q", k, gv, wv)
+		}
+	}
+}
+
+// VALIDATES: AC-8 no global-options -> empty map.
+func TestExtractGlobalOptionsEmpty(t *testing.T) {
+	data := `{"firewall":{"table":{"wan":{"family":"inet"}}}}`
+	got, err := ExtractGlobalOptions(data)
+	if err != nil {
+		t.Fatalf("ExtractGlobalOptions: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("expected empty map, got %v", got)
+	}
+}
+
+// VALIDATES: AC-3 source-validation strict -> rp_filter=1.
+// VALIDATES: AC-4 source-validation loose -> rp_filter=2.
+// VALIDATES: AC-5 source-validation disable -> rp_filter=0.
+func TestExtractGlobalOptionsSourceValidation(t *testing.T) {
+	tests := []struct {
+		val  string
+		want string
+	}{
+		{"strict", "1"},
+		{"loose", "2"},
+		{"disable", "0"},
+	}
+	for _, tc := range tests {
+		data := `{"firewall":{"global-options":{"source-validation":"` + tc.val + `"}}}`
+		got, err := ExtractGlobalOptions(data)
+		if err != nil {
+			t.Fatalf("source-validation %s: %v", tc.val, err)
+		}
+		if v := got["net.ipv4.conf.all.rp_filter"]; v != tc.want {
+			t.Errorf("source-validation %s: rp_filter = %q, want %q", tc.val, v, tc.want)
+		}
+	}
+}
+
+// VALIDATES: inverted semantics: all-ping enable = icmp_echo_ignore_all 0.
+func TestGlobalOptionsInvertedSemantics(t *testing.T) {
+	tests := []struct {
+		keyword string
+		val     string
+		key     string
+		want    string
+	}{
+		{"all-ping", "enable", "net.ipv4.icmp_echo_ignore_all", "0"},
+		{"all-ping", "disable", "net.ipv4.icmp_echo_ignore_all", "1"},
+		{"broadcast-ping", "enable", "net.ipv4.icmp_echo_ignore_broadcasts", "0"},
+		{"broadcast-ping", "disable", "net.ipv4.icmp_echo_ignore_broadcasts", "1"},
+	}
+	for _, tc := range tests {
+		data := `{"firewall":{"global-options":{"` + tc.keyword + `":"` + tc.val + `"}}}`
+		got, err := ExtractGlobalOptions(data)
+		if err != nil {
+			t.Fatalf("%s %s: %v", tc.keyword, tc.val, err)
+		}
+		if v := got[tc.key]; v != tc.want {
+			t.Errorf("%s %s: %s = %q, want %q", tc.keyword, tc.val, tc.key, v, tc.want)
+		}
+	}
+}
+
+func TestExtractGlobalOptionsAllKeywords(t *testing.T) {
+	data := `{"firewall":{"global-options":{
+		"all-ping":"enable",
+		"broadcast-ping":"disable",
+		"syn-cookies":"enable",
+		"receive-redirects":"disable",
+		"send-redirects":"disable",
+		"source-validation":"strict",
+		"log-martians":"enable",
+		"ipv6-receive-redirects":"disable",
+		"ipv6-src-route":"disable"
+	}}}`
+	got, err := ExtractGlobalOptions(data)
+	if err != nil {
+		t.Fatalf("ExtractGlobalOptions: %v", err)
+	}
+	want := map[string]string{
+		"net.ipv4.icmp_echo_ignore_all":         "0",
+		"net.ipv4.icmp_echo_ignore_broadcasts":  "1",
+		"net.ipv4.tcp_syncookies":               "1",
+		"net.ipv4.conf.all.accept_redirects":    "0",
+		"net.ipv4.conf.all.send_redirects":      "0",
+		"net.ipv4.conf.all.rp_filter":           "1",
+		"net.ipv4.conf.all.log_martians":        "1",
+		"net.ipv6.conf.all.accept_redirects":    "0",
+		"net.ipv6.conf.all.accept_source_route": "0",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d entries, want %d", len(got), len(want))
+	}
+	for k, wv := range want {
+		if gv := got[k]; gv != wv {
+			t.Errorf("key %s = %q, want %q", k, gv, wv)
+		}
+	}
+}
+
+func TestExtractGlobalOptionsUnknownKeywordRejects(t *testing.T) {
+	data := `{"firewall":{"global-options":{"bogus":"enable"}}}`
+	if _, err := ExtractGlobalOptions(data); err == nil {
+		t.Fatal("unknown keyword must reject")
+	}
+}
+
+func TestExtractGlobalOptionsInvalidValueRejects(t *testing.T) {
+	data := `{"firewall":{"global-options":{"all-ping":"maybe"}}}`
+	if _, err := ExtractGlobalOptions(data); err == nil {
+		t.Fatal("invalid value must reject")
+	}
+}
+
+func TestExtractGlobalOptionsNoFirewall(t *testing.T) {
+	data := `{"bgp":{}}`
+	got, err := ExtractGlobalOptions(data)
+	if err != nil {
+		t.Fatalf("ExtractGlobalOptions: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("expected empty map, got %v", got)
+	}
+}
