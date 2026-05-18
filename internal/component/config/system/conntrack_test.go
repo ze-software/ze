@@ -163,12 +163,12 @@ func TestConntrackConfigParseFromMap_Empty(t *testing.T) {
 }
 
 func TestConntrackModuleValidation(t *testing.T) {
-	valid := []string{"ftp", "h323", "sip", "pptp", "tftp", "sane", "irc", "amanda", "netbios-ns", "snmp"}
+	valid := []string{"ftp", "h323", "sip", "pptp", "tftp", "nfs", "sane", "irc", "amanda", "netbios-ns", "snmp", "sqlnet"}
 	for _, m := range valid {
 		assert.True(t, system.ValidConntrackModule(m), "expected %q to be valid", m)
 	}
 
-	invalid := []string{"sqlnet", "nfs", "broadcast", "unknown", "", "ftp; rm -rf /"}
+	invalid := []string{"broadcast", "unknown", "", "ftp; rm -rf /"}
 	for _, m := range invalid {
 		assert.False(t, system.ValidConntrackModule(m), "expected %q to be invalid", m)
 	}
@@ -179,6 +179,9 @@ func TestConntrackValidateModules(t *testing.T) {
 	assert.NoError(t, cc.ValidateModules())
 
 	cc.Modules = []string{"ftp", "sqlnet"}
+	assert.NoError(t, cc.ValidateModules())
+
+	cc.Modules = []string{"ftp", "nonexistent"}
 	assert.Error(t, cc.ValidateModules())
 }
 
@@ -327,7 +330,7 @@ func TestConntrackHasConfig(t *testing.T) {
 
 func TestAllConntrackModules(t *testing.T) {
 	modules := system.AllConntrackModules()
-	assert.Len(t, modules, 10)
+	assert.Len(t, modules, 12)
 	for _, m := range modules {
 		assert.True(t, system.ValidConntrackModule(m))
 	}

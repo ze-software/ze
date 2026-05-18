@@ -4,7 +4,9 @@ package system
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
@@ -112,11 +114,13 @@ var allowedModules = map[string]bool{
 	"sip":        true,
 	"pptp":       true,
 	"tftp":       true,
+	"nfs":        true,
 	"sane":       true,
 	"irc":        true,
 	"amanda":     true,
 	"netbios-ns": true,
 	"snmp":       true,
+	"sqlnet":     true,
 }
 
 // ValidConntrackModule returns true if the module name is in the allowlist.
@@ -365,7 +369,9 @@ func (c *ConntrackConfig) hasTCPBehavior() bool {
 func (c *ConntrackConfig) ValidateModules() error {
 	for _, m := range c.Modules {
 		if !ValidConntrackModule(m) {
-			return fmt.Errorf("conntrack: unknown module %q (valid: ftp, h323, sip, pptp, tftp, sane, irc, amanda, netbios-ns, snmp)", m)
+			names := AllConntrackModules()
+			sort.Strings(names)
+			return fmt.Errorf("conntrack: unknown module %q (valid: %s)", m, strings.Join(names, ", "))
 		}
 	}
 	return nil
