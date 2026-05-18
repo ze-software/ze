@@ -16,6 +16,7 @@ Symptom-based troubleshooting using Ze's built-in diagnostic commands. All comma
 | Goroutine leak | `show system goroutines summary` |
 | DNS failure | `show dns lookup <name> type A` |
 | Process killed | `show system kernel-log level err` |
+| Route/link/addr changes | `monitor system netlink all` |
 
 ## Failure Categories
 
@@ -55,6 +56,12 @@ show capture-raw dump bgp
 
 ```
 show system kernel-log level warning count 50
+```
+
+**Stream live link/route events to correlate with flaps:**
+
+```
+monitor system netlink all
 ```
 
 **Check socket state churn:**
@@ -216,14 +223,20 @@ show errors
 ```
 show interface
 show system kernel-log level warning
+monitor system netlink link
 ```
+
+`monitor system netlink link` streams live link state changes (up/down/create/delete). Press Esc to stop.
 
 ### 11. Kernel Route Missing
 
 ```
 show kernel-routes
 show system sockets
+monitor system netlink route
 ```
+
+`monitor system netlink route` streams live kernel route changes to observe additions and deletions in real time.
 
 ### 12. DNS Resolution Failure
 

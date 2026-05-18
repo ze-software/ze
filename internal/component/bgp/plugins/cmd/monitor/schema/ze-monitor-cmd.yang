@@ -3,7 +3,7 @@ module ze-monitor-cmd {
     prefix moncmd;
     import ze-extensions { prefix ze; }
     description "Monitor command tree (verb-first: monitor <module>)";
-    revision 2026-03-27 { description "Verb-first: monitor bgp, monitor event"; }
+    revision 2026-05-18 { description "Add monitor system netlink (kernel event streaming)"; }
 
     container monitor {
         config false;
@@ -21,6 +21,18 @@ module ze-monitor-cmd {
             ze:command "ze-event:monitor";
             ze:task-support required;
             description "Stream live events with optional include/exclude filters";
+        }
+
+        container system {
+            config false;
+            description "System-level monitor commands";
+
+            container netlink {
+                config false;
+                ze:command "ze-monitor:system-netlink";
+                ze:task-support required;
+                description "Stream kernel netlink events (route, link, address changes). Args: [route|link|address|all]";
+            }
         }
     }
 }

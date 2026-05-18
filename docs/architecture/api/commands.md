@@ -76,7 +76,7 @@ produce continuously-updating output.
 | Log | levels, set (runtime log levels) |
 | Metrics | values, list (Prometheus metrics) |
 | Group | start, end (batching) |
-| Monitor | monitor bgp (TUI dashboard), monitor event (live event streaming) |
+| Monitor | monitor bgp (TUI dashboard), monitor event (live event streaming), monitor system netlink (kernel events) |
 | Subscribe | subscribe, unsubscribe (event filtering) |
 | Reports | show warnings, show errors (cross-subsystem operational report bus) |
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
@@ -331,7 +331,22 @@ Event types span all namespaces: BGP (update, open, notification, keepalive, ref
 Wire method: `ze-event:monitor`. Supports pipe operators: `| json`, `| table`, `| match`.
 <!-- source: internal/component/plugin/server/monitor.go -- MonitorManager -->
 
-**Note:** `monitor bgp` is the live peer dashboard (TUI only). `monitor event` streams live events (SSH exec or TUI).
+**Note:** `monitor bgp` is the live peer dashboard (TUI only). `monitor event` streams live events (SSH exec or TUI). `monitor system netlink` streams kernel netlink events (SSH exec or TUI, Linux only).
+
+#### Netlink Monitor
+
+Stream kernel route, link, and address change events as one JSON line per event. Replaces `ip monitor` on gokrazy appliances.
+
+```
+monitor system netlink                   # All netlink groups (route + link + address)
+monitor system netlink route             # Route changes only
+monitor system netlink link              # Link state changes only
+monitor system netlink address           # Address changes only
+monitor system netlink all               # Explicit all (same as no argument)
+```
+
+Wire method: `ze-monitor:system-netlink`. Linux only; returns "not available on this platform" on other OSes.
+<!-- source: internal/component/cmd/show/netlink_monitor_linux.go -- streamNetlinkMonitor -->
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
 
 ### System Commands

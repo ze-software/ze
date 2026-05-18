@@ -1348,6 +1348,24 @@ bgp monitor [peer <sel>] [event <types>] [direction <dir>]
 Streaming command: use in interactive `ze cli` or via SSH.
 <!-- source: internal/component/bgp/plugins/cmd/monitor/ -- monitor streaming RPCs -->
 
+### Netlink Monitoring
+
+```
+monitor system netlink [route|link|address|all]
+```
+
+Stream kernel netlink events as one JSON line per event. Replaces `ip monitor` on gokrazy appliances. Linux only.
+
+| Group | Events |
+|-------|--------|
+| `route` | Route add/delete with prefix, gateway, table, protocol |
+| `link` | Interface up/down/create/delete with name, state, MTU, MAC |
+| `address` | Address add/remove with CIDR, interface |
+| `all` | All of the above (default when no group specified) |
+
+Streaming command: use in interactive `ze cli` or via SSH. Press Esc to stop.
+<!-- source: internal/component/cmd/show/netlink_monitor_linux.go -- streamNetlinkMonitor -->
+
 ### Metrics
 
 | Command | Access | Purpose |
