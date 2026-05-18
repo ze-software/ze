@@ -3,16 +3,12 @@ package aigp
 import (
 	"log/slog"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 func init() {
-	// RFC 7311: Register AIGP attribute (type 26).
-	attribute.RegisterName(26, "AIGP")
-
 	reg := registry.Registration{
 		Name:        "bgp-aigp",
 		Description: "Accumulated IGP Metric (RFC 7311)",

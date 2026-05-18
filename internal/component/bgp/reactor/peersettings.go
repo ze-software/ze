@@ -110,6 +110,9 @@ type StaticRoute struct {
 	OriginatorID uint32
 	ClusterList  []uint32
 
+	// AIGP metric (RFC 7311)
+	AIGPMetric *uint64
+
 	// BGP Prefix-SID (RFC 8669) - wire-format bytes for attribute type 40
 	PrefixSIDBytes []byte
 

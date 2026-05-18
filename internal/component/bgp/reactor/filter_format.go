@@ -154,6 +154,7 @@ var attrNameToCode = map[string]attribute.AttributeCode{
 	"originator-id":      attribute.AttrOriginatorID,
 	"cluster-list":       attribute.AttrClusterList,
 	"extended-community": attribute.AttrExtCommunity,
+	"aigp":               attribute.AttrAIGP,
 	"large-community":    attribute.AttrLargeCommunity,
 }
 
@@ -188,7 +189,7 @@ func appendAllAttrs(buf []byte, attrs *attribute.AttributesWire) []byte {
 	order := []string{
 		"origin", "as-path", "next-hop", "med", "local-preference",
 		policyAttrAtomicAggregate, "aggregator", "community", "originator-id",
-		"cluster-list", "extended-community", "large-community",
+		"cluster-list", "extended-community", "aigp", "large-community",
 	}
 	first := true
 	for _, name := range order {
@@ -246,6 +247,8 @@ func appendSingleAttr(buf []byte, attr attribute.Attribute, first bool) ([]byte,
 	case attribute.LargeCommunities:
 		buf = a.AppendText(buf)
 	case attribute.ExtendedCommunities:
+		buf = a.AppendText(buf)
+	case *attribute.AIGP:
 		buf = a.AppendText(buf)
 	}
 

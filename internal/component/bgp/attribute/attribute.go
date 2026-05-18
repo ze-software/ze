@@ -59,6 +59,7 @@ const (
 	AttrAS4Path          AttributeCode = 17 // RFC 6793
 	AttrAS4Aggregator    AttributeCode = 18 // RFC 6793
 	AttrIPv6ExtCommunity AttributeCode = 25 // RFC 5701
+	AttrAIGP             AttributeCode = 26 // RFC 7311
 	AttrLargeCommunity   AttributeCode = 32 // RFC 8092
 )
 
@@ -79,6 +80,7 @@ var attrCodeNames = map[AttributeCode]string{
 	AttrAS4Path:          "AS4_PATH",
 	AttrAS4Aggregator:    "AS4_AGGREGATOR",
 	AttrIPv6ExtCommunity: "IPV6_EXTENDED_COMMUNITIES",
+	AttrAIGP:             "AIGP",
 	AttrLargeCommunity:   "LARGE_COMMUNITIES",
 }
 

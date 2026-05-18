@@ -203,6 +203,17 @@ func (b *Builder) ParseLargeCommunity(s string) error {
 	return nil
 }
 
+// ParseAIGP parses an AIGP metric value from string.
+// Replaces any previously set AIGP value.
+func (b *Builder) ParseAIGP(s string) error {
+	metric, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid aigp: %s", s)
+	}
+	b.SetAIGP(metric)
+	return nil
+}
+
 // ParseExtCommunity parses an extended community string.
 // APPENDS to any previously set extended communities (does not replace).
 // Supports formats:

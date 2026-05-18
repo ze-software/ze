@@ -29,6 +29,7 @@ var (
 	errMissingCommunityValue          = errors.New("missing community value")
 	errMissingLargeCommunityValue     = errors.New("missing large-community value")
 	errMissingExtendedCommunityValue  = errors.New("missing extended-community value")
+	errMissingAIGPValue               = errors.New("missing aigp value")
 	errEmptyArgsForParenthesizedValue = errors.New("empty args for parenthesized value")
 	errUnclosedParenthesisInValue     = errors.New("unclosed parenthesis in value")
 )
@@ -312,6 +313,15 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 			return 0, err
 		}
 		return consumed, nil
+
+	case "aigp":
+		if idx+1 >= len(args) {
+			return 0, errMissingAIGPValue
+		}
+		if err := b.ParseAIGP(args[idx+1]); err != nil {
+			return 0, err
+		}
+		return 1, nil
 	default: // not a common attribute — caller handles
 		return 0, nil
 	}

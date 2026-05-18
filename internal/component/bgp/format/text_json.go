@@ -443,6 +443,14 @@ func appendAttributeJSON(buf []byte, code attribute.AttributeCode, attr attribut
 			buf = append(buf, ']')
 		}
 		return buf
+	case attribute.AttrAIGP:
+		if a, ok := attr.(*attribute.AIGP); ok {
+			if metric, found := a.Metric(); found {
+				buf = append(buf, `"aigp":`...)
+				buf = strconv.AppendUint(buf, metric, 10)
+				return buf
+			}
+		}
 	}
 	// Unknown attribute code — format as "attr-N": "hex".
 	// attr.Len() bounds hex output; stack scratch for the common case, heap

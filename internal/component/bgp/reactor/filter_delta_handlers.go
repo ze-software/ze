@@ -92,6 +92,7 @@ var genericAttrCodes = []struct {
 	{attribute.AttrAggregator, 0xC0},      // Optional transitive
 	{attribute.AttrOriginatorID, 0x80},    // Optional non-transitive (RFC 4456)
 	{attribute.AttrClusterList, 0x80},     // Optional non-transitive (RFC 4456)
+	{attribute.AttrAIGP, 0xC0},            // Optional transitive (RFC 7311)
 }
 
 // originatorIDHandler handles ORIGINATOR_ID (type 9, RFC 4456 Section 8).

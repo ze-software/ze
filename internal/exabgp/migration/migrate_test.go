@@ -1273,10 +1273,11 @@ func TestConvertFlexToUpdate(t *testing.T) {
 	}
 }
 
-// TestMigrationRefusesUnsupportedCap verifies migration rejects multi-session, operational, aigp.
+// TestMigrationRefusesUnsupportedCap verifies migration rejects multi-session, operational.
 //
-// VALIDATES: AC-21, AC-22, AC-23 — migration errors on unsupported capabilities.
+// VALIDATES: AC-21, AC-22 — migration errors on unsupported capabilities.
 // PREVENTS: Silently migrating capabilities with no ze runtime implementation.
+// Note: aigp was removed from this list after AIGP support was implemented (RFC 7311).
 func TestMigrationRefusesUnsupportedCap(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1284,7 +1285,6 @@ func TestMigrationRefusesUnsupportedCap(t *testing.T) {
 	}{
 		{"multi-session", "multi-session"},
 		{"operational", "operational"},
-		{"aigp", "aigp"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

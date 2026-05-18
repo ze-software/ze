@@ -410,6 +410,7 @@ func patchStaticRoutes(ps *reactor.PeerSettings, routes []StaticRouteConfig, add
 				AtomicAggregate:   attrs.AtomicAggregate,
 				OriginatorID:      attrs.OriginatorID,
 				ClusterList:       attrs.ClusterList,
+				AIGPMetric:        attrs.AIGPMetric,
 				PrefixSIDBytes:    attrs.PrefixSID.Bytes,
 				RawAttributes:     rawAttrs,
 			}

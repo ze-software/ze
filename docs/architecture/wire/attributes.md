@@ -90,7 +90,7 @@ All path attributes share a common header:
 | 22 | 0x16 | PMSI_TUNNEL | 0xC0 (O-T) | RFC 6514 | not implemented |
 | 23 | 0x17 | TUNNEL_ENCAP | 0xC0 (O-T) | RFC 5512 | not implemented |
 | 25 | 0x19 | IPV6_EXT_COMMUNITY | 0xC0 (O-T) | RFC 5701 | implemented |
-| 26 | 0x1A | AIGP | 0x80 (O-NT) | RFC 7311 | not implemented |
+| 26 | 0x1A | AIGP | 0xC0 (O-T) | RFC 7311 | implemented |
 | 29 | 0x1D | BGP_LS | 0x80 (O-NT) | RFC 7752 | not implemented |
 | 32 | 0x20 | LARGE_COMMUNITY | 0xC0 (O-T) | RFC 8092 | implemented |
 | 40 | 0x28 | BGP_PREFIX_SID | 0xC0 (O-T) | RFC 8669 | not implemented |

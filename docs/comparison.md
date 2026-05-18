@@ -231,7 +231,7 @@ processes and injects routes from them. It is a route injector/receiver, not a r
 | ORIGINATOR_ID | Yes | Yes | Yes | Yes | No | Yes | Yes | N/A | Yes | Yes | Yes |
 | Stale route demotion (GR) | Yes | Yes | Yes | No | No | Yes | Yes | N/A | Yes | Yes | Yes |
 | RPKI preference | Yes | Yes | Yes | No | Yes | Yes | Yes | N/A | Yes | Yes | Yes |
-| AIGP | No | No | No | No | No | Yes | Yes | N/A | No | No | Yes |
+| AIGP | Yes | No | No | No | No | Yes | Yes | N/A | No | No | Yes |
 | Multipath/ECMP | Partial | Partial | Yes | Yes | No | Yes | Yes | N/A | Yes | Yes | Yes |
 
 ## Positioning

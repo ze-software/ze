@@ -336,6 +336,9 @@ func applyAttributesFromTree(tree *config.Tree, sr *StaticRouteConfig) error {
 	if items := tree.GetSlice("cluster-list"); len(items) > 0 {
 		sr.ClusterList = strings.Join(items, " ")
 	}
+	if v, ok := tree.Get("aigp"); ok {
+		sr.AIGP = v
+	}
 	// Flex syntax stores in multiValues, so use GetFlex
 	if v, ok := tree.GetFlex("bgp-prefix-sid"); ok {
 		sr.PrefixSID = v

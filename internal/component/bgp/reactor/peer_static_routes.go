@@ -76,6 +76,9 @@ func toStaticRouteUnicastParams(r *StaticRoute, nextHop, linkLocal netip.Addr, s
 
 	// Write raw attributes into a single contiguous buffer
 	rawAttrs := packRawAttributes(r.RawAttributes)
+	if r.AIGPMetric != nil {
+		rawAttrs = appendAIGPRaw(rawAttrs, *r.AIGPMetric)
+	}
 
 	return message.UnicastParams{
 		Prefix:             r.Prefix,
@@ -106,6 +109,9 @@ func toStaticRouteUnicastParams(r *StaticRoute, nextHop, linkLocal netip.Addr, s
 func toStaticRouteLabeledUnicastParams(r *StaticRoute, nextHop netip.Addr) message.LabeledUnicastParams {
 	// Write raw attributes into a single contiguous buffer
 	rawAttrs := packRawAttributes(r.RawAttributes)
+	if r.AIGPMetric != nil {
+		rawAttrs = appendAIGPRaw(rawAttrs, *r.AIGPMetric)
+	}
 
 	return message.LabeledUnicastParams{
 		Prefix:            r.Prefix,
@@ -196,6 +202,18 @@ func routeFamily(route *StaticRoute) family.Family {
 		return family.IPv6Unicast
 	}
 	return family.IPv4Unicast
+}
+
+// appendAIGPRaw packs an AIGP metric as a complete wire attribute and appends it
+// to the raw attribute list. RFC 7311: optional transitive, type 26.
+func appendAIGPRaw(rawAttrs [][]byte, metric uint64) [][]byte {
+	const hdrLen = 3                                  // flags(1) + code(1) + length(1)
+	buf := make([]byte, hdrLen+attribute.AIGPWireLen) // pool-fallback
+	buf[0] = byte(attribute.FlagOptional | attribute.FlagTransitive)
+	buf[1] = byte(attribute.AttrAIGP)
+	buf[2] = byte(attribute.AIGPWireLen)
+	attribute.WriteAIGPMetric(buf, hdrLen, metric)
+	return append(rawAttrs, buf)
 }
 
 // writeRawAttribute writes a raw attribute into buf at off, returning bytes written.
@@ -318,6 +336,10 @@ func routeGroupKey(r *StaticRoute) string {
 	b.Uint(uint64(r.OriginatorID))
 	b.Sep()
 	b.Uint32Slice(r.ClusterList)
+	if r.AIGPMetric != nil {
+		b.Sep()
+		b.Uint(*r.AIGPMetric)
+	}
 	return b.String()
 }
 

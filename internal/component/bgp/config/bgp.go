@@ -96,6 +96,7 @@ type StaticRouteConfig struct {
 	Attribute         string   // Raw attribute hex: [ code flags value ]
 	OriginatorID      string   // ORIGINATOR_ID (RFC 4456)
 	ClusterList       string   // CLUSTER_LIST (RFC 4456)
+	AIGP              string   // AIGP metric (RFC 7311)
 	PrefixSID         string   // BGP Prefix-SID (RFC 8669) - can be number or "N, [(base,range),...]"
 
 	// Split prefix into more-specific routes (e.g., "/25" splits /24 into two /25s)

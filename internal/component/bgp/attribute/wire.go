@@ -386,7 +386,8 @@ func init() {
 	knownAttrParsers[AttrAS4Aggregator] = func(d []byte, _ bool) (Attribute, error) { return ParseAS4Aggregator(d) }
 	knownAttrParsers[AttrLargeCommunity] = func(d []byte, _ bool) (Attribute, error) { return ParseLargeCommunities(d) }
 	knownAttrParsers[AttrIPv6ExtCommunity] = func(d []byte, _ bool) (Attribute, error) { return ParseIPv6ExtendedCommunities(d) }
-	// Known codes without parsers yet (PMSI, TunnelEncap, AIGP, BGPLS, PrefixSID):
+	knownAttrParsers[AttrAIGP] = func(d []byte, _ bool) (Attribute, error) { return ParseAIGP(d) }
+	// Known codes without parsers yet (PMSI, TunnelEncap, BGPLS, PrefixSID):
 	// left nil — treated as opaque, same as truly unknown codes.
 }
 

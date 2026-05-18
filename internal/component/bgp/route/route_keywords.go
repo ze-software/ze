@@ -15,6 +15,7 @@ var UnicastKeywords = KeywordSet{
 	"community":          true,
 	"large-community":    true,
 	"extended-community": true, // RFC 4360 extended communities
+	"aigp":               true, // RFC 7311 accumulated IGP metric
 	"split":              true, // ze extension
 }
 
@@ -29,6 +30,7 @@ var MPLSKeywords = KeywordSet{
 	"community":          true,
 	"large-community":    true,
 	"extended-community": true, // RFC 4360 extended communities
+	"aigp":               true, // RFC 7311 accumulated IGP metric
 	"label":              true, // MPLS label stack
 	"split":              true, // Prefix expansion (same label per prefix)
 	"path-id":            true, // ADD-PATH identifier (RFC 7911)
@@ -46,6 +48,7 @@ var VPNKeywords = KeywordSet{
 	"community":          true,
 	"large-community":    true,
 	"extended-community": true, // RFC 4360 extended communities
+	"aigp":               true, // RFC 7311 accumulated IGP metric
 	"rd":                 true, // Route Distinguisher
 	"rt":                 true, // Route Target
 	"label":              true, // MPLS label

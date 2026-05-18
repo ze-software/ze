@@ -266,6 +266,8 @@ func encodeAttrValue(name, value string) ([]byte, error) {
 		return encodeExtCommunityValue(value)
 	case "large-community":
 		return encodeLargeCommunityValue(value)
+	case "aigp":
+		return encodeAIGPValue(value)
 	}
 	return nil, fmt.Errorf("unsupported attribute: %s", name)
 }
@@ -441,6 +443,18 @@ func encodeIPv4Value(s string) ([]byte, error) {
 	}
 	ip4 := addr.As4()
 	return ip4[:], nil
+}
+
+// encodeAIGPValue encodes a decimal metric string to an 11-byte AIGP TLV value.
+// RFC 7311: type(1) + length(2) + metric(8).
+func encodeAIGPValue(s string) ([]byte, error) {
+	metric, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid aigp metric: %s", s)
+	}
+	buf := make([]byte, attribute.AIGPWireLen)
+	attribute.WriteAIGPMetric(buf, 0, metric)
+	return buf, nil
 }
 
 // encodeClusterListValue encodes space-separated dotted-decimal IDs to wire bytes.

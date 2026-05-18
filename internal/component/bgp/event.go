@@ -22,7 +22,7 @@ var KnownFields = map[string]bool{
 	"type": true, "msg-id": true, "message": true,
 	"peer": true, "state": true, "origin": true, "as-path": true,
 	"med": true, "local-preference": true, "communities": true,
-	"large-communities": true, "extended-communities": true,
+	"large-communities": true, "extended-communities": true, "aigp": true,
 	"serial": true, "command": true, "args": true, "afi": true, "safi": true,
 	"raw": true, // format=full includes raw bytes
 	// Pool storage raw fields (format=full).
@@ -167,6 +167,7 @@ func parseAttributes(event *Event, attrsData json.RawMessage) {
 		Communities         []string `json:"communities,omitempty"`
 		LargeCommunities    []string `json:"large-communities,omitempty"`
 		ExtendedCommunities []string `json:"extended-communities,omitempty"`
+		AIGP                *uint64  `json:"aigp,omitempty"`
 	}
 	if err := json.Unmarshal(attrsData, &attrs); err == nil {
 		if attrs.Origin != "" {
@@ -189,6 +190,9 @@ func parseAttributes(event *Event, attrsData json.RawMessage) {
 		}
 		if len(attrs.ExtendedCommunities) > 0 {
 			event.ExtendedCommunities = attrs.ExtendedCommunities
+		}
+		if attrs.AIGP != nil {
+			event.AIGP = attrs.AIGP
 		}
 	}
 }
@@ -318,6 +322,7 @@ type Event struct {
 	Communities         []string `json:"communities,omitempty"`
 	LargeCommunities    []string `json:"large-communities,omitempty"`
 	ExtendedCommunities []string `json:"extended-communities,omitempty"`
+	AIGP                *uint64  `json:"aigp,omitempty"`
 
 	// Request fields.
 	Serial  string   `json:"serial,omitempty"`

@@ -547,7 +547,7 @@ func migrateCapability(src, dst *config.Tree) error {
 
 	if srcCap != nil {
 		// Reject unsupported ExaBGP capabilities (no ze runtime implementation).
-		unsupported := []string{"multi-session", "operational", "aigp"}
+		unsupported := []string{"multi-session", "operational"}
 		for _, field := range unsupported {
 			if _, ok := srcCap.GetFlex(field); ok {
 				return fmt.Errorf("unsupported capability %q: not implemented in ze", field)

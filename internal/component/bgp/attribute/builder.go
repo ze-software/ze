@@ -29,6 +29,7 @@ type Builder struct {
 	largeCommunities []LargeCommunity
 	extCommunities   []ExtendedCommunity
 	atomicAggregate  bool
+	aigpMetric       *uint64
 
 	// Pre-built wire bytes (for forwarding received attributes)
 	wire []byte
@@ -118,6 +119,12 @@ func (b *Builder) SetAtomicAggregate(v bool) *Builder {
 	return b
 }
 
+// SetAIGP sets the AIGP attribute with the given metric value.
+func (b *Builder) SetAIGP(metric uint64) *Builder {
+	b.aigpMetric = &metric
+	return b
+}
+
 // SetWire sets pre-built wire bytes (for forwarding).
 // When wire is set, Build() returns it directly.
 func (b *Builder) SetWire(wire []byte) *Builder {
@@ -182,6 +189,10 @@ func (b *Builder) Len() int {
 		} else {
 			size += 3 + extLen
 		}
+	}
+
+	if b.aigpMetric != nil {
+		size += 3 + aigpTLVMetricLen // attr header (3) + TLV (11)
 	}
 
 	if len(b.largeCommunities) > 0 {
@@ -332,6 +343,18 @@ func (b *Builder) WriteTo(buf []byte) int {
 		}
 	}
 
+	// AIGP (type 26) - RFC 7311
+	if b.aigpMetric != nil {
+		buf[off] = 0xC0 // Optional | Transitive
+		buf[off+1] = 26 // AIGP
+		buf[off+2] = byte(aigpTLVMetricLen)
+		off += 3
+		buf[off] = aigpTLVTypeMetric
+		binary.BigEndian.PutUint16(buf[off+1:], aigpTLVMetricLen)
+		binary.BigEndian.PutUint64(buf[off+3:], *b.aigpMetric)
+		off += aigpTLVMetricLen
+	}
+
 	// LARGE_COMMUNITY (type 32)
 	if len(b.largeCommunities) > 0 {
 		largeLen := len(b.largeCommunities) * 12
@@ -390,6 +413,7 @@ func (b *Builder) IsEmpty() bool {
 		len(b.largeCommunities) == 0 &&
 		len(b.extCommunities) == 0 &&
 		!b.atomicAggregate &&
+		b.aigpMetric == nil &&
 		len(b.wire) == 0
 }
 
@@ -404,6 +428,7 @@ func (b *Builder) Reset() {
 	b.largeCommunities = nil
 	b.extCommunities = nil
 	b.atomicAggregate = false
+	b.aigpMetric = nil
 	b.wire = nil
 }
 
@@ -453,6 +478,11 @@ func (b *Builder) ToAttributes() []Attribute {
 	// EXTENDED_COMMUNITIES
 	if len(b.extCommunities) > 0 {
 		result = append(result, ExtendedCommunities(b.extCommunities))
+	}
+
+	// AIGP
+	if b.aigpMetric != nil {
+		result = append(result, NewAIGPMetric(*b.aigpMetric))
 	}
 
 	return result

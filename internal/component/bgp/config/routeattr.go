@@ -360,6 +360,7 @@ type ParsedRouteAttributes struct {
 	AtomicAggregate   bool
 	OriginatorID      uint32   // RFC 4456
 	ClusterList       []uint32 // RFC 4456
+	AIGPMetric        *uint64  // RFC 7311
 	PrefixSID         PrefixSID
 	RawAttributes     []RawAttribute
 }
@@ -486,6 +487,15 @@ func ParseRouteAttributes(src *StaticRouteConfig) (*ParsedRouteAttributes, error
 				attrs.ClusterList = append(attrs.ClusterList, uint32(b[0])<<24|uint32(b[1])<<16|uint32(b[2])<<8|uint32(b[3]))
 			}
 		}
+	}
+
+	// AIGP (RFC 7311)
+	if src.AIGP != "" {
+		metric, err := strconv.ParseUint(src.AIGP, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid aigp %q: %w", src.AIGP, err)
+		}
+		attrs.AIGPMetric = &metric
 	}
 
 	// BGP Prefix-SID (RFC 8669 label-index or RFC 9252 SRv6)
