@@ -68,9 +68,9 @@ import (
 	// to avoid import cycles: format → plugin → all → bgp-rs → format.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 
-	// Blank import: diag's init() registers ping/traceroute/generate
-	// wireguard keypair with cmdregistry. Not referenced by main()
-	// directly because dispatch goes through the registry fallback.
+	// Blank import: diag's init() registers ping/generate wireguard
+	// keypair with cmdregistry. Not referenced by main() directly
+	// because dispatch goes through the registry fallback.
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/diag"
 
 	// Blank import: crashes' init() registers `crashes show` with
@@ -540,7 +540,7 @@ dispatch:
 	}
 
 	// Registry fallback: root-level commands registered via cmdregistry
-	// (ping, traceroute, generate wireguard keypair, ...) whose init()
+	// (ping, generate wireguard keypair, ...) whose init()
 	// wired a handler. Longest-prefix match on the raw argv so that
 	// multi-word commands ("generate wireguard keypair") win over
 	// shorter prefixes.

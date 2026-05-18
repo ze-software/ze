@@ -1,4 +1,6 @@
 // Design: plan/spec-diag-5-active-probes.md -- ICMP ping from the router
+// Related: tcp_check.go -- similar active probe pattern
+// Related: traceroute.go -- ICMP traceroute, reuses buildICMPEcho/icmpChecksum
 
 package show
 
@@ -59,7 +61,7 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {
 			}
 			count = n
 			i++
-		case "timeout":
+		case argTimeout:
 			if i+1 >= len(args) {
 				return dest, 0, 0, errPingTimeoutRequiresAValueE
 			}

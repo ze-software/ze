@@ -180,6 +180,12 @@ module ze-cli-show-cmd {
             description "ICMP ping from the router (<dest> [count N] [timeout Ns])";
         }
 
+        container traceroute {
+            config false;
+            ze:command "ze-show:traceroute";
+            description "Trace path to target (<dest> [max-hops N] [timeout Ns] [probes N])";
+        }
+
         container tcp-check {
             config false;
             ze:command "ze-show:tcp-check";

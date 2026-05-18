@@ -1,10 +1,10 @@
-// Design: docs/guide/command-catalogue.md -- diagnostics (ping, traceroute, wireguard keygen)
-// Related: ../main.go -- registers RunPing / RunTraceroute / RunWgKeypair as local commands
+// Design: docs/guide/command-catalogue.md -- diagnostics (ping, wireguard keygen)
+// Related: ../main.go -- registers RunPing / RunWgKeypair as local commands
 //
 // Package diag is the offline home for network diagnostic commands that
 // wrap OS tools with validated argv (no shell). The daemon is not
-// required: all three subcommands are local shell-outs from the `ze`
-// binary. Per rules/cli-patterns.md each subcommand uses its own
+// required: subcommands are local shell-outs from the `ze` binary.
+// Per rules/cli-patterns.md each subcommand uses its own
 // flag.NewFlagSet with a custom Usage printer.
 
 package diag
@@ -29,7 +29,6 @@ var hostnameRE = regexp.MustCompile(`^[A-Za-z0-9._:-]+$`)
 
 const (
 	maxPingCount        = 100000 // per-invocation echo-request ceiling
-	maxTracerouteProbes = 10     // per-hop probes ceiling
 	maxTargetLen        = 253    // RFC 1035 hostname ceiling
 	maxInterfaceNameLen = 15     // Linux IFNAMSIZ minus NUL
 )
@@ -73,18 +72,18 @@ func validateInterfaceName(name string) error {
 	return nil
 }
 
-// diagSpec describes one diagnostic tool (ping, traceroute) with a
-// single integer knob. runDiag handles flag parsing, target validation,
-// integer bound checks, and exec.
+// diagSpec describes one diagnostic tool with a single integer knob.
+// runDiag handles flag parsing, target validation, integer bound
+// checks, and exec.
 type diagSpec struct {
-	name       string // "ping" / "traceroute"
-	countName  string // "count" / "probes"
-	countShort string // "c" / "q" (short flag)
-	countDesc  string // description for --count/--probes
-	toolFlag   string // "-c" / "-q" (flag passed to the OS tool)
-	ifaceFlag  string // "-I" / "-i"
-	maxCount   int    // upper bound on the integer knob
-	usageTail  string // trailing help text ("Send ICMP echo-request...")
+	name       string
+	countName  string
+	countShort string
+	countDesc  string
+	toolFlag   string
+	ifaceFlag  string
+	maxCount   int
+	usageTail  string
 }
 
 var pingSpec = diagSpec{
@@ -98,30 +97,12 @@ var pingSpec = diagSpec{
 	usageTail:  "Send ICMP echo-request to <target>. Arguments are validated before\nexec; no shell is involved.",
 }
 
-var tracerouteSpec = diagSpec{
-	name:       "traceroute",
-	countName:  "probes",
-	countShort: "q",
-	countDesc:  "probes per hop (1..10; 0 = tool default)",
-	toolFlag:   "-q",
-	ifaceFlag:  "-i",
-	maxCount:   maxTracerouteProbes,
-	usageTail:  "Trace the path to <target> by sending probes per hop. Arguments\nare validated before exec; no shell is involved.",
-}
-
 // RunPing invokes the OS `ping` utility against target with optional
 // count/interface flags (usage: `ze ping <target> [--count N]
 // [--interface IF]`). Returns the exit code from `ping`.
 func RunPing(args []string) int { return runDiag(pingSpec, args) }
 
-// RunTraceroute invokes the OS `traceroute` utility (usage: `ze
-// traceroute <target> [--probes N] [--interface IF]`). --probes is
-// ze's name for traceroute's per-hop query count (the OS tool's -q);
-// we rename it because operators usually expect --probes to mean
-// per-hop queries rather than total-packets.
-func RunTraceroute(args []string) int { return runDiag(tracerouteSpec, args) }
-
-// runDiag is the shared validation+exec path for ping and traceroute.
+// runDiag is the shared validation+exec path for ping.
 func runDiag(spec diagSpec, args []string) int {
 	fs := flag.NewFlagSet(spec.name, flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)

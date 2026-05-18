@@ -37,6 +37,7 @@ import (
 // flagging the literal repetition across the show package.
 const (
 	argCount               = "count"
+	argTimeout             = "timeout"
 	msgSubsystemNotRunning = "subsystem not running"
 )
 
@@ -139,6 +140,10 @@ func init() {
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:health",
 			Handler:    handleShowHealth,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:traceroute",
+			Handler:    handleTraceroute,
 		},
 	)
 	// ze-show:host-* RPCs are registered from host.go's own init()

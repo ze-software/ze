@@ -94,7 +94,7 @@ func parseTCPCheckArgs(args []string) (host string, port int, source string, tim
 	positional := 0
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "timeout":
+		case argTimeout:
 			if i+1 >= len(args) {
 				return "", 0, "", 0, errors.New("tcp-check: timeout requires a value (e.g. 3s)")
 			}

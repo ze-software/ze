@@ -9,6 +9,7 @@ Symptom-based troubleshooting using Ze's built-in diagnostic commands. All comma
 | Symptom | First Command |
 |---------|--------------|
 | BGP session won't establish | `show tcp-check <peer-ip> 179` |
+| Path/routing issue | `show traceroute <dest>` |
 | BGP session flapping | `show system kernel-log level warning count 50` |
 | High CPU | `show system profile cpu duration 10s` |
 | Memory leak | `show system profile heap` |
@@ -29,6 +30,14 @@ show tcp-check <peer-ip> 179
 ```
 
 If "refused": peer is not listening. If "timeout": firewall or routing issue.
+
+**Trace the path to the peer:**
+
+```
+show traceroute <peer-ip>
+```
+
+If hops stop before the peer, there is a routing or firewall issue at that hop.
 
 **Check sockets for existing connections:**
 
@@ -334,4 +343,4 @@ CPU profiling is mutex-protected. A second concurrent request returns an error. 
 
 ## Platform Notes
 
-Commands that read `/proc` (sockets, kernel-log, file-descriptors, memory-map) are Linux-only. On other platforms they return "not available on this platform". The remaining commands (tcp-check, goroutines, dns, profile) work on all platforms.
+Commands that read `/proc` (sockets, kernel-log, file-descriptors, memory-map) are Linux-only. On other platforms they return "not available on this platform". The remaining commands (tcp-check, traceroute, goroutines, dns, profile) work on all platforms but traceroute requires CAP_NET_RAW.

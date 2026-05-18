@@ -143,6 +143,7 @@ the bus from buggy or malicious producers.
 | `ze-show:system-kernel-log` | `handleShowSystemKernelLog` in `kernel_log_linux.go` | `{"entries": [...], "count": N}` (Linux only) |
 | `ze-show:system-goroutines` | `handleShowSystemGoroutines` in `goroutines.go` | `{"total": N, "by-state": {...}, "mode": "..."}` |
 | `ze-show:tcp-check` | `handleTCPCheck` in `tcp_check.go` | `{"host": "...", "port": N, "result": "...", "latency-ms": N}` |
+| `ze-show:traceroute` | `handleTraceroute` in `traceroute.go` | `{"target": "...", "hops": [{"hop": N, "addr": "...", "rtt-ms": N, "ttl": N}, ...]}` |
 | `ze-show:system-file-descriptors` | `handleShowSystemFD` in `fd_linux.go` | `{"total": N, "by-type": {...}, "soft-limit": N, "hard-limit": N}` (Linux only) |
 | `ze-show:dns-lookup` | `handleDNSLookup` in `dns.go` | `{"name": "...", "type": "...", "records": [...], "query-time-ms": N}` |
 | `ze-show:dns-cache` | `handleDNSCache` in `dns.go` | `{"entries": N, "capacity": N, "hits": N, "misses": N, "evictions": N, "expired": N}` |

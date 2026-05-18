@@ -356,7 +356,7 @@ automatically.
 | Map dispatch (simple) | `cmd/ze/data/main.go` | Stateless subcommands |
 | Registry dispatch | `cmd/ze/plugin/main.go` | Plugin CLI routing |
 | **Root + local registration** | `cmd/ze/bgp/register.go` | Canonical `register.go` shape |
-| **Bare-verb registration** | `cmd/ze/diag/register.go` | Multiple root names in one init() (ping, traceroute, generate) |
+| **Bare-verb registration** | `cmd/ze/diag/register.go` | Multiple root names in one init() (ping, generate) |
 | **Storage-bound local** | `cmd/ze/config/register.go` | `BindStorageCommands(resolve)` for blob-store-dependent handlers |
 | Online RPC | `internal/component/cmd/show/show.go` | Read-only verb |
 | Online RPC | `internal/component/cmd/set/set.go` | Write verb |

@@ -520,6 +520,23 @@ Returns result (connected/refused/timeout) and latency-ms.
 
 <!-- source: internal/component/cmd/show/tcp_check.go -- handleTCPCheck -->
 
+### show traceroute
+
+```
+ze show traceroute 8.8.8.8                        # Trace path to target
+ze show traceroute 8.8.8.8 max-hops 10            # Limit to 10 hops (1-64)
+ze show traceroute 8.8.8.8 timeout 2s             # Per-probe timeout (1s-30s)
+ze show traceroute 8.8.8.8 probes 1               # 1 probe per hop (1-10)
+ze show traceroute 2001:db8::1                     # IPv6 target
+ze show traceroute example.com                     # Hostname (resolved to IP)
+```
+
+Returns JSON with target and per-hop array. Each hop has: hop (int), addr
+(string or "*" for timeout), rtt-ms (float or null), ttl (int). Requires
+CAP_NET_RAW (root privilege enforced at startup).
+
+<!-- source: internal/component/cmd/show/traceroute.go -- handleTraceroute -->
+
 ### show system file-descriptors
 
 ```

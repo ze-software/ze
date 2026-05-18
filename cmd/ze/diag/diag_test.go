@@ -130,29 +130,6 @@ func TestRunPing_ValidationErrors(t *testing.T) {
 	}
 }
 
-// TestRunTraceroute_ValidationErrors mirrors RunPing cases for
-// traceroute's --probes (1..10) ceiling.
-func TestRunTraceroute_ValidationErrors(t *testing.T) {
-	cases := []struct {
-		name string
-		args []string
-	}{
-		{"no target", []string{}},
-		{"shell meta target", []string{"a;rm -rf /"}},
-		{"probes negative", []string{"--probes", "-1", "1.1.1.1"}},
-		{"probes too large", []string{"--probes", "11", "1.1.1.1"}},
-		{"probes non-int", []string{"--probes", "abc", "1.1.1.1"}},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			silenceStderr(t)
-			if rc := RunTraceroute(tc.args); rc != 1 {
-				t.Errorf("RunTraceroute(%v) = %d, want 1", tc.args, rc)
-			}
-		})
-	}
-}
-
 // TestRunPing_Help asserts that -h exits 0 (flag.ErrHelp handled).
 func TestRunPing_Help(t *testing.T) {
 	silenceStderr(t)
