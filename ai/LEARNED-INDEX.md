@@ -40,6 +40,7 @@ Buffer-first, zero-copy, attribute pools, UPDATE building, NLRI parsing.
 - [176](plan/learned/176-per-attribute-deduplication.md) -- Per-attribute-type pool dedup design
 - [204](plan/learned/204-update-shared-parsing.md) -- Shared UPDATE parsing for wire/API
 - [721](plan/learned/721-bgp-2-aspa.md) -- ASPA path verification: RTR v2 per-session version, ROACache O(1) counter, route tracker for re-validation
+- [722](plan/learned/722-spec-bgp-4-aspa-policy.md) -- ASPA policy enforcement: override ordering (ASPA reject wins over origin accept), re-validation via validateCh, origin policy is hardcoded not configurable
 
 ## Plugin System
 

@@ -121,7 +121,7 @@ func TestParseRPKIConfigASPAValidationDefault(t *testing.T) {
 }
 
 func TestParseRPKIConfigASPAValidationEnabled(t *testing.T) {
-	jsonStr := `{"rpki": {"aspa-validation": "true", "cache-server": {"10.0.0.1": {}}}}`
+	jsonStr := `{"rpki": {"aspa": {"validation": "true"}, "cache-server": {"10.0.0.1": {}}}}`
 
 	cfg, err := parseRPKIConfig(jsonStr)
 	require.NoError(t, err)
@@ -129,9 +129,48 @@ func TestParseRPKIConfigASPAValidationEnabled(t *testing.T) {
 }
 
 func TestParseRPKIConfigASPAValidationDisabled(t *testing.T) {
-	jsonStr := `{"rpki": {"aspa-validation": "false", "cache-server": {"10.0.0.1": {}}}}`
+	jsonStr := `{"rpki": {"aspa": {"validation": "false"}, "cache-server": {"10.0.0.1": {}}}}`
 
 	cfg, err := parseRPKIConfig(jsonStr)
 	require.NoError(t, err)
 	assert.False(t, cfg.ASPAValidation)
+}
+
+func TestParseRPKIConfigASPAPolicy(t *testing.T) {
+	jsonStr := `{"rpki": {
+		"aspa": {
+			"validation": "true",
+			"policy": {
+				"invalid-action": "reject",
+				"unknown-action": "reject"
+			}
+		},
+		"cache-server": {"10.0.0.1": {}}
+	}}`
+
+	cfg, err := parseRPKIConfig(jsonStr)
+	require.NoError(t, err)
+	assert.Equal(t, ASPAPolicyReject, cfg.ASPAInvalidAction)
+	assert.Equal(t, ASPAPolicyReject, cfg.ASPAUnknownAction)
+}
+
+func TestParseRPKIConfigASPAPolicyDefaults(t *testing.T) {
+	jsonStr := `{"rpki": {"cache-server": {"10.0.0.1": {}}}}`
+
+	cfg, err := parseRPKIConfig(jsonStr)
+	require.NoError(t, err)
+	assert.Equal(t, ASPAPolicyLogOnly, cfg.ASPAInvalidAction)
+	assert.Equal(t, ASPAPolicyAccept, cfg.ASPAUnknownAction)
+}
+
+func TestParseRPKIConfigASPAPolicyPartial(t *testing.T) {
+	jsonStr := `{"rpki": {
+		"aspa": {"policy": {"invalid-action": "accept"}},
+		"cache-server": {"10.0.0.1": {}}
+	}}`
+
+	cfg, err := parseRPKIConfig(jsonStr)
+	require.NoError(t, err)
+	assert.Equal(t, ASPAPolicyAccept, cfg.ASPAInvalidAction)
+	assert.Equal(t, ASPAPolicyAccept, cfg.ASPAUnknownAction) // default preserved
 }

@@ -77,23 +77,38 @@ const (
 
 // validationRequest is a pending validation decision to be processed by the worker.
 type validationRequest struct {
-	peerAddr string
-	family   string
-	prefix   string
-	pathID   uint32
-	state    uint8
+	peerAddr  string
+	family    string
+	prefix    string
+	pathID    uint32
+	state     uint8 // origin validation state
+	aspaState uint8 // ASPA path verification state
+}
+
+// aspaOverridesAccept returns true if ASPA policy demands rejecting a route
+// that origin validation would otherwise accept.
+func aspaOverridesAccept(aspaState, invalidAction, unknownAction uint8) bool {
+	switch aspaState {
+	case ASPAInvalid:
+		return invalidAction == ASPAPolicyReject
+	case ASPAUnknown:
+		return unknownAction == ASPAPolicyReject
+	}
+	return false
 }
 
 // RPKIPlugin implements the bgp-rpki plugin.
 // It manages RTR sessions to RPKI cache servers, maintains the ROA cache,
 // and validates received routes against VRPs.
 type RPKIPlugin struct {
-	plugin      *sdk.Plugin
-	cache       *ROACache
-	aspaCache   *ASPACache
-	aspaTracker *ASPATracker
-	aspaEnabled atomic.Bool
-	mu          sync.RWMutex
+	plugin            *sdk.Plugin
+	cache             *ROACache
+	aspaCache         *ASPACache
+	aspaTracker       *ASPATracker
+	aspaEnabled       atomic.Bool
+	aspaInvalidAction atomic.Uint32
+	aspaUnknownAction atomic.Uint32
+	mu                sync.RWMutex
 
 	// sessions holds active RTR sessions to cache servers.
 	sessions []*RTRSession
@@ -239,6 +254,8 @@ func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
 
 	rp.active.Store(true)
 	rp.aspaEnabled.Store(cfg.ASPAValidation)
+	rp.aspaInvalidAction.Store(uint32(cfg.ASPAInvalidAction))
+	rp.aspaUnknownAction.Store(uint32(cfg.ASPAUnknownAction))
 
 	rp.mu.Lock()
 	defer rp.mu.Unlock()
@@ -380,11 +397,12 @@ func (rp *RPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, m
 
 		select {
 		case rp.validateCh <- validationRequest{
-			peerAddr: peerAddr,
-			family:   family,
-			prefix:   prefix,
-			pathID:   pathID,
-			state:    state,
+			peerAddr:  peerAddr,
+			family:    family,
+			prefix:    prefix,
+			pathID:    pathID,
+			state:     state,
+			aspaState: aspaState,
 		}:
 		case <-rp.stopCh:
 			return
@@ -458,11 +476,12 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 				// Blocking enqueue to async worker (backpressure if worker falls behind).
 				select {
 				case rp.validateCh <- validationRequest{
-					peerAddr: peerAddr,
-					family:   famName,
-					prefix:   prefix,
-					pathID:   pathID,
-					state:    state,
+					peerAddr:  peerAddr,
+					family:    famName,
+					prefix:    prefix,
+					pathID:    pathID,
+					state:     state,
+					aspaState: aspaState,
 				}:
 				case <-rp.stopCh:
 					return
@@ -544,6 +563,15 @@ func (rp *RPKIPlugin) dispatchValidation(req validationRequest) {
 			stateStr = "1"
 		}
 		cmd = "adj-rib-in accept-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + pathIDStr + " " + stateStr
+	}
+
+	// ASPA policy override: if origin accepts but ASPA demands reject, override.
+	if req.state != ValidationInvalid && req.aspaState != aspaStateNone {
+		if aspaOverridesAccept(req.aspaState,
+			uint8(rp.aspaInvalidAction.Load()),   //nolint:gosec // stored as uint8, fits
+			uint8(rp.aspaUnknownAction.Load())) { //nolint:gosec // stored as uint8, fits
+			cmd = "adj-rib-in reject-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + pathIDStr
+		}
 	}
 
 	for attempt := range validationRetries {
@@ -693,15 +721,34 @@ func (rp *RPKIPlugin) removeTrackedNLRIs(peerAddr, fam string, nlriData []byte, 
 }
 
 // handleASPAChange is called by RTR sessions when ASPA cache data changes.
-// Re-validates tracked routes and emits updated events for state changes.
+// Re-validates tracked routes, emits updated events for state changes,
+// and dispatches reject for routes that ASPA policy now demands rejecting.
 func (rp *RPKIPlugin) handleASPAChange(changedCustomers []uint32) {
 	if !rp.aspaEnabled.Load() {
 		return
 	}
+	invalidAction := uint8(rp.aspaInvalidAction.Load()) //nolint:gosec // stored as uint8
+	unknownAction := uint8(rp.aspaUnknownAction.Load()) //nolint:gosec // stored as uint8
+
 	changed := rp.aspaTracker.Revalidate(rp.aspaCache, changedCustomers)
 	for _, rt := range changed {
 		rp.emitRPKIEvent(rt.key.peerAddr, rt.peerName, rt.peerASN, rt.msgID,
 			rt.key.family, nil, false, rt.aspaState)
+
+		if aspaOverridesAccept(rt.aspaState, invalidAction, unknownAction) {
+			select {
+			case rp.validateCh <- validationRequest{
+				peerAddr:  rt.key.peerAddr,
+				family:    rt.key.family,
+				prefix:    rt.key.prefix,
+				pathID:    rt.key.pathID,
+				state:     ValidationValid,
+				aspaState: rt.aspaState,
+			}:
+			case <-rp.stopCh:
+				return
+			}
+		}
 	}
 }
 

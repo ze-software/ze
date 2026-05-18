@@ -1,9 +1,11 @@
-# Test: ASPA verification yields Unknown when no ASPA records cover the path
-# VALIDATES: AC-4 — route with no ASPA coverage -> aspa-state=unknown
-# PREVENTS: Missing ASPA records incorrectly classified as Valid or Invalid
+# Test: ASPA policy reject - route with ASPA Invalid path rejected when policy=reject
+# VALIDATES: AC-1 — aspa-invalid-action reject + ASPA Invalid -> route rejected
+# VALIDATES: AC-7 — ROA Valid + ASPA Invalid + reject -> route rejected
+# PREVENTS: ASPA Invalid routes accepted when operator configured reject
 
 # ze-peer: send route 10.0.1.0/24 with AS_PATH [64500, 64501, 64502]
-# No ASPA records for any AS in path -> Unknown
+# 64502 has ASPA record but does NOT authorize 64501 -> Invalid
+# VRP matches (ROA Valid) but ASPA Invalid -> should be rejected
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
@@ -12,8 +14,8 @@ option=update:value=send-route:prefix=10.0.1.0/24:origin-as=64502:next-hop=10.0.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python observer: check aspa-state=unknown
-tmpfs=rpki-aspa-unknown-test.run:mode=755:terminator=EOF_RUN
+# Python observer: verify route is NOT in adj-rib-in (rejected by ASPA policy)
+tmpfs=rpki-aspa-policy-reject-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
@@ -40,7 +42,8 @@ def main():
     time.sleep(5.0)
 
     try:
-        found = False
+        # Wait for ASPA event confirming Invalid state
+        found_event = False
         for _ in range(30):
             event_str = api.read_line(timeout=0.5)
             if event_str is None:
@@ -59,16 +62,29 @@ def main():
             if rpki.get('status') == 'unavailable':
                 continue
             aspa_state = rpki.get('aspa-state')
-            if aspa_state == 'unknown':
-                found = True
-                print('OK: rpki event has aspa-state=unknown', file=sys.stderr)
+            if aspa_state == 'invalid':
+                found_event = True
+                print('OK: rpki event has aspa-state=invalid', file=sys.stderr)
                 break
-            elif aspa_state is not None:
-                print(f'INFO: aspa-state={aspa_state}, waiting for unknown', file=sys.stderr)
 
-        if not found:
-            print('FAIL: no rpki event with aspa-state=unknown', file=sys.stderr)
+        if not found_event:
+            print('FAIL: no rpki event with aspa-state=invalid', file=sys.stderr)
             sys.exit(1)
+
+        time.sleep(1.0)
+
+        # Query adj-rib-in: route should be rejected
+        result = dispatch(api, 'bgp rib routes received')
+        if result.get('status') != 'done':
+            print(f'FAIL: rib routes received status={result.get("status")}', file=sys.stderr)
+            sys.exit(1)
+
+        data = result.get('data', '')
+        if '10.0.1.0/24' in data:
+            print(f'FAIL: route 10.0.1.0/24 should have been rejected by ASPA policy: {data}', file=sys.stderr)
+            sys.exit(1)
+
+        print('OK: route 10.0.1.0/24 correctly rejected by ASPA policy', file=sys.stderr)
     finally:
         dispatch(api, 'daemon shutdown')
         api.wait_for_shutdown()
@@ -86,8 +102,8 @@ plugin {
 			secret rpki-test-secret-key-01234567890;
 		}
 	}
-	external rpki-aspa-unknown-test {
-		run ./rpki-aspa-unknown-test.run
+	external rpki-aspa-policy-reject-test {
+		run ./rpki-aspa-policy-reject-test.run
 		encoder json
 	}
 	external rpki {
@@ -107,6 +123,9 @@ bgp {
 		}
 		aspa {
 			validation true;
+			policy {
+				invalid-action reject;
+			}
 		}
 	}
 	peer peer1 {
@@ -136,7 +155,7 @@ bgp {
 			group-updates disable
 		}
 
-		process rpki-aspa-unknown-test {
+		process rpki-aspa-policy-reject-test {
 		}
 		process rpki {
 			receive [ update ]
@@ -148,8 +167,8 @@ bgp {
 }
 EOF_CONF
 
-# RTR mock: VRP only, NO ASPA records -> ASPA state will be Unknown
-cmd=background:seq=1:exec=ze-test rtr-mock --port $PORT2 --vrp 10.0.0.0/8,24,64502
+# RTR mock: VRP covers route (ROA Valid), ASPA where 64502 authorizes 99999 (NOT 64501) -> Invalid
+cmd=background:seq=1:exec=ze-test rtr-mock --port $PORT2 --vrp 10.0.0.0/8,24,64502 --aspa 64501:64500 --aspa 64502:99999
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=25s
 expect=exit:code=0

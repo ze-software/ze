@@ -1,9 +1,9 @@
-# Test: ASPA verification yields Unknown when no ASPA records cover the path
-# VALIDATES: AC-4 — route with no ASPA coverage -> aspa-state=unknown
-# PREVENTS: Missing ASPA records incorrectly classified as Valid or Invalid
+# Test: ASPA policy unknown-reject - route with ASPA Unknown path rejected when unknown-action=reject
+# VALIDATES: AC-4 — aspa-unknown-action reject + ASPA Unknown -> route rejected
+# PREVENTS: ASPA Unknown routes accepted when operator configured reject
 
 # ze-peer: send route 10.0.1.0/24 with AS_PATH [64500, 64501, 64502]
-# No ASPA records for any AS in path -> Unknown
+# 64501 and 64502 have NO ASPA records -> Unknown
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
@@ -12,8 +12,8 @@ option=update:value=send-route:prefix=10.0.1.0/24:origin-as=64502:next-hop=10.0.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python observer: check aspa-state=unknown
-tmpfs=rpki-aspa-unknown-test.run:mode=755:terminator=EOF_RUN
+# Python observer: verify route is NOT in adj-rib-in (rejected by ASPA unknown policy)
+tmpfs=rpki-aspa-policy-unknown-reject-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
@@ -40,7 +40,8 @@ def main():
     time.sleep(5.0)
 
     try:
-        found = False
+        # Wait for ASPA event confirming Unknown state
+        found_event = False
         for _ in range(30):
             event_str = api.read_line(timeout=0.5)
             if event_str is None:
@@ -60,15 +61,28 @@ def main():
                 continue
             aspa_state = rpki.get('aspa-state')
             if aspa_state == 'unknown':
-                found = True
+                found_event = True
                 print('OK: rpki event has aspa-state=unknown', file=sys.stderr)
                 break
-            elif aspa_state is not None:
-                print(f'INFO: aspa-state={aspa_state}, waiting for unknown', file=sys.stderr)
 
-        if not found:
+        if not found_event:
             print('FAIL: no rpki event with aspa-state=unknown', file=sys.stderr)
             sys.exit(1)
+
+        time.sleep(1.0)
+
+        # Query adj-rib-in: route should be rejected
+        result = dispatch(api, 'bgp rib routes received')
+        if result.get('status') != 'done':
+            print(f'FAIL: rib routes received status={result.get("status")}', file=sys.stderr)
+            sys.exit(1)
+
+        data = result.get('data', '')
+        if '10.0.1.0/24' in data:
+            print(f'FAIL: route 10.0.1.0/24 should have been rejected by ASPA unknown policy: {data}', file=sys.stderr)
+            sys.exit(1)
+
+        print('OK: route 10.0.1.0/24 correctly rejected by ASPA unknown-action=reject', file=sys.stderr)
     finally:
         dispatch(api, 'daemon shutdown')
         api.wait_for_shutdown()
@@ -86,8 +100,8 @@ plugin {
 			secret rpki-test-secret-key-01234567890;
 		}
 	}
-	external rpki-aspa-unknown-test {
-		run ./rpki-aspa-unknown-test.run
+	external rpki-aspa-policy-unknown-reject-test {
+		run ./rpki-aspa-policy-unknown-reject-test.run
 		encoder json
 	}
 	external rpki {
@@ -107,6 +121,9 @@ bgp {
 		}
 		aspa {
 			validation true;
+			policy {
+				unknown-action reject;
+			}
 		}
 	}
 	peer peer1 {
@@ -136,7 +153,7 @@ bgp {
 			group-updates disable
 		}
 
-		process rpki-aspa-unknown-test {
+		process rpki-aspa-policy-unknown-reject-test {
 		}
 		process rpki {
 			receive [ update ]
@@ -148,7 +165,7 @@ bgp {
 }
 EOF_CONF
 
-# RTR mock: VRP only, NO ASPA records -> ASPA state will be Unknown
+# RTR mock: VRP covers route (ROA Valid), NO ASPA records for 64501 or 64502 -> Unknown
 cmd=background:seq=1:exec=ze-test rtr-mock --port $PORT2 --vrp 10.0.0.0/8,24,64502
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=25s

@@ -59,9 +59,11 @@ bgp {
 | `rpki / cache-server / port` | uint16 | 323 | RTR TCP port |
 | `rpki / cache-server / preference` | uint8 | 100 | Server preference (lower preferred) |
 | `rpki / validation-timeout` | uint16 | 30 | Seconds before fail-open on pending routes |
-| `rpki / aspa-validation` | boolean | false | Enable ASPA path verification using RTR v2 ASPA records |
 | `rpki / policy / invalid-action` | enum | reject | Action for Invalid routes: reject, log-only, accept |
 | `rpki / policy / not-found-action` | enum | accept | Action for NotFound routes: accept, reject, log-only |
+| `rpki / aspa / validation` | boolean | false | Enable ASPA path verification using RTR v2 ASPA records |
+| `rpki / aspa / policy / invalid-action` | enum | log-only | Action for ASPA Invalid routes: reject, log-only, accept |
+| `rpki / aspa / policy / unknown-action` | enum | accept | Action for ASPA Unknown routes: accept, reject, log-only |
 
 Multiple cache servers are supported for redundancy. VRP tables from all servers are merged (union).
 <!-- source: internal/component/bgp/plugins/rpki/schema/ -- ze-rpki YANG schema -->
@@ -200,7 +202,7 @@ If the RPKI validation does not arrive within the timeout (2 seconds), the event
 
 ASPA (Autonomous System Provider Authorization) verifies that AS_PATH hops are authorized by provider-customer relationships. ASPA records are distributed via RTR v2 (RFC 9582) alongside VRPs. Ze implements the verification algorithm from draft-ietf-sidrops-aspa-verification Section 6.
 
-ASPA is opt-in. Enable it with `aspa-validation true` under the `rpki` block. It operates in informational mode: the result is included in the RPKI event JSON but does not trigger accept/reject decisions.
+ASPA is opt-in. Enable it under the `rpki { aspa { ... } }` block. By default ASPA results are informational (included in the RPKI event JSON as `"aspa-state"`). Configure policy actions in the same block to enforce ASPA verification by rejecting routes with Invalid or Unknown paths.
 
 ### Configuration
 
@@ -210,10 +212,26 @@ bgp {
         cache-server 192.0.2.1 {
             port 323;
         }
-        aspa-validation true;
+        aspa {
+            validation true;
+            policy {
+                invalid-action reject;
+            }
+        }
     }
 }
 ```
+
+### ASPA Policy Actions
+
+| Setting | Values | Default | Effect |
+|---------|--------|---------|--------|
+| `invalid-action` | reject, log-only, accept | log-only | Action when a route's AS_PATH fails ASPA verification |
+| `unknown-action` | accept, reject, log-only | accept | Action when ASPA records are missing for some ASes in the path |
+
+The default for `invalid-action` is `log-only` (conservative) rather than `reject` because ASPA deployment is incomplete and missing ASPA records can cause false Invalid results. Set to `reject` once your upstream providers have published ASPA records.
+
+ASPA policy overrides origin validation: a route that is ROA Valid but ASPA Invalid will be rejected when `invalid-action` is set to `reject`.
 
 ### ASPA Validation States
 
@@ -257,7 +275,7 @@ When ASPA validation is disabled or the cache has no ASPA records, the `"aspa-st
 
 ### Re-validation on Cache Change
 
-Routes are tracked with their normalized AS_PATH. When ASPA cache data changes (new records from the RTR server), affected routes are automatically re-validated and updated events are emitted for any route whose ASPA state changed.
+Routes are tracked with their normalized AS_PATH. When ASPA cache data changes (new records from the RTR server), affected routes are automatically re-validated and updated events are emitted for any route whose ASPA state changed. If policy is set to `reject` and a route's state changes to Invalid or Unknown, the route is withdrawn from the RIB.
 
 ### Testing ASPA
 
@@ -270,7 +288,7 @@ ze-test rtr-mock --port 3323 \
     --aspa 64501:64500
 ```
 
-The format is `customer:provider1,provider2,...` (repeatable). When ASPA records are present, the mock server uses RTR v2. Four functional tests cover the ASPA states: `rpki-aspa-valid.ci`, `rpki-aspa-invalid.ci`, `rpki-aspa-unknown.ci`, and `rpki-aspa-disabled.ci`.
+The format is `customer:provider1,provider2,...` (repeatable). When ASPA records are present, the mock server uses RTR v2. Seven functional tests cover ASPA: `rpki-aspa-valid.ci`, `rpki-aspa-invalid.ci`, `rpki-aspa-unknown.ci`, `rpki-aspa-disabled.ci` for verification states, and `rpki-aspa-policy-reject.ci`, `rpki-aspa-policy-logonly.ci`, `rpki-aspa-policy-unknown-reject.ci` for policy enforcement.
 
 ## Testing RPKI Locally
 

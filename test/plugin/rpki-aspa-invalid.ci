@@ -105,7 +105,9 @@ bgp {
 		cache-server 127.0.0.1 {
 			port $PORT2
 		}
-		aspa-validation true;
+		aspa {
+			validation true;
+		}
 	}
 	peer peer1 {
 		connection {

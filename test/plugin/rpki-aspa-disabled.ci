@@ -100,7 +100,9 @@ plugin {
 
 bgp {
 	rpki {
-		aspa-validation false;
+		aspa {
+			validation false;
+		}
 		cache-server 127.0.0.1 {
 			port $PORT2
 		}
