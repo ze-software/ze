@@ -79,6 +79,7 @@ Command structure, text format, IPC, RPC dispatch.
 - [209](plan/learned/209-yang-ipc-dispatch.md) -- YANG-driven IPC dispatch
 - [229](plan/learned/229-command-context-server-refactor.md) -- CommandContext server refactor
 - [245](plan/learned/245-rib-command-unification.md) -- RIB command unification
+- [727](plan/learned/727-diag-core.md) -- 9 built-in diagnostic commands (procfs package, build-split patterns, singleflight without x/sync, BFD capture provider interface)
 
 ## Web Interface
 
