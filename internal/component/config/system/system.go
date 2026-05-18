@@ -42,6 +42,9 @@ type SystemConfig struct {
 
 	// Connection tracking (from system { conntrack {} }).
 	Conntrack ConntrackConfig
+
+	// Config archive pruning (from system { commit-revisions N }).
+	CommitRevisions uint16
 }
 
 // TuningSystemConfig holds hardware tuning settings from config.
@@ -220,6 +223,13 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 	sc.Tuning = extractTuning(sys)
 	sc.ConsoleDevices = extractConsole(sys)
 	sc.Conntrack = extractConntrack(sys)
+
+	if v, ok := sys.Get("commit-revisions"); ok {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n >= 0 && n <= 1000 {
+			sc.CommitRevisions = uint16(n) //nolint:gosec // Bounded by range check above
+		}
+	}
 
 	if uc := sys.GetContainer("update-check"); uc != nil {
 		if url, ok := uc.Get("url"); ok {

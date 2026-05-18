@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -75,6 +76,10 @@ func NewNotifier(configFile string, configs []ArchiveConfig, sys *system.SystemC
 			}
 			if eventFn != nil {
 				eventFn(ac.Name, filename, content)
+			}
+			if sys.CommitRevisions > 0 {
+				prefix := ArchivePrefix(ac.Filename, configFile, sys, ac.Name)
+				PruneFileArchives(ac.Location, sys.CommitRevisions, prefix)
 			}
 		}
 
@@ -274,6 +279,77 @@ func ExtractConfigs(tree *config.Tree) []ArchiveConfig {
 	}
 
 	return configs
+}
+
+// ArchivePrefix computes the stable (non-time-varying) filename prefix for
+// an archive block by generating two filenames at different times and
+// returning their common prefix. Only files matching this prefix are
+// considered for pruning, preventing deletion of unrelated .conf files.
+func ArchivePrefix(format, configFile string, sys *system.SystemConfig, archiveName string) string {
+	t1 := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	t2 := time.Date(2000, 1, 2, 1, 0, 0, 0, time.UTC)
+	f1 := FormatFilename(format, configFile, sys, archiveName, t1)
+	f2 := FormatFilename(format, configFile, sys, archiveName, t2)
+
+	n := min(len(f1), len(f2))
+	i := 0
+	for i < n && f1[i] == f2[i] {
+		i++
+	}
+	return f1[:i]
+}
+
+// PruneFileArchives removes the oldest .conf files from a file:// archive
+// location, keeping at most maxKeep files. Only files whose name starts
+// with prefix are considered (prevents deleting unrelated .conf files).
+// Non-file schemes are silently ignored.
+func PruneFileArchives(location string, maxKeep uint16, prefix string) {
+	parsed, err := url.Parse(location)
+	if err != nil || parsed.Scheme != schemeFile {
+		return
+	}
+
+	dir := parsed.Path
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+
+	var confFiles []os.DirEntry
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		if strings.HasSuffix(e.Name(), ".conf") && strings.HasPrefix(e.Name(), prefix) {
+			confFiles = append(confFiles, e)
+		}
+	}
+
+	if len(confFiles) <= int(maxKeep) {
+		return
+	}
+
+	type fileWithTime struct {
+		name    string
+		modTime time.Time
+	}
+	files := make([]fileWithTime, 0, len(confFiles))
+	for _, e := range confFiles {
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		files = append(files, fileWithTime{name: e.Name(), modTime: info.ModTime()})
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].modTime.Before(files[j].modTime)
+	})
+
+	toRemove := len(files) - int(maxKeep)
+	for i := range toRemove {
+		os.Remove(filepath.Join(dir, files[i].name)) //nolint:errcheck // best-effort pruning
+	}
 }
 
 // ChangeTracker tracks config content changes per archive name using SHA-256 hashes.

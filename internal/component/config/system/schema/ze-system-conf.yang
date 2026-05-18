@@ -188,8 +188,10 @@ module ze-system-conf {
                     enum sane { description "SANE helper (nf_conntrack_sane)"; }
                     enum irc { description "IRC helper (nf_conntrack_irc)"; }
                     enum amanda { description "Amanda helper (nf_conntrack_amanda)"; }
+                    enum nfs { description "NFS helper (nf_conntrack_nfs)"; }
                     enum netbios-ns { description "NetBIOS-NS helper (nf_conntrack_netbios_ns)"; }
                     enum snmp { description "SNMP helper (nf_conntrack_snmp)"; }
+                    enum sqlnet { description "SQLnet/TNS helper (nf_conntrack_sqlnet)"; }
                 }
                 description "Conntrack helper modules to load. Load-only: removing a module stops loading on next boot but does not unload at runtime.";
             }
@@ -336,6 +338,18 @@ module ze-system-conf {
                 default 86400;
                 description "Check interval in seconds (default 86400 = daily, minimum 60)";
             }
+        }
+
+        leaf commit-revisions {
+            type uint16 {
+                range "0..1000";
+            }
+            default 0;
+            description "Maximum number of config archive files to keep per
+                         file:// archive location. After each archive write,
+                         files beyond this count are pruned (oldest first).
+                         0 disables pruning (keep all). Only applies to
+                         file:// scheme archives; HTTP archives are not pruned.";
         }
 
         // Named archive blocks

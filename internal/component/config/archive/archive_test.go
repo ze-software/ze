@@ -478,3 +478,90 @@ func TestChangeTracker_IndependentNames(t *testing.T) {
 	// New name should report changed
 	assert.True(t, ct.HasChanged("c", content))
 }
+
+// --- ArchivePrefix tests ---
+
+func TestArchivePrefix(t *testing.T) {
+	sys := system.SystemConfig{Host: "router1"}
+	prefix := archive.ArchivePrefix("{name}-{host}-{date}-{time}", "ze.conf", &sys, "backup")
+	assert.NotEmpty(t, prefix)
+	assert.Contains(t, prefix, "ze-router1-")
+}
+
+func TestArchivePrefix_NoTimeTokens(t *testing.T) {
+	sys := system.SystemConfig{Host: "r1"}
+	prefix := archive.ArchivePrefix("{name}-{host}", "ze.conf", &sys, "backup")
+	assert.Equal(t, "ze-r1.conf", prefix)
+}
+
+// --- PruneFileArchives tests ---
+
+func TestPruneFileArchives_KeepsNewest(t *testing.T) {
+	dir := t.TempDir()
+	location := "file://" + dir
+
+	for i, name := range []string{
+		"ze-r1-20260101-000000.conf",
+		"ze-r1-20260102-000000.conf",
+		"ze-r1-20260103-000000.conf",
+		"ze-r1-20260104-000000.conf",
+	} {
+		path := filepath.Join(dir, name)
+		require.NoError(t, os.WriteFile(path, []byte("v"+string(rune('1'+i))), 0o600))
+		ts := time.Date(2026, 1, 1+i, 0, 0, 0, 0, time.UTC)
+		require.NoError(t, os.Chtimes(path, ts, ts))
+	}
+
+	archive.PruneFileArchives(location, 2, "ze-r1-")
+
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 2)
+	assert.Equal(t, "ze-r1-20260103-000000.conf", entries[0].Name())
+	assert.Equal(t, "ze-r1-20260104-000000.conf", entries[1].Name())
+}
+
+func TestPruneFileArchives_IgnoresNonMatchingFiles(t *testing.T) {
+	dir := t.TempDir()
+	location := "file://" + dir
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ze-r1-20260101-000000.conf"), []byte("a"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "other-backup.conf"), []byte("b"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ze-r1-20260102-000000.conf"), []byte("c"), 0o600))
+
+	ts1 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	ts2 := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
+	require.NoError(t, os.Chtimes(filepath.Join(dir, "ze-r1-20260101-000000.conf"), ts1, ts1))
+	require.NoError(t, os.Chtimes(filepath.Join(dir, "ze-r1-20260102-000000.conf"), ts2, ts2))
+
+	archive.PruneFileArchives(location, 1, "ze-r1-")
+
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 2)
+	names := []string{entries[0].Name(), entries[1].Name()}
+	assert.Contains(t, names, "other-backup.conf")
+	assert.Contains(t, names, "ze-r1-20260102-000000.conf")
+}
+
+func TestPruneFileArchives_UnderLimit(t *testing.T) {
+	dir := t.TempDir()
+	location := "file://" + dir
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ze-r1-20260101-000000.conf"), []byte("a"), 0o600))
+
+	archive.PruneFileArchives(location, 5, "ze-r1-")
+
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
+}
+
+func TestPruneFileArchives_NonFileScheme(t *testing.T) {
+	archive.PruneFileArchives("https://example.com/archive", 1, "ze-")
+}
+
+func TestPruneFileArchives_EmptyDir(t *testing.T) {
+	dir := t.TempDir()
+	archive.PruneFileArchives("file://"+dir, 1, "ze-")
+}

@@ -247,3 +247,36 @@ func TestExtractSystemConfig_PeeringDB_InvalidMargin(t *testing.T) {
 	sc := system.ExtractSystemConfig(tree)
 	assert.Equal(t, uint8(10), sc.PeeringDBMargin)
 }
+
+func TestExtractSystemConfig_CommitRevisions(t *testing.T) {
+	tree := config.NewTree()
+	sys := tree.GetOrCreateContainer("system")
+	sys.Set("commit-revisions", "200")
+
+	sc := system.ExtractSystemConfig(tree)
+	assert.Equal(t, uint16(200), sc.CommitRevisions)
+}
+
+func TestExtractSystemConfig_CommitRevisions_Default(t *testing.T) {
+	tree := config.NewTree()
+	sc := system.ExtractSystemConfig(tree)
+	assert.Equal(t, uint16(0), sc.CommitRevisions)
+}
+
+func TestExtractSystemConfig_CommitRevisions_Invalid(t *testing.T) {
+	tree := config.NewTree()
+	sys := tree.GetOrCreateContainer("system")
+	sys.Set("commit-revisions", "not-a-number")
+
+	sc := system.ExtractSystemConfig(tree)
+	assert.Equal(t, uint16(0), sc.CommitRevisions)
+}
+
+func TestExtractSystemConfig_CommitRevisions_OutOfRange(t *testing.T) {
+	tree := config.NewTree()
+	sys := tree.GetOrCreateContainer("system")
+	sys.Set("commit-revisions", "9999")
+
+	sc := system.ExtractSystemConfig(tree)
+	assert.Equal(t, uint16(0), sc.CommitRevisions)
+}
