@@ -91,7 +91,9 @@ func runDHCPServerPlugin(conn net.Conn) int {
 				sub := &cfg.SharedNetworks[si].Subnets[subi]
 				serverIP := sub.DefaultRouter
 				if !serverIP.IsValid() {
-					serverIP = sub.RangeStart
+					if len(sub.Ranges) > 0 {
+						serverIP = sub.Ranges[0].Start
+					}
 				}
 				if !serverIP.IsValid() {
 					serverIP = sub.Prefix.Addr()

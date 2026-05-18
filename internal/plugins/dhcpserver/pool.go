@@ -1,4 +1,4 @@
-// Design: plan/spec-cpe-2-dhcp-server.md -- DHCP address pool allocation
+// Design: plan/spec-cpe-3-dhcp-ranges.md -- DHCP address pool allocation
 
 package dhcpserver
 
@@ -8,53 +8,57 @@ import (
 	"sync"
 )
 
-type pool struct {
-	mu        sync.Mutex
+type poolSegment struct {
 	start     netip.Addr
 	size      uint32
 	allocated uint32
 	bitmap    []uint64
 	staticSet map[uint32]bool
+}
+
+type pool struct {
+	mu        sync.Mutex
+	segments  []poolSegment
 	macToAddr map[string]netip.Addr
 }
 
-func newPool(start, stop netip.Addr, statics []staticMapping) *pool {
-	if !start.IsValid() || !stop.IsValid() {
-		return &pool{
-			staticSet: make(map[uint32]bool),
-			macToAddr: make(map[string]netip.Addr),
-		}
-	}
-
-	s := addrToUint32(start)
-	e := addrToUint32(stop)
-	size := e - s + 1
-	words := (size + 63) / 64
-
-	staticSet := make(map[uint32]bool, len(statics))
-	bm := make([]uint64, words)
-	var preAlloc uint32
-
-	for _, sm := range statics {
-		ip32 := addrToUint32(sm.IP)
-		if ip32 >= s && ip32 <= e {
-			staticSet[ip32] = true
-			idx := ip32 - s
-			word := idx / 64
-			bit := idx % 64
-			bm[word] |= 1 << bit
-			preAlloc++
-		}
-	}
-
-	return &pool{
-		start:     start,
-		size:      size,
-		allocated: preAlloc,
-		bitmap:    bm,
-		staticSet: staticSet,
+func newPool(ranges []addressRange, statics []staticMapping) *pool {
+	p := &pool{
 		macToAddr: make(map[string]netip.Addr),
 	}
+
+	for _, r := range ranges {
+		if !r.Start.IsValid() || !r.Stop.IsValid() {
+			continue
+		}
+		s := addrToUint32(r.Start)
+		e := addrToUint32(r.Stop)
+		size := e - s + 1
+		words := (size + 63) / 64
+
+		seg := poolSegment{
+			start:     r.Start,
+			size:      size,
+			bitmap:    make([]uint64, words),
+			staticSet: make(map[uint32]bool),
+		}
+
+		for _, sm := range statics {
+			ip32 := addrToUint32(sm.IP)
+			if ip32 >= s && ip32 <= e {
+				seg.staticSet[ip32] = true
+				idx := ip32 - s
+				word := idx / 64
+				bit := idx % 64
+				seg.bitmap[word] |= 1 << bit
+				seg.allocated++
+			}
+		}
+
+		p.segments = append(p.segments, seg)
+	}
+
+	return p
 }
 
 func (p *pool) allocate(mac net.HardwareAddr) (netip.Addr, bool) {
@@ -67,29 +71,31 @@ func (p *pool) allocate(mac net.HardwareAddr) (netip.Addr, bool) {
 		}
 	}
 
-	if p.allocated >= p.size {
-		return netip.Addr{}, false
-	}
-
-	s := addrToUint32(p.start)
-
-	for i := range p.bitmap {
-		if p.bitmap[i] == ^uint64(0) {
+	for si := range p.segments {
+		seg := &p.segments[si]
+		if seg.allocated >= seg.size {
 			continue
 		}
-		for bit := range uint32(64) {
-			idx := uint32(i)*64 + bit
-			if idx >= p.size {
-				return netip.Addr{}, false
+
+		s := addrToUint32(seg.start)
+		for i := range seg.bitmap {
+			if seg.bitmap[i] == ^uint64(0) {
+				continue
 			}
-			if p.bitmap[i]&(1<<bit) == 0 {
-				p.bitmap[i] |= 1 << bit
-				p.allocated++
-				addr := uint32ToAddr(s + idx)
-				if mac != nil {
-					p.macToAddr[string(mac)] = addr
+			for bit := range uint32(64) {
+				idx := uint32(i)*64 + bit
+				if idx >= seg.size {
+					break
 				}
-				return addr, true
+				if seg.bitmap[i]&(1<<bit) == 0 {
+					seg.bitmap[i] |= 1 << bit
+					seg.allocated++
+					addr := uint32ToAddr(s + idx)
+					if mac != nil {
+						p.macToAddr[string(mac)] = addr
+					}
+					return addr, true
+				}
 			}
 		}
 	}
@@ -97,11 +103,23 @@ func (p *pool) allocate(mac net.HardwareAddr) (netip.Addr, bool) {
 	return netip.Addr{}, false
 }
 
+func (p *pool) findSegment(addr netip.Addr) *poolSegment {
+	a := addrToUint32(addr)
+	for i := range p.segments {
+		s := addrToUint32(p.segments[i].start)
+		if a >= s && a < s+p.segments[i].size {
+			return &p.segments[i]
+		}
+	}
+	return nil
+}
+
 func (p *pool) reserve(addr netip.Addr, mac net.HardwareAddr) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.size == 0 {
+	seg := p.findSegment(addr)
+	if seg == nil {
 		if mac != nil {
 			p.macToAddr[string(mac)] = addr
 		}
@@ -109,17 +127,13 @@ func (p *pool) reserve(addr netip.Addr, mac net.HardwareAddr) bool {
 	}
 
 	a := addrToUint32(addr)
-	s := addrToUint32(p.start)
-	if a < s || a >= s+p.size {
-		return false
-	}
-
+	s := addrToUint32(seg.start)
 	idx := a - s
 	word := idx / 64
 	bit := idx % 64
-	if p.bitmap[word]&(1<<bit) == 0 {
-		p.bitmap[word] |= 1 << bit
-		p.allocated++
+	if seg.bitmap[word]&(1<<bit) == 0 {
+		seg.bitmap[word] |= 1 << bit
+		seg.allocated++
 	}
 	if mac != nil {
 		p.macToAddr[string(mac)] = addr
@@ -131,50 +145,44 @@ func (p *pool) markUnavailable(addr netip.Addr) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.size == 0 {
+	seg := p.findSegment(addr)
+	if seg == nil {
 		return
 	}
 
 	a := addrToUint32(addr)
-	s := addrToUint32(p.start)
-	if a < s || a >= s+p.size {
-		return
-	}
-
+	s := addrToUint32(seg.start)
 	idx := a - s
 	word := idx / 64
 	bit := idx % 64
-	if p.bitmap[word]&(1<<bit) == 0 {
-		p.bitmap[word] |= 1 << bit
-		p.allocated++
+	if seg.bitmap[word]&(1<<bit) == 0 {
+		seg.bitmap[word] |= 1 << bit
+		seg.allocated++
 	}
-	p.staticSet[a] = true
+	seg.staticSet[a] = true
 }
 
 func (p *pool) release(addr netip.Addr) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.size == 0 {
+	seg := p.findSegment(addr)
+	if seg == nil {
 		return
 	}
 
 	a := addrToUint32(addr)
-	s := addrToUint32(p.start)
-	if a < s || a >= s+p.size {
+	if seg.staticSet[a] {
 		return
 	}
 
-	if p.staticSet[a] {
-		return
-	}
-
+	s := addrToUint32(seg.start)
 	idx := a - s
 	word := idx / 64
 	bit := idx % 64
-	if p.bitmap[word]&(1<<bit) != 0 {
-		p.bitmap[word] &^= 1 << bit
-		p.allocated--
+	if seg.bitmap[word]&(1<<bit) != 0 {
+		seg.bitmap[word] &^= 1 << bit
+		seg.allocated--
 		for k, v := range p.macToAddr {
 			if v == addr {
 				delete(p.macToAddr, k)
@@ -187,7 +195,11 @@ func (p *pool) release(addr netip.Addr) {
 func (p *pool) stats() (total, allocated, available uint32) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.size, p.allocated, p.size - p.allocated
+	for _, seg := range p.segments {
+		total += seg.size
+		allocated += seg.allocated
+	}
+	return total, allocated, total - allocated
 }
 
 func uint32ToAddr(v uint32) netip.Addr {

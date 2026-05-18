@@ -11,8 +11,7 @@ func newTestServer(t *testing.T) *dhcpHandler {
 	t.Helper()
 	sub := subnetConfig{
 		Prefix:        netip.MustParsePrefix("192.168.1.0/24"),
-		RangeStart:    netip.MustParseAddr("192.168.1.100"),
-		RangeStop:     netip.MustParseAddr("192.168.1.200"),
+		Ranges:        []addressRange{{Name: "pool", Start: netip.MustParseAddr("192.168.1.100"), Stop: netip.MustParseAddr("192.168.1.200")}},
 		LeaseTimeSec:  3600,
 		DefaultRouter: netip.MustParseAddr("192.168.1.1"),
 		DNSServers:    []netip.Addr{netip.MustParseAddr("8.8.8.8"), netip.MustParseAddr("8.8.4.4")},
@@ -26,8 +25,7 @@ func newTestServerWithStatic(t *testing.T) *dhcpHandler {
 	t.Helper()
 	sub := subnetConfig{
 		Prefix:        netip.MustParsePrefix("192.168.1.0/24"),
-		RangeStart:    netip.MustParseAddr("192.168.1.100"),
-		RangeStop:     netip.MustParseAddr("192.168.1.200"),
+		Ranges:        []addressRange{{Name: "pool", Start: netip.MustParseAddr("192.168.1.100"), Stop: netip.MustParseAddr("192.168.1.200")}},
 		LeaseTimeSec:  3600,
 		DefaultRouter: netip.MustParseAddr("192.168.1.1"),
 		DNSServers:    []netip.Addr{netip.MustParseAddr("8.8.8.8")},
@@ -288,8 +286,7 @@ func TestDHCPPoolExhaustionSilent(t *testing.T) {
 
 	sub := subnetConfig{
 		Prefix:       netip.MustParsePrefix("10.0.0.0/30"),
-		RangeStart:   netip.MustParseAddr("10.0.0.1"),
-		RangeStop:    netip.MustParseAddr("10.0.0.2"),
+		Ranges:       []addressRange{{Name: "pool", Start: netip.MustParseAddr("10.0.0.1"), Stop: netip.MustParseAddr("10.0.0.2")}},
 		LeaseTimeSec: 3600,
 	}
 	h := newDHCPHandler(sub, netip.MustParseAddr("10.0.0.1"))

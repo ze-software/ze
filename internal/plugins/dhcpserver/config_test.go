@@ -68,11 +68,14 @@ func TestParseConfig(t *testing.T) {
 	if sub.Prefix != netip.MustParsePrefix("192.168.1.0/24") {
 		t.Errorf("prefix = %v", sub.Prefix)
 	}
-	if sub.RangeStart != netip.MustParseAddr("192.168.1.100") {
-		t.Errorf("range start = %v", sub.RangeStart)
+	if len(sub.Ranges) != 1 {
+		t.Fatalf("expected 1 range, got %d", len(sub.Ranges))
 	}
-	if sub.RangeStop != netip.MustParseAddr("192.168.1.200") {
-		t.Errorf("range stop = %v", sub.RangeStop)
+	if sub.Ranges[0].Start != netip.MustParseAddr("192.168.1.100") {
+		t.Errorf("range start = %v", sub.Ranges[0].Start)
+	}
+	if sub.Ranges[0].Stop != netip.MustParseAddr("192.168.1.200") {
+		t.Errorf("range stop = %v", sub.Ranges[0].Stop)
 	}
 	if sub.LeaseTimeSec != 3600 {
 		t.Errorf("lease-time = %d", sub.LeaseTimeSec)
@@ -148,6 +151,212 @@ func TestParseConfigDefaultLeaseTime(t *testing.T) {
 	}
 	if cfg.SharedNetworks[0].Subnets[0].LeaseTimeSec != defaultLeaseTimeSec {
 		t.Errorf("expected default lease time %d, got %d", defaultLeaseTimeSec, cfg.SharedNetworks[0].Subnets[0].LeaseTimeSec)
+	}
+}
+
+func TestParseConfigMultipleRanges(t *testing.T) {
+	t.Parallel()
+
+	data := `{
+		"service": {
+			"dhcp-server": {
+				"enabled": "true",
+				"listen-interface": ["br0"],
+				"shared-network": {
+					"LAN": {
+						"subnet": {
+							"10.0.0.0/24": {
+								"range": {
+									"low": {
+										"start": "10.0.0.10",
+										"stop": "10.0.0.20"
+									},
+									"high": {
+										"start": "10.0.0.100",
+										"stop": "10.0.0.200"
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`
+
+	cfg, err := parseConfig(data)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	sub := cfg.SharedNetworks[0].Subnets[0]
+	if len(sub.Ranges) != 2 {
+		t.Fatalf("expected 2 ranges, got %d", len(sub.Ranges))
+	}
+	if sub.Ranges[0].Start != netip.MustParseAddr("10.0.0.10") {
+		t.Errorf("first range start = %v", sub.Ranges[0].Start)
+	}
+	if sub.Ranges[1].Start != netip.MustParseAddr("10.0.0.100") {
+		t.Errorf("second range start = %v", sub.Ranges[1].Start)
+	}
+}
+
+func TestParseConfigSingleNamedRange(t *testing.T) {
+	t.Parallel()
+
+	data := `{
+		"service": {
+			"dhcp-server": {
+				"enabled": "true",
+				"listen-interface": ["br0"],
+				"shared-network": {
+					"LAN": {
+						"subnet": {
+							"10.0.0.0/24": {
+								"range": {
+									"pool1": {
+										"start": "10.0.0.10",
+										"stop": "10.0.0.50"
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`
+
+	cfg, err := parseConfig(data)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	sub := cfg.SharedNetworks[0].Subnets[0]
+	if len(sub.Ranges) != 1 {
+		t.Fatalf("expected 1 range, got %d", len(sub.Ranges))
+	}
+	if sub.Ranges[0].Name != "pool1" {
+		t.Errorf("range name = %q, want pool1", sub.Ranges[0].Name)
+	}
+	if sub.Ranges[0].Start != netip.MustParseAddr("10.0.0.10") {
+		t.Errorf("range start = %v", sub.Ranges[0].Start)
+	}
+	if sub.Ranges[0].Stop != netip.MustParseAddr("10.0.0.50") {
+		t.Errorf("range stop = %v", sub.Ranges[0].Stop)
+	}
+}
+
+func TestParseConfigOldRangeFormat(t *testing.T) {
+	t.Parallel()
+
+	data := `{
+		"service": {
+			"dhcp-server": {
+				"enabled": "true",
+				"listen-interface": ["br0"],
+				"shared-network": {
+					"LAN": {
+						"subnet": {
+							"10.0.0.0/24": {
+								"range": {
+									"start": "10.0.0.10",
+									"stop": "10.0.0.50"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`
+
+	cfg, err := parseConfig(data)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	sub := cfg.SharedNetworks[0].Subnets[0]
+	if len(sub.Ranges) != 1 {
+		t.Fatalf("expected 1 range from old format, got %d", len(sub.Ranges))
+	}
+	if sub.Ranges[0].Name != "default" {
+		t.Errorf("range name = %q, want default", sub.Ranges[0].Name)
+	}
+	if sub.Ranges[0].Start != netip.MustParseAddr("10.0.0.10") {
+		t.Errorf("range start = %v", sub.Ranges[0].Start)
+	}
+}
+
+func TestParseConfigRangeNamedStart(t *testing.T) {
+	t.Parallel()
+
+	data := `{
+		"service": {
+			"dhcp-server": {
+				"enabled": "true",
+				"listen-interface": ["br0"],
+				"shared-network": {
+					"LAN": {
+						"subnet": {
+							"10.0.0.0/24": {
+								"range": {
+									"start": {
+										"start": "10.0.0.10",
+										"stop": "10.0.0.50"
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`
+
+	cfg, err := parseConfig(data)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	sub := cfg.SharedNetworks[0].Subnets[0]
+	if len(sub.Ranges) != 1 {
+		t.Fatalf("expected 1 range, got %d", len(sub.Ranges))
+	}
+	if sub.Ranges[0].Name != "start" {
+		t.Errorf("range name = %q, want start", sub.Ranges[0].Name)
+	}
+}
+
+func TestParseConfigOverlappingRanges(t *testing.T) {
+	t.Parallel()
+
+	data := `{
+		"service": {
+			"dhcp-server": {
+				"enabled": "true",
+				"listen-interface": ["br0"],
+				"shared-network": {
+					"LAN": {
+						"subnet": {
+							"10.0.0.0/24": {
+								"range": {
+									"a": {
+										"start": "10.0.0.10",
+										"stop": "10.0.0.50"
+									},
+									"b": {
+										"start": "10.0.0.40",
+										"stop": "10.0.0.80"
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`
+
+	_, err := parseConfig(data)
+	if err == nil {
+		t.Fatal("expected overlap error")
 	}
 }
 

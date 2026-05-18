@@ -19,8 +19,11 @@ var (
 	errRangeStartOutsideSubnet = errors.New("range start outside subnet")
 	errRangeStopOutsideSubnet  = errors.New("range stop outside subnet")
 	errRangeStartAfterStop     = errors.New("range start after stop")
+	errTooManyRanges           = errors.New("too many ranges (max 10)")
 	errStaticIPOutsideSubnet   = errors.New("static-mapping IP outside subnet")
 )
+
+const maxRangesPerSubnet = 10
 
 type serverConfig struct {
 	Enabled          bool
@@ -33,10 +36,15 @@ type sharedNetwork struct {
 	Subnets []subnetConfig
 }
 
+type addressRange struct {
+	Name  string
+	Start netip.Addr
+	Stop  netip.Addr
+}
+
 type subnetConfig struct {
 	Prefix         netip.Prefix
-	RangeStart     netip.Addr
-	RangeStop      netip.Addr
+	Ranges         []addressRange
 	LeaseTimeSec   uint32
 	DefaultRouter  netip.Addr
 	DNSServers     []netip.Addr
@@ -143,33 +151,12 @@ func parseSubnet(prefixStr string, data map[string]any) (subnetConfig, error) {
 	sub.Prefix = prefix
 	sub.LeaseTimeSec = defaultLeaseTimeSec
 
-	if rangeMap, ok := data["range"].(map[string]any); ok {
-		if startStr, ok := rangeMap["start"].(string); ok {
-			addr, err := netip.ParseAddr(startStr)
-			if err != nil {
-				return sub, fmt.Errorf("range start: %w", err)
-			}
-			if !prefix.Contains(addr) {
-				return sub, errRangeStartOutsideSubnet
-			}
-			sub.RangeStart = addr
+	if rangeData, ok := data["range"].(map[string]any); ok {
+		ranges, err := parseRanges(rangeData, prefix)
+		if err != nil {
+			return sub, err
 		}
-		if stopStr, ok := rangeMap["stop"].(string); ok {
-			addr, err := netip.ParseAddr(stopStr)
-			if err != nil {
-				return sub, fmt.Errorf("range stop: %w", err)
-			}
-			if !prefix.Contains(addr) {
-				return sub, errRangeStopOutsideSubnet
-			}
-			sub.RangeStop = addr
-		}
-	}
-
-	if sub.RangeStart.IsValid() && sub.RangeStop.IsValid() {
-		if addrToUint32(sub.RangeStart) > addrToUint32(sub.RangeStop) {
-			return sub, errRangeStartAfterStop
-		}
+		sub.Ranges = ranges
 	}
 
 	if v, ok := data["lease-time"].(string); ok {
@@ -271,6 +258,84 @@ func parseStaticMapping(name string, data map[string]any, prefix netip.Prefix) (
 	sm.IP = addr
 
 	return sm, nil
+}
+
+func parseRanges(data map[string]any, prefix netip.Prefix) ([]addressRange, error) {
+	if v, hasStart := data["start"]; hasStart {
+		if _, isStr := v.(string); isStr {
+			r, err := parseSingleRange("default", data, prefix)
+			if err != nil {
+				return nil, err
+			}
+			return []addressRange{r}, nil
+		}
+	}
+
+	var ranges []addressRange
+	for name, v := range data {
+		rm, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		r, err := parseSingleRange(name, rm, prefix)
+		if err != nil {
+			return nil, fmt.Errorf("range %q: %w", name, err)
+		}
+		ranges = append(ranges, r)
+	}
+
+	if len(ranges) > maxRangesPerSubnet {
+		return nil, errTooManyRanges
+	}
+
+	sort.Slice(ranges, func(i, j int) bool {
+		return addrToUint32(ranges[i].Start) < addrToUint32(ranges[j].Start)
+	})
+
+	for i := 1; i < len(ranges); i++ {
+		if addrToUint32(ranges[i].Start) <= addrToUint32(ranges[i-1].Stop) {
+			return nil, fmt.Errorf("ranges %q and %q overlap", ranges[i-1].Name, ranges[i].Name)
+		}
+	}
+
+	return ranges, nil
+}
+
+func parseSingleRange(name string, data map[string]any, prefix netip.Prefix) (addressRange, error) {
+	var r addressRange
+	r.Name = name
+
+	startStr, ok := data["start"].(string)
+	if !ok || startStr == "" {
+		return r, fmt.Errorf("range %q: missing start", name)
+	}
+	start, err := netip.ParseAddr(startStr)
+	if err != nil {
+		return r, fmt.Errorf("range start: %w", err)
+	}
+	if !prefix.Contains(start) {
+		return r, errRangeStartOutsideSubnet
+	}
+	r.Start = start
+
+	stopStr, ok := data["stop"].(string)
+	if !ok || stopStr == "" {
+		return r, fmt.Errorf("range %q: missing stop", name)
+	}
+	stop, err := netip.ParseAddr(stopStr)
+	if err != nil {
+		return r, fmt.Errorf("range stop: %w", err)
+	}
+	if !prefix.Contains(stop) {
+		return r, errRangeStopOutsideSubnet
+	}
+	r.Stop = stop
+
+	if addrToUint32(r.Start) > addrToUint32(r.Stop) {
+		return r, errRangeStartAfterStop
+	}
+
+	return r, nil
 }
 
 func addrToUint32(a netip.Addr) uint32 {

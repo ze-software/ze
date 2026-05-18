@@ -10,11 +10,7 @@ import (
 func TestLeaseExpiry(t *testing.T) {
 	t.Parallel()
 
-	p := newPool(
-		netip.MustParseAddr("10.0.0.1"),
-		netip.MustParseAddr("10.0.0.5"),
-		nil,
-	)
+	p := newPool([]addressRange{{Name: "pool", Start: netip.MustParseAddr("10.0.0.1"), Stop: netip.MustParseAddr("10.0.0.5")}}, nil)
 	lt := newLeaseTable(p)
 	defer lt.stop()
 
@@ -42,11 +38,7 @@ func TestLeaseExpiry(t *testing.T) {
 func TestLeaseReAddExtends(t *testing.T) {
 	t.Parallel()
 
-	p := newPool(
-		netip.MustParseAddr("10.0.0.1"),
-		netip.MustParseAddr("10.0.0.5"),
-		nil,
-	)
+	p := newPool([]addressRange{{Name: "pool", Start: netip.MustParseAddr("10.0.0.1"), Stop: netip.MustParseAddr("10.0.0.5")}}, nil)
 	lt := newLeaseTable(p)
 	defer lt.stop()
 
@@ -71,11 +63,7 @@ func TestLeaseReAddExtends(t *testing.T) {
 func TestLeaseRelease(t *testing.T) {
 	t.Parallel()
 
-	p := newPool(
-		netip.MustParseAddr("10.0.0.1"),
-		netip.MustParseAddr("10.0.0.5"),
-		nil,
-	)
+	p := newPool([]addressRange{{Name: "pool", Start: netip.MustParseAddr("10.0.0.1"), Stop: netip.MustParseAddr("10.0.0.5")}}, nil)
 	lt := newLeaseTable(p)
 	defer lt.stop()
 
@@ -98,11 +86,7 @@ func TestLeaseRelease(t *testing.T) {
 func TestLeaseLookupByAddr(t *testing.T) {
 	t.Parallel()
 
-	p := newPool(
-		netip.MustParseAddr("10.0.0.1"),
-		netip.MustParseAddr("10.0.0.5"),
-		nil,
-	)
+	p := newPool([]addressRange{{Name: "pool", Start: netip.MustParseAddr("10.0.0.1"), Stop: netip.MustParseAddr("10.0.0.5")}}, nil)
 	lt := newLeaseTable(p)
 	defer lt.stop()
 

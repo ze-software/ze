@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 1/6 |
 | Updated | 2026-05-18 |
 
 ## Post-Compaction Recovery
@@ -207,6 +207,7 @@ Extend the DHCP server to support multiple named address ranges per subnet. Curr
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| "stop1 == start2 is OK" for overlap | With inclusive ranges, same IP in two segments | Critical review of overlap logic | Fixed to use strict `>` check |
 
 ## Design Insights
 

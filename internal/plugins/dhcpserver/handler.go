@@ -67,7 +67,7 @@ type dhcpHandler struct {
 }
 
 func newDHCPHandler(sub subnetConfig, serverIP netip.Addr) *dhcpHandler {
-	p := newPool(sub.RangeStart, sub.RangeStop, sub.StaticMappings)
+	p := newPool(sub.Ranges, sub.StaticMappings)
 	lt := newLeaseTable(p)
 
 	staticByMAC := make(map[string]netip.Addr, len(sub.StaticMappings))

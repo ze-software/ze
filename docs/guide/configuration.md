@@ -1075,6 +1075,62 @@ offset exceeds the cap are rejected and logged.
 <!-- source: internal/plugins/ntp/schema/ze-ntp-conf.yang -- NTP config schema -->
 <!-- source: internal/plugins/ntp/ntp.go -- parseNTPConfig, doSync -->
 
+### DHCP Server
+
+Ze includes a built-in DHCP server plugin (RFC 2131/2132) for CPE deployments.
+
+```
+service {
+    dhcp-server {
+        enabled true;
+        listen-interface br0;
+        shared-network LAN {
+            subnet 192.168.1.0/24 {
+                range pool1 {
+                    start 192.168.1.100;
+                    stop  192.168.1.150;
+                }
+                range pool2 {
+                    start 192.168.1.200;
+                    stop  192.168.1.250;
+                }
+                lease-time 3600;
+                default-router 192.168.1.1;
+                dns-server 8.8.8.8;
+                dns-server 8.8.4.4;
+                domain-name home.lan;
+                static-mapping printer {
+                    mac-address aa:bb:cc:dd:ee:ff;
+                    ip-address 192.168.1.10;
+                }
+            }
+        }
+    }
+}
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable DHCP server. |
+| `listen-interface` | leaf-list | (none) | Interfaces to serve DHCP on. |
+| `shared-network <name>` | list | (none) | Named grouping of subnets. |
+| `subnet <prefix>` | list | (none) | Subnet with address pool and options. |
+| `range <name>` | list | (none) | Named dynamic address pool. Multiple ranges per subnet for disjoint pools. |
+| `range <name>.start` | string | (none) | First allocatable address. |
+| `range <name>.stop` | string | (none) | Last allocatable address. |
+| `lease-time` | uint32 | `86400` | Lease duration in seconds (60-604800). |
+| `default-router` | string | (none) | Default gateway (option 3). |
+| `dns-server` | leaf-list | (none) | DNS servers (option 6). |
+| `domain-name` | string | (none) | Domain name for clients (option 15). |
+| `static-mapping <name>` | list | (none) | Static MAC-to-IP binding (excluded from dynamic allocation). |
+
+Multiple named ranges allow disjoint address pools within a single subnet.
+Ranges must not overlap and are allocated in order (first range fills before
+the second is used). Up to 10 ranges per subnet are supported.
+
+<!-- source: internal/plugins/dhcpserver/schema/ze-dhcp-server-conf.yang -- DHCP server config schema -->
+<!-- source: internal/plugins/dhcpserver/config.go -- parseConfig, parseRanges -->
+
 ### Reactor Settings
 
 Configure reactor behavior under `environment { reactor { } }`:
