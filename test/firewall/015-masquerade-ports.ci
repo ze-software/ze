@@ -1,7 +1,7 @@
-# Test: masquerade with to-ports restricts source port range.
+# Test: masquerade with port-range restricts source port range.
 # VALIDATES: spec-cpe-5 AC-1, AC-7 -- parseMasquerade populates Port/PortEnd;
 #            lowerMasquerade emits expr.Masq{ToPorts: true} with port registers.
-# PREVENTS: masquerade to-ports silently ignored at config parse time.
+# PREVENTS: masquerade port-range silently ignored at config parse time.
 #
 # Requires CAP_NET_ADMIN.
 
@@ -40,7 +40,7 @@ firewall {
 			term masq-ports {
 				from { output-interface "eth0"; }
 				then {
-					masquerade { to-ports "1024-65535"; }
+					masquerade { port-range "1024-65535"; }
 				}
 			}
 		}

@@ -283,20 +283,21 @@ module ze-firewall-conf {
         container masquerade {
             presence "Masquerade outgoing traffic";
             description "Masquerade (source NAT with outgoing interface address).
-                         Optionally restrict source port range with to-ports,
+                         Optionally restrict source port range with port-range,
                          or set randomization/persistence flags. Port mapping
                          and flags are mutually exclusive.";
-            leaf to-ports {
+            leaf port-range {
                 type string;
                 description "Source port or port range (e.g. 1024-65535)";
             }
-            leaf random {
-                type empty;
-                description "Randomize source port mapping";
-            }
-            leaf fully-random {
-                type empty;
-                description "Fully randomize source port mapping";
+            container random {
+                presence "Randomize source port mapping";
+                description "Randomize source port selection.
+                             With 'full', use full randomization.";
+                leaf full {
+                    type empty;
+                    description "Use full randomization";
+                }
             }
             leaf persistent {
                 type empty;

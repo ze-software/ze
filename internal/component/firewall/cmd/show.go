@@ -193,7 +193,7 @@ func formatMasquerade(m firewall.Masquerade) string {
 	if m.Port != 0 {
 		b := textbuf.Get()
 		defer b.Release()
-		b.Str("masquerade to :").Uint16(m.Port)
+		b.Str("masquerade port-range ").Uint16(m.Port)
 		if m.PortEnd != 0 {
 			b.Byte('-').Uint16(m.PortEnd)
 		}
@@ -209,7 +209,7 @@ func formatMasquerade(m firewall.Masquerade) string {
 		b.Str(" random")
 	}
 	if m.Flags&firewall.MasqFlagFullyRandom != 0 {
-		b.Str(" fully-random")
+		b.Str(" random full")
 	}
 	if m.Flags&firewall.MasqFlagPersistent != 0 {
 		b.Str(" persistent")

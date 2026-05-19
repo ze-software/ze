@@ -569,7 +569,7 @@ func TestLowerMasqueradeWithFlags(t *testing.T) {
 		want func(*expr.Masq) bool
 	}{
 		{"random", firewall.MasqFlagRandom, func(m *expr.Masq) bool { return m.Random }},
-		{"fully-random", firewall.MasqFlagFullyRandom, func(m *expr.Masq) bool { return m.FullyRandom }},
+		{"random full", firewall.MasqFlagFullyRandom, func(m *expr.Masq) bool { return m.FullyRandom }},
 		{"persistent", firewall.MasqFlagPersistent, func(m *expr.Masq) bool { return m.Persistent }},
 	}
 	for _, tt := range tests {

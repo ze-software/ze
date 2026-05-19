@@ -918,8 +918,8 @@ func parseMasquerade(v any) (Masquerade, error) {
 
 	var m Masquerade
 
-	if toPorts, ok := masqMap["to-ports"].(string); ok {
-		port, portEnd, err := parseMasqPorts(toPorts)
+	if portRange, ok := masqMap["port-range"].(string); ok {
+		port, portEnd, err := parseMasqPorts(portRange)
 		if err != nil {
 			return Masquerade{}, err
 		}
@@ -927,18 +927,23 @@ func parseMasquerade(v any) (Masquerade, error) {
 		m.PortEnd = portEnd
 	}
 
-	if _, ok := masqMap["random"]; ok {
-		m.Flags |= MasqFlagRandom
-	}
-	if _, ok := masqMap["fully-random"]; ok {
-		m.Flags |= MasqFlagFullyRandom
+	if randVal, ok := masqMap["random"]; ok {
+		if randMap, ok := randVal.(map[string]any); ok {
+			if _, ok := randMap["full"]; ok {
+				m.Flags |= MasqFlagFullyRandom
+			} else {
+				m.Flags |= MasqFlagRandom
+			}
+		} else {
+			m.Flags |= MasqFlagRandom
+		}
 	}
 	if _, ok := masqMap["persistent"]; ok {
 		m.Flags |= MasqFlagPersistent
 	}
 
 	if m.Port != 0 && m.Flags != 0 {
-		return Masquerade{}, errors.New("to-ports and flags (random/fully-random/persistent) are mutually exclusive")
+		return Masquerade{}, errors.New("port-range and flags (random/persistent) are mutually exclusive")
 	}
 	return m, nil
 }

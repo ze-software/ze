@@ -13,7 +13,7 @@ The firewall model already had `Masquerade{Port, PortEnd, Flags}` fields but not
 
 ## Consequences
 
-- Masquerade with `to-ports` or flags now works end-to-end on the nft backend.
+- Masquerade with `port-range` or flags now works end-to-end on the nft backend.
 - VPP backend is explicit about what it does not support, preventing silent config loss.
 - The `parseMasqPorts` helper is specific to masquerade; if redirect or other NAT actions need similar parsing later, consider extracting to a shared helper.
 

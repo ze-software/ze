@@ -963,13 +963,13 @@ func TestParseMasqueradeWithPorts(t *testing.T) {
 	}{
 		{
 			name:    "range",
-			json:    `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"to-ports":"1024-65535"}}}}}}}}}}`,
+			json:    `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"port-range":"1024-65535"}}}}}}}}}}`,
 			port:    1024,
 			portEnd: 65535,
 		},
 		{
 			name: "single",
-			json: `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"to-ports":"8080"}}}}}}}}}}`,
+			json: `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"port-range":"8080"}}}}}}}}}}`,
 			port: 8080,
 		},
 	}
@@ -1000,7 +1000,7 @@ func TestParseMasqueradeWithFlags(t *testing.T) {
 		flag uint32
 	}{
 		{"random", `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"random":""}}}}}}}}}}`, MasqFlagRandom},
-		{"fully-random", `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"fully-random":""}}}}}}}}}}`, MasqFlagFullyRandom},
+		{"random full", `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"random":{"full":""}}}}}}}}}}}`, MasqFlagFullyRandom},
 		{"persistent", `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"persistent":""}}}}}}}}}}`, MasqFlagPersistent},
 	}
 	for _, tt := range tests {
@@ -1021,15 +1021,15 @@ func TestParseMasqueradeWithFlags(t *testing.T) {
 }
 
 func TestParseMasqueradePortsAndFlagsMutuallyExclusive(t *testing.T) {
-	data := `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"to-ports":"1024","random":""}}}}}}}}}}`
+	data := `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"port-range":"1024","random":""}}}}}}}}}}`
 	_, err := ParseFirewallConfig(data)
 	if err == nil {
-		t.Fatal("expected error for masquerade with both to-ports and flags")
+		t.Fatal("expected error for masquerade with both port-range and flags")
 	}
 }
 
 func TestParseMasqueradeInvalidPort(t *testing.T) {
-	data := `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"to-ports":"0"}}}}}}}}}}}`
+	data := `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"port-range":"0"}}}}}}}}}}}`
 	_, err := ParseFirewallConfig(data)
 	if err == nil {
 		t.Fatal("expected error for masquerade port 0")
@@ -1037,7 +1037,7 @@ func TestParseMasqueradeInvalidPort(t *testing.T) {
 }
 
 func TestParseMasqueradeInvertedRange(t *testing.T) {
-	data := `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"to-ports":"65535-1024"}}}}}}}}}}}`
+	data := `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"port-range":"65535-1024"}}}}}}}}}}}`
 	_, err := ParseFirewallConfig(data)
 	if err == nil {
 		t.Fatal("expected error for inverted port range")

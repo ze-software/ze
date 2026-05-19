@@ -116,7 +116,7 @@ A trailing `*` on an interface name produces a prefix match. For example,
 | `return` | Return from chain | `return;` |
 | `snat` | Source NAT | `snat { to "10.0.0.1"; }` |
 | `dnat` | Destination NAT | `dnat { to "10.1.1.1:8080"; }` |
-| `masquerade` | Masquerade | `masquerade;` or `masquerade { to-ports "1024-65535"; }` or `masquerade { random; }` |
+| `masquerade` | Masquerade | `masquerade;` or `masquerade { port-range "1024-65535"; }` or `masquerade { random; }` |
 | `redirect` | Redirect to port | `redirect { port 8080; }` |
 | `notrack` | Disable conntrack | `notrack;` |
 | `flow-offload` | Hardware offload | `flow-offload ft0;` |

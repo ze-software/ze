@@ -905,6 +905,9 @@ func lowerDNAT(d firewall.DNAT) ([]expr.Any, error) {
 }
 
 func lowerMasquerade(m firewall.Masquerade) ([]expr.Any, error) {
+	if m.PortEnd != 0 && m.Port == 0 {
+		return nil, fmt.Errorf("masquerade port range end %d requires a start port", m.PortEnd)
+	}
 	if m.Port != 0 {
 		var exprs []expr.Any
 		portBytes := make([]byte, 2)
