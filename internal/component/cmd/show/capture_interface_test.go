@@ -6,7 +6,25 @@ import (
 	"encoding/binary"
 	"testing"
 	"time"
+
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
+
+func TestCaptureInterface_Wiring(t *testing.T) {
+	found := false
+	for _, r := range pluginserver.AllBuiltinRPCs() {
+		if r.WireMethod == "ze-show:capture-interface" {
+			if r.Handler == nil {
+				t.Error("ze-show:capture-interface handler must not be nil")
+			}
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("ze-show:capture-interface not registered via pluginserver.RegisterRPCs")
+	}
+}
 
 func TestCaptureArgsParser(t *testing.T) {
 	tests := []struct {

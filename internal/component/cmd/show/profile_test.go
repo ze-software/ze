@@ -43,20 +43,33 @@ func TestProfileCPUMutex(t *testing.T) {
 }
 
 func TestProfileCPUDurationBoundary(t *testing.T) {
-	resp, err := handleShowSystemProfile(nil, []string{profileTypeCPU, "duration", "61s"})
+	tests := []struct {
+		name string
+		dur  string
+	}{
+		{"too long", "61s"},
+		{"too short", "500ms"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := handleShowSystemProfile(nil, []string{profileTypeCPU, "duration", tt.dur})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if resp.Status != plugin.StatusError {
+				t.Errorf("expected StatusError for duration %s, got %v", tt.dur, resp.Status)
+			}
+		})
+	}
+}
+
+func TestProfileCPUDurationInvalid(t *testing.T) {
+	resp, err := handleShowSystemProfile(nil, []string{profileTypeCPU, "duration", "notaduration"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, ok := resp.Data.(map[string]any)
-	if !ok {
-		t.Fatal("expected map response")
-	}
-	dur, ok := data["duration"].(string)
-	if !ok {
-		t.Fatal("expected string duration")
-	}
-	if dur != "10s" {
-		t.Errorf("duration = %q (should use default 10s when >60s is rejected)", dur)
+	if resp.Status != plugin.StatusError {
+		t.Errorf("expected StatusError for invalid duration, got %v", resp.Status)
 	}
 }
 

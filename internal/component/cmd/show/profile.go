@@ -44,9 +44,13 @@ func handleShowSystemProfile(_ *pluginserver.CommandContext, args []string) (*pl
 			if i+1 < len(args) {
 				i++
 				d, err := time.ParseDuration(args[i])
-				if err == nil && d >= time.Second && d <= maxCPUProfileDuration {
-					duration = d
+				if err != nil {
+					return &plugin.Response{Status: plugin.StatusError, Data: "profile: invalid duration: " + args[i]}, nil //nolint:nilerr // operational error in Response
 				}
+				if d < time.Second || d > maxCPUProfileDuration {
+					return &plugin.Response{Status: plugin.StatusError, Data: "profile: duration must be between 1s and 60s"}, nil
+				}
+				duration = d
 			}
 		}
 	}
