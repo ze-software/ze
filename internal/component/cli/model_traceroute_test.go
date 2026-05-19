@@ -569,3 +569,49 @@ func TestHopFloat(t *testing.T) {
 	_, ok3 := hopFloat(nil)
 	assert.False(t, ok3)
 }
+
+func TestFormatTracerouteLogHeader(t *testing.T) {
+	hops := []tracerouteHop{
+		{paths: []traceroutePathStats{{addr: "10.0.0.1"}}},
+		{paths: []traceroutePathStats{{addr: "10.0.0.2"}}},
+		{paths: []traceroutePathStats{{addr: "192.0.2.1"}}},
+	}
+	hdr := formatTracerouteLogHeader(hops)
+	assert.Contains(t, hdr, "Rnd")
+	assert.Contains(t, hdr, "1")
+	assert.Contains(t, hdr, "2")
+	assert.Contains(t, hdr, "3")
+}
+
+func TestFormatTracerouteLogMap(t *testing.T) {
+	hops := []tracerouteHop{
+		{paths: []traceroutePathStats{{addr: "10.0.0.1"}}},
+		{},
+		{paths: []traceroutePathStats{{addr: "192.0.2.1"}}},
+	}
+	m := formatTracerouteLogMap(hops)
+	assert.Contains(t, m, "1:10.0.0.1")
+	assert.Contains(t, m, "2:*")
+	assert.Contains(t, m, "3:192.0.2.1")
+	assert.NotContains(t, m, "hop ")
+}
+
+func TestFormatTracerouteLogLine(t *testing.T) {
+	hops := []tracerouteHop{
+		{paths: []traceroutePathStats{{addr: "10.0.0.1", recv: 1, last: 0.5}}},
+		{paths: []traceroutePathStats{{addr: "10.0.0.2", recv: 1, last: 1.2}}},
+		{paths: []traceroutePathStats{{addr: "192.0.2.1", recv: 0}}},
+	}
+	line := formatTracerouteLogLine(hops, 3)
+	assert.Contains(t, line, "3")
+	assert.Contains(t, line, "0.5ms")
+	assert.Contains(t, line, "1.2ms")
+	assert.Contains(t, line, "*")
+}
+
+func TestFormatTracerouteLogLineEmpty(t *testing.T) {
+	hops := []tracerouteHop{{}, {}}
+	line := formatTracerouteLogLine(hops, 1)
+	assert.Contains(t, line, "1")
+	assert.Equal(t, 2, strings.Count(line, "*"))
+}

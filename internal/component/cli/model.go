@@ -140,6 +140,11 @@ type Model struct {
 	traceroute        *tracerouteState      // Active traceroute session (nil when not active)
 	traceroutePiped   *traceroutePipedState // Active piped traceroute (nil when not active)
 
+	// Ping monitor state (continuous ping with live stats)
+	pingFactory      PingFactory     // Runs continuous ping (nil if unavailable)
+	pingMonitor      *pingState      // Active ping monitor (nil when not active)
+	pingMonitorPiped *pingPipedState // Active piped ping (nil when not active)
+
 	// Login warnings (set by SSH session, displayed on first render)
 	loginWarnings []LoginWarning
 
@@ -250,6 +255,8 @@ const (
 	keyCtrlC = "ctrl+c"
 	keyEsc   = "esc"
 )
+
+const footerQuitHint = "q/Esc Quit"
 
 // Status messages for unavailable daemon operations.
 const (
@@ -505,6 +512,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case traceroutePipedPollMsg:
 		return m.handleTraceroutePipedPoll()
+
+	case pingPollMsg:
+		return m.handlePingPoll()
+
+	case pingPipedPollMsg:
+		return m.handlePingPipedPoll()
 	}
 
 	m.textInput, cmd = m.textInput.Update(msg)

@@ -1,0 +1,128 @@
+// Design: docs/architecture/api/commands.md -- monitor ping argument and stats tests
+
+package cli
+
+import (
+	"math"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestParsePingMonitorArgs(t *testing.T) {
+	target, interval, timeout, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4")
+	require.Empty(t, errMsg)
+	assert.Equal(t, "1.2.3.4", target)
+	assert.Equal(t, defaultPingMonitorInterval, interval)
+	assert.Equal(t, defaultPingMonitorTimeout, timeout)
+}
+
+func TestParsePingMonitorArgsWithInterval(t *testing.T) {
+	target, interval, _, errMsg := parsePingMonitorArgs("monitor ping 10.0.0.1 interval 500ms")
+	require.Empty(t, errMsg)
+	assert.Equal(t, "10.0.0.1", target)
+	assert.Equal(t, 500*time.Millisecond, interval)
+}
+
+func TestParsePingMonitorArgsWithTimeout(t *testing.T) {
+	_, _, timeout, errMsg := parsePingMonitorArgs("monitor ping 10.0.0.1 timeout 2s")
+	require.Empty(t, errMsg)
+	assert.Equal(t, 2*time.Second, timeout)
+}
+
+func TestParsePingMonitorArgsOnlyKeywords(t *testing.T) {
+	target, _, _, errMsg := parsePingMonitorArgs("monitor ping interval 1s")
+	assert.Empty(t, target)
+	assert.Empty(t, errMsg)
+}
+
+func TestParsePingMonitorArgsIntervalMissingValue(t *testing.T) {
+	_, _, _, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 interval")
+	assert.Contains(t, errMsg, "interval requires a value")
+}
+
+func TestParsePingMonitorArgsTimeoutMissingValue(t *testing.T) {
+	_, _, _, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 timeout")
+	assert.Contains(t, errMsg, "timeout requires a value")
+}
+
+func TestParsePingMonitorArgsIntervalTooLow(t *testing.T) {
+	_, _, _, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 interval 10ms")
+	assert.Contains(t, errMsg, "interval must be")
+}
+
+func TestParsePingMonitorArgsTimeoutTooHigh(t *testing.T) {
+	_, _, _, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 timeout 60s")
+	assert.Contains(t, errMsg, "timeout must be")
+}
+
+func TestParsePingMonitorArgsUnexpected(t *testing.T) {
+	_, _, _, errMsg := parsePingMonitorArgs("monitor ping 1.2.3.4 extra")
+	assert.Contains(t, errMsg, "unexpected argument")
+}
+
+func TestIsPingMonitorCommand(t *testing.T) {
+	assert.True(t, isPingMonitorCommand("monitor ping 1.2.3.4"))
+	assert.True(t, isPingMonitorCommand("  monitor ping 1.2.3.4 "))
+	assert.False(t, isPingMonitorCommand("monitor ping 1.2.3.4 | log"))
+	assert.False(t, isPingMonitorCommand("show ping 1.2.3.4"))
+}
+
+func TestIsPipedPingMonitorCommand(t *testing.T) {
+	assert.True(t, isPipedPingMonitorCommand("monitor ping 1.2.3.4 | log"))
+	assert.True(t, isPipedPingMonitorCommand("monitor ping 1.2.3.4 | json"))
+	assert.False(t, isPipedPingMonitorCommand("monitor ping 1.2.3.4"))
+}
+
+func TestPingStatsEmpty(t *testing.T) {
+	s := pingStats{}
+	assert.Equal(t, 0.0, s.loss())
+	assert.Equal(t, 0.0, s.avg())
+	assert.Equal(t, 0.0, s.stddev())
+}
+
+func TestPingStatsAccumulation(t *testing.T) {
+	s := pingStats{min: math.MaxFloat64}
+
+	applyPingReply(&s, map[string]any{"seq": 0, "status": "ok", "rtt-ms": 1.0})
+	applyPingReply(&s, map[string]any{"seq": 1, "status": "ok", "rtt-ms": 3.0})
+	applyPingReply(&s, map[string]any{"seq": 2, "status": "timeout"})
+	applyPingReply(&s, map[string]any{"seq": 3, "status": "ok", "rtt-ms": 2.0})
+
+	assert.Equal(t, 4, s.sent)
+	assert.Equal(t, 3, s.recv)
+	assert.Equal(t, 2.0, s.last)
+	assert.Equal(t, 1.0, s.min)
+	assert.Equal(t, 3.0, s.max)
+	assert.InDelta(t, 25.0, s.loss(), 0.01)
+	assert.InDelta(t, 2.0, s.avg(), 0.01)
+	assert.InDelta(t, 1.0, s.stddev(), 0.01)
+}
+
+func TestFormatPingReplyLineOK(t *testing.T) {
+	line := formatPingReplyLine(map[string]any{"seq": 5, "status": "ok", "rtt-ms": 1.234})
+	assert.Contains(t, line, "seq=5")
+	assert.Contains(t, line, "rtt=1.234ms")
+}
+
+func TestFormatPingReplyLineTimeout(t *testing.T) {
+	line := formatPingReplyLine(map[string]any{"seq": 3, "status": "timeout"})
+	assert.Contains(t, line, "seq=3")
+	assert.Contains(t, line, "timeout")
+}
+
+func TestRenderPingStatsPlain(t *testing.T) {
+	s := pingStats{min: math.MaxFloat64}
+	applyPingReply(&s, map[string]any{"seq": 0, "status": "ok", "rtt-ms": 1.5})
+	applyPingReply(&s, map[string]any{"seq": 1, "status": "ok", "rtt-ms": 2.5})
+
+	output := renderPingStatsPlain("10.0.0.1", &s)
+	assert.Contains(t, output, "Ping 10.0.0.1")
+	assert.Contains(t, output, "Sent 2")
+	assert.Contains(t, output, "Recv 2")
+	assert.Contains(t, output, "Loss 0.0%")
+	assert.Contains(t, output, "Min 1.500ms")
+	assert.Contains(t, output, "Max 2.500ms")
+}

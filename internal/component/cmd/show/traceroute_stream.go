@@ -46,7 +46,7 @@ func randProbeID() uint16 {
 func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadline time.Duration, out chan<- map[string]any) {
 	defer close(out)
 
-	network := "ip4:icmp"
+	network := networkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
 	icmpTimeExceeded := byte(11)
@@ -54,7 +54,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 	portUnreach := byte(icmpv4PortUnreach)
 	isV6 := dest.Is6()
 	if isV6 {
-		network = "ip6:ipv6-icmp"
+		network = networkICMPv6
 		icmpEcho = 128
 		icmpEchoReply = 129
 		icmpTimeExceeded = 3

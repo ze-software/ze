@@ -162,6 +162,25 @@ func (m *Model) setViewportText(content string) {
 	m.err = nil
 }
 
+// setViewportTextBottom sets content bottom-aligned in the viewport.
+// Prepends blank lines so content hugs the bottom when shorter than the viewport.
+func (m *Model) setViewportTextBottom(content string) {
+	content = sanitizeForDisplay(content)
+
+	vpHeight := max(m.height-3, 5)
+	contentLines := strings.Count(content, "\n") + 1
+	if pad := vpHeight - contentLines; pad > 0 {
+		content = strings.Repeat("\n", pad) + content
+	}
+
+	m.viewportContent = content
+	m.viewport.SetContent(content)
+	m.viewport.GotoBottom()
+	m.showViewport = true
+	m.showingConfig = false
+	m.err = nil
+}
+
 // highlightValidationIssues adds styling to lines with validation errors or warnings.
 // Errors are highlighted in red with inline message, warnings in yellow with inline message.
 // lineMapping maps filtered line numbers to original line numbers (used when showing filtered content).
@@ -286,6 +305,16 @@ func (m Model) View() tea.View {
 	// Piped traceroute in replace mode renders its own full screen.
 	if m.traceroutePiped != nil && !m.traceroutePiped.logMode {
 		return paddedAltView(m.renderTraceroutePiped())
+	}
+
+	// Ping monitor mode renders its own full screen.
+	if m.pingMonitor != nil {
+		return paddedAltView(m.renderPingMonitor())
+	}
+
+	// Piped ping in replace mode renders its own full screen.
+	if m.pingMonitorPiped != nil && !m.pingMonitorPiped.logMode {
+		return paddedAltView(m.renderPingMonitorPiped())
 	}
 
 	// Use fixed height to prevent scrolling when dropdown appears

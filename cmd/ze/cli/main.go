@@ -127,6 +127,7 @@ func runInteractiveWithDispatch(dispatch CommandFunc) int {
 	})
 
 	m.SetTracerouteFactory(streamingTracerouteFactory)
+	m.SetPingFactory(streamingPingFactory)
 
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
@@ -206,6 +207,7 @@ func runInteractiveSession(client *cliClient) int {
 	})
 
 	m.SetTracerouteFactory(streamingTracerouteFactory)
+	m.SetPingFactory(streamingPingFactory)
 
 	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
@@ -658,4 +660,8 @@ func fetchPeerSelectors(client *cliClient) []cmd.Suggestion {
 
 func streamingTracerouteFactory(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error) {
 	return show.NewTracerouteSession(ctx, target, maxHops)
+}
+
+func streamingPingFactory(ctx context.Context, target string, interval, timeout time.Duration) (<-chan map[string]any, context.CancelFunc, error) {
+	return show.NewPingSession(ctx, target, interval, timeout)
 }

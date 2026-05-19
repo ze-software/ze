@@ -296,8 +296,7 @@ func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 
 	if logMode {
 		m.outputBuf.WriteString("--- monitor traceroute | log (Esc to stop) ---\n")
-		m.setViewportText(m.outputBuf.String())
-		m.viewport.GotoBottom()
+		m.setViewportTextBottom(m.outputBuf.String())
 	}
 	m.statusMessage = "monitoring traceroute (Esc to stop)"
 
@@ -526,8 +525,7 @@ func (m Model) handleTraceroutePipedPoll() (tea.Model, tea.Cmd) {
 			}
 			m.outputBuf.WriteString("\n")
 			m.outputBuf.WriteString(formatTracerouteLogLine(ps.hops, ps.rounds))
-			m.setViewportText(m.outputBuf.String())
-			m.viewport.GotoBottom()
+			m.setViewportTextBottom(m.outputBuf.String())
 		}
 
 		cmd := m.startTraceroutePipedRound()
@@ -542,31 +540,41 @@ const (
 	tracerouteLogMapEveryN = 25
 )
 
-// formatTracerouteLogMap renders the hop-number-to-IP mapping table.
-// Shown before the first round and every 25 rounds after that.
-// Compact table: "1:10.0.0.1  2:10.0.0.2  3:192.0.2.1" wrapping at ~80 chars.
+// formatTracerouteLogMap renders the hop-number-to-IP legend as
+// fixed-width entries that wrap at terminal width. Each entry is
+// padded to a uniform width so columns stay aligned across rows.
 func formatTracerouteLogMap(hops []tracerouteHop) string {
-	var sb textbuf.Buffer
-	sb.Reset(256)
-	col := 0
+	maxAddrLen := 0
+	addrs := make([]string, len(hops))
 	for i := range hops {
 		h := &hops[i]
 		addr := "*"
 		if len(h.paths) > 0 && h.paths[0].addr != "" {
 			addr = h.paths[0].addr
 		}
-		num := textbuf.Int(int64(i + 1))
-		entryLen := len(num) + 1 + len(addr)
-		if col > 0 && col+entryLen+2 > 80 {
+		addrs[i] = addr
+		if len(addr) > maxAddrLen {
+			maxAddrLen = len(addr)
+		}
+	}
+
+	numW := len(textbuf.Int(int64(len(hops))))
+	colW := numW + 1 + maxAddrLen + 2
+
+	var sb textbuf.Buffer
+	sb.Reset(256)
+	col := 0
+	for i, addr := range addrs {
+		if col > 0 && col+colW > 80 {
 			sb.Byte('\n')
 			col = 0
 		}
-		if col > 0 {
-			sb.Str("  ")
-			col += 2
-		}
-		sb.Str(num).Byte(':').Str(addr)
-		col += entryLen
+		num := textbuf.Int(int64(i + 1))
+		tbPadLeft(&sb, num, numW)
+		sb.Byte(':')
+		tbPadLeft(&sb, addr, maxAddrLen)
+		sb.Str("  ")
+		col += colW
 	}
 	sb.Byte('\n')
 	return sb.String()

@@ -180,7 +180,7 @@ func embeddedICMPOffset(rb []byte, n int, isV6 bool) int {
 }
 
 func doTraceroute(dest netip.Addr, maxHops int, timeout time.Duration, probes int) ([]map[string]any, error) {
-	network := "ip4:icmp"
+	network := networkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
 	icmpTimeExceeded := byte(11)
@@ -188,7 +188,7 @@ func doTraceroute(dest netip.Addr, maxHops int, timeout time.Duration, probes in
 	portUnreach := byte(icmpv4PortUnreach)
 	isV6 := dest.Is6()
 	if isV6 {
-		network = "ip6:ipv6-icmp"
+		network = networkICMPv6
 		icmpEcho = 128
 		icmpEchoReply = 129
 		icmpTimeExceeded = 3

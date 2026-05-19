@@ -29,6 +29,25 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// Ping monitor mode intercepts all keys.
+	if m.pingMonitor != nil {
+		if m.handlePingMonitorKey(keyStr) {
+			return m, nil
+		}
+	}
+
+	// Piped ping: replace mode intercepts all keys (alt screen),
+	// log mode only intercepts Esc/Ctrl-C.
+	if m.pingMonitorPiped != nil {
+		if keyStr == "q" || keyStr == keyCtrlC || keyStr == keyEsc {
+			m.stopPingMonitorPiped()
+			return m, nil
+		}
+		if !m.pingMonitorPiped.logMode {
+			return m, nil
+		}
+	}
+
 	// Piped traceroute: replace mode intercepts all keys (alt screen),
 	// log mode only intercepts Esc/Ctrl-C.
 	if m.traceroutePiped != nil {
@@ -361,6 +380,14 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			dashCmd := m.startDashboard()
 			return m, dashCmd
 		}
+		if isPingMonitorCommand(args) {
+			pingCmd := m.startPingMonitor(args)
+			return m, pingCmd
+		}
+		if isPipedPingMonitorCommand(args) {
+			pingCmd := m.startPingMonitorPiped(args)
+			return m, pingCmd
+		}
 		if isTracerouteMonitorCommand(args) {
 			trCmd := m.startTraceroute(args)
 			return m, trCmd
@@ -473,6 +500,14 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		if isDashboardCommand(input) {
 			dashCmd := m.startDashboard()
 			return m, dashCmd
+		}
+		if isPingMonitorCommand(input) {
+			pingCmd := m.startPingMonitor(input)
+			return m, pingCmd
+		}
+		if isPipedPingMonitorCommand(input) {
+			pingCmd := m.startPingMonitorPiped(input)
+			return m, pingCmd
 		}
 		if isTracerouteMonitorCommand(input) {
 			trCmd := m.startTraceroute(input)

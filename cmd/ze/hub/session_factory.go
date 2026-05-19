@@ -5,6 +5,7 @@ package hub
 
 import (
 	"context"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -62,6 +63,7 @@ func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParam
 						m.SetCommandExecutor(executor)
 						m.SetDashboardFactory(dashboardFactoryFromExecutor(executor))
 						m.SetTracerouteFactory(streamingTracerouteFactory)
+						m.SetPingFactory(streamingPingFactory)
 					}
 					monitorFn := srv.MonitorFactoryFunc()
 					if monitorFn != nil {
@@ -88,6 +90,7 @@ func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParam
 			m.SetCommandExecutor(executor)
 			m.SetDashboardFactory(dashboardFactoryFromExecutor(executor))
 			m.SetTracerouteFactory(streamingTracerouteFactory)
+			m.SetPingFactory(streamingPingFactory)
 		}
 		monitorFn := srv.MonitorFactoryFunc()
 		if monitorFn != nil {
@@ -125,4 +128,8 @@ func dashboardFactoryFromExecutor(cmdExec zessh.CommandExecutor) cli.DashboardFa
 
 func streamingTracerouteFactory(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error) {
 	return show.NewTracerouteSession(ctx, target, maxHops)
+}
+
+func streamingPingFactory(ctx context.Context, target string, interval, timeout time.Duration) (<-chan map[string]any, context.CancelFunc, error) {
+	return show.NewPingSession(ctx, target, interval, timeout)
 }

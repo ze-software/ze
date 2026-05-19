@@ -41,6 +41,10 @@ func init() {
 			Handler:    handleMonitor,
 		},
 		pluginserver.RPCRegistration{
+			WireMethod: "ze-monitor:ping",
+			Handler:    handleMonitorPing,
+		},
+		pluginserver.RPCRegistration{
 			WireMethod: "ze-monitor:traceroute",
 			Handler:    handleMonitorTraceroute,
 		},
@@ -54,6 +58,13 @@ func init() {
 	// "monitor traceroute" is also TUI-side (mtr-style live view).
 	// No streaming handler needed -- the CLI intercepts both before
 	// they reach the streaming path.
+}
+
+func handleMonitorPing(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   map[string]any{"status": "monitor-ping-configured"},
+	}, nil
 }
 
 func handleMonitorTraceroute(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

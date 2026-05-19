@@ -23,6 +23,13 @@ module ze-monitor-cmd {
             description "Stream live events with optional include/exclude filters";
         }
 
+        container ping {
+            config false;
+            ze:command "ze-monitor:ping";
+            ze:task-support required;
+            description "Continuous ping with live stats (<target> [interval Ns] [timeout Ns])";
+        }
+
         container traceroute {
             config false;
             ze:command "ze-monitor:traceroute";
