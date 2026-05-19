@@ -308,6 +308,7 @@ type (
 // NewModel creates a new editor model.
 func NewModel(ed *Editor) (Model, error) {
 	ti := textinput.New()
+	ti.Prompt = ""
 	ti.Placeholder = "type command or Tab for suggestions"
 	ti.Focus()
 	ti.CharLimit = 512
@@ -361,6 +362,7 @@ func NewModel(ed *Editor) (Model, error) {
 // The model starts in ModeCommand with edit commands unavailable.
 func NewCommandModel() Model {
 	ti := textinput.New()
+	ti.Prompt = ""
 	ti.Placeholder = "type command or press Tab for suggestions"
 	ti.Focus()
 	ti.CharLimit = 512
