@@ -33,7 +33,7 @@ var (
 	errDropdownExpectationRequiresVisibleOrHidden      = errors.New("dropdown expectation requires 'visible' or 'hidden' key")
 	errPromptExpectationRequiresContainsKey            = errors.New("prompt expectation requires 'contains' key")
 	errViewportExpectationRequiresContainsOrNot        = errors.New("viewport expectation requires 'contains' or 'not-contains' key")
-	errModeExpectationRequiresIsKeyE                   = errors.New("mode expectation requires 'is' key (e.g., mode:is=edit or mode:is=command)")
+	errModeExpectationRequiresIsKeyE                   = errors.New("mode expectation requires 'is' key (e.g., mode:is=config or mode:is=operational)")
 	errExpectedTimerActiveGotInactive                  = errors.New("expected timer:active, got inactive")
 	errExpectedTimerInactiveGotActive                  = errors.New("expected timer:inactive, got active")
 	errTimerExpectationRequiresActiveOrInactive        = errors.New("timer expectation requires 'active' or 'inactive' key")
@@ -412,7 +412,7 @@ func checkPrompt(exp Expectation, state State) error {
 	if expected, hasContains := exp.Values["contains"]; hasContains {
 		// Build prompt based on current mode
 		var prompt string
-		if state.Mode() == cli.ModeCommand {
+		if state.Mode() == cli.ModeOperational {
 			prompt = "ze>"
 		} else {
 			path := state.ContextPath()

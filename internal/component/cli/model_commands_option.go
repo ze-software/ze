@@ -22,7 +22,7 @@ func isOptionColumn(name string) bool {
 // cmdOption manages display settings: blame, changes, column toggles, all/none.
 func (m *Model) cmdOption(args []string) (commandResult, error) {
 	if m.editor == nil {
-		return commandResult{}, fmt.Errorf("command %q requires edit mode (no config file loaded)", cmdOption)
+		return commandResult{}, fmt.Errorf("command %q requires config mode (no config file loaded)", cmdOption)
 	}
 
 	if len(args) == 0 {

@@ -1,8 +1,8 @@
 # Test: Viewport content preserved across mode switches
-# VALIDATES: AC-6 — edit viewport restored after command mode
-# VALIDATES: AC-8 — edit mode commands still work after mode switch
+# VALIDATES: AC-6 — config viewport restored after operational mode
+# VALIDATES: AC-8 — config mode commands still work after mode switch
 # PREVENTS: Lost config content on mode toggle
-# NOTE: AC-7 (command viewport restore) tested by TestModeScreenRestore unit test
+# NOTE: AC-7 (operational viewport restore) tested by TestModeScreenRestore unit test
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -13,7 +13,7 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Set some config in edit mode
+# Set some config in config mode
 input=type:text=set bgp session asn local 65000
 input=enter
 expect=dirty:true
@@ -23,18 +23,18 @@ input=type:text=show
 input=enter
 expect=content:contains=local 65000
 
-# Switch to command mode — edit content should be saved
+# Switch to operational mode — config content should be saved
 input=type:text=run
 input=enter
-expect=mode:is=command
+expect=mode:is=operational
 
-# Switch back to edit — config should still be there
-input=type:text=edit
+# Switch back to config — config should still be there
+input=type:text=configure
 input=enter
-expect=mode:is=edit
+expect=mode:is=config
 expect=dirty:true
 
-# Verify edit mode commands still work (AC-8)
+# Verify config mode commands still work (AC-8)
 input=type:text=show
 input=enter
 expect=content:contains=local 65000

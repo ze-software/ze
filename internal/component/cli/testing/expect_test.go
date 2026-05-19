@@ -304,19 +304,19 @@ func TestExpectDropdown(t *testing.T) {
 }
 
 func TestExpectMode(t *testing.T) {
-	expEdit := Expectation{Type: "mode", Values: map[string]string{"is": "edit"}}
-	expCommand := Expectation{Type: "mode", Values: map[string]string{"is": "command"}}
+	expEdit := Expectation{Type: "mode", Values: map[string]string{"is": "config"}}
+	expCommand := Expectation{Type: "mode", Values: map[string]string{"is": "operational"}}
 
-	err := CheckExpectation(expEdit, &MockState{mode: cli.ModeEdit})
+	err := CheckExpectation(expEdit, &MockState{mode: cli.ModeConfig})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(expEdit, &MockState{mode: cli.ModeCommand})
+	err = CheckExpectation(expEdit, &MockState{mode: cli.ModeOperational})
 	assert.Error(t, err)
 
-	err = CheckExpectation(expCommand, &MockState{mode: cli.ModeCommand})
+	err = CheckExpectation(expCommand, &MockState{mode: cli.ModeOperational})
 	assert.NoError(t, err)
 
-	err = CheckExpectation(expCommand, &MockState{mode: cli.ModeEdit})
+	err = CheckExpectation(expCommand, &MockState{mode: cli.ModeConfig})
 	assert.Error(t, err)
 }
 

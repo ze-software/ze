@@ -1,6 +1,6 @@
-# Test: Mode switching between edit and command modes
-# VALIDATES: AC-1 — run switches to command mode
-# VALIDATES: AC-2 — edit switches to edit mode
+# Test: Mode switching between config and operational modes
+# VALIDATES: AC-1 — run switches to operational mode
+# VALIDATES: AC-2 — configure switches to config mode
 # PREVENTS: Mode state corruption on switch
 
 tmpfs=test.conf:terminator=EOF_CONF
@@ -12,16 +12,16 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Initially in edit mode
-expect=mode:is=edit
+# Initially in config mode
+expect=mode:is=config
 
-# Switch to command mode
+# Switch to operational mode
 input=type:text=run
 input=enter
-expect=mode:is=command
+expect=mode:is=operational
 expect=status:contains=no daemon connection
 
-# Switch back to edit mode
-input=type:text=edit
+# Switch back to config mode
+input=type:text=configure
 input=enter
-expect=mode:is=edit
+expect=mode:is=config

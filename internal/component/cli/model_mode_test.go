@@ -11,29 +11,29 @@ import (
 	"testing"
 )
 
-func TestModeSwitchToCommand(t *testing.T) {
+func TestModeSwitchToOperational(t *testing.T) {
 	// VALIDATES: AC-1 — run switches to command mode
 	m := newTestModel(t)
 
-	if m.Mode() != ModeEdit {
-		t.Fatalf("expected initial mode ModeEdit, got %v", m.Mode())
+	if m.Mode() != ModeConfig {
+		t.Fatalf("expected initial mode ModeConfig, got %v", m.Mode())
 	}
 
-	m.SwitchMode(ModeCommand)
+	m.SwitchMode(ModeOperational)
 
-	if m.Mode() != ModeCommand {
-		t.Errorf("expected ModeCommand after switch, got %v", m.Mode())
+	if m.Mode() != ModeOperational {
+		t.Errorf("expected ModeOperational after switch, got %v", m.Mode())
 	}
 }
 
-func TestModeSwitchToEdit(t *testing.T) {
+func TestModeSwitchToConfig(t *testing.T) {
 	// VALIDATES: AC-2 — edit switches to edit mode
 	m := newTestModel(t)
-	m.SwitchMode(ModeCommand)
-	m.SwitchMode(ModeEdit)
+	m.SwitchMode(ModeOperational)
+	m.SwitchMode(ModeConfig)
 
-	if m.Mode() != ModeEdit {
-		t.Errorf("expected ModeEdit after switch, got %v", m.Mode())
+	if m.Mode() != ModeConfig {
+		t.Errorf("expected ModeConfig after switch, got %v", m.Mode())
 	}
 }
 
@@ -41,20 +41,20 @@ func TestModeSwitchNoop(t *testing.T) {
 	// VALIDATES: AC-9, AC-10 — switching to current mode is no-op
 	m := newTestModel(t)
 
-	m.SwitchMode(ModeEdit) // already in edit
-	if m.Mode() != ModeEdit {
-		t.Errorf("expected ModeEdit, got %v", m.Mode())
+	m.SwitchMode(ModeConfig) // already in edit
+	if m.Mode() != ModeConfig {
+		t.Errorf("expected ModeConfig, got %v", m.Mode())
 	}
-	if m.StatusMessage() != "already in edit mode" {
+	if m.StatusMessage() != "already in config mode" {
 		t.Errorf("expected no-op status message, got %q", m.StatusMessage())
 	}
 
-	m.SwitchMode(ModeCommand)
-	m.SwitchMode(ModeCommand) // already in command
-	if m.Mode() != ModeCommand {
-		t.Errorf("expected ModeCommand, got %v", m.Mode())
+	m.SwitchMode(ModeOperational)
+	m.SwitchMode(ModeOperational) // already in operational
+	if m.Mode() != ModeOperational {
+		t.Errorf("expected ModeOperational, got %v", m.Mode())
 	}
-	if m.StatusMessage() != "already in command mode" {
+	if m.StatusMessage() != "already in operational mode" {
 		t.Errorf("expected no-op status message, got %q", m.StatusMessage())
 	}
 }
@@ -72,7 +72,7 @@ func TestModeScreenRestore(t *testing.T) {
 	}
 
 	// Switch to command mode — edit content should be saved
-	m.SwitchMode(ModeCommand)
+	m.SwitchMode(ModeOperational)
 
 	// Command mode starts with empty viewport
 	if m.ViewportContent() != "" {
@@ -84,14 +84,14 @@ func TestModeScreenRestore(t *testing.T) {
 	m.setViewportText(cmdContent)
 
 	// Switch back to edit — edit content should be restored
-	m.SwitchMode(ModeEdit)
+	m.SwitchMode(ModeConfig)
 
 	if m.ViewportContent() != editContent {
 		t.Errorf("expected edit content restored, got %q", m.ViewportContent())
 	}
 
 	// Switch back to command — command content should be restored
-	m.SwitchMode(ModeCommand)
+	m.SwitchMode(ModeOperational)
 
 	if m.ViewportContent() != cmdContent {
 		t.Errorf("expected command content restored, got %q", m.ViewportContent())
@@ -113,7 +113,7 @@ func TestCommandModeCompletionsWired(t *testing.T) {
 	editComps := m.Completions()
 
 	// Switch to command mode — completions merge operational + edit commands
-	m.SwitchMode(ModeCommand)
+	m.SwitchMode(ModeOperational)
 	m.UpdateCompletions()
 	cmdComps := m.Completions()
 
@@ -173,7 +173,7 @@ func TestCommandModeDispatch(t *testing.T) {
 		return "", fmt.Errorf("unknown command: %s", input)
 	})
 
-	m.SwitchMode(ModeCommand)
+	m.SwitchMode(ModeOperational)
 
 	// Simulate executeOperationalCommand via Update
 	result, _ := m.Update(commandResultMsg{
@@ -192,7 +192,7 @@ func TestCommandModeDispatch(t *testing.T) {
 func TestCommandModeDispatchNoExecutor(t *testing.T) {
 	// VALIDATES: command mode without executor shows warning on switch and error on dispatch
 	m := newTestModel(t)
-	m.SwitchMode(ModeCommand)
+	m.SwitchMode(ModeOperational)
 
 	// Should warn upfront that daemon is not connected
 	if m.StatusMessage() == "" {
@@ -223,7 +223,7 @@ func TestCommandModeGhostTextWired(t *testing.T) {
 		},
 	}))
 
-	m.SwitchMode(ModeCommand)
+	m.SwitchMode(ModeOperational)
 
 	// Type "pe" — ghost text should suggest "er" (completing "peer")
 	m.textInput.SetValue("pe")
@@ -260,8 +260,8 @@ func TestModeString(t *testing.T) {
 		mode EditorMode
 		want string
 	}{
-		{ModeEdit, "edit"},
-		{ModeCommand, "command"},
+		{ModeConfig, "config"},
+		{ModeOperational, "operational"},
 	}
 	for _, tt := range tests {
 		if got := tt.mode.String(); got != tt.want {
@@ -280,7 +280,7 @@ func TestModeHistoryIsolation(t *testing.T) {
 	m.history.Append("show")
 
 	// Switch to command mode
-	m.SwitchMode(ModeCommand)
+	m.SwitchMode(ModeOperational)
 
 	if len(m.history.Entries()) != 0 {
 		t.Errorf("expected empty history in fresh command mode, got %v", m.history.Entries())
@@ -290,7 +290,7 @@ func TestModeHistoryIsolation(t *testing.T) {
 	m.history.Append("peer list")
 
 	// Switch back to edit - edit history should be restored
-	m.SwitchMode(ModeEdit)
+	m.SwitchMode(ModeConfig)
 
 	entries := m.history.Entries()
 	if len(entries) != 2 {
@@ -301,7 +301,7 @@ func TestModeHistoryIsolation(t *testing.T) {
 	}
 
 	// Switch back to command - command history should be restored
-	m.SwitchMode(ModeCommand)
+	m.SwitchMode(ModeOperational)
 
 	entries = m.history.Entries()
 	if len(entries) != 1 {
@@ -329,14 +329,14 @@ func TestModeScrollRestore(t *testing.T) {
 	m.viewport.SetYOffset(5)
 
 	// Switch to command mode
-	m.SwitchMode(ModeCommand)
+	m.SwitchMode(ModeOperational)
 
 	if m.viewport.YOffset() != 0 {
 		t.Errorf("expected YOffset 0 in fresh command mode, got %d", m.viewport.YOffset())
 	}
 
 	// Switch back to edit — scroll position should be restored
-	m.SwitchMode(ModeEdit)
+	m.SwitchMode(ModeConfig)
 
 	if m.viewport.YOffset() != 5 {
 		t.Errorf("expected YOffset 5 restored in edit mode, got %d", m.viewport.YOffset())
@@ -359,7 +359,7 @@ func TestTabOnCommonPrefixShowsDropdown(t *testing.T) {
 		},
 	}))
 
-	m.SwitchMode(ModeCommand)
+	m.SwitchMode(ModeOperational)
 	m.textInput.SetValue("peer detail 12")
 	m.UpdateCompletions()
 
@@ -426,8 +426,8 @@ func TestCrossModeCompletionsRunPrefix(t *testing.T) {
 	}
 }
 
-func TestCrossModeCompletionsEditInCommandMode(t *testing.T) {
-	// VALIDATES: command mode with edit command prefix routes to YANG completions
+func TestCrossModeCompletionsConfigInOperationalMode(t *testing.T) {
+	// VALIDATES: operational mode with config command prefix routes to YANG completions
 	// PREVENTS: trying to match "set bgp" against operational command tree
 	m := newTestModel(t)
 	m.SetCommandCompleter(NewCommandCompleter(&CommandNode{
@@ -436,7 +436,7 @@ func TestCrossModeCompletionsEditInCommandMode(t *testing.T) {
 		},
 	}))
 
-	m.SwitchMode(ModeCommand)
+	m.SwitchMode(ModeOperational)
 
 	// Type "set " — should get YANG completions, not operational
 	m.textInput.SetValue("set ")
@@ -451,7 +451,7 @@ func TestCrossModeCompletionsEditInCommandMode(t *testing.T) {
 	}
 }
 
-func TestIsEditCommandWithArgs(t *testing.T) {
+func TestIsConfigCommandWithArgs(t *testing.T) {
 	tests := []struct {
 		input string
 		want  bool
@@ -463,16 +463,16 @@ func TestIsEditCommandWithArgs(t *testing.T) {
 		{"set bgp peer", true},
 		{"delete ", true},
 		{"peer list", false}, // not an edit command
-		{"run peer", false},  // "run" is not in editModeCommands
+		{"run peer", false},  // "run" is not in configModeCommands
 		{"show ", true},
 		{"show bgp", true},
 		{"commit", false}, // no args
 		{"commit ", true}, // trailing space counts
 	}
 	for _, tt := range tests {
-		got := isEditCommandWithArgs(tt.input)
+		got := isConfigCommandWithArgs(tt.input)
 		if got != tt.want {
-			t.Errorf("isEditCommandWithArgs(%q) = %v, want %v", tt.input, got, tt.want)
+			t.Errorf("isConfigCommandWithArgs(%q) = %v, want %v", tt.input, got, tt.want)
 		}
 	}
 }

@@ -465,11 +465,11 @@ func TestModelKeyrunesTriggersValidation(t *testing.T) {
 	assert.NotNil(t, cmd, "should return command for debounced validation")
 }
 
-// TestExitCommandQuits verifies that typing "exit" quits the editor.
+// TestExitCommandSwitchesMode verifies that "exit" in config mode returns to operational.
 //
-// VALIDATES: "exit" command triggers tea.Quit.
-// PREVENTS: "exit" being silently ignored.
-func TestExitCommandQuits(t *testing.T) {
+// VALIDATES: "exit" in config mode switches to operational mode (NOS convention).
+// PREVENTS: "exit" quitting the CLI when in config mode.
+func TestExitCommandSwitchesMode(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
@@ -484,15 +484,23 @@ func TestExitCommandQuits(t *testing.T) {
 	model.width = 80
 	model.height = 24
 
-	// Type "exit" and press Enter
+	// "exit" in config mode should switch to operational
 	model.textInput.SetValue("exit")
-	newModel, cmd := model.handleEnter()
+	newModel, _ := model.handleEnter()
 	m, ok := newModel.(Model)
 	require.True(t, ok)
 
-	// Should be quitting
-	assert.True(t, m.quitting, "exit should set quitting flag")
-	assert.NotNil(t, cmd, "exit should return a tea.Cmd (tea.Quit)")
+	assert.False(t, m.quitting, "exit in config mode should not quit")
+	assert.Equal(t, ModeOperational, m.Mode(), "exit in config mode should switch to operational")
+
+	// "exit" in operational mode should quit
+	m.textInput.SetValue("exit")
+	newModel2, cmd := m.handleEnter()
+	m2, ok := newModel2.(Model)
+	require.True(t, ok)
+
+	assert.True(t, m2.quitting, "exit in operational mode should quit")
+	assert.NotNil(t, cmd, "exit in operational mode should return tea.Quit")
 }
 
 // TestExitBlockedByDirty verifies that "exit" warns when there are unsaved changes.
@@ -784,13 +792,13 @@ func TestSetHistoryLoadsCurrentMode(t *testing.T) {
 	storePath := filepath.Join(tmpDir, "test.zefs")
 	store, err := zefs.Create(storePath)
 	require.NoError(t, err)
-	require.NoError(t, store.WriteFile("meta/history/testuser/edit", []byte("show\ncommit"), 0))
+	require.NoError(t, store.WriteFile("meta/history/testuser/config", []byte("show\ncommit"), 0))
 
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
-	m, err := NewModel(ed) // starts in ModeEdit
+	m, err := NewModel(ed) // starts in ModeConfig
 	require.NoError(t, err)
 
 	m.SetHistory(NewHistory(store, "testuser"))
@@ -811,8 +819,8 @@ func TestSetHistoryPreloadsOtherMode(t *testing.T) {
 	storePath := filepath.Join(tmpDir, "test.zefs")
 	store, err := zefs.Create(storePath)
 	require.NoError(t, err)
-	require.NoError(t, store.WriteFile("meta/history/testuser/edit", []byte("show"), 0))
-	require.NoError(t, store.WriteFile("meta/history/testuser/command", []byte("peer list\ndaemon status"), 0))
+	require.NoError(t, store.WriteFile("meta/history/testuser/config", []byte("show"), 0))
+	require.NoError(t, store.WriteFile("meta/history/testuser/operational", []byte("peer list\ndaemon status"), 0))
 
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
@@ -825,12 +833,12 @@ func TestSetHistoryPreloadsOtherMode(t *testing.T) {
 	store.Close() //nolint:errcheck // test cleanup
 
 	// Switch to command mode.
-	m.SwitchMode(ModeCommand)
+	m.SwitchMode(ModeOperational)
 	assert.Equal(t, []string{"peer list", "daemon status"}, m.history.Entries(),
 		"command history should be pre-loaded from store")
 
 	// Switch back to edit.
-	m.SwitchMode(ModeEdit)
+	m.SwitchMode(ModeConfig)
 	assert.Equal(t, []string{"show"}, m.history.Entries(),
 		"edit history should survive mode round-trip")
 }
@@ -866,7 +874,7 @@ func TestModelHistoryPersistOnEnter(t *testing.T) {
 
 	// Reload history from the same store.
 	h2 := NewHistory(store, "testuser")
-	loaded := h2.Load("edit")
+	loaded := h2.Load("config")
 	store.Close() //nolint:errcheck // test cleanup
 
 	assert.Equal(t, []string{"show"}, loaded, "command should be persisted to store via Save")
@@ -894,12 +902,12 @@ func TestCommandModelHistoryPersistOnEnter(t *testing.T) {
 	_, ok := newModel.(Model)
 	require.True(t, ok)
 
-	// Reload from store and verify saved under "command" key.
+	// Reload from store and verify saved under "operational" key.
 	h2 := NewHistory(store, "testuser")
-	loaded := h2.Load("command")
+	loaded := h2.Load("operational")
 	store.Close() //nolint:errcheck // test cleanup
 
-	assert.Equal(t, []string{"peer list"}, loaded, "command-mode history should be persisted under 'command' key")
+	assert.Equal(t, []string{"peer list"}, loaded, "operational-mode history should be persisted under 'operational' key")
 }
 
 // TestTabOnListKeyShowsChildrenImmediately verifies that pressing Tab on a typed
@@ -973,12 +981,19 @@ func TestExitAfterDiscard(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, ed.Dirty(), "should NOT be dirty after discard")
 
-	// Exit — should succeed
+	// Exit from config mode — should switch to operational
 	model.textInput.SetValue("exit")
-	newModel, cmd := model.handleEnter()
+	newModel, _ := model.handleEnter()
 	m, ok := newModel.(Model)
 	require.True(t, ok)
-	assert.True(t, m.quitting, "exit should succeed after discard")
+	assert.Equal(t, ModeOperational, m.Mode(), "exit should switch to operational after discard")
+
+	// Exit from operational mode — should quit
+	m.textInput.SetValue("exit")
+	newModel2, cmd := m.handleEnter()
+	m2, ok := newModel2.(Model)
+	require.True(t, ok)
+	assert.True(t, m2.quitting, "exit should quit from operational mode")
 	assert.NotNil(t, cmd, "exit should return tea.Quit")
 }
 
@@ -1011,12 +1026,19 @@ func TestExitAfterCommit(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, ed.Dirty(), "should NOT be dirty after commit")
 
-	// Exit — should succeed
+	// Exit from config mode — should switch to operational
 	model.textInput.SetValue("exit")
-	newModel, cmd := model.handleEnter()
+	newModel, _ := model.handleEnter()
 	m, ok := newModel.(Model)
 	require.True(t, ok)
-	assert.True(t, m.quitting, "exit should succeed after commit")
+	assert.Equal(t, ModeOperational, m.Mode(), "exit should switch to operational after commit")
+
+	// Exit from operational mode — should quit
+	m.textInput.SetValue("exit")
+	newModel2, cmd := m.handleEnter()
+	m2, ok := newModel2.(Model)
+	require.True(t, ok)
+	assert.True(t, m2.quitting, "exit should quit from operational mode")
 	assert.NotNil(t, cmd, "exit should return tea.Quit")
 }
 
@@ -1050,7 +1072,7 @@ func TestNoFalseDirtyOnOpen(t *testing.T) {
 
 // --- Phase 2: Command-only mode (unified CLI) tests ---
 
-// TestModelStartsInEditMode verifies that NewModel creates a model in ModeEdit.
+// TestModelStartsInEditMode verifies that NewModel creates a model in ModeConfig.
 //
 // VALIDATES: AC-1 from spec-unified-cli: ze config edit opens in Edit mode.
 // PREVENTS: Editor model accidentally starting in command mode.
@@ -1066,18 +1088,18 @@ func TestModelStartsInEditMode(t *testing.T) {
 
 	m, err := NewModel(ed)
 	require.NoError(t, err)
-	assert.Equal(t, ModeEdit, m.Mode(), "editor model should start in ModeEdit")
+	assert.Equal(t, ModeConfig, m.Mode(), "editor model should start in ModeConfig")
 	assert.True(t, m.hasEditor(), "editor model should have an editor")
 }
 
 // TestModelStartsInCommandMode verifies that NewCommandModel creates a model
-// in ModeCommand with nil editor.
+// in ModeOperational with nil editor.
 //
 // VALIDATES: AC-2 from spec-unified-cli: ze cli opens in Command mode.
 // PREVENTS: Command-only model accidentally starting in edit mode.
 func TestModelStartsInCommandMode(t *testing.T) {
 	m := NewCommandModel()
-	assert.Equal(t, ModeCommand, m.Mode(), "command model should start in ModeCommand")
+	assert.Equal(t, ModeOperational, m.Mode(), "command model should start in ModeOperational")
 	assert.False(t, m.hasEditor(), "command model should have no editor")
 }
 
@@ -1113,30 +1135,30 @@ func TestEditCommandsUnavailableWithoutEditor(t *testing.T) {
 	}
 }
 
-// TestModeEditBlockedWithoutEditor verifies that typing "edit" or an edit command
-// in command-only mode returns an error and stays in ModeCommand.
+// TestModeConfigBlockedWithoutEditor verifies that typing "configure" or a config command
+// in command-only mode returns an error and stays in ModeOperational.
 //
 // VALIDATES: AC-3 from spec-unified-cli: mode switch blocked without config.
-// PREVENTS: Entering ModeEdit with nil editor causing nil panics in updateCompletions/View.
-func TestModeEditBlockedWithoutEditor(t *testing.T) {
+// PREVENTS: Entering ModeConfig with nil editor causing nil panics in updateCompletions/View.
+func TestModeConfigBlockedWithoutEditor(t *testing.T) {
 	m := NewCommandModel()
 	m.width = 80
 	m.height = 24
 
-	// Try "edit" command — should stay in ModeCommand
-	m.textInput.SetValue("edit")
+	// Try "configure" command — should stay in ModeOperational
+	m.textInput.SetValue("configure")
 	newModel, _ := m.handleEnter()
 	updated, ok := newModel.(Model)
 	require.True(t, ok)
-	assert.Equal(t, ModeCommand, updated.Mode(), "should stay in ModeCommand after 'edit'")
+	assert.Equal(t, ModeOperational, updated.Mode(), "should stay in ModeOperational after 'configure'")
 	assert.NotEmpty(t, updated.statusMessage, "should show error message")
 
-	// Try "set bgp router-id 1.2.3.4" — should stay in ModeCommand
+	// Try "set bgp router-id 1.2.3.4" — should stay in ModeOperational
 	updated.textInput.SetValue("set bgp router-id 1.2.3.4")
 	newModel, _ = updated.handleEnter()
 	updated2, ok := newModel.(Model)
 	require.True(t, ok)
-	assert.Equal(t, ModeCommand, updated2.Mode(), "should stay in ModeCommand after 'set'")
+	assert.Equal(t, ModeOperational, updated2.Mode(), "should stay in ModeOperational after 'set'")
 }
 
 // TestViewRendersWithoutEditor verifies that View() does not panic and renders

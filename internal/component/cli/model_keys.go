@@ -65,12 +65,12 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		confirmed := false
 		isEscOrCtrlC := keyStr == keyCtrlC || keyStr == keyEsc
 		if isEscOrCtrlC {
-			if m.confirmQuit {
+			if m.confirmQuit && !m.confirmExitConfig {
 				m.autoSaveOnQuit()
 				m.quitting = true
 				return m, tea.Quit
 			}
-			// Esc cancels stop/restart confirmation (fall through to cancel below)
+			// Esc cancels config-exit and stop/restart confirmation
 		} else if key.Text == "y" || key.Text == "Y" {
 			confirmed = true
 		}
@@ -85,6 +85,14 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.quitting = true
 				return m, tea.Quit
 			}
+			if m.confirmQuit && m.confirmExitConfig {
+				m.confirmQuit = false
+				m.confirmExitConfig = false
+				m.textInput.SetValue("")
+				m.SwitchMode(ModeOperational)
+				m.updateCompletions()
+				return m, nil
+			}
 			if m.confirmQuit {
 				m.autoSaveOnQuit()
 				m.quitting = true
@@ -93,6 +101,7 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		// Any other key cancels
 		m.confirmQuit = false
+		m.confirmExitConfig = false
 		m.confirmStop = false
 		m.confirmRestart = false
 		m.statusMessage = ""
@@ -347,18 +356,14 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	}
 
 	// Handle mode switching commands.
-	// "run" (bare) in edit mode -> switch to command mode.
-	// "run <args>" in edit mode -> switch to command mode and execute.
-	// "edit" (bare) in command mode -> switch to edit mode.
-	// Config commands (set, delete, etc.) in command mode -> switch to edit mode and execute.
-	if m.mode == ModeEdit && (input == cmdRun || strings.HasPrefix(input, cmdRun+" ")) {
+	// "run <args>" in config mode -> switch to operational mode and execute.
+	// "configure" in operational mode -> switch to config mode.
+	// Config commands (set, delete, etc.) in operational mode -> switch to config mode and execute.
+	if m.mode == ModeConfig && strings.HasPrefix(input, cmdRun+" ") {
 		args := strings.TrimSpace(strings.TrimPrefix(input, cmdRun))
 		m.textInput.SetValue("")
-		m.SwitchMode(ModeCommand)
+		m.SwitchMode(ModeOperational)
 		m.updateCompletions()
-		if args == "" {
-			return m, nil
-		}
 		// Save to history and execute.
 		if m.history.Append(args) {
 			m.history.Save(m.mode.String())
@@ -403,32 +408,47 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		m.statusMessage = "running..."
 		return m, m.executeOperationalCommand(args)
 	}
-	if m.mode == ModeCommand && input == cmdEdit {
+	if m.mode == ModeOperational && input == cmdConfigure {
 		if !m.hasEditor() {
 			m.textInput.SetValue("")
-			m.statusMessage = "edit mode not available (no config file loaded)"
+			m.statusMessage = "config mode not available (no config file loaded)"
 			return m, nil
 		}
 		m.textInput.SetValue("")
-		m.SwitchMode(ModeEdit)
+		m.SwitchMode(ModeConfig)
 		m.updateCompletions()
 		return m, nil
 	}
-	if m.mode == ModeCommand && isEditCommand(input) {
+	if m.mode == ModeOperational && isConfigCommand(input) {
 		if m.hasEditor() {
-			m.SwitchMode(ModeEdit)
+			m.SwitchMode(ModeConfig)
 			// Fall through to normal dispatch -- history/clear happens below,
 			// executeCommand runs with the switched mode.
 		} else if !isOperationalVerb(input) {
 			m.textInput.SetValue("")
-			m.statusMessage = "edit mode not available (no config file loaded)"
+			m.statusMessage = "config mode not available (no config file loaded)"
 			return m, nil
 		}
 		// Operational verbs (show, errors, who) fall through to command dispatch.
 	}
 
-	// Handle exit/quit directly (not via async command dispatch)
+	// Handle exit/quit directly (not via async command dispatch).
+	// In config mode, "exit" returns to operational mode (like NOS convention).
+	// In operational mode, "exit" and "quit" terminate the CLI.
 	if input == cmdExit || input == cmdQuit {
+		if m.mode == ModeConfig && input == cmdExit {
+			if m.hasPendingChanges() {
+				m.textInput.SetValue("")
+				m.statusMessage = "Pending changes. Use 'commit', 'discard all', or type y to force exit."
+				m.confirmQuit = true
+				m.confirmExitConfig = true
+				return m, nil
+			}
+			m.textInput.SetValue("")
+			m.SwitchMode(ModeOperational)
+			m.updateCompletions()
+			return m, nil
+		}
 		if m.hasPendingChanges() {
 			m.textInput.SetValue("")
 			m.statusMessage = "Pending changes. Use 'commit', 'discard all', or type y to force quit."
@@ -494,7 +514,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	}
 
 	// Execute command -- dispatch based on mode
-	if m.mode == ModeCommand {
+	if m.mode == ModeOperational {
 		m.lastCommand = input
 		m.writeCommandEcho()
 		if isDashboardCommand(input) {

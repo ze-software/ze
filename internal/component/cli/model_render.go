@@ -794,12 +794,12 @@ func (m Model) renderHelpOverlay(base string) string {
   discard              Revert all changes
   history              List backup files
   rollback <N>         Restore backup N
-  exit                 Exit editor
+  exit                 Return to operational mode
 
 Modes:
-  run                  Switch to operational command mode
-  run <cmd>            Switch to command mode and execute <cmd>
-  (config commands in command mode auto-switch back to edit mode)
+  run <cmd>            Execute an operational command
+  configure            Enter config mode (from operational mode)
+  (config commands in operational mode auto-switch to config mode)
 
 Load:
   load file absolute replace <path>    Replace entire config from file
@@ -866,7 +866,7 @@ Press Esc to close this help.`
 
 // buildPrompt returns the context-aware prompt string.
 func (m Model) buildPrompt() string {
-	if m.mode == ModeCommand {
+	if m.mode == ModeOperational {
 		return promptStyle.Render("ze> ")
 	}
 

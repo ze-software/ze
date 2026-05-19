@@ -29,11 +29,11 @@ func TestHistoryLoadSave(t *testing.T) {
 	for _, cmd := range []string{"show", "set bgp local-as 65000", "commit"} {
 		h.Append(cmd)
 	}
-	h.Save("edit")
+	h.Save("config")
 
 	// Reload from store.
 	h2 := NewHistory(store, "testuser")
-	loaded := h2.Load("edit")
+	loaded := h2.Load("config")
 	assert.Equal(t, []string{"show", "set bgp local-as 65000", "commit"}, loaded)
 }
 
@@ -45,10 +45,10 @@ func TestHistoryRolling(t *testing.T) {
 	for i := range 150 {
 		h.Append("command-" + string(rune('A'+i%26)) + string(rune('0'+i/26)))
 	}
-	h.Save("edit")
+	h.Save("config")
 
 	h2 := NewHistory(store, "testuser")
-	loaded := h2.Load("edit")
+	loaded := h2.Load("config")
 	assert.Len(t, loaded, 100)
 	// After Save, h.Entries() is already trimmed to the newest 100.
 	assert.Equal(t, h.Entries(), loaded, "should keep the newest 100 entries")
@@ -77,10 +77,10 @@ func TestHistoryCustomMax(t *testing.T) {
 	for i := range 80 {
 		h2.Append("cmd-" + string(rune('A'+i%26)) + string(rune('0'+i/26)))
 	}
-	h2.Save("edit")
+	h2.Save("config")
 
 	h3 := NewHistory(store, "testuser")
-	loaded := h3.Load("edit")
+	loaded := h3.Load("config")
 	assert.Len(t, loaded, 50)
 }
 
@@ -88,7 +88,7 @@ func TestHistoryCustomMax(t *testing.T) {
 // PREVENTS: Error or panic on first launch with empty store.
 func TestHistoryEmpty(t *testing.T) {
 	h, _ := newTestHistory(t)
-	loaded := h.Load("edit")
+	loaded := h.Load("config")
 	assert.Nil(t, loaded)
 }
 
@@ -99,17 +99,17 @@ func TestHistoryPerMode(t *testing.T) {
 
 	h.Append("set bgp local-as 65000")
 	h.Append("commit")
-	h.Save("edit")
+	h.Save("config")
 
 	// Reset entries for command mode.
 	h.restore(historySnapshot{idx: -1})
 	h.Append("peer list")
 	h.Append("daemon status")
-	h.Save("command")
+	h.Save("operational")
 
 	h2 := NewHistory(store, "testuser")
-	assert.Equal(t, []string{"set bgp local-as 65000", "commit"}, h2.Load("edit"))
-	assert.Equal(t, []string{"peer list", "daemon status"}, h2.Load("command"))
+	assert.Equal(t, []string{"set bgp local-as 65000", "commit"}, h2.Load("config"))
+	assert.Equal(t, []string{"peer list", "daemon status"}, h2.Load("operational"))
 }
 
 // VALIDATES: Nil store (no zefs) returns empty on load, save is no-op.
@@ -117,9 +117,9 @@ func TestHistoryPerMode(t *testing.T) {
 func TestHistoryNilGraceful(t *testing.T) {
 	h := NewHistory(nil, "")
 
-	assert.Nil(t, h.Load("edit"))
+	assert.Nil(t, h.Load("config"))
 	h.Append("show")
-	h.Save("edit")
+	h.Save("config")
 	// Entries exist in memory but nothing persisted.
 	assert.Equal(t, []string{"show"}, h.Entries())
 }
@@ -278,10 +278,10 @@ func TestHistoryAppendEmpty(t *testing.T) {
 func TestHistoryAppendNewlineReplaced(t *testing.T) {
 	h, store := newTestHistory(t)
 	h.Append("foo\nbar")
-	h.Save("edit")
+	h.Save("config")
 
 	h2 := NewHistory(store, "testuser")
-	loaded := h2.Load("edit")
+	loaded := h2.Load("config")
 	assert.Equal(t, []string{"foo bar"}, loaded)
 }
 
@@ -342,10 +342,10 @@ func TestHistoryLoadTrimsToMax(t *testing.T) {
 
 	// Manually write 20 entries to the store.
 	entries := "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt"
-	require.NoError(t, store.WriteFile("meta/history/testuser/edit", []byte(entries), 0))
+	require.NoError(t, store.WriteFile("meta/history/testuser/config", []byte(entries), 0))
 
 	h := NewHistory(store, "testuser")
-	loaded := h.Load("edit")
+	loaded := h.Load("config")
 	assert.Len(t, loaded, 5)
 	assert.Equal(t, []string{"p", "q", "r", "s", "t"}, loaded, "should keep newest 5")
 }
@@ -354,9 +354,9 @@ func TestHistoryLoadTrimsToMax(t *testing.T) {
 // PREVENTS: Phantom empty entries from whitespace-only store data.
 func TestHistoryLoadOnlyNewlines(t *testing.T) {
 	_, store := newTestHistory(t)
-	require.NoError(t, store.WriteFile("meta/history/testuser/edit", []byte("\n\n\n"), 0))
+	require.NoError(t, store.WriteFile("meta/history/testuser/config", []byte("\n\n\n"), 0))
 
 	h := NewHistory(store, "testuser")
-	loaded := h.Load("edit")
+	loaded := h.Load("config")
 	assert.Nil(t, loaded)
 }

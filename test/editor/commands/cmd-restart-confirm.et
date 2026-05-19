@@ -28,7 +28,7 @@ EOF_CONF
 
 option=file:path=test.conf
 option=timeout:value=10s
-option=mode:value=command
+option=mode:value=operational
 option=lifecycle:mode=wired
 
 # Type restart -- should show confirmation prompt

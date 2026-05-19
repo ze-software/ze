@@ -113,7 +113,7 @@ func runTestCase(tc *TestCase) *TestResult {
 	reloadMode := ""         // "success", "fail", or "" (standalone)
 	lifecycleMode := ""      // "wired" = mock shutdown/restart callbacks
 	useHistoryStore := false // option=history:store -- persist history to zefs
-	editorMode := "edit"     // option=mode:value=command -- command-only mode
+	editorMode := "config"   // option=mode:value=operational -- operational-only mode
 	sessionUser := ""
 	sessionOrigin := ""
 
@@ -183,7 +183,7 @@ func runTestCase(tc *TestCase) *TestResult {
 
 	// createModel builds a HeadlessModel based on the current mode.
 	createModel := func() (*HeadlessModel, error) {
-		if editorMode == "command" {
+		if editorMode == "operational" {
 			return NewHeadlessCommandModel(), nil
 		}
 		if configPath == "" {

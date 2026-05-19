@@ -1,7 +1,7 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
 // Detail: model_keys.go — keyboard input handling
 // Detail: model_render.go — View rendering, dropdown, message lines
-// Detail: model_mode.go — editor mode switching (edit/command)
+// Detail: model_mode.go — editor mode switching (config/operational)
 // Detail: model_search.go — config search and prefix-token matching
 // Detail: history.go — command history persistence to zefs
 // Detail: model_dashboard.go — dashboard session lifecycle
@@ -101,7 +101,8 @@ type Model struct {
 	quitting        bool
 
 	// Quit confirmation state
-	confirmQuit bool // True if waiting for y/n/Esc to confirm quit
+	confirmQuit       bool // True if waiting for y/n/Esc to confirm quit
+	confirmExitConfig bool // True when confirmQuit was triggered by "exit" in config mode (switch to operational, not quit)
 
 	// Commit confirmed state (VyOS-style commit with auto-revert)
 	confirmTimerActive bool   // True if waiting for confirm/abort
@@ -122,7 +123,7 @@ type Model struct {
 	lastCommand string           // Most recently dispatched command (for echo in output buffer)
 
 	// Mode state
-	mode             EditorMode                   // Current editor mode (edit or command)
+	mode             EditorMode                   // Current editor mode (config or operational)
 	modeStates       map[EditorMode]modeState     // Saved screen state per mode
 	commandCompleter CommandModeCompleter         // Completer for command mode (nil if no daemon)
 	commandExecutor  func(string) (string, error) // Executes operational commands via RPC (nil if no daemon)
@@ -190,6 +191,7 @@ const (
 	cmdQuit       = "quit"
 	cmdHelp       = "help"
 	cmdRun        = "run"
+	cmdConfigure  = "configure"
 	cmdMatch      = "match"
 	cmdWho        = "who"
 	cmdDisconnect = "disconnect"
@@ -356,7 +358,7 @@ func NewModel(ed *Editor) (Model, error) {
 		validationErrors:   result.Errors,
 		validationWarnings: result.Warnings,
 		showHints:          true,
-		mode:               ModeEdit,
+		mode:               ModeConfig,
 		modeStates:         make(map[EditorMode]modeState),
 		statusMessage:      welcome,
 		pasteBuffer:        &strings.Builder{},
@@ -366,7 +368,7 @@ func NewModel(ed *Editor) (Model, error) {
 
 // NewCommandModel creates a command-only model with no editor.
 // Used by ze cli and plugin CLI where no config file is loaded.
-// The model starts in ModeCommand with edit commands unavailable.
+// The model starts in ModeOperational with config commands unavailable.
 func NewCommandModel() Model {
 	ti := textinput.New()
 	ti.Prompt = ""
@@ -386,7 +388,7 @@ func NewCommandModel() Model {
 		viewport:      vp,
 		selected:      -1,
 		history:       NewHistory(nil, ""),
-		mode:          ModeCommand,
+		mode:          ModeOperational,
 		modeStates:    make(map[EditorMode]modeState),
 		statusMessage: "welcome to ze!",
 		pasteBuffer:   &strings.Builder{},
@@ -644,35 +646,43 @@ func (m *Model) updateCompletions() {
 		m.completions = m.searchConfig(input[1:])
 		m.ghostText = ""
 
-	case m.mode == ModeEdit && strings.HasPrefix(input, cmdRun+" "):
-		// Edit mode with "run " prefix: delegate to command completer for operational completions.
+	case m.mode == ModeConfig && strings.HasPrefix(input, cmdRun+" "):
+		// Config mode with "run " prefix: delegate to command completer for operational completions.
 		if m.commandCompleter != nil {
 			args := input[len(cmdRun)+1:] // preserve trailing spaces
 			m.completions = m.commandCompleter.Complete(args)
 			m.ghostText = m.commandCompleter.GhostText(args)
 		}
 
-	case m.mode == ModeCommand && isEditCommandWithArgs(input) && m.completer != nil:
-		// Command mode with a full config command followed by args: YANG completions.
+	case m.mode == ModeOperational && isConfigCommandWithArgs(input) && m.completer != nil:
+		// Operational mode with a full config command followed by args: YANG completions.
 		m.completions = m.completer.Complete(input, m.contextPath)
 		m.ghostText = m.completer.GhostText(input, m.contextPath)
 
-	case m.mode == ModeCommand:
-		// Command mode top-level: merge operational + config command completions.
+	case m.mode == ModeOperational:
+		// Operational mode top-level: merge operational + config command completions.
 		if m.commandCompleter != nil {
 			m.completions = m.commandCompleter.Complete(input)
 			m.ghostText = m.commandCompleter.GhostText(input)
 		}
+		if m.hasEditor() && (input == "" || strings.HasPrefix(cmdConfigure, input)) {
+			m.completions = append(m.completions, Completion{
+				Text: cmdConfigure, Description: "Enter config mode", Type: "command",
+			})
+			if m.ghostText == "" && input != "" && strings.HasPrefix(cmdConfigure, input) {
+				m.ghostText = cmdConfigure[len(input):]
+			}
+		}
 		if m.completer != nil {
-			editComps := m.completer.Complete(input, m.contextPath)
-			m.completions = append(m.completions, editComps...)
+			configComps := m.completer.Complete(input, m.contextPath)
+			m.completions = append(m.completions, configComps...)
 			if m.ghostText == "" {
 				m.ghostText = m.completer.GhostText(input, m.contextPath)
 			}
 		}
 
-	case m.mode == ModeEdit:
-		// Edit mode: YANG completions.
+	case m.mode == ModeConfig:
+		// Config mode: YANG completions.
 		if m.completer != nil {
 			m.completions = m.completer.Complete(input, m.contextPath)
 			m.ghostText = m.completer.GhostText(input, m.contextPath)
@@ -880,9 +890,9 @@ func (m *Model) SetHistory(h *History) {
 	}
 	// Pre-load history for the other mode into modeStates so it's
 	// available when the user switches modes.
-	other := ModeCommand
-	if m.mode == ModeCommand {
-		other = ModeEdit
+	other := ModeOperational
+	if m.mode == ModeOperational {
+		other = ModeConfig
 	}
 	if loaded := h.Load(other.String()); len(loaded) > 0 {
 		saved := m.modeStates[other]

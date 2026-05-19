@@ -74,7 +74,7 @@ var commands = []Completion{
 	{Text: cmdUp, Description: "Go up one level", Type: "command"},
 	{Text: cmdHistory, Description: "List backup files", Type: "command"},
 	{Text: cmdRollback, Description: "Restore from backup", Type: "command"},
-	{Text: cmdExit, Description: "Exit editor", Type: "command"},
+	{Text: cmdExit, Description: "Exit current mode", Type: "command"},
 	{Text: cmdHelp, Description: "Show help", Type: "command"},
 	{Text: cmdRun, Description: "Run operational command", Type: "command"},
 	{Text: cmdWho, Description: "List active editing sessions", Type: "command"},

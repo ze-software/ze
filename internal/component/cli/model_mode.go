@@ -1,6 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md — editor mode switching
 // Overview: model.go — editor model and update loop
-// Detail: completer_command.go — command mode operational completion
+// Detail: completer_command.go — operational mode command completion
 // Related: model_render.go — mode-aware prompt rendering
 
 package cli
@@ -14,30 +14,30 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 )
 
-var errNoDaemonConnectionCommandModeRequires = errors.New("no daemon connection (command mode requires a running daemon)")
+var errNoDaemonConnectionOperationalModeRequires = errors.New("no daemon connection (operational mode requires a running daemon)")
 
 // EditorMode represents the current editor mode.
 type EditorMode int
 
 const (
-	// ModeEdit is the config editing mode (default).
-	ModeEdit EditorMode = iota
-	// ModeCommand is the operational command mode.
-	ModeCommand
+	// ModeConfig is the config editing mode (default when editor loaded).
+	ModeConfig EditorMode = iota
+	// ModeOperational is the operational command mode.
+	ModeOperational
 )
 
 // Mode name constants.
 const (
-	modeNameEdit    = "edit"
-	modeNameCommand = "command"
+	modeNameConfig      = "config"
+	modeNameOperational = "operational"
 )
 
 // String returns the mode name.
 func (m EditorMode) String() string {
-	if m == ModeCommand {
-		return modeNameCommand
+	if m == ModeOperational {
+		return modeNameOperational
 	}
-	return modeNameEdit
+	return modeNameConfig
 }
 
 // modeState saves the screen state for a mode.
@@ -84,13 +84,13 @@ func (m *Model) SwitchMode(target EditorMode) {
 	m.viewport.SetYOffset(saved.viewportYOffset)
 
 	// Warn when entering command mode without a daemon connection
-	if target == ModeCommand && m.commandExecutor == nil {
+	if target == ModeOperational && m.commandExecutor == nil {
 		m.statusMessage = "no daemon connection — completions available, but commands will not execute"
 	}
 }
 
-// editModeCommands lists config commands that trigger a switch from command mode to edit mode.
-var editModeCommands = map[string]bool{
+// configModeCommands lists config commands that trigger a switch from operational mode to config mode.
+var configModeCommands = map[string]bool{
 	cmdSet: true, cmdDelete: true, cmdShow: true, cmdOption: true, cmdEdit: true,
 	cmdDeactivate: true, cmdActivate: true,
 	cmdCommit: true, cmdSave: true, cmdDiscard: true, cmdCompare: true,
@@ -100,9 +100,9 @@ var editModeCommands = map[string]bool{
 }
 
 // isOperationalVerb returns true if the input starts with a verb that works
-// in both edit mode (config viewer) and command mode (operational dispatch).
+// in both config mode (config viewer) and operational mode (operational dispatch).
 // When no editor is loaded, these fall through to operational dispatch instead
-// of showing "edit mode not available".
+// of showing "config mode not available".
 func isOperationalVerb(input string) bool {
 	fields := strings.Fields(input)
 	if len(fields) == 0 {
@@ -115,24 +115,24 @@ func isOperationalVerb(input string) bool {
 	return false
 }
 
-// isEditCommand returns true if the input starts with a config editing command.
-func isEditCommand(input string) bool {
+// isConfigCommand returns true if the input starts with a config editing command.
+func isConfigCommand(input string) bool {
 	fields := strings.Fields(input)
 	if len(fields) == 0 {
 		return false
 	}
-	return editModeCommands[fields[0]]
+	return configModeCommands[fields[0]]
 }
 
-// isEditCommandWithArgs returns true if the input starts with a config editing command
+// isConfigCommandWithArgs returns true if the input starts with a config editing command
 // followed by arguments or a trailing space. Used by updateCompletions to decide when
 // to switch from merged completions to YANG-only completions.
-func isEditCommandWithArgs(input string) bool {
+func isConfigCommandWithArgs(input string) bool {
 	fields := strings.Fields(input)
 	if len(fields) == 0 {
 		return false
 	}
-	if !editModeCommands[fields[0]] {
+	if !configModeCommands[fields[0]] {
 		return false
 	}
 	return len(fields) > 1 || strings.HasSuffix(input, " ")
@@ -147,7 +147,7 @@ func (m Model) executeOperationalCommand(input string) tea.Cmd {
 	return func() tea.Msg {
 		if executor == nil {
 			return commandResultMsg{
-				err: errNoDaemonConnectionCommandModeRequires,
+				err: errNoDaemonConnectionOperationalModeRequires,
 			}
 		}
 		cmdStr, formatFn := command.ProcessPipesDefaultTable(input)

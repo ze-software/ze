@@ -216,7 +216,7 @@ Run: `make ze-editor-test` or `bin/ze-test editor [-p pattern] [-v] [-l]`.
 | `expect=dirty:true\|false` | | Unsaved changes |
 | `expect=error:none\|contains=<text>` | | Command error state |
 | `expect=status:contains=<text>\|empty` | | Status message |
-| `expect=mode:is=edit\|command` | | Editor mode |
+| `expect=mode:is=config\|operational` | | Editor mode |
 | `expect=completion:contains=a,b` | | Tab completions include items |
 | `expect=completion:empty\|count=N\|exact=a,b` | | Completion list state |
 | `expect=ghost:text=<text>\|empty` | | Ghost text preview |

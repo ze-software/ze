@@ -16,7 +16,7 @@ import (
 // "show" renders the full tree; "show confirmed" shows committed config; "show saved" shows draft.
 func (m *Model) cmdShow(args []string) (commandResult, error) {
 	if m.editor == nil {
-		return commandResult{}, fmt.Errorf("command %q requires edit mode (no config file loaded)", cmdShow)
+		return commandResult{}, fmt.Errorf("command %q requires config mode (no config file loaded)", cmdShow)
 	}
 
 	// Reject old show subcommands that moved to "option".

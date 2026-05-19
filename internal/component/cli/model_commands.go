@@ -64,7 +64,7 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 	// Guard: edit commands require an editor.
 	// Only exit/quit, help, and run work without one.
 	if m.editor == nil && cmd != cmdExit && cmd != cmdQuit && cmd != cmdHelp && cmd != "?" && cmd != cmdRun {
-		return commandResult{}, fmt.Errorf("command %q requires edit mode (no config file loaded)", cmd)
+		return commandResult{}, fmt.Errorf("command %q requires config mode (no config file loaded)", cmd)
 	}
 
 	switch cmd {

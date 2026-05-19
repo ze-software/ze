@@ -2,7 +2,7 @@
 # VALIDATES: AC-2 -- executed commands in ze cli survive restart
 # PREVENTS: Command-mode history lost because Save uses wrong mode key
 
-option=mode:value=command
+option=mode:value=operational
 option=timeout:value=10s
 option=history:store
 

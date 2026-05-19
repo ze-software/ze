@@ -234,5 +234,5 @@ func (fs *fileState) WorkingContent() string                          { return "
 func (fs *fileState) ViewportContent() string                         { return "" }
 func (fs *fileState) ConfirmTimerActive() bool                        { return false }
 func (fs *fileState) TriggerCompletions()                             {}
-func (fs *fileState) Mode() cli.EditorMode                            { return cli.ModeEdit }
+func (fs *fileState) Mode() cli.EditorMode                            { return cli.ModeConfig }
 func (fs *fileState) InputValue() string                              { return "" }
