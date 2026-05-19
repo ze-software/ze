@@ -561,7 +561,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		})
 		clearCmd.RegisterDNSCacheClearProvider(func(action, name, typeName string) map[string]any {
 			switch action {
-			case "entry":
+			case "record":
 				if typeName != "" {
 					qtype, ok := mdns.StringToType[strings.ToUpper(typeName)]
 					if !ok {

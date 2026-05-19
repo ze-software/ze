@@ -205,7 +205,7 @@ module ze-cli-show-cmd {
             container cache {
                 config false;
                 ze:command "ze-show:dns-cache";
-                description "DNS cache (stats | entries)";
+                description "DNS cache (stats | list | record <name>)";
             }
         }
 
@@ -242,6 +242,12 @@ module ze-cli-show-cmd {
                 config false;
                 ze:command "ze-show:capture-raw";
                 description "Raw byte capture: start/stop activation and pcap/json dump ([start|stop|dump] [l2tp|bgp] [pcap|json] [count N])";
+            }
+
+            container interface {
+                config false;
+                ze:command "ze-show:capture-interface";
+                description "Live packet capture on an interface using AF_PACKET (<iface> [protocol <P> port <N>] [count <N>] [duration <D>] [snap-len <N>] [format pcap|text])";
             }
         }
 

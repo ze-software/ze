@@ -17,7 +17,8 @@ import (
 const (
 	defaultDNSLookupTimeout = 5 * time.Second
 	dnsCacheActionStats     = "stats"
-	dnsCacheActionEntries   = "entries"
+	dnsCacheActionList      = "list"
+	dnsCacheActionRecord    = "record"
 )
 
 var dnsTypeMap = map[string]uint16{
@@ -180,20 +181,35 @@ func handleDNSLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 
 func handleDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	action := dnsCacheActionStats
-	for _, a := range args {
-		switch a {
-		case dnsCacheActionStats, dnsCacheActionEntries:
-			action = a
+	filterName := ""
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case dnsCacheActionStats:
+			action = dnsCacheActionStats
+		case dnsCacheActionList:
+			action = dnsCacheActionList
+		case dnsCacheActionRecord:
+			action = dnsCacheActionRecord
+			if i+1 < len(args) {
+				i++
+				filterName = args[i]
+			}
 		}
 	}
 
 	switch action {
 	case dnsCacheActionStats:
 		return &plugin.Response{Status: plugin.StatusDone, Data: getDNSCacheStats()}, nil
-	case dnsCacheActionEntries:
-		return &plugin.Response{Status: plugin.StatusDone, Data: getDNSCacheEntries()}, nil
+	case dnsCacheActionList:
+		return &plugin.Response{Status: plugin.StatusDone, Data: getDNSCacheEntries("")}, nil
+	case dnsCacheActionRecord:
+		if filterName == "" {
+			return &plugin.Response{Status: plugin.StatusError, Data: "dns cache record: missing name"}, nil
+		}
+		return &plugin.Response{Status: plugin.StatusDone, Data: getDNSCacheEntries(filterName)}, nil
 	default:
-		return &plugin.Response{Status: plugin.StatusError, Data: "dns cache: unknown action (use: stats, entries)"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Data: "dns cache: unknown action (use: stats, list, record <name>)"}, nil
 	}
 }
 
@@ -230,12 +246,25 @@ func RegisterDNSEntriesProvider(fn func() []map[string]any) {
 	dnsEntriesProvider = fn
 }
 
-func getDNSCacheEntries() map[string]any {
+func getDNSCacheEntries(filterName string) map[string]any {
 	if dnsEntriesProvider != nil {
-		entries := dnsEntriesProvider()
+		all := dnsEntriesProvider()
+		if filterName == "" {
+			return map[string]any{
+				"entries": all,
+				"count":   len(all),
+			}
+		}
+		var filtered []map[string]any
+		for _, e := range all {
+			if name, _ := e["name"].(string); name == filterName {
+				filtered = append(filtered, e)
+			}
+		}
 		return map[string]any{
-			"entries": entries,
-			"count":   len(entries),
+			"entries": filtered,
+			"count":   len(filtered),
+			"filter":  filterName,
 		}
 	}
 	return map[string]any{

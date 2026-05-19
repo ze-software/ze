@@ -34,7 +34,7 @@ func TestDNSCacheEntries_NoProvider(t *testing.T) {
 	dnsEntriesProvider = nil
 	defer func() { dnsEntriesProvider = old }()
 
-	resp, err := handleDNSCache(nil, []string{dnsCacheActionEntries})
+	resp, err := handleDNSCache(nil, []string{dnsCacheActionList})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestDNSCacheEntries_WithProvider(t *testing.T) {
 	}
 	defer func() { dnsEntriesProvider = old }()
 
-	resp, err := handleDNSCache(nil, []string{dnsCacheActionEntries})
+	resp, err := handleDNSCache(nil, []string{dnsCacheActionList})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,5 +73,46 @@ func TestDNSCacheEntries_WithProvider(t *testing.T) {
 	}
 	if entries[0]["name"] != "example.com" {
 		t.Errorf("name = %v, want example.com", entries[0]["name"])
+	}
+}
+
+func TestDNSCacheRecords_FilterByName(t *testing.T) {
+	old := dnsEntriesProvider
+	dnsEntriesProvider = func() []map[string]any {
+		return []map[string]any{
+			{"name": "example.com", "type": "A", "records": []string{"1.2.3.4"}, "ttl-seconds": 120},
+			{"name": "other.com", "type": "A", "records": []string{"5.6.7.8"}, "ttl-seconds": 60},
+			{"name": "example.com", "type": "AAAA", "records": []string{"::1"}, "ttl-seconds": 300},
+		}
+	}
+	defer func() { dnsEntriesProvider = old }()
+
+	resp, err := handleDNSCache(nil, []string{dnsCacheActionRecord, "example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, ok := resp.Data.(map[string]any)
+	if !ok {
+		t.Fatal("expected map response")
+	}
+	if data["count"] != 2 {
+		t.Errorf("count = %v, want 2 (both example.com entries)", data["count"])
+	}
+	if data["filter"] != "example.com" {
+		t.Errorf("filter = %v, want example.com", data["filter"])
+	}
+}
+
+func TestDNSCacheRecords_MissingName(t *testing.T) {
+	old := dnsEntriesProvider
+	dnsEntriesProvider = func() []map[string]any { return nil }
+	defer func() { dnsEntriesProvider = old }()
+
+	resp, err := handleDNSCache(nil, []string{dnsCacheActionRecord})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Status != "error" {
+		t.Errorf("status = %v, want error for missing name", resp.Status)
 	}
 }

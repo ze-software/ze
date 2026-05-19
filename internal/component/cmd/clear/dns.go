@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	clearActionAll   = "all"
-	clearActionStats = "stats"
-	clearActionEntry = "entry"
+	clearActionAll    = "all"
+	clearActionStats  = "stats"
+	clearActionRecord = "record"
 )
 
 func init() {
@@ -39,8 +39,8 @@ func handleClearDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin
 		switch args[i] {
 		case clearActionStats:
 			action = clearActionStats
-		case clearActionEntry:
-			action = clearActionEntry
+		case clearActionRecord:
+			action = clearActionRecord
 			if i+1 < len(args) {
 				i++
 				name = args[i]
@@ -53,8 +53,8 @@ func handleClearDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin
 		}
 	}
 
-	if action == clearActionEntry && name == "" {
-		return &plugin.Response{Status: plugin.StatusError, Data: "clear dns cache entry: missing name"}, nil
+	if action == clearActionRecord && name == "" {
+		return &plugin.Response{Status: plugin.StatusError, Data: "clear dns cache record: missing name"}, nil
 	}
 
 	result := dnsCacheClearProvider(action, name, typeName)
