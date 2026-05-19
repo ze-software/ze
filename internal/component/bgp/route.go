@@ -70,8 +70,9 @@ func RouteKey(family, prefix string, pathID uint32) string {
 	if pathID == 0 {
 		return family + ":" + prefix
 	}
-	var b textbuf.Buffer
-	return b.Reset().Str(family).Byte(':').Str(prefix).Byte(':').Int(int64(pathID)).String()
+	b := textbuf.Get()
+	defer b.Release()
+	return b.Str(family).Byte(':').Str(prefix).Byte(':').Int(int64(pathID)).String()
 }
 
 // ParseCommunityStrings converts string-form communities ("ASN:Value") to typed values.

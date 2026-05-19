@@ -161,8 +161,9 @@ func wireToPrefix(fam family.Family, wire []byte, addPath bool) (string, uint32,
 		addr = netip.AddrFrom16(b16)
 	}
 
-	var tb textbuf.Buffer
-	return tb.Reset().Addr(addr).Byte('/').Int(int64(prefixLen)).String(), pathID, nil
+	tb := textbuf.Get()
+	defer tb.Release()
+	return tb.Addr(addr).Byte('/').Int(int64(prefixLen)).String(), pathID, nil
 }
 
 // formatNLRIAsPrefix converts wire NLRI bytes to human-readable prefix string.

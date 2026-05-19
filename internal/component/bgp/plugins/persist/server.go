@@ -506,8 +506,9 @@ func persistWireNLRIs(data []byte, addPath, isIPv6 bool) []any {
 		}
 		prefix := netip.PrefixFrom(addr, prefixLen).String()
 		if addPath {
-			var tb textbuf.Buffer
-			prefix = tb.Reset().Uint32(pathID).Byte(':').Str(prefix).String()
+			tb := textbuf.Get()
+			prefix = tb.Uint32(pathID).Byte(':').Str(prefix).String()
+			tb.Release()
 		}
 		result = append(result, prefix)
 	}

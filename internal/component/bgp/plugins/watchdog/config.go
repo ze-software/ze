@@ -305,8 +305,9 @@ func watchdogRouteKey(prefix, rd string, pathID uint32) string {
 	if rd != "" {
 		key = rd + ":" + key
 	}
-	var b textbuf.Buffer
-	return b.Reset().Str(key).Byte('#').Int(int64(pathID)).String()
+	b := textbuf.Get()
+	defer b.Release()
+	return b.Str(key).Byte('#').Int(int64(pathID)).String()
 }
 
 // parseASPath parses space or comma-separated AS numbers.

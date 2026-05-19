@@ -114,12 +114,13 @@ func (rd RouteDistinguisher) CheckedWriteTo(buf []byte, off int) (int, error) {
 // The type prefix is required for unambiguous parsing since Type 0 and Type 2
 // would otherwise be indistinguishable for ASNs <= 65535.
 func (rd RouteDistinguisher) String() string {
-	var b textbuf.Buffer
+	b := textbuf.Get()
+	defer b.Release()
 	switch rd.Type {
 	case RDType0:
 		asn := binary.BigEndian.Uint16(rd.Value[:2])
 		assigned := binary.BigEndian.Uint32(rd.Value[2:6])
-		return b.Reset().Str("0:").Uint16(asn).Byte(':').Uint32(assigned).String()
+		return b.Str("0:").Uint16(asn).Byte(':').Uint32(assigned).String()
 	case RDType1:
 		ip := netip.AddrFrom4([4]byte(rd.Value[:4]))
 		assigned := binary.BigEndian.Uint16(rd.Value[4:6])

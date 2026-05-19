@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"net/netip"
 	"strconv"
+	"sync"
 	"unsafe"
 )
 
@@ -55,14 +56,52 @@ func HexUpper(data []byte) string {
 	return string(dst)
 }
 
-// Buffer is a stack-allocated string builder for zero-intermediate-alloc
-// formatting. Call Reset(), chain methods, call String(). The 128-byte
-// backing array stays on the stack. String() freezes the buffer and returns
-// zero-copy when heap-backed. Reset() unfreezes for reuse.
+// Buffer is a zero-alloc string builder with a 128-byte inline backing array.
+//
+// Stack use: var b textbuf.Buffer; b.Reset().Str("x").Uint(1).String().
+// Pooled use: b := textbuf.Get(); defer b.Release(); b.Str("x").String().
+//
+// Both String and Slice freeze the buffer; all writes panic until Reset.
+//
+// String: inline (<=128B) copies, heap (>128B) is zero-copy and transfers
+// the heap slice to the returned string. The buffer reverts to its inline
+// array, so the string is safe to hold indefinitely.
+//
+// Slice: always zero-copy regardless of size. The returned string shares
+// the buffer's memory and is only valid until the next Reset or Release.
 type Buffer struct {
-	arr  [128]byte
-	b    []byte
-	done bool
+	arr    [128]byte
+	b      []byte
+	done   bool
+	pooled bool
+}
+
+var bufPool = sync.Pool{
+	New: func() any { return new(Buffer) },
+}
+
+// Get returns a Buffer from the pool. Call Release when done.
+func Get() *Buffer {
+	b, _ := bufPool.Get().(*Buffer) //nolint:forcetypeassert // pool only holds *Buffer
+	b.done = false
+	b.pooled = true
+	if cap(b.b) > len(b.arr) {
+		b.b = b.b[:0]
+	} else {
+		b.b = b.arr[:0]
+	}
+	return b
+}
+
+// Release returns a pooled Buffer for reuse. No-op on stack buffers or after
+// a prior Release. Safe to call after String (the normal pattern).
+func (b *Buffer) Release() {
+	if !b.pooled {
+		return
+	}
+	b.pooled = false
+	b.done = true
+	bufPool.Put(b)
 }
 
 func (b *Buffer) mustBeWritable() {
@@ -74,9 +113,23 @@ func (b *Buffer) mustBeWritable() {
 func (b *Buffer) Reset(size ...int) *Buffer {
 	b.done = false
 	if len(size) > 0 && size[0] > len(b.arr) {
-		b.b = make([]byte, 0, size[0])
+		if size[0] > cap(b.b) {
+			b.b = make([]byte, 0, size[0])
+		} else {
+			b.b = b.b[:0]
+		}
 	} else {
 		b.b = b.arr[:0]
+	}
+	return b
+}
+
+func (b *Buffer) Grow(n int) *Buffer {
+	b.mustBeWritable()
+	if n > 0 && cap(b.b)-len(b.b) < n {
+		newBuf := make([]byte, len(b.b), len(b.b)+n)
+		copy(newBuf, b.b)
+		b.b = newBuf
 	}
 	return b
 }
@@ -149,17 +202,25 @@ func (b *Buffer) Write(p []byte) (int, error) {
 
 func (b *Buffer) Len() int { return len(b.b) }
 
+// String freezes the buffer and returns its contents. Inline data (<=128B) is
+// copied. Heap data (>128B) is returned zero-copy; the buffer detaches the
+// heap slice so the string is safe to hold past Reset or Release.
 func (b *Buffer) String() string {
 	b.done = true
 	if len(b.b) == 0 {
 		return ""
 	}
-	if unsafe.SliceData(b.b) == &b.arr[0] { //nolint:gosec // stack-backed: must copy
+	if unsafe.SliceData(b.b) == &b.arr[0] { //nolint:gosec // inline-backed: must copy
 		return string(b.b)
 	}
-	return unsafe.String(unsafe.SliceData(b.b), len(b.b)) //nolint:gosec // heap-backed: zero-copy safe, done flag prevents further writes
+	s := unsafe.String(unsafe.SliceData(b.b), len(b.b)) //nolint:gosec // heap-backed: zero-copy, string owns the slice
+	b.b = b.arr[:0]
+	return s
 }
 
+// Slice freezes the buffer and returns its contents zero-copy at any size.
+// The returned string shares the buffer's memory and is invalid after Reset
+// or Release. Use for short-lived strings consumed before the next build.
 func (b *Buffer) Slice() string {
 	b.done = true
 	return unsafe.String(unsafe.SliceData(b.b), len(b.b)) //nolint:gosec // zero-copy always; caller must not hold past Reset()

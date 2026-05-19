@@ -201,7 +201,7 @@ func handleEncodeNLRIFromJSON(parts []string, output io.Writer, writeError func(
 	}
 
 	var b textbuf.Buffer
-	protocolWrite(output, b.Str("encoded hex ").HexUpper(wireBytes).Byte('\n').String())
+	protocolWrite(output, b.Str("encoded hex ").HexUpper(wireBytes).Byte('\n').Slice())
 }
 
 // handleEncodeNLRI handles: encode nlri <family> <components...>
@@ -234,5 +234,5 @@ func handleEncodeNLRI(parts []string, output io.Writer, writeError func(string))
 	}
 
 	var b textbuf.Buffer
-	protocolWrite(output, b.Str("encoded hex ").HexUpper(wireBytes).Byte('\n').String())
+	protocolWrite(output, b.Str("encoded hex ").HexUpper(wireBytes).Byte('\n').Slice())
 }

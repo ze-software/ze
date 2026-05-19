@@ -186,6 +186,30 @@ func TestBufferStringCopiesStack(t *testing.T) {
 	assert.Equal(t, "short", s)
 }
 
+func TestBufferGrowPreservesContent(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	got := b.Reset().Str("hello").Grow(200).Str(" world").String()
+	assert.Equal(t, "hello world", got)
+}
+
+func TestBufferGrowNoOpWhenSufficient(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset()
+	b.Grow(10)
+	assert.Equal(t, 0, b.Len())
+	got := b.Str("hi").String()
+	assert.Equal(t, "hi", got)
+}
+
+func TestBufferGrowFrozenPanics(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	_ = b.Reset().Str("x").String()
+	assert.PanicsWithValue(t, "BUG: textbuf write after String", func() { b.Grow(10) })
+}
+
 func TestBufferWrite(t *testing.T) {
 	t.Parallel()
 	var b Buffer
@@ -194,4 +218,74 @@ func TestBufferWrite(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 5, n)
 	assert.Equal(t, "hello", b.String())
+}
+
+func TestPoolGetRelease(t *testing.T) {
+	t.Parallel()
+	b := Get()
+	got := b.Str("pooled").String()
+	assert.Equal(t, "pooled", got)
+	b.Release()
+}
+
+func TestPoolStringSurvivesReuse(t *testing.T) {
+	t.Parallel()
+	b := Get()
+	b.Str(strings.Repeat("x", 200))
+	s := b.String()
+	b.Release()
+	b2 := Get()
+	b2.Str("overwrite")
+	_ = b2.String()
+	b2.Release()
+	assert.Equal(t, 200, len(s))
+	assert.Equal(t, strings.Repeat("x", 200), s)
+}
+
+func TestPoolFreezeAfterRelease(t *testing.T) {
+	t.Parallel()
+	b := Get()
+	b.Str("hello")
+	b.Release()
+	assert.PanicsWithValue(t, "BUG: textbuf write after String", func() { b.Str("more") })
+}
+
+func TestPoolDoubleReleaseNoop(t *testing.T) {
+	t.Parallel()
+	b := Get()
+	_ = b.Str("x").String()
+	b.Release()
+	b.Release()
+}
+
+func TestPoolTransfersHeapSliceOnString(t *testing.T) {
+	t.Parallel()
+	b := Get()
+	b.Str(strings.Repeat("a", 300))
+	s := b.String()
+	assert.Equal(t, 300, len(s))
+	b.Release()
+	b2 := Get()
+	assert.Equal(t, len(b2.arr), cap(b2.b))
+	b2.Release()
+}
+
+func TestPoolPreservesCapacityWithoutString(t *testing.T) {
+	t.Parallel()
+	b := Get()
+	b.Grow(300)
+	b.Release()
+	b2 := Get()
+	assert.GreaterOrEqual(t, cap(b2.b), 300)
+	b2.Release()
+}
+
+func TestReleaseNoopOnStackBuffer(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset().Str("stack")
+	_ = b.String()
+	b.Release()
+	got := b.Reset().Str("still works").String()
+	assert.Equal(t, "still works", got)
 }

@@ -231,7 +231,7 @@ func runEmitBurst(args []string) (string, error) {
 	emitted := 0
 	for range n {
 		var bPfx textbuf.Buffer
-		entry, err := netip.ParsePrefix(bPfx.Reset().Str(addr.String()).Byte('/').Int(int64(bits)).String())
+		entry, err := netip.ParsePrefix(bPfx.Reset().Str(addr.String()).Byte('/').Int(int64(bits)).Slice())
 		if err != nil {
 			return "", fmt.Errorf("internal: build entry prefix: %w", err)
 		}

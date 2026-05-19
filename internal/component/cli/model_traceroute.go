@@ -517,10 +517,15 @@ func (m Model) handleTraceroutePipedPoll() (tea.Model, tea.Cmd) {
 		ps.lastOutput = formatted
 
 		if ps.logMode {
-			if m.outputBuf.Len() > 0 {
-				m.outputBuf.WriteString("\n")
+			if ps.rounds == 1 || (ps.rounds-1)%tracerouteLogMapEveryN == 0 {
+				if m.outputBuf.Len() > 0 {
+					m.outputBuf.WriteString("\n")
+				}
+				m.outputBuf.WriteString(formatTracerouteLogMap(ps.hops))
+				m.outputBuf.WriteString(formatTracerouteLogHeader(ps.hops))
 			}
-			m.outputBuf.WriteString(formatted)
+			m.outputBuf.WriteString("\n")
+			m.outputBuf.WriteString(formatTracerouteLogLine(ps.hops, ps.rounds))
 			m.setViewportText(m.outputBuf.String())
 			m.viewport.GotoBottom()
 		}
@@ -530,6 +535,74 @@ func (m Model) handleTraceroutePipedPoll() (tea.Model, tea.Cmd) {
 	}
 
 	return m, tea.Tick(tracerouteDrainInterval, func(time.Time) tea.Msg { return traceroutePipedPollMsg{} })
+}
+
+const (
+	tracerouteLogColWidth  = 10
+	tracerouteLogMapEveryN = 25
+)
+
+// formatTracerouteLogMap renders the hop-number-to-IP mapping table.
+// Shown before the first round and every 25 rounds after that.
+// Compact table: "1:10.0.0.1  2:10.0.0.2  3:192.0.2.1" wrapping at ~80 chars.
+func formatTracerouteLogMap(hops []tracerouteHop) string {
+	var sb textbuf.Buffer
+	sb.Reset(256)
+	col := 0
+	for i := range hops {
+		h := &hops[i]
+		addr := "*"
+		if len(h.paths) > 0 && h.paths[0].addr != "" {
+			addr = h.paths[0].addr
+		}
+		num := textbuf.Int(int64(i + 1))
+		entryLen := len(num) + 1 + len(addr)
+		if col > 0 && col+entryLen+2 > 80 {
+			sb.Byte('\n')
+			col = 0
+		}
+		if col > 0 {
+			sb.Str("  ")
+			col += 2
+		}
+		sb.Str(num).Byte(':').Str(addr)
+		col += entryLen
+	}
+	sb.Byte('\n')
+	return sb.String()
+}
+
+// formatTracerouteLogHeader renders the column header using hop numbers.
+func formatTracerouteLogHeader(hops []tracerouteHop) string {
+	var sb textbuf.Buffer
+	sb.Reset(128)
+	tbPadRight(&sb, "Rnd", 5)
+	for i := range hops {
+		tbPadRight(&sb, textbuf.Int(int64(i+1)), tracerouteLogColWidth)
+	}
+	return sb.String()
+}
+
+// formatTracerouteLogLine renders one compact line per round showing
+// the last RTT (or *) at each hop.
+func formatTracerouteLogLine(hops []tracerouteHop, round int) string {
+	var sb textbuf.Buffer
+	sb.Reset(128)
+	tbPadRight(&sb, textbuf.Int(int64(round)), 5)
+	for i := range hops {
+		h := &hops[i]
+		if len(h.paths) == 0 {
+			tbPadRight(&sb, "*", tracerouteLogColWidth)
+			continue
+		}
+		p := &h.paths[0]
+		if p.recv == 0 {
+			tbPadRight(&sb, "*", tracerouteLogColWidth)
+			continue
+		}
+		tbPadRight(&sb, formatFloat1(p.last)+"ms", tracerouteLogColWidth)
+	}
+	return sb.String()
 }
 
 // hopsToJSON serializes accumulated hop stats as a JSON wrapper suitable for pipe processing.
@@ -637,7 +710,7 @@ func renderPathLine(sb *textbuf.Buffer, hopNum string, p *traceroutePathStats, a
 
 	var lossBuf textbuf.Buffer
 	tbPadLeft(&lossBuf, lossText, 6)
-	sb.Str(lossStyle.Render(lossBuf.String()))
+	sb.Str(lossStyle.Render(lossBuf.Slice()))
 
 	sb.Byte(' ')
 	tbPadLeft(sb, textbuf.Int(int64(p.sent)), 4)
@@ -718,7 +791,7 @@ func (m Model) renderTraceroute() string {
 	if ts.pollError != "" {
 		hb.Str("  ").Str(ts.pollError)
 	}
-	sb.Str(trHeaderStyle.Render(hb.String()))
+	sb.Str(trHeaderStyle.Render(hb.Slice()))
 	sb.Byte('\n')
 
 	addrWidth := min(39, max(15, width-65))
@@ -774,7 +847,7 @@ func (m Model) renderTraceroute() string {
 	}
 
 	sb.Byte('\n')
-	footer := "q/Esc Quit"
+	footer := footerQuitHint
 	lastUpdate := ""
 	if !ts.lastPollTime.IsZero() {
 		ago := time.Since(ts.lastPollTime).Truncate(time.Second)
@@ -785,7 +858,7 @@ func (m Model) renderTraceroute() string {
 	footBuf.Str(footer)
 	tbSpaces(&footBuf, gap)
 	footBuf.Str(lastUpdate)
-	sb.Str(trFooterStyle.Render(footBuf.String()))
+	sb.Str(trFooterStyle.Render(footBuf.Slice()))
 
 	return sb.String()
 }
@@ -808,7 +881,7 @@ func (m Model) renderTraceroutePlain() string {
 
 	var hb textbuf.Buffer
 	hb.Str("Traceroute to ").Str(ts.target).Str("  rounds ").Int(int64(ts.rounds))
-	sb.Str(hb.String())
+	sb.Str(hb.Slice())
 	sb.Byte('\n')
 
 	addrWidth := min(39, max(15, width-65))
@@ -832,7 +905,7 @@ func (m Model) renderTraceroutePlain() string {
 	tbPadLeft(&hdrBuf, "Wrst", 6)
 	hdrBuf.Byte(' ')
 	tbPadLeft(&hdrBuf, "StDev", 6)
-	sb.Str(hdrBuf.String())
+	sb.Str(hdrBuf.Slice())
 	sb.Byte('\n')
 
 	for i := range ts.hops {
@@ -870,7 +943,7 @@ func (m Model) renderTraceroutePiped() string {
 
 	var hb textbuf.Buffer
 	hb.Str("Traceroute to ").Str(ps.target).Str("  rounds ").Int(int64(ps.rounds))
-	sb.Str(trHeaderStyle.Render(hb.String()))
+	sb.Str(trHeaderStyle.Render(hb.Slice()))
 	sb.Byte('\n')
 	sb.Byte('\n')
 
@@ -882,12 +955,12 @@ func (m Model) renderTraceroutePiped() string {
 	sb.Byte('\n')
 	sb.Byte('\n')
 
-	footer := "q/Esc Quit"
+	footer := footerQuitHint
 	gap := max(1, width-len(footer))
 	var footBuf textbuf.Buffer
 	footBuf.Str(footer)
 	tbSpaces(&footBuf, gap)
-	sb.Str(trFooterStyle.Render(footBuf.String()))
+	sb.Str(trFooterStyle.Render(footBuf.Slice()))
 
 	return sb.String()
 }

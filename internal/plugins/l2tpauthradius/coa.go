@@ -51,7 +51,7 @@ const coaReplayWindow = 5 * time.Minute
 
 func newCoAListener(port int, secrets map[string][]byte, defaultSecret []byte, bus ze.EventBus, allowedSources []net.IP) (*coaListener, error) {
 	var bAddr textbuf.Buffer
-	addr, err := net.ResolveUDPAddr("udp4", bAddr.Reset().Byte(':').Int(int64(port)).String())
+	addr, err := net.ResolveUDPAddr("udp4", bAddr.Reset().Byte(':').Int(int64(port)).Slice())
 	if err != nil {
 		return nil, fmt.Errorf("coa: resolve: %w", err)
 	}

@@ -57,8 +57,9 @@ func formatDispatchRequest(id uint64, command string) string {
 		// Log defensively and fall back to unescaped embedding.
 		return fmt.Sprintf("#%d ze-plugin-engine:dispatch-command {\"command\":%q}", id, command)
 	}
-	var b textbuf.Buffer
-	return b.Reset().Byte('#').Uint(id).Str(" ze-plugin-engine:dispatch-command ").Str(string(payload)).String()
+	b := textbuf.Get()
+	defer b.Release()
+	return b.Byte('#').Uint(id).Str(" ze-plugin-engine:dispatch-command ").Str(string(payload)).String()
 }
 
 // extractBatchEvents extracts event strings from a deliver-batch JSON payload.
@@ -80,8 +81,9 @@ func formatFlushRequest(id uint64, selector string) string {
 	if err != nil {
 		return fmt.Sprintf("#%d ze-bgp:peer-flush {\"selector\":%q}", id, selector)
 	}
-	var b2 textbuf.Buffer
-	return b2.Reset().Byte('#').Uint(id).Str(" ze-bgp:peer-flush ").Str(string(payload)).String()
+	b2 := textbuf.Get()
+	defer b2.Release()
+	return b2.Byte('#').Uint(id).Str(" ze-bgp:peer-flush ").Str(string(payload)).String()
 }
 
 // ExtractPeerAddress extracts the peer address from a translated ZeBGP command.
