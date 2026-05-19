@@ -109,17 +109,17 @@ type Model struct {
 	confirmBackupPath  string // Path to backup for rollback on timeout/abort
 
 	// Paste mode state (for load terminal ...)
-	pasteMode         bool            // True if accumulating paste input
-	pasteBuffer       strings.Builder // Accumulates pasted lines
-	pasteModeLocation string          // "absolute" or "relative"
-	pasteModeAction   string          // "replace" or "merge"
+	pasteMode         bool             // True if accumulating paste input
+	pasteBuffer       *strings.Builder // Accumulates pasted lines
+	pasteModeLocation string           // "absolute" or "relative"
+	pasteModeAction   string           // "replace" or "merge"
 
 	// Command history (browsing, entries, and persistence)
 	history *History
 
 	// Accumulating output buffer (command-only mode)
-	outputBuf   strings.Builder // Scroll-back buffer for command-only mode
-	lastCommand string          // Most recently dispatched command (for echo in output buffer)
+	outputBuf   *strings.Builder // Scroll-back buffer for command-only mode
+	lastCommand string           // Most recently dispatched command (for echo in output buffer)
 
 	// Mode state
 	mode             EditorMode                   // Current editor mode (edit or command)
@@ -346,6 +346,8 @@ func NewModel(ed *Editor) (Model, error) {
 		mode:               ModeEdit,
 		modeStates:         make(map[EditorMode]modeState),
 		statusMessage:      welcome,
+		pasteBuffer:        &strings.Builder{},
+		outputBuf:          &strings.Builder{},
 	}, nil
 }
 
@@ -373,6 +375,8 @@ func NewCommandModel() Model {
 		mode:          ModeCommand,
 		modeStates:    make(map[EditorMode]modeState),
 		statusMessage: "welcome to ze!",
+		pasteBuffer:   &strings.Builder{},
+		outputBuf:     &strings.Builder{},
 	}
 }
 
