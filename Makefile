@@ -17,6 +17,7 @@
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
 export GOCACHE := $(CURDIR)/tmp/go-cache
 export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
+export CGO_ENABLED := 0
 
 # Go compiler: override with GO=tinygo for smaller binaries
 # TinyGo finds go via PATH, so we prepend Go 1.25 when GO=tinygo
