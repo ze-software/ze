@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 1/7 |
 | Updated | 2026-05-19 |
 
 ## Post-Compaction Recovery
@@ -31,13 +31,13 @@ DER** X.509 certificate (no PEM headers; this is the VyOS convention). Device
 certificates contain a base64-DER certificate plus a `$9$`-encoded private key
 under `private { key ... }`.
 
-The certificates are issued by the Lachesis/SurfProtect CA infrastructure
+The certificates are issued by the SurfProtect CA infrastructure
 (`certauth` package at `git.exa.net.uk/surfprotect/lachesis/lachesis/certauth`).
 That package handles PEM file I/O, multi-format key detection (PKCS8, PKCS1, SEC1),
-certificate pool creation, and ECDSA/RSA sign/verify. Ze does not vendor Lachesis
-but should follow the same patterns: `x509.ParseCertificate` for DER, `x509.CertPool`
-for chain validation, `x509.ParsePKCS8PrivateKey` with fallback to `ParseECPrivateKey`
-and `ParsePKCS1PrivateKey` for key type detection.
+certificate pool creation, and ECDSA/RSA sign/verify.
+Ze will use `x509.ParseCertificate` for DER, `x509.CertPool` for chain validation,
+`x509.ParsePKCS8PrivateKey` with fallback to `ParseECPrivateKey` and
+`ParsePKCS1PrivateKey` for key type detection.
 
 Ze currently has no PKI handling at all. The `$9$` sensitive encoding infrastructure
 exists (`internal/component/config/secret/`) and is used by wireguard keys, PPPoE
@@ -59,8 +59,7 @@ This differs from PEM, which wraps DER in `-----BEGIN CERTIFICATE-----` headers.
 The private key leaf is `$9$`-encoded (ze:sensitive auto-decodes). The decoded value
 is also base64-encoded DER of the raw key. The key type must be detected by trying
 parsers in order: `x509.ParsePKCS8PrivateKey` (generic), then `x509.ParseECPrivateKey`
-(SEC1), then `x509.ParsePKCS1PrivateKey` (RSA). This matches the Lachesis
-`certauth.LoadPrivateKey` approach.
+(SEC1), then `x509.ParsePKCS1PrivateKey` (RSA). 
 
 For strongSwan, the store must **export to PEM files** on disk:
 - `/tmp/ze-ipsec/ca-<name>.pem` (CA cert)
@@ -145,7 +144,7 @@ These files are written before charon starts and cleaned up on shutdown.
 | Config tree to PKI parser | Tree-walker reads map[string]any leaves | [ ] |
 | $9$ encoding to plaintext | Automatic via ze:sensitive YANG extension | [ ] |
 | PKI parser to store | Atomic pointer swap of PKIConfig | [ ] |
-| Store to consumers (IPsec, TLS) | Query methods: GetCA, GetCertificate, CAPool | [ ] |
+| Store to consumers (IPsec, TLS) | Query methods: GetCA, GetCertificate, CAPool, IntermediatePool, CertCN | [ ] |
 | Store to CLI | show pki commands query store, format as JSON | [ ] |
 
 ### Integration Points
@@ -176,14 +175,16 @@ These files are written before charon starts and cleaned up on shutdown.
 |-------|-------------------|-------------------|
 | AC-1 | Config has `pki { ca test-ca { certificate <base64-DER> } }` | CA certificate base64-decoded, DER-parsed via x509.ParseCertificate, stored in memory with subject, issuer, expiry, key type |
 | AC-2 | Config has `pki { certificate dev-1 { certificate <base64-DER> private { key <$9$> } } }` | Device cert parsed, chain validated against known CAs, private key decoded |
-| AC-3 | Private key leaf contains $9$-encoded value | Key auto-decoded via ze:sensitive, base64-decoded to DER, parsed via PKCS8/SEC1/PKCS1 detection (matching Lachesis certauth.LoadPrivateKey pattern) |
+| AC-3 | Private key leaf contains $9$-encoded value | Key auto-decoded via ze:sensitive, base64-decoded to DER, parsed via PKCS8/SEC1/PKCS1 detection |
 | AC-4 | CA cert and device cert loaded | Chain validation succeeds (device cert signed by CA). Expiry checked against current time. Key usage checked if present |
 | AC-5 | `show pki certificates` | Table listing all certificates: name, type (ca/device), subject CN, issuer CN, expiry date, key algorithm, valid (yes/no) |
 | AC-6 | `show pki certificate <name>` | Full details: subject, issuer, serial, not-before, not-after, key algorithm, key size, SANs, key usage, chain status |
 | AC-7 | Config has expired certificate or cert not signed by any loaded CA | Config load rejects with descriptive error naming the certificate and the reason |
 | AC-8 | Config reload changes a certificate | Store atomically updated. New consumers see new cert. No daemon restart |
 | AC-9 | Consumer calls ExportPEM for a device certificate | PEM files written to /tmp/ze-ipsec/: ca-<name>.pem (cert), cert-<name>.pem (cert), key-<name>.pem (private key with 0600 permissions). Correct PEM headers (BEGIN CERTIFICATE, BEGIN PRIVATE KEY) |
-| AC-10 | Store queried for certificate issued by Lachesis CPE Management CA | ECDSA P-256 certificate parsed correctly, subject CN matches device name, issuer CN matches CA |
+| AC-10 | Store queried for certificate issued by SurfProtect CPE Management CA | ECDSA P-256 certificate parsed correctly, subject CN matches device name, issuer CN matches CA |
+| AC-11 | Config has `pki { certificate dev-1 { certificate <DER> intermediate <DER> private { key ... } } }` | Intermediate certificate(s) parsed, stored alongside device cert. Chain validation uses intermediates pool (KeyVault three-tier pattern: root + intermediate + device) |
+| AC-12 | ExportPEM called for cert with intermediates | Intermediate certs written alongside device cert for strongSwan (separate PEM file or appended to cert chain file) |
 
 ## 🧪 TDD Test Plan
 

@@ -494,6 +494,37 @@ peer transit-a {
 
 <!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- static route config, update/attribute/nlri blocks -->
 
+## PKI Certificate Store
+
+The `pki {}` top-level container holds CA and device certificates for IPsec,
+TLS, and other certificate-based features.
+
+```
+pki {
+    ca <name> {
+        certificate <base64-DER>
+    }
+    certificate <name> {
+        certificate <base64-DER>
+        intermediate <base64-DER>        # optional intermediate CA
+        private {
+            key $9$...                   # auto-encoded via ze:sensitive
+        }
+    }
+}
+```
+
+CA certificates are trusted roots for chain validation. Device certificates
+include the certificate itself and optionally a private key (PKCS8, SEC1/ECDSA,
+or PKCS1/RSA in base64-encoded DER). Private keys use `$9$` sensitive encoding
+and are never shown in CLI output.
+
+Chain validation runs at config load: device certificates must chain to a loaded
+CA. Expired certificates are rejected with a descriptive error.
+
+<!-- source: internal/component/pki/schema/ze-pki-conf.yang -- PKI YANG schema -->
+<!-- source: internal/component/pki/config.go -- PKI config parser -->
+
 ## Interface Configuration
 
 Ze manages network interfaces with a descriptive-name model. Each interface type is a

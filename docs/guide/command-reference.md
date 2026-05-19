@@ -425,6 +425,26 @@ preferred-source IP when the kernel reports one.
 <!-- source: internal/plugins/iface/netlink/neighbor_linux.go -- ListNeighbors -->
 <!-- source: internal/plugins/iface/netlink/route_linux.go -- ListKernelRoutes -->
 
+### show pki
+
+PKI certificate store introspection. Shows certificates loaded from
+the `pki {}` config section.
+
+```
+ze show pki certificates                # List all loaded certs (CA + device)
+ze show pki certificate <name>          # Full details for a named certificate
+```
+
+**`show pki certificates`** returns a sorted list of all loaded
+certificates with name, type (ca/device), subject CN, issuer CN,
+expiry date, key algorithm, and validity status.
+
+**`show pki certificate <name>`** returns full details: subject,
+issuer, serial, validity period, key algorithm, key size, SANs,
+key usage, private key presence, and chain validation status.
+
+<!-- source: internal/component/pki/show.go -- handleShowPKICertificates, handleShowPKICertificate -->
+
 ### show firewall
 
 Firewall (nftables) introspection. Requires the `firewall { ... }`

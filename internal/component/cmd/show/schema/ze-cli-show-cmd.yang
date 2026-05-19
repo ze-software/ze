@@ -657,5 +657,22 @@ module ze-cli-show-cmd {
                 description "Members of a named firewall set (ze's firewall group). No argument lists all known groups; a positional name returns the set elements. Reads from the last applied config -- does not talk to the kernel.";
             }
         }
+
+        container pki {
+            config false;
+            description "PKI certificate store introspection";
+
+            container certificates {
+                config false;
+                ze:command "ze-show:pki-certificates";
+                description "List all loaded certificates (CA and device) with name, type, subject, issuer, expiry, and validity.";
+            }
+
+            container certificate {
+                config false;
+                ze:command "ze-show:pki-certificate";
+                description "Show full details of a named certificate. Usage: show pki certificate <name>.";
+            }
+        }
     }
 }

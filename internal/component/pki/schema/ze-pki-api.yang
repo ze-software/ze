@@ -1,0 +1,37 @@
+module ze-pki-api {
+    namespace "urn:ze:pki:api";
+    prefix pkiapi;
+
+    description "PKI API operations for Ze. RPCs for inspecting
+                 loaded certificates and CA trust anchors.";
+
+    revision 2026-05-19 {
+        description "Initial PKI show commands (spec-ipsec-1).";
+    }
+
+    rpc certificates {
+        description "List all loaded certificates (CA and device).";
+        output {
+            leaf certificates {
+                type string;
+                description "JSON array of certificate summary objects.";
+            }
+        }
+    }
+
+    rpc certificate {
+        description "Show details of a named certificate.";
+        input {
+            leaf name {
+                type string;
+                description "Certificate name to look up.";
+            }
+        }
+        output {
+            leaf certificate {
+                type string;
+                description "JSON object with full certificate details.";
+            }
+        }
+    }
+}
