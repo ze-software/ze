@@ -205,7 +205,7 @@ module ze-cli-show-cmd {
             container cache {
                 config false;
                 ze:command "ze-show:dns-cache";
-                description "DNS cache statistics (stats)";
+                description "DNS cache (stats | entries)";
             }
         }
 

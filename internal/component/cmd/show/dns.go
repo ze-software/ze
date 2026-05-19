@@ -17,6 +17,7 @@ import (
 const (
 	defaultDNSLookupTimeout = 5 * time.Second
 	dnsCacheActionStats     = "stats"
+	dnsCacheActionEntries   = "entries"
 )
 
 var dnsTypeMap = map[string]uint16{
@@ -180,17 +181,20 @@ func handleDNSLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 func handleDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	action := dnsCacheActionStats
 	for _, a := range args {
-		if a == dnsCacheActionStats {
+		switch a {
+		case dnsCacheActionStats, dnsCacheActionEntries:
 			action = a
 		}
 	}
 
-	if action != dnsCacheActionStats {
-		return &plugin.Response{Status: plugin.StatusError, Data: "dns cache: unknown action (use: stats)"}, nil
+	switch action {
+	case dnsCacheActionStats:
+		return &plugin.Response{Status: plugin.StatusDone, Data: getDNSCacheStats()}, nil
+	case dnsCacheActionEntries:
+		return &plugin.Response{Status: plugin.StatusDone, Data: getDNSCacheEntries()}, nil
+	default:
+		return &plugin.Response{Status: plugin.StatusError, Data: "dns cache: unknown action (use: stats, entries)"}, nil
 	}
-
-	stats := getDNSCacheStats()
-	return &plugin.Response{Status: plugin.StatusDone, Data: stats}, nil
 }
 
 var dnsStatsProvider func() map[string]any
@@ -214,6 +218,25 @@ func RegisterDNSLookupProvider(fn func(name string, qtype uint16) (*DNSLookupRes
 func getDNSCacheStats() map[string]any {
 	if dnsStatsProvider != nil {
 		return dnsStatsProvider()
+	}
+	return map[string]any{
+		"status": "DNS cache not available",
+	}
+}
+
+var dnsEntriesProvider func() []map[string]any
+
+func RegisterDNSEntriesProvider(fn func() []map[string]any) {
+	dnsEntriesProvider = fn
+}
+
+func getDNSCacheEntries() map[string]any {
+	if dnsEntriesProvider != nil {
+		entries := dnsEntriesProvider()
+		return map[string]any{
+			"entries": entries,
+			"count":   len(entries),
+		}
 	}
 	return map[string]any{
 		"status": "DNS cache not available",

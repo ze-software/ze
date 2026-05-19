@@ -29,5 +29,16 @@ module ze-cli-clear-cmd {
                              `show interface <name> counters`.";
             }
         }
+
+        container dns {
+            config false;
+            description "DNS cache management";
+
+            container cache {
+                config false;
+                ze:command "ze-clear:dns-cache";
+                description "Flush DNS cache (all | entry <name> [type <A|AAAA|...>] | stats)";
+            }
+        }
     }
 }
