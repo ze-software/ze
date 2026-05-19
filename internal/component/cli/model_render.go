@@ -300,7 +300,7 @@ func (m Model) View() tea.View {
 	var lines []string
 
 	// Viewport for scrollable content — fills all space above the bottom rows
-	if m.showViewport && m.viewportContent != "" {
+	if m.showViewport {
 		m.viewport.SetHeight(max(viewHeight-bottomRows, 5))
 		vpLines := strings.Split(m.viewport.View(), "\n")
 		lines = append(lines, vpLines...)

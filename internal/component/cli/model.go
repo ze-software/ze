@@ -390,14 +390,23 @@ func (m Model) hasEditor() bool {
 	return m.editor != nil
 }
 
-// writeCommandEcho appends "ze> <command>\n" to the scroll-back buffer.
+// writeCommandEcho appends "ze> <command>\n" to the scroll-back buffer,
+// separated from prior output by a blank line.
 // Called once per command dispatch so individual handlers do not repeat it.
 func (m *Model) writeCommandEcho() {
 	if m.hasEditor() {
 		return
 	}
 	if m.outputBuf.Len() > 0 {
-		m.outputBuf.WriteString("\n")
+		buf := m.outputBuf.String()
+		switch {
+		case strings.HasSuffix(buf, "\n\n"):
+			// already blank line
+		case strings.HasSuffix(buf, "\n"):
+			m.outputBuf.WriteString("\n")
+		default:
+			m.outputBuf.WriteString("\n\n")
+		}
 	}
 	m.outputBuf.WriteString("ze> " + m.lastCommand + "\n")
 }
@@ -429,14 +438,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.SetWidth(msg.Width - 4)
 		m.viewport.SetHeight(max(msg.Height-10, 5))
 		// Show config on first size event (startup)
-		if m.hasEditor() && !m.showViewport && m.viewportContent == "" {
-			if m.editor.HasPendingEdit() {
-				if err := m.editor.LoadPendingEdit(); err == nil {
-					m.statusMessage = "Restored snapshot from previous session. Use 'commit' to apply or 'discard' to revert."
-					m.runValidation()
+		if !m.showViewport && m.viewportContent == "" {
+			if m.hasEditor() {
+				if m.editor.HasPendingEdit() {
+					if err := m.editor.LoadPendingEdit(); err == nil {
+						m.statusMessage = "Restored snapshot from previous session. Use 'commit' to apply or 'discard' to revert."
+						m.runValidation()
+					}
 				}
+				m.showConfigContent()
+			} else {
+				m.showViewport = true
 			}
-			m.showConfigContent()
 		}
 		return m, nil
 
