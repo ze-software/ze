@@ -33,7 +33,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        resp = dispatch(api, 'dns lookup localhost type A')
+        resp = dispatch(api, 'show dns lookup localhost type A')
         status = resp.get('status')
         if status is None:
             runtime_fail(f'dns-lookup: dispatch returned no status: {resp}')

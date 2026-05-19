@@ -33,7 +33,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        resp = dispatch(api, 'dns cache stats')
+        resp = dispatch(api, 'show dns cache stats')
         status = resp.get('status')
         if status is None:
             runtime_fail(f'dns-cache: dispatch returned no status: {resp}')
