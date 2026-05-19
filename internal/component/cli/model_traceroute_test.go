@@ -24,25 +24,35 @@ func TestIsTracerouteMonitorCommand(t *testing.T) {
 }
 
 func TestParseTracerouteMonitorArgs(t *testing.T) {
-	target, maxHops := parseTracerouteMonitorArgs("monitor traceroute 8.8.8.8")
+	target, maxHops, errMsg := parseTracerouteMonitorArgs("monitor traceroute 8.8.8.8")
 	assert.Equal(t, "8.8.8.8", target)
 	assert.Equal(t, 16, maxHops)
+	assert.Empty(t, errMsg)
 }
 
 func TestParseTracerouteMonitorArgs_AllOptions(t *testing.T) {
-	target, maxHops := parseTracerouteMonitorArgs("monitor traceroute 10.0.0.1 max-hops 10")
+	target, maxHops, errMsg := parseTracerouteMonitorArgs("monitor traceroute 10.0.0.1 max-hops 10")
 	assert.Equal(t, "10.0.0.1", target)
 	assert.Equal(t, 10, maxHops)
+	assert.Empty(t, errMsg)
 }
 
 func TestParseTracerouteMonitorArgs_InvalidMaxHops(t *testing.T) {
-	_, maxHops := parseTracerouteMonitorArgs("monitor traceroute 8.8.8.8 max-hops 100")
+	_, maxHops, errMsg := parseTracerouteMonitorArgs("monitor traceroute 8.8.8.8 max-hops 100")
 	assert.Equal(t, 16, maxHops)
+	assert.Empty(t, errMsg)
 }
 
 func TestParseTracerouteMonitorArgs_KeywordsOnly(t *testing.T) {
-	target, _ := parseTracerouteMonitorArgs("monitor traceroute max-hops 10")
+	target, _, errMsg := parseTracerouteMonitorArgs("monitor traceroute max-hops 10")
 	assert.Equal(t, "", target)
+	assert.Empty(t, errMsg)
+}
+
+func TestParseTracerouteMonitorArgs_UnexpectedArg(t *testing.T) {
+	_, _, errMsg := parseTracerouteMonitorArgs("monitor traceroute 1.1.1.1 resolve")
+	assert.Contains(t, errMsg, "unexpected argument: resolve")
+	assert.Contains(t, errMsg, "| for pipe operators")
 }
 
 func TestParsePositiveInt(t *testing.T) {

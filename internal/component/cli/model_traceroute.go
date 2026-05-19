@@ -167,7 +167,7 @@ func isPipedTracerouteMonitorCommand(input string) bool {
 	return strings.HasPrefix(strings.TrimSpace(cmd), "monitor traceroute ")
 }
 
-func parseTracerouteMonitorArgs(input string) (target string, maxHops int) {
+func parseTracerouteMonitorArgs(input string) (target string, maxHops int, errMsg string) {
 	maxHops = 16
 
 	trimmed := strings.TrimSpace(input)
@@ -186,10 +186,12 @@ func parseTracerouteMonitorArgs(input string) (target string, maxHops int) {
 		default:
 			if target == "" {
 				target = args[i]
+			} else {
+				return "", maxHops, "unexpected argument: " + args[i] + " (use | for pipe operators)"
 			}
 		}
 	}
-	return target, maxHops
+	return target, maxHops, ""
 }
 
 func hopInt(v any) int {
@@ -244,7 +246,11 @@ func (m *Model) startTraceroute(input string) tea.Cmd {
 		return nil
 	}
 
-	target, maxHops := parseTracerouteMonitorArgs(input)
+	target, maxHops, argErr := parseTracerouteMonitorArgs(input)
+	if argErr != "" {
+		m.statusMessage = "monitor traceroute: " + argErr
+		return nil
+	}
 	if target == "" {
 		m.statusMessage = "monitor traceroute: missing target address"
 		return nil
@@ -270,7 +276,11 @@ func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 		m.statusMessage = "pipe error: " + pipeErr
 		return nil
 	}
-	target, maxHops := parseTracerouteMonitorArgs(cmdStr)
+	target, maxHops, argErr := parseTracerouteMonitorArgs(cmdStr)
+	if argErr != "" {
+		m.statusMessage = "monitor traceroute: " + argErr
+		return nil
+	}
 	if target == "" {
 		m.statusMessage = "monitor traceroute: missing target address"
 		return nil
