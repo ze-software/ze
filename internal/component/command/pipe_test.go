@@ -513,3 +513,116 @@ func TestProcessPipesDefaultFunc(t *testing.T) {
 		})
 	}
 }
+
+func TestParsePipe_Resolve(t *testing.T) {
+	cmd, ops := ParsePipe("show traceroute 1.1.1.1 | resolve")
+	if cmd != "show traceroute 1.1.1.1" {
+		t.Errorf("command = %q, want %q", cmd, "show traceroute 1.1.1.1")
+	}
+	if len(ops) != 1 || ops[0].kind != pipeResolve {
+		t.Errorf("ops = %v, want [resolve]", ops)
+	}
+}
+
+func TestParsePipe_ResolveAndJSON(t *testing.T) {
+	cmd, ops := ParsePipe("show traceroute 1.1.1.1 | resolve | json")
+	if cmd != "show traceroute 1.1.1.1" {
+		t.Errorf("command = %q, want %q", cmd, "show traceroute 1.1.1.1")
+	}
+	if len(ops) != 2 || ops[0].kind != pipeResolve || ops[1].kind != pipeJSON {
+		t.Errorf("ops = %v, want [resolve, json]", ops)
+	}
+}
+
+func TestApplyJSON_UnwrapsSingleKeyArray(t *testing.T) {
+	input := `{"hops":[{"ttl":1,"addr":"10.0.0.1","rtt-ms":1.5},{"ttl":2,"addr":"10.0.0.2","rtt-ms":2.5}]}`
+	result := ApplyJSON(input, "compact")
+	if !strings.HasPrefix(result, "[") {
+		t.Errorf("compact JSON should be a valid array: %s", result)
+	}
+	if !strings.Contains(result, "10.0.0.1") || !strings.Contains(result, "10.0.0.2") {
+		t.Errorf("should contain both IPs: %s", result)
+	}
+}
+
+func TestApplyJSON_PrettyIsValidJSON(t *testing.T) {
+	input := `{"hops":[{"ttl":1,"addr":"10.0.0.1"},{"ttl":2,"addr":"10.0.0.2"}]}`
+	result := ApplyJSON(input, "pretty")
+	if !strings.HasPrefix(strings.TrimSpace(result), "[") {
+		t.Errorf("pretty JSON should be a valid array: %s", result)
+	}
+}
+
+func TestApplyNDJSON(t *testing.T) {
+	input := `{"hops":[{"ttl":1,"addr":"10.0.0.1","rtt-ms":1.5},{"ttl":2,"addr":"10.0.0.2","rtt-ms":2.5}]}`
+	result := ApplyNDJSON(input)
+	lines := strings.Split(strings.TrimSpace(result), "\n")
+	if len(lines) != 2 {
+		t.Errorf("expected 2 NDJSON lines, got %d: %q", len(lines), result)
+	}
+	if !strings.Contains(lines[0], "10.0.0.1") {
+		t.Errorf("line 0 should contain 10.0.0.1: %s", lines[0])
+	}
+	if !strings.Contains(lines[1], "10.0.0.2") {
+		t.Errorf("line 1 should contain 10.0.0.2: %s", lines[1])
+	}
+}
+
+func TestApplyResolve_AddsNameField(t *testing.T) {
+	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1}]}`
+	result := ApplyResolve(input)
+	if !strings.Contains(result, "addr-name") {
+		t.Errorf("resolve should add addr-name field: %s", result)
+	}
+}
+
+func TestApplyResolve_SkipsStar(t *testing.T) {
+	input := `{"hops":[{"ttl":1,"addr":"*","rtt-ms":null}]}`
+	result := ApplyResolve(input)
+	if strings.Contains(result, "addr-name") {
+		t.Errorf("resolve should skip '*' addresses: %s", result)
+	}
+}
+
+func TestApplyPipes_ResolveThenJSON(t *testing.T) {
+	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1}]}`
+	ops := []pipeOp{{kind: pipeResolve}, {kind: pipeJSON, arg: "compact"}}
+	result, errMsg := ApplyPipes(input, ops)
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	if !strings.Contains(result, "addr-name") {
+		t.Errorf("result should contain addr-name: %s", result)
+	}
+	if !strings.Contains(result, "127.0.0.1") {
+		t.Errorf("result should contain IP: %s", result)
+	}
+}
+
+func TestApplyPipes_JSONThenResolve(t *testing.T) {
+	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1},{"ttl":2,"addr":"127.0.0.1","rtt-ms":0.2}]}`
+	ops := []pipeOp{{kind: pipeJSON, arg: "compact"}, {kind: pipeResolve}}
+	result, errMsg := ApplyPipes(input, ops)
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	if !strings.Contains(result, "addr-name") {
+		t.Errorf("result should contain addr-name: %s", result)
+	}
+}
+
+func TestApplyPipes_NDJSONThenResolve(t *testing.T) {
+	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1},{"ttl":2,"addr":"127.0.0.1","rtt-ms":0.2}]}`
+	ops := []pipeOp{{kind: pipeNDJSON}, {kind: pipeResolve}}
+	result, errMsg := ApplyPipes(input, ops)
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	if !strings.Contains(result, "addr-name") {
+		t.Errorf("result should contain addr-name: %s", result)
+	}
+	lines := strings.Split(strings.TrimSpace(result), "\n")
+	if len(lines) != 2 {
+		t.Errorf("expected 2 NDJSON lines, got %d: %q", len(lines), result)
+	}
+}

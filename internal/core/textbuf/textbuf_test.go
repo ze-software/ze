@@ -143,3 +143,55 @@ func TestAppendToEmptyDst(t *testing.T) {
 	assert.Equal(t, "10.0.0.1", string(AppendAddr(nil, netip.MustParseAddr("10.0.0.1"))))
 	assert.Equal(t, "ff", string(AppendHex(nil, []byte{0xff})))
 }
+
+func TestBufferFreezeAfterString(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset().Str("hello")
+	_ = b.String()
+	assert.PanicsWithValue(t, "BUG: textbuf write after String", func() { b.Str("more") })
+}
+
+func TestBufferFreezeAfterSlice(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset().Str("hello")
+	_ = b.Slice()
+	assert.PanicsWithValue(t, "BUG: textbuf write after String", func() { b.Byte('x') })
+}
+
+func TestBufferResetUnfreezes(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset().Str("first")
+	_ = b.String()
+	got := b.Reset().Str("second").String()
+	assert.Equal(t, "second", got)
+}
+
+func TestBufferStringZeroCopyHeap(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	long := strings.Repeat("x", 200)
+	s := b.Reset().Str(long).String()
+	assert.Equal(t, long, s)
+}
+
+func TestBufferStringCopiesStack(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	s := b.Reset().Str("short").String()
+	assert.Equal(t, "short", s)
+	b.Reset().Str("overwritten")
+	assert.Equal(t, "short", s)
+}
+
+func TestBufferWrite(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset()
+	n, err := b.Write([]byte("hello"))
+	assert.NoError(t, err)
+	assert.Equal(t, 5, n)
+	assert.Equal(t, "hello", b.String())
+}

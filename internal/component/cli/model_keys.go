@@ -22,6 +22,25 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// Traceroute monitor mode intercepts all keys.
+	if m.traceroute != nil {
+		if m.handleTracerouteKey(keyStr) {
+			return m, nil
+		}
+	}
+
+	// Piped traceroute: replace mode intercepts all keys (alt screen),
+	// log mode only intercepts Esc/Ctrl-C.
+	if m.traceroutePiped != nil {
+		if keyStr == "q" || keyStr == keyCtrlC || keyStr == keyEsc {
+			m.stopTraceroutePiped()
+			return m, nil
+		}
+		if !m.traceroutePiped.logMode {
+			return m, nil
+		}
+	}
+
 	// Lifecycle confirmation takes highest priority (quit, stop, restart).
 	if m.confirmQuit || m.confirmStop || m.confirmRestart {
 		confirmed := false
@@ -332,14 +351,29 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		m.ghostText = ""
 		m.syncGhostSuggestions()
 		m.completions = nil
+		if args == "clear" {
+			m.outputBuf.Reset()
+			m.showConfigContent()
+			m.statusMessage = ""
+			return m, nil
+		}
 		if isDashboardCommand(args) {
 			dashCmd := m.startDashboard()
 			return m, dashCmd
+		}
+		if isTracerouteMonitorCommand(args) {
+			trCmd := m.startTraceroute(args)
+			return m, trCmd
+		}
+		if isPipedTracerouteMonitorCommand(args) {
+			trCmd := m.startTraceroutePiped(args)
+			return m, trCmd
 		}
 		if m.monitorFactory != nil && isMonitorCommand(args) {
 			cmd := m.startMonitorSession(extractMonitorCmdArgs(args))
 			return m, cmd
 		}
+		m.statusMessage = "running..."
 		return m, m.executeOperationalCommand(args)
 	}
 	if m.mode == ModeCommand && input == cmdEdit {
@@ -418,6 +452,20 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	m.syncGhostSuggestions()
 	m.completions = nil
 
+	// Clear scrollback.
+	if input == "clear" {
+		m.outputBuf.Reset()
+		if m.hasEditor() {
+			m.showConfigContent()
+		} else {
+			m.viewportContent = ""
+			m.viewport.SetContent("")
+			m.viewport.GotoTop()
+		}
+		m.statusMessage = ""
+		return m, nil
+	}
+
 	// Execute command -- dispatch based on mode
 	if m.mode == ModeCommand {
 		m.lastCommand = input
@@ -425,10 +473,19 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			dashCmd := m.startDashboard()
 			return m, dashCmd
 		}
+		if isTracerouteMonitorCommand(input) {
+			trCmd := m.startTraceroute(input)
+			return m, trCmd
+		}
+		if isPipedTracerouteMonitorCommand(input) {
+			trCmd := m.startTraceroutePiped(input)
+			return m, trCmd
+		}
 		if m.monitorFactory != nil && isMonitorCommand(input) {
 			cmd := m.startMonitorSession(extractMonitorCmdArgs(input))
 			return m, cmd
 		}
+		m.statusMessage = "running..."
 		return m, m.executeOperationalCommand(input)
 	}
 	return m, m.executeCommand(input)

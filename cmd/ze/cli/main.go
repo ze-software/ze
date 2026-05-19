@@ -5,6 +5,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -31,7 +32,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"      // init() registers help/discovery RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"   // init() registers metrics show/list RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/set"       // init() registers set verb RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"      // init() registers show verb RPCs
+	show "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"   // init() registers show verb RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe" // init() registers subscribe/unsubscribe RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"    // init() registers update verb RPCs
 	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
@@ -125,6 +126,8 @@ func runInteractiveWithDispatch(dispatch CommandFunc) int {
 		}, nil
 	})
 
+	m.SetTracerouteFactory(streamingTracerouteFactory)
+
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: open /dev/tty: %v\n", err)
@@ -202,6 +205,8 @@ func runInteractiveSession(client *cliClient) int {
 		}, nil
 	})
 
+	m.SetTracerouteFactory(streamingTracerouteFactory)
+
 	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -270,13 +275,15 @@ func newCLIClient(creds sshclient.Credentials) *cliClient {
 // Execute sends a command via SSH and prints the response in the given format.
 // Valid formats: "yaml" (default), "json", "table".
 func (c *cliClient) Execute(command, format string) int {
-	output, err := c.SendCommand(command)
+	cmdStr, formatFn := cmd.ProcessPipes(command)
+	output, err := c.SendCommand(cmdStr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 
-	printFormatted(output, format)
+	formatted := formatFn(output)
+	printFormatted(formatted, format)
 	return 0
 }
 
@@ -647,4 +654,8 @@ func fetchPeerSelectors(client *cliClient) []cmd.Suggestion {
 	}
 
 	return suggestions
+}
+
+func streamingTracerouteFactory(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error) {
+	return show.NewTracerouteSession(ctx, target, maxHops)
 }

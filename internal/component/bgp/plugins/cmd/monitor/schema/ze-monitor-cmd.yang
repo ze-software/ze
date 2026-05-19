@@ -23,6 +23,13 @@ module ze-monitor-cmd {
             description "Stream live events with optional include/exclude filters";
         }
 
+        container traceroute {
+            config false;
+            ze:command "ze-monitor:traceroute";
+            ze:task-support required;
+            description "Live mtr-style traceroute (<target> [max-hops N])";
+        }
+
         container system {
             config false;
             description "System-level monitor commands";

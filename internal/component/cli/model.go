@@ -135,6 +135,11 @@ type Model struct {
 	dashboardFactory DashboardFactory // Creates dashboard sessions (nil if unavailable)
 	dashboard        *dashboardState  // Active dashboard (nil when not in dashboard mode)
 
+	// Traceroute monitor state (mtr-style live hop table)
+	tracerouteFactory TracerouteFactory     // Runs traceroute probes (nil if unavailable)
+	traceroute        *tracerouteState      // Active traceroute session (nil when not active)
+	traceroutePiped   *traceroutePipedState // Active piped traceroute (nil when not active)
+
 	// Login warnings (set by SSH session, displayed on first render)
 	loginWarnings []LoginWarning
 
@@ -467,6 +472,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case dashboardDataMsg:
 		return m.handleDashboardData(msg)
+
+	case traceroutePollMsg:
+		return m.handleTraceroutePoll()
+
+	case traceroutePipedPollMsg:
+		return m.handleTraceroutePipedPoll()
 	}
 
 	m.textInput, cmd = m.textInput.Update(msg)

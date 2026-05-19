@@ -4,11 +4,14 @@
 package hub
 
 import (
+	"context"
+
 	tea "charm.land/bubbletea/v2"
 
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
+	show "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
@@ -58,6 +61,7 @@ func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParam
 					if executor != nil {
 						m.SetCommandExecutor(executor)
 						m.SetDashboardFactory(dashboardFactoryFromExecutor(executor))
+						m.SetTracerouteFactory(streamingTracerouteFactory)
 					}
 					monitorFn := srv.MonitorFactoryFunc()
 					if monitorFn != nil {
@@ -83,6 +87,7 @@ func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParam
 		if executor != nil {
 			m.SetCommandExecutor(executor)
 			m.SetDashboardFactory(dashboardFactoryFromExecutor(executor))
+			m.SetTracerouteFactory(streamingTracerouteFactory)
 		}
 		monitorFn := srv.MonitorFactoryFunc()
 		if monitorFn != nil {
@@ -116,4 +121,8 @@ func dashboardFactoryFromExecutor(cmdExec zessh.CommandExecutor) cli.DashboardFa
 			return cmdExec("summary")
 		}, nil
 	}
+}
+
+func streamingTracerouteFactory(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error) {
+	return show.NewTracerouteSession(ctx, target, maxHops)
 }

@@ -145,6 +145,10 @@ func init() {
 			WireMethod: "ze-show:traceroute",
 			Handler:    handleTraceroute,
 		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:probe-round",
+			Handler:    HandleProbeRound,
+		},
 	)
 	// ze-show:host-* RPCs are registered from host.go's own init()
 	// via a loop over host.SectionNames(). See rules/derive-not-hardcode.md.

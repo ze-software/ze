@@ -21,10 +21,13 @@ const (
 	pipeMatch   pipeKind = iota // | match <pattern> — grep lines
 	pipeCount                   // | count — count items (returns JSON {"count": N})
 	pipeNoMore                  // | no-more — disable paging (currently no-op)
-	pipeJSON                    // | json [pretty|compact] — format as JSON
+	pipeJSON                    // | json [pretty|compact] — format as JSON array
+	pipeNDJSON                  // | ndjson — one compact JSON object per line
 	pipeTable                   // | table — nushell-style table rendering with box-drawing
 	pipeText                    // | text — space-aligned columns without box-drawing
 	pipeYAML                    // | yaml — YAML-formatted output
+	pipeResolve                 // | resolve — add reverse DNS names for IP address values
+	pipeLog                     // | log — append each update instead of replacing
 	pipeUnknown                 // unrecognized operator
 )
 
@@ -48,6 +51,9 @@ var knownPipeOps = map[string]pipeKind{
 	"text":    pipeText,
 	"yaml":    pipeYAML,
 	"json":    pipeJSON,
+	"resolve": pipeResolve,
+	"ndjson":  pipeNDJSON,
+	"log":     pipeLog,
 }
 
 // ParsePipe splits user input into the command and a chain of pipe operators.
@@ -105,7 +111,7 @@ func FoldServerPipeline(command string, ops []pipeOp) (string, []pipeOp) {
 
 	for _, op := range ops {
 		switch op.kind { //nolint:exhaustive // only classify server vs client ops
-		case pipeNoMore, pipeTable, pipeText, pipeYAML:
+		case pipeNoMore, pipeTable, pipeText, pipeYAML, pipeResolve, pipeNDJSON, pipeLog:
 			// Client-side only
 			clientOps = append(clientOps, op)
 		case pipeMatch:
@@ -139,7 +145,7 @@ func FoldServerPipeline(command string, ops []pipeOp) (string, []pipeOp) {
 func ApplyPipes(output string, ops []pipeOp) (string, string) {
 	formatCount := 0
 	for _, op := range ops {
-		if op.kind == pipeJSON || op.kind == pipeTable || op.kind == pipeText || op.kind == pipeYAML {
+		if op.kind == pipeJSON || op.kind == pipeNDJSON || op.kind == pipeTable || op.kind == pipeText || op.kind == pipeYAML {
 			formatCount++
 		}
 	}
@@ -161,12 +167,18 @@ func ApplyPipes(output string, ops []pipeOp) (string, string) {
 			// No-op: paging not yet implemented
 		case pipeJSON:
 			result = ApplyJSON(result, op.arg)
+		case pipeNDJSON:
+			result = ApplyNDJSON(result)
 		case pipeTable:
 			result = ApplyTable(result)
 		case pipeText:
 			result = ApplyText(result)
 		case pipeYAML:
 			result = applyYAML(result)
+		case pipeResolve:
+			result = ApplyResolve(result)
+		case pipeLog:
+			// Display-mode modifier, not a data transform. Handled by caller.
 		case pipeUnknown:
 			return "", "unknown pipe operator: " + op.arg
 		}
@@ -178,7 +190,38 @@ func ApplyPipes(output string, ops []pipeOp) (string, string) {
 // Count is a data transform (not a format) — it produces JSON for downstream formatting.
 func HasFormatOp(ops []pipeOp) bool {
 	for _, op := range ops {
-		if op.kind == pipeJSON || op.kind == pipeTable || op.kind == pipeText || op.kind == pipeYAML {
+		if op.kind == pipeJSON || op.kind == pipeNDJSON || op.kind == pipeTable || op.kind == pipeText || op.kind == pipeYAML {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidatePipes checks a pipe chain for errors without running it.
+// Returns an error message if invalid, empty string if OK.
+func ValidatePipes(ops []pipeOp) string {
+	formatCount := 0
+	for _, op := range ops {
+		if op.kind == pipeUnknown {
+			return "unknown pipe operator: " + op.arg
+		}
+		if op.kind == pipeJSON || op.kind == pipeNDJSON || op.kind == pipeTable || op.kind == pipeText || op.kind == pipeYAML {
+			formatCount++
+		}
+		if op.kind == pipeMatch && op.arg == "" {
+			return "match requires a pattern"
+		}
+	}
+	if formatCount > 1 {
+		return "multiple format operators (use only one of: json, ndjson, table, text, yaml)"
+	}
+	return ""
+}
+
+// HasLogOp returns true if the pipe chain contains | log.
+func HasLogOp(ops []pipeOp) bool {
+	for _, op := range ops {
+		if op.kind == pipeLog {
 			return true
 		}
 	}
@@ -237,13 +280,15 @@ func countItems(v any) int {
 	return 1
 }
 
-// ApplyJSON reformats JSON output. "pretty" indents, "compact" produces one line.
-// Non-JSON input passes through unchanged.
+// ApplyJSON reformats JSON output as valid JSON. Single-key wrapper maps
+// containing arrays are unwrapped. "pretty" indents, "compact" produces one line.
 func ApplyJSON(input, mode string) string {
 	var data any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
 		return input
 	}
+
+	data = unwrapSingleKeyArray(data)
 
 	if mode == jsonCompact {
 		out, err := json.Marshal(data)
@@ -253,12 +298,58 @@ func ApplyJSON(input, mode string) string {
 		return string(out)
 	}
 
-	// Pretty-print (default).
 	out, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return input
 	}
 	return string(out)
+}
+
+// ApplyNDJSON reformats JSON output as newline-delimited JSON (one compact
+// object per line). Single-key wrapper maps containing arrays are unwrapped.
+func ApplyNDJSON(input string) string {
+	var data any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
+		return input
+	}
+
+	data = unwrapSingleKeyArray(data)
+
+	arr, ok := data.([]any)
+	if !ok {
+		out, err := json.Marshal(data)
+		if err != nil {
+			return input
+		}
+		return string(out) + "\n"
+	}
+	return marshalNDJSON(arr, json.Marshal)
+}
+
+func unwrapSingleKeyArray(v any) any {
+	m, ok := v.(map[string]any)
+	if !ok || len(m) != 1 {
+		return v
+	}
+	for _, inner := range m {
+		if arr, isArr := inner.([]any); isArr {
+			return arr
+		}
+	}
+	return v
+}
+
+func marshalNDJSON(arr []any, marshal func(any) ([]byte, error)) string {
+	var sb textbuf.Buffer
+	for _, item := range arr {
+		out, err := marshal(item)
+		if err != nil {
+			continue
+		}
+		sb.Write(out) //nolint:errcheck // textbuf.Write never fails
+		sb.Byte('\n')
+	}
+	return sb.String()
 }
 
 // applyYAML reformats JSON output as valid YAML.
@@ -289,6 +380,41 @@ func ProcessPipes(input string) (command string, format func(string) string) {
 		}
 		return result
 	}
+}
+
+// ProcessPipesDetectLog is like ProcessPipesDefaultTable but also reports
+// whether | log was present and validates the pipe chain upfront.
+// Returns a non-empty errMsg if the pipe chain is invalid.
+func ProcessPipesDetectLog(input string) (cmd string, format func(string) string, logMode bool, errMsg string) {
+	cmd, ops := ParsePipe(input)
+	cmd, ops = FoldServerPipeline(cmd, ops)
+
+	if msg := ValidatePipes(ops); msg != "" {
+		return cmd, nil, false, msg
+	}
+
+	logMode = HasLogOp(ops)
+
+	// Strip log ops from the pipeline (display-mode, not a data transform).
+	filtered := ops[:0]
+	for _, op := range ops {
+		if op.kind != pipeLog {
+			filtered = append(filtered, op)
+		}
+	}
+	ops = filtered
+
+	if !HasFormatOp(ops) {
+		ops = append(ops, pipeOp{kind: pipeTable})
+	}
+
+	return cmd, func(rawJSON string) string {
+		result, pipeErr := ApplyPipes(rawJSON, ops)
+		if pipeErr != "" {
+			return "pipe error: " + pipeErr
+		}
+		return result
+	}, logMode, ""
 }
 
 // ProcessPipesDefaultTable is like ProcessPipes but defaults to table format

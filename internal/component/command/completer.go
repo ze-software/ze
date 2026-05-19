@@ -39,6 +39,9 @@ var PipeOperators = []Suggestion{
 	{Text: "json", Description: "JSON output", Type: "pipe"},
 	{Text: "yaml", Description: "YAML output", Type: "pipe"},
 	{Text: "no-more", Description: "Disable paging", Type: "pipe"},
+	{Text: "resolve", Description: "Reverse DNS for IP addresses", Type: "pipe"},
+	{Text: "ndjson", Description: "One JSON object per line", Type: "pipe"},
+	{Text: "log", Description: "Append each update (monitor)", Type: "pipe"},
 }
 
 // pipeSubArgs maps pipe operators to their sub-argument completions.

@@ -102,21 +102,18 @@ func TestTracerouteIPv6(t *testing.T) {
 
 func TestTracerouteHopResult(t *testing.T) {
 	hop := map[string]any{
-		"hop":    1,
+		"ttl":    1,
 		"addr":   "10.0.0.1",
 		"rtt-ms": 1.234,
-		"ttl":    1,
 	}
-	assert.Equal(t, 1, hop["hop"])
+	assert.Equal(t, 1, hop["ttl"])
 	assert.Equal(t, "10.0.0.1", hop["addr"])
 	assert.Equal(t, 1.234, hop["rtt-ms"])
-	assert.Equal(t, 1, hop["ttl"])
 
 	timeoutHop := map[string]any{
-		"hop":    2,
+		"ttl":    2,
 		"addr":   "*",
 		"rtt-ms": nil,
-		"ttl":    2,
 	}
 	assert.Equal(t, "*", timeoutHop["addr"])
 	assert.Nil(t, timeoutHop["rtt-ms"])

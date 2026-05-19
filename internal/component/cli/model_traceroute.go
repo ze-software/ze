@@ -1,0 +1,884 @@
+// Design: model_dashboard.go -- poll-based live view pattern
+// Related: model_monitor.go -- channel-drain pattern (50ms poll tick)
+
+package cli
+
+import (
+	"context"
+	"math"
+	"strconv"
+	"strings"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
+
+const tracerouteDrainInterval = 50 * time.Millisecond
+
+// TracerouteFactory starts a streaming probe round. The returned channel
+// receives individual hop results as ICMP responses arrive. It is closed
+// when the round completes (after ~1s). Cancel stops the round early.
+type TracerouteFactory func(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error)
+
+type traceroutePollMsg struct{}
+
+// traceroutePipedPollMsg triggers a poll of the piped traceroute channel.
+type traceroutePipedPollMsg struct{}
+
+// traceroutePathStats holds per-IP statistics at a given TTL.
+type traceroutePathStats struct {
+	addr  string
+	sent  int
+	recv  int
+	last  float64
+	best  float64
+	worst float64
+	sum   float64
+	sumSq float64
+}
+
+func newPathStats(addr string) traceroutePathStats {
+	return traceroutePathStats{addr: addr, best: math.MaxFloat64}
+}
+
+func (p *traceroutePathStats) loss() float64 {
+	if p.sent == 0 {
+		return 0
+	}
+	return float64(p.sent-p.recv) / float64(p.sent) * 100
+}
+
+func (p *traceroutePathStats) avg() float64 {
+	if p.recv == 0 {
+		return 0
+	}
+	return p.sum / float64(p.recv)
+}
+
+func (p *traceroutePathStats) stddev() float64 {
+	if p.recv < 2 {
+		return 0
+	}
+	n := float64(p.recv)
+	variance := (p.sumSq - p.sum*p.sum/n) / (n - 1)
+	if variance < 0 {
+		variance = 0
+	}
+	return math.Sqrt(variance)
+}
+
+// tracerouteHop holds all paths seen at a given TTL.
+type tracerouteHop struct {
+	paths []traceroutePathStats
+}
+
+func (h *tracerouteHop) findOrCreate(addr string) *traceroutePathStats {
+	for i := range h.paths {
+		if h.paths[i].addr == addr {
+			return &h.paths[i]
+		}
+	}
+	h.paths = append(h.paths, newPathStats(addr))
+	return &h.paths[len(h.paths)-1]
+}
+
+// absorbStar merges the "*" path's sent count into the named addr
+// and removes the "*" entry. Called when a real IP first appears.
+func (h *tracerouteHop) firstRealPath() *traceroutePathStats {
+	for i := range h.paths {
+		if h.paths[i].addr != "*" {
+			return &h.paths[i]
+		}
+	}
+	return nil
+}
+
+func (h *tracerouteHop) absorbStar(addr string) {
+	starIdx := -1
+	for i := range h.paths {
+		if h.paths[i].addr == "*" {
+			starIdx = i
+			break
+		}
+	}
+	if starIdx < 0 {
+		return
+	}
+	starSent := h.paths[starIdx].sent
+	h.paths = append(h.paths[:starIdx], h.paths[starIdx+1:]...)
+
+	for i := range h.paths {
+		if h.paths[i].addr == addr {
+			h.paths[i].sent += starSent
+			return
+		}
+	}
+	p := newPathStats(addr)
+	p.sent = starSent
+	h.paths = append(h.paths, p)
+}
+
+type tracerouteState struct {
+	target       string
+	maxHops      int
+	hops         []tracerouteHop
+	rounds       int
+	lastPollTime time.Time
+	pollError    string
+	poller       TracerouteFactory
+	hopChan      <-chan map[string]any
+	cancelRound  context.CancelFunc
+}
+
+// traceroutePipedState holds state for piped monitor traceroute (| json, | ndjson, etc.).
+// Default (replace): alt screen, each round replaces the display, last output copied on exit.
+// With | log: appends each round to scrollback.
+type traceroutePipedState struct {
+	target      string
+	maxHops     int
+	hops        []tracerouteHop
+	rounds      int
+	poller      TracerouteFactory
+	formatFn    func(string) string
+	logMode     bool
+	lastOutput  string
+	hopChan     <-chan map[string]any
+	cancelRound context.CancelFunc
+}
+
+func isTracerouteMonitorCommand(input string) bool {
+	trimmed := strings.TrimSpace(input)
+	if strings.ContainsRune(trimmed, '|') {
+		return false
+	}
+	return strings.HasPrefix(trimmed, "monitor traceroute ")
+}
+
+func isPipedTracerouteMonitorCommand(input string) bool {
+	trimmed := strings.TrimSpace(input)
+	if !strings.ContainsRune(trimmed, '|') {
+		return false
+	}
+	cmd, _ := command.ParsePipe(trimmed)
+	return strings.HasPrefix(strings.TrimSpace(cmd), "monitor traceroute ")
+}
+
+func parseTracerouteMonitorArgs(input string) (target string, maxHops int) {
+	maxHops = 16
+
+	trimmed := strings.TrimSpace(input)
+	after := strings.TrimPrefix(trimmed, "monitor traceroute ")
+	args := strings.Fields(after)
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "max-hops":
+			if i+1 < len(args) {
+				if n := parsePositiveInt(args[i+1]); n > 0 && n <= 64 {
+					maxHops = n
+				}
+				i++
+			}
+		default:
+			if target == "" {
+				target = args[i]
+			}
+		}
+	}
+	return target, maxHops
+}
+
+func hopInt(v any) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case float64:
+		return int(n)
+	}
+	return 0
+}
+
+func hopFloat(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case int:
+		return float64(n), true
+	}
+	return 0, false
+}
+
+func parsePositiveInt(s string) int {
+	n := 0
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return 0
+		}
+		n = n*10 + int(c-'0')
+	}
+	return n
+}
+
+// SetTracerouteFactory sets the factory used to run traceroute probes.
+func (m *Model) SetTracerouteFactory(f TracerouteFactory) {
+	m.tracerouteFactory = f
+}
+
+// IsTraceroute returns true if the traceroute monitor is active.
+func (m Model) IsTraceroute() bool {
+	return m.traceroute != nil
+}
+
+// IsTraceroutePiped returns true if a piped traceroute session is active.
+func (m Model) IsTraceroutePiped() bool {
+	return m.traceroutePiped != nil
+}
+
+func (m *Model) startTraceroute(input string) tea.Cmd {
+	if m.tracerouteFactory == nil {
+		m.statusMessage = "traceroute not available (no daemon connection)"
+		return nil
+	}
+
+	target, maxHops := parseTracerouteMonitorArgs(input)
+	if target == "" {
+		m.statusMessage = "monitor traceroute: missing target address"
+		return nil
+	}
+
+	m.traceroute = &tracerouteState{
+		target:  target,
+		maxHops: maxHops,
+		poller:  m.tracerouteFactory,
+	}
+
+	return m.startTracerouteRound()
+}
+
+func (m *Model) startTraceroutePiped(input string) tea.Cmd {
+	if m.tracerouteFactory == nil {
+		m.statusMessage = "traceroute not available (no daemon connection)"
+		return nil
+	}
+
+	cmdStr, formatFn, logMode, pipeErr := command.ProcessPipesDetectLog(input)
+	if pipeErr != "" {
+		m.statusMessage = "pipe error: " + pipeErr
+		return nil
+	}
+	target, maxHops := parseTracerouteMonitorArgs(cmdStr)
+	if target == "" {
+		m.statusMessage = "monitor traceroute: missing target address"
+		return nil
+	}
+
+	m.traceroutePiped = &traceroutePipedState{
+		target:   target,
+		maxHops:  maxHops,
+		poller:   m.tracerouteFactory,
+		formatFn: formatFn,
+		logMode:  logMode,
+	}
+
+	if logMode {
+		m.outputBuf.Reset()
+		m.outputBuf.WriteString("--- monitor traceroute | log (Esc to stop) ---\n")
+		m.setViewportText(m.outputBuf.String())
+		m.viewport.GotoBottom()
+	}
+	m.statusMessage = "monitoring traceroute (Esc to stop)"
+
+	return m.startTraceroutePipedRound()
+}
+
+func (m *Model) startTracerouteRound() tea.Cmd {
+	ts := m.traceroute
+	if ts == nil || ts.poller == nil {
+		return nil
+	}
+
+	ch, cancel, err := ts.poller(context.Background(), ts.target, ts.maxHops)
+	if err != nil {
+		ts.pollError = err.Error()
+		return nil
+	}
+
+	ts.hopChan = ch
+	ts.cancelRound = cancel
+
+	return tea.Tick(tracerouteDrainInterval, func(time.Time) tea.Msg { return traceroutePollMsg{} })
+}
+
+func (m *Model) startTraceroutePipedRound() tea.Cmd {
+	ps := m.traceroutePiped
+	if ps == nil || ps.poller == nil {
+		return nil
+	}
+
+	ch, cancel, err := ps.poller(context.Background(), ps.target, ps.maxHops)
+	if err != nil {
+		m.statusMessage = "traceroute error: " + err.Error()
+		return nil
+	}
+
+	ps.hopChan = ch
+	ps.cancelRound = cancel
+
+	return tea.Tick(tracerouteDrainInterval, func(time.Time) tea.Msg { return traceroutePipedPollMsg{} })
+}
+
+func (m *Model) stopTraceroute() {
+	ts := m.traceroute
+	if ts == nil {
+		return
+	}
+	if ts.cancelRound != nil {
+		ts.cancelRound()
+	}
+
+	lastRender := m.renderTraceroutePlain()
+	m.traceroute = nil
+
+	if lastRender != "" {
+		if m.outputBuf.Len() > 0 {
+			m.outputBuf.WriteString("\n")
+		}
+		m.outputBuf.WriteString(lastRender)
+	}
+
+	if m.hasEditor() {
+		m.showConfigContent()
+	} else if lastRender != "" {
+		m.setViewportText(m.outputBuf.String())
+		m.viewport.GotoBottom()
+	}
+	m.statusMessage = "traceroute stopped"
+}
+
+func (m *Model) stopTraceroutePiped() {
+	ps := m.traceroutePiped
+	if ps == nil {
+		return
+	}
+	if ps.cancelRound != nil {
+		ps.cancelRound()
+	}
+
+	lastOutput := ps.lastOutput
+	isLog := ps.logMode
+	target := ps.target
+	rounds := ps.rounds
+	m.traceroutePiped = nil
+
+	if !isLog && lastOutput != "" {
+		if m.outputBuf.Len() > 0 {
+			m.outputBuf.WriteString("\n")
+		}
+		var hb textbuf.Buffer
+		hb.Str("Traceroute to ").Str(target).Str("  rounds ").Int(int64(rounds)).Str("\n\n")
+		m.outputBuf.WriteString(hb.String())
+		m.outputBuf.WriteString(lastOutput)
+	}
+
+	if m.hasEditor() {
+		m.showConfigContent()
+	} else if lastOutput != "" || isLog {
+		m.setViewportText(m.outputBuf.String())
+		m.viewport.GotoBottom()
+	}
+	m.statusMessage = "traceroute stopped"
+}
+
+func drainTracerouteHops(ch <-chan map[string]any) (hops []map[string]any, closed bool) {
+	for {
+		select {
+		case hop, ok := <-ch:
+			if !ok {
+				return hops, true
+			}
+			hops = append(hops, hop)
+		default:
+			return hops, false
+		}
+	}
+}
+
+func applyHop(ts *tracerouteState, hop map[string]any) {
+	applyHopTo(&ts.hops, hop)
+}
+
+func applyHopTo(hops *[]tracerouteHop, hop map[string]any) {
+	idx := hopInt(hop["ttl"])
+	if idx < 1 {
+		return
+	}
+	for len(*hops) < idx {
+		*hops = append(*hops, tracerouteHop{})
+	}
+
+	addr, _ := hop["addr"].(string)
+	if addr == "" {
+		addr = "*"
+	}
+
+	h := &(*hops)[idx-1]
+
+	if addr != "*" {
+		h.absorbStar(addr)
+	} else if first := h.firstRealPath(); first != nil {
+		first.sent++
+		return
+	}
+
+	p := h.findOrCreate(addr)
+	p.sent++
+
+	rtt, hasRTT := hopFloat(hop["rtt-ms"])
+	if hasRTT {
+		p.recv++
+		p.last = rtt
+		p.sum += rtt
+		p.sumSq += rtt * rtt
+		if rtt < p.best {
+			p.best = rtt
+		}
+		if rtt > p.worst {
+			p.worst = rtt
+		}
+	}
+}
+
+func (m Model) handleTraceroutePoll() (tea.Model, tea.Cmd) {
+	ts := m.traceroute
+	if ts == nil || ts.hopChan == nil {
+		return m, nil
+	}
+
+	hops, closed := drainTracerouteHops(ts.hopChan)
+
+	for _, hop := range hops {
+		applyHop(ts, hop)
+	}
+
+	if closed {
+		ts.hopChan = nil
+		ts.cancelRound = nil
+		ts.lastPollTime = time.Now()
+		ts.rounds++
+		ts.pollError = ""
+
+		if n := len(ts.hops); n > 0 && n < ts.maxHops {
+			ts.maxHops = n
+		}
+
+		cmd := m.startTracerouteRound()
+		return m, cmd
+	}
+
+	return m, tea.Tick(tracerouteDrainInterval, func(time.Time) tea.Msg { return traceroutePollMsg{} })
+}
+
+func (m Model) handleTraceroutePipedPoll() (tea.Model, tea.Cmd) {
+	ps := m.traceroutePiped
+	if ps == nil || ps.hopChan == nil {
+		return m, nil
+	}
+
+	hops, closed := drainTracerouteHops(ps.hopChan)
+
+	for _, hop := range hops {
+		applyHopTo(&ps.hops, hop)
+	}
+
+	if closed {
+		ps.hopChan = nil
+		ps.cancelRound = nil
+		ps.rounds++
+
+		if n := len(ps.hops); n > 0 && n < ps.maxHops {
+			ps.maxHops = n
+		}
+
+		rawJSON := hopsToJSON(ps.hops, ps.rounds)
+		formatted := ps.formatFn(rawJSON)
+		ps.lastOutput = formatted
+
+		if ps.logMode {
+			if m.outputBuf.Len() > 0 {
+				m.outputBuf.WriteString("\n")
+			}
+			m.outputBuf.WriteString(formatted)
+			m.setViewportText(m.outputBuf.String())
+			m.viewport.GotoBottom()
+		}
+
+		cmd := m.startTraceroutePipedRound()
+		return m, cmd
+	}
+
+	return m, tea.Tick(tracerouteDrainInterval, func(time.Time) tea.Msg { return traceroutePipedPollMsg{} })
+}
+
+// hopsToJSON serializes accumulated hop stats as a JSON wrapper suitable for pipe processing.
+func hopsToJSON(hops []tracerouteHop, rounds int) string {
+	var b textbuf.Buffer
+	b.Reset(512)
+	b.Str(`{"hops":[`)
+	first := true
+	for i := range hops {
+		h := &hops[i]
+		for j := range h.paths {
+			p := &h.paths[j]
+			if !first {
+				b.Byte(',')
+			}
+			first = false
+			b.Str(`{"ttl":`).Int(int64(i + 1))
+			b.Str(`,"addr":"`).Str(p.addr).Byte('"')
+			b.Str(`,"loss":`).Float2(p.loss())
+			b.Str(`,"sent":`).Int(int64(p.sent))
+			b.Str(`,"rounds":`).Int(int64(rounds))
+			if p.recv > 0 {
+				b.Str(`,"last":`).Float2(p.last)
+				b.Str(`,"avg":`).Float2(p.avg())
+				b.Str(`,"best":`).Float2(p.best)
+				b.Str(`,"worst":`).Float2(p.worst)
+				b.Str(`,"stdev":`).Float2(p.stddev())
+			}
+			b.Byte('}')
+		}
+	}
+	b.Str(`]}`)
+	return b.String()
+}
+
+func (m *Model) handleTracerouteKey(keyStr string) bool {
+	if m.traceroute == nil {
+		return false
+	}
+	switch keyStr {
+	case "q", keyCtrlC, keyEsc:
+		m.stopTraceroute()
+	}
+	return true
+}
+
+// Rendering
+
+var (
+	trHeaderStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15"))
+	trFooterStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+	trLossOK      = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	trLossWarn    = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	trLossBad     = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	trDimStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+)
+
+func formatFloat1(v float64) string {
+	return strconv.FormatFloat(v, 'f', 1, 64)
+}
+
+func tbPadLeft(sb *textbuf.Buffer, s string, width int) {
+	for i := len(s); i < width; i++ {
+		sb.Byte(' ')
+	}
+	sb.Str(s)
+}
+
+func tbPadRight(sb *textbuf.Buffer, s string, width int) {
+	sb.Str(s)
+	for i := len(s); i < width; i++ {
+		sb.Byte(' ')
+	}
+}
+
+func tbSpaces(sb *textbuf.Buffer, n int) {
+	for range n {
+		sb.Byte(' ')
+	}
+}
+
+func renderPathLine(sb *textbuf.Buffer, hopNum string, p *traceroutePathStats, addrWidth int) {
+	addr := p.addr
+	if addr == "" {
+		addr = "???"
+	}
+
+	loss := p.loss()
+	lossText := formatFloat1(loss) + "%"
+	var lossStyle lipgloss.Style
+	switch {
+	case loss == 0:
+		lossStyle = trLossOK
+	case loss < 20:
+		lossStyle = trLossWarn
+	default:
+		lossStyle = trLossBad
+	}
+
+	sb.Byte(' ')
+	tbPadLeft(sb, hopNum, 3)
+	sb.Byte(' ')
+	tbPadRight(sb, addr, addrWidth)
+	sb.Byte(' ')
+
+	var lossBuf textbuf.Buffer
+	tbPadLeft(&lossBuf, lossText, 6)
+	sb.Str(lossStyle.Render(lossBuf.String()))
+
+	sb.Byte(' ')
+	tbPadLeft(sb, textbuf.Int(int64(p.sent)), 4)
+
+	if p.recv > 0 {
+		sb.Byte(' ')
+		tbPadLeft(sb, formatFloat1(p.last), 6)
+		sb.Byte(' ')
+		tbPadLeft(sb, formatFloat1(p.avg()), 6)
+		sb.Byte(' ')
+		tbPadLeft(sb, formatFloat1(p.best), 6)
+		sb.Byte(' ')
+		tbPadLeft(sb, formatFloat1(p.worst), 6)
+		sb.Byte(' ')
+		tbPadLeft(sb, formatFloat1(p.stddev()), 6)
+	} else {
+		for range 5 {
+			sb.Byte(' ')
+			tbPadLeft(sb, "--", 6)
+		}
+	}
+	sb.Byte('\n')
+}
+
+func renderPathLinePlain(sb *textbuf.Buffer, hopNum string, p *traceroutePathStats, addrWidth int) {
+	addr := p.addr
+	if addr == "" {
+		addr = "???"
+	}
+
+	lossText := formatFloat1(p.loss()) + "%"
+
+	sb.Byte(' ')
+	tbPadLeft(sb, hopNum, 3)
+	sb.Byte(' ')
+	tbPadRight(sb, addr, addrWidth)
+	sb.Byte(' ')
+	tbPadLeft(sb, lossText, 6)
+	sb.Byte(' ')
+	tbPadLeft(sb, textbuf.Int(int64(p.sent)), 4)
+
+	if p.recv > 0 {
+		sb.Byte(' ')
+		tbPadLeft(sb, formatFloat1(p.last), 6)
+		sb.Byte(' ')
+		tbPadLeft(sb, formatFloat1(p.avg()), 6)
+		sb.Byte(' ')
+		tbPadLeft(sb, formatFloat1(p.best), 6)
+		sb.Byte(' ')
+		tbPadLeft(sb, formatFloat1(p.worst), 6)
+		sb.Byte(' ')
+		tbPadLeft(sb, formatFloat1(p.stddev()), 6)
+	} else {
+		for range 5 {
+			sb.Byte(' ')
+			tbPadLeft(sb, "--", 6)
+		}
+	}
+	sb.Byte('\n')
+}
+
+func (m Model) renderTraceroute() string {
+	ts := m.traceroute
+	if ts == nil {
+		return ""
+	}
+
+	width := m.width
+	if width <= 0 {
+		width = 80
+	}
+
+	var sb textbuf.Buffer
+	sb.Reset(1024)
+
+	var hb textbuf.Buffer
+	hb.Str("Traceroute to ").Str(ts.target).Str("  rounds ").Int(int64(ts.rounds))
+	if ts.pollError != "" {
+		hb.Str("  ").Str(ts.pollError)
+	}
+	sb.Str(trHeaderStyle.Render(hb.String()))
+	sb.Byte('\n')
+
+	addrWidth := min(39, max(15, width-65))
+
+	var hdrBuf textbuf.Buffer
+	hdrBuf.Byte(' ')
+	tbPadRight(&hdrBuf, "Hop", 3)
+	hdrBuf.Byte(' ')
+	tbPadRight(&hdrBuf, "Address", addrWidth)
+	hdrBuf.Byte(' ')
+	tbPadLeft(&hdrBuf, "Loss%", 6)
+	hdrBuf.Byte(' ')
+	tbPadLeft(&hdrBuf, "Snt", 4)
+	hdrBuf.Byte(' ')
+	tbPadLeft(&hdrBuf, "Last", 6)
+	hdrBuf.Byte(' ')
+	tbPadLeft(&hdrBuf, "Avg", 6)
+	hdrBuf.Byte(' ')
+	tbPadLeft(&hdrBuf, "Best", 6)
+	hdrBuf.Byte(' ')
+	tbPadLeft(&hdrBuf, "Wrst", 6)
+	hdrBuf.Byte(' ')
+	tbPadLeft(&hdrBuf, "StDev", 6)
+	hdr := hdrBuf.String()
+	if len(hdr) > width {
+		hdr = hdr[:width]
+	}
+	sb.Str(trDimStyle.Render(hdr))
+	sb.Byte('\n')
+
+	for i := range ts.hops {
+		h := &ts.hops[i]
+		hopNum := textbuf.Int(int64(i + 1))
+		for j := range h.paths {
+			label := hopNum
+			if j > 0 {
+				label = ""
+			}
+			renderPathLine(&sb, label, &h.paths[j], addrWidth)
+		}
+		if len(h.paths) == 0 {
+			renderPathLine(&sb, hopNum, &traceroutePathStats{addr: "???"}, addrWidth)
+		}
+	}
+
+	if len(ts.hops) == 0 {
+		if ts.pollError != "" {
+			sb.Str(trLossBad.Render("  error: " + ts.pollError))
+		} else {
+			sb.Str(trDimStyle.Render("  waiting for data..."))
+		}
+		sb.Byte('\n')
+	}
+
+	sb.Byte('\n')
+	footer := "q/Esc Quit"
+	lastUpdate := ""
+	if !ts.lastPollTime.IsZero() {
+		ago := time.Since(ts.lastPollTime).Truncate(time.Second)
+		lastUpdate = "Last probe: " + ago.String() + " ago"
+	}
+	gap := max(1, width-len(footer)-len(lastUpdate))
+	var footBuf textbuf.Buffer
+	footBuf.Str(footer)
+	tbSpaces(&footBuf, gap)
+	footBuf.Str(lastUpdate)
+	sb.Str(trFooterStyle.Render(footBuf.String()))
+
+	return sb.String()
+}
+
+// renderTraceroutePlain renders the traceroute table without ANSI styling,
+// suitable for persisting in the scrollback buffer after leaving alt screen.
+func (m Model) renderTraceroutePlain() string {
+	ts := m.traceroute
+	if ts == nil || len(ts.hops) == 0 {
+		return ""
+	}
+
+	width := m.width
+	if width <= 0 {
+		width = 80
+	}
+
+	var sb textbuf.Buffer
+	sb.Reset(1024)
+
+	var hb textbuf.Buffer
+	hb.Str("Traceroute to ").Str(ts.target).Str("  rounds ").Int(int64(ts.rounds))
+	sb.Str(hb.String())
+	sb.Byte('\n')
+
+	addrWidth := min(39, max(15, width-65))
+
+	var hdrBuf textbuf.Buffer
+	hdrBuf.Byte(' ')
+	tbPadRight(&hdrBuf, "Hop", 3)
+	hdrBuf.Byte(' ')
+	tbPadRight(&hdrBuf, "Address", addrWidth)
+	hdrBuf.Byte(' ')
+	tbPadLeft(&hdrBuf, "Loss%", 6)
+	hdrBuf.Byte(' ')
+	tbPadLeft(&hdrBuf, "Snt", 4)
+	hdrBuf.Byte(' ')
+	tbPadLeft(&hdrBuf, "Last", 6)
+	hdrBuf.Byte(' ')
+	tbPadLeft(&hdrBuf, "Avg", 6)
+	hdrBuf.Byte(' ')
+	tbPadLeft(&hdrBuf, "Best", 6)
+	hdrBuf.Byte(' ')
+	tbPadLeft(&hdrBuf, "Wrst", 6)
+	hdrBuf.Byte(' ')
+	tbPadLeft(&hdrBuf, "StDev", 6)
+	sb.Str(hdrBuf.String())
+	sb.Byte('\n')
+
+	for i := range ts.hops {
+		h := &ts.hops[i]
+		hopNum := textbuf.Int(int64(i + 1))
+		for j := range h.paths {
+			label := hopNum
+			if j > 0 {
+				label = ""
+			}
+			renderPathLinePlain(&sb, label, &h.paths[j], addrWidth)
+		}
+		if len(h.paths) == 0 {
+			renderPathLinePlain(&sb, hopNum, &traceroutePathStats{addr: "???"}, addrWidth)
+		}
+	}
+
+	return sb.String()
+}
+
+// renderTraceroutePiped renders piped traceroute output for alt screen (replace mode).
+func (m Model) renderTraceroutePiped() string {
+	ps := m.traceroutePiped
+	if ps == nil {
+		return ""
+	}
+
+	width := m.width
+	if width <= 0 {
+		width = 80
+	}
+
+	var sb textbuf.Buffer
+	sb.Reset(1024)
+
+	var hb textbuf.Buffer
+	hb.Str("Traceroute to ").Str(ps.target).Str("  rounds ").Int(int64(ps.rounds))
+	sb.Str(trHeaderStyle.Render(hb.String()))
+	sb.Byte('\n')
+	sb.Byte('\n')
+
+	if ps.lastOutput != "" {
+		sb.Str(ps.lastOutput)
+	} else {
+		sb.Str(trDimStyle.Render("  waiting for data..."))
+	}
+	sb.Byte('\n')
+	sb.Byte('\n')
+
+	footer := "q/Esc Quit"
+	gap := max(1, width-len(footer))
+	var footBuf textbuf.Buffer
+	footBuf.Str(footer)
+	tbSpaces(&footBuf, gap)
+	sb.Str(trFooterStyle.Render(footBuf.String()))
+
+	return sb.String()
+}

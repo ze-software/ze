@@ -47,8 +47,7 @@ func handleTraceroute(_ *pluginserver.CommandContext, args []string) (*plugin.Re
 		return &plugin.Response{Status: plugin.StatusError, Data: trErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{
-		"target": target.String(),
-		"hops":   hops,
+		"hops": hops,
 	}}, nil
 }
 
@@ -289,9 +288,8 @@ func doTraceroute(dest netip.Addr, maxHops int, timeout time.Duration, probes in
 		}
 
 		hop := map[string]any{
-			"hop":  ttl,
-			"addr": bestAddr,
 			"ttl":  ttl,
+			"addr": bestAddr,
 		}
 		if bestRTT != nil {
 			hop["rtt-ms"] = *bestRTT

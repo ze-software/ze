@@ -248,6 +248,25 @@ func altView(s string) tea.View {
 	return v
 }
 
+// paddedAltView creates an alt-screen view with 1 row top padding and 1 col
+// left padding so full-screen content aligns with the viewport border position.
+func paddedAltView(s string) tea.View {
+	lines := strings.Split(s, "\n")
+	var b textbuf.Buffer
+	b.Reset(len(s) + len(lines) + 2)
+	b.Byte('\n')
+	for i, line := range lines {
+		b.Byte(' ')
+		b.Str(line)
+		if i < len(lines)-1 {
+			b.Byte('\n')
+		}
+	}
+	v := tea.NewView(b.String())
+	v.AltScreen = true
+	return v
+}
+
 // View implements tea.Model.
 func (m Model) View() tea.View {
 	if m.quitting {
@@ -256,7 +275,17 @@ func (m Model) View() tea.View {
 
 	// Dashboard mode renders its own full screen.
 	if m.dashboard != nil {
-		return altView(m.renderDashboard())
+		return paddedAltView(m.renderDashboard())
+	}
+
+	// Traceroute monitor mode renders its own full screen.
+	if m.traceroute != nil {
+		return paddedAltView(m.renderTraceroute())
+	}
+
+	// Piped traceroute in replace mode renders its own full screen.
+	if m.traceroutePiped != nil && !m.traceroutePiped.logMode {
+		return paddedAltView(m.renderTraceroutePiped())
 	}
 
 	// Use fixed height to prevent scrolling when dropdown appears
