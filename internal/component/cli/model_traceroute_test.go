@@ -589,9 +589,9 @@ func TestFormatTracerouteLogMap(t *testing.T) {
 		{},
 		{paths: []traceroutePathStats{{addr: "192.0.2.1"}}},
 	}
-	m := formatTracerouteLogMap(hops)
-	assert.Contains(t, m, "1:10.0.0.1")
-	assert.Contains(t, m, "2:*")
+	m := formatTracerouteLogMap(hops, false, false)
+	assert.Contains(t, m, "1: 10.0.0.1")
+	assert.Contains(t, m, "2:        *")
 	assert.Contains(t, m, "3:192.0.2.1")
 	assert.NotContains(t, m, "hop ")
 }

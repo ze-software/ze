@@ -209,7 +209,7 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 		return nil
 	}
 
-	cmdStr, formatFn, logMode, pipeErr := command.ProcessPipesDetectLog(input)
+	cmdStr, formatFn, pipeFlags, pipeErr := command.ProcessPipesDetectLog(input)
 	if pipeErr != "" {
 		m.statusMessage = "pipe error: " + pipeErr
 		return nil
@@ -237,12 +237,12 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 		stats:    pingStats{min: math.MaxFloat64},
 		poller:   m.pingFactory,
 		formatFn: formatFn,
-		logMode:  logMode,
+		logMode:  pipeFlags.Log,
 		replyCh:  ch,
 		cancel:   cancel,
 	}
 
-	if logMode {
+	if pipeFlags.Log {
 		var hdr textbuf.Buffer
 		hdr.Str("--- monitor ping ").Str(target).Str(" | log (Esc to stop) ---\n")
 		m.outputBuf.WriteString(hdr.String())

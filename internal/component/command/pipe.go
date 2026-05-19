@@ -386,18 +386,33 @@ func ProcessPipes(input string) (command string, format func(string) string) {
 	}
 }
 
+// PipeFlags captures display-mode and data-transform flags from a pipe chain.
+type PipeFlags struct {
+	Log     bool
+	Resolve bool
+	Origin  bool
+}
+
 // ProcessPipesDetectLog is like ProcessPipesDefaultTable but also reports
-// whether | log was present and validates the pipe chain upfront.
+// pipe flags (log, resolve, origin) and validates the pipe chain upfront.
 // Returns a non-empty errMsg if the pipe chain is invalid.
-func ProcessPipesDetectLog(input string) (cmd string, format func(string) string, logMode bool, errMsg string) {
+func ProcessPipesDetectLog(input string) (cmd string, format func(string) string, flags PipeFlags, errMsg string) {
 	cmd, ops := ParsePipe(input)
 	cmd, ops = FoldServerPipeline(cmd, ops)
 
 	if msg := ValidatePipes(ops); msg != "" {
-		return cmd, nil, false, msg
+		return cmd, nil, PipeFlags{}, msg
 	}
 
-	logMode = HasLogOp(ops)
+	flags.Log = HasLogOp(ops)
+	for _, op := range ops {
+		switch op.kind { //nolint:exhaustive // only checking data-transform flags
+		case pipeResolve:
+			flags.Resolve = true
+		case pipeOrigin:
+			flags.Origin = true
+		}
+	}
 
 	// Strip log ops from the pipeline (display-mode, not a data transform).
 	filtered := ops[:0]
@@ -418,7 +433,7 @@ func ProcessPipesDetectLog(input string) (cmd string, format func(string) string
 			return "pipe error: " + pipeErr
 		}
 		return result
-	}, logMode, ""
+	}, flags, ""
 }
 
 // ProcessPipesDefaultTable is like ProcessPipes but defaults to table format

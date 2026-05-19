@@ -38,7 +38,8 @@ func SetOriginResolver(r OriginResolver) {
 
 const originTimeout = 2 * time.Second
 
-func lookupOrigin(ip string) OriginResult {
+// LookupOrigin returns the ASN origin for an IP, or empty result on failure.
+func LookupOrigin(ip string) OriginResult {
 	originResolverMu.Lock()
 	r := originResolver
 	originResolverMu.Unlock()
@@ -76,7 +77,7 @@ func originJSON(v any) any {
 			for key, value := range val {
 				s, ok := value.(string)
 				if ok && s != "*" && isIPAddress(s) {
-					o := lookupOrigin(s)
+					o := LookupOrigin(s)
 					if o.ASN > 0 {
 						val[key+"-asn"] = o.ASN
 						if o.Name != "" {

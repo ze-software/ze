@@ -145,6 +145,8 @@ type traceroutePipedState struct {
 	poller      TracerouteFactory
 	formatFn    func(string) string
 	logMode     bool
+	pipeResolve bool
+	pipeOrigin  bool
 	lastOutput  string
 	hopChan     <-chan map[string]any
 	cancelRound context.CancelFunc
@@ -271,7 +273,7 @@ func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 		return nil
 	}
 
-	cmdStr, formatFn, logMode, pipeErr := command.ProcessPipesDetectLog(input)
+	cmdStr, formatFn, pipeFlags, pipeErr := command.ProcessPipesDetectLog(input)
 	if pipeErr != "" {
 		m.statusMessage = "pipe error: " + pipeErr
 		return nil
@@ -287,14 +289,16 @@ func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 	}
 
 	m.traceroutePiped = &traceroutePipedState{
-		target:   target,
-		maxHops:  maxHops,
-		poller:   m.tracerouteFactory,
-		formatFn: formatFn,
-		logMode:  logMode,
+		target:      target,
+		maxHops:     maxHops,
+		poller:      m.tracerouteFactory,
+		formatFn:    formatFn,
+		logMode:     pipeFlags.Log,
+		pipeResolve: pipeFlags.Resolve,
+		pipeOrigin:  pipeFlags.Origin,
 	}
 
-	if logMode {
+	if pipeFlags.Log {
 		m.outputBuf.WriteString("--- monitor traceroute | log (Esc to stop) ---\n")
 		m.setViewportTextBottom(m.outputBuf.String())
 	}
@@ -520,7 +524,7 @@ func (m Model) handleTraceroutePipedPoll() (tea.Model, tea.Cmd) {
 				if m.outputBuf.Len() > 0 {
 					m.outputBuf.WriteString("\n")
 				}
-				m.outputBuf.WriteString(formatTracerouteLogMap(ps.hops))
+				m.outputBuf.WriteString(formatTracerouteLogMap(ps.hops, ps.pipeResolve, ps.pipeOrigin))
 				m.outputBuf.WriteString(formatTracerouteLogHeader(ps.hops))
 			}
 			m.outputBuf.WriteString("\n")
@@ -543,7 +547,7 @@ const (
 // formatTracerouteLogMap renders the hop-number-to-IP legend as
 // fixed-width entries that wrap at terminal width. Each entry is
 // padded to a uniform width so columns stay aligned across rows.
-func formatTracerouteLogMap(hops []tracerouteHop) string {
+func formatTracerouteLogMap(hops []tracerouteHop, resolve, origin bool) string {
 	maxAddrLen := 0
 	addrs := make([]string, len(hops))
 	for i := range hops {
@@ -551,6 +555,7 @@ func formatTracerouteLogMap(hops []tracerouteHop) string {
 		addr := "*"
 		if len(h.paths) > 0 && h.paths[0].addr != "" {
 			addr = h.paths[0].addr
+			addr = enrichAddr(addr, resolve, origin)
 		}
 		addrs[i] = addr
 		if len(addr) > maxAddrLen {
@@ -578,6 +583,27 @@ func formatTracerouteLogMap(hops []tracerouteHop) string {
 	}
 	sb.Byte('\n')
 	return sb.String()
+}
+
+func enrichAddr(addr string, resolve, origin bool) string {
+	if addr == "*" || addr == "" {
+		return addr
+	}
+	if origin {
+		o := command.LookupOrigin(addr)
+		if o.ASN > 0 && o.Name != "" {
+			return addr + " " + o.Name
+		}
+		if o.ASN > 0 {
+			return addr + " AS" + textbuf.Int(int64(o.ASN))
+		}
+	}
+	if resolve {
+		if name := command.ReverseLookup(addr); name != "" {
+			return addr + " " + name
+		}
+	}
+	return addr
 }
 
 // formatTracerouteLogHeader renders the column header using hop numbers.

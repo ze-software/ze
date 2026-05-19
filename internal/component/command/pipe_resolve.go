@@ -46,7 +46,8 @@ var (
 	fallbackCacheMu sync.Mutex
 )
 
-func reverseLookup(ip string) string {
+// ReverseLookup returns the PTR hostname for an IP, or "" on failure.
+func ReverseLookup(ip string) string {
 	ptrResolverMu.Lock()
 	r := ptrResolver
 	ptrResolverMu.Unlock()
@@ -113,7 +114,7 @@ func resolveJSON(v any) any {
 			for key, value := range val {
 				s, ok := value.(string)
 				if ok && s != "*" && isIPAddress(s) {
-					val[key+"-name"] = reverseLookup(s)
+					val[key+"-name"] = ReverseLookup(s)
 				} else {
 					switch value.(type) {
 					case []any, map[string]any:
