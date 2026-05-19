@@ -537,6 +537,27 @@ CAP_NET_RAW (root privilege enforced at startup).
 
 <!-- source: internal/component/cmd/show/traceroute.go -- handleTraceroute -->
 
+### show capture interface
+
+```
+ze show capture interface eth0                                  # Capture 100 packets, pcap output
+ze show capture interface eth0 count 10                         # Capture 10 packets
+ze show capture interface eth0 duration 5s                      # Capture for 5 seconds
+ze show capture interface eth0 tcp port 179 count 10            # BPF filter: TCP port 179
+ze show capture interface eth0 format text                      # Human-readable one-line-per-packet
+ze show capture interface eth0 snap-len 128 format text         # Truncate packets to 128 bytes
+ze show capture interface eth0 udp port 53 count 5 format text  # DNS traffic, text output
+```
+
+Live packet capture using AF_PACKET raw sockets with BPF filters. Replaces
+`tcpdump` on gokrazy appliances. Default output is base64-encoded pcap (pipe to
+`base64 -d > capture.pcap` for Wireshark). `format text` produces one line per
+packet: `TIMESTAMP PROTO SRC:PORT -> DST:PORT FLAGS LEN HEX`. Limits: count
+1-10000, duration 1s-60s, snap-len 64-65535. One active capture per interface.
+Linux only (requires CAP_NET_RAW). Pure Go, no libpcap/cgo dependency.
+
+<!-- source: internal/component/cmd/show/capture_interface_linux.go -- handleCaptureInterface -->
+
 ### show system file-descriptors
 
 ```

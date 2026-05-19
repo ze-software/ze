@@ -82,6 +82,7 @@ Command structure, text format, IPC, RPC dispatch.
 - [727](plan/learned/727-diag-core.md) -- 9 built-in diagnostic commands (procfs package, build-split patterns, singleflight without x/sync, BFD capture provider interface)
 - [728](plan/learned/728-diag-netlink-monitor.md) -- Netlink monitor streaming (unified output channel, YANG verb tree placement, register_*.go hook bypass)
 - [729](plan/learned/729-diag-traceroute.md) -- ICMP traceroute (ttlSetter interface for IPv4/IPv6 TTL, pure Go over library, argTimeout goconst pattern)
+- [730](plan/learned/730-diag-capture-interface.md) -- AF_PACKET live capture (mdlayher/packet + go-pcap BPF, portable/linux file split, Ethernet link type for raw sockets)
 
 ## Web Interface
 

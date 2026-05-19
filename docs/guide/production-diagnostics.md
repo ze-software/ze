@@ -18,6 +18,7 @@ Symptom-based troubleshooting using Ze's built-in diagnostic commands. All comma
 | DNS failure | `show dns lookup <name> type A` |
 | Process killed | `show system kernel-log level err` |
 | Route/link/addr changes | `monitor system netlink all` |
+| Packet-level debugging | `show capture interface eth0 tcp port 179 count 10 format text` |
 
 ## Failure Categories
 
@@ -84,6 +85,13 @@ show system sockets tcp port 179
 ```
 show capture-raw start bgp
 show capture-raw dump bgp pcap
+```
+
+**Live packet capture on the interface (replaces tcpdump):**
+
+```
+show capture interface eth0 tcp port 179 count 20 format text
+show capture interface eth0 tcp port 179 duration 10s format pcap
 ```
 
 ### 3. BGP Routes Not Received

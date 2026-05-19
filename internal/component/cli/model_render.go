@@ -167,7 +167,11 @@ func (m *Model) setViewportText(content string) {
 func (m *Model) setViewportTextBottom(content string) {
 	content = sanitizeForDisplay(content)
 
-	vpHeight := max(m.height-3, 5)
+	h := m.height
+	if h < 10 {
+		h = 24
+	}
+	vpHeight := max(h-3, 5)
 	contentLines := strings.Count(content, "\n") + 1
 	if pad := vpHeight - contentLines; pad > 0 {
 		content = strings.Repeat("\n", pad) + content

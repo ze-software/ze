@@ -169,6 +169,9 @@ github.com/munnerz/goautoneg
 ## explicit; go 1.22.0
 github.com/openconfig/goyang/pkg/indent
 github.com/openconfig/goyang/pkg/yang
+# github.com/packetcap/go-pcap v0.0.0-20251215121130-f2cf9f991e7c
+## explicit; go 1.23.0
+github.com/packetcap/go-pcap/filter
 # github.com/pierrec/lz4/v4 v4.1.14
 ## explicit; go 1.14
 github.com/pierrec/lz4/v4
@@ -241,9 +244,9 @@ go.fd.io/govpp/binapi/ip
 go.fd.io/govpp/binapi/ip_neighbor
 go.fd.io/govpp/binapi/ip_types
 go.fd.io/govpp/binapi/l2
-go.fd.io/govpp/binapi/mpls
 go.fd.io/govpp/binapi/memclnt
 go.fd.io/govpp/binapi/mfib_types
+go.fd.io/govpp/binapi/mpls
 go.fd.io/govpp/binapi/nat44_ed
 go.fd.io/govpp/binapi/nat_types
 go.fd.io/govpp/binapi/policer
