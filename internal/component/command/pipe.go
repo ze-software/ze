@@ -388,9 +388,10 @@ func ProcessPipes(input string) (command string, format func(string) string) {
 
 // PipeFlags captures display-mode and data-transform flags from a pipe chain.
 type PipeFlags struct {
-	Log     bool
-	Resolve bool
-	Origin  bool
+	Log       bool
+	Resolve   bool
+	Origin    bool
+	HasFormat bool
 }
 
 // ProcessPipesDetectLog is like ProcessPipesDefaultTable but also reports
@@ -423,8 +424,14 @@ func ProcessPipesDetectLog(input string) (cmd string, format func(string) string
 	}
 	ops = filtered
 
-	if !HasFormatOp(ops) {
-		ops = append(ops, pipeOp{kind: pipeTable})
+	flags.HasFormat = HasFormatOp(ops)
+
+	if !flags.HasFormat {
+		defaultFmt := pipeTable
+		if flags.Origin || flags.Resolve {
+			defaultFmt = pipeText
+		}
+		ops = append(ops, pipeOp{kind: defaultFmt})
 	}
 
 	return cmd, func(rawJSON string) string {

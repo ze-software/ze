@@ -75,15 +75,16 @@ type pingState struct {
 }
 
 type pingPipedState struct {
-	target   string
-	interval time.Duration
-	timeout  time.Duration
-	stats    pingStats
-	poller   PingFactory
-	formatFn func(string) string
-	logMode  bool
-	replyCh  <-chan map[string]any
-	cancel   context.CancelFunc
+	target        string
+	interval      time.Duration
+	timeout       time.Duration
+	stats         pingStats
+	poller        PingFactory
+	formatFn      func(string) string
+	logMode       bool
+	hasFormatPipe bool
+	replyCh       <-chan map[string]any
+	cancel        context.CancelFunc
 }
 
 const (
@@ -231,15 +232,16 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 	}
 
 	m.pingMonitorPiped = &pingPipedState{
-		target:   target,
-		interval: interval,
-		timeout:  timeout,
-		stats:    pingStats{min: math.MaxFloat64},
-		poller:   m.pingFactory,
-		formatFn: formatFn,
-		logMode:  pipeFlags.Log,
-		replyCh:  ch,
-		cancel:   cancel,
+		target:        target,
+		interval:      interval,
+		timeout:       timeout,
+		stats:         pingStats{min: math.MaxFloat64},
+		poller:        m.pingFactory,
+		formatFn:      formatFn,
+		logMode:       pipeFlags.Log,
+		hasFormatPipe: pipeFlags.HasFormat,
+		replyCh:       ch,
+		cancel:        cancel,
 	}
 
 	if pipeFlags.Log {
@@ -375,17 +377,22 @@ func (m Model) handlePingPipedPoll() (tea.Model, tea.Cmd) {
 		applyPingReply(&ps.stats, reply)
 
 		if ps.logMode {
-			if ps.stats.sent == 1 || (ps.stats.sent-1)%25 == 0 {
-				if ps.stats.sent > 1 {
-					m.outputBuf.WriteString("\n")
+			var line string
+			if ps.hasFormatPipe {
+				line = strings.TrimRight(ps.formatFn(pingReplyToJSON(ps.target, reply)), "\n")
+			} else {
+				if ps.stats.sent == 1 || (ps.stats.sent-1)%25 == 0 {
+					if ps.stats.sent > 1 {
+						m.outputBuf.WriteString("\n")
+					}
+					m.outputBuf.WriteString("--- ")
+					m.outputBuf.WriteString(ps.target)
+					m.outputBuf.WriteString(" ---\n")
 				}
-				m.outputBuf.WriteString("--- ")
-				m.outputBuf.WriteString(ps.target)
-				m.outputBuf.WriteString(" ---\n")
-			}
-			line := formatPingReplyLine(reply)
-			if ps.formatFn != nil {
-				line = ps.formatFn(line)
+				line = formatPingReplyLine(reply)
+				if ps.formatFn != nil {
+					line = ps.formatFn(line)
+				}
 			}
 			m.outputBuf.WriteString(line)
 			m.outputBuf.WriteString("\n")
@@ -403,6 +410,52 @@ func (m Model) handlePingPipedPoll() (tea.Model, tea.Cmd) {
 	}
 
 	return m, tea.Tick(pingDrainInterval, func(time.Time) tea.Msg { return pingPipedPollMsg{} })
+}
+
+func pingReplyToJSON(target string, reply map[string]any) string {
+	var b textbuf.Buffer
+	b.Reset(64)
+	b.Str(`{"target":"`)
+	appendJSONString(&b, target)
+	b.Str(`","seq":`)
+	switch v := reply["seq"].(type) {
+	case int:
+		b.Int(int64(v))
+	case float64:
+		b.Int(int64(v))
+	default:
+		b.Byte('0')
+	}
+	status, _ := reply["status"].(string)
+	b.Str(`,"status":"`)
+	appendJSONString(&b, status)
+	b.Byte('"')
+	if status == "ok" {
+		if rtt, ok := reply["rtt-ms"].(float64); ok {
+			b.Str(`,"rtt-ms":`)
+			b.Str(strconv.FormatFloat(rtt, 'f', 3, 64))
+		}
+	}
+	b.Byte('}')
+	return b.String()
+}
+
+func appendJSONString(b *textbuf.Buffer, s string) {
+	for i := range len(s) {
+		c := s[i]
+		switch {
+		case c == '"':
+			b.Str(`\"`)
+		case c == '\\':
+			b.Str(`\\`)
+		case c < 0x20:
+			b.Str(`\u00`)
+			b.Byte("0123456789abcdef"[c>>4])
+			b.Byte("0123456789abcdef"[c&0x0f])
+		default:
+			b.Byte(c)
+		}
+	}
 }
 
 func formatPingReplyLine(reply map[string]any) string {

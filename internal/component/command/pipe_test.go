@@ -650,6 +650,46 @@ func TestApplyPipes_JSONThenResolve(t *testing.T) {
 	}
 }
 
+func TestProcessPipesDetectLog_HasFormat(t *testing.T) {
+	_, _, flags, errMsg := ProcessPipesDetectLog("monitor ping 1.1.1.1 | log | json")
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	if !flags.Log {
+		t.Error("expected Log flag")
+	}
+	if !flags.HasFormat {
+		t.Error("expected HasFormat flag for explicit | json")
+	}
+}
+
+func TestProcessPipesDetectLog_NoExplicitFormat(t *testing.T) {
+	_, _, flags, errMsg := ProcessPipesDetectLog("monitor ping 1.1.1.1 | log")
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	if !flags.Log {
+		t.Error("expected Log flag")
+	}
+	if flags.HasFormat {
+		t.Error("expected HasFormat=false when no explicit format pipe")
+	}
+}
+
+func TestProcessPipesDetectLog_NDJSON(t *testing.T) {
+	_, formatFn, flags, errMsg := ProcessPipesDetectLog("monitor ping 1.1.1.1 | log | ndjson")
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	if !flags.HasFormat {
+		t.Error("expected HasFormat flag for explicit | ndjson")
+	}
+	result := formatFn(`{"seq":1,"status":"ok","rtt-ms":1.234}`)
+	if !strings.Contains(result, `"seq"`) {
+		t.Errorf("expected JSON output, got: %s", result)
+	}
+}
+
 func TestApplyPipes_NDJSONThenResolve(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1},{"ttl":2,"addr":"127.0.0.1","rtt-ms":0.2}]}`
 	ops := []pipeOp{{kind: pipeNDJSON}, {kind: pipeResolve}}

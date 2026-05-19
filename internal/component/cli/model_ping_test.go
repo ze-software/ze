@@ -113,6 +113,31 @@ func TestFormatPingReplyLineTimeout(t *testing.T) {
 	assert.Contains(t, line, "timeout")
 }
 
+func TestPingReplyToJSONOK(t *testing.T) {
+	j := pingReplyToJSON("1.1.1.1", map[string]any{"seq": 5, "status": "ok", "rtt-ms": 1.234})
+	assert.Equal(t, `{"target":"1.1.1.1","seq":5,"status":"ok","rtt-ms":1.234}`, j)
+}
+
+func TestPingReplyToJSONTimeout(t *testing.T) {
+	j := pingReplyToJSON("1.1.1.1", map[string]any{"seq": 3, "status": "timeout"})
+	assert.Equal(t, `{"target":"1.1.1.1","seq":3,"status":"timeout"}`, j)
+}
+
+func TestPingReplyToJSONEscapesStatus(t *testing.T) {
+	j := pingReplyToJSON("1.1.1.1", map[string]any{"seq": 0, "status": `bad"quote`})
+	assert.Equal(t, `{"target":"1.1.1.1","seq":0,"status":"bad\"quote"}`, j)
+}
+
+func TestPingReplyToJSONEscapesControlChars(t *testing.T) {
+	j := pingReplyToJSON("1.1.1.1", map[string]any{"seq": 0, "status": "a\nb"})
+	assert.Equal(t, "{\"target\":\"1.1.1.1\",\"seq\":0,\"status\":\"a\\u000ab\"}", j)
+}
+
+func TestPingReplyToJSONFloat64Seq(t *testing.T) {
+	j := pingReplyToJSON("1.1.1.1", map[string]any{"seq": float64(7), "status": "ok", "rtt-ms": 0.5})
+	assert.Equal(t, `{"target":"1.1.1.1","seq":7,"status":"ok","rtt-ms":0.500}`, j)
+}
+
 func TestRenderPingStatsPlain(t *testing.T) {
 	s := pingStats{min: math.MaxFloat64}
 	applyPingReply(&s, map[string]any{"seq": 0, "status": "ok", "rtt-ms": 1.5})

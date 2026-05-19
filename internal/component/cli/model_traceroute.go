@@ -138,18 +138,19 @@ type tracerouteState struct {
 // Default (replace): alt screen, each round replaces the display, last output copied on exit.
 // With | log: appends each round to scrollback.
 type traceroutePipedState struct {
-	target      string
-	maxHops     int
-	hops        []tracerouteHop
-	rounds      int
-	poller      TracerouteFactory
-	formatFn    func(string) string
-	logMode     bool
-	pipeResolve bool
-	pipeOrigin  bool
-	lastOutput  string
-	hopChan     <-chan map[string]any
-	cancelRound context.CancelFunc
+	target        string
+	maxHops       int
+	hops          []tracerouteHop
+	rounds        int
+	poller        TracerouteFactory
+	formatFn      func(string) string
+	logMode       bool
+	hasFormatPipe bool
+	pipeResolve   bool
+	pipeOrigin    bool
+	lastOutput    string
+	hopChan       <-chan map[string]any
+	cancelRound   context.CancelFunc
 }
 
 func isTracerouteMonitorCommand(input string) bool {
@@ -289,13 +290,14 @@ func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 	}
 
 	m.traceroutePiped = &traceroutePipedState{
-		target:      target,
-		maxHops:     maxHops,
-		poller:      m.tracerouteFactory,
-		formatFn:    formatFn,
-		logMode:     pipeFlags.Log,
-		pipeResolve: pipeFlags.Resolve,
-		pipeOrigin:  pipeFlags.Origin,
+		target:        target,
+		maxHops:       maxHops,
+		poller:        m.tracerouteFactory,
+		formatFn:      formatFn,
+		logMode:       pipeFlags.Log,
+		hasFormatPipe: pipeFlags.HasFormat,
+		pipeResolve:   pipeFlags.Resolve,
+		pipeOrigin:    pipeFlags.Origin,
 	}
 
 	if pipeFlags.Log {
@@ -520,15 +522,20 @@ func (m Model) handleTraceroutePipedPoll() (tea.Model, tea.Cmd) {
 		ps.lastOutput = formatted
 
 		if ps.logMode {
-			if ps.rounds == 1 || (ps.rounds-1)%tracerouteLogMapEveryN == 0 {
-				if m.outputBuf.Len() > 0 {
-					m.outputBuf.WriteString("\n")
+			if ps.hasFormatPipe {
+				m.outputBuf.WriteString(strings.TrimRight(formatted, "\n"))
+				m.outputBuf.WriteString("\n")
+			} else {
+				if ps.rounds == 1 || (ps.rounds-1)%tracerouteLogMapEveryN == 0 {
+					if m.outputBuf.Len() > 0 {
+						m.outputBuf.WriteString("\n")
+					}
+					m.outputBuf.WriteString(formatTracerouteLogMap(ps.hops, ps.pipeResolve, ps.pipeOrigin))
+					m.outputBuf.WriteString(formatTracerouteLogHeader(ps.hops))
 				}
-				m.outputBuf.WriteString(formatTracerouteLogMap(ps.hops, ps.pipeResolve, ps.pipeOrigin))
-				m.outputBuf.WriteString(formatTracerouteLogHeader(ps.hops))
+				m.outputBuf.WriteString("\n")
+				m.outputBuf.WriteString(formatTracerouteLogLine(ps.hops, ps.rounds))
 			}
-			m.outputBuf.WriteString("\n")
-			m.outputBuf.WriteString(formatTracerouteLogLine(ps.hops, ps.rounds))
 			m.setViewportTextBottom(m.outputBuf.String())
 		}
 
