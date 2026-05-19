@@ -140,3 +140,83 @@ func TestCymruASNZero(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "RESERVED", name)
 }
+
+func TestBuildOrigin4Query(t *testing.T) {
+	q := buildOrigin4Query("1.2.3.4")
+	assert.Equal(t, "4.3.2.1.origin.asn.cymru.com.", q)
+}
+
+func TestBuildOrigin4QueryInvalid(t *testing.T) {
+	assert.Empty(t, buildOrigin4Query("1.2.3"))
+}
+
+func TestBuildOrigin6Query(t *testing.T) {
+	q := buildOrigin6Query("2001:db8::1")
+	assert.Contains(t, q, ".origin6.asn.cymru.com.")
+	assert.Contains(t, q, "1.0.0.0.0.0.0.0")
+}
+
+func TestBuildOrigin6QueryInvalid(t *testing.T) {
+	assert.Empty(t, buildOrigin6Query("not-an-ip"))
+}
+
+func TestParseOriginResponse(t *testing.T) {
+	o := parseOriginResponse("13335 | 1.1.1.0/24 | US | arin | 2014-03-28")
+	assert.Equal(t, uint32(13335), o.ASN)
+	assert.Equal(t, "1.1.1.0/24", o.Prefix)
+}
+
+func TestParseOriginResponseMalformed(t *testing.T) {
+	o := parseOriginResponse("garbage")
+	assert.Equal(t, uint32(0), o.ASN)
+}
+
+func TestLookupOrigin(t *testing.T) {
+	dns := fakeDNS(map[string][]string{
+		"4.3.2.1.origin.asn.cymru.com.": {"65001 | 1.2.3.0/24 | US | arin | 2000-01-01"},
+		"AS65001.asn.cymru.com.":        {"65001 | US | arin | 2000-01-01 | EXAMPLE - Example Corp, US"},
+	})
+
+	r := New(dns, nil)
+	o, err := r.LookupOrigin(context.Background(), "1.2.3.4")
+
+	require.NoError(t, err)
+	assert.Equal(t, uint32(65001), o.ASN)
+	assert.Equal(t, "1.2.3.0/24", o.Prefix)
+	assert.Equal(t, "Example Corp", o.Name)
+}
+
+func TestLookupOriginDNSFailure(t *testing.T) {
+	dns := func(_ context.Context, _ string) ([]string, error) {
+		return nil, fmt.Errorf("network error")
+	}
+
+	r := New(dns, nil)
+	o, err := r.LookupOrigin(context.Background(), "1.2.3.4")
+
+	require.NoError(t, err)
+	assert.Equal(t, uint32(0), o.ASN)
+}
+
+func TestLookupOriginCached(t *testing.T) {
+	var queryCount atomic.Int32
+	dns := func(_ context.Context, name string) ([]string, error) {
+		queryCount.Add(1)
+		switch name {
+		case "4.3.2.1.origin.asn.cymru.com.":
+			return []string{"65001 | 1.2.3.0/24 | US | arin | 2000-01-01"}, nil
+		case "AS65001.asn.cymru.com.":
+			return []string{"65001 | US | arin | 2000-01-01 | TEST - Test Inc, US"}, nil
+		}
+		return nil, nil
+	}
+
+	r := New(dns, nil)
+	o1, _ := r.LookupOrigin(context.Background(), "1.2.3.4")
+	assert.Equal(t, uint32(65001), o1.ASN)
+	first := queryCount.Load()
+
+	o2, _ := r.LookupOrigin(context.Background(), "1.2.3.4")
+	assert.Equal(t, uint32(65001), o2.ASN)
+	assert.Equal(t, first, queryCount.Load(), "second call should use cache")
+}

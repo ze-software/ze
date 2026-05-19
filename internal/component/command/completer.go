@@ -40,6 +40,7 @@ var PipeOperators = []Suggestion{
 	{Text: "yaml", Description: "YAML output", Type: "pipe"},
 	{Text: "no-more", Description: "Disable paging", Type: "pipe"},
 	{Text: "resolve", Description: "Reverse DNS for IP addresses", Type: "pipe"},
+	{Text: "origin", Description: "ASN and network for IP addresses", Type: "pipe"},
 	{Text: "ndjson", Description: "One JSON object per line", Type: "pipe"},
 	{Text: "log", Description: "Append each update (monitor)", Type: "pipe"},
 }

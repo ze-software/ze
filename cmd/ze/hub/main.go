@@ -84,6 +84,9 @@ func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	if resolvers.DNS != nil {
 		command.SetPTRResolver(resolvers.DNS)
 	}
+	if resolvers.Cymru != nil {
+		command.SetOriginResolver(cymruOriginAdapter{resolvers.Cymru})
+	}
 
 	var listenAddrs []string
 	if listenAddr != "" {
@@ -512,6 +515,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	resolvecmd.SetResolvers(resolvers)
 	if resolvers.DNS != nil {
 		command.SetPTRResolver(resolvers.DNS)
+	}
+	if resolvers.Cymru != nil {
+		command.SetOriginResolver(cymruOriginAdapter{resolvers.Cymru})
 	}
 	if resolvers.DNS != nil {
 		showCmd.RegisterDNSStatsProvider(func() map[string]any {

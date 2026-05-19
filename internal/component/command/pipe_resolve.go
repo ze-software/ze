@@ -131,12 +131,18 @@ func resolveJSON(v any) any {
 // is added with the PTR result. Results are cached across invocations.
 // Handles both single JSON values and NDJSON (one object per line).
 func ApplyResolve(input string) string {
+	return applyJSONTransform(input, resolveJSON)
+}
+
+// applyJSONTransform applies a transform function to parsed JSON data.
+// Handles both single JSON values and NDJSON (one object per line).
+func applyJSONTransform(input string, transform func(any) any) string {
 	trimmed := strings.TrimSpace(input)
 
 	var data any
 	if err := json.Unmarshal([]byte(trimmed), &data); err == nil {
 		compact := !strings.Contains(trimmed, "\n")
-		data = resolveJSON(data)
+		data = transform(data)
 		var out []byte
 		var marshalErr error
 		if compact {
@@ -162,7 +168,7 @@ func ApplyResolve(input string) string {
 			sb.WriteByte('\n')
 			continue
 		}
-		obj = resolveJSON(obj)
+		obj = transform(obj)
 		out, err := json.Marshal(obj)
 		if err != nil {
 			sb.WriteString(line)

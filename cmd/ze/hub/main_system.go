@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
@@ -87,6 +88,16 @@ func newResolvers(sc *system.SystemConfig) *resolve.Resolvers {
 		PeeringDB: peeringdb.NewPeeringDB(sc.PeeringDBURL),
 		IRR:       irr.NewIRR(""),
 	}
+}
+
+// cymruOriginAdapter bridges cymru.CymruResolver to command.OriginResolver.
+type cymruOriginAdapter struct {
+	r *cymru.CymruResolver
+}
+
+func (a cymruOriginAdapter) LookupOrigin(ctx context.Context, ip string) (command.OriginResult, error) {
+	o, err := a.r.LookupOrigin(ctx, ip)
+	return command.OriginResult{ASN: o.ASN, Prefix: o.Prefix, Name: o.Name}, err
 }
 
 // applyConsole configures serial console devices via termios.

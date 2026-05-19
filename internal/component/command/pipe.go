@@ -27,6 +27,7 @@ const (
 	pipeText                    // | text — space-aligned columns without box-drawing
 	pipeYAML                    // | yaml — YAML-formatted output
 	pipeResolve                 // | resolve — add reverse DNS names for IP address values
+	pipeOrigin                  // | origin — add ASN and network name for IP address values
 	pipeLog                     // | log — append each update instead of replacing
 	pipeUnknown                 // unrecognized operator
 )
@@ -52,6 +53,7 @@ var knownPipeOps = map[string]pipeKind{
 	"yaml":    pipeYAML,
 	"json":    pipeJSON,
 	"resolve": pipeResolve,
+	"origin":  pipeOrigin,
 	"ndjson":  pipeNDJSON,
 	"log":     pipeLog,
 }
@@ -111,7 +113,7 @@ func FoldServerPipeline(command string, ops []pipeOp) (string, []pipeOp) {
 
 	for _, op := range ops {
 		switch op.kind { //nolint:exhaustive // only classify server vs client ops
-		case pipeNoMore, pipeTable, pipeText, pipeYAML, pipeResolve, pipeNDJSON, pipeLog:
+		case pipeNoMore, pipeTable, pipeText, pipeYAML, pipeResolve, pipeOrigin, pipeNDJSON, pipeLog:
 			// Client-side only
 			clientOps = append(clientOps, op)
 		case pipeMatch:
@@ -177,6 +179,8 @@ func ApplyPipes(output string, ops []pipeOp) (string, string) {
 			result = applyYAML(result)
 		case pipeResolve:
 			result = ApplyResolve(result)
+		case pipeOrigin:
+			result = ApplyOrigin(result)
 		case pipeLog:
 			// Display-mode modifier, not a data transform. Handled by caller.
 		case pipeUnknown:

@@ -14,6 +14,8 @@ package cymru
 
 import (
 	"context"
+	"math"
+	"net"
 	"strings"
 	"time"
 
@@ -76,6 +78,132 @@ func (r *CymruResolver) LookupASNName(ctx context.Context, asn uint32) (string, 
 	r.cache.Set(key, name)
 
 	return name, nil
+}
+
+// Origin holds the result of an IP-to-ASN origin lookup.
+type Origin struct {
+	ASN    uint32
+	Prefix string
+	Name   string
+}
+
+// LookupOrigin returns the origin ASN, prefix, and name for an IP address.
+// Uses Team Cymru DNS: <reversed-IP>.origin.asn.cymru.com (TXT).
+// Response format: "ASN | prefix | CC | RIR | Date"
+// Returns (zero Origin, nil) on any failure -- graceful degradation.
+func (r *CymruResolver) LookupOrigin(ctx context.Context, ip string) (Origin, error) {
+	key := "origin:" + ip
+
+	if name, ok := r.cache.Get(key); ok {
+		return parseOriginCached(name), nil
+	}
+
+	query := buildOriginQuery(ip)
+	if query == "" {
+		return Origin{}, nil
+	}
+
+	records, err := r.resolveTXT(ctx, query)
+	if err != nil || len(records) == 0 {
+		return Origin{}, nil //nolint:nilerr // graceful degradation
+	}
+
+	o := parseOriginResponse(records[0])
+	if o.ASN == 0 {
+		return Origin{}, nil
+	}
+
+	// Resolve ASN name via the existing method.
+	name, _ := r.LookupASNName(ctx, o.ASN)
+	o.Name = name
+
+	// Cache as "ASN|prefix|name" for compact storage.
+	var b textbuf.Buffer
+	b.Uint32(o.ASN).Byte('|').Str(o.Prefix).Byte('|').Str(o.Name)
+	r.cache.Set(key, b.String())
+
+	return o, nil
+}
+
+func buildOriginQuery(ip string) string {
+	if strings.Contains(ip, ":") {
+		return buildOrigin6Query(ip)
+	}
+	return buildOrigin4Query(ip)
+}
+
+func buildOrigin4Query(ip string) string {
+	parts := strings.Split(ip, ".")
+	if len(parts) != 4 {
+		return ""
+	}
+	var b textbuf.Buffer
+	b.Str(parts[3]).Byte('.').Str(parts[2]).Byte('.').Str(parts[1]).Byte('.').Str(parts[0])
+	b.Str(".origin.asn.cymru.com.")
+	return b.String()
+}
+
+func buildOrigin6Query(ip string) string {
+	// Expand IPv6 to full form, then reverse nibbles.
+	addr := net.ParseIP(ip)
+	if addr == nil {
+		return ""
+	}
+	addr = addr.To16()
+	if addr == nil {
+		return ""
+	}
+	var b textbuf.Buffer
+	b.Grow(128)
+	for i := len(addr) - 1; i >= 0; i-- {
+		lo := addr[i] & 0x0f
+		hi := addr[i] >> 4
+		b.Byte("0123456789abcdef"[lo]).Byte('.')
+		b.Byte("0123456789abcdef"[hi])
+		if i > 0 {
+			b.Byte('.')
+		}
+	}
+	b.Str(".origin6.asn.cymru.com.")
+	return b.String()
+}
+
+// parseOriginResponse parses a Cymru origin TXT response.
+// Format: "ASN | prefix | CC | RIR | Date".
+func parseOriginResponse(txt string) Origin {
+	parts := strings.Split(txt, " | ")
+	if len(parts) < 2 {
+		return Origin{}
+	}
+	asn := parseUint32(strings.TrimSpace(parts[0]))
+	prefix := strings.TrimSpace(parts[1])
+	return Origin{ASN: asn, Prefix: prefix}
+}
+
+func parseUint32(s string) uint32 {
+	var n uint64
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return 0
+		}
+		n = n*10 + uint64(c-'0')
+		if n > math.MaxUint32 {
+			return 0
+		}
+	}
+	return uint32(n)
+}
+
+func parseOriginCached(s string) Origin {
+	parts := strings.SplitN(s, "|", 3)
+	if len(parts) < 3 {
+		return Origin{}
+	}
+	return Origin{
+		ASN:    parseUint32(parts[0]),
+		Prefix: parts[1],
+		Name:   parts[2],
+	}
 }
 
 // parseASNName extracts the organization name from a Team Cymru TXT response.
