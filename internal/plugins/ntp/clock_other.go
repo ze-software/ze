@@ -17,3 +17,7 @@ func setClock(_ time.Time) error {
 func setRTC(_ time.Time) error {
 	return fmt.Errorf("ntp: rtc not supported on %s", runtime.GOOS)
 }
+
+func slewClock(_ time.Duration) error {
+	return fmt.Errorf("ntp: slew not supported on %s", runtime.GOOS)
+}

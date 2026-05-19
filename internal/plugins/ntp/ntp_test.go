@@ -262,6 +262,352 @@ func TestHandleDHCPEvent(t *testing.T) {
 	assert.Equal(t, []string{"192.168.1.1", "192.168.1.2"}, w.dhcpSrv)
 }
 
+// TestShowSystemNTPWiring verifies that the show system ntp handler
+// is callable and returns a valid response.
+//
+// VALIDATES: Wiring Test row 1 - show system ntp entry point.
+// PREVENTS: Handler not registered or returning nil.
+func TestShowSystemNTPWiring(t *testing.T) {
+	t.Parallel()
+
+	// No state published yet -> disabled.
+	resp, err := handleShowSystemNTP(nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok, "expected map response")
+	assert.Equal(t, false, data["enabled"])
+}
+
+// TestShowSystemNTPPeersWiring verifies that the show system ntp peers
+// handler is callable and returns a valid response.
+//
+// VALIDATES: Wiring Test row 2 - show system ntp peers entry point.
+// PREVENTS: Handler not registered or returning nil.
+func TestShowSystemNTPPeersWiring(t *testing.T) {
+	t.Parallel()
+
+	// No state published yet -> empty peers.
+	resp, err := handleShowSystemNTPPeers(nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok, "expected map response")
+	peers, ok := data["peers"].([]map[string]any)
+	require.True(t, ok, "expected peers array")
+	assert.Empty(t, peers)
+	assert.Equal(t, 0, data["count"])
+}
+
+// TestShowSystemNTPEnabled verifies the handler returns sync details
+// when NTP is enabled and synced.
+//
+// VALIDATES: AC-1 - show system ntp with synced state.
+// PREVENTS: Missing fields in synced response.
+func TestShowSystemNTPEnabled(t *testing.T) {
+	t.Parallel()
+
+	st := &syncState{
+		Enabled:      true,
+		Synced:       true,
+		Source:       "pool.ntp.org",
+		Offset:       42 * time.Millisecond,
+		Stratum:      2,
+		PollInterval: 300,
+		LastSync:     time.Date(2026, 5, 19, 12, 0, 0, 0, time.UTC),
+	}
+	globalState.Store(st)
+	defer globalState.Store(nil)
+
+	resp, err := handleShowSystemNTP(nil, nil)
+	require.NoError(t, err)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, true, data["enabled"])
+	assert.Equal(t, true, data["synced"])
+	assert.Equal(t, "pool.ntp.org", data["source"])
+	assert.Equal(t, uint8(2), data["stratum"])
+	assert.Equal(t, 300, data["poll-interval"])
+	assert.Contains(t, data, "last-sync")
+	assert.Contains(t, data, "offset")
+}
+
+// TestShowSystemNTPDisabled verifies the handler returns enabled:false
+// when NTP is disabled.
+//
+// VALIDATES: AC-3 - show system ntp disabled.
+// PREVENTS: Disabled state returning sync details.
+func TestShowSystemNTPDisabled(t *testing.T) {
+	t.Parallel()
+
+	st := &syncState{Enabled: false}
+	globalState.Store(st)
+	defer globalState.Store(nil)
+
+	resp, err := handleShowSystemNTP(nil, nil)
+	require.NoError(t, err)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, false, data["enabled"])
+	_, hasSynced := data["synced"]
+	assert.False(t, hasSynced)
+}
+
+// TestShowSystemNTPPeers verifies per-server data in the response.
+//
+// VALIDATES: AC-4 - show system ntp peers with servers.
+// PREVENTS: Missing or wrong per-server fields.
+func TestShowSystemNTPPeers(t *testing.T) {
+	t.Parallel()
+
+	st := &syncState{
+		Enabled: true,
+		Servers: []serverState{
+			{
+				Address:   "0.pool.ntp.org",
+				Offset:    10 * time.Millisecond,
+				RTT:       5 * time.Millisecond,
+				Stratum:   2,
+				Reach:     0xFF,
+				LastQuery: time.Date(2026, 5, 19, 12, 0, 0, 0, time.UTC),
+			},
+			{
+				Address:   "1.pool.ntp.org",
+				Reach:     0x00,
+				LastQuery: time.Date(2026, 5, 19, 12, 0, 0, 0, time.UTC),
+				LastError: "timeout",
+			},
+		},
+	}
+	globalState.Store(st)
+	defer globalState.Store(nil)
+
+	resp, err := handleShowSystemNTPPeers(nil, nil)
+	require.NoError(t, err)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, 2, data["count"])
+	peers, ok := data["peers"].([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, peers, 2)
+
+	found := false
+	for _, p := range peers {
+		if p["address"] == "1.pool.ntp.org" {
+			assert.Equal(t, "timeout", p["last-error"])
+			found = true
+		}
+	}
+	assert.True(t, found, "expected unreachable server in peers")
+}
+
+// TestShowSystemNTPPeersEmpty verifies empty array when no servers configured.
+//
+// VALIDATES: AC-5 - show system ntp peers with no servers.
+// PREVENTS: Nil instead of empty array.
+func TestShowSystemNTPPeersEmpty(t *testing.T) {
+	t.Parallel()
+
+	st := &syncState{Enabled: true, Servers: nil}
+	globalState.Store(st)
+	defer globalState.Store(nil)
+
+	resp, err := handleShowSystemNTPPeers(nil, nil)
+	require.NoError(t, err)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, 0, data["count"])
+}
+
+// TestParseNTPConfigSlewThreshold verifies slew-threshold parsing.
+//
+// VALIDATES: AC-10, AC-11 - slew-threshold config values.
+// PREVENTS: Slew threshold silently ignored or mis-parsed.
+func TestParseNTPConfigSlewThreshold(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		value    string
+		expected int
+		wantErr  bool
+	}{
+		{"default (128)", "", 128, false},
+		{"zero disables slew", "0", 0, false},
+		{"custom 500ms", "500", 500, false},
+		{"max 1000ms", "1000", 1000, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			data := `{"environment":{"ntp":{"enabled":"true"`
+			if tt.value != "" {
+				data += `,"slew-threshold":"` + tt.value + `"`
+			}
+			data += `}}}`
+			cfg, err := parseNTPConfig(data)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, cfg.SlewThresholdMs)
+		})
+	}
+}
+
+// TestParseNTPConfigSlewThresholdBounds verifies slew-threshold range enforcement.
+//
+// VALIDATES: Boundary: slew-threshold 0..1000.
+// PREVENTS: Out-of-range values accepted.
+func TestParseNTPConfigSlewThresholdBounds(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{"below range (-1)", "-1", true},
+		{"above range (1001)", "1001", true},
+		{"invalid string", "abc", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			data := `{"environment":{"ntp":{"enabled":"true","slew-threshold":"` + tt.value + `"}}}`
+			_, err := parseNTPConfig(data)
+			assert.Error(t, err)
+		})
+	}
+}
+
+// TestClockOffsetAction verifies the slew/step/reject decision.
+//
+// VALIDATES: AC-6 (slew), AC-7 (step), AC-8 (reject), AC-10 (disable).
+// PREVENTS: Wrong clock adjustment action for offset ranges.
+func TestClockOffsetAction(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		offset     time.Duration
+		slewMs     int
+		maxStepSec int
+		expected   clockAction
+	}{
+		{"small offset -> slew", 50 * time.Millisecond, 128, 3600, actionSlew},
+		{"negative small -> slew", -50 * time.Millisecond, 128, 3600, actionSlew},
+		{"at slew threshold -> slew", 128 * time.Millisecond, 128, 3600, actionSlew},
+		{"above slew threshold -> step", 200 * time.Millisecond, 128, 3600, actionStep},
+		{"at max step -> step", 3600 * time.Second, 128, 3600, actionStep},
+		{"above max step -> reject", 3601 * time.Second, 128, 3600, actionReject},
+		{"slew disabled (0) -> step", 50 * time.Millisecond, 0, 3600, actionStep},
+		{"unlimited max step (0) -> slew", 50 * time.Millisecond, 128, 0, actionSlew},
+		{"unlimited max step (0) large -> step", 5000 * time.Second, 128, 0, actionStep},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := decideClockAction(tt.offset, tt.slewMs, tt.maxStepSec)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+// TestReachRegisterShift verifies the 8-bit reach register behavior.
+// RFC 5905 Section 13.1: shift left, set bit 0 on success.
+//
+// VALIDATES: AC-12, AC-13, AC-14 - reach bitmap updates.
+// PREVENTS: Incorrect reach register logic.
+func TestReachRegisterShift(t *testing.T) {
+	t.Parallel()
+
+	// Starting at 0, success sets bit 0.
+	assert.Equal(t, uint8(0x01), reachShift(0x00, true))
+	// Shift left + success: 0x01 -> 0x03.
+	assert.Equal(t, uint8(0x03), reachShift(0x01, true))
+	// Shift left + failure: 0x01 -> 0x02.
+	assert.Equal(t, uint8(0x02), reachShift(0x01, false))
+	// Full 0xFF shifted + success stays 0xFF.
+	assert.Equal(t, uint8(0xFF), reachShift(0xFF, true))
+	// Full 0xFF shifted + failure -> 0xFE.
+	assert.Equal(t, uint8(0xFE), reachShift(0xFF, false))
+	// 8 consecutive failures from full -> 0.
+	r := uint8(0xFF)
+	for range 8 {
+		r = reachShift(r, false)
+	}
+	assert.Equal(t, uint8(0x00), r)
+}
+
+// TestServerSelection verifies best server selection: reachable, lowest
+// stratum, then smallest offset.
+//
+// VALIDATES: Server selection algorithm.
+// PREVENTS: Unreachable server selected, wrong tiebreaker.
+func TestServerSelection(t *testing.T) {
+	t.Parallel()
+
+	servers := []serverState{
+		{Address: "unreachable", Reach: 0, Stratum: 1, Offset: time.Millisecond},
+		{Address: "high-stratum", Reach: 1, Stratum: 3, Offset: time.Millisecond},
+		{Address: "best", Reach: 1, Stratum: 2, Offset: 5 * time.Millisecond},
+		{Address: "same-stratum-closer", Reach: 1, Stratum: 2, Offset: 2 * time.Millisecond},
+	}
+	best := selectBestServer(servers)
+	require.NotNil(t, best)
+	assert.Equal(t, "same-stratum-closer", best.Address)
+}
+
+// TestServerSelectionAllUnreachable verifies nil return when no server is reachable.
+func TestServerSelectionAllUnreachable(t *testing.T) {
+	t.Parallel()
+	servers := []serverState{
+		{Address: "a", Reach: 0},
+		{Address: "b", Reach: 0},
+	}
+	assert.Nil(t, selectBestServer(servers))
+}
+
+// TestServerSelectionEmpty verifies nil return for empty list.
+func TestServerSelectionEmpty(t *testing.T) {
+	t.Parallel()
+	assert.Nil(t, selectBestServer(nil))
+}
+
+// TestSyncStateSnapshot verifies atomic state snapshot consistency.
+//
+// VALIDATES: AC-16 - no data race between writer and reader.
+// PREVENTS: Torn reads from concurrent access.
+func TestSyncStateSnapshot(t *testing.T) {
+	t.Parallel()
+
+	// Store a state.
+	st := &syncState{
+		Enabled:      true,
+		Synced:       true,
+		Source:       "pool.ntp.org",
+		Offset:       42 * time.Millisecond,
+		Stratum:      2,
+		PollInterval: 300,
+		LastSync:     time.Date(2026, 5, 19, 12, 0, 0, 0, time.UTC),
+		Servers: []serverState{
+			{Address: "pool.ntp.org", Offset: 42 * time.Millisecond, Stratum: 2, Reach: 0xFF},
+		},
+	}
+	globalState.Store(st)
+	defer globalState.Store(nil)
+
+	// Read back.
+	got := loadState()
+	require.NotNil(t, got)
+	assert.True(t, got.Synced)
+	assert.Equal(t, "pool.ntp.org", got.Source)
+	assert.Len(t, got.Servers, 1)
+	assert.Equal(t, uint8(0xFF), got.Servers[0].Reach)
+}
+
 // mockEventBus records Emit calls for testing.
 type mockEventBus struct {
 	emits []emitCall

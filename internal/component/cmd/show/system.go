@@ -7,11 +7,13 @@ package show
 
 import (
 	"errors"
+	"maps"
 	"runtime"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
@@ -100,14 +102,18 @@ func handleShowSystemSubsystemList(ctx *pluginserver.CommandContext, _ []string)
 func handleShowSystemDate(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	now := time.Now()
 	zone, offset := now.Zone()
+	data := map[string]any{
+		"time":            now.Format(time.RFC3339),
+		"unix":            now.Unix(),
+		"unix-nano":       now.UnixNano(),
+		"timezone":        zone,
+		"utc-offset-secs": offset,
+	}
+	if ntp := registry.GetNTPSyncInfo(); ntp != nil {
+		maps.Copy(data, ntp)
+	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"time":            now.Format(time.RFC3339),
-			"unix":            now.Unix(),
-			"unix-nano":       now.UnixNano(),
-			"timezone":        zone,
-			"utc-offset-secs": offset,
-		},
+		Data:   data,
 	}, nil
 }

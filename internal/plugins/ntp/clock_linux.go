@@ -22,6 +22,20 @@ func setClock(t time.Time) error {
 	return nil
 }
 
+// slewClock adjusts the clock gradually using Adjtimex.
+// RFC 5905 Section 11.2: frequency adjustment for small offsets.
+func slewClock(offset time.Duration) error {
+	usec := offset.Microseconds()
+	tx := &syscall.Timex{
+		Modes:  0x0001, // ADJ_OFFSET
+		Offset: int64(usec),
+	}
+	if _, err := syscall.Adjtimex(tx); err != nil {
+		return fmt.Errorf("adjtimex: %w", err)
+	}
+	return nil
+}
+
 // rtcTime matches the kernel's struct rtc_time (linux/rtc.h).
 type rtcTime struct {
 	sec   int32

@@ -54,6 +54,19 @@ module ze-cli-show-cmd {
                 }
             }
 
+            container ntp {
+                config false;
+                description "NTP synchronization operations";
+
+                ze:command "ze-show:system-ntp";
+
+                container peers {
+                    config false;
+                    ze:command "ze-show:system-ntp-peers";
+                    description "Show per-server NTP state (offset, RTT, stratum, reach)";
+                }
+            }
+
             container conntrack {
                 config false;
                 ze:command "ze-show:system-conntrack";

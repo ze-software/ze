@@ -16,6 +16,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -39,20 +40,22 @@ var loggerPtr atomic.Pointer[slog.Logger]
 
 // ntpConfig holds the parsed NTP configuration.
 type ntpConfig struct {
-	Enabled     bool
-	Servers     []string
-	IntervalSec int    // sync interval in seconds (default 3600)
-	MaxStepSec  int    // max accepted clock step in seconds; 0 means unlimited
-	PersistPath string // path to save time on shutdown
+	Enabled         bool
+	Servers         []string
+	IntervalSec     int    // sync interval in seconds (default 3600)
+	MaxStepSec      int    // max accepted clock step in seconds; 0 means unlimited
+	SlewThresholdMs int    // max offset in ms for slew (Adjtimex); 0 = always step
+	PersistPath     string // path to save time on shutdown
 }
 
 // defaultConfig returns an ntpConfig with sensible defaults.
 func defaultConfig() ntpConfig {
 	return ntpConfig{
-		Enabled:     false,
-		IntervalSec: 3600,
-		MaxStepSec:  3600,
-		PersistPath: "/perm/ze/timefile",
+		Enabled:         false,
+		IntervalSec:     3600,
+		MaxStepSec:      3600,
+		SlewThresholdMs: 128,
+		PersistPath:     "/perm/ze/timefile",
 	}
 }
 
@@ -65,6 +68,7 @@ type syncWorker struct {
 	dhcpSrv  []string    // DHCP-discovered servers (lower priority)
 	eventBus ze.EventBus // for emitting clock-synced event
 	synced   atomic.Bool // true after first successful NTP sync
+	peers    map[string]*serverState
 }
 
 func newSyncWorker(cfg ntpConfig, eb ze.EventBus) *syncWorker {
@@ -73,6 +77,7 @@ func newSyncWorker(cfg ntpConfig, eb ze.EventBus) *syncWorker {
 		stop:     make(chan struct{}),
 		done:     make(chan struct{}),
 		eventBus: eb,
+		peers:    make(map[string]*serverState),
 	}
 }
 
@@ -90,6 +95,9 @@ func (w *syncWorker) stopAndWait() {
 func (w *syncWorker) run() {
 	defer close(w.done)
 	logger := loggerPtr.Load()
+
+	// Publish initial "enabled but not synced" state.
+	w.publishState(false, "", 0, 0)
 
 	// Phase 1: restore saved time (rough clock for devices without RTC).
 	if w.cfg.PersistPath != "" {
@@ -125,8 +133,8 @@ func (w *syncWorker) run() {
 	}
 }
 
-// doSync queries one NTP server and sets the clock if offset is meaningful.
-// Returns true on success.
+// doSync queries all NTP servers, updates per-server state, selects the
+// best server, and adjusts the clock. Returns true if the clock was set.
 func (w *syncWorker) doSync(logger *slog.Logger) bool {
 	servers := w.servers()
 	if len(servers) == 0 {
@@ -136,47 +144,87 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 
 	// Anti-thundering-herd jitter: 0-250ms random delay.
 	// RFC 5905 recommends randomizing client requests.
-	// Cryptographic randomness is not needed for jitter/load balancing.
 	jitter := time.Duration(rand.IntN(250)) * time.Millisecond //nolint:gosec // jitter, not security
 	if !w.sleepOrStop(jitter) {
 		return false
 	}
 
-	// Pick a random server for load distribution.
-	server := servers[rand.IntN(len(servers))] //nolint:gosec // load balancing, not security
+	// Query all servers and update per-server state.
+	now := time.Now()
+	for _, addr := range servers {
+		ps := w.getOrCreatePeer(addr)
+		ps.LastQuery = now
 
-	resp, err := ntp.Query(server)
-	if err != nil {
-		logger.Warn("ntp: query failed", "server", server, "err", err)
+		resp, err := ntp.Query(addr)
+		if err != nil {
+			ps.Reach = reachShift(ps.Reach, false)
+			ps.LastError = err.Error()
+			logger.Warn("ntp: query failed", "server", addr, "err", err)
+			continue
+		}
+
+		if resp.Time.Year() < 2020 || resp.Time.Year() > 2100 {
+			ps.Reach = reachShift(ps.Reach, false)
+			ps.LastError = "absurd timestamp year " + strconv.Itoa(resp.Time.Year())
+			logger.Warn("ntp: response rejected (absurd timestamp)", "server", addr, "year", resp.Time.Year())
+			continue
+		}
+
+		if err := resp.Validate(); err != nil {
+			ps.Reach = reachShift(ps.Reach, false)
+			ps.LastError = err.Error()
+			logger.Warn("ntp: response validation failed", "server", addr, "err", err)
+			continue
+		}
+
+		ps.Reach = reachShift(ps.Reach, true)
+		ps.Offset = resp.ClockOffset
+		ps.RTT = resp.RTT
+		ps.Stratum = resp.Stratum
+		ps.RootDelay = resp.RootDelay
+		ps.RootDispersion = resp.RootDispersion
+		ps.LastSuccess = now
+		ps.LastError = ""
+	}
+
+	// Select best server and adjust clock.
+	peerSlice := w.peerSlice()
+	best := selectBestServer(peerSlice)
+	if best == nil {
+		w.publishState(false, "", 0, 0)
+		logger.Warn("ntp: no reachable servers")
 		return false
 	}
 
-	// Validate response: reject absurd timestamps.
-	now := resp.Time
-	if now.Year() < 2020 || now.Year() > 2100 {
-		logger.Warn("ntp: response rejected (absurd timestamp)",
-			"server", server, "year", now.Year())
+	action := decideClockAction(best.Offset, w.cfg.SlewThresholdMs, w.cfg.MaxStepSec)
+	if action == actionReject {
+		logger.Warn("ntp: offset exceeds max-step",
+			"server", best.Address, "offset", best.Offset, "max-step", w.cfg.MaxStepSec)
+		w.publishState(false, best.Address, 0, best.Stratum)
 		return false
 	}
 
-	// Validate clock offset is reasonable.
-	if err := resp.Validate(); err != nil {
-		logger.Warn("ntp: response validation failed", "server", server, "err", err)
-		return false
+	clockTime := time.Now().Add(best.Offset)
+	if action == actionSlew {
+		if err := slewClock(best.Offset); err != nil {
+			logger.Warn("ntp: slew failed, falling back to step", "server", best.Address, "err", err)
+			if err := setClock(clockTime); err != nil {
+				logger.Warn("ntp: set clock failed", "server", best.Address, "err", err)
+				return false
+			}
+			logger.Info("ntp: clock stepped (slew fallback)", "server", best.Address, "offset", best.Offset)
+		} else {
+			logger.Info("ntp: clock slewed", "server", best.Address, "offset", best.Offset)
+		}
+	} else {
+		if err := setClock(clockTime); err != nil {
+			logger.Warn("ntp: set clock failed", "server", best.Address, "err", err)
+			return false
+		}
+		logger.Info("ntp: clock stepped", "server", best.Address, "offset", best.Offset)
 	}
 
-	// Set system clock.
-	if !clockOffsetAllowed(resp.ClockOffset, time.Duration(w.cfg.MaxStepSec)*time.Second) {
-		logger.Warn("ntp: response rejected (clock offset exceeds max-step)",
-			"server", server, "offset", resp.ClockOffset, "max-step", w.cfg.MaxStepSec)
-		return false
-	}
-	clockTime := time.Now().Add(resp.ClockOffset)
-	if err := setClock(clockTime); err != nil {
-		logger.Warn("ntp: set clock failed", "server", server, "err", err)
-		return false
-	}
-	logger.Info("ntp: clock synced", "server", server, "offset", resp.ClockOffset)
+	w.publishState(true, best.Address, best.Offset, best.Stratum)
 
 	// Emit clock-synced event once after first successful NTP sync.
 	if w.synced.CompareAndSwap(false, true) && w.eventBus != nil {
@@ -200,6 +248,42 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 	return true
 }
 
+// getOrCreatePeer returns the serverState for addr, creating it if needed.
+func (w *syncWorker) getOrCreatePeer(addr string) *serverState {
+	if ps, ok := w.peers[addr]; ok {
+		return ps
+	}
+	ps := &serverState{Address: addr}
+	w.peers[addr] = ps
+	return ps
+}
+
+// peerSlice returns a snapshot of all peer states as a slice.
+func (w *syncWorker) peerSlice() []serverState {
+	out := make([]serverState, 0, len(w.peers))
+	for _, ps := range w.peers {
+		out = append(out, *ps)
+	}
+	return out
+}
+
+// publishState stores a syncState snapshot for the show handlers.
+func (w *syncWorker) publishState(synced bool, source string, offset time.Duration, stratum uint8) {
+	st := &syncState{
+		Enabled:      true,
+		Synced:       synced,
+		Source:       source,
+		Offset:       offset,
+		Stratum:      stratum,
+		PollInterval: w.cfg.IntervalSec,
+		Servers:      w.peerSlice(),
+	}
+	if synced {
+		st.LastSync = time.Now()
+	}
+	storeState(st)
+}
+
 func clockOffsetAllowed(offset, maxStep time.Duration) bool {
 	if maxStep <= 0 {
 		return true
@@ -208,6 +292,31 @@ func clockOffsetAllowed(offset, maxStep time.Duration) bool {
 		offset = -offset
 	}
 	return offset <= maxStep
+}
+
+// clockAction represents the clock adjustment decision.
+type clockAction int
+
+const (
+	actionReject clockAction = iota
+	actionSlew
+	actionStep
+)
+
+// decideClockAction returns the appropriate action for the given offset.
+func decideClockAction(offset time.Duration, slewThresholdMs, maxStepSec int) clockAction {
+	absOff := offset
+	if absOff < 0 {
+		absOff = -absOff
+	}
+	maxStep := time.Duration(maxStepSec) * time.Second
+	if maxStep > 0 && absOff > maxStep {
+		return actionReject
+	}
+	if slewThresholdMs > 0 && absOff <= time.Duration(slewThresholdMs)*time.Millisecond {
+		return actionSlew
+	}
+	return actionStep
 }
 
 // servers returns the effective server list: configured servers first,
@@ -299,6 +408,16 @@ func parseNTPConfig(data string) (ntpConfig, error) {
 			return cfg, fmt.Errorf("ntp config: max-step %d out of range 0..86400", sec)
 		}
 		cfg.MaxStepSec = sec
+	}
+	if v, ok := ntpMap["slew-threshold"].(string); ok {
+		ms, err := strconv.Atoi(v)
+		if err != nil {
+			return cfg, fmt.Errorf("ntp config: slew-threshold: %w", err)
+		}
+		if ms < 0 || ms > 1000 {
+			return cfg, fmt.Errorf("ntp config: slew-threshold %d out of range 0..1000", ms)
+		}
+		cfg.SlewThresholdMs = ms
 	}
 	if v, ok := ntpMap["persist-path"].(string); ok && v != "" {
 		if err := validatePersistPath(v); err != nil {

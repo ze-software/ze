@@ -193,6 +193,10 @@ var (
 	// Set by the hub after creating the plugin server.
 	// Read by GetInternalPluginRunner to inject into plugins via ConfigurePluginServer.
 	pluginServerInstance any
+
+	// ntpSyncProvider returns NTP sync info as map[string]any for show system date.
+	// Set by the NTP plugin at init time. Returns nil when NTP is not configured.
+	ntpSyncProvider func() map[string]any
 )
 
 // Register adds a plugin to the global registry.
@@ -326,6 +330,26 @@ func GetPluginServer() any {
 	mu.RLock()
 	defer mu.RUnlock()
 	return pluginServerInstance
+}
+
+// SetNTPSyncProvider registers a function that returns NTP sync info.
+// Called by the NTP plugin at init time.
+func SetNTPSyncProvider(fn func() map[string]any) {
+	mu.Lock()
+	defer mu.Unlock()
+	ntpSyncProvider = fn
+}
+
+// GetNTPSyncInfo calls the registered NTP sync provider and returns
+// the result, or nil if no provider is registered.
+func GetNTPSyncInfo() map[string]any {
+	mu.RLock()
+	fn := ntpSyncProvider
+	mu.RUnlock()
+	if fn == nil {
+		return nil
+	}
+	return fn()
 }
 
 // Lookup returns the registration for a named plugin, or nil if not found.
@@ -765,6 +789,7 @@ func Reset() {
 	rpcHandlers = make(map[string]func(json.RawMessage) (any, error))
 	metricsRegistry = nil
 	eventBusInstance = nil
+	ntpSyncProvider = nil
 }
 
 // RegistrySnapshot holds a complete copy of the registry state for test save/restore.
@@ -773,6 +798,7 @@ type RegistrySnapshot struct {
 	attrModHandlers  map[uint8]AttrModHandler
 	rpcHandlers      map[string]func(json.RawMessage) (any, error)
 	eventBusInstance any
+	ntpSyncProvider  func() map[string]any
 }
 
 // Snapshot returns a copy of the current registry state. Only for use in tests.
@@ -787,7 +813,7 @@ func Snapshot() RegistrySnapshot {
 	maps.Copy(ah, attrModHandlers)
 	rh := make(map[string]func(json.RawMessage) (any, error), len(rpcHandlers))
 	maps.Copy(rh, rpcHandlers)
-	return RegistrySnapshot{plugins: ps, attrModHandlers: ah, rpcHandlers: rh, eventBusInstance: eventBusInstance}
+	return RegistrySnapshot{plugins: ps, attrModHandlers: ah, rpcHandlers: rh, eventBusInstance: eventBusInstance, ntpSyncProvider: ntpSyncProvider}
 }
 
 // Restore replaces the registry with a previously saved snapshot. Only for use in tests.
@@ -798,6 +824,7 @@ func Restore(snap RegistrySnapshot) {
 	attrModHandlers = snap.attrModHandlers
 	rpcHandlers = snap.rpcHandlers
 	eventBusInstance = snap.eventBusInstance
+	ntpSyncProvider = snap.ntpSyncProvider
 	// Rebuild filterTypes from the restored plugins slice.
 	filterTypes = make(map[string]string)
 	for name, reg := range plugins {

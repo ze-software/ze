@@ -38,6 +38,17 @@ module ze-ntp-conf {
                      of 0 explicitly allows unlimited steps.";
             }
 
+            leaf slew-threshold {
+                type uint32 {
+                    range "0..1000";
+                }
+                default 128;
+                description
+                    "Maximum offset in milliseconds for gradual clock slew
+                     via Adjtimex. Offsets above this threshold use Settimeofday
+                     (step). A value of 0 disables slew (always step).";
+            }
+
             leaf persist-path {
                 type string;
                 default "/perm/ze/timefile";

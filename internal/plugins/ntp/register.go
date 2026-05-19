@@ -7,7 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	ntpevents "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/events"
@@ -51,7 +53,21 @@ func init() {
 		InProcessConfigVerifier: verifyNTPConfig,
 		RunEngine:               runNTPPlugin,
 	}
+	registry.SetNTPSyncProvider(ntpSyncInfo)
+
 	reg.CLIHandler = func(_ []string) int { return 1 }
+
+	pluginserver.RegisterRPCs(
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:system-ntp",
+			Handler:    handleShowSystemNTP,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:system-ntp-peers",
+			Handler:    handleShowSystemNTPPeers,
+		},
+	)
+
 	reg.ConfigureEngineLogger = func(loggerName string) {
 		l := slogutil.Logger(loggerName)
 		if l != nil {
@@ -105,6 +121,7 @@ func runNTPPlugin(conn net.Conn) int {
 		}
 		if !cfg.Enabled {
 			log.Debug("ntp: disabled in config")
+			storeState(&syncState{Enabled: false})
 			return
 		}
 		worker = newSyncWorker(cfg, getEventBus())
@@ -192,4 +209,79 @@ func runNTPPlugin(conn net.Conn) int {
 // currentTime returns the current system time.
 func currentTime() time.Time {
 	return time.Now()
+}
+
+// ntpSyncInfo returns NTP sync metadata for show system date enrichment.
+func ntpSyncInfo() map[string]any {
+	st := loadState()
+	if st == nil || !st.Enabled {
+		return nil
+	}
+	return map[string]any{
+		"ntp-synced": st.Synced,
+		"ntp-source": st.Source,
+		"ntp-offset": st.Offset.String(),
+	}
+}
+
+// handleShowSystemNTP returns the NTP sync status summary.
+func handleShowSystemNTP(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	st := loadState()
+	if st == nil {
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data:   map[string]any{"enabled": false},
+		}, nil
+	}
+	if !st.Enabled {
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data:   map[string]any{"enabled": false},
+		}, nil
+	}
+	data := map[string]any{
+		"enabled":       true,
+		"synced":        st.Synced,
+		"source":        st.Source,
+		"offset":        st.Offset.String(),
+		"stratum":       st.Stratum,
+		"poll-interval": st.PollInterval,
+	}
+	if !st.LastSync.IsZero() {
+		data["last-sync"] = st.LastSync.Format(time.RFC3339)
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
+}
+
+// handleShowSystemNTPPeers returns per-server NTP state.
+func handleShowSystemNTPPeers(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	st := loadState()
+	if st == nil || len(st.Servers) == 0 {
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data:   map[string]any{"peers": []map[string]any{}, "count": 0},
+		}, nil
+	}
+	peers := make([]map[string]any, 0, len(st.Servers))
+	for i := range st.Servers {
+		s := &st.Servers[i]
+		row := map[string]any{
+			"address": s.Address,
+			"offset":  s.Offset.String(),
+			"rtt":     s.RTT.String(),
+			"stratum": s.Stratum,
+			"reach":   s.Reach,
+		}
+		if !s.LastQuery.IsZero() {
+			row["last-query"] = s.LastQuery.Format(time.RFC3339)
+		}
+		if s.LastError != "" {
+			row["last-error"] = s.LastError
+		}
+		peers = append(peers, row)
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   map[string]any{"peers": peers, "count": len(peers)},
+	}, nil
 }
