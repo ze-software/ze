@@ -954,6 +954,96 @@ func TestParseThenSNAT(t *testing.T) {
 	}
 }
 
+func TestParseMasqueradeWithPorts(t *testing.T) {
+	tests := []struct {
+		name    string
+		json    string
+		port    uint16
+		portEnd uint16
+	}{
+		{
+			name:    "range",
+			json:    `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"to-ports":"1024-65535"}}}}}}}}}}`,
+			port:    1024,
+			portEnd: 65535,
+		},
+		{
+			name: "single",
+			json: `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"to-ports":"8080"}}}}}}}}}}`,
+			port: 8080,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tables, err := ParseFirewallConfig(tt.json)
+			if err != nil {
+				t.Fatalf("ParseFirewallConfig: %v", err)
+			}
+			m, ok := tables[0].Chains[0].Terms[0].Actions[0].(Masquerade)
+			if !ok {
+				t.Fatalf("action type = %T, want Masquerade", tables[0].Chains[0].Terms[0].Actions[0])
+			}
+			if m.Port != tt.port {
+				t.Errorf("Port = %d, want %d", m.Port, tt.port)
+			}
+			if m.PortEnd != tt.portEnd {
+				t.Errorf("PortEnd = %d, want %d", m.PortEnd, tt.portEnd)
+			}
+		})
+	}
+}
+
+func TestParseMasqueradeWithFlags(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+		flag uint32
+	}{
+		{"random", `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"random":""}}}}}}}}}}`, MasqFlagRandom},
+		{"fully-random", `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"fully-random":""}}}}}}}}}}`, MasqFlagFullyRandom},
+		{"persistent", `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"persistent":""}}}}}}}}}}`, MasqFlagPersistent},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tables, err := ParseFirewallConfig(tt.json)
+			if err != nil {
+				t.Fatalf("ParseFirewallConfig: %v", err)
+			}
+			m, ok := tables[0].Chains[0].Terms[0].Actions[0].(Masquerade)
+			if !ok {
+				t.Fatalf("action type = %T, want Masquerade", tables[0].Chains[0].Terms[0].Actions[0])
+			}
+			if m.Flags != tt.flag {
+				t.Errorf("Flags = %#x, want %#x", m.Flags, tt.flag)
+			}
+		})
+	}
+}
+
+func TestParseMasqueradePortsAndFlagsMutuallyExclusive(t *testing.T) {
+	data := `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"to-ports":"1024","random":""}}}}}}}}}}`
+	_, err := ParseFirewallConfig(data)
+	if err == nil {
+		t.Fatal("expected error for masquerade with both to-ports and flags")
+	}
+}
+
+func TestParseMasqueradeInvalidPort(t *testing.T) {
+	data := `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"to-ports":"0"}}}}}}}}}}}`
+	_, err := ParseFirewallConfig(data)
+	if err == nil {
+		t.Fatal("expected error for masquerade port 0")
+	}
+}
+
+func TestParseMasqueradeInvertedRange(t *testing.T) {
+	data := `{"firewall":{"table":{"nat":{"family":"inet","chain":{"post":{"term":{"masq":{"then":{"masquerade":{"to-ports":"65535-1024"}}}}}}}}}}}`
+	_, err := ParseFirewallConfig(data)
+	if err == nil {
+		t.Fatal("expected error for inverted port range")
+	}
+}
+
 // VALIDATES: from-block protocol keyword.
 // PREVENTS: protocol match parsing broken.
 func TestParseFromProtocol(t *testing.T) {

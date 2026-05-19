@@ -603,6 +603,34 @@ func TestVerifyRejectsIPv6DstWithLimit(t *testing.T) {
 	}
 }
 
+func TestVerifyRejectsMasqueradePorts(t *testing.T) {
+	tables := natTable(natChain(firewall.HookPostrouting, firewall.Term{
+		Name:    "masq-ports",
+		Actions: []firewall.Action{firewall.Masquerade{Port: 1024, PortEnd: 65535}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("masquerade with port mapping should be rejected by VPP backend")
+	}
+	if !strings.Contains(err.Error(), "port mapping not supported") {
+		t.Errorf("want 'port mapping not supported', got %v", err)
+	}
+}
+
+func TestVerifyRejectsMasqueradeFlags(t *testing.T) {
+	tables := natTable(natChain(firewall.HookPostrouting, firewall.Term{
+		Name:    "masq-flags",
+		Actions: []firewall.Action{firewall.Masquerade{Flags: firewall.MasqFlagRandom}},
+	}))
+	err := Verify(tables)
+	if err == nil {
+		t.Fatal("masquerade with flags should be rejected by VPP backend")
+	}
+	if !strings.Contains(err.Error(), "flags not supported") {
+		t.Errorf("want 'flags not supported', got %v", err)
+	}
+}
+
 func TestVerifyRejectsSetMarkAndLimitCombined(t *testing.T) {
 	tables := simpleTable(baseChain(firewall.Term{
 		Name:    "mark-and-limit",

@@ -435,6 +435,12 @@ type DNAT struct {
 	Flags      uint32
 }
 
+const (
+	MasqFlagRandom      uint32 = 1 << 0
+	MasqFlagFullyRandom uint32 = 1 << 1
+	MasqFlagPersistent  uint32 = 1 << 2
+)
+
 // Masquerade applies source NAT using the outgoing interface address.
 type Masquerade struct {
 	Port    uint16

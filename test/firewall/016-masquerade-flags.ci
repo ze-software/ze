@@ -1,0 +1,57 @@
+# Test: masquerade with random flag sets NF_NAT_RANGE_PROTO_RANDOM.
+# VALIDATES: spec-cpe-5 AC-3, AC-8 -- parseMasquerade populates Flags;
+#            lowerMasquerade emits expr.Masq{Random: true}.
+# PREVENTS: masquerade flags silently ignored at config parse time.
+#
+# Requires CAP_NET_ADMIN.
+
+option=skip-os:value=darwin
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, signal, subprocess, sys, time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+out = subprocess.check_output(["nft", "list", "table", "inet", "ze_masqf"], text=True)
+sys.stdout.write(out)
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table masqf {
+		family inet;
+		chain postrouting {
+			type nat;
+			hook postrouting;
+			priority 100;
+			policy accept;
+			term masq-random {
+				from { output-interface "eth0"; }
+				then {
+					masquerade { random; }
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=firewall config applied
+expect=stdout:contains=masquerade random

@@ -904,18 +904,34 @@ func lowerDNAT(d firewall.DNAT) ([]expr.Any, error) {
 	return lowerNAT(d.Address, d.AddressEnd, d.Port, d.PortEnd, d.Flags, expr.NATTypeDestNAT)
 }
 
-// lowerMasquerade rejects fields the backend does not program rather
-// than silently dropping them. The parser emits Masquerade{} today, so
-// any non-zero field implies a programmatic caller and surfacing the
-// gap is preferable to a silent approximation.
 func lowerMasquerade(m firewall.Masquerade) ([]expr.Any, error) {
-	if m.Port != 0 || m.PortEnd != 0 {
-		return nil, fmt.Errorf("masquerade with port mapping not yet supported (port=%d-%d)", m.Port, m.PortEnd)
+	if m.Port != 0 {
+		var exprs []expr.Any
+		portBytes := make([]byte, 2)
+		binary.BigEndian.PutUint16(portBytes, m.Port)
+		exprs = append(exprs, &expr.Immediate{Register: 1, Data: portBytes})
+		masq := &expr.Masq{ToPorts: true, RegProtoMin: 1}
+		if m.PortEnd != 0 {
+			portEndBytes := make([]byte, 2)
+			binary.BigEndian.PutUint16(portEndBytes, m.PortEnd)
+			exprs = append(exprs, &expr.Immediate{Register: 2, Data: portEndBytes})
+			masq.RegProtoMax = 2
+		}
+		exprs = append(exprs, masq)
+		return exprs, nil
 	}
-	if m.Flags != 0 {
-		return nil, fmt.Errorf("masquerade flags not yet supported (flags=%#x)", m.Flags)
+
+	masq := &expr.Masq{}
+	if m.Flags&firewall.MasqFlagRandom != 0 {
+		masq.Random = true
 	}
-	return []expr.Any{&expr.Masq{}}, nil
+	if m.Flags&firewall.MasqFlagFullyRandom != 0 {
+		masq.FullyRandom = true
+	}
+	if m.Flags&firewall.MasqFlagPersistent != 0 {
+		masq.Persistent = true
+	}
+	return []expr.Any{masq}, nil
 }
 
 // lowerCounter rejects named counters -- nftables named counters live as

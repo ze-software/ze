@@ -419,8 +419,12 @@ func parseThenBlock(m map[string]any) ([]Action, error) {
 		actions = append(actions, DNAT{Address: addr, AddressEnd: addrEnd, Port: port, PortEnd: portEnd})
 	}
 
-	if _, ok := m["masquerade"]; ok {
-		actions = append(actions, Masquerade{})
+	if masqVal, ok := m["masquerade"]; ok {
+		masq, err := parseMasquerade(masqVal)
+		if err != nil {
+			return nil, fmt.Errorf("masquerade: %w", err)
+		}
+		actions = append(actions, masq)
 	}
 
 	if redirMap, ok := m["redirect"].(map[string]any); ok {
@@ -904,6 +908,61 @@ func parseNATSpec(v string) (addr, addrEnd netip.Addr, port, portEnd uint16, err
 		return addr, addrEnd, r.Lo, 0, nil
 	}
 	return addr, addrEnd, r.Lo, r.Hi, nil
+}
+
+func parseMasquerade(v any) (Masquerade, error) {
+	masqMap, ok := v.(map[string]any)
+	if !ok {
+		return Masquerade{}, nil
+	}
+
+	var m Masquerade
+
+	if toPorts, ok := masqMap["to-ports"].(string); ok {
+		port, portEnd, err := parseMasqPorts(toPorts)
+		if err != nil {
+			return Masquerade{}, err
+		}
+		m.Port = port
+		m.PortEnd = portEnd
+	}
+
+	if _, ok := masqMap["random"]; ok {
+		m.Flags |= MasqFlagRandom
+	}
+	if _, ok := masqMap["fully-random"]; ok {
+		m.Flags |= MasqFlagFullyRandom
+	}
+	if _, ok := masqMap["persistent"]; ok {
+		m.Flags |= MasqFlagPersistent
+	}
+
+	if m.Port != 0 && m.Flags != 0 {
+		return Masquerade{}, errors.New("to-ports and flags (random/fully-random/persistent) are mutually exclusive")
+	}
+	return m, nil
+}
+
+func parseMasqPorts(s string) (uint16, uint16, error) {
+	parts := strings.SplitN(s, "-", 2)
+	lo, err := strconv.ParseUint(parts[0], 10, 16)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid port %q: %w", parts[0], err)
+	}
+	if lo == 0 {
+		return 0, 0, errors.New("port must be 1-65535, got 0")
+	}
+	if len(parts) == 1 {
+		return uint16(lo), 0, nil
+	}
+	hi, err := strconv.ParseUint(parts[1], 10, 16)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid port %q: %w", parts[1], err)
+	}
+	if hi < lo {
+		return 0, 0, fmt.Errorf("port range %d-%d is inverted", lo, hi)
+	}
+	return uint16(lo), uint16(hi), nil
 }
 
 // tcpFlagNames maps symbolic TCP flag names to bitmask values.

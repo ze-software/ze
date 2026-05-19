@@ -522,6 +522,80 @@ func TestLowerMasqueradePlain(t *testing.T) {
 	}
 }
 
+func TestLowerMasqueradeWithPorts(t *testing.T) {
+	m := firewall.Masquerade{Port: 1024, PortEnd: 65535}
+	exprs, err := lowerMasquerade(m)
+	if err != nil {
+		t.Fatalf("lowerMasquerade: %v", err)
+	}
+	// Expect: Immediate(reg1, port_min) + Immediate(reg2, port_max) + Masq{ToPorts: true, ...}
+	if len(exprs) < 2 {
+		t.Fatalf("len = %d, want >= 2", len(exprs))
+	}
+	masq, ok := exprs[len(exprs)-1].(*expr.Masq)
+	if !ok {
+		t.Fatalf("last expr = %T, want *expr.Masq", exprs[len(exprs)-1])
+	}
+	if !masq.ToPorts {
+		t.Error("ToPorts = false, want true")
+	}
+	if masq.RegProtoMin == 0 {
+		t.Error("RegProtoMin = 0, want non-zero")
+	}
+}
+
+func TestLowerMasqueradeWithPortsSingle(t *testing.T) {
+	m := firewall.Masquerade{Port: 8080}
+	exprs, err := lowerMasquerade(m)
+	if err != nil {
+		t.Fatalf("lowerMasquerade: %v", err)
+	}
+	masq, ok := exprs[len(exprs)-1].(*expr.Masq)
+	if !ok {
+		t.Fatalf("last expr = %T, want *expr.Masq", exprs[len(exprs)-1])
+	}
+	if !masq.ToPorts {
+		t.Error("ToPorts = false, want true")
+	}
+	if masq.RegProtoMax != 0 {
+		t.Errorf("RegProtoMax = %d, want 0 (single port)", masq.RegProtoMax)
+	}
+}
+
+func TestLowerMasqueradeWithFlags(t *testing.T) {
+	tests := []struct {
+		name string
+		flag uint32
+		want func(*expr.Masq) bool
+	}{
+		{"random", firewall.MasqFlagRandom, func(m *expr.Masq) bool { return m.Random }},
+		{"fully-random", firewall.MasqFlagFullyRandom, func(m *expr.Masq) bool { return m.FullyRandom }},
+		{"persistent", firewall.MasqFlagPersistent, func(m *expr.Masq) bool { return m.Persistent }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := firewall.Masquerade{Flags: tt.flag}
+			exprs, err := lowerMasquerade(m)
+			if err != nil {
+				t.Fatalf("lowerMasquerade: %v", err)
+			}
+			if len(exprs) != 1 {
+				t.Fatalf("len = %d, want 1", len(exprs))
+			}
+			masq, ok := exprs[0].(*expr.Masq)
+			if !ok {
+				t.Fatalf("type = %T, want *expr.Masq", exprs[0])
+			}
+			if !tt.want(masq) {
+				t.Errorf("flag %s not set on expr.Masq", tt.name)
+			}
+			if masq.ToPorts {
+				t.Error("ToPorts = true, want false (flags path)")
+			}
+		})
+	}
+}
+
 // VALIDATES: Category B -- MatchConnMark lowers via Ct(MARK) rather
 // than Meta(MARK), and carries the mask through to the Bitwise step.
 // PREVENTS: the parser accepting `connection-mark 0x10/0xff` and

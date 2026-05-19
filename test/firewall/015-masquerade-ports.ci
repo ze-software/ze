@@ -1,0 +1,57 @@
+# Test: masquerade with to-ports restricts source port range.
+# VALIDATES: spec-cpe-5 AC-1, AC-7 -- parseMasquerade populates Port/PortEnd;
+#            lowerMasquerade emits expr.Masq{ToPorts: true} with port registers.
+# PREVENTS: masquerade to-ports silently ignored at config parse time.
+#
+# Requires CAP_NET_ADMIN.
+
+option=skip-os:value=darwin
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, signal, subprocess, sys, time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+out = subprocess.check_output(["nft", "list", "table", "inet", "ze_masqp"], text=True)
+sys.stdout.write(out)
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table masqp {
+		family inet;
+		chain postrouting {
+			type nat;
+			hook postrouting;
+			priority 100;
+			policy accept;
+			term masq-ports {
+				from { output-interface "eth0"; }
+				then {
+					masquerade { to-ports "1024-65535"; }
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=firewall config applied
+expect=stdout:contains=masquerade to :1024-65535

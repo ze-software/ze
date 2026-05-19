@@ -176,7 +176,7 @@ func formatAction(a firewall.Action) string {
 		}
 		return "redirect"
 	case firewall.Masquerade:
-		return "masquerade"
+		return formatMasquerade(v)
 	case firewall.Notrack:
 		return "notrack"
 	case firewall.FlowOffload:
@@ -187,6 +187,34 @@ func formatAction(a firewall.Action) string {
 		return "dnat to " + formatNATTarget(v.Address, v.AddressEnd, v.Port, v.PortEnd)
 	}
 	return fmt.Sprintf("<%T>", a)
+}
+
+func formatMasquerade(m firewall.Masquerade) string {
+	if m.Port != 0 {
+		b := textbuf.Get()
+		defer b.Release()
+		b.Str("masquerade to :").Uint16(m.Port)
+		if m.PortEnd != 0 {
+			b.Byte('-').Uint16(m.PortEnd)
+		}
+		return b.String()
+	}
+	if m.Flags == 0 {
+		return "masquerade"
+	}
+	b := textbuf.Get()
+	defer b.Release()
+	b.Str("masquerade")
+	if m.Flags&firewall.MasqFlagRandom != 0 {
+		b.Str(" random")
+	}
+	if m.Flags&firewall.MasqFlagFullyRandom != 0 {
+		b.Str(" fully-random")
+	}
+	if m.Flags&firewall.MasqFlagPersistent != 0 {
+		b.Str(" persistent")
+	}
+	return b.String()
 }
 
 // formatLimit renders a limit action in the same form the operator

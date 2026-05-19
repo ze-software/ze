@@ -126,6 +126,12 @@ func verifyNATTerm(prefix string, term *firewall.Term) error {
 		case firewall.Masquerade:
 			hasNATAction = true
 			hasSrcNAT = true
+			if v.Port != 0 || v.PortEnd != 0 {
+				errs = append(errs, fmt.Errorf("%s: masquerade port mapping not supported by backend vpp", prefix))
+			}
+			if v.Flags != 0 {
+				errs = append(errs, fmt.Errorf("%s: masquerade flags not supported by backend vpp", prefix))
+			}
 		case firewall.DNAT:
 			hasNATAction = true
 			hasDstNAT = true
