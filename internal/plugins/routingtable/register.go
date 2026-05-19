@@ -23,7 +23,7 @@ func init() {
 		Description:             "Named routing table registry: maps names to kernel table IDs",
 		Features:                "yang",
 		YANG:                    rtschema.ZeRoutingTableConfYANG,
-		ConfigRoots:             []string{"routing-table"},
+		ConfigRoots:             []string{pluginName},
 		InProcessConfigVerifier: verifyRoutingTableConfig,
 		RunEngine:               runRoutingTablePlugin,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -45,7 +45,7 @@ func init() {
 
 func verifyRoutingTableConfig(sections []sdk.ConfigSection) error {
 	for _, section := range sections {
-		if section.Root != "routing-table" {
+		if section.Root != pluginName {
 			continue
 		}
 		if _, err := parseRoutingTableConfig(section.Data); err != nil {
@@ -63,7 +63,7 @@ func runRoutingTablePlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "routing-table" {
+			if section.Root != pluginName {
 				continue
 			}
 			tables, err := parseRoutingTableConfig(section.Data)
@@ -79,7 +79,7 @@ func runRoutingTablePlugin(conn net.Conn) int {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"routing-table"},
+		WantsConfig: []string{pluginName},
 	})
 	if err != nil {
 		logger().Error("routing-table plugin failed", "error", err)
