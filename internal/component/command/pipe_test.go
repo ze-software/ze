@@ -568,6 +568,45 @@ func TestApplyNDJSON(t *testing.T) {
 	}
 }
 
+type mockPTRResolver struct {
+	results map[string][]string
+}
+
+func (m *mockPTRResolver) ResolvePTR(address string) ([]string, error) {
+	if r, ok := m.results[address]; ok {
+		return r, nil
+	}
+	return nil, nil
+}
+
+func TestApplyResolve_UsesSystemResolver(t *testing.T) {
+	mock := &mockPTRResolver{results: map[string][]string{
+		"154.54.74.6": {"router.example.com."},
+		"10.0.0.1":    {"gw.example.com."},
+	}}
+	SetPTRResolver(mock)
+	defer SetPTRResolver(nil)
+
+	input := `{"hops":[{"ttl":1,"addr":"10.0.0.1","rtt-ms":1.0},{"ttl":2,"addr":"154.54.74.6","rtt-ms":5.0}]}`
+	result := ApplyResolve(input)
+	if !strings.Contains(result, "gw.example.com") {
+		t.Errorf("expected gw.example.com in result: %s", result)
+	}
+	if !strings.Contains(result, "router.example.com") {
+		t.Errorf("expected router.example.com in result: %s", result)
+	}
+}
+
+func TestApplyResolve_FallbackReverseLookup(t *testing.T) {
+	SetPTRResolver(nil)
+	input := `{"addr":"127.0.0.1"}`
+	result := ApplyResolve(input)
+	t.Logf("fallback result: %s", result)
+	if !strings.Contains(result, "addr-name") {
+		t.Errorf("should add addr-name field: %s", result)
+	}
+}
+
 func TestApplyResolve_AddsNameField(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1}]}`
 	result := ApplyResolve(input)

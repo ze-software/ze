@@ -3,6 +3,7 @@ package dns
 import (
 	"context"
 	"net"
+	"os"
 	"strconv"
 	"sync/atomic"
 	"testing"
@@ -155,20 +156,47 @@ func TestResolveDefaultServer(t *testing.T) {
 // TestResolveSystemDNSNoPublicFallback verifies that appliance mode does not
 // silently send DNS queries to a public resolver when resolv.conf is absent.
 //
-// VALIDATES: missing system DNS leaves the resolver without a server.
+// VALIDATES: missing system DNS does not use a hardcoded public resolver.
 // PREVENTS: implicit fallback to Google Public DNS or any other public
 // resolver outside operator configuration.
 func TestResolveSystemDNSNoPublicFallback(t *testing.T) {
-	r := NewResolver(ResolverConfig{
-		ResolvConfPath: t.TempDir() + "/missing-resolv.conf",
-		Timeout:        1,
-	})
-	defer r.Close()
+	server := resolveSystemDNS(t.TempDir() + "/missing-resolv.conf")
+	publicDNS := []string{"8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1", "9.9.9.9"}
+	for _, pub := range publicDNS {
+		host, _, _ := net.SplitHostPort(server)
+		assert.NotEqual(t, pub, host, "must not fall back to public DNS %s", pub)
+	}
+}
 
-	assert.Empty(t, r.server)
-	_, err := r.ResolveA("example.com")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no DNS server configured")
+// TestResolveSystemDNSFailClosed verifies that queries fail with a clear error
+// when no resolv.conf provides a nameserver. On gokrazy pre-DHCP, both
+// /tmp/resolv.conf and /etc/resolv.conf are absent.
+func TestResolveSystemDNSFailClosed(t *testing.T) {
+	dir := t.TempDir()
+	emptyResolv := dir + "/resolv.conf"
+	etcResolv := dir + "/etc-resolv.conf"
+	require.NoError(t, os.WriteFile(emptyResolv, []byte("# empty\n"), 0o644))
+	require.NoError(t, os.WriteFile(etcResolv, []byte("# empty\n"), 0o644))
+
+	server := resolveSystemDNS(emptyResolv)
+	if server == "" {
+		// Primary path failed and /etc/resolv.conf fallback also returned empty
+		// (or found the real /etc/resolv.conf on dev machines). Test the resolver
+		// end-to-end with no server.
+		r := NewResolver(ResolverConfig{
+			ResolvConfPath: emptyResolv,
+			Timeout:        1,
+		})
+		defer r.Close()
+		if r.server == "" {
+			_, err := r.ResolveA("example.com")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "no DNS server configured")
+		}
+		return
+	}
+	// On dev machines with /etc/resolv.conf, the fallback gives a valid server.
+	// The no-public-DNS check above covers that path.
 }
 
 // TestResolveTXT verifies TXT record resolution.

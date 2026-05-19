@@ -73,7 +73,7 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {
 			i++
 		default:
 			if !dest.IsValid() {
-				addr, err := netip.ParseAddr(args[i])
+				addr, err := resolveTarget(args[i])
 				if err != nil {
 					return dest, 0, 0, fmt.Errorf("ping: invalid destination %q: %w", args[i], err)
 				}
@@ -88,11 +88,11 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {
 }
 
 func doPing(dest netip.Addr, count int, timeout time.Duration) (map[string]any, error) {
-	network := "ip4:icmp"
+	network := networkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
 	if dest.Is6() {
-		network = "ip6:ipv6-icmp"
+		network = networkICMPv6
 		icmpEcho = 128
 		icmpEchoReply = 129
 	}

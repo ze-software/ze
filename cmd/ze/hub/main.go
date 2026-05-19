@@ -18,14 +18,19 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
 
+	mdns "github.com/miekg/dns"
+
 	zecli "codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	clearCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear"
 	showCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
@@ -76,6 +81,9 @@ var PeerLifecycleCallback registry.PeerLifecycleCallback
 func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int {
 	resolvers := newResolvers(&system.SystemConfig{DNSTimeout: 5, DNSCacheSize: 10000, DNSCacheTTL: 86400})
 	defer resolvers.Close()
+	if resolvers.DNS != nil {
+		command.SetPTRResolver(resolvers.DNS)
+	}
 
 	var listenAddrs []string
 	if listenAddr != "" {
@@ -503,6 +511,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	defer resolvers.Close()
 	resolvecmd.SetResolvers(resolvers)
 	if resolvers.DNS != nil {
+		command.SetPTRResolver(resolvers.DNS)
+	}
+	if resolvers.DNS != nil {
 		showCmd.RegisterDNSStatsProvider(func() map[string]any {
 			s := resolvers.DNS.CacheStats()
 			total := s.Hits + s.Misses
@@ -528,6 +539,40 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				return nil, err
 			}
 			return &showCmd.DNSLookupResult{Records: records, TTL: ttl}, nil
+		})
+		showCmd.RegisterDNSEntriesProvider(func() []map[string]any {
+			entries := resolvers.DNS.CacheEntries()
+			out := make([]map[string]any, len(entries))
+			for i, e := range entries {
+				out[i] = map[string]any{
+					"name":        e.Name,
+					"type":        e.TypeName,
+					"records":     e.Records,
+					"ttl-seconds": e.TTLSeconds,
+				}
+			}
+			return out
+		})
+		clearCmd.RegisterDNSCacheClearProvider(func(action, name, typeName string) map[string]any {
+			switch action {
+			case "entry":
+				if typeName != "" {
+					qtype, ok := mdns.StringToType[strings.ToUpper(typeName)]
+					if !ok {
+						return map[string]any{"action": "delete-entry", "error": "unknown type: " + typeName}
+					}
+					found := resolvers.DNS.CacheDelete(name, qtype)
+					return map[string]any{"action": "delete-entry", "name": name, "type": typeName, "found": found}
+				}
+				removed := resolvers.DNS.CacheDeleteByName(name)
+				return map[string]any{"action": "delete-entry", "name": name, "removed": removed}
+			case "stats":
+				resolvers.DNS.CacheResetStats()
+				return map[string]any{"action": "reset-stats"}
+			default:
+				resolvers.DNS.CacheClear()
+				return map[string]any{"action": "clear-all"}
+			}
 		})
 	}
 

@@ -67,20 +67,61 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 	}
 }
 
-// resolveSystemDNS reads the system DNS server from /etc/resolv.conf.
-// Missing or empty resolver configuration returns an empty server so callers
-// fail closed instead of silently using a public resolver.
+// resolveSystemDNS reads the system DNS server from the configured resolv.conf path.
+// Falls back to /etc/resolv.conf when the configured path has no servers (e.g.,
+// gokrazy default /tmp/resolv.conf absent before DHCP, or on macOS dev machines).
+// Returns an empty server when neither path yields a nameserver.
 func resolveSystemDNS(resolvConfPath string) string {
 	config, err := mdns.ClientConfigFromFile(resolvConfPath)
-	if err != nil || len(config.Servers) == 0 {
-		return ""
+	if err == nil && len(config.Servers) > 0 {
+		return net.JoinHostPort(config.Servers[0], config.Port)
 	}
-	return net.JoinHostPort(config.Servers[0], config.Port)
+	if resolvConfPath != "/etc/resolv.conf" {
+		config, err = mdns.ClientConfigFromFile("/etc/resolv.conf")
+		if err == nil && len(config.Servers) > 0 {
+			return net.JoinHostPort(config.Servers[0], config.Port)
+		}
+	}
+	return ""
 }
 
 // CacheStats returns a snapshot of DNS cache counters.
 func (r *Resolver) CacheStats() CacheStats {
 	return r.cache.Stats()
+}
+
+// CacheClear removes all entries and resets all counters.
+func (r *Resolver) CacheClear() {
+	r.cache.Clear()
+}
+
+// CacheDelete removes a single entry by name and record type.
+// Returns true if the entry existed and was removed.
+func (r *Resolver) CacheDelete(name string, qtype uint16) bool {
+	return r.cache.Delete(name, qtype)
+}
+
+// CacheDeleteByName removes all entries matching the given name regardless of type.
+// Returns the number of entries removed.
+func (r *Resolver) CacheDeleteByName(name string) int {
+	return r.cache.DeleteByName(name)
+}
+
+// CacheResetStats zeros all counters without removing cached entries.
+func (r *Resolver) CacheResetStats() {
+	r.cache.ResetStats()
+}
+
+// CacheEntries returns a snapshot of all cached entries with remaining TTL
+// and human-readable type names.
+func (r *Resolver) CacheEntries() []CacheEntryInfo {
+	entries := r.cache.Entries()
+	for i := range entries {
+		if name, ok := mdns.TypeToString[entries[i].Type]; ok {
+			entries[i].TypeName = name
+		}
+	}
+	return entries
 }
 
 // Close releases resolver resources.
@@ -111,10 +152,11 @@ func (r *Resolver) Resolve(name string, qtype uint16) ([]string, error) {
 	return records, nil
 }
 
-// ResolveWithTTL queries DNS and returns records plus the response TTL in seconds.
+// ResolveWithTTL queries DNS and returns records plus the TTL in seconds.
+// On cache hit, returns the remaining TTL. On cache miss, returns the response TTL.
 func (r *Resolver) ResolveWithTTL(name string, qtype uint16) ([]string, uint32, error) {
-	if records, ok := r.cache.get(name, qtype); ok {
-		return records, 0, nil
+	if records, ttl, ok := r.cache.getWithTTL(name, qtype); ok {
+		return records, ttl, nil
 	}
 
 	records, ttl, err := r.query(name, qtype)

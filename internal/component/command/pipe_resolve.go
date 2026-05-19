@@ -6,12 +6,35 @@ package command
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net"
 	"net/netip"
 	"strings"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+// PTRResolver performs reverse DNS lookups for IP addresses.
+type PTRResolver interface {
+	ResolvePTR(address string) ([]string, error)
+}
+
+var (
+	ptrResolver   PTRResolver
+	ptrResolverMu sync.Mutex
+	resolveLog    = slogutil.Logger("resolve")
+)
+
+// SetPTRResolver sets the system DNS resolver used by | resolve.
+// When set, reverse lookups use the system resolver (with its LRU+TTL cache).
+// When nil, falls back to net.DefaultResolver with a simple local cache.
+func SetPTRResolver(r PTRResolver) {
+	ptrResolverMu.Lock()
+	ptrResolver = r
+	ptrResolverMu.Unlock()
+}
 
 const (
 	dnsTimeout  = 500 * time.Millisecond
@@ -19,17 +42,32 @@ const (
 )
 
 var (
-	dnsCache   = make(map[string]string)
-	dnsCacheMu sync.Mutex
+	fallbackCache   = make(map[string]string)
+	fallbackCacheMu sync.Mutex
 )
 
 func reverseLookup(ip string) string {
-	dnsCacheMu.Lock()
-	if name, ok := dnsCache[ip]; ok {
-		dnsCacheMu.Unlock()
+	ptrResolverMu.Lock()
+	r := ptrResolver
+	ptrResolverMu.Unlock()
+
+	if r != nil {
+		records, err := r.ResolvePTR(ip)
+		if err != nil {
+			resolveLog.Debug("PTR lookup failed", slog.String("ip", ip), slog.String("error", err.Error()))
+		}
+		if err == nil && len(records) > 0 {
+			return strings.TrimSuffix(records[0], ".")
+		}
+		return ""
+	}
+
+	fallbackCacheMu.Lock()
+	if name, ok := fallbackCache[ip]; ok {
+		fallbackCacheMu.Unlock()
 		return name
 	}
-	dnsCacheMu.Unlock()
+	fallbackCacheMu.Unlock()
 
 	ctx, cancel := context.WithTimeout(context.Background(), dnsTimeout)
 	defer cancel()
@@ -40,12 +78,12 @@ func reverseLookup(ip string) string {
 		result = strings.TrimSuffix(names[0], ".")
 	}
 
-	dnsCacheMu.Lock()
-	if len(dnsCache) >= dnsCacheMax {
-		clear(dnsCache)
+	fallbackCacheMu.Lock()
+	if len(fallbackCache) >= dnsCacheMax {
+		clear(fallbackCache)
 	}
-	dnsCache[ip] = result
-	dnsCacheMu.Unlock()
+	fallbackCache[ip] = result
+	fallbackCacheMu.Unlock()
 
 	return result
 }

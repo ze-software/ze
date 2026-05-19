@@ -6,6 +6,7 @@ package dns
 
 import (
 	"container/list"
+	"sort"
 	"sync"
 	"time"
 )
@@ -32,6 +33,15 @@ type CacheStats struct {
 	Misses    uint64 `json:"misses"`
 	Evictions uint64 `json:"evictions"`
 	Expired   uint64 `json:"expired"`
+}
+
+// CacheEntryInfo describes a single cached DNS entry for display.
+type CacheEntryInfo struct {
+	Name       string   `json:"name"`
+	Type       uint16   `json:"type"`
+	TypeName   string   `json:"type-name"`
+	Records    []string `json:"records"`
+	TTLSeconds int      `json:"ttl-seconds"`
 }
 
 // cache is an in-memory DNS cache with TTL-based expiry and LRU eviction.
@@ -62,8 +72,15 @@ func newCache(maxSize, maxTTL uint32) *cache {
 // get looks up a cached result. Returns records and true on hit, nil and false on miss.
 // Expired entries are evicted on access.
 func (c *cache) get(name string, qtype uint16) ([]string, bool) {
+	records, _, ok := c.getWithTTL(name, qtype)
+	return records, ok
+}
+
+// getWithTTL looks up a cached result and returns the remaining TTL in seconds.
+// Returns (nil, 0, false) on miss.
+func (c *cache) getWithTTL(name string, qtype uint16) ([]string, uint32, bool) {
 	if c.maxSize == 0 {
-		return nil, false
+		return nil, 0, false
 	}
 
 	c.mu.Lock()
@@ -73,14 +90,15 @@ func (c *cache) get(name string, qtype uint16) ([]string, bool) {
 	entry, ok := c.entries[key]
 	if !ok {
 		c.misses++
-		return nil, false
+		return nil, 0, false
 	}
 
-	if time.Now().After(entry.expires) {
+	now := time.Now()
+	if now.After(entry.expires) {
 		c.removeLocked(entry)
 		c.expired++
 		c.misses++
-		return nil, false
+		return nil, 0, false
 	}
 
 	c.hits++
@@ -88,10 +106,12 @@ func (c *cache) get(name string, qtype uint16) ([]string, bool) {
 	// Move to back of LRU list (most recently used).
 	c.lru.MoveToBack(entry.element)
 
+	remaining := uint32(entry.expires.Sub(now).Seconds())
+
 	// Return a copy to prevent caller mutation.
 	result := make([]string, len(entry.records))
 	copy(result, entry.records)
-	return result, true
+	return result, remaining, true
 }
 
 // put stores a DNS result in the cache. responseTTL is the TTL from the DNS response
@@ -167,4 +187,79 @@ func (c *cache) Stats() CacheStats {
 		Evictions: c.evictions,
 		Expired:   c.expired,
 	}
+}
+
+// Clear removes all entries and resets all counters. Safe for concurrent use.
+func (c *cache) Clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries = make(map[cacheKey]*cacheEntry)
+	c.lru.Init()
+	c.hits = 0
+	c.misses = 0
+	c.evictions = 0
+	c.expired = 0
+}
+
+// Delete removes a single entry by name and record type.
+// Returns true if the entry existed and was removed.
+func (c *cache) Delete(name string, qtype uint16) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.entries[cacheKey{name: name, qtype: qtype}]
+	if !ok {
+		return false
+	}
+	c.removeLocked(entry)
+	return true
+}
+
+// DeleteByName removes all entries matching the given name regardless of record type.
+// Returns the number of entries removed.
+func (c *cache) DeleteByName(name string) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var removed int
+	for key, entry := range c.entries {
+		if key.name == name {
+			c.removeLocked(entry)
+			removed++
+		}
+	}
+	return removed
+}
+
+// ResetStats zeros all counters without removing cached entries.
+func (c *cache) ResetStats() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.hits = 0
+	c.misses = 0
+	c.evictions = 0
+	c.expired = 0
+}
+
+// Entries returns a snapshot of all non-expired cached entries sorted by
+// remaining TTL ascending (entries closest to expiry first).
+func (c *cache) Entries() []CacheEntryInfo {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	now := time.Now()
+	out := make([]CacheEntryInfo, 0, len(c.entries))
+	for _, entry := range c.entries {
+		ttl := int(entry.expires.Sub(now).Seconds())
+		if ttl <= 0 {
+			continue
+		}
+		records := make([]string, len(entry.records))
+		copy(records, entry.records)
+		out = append(out, CacheEntryInfo{
+			Name:       entry.key.name,
+			Type:       entry.key.qtype,
+			Records:    records,
+			TTLSeconds: ttl,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].TTLSeconds < out[j].TTLSeconds })
+	return out
 }
