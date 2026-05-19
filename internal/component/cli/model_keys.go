@@ -469,6 +469,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	// Execute command -- dispatch based on mode
 	if m.mode == ModeCommand {
 		m.lastCommand = input
+		m.writeCommandEcho()
 		if isDashboardCommand(input) {
 			dashCmd := m.startDashboard()
 			return m, dashCmd

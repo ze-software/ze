@@ -73,7 +73,6 @@ func (m *Model) startMonitorSession(args []string) tea.Cmd {
 	}
 
 	// Show header in viewport.
-	m.outputBuf.Reset()
 	m.outputBuf.WriteString("--- monitor active (Esc to stop) ---\n")
 	m.setViewportText(m.outputBuf.String())
 	m.viewport.GotoBottom()

@@ -295,7 +295,6 @@ func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 	}
 
 	if logMode {
-		m.outputBuf.Reset()
 		m.outputBuf.WriteString("--- monitor traceroute | log (Esc to stop) ---\n")
 		m.setViewportText(m.outputBuf.String())
 		m.viewport.GotoBottom()

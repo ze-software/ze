@@ -390,6 +390,18 @@ func (m Model) hasEditor() bool {
 	return m.editor != nil
 }
 
+// writeCommandEcho appends "ze> <command>\n" to the scroll-back buffer.
+// Called once per command dispatch so individual handlers do not repeat it.
+func (m *Model) writeCommandEcho() {
+	if m.hasEditor() {
+		return
+	}
+	if m.outputBuf.Len() > 0 {
+		m.outputBuf.WriteString("\n")
+	}
+	m.outputBuf.WriteString("ze> " + m.lastCommand + "\n")
+}
+
 // draftPollInterval is how often the model checks for draft changes by other sessions.
 const draftPollInterval = 2 * time.Second
 
@@ -516,10 +528,6 @@ func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
 	case r.output != "":
 		if !m.hasEditor() {
 			// Command-only mode: accumulate output in scroll-back buffer.
-			if m.outputBuf.Len() > 0 {
-				m.outputBuf.WriteString("\n")
-			}
-			m.outputBuf.WriteString("ze> " + m.lastCommand + "\n")
 			m.outputBuf.WriteString(r.output)
 			m.setViewportText(m.outputBuf.String())
 			m.viewport.GotoBottom()
