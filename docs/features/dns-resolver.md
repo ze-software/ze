@@ -18,6 +18,9 @@ Uses `github.com/miekg/dns` (the library CoreDNS is built on).
 | Concurrent safe | Mutex-protected cache, safe for multi-goroutine use |
 | System fallback | No configured servers uses `/etc/resolv.conf`; if that is missing or empty, queries fail closed with `no DNS server configured` |
 | Timeout control | Per-resolver configurable timeout (1-60 seconds) |
+| Cache management | List entries, inspect by name, selective delete by name/type, flush all, reset counters |
+| `\| resolve` pipe | Reverse DNS enrichment for IP addresses in any command's JSON output |
+| `\| origin` pipe | ASN/network enrichment for IP addresses via Team Cymru DNS queries |
 
 ## Configuration
 
@@ -46,6 +49,40 @@ system {
 When `name-server` is configured, DHCP-discovered DNS servers do not overwrite
 resolv.conf. When no static servers are configured, DHCP writes DNS servers to
 resolv-conf-path as before (last-writer-wins across interfaces).
+
+## Cache management
+
+The DNS cache can be inspected and managed at runtime via CLI commands.
+
+**Inspection:**
+
+```
+show dns cache stats                            # Hit/miss/eviction counters + rates
+show dns cache list                             # All non-expired entries (sorted by TTL)
+show dns cache record example.com               # Entries for a specific name
+```
+
+**Clearing:**
+
+```
+clear dns cache                                 # Flush all entries and reset counters
+clear dns cache stats                           # Zero counters without removing entries
+clear dns cache record example.com              # Delete entries for a name (all types)
+clear dns cache record example.com type AAAA    # Delete a single name+type entry
+```
+
+## Pipe operators
+
+Two pipe operators enrich JSON output from any command with DNS-based lookups:
+
+| Pipe | Description |
+|------|-------------|
+| `\| resolve` | Adds a `<key>-name` field with the PTR (reverse DNS) hostname for each IP address value in the JSON output. Uses the system DNS resolver with cache. 500ms timeout per lookup. |
+| `\| origin` | Adds `<key>-asn`, `<key>-as-name`, and `<key>-prefix` fields for each IP address value via Team Cymru DNS queries. 2s timeout. |
+
+Both pipes walk JSON values, detect IP addresses, and add sibling fields.
+They work on any command output, including `show traceroute`, `show bgp summary`, etc.
+In `monitor traceroute | log` mode, they enrich the hop legend.
 
 ## Reload behavior
 

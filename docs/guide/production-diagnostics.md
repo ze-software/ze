@@ -9,13 +9,14 @@ Symptom-based troubleshooting using Ze's built-in diagnostic commands. All comma
 | Symptom | First Command |
 |---------|--------------|
 | BGP session won't establish | `show tcp-check <peer-ip> 179` |
-| Path/routing issue | `show traceroute <dest>` |
+| Path/routing issue | `show traceroute <dest>` or `monitor traceroute <dest>` |
 | BGP session flapping | `show system kernel-log level warning count 50` |
 | High CPU | `show system profile cpu duration 10s` |
 | Memory leak | `show system profile heap` |
 | FD exhaustion | `show system file-descriptors summary` |
 | Goroutine leak | `show system goroutines summary` |
 | DNS failure | `show dns lookup <name> type A` |
+| Latency/reachability | `monitor ping <target>` |
 | Process killed | `show system kernel-log level err` |
 | Route/link/addr changes | `monitor system netlink all` |
 | Packet-level debugging | `show capture interface eth0 tcp port 179 count 10 format text` |
@@ -267,9 +268,24 @@ show dns lookup <hostname> type A
 
 ```
 show dns cache stats
+show dns cache list
 ```
 
-High miss rate with low hit rate suggests upstream resolver issues.
+High miss rate with low hit rate suggests upstream resolver issues. `list`
+shows all cached entries with remaining TTL, useful for spotting stale or
+unexpectedly short-lived records.
+
+**Inspect a specific cached name:**
+
+```
+show dns cache record <hostname>
+```
+
+**Flush and start fresh:**
+
+```
+clear dns cache
+```
 
 **Verify socket connectivity to resolver:**
 
@@ -321,6 +337,29 @@ show metrics-query ze_bgp_sessions
 show system sockets
 show system profile cpu duration 5s
 ```
+
+### 18. Latency and Reachability
+
+**Continuous ping to measure latency and loss:**
+
+```
+monitor ping <target>
+monitor ping <target> interval 500ms
+```
+
+Shows live stats: Sent, Recv, Loss%, Last, Min, Avg, Max, StDev. Use `| log` for scrollback output suitable for correlation with other events.
+
+**Continuous traceroute to observe path changes:**
+
+```
+monitor traceroute <target>
+monitor traceroute <target> | log | origin
+```
+
+mtr-style display with per-hop loss and latency statistics. `| log | origin`
+appends one line per round and annotates hops with ASN names, useful for
+identifying which network a path change occurs in. `| log | resolve` adds
+reverse DNS hostnames instead.
 
 ## Profiling Workflow
 

@@ -537,6 +537,50 @@ CAP_NET_RAW (root privilege enforced at startup).
 
 <!-- source: internal/component/cmd/show/traceroute.go -- handleTraceroute -->
 
+### monitor traceroute
+
+```
+monitor traceroute 8.8.8.8                          # Live mtr-style path trace (alt screen)
+monitor traceroute 8.8.8.8 max-hops 10              # Limit to 10 hops (1-64, default 16)
+monitor traceroute 8.8.8.8 | log                    # Appending scrollback, one line per round
+monitor traceroute 8.8.8.8 | log | resolve          # Log with reverse DNS in hop legend
+monitor traceroute 8.8.8.8 | log | origin           # Log with ASN/network in hop legend
+monitor traceroute 8.8.8.8 | table                  # Alt screen with formatted output
+monitor traceroute 8.8.8.8 | json                   # Alt screen with JSON per round
+```
+
+Continuous mtr-style traceroute. Plain mode uses the alt screen with columns:
+Hop, Address, Loss%, Snt, Last, Avg, Best, Wrst, StDev. Each round is a
+complete trace. Esc/q/Ctrl-C to stop; last snapshot copied to scrollback.
+
+In `| log` mode, the hop legend (printed every 25 rounds) is enriched by
+`| resolve` (adds reverse DNS hostnames) or `| origin` (adds ASN name
+or AS number from Team Cymru).
+
+Requires CAP_NET_RAW.
+
+<!-- source: internal/component/cli/model_traceroute.go -- traceroute monitor model -->
+
+### monitor ping
+
+```
+monitor ping 8.8.8.8                                # Live ping (alt screen, 1s interval)
+monitor ping 8.8.8.8 interval 500ms                 # Custom interval (100ms-30s)
+monitor ping 8.8.8.8 timeout 3s                     # Custom timeout (1s-30s)
+monitor ping 8.8.8.8 | log                          # Appending scrollback, one line per reply
+monitor ping 8.8.8.8 | table                        # Alt screen with formatted stats
+monitor ping 8.8.8.8 | json                         # Alt screen with JSON per reply
+```
+
+Continuous ICMP ping. Plain mode uses the alt screen showing: Sent, Recv,
+Loss%, Last, Min, Avg, Max, StDev. Esc/q/Ctrl-C to stop.
+
+Default interval: 1s. Default timeout: 5s.
+
+Requires CAP_NET_RAW.
+
+<!-- source: internal/component/cli/model_ping.go -- ping monitor model -->
+
 ### show capture interface
 
 ```
@@ -586,12 +630,27 @@ Supported types: A, AAAA, MX, NS, TXT, CNAME, PTR.
 ### show dns cache
 
 ```
-ze show dns cache stats    # Cache hit/miss/eviction counters
+ze show dns cache stats               # Cache hit/miss/eviction counters + hit-rate/miss-rate
+ze show dns cache list                # List all non-expired cached entries (sorted by TTL ascending)
+ze show dns cache record example.com  # Show cached entries for a specific name
 ```
 
-Returns entries, capacity, hits, misses, evictions, expired.
+`stats` returns entries, capacity, hits, misses, evictions, expired, hit-rate, miss-rate.
+`list` returns each entry with name, type, records, and ttl-seconds.
+`record <name>` filters cached entries by name (all types for that name).
 
 <!-- source: internal/component/cmd/show/dns.go -- handleDNSCache -->
+
+### clear dns cache
+
+```
+clear dns cache                                     # Flush all entries and reset all counters
+clear dns cache stats                               # Zero counters without removing entries
+clear dns cache record example.com                  # Delete all entries matching name (all types)
+clear dns cache record example.com type AAAA        # Delete a single entry by name and type
+```
+
+<!-- source: internal/component/cmd/clear/dns.go -- handleClearDNSCache -->
 
 ### show system profile
 
@@ -1453,11 +1512,18 @@ Inside `ze cli`:
 | Pipe: filter lines | `peer list \| match established` |
 | Pipe: count | `peer list \| count` |
 | Pipe: table format | `rib routes \| table` |
+| Pipe: text format | `peer list \| text` |
 | Pipe: JSON pretty | `peer list \| json` |
 | Pipe: JSON compact | `peer list \| json compact` |
+| Pipe: NDJSON | `peer list \| ndjson` |
+| Pipe: YAML | `peer list \| yaml` |
+| Pipe: reverse DNS | `show traceroute 8.8.8.8 \| resolve` |
+| Pipe: ASN lookup | `show traceroute 8.8.8.8 \| origin` |
+| Pipe: streaming log | `monitor traceroute 8.8.8.8 \| log` |
 | Pipe: disable paging | `peer list \| no-more` |
 | Tab completion | Contextual command/argument completion |
 <!-- source: cmd/ze/cli/main.go -- pipe operators, interactive model -->
+<!-- source: internal/component/command/pipe.go -- pipe operator definitions -->
 
 ---
 
