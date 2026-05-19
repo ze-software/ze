@@ -23,7 +23,7 @@ type DNSFormData struct {
 // Returns sensible defaults when the tree has no DNS section.
 func BuildDNSFormData(tree *config.Tree) DNSFormData {
 	data := DNSFormData{
-		CacheSize: 1000, // default
+		CacheSize: 10000, // must match system.go default
 	}
 
 	if tree == nil {
