@@ -461,6 +461,7 @@ dispatch:
 				Usage:   []string{"ze start [options]"},
 				Sections: []helpfmt.HelpSection{
 					{Title: "Options", Entries: []helpfmt.HelpEntry{
+						{Name: "--cli", Desc: "Attach interactive CLI after startup"},
 						{Name: "--web <port>", Desc: "Enable web UI on given port"},
 						{Name: "--insecure-web", Desc: "Disable web auth (binds to localhost only)"},
 						{Name: "--mcp <port>", Desc: "Enable MCP server on given port"},
@@ -473,6 +474,7 @@ dispatch:
 				},
 				Examples: []string{
 					"ze start                           Start daemon with default config",
+					"ze start --cli                     Start daemon and attach interactive CLI",
 					"ze start --web 3443                Start with web UI on port 3443",
 					"ze start --web 3443 --insecure-web Start with web UI, no auth (localhost)",
 				},
@@ -686,9 +688,12 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 	mcpToken := globalMCPToken
 	webPort := globalWebPort
 	insecureWeb := globalInsecureWeb
+	cliEnabled := false
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
+		case "--cli":
+			cliEnabled = true
 		case "--web":
 			if i+1 < len(args) {
 				i++
@@ -781,7 +786,7 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 	}
 
 	return withPanicCapture(func() int {
-		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
+		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliEnabled)
 	})
 }
 

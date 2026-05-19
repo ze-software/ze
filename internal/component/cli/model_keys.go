@@ -28,12 +28,9 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		isEscOrCtrlC := keyStr == keyCtrlC || keyStr == keyEsc
 		if isEscOrCtrlC {
 			if m.confirmQuit {
-				pending := m.hasEditor() && m.hasPendingChanges()
-				if !pending {
-					m.autoSaveOnQuit()
-					m.quitting = true
-					return m, tea.Quit
-				}
+				m.autoSaveOnQuit()
+				m.quitting = true
+				return m, tea.Quit
 			}
 			// Esc cancels stop/restart confirmation (fall through to cancel below)
 		} else if key.Text == "y" || key.Text == "Y" {
@@ -151,6 +148,7 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.completionHintDim = false
 			m.selected = -1
 			m.ghostText = ""
+			m.syncGhostSuggestions()
 			m.completions = nil
 			m.statusMessage = ""
 			if m.hasEditor() {
@@ -332,6 +330,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		m.completionHintDim = false
 		m.selected = -1
 		m.ghostText = ""
+		m.syncGhostSuggestions()
 		m.completions = nil
 		if isDashboardCommand(args) {
 			dashCmd := m.startDashboard()
@@ -355,14 +354,16 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if m.mode == ModeCommand && isEditCommand(input) {
-		if !m.hasEditor() {
+		if m.hasEditor() {
+			m.SwitchMode(ModeEdit)
+			// Fall through to normal dispatch -- history/clear happens below,
+			// executeCommand runs with the switched mode.
+		} else if !isOperationalVerb(input) {
 			m.textInput.SetValue("")
 			m.statusMessage = "edit mode not available (no config file loaded)"
 			return m, nil
 		}
-		m.SwitchMode(ModeEdit)
-		// Fall through to normal dispatch -- history/clear happens below,
-		// executeCommand runs with the switched mode.
+		// Operational verbs (show, errors, who) fall through to command dispatch.
 	}
 
 	// Handle exit/quit directly (not via async command dispatch)
@@ -414,6 +415,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	m.completionHintDim = false
 	m.selected = -1
 	m.ghostText = ""
+	m.syncGhostSuggestions()
 	m.completions = nil
 
 	// Execute command -- dispatch based on mode

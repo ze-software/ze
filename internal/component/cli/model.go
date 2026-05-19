@@ -24,7 +24,6 @@ var (
 	promptStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("82"))
 	welcomeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("226"))
-	ghostStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	hintStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("73"))
@@ -308,6 +307,7 @@ func NewModel(ed *Editor) (Model, error) {
 	ti.Focus()
 	ti.CharLimit = 512
 	ti.SetWidth(120)
+	ti.ShowSuggestions = true
 
 	vp := viewport.New(viewport.WithWidth(120), viewport.WithHeight(20))
 	vp.Style = lipgloss.NewStyle().
@@ -358,6 +358,7 @@ func NewCommandModel() Model {
 	ti.Focus()
 	ti.CharLimit = 512
 	ti.SetWidth(120)
+	ti.ShowSuggestions = true
 
 	vp := viewport.New(viewport.WithWidth(120), viewport.WithHeight(20))
 	vp.Style = lipgloss.NewStyle().
@@ -365,12 +366,13 @@ func NewCommandModel() Model {
 		BorderForeground(lipgloss.Color("62"))
 
 	return Model{
-		textInput:  ti,
-		viewport:   vp,
-		selected:   -1,
-		history:    NewHistory(nil, ""),
-		mode:       ModeCommand,
-		modeStates: make(map[EditorMode]modeState),
+		textInput:     ti,
+		viewport:      vp,
+		selected:      -1,
+		history:       NewHistory(nil, ""),
+		mode:          ModeCommand,
+		modeStates:    make(map[EditorMode]modeState),
+		statusMessage: "welcome to ze!",
 	}
 }
 
@@ -599,12 +601,10 @@ func (m *Model) updateCompletions() {
 			m.ghostText = m.commandCompleter.GhostText(args)
 		}
 
-	case m.mode == ModeCommand && isEditCommandWithArgs(input):
+	case m.mode == ModeCommand && isEditCommandWithArgs(input) && m.completer != nil:
 		// Command mode with a full config command followed by args: YANG completions.
-		if m.completer != nil {
-			m.completions = m.completer.Complete(input, m.contextPath)
-			m.ghostText = m.completer.GhostText(input, m.contextPath)
-		}
+		m.completions = m.completer.Complete(input, m.contextPath)
+		m.ghostText = m.completer.GhostText(input, m.contextPath)
 
 	case m.mode == ModeCommand:
 		// Command mode top-level: merge operational + config command completions.
@@ -661,6 +661,19 @@ func (m *Model) updateCompletions() {
 			m.completions = nil
 		}
 	}
+
+	m.syncGhostSuggestions()
+}
+
+// syncGhostSuggestions feeds the current ghost text into the textinput's
+// native suggestion system so the inline hint is rendered by textinput.View()
+// with correct cursor and padding handling.
+func (m *Model) syncGhostSuggestions() {
+	if m.ghostText == "" || m.showDropdown {
+		m.textInput.SetSuggestions(nil)
+		return
+	}
+	m.textInput.SetSuggestions([]string{m.textInput.Value() + m.ghostText})
 }
 
 // --- Public Accessor Methods for Testing ---

@@ -22,6 +22,7 @@ import (
 	"syscall"
 	"time"
 
+	zecli "codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	showCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
@@ -118,7 +119,7 @@ func forceExitOnSignal(sigCh <-chan os.Signal) {
 // store provides the I/O backend (filesystem or blob); used for config reads and reload.
 // chaosSeed > 0 enables chaos self-test mode; chaosRate < 0 means "use default".
 // Returns exit code.
-func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string) int {
+func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach ...bool) int {
 	if !skipRootCheck {
 		for _, w := range privilege.CheckPrivileges() {
 			fmt.Fprintln(os.Stderr, "warning: "+w)
@@ -150,7 +151,7 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	switch zeconfig.ProbeConfigType(string(data)) {
 	case zeconfig.ConfigTypeBGP, zeconfig.ConfigTypeUnknown:
 		// Non-BGP YANG config: auto-load plugins via ConfigRoots.
-		return runYANGConfig(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
+		return runYANGConfig(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, len(cliAttach) > 0 && cliAttach[0])
 	case zeconfig.ConfigTypeHub:
 		if len(plugins) > 0 {
 			fmt.Fprintf(os.Stderr, "error: --plugin is not supported with hub/orchestrator configs; use plugin { external ... } in the config file\n")
@@ -197,7 +198,7 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // runYANGConfig handles all YANG-based configs. Plugins are auto-loaded
 // via ConfigRoots matching: bgp {} loads BGP, interface {} loads iface, etc.
 // This is the unified startup path for all ze configs (except hub orchestrator mode).
-func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string) int { //nolint:cyclop // startup orchestration
+func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool) int { //nolint:cyclop // startup orchestration
 	// Close the AAA bundle on every exit path so TACACS+ accounting and other
 	// backend workers drain before the process terminates. swapAAABundle is
 	// called by infraSetup on config load; closeAAABundle here matches it.
@@ -786,7 +787,18 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	fmt.Println("Ze running. Press Ctrl+C to stop.")
+	if cliAttach {
+		fmt.Println("Ze running. Type 'exit' or Ctrl+D to detach CLI (daemon keeps running).")
+	} else {
+		fmt.Println("Ze running. Press Ctrl+C to stop.")
+	}
+
+	if cliAttach {
+		zecli.RunAttached(func(command string) (string, error) {
+			return dispatch(command, "root", "local")
+		})
+		fmt.Println("CLI detached. Press Ctrl+C to stop daemon.")
+	}
 
 	// Wait for either signal or server shutdown (e.g., "daemon shutdown" command).
 	// Server.Wait blocks until all plugin processes exit -- happens when a plugin

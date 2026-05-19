@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
@@ -92,6 +93,124 @@ func usage() {
 	p.Write()
 }
 
+// CommandFunc dispatches a CLI command and returns the response.
+type CommandFunc func(command string) (string, error)
+
+// RunAttached starts an interactive CLI session using a direct dispatch
+// function (no SSH). Called by `ze start --cli` after the daemon is ready.
+func RunAttached(dispatch CommandFunc) int {
+	return runInteractiveWithDispatch(dispatch)
+}
+
+func runInteractiveWithDispatch(dispatch CommandFunc) int {
+	m := unicli.NewCommandModel()
+
+	if dbPath := sshclient.ResolveDBPath(); dbPath != "" {
+		if store, storeErr := zefs.Open(dbPath); storeErr == nil {
+			defer store.Close() //nolint:errcheck // best-effort history
+			m.SetHistory(unicli.NewHistory(store, os.Getenv("USER")))
+		}
+	}
+
+	m.SetCommandExecutor(func(input string) (string, error) {
+		return dispatch(input)
+	})
+
+	cmdTree := buildRuntimeTreeFromDispatch(dispatch)
+	m.SetCommandCompleter(unicli.NewCommandCompleter(cmdTree))
+
+	m.SetDashboardFactory(func() (func() (string, error), error) {
+		return func() (string, error) {
+			return dispatch("bgp summary")
+		}, nil
+	})
+
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: open /dev/tty: %v\n", err)
+		return 1
+	}
+	defer tty.Close() //nolint:errcheck // best-effort cleanup
+
+	// Redirect daemon stdout/stderr to /dev/null while the TUI runs.
+	// Without this, slog and fmt.Println writes hit the same terminal
+	// as Bubble Tea, injecting bytes mid-frame and corrupting the display.
+	restoreOutput := silenceDaemonOutput()
+
+	p := tea.NewProgram(m, tea.WithInput(tty), tea.WithOutput(tty))
+	_, runErr := p.Run()
+
+	restoreOutput()
+
+	if runErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", runErr)
+		return 1
+	}
+
+	return 0
+}
+
+// silenceDaemonOutput redirects fd 1 (stdout) and fd 2 (stderr) to /dev/null.
+// Returns a function that restores the original fds.
+// Bubble Tea writes through its own /dev/tty handle, so it is unaffected.
+func silenceDaemonOutput() func() {
+	savedOut, outErr := syscall.Dup(1)
+	savedErr, errErr := syscall.Dup(2)
+	if outErr != nil || errErr != nil {
+		return func() {}
+	}
+
+	devNull, nullErr := syscall.Open(os.DevNull, os.O_WRONLY, 0)
+	if nullErr != nil {
+		syscall.Close(savedOut) //nolint:errcheck // cleanup
+		syscall.Close(savedErr) //nolint:errcheck // cleanup
+		return func() {}
+	}
+
+	syscall.Dup2(devNull, 1) //nolint:errcheck // best-effort redirect
+	syscall.Dup2(devNull, 2) //nolint:errcheck // best-effort redirect
+	syscall.Close(devNull)   //nolint:errcheck // fd already duped
+
+	return func() {
+		syscall.Dup2(savedOut, 1) //nolint:errcheck // restore
+		syscall.Dup2(savedErr, 2) //nolint:errcheck // restore
+		syscall.Close(savedOut)   //nolint:errcheck // cleanup
+		syscall.Close(savedErr)   //nolint:errcheck // cleanup
+	}
+}
+
+func runInteractiveSession(client *cliClient) int {
+	m := unicli.NewCommandModel()
+
+	if dbPath := sshclient.ResolveDBPath(); dbPath != "" {
+		if store, storeErr := zefs.Open(dbPath); storeErr == nil {
+			defer store.Close() //nolint:errcheck // best-effort history
+			m.SetHistory(unicli.NewHistory(store, os.Getenv("USER")))
+		}
+	}
+
+	m.SetCommandExecutor(func(input string) (string, error) {
+		return client.SendCommand(input)
+	})
+
+	cmdTree := buildRuntimeTree(client)
+	m.SetCommandCompleter(unicli.NewCommandCompleter(cmdTree))
+
+	m.SetDashboardFactory(func() (func() (string, error), error) {
+		return func() (string, error) {
+			return client.SendCommand("bgp summary")
+		}, nil
+	})
+
+	p := tea.NewProgram(m)
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+
+	return 0
+}
+
 // runBGP runs the BGP CLI using the unified cli.Model.
 func runBGP(args []string) int {
 	fs := flag.NewFlagSet("cli", flag.ExitOnError)
@@ -136,42 +255,7 @@ func runBGP(args []string) int {
 		return client.Execute(*runCmd, *format)
 	}
 
-	// Create unified model in command-only mode
-	m := unicli.NewCommandModel()
-
-	// Wire persistent command history from zefs (best-effort, no error on failure).
-	if dbPath := sshclient.ResolveDBPath(); dbPath != "" {
-		if store, storeErr := zefs.Open(dbPath); storeErr == nil {
-			defer store.Close() //nolint:errcheck // best-effort history
-			m.SetHistory(unicli.NewHistory(store, os.Getenv("USER")))
-		}
-	}
-
-	// Wire command executor: sends commands to daemon via SSH, returns response.
-	// Pipe processing (| table, | json, etc.) is handled by the unified model.
-	m.SetCommandExecutor(func(input string) (string, error) {
-		return client.SendCommand(input)
-	})
-
-	// Wire command completer from runtime-filtered command tree.
-	cmdTree := buildRuntimeTree(client)
-	m.SetCommandCompleter(unicli.NewCommandCompleter(cmdTree))
-
-	// Wire dashboard factory: polls via commandExecutor.
-	m.SetDashboardFactory(func() (func() (string, error), error) {
-		return func() (string, error) {
-			return client.SendCommand("bgp summary")
-		}, nil
-	})
-
-	// Run the bubbletea program
-	p := tea.NewProgram(m)
-	if _, err := p.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return 1
-	}
-
-	return 0
+	return runInteractiveSession(client)
 }
 
 // cliClient handles communication with the daemon via SSH exec.
@@ -412,6 +496,100 @@ func buildRuntimeTree(client *cliClient) *Command {
 	}
 
 	return tree
+}
+
+// buildRuntimeTreeFromDispatch is like buildRuntimeTree but uses a direct
+// dispatch function instead of an SSH client.
+func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
+	output, err := dispatch("system command list")
+	if err != nil {
+		return commandTree
+	}
+
+	var data struct {
+		Commands []struct {
+			Value string `json:"value"`
+		} `json:"commands"`
+	}
+	if json.Unmarshal([]byte(output), &data) != nil {
+		return commandTree
+	}
+
+	available := make(map[string]bool, len(data.Commands))
+	for _, c := range data.Commands {
+		available[strings.ToLower(c.Value)] = true
+	}
+
+	var filtered []cmd.RPCInfo
+	for _, reg := range AllCLIRPCs() {
+		if reg.PluginCommand != "" && !available[strings.ToLower(reg.PluginCommand)] {
+			continue
+		}
+		cliPath := cliWireToPath[reg.WireMethod]
+		if cliPath == "" {
+			continue
+		}
+		filtered = append(filtered, cmd.RPCInfo{
+			CLICommand: cliPath,
+			ReadOnly:   pluginserver.IsReadOnlyPath(cliPath),
+		})
+	}
+
+	tree := cmd.BuildTree(filtered, false)
+	wireValueHints(tree)
+
+	if tree.Children != nil {
+		if peerNode, ok := tree.Children["peer"]; ok {
+			peerNode.DynamicChildren = func() []cmd.Suggestion {
+				return fetchPeerSelectorsFromDispatch(dispatch)
+			}
+		}
+	}
+
+	return tree
+}
+
+func fetchPeerSelectorsFromDispatch(dispatch CommandFunc) []cmd.Suggestion {
+	if time.Since(peerCache.fetchedAt) < peerSelectorCacheTTL {
+		return peerCache.suggestions
+	}
+
+	output, err := dispatch("peer * list")
+	if err != nil {
+		return nil
+	}
+
+	var data struct {
+		Peers map[string]struct {
+			Name string `json:"name"`
+		} `json:"peers"`
+	}
+	if json.Unmarshal([]byte(output), &data) != nil {
+		return nil
+	}
+
+	var suggestions []cmd.Suggestion
+	for ip, info := range data.Peers {
+		suggestions = append(suggestions, cmd.Suggestion{
+			Text:        ip,
+			Description: "peer",
+			Type:        "selector",
+		})
+		if info.Name != "" {
+			suggestions = append(suggestions, cmd.Suggestion{
+				Text:        info.Name,
+				Description: "peer (" + ip + ")",
+				Type:        "selector",
+			})
+		}
+	}
+
+	peerCache = peerSelectorCache{
+		suggestions: suggestions,
+		fetchedAt:   time.Now(),
+	}
+
+	return suggestions
 }
 
 // peerSelectorCache holds cached peer selector suggestions with a TTL.

@@ -11,7 +11,6 @@ import (
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/muesli/reflow/ansi"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -819,22 +818,9 @@ func (m Model) buildPrompt() string {
 		promptStyle.Render("# ")
 }
 
-// renderInputWithGhost renders the text input with ghost text overlay.
+// renderInputWithGhost renders the text input.
+// Ghost text is rendered by the textinput's native suggestion feature,
+// so this is a simple pass-through.
 func (m Model) renderInputWithGhost() string {
-	// If we have ghost text and dropdown is not showing, render manually
-	// to avoid textinput's width padding pushing ghost text to the right
-	if m.ghostText != "" && !m.showDropdown {
-		value := m.textInput.Value()
-		prompt := m.textInput.Prompt // Include the "> " prompt
-		// Show: prompt + typed text + cursor on first ghost char + rest of ghost text
-		// Use reverse video for cursor block like textinput does
-		runes := []rune(m.ghostText)
-		cursor := lipgloss.NewStyle().Reverse(true).Render(string(runes[0]))
-		if len(runes) == 1 {
-			return prompt + value + cursor
-		}
-		return prompt + value + cursor + ghostStyle.Render(string(runes[1:]))
-	}
-
 	return m.textInput.View()
 }

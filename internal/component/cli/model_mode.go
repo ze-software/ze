@@ -99,6 +99,22 @@ var editModeCommands = map[string]bool{
 	cmdWho: true, cmdDisconnect: true,
 }
 
+// isOperationalVerb returns true if the input starts with a verb that works
+// in both edit mode (config viewer) and command mode (operational dispatch).
+// When no editor is loaded, these fall through to operational dispatch instead
+// of showing "edit mode not available".
+func isOperationalVerb(input string) bool {
+	fields := strings.Fields(input)
+	if len(fields) == 0 {
+		return false
+	}
+	switch fields[0] {
+	case cmdShow, cmdErrors, cmdWho, cmdCompare, cmdHistory:
+		return true
+	}
+	return false
+}
+
 // isEditCommand returns true if the input starts with a config editing command.
 func isEditCommand(input string) bool {
 	fields := strings.Fields(input)
