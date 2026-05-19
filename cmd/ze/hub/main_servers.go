@@ -23,6 +23,7 @@ import (
 	zegokrazy "codeberg.org/thomas-mangin/ze/internal/component/gokrazy"
 	"codeberg.org/thomas-mangin/ze/internal/component/lg"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
@@ -97,7 +98,10 @@ func serverDispatcher(s *pluginserver.Server) func(command, username, remoteAddr
 			if jsonErr != nil {
 				return "", fmt.Errorf("marshal response: %w", jsonErr)
 			}
-			return string(b), nil
+			data = string(b)
+		}
+		if resp.Status == plugin.StatusError {
+			return "", errors.New(data)
 		}
 		return data, nil
 	}
