@@ -1,0 +1,236 @@
+// Design: docs/features/interfaces.md — Per-interface rate tracking
+// Related: counters.go — baseline store for clear counters
+// Related: backend.go — Backend.ListInterfaces (raw kernel stats source)
+// Related: register.go — ConfigureMetrics callback and lifecycle
+
+package iface
+
+import (
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+)
+
+type ifaceMetrics struct {
+	rxBps     metrics.GaugeVec
+	txBps     metrics.GaugeVec
+	rxPps     metrics.GaugeVec
+	txPps     metrics.GaugeVec
+	rxBytes   metrics.GaugeVec
+	txBytes   metrics.GaugeVec
+	rxPackets metrics.GaugeVec
+	txPackets metrics.GaugeVec
+	rxErrors  metrics.GaugeVec
+	txErrors  metrics.GaugeVec
+	rxDropped metrics.GaugeVec
+	txDropped metrics.GaugeVec
+}
+
+var ifaceMetricsPtr atomic.Pointer[ifaceMetrics]
+
+func bindMetricsRegistry(reg metrics.Registry) {
+	if reg == nil {
+		return
+	}
+	m := &ifaceMetrics{
+		rxBps:     reg.GaugeVec("ze_interface_rx_bytes_per_second", "Interface RX bytes per second", []string{"name"}),
+		txBps:     reg.GaugeVec("ze_interface_tx_bytes_per_second", "Interface TX bytes per second", []string{"name"}),
+		rxPps:     reg.GaugeVec("ze_interface_rx_packets_per_second", "Interface RX packets per second", []string{"name"}),
+		txPps:     reg.GaugeVec("ze_interface_tx_packets_per_second", "Interface TX packets per second", []string{"name"}),
+		rxBytes:   reg.GaugeVec("ze_interface_rx_bytes_total", "Interface total RX bytes (raw kernel counter)", []string{"name"}),
+		txBytes:   reg.GaugeVec("ze_interface_tx_bytes_total", "Interface total TX bytes (raw kernel counter)", []string{"name"}),
+		rxPackets: reg.GaugeVec("ze_interface_rx_packets_total", "Interface total RX packets (raw kernel counter)", []string{"name"}),
+		txPackets: reg.GaugeVec("ze_interface_tx_packets_total", "Interface total TX packets (raw kernel counter)", []string{"name"}),
+		rxErrors:  reg.GaugeVec("ze_interface_rx_errors_total", "Interface total RX errors (raw kernel counter)", []string{"name"}),
+		txErrors:  reg.GaugeVec("ze_interface_tx_errors_total", "Interface total TX errors (raw kernel counter)", []string{"name"}),
+		rxDropped: reg.GaugeVec("ze_interface_rx_dropped_total", "Interface total RX dropped (raw kernel counter)", []string{"name"}),
+		txDropped: reg.GaugeVec("ze_interface_tx_dropped_total", "Interface total TX dropped (raw kernel counter)", []string{"name"}),
+	}
+	ifaceMetricsPtr.Store(m)
+}
+
+var globalTracker atomic.Pointer[rateTracker]
+
+// rateTracker computes per-interface rates from kernel counter deltas.
+//
+// Goroutine confinement: prev, prevAt, and knownNames are accessed
+// only by the ticker goroutine (via collect). The mutex protects
+// rates for concurrent reads from snapshot/get.
+type rateTracker struct {
+	mu    sync.RWMutex
+	rates map[string]InterfaceRate // guarded by mu
+
+	prev       map[string]InterfaceStats // ticker goroutine only
+	prevAt     time.Time                 // ticker goroutine only
+	knownNames map[string]bool           // ticker goroutine only
+	stopCh     chan struct{}
+}
+
+func newRateTracker() *rateTracker {
+	return &rateTracker{
+		prev:       make(map[string]InterfaceStats),
+		rates:      make(map[string]InterfaceRate),
+		knownNames: make(map[string]bool),
+	}
+}
+
+func (t *rateTracker) Start() {
+	t.stopCh = make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				t.collect()
+			case <-t.stopCh:
+				return
+			}
+		}
+	}()
+}
+
+func (t *rateTracker) Stop() {
+	if t.stopCh != nil {
+		close(t.stopCh)
+	}
+}
+
+func (t *rateTracker) collect() {
+	b := GetBackend()
+	if b == nil {
+		return
+	}
+
+	ifs, err := b.ListInterfaces()
+	if err != nil {
+		return
+	}
+
+	now := time.Now()
+	elapsed := now.Sub(t.prevAt).Seconds()
+	hasPrev := !t.prevAt.IsZero() && elapsed > 0
+
+	current := make(map[string]InterfaceStats, len(ifs))
+	newRates := make(map[string]InterfaceRate, len(ifs))
+	newNames := make(map[string]bool, len(ifs))
+
+	for i := range ifs {
+		info := &ifs[i]
+		if info.Stats == nil {
+			continue
+		}
+		stats := *info.Stats
+		current[info.Name] = stats
+		newNames[info.Name] = true
+
+		rate := InterfaceRate{
+			Name:  info.Name,
+			Stats: &stats,
+		}
+
+		if hasPrev {
+			if prev, ok := t.prev[info.Name]; ok {
+				rate.RxBps = rateDelta(info.Stats.RxBytes, prev.RxBytes, elapsed)
+				rate.TxBps = rateDelta(info.Stats.TxBytes, prev.TxBytes, elapsed)
+				rate.RxPps = rateDelta(info.Stats.RxPackets, prev.RxPackets, elapsed)
+				rate.TxPps = rateDelta(info.Stats.TxPackets, prev.TxPackets, elapsed)
+			}
+		}
+
+		newRates[info.Name] = rate
+	}
+
+	previousNames := t.knownNames
+
+	t.mu.Lock()
+	t.prev = current
+	t.prevAt = now
+	t.rates = newRates
+	t.knownNames = newNames
+	t.mu.Unlock()
+
+	updateIfaceMetrics(newRates)
+	cleanStaleIfaceMetrics(previousNames, newNames)
+}
+
+func rateDelta(cur, prev uint64, elapsed float64) float64 {
+	if cur < prev {
+		return 0
+	}
+	return float64(cur-prev) / elapsed
+}
+
+func (t *rateTracker) snapshot() map[string]InterfaceRate {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	out := make(map[string]InterfaceRate, len(t.rates))
+	for k, v := range t.rates {
+		if v.Stats != nil {
+			s := *v.Stats
+			v.Stats = &s
+		}
+		out[k] = v
+	}
+	return out
+}
+
+func (t *rateTracker) get(name string) (InterfaceRate, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	r, ok := t.rates[name]
+	if ok && r.Stats != nil {
+		s := *r.Stats
+		r.Stats = &s
+	}
+	return r, ok
+}
+
+func updateIfaceMetrics(rates map[string]InterfaceRate) {
+	m := ifaceMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	for _, r := range rates {
+		m.rxBps.With(r.Name).Set(r.RxBps)
+		m.txBps.With(r.Name).Set(r.TxBps)
+		m.rxPps.With(r.Name).Set(r.RxPps)
+		m.txPps.With(r.Name).Set(r.TxPps)
+		if r.Stats != nil {
+			m.rxBytes.With(r.Name).Set(float64(r.Stats.RxBytes))
+			m.txBytes.With(r.Name).Set(float64(r.Stats.TxBytes))
+			m.rxPackets.With(r.Name).Set(float64(r.Stats.RxPackets))
+			m.txPackets.With(r.Name).Set(float64(r.Stats.TxPackets))
+			m.rxErrors.With(r.Name).Set(float64(r.Stats.RxErrors))
+			m.txErrors.With(r.Name).Set(float64(r.Stats.TxErrors))
+			m.rxDropped.With(r.Name).Set(float64(r.Stats.RxDropped))
+			m.txDropped.With(r.Name).Set(float64(r.Stats.TxDropped))
+		}
+	}
+}
+
+func cleanStaleIfaceMetrics(previousNames, currentNames map[string]bool) {
+	m := ifaceMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	for name := range previousNames {
+		if currentNames[name] {
+			continue
+		}
+		m.rxBps.Delete(name)
+		m.txBps.Delete(name)
+		m.rxPps.Delete(name)
+		m.txPps.Delete(name)
+		m.rxBytes.Delete(name)
+		m.txBytes.Delete(name)
+		m.rxPackets.Delete(name)
+		m.txPackets.Delete(name)
+		m.rxErrors.Delete(name)
+		m.txErrors.Delete(name)
+		m.rxDropped.Delete(name)
+		m.txDropped.Delete(name)
+	}
+}

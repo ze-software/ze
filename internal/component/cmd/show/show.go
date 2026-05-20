@@ -640,6 +640,11 @@ func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin
 		return showInterfaceErrors()
 	}
 
+	// "show interface rate [<name>]" -- per-second rate data.
+	if len(args) > 0 && args[0] == "rate" {
+		return handleShowInterfaceRate(args[1:])
+	}
+
 	// "show interface <name> [counters]" -- single interface, optionally counters only.
 	if len(args) > 0 {
 		info, err := iface.GetInterface(args[0])

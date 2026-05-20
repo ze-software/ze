@@ -150,6 +150,8 @@ the bus from buggy or malicious producers.
 | `ze-show:dns-cache` | `handleDNSCache` in `dns.go` | `{"entries": N, "capacity": N, "hits": N, "misses": N, "evictions": N, "expired": N}` |
 | `ze-show:system-profile` | `handleShowSystemProfile` in `profile.go` | `{"type": "...", "format": "pprof-base64", "data": "..."}` |
 | `ze-show:system-memory-map` | `handleShowSystemMemoryMap` in `memory_map_linux.go` | `{"vm-rss-kb": N, "vm-size-kb": N, ...}` (Linux only) |
+| `ze-show:interface` (args: `rate [<name>]`) | `handleShowInterfaceRate` in `interface_rate.go` | JSON array of `InterfaceRate` (all) or single object (named); fields: `name`, `rx-bps`, `tx-bps`, `rx-pps`, `tx-pps`, `stats` |
+| `ze-monitor:interface-rate` | `streamInterfaceRate` in `interface_rate.go` | Streaming JSON lines (1/s); optional `<name>` filter |
 
 Both warnings/errors handlers accept optional `source <name>` filter and
 errors accepts `count <N>` limit. Return a non-nil empty slice when empty.

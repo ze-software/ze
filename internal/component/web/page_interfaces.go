@@ -44,6 +44,8 @@ func ifaceFlag(info iface.InterfaceInfo) (string, string) {
 // InterfaceInfo. filterType, when non-empty, restricts the table to
 // interfaces matching that type.
 func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) WorkbenchTableData {
+	rates := iface.ListRates()
+
 	columns := []WorkbenchTableColumn{
 		{Key: "name", Label: "Name", Sortable: true},
 		{Key: "type", Label: "Type", Sortable: true},
@@ -51,6 +53,10 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 		{Key: "mtu", Label: "MTU", Sortable: true},
 		{Key: "mac", Label: "MAC"},
 		{Key: "addresses", Label: "Addresses"},
+		{Key: "rx-bps", Label: "RX bps", Sortable: true},
+		{Key: "tx-bps", Label: "TX bps", Sortable: true},
+		{Key: "rx-pps", Label: "RX pps", Sortable: true},
+		{Key: "tx-pps", Label: "TX pps", Sortable: true},
 	}
 
 	var rows []WorkbenchTableRow
@@ -76,12 +82,22 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 			mac = "-"
 		}
 
+		rxBps, txBps, rxPps, txPps := "-", "-", "-", "-"
+		if rates != nil {
+			if r, ok := rates[info.Name]; ok {
+				rxBps = formatRate(r.RxBps)
+				txBps = formatRate(r.TxBps)
+				rxPps = formatRate(r.RxPps)
+				txPps = formatRate(r.TxPps)
+			}
+		}
+
 		rows = append(rows, WorkbenchTableRow{
 			Key:       info.Name,
 			URL:       "/show/iface/detail/" + info.Name,
 			Flags:     flags,
 			FlagClass: flagClass,
-			Cells:     []string{info.Name, info.Type, info.State, strconv.Itoa(info.MTU), mac, addrStr},
+			Cells:     []string{info.Name, info.Type, info.State, strconv.Itoa(info.MTU), mac, addrStr, rxBps, txBps, rxPps, txPps},
 			Actions: []WorkbenchRowAction{
 				{Label: "Detail", URL: "/show/iface/detail/" + info.Name},
 			},
@@ -204,12 +220,12 @@ func buildDetailCountersHTML(info *iface.InterfaceInfo) template.HTML {
 	fmt.Fprintf(&b, ` hx-get="/show/iface/counters/%s" hx-trigger="every 3s" hx-swap="innerHTML"`,
 		template.HTMLEscapeString(info.Name))
 	b.WriteString(`>`)
-	b.WriteString(formatCountersTable(info.Stats))
+	b.WriteString(formatCountersTable(info.Stats, info.Name))
 	b.WriteString(`</div>`)
 	return template.HTML(b.String()) //nolint:gosec // trusted builder output
 }
 
-func formatCountersTable(stats *iface.InterfaceStats) string {
+func formatCountersTable(stats *iface.InterfaceStats, name string) string {
 	var b strings.Builder
 	b.WriteString(`<table class="wb-detail-kv">`)
 	if stats != nil {
@@ -224,6 +240,12 @@ func formatCountersTable(stats *iface.InterfaceStats) string {
 	} else {
 		writeKV(&b, "Counters", "not available")
 	}
+	if r, ok := iface.GetRate(name); ok {
+		writeKV(&b, "RX bps", formatRate(r.RxBps))
+		writeKV(&b, "TX bps", formatRate(r.TxBps))
+		writeKV(&b, "RX pps", formatRate(r.RxPps))
+		writeKV(&b, "TX pps", formatRate(r.TxPps))
+	}
 	b.WriteString(`</table>`)
 	return b.String()
 }
@@ -235,6 +257,16 @@ func capitalizeFirst(s string) string {
 		return s
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+func formatRate(v float64) string {
+	if v < 0.1 {
+		return "0"
+	}
+	if v < 10 {
+		return strconv.FormatFloat(v, 'f', 1, 64)
+	}
+	return strconv.FormatFloat(v, 'f', 0, 64)
 }
 
 func writeKV(b *strings.Builder, key, value string) {
@@ -290,7 +322,7 @@ func handleInterfaceDetailContent(renderer *Renderer, name string) template.HTML
 func handleInterfaceCountersContent(name string) template.HTML {
 	stats, err := iface.GetStats(name)
 	if err != nil {
-		return template.HTML(formatCountersTable(nil)) //nolint:gosec // trusted builder output
+		return template.HTML(formatCountersTable(nil, name)) //nolint:gosec // trusted builder output
 	}
-	return template.HTML(formatCountersTable(stats)) //nolint:gosec // trusted builder output
+	return template.HTML(formatCountersTable(stats, name)) //nolint:gosec // trusted builder output
 }

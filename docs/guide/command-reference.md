@@ -362,6 +362,8 @@ ze show interface <name>           # Show details for one interface
 ze show interface <name> counters  # Counters only for named interface
 ze show interface type <type>      # Filter by type (ethernet, bridge, vxlan, wireguard, ...)
 ze show interface errors           # Interfaces with non-zero Rx/Tx error or drop counters
+ze show interface rate             # Per-second rate data for all interfaces
+ze show interface rate <name>      # Per-second rate data for one interface
 ze show interface --json           # JSON output
 ze interface create dummy <name>   # Create a dummy interface
 ze interface create veth <n> <p>   # Create a veth pair
@@ -1482,6 +1484,19 @@ Stream kernel netlink events as one JSON line per event. Replaces `ip monitor` o
 
 Streaming command: use in interactive `ze cli` or via SSH. Press Esc to stop.
 <!-- source: internal/component/cmd/show/netlink_monitor_linux.go -- streamNetlinkMonitor -->
+
+### Interface Rate Monitoring
+
+```
+monitor interface rate [<name>]
+```
+
+Stream per-second interface rate data as JSON lines (one line per tick, 1s interval). Without a name, streams all interfaces sorted by name. With a name, streams only that interface.
+
+Each JSON line contains: `name`, `rx-bps`, `tx-bps`, `rx-pps`, `tx-pps`, and the raw kernel `stats` snapshot (8 counters). Rate values are computed from raw kernel counter deltas; counter wraps produce 0 rather than negative spikes.
+
+Streaming command: use in interactive `ze cli` or via SSH. Press Esc to stop.
+<!-- source: internal/component/cmd/show/interface_rate.go -- streamInterfaceRate -->
 
 ### Metrics
 

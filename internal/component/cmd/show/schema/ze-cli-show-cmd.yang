@@ -506,6 +506,12 @@ module ze-cli-show-cmd {
                 ze:command "ze-show:interface";
                 description "Show only interfaces with non-zero Rx/Tx error or drop counters";
             }
+
+            container rate {
+                config false;
+                ze:command "ze-show:interface";
+                description "Per-second rate data (rx/tx bytes/packets per second) for all interfaces or a named interface";
+            }
         }
 
         container ip {

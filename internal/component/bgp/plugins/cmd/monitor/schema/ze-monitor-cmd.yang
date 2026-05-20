@@ -37,6 +37,18 @@ module ze-monitor-cmd {
             description "Live mtr-style traceroute (<target> [max-hops N])";
         }
 
+        container interface {
+            config false;
+            description "Interface monitoring commands";
+
+            container rate {
+                config false;
+                ze:command "ze-monitor:interface-rate";
+                ze:task-support required;
+                description "Stream per-second interface rate data (rx/tx bytes and packets per second). Optional interface name filter.";
+            }
+        }
+
         container system {
             config false;
             description "System-level monitor commands";
