@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 1/8 |
 | Updated | 2026-05-20 |
 
 ## Post-Compaction Recovery
@@ -384,16 +384,26 @@ MUST document: payload type values, length field semantics, critical bit handlin
 ## Implementation Summary
 
 ### What Was Implemented
-- (to be filled)
+- Complete IKEv2 wire format codec at `internal/component/ike/wire/`
+- 28-byte header encode/decode with version field packing
+- All 15 payload types (SA, KE, IDi, IDr, CERT, CERTREQ, AUTH, Nonce, Notify, Delete, VendorID, TSi, TSr, SK, CP, EAP)
+- Full message encode/decode with payload chain (next-payload chaining)
+- SA payload with nested Proposal and Transform sub-structures
+- Skip-and-backfill encoding for variable-length payloads
+- Unknown payload handling per RFC 7296 (skip non-critical, reject critical)
+- 30 unit tests covering all ACs
 
 ### Bugs Found/Fixed
-- (to be filled)
+- TS address splitting did not validate even-length data; odd-length would silently drop a byte
+- TS address decoding did not validate size against TS type (IPv4=4, IPv6=16)
+- Proposal.WriteTo could panic if SPISize > len(SPI); added bounds guard
+- Delete payload overflow guard added for NumSPIs * SPISize multiplication
 
 ### Documentation Updates
-- (to be filled)
+- Learned summary: plan/learned/737-ipsec-5-ikev2-wire.md
 
 ### Deviations from Plan
-- (to be filled)
+- None
 
 ## Implementation Audit
 
