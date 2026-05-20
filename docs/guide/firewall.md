@@ -206,6 +206,44 @@ firewall {
 }
 ```
 
+## Global Options
+
+The `global-options` container provides keyword toggles for common network
+security defaults. Each keyword maps to a kernel sysctl. At
+config apply time, the firewall component emits these as sysctl defaults via
+EventBus. Explicit `sysctl { setting { ... } }` entries always override
+global-options (three-layer priority: config > transient > default).
+
+<!-- source: internal/component/firewall/config.go -- ExtractGlobalOptions, globalOptionDefs -->
+<!-- source: internal/component/firewall/engine.go -- emitGlobalOptionsSysctlDefaults -->
+
+```
+firewall {
+    backend nft;
+    global-options {
+        all-ping enable;
+        syn-cookies enable;
+        source-validation strict;
+        log-martians enable;
+    }
+}
+```
+
+| Keyword | Sysctl | enable | disable |
+|---------|--------|--------|---------|
+| `all-ping` | `net.ipv4.icmp_echo_ignore_all` | 0 (allow) | 1 (ignore) |
+| `broadcast-ping` | `net.ipv4.icmp_echo_ignore_broadcasts` | 0 (allow) | 1 (ignore) |
+| `syn-cookies` | `net.ipv4.tcp_syncookies` | 1 | 0 |
+| `receive-redirects` | `net.ipv4.conf.all.accept_redirects` | 1 | 0 |
+| `send-redirects` | `net.ipv4.conf.all.send_redirects` | 1 | 0 |
+| `source-validation` | `net.ipv4.conf.all.rp_filter` | disable=0, strict=1, loose=2 | - |
+| `log-martians` | `net.ipv4.conf.all.log_martians` | 1 | 0 |
+| `ipv6-receive-redirects` | `net.ipv6.conf.all.accept_redirects` | 1 | 0 |
+| `ipv6-src-route` | `net.ipv6.conf.all.accept_source_route` | 1 | 0 |
+
+Note: `all-ping` and `broadcast-ping` have inverted semantics because the
+underlying sysctl controls "ignore" behavior.
+
 ## CLI
 
 | Command | Description |
