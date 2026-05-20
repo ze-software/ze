@@ -1,0 +1,8 @@
+# strongSwan/charon peer for IPsec interop lab.
+# Runs charon directly in foreground (no systemd, no ipsec starter).
+
+FROM alpine:3.21
+
+RUN apk add --no-cache strongswan iproute2 iptables tini
+
+ENTRYPOINT ["tini", "--", "/usr/lib/strongswan/charon"]

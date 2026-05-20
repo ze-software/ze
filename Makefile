@@ -6,7 +6,7 @@
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test ze-managed-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
-.PHONY: ze-interop-test ze-stress-test ze-stress-bird-test ze-stress-profile ze-live-test ze-live-rpki-test
+.PHONY: ze-interop-test ze-ipsec-interop-test ze-stress-test ze-stress-bird-test ze-stress-profile ze-live-test ze-live-rpki-test
 .PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test ze-docker-evidence ze-deployment-preflight ze-qemu-integration-test ze-qemu-l2tp-ppp-test
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test
@@ -497,6 +497,14 @@ INTEROP_SCENARIO ?=
 ze-interop-test:
 	@echo "Running interop tests (requires Docker)..."
 	@python3 test/interop/run.py $(INTEROP_SCENARIO)
+
+# Run IPsec IKEv2 interop tests against strongSwan (requires Docker + privileged).
+# Run single scenario: make ze-ipsec-interop-test IPSEC_INTEROP_SCENARIO=01-psk-site-to-site
+IPSEC_INTEROP_SCENARIO ?=
+
+ze-ipsec-interop-test:
+	@echo "Running IPsec interop tests (requires Docker + privileged containers)..."
+	python3 test/ipsec-interop/run.py $(IPSEC_INTEROP_SCENARIO)
 
 # ─── Stress tests (ze-test peer injector) ──────────────────────────────────
 
@@ -1170,6 +1178,7 @@ help:
 	@echo "  ze-deployment-l2tp-test - Run external L2TP peer deployment test in Docker"
 	@echo "  ze-deployment-l2tp-ppp-test - Run full L2TP PPP/NCP peer test in Linux netns"
 	@echo "  ze-deployment-l2tp-ppp-docker-test - Run L2TP PPP/NCP peer-isolated Docker lab (Ze LNS + LAC + FRR)"
+	@echo "  ze-ipsec-interop-test    - Run IPsec IKEv2 interop tests against strongSwan"
 	@echo "  ze-docker-evidence EVIDENCE_SCRIPT=... EVIDENCE_PACKAGES=... - Run any evidence script in Docker"
 	@echo "  ze-deployment-preflight - Check deployment test tooling"
 	@echo "  ze-qemu-integration-test - Run integration tests in QEMU VM (macOS-friendly)"
