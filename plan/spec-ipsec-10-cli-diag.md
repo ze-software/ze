@@ -1,9 +1,9 @@
-# Spec: ipsec-5 -- IPsec CLI and Diagnostics
+# Spec: ipsec-10 -- IPsec CLI and Diagnostics
 
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | spec-ipsec-4-strongswan |
+| Depends | ipsec-8 |
 | Phase | - |
 | Updated | 2026-05-19 |
 
@@ -13,7 +13,8 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` -- workflow rules
 3. `spec-ipsec-0-umbrella.md` -- umbrella design decisions
-4. `spec-ipsec-4-strongswan.md` -- VICI client, supervisor, bus events (this spec consumes them)
+4. `spec-ipsec-7-ikev2-engine.md` -- IKE engine SA table and bus events (this spec consumes them)
+5. `spec-ipsec-8-ikev2-child-xfrm.md` -- Child SA state and dataplane (this spec queries it)
 5. `internal/component/cmd/show/` -- existing show command patterns
 6. `internal/component/cmd/clear/` -- existing clear command patterns
 7. `internal/component/cli/model_ping.go` -- monitor model pattern (live streaming via bus)
@@ -25,14 +26,14 @@
 
 Add CLI commands, web UI, health monitoring, and Prometheus metrics for IPsec tunnels.
 This is the presentation and observability layer for the IPsec subsystem. All data
-comes from the VICI client (spec ipsec-4) and bus events; this spec creates no new
-kernel or strongSwan interactions.
+comes from the IKE engine's in-memory SA table (spec ipsec-7/8) and bus events;
+this spec creates no new kernel or network interactions.
 
 Six command groups:
 - `show vpn ipsec sa` -- list all Security Associations
 - `show vpn ipsec status` -- overall IPsec subsystem status
 - `show vpn ipsec peer <name>` -- per-peer detail
-- `clear vpn ipsec sa` -- terminate all SAs (charon re-establishes per close-action)
+- `clear vpn ipsec sa` -- terminate all SAs (IKE engine re-establishes per close-action)
 - `clear vpn ipsec sa peer <name>` -- terminate specific peer
 - `monitor vpn ipsec` -- live SA state change stream
 
@@ -44,7 +45,7 @@ A web page at `/vpn/ipsec` provides a live SA table with SSE updates, matching
 the existing HTMX pattern used by system and BGP pages.
 
 Health checks register the IPsec component and drive status from tunnel state
-(all up = healthy, some down = degraded, charon not running = down).
+(all up = healthy, some down = degraded, engine stopped = down).
 
 Prometheus metrics expose tunnel counts, per-peer up/down gauges, byte counters,
 and rekey counts.
@@ -72,7 +73,7 @@ and rekey counts.
 - Monitor models subscribe to bus events and render each event as it arrives
 - Web SSE streams the same bus events to the browser for live updates
 - Health checks are stateless functions called on demand by the health registry
-- Prometheus collectors scrape on demand; IPsec collector queries VICI for current SA state
+- Prometheus collectors scrape on demand; IPsec collector queries IKE engine for current SA state
 
 ## Current Behavior (MANDATORY)
 
@@ -80,15 +81,15 @@ and rekey counts.
 - [ ] `internal/component/cmd/show/firewall.go` -- show command pattern: dispatch handler receives context, queries state, returns JSON string via ApplyPipes
   -> Constraint: IPsec show handlers follow same signature and JSON return pattern
 - [ ] `internal/component/cmd/clear/dns.go` -- clear command pattern: dispatch handler calls action, returns success JSON
-  -> Constraint: clear ipsec sa follows same pattern, calls VICI terminate
+  -> Constraint: clear ipsec sa follows same pattern, calls IKE engine to terminate SAs
 - [ ] `internal/component/cli/model_ping.go` -- monitor ping: NewPingModel subscribes to bus, renders hop stats in real-time
   -> Decision: NewIPsecMonitorModel subscribes to vpn/ipsec/* bus topics, renders SA state changes
 - [ ] `internal/component/web/page_system.go` -- web page: register route, render template, SSE endpoint for live data
   -> Decision: `/vpn/ipsec` page registers same way, SSE streams SA events
 - [ ] `internal/core/health/registry.go` -- health.Registry.Register(name, checkFn) at component startup
-  -> Constraint: IPsec registers check that queries supervisor and VICI for charon state + SA health
+  -> Constraint: IPsec registers check that queries IKE engine for SA health state
 - [ ] `internal/component/telemetry/collector/` -- Prometheus Collector interface: Describe sends metric descs, Collect sends current values
-  -> Decision: IPsec collector queries VICI list-sas on each scrape
+  -> Decision: IPsec collector queries IKE engine ListSAs on each scrape
 
 **Behavior to preserve:**
 - Existing show/clear command dispatch unchanged
@@ -112,13 +113,13 @@ and rekey counts.
 - CLI: user types `show vpn ipsec sa` in SSH CLI session
 - CLI: user types `monitor vpn ipsec` for live streaming
 - Web: browser requests `/vpn/ipsec` page or subscribes to SSE endpoint
-- Prometheus: scrape hits `/metrics` endpoint, collector queries VICI
+- Prometheus: scrape hits `/metrics` endpoint, collector queries IKE engine
 - Health: health registry calls IPsec check function on demand
 
 ### Transformation Path
 1. CLI dispatch matches `show vpn ipsec sa` dispatch key, calls show handler
-2. Show handler calls IPsec component's VICI client `ListSAs()` method (from ipsec-4)
-3. VICI response parsed into `[]SAInfo` Go structs
+2. Show handler calls IPsec component's IKE engine `ListSAs()` method (from ipsec-4)
+3. IKE engine returns `[]SAInfo` Go structs directly (in-process call)
 4. Handler marshals structs to JSON string
 5. JSON string passed through `ApplyPipes` which formats per active pipe operator
 6. Formatted output returned to CLI session
@@ -133,23 +134,23 @@ For monitor:
 | Boundary | How | Verified |
 |----------|-----|----------|
 | CLI dispatch to show handler | YANG-registered dispatch key to Go handler function | [ ] |
-| Show handler to VICI client | Go method call on IPsec component's VICI client | [ ] |
-| VICI client to charon | Unix socket, VICI protocol (from ipsec-4) | [ ] |
+| Show handler to IKE engine | Go method call on IPsec component's IKE engine | [ ] |
+| Show handler to IKE engine SA table | In-process Go method call (ListSAs, GetPeer) | [ ] |
 | Show handler to pipe layer | JSON string passed to ApplyPipes | [ ] |
 | Bus events to monitor model | EventBus subscription with topic filter | [ ] |
 | Bus events to web SSE | EventBus subscription in SSE handler goroutine | [ ] |
 | Prometheus scrape to collector | Collector.Collect() called by Prometheus registry | [ ] |
 
 ### Integration Points
-- `internal/component/ipsec/` -- VICI client for SA queries, supervisor for charon state (from ipsec-4)
+- `internal/component/ike/` -- IKE engine SA table for queries (from ipsec-7/8)
 - `internal/component/command/pipe.go` -- ApplyPipes for pipe operator support
 - `internal/core/events/EventBus` -- bus subscription for monitor and web SSE
 - `internal/core/health/Registry` -- health check registration
 - `internal/component/telemetry/` -- Prometheus collector registration
 
 ### Architectural Verification
-- [ ] No bypassed layers (show commands go through dispatch + pipes, not direct VICI)
-- [ ] No unintended coupling (CLI layer depends on IPsec component interface, not VICI internals)
+- [ ] No bypassed layers (show commands go through dispatch + pipes, not direct engine access)
+- [ ] No unintended coupling (CLI layer depends on IPsec component interface, not engine internals)
 - [ ] No duplicated functionality (reuses existing pipe, bus, health, telemetry infrastructure)
 - [ ] Zero-copy preserved where applicable (JSON strings, not re-serialized)
 
@@ -157,10 +158,10 @@ For monitor:
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| `show vpn ipsec sa` dispatch key | -> | IPsec SA show handler queries VICI, returns JSON | `test/ipsec/ipsec-show-sa.ci` |
-| `show vpn ipsec status` dispatch key | -> | IPsec status handler returns charon + connection state | `test/ipsec/ipsec-show-status.ci` |
+| `show vpn ipsec sa` dispatch key | -> | IPsec SA show handler queries IKE engine, returns JSON | `test/ipsec/ipsec-show-sa.ci` |
+| `show vpn ipsec status` dispatch key | -> | IPsec status handler returns engine + connection state | `test/ipsec/ipsec-show-status.ci` |
 | `show vpn ipsec peer <name>` dispatch key | -> | Per-peer detail handler returns IKE SA + child SAs | `test/ipsec/ipsec-show-peer.ci` |
-| `clear vpn ipsec sa` dispatch key | -> | Clear handler calls VICI terminate | `test/ipsec/ipsec-clear-sa.ci` |
+| `clear vpn ipsec sa` dispatch key | -> | Clear handler calls IKE engine to terminate SAs | `test/ipsec/ipsec-clear-sa.ci` |
 | `monitor vpn ipsec` dispatch key | -> | IPsecMonitorModel subscribes to bus, renders events | `test/ipsec/ipsec-monitor.ci` |
 
 ## Acceptance Criteria
@@ -169,13 +170,13 @@ For monitor:
 |-------|-------------------|-------------------|
 | AC-1 | `show vpn ipsec sa` with active tunnels | Lists all SAs with peer name, algorithms, bytes in/out, rekey time, uptime |
 | AC-2 | `show vpn ipsec sa \| json` | Produces valid JSON array of SA objects |
-| AC-3 | `show vpn ipsec status` | Shows charon running state, count of configured connections, count of active IKE SAs |
+| AC-3 | `show vpn ipsec status` | Shows IKE engine state, count of configured connections, count of active IKE SAs |
 | AC-4 | `show vpn ipsec peer management-bridge` | Shows detailed peer info: IKE SA state, child SAs with traffic selectors, byte counts |
-| AC-5 | `clear vpn ipsec sa` | Terminates all IKE SAs via VICI terminate; charon re-establishes per close-action |
+| AC-5 | `clear vpn ipsec sa` | Terminates all IKE SAs via IKE engine; peers re-establish per close-action |
 | AC-6 | `clear vpn ipsec sa peer management-bridge` | Terminates only the named peer's IKE SA |
 | AC-7 | `monitor vpn ipsec` with tunnel flap | Streams SA state changes (up, down, rekeyed) as they happen |
 | AC-8 | Browser at `/vpn/ipsec` | Shows SA table with live SSE updates when SA state changes |
-| AC-9 | IPsec component running | Health check registered; all tunnels up = healthy, some down = degraded, charon dead = down |
+| AC-9 | IPsec component running | Health check registered; all tunnels up = healthy, some down = degraded, engine stopped = down |
 | AC-10 | Prometheus scrape at `/metrics` | Exposes ipsec_sa_count, ipsec_tunnel_up (gauge per peer), ipsec_bytes_in_total, ipsec_bytes_out_total, ipsec_rekey_total |
 | AC-11 | `show vpn ipsec sa \| table`, `\| text`, `\| yaml`, `\| match`, `\| count` | All pipe operators produce correct output |
 
@@ -186,10 +187,10 @@ For monitor:
 |------|------|-----------|--------|
 | `TestShowIPsecSA` | `internal/component/cmd/show/ipsec_test.go` | SA query returns JSON with peer, algo, bytes, rekey, uptime fields | |
 | `TestShowIPsecSAEmpty` | `internal/component/cmd/show/ipsec_test.go` | No active SAs returns empty JSON array | |
-| `TestShowIPsecStatus` | `internal/component/cmd/show/ipsec_test.go` | Status includes charon state, configured count, active count | |
+| `TestShowIPsecStatus` | `internal/component/cmd/show/ipsec_test.go` | Status includes engine state, configured count, active count | |
 | `TestShowIPsecPeer` | `internal/component/cmd/show/ipsec_test.go` | Per-peer detail includes IKE SA + child SAs | |
 | `TestShowIPsecPeerNotFound` | `internal/component/cmd/show/ipsec_test.go` | Unknown peer returns error JSON | |
-| `TestClearIPsecSA` | `internal/component/cmd/clear/ipsec_test.go` | Clear calls VICI terminate for all IKE SAs | |
+| `TestClearIPsecSA` | `internal/component/cmd/clear/ipsec_test.go` | Clear calls IKE engine to terminate all IKE SAs | |
 | `TestClearIPsecSAPeer` | `internal/component/cmd/clear/ipsec_test.go` | Clear with peer name terminates only that peer | |
 | `TestIPsecMonitorModel` | `internal/component/cli/model_ipsec_test.go` | Model receives bus events and renders state changes | |
 | `TestIPsecHealthCheck` | `internal/component/ipsec/health_test.go` | Health function returns healthy/degraded/down based on SA state | |
@@ -247,12 +248,12 @@ For monitor:
 2. **Phase: Show commands** -- implement SA query, status, per-peer detail
    - Tests: `TestShowIPsecSA`, `TestShowIPsecSAEmpty`, `TestShowIPsecStatus`, `TestShowIPsecPeer`, `TestShowIPsecPeerNotFound`
    - Files: `internal/component/cmd/show/ipsec.go`
-   - Verify: show handlers query VICI client and return correct JSON; pipe operators work
+   - Verify: show handlers query IKE engine and return correct JSON; pipe operators work
 
 3. **Phase: Clear commands** -- implement SA termination
    - Tests: `TestClearIPsecSA`, `TestClearIPsecSAPeer`
    - Files: `internal/component/cmd/clear/ipsec.go`
-   - Verify: clear calls VICI terminate, returns success/error JSON
+   - Verify: clear calls IKE engine to terminate SAs, returns success/error JSON
 
 4. **Phase: Monitor model** -- live SA state stream via bus events
    - Tests: `TestIPsecMonitorModel`
@@ -278,9 +279,9 @@ For monitor:
 | Completeness | Every AC-N has implementation with file:line |
 | Correctness | JSON output matches documented field names; pipe operators produce valid output |
 | Naming | YANG dispatch keys use kebab-case; JSON keys use kebab-case; Prometheus metric names use snake_case with `ipsec_` prefix |
-| Data flow | Show handlers query VICI via IPsec component interface, not directly |
+| Data flow | Show handlers query IKE engine via component interface, not directly |
 | Rule: pipe-completeness | All show commands route through ApplyPipes; monitor path honors resolve/origin for IPs |
-| Rule: derive-not-hardcode | SA algorithm names derived from VICI response, not hardcoded lists |
+| Rule: derive-not-hardcode | SA algorithm names derived from IKE engine SA state, not hardcoded lists |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
@@ -296,10 +297,10 @@ For monitor:
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | Peer name parameter validated (length, characters) before passing to VICI |
+| Input validation | Peer name parameter validated (length, characters) before passing to IKE engine |
 | Information leakage | Show output does not expose private keys or PSK material |
 | Resource exhaustion | Monitor model limits event buffer; Prometheus collector has scrape timeout |
-| Injection | Peer name not interpolated into shell commands (VICI is structured protocol) |
+| Injection | Peer name not interpolated into shell commands (IKE engine is in-process Go) |
 
 ### Failure Routing
 | Failure | Route To |
@@ -429,5 +430,5 @@ For monitor:
 - [ ] Partial/Skipped items have user approval
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled
-- [ ] Write learned summary to `plan/learned/NNN-ipsec-5-cli-diag.md`
+- [ ] Write learned summary to `plan/learned/NNN-ipsec-10-cli-diag.md`
 - [ ] Summary included in commit

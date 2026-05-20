@@ -17,7 +17,7 @@
 5. `internal/component/iface/tunnel.go` -- TunnelKind/TunnelSpec pattern
 6. `internal/component/iface/wireguard.go` -- WireguardSpec pattern
 7. `internal/component/iface/pppoe_client.go` -- managed lifecycle pattern
-8. Child specs: `spec-ipsec-1-*` through `spec-ipsec-5-*`
+8. Child specs: `spec-ipsec-1-*` through `spec-ipsec-10-*`
 
 ## Task
 
@@ -75,11 +75,11 @@ On Linux this maps to: **strongSwan/charon** for IKEv2 negotiation,
 
 | Principle | Detail |
 |-----------|--------|
-| Supervised subprocess, not native IKEv2 | IKEv2 (RFC 7296) is ~130 pages of state machine. strongSwan is battle-tested, audited, and handles edge cases (NAT-T, MOBIKE, EAP) that would take months to implement natively. Ze generates swanctl.conf and supervises charon, similar to how PPPoE uses a dialer abstraction |
-| Config-driven, no shell scripts | All IPsec config lives in Ze's YANG tree. No `/etc/ipsec.conf`, no `ipsec up/down` shell commands. Ze generates the strongSwan config from its own tree and uses VICI protocol for runtime control |
-| VTI for route-based tunnels | VTI (Virtual Tunnel Interface) over policy-based IPsec because route-based is the only model that composes with Ze's routing table, BGP, and firewall. XFRM interfaces (Linux 4.19+) are the modern successor to VTI and should be supported alongside |
+| Native IKEv2 in Go | Ze implements the IKEv2 state machine natively, consistent with how BGP is implemented natively rather than wrapping BIRD. strongSwan source serves as a reference implementation to learn from. No external daemon, no subprocess management, no IPC protocol. Ze owns the protocol end-to-end |
+| Config-driven, direct kernel integration | All IPsec config lives in Ze's YANG tree. The IKE engine consumes typed Go structs directly from the config parser. XFRM SAs and policies are installed in the kernel via netlink. No intermediate config files, no shell scripts |
+| Route-based tunnels only | XFRM interfaces (Linux 4.19+) over policy-based IPsec because route-based is the only model that composes with Ze's routing table, BGP, and firewall. VTI (the older XFRM mark mechanism) is not supported; XFRM interfaces are the kernel-maintainer-recommended path |
 | PKI as shared infrastructure | The `pki {}` config section is not IPsec-specific. TLS for web, SSH host certificates, managed device TLS, and future mutual TLS all need certificates. Build a proper PKI store first |
-| VICI over CLI | strongSwan's VICI protocol (Unix socket, key-value sections) is the programmatic interface. Parsing `ipsec statusall` text output would be fragile. VICI provides structured SA state, connection control, and event subscription |
+| EAP for Windows client compatibility | Windows built-in IKEv2 client requires EAP authentication (EAP-TLS or EAP-MSCHAPv2). Supporting EAP enables road warrior VPN from Windows, macOS, iOS, and Android without third-party software |
 
 ### Scope
 
@@ -88,64 +88,114 @@ On Linux this maps to: **strongSwan/charon** for IKEv2 negotiation,
 | Area | Description |
 |------|-------------|
 | PKI certificate store | YANG `pki {}`, parse CA/cert/key, $9$ encoding for private keys, `show pki` CLI |
-| VTI interfaces | New interface type in iface, Backend.CreateVTI, XFRM mark, YANG schema |
-| XFRM interfaces | Modern alternative to VTI (Linux 4.19+), if_id based |
+| XFRM interfaces | Modern route-based IPsec interfaces (Linux 4.19+), if_id based |
 | IPsec data model | YANG `vpn ipsec {}`, IKE/ESP groups with proposals, DPD, lifetimes |
-| Site-to-site peers | Authentication (X.509, PSK), connection lifecycle, VTI binding |
-| strongSwan integration | Generate swanctl.conf, supervise charon, VICI protocol for status/control |
-| IPsec CLI | `show vpn ipsec sa`, `show vpn ipsec status`, `clear vpn ipsec sa` |
+| Native IKEv2 engine | Full IKEv2 state machine in Go: IKE_SA_INIT, IKE_AUTH, CREATE_CHILD_SA, INFORMATIONAL exchanges |
+| IKEv2 wire format | Packet codec for all IKEv2 payload types (SA, KE, Nonce, ID, AUTH, CERT, TSi/TSr, Notify, Delete, EAP, CP) |
+| Crypto engine | DH groups, PRF/integrity/encryption algorithms, SKEYSEED derivation, proposal negotiation |
+| X.509 certificate authentication | RSA-PSS and ECDSA signatures, certificate chain validation via PKI store |
+| PSK authentication | Pre-shared key authentication for simple site-to-site deployments |
+| EAP authentication | EAP-TLS (certificate) and EAP-MSCHAPv2 (password) for Windows/macOS/iOS/Android client compatibility |
+| Remote access (road warrior) | Virtual IP assignment via IKEv2 Configuration Payload (RFC 7296 Section 2.19), traffic selector narrowing |
+| Site-to-site peers | Connection lifecycle, XFRM interface binding, DPD, rekeying |
+| XFRM SA/SP installation | Install/remove Security Associations and Security Policies in kernel via netlink |
+| NAT-T | NAT detection (RFC 7296 Section 2.23), UDP encapsulation of ESP (RFC 3948), keepalives |
+| DPD and rekeying | Dead Peer Detection via INFORMATIONAL, IKE SA and Child SA rekeying |
+| IPsec CLI | `show vpn ipsec sa`, `show vpn ipsec status`, `clear vpn ipsec sa`, `monitor vpn ipsec` |
 | Bus events | Tunnel up/down/rekeyed events on the event bus |
-| Diagnostics | Health checks, SA expiry monitoring, connection state |
+| Diagnostics | Health checks, SA expiry monitoring, connection state, Prometheus metrics |
+| VPP dataplane | SA/SP installer abstraction with two backends: kernel XFRM (netlink) and VPP (VPP API). IKEv2 engine is backend-agnostic |
 
 **Out of Scope:**
 
 | Area | Reason |
 |------|--------|
-| Native IKEv2 implementation | Complexity vs. benefit. strongSwan is the right tool |
-| Remote access / road warrior | EAP, virtual IP pools, split tunneling. Future spec if needed |
+| VTI interfaces | Legacy mechanism using XFRM marks. XFRM interfaces are the kernel-maintainer-recommended replacement |
 | Transport mode IPsec | Ze is a router; tunnel mode only |
-| Policy-based IPsec | Route-based (VTI/XFRM) only. Policy-based doesn't compose with routing |
-| IPsec with VPP backend | VPP has its own IPsec plugin. Separate concern, separate spec |
+| Policy-based IPsec | Route-based (XFRM) only. Policy-based doesn't compose with routing |
+| ~~IPsec with VPP backend~~ | ~~Moved to In Scope~~ |
 | L2TP/IPsec | L2TP is a separate component. IPsec transport mode for L2TP is out of scope |
 | DMVPN / FlexVPN | Cisco-specific overlays. Not applicable |
 | IKEv1 | Deprecated. IKEv2 only |
+| MOBIKE | RFC 4555 multihoming/mobility. Future spec if needed |
+| EAP-RADIUS backend | EAP credentials are local to Ze config. External RADIUS backend is future work |
 
-### strongSwan Deployment Model
+### Native IKEv2 Architecture
 
-Ze targets gokrazy appliances (no package manager, no systemd). strongSwan must be
-available as a statically-linked binary or built into the appliance image. Two options:
+Ze implements IKEv2 entirely in Go, with no external daemon dependency. This
+eliminates the gokrazy appliance constraint (no need to bundle charon) and
+aligns with Ze's philosophy of native protocol implementations (BGP, DNS).
 
-1. **Appliance includes charon-systemd** (or charon standalone). Ze generates
-   `/tmp/ze-swanctl.conf` and manages the process. This is the VyOS model.
-2. **Embedded charon via libcharon** (CGo). Higher integration but complex build
-   and licensing (GPLv2). Not recommended for v1.
+The IKEv2 engine is a new component at `internal/component/ike/` with these layers:
 
-For v1: assume charon is available in PATH (appliance image includes it). Ze
-writes config to a predictable path and manages the process lifecycle. The
-charon binary location is configurable via YANG (`environment { ipsec { charon-path } }`).
+| Layer | Responsibility |
+|-------|---------------|
+| Wire codec | Encode/decode IKEv2 messages (header + payload chain) |
+| Crypto | DH groups, PRF, encryption, integrity, SKEYSEED/SK_* derivation |
+| Proposal negotiation | Match local policy against remote proposals, select algorithms |
+| State machine | Per-IKE-SA FSM: exchanges, retransmission, timers, error handling |
+| Authentication | X.509 (RSA-PSS, ECDSA), PSK, EAP (EAP-TLS, EAP-MSCHAPv2) |
+| XFRM installer | Install/remove kernel SAs and policies via netlink |
+| Transport | UDP socket management (port 500/4500), NAT-T detection and encapsulation |
+
+strongSwan source (`src/libcharon/`, `src/libstrongswan/`) serves as a reference
+for edge cases, state transitions, and protocol details. Key reference areas:
+
+| Area | strongSwan location | What to learn |
+|------|---------------------|---------------|
+| Message encoding | `src/libcharon/encoding/` | Payload type IDs, encoding order, padding |
+| IKEv2 FSM | `src/libcharon/sa/ike_sa.c` | State transitions, error handling |
+| Proposal negotiation | `src/libstrongswan/crypto/proposal/` | Algorithm ID mapping, selection logic |
+| DH groups | `src/libstrongswan/plugins/` | Group parameters, key derivation |
+| XFRM installer | `src/libcharon/plugins/kernel_netlink/` | SA/SP netlink attributes, if_id binding |
+| Rekeying | `src/libcharon/sa/ikev2/tasks/` | Rekey collision handling, overlapping SA window |
+| NAT-T | `src/libcharon/sa/ikev2/tasks/ike_natd.c` | Detection hash, port floating |
+| EAP framework | `src/libcharon/sa/ikev2/authenticators/eap_authenticator.c` | EAP exchange flow in IKE_AUTH |
+| EAP-TLS | `src/libcharon/plugins/eap_tls/` | TLS-in-EAP framing |
+| EAP-MSCHAPv2 | `src/libcharon/plugins/eap_mschapv2/` | Challenge/response flow |
+| Configuration Payload | `src/libcharon/sa/ikev2/tasks/ike_config.c` | Virtual IP assignment |
 
 ### Child Specs
 
 | Phase | Spec | Scope | Depends |
 |-------|------|-------|---------|
 | 1 | `spec-ipsec-1-pki-store.md` | YANG `pki {}` config, certificate parser, in-memory store, `$9$` for private keys, `show pki certificates` CLI, certificate validation (chain, expiry). Shared infrastructure for IPsec, TLS, and future mutual-auth features | - |
-| 2 | `spec-ipsec-2-vti-xfrm.md` | VTI and XFRM interface types in iface component. Backend methods (CreateVTI, CreateXFRM). YANG schema for `vti` and `xfrm` lists. Netlink wiring via ip_tunnel (VTI) and xfrm_interface (XFRM). Reconciliation | ipsec-1 (soft) |
-| 3 | `spec-ipsec-3-data-model.md` | YANG `vpn ipsec {}`. IKE groups (proposals, DPD, key-exchange, lifetime, close-action). ESP groups (proposals, PFS, lifetime). Interface binding. Config parser producing typed Go structs. Validation | - |
-| 4 | `spec-ipsec-4-strongswan.md` | strongSwan integration. swanctl.conf generation from Ze config. Charon process supervision. VICI protocol client (Go, Unix socket). Connection lifecycle (initiate, terminate, rekey). Site-to-site peer config (X.509, PSK). VTI/XFRM binding. Bus events. Config reload (diff peers, restart changed) | ipsec-1, ipsec-2, ipsec-3 |
-| 5 | `spec-ipsec-5-cli-diag.md` | `show vpn ipsec sa`, `show vpn ipsec status`, `show vpn ipsec peer <name>`, `clear vpn ipsec sa`. Pipe support. Web status page. Health checks. SA expiry monitoring. Metrics (tunnel up/down counter, bytes, rekey count) | ipsec-4 |
+| 2 | `spec-ipsec-2-xfrm.md` | XFRM interface type in iface component. Backend methods (CreateXFRM, GetXFRMInfo). YANG schema for `xfrm` list. Netlink wiring via xfrm_interface. Reconciliation. Discovery of unmanaged XFRM interfaces | ipsec-1 (soft) |
+| 3 | `spec-ipsec-3-data-model.md` | ~~DONE~~ YANG `vpn ipsec {}`. IKE groups, ESP groups, interface binding. Config parser producing typed Go structs. Learned summary: `plan/learned/734-ipsec-3-data-model.md` | - |
+| 4 | `spec-ipsec-4-data-model-eap.md` | Extend ipsec-3 data model with EAP authentication config (eap-tls, eap-mschapv2), remote-access peer type, virtual IP pool config, EAP credentials | ipsec-3 |
+| 5 | `spec-ipsec-5-ikev2-wire.md` | IKEv2 packet codec: header, all payload types (SA, KE, Nonce, ID, AUTH, CERT, CERTREQ, TSi, TSr, Notify, Delete, Vendor, EAP, CP). Encode/decode roundtrip. No state machine, no network I/O | - |
+| 6 | `spec-ipsec-6-ikev2-crypto.md` | Crypto primitives: DH groups (14, 19, 20), PRF (HMAC-SHA256/384/512), encryption (AES-GCM, AES-CBC), integrity, SKEYSEED/SK_* key hierarchy derivation, proposal negotiation | - |
+| 7 | `spec-ipsec-7-ikev2-engine.md` | IKEv2 state machine: per-IKE-SA FSM, IKE_SA_INIT + IKE_AUTH exchanges, X.509 and PSK authentication, retransmission with exponential backoff, UDP transport (port 500/4500) | ipsec-1, ipsec-5, ipsec-6 |
+| 8 | `spec-ipsec-8-ikev2-child-xfrm.md` | CREATE_CHILD_SA exchange, XFRM SA/SP installation via netlink (vishvananda/netlink), traffic selectors, DPD (INFORMATIONAL exchange), IKE SA and Child SA rekeying, lifetime management | ipsec-2, ipsec-7 |
+| 9 | `spec-ipsec-9-ikev2-eap-nat.md` | EAP authentication framework (EAP-TLS, EAP-MSCHAPv2), virtual IP via Configuration Payload, NAT-T detection (NAT_DETECTION_*_IP), UDP encapsulation switching (port 4500), keepalives | ipsec-4, ipsec-7 |
+| 10 | `spec-ipsec-10-cli-diag.md` | `show vpn ipsec sa`, `show vpn ipsec status`, `show vpn ipsec peer <name>`, `clear vpn ipsec sa`, `monitor vpn ipsec`. Pipe support. Web status page. Health checks. SA expiry monitoring. Metrics. Queries internal Go state directly (no VICI) | ipsec-8 |
 
 ### Dependency Graph
 
 ```
-ipsec-1 (PKI)  ipsec-3 (Data Model)
-    |                |
-    v                v
-ipsec-2 (VTI) ---> ipsec-4 (strongSwan) ---> ipsec-5 (CLI/Diag)
+ipsec-1 (PKI)   ipsec-3 (Data Model) [DONE]
+    |                  |
+    |            ipsec-4 (EAP config)
+    |                  |
+    |   ipsec-5 (Wire)  ipsec-6 (Crypto)     [parallelizable]
+    |        \           /
+    |         v         v
+    +-----> ipsec-7 (IKE Engine) <--- ipsec-1 (PKI, for X.509 auth)
+                  |
+    +-----> ipsec-8 (Child SA + Dataplane) <--- ipsec-2 (XFRM interfaces)
+    |             |
+    |       ipsec-9 (EAP + NAT-T) <--- ipsec-4
+    |             |
+    +-----> ipsec-10 (CLI/Diag)
 ```
 
-Specs 1 and 3 can be implemented in parallel. Spec 2 has a soft dependency on 1
-(VTI itself doesn't need PKI, but the implementation order follows the config
-hierarchy). Spec 4 is the integration point. Spec 5 is presentation.
+Specs 5 and 6 are parallelizable (no interdependency). Spec 7 is the core
+engine that depends on both. Spec 8 adds child SA management and the dataplane
+abstraction (XFRM netlink + VPP API). Spec 9 extends the engine with EAP
+authentication and NAT traversal. Spec 10 is presentation.
+
+Spec 2 (XFRM interfaces) is in progress and independent of the IKEv2 engine.
+Spec 3 is done. Spec 3b extends the data model for EAP/remote-access config.
 
 ### RFC Coverage
 
@@ -156,17 +206,23 @@ hierarchy). Spec 4 is the integration point. Spec 5 is presentation.
 | RFC 7296 | IKEv2 | Done: `rfc/short/rfc7296.md` |
 | RFC 6071 | IPsec/IKE Roadmap | Done: `rfc/short/rfc6071.md` |
 | RFC 3948 | UDP Encapsulation of ESP (NAT-T) | Done: `rfc/short/rfc3948.md` |
+| RFC 3748 | EAP Framework | MUST CREATE: `rfc/short/rfc3748.md` |
+| RFC 5216 | EAP-TLS | MUST CREATE: `rfc/short/rfc5216.md` |
+| RFC 2759 | MS-CHAPv2 | MUST CREATE: `rfc/short/rfc2759.md` |
+| RFC 7427 | Signature Authentication in IKEv2 | MUST CREATE: `rfc/short/rfc7427.md` (digital signature method, replaces legacy RSA/ECDSA AUTH) |
 | RFC 4555 | MOBIKE | Optional (future) |
 
 ### Key Design Questions (Resolved)
 
 | Question | Decision | Rationale |
 |----------|----------|-----------|
-| Native IKEv2 vs. strongSwan? | strongSwan | IKEv2 is ~130 pages of RFC. strongSwan handles NAT-T, MOBIKE, EAP, fragmentation, retransmission. Battle-tested in millions of deployments |
-| VTI vs. XFRM interfaces? | Both | VTI for compatibility (existing configs), XFRM for new deployments. XFRM interfaces are the Linux maintainer-recommended path forward |
-| VICI vs. swanctl CLI? | VICI | Structured protocol over Unix socket. No text parsing. Supports event subscription for SA state changes |
+| Native IKEv2 vs. strongSwan? | Native Go | Consistent with BGP (native, not wrapping BIRD). Eliminates external daemon dependency for gokrazy appliances. Ze owns the protocol end-to-end. strongSwan source is a reference for edge cases |
+| VTI vs. XFRM interfaces? | XFRM only | VTI is legacy (XFRM marks). XFRM interfaces (Linux 4.19+, if_id) are the kernel-maintainer-recommended replacement. No value carrying both |
+| XFRM netlink vs. VPP API? | Both, behind abstraction | SA/SP installer interface with two backends. IKEv2 engine is dataplane-agnostic. Kernel XFRM via netlink for Linux, VPP API for VPP deployments |
 | PKI in IPsec component vs. shared? | Shared `pki` component | Certificates are used by web TLS, SSH host keys, managed device auth. PKI is infrastructure |
-| Config generation vs. passthrough? | Generation | Ze owns the config tree. Generating swanctl.conf from YANG ensures validation, diffing, and reload work consistently |
+| EAP methods? | EAP-TLS + EAP-MSCHAPv2 | EAP-TLS is certificate-based (strongest). EAP-MSCHAPv2 is password-based (Windows built-in VPN default). Together they cover all major OS built-in clients |
+| EAP credential storage? | Local config | EAP credentials stored in Ze's YANG tree (password uses $9$ encoding). No external RADIUS backend for v1 |
+| Virtual IP assignment? | IKEv2 Configuration Payload | RFC 7296 Section 2.19. Ze acts as the IP address pool manager for road warrior clients. Pool defined in YANG config |
 
 ## Required Reading
 
@@ -179,9 +235,9 @@ hierarchy). Spec 4 is the integration point. Spec 5 is presentation.
 - [ ] `internal/component/iface/backend.go` -- Backend interface (33 methods, CreateTunnel/CreateWireguardDevice precedent)
   -> Decision: add CreateVTI and CreateXFRM methods to Backend
 - [ ] `internal/component/iface/pppoe_client.go` -- PPPoEClient lifecycle (supervised subprocess precedent)
-  -> Decision: charon supervision follows PPPoE dialer pattern: config-driven start/stop, reconnect with backoff
+  -> Decision: IKEv2 engine follows similar lifecycle pattern: config-driven start/stop, per-peer goroutine with reconnect
 - [ ] `internal/component/config/secret/secret.go` -- $9$ sensitive leaf encoding
-  -> Constraint: PKI private keys use $9$ encoding, same as wireguard keys and PPPoE passwords
+  -> Constraint: PKI private keys and EAP passwords use $9$ encoding, same as wireguard keys and PPPoE passwords
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc4301.md` -- IPsec Security Architecture (SPD, SAD, tunnel mode processing)
@@ -191,11 +247,13 @@ hierarchy). Spec 4 is the integration point. Spec 5 is presentation.
 - [ ] `rfc/short/rfc3948.md` -- NAT-T UDP encapsulation, port 4500, keepalives
 
 **Key insights:**
-- Backend interface already has the CreateTunnel/CreateWireguardDevice pattern; VTI/XFRM follow the same shape
-- PPPoE client lifecycle (dialer abstraction, reconnect backoff, config reconciliation) is the model for charon supervision
-- $9$ encoding handles all sensitive leaves uniformly; PKI private keys get the same treatment
+- Backend interface already has the CreateTunnel/CreateWireguardDevice pattern; XFRM follows the same shape
+- PPPoE client lifecycle (reconnect backoff, config reconciliation) informs the IKE SA manager pattern
+- $9$ encoding handles all sensitive leaves uniformly; PKI private keys and EAP passwords get the same treatment
 - YANG choice/case walker already works (tunnel spec added it); IPsec proposal groups can use it
-- Ze does NOT shell out to ip/iproute2; VTI/XFRM must be created via netlink
+- Ze does NOT shell out to ip/iproute2; XFRM interfaces and XFRM SAs/policies are managed via netlink
+- vishvananda/netlink already in vendor tree; provides XfrmPolicyAdd/XfrmStateAdd for SA/SP installation
+- Go standard library provides all needed crypto: `crypto/ecdh`, `crypto/ecdsa`, `crypto/rsa`, `crypto/aes`, `crypto/hmac`, `crypto/sha256`, `crypto/tls`
 
 ## Current Behavior (MANDATORY)
 
@@ -221,54 +279,61 @@ hierarchy). Spec 4 is the integration point. Spec 5 is presentation.
 - Config transaction and rollback mechanics unchanged
 
 **Behavior to change:**
-- Backend interface extended with CreateVTI, CreateXFRM methods
+- Backend interface extended with CreateXFRM, GetXFRMInfo methods
 - New `pki {}` top-level YANG container for certificate store
-- New `vpn ipsec {}` top-level YANG container for IPsec config
-- New `vti` and `xfrm` interface lists in iface YANG schema
-- New `internal/component/ipsec/` component for strongSwan lifecycle
+- New `vpn ipsec {}` top-level YANG container for IPsec config (done: ipsec-3)
+- New `xfrm` interface list in iface YANG schema
+- New `internal/component/ike/` component for native IKEv2 engine
 - New `internal/component/pki/` component for certificate management
 - New CLI commands under `show vpn ipsec` and `show pki`
+- UDP listeners on port 500 and 4500 for IKEv2 protocol
+- XFRM SA/SP installed directly by Ze via netlink (or VPP API)
+- EAP authentication support for road warrior clients
+- Virtual IP assignment for remote access clients
 
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- Config load/reload: YANG tree parsed, PKI certs loaded, IPsec config parsed, VTI/XFRM interfaces created, swanctl.conf generated, charon started/reloaded
-- CLI: `show vpn ipsec sa` queries charon via VICI protocol
-- Bus events: charon SA state changes (via VICI event subscription) published on event bus
+- Config load/reload: YANG tree parsed, PKI certs loaded, IPsec config parsed, XFRM interfaces created, IKE engine starts peers
+- IKEv2 wire: UDP packets on port 500/4500 received by IKE engine
+- CLI: `show vpn ipsec sa` queries IKE engine's in-memory SA table
+- Bus events: IKE engine publishes SA state changes on event bus
 
 ### Transformation Path
 1. Config parser reads `pki {}` tree, creates in-memory certificate store (cert chains, private keys)
-2. Config parser reads `interface { vti ... }` / `interface { xfrm ... }`, creates VTI/XFRM netdevs via Backend
+2. Config parser reads `interface { xfrm ... }`, creates XFRM netdevs via Backend
 3. Config parser reads `vpn ipsec {}` tree, produces typed Go structs (IKEGroup, ESPGroup, SiteToSitePeer)
-4. IPsec component generates swanctl.conf from Go structs + PKI store (cert paths)
-5. IPsec component starts/reloads charon subprocess, initiates connections via VICI
-6. Charon negotiates IKEv2 with remote peer, installs XFRM SAs in kernel
-7. Kernel routes traffic through VTI/XFRM interface, encrypted by XFRM SA
-8. VICI event subscription detects SA up/down/rekey, publishes bus events
+4. IKE engine receives config, opens UDP sockets, starts per-peer goroutines
+5. For initiator peers: sends IKE_SA_INIT, negotiates crypto, authenticates (X.509/PSK/EAP)
+6. On successful IKE_AUTH: installs XFRM SA/SP in kernel via dataplane backend (netlink or VPP API)
+7. Kernel routes traffic through XFRM interface, encrypted/decrypted by XFRM SA
+8. IKE engine handles DPD, rekeying, and error recovery; publishes bus events on state changes
+9. For road warrior clients: EAP exchange inside IKE_AUTH, virtual IP assigned via Configuration Payload
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config tree to PKI store | Parse PEM certificates from YANG leaves | [ ] |
 | Config tree to IPsec structs | Parse IKE/ESP groups and peers from YANG | [ ] |
-| Ze to strongSwan | Generated swanctl.conf file + VICI Unix socket | [ ] |
-| strongSwan to kernel | XFRM netlink (SA/SP installation, managed by charon) | [ ] |
-| Ze to kernel | VTI/XFRM netdev creation via netlink (managed by iface backend) | [ ] |
-| strongSwan to Ze | VICI event subscription for SA state changes | [ ] |
+| IKE engine to network | UDP sockets on port 500/4500 | [ ] |
+| IKE engine to kernel (dataplane) | XFRM SA/SP via netlink (XfrmStateAdd/XfrmPolicyAdd) or VPP API | [ ] |
+| iface Backend to kernel | XFRM netdev creation via netlink (managed by iface) | [ ] |
+| IKE engine to bus | SA state change events published to EventBus | [ ] |
 
 ### Integration Points
-- `iface.Backend` -- extended with CreateVTI, CreateXFRM methods
-- `iface.config.go` -- extended with parseVTIEntry, parseXFRMEntry, applyVTIs, applyXFRMs
-- `config/secret` -- PKI private keys use existing $9$ encoding
+- `iface.Backend` -- CreateXFRM, GetXFRMInfo methods
+- `iface.config.go` -- parseXFRMEntry, applyXFRMs
+- `config/secret` -- PKI private keys and EAP passwords use existing $9$ encoding
 - `events.EventBus` -- IPsec SA up/down/rekeyed events
 - `health.Registry` -- IPsec tunnel health checks
 - `config/transaction` -- IPsec config participates in transactional reload
+- Dataplane interface -- SA/SP installer abstraction (XFRM netlink backend, VPP API backend)
 
 ### Architectural Verification
-- [ ] No bypassed layers (VTI/XFRM created via Backend, not raw netlink)
-- [ ] No unintended coupling (IPsec component talks to charon via VICI, not to kernel XFRM directly)
+- [ ] No bypassed layers (XFRM interfaces created via Backend, XFRM SAs via dataplane abstraction)
+- [ ] No unintended coupling (IKE engine uses dataplane interface, not raw netlink directly)
 - [ ] No duplicated functionality (extends iface Backend, does not create parallel interface management)
-- [ ] Zero-copy preserved where applicable (config parsing uses existing tree walker)
+- [ ] Zero-copy preserved where applicable (config parsing uses existing tree walker, wire codec uses buffer-first pattern)
 
 ## Acceptance Criteria (Umbrella-Level)
 
@@ -277,23 +342,29 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | Ze config has `pki { ca ... certificate ... }` | Certificates parsed, validated, stored in memory. `show pki certificates` lists them with subject, issuer, expiry |
-| AC-2 | Ze config has `interface { vti vti0 { ... } }` | VTI netdev created via netlink, address assigned, admin up |
+| AC-2 | Ze config has `interface { xfrm xfrm0 { ... } }` | XFRM netdev created via netlink, address assigned, admin up |
 | AC-3 | Ze config has `vpn ipsec { esp-group ... ike-group ... }` | Config parsed into typed Go structs, validated (algorithm support, DH groups) |
-| AC-4 | Ze config has `vpn ipsec { site-to-site { peer ... } }` with X.509 auth | swanctl.conf generated, charon started, IKEv2 tunnel established |
+| AC-4 | Ze config has site-to-site peer with X.509 auth | IKEv2 negotiation completes natively, IKE SA and Child SA established |
 | AC-5 | IKEv2 tunnel established | `show vpn ipsec sa` shows SA with peer, algorithm, bytes, rekey time |
 | AC-6 | Remote peer unreachable | DPD detects failure, connection restarted per close-action |
-| AC-7 | Config reload changes peer remote-address | Changed connection restarted, unchanged connections preserved |
-| AC-8 | charon crashes | Ze detects exit, restarts charon with backoff |
+| AC-7 | Config reload changes peer remote-address | Changed connection torn down and re-initiated, unchanged connections preserved |
+| AC-8 | Child SA lifetime expires | Rekeying completes transparently, traffic uninterrupted |
+| AC-9 | Windows client connects with EAP-MSCHAPv2 | IKE_AUTH exchange includes EAP, client authenticates with username/password, virtual IP assigned |
+| AC-10 | Client connects with EAP-TLS | IKE_AUTH exchange includes EAP-TLS, client authenticates with certificate, tunnel established |
+| AC-11 | Peer behind NAT | NAT-T detected in IKE_SA_INIT, ESP switched to UDP encapsulation on port 4500 |
+| AC-12 | VPP backend active | XFRM SAs installed via VPP API instead of kernel netlink; traffic encrypted/decrypted by VPP |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
 | Config load with `pki {}` block | -> | PKI store parses and holds certificates | `test/parse/pki-certificate.ci` |
-| Config load with `interface { vti ... }` | -> | VTI netdev created via Backend.CreateVTI | `test/reload/test-tx-iface-vti-create.ci` |
+| Config load with `interface { xfrm ... }` | -> | XFRM netdev created via Backend.CreateXFRM | `test/reload/test-tx-iface-xfrm-create.ci` |
 | Config load with `vpn ipsec { esp-group ... }` | -> | IPsec config parsed into Go structs | `test/parse/ipsec-esp-group.ci` |
-| Config load with site-to-site peer | -> | swanctl.conf generated, charon started | `test/ipsec/ipsec-site-to-site-initiate.ci` |
-| `show vpn ipsec sa` CLI command | -> | VICI query returns SA state | `test/ipsec/ipsec-show-sa.ci` |
+| Config load with site-to-site peer | -> | IKE engine initiates IKEv2 negotiation | `test/ipsec/ipsec-site-to-site-initiate.ci` |
+| IKEv2 negotiation completes | -> | XFRM SA/SP installed in kernel via dataplane backend | `test/ipsec/ipsec-sa-installed.ci` |
+| `show vpn ipsec sa` CLI command | -> | IKE engine SA table queried, JSON returned | `test/ipsec/ipsec-show-sa.ci` |
+| Windows client connects with EAP | -> | EAP exchange completes, virtual IP assigned | `test/ipsec/ipsec-eap-auth.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -302,14 +373,18 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 |------|------|-----------|--------|
 | `TestParsePKICertificate` | `internal/component/pki/config_test.go` | PEM certificate parsing from YANG tree | |
 | `TestPKICertValidation` | `internal/component/pki/store_test.go` | Chain validation, expiry check | |
-| `TestParseVTIEntry` | `internal/component/iface/config_test.go` | VTI config parsing from YANG | |
 | `TestParseXFRMEntry` | `internal/component/iface/config_test.go` | XFRM config parsing from YANG | |
 | `TestParseIKEGroup` | `internal/component/ipsec/config_test.go` | IKE group with proposals, DPD, lifetime | |
 | `TestParseESPGroup` | `internal/component/ipsec/config_test.go` | ESP group with proposals, PFS, lifetime | |
-| `TestParseSiteToSitePeer` | `internal/component/ipsec/config_test.go` | Peer with X.509 auth, VTI bind | |
-| `TestGenerateSwanctlConf` | `internal/component/ipsec/swanctl_test.go` | swanctl.conf output matches expected | |
-| `TestVICIClient` | `internal/component/ipsec/vici_test.go` | VICI protocol encode/decode/command | |
-| `TestCharonSupervisor` | `internal/component/ipsec/supervisor_test.go` | Start/stop/restart lifecycle | |
+| `TestParseSiteToSitePeer` | `internal/component/ipsec/config_test.go` | Peer with X.509 auth, XFRM bind | |
+| `TestIKEv2EncodeHeader` | `internal/component/ike/wire/header_test.go` | IKEv2 header encode/decode roundtrip | |
+| `TestIKEv2EncodePayloads` | `internal/component/ike/wire/payload_test.go` | All payload types encode/decode | |
+| `TestIKEv2ProposalNegotiation` | `internal/component/ike/crypto/proposal_test.go` | Proposal selection from remote offers | |
+| `TestIKEv2SKEYSEED` | `internal/component/ike/crypto/keys_test.go` | SKEYSEED and SK_* key hierarchy derivation | |
+| `TestIKEv2FSMInitiator` | `internal/component/ike/engine/fsm_test.go` | State transitions for initiator IKE_SA_INIT + IKE_AUTH | |
+| `TestIKEv2EAPExchange` | `internal/component/ike/engine/eap_test.go` | EAP exchange within IKE_AUTH | |
+| `TestXFRMSAInstall` | `internal/component/ike/dataplane/xfrm_test.go` | XFRM SA/SP installation via netlink | |
+| `TestDataplaneVPP` | `internal/component/ike/dataplane/vpp_test.go` | SA/SP installation via VPP API | |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -317,28 +392,34 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 | `pki-certificate` | `test/parse/pki-certificate.ci` | PKI config accepted, cert parsed | |
 | `ipsec-esp-group` | `test/parse/ipsec-esp-group.ci` | ESP group config accepted | |
 | `ipsec-site-to-site-initiate` | `test/ipsec/ipsec-site-to-site-initiate.ci` | Tunnel initiates to peer | |
+| `ipsec-sa-installed` | `test/ipsec/ipsec-sa-installed.ci` | XFRM SA/SP visible in kernel after negotiation | |
 | `ipsec-show-sa` | `test/ipsec/ipsec-show-sa.ci` | SA displayed with correct fields | |
-| `iface-vti-create` | `test/reload/test-tx-iface-vti-create.ci` | VTI netdev created on config load | |
+| `ipsec-eap-auth` | `test/ipsec/ipsec-eap-auth.ci` | EAP authentication completes, virtual IP assigned | |
+| `iface-xfrm-create` | `test/reload/test-tx-iface-xfrm-create.ci` | XFRM netdev created on config load | |
 
 ## Files to Modify
-- `internal/component/iface/backend.go` -- add CreateVTI, CreateXFRM methods to Backend interface
-- `internal/component/iface/config.go` -- add parseVTIEntry, parseXFRMEntry, applyVTIs, applyXFRMs
-- `internal/component/iface/discover.go` -- add zeTypeVTI, zeTypeXFRM classification
-- `internal/component/iface/register.go` -- register VTI/XFRM parsing
-- `internal/component/iface/schema/ze-iface-conf.yang` -- add vti and xfrm interface lists
-- `internal/plugins/ifacenetlink/backend_linux.go` -- implement CreateVTI, CreateXFRM
-- `internal/plugins/ifacenetlink/backend_other.go` -- stub CreateVTI, CreateXFRM
-- `docs/features/interfaces.md` -- update capability table (VTI, XFRM: have)
-- `cmd/ze/hub/main.go` -- wire PKI store and IPsec component at startup
+- `internal/component/iface/backend.go` -- add CreateXFRM, GetXFRMInfo methods to Backend interface
+- `internal/component/iface/config.go` -- add parseXFRMEntry, applyXFRMs
+- `internal/component/iface/discover.go` -- add zeTypeXFRM classification
+- `internal/component/iface/register.go` -- register XFRM parsing
+- `internal/component/iface/schema/ze-iface-conf.yang` -- add xfrm interface list
+- `internal/plugins/ifacenetlink/backend_linux.go` -- implement CreateXFRM, GetXFRMInfo
+- `internal/plugins/ifacenetlink/backend_other.go` -- stub CreateXFRM, GetXFRMInfo
+- `docs/features/interfaces.md` -- update capability table (XFRM: have)
+- `cmd/ze/hub/main.go` -- wire PKI store and IKE engine component at startup
 
 ## Files to Create
 - `internal/component/pki/` -- PKI certificate store component
-- `internal/component/ipsec/` -- IPsec component (config, swanctl, supervisor, VICI)
-- `internal/component/iface/vti.go` -- VTISpec type
-- `internal/component/iface/xfrm.go` -- XFRMSpec type
-- `internal/plugins/ifacenetlink/vti_linux.go` -- VTI netlink creation
+- `internal/component/ike/` -- IKEv2 engine (new component, replaces the strongSwan integration)
+- `internal/component/ike/wire/` -- IKEv2 packet codec (header, all payload types)
+- `internal/component/ike/crypto/` -- DH, PRF, encryption, integrity, SKEYSEED, proposal negotiation
+- `internal/component/ike/engine/` -- FSM, exchanges, authentication, retransmission, DPD, rekeying
+- `internal/component/ike/eap/` -- EAP framework, EAP-TLS, EAP-MSCHAPv2
+- `internal/component/ike/dataplane/` -- SA/SP installer interface + XFRM netlink backend + VPP backend
+- `internal/component/ike/transport/` -- UDP socket management, NAT-T, port 500/4500
+- `internal/component/iface/xfrm.go` -- XFRMSpec, XFRMInfo types
 - `internal/plugins/ifacenetlink/xfrm_linux.go` -- XFRM interface netlink creation
-- `rfc/short/rfc4301.md`, `rfc4303.md`, `rfc7296.md`, `rfc6071.md`, `rfc3948.md` -- RFC summaries
+- `rfc/short/rfc3748.md`, `rfc5216.md`, `rfc2759.md`, `rfc7427.md` -- RFC summaries (EAP, signature auth)
 
 ## Implementation Steps
 
@@ -351,30 +432,55 @@ Each phase corresponds to a child spec. Phases are ordered by dependency.
    - Files: `internal/component/pki/`, `show pki` CLI
    - Verify: certificates parsed from config, chain validated, shown via CLI
 
-2. **Phase: VTI/XFRM Interfaces (ipsec-2)** -- new interface types, Backend extension, netlink
-   - Tests: `TestParseVTIEntry`, `TestParseXFRMEntry`, `iface-vti-create.ci`
-   - Files: `internal/component/iface/vti.go`, `xfrm.go`, backend, netlink
-   - Verify: VTI/XFRM netdevs created, addresses assigned, reconciled on reload
+2. **Phase: XFRM Interfaces (ipsec-2)** -- new interface type, Backend extension, netlink
+   - Tests: `TestParseXFRMEntry`, `iface-xfrm-create.ci`
+   - Files: `internal/component/iface/xfrm.go`, backend, netlink
+   - Verify: XFRM netdevs created, addresses assigned, reconciled on reload
 
-3. **Phase: IPsec Data Model (ipsec-3)** -- YANG vpn ipsec {}, config parser, validation
-   - Tests: `TestParseIKEGroup`, `TestParseESPGroup`, `TestParseSiteToSitePeer`, `ipsec-esp-group.ci`
-   - Files: `internal/component/ipsec/config.go`, YANG schema
-   - Verify: config parsed into typed structs, validation rejects invalid algorithms
+3. **Phase: IPsec Data Model (ipsec-3)** -- ~~DONE~~ YANG vpn ipsec {}, config parser, validation
+   - Learned summary: `plan/learned/734-ipsec-3-data-model.md`
 
-4. **Phase: strongSwan Integration (ipsec-4)** -- swanctl.conf, charon, VICI, lifecycle
-   - Tests: `TestGenerateSwanctlConf`, `TestVICIClient`, `TestCharonSupervisor`, `ipsec-site-to-site-initiate.ci`
-   - Files: `internal/component/ipsec/swanctl.go`, `vici.go`, `supervisor.go`
-   - Verify: swanctl.conf generated, charon started, connection initiated, SA established
+4. **Phase: EAP Data Model (ipsec-4)** -- extend data model for EAP config
+   - Tests: EAP authentication config parsing, virtual IP pool config
+   - Files: `internal/component/ipsec/config.go` (extend), YANG schema (extend)
+   - Verify: EAP peer config parsed, virtual IP pool validated
 
-5. **Phase: CLI and Diagnostics (ipsec-5)** -- show/clear commands, web page, health, metrics
+5. **Phase: IKEv2 Wire Format (ipsec-5)** -- packet codec, all payload types
+   - Tests: `TestIKEv2EncodeHeader`, `TestIKEv2EncodePayloads`
+   - Files: `internal/component/ike/wire/`
+   - Verify: encode/decode roundtrip for all payload types, fuzz-safe parsing
+   - **Parallelizable with ipsec-6**
+
+6. **Phase: IKEv2 Crypto (ipsec-6)** -- DH, PRF, AEAD, SKEYSEED, proposals
+   - Tests: `TestIKEv2ProposalNegotiation`, `TestIKEv2SKEYSEED`
+   - Files: `internal/component/ike/crypto/`
+   - Verify: key derivation matches RFC 7296 test vectors, proposal selection correct
+   - **Parallelizable with ipsec-5**
+
+7. **Phase: IKEv2 Engine (ipsec-7)** -- FSM, IKE_SA_INIT, IKE_AUTH, X.509/PSK auth, retransmission
+   - Tests: `TestIKEv2FSMInitiator`, `ipsec-site-to-site-initiate.ci`
+   - Files: `internal/component/ike/engine/`, `internal/component/ike/transport/`
+   - Verify: IKE SA established between two Ze instances, authenticated with X.509 and PSK
+
+8. **Phase: Child SA + Dataplane (ipsec-8)** -- CREATE_CHILD_SA, XFRM SA/SP netlink, VPP API, rekeying, DPD
+   - Tests: `TestXFRMSAInstall`, `TestDataplaneVPP`, `ipsec-sa-installed.ci`
+   - Files: `internal/component/ike/dataplane/`, `internal/component/ike/engine/` (extend)
+   - Verify: Child SA created, XFRM SA/SP in kernel, rekeying works, DPD detects failure
+
+9. **Phase: EAP + NAT-T (ipsec-9)** -- EAP-TLS, EAP-MSCHAPv2, virtual IP, NAT detection, UDP encap
+   - Tests: `TestIKEv2EAPExchange`, `ipsec-eap-auth.ci`
+   - Files: `internal/component/ike/eap/`, `internal/component/ike/transport/` (extend)
+   - Verify: Windows client authenticates via EAP, virtual IP assigned, NAT-T works
+
+10. **Phase: CLI and Diagnostics (ipsec-10)** -- show/clear/monitor commands, web page, health, metrics
    - Tests: `ipsec-show-sa.ci`
-   - Files: CLI command handlers, web page, health checks
-   - Verify: SA state visible via CLI and web, health checks registered
+   - Files: CLI command handlers, web page, health checks, Prometheus collector
+   - Verify: SA state visible via CLI and web, health checks registered, metrics exposed
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-8 all demonstrated
+- [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
 - [ ] `make ze-test` passes
