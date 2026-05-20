@@ -12,6 +12,8 @@ import (
 )
 
 func init() {
+	RegisterHealth()
+
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:pki-certificates",

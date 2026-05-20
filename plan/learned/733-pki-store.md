@@ -15,10 +15,12 @@ Ze had no PKI infrastructure. IPsec VPN (spec-ipsec-0) needs X.509 certificate a
 
 ## Consequences
 
-- IPsec (spec-ipsec-4) calls `pki.Load()` after config parse, then `pki.ExportPEM()` before starting charon
+- The IKE engine (spec-ipsec-7) calls `pki.Load()` after config parse, then uses `pki.CAPool()`, `pki.GetCertificate()` for X.509 authentication. `pki.ExportPEM()` is available if PEM files are needed on disk
 - The `pki` YANG module is registered via schema init() and blank-imported in hub; no explicit wiring code needed in `main.go`
 - Show commands are RPC handlers in the `pki` package, not in `cmd/show/`; this keeps the pki package self-contained
 - `ze:sensitive` on the private key leaf means the config parser auto-decodes `$9$` before the PKI parser sees it; the PKI parser receives plaintext base64
+- Health check registered as "pki": reports degraded when any cert expires within 30 days, down when expired. Checked on demand by health registry
+- Report bus warnings raised via `pki.RaiseExpiryWarnings()` after each `Load()`: warns at 30 days, marks expired certs. Warnings clear automatically when certs are renewed
 
 ## Gotchas
 
@@ -37,6 +39,8 @@ Ze had no PKI infrastructure. IPsec VPN (spec-ipsec-0) needs X.509 certificate a
 - `internal/component/pki/schema/ze-pki-api.yang` -- show pki RPCs
 - `internal/component/pki/schema/embed.go` -- go:embed for YANG files
 - `internal/component/pki/schema/register.go` -- yang.RegisterModule init()
+- `internal/component/pki/health.go` -- health check (30d warn, 7d critical, expired=down) and report bus expiry warnings
+- `internal/component/pki/health_test.go` -- 7 health/report tests
 - `internal/component/pki/config_test.go` -- 10 config parser tests
 - `internal/component/pki/store_test.go` -- 20 store + show tests
 - `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- show pki dispatch entries

@@ -80,6 +80,7 @@ func Load(cfg *PKIConfig) error {
 		caCerts:      cfg.CACerts,
 		certificates: cfg.Certificates,
 	})
+	RaiseExpiryWarnings()
 	return nil
 }
 
