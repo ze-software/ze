@@ -421,8 +421,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// without depending on the plugin server's internal diff/short-circuit
 	// behavior.
 	var loadConfigFromDisk func() (map[string]any, error)
+	var loadBoth func() (map[string]any, *zeconfig.Tree, error)
 	if configPath != "" && configPath != "-" {
-		loadConfigFromDisk = func() (map[string]any, error) {
+		readAndParse := func() (*zeconfig.LoadConfigResult, error) {
 			reloadData, readErr := store.ReadFile(configPath)
 			if readErr != nil && storage.IsBlobStorage(store) {
 				reloadData, readErr = os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
@@ -430,11 +431,18 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			if readErr != nil {
 				return nil, fmt.Errorf("read config: %w", readErr)
 			}
-			result, loadErr := zeconfig.LoadConfig(string(reloadData), configPath, plugins)
-			if loadErr != nil {
-				return nil, loadErr
+			return zeconfig.LoadConfig(string(reloadData), configPath, plugins)
+		}
+		loadBoth = func() (map[string]any, *zeconfig.Tree, error) {
+			result, err := readAndParse()
+			if err != nil {
+				return nil, nil, err
 			}
-			return result.Tree.ToMap(), nil
+			return result.Tree.ToMap(), result.Tree, nil
+		}
+		loadConfigFromDisk = func() (map[string]any, error) {
+			m, _, err := loadBoth()
+			return m, err
 		}
 		apiServer.SetConfigLoader(loadConfigFromDisk)
 	}
@@ -598,11 +606,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	startArchiveScheduler(loadResult.Tree, configPath, apiServer)
 	defer stopArchiveScheduler()
 
+	lm := NewListenerMigrator(nil)
+
 	if webEnabled {
 		if len(webAddrs) == 0 {
 			webAddrs = []string{"0.0.0.0:3443"}
 		}
 		if webSrv, broker := startWebServer(store, webAddrs, insecureWeb, dispatch, resolvers); webSrv != nil {
+			lm.SetWeb(webSrv)
 			if ring := apiServer.EventRing(); ring != nil {
 				ring.Append("web", "server.started")
 			}
@@ -794,7 +805,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 
 		reloadAfterCommit := func() error {
-			return doReload(apiServer, eng, configProvider, loadConfigFromDisk)
+			return doReload(apiServer, eng, configProvider, loadBoth, lm)
 		}
 		var apiErr error
 		apiSrvs, apiErr = startAPIServers(apiCfg, apiServer, store, configPath, apiUsers, reloadAfterCommit)
@@ -814,7 +825,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// refreshes the shared ConfigProvider, then notifies every registered
 	// subsystem so it can hot-apply diff-able knobs.
 	reloadCh := make(chan os.Signal, 1)
-	go handleSIGHUPReload(reloadCh, apiServer, eng, configProvider, loadConfigFromDisk)
+	go handleSIGHUPReload(reloadCh, apiServer, eng, configProvider, loadBoth, lm)
 
 	if stdinOpen {
 		go monitorStdinEOF(sigCh)
