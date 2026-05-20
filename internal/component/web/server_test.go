@@ -572,3 +572,245 @@ func TestLoadOrGenerateCert_LoadExisting(t *testing.T) {
 	assert.Equal(t, origCert, certPEM, "returned certPEM must match stored cert")
 	assert.Equal(t, origKey, keyPEM, "returned keyPEM must match stored key")
 }
+
+// --- Reconfigure tests ---
+
+// newTestServer creates a WebServer bound to N loopback listeners (port 0),
+// starts it, waits for ready, and returns it with a cleanup function.
+func newTestServer(t *testing.T, n int) *WebServer {
+	t.Helper()
+	certPEM, keyPEM, err := GenerateWebCert()
+	require.NoError(t, err)
+
+	addrs := make([]string, n)
+	for i := range addrs {
+		addrs[i] = "127.0.0.1:0"
+	}
+
+	srv, err := NewWebServer(WebConfig{
+		ListenAddrs: addrs,
+		CertPEM:     certPEM,
+		KeyPEM:      keyPEM,
+	})
+	require.NoError(t, err)
+
+	srv.HandleFunc("/ping", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, writeErr := w.Write([]byte("pong")); writeErr != nil {
+			return
+		}
+	})
+
+	go func() {
+		if serveErr := srv.ListenAndServe(context.Background()); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			t.Logf("ListenAndServe: %v", serveErr)
+		}
+	}()
+
+	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer readyCancel()
+	require.NoError(t, srv.WaitReady(readyCtx))
+
+	t.Cleanup(func() {
+		shutCtx, shutCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer shutCancel()
+		if shutErr := srv.Shutdown(shutCtx); shutErr != nil {
+			t.Logf("shutdown: %v", shutErr)
+		}
+	})
+
+	return srv
+}
+
+// TestListenerDiffKeepAddRemove verifies the set diff computation.
+// VALIDATES: listenerDiff correctly classifies addresses.
+func TestListenerDiffKeepAddRemove(t *testing.T) {
+	tests := []struct {
+		name       string
+		old, new   []string
+		wantKeep   []string
+		wantAdd    []string
+		wantRemove []string
+	}{
+		{
+			name:       "no change",
+			old:        []string{"127.0.0.1:3443"},
+			new:        []string{"127.0.0.1:3443"},
+			wantKeep:   []string{"127.0.0.1:3443"},
+			wantAdd:    nil,
+			wantRemove: nil,
+		},
+		{
+			name:       "add one",
+			old:        []string{"127.0.0.1:3443"},
+			new:        []string{"127.0.0.1:3443", "127.0.0.1:8080"},
+			wantKeep:   []string{"127.0.0.1:3443"},
+			wantAdd:    []string{"127.0.0.1:8080"},
+			wantRemove: nil,
+		},
+		{
+			name:       "remove one",
+			old:        []string{"127.0.0.1:3443", "127.0.0.1:8080"},
+			new:        []string{"127.0.0.1:3443"},
+			wantKeep:   []string{"127.0.0.1:3443"},
+			wantAdd:    nil,
+			wantRemove: []string{"127.0.0.1:8080"},
+		},
+		{
+			name:       "swap",
+			old:        []string{"127.0.0.1:3443"},
+			new:        []string{"127.0.0.1:8080"},
+			wantKeep:   nil,
+			wantAdd:    []string{"127.0.0.1:8080"},
+			wantRemove: []string{"127.0.0.1:3443"},
+		},
+		{
+			name:       "complete replace",
+			old:        []string{"127.0.0.1:3443", "127.0.0.1:4443"},
+			new:        []string{"127.0.0.1:8080", "127.0.0.1:9090"},
+			wantKeep:   nil,
+			wantAdd:    []string{"127.0.0.1:8080", "127.0.0.1:9090"},
+			wantRemove: []string{"127.0.0.1:3443", "127.0.0.1:4443"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			keep, add, remove := ListenerDiff(tt.old, tt.new)
+			assert.Equal(t, tt.wantKeep, keep, "keep")
+			assert.Equal(t, tt.wantAdd, add, "add")
+			assert.Equal(t, tt.wantRemove, remove, "remove")
+		})
+	}
+}
+
+// TestWebServerReconfigureNoop verifies that Reconfigure with unchanged
+// addresses is a no-op.
+// VALIDATES: AC-3.
+func TestWebServerReconfigureNoop(t *testing.T) {
+	srv := newTestServer(t, 1)
+	origAddrs := srv.Addresses()
+
+	err := srv.Reconfigure(context.Background(), origAddrs)
+	require.NoError(t, err)
+
+	assert.Equal(t, origAddrs, srv.Addresses(), "addresses must not change on no-op reconfigure")
+
+	status, body := httpsGet(t, fmt.Sprintf("https://%s/ping", origAddrs[0]))
+	assert.Equal(t, http.StatusOK, status)
+	assert.Equal(t, "pong", body)
+}
+
+// TestWebServerReconfigureAddresses verifies Addresses() after Reconfigure.
+// VALIDATES: AC-6.
+func TestWebServerReconfigureAddresses(t *testing.T) {
+	srv := newTestServer(t, 1)
+	origAddrs := srv.Addresses()
+	require.Len(t, origAddrs, 1)
+
+	newAddrs := []string{origAddrs[0], "127.0.0.1:0"}
+	err := srv.Reconfigure(context.Background(), newAddrs)
+	require.NoError(t, err)
+
+	addrs := srv.Addresses()
+	assert.Len(t, addrs, 2, "must have two addresses after adding one")
+	assert.Equal(t, origAddrs[0], addrs[0], "original address must be first")
+}
+
+// TestWebServerReconfigureAddListener verifies adding a listener to a running server.
+// VALIDATES: AC-4.
+func TestWebServerReconfigureAddListener(t *testing.T) {
+	srv := newTestServer(t, 1)
+	origAddrs := srv.Addresses()
+
+	newAddrs := []string{origAddrs[0], "127.0.0.1:0"}
+	err := srv.Reconfigure(context.Background(), newAddrs)
+	require.NoError(t, err)
+
+	addrs := srv.Addresses()
+	require.Len(t, addrs, 2)
+
+	for i, addr := range addrs {
+		status, body := httpsGet(t, fmt.Sprintf("https://%s/ping", addr))
+		assert.Equal(t, http.StatusOK, status, "listener %d (%s)", i, addr)
+		assert.Equal(t, "pong", body, "listener %d (%s)", i, addr)
+	}
+}
+
+// TestWebServerReconfigureRemoveListener verifies removing a listener.
+// VALIDATES: AC-5.
+func TestWebServerReconfigureRemoveListener(t *testing.T) {
+	srv := newTestServer(t, 2)
+	origAddrs := srv.Addresses()
+	require.Len(t, origAddrs, 2)
+
+	err := srv.Reconfigure(context.Background(), origAddrs[:1])
+	require.NoError(t, err)
+
+	addrs := srv.Addresses()
+	require.Len(t, addrs, 1)
+	assert.Equal(t, origAddrs[0], addrs[0])
+
+	status, body := httpsGet(t, fmt.Sprintf("https://%s/ping", addrs[0]))
+	assert.Equal(t, http.StatusOK, status)
+	assert.Equal(t, "pong", body)
+
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, //nolint:gosec // test
+			},
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s/ping", origAddrs[1]), http.NoBody)
+	require.NoError(t, reqErr)
+	_, doErr := client.Do(req) //nolint:bodyclose // connection refused, no body
+	assert.Error(t, doErr, "removed listener must refuse connections")
+}
+
+// TestWebServerReconfigureSwapListener verifies swapping one address for another.
+// VALIDATES: AC-1 (new bound before old closed).
+func TestWebServerReconfigureSwapListener(t *testing.T) {
+	srv := newTestServer(t, 1)
+	origAddrs := srv.Addresses()
+
+	err := srv.Reconfigure(context.Background(), []string{"127.0.0.1:0"})
+	require.NoError(t, err)
+
+	newAddrs := srv.Addresses()
+	require.Len(t, newAddrs, 1)
+	assert.NotEqual(t, origAddrs[0], newAddrs[0], "address must have changed")
+
+	status, body := httpsGet(t, fmt.Sprintf("https://%s/ping", newAddrs[0]))
+	assert.Equal(t, http.StatusOK, status)
+	assert.Equal(t, "pong", body)
+}
+
+// TestWebServerReconfigureBindFails verifies rollback on bind failure.
+// VALIDATES: AC-2.
+func TestWebServerReconfigureBindFails(t *testing.T) {
+	srv := newTestServer(t, 1)
+	origAddrs := srv.Addresses()
+
+	squatter, listenErr := (&net.ListenConfig{}).Listen(context.Background(), "tcp4", "127.0.0.1:0")
+	require.NoError(t, listenErr)
+	defer func() {
+		if closeErr := squatter.Close(); closeErr != nil {
+			t.Logf("squatter close: %v", closeErr)
+		}
+	}()
+	squattedAddr := squatter.Addr().String()
+
+	err := srv.Reconfigure(context.Background(), []string{squattedAddr})
+	require.Error(t, err, "reconfigure must fail when bind fails")
+	assert.Contains(t, err.Error(), "reconfigure bind")
+
+	assert.Equal(t, origAddrs, srv.Addresses(), "addresses must not change on failed reconfigure")
+
+	status, body := httpsGet(t, fmt.Sprintf("https://%s/ping", origAddrs[0]))
+	assert.Equal(t, http.StatusOK, status, "original listener must still serve")
+	assert.Equal(t, "pong", body)
+}

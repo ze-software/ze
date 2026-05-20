@@ -22,10 +22,10 @@ import (
 // If a transaction is in progress (lock held), the SIGHUP is queued and replayed
 // after the current reload completes.
 // Lifecycle goroutine (one-time, runs for daemon lifetime).
-func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, load func() (map[string]any, error)) {
+func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, load func() (map[string]any, *zeconfig.Tree, error), lm *ListenerMigrator) {
 	for range reloadCh {
 		fmt.Fprintf(os.Stderr, "received SIGHUP, reloading config...\n")
-		if err := doReload(s, eng, cp, load); err != nil {
+		if err := doReload(s, eng, cp, load, lm); err != nil {
 			if errors.Is(err, pluginserver.ErrReloadInProgress) {
 				fmt.Fprintf(os.Stderr, "transaction in progress, queuing SIGHUP...\n")
 				s.QueueSIGHUP()
@@ -36,7 +36,7 @@ func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *
 		// After reload completes, drain any queued SIGHUP.
 		if s.DrainSIGHUP() {
 			fmt.Fprintf(os.Stderr, "replaying queued SIGHUP...\n")
-			if err := doReload(s, eng, cp, load); err != nil {
+			if err := doReload(s, eng, cp, load, lm); err != nil {
 				fmt.Fprintf(os.Stderr, "queued reload error: %v\n", err)
 			}
 		}
@@ -63,7 +63,7 @@ func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *
 // Keeping the tree single-sourced eliminates the race where the file
 // changes between the plugin-server read and the subsystem read, and
 // avoids redundant I/O + YANG parse on every SIGHUP.
-func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, load func() (map[string]any, error)) error {
+func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, load func() (map[string]any, *zeconfig.Tree, error), lm *ListenerMigrator) error {
 	reloadCtx, reloadCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer reloadCancel()
 
@@ -74,7 +74,7 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 		return s.ReloadFromDisk(reloadCtx)
 	}
 
-	newTree, loadErr := load()
+	newTree, parsedTree, loadErr := load()
 	if loadErr != nil {
 		return fmt.Errorf("reload: parse config: %w", loadErr)
 	}
@@ -109,6 +109,12 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 	applyConntrackFromMap(newTree, s)
 	applyUpdateCheckerFromMap(newTree)
 	applyArchiveSchedulerFromMap(s.ConfigPath(), s)
+
+	if lm != nil && parsedTree != nil {
+		if err := lm.ReloadListeners(reloadCtx, parsedTree); err != nil {
+			return fmt.Errorf("reload: listener migration: %w", err)
+		}
+	}
 
 	return nil
 }
