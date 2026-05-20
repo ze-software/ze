@@ -12,6 +12,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
 	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 )
 
@@ -34,6 +35,7 @@ type ChildSA struct {
 	Keys        *crypto.ChildSAKeys
 	ESPGroup    ipsec.ESPGroup
 	ReqID       uint32
+	NATDetected bool
 }
 
 // Clear zeroes key material.
@@ -120,6 +122,7 @@ func createFirstChildSA(
 		Keys:        keys,
 		ESPGroup:    espGroup,
 		ReqID:       defaultReqID,
+		NATDetected: sa.NATDetected,
 	}
 
 	if dp == nil {
@@ -157,6 +160,13 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		IsAEAD:    isAEAD,
 	}
 
+	// RFC 3948: set UDP encapsulation when NAT is detected.
+	if child.NATDetected {
+		inbound.UDPEncap = true
+		inbound.UDPEncapSPort = transport.NATTPort
+		inbound.UDPEncapDPort = transport.NATTPort
+	}
+
 	if err := dp.InstallSA(inbound); err != nil {
 		return fmt.Errorf("child-sa: install inbound: %w", err)
 	}
@@ -177,6 +187,12 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		AuthAlgo:  authAlgo,
 		AuthKey:   child.Keys.IntegKeyI,
 		IsAEAD:    isAEAD,
+	}
+
+	if child.NATDetected {
+		outbound.UDPEncap = true
+		outbound.UDPEncapSPort = transport.NATTPort
+		outbound.UDPEncapDPort = transport.NATTPort
 	}
 
 	if err := dp.InstallSA(outbound); err != nil {

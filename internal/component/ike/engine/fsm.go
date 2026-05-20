@@ -233,6 +233,30 @@ func handleSAInitResponse(
 			if p.NotifyMsgType == wire.NotifySignatureHashAlgorithms {
 				sa.RemoteHashAlgos = parseHashAlgoNotify(p.NotificationData)
 			}
+			// RFC 7296 Section 2.23: check NAT detection notify payloads.
+			// SOURCE_IP from responder: hash of responder's own address.
+			// Mismatch means responder is behind NAT.
+			if p.NotifyMsgType == wire.NotifyNATDetectionSourceIP {
+				remoteIP := net.ParseIP(sa.PeerCfg.RemoteAddress)
+				if remoteIP != nil {
+					expected := transport.NATDetectionHash(sa.InitiatorSPI, sa.ResponderSPI, remoteIP, transport.IKEPort)
+					if !natHashEqual(p.NotificationData, expected) {
+						sa.NATDetected = true
+					}
+				}
+			}
+			// DESTINATION_IP from responder: hash of us as the responder sees us.
+			// Mismatch means our address was translated (we are behind NAT).
+			if p.NotifyMsgType == wire.NotifyNATDetectionDestIP {
+				localIP := net.ParseIP(sa.PeerCfg.LocalAddress)
+				if localIP != nil {
+					expected := transport.NATDetectionHash(sa.InitiatorSPI, sa.ResponderSPI, localIP, transport.IKEPort)
+					if !natHashEqual(p.NotificationData, expected) {
+						sa.NATDetected = true
+						sa.BehindNAT = true
+					}
+				}
+			}
 		}
 	}
 
@@ -303,7 +327,7 @@ func handleSAInitResponse(
 	sa.RetransmitCount = 0
 
 	if tr != nil && remote != nil {
-		if err := tr.Send(authReq, remote); err != nil {
+		if err := sendWithNATT(sa, authReq, tr, remote); err != nil {
 			log.Warn("ike: send IKE_AUTH failed", "peer", sa.PeerName, "error", err)
 		}
 	}

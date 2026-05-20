@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | complete |
 | Depends | ipsec-4, ipsec-7 |
-| Phase | - |
+| Phase | 9/9 |
 | Updated | 2026-05-20 |
 
 ## Post-Compaction Recovery

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/eap"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
 	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -74,7 +75,9 @@ func runEngine(conn net.Conn) int {
 
 	table := NewSATable()
 	var tr *transport.UDPTransport
+	var trNATT *transport.UDPTransport
 	var activeCfg *ipsec.IPsecConfig
+	var ipPool *eap.Pool
 	activePeers := make(map[string]*PeerSession)
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
@@ -95,6 +98,34 @@ func runEngine(conn net.Conn) int {
 			} else {
 				go tr.Run()
 				go dispatchInbound(tr, table, log)
+			}
+		}
+
+		// RFC 3948: start NAT-T listener on port 4500 for UDP-encapsulated IKE and ESP.
+		if trNATT == nil && len(cfg.Peers) > 0 {
+			nattAddr := "0.0.0.0:4500"
+			if cfg.Interface != "" {
+				nattAddr = cfg.Interface + ":4500"
+			}
+			var nErr error
+			trNATT, nErr = transport.NewUDPTransport(nattAddr, log)
+			if nErr != nil {
+				log.Warn("ike: failed to start NAT-T transport", "error", nErr)
+			} else {
+				go trNATT.Run()
+				go dispatchNATTInbound(trNATT, table, log)
+			}
+		}
+
+		// Create virtual IP pool from remote-access config.
+		if cfg.RemoteAccess != nil && ipPool == nil {
+			ra := cfg.RemoteAccess
+			var poolErr error
+			ipPool, poolErr = eap.NewPool(ra.Pool.Range, ra.Pool.Range6, ra.Pool.DNS, ra.Pool.Domain)
+			if poolErr != nil {
+				log.Warn("ike: failed to create virtual IP pool", "error", poolErr)
+			} else {
+				log.Info("ike: virtual IP pool created", "range", ra.Pool.Range)
 			}
 		}
 
@@ -126,6 +157,12 @@ func runEngine(conn net.Conn) int {
 			log.Warn("ike: transport close error", "error", err)
 		}
 	}
+	if trNATT != nil {
+		if err := trNATT.Close(); err != nil {
+			log.Warn("ike: NAT-T transport close error", "error", err)
+		}
+	}
+	_ = ipPool
 	if err := dataplane.CloseBackend(); err != nil {
 		log.Warn("ike: dataplane close error", "error", err)
 	}
@@ -177,6 +214,58 @@ func (l *inboundRateLimiter) allow() bool {
 	}
 	l.tokens--
 	return true
+}
+
+// dispatchNATTInbound reads packets from the NAT-T transport (port 4500) and
+// dispatches IKE packets after stripping the non-ESP marker.
+// RFC 3948 Section 2.2: 4 zero bytes prefix distinguishes IKE from ESP.
+func dispatchNATTInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logger) {
+	limiter := newInboundRateLimiter(100, 200)
+
+	for pkt := range tr.Recv() {
+		if transport.IsNATKeepalive(pkt.Data) {
+			continue
+		}
+
+		ikeData, isIKE := transport.StripNonESPMarker(pkt.Data)
+		if !isIKE {
+			continue
+		}
+
+		if len(ikeData) < 28 {
+			continue
+		}
+		if ikeData[17]>>4 != 2 {
+			continue
+		}
+		if !limiter.allow() {
+			continue
+		}
+
+		var iSPI, rSPI [8]byte
+		copy(iSPI[:], ikeData[0:8])
+		copy(rSPI[:], ikeData[8:16])
+
+		if iSPI == [8]byte{} {
+			continue
+		}
+
+		sa := table.Lookup(iSPI, rSPI)
+		if sa == nil && rSPI == [8]byte{} {
+			sa = table.LookupByInitiatorSPI(iSPI)
+		}
+		if sa == nil {
+			log.Debug("ike: no SA for NAT-T packet", "ispi", SPIHex(iSPI), "rspi", SPIHex(rSPI))
+			continue
+		}
+
+		nattPkt := transport.Packet{
+			Data:       ikeData,
+			RemoteAddr: pkt.RemoteAddr,
+			LocalAddr:  pkt.LocalAddr,
+		}
+		handleInbound(sa, nattPkt, table, tr, log)
+	}
 }
 
 // dispatchInbound reads packets from the transport and dispatches to the

@@ -36,6 +36,18 @@ func (ps *PeerSession) runEstablished(
 
 	emitChildUp(bus, ps.peerName, child, log)
 
+	// RFC 3948 Section 2.3: start NAT keepalive when NAT is detected.
+	if sa.NATDetected && tr != nil {
+		remote := sa.remoteUDPAddr()
+		if remote != nil {
+			remote.Port = transport.NATTPort
+			ka := transport.NewKeepalive(tr.Conn(), remote, transport.DefaultKeepaliveInterval, log)
+			go ka.Run()
+			defer ka.Stop()
+			log.Info("ike: NAT keepalive started", "peer", ps.peerName, "remote", remote)
+		}
+	}
+
 	dpd := newDPDState(ikeGroup.DPD)
 	childLT := newLifetimeState(ps.espGroup.Lifetime)
 	ikeLT := newLifetimeState(ikeGroup.Lifetime)

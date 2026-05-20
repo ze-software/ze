@@ -145,7 +145,9 @@ func computeLocalAuth(sa *SA) (*wire.PayloadAUTH, error) {
 		return computePSKAuth(sa)
 	case ipsec.AuthX509:
 		return computeX509Auth(sa)
-	case ipsec.AuthUnknown, ipsec.AuthEAPTLS, ipsec.AuthEAPMSCHAPv2:
+	case ipsec.AuthEAPTLS, ipsec.AuthEAPMSCHAPv2:
+		return computeEAPAuth(sa)
+	case ipsec.AuthUnknown:
 		return nil, fmt.Errorf("ike auth: unsupported auth mode %s", sa.PeerCfg.Auth.Mode)
 	}
 	return nil, fmt.Errorf("ike auth: unsupported auth mode %s", sa.PeerCfg.Auth.Mode)

@@ -42,6 +42,11 @@ type SAParams struct {
 	AuthKey  []byte //nolint:gosec // ESP integrity key material, not a credential
 
 	IsAEAD bool
+
+	// NAT-T UDP encapsulation (RFC 3948).
+	UDPEncap      bool
+	UDPEncapSPort uint16
+	UDPEncapDPort uint16
 }
 
 // SPParams describes a Security Policy to install in the kernel or VPP.

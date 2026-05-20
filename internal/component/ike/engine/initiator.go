@@ -4,9 +4,11 @@ package engine
 
 import (
 	"encoding/binary"
+	"net"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
 	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 )
@@ -43,9 +45,26 @@ func newInitiatorSA(peerName string, peer ipsec.SiteToSitePeer, ikeGroup ipsec.I
 }
 
 // buildSAInitRequest constructs an IKE_SA_INIT request message.
+// RFC 7296 Section 2.23: includes NAT_DETECTION_*_IP notify payloads.
 func buildSAInitRequest(sa *SA, ikeGroup ipsec.IKEGroup) []byte {
 	proposals := buildWireIKEProposals(ikeGroup)
 	dhGroupID := crypto.DHGroupID(ikeGroup.Proposals[0].DHGroup)
+
+	payloads := []wire.PayloadEntry{
+		{Payload: &wire.PayloadSA{Proposals: proposals}},
+		{Payload: &wire.PayloadKE{
+			DHGroup:         uint16(dhGroupID),
+			KeyExchangeData: sa.LocalDH.PublicKey,
+		}},
+		{Payload: &wire.PayloadNonce{NonceData: sa.LocalNonce}},
+		{Payload: buildSignatureHashAlgosNotify()},
+	}
+
+	localIP := net.ParseIP(sa.PeerCfg.LocalAddress)
+	remoteIP := net.ParseIP(sa.PeerCfg.RemoteAddress)
+	if localIP != nil && remoteIP != nil {
+		payloads = append(payloads, buildNATDetectionPayloads(sa.InitiatorSPI, sa.ResponderSPI, localIP, remoteIP, transport.IKEPort)...)
+	}
 
 	msg := wire.Message{
 		Header: wire.Header{
@@ -56,20 +75,30 @@ func buildSAInitRequest(sa *SA, ikeGroup ipsec.IKEGroup) []byte {
 			Flags:        wire.FlagInitiator,
 			MessageID:    0,
 		},
-		Payloads: []wire.PayloadEntry{
-			{Payload: &wire.PayloadSA{Proposals: proposals}},
-			{Payload: &wire.PayloadKE{
-				DHGroup:         uint16(dhGroupID),
-				KeyExchangeData: sa.LocalDH.PublicKey,
-			}},
-			{Payload: &wire.PayloadNonce{NonceData: sa.LocalNonce}},
-			{Payload: buildSignatureHashAlgosNotify()},
-		},
+		Payloads: payloads,
 	}
 
 	buf := make([]byte, 4096)
 	n := msg.WriteTo(buf, 0)
 	return buf[:n]
+}
+
+// buildNATDetectionPayloads creates the NAT_DETECTION_SOURCE_IP and
+// NAT_DETECTION_DESTINATION_IP notify payloads.
+// RFC 7296 Section 2.23: SOURCE_IP uses our address, DESTINATION_IP uses the peer's address.
+func buildNATDetectionPayloads(spiI, spiR [8]byte, localIP, remoteIP net.IP, port uint16) []wire.PayloadEntry {
+	srcHash := transport.NATDetectionHash(spiI, spiR, localIP, port)
+	dstHash := transport.NATDetectionHash(spiI, spiR, remoteIP, port)
+	return []wire.PayloadEntry{
+		{Payload: &wire.PayloadNotify{
+			NotifyMsgType:    wire.NotifyNATDetectionSourceIP,
+			NotificationData: srcHash,
+		}},
+		{Payload: &wire.PayloadNotify{
+			NotifyMsgType:    wire.NotifyNATDetectionDestIP,
+			NotificationData: dstHash,
+		}},
+	}
 }
 
 // buildWireIKEProposals converts config IKE proposals to wire format.

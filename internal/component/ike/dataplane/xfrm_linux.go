@@ -50,6 +50,15 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 		}
 	}
 
+	// RFC 3948: UDP encapsulation for NAT-T.
+	if p.UDPEncap {
+		state.Encap = &netlink.XfrmStateEncap{
+			Type:    netlink.XFRM_ENCAP_ESPINUDP,
+			SrcPort: int(p.UDPEncapSPort),
+			DstPort: int(p.UDPEncapDPort),
+		}
+	}
+
 	if err := netlink.XfrmStateAdd(state); err != nil {
 		return fmt.Errorf("xfrm: state add spi=%d: %w", p.SPI, err)
 	}

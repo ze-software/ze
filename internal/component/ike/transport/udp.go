@@ -75,6 +75,11 @@ func (t *UDPTransport) Send(data []byte, remote *net.UDPAddr) error {
 	return nil
 }
 
+// Conn returns the underlying UDP connection for use by keepalive senders.
+func (t *UDPTransport) Conn() *net.UDPConn {
+	return t.conn
+}
+
 // LocalAddr returns the local address the transport is listening on.
 func (t *UDPTransport) LocalAddr() net.Addr {
 	return t.conn.LocalAddr()

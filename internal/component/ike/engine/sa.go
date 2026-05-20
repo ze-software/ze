@@ -89,6 +89,14 @@ type SA struct {
 
 	// Remote peer hash algorithms announced via SIGNATURE_HASH_ALGORITHMS notify
 	RemoteHashAlgos []uint16
+
+	// NAT Traversal state (RFC 7296 Section 2.23).
+	NATDetected bool
+	BehindNAT   bool // true if we are the side behind NAT
+
+	// EAP state (RFC 7296 Section 2.16).
+	EAPSession any // *eap.Session, stored as any to avoid import cycle
+	EAPMSK     [64]byte
 }
 
 // GenerateSPI generates a random 8-byte SPI value using crypto/rand.
