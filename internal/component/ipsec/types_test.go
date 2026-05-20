@@ -117,7 +117,7 @@ func TestPFSModeRoundTrip(t *testing.T) {
 }
 
 func TestAuthModeRoundTrip(t *testing.T) {
-	for _, name := range []string{"pre-shared-secret", "x509"} {
+	for _, name := range []string{"pre-shared-secret", "x509", "eap-tls", "eap-mschapv2"} {
 		m, ok := ParseAuthMode(name)
 		if !ok {
 			t.Fatalf("ParseAuthMode(%q) !ok", name)

@@ -155,11 +155,15 @@ const (
 	AuthUnknown AuthMode = iota
 	AuthPreSharedSecret
 	AuthX509
+	AuthEAPTLS
+	AuthEAPMSCHAPv2
 )
 
 var authModeNames = map[AuthMode]string{ //nolint:gosec // enum name, not a credential
 	AuthPreSharedSecret: "pre-shared-secret",
 	AuthX509:            "x509",
+	AuthEAPTLS:          "eap-tls",
+	AuthEAPMSCHAPv2:     "eap-mschapv2",
 }
 
 var authModeByName map[string]AuthMode
@@ -390,16 +394,44 @@ type SiteToSitePeer struct {
 	VTIBind        string // VTI interface name
 }
 
+// EAPUser is a remote-access EAP user entry.
+type EAPUser struct {
+	Name        string
+	Password    string `json:"-"` //nolint:gosec // decoded plaintext, never serialized
+	Certificate string // PKI store name (EAP-TLS only)
+}
+
+// VirtualIPPool defines the address pool for road warrior clients.
+type VirtualIPPool struct {
+	Name   string
+	Range  string   // IPv4 CIDR (e.g. "10.10.0.0/24")
+	Range6 string   // IPv6 CIDR (e.g. "fd00::/64"), optional
+	DNS    []string // DNS servers pushed to clients
+	Domain string   // search domain pushed to clients
+}
+
+// RemoteAccessConfig holds EAP-based remote access VPN settings.
+type RemoteAccessConfig struct {
+	IKEGroup string // reference to IKEGroup.Name
+	ESPGroup string // reference to ESPGroup.Name
+	Auth     AuthConfig
+	Pool     VirtualIPPool
+	Users    map[string]EAPUser
+}
+
 // IPsecConfig holds the complete parsed IPsec configuration.
 type IPsecConfig struct {
-	Interface string
-	ESPGroups map[string]ESPGroup
-	IKEGroups map[string]IKEGroup
-	Peers     map[string]SiteToSitePeer
+	Interface    string
+	ESPGroups    map[string]ESPGroup
+	IKEGroups    map[string]IKEGroup
+	Peers        map[string]SiteToSitePeer
+	RemoteAccess *RemoteAccessConfig
 }
 
 // Changed returns the peer names whose configuration differs between
 // the old config and c. Includes added, removed, and modified peers.
+// The special name "remote-access" is included if the remote-access
+// config changed.
 func (c *IPsecConfig) Changed(old *IPsecConfig) []string {
 	if old == nil && c == nil {
 		return nil
@@ -433,7 +465,55 @@ func (c *IPsecConfig) Changed(old *IPsecConfig) []string {
 		}
 	}
 
+	if !remoteAccessEqual(oldRA(old), oldRA(c)) {
+		changed = append(changed, "remote-access")
+	}
+
 	return changed
+}
+
+func oldRA(cfg *IPsecConfig) *RemoteAccessConfig {
+	if cfg == nil {
+		return nil
+	}
+	return cfg.RemoteAccess
+}
+
+func remoteAccessEqual(a, b *RemoteAccessConfig) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	if a.IKEGroup != b.IKEGroup || a.ESPGroup != b.ESPGroup {
+		return false
+	}
+	if a.Auth != b.Auth {
+		return false
+	}
+	if a.Pool.Name != b.Pool.Name || a.Pool.Range != b.Pool.Range ||
+		a.Pool.Range6 != b.Pool.Range6 || a.Pool.Domain != b.Pool.Domain {
+		return false
+	}
+	if len(a.Pool.DNS) != len(b.Pool.DNS) {
+		return false
+	}
+	for i, d := range a.Pool.DNS {
+		if d != b.Pool.DNS[i] {
+			return false
+		}
+	}
+	if len(a.Users) != len(b.Users) {
+		return false
+	}
+	for name, au := range a.Users {
+		bu, ok := b.Users[name]
+		if !ok || au.Password != bu.Password || au.Certificate != bu.Certificate {
+			return false
+		}
+	}
+	return true
 }
 
 func peersEqual(a, b *SiteToSitePeer) bool {

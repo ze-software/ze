@@ -190,6 +190,100 @@ module ze-ipsec-conf {
                 }
             }
 
+            container remote-access {
+                description "Remote access VPN for road warrior clients (EAP).";
+
+                leaf ike-group {
+                    type string;
+                    ze:required;
+                    description "Reference to an IKE group name.";
+                }
+
+                leaf esp-group {
+                    type string;
+                    ze:required;
+                    description "Reference to an ESP group name.";
+                }
+
+                container authentication {
+                    description "EAP authentication settings for remote access.";
+
+                    leaf mode {
+                        type enumeration {
+                            enum eap-tls;
+                            enum eap-mschapv2;
+                        }
+                        ze:required;
+                        description "EAP authentication method.";
+                    }
+
+                    container x509 {
+                        description "Server certificate references for EAP.";
+
+                        leaf ca-certificate {
+                            type string;
+                            description "Name of the CA certificate in the PKI store.";
+                        }
+
+                        leaf certificate {
+                            type string;
+                            description "Name of the server certificate in the PKI store.";
+                        }
+                    }
+                }
+
+                list pool {
+                    key "name";
+                    description "Virtual IP pool for client address assignment (IKEv2 Configuration Payload, RFC 7296 Section 2.19).";
+
+                    leaf name {
+                        type string;
+                        description "Pool name.";
+                    }
+
+                    leaf range {
+                        type string;
+                        description "IPv4 CIDR for client addresses (e.g. 10.10.0.0/24). Prefix length /8-/30.";
+                    }
+
+                    leaf range6 {
+                        type string;
+                        description "IPv6 CIDR for client addresses (e.g. fd00::/64). Prefix length /48-/126.";
+                    }
+
+                    leaf dns {
+                        type string;
+                        description "DNS server pushed to clients via IKEv2 Configuration Payload.";
+                    }
+
+                    leaf domain {
+                        type string;
+                        description "Search domain pushed to clients.";
+                    }
+                }
+
+                list eap-user {
+                    key "name";
+                    description "EAP user entry for remote access authentication.";
+
+                    leaf name {
+                        type string;
+                        description "Username.";
+                    }
+
+                    leaf password {
+                        type string;
+                        ze:sensitive;
+                        description "User password ($9$-encoded). Required for eap-mschapv2.";
+                    }
+
+                    leaf certificate {
+                        type string;
+                        description "Client certificate name in PKI store. Required for eap-tls.";
+                    }
+                }
+            }
+
             container site-to-site {
                 description "Site-to-site VPN peers.";
 
@@ -240,6 +334,8 @@ module ze-ipsec-conf {
                             type enumeration {
                                 enum pre-shared-secret;
                                 enum x509;
+                                enum eap-tls;
+                                enum eap-mschapv2;
                             }
                             ze:required;
                             description "Authentication mode.";

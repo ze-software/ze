@@ -158,3 +158,4 @@ Reusable lessons extracted from gotchas sections across summaries.
 - (733) PKI store: shared certificate infrastructure; config.Tree lists via AddListEntry not GetOrCreateContainer; ECDSA keySize via Curve.Params().BitSize not generic Size()
 - (734) IPsec data model: L2TP-pattern tree-walker parser; algorithm enum strings match strongSwan naming for ipsec-4 consumption; DHGroup as uint8 with range validation over iota enum; cross-ref validation via function callbacks for testability
 - (735) XFRM interfaces: standalone type not TunnelKind (no endpoints); VTI deliberately excluded; GetXFRMInfo for operational display of managed and unmanaged interfaces; XfrmPolicyList is system-wide, filter by Ifid client-side
+- (737) IPsec EAP extension: extend AuthMode enum not separate enum; EAP auth shares x509 cert branch; single pool per remote-access; match parser method to YANG node type (leaf vs list)

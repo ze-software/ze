@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
 )
 
 // makeESPTree builds a config tree with vpn { ipsec { esp-group <name> { ... } } }.
@@ -503,6 +504,50 @@ func TestIPsecConfigChanged(t *testing.T) {
 	}
 }
 
+func TestIPsecConfigChangedRemoteAccess(t *testing.T) {
+	old := &IPsecConfig{
+		Peers: map[string]SiteToSitePeer{},
+		RemoteAccess: &RemoteAccessConfig{
+			IKEGroup: "IKE-RA",
+			Pool:     VirtualIPPool{Name: "pool1", Range: "10.10.0.0/24"},
+			Users:    map[string]EAPUser{"bob": {Name: "bob", Password: "old"}},
+		},
+	}
+	updated := &IPsecConfig{
+		Peers: map[string]SiteToSitePeer{},
+		RemoteAccess: &RemoteAccessConfig{
+			IKEGroup: "IKE-RA",
+			Pool:     VirtualIPPool{Name: "pool1", Range: "10.10.0.0/24"},
+			Users:    map[string]EAPUser{"bob": {Name: "bob", Password: "new"}},
+		},
+	}
+	got := updated.Changed(old)
+	found := false
+	for _, name := range got {
+		if name == "remote-access" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Changed() should include 'remote-access' when users change")
+	}
+
+	same := &IPsecConfig{
+		Peers: map[string]SiteToSitePeer{},
+		RemoteAccess: &RemoteAccessConfig{
+			IKEGroup: "IKE-RA",
+			Pool:     VirtualIPPool{Name: "pool1", Range: "10.10.0.0/24"},
+			Users:    map[string]EAPUser{"bob": {Name: "bob", Password: "old"}},
+		},
+	}
+	got2 := same.Changed(old)
+	for _, name := range got2 {
+		if name == "remote-access" {
+			t.Error("Changed() should not include 'remote-access' when config is identical")
+		}
+	}
+}
+
 func TestParseNilTree(t *testing.T) {
 	cfg, err := ParseIPsecConfig(nil)
 	if err != nil {
@@ -664,5 +709,334 @@ func TestParseAEADWithoutHash(t *testing.T) {
 	_, err := ParseIPsecConfig(tree)
 	if err != nil {
 		t.Fatalf("AEAD without hash should be valid: %v", err)
+	}
+}
+
+// --- EAP / Remote Access tests (spec ipsec-4) ---
+
+func makeRemoteAccessTree(opts remoteAccessOpts) *config.Tree {
+	tree := config.NewTree()
+	vpn := tree.GetOrCreateContainer("vpn")
+	ipsec := vpn.GetOrCreateContainer("ipsec")
+
+	// Minimal IKE/ESP groups so config is valid
+	ikeEntry := config.NewTree()
+	prop := config.NewTree()
+	prop.Set("encryption", "aes128gcm")
+	prop.Set("hash", "sha256")
+	prop.Set("dh-group", "14")
+	ikeEntry.AddListEntry("proposal", "1", prop)
+	ipsec.AddListEntry("ike-group", "IKE-RA", ikeEntry)
+
+	espEntry := config.NewTree()
+	espProp := config.NewTree()
+	espProp.Set("encryption", "aes128gcm")
+	espEntry.AddListEntry("proposal", "1", espProp)
+	ipsec.AddListEntry("esp-group", "ESP-RA", espEntry)
+
+	ra := ipsec.GetOrCreateContainer("remote-access")
+	ra.Set("ike-group", "IKE-RA")
+	ra.Set("esp-group", "ESP-RA")
+
+	auth := ra.GetOrCreateContainer("authentication")
+	if opts.authMode != "" {
+		auth.Set("mode", opts.authMode)
+	}
+	if opts.caCert != "" || opts.cert != "" {
+		x509 := auth.GetOrCreateContainer("x509")
+		if opts.caCert != "" {
+			x509.Set("ca-certificate", opts.caCert)
+		}
+		if opts.cert != "" {
+			x509.Set("certificate", opts.cert)
+		}
+	}
+
+	if opts.poolName != "" {
+		poolEntry := config.NewTree()
+		if opts.poolRange != "" {
+			poolEntry.Set("range", opts.poolRange)
+		}
+		if opts.poolRange6 != "" {
+			poolEntry.Set("range6", opts.poolRange6)
+		}
+		for _, dns := range opts.poolDNS {
+			poolEntry.Set("dns", dns)
+		}
+		if opts.poolDomain != "" {
+			poolEntry.Set("domain", opts.poolDomain)
+		}
+		ra.AddListEntry("pool", opts.poolName, poolEntry)
+	}
+
+	for _, u := range opts.users {
+		userEntry := config.NewTree()
+		if u.password != "" {
+			userEntry.Set("password", u.password)
+		}
+		if u.certificate != "" {
+			userEntry.Set("certificate", u.certificate)
+		}
+		ra.AddListEntry("eap-user", u.name, userEntry)
+	}
+
+	return tree
+}
+
+type remoteAccessOpts struct {
+	authMode   string
+	caCert     string
+	cert       string
+	poolName   string
+	poolRange  string
+	poolRange6 string
+	poolDNS    []string
+	poolDomain string
+	users      []eapUserOpts
+}
+
+type eapUserOpts struct {
+	name        string
+	password    string
+	certificate string
+}
+
+func TestParseRemoteAccessPool(t *testing.T) {
+	tree := makeRemoteAccessTree(remoteAccessOpts{
+		authMode:   "eap-mschapv2",
+		caCert:     "vpn-ca",
+		cert:       "server1",
+		poolName:   "roadwarrior",
+		poolRange:  "10.10.0.0/24",
+		poolDNS:    []string{"8.8.8.8"},
+		poolDomain: "vpn.example.com",
+	})
+
+	cfg, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: %v", err)
+	}
+	if cfg.RemoteAccess == nil {
+		t.Fatal("RemoteAccess is nil")
+	}
+	ra := cfg.RemoteAccess
+	if ra.Pool.Name != "roadwarrior" {
+		t.Errorf("pool name = %q, want roadwarrior", ra.Pool.Name)
+	}
+	if ra.Pool.Range != "10.10.0.0/24" {
+		t.Errorf("pool range = %q, want 10.10.0.0/24", ra.Pool.Range)
+	}
+	if len(ra.Pool.DNS) != 1 || ra.Pool.DNS[0] != "8.8.8.8" {
+		t.Errorf("pool dns = %v, want [8.8.8.8]", ra.Pool.DNS)
+	}
+	if ra.Pool.Domain != "vpn.example.com" {
+		t.Errorf("pool domain = %q, want vpn.example.com", ra.Pool.Domain)
+	}
+	if ra.IKEGroup != "IKE-RA" {
+		t.Errorf("ike-group = %q, want IKE-RA", ra.IKEGroup)
+	}
+	if ra.ESPGroup != "ESP-RA" {
+		t.Errorf("esp-group = %q, want ESP-RA", ra.ESPGroup)
+	}
+}
+
+func TestParseEAPMSCHAPv2Auth(t *testing.T) {
+	tree := makeRemoteAccessTree(remoteAccessOpts{
+		authMode: "eap-mschapv2",
+		caCert:   "vpn-ca",
+		cert:     "server1",
+		poolName: "pool1",
+		users: []eapUserOpts{
+			{name: "thomas", password: "s3cret"},
+		},
+	})
+
+	cfg, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: %v", err)
+	}
+	if cfg.RemoteAccess == nil {
+		t.Fatal("RemoteAccess is nil")
+	}
+	ra := cfg.RemoteAccess
+	if ra.Auth.Mode != AuthEAPMSCHAPv2 {
+		t.Errorf("auth mode = %s, want eap-mschapv2", ra.Auth.Mode)
+	}
+	if ra.Auth.CACertificate != "vpn-ca" {
+		t.Errorf("ca-certificate = %q, want vpn-ca", ra.Auth.CACertificate)
+	}
+	user, ok := ra.Users["thomas"]
+	if !ok {
+		t.Fatal("user thomas not found")
+	}
+	if user.Password != "s3cret" {
+		t.Errorf("password = %q, want s3cret", user.Password)
+	}
+}
+
+func TestParseEAPMSCHAPv2EncodedPassword(t *testing.T) {
+	encoded, err := secret.Encode("hunter2")
+	if err != nil {
+		t.Fatalf("secret.Encode: %v", err)
+	}
+	tree := makeRemoteAccessTree(remoteAccessOpts{
+		authMode: "eap-mschapv2",
+		poolName: "pool1",
+		users: []eapUserOpts{
+			{name: "bob", password: encoded},
+		},
+	})
+
+	cfg, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: %v", err)
+	}
+	user := cfg.RemoteAccess.Users["bob"]
+	if user.Password != "hunter2" {
+		t.Errorf("decoded password = %q, want hunter2", user.Password)
+	}
+}
+
+func TestParseEAPTLSAuth(t *testing.T) {
+	tree := makeRemoteAccessTree(remoteAccessOpts{
+		authMode: "eap-tls",
+		caCert:   "vpn-ca",
+		cert:     "server1",
+		poolName: "pool1",
+		users: []eapUserOpts{
+			{name: "alice", certificate: "alice-cert"},
+		},
+	})
+
+	cfg, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: %v", err)
+	}
+	if cfg.RemoteAccess == nil {
+		t.Fatal("RemoteAccess is nil")
+	}
+	ra := cfg.RemoteAccess
+	if ra.Auth.Mode != AuthEAPTLS {
+		t.Errorf("auth mode = %s, want eap-tls", ra.Auth.Mode)
+	}
+	user, ok := ra.Users["alice"]
+	if !ok {
+		t.Fatal("user alice not found")
+	}
+	if user.Certificate != "alice-cert" {
+		t.Errorf("certificate = %q, want alice-cert", user.Certificate)
+	}
+}
+
+func TestValidatePoolRange(t *testing.T) {
+	tests := []struct {
+		name    string
+		r       string
+		r6      string
+		wantErr bool
+	}{
+		{"valid ipv4", "10.10.0.0/24", "", false},
+		{"valid ipv4 /8", "10.0.0.0/8", "", false},
+		{"valid ipv4 /30", "10.10.0.0/30", "", false},
+		{"invalid ipv4 /31", "10.10.0.0/31", "", true},
+		{"invalid ipv4 /7", "10.0.0.0/7", "", true},
+		{"valid ipv6", "", "fd00::/64", false},
+		{"valid ipv6 /48", "", "fd00::/48", false},
+		{"valid ipv6 /126", "", "fd00::/126", false},
+		{"invalid ipv6 /127", "", "fd00::/127", true},
+		{"invalid ipv6 /47", "", "fd00::/47", true},
+		{"invalid cidr", "not-a-cidr", "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &IPsecConfig{
+				IKEGroups: map[string]IKEGroup{"IKE-RA": {}},
+				ESPGroups: map[string]ESPGroup{"ESP-RA": {}},
+				RemoteAccess: &RemoteAccessConfig{
+					IKEGroup: "IKE-RA",
+					ESPGroup: "ESP-RA",
+					Pool: VirtualIPPool{
+						Name:   "test",
+						Range:  tt.r,
+						Range6: tt.r6,
+					},
+					Users: make(map[string]EAPUser),
+				},
+			}
+			err := cfg.ValidateRemoteAccess()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateRemoteAccess() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateEAPUserPassword(t *testing.T) {
+	cfg := &IPsecConfig{
+		IKEGroups: map[string]IKEGroup{"IKE-RA": {}},
+		ESPGroups: map[string]ESPGroup{"ESP-RA": {}},
+		RemoteAccess: &RemoteAccessConfig{
+			IKEGroup: "IKE-RA",
+			ESPGroup: "ESP-RA",
+			Auth:     AuthConfig{Mode: AuthEAPMSCHAPv2},
+			Pool:     VirtualIPPool{Name: "pool1"},
+			Users: map[string]EAPUser{
+				"nopw": {Name: "nopw"},
+			},
+		},
+	}
+	err := cfg.ValidateRemoteAccess()
+	if err == nil {
+		t.Fatal("expected error for mschapv2 user without password")
+	}
+	if !strings.Contains(err.Error(), "password is required") {
+		t.Errorf("error = %q, want to contain 'password is required'", err)
+	}
+}
+
+func TestValidateEAPTLSUserCertificate(t *testing.T) {
+	cfg := &IPsecConfig{
+		IKEGroups: map[string]IKEGroup{"IKE-RA": {}},
+		ESPGroups: map[string]ESPGroup{"ESP-RA": {}},
+		RemoteAccess: &RemoteAccessConfig{
+			IKEGroup: "IKE-RA",
+			ESPGroup: "ESP-RA",
+			Auth:     AuthConfig{Mode: AuthEAPTLS},
+			Pool:     VirtualIPPool{Name: "pool1"},
+			Users: map[string]EAPUser{
+				"nocert": {Name: "nocert"},
+			},
+		},
+	}
+	err := cfg.ValidateRemoteAccess()
+	if err == nil {
+		t.Fatal("expected error for eap-tls user without certificate")
+	}
+	if !strings.Contains(err.Error(), "certificate is required") {
+		t.Errorf("error = %q, want to contain 'certificate is required'", err)
+	}
+}
+
+func TestDualStackPool(t *testing.T) {
+	tree := makeRemoteAccessTree(remoteAccessOpts{
+		authMode:   "eap-mschapv2",
+		poolName:   "dualstack",
+		poolRange:  "10.10.0.0/24",
+		poolRange6: "fd00:vpn::/64",
+	})
+
+	cfg, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: %v", err)
+	}
+	if cfg.RemoteAccess == nil {
+		t.Fatal("RemoteAccess is nil")
+	}
+	pool := cfg.RemoteAccess.Pool
+	if pool.Range != "10.10.0.0/24" {
+		t.Errorf("range = %q, want 10.10.0.0/24", pool.Range)
+	}
+	if pool.Range6 != "fd00:vpn::/64" {
+		t.Errorf("range6 = %q, want fd00:vpn::/64", pool.Range6)
 	}
 }

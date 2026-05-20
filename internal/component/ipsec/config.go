@@ -115,6 +115,14 @@ func ParseIPsecConfig(tree *config.Tree) (*IPsecConfig, error) {
 		}
 	}
 
+	if raRoot := ipsecRoot.GetContainer("remote-access"); raRoot != nil {
+		ra, err := parseRemoteAccess(raRoot)
+		if err != nil {
+			return nil, err
+		}
+		cfg.RemoteAccess = &ra
+	}
+
 	return cfg, nil
 }
 
@@ -417,6 +425,100 @@ func parseSiteToSitePeer(name string, t *config.Tree) (SiteToSitePeer, error) {
 	return peer, nil
 }
 
+func parseRemoteAccess(t *config.Tree) (RemoteAccessConfig, error) {
+	ra := RemoteAccessConfig{
+		Users: make(map[string]EAPUser),
+	}
+
+	if v, ok := t.Get("ike-group"); ok {
+		ra.IKEGroup = v
+	}
+	if v, ok := t.Get("esp-group"); ok {
+		ra.ESPGroup = v
+	}
+
+	if authTree := t.GetContainer("authentication"); authTree != nil {
+		auth, err := parseAuthConfig("remote-access", authTree)
+		if err != nil {
+			return ra, err
+		}
+		ra.Auth = auth
+	}
+
+	if pools := t.GetListOrdered("pool"); len(pools) > 0 {
+		pool, err := parseVirtualIPPool(pools[0].Key, pools[0].Value)
+		if err != nil {
+			return ra, err
+		}
+		ra.Pool = pool
+	}
+
+	for _, entry := range t.GetListOrdered("eap-user") {
+		user, err := parseEAPUser(entry.Key, entry.Value, ra.Auth.Mode)
+		if err != nil {
+			return ra, err
+		}
+		ra.Users[entry.Key] = user
+	}
+
+	return ra, nil
+}
+
+func parseVirtualIPPool(name string, t *config.Tree) (VirtualIPPool, error) {
+	if err := validateName(name); err != nil {
+		return VirtualIPPool{}, fmt.Errorf("ipsec pool %q: %w", name, err)
+	}
+
+	pool := VirtualIPPool{Name: name}
+
+	if v, ok := t.Get("range"); ok {
+		pool.Range = v
+	}
+	if v, ok := t.Get("range6"); ok {
+		pool.Range6 = v
+	}
+
+	if v, ok := t.Get("dns"); ok {
+		pool.DNS = append(pool.DNS, v)
+	}
+
+	if v, ok := t.Get("domain"); ok {
+		pool.Domain = v
+	}
+
+	return pool, nil
+}
+
+func parseEAPUser(name string, t *config.Tree, authMode AuthMode) (EAPUser, error) {
+	if err := validateName(name); err != nil {
+		return EAPUser{}, fmt.Errorf("ipsec eap-user %q: %w", name, err)
+	}
+
+	user := EAPUser{Name: name}
+
+	switch authMode {
+	case AuthEAPMSCHAPv2:
+		if v, ok := t.Get("password"); ok {
+			if secret.IsEncoded(v) {
+				decoded, err := secret.Decode(v)
+				if err != nil {
+					return user, fmt.Errorf("ipsec eap-user %q password decode: %w", name, err)
+				}
+				user.Password = decoded
+			} else {
+				user.Password = v
+			}
+		}
+	case AuthEAPTLS:
+		if v, ok := t.Get("certificate"); ok {
+			user.Certificate = v
+		}
+	case AuthUnknown, AuthPreSharedSecret, AuthX509:
+	}
+
+	return user, nil
+}
+
 func parseAuthConfig(peerName string, t *config.Tree) (AuthConfig, error) {
 	var auth AuthConfig
 
@@ -450,7 +552,7 @@ func parseAuthConfig(peerName string, t *config.Tree) (AuthConfig, error) {
 				auth.PSK = v
 			}
 		}
-	case AuthX509:
+	case AuthX509, AuthEAPTLS, AuthEAPMSCHAPv2:
 		if x509Tree := t.GetContainer("x509"); x509Tree != nil {
 			if v, ok := x509Tree.Get("ca-certificate"); ok {
 				auth.CACertificate = v

@@ -1,0 +1,62 @@
+# Test: ze config validate with remote-access VPN pool configuration
+# Verifies that the YANG schema accepts remote-access pool with EAP auth
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		ike-group IKE-RA {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-RA {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		remote-access {
+			ike-group IKE-RA
+			esp-group ESP-RA
+			authentication {
+				mode eap-mschapv2
+				x509 {
+					ca-certificate vpn-ca
+					certificate server1
+				}
+			}
+			pool roadwarrior {
+				range 10.10.0.0/24
+				dns 8.8.8.8
+				domain vpn.example.com
+			}
+			eap-user thomas {
+				password s3cret
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

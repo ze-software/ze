@@ -2,7 +2,10 @@
 
 package ipsec
 
-import "fmt"
+import (
+	"fmt"
+	"net/netip"
+)
 
 // ValidateGroupRefs checks that every peer's ike-group and esp-group
 // references point to defined groups within the config.
@@ -61,6 +64,60 @@ func (c *IPsecConfig) ValidateInterfaceRef(exists func(string) bool) error {
 	}
 	if !exists(c.Interface) {
 		return fmt.Errorf("ipsec: interface %q not found", c.Interface)
+	}
+	return nil
+}
+
+// ValidateRemoteAccess checks remote-access pool ranges and EAP user credentials.
+func (c *IPsecConfig) ValidateRemoteAccess() error {
+	if c.RemoteAccess == nil {
+		return nil
+	}
+	ra := c.RemoteAccess
+
+	if ra.Pool.Range != "" {
+		if err := validatePoolPrefix(ra.Pool.Range, 8, 30); err != nil {
+			return fmt.Errorf("ipsec remote-access pool %q range: %w", ra.Pool.Name, err)
+		}
+	}
+	if ra.Pool.Range6 != "" {
+		if err := validatePoolPrefix(ra.Pool.Range6, 48, 126); err != nil {
+			return fmt.Errorf("ipsec remote-access pool %q range6: %w", ra.Pool.Name, err)
+		}
+	}
+
+	if ra.IKEGroup != "" {
+		if _, ok := c.IKEGroups[ra.IKEGroup]; !ok {
+			return fmt.Errorf("ipsec remote-access: ike-group %q not defined", ra.IKEGroup)
+		}
+	}
+	if ra.ESPGroup != "" {
+		if _, ok := c.ESPGroups[ra.ESPGroup]; !ok {
+			return fmt.Errorf("ipsec remote-access: esp-group %q not defined", ra.ESPGroup)
+		}
+	}
+
+	for name := range ra.Users {
+		user := ra.Users[name]
+		if ra.Auth.Mode == AuthEAPMSCHAPv2 && user.Password == "" {
+			return fmt.Errorf("ipsec eap-user %q: password is required for eap-mschapv2", name)
+		}
+		if ra.Auth.Mode == AuthEAPTLS && user.Certificate == "" {
+			return fmt.Errorf("ipsec eap-user %q: certificate is required for eap-tls", name)
+		}
+	}
+
+	return nil
+}
+
+func validatePoolPrefix(cidr string, minBits, maxBits int) error {
+	prefix, err := netip.ParsePrefix(cidr)
+	if err != nil {
+		return fmt.Errorf("invalid CIDR %q: %w", cidr, err)
+	}
+	bits := prefix.Bits()
+	if bits < minBits || bits > maxBits {
+		return fmt.Errorf("prefix length /%d out of range /%d-/%d", bits, minBits, maxBits)
 	}
 	return nil
 }
