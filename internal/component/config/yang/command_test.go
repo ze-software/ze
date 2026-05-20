@@ -534,7 +534,7 @@ func TestBuildCommandTree(t *testing.T) {
 	// "cache" from ze-cli-cache-cmd
 	cache := tree.Children["cache"]
 	require.NotNil(t, cache, "cache should exist")
-	assert.Equal(t, "BGP message cache operations", cache.Description)
+	assert.Equal(t, "BGP message cache operations. Grammar: cache <action> <id> [args].\nActions: list, retain, release, expire, forward.", cache.Description)
 	assert.Equal(t, "ze-bgp:cache", cache.WireMethod)
 
 	// "peer" merged from 3 modules

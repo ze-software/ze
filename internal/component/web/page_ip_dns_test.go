@@ -28,7 +28,7 @@ func TestDNSFormData_Build(t *testing.T) {
 func TestDNSFormData_Defaults(t *testing.T) {
 	data := BuildDNSFormData(nil)
 	assert.Empty(t, data.Servers)
-	assert.Equal(t, uint32(1000), data.CacheSize)
+	assert.Equal(t, uint32(10000), data.CacheSize)
 	assert.False(t, data.CacheEnabled)
 }
 
@@ -37,7 +37,7 @@ func TestDNSFormData_EmptyTree(t *testing.T) {
 	tree := config.NewTree()
 	data := BuildDNSFormData(tree)
 	assert.Empty(t, data.Servers)
-	assert.Equal(t, uint32(1000), data.CacheSize)
+	assert.Equal(t, uint32(10000), data.CacheSize)
 }
 
 // TestDNSWorkbenchForm_Fields verifies the form field construction.

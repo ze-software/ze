@@ -102,7 +102,8 @@ func TestScenario_InterfaceCreateWithUnit(t *testing.T) {
 	code = addEntry("interface/ethernet/uplink-isp-a/unit/", url.Values{"name": {"0"}})
 	assert.Equal(t, http.StatusOK, code, "add unit 0")
 
-	setLeaf("interface/ethernet/uplink-isp-a/unit/0/", "address", "198.51.100.2/30")
+	setLeaf("interface/ethernet/uplink-isp-a/unit/0/", "description", "Transit link unit")
+	setLeaf("interface/ethernet/uplink-isp-a/unit/0/", "sysctl-profile", "router")
 
 	count := mgr.ChangeCount("alice")
 	assert.Greater(t, count, 0, "should have pending changes")
@@ -274,14 +275,14 @@ func TestScenario_FullRouterSetup(t *testing.T) {
 	})
 	set("interface/ethernet/uplink/", "description", "ISP uplink")
 	add("interface/ethernet/uplink/unit/", url.Values{"name": {"0"}})
-	set("interface/ethernet/uplink/unit/0/", "address", "198.51.100.2/30")
+	set("interface/ethernet/uplink/unit/0/", "description", "ISP uplink unit")
 
 	add("interface/ethernet/", url.Values{
 		"name":              {"customer"},
 		"field:mac-address": {"00:1a:2b:3c:4d:02"},
 	})
 	add("interface/ethernet/customer/unit/", url.Values{"name": {"0"}})
-	set("interface/ethernet/customer/unit/0/", "address", "172.16.1.1/30")
+	set("interface/ethernet/customer/unit/0/", "description", "Customer unit")
 
 	add("firewall/table/", url.Values{"name": {"filter"}})
 	set("firewall/table/filter/", "family", "inet")

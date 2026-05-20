@@ -356,9 +356,16 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	}
 
 	// Handle mode switching commands.
+	// "run" in config mode -> switch to operational mode.
 	// "run <args>" in config mode -> switch to operational mode and execute.
 	// "configure" in operational mode -> switch to config mode.
 	// Config commands (set, delete, etc.) in operational mode -> switch to config mode and execute.
+	if m.mode == ModeConfig && input == cmdRun {
+		m.textInput.SetValue("")
+		m.SwitchMode(ModeOperational)
+		m.updateCompletions()
+		return m, nil
+	}
 	if m.mode == ModeConfig && strings.HasPrefix(input, cmdRun+" ") {
 		args := strings.TrimSpace(strings.TrimPrefix(input, cmdRun))
 		m.textInput.SetValue("")

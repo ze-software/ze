@@ -205,6 +205,12 @@ module ze-cli-show-cmd {
             description "TCP port connectivity test (<host> <port> [source <IP>] [timeout <D>])";
         }
 
+        container probe-round {
+            config false;
+            ze:command "ze-show:probe-round";
+            description "Batch probe round for parallel traceroute (<dest> [probes N] [max-hops N] [timeout <D>])";
+        }
+
         container dns {
             config false;
             description "DNS diagnostics";
