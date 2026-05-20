@@ -436,6 +436,34 @@ func mergeDescriptions(dst, src *Command) {
 	}
 }
 
+// applyDescriptions walks the command tree and sets Description on leaf nodes
+// whose full command path matches a key in the descriptions map. This propagates
+// help text from plugin CommandDecl through the daemon's "system command list".
+func applyDescriptions(root *Command, descriptions map[string]string) {
+	if root == nil || len(descriptions) == 0 {
+		return
+	}
+	for path, desc := range descriptions {
+		parts := strings.Fields(path)
+		node := root
+		for _, part := range parts {
+			if node.Children == nil {
+				node = nil
+				break
+			}
+			child, ok := node.Children[part]
+			if !ok {
+				node = nil
+				break
+			}
+			node = child
+		}
+		if node != nil && node.Description == "" {
+			node.Description = desc
+		}
+	}
+}
+
 // wireValueHints attaches ValueHints callbacks to known nodes in the command tree.
 // Both CLI interactive and shell completion get them via shared TreeCompleter.
 // wireValueHints delegates to command.WireValueHints (shared with SSH sessions).
@@ -459,10 +487,11 @@ func buildRuntimeTree(client *cliClient) *Command {
 		return commandTree
 	}
 
-	// Parse response to get available command names
+	// Parse response to get available command names and descriptions
 	var data struct {
 		Commands []struct {
 			Value string `json:"value"`
+			Help  string `json:"help"`
 		} `json:"commands"`
 	}
 	if json.Unmarshal([]byte(output), &data) != nil {
@@ -470,8 +499,12 @@ func buildRuntimeTree(client *cliClient) *Command {
 	}
 
 	available := make(map[string]bool, len(data.Commands))
+	descriptions := make(map[string]string, len(data.Commands))
 	for _, c := range data.Commands {
 		available[strings.ToLower(c.Value)] = true
+		if c.Help != "" {
+			descriptions[c.Value] = c.Help
+		}
 	}
 
 	// Filter: include RPCs that are either not proxy commands,
@@ -492,6 +525,7 @@ func buildRuntimeTree(client *cliClient) *Command {
 	}
 
 	tree := cmd.BuildTree(filtered, false)
+	applyDescriptions(tree, descriptions)
 	wireValueHints(tree)
 
 	// Attach dynamic peer selector completion to the "peer" node.
@@ -518,6 +552,7 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 	var data struct {
 		Commands []struct {
 			Value string `json:"value"`
+			Help  string `json:"help"`
 		} `json:"commands"`
 	}
 	if json.Unmarshal([]byte(output), &data) != nil {
@@ -525,8 +560,12 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 	}
 
 	available := make(map[string]bool, len(data.Commands))
+	descriptions := make(map[string]string, len(data.Commands))
 	for _, c := range data.Commands {
 		available[strings.ToLower(c.Value)] = true
+		if c.Help != "" {
+			descriptions[c.Value] = c.Help
+		}
 	}
 
 	var filtered []cmd.RPCInfo
@@ -545,6 +584,7 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 	}
 
 	tree := cmd.BuildTree(filtered, false)
+	applyDescriptions(tree, descriptions)
 	wireValueHints(tree)
 
 	if tree.Children != nil {

@@ -623,7 +623,7 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 	if reg := proc.Registration(); reg != nil && len(reg.Commands) > 0 {
 		defs := make([]CommandDef, len(reg.Commands))
 		for i, name := range reg.Commands {
-			defs[i] = CommandDef{Name: name}
+			defs[i] = CommandDef{Name: name, Description: reg.CommandDescriptions[name]}
 		}
 		results := s.dispatcher.Registry().Register(proc, defs)
 		for _, r := range results {
@@ -798,6 +798,12 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 
 	for _, cmd := range input.Commands {
 		reg.Commands = append(reg.Commands, cmd.Name)
+		if cmd.Description != "" {
+			if reg.CommandDescriptions == nil {
+				reg.CommandDescriptions = make(map[string]string, len(input.Commands))
+			}
+			reg.CommandDescriptions[cmd.Name] = cmd.Description
+		}
 	}
 
 	if input.Schema != nil {

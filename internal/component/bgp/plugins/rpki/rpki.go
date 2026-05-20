@@ -226,12 +226,12 @@ func RunRPKIPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			{Name: "rpki status"},
-			{Name: "rpki cache"},
-			{Name: "rpki roa"},
-			{Name: "rpki summary"},
-			{Name: "rpki validate"},
-			{Name: "rpki aspa"},
+			{Name: "rpki status", Description: "Show RPKI validation status and cache server overview"},
+			{Name: "rpki cache", Description: "Show RTR cache server sessions with protocol details"},
+			{Name: "rpki roa", Description: "Show ROA table entries or lookup covering VRPs for a prefix"},
+			{Name: "rpki summary", Description: "Show RPKI validation summary with session and ASPA counts"},
+			{Name: "rpki validate", Description: "Validate a prefix against the ROA cache", Args: []string{"<prefix>", "<origin-asn>"}},
+			{Name: "rpki aspa", Description: "Show ASPA cache or lookup providers for a customer AS"},
 		},
 		WantsConfig: []string{"bgp"},
 	})

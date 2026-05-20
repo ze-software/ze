@@ -62,20 +62,21 @@ type ConnectionHandler struct {
 
 // PluginRegistration holds Stage 1 registration data from a plugin.
 type PluginRegistration struct {
-	Name               string              // Plugin name (set after Stage 4)
-	RFCs               []uint16            // RFC numbers for human-readable feature tracking
-	Encodings          []string            // Supported encodings (text, b64, hex)
-	Families           []string            // Address families (e.g., "ipv4/unicast", "all")
-	DecodeFamilies     []string            // Families this plugin decodes (claimed via "declare family X decode")
-	Commands           []string            // Command names to register
-	Receive            []string            // Message types to receive (update, open, negotiated, etc.)
-	SchemaDeclarations []SchemaDeclaration // Schema extensions for capability config
-	WantsConfigRoots   []string            // Config roots to receive (e.g., ["bgp", "environment"] via "declare wants config <root>")
-	VerifyBudget       int                 // Estimated verify time in seconds (0 = trivial)
-	ApplyBudget        int                 // Estimated apply time in seconds (0 = trivial)
-	WantsValidateOpen  bool                // Plugin wants to validate OPEN message pairs (validate-open callback)
-	ConnectionHandlers []ConnectionHandler // Listen sockets to receive via SCM_RIGHTS fd passing
-	Done               bool                // True when "registration done" received
+	Name                string              // Plugin name (set after Stage 4)
+	RFCs                []uint16            // RFC numbers for human-readable feature tracking
+	Encodings           []string            // Supported encodings (text, b64, hex)
+	Families            []string            // Address families (e.g., "ipv4/unicast", "all")
+	DecodeFamilies      []string            // Families this plugin decodes (claimed via "declare family X decode")
+	Commands            []string            // Command names to register
+	CommandDescriptions map[string]string   // Command name -> description (from CommandDecl)
+	Receive             []string            // Message types to receive (update, open, negotiated, etc.)
+	SchemaDeclarations  []SchemaDeclaration // Schema extensions for capability config
+	WantsConfigRoots    []string            // Config roots to receive (e.g., ["bgp", "environment"] via "declare wants config <root>")
+	VerifyBudget        int                 // Estimated verify time in seconds (0 = trivial)
+	ApplyBudget         int                 // Estimated apply time in seconds (0 = trivial)
+	WantsValidateOpen   bool                // Plugin wants to validate OPEN message pairs (validate-open callback)
+	ConnectionHandlers  []ConnectionHandler // Listen sockets to receive via SCM_RIGHTS fd passing
+	Done                bool                // True when "registration done" received
 
 	// YANG schema declarations (Hub Architecture)
 	PluginSchema *PluginSchemaDecl // YANG schema declaration for this plugin
