@@ -238,3 +238,58 @@ func TestSingleIDForwardStillWorks(t *testing.T) {
 	require.Len(t, reactor.forwardedUpdates, 1)
 	assert.Equal(t, uint64(42), reactor.forwardedUpdates[0].id)
 }
+
+// TestBgpCache_ActionFirst verifies canonical action-first grammar.
+func TestBgpCache_ActionFirst(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want uint64
+	}{
+		{"retain", []string{"retain", "42"}, 42},
+		{"release", []string{"release", "42"}, 42},
+		{"expire", []string{"expire", "42"}, 42},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reactor := &mockReactor{}
+			ctx := newTestContext(reactor)
+			resp, err := handleBgpCache(ctx, tt.args)
+			require.NoError(t, err)
+			assert.Equal(t, plugin.StatusDone, resp.Status)
+			data, ok := resp.Data.(map[string]any)
+			require.True(t, ok)
+			_, hasDeprecated := data["deprecated"]
+			assert.False(t, hasDeprecated, "canonical grammar should not have deprecation")
+		})
+	}
+}
+
+// TestBgpCache_ActionFirstForward verifies canonical forward grammar.
+func TestBgpCache_ActionFirstForward(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+	resp, err := handleBgpCache(ctx, []string{"forward", "42", "*"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	require.Len(t, reactor.forwardedUpdates, 1)
+	assert.Equal(t, uint64(42), reactor.forwardedUpdates[0].id)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	_, hasDeprecated := data["deprecated"]
+	assert.False(t, hasDeprecated)
+}
+
+// TestBgpCache_DeprecatedIdFirst verifies old ID-first grammar adds deprecation.
+func TestBgpCache_DeprecatedIdFirst(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+	resp, err := handleBgpCache(ctx, []string{"42", "retain"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	dep, hasDeprecated := data["deprecated"]
+	assert.True(t, hasDeprecated, "deprecated grammar should have deprecation warning")
+	assert.Contains(t, dep, "cache retain 42")
+}

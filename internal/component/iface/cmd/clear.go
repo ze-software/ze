@@ -18,52 +18,47 @@ func init() {
 	)
 }
 
-// handleClearInterfaceCounters zeros RX/TX counters. Backends that
-// cannot physically reset counters (Linux netlink) fall back to a
-// per-interface baseline handled by iface.ResetCounters -- from the
-// operator's viewpoint counters read zero immediately after this call
-// regardless of which path fired.
+// handleClearInterfaceCounters zeros RX/TX counters.
 //
-// Accepted grammars (paralleling `show interface <name> counters`):
+// Canonical grammar (action before identifier):
 //
-//	clear interface counters             args=[]                  -> all
-//	clear interface counters             args=["counters"]        -> all
-//	clear interface <name> counters      args=[<name>, "counters"]-> one
-//	clear interface <name>               args=[<name>]            -> one
+//	clear interface counters             args=[]                   -> all
+//	clear interface counters             args=["counters"]         -> all
+//	clear interface counters <name>      args=["counters", <name>] -> one
 //
-// Anything else is a usage error so the operator gets a clear message
-// rather than silently clearing "all" on a typo.
+// Deprecated grammars (accepted with deprecation warning):
 //
-// Keyword/name ambiguity: if an interface is literally named "counters",
-// bare `clear interface counters` (args=["counters"]) is treated as the
-// keyword and clears ALL interfaces (including the one named counters).
-// Target that specific interface via the tolerated
-// `clear interface counters counters` form (args=["counters","counters"]),
-// or rename the interface. Not an issue in practice -- no operator
-// names an iface "counters" -- but documented so the grammar is honest.
-//
-// The response always distinguishes "cleared: all" from "cleared: <name>"
-// so scripts can assert against it without reparsing args.
+//	clear interface <name> counters      args=[<name>, "counters"] -> one
+//	clear interface <name>               args=[<name>]             -> one
 func handleClearInterfaceCounters(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	const (
-		usage  = "usage: clear interface [<name>] counters"
+		usage  = "usage: clear interface counters [<name>]"
 		kwCtrs = "counters"
 	)
+
 	name := ""
+	deprecated := false
+
 	switch len(args) {
 	case 0:
 		// all
 	case 1:
-		if args[0] != kwCtrs {
+		if args[0] == kwCtrs {
+			// "clear interface counters" -> all
+		} else {
+			// Deprecated: "clear interface <name>" -> one
 			name = args[0]
+			deprecated = true
 		}
 	case 2:
 		switch {
-		case args[1] == kwCtrs:
-			name = args[0]
 		case args[0] == kwCtrs:
-			// redundant but tolerated: `counters <name>`
+			// Canonical: "clear interface counters <name>" -> one
 			name = args[1]
+		case args[1] == kwCtrs:
+			// Deprecated: "clear interface <name> counters" -> one
+			name = args[0]
+			deprecated = true
 		default:
 			return &plugin.Response{Status: plugin.StatusError, Data: usage}, nil
 		}
@@ -74,14 +69,25 @@ func handleClearInterfaceCounters(_ *pluginserver.CommandContext, args []string)
 	if err := iface.ResetCounters(name); err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error via Response
 	}
+
 	scope := name
 	if scope == "" {
 		scope = "all"
 	}
-	return &plugin.Response{
+	resp := &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"cleared": scope,
 		},
-	}, nil
+	}
+	if deprecated {
+		newForm := "clear interface counters"
+		if name != "" {
+			newForm += " " + name
+		}
+		if data, ok := resp.Data.(map[string]any); ok {
+			data["deprecated"] = "use: " + newForm
+		}
+	}
+	return resp, nil
 }

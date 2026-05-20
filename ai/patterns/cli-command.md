@@ -3,6 +3,10 @@
 Structural template for adding CLI commands to Ze.
 Rules: `rules/cli-patterns.md`. Architecture: `docs/architecture/cli/plugin-modes.md`.
 
+**BLOCKING:** `.claude/rules/cli-grammar.md` -- action keyword before identifier, IDs as strings.
+Every command grammar must place the action keyword before any user-supplied identifier.
+Read the grammar rule before designing any new command.
+
 ## Two Types of Commands
 
 | Type | Location | When to use |
@@ -63,7 +67,7 @@ Commands with `RequiresSelector: true` reject invocation without an explicit sel
 |-------|---------|----------|
 | **Simple query** | `VERB COMPONENT RESOURCE [ARGS]` | `show version`, `show env list`, `show data ls` |
 | **Peer-scoped** | `VERB bgp peer [<sel>] [SUBACTION] [ARGS]` | `show bgp peer *`, `set bgp peer 10.0.0.1 with as 65000`, `del bgp peer upstream1` |
-| **Named-resource** | `RESOURCE <id> ACTION [ARGS]` | `cache 123 forward *`, `commit tx1 start`, `commit tx1 withdraw route 10.0.0.0/24` |
+| **Named-resource** | `RESOURCE ACTION <id> [ARGS]` | `cache forward 123 *`, `commit start tx1`, `commit withdraw tx1 route 10.0.0.0/24` |
 | **Subscription** | `VERB [ARGS]` | `subscribe update`, `unsubscribe` |
 | **Meta** | `RESOURCE ACTION [ARGS]` | `command list`, `help`, `plugin encoding` |
 
@@ -91,13 +95,13 @@ del bgp peer <sel>
 update bgp peer <sel> prefix <args>
 ```
 
-**cache/commit (named-resource):**
+**cache/commit (named-resource, action before identifier):**
 ```
-cache list                       cache <id> retain            cache <id> release
-cache <id> expire                cache <id> forward <sel>
-commit list                      commit <name> start          commit <name> end
-commit <name> eor                commit <name> rollback       commit <name> show
-commit <name> withdraw route <prefix>
+cache list                       cache retain <id>            cache release <id>
+cache expire <id>                cache forward <id> <sel>
+commit list                      commit start <name>          commit end <name>
+commit eor <name>                commit rollback <name>       commit show <name>
+commit withdraw <name> route <prefix>
 ```
 
 **meta/subscription:**

@@ -136,7 +136,7 @@ which devices get notified and when.
 | AC-5 | `fleet rollout abort` on active rollout | Rollout transitions to failed; no more notifications sent |
 | AC-6 | All batches complete successfully | Rollout transitions to complete |
 | AC-7 | `show fleet rollout` | Lists active and recent rollouts: group, progress (batch N/M), state, failure count |
-| AC-8 | `show fleet rollout <id>` | Detail: per-device status (pending/ack-ok/ack-reject/timeout), batch boundaries |
+| AC-8 | `show fleet rollout detail <id>` | Detail: per-device status (pending/ack-ok/ack-reject/timeout), batch boundaries |
 | AC-9 | Hub restarts during active rollout | Rollout state loaded from ZeFS; resumes from last persisted batch |
 | AC-10 | Device in batch does not respond within timeout (default 120s) | Counted as failure; timeout configurable |
 | AC-11 | Health gate enabled: device reports degraded after ACK | Rollout pauses before next batch |

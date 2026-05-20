@@ -475,7 +475,7 @@ module ze-cli-show-cmd {
         container interface {
             config false;
             ze:command "ze-show:interface";
-            description "List OS network interfaces (brief, type, errors dispatch to the same WireMethod; handler branches on args).";
+            description "List OS network interfaces (brief, detail, counters, type, errors dispatch to the same WireMethod; handler branches on args).";
 
             container brief {
                 config false;

@@ -61,70 +61,119 @@ func init() {
 
 // Commit action constants.
 const (
-	actionEnd = "end"
-	actionEOR = "eor"
+	actionEnd      = "end"
+	actionEOR      = "eor"
+	actionStart    = "start"
+	actionRollback = "rollback"
+	actionShow     = "show"
+	actionWithdraw = "withdraw"
+	actionList     = "list"
 )
+
+// commitActionKeywords is the set of valid commit action keywords.
+var commitActionKeywords = map[string]bool{
+	actionList: true, actionStart: true, actionEnd: true, actionEOR: true,
+	actionRollback: true, actionShow: true, actionWithdraw: true,
+}
 
 // handleCommit dispatches commit subcommands.
 //
-// Syntax:
+// Canonical grammar (action before identifier):
 //
-//	commit list                     - list active commits
-//	commit <name> start             - start named commit
-//	commit <name> end               - flush without EOR
-//	commit <name> eor               - flush with EOR
-//	commit <name> rollback          - discard queued routes
-//	commit <name> show              - show queued count
+//	commit list                          - list active commits
+//	commit start <name>                  - start named commit
+//	commit end <name>                    - flush without EOR
+//	commit eor <name>                    - flush with EOR
+//	commit rollback <name>               - discard queued routes
+//	commit show <name>                   - show queued count
+//	commit withdraw <name> route <pfx>   - withdraw a route
+//
+// Deprecated grammar (accepted with deprecation warning):
+//
+//	commit <name> start|end|eor|rollback|show|withdraw ...
 func handleCommit(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: commit <name> <start|end|eor|rollback|show> or commit list",
+			Data:   "usage: commit start|end|eor|rollback|show|withdraw <name> or commit list",
 		}, errMissingCommitArguments
 	}
 
-	// Guard reactor access
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
 
-	// Special case: commit list (no name)
-	if args[0] == "list" {
+	switch args[0] {
+	case actionList:
 		return handleCommitList(ctx)
+	case actionStart, actionEnd, actionEOR, actionRollback, actionShow:
+		if len(args) < 2 {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Data:   "usage: commit " + args[0] + " <name>",
+			}, fmt.Errorf("missing name for commit %s", args[0])
+		}
+		return dispatchCommitAction(ctx, args[0], args[1], args[2:], false)
+	case actionWithdraw:
+		if len(args) < 2 {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Data:   "usage: commit withdraw <name> route <prefix>",
+			}, errMissingWithdrawArguments
+		}
+		return dispatchCommitAction(ctx, actionWithdraw, args[1], args[2:], false)
 	}
 
+	// Deprecated: commit <name> <action> [args...]
 	if len(args) < 2 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: commit <name> <start|end|eor|rollback|show>",
+			Data:   "usage: commit start|end|eor|rollback|show|withdraw <name>",
 		}, fmt.Errorf("missing action for commit %q", args[0])
 	}
+	if !commitActionKeywords[args[1]] {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   "unknown commit action: " + args[1],
+		}, fmt.Errorf("unknown commit action: %s", args[1])
+	}
+	return dispatchCommitAction(ctx, args[1], args[0], args[2:], true)
+}
 
-	name := args[0]
-	action := args[1]
+// dispatchCommitAction routes a commit action to the right handler.
+func dispatchCommitAction(ctx *pluginserver.CommandContext, action, name string, extraArgs []string, deprecated bool) (*plugin.Response, error) {
+	withDeprecation := func(resp *plugin.Response, err error) (*plugin.Response, error) {
+		if !deprecated || resp == nil || resp.Status != plugin.StatusDone {
+			return resp, err
+		}
+		newForm := "commit " + action + " " + name
+		if data, ok := resp.Data.(map[string]any); ok {
+			data["deprecated"] = "use: " + newForm
+		}
+		return resp, err
+	}
 
 	switch action {
-	case "start":
-		return handleNamedCommitStart(ctx, name)
+	case actionStart:
+		return withDeprecation(handleNamedCommitStart(ctx, name))
 	case actionEnd:
-		return handleNamedCommitEnd(ctx, name, false)
+		return withDeprecation(handleNamedCommitEnd(ctx, name, false))
 	case actionEOR:
-		return handleNamedCommitEnd(ctx, name, true)
-	case "rollback":
-		return handleNamedCommitRollback(ctx, name)
-	case "show":
-		return handleNamedCommitShow(ctx, name)
-	case "withdraw":
-		// commit <name> withdraw route <prefix>
-		if len(args) < 3 {
+		return withDeprecation(handleNamedCommitEnd(ctx, name, true))
+	case actionRollback:
+		return withDeprecation(handleNamedCommitRollback(ctx, name))
+	case actionShow:
+		return withDeprecation(handleNamedCommitShow(ctx, name))
+	case actionWithdraw:
+		if len(extraArgs) == 0 {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   "usage: commit <name> withdraw route <prefix>",
+				Data:   "usage: commit withdraw <name> route <prefix>",
 			}, errMissingWithdrawArguments
 		}
-		return handleNamedCommitWithdraw(ctx, name, args[2:])
-	default: // unknown commit action — return explicit error
+		return withDeprecation(handleNamedCommitWithdraw(ctx, name, extraArgs))
+	default:
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "unknown commit action: " + action,

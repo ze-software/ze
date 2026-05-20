@@ -80,7 +80,7 @@ periodic report calls. The protocol gains two new verbs on the existing MuxConn 
 - Client loop: after config-fetch, send inventory-report; periodically send health-report
 - Two new RPC verbs in `pkg/fleet/`
 - Hub-side handlers store reports in DeviceRegistry
-- CLI: `show fleet device <name> inventory`, `show fleet device <name> health`, `show fleet health`
+- CLI: `show fleet device inventory <name>`, `show fleet device health <name>`, `show fleet health`
 - Web: inventory and health columns in fleet dashboard, device detail page
 
 ## Data Flow (MANDATORY)
@@ -112,7 +112,7 @@ periodic report calls. The protocol gains two new verbs on the existing MuxConn 
 - `pkg/fleet/envelope.go` -- new verb constants and payload types
 - `ManagedConfigService` -- new verb dispatch (or separate fleet handler)
 - `DeviceRegistry` from fleet-1 -- store inventory and health per device
-- CLI -- `show fleet device <name> inventory`, `show fleet health`
+- CLI -- `show fleet device inventory <name>`, `show fleet health`
 - Web -- device detail page with inventory/health tabs
 
 ### Architectural Verification
@@ -127,7 +127,7 @@ periodic report calls. The protocol gains two new verbs on the existing MuxConn 
 |-------------|---|--------------|------|
 | Client connects and completes config-fetch | -> | Client sends inventory-report | `test/managed/fleet-inventory-report.ci` |
 | Client health timer fires | -> | Client sends health-report | `test/managed/fleet-health-report.ci` |
-| `show fleet device edge-01 inventory` | -> | Hub returns stored inventory | `test/managed/fleet-inventory-report.ci` |
+| `show fleet device inventory edge-01` | -> | Hub returns stored inventory | `test/managed/fleet-inventory-report.ci` |
 | `show fleet health` | -> | Hub aggregates health across devices | `test/managed/fleet-health-report.ci` |
 
 ## Acceptance Criteria
@@ -138,8 +138,8 @@ periodic report calls. The protocol gains two new verbs on the existing MuxConn 
 | AC-2 | Hub receives inventory-report | Inventory stored in DeviceRegistry for that device |
 | AC-3 | Client health timer fires (every 5 minutes) | Client sends `health-report` RPC with component statuses |
 | AC-4 | Hub receives health-report with degraded component | Device health updated in registry; fleet dashboard shows degraded |
-| AC-5 | `show fleet device edge-01 inventory` | Shows CPU, NIC, memory, storage summary for edge-01 |
-| AC-6 | `show fleet device edge-01 health` | Shows per-component health status (healthy/degraded/down) |
+| AC-5 | `show fleet device inventory edge-01` | Shows CPU, NIC, memory, storage summary for edge-01 |
+| AC-6 | `show fleet device health edge-01` | Shows per-component health status (healthy/degraded/down) |
 | AC-7 | `show fleet health` | Aggregated view: N healthy, N degraded, N down. Lists degraded/down devices |
 | AC-8 | Device has not reported yet (first connect in progress) | Inventory and health show "pending" or "not reported" |
 | AC-9 | Hub receives inventory-report from unknown device | Report accepted if device is authenticated (auto-discovered devices from fleet-1 AC-13) |
@@ -205,7 +205,7 @@ periodic report calls. The protocol gains two new verbs on the existing MuxConn 
 4. **Phase: CLI + Web** -- inventory and health views
    - Tests: `fleet-inventory-report.ci`, `fleet-health-report.ci`
    - Files: CLI commands, web page extensions
-   - Verify: `show fleet device <name> inventory/health` works
+   - Verify: `show fleet device inventory/health <name>` works
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

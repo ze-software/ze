@@ -8,6 +8,7 @@ module ze-cli-cache-cmd {
     container cache {
         config false;
         ze:command "ze-bgp:cache";
-        description "BGP message cache operations";
+        description "BGP message cache operations. Grammar: cache <action> <id> [args].
+                     Actions: list, retain, release, expire, forward.";
     }
 }

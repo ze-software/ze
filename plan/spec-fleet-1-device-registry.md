@@ -21,7 +21,7 @@
 Build a persistent hub-side device registry that tracks all known managed devices with
 their metadata: name, config version, health status, last-seen timestamp, online/offline
 state, and operator-assigned labels (flat key=value pairs). Expose the registry through
-CLI commands (`show fleet devices`, `show fleet device <name>`) and a web dashboard page.
+CLI commands (`show fleet devices`, `show fleet device detail <name>`) and a web dashboard page.
 
 This is the foundational fleet spec. All other fleet specs (templates, audit, inventory,
 rollout) depend on the device registry for device identity and grouping.
@@ -40,7 +40,7 @@ storage, and adds a YANG `fleet {}` config container for operator-managed device
 | Labels | Flat key=value pairs. Validated: alphanumeric keys, printable values, bounded count |
 | State tracking | Online/offline derived from connection state. Last-seen persisted. Config version from last config-fetch ACK |
 | YANG | `fleet { device <name> { label <key> <value>; group <name>; } }` under hub config |
-| CLI | `show fleet devices [--group <g>] [--label <k>=<v>]`, `show fleet device <name>` |
+| CLI | `show fleet devices [--group <g>] [--label <k>=<v>]`, `show fleet device detail <name>` |
 | Web | New page `/fleet` with device table, status indicators, filter by group/label |
 
 ## Required Reading
@@ -141,7 +141,7 @@ storage, and adds a YANG `fleet {}` config container for operator-managed device
 | AC-6 | `show fleet devices` with no flags | Table of all registered devices: name, status, config-version, last-seen |
 | AC-7 | `show fleet devices --group region-west` | Only devices in group region-west shown |
 | AC-8 | `show fleet devices --label role=edge` | Only devices with label role=edge shown |
-| AC-9 | `show fleet device edge-01` | Detail view: name, status, config-version, first-seen, last-seen, labels, groups |
+| AC-9 | `show fleet device detail edge-01` | Detail view: name, status, config-version, first-seen, last-seen, labels, groups |
 | AC-10 | Fleet YANG config with `device edge-01 { label role edge; group region-west; }` | Labels and group stored in registry |
 | AC-11 | Web `/fleet` page | Table of all devices with status, version, last-seen. Live SSE updates |
 | AC-12 | Standalone hub (no managed clients configured) | Fleet registry empty, `show fleet devices` shows empty table, no errors |

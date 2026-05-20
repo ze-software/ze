@@ -13,7 +13,7 @@ module ze-cli-clear-cmd {
             config false;
             ze:command "ze-clear:interface-counters";
             description "Reset interface runtime state. Canonical form:
-                         `clear interface <name> counters`. Bare
+                         `clear interface counters [<name>]`. Bare
                          `clear interface counters` (no name) clears every
                          managed interface. Backends that cannot physically
                          reset counters in the kernel fall back to a
@@ -24,9 +24,8 @@ module ze-cli-clear-cmd {
             container counters {
                 config false;
                 ze:command "ze-clear:interface-counters";
-                description "Reset RX/TX counters. Placed after the interface
-                             name so the grammar parallels
-                             `show interface <name> counters`.";
+                description "Reset RX/TX counters for a named interface or all.
+                             Usage: clear interface counters [<name>]";
             }
         }
 

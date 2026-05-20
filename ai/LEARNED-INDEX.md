@@ -82,6 +82,7 @@ Command structure, text format, IPC, RPC dispatch.
 - [727](plan/learned/727-diag-core.md) -- 9 built-in diagnostic commands (procfs package, build-split patterns, singleflight without x/sync, BFD capture provider interface)
 - [728](plan/learned/728-diag-netlink-monitor.md) -- Netlink monitor streaming (unified output channel, YANG verb tree placement, register_*.go hook bypass)
 - [729](plan/learned/729-diag-traceroute.md) -- ICMP traceroute (ttlSetter interface for IPv4/IPv6 TTL, pure Go over library, argTimeout goconst pattern)
+- [738](plan/learned/738-cli-grammar.md) -- CLI grammar: action before identifier (YANG sub-containers consume dispatch tokens, deprecation via JSON unmarshal not wrapping)
 - [730](plan/learned/730-diag-capture-interface.md) -- AF_PACKET live capture (mdlayher/packet + go-pcap BPF, portable/linux file split, Ethernet link type for raw sockets)
 
 ## Web Interface
@@ -159,3 +160,4 @@ Reusable lessons extracted from gotchas sections across summaries.
 - (734) IPsec data model: L2TP-pattern tree-walker parser; algorithm enum strings match strongSwan naming for ipsec-4 consumption; DHGroup as uint8 with range validation over iota enum; cross-ref validation via function callbacks for testability
 - (735) XFRM interfaces: standalone type not TunnelKind (no endpoints); VTI deliberately excluded; GetXFRMInfo for operational display of managed and unmanaged interfaces; XfrmPolicyList is system-wide, filter by Ifid client-side
 - (737) IPsec EAP extension: extend AuthMode enum not separate enum; EAP auth shares x509 cert branch; single pool per remote-access; match parser method to YANG node type (leaf vs list)
+- (738) IKEv2 crypto primitives: flat map registry over registration pattern for fixed algorithm set; MODP private keys in [2,p-2]; prf+ capped at 255 iterations; constant-time PKCS#7 unpadding; Go GC prevents secure memory wiping

@@ -69,7 +69,7 @@ spec building on the previous.
 | Area | Description |
 |------|-------------|
 | Device registry | Persistent hub-side registry of all known devices with metadata, config version, health, last-seen |
-| Fleet CLI + web dashboard | `show fleet devices`, `show fleet device <name>`, web page listing fleet state |
+| Fleet CLI + web dashboard | `show fleet devices`, `show fleet device detail <name>`, web page listing fleet state |
 | Config templates | Named templates with variable substitution, group-based assignment |
 | Device grouping | Labels/tags on devices, group-based targeting for config and operations |
 | Audit trail | Centralized log of config pushes, acks, rejections, device connects/disconnects |
@@ -215,7 +215,7 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 | AC-2 | Device disconnects and reconnects | Registry shows offline period, last-seen updates on reconnect |
 | AC-3 | Config template assigned to a group | All devices in the group receive rendered config on next fetch |
 | AC-4 | Operator pushes config change to a group | Audit trail records: who, when, which template, which devices, ack/reject per device |
-| AC-5 | Device reports inventory to hub | `show fleet device edge-01 inventory` shows CPU, NIC, memory, storage summary |
+| AC-5 | Device reports inventory to hub | `show fleet device inventory edge-01` shows CPU, NIC, memory, storage summary |
 | AC-6 | Device reports degraded health | Fleet dashboard shows device as degraded; `show fleet health` aggregates fleet-wide status |
 | AC-7 | Staged rollout at 20% with failure | Rollout pauses automatically; `show fleet rollout` shows pause reason and affected devices |
 | AC-8 | Standalone device (not managed) | Zero fleet overhead; no fleet YANG required; existing behavior unchanged |

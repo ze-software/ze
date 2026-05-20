@@ -8,6 +8,7 @@ module ze-cli-commit-cmd {
     container commit {
         config false;
         ze:command "ze-bgp:commit";
-        description "Named commit operations";
+        description "Named commit operations. Grammar: commit <action> <name> [args].
+                     Actions: list, start, end, eor, rollback, show, withdraw.";
     }
 }

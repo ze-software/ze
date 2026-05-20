@@ -619,59 +619,83 @@ func handleShowUptime(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
 }
 
-// handleShowInterface lists all interfaces or shows one by name.
-// Args: optional interface name, "brief" for one-line-per-interface summary,
-// "type <type>" to filter by iface.InterfaceInfo.Type, "errors" to list
-// interfaces with non-zero error/dropped counters, or "<name> counters"
-// for RX/TX statistics only.
+// handleShowInterface dispatches interface subcommands. Keywords: brief,
+// type, errors, rate, detail, counters. Old name-first grammar accepted
+// with deprecation warning.
 func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	// "show interface brief" -- compact one-line-per-interface.
-	if len(args) > 0 && args[0] == "brief" {
+	if len(args) == 0 {
+		return showInterfaceAll()
+	}
+
+	switch args[0] {
+	case "brief":
 		return showInterfaceBrief()
-	}
-
-	// "show interface type <type>" -- filter by interface type.
-	if len(args) >= 2 && args[0] == "type" {
+	case "type":
+		if len(args) < 2 {
+			return &plugin.Response{Status: plugin.StatusError, Data: "usage: show interface type <type>"}, nil
+		}
 		return showInterfaceByType(args[1])
-	}
-
-	// "show interface errors" -- list ifaces with non-zero error/dropped counters.
-	if len(args) > 0 && args[0] == "errors" {
+	case "errors":
 		return showInterfaceErrors()
-	}
-
-	// "show interface rate [<name>]" -- per-second rate data.
-	if len(args) > 0 && args[0] == "rate" {
+	case "rate":
 		return handleShowInterfaceRate(args[1:])
+	case "detail":
+		if len(args) > 1 {
+			return showInterfaceDetail(args[1])
+		}
+		return showInterfaceAll()
+	case "counters":
+		if len(args) > 1 {
+			return showInterfaceCounters(args[1])
+		}
+		return &plugin.Response{Status: plugin.StatusError, Data: "usage: show interface counters <name>"}, nil
 	}
 
-	// "show interface <name> [counters]" -- single interface, optionally counters only.
-	if len(args) > 0 {
-		info, err := iface.GetInterface(args[0])
+	// Deprecated: "show interface <name> [counters]" -- name in keyword position.
+	if len(args) > 1 && args[1] == "counters" {
+		resp, err := showInterfaceCounters(args[0])
 		if err != nil {
-			return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+			return resp, err
 		}
-		// "show interface <name> counters" -- just the stats.
-		if len(args) > 1 && args[1] == "counters" {
-			if info.Stats == nil {
-				return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{
-					"name":  info.Name,
-					"stats": "no counters available",
-				}}, nil
-			}
-			return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{
-				"name":  info.Name,
-				"stats": info.Stats,
-			}}, nil
-		}
-		data, jsonErr := json.Marshal(info)
-		if jsonErr != nil {
-			return nil, fmt.Errorf("show interface: marshal: %w", jsonErr)
-		}
-		return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+		return withDeprecation(resp, "show interface counters "+args[0]), nil
 	}
+	resp, err := showInterfaceDetail(args[0])
+	if err != nil {
+		return resp, err
+	}
+	return withDeprecation(resp, "show interface detail "+args[0]), nil
+}
 
-	// "show interface" -- full list.
+func showInterfaceDetail(name string) (*plugin.Response, error) {
+	info, err := iface.GetInterface(name)
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+	}
+	data, jsonErr := json.Marshal(info)
+	if jsonErr != nil {
+		return nil, fmt.Errorf("show interface: marshal: %w", jsonErr)
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+}
+
+func showInterfaceCounters(name string) (*plugin.Response, error) {
+	info, err := iface.GetInterface(name)
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+	}
+	if info.Stats == nil {
+		return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{
+			"name":  info.Name,
+			"stats": "no counters available",
+		}}, nil
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{
+		"name":  info.Name,
+		"stats": info.Stats,
+	}}, nil
+}
+
+func showInterfaceAll() (*plugin.Response, error) {
 	ifaces, err := iface.ListInterfaces()
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
@@ -681,6 +705,24 @@ func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin
 		return nil, fmt.Errorf("show interface: marshal: %w", jsonErr)
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+}
+
+// withDeprecation adds a deprecation hint to a successful response.
+func withDeprecation(resp *plugin.Response, newForm string) *plugin.Response {
+	if resp == nil || resp.Status != plugin.StatusDone {
+		return resp
+	}
+	switch data := resp.Data.(type) {
+	case map[string]any:
+		data["deprecated"] = "use: " + newForm
+	case string:
+		var m map[string]any
+		if json.Unmarshal([]byte(data), &m) == nil {
+			m["deprecated"] = "use: " + newForm
+			resp.Data = m
+		}
+	}
+	return resp
 }
 
 // handleShowInterfaceScan discovers OS interfaces, classifies them by Ze

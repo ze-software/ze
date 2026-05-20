@@ -358,8 +358,8 @@ Show uses the verb syntax: `ze show interface`.
 ```
 ze show interface                  # List all interfaces (also via daemon SSH)
 ze show interface brief            # One-line-per-interface summary
-ze show interface <name>           # Show details for one interface
-ze show interface <name> counters  # Counters only for named interface
+ze show interface detail <name>    # Show details for one interface
+ze show interface counters <name>  # Counters only for named interface
 ze show interface type <type>      # Filter by type (ethernet, bridge, vxlan, wireguard, ...)
 ze show interface errors           # Interfaces with non-zero Rx/Tx error or drop counters
 ze show interface rate             # Per-second rate data for all interfaces
@@ -754,16 +754,15 @@ it most, after a crash).
 
 ```
 ze clear interface counters                # Reset counters on every managed interface
-ze clear interface <name> counters         # Reset counters on one interface
+ze clear interface counters <name>         # Reset counters on one interface
 ```
 
-Grammar parallels `ze show interface <name> counters` -- name before the
-`counters` subfield. Bare `ze clear interface counters` (no name) clears
-all interfaces. The handler also tolerates `clear interface counters
-<name>` and `clear interface <name>` for scripting convenience, but
-the canonical form is `clear interface <name> counters`. Errors in
-argument shape (unknown trailing keyword, three or more tokens) reject
-with the usage line rather than silently defaulting to "all".
+Grammar uses action-before-identifier: `counters` keyword first, then the
+optional interface name. Bare `ze clear interface counters` (no name) clears
+all interfaces. The old forms `clear interface <name> counters` and
+`clear interface <name>` are still accepted with a deprecation warning.
+Errors in argument shape (unknown trailing keyword, three or more tokens)
+reject with the usage line rather than silently defaulting to "all".
 
 The `clear` verb resets runtime/operational state without touching
 configuration. Backends that expose a real counter-reset syscall
@@ -1316,13 +1315,18 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `commit <name> start [peer]` | write | Begin named update window |
-| `commit <name> end` | write | Flush queued updates |
-| `commit <name> eor` | write | Flush updates and send End-of-RIB |
-| `commit <name> show` | read-only | Show queue status |
-| `commit <name> rollback` | write | Discard queued updates |
-| `commit <name> withdraw route <prefix>` | write | Withdraw prefix from window |
+| `commit start <name>` | write | Begin named update window |
+| `commit end <name>` | write | Flush queued updates |
+| `commit eor <name>` | write | Flush updates and send End-of-RIB |
+| `commit show <name>` | read-only | Show queue status |
+| `commit rollback <name>` | write | Discard queued updates |
+| `commit withdraw <name> route <prefix>` | write | Withdraw prefix from window |
 | `commit list` | read-only | List active commits |
+
+Commit names must not collide with action keywords (`list`, `start`, `end`,
+`eor`, `rollback`, `show`, `withdraw`). The old grammar `commit <name> <action>`
+is accepted with a deprecation warning but does not work when the name equals
+a keyword.
 <!-- source: internal/component/cmd/commit/ -- commit command RPCs -->
 
 ### Cache Commands
@@ -1330,12 +1334,12 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | Command | Access | Purpose |
 |---------|--------|---------|
 | `cache list` | read-only | List cached message IDs |
-| `cache <id> retain` | write | Pin in cache (prevent eviction) |
-| `cache <id> release` | write | Release from cache |
-| `cache <id> expire` | write | Remove immediately |
-| `cache <id> forward <peer-sel>` | write | Re-inject UPDATE to peer(s) |
+| `cache retain <id>` | write | Pin in cache (prevent eviction) |
+| `cache release <id>` | write | Release from cache |
+| `cache expire <id>` | write | Remove immediately |
+| `cache forward <id> <peer-sel>` | write | Re-inject UPDATE to peer(s) |
 
-Batch operations: `cache <id1>,<id2> <action> [args]`.
+Batch operations: `cache forward <id1>,<id2> <selector>`.
 <!-- source: internal/component/cmd/cache/ -- cache command RPCs -->
 
 ### Static Routes

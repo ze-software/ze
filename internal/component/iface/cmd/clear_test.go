@@ -94,3 +94,57 @@ func TestHandleClearInterfaceCounters_RejectBadGrammar(t *testing.T) {
 		assert.Contains(t, msg, "usage", "args=%v error should include usage line", args)
 	}
 }
+
+// TestClearInterface_DeprecatedNameFirst verifies old name-first grammar adds deprecation.
+func TestClearInterface_DeprecatedNameFirst(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"name-only", []string{"eth0"}, "eth0"},
+		{"name-then-counters", []string{"eth0", "counters"}, "eth0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := handleClearInterfaceCounters(nil, tt.args)
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			if resp.Status != plugin.StatusDone {
+				return
+			}
+			data, ok := resp.Data.(map[string]any)
+			require.True(t, ok)
+			assert.Equal(t, tt.want, data["cleared"])
+			dep, hasDeprecated := data["deprecated"]
+			assert.True(t, hasDeprecated, "deprecated grammar should have deprecation warning")
+			assert.Contains(t, dep, "clear interface counters")
+		})
+	}
+}
+
+// TestClearInterface_CanonicalNoDeprecation verifies canonical grammar has no deprecation.
+func TestClearInterface_CanonicalNoDeprecation(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"bare", nil},
+		{"counters-keyword", []string{"counters"}},
+		{"counters-then-name", []string{"counters", "eth0"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := handleClearInterfaceCounters(nil, tt.args)
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			if resp.Status != plugin.StatusDone {
+				return
+			}
+			data, ok := resp.Data.(map[string]any)
+			require.True(t, ok)
+			_, hasDeprecated := data["deprecated"]
+			assert.False(t, hasDeprecated, "canonical grammar should not have deprecation")
+		})
+	}
+}

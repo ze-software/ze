@@ -246,3 +246,56 @@ func TestHandlerCommitShowNotFound(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
 }
+
+// TestCommit_ActionFirst verifies canonical action-first grammar.
+func TestCommit_ActionFirst(t *testing.T) {
+	ctx := newTestContext(&mockReactor{})
+
+	resp, err := handleCommit(ctx, []string{"start", "my-commit"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	_, hasDeprecated := data["deprecated"]
+	assert.False(t, hasDeprecated, "canonical grammar should not have deprecation")
+
+	resp, err = handleCommit(ctx, []string{"show", "my-commit"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	data, ok = resp.Data.(map[string]any)
+	require.True(t, ok)
+	_, hasDeprecated = data["deprecated"]
+	assert.False(t, hasDeprecated)
+	assert.Equal(t, "my-commit", data["commit"])
+}
+
+// TestCommit_DeprecatedNameFirst verifies old name-first grammar adds deprecation.
+func TestCommit_DeprecatedNameFirst(t *testing.T) {
+	ctx := newTestContext(&mockReactor{})
+
+	resp, err := handleCommit(ctx, []string{"my-commit", "start"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	dep, hasDeprecated := data["deprecated"]
+	assert.True(t, hasDeprecated, "deprecated grammar should have deprecation warning")
+	assert.Contains(t, dep, "commit start my-commit")
+}
+
+// TestCommit_ActionFirstWithdraw verifies canonical withdraw grammar.
+func TestCommit_ActionFirstWithdraw(t *testing.T) {
+	ctx := newTestContext(&mockReactor{})
+
+	_, err := handleCommit(ctx, []string{"start", "my-commit"})
+	require.NoError(t, err)
+
+	resp, err := handleCommit(ctx, []string{"withdraw", "my-commit", "route", "10.0.0.0/24"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "10.0.0.0/24", data["prefix"])
+	_, hasDeprecated := data["deprecated"]
+	assert.False(t, hasDeprecated)
+}

@@ -13,8 +13,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 )
 
+const (
+	actionRetain  = "retain"
+	actionRelease = "release"
+	actionExpire  = "expire"
+	actionForward = "forward"
+	actionList    = "list"
+)
+
 var (
 	errMissingAction   = errors.New("missing action")
+	errMissingID       = errors.New("missing id")
 	errMissingSelector = errors.New("missing selector")
 )
 
@@ -24,71 +33,115 @@ func init() {
 	)
 }
 
+// cacheActionKeywords is the set of valid cache action keywords.
+var cacheActionKeywords = map[string]bool{
+	actionList: true, actionRetain: true, actionRelease: true, actionExpire: true, actionForward: true,
+}
+
 // handleBgpCache handles all bgp cache subcommands.
-// Usage:
-//   - bgp cache list
-//   - bgp cache <id> retain
-//   - bgp cache <id> release
-//   - bgp cache <id> expire
-//   - bgp cache <id> forward <selector>
-//   - bgp cache <id1>,<id2>,...,<idN> forward <selector>  (batch)
-//   - bgp cache <id1>,<id2>,...,<idN> release              (batch)
+//
+// Canonical grammar (action before identifier):
+//
+//	cache list
+//	cache retain <id>
+//	cache release <id>
+//	cache expire <id>
+//	cache forward <id> <selector>
+//	cache forward <id1>,<id2>,... <selector>  (batch)
+//
+// Deprecated grammar (accepted with deprecation warning):
+//
+//	cache <id> retain|release|expire
+//	cache <id> forward <selector>
 func handleBgpCache(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
 		return bgpCacheHelp()
 	}
 
-	// Guard reactor access (BGP-specific: cache operations)
 	_, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
 
-	// Check for "list" command (no ID needed)
-	if args[0] == "list" {
+	switch args[0] {
+	case actionList:
 		return handleBgpCacheList(ctx)
+	case actionRetain, actionRelease, actionExpire:
+		if len(args) < 2 {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Data:   "usage: cache " + args[0] + " <id>",
+			}, errMissingID
+		}
+		return dispatchCacheByID(ctx, args[0], args[1], args[2:], false)
+	case actionForward:
+		if len(args) < 3 {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Data:   "usage: cache forward <id> <selector>",
+			}, errMissingSelector
+		}
+		return dispatchCacheByID(ctx, actionForward, args[1], args[2:], false)
 	}
 
-	// All other commands need <id> <action> [args...]
+	// Deprecated: cache <id> <action> [args...]
 	if len(args) < 2 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: bgp cache <id> retain|release|expire|forward <sel>",
+			Data:   "usage: cache retain|release|expire|forward <id>",
 		}, errMissingAction
 	}
+	if !cacheActionKeywords[args[1]] {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   "unknown cache action: " + args[1],
+		}, fmt.Errorf("unknown action: %s", args[1])
+	}
+	return dispatchCacheByID(ctx, args[1], args[0], args[2:], true)
+}
 
-	action := args[1]
-	actionArgs := args[2:]
-
-	// Batch: comma-separated IDs (e.g., "10,20,30").
-	if strings.Contains(args[0], ",") {
-		return handleBgpCacheBatch(ctx, args[0], action, actionArgs)
+// dispatchCacheByID routes a cache action to the right handler after parsing the ID.
+func dispatchCacheByID(ctx *pluginserver.CommandContext, action, idStr string, extraArgs []string, deprecated bool) (*plugin.Response, error) {
+	addDeprecation := func(resp *plugin.Response) *plugin.Response {
+		if !deprecated || resp == nil || resp.Status != plugin.StatusDone {
+			return resp
+		}
+		if data, ok := resp.Data.(map[string]any); ok {
+			data["deprecated"] = "use: cache " + action + " " + idStr
+		}
+		return resp
 	}
 
-	// Single ID.
-	cacheID, err := strconv.ParseUint(args[0], 10, 64)
+	if strings.Contains(idStr, ",") {
+		resp, err := handleBgpCacheBatch(ctx, idStr, action, extraArgs)
+		return addDeprecation(resp), err
+	}
+
+	cacheID, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "invalid cache id: " + args[0],
+			Data:   "invalid cache id: " + idStr,
 		}, fmt.Errorf("invalid cache id: %w", err)
 	}
 
+	var resp *plugin.Response
 	switch action {
-	case "retain":
-		return handleBgpCacheRetain(ctx, cacheID)
-	case "release":
-		return handleBgpCacheRelease(ctx, cacheID)
-	case "expire":
-		return handleBgpCacheExpire(ctx, cacheID)
-	case "forward":
-		return handleBgpCacheForward(ctx, cacheID, actionArgs)
-	default: // unknown cache action — return explicit error
+	case actionRetain:
+		resp, err = handleBgpCacheRetain(ctx, cacheID)
+	case actionRelease:
+		resp, err = handleBgpCacheRelease(ctx, cacheID)
+	case actionExpire:
+		resp, err = handleBgpCacheExpire(ctx, cacheID)
+	case actionForward:
+		resp, err = handleBgpCacheForward(ctx, cacheID, extraArgs)
+	default:
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "unknown cache action: " + action,
 		}, fmt.Errorf("unknown action: %s", action)
 	}
+	return addDeprecation(resp), err
 }
 
 // bgpCacheHelp returns help for bgp cache command.
@@ -98,10 +151,10 @@ func bgpCacheHelp() (*plugin.Response, error) {
 		Data: map[string]any{
 			"commands": []map[string]string{
 				{"command": "cache list", "description": "List cached message IDs"},
-				{"command": "cache <id> retain", "description": "Prevent eviction of cached message"},
-				{"command": "cache <id> release", "description": "Ack without forwarding (plugin) or undo retain (API)"},
-				{"command": "cache <id> expire", "description": "Remove from cache immediately"},
-				{"command": "cache <id> forward <sel>", "description": "Forward cached UPDATE to peers"},
+				{"command": "cache retain <id>", "description": "Prevent eviction of cached message"},
+				{"command": "cache release <id>", "description": "Ack without forwarding (plugin) or undo retain (API)"},
+				{"command": "cache expire <id>", "description": "Remove from cache immediately"},
+				{"command": "cache forward <id> <sel>", "description": "Forward cached UPDATE to peers"},
 			},
 		},
 	}, nil
@@ -197,7 +250,7 @@ func handleBgpCacheForward(ctx *pluginserver.CommandContext, id uint64, args []s
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: bgp cache <id> forward <selector>",
+			Data:   "usage: cache forward <id> <selector>",
 		}, errMissingSelector
 	}
 
@@ -247,15 +300,15 @@ func handleBgpCacheBatch(ctx *pluginserver.CommandContext, idList, action string
 
 		var actionErr error
 		switch action {
-		case "retain":
+		case actionRetain:
 			_, actionErr = handleBgpCacheRetain(ctx, id)
-		case "release":
+		case actionRelease:
 			_, actionErr = handleBgpCacheRelease(ctx, id)
-		case "expire":
+		case actionExpire:
 			_, actionErr = handleBgpCacheExpire(ctx, id)
-		case "forward":
+		case actionForward:
 			_, actionErr = handleBgpCacheForward(ctx, id, actionArgs)
-		default: // unknown action — reject entire batch
+		default:
 			return &plugin.Response{
 				Status: plugin.StatusError,
 				Data:   "unknown cache action: " + action,
