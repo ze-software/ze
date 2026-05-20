@@ -590,7 +590,7 @@ func (e *Editor) Save() error {
 	}
 
 	// Write serialized tree (or raw text fallback) to original path
-	content := e.WorkingContent()
+	content := config.FormatSchemaStamp(config.SchemaStamp) + e.WorkingContent()
 	if err := e.store.WriteFile(e.originalPath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}

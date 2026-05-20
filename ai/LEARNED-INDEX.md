@@ -66,6 +66,7 @@ YANG schema, migration, config reload, editor, environment variables.
 - [232](plan/learned/232-editor-tree-canonical.md) -- Editor tree canonical representation
 - [716](plan/learned/716-iface-2-urpf.md) -- rpf-check enum over raw sysctl integer; three-state nil/disable/value pattern; sysctl profile ordering issue
 - [725](plan/learned/725-spec-cpe-3-dhcp-ranges.md) -- YANG container-to-list migration, composite pool with per-segment bitmaps, format detection for backward compat
+- [743](plan/learned/743-config-schema-stamp.md) -- Schema stamp as comment line (not YANG leaf), emitted at persistence site only, prep for downgrade recovery
 
 ## CLI/API
 

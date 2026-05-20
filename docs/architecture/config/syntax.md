@@ -110,6 +110,44 @@ protocol to know about the node but treat it as administratively down.
 
 ---
 
+### Schema Stamp
+
+Committed config files carry a schema stamp as the first line:
+
+```
+# ze-schema: 1
+```
+
+The stamp is a comment (ignored by all parsers) that records which schema
+revision produced the file. It is re-emitted from a binary constant on every
+commit, not stored in the YANG tree. Files without a stamp are treated as
+revision 0 (pre-stamping).
+
+#### Downgrade Recovery
+
+When ze starts and fails to parse `config.conf`, it checks whether the stamp
+is newer than the binary's own `SchemaStamp`. If so, the binary was downgraded
+and the config was written by a newer version. Ze walks the rollback directory
+(newest-first), skipping files with stamps above its own, and attempts a full
+parse on each candidate. The first rollback file that parses successfully
+becomes the active config. Ze writes it back to `config.conf` (stamped with
+the current binary's revision) so the running config matches what is on disk.
+
+| Step | What happens |
+|------|-------------|
+| 1 | `LoadConfig` fails, stamp on `config.conf` > binary's `SchemaStamp` |
+| 2 | Walk `rollback/` newest-first, skip files with stamp > `SchemaStamp` |
+| 3 | Attempt full parse on each candidate (stamp is a hint, parse is the gate) |
+| 4 | First successful parse: write it back to `config.conf` with current stamp |
+| 5 | If none parse: refuse to start with a clear error |
+
+Recovery runs at startup only, not on SIGHUP reload. A reload failure during
+runtime surfaces as an error rather than silently reverting to old config.
+
+<!-- source: internal/component/config/stamp.go -->
+
+---
+
 ## Top-Level Structure
 
 ```

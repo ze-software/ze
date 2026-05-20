@@ -158,7 +158,7 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	// Write committed tree to config.conf.
 	now := time.Now()
 	commitMeta := buildCommitMeta(existingMeta, draftMeta, myEntries, myOps, e.session.User, now, e.schema)
-	committedOutput := config.SerializeSetWithMeta(committedTree, commitMeta, e.schema)
+	committedOutput := config.FormatSchemaStamp(config.SchemaStamp) + config.SerializeSetWithMeta(committedTree, commitMeta, e.schema)
 	if err := guard.WriteFile(e.originalPath, []byte(committedOutput), 0o600); err != nil {
 		return nil, fmt.Errorf("write config: %w", err)
 	}

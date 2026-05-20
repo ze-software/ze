@@ -220,8 +220,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Phase 1: Parse config and resolve plugins.
 	loadResult, err := zeconfig.LoadConfig(string(data), configPath, plugins)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
-		return 1
+		if recovered, ok := zeconfig.RecoverConfig(store, configPath, data, plugins); ok {
+			loadResult = recovered
+		} else {
+			fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
+			return 1
+		}
 	}
 
 	configPaths := zeconfig.CollectContainerPaths(loadResult.Tree)
