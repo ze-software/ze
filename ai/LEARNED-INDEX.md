@@ -91,6 +91,7 @@ Web UI, HTMX, templates, looking glass, chaos dashboard.
 
 - [266](plan/learned/266-chaos-web-foundation.md) -- Chaos web foundation, SSE debounce, OOB swaps
 - [268](plan/learned/268-chaos-web-route-matrix.md) -- Route matrix visualization pattern
+- [741](plan/learned/741-graceful-listener-migration.md) -- Graceful listener migration on config reload (bind-before-close, cross-service conflict detection)
 
 ## RIB/Routing
 
@@ -161,3 +162,4 @@ Reusable lessons extracted from gotchas sections across summaries.
 - (735) XFRM interfaces: standalone type not TunnelKind (no endpoints); VTI deliberately excluded; GetXFRMInfo for operational display of managed and unmanaged interfaces; XfrmPolicyList is system-wide, filter by Ifid client-side
 - (737) IPsec EAP extension: extend AuthMode enum not separate enum; EAP auth shares x509 cert branch; single pool per remote-access; match parser method to YANG node type (leaf vs list)
 - (739) IKEv2 crypto primitives: flat map registry over registration pattern for fixed algorithm set; MODP private keys in [2,p-2]; prf+ capped at 255 iterations; constant-time PKCS#7 unpadding; Go GC prevents secure memory wiping
+- (740) IKEv2 engine: plugin registration for config delivery; JSON-to-Tree dual storage for container/list ambiguity; per-peer goroutine lifecycle from PPPoE pattern; constant-time PSK verification; store peer config in PeerSession not SA to avoid reconcile race
