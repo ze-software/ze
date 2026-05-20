@@ -686,5 +686,33 @@ module ze-cli-show-cmd {
                 description "Show full details of a named certificate. Usage: show pki certificate <name>.";
             }
         }
+
+        container vpn {
+            config false;
+            description "VPN subsystem introspection";
+
+            container ipsec {
+                config false;
+                description "IPsec tunnel introspection";
+
+                container sa {
+                    config false;
+                    ze:command "ze-show:vpn-ipsec-sa";
+                    description "List all IKE and Child Security Associations with peer, algorithms, bytes, rekey, uptime.";
+                }
+
+                container status {
+                    config false;
+                    ze:command "ze-show:vpn-ipsec-status";
+                    description "Show IKE engine state, configured connection count, active IKE SA count.";
+                }
+
+                container peer {
+                    config false;
+                    ze:command "ze-show:vpn-ipsec-peer";
+                    description "Show detailed peer info: IKE SA state, child SAs with traffic selectors, byte counts. Usage: show vpn ipsec peer <name>.";
+                }
+            }
+        }
     }
 }

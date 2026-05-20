@@ -32,7 +32,7 @@ func (ps *PeerSession) runEstablished(
 		log.Warn("ike: child SA creation failed", "peer", ps.peerName, "error", err)
 		return err
 	}
-	ps.childSA = child
+	ps.setChildSA(child)
 
 	emitChildUp(bus, ps.peerName, child, log)
 
@@ -100,7 +100,8 @@ func (ps *PeerSession) maintainSA(
 					continue
 				}
 				emitChildRekey(bus, ps.peerName, newChild, log)
-				ps.childSA = newChild
+				ps.setChildSA(newChild)
+				ps.incRekeyCount()
 				childLT = newLifetimeState(ps.espGroup.Lifetime)
 			}
 
@@ -134,10 +135,11 @@ func (ps *PeerSession) maintainSA(
 }
 
 func (ps *PeerSession) cleanupChild(dp dataplane.Dataplane, bus ze.EventBus, log *slog.Logger) {
-	if ps.childSA != nil {
-		removeChildSA(ps.childSA, dp, log)
-		emitChildDown(bus, ps.peerName, ps.childSA, log)
-		ps.childSA = nil
+	child := ps.getChildSA()
+	if child != nil {
+		removeChildSA(child, dp, log)
+		emitChildDown(bus, ps.peerName, child, log)
+		ps.setChildSA(nil)
 	}
 }
 

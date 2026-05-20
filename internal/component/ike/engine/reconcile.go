@@ -4,6 +4,7 @@ package engine
 import (
 	"log/slog"
 	"maps"
+	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
@@ -17,14 +18,91 @@ type PeerSession struct {
 	peerCfg  ipsec.SiteToSitePeer
 	espGroup ipsec.ESPGroup
 	sa       *SA
-	childSA  *ChildSA
+
+	mu         sync.Mutex
+	childSA    *ChildSA
+	rekeyCount uint64
+
 	stopCh   chan struct{}
 	done     chan struct{}
+	stopOnce sync.Once
+}
+
+func (ps *PeerSession) setChildSA(c *ChildSA) {
+	ps.mu.Lock()
+	ps.childSA = c
+	ps.mu.Unlock()
+}
+
+func (ps *PeerSession) getChildSA() *ChildSA {
+	ps.mu.Lock()
+	c := ps.childSA
+	ps.mu.Unlock()
+	return c
+}
+
+func (ps *PeerSession) incRekeyCount() {
+	ps.mu.Lock()
+	ps.rekeyCount++
+	ps.mu.Unlock()
+}
+
+// PeerInfo is a snapshot of a peer session's state for display.
+type PeerInfo struct {
+	PeerName      string
+	RemoteAddress string
+	LocalAddress  string
+	AuthMode      string
+	ChildInSPI    uint32
+	ChildOutSPI   uint32
+	ChildIfID     uint32
+	TSLocal       string
+	TSRemote      string
+	ESPEncryption string
+	ESPIntegrity  string
+	Lifetime      uint32
+	RekeyCount    uint64
+	HasChild      bool
+}
+
+// Info returns a snapshot of the peer session for display.
+func (ps *PeerSession) Info() PeerInfo {
+	ps.mu.Lock()
+	child := ps.childSA
+	rekeys := ps.rekeyCount
+	ps.mu.Unlock()
+
+	info := PeerInfo{
+		PeerName:      ps.peerName,
+		RemoteAddress: ps.peerCfg.RemoteAddress,
+		LocalAddress:  ps.peerCfg.LocalAddress,
+		AuthMode:      ps.peerCfg.Auth.Mode.String(),
+		Lifetime:      ps.espGroup.Lifetime,
+		RekeyCount:    rekeys,
+	}
+	if child != nil {
+		info.HasChild = true
+		info.ChildInSPI = child.InboundSPI
+		info.ChildOutSPI = child.OutboundSPI
+		info.ChildIfID = child.IfID
+		if child.TSLocal != nil {
+			info.TSLocal = child.TSLocal.String()
+		}
+		if child.TSRemote != nil {
+			info.TSRemote = child.TSRemote.String()
+		}
+		if len(ps.espGroup.Proposals) > 0 {
+			info.ESPEncryption = ps.espGroup.Proposals[0].Encryption.String()
+			info.ESPIntegrity = ps.espGroup.Proposals[0].Hash.String()
+		}
+	}
+	return info
 }
 
 // Stop signals the peer session to shut down and waits for cleanup.
+// Safe to call multiple times.
 func (ps *PeerSession) Stop() {
-	close(ps.stopCh)
+	ps.stopOnce.Do(func() { close(ps.stopCh) })
 	<-ps.done
 }
 
@@ -43,43 +121,46 @@ func reconcilePeers(
 
 	dp := dataplane.Get()
 
-	// Stop removed or changed peers.
+	// Build removal list under read lock, then stop outside the lock.
+	type toStop struct {
+		name string
+		ps   *PeerSession
+	}
+	var removing []toStop
+
+	peersMu.RLock()
 	for name, ps := range active {
 		newPeer, ok := desired[name]
-		if !ok {
-			log.Info("ike: stopping removed peer", "peer", name)
-			ps.Stop()
-			if ps.childSA != nil {
-				removeChildSA(ps.childSA, dp, log)
-				emitChildDown(bus, name, ps.childSA, log)
-				ps.childSA = nil
-			}
-			if ps.sa != nil {
-				table.Remove(ps.sa.InitiatorSPI, ps.sa.ResponderSPI)
-				emitSADown(bus, ps.sa, log)
-			}
-			delete(active, name)
-			continue
+		if !ok || peerConfigChanged(ps, newPeer) {
+			removing = append(removing, toStop{name, ps})
 		}
-		if peerConfigChanged(ps, newPeer) {
-			log.Info("ike: restarting changed peer", "peer", name)
-			ps.Stop()
-			if ps.childSA != nil {
-				removeChildSA(ps.childSA, dp, log)
-				emitChildDown(bus, name, ps.childSA, log)
-				ps.childSA = nil
-			}
-			if ps.sa != nil {
-				table.Remove(ps.sa.InitiatorSPI, ps.sa.ResponderSPI)
-				emitSADown(bus, ps.sa, log)
-			}
-			delete(active, name)
+	}
+	peersMu.RUnlock()
+
+	for _, r := range removing {
+		log.Info("ike: stopping peer", "peer", r.name)
+		r.ps.Stop()
+		child := r.ps.getChildSA()
+		if child != nil {
+			removeChildSA(child, dp, log)
+			emitChildDown(bus, r.name, child, log)
+			r.ps.setChildSA(nil)
 		}
+		if r.ps.sa != nil {
+			table.Remove(r.ps.sa.InitiatorSPI, r.ps.sa.ResponderSPI)
+			emitSADown(bus, r.ps.sa, log)
+		}
+		peersMu.Lock()
+		delete(active, r.name)
+		peersMu.Unlock()
 	}
 
 	// Start new or restarted peers.
 	for name := range desired {
-		if _, running := active[name]; running {
+		peersMu.RLock()
+		_, running := active[name]
+		peersMu.RUnlock()
+		if running {
 			continue
 		}
 		peer := desired[name]
@@ -94,7 +175,9 @@ func reconcilePeers(
 			continue
 		}
 		ps := startPeerSession(name, peer, ikeGroup, espGroup, table, tr, bus, log)
+		peersMu.Lock()
 		active[name] = ps
+		peersMu.Unlock()
 		log.Info("ike: started peer", "peer", name, "connection-type", peer.ConnectionType)
 	}
 }

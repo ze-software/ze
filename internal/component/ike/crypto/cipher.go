@@ -145,7 +145,7 @@ func integrityHashFunc(id IntegrityID) func() hash.Hash {
 
 // ComputeIntegrity computes a truncated HMAC for the given data.
 func ComputeIntegrity(id IntegrityID, key, data []byte) ([]byte, error) {
-	t, err := LookupIntegrity(integrityIDToName(id))
+	t, err := LookupIntegrity(id.String())
 	if err != nil {
 		return nil, err
 	}
@@ -169,17 +169,4 @@ func VerifyIntegrity(id IntegrityID, key, data, expected []byte) error {
 		return ErrIntegrityFailed
 	}
 	return nil
-}
-
-func integrityIDToName(id IntegrityID) string {
-	switch id {
-	case AUTH_HMAC_SHA2_256_128:
-		return "sha256"
-	case AUTH_HMAC_SHA2_384_192:
-		return "sha384"
-	case AUTH_HMAC_SHA2_512_256:
-		return "sha512"
-	default:
-		return ""
-	}
 }

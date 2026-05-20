@@ -1,0 +1,46 @@
+# Functional test: clear vpn ipsec sa
+# Spec: plan/spec-ipsec-10-cli-diag.md (AC-5, AC-6)
+#
+# Verifies: clear vpn ipsec sa terminates all SAs, peers re-establish.
+
+stdin=config:terminator=EOF_CONFIG
+{
+  "vpn": {
+    "ipsec": {
+      "esp-group": {
+        "esp-default": {
+          "lifetime": "3600",
+          "proposal": { "1": { "encryption": "aes256", "hash": "sha256" } }
+        }
+      },
+      "ike-group": {
+        "ike-default": {
+          "key-exchange": "ikev2",
+          "lifetime": "28800",
+          "proposal": { "1": { "dh-group": "14", "encryption": "aes256", "hash": "sha256" } }
+        }
+      },
+      "site-to-site": {
+        "peer-1": {
+          "ike-group": "ike-default",
+          "esp-group": "esp-default",
+          "connection-type": "initiate",
+          "local-address": "10.0.0.1",
+          "remote-address": "10.0.0.2",
+          "authentication": { "mode": "pre-shared-secret", "pre-shared-secret": "test-key-1234" }
+        }
+      }
+    }
+  }
+}
+EOF_CONFIG
+
+# Wait for initial establishment
+expect=event:namespace=vpn-ipsec:name=sa-up:timeout=10
+
+# Clear all SAs
+command=clear vpn ipsec sa
+expect=output:contains=clear-all:timeout=5
+
+# Expect re-establishment
+expect=event:namespace=vpn-ipsec:name=sa-up:timeout=15

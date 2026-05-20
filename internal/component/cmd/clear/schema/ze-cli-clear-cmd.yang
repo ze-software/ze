@@ -39,5 +39,21 @@ module ze-cli-clear-cmd {
                 description "Flush DNS cache (all | record <name> [type <A|AAAA|...>] | stats)";
             }
         }
+
+        container vpn {
+            config false;
+            description "VPN subsystem operations";
+
+            container ipsec {
+                config false;
+                description "IPsec tunnel management";
+
+                container sa {
+                    config false;
+                    ze:command "ze-clear:vpn-ipsec-sa";
+                    description "Terminate IKE SAs. Bare clears all; 'peer <name>' clears one peer.";
+                }
+            }
+        }
     }
 }

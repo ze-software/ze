@@ -60,5 +60,17 @@ module ze-monitor-cmd {
                 description "Stream kernel netlink events (route, link, address changes). Args: [route|link|address|all]";
             }
         }
+
+        container vpn {
+            config false;
+            description "VPN monitor commands";
+
+            container ipsec {
+                config false;
+                ze:command "ze-monitor:vpn-ipsec";
+                ze:task-support required;
+                description "Stream IPsec SA lifecycle events (sa-up, sa-down, child-up, child-down, child-rekey)";
+            }
+        }
     }
 }

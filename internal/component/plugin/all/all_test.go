@@ -58,6 +58,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"fib-p4",
 		"fib-vpp",
 		"firewall",
+		"ike",
 		"interface",
 		"kernel",
 		"l2tp-auth-local",

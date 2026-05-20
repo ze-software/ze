@@ -1,0 +1,43 @@
+# Functional test: monitor vpn ipsec
+# Spec: plan/spec-ipsec-10-cli-diag.md (AC-7)
+#
+# Verifies: monitor vpn ipsec streams SA lifecycle events.
+
+stdin=config:terminator=EOF_CONFIG
+{
+  "vpn": {
+    "ipsec": {
+      "esp-group": {
+        "esp-default": {
+          "lifetime": "3600",
+          "proposal": { "1": { "encryption": "aes256", "hash": "sha256" } }
+        }
+      },
+      "ike-group": {
+        "ike-default": {
+          "key-exchange": "ikev2",
+          "lifetime": "28800",
+          "proposal": { "1": { "dh-group": "14", "encryption": "aes256", "hash": "sha256" } }
+        }
+      },
+      "site-to-site": {
+        "peer-1": {
+          "ike-group": "ike-default",
+          "esp-group": "esp-default",
+          "connection-type": "initiate",
+          "local-address": "10.0.0.1",
+          "remote-address": "10.0.0.2",
+          "authentication": { "mode": "pre-shared-secret", "pre-shared-secret": "test-key-1234" }
+        }
+      }
+    }
+  }
+}
+EOF_CONFIG
+
+# Start monitor in background
+stream=monitor vpn ipsec
+
+# Wait for SA establishment event on the stream
+expect=stream:contains=sa-up:timeout=10
+expect=stream:contains=child-up:timeout=5

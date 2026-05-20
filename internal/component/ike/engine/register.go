@@ -4,6 +4,7 @@ package engine
 import (
 	"fmt"
 	"log/slog"
+	"maps"
 	"net"
 	"os"
 	"sync"
@@ -15,15 +16,118 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
 	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 var (
-	loggerPtr   atomic.Pointer[slog.Logger]
-	eventBusPtr atomic.Pointer[ze.EventBus]
+	loggerPtr      atomic.Pointer[slog.Logger]
+	eventBusPtr    atomic.Pointer[ze.EventBus]
+	activeTablePtr atomic.Pointer[SATable]
+
+	peersMu        sync.RWMutex
+	activePeersMap map[string]*PeerSession
+
+	reEstablishFn atomic.Pointer[func()]
 )
+
+func ActiveTable() *SATable                    { return activeTablePtr.Load() }
+func SetActiveTable(t *SATable)                { activeTablePtr.Store(t) }
+func SetActivePeers(m map[string]*PeerSession) { setActivePeers(m) }
+
+func ActivePeers() map[string]*PeerSession {
+	peersMu.RLock()
+	defer peersMu.RUnlock()
+	if activePeersMap == nil {
+		return nil
+	}
+	out := make(map[string]*PeerSession, len(activePeersMap))
+	maps.Copy(out, activePeersMap)
+	return out
+}
+
+// PeerInfoMap returns a snapshot of peer info for all active sessions.
+func PeerInfoMap() map[string]PeerInfo {
+	peersMu.RLock()
+	defer peersMu.RUnlock()
+	if activePeersMap == nil {
+		return nil
+	}
+	out := make(map[string]PeerInfo, len(activePeersMap))
+	for name, ps := range activePeersMap {
+		out[name] = ps.Info()
+	}
+	return out
+}
+
+func setActivePeers(m map[string]*PeerSession) {
+	peersMu.Lock()
+	activePeersMap = m
+	peersMu.Unlock()
+}
+
+func TerminateAllSAs() int {
+	peersMu.Lock()
+	if activePeersMap == nil {
+		peersMu.Unlock()
+		return 0
+	}
+	snapshot := make(map[string]*PeerSession, len(activePeersMap))
+	maps.Copy(snapshot, activePeersMap)
+	peersMu.Unlock()
+
+	table := ActiveTable()
+	bus := getEventBus()
+	log := getLogger()
+	count := 0
+	for name, ps := range snapshot {
+		ps.Stop()
+		if ps.sa != nil && table != nil {
+			table.Remove(ps.sa.InitiatorSPI, ps.sa.ResponderSPI)
+			emitSADown(bus, ps.sa, log)
+		}
+		peersMu.Lock()
+		delete(activePeersMap, name)
+		peersMu.Unlock()
+		count++
+	}
+
+	if fn := reEstablishFn.Load(); fn != nil {
+		(*fn)()
+	}
+	return count
+}
+
+func TerminatePeerSA(name string) bool {
+	peersMu.Lock()
+	if activePeersMap == nil {
+		peersMu.Unlock()
+		return false
+	}
+	ps, ok := activePeersMap[name]
+	if !ok {
+		peersMu.Unlock()
+		return false
+	}
+	delete(activePeersMap, name)
+	peersMu.Unlock()
+
+	ps.Stop()
+	table := ActiveTable()
+	if ps.sa != nil && table != nil {
+		table.Remove(ps.sa.InitiatorSPI, ps.sa.ResponderSPI)
+		bus := getEventBus()
+		log := getLogger()
+		emitSADown(bus, ps.sa, log)
+	}
+
+	if fn := reEstablishFn.Load(); fn != nil {
+		(*fn)()
+	}
+	return true
+}
 
 func setLogger(l *slog.Logger)   { loggerPtr.Store(l) }
 func getLogger() *slog.Logger    { return loggerPtr.Load() }
@@ -40,6 +144,7 @@ func getEventBus() ze.EventBus {
 func init() {
 	d := slogutil.DiscardLogger()
 	loggerPtr.Store(d)
+	RegisterHealthCheck()
 
 	reg := registry.Registration{
 		Name:        "ike",
@@ -74,11 +179,52 @@ func runEngine(conn net.Conn) int {
 	defer closeSDK(p)
 
 	table := NewSATable()
+	activeTablePtr.Store(table)
 	var tr *transport.UDPTransport
 	var trNATT *transport.UDPTransport
 	var activeCfg *ipsec.IPsecConfig
 	var ipPool *eap.Pool
 	activePeers := make(map[string]*PeerSession)
+	setActivePeers(activePeers)
+
+	var ipsecMetrics *IPsecMetrics
+	if reg := registry.GetMetricsRegistry(); reg != nil {
+		if mr, ok := reg.(metrics.Registry); ok {
+			ipsecMetrics = RegisterMetrics(mr)
+		}
+	}
+
+	type reEstablishCtx struct {
+		cfg *ipsec.IPsecConfig
+		tr  *transport.UDPTransport
+	}
+	var reCtx atomic.Pointer[reEstablishCtx]
+
+	reEstablish := func() {
+		rc := reCtx.Load()
+		if rc == nil || rc.cfg == nil {
+			return
+		}
+		eb := getEventBus()
+		reconcilePeers(rc.cfg, nil, activePeers, table, rc.tr, eb, log)
+	}
+	reEstablishFn.Store(&reEstablish)
+
+	metricsStop := make(chan struct{})
+	if ipsecMetrics != nil {
+		go func() {
+			ticker := time.NewTicker(5 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-metricsStop:
+					return
+				case <-ticker.C:
+					ipsecMetrics.Update()
+				}
+			}
+		}()
+	}
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		cfg, err := parseIPsecSections(sections)
@@ -132,6 +278,11 @@ func runEngine(conn net.Conn) int {
 		eb := getEventBus()
 		reconcilePeers(cfg, activeCfg, activePeers, table, tr, eb, log)
 		activeCfg = cfg
+		reCtx.Store(&reEstablishCtx{cfg: cfg, tr: tr})
+
+		if ipsecMetrics != nil {
+			ipsecMetrics.Update()
+		}
 
 		log.Info("ike engine configured", "peers", len(cfg.Peers))
 		return nil
@@ -148,9 +299,17 @@ func runEngine(conn net.Conn) int {
 	}
 
 	// Cleanup after Run returns (shutdown).
-	for name, ps := range activePeers {
+	reEstablishFn.Store(nil)
+	close(metricsStop)
+	peersMu.Lock()
+	shutdownPeers := make(map[string]*PeerSession, len(activePeers))
+	maps.Copy(shutdownPeers, activePeers)
+	peersMu.Unlock()
+	for name, ps := range shutdownPeers {
 		ps.Stop()
+		peersMu.Lock()
 		delete(activePeers, name)
+		peersMu.Unlock()
 	}
 	if tr != nil {
 		if err := tr.Close(); err != nil {

@@ -53,6 +53,47 @@ const (
 
 var ErrUnsupportedAlgorithm = errors.New("unsupported algorithm")
 
+const unknownAlgo = "unknown"
+
+func (id EncryptionID) String() string {
+	switch id {
+	case ENCR_AES_CBC:
+		return "aes-cbc"
+	case ENCR_AES_GCM_16:
+		return "aes-gcm"
+	default:
+		return unknownAlgo
+	}
+}
+
+func (id IntegrityID) String() string { //nolint:goconst // display names intentionally match registry keys
+	switch id {
+	case AUTH_NONE:
+		return "none"
+	case AUTH_HMAC_SHA2_256_128:
+		return "sha256"
+	case AUTH_HMAC_SHA2_384_192:
+		return "sha384"
+	case AUTH_HMAC_SHA2_512_256:
+		return "sha512"
+	default:
+		return unknownAlgo
+	}
+}
+
+func (id DHGroupID) String() string {
+	switch id {
+	case DH_MODP_2048:
+		return "modp2048"
+	case DH_ECP_256:
+		return "ecp256"
+	case DH_ECP_384:
+		return "ecp384"
+	default:
+		return unknownAlgo
+	}
+}
+
 type EncryptionTransform struct {
 	ID        EncryptionID
 	KeyLength uint16 // in bits

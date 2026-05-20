@@ -52,6 +52,8 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 		return renderL2TPPageContent(renderer, path[1:], viewTree)
 	case segSSH, segTelemetry, segTACACS, segMCP, segLG, segAPI:
 		return renderServicePageContent(renderer, path[0], viewTree)
+	case "vpn":
+		return renderVPNPageContent(renderer, r, path[1:])
 	case segTools:
 		return renderToolPageContent(renderer, r, path[1:], dispatch)
 	case segLogs:
