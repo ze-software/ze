@@ -364,3 +364,35 @@ func (s *RTRSession) State() string {
 	defer s.mu.Unlock()
 	return s.state
 }
+
+// SessionSnapshot holds a point-in-time copy of session diagnostic fields.
+type SessionSnapshot struct {
+	Address         string
+	Port            uint16
+	Preference      uint8
+	State           string
+	Version         uint8
+	SessionID       uint16
+	Serial          uint32
+	RefreshInterval time.Duration
+	RetryInterval   time.Duration
+	ExpireInterval  time.Duration
+}
+
+// Snapshot returns a point-in-time copy of diagnostic fields.
+func (s *RTRSession) Snapshot() SessionSnapshot {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return SessionSnapshot{
+		Address:         s.address,
+		Port:            s.port,
+		Preference:      s.preference,
+		State:           s.state,
+		Version:         s.version,
+		SessionID:       s.sessionID,
+		Serial:          s.serial,
+		RefreshInterval: s.refreshInterval,
+		RetryInterval:   s.retryInterval,
+		ExpireInterval:  s.expireInterval,
+	}
+}

@@ -179,7 +179,7 @@ func RunRPKIPlugin(conn net.Conn) int {
 	})
 
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
-		return rp.handleCommand(command, strings.Join(args, " "))
+		return rp.handleCommand(command, args)
 	})
 
 	// OnConfigure: parse RPKI config and start RTR sessions to cache servers.
@@ -230,6 +230,8 @@ func RunRPKIPlugin(conn net.Conn) int {
 			{Name: "rpki cache"},
 			{Name: "rpki roa"},
 			{Name: "rpki summary"},
+			{Name: "rpki validate"},
+			{Name: "rpki aspa"},
 		},
 		WantsConfig: []string{"bgp"},
 	})
@@ -786,48 +788,283 @@ func rpkiOriginASFromASPath(asp *attribute.ASPath) uint32 {
 }
 
 // handleCommand processes RPKI CLI commands.
-func (rp *RPKIPlugin) handleCommand(command, _ string) (string, string, error) {
+func (rp *RPKIPlugin) handleCommand(command string, args []string) (string, string, error) {
 	switch command {
 	case "rpki status":
 		return rp.statusCommand()
 	case "rpki cache":
 		return rp.cacheCommand()
 	case "rpki roa":
-		return rp.roaCommand()
+		return rp.roaCommand(args)
 	case "rpki summary":
 		return rp.summaryCommand()
+	case "rpki validate":
+		return rp.validateCommand(args)
+	case "rpki aspa":
+		return rp.aspaCommand(args)
 	}
 	return statusError, "", fmt.Errorf("unknown command: %s", command)
 }
 
 func (rp *RPKIPlugin) statusCommand() (string, string, error) {
 	rp.mu.RLock()
-	defer rp.mu.RUnlock()
+	sessions := make([]*RTRSession, len(rp.sessions))
+	copy(sessions, rp.sessions)
+	rp.mu.RUnlock()
 
 	v4, v6 := rp.cache.Count()
-	var b textbuf.Buffer
-	data := b.Reset().Str(`{"running":true,"vrp-count-ipv4":`).Int(int64(v4)).Str(`,"vrp-count-ipv6":`).Int(int64(v6)).Str(`,"sessions":`).Int(int64(len(rp.sessions))).Str("}").String()
-	return statusDone, data, nil
+	aspaCount := rp.aspaCache.count()
+	aspaEnabled := rp.aspaEnabled.Load()
+
+	b := textbuf.Get()
+	defer b.Release()
+	b.Str(`{"running":true,"vrp-count-ipv4":`).Int(int64(v4))
+	b.Str(`,"vrp-count-ipv6":`).Int(int64(v6))
+	b.Str(`,"sessions":`).Int(int64(len(sessions)))
+	b.Str(`,"aspa-enabled":`).Bool(aspaEnabled)
+	b.Str(`,"aspa-records":`).Int(int64(aspaCount))
+
+	if len(sessions) > 0 {
+		b.Str(`,"cache-servers":[`)
+		for i, sess := range sessions {
+			if i > 0 {
+				b.Byte(',')
+			}
+			snap := sess.Snapshot()
+			b.Str(`{"address":"`).Str(snap.Address).Byte('"')
+			b.Str(`,"port":`).Uint16(snap.Port)
+			b.Str(`,"state":"`).Str(snap.State).Byte('"')
+			b.Str(`,"version":`).Uint8(snap.Version)
+			b.Byte('}')
+		}
+		b.Byte(']')
+	}
+
+	b.Byte('}')
+	return statusDone, b.String(), nil
 }
 
 func (rp *RPKIPlugin) cacheCommand() (string, string, error) {
 	rp.mu.RLock()
-	defer rp.mu.RUnlock()
+	sessions := make([]*RTRSession, len(rp.sessions))
+	copy(sessions, rp.sessions)
+	rp.mu.RUnlock()
 
-	data := `{"cache-servers":[]}`
-	return statusDone, data, nil
+	b := textbuf.Get()
+	defer b.Release()
+	b.Str(`{"cache-servers":[`)
+	for i, sess := range sessions {
+		if i > 0 {
+			b.Byte(',')
+		}
+		snap := sess.Snapshot()
+		b.Str(`{"address":"`).Str(snap.Address).Byte('"')
+		b.Str(`,"port":`).Uint16(snap.Port)
+		b.Str(`,"preference":`).Uint8(snap.Preference)
+		b.Str(`,"state":"`).Str(snap.State).Byte('"')
+		b.Str(`,"version":`).Uint8(snap.Version)
+		b.Str(`,"session-id":`).Uint(uint64(snap.SessionID))
+		b.Str(`,"serial":`).Uint32(snap.Serial)
+		b.Str(`,"refresh-interval":`).Int(int64(snap.RefreshInterval.Seconds()))
+		b.Str(`,"retry-interval":`).Int(int64(snap.RetryInterval.Seconds()))
+		b.Str(`,"expire-interval":`).Int(int64(snap.ExpireInterval.Seconds()))
+		b.Byte('}')
+	}
+	b.Str(`]}`)
+	return statusDone, b.String(), nil
 }
 
-func (rp *RPKIPlugin) roaCommand() (string, string, error) {
+const roaDiagLimit = 1000
+
+func (rp *RPKIPlugin) roaCommand(args []string) (string, string, error) {
+	// "rpki roa <prefix>" -> lookup covering VRPs for prefix
+	if len(args) > 0 && args[0] != "" {
+		_, _, err := net.ParseCIDR(args[0])
+		if err != nil {
+			return statusError, "", fmt.Errorf("invalid prefix: %s", args[0])
+		}
+		return rp.roaLookupCommand(args[0])
+	}
+
 	v4, v6 := rp.cache.Count()
-	var b2 textbuf.Buffer
-	data := b2.Reset().Str(`{"total-vrps":`).Int(int64(v4 + v6)).Str(`,"ipv4-vrps":`).Int(int64(v4)).Str(`,"ipv6-vrps":`).Int(int64(v6)).Str("}").String()
-	return statusDone, data, nil
+	total := v4 + v6
+	entries := rp.cache.Entries(roaDiagLimit)
+
+	b := textbuf.Get()
+	defer b.Release()
+	b.Str(`{"total-vrps":`).Int(int64(total))
+	b.Str(`,"ipv4-vrps":`).Int(int64(v4))
+	b.Str(`,"ipv6-vrps":`).Int(int64(v6))
+
+	if total > roaDiagLimit {
+		b.Str(`,"truncated":true,"limit":`).Int(int64(roaDiagLimit))
+	}
+
+	b.Str(`,"entries":[`)
+	for i, e := range entries {
+		if i > 0 {
+			b.Byte(',')
+		}
+		b.Str(`{"prefix":"`).Str(e.Prefix).Byte('"')
+		b.Str(`,"max-length":`).Uint8(e.MaxLength)
+		b.Str(`,"asn":`).Uint32(e.ASN)
+		b.Byte('}')
+	}
+	b.Str(`]}`)
+	return statusDone, b.String(), nil
+}
+
+func (rp *RPKIPlugin) roaLookupCommand(prefix string) (string, string, error) {
+	_, ipnet, _ := net.ParseCIDR(prefix) // already validated by caller
+	canonical := ipnet.String()
+	entries := rp.cache.Lookup(canonical)
+	state := rp.cache.Validate(canonical, OriginNone)
+
+	b := textbuf.Get()
+	defer b.Release()
+	b.Str(`{"prefix":"`).Str(canonical).Byte('"')
+	b.Str(`,"covering-vrps":`).Int(int64(len(entries)))
+	b.Str(`,"entries":[`)
+	for i, e := range entries {
+		if i > 0 {
+			b.Byte(',')
+		}
+		b.Str(`{"prefix":"`).Str(e.Prefix).Byte('"')
+		b.Str(`,"max-length":`).Uint8(e.MaxLength)
+		b.Str(`,"asn":`).Uint32(e.ASN)
+		b.Byte('}')
+	}
+	b.Str(`],"covered":`)
+	if state == ValidationNotFound {
+		b.Str("false")
+	} else {
+		b.Str("true")
+	}
+	b.Byte('}')
+	return statusDone, b.String(), nil
 }
 
 func (rp *RPKIPlugin) summaryCommand() (string, string, error) {
 	v4, v6 := rp.cache.Count()
-	var b3 textbuf.Buffer
-	data := b3.Reset().Str(`{"vrp-count":`).Int(int64(v4 + v6)).Str(`,"validation-enabled":true}`).String()
-	return statusDone, data, nil
+	aspaCount := rp.aspaCache.count()
+	aspaEnabled := rp.aspaEnabled.Load()
+
+	rp.mu.RLock()
+	sessionCount := len(rp.sessions)
+	established := 0
+	for _, sess := range rp.sessions {
+		if sess.State() == sessionEstablish {
+			established++
+		}
+	}
+	rp.mu.RUnlock()
+
+	b := textbuf.Get()
+	defer b.Release()
+	b.Str(`{"vrp-count":`).Int(int64(v4 + v6))
+	b.Str(`,"validation-enabled":true`)
+	b.Str(`,"sessions-total":`).Int(int64(sessionCount))
+	b.Str(`,"sessions-established":`).Int(int64(established))
+	b.Str(`,"aspa-enabled":`).Bool(aspaEnabled)
+	b.Str(`,"aspa-records":`).Int(int64(aspaCount))
+	b.Byte('}')
+	return statusDone, b.String(), nil
+}
+
+func (rp *RPKIPlugin) validateCommand(args []string) (string, string, error) {
+	if len(args) < 2 {
+		return statusError, "", fmt.Errorf("usage: rpki validate <prefix> <origin-asn>")
+	}
+
+	_, ipnet, err := net.ParseCIDR(args[0])
+	if err != nil {
+		return statusError, "", fmt.Errorf("invalid prefix: %s", args[0])
+	}
+	prefix := ipnet.String()
+
+	originAS, err := strconv.ParseUint(args[1], 10, 32)
+	if err != nil {
+		return statusError, "", fmt.Errorf("invalid ASN: %s", args[1])
+	}
+
+	state := rp.cache.Validate(prefix, uint32(originAS)) //nolint:gosec // range checked by ParseUint
+	covering := rp.cache.Lookup(prefix)
+
+	b := textbuf.Get()
+	defer b.Release()
+	b.Str(`{"prefix":"`).Str(prefix).Byte('"')
+	b.Str(`,"origin-asn":`).Uint(originAS)
+	b.Str(`,"state":"`).Str(validationStateString(state)).Byte('"')
+	b.Str(`,"covering-vrps":[`)
+	for i, e := range covering {
+		if i > 0 {
+			b.Byte(',')
+		}
+		b.Str(`{"prefix":"`).Str(e.Prefix).Byte('"')
+		b.Str(`,"max-length":`).Uint8(e.MaxLength)
+		b.Str(`,"asn":`).Uint32(e.ASN)
+		b.Byte('}')
+	}
+	b.Str(`]}`)
+	return statusDone, b.String(), nil
+}
+
+const aspaDiagLimit = 1000
+
+func (rp *RPKIPlugin) aspaCommand(args []string) (string, string, error) {
+	// "rpki aspa <customer-asn>" -> lookup specific customer
+	if len(args) > 0 && args[0] != "" {
+		asn, err := strconv.ParseUint(args[0], 10, 32)
+		if err != nil {
+			return statusError, "", fmt.Errorf("invalid ASN: %s", args[0])
+		}
+		providers := rp.aspaCache.LookupCustomer(uint32(asn)) //nolint:gosec // range checked by ParseUint
+		b := textbuf.Get()
+		defer b.Release()
+		b.Str(`{"customer-asn":`).Uint(asn)
+		if providers == nil {
+			b.Str(`,"found":false,"providers":[]}`)
+		} else {
+			b.Str(`,"found":true,"providers":[`)
+			for i, p := range providers {
+				if i > 0 {
+					b.Byte(',')
+				}
+				b.Uint32(p)
+			}
+			b.Str(`]}`)
+		}
+		return statusDone, b.String(), nil
+	}
+
+	// No args: dump ASPA cache summary
+	total := rp.aspaCache.count()
+	entries := rp.aspaCache.Entries(aspaDiagLimit)
+
+	b := textbuf.Get()
+	defer b.Release()
+	b.Str(`{"total-records":`).Int(int64(total))
+	b.Str(`,"enabled":`).Bool(rp.aspaEnabled.Load())
+
+	if total > aspaDiagLimit {
+		b.Str(`,"truncated":true,"limit":`).Int(int64(aspaDiagLimit))
+	}
+
+	b.Str(`,"entries":[`)
+	for i, e := range entries {
+		if i > 0 {
+			b.Byte(',')
+		}
+		b.Str(`{"customer-asn":`).Uint32(e.CustomerAS)
+		b.Str(`,"providers":[`)
+		for j, p := range e.Providers {
+			if j > 0 {
+				b.Byte(',')
+			}
+			b.Uint32(p)
+		}
+		b.Str(`]}`)
+	}
+	b.Str(`]}`)
+	return statusDone, b.String(), nil
 }

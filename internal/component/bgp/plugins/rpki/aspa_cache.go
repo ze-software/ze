@@ -142,6 +142,50 @@ func (c *ASPACache) count() int {
 	return len(c.records)
 }
 
+// ASPADiagEntry is an ASPA record for diagnostic output.
+type ASPADiagEntry struct {
+	CustomerAS uint32
+	Providers  []uint32
+}
+
+// Entries returns up to limit ASPA records for diagnostic display. Pass 0 for all.
+func (c *ASPACache) Entries(limit int) []ASPADiagEntry {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	sz := len(c.records)
+	if limit > 0 && limit < sz {
+		sz = limit
+	}
+	result := make([]ASPADiagEntry, 0, sz)
+	for customerAS, provSet := range c.records {
+		providers := make([]uint32, 0, len(provSet))
+		for p := range provSet {
+			providers = append(providers, p)
+		}
+		result = append(result, ASPADiagEntry{CustomerAS: customerAS, Providers: providers})
+		if limit > 0 && len(result) >= limit {
+			break
+		}
+	}
+	return result
+}
+
+// LookupCustomer returns the provider set for a customer AS, or nil if not found.
+func (c *ASPACache) LookupCustomer(customerAS uint32) []uint32 {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	provSet, ok := c.records[customerAS]
+	if !ok {
+		return nil
+	}
+	providers := make([]uint32, 0, len(provSet))
+	for p := range provSet {
+		providers = append(providers, p)
+	}
+	return providers
+}
+
 // ChangedCustomers returns the set of customer ASNs affected by a delta.
 // Used by the route tracker to determine which routes need re-validation.
 func (c *ASPACache) ChangedCustomers(dels []uint32, adds []ASPARecord) []uint32 {

@@ -239,6 +239,80 @@ func (c *ROACache) removeLocked(vrp VRP) {
 	}
 }
 
+// DiagEntry is a VRP record for diagnostic output.
+type DiagEntry struct {
+	Prefix    string
+	MaxLength uint8
+	ASN       uint32
+}
+
+// Entries returns up to limit VRP entries for diagnostic display.
+// Combines IPv4 and IPv6 entries. Pass 0 for all entries.
+func (c *ROACache) Entries(limit int) []DiagEntry {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	total := c.total
+	if limit > 0 && limit < total {
+		total = limit
+	}
+	result := make([]DiagEntry, 0, total)
+
+	for prefix, entries := range c.ipv4 {
+		for _, e := range entries {
+			result = append(result, DiagEntry{Prefix: prefix, MaxLength: e.MaxLength, ASN: e.ASN})
+			if limit > 0 && len(result) >= limit {
+				return result
+			}
+		}
+	}
+	for prefix, entries := range c.ipv6 {
+		for _, e := range entries {
+			result = append(result, DiagEntry{Prefix: prefix, MaxLength: e.MaxLength, ASN: e.ASN})
+			if limit > 0 && len(result) >= limit {
+				return result
+			}
+		}
+	}
+	return result
+}
+
+// Lookup returns all VRP entries covering the given prefix, formatted for diagnostics.
+// Each entry's Prefix is the VRP's own prefix (the covering prefix), not the query.
+func (c *ROACache) Lookup(prefix string) []DiagEntry {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	_, ipnet, err := net.ParseCIDR(prefix)
+	if err != nil {
+		return nil
+	}
+
+	prefixLen, bits := ipnet.Mask.Size()
+	isV4 := bits == 32
+	var table map[string][]vrpEntry
+	if isV4 {
+		table = c.ipv4
+	} else {
+		table = c.ipv6
+	}
+
+	var result []DiagEntry
+	for pl := prefixLen; pl >= 0; pl-- {
+		coverMask := net.CIDRMask(pl, bits)
+		coverIP := ipnet.IP.Mask(coverMask)
+		coverNet := net.IPNet{IP: coverIP, Mask: coverMask}
+		coverKey := coverNet.String()
+
+		if entries, ok := table[coverKey]; ok {
+			for _, e := range entries {
+				result = append(result, DiagEntry{Prefix: coverKey, MaxLength: e.MaxLength, ASN: e.ASN})
+			}
+		}
+	}
+	return result
+}
+
 // Clear removes all VRP entries.
 func (c *ROACache) Clear() {
 	c.mu.Lock()
