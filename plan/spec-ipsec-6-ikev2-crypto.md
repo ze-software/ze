@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 1/7 |
 | Updated | 2026-05-20 |
 
 ## Post-Compaction Recovery
@@ -351,16 +351,27 @@ MUST document: SKEYSEED formula, prf+ iteration, SK_* key lengths, proposal sele
 ## Implementation Summary
 
 ### What Was Implemented
-- (to be filled)
+- Transform type registry: config name to IANA ID mapping for encryption, PRF, integrity, DH
+- DH key exchange: groups 14 (MODP 2048), 19 (ECP-256), 20 (ECP-384)
+- PRF: HMAC-SHA256/384/512 and prf+ key expansion with 255-iteration cap
+- Encryption: AES-GCM-16 (128/256) and AES-CBC (128/256) with PKCS#7 padding
+- Integrity: HMAC-SHA256-128, HMAC-SHA384-192, HMAC-SHA512-256 with constant-time verify
+- Key derivation: SKEYSEED, rekeyed SKEYSEED, SK_* hierarchy, Child SA KEYMAT
+- Proposal negotiation: IKE and ESP first-match selection
+- 35 unit tests covering all 13 ACs
 
 ### Bugs Found/Fixed
-- (to be filled)
+- prf+ counter overflow: byte counter wraps at 255; added explicit length validation
+- MODP private key range: rand.Int could produce 0 or 1; now generates in [2, p-2]
+- MODP public key validation: added rejection of values 1 and p-1 (small subgroup attack)
+- PKCS#7 unpadding: made constant-time using subtle.ConstantTimeByteEq
 
 ### Documentation Updates
-- (to be filled)
+- None required (internal crypto package, no user-facing changes)
 
 ### Deviations from Plan
-- (to be filled)
+- Skipped functional .ci test: this is a pure computation library with no daemon entry point; unit tests serve as functional verification
+- No architecture doc update needed: package follows standard internal/component/ layout
 
 ## Implementation Audit
 
