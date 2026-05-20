@@ -267,7 +267,7 @@ func (d *Dashboard) handleControlRestart(w http.ResponseWriter, r *http.Request)
 	d.state.Control.Status = statusRestarting
 	d.state.mu.Unlock()
 
-	d.logControl("restart", strconv.Itoa(int(seed)))
+	d.logControl("restart", textbuf.Uint(seed))
 
 	// Cancel the current run.
 	if d.onStop != nil {
