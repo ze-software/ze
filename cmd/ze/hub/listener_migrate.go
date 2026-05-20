@@ -8,7 +8,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	apigrpc "codeberg.org/thomas-mangin/ze/internal/component/api/grpc"
+	"codeberg.org/thomas-mangin/ze/internal/component/api/rest"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/lg"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
@@ -34,6 +37,10 @@ type serviceChange struct {
 // migrations to minimize downtime.
 type ListenerMigrator struct {
 	web    *zeweb.WebServer
+	lg     *lg.LGServer
+	mcp    *MCPServerHandle
+	rest   *rest.RESTServer
+	grpc   *apigrpc.GRPCServer
 	logger *slog.Logger
 }
 
@@ -45,10 +52,20 @@ func NewListenerMigrator(web *zeweb.WebServer) *ListenerMigrator {
 	}
 }
 
-// SetWeb updates the web server reference (e.g., after a fresh start on reload).
-func (m *ListenerMigrator) SetWeb(web *zeweb.WebServer) {
-	m.web = web
-}
+// SetWeb updates the web server reference.
+func (m *ListenerMigrator) SetWeb(web *zeweb.WebServer) { m.web = web }
+
+// SetLG updates the looking glass server reference.
+func (m *ListenerMigrator) SetLG(s *lg.LGServer) { m.lg = s }
+
+// SetMCP updates the MCP server reference.
+func (m *ListenerMigrator) SetMCP(s *MCPServerHandle) { m.mcp = s }
+
+// SetREST updates the REST API server reference.
+func (m *ListenerMigrator) SetREST(s *rest.RESTServer) { m.rest = s }
+
+// SetGRPC updates the gRPC API server reference.
+func (m *ListenerMigrator) SetGRPC(s *apigrpc.GRPCServer) { m.grpc = s }
 
 // ReloadListeners extracts new listen configs from the config tree and
 // reconfigures running services. Returns nil if no listener changes are needed.
@@ -57,18 +74,39 @@ func (m *ListenerMigrator) ReloadListeners(ctx context.Context, tree *zeconfig.T
 
 	if m.web != nil {
 		if webCfg, ok := zeconfig.ExtractWebConfig(tree); ok {
-			newAddrs := endpointsToAddrs(webCfg.Servers)
-			oldAddrs := m.web.Addresses()
-			_, add, remove := zeweb.ListenerDiff(oldAddrs, newAddrs)
-			if len(add) > 0 || len(remove) > 0 {
-				changes = append(changes, serviceChange{
-					name:    "web",
-					server:  m.web,
-					oldAddr: oldAddrs,
-					newAddr: newAddrs,
-					add:     add,
-					remove:  remove,
-				})
+			if sc, ok := m.buildChange("web", m.web, endpointsToAddrs(webCfg.Servers)); ok {
+				changes = append(changes, sc)
+			}
+		}
+	}
+
+	if m.lg != nil {
+		if lgCfg, ok := zeconfig.ExtractLGConfig(tree); ok {
+			if sc, ok := m.buildChange("lg", m.lg, endpointsToAddrs(lgCfg.Servers)); ok {
+				changes = append(changes, sc)
+			}
+		}
+	}
+
+	if m.mcp != nil {
+		if mcpCfg, ok := zeconfig.ExtractMCPConfig(tree); ok {
+			if sc, ok := m.buildChange("mcp", m.mcp, endpointsToAddrs(mcpCfg.Servers)); ok {
+				changes = append(changes, sc)
+			}
+		}
+	}
+
+	if m.rest != nil || m.grpc != nil {
+		if apiCfg, ok := zeconfig.ExtractAPIConfig(tree); ok {
+			if m.rest != nil && apiCfg.RESTOn {
+				if sc, ok := m.buildChange("rest", m.rest, apiListenToAddrs(apiCfg.REST)); ok {
+					changes = append(changes, sc)
+				}
+			}
+			if m.grpc != nil && apiCfg.GRPCOn {
+				if sc, ok := m.buildChange("grpc", m.grpc, apiListenToAddrs(apiCfg.GRPC)); ok {
+					changes = append(changes, sc)
+				}
 			}
 		}
 	}
@@ -79,7 +117,6 @@ func (m *ListenerMigrator) ReloadListeners(ctx context.Context, tree *zeconfig.T
 
 	conflicts := detectConflicts(changes)
 
-	// Phase 1: non-conflicting services migrate (bind new, then close old).
 	for i := range changes {
 		if conflicts[changes[i].name] {
 			continue
@@ -91,10 +128,6 @@ func (m *ListenerMigrator) ReloadListeners(ctx context.Context, tree *zeconfig.T
 		}
 	}
 
-	// Phase 2: conflicting services need sequenced release.
-	// For each conflicting service, we must close old listeners first (to free
-	// the address for the acquiring service), then bind new ones.
-	// This means a brief gap on the conflicting address.
 	for i := range changes {
 		if !conflicts[changes[i].name] {
 			continue
@@ -108,6 +141,30 @@ func (m *ListenerMigrator) ReloadListeners(ctx context.Context, tree *zeconfig.T
 	}
 
 	return nil
+}
+
+func (m *ListenerMigrator) buildChange(name string, srv Reconfigurable, newAddrs []string) (serviceChange, bool) {
+	oldAddrs := srv.Addresses()
+	_, add, remove := zeweb.ListenerDiff(oldAddrs, newAddrs)
+	if len(add) == 0 && len(remove) == 0 {
+		return serviceChange{}, false
+	}
+	return serviceChange{
+		name:    name,
+		server:  srv,
+		oldAddr: oldAddrs,
+		newAddr: newAddrs,
+		add:     add,
+		remove:  remove,
+	}, true
+}
+
+func apiListenToAddrs(configs []zeconfig.APIListenConfig) []string {
+	out := make([]string, 0, len(configs))
+	for _, c := range configs {
+		out = append(out, c.Listen())
+	}
+	return out
 }
 
 // detectConflicts returns a set of service names that have address conflicts

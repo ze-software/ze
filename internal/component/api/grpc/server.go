@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"net"
 	"slices"
+	"strings"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -66,8 +67,10 @@ type GRPCServer struct {
 	// configured holds the addresses passed in by the caller, in original order.
 	configured []string
 	// bound holds the actual listen addresses once Serve has bound them.
-	bound []string
-	mu    sync.RWMutex
+	bound     []string
+	listeners map[string]net.Listener // bound addr -> listener
+	mu        sync.RWMutex
+	stopped   bool // set by Stop; Reconfigure checks this
 }
 
 // NewGRPCServer creates a gRPC API server with auth interceptor and reflection.
@@ -106,6 +109,7 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		token:         cfg.Token,
 		authenticator: cfg.Authenticator,
 		configured:    append([]string(nil), cfg.ListenAddrs...),
+		listeners:     make(map[string]net.Listener),
 	}
 
 	opts := []grpc.ServerOption{
@@ -168,42 +172,46 @@ func (s *GRPCServer) Start(ctx context.Context) (<-chan error, error) {
 func (s *GRPCServer) listen(ctx context.Context) ([]net.Listener, error) {
 	var lc net.ListenConfig
 
-	listeners := make([]net.Listener, 0, len(s.configured))
+	lnSlice := make([]net.Listener, 0, len(s.configured))
+	lnMap := make(map[string]net.Listener, len(s.configured))
 	bound := make([]string, 0, len(s.configured))
 	for _, addr := range s.configured {
 		ln, err := lc.Listen(ctx, "tcp", addr)
 		if err != nil {
-			for _, prev := range listeners {
+			for _, prev := range lnSlice {
 				if closeErr := prev.Close(); closeErr != nil {
 					logger.Warn("gRPC API: close partial listener", "error", closeErr)
 				}
 			}
 			return nil, fmt.Errorf("listen %s: %w", addr, err)
 		}
-		listeners = append(listeners, ln)
-		bound = append(bound, ln.Addr().String())
+		resolvedAddr := ln.Addr().String()
+		lnSlice = append(lnSlice, ln)
+		lnMap[resolvedAddr] = ln
+		bound = append(bound, resolvedAddr)
 	}
 
 	s.mu.Lock()
 	s.bound = bound
+	s.listeners = lnMap
 	s.mu.Unlock()
 
 	for _, addr := range bound {
 		logger.Info("gRPC API server listening", "addr", addr)
 	}
-	return listeners, nil
+	return lnSlice, nil
 }
 
 func (s *GRPCServer) serve(listeners []net.Listener) error {
-	// grpc.Server tracks every listener internally, so GracefulStop closes
-	// all of them. Serve is called once per listener in its own goroutine.
 	errCh := make(chan error, len(listeners))
 	var wg sync.WaitGroup
 	for _, ln := range listeners {
 		wg.Add(1)
 		go func(ln net.Listener) {
 			defer wg.Done()
-			if serveErr := s.srv.Serve(ln); serveErr != nil && !errors.Is(serveErr, grpc.ErrServerStopped) {
+			if serveErr := s.srv.Serve(ln); serveErr != nil &&
+				!errors.Is(serveErr, grpc.ErrServerStopped) &&
+				!isGRPCClosedConnError(serveErr) {
 				errCh <- serveErr
 			}
 		}(ln)
@@ -220,7 +228,113 @@ func (s *GRPCServer) serve(listeners []net.Listener) error {
 
 // Stop gracefully stops the server, closing every bound listener.
 func (s *GRPCServer) Stop() {
+	s.mu.Lock()
+	s.stopped = true
+	s.mu.Unlock()
 	s.srv.GracefulStop()
+}
+
+// Reconfigure migrates listeners to a new set of addresses.
+// Bind-before-close: new listeners start serving before old ones are removed.
+func (s *GRPCServer) Reconfigure(ctx context.Context, newAddrs []string) error {
+	if len(newAddrs) == 0 {
+		return errors.New("at least one listen address is required")
+	}
+	if slices.Contains(newAddrs, "") {
+		return errors.New("listen address must not be empty")
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.stopped {
+		return errors.New("gRPC server has been shut down")
+	}
+
+	_, toAdd, toRemove := grpcListenerDiff(s.bound, newAddrs)
+	if len(toAdd) == 0 && len(toRemove) == 0 {
+		return nil
+	}
+
+	var lc net.ListenConfig
+	newLns := make([]net.Listener, 0, len(toAdd))
+	resolved := make(map[string]string, len(toAdd))
+	for _, addr := range toAdd {
+		ln, err := lc.Listen(ctx, "tcp", addr)
+		if err != nil {
+			for _, prev := range newLns {
+				if closeErr := prev.Close(); closeErr != nil {
+					logger.Warn("gRPC API: close partial listener", "error", closeErr)
+				}
+			}
+			return fmt.Errorf("gRPC reconfigure bind %s: %w", addr, err)
+		}
+		newLns = append(newLns, ln)
+		resolved[addr] = ln.Addr().String()
+	}
+
+	for _, ln := range newLns {
+		resolvedAddr := ln.Addr().String()
+		s.listeners[resolvedAddr] = ln
+		logger.Info("gRPC API listener added", "addr", resolvedAddr)
+		go func(ln net.Listener) {
+			if serveErr := s.srv.Serve(ln); serveErr != nil &&
+				!errors.Is(serveErr, grpc.ErrServerStopped) &&
+				!isGRPCClosedConnError(serveErr) {
+				logger.Error("gRPC API serve error", "error", serveErr)
+			}
+		}(ln)
+	}
+
+	for _, addr := range toRemove {
+		if ln, ok := s.listeners[addr]; ok {
+			logger.Info("gRPC API listener removed", "addr", addr)
+			if closeErr := ln.Close(); closeErr != nil {
+				logger.Warn("gRPC API close listener", "addr", addr, "error", closeErr)
+			}
+			delete(s.listeners, addr)
+		}
+	}
+
+	bound := make([]string, 0, len(newAddrs))
+	for _, a := range newAddrs {
+		if r, ok := resolved[a]; ok {
+			bound = append(bound, r)
+		} else if _, ok := s.listeners[a]; ok {
+			bound = append(bound, a)
+		}
+	}
+	s.bound = bound
+	s.configured = append([]string(nil), newAddrs...)
+	return nil
+}
+
+func grpcListenerDiff(oldAddrs, newAddrs []string) (keep, add, remove []string) {
+	oldSet := make(map[string]struct{}, len(oldAddrs))
+	for _, a := range oldAddrs {
+		oldSet[a] = struct{}{}
+	}
+	newSet := make(map[string]struct{}, len(newAddrs))
+	for _, a := range newAddrs {
+		newSet[a] = struct{}{}
+	}
+	for _, a := range newAddrs {
+		if _, exists := oldSet[a]; exists {
+			keep = append(keep, a)
+		} else {
+			add = append(add, a)
+		}
+	}
+	for _, a := range oldAddrs {
+		if _, exists := newSet[a]; !exists {
+			remove = append(remove, a)
+		}
+	}
+	return keep, add, remove
+}
+
+func isGRPCClosedConnError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "use of closed network connection")
 }
 
 // Addresses returns every bound listen address in configured order.

@@ -36,6 +36,7 @@ import (
 	"net"
 	"net/http"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -49,6 +50,7 @@ var (
 	errLgServerListenAddressMustNot        = errors.New("lg server: listen address must not be empty")
 	errLgServerCommandDispatcherIsRequired = errors.New("lg server: command dispatcher is required")
 	errLgServerTlsEnabledButCertificate    = errors.New("lg server: TLS enabled but certificate/key PEM data missing")
+	errLgServerShutDown                    = errors.New("lg server: server has been shut down")
 )
 
 // lgLogger is the structured logger for the looking glass subsystem.
@@ -108,9 +110,11 @@ type LGServer struct {
 	// bound holds the actual listen addresses once ListenAndServe has bound
 	// them. Populated under mu.
 	bound       []string
-	mu          sync.RWMutex  // protects bound after ListenAndServe updates it
-	ready       chan struct{} // closed once every listener is bound
-	readyOnce   sync.Once     // prevents double-close panic on ready channel
+	listeners   map[string]net.Listener // bound addr -> listener
+	mu          sync.RWMutex            // protects bound, listeners, stopped
+	ready       chan struct{}           // closed once every listener is bound
+	readyOnce   sync.Once               // prevents double-close panic on ready channel
+	stopped     bool                    // set by Shutdown; Reconfigure checks this
 	logger      *slog.Logger
 	server      *http.Server
 	useTLS      bool
@@ -169,6 +173,7 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 	s := &LGServer{
 		mux:         mux,
 		configured:  configured,
+		listeners:   make(map[string]net.Listener),
 		ready:       make(chan struct{}),
 		logger:      log,
 		useTLS:      cfg.TLS,
@@ -297,20 +302,24 @@ func (s *LGServer) ListenAndServe(ctx context.Context) error {
 
 	var lc net.ListenConfig
 
-	listeners := make([]net.Listener, 0, len(s.configured))
+	lnSlice := make([]net.Listener, 0, len(s.configured))
+	lnMap := make(map[string]net.Listener, len(s.configured))
 	bound := make([]string, 0, len(s.configured))
 	for _, addr := range s.configured {
 		ln, err := lc.Listen(ctx, "tcp", addr)
 		if err != nil {
-			closeAllLGListeners(listeners, s.logger)
+			closeAllLGListeners(lnSlice, s.logger)
 			return fmt.Errorf("lg server bind %s: %w", addr, err)
 		}
-		listeners = append(listeners, ln)
-		bound = append(bound, ln.Addr().String())
+		resolvedAddr := ln.Addr().String()
+		lnSlice = append(lnSlice, ln)
+		lnMap[resolvedAddr] = ln
+		bound = append(bound, resolvedAddr)
 	}
 
 	s.mu.Lock()
 	s.bound = bound
+	s.listeners = lnMap
 	s.mu.Unlock()
 
 	s.readyOnce.Do(func() { close(s.ready) })
@@ -323,9 +332,13 @@ func (s *LGServer) ListenAndServe(ctx context.Context) error {
 		}
 	}
 
-	errCh := make(chan error, len(listeners))
+	return s.serveAll(lnSlice)
+}
+
+func (s *LGServer) serveAll(lns []net.Listener) error {
+	errCh := make(chan error, len(lns))
 	var wg sync.WaitGroup
-	for _, ln := range listeners {
+	for _, ln := range lns {
 		serveLn := ln
 		if s.useTLS {
 			serveLn = tls.NewListener(ln, s.tlsCfg)
@@ -333,7 +346,9 @@ func (s *LGServer) ListenAndServe(ctx context.Context) error {
 		wg.Add(1)
 		go func(serveLn net.Listener) {
 			defer wg.Done()
-			if serveErr := s.server.Serve(serveLn); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			if serveErr := s.server.Serve(serveLn); serveErr != nil &&
+				!errors.Is(serveErr, http.ErrServerClosed) &&
+				!isLGClosedConnError(serveErr) {
 				errCh <- serveErr
 			}
 		}(serveLn)
@@ -348,8 +363,114 @@ func (s *LGServer) ListenAndServe(ctx context.Context) error {
 	return nil
 }
 
+func (s *LGServer) serveOne(ln net.Listener) {
+	serveLn := ln
+	if s.useTLS {
+		serveLn = tls.NewListener(ln, s.tlsCfg)
+	}
+	go func() {
+		if serveErr := s.server.Serve(serveLn); serveErr != nil &&
+			!errors.Is(serveErr, http.ErrServerClosed) &&
+			!isLGClosedConnError(serveErr) {
+			s.logger.Error("lg server serve error", "error", serveErr)
+		}
+	}()
+}
+
+// Reconfigure migrates listeners to a new set of addresses.
+// Bind-before-close: new listeners start serving before old ones are removed.
+func (s *LGServer) Reconfigure(ctx context.Context, newAddrs []string) error {
+	if len(newAddrs) == 0 {
+		return errLgServerAtLeastOneListen
+	}
+	if slices.Contains(newAddrs, "") {
+		return errLgServerListenAddressMustNot
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.stopped {
+		return errLgServerShutDown
+	}
+
+	_, toAdd, toRemove := lgListenerDiff(s.bound, newAddrs)
+	if len(toAdd) == 0 && len(toRemove) == 0 {
+		return nil
+	}
+
+	var lc net.ListenConfig
+	newLns := make([]net.Listener, 0, len(toAdd))
+	resolved := make(map[string]string, len(toAdd))
+	for _, addr := range toAdd {
+		ln, err := lc.Listen(ctx, "tcp", addr)
+		if err != nil {
+			closeAllLGListeners(newLns, s.logger)
+			return fmt.Errorf("lg server reconfigure bind %s: %w", addr, err)
+		}
+		newLns = append(newLns, ln)
+		resolved[addr] = ln.Addr().String()
+	}
+
+	for _, ln := range newLns {
+		resolvedAddr := ln.Addr().String()
+		s.listeners[resolvedAddr] = ln
+		s.logger.Info("lg server listener added", "address", resolvedAddr)
+		s.serveOne(ln)
+	}
+
+	for _, addr := range toRemove {
+		if ln, ok := s.listeners[addr]; ok {
+			s.logger.Info("lg server listener removed", "address", addr)
+			if closeErr := ln.Close(); closeErr != nil {
+				s.logger.Warn("lg server close listener", "address", addr, "error", closeErr)
+			}
+			delete(s.listeners, addr)
+		}
+	}
+
+	bound := make([]string, 0, len(newAddrs))
+	for _, a := range newAddrs {
+		if r, ok := resolved[a]; ok {
+			bound = append(bound, r)
+		} else if _, ok := s.listeners[a]; ok {
+			bound = append(bound, a)
+		}
+	}
+	s.bound = bound
+	s.configured = append([]string(nil), newAddrs...)
+	return nil
+}
+
+func lgListenerDiff(oldAddrs, newAddrs []string) (keep, add, remove []string) {
+	oldSet := make(map[string]struct{}, len(oldAddrs))
+	for _, a := range oldAddrs {
+		oldSet[a] = struct{}{}
+	}
+	newSet := make(map[string]struct{}, len(newAddrs))
+	for _, a := range newAddrs {
+		newSet[a] = struct{}{}
+	}
+	for _, a := range newAddrs {
+		if _, exists := oldSet[a]; exists {
+			keep = append(keep, a)
+		} else {
+			add = append(add, a)
+		}
+	}
+	for _, a := range oldAddrs {
+		if _, exists := newSet[a]; !exists {
+			remove = append(remove, a)
+		}
+	}
+	return keep, add, remove
+}
+
+func isLGClosedConnError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "use of closed network connection")
+}
+
 // closeAllLGListeners closes every listener in the slice, logging any errors.
-// Used on the bind-failure path to release the partially-acquired set.
 func closeAllLGListeners(listeners []net.Listener, log *slog.Logger) {
 	for _, ln := range listeners {
 		if closeErr := ln.Close(); closeErr != nil {
@@ -399,7 +520,11 @@ func (s *LGServer) WaitReady(ctx context.Context) error {
 }
 
 // Shutdown gracefully shuts down the server without interrupting active connections.
+// After Shutdown, Reconfigure returns errLgServerShutDown.
 func (s *LGServer) Shutdown(ctx context.Context) error {
+	s.mu.Lock()
+	s.stopped = true
+	s.mu.Unlock()
 	s.logger.Info("lg server shutting down")
 	return s.server.Shutdown(ctx)
 }

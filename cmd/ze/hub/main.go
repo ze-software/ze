@@ -719,6 +719,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if len(lgAddrs) > 0 {
 		lgDispatch := func(cmd string) (string, error) { return dispatch(cmd, "", "") }
 		if lgSrv := startLGServer(store, lgAddrs, lgTLS, lgDispatch, resolvers); lgSrv != nil {
+			lm.SetLG(lgSrv)
 			defer func() {
 				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer shutdownCancel()
@@ -737,6 +738,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			mcpTLSKey = mcpCfg.TLS.Key
 		}
 		mcpSrv = startMCPServer(mcpAddrs, dispatch, serverCommandLister(apiServer), mcpStreamCfg, mcpTLSCert, mcpTLSKey)
+		if mcpSrv != nil {
+			lm.SetMCP(mcpSrv)
+		}
 	}
 
 	// Start REST/gRPC API servers if configured (env > config file).
@@ -814,6 +818,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			apiServer.Stop()
 			_ = eng.Stop(startCtx)
 			return 1
+		}
+		if apiSrvs != nil {
+			if apiSrvs.rest != nil {
+				lm.SetREST(apiSrvs.rest)
+			}
+			if apiSrvs.grpc != nil {
+				lm.SetGRPC(apiSrvs.grpc)
+			}
 		}
 	}
 

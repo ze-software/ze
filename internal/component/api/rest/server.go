@@ -79,9 +79,11 @@ type RESTServer struct {
 	configured []string
 	// bound holds the actual listen addresses once ListenAndServe has bound
 	// them. Populated under mu.
-	bound []string
-	mu    sync.RWMutex
-	ready atomic.Bool
+	bound     []string
+	listeners map[string]net.Listener // bound addr -> listener
+	mu        sync.RWMutex
+	ready     atomic.Bool
+	stopped   bool // set by Shutdown; Reconfigure checks this
 }
 
 // NewRESTServer creates a REST API server.
@@ -112,6 +114,7 @@ func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		authenticator: cfg.Authenticator,
 		corsOrigin:    cfg.CORSOrigin,
 		configured:    append([]string(nil), cfg.ListenAddrs...),
+		listeners:     make(map[string]net.Listener),
 	}
 
 	mux := http.NewServeMux()
@@ -162,31 +165,35 @@ func (s *RESTServer) Start(ctx context.Context) (<-chan error, error) {
 func (s *RESTServer) listen(ctx context.Context) ([]net.Listener, error) {
 	var lc net.ListenConfig
 
-	listeners := make([]net.Listener, 0, len(s.configured))
+	lnSlice := make([]net.Listener, 0, len(s.configured))
+	lnMap := make(map[string]net.Listener, len(s.configured))
 	bound := make([]string, 0, len(s.configured))
 	for _, addr := range s.configured {
 		ln, err := lc.Listen(ctx, "tcp", addr)
 		if err != nil {
-			for _, prev := range listeners {
+			for _, prev := range lnSlice {
 				if closeErr := prev.Close(); closeErr != nil {
 					logger.Warn("REST API: close partial listener", "error", closeErr)
 				}
 			}
 			return nil, fmt.Errorf("listen %s: %w", addr, err)
 		}
-		listeners = append(listeners, ln)
-		bound = append(bound, ln.Addr().String())
+		resolvedAddr := ln.Addr().String()
+		lnSlice = append(lnSlice, ln)
+		lnMap[resolvedAddr] = ln
+		bound = append(bound, resolvedAddr)
 	}
 
 	s.mu.Lock()
 	s.bound = bound
+	s.listeners = lnMap
 	s.mu.Unlock()
 	s.ready.Store(true)
 
 	for _, addr := range bound {
 		logger.Info("REST API server listening", "addr", addr)
 	}
-	return listeners, nil
+	return lnSlice, nil
 }
 
 func (s *RESTServer) serve(listeners []net.Listener) error {
@@ -196,7 +203,9 @@ func (s *RESTServer) serve(listeners []net.Listener) error {
 		wg.Add(1)
 		go func(ln net.Listener) {
 			defer wg.Done()
-			if serveErr := s.srv.Serve(ln); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			if serveErr := s.srv.Serve(ln); serveErr != nil &&
+				!errors.Is(serveErr, http.ErrServerClosed) &&
+				!isRESTClosedConnError(serveErr) {
 				errCh <- serveErr
 			}
 		}(ln)
@@ -213,7 +222,118 @@ func (s *RESTServer) serve(listeners []net.Listener) error {
 
 // Shutdown gracefully shuts down the server, closing every listener.
 func (s *RESTServer) Shutdown(ctx context.Context) error {
+	s.mu.Lock()
+	s.stopped = true
+	s.mu.Unlock()
 	return s.srv.Shutdown(ctx)
+}
+
+// Reconfigure migrates listeners to a new set of addresses.
+// Bind-before-close: new listeners start serving before old ones are removed.
+func (s *RESTServer) Reconfigure(ctx context.Context, newAddrs []string) error {
+	if len(newAddrs) == 0 {
+		return errors.New("at least one listen address is required")
+	}
+	if slices.Contains(newAddrs, "") {
+		return errors.New("listen address must not be empty")
+	}
+	for _, addr := range newAddrs {
+		if !api.IsLoopbackAddr(addr) {
+			return fmt.Errorf("REST listen address %q must be loopback", addr)
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.stopped {
+		return errors.New("REST server has been shut down")
+	}
+
+	_, toAdd, toRemove := restListenerDiff(s.bound, newAddrs)
+	if len(toAdd) == 0 && len(toRemove) == 0 {
+		return nil
+	}
+
+	var lc net.ListenConfig
+	newLns := make([]net.Listener, 0, len(toAdd))
+	resolved := make(map[string]string, len(toAdd))
+	for _, addr := range toAdd {
+		ln, err := lc.Listen(ctx, "tcp", addr)
+		if err != nil {
+			for _, prev := range newLns {
+				if closeErr := prev.Close(); closeErr != nil {
+					logger.Warn("REST API: close partial listener", "error", closeErr)
+				}
+			}
+			return fmt.Errorf("REST reconfigure bind %s: %w", addr, err)
+		}
+		newLns = append(newLns, ln)
+		resolved[addr] = ln.Addr().String()
+	}
+
+	for _, ln := range newLns {
+		resolvedAddr := ln.Addr().String()
+		s.listeners[resolvedAddr] = ln
+		logger.Info("REST API listener added", "addr", resolvedAddr)
+		go func(ln net.Listener) {
+			if serveErr := s.srv.Serve(ln); serveErr != nil &&
+				!errors.Is(serveErr, http.ErrServerClosed) &&
+				!isRESTClosedConnError(serveErr) {
+				logger.Error("REST API serve error", "error", serveErr)
+			}
+		}(ln)
+	}
+
+	for _, addr := range toRemove {
+		if ln, ok := s.listeners[addr]; ok {
+			logger.Info("REST API listener removed", "addr", addr)
+			if closeErr := ln.Close(); closeErr != nil {
+				logger.Warn("REST API close listener", "addr", addr, "error", closeErr)
+			}
+			delete(s.listeners, addr)
+		}
+	}
+
+	bound := make([]string, 0, len(newAddrs))
+	for _, a := range newAddrs {
+		if r, ok := resolved[a]; ok {
+			bound = append(bound, r)
+		} else if _, ok := s.listeners[a]; ok {
+			bound = append(bound, a)
+		}
+	}
+	s.bound = bound
+	s.configured = append([]string(nil), newAddrs...)
+	return nil
+}
+
+func restListenerDiff(oldAddrs, newAddrs []string) (keep, add, remove []string) {
+	oldSet := make(map[string]struct{}, len(oldAddrs))
+	for _, a := range oldAddrs {
+		oldSet[a] = struct{}{}
+	}
+	newSet := make(map[string]struct{}, len(newAddrs))
+	for _, a := range newAddrs {
+		newSet[a] = struct{}{}
+	}
+	for _, a := range newAddrs {
+		if _, exists := oldSet[a]; exists {
+			keep = append(keep, a)
+		} else {
+			add = append(add, a)
+		}
+	}
+	for _, a := range oldAddrs {
+		if _, exists := newSet[a]; !exists {
+			remove = append(remove, a)
+		}
+	}
+	return keep, add, remove
+}
+
+func isRESTClosedConnError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "use of closed network connection")
 }
 
 // Addresses returns every bound listen address in configured order.

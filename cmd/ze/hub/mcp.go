@@ -11,7 +11,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -173,8 +175,13 @@ func wireRPC(wire string) string {
 // listener, handler.Close drains the session registry's GC goroutine. Phase
 // 2 resolution of the Phase 1 deferral (`plan/deferrals.md` row 226).
 type MCPServerHandle struct {
-	Server  *http.Server
-	Handler *zemcp.Streamable
+	Server    *http.Server
+	Handler   *zemcp.Streamable
+	useTLS    bool
+	listeners map[string]net.Listener
+	bound     []string
+	mu        sync.RWMutex
+	stopped   bool
 }
 
 // startMCPServer creates and starts an MCP HTTP server bound to every entry
@@ -229,11 +236,13 @@ func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands z
 	}
 
 	var lc net.ListenConfig
-	listeners := make([]net.Listener, 0, len(addrs))
+	lnSlice := make([]net.Listener, 0, len(addrs))
+	lnMap := make(map[string]net.Listener, len(addrs))
+	bound := make([]string, 0, len(addrs))
 	for _, addr := range addrs {
 		ln, err := lc.Listen(context.Background(), "tcp", addr)
 		if err != nil {
-			for _, prev := range listeners {
+			for _, prev := range lnSlice {
 				if closeErr := prev.Close(); closeErr != nil {
 					fmt.Fprintf(os.Stderr, "warning: MCP server: close partial listener: %v\n", closeErr)
 				}
@@ -242,22 +251,28 @@ func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands z
 			handler.Close()
 			return nil
 		}
-		listeners = append(listeners, ln)
+		resolvedAddr := ln.Addr().String()
+		lnSlice = append(lnSlice, ln)
+		lnMap[resolvedAddr] = ln
+		bound = append(bound, resolvedAddr)
 	}
 
-	// Lifecycle goroutine per listener: started once at component startup,
-	// runs for daemon lifetime. Shutdown closes every listener because all
-	// were passed to the same http.Server.
 	scheme := "http"
 	if useTLS {
 		scheme = "https"
 	}
-	for _, ln := range listeners {
+	for _, ln := range lnSlice {
 		go serveMCP(srv, ln, useTLS)
 		fmt.Fprintf(os.Stderr, "MCP server listening on %s://%s/\n", scheme, ln.Addr().String())
 	}
 
-	return &MCPServerHandle{Server: srv, Handler: handler}
+	return &MCPServerHandle{
+		Server:    srv,
+		Handler:   handler,
+		useTLS:    useTLS,
+		listeners: lnMap,
+		bound:     bound,
+	}
 }
 
 // loadMCPTLSConfig parses the cert + key file pair and returns a tls.Config
@@ -315,6 +330,18 @@ func checkKeyFilePermissions(keyFile string) error {
 	return nil
 }
 
+// Addresses returns every bound listen address.
+func (h *MCPServerHandle) Addresses() []string {
+	if h == nil {
+		return nil
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	out := make([]string, len(h.bound))
+	copy(out, h.bound)
+	return out
+}
+
 // Shutdown gracefully stops the HTTP server and drains the Streamable's
 // session registry. Idempotent through http.Server.Shutdown and
 // Streamable.Close. MUST be called before process exit.
@@ -322,6 +349,9 @@ func (h *MCPServerHandle) Shutdown(ctx context.Context) error {
 	if h == nil {
 		return nil
 	}
+	h.mu.Lock()
+	h.stopped = true
+	h.mu.Unlock()
 	var httpErr error
 	if h.Server != nil {
 		httpErr = h.Server.Shutdown(ctx)
@@ -330,6 +360,98 @@ func (h *MCPServerHandle) Shutdown(ctx context.Context) error {
 		h.Handler.Close()
 	}
 	return httpErr
+}
+
+// Reconfigure migrates MCP listeners to a new set of addresses.
+func (h *MCPServerHandle) Reconfigure(ctx context.Context, newAddrs []string) error {
+	if h == nil {
+		return errors.New("MCP server not running")
+	}
+	if len(newAddrs) == 0 {
+		return errors.New("MCP: at least one listen address is required")
+	}
+	if slices.Contains(newAddrs, "") {
+		return errors.New("MCP: listen address must not be empty")
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.stopped {
+		return errors.New("MCP server has been shut down")
+	}
+
+	_, toAdd, toRemove := mcpListenerDiff(h.bound, newAddrs)
+	if len(toAdd) == 0 && len(toRemove) == 0 {
+		return nil
+	}
+
+	var lc net.ListenConfig
+	newLns := make([]net.Listener, 0, len(toAdd))
+	resolved := make(map[string]string, len(toAdd))
+	for _, addr := range toAdd {
+		ln, err := lc.Listen(ctx, "tcp", addr)
+		if err != nil {
+			for _, prev := range newLns {
+				if closeErr := prev.Close(); closeErr != nil {
+					fmt.Fprintf(os.Stderr, "MCP: close partial listener: %v\n", closeErr)
+				}
+			}
+			return fmt.Errorf("MCP reconfigure bind %s: %w", addr, err)
+		}
+		newLns = append(newLns, ln)
+		resolved[addr] = ln.Addr().String()
+	}
+
+	for _, ln := range newLns {
+		resolvedAddr := ln.Addr().String()
+		h.listeners[resolvedAddr] = ln
+		go serveMCP(h.Server, ln, h.useTLS)
+	}
+
+	for _, addr := range toRemove {
+		if ln, ok := h.listeners[addr]; ok {
+			if closeErr := ln.Close(); closeErr != nil {
+				fmt.Fprintf(os.Stderr, "MCP close listener %s: %v\n", addr, closeErr)
+			}
+			delete(h.listeners, addr)
+		}
+	}
+
+	bound := make([]string, 0, len(newAddrs))
+	for _, a := range newAddrs {
+		if r, ok := resolved[a]; ok {
+			bound = append(bound, r)
+		} else if _, ok := h.listeners[a]; ok {
+			bound = append(bound, a)
+		}
+	}
+	h.bound = bound
+	return nil
+}
+
+func mcpListenerDiff(oldAddrs, newAddrs []string) (keep, add, remove []string) {
+	oldSet := make(map[string]struct{}, len(oldAddrs))
+	for _, a := range oldAddrs {
+		oldSet[a] = struct{}{}
+	}
+	newSet := make(map[string]struct{}, len(newAddrs))
+	for _, a := range newAddrs {
+		newSet[a] = struct{}{}
+	}
+	for _, a := range newAddrs {
+		if _, exists := oldSet[a]; exists {
+			keep = append(keep, a)
+		} else {
+			add = append(add, a)
+		}
+	}
+	for _, a := range oldAddrs {
+		if _, exists := newSet[a]; !exists {
+			remove = append(remove, a)
+		}
+	}
+	return keep, add, remove
 }
 
 // serveMCP runs the MCP HTTP server on one listener. Started once as a

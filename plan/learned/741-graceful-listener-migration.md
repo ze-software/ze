@@ -24,12 +24,14 @@ listeners. This meant operator-visible downtime for a port change.
 
 ## Consequences
 
-- Web server listeners can be migrated on SIGHUP or config commit without restart.
+- All HTTP-based servers (web, LG, MCP, REST, gRPC) and SSH support listener migration
+  on SIGHUP or config commit without restart.
 - Cross-service conflict detection prevents bind failures when services swap addresses.
 - AC-10/AC-11 (enable/disable service on reload) deferred: requires full startWebServer
   pipeline (TLS, routes, SSE broker), significantly more complex than listener migration.
-- SSH, MCP, LG, API services can follow the same pattern (implement Reconfigurable interface).
-- The doReload function signature grew by two parameters (ListenerMigrator, loadTree).
+- SSH Reconfigure is wired on the struct but not yet called from ReloadListeners because
+  SSH config extraction lives in bgpconfig (different package); needs subsystem Reload path.
+- The doReload function signature grew by two parameters (ListenerMigrator, loadBoth).
 
 ## Gotchas
 
@@ -51,7 +53,12 @@ listeners. This meant operator-visible downtime for a port change.
 
 - `internal/component/web/server.go` -- WebServer.Reconfigure, ListenerDiff, listener tracking
 - `internal/component/web/server_test.go` -- 7 new tests for reconfigure behavior
-- `cmd/ze/hub/listener_migrate.go` -- ListenerMigrator, detectConflicts
+- `internal/component/lg/server.go` -- LGServer.Reconfigure
+- `internal/component/api/rest/server.go` -- RESTServer.Reconfigure (loopback enforced)
+- `internal/component/api/grpc/server.go` -- GRPCServer.Reconfigure (grpc.ErrServerStopped filter)
+- `internal/component/ssh/ssh.go` -- SSH Server.Reconfigure (wish library Serve pattern)
+- `cmd/ze/hub/mcp.go` -- MCPServerHandle.Reconfigure, Addresses
+- `cmd/ze/hub/listener_migrate.go` -- ListenerMigrator (all services), detectConflicts
 - `cmd/ze/hub/listener_migrate_test.go` -- 4 conflict detection tests
 - `cmd/ze/hub/main_reload.go` -- doReload calls ReloadListeners
-- `cmd/ze/hub/main.go` -- ListenerMigrator creation, loadTreeFromDisk
+- `cmd/ze/hub/main.go` -- ListenerMigrator creation, loadBoth, SetLG/SetMCP/SetREST/SetGRPC wiring
