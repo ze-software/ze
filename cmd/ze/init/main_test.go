@@ -39,16 +39,9 @@ func TestZeInitPipedStdin(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
-	assertStoreFile(t, store, "meta/ssh/username", "admin")
-	assertBcryptPassword(t, store, "meta/ssh/password", "secret123")
-	assertStoreFile(t, store, "meta/ssh/host", "127.0.0.1")
-	assertStoreFile(t, store, "meta/ssh/port", "2222")
-
-	// Verify old ssh/* keys do NOT exist (#16)
-	assertKeyAbsent(t, store, "ssh/username")
-	assertKeyAbsent(t, store, "ssh/password")
-	assertKeyAbsent(t, store, "ssh/host")
-	assertKeyAbsent(t, store, "ssh/port")
+	assertStoreFile(t, store, "meta/ssh/127.0.0.1/2222/username", "admin")
+	assertBcryptPassword(t, store, "meta/ssh/127.0.0.1/2222/password", "secret123")
+	assertStoreFile(t, store, "meta/ssh/default", "127.0.0.1/2222")
 }
 
 // VALIDATES: ze init refuses to overwrite existing database
@@ -63,7 +56,7 @@ func TestZeInitAlreadyExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if err := store.WriteFile("meta/ssh/username", []byte("existing"), 0); err != nil {
+	if err := store.WriteFile("meta/ssh/127.0.0.1/2222/username", []byte("existing"), 0); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	store.Close() //nolint:errcheck // test setup
@@ -82,7 +75,7 @@ func TestZeInitAlreadyExists(t *testing.T) {
 	}
 	defer store2.Close() //nolint:errcheck // test cleanup
 
-	assertStoreFile(t, store2, "meta/ssh/username", "existing")
+	assertStoreFile(t, store2, "meta/ssh/127.0.0.1/2222/username", "existing")
 }
 
 // VALIDATES: ze init with default host/port when not provided
@@ -106,8 +99,7 @@ func TestZeInitDefaults(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
-	assertStoreFile(t, store, "meta/ssh/host", "127.0.0.1")
-	assertStoreFile(t, store, "meta/ssh/port", "2222")
+	assertStoreFile(t, store, "meta/ssh/default", "127.0.0.1/2222")
 }
 
 // VALIDATES: ze init requires username and password
@@ -168,8 +160,8 @@ func TestZeInitInteractive(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
-	assertStoreFile(t, store, "meta/ssh/username", "admin")
-	assertBcryptPassword(t, store, "meta/ssh/password", "secret123")
+	assertStoreFile(t, store, "meta/ssh/127.0.0.1/2222/username", "admin")
+	assertBcryptPassword(t, store, "meta/ssh/127.0.0.1/2222/password", "secret123")
 }
 
 // VALIDATES: ze init writes meta/instance/name when provided
@@ -309,7 +301,7 @@ func TestZeInitForce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if err := store.WriteFile("meta/ssh/username", []byte("old-admin"), 0); err != nil {
+	if err := store.WriteFile("meta/ssh/127.0.0.1/2222/username", []byte("old-admin"), 0); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	store.Close() //nolint:errcheck // test setup
@@ -330,7 +322,7 @@ func TestZeInitForce(t *testing.T) {
 		t.Fatalf("Open new: %v", err)
 	}
 	defer store2.Close() //nolint:errcheck // test cleanup
-	assertStoreFile(t, store2, "meta/ssh/username", "new-admin")
+	assertStoreFile(t, store2, "meta/ssh/127.0.0.1/2222/username", "new-admin")
 
 	// Old database should exist as .replaced-<date>
 	entries, err := os.ReadDir(dir)
@@ -349,7 +341,7 @@ func TestZeInitForce(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Open backup: %v", err)
 		}
-		assertStoreFile(t, old, "meta/ssh/username", "old-admin")
+		assertStoreFile(t, old, "meta/ssh/127.0.0.1/2222/username", "old-admin")
 		old.Close() //nolint:errcheck // test cleanup
 		break
 	}
@@ -379,7 +371,7 @@ func TestZeInitForceNoExisting(t *testing.T) {
 		t.Fatalf("Open: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
-	assertStoreFile(t, store, "meta/ssh/username", "admin")
+	assertStoreFile(t, store, "meta/ssh/127.0.0.1/2222/username", "admin")
 }
 
 func assertStoreFile(t *testing.T, store *zefs.BlobStore, key, expected string) {
@@ -394,7 +386,7 @@ func assertStoreFile(t *testing.T, store *zefs.BlobStore, key, expected string) 
 	}
 }
 
-func assertKeyAbsent(t *testing.T, store *zefs.BlobStore, key string) {
+func assertKeyAbsent(t *testing.T, store *zefs.BlobStore, key string) { //nolint:unused // retained for future tests
 	t.Helper()
 	if store.Has(key) {
 		t.Errorf("key %q should not exist but does", key)

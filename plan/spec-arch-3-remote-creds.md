@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-03-27 |
+| Phase | 1/9 |
+| Updated | 2026-05-20 |
 
 ## Post-Compaction Recovery
 
@@ -18,7 +18,7 @@
 
 ## Task
 
-Restructure zefs SSH credential storage from flat `meta/ssh/*` to per-host `meta/ssh/<host>/*`. Add `ze remote` CLI for managing remote daemon credentials. Update all consumers.
+Restructure zefs SSH credential storage from flat `meta/ssh/*` to per-service `meta/ssh/<host>/<port>/*`. Add `ze remote` CLI for managing remote daemon credentials. Update all consumers.
 
 ## Required Reading
 
@@ -34,7 +34,10 @@ Restructure zefs SSH credential storage from flat `meta/ssh/*` to per-host `meta
 **Key insights:**
 - Current keys: `meta/ssh/username`, `meta/ssh/password`, `meta/ssh/host`, `meta/ssh/port`
 - `ze init` writes these, `LoadCredentials` reads them, `loader.go` reads username/password for config SSH auth
-- No special "local" concept needed -- localhost is just another host
+- `meta/ssh/default` stores `<host>/<port>` pointer to the active credential set
+- `ze init` writes credentials AND sets the default pointer
+- `LoadCredentials` without `--remote` follows the default pointer
+- Key hierarchy uses host+port as composite key (same host may run multiple daemons)
 
 ## Current Behavior (MANDATORY)
 
@@ -65,9 +68,10 @@ Restructure zefs SSH credential storage from flat `meta/ssh/*` to per-host `meta
 - All existing CLI tools that use `LoadCredentials`
 
 **Behavior to change:**
-- Key scheme: `meta/ssh/<host>/{username,password,port}` instead of `meta/ssh/{username,password,host,port}`
-- `ze init` writes to `meta/ssh/127.0.0.1/*` by default (or specified host)
-- `LoadCredentials` resolves host, then reads `meta/ssh/<host>/*`
+- Key scheme: `meta/ssh/<host>/<port>/{username,password}` instead of `meta/ssh/{username,password,host,port}`
+- `ze init` writes to `meta/ssh/127.0.0.1/2222/*` by default (or specified host/port)
+- `LoadCredentials` resolves host+port, then reads `meta/ssh/<host>/<port>/*`
+- Port defaults to 2222 when not specified
 - New `ze remote` CLI for managing remote credentials
 - `loader.go` reads from new key paths
 
@@ -76,24 +80,31 @@ Restructure zefs SSH credential storage from flat `meta/ssh/*` to per-host `meta
 ### Entry Point -- `ze init`
 1. User runs `ze init` (or `ze init --host 10.0.1.5 --port 2222`)
 2. Reads username, password from stdin
-3. Writes to `meta/ssh/<host>/username`, `meta/ssh/<host>/password`, `meta/ssh/<host>/port`
-4. Default host: `127.0.0.1`, default port: `2222`
+3. Writes to `meta/ssh/<host>/<port>/username`, `meta/ssh/<host>/<port>/password`
+4. Writes `<host>/<port>` to `meta/ssh/default`
+5. Default host: `127.0.0.1`, default port: `2222`
 
 ### Entry Point -- `ze remote add`
 1. User runs `ze remote add <host> [--port N] [--user name]`
 2. Prompts for password (or reads from stdin)
-3. Writes to `meta/ssh/<host>/username`, `meta/ssh/<host>/password`, `meta/ssh/<host>/port`
+3. Writes to `meta/ssh/<host>/<port>/username`, `meta/ssh/<host>/<port>/password`
+
+### Entry Point -- `ze remote default`
+1. User runs `ze remote default <host> [--port N]`
+2. Writes `<host>/<port>` to `meta/ssh/default`
+3. All subsequent commands without `--remote` target this daemon
 
 ### Entry Point -- `LoadCredentials`
-1. Resolve host: env `ze.ssh.host` -> default `127.0.0.1`
-2. Resolve port: env `ze.ssh.port` -> `meta/ssh/<host>/port` -> default `2222`
-3. Resolve password: env `ze.ssh.password` -> `meta/ssh/<host>/password`
-4. Resolve username: `meta/ssh/<host>/username`
-5. Return `Credentials{Host, Port, Username, Auth}`
+1. If `--remote` flag: use that host:port directly
+2. Else if env `ze.ssh.host`/`ze.ssh.port`: use those
+3. Else: read `meta/ssh/default` -> get `<host>/<port>`
+4. Read `meta/ssh/<host>/<port>/password` (env `ze.ssh.password` overrides)
+5. Read `meta/ssh/<host>/<port>/username`
+6. Return `Credentials{Host, Port, Username, Auth}`
 
 ### Entry Point -- CLI tools with `--remote`
-1. User runs `ze cli --remote 10.0.1.5` (or `ze show --remote 10.0.1.5`)
-2. Looks up `meta/ssh/10.0.1.5/*` in zefs
+1. User runs `ze cli --remote 10.0.1.5:2222` (or `ze show --remote 10.0.1.5:2222`)
+2. Looks up `meta/ssh/10.0.1.5/2222/*` in zefs
 3. Connects to that remote daemon instead of localhost
 
 ### Boundaries Crossed
@@ -118,35 +129,39 @@ Restructure zefs SSH credential storage from flat `meta/ssh/*` to per-host `meta
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| `ze init` | -> | writes `meta/ssh/<host>/*` | `test/parse/init-credentials.ci` |
-| `ze remote add <host>` | -> | writes `meta/ssh/<host>/*` | `test/parse/remote-add.ci` |
-| `ze remote list` | -> | reads `meta/ssh/*/` | `test/parse/remote-list.ci` |
-| `ze cli --remote <host>` | -> | `LoadCredentials(<host>)` | `test/plugin/cli-remote.ci` |
+| `ze init` | -> | writes `meta/ssh/<host>/<port>/*` + sets default | `test/parse/init-credentials.ci` |
+| `ze remote add <host> --port <port>` | -> | writes `meta/ssh/<host>/<port>/*` | `test/parse/remote-add.ci` |
+| `ze remote default <host> --port <port>` | -> | writes `meta/ssh/default` | `test/parse/remote-default.ci` |
+| `ze remote list` | -> | reads `meta/ssh/*/*/` + default | `test/parse/remote-list.ci` |
+| `ze cli --remote <host>:<port>` | -> | `LoadCredentials(<host>, <port>)` | `test/plugin/cli-remote.ci` |
+| `ze cli` (no --remote) | -> | `LoadCredentials()` follows default | `test/plugin/cli-default.ci` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `ze init` with defaults | Writes credentials to `meta/ssh/127.0.0.1/{username,password,port}` |
-| AC-2 | `ze init` with existing old-format `meta/ssh/username` | Migrates to `meta/ssh/127.0.0.1/username` (backward compat) |
-| AC-3 | `LoadCredentials()` with no env overrides | Reads from `meta/ssh/127.0.0.1/*`, returns host=127.0.0.1 |
-| AC-4 | `LoadCredentials()` with `ze.ssh.host=10.0.1.5` | Reads from `meta/ssh/10.0.1.5/*` |
-| AC-5 | `ze remote add 10.0.1.5 --port 2223 --user admin` | Writes credentials to `meta/ssh/10.0.1.5/{username,password,port}` |
-| AC-6 | `ze remote list` | Lists all hosts with stored credentials |
-| AC-7 | `ze remote remove 10.0.1.5` | Deletes `meta/ssh/10.0.1.5/*` |
-| AC-8 | `ze cli --remote 10.0.1.5` | Connects to 10.0.1.5 using stored credentials |
-| AC-9 | `ze cli --remote unknown-host` | Error: no credentials for host |
-| AC-10 | `loader.go` SSH auth | Reads credentials from `meta/ssh/<host>/*` |
+| AC-1 | `ze init` with defaults | Writes credentials to `meta/ssh/127.0.0.1/2222/{username,password}` and sets `meta/ssh/default` to `127.0.0.1/2222` |
+| AC-2 | `ze remote add 10.0.1.5 --user admin` (no `--port`) | Writes to `meta/ssh/10.0.1.5/2222/{username,password}` (default port) |
+| AC-3 | `LoadCredentials()` with no flags/env, default points to `127.0.0.1/2222` | Follows default pointer, reads from `meta/ssh/127.0.0.1/2222/*` |
+| AC-4 | `LoadCredentials()` with `ze.ssh.host=10.0.1.5`, `ze.ssh.port=2223` | Env overrides default pointer, reads from `meta/ssh/10.0.1.5/2223/*` |
+| AC-5 | `ze remote add 10.0.1.5 --port 2223 --user admin` | Writes credentials to `meta/ssh/10.0.1.5/2223/{username,password}` |
+| AC-6 | `ze remote list` | Lists all host:port entries with stored credentials, marks default |
+| AC-7 | `ze remote remove 10.0.1.5 --port 2223` | Deletes `meta/ssh/10.0.1.5/2223/*` |
+| AC-8 | `ze remote default 10.0.1.5 --port 2223` | Sets `meta/ssh/default` to `10.0.1.5/2223` |
+| AC-9 | `ze cli --remote 10.0.1.5:2223` | Connects to 10.0.1.5:2223 using stored credentials |
+| AC-10 | `ze cli --remote unknown-host:2222` | Error: no credentials for host:port |
+| AC-11 | `loader.go` SSH auth | Follows default pointer, reads credentials from resolved path |
+| AC-12 | `ze remote default` with no credentials stored for target | Error: no credentials for host:port |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestReadCredentialsPerHost` | `cmd/ze/internal/ssh/client/client_test.go` | Reads from `meta/ssh/<host>/*` | |
-| `TestReadCredentialsMigration` | `cmd/ze/internal/ssh/client/client_test.go` | Falls back to old `meta/ssh/*` format | |
-| `TestReadCredentialsEnvOverride` | `cmd/ze/internal/ssh/client/client_test.go` | Env host selects different credential set | |
-| `TestInitWritesPerHost` | `cmd/ze/init/main_test.go` | Writes to `meta/ssh/127.0.0.1/*` | |
+| `TestReadCredentialsPerService` | `cmd/ze/internal/ssh/client/client_test.go` | Reads from `meta/ssh/<host>/<port>/*` | |
+| `TestReadCredentialsDefaultPort` | `cmd/ze/internal/ssh/client/client_test.go` | Uses default port 2222 when not specified | |
+| `TestReadCredentialsEnvOverride` | `cmd/ze/internal/ssh/client/client_test.go` | Env host+port selects different credential set | |
+| `TestInitWritesPerService` | `cmd/ze/init/main_test.go` | Writes to `meta/ssh/127.0.0.1/2222/*` | |
 | `TestRemoteAdd` | `cmd/ze/remote/main_test.go` | Writes remote credentials | |
 | `TestRemoteList` | `cmd/ze/remote/main_test.go` | Lists hosts | |
 | `TestRemoteRemove` | `cmd/ze/remote/main_test.go` | Deletes remote credentials | |
@@ -168,8 +183,8 @@ Restructure zefs SSH credential storage from flat `meta/ssh/*` to per-host `meta
 
 ## Files to Modify
 
-- `cmd/ze/init/main.go` - update key constants to `meta/ssh/<host>/*`
-- `cmd/ze/internal/ssh/client/client.go` - update `ReadCredentials` to per-host lookup
+- `cmd/ze/init/main.go` - update key constants to `meta/ssh/<host>/<port>/*`
+- `cmd/ze/internal/ssh/client/client.go` - update `ReadCredentials` to per-service lookup
 - `internal/component/bgp/config/loader.go:1010-1014` - update credential key paths
 - `cmd/ze/internal/ssh/client/client_test.go` - update test fixtures
 - `cmd/ze/init/main_test.go` - update test assertions
@@ -231,13 +246,13 @@ Restructure zefs SSH credential storage from flat `meta/ssh/*` to per-host `meta
 
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Phase: Credential migration** -- update `ReadCredentials` to read `meta/ssh/<host>/*`, fall back to old `meta/ssh/*` for migration
-   - Tests: `TestReadCredentialsPerHost`, `TestReadCredentialsMigration`, `TestReadCredentialsEnvOverride`
+1. **Phase: Credential read** -- update `ReadCredentials` to read `meta/ssh/<host>/<port>/*`
+   - Tests: `TestReadCredentialsPerService`, `TestReadCredentialsDefaultPort`, `TestReadCredentialsEnvOverride`
    - Files: `client.go`, `client_test.go`
    - Verify: tests fail -> implement -> tests pass
 
-2. **Phase: Init update** -- update `ze init` to write `meta/ssh/<host>/*`
-   - Tests: `TestInitWritesPerHost`
+2. **Phase: Init update** -- update `ze init` to write `meta/ssh/<host>/<port>/*`
+   - Tests: `TestInitWritesPerService`
    - Files: `init/main.go`, `init/main_test.go`
    - Verify: tests fail -> implement -> tests pass
 
@@ -268,7 +283,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | All AC-N implemented with file:line |
-| Migration | Old-format credentials still work (AC-2) |
+| Default port | Omitting port uses 2222 everywhere (AC-2) |
 | Security | Passwords remain bcrypt-hashed, never logged |
 | No regressions | All existing CLI tools work with new key scheme |
 
@@ -276,10 +291,10 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| `ze init` writes per-host keys | `test/parse/init-credentials.ci` passes |
+| `ze init` writes per-service keys | `test/parse/init-credentials.ci` passes |
 | `ze remote add` works | `test/parse/remote-add.ci` passes |
 | `ze remote list` works | `test/parse/remote-list.ci` passes |
-| Old format migration | `TestReadCredentialsMigration` passes |
+| Default port behavior | `TestReadCredentialsDefaultPort` passes |
 | Existing tools unbroken | `make ze-verify` passes |
 
 ### Security Review Checklist (/implement stage 10)
@@ -295,7 +310,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 | Failure | Route To |
 |---------|----------|
-| Old tests fail with new keys | Phase 1 -- migration fallback not working |
+| Old tests fail with new keys | Phase 1 -- key path construction wrong |
 | `ze init` writes wrong path | Phase 2 -- key constant wrong |
 | `loader.go` can't find credentials | Phase 3 -- key path mismatch |
 | `ze remote` parse error | Phase 4 -- flag parsing |

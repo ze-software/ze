@@ -141,7 +141,7 @@ func TestKeyEntryKeyPanicMismatch(t *testing.T) {
 }
 
 func TestKeyEntryKeyPanicFixedWithParams(t *testing.T) {
-	e := KeyEntry{Pattern: "meta/ssh/username"}
+	e := KeyEntry{Pattern: "meta/ssh/default"}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic when fixed key called with params")
@@ -171,10 +171,10 @@ func TestKeyEntryKeyPanicDotDotParam(t *testing.T) {
 }
 
 func TestKeyEntryKeyFixed(t *testing.T) {
-	e := KeyEntry{Pattern: "meta/ssh/username"}
+	e := KeyEntry{Pattern: "meta/ssh/default"}
 	got := e.Key()
-	if got != "meta/ssh/username" {
-		t.Fatalf("expected meta/ssh/username, got %s", got)
+	if got != "meta/ssh/default" {
+		t.Fatalf("expected meta/ssh/default, got %s", got)
 	}
 }
 
@@ -188,18 +188,18 @@ func TestIsRegistered(t *testing.T) {
 	registered = nil
 	keyPrefixes = nil
 
-	MustRegister(KeyEntry{Pattern: "meta/ssh/username"})
+	MustRegister(KeyEntry{Pattern: "meta/ssh/default"})
 	MustRegister(KeyEntry{Pattern: "meta/history/{username}/{mode}"})
 
 	tests := []struct {
 		key  string
 		want bool
 	}{
-		{"meta/ssh/username", true},             // exact match
+		{"meta/ssh/default", true},              // exact match
 		{"meta/history/alice/edit", true},       // prefix match for template
 		{"meta/unknown/key", false},             // unknown
 		{"", false},                             // empty
-		{"meta/ssh/user", false},                // partial fixed key (not a prefix match)
+		{"meta/ssh/def", false},                 // partial fixed key (not a prefix match)
 		{"meta/historyX/foo", false},            // similar prefix but wrong
 		{"meta/history/alice/edit/extra", true}, // extra segments still match prefix
 	}
@@ -216,7 +216,8 @@ func TestPrefix(t *testing.T) {
 		pattern string
 		want    string
 	}{
-		{"meta/ssh/username", "meta/ssh/username/"},
+		{"meta/ssh/default", "meta/ssh/default/"},
+		{"meta/ssh/{host}/{port}/username", "meta/ssh/"},
 		{"meta/history/{username}/{mode}", "meta/history/"},
 		{"file/active/{basename}", "file/active/"},
 	}
@@ -234,7 +235,8 @@ func TestDir(t *testing.T) {
 		pattern string
 		want    string
 	}{
-		{"meta/ssh/username", "meta/ssh/username"},
+		{"meta/ssh/default", "meta/ssh/default"},
+		{"meta/ssh/{host}/{port}/username", "meta/ssh"},
 		{"meta/history/{username}/{mode}", "meta/history"},
 		{"file/active/{basename}", "file/active"},
 	}
@@ -248,21 +250,24 @@ func TestDir(t *testing.T) {
 }
 
 func TestAllProductionKeysRegistered(t *testing.T) {
-	// Verify all 13 keys from keys.go are registered with correct patterns.
 	expected := map[string]bool{
-		"meta/ssh/username":              true,
-		"meta/ssh/password":              true,
-		"meta/ssh/host":                  true,
-		"meta/ssh/port":                  true,
-		"meta/instance/name":             true,
-		"meta/instance/managed":          true,
-		"meta/web/cert":                  true,
-		"meta/web/key":                   true,
-		"meta/bgp/gr-marker":             true,
-		"meta/history/max":               true,
-		"meta/history/{username}/{mode}": true,
-		"file/active/{basename}":         true,
-		"file/draft/{basename}":          true,
+		"meta/ssh/{host}/{port}/username": true,
+		"meta/ssh/{host}/{port}/password": true,
+		"meta/ssh/default":                true,
+		"meta/ssh/authorized-keys":        true,
+		"meta/instance/name":              true,
+		"meta/instance/managed":           true,
+		"meta/instance/admin-disabled":    true,
+		"meta/web/cert":                   true,
+		"meta/web/key":                    true,
+		"meta/bgp/gr-marker":              true,
+		"meta/config/last-known-good":     true,
+		"meta/history/max":                true,
+		"meta/history/{username}/{mode}":  true,
+		"file/active/{basename}":          true,
+		"file/draft/{basename}":           true,
+		"file/{date}/{basename}":          true,
+		"file/template/{basename}":        true,
 	}
 
 	all := AllEntries()
@@ -280,9 +285,9 @@ func TestAllProductionKeysRegistered(t *testing.T) {
 
 func TestPrivateKeysMarked(t *testing.T) {
 	privatePatterns := map[string]bool{
-		"meta/ssh/password": true,
-		"meta/web/cert":     true,
-		"meta/web/key":      true,
+		"meta/ssh/{host}/{port}/password": true,
+		"meta/web/cert":                   true,
+		"meta/web/key":                    true,
 	}
 
 	for _, e := range AllEntries() {

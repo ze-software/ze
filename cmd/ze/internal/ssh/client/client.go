@@ -33,8 +33,11 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.insecure", Type: "bool", Default: "false", Description: "Skip host key verification for remote SSH (INSECURE)"})
 )
 
-// dialTimeout is the maximum time to establish an SSH connection.
-const dialTimeout = 10 * time.Second
+const (
+	dialTimeout = 10 * time.Second
+	defaultHost = "127.0.0.1"
+	defaultPort = "2222"
+)
 
 // Credentials holds SSH connection parameters.
 type Credentials struct {
@@ -227,39 +230,50 @@ func ReadCredentials(dbPath string) (Credentials, error) {
 }
 
 // ReadCredentialsWithFlags reads SSH credentials and lets the caller supply
-// a CLI-flag override for the username.
+// a CLI-flag override for the username. Delegates to ReadCredentialsForRemote
+// with empty host/port (follows the default pointer).
 //
-// Username precedence: cliUser > env ze.ssh.username > zefs meta/ssh/username.
-// Password precedence (super-admin path -- cliUser empty or matches zefs user):
-//
-//	env ze.ssh.password > zefs meta/ssh/password (sent as bcrypt hash-as-token).
-//
-// Password precedence (different user -- cliUser names a non-super-admin):
-//
-//	env ze.ssh.password > interactive TTY prompt > error.
-//
-// Host and port: env > zefs > defaults (127.0.0.1:2222) regardless of user.
+// Username precedence: cliUser > env ze.ssh.username > zefs.
+// Password precedence (super-admin): env ze.ssh.password > zefs hash-as-token.
+// Password precedence (other user): env ze.ssh.password > TTY prompt > error.
+// Host and port: env > zefs default pointer > 127.0.0.1:2222.
 func ReadCredentialsWithFlags(dbPath, cliUser string) (Credentials, error) {
+	return ReadCredentialsForRemote(dbPath, cliUser, "", "")
+}
+
+// ReadCredentialsForRemote reads SSH credentials for a specific host:port.
+// When remoteHost/remotePort are empty, the default pointer is followed.
+func ReadCredentialsForRemote(dbPath, cliUser, remoteHost, remotePort string) (Credentials, error) {
 	store, err := zefs.Open(dbPath)
 	if err != nil {
 		return Credentials{}, fmt.Errorf("open database: %w", err)
 	}
 	defer store.Close() //nolint:errcheck // read-only access
 
-	zefsUser, err := readKey(store, zefs.KeySSHUsername.Pattern)
+	host, port := remoteHost, remotePort
+	if host == "" || port == "" {
+		h, p := resolveHostPort(store)
+		if host == "" {
+			host = h
+		}
+		if port == "" {
+			port = p
+		}
+	}
+
+	usernameKey := zefs.KeySSHUsername.Key(host, port)
+	zefsUser, err := readKey(store, usernameKey)
 	if err != nil {
-		return Credentials{}, err
+		return Credentials{}, fmt.Errorf("no credentials for %s:%s", host, port)
 	}
 
 	username := resolveUsername(cliUser, zefsUser)
 	isSuperAdmin := username == zefsUser
 
-	password, err := resolvePassword(store, username, isSuperAdmin)
+	password, err := resolvePassword(store, username, host, port, isSuperAdmin)
 	if err != nil {
 		return Credentials{}, err
 	}
-
-	host, port := resolveHostPort(store)
 
 	return Credentials{
 		Host:     host,
@@ -286,12 +300,12 @@ func resolveUsername(cliUser, zefsUser string) string {
 // resolvePassword returns the SSH credential to send. Super-admin can fall
 // back to the zefs hash-as-token; other users must supply a real password
 // (env or interactive prompt) because only their bcrypt hash lives in YANG.
-func resolvePassword(store *zefs.BlobStore, username string, isSuperAdmin bool) (string, error) {
+func resolvePassword(store *zefs.BlobStore, username, host, port string, isSuperAdmin bool) (string, error) {
 	if v := env.Get("ze.ssh.password"); v != "" {
 		return v, nil
 	}
 	if isSuperAdmin {
-		return readKey(store, zefs.KeySSHPassword.Pattern)
+		return readKey(store, zefs.KeySSHPassword.Key(host, port))
 	}
 	if isStdinTTY() {
 		return promptPassword(username)
@@ -315,27 +329,29 @@ func promptPassword(username string) (string, error) {
 	return string(pw), nil
 }
 
-// resolveHostPort picks host and port from env, zefs, or built-in defaults.
+// resolveHostPort picks host and port from env, zefs default pointer, or built-in defaults.
+// Env overrides are treated as a pair: setting either env var bypasses the default pointer
+// entirely (the unset var gets the built-in default, not the pointer's value).
 func resolveHostPort(store *zefs.BlobStore) (string, string) {
-	host := env.Get("ze.ssh.host")
-	port := env.Get("ze.ssh.port")
-	if host == "" {
-		if h, hErr := readKey(store, zefs.KeySSHHost.Pattern); hErr == nil {
-			host = h
+	envHost := env.Get("ze.ssh.host")
+	envPort := env.Get("ze.ssh.port")
+	if envHost != "" || envPort != "" {
+		if envHost == "" {
+			envHost = defaultHost
+		}
+		if envPort == "" {
+			envPort = defaultPort
+		}
+		return envHost, envPort
+	}
+
+	if dflt, err := readKey(store, zefs.KeySSHDefault.Pattern); err == nil {
+		parts := strings.SplitN(dflt, "/", 2)
+		if len(parts) == 2 {
+			return parts[0], parts[1]
 		}
 	}
-	if port == "" {
-		if p, pErr := readKey(store, zefs.KeySSHPort.Pattern); pErr == nil {
-			port = p
-		}
-	}
-	if host == "" {
-		host = "127.0.0.1"
-	}
-	if port == "" {
-		port = "2222"
-	}
-	return host, port
+	return defaultHost, defaultPort
 }
 
 func readKey(store *zefs.BlobStore, key string) (string, error) {
@@ -390,4 +406,14 @@ func LoadCredentialsWithFlags(cliUser string) (Credentials, error) {
 		return Credentials{}, errCannotDetermineDatabaseLocation
 	}
 	return ReadCredentialsWithFlags(dbPath, cliUser)
+}
+
+// LoadCredentialsForRemote reads SSH credentials for a specific remote
+// host:port from the default zefs database. Used by --remote flag handlers.
+func LoadCredentialsForRemote(cliUser, host, port string) (Credentials, error) {
+	dbPath := ResolveDBPath()
+	if dbPath == "" {
+		return Credentials{}, errCannotDetermineDatabaseLocation
+	}
+	return ReadCredentialsForRemote(dbPath, cliUser, host, port)
 }

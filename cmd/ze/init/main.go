@@ -35,10 +35,6 @@ import (
 
 // Key aliases for readability (from zefs key registry).
 var (
-	keyUsername     = zefs.KeySSHUsername.Pattern
-	keyPassword     = zefs.KeySSHPassword.Pattern
-	keyHost         = zefs.KeySSHHost.Pattern
-	keyPort         = zefs.KeySSHPort.Pattern
 	keyIdentityName = zefs.KeyInstanceName.Pattern
 	keyManaged      = zefs.KeyInstanceManaged.Pattern
 )
@@ -247,10 +243,9 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCer
 	}
 
 	entries := []entry{
-		{keyUsername, username},
-		{keyPassword, string(hashedPassword)},
-		{keyHost, host},
-		{keyPort, port},
+		{zefs.KeySSHUsername.Key(host, port), username},
+		{zefs.KeySSHPassword.Key(host, port), string(hashedPassword)},
+		{zefs.KeySSHDefault.Pattern, host + "/" + port},
 		{keyManaged, managedValue},
 	}
 	if name != "" {
@@ -426,13 +421,11 @@ func daemonRunning(dbPath string) bool {
 	}
 	defer store.Close() //nolint:errcheck // probe only
 
-	host := defaultHost
-	if data, err := store.ReadFile(keyHost); err == nil && len(data) > 0 {
-		host = string(data)
-	}
-	port := defaultPort
-	if data, err := store.ReadFile(keyPort); err == nil && len(data) > 0 {
-		port = string(data)
+	host, port := defaultHost, defaultPort
+	if data, err := store.ReadFile(zefs.KeySSHDefault.Pattern); err == nil && len(data) > 0 {
+		if parts := strings.SplitN(string(data), "/", 2); len(parts) == 2 {
+			host, port = parts[0], parts[1]
+		}
 	}
 
 	d := net.Dialer{Timeout: 2 * time.Second}

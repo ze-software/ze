@@ -23,10 +23,9 @@ func TestReadCredentialsMeta(t *testing.T) {
 	}
 
 	keys := map[string]string{
-		"meta/ssh/username": "admin",
-		"meta/ssh/password": "secret123",
-		"meta/ssh/host":     "10.0.0.1",
-		"meta/ssh/port":     "2222",
+		"meta/ssh/10.0.0.1/2222/username": "admin",
+		"meta/ssh/10.0.0.1/2222/password": "secret123",
+		"meta/ssh/default":                "10.0.0.1/2222",
 	}
 	for k, v := range keys {
 		if err := store.WriteFile(k, []byte(v), 0); err != nil {
@@ -43,7 +42,6 @@ func TestReadCredentialsMeta(t *testing.T) {
 	if creds.Username != "admin" {
 		t.Errorf("Username: got %q, want %q", creds.Username, "admin")
 	}
-	// Password is read from zefs (plaintext, for SSH password auth).
 	if creds.Auth != "secret123" {
 		t.Errorf("Auth: got %q, want %q", creds.Auth, "secret123")
 	}
@@ -67,10 +65,11 @@ func TestReadCredentialsEnvOverride(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 	keys := map[string]string{
-		"meta/ssh/username": "admin",
-		"meta/ssh/password": "secret",
-		"meta/ssh/host":     "10.0.0.1",
-		"meta/ssh/port":     "2222",
+		"meta/ssh/10.0.0.1/2222/username":             "admin",
+		"meta/ssh/10.0.0.1/2222/password":             "secret",
+		"meta/ssh/override.example.com/2222/username": "admin",
+		"meta/ssh/override.example.com/2222/password": "secret",
+		"meta/ssh/default":                            "10.0.0.1/2222",
 	}
 	for k, v := range keys {
 		if err := store.WriteFile(k, []byte(v), 0); err != nil {
@@ -91,9 +90,54 @@ func TestReadCredentialsEnvOverride(t *testing.T) {
 	if creds.Host != "override.example.com" {
 		t.Errorf("Host: got %q, want %q (env override)", creds.Host, "override.example.com")
 	}
-	// Port should still come from store (no env override set)
 	if creds.Port != "2222" {
-		t.Errorf("Port: got %q, want %q (from store)", creds.Port, "2222")
+		t.Errorf("Port: got %q, want %q (from default)", creds.Port, "2222")
+	}
+}
+
+// VALIDATES: setting ze.ssh.host bypasses default pointer entirely; port uses built-in default
+// PREVENTS: partial env override mixing host from env with port from pointer
+
+func TestReadCredentialsEnvHostBypassesPointer(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "database.zefs")
+
+	store, err := zefs.Create(dbPath)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	keys := map[string]string{
+		"meta/ssh/10.0.0.1/3333/username": "admin",
+		"meta/ssh/10.0.0.1/3333/password": "secret",
+		"meta/ssh/10.0.0.2/2222/username": "admin",
+		"meta/ssh/10.0.0.2/2222/password": "secret2",
+		"meta/ssh/default":                "10.0.0.1/3333",
+	}
+	for k, v := range keys {
+		if err := store.WriteFile(k, []byte(v), 0); err != nil {
+			t.Fatalf("WriteFile(%s): %v", k, err)
+		}
+	}
+	store.Close() //nolint:errcheck // test setup
+
+	// Set only host env; port should NOT come from default pointer (3333)
+	// but from built-in default (2222)
+	t.Setenv("ze_ssh_host", "10.0.0.2")
+	env.ResetCache()
+
+	creds, err := ReadCredentials(dbPath)
+	if err != nil {
+		t.Fatalf("ReadCredentials: %v", err)
+	}
+
+	if creds.Host != "10.0.0.2" {
+		t.Errorf("Host: got %q, want %q", creds.Host, "10.0.0.2")
+	}
+	if creds.Port != "2222" {
+		t.Errorf("Port: got %q, want %q (built-in default, not pointer's 3333)", creds.Port, "2222")
+	}
+	if creds.Auth != "secret2" {
+		t.Errorf("Auth: got %q, want %q (from 10.0.0.2/2222)", creds.Auth, "secret2")
 	}
 }
 
@@ -108,10 +152,9 @@ func seedSuperAdminZefs(t *testing.T, dir string) string {
 		t.Fatalf("Create: %v", err)
 	}
 	for k, v := range map[string]string{
-		"meta/ssh/username": "admin",
-		"meta/ssh/password": "adminhash",
-		"meta/ssh/host":     "10.0.0.1",
-		"meta/ssh/port":     "2222",
+		"meta/ssh/10.0.0.1/2222/username": "admin",
+		"meta/ssh/10.0.0.1/2222/password": "adminhash",
+		"meta/ssh/default":                "10.0.0.1/2222",
 	} {
 		if err := store.WriteFile(k, []byte(v), 0); err != nil {
 			t.Fatalf("WriteFile(%s): %v", k, err)

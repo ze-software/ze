@@ -6,10 +6,9 @@ package zefs
 // Registered ZeFS keys. All zefs blob key strings in the codebase
 // should reference these vars instead of hardcoding string literals.
 var (
-	KeySSHUsername           = MustRegister(KeyEntry{Pattern: "meta/ssh/username", Description: "SSH authentication username"})
-	KeySSHPassword           = MustRegister(KeyEntry{Pattern: "meta/ssh/password", Description: "SSH password (bcrypt hash)", Private: true})
-	KeySSHHost               = MustRegister(KeyEntry{Pattern: "meta/ssh/host", Description: "SSH server host address"})
-	KeySSHPort               = MustRegister(KeyEntry{Pattern: "meta/ssh/port", Description: "SSH server port"})
+	KeySSHUsername           = MustRegister(KeyEntry{Pattern: "meta/ssh/{host}/{port}/username", Description: "SSH authentication username"})
+	KeySSHPassword           = MustRegister(KeyEntry{Pattern: "meta/ssh/{host}/{port}/password", Description: "SSH password (bcrypt hash)", Private: true})
+	KeySSHDefault            = MustRegister(KeyEntry{Pattern: "meta/ssh/default", Description: "Default remote target (host/port)"})
 	KeyInstanceName          = MustRegister(KeyEntry{Pattern: "meta/instance/name", Description: "Router instance name"})
 	KeyInstanceManaged       = MustRegister(KeyEntry{Pattern: "meta/instance/managed", Description: "Managed mode flag (true/false)"})
 	KeyWebCert               = MustRegister(KeyEntry{Pattern: "meta/web/cert", Description: "HTTPS certificate (PEM)", Private: true})

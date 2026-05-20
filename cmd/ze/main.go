@@ -40,6 +40,7 @@ import (
 	zel2tp "codeberg.org/thomas-mangin/ze/cmd/ze/l2tp"
 	zepasswd "codeberg.org/thomas-mangin/ze/cmd/ze/passwd"
 	zeplugin "codeberg.org/thomas-mangin/ze/cmd/ze/plugin"
+	zeremote "codeberg.org/thomas-mangin/ze/cmd/ze/remote"
 	zeresolve "codeberg.org/thomas-mangin/ze/cmd/ze/resolve"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
@@ -422,6 +423,8 @@ dispatch:
 		exit(zefirewall.Run(args[1:]))
 	case "traffic-control":
 		exit(zetc.Run(args[1:]))
+	case "remote":
+		exit(zeremote.Run(args[1:]))
 	case "resolve":
 		exit(zeresolve.Run(args[1:]))
 	case "exabgp":

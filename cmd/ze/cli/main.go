@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"syscall"
@@ -225,6 +226,7 @@ func runBGP(args []string) int {
 	format := fs.String("format", "yaml", "Output format: yaml, json, table")
 	user := fs.String("user", "", "SSH login username (overrides zefs super-admin)")
 	fs.StringVar(user, "u", "", "Short alias for --user")
+	remote := fs.String("remote", "", "Connect to remote daemon (host:port)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -232,7 +234,14 @@ func runBGP(args []string) int {
 	}
 
 	// Load SSH credentials to connect to daemon
-	creds, err := sshclient.LoadCredentialsWithFlags(*user)
+	var creds sshclient.Credentials
+	var err error
+	if *remote != "" {
+		host, port := parseRemote(*remote)
+		creds, err = sshclient.LoadCredentialsForRemote(*user, host, port)
+	} else {
+		creds, err = sshclient.LoadCredentialsWithFlags(*user)
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		fmt.Fprintf(os.Stderr, "hint: is the daemon running?\n")
@@ -704,4 +713,12 @@ func streamingTracerouteFactory(ctx context.Context, target string, maxHops int)
 
 func streamingPingFactory(ctx context.Context, target string, interval, timeout time.Duration) (<-chan map[string]any, context.CancelFunc, error) {
 	return show.NewPingSession(ctx, target, interval, timeout)
+}
+
+func parseRemote(s string) (string, string) {
+	host, port, err := net.SplitHostPort(s)
+	if err != nil {
+		return s, "2222"
+	}
+	return host, port
 }

@@ -32,9 +32,10 @@ func TestAssembleProducesZeFS(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test
 
+	cfg := DefaultConfig("asm")
 	for _, key := range []string{
-		zefs.KeySSHUsername.Pattern,
-		zefs.KeySSHPassword.Pattern,
+		zefs.KeySSHUsername.Key(cfg.SSH.Host, cfg.SSH.Port),
+		zefs.KeySSHPassword.Key(cfg.SSH.Host, cfg.SSH.Port),
 		zefs.KeyInstanceName.Pattern,
 		zefs.KeyInstanceManaged.Pattern,
 		zefs.KeyWebCert.Pattern,
@@ -146,7 +147,8 @@ func TestAssembleDefaultZeConf(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test
 
-	data, readErr := store.ReadFile(zefs.KeySSHUsername.Pattern)
+	cfg := DefaultConfig("noconf")
+	data, readErr := store.ReadFile(zefs.KeySSHUsername.Key(cfg.SSH.Host, cfg.SSH.Port))
 	if readErr != nil {
 		t.Fatalf("read username: %v", readErr)
 	}
