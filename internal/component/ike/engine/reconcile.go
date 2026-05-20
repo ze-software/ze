@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"maps"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
 	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -14,7 +15,9 @@ import (
 type PeerSession struct {
 	peerName string
 	peerCfg  ipsec.SiteToSitePeer
+	espGroup ipsec.ESPGroup
 	sa       *SA
+	childSA  *ChildSA
 	stopCh   chan struct{}
 	done     chan struct{}
 }
@@ -38,12 +41,19 @@ func reconcilePeers(
 	desired := make(map[string]ipsec.SiteToSitePeer, len(newCfg.Peers))
 	maps.Copy(desired, newCfg.Peers)
 
+	dp := dataplane.Get()
+
 	// Stop removed or changed peers.
 	for name, ps := range active {
 		newPeer, ok := desired[name]
 		if !ok {
 			log.Info("ike: stopping removed peer", "peer", name)
 			ps.Stop()
+			if ps.childSA != nil {
+				removeChildSA(ps.childSA, dp, log)
+				emitChildDown(bus, name, ps.childSA, log)
+				ps.childSA = nil
+			}
 			if ps.sa != nil {
 				table.Remove(ps.sa.InitiatorSPI, ps.sa.ResponderSPI)
 				emitSADown(bus, ps.sa, log)
@@ -54,6 +64,11 @@ func reconcilePeers(
 		if peerConfigChanged(ps, newPeer) {
 			log.Info("ike: restarting changed peer", "peer", name)
 			ps.Stop()
+			if ps.childSA != nil {
+				removeChildSA(ps.childSA, dp, log)
+				emitChildDown(bus, name, ps.childSA, log)
+				ps.childSA = nil
+			}
 			if ps.sa != nil {
 				table.Remove(ps.sa.InitiatorSPI, ps.sa.ResponderSPI)
 				emitSADown(bus, ps.sa, log)
@@ -73,7 +88,12 @@ func reconcilePeers(
 			log.Warn("ike: peer references unknown ike-group", "peer", name, "ike-group", peer.IKEGroup)
 			continue
 		}
-		ps := startPeerSession(name, peer, ikeGroup, table, tr, bus, log)
+		espGroup, ok := newCfg.ESPGroups[peer.ESPGroup]
+		if !ok {
+			log.Warn("ike: peer references unknown esp-group", "peer", name, "esp-group", peer.ESPGroup)
+			continue
+		}
+		ps := startPeerSession(name, peer, ikeGroup, espGroup, table, tr, bus, log)
 		active[name] = ps
 		log.Info("ike: started peer", "peer", name, "connection-type", peer.ConnectionType)
 	}
@@ -95,6 +115,7 @@ func startPeerSession(
 	name string,
 	peer ipsec.SiteToSitePeer,
 	ikeGroup ipsec.IKEGroup,
+	espGroup ipsec.ESPGroup,
 	table *SATable,
 	tr *transport.UDPTransport,
 	bus ze.EventBus,
@@ -103,6 +124,7 @@ func startPeerSession(
 	ps := &PeerSession{
 		peerName: name,
 		peerCfg:  peer,
+		espGroup: espGroup,
 		stopCh:   make(chan struct{}),
 		done:     make(chan struct{}),
 	}

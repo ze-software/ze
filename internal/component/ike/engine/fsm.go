@@ -151,9 +151,7 @@ func (ps *PeerSession) runInitiator(
 		}
 	}
 
-	// Hold SA until stopped.
-	<-ps.stopCh
-	return nil
+	return ps.runEstablished(sa, peer, ikeGroup, table, tr, bus, log)
 }
 
 // runResponder waits for incoming IKE_SA_INIT as a responder.
@@ -191,7 +189,7 @@ func handleInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.U
 			handleAuthResponse(sa, &msg, table, tr, log)
 		}
 	case StateEstablished:
-		log.Debug("ike: message on established SA", "exchange", msg.Header.ExchangeType)
+		handleEstablishedInbound(sa, &msg, log)
 	case StateIdle, StateSAInitReceived, StateAuthReceived, StateDead:
 		log.Debug("ike: message in unexpected state", "state", sa.State)
 	}

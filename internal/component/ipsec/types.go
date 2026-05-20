@@ -392,6 +392,7 @@ type SiteToSitePeer struct {
 	RemoteAddress  string
 	Auth           AuthConfig
 	VTIBind        string // VTI interface name
+	IfID           uint32 // XFRM if_id for SA binding (must match the XFRM interface)
 }
 
 // EAPUser is a remote-access EAP user entry.
@@ -523,6 +524,7 @@ func peersEqual(a, b *SiteToSitePeer) bool {
 		a.LocalAddress == b.LocalAddress &&
 		a.RemoteAddress == b.RemoteAddress &&
 		a.VTIBind == b.VTIBind &&
+		a.IfID == b.IfID &&
 		a.Auth.Mode == b.Auth.Mode &&
 		a.Auth.PSK == b.Auth.PSK &&
 		a.Auth.LocalID == b.Auth.LocalID &&

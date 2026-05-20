@@ -1,0 +1,62 @@
+# Functional test: Child SA rekeyed transparently
+# Spec: plan/spec-ipsec-8-ikev2-child-xfrm.md (AC-7, AC-8)
+#
+# Verifies: Child SA lifetime expires, new Child SA created via rekey,
+# old SA removed after new SA installed (make-before-break).
+#
+# Prerequisites: two ze instances, short ESP lifetime to trigger rekey.
+
+stdin=config:terminator=EOF_CONFIG
+{
+  "vpn": {
+    "ipsec": {
+      "esp-group": {
+        "esp-short": {
+          "lifetime": "10",
+          "proposal": {
+            "1": {
+              "encryption": "aes256",
+              "hash": "sha256"
+            }
+          }
+        }
+      },
+      "ike-group": {
+        "ike-default": {
+          "key-exchange": "ikev2",
+          "lifetime": "28800",
+          "proposal": {
+            "1": {
+              "dh-group": "14",
+              "encryption": "aes256",
+              "hash": "sha256"
+            }
+          }
+        }
+      },
+      "site-to-site": {
+        "peer-1": {
+          "ike-group": "ike-default",
+          "esp-group": "esp-short",
+          "connection-type": "initiate",
+          "local-address": "10.0.0.1",
+          "remote-address": "10.0.0.2",
+          "authentication": {
+            "mode": "pre-shared-secret",
+            "pre-shared-secret": "test-key-1234"
+          }
+        }
+      }
+    }
+  }
+}
+EOF_CONFIG
+
+# Expect: IKE SA established
+expect=event:namespace=vpn-ipsec:name=sa-up:timeout=10
+
+# Expect: first Child SA installed
+expect=event:namespace=vpn-ipsec:name=child-up:timeout=5
+
+# Expect: Child SA rekeyed (within lifetime + jitter)
+expect=event:namespace=vpn-ipsec:name=child-rekey:timeout=15

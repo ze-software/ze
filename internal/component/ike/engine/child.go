@@ -1,0 +1,268 @@
+// Design: plan/spec-ipsec-8-ikev2-child-xfrm.md -- Child SA creation and teardown
+// RFC: rfc/short/rfc7296.md -- Child SA keying material (Section 2.17), Traffic Selectors (Section 2.9)
+
+package engine
+
+import (
+	"crypto/rand"
+	"encoding/binary"
+	"fmt"
+	"log/slog"
+	"net"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
+	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
+)
+
+const (
+	protoESP     = 50
+	modeTunnel   = 2
+	defaultReqID = 1
+	replayWindow = 32
+)
+
+// ChildSA holds the state for one ESP Child SA pair (inbound + outbound).
+type ChildSA struct {
+	InboundSPI  uint32
+	OutboundSPI uint32
+	LocalAddr   net.IP
+	RemoteAddr  net.IP
+	IfID        uint32
+	TSLocal     *net.IPNet
+	TSRemote    *net.IPNet
+	Keys        *crypto.ChildSAKeys
+	ESPGroup    ipsec.ESPGroup
+	ReqID       uint32
+}
+
+// Clear zeroes key material.
+func (c *ChildSA) Clear() {
+	if c.Keys != nil {
+		c.Keys.Clear()
+	}
+}
+
+// GenerateESPSPI generates a random 32-bit SPI for ESP.
+// RFC 4303: SPI value 0 is reserved.
+func GenerateESPSPI() (uint32, error) {
+	var buf [4]byte
+	for {
+		if _, err := rand.Read(buf[:]); err != nil {
+			return 0, err
+		}
+		spi := binary.BigEndian.Uint32(buf[:])
+		if spi != 0 {
+			return spi, nil
+		}
+	}
+}
+
+// createFirstChildSA creates the initial Child SA after IKE_AUTH completes.
+// RFC 7296 Section 2.17: KEYMAT = prf+(SK_d, Ni | Nr).
+func createFirstChildSA(
+	sa *SA,
+	espGroup ipsec.ESPGroup,
+	localAddr, remoteAddr string,
+	ifID uint32,
+	dp dataplane.Dataplane,
+	log *slog.Logger,
+) (*ChildSA, error) {
+	if sa.SKKeys == nil {
+		return nil, fmt.Errorf("child-sa: no IKE keys available")
+	}
+	if len(espGroup.Proposals) == 0 {
+		return nil, fmt.Errorf("child-sa: no ESP proposals configured")
+	}
+
+	prop := espGroup.Proposals[0]
+	enc := lookupEncryption(prop.Encryption)
+	integ := lookupIntegrity(prop.Hash)
+
+	keys, err := crypto.DeriveChildSAKeys(
+		sa.Proposal.PRF.ID, sa.SKKeys.SK_d,
+		sa.LocalNonce, sa.RemoteNonce,
+		enc, integ,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("child-sa: key derivation: %w", err)
+	}
+
+	inSPI, err := GenerateESPSPI()
+	if err != nil {
+		keys.Clear()
+		return nil, fmt.Errorf("child-sa: generate inbound SPI: %w", err)
+	}
+	outSPI, err := GenerateESPSPI()
+	if err != nil {
+		keys.Clear()
+		return nil, fmt.Errorf("child-sa: generate outbound SPI: %w", err)
+	}
+
+	srcIP := net.ParseIP(localAddr)
+	dstIP := net.ParseIP(remoteAddr)
+	if srcIP == nil || dstIP == nil {
+		keys.Clear()
+		return nil, fmt.Errorf("child-sa: invalid addresses local=%q remote=%q", localAddr, remoteAddr)
+	}
+
+	tsLocal := ipToFullNet(srcIP)
+	tsRemote := ipToFullNet(dstIP)
+
+	child := &ChildSA{
+		InboundSPI:  inSPI,
+		OutboundSPI: outSPI,
+		LocalAddr:   srcIP,
+		RemoteAddr:  dstIP,
+		IfID:        ifID,
+		TSLocal:     tsLocal,
+		TSRemote:    tsRemote,
+		Keys:        keys,
+		ESPGroup:    espGroup,
+		ReqID:       defaultReqID,
+	}
+
+	if dp == nil {
+		log.Debug("child-sa: no dataplane, skipping SA install")
+		return child, nil
+	}
+
+	if err := installChildSA(child, prop, dp, log); err != nil {
+		keys.Clear()
+		return nil, err
+	}
+
+	return child, nil
+}
+
+func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Dataplane, log *slog.Logger) error {
+	isAEAD := prop.Encryption.IsAEAD()
+	encAlgo := prop.Encryption.String()
+	authAlgo := prop.Hash.String()
+
+	// Inbound SA: remote sends to us, keyed with responder keys.
+	inbound := dataplane.SAParams{
+		SPI:       child.InboundSPI,
+		Src:       child.RemoteAddr,
+		Dst:       child.LocalAddr,
+		IfID:      child.IfID,
+		Proto:     protoESP,
+		Mode:      modeTunnel,
+		ReqID:     child.ReqID,
+		ReplayWin: replayWindow,
+		EncAlgo:   encAlgo,
+		EncKey:    child.Keys.EncryptKeyR,
+		AuthAlgo:  authAlgo,
+		AuthKey:   child.Keys.IntegKeyR,
+		IsAEAD:    isAEAD,
+	}
+
+	if err := dp.InstallSA(inbound); err != nil {
+		return fmt.Errorf("child-sa: install inbound: %w", err)
+	}
+	log.Debug("child-sa: installed inbound SA", "spi", child.InboundSPI, "ifid", child.IfID)
+
+	// Outbound SA: we send to remote, keyed with initiator keys.
+	outbound := dataplane.SAParams{
+		SPI:       child.OutboundSPI,
+		Src:       child.LocalAddr,
+		Dst:       child.RemoteAddr,
+		IfID:      child.IfID,
+		Proto:     protoESP,
+		Mode:      modeTunnel,
+		ReqID:     child.ReqID,
+		ReplayWin: replayWindow,
+		EncAlgo:   encAlgo,
+		EncKey:    child.Keys.EncryptKeyI,
+		AuthAlgo:  authAlgo,
+		AuthKey:   child.Keys.IntegKeyI,
+		IsAEAD:    isAEAD,
+	}
+
+	if err := dp.InstallSA(outbound); err != nil {
+		_ = dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP)
+		return fmt.Errorf("child-sa: install outbound: %w", err)
+	}
+	log.Debug("child-sa: installed outbound SA", "spi", child.OutboundSPI, "ifid", child.IfID)
+
+	// Install policies.
+	if err := dp.InstallPolicy(dataplane.SPParams{
+		Src:   child.TSRemote,
+		Dst:   child.TSLocal,
+		Dir:   dataplane.SADirIn,
+		Proto: protoESP,
+		Mode:  modeTunnel,
+		IfID:  child.IfID,
+		ReqID: child.ReqID,
+	}); err != nil {
+		_ = dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP)
+		_ = dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP)
+		return fmt.Errorf("child-sa: install inbound policy: %w", err)
+	}
+
+	if err := dp.InstallPolicy(dataplane.SPParams{
+		Src:   child.TSLocal,
+		Dst:   child.TSRemote,
+		Dir:   dataplane.SADirOut,
+		Proto: protoESP,
+		Mode:  modeTunnel,
+		IfID:  child.IfID,
+		ReqID: child.ReqID,
+	}); err != nil {
+		_ = dp.RemovePolicy(child.TSRemote, child.TSLocal, dataplane.SADirIn)
+		_ = dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP)
+		_ = dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP)
+		return fmt.Errorf("child-sa: install outbound policy: %w", err)
+	}
+
+	log.Info("child-sa: installed", "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI, "ifid", child.IfID)
+	return nil
+}
+
+// removeChildSA tears down an installed Child SA from the dataplane.
+func removeChildSA(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
+	if dp == nil || child == nil {
+		return
+	}
+	if err := dp.RemovePolicy(child.TSLocal, child.TSRemote, dataplane.SADirOut); err != nil {
+		log.Debug("child-sa: remove outbound policy", "error", err)
+	}
+	if err := dp.RemovePolicy(child.TSRemote, child.TSLocal, dataplane.SADirIn); err != nil {
+		log.Debug("child-sa: remove inbound policy", "error", err)
+	}
+	if err := dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP); err != nil {
+		log.Debug("child-sa: remove outbound SA", "error", err)
+	}
+	if err := dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP); err != nil {
+		log.Debug("child-sa: remove inbound SA", "error", err)
+	}
+	child.Clear()
+	log.Info("child-sa: removed", "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI)
+}
+
+// narrowTS computes the intersection of two IP networks.
+// RFC 7296 Section 2.9: responder may narrow but never widen.
+func narrowTS(proposed, allowed *net.IPNet) *net.IPNet {
+	if proposed == nil || allowed == nil {
+		return nil
+	}
+	if allowed.Contains(proposed.IP) && maskLen(proposed.Mask) >= maskLen(allowed.Mask) {
+		return proposed
+	}
+	if proposed.Contains(allowed.IP) && maskLen(allowed.Mask) >= maskLen(proposed.Mask) {
+		return allowed
+	}
+	return nil
+}
+
+func maskLen(m net.IPMask) int {
+	ones, _ := m.Size()
+	return ones
+}
+
+func ipToFullNet(ip net.IP) *net.IPNet {
+	if ip4 := ip.To4(); ip4 != nil {
+		return &net.IPNet{IP: ip4, Mask: net.CIDRMask(32, 32)}
+	}
+	return &net.IPNet{IP: ip, Mask: net.CIDRMask(128, 128)}
+}

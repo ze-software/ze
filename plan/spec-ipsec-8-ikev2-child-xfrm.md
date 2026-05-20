@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | ipsec-2, ipsec-7 |
-| Phase | - |
+| Phase | 7/10 |
 | Updated | 2026-05-20 |
 
 ## Post-Compaction Recovery
@@ -395,16 +395,28 @@ MUST document: CREATE_CHILD_SA exchange flow, DPD timer constraints, rekey colli
 ## Implementation Summary
 
 ### What Was Implemented
-- (to be filled)
+- Dataplane interface (`internal/component/ike/dataplane/dataplane.go`): InstallSA, RemoveSA, InstallPolicy, RemovePolicy, ListSAs with Register/Load/Get pattern
+- XFRM netlink backend (`dataplane/xfrm_linux.go`): XfrmStateAdd/Del, XfrmPolicyAdd/Del with if_id binding
+- Non-Linux stub (`dataplane/xfrm_other.go`): returns ErrNotSupported
+- VPP backend stub (`dataplane/vpp.go`): returns ErrNotSupported (placeholder for future VPP integration)
+- Child SA creation (`engine/child.go`): ESP key derivation via prf+(SK_d, Ni|Nr), SPI generation, SA+SP installation, teardown
+- DPD (`engine/dpd.go`): periodic empty INFORMATIONAL probes, timeout detection, close-action
+- Rekeying (`engine/rekey.go`): child SA rekey with new key material, collision resolution (lower nonce wins), time+byte lifetime with jitter
+- FSM wiring (`engine/established.go`): runEstablished drives child SA creation, DPD loop, rekey on lifetime expiry
+- PFS key derivation (`crypto/keys.go`): DeriveChildSAKeysPFS for g^ir|Ni|Nr seed
+- Child SA bus events (child-up, child-down, child-rekey)
 
 ### Bugs Found/Fixed
-- (to be filled)
+- DPD `lastSent` not initialized caused immediate probe on creation; fixed with `lastSent: time.Now()`
+- DPD `sendDPD` returned early with nil transport before updating state; fixed to update state regardless
 
 ### Documentation Updates
-- (to be filled)
+- None yet (pending review gate)
 
 ### Deviations from Plan
-- (to be filled)
+- VPP backend is a stub returning ErrNotSupported (AC-13 partially met; full VPP integration deferred to VPP appliance work)
+- Functional .ci tests not yet created (need running IKE peers; tracked for functional test phase)
+- Responder-side CREATE_CHILD_SA handling not yet wired (initiator path complete)
 
 ## Implementation Audit
 
@@ -415,21 +427,69 @@ MUST document: CREATE_CHILD_SA exchange flow, DPD timer constraints, rekey colli
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | TestChildSAKeyDerivation, engine/child.go:63 | ESP keys derived from SK_d + nonces |
+| AC-2 | Done | TestChildSAInstallsInDataplane, dataplane/xfrm_linux.go:21 | XFRM SA with SPI, keys, if_id |
+| AC-3 | Done | TestChildSAInstallsInDataplane, engine/child.go:168 | XFRM Policy with selectors and template |
+| AC-4 | Done | TestNarrowTS, engine/child.go:237 | TS narrowing computes intersection |
+| AC-5 | Done | TestDPDSendReceive, engine/dpd.go:68 | INFORMATIONAL exchange, timer reset |
+| AC-6 | Done | TestDPDTimeout, engine/established.go:62 | Timeout triggers close-action |
+| AC-7 | Done | TestChildSARekeyInitiator, engine/rekey.go:79 | Make-before-break rekey |
+| AC-8 | Done | TestSALifetimeBytes, engine/rekey.go:56 | Soft byte threshold triggers rekey |
+| AC-9 | Done | TestRekeyCollision, engine/rekey.go:145 | Lower nonce wins |
+| AC-10 | Partial | crypto/keys.go:35 DeriveRekeyedSKEYSEED | Key derivation exists; IKE SA rekey exchange not yet wired |
+| AC-11 | Done | TestDeleteNotification, engine/child.go:223 | removeChildSA cleans dataplane + emits event |
+| AC-12 | Done | reconcile.go:44 | reconcilePeers stops removed peers, removes child SAs |
+| AC-13 | Partial | dataplane/vpp.go | VPP backend registered, returns ErrNotSupported |
+| AC-14 | Done | TestChildSAKeymatPFS, crypto/keys.go:134 | PFS: g^ir contributes to KEYMAT |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestChildSAKeyDerivation | Pass | engine/child_test.go | AC-1 |
+| TestChildSAKeymatPFS (was TestChildSAKeyDerivationPFS) | Pass | crypto/keys_test.go | AC-14 |
+| TestNarrowTS (was TestTrafficSelectorNarrowing) | Pass | engine/child_test.go | AC-4 |
+| TestChildSAInstallsInDataplane (covers TestXFRMInstallSA+Policy) | Pass | engine/child_test.go | AC-2, AC-3 via mock |
+| TestChildSARemoval (covers TestXFRMRemoveSA) | Pass | engine/child_test.go | AC-11 |
+| TestDPDSendReceive | Pass | engine/dpd_test.go | AC-5 |
+| TestDPDTimeout | Pass | engine/dpd_test.go | AC-6 |
+| TestChildSARekeyInitiator | Pass | engine/rekey_test.go | AC-7 |
+| TestRekeyCollision | Pass | engine/rekey_test.go | AC-9 |
+| TestSALifetimeTime | Pass | engine/rekey_test.go | AC-7 |
+| TestSALifetimeBytes | Pass | engine/rekey_test.go | AC-8 |
+| TestDeleteNotification | Pass | engine/child_test.go | AC-11 |
+| TestDataplaneInterface | Pass | dataplane/dataplane_test.go | Interface contract |
+| TestRegisterAndLoad | Pass | dataplane/dataplane_test.go | Registration pattern |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| internal/component/ike/dataplane/dataplane.go | Created | Interface + registration |
+| internal/component/ike/dataplane/dataplane_test.go | Created | Interface contract tests |
+| internal/component/ike/dataplane/xfrm_linux.go | Created | XFRM netlink backend |
+| internal/component/ike/dataplane/xfrm_other.go | Created | Non-Linux stub |
+| internal/component/ike/dataplane/vpp.go | Created | VPP backend stub |
+| internal/component/ike/dataplane/register.go | Created | init() registration |
+| internal/component/ike/engine/child.go | Created | Child SA creation + teardown |
+| internal/component/ike/engine/child_test.go | Created | 9 tests |
+| internal/component/ike/engine/dpd.go | Created | DPD state + probes |
+| internal/component/ike/engine/dpd_test.go | Created | 5 tests |
+| internal/component/ike/engine/rekey.go | Created | Lifetime + rekey + collision |
+| internal/component/ike/engine/rekey_test.go | Created | 6 tests |
+| internal/component/ike/engine/established.go | Created | runEstablished wiring |
+| internal/component/ike/engine/events.go | Modified | Added ChildSAEvent, ChildUp/Down/Rekey |
+| internal/component/ike/engine/fsm.go | Modified | runInitiator calls runEstablished |
+| internal/component/ike/engine/reconcile.go | Modified | PeerSession.espGroup, startPeerSession |
+| internal/component/ike/engine/sa.go | Modified | remoteUDPAddr method |
+| internal/component/ike/crypto/keys.go | Modified | DeriveChildSAKeysPFS |
+| internal/component/ike/crypto/keys_test.go | Modified | TestChildSAKeymatPFS |
+| internal/component/ike/engine/reconcile_test.go | Modified | Added ESPGroup to test config |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 14 ACs + 14 tests + 20 files
+- **Done:** 12 ACs, 14 tests, 20 files
+- **Partial:** 2 ACs (AC-10 IKE SA rekey exchange, AC-13 VPP implementation)
+- **Skipped:** 0
+- **Changed:** Functional .ci tests deferred (need running peers)
 
 ## Review Gate
 

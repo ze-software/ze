@@ -180,6 +180,41 @@ func TestChildSAKeymat(t *testing.T) {
 	}
 }
 
+func TestChildSAKeymatPFS(t *testing.T) {
+	skD := make([]byte, 32)
+	for i := range skD {
+		skD[i] = byte(i + 10)
+	}
+	dhSecret := make([]byte, 32)
+	for i := range dhSecret {
+		dhSecret[i] = byte(i + 50)
+	}
+	ni := []byte("child-nonce-init")
+	nr := []byte("child-nonce-resp")
+
+	enc := EncryptionTransform{ID: ENCR_AES_CBC, KeyLength: 128}
+	integ := IntegrityTransform{ID: AUTH_HMAC_SHA2_256_128, KeyLength: 32, TruncatedLength: 16}
+
+	keysPFS, err := DeriveChildSAKeysPFS(PRF_HMAC_SHA2_256, skD, dhSecret, ni, nr, enc, integ)
+	if err != nil {
+		t.Fatalf("DeriveChildSAKeysPFS: %v", err)
+	}
+	defer keysPFS.Clear()
+
+	keysNoPFS, err := DeriveChildSAKeys(PRF_HMAC_SHA2_256, skD, ni, nr, enc, integ)
+	if err != nil {
+		t.Fatalf("DeriveChildSAKeys: %v", err)
+	}
+	defer keysNoPFS.Clear()
+
+	if hmac.Equal(keysPFS.EncryptKeyI, keysNoPFS.EncryptKeyI) {
+		t.Error("PFS keys should differ from non-PFS keys")
+	}
+	if len(keysPFS.EncryptKeyI) != 16 {
+		t.Errorf("PFS EncryptKeyI length = %d, want 16", len(keysPFS.EncryptKeyI))
+	}
+}
+
 func TestRekeyedSKEYSEED(t *testing.T) {
 	skDOld := make([]byte, 32)
 	for i := range skDOld {

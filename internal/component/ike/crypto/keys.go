@@ -130,6 +130,38 @@ func DeriveChildSAKeys(prfID PRFID, skD, ni, nr []byte, enc EncryptionTransform,
 	return keys, nil
 }
 
+// DeriveChildSAKeysPFS derives ESP keys with Perfect Forward Secrecy.
+// RFC 7296 Section 2.17: KEYMAT = prf+(SK_d, g^ir | Ni | Nr).
+func DeriveChildSAKeysPFS(prfID PRFID, skD, dhSharedSecret, ni, nr []byte, enc EncryptionTransform, integ IntegrityTransform) (*ChildSAKeys, error) {
+	encKeyLen := int(enc.KeyLength) / 8
+	integKeyLen := int(integ.KeyLength)
+
+	totalLen := 2*encKeyLen + 2*integKeyLen
+
+	seed := make([]byte, 0, len(dhSharedSecret)+len(ni)+len(nr))
+	seed = append(seed, dhSharedSecret...)
+	seed = append(seed, ni...)
+	seed = append(seed, nr...)
+
+	keymat, err := PRFPlus(prfID, skD, seed, totalLen)
+	if err != nil {
+		return nil, err
+	}
+
+	keys := &ChildSAKeys{}
+	off := 0
+	keys.EncryptKeyI = dup(keymat[off : off+encKeyLen])
+	off += encKeyLen
+	keys.IntegKeyI = dup(keymat[off : off+integKeyLen])
+	off += integKeyLen
+	keys.EncryptKeyR = dup(keymat[off : off+encKeyLen])
+	off += encKeyLen
+	keys.IntegKeyR = dup(keymat[off : off+integKeyLen])
+
+	clear(keymat)
+	return keys, nil
+}
+
 func dup(b []byte) []byte {
 	c := make([]byte, len(b))
 	copy(c, b)

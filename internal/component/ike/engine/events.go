@@ -14,7 +14,18 @@ type SAEvent struct {
 	AuthMethod    string `json:"auth-method"`
 }
 
+// ChildSAEvent carries Child SA lifecycle information on the event bus.
+type ChildSAEvent struct {
+	PeerName    string `json:"peer-name"`
+	InboundSPI  uint32 `json:"inbound-spi"`
+	OutboundSPI uint32 `json:"outbound-spi"`
+	IfID        uint32 `json:"if-id"`
+}
+
 var (
-	SAUp   = events.Register[*SAEvent](Namespace, "sa-up")
-	SADown = events.Register[*SAEvent](Namespace, "sa-down")
+	SAUp       = events.Register[*SAEvent](Namespace, "sa-up")
+	SADown     = events.Register[*SAEvent](Namespace, "sa-down")
+	ChildUp    = events.Register[*ChildSAEvent](Namespace, "child-up")
+	ChildDown  = events.Register[*ChildSAEvent](Namespace, "child-down")
+	ChildRekey = events.Register[*ChildSAEvent](Namespace, "child-rekey")
 )

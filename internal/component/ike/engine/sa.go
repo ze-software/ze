@@ -5,6 +5,7 @@ package engine
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"net"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
@@ -122,4 +123,12 @@ func SPIPairKey(initiator, responder [8]byte) string {
 // SPIHex returns the hex string of an SPI.
 func SPIHex(spi [8]byte) string {
 	return hex.EncodeToString(spi[:])
+}
+
+func (sa *SA) remoteUDPAddr() *net.UDPAddr {
+	addr, err := net.ResolveUDPAddr("udp4", sa.PeerCfg.RemoteAddress+":500")
+	if err != nil {
+		return nil
+	}
+	return addr
 }

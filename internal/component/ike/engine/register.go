@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
 	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -63,6 +64,10 @@ func init() {
 func runEngine(conn net.Conn) int {
 	log := getLogger()
 	log.Debug("ike engine starting")
+
+	if err := dataplane.Load("xfrm"); err != nil {
+		log.Warn("ike: dataplane load failed, SA installation disabled", "error", err)
+	}
 
 	p := sdk.NewWithConn("ike", conn)
 	defer closeSDK(p)
@@ -120,6 +125,9 @@ func runEngine(conn net.Conn) int {
 		if err := tr.Close(); err != nil {
 			log.Warn("ike: transport close error", "error", err)
 		}
+	}
+	if err := dataplane.CloseBackend(); err != nil {
+		log.Warn("ike: dataplane close error", "error", err)
 	}
 
 	return 0

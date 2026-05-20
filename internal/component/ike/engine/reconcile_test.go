@@ -9,7 +9,9 @@ import (
 
 func testIPsecConfig(peers ...ipsec.SiteToSitePeer) *ipsec.IPsecConfig {
 	cfg := &ipsec.IPsecConfig{
-		ESPGroups: make(map[string]ipsec.ESPGroup),
+		ESPGroups: map[string]ipsec.ESPGroup{
+			"test-esp": testESPGroup(),
+		},
 		IKEGroups: map[string]ipsec.IKEGroup{
 			"test-ike": testIKEGroup(),
 		},
