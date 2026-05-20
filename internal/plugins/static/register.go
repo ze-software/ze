@@ -12,9 +12,9 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/routingtable"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	bfdapi "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/routingtable"
 	staticschema "codeberg.org/thomas-mangin/ze/internal/plugins/static/schema"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"

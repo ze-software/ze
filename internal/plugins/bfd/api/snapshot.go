@@ -9,11 +9,7 @@
 // observation (counts, timestamps) computed from the express loop.
 package api
 
-import (
-	"time"
-
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/packet"
-)
+import "time"
 
 // SessionState is a point-in-time copy of one BFD session's identity,
 // negotiated timers, and recent history. Returned by Service.Snapshot
@@ -79,7 +75,7 @@ type ProfileState struct {
 // SessionState.State, TransitionRecord.From / .To, and Prometheus
 // label values. Exposed so consumers format states identically to the
 // engine.
-func StateLabel(s packet.State) string { return s.String() }
+func StateLabel(s State) string { return s.String() }
 
 // DiagLabel returns the canonical string for a packet.Diag.
-func DiagLabel(d packet.Diag) string { return d.String() }
+func DiagLabel(d Diag) string { return d.String() }

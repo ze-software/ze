@@ -31,7 +31,6 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/packet"
 )
 
 // bfdClient holds the per-peer BFD session state. Zero value is safe
@@ -121,7 +120,7 @@ func (p *Peer) runBFDSubscriber(
 			if !ok {
 				return
 			}
-			if change.State == packet.StateDown || change.State == packet.StateAdminDown {
+			if change.State == api.StateDown || change.State == api.StateAdminDown {
 				peerLogger().Warn("bfd reported peer down; tearing BGP session",
 					"peer", p.settings.Address,
 					"bfd-state", change.State.String(),

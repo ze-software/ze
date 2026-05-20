@@ -11,7 +11,6 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	bfdapi "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/packet"
 	staticevents "codeberg.org/thomas-mangin/ze/internal/plugins/static/events"
 )
 
@@ -230,7 +229,7 @@ func (rm *routeManager) watchBFD(key routeKey, nhIdx int, ch <-chan bfdapi.State
 			}
 
 			wasActive := rs.nhStates[nhIdx].active
-			nowActive := sc.State == packet.StateUp
+			nowActive := sc.State == bfdapi.StateUp
 
 			if wasActive != nowActive {
 				rs.nhStates[nhIdx].active = nowActive

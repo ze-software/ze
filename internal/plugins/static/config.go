@@ -9,7 +9,7 @@ import (
 	"math"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/routingtable"
+	"codeberg.org/thomas-mangin/ze/internal/core/routingtable"
 )
 
 var (

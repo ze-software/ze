@@ -16,6 +16,32 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/packet"
 )
 
+// State and Diag are re-exported from bfd/packet so that consumers
+// (bgp/reactor, static, CLI) depend only on bfd/api, not the wire codec.
+type (
+	State = packet.State
+	Diag  = packet.Diag
+)
+
+const (
+	StateAdminDown = packet.StateAdminDown
+	StateDown      = packet.StateDown
+	StateInit      = packet.StateInit
+	StateUp        = packet.StateUp
+)
+
+const (
+	DiagNone                  = packet.DiagNone
+	DiagControlDetectExpired  = packet.DiagControlDetectExpired
+	DiagEchoFailed            = packet.DiagEchoFailed
+	DiagNeighborSignaledDown  = packet.DiagNeighborSignaledDown
+	DiagForwardingPlaneReset  = packet.DiagForwardingPlaneReset
+	DiagPathDown              = packet.DiagPathDown
+	DiagConcatPathDown        = packet.DiagConcatPathDown
+	DiagAdminDown             = packet.DiagAdminDown
+	DiagReverseConcatPathDown = packet.DiagReverseConcatPathDown
+)
+
 // HopMode is the path category for a BFD session.
 type HopMode uint8
 
