@@ -1,0 +1,291 @@
+module ze-ipsec-conf {
+    namespace "urn:ze:ipsec:conf";
+    prefix ipsec;
+
+    import ze-extensions { prefix ze; }
+
+    description "IPsec VPN configuration for Ze (spec-ipsec-3).";
+
+    revision 2026-05-20 {
+        description "Initial IPsec data model: ESP/IKE groups, site-to-site peers.";
+    }
+
+    typedef encryption-algo {
+        type enumeration {
+            enum aes128 { description "AES-CBC-128 (RFC 3602)"; }
+            enum aes256 { description "AES-CBC-256 (RFC 3602)"; }
+            enum aes128gcm { description "AES-GCM-128, 16-byte ICV (RFC 4106)"; }
+            enum aes256gcm { description "AES-GCM-256, 16-byte ICV (RFC 4106)"; }
+            enum chacha20poly1305 { description "ChaCha20-Poly1305 AEAD (RFC 7634)"; }
+            enum 3des { description "Triple-DES-CBC (RFC 2451), deprecated"; }
+        }
+    }
+
+    typedef hash-algo {
+        type enumeration {
+            enum sha1 { description "HMAC-SHA-1-96 (RFC 2404)"; }
+            enum sha256 { description "HMAC-SHA-256-128 (RFC 4868)"; }
+            enum sha384 { description "HMAC-SHA-384-192 (RFC 4868)"; }
+            enum sha512 { description "HMAC-SHA-512-256 (RFC 4868)"; }
+        }
+    }
+
+    container vpn {
+        description "VPN subsystems.";
+
+        container ipsec {
+            description "IPsec site-to-site VPN configuration.";
+
+            leaf interface {
+                type string;
+                description "WAN interface for IPsec traffic.";
+            }
+
+            list esp-group {
+                key "name";
+                description "ESP (Encapsulating Security Payload) group.";
+
+                leaf name {
+                    type string;
+                    description "ESP group name.";
+                }
+
+                leaf lifetime {
+                    type uint32 {
+                        range "0..86400";
+                    }
+                    default 3600;
+                    description "SA lifetime in seconds. 0 disables expiry.";
+                }
+
+                leaf pfs {
+                    type enumeration {
+                        enum enable;
+                        enum disable;
+                    }
+                    default "enable";
+                    description "Perfect Forward Secrecy for Child SA rekeying.";
+                }
+
+                list proposal {
+                    key "number";
+                    description "ESP proposal. Lower number = higher priority.";
+
+                    leaf number {
+                        type uint16 {
+                            range "1..65535";
+                        }
+                        description "Proposal priority number.";
+                    }
+
+                    leaf encryption {
+                        type encryption-algo;
+                        ze:required;
+                        description "Encryption algorithm.";
+                    }
+
+                    leaf hash {
+                        type hash-algo;
+                        description "Integrity algorithm. Optional for AEAD ciphers.";
+                    }
+                }
+            }
+
+            list ike-group {
+                key "name";
+                description "IKE (Internet Key Exchange) group.";
+
+                leaf name {
+                    type string;
+                    description "IKE group name.";
+                }
+
+                leaf key-exchange {
+                    type enumeration {
+                        enum ikev1;
+                        enum ikev2;
+                    }
+                    default "ikev2";
+                    description "IKE protocol version.";
+                }
+
+                leaf lifetime {
+                    type uint32 {
+                        range "0..86400";
+                    }
+                    default 28800;
+                    description "IKE SA lifetime in seconds. 0 disables reauth.";
+                }
+
+                leaf close-action {
+                    type enumeration {
+                        enum none;
+                        enum start;
+                        enum restart;
+                    }
+                    default "none";
+                    description "Action when peer closes the IKE SA.";
+                }
+
+                container dead-peer-detection {
+                    description "Dead Peer Detection (DPD) settings (RFC 3706).";
+
+                    leaf action {
+                        type enumeration {
+                            enum restart;
+                            enum hold;
+                            enum clear;
+                        }
+                        default "hold";
+                        description "Action when DPD detects a dead peer.";
+                    }
+
+                    leaf interval {
+                        type uint16 {
+                            range "1..3600";
+                        }
+                        default 30;
+                        description "DPD probe interval in seconds.";
+                    }
+
+                    leaf timeout {
+                        type uint16 {
+                            range "1..3600";
+                        }
+                        default 120;
+                        description "DPD timeout in seconds before declaring peer dead.";
+                    }
+                }
+
+                list proposal {
+                    key "number";
+                    description "IKE proposal. Lower number = higher priority.";
+
+                    leaf number {
+                        type uint16 {
+                            range "1..65535";
+                        }
+                        description "Proposal priority number.";
+                    }
+
+                    leaf encryption {
+                        type encryption-algo;
+                        ze:required;
+                        description "Encryption algorithm.";
+                    }
+
+                    leaf hash {
+                        type hash-algo;
+                        ze:required;
+                        description "PRF/integrity algorithm.";
+                    }
+
+                    leaf dh-group {
+                        type uint8 {
+                            range "1..31";
+                        }
+                        ze:required;
+                        description "Diffie-Hellman group number (RFC 7296 Section 3.3.2).";
+                    }
+                }
+            }
+
+            container site-to-site {
+                description "Site-to-site VPN peers.";
+
+                list peer {
+                    key "name";
+                    description "Remote VPN peer.";
+
+                    leaf name {
+                        type string;
+                        description "Peer name (used as connection identifier).";
+                    }
+
+                    leaf ike-group {
+                        type string;
+                        ze:required;
+                        description "Reference to an IKE group name.";
+                    }
+
+                    leaf esp-group {
+                        type string;
+                        ze:required;
+                        description "Reference to an ESP group name.";
+                    }
+
+                    leaf connection-type {
+                        type enumeration {
+                            enum initiate;
+                            enum respond;
+                        }
+                        default "initiate";
+                        description "Whether to initiate or wait for the remote peer.";
+                    }
+
+                    leaf local-address {
+                        type string;
+                        description "Local endpoint address or interface name.";
+                    }
+
+                    leaf remote-address {
+                        type string;
+                        description "Remote endpoint address or DNS hostname.";
+                    }
+
+                    container authentication {
+                        description "Peer authentication settings.";
+
+                        leaf mode {
+                            type enumeration {
+                                enum pre-shared-secret;
+                                enum x509;
+                            }
+                            ze:required;
+                            description "Authentication mode.";
+                        }
+
+                        leaf pre-shared-secret {
+                            type string;
+                            ze:sensitive;
+                            description "Pre-shared key ($9$-encoded).";
+                        }
+
+                        leaf local-id {
+                            type string;
+                            description "Local identity for IKE negotiation.";
+                        }
+
+                        leaf remote-id {
+                            type string;
+                            description "Remote identity for IKE negotiation.";
+                        }
+
+                        container x509 {
+                            description "X.509 certificate references.";
+
+                            leaf ca-certificate {
+                                type string;
+                                description "Name of the CA certificate in the PKI store.";
+                            }
+
+                            leaf certificate {
+                                type string;
+                                description "Name of the device certificate in the PKI store.";
+                            }
+                        }
+                    }
+
+                    container vti {
+                        description "Virtual Tunnel Interface binding.";
+
+                        leaf bind {
+                            type string;
+                            description "VTI interface name to bind this peer's traffic to.";
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

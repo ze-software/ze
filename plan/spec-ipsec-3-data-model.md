@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-05-19 |
+| Phase | 1/8 |
+| Updated | 2026-05-20 |
 
 ## Post-Compaction Recovery
 
@@ -155,6 +155,8 @@ consumes to generate swanctl.conf. The parser must validate cross-references
 | AC-8 | Peer references `ike-group NONEXISTENT` | Config load returns error: IKE group "NONEXISTENT" not defined |
 | AC-9 | `interface` binding leaf references nonexistent interface | Config load returns error: interface "ethXX" not found |
 | AC-10 | Config reload changes peer remote-address or auth config | Diff detects change; IPsecConfig.Changed() reports affected peer names |
+| AC-11 | X.509 auth with `local-id EXAFO000000400` and certificate CN `EXAFO000000400` | Validation passes: local-id matches certificate CN |
+| AC-12 | X.509 auth with `local-id WRONG` and certificate CN `EXAFO000000400` | Config load returns error: local-id "WRONG" does not match certificate CN "EXAFO000000400". Uses CN as device identity; mismatch means IKEv2 auth will fail at runtime |
 
 ## 🧪 TDD Test Plan
 
@@ -371,58 +373,60 @@ MUST document: validation rules, algorithm requirements, proposal format constra
 ## Implementation Summary
 
 ### What Was Implemented
-- [List actual changes made]
+- YANG schema `ze-ipsec-conf.yang` defining `vpn { ipsec {} }` tree with ESP/IKE groups and site-to-site peers
+- Go types: 8 enum types (EncryptionAlgo, HashAlgo, DHGroup, PFSMode, AuthMode, ConnectionType, CloseAction, DPDAction, KeyExchange), 8 struct types (DPDConfig, ESPProposal, ESPGroup, IKEProposal, IKEGroup, AuthConfig, SiteToSitePeer, IPsecConfig)
+- Config parser following L2TP ExtractParameters pattern: ParseIPsecConfig + parseESPGroup/parseIKEGroup/parseSiteToSitePeer
+- Cross-reference validation: ValidateGroupRefs, ValidatePKIRefs (with local-id/CN match), ValidateInterfaceRef
+- Config diff: IPsecConfig.Changed() returns affected peer names
+- 18 unit tests covering all ACs and boundary conditions
+- Schema registration and hub/main.go wiring
 
 ### Bugs Found/Fixed
-- [Any bugs discovered]
+- None
 
 ### Documentation Updates
-- [Docs updated, or "None"]
+- `docs/features.md` -- added IPsec data model feature row
+- `docs/guide/configuration.md` -- added `vpn { ipsec {} }` section with example config
 
 ### Deviations from Plan
-- [Differences from original plan and why]
+- Functional `.ci` tests deferred: this is a data model (config parser), not a CLI/daemon feature; parser validation is fully covered by unit tests. No daemon entry point exists yet for `.ci` tests to exercise (that comes in ipsec-4).
+- `validate.go` functions are methods on `*IPsecConfig` rather than standalone functions, for ergonomics.
 
 ## Implementation Audit
-
-### Requirements from Task
-| Requirement | Status | Location | Notes |
-|-------------|--------|----------|-------|
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-
-### Tests from TDD Plan
-| Test | Status | Location | Notes |
-|------|--------|----------|-------|
-
-### Files from Plan
-| File | Status | Notes |
-|------|--------|-------|
+| AC-1 | Done | TestParseESPGroup | Two proposals sorted by number |
+| AC-2 | Done | TestParseIKEGroup | DPD, close-action, key-exchange, lifetime=0 |
+| AC-3 | Done | TestParseSiteToSitePeerX509 | All fields populated |
+| AC-4 | Done | TestValidatePKIRefsMatch, TestValidatePKIRefsLocalIDMismatch | Stub callbacks |
+| AC-5 | Done | TestParseSiteToSitePeerPSK | Plaintext PSK stored |
+| AC-6 | Done | TestParseInvalidEncryption | "des" rejected |
+| AC-7 | Done | TestParseInvalidDHGroup | 0 and 99 rejected |
+| AC-8 | Done | TestParseMissingGroupRef | "NONEXISTENT" error |
+| AC-9 | Done | TestParseInvalidInterfaceRef | "ethXX" error |
+| AC-10 | Done | TestIPsecConfigChanged | added/changed/removed detected |
+| AC-11 | Done | TestValidatePKIRefsMatch | EXAFO000000400 matches |
+| AC-12 | Done | TestValidatePKIRefsLocalIDMismatch | WRONG vs EXAFO000000400 |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 12 ACs, 18 tests, 10 files
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** functional .ci tests (no daemon entry point yet)
+- **Changed:** validate.go functions are methods not standalone
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-
-### Fixes applied
--
-
-### Run 2+ (re-runs until clean)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+| 1 | NOTE | Functional .ci tests not created | test/parse/ | Deferred to ipsec-4 (parser has no daemon path yet) |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above
 
 ## Pre-Commit Verification
 
@@ -441,7 +445,7 @@ MUST document: validation rules, algorithm requirements, proposal format constra
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-10 all demonstrated
+- [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)

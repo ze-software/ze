@@ -1,0 +1,668 @@
+package ipsec
+
+import (
+	"strings"
+	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
+)
+
+// makeESPTree builds a config tree with vpn { ipsec { esp-group <name> { ... } } }.
+func makeESPTree(name, lifetime, pfs string, proposals map[string][2]string) *config.Tree {
+	tree := config.NewTree()
+	vpn := tree.GetOrCreateContainer("vpn")
+	ipsec := vpn.GetOrCreateContainer("ipsec")
+
+	espEntry := config.NewTree()
+	if lifetime != "" {
+		espEntry.Set("lifetime", lifetime)
+	}
+	if pfs != "" {
+		espEntry.Set("pfs", pfs)
+	}
+	for num, encHash := range proposals {
+		prop := config.NewTree()
+		prop.Set("encryption", encHash[0])
+		if encHash[1] != "" {
+			prop.Set("hash", encHash[1])
+		}
+		espEntry.AddListEntry("proposal", num, prop)
+	}
+	ipsec.AddListEntry("esp-group", name, espEntry)
+
+	return tree
+}
+
+// makeIKETree builds a config tree with vpn { ipsec { ike-group <name> { ... } } }.
+func makeIKETree(name string, opts ikeOpts) *config.Tree {
+	tree := config.NewTree()
+	vpn := tree.GetOrCreateContainer("vpn")
+	ipsec := vpn.GetOrCreateContainer("ipsec")
+
+	ikeEntry := config.NewTree()
+	if opts.keyExchange != "" {
+		ikeEntry.Set("key-exchange", opts.keyExchange)
+	}
+	if opts.lifetime != "" {
+		ikeEntry.Set("lifetime", opts.lifetime)
+	}
+	if opts.closeAction != "" {
+		ikeEntry.Set("close-action", opts.closeAction)
+	}
+	if opts.dpdAction != "" || opts.dpdInterval != "" || opts.dpdTimeout != "" {
+		dpd := ikeEntry.GetOrCreateContainer("dead-peer-detection")
+		if opts.dpdAction != "" {
+			dpd.Set("action", opts.dpdAction)
+		}
+		if opts.dpdInterval != "" {
+			dpd.Set("interval", opts.dpdInterval)
+		}
+		if opts.dpdTimeout != "" {
+			dpd.Set("timeout", opts.dpdTimeout)
+		}
+	}
+	for num, p := range opts.proposals {
+		prop := config.NewTree()
+		prop.Set("encryption", p.encryption)
+		prop.Set("hash", p.hash)
+		prop.Set("dh-group", p.dhGroup)
+		ikeEntry.AddListEntry("proposal", num, prop)
+	}
+	ipsec.AddListEntry("ike-group", name, ikeEntry)
+
+	return tree
+}
+
+type ikeOpts struct {
+	keyExchange string
+	lifetime    string
+	closeAction string
+	dpdAction   string
+	dpdInterval string
+	dpdTimeout  string
+	proposals   map[string]ikeProposalOpts
+}
+
+type ikeProposalOpts struct {
+	encryption string
+	hash       string
+	dhGroup    string
+}
+
+func makePeerTree(peerName string, opts peerOpts) *config.Tree {
+	tree := config.NewTree()
+	vpn := tree.GetOrCreateContainer("vpn")
+	ipsec := vpn.GetOrCreateContainer("ipsec")
+
+	if opts.espGroupName != "" {
+		espEntry := config.NewTree()
+		prop := config.NewTree()
+		prop.Set("encryption", "aes128gcm")
+		espEntry.AddListEntry("proposal", "1", prop)
+		ipsec.AddListEntry("esp-group", opts.espGroupName, espEntry)
+	}
+	if opts.ikeGroupName != "" {
+		ikeEntry := config.NewTree()
+		prop := config.NewTree()
+		prop.Set("encryption", "aes128gcm")
+		prop.Set("hash", "sha256")
+		prop.Set("dh-group", "14")
+		ikeEntry.AddListEntry("proposal", "1", prop)
+		ipsec.AddListEntry("ike-group", opts.ikeGroupName, ikeEntry)
+	}
+
+	sts := ipsec.GetOrCreateContainer("site-to-site")
+	peerEntry := config.NewTree()
+	if opts.ikeGroup != "" {
+		peerEntry.Set("ike-group", opts.ikeGroup)
+	}
+	if opts.espGroup != "" {
+		peerEntry.Set("esp-group", opts.espGroup)
+	}
+	if opts.connType != "" {
+		peerEntry.Set("connection-type", opts.connType)
+	}
+	if opts.localAddr != "" {
+		peerEntry.Set("local-address", opts.localAddr)
+	}
+	if opts.remoteAddr != "" {
+		peerEntry.Set("remote-address", opts.remoteAddr)
+	}
+
+	auth := peerEntry.GetOrCreateContainer("authentication")
+	if opts.authMode != "" {
+		auth.Set("mode", opts.authMode)
+	}
+	if opts.psk != "" {
+		auth.Set("pre-shared-secret", opts.psk)
+	}
+	if opts.localID != "" {
+		auth.Set("local-id", opts.localID)
+	}
+	if opts.remoteID != "" {
+		auth.Set("remote-id", opts.remoteID)
+	}
+	if opts.caCert != "" || opts.cert != "" {
+		x509 := auth.GetOrCreateContainer("x509")
+		if opts.caCert != "" {
+			x509.Set("ca-certificate", opts.caCert)
+		}
+		if opts.cert != "" {
+			x509.Set("certificate", opts.cert)
+		}
+	}
+
+	if opts.vtiBind != "" {
+		vti := peerEntry.GetOrCreateContainer("vti")
+		vti.Set("bind", opts.vtiBind)
+	}
+
+	sts.AddListEntry("peer", peerName, peerEntry)
+
+	return tree
+}
+
+type peerOpts struct {
+	ikeGroupName string // define this IKE group in the tree
+	espGroupName string // define this ESP group in the tree
+	ikeGroup     string // peer references this IKE group
+	espGroup     string // peer references this ESP group
+	connType     string
+	localAddr    string
+	remoteAddr   string
+	authMode     string
+	psk          string
+	localID      string
+	remoteID     string
+	caCert       string
+	cert         string
+	vtiBind      string
+}
+
+func TestParseESPGroup(t *testing.T) {
+	tree := makeESPTree("ESP-RW", "86400", "disable", map[string][2]string{
+		"10": {"aes128gcm", "sha256"},
+		"20": {"aes256", "sha512"},
+	})
+
+	cfg, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: %v", err)
+	}
+
+	g, ok := cfg.ESPGroups["ESP-RW"]
+	if !ok {
+		t.Fatal("ESP group ESP-RW not found")
+	}
+	if g.Lifetime != 86400 {
+		t.Errorf("lifetime = %d, want 86400", g.Lifetime)
+	}
+	if g.PFS != PFSDisable {
+		t.Errorf("pfs = %s, want disable", g.PFS)
+	}
+	if len(g.Proposals) != 2 {
+		t.Fatalf("proposals count = %d, want 2", len(g.Proposals))
+	}
+	if g.Proposals[0].Number != 10 {
+		t.Errorf("first proposal number = %d, want 10", g.Proposals[0].Number)
+	}
+	if g.Proposals[0].Encryption != EncryptionAES128GCM {
+		t.Errorf("first proposal encryption = %s, want aes128gcm", g.Proposals[0].Encryption)
+	}
+	if g.Proposals[1].Number != 20 {
+		t.Errorf("second proposal number = %d, want 20", g.Proposals[1].Number)
+	}
+}
+
+func TestParseESPGroupDefaults(t *testing.T) {
+	tree := makeESPTree("DEFAULT", "", "", map[string][2]string{
+		"1": {"aes128", "sha256"},
+	})
+
+	cfg, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: %v", err)
+	}
+
+	g := cfg.ESPGroups["DEFAULT"]
+	if g.Lifetime != 3600 {
+		t.Errorf("default lifetime = %d, want 3600", g.Lifetime)
+	}
+	if g.PFS != PFSEnable {
+		t.Errorf("default pfs = %s, want enable", g.PFS)
+	}
+}
+
+func TestParseIKEGroup(t *testing.T) {
+	tree := makeIKETree("IKE-RW", ikeOpts{
+		keyExchange: "ikev2",
+		lifetime:    "0",
+		closeAction: "start",
+		dpdAction:   "restart",
+		dpdInterval: "10",
+		dpdTimeout:  "30",
+		proposals: map[string]ikeProposalOpts{
+			"10": {encryption: "aes128gcm", hash: "sha256", dhGroup: "14"},
+		},
+	})
+
+	cfg, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: %v", err)
+	}
+
+	g, ok := cfg.IKEGroups["IKE-RW"]
+	if !ok {
+		t.Fatal("IKE group IKE-RW not found")
+	}
+	if g.KeyExchange != KeyExchangeIKEv2 {
+		t.Errorf("key-exchange = %s, want ikev2", g.KeyExchange)
+	}
+	if g.Lifetime != 0 {
+		t.Errorf("lifetime = %d, want 0", g.Lifetime)
+	}
+	if g.CloseAction != CloseActionStart {
+		t.Errorf("close-action = %s, want start", g.CloseAction)
+	}
+	if len(g.Proposals) != 1 {
+		t.Fatalf("proposals count = %d, want 1", len(g.Proposals))
+	}
+	if g.Proposals[0].DHGroup != 14 {
+		t.Errorf("dh-group = %d, want 14", g.Proposals[0].DHGroup)
+	}
+}
+
+func TestParseIKEGroupDPD(t *testing.T) {
+	tree := makeIKETree("DPD-TEST", ikeOpts{
+		dpdAction:   "restart",
+		dpdInterval: "10",
+		dpdTimeout:  "30",
+		proposals: map[string]ikeProposalOpts{
+			"1": {encryption: "aes256", hash: "sha512", dhGroup: "19"},
+		},
+	})
+
+	cfg, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: %v", err)
+	}
+
+	g := cfg.IKEGroups["DPD-TEST"]
+	if g.DPD.Action != DPDActionRestart {
+		t.Errorf("dpd action = %s, want restart", g.DPD.Action)
+	}
+	if g.DPD.Interval != 10 {
+		t.Errorf("dpd interval = %d, want 10", g.DPD.Interval)
+	}
+	if g.DPD.Timeout != 30 {
+		t.Errorf("dpd timeout = %d, want 30", g.DPD.Timeout)
+	}
+}
+
+func TestParseSiteToSitePeerX509(t *testing.T) {
+	tree := makePeerTree("mgmt-bridge", peerOpts{
+		ikeGroupName: "IKE-RW",
+		espGroupName: "ESP-RW",
+		ikeGroup:     "IKE-RW",
+		espGroup:     "ESP-RW",
+		connType:     "initiate",
+		remoteAddr:   "mgmt.example.com",
+		authMode:     "x509",
+		localID:      "DEVICE001",
+		remoteID:     "mgmt-bridge",
+		caCert:       "exa-vpn-ca",
+		cert:         "DEVICE001",
+		vtiBind:      "vti0",
+	})
+
+	cfg, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: %v", err)
+	}
+
+	peer, ok := cfg.Peers["mgmt-bridge"]
+	if !ok {
+		t.Fatal("peer mgmt-bridge not found")
+	}
+	if peer.Auth.Mode != AuthX509 {
+		t.Errorf("auth mode = %s, want x509", peer.Auth.Mode)
+	}
+	if peer.Auth.CACertificate != "exa-vpn-ca" {
+		t.Errorf("ca-certificate = %q, want exa-vpn-ca", peer.Auth.CACertificate)
+	}
+	if peer.Auth.Certificate != "DEVICE001" {
+		t.Errorf("certificate = %q, want DEVICE001", peer.Auth.Certificate)
+	}
+	if peer.Auth.LocalID != "DEVICE001" {
+		t.Errorf("local-id = %q, want DEVICE001", peer.Auth.LocalID)
+	}
+	if peer.Auth.RemoteID != "mgmt-bridge" {
+		t.Errorf("remote-id = %q, want mgmt-bridge", peer.Auth.RemoteID)
+	}
+	if peer.VTIBind != "vti0" {
+		t.Errorf("vti bind = %q, want vti0", peer.VTIBind)
+	}
+	if peer.ConnectionType != ConnectionInitiate {
+		t.Errorf("connection-type = %s, want initiate", peer.ConnectionType)
+	}
+}
+
+func TestParseSiteToSitePeerPSK(t *testing.T) {
+	tree := makePeerTree("psk-peer", peerOpts{
+		ikeGroupName: "IKE-RW",
+		espGroupName: "ESP-RW",
+		ikeGroup:     "IKE-RW",
+		espGroup:     "ESP-RW",
+		authMode:     "pre-shared-secret",
+		psk:          "mysecretkey",
+	})
+
+	cfg, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: %v", err)
+	}
+
+	peer := cfg.Peers["psk-peer"]
+	if peer.Auth.Mode != AuthPreSharedSecret {
+		t.Errorf("auth mode = %s, want pre-shared-secret", peer.Auth.Mode)
+	}
+	if peer.Auth.PSK != "mysecretkey" {
+		t.Errorf("psk = %q, want mysecretkey", peer.Auth.PSK)
+	}
+}
+
+func TestParseSiteToSitePeerVTI(t *testing.T) {
+	tree := makePeerTree("vti-peer", peerOpts{
+		ikeGroupName: "IKE-RW",
+		espGroupName: "ESP-RW",
+		ikeGroup:     "IKE-RW",
+		espGroup:     "ESP-RW",
+		authMode:     "x509",
+		vtiBind:      "vti42",
+	})
+
+	cfg, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: %v", err)
+	}
+
+	if cfg.Peers["vti-peer"].VTIBind != "vti42" {
+		t.Errorf("vti bind = %q, want vti42", cfg.Peers["vti-peer"].VTIBind)
+	}
+}
+
+func TestParseInvalidEncryption(t *testing.T) {
+	tree := makeESPTree("BAD", "", "", map[string][2]string{
+		"1": {"des", "sha256"},
+	})
+	_, err := ParseIPsecConfig(tree)
+	if err == nil {
+		t.Fatal("expected error for unsupported encryption 'des'")
+	}
+	if !strings.Contains(err.Error(), "unsupported encryption algorithm") {
+		t.Errorf("error = %q, want to contain 'unsupported encryption algorithm'", err)
+	}
+	if !strings.Contains(err.Error(), "des") {
+		t.Errorf("error = %q, want to name the algorithm 'des'", err)
+	}
+}
+
+func TestParseInvalidDHGroup(t *testing.T) {
+	for _, dh := range []string{"0", "99"} {
+		tree := makeIKETree("BAD", ikeOpts{
+			proposals: map[string]ikeProposalOpts{
+				"1": {encryption: "aes128", hash: "sha256", dhGroup: dh},
+			},
+		})
+		_, err := ParseIPsecConfig(tree)
+		if err == nil {
+			t.Fatalf("expected error for DH group %s", dh)
+		}
+		if !strings.Contains(err.Error(), "DH group") {
+			t.Errorf("dh=%s: error = %q, want to contain 'DH group'", dh, err)
+		}
+	}
+}
+
+func TestParseMissingGroupRef(t *testing.T) {
+	tree := makePeerTree("bad-ref", peerOpts{
+		ikeGroup: "NONEXISTENT",
+		espGroup: "ALSO-MISSING",
+		authMode: "x509",
+	})
+
+	cfg, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: %v", err)
+	}
+
+	err = cfg.ValidateGroupRefs()
+	if err == nil {
+		t.Fatal("expected error for missing group reference")
+	}
+	if !strings.Contains(err.Error(), "not defined") {
+		t.Errorf("error = %q, want to contain 'not defined'", err)
+	}
+}
+
+func TestParseInvalidInterfaceRef(t *testing.T) {
+	tree := config.NewTree()
+	vpn := tree.GetOrCreateContainer("vpn")
+	ipsec := vpn.GetOrCreateContainer("ipsec")
+	ipsec.Set("interface", "ethXX")
+
+	cfg, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("ParseIPsecConfig: %v", err)
+	}
+
+	err = cfg.ValidateInterfaceRef(func(name string) bool {
+		return name == "eth0" || name == "pppoe0"
+	})
+	if err == nil {
+		t.Fatal("expected error for interface ethXX")
+	}
+	if !strings.Contains(err.Error(), "ethXX") {
+		t.Errorf("error = %q, want to contain 'ethXX'", err)
+	}
+}
+
+func TestIPsecConfigChanged(t *testing.T) {
+	old := &IPsecConfig{
+		Peers: map[string]SiteToSitePeer{
+			"kept":    {Name: "kept", RemoteAddress: "1.1.1.1"},
+			"changed": {Name: "changed", RemoteAddress: "2.2.2.2"},
+			"removed": {Name: "removed", RemoteAddress: "3.3.3.3"},
+		},
+	}
+	new := &IPsecConfig{
+		Peers: map[string]SiteToSitePeer{
+			"kept":    {Name: "kept", RemoteAddress: "1.1.1.1"},
+			"changed": {Name: "changed", RemoteAddress: "9.9.9.9"},
+			"added":   {Name: "added", RemoteAddress: "4.4.4.4"},
+		},
+	}
+
+	got := new.Changed(old)
+	gotSet := make(map[string]bool)
+	for _, name := range got {
+		gotSet[name] = true
+	}
+
+	if gotSet["kept"] {
+		t.Error("'kept' should not be in changed list")
+	}
+	if !gotSet["changed"] {
+		t.Error("'changed' should be in changed list")
+	}
+	if !gotSet["removed"] {
+		t.Error("'removed' should be in changed list")
+	}
+	if !gotSet["added"] {
+		t.Error("'added' should be in changed list")
+	}
+}
+
+func TestParseNilTree(t *testing.T) {
+	cfg, err := ParseIPsecConfig(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg == nil {
+		t.Fatal("expected non-nil config")
+	}
+	if len(cfg.ESPGroups) != 0 || len(cfg.IKEGroups) != 0 || len(cfg.Peers) != 0 {
+		t.Error("expected empty config")
+	}
+}
+
+func TestParseESPLifetimeBoundary(t *testing.T) {
+	tree := makeESPTree("GOOD", "86400", "", map[string][2]string{
+		"1": {"aes128", "sha256"},
+	})
+	if _, err := ParseIPsecConfig(tree); err != nil {
+		t.Fatalf("lifetime 86400 should be valid: %v", err)
+	}
+
+	tree = makeESPTree("BAD", "86401", "", map[string][2]string{
+		"1": {"aes128", "sha256"},
+	})
+	if _, err := ParseIPsecConfig(tree); err == nil {
+		t.Fatal("lifetime 86401 should be rejected")
+	}
+}
+
+func TestParseDPDBoundary(t *testing.T) {
+	tree := makeIKETree("OK", ikeOpts{
+		dpdInterval: "3600",
+		dpdTimeout:  "3600",
+		proposals: map[string]ikeProposalOpts{
+			"1": {encryption: "aes128", hash: "sha256", dhGroup: "14"},
+		},
+	})
+	if _, err := ParseIPsecConfig(tree); err != nil {
+		t.Fatalf("DPD 3600 should be valid: %v", err)
+	}
+
+	tree = makeIKETree("BAD-INT", ikeOpts{
+		dpdInterval: "3601",
+		proposals: map[string]ikeProposalOpts{
+			"1": {encryption: "aes128", hash: "sha256", dhGroup: "14"},
+		},
+	})
+	if _, err := ParseIPsecConfig(tree); err == nil {
+		t.Fatal("DPD interval 3601 should be rejected")
+	}
+
+	tree = makeIKETree("BAD-TO", ikeOpts{
+		dpdTimeout: "0",
+		proposals: map[string]ikeProposalOpts{
+			"1": {encryption: "aes128", hash: "sha256", dhGroup: "14"},
+		},
+	})
+	if _, err := ParseIPsecConfig(tree); err == nil {
+		t.Fatal("DPD timeout 0 should be rejected")
+	}
+}
+
+func TestParseProposalNumberBoundary(t *testing.T) {
+	tree := makeESPTree("GOOD", "", "", map[string][2]string{
+		"65535": {"aes128", "sha256"},
+	})
+	if _, err := ParseIPsecConfig(tree); err != nil {
+		t.Fatalf("proposal 65535 should be valid: %v", err)
+	}
+
+	tree = makeESPTree("BAD", "", "", map[string][2]string{
+		"0": {"aes128", "sha256"},
+	})
+	if _, err := ParseIPsecConfig(tree); err == nil {
+		t.Fatal("proposal 0 should be rejected")
+	}
+}
+
+func TestValidatePKIRefsLocalIDMismatch(t *testing.T) {
+	cfg := &IPsecConfig{
+		Peers: map[string]SiteToSitePeer{
+			"p1": {
+				Name: "p1",
+				Auth: AuthConfig{
+					Mode:          AuthX509,
+					CACertificate: "ca1",
+					Certificate:   "dev1",
+					LocalID:       "WRONG",
+				},
+			},
+		},
+	}
+	hasCA := func(string) bool { return true }
+	hasCert := func(string) bool { return true }
+	certCN := func(string) string { return "EXAFO000000400" }
+
+	err := cfg.ValidatePKIRefs(hasCA, hasCert, certCN)
+	if err == nil {
+		t.Fatal("expected error for local-id/CN mismatch")
+	}
+	if !strings.Contains(err.Error(), "WRONG") || !strings.Contains(err.Error(), "EXAFO000000400") {
+		t.Errorf("error = %q, want to mention both WRONG and EXAFO000000400", err)
+	}
+}
+
+func TestValidatePKIRefsMatch(t *testing.T) {
+	cfg := &IPsecConfig{
+		Peers: map[string]SiteToSitePeer{
+			"p1": {
+				Name: "p1",
+				Auth: AuthConfig{
+					Mode:          AuthX509,
+					CACertificate: "ca1",
+					Certificate:   "dev1",
+					LocalID:       "EXAFO000000400",
+				},
+			},
+		},
+	}
+	hasCA := func(string) bool { return true }
+	hasCert := func(string) bool { return true }
+	certCN := func(string) string { return "EXAFO000000400" }
+
+	if err := cfg.ValidatePKIRefs(hasCA, hasCert, certCN); err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+}
+
+func TestParseInvalidName(t *testing.T) {
+	longName := strings.Repeat("a", 256)
+	for _, name := range []string{"", "has space", "semi;colon", longName} {
+		tree := makeESPTree(name, "", "", map[string][2]string{
+			"1": {"aes128", "sha256"},
+		})
+		_, err := ParseIPsecConfig(tree)
+		if err == nil {
+			t.Errorf("expected error for ESP group name %q", name)
+		}
+	}
+}
+
+func TestParseNonAEADWithoutHash(t *testing.T) {
+	tree := makeESPTree("NO-HASH", "", "", map[string][2]string{
+		"1": {"aes128", ""},
+	})
+	_, err := ParseIPsecConfig(tree)
+	if err == nil {
+		t.Fatal("expected error for non-AEAD aes128 without hash")
+	}
+	if !strings.Contains(err.Error(), "hash is required") {
+		t.Errorf("error = %q, want to contain 'hash is required'", err)
+	}
+}
+
+func TestParseAEADWithoutHash(t *testing.T) {
+	tree := makeESPTree("AEAD-OK", "", "", map[string][2]string{
+		"1": {"aes128gcm", ""},
+	})
+	_, err := ParseIPsecConfig(tree)
+	if err != nil {
+		t.Fatalf("AEAD without hash should be valid: %v", err)
+	}
+}

@@ -525,6 +525,79 @@ CA. Expired certificates are rejected with a descriptive error.
 <!-- source: internal/component/pki/schema/ze-pki-conf.yang -- PKI YANG schema -->
 <!-- source: internal/component/pki/config.go -- PKI config parser -->
 
+## IPsec VPN Configuration
+
+The `vpn { ipsec {} }` container configures site-to-site IPsec VPN tunnels. The data model
+defines ESP groups, IKE groups, and peers. Ze validates the config at load time; strongSwan
+handles runtime negotiation.
+
+```
+vpn {
+    ipsec {
+        interface pppoe0
+
+        esp-group ESP-RW {
+            lifetime 86400
+            pfs disable
+            proposal 10 {
+                encryption aes128gcm
+                hash sha256
+            }
+        }
+
+        ike-group IKE-RW {
+            key-exchange ikev2
+            lifetime 0
+            close-action start
+            dead-peer-detection {
+                action restart
+                interval 10
+                timeout 30
+            }
+            proposal 10 {
+                encryption aes128gcm
+                hash sha256
+                dh-group 14
+            }
+        }
+
+        site-to-site {
+            peer management-bridge {
+                ike-group IKE-RW
+                esp-group ESP-RW
+                connection-type initiate
+                remote-address mgmt.example.com
+                authentication {
+                    mode x509
+                    local-id EXAFO000000400
+                    remote-id management-bridge
+                    x509 {
+                        ca-certificate exa-vpn-ca
+                        certificate EXAFO000000400
+                    }
+                }
+                vti {
+                    bind vti0
+                }
+            }
+        }
+    }
+}
+```
+
+Encryption algorithms: `aes128`, `aes256`, `aes128gcm`, `aes256gcm`, `chacha20poly1305`, `3des`.
+Hash algorithms: `sha1`, `sha256`, `sha384`, `sha512`.
+DH groups: 1-31 (14 = MODP-2048 recommended minimum).
+Authentication modes: `pre-shared-secret` (with `$9$`-encoded key) or `x509` (PKI store references).
+
+Cross-reference validation runs at config load: peer IKE/ESP group references must name
+defined groups, X.509 `ca-certificate` and `certificate` names must exist in the PKI store,
+and `local-id` must match the certificate's subject CN.
+
+<!-- source: internal/component/ipsec/schema/ze-ipsec-conf.yang -- IPsec YANG schema -->
+<!-- source: internal/component/ipsec/config.go -- IPsec config parser -->
+<!-- source: internal/component/ipsec/validate.go -- cross-reference validation -->
+
 ## Interface Configuration
 
 Ze manages network interfaces with a descriptive-name model. Each interface type is a

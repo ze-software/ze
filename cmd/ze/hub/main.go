@@ -37,6 +37,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pki"
