@@ -28,7 +28,8 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | PPPoE | missing | lower |
 | | L2TPv3 | missing | lower |
 | | WiFi | missing | lower |
-| | VTI (IPSec tunnel) | missing | lower |
+| | XFRM (route-based IPsec, if_id) | have | |
+| | VTI (legacy IPsec tunnel) | missing | lower |
 | | QinQ (802.1ad) | missing | lower |
 | **Logical Model** | Two-layer physical + unit | have | |
 | | Unit 0 implicit | have | |
@@ -475,6 +476,8 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | | `CreateWireguardDevice` | real (rtnetlink) | err (requires VPP wg plugin) | err |
 | | `ConfigureWireguardDevice` | real (wgctrl) | err (requires VPP wg plugin) | err |
 | | `GetWireguardDevice` | real (wgctrl) | err (requires VPP wg plugin) | err |
+| | `CreateXFRM` | real (rtnetlink) | err (XFRM is Linux netlink only) | err |
+| | `GetXFRMInfo` | real (rtnetlink+xfrm) | err (XFRM is Linux netlink only) | err |
 | | `DeleteInterface` | real | real (DeleteLoopback/DeleteSubif) | err |
 | **Address** | `AddAddress` | real | real (SwInterfaceAddDelAddress) | err |
 | | `RemoveAddress` | real | real (SwInterfaceAddDelAddress) | err |

@@ -120,6 +120,7 @@ Graceful restart, route refresh, capability negotiation, session management.
 Metrics, telemetry, Prometheus exporters, third-party format compatibility.
 
 - [653](plan/learned/653-netdata-os-collectors.md) -- Netdata-compatible OS collector framework, 138 metrics, counter-wrap protection, per-collector config via YANG, verify names against source not summaries
+- [736](plan/learned/736-iface-rate.md) -- Interface rate tracker: raw backend stats (not baseline-adjusted), 12 GaugeVec, stale label cleanup, ticker+stop-channel lifecycle
 
 ## Testing
 
@@ -156,3 +157,4 @@ Reusable lessons extracted from gotchas sections across summaries.
 - (731) Plugin-to-infrastructure state exposure via registry.SetNTPSyncProvider; plugins register RPCs in their own init() to avoid import boundary violations
 - (733) PKI store: shared certificate infrastructure; config.Tree lists via AddListEntry not GetOrCreateContainer; ECDSA keySize via Curve.Params().BitSize not generic Size()
 - (734) IPsec data model: L2TP-pattern tree-walker parser; algorithm enum strings match strongSwan naming for ipsec-4 consumption; DHGroup as uint8 with range validation over iota enum; cross-ref validation via function callbacks for testability
+- (735) XFRM interfaces: standalone type not TunnelKind (no endpoints); VTI deliberately excluded; GetXFRMInfo for operational display of managed and unmanaged interfaces; XfrmPolicyList is system-wide, filter by Ifid client-side

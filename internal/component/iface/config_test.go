@@ -1986,6 +1986,14 @@ func (b *fakeBackend) GetWireguardDevice(_ string) (WireguardSpec, error) {
 	return WireguardSpec{}, nil
 }
 
+func (b *fakeBackend) CreateXFRM(spec XFRMSpec) error {
+	b.ensureMaps()
+	b.created[spec.Name] = true
+	b.ifaces[spec.Name] = fakeIface{name: spec.Name, linkType: "xfrm"}
+	return nil
+}
+func (b *fakeBackend) GetXFRMInfo(_ string) (XFRMInfo, error) { return XFRMInfo{}, nil }
+
 func (b *fakeBackend) SetAdminUp(_ string) error              { return nil }
 func (b *fakeBackend) SetAdminDown(_ string) error            { return nil }
 func (b *fakeBackend) SetMTU(_ string, _ int) error           { return nil }
@@ -3325,4 +3333,136 @@ func TestApplyRPFCheck_Sysctl(t *testing.T) {
 		assert.Equal(t, tt.expected, tt.mode.rpfSysctlValue(),
 			"rpfMode(%d).rpfSysctlValue()", tt.mode)
 	}
+}
+
+func TestParseXFRMEntry(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"xfrm": {
+				"xfrm0": {
+					"if-id": "42",
+					"dev": "eth0",
+					"unit": {
+						"default": {
+							"ipv4": {"address": ["10.0.0.1/30"]}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.XFRM, 1)
+	assert.Equal(t, "xfrm0", cfg.XFRM[0].Name)
+	assert.Equal(t, uint32(42), cfg.XFRM[0].Spec.IfID)
+	assert.Equal(t, "eth0", cfg.XFRM[0].Spec.PhysicalDev)
+	assert.Equal(t, "xfrm0", cfg.XFRM[0].Spec.Name)
+	require.Len(t, cfg.XFRM[0].Units, 1)
+	assert.Contains(t, cfg.XFRM[0].Units[0].Addresses, "10.0.0.1/30")
+}
+
+func TestParseXFRMEntryNoDev(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"xfrm": {
+				"xfrm1": {
+					"if-id": "99"
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.XFRM, 1)
+	assert.Equal(t, uint32(99), cfg.XFRM[0].Spec.IfID)
+	assert.Equal(t, "", cfg.XFRM[0].Spec.PhysicalDev)
+}
+
+func TestParseXFRMEntryMissingIfId(t *testing.T) {
+	_, err := parseIfaceConfig(`{
+		"interface": {
+			"xfrm": {
+				"xfrm0": {}
+			}
+		}
+	}`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "if-id is required")
+}
+
+func TestParseXFRMEntryZeroIfId(t *testing.T) {
+	_, err := parseIfaceConfig(`{
+		"interface": {
+			"xfrm": {
+				"xfrm0": {
+					"if-id": "0"
+				}
+			}
+		}
+	}`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "if-id must be non-zero")
+}
+
+func TestXFRMSpecEqual(t *testing.T) {
+	a := XFRMSpec{Name: "xfrm0", IfID: 42, PhysicalDev: "eth0"}
+	b := XFRMSpec{Name: "xfrm0", IfID: 42, PhysicalDev: "eth0"}
+	assert.True(t, xfrmSpecEqual(a, b))
+
+	c := XFRMSpec{Name: "xfrm0", IfID: 99, PhysicalDev: "eth0"}
+	assert.False(t, xfrmSpecEqual(a, c))
+
+	d := XFRMSpec{Name: "xfrm0", IfID: 42, PhysicalDev: ""}
+	assert.False(t, xfrmSpecEqual(a, d))
+}
+
+func TestApplyXFRMCreate(t *testing.T) {
+	cfg := &ifaceConfig{
+		XFRM: []xfrmEntry{{
+			ifaceEntry: ifaceEntry{Name: "xfrm0"},
+			Spec:       XFRMSpec{Name: "xfrm0", IfID: 42},
+		}},
+	}
+	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	errs := applyConfig(cfg, nil, b)
+	assert.Empty(t, errs)
+	assert.True(t, b.created["xfrm0"])
+}
+
+func TestApplyXFRMUnchangedSkipsRecreate(t *testing.T) {
+	spec := XFRMSpec{Name: "xfrm0", IfID: 42}
+	prev := &ifaceConfig{
+		XFRM: []xfrmEntry{{
+			ifaceEntry: ifaceEntry{Name: "xfrm0"},
+			Spec:       spec,
+		}},
+	}
+	cfg := &ifaceConfig{
+		XFRM: []xfrmEntry{{
+			ifaceEntry: ifaceEntry{Name: "xfrm0"},
+			Spec:       spec,
+		}},
+	}
+	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	errs := applyConfig(cfg, prev, b)
+	assert.Empty(t, errs)
+	assert.False(t, b.created["xfrm0"])
+	assert.False(t, b.deleted["xfrm0"])
+}
+
+func TestApplyXFRMChangedTriggersRecreate(t *testing.T) {
+	prev := &ifaceConfig{
+		XFRM: []xfrmEntry{{
+			ifaceEntry: ifaceEntry{Name: "xfrm0"},
+			Spec:       XFRMSpec{Name: "xfrm0", IfID: 42},
+		}},
+	}
+	cfg := &ifaceConfig{
+		XFRM: []xfrmEntry{{
+			ifaceEntry: ifaceEntry{Name: "xfrm0"},
+			Spec:       XFRMSpec{Name: "xfrm0", IfID: 99},
+		}},
+	}
+	b := &fakeBackend{ifaces: map[string]fakeIface{"xfrm0": {name: "xfrm0"}}}
+	errs := applyConfig(cfg, prev, b)
+	assert.Empty(t, errs)
+	assert.True(t, b.deleted["xfrm0"])
+	assert.True(t, b.created["xfrm0"])
 }

@@ -31,6 +31,12 @@ func (m *mockMigrateBackend) ConfigureWireguardDevice(_ WireguardSpec) error {
 func (m *mockMigrateBackend) GetWireguardDevice(_ string) (WireguardSpec, error) {
 	return WireguardSpec{}, fmt.Errorf("mock: not supported")
 }
+func (m *mockMigrateBackend) CreateXFRM(_ XFRMSpec) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) GetXFRMInfo(_ string) (XFRMInfo, error) {
+	return XFRMInfo{}, fmt.Errorf("mock: not supported")
+}
 func (m *mockMigrateBackend) DeleteInterface(_ string) error {
 	return fmt.Errorf("mock: not supported")
 }

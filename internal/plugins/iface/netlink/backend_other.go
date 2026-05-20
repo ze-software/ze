@@ -35,6 +35,10 @@ func (s *stubBackend) ConfigureWireguardDevice(_ iface.WireguardSpec) error { re
 func (s *stubBackend) GetWireguardDevice(_ string) (iface.WireguardSpec, error) {
 	return iface.WireguardSpec{}, unsupported()
 }
+func (s *stubBackend) CreateXFRM(_ iface.XFRMSpec) error { return unsupported() }
+func (s *stubBackend) GetXFRMInfo(_ string) (iface.XFRMInfo, error) {
+	return iface.XFRMInfo{}, unsupported()
+}
 func (s *stubBackend) DeleteInterface(_ string) error                         { return unsupported() }
 func (s *stubBackend) AddAddress(_, _ string) error                           { return unsupported() }
 func (s *stubBackend) RemoveAddress(_, _ string) error                        { return unsupported() }

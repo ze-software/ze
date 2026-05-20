@@ -172,6 +172,17 @@ type RouterEventPayload struct {
 	RouterIP string `json:"router-ip"` // link-local address of the router
 }
 
+// InterfaceRate holds computed per-second rates and the raw stats snapshot
+// for a single interface. Produced by the rate tracker goroutine.
+type InterfaceRate struct {
+	Name  string          `json:"name"`
+	RxBps float64         `json:"rx-bps"`
+	TxBps float64         `json:"tx-bps"`
+	RxPps float64         `json:"rx-pps"`
+	TxPps float64         `json:"tx-pps"`
+	Stats *InterfaceStats `json:"stats,omitempty"`
+}
+
 // DiscoveredInterface describes an OS network interface found during discovery.
 // Used by ze init to generate initial interface config and by the MAC address
 // validator for autocomplete suggestions.
@@ -187,4 +198,5 @@ type DiscoveredInterface struct {
 	Type      string         `json:"type"`
 	MAC       string         `json:"mac-address,omitempty"`
 	Wireguard *WireguardSpec `json:"-"`
+	XFRM      *XFRMInfo      `json:"-"`
 }

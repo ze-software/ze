@@ -17,6 +17,7 @@ const (
 	zeTypeLoopback  = "loopback"
 	zeTypeTunnel    = "tunnel"
 	zeTypeWireguard = "wireguard"
+	zeTypeXFRM      = "xfrm"
 )
 
 // SupportedTypes returns the canonical list of Ze interface type names
@@ -30,6 +31,7 @@ func SupportedTypes() []string {
 		zeTypeDummy,
 		zeTypeTunnel,
 		zeTypeWireguard,
+		zeTypeXFRM,
 		zeTypeLoopback,
 	}
 }
@@ -99,6 +101,11 @@ func DiscoverInterfaces() ([]DiscoveredInterface, error) {
 				di.Wireguard = &s
 			}
 		}
+		if zeType == zeTypeXFRM {
+			if info, infoErr := b.GetXFRMInfo(infos[i].Name); infoErr == nil {
+				di.XFRM = &info
+			}
+		}
 		result = append(result, di)
 	}
 
@@ -128,6 +135,9 @@ func infoToZeType(info *InterfaceInfo) string {
 	}
 	if info.Type == zeTypeWireguard {
 		return zeTypeWireguard
+	}
+	if info.Type == zeTypeXFRM {
+		return zeTypeXFRM
 	}
 	switch info.Type {
 	case "device":

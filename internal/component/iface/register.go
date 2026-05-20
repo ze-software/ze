@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -136,6 +137,11 @@ func init() {
 		RunEngine:               runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureMetrics: func(reg any) {
+			if r, ok := reg.(metrics.Registry); ok {
+				bindMetricsRegistry(r)
+			}
 		},
 		ConfigureEventBus: func(eb any) {
 			if e, ok := eb.(ze.EventBus); ok {
@@ -562,6 +568,10 @@ func runEngine(conn net.Conn) int {
 		return nil
 	})
 
+	tracker := newRateTracker()
+	globalTracker.Store(tracker)
+	tracker.Start()
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
@@ -615,6 +625,9 @@ func runEngine(conn net.Conn) int {
 		}
 	}
 	dhcpMu.Unlock()
+
+	tracker.Stop()
+	globalTracker.Store(nil)
 
 	if err := CloseBackend(); err != nil {
 		log.Warn("interface backend close failed", "error", err)
@@ -746,6 +759,9 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 	}
 	for i := range cfg.Wireguard {
 		collectDHCPUnits(cfg.Wireguard[i].Name, cfg.Wireguard[i].Units)
+	}
+	for i := range cfg.XFRM {
+		collectDHCPUnits(cfg.XFRM[i].Name, cfg.XFRM[i].Units)
 	}
 	if cfg.Loopback != nil {
 		collectDHCPUnits("lo", cfg.Loopback.Units)
@@ -1059,6 +1075,9 @@ func suppressRAForConfig(cfg *ifaceConfig, suppressed map[string]bool, routers m
 	}
 	for i := range cfg.Wireguard {
 		collectSuppression(cfg.Wireguard[i].Name, cfg.Wireguard[i].Units)
+	}
+	for i := range cfg.XFRM {
+		collectSuppression(cfg.XFRM[i].Name, cfg.XFRM[i].Units)
 	}
 
 	// Suppress on newly qualifying interfaces.

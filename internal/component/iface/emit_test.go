@@ -447,3 +447,81 @@ func TestSafeEmitName(t *testing.T) {
 		})
 	}
 }
+
+func TestEmitConfigXFRMFull(t *testing.T) {
+	dis := []DiscoveredInterface{{
+		Name: "xfrm0",
+		Type: zeTypeXFRM,
+		XFRM: &XFRMInfo{
+			IfID:      42,
+			ParentDev: "eth0",
+			Addresses: []string{"10.0.0.1/30", "fd00::1/64"},
+		},
+	}}
+	out := EmitConfig(dis)
+	for _, want := range []string{
+		"xfrm xfrm0 {",
+		"if-id 42;",
+		"dev eth0;",
+		"ipv4 {\n                address 10.0.0.1/30;",
+		"ipv6 {\n                address fd00::1/64;",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("EmitConfig missing %q in:\n%s", want, out)
+		}
+	}
+}
+
+func TestEmitConfigXFRMSkeleton(t *testing.T) {
+	dis := []DiscoveredInterface{{
+		Name: "xfrm1",
+		Type: zeTypeXFRM,
+	}}
+	out := EmitConfig(dis)
+	if !strings.Contains(out, "xfrm xfrm1 {") {
+		t.Errorf("EmitConfig missing xfrm block in:\n%s", out)
+	}
+	if strings.Contains(out, "if-id") {
+		t.Errorf("EmitConfig skeleton should not have if-id in:\n%s", out)
+	}
+}
+
+func TestEmitConfigXFRMNoDev(t *testing.T) {
+	dis := []DiscoveredInterface{{
+		Name: "xfrm0",
+		Type: zeTypeXFRM,
+		XFRM: &XFRMInfo{
+			IfID:      99,
+			Addresses: []string{"192.168.1.1/24"},
+		},
+	}}
+	out := EmitConfig(dis)
+	if !strings.Contains(out, "if-id 99;") {
+		t.Errorf("EmitConfig missing if-id in:\n%s", out)
+	}
+	if strings.Contains(out, "dev ") {
+		t.Errorf("EmitConfig should not have dev in:\n%s", out)
+	}
+}
+
+func TestEmitSetConfigXFRM(t *testing.T) {
+	dis := []DiscoveredInterface{{
+		Name: "xfrm0",
+		Type: zeTypeXFRM,
+		XFRM: &XFRMInfo{
+			IfID:      42,
+			ParentDev: "eth0",
+			Addresses: []string{"10.0.0.1/30"},
+		},
+	}}
+	out := EmitSetConfig(dis)
+	for _, want := range []string{
+		"set interface xfrm xfrm0 if-id 42",
+		"set interface xfrm xfrm0 dev eth0",
+		"set interface xfrm xfrm0 unit default ipv4 address 10.0.0.1/30",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("EmitSetConfig missing %q in:\n%s", want, out)
+		}
+	}
+}

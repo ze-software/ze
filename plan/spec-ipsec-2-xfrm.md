@@ -173,6 +173,7 @@ visibility into the IPsec binding even when Ze did not create the interface.
 | AC-9 | XFRM config with if-id=0 | Rejected by parser (0 means unset, invalid) |
 | AC-10 | XFRM netdev exists in kernel but not in Ze config | Visible in `show interface` (operational mode) with type "xfrm", if_id, addresses, and policies. Not present in config tree. Not modified or deleted by Ze. |
 | AC-11 | `show interface xfrm0` on any XFRM interface (managed or unmanaged) | Displays if_id, IP addresses, and XFRM policies (src/dst selectors, direction, protocol) queried from netlink |
+| AC-12 | `ze init` on a system with an externally-created XFRM interface | Emits a complete xfrm config block (if-id, dev, addresses) from netlink only, no external config file needed. Enables onboarding into Ze management. |
 
 ## TDD Test Plan
 
@@ -281,7 +282,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-1..AC-11 has implementation with file:line |
+| Completeness | Every AC-1..AC-12 has implementation with file:line |
 | Correctness | XFRM if_id=0 rejected. Unbound (no dev) works. |
 | Naming | zeTypeXFRM = "xfrm". YANG list key uses kebab-case. |
 | Data flow | XFRM created via Backend only, never raw netlink from ipsec component |
@@ -339,7 +340,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-11 all demonstrated
+- [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)

@@ -130,6 +130,10 @@ func showOne(name string, jsonOut bool) int {
 		}
 	}
 
+	if info.Type == "xfrm" {
+		showXFRMDetail(name)
+	}
+
 	if info.Stats != nil {
 		fmt.Println("Statistics:")
 		fmt.Printf("  RX: %d bytes, %d packets, %d errors, %d dropped\n",
@@ -139,6 +143,31 @@ func showOne(name string, jsonOut bool) int {
 	}
 
 	return 0
+}
+
+func showXFRMDetail(name string) {
+	xi, err := ifacepkg.GetXFRMInfo(name)
+	if err != nil {
+		return
+	}
+	if _, err = fmt.Fprintf(os.Stdout, "XFRM if-id: %d\n", xi.IfID); err != nil {
+		return
+	}
+	if xi.ParentDev != "" {
+		if _, err = fmt.Fprintf(os.Stdout, "XFRM dev:   %s\n", xi.ParentDev); err != nil {
+			return
+		}
+	}
+	if len(xi.Policies) > 0 {
+		if _, err = fmt.Fprintln(os.Stdout, "XFRM Policies:"); err != nil {
+			return
+		}
+		for _, p := range xi.Policies {
+			if _, err = fmt.Fprintf(os.Stdout, "  %s %s -> %s proto=%s mode=%s\n", p.Dir, p.Src, p.Dst, p.Proto, p.Mode); err != nil {
+				return
+			}
+		}
+	}
 }
 
 // formatAddrs returns a compact string of addresses.

@@ -77,6 +77,14 @@ func (cfg *ifaceConfig) desiredState() (addrs map[string]map[string]bool, manage
 		managed[e.Name] = true
 		addIfaceAddrs(e.Name, e.Units)
 	}
+	for i := range cfg.XFRM {
+		e := &cfg.XFRM[i]
+		if e.Disable {
+			continue
+		}
+		managed[e.Name] = true
+		addIfaceAddrs(e.Name, e.Units)
+	}
 	for _, e := range cfg.Ethernet {
 		if e.Disable {
 			continue
@@ -273,8 +281,24 @@ func wireguardPeerEqual(a, b WireguardPeerSpec) bool {
 	return true
 }
 
+func indexXFRMSpecs(previous *ifaceConfig) map[string]XFRMSpec {
+	if previous == nil {
+		return nil
+	}
+	specs := make(map[string]XFRMSpec, len(previous.XFRM))
+	for i := range previous.XFRM {
+		e := &previous.XFRM[i]
+		specs[e.Name] = e.Spec
+	}
+	return specs
+}
+
+func xfrmSpecEqual(a, b XFRMSpec) bool {
+	return a.Name == b.Name && a.IfID == b.IfID && a.PhysicalDev == b.PhysicalDev
+}
+
 // applyConfig applies the parsed interface config declaratively via the backend.
-// 1. Creates missing Ze-managed interfaces (dummy, veth, tunnel, bridge, VLAN)
+// 1. Creates missing Ze-managed interfaces (dummy, veth, tunnel, xfrm, bridge, VLAN)
 // 2. Sets properties (MTU, MAC, sysctl, mirror) on all configured interfaces
 // 3. Adds missing addresses, removes extra addresses on configured interfaces
 // 4. Deletes Ze-managed interfaces not in config.
@@ -472,6 +496,55 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			return record("wireguard "+e.Name+" configure", err)
 		}
 	}
+	previousXFRMSpecs := indexXFRMSpecs(previous)
+	for i := range cfg.XFRM {
+		e := &cfg.XFRM[i]
+		if e.Disable {
+			continue
+		}
+		prev, hadPrev := previousXFRMSpecs[e.Name]
+		if hadPrev && xfrmSpecEqual(prev, e.Spec) {
+			continue
+		}
+		if hadPrev {
+			deleted := false
+			if err := applyBackendStep(journal, func() error {
+				if err := b.DeleteInterface(e.Name); err != nil {
+					if !interfaceExists(b, e.Name) {
+						return nil
+					}
+					return err
+				}
+				deleted = true
+				return nil
+			}, func() error {
+				if !deleted {
+					return nil
+				}
+				return b.CreateXFRM(prev)
+			}); err != nil {
+				return record("xfrm "+e.Name+" delete before recreate", err)
+			}
+		}
+		created := false
+		if err := applyBackendStep(journal, func() error {
+			if err := b.CreateXFRM(e.Spec); err != nil {
+				if _, getErr := b.GetInterface(e.Name); getErr != nil {
+					return err
+				}
+				return nil
+			}
+			created = true
+			return nil
+		}, func() error {
+			if !created {
+				return nil
+			}
+			return b.DeleteInterface(e.Name)
+		}); err != nil {
+			return record("xfrm "+e.Name+" create", err)
+		}
+	}
 	for _, e := range cfg.Bridge {
 		if e.Disable {
 			continue
@@ -514,7 +587,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	}
 
 	// Phase 2: Set properties and create VLANs.
-	allEntries := make([]ifaceEntry, 0, len(cfg.Ethernet)+len(cfg.Dummy)+len(cfg.Veth)+len(cfg.Bridge)+len(cfg.Tunnel)+len(cfg.Wireguard))
+	allEntries := make([]ifaceEntry, 0, len(cfg.Ethernet)+len(cfg.Dummy)+len(cfg.Veth)+len(cfg.Bridge)+len(cfg.Tunnel)+len(cfg.Wireguard)+len(cfg.XFRM))
 	allEntries = append(allEntries, cfg.Ethernet...)
 	allEntries = append(allEntries, cfg.Dummy...)
 	for _, e := range cfg.Veth {
@@ -528,6 +601,9 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	}
 	for i := range cfg.Wireguard {
 		allEntries = append(allEntries, cfg.Wireguard[i].ifaceEntry)
+	}
+	for i := range cfg.XFRM {
+		allEntries = append(allEntries, cfg.XFRM[i].ifaceEntry)
 	}
 
 	for _, e := range allEntries {

@@ -1,6 +1,9 @@
 package iface
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 // VALIDATES: infoToZeType maps netlink/stdlib interface types to Ze YANG types.
 // PREVENTS: loopback misclassified as ethernet, unsupported types leaking through.
@@ -70,6 +73,11 @@ func TestInfoToZeType(t *testing.T) {
 			info: InterfaceInfo{Type: "", Name: "ip6tnl0", MAC: "00:00:00:00:00:00"},
 			want: "",
 		},
+		{
+			name: "xfrm interface",
+			info: InterfaceInfo{Type: "xfrm", Name: "xfrm0"},
+			want: "xfrm",
+		},
 	}
 
 	for _, tt := range tests {
@@ -79,5 +87,11 @@ func TestInfoToZeType(t *testing.T) {
 				t.Errorf("infoToZeType(%+v) = %q, want %q", tt.info, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSupportedTypesIncludesXFRM(t *testing.T) {
+	if !slices.Contains(SupportedTypes(), "xfrm") {
+		t.Errorf("SupportedTypes() = %v, missing \"xfrm\"", SupportedTypes())
 	}
 }

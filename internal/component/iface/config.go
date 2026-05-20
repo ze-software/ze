@@ -26,10 +26,14 @@ var (
 	errLocalIpOrLocalInterfaceRequired     = errors.New("local ip or local interface required")
 	errEmptyWireguardEntry                 = errors.New("empty wireguard entry")
 	errPrivateKeyIsRequired                = errors.New("private-key is required")
-	errEmptyPeerEntry                      = errors.New("empty peer entry")
-	errPublicKeyIsRequired                 = errors.New("public-key is required")
-	errEndpointHasIpButNoPort              = errors.New("endpoint has ip but no port")
-	errEndpointHasPortButNoIp              = errors.New("endpoint has port but no ip")
+	errEmptyXFRMEntry                      = errors.New("empty xfrm entry")
+	errXFRMIfIDRequired                    = errors.New("if-id is required for xfrm interfaces")
+	errXFRMIfIDZero                        = errors.New("if-id must be non-zero (0 means unset)")
+
+	errEmptyPeerEntry         = errors.New("empty peer entry")
+	errPublicKeyIsRequired    = errors.New("public-key is required")
+	errEndpointHasIpButNoPort = errors.New("endpoint has ip but no port")
+	errEndpointHasPortButNoIp = errors.New("endpoint has port but no ip")
 )
 
 // yangTrue is the string representation of boolean true in YANG config JSON.
@@ -45,6 +49,7 @@ type ifaceConfig struct {
 	Bridge          []bridgeEntry
 	Tunnel          []tunnelEntry
 	Wireguard       []wireguardEntry
+	XFRM            []xfrmEntry
 	PPPoEClient     []pppoeClientEntry
 	Loopback        *loopbackEntry
 	previousManaged map[string]bool // runtime-only: names Ze managed before this apply
@@ -56,6 +61,14 @@ type ifaceConfig struct {
 type tunnelEntry struct {
 	ifaceEntry
 	Spec TunnelSpec
+}
+
+// xfrmEntry represents a configured XFRM interface. The Spec carries the
+// if_id and optional parent device; the embedded ifaceEntry carries the
+// shared common and unit fields (mtu, addresses).
+type xfrmEntry struct {
+	ifaceEntry
+	Spec XFRMSpec
 }
 
 // wireguardEntry represents a configured wireguard interface. The Spec
@@ -348,6 +361,20 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 		}
 	}
 
+	if xfrmMap, ok := ifaceMap["xfrm"].(map[string]any); ok {
+		for name, v := range xfrmMap {
+			if err := ValidateIfaceName(name); err != nil {
+				return nil, fmt.Errorf("xfrm: %w", err)
+			}
+			m, _ := v.(map[string]any)
+			entry, err := parseXFRMEntry(name, m)
+			if err != nil {
+				return nil, fmt.Errorf("xfrm %q: %w", name, err)
+			}
+			cfg.XFRM = append(cfg.XFRM, entry)
+		}
+	}
+
 	if pppoeMap, ok := ifaceMap["pppoe-client"].(map[string]any); ok {
 		for name, v := range pppoeMap {
 			if err := ValidateIfaceName(name); err != nil {
@@ -441,6 +468,44 @@ func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
 			}
 		}
 	}
+	return entry, nil
+}
+
+// parseXFRMEntry walks the JSON tree for one xfrm list entry and produces
+// an xfrmEntry. if-id is mandatory and must be non-zero.
+func parseXFRMEntry(name string, m map[string]any) (xfrmEntry, error) {
+	iface, err := parseIfaceEntry(name, m)
+	if err != nil {
+		return xfrmEntry{}, err
+	}
+	entry := xfrmEntry{ifaceEntry: iface}
+	entry.MACAddress = ""
+	entry.Spec.Name = name
+
+	if m == nil {
+		return entry, errEmptyXFRMEntry
+	}
+
+	ifIDStr, ok := m["if-id"].(string)
+	if !ok || ifIDStr == "" {
+		return entry, errXFRMIfIDRequired
+	}
+	ifID, err := strconv.ParseUint(ifIDStr, 10, 32)
+	if err != nil {
+		return entry, fmt.Errorf("if-id %q: %w", ifIDStr, err)
+	}
+	if ifID == 0 {
+		return entry, errXFRMIfIDZero
+	}
+	entry.Spec.IfID = uint32(ifID) //nolint:gosec // ParseUint bitSize=32 bounds value
+
+	if dev, ok := m["dev"].(string); ok && dev != "" {
+		if err := ValidateIfaceName(dev); err != nil {
+			return entry, fmt.Errorf("dev: %w", err)
+		}
+		entry.Spec.PhysicalDev = dev
+	}
+
 	return entry, nil
 }
 

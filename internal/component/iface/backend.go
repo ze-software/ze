@@ -75,6 +75,16 @@ type Backend interface {
 	// Keys are copied verbatim; callers must not log the returned Spec
 	// unless they have already redacted sensitive fields.
 	GetWireguardDevice(name string) (WireguardSpec, error)
+	// CreateXFRM creates an XFRM interface netdev with the given spec.
+	// The IfID binds the interface to XFRM security associations; the
+	// optional PhysicalDev constrains the underlay device. On kernels
+	// without XFRM interface support (< 4.19) netlink returns an error.
+	CreateXFRM(spec XFRMSpec) error
+	// GetXFRMInfo reads the if_id from the kernel for the named XFRM
+	// netdev and queries XFRM policies bound to that if_id. Used by
+	// show commands to display IPsec binding details for both managed
+	// and unmanaged XFRM interfaces.
+	GetXFRMInfo(name string) (XFRMInfo, error)
 	DeleteInterface(name string) error
 
 	// Address management.

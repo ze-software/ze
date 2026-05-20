@@ -264,6 +264,14 @@ func (b *vppBackendImpl) CreateTunnel(_ iface.TunnelSpec) error {
 	return errNotSupported("CreateTunnel (pending GoVPP tunnel API wiring)")
 }
 
+func (b *vppBackendImpl) CreateXFRM(_ iface.XFRMSpec) error {
+	return errNotSupported("CreateXFRM (XFRM interfaces are Linux netlink only)")
+}
+
+func (b *vppBackendImpl) GetXFRMInfo(_ string) (iface.XFRMInfo, error) {
+	return iface.XFRMInfo{}, errNotSupported("GetXFRMInfo (XFRM interfaces are Linux netlink only)")
+}
+
 func (b *vppBackendImpl) CreateWireguardDevice(_ string) error {
 	return errNotSupported("CreateWireguardDevice (requires VPP wireguard plugin)")
 }

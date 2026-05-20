@@ -50,6 +50,11 @@ func EmitConfig(discovered []DiscoveredInterface) string {
 				continue
 			}
 			emitWireguardBlock(&b, di)
+		case zeTypeXFRM:
+			if !safeEmitName(di.Name) {
+				continue
+			}
+			emitXFRMBlock(&b, di)
 		}
 	}
 
@@ -147,6 +152,11 @@ func EmitSetConfig(discovered []DiscoveredInterface) string {
 				continue
 			}
 			emitWireguardSet(&b, di)
+		case zeTypeXFRM:
+			if !safeEmitName(di.Name) {
+				continue
+			}
+			emitXFRMSet(&b, di)
 		}
 	}
 	return b.String()
@@ -191,6 +201,76 @@ func emitWireguardSet(b *strings.Builder, di *DiscoveredInterface) {
 		if p.PersistentKeepalive != 0 {
 			fmt.Fprintf(b, "%s persistent-keepalive %d\n", peerPrefix, p.PersistentKeepalive)
 		}
+	}
+}
+
+func emitXFRMBlock(b *strings.Builder, di *DiscoveredInterface) {
+	b.WriteString("    xfrm ")
+	b.WriteString(di.Name)
+	b.WriteString(" {\n")
+	b.WriteString("        os-name ")
+	b.WriteString(di.Name)
+	b.WriteString(";\n")
+	info := di.XFRM
+	if info == nil {
+		b.WriteString("    }\n")
+		return
+	}
+	b.WriteString("        if-id ")
+	b.WriteString(textbuf.Uint32(info.IfID))
+	b.WriteString(";\n")
+	if info.ParentDev != "" {
+		b.WriteString("        dev ")
+		b.WriteString(info.ParentDev)
+		b.WriteString(";\n")
+	}
+	if len(info.Addresses) > 0 {
+		b.WriteString("        unit default {\n")
+		for _, addr := range info.Addresses {
+			if strings.Contains(addr, ":") {
+				b.WriteString("            ipv6 {\n                address ")
+				b.WriteString(addr)
+				b.WriteString(";\n            }\n")
+			} else {
+				b.WriteString("            ipv4 {\n                address ")
+				b.WriteString(addr)
+				b.WriteString(";\n            }\n")
+			}
+		}
+		b.WriteString("        }\n")
+	}
+	b.WriteString("    }\n")
+}
+
+func emitXFRMSet(b *strings.Builder, di *DiscoveredInterface) {
+	prefix := "set interface xfrm " + di.Name
+	b.WriteString(prefix)
+	b.WriteString(" os-name ")
+	b.WriteString(di.Name)
+	b.WriteByte('\n')
+	info := di.XFRM
+	if info == nil {
+		return
+	}
+	b.WriteString(prefix)
+	b.WriteString(" if-id ")
+	b.WriteString(textbuf.Uint32(info.IfID))
+	b.WriteByte('\n')
+	if info.ParentDev != "" {
+		b.WriteString(prefix)
+		b.WriteString(" dev ")
+		b.WriteString(info.ParentDev)
+		b.WriteByte('\n')
+	}
+	for _, addr := range info.Addresses {
+		b.WriteString(prefix)
+		if strings.Contains(addr, ":") {
+			b.WriteString(" unit default ipv6 address ")
+		} else {
+			b.WriteString(" unit default ipv4 address ")
+		}
+		b.WriteString(addr)
+		b.WriteByte('\n')
 	}
 }
 

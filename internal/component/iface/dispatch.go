@@ -260,6 +260,34 @@ func RemoveMirror(src string) error {
 	return b.RemoveMirror(src)
 }
 
+func GetXFRMInfo(name string) (XFRMInfo, error) {
+	b, err := backendOrErr()
+	if err != nil {
+		return XFRMInfo{}, err
+	}
+	return b.GetXFRMInfo(name)
+}
+
+// ListRates returns the current rate data for all interfaces.
+// Returns nil if the rate tracker is not running.
+func ListRates() map[string]InterfaceRate {
+	t := globalTracker.Load()
+	if t == nil {
+		return nil
+	}
+	return t.snapshot()
+}
+
+// GetRate returns the current rate data for a single interface.
+// Returns false if the rate tracker is not running or the name is unknown.
+func GetRate(name string) (InterfaceRate, bool) {
+	t := globalTracker.Load()
+	if t == nil {
+		return InterfaceRate{}, false
+	}
+	return t.get(name)
+}
+
 // Monitor wraps the backend's monitoring capability.
 type Monitor struct {
 	backend  Backend

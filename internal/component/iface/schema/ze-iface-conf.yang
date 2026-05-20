@@ -927,6 +927,42 @@ module ze-iface-conf {
             uses interface-unit;
         }
 
+        list xfrm {
+            key "name";
+            ze:os "linux";
+            ze:backend "netlink";
+            description "XFRM interface (Linux 4.19+). Route-based IPsec: traffic
+                         routed into this interface is encrypted/decrypted by the
+                         kernel XFRM subsystem. The if-id binds security associations
+                         to the interface. L3 kind with no MAC address.";
+
+            leaf name {
+                type string;
+                description "Interface name (free-form, validated by iface naming rules)";
+            }
+
+            leaf if-id {
+                mandatory true;
+                type uint32 {
+                    range "1..4294967295";
+                }
+                description "XFRM interface identifier. Binds this interface to
+                             XFRM security associations that carry the same if_id.
+                             Must be non-zero (0 means unset in the kernel).";
+            }
+
+            leaf dev {
+                type string;
+                description "Optional parent device name. When set, the XFRM interface
+                             is bound to this physical device. When omitted, the
+                             interface is unbound and uses the routing table to select
+                             the underlay.";
+            }
+
+            uses interface-common;
+            uses interface-unit;
+        }
+
         list pppoe-client {
             key "name";
             ze:os "linux";
