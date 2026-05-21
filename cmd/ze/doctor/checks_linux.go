@@ -15,7 +15,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 )
 
-const defaultVPPSocket = "/run/vpp/api.sock"
+const (
+	defaultVPPSocket = "/run/vpp/api.sock"
+	backendVPP       = "vpp"
+)
 
 func checkVPPSocket() []diagnostic.Diagnostic {
 	sockPath := defaultVPPSocket
@@ -44,18 +47,19 @@ func checkVPPSocket() []diagnostic.Diagnostic {
 
 func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 	var required []string
+	hasIPsec := false
 
 	if tree != nil {
 		ifaceBlock := tree.GetContainer("interface")
 		if ifaceBlock != nil {
 			backend, _ := ifaceBlock.Get("backend")
-			if backend == "vpp" {
+			if backend == backendVPP {
 				required = append(required, "vhost_net")
 			}
 		}
 
-		ipsecBlock := tree.GetContainer("ipsec")
-		if ipsecBlock != nil {
+		if tree.GetContainer("ipsec") != nil {
+			hasIPsec = true
 			required = append(required, "xfrm_user", "xfrm_algo")
 		}
 	}
@@ -72,6 +76,62 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 				Code:     "doctor-module-missing",
 				Severity: diagnostic.SeverityError,
 				Message:  "kernel module not loaded: " + mod,
+			})
+		}
+	}
+
+	if hasIPsec && !loaded["ip_tables"] && !loaded["nf_tables"] {
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-module-missing",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "IPsec: neither ip_tables nor nf_tables loaded (firewall marking may not work)",
+		})
+	}
+
+	return diags
+}
+
+func checkInterfaces(tree *config.Tree) []diagnostic.Diagnostic {
+	ifaceBlock := tree.GetContainer("interface")
+	if ifaceBlock == nil {
+		return nil
+	}
+
+	backend, _ := ifaceBlock.Get("backend")
+	if backend == backendVPP {
+		return nil
+	}
+
+	ethList := ifaceBlock.GetList("ethernet")
+	if len(ethList) == 0 {
+		return nil
+	}
+
+	var diags []diagnostic.Diagnostic
+	for name := range ethList {
+		if strings.Contains(name, "..") || strings.ContainsAny(name, "/\x00") {
+			continue
+		}
+		statePath := "/sys/class/net/" + name
+		info, err := os.Stat(statePath)
+		if err != nil || !info.IsDir() {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     "doctor-iface-missing",
+				Severity: diagnostic.SeverityError,
+				Message:  "ethernet interface not found: " + name,
+			})
+			continue
+		}
+		operstate, err := os.ReadFile(statePath + "/operstate") //nolint:gosec // path traversal guarded above
+		if err != nil {
+			continue
+		}
+		state := strings.TrimSpace(string(operstate))
+		if state != "up" && state != "unknown" {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     "doctor-iface-down",
+				Severity: diagnostic.SeverityWarning,
+				Message:  "ethernet interface " + name + " operstate: " + state,
 			})
 		}
 	}

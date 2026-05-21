@@ -3,6 +3,7 @@
 package doctor
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -12,6 +13,7 @@ import (
 	"encoding/pem"
 	"io"
 	"math/big"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,10 +22,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/resolve"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 func TestMain(m *testing.M) {
@@ -172,7 +177,7 @@ func TestCheckCertExpiry_ExpiringSoon(t *testing.T) {
 func TestCheckCertExpiry_InvalidPEM(t *testing.T) {
 	diags := checkCertExpiry("test", "/test/cert.pem", []byte("not-pem"))
 	require.Len(t, diags, 1)
-	assert.Equal(t, "doctor-tls-expired", diags[0].Code)
+	assert.Equal(t, "doctor-tls-invalid", diags[0].Code)
 	assert.Contains(t, diags[0].Message, "not valid PEM")
 }
 
@@ -240,6 +245,241 @@ func TestCheckListeners_FreePort(t *testing.T) {
 	tree := config.NewTree()
 	diags := checkListeners(tree)
 	assert.Empty(t, diags, "empty tree should produce no listener diagnostics")
+}
+
+func TestCheckListeners_PortInUse(t *testing.T) {
+	var lc net.ListenConfig
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() { _ = ln.Close() }()
+
+	_, port, err := net.SplitHostPort(ln.Addr().String())
+	require.NoError(t, err)
+
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	web := env.GetOrCreateContainer("web")
+	web.Set("enabled", "true")
+	srv := config.NewTree()
+	srv.Set("ip", "127.0.0.1")
+	srv.Set("port", port)
+	web.AddListEntry("server", "s1", srv)
+
+	diags := checkListeners(tree)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-listen-unavailable", diags[0].Code)
+	assert.Contains(t, diags[0].Message, "web")
+}
+
+func TestCheckListeners_SSH(t *testing.T) {
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	ssh := env.GetOrCreateContainer("ssh")
+	ssh.Set("enabled", "true")
+	srv := config.NewTree()
+	srv.Set("ip", "127.0.0.1")
+	srv.Set("port", "0")
+	ssh.AddListEntry("server", "s1", srv)
+
+	diags := checkListeners(tree)
+	assert.Empty(t, diags, "port 0 should bind successfully")
+}
+
+func TestCheckListeners_API(t *testing.T) {
+	var lc net.ListenConfig
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() { _ = ln.Close() }()
+
+	_, port, err := net.SplitHostPort(ln.Addr().String())
+	require.NoError(t, err)
+
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	api := env.GetOrCreateContainer("api-server")
+	rest := api.GetOrCreateContainer("rest")
+	rest.Set("enabled", "true")
+	srv := config.NewTree()
+	srv.Set("ip", "127.0.0.1")
+	srv.Set("port", port)
+	rest.AddListEntry("server", "s1", srv)
+
+	diags := checkListeners(tree)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-listen-unavailable", diags[0].Code)
+	assert.Contains(t, diags[0].Message, "api-rest")
+}
+
+func TestCheckCertExpiry_BadDER(t *testing.T) {
+	pemData := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("not-der")})
+	diags := checkCertExpiry("test", "/test/cert.pem", pemData)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-tls-invalid", diags[0].Code)
+	assert.Contains(t, diags[0].Message, "cannot parse certificate")
+}
+
+type stubStorage struct {
+	storage.Storage
+	data map[string][]byte
+}
+
+func (s *stubStorage) ReadFile(name string) ([]byte, error) {
+	if d, ok := s.data[name]; ok {
+		return d, nil
+	}
+	return s.Storage.ReadFile(name)
+}
+
+func (s *stubStorage) Exists(name string) bool {
+	if _, ok := s.data[name]; ok {
+		return true
+	}
+	return s.Storage.Exists(name)
+}
+
+func TestResolveDefaultConfig_NoInstanceFile(t *testing.T) {
+	store := storage.NewFilesystem()
+	name := resolve.DefaultConfig(store)
+	assert.Equal(t, "ze.conf", name, "filesystem storage with no instance file should return ze.conf")
+}
+
+func TestResolveDefaultConfig_InvalidRegex(t *testing.T) {
+	store := &stubStorage{
+		Storage: storage.NewFilesystem(),
+		data:    map[string][]byte{zefs.KeyInstanceName.Pattern: []byte("../etc")},
+	}
+	name := resolve.DefaultConfig(store)
+	assert.Equal(t, "ze.conf", name, "instance name failing regex should return ze.conf")
+}
+
+func TestResolveDefaultConfig_ValidName(t *testing.T) {
+	store := &stubStorage{
+		Storage: storage.NewFilesystem(),
+		data:    map[string][]byte{zefs.KeyInstanceName.Pattern: []byte("myrouter")},
+	}
+	name := resolve.DefaultConfig(store)
+	assert.Equal(t, "myrouter.conf", name)
+}
+
+func TestExtractSSHListeners_DefaultFallback(t *testing.T) {
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	ssh := env.GetOrCreateContainer("ssh")
+	ssh.Set("enabled", "true")
+
+	listeners := extractSSHListeners(tree)
+	require.Len(t, listeners, 1)
+	assert.Equal(t, "ssh", listeners[0].service)
+	assert.Equal(t, "127.0.0.1", listeners[0].host)
+	assert.Equal(t, "2222", listeners[0].port)
+}
+
+func TestExtractSSHListeners_Disabled(t *testing.T) {
+	tree := config.NewTree()
+	listeners := extractSSHListeners(tree)
+	assert.Nil(t, listeners)
+}
+
+func TestExtractSSHListeners_ServerList(t *testing.T) {
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	ssh := env.GetOrCreateContainer("ssh")
+	ssh.Set("enabled", "true")
+	srv := config.NewTree()
+	srv.Set("ip", "10.0.0.1")
+	srv.Set("port", "2223")
+	ssh.AddListEntry("server", "s1", srv)
+
+	listeners := extractSSHListeners(tree)
+	require.Len(t, listeners, 1)
+	assert.Equal(t, "ssh", listeners[0].service)
+	assert.Equal(t, "10.0.0.1", listeners[0].host)
+	assert.Equal(t, "2223", listeners[0].port)
+}
+
+func TestCheckWebTLS_NoCerts(t *testing.T) {
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	web := env.GetOrCreateContainer("web")
+	web.Set("enabled", "true")
+
+	store := storage.NewFilesystem()
+	diags := checkWebTLS(tree, store)
+	assert.Empty(t, diags, "no blob certs should produce no diagnostics")
+}
+
+func TestCheckWebTLS_ExpiredCert(t *testing.T) {
+	certPEM := generateTestCert(t, time.Now().Add(-48*time.Hour), time.Now().Add(-time.Hour))
+
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	web := env.GetOrCreateContainer("web")
+	web.Set("enabled", "true")
+
+	store := &stubStorage{
+		Storage: storage.NewFilesystem(),
+		data: map[string][]byte{
+			zefs.KeyWebCert.Pattern: certPEM,
+			zefs.KeyWebKey.Pattern:  []byte("key-data"),
+		},
+	}
+	diags := checkWebTLS(tree, store)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-tls-expired", diags[0].Code)
+}
+
+func TestCheckWebTLS_CertWithoutKey(t *testing.T) {
+	certPEM := generateTestCert(t, time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
+
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	web := env.GetOrCreateContainer("web")
+	web.Set("enabled", "true")
+
+	store := &stubStorage{
+		Storage: storage.NewFilesystem(),
+		data: map[string][]byte{
+			zefs.KeyWebCert.Pattern: certPEM,
+		},
+	}
+	diags := checkWebTLS(tree, store)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-tls-missing", diags[0].Code)
+	assert.Contains(t, diags[0].Message, "key missing")
+}
+
+func TestCheckWebTLS_KeyWithoutCert(t *testing.T) {
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	web := env.GetOrCreateContainer("web")
+	web.Set("enabled", "true")
+
+	store := &stubStorage{
+		Storage: storage.NewFilesystem(),
+		data: map[string][]byte{
+			zefs.KeyWebKey.Pattern: []byte("key-data"),
+		},
+	}
+	diags := checkWebTLS(tree, store)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-tls-missing", diags[0].Code)
+	assert.Contains(t, diags[0].Message, "certificate missing")
+}
+
+func TestCheckWebTLS_Disabled(t *testing.T) {
+	tree := config.NewTree()
+	store := storage.NewFilesystem()
+	diags := checkWebTLS(tree, store)
+	assert.Empty(t, diags, "web not enabled should skip")
+}
+
+func TestResolveStorageWithDiag_Fallback(t *testing.T) {
+	store, diags := resolveStorageWithDiag()
+	assert.NotNil(t, store, "should always return a usable storage")
+	for _, d := range diags {
+		assert.NotEqual(t, diagnostic.SeverityError, d.Severity,
+			"storage fallback should not produce errors")
+	}
 }
 
 func generateTestCert(t *testing.T, notBefore, notAfter time.Time) []byte {

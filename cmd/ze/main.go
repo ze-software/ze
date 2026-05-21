@@ -13,8 +13,6 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"path/filepath"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -36,6 +34,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdutil"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
+	internalresolve "codeberg.org/thomas-mangin/ze/cmd/ze/internal/resolve"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	zel2tp "codeberg.org/thomas-mangin/ze/cmd/ze/l2tp"
 	zepasswd "codeberg.org/thomas-mangin/ze/cmd/ze/passwd"
@@ -59,7 +58,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
 	"codeberg.org/thomas-mangin/ze/pkg/fleet"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -670,23 +668,11 @@ func detectConfigType(store storage.Storage, path string) config.ConfigType {
 // Default: blob storage at {configDir}/database.zefs.
 // Fallback: filesystem if blob cannot be created or ZE_STORAGE_BLOB=false.
 func resolveStorage() storage.Storage {
-	if v := env.Get("ze.storage.blob"); strings.EqualFold(v, "false") {
-		return storage.NewFilesystem()
-	}
-	configDir := env.Get("ze.config.dir")
-	if configDir == "" {
-		configDir = paths.DefaultConfigDir()
-	}
-	if configDir == "" {
-		return storage.NewFilesystem()
-	}
-	blobPath := filepath.Join(configDir, "database.zefs")
-	store, err := storage.NewBlob(blobPath, configDir)
+	s, err := internalresolve.Storage()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: blob storage unavailable (%v), using filesystem\n", err)
-		return storage.NewFilesystem()
 	}
-	return store
+	return s
 }
 
 // cmdStart resolves the default config from zefs and starts the daemon.
@@ -774,7 +760,7 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		return cmdStartManaged(store, plugins, chaosSeed, chaosRate)
 	}
 
-	configName := resolveDefaultConfig(store)
+	configName := internalresolve.DefaultConfig(store)
 	if !store.Exists(configName) {
 		// Config does not exist at all: try first-boot bootstrap.
 		switch {
@@ -820,7 +806,7 @@ func isManaged(store storage.Storage) bool {
 // With cached config: starts BGP immediately, connects to hub in background for updates.
 // Without cached config (first boot): requires hub connection to fetch initial config.
 func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, chaosRate float64) int {
-	configName := resolveDefaultConfig(store)
+	configName := internalresolve.DefaultConfig(store)
 
 	if store.Exists(configName) {
 		// Start background hub connection if client block found.
@@ -1024,24 +1010,6 @@ func readAuthLine(conn net.Conn, maxSize int) ([]byte, error) {
 			return nil, fmt.Errorf("auth response exceeds %d bytes", maxSize)
 		}
 	}
-}
-
-// validInstanceName matches alphanumeric names with hyphens, max 64 chars.
-// Same validation as plugin names -- prevents path traversal in blob keys.
-var validInstanceName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9-]{0,63}$`)
-
-// resolveDefaultConfig returns the config name from meta/instance/name or the fallback.
-// Validates the name to prevent path traversal via blob key injection.
-func resolveDefaultConfig(store storage.Storage) string {
-	data, err := store.ReadFile(zefs.KeyInstanceName.Pattern)
-	if err != nil || len(data) == 0 {
-		return "ze.conf"
-	}
-	name := strings.TrimSpace(string(data))
-	if name == "" || !validInstanceName.MatchString(name) {
-		return "ze.conf"
-	}
-	return name + ".conf"
 }
 
 // bootstrapConfigFromTemplate reads file/template/ze.conf from zefs,

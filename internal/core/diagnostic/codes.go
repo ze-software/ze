@@ -140,6 +140,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json"},
 	},
 	{
+		Code:        "doctor-tls-invalid",
+		Title:       "TLS certificate cannot be parsed",
+		Description: "A TLS certificate file is not valid PEM or the DER content cannot be parsed as an X.509 certificate.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
 		Code:        "doctor-plugin-missing",
 		Title:       "Plugin binary not found",
 		Description: "An external plugin binary referenced in the config is not on PATH.",
@@ -155,6 +161,18 @@ var builtinCodes = []CodeMeta{
 		Code:        "doctor-listen-unavailable",
 		Title:       "Listen address unavailable",
 		Description: "A configured listen address/port could not be bound.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-iface-missing",
+		Title:       "Configured interface not found",
+		Description: "An ethernet interface named in the config does not exist on the system.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-iface-down",
+		Title:       "Configured interface is down",
+		Description: "An ethernet interface named in the config exists but its link is not up.",
 		Examples:    []string{"ze doctor --json"},
 	},
 }

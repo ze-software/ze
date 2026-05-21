@@ -13,18 +13,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/resolve"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
@@ -104,8 +102,10 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	tree := result.Tree
 
 	diags = append(diags, checkIfaceBackend(tree)...)
+	diags = append(diags, checkInterfaces(tree)...)
 	diags = append(diags, checkKernelModules(tree)...)
 	diags = append(diags, checkTLS(tree, result.ConfigDir)...)
+	diags = append(diags, checkWebTLS(tree, store)...)
 	diags = append(diags, checkPlugins(result.Plugins)...)
 	diags = append(diags, checkSSHHostKey(tree, result.ConfigDir)...)
 	diags = append(diags, checkListeners(tree)...)
@@ -114,24 +114,12 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 }
 
 func resolveStorageWithDiag() (storage.Storage, []diagnostic.Diagnostic) {
-	if v := env.Get("ze.storage.blob"); strings.EqualFold(v, "false") {
-		return storage.NewFilesystem(), nil
-	}
-	configDir := env.Get("ze.config.dir")
-	if configDir == "" {
-		configDir = paths.DefaultConfigDir()
-	}
-	if configDir == "" {
-		return storage.NewFilesystem(), nil
-	}
-	blobPath := filepath.Join(configDir, "database.zefs")
-	s, err := storage.NewBlob(blobPath, configDir)
+	s, err := resolve.Storage()
 	if err != nil {
-		return storage.NewFilesystem(), []diagnostic.Diagnostic{{
+		return s, []diagnostic.Diagnostic{{
 			Code:     "doctor-storage-unavailable",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "blob storage at " + blobPath + ": " + err.Error(),
-			Path:     blobPath,
+			Message:  "blob storage: " + err.Error(),
 		}}
 	}
 	return s, nil
@@ -146,7 +134,7 @@ func loadConfigData(store storage.Storage, configPath string) ([]byte, string, e
 		return data, configPath, nil
 	}
 
-	configName := resolveDefaultConfig(store)
+	configName := resolve.DefaultConfig(store)
 	activeKey := zefs.KeyFileActive.Key(configName)
 	data, err := store.ReadFile(activeKey)
 	if err != nil {
@@ -156,20 +144,6 @@ func loadConfigData(store storage.Storage, configPath string) ([]byte, string, e
 		return nil, "", fmt.Errorf("no config found (tried %s): %w", configName, err)
 	}
 	return data, configName, nil
-}
-
-var validInstanceName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9-]{0,63}$`)
-
-func resolveDefaultConfig(store storage.Storage) string {
-	data, err := store.ReadFile(zefs.KeyInstanceName.Pattern)
-	if err != nil || len(data) == 0 {
-		return "ze.conf"
-	}
-	name := strings.TrimSpace(string(data))
-	if name == "" || !validInstanceName.MatchString(name) {
-		return "ze.conf"
-	}
-	return name + ".conf"
 }
 
 func checkIfaceBackend(tree *config.Tree) []diagnostic.Diagnostic {
@@ -198,6 +172,43 @@ func checkTLS(tree *config.Tree, configDir string) []diagnostic.Diagnostic {
 
 	if apiCfg, ok := config.ExtractAPIConfig(tree); ok {
 		diags = append(diags, checkCertPair("api-grpc", apiCfg.GRPCTLSCert, apiCfg.GRPCTLSKey, configDir)...)
+	}
+
+	return diags
+}
+
+func checkWebTLS(tree *config.Tree, store storage.Storage) []diagnostic.Diagnostic {
+	if _, ok := config.ExtractWebConfig(tree); !ok {
+		return nil
+	}
+
+	certData, certErr := store.ReadFile(zefs.KeyWebCert.Pattern)
+	keyExists := store.Exists(zefs.KeyWebKey.Pattern)
+
+	if certErr != nil && !keyExists {
+		return nil
+	}
+
+	var diags []diagnostic.Diagnostic
+
+	if certErr == nil && len(certData) > 0 {
+		diags = append(diags, checkCertExpiry("web", zefs.KeyWebCert.Pattern, certData)...)
+	}
+
+	if certErr == nil && !keyExists {
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-tls-missing",
+			Severity: diagnostic.SeverityError,
+			Message:  "web: certificate present in storage but key missing",
+		})
+	}
+
+	if certErr != nil && keyExists {
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-tls-missing",
+			Severity: diagnostic.SeverityError,
+			Message:  "web: key present in storage but certificate missing",
+		})
 	}
 
 	return diags
@@ -244,7 +255,7 @@ func checkCertExpiry(service, path string, pemData []byte) []diagnostic.Diagnost
 	block, _ := pem.Decode(pemData)
 	if block == nil {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-tls-expired",
+			Code:     "doctor-tls-invalid",
 			Severity: diagnostic.SeverityWarning,
 			Message:  service + ": " + path + ": not valid PEM",
 			Path:     path,
@@ -253,7 +264,7 @@ func checkCertExpiry(service, path string, pemData []byte) []diagnostic.Diagnost
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-tls-expired",
+			Code:     "doctor-tls-invalid",
 			Severity: diagnostic.SeverityWarning,
 			Message:  service + ": " + path + ": cannot parse certificate: " + err.Error(),
 			Path:     path,
@@ -379,14 +390,15 @@ func checkSSHHostKey(tree *config.Tree, configDir string) []diagnostic.Diagnosti
 	return diags
 }
 
+type serviceListener struct {
+	service string
+	host    string
+	port    string
+}
+
 func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
 	var diags []diagnostic.Diagnostic
 
-	type serviceListener struct {
-		service string
-		host    string
-		port    string
-	}
 	var listeners []serviceListener
 
 	if webCfg, ok := config.ExtractWebConfig(tree); ok {
@@ -404,6 +416,21 @@ func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
 			listeners = append(listeners, serviceListener{"looking-glass", s.Host, s.Port})
 		}
 	}
+
+	if apiCfg, ok := config.ExtractAPIConfig(tree); ok {
+		if apiCfg.RESTOn {
+			for _, s := range apiCfg.REST {
+				listeners = append(listeners, serviceListener{"api-rest", s.Host, s.Port})
+			}
+		}
+		if apiCfg.GRPCOn {
+			for _, s := range apiCfg.GRPC {
+				listeners = append(listeners, serviceListener{"api-grpc", s.Host, s.Port})
+			}
+		}
+	}
+
+	listeners = append(listeners, extractSSHListeners(tree)...)
 
 	for _, l := range listeners {
 		addr := net.JoinHostPort(l.host, l.port)
@@ -427,6 +454,51 @@ func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
 	}
 
 	return diags
+}
+
+func extractSSHListeners(tree *config.Tree) []serviceListener {
+	envBlock := tree.GetContainer("environment")
+	if envBlock == nil {
+		return nil
+	}
+	sshBlock := envBlock.GetContainer("ssh")
+	if sshBlock == nil {
+		return nil
+	}
+	enabled, _ := sshBlock.Get("enabled")
+	if enabled != "true" {
+		return nil
+	}
+
+	var listeners []serviceListener
+	if servers := sshBlock.GetListOrdered("server"); len(servers) > 0 {
+		for _, s := range servers {
+			host := "0.0.0.0"
+			port := "2222"
+			if v, ok := s.Value.Get("ip"); ok && v != "" {
+				host = v
+			}
+			if v, ok := s.Value.Get("port"); ok && v != "" {
+				port = v
+			}
+			listeners = append(listeners, serviceListener{"ssh", host, port})
+		}
+	} else if addrs := sshBlock.GetSlice("listen"); len(addrs) > 0 {
+		for _, addr := range addrs {
+			host, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				host = "127.0.0.1"
+				port = "2222"
+			}
+			listeners = append(listeners, serviceListener{"ssh", host, port})
+		}
+	}
+
+	if len(listeners) == 0 {
+		listeners = append(listeners, serviceListener{"ssh", "127.0.0.1", "2222"})
+	}
+
+	return listeners
 }
 
 func resolvePath(p, configDir string) string {

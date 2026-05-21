@@ -16,3 +16,7 @@ func checkVPPSocket() []diagnostic.Diagnostic {
 func checkKernelModules(_ *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }
+
+func checkInterfaces(_ *config.Tree) []diagnostic.Diagnostic {
+	return nil
+}
