@@ -58,6 +58,7 @@ var subcommandHandlers = map[string]func([]string) int{
 	"dump":       cmdDump,
 	"completion": cmdCompletion,
 	"fix":        cmdFix,
+	"graph":      cmdGraph,
 }
 
 // Run executes the config subcommand with filesystem storage (backward compat).
@@ -142,6 +143,7 @@ func usage() {
 				{Name: "diff <f1> <f2>", Desc: "Compare two configs"},
 				{Name: "diff <N> <file>", Desc: "Compare rollback revision N against current"},
 				{Name: "fmt <file>", Desc: "Format and normalize"},
+				{Name: "graph <file>", Desc: "Show config dependency graph (JSON)"},
 			}},
 			{Title: "History", Entries: []helpfmt.HelpEntry{
 				{Name: "history <file>", Desc: "List rollback revisions"},

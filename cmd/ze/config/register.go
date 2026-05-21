@@ -29,6 +29,9 @@ func init() {
 	cmdregistry.MustRegisterLocal("validate config", func(args []string) int {
 		return Run(append([]string{"validate"}, args...))
 	})
+	cmdregistry.MustRegisterLocal("show config graph", func(args []string) int {
+		return Run(append([]string{"graph"}, args...))
+	})
 }
 
 // StorageResolver is the thunk supplied by cmd/ze/main.go so that the
