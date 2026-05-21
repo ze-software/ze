@@ -28,7 +28,9 @@ func registerIPsecRedistSources() {
 	})
 }
 
-var ipsecProtocolID = redistevents.RegisterProtocol(Namespace)
+const redistSourceName = "ipsec"
+
+var ipsecProtocolID = redistevents.RegisterProtocol(redistSourceName)
 
 var _ = registerIPsecProducer()
 
@@ -37,12 +39,18 @@ func registerIPsecProducer() bool {
 	return true
 }
 
-var ipsecRouteChange = events.Register[*redistevents.RouteChangeBatch](Namespace, redistevents.EventType)
+var ipsecRouteChange = events.Register[*redistevents.RouteChangeBatch](redistSourceName, redistevents.EventType)
 
 func emitRouteAdd(bus ze.EventBus, tsRemote *net.IPNet, log *slog.Logger) {
-	if bus == nil || tsRemote == nil {
+	if bus == nil {
+		log.Warn("ipsec: emit route-change skipped: no event bus")
 		return
 	}
+	if tsRemote == nil {
+		log.Warn("ipsec: emit route-change skipped: nil tsRemote")
+		return
+	}
+	log.Debug("ipsec: emitting route-change add", "prefix", tsRemote.String())
 	prefix, ok := netIPNetToPrefix(tsRemote)
 	if !ok {
 		return
@@ -60,8 +68,11 @@ func emitRouteAdd(bus ze.EventBus, tsRemote *net.IPNet, log *slog.Logger) {
 		Action: redistevents.ActionAdd,
 		Prefix: prefix,
 	})
-	if _, err := ipsecRouteChange.Emit(bus, batch); err != nil {
-		log.Debug("ipsec: emit route-change add failed", "error", err)
+	n, err := ipsecRouteChange.Emit(bus, batch)
+	if err != nil {
+		log.Warn("ipsec: emit route-change add failed", "error", err)
+	} else {
+		log.Debug("ipsec: route-change add delivered", "prefix", tsRemote.String(), "subscribers", n)
 	}
 	redistevents.ReleaseBatch(batch)
 }

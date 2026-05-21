@@ -129,9 +129,9 @@ func run(ctx context.Context) {
 		}
 	}()
 
-	logger().Info(Name+": running", "producers", len(unsubs))
+	logger().Debug(Name+": running", "producers", len(unsubs))
 	<-ctx.Done()
-	logger().Info(Name + ": stopped")
+	logger().Debug(Name + ": stopped")
 }
 
 func subscribe(ctx context.Context, bus ze.EventBus, skipIDs map[redistevents.ProtocolID]bool) []func() {
@@ -181,8 +181,10 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 
 	ev := configredist.Global()
 	if ev == nil {
+		logger().Warn(Name+": no evaluator configured, dropping batch", "source", name)
 		return
 	}
+	logger().Debug(Name+": processing batch", "source", name, "entries", len(b.Entries))
 
 	famVal := family.Family{AFI: family.AFI(b.AFI), SAFI: family.SAFI(b.SAFI)}
 	route := configredist.RedistRoute{
@@ -199,9 +201,11 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 	for _, cname := range consumers {
 		consumer, ok := configredist.LookupConsumer(cname)
 		if !ok {
+			logger().Warn(Name+": consumer not found", "consumer", cname)
 			continue
 		}
 		if !ev.Accept(route, cname) {
+			logger().Debug(Name+": evaluator rejected", "source", name, "consumer", cname, "origin", route.Origin, "family", famVal.String())
 			if m := getMetrics(); m != nil {
 				for range b.Entries {
 					m.filteredRuleTotal.Inc()
@@ -209,6 +213,7 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 			}
 			continue
 		}
+		logger().Debug(Name+": dispatching to consumer", "consumer", cname, "entries", len(b.Entries))
 		for i := range b.Entries {
 			dispatchEntryToConsumer(ctx, consumer, famVal, &b.Entries[i])
 		}

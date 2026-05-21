@@ -365,7 +365,7 @@ func buildCertPayloads(sa *SA) []wire.PayloadEntry {
 }
 
 // buildSKMessageCBC builds a complete IKE_AUTH message with AES-CBC + HMAC.
-// Wire: [Header 28][SK GH 4][IV blockSize][Encrypted(content+pad+padlen)][ICV truncLen]
+// Wire: [Header 28][SK GH 4][IV blockSize][Encrypted(content+pad+padlen)][ICV truncLen].
 func buildSKMessageCBC(sa *SA, innerData []byte, firstType uint8) ([]byte, error) {
 	const blockSize = 16 // AES block size
 
@@ -411,7 +411,7 @@ func buildSKMessageCBC(sa *SA, innerData []byte, firstType uint8) ([]byte, error
 }
 
 // buildSKMessageAEAD builds a complete IKE_AUTH message with AES-GCM.
-// Wire: [Header 28][SK GH 4][IV 8][ciphertext][GCM tag 16]
+// Wire: [Header 28][SK GH 4][IV 8][ciphertext][GCM tag 16].
 func buildSKMessageAEAD(sa *SA, innerData []byte, firstType uint8) ([]byte, error) {
 	const ivLen = 8
 	const tagLen = 16

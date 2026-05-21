@@ -37,10 +37,14 @@ func (c *BGPConsumer) Name() string { return bgpConsumerName }
 
 func (c *BGPConsumer) InjectRoute(ctx context.Context, fam family.Family, entry redistribute.RouteEntry) {
 	cmd := formatAnnounce(fam.String(), entry.NextHop, entry.Prefix)
+	slog.Debug("bgp consumer: injecting route", "command", cmd)
 	cctx, cancel := context.WithTimeout(ctx, updateRouteTimeout)
 	defer cancel()
-	if _, _, err := c.dispatcher.UpdateRoute(cctx, "*", cmd); err != nil {
+	added, withdrawn, err := c.dispatcher.UpdateRoute(cctx, "*", cmd)
+	if err != nil {
 		slog.Warn("bgp consumer: update-route failed", "error", err, "command", cmd)
+	} else {
+		slog.Debug("bgp consumer: update-route ok", "added", added, "withdrawn", withdrawn)
 	}
 }
 

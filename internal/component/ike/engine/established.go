@@ -34,6 +34,11 @@ func (ps *PeerSession) runEstablished(
 	}
 	ps.setChildSA(child)
 
+	if child.TSRemote != nil {
+		log.Debug("ike: tunnel route", "peer", ps.peerName, "ts_remote", child.TSRemote.String(), "bus_set", bus != nil)
+	} else {
+		log.Debug("ike: tunnel route nil tsRemote", "peer", ps.peerName)
+	}
 	emitChildUp(bus, ps.peerName, child, log)
 	emitRouteAdd(bus, child.TSRemote, log)
 
@@ -71,11 +76,21 @@ func (ps *PeerSession) maintainSA(
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
+	// Re-announce routes after a short delay so the redistribute-orchestrator
+	// (which subscribes asynchronously) catches routes that were emitted
+	// before its subscription was active.
+	routeReannounce := time.NewTimer(5 * time.Second)
+	defer routeReannounce.Stop()
+
 	for {
 		select {
 		case <-ps.stopCh:
 			ps.cleanupChild(dp, bus, log)
 			return nil
+		case <-routeReannounce.C:
+			if child := ps.getChildSA(); child != nil {
+				emitRouteAdd(bus, child.TSRemote, log)
+			}
 		case now := <-ticker.C:
 			if sa.State == StateDead {
 				log.Info("ike: SA marked dead by peer", "peer", ps.peerName)
@@ -101,6 +116,7 @@ func (ps *PeerSession) maintainSA(
 					continue
 				}
 				emitChildRekey(bus, ps.peerName, newChild, log)
+				emitRouteAdd(bus, newChild.TSRemote, log)
 				ps.setChildSA(newChild)
 				ps.incRekeyCount()
 				childLT = newLifetimeState(ps.espGroup.Lifetime)

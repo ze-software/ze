@@ -159,22 +159,7 @@ func (s *Server) handleUpdateRouteRPC(proc *process.Process, conn *plugipc.Plugi
 		return
 	}
 
-	// Extract route counts from response if available
-	output := &rpc.UpdateRouteOutput{}
-	if resp != nil && resp.Data != nil {
-		if m, ok := resp.Data.(map[string]any); ok {
-			if v, ok := m["peers-affected"]; ok {
-				if n, ok := v.(float64); ok {
-					output.PeersAffected = uint32(n)
-				}
-			}
-			if v, ok := m["routes-sent"]; ok {
-				if n, ok := v.(float64); ok {
-					output.RoutesSent = uint32(n)
-				}
-			}
-		}
-	}
+	output := extractUpdateRouteOutput(resp)
 
 	if sendErr := conn.SendResult(s.ctx, req.ID, output); sendErr != nil {
 		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
@@ -599,23 +584,40 @@ func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawM
 		return nil, &rpc.RPCCallError{Message: err.Error()}
 	}
 
-	output := &rpc.UpdateRouteOutput{}
-	if resp != nil && resp.Data != nil {
-		if m, ok := resp.Data.(map[string]any); ok {
-			if v, ok := m["peers-affected"]; ok {
-				if n, ok := v.(float64); ok {
-					output.PeersAffected = uint32(n)
-				}
-			}
-			if v, ok := m["routes-sent"]; ok {
-				if n, ok := v.(float64); ok {
-					output.RoutesSent = uint32(n)
-				}
-			}
-		}
-	}
+	output := extractUpdateRouteOutput(resp)
 
 	return directResultResponse(output)
+}
+
+// extractUpdateRouteOutput reads announced/withdrawn counts from a Dispatch response.
+// Handles both int (DirectBridge) and float64 (JSON round-trip) value types.
+func extractUpdateRouteOutput(resp *plugin.Response) *rpc.UpdateRouteOutput {
+	output := &rpc.UpdateRouteOutput{}
+	if resp == nil || resp.Data == nil {
+		return output
+	}
+	m, ok := resp.Data.(map[string]any)
+	if !ok {
+		return output
+	}
+	output.PeersAffected = mapUint32(m, "announced")
+	output.RoutesSent = mapUint32(m, "withdrawn")
+	return output
+}
+
+func mapUint32(m map[string]any, key string) uint32 {
+	v, ok := m[key]
+	if !ok {
+		return 0
+	}
+	switch n := v.(type) {
+	case int:
+		return uint32(n) //nolint:gosec // route counts are small positive values
+	case float64:
+		return uint32(n) //nolint:gosec // route counts are small positive values
+	default:
+		return 0
+	}
 }
 
 // handleDispatchCommandDirect handles dispatch-command without socket I/O.
