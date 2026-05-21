@@ -1,21 +1,11 @@
 # Ze IKE image for IPsec interop lab.
-# Privileged container shares the host kernel for XFRM.
-
-FROM golang:1.25.9-alpine AS builder
-
-RUN apk add --no-cache git
-
-WORKDIR /src
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-
-RUN CGO_ENABLED=0 go build -o /ze ./cmd/ze
+# Expects a pre-built linux binary at test/ipsec-interop/ze-linux.
+# Build with: CGO_ENABLED=0 GOOS=linux go build -o test/ipsec-interop/ze-linux ./cmd/ze
 
 FROM alpine:3.21
 
 RUN apk add --no-cache tini iproute2
 
-COPY --from=builder /ze /usr/local/bin/ze
+COPY test/ipsec-interop/ze-linux /usr/local/bin/ze
 
 ENTRYPOINT ["tini", "--", "ze"]

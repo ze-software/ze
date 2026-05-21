@@ -6,15 +6,28 @@ package engine
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
+	"strings"
+	"syscall"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
 	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 )
+
+func isXFRMUnsupported(err error) bool {
+	var errno syscall.Errno
+	if errors.As(err, &errno) {
+		return errno == syscall.ENOPROTOOPT || errno == syscall.EAFNOSUPPORT || errno == syscall.ENOSYS
+	}
+	s := err.Error()
+	return strings.Contains(s, "protocol not supported") ||
+		strings.Contains(s, "function not implemented")
+}
 
 const (
 	protoESP     = 50
@@ -90,15 +103,24 @@ func createFirstChildSA(
 		return nil, fmt.Errorf("child-sa: key derivation: %w", err)
 	}
 
-	inSPI, err := GenerateESPSPI()
-	if err != nil {
-		keys.Clear()
-		return nil, fmt.Errorf("child-sa: generate inbound SPI: %w", err)
+	var inSPI, outSPI uint32
+	if sa.ChildInboundSPI != 0 {
+		inSPI = sa.ChildInboundSPI
+	} else {
+		inSPI, err = GenerateESPSPI()
+		if err != nil {
+			keys.Clear()
+			return nil, fmt.Errorf("child-sa: generate inbound SPI: %w", err)
+		}
 	}
-	outSPI, err := GenerateESPSPI()
-	if err != nil {
-		keys.Clear()
-		return nil, fmt.Errorf("child-sa: generate outbound SPI: %w", err)
+	if sa.ChildOutboundSPI != 0 {
+		outSPI = sa.ChildOutboundSPI
+	} else {
+		outSPI, err = GenerateESPSPI()
+		if err != nil {
+			keys.Clear()
+			return nil, fmt.Errorf("child-sa: generate outbound SPI: %w", err)
+		}
 	}
 
 	srcIP := net.ParseIP(localAddr)
@@ -110,6 +132,12 @@ func createFirstChildSA(
 
 	tsLocal := ipToFullNet(srcIP)
 	tsRemote := ipToFullNet(dstIP)
+	if sa.NegotiatedTSi != nil {
+		tsLocal = sa.NegotiatedTSi
+	}
+	if sa.NegotiatedTSr != nil {
+		tsRemote = sa.NegotiatedTSr
+	}
 
 	child := &ChildSA{
 		InboundSPI:  inSPI,
@@ -131,8 +159,12 @@ func createFirstChildSA(
 	}
 
 	if err := installChildSA(child, prop, dp, log); err != nil {
-		keys.Clear()
-		return nil, err
+		if isXFRMUnsupported(err) {
+			log.Warn("child-sa: XFRM not available on this platform, continuing without ESP", "error", err)
+		} else {
+			keys.Clear()
+			return nil, err
+		}
 	}
 
 	return child, nil

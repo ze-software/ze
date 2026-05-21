@@ -7,10 +7,12 @@ package crashlog
 import (
 	"os"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 func dupStderr(fd int) error {
-	return syscall.Dup2(fd, 2)
+	return unix.Dup2(fd, 2)
 }
 
 // saveStderr dups fd 2 to a new fd so the original stderr survives

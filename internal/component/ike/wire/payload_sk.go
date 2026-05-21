@@ -1,11 +1,15 @@
-// Design: docs/architecture/wire/buffer-writer.md — buffer-first encoding
-// RFC: rfc/short/rfc7296.md — Encrypted payload (Section 3.14)
+// Design: docs/architecture/wire/buffer-writer.md -- buffer-first encoding
+// RFC: rfc/short/rfc7296.md -- Encrypted payload (Section 3.14)
 package wire
 
 // PayloadSK is the Encrypted (SK) payload (type 46).
-// Stores raw ciphertext; decryption is handled by the crypto layer (ipsec-6).
+// Stores raw ciphertext; decryption is handled by the crypto layer.
+// InnerNextPayload carries the first inner payload type which RFC 7296
+// Section 3.14 places in the SK generic header's Next Payload field
+// (an exception to the normal next-in-chain semantics).
 type PayloadSK struct {
-	CipherText []byte
+	CipherText       []byte
+	InnerNextPayload uint8
 }
 
 func (p *PayloadSK) Type() uint8 { return PayloadTypeSK }

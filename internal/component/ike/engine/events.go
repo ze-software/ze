@@ -20,6 +20,8 @@ type ChildSAEvent struct {
 	InboundSPI  uint32 `json:"inbound-spi"`
 	OutboundSPI uint32 `json:"outbound-spi"`
 	IfID        uint32 `json:"if-id"`
+	TSLocal     string `json:"ts-local,omitempty"`
+	TSRemote    string `json:"ts-remote,omitempty"`
 }
 
 var (

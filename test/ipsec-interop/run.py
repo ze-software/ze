@@ -7,6 +7,7 @@ Usage:
     VERBOSE=1 python3 test/ipsec-interop/run.py                # verbose output
 
 Environment:
+    FRR_IMAGE       - FRR Docker image (default: quay.io/frrouting/frr:10.3.1)
     VERBOSE         - set to 1 for debug output
     NO_BUILD        - set to 1 to skip image builds
     SESSION_TIMEOUT - IKE establishment timeout in seconds (default: 90)
@@ -24,10 +25,36 @@ sys.path.insert(0, SCRIPT_DIR)
 from lab import Scenario, log_fail, log_pass
 
 
-def build_images(no_build=False):
+def _any_scenario_needs_frr(scenarios_dir, scenario_filter):
+    for name in sorted(os.listdir(scenarios_dir)):
+        d = os.path.join(scenarios_dir, name)
+        if not os.path.isdir(d):
+            continue
+        if scenario_filter and name != scenario_filter:
+            continue
+        if os.path.isfile(os.path.join(d, "frr.conf")):
+            return True
+    return False
+
+
+def build_images(frr_image, no_build=False, need_frr=True):
     if no_build:
         print("  skipping image builds (NO_BUILD=1)")
         return
+
+    ze_bin = os.path.join(PROJECT_ROOT, "bin", "ze-linux")
+    print("Cross-compiling ze for linux...")
+    subprocess.run(
+        ["go", "build", "-o", ze_bin, "./cmd/ze"],
+        check=True,
+        timeout=300,
+        cwd=PROJECT_ROOT,
+        env={**os.environ, "CGO_ENABLED": "0", "GOOS": "linux"},
+    )
+    ze_interop = os.path.join(SCRIPT_DIR, "ze-linux")
+    import shutil
+
+    shutil.copy2(ze_bin, ze_interop)
 
     print("Building Ze IPsec image...")
     subprocess.run(
@@ -61,8 +88,17 @@ def build_images(no_build=False):
         timeout=600,
     )
 
+    if need_frr:
+        print("Pulling FRR image...")
+        subprocess.run(
+            ["docker", "pull", "-q", frr_image],
+            check=True,
+            timeout=600,
+        )
+
 
 def main():
+    frr_image = os.environ.get("FRR_IMAGE", "quay.io/frrouting/frr:10.3.1")
     no_build = os.environ.get("NO_BUILD", "0") == "1"
 
     scenario_filter = ""
@@ -83,7 +119,9 @@ def main():
         print("Docker unavailable, cannot run IPsec interop lab")
         sys.exit(1)
 
-    build_images(no_build)
+    scenarios_dir = os.path.join(SCRIPT_DIR, "scenarios")
+    need_frr = _any_scenario_needs_frr(scenarios_dir, scenario_filter)
+    build_images(frr_image, no_build, need_frr=need_frr)
 
     print("")
     print("━" * 40)
@@ -91,7 +129,6 @@ def main():
     print("━" * 40)
     print("")
 
-    scenarios_dir = os.path.join(SCRIPT_DIR, "scenarios")
     passed = 0
     failed = 0
     failed_names = []
@@ -110,7 +147,7 @@ def main():
 
         print("── %s ──" % scenario_name)
 
-        scenario = Scenario(scenario_dir)
+        scenario = Scenario(scenario_dir, frr_image)
         try:
             scenario.setup()
             scenario.run_check()

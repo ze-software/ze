@@ -13,7 +13,10 @@ import (
 	"os"
 	"strings"
 	"syscall"
+
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
@@ -172,15 +175,15 @@ func silenceDaemonOutput() func() {
 		return func() {}
 	}
 
-	syscall.Dup2(devNull, 1) //nolint:errcheck // best-effort redirect
-	syscall.Dup2(devNull, 2) //nolint:errcheck // best-effort redirect
-	syscall.Close(devNull)   //nolint:errcheck // fd already duped
+	unix.Dup2(devNull, 1)  //nolint:errcheck // best-effort redirect
+	unix.Dup2(devNull, 2)  //nolint:errcheck // best-effort redirect
+	syscall.Close(devNull) //nolint:errcheck // fd already duped
 
 	return func() {
-		syscall.Dup2(savedOut, 1) //nolint:errcheck // restore
-		syscall.Dup2(savedErr, 2) //nolint:errcheck // restore
-		syscall.Close(savedOut)   //nolint:errcheck // cleanup
-		syscall.Close(savedErr)   //nolint:errcheck // cleanup
+		unix.Dup2(savedOut, 1)  //nolint:errcheck // restore
+		unix.Dup2(savedErr, 2)  //nolint:errcheck // restore
+		syscall.Close(savedOut) //nolint:errcheck // cleanup
+		syscall.Close(savedErr) //nolint:errcheck // cleanup
 	}
 }
 

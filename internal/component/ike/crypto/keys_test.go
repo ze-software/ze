@@ -110,8 +110,8 @@ func TestSKHierarchyAESGCM256(t *testing.T) {
 	}
 	defer keys.Clear()
 
-	if len(keys.SK_ei) != 32 {
-		t.Errorf("SK_ei length = %d, want 32 (256-bit key)", len(keys.SK_ei))
+	if len(keys.SK_ei) != 36 {
+		t.Errorf("SK_ei length = %d, want 36 (256-bit key + 4-byte salt)", len(keys.SK_ei))
 	}
 	if len(keys.SK_ai) != 0 {
 		t.Errorf("SK_ai length = %d, want 0 (AEAD, no integrity key)", len(keys.SK_ai))

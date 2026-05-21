@@ -6,9 +6,11 @@ package engine
 import (
 	"bytes"
 	"crypto"
+	"crypto/aes"
+	gocipher "crypto/cipher"
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"crypto/rand"
+	crand "crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -48,7 +50,12 @@ func computeSignedOctets(sa *SA, isInitiator bool) ([]byte, error) {
 		skP = sa.SKKeys.SK_pr
 	}
 
-	idPayload := buildIDPayload(sa, isInitiator)
+	var idPayload *wire.PayloadID
+	if !isInitiator && sa.RemoteIDPayload != nil {
+		idPayload = sa.RemoteIDPayload
+	} else {
+		idPayload = buildIDPayload(sa, isInitiator)
+	}
 	idBytes := make([]byte, 4+len(idPayload.IDData))
 	n := idPayload.WriteTo(idBytes, 0)
 	idBytes = idBytes[:n]
@@ -92,6 +99,17 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 		innerPayloads = append(certPayloads, innerPayloads...)
 	}
 
+	espSPI, saPayload, tsi, tsr, err := buildChildSAPayloads(sa)
+	if err != nil {
+		return nil, fmt.Errorf("ike auth: child SA payloads: %w", err)
+	}
+	sa.ChildInboundSPI = espSPI
+	innerPayloads = append(innerPayloads,
+		wire.PayloadEntry{Payload: saPayload},
+		wire.PayloadEntry{Payload: tsi},
+		wire.PayloadEntry{Payload: tsr},
+	)
+
 	innerBuf := make([]byte, 16384)
 	off := 0
 	for i := range innerPayloads {
@@ -107,35 +125,17 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 		gh.Length = uint16(wire.GenericHeaderLen + bodyLen)
 		gh.WriteTo(innerBuf, ghOff)
 	}
-	plaintext := innerBuf[:off]
+	innerData := innerBuf[:off]
 
-	var nextPayload uint8
+	var innerFirstType uint8
 	if len(innerPayloads) > 0 {
-		nextPayload = innerPayloads[0].Payload.Type()
-	}
-	ciphertext, err := encryptPayload(sa, plaintext, nextPayload)
-	if err != nil {
-		return nil, err
+		innerFirstType = innerPayloads[0].Payload.Type()
 	}
 
-	msg := wire.Message{
-		Header: wire.Header{
-			InitiatorSPI: sa.InitiatorSPI,
-			ResponderSPI: sa.ResponderSPI,
-			MajorVersion: 2,
-			MinorVersion: 0,
-			ExchangeType: wire.ExchangeIKEAuth,
-			Flags:        wire.FlagInitiator,
-			MessageID:    1,
-		},
-		Payloads: []wire.PayloadEntry{
-			{Payload: &wire.PayloadSK{CipherText: ciphertext}},
-		},
+	if sa.Proposal.Encryption.IsAEAD {
+		return buildSKMessageAEAD(sa, innerData, innerFirstType)
 	}
-
-	buf := make([]byte, 16384)
-	n := msg.WriteTo(buf, 0)
-	return buf[:n], nil
+	return buildSKMessageCBC(sa, innerData, innerFirstType)
 }
 
 // computeLocalAuth computes the local AUTH payload.
@@ -364,27 +364,154 @@ func buildCertPayloads(sa *SA) []wire.PayloadEntry {
 	return payloads
 }
 
-// encryptPayload encrypts inner payloads using the IKE SA's encryption keys.
-func encryptPayload(sa *SA, plaintext []byte, nextPayload uint8) ([]byte, error) {
-	if sa.Proposal.Encryption.IsAEAD {
-		ct, err := ikecrypto.EncryptAESGCM(sa.SKKeys.SK_ei, plaintext, nil)
-		if err != nil {
-			return nil, err
-		}
-		result := make([]byte, 1+len(ct))
-		result[0] = nextPayload
-		copy(result[1:], ct)
-		return result, nil
+// buildSKMessageCBC builds a complete IKE_AUTH message with AES-CBC + HMAC.
+// Wire: [Header 28][SK GH 4][IV blockSize][Encrypted(content+pad+padlen)][ICV truncLen]
+func buildSKMessageCBC(sa *SA, innerData []byte, firstType uint8) ([]byte, error) {
+	const blockSize = 16 // AES block size
+
+	contentLen := len(innerData)
+	padLen := blockSize - ((contentLen + 1) % blockSize)
+	if padLen == blockSize {
+		padLen = 0
+	}
+	paddedLen := contentLen + padLen + 1
+
+	integTrunc := int(sa.Proposal.Integrity.TruncatedLength)
+	if integTrunc == 0 {
+		integTrunc = 16
 	}
 
-	ct, err := ikecrypto.EncryptAESCBC(sa.SKKeys.SK_ei, plaintext)
+	totalLen := wire.HeaderLen + wire.GenericHeaderLen + blockSize + paddedLen + integTrunc
+	buf := make([]byte, totalLen)
+
+	writeAuthHeader(buf, sa, firstType, uint32(totalLen))
+
+	ivOff := wire.HeaderLen + wire.GenericHeaderLen
+	if _, err := crand.Read(buf[ivOff : ivOff+blockSize]); err != nil {
+		return nil, err
+	}
+
+	dataOff := ivOff + blockSize
+	copy(buf[dataOff:], innerData)
+	buf[dataOff+contentLen+padLen] = byte(padLen)
+
+	block, err := aes.NewCipher(sa.SKKeys.SK_ei)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]byte, 1+len(ct))
-	result[0] = nextPayload
-	copy(result[1:], ct)
-	return result, nil
+	cbc := gocipher.NewCBCEncrypter(block, buf[ivOff:ivOff+blockSize])
+	cbc.CryptBlocks(buf[dataOff:dataOff+paddedLen], buf[dataOff:dataOff+paddedLen])
+
+	mac, err := ikecrypto.ComputeIntegrity(sa.Proposal.Integrity.ID, sa.SKKeys.SK_ai, buf[:totalLen-integTrunc])
+	if err != nil {
+		return nil, err
+	}
+	copy(buf[totalLen-integTrunc:], mac)
+	return buf, nil
+}
+
+// buildSKMessageAEAD builds a complete IKE_AUTH message with AES-GCM.
+// Wire: [Header 28][SK GH 4][IV 8][ciphertext][GCM tag 16]
+func buildSKMessageAEAD(sa *SA, innerData []byte, firstType uint8) ([]byte, error) {
+	const ivLen = 8
+	const tagLen = 16
+
+	plaintext := make([]byte, len(innerData)+1)
+	copy(plaintext, innerData)
+	plaintext[len(innerData)] = 0
+
+	totalLen := wire.HeaderLen + wire.GenericHeaderLen + ivLen + len(plaintext) + tagLen
+	buf := make([]byte, totalLen)
+
+	writeAuthHeader(buf, sa, firstType, uint32(totalLen))
+
+	ivOff := wire.HeaderLen + wire.GenericHeaderLen
+	if _, err := crand.Read(buf[ivOff : ivOff+ivLen]); err != nil {
+		return nil, err
+	}
+
+	aad := buf[:wire.HeaderLen+wire.GenericHeaderLen]
+	key := sa.SKKeys.SK_ei[:len(sa.SKKeys.SK_ei)-4]
+	salt := sa.SKKeys.SK_ei[len(sa.SKKeys.SK_ei)-4:]
+	nonce := make([]byte, 12)
+	copy(nonce, salt)
+	copy(nonce[4:], buf[ivOff:ivOff+ivLen])
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	gcm, err := gocipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	sealed := gcm.Seal(nil, nonce, plaintext, aad)
+	copy(buf[ivOff+ivLen:], sealed)
+	return buf, nil
+}
+
+func writeAuthHeader(buf []byte, sa *SA, firstType uint8, totalLen uint32) {
+	hdr := wire.Header{
+		InitiatorSPI: sa.InitiatorSPI,
+		ResponderSPI: sa.ResponderSPI,
+		MajorVersion: 2,
+		ExchangeType: wire.ExchangeIKEAuth,
+		Flags:        wire.FlagInitiator,
+		MessageID:    1,
+		NextPayload:  wire.PayloadTypeSK,
+		Length:       totalLen,
+	}
+	hdr.WriteTo(buf, 0)
+	skGH := wire.GenericHeader{
+		NextPayload: firstType,
+		Length:      uint16(totalLen - wire.HeaderLen),
+	}
+	skGH.WriteTo(buf, wire.HeaderLen)
+}
+
+// decryptSKPayload decrypts an SK payload from a raw IKE message.
+// rawMsg is the complete message bytes. skPayload is the parsed SK payload.
+func decryptSKPayload(sa *SA, rawMsg []byte, skPayload *wire.PayloadSK) ([]byte, error) {
+	if sa.Proposal.Encryption.IsAEAD {
+		aadLen := wire.HeaderLen + wire.GenericHeaderLen
+		var aad []byte
+		if len(rawMsg) >= aadLen {
+			aad = rawMsg[:aadLen]
+		}
+		return ikecrypto.DecryptIKEAEAD(sa.SKKeys.SK_er, skPayload.CipherText, aad)
+	}
+
+	integTrunc := int(sa.Proposal.Integrity.TruncatedLength)
+	if integTrunc == 0 {
+		integTrunc = 16
+	}
+	if len(rawMsg) < integTrunc {
+		return nil, errInvalidMessage
+	}
+	macData := rawMsg[:len(rawMsg)-integTrunc]
+	macExpected := rawMsg[len(rawMsg)-integTrunc:]
+	if err := ikecrypto.VerifyIntegrity(sa.Proposal.Integrity.ID, sa.SKKeys.SK_ar, macData, macExpected); err != nil {
+		return nil, fmt.Errorf("ike: integrity verification failed: %w", err)
+	}
+
+	ct := skPayload.CipherText
+	if len(ct) < integTrunc {
+		return nil, errInvalidMessage
+	}
+	ct = ct[:len(ct)-integTrunc]
+	padded, err := ikecrypto.DecryptAESCBCRaw(sa.SKKeys.SK_er, ct)
+	if err != nil {
+		return nil, err
+	}
+	if len(padded) == 0 {
+		return nil, errInvalidMessage
+	}
+	padLen := int(padded[len(padded)-1])
+	end := len(padded) - 1 - padLen
+	if end < 0 {
+		return nil, errInvalidMessage
+	}
+	return padded[:end], nil
 }
 
 // OID constants for ASN.1 AlgorithmIdentifier (RFC 7427 Appendix A).
@@ -428,9 +555,9 @@ func containsHashAlgo(algos []uint16, target uint16) bool {
 func signDigest(key crypto.PrivateKey, digest []byte, hashFunc crypto.Hash) ([]byte, error) {
 	switch k := key.(type) {
 	case *rsa.PrivateKey:
-		return rsa.SignPKCS1v15(rand.Reader, k, hashFunc, digest)
+		return rsa.SignPKCS1v15(crand.Reader, k, hashFunc, digest)
 	case *ecdsa.PrivateKey:
-		return ecdsa.SignASN1(rand.Reader, k, digest)
+		return ecdsa.SignASN1(crand.Reader, k, digest)
 	}
 	return nil, errUnsupportedKey
 }

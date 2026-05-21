@@ -3,6 +3,7 @@
 package engine
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -76,7 +77,7 @@ func (ps *PeerSession) runInitiator(
 	bus ze.EventBus,
 	log *slog.Logger,
 ) error {
-	sa, err := newInitiatorSA(ps.peerName, peer, ikeGroup)
+	sa, err := newInitiatorSA(ps.peerName, peer, ikeGroup, ps.espGroup)
 	if err != nil {
 		return fmt.Errorf("ike: create SA: %w", err)
 	}
@@ -186,7 +187,7 @@ func handleInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.U
 	case StateAuthSent:
 		if msg.Header.ExchangeType == wire.ExchangeIKEAuth &&
 			msg.Header.Flags&wire.FlagResponse != 0 {
-			handleAuthResponse(sa, &msg, table, tr, log)
+			handleAuthResponse(sa, &msg, pkt.Data, table, tr, log)
 		}
 	case StateEstablished:
 		handleEstablishedInbound(sa, &msg, log)
@@ -335,8 +336,37 @@ func handleSAInitResponse(
 }
 
 // handleAuthResponse processes an IKE_AUTH response for an initiator.
-func handleAuthResponse(sa *SA, msg *wire.Message, _ *SATable, _ *transport.UDPTransport, log *slog.Logger) {
+// Decrypts the SK payload, verifies AUTH, and extracts the negotiated
+// Child SA parameters (SA, TSi, TSr) piggybacked on IKE_AUTH.
+func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, _ *transport.UDPTransport, log *slog.Logger) {
+	var skPayload *wire.PayloadSK
 	for _, pe := range msg.Payloads {
+		if sk, ok := pe.Payload.(*wire.PayloadSK); ok {
+			skPayload = sk
+		}
+	}
+	if skPayload == nil {
+		log.Warn("ike: AUTH response has no SK payload", "peer", sa.PeerName)
+		sa.State = StateDead
+		return
+	}
+
+	plaintext, err := decryptSKPayload(sa, rawMsg, skPayload)
+	if err != nil {
+		log.Warn("ike: AUTH response decryption failed", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+
+	innerPayloads, err := wire.ParsePayloadChain(plaintext, skPayload.InnerNextPayload)
+	if err != nil {
+		log.Warn("ike: AUTH response inner payload parse failed", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+
+	authVerified := false
+	for _, pe := range innerPayloads {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNotify:
 			if p.NotifyMsgType == wire.NotifyAuthenticationFailed {
@@ -344,13 +374,37 @@ func handleAuthResponse(sa *SA, msg *wire.Message, _ *SATable, _ *transport.UDPT
 				sa.State = StateDead
 				return
 			}
+		case *wire.PayloadID:
+			if p.IDPayloadType == wire.PayloadTypeIDr {
+				sa.RemoteIDPayload = p
+			}
 		case *wire.PayloadAUTH:
 			if err := verifyRemoteAuth(sa, p); err != nil {
 				log.Warn("ike: remote AUTH verification failed", "peer", sa.PeerName, "error", err)
 				sa.State = StateDead
 				return
 			}
+			authVerified = true
+		case *wire.PayloadSA:
+			for _, prop := range p.Proposals {
+				if prop.ProtocolID == wire.ProtocolESP && prop.SPISize == 4 && len(prop.SPI) >= 4 {
+					sa.ChildOutboundSPI = binary.BigEndian.Uint32(prop.SPI[:4])
+				}
+			}
+		case *wire.PayloadTS:
+			switch p.TSPayloadType {
+			case wire.PayloadTypeTSi:
+				sa.NegotiatedTSi = tsToIPNet(p.TrafficSelectors)
+			case wire.PayloadTypeTSr:
+				sa.NegotiatedTSr = tsToIPNet(p.TrafficSelectors)
+			}
 		}
+	}
+
+	if !authVerified {
+		log.Warn("ike: AUTH response missing AUTH payload", "peer", sa.PeerName)
+		sa.State = StateDead
+		return
 	}
 
 	sa.State = StateEstablished

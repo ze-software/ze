@@ -40,7 +40,7 @@ func TestFSMInitiatorInit(t *testing.T) {
 	peer := testPeer()
 	ikeGroup := testIKEGroup()
 
-	sa, err := newInitiatorSA("test-peer", peer, ikeGroup)
+	sa, err := newInitiatorSA("test-peer", peer, ikeGroup, ipsec.ESPGroup{})
 	if err != nil {
 		t.Fatalf("newInitiatorSA: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestFSMInitiatorSAInitRequest(t *testing.T) {
 	peer := testPeer()
 	ikeGroup := testIKEGroup()
 
-	sa, err := newInitiatorSA("test-peer", peer, ikeGroup)
+	sa, err := newInitiatorSA("test-peer", peer, ikeGroup, ipsec.ESPGroup{})
 	if err != nil {
 		t.Fatalf("newInitiatorSA: %v", err)
 	}

@@ -32,7 +32,9 @@ func NegotiateIKE(remote, local []IKEProposal) (IKEProposal, error) {
 				r.PRF.ID == l.PRF.ID &&
 				r.Integrity.ID == l.Integrity.ID &&
 				r.DHGroup.ID == l.DHGroup.ID {
-				return r, nil
+				chosen := l
+				chosen.Number = r.Number
+				return chosen, nil
 			}
 		}
 	}

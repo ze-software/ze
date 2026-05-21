@@ -2,10 +2,12 @@
 """Docker lifecycle and helpers for Ze IPsec interop lab.
 
 Manages container creation, network setup, log collection, and daemon
-helpers for Ze (IKE initiator) and strongSwan/charon (IKE responder).
+helpers for Ze (IKE initiator), strongSwan/charon (IKE responder),
+and FRR (BGP peer for redistribute scenarios).
 """
 
 import atexit
+import json
 import os
 import subprocess
 import time
@@ -14,10 +16,12 @@ _SUFFIX = os.environ.get("ZE_IPSEC_INTEROP_SUFFIX", str(os.getpid()))
 NETWORK = "ze-ipsec-%s" % _SUFFIX
 ZE_CONTAINER = "ze-ipsec-ze-%s" % _SUFFIX
 SWAN_CONTAINER = "ze-ipsec-swan-%s" % _SUFFIX
+FRR_CONTAINER = "ze-ipsec-frr-%s" % _SUFFIX
 
 SUBNET = "172.28.0.0/24"
 ZE_IP = "172.28.0.2"
 SWAN_IP = "172.28.0.3"
+FRR_IP = "172.28.0.4"
 
 try:
     SESSION_TIMEOUT = int(os.environ.get("SESSION_TIMEOUT", "90"))
@@ -281,6 +285,87 @@ class StrongSwan:
         )
 
 
+# --- FRR helpers -------------------------------------------------------------
+
+
+class FRR:
+    def __init__(self, container=FRR_CONTAINER, ip=FRR_IP):
+        self.container = container
+        self.ip = ip
+
+    def _vtysh_quiet(self, command):
+        return docker_exec_quiet(self.container, ["vtysh", "-c", command])
+
+    def wait_session(self, neighbor, timeout=None):
+        if timeout is None:
+            timeout = SESSION_TIMEOUT
+        log_info(
+            "waiting for FRR session with %s (timeout %ds)..." % (neighbor, timeout)
+        )
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            output = self._vtysh_quiet("show bgp neighbor %s" % neighbor)
+            if "BGP state = Established" in output:
+                log_pass("FRR session with %s is Established" % neighbor)
+                return
+            time.sleep(2)
+        log_fail(
+            "FRR session with %s did not reach Established within %ds"
+            % (neighbor, timeout)
+        )
+        output = self._vtysh_quiet("show bgp neighbor %s" % neighbor)
+        for line in output.splitlines()[:10]:
+            print("  %s" % line)
+        print(docker_logs(ZE_CONTAINER, 20))
+        raise AssertionError("FRR session with %s not Established" % neighbor)
+
+    def has_route(self, prefix, family="ipv4 unicast"):
+        output = self._vtysh_quiet("show bgp %s %s json" % (family, prefix))
+        if not output.strip():
+            return False
+        try:
+            data = json.loads(output)
+        except json.JSONDecodeError:
+            return False
+        if "paths" in data or "prefix" in data:
+            return True
+        for v in data.values():
+            if isinstance(v, dict) and ("paths" in v or "prefix" in v):
+                return True
+        return False
+
+    def wait_route(self, prefix, timeout=30, family="ipv4 unicast"):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.has_route(prefix, family):
+                log_pass("FRR has route %s" % prefix)
+                return
+            time.sleep(2)
+        log_fail("FRR route %s did not appear within %ds" % (prefix, timeout))
+        raise AssertionError("FRR route %s not found" % prefix)
+
+    def wait_route_absent(self, prefix, timeout=30, family="ipv4 unicast"):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if not self.has_route(prefix, family):
+                log_pass("FRR route %s withdrawn" % prefix)
+                return
+            time.sleep(2)
+        log_fail("FRR route %s still present after %ds" % (prefix, timeout))
+        raise AssertionError("FRR route %s still present" % prefix)
+
+    def check_route(self, prefix, family="ipv4 unicast"):
+        if self.has_route(prefix, family):
+            log_pass("FRR has route %s" % prefix)
+            return
+        log_fail("FRR does not have route %s" % prefix)
+        raise AssertionError("FRR missing route %s" % prefix)
+
+    def session_established(self, neighbor):
+        output = self._vtysh_quiet("show bgp neighbor %s" % neighbor)
+        return "BGP state = Established" in output
+
+
 # --- XFRM verification helpers ----------------------------------------------
 
 
@@ -313,8 +398,9 @@ def check_xfrm_sa_count(container, expected, proto="esp"):
 
 
 class Scenario:
-    def __init__(self, scenario_dir):
+    def __init__(self, scenario_dir, frr_image=None):
         self.scenario_dir = scenario_dir
+        self.frr_image = frr_image
         self.name = os.path.basename(scenario_dir.rstrip("/"))
 
     def setup(self):
@@ -335,19 +421,6 @@ class Scenario:
         if not os.path.isfile(ze_conf):
             raise RuntimeError("missing ze.conf in %s" % self.name)
 
-        ze_volumes = [
-            "%s:/etc/ze/ze.conf:ro" % os.path.abspath(ze_conf),
-        ]
-
-        docker_run(
-            ZE_CONTAINER,
-            "ze-ipsec-interop",
-            ZE_IP,
-            volumes=ze_volumes,
-            extra_args=["--privileged"],
-            cmd=["/etc/ze/ze.conf"],
-        )
-
         swanctl_conf = os.path.join(self.scenario_dir, "swanctl.conf")
         if os.path.isfile(swanctl_conf):
             swan_volumes = [
@@ -366,9 +439,44 @@ class Scenario:
             _wait_charon_ready()
             docker_exec(SWAN_CONTAINER, ["swanctl", "--load-all"])
 
+        frr_conf = os.path.join(self.scenario_dir, "frr.conf")
+        if os.path.isfile(frr_conf) and self.frr_image:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            docker_run(
+                FRR_CONTAINER,
+                self.frr_image,
+                FRR_IP,
+                volumes=[
+                    "%s:/etc/frr/frr.conf:ro" % os.path.abspath(frr_conf),
+                    "%s/daemons:/etc/frr/daemons:ro" % script_dir,
+                    "%s/vtysh.conf:/etc/frr/vtysh.conf:ro" % script_dir,
+                ],
+                caps=["NET_ADMIN", "SYS_ADMIN"],
+            )
+
+        ze_volumes = [
+            "%s:/etc/ze/ze.conf:ro" % os.path.abspath(ze_conf),
+        ]
+
+        docker_run(
+            ZE_CONTAINER,
+            "ze-ipsec-interop",
+            ZE_IP,
+            volumes=ze_volumes,
+            extra_args=[
+                "--privileged",
+                "-e",
+                "ZE_STORAGE_BLOB=false",
+                "-e",
+                "ZE_LOG_LEVEL=debug",
+            ],
+            cmd=["/etc/ze/ze.conf"],
+        )
+
     def teardown(self):
         docker_rm(ZE_CONTAINER)
         docker_rm(SWAN_CONTAINER)
+        docker_rm(FRR_CONTAINER)
         subprocess.run(
             ["docker", "network", "rm", NETWORK],
             capture_output=True,
@@ -381,6 +489,10 @@ class Scenario:
         print(docker_logs(ZE_CONTAINER, lines))
         print("\n--- strongSwan logs ---")
         print(docker_logs(SWAN_CONTAINER, lines))
+        frr_conf = os.path.join(self.scenario_dir, "frr.conf")
+        if os.path.isfile(frr_conf):
+            print("\n--- FRR logs ---")
+            print(docker_logs(FRR_CONTAINER, lines))
 
     def run_check(self):
         check_path = os.path.join(self.scenario_dir, "check.py")
@@ -405,7 +517,7 @@ class Scenario:
 
 
 def global_cleanup():
-    for name in [ZE_CONTAINER, SWAN_CONTAINER]:
+    for name in [ZE_CONTAINER, SWAN_CONTAINER, FRR_CONTAINER]:
         subprocess.run(
             ["docker", "rm", "-f", name],
             capture_output=True,

@@ -145,6 +145,7 @@ func init() {
 	d := slogutil.DiscardLogger()
 	loggerPtr.Store(d)
 	RegisterHealthCheck()
+	registerIPsecRedistSources()
 
 	reg := registry.Registration{
 		Name:        "ike",
@@ -235,7 +236,9 @@ func runEngine(conn net.Conn) int {
 		if tr == nil && len(cfg.Peers) > 0 {
 			listenAddr := "0.0.0.0:500"
 			if cfg.Interface != "" {
-				listenAddr = cfg.Interface + ":500"
+				if ip := resolveInterfaceAddr(cfg.Interface); ip != "" {
+					listenAddr = ip + ":500"
+				}
 			}
 			var tErr error
 			tr, tErr = transport.NewUDPTransport(listenAddr, log)
@@ -251,7 +254,9 @@ func runEngine(conn net.Conn) int {
 		if trNATT == nil && len(cfg.Peers) > 0 {
 			nattAddr := "0.0.0.0:4500"
 			if cfg.Interface != "" {
-				nattAddr = cfg.Interface + ":4500"
+				if ip := resolveInterfaceAddr(cfg.Interface); ip != "" {
+					nattAddr = ip + ":4500"
+				}
 			}
 			var nErr error
 			trNATT, nErr = transport.NewUDPTransport(nattAddr, log)
@@ -410,7 +415,7 @@ func dispatchNATTInbound(tr *transport.UDPTransport, table *SATable, log *slog.L
 		}
 
 		sa := table.Lookup(iSPI, rSPI)
-		if sa == nil && rSPI == [8]byte{} {
+		if sa == nil {
 			sa = table.LookupByInitiatorSPI(iSPI)
 		}
 		if sa == nil {
@@ -454,7 +459,7 @@ func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logge
 		}
 
 		sa := table.Lookup(iSPI, rSPI)
-		if sa == nil && rSPI == [8]byte{} {
+		if sa == nil {
 			sa = table.LookupByInitiatorSPI(iSPI)
 		}
 		if sa == nil {
@@ -464,4 +469,21 @@ func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logge
 
 		handleInbound(sa, pkt, table, tr, log)
 	}
+}
+
+func resolveInterfaceAddr(name string) string {
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return ""
+	}
+	addrs, err := iface.Addrs()
+	if err != nil || len(addrs) == 0 {
+		return ""
+	}
+	for _, a := range addrs {
+		if ipNet, ok := a.(*net.IPNet); ok && ipNet.IP.To4() != nil {
+			return ipNet.IP.String()
+		}
+	}
+	return ""
 }

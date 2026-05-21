@@ -35,6 +35,7 @@ func (ps *PeerSession) runEstablished(
 	ps.setChildSA(child)
 
 	emitChildUp(bus, ps.peerName, child, log)
+	emitRouteAdd(bus, child.TSRemote, log)
 
 	// RFC 3948 Section 2.3: start NAT keepalive when NAT is detected.
 	if sa.NATDetected && tr != nil {
@@ -139,6 +140,8 @@ func (ps *PeerSession) cleanupChild(dp dataplane.Dataplane, bus ze.EventBus, log
 	if child != nil {
 		removeChildSA(child, dp, log)
 		emitChildDown(bus, ps.peerName, child, log)
+		emitRouteRemove(bus, child.TSRemote, log)
+		log.Info("ike: tunnel routes withdrawn", "peer", ps.peerName)
 		ps.setChildSA(nil)
 	}
 }
@@ -153,12 +156,19 @@ func emitChildUp(bus ze.EventBus, peerName string, child *ChildSA, log *slog.Log
 	if bus == nil || child == nil {
 		return
 	}
-	if _, err := ChildUp.Emit(bus, &ChildSAEvent{
+	evt := &ChildSAEvent{
 		PeerName:    peerName,
 		InboundSPI:  child.InboundSPI,
 		OutboundSPI: child.OutboundSPI,
 		IfID:        child.IfID,
-	}); err != nil {
+	}
+	if child.TSLocal != nil {
+		evt.TSLocal = child.TSLocal.String()
+	}
+	if child.TSRemote != nil {
+		evt.TSRemote = child.TSRemote.String()
+	}
+	if _, err := ChildUp.Emit(bus, evt); err != nil {
 		log.Debug("ike: emit child-up failed", "error", err)
 	}
 }
@@ -167,12 +177,19 @@ func emitChildDown(bus ze.EventBus, peerName string, child *ChildSA, log *slog.L
 	if bus == nil || child == nil {
 		return
 	}
-	if _, err := ChildDown.Emit(bus, &ChildSAEvent{
+	evt := &ChildSAEvent{
 		PeerName:    peerName,
 		InboundSPI:  child.InboundSPI,
 		OutboundSPI: child.OutboundSPI,
 		IfID:        child.IfID,
-	}); err != nil {
+	}
+	if child.TSLocal != nil {
+		evt.TSLocal = child.TSLocal.String()
+	}
+	if child.TSRemote != nil {
+		evt.TSRemote = child.TSRemote.String()
+	}
+	if _, err := ChildDown.Emit(bus, evt); err != nil {
 		log.Debug("ike: emit child-down failed", "error", err)
 	}
 }
@@ -181,12 +198,19 @@ func emitChildRekey(bus ze.EventBus, peerName string, child *ChildSA, log *slog.
 	if bus == nil || child == nil {
 		return
 	}
-	if _, err := ChildRekey.Emit(bus, &ChildSAEvent{
+	evt := &ChildSAEvent{
 		PeerName:    peerName,
 		InboundSPI:  child.InboundSPI,
 		OutboundSPI: child.OutboundSPI,
 		IfID:        child.IfID,
-	}); err != nil {
+	}
+	if child.TSLocal != nil {
+		evt.TSLocal = child.TSLocal.String()
+	}
+	if child.TSRemote != nil {
+		evt.TSRemote = child.TSRemote.String()
+	}
+	if _, err := ChildRekey.Emit(bus, evt); err != nil {
 		log.Debug("ike: emit child-rekey failed", "error", err)
 	}
 }

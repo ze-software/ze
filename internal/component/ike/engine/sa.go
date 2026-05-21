@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
 	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 )
 
@@ -50,6 +51,7 @@ type SA struct {
 	PeerName string
 	PeerCfg  ipsec.SiteToSitePeer
 	IKEGroup ipsec.IKEGroup
+	ESPGroup ipsec.ESPGroup
 
 	InitiatorSPI [8]byte
 	ResponderSPI [8]byte
@@ -97,6 +99,15 @@ type SA struct {
 	// EAP state (RFC 7296 Section 2.16).
 	EAPSession any // *eap.Session, stored as any to avoid import cycle
 	EAPMSK     [64]byte
+
+	// Remote peer identity from IKE_AUTH response IDr payload.
+	RemoteIDPayload *wire.PayloadID
+
+	// Negotiated Child SA parameters from IKE_AUTH piggybacked exchange.
+	ChildInboundSPI  uint32     // our ESP SPI included in SAi2
+	ChildOutboundSPI uint32     // responder's ESP SPI from AUTH response SA
+	NegotiatedTSi    *net.IPNet // narrowed initiator TS from AUTH response
+	NegotiatedTSr    *net.IPNet // narrowed responder TS from AUTH response
 }
 
 // GenerateSPI generates a random 8-byte SPI value using crypto/rand.

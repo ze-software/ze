@@ -25,7 +25,9 @@ func (m *Message) WriteTo(buf []byte, off int) int {
 	for i := range m.Payloads {
 		var gh GenericHeader
 		gh.Critical = m.Payloads[i].Critical
-		if i+1 < len(m.Payloads) {
+		if sk, ok := m.Payloads[i].Payload.(*PayloadSK); ok && sk.InnerNextPayload != 0 {
+			gh.NextPayload = sk.InnerNextPayload
+		} else if i+1 < len(m.Payloads) {
 			gh.NextPayload = m.Payloads[i+1].Payload.Type()
 		}
 		// Skip generic header, backfill length
@@ -92,6 +94,9 @@ func (m *Message) ReadFrom(data []byte) error {
 				return ErrUnsupportedCrit
 			}
 			payload = &PayloadRaw{PayloadType: nextType, Data: bodyData}
+		}
+		if sk, ok := payload.(*PayloadSK); ok {
+			sk.InnerNextPayload = gh.NextPayload
 		}
 		m.Payloads = append(m.Payloads, PayloadEntry{
 			Payload:  payload,

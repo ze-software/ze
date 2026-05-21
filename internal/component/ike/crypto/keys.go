@@ -51,6 +51,9 @@ func DeriveSKKeys(prfID PRFID, skeyseed, ni, nr, spiI, spiR []byte, enc Encrypti
 	skDLen := int(prf.OutputLength)
 	integKeyLen := int(integ.KeyLength)
 	encKeyLen := int(enc.KeyLength) / 8
+	if enc.IsAEAD {
+		encKeyLen += 4 // RFC 5282: AEAD key material includes 4-byte salt
+	}
 	prfKeyLen := int(prf.KeyLength)
 
 	totalLen := skDLen + 2*integKeyLen + 2*encKeyLen + 2*prfKeyLen

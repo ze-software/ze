@@ -13,7 +13,7 @@ func testSAWithKeys(t *testing.T) *SA {
 	peer := testPeer()
 	ikeGroup := testIKEGroup()
 
-	sa, err := newInitiatorSA("test-peer", peer, ikeGroup)
+	sa, err := newInitiatorSA("test-peer", peer, ikeGroup, ipsec.ESPGroup{})
 	if err != nil {
 		t.Fatalf("newInitiatorSA: %v", err)
 	}

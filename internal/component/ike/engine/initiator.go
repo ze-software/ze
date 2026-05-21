@@ -4,6 +4,7 @@ package engine
 
 import (
 	"encoding/binary"
+	"errors"
 	"net"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 )
 
 // newInitiatorSA creates a new SA for the initiator side.
-func newInitiatorSA(peerName string, peer ipsec.SiteToSitePeer, ikeGroup ipsec.IKEGroup) (*SA, error) {
+func newInitiatorSA(peerName string, peer ipsec.SiteToSitePeer, ikeGroup ipsec.IKEGroup, espGroup ipsec.ESPGroup) (*SA, error) {
 	spi, err := GenerateSPI()
 	if err != nil {
 		return nil, err
@@ -35,6 +36,7 @@ func newInitiatorSA(peerName string, peer ipsec.SiteToSitePeer, ikeGroup ipsec.I
 		PeerName:     peerName,
 		PeerCfg:      peer,
 		IKEGroup:     ikeGroup,
+		ESPGroup:     espGroup,
 		InitiatorSPI: spi,
 		IsInitiator:  true,
 		State:        StateIdle,
@@ -110,10 +112,15 @@ func buildWireIKEProposals(ikeGroup ipsec.IKEGroup) []wire.Proposal {
 		integ := lookupIntegrity(p.Hash)
 		dh := uint16(p.DHGroup)
 
+		integID := uint16(integ.ID)
+		if enc.IsAEAD {
+			integID = uint16(crypto.AUTH_NONE)
+		}
+
 		transforms := []wire.Transform{
 			{Type: wire.TransformTypeENCR, ID: uint16(enc.ID), Attrs: encAttrs(enc)},
 			{Type: wire.TransformTypePRF, ID: uint16(prf.ID)},
-			{Type: wire.TransformTypeINTG, ID: uint16(integ.ID)},
+			{Type: wire.TransformTypeINTG, ID: integID},
 			{Type: wire.TransformTypeDH, ID: dh},
 		}
 
@@ -131,11 +138,16 @@ func buildWireIKEProposals(ikeGroup ipsec.IKEGroup) []wire.Proposal {
 func buildIKEProposals(ikeGroup ipsec.IKEGroup) []crypto.IKEProposal {
 	out := make([]crypto.IKEProposal, 0, len(ikeGroup.Proposals))
 	for _, p := range ikeGroup.Proposals {
+		enc := lookupEncryption(p.Encryption)
+		integ := lookupIntegrity(p.Hash)
+		if enc.IsAEAD {
+			integ = crypto.IntegrityTransform{ID: crypto.AUTH_NONE}
+		}
 		out = append(out, crypto.IKEProposal{
 			Number:     p.Number,
-			Encryption: lookupEncryption(p.Encryption),
+			Encryption: enc,
 			PRF:        lookupPRF(p.Hash),
-			Integrity:  lookupIntegrity(p.Hash),
+			Integrity:  integ,
 			DHGroup:    crypto.DHGroupTransform{ID: crypto.DHGroupID(p.DHGroup)},
 		})
 	}
@@ -227,4 +239,110 @@ func encAttrs(enc crypto.EncryptionTransform) []wire.TransformAttr {
 		return []wire.TransformAttr{{Type: wire.AttrTypeKeyLength, Value: enc.KeyLength}}
 	}
 	return nil
+}
+
+// buildChildSAPayloads builds the SAi2, TSi, TSr payloads for IKE_AUTH.
+// Returns the generated inbound ESP SPI and the three payloads.
+func buildChildSAPayloads(sa *SA) (uint32, *wire.PayloadSA, *wire.PayloadTS, *wire.PayloadTS, error) {
+	if len(sa.ESPGroup.Proposals) == 0 {
+		return 0, nil, nil, nil, errors.New("no ESP proposals configured")
+	}
+	espSPI, err := GenerateESPSPI()
+	if err != nil {
+		return 0, nil, nil, nil, err
+	}
+	proposals := buildWireESPProposals(sa.ESPGroup, espSPI)
+	saPayload := &wire.PayloadSA{Proposals: proposals}
+
+	remoteIP := net.ParseIP(sa.PeerCfg.RemoteAddress)
+	isV6 := remoteIP != nil && remoteIP.To4() == nil
+	tsAny := anyTrafficSelector(isV6)
+
+	tsi := &wire.PayloadTS{
+		TSPayloadType:    wire.PayloadTypeTSi,
+		TrafficSelectors: []wire.TrafficSelector{tsAny},
+	}
+	tsr := &wire.PayloadTS{
+		TSPayloadType:    wire.PayloadTypeTSr,
+		TrafficSelectors: []wire.TrafficSelector{tsAny},
+	}
+	return espSPI, saPayload, tsi, tsr, nil
+}
+
+func anyTrafficSelector(ipv6 bool) wire.TrafficSelector {
+	if ipv6 {
+		return wire.TrafficSelector{
+			TSType:       wire.TSTypeIPv6AddrRange,
+			IPProtocol:   0,
+			StartPort:    0,
+			EndPort:      65535,
+			StartAddress: make([]byte, 16),
+			EndAddress:   []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		}
+	}
+	return wire.TrafficSelector{
+		TSType:       wire.TSTypeIPv4AddrRange,
+		IPProtocol:   0,
+		StartPort:    0,
+		EndPort:      65535,
+		StartAddress: []byte{0, 0, 0, 0},
+		EndAddress:   []byte{255, 255, 255, 255},
+	}
+}
+
+// buildWireESPProposals converts an ESP group to wire SA proposals.
+func buildWireESPProposals(espGroup ipsec.ESPGroup, spi uint32) []wire.Proposal {
+	proposals := make([]wire.Proposal, 0, len(espGroup.Proposals))
+	for _, p := range espGroup.Proposals {
+		spiBytes := make([]byte, 4)
+		binary.BigEndian.PutUint32(spiBytes, spi)
+		enc := lookupEncryption(p.Encryption)
+		transforms := []wire.Transform{
+			{Type: wire.TransformTypeENCR, ID: uint16(enc.ID), Attrs: encAttrs(enc)},
+		}
+		if !p.Encryption.IsAEAD() {
+			integ := lookupIntegrity(p.Hash)
+			transforms = append(transforms, wire.Transform{
+				Type: wire.TransformTypeINTG, ID: uint16(integ.ID),
+			})
+		}
+		transforms = append(transforms, wire.Transform{
+			Type: wire.TransformTypeESN, ID: 0,
+		})
+		proposals = append(proposals, wire.Proposal{
+			Number:     uint8(p.Number),
+			ProtocolID: wire.ProtocolESP,
+			SPISize:    4,
+			SPI:        spiBytes,
+			Transforms: transforms,
+		})
+	}
+	return proposals
+}
+
+// tsToIPNet converts the first traffic selector from a wire TS payload to *net.IPNet.
+// Returns nil if the range is not CIDR-aligned.
+func tsToIPNet(selectors []wire.TrafficSelector) *net.IPNet {
+	if len(selectors) == 0 {
+		return nil
+	}
+	ts := selectors[0]
+	if len(ts.StartAddress) == 0 || len(ts.StartAddress) != len(ts.EndAddress) {
+		return nil
+	}
+	mask := make(net.IPMask, len(ts.StartAddress))
+	for i := range mask {
+		mask[i] = ^(ts.StartAddress[i] ^ ts.EndAddress[i])
+	}
+	ones, bits := mask.Size()
+	if ones == 0 && bits == 0 {
+		return nil
+	}
+	ip := make(net.IP, len(ts.StartAddress))
+	copy(ip, ts.StartAddress)
+	masked := ip.Mask(mask)
+	if !masked.Equal(ip) {
+		return nil
+	}
+	return &net.IPNet{IP: ip, Mask: mask}
 }

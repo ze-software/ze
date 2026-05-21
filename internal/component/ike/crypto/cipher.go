@@ -61,6 +61,74 @@ func DecryptAESGCM(key, data, aad []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
+// EncryptIKEAEAD encrypts using the IKEv2 AEAD construction (RFC 5282).
+// keyWithSalt is the AEAD key material: AES key || 4-byte salt.
+// Returns IV(8) || ciphertext || tag(16) for the wire.
+func EncryptIKEAEAD(keyWithSalt, plaintext, aad []byte) ([]byte, error) {
+	if len(keyWithSalt) < 4 {
+		return nil, ErrInvalidKeyLength
+	}
+	aesKey := keyWithSalt[:len(keyWithSalt)-4]
+	salt := keyWithSalt[len(keyWithSalt)-4:]
+
+	block, err := aes.NewCipher(aesKey)
+	if err != nil {
+		return nil, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	iv := make([]byte, 8)
+	if _, err := rand.Read(iv); err != nil {
+		return nil, err
+	}
+	nonce := make([]byte, 0, 12)
+	nonce = append(nonce, salt...)
+	nonce = append(nonce, iv...)
+
+	sealed := gcm.Seal(nil, nonce, plaintext, aad)
+	result := make([]byte, 8+len(sealed))
+	copy(result, iv)
+	copy(result[8:], sealed)
+	return result, nil
+}
+
+// DecryptIKEAEAD decrypts using the IKEv2 AEAD construction (RFC 5282).
+// keyWithSalt is the AEAD key material: AES key || 4-byte salt.
+// data is IV(8) || ciphertext || tag(16) from the wire.
+func DecryptIKEAEAD(keyWithSalt, data, aad []byte) ([]byte, error) {
+	if len(keyWithSalt) < 4 {
+		return nil, ErrInvalidKeyLength
+	}
+	if len(data) < 8 {
+		return nil, ErrDecryptionFailed
+	}
+	aesKey := keyWithSalt[:len(keyWithSalt)-4]
+	salt := keyWithSalt[len(keyWithSalt)-4:]
+	iv := data[:8]
+	ciphertext := data[8:]
+
+	nonce := make([]byte, 0, 12)
+	nonce = append(nonce, salt...)
+	nonce = append(nonce, iv...)
+
+	block, err := aes.NewCipher(aesKey)
+	if err != nil {
+		return nil, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, aad)
+	if err != nil {
+		return nil, ErrDecryptionFailed
+	}
+	return plaintext, nil
+}
+
 // EncryptAESCBC encrypts plaintext using AES-CBC with PKCS#7 padding.
 // Returns iv || ciphertext.
 func EncryptAESCBC(key, plaintext []byte) ([]byte, error) {
@@ -98,6 +166,23 @@ func DecryptAESCBC(key, data []byte) ([]byte, error) {
 		return nil, ErrDecryptionFailed
 	}
 	return unpadded, nil
+}
+
+// DecryptAESCBCRaw decrypts without unpadding (caller handles IKEv2 padding).
+// Input is iv(blockSize) || ciphertext.
+func DecryptAESCBCRaw(key, data []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	if len(data) < aes.BlockSize*2 || len(data)%aes.BlockSize != 0 {
+		return nil, ErrDecryptionFailed
+	}
+	iv := data[:aes.BlockSize]
+	ct := data[aes.BlockSize:]
+	plaintext := make([]byte, len(ct))
+	cipher.NewCBCDecrypter(block, iv).CryptBlocks(plaintext, ct)
+	return plaintext, nil
 }
 
 func pkcs7Pad(data []byte, blockSize int) []byte {

@@ -144,6 +144,7 @@ func reconcilePeers(
 		if child != nil {
 			removeChildSA(child, dp, log)
 			emitChildDown(bus, r.name, child, log)
+			emitRouteRemove(bus, child.TSRemote, log)
 			r.ps.setChildSA(nil)
 		}
 		if r.ps.sa != nil {
