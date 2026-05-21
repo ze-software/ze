@@ -48,6 +48,8 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
    - Verify the "What to verify" column against the actual implementation
    - Document pass/fail for each check
    - Also apply generic checks from `ai/rules/quality.md` (Correctness, Simplicity, Consistency, Completeness, Quality, Tests)
+   - **CLI grammar (BLOCKING):** If any CLI command was added or changed, verify it follows action-before-identifier per `.claude/rules/cli-grammar.md`. Run the mechanical check: `args[0]` must always be a keyword, never a user identifier.
+   - **Doctor checks (BLOCKING):** If the implementation adds any runtime dependency (file path, socket, kernel module, port, TLS cert, external binary), verify a `ze doctor` check exists per `ai/rules/doctor-checks.md`. Register diagnostic codes in `internal/core/diagnostic/codes.go`.
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
 8. **Fix every issue found** in the review
 9. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
@@ -77,6 +79,7 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
     - Do NOT say "update the docs." Name the specific file, the specific section, and what to add.
     - Categories: feature list, user guide, config syntax, CLI reference, API/RPC docs, plugin SDK, wire format, RFC compliance, comparison table, test infrastructure, architecture design.
     - If the spec has no Documentation Update Checklist, use `ai/rules/planning.md` "Documentation Update Checklist" as the reference and fill it for the spec.
+    - **Doctor checks (BLOCKING):** If the implementation adds any runtime dependency (file path, external socket, kernel module, listen port, external binary, TLS cert), verify a corresponding `ze doctor` check exists per `ai/rules/doctor-checks.md`. Add missing checks and register diagnostic codes in `internal/core/diagnostic/codes.go`.
     - Write the doc updates. Include them in the commit.
 15. **Close spec and present commit (BLOCKING -- do ALL of this BEFORE presenting the commit script):**
     The user runs the commit script and considers the work FINISHED. They will not come back

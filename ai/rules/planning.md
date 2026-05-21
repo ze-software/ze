@@ -132,6 +132,8 @@ A spec that stays in `design` during implementation is lying about its state.
 [ ] AC-N table rows with testable assertions
 [ ] Required Reading has → Decision: / → Constraint: checkpoints
 [ ] All research findings captured exhaustively
+[ ] CLI grammar: if adding CLI commands, Integration Checklist marks "CLI grammar" as needed
+[ ] Doctor checks: if adding runtime dependencies, Integration Checklist marks "Doctor check" as needed
 ```
 
 ## Retroactive Specs
