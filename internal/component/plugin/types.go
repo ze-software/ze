@@ -94,6 +94,15 @@ type Response struct {
 	Data    any    `json:"data,omitempty"`    // Payload (success data or error message)
 }
 
+// RouteResult is the typed payload for update-route command responses.
+// Carried as Response.Data so extractors can type-assert instead of
+// probing map keys and guessing value types.
+type RouteResult struct {
+	Announced uint32   `json:"announced"`
+	Withdrawn uint32   `json:"withdrawn"`
+	Warnings  []string `json:"warnings,omitempty"`
+}
+
 // ResponseWrapper wraps a Response with type field for ze-bgp JSON.
 // All responses are wrapped: {"type":"response","response":{...}}.
 type ResponseWrapper struct {

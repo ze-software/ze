@@ -800,16 +800,14 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 		}, nil
 	}
 
-	respData := map[string]any{
-		"announced": announced,
-		"withdrawn": withdrawn,
-	}
-	if len(warnings) > 0 {
-		respData["warnings"] = warnings
+	result := &plugin.RouteResult{
+		Announced: uint32(announced), //nolint:gosec // bounded by NLRI count
+		Withdrawn: uint32(withdrawn), //nolint:gosec // bounded by NLRI count
+		Warnings:  warnings,
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   respData,
+		Data:   result,
 	}, nil
 }

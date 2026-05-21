@@ -590,34 +590,17 @@ func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawM
 }
 
 // extractUpdateRouteOutput reads announced/withdrawn counts from a Dispatch response.
-// Handles both int (DirectBridge) and float64 (JSON round-trip) value types.
+// DispatchNLRIGroups returns *plugin.RouteResult as resp.Data.
 func extractUpdateRouteOutput(resp *plugin.Response) *rpc.UpdateRouteOutput {
 	output := &rpc.UpdateRouteOutput{}
 	if resp == nil || resp.Data == nil {
 		return output
 	}
-	m, ok := resp.Data.(map[string]any)
-	if !ok {
-		return output
+	if r, ok := resp.Data.(*plugin.RouteResult); ok {
+		output.PeersAffected = r.Announced
+		output.RoutesSent = r.Withdrawn
 	}
-	output.PeersAffected = mapUint32(m, "announced")
-	output.RoutesSent = mapUint32(m, "withdrawn")
 	return output
-}
-
-func mapUint32(m map[string]any, key string) uint32 {
-	v, ok := m[key]
-	if !ok {
-		return 0
-	}
-	switch n := v.(type) {
-	case int:
-		return uint32(n) //nolint:gosec // route counts are small positive values
-	case float64:
-		return uint32(n) //nolint:gosec // route counts are small positive values
-	default:
-		return 0
-	}
 }
 
 // handleDispatchCommandDirect handles dispatch-command without socket I/O.

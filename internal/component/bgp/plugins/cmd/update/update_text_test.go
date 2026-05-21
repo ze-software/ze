@@ -1528,10 +1528,10 @@ func TestHandleUpdateText_PartialFamilyAccepted(t *testing.T) {
 	assert.Equal(t, "done", resp.Status)
 
 	// Should have IPv4 announced, IPv6 warning
-	respData, ok := resp.Data.(map[string]any)
+	result, ok := resp.Data.(*plugin.RouteResult)
 	require.True(t, ok)
-	assert.Equal(t, 1, respData["announced"])
-	assert.NotNil(t, respData["warnings"])
+	assert.Equal(t, uint32(1), result.Announced)
+	assert.NotEmpty(t, result.Warnings)
 }
 
 // TestHandleUpdate_TextSubcommand verifies update text routing.
