@@ -322,9 +322,9 @@ module ze-system-conf {
             }
         }
 
-        // Firmware update check (gokrazy appliance or generic)
+        // Firmware update check and self-update
         container update-check {
-            description "Periodic firmware version check against a remote manifest";
+            description "Firmware version check and self-update";
 
             leaf url {
                 type string;
@@ -337,6 +337,48 @@ module ze-system-conf {
                 }
                 default 86400;
                 description "Check interval in seconds (default 86400 = daily, minimum 60)";
+            }
+
+            leaf auto-apply {
+                type boolean;
+                default false;
+                description "When true, automatically download, verify, and stage updates. When false, only check and report.";
+            }
+
+            leaf spread {
+                type uint32 {
+                    range "0..86400";
+                }
+                default 3600;
+                description "Maximum random delay in seconds before downloading after a new version is detected. 0 disables spread.";
+            }
+
+            container maintenance-window {
+                description "Time window when binary replacement may occur. Download and verification proceed at any time.";
+
+                leaf start {
+                    type string;
+                    description "Start time HH:MM in local time.";
+                }
+
+                leaf end {
+                    type string;
+                    description "End time HH:MM in local time.";
+                }
+            }
+
+            container restart {
+                description "What to do after an update is staged. If omitted: manual. If present with immediate: restart after brief drain. If present with time: restart at that daily time.";
+
+                leaf immediate {
+                    type empty;
+                    description "Restart automatically after staging (5s drain delay). Mutually exclusive with time.";
+                }
+
+                leaf time {
+                    type string;
+                    description "Daily restart time, HH:MM in local time. Mutually exclusive with immediate.";
+                }
             }
         }
 

@@ -39,6 +39,7 @@ type SystemConfig struct {
 	// Update check (from system { update-check {} }).
 	UpdateCheckURL      string
 	UpdateCheckInterval uint32
+	UpdateSelfUpdate    SelfUpdateConfig
 
 	// Connection tracking (from system { conntrack {} }).
 	Conntrack ConntrackConfig
@@ -242,6 +243,7 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 				sc.UpdateCheckInterval = uint32(n) //nolint:gosec // Bounded by range check above
 			}
 		}
+		sc.UpdateSelfUpdate = extractSelfUpdateConfig(uc)
 	}
 
 	pdb := sys.GetContainer("peeringdb")
@@ -328,4 +330,40 @@ func sanitizeResolvConfPath(v string) string {
 		return ""
 	}
 	return v
+}
+
+func extractSelfUpdateConfig(uc *config.Tree) SelfUpdateConfig {
+	var cfg SelfUpdateConfig
+
+	if v, ok := uc.Get("auto-apply"); ok && v == "true" {
+		cfg.AutoApply = true
+	}
+
+	cfg.Spread = 3600
+	if v, ok := uc.Get("spread"); ok {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n >= 0 && n <= 86400 {
+			cfg.Spread = uint32(n) //nolint:gosec // Bounded by range check above
+		}
+	}
+
+	if mw := uc.GetContainer("maintenance-window"); mw != nil {
+		if v, ok := mw.Get("start"); ok {
+			cfg.MaintenanceStart = v
+		}
+		if v, ok := mw.Get("end"); ok {
+			cfg.MaintenanceEnd = v
+		}
+	}
+
+	if restart := uc.GetContainer("restart"); restart != nil {
+		if _, ok := restart.Get("immediate"); ok {
+			cfg.RestartImmediate = true
+		}
+		if v, ok := restart.Get("time"); ok {
+			cfg.RestartTime = v
+		}
+	}
+
+	return cfg
 }

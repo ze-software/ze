@@ -226,9 +226,15 @@ func applyConntrackConfig(cc *system.ConntrackConfig, eb ze.EventBus) {
 	}
 }
 
+// updateStopper is implemented by both UpdateChecker and SelfUpdater.
+type updateStopper interface {
+	Stop()
+	Status() system.UpdateStatus
+}
+
 // startUpdateChecker starts the periodic firmware update checker if configured.
-// Returns the checker (for deferred Stop) or nil if not configured.
-func startUpdateChecker(sc *system.SystemConfig) *system.UpdateChecker {
+// If auto-apply is enabled, starts a SelfUpdater instead. Returns a stopper or nil.
+func startUpdateChecker(sc *system.SystemConfig) updateStopper {
 	if sc.UpdateCheckURL == "" {
 		return nil
 	}
@@ -240,11 +246,33 @@ func startUpdateChecker(sc *system.SystemConfig) *system.UpdateChecker {
 	if interval == 0 {
 		interval = 86400
 	}
+
+	cfg := sc.UpdateSelfUpdate
+	if err := system.ValidateSelfUpdateConfig(cfg); err != nil {
+		slogutil.Logger("self-update").Warn("invalid self-update config", "error", err)
+		return nil
+	}
+	system.WarnConfigConflicts(cfg)
+
+	if cfg.AutoApply || cfg.RestartImmediate || cfg.RestartTime != "" {
+		su := system.NewSelfUpdater(sc.UpdateCheckURL, interval, cfg)
+		system.SetActiveSelfUpdater(su)
+		system.SetActiveChecker(nil)
+		su.Start(context.Background())
+		activeCheckerMu.Lock()
+		activeCheckerInstance = nil
+		activeSelfUpdaterInstance = su
+		activeCheckerMu.Unlock()
+		slogutil.Logger("self-update").Info("started", "url", sc.UpdateCheckURL, "interval", interval, "auto-apply", cfg.AutoApply)
+		return su
+	}
+
 	uc := system.NewUpdateChecker(sc.UpdateCheckURL, interval)
 	system.SetActiveChecker(uc)
 	uc.Start(context.Background())
 	activeCheckerMu.Lock()
 	activeCheckerInstance = uc
+	activeSelfUpdaterInstance = nil
 	activeCheckerMu.Unlock()
 	slogutil.Logger("update-check").Info("started", "url", sc.UpdateCheckURL, "interval", interval)
 	return uc
@@ -255,15 +283,19 @@ func applyUpdateCheckerFromMap(tree map[string]any) {
 	cfg := system.ExtractUpdateCheckFromMap(tree)
 
 	activeCheckerMu.Lock()
-	prev := activeCheckerInstance
+	prevChecker := activeCheckerInstance
+	prevSelf := activeSelfUpdaterInstance
+	activeCheckerInstance = nil
+	activeSelfUpdaterInstance = nil
 	activeCheckerMu.Unlock()
 
-	if prev != nil {
-		prev.Stop()
+	if prevChecker != nil {
+		prevChecker.Stop()
 		system.SetActiveChecker(nil)
-		activeCheckerMu.Lock()
-		activeCheckerInstance = nil
-		activeCheckerMu.Unlock()
+	}
+	if prevSelf != nil {
+		prevSelf.Stop()
+		system.SetActiveSelfUpdater(nil)
 	}
 
 	if cfg.URL == "" {
@@ -272,6 +304,23 @@ func applyUpdateCheckerFromMap(tree map[string]any) {
 
 	if err := system.ValidateUpdateCheckURL(cfg.URL); err != nil {
 		slogutil.Logger("update-check").Warn("invalid config on reload", "error", err)
+		return
+	}
+
+	if err := system.ValidateSelfUpdateConfig(cfg.SelfUpdate); err != nil {
+		slogutil.Logger("self-update").Warn("invalid self-update config on reload", "error", err)
+		return
+	}
+	system.WarnConfigConflicts(cfg.SelfUpdate)
+
+	if cfg.SelfUpdate.AutoApply || cfg.SelfUpdate.RestartImmediate || cfg.SelfUpdate.RestartTime != "" {
+		su := system.NewSelfUpdater(cfg.URL, cfg.Interval, cfg.SelfUpdate)
+		system.SetActiveSelfUpdater(su)
+		su.Start(context.Background())
+		activeCheckerMu.Lock()
+		activeSelfUpdaterInstance = su
+		activeCheckerMu.Unlock()
+		slogutil.Logger("self-update").Info("reloaded", "url", cfg.URL, "interval", cfg.Interval)
 		return
 	}
 
@@ -285,8 +334,9 @@ func applyUpdateCheckerFromMap(tree map[string]any) {
 }
 
 var (
-	activeCheckerMu       sync.Mutex
-	activeCheckerInstance *system.UpdateChecker
+	activeCheckerMu           sync.Mutex
+	activeCheckerInstance     *system.UpdateChecker
+	activeSelfUpdaterInstance *system.SelfUpdater
 )
 
 // stopActiveUpdateChecker stops whichever update checker is currently active
@@ -294,11 +344,17 @@ var (
 func stopActiveUpdateChecker() {
 	activeCheckerMu.Lock()
 	uc := activeCheckerInstance
+	su := activeSelfUpdaterInstance
 	activeCheckerInstance = nil
+	activeSelfUpdaterInstance = nil
 	activeCheckerMu.Unlock()
 	if uc != nil {
 		uc.Stop()
 		system.SetActiveChecker(nil)
+	}
+	if su != nil {
+		su.Stop()
+		system.SetActiveSelfUpdater(nil)
 	}
 }
 

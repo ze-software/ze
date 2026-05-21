@@ -1147,6 +1147,84 @@ provides a server.
 <!-- source: internal/component/resolve/dns/resolver.go -- NewResolver, Resolve -->
 <!-- source: cmd/ze/hub/main.go -- newResolvers wiring -->
 
+### Firmware Update Check and Self-Update
+
+Configure periodic version checks and optional automated self-update under `system { update-check {} }`:
+
+**Check-only (default, existing behavior):**
+
+```
+system {
+    update-check {
+        url https://update.example.com/version.json
+    }
+}
+```
+
+Daily check, report only. No download, no staging, no restart.
+
+**Fully automated (fleet):**
+
+```
+system {
+    update-check {
+        url https://update.example.com/version.json
+        interval 3600
+        auto-apply true
+        spread 1800
+        maintenance-window {
+            start 02:00
+            end 06:00
+        }
+        restart {
+            time 03:00
+        }
+    }
+}
+```
+
+Check every hour, auto-download with up to 30 minutes random spread,
+replace binary only between 2 AM and 6 AM, restart at 3 AM.
+
+**Immediate restart (lab/single device):**
+
+```
+system {
+    update-check {
+        url https://update.example.com/version.json
+        interval 300
+        auto-apply true
+        spread 0
+        restart {
+            immediate
+        }
+    }
+}
+```
+
+Check every 5 minutes, no spread, no maintenance window, restart as soon as staged.
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `url` | string | (none) | HTTPS URL serving version manifest JSON. HTTP allowed only for localhost. |
+| `interval` | uint32 | `86400` | Check interval in seconds. Range: 60-604800. |
+| `auto-apply` | boolean | `false` | When true, automatically download, verify, and stage updates. When false, only check and report. |
+| `spread` | uint32 | `3600` | Maximum random delay in seconds before downloading after a new version is detected. Prevents thundering herd. 0 disables. Range: 0-86400. |
+| `maintenance-window start` | string | (none) | Start time HH:MM in local time. Binary replacement only occurs during the window. Download and verification proceed at any time. |
+| `maintenance-window end` | string | (none) | End time HH:MM in local time. Windows crossing midnight are valid (e.g., 22:00-06:00). |
+| `restart immediate` | empty | (none) | Restart automatically after staging (5s drain delay). Mutually exclusive with `restart time`. |
+| `restart time` | string | (none) | Daily restart time HH:MM in local time. Mutually exclusive with `restart immediate`. |
+
+When `auto-apply` is false (default), ze only checks for new versions and reports via `show system update` and `show warnings`. No binary is downloaded.
+
+When `auto-apply` is true, the server manifest must include a `sha256` field. Ze refuses to auto-download binaries without a checksum. Manual commands (`update system firmware apply`) warn but proceed without verification.
+
+See the [Self-Update Guide](self-update.md) for server setup and fleet deployment details.
+
+<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- update-check config -->
+<!-- source: internal/component/config/system/selfupdate.go -- SelfUpdater -->
+<!-- source: cmd/ze/hub/main_system.go -- startUpdateChecker lifecycle -->
+
 ### NTP Client
 
 Configure NTP under `environment { ntp { } }`:

@@ -1,24 +1,41 @@
-// Design: plan/spec-cpe-5-firmware-update.md — standalone update server (version + binary)
+// Design: plan/spec-cpe-6-self-update.md — standalone update server with enhanced manifest
 
 package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
+	"sync"
 	"syscall"
 	"time"
 
 	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
 )
 
+type serveManifest struct {
+	Version string `json:"version"`
+	SHA256  string `json:"sha256,omitempty"`
+	Size    int64  `json:"size,omitempty"`
+	Paused  bool   `json:"paused,omitempty"`
+}
+
 // runUpdateServe starts a minimal HTTP server that serves:
-//   - GET /version.json        — version manifest for update checks
-//   - GET /<goos>/<goarch>     — the running binary for download
+//   - GET /version.json           — enhanced version manifest for update checks
+//   - GET /<goos>/<goarch>        — the running binary for download
+//   - GET /<goos>/<goarch>/sha256 — hex SHA-256 digest of the binary
+//
+// Pause mechanisms (ORed):
+//   - File: create `update-paused` in the binary's directory
+//   - Signal: SIGUSR1 toggles in-memory pause state
 //
 // Intended for build/release infrastructure, not for routers in production.
 func runUpdateServe(args []string) int {
@@ -35,11 +52,44 @@ func runUpdateServe(args []string) int {
 		return 1
 	}
 
-	mux := http.NewServeMux()
-
-	archPath := "/" + runtime.GOOS + "/" + runtime.GOARCH
-
+	binaryDir := filepath.Dir(execPath)
 	selfArch := runtime.GOOS + "/" + runtime.GOARCH
+	archPath := "/" + selfArch
+
+	// Compute SHA-256 and size at startup
+	binaryHash, err := computeBinaryHash(execPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: cannot compute binary hash: %v\n", err)
+		return 1
+	}
+
+	info, err := os.Stat(execPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: cannot stat binary: %v\n", err)
+		return 1
+	}
+	binarySize := info.Size()
+
+	// In-memory pause state (toggled by SIGUSR1)
+	var (
+		pauseMu      sync.RWMutex
+		signalPaused bool
+	)
+
+	isPaused := func() bool {
+		// File-based pause
+		_, statErr := os.Stat(filepath.Join(binaryDir, "update-paused"))
+		filePaused := statErr == nil
+
+		// Signal-based pause
+		pauseMu.RLock()
+		sigPaused := signalPaused
+		pauseMu.RUnlock()
+
+		return filePaused || sigPaused
+	}
+
+	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /version.json", func(w http.ResponseWriter, r *http.Request) {
 		reqArch := r.Header.Get("X-Ze-Arch")
@@ -47,29 +97,47 @@ func runUpdateServe(args []string) int {
 			http.Error(w, "arch mismatch: serving "+selfArch+", got "+reqArch, http.StatusNotFound)
 			return
 		}
+
+		m := serveManifest{
+			Version: zeversion.Release(),
+			SHA256:  binaryHash,
+			Size:    binarySize,
+			Paused:  isPaused(),
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "public, max-age=60")
-		if _, err := io.WriteString(w, `{"version":"`+zeversion.Release()+`"}`+"\n"); err != nil {
+
+		data, jsonErr := json.Marshal(m)
+		if jsonErr != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		data = append(data, '\n')
+		w.Write(data) //nolint:errcheck // best-effort write to HTTP response
 	})
 
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		if _, err := io.WriteString(w, "ze update server\n\n"+
+		io.WriteString(w, "ze update server\n\n"+ //nolint:errcheck // best-effort write to HTTP response
 			"version: "+zeversion.Release()+"\n"+
-			"arch:    "+selfArch+"\n\n"+
+			"arch:    "+selfArch+"\n"+
+			"sha256:  "+binaryHash+"\n\n"+
 			"endpoints:\n"+
 			"  GET /version.json\n"+
-			"  GET "+archPath+"\n"); err != nil {
-			return
-		}
+			"  GET "+archPath+"\n"+
+			"  GET "+archPath+"/sha256\n")
 	})
 
 	mux.HandleFunc("GET "+archPath, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Disposition", "attachment; filename=ze")
 		http.ServeFile(w, r, execPath)
+	})
+
+	mux.HandleFunc("GET "+archPath+"/sha256", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		io.WriteString(w, binaryHash+"\n") //nolint:errcheck // best-effort write to HTTP response
 	})
 
 	srv := &http.Server{
@@ -79,19 +147,49 @@ func runUpdateServe(args []string) int {
 	}
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1)
 
 	go func() {
-		<-sigCh
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = srv.Shutdown(ctx)
+		for sig := range sigCh {
+			if sig == syscall.SIGUSR1 {
+				pauseMu.Lock()
+				signalPaused = !signalPaused
+				state := signalPaused
+				pauseMu.Unlock()
+				if state {
+					fmt.Fprintln(os.Stderr, "update serving paused")
+				} else {
+					fmt.Fprintln(os.Stderr, "update serving resumed")
+				}
+				continue
+			}
+			// SIGINT/SIGTERM: shutdown
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			_ = srv.Shutdown(ctx)
+			cancel()
+			return
+		}
 	}()
 
-	fmt.Fprintf(os.Stderr, "serving update on %s (version %s, binary at %s)\n", listen, zeversion.Release(), archPath)
+	fmt.Fprintf(os.Stderr, "serving update on %s (version %s, binary at %s, sha256 %s)\n",
+		listen, zeversion.Release(), archPath, binaryHash[:12]+"...")
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 	return 0
+}
+
+func computeBinaryHash(path string) (string, error) {
+	f, err := os.Open(path) //nolint:gosec // path is from os.Executable, not user input
+	if err != nil {
+		return "", err
+	}
+	defer f.Close() //nolint:errcheck // best-effort close on read-only hash path
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }

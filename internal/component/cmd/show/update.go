@@ -1,4 +1,4 @@
-// Design: plan/spec-cpe-5-firmware-update.md — show system update CLI handler
+// Design: plan/spec-cpe-6-self-update.md -- show system update CLI handler (extended)
 
 package show
 
@@ -9,7 +9,8 @@ import (
 )
 
 func handleShowSystemUpdate(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	st := system.ActiveUpdateStatus()
+	ext := system.ActiveExtendedUpdateStatus()
+	st := ext.UpdateStatus
 
 	data := map[string]any{
 		"running-version":  st.RunningVersion,
@@ -28,7 +29,38 @@ func handleShowSystemUpdate(_ *pluginserver.CommandContext, _ []string) (*plugin
 		data["last-error"] = st.LastError
 	}
 
+	if ext.DownloadStatus != "" {
+		data["download-status"] = ext.DownloadStatus
+	}
+	if ext.DownloadSHA256 != "" {
+		data["download-sha256"] = ext.DownloadSHA256
+	}
+	if ext.StagedVersion != "" {
+		data["staged-version"] = ext.StagedVersion
+	}
+	if ext.StagedPath != "" {
+		data["staged-path"] = ext.StagedPath
+	}
+	if ext.RestartPolicy != "" {
+		data["restart"] = ext.RestartPolicy
+	}
+	data["server-paused"] = ext.ServerPaused
+
 	switch {
+	case ext.DownloadStatus == "staged":
+		data["status"] = "staged"
+	case ext.DownloadStatus == "downloading":
+		data["status"] = "downloading"
+	case ext.DownloadStatus == "verifying":
+		data["status"] = "verifying"
+	case ext.DownloadStatus == "paused by server":
+		data["status"] = "paused by server"
+	case ext.DownloadStatus == "waiting for maintenance window":
+		data["status"] = "waiting for maintenance window"
+	case ext.DownloadStatus == "waiting for spread":
+		data["status"] = "waiting for spread"
+	case ext.DownloadStatus != "" && len(ext.DownloadStatus) > 6 && ext.DownloadStatus[:6] == "error:":
+		data["status"] = ext.DownloadStatus
 	case st.UpdateAvailable:
 		data["status"] = "update available"
 	case st.LastError != "":
@@ -40,4 +72,30 @@ func handleShowSystemUpdate(_ *pluginserver.CommandContext, _ []string) (*plugin
 	}
 
 	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
+}
+
+func handleShowSystemUpdateHistory(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	su := system.ActiveSelfUpdaterInstance()
+	if su == nil {
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data:   map[string]any{"history": []any{}, "count": 0},
+		}, nil
+	}
+
+	events := su.History()
+	rows := make([]map[string]any, 0, len(events))
+	for i := range events {
+		rows = append(rows, map[string]any{
+			"timestamp": events[i].Timestamp.Format("2006-01-02T15:04:05Z07:00"),
+			"from":      events[i].FromVersion,
+			"to":        events[i].ToVersion,
+			"result":    events[i].Result,
+		})
+	}
+
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   map[string]any{"history": rows, "count": len(rows)},
+	}, nil
 }

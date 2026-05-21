@@ -24,5 +24,45 @@ module ze-cli-update-cmd {
                 }
             }
         }
+
+        container system {
+            config false;
+            description "System update operations";
+
+            container firmware {
+                config false;
+                description "Firmware self-update operations";
+
+                container check {
+                    config false;
+                    ze:command "ze-update:system-firmware-check";
+                    description "Trigger immediate version check (bypass interval timer)";
+                }
+
+                container download {
+                    config false;
+                    ze:command "ze-update:system-firmware-download";
+                    description "Download now (bypass spread and maintenance window)";
+                }
+
+                container apply {
+                    config false;
+                    ze:command "ze-update:system-firmware-apply";
+                    description "Download+verify+stage+restart (full one-shot cycle)";
+                }
+
+                container restart {
+                    config false;
+                    ze:command "ze-update:system-firmware-restart";
+                    description "Restart into staged version now";
+                }
+
+                container rollback {
+                    config false;
+                    ze:command "ze-update:system-firmware-rollback";
+                    description "Restore .prev binary and restart";
+                }
+            }
+        }
     }
 }

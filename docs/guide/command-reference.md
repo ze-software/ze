@@ -699,6 +699,60 @@ vm-stack-kb, threads. Linux only.
 
 <!-- source: internal/component/cmd/show/memory_map_linux.go -- handleShowSystemMemoryMap -->
 
+### show system update
+
+```
+ze show system update           # Firmware update status
+ze show system update | json    # Machine-readable output
+```
+
+Returns: running-version, remote-version, update-available, status, last-check, last-error,
+download-status, download-sha256, staged-version, staged-path, restart, server-paused.
+
+Status values: "up to date", "update available", "downloading", "verifying", "staged",
+"paused by server", "waiting for maintenance window", "waiting for spread",
+"check failed", "not configured", "error: ...".
+
+<!-- source: internal/component/cmd/show/update.go -- handleShowSystemUpdate -->
+
+### show system update history
+
+```
+ze show system update history           # Last 20 update events
+ze show system update history | table   # Tabular view
+```
+
+Returns an array of events with: timestamp, from (version), to (version), result.
+Result values: "success", "failed-download", "failed-checksum", "failed-stage",
+"blocked-minimum-version", "paused".
+
+History is persisted to `ze-update-history.json` in the binary's directory and
+survives restarts.
+
+<!-- source: internal/component/cmd/show/update.go -- handleShowSystemUpdateHistory -->
+
+### update system firmware
+
+```
+ze update system firmware check       # Immediate version check (bypass interval timer)
+ze update system firmware download    # Download now (bypass spread, maintenance window)
+ze update system firmware apply       # Full cycle: download+verify+stage+restart
+ze update system firmware restart     # Restart into staged version now
+ze update system firmware rollback    # Restore .prev binary and restart
+```
+
+All firmware commands are RPC-only (no config state change). They override the
+automated schedule for one-shot operation.
+
+`apply` and `download` bypass server-side pause (pause is for automated fleet
+rollout, not manual intervention). Both check minimum-version and warn when
+sha256 is absent from the manifest.
+
+`rollback` renames the `.prev` backup to the target binary and restarts. After
+rollback, `.prev` no longer exists and the new version is gone from disk.
+
+<!-- source: internal/component/cmd/update/firmware.go -- firmware CLI handlers -->
+
 ### show bgp summary
 
 ```

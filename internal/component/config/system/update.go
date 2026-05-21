@@ -193,8 +193,9 @@ func (uc *UpdateChecker) check(ctx context.Context) {
 
 // UpdateCheckConfig holds the extracted update-check config from a map tree.
 type UpdateCheckConfig struct {
-	URL      string
-	Interval uint32
+	URL        string
+	Interval   uint32
+	SelfUpdate SelfUpdateConfig
 }
 
 // ExtractUpdateCheckFromMap extracts update-check config from a map tree
@@ -218,6 +219,43 @@ func ExtractUpdateCheckFromMap(tree map[string]any) UpdateCheckConfig {
 			cfg.Interval = uint32(n) //nolint:gosec // Bounded by range check above
 		}
 	}
+	cfg.SelfUpdate = extractSelfUpdateFromMap(uc)
+	return cfg
+}
+
+func extractSelfUpdateFromMap(uc map[string]any) SelfUpdateConfig {
+	var cfg SelfUpdateConfig
+
+	if v, _ := uc["auto-apply"].(string); v == "true" {
+		cfg.AutoApply = true
+	}
+
+	cfg.Spread = 3600
+	if v, _ := uc["spread"].(string); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n >= 0 && n <= 86400 {
+			cfg.Spread = uint32(n) //nolint:gosec // Bounded by range check above
+		}
+	}
+
+	if mw, _ := uc["maintenance-window"].(map[string]any); mw != nil {
+		if v, _ := mw["start"].(string); v != "" {
+			cfg.MaintenanceStart = v
+		}
+		if v, _ := mw["end"].(string); v != "" {
+			cfg.MaintenanceEnd = v
+		}
+	}
+
+	if restart, _ := uc["restart"].(map[string]any); restart != nil {
+		if _, ok := restart["immediate"]; ok {
+			cfg.RestartImmediate = true
+		}
+		if v, _ := restart["time"].(string); v != "" {
+			cfg.RestartTime = v
+		}
+	}
+
 	return cfg
 }
 

@@ -17,4 +17,5 @@ module ze-cli-show-api {
   rpc route-lookup { description "Longest-prefix-match route lookup for a destination IP"; }
   rpc capture { description "Show captured control messages"; }
   rpc health { description "Show aggregated component health status"; }
+  rpc system-update-history { description "Show firmware update history"; }
 }

@@ -150,6 +150,13 @@ the bus from buggy or malicious producers.
 | `ze-show:dns-cache` | `handleDNSCache` in `dns.go` | `{"entries": N, "capacity": N, "hits": N, "misses": N, "evictions": N, "expired": N}` |
 | `ze-show:system-profile` | `handleShowSystemProfile` in `profile.go` | `{"type": "...", "format": "pprof-base64", "data": "..."}` |
 | `ze-show:system-memory-map` | `handleShowSystemMemoryMap` in `memory_map_linux.go` | `{"vm-rss-kb": N, "vm-size-kb": N, ...}` (Linux only) |
+| `ze-show:system-update` | `handleShowSystemUpdate` in `update.go` | `{"running-version": "...", "remote-version": "...", "update-available": bool, "status": "...", "download-status": "...", "staged-version": "...", ...}` |
+| `ze-show:system-update-history` | `handleShowSystemUpdateHistory` in `update.go` | `{"history": [{"timestamp": "...", "from": "...", "to": "...", "result": "..."}], "count": N}` |
+| `ze-update:system-firmware-check` | `handleFirmwareCheck` in `firmware.go` | `{"running-version": "...", "update-available": bool, ...}` |
+| `ze-update:system-firmware-download` | `handleFirmwareDownload` in `firmware.go` | `{"downloaded-version": "...", "status": "complete"}` |
+| `ze-update:system-firmware-apply` | `handleFirmwareApply` in `firmware.go` | `{"applied-version": "...", "status": "restarting"}` |
+| `ze-update:system-firmware-restart` | `handleFirmwareRestart` in `firmware.go` | `{"status": "restarting"}` |
+| `ze-update:system-firmware-rollback` | `handleFirmwareRollback` in `firmware.go` | `{"status": "rolling back"}` |
 | `ze-show:interface` (args: `rate [<name>]`) | `handleShowInterfaceRate` in `interface_rate.go` | JSON array of `InterfaceRate` (all) or single object (named); fields: `name`, `rx-bps`, `tx-bps`, `rx-pps`, `tx-pps`, `stats` |
 | `ze-monitor:interface-rate` | `streamInterfaceRate` in `interface_rate.go` | Streaming JSON lines (1/s); optional `<name>` filter |
 
