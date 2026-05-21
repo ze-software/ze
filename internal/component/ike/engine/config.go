@@ -7,11 +7,21 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
+	"codeberg.org/thomas-mangin/ze/internal/component/pki"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // parseIPsecSections finds the "vpn" config section and parses the IPsec config.
+// Also loads the "pki" section into the global PKI store if present.
 func parseIPsecSections(sections []sdk.ConfigSection) (*ipsec.IPsecConfig, error) {
+	for _, s := range sections {
+		if s.Root == "pki" {
+			if err := loadPKIFromJSON(s.Data); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	for _, s := range sections {
 		if s.Root != "vpn" {
 			continue
@@ -23,6 +33,20 @@ func parseIPsecSections(sections []sdk.ConfigSection) (*ipsec.IPsecConfig, error
 		IKEGroups: make(map[string]ipsec.IKEGroup),
 		Peers:     make(map[string]ipsec.SiteToSitePeer),
 	}, nil
+}
+
+func loadPKIFromJSON(data string) error {
+	var raw map[string]any
+	if err := json.Unmarshal([]byte(data), &raw); err != nil {
+		return err
+	}
+	wrapper := map[string]any{"pki": raw}
+	tree := treeFromMap(wrapper)
+	cfg, err := pki.ParseConfig(tree)
+	if err != nil {
+		return err
+	}
+	return pki.Load(cfg)
 }
 
 // parseIPsecFromJSON parses the JSON config section data into IPsecConfig.

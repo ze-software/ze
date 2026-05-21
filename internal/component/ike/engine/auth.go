@@ -12,6 +12,7 @@ import (
 	"crypto/elliptic"
 	crand "crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1" //nolint:gosec // required by IKEv2 CERTREQ (RFC 7296 Section 3.7)
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/subtle"
@@ -74,11 +75,10 @@ func computeSignedOctets(sa *SA, isInitiator bool) ([]byte, error) {
 }
 
 // buildAuthRequest constructs an encrypted IKE_AUTH request message.
+// RFC 7296 Section 2.16: when auth mode is EAP, the initiator omits AUTH
+// in the first IKE_AUTH to signal willingness to use EAP.
 func buildAuthRequest(sa *SA) ([]byte, error) {
-	authPayload, err := computeLocalAuth(sa)
-	if err != nil {
-		return nil, err
-	}
+	isEAP := sa.PeerCfg.Auth.Mode == ipsec.AuthEAPTLS || sa.PeerCfg.Auth.Mode == ipsec.AuthEAPMSCHAPv2
 
 	idPayload := &wire.PayloadID{
 		IDPayloadType: wire.PayloadTypeIDi,
@@ -89,14 +89,26 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 		idPayload.IDData = []byte(sa.PeerCfg.Auth.LocalID)
 	}
 
-	innerPayloads := []wire.PayloadEntry{
-		{Payload: idPayload},
-		{Payload: authPayload},
-	}
+	innerPayloads := make([]wire.PayloadEntry, 0, 6)
 
-	if sa.PeerCfg.Auth.Mode == ipsec.AuthX509 {
-		certPayloads := buildCertPayloads(sa)
-		innerPayloads = append(certPayloads, innerPayloads...)
+	if isEAP {
+		innerPayloads = append(innerPayloads, wire.PayloadEntry{Payload: idPayload})
+		if certReq := buildCertRequest(sa); certReq != nil {
+			innerPayloads = append(innerPayloads, wire.PayloadEntry{Payload: certReq})
+		}
+	} else {
+		authPayload, err := computeLocalAuth(sa)
+		if err != nil {
+			return nil, err
+		}
+		innerPayloads = []wire.PayloadEntry{
+			{Payload: idPayload},
+			{Payload: authPayload},
+		}
+		if sa.PeerCfg.Auth.Mode == ipsec.AuthX509 {
+			certPayloads := buildCertPayloads(sa)
+			innerPayloads = append(certPayloads, innerPayloads...)
+		}
 	}
 
 	espSPI, saPayload, tsi, tsr, err := buildChildSAPayloads(sa)
@@ -110,9 +122,46 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 		wire.PayloadEntry{Payload: tsr},
 	)
 
-	innerBuf := make([]byte, 16384)
+	return buildEncryptedMessage(sa, innerPayloads, sa.NextMsgID)
+}
+
+// buildEAPResponse constructs an encrypted IKE_AUTH message containing a single EAP payload.
+func buildEAPResponse(sa *SA, eapData []byte) ([]byte, error) {
+	if len(eapData) < 5 {
+		return nil, fmt.Errorf("ike: EAP response data too short (%d bytes)", len(eapData))
+	}
+	innerPayloads := []wire.PayloadEntry{
+		{Payload: &wire.PayloadEAP{
+			Code:       wire.EAPCodeResponse,
+			Identifier: eapData[1],
+			EAPData:    eapData[4:],
+		}},
+	}
+	return buildEncryptedMessage(sa, innerPayloads, sa.NextMsgID)
+}
+
+// buildEAPAuthMessage constructs an IKE_AUTH message with only the AUTH payload,
+// sent after EAP-Success (RFC 7296 Section 2.16).
+func buildEAPAuthMessage(sa *SA) ([]byte, error) {
+	authPayload, err := computeEAPAuth(sa)
+	if err != nil {
+		return nil, err
+	}
+	innerPayloads := []wire.PayloadEntry{
+		{Payload: authPayload},
+	}
+	return buildEncryptedMessage(sa, innerPayloads, sa.NextMsgID)
+}
+
+// buildEncryptedMessage serializes inner payloads into an encrypted SK message.
+func buildEncryptedMessage(sa *SA, innerPayloads []wire.PayloadEntry, messageID uint32) ([]byte, error) {
+	const maxInnerSize = 65536
+	innerBuf := make([]byte, maxInnerSize)
 	off := 0
 	for i := range innerPayloads {
+		if off+wire.GenericHeaderLen > maxInnerSize {
+			return nil, fmt.Errorf("ike: inner payloads exceed %d bytes", maxInnerSize)
+		}
 		var gh wire.GenericHeader
 		gh.Critical = innerPayloads[i].Critical
 		if i+1 < len(innerPayloads) {
@@ -122,6 +171,9 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 		off += wire.GenericHeaderLen
 		bodyLen := innerPayloads[i].Payload.WriteTo(innerBuf, off)
 		off += bodyLen
+		if off > maxInnerSize {
+			return nil, fmt.Errorf("ike: inner payloads exceed %d bytes", maxInnerSize)
+		}
 		gh.Length = uint16(wire.GenericHeaderLen + bodyLen)
 		gh.WriteTo(innerBuf, ghOff)
 	}
@@ -133,9 +185,9 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 	}
 
 	if sa.Proposal.Encryption.IsAEAD {
-		return buildSKMessageAEAD(sa, innerData, innerFirstType)
+		return buildSKMessageAEADWithMsgID(sa, innerData, innerFirstType, messageID)
 	}
-	return buildSKMessageCBC(sa, innerData, innerFirstType)
+	return buildSKMessageCBCWithMsgID(sa, innerData, innerFirstType, messageID)
 }
 
 // computeLocalAuth computes the local AUTH payload.
@@ -227,14 +279,20 @@ func computeX509Auth(sa *SA) (*wire.PayloadAUTH, error) {
 }
 
 // verifyRemoteAuth verifies the remote peer's AUTH payload.
+// RFC 7296 Section 2.16: after EAP, the responder's AUTH also uses MSK-derived key.
 func verifyRemoteAuth(sa *SA, authPayload *wire.PayloadAUTH) error {
 	signedOctets, err := computeSignedOctets(sa, !sa.IsInitiator)
 	if err != nil {
 		return err
 	}
 
+	isEAP := sa.PeerCfg.Auth.Mode == ipsec.AuthEAPTLS || sa.PeerCfg.Auth.Mode == ipsec.AuthEAPMSCHAPv2
+
 	switch authPayload.AuthMethod {
 	case wire.AuthMethodPSK:
+		if isEAP && sa.EAPMSK != [64]byte{} {
+			return VerifyAuthFromMSK(sa.Proposal.PRF.ID, sa.EAPMSK, signedOctets, authPayload.AuthData)
+		}
 		return verifyPSKAuth(sa, authPayload.AuthData, signedOctets)
 	case wire.AuthMethodDigitalSig:
 		return verifyX509Auth(sa, authPayload.AuthData, signedOctets)
@@ -317,15 +375,47 @@ func verifyLegacyRSAAuth(sa *SA, authData, signedOctets []byte) error {
 }
 
 func getRemoteCert(sa *SA) (*x509.Certificate, error) {
+	if len(sa.RemoteCertRaw) == 0 {
+		return nil, fmt.Errorf("ike auth: no remote certificate received in IKE_AUTH")
+	}
+
+	cert, err := x509.ParseCertificate(sa.RemoteCertRaw)
+	if err != nil {
+		return nil, fmt.Errorf("ike auth: parse remote certificate: %w", err)
+	}
+
+	caName := sa.PeerCfg.Auth.CACertificate
+	if caName != "" {
+		ca := pki.GetCA(caName)
+		if ca == nil {
+			return nil, fmt.Errorf("ike auth: CA %q not found in PKI store", caName)
+		}
+		pool := x509.NewCertPool()
+		pool.AddCert(ca.Certificate)
+		if _, err := cert.Verify(x509.VerifyOptions{Roots: pool}); err != nil {
+			return nil, fmt.Errorf("ike auth: remote certificate validation: %w", err)
+		}
+	}
+
+	return cert, nil
+}
+
+// buildCertRequest builds a CERTREQ payload with the SHA-1 hash of the configured CA's public key.
+// RFC 7296 Section 3.7: CertAuthority is SHA-1(SubjectPublicKeyInfo DER).
+func buildCertRequest(sa *SA) *wire.PayloadCERTREQ {
 	caName := sa.PeerCfg.Auth.CACertificate
 	if caName == "" {
-		return nil, fmt.Errorf("ike auth: no CA certificate configured for verification")
+		return nil
 	}
 	ca := pki.GetCA(caName)
 	if ca == nil {
-		return nil, fmt.Errorf("ike auth: CA %q not found", caName)
+		return nil
 	}
-	return ca.Certificate, nil
+	h := sha1.Sum(ca.Certificate.RawSubjectPublicKeyInfo) //nolint:gosec // required by IKEv2 CERTREQ
+	return &wire.PayloadCERTREQ{
+		CertEncoding:  wire.CertEncodingX509Sig,
+		CertAuthority: h[:],
+	}
 }
 
 func buildIDPayload(sa *SA, isInitiator bool) *wire.PayloadID {
@@ -364,9 +454,9 @@ func buildCertPayloads(sa *SA) []wire.PayloadEntry {
 	return payloads
 }
 
-// buildSKMessageCBC builds a complete IKE_AUTH message with AES-CBC + HMAC.
+// buildSKMessageCBCWithMsgID builds a complete IKE_AUTH message with AES-CBC + HMAC.
 // Wire: [Header 28][SK GH 4][IV blockSize][Encrypted(content+pad+padlen)][ICV truncLen].
-func buildSKMessageCBC(sa *SA, innerData []byte, firstType uint8) ([]byte, error) {
+func buildSKMessageCBCWithMsgID(sa *SA, innerData []byte, firstType uint8, messageID uint32) ([]byte, error) {
 	const blockSize = 16 // AES block size
 
 	contentLen := len(innerData)
@@ -384,7 +474,7 @@ func buildSKMessageCBC(sa *SA, innerData []byte, firstType uint8) ([]byte, error
 	totalLen := wire.HeaderLen + wire.GenericHeaderLen + blockSize + paddedLen + integTrunc
 	buf := make([]byte, totalLen)
 
-	writeAuthHeader(buf, sa, firstType, uint32(totalLen))
+	writeAuthHeaderWithMsgID(buf, sa, firstType, uint32(totalLen), messageID)
 
 	ivOff := wire.HeaderLen + wire.GenericHeaderLen
 	if _, err := crand.Read(buf[ivOff : ivOff+blockSize]); err != nil {
@@ -410,9 +500,9 @@ func buildSKMessageCBC(sa *SA, innerData []byte, firstType uint8) ([]byte, error
 	return buf, nil
 }
 
-// buildSKMessageAEAD builds a complete IKE_AUTH message with AES-GCM.
+// buildSKMessageAEADWithMsgID builds a complete IKE_AUTH message with AES-GCM.
 // Wire: [Header 28][SK GH 4][IV 8][ciphertext][GCM tag 16].
-func buildSKMessageAEAD(sa *SA, innerData []byte, firstType uint8) ([]byte, error) {
+func buildSKMessageAEADWithMsgID(sa *SA, innerData []byte, firstType uint8, messageID uint32) ([]byte, error) {
 	const ivLen = 8
 	const tagLen = 16
 
@@ -423,7 +513,7 @@ func buildSKMessageAEAD(sa *SA, innerData []byte, firstType uint8) ([]byte, erro
 	totalLen := wire.HeaderLen + wire.GenericHeaderLen + ivLen + len(plaintext) + tagLen
 	buf := make([]byte, totalLen)
 
-	writeAuthHeader(buf, sa, firstType, uint32(totalLen))
+	writeAuthHeaderWithMsgID(buf, sa, firstType, uint32(totalLen), messageID)
 
 	ivOff := wire.HeaderLen + wire.GenericHeaderLen
 	if _, err := crand.Read(buf[ivOff : ivOff+ivLen]); err != nil {
@@ -450,14 +540,14 @@ func buildSKMessageAEAD(sa *SA, innerData []byte, firstType uint8) ([]byte, erro
 	return buf, nil
 }
 
-func writeAuthHeader(buf []byte, sa *SA, firstType uint8, totalLen uint32) {
+func writeAuthHeaderWithMsgID(buf []byte, sa *SA, firstType uint8, totalLen, messageID uint32) {
 	hdr := wire.Header{
 		InitiatorSPI: sa.InitiatorSPI,
 		ResponderSPI: sa.ResponderSPI,
 		MajorVersion: 2,
 		ExchangeType: wire.ExchangeIKEAuth,
 		Flags:        wire.FlagInitiator,
-		MessageID:    1,
+		MessageID:    messageID,
 		NextPayload:  wire.PayloadTypeSK,
 		Length:       totalLen,
 	}
@@ -563,12 +653,24 @@ func signDigest(key crypto.PrivateKey, digest []byte, hashFunc crypto.Hash) ([]b
 }
 
 func hashFromAlgID(algID []byte) func() hash.Hash {
+	// RFC 7427: algID may be a raw OID (Ze format) or a full AlgorithmIdentifier
+	// SEQUENCE { OID [, params] } (strongSwan format). Extract the OID for matching.
+	oid := algID
+	if len(algID) > 2 && algID[0] == 0x30 {
+		var inner asn1.RawValue
+		if _, err := asn1.Unmarshal(algID, &inner); err == nil {
+			var oidVal asn1.RawValue
+			if _, err := asn1.Unmarshal(inner.Bytes, &oidVal); err == nil && oidVal.Tag == asn1.TagOID {
+				oid = oidVal.FullBytes
+			}
+		}
+	}
 	switch {
-	case bytes.Equal(algID, oidSHA256WithRSA) || bytes.Equal(algID, oidECDSASHA256):
+	case bytes.Equal(oid, oidSHA256WithRSA) || bytes.Equal(oid, oidECDSASHA256):
 		return sha256.New
-	case bytes.Equal(algID, oidSHA384WithRSA) || bytes.Equal(algID, oidECDSASHA384):
+	case bytes.Equal(oid, oidSHA384WithRSA) || bytes.Equal(oid, oidECDSASHA384):
 		return sha512.New384
-	case bytes.Equal(algID, oidSHA512WithRSA):
+	case bytes.Equal(oid, oidSHA512WithRSA):
 		return sha512.New
 	}
 	return nil

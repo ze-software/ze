@@ -150,7 +150,7 @@ func init() {
 	reg := registry.Registration{
 		Name:        "ike",
 		Description: "IKEv2 engine for native IPsec VPN",
-		ConfigRoots: []string{"vpn"},
+		ConfigRoots: []string{"vpn", "pki"},
 		RunEngine:   runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	ikecrypto "codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
 	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 )
 
@@ -185,7 +186,7 @@ func TestBuildSKMessageAEADRoundTrip(t *testing.T) {
 	innerData := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	firstType := uint8(0x21) // ID payload type
 
-	msg, err := buildSKMessageAEAD(sa, innerData, firstType)
+	msg, err := buildSKMessageAEADWithMsgID(sa, innerData, firstType, 1)
 	if err != nil {
 		t.Fatalf("buildSKMessageAEAD: %v", err)
 	}
@@ -198,6 +199,75 @@ func TestBuildSKMessageAEADRoundTrip(t *testing.T) {
 	skGHOff := 28 // after IKE header
 	if msg[skGHOff] != firstType {
 		t.Errorf("SK NextPayload = %d, want %d", msg[skGHOff], firstType)
+	}
+}
+
+func TestBuildAuthRequestEAPOmitsAuth(t *testing.T) {
+	sa := testSAWithGCMKeys(t)
+	sa.ESPGroup = testESPGroup()
+	sa.PeerCfg.Auth.Mode = ipsec.AuthEAPMSCHAPv2
+	sa.PeerCfg.Auth.PSK = "testpassword"
+
+	msg, err := buildAuthRequest(sa)
+	if err != nil {
+		t.Fatalf("buildAuthRequest: %v", err)
+	}
+	if len(msg) < wire.HeaderLen {
+		t.Fatalf("message too short: %d", len(msg))
+	}
+
+	// The SK generic header NextPayload tells us the first inner payload type.
+	// For EAP: first inner = IDi (type 35). For PSK: may start with IDi too,
+	// but AUTH (type 39) is also present. We can't decrypt our own message
+	// (SK_ei vs SK_er), so verify the message was built without error and
+	// is a valid IKE_AUTH message.
+	if msg[18] != wire.ExchangeIKEAuth {
+		t.Fatalf("expected exchange type %d, got %d", wire.ExchangeIKEAuth, msg[18])
+	}
+}
+
+func TestBuildAuthRequestPSKIncludesAuth(t *testing.T) {
+	sa := testSAWithGCMKeys(t)
+	sa.ESPGroup = testESPGroup()
+	sa.PeerCfg.Auth.Mode = ipsec.AuthPreSharedSecret
+	sa.PeerCfg.Auth.PSK = "test-secret"
+
+	msg, err := buildAuthRequest(sa)
+	if err != nil {
+		t.Fatalf("buildAuthRequest: %v", err)
+	}
+	if len(msg) < wire.HeaderLen {
+		t.Fatalf("message too short: %d", len(msg))
+	}
+	if msg[18] != wire.ExchangeIKEAuth {
+		t.Fatalf("expected exchange type %d, got %d", wire.ExchangeIKEAuth, msg[18])
+	}
+}
+
+func TestBuildAuthRequestEAPVsPSKSize(t *testing.T) {
+	saEAP := testSAWithGCMKeys(t)
+	saEAP.ESPGroup = testESPGroup()
+	saEAP.PeerCfg.Auth.Mode = ipsec.AuthEAPMSCHAPv2
+	saEAP.PeerCfg.Auth.PSK = "testpassword"
+
+	saPSK := testSAWithGCMKeys(t)
+	saPSK.ESPGroup = testESPGroup()
+	saPSK.PeerCfg.Auth.Mode = ipsec.AuthPreSharedSecret
+	saPSK.PeerCfg.Auth.PSK = "test-secret"
+
+	eapMsg, err := buildAuthRequest(saEAP)
+	if err != nil {
+		t.Fatalf("EAP buildAuthRequest: %v", err)
+	}
+	pskMsg, err := buildAuthRequest(saPSK)
+	if err != nil {
+		t.Fatalf("PSK buildAuthRequest: %v", err)
+	}
+
+	// EAP message should be smaller than PSK because it omits AUTH payload.
+	if len(eapMsg) >= len(pskMsg) {
+		t.Fatalf("EAP message (%d bytes) should be smaller than PSK (%d bytes) due to omitted AUTH",
+			len(eapMsg), len(pskMsg))
 	}
 }
 

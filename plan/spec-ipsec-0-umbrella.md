@@ -117,7 +117,7 @@ On Linux this maps to: **strongSwan/charon** for IKEv2 negotiation,
 | L2TP/IPsec | L2TP is a separate component. IPsec transport mode for L2TP is out of scope |
 | DMVPN / FlexVPN | Cisco-specific overlays. Not applicable |
 | IKEv1 | Deprecated. IKEv2 only |
-| MOBIKE | RFC 4555 multihoming/mobility. Future spec if needed |
+| MOBIKE | ~~Out of scope~~ Promoted to `spec-ipsec-11-mobike.md` |
 | EAP-RADIUS backend | EAP credentials are local to Ze config. External RADIUS backend is future work |
 
 ### Native IKEv2 Architecture

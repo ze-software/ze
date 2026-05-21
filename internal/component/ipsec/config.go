@@ -552,13 +552,53 @@ func parseAuthConfig(peerName string, t *config.Tree) (AuthConfig, error) {
 				auth.PSK = v
 			}
 		}
-	case AuthX509, AuthEAPTLS, AuthEAPMSCHAPv2:
-		if x509Tree := t.GetContainer("x509"); x509Tree != nil {
-			if v, ok := x509Tree.Get("ca-certificate"); ok {
-				auth.CACertificate = v
+	case AuthEAPMSCHAPv2:
+		if v, ok := t.Get("pre-shared-secret"); ok {
+			if secret.IsEncoded(v) {
+				decoded, err := secret.Decode(v)
+				if err != nil {
+					return auth, fmt.Errorf("ipsec peer %q pre-shared-secret decode: %w", peerName, err)
+				}
+				auth.PSK = decoded
+			} else {
+				auth.PSK = v
 			}
-			if v, ok := x509Tree.Get("certificate"); ok {
-				auth.Certificate = v
+		}
+		if v, ok := t.Get("ca-certificate"); ok {
+			auth.CACertificate = v
+		}
+		if v, ok := t.Get("certificate"); ok {
+			auth.Certificate = v
+		}
+		if x509Tree := t.GetContainer("x509"); x509Tree != nil {
+			if auth.CACertificate == "" {
+				if v, ok := x509Tree.Get("ca-certificate"); ok {
+					auth.CACertificate = v
+				}
+			}
+			if auth.Certificate == "" {
+				if v, ok := x509Tree.Get("certificate"); ok {
+					auth.Certificate = v
+				}
+			}
+		}
+	case AuthX509, AuthEAPTLS:
+		if v, ok := t.Get("ca-certificate"); ok {
+			auth.CACertificate = v
+		}
+		if v, ok := t.Get("certificate"); ok {
+			auth.Certificate = v
+		}
+		if x509Tree := t.GetContainer("x509"); x509Tree != nil {
+			if auth.CACertificate == "" {
+				if v, ok := x509Tree.Get("ca-certificate"); ok {
+					auth.CACertificate = v
+				}
+			}
+			if auth.Certificate == "" {
+				if v, ok := x509Tree.Get("certificate"); ok {
+					auth.Certificate = v
+				}
 			}
 		}
 	case AuthUnknown:

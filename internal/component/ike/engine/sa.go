@@ -22,6 +22,7 @@ const (
 	StateSAInitReceived         // responder received IKE_SA_INIT, sent response
 	StateAuthSent               // initiator sent IKE_AUTH, awaiting response
 	StateAuthReceived           // responder received IKE_AUTH, sent response
+	StateEAPInProgress          // initiator EAP exchange in IKE_AUTH (RFC 7296 Section 2.16)
 	StateEstablished            // IKE SA fully established
 	StateDead                   // SA is being torn down
 )
@@ -38,6 +39,8 @@ func (s SAState) String() string {
 		return "auth-sent"
 	case StateAuthReceived:
 		return "auth-responded"
+	case StateEAPInProgress:
+		return "eap-in-progress"
 	case StateEstablished:
 		return "established"
 	case StateDead:
@@ -102,6 +105,9 @@ type SA struct {
 
 	// Remote peer identity from IKE_AUTH response IDr payload.
 	RemoteIDPayload *wire.PayloadID
+
+	// Remote peer certificate from IKE_AUTH CERT payload (DER-encoded X.509).
+	RemoteCertRaw []byte
 
 	// Negotiated Child SA parameters from IKE_AUTH piggybacked exchange.
 	ChildInboundSPI  uint32     // our ESP SPI included in SAi2

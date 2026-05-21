@@ -3,7 +3,9 @@
 package engine
 
 import (
+	"crypto/x509"
 	"encoding/binary"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,9 +13,11 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
+	"codeberg.org/thomas-mangin/ze/internal/component/ike/eap"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/wire"
 	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
+	"codeberg.org/thomas-mangin/ze/internal/component/pki"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -189,6 +193,12 @@ func handleInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.U
 			msg.Header.Flags&wire.FlagResponse != 0 {
 			handleAuthResponse(sa, &msg, pkt.Data, table, tr, log)
 		}
+	case StateEAPInProgress:
+		// RFC 7296 Section 2.16: EAP exchange rounds within IKE_AUTH.
+		if msg.Header.ExchangeType == wire.ExchangeIKEAuth &&
+			msg.Header.Flags&wire.FlagResponse != 0 {
+			handleEAPResponse(sa, &msg, pkt.Data, tr, log)
+		}
 	case StateEstablished:
 		handleEstablishedInbound(sa, &msg, log)
 	case StateIdle, StateSAInitReceived, StateAuthReceived, StateDead:
@@ -314,6 +324,8 @@ func handleSAInitResponse(
 	clear(skeyseed)
 
 	// Build and send IKE_AUTH request.
+	// RFC 7296 Section 2.2: first IKE_AUTH uses message ID 1.
+	sa.NextMsgID = 1
 	authReq, err := buildAuthRequest(sa)
 	if err != nil {
 		log.Warn("ike: build IKE_AUTH failed", "peer", sa.PeerName, "error", err)
@@ -323,7 +335,6 @@ func handleSAInitResponse(
 
 	sa.State = StateAuthSent
 	sa.LastSentMsg = authReq
-	sa.NextMsgID = 1
 	sa.RetransmitTime = time.Now().Add(retransmitBase)
 	sa.RetransmitCount = 0
 
@@ -336,9 +347,10 @@ func handleSAInitResponse(
 }
 
 // handleAuthResponse processes an IKE_AUTH response for an initiator.
-// Decrypts the SK payload, verifies AUTH, and extracts the negotiated
-// Child SA parameters (SA, TSi, TSr) piggybacked on IKE_AUTH.
-func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, _ *transport.UDPTransport, log *slog.Logger) {
+// RFC 7296 Section 2.16: if the response contains an EAP payload, the responder
+// is requesting EAP authentication. The initiator verifies the server's AUTH first,
+// then enters the EAP exchange loop.
+func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr *transport.UDPTransport, log *slog.Logger) {
 	var skPayload *wire.PayloadSK
 	for _, pe := range msg.Payloads {
 		if sk, ok := pe.Payload.(*wire.PayloadSK); ok {
@@ -366,6 +378,7 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, _ 
 	}
 
 	authVerified := false
+	var eapPayload *wire.PayloadEAP
 	for _, pe := range innerPayloads {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNotify:
@@ -385,6 +398,12 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, _ 
 				return
 			}
 			authVerified = true
+		case *wire.PayloadCERT:
+			if p.CertEncoding == wire.CertEncodingX509Sig && len(p.CertData) > 0 {
+				sa.RemoteCertRaw = p.CertData
+			}
+		case *wire.PayloadEAP:
+			eapPayload = p
 		case *wire.PayloadSA:
 			for _, prop := range p.Proposals {
 				if prop.ProtocolID == wire.ProtocolESP && prop.SPISize == 4 && len(prop.SPI) >= 4 {
@@ -407,8 +426,168 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, _ 
 		return
 	}
 
+	// RFC 7296 Section 2.16: EAP payload present means the responder requests EAP.
+	if eapPayload != nil {
+		startEAPExchange(sa, eapPayload, tr, log)
+		return
+	}
+
 	sa.State = StateEstablished
 	sa.EstablishedAt = time.Now()
+}
+
+// startEAPExchange initializes the EAP peer session and processes the first EAP request.
+// RFC 7296 Section 2.16: server AUTH is already verified before this is called.
+func startEAPExchange(sa *SA, eapPayload *wire.PayloadEAP, tr *transport.UDPTransport, log *slog.Logger) {
+	identity := sa.PeerCfg.Auth.LocalID
+	if identity == "" {
+		identity = sa.PeerName
+	}
+
+	var ps *eap.PeerSession
+	switch sa.PeerCfg.Auth.Mode {
+	case ipsec.AuthEAPMSCHAPv2:
+		ps = eap.NewPeerSession(eap.TypeMSCHAPv2, identity, sa.PeerCfg.Auth.PSK)
+	case ipsec.AuthEAPTLS:
+		tlsCfg := buildPeerTLSConfig(sa, log)
+		if tlsCfg == nil {
+			sa.State = StateDead
+			return
+		}
+		ps = eap.NewPeerSessionTLS(identity, tlsCfg)
+	default:
+		log.Warn("ike: server sent EAP but auth mode is not EAP", "peer", sa.PeerName)
+		sa.State = StateDead
+		return
+	}
+	sa.EAPSession = ps
+
+	parsed := wireEAPToPacket(eapPayload)
+	result := ps.Process(parsed)
+	if result.Err != nil {
+		log.Warn("ike: EAP process failed", "peer", sa.PeerName, "error", result.Err)
+		sa.State = StateDead
+		return
+	}
+
+	if result.Response != nil {
+		sa.NextMsgID++
+		sendEAPResponsePacket(sa, result.Response, tr, log)
+	}
+
+	sa.State = StateEAPInProgress
+	sa.RetransmitTime = time.Now().Add(retransmitMax)
+	sa.RetransmitCount = 0
+	log.Debug("ike: EAP exchange started", "peer", sa.PeerName)
+}
+
+// handleEAPResponse processes an IKE_AUTH response during an active EAP exchange.
+func handleEAPResponse(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.UDPTransport, log *slog.Logger) {
+	var skPayload *wire.PayloadSK
+	for _, pe := range msg.Payloads {
+		if sk, ok := pe.Payload.(*wire.PayloadSK); ok {
+			skPayload = sk
+		}
+	}
+	if skPayload == nil {
+		log.Warn("ike: EAP response has no SK payload", "peer", sa.PeerName)
+		sa.State = StateDead
+		return
+	}
+
+	plaintext, err := decryptSKPayload(sa, rawMsg, skPayload)
+	if err != nil {
+		log.Warn("ike: EAP response decryption failed", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+
+	innerPayloads, err := wire.ParsePayloadChain(plaintext, skPayload.InnerNextPayload)
+	if err != nil {
+		log.Warn("ike: EAP response inner parse failed", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+
+	var eapPayload *wire.PayloadEAP
+	for _, pe := range innerPayloads {
+		if p, ok := pe.Payload.(*wire.PayloadEAP); ok {
+			eapPayload = p
+		}
+	}
+	if eapPayload == nil {
+		log.Warn("ike: EAP response missing EAP payload", "peer", sa.PeerName)
+		sa.State = StateDead
+		return
+	}
+
+	ps, ok := sa.EAPSession.(*eap.PeerSession)
+	if !ok || ps == nil {
+		log.Warn("ike: no EAP peer session", "peer", sa.PeerName)
+		sa.State = StateDead
+		return
+	}
+
+	parsed := wireEAPToPacket(eapPayload)
+	log.Debug("ike: EAP received", "peer", sa.PeerName, "code", parsed.Code, "type", parsed.Type, "id", parsed.Identifier)
+	result := ps.Process(parsed)
+	if result.Err != nil {
+		log.Warn("ike: EAP failed", "peer", sa.PeerName, "error", result.Err)
+		sa.State = StateDead
+		return
+	}
+
+	if result.Done {
+		// RFC 7296 Section 2.16: EAP succeeded, send AUTH derived from MSK.
+		sa.EAPMSK = result.MSK
+		sa.NextMsgID++
+		authMsg, err := buildEAPAuthMessage(sa)
+		if err != nil {
+			log.Warn("ike: build EAP AUTH failed", "peer", sa.PeerName, "error", err)
+			sa.State = StateDead
+			return
+		}
+		sa.LastSentMsg = authMsg
+		sa.State = StateAuthSent
+		sa.RetransmitTime = time.Now().Add(retransmitBase)
+		sa.RetransmitCount = 0
+
+		remote := sa.remoteUDPAddr()
+		if tr != nil && remote != nil {
+			if err := sendWithNATT(sa, authMsg, tr, remote); err != nil {
+				log.Warn("ike: send EAP AUTH failed", "peer", sa.PeerName, "error", err)
+			}
+		}
+		log.Debug("ike: EAP success, sent AUTH from MSK", "peer", sa.PeerName)
+		return
+	}
+
+	if result.Response != nil {
+		sa.NextMsgID++
+		sendEAPResponsePacket(sa, result.Response, tr, log)
+	}
+
+	sa.RetransmitTime = time.Now().Add(retransmitMax)
+	sa.RetransmitCount = 0
+}
+
+// sendEAPResponsePacket builds and sends an encrypted IKE_AUTH message containing an EAP response.
+func sendEAPResponsePacket(sa *SA, resp *eap.Packet, tr *transport.UDPTransport, log *slog.Logger) {
+	eapData := resp.Encode()
+	log.Debug("ike: sending EAP response", "peer", sa.PeerName, "code", resp.Code, "type", resp.Type, "msgID", sa.NextMsgID)
+	msg, err := buildEAPResponse(sa, eapData)
+	if err != nil {
+		log.Warn("ike: build EAP response failed", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+	sa.LastSentMsg = msg
+	remote := sa.remoteUDPAddr()
+	if tr != nil && remote != nil {
+		if err := sendWithNATT(sa, msg, tr, remote); err != nil {
+			log.Warn("ike: send EAP response failed", "peer", sa.PeerName, "error", err)
+		}
+	}
 }
 
 // retransmitBackoff computes the delay for retransmission attempt n.
@@ -423,4 +602,60 @@ func retransmitBackoff(attempt int) time.Duration {
 		return retransmitMax
 	}
 	return d
+}
+
+// buildPeerTLSConfig loads client certificate material from the PKI store for EAP-TLS.
+func buildPeerTLSConfig(sa *SA, log *slog.Logger) *eap.PeerTLSConfig {
+	certName := sa.PeerCfg.Auth.Certificate
+	if certName == "" {
+		log.Warn("ike: EAP-TLS requires a client certificate", "peer", sa.PeerName)
+		return nil
+	}
+	entry := pki.GetCertificate(certName)
+	if entry == nil {
+		log.Warn("ike: client certificate not found in PKI store", "peer", sa.PeerName, "cert", certName)
+		return nil
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: entry.Raw})
+	if entry.PrivateKey == nil {
+		log.Warn("ike: client certificate has no private key", "peer", sa.PeerName, "cert", certName)
+		return nil
+	}
+	keyDER, err := x509.MarshalPKCS8PrivateKey(entry.PrivateKey)
+	if err != nil {
+		log.Warn("ike: marshal client private key failed", "peer", sa.PeerName, "error", err)
+		return nil
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
+
+	cfg := &eap.PeerTLSConfig{
+		CertPEM: certPEM,
+		KeyPEM:  keyPEM,
+	}
+
+	caName := sa.PeerCfg.Auth.CACertificate
+	if caName != "" {
+		ca := pki.GetCA(caName)
+		if ca != nil {
+			cfg.CACertPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
+		}
+	}
+
+	return cfg
+}
+
+// wireEAPToPacket converts a wire.PayloadEAP to an eap.Packet without allocation.
+func wireEAPToPacket(p *wire.PayloadEAP) *eap.Packet {
+	pkt := &eap.Packet{
+		Code:       p.Code,
+		Identifier: p.Identifier,
+	}
+	if len(p.EAPData) > 0 {
+		pkt.Type = p.EAPData[0]
+		if len(p.EAPData) > 1 {
+			pkt.TypeData = p.EAPData[1:]
+		}
+	}
+	return pkt
 }

@@ -403,6 +403,26 @@ class Scenario:
         self.frr_image = frr_image
         self.name = os.path.basename(scenario_dir.rstrip("/"))
 
+    def _find_pki_dir(self):
+        local = os.path.join(self.scenario_dir, "pki")
+        if os.path.isdir(local):
+            return os.path.abspath(local)
+        shared = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pki")
+        if os.path.isdir(shared) and os.path.isfile(os.path.join(shared, "ca.pem")):
+            return os.path.abspath(shared)
+        return None
+
+    def _prepare_ze_conf(self, ze_conf):
+        with open(ze_conf) as f:
+            content = f.read()
+        if "%%PKI_DIR%%" not in content:
+            return ze_conf
+        resolved = content.replace("%%PKI_DIR%%", "/etc/ze/pki")
+        tmp_conf = ze_conf + ".resolved"
+        with open(tmp_conf, "w") as f:
+            f.write(resolved)
+        return tmp_conf
+
     def setup(self):
         self.teardown()
 
@@ -417,6 +437,12 @@ class Scenario:
                 "docker network create failed: %s" % result.stderr.strip()
             )
 
+        pki_dir = self._find_pki_dir()
+        if pki_dir:
+            gen_script = os.path.join(pki_dir, "gen-pki.sh")
+            if os.path.isfile(gen_script):
+                subprocess.run(["sh", gen_script], check=True, timeout=30)
+
         ze_conf = os.path.join(self.scenario_dir, "ze.conf")
         if not os.path.isfile(ze_conf):
             raise RuntimeError("missing ze.conf in %s" % self.name)
@@ -427,6 +453,15 @@ class Scenario:
                 "%s:/etc/swanctl/conf.d/interop.conf:ro"
                 % os.path.abspath(swanctl_conf),
             ]
+            if pki_dir:
+                swan_volumes.extend(
+                    [
+                        "%s/server.pem:/etc/swanctl/x509/server.pem:ro" % pki_dir,
+                        "%s/server-key.pem:/etc/swanctl/private/server-key.pem:ro"
+                        % pki_dir,
+                        "%s/ca.pem:/etc/swanctl/x509ca/ca.pem:ro" % pki_dir,
+                    ]
+                )
 
             docker_run(
                 SWAN_CONTAINER,
@@ -454,9 +489,13 @@ class Scenario:
                 caps=["NET_ADMIN", "SYS_ADMIN"],
             )
 
+        ze_conf = self._prepare_ze_conf(ze_conf)
+
         ze_volumes = [
             "%s:/etc/ze/ze.conf:ro" % os.path.abspath(ze_conf),
         ]
+        if pki_dir:
+            ze_volumes.append("%s:/etc/ze/pki:ro" % pki_dir)
 
         docker_run(
             ZE_CONTAINER,

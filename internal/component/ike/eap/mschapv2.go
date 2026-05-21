@@ -201,7 +201,8 @@ func GetAsymmetricStartKey(masterKey [16]byte, keyLen int, isSend, isServer bool
 
 // DeriveMSK constructs the 64-octet EAP MSK from MS-CHAPv2 credentials.
 // RFC 3079 Section 3 + RFC 3748 Section 7.10.
-// MSK = recv-key(16) || send-key(16) || padding(32).
+// MSK = MasterReceiveKey(16) || MasterSendKey(16) || zeroPadding(32).
+// strongSwan and Windows use zero-padded MSK per draft-kamath-pppext-eap-mschapv2-02.
 func DeriveMSK(password string, ntResponse [24]byte) [64]byte {
 	masterKey := GetMasterKey(password, ntResponse)
 
@@ -211,8 +212,7 @@ func DeriveMSK(password string, ntResponse [24]byte) [64]byte {
 	var msk [64]byte
 	copy(msk[0:16], recvKey)
 	copy(msk[16:32], sendKey)
-	copy(msk[32:48], shsPad1[:16])
-	copy(msk[48:64], shsPad2[:16])
+	// Bytes 32-63 remain zero (padding per draft-kamath).
 	return msk
 }
 

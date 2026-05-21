@@ -357,8 +357,18 @@ module ze-ipsec-conf {
                             description "Remote identity for IKE negotiation.";
                         }
 
+                        leaf ca-certificate {
+                            type string;
+                            description "Name of the CA certificate in the PKI store (EAP and X.509 modes).";
+                        }
+
+                        leaf certificate {
+                            type string;
+                            description "Name of the device certificate in the PKI store (EAP-TLS and X.509 modes).";
+                        }
+
                         container x509 {
-                            description "X.509 certificate references.";
+                            description "X.509 certificate references (deprecated, use direct leaves).";
 
                             leaf ca-certificate {
                                 type string;

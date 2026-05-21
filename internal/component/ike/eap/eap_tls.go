@@ -26,6 +26,109 @@ const (
 )
 
 const eapTLSFragmentSize = 1024
+const eapTLSMaxReassembly = 65536
+
+// tlsFragmenter holds fragmentation and reassembly state shared by
+// both the EAP-TLS server (tlsMethod) and peer (PeerSession).
+type tlsFragmenter struct {
+	outBuf      []byte
+	outOffset   int
+	inBuf       []byte
+	inExpected  int
+	waitFragAck bool
+}
+
+// reassemble accumulates inbound TLS data from an EAP-TLS message.
+// RFC 5216 Section 2.1.5: L flag on first fragment carries total length.
+func (f *tlsFragmenter) reassemble(typeData []byte) error {
+	if len(typeData) == 0 {
+		return nil
+	}
+	flags := typeData[0]
+	off := 1
+
+	if flags&eapTLSFlagL != 0 {
+		if len(typeData) < 5 {
+			return fmt.Errorf("eap-tls: L flag set but message too short (%d bytes)", len(typeData))
+		}
+		totalLen := int(binary.BigEndian.Uint32(typeData[1:5]))
+		if totalLen > eapTLSMaxReassembly {
+			return fmt.Errorf("eap-tls: TLS message too large (%d bytes)", totalLen)
+		}
+		f.inExpected = totalLen
+		// Reuse existing buffer if capacity is sufficient.
+		if cap(f.inBuf) >= totalLen {
+			f.inBuf = f.inBuf[:0]
+		} else {
+			f.inBuf = make([]byte, 0, totalLen)
+		}
+		off = 5
+	}
+
+	if off < len(typeData) {
+		f.inBuf = append(f.inBuf, typeData[off:]...)
+	}
+
+	if f.inExpected > 0 && len(f.inBuf) > f.inExpected {
+		return fmt.Errorf("eap-tls: reassembled data (%d bytes) exceeds declared length (%d bytes)", len(f.inBuf), f.inExpected)
+	}
+
+	return nil
+}
+
+// drainReassembled returns the reassembled inbound data and resets length tracking.
+// The caller must consume the returned slice before the next reassemble call.
+func (f *tlsFragmenter) drainReassembled() []byte {
+	data := f.inBuf
+	f.inBuf = f.inBuf[:0]
+	f.inExpected = 0
+	return data
+}
+
+// startSending begins outbound fragmentation of data.
+func (f *tlsFragmenter) startSending(data []byte) {
+	f.outBuf = data
+	f.outOffset = 0
+}
+
+// nextFragment returns the next outbound fragment as EAP-TLS TypeData.
+// RFC 5216 Section 2.1.5: first fragment has L+M, middle has M, last has neither.
+func (f *tlsFragmenter) nextFragment() []byte {
+	remaining := len(f.outBuf) - f.outOffset
+	if remaining <= 0 {
+		return []byte{0}
+	}
+
+	isFirst := f.outOffset == 0
+	chunkSize := min(remaining, eapTLSFragmentSize)
+	isLast := f.outOffset+chunkSize >= len(f.outBuf)
+
+	var flags uint8
+	headerSize := 1
+	if isFirst {
+		flags |= eapTLSFlagL
+		headerSize = 5
+	}
+	if !isLast {
+		flags |= eapTLSFlagM
+		f.waitFragAck = true
+	}
+
+	td := make([]byte, headerSize+chunkSize)
+	td[0] = flags
+	if isFirst {
+		binary.BigEndian.PutUint32(td[1:5], uint32(len(f.outBuf)))
+	}
+	copy(td[headerSize:], f.outBuf[f.outOffset:f.outOffset+chunkSize])
+	f.outOffset += chunkSize
+
+	if isLast {
+		f.outBuf = nil
+		f.outOffset = 0
+	}
+
+	return td
+}
 
 type tlsState uint8
 
@@ -36,6 +139,7 @@ const (
 )
 
 type tlsMethod struct {
+	tlsFragmenter
 	tlsConfig  *tls.Config
 	state      tlsState
 	conn       *tls.Conn
@@ -88,16 +192,39 @@ func (m *tlsMethod) Start(identifier uint8) *Packet {
 }
 
 // Process handles an EAP-Response/EAP-TLS from the peer.
+// RFC 5216 Section 2.1.5: handles fragment reassembly and outbound fragmentation.
 func (m *tlsMethod) Process(response *Packet) MethodResult {
 	if response.Type != TypeTLS {
 		return MethodResult{Err: ErrMethodFailed}
 	}
 
-	tlsData := extractTLSData(response.TypeData)
-	if len(tlsData) > 0 {
-		m.transport.feedPeerData(tlsData)
+	// If we sent a fragment with M flag and are waiting for an ACK,
+	// the peer's response is a fragment ACK (empty TLS data). Send next fragment.
+	if m.waitFragAck {
+		m.waitFragAck = false
+		return MethodResult{
+			Response: &Packet{Code: CodeRequest, Type: TypeTLS, TypeData: m.nextFragment()},
+		}
 	}
 
+	// Reassemble inbound fragments from peer.
+	if err := m.reassemble(response.TypeData); err != nil {
+		return MethodResult{Err: err}
+	}
+
+	// If peer set M flag, more fragments coming. Send ACK (empty EAP-TLS).
+	if len(response.TypeData) > 0 && response.TypeData[0]&eapTLSFlagM != 0 {
+		return MethodResult{
+			Response: &Packet{Code: CodeRequest, Type: TypeTLS, TypeData: []byte{0}},
+		}
+	}
+
+	// All fragments received. Feed reassembled data to TLS.
+	if data := m.drainReassembled(); len(data) > 0 {
+		m.transport.feedPeerData(data)
+	}
+
+	// Read TLS engine output.
 	serverData := m.transport.readServerData()
 
 	if m.handshaked.Load() {
@@ -108,59 +235,15 @@ func (m *tlsMethod) Process(response *Packet) MethodResult {
 
 	if len(serverData) == 0 {
 		return MethodResult{
-			Response: &Packet{
-				Code:     CodeRequest,
-				Type:     TypeTLS,
-				TypeData: []byte{0},
-			},
+			Response: &Packet{Code: CodeRequest, Type: TypeTLS, TypeData: []byte{0}},
 		}
 	}
 
-	return m.buildFragmentedResponse(serverData)
-}
-
-func (m *tlsMethod) buildFragmentedResponse(data []byte) MethodResult {
-	td := encodeTLSData(data)
+	// Start sending (possibly fragmented) server TLS data.
+	m.startSending(serverData)
 	return MethodResult{
-		Response: &Packet{
-			Code:     CodeRequest,
-			Type:     TypeTLS,
-			TypeData: td,
-		},
+		Response: &Packet{Code: CodeRequest, Type: TypeTLS, TypeData: m.nextFragment()},
 	}
-}
-
-func extractTLSData(typeData []byte) []byte {
-	if len(typeData) == 0 {
-		return nil
-	}
-	flags := typeData[0]
-	off := 1
-	if flags&eapTLSFlagL != 0 {
-		if len(typeData) < 5 {
-			return nil
-		}
-		off = 5
-	}
-	if off >= len(typeData) {
-		return nil
-	}
-	return typeData[off:]
-}
-
-func encodeTLSData(data []byte) []byte {
-	if len(data) <= eapTLSFragmentSize {
-		td := make([]byte, 5+len(data))
-		td[0] = eapTLSFlagL
-		binary.BigEndian.PutUint32(td[1:5], uint32(len(data)))
-		copy(td[5:], data)
-		return td
-	}
-	td := make([]byte, 5+eapTLSFragmentSize)
-	td[0] = eapTLSFlagL | eapTLSFlagM
-	binary.BigEndian.PutUint32(td[1:5], uint32(len(data)))
-	copy(td[5:], data[:eapTLSFragmentSize])
-	return td
 }
 
 func (m *tlsMethod) runTLSServer() {
