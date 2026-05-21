@@ -113,6 +113,25 @@ func NewValidateResult(path string, valid bool, diags []Diagnostic, cfg any) Val
 	}
 }
 
+// DoctorResult is the JSON envelope for ze doctor --json.
+type DoctorResult struct {
+	SchemaVersion int          `json:"schema-version"`
+	Ready         bool         `json:"ready"`
+	Diagnostics   []Diagnostic `json:"diagnostics"`
+}
+
+// NewDoctorResult creates a DoctorResult with the current contract version.
+func NewDoctorResult(ready bool, diags []Diagnostic) DoctorResult {
+	if diags == nil {
+		diags = []Diagnostic{}
+	}
+	return DoctorResult{
+		SchemaVersion: SchemaVersion,
+		Ready:         ready,
+		Diagnostics:   diags,
+	}
+}
+
 // SkillEntry describes a bundled skill for ze skills list.
 type SkillEntry struct {
 	Name        string `json:"name"`

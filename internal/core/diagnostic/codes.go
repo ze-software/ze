@@ -95,4 +95,66 @@ var builtinCodes = []CodeMeta{
 		Title:       "Config warning",
 		Description: "A warning from semantic validation without a more specific diagnostic code.",
 	},
+
+	// Doctor diagnostic codes.
+	{
+		Code:        "doctor-config-missing",
+		Title:       "Config file not found",
+		Description: "No config file could be resolved from storage. Ze cannot determine which services to check.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-config-parse",
+		Title:       "Config parse failure",
+		Description: "The config file was found but could not be parsed.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-vpp-unreachable",
+		Title:       "VPP socket unreachable",
+		Description: "The VPP API socket could not be reached. VPP may not be running.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-module-missing",
+		Title:       "Kernel module not loaded",
+		Description: "A required kernel module is not loaded.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-storage-unavailable",
+		Title:       "Blob storage unavailable",
+		Description: "The zefs database could not be opened.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-tls-missing",
+		Title:       "TLS certificate or key not found",
+		Description: "A TLS certificate or key file referenced in the config does not exist.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-tls-expired",
+		Title:       "TLS certificate expired",
+		Description: "A TLS certificate referenced in the config has expired or is not yet valid.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-plugin-missing",
+		Title:       "Plugin binary not found",
+		Description: "An external plugin binary referenced in the config is not on PATH.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-ssh-hostkey-missing",
+		Title:       "SSH host key not found",
+		Description: "The SSH host key file could not be found at the expected path.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-listen-unavailable",
+		Title:       "Listen address unavailable",
+		Description: "A configured listen address/port could not be bound.",
+		Examples:    []string{"ze doctor --json"},
+	},
 }

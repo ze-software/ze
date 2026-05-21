@@ -104,6 +104,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Write linux-only code | `ai/rules/qemu-testing.md` -- QEMU integration tests are mandatory, never skip for "needs hardware" |
 | Implement an RFC | `ai/rules/rfc-compliance.md`, `rfc/short/` |
 | Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |
+| Add a runtime dependency (file, socket, module, port) | `ai/rules/doctor-checks.md` -- add a `ze doctor` check so agents verify readiness |
 | Claim work is done | `ai/rules/no-partial-completion.md` -- every AC implemented, tested, wired |
 | Commit | `ai/rules/git-safety.md` -- `make ze-verify` |
 | Run any test/build/lint command | `rules/bash-output.md` -- no pipes, read log after |

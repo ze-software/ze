@@ -84,6 +84,10 @@ import (
 	// daemon dependency on this side (sysfs/procfs read-only).
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/host"
 
+	// Blank import: doctor's init() registers `doctor` with
+	// cmdregistry for system readiness checks.
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/doctor"
+
 	// Blank import: explain's init() registers `explain` with
 	// cmdregistry for diagnostic code explanations.
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/explain"
@@ -572,7 +576,7 @@ dispatch:
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
 	commands := []string{
 		"show", "set", "del", "update", "validate", "monitor",
-		"bgp", "plugin", "cli", "config", "data", "env", "init", "interface", "start", "schema",
+		"bgp", "plugin", "cli", "config", "data", "doctor", "env", "init", "interface", "start", "schema",
 		"sysctl", "l2tp", "yang", "exabgp", "signal", "status", "completion", "version", "help",
 	}
 	if suggestion := suggest.Command(arg, commands); suggestion != "" {
