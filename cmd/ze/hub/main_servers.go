@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	zeconfigcmd "codeberg.org/thomas-mangin/ze/cmd/ze/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -275,7 +276,7 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	}
 
 	// Create editor manager for config editing via web.
-	editorMgr := zeweb.NewEditorManager(store, configPath, schema, newEditorFactory(), newEditSessionFactory())
+	editorMgr := zeweb.NewEditorManager(store, configPath, schema, newEditorFactory(zeconfigcmd.ValidateContent), newEditSessionFactory())
 
 	// Create CLI completer for Tab/? autocomplete.
 	completer := cli.NewCompleter()

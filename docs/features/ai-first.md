@@ -20,12 +20,44 @@ and the API are the same thing. This means:
 ## Self-Describing Command Reference
 
 ```
-ze help --ai
+ze help --ai              # text summary
+ze help --ai --json       # machine-readable JSON reference
 ```
 
-Generates a machine-readable command reference from the live binary. The output is assembled
+Generates a command reference from the live binary. The output is assembled
 from the plugin registry, YANG schemas, and RPC registrations -- it cannot go stale because
 it is generated from code, not written by hand.
+
+## Structured Diagnostics
+
+```
+ze config validate --json <file>
+ze explain [--json] <diagnostic-code>
+ze config fix --plan --json <file>
+```
+
+Config validation emits structured diagnostic records with stable codes, source spans,
+expected/actual facts, and repair metadata. Agents parse JSON diagnostics instead of
+scraping terminal prose.
+
+Each diagnostic carries a stable code (e.g., `config-parse`, `config-yang-type`,
+`config-listener-conflict`). Use `ze explain <code>` to get an explanation.
+
+`ze config fix --plan --json` reports candidate repairs without editing files.
+Repair plans carry safety labels (`format-only`, `section-local`, `behavior-preserving`,
+`requires-human-review`) and stable repair IDs.
+
+## Version-Matched Skills
+
+```
+ze skills list
+ze skills get ze-diagnostics
+ze skills get ze --full
+```
+
+The installed binary serves agent workflow guides matched to its exact version.
+Skills cover diagnostics, config, commands, and agent edit loops. Agents load
+only the skill relevant to the current task.
 
 ## MCP Transport
 

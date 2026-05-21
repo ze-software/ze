@@ -31,23 +31,24 @@ type ReloadNotifier func() error
 // WorkingContent() returns Serialize(tree) when tree is valid, otherwise falls
 // back to stored raw text for configs that can't be parsed.
 type Editor struct {
-	originalPath    string
-	store           storage.Storage // Storage backend (filesystem or blob)
-	originalContent string
-	workingContent  string         // Fallback when tree can't parse
-	tree            *config.Tree   // Parsed config tree (canonical when treeValid)
-	schema          *config.Schema // YANG schema for Serialize
-	treeValid       bool           // True when tree was parsed successfully
-	dirty           atomic.Bool
-	hasPendingEdit  bool             // true if .edit file exists
-	session         *EditSession     // Optional: concurrent editing session
-	meta            *config.MetaTree // Optional: metadata tree for write-through
-	draftMtime      time.Time        // Last known draft file mtime (for polling)
-	onReload        ReloadNotifier   // Optional: called after successful save
-	onArchive       archive.Notifier // Optional: called after successful save to archive config
-	showColumns     map[string]bool  // In-memory show column preferences (sticky per session)
-	diffGutter      bool             // Whether diff gutter (+/-) markers are shown (default true)
-	draftSaved      bool             // True when changes have been persisted to draft (reset on new edits)
+	originalPath      string
+	store             storage.Storage // Storage backend (filesystem or blob)
+	originalContent   string
+	workingContent    string         // Fallback when tree can't parse
+	tree              *config.Tree   // Parsed config tree (canonical when treeValid)
+	schema            *config.Schema // YANG schema for Serialize
+	treeValid         bool           // True when tree was parsed successfully
+	dirty             atomic.Bool
+	hasPendingEdit    bool                         // true if .edit file exists
+	session           *EditSession                 // Optional: concurrent editing session
+	meta              *config.MetaTree             // Optional: metadata tree for write-through
+	draftMtime        time.Time                    // Last known draft file mtime (for polling)
+	onReload          ReloadNotifier               // Optional: called after successful save
+	onArchive         archive.Notifier             // Optional: called after successful save to archive config
+	preCommitValidate func(candidate string) error // Optional: validate candidate config before writing
+	showColumns       map[string]bool              // In-memory show column preferences (sticky per session)
+	diffGutter        bool                         // Whether diff gutter (+/-) markers are shown (default true)
+	draftSaved        bool                         // True when changes have been persisted to draft (reset on new edits)
 }
 
 // BackupInfo describes a backup file.
@@ -271,6 +272,13 @@ func (e *Editor) NotifyReload() error {
 // When nil (no archive locations configured), no archival is attempted.
 func (e *Editor) SetArchiveNotifier(fn archive.Notifier) {
 	e.onArchive = fn
+}
+
+// SetPreCommitValidate sets a function called during SaveDraft to validate
+// the candidate config before writing. If the function returns an error,
+// the save is rejected and the draft is not written.
+func (e *Editor) SetPreCommitValidate(fn func(candidate string) error) {
+	e.preCommitValidate = fn
 }
 
 // HasArchiveNotifier returns true if an archive notifier is configured.

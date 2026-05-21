@@ -134,6 +134,7 @@ type Editor interface {
 	DisconnectSession(sessionID string) error
 	Diff() string
 	SaveDraft() error
+	SetPreCommitValidate(fn func(candidate string) error)
 	ListBackups() ([]BackupInfo, error)
 	Rollback(backupPath string) error
 	// Tree returns the parsed config tree (concrete *config.Tree).

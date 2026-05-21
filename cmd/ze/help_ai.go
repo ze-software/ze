@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -13,6 +14,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -33,6 +35,11 @@ import (
 //	--ai --mcp     MCP tools with parameters
 //	--ai --all     Everything
 func printAIHelp(args []string) {
+	if slices.Contains(args, "--json") {
+		printAIHelpJSON()
+		return
+	}
+
 	showCLI := slices.Contains(args, "--cli")
 	showAPI := slices.Contains(args, "--api")
 	showMCP := slices.Contains(args, "--mcp")
@@ -792,19 +799,110 @@ func buildAISchemaRegistry() *pluginserver.SchemaRegistry {
 	return schemaReg
 }
 
+type aiHelpJSON struct {
+	Commands []aiHelpCommand `json:"commands"`
+	RPCs     []aiHelpRPC     `json:"rpcs"`
+	Plugins  []aiHelpPlugin  `json:"plugins"`
+	Families []string        `json:"families"`
+	Services []aiHelpService `json:"services"`
+}
+
+type aiHelpCommand struct {
+	Name        string `json:"name"`
+	Mode        string `json:"mode"`
+	Description string `json:"description"`
+	Subs        string `json:"subs,omitempty"`
+}
+
+type aiHelpRPC struct {
+	WireMethod  string `json:"wire-method"`
+	Description string `json:"description,omitempty"`
+}
+
+type aiHelpPlugin struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Families    []string `json:"families,omitempty"`
+}
+
+type aiHelpService struct {
+	Name   string   `json:"name"`
+	Leaves []string `json:"leaves,omitempty"`
+}
+
+func printAIHelpJSON() {
+	result := aiHelpJSON{}
+
+	for _, c := range cliSubcommands() {
+		result.Commands = append(result.Commands, aiHelpCommand{
+			Name: c.cmd, Mode: c.mode, Description: c.desc, Subs: c.subs,
+		})
+	}
+
+	schemaReg := buildAISchemaRegistry()
+	for _, rpc := range schemaReg.ListRPCs("") {
+		result.RPCs = append(result.RPCs, aiHelpRPC{
+			WireMethod: rpc.WireMethod, Description: rpc.Description,
+		})
+	}
+	for _, brpc := range pluginserver.AllBuiltinRPCs() {
+		result.RPCs = append(result.RPCs, aiHelpRPC{
+			WireMethod: brpc.WireMethod,
+		})
+	}
+
+	seen := make(map[string]bool)
+	for _, r := range registry.All() {
+		result.Plugins = append(result.Plugins, aiHelpPlugin{
+			Name: r.Name, Description: r.Description, Families: r.Families,
+		})
+		for _, f := range r.Families {
+			if !seen[f] {
+				seen[f] = true
+				result.Families = append(result.Families, f)
+			}
+		}
+	}
+	sort.Strings(result.Families)
+
+	for _, svc := range extractServices() {
+		leafNames := make([]string, len(svc.leaves))
+		for i, l := range svc.leaves {
+			leafNames[i] = l.name
+		}
+		result.Services = append(result.Services, aiHelpService{
+			Name: svc.name, Leaves: leafNames,
+		})
+	}
+
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(result); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	}
+}
+
 // aiHelpRequested checks if --ai was passed in the help args.
 func aiHelpRequested(args []string) bool {
 	return slices.Contains(args, "--ai")
 }
 
 func helpUsage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze help [options]
-
-Options:
-  --ai           Summary with counts and quick start
-  --ai --cli     CLI subcommands (ze bgp, ze config, ...)
-  --ai --api     Daemon API commands with parameters (YANG RPCs)
-  --ai --mcp     MCP tools with parameters and examples
-  --ai --all     Everything combined
-`)
+	p := helpfmt.Page{
+		Command: "ze help",
+		Summary: "Show help and AI reference",
+		Usage:   []string{"ze help [--ai [--json|--cli|--api|--mcp|--dispatch|--all]]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "AI reference", Entries: []helpfmt.HelpEntry{
+				{Name: "--ai", Desc: "Summary with counts and quick start"},
+				{Name: "--ai --json", Desc: "Machine-readable JSON reference"},
+				{Name: "--ai --cli", Desc: "CLI subcommands"},
+				{Name: "--ai --api", Desc: "Daemon API commands with parameters"},
+				{Name: "--ai --mcp", Desc: "MCP tools with parameters and examples"},
+				{Name: "--ai --dispatch", Desc: "Dispatch keys for daemon commands"},
+				{Name: "--ai --all", Desc: "Everything combined"},
+			}},
+		},
+	}
+	p.Write()
 }

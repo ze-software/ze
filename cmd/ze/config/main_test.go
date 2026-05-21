@@ -188,8 +188,8 @@ bgp {
 	result := runValidation(input, "test.conf")
 
 	if !result.Valid {
-		for _, e := range result.Errors {
-			t.Errorf("unexpected error: %s", e.Message)
+		for _, d := range result.Diagnostics {
+			t.Errorf("unexpected diagnostic: [%s] %s", d.Code, d.Message)
 		}
 	}
 }

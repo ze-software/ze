@@ -57,6 +57,7 @@ import (
 	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
+	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
@@ -82,6 +83,14 @@ import (
 	// cmdregistry. Dispatch via the registry fallback — there is no
 	// daemon dependency on this side (sysfs/procfs read-only).
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/host"
+
+	// Blank import: explain's init() registers `explain` with
+	// cmdregistry for diagnostic code explanations.
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/explain"
+
+	// Blank import: skills' init() registers `skills` with
+	// cmdregistry for version-matched agent skill content.
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/skills"
 
 	// Import all AAA backends so their init() fires and aaa.Default
 	// contains the backend factories before the hub calls aaa.Default.Build.
@@ -185,6 +194,7 @@ func main() {
 
 	zeversion.Stamp(version, buildDate)
 	pluginserver.SetVersion(version, buildDate)
+	diagnostic.RegisterBuiltinCodes()
 	registerLocalCommands()
 
 	if len(os.Args) < 2 {

@@ -1,0 +1,24 @@
+---
+name: ze
+description: Ze network OS overview and agent entry points.
+---
+
+# Ze
+
+Ze is a network OS with its own BGP implementation, YANG-modeled config, and agent-facing tooling.
+
+## Agent Entry Points
+
+```sh
+ze config validate --json <file>
+ze explain [--json] <diagnostic-code>
+ze config fix --plan --json <file>
+ze help --ai --json
+ze skills list
+ze skills get <name> [--full]
+```
+
+## Version-Matched Skills
+
+Use `ze skills list` to discover skills bundled with this binary.
+Use `ze skills get <name>` to load the one relevant to your task.

@@ -183,10 +183,26 @@ so it is never out of date.
 | Flag | Content |
 |------|---------|
 | `--ai` | Summary with counts and quick start |
+| `--ai --json` | Machine-readable JSON with commands, RPCs, plugins, families, services |
 | `--ai --cli` | CLI subcommands (ze bgp, ze config, ...) |
 | `--ai --api` | Daemon API commands with parameters (YANG RPCs) |
 | `--ai --mcp` | MCP tools with parameters and examples |
 | `--ai --all` | Everything |
+
+## Agent Tooling
+
+Offline commands for agent-driven config validation and repair:
+
+| Command | Purpose |
+|---------|---------|
+| `ze config validate --json <file>` | Structured diagnostics with stable codes |
+| `ze explain [--json] <code>` | Explain a diagnostic code |
+| `ze config fix --plan --json <file>` | Plan-only repair candidates |
+| `ze skills list [--json]` | List bundled agent skills |
+| `ze skills get <name> [--full]` | Load version-matched skill content |
+
+These commands do not require a running daemon. Agents use them to validate
+and fix config before committing.
 
 ## Testing
 

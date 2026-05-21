@@ -69,6 +69,9 @@ func (a *testEditorAdapter) DisconnectSession(sessionID string) error {
 }
 func (a *testEditorAdapter) Diff() string     { return a.ed.Diff() }
 func (a *testEditorAdapter) SaveDraft() error { return a.ed.SaveDraft() }
+func (a *testEditorAdapter) SetPreCommitValidate(fn func(candidate string) error) {
+	a.ed.SetPreCommitValidate(fn)
+}
 func (a *testEditorAdapter) ListBackups() ([]contract.BackupInfo, error) {
 	backups, err := a.ed.ListBackups()
 	if err != nil {

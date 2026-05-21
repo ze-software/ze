@@ -57,6 +57,7 @@ var subcommandHandlers = map[string]func([]string) int{
 	"fmt":        cmdFmt,
 	"dump":       cmdDump,
 	"completion": cmdCompletion,
+	"fix":        cmdFix,
 }
 
 // Run executes the config subcommand with filesystem storage (backward compat).
@@ -136,6 +137,7 @@ func usage() {
 			}},
 			{Title: "Inspection", Entries: []helpfmt.HelpEntry{
 				{Name: "validate <file>", Desc: "Validate configuration file"},
+				{Name: "fix --plan --json <file>", Desc: "Generate repair plan for diagnostics"},
 				{Name: "dump <file>", Desc: "Parse and display config"},
 				{Name: "diff <f1> <f2>", Desc: "Compare two configs"},
 				{Name: "diff <N> <file>", Desc: "Compare rollback revision N against current"},

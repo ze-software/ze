@@ -142,8 +142,8 @@ func TestValidateResultValid(t *testing.T) {
 	result := runValidation(validConfig, "test.conf")
 
 	if !result.Valid {
-		for _, e := range result.Errors {
-			t.Logf("error: %s", e.Message)
+		for _, d := range result.Diagnostics {
+			t.Logf("diagnostic: [%s] %s", d.Code, d.Message)
 		}
 	}
 	require.True(t, result.Valid, "expected Valid=true")
@@ -159,7 +159,7 @@ func TestValidateResultInvalid(t *testing.T) {
 	result := runValidation(content, "bad.conf")
 
 	assert.False(t, result.Valid, "expected Valid=false for invalid config")
-	assert.NotEmpty(t, result.Errors, "expected at least one error")
+	assert.NotEmpty(t, result.Diagnostics, "expected at least one error")
 }
 
 // TestValidateContentReturnsAggregatedError verifies API callers can reuse the
@@ -197,8 +197,8 @@ func TestValidateRunsPluginConfigVerifier(t *testing.T) {
 
 	result := runValidation(validConfig, "test.conf")
 	assert.False(t, result.Valid, "expected plugin verifier to reject config")
-	require.NotEmpty(t, result.Errors)
-	assert.Contains(t, result.Errors[0].Message, "validate-test")
+	require.NotEmpty(t, result.Diagnostics)
+	assert.Contains(t, result.Diagnostics[0].Message, "validate-test")
 }
 
 // TestValidateSemanticValidationWarnings verifies semantic checks produce warnings.
@@ -211,8 +211,8 @@ func TestValidateSemanticValidationWarnings(t *testing.T) {
 
 	// Should have warning about missing router-id.
 	hasRouterIDWarning := false
-	for _, w := range result.Warnings {
-		if strings.Contains(w.Message, "router-id") {
+	for _, d := range result.Diagnostics {
+		if strings.Contains(d.Message, "router-id") {
 			hasRouterIDWarning = true
 			break
 		}

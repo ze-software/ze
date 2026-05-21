@@ -4,6 +4,7 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	configyang "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 )
 
 // ValidateContent runs the same validation as `ze config validate` and returns
@@ -28,12 +30,18 @@ func ValidateContent(input, path string) error {
 	}
 	var b strings.Builder
 	b.WriteString("config validation failed:")
-	for _, err := range result.Errors {
-		if err.Line > 0 {
-			fmt.Fprintf(&b, "\n  line %d: %s", err.Line, err.Message)
+	for i := range result.Diagnostics {
+		d := &result.Diagnostics[i]
+		if d.Severity != diagnostic.SeverityError {
 			continue
 		}
-		fmt.Fprintf(&b, "\n  %s", err.Message)
+		b.WriteString("\n  ")
+		if d.Line > 0 {
+			b.WriteString("line ")
+			b.WriteString(strconv.Itoa(d.Line))
+			b.WriteString(": ")
+		}
+		b.WriteString(d.Message)
 	}
 	return errors.New(b.String())
 }
@@ -45,43 +53,50 @@ var yangSectionsToValidate = []string{
 	"telemetry", "looking-glass", "mcp", "managed", "vpp",
 }
 
-// validationResult holds validation results.
+// validationResult holds validation results with structured diagnostics.
 type validationResult struct {
-	Valid    bool
-	Path     string
-	Errors   []validationError
-	Warnings []validationWarning
-	Config   *validationSummary
+	Valid       bool
+	Path        string
+	Diagnostics []diagnostic.Diagnostic
+	Config      *validationSummary
 }
 
-// validationError represents a config error.
-type validationError struct {
-	Line    int
-	Message string
+func (r *validationResult) addError(code, message string) {
+	r.Valid = false
+	r.Diagnostics = append(r.Diagnostics, diagnostic.Diagnostic{
+		Code: code, Severity: diagnostic.SeverityError, Message: message,
+	})
 }
 
-// validationWarning represents a config warning.
-type validationWarning struct {
-	Line    int
-	Message string
+func (r *validationResult) addErrorLine(code, message string, line int) {
+	r.Valid = false
+	r.Diagnostics = append(r.Diagnostics, diagnostic.Diagnostic{
+		Code: code, Severity: diagnostic.SeverityError, Message: message, Line: line,
+	})
+}
+
+func (r *validationResult) addWarning(code, message string) { //nolint:unparam // code varies as more warning codes are added
+	r.Diagnostics = append(r.Diagnostics, diagnostic.Diagnostic{
+		Code: code, Severity: diagnostic.SeverityWarning, Message: message,
+	})
 }
 
 // validationSummary shows what was parsed.
 type validationSummary struct {
-	RouterID    string
-	LocalAS     uint32
-	Listen      string
-	Peers       int
-	Plugins     int
-	PeerDetails []peerSummary
+	RouterID    string        `json:"router-id"`
+	LocalAS     uint32        `json:"local-as"`
+	Listen      string        `json:"listen,omitempty"`
+	Peers       int           `json:"peers"`
+	Plugins     int           `json:"plugins"`
+	PeerDetails []peerSummary `json:"peer-details,omitempty"`
 }
 
 // peerSummary shows peer details.
 type peerSummary struct {
-	Address string
-	PeerAS  uint32
-	Connect bool // Initiate outbound connections
-	Accept  bool // Accept inbound connections
+	Address string `json:"address"`
+	PeerAS  uint32 `json:"peer-as"`
+	Connect bool   `json:"connect"`
+	Accept  bool   `json:"accept"`
 }
 
 func cmdValidate(args []string) int {
@@ -194,29 +209,19 @@ func runValidation(input, path string) *validationResult {
 	// Parse with YANG-derived schema.
 	schema, err := config.YANGSchema()
 	if err != nil {
-		result.Valid = false
-		result.Errors = append(result.Errors, validationError{
-			Message: fmt.Sprintf("YANG schema: %v", err),
-		})
+		result.addError("config-parse", "YANG schema: "+err.Error())
 		return result
 	}
 	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	if err != nil {
-		result.Valid = false
-		result.Errors = append(result.Errors, validationError{
-			Line:    extractLine(err.Error()),
-			Message: err.Error(),
-		})
+		result.addErrorLine("config-parse", err.Error(), extractLine(err.Error()))
 		return result
 	}
 
 	// Surface parser warnings (e.g., inactive: prefix on leaf nodes).
 	for _, w := range p.Warnings() {
-		result.Warnings = append(result.Warnings, validationWarning{
-			Line:    extractLine(w),
-			Message: w,
-		})
+		result.addWarning("config-warning", w)
 	}
 
 	// Prune inactive nodes before resolution so the validation summary
@@ -225,6 +230,7 @@ func runValidation(input, path string) *validationResult {
 
 	// YANG tree validation: check cardinality, patterns, ranges, and mandatory
 	// fields for all non-BGP config sections. BGP has its own deeper path below.
+	sensitiveKeys := config.SensitiveKeys(schema)
 	if yangValidator, yangErr := config.YANGValidatorWithPlugins(nil); yangErr == nil {
 		for _, section := range yangSectionsToValidate {
 			container := tree.GetContainer(section)
@@ -232,80 +238,73 @@ func runValidation(input, path string) *validationResult {
 				continue
 			}
 			for _, ve := range yangValidator.ValidateTree(section, container.ToMap()) {
-				// Include ve.Path (the dotted leaf path, e.g.,
-				// "vpp.memory.hugepage-size") so operators can locate the
-				// offending node from a single error line. Without the
-				// path the message is "value "4M" is not a valid
-				// enumeration value" with no pointer to the field.
+				sensitive := isSensitiveLeaf(ve.Path, sensitiveKeys)
+
 				msg := ve.Message
+				if sensitive {
+					msg = ve.Type.String() + " validation failed (sensitive value redacted)"
+				}
 				if ve.Path != "" {
-					msg = fmt.Sprintf("%s: %s", ve.Path, ve.Message)
+					msg = ve.Path + ": " + msg
 				}
+				fullMsg := section + ": " + msg
+
+				d := diagnostic.Diagnostic{
+					Code:    yangErrorCode(ve.Type),
+					Message: fullMsg,
+					Line:    ve.LineNumber,
+				}
+				if ve.Path != "" {
+					d.Path = section + "." + ve.Path
+				}
+				if ve.Expected != "" {
+					d.Expected = ve.Expected
+				}
+				if ve.Got != "" && !sensitive {
+					d.Actual = ve.Got
+				}
+
 				if ve.Type == configyang.ErrTypeMissing {
-					result.Warnings = append(result.Warnings, validationWarning{
-						Message: fmt.Sprintf("%s: %s", section, msg),
-					})
+					d.Severity = diagnostic.SeverityWarning
 				} else {
+					d.Severity = diagnostic.SeverityError
 					result.Valid = false
-					result.Errors = append(result.Errors, validationError{
-						Message: fmt.Sprintf("%s: %s", section, msg),
-					})
 				}
+				result.Diagnostics = append(result.Diagnostics, d)
 			}
 		}
 	}
 
-	// MCP semantic validation (auth-mode / bind-remote / oauth / tls
-	// cross-leaf consistency). Mirrors what the MCP component enforces at
-	// startup so `ze config validate` surfaces rejections without a daemon.
+	// MCP semantic validation.
 	if mcpCfg, ok := config.ExtractMCPConfig(tree); ok {
 		if verr := mcpCfg.Validate(); verr != nil {
-			result.Valid = false
-			result.Errors = append(result.Errors, validationError{Message: verr.Error()})
+			result.addError("config-mcp-invalid", verr.Error())
 		}
 	}
 
-	// Generic plugin config verification. Uses in-process side-effect-free
-	// verifier hooks matching SDK OnConfigVerify semantics. Live external plugin
-	// callbacks run only in daemon reload/commit, and this never runs OnConfigure.
+	// Generic plugin config verification.
 	for _, verr := range config.VerifyPluginConfig(tree) {
-		result.Valid = false
-		result.Errors = append(result.Errors, validationError{Message: verr.Error()})
+		result.addError("config-plugin-verify", verr.Error())
 	}
 
 	// BGP-specific validation only when bgp {} is present.
 	if tree.GetContainer("bgp") != nil {
-		// Resolve templates and get BGP tree as map.
 		bgpTree, resolveErr := bgpconfig.ResolveBGPTree(tree)
 		if resolveErr != nil {
-			result.Valid = false
-			result.Errors = append(result.Errors, validationError{
-				Message: resolveErr.Error(),
-			})
+			result.addError("config-bgp-resolve", resolveErr.Error())
 			return result
 		}
 
-		// Build summary from resolved tree.
 		result.Config = buildValidationSummary(bgpTree, tree)
+		addSemanticWarnings(result, bgpTree)
 
-		// Semantic validation.
-		result.Warnings = semanticValidation(bgpTree)
-
-		// Authorization profile reference validation.
 		if authzErr := bgpconfig.ValidateAuthzConfig(tree); authzErr != nil {
-			result.Valid = false
-			result.Errors = append(result.Errors, validationError{
-				Message: authzErr.Error(),
-			})
+			result.addError("config-bgp-authz", authzErr.Error())
 			return result
 		}
 
-		// Full validation: peer settings, route extraction, and capability constraints.
 		if _, peersErr := bgpconfig.PeersFromConfigTree(tree); peersErr != nil {
-			result.Valid = false
-			result.Errors = append(result.Errors, validationError{
-				Message: peersErr.Error(),
-			})
+			result.addError("config-bgp-peer", peersErr.Error())
 			return result
 		}
 	}
@@ -313,10 +312,7 @@ func runValidation(input, path string) *validationResult {
 	// Hub config validation (secret length, client blocks).
 	if tree.GetContainer("plugin") != nil {
 		if _, hubErr := config.ExtractHubConfig(tree); hubErr != nil {
-			result.Valid = false
-			result.Errors = append(result.Errors, validationError{
-				Message: hubErr.Error(),
-			})
+			result.addError("config-hub-invalid", hubErr.Error())
 			return result
 		}
 	}
@@ -324,10 +320,7 @@ func runValidation(input, path string) *validationResult {
 	// Listener port conflict detection.
 	listeners := config.CollectListeners(tree, schema)
 	if err := config.ValidateListenerConflicts(listeners); err != nil {
-		result.Valid = false
-		result.Errors = append(result.Errors, validationError{
-			Message: err.Error(),
-		})
+		result.addError("config-listener-conflict", err.Error())
 		return result
 	}
 
@@ -408,28 +401,47 @@ func treeUint32(v any) uint32 {
 	return uint32(n) //nolint:gosec // Validated by ParseUint with bitSize 32
 }
 
-func semanticValidation(bgpTree map[string]any) []validationWarning {
-	var warnings []validationWarning
+func isSensitiveLeaf(path string, sensitiveKeys map[string]bool) bool {
+	if idx := strings.LastIndex(path, "."); idx >= 0 {
+		return sensitiveKeys[path[idx+1:]]
+	}
+	return sensitiveKeys[path]
+}
 
-	// Check for missing router-id.
+func yangErrorCode(t configyang.ErrorType) string {
+	switch t { //nolint:exhaustive // default handles unknown
+	case configyang.ErrTypeMissing:
+		return "config-yang-missing"
+	case configyang.ErrTypeType:
+		return "config-yang-type"
+	case configyang.ErrTypeRange:
+		return "config-yang-range"
+	case configyang.ErrTypePattern:
+		return "config-yang-pattern"
+	case configyang.ErrTypeEnum:
+		return "config-yang-enum"
+	case configyang.ErrTypeLength:
+		return "config-yang-length"
+	case configyang.ErrTypeCardinality:
+		return "config-yang-cardinality"
+	default:
+		return "config-yang-type"
+	}
+}
+
+func addSemanticWarnings(result *validationResult, bgpTree map[string]any) {
 	if _, ok := bgpTree["router-id"]; !ok {
-		warnings = append(warnings, validationWarning{
-			Message: "router-id not configured (will use system default)",
-		})
+		result.addWarning("config-warning", "router-id not configured (will use system default)")
 	}
 
-	// Check for missing local-as.
 	var globalLocalAS uint32
 	if localMap, ok := bgpTree["local"].(map[string]any); ok {
 		globalLocalAS = treeUint32(localMap["as"])
 	}
 	if globalLocalAS == 0 {
-		warnings = append(warnings, validationWarning{
-			Message: "local-as not configured globally",
-		})
+		result.addWarning("config-warning", "local-as not configured globally")
 	}
 
-	// Check each peer.
 	peers, _ := bgpTree["peer"].(map[string]any)
 	for name, v := range peers {
 		peer, ok := v.(map[string]any)
@@ -441,38 +453,29 @@ func semanticValidation(bgpTree map[string]any) []validationWarning {
 			peerLocalAS = treeUint32(localMap["as"])
 		}
 		if peerLocalAS == 0 && globalLocalAS == 0 {
-			warnings = append(warnings, validationWarning{
-				Message: fmt.Sprintf("peer %s: local-as not configured", name),
-			})
+			result.addWarning("config-warning", "peer "+name+": local-as not configured")
 		}
 		var peerAS uint32
 		if remoteMap, ok := peer["remote"].(map[string]any); ok {
 			peerAS = treeUint32(remoteMap["as"])
 		}
 		if peerAS == 0 {
-			warnings = append(warnings, validationWarning{
-				Message: fmt.Sprintf("peer %s: remote as not configured", name),
-			})
+			result.addWarning("config-warning", "peer "+name+": remote as not configured")
 		}
 		if timerMap, ok := peer["timer"].(map[string]any); ok {
 			holdTime := treeUint32(timerMap["receive-hold-time"])
 			if holdTime > 0 && holdTime < 3 {
-				warnings = append(warnings, validationWarning{
-					Message: fmt.Sprintf("peer %s: receive-hold-time %d too low (minimum 3)", name, holdTime),
-				})
+				result.addWarning("config-warning", "peer "+name+": receive-hold-time too low (minimum 3)")
 			}
 			sendHoldTime := treeUint32(timerMap["send-hold-time"])
 			if sendHoldTime > 0 && sendHoldTime < 480 {
-				warnings = append(warnings, validationWarning{
-					Message: fmt.Sprintf("peer %s: send-hold-time %d too low (RFC 9687 minimum 480)", name, sendHoldTime),
-				})
+				result.addWarning("config-warning", "peer "+name+": send-hold-time too low (RFC 9687 minimum 480)")
 			}
 		}
 	}
-
-	return warnings
 }
 
+//nolint:errcheck // CLI text output to stdout is fire-and-forget
 func outputValidateText(result *validationResult, verbose, quiet bool) int {
 	if quiet {
 		if result.Valid {
@@ -482,26 +485,26 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 	}
 
 	if result.Valid {
-		fmt.Printf("configuration valid: %s\n", result.Path)
+		fmt.Fprintf(os.Stdout, "configuration valid: %s\n", result.Path)
 
 		if verbose && result.Config != nil {
-			fmt.Println()
-			fmt.Println("Configuration summary:")
+			fmt.Fprintln(os.Stdout)
+			fmt.Fprintln(os.Stdout, "Configuration summary:")
 			if result.Config.RouterID != "" {
-				fmt.Printf("  router-id: %s\n", result.Config.RouterID)
+				fmt.Fprintf(os.Stdout, "  router-id: %s\n", result.Config.RouterID)
 			}
 			if result.Config.LocalAS != 0 {
-				fmt.Printf("  local-as:  %d\n", result.Config.LocalAS)
+				fmt.Fprintf(os.Stdout, "  local-as:  %d\n", result.Config.LocalAS)
 			}
 			if result.Config.Listen != "" {
-				fmt.Printf("  listen:    %s\n", result.Config.Listen)
+				fmt.Fprintf(os.Stdout, "  listen:    %s\n", result.Config.Listen)
 			}
-			fmt.Printf("  peers: %d\n", result.Config.Peers)
-			fmt.Printf("  plugins: %d\n", result.Config.Plugins)
+			fmt.Fprintf(os.Stdout, "  peers: %d\n", result.Config.Peers)
+			fmt.Fprintf(os.Stdout, "  plugins: %d\n", result.Config.Plugins)
 
 			if len(result.Config.PeerDetails) > 0 {
-				fmt.Println()
-				fmt.Println("Peers:")
+				fmt.Fprintln(os.Stdout)
+				fmt.Fprintln(os.Stdout, "Peers:")
 				for _, n := range result.Config.PeerDetails {
 					var flags []string
 					if !n.Connect {
@@ -511,33 +514,35 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 						flags = append(flags, "accept disabled")
 					}
 					if len(flags) == 0 {
-						fmt.Printf("  - %s AS%d\n", n.Address, n.PeerAS)
+						fmt.Fprintf(os.Stdout, "  - %s AS%d\n", n.Address, n.PeerAS)
 					} else {
-						fmt.Printf("  - %s AS%d (%s)\n", n.Address, n.PeerAS, strings.Join(flags, ", "))
+						fmt.Fprintf(os.Stdout, "  - %s AS%d (%s)\n", n.Address, n.PeerAS, strings.Join(flags, ", "))
 					}
 				}
 			}
 		}
 
-		if len(result.Warnings) > 0 {
-			fmt.Println()
-			fmt.Println("Warnings:")
-			for _, w := range result.Warnings {
-				fmt.Printf("  warning: %s\n", w.Message)
+		warnings := diagsBySeverity(result.Diagnostics, diagnostic.SeverityWarning)
+		if len(warnings) > 0 {
+			fmt.Fprintln(os.Stdout)
+			fmt.Fprintln(os.Stdout, "Warnings:")
+			for i := range warnings {
+				fmt.Fprintf(os.Stdout, "  warning: %s\n", warnings[i].Message)
 			}
 		}
 
 		return 0
 	}
 
-	fmt.Printf("configuration invalid: %s\n", result.Path)
-	fmt.Println()
-	fmt.Println("Errors:")
-	for _, e := range result.Errors {
-		if e.Line > 0 {
-			fmt.Printf("  line %d: %s\n", e.Line, e.Message)
+	fmt.Fprintf(os.Stdout, "configuration invalid: %s\n", result.Path)
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(os.Stdout, "Errors:")
+	errs := diagsBySeverity(result.Diagnostics, diagnostic.SeverityError)
+	for i := range errs {
+		if errs[i].Line > 0 {
+			fmt.Fprintf(os.Stdout, "  line %d: %s\n", errs[i].Line, errs[i].Message)
 		} else {
-			fmt.Printf("  %s\n", e.Message)
+			fmt.Fprintf(os.Stdout, "  %s\n", errs[i].Message)
 		}
 	}
 	return 1
@@ -551,42 +556,28 @@ func outputValidateJSON(result *validationResult, quiet bool) int {
 		return 1
 	}
 
-	// Simple JSON output without encoding/json to keep it minimal.
-	fmt.Printf(`{"valid":%t,"path":%q`, result.Valid, result.Path)
-
-	if len(result.Errors) > 0 {
-		fmt.Printf(`,"errors":[`)
-		for i, e := range result.Errors {
-			if i > 0 {
-				fmt.Print(",")
-			}
-			fmt.Printf(`{"line":%d,"message":%q}`, e.Line, e.Message)
-		}
-		fmt.Print("]")
+	out := diagnostic.NewValidateResult(result.Path, result.Valid, result.Diagnostics, result.Config)
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(out); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
 	}
-
-	if len(result.Warnings) > 0 {
-		fmt.Printf(`,"warnings":[`)
-		for i, w := range result.Warnings {
-			if i > 0 {
-				fmt.Print(",")
-			}
-			fmt.Printf(`{"message":%q}`, w.Message)
-		}
-		fmt.Print("]")
-	}
-
-	if result.Config != nil {
-		fmt.Printf(`,"config":{"router-id":%q,"local-as":%d,"peers":%d}`,
-			result.Config.RouterID, result.Config.LocalAS, result.Config.Peers)
-	}
-
-	fmt.Println("}")
 
 	if result.Valid {
 		return 0
 	}
 	return 1
+}
+
+func diagsBySeverity(diags []diagnostic.Diagnostic, sev diagnostic.Severity) []diagnostic.Diagnostic {
+	var out []diagnostic.Diagnostic
+	for i := range diags {
+		if diags[i].Severity == sev {
+			out = append(out, diags[i])
+		}
+	}
+	return out
 }
 
 func extractLine(errMsg string) int {

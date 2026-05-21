@@ -51,6 +51,9 @@ func (a *editorAdapter) DisconnectSession(sessionID string) error {
 }
 func (a *editorAdapter) Diff() string     { return a.ed.Diff() }
 func (a *editorAdapter) SaveDraft() error { return a.ed.SaveDraft() }
+func (a *editorAdapter) SetPreCommitValidate(fn func(candidate string) error) {
+	a.ed.SetPreCommitValidate(fn)
+}
 func (a *editorAdapter) ListBackups() ([]contract.BackupInfo, error) {
 	backups, err := a.ed.ListBackups()
 	if err != nil {
@@ -100,7 +103,8 @@ func (a *editorAdapter) PendingChanges(sessionID string) []contract.PendingChang
 }
 
 // newEditorFactory creates a contract.EditorFactory that produces adapted editors.
-func newEditorFactory() contract.EditorFactory {
+// The optional validateFn is called on save to validate the candidate config before writing the draft.
+func newEditorFactory(validateFn func(candidate, path string) error) contract.EditorFactory {
 	return func(storeAny any, configPath string) (contract.Editor, error) {
 		store, ok := storeAny.(storage.Storage)
 		if !ok {
@@ -109,6 +113,11 @@ func newEditorFactory() contract.EditorFactory {
 		ed, err := cli.NewEditorWithStorage(store, configPath)
 		if err != nil {
 			return nil, err
+		}
+		if validateFn != nil {
+			ed.SetPreCommitValidate(func(candidate string) error {
+				return validateFn(candidate, configPath)
+			})
 		}
 		return &editorAdapter{ed: ed}, nil
 	}

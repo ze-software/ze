@@ -382,6 +382,13 @@ func (e *Editor) SaveDraft() error {
 		metaTarget.SetEntry(leafName, se.Entry)
 	}
 
+	if e.preCommitValidate != nil {
+		candidate := config.Serialize(baseTree, e.schema)
+		if err := e.preCommitValidate(candidate); err != nil {
+			return fmt.Errorf("validation: %w", err)
+		}
+	}
+
 	// Write draft, tagging the modifier so CheckDraftChanged can identify the author.
 	guard.SetModifier(e.session.ID)
 	draftOutput := config.SerializeSetWithMeta(baseTree, baseMeta, e.schema)
