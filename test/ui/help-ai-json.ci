@@ -1,0 +1,11 @@
+# Test: ze help --ai --json — machine-readable reference
+# VALIDATES: AC-11 help JSON includes commands, RPCs, dispatch-keys, plugins, families, services
+
+cmd=foreground:seq=1:exec=ze help --ai --json
+expect=exit:code=0
+expect=stdout:contains="commands"
+expect=stdout:contains="rpcs"
+expect=stdout:contains="dispatch-keys"
+expect=stdout:contains="plugins"
+expect=stdout:contains="families"
+expect=stdout:contains="services"

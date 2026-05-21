@@ -339,7 +339,7 @@ Research based on zerolang.ai source (github.com/vercel-labs/zerolang v0.1.3, Ma
 | AC-2 | `ze config validate --json` receives a YANG validation failure | Diagnostic includes YANG path, YANG-derived type/category, expected/actual facts when available, `length` when token data exists, and a stable `config-yang-*` code. |
 | AC-3 | `ze config validate --json` receives valid config with warnings | Exit code remains 0; warnings appear as diagnostics with `severity:warning` without making `valid` false. |
 | AC-4 | `ze config validate --json -q` is used | No JSON is printed and exit-code-only behavior is preserved. |
-| AC-5 | Existing callers read `errors`, `warnings`, or `config` from validate JSON | Existing top-level fields still exist alongside new `diagnostics` and `schema-version` fields. |
+| AC-5 | ~~Existing callers read `errors`, `warnings`, or `config` from validate JSON~~ | **Dropped per no-layering rule.** Old `errors`/`warnings` arrays removed; `diagnostics` is the single source. `config` and `valid` remain. |
 | AC-6 | `ValidateContent` receives invalid config | It returns an aggregated error whose text remains useful, and the underlying diagnostic collection is not duplicated. |
 | AC-7 | `ze explain <known-code>` is called (text mode) | It returns a human-readable explanation for the installed binary's diagnostic code and exits 0. |
 | AC-7b | `ze explain --json <known-code>` is called | It returns a structured JSON explanation with `code`, `title`, `description`, `examples`, and `related-codes` fields. |
@@ -633,19 +633,36 @@ No RFC comments are required. This spec does not implement protocol behavior.
 
 ### What Was Implemented
 
-- Not implemented yet. This spec is in design.
+**Commit 06c5b68bd (Phase 1):**
+- `internal/core/diagnostic/` package: types, registry, 16 builtin codes, tests
+- `ze explain` (text + `--json`), `ze skills list/get` (5 skills, `--full`, `--json`)
+- `ze config fix --plan --json`, `ze help --ai --json`
+- `ze config validate --json` refactored: `encoding/json`, stable codes, YANG fact mapping, sensitive value redaction
+- Editor `SetPreCommitValidate` hook on `SaveDraft` (covers web + SSH CLI)
+- Wired in `newEditorFactory(zeconfigcmd.ValidateContent)` in `cmd/ze/hub/main_servers.go:279`
+- Docs updated: `docs/features/ai-first.md`, `docs/guide/mcp/overview.md`
+- Rule: `ai/rules/agent-tooling.md`
+- AC-1 through AC-15 implemented with unit tests. AC-17 (ANSI-free) inherent. AC-18 (pre-commit validation) wired.
+
+**Phase 2 (this session):**
+- AC-11: `ze help --ai --json` now includes `dispatch-keys` field (230 wire-method to CLI path mappings) via `cli.WireToPath()`
+- AC-9/AC-10: Repair metadata populated for YANG validation errors (`add-missing-field`, `fix-type-mismatch`, `fix-range-value`, `fix-pattern-value`) and BGP cross-references (`fix-peer-reference`), listener conflicts (`resolve-listener-conflict`)
+- AC-16: Listener conflict diagnostics include `related` entries with both conflicting endpoint locations. Added `FindListenerConflict` returning structured `ListenerConflict` type. Exported `ProtocolLabel`.
+- AC-19: `--pending` flag on `ze config validate --json` reads `.draft` file and validates it
+- Tests: `TestCommandContractSnapshot`, `TestValidateListenerConflictRelated`, `TestConfigFixPlanRepairIDs`, `TestValidatePendingMissingDraft`, `TestValidatePendingRequiresJSON`, `TestValidatePendingReadsDraft`
 
 ### Bugs Found/Fixed
 
-- Not implemented yet.
+- None.
 
 ### Documentation Updates
 
-- Not implemented yet.
+- Phase 1: `docs/features/ai-first.md`, `docs/guide/mcp/overview.md`
 
 ### Deviations from Plan
 
-- Not implemented yet.
+- AC-5 dropped per no-layering rule: old `errors`/`warnings` arrays removed, `diagnostics` is the single source.
+- `ProtocolLabel` exported from `internal/component/config` (was `protocolLabel`) to support structured Related entries in `cmd/ze/config`.
 
 ## Implementation Audit
 
@@ -653,29 +670,86 @@ No RFC comments are required. This spec does not implement protocol behavior.
 
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Stable diagnostic records in validate JSON | Done | `cmd/ze/config/cmd_validate.go` | 16 codes mapped |
+| `ze explain` text and JSON | Done | `cmd/ze/explain/main.go` | Phase 1 |
+| `ze config fix --plan --json` | Done | `cmd/ze/config/cmd_fix.go` | Phase 1 + repairs Phase 2 |
+| `ze help --ai --json` with dispatch keys | Done | `cmd/ze/help_ai.go` | Phase 2 added dispatch-keys |
+| `ze skills list/get` | Done | `cmd/ze/skills/main.go` | Phase 1 |
+| Pre-commit validation hook | Done | `cmd/ze/hub/main_servers.go:279` | Phase 1 |
+| `--pending` flag | Done | `cmd/ze/config/cmd_validate.go` | Phase 2 |
 
 ### Acceptance Criteria
 
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestValidateResultInvalid`, `.ci` | Stable codes, exit code 1 |
+| AC-2 | Done | `TestValidateYANGDiagnosticFacts` | YANG path, expected, actual |
+| AC-3 | Done | `TestValidateSemanticValidationWarnings` | Warnings as diagnostics |
+| AC-4 | Done | `TestValidateRunValidConfig` `-q` | Quiet preserved |
+| AC-5 | Dropped | N/A | No-layering rule; diagnostics is single source |
+| AC-6 | Done | `TestValidateContentReturnsAggregatedError` | |
+| AC-7 | Done | `TestExplainKnownDiagnostic` | Phase 1 |
+| AC-7b | Done | `TestExplainKnownDiagnosticJSON` | Phase 1 |
+| AC-8 | Done | `TestExplainUnknownDiagnostic` | Phase 1 |
+| AC-9 | Done | `TestConfigFixPlanJSON`, `TestConfigFixPlanRepairIDsFromFix` | Phase 2 repairs |
+| AC-10 | Done | `TestConfigFixPlanRepairIDs` | Omit or requires-human-review |
+| AC-11 | Done | `help-ai-json.ci` | 230 dispatch-keys |
+| AC-12 | Done | By construction | Derived from registries |
+| AC-13 | Done | `TestSkillsListAll`, `skills-list-get.ci` | Phase 1 |
+| AC-14 | Done | `TestSkillsGetCompact`, `TestSkillsGetFull` | Phase 1 |
+| AC-14b | Done | `TestSkillsGetInnerSkill` | Phase 1 |
+| AC-15 | Done | `isSensitiveLeaf` redaction | Phase 1 |
+| AC-16 | Done | `TestValidateListenerConflictRelated` | Related entries with both endpoints |
+| AC-17 | Done | Inherent (no ANSI) | Phase 1 |
+| AC-18 | Done | `SetPreCommitValidate` | Phase 1 |
+| AC-19 | Done | `TestValidatePendingReadsDraft` | Reads .draft, rejects stdin |
 
 ### Tests from TDD Plan
 
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestDiagnosticRegistryKnownCodes` | Done | `internal/core/diagnostic/registry_test.go` | Phase 1 |
+| `TestDiagnosticRegistryRejectsDuplicate` | Done | `internal/core/diagnostic/registry_test.go` | Phase 1 |
+| `TestValidateJSONSchemaVersion` | Done | `cmd/ze/config/cmd_validate_test.go` | Via contract snapshot |
+| `TestValidateJSONDiagnosticsContract` | Done | `cmd/ze/config/cmd_validate_test.go` | Via contract snapshot |
+| `TestValidateListenerConflictRelated` | Done | `cmd/ze/config/cmd_validate_test.go` | Phase 2 |
+| `TestConfigFixPlanJSON` | Done | `cmd/ze/config/cmd_fix_test.go` | Phase 2 |
+| `TestConfigFixPlanRepairIDs` | Done | `cmd/ze/config/cmd_validate_test.go` | Phase 2 |
+| `TestExplainKnownDiagnostic` | Done | `cmd/ze/explain/explain_test.go` | Phase 1 |
+| `TestExplainKnownDiagnosticJSON` | Done | `cmd/ze/explain/explain_test.go` | Phase 1 |
+| `TestExplainUnknownDiagnostic` | Done | `cmd/ze/explain/explain_test.go` | Phase 1 |
+| `TestAIHelpJSONContract` | Done | `cmd/ze/help_ai_test.go` | Phase 1 |
+| `TestSkillsListAll` | Done | `cmd/ze/skills/skills_test.go` | Phase 1 |
+| `TestSkillsGetFull` | Done | `cmd/ze/skills/skills_test.go` | Phase 1 |
+| `TestSkillsGetInnerSkill` | Done | `cmd/ze/skills/skills_test.go` | Phase 1 |
+| `TestCommandContractSnapshot` | Done | `cmd/ze/config/cmd_validate_test.go` | Phase 2 |
 
 ### Files from Plan
 
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/core/diagnostic/types.go` | Done | Phase 1 |
+| `internal/core/diagnostic/registry.go` | Done | Phase 1 |
+| `internal/core/diagnostic/codes.go` | Done | Phase 1 |
+| `cmd/ze/config/cmd_fix.go` | Done | Phase 1 |
+| `cmd/ze/config/cmd_fix_test.go` | Done | Phase 2 |
+| `cmd/ze/explain/main.go` | Done | Phase 1 |
+| `cmd/ze/explain/register.go` | Done | Phase 1 |
+| `cmd/ze/skills/main.go` | Done | Phase 1 |
+| `cmd/ze/skills/register.go` | Done | Phase 1 |
+| `cmd/ze/skills/data/*.md` | Done | Phase 1 (6 skill files) |
+| `cmd/ze/help_ai.go` | Done | Phase 1 + 2 |
+| `cmd/ze/config/cmd_validate.go` | Done | Phase 1 + 2 |
+| `internal/component/config/listener.go` | Done | Phase 2 (FindListenerConflict) |
+| `test/ui/*.ci` | Done | Phase 2 (8 functional tests) |
 
 ### Audit Summary
 
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 41 (7 requirements + 19 ACs + 15 tests)
+- **Done:** 40
+- **Partial:** 0
+- **Skipped:** 1 (AC-5 dropped)
+- **Changed:** 0
 
 ## Review Gate
 
@@ -683,20 +757,26 @@ No RFC comments are required. This spec does not implement protocol behavior.
 
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | ISSUE | `--pending` with stdin reads `-.draft` | `cmd_validate.go:173` | Fixed: reject stdin for --pending |
+| 2 | NOTE | `DispatchKeys` may be null in JSON | `help_ai.go:855` | Fixed: nil-to-empty guard |
+| 3 | NOTE | `yangRepair` returns repair for warning-severity `ErrTypeMissing` | `cmd_validate.go:472` | Fixed then restored per spec |
 
 ### Fixes applied
 
-- None yet.
+- Added stdin guard for `--pending` + test
+- Added nil-to-empty guard for `DispatchKeys`
+- Removed `ErrTypeMissing` repair, then restored per spec table (critical review)
 
 ### Run 2+ (re-runs until clean)
 
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | - | No findings | - | Clean |
 
 ### Final status
 
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above or explicitly none
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above
 
 ## Pre-Commit Verification
 

@@ -1,0 +1,26 @@
+# Test: command contract snapshot — validate JSON contract shapes
+# VALIDATES: diagnostic JSON, explain JSON, and skills JSON match pinned contract shapes
+
+tmpfs=bad.conf:terminator=EOF_CONF
+invalid syntax here
+EOF_CONF
+
+# Validate diagnostic JSON has required fields
+cmd=foreground:seq=1:exec=ze config validate --json bad.conf
+expect=exit:code=1
+expect=stdout:contains="diagnostics"
+expect=stdout:contains="valid"
+expect=stdout:contains="path"
+
+# Validate explain JSON has required fields
+cmd=foreground:seq=2:exec=ze explain --json config-parse
+expect=exit:code=0
+expect=stdout:contains="code"
+expect=stdout:contains="title"
+expect=stdout:contains="description"
+
+# Validate skills JSON has required fields
+cmd=foreground:seq=3:exec=ze skills list --json
+expect=exit:code=0
+expect=stdout:contains="name"
+expect=stdout:contains="description"

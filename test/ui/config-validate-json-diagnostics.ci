@@ -1,0 +1,15 @@
+# Test: ze config validate --json — stable diagnostic JSON
+# VALIDATES: AC-1 agent receives stable diagnostic JSON with diagnostics array
+
+tmpfs=bad.conf:terminator=EOF_CONF
+invalid syntax here
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate --json bad.conf
+expect=exit:code=1
+expect=stdout:contains="diagnostics"
+expect=stdout:contains="code"
+expect=stdout:contains="severity"
+expect=stdout:contains="message"
+expect=stdout:contains="valid"
+expect=stdout:contains=config-parse

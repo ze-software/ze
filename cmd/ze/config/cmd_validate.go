@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	configyang "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ValidateContent runs the same validation as `ze config validate` and returns
@@ -75,6 +76,14 @@ func (r *validationResult) addErrorLine(code, message string, line int) {
 	})
 }
 
+func (r *validationResult) addErrorWithRepair(code, message string, repair *diagnostic.Repair, safety diagnostic.FixSafety) {
+	r.Valid = false
+	r.Diagnostics = append(r.Diagnostics, diagnostic.Diagnostic{
+		Code: code, Severity: diagnostic.SeverityError, Message: message,
+		Repair: repair, FixSafety: safety,
+	})
+}
+
 func (r *validationResult) addWarning(code, message string) { //nolint:unparam // code varies as more warning codes are added
 	r.Diagnostics = append(r.Diagnostics, diagnostic.Diagnostic{
 		Code: code, Severity: diagnostic.SeverityWarning, Message: message,
@@ -104,6 +113,7 @@ func cmdValidate(args []string) int {
 	verbose := fs.Bool("v", false, "verbose output")
 	quiet := fs.Bool("q", false, "quiet mode (exit code only)")
 	jsonOut := fs.Bool("json", false, "output as JSON")
+	pending := fs.Bool("pending", false, "validate pending draft config")
 	limit := fs.String("limit", "", "limit validation to section (environment)")
 
 	fs.Usage = func() {
@@ -116,6 +126,7 @@ func cmdValidate(args []string) int {
 					{Name: "-v", Desc: "Verbose output"},
 					{Name: "-q", Desc: "Quiet mode (exit code only)"},
 					{Name: "--json", Desc: "Output as JSON"},
+					{Name: "--pending", Desc: "Validate pending draft config (requires --json)"},
 					{Name: "--limit <section>", Desc: "Limit validation to section (environment)"},
 				}},
 				{Title: "Limit values", Entries: []helpfmt.HelpEntry{
@@ -159,6 +170,18 @@ func cmdValidate(args []string) int {
 
 	configPath := fs.Arg(0)
 
+	if *pending {
+		if !*jsonOut {
+			fmt.Fprintf(os.Stderr, "error: --pending requires --json\n")
+			return 1
+		}
+		if configPath == "-" {
+			fmt.Fprintf(os.Stderr, "error: --pending cannot read from stdin\n")
+			return 1
+		}
+		return validatePending(configPath, *quiet)
+	}
+
 	// Read file (or stdin if "-").
 	var data []byte
 	var err error
@@ -198,6 +221,20 @@ func validateEnvironment(jsonOutput, quiet bool) int {
 		}
 	}
 	return 0
+}
+
+func validatePending(configPath string, quiet bool) int {
+	draftPath := configPath + ".draft"
+	data, err := os.ReadFile(draftPath) //nolint:gosec // Config path from CLI args
+	if err != nil {
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "error: no pending config: %v\n", err)
+		}
+		return 2
+	}
+
+	result := runValidation(string(data), configPath)
+	return outputValidateJSON(result, quiet)
 }
 
 func runValidation(input, path string) *validationResult {
@@ -264,6 +301,11 @@ func runValidation(input, path string) *validationResult {
 					d.Actual = ve.Got
 				}
 
+				if r, s := yangRepair(ve.Type); r != nil {
+					d.Repair = r
+					d.FixSafety = s
+				}
+
 				if ve.Type == configyang.ErrTypeMissing {
 					d.Severity = diagnostic.SeverityWarning
 				} else {
@@ -299,12 +341,14 @@ func runValidation(input, path string) *validationResult {
 		addSemanticWarnings(result, bgpTree)
 
 		if authzErr := bgpconfig.ValidateAuthzConfig(tree); authzErr != nil {
-			result.addError("config-bgp-authz", authzErr.Error())
+			result.addErrorWithRepair("config-bgp-authz", authzErr.Error(),
+				&diagnostic.Repair{ID: "fix-peer-reference", Summary: "Correct the authz profile reference"}, diagnostic.SafetyRequiresHumanReview)
 			return result
 		}
 
 		if _, peersErr := bgpconfig.PeersFromConfigTree(tree); peersErr != nil {
-			result.addError("config-bgp-peer", peersErr.Error())
+			result.addErrorWithRepair("config-bgp-peer", peersErr.Error(),
+				&diagnostic.Repair{ID: "fix-peer-reference", Summary: "Correct peer settings or cross-reference"}, diagnostic.SafetyRequiresHumanReview)
 			return result
 		}
 	}
@@ -319,8 +363,17 @@ func runValidation(input, path string) *validationResult {
 
 	// Listener port conflict detection.
 	listeners := config.CollectListeners(tree, schema)
-	if err := config.ValidateListenerConflicts(listeners); err != nil {
-		result.addError("config-listener-conflict", err.Error())
+	if c := config.FindListenerConflict(listeners); c != nil {
+		d := diagnostic.Diagnostic{
+			Code:      "config-listener-conflict",
+			Severity:  diagnostic.SeverityError,
+			Message:   c.Err.Error(),
+			Repair:    &diagnostic.Repair{ID: "resolve-listener-conflict", Summary: "Change address or port on one of the conflicting listeners"},
+			FixSafety: diagnostic.SafetyRequiresHumanReview,
+			Related:   listenerConflictRelated(c),
+		}
+		result.Valid = false
+		result.Diagnostics = append(result.Diagnostics, d)
 		return result
 	}
 
@@ -406,6 +459,35 @@ func isSensitiveLeaf(path string, sensitiveKeys map[string]bool) bool {
 		return sensitiveKeys[path[idx+1:]]
 	}
 	return sensitiveKeys[path]
+}
+
+func listenerConflictRelated(c *config.ListenerConflict) []diagnostic.Related {
+	format := func(ep config.ListenerEndpoint) string {
+		return config.ProtocolLabel(ep.Protocol) + " " + ep.IP.String() + ":" + textbuf.Uint16(ep.Port)
+	}
+	return []diagnostic.Related{
+		{Path: c.A.Service, Message: format(c.A)},
+		{Path: c.B.Service, Message: format(c.B)},
+	}
+}
+
+func yangRepair(t configyang.ErrorType) (*diagnostic.Repair, diagnostic.FixSafety) {
+	switch t { //nolint:exhaustive // only codes with known repairs
+	case configyang.ErrTypeMissing:
+		return &diagnostic.Repair{ID: "add-missing-field", Summary: "Insert mandatory field with its default or required value"}, diagnostic.SafetySectionLocal
+	case configyang.ErrTypeType:
+		return &diagnostic.Repair{ID: "fix-type-mismatch", Summary: "Replace value with one matching the expected type"}, diagnostic.SafetySectionLocal
+	case configyang.ErrTypeEnum:
+		return &diagnostic.Repair{ID: "fix-type-mismatch", Summary: "Replace value with one of the allowed enum values"}, diagnostic.SafetySectionLocal
+	case configyang.ErrTypeRange:
+		return &diagnostic.Repair{ID: "fix-range-value", Summary: "Adjust value to fall within the allowed range"}, diagnostic.SafetySectionLocal
+	case configyang.ErrTypeLength:
+		return &diagnostic.Repair{ID: "fix-range-value", Summary: "Adjust string length to fall within the allowed range"}, diagnostic.SafetySectionLocal
+	case configyang.ErrTypePattern:
+		return &diagnostic.Repair{ID: "fix-pattern-value", Summary: "Correct value to match the required pattern"}, diagnostic.SafetySectionLocal
+	default:
+		return nil, ""
+	}
 }
 
 func yangErrorCode(t configyang.ErrorType) string {

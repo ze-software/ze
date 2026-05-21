@@ -800,11 +800,12 @@ func buildAISchemaRegistry() *pluginserver.SchemaRegistry {
 }
 
 type aiHelpJSON struct {
-	Commands []aiHelpCommand `json:"commands"`
-	RPCs     []aiHelpRPC     `json:"rpcs"`
-	Plugins  []aiHelpPlugin  `json:"plugins"`
-	Families []string        `json:"families"`
-	Services []aiHelpService `json:"services"`
+	Commands     []aiHelpCommand   `json:"commands"`
+	RPCs         []aiHelpRPC       `json:"rpcs"`
+	DispatchKeys map[string]string `json:"dispatch-keys"`
+	Plugins      []aiHelpPlugin    `json:"plugins"`
+	Families     []string          `json:"families"`
+	Services     []aiHelpService   `json:"services"`
 }
 
 type aiHelpCommand struct {
@@ -849,6 +850,11 @@ func printAIHelpJSON() {
 		result.RPCs = append(result.RPCs, aiHelpRPC{
 			WireMethod: brpc.WireMethod,
 		})
+	}
+
+	result.DispatchKeys = cli.WireToPath()
+	if result.DispatchKeys == nil {
+		result.DispatchKeys = map[string]string{}
 	}
 
 	seen := make(map[string]bool)

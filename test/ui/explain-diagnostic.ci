@@ -1,0 +1,7 @@
+# Test: ze explain — text explanation of a diagnostic code
+# VALIDATES: AC-7 known codes render a human-readable explanation
+
+cmd=foreground:seq=1:exec=ze explain config-parse
+expect=exit:code=0
+expect=stdout:contains=config-parse
+expect=stdout:contains=syntax

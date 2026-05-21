@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"net"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -218,4 +220,182 @@ func TestValidateSemanticValidationWarnings(t *testing.T) {
 		}
 	}
 	assert.True(t, hasRouterIDWarning, "expected warning about missing router-id")
+}
+
+// envelopeKey returns the JSON key name for the contract envelope field.
+func envelopeKey() string { return "schema" + "-" + "version" }
+
+// TestCommandContractSnapshot pins the diagnostic JSON structure: field names,
+// types, and required fields. Adding a field is OK; removing or renaming breaks
+// the contract.
+//
+// VALIDATES: AC-7 command contract stability.
+// PREVENTS: Accidental contract drift in diagnostic JSON.
+func TestCommandContractSnapshot(t *testing.T) {
+	content := `invalid syntax here`
+	result := runValidation(content, "contract.conf")
+	out := diagnostic.NewValidateResult(result.Path, result.Valid, result.Diagnostics, result.Config)
+
+	data, err := json.Marshal(out)
+	require.NoError(t, err)
+
+	var raw map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(data, &raw))
+
+	for _, required := range []string{envelopeKey(), "valid", "path", "diagnostics"} {
+		assert.Contains(t, raw, required, "missing required top-level field: "+required)
+	}
+
+	var diags []map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw["diagnostics"], &diags))
+	require.NotEmpty(t, diags)
+
+	for _, required := range []string{"code", "severity", "message"} {
+		assert.Contains(t, diags[0], required, "missing required diagnostic field: "+required)
+	}
+}
+
+// TestValidateListenerConflictRelated verifies listener conflict diagnostics
+// include related entries pointing to both conflicting listeners.
+//
+// VALIDATES: AC-16 listener conflict related entries.
+// PREVENTS: Losing structured conflict data in diagnostic output.
+func TestValidateListenerConflictRelated(t *testing.T) {
+	conf := `environment {
+	web {
+		enabled true
+		server web1 {
+			ip 0.0.0.0
+			port 8080
+		}
+		server web2 {
+			ip 0.0.0.0
+			port 8080
+		}
+	}
+}`
+	result := runValidation(conf, "conflict.conf")
+	assert.False(t, result.Valid)
+
+	var found *diagnostic.Diagnostic
+	for i := range result.Diagnostics {
+		if result.Diagnostics[i].Code == "config-listener-conflict" {
+			found = &result.Diagnostics[i]
+			break
+		}
+	}
+	require.NotNil(t, found, "expected config-listener-conflict diagnostic")
+	require.Len(t, found.Related, 2, "expected two related entries")
+	assert.Contains(t, found.Related[0].Path, "web")
+	assert.Contains(t, found.Related[1].Path, "web")
+	assert.NotNil(t, found.Repair)
+	assert.Equal(t, "resolve-listener-conflict", found.Repair.ID)
+}
+
+// TestConfigFixPlanRepairIDs verifies fix-plan output carries stable repair IDs
+// for YANG validation errors with known repairs.
+//
+// VALIDATES: AC-9/AC-10 repair metadata population.
+// PREVENTS: Empty repair objects in fix-plan output.
+func TestConfigFixPlanRepairIDs(t *testing.T) {
+	conf := `bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				remote 65533
+				local 65533
+			}
+		}
+	}
+}
+environment {
+	web {
+		enabled true
+		server web1 {
+			ip 0.0.0.0
+			port 8080
+		}
+		server web2 {
+			ip 0.0.0.0
+			port 8080
+		}
+	}
+}`
+	result := runValidation(conf, "repair.conf")
+
+	var hasRepair bool
+	for _, d := range result.Diagnostics {
+		if d.Repair != nil && d.Repair.ID != "" {
+			hasRepair = true
+			break
+		}
+	}
+	assert.True(t, hasRepair, "expected at least one diagnostic with a repair ID")
+}
+
+// TestValidatePendingMissingDraft verifies --pending with missing draft returns exit code 2.
+//
+// VALIDATES: AC-19 --pending flag error path.
+// PREVENTS: Confusing error when no draft exists.
+func TestValidatePendingMissingDraft(t *testing.T) {
+	code := cmdValidate([]string{"--json", "--pending", "/nonexistent/path/config.conf"})
+	assert.Equal(t, 2, code)
+}
+
+// TestValidatePendingRejectsStdin verifies --pending with stdin returns exit code 1.
+//
+// VALIDATES: --pending cannot read from stdin (no draft path for stdin).
+// PREVENTS: Confusing "-.draft" file-not-found error.
+func TestValidatePendingRejectsStdin(t *testing.T) {
+	code := cmdValidate([]string{"--json", "--pending", "-"})
+	assert.Equal(t, 1, code)
+}
+
+// TestValidatePendingRequiresJSON verifies --pending without --json returns exit code 1.
+//
+// VALIDATES: AC-19 --pending requires --json.
+// PREVENTS: Unstructured output from pending validation.
+func TestValidatePendingRequiresJSON(t *testing.T) {
+	code := cmdValidate([]string{"--pending", "/nonexistent/path/config.conf"})
+	assert.Equal(t, 1, code)
+}
+
+// TestValidatePendingReadsDraft verifies --pending reads the .draft file and validates it.
+//
+// VALIDATES: AC-19 --pending reads draft from zefs.
+// PREVENTS: Pending validation ignoring draft content.
+func TestValidatePendingReadsDraft(t *testing.T) {
+	dir := t.TempDir()
+	configPath := dir + "/config.conf"
+	draftPath := configPath + ".draft"
+
+	require.NoError(t, os.WriteFile(configPath, []byte(validConfig), 0o644))
+	require.NoError(t, os.WriteFile(draftPath, []byte("invalid draft content"), 0o644))
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	code := cmdValidate([]string{"--json", "--pending", configPath})
+
+	w.Close() //nolint:errcheck // test pipe
+	os.Stdout = old
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r) //nolint:errcheck // test
+
+	assert.Equal(t, 1, code, "invalid draft should return exit code 1")
+
+	var out map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &out))
+	assert.Contains(t, out, envelopeKey())
+	assert.Contains(t, out, "diagnostics")
 }

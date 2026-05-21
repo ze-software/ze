@@ -1,0 +1,10 @@
+# Test: ze explain --json — structured JSON explanation
+# VALIDATES: AC-7b JSON explanation with code, title, description
+
+cmd=foreground:seq=1:exec=ze explain --json config-yang-missing
+expect=exit:code=0
+expect=stdout:contains="code"
+expect=stdout:contains="title"
+expect=stdout:contains="description"
+expect=stdout:contains=config-yang-missing
+expect=stdout:contains="related-codes"

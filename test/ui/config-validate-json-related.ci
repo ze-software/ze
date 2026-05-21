@@ -1,0 +1,26 @@
+# Test: ze config validate --json — listener conflict with related entries
+# VALIDATES: AC-16 related entries point to both conflicting listener locations
+
+tmpfs=conflict.conf:terminator=EOF_CONF
+environment {
+	web {
+		enabled true
+		server web1 {
+			ip 0.0.0.0
+			port 8080
+		}
+		server web2 {
+			ip 0.0.0.0
+			port 8080
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate --json conflict.conf
+expect=exit:code=1
+expect=stdout:contains=config-listener-conflict
+expect=stdout:contains="related"
+expect=stdout:contains=resolve-listener-conflict
+expect=stdout:contains="web web1"
+expect=stdout:contains="web web2"

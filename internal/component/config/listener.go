@@ -233,28 +233,47 @@ func parseListenerEntry(service, protocol, key string, entry *Tree) *ListenerEnd
 	return &ListenerEndpoint{Service: name, Protocol: protocol, IP: ip, Port: port}
 }
 
+// ListenerConflict describes a pair of conflicting listener endpoints.
+type ListenerConflict struct {
+	A   ListenerEndpoint
+	B   ListenerEndpoint
+	Err error
+}
+
 // ValidateListenerConflicts checks a slice of endpoints for overlapping
 // protocol:ip:port bindings. Wildcard addresses (0.0.0.0 for IPv4, :: for IPv6)
 // conflict with any address in the same family. Cross-family (0.0.0.0 vs ::1)
 // does NOT conflict. Cross-protocol (TCP:N vs UDP:N) never conflicts either.
 // Returns an error naming both conflicting services if a conflict is found.
 func ValidateListenerConflicts(endpoints []ListenerEndpoint) error {
+	if c := FindListenerConflict(endpoints); c != nil {
+		return c.Err
+	}
+	return nil
+}
+
+// FindListenerConflict returns the first conflicting endpoint pair, or nil.
+func FindListenerConflict(endpoints []ListenerEndpoint) *ListenerConflict {
 	for i := range endpoints {
 		for j := i + 1; j < len(endpoints); j++ {
 			if conflicts(endpoints[i], endpoints[j]) {
-				return fmt.Errorf("listener conflict: %s (%s %s:%d) and %s (%s %s:%d) bind to the same endpoint",
-					endpoints[i].Service, protocolLabel(endpoints[i].Protocol), endpoints[i].IP, endpoints[i].Port,
-					endpoints[j].Service, protocolLabel(endpoints[j].Protocol), endpoints[j].IP, endpoints[j].Port)
+				return &ListenerConflict{
+					A: endpoints[i],
+					B: endpoints[j],
+					Err: fmt.Errorf("listener conflict: %s (%s %s:%d) and %s (%s %s:%d) bind to the same endpoint",
+						endpoints[i].Service, ProtocolLabel(endpoints[i].Protocol), endpoints[i].IP, endpoints[i].Port,
+						endpoints[j].Service, ProtocolLabel(endpoints[j].Protocol), endpoints[j].IP, endpoints[j].Port),
+				}
 			}
 		}
 	}
 	return nil
 }
 
-// protocolLabel returns the protocol for display. Endpoints built by tests
+// ProtocolLabel returns the protocol for display. Endpoints built by tests
 // without an explicit Protocol field are shown as "tcp" since every
 // pre-Phase-5 service in ze was TCP.
-func protocolLabel(p string) string {
+func ProtocolLabel(p string) string {
 	if p == "" {
 		return ProtocolTCP
 	}
@@ -266,7 +285,7 @@ func protocolLabel(p string) string {
 // at the kernel level even if they share ip:port. An empty Protocol field
 // is treated as TCP.
 func conflicts(a, b ListenerEndpoint) bool {
-	if protocolLabel(a.Protocol) != protocolLabel(b.Protocol) {
+	if ProtocolLabel(a.Protocol) != ProtocolLabel(b.Protocol) {
 		return false
 	}
 	if a.Port != b.Port {
