@@ -121,7 +121,7 @@ func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build pipeline command with all provided filters.
-	cmd := "bgp rib show"
+	cmd := "show bgp rib"
 	if prefix != "" {
 		cmd += " prefix " + prefix
 	}
@@ -217,7 +217,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get prefix-length summary (fast, constant memory).
-	result := s.query("peer " + address + " bgp rib show prefix-summary")
+	result := s.query("show bgp rib prefix-summary peer " + address)
 	zeData := parseJSON(result)
 
 	totalCount := 0
@@ -242,7 +242,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 
 	// For small route tables, also fetch individual routes.
 	if totalCount > 0 && totalCount <= maxDisplayRoutes {
-		routeResult := s.query("peer " + address + " bgp rib show")
+		routeResult := s.query("show bgp rib peer " + address)
 		routeData := parseJSON(routeResult)
 		if routeData != nil {
 			if _, isErr := routeData["error"].(string); !isErr {
@@ -271,7 +271,7 @@ func (s *LGServer) handleUIPeerDownload(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result := s.query("peer " + address + " bgp rib show")
+	result := s.query("show bgp rib peer " + address)
 	zeData := parseJSON(result)
 
 	if zeData == nil {
@@ -407,7 +407,7 @@ func (s *LGServer) handleUIRouteDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.query("bgp rib show prefix " + prefix)
+	result := s.query("show bgp rib prefix " + prefix)
 	zeData := parseJSON(result)
 	routes := extractRoutes(zeData)
 

@@ -3,8 +3,9 @@
 # Uses ze_monitor (task-support: required) to exercise the required path.
 # cancel on an already-completed task is a no-op (returns current state).
 
-# MCP commands: run monitor bgp as a task (required), wait completion, then cancel
+# MCP commands: wait for auto-generated tools, then run monitor bgp as a task
 stdin=mcp:terminator=EOF_MCP
+wait-tool ze_monitor
 task-call ze_monitor {"action":"bgp"}
 task-wait $LAST completed
 task-cancel $LAST

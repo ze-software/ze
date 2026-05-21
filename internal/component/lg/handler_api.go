@@ -76,7 +76,7 @@ func (s *LGServer) handleAPIRoutesProtocol(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	result := s.query("peer " + name + " bgp rib show")
+	result := s.query("show bgp rib peer " + name)
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -106,7 +106,7 @@ func (s *LGServer) handleAPIRoutesPeer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.query("peer " + peer + " bgp rib show")
+	result := s.query("show bgp rib peer " + peer)
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -136,7 +136,7 @@ func (s *LGServer) handleAPIRoutesTable(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result := s.query("bgp rib show best " + fam)
+	result := s.query("show bgp rib best " + fam)
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -175,7 +175,7 @@ func (s *LGServer) handleAPIBMPRoutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.query("bgp rib show-protocol bmp " + name)
+	result := s.query("show bgp rib-protocol bmp " + name)
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -255,7 +255,7 @@ func (s *LGServer) handleAPIRoutesExport(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	result := s.query("peer " + name + " bgp rib show sent")
+	result := s.query("show bgp rib sent peer " + name)
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -294,7 +294,7 @@ func (s *LGServer) handleAPIRoutesCount(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result := s.query("peer " + name + " bgp rib show count")
+	result := s.query("show bgp rib count peer " + name)
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -319,7 +319,7 @@ func (s *LGServer) handleAPIRoutesPrefix(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	result := s.query("bgp rib show prefix " + prefix)
+	result := s.query("show bgp rib prefix " + prefix)
 
 	zeData := parseJSON(result)
 	if zeData == nil {

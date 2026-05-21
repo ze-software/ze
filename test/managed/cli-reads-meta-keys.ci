@@ -15,15 +15,16 @@ DB="$INIT_DIR/database.zefs"
 # Init with piped prompts
 printf 'admin\nsecret123\n10.0.0.1\n3333\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init
 
-# Verify host and port
-HOST=$(ze data --path "$DB" cat meta/ssh/host)
-[ "$HOST" = "10.0.0.1" ] || { echo "FAIL: host expected '10.0.0.1', got '$HOST'" >&2; exit 1; }
+# Verify default pointer
+DEFAULT=$(ze data --path "$DB" cat meta/ssh/default)
+[ "$DEFAULT" = "10.0.0.1/3333" ] || { echo "FAIL: default expected '10.0.0.1/3333', got '$DEFAULT'" >&2; exit 1; }
 
-STORED_PORT=$(ze data --path "$DB" cat meta/ssh/port)
-[ "$STORED_PORT" = "3333" ] || { echo "FAIL: port expected '3333', got '$STORED_PORT'" >&2; exit 1; }
+# Verify scoped username
+USER=$(ze data --path "$DB" cat meta/ssh/10.0.0.1/3333/username)
+[ "$USER" = "admin" ] || { echo "FAIL: username expected 'admin', got '$USER'" >&2; exit 1; }
 
-# Password is stored as bcrypt hash
-PASSWORD=$(ze data --path "$DB" cat meta/ssh/password)
+# Password is stored as bcrypt hash under scoped path
+PASSWORD=$(ze data --path "$DB" cat meta/ssh/10.0.0.1/3333/password)
 echo "$PASSWORD" | grep -q '^\$2' || { echo "FAIL: password expected bcrypt hash, got '$PASSWORD'" >&2; exit 1; }
 
 rm -rf "$INIT_DIR"

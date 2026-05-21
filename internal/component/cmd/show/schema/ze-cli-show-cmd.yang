@@ -77,6 +77,12 @@ module ze-cli-show-cmd {
                 config false;
                 ze:command "ze-show:system-update";
                 description "Show firmware update check status: last check time, running version, available version";
+
+                container history {
+                    config false;
+                    ze:command "ze-show:system-update-history";
+                    description "Show firmware update history (last 20 events)";
+                }
             }
 
             container sockets {
@@ -313,6 +319,31 @@ module ze-cli-show-cmd {
                 config false;
                 ze:command "ze-show:bgp-encode";
                 description "Encode API route command to BGP hex";
+            }
+
+            container rib {
+                config false;
+                ze:command "ze-rib-api:routes";
+                ze:task-support required;
+                description "BGP RIB routes (scope + filters + terminal)";
+
+                container best {
+                    config false;
+                    ze:command "ze-rib-api:best";
+                    description "Best-path per prefix";
+
+                    container status {
+                        config false;
+                        ze:command "ze-rib-api:best-status";
+                        description "Best-path computation status";
+                    }
+                }
+
+                container status {
+                    config false;
+                    ze:command "ze-rib-api:status";
+                    description "RIB summary (peer count, route counts)";
+                }
             }
         }
 

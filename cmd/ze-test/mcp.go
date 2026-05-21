@@ -55,6 +55,7 @@ Stdin directives (one per line):
   wait <duration>                  -- sleep
   wait-established                 -- poll "peer list" until a peer is Established
   wait-peers                       -- poll "peer list" until at least one peer exists
+  wait-tool <name>                 -- poll tools/list until <name> appears
   elicit-accept <json content>     -- queue an accept response for the next elicit
   elicit-decline                   -- queue a decline response for the next elicit
   elicit-cancel                    -- queue a cancel response for the next elicit
@@ -134,6 +135,15 @@ Options:
 		// wait-peers: poll "peer list" until at least one peer is configured.
 		if line == "wait-peers" {
 			if err := client.waitPeers(*timeout); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				return 1
+			}
+			continue
+		}
+
+		// wait-tool <name>: poll tools/list until the named tool appears.
+		if toolArg, ok := strings.CutPrefix(line, "wait-tool "); ok {
+			if err := client.waitTool(strings.TrimSpace(toolArg), *timeout); err != nil {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
 				return 1
 			}
@@ -357,6 +367,30 @@ func (c *mcpClient) waitPeers(timeout time.Duration) error {
 		time.Sleep(200 * time.Millisecond)
 	}
 	return fmt.Errorf("no peers configured after %v", timeout)
+}
+
+// waitTool polls tools/list until a tool with the given name appears.
+func (c *mcpClient) waitTool(name string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		result, err := c.send("tools/list", json.RawMessage("{}"))
+		if err == nil {
+			var resp struct {
+				Tools []struct {
+					Name string `json:"name"`
+				} `json:"tools"`
+			}
+			if json.Unmarshal(result, &resp) == nil {
+				for _, t := range resp.Tools {
+					if t.Name == name {
+						return nil
+					}
+				}
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return fmt.Errorf("tool %q not found after %v", name, timeout)
 }
 
 // initialize sends the MCP handshake and captures the session id from the
