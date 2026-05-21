@@ -257,38 +257,55 @@ func (p *Peer) runOnce() error {
 		dialStart := p.clock.Now()
 		if err := session.Connect(p.ctx); err != nil {
 			dialElapsed := p.clock.Now().Sub(dialStart)
-			peerLogger().Debug("timing: dial failed",
+
+			// Race: an inbound connection was accepted between Start() and Connect(),
+			// setting s.conn before we could dial. The inbound won; proceed to Run().
+			if errors.Is(err, ErrAlreadyConnected) && session.Conn() != nil {
+				peerLogger().Info("inbound connection accepted during dial, using inbound",
+					"peer", p.settings.Address,
+				)
+				if p.reactor != nil && p.reactor.rmetrics != nil {
+					p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "ok").Observe(dialElapsed.Seconds())
+				}
+			} else {
+				peerLogger().Debug("timing: dial failed",
+					"peer", p.settings.Address,
+					"port", p.settings.Port,
+					"elapsed_dial", dialElapsed,
+					"error", err,
+				)
+				if p.reactor != nil && p.reactor.rmetrics != nil {
+					p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "fail").Observe(dialElapsed.Seconds())
+				}
+				return err
+			}
+		} else {
+			dialElapsed := p.clock.Now().Sub(dialStart)
+			peerLogger().Debug("timing: dial succeeded",
 				"peer", p.settings.Address,
 				"port", p.settings.Port,
 				"elapsed_dial", dialElapsed,
-				"error", err,
 			)
 			if p.reactor != nil && p.reactor.rmetrics != nil {
-				p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "fail").Observe(dialElapsed.Seconds())
+				p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "ok").Observe(dialElapsed.Seconds())
 			}
-			return err
-		}
-		dialElapsed := p.clock.Now().Sub(dialStart)
-		peerLogger().Debug("timing: dial succeeded",
-			"peer", p.settings.Address,
-			"port", p.settings.Port,
-			"elapsed_dial", dialElapsed,
-		)
-		if p.reactor != nil && p.reactor.rmetrics != nil {
-			p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "ok").Observe(dialElapsed.Seconds())
 		}
 	}
 
 	// For peers that accept inbound, check if a connection arrived while session was nil.
 	// This handles the race where a remote peer reconnects faster than our backoff.
-	// If Accept fails (stale connection), return error so run() retries with a clean
-	// session rather than entering Run() with a partially-initialized FSM state.
+	// If Accept fails because a connection already exists (outbound dial won), discard
+	// the stale inbound and continue. Other Accept errors are fatal.
 	if p.settings.Connection.IsPassive() {
 		if conn := p.takeInboundConnection(); conn != nil {
 			if err := session.Accept(conn); err != nil {
-				peerLogger().Debug("stale inbound connection", "peer", p.settings.Address, "error", err)
 				closeConnQuietly(conn)
-				return fmt.Errorf("accepting buffered connection: %w", err)
+				if errors.Is(err, ErrAlreadyConnected) {
+					peerLogger().Debug("discarding stale inbound, outbound dial won", "peer", p.settings.Address)
+				} else {
+					peerLogger().Debug("stale inbound connection", "peer", p.settings.Address, "error", err)
+					return fmt.Errorf("accepting buffered connection: %w", err)
+				}
 			}
 		}
 	}

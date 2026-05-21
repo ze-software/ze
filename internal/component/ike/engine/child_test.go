@@ -1,7 +1,9 @@
 package engine
 
 import (
+	"fmt"
 	"net"
+	"syscall"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/crypto"
@@ -9,6 +11,34 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+func TestIsXFRMUnsupported(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"ENOPROTOOPT", syscall.ENOPROTOOPT, true},
+		{"EPROTONOSUPPORT", syscall.EPROTONOSUPPORT, true},
+		{"EAFNOSUPPORT", syscall.EAFNOSUPPORT, true},
+		{"ENOSYS", syscall.ENOSYS, true},
+		{"ErrNotSupported", dataplane.ErrNotSupported, true},
+		{"wrapped EPROTONOSUPPORT", fmt.Errorf("xfrm: state add spi=1: %w", syscall.EPROTONOSUPPORT), true},
+		{"wrapped ErrNotSupported", fmt.Errorf("child-sa: install inbound: %w", dataplane.ErrNotSupported), true},
+		{"EPERM", syscall.EPERM, false},
+		{"EINVAL", syscall.EINVAL, false},
+		{"generic error", fmt.Errorf("something else"), false},
+		{"string match", fmt.Errorf("protocol not supported"), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isXFRMUnsupported(tt.err)
+			if got != tt.want {
+				t.Errorf("isXFRMUnsupported(%v) = %v, want %v", tt.err, got, tt.want)
+			}
+		})
+	}
+}
 
 type mockDP struct {
 	sas      []dataplane.SAParams

@@ -130,6 +130,77 @@ func TestAuthPSKNoPSKConfigured(t *testing.T) {
 	}
 }
 
+func testSAWithGCMKeys(t *testing.T) *SA {
+	t.Helper()
+
+	peer := testPeer()
+	ikeGroup := testIKEGroup()
+
+	sa, err := newInitiatorSA("test-gcm-peer", peer, ikeGroup, ipsec.ESPGroup{})
+	if err != nil {
+		t.Fatalf("newInitiatorSA: %v", err)
+	}
+
+	sa.RemoteNonce = make([]byte, 32)
+	for i := range sa.RemoteNonce {
+		sa.RemoteNonce[i] = byte(i)
+	}
+	sa.ResponderSPI = [8]byte{9, 8, 7, 6, 5, 4, 3, 2}
+	sa.InitiatorSAInitMsg = make([]byte, 28)
+	sa.ResponderSAInitMsg = make([]byte, 28)
+
+	sa.Proposal = ikecrypto.IKEProposal{
+		Encryption: ikecrypto.EncryptionTransform{ID: ikecrypto.ENCR_AES_GCM_16, KeyLength: 256, IsAEAD: true},
+		PRF:        ikecrypto.PRFTransform{ID: ikecrypto.PRF_HMAC_SHA2_256, KeyLength: 32, OutputLength: 32},
+		Integrity:  ikecrypto.IntegrityTransform{ID: ikecrypto.AUTH_NONE},
+		DHGroup:    ikecrypto.DHGroupTransform{ID: ikecrypto.DH_MODP_2048},
+	}
+
+	skeyseed, err := ikecrypto.DeriveSKEYSEED(
+		sa.Proposal.PRF.ID,
+		sa.LocalNonce, sa.RemoteNonce,
+		make([]byte, 32),
+	)
+	if err != nil {
+		t.Fatalf("DeriveSKEYSEED: %v", err)
+	}
+
+	skKeys, err := ikecrypto.DeriveSKKeys(
+		sa.Proposal.PRF.ID, skeyseed,
+		sa.LocalNonce, sa.RemoteNonce,
+		sa.InitiatorSPI[:], sa.ResponderSPI[:],
+		sa.Proposal.Encryption, sa.Proposal.Integrity,
+	)
+	if err != nil {
+		t.Fatalf("DeriveSKKeys: %v", err)
+	}
+	sa.SKKeys = skKeys
+
+	return sa
+}
+
+func TestBuildSKMessageAEADRoundTrip(t *testing.T) {
+	sa := testSAWithGCMKeys(t)
+
+	innerData := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+	firstType := uint8(0x21) // ID payload type
+
+	msg, err := buildSKMessageAEAD(sa, innerData, firstType)
+	if err != nil {
+		t.Fatalf("buildSKMessageAEAD: %v", err)
+	}
+
+	if len(msg) < 28+4+8+len(innerData)+1+16 {
+		t.Fatalf("AEAD message too short: %d", len(msg))
+	}
+
+	// Verify the SK generic header NextPayload matches firstType.
+	skGHOff := 28 // after IKE header
+	if msg[skGHOff] != firstType {
+		t.Errorf("SK NextPayload = %d, want %d", msg[skGHOff], firstType)
+	}
+}
+
 func TestContainsHashAlgo(t *testing.T) {
 	algos := []uint16{2, 3, 4}
 	if !containsHashAlgo(algos, 2) {

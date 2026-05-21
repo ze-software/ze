@@ -233,6 +233,19 @@ func runEngine(conn net.Conn) int {
 			return fmt.Errorf("ike config: %w", err)
 		}
 
+		if cfg.Interface != "" {
+			if ifIP := resolveInterfaceAddr(cfg.Interface); ifIP != "" {
+				for name := range cfg.Peers {
+					peer := cfg.Peers[name]
+					if peer.LocalAddress == "" {
+						peer.LocalAddress = ifIP
+						cfg.Peers[name] = peer
+						log.Debug("ike: resolved local-address from interface", "peer", name, "interface", cfg.Interface, "address", ifIP)
+					}
+				}
+			}
+		}
+
 		if tr == nil && len(cfg.Peers) > 0 {
 			listenAddr := "0.0.0.0:500"
 			if cfg.Interface != "" {

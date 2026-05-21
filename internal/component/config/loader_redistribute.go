@@ -32,6 +32,16 @@ func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 	var rules []redistribute.ImportRule
 	for _, dest := range destinations {
 		entries := dest.Value.GetListOrdered("import")
+		if len(entries) == 0 {
+			// Scalar fallback: "import ipsec;" stores as key-value, not list entry.
+			if scalar, ok := dest.Value.Get("import"); ok && scalar != "" {
+				if _, ok := redistribute.LookupSource(scalar); !ok {
+					return nil, fmt.Errorf("redistribute: unknown source %q under destination %q", scalar, dest.Key)
+				}
+				rules = append(rules, redistribute.ImportRule{Source: scalar})
+				continue
+			}
+		}
 		for _, entry := range entries {
 			source := entry.Key
 

@@ -20,9 +20,15 @@ import (
 )
 
 func isXFRMUnsupported(err error) bool {
+	if errors.Is(err, dataplane.ErrNotSupported) {
+		return true
+	}
 	var errno syscall.Errno
 	if errors.As(err, &errno) {
-		return errno == syscall.ENOPROTOOPT || errno == syscall.EAFNOSUPPORT || errno == syscall.ENOSYS
+		return errno == syscall.ENOPROTOOPT ||
+			errno == syscall.EPROTONOSUPPORT ||
+			errno == syscall.EAFNOSUPPORT ||
+			errno == syscall.ENOSYS
 	}
 	s := err.Error()
 	return strings.Contains(s, "protocol not supported") ||
@@ -159,6 +165,7 @@ func createFirstChildSA(
 	}
 
 	if err := installChildSA(child, prop, dp, log); err != nil {
+		log.Debug("child-sa: install error", "error", err, "xfrm_unsupported", isXFRMUnsupported(err))
 		if isXFRMUnsupported(err) {
 			log.Warn("child-sa: XFRM not available on this platform, continuing without ESP", "error", err)
 		} else {
