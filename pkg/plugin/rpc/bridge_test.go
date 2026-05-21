@@ -49,7 +49,7 @@ func TestDirectBridgeDispatchRPC(t *testing.T) {
 	// Register engine-side RPC handler
 	bridge.SetDispatchRPC(func(method string, params json.RawMessage) (json.RawMessage, error) {
 		if method == "ze-plugin-engine:update-route" {
-			return json.RawMessage(`{"peers-affected":2,"routes-sent":4}`), nil
+			return json.RawMessage(`{"announced":2,"withdrawn":4}`), nil
 		}
 		return nil, errors.New("unknown method: " + method)
 	})
@@ -57,7 +57,7 @@ func TestDirectBridgeDispatchRPC(t *testing.T) {
 
 	result, err := bridge.DispatchRPC("ze-plugin-engine:update-route", json.RawMessage(`{"peer-selector":"*","command":"update text origin set igp"}`))
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"peers-affected":2,"routes-sent":4}`, string(result))
+	assert.JSONEq(t, `{"announced":2,"withdrawn":4}`, string(result))
 }
 
 // TestDirectBridgeDeliverError verifies error propagation from onEvent.

@@ -243,6 +243,8 @@ func runEngine(conn net.Conn) int {
 						log.Debug("ike: resolved local-address from interface", "peer", name, "interface", cfg.Interface, "address", ifIP)
 					}
 				}
+			} else {
+				log.Warn("ike: no IPv4 address on interface, peers without local-address will fail", "interface", cfg.Interface)
 			}
 		}
 

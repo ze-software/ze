@@ -123,7 +123,7 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 				// blocks the plugin's event loop via synchronous updateRoute.
 				<-time.After(updateRouteDelay)
 				updateRouteCount.Add(1)
-				result := &rpc.UpdateRouteOutput{PeersAffected: 1, RoutesSent: 1}
+				result := &rpc.UpdateRouteOutput{Announced: 1, Withdrawn: 1}
 				if sendErr := mux.SendResult(handlerCtx, req.ID, result); sendErr != nil {
 					t.Logf("SendResult failed: %v", sendErr)
 					return

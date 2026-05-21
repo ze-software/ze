@@ -76,10 +76,10 @@ func (ps *PeerSession) maintainSA(
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
-	// Re-announce routes after a short delay so the redistribute-orchestrator
+	// Re-announce routes periodically so the redistribute-orchestrator
 	// (which subscribes asynchronously) catches routes that were emitted
 	// before its subscription was active.
-	routeReannounce := time.NewTimer(5 * time.Second)
+	routeReannounce := time.NewTicker(30 * time.Second)
 	defer routeReannounce.Stop()
 
 	for {

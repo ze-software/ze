@@ -34,6 +34,7 @@ func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 		entries := dest.Value.GetListOrdered("import")
 		if len(entries) == 0 {
 			// Scalar fallback: "import ipsec;" stores as key-value, not list entry.
+			// Accepts all families (no family filter); use list form to restrict.
 			if scalar, ok := dest.Value.Get("import"); ok && scalar != "" {
 				if _, ok := redistribute.LookupSource(scalar); !ok {
 					return nil, fmt.Errorf("redistribute: unknown source %q under destination %q", scalar, dest.Key)

@@ -13,8 +13,8 @@ import (
 )
 
 // UpdateRoute injects a route update to matching peers via the engine.
-// Returns the number of peers affected and routes sent.
-func (p *Plugin) UpdateRoute(ctx context.Context, peerSelector, command string) (peersAffected, routesSent uint32, err error) {
+// Returns the number of NLRIs announced and withdrawn.
+func (p *Plugin) UpdateRoute(ctx context.Context, peerSelector, command string) (announced, withdrawn uint32, err error) {
 	return p.UpdateRouteWithMeta(ctx, peerSelector, command, nil)
 }
 
@@ -24,7 +24,7 @@ func (p *Plugin) UpdateRoute(ctx context.Context, peerSelector, command string) 
 // which egress filters read. Plugin-originated routes currently go through AnnounceNLRIBatch
 // (direct send) where CommandContext.Meta is not yet consumed by egress filters.
 // Pass nil meta for routes without metadata (equivalent to UpdateRoute).
-func (p *Plugin) UpdateRouteWithMeta(ctx context.Context, peerSelector, command string, meta map[string]any) (peersAffected, routesSent uint32, err error) {
+func (p *Plugin) UpdateRouteWithMeta(ctx context.Context, peerSelector, command string, meta map[string]any) (announced, withdrawn uint32, err error) {
 	input := &rpc.UpdateRouteInput{PeerSelector: peerSelector, Command: command, Meta: meta}
 	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:update-route", input)
 	if err != nil {
@@ -34,7 +34,7 @@ func (p *Plugin) UpdateRouteWithMeta(ctx context.Context, peerSelector, command 
 	if err := json.Unmarshal(result, &out); err != nil {
 		return 0, 0, fmt.Errorf("unmarshal update-route result: %w", err)
 	}
-	return out.PeersAffected, out.RoutesSent, nil
+	return out.Announced, out.Withdrawn, nil
 }
 
 // ForwardCached forwards cached UPDATEs identified by updateIDs to the listed

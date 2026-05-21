@@ -982,9 +982,9 @@ func TestSDKUpdateRoute(t *testing.T) {
 
 	// Respond with result
 	routeResult := struct {
-		PeersAffected uint32 `json:"peers-affected"`
-		RoutesSent    uint32 `json:"routes-sent"`
-	}{PeersAffected: 3, RoutesSent: 1}
+		Announced uint32 `json:"announced"`
+		Withdrawn uint32 `json:"withdrawn"`
+	}{Announced: 3, Withdrawn: 1}
 	require.NoError(t, engine.mux.SendResult(ctx, req.ID, routeResult))
 
 	require.NoError(t, <-routeDone)
@@ -1785,7 +1785,7 @@ func TestCallEngineRawDirect(t *testing.T) {
 		dispatchCalled = true
 		assert.Equal(t, "ze-plugin-engine:update-route", method)
 		// Return a valid UpdateRouteOutput response wrapped in result envelope
-		return json.RawMessage(`{"result":{"peers-affected":2,"routes-sent":3}}`), nil
+		return json.RawMessage(`{"result":{"announced":2,"withdrawn":3}}`), nil
 	})
 	// Note: bridge.SetReady() is called by SDK's Run() after startup.
 	// DispatchRPC must be registered before that.

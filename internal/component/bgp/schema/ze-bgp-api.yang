@@ -217,8 +217,8 @@ module ze-bgp-api {
             leaf command { type string; mandatory true; description "Route DSL command"; }
         }
         output {
-            leaf peers-affected { type uint32; description "Number of peers affected"; }
-            leaf routes-sent { type uint32; description "Number of routes sent"; }
+            leaf announced { type uint32; description "Number of NLRIs announced"; }
+            leaf withdrawn { type uint32; description "Number of NLRIs withdrawn"; }
         }
     }
 

@@ -237,8 +237,8 @@ type UpdateRouteInput struct {
 
 // UpdateRouteOutput is the output for ze-plugin-engine:update-route.
 type UpdateRouteOutput struct {
-	PeersAffected uint32 `json:"peers-affected"`
-	RoutesSent    uint32 `json:"routes-sent"`
+	Announced uint32 `json:"announced"`
+	Withdrawn uint32 `json:"withdrawn"`
 }
 
 // ForwardCachedInput is the input for ze-plugin-engine:forward-cached.

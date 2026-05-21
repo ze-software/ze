@@ -185,13 +185,13 @@ module ze-plugin-engine {
             }
         }
         output {
-            leaf peers-affected {
+            leaf announced {
                 type uint32;
-                description "Number of peers that received the route";
+                description "Number of NLRIs announced";
             }
-            leaf routes-sent {
+            leaf withdrawn {
                 type uint32;
-                description "Number of routes sent";
+                description "Number of NLRIs withdrawn";
             }
         }
     }

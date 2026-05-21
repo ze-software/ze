@@ -597,8 +597,8 @@ func extractUpdateRouteOutput(resp *plugin.Response) *rpc.UpdateRouteOutput {
 		return output
 	}
 	if r, ok := resp.Data.(*plugin.RouteResult); ok {
-		output.PeersAffected = r.Announced
-		output.RoutesSent = r.Withdrawn
+		output.Announced = r.Announced
+		output.Withdrawn = r.Withdrawn
 	}
 	return output
 }
