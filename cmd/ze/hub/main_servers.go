@@ -183,10 +183,10 @@ func endpointsToAddrs(servers []zeconfig.ServerEndpoint) []string {
 // Every entry in listenAddrs becomes a bound listener on the same
 // *http.Server; Shutdown closes all of them.
 // Requires blob storage -- TLS keys and config must not leak to the filesystem.
-func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb bool, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers) (*zeweb.WebServer, *zeweb.EventBroker) {
+func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb bool, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers) (*zeweb.WebServer, *zeweb.EventBroker, *zeweb.EditorManager) {
 	if !storage.IsBlobStorage(store) {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: requires blob storage (run ze init first)\n")
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	if len(listenAddrs) == 0 {
@@ -199,7 +199,7 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 		users, err = loadZefsUsers()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "warning: web server disabled: %v\n", err)
-			return nil, nil
+			return nil, nil, nil
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "WARNING: authentication disabled (--insecure-web)\n")
@@ -212,13 +212,13 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	certPEM, keyPEM, err := zeweb.LoadOrGenerateCert(certStore, listenAddrs[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: TLS cert: %v\n", err)
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	renderer, err := zeweb.NewRenderer()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: renderer: %v\n", err)
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// Register display-time decorators (e.g., ASN -> org name via Team Cymru DNS).
@@ -235,14 +235,14 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: %v\n", err)
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// Load YANG schema for config tree navigation.
 	schema, schemaErr := zeconfig.YANGSchema()
 	if schemaErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: YANG schema: %v\n", schemaErr)
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// Strict ze:related validation against the full operational command
@@ -466,11 +466,11 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	if waitErr := srv.WaitReady(readyCtx); waitErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server failed to start: %v\n", waitErr)
 		_ = srv.Shutdown(context.Background())
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	fmt.Fprintf(os.Stderr, "web server listening on https://%s/\n", srv.Address())
-	return srv, broker
+	return srv, broker, editorMgr
 }
 
 // loadZefsUsers reads credentials from the zefs database (created by ze init).

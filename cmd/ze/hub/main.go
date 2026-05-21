@@ -37,6 +37,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/engine"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
@@ -97,7 +98,7 @@ func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	ring := pluginserver.NewEventRing(128)
 	ring.Append("web", "server.started")
 	dispatch := webOnlyDispatcher(ring)
-	webSrv, broker := startWebServer(store, listenAddrs, insecureWeb, dispatch, resolvers)
+	webSrv, broker, _ := startWebServer(store, listenAddrs, insecureWeb, dispatch, resolvers)
 	if webSrv == nil {
 		return 1
 	}
@@ -612,11 +613,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	lm := NewListenerMigrator(nil)
 
+	var webEditorMgr *zeweb.EditorManager
 	if webEnabled {
 		if len(webAddrs) == 0 {
 			webAddrs = []string{"0.0.0.0:3443"}
 		}
-		if webSrv, broker := startWebServer(store, webAddrs, insecureWeb, dispatch, resolvers); webSrv != nil {
+		if webSrv, broker, editorMgr := startWebServer(store, webAddrs, insecureWeb, dispatch, resolvers); webSrv != nil {
+			webEditorMgr = editorMgr
 			lm.SetWeb(webSrv)
 			if ring := apiServer.EventRing(); ring != nil {
 				ring.Append("web", "server.started")
@@ -781,6 +784,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if token := env.Get("ze.api-server.token"); token != "" && apiCfg.Token == "" {
 		apiCfg.Token = token
 	}
+	reloadAfterCommit := func() error {
+		return doReload(apiServer, eng, configProvider, loadBoth, lm)
+	}
+	if webEditorMgr != nil {
+		webEditorMgr.SetCommitHook(reloadAfterCommit)
+	}
 	if apiCfgOK {
 		// Load zefs users for per-user auth; if unavailable, falls back to Token.
 		var apiUsers []authz.UserConfig
@@ -812,9 +821,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			return 1
 		}
 
-		reloadAfterCommit := func() error {
-			return doReload(apiServer, eng, configProvider, loadBoth, lm)
-		}
 		var apiErr error
 		apiSrvs, apiErr = startAPIServers(apiCfg, apiServer, store, configPath, apiUsers, reloadAfterCommit)
 		if apiErr != nil {

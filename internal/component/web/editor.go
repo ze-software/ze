@@ -42,6 +42,7 @@ type EditorManager struct {
 	schema             *config.Schema
 	maxSessions        int
 	idleTimeout        time.Duration
+	commitHook         func() error
 }
 
 // NewEditorManager creates an EditorManager for the given storage backend and config path.
@@ -57,6 +58,26 @@ func NewEditorManager(store storage.Storage, configPath string, schema *config.S
 		editSessionFactory: editSessionFactory,
 		idleTimeout:        time.Hour,
 	}
+}
+
+// SetCommitHook sets a hook called after a successful web commit. The hook
+// typically triggers a config reload so changes take effect without SIGHUP.
+func (m *EditorManager) SetCommitHook(hook func() error) {
+	m.mu.Lock()
+	m.commitHook = hook
+	m.mu.Unlock()
+}
+
+// RunCommitHook calls the commit hook if one is set. Returns nil when no hook is configured.
+func (m *EditorManager) RunCommitHook() error {
+	m.mu.RLock()
+	hook := m.commitHook
+	m.mu.RUnlock()
+
+	if hook == nil {
+		return nil
+	}
+	return hook()
 }
 
 // GetOrCreate returns the existing userSession for the given username, or creates

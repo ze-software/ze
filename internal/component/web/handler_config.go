@@ -869,8 +869,12 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 		return
 	}
 
-	// Broadcast config change notification to all connected SSE clients.
-	// This runs only after CommitSession() returned successfully (AC-13).
+	if err := mgr.RunCommitHook(); err != nil {
+		serverLogger.Error("post-commit reload failed", "error", err)
+		http.Error(w, "config saved but reload failed: "+err.Error()+"; send SIGHUP or restart to apply", http.StatusInternalServerError)
+		return
+	}
+
 	BroadcastConfigChange(broker, username, "committed")
 
 	// Return closed diff modal + empty commit bar. No redirect -- the page

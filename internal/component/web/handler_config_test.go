@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -825,6 +826,54 @@ func TestHandleConfigCommitPOST(t *testing.T) {
 		"successful commit must redirect with 303")
 	assert.Equal(t, "/", rec.Header().Get("Location"),
 		"commit must redirect to root")
+}
+
+func TestHandleConfigCommitPOST_HookCalled(t *testing.T) {
+	mgr, _ := newHandlerTestManager(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err, "NewRenderer must succeed")
+
+	var hookCalled bool
+	mgr.SetCommitHook(func() error {
+		hookCalled = true
+		return nil
+	})
+
+	err = mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err, "precondition: set value before commit")
+
+	handler := HandleConfigCommit(mgr, renderer, nil)
+	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusSeeOther, rec.Code)
+	assert.True(t, hookCalled, "commit hook must be called on successful commit")
+}
+
+func TestHandleConfigCommitPOST_HookError(t *testing.T) {
+	mgr, _ := newHandlerTestManager(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err, "NewRenderer must succeed")
+
+	mgr.SetCommitHook(func() error {
+		return errors.New("bind failed")
+	})
+
+	err = mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err, "precondition: set value before commit")
+
+	handler := HandleConfigCommit(mgr, renderer, nil)
+	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code,
+		"reload failure must return 500")
+	assert.Contains(t, rec.Body.String(), "bind failed",
+		"response must contain the hook error")
 }
 
 // TestResolveInheritedDefaults_Group verifies that the form resolver picks up
