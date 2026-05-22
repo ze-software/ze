@@ -120,24 +120,39 @@ var b textbuf.Buffer
 return b.Str("peer ").Addr(addr).Byte(':').Uint16(port).String()
 ```
 
-128-byte inline backing array stays on the stack. Only the final `String()` allocates.
-For strings >128 bytes, the buffer spills to heap but still does one allocation total.
+128-byte inline backing array stays on the stack. Two terminals:
 
-**Pooled usage** for high-frequency paths:
+- **`String()`** -- copies inline data (<=128B), zero-copy for heap data (>128B). Use when the result is **stored**.
+- **`Slice()`** -- zero-copy at any size. Result is only valid until `Reset()` or `Release()`. Use when the result is **consumed immediately**.
+
+**Prefer `Slice()` by default.** Most strings are passed to a function
+(ParsePrefix, map lookup, Write) and discarded. `Slice()` saves the copy.
+
+```go
+// Slice: zero allocations, consumed by ParsePrefix
+entry, _ := netip.ParsePrefix(b.Reset().Addr(addr).Byte('/').Int(int64(bits)).Slice())
+
+// String: one allocation, stored in struct field
+peer.Label = b.Reset().Str("AS").Uint32(asn).String()
+```
+
+**Reuse with `Reset()`** -- declare one Buffer before a loop, call `Reset()`
+between iterations. Each iteration reuses the same inline array:
+
+```go
+var b textbuf.Buffer
+for _, peer := range peers {
+    key := b.Reset().Addr(peer.Addr).Byte(':').Uint16(peer.Port).Slice()
+    lookupMap[key] = peer
+}
+```
+
+**Pooled usage** for high-frequency paths across goroutines:
 
 ```go
 b := textbuf.Get()
 defer b.Release()
 return b.Str("prefix").Uint32(v).String()
-```
-
-**Slice()** for zero-copy short-lived strings (valid only until Reset/Release):
-
-```go
-b := textbuf.Get()
-defer b.Release()
-key := b.Str(prefix).Byte(':').Uint32(id).Slice() // zero-copy, no alloc
-lookup(key) // must use before Release
 ```
 
 ### AppendTo pattern (for types)

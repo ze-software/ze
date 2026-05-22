@@ -154,14 +154,69 @@ Methods (all return `*Buffer` for chaining):
 | `Int(v int64)` | Append decimal int64 |
 | `Addr(a netip.Addr)` | Append IP address |
 | `Hex(data []byte)` | Append lowercase hex |
-| `String()` | Terminal: return built string (single alloc) |
+| `String()` | Terminal: return built string (single alloc for inline, zero-copy for heap) |
+| `Slice()` | Terminal: return string **zero-copy at any size**. Valid only until `Reset()` or `Release()` |
+| `Reset()` | Clear the buffer for reuse. Resets to inline array. Chainable |
+| `Grow(n)` | Pre-grow capacity to avoid mid-chain reallocation |
+| `Float2(v)` | Append float with 2 decimal places |
+| `Bool(v)` | Append "true" or "false" |
+| `HexUpper(data)` | Append uppercase hex |
+| `Write(p)` | Append raw bytes (implements `io.Writer`) |
+| `Len()` | Current content length |
+
+### Terminals: String() vs Slice()
+
+**Prefer `Slice()` when the string is consumed immediately** (passed to a
+function, used as a map lookup, parsed, or appended into another buffer).
+`Slice()` does zero allocations at any size. `String()` copies inline data
+(<=128B) and does zero-copy for heap data (>128B).
+
+| Result lifetime | Use | Allocations |
+|----------------|-----|-------------|
+| Stored in a struct field or returned | `String()` | 1 (inline copy) or 0 (heap transfer) |
+| Consumed before `Reset()`/`Release()` | `Slice()` | 0 |
+| Passed to `netip.ParsePrefix()` etc. | `Slice()` | 0 (parser copies internally if needed) |
+
+```go
+// Slice: zero-copy, consumed immediately by ParsePrefix
+entry, _ := netip.ParsePrefix(b.Reset().Addr(addr).Byte('/').Int(int64(bits)).Slice())
+
+// String: result stored in a struct field
+peer.Label = b.Reset().Str("AS").Uint32(asn).String()
+```
+
+### Reusing a Buffer with Reset()
+
+Declare one `textbuf.Buffer` before a loop and call `Reset()` between
+iterations. Each iteration reuses the same 128-byte inline array:
+
+```go
+var b textbuf.Buffer
+for _, peer := range peers {
+    key := b.Reset().Addr(peer.Addr).Byte(':').Uint16(peer.Port).Slice()
+    lookupMap[key] = peer  // Slice valid until next Reset
+}
+```
+
+For pooled buffers, `Get()`/`Release()` replaces the stack variable:
+
+```go
+b := textbuf.Get()
+defer b.Release()
+for _, p := range prefixes {
+    formatted := b.Reset().Addr(p.Addr()).Byte('/').Int(int64(p.Bits())).Slice()
+    process(formatted)
+}
+```
 
 Standalone functions for single-value returns: `textbuf.Uint32(v)`,
 `textbuf.Addr(a)`, `textbuf.Hex(data)`, etc.
 
 | Pattern | Use |
 |---------|-----|
-| Multi-part string | `var b textbuf.Buffer; return b.Str(...).Uint32(...).String()` |
+| Multi-part string, stored | `var b textbuf.Buffer; return b.Str(...).Uint32(...).String()` |
+| Multi-part string, consumed immediately | `var b textbuf.Buffer; parse(b.Str(...).Uint32(...).Slice())` |
+| Reuse in a loop | `var b textbuf.Buffer; for ... { use(b.Reset().Str(...).Slice()) }` |
 | Single value | `return textbuf.Uint32(v)` or `return textbuf.Addr(a)` |
 | Append into `[]byte` | `textbuf.AppendUint(dst, v)`, `textbuf.AppendAddr(dst, a)` |
 
