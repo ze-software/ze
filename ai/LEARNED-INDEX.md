@@ -28,6 +28,7 @@ System boundaries, component design, lifecycle patterns, subsystem separation.
 - [247](plan/learned/247-plugin-restructure.md) -- Plugin restructure, circular import resolution
 - [760](plan/learned/760-subscriber-session-model.md) -- Unified subscriber session model: shared Session struct across PPPoE/L2TP, handler delegation, event bridge pattern
 - [761](plan/learned/761-vpp-fib-query.md) -- RouteLookup added to Backend interface: dispatch through active backend, VPP via IPRouteLookupV2, eliminates netlink bypass
+- [762](plan/learned/762-rs-dynamic-peers.md) -- IXP route server: dynamic peer groups from prefix ranges, RS-client transparent AS-path (RFC 7947), community-based selective forwarding, connection-time peer creation bypassing parsePeerFromTree
 
 ## Wire/Encoding
 
