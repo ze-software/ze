@@ -4,18 +4,23 @@
 package zefs
 
 import (
+	"encoding/hex"
 	"fmt"
+	"hash/crc32"
 	"strconv"
 )
+
+// CRC32cTable is the CRC32c (Castagnoli) table used for netcapstring checksums.
+var CRC32cTable = crc32.MakeTable(crc32.Castagnoli)
 
 // maxNumberWidth limits the number field to prevent pathological inputs.
 // 19 digits covers the full range of int64.
 const maxNumberWidth = 19
 
-// writeNetcapstringHeader writes the header <number>:<cap>:<used>\n into buf at off.
-// Capacity first, then dataLen (derived from data). Returns bytes written.
-// Caller must ensure buf has sufficient space.
-func writeNetcapstringHeader(buf []byte, off, capacity, dataLen int) int {
+// writeNetcapstringHeader writes the header <number>:<cap>:<used>:<crc>\n into buf at off.
+// Capacity first, then dataLen (derived from data), then CRC32c as 8-char lowercase hex.
+// Returns bytes written. Caller must ensure buf has sufficient space.
+func writeNetcapstringHeader(buf []byte, off, capacity, dataLen int, crc uint32) int {
 	start := off
 	number := digitCount(capacity)
 	numberStr := strconv.Itoa(number)
@@ -27,6 +32,9 @@ func writeNetcapstringHeader(buf []byte, off, capacity, dataLen int) int {
 	buf[off] = ':'
 	off++
 	off += writeZeroPadded(buf[off:], dataLen, number)
+	buf[off] = ':'
+	off++
+	off += writeCRC(buf[off:], crc)
 	buf[off] = '\n'
 	off++
 
@@ -34,23 +42,23 @@ func writeNetcapstringHeader(buf []byte, off, capacity, dataLen int) int {
 }
 
 // writeNetcapstring writes a complete netcapstring into buf at off.
-// Format: <number>:<cap>:<used>\n<data><space-padding>\n
-// Padding is space-filled. Trailing '\n' is the section terminator.
-// The container's terminator is overwritten to ',' by the caller.
+// Format: <number>:<cap>:<used>:<crc>\n<data><space-padding>\n
+// CRC32c is computed over the data bytes. Padding is space-filled.
+// Trailing '\n' is the section terminator.
 // Caller must ensure buf has sufficient space.
 func writeNetcapstring(buf []byte, off int, data []byte, capacity int) int {
 	start := off
-	off += writeNetcapstringHeader(buf, off, capacity, len(data))
+	crc := crc32.Checksum(data, CRC32cTable)
+	off += writeNetcapstringHeader(buf, off, capacity, len(data), crc)
 	off += copy(buf[off:], data)
 
-	// Space-fill remaining padding.
 	padding := capacity - len(data)
 	for i := range padding {
 		buf[off+i] = ' '
 	}
 	off += padding
 
-	buf[off] = '\n' // section terminator
+	buf[off] = '\n'
 	off++
 
 	return off - start
@@ -61,9 +69,9 @@ func netcapstringTotalLen(capacity int) int {
 	return netcapstringHeaderLen(capacity) + capacity + 1
 }
 
-// encodeNetcapstring allocates a buffer and writes a netcapstring into it.
+// EncodeNetcapstring allocates a buffer and writes a netcapstring into it.
 // Convenience wrapper around writeNetcapstring for callers that need standalone bytes.
-func encodeNetcapstring(data []byte, capacity int) ([]byte, error) {
+func EncodeNetcapstring(data []byte, capacity int) ([]byte, error) {
 	if capacity < 0 {
 		return nil, fmt.Errorf("zefs: negative capacity: %d", capacity)
 	}
@@ -138,9 +146,27 @@ func decodeNetcapstringRef(buf []byte, off int) (data []byte, capacity, next int
 	}
 	off += number
 
+	// Expect ':' after used
+	if off >= len(buf) || buf[off] != ':' {
+		return nil, 0, 0, fmt.Errorf("zefs: expected ':' after used at offset %d", start)
+	}
+	off++
+
+	// Read CRC (8 hex chars)
+	const crcWidth = 8
+	if off+crcWidth > len(buf) {
+		return nil, 0, 0, fmt.Errorf("zefs: truncated CRC at offset %d", start)
+	}
+	var crcBytes [4]byte
+	if _, err := hex.Decode(crcBytes[:], buf[off:off+crcWidth]); err != nil {
+		return nil, 0, 0, fmt.Errorf("zefs: invalid CRC hex at offset %d: %w", start, err)
+	}
+	headerCRC := uint32(crcBytes[0])<<24 | uint32(crcBytes[1])<<16 | uint32(crcBytes[2])<<8 | uint32(crcBytes[3])
+	off += crcWidth
+
 	// Expect '\n'
 	if off >= len(buf) || buf[off] != '\n' {
-		return nil, 0, 0, fmt.Errorf("zefs: expected '\\n' after used at offset %d", start)
+		return nil, 0, 0, fmt.Errorf("zefs: expected '\\n' after CRC at offset %d", start)
 	}
 	off++
 
@@ -152,7 +178,7 @@ func decodeNetcapstringRef(buf []byte, off int) (data []byte, capacity, next int
 		return nil, 0, 0, fmt.Errorf("zefs: used %d exceeds capacity %d at offset %d", used, cap_, start)
 	}
 
-	// Check data region + trailing colon fits in buffer (subtraction avoids int overflow on crafted cap_ values)
+	// Check data region + trailing newline fits in buffer (subtraction avoids int overflow on crafted cap_ values)
 	if cap_+1 > len(buf)-off {
 		return nil, 0, 0, fmt.Errorf("zefs: truncated data at offset %d: need %d, have %d", start, cap_+1, len(buf)-off)
 	}
@@ -161,6 +187,12 @@ func decodeNetcapstringRef(buf []byte, off int) (data []byte, capacity, next int
 	endOff := off + cap_
 	if buf[endOff] != '\n' {
 		return nil, 0, 0, fmt.Errorf("zefs: expected trailing '\\n' at offset %d, got 0x%02X", endOff, buf[endOff])
+	}
+
+	// Verify CRC32c
+	dataCRC := crc32.Checksum(buf[off:off+used], CRC32cTable)
+	if dataCRC != headerCRC {
+		return nil, 0, 0, fmt.Errorf("zefs: CRC mismatch at offset %d: header=%08x computed=%08x", start, headerCRC, dataCRC)
 	}
 
 	// Zero-copy: return sub-slice with capped length to prevent access to padding
@@ -173,6 +205,18 @@ func writeZeroPadded(buf []byte, n, width int) int {
 	s := fmt.Sprintf("%0*d", width, n)
 	copy(buf, s)
 	return width
+}
+
+// writeCRC writes a CRC32c value as 8-char zero-padded lowercase hex into buf.
+// Returns 8 (number of bytes written).
+func writeCRC(buf []byte, crc uint32) int {
+	var b [4]byte
+	b[0] = byte(crc >> 24)
+	b[1] = byte(crc >> 16)
+	b[2] = byte(crc >> 8)
+	b[3] = byte(crc)
+	hex.Encode(buf[:8], b[:])
+	return 8
 }
 
 // digitCount returns the number of decimal digits needed to represent n.
@@ -190,11 +234,11 @@ func digitCount(n int) int {
 }
 
 // netcapstringHeaderLen returns the header length for a netcapstring with the given capacity.
-// Header format: number-colon-cap-colon-used-newline.
+// Header format: number-colon-cap-colon-used-colon-crc-newline.
 func netcapstringHeaderLen(capacity int) int {
 	number := digitCount(capacity)
 	numberWidth := digitCount(number)
-	return 3 + numberWidth + 2*number
+	return 3 + numberWidth + 2*number + 1 + 8
 }
 
 // netcapSlot describes a single netcapstring's on-disk layout.
@@ -256,8 +300,9 @@ func (s *netcapSlot) writeAt(buf []byte, localOff int, data []byte) error {
 	copy(buf[start+localOff:], data)
 	if end > s.used {
 		s.used = end
-		writeNetcapstringHeader(buf, s.offset, s.capacity, s.used)
 	}
+	dataCRC := crc32.Checksum(buf[start:start+s.used], CRC32cTable)
+	writeNetcapstringHeader(buf, s.offset, s.capacity, s.used, dataCRC)
 	return nil
 }
 

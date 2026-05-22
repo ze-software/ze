@@ -27,6 +27,9 @@ var subcommandHandlers = map[string]func(string, []string) int{
 	"ls":         cmdLs,
 	"cat":        cmdCat,
 	"registered": cmdRegistered,
+	"check":      cmdCheck,
+	"repair":     cmdRepair,
+	"encode":     cmdEncode,
 }
 
 // Run executes the data subcommand with the given arguments.
@@ -331,6 +334,9 @@ func usage() {
 				{Name: "ls [prefix]", Desc: "List entries in the blob store"},
 				{Name: "cat <key>", Desc: "Print entry content to stdout"},
 				{Name: "registered", Desc: "List all registered key patterns"},
+				{Name: "check", Desc: "Verify store integrity (CRC32c)"},
+				{Name: "repair --output <path>", Desc: "Recover valid entries to a new store"},
+				{Name: "encode [--crc|--header] [--cap N] <string>", Desc: "Show netcapstring encoding"},
 			}},
 			{Title: "Flags", Entries: []helpfmt.HelpEntry{
 				{Name: "--path <store>", Desc: "Path to the blob store (default: {configDir}/database.zefs)"},

@@ -13,6 +13,7 @@ package zefs
 
 import (
 	"fmt"
+	"hash/crc32"
 	"io"
 	"io/fs"
 	"os"
@@ -45,6 +46,10 @@ type BlobStore struct {
 	slots   map[string]slotInfo // per-key slot capacities
 	backing []byte              // mmap'd region or heap buffer; tree nodes reference this
 	fd      *os.File            // non-nil when backing is mmap'd (must stay open)
+
+	dirty         map[string]bool // entries modified since last flush
+	added         []string        // new entries since last flush (ordered)
+	layoutChanged bool            // set on remove or capacity overflow
 }
 
 // Create creates a new empty store at the given path.
@@ -53,6 +58,7 @@ func Create(path string) (*BlobStore, error) {
 		path:  path,
 		root:  newDirNode(),
 		slots: make(map[string]slotInfo),
+		dirty: make(map[string]bool),
 	}
 	if err := s.flush(); err != nil {
 		return nil, fmt.Errorf("zefs: create %s: %w", path, err)
@@ -66,6 +72,7 @@ func Open(path string) (*BlobStore, error) {
 		path:  path,
 		root:  newDirNode(),
 		slots: make(map[string]slotInfo),
+		dirty: make(map[string]bool),
 	}
 	if err := s.load(); err != nil {
 		return nil, fmt.Errorf("zefs: open %s: %w", path, err)
@@ -179,8 +186,6 @@ func (s *BlobStore) writeFileNoFlush(name string, data []byte, _ fs.FileMode) er
 
 	if !s.root.has(name) {
 		s.keys = append(s.keys, name)
-		// Pre-allocate 20 extra bytes of key capacity for file/active/ keys
-		// so backup renames (appending "-YYYYMMDD-HHMMSS.mmm") fit in-place.
 		keyCap := len(name)
 		if strings.HasPrefix(name, KeyFileActive.Prefix()) {
 			keyCap += 20
@@ -189,12 +194,15 @@ func (s *BlobStore) writeFileNoFlush(name string, data []byte, _ fs.FileMode) er
 			name: netcapSlot{capacity: keyCap},
 			data: netcapSlot{capacity: growCapacity(len(data))},
 		}
+		s.added = append(s.added, name)
 	} else {
 		sl := s.slots[name]
 		if len(data) > sl.data.capacity {
 			sl.data.capacity = growCapacity(len(data))
 			s.slots[name] = sl
+			s.layoutChanged = true
 		}
+		s.dirty[name] = true
 	}
 
 	return s.root.set(name, stored)
@@ -222,6 +230,8 @@ func (s *BlobStore) removeNoFlush(name string) error {
 		}
 	}
 	delete(s.slots, name)
+	delete(s.dirty, name)
+	s.layoutChanged = true
 	return nil
 }
 
@@ -301,6 +311,7 @@ func (s *BlobStore) Import(r io.Reader) error {
 	s.root = tmpRoot
 	s.keys = tmpKeys
 	s.slots = tmpSlots
+	s.resetDirty()
 
 	return s.flush()
 }
@@ -369,8 +380,10 @@ func (s *BlobStore) encode() []byte {
 	result := make([]byte, totalSize)
 	off := writeNetcapstring(result, 0, []byte(magic), len(magic))
 
-	// Container header
-	off += writeNetcapstringHeader(result, off, containerCap, entriesSize)
+	// Container header (placeholder CRC, patched after entries are written)
+	containerHdrOff := off
+	off += writeNetcapstringHeader(result, off, containerCap, entriesSize, 0)
+	containerDataOff := off
 
 	// Entries: key-value pairs written directly into the container data region
 	for _, key := range s.keys {
@@ -390,6 +403,10 @@ func (s *BlobStore) encode() []byte {
 		result[i] = ' '
 	}
 	result[containerEnd] = '\n'
+
+	// Patch container CRC over the used data region
+	containerCRC := crc32.Checksum(result[containerDataOff:containerDataOff+entriesSize], CRC32cTable)
+	writeNetcapstringHeader(result, containerHdrOff, containerCap, entriesSize, containerCRC)
 
 	return result
 }
@@ -478,20 +495,30 @@ func (s *BlobStore) decode(data []byte) error {
 // If the write or reload fails, the tree is rebuilt from the previous
 // on-disk state so in-memory never diverges from persisted data.
 func (s *BlobStore) flush() error {
-	// Snapshot the previous on-disk state before any modification so we
-	// can restore it if the write fails (prevents in-memory/disk divergence).
+	if !s.layoutChanged && len(s.added) == 0 && len(s.dirty) > 0 && s.backing != nil {
+		// Snapshot before pwrite so flushFull fallback has clean recovery data
+		preSnapshot, _ := os.ReadFile(s.path) //nolint:gosec // s.path is not user input
+		if err := s.flushInPlace(); err == nil {
+			s.resetDirty()
+			return nil
+		}
+		// In-place failed (may have partially written). Restore clean file before fallback.
+		if len(preSnapshot) > 0 {
+			_ = os.WriteFile(s.path, preSnapshot, 0o600) //nolint:gosec // restoring pre-pwrite state
+		}
+	}
+	return s.flushFull()
+}
+
+func (s *BlobStore) flushFull() error {
 	oldEncoded, _ := os.ReadFile(s.path) //nolint:gosec // s.path is not user input
 
-	// encode() copies data out of current backing (safe before unload)
 	encoded := s.encode()
 
-	// Release old backing before writing (avoids inode conflict with mmap)
 	if err := s.unload(); err != nil {
 		return fmt.Errorf("zefs: flush unload: %w", err)
 	}
 
-	// Atomic write: temp file in same directory, then rename.
-	// os.Rename is atomic on POSIX when source and target are on the same filesystem.
 	if err := s.atomicWrite(encoded); err != nil {
 		if len(oldEncoded) > 0 {
 			s.recoverFromEncoded(oldEncoded)
@@ -501,12 +528,83 @@ func (s *BlobStore) flush() error {
 		return err
 	}
 
-	// Re-map new file; tree nodes now reference new backing
 	if err := s.load(); err != nil {
 		s.recoverFromEncoded(encoded)
 		return fmt.Errorf("zefs: flush reload: %w", err)
 	}
+	s.resetDirty()
 	return nil
+}
+
+func (s *BlobStore) flushInPlace() error {
+	var regions []writeRegion
+
+	for name := range s.dirty {
+		data, ok := s.root.get(name)
+		if !ok {
+			continue
+		}
+		sl := s.slots[name]
+
+		// Build the full netcapstring for this entry's data slot
+		buf := make([]byte, sl.data.totalLen())
+		writeNetcapstring(buf, 0, data, sl.data.capacity)
+		regions = append(regions, writeRegion{offset: sl.data.offset, data: buf})
+	}
+
+	if err := pwriteRegions(s.path, regions); err != nil {
+		return err
+	}
+
+	// Re-read the file to compute container CRC, then patch the container header
+	fileData, err := os.ReadFile(s.path) //nolint:gosec // s.path is the store's own file
+	if err != nil {
+		return fmt.Errorf("zefs: flush in-place re-read: %w", err)
+	}
+
+	containerHdrOff := netcapstringTotalLen(len(magic))
+	containerCap := s.containerCapacity()
+	containerHdrLen := netcapstringHeaderLen(containerCap)
+	containerDataOff := containerHdrOff + containerHdrLen
+
+	containerCRC := crc32.Checksum(fileData[containerDataOff:containerDataOff+containerCap], CRC32cTable)
+	hdrBuf := make([]byte, containerHdrLen)
+	writeNetcapstringHeader(hdrBuf, 0, containerCap, containerCap, containerCRC)
+
+	if err := pwriteRegions(s.path, []writeRegion{{offset: containerHdrOff, data: hdrBuf}}); err != nil {
+		return err
+	}
+
+	// Re-mmap so read path sees the changes
+	if err := s.unload(); err != nil {
+		return fmt.Errorf("zefs: flush in-place unload: %w", err)
+	}
+	if err := s.load(); err != nil {
+		return fmt.Errorf("zefs: flush in-place reload: %w", err)
+	}
+	return nil
+}
+
+func (s *BlobStore) containerCapacity() int {
+	cap_ := 0
+	for _, key := range s.keys {
+		if !s.root.has(key) {
+			continue
+		}
+		sl := s.slots[key]
+		cap_ += sl.name.totalLen()
+		cap_ += sl.data.totalLen()
+	}
+	cap_++ // trailing '\n'
+	return cap_
+}
+
+func (s *BlobStore) resetDirty() {
+	for k := range s.dirty {
+		delete(s.dirty, k)
+	}
+	s.added = s.added[:0]
+	s.layoutChanged = false
 }
 
 // atomicWrite writes data to s.path via a temp file and rename.
@@ -555,10 +653,10 @@ func (s *BlobStore) atomicWrite(data []byte) error {
 func (s *BlobStore) recoverFromEncoded(encoded []byte) {
 	s.backing = encoded
 	s.fd = nil
-	// encoded was just produced by encode(), decode cannot fail
 	if err := s.decode(encoded); err != nil {
 		s.root = newDirNode()
 		s.keys = nil
 		s.slots = make(map[string]slotInfo)
 	}
+	s.resetDirty()
 }

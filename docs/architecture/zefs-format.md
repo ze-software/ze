@@ -12,16 +12,16 @@ A netcapstring is a self-describing, capacity-aware binary frame. It encodes a b
 With padding (cap > used):
 
 ```
-<number>:<cap>:<used>\n<data><space padding>\n
+<number>:<cap>:<used>:<crc>\n<data><space padding>\n
 ```
 
 Exact fit (cap == used):
 
 ```
-<number>:<cap>:<used>\n<data>\n
+<number>:<cap>:<used>:<crc>\n<data>\n
 ```
 
-The header separators are `:` (between number, cap, and used) and `\n` (after used). The header occupies its own line, making it easy to inspect with text tools. Unused capacity is space-filled. `\n` terminates both the header and the data region.
+The header separators are `:` (between number, cap, used, and crc) and `\n` (after crc). The header occupies its own line, making it easy to inspect with text tools. Unused capacity is space-filled. `\n` terminates both the header and the data region.
 
 | Field | Content | Size (bytes) |
 |-------|---------|-------------|
@@ -30,6 +30,8 @@ The header separators are `:` (between number, cap, and used) and `\n` (after us
 | `<cap>` | Capacity in bytes (decimal ASCII, zero-padded to `<number>` digits) | `<number>` |
 | `:` | Separator | 1 |
 | `<used>` | Used bytes (decimal ASCII, zero-padded to `<number>` digits) | `<number>` |
+| `:` | Separator | 1 |
+| `<crc>` | CRC32c of the `<used>` data bytes (8-char zero-padded lowercase hex) | 8 |
 | `\n` | Header terminator (0x0A) | 1 |
 | `<data>` | Actual content | `<used>` |
 | `<padding>` | Space bytes (0x20) | `<cap>` - `<used>` |
@@ -40,27 +42,28 @@ The header separators are `:` (between number, cap, and used) and `\n` (after us
 
 - **Self-describing width.** The `<number>` field tells the parser how many digits to read for `<cap>` and `<used>`. No magic constants needed.
 - **Cap-first, fixed-width used.** Since `<used>` is always zero-padded to the same width as `<cap>`, and `<used>` <= `<cap>` by definition, the header size never changes when data grows within capacity. This is the critical invariant for in-place writes.
+- **Per-record CRC32c.** Each netcapstring carries a CRC32c (Castagnoli, hardware-accelerated on arm64/amd64) of its `<used>` data bytes. Corruption is detected on decode. The container's CRC covers all encoded entries, giving whole-file structural verification.
 - **No artificial size limit.** The `<number>` field is itself variable-width, so entries can be arbitrarily large (limited only by available memory).
 
 ### Examples
 
 | Data | Cap | On disk |
 |------|-----|---------|
-| "hello" (5 bytes), cap 16 | 16 | `2:16:05\nhello<11 spaces>\n` |
-| empty, cap 8 | 8 | `1:8:0\n<8 spaces>\n` |
-| "abcd" (4 bytes), cap 4 | 4 | `1:4:4\nabcd\n` |
-| "x" (1 byte), cap 100 | 100 | `3:100:001\nx<99 spaces>\n` |
+| "hello" (5 bytes), cap 16 | 16 | `2:16:05:9a71bb4c\nhello<11 spaces>\n` |
+| empty, cap 8 | 8 | `1:8:0:00000000\n<8 spaces>\n` |
+| "abcd" (4 bytes), cap 4 | 4 | `1:4:4:92c80a31\nabcd\n` |
+| "x" (1 byte), cap 100 | 100 | `3:100:001:a93c5f93\nx<99 spaces>\n` |
 
 ### Header length
 
-The total header length for a given capacity is: `3 + digitCount(digitCount(cap)) + 2 * digitCount(cap)`.
+The total header length for a given capacity is: `3 + digitCount(digitCount(cap)) + 2 * digitCount(cap) + 1 + 8` (the `+ 1 + 8` is the colon separator and 8-char CRC hex).
 
 | Capacity range | Header bytes |
 |---------------|-------------|
-| 0-9 | 6 |
-| 10-99 | 8 |
-| 100-999 | 10 |
-| 1000-9999 | 12 |
+| 0-9 | 15 |
+| 10-99 | 17 |
+| 100-999 | 19 |
+| 1000-9999 | 21 |
 
 ### Capacity growth
 
@@ -72,11 +75,14 @@ Keys are exact fit (keys never change). Data capacity is data length + 10%, both
 2. Read N bytes for `<cap>` (parse as integer)
 3. Read `:` (verify separator)
 4. Read N bytes for `<used>` (parse as integer)
-5. Read `\n` (verify header terminator)
-6. Read `<used>` bytes of data
-7. Skip `<cap>` - `<used>` bytes of space padding
-8. Read `\n` (verify terminator)
-9. Next entry starts at the byte after the terminator
+5. Read `:` (verify separator)
+6. Read 8 bytes for `<crc>` (parse as hex uint32)
+7. Read `\n` (verify header terminator)
+8. Read `<used>` bytes of data
+9. Verify CRC32c of data matches `<crc>` from header
+10. Skip `<cap>` - `<used>` bytes of space padding
+11. Read `\n` (verify terminator)
+12. Next entry starts at the byte after the terminator
 
 ## ZeFS File
 
@@ -85,7 +91,7 @@ A ZeFS file is a sequence of two netcapstrings: a magic identifier followed by t
 ### Format
 
 ```
-1:4:4\nZeFS\n<N>:<cap>:<used>\n<entries...><padding>\n
+1:4:4:<crc>\nZeFS\n<N>:<cap>:<used>:<crc>\n<entries...><padding>\n
 ```
 
 The first netcapstring contains the magic `ZeFS`. Its header ends with `\n` and its terminator is also `\n` because cap == used. The entire file is pure netcapstrings, all terminated by `\n`.
@@ -95,9 +101,9 @@ The first netcapstring contains the magic `ZeFS`. Its header ends with `\n` and 
 Inside the container, entries are stored as consecutive pairs of netcapstrings (key + value):
 
 ```
-1:4:4\nZeFS\n<N>:<cap>:<used>\n
-  <kN>:<kCap>:<kUsed>\n<key><kPad>\n<vN>:<vCap>:<vUsed>\n<value><vPad>\n
-  <kN>:<kCap>:<kUsed>\n<key><kPad>\n<vN>:<vCap>:<vUsed>\n<value><vPad>\n
+1:4:4:<crc>\nZeFS\n<N>:<cap>:<used>:<crc>\n
+  <kN>:<kCap>:<kUsed>:<kCRC>\n<key><kPad>\n<vN>:<vCap>:<vUsed>:<vCRC>\n<value><vPad>\n
+  <kN>:<kCap>:<kUsed>:<kCRC>\n<key><kPad>\n<vN>:<vCap>:<vUsed>:<vCRC>\n<value><vPad>\n
   ...
   \n
 <container padding>\n
@@ -124,7 +130,7 @@ Keys are hierarchical paths using `/` as separator. They must be valid `fs.Valid
 
 | Bytes | Meaning |
 |-------|---------|
-| `1:4:4\nZeFS\n` at offset 0 | Valid ZeFS file |
+| `1:4:4:<crc>\nZeFS\n` at offset 0 | Valid ZeFS file |
 | Anything else | Not a ZeFS file |
 
 ## Memory mapping
@@ -196,9 +202,38 @@ Template keys use `{param}` placeholders for variable segments. The `Key()` meth
 
 Discovery: `ze data registered` lists all public key patterns. `ze data registered <pattern>` shows details for one.
 
+## In-place writes
+
+When a value changes but fits within its existing slot capacity, `flush()` uses `pwrite` to update only the changed entry and the container header, avoiding a full file rewrite.
+
+| Condition | Write strategy |
+|-----------|---------------|
+| Entry value fits slot capacity | pwrite: entry header+data + container header CRC |
+| Entry value exceeds slot capacity | Full rewrite via temp+rename |
+| Entry added within container capacity | pwrite: append entry + update container header |
+| Entry added exceeding container capacity | Full rewrite via temp+rename |
+| Entry removed | Full rewrite (entries shift) |
+| Non-unix platform | Full rewrite (no pwrite) |
+
+After pwrite, the backing mmap is released and re-acquired so the read path sees the changes. On non-unix platforms, the in-place path falls back to full rewrite.
+<!-- source: pkg/zefs/store.go -- flushInPlace, flushFull -->
+<!-- source: pkg/zefs/pwrite_unix.go -- pwriteRegions -->
+
+## Integrity checking
+
+`zefs.Check(path)` reads a store file, validates the magic, container CRC, and every entry's CRC32c. Returns a structured `CheckReport` with per-entry status.
+
+`zefs.Repair(src, dst)` scans a potentially corrupt store entry-by-entry, skips entries with CRC mismatches or parse errors, and writes valid entries to a new store. The source file is never modified.
+
+CLI: `ze data check`, `ze data repair --output <path>`, `ze data encode`.
+<!-- source: pkg/zefs/check.go -- Check, Repair -->
+
 ## Implementation
 
 Reference implementation: `pkg/zefs/` in the ze repository.
 <!-- source: pkg/zefs/store.go -- Store, ReadLock, WriteLock -->
 <!-- source: pkg/zefs/tree.go -- in-memory tree representation -->
+<!-- source: pkg/zefs/check.go -- Check, Repair, CheckReport, RepairReport -->
+<!-- source: pkg/zefs/pwrite_unix.go -- pwrite for in-place writes -->
+<!-- source: pkg/zefs/pwrite_other.go -- pwrite fallback for non-unix -->
 <!-- source: pkg/zefs/file.go -- file-level operations -->

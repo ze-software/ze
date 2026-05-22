@@ -23,6 +23,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
@@ -77,6 +78,8 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 			})
 		}
 	}()
+
+	diags = append(diags, checkStoreIntegrity()...)
 
 	configData, configName, err := loadConfigData(store, configPath)
 	if err != nil {
@@ -144,6 +147,44 @@ func loadConfigData(store storage.Storage, configPath string) ([]byte, string, e
 		return nil, "", fmt.Errorf("no config found (tried %s): %w", configName, err)
 	}
 	return data, configName, nil
+}
+
+func checkStoreIntegrity() []diagnostic.Diagnostic {
+	configDir := paths.DefaultConfigDir()
+	if configDir == "" {
+		return nil
+	}
+	storePath := filepath.Join(configDir, "database.zefs")
+	if _, err := os.Stat(storePath); err != nil {
+		return nil
+	}
+
+	report, err := zefs.Check(storePath)
+	if err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-store-integrity",
+			Severity: diagnostic.SeverityError,
+			Message:  "store integrity check failed: " + err.Error(),
+		}}
+	}
+
+	if report.ContainerError != "" {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-store-integrity",
+			Severity: diagnostic.SeverityError,
+			Message:  "store corrupt: " + report.ContainerError,
+		}}
+	}
+
+	if report.CorruptEntries > 0 {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-store-integrity",
+			Severity: diagnostic.SeverityError,
+			Message:  "store has " + strconv.Itoa(report.CorruptEntries) + " corrupt entries",
+		}}
+	}
+
+	return nil
 }
 
 func checkIfaceBackend(tree *config.Tree) []diagnostic.Diagnostic {

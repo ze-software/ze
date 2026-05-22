@@ -4574,3 +4574,284 @@ func TestKeyCapacityNonFileActive(t *testing.T) {
 		t.Errorf("key capacity = %d, want %d (exact)", sl.name.capacity, len(key))
 	}
 }
+
+// VALIDATES: value update within capacity uses in-place flush (AC-11)
+// PREVENTS: unnecessary full rewrite on small value changes
+
+func TestFlushInPlace(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.zefs")
+	s, err := Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeOrFatal(t, s, "key", []byte("initial-value"))
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err = Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fi1, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Write shorter value (fits in existing capacity)
+	if err := s.WriteFile("key", []byte("short"), 0); err != nil {
+		t.Fatal(err)
+	}
+
+	fi2, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// File size should not change for in-place update
+	if fi1.Size() != fi2.Size() {
+		t.Errorf("file size changed: before=%d after=%d (expected in-place)", fi1.Size(), fi2.Size())
+	}
+
+	// Data should round-trip
+	got, err := s.ReadFile("key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "short" {
+		t.Errorf("got %q, want %q", got, "short")
+	}
+
+	// Verify persistence through close+reopen
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s2, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err = s2.ReadFile("key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "short" {
+		t.Errorf("after reopen: got %q, want %q", got, "short")
+	}
+	if err := s2.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// VALIDATES: value exceeding slot capacity triggers full rewrite (AC-12)
+// PREVENTS: in-place write past slot boundary
+
+func TestFlushFullRewriteOnGrowth(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.zefs")
+	s, err := Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeOrFatal(t, s, "key", []byte("tiny"))
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err = Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Write much larger data that exceeds slot capacity
+	big := make([]byte, 10000)
+	for i := range big {
+		big[i] = 'A'
+	}
+	if err := s.WriteFile("key", big, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := s.ReadFile("key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 10000 {
+		t.Errorf("got %d bytes, want 10000", len(got))
+	}
+
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify through reopen
+	s2, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err = s2.ReadFile("key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 10000 {
+		t.Errorf("after reopen: got %d bytes, want 10000", len(got))
+	}
+	if err := s2.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// VALIDATES: entry removal triggers full rewrite (AC-15)
+// PREVENTS: in-place path on layout-changing operations
+
+func TestFlushFullRewriteOnRemove(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.zefs")
+	s, err := Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeOrFatal(t, s, "a", []byte("aaa"))
+	writeOrFatal(t, s, "b", []byte("bbb"))
+
+	if err := s.Remove("a"); err != nil {
+		t.Fatal(err)
+	}
+
+	if s.Has("a") {
+		t.Error("a should be removed")
+	}
+	got, err := s.ReadFile("b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "bbb" {
+		t.Errorf("got %q, want %q", got, "bbb")
+	}
+
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	s2, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s2.Has("a") {
+		t.Error("a should be gone after reopen")
+	}
+	got, err = s2.ReadFile("b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "bbb" {
+		t.Errorf("after reopen: got %q, want %q", got, "bbb")
+	}
+	if err := s2.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// VALIDATES: CRC verified on Open (AC-8 via store)
+// PREVENTS: silently serving corrupt data
+
+func TestCRCVerifiedOnOpen(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.zefs")
+	s, err := Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeOrFatal(t, s, "key", []byte("valid data"))
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Corrupt a data byte in the file
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Find "valid data" in the raw bytes and flip a bit
+	for i := range raw {
+		if i+5 < len(raw) && string(raw[i:i+5]) == "valid" {
+			raw[i] ^= 0x01
+			break
+		}
+	}
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Open(path)
+	if err == nil {
+		t.Fatal("expected error opening store with corrupt CRC")
+	}
+}
+
+// VALIDATES: multiple dirty entries updated in one in-place flush
+// PREVENTS: partial in-place update leaving inconsistent state
+
+func TestInPlaceMultipleEntries(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.zefs")
+	s, err := Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeOrFatal(t, s, "a", []byte("original-a"))
+	writeOrFatal(t, s, "b", []byte("original-b"))
+	writeOrFatal(t, s, "c", []byte("original-c"))
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err = Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Update two entries (both fit in capacity)
+	wl := lockOrFatal(t, s)
+	writeLockedOrFatal(t, wl, "a", []byte("new-a"))
+	writeLockedOrFatal(t, wl, "c", []byte("new-c"))
+	if err := wl.Release(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify all entries
+	for _, tt := range []struct{ key, want string }{
+		{"a", "new-a"},
+		{"b", "original-b"},
+		{"c", "new-c"},
+	} {
+		got, readErr := s.ReadFile(tt.key)
+		if readErr != nil {
+			t.Fatalf("ReadFile(%s): %v", tt.key, readErr)
+		}
+		if string(got) != tt.want {
+			t.Errorf("ReadFile(%s): got %q, want %q", tt.key, got, tt.want)
+		}
+	}
+
+	// Verify through reopen
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s2, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct{ key, want string }{
+		{"a", "new-a"},
+		{"b", "original-b"},
+		{"c", "new-c"},
+	} {
+		got, readErr := s2.ReadFile(tt.key)
+		if readErr != nil {
+			t.Fatalf("reopen ReadFile(%s): %v", tt.key, readErr)
+		}
+		if string(got) != tt.want {
+			t.Errorf("reopen ReadFile(%s): got %q, want %q", tt.key, got, tt.want)
+		}
+	}
+	if err := s2.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
