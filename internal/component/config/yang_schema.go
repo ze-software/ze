@@ -438,26 +438,7 @@ func getOSExtension(entry *gyang.Entry) string {
 // returned list is therefore stored on the schema Node for the walker
 // in backend_gate.go.
 func getBackendExtension(entry *gyang.Entry) []string {
-	var (
-		out  []string
-		seen map[string]bool
-	)
-	for _, ext := range entry.Exts {
-		if ext.Keyword != "ze:backend" && !strings.HasSuffix(ext.Keyword, ":backend") {
-			continue
-		}
-		for f := range strings.FieldsSeq(ext.Argument) {
-			if seen == nil {
-				seen = make(map[string]bool)
-			}
-			if seen[f] {
-				continue
-			}
-			seen[f] = true
-			out = append(out, f)
-		}
-	}
-	return out
+	return yang.GetBackendExtension(entry)
 }
 
 // hasSensitiveExtension checks if a YANG entry has the ze:sensitive extension.

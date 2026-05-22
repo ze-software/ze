@@ -344,6 +344,70 @@ func TestDynamicChildrenAndValueHintsCombined(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-6 — node with Backend ["netlink"] excluded when active is "vpp".
+// PREVENTS: backend-specific commands shown for wrong backend.
+func TestCommandCompleterBackendFilter(t *testing.T) {
+	tree := &Node{
+		Children: map[string]*Node{
+			"vpp": {
+				Name:        "vpp",
+				Description: "VPP operations",
+				Backend:     []string{"vpp"},
+			},
+			"general": {
+				Name:        "general",
+				Description: "General operations",
+			},
+			"netlink-only": {
+				Name:        "netlink-only",
+				Description: "Netlink operations",
+				Backend:     []string{"netlink"},
+			},
+		},
+	}
+
+	cc := NewTreeCompleter(tree)
+	cc.SetActiveBackends(map[string]string{"interface": "netlink"})
+
+	comps := cc.Complete("")
+	names := make([]string, len(comps))
+	for i, c := range comps {
+		names[i] = c.Text
+	}
+
+	if len(comps) != 2 {
+		t.Fatalf("expected 2 completions (general + netlink-only), got %d: %v", len(comps), names)
+	}
+	// Sorted: general, netlink-only
+	want := []string{"general", "netlink-only"}
+	for i, w := range want {
+		if comps[i].Text != w {
+			t.Errorf("completion[%d] = %q, want %q", i, comps[i].Text, w)
+		}
+	}
+}
+
+// VALIDATES: AC-7 — node with nil Backend always shown.
+// PREVENTS: unrestricted nodes filtered out.
+func TestCommandCompleterBackendUnrestricted(t *testing.T) {
+	tree := &Node{
+		Children: map[string]*Node{
+			"peer": {
+				Name:        "peer",
+				Description: "Peer operations",
+			},
+		},
+	}
+
+	cc := NewTreeCompleter(tree)
+	cc.SetActiveBackends(map[string]string{"interface": "vpp"})
+
+	comps := cc.Complete("")
+	if len(comps) != 1 || comps[0].Text != "peer" {
+		t.Errorf("expected [peer], got %v", comps)
+	}
+}
+
 // VALIDATES: GhostText works with ValueHints suggestions.
 // PREVENTS: inline preview ignoring value hint completions.
 func TestGhostTextWithValueHints(t *testing.T) {

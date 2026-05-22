@@ -63,6 +63,7 @@ standard YANG tools ignore but ze interprets at runtime.
 | `ze:validate` | References a Go validator function for runtime validation + completion | function name |
 | `ze:command` | Marks a `config false` container as an executable CLI command | WireMethod string |
 | `ze:edit-shortcut` | Makes a command available in edit mode without `run` prefix | (none) |
+| `ze:backend` | Restricts a node to specific backends; commit-time validation and completion-time filtering | space-separated backend names |
 | `ze:sensitive` | Marks a leaf as containing sensitive data (passwords, keys) | (none) |
 | `ze:key-type` | Key type for inline-list nodes | type name |
 | `ze:route-attributes` | Marks a node as accepting standard BGP route attributes | (none) |

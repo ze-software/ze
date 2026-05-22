@@ -846,12 +846,24 @@ func (m Model) ViewportContent() string {
 	return m.viewportContent
 }
 
+// refreshCompleter updates the config completer tree and propagates
+// derived backend names to the command completer.
+func (m *Model) refreshCompleter() {
+	m.completer.SetTree(m.editor.Tree())
+	if cc, ok := m.commandCompleter.(*CommandCompleter); ok {
+		cc.SetActiveBackends(m.completer.Backends())
+	}
+}
+
 // SetCommandCompleter sets the command mode completer.
 // When set, command mode provides operational command completions.
 // When nil, command mode has no completions (editor-only / standalone mode).
 // Accepts any CommandModeCompleter (e.g., *CommandCompleter or *PluginCompleter).
 func (m *Model) SetCommandCompleter(cc CommandModeCompleter) {
 	m.commandCompleter = cc
+	if tc, ok := cc.(*CommandCompleter); ok {
+		tc.SetActiveBackends(m.completer.Backends())
+	}
 }
 
 // SetCommandExecutor sets the function used to execute operational commands in command mode.

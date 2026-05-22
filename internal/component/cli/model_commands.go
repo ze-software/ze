@@ -397,7 +397,7 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	}
 
 	// Update completer with mutated tree
-	m.completer.SetTree(m.editor.Tree())
+	m.refreshCompleter()
 
 	displayPath := append(append([]string{}, containerPath...), key)
 	msg := "set " + strings.Join(displayPath, " ") + " = " + value
@@ -516,7 +516,7 @@ func (m *Model) cmdDelete(args []string) (commandResult, error) {
 	}
 
 	// Update completer with mutated tree
-	m.completer.SetTree(m.editor.Tree())
+	m.refreshCompleter()
 
 	msg := "Deleted " + strings.Join(fullPath, " ")
 
@@ -580,7 +580,7 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 			if llErr != nil {
 				return commandResult{}, fmt.Errorf("%s failed: %w", verb, llErr)
 			}
-			m.completer.SetTree(m.editor.Tree())
+			m.refreshCompleter()
 			msg := pastTense + " " + value + " in " + leafListName
 			if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
 				msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
@@ -626,7 +626,7 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 		return commandResult{}, fmt.Errorf("%s failed: %w", verb, opErr)
 	}
 
-	m.completer.SetTree(m.editor.Tree())
+	m.refreshCompleter()
 	msg := pastTense + " " + strings.Join(fullPath, " ")
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
 		msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
@@ -704,7 +704,7 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("insert failed: %w", err)
 	}
 
-	m.completer.SetTree(m.editor.Tree())
+	m.refreshCompleter()
 	m.searchCache = ""
 
 	msg := "Inserted " + value + " into " + leafListName + " " + position
@@ -1187,7 +1187,7 @@ func (m *Model) cmdRename(args []string) (commandResult, error) {
 	}
 
 	// Update completer with mutated tree
-	m.completer.SetTree(m.editor.Tree())
+	m.refreshCompleter()
 	m.searchCache = "" // tree changed, invalidate cached set-view
 
 	msg := "Renamed " + listName + " " + oldKey + " to " + newKey
@@ -1247,7 +1247,7 @@ func (m *Model) cmdCopy(args []string) (commandResult, error) {
 	}
 
 	// Update completer with mutated tree
-	m.completer.SetTree(m.editor.Tree())
+	m.refreshCompleter()
 	m.searchCache = "" // tree changed, invalidate cached set-view
 
 	msg := "Copied " + listName + " " + srcKey + " to " + dstKey

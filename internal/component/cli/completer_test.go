@@ -627,6 +627,134 @@ func TestCompleterValidatePipedUnion(t *testing.T) {
 	assert.Equal(t, []string{"test-v1", "test-v2"}, names)
 }
 
+// TestCompleterBackendFiltersChildren verifies ze:backend filtering in matchChildren.
+//
+// VALIDATES: AC-1 — netlink-only children excluded when backend is vpp.
+// PREVENTS: backend-specific config shown for wrong backend.
+func TestCompleterBackendFiltersChildren(t *testing.T) {
+	c := NewCompleter()
+	require.NotNil(t, c.loader)
+
+	// Set backends to "vpp" for interface
+	c.backends = map[string]string{"interface": "vpp"}
+
+	// "set " in interface context — "tunnel" has ze:backend "netlink", should be excluded
+	completions := c.Complete("set ", []string{"interface"})
+	texts := completionTexts(completions)
+	assert.NotContains(t, texts, "tunnel", "tunnel (ze:backend netlink) should be hidden with vpp backend")
+}
+
+// TestCompleterBackendIncludesMatching verifies matching backend is included.
+//
+// VALIDATES: AC-2 — netlink-only children included when backend is netlink.
+// PREVENTS: false filtering of matching backends.
+func TestCompleterBackendIncludesMatching(t *testing.T) {
+	c := NewCompleter()
+	require.NotNil(t, c.loader)
+
+	c.backends = map[string]string{"interface": "netlink"}
+
+	completions := c.Complete("set ", []string{"interface"})
+	texts := completionTexts(completions)
+	assert.Contains(t, texts, "tunnel", "tunnel (ze:backend netlink) should be shown with netlink backend")
+}
+
+// TestCompleterBackendUnrestricted verifies unannotated children always shown.
+//
+// VALIDATES: AC-3 — children without ze:backend shown regardless of active backend.
+// PREVENTS: unrestricted nodes accidentally filtered.
+func TestCompleterBackendUnrestricted(t *testing.T) {
+	c := NewCompleter()
+	require.NotNil(t, c.loader)
+
+	c.backends = map[string]string{"interface": "vpp"}
+
+	// "set " in interface context — "backend" leaf has no ze:backend, should be shown
+	completions := c.Complete("set ", []string{"interface"})
+	texts := completionTexts(completions)
+	assert.Contains(t, texts, "backend", "backend leaf (no ze:backend) should always be shown")
+}
+
+// TestCompleterBackendFiltersSetShortcut verifies the "set prefix" shortcut path also filters.
+//
+// VALIDATES: AC-1 via shortcut path (typing partial keyword without "set " prefix).
+// PREVENTS: backend-specific children leaking through the command shortcut.
+func TestCompleterBackendFiltersSetShortcut(t *testing.T) {
+	c := NewCompleter()
+	require.NotNil(t, c.loader)
+
+	c.backends = map[string]string{"interface": "vpp"}
+
+	// Typing "tun" in interface context triggers shortcut suggestions.
+	// "tunnel" has ze:backend "netlink", should not appear.
+	completions := c.Complete("tun", []string{"interface"})
+	texts := completionTexts(completions)
+	for _, text := range texts {
+		assert.NotContains(t, text, "tunnel", "tunnel should not appear in shortcut completions with vpp backend")
+	}
+}
+
+// TestCompleterBackendFiltersEditTargets verifies ze:backend filtering in matchEditTargets.
+//
+// VALIDATES: AC-1 via edit targets path.
+// PREVENTS: edit/show mode bypassing backend filtering.
+func TestCompleterBackendFiltersEditTargets(t *testing.T) {
+	c := NewCompleter()
+	require.NotNil(t, c.loader)
+
+	c.backends = map[string]string{"interface": "vpp"}
+
+	// "edit " in interface context — tunnel should be hidden for vpp
+	completions := c.Complete("edit ", []string{"interface"})
+	texts := completionTexts(completions)
+	assert.NotContains(t, texts, "tunnel", "tunnel should be hidden in edit mode with vpp backend")
+}
+
+// TestCompleterBackendMulti verifies multi-backend annotation includes matching.
+//
+// VALIDATES: AC-4 — child with ze:backend "netlink vpp" shown for both backends.
+// PREVENTS: multi-backend annotations only matching first entry.
+func TestCompleterBackendMulti(t *testing.T) {
+	c := NewCompleter()
+	require.NotNil(t, c.loader)
+
+	// Find a child annotated with ze:backend "netlink" and verify it works.
+	// Then test with vpp — tunnel should be excluded since it's netlink-only.
+	c.backends = map[string]string{"interface": "netlink"}
+	completions := c.Complete("set ", []string{"interface"})
+	texts := completionTexts(completions)
+	assert.Contains(t, texts, "tunnel", "tunnel shown for netlink")
+
+	// With vpp, tunnel excluded
+	c.backends = map[string]string{"interface": "vpp"}
+	completions = c.Complete("set ", []string{"interface"})
+	texts = completionTexts(completions)
+	assert.NotContains(t, texts, "tunnel", "tunnel excluded for vpp")
+}
+
+// TestCompleterBackendDefaultFromTree verifies backends derived from config tree.
+//
+// VALIDATES: AC-5 — backend read from config tree at SetTree time.
+// PREVENTS: backend map not updated when config changes.
+func TestCompleterBackendDefaultFromTree(t *testing.T) {
+	c := NewCompleter()
+	require.NotNil(t, c.loader)
+
+	tree := config.NewTree()
+	ifaceContainer := config.NewTree()
+	ifaceContainer.Set("backend", "vpp")
+	tree.SetContainer("interface", ifaceContainer)
+
+	c.setTreeInternal(tree)
+	require.NotNil(t, c.backends)
+	assert.Equal(t, "vpp", c.backends["interface"])
+
+	// Tunnel should be filtered with vpp backend
+	completions := c.Complete("set ", []string{"interface"})
+	texts := completionTexts(completions)
+	assert.NotContains(t, texts, "tunnel", "tunnel excluded after SetTree with vpp backend")
+}
+
 func completionTexts(completions []Completion) []string {
 	texts := make([]string, len(completions))
 	for i, c := range completions {

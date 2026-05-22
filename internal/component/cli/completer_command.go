@@ -23,6 +23,11 @@ func NewCommandCompleter(root *command.Node) *CommandCompleter {
 	return &CommandCompleter{inner: command.NewTreeCompleter(root)}
 }
 
+// SetActiveBackends propagates per-component backend names to the tree completer.
+func (c *CommandCompleter) SetActiveBackends(backends map[string]string) {
+	c.inner.SetActiveBackends(backends)
+}
+
 // Complete returns completions for the given input.
 func (c *CommandCompleter) Complete(input string) []Completion {
 	suggestions := c.inner.Complete(input)

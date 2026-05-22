@@ -29,6 +29,7 @@ type Completer struct {
 	loader   *yang.Loader
 	tree     *config.Tree            // Config data for list key completion
 	registry *yang.ValidatorRegistry // Validator registry for ze:validate completions
+	backends map[string]string       // component root -> active backend name
 }
 
 // NewCompleter creates a completer using YANG schema.
@@ -56,6 +57,35 @@ func (c *Completer) SetTree(tree any) {
 
 func (c *Completer) setTreeInternal(tree *config.Tree) {
 	c.tree = tree
+	c.backends = c.deriveBackends(tree)
+}
+
+// backendLeaves maps component root container names to their backend leaf path.
+var backendLeaves = map[string]string{
+	"interface":       "backend",
+	"firewall":        "backend",
+	"traffic-control": "backend",
+}
+
+// deriveBackends reads backend leaf values from the config tree.
+func (c *Completer) deriveBackends(tree *config.Tree) map[string]string {
+	if tree == nil {
+		return nil
+	}
+	m := make(map[string]string)
+	for root, leaf := range backendLeaves {
+		container := tree.GetContainer(root)
+		if container == nil {
+			continue
+		}
+		if v, ok := container.Get(leaf); ok && v != "" {
+			m[root] = v
+		}
+	}
+	if len(m) == 0 {
+		return nil
+	}
+	return m
 }
 
 // commands returns the available editor commands.
@@ -109,14 +139,20 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 		cmdCompletions := filterCompletions(commands, cmd)
 
 		// Also suggest keywords with "set" prefix if partial matches a keyword
-		children := c.getChildrenAtPath(contextPath)
-		for _, name := range children {
-			if strings.HasPrefix(name, cmd) {
-				cmdCompletions = append(cmdCompletions, Completion{
-					Text:        cmdSet + " " + name,
-					Description: "Set " + name,
-					Type:        "keyword",
-				})
+		entry := c.getEntry(contextPath)
+		if entry != nil && entry.Dir != nil {
+			for _, name := range c.getSortedChildren(entry) {
+				if strings.HasPrefix(name, cmd) {
+					child := entry.Dir[name]
+					if !c.backendAllowed(child) {
+						continue
+					}
+					cmdCompletions = append(cmdCompletions, Completion{
+						Text:        cmdSet + " " + name,
+						Description: "Set " + name,
+						Type:        "keyword",
+					})
+				}
 			}
 		}
 		return cmdCompletions
@@ -661,6 +697,9 @@ func (c *Completer) matchChildren(path []string, prefix string) []Completion {
 		}
 		if prefix == "" || strings.HasPrefix(name, prefix) {
 			child := entry.Dir[name]
+			if !c.backendAllowed(child) {
+				continue
+			}
 			completions = append(completions, Completion{
 				Text:        name,
 				Description: c.entryDescription(child),
@@ -686,6 +725,9 @@ func (c *Completer) matchEditTargets(path []string, prefix string) []Completion 
 	for _, name := range children {
 		if prefix == "" || strings.HasPrefix(name, prefix) {
 			child := entry.Dir[name]
+			if !c.backendAllowed(child) {
+				continue
+			}
 			completions = append(completions, Completion{
 				Text:        name,
 				Description: c.entryDescription(child),
@@ -695,6 +737,28 @@ func (c *Completer) matchEditTargets(path []string, prefix string) []Completion 
 	}
 
 	return completions
+}
+
+// Backends returns the current per-component backend map.
+func (c *Completer) Backends() map[string]string {
+	return c.backends
+}
+
+// backendAllowed returns true if the YANG entry should be shown given active backends.
+// No ze:backend annotation means unrestricted (always shown).
+func (c *Completer) backendAllowed(entry *gyang.Entry) bool {
+	be := yang.GetBackendExtension(entry)
+	if be == nil || c.backends == nil {
+		return true
+	}
+	for _, allowed := range be {
+		for _, active := range c.backends {
+			if allowed == active {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // valueCompletions returns completions for a leaf value.
@@ -994,15 +1058,6 @@ func mergeAugmentedEntries(entries []*gyang.Entry) *gyang.Entry {
 		merged.Dir[name] = mergeAugmentedEntries(children)
 	}
 	return &merged
-}
-
-// getChildrenAtPath returns children names at path.
-func (c *Completer) getChildrenAtPath(path []string) []string {
-	entry := c.getEntry(path)
-	if entry == nil || entry.Dir == nil {
-		return nil
-	}
-	return c.getSortedChildren(entry)
 }
 
 // getSortedChildren returns sorted child names.

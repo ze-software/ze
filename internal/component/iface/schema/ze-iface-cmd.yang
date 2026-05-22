@@ -12,18 +12,21 @@ module ze-iface-cmd {
         container create-dummy {
             config false;
             ze:command "ze-iface:interface-create-dummy";
+            ze:backend "netlink";
             description "Create a dummy (loopback-like) interface";
         }
 
         container create-veth {
             config false;
             ze:command "ze-iface:interface-create-veth";
+            ze:backend "netlink";
             description "Create a veth pair";
         }
 
         container create-bridge {
             config false;
             ze:command "ze-iface:interface-create-bridge";
+            ze:backend "netlink";
             description "Create a Linux bridge interface";
         }
 

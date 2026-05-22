@@ -160,6 +160,9 @@ Status values: `Supported` means implemented and covered in the normal release e
 <!-- source: internal/component/iface/register.go -- validateBackendGate wired into OnConfigure and OnConfigVerify -->
 <!-- source: internal/component/traffic/register.go -- validateBackendGate wired into traffic OnConfigure and OnConfigVerify -->
 <!-- source: internal/component/firewall/engine.go -- validateBackendGate wired into firewall OnConfigure and OnConfigVerify -->
+| Backend-Aware CLI Completion | Supported | CLI auto-completion filters options based on the active backend. Config editor mode (set/delete/edit/show) and operational command mode (show/clear/monitor) hide nodes annotated with `ze:backend` when the active backend is not in the annotation's list. Backend names are derived from the config tree at each tree change. Same `ze:backend` annotations used by commit-time validation, applied earlier at completion time. |
+<!-- source: internal/component/cli/completer.go -- backendAllowed, deriveBackends -->
+<!-- source: internal/component/command/completer.go -- backendAllowed, SetActiveBackends -->
 | Traffic Control Lifecycle | Experimental | The `traffic-control` section of the config is now programmed at boot and on SIGHUP reload. The traffic component's reactor calls the selected backend's `Apply(map[string]InterfaceQoS)` in `OnConfigure` and `OnConfigApply`, with `sdk.Journal` rollback on apply failure. Linux default backend is `tc` (netlink); future backends plug in via `traffic.RegisterBackend`. Local privileged integration covers netlink qdisc snapshot/restore after backend restart; target-runner and reactor-level boot/reload kernel-state evidence remain open. |
 <!-- source: internal/component/traffic/register.go -- runEngine, OnConfigure, OnConfigVerify, OnConfigApply, OnConfigRollback -->
 <!-- source: internal/component/traffic/backend.go -- Backend interface, DefaultBackendName -->

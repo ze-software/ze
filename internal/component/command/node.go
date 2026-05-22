@@ -13,8 +13,9 @@ package command
 type Node struct {
 	Name        string
 	Description string
-	WireMethod  string // Handler dispatch key (from ze:command argument). Empty for grouping nodes.
-	TaskSupport string // MCP task-support level (from ze:task-support). Empty = optional.
+	WireMethod  string   // Handler dispatch key (from ze:command argument). Empty for grouping nodes.
+	TaskSupport string   // MCP task-support level (from ze:task-support). Empty = optional.
+	Backend     []string // Allowed backends (from ze:backend). Nil = unrestricted.
 	Children    map[string]*Node
 
 	// DynamicChildren returns additional completion suggestions at this node.

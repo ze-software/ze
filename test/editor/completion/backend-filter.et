@@ -1,0 +1,31 @@
+# Test: Backend-aware completion filtering
+# VALIDATES: AC-1 — netlink-only children hidden when backend is vpp
+# VALIDATES: AC-3 — unannotated children shown regardless of backend
+# PREVENTS: Backend-specific config shown for wrong backend
+
+tmpfs=test.conf:terminator=EOF_CONF
+interface {
+  backend vpp;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Enter interface context
+input=type:text=edit interface
+input=enter
+expect=context:path=interface
+expect=error:none
+
+# "set " should NOT show "tunnel" (ze:backend "netlink")
+input=type:text=set
+input=space
+expect=completion:excludes=tunnel
+expect=completion:contains=backend
+
+# Clear and try edit targets — tunnel should also be hidden
+input=ctrl:key=u
+input=type:text=edit
+input=space
+expect=completion:excludes=tunnel

@@ -191,6 +191,10 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 			target.Description = child.Description
 		}
 
+		if be := GetBackendExtension(child); be != nil && target.Backend == nil {
+			target.Backend = be
+		}
+
 		// Recurse into children (merge overlapping branches from multiple modules).
 		mergeYANGEntry(target, child)
 	}
@@ -312,6 +316,34 @@ func getUIResourceExtensions(entry *gyang.Entry) UIResourceEntry {
 		}
 	}
 	return info
+}
+
+// GetBackendExtension reads ze:backend extensions from a YANG entry.
+// Returns a deduplicated slice of backend names, or nil if unrestricted.
+func GetBackendExtension(entry *gyang.Entry) []string {
+	if entry == nil {
+		return nil
+	}
+	var (
+		out  []string
+		seen map[string]bool
+	)
+	for _, ext := range entry.Exts {
+		if ext.Keyword != "ze:backend" && !strings.HasSuffix(ext.Keyword, ":backend") {
+			continue
+		}
+		for f := range strings.FieldsSeq(ext.Argument) {
+			if seen == nil {
+				seen = make(map[string]bool)
+			}
+			if seen[f] {
+				continue
+			}
+			seen[f] = true
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // HasEditShortcutExtension returns true if the YANG entry has the ze:edit-shortcut extension.

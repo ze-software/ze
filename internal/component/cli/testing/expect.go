@@ -19,7 +19,7 @@ var (
 	errExpectedDirtyFalseGotTrue                       = errors.New("expected dirty:false, got true")
 	errDirtyExpectationRequiresTrueOrFalse             = errors.New("dirty expectation requires 'true' or 'false' key")
 	errErrorExpectationRequiresNoneOrContains          = errors.New("error expectation requires 'none' or 'contains' key")
-	errCompletionExpectationRequiresEmptyCountContains = errors.New("completion expectation requires 'empty', 'count', 'contains', or 'exact' key")
+	errCompletionExpectationRequiresEmptyCountContains = errors.New("completion expectation requires 'empty', 'count', 'contains', 'excludes', or 'exact' key")
 	errGhostExpectationRequiresEmptyOrText             = errors.New("ghost expectation requires 'empty' or 'text' key")
 	errErrorsExpectationRequiresCountOrContains        = errors.New("errors expectation requires 'count' or 'contains' key")
 	errWarningsExpectationRequiresCountOrContains      = errors.New("warnings expectation requires 'count' or 'contains' key")
@@ -198,6 +198,26 @@ func checkCompletion(exp Expectation, state State) error {
 
 		if len(missing) > 0 {
 			return fmt.Errorf("completion missing items: %v (have: %v)", missing, completionTexts(comps))
+		}
+		return nil
+	}
+
+	if expected, hasExcludes := exp.Values["excludes"]; hasExcludes {
+		excludedItems := strings.Split(expected, ",")
+		compTexts := make(map[string]bool)
+		for _, c := range comps {
+			compTexts[c.Text] = true
+		}
+
+		var present []string
+		for _, item := range excludedItems {
+			if compTexts[item] {
+				present = append(present, item)
+			}
+		}
+
+		if len(present) > 0 {
+			return fmt.Errorf("completion should exclude items: %v (have: %v)", present, completionTexts(comps))
 		}
 		return nil
 	}

@@ -706,3 +706,153 @@ func TestPluginCmdModuleLoads(t *testing.T) {
 	assert.Equal(t, "ze-plugin:session-ping", GetCommandExtension(session.Dir["ping"]))
 	assert.Equal(t, "ze-plugin:session-bye", GetCommandExtension(session.Dir["bye"]))
 }
+
+// TestGetBackendExtension_Absent verifies nil return when no ze:backend is present.
+//
+// VALIDATES: AC-8 — nil for entries without ze:backend.
+// PREVENTS: false-positive backend restrictions on unannotated entries.
+func TestGetBackendExtension_Absent(t *testing.T) {
+	assert.Nil(t, GetBackendExtension(nil))
+
+	entry := &gyang.Entry{Name: "test"}
+	assert.Nil(t, GetBackendExtension(entry))
+}
+
+// TestGetBackendExtension_Single verifies single backend name extraction.
+//
+// VALIDATES: AC-9 — ["netlink"] for ze:backend "netlink".
+// PREVENTS: backend annotation silently ignored.
+func TestGetBackendExtension_Single(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadEmbedded()
+	require.NoError(t, err)
+
+	yangText := `
+module test-backend {
+    namespace "urn:test:backend";
+    prefix tb;
+    import ze-extensions { prefix ze; }
+
+    container tunnel {
+        config false;
+        ze:backend "netlink";
+        ze:command "ze-test:tunnel";
+        description "Tunnel operations";
+    }
+}
+`
+	err = loader.AddModuleFromText("test-backend.yang", yangText)
+	require.NoError(t, err)
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	entry := loader.GetEntry("test-backend")
+	require.NotNil(t, entry)
+
+	tunnel := entry.Dir["tunnel"]
+	require.NotNil(t, tunnel)
+	assert.Equal(t, []string{"netlink"}, GetBackendExtension(tunnel))
+}
+
+// TestGetBackendExtension_Multi verifies multi-backend and deduplication.
+//
+// VALIDATES: AC-10 — ["netlink","vpp"] for ze:backend "netlink vpp", deduplicated.
+// PREVENTS: duplicate backend entries or dropped backends.
+func TestGetBackendExtension_Multi(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadEmbedded()
+	require.NoError(t, err)
+
+	yangText := `
+module test-backend-multi {
+    namespace "urn:test:backend:multi";
+    prefix tbm;
+    import ze-extensions { prefix ze; }
+
+    container shared {
+        config false;
+        ze:backend "netlink vpp";
+        ze:command "ze-test:shared";
+        description "Shared across backends";
+    }
+
+    container duped {
+        config false;
+        ze:backend "netlink netlink vpp";
+        ze:command "ze-test:duped";
+        description "Has duplicates";
+    }
+}
+`
+	err = loader.AddModuleFromText("test-backend-multi.yang", yangText)
+	require.NoError(t, err)
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	entry := loader.GetEntry("test-backend-multi")
+	require.NotNil(t, entry)
+
+	shared := entry.Dir["shared"]
+	require.NotNil(t, shared)
+	assert.Equal(t, []string{"netlink", "vpp"}, GetBackendExtension(shared))
+
+	duped := entry.Dir["duped"]
+	require.NotNil(t, duped)
+	assert.Equal(t, []string{"netlink", "vpp"}, GetBackendExtension(duped))
+}
+
+// TestBuildCommandTreeBackend verifies mergeYANGEntry stores Backend from ze:backend.
+//
+// VALIDATES: mergeYANGEntry reads ze:backend and populates command.Node.Backend.
+// PREVENTS: command tree missing backend info for filtering.
+func TestBuildCommandTreeBackend(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadEmbedded()
+	require.NoError(t, err)
+
+	yangText := `
+module test-backend-tree-cmd {
+    namespace "urn:test:backend:tree:cmd";
+    prefix tbtc;
+    import ze-extensions { prefix ze; }
+
+    container vpp {
+        config false;
+        ze:backend "vpp";
+        description "VPP operations";
+
+        container trace {
+            config false;
+            ze:command "ze-test:vpp-trace";
+            description "VPP trace";
+        }
+    }
+
+    container general {
+        config false;
+        ze:command "ze-test:general";
+        description "Works on all backends";
+    }
+}
+`
+	err = loader.AddModuleFromText("test-backend-tree-cmd.yang", yangText)
+	require.NoError(t, err)
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	tree := BuildCommandTree(loader)
+	require.NotNil(t, tree)
+
+	vpp := tree.Children["vpp"]
+	require.NotNil(t, vpp)
+	assert.Equal(t, []string{"vpp"}, vpp.Backend)
+
+	// Child without its own annotation does not inherit (narrowest-wins: parent annotated, child nil)
+	trace := vpp.Children["trace"]
+	require.NotNil(t, trace)
+	assert.Nil(t, trace.Backend)
+
+	general := tree.Children["general"]
+	require.NotNil(t, general)
+	assert.Nil(t, general.Backend)
+}

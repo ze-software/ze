@@ -19,7 +19,8 @@ type Suggestion struct {
 // TreeCompleter provides completions for operational commands from a Node tree.
 // Used by both the CLI and the editor's command mode.
 type TreeCompleter struct {
-	root *Node
+	root           *Node
+	activeBackends map[string]string // component root name -> active backend name
 }
 
 // NewTreeCompleter creates a completer from a command tree root.
@@ -28,6 +29,13 @@ func NewTreeCompleter(root *Node) *TreeCompleter {
 		return &TreeCompleter{root: &Node{}}
 	}
 	return &TreeCompleter{root: root}
+}
+
+// SetActiveBackends sets the per-component active backend map.
+// Keys are component root names (e.g. "interface", "firewall", "traffic-control"),
+// values are backend names (e.g. "netlink", "vpp", "nft").
+func (c *TreeCompleter) SetActiveBackends(backends map[string]string) {
+	c.activeBackends = backends
 }
 
 // PipeOperators lists the available pipe operators for completion.
@@ -224,6 +232,9 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 		for _, name := range keys {
 			if prefix == "" || strings.HasPrefix(name, prefix) {
 				child := node.Children[name]
+				if !c.backendAllowed(child) {
+					continue
+				}
 				completions = append(completions, Suggestion{
 					Text:        name,
 					Description: child.Description,
@@ -252,6 +263,23 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 	}
 
 	return completions
+}
+
+// backendAllowed returns true if the node should be shown given the active backends.
+// Nil Backend means unrestricted (always shown). When Backend is set, at least one
+// entry must match an active backend value.
+func (c *TreeCompleter) backendAllowed(node *Node) bool {
+	if node.Backend == nil || c.activeBackends == nil {
+		return true
+	}
+	for _, allowed := range node.Backend {
+		for _, active := range c.activeBackends {
+			if allowed == active {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // commonPrefix returns the longest common prefix of two strings.
