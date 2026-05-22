@@ -2,6 +2,7 @@
 
 **BLOCKING:** All wire encoding MUST write into pooled, bounded buffers.
 Principle: `rules/design-principles.md` -- Encapsulation onion + Buffer-first encoding.
+Conceptual model: `rules/memory-architecture.md` -- data lifecycle, caller-owned buffers, pool strategy.
 Rationale: `ai/rationale/buffer-first.md`
 
 | Pool | Size | Purpose |

@@ -7,6 +7,16 @@ Rules: `rules/cli-patterns.md`. Architecture: `docs/architecture/cli/plugin-mode
 Every command grammar must place the action keyword before any user-supplied identifier.
 Read the grammar rule before designing any new command.
 
+## Also Read
+
+| Rule | When it applies |
+|------|----------------|
+| `.claude/rules/pipe-completeness.md` | Every command producing output MUST support all pipe operators |
+| `rules/derive-not-hardcode.md` | If the command lists or enumerates things (help, show, status) |
+| `rules/goroutine-lifecycle.md` | If the command launches background work (monitor, streaming) |
+| `rules/json-format.md` | If the command emits JSON |
+| Full navigation: `ai/NAVIGATION.md` | |
+
 ## Two Types of Commands
 
 | Type | Location | When to use |

@@ -144,7 +144,7 @@ Output is auto-captured to `tmp/ze-verify.log` (overwritten each run, no junk ac
 ## Individual Commands
 
 ```bash
-go test -race ./internal/bgp/message/... -v  # Single package
+go test -race ./internal/component/bgp/message/... -v  # Single package
 go test -race ./... -run TestName -v          # Single test
 go test -race -cover ./...                    # Coverage
 make ze-fuzz-one FUZZ=FuzzName TIME=30s       # Single fuzz target
@@ -309,6 +309,25 @@ Detection hook: `block-observer-sys-exit.sh` (warns on Write/Edit of `.ci`
 files containing `tmpfs=*.run` Python with `sys.exit(1)` and no
 `runtime_fail`). Known violations are tracked in `plan/known-failures.md`
 and must be migrated.
+
+## Python Observer API (`test/scripts/ze_api.py`)
+
+Python plugins embedded in `.ci` tests via `tmpfs=*.py` can import `ze_api` for
+the 5-stage plugin protocol and runtime assertions. Key functions:
+
+| Function | Purpose |
+|----------|---------|
+| `ready()` | Complete all 5 stages, enter event loop (simple usage) |
+| `send(cmd)` | Send a text command to the engine |
+| `dispatch(api, cmd)` | Send command via API connection |
+| `runtime_fail(msg)` | Signal assertion failure (replaces `sys.exit(1)`) |
+| `wait_for_shutdown()` | Block until engine shuts down |
+| `wait_for_event(predicate)` | Wait for a matching event |
+
+Full protocol usage: `API()` class with `declare_family()`, `declare_done()`,
+`wait_for_config()`, `capability_done()`, `wait_for_registry()`, `ready()`.
+
+Source: `test/scripts/ze_api.py` (docstring has examples).
 
 ## Pre-Commit
 

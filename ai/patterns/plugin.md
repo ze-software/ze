@@ -3,6 +3,17 @@
 Structural template for creating a Ze plugin.
 Rules: `rules/plugin-design.md`. Architecture: `docs/architecture/core-design.md`.
 
+## Also Read
+
+| Rule | When it applies |
+|------|----------------|
+| `rules/goroutine-lifecycle.md` | OnStarted goroutines, worker patterns, cleanup |
+| `rules/plugin-design.md` (Cross-Boundary Value Types) | Any data crossing plugin boundaries |
+| `rules/plugin-design.md` (DirectBridge) | Sync request/response to/from engine |
+| `rules/plugin-design.md` (EventBus Typed Payloads) | Async broadcast events |
+| `rules/naming.md` | Plugin name, YANG prefix, log subsystem |
+| Full navigation: `ai/NAVIGATION.md` | |
+
 ## File Structure
 
 ```

@@ -19,6 +19,9 @@
 | Implement an RFC | `rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
 | Write a spec | `rules/planning.md` | `plan/TEMPLATE.md` |
 | Reorganize YANG tree | `scripts/dev/yang_move.py --help` | Preview diff, then `--apply` |
+| Find context for an unfamiliar area | `ai/NAVIGATION.md` | Task-to-context decision tree |
+| Understand Ze vs standard Go | `ai/rules/ze-divergences.md` | Buffer-first, registration, YANG, etc. |
+| Know which hooks will check my code | `ai/rules/hook-mapping.md` | Pre-flight compliance checklist |
 
 ## Dev Tools
 
@@ -133,7 +136,9 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | NLRI, prefix, MP_REACH, MP_UNREACH | `core-design.md`, `wire/nlri.md` |
 | multiprotocol, AFI, SAFI | `wire/nlri.md`, `wire/capabilities.md` |
 | capability, OPEN, negotiate | `wire/capabilities.md` |
-| pool, memory, dedup, zero-copy | `core-design.md`, `pool-architecture.md`, `encoding-context.md` |
+| pool, memory, dedup, zero-copy, lifecycle | `rules/memory-architecture.md`, `core-design.md`, `pool-architecture.md`, `encoding-context.md` |
+| textbuf, string building, AppendTo, alloc-free | `rules/no-sprintf-alloc.md`, `rules/memory-architecture.md`, `internal/core/textbuf/` |
+| sync.Pool, buffer pool, ring buffer, peerPool | `rules/memory-architecture.md`, `forward-congestion-pool.md` |
 | forward, reflect, wire cache | `core-design.md`, `encoding-context.md`, `update-building.md` |
 | route, rib, storage | `core-design.md`, `route-types.md`, `rib-transition.md`, `plugin/rib-storage-design.md` |
 | route selection, best path | `route-selection.md` |
@@ -175,6 +180,22 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | conntrack, connection tracking | `internal/component/config/system/conntrack.go`, `ze-system-conf.yang` |
 | archive, config backup, revision | `internal/component/config/archive/`, `ze-system-conf.yang` |
 | SSH, authentication, user, public-key | `internal/component/ssh/`, `ze-ssh-conf.yang` |
+| IPsec, IKE, IKEv2, SA, child SA | `plan/learned/734` (data model), `plan/learned/739` (crypto), `plan/learned/740` (engine), `plan/learned/742` (child SA) |
+| EAP, NAT-T, MOBIKE | `plan/learned/744` (EAP/NAT-T), `plan/learned/737` (EAP extension) |
+| XFRM, xfrm interface, VTI | `plan/learned/735` (XFRM interfaces) |
+| subscriber, session, PPPoE, L2TP | `plan/learned/760-subscriber-session-model.md`, `internal/component/pppoe/` |
+| editor, TUI, completion, headless | `internal/component/cli/`, `test/editor/`, `rules/testing.md` (Editor Tests section) |
+| diagnostic, doctor, health, readiness | `plan/learned/755-ze-doctor.md`, `rules/doctor-checks.md`, `plan/learned/727-diag-core.md` |
+| EventBus, event, pub/sub, subscribe, emit | `pkg/ze/eventbus.go`, `rules/plugin-design.md` (EventBus Typed Payloads), `internal/component/plugin/events.go` |
+| DirectBridge, bridge, direct call, typed handler | `pkg/plugin/rpc/bridge.go`, `rules/plugin-design.md` (DirectBridge), `plan/learned/294-inprocess-direct-transport.md` |
+| BFD, bidirectional forwarding | `docs/architecture/bfd.md` |
+| resolve, origin, pipe, pipe operator | `docs/architecture/resolve.md`, `.claude/rules/pipe-completeness.md` |
+| MCP, model context protocol | `docs/architecture/mcp/`, `internal/component/mcp/` |
+| self-update, manifest, auto-update | `plan/learned/748-self-update.md` |
+| ASPA, path verification, RTR | `plan/learned/721-bgp-2-aspa.md`, `plan/learned/722-spec-bgp-4-aspa-policy.md` |
+| BMP, monitoring protocol | `plan/learned/574-bgp-4-bmp.md`, `plan/learned/647-bmp-5-sender-compliance.md` |
+| docker, container, scratch | `plan/learned/753-docker-go126.md`, `docs/guide/docker.md` |
+| chaos, fault injection, scheduler | `plan/learned/723-chaos-actions-v2.md`, `docs/architecture/chaos-web-dashboard.md` |
 
 All architecture docs in `docs/architecture/` unless noted.
 

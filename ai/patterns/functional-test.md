@@ -3,6 +3,16 @@
 Structural template for adding functional tests to Ze.
 Full format: `docs/architecture/testing/ci-format.md`. Rules: `rules/testing.md`.
 
+## Also Read
+
+| Rule | When it applies |
+|------|----------------|
+| `rules/testing.md` (Editor Tests) | TUI/editor testing uses `.et` format, not `.ci` |
+| `rules/testing.md` (Observer-Exit Antipattern) | Python observers in `.ci` MUST use `runtime_fail`, not `sys.exit(1)` |
+| `rules/tdd.md` | Test-first: write the test before the feature code |
+| `rules/integration-completeness.md` | Every user-facing feature needs a `.ci` test |
+| Full navigation: `ai/NAVIGATION.md` | |
+
 ## Test Directories
 
 | Directory | Purpose | When to use |
@@ -22,6 +32,42 @@ Full format: `docs/architecture/testing/ci-format.md`. Rules: `rules/testing.md`
 | `test/hub/` | Hub daemon | Hub lifecycle |
 | `test/perf/` | Performance | Benchmarks, timing |
 | `test/exabgp/` | ExaBGP compat | Migration, format compat |
+| `test/firewall/` | Firewall/nftables | Firewall rules, NAT |
+| `test/policy/` | Policy routing | Route policy, redistribution |
+| `test/l2tp/` | L2TP daemon | L2TP tunnel/session lifecycle |
+| `test/l2tp-wire/` | L2TP wire format | AVP encoding, control messages |
+| `test/l2tp-interop/` | L2TP interop | Cross-daemon L2TP (xl2tpd) |
+| `test/traffic/` | Traffic control | QoS, shaping, VPP traffic |
+| `test/vpp/` | VPP backend | VPP FIB, interfaces |
+| `test/static/` | Static routes | Static route installation |
+| `test/ipsec/` | IPsec/IKE | IKEv2 sessions, SAs |
+| `test/pppoe/` | PPPoE | Access concentrator |
+| `test/stress/` | Stress testing | High-volume UPDATE streams |
+
+## Runner Commands
+
+| Directory | Runner command | Make target |
+|-----------|---------------|-------------|
+| `test/encode/` | `ze-test bgp encode [N...]` | `make ze-encode-test` |
+| `test/plugin/` | `ze-test bgp plugin [N...]` | `make ze-plugin-test` |
+| `test/decode/` | `ze-test bgp decode [N...]` | `make ze-decode-test` |
+| `test/parse/` | `ze-test bgp parse [N...]` | `make ze-parse-test` |
+| `test/reload/` | `ze-test bgp reload [N...]` | `make ze-reload-test` |
+| `test/ui/` | `ze-test bgp ui [N...]` | `make ze-ui-test` |
+| `test/editor/` | `ze-test editor [-p pattern]` | `make ze-editor-test` |
+| `test/web/` | `ze-test web [N...]` | `make ze-web-test` |
+| `test/managed/` | `ze-test managed [N...]` | `make ze-managed-test` |
+| `test/l2tp/` | `ze-test l2tp [N...]` | `make ze-l2tp-test` |
+| `test/firewall/` | `ze-test firewall [N...]` | `make ze-firewall-test` |
+| `test/policy/` | `ze-test policy [N...]` | `make ze-policy-test` |
+| `test/static/` | `ze-test static [N...]` | `make ze-static-test` |
+| `test/traffic/` | `ze-test traffic [N...]` | `make ze-traffic-test` |
+| `test/vpp/` | `ze-test vpp [N...]` | `make ze-vpp-test` |
+| `test/exabgp/` | `ze-test bgp exabgp [N...]` | `make ze-exabgp-test` |
+
+Gated suites (in `make ze-functional-test`): encode, plugin, parse, decode, reload,
+ui, editor, managed, l2tp, firewall, policy, web. Non-gated suites (run manually):
+static, traffic, vpp, l2tp-wire, chaos-web.
 
 ## .ci File Structure
 

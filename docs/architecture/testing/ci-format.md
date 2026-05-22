@@ -23,6 +23,32 @@ action=type:key=value:key=value:...
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, CI file parsing -->
 <!-- source: internal/test/tmpfs/tmpfs.go -- Tmpfs, File, Parse -->
 
+## Key Concepts
+
+### conn and seq
+
+Most directives use `conn=N` and `seq=N` to identify message ordering:
+
+- **conn** (connection): 1-based TCP connection index. Each `ze-peer` instance
+  manages one TCP connection. Multi-peer tests use `conn=1` for the first peer,
+  `conn=2` for the second, etc. The maximum is set by `option=tcp_connections:value=N`.
+- **seq** (sequence): 1-based message sequence within a connection. `seq=1` is the
+  first BGP message after OPEN/KEEPALIVE, `seq=2` is the second, etc.
+
+A test with two peers and one UPDATE each uses `conn=1:seq=1` and `conn=2:seq=1`,
+not `conn=1:seq=1` and `conn=1:seq=2`.
+
+### Port Substitution
+
+The runner assigns ephemeral ports and exposes them as variables in commands and URLs:
+
+| Variable | Meaning |
+|----------|---------|
+| `$PORT` | BGP peer port (assigned by runner, used by `ze-peer --port $PORT`) |
+| `$PORT2` | Secondary port (web UI, looking glass, etc.) |
+
+Never hardcode port numbers. Use `$PORT` in `cmd=` exec values and `$PORT2` in `http=` URLs.
+
 ## Stdin Blocks
 
 Stdin blocks embed content that will be piped to a process's stdin.
@@ -182,6 +208,7 @@ option=<type>:key=value[:key=value...]
 | `open` | `value=<behavior>` | OPEN message behavior |
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
+| `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
 
 ### OPEN Behaviors
@@ -660,14 +687,23 @@ Editor tests simulate user input sequences against the headless configuration ed
 |-------------|---------|---------|
 | `expect=context:path=<p>` | Context equals path | `expect=context:path=bgp.peer.1.1.1.1` |
 | `expect=context:root` | Context is root | `expect=context:root` |
-| `expect=completion:contains=<list>` | Completions include all | `expect=completion:contains=set,delete,edit` |
+| `expect=completion:contains=<list>` | Completions include all items | `expect=completion:contains=set,delete,edit` |
+| `expect=completion:excludes=<list>` | Completions must NOT include items | `expect=completion:excludes=vpp,kernel` |
 | `expect=completion:count=<N>` | Number of completions | `expect=completion:count=5` |
 | `expect=ghost:text=<suffix>` | Ghost text suggestion | `expect=ghost:text=-id` |
 | `expect=dirty:true` | Has unsaved changes | `expect=dirty:true` |
+| `expect=content:contains=<text>` | Config content includes text | `expect=content:contains=router-id` |
+| `expect=content:not-contains=<text>` | Config content must NOT include | `expect=content:not-contains=old-value` |
+| `expect=content:lines=<N>` | Config content line count | `expect=content:lines=5` |
+| `expect=viewport:contains=<text>` | Displayed output includes text | `expect=viewport:contains=10.0.0.1` |
+| `expect=viewport:not-contains=<text>` | Displayed output must NOT include | `expect=viewport:not-contains=error` |
 | `expect=errors:count=<N>` | Validation error count | `expect=errors:count=0` |
 | `expect=status:contains=<text>` | Status message | `expect=status:contains=committed` |
 | `expect=error:none` | No command error | `expect=error:none` |
 | `expect=timer:active` | Confirm timer running | `expect=timer:active` |
+| `expect=file:path=<rel>:contains=<text>` | On-disk file content | `expect=file:path=test.conf:contains=bgp` |
+| `expect=file:path=<rel>:not-contains=<text>` | File must NOT contain | `expect=file:path=test.conf:not-contains=old` |
+| `expect=file:path=<rel>:absent` | File does not exist | `expect=file:path=test.conf:absent` |
 <!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
 
 ### Wait Actions

@@ -3,6 +3,16 @@
 Structural template for adding web pages and endpoints to Ze.
 Architecture: `docs/architecture/web-interface.md`, `docs/architecture/web-components.md`.
 
+## Also Read
+
+| Rule | When it applies |
+|------|----------------|
+| `rules/json-format.md` | Any API endpoint returning JSON |
+| `rules/goroutine-lifecycle.md` | SSE streaming, background workers |
+| `rules/derive-not-hardcode.md` | Pages that list or enumerate items |
+| `rules/config-design.md` (Listeners) | If adding a new web listener endpoint |
+| Full navigation: `ai/NAVIGATION.md` | |
+
 ## Three Web Interfaces
 
 | Interface | Location | Auth | Purpose |

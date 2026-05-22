@@ -3,6 +3,16 @@
 Structural template for adding a configuration option to Ze.
 Rules: `rules/config-design.md`. Architecture: `docs/architecture/config/yang-config-design.md`.
 
+## Also Read
+
+| Rule | When it applies |
+|------|----------------|
+| `rules/config-design.md` (Listeners) | Network endpoint options: use `zt:listener` + `ze:listener` |
+| `rules/config-design.md` (YANG Structure) | Augment vs grouping: augment only for cross-component extension |
+| `rules/go-standards.md` (Environment Variables) | Every YANG `environment/` leaf needs `env.MustRegister()` |
+| `rules/exact-or-reject.md` | Backend/translator config: exact application or verify/commit fails |
+| Full navigation: `ai/NAVIGATION.md` | |
+
 ## End-to-End Pipeline
 
 ```

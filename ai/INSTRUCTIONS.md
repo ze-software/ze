@@ -96,6 +96,8 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Format strings or errors | `ai/rules/no-sprintf-alloc.md` -- no fmt.Sprintf on hot paths, use append-based alternatives |
 | Write a backend or config translator | `ai/rules/exact-or-reject.md` -- no silent approximation, lossy translation rejects at verify |
 | Touch wire encoding | `ai/rules/buffer-first.md` |
+| Allocate memory, use pools, or build strings | `ai/rules/memory-architecture.md` -- data lifecycle, caller-owned buffers, pool strategy |
+| Add a map or dispatch table on a hot path | `ai/rules/enum-over-string.md` -- numeric keys, not strings; parse string at boundary |
 | Touch registration | `ai/patterns/registration.md` |
 | Add CLI/web/plugin/config | `ai/patterns/{cli-command,web-endpoint,plugin,config-option}.md` |
 | Add or change a CLI command grammar | `.claude/rules/cli-grammar.md` -- action before identifier, IDs as strings |
@@ -115,3 +117,12 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Understand why the code is shaped this way | `plan/learned/DESIGN-HISTORY.md` |
 | Check if you are about to hit a known trap | `plan/learned/RECURRING-PATTERNS.md` |
 | Understand why a hook rejected your code | `plan/learned/HOOK-FRICTION.md` |
+| Touch EventBus or bus communication | `ai/rules/plugin-design.md` (EventBus + DirectBridge sections) -- typed handles, no raw bus.Subscribe |
+| Modify YANG schemas | `ai/rules/config-design.md` -- augment vs grouping, listener pattern for endpoints |
+| Add telemetry or metrics | `plan/learned/653-netdata-os-collectors.md`, `plan/learned/736-iface-rate.md` |
+| Rename a registered name | `ai/rules/plugin-design.md` "Renaming a Registered Name" -- grep every consumer |
+| Launch a goroutine | `ai/rules/goroutine-lifecycle.md` -- long-lived workers, no per-event goroutines |
+| Modify a file and need to know what else breaks | `ai/rules/impact-analysis.md` -- ripple effects by file type |
+| Find context for an unfamiliar area | `ai/NAVIGATION.md` -- task-to-context decision tree |
+| Know which hooks will check your code | `ai/rules/hook-mapping.md` -- pre-flight checklist by file type |
+| Understand how Ze differs from standard Go | `ai/rules/ze-divergences.md` -- buffer-first, registration, YANG, etc. |
