@@ -31,9 +31,9 @@ must be run manually:
 | L2TP wire | `bin/ze-test l2tp-wire` | Wire-level fixture separate from release-gate L2TP daemon scenarios |
 | Chaos web | `bin/ze-test bgp chaos-web` | Chaos dashboard scenarios live under the BGP runner |
 
-There are no `make ze-static-test`, `make ze-traffic-test`, `make ze-vpp-test`,
-or `make ze-l2tp-wire-test` targets. Use the `bin/ze-test` runners directly
-for those suites. Chaos web is available through `make ze-chaos-web-test` and
+These suites also have `make` targets: `make ze-static-test`,
+`make ze-traffic-test`, `make ze-vpp-test`, `make ze-l2tp-wire-test`.
+Chaos web is available through `make ze-chaos-web-test` and
 is also included in `make ze-chaos-test`.
 
 Linux-tagged Go unit tests are separate from the functional suites. From a
@@ -333,7 +333,7 @@ expect=bgp:conn=2:seq=1:hex=...   # Both routes after reload
 
 > **Not in the default release gate.** VPP tests are not included in
 > `make ze-verify` / `make ze-functional-test`. Run manually via
-> `bin/ze-test vpp`. There is no `make ze-vpp-test` target.
+> `make ze-vpp-test` or `bin/ze-test vpp`.
 
 Functional tests that exercise `fib-vpp` end-to-end against a Python
 GoVPP-API stub. The stub replaces the real VPP process in CI: no DPDK,
