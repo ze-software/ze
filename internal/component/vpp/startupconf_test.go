@@ -6,8 +6,6 @@ import (
 	"testing"
 )
 
-func uint8Ptr(v uint8) *uint8 { return &v }
-
 func TestGenerateStartupConf(t *testing.T) {
 	// VALIDATES: AC-1 -- startup.conf generated with correct sections
 	// PREVENTS: startup.conf generation regression
@@ -15,8 +13,8 @@ func TestGenerateStartupConf(t *testing.T) {
 		Enabled:   true,
 		APISocket: "/run/vpp/api.sock",
 		CPU: CPUSettings{
-			MainCore: uint8Ptr(0),
-			Workers:  uint8Ptr(3),
+			MainCore: new(uint8(0)),
+			Workers:  new(uint8(3)),
 		},
 		Memory: MemorySettings{
 			MainHeap:     "1536M",
@@ -25,7 +23,7 @@ func TestGenerateStartupConf(t *testing.T) {
 		},
 		DPDK: DPDKSettings{
 			Interfaces: []DPDKInterface{
-				{PCIAddress: "0000:03:00.0", Name: "xe0", RxQueues: uint8Ptr(4), TxQueues: uint8Ptr(4)},
+				{PCIAddress: "0000:03:00.0", Name: "xe0", RxQueues: new(uint8(4)), TxQueues: new(uint8(4))},
 				{PCIAddress: "0000:03:00.1", Name: "xe1"},
 			},
 		},
@@ -105,7 +103,7 @@ func TestStartupConfCPU(t *testing.T) {
 	}{
 		{
 			name:     "both set",
-			cpu:      CPUSettings{MainCore: uint8Ptr(0), Workers: uint8Ptr(3)},
+			cpu:      CPUSettings{MainCore: new(uint8(0)), Workers: new(uint8(3))},
 			contains: []string{"main-core 0", "corelist-workers 1-3"},
 		},
 		{
@@ -115,13 +113,13 @@ func TestStartupConfCPU(t *testing.T) {
 		},
 		{
 			name:     "main only",
-			cpu:      CPUSettings{MainCore: uint8Ptr(2)},
+			cpu:      CPUSettings{MainCore: new(uint8(2))},
 			contains: []string{"main-core 2"},
 			absent:   []string{"corelist-workers"},
 		},
 		{
 			name:     "workers only (main-core nil defaults to 0)",
-			cpu:      CPUSettings{Workers: uint8Ptr(3)},
+			cpu:      CPUSettings{Workers: new(uint8(3))},
 			contains: []string{"corelist-workers 1-3"},
 			absent:   []string{"main-core"},
 		},

@@ -783,8 +783,8 @@ func TestParseAttributesNLRI(t *testing.T) {
 			args:         strings.Fields("next-hop 10.0.0.1 origin igp local-preference 100 nlri 1.0.0.0/24"),
 			wantPrefixes: 1,
 			wantNextHop:  "10.0.0.1",
-			wantOrigin:   ptr(uint8(0)),
-			wantLP:       ptr(uint32(100)),
+			wantOrigin:   new(uint8(0)),
+			wantLP:       new(uint32(100)),
 			wantErr:      false,
 		},
 		{
@@ -792,7 +792,7 @@ func TestParseAttributesNLRI(t *testing.T) {
 			args:         strings.Fields("next-hop 10.0.0.1 med 500 nlri 1.0.0.0/24"),
 			wantPrefixes: 1,
 			wantNextHop:  "10.0.0.1",
-			wantMED:      ptr(uint32(500)),
+			wantMED:      new(uint32(500)),
 			wantErr:      false,
 		},
 		{
@@ -832,9 +832,9 @@ func TestParseAttributesNLRI(t *testing.T) {
 			args:                 strings.Fields("next-hop 10.0.0.1 origin egp local-preference 200 med 100 as-path [ 1 2 ] community [2914:666] large-community [65000:1:2] nlri 1.0.0.0/24"),
 			wantPrefixes:         1,
 			wantNextHop:          "10.0.0.1",
-			wantOrigin:           ptr(uint8(1)), // EGP
-			wantLP:               ptr(uint32(200)),
-			wantMED:              ptr(uint32(100)),
+			wantOrigin:           new(uint8(1)), // EGP
+			wantLP:               new(uint32(200)),
+			wantMED:              new(uint32(100)),
 			wantASPath:           []uint32{1, 2},
 			wantCommunities:      1,
 			wantLargeCommunities: 1,
@@ -1081,11 +1081,6 @@ func TestParseUpdateCommand(t *testing.T) {
 			}
 		})
 	}
-}
-
-// ptr returns a pointer to the value. Helper for test cases.
-func ptr[T any](v T) *T {
-	return &v
 }
 
 // TestParseExtendedCommunity tests extended community parsing per RFC 4360/5575.

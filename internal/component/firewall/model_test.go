@@ -8,11 +8,6 @@ import (
 
 func repeatByte(b byte, n int) string { return strings.Repeat(string(b), n) }
 
-// ptrUint32 returns a pointer to the given uint32 -- used for Log fields
-// where nil means "not set" and a non-nil value (including 0) is the
-// operator's explicit choice.
-func ptrUint32(v uint32) *uint32 { return &v }
-
 // Phase 1: Enums and base types.
 
 func TestTableFamily(t *testing.T) {
@@ -206,7 +201,7 @@ func TestActionTypes(t *testing.T) {
 		{"SetDSCP", SetDSCP{Value: 46}},
 		{"SetTCPMSS", SetTCPMSS{Size: 1400}},
 		{"Counter", Counter{Name: "my-counter"}},
-		{"Log", Log{Prefix: "INPUT-DROP: ", Level: ptrUint32(4)}},
+		{"Log", Log{Prefix: "INPUT-DROP: ", Level: new(uint32(4))}},
 		{"Limit", Limit{Rate: 10, Unit: "second", Burst: 5, Dimension: RateDimensionPackets}},
 	}
 	if len(actions) != 19 {
