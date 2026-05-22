@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-IMAGE="${ZE_CLEAN_VERIFY_IMAGE:-golang:1.25}"
+IMAGE="${ZE_CLEAN_VERIFY_IMAGE:-golang:1.26}"
 PLATFORM="${ZE_CLEAN_VERIFY_PLATFORM:-linux/amd64}"
 
 require_cmd() {

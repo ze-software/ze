@@ -1,0 +1,14 @@
+services:
+  ze:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ["/etc/ze/ze.conf"]
+    ports:
+      - "179:179"
+      - "1790:1790"
+      - "8080:8080"
+    volumes:
+      - ./ze-data:/etc/ze
+      - ./myconfig.conf:/etc/ze/ze.conf
+    restart: unless-stopped

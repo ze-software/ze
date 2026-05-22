@@ -1,4 +1,5 @@
 .PHONY: all build ze chaos test analyse clean fmt vet tidy generate help
+.PHONY: ze-docker
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test
 .PHONY: ze-test ze-verify ze-verify-changed ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp
@@ -13,10 +14,10 @@ export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
 export CGO_ENABLED := 0
 
 # Go compiler: override with GO=tinygo for smaller binaries
-# TinyGo finds go via PATH, so we prepend Go 1.25 when GO=tinygo
+# TinyGo finds go via PATH, so we prepend Go 1.26 when GO=tinygo
 GO ?= go
 ifeq ($(GO),tinygo)
-export PATH := /opt/homebrew/opt/go@1.25/bin:$(PATH)
+export PATH := /opt/homebrew/opt/go@1.26/bin:$(PATH)
 endif
 
 # Build tags: optional compile-time features (e.g. ZE_TAGS=maprib)
@@ -36,7 +37,7 @@ ZE_LDFLAGS := -X main.version=$(ZE_VERSION) -X main.buildDate=$(ZE_BUILD_DATE)
 GO_TEST_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); p=$$(( n - 3 )); [ $$p -lt 1 ] && p=1; echo $$p)
 GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test
 ZE_EXABGP_TIMEOUT ?= 180
-ZE_LINUX_GO_IMAGE ?= golang:1.25.9-alpine
+ZE_LINUX_GO_IMAGE ?= golang:1.26-alpine
 ZE_LINUX_TEST_PACKAGES ?= ./internal/plugins/traffic/vpp
 
 # Packages
@@ -103,6 +104,22 @@ bin/ze-analyse: $(shell find cmd/ze-analyse -name '*.go' 2>/dev/null)
 	@echo "Building ze-analyse..."
 	@mkdir -p bin
 	$(GO) build -o bin/ze-analyse ./cmd/ze-analyse
+
+# ─── Docker ────────────────────────────────────────────────────────────────
+
+ZE_DOCKER_IMAGE ?= ze
+ZE_DOCKER_TAG ?= $(ZE_VERSION)
+
+ze-docker:
+	@command -v docker >/dev/null || { echo "error: docker not found"; exit 1; }
+	docker build \
+		-f docker/Dockerfile \
+		--build-arg ZE_VERSION=$(ZE_VERSION) \
+		--build-arg ZE_BUILD_DATE=$(ZE_BUILD_DATE) \
+		$(if $(ZE_TAGS),--build-arg ZE_TAGS=$(ZE_TAGS)) \
+		-t $(ZE_DOCKER_IMAGE):$(ZE_DOCKER_TAG) \
+		-t $(ZE_DOCKER_IMAGE):latest \
+		.
 
 # ─── Lint and specialised test targets ──────────────────────────────────────
 
@@ -369,6 +386,9 @@ help-test:
 
 help-deploy:
 	@echo "Ze Deployment Targets"
+	@echo ""
+	@echo "  Docker:"
+	@echo "    ze-docker                Build Docker image (ZE_DOCKER_IMAGE=ze ZE_DOCKER_TAG=...)"
 	@echo ""
 	@echo "  Gokrazy VM appliance (see docs/guide/appliance.md):"
 	@echo "    ze-gokrazy-deps              One-time: download gokrazy system packages"

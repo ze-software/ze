@@ -1,6 +1,6 @@
 module gokrazy/build/codeberg.org/thomas-mangin/ze
 
-go 1.25.9
+go 1.26
 
 require codeberg.org/thomas-mangin/ze v0.0.0
 

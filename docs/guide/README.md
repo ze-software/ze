@@ -17,6 +17,7 @@
 | Automate ze from scripts or tools | [REST and gRPC API](api.md) |
 | Migrate from ExaBGP | [ExaBGP Migration](exabgp-migration.md) |
 | Run Ze in production | [Operations](operations.md) |
+| Run Ze in Docker | [Docker](docker.md) |
 | Build a VM appliance for an N100 PC | [VM Appliance](appliance.md) |
 | Debug a peer that won't come up | [Operations](operations.md#troubleshooting) |
 
@@ -54,6 +55,7 @@
 |-------|-------------|
 | [Operations](operations.md) | SSH setup, signals, health checks, systemd, troubleshooting |
 | [REST and gRPC API](api.md) | Programmatic API: OpenAPI, Swagger UI, SSE streaming, config sessions, TLS, per-user auth |
+| [Docker](docker.md) | Container image for evaluation, labs, and lightweight deployments |
 | [VM Appliance](appliance.md) | Bootable x86_64 image for N100 PCs using gokrazy |
 | [MCP Remote Access](mcp/remote-access.md) | SSH tunnels and WireGuard for remote MCP access |
 | [Logging](logging.md) | Log levels, backends, per-subsystem tuning, runtime changes |

@@ -5,7 +5,7 @@ when:
 
 steps:
   verify:
-    image: golang:1.25
+    image: golang:1.26
     commands:
       - apt-get update
       - apt-get install -y --no-install-recommends build-essential curl git iproute2 iptables nftables python3 python3-venv util-linux

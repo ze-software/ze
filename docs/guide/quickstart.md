@@ -10,7 +10,7 @@ cd ze
 make build    # produces bin/ze, bin/ze-test, bin/ze-chaos
 ```
 
-Requires **Go 1.25+**.
+Requires **Go 1.26+**.
 
 ## Initialize
 

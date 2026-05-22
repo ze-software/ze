@@ -7,4 +7,6 @@ rfc/
 etc/
 .claude/
 gokrazy/
+ai/
+test/
 *.md
