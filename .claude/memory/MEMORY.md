@@ -13,12 +13,9 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - [project_gokrazy_appliance.md](project_gokrazy_appliance.md) - Ze targets gokrazy appliance (no systemd); must own full process lifecycle for VPP
 - [project_stress_injector.md](project_stress_injector.md) - Stress UPDATE stream generated in-memory in Go inside `ze-test peer --mode inject`, streamed directly; no file, no bngblaster
 
-
 ## User Profile
 
 - [user_trust_and_delegation.md](user_trust_and_delegation.md) - User trusts Claude with hard, long work and delegates the difficult parts. Honor that trust with thoroughness.
-- [feedback_autonomous_work.md](feedback_autonomous_work.md) - Work autonomously, do not ask questions or wait for confirmation
-- [feedback_parallel_sessions_no_stash.md](feedback_parallel_sessions_no_stash.md) - Multiple Claude sessions run in parallel; never use git stash (corrupts other sessions' work)
 
 ## Reference
 
@@ -26,28 +23,23 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - [feedback_discord_voice.md](feedback_discord_voice.md) - Discord posts as Zeledon; use third person for Thomas, not "I"
 - [reference_python_uv.md](reference_python_uv.md) - Install Python deps via `uv run --with`. No scapy dep remains; stress-test uses `test/stress/bgpgen.py` (stdlib-only RFC 4271/4760 generator)
 
-## Feedback (workflow)
-
-- [feedback_no_taskoutput_polling.md](feedback_no_taskoutput_polling.md) - Never stack TaskOutput polls on long bg jobs; check verify-lock queue first, read log file directly
-- [feedback_workflow_cycle.md](feedback_workflow_cycle.md) - Standard cycle: /ze-implement -> work -> /ze-review -> fix -> /ze-commit -> repeat
-- [feedback_verify_specs_against_code.md](feedback_verify_specs_against_code.md) - Never trust spec "What Remains"; grep code before reporting progress
-- [feedback_no_cross_boundary_pointers.md](feedback_no_cross_boundary_pointers.md) - Event/IPC payloads MUST be self-contained value types; no pointers into another plugin or component's memory, even via shared core
-
 ## Feedback (testing)
 
 - [feedback_sleep_hides_races.md](feedback_sleep_hides_races.md) - Replacing time.Sleep with proper sync exposes real data races; treat as bug-finding technique
 - [feedback_periodic_test_sweep.md](feedback_periodic_test_sweep.md) - Untested code falls into 3 predictable categories: pure functions with only integration coverage, platform code assumed untestable, missing test infra support
 
-## User Preferences (cross-project, not in repo)
+## Moved to ai/rules/ or .claude/rules/
 
-- [feedback_no_em_dashes.md](feedback_no_em_dashes.md) - Never use em dashes in English text (AI writing tell)
-- [feedback_memory_is_in_repo.md](feedback_memory_is_in_repo.md) - ~/.claude/projects/.../memory/ is the repo's .claude/memory/. Always commit memory changes.
-- [feedback_never_strip_context_param.md](feedback_never_strip_context_param.md) - "Clean unused context" = remove dead `import "context"` only, never strip `ctx context.Context` parameters
-- [feedback_read_before_overwrite.md](feedback_read_before_overwrite.md) - Never modify files not under git control without explicit authorization
-
-## Moved to .claude/rules/ (2026-04-05)
-
-The following memories were folded into project rules and deleted from memory:
+- feedback_autonomous_work -> enforced by hook block-premature-stop.sh
+- feedback_memory_is_in_repo -> derivable from project structure
+- feedback_no_em_dashes -> ~/.claude/CLAUDE.md global rule
+- feedback_no_taskoutput_polling -> ai/rules/git-safety.md (verify section)
+- feedback_parallel_sessions_no_stash -> CLAUDE.md + ai/rules/git-safety.md
+- feedback_read_before_overwrite -> ai/rules/never-destroy-work.md
+- feedback_workflow_cycle -> /ze-implement and /ze-review skill definitions
+- feedback_never_strip_context_param -> ai/rules/go-standards.md (Context)
+- feedback_no_cross_boundary_pointers -> ai/rules/plugin-design.md (Cross-Boundary Value Types)
+- feedback_verify_specs_against_code -> ai/rules/planning.md (Verify Specs Against Code)
 - feedback_aliased_imports -> rules/go-standards.md (Aliased Imports)
 - feedback_python_not_shell -> rules/go-standards.md (Scripts: Python Only)
 - feedback_rebase_not_merge -> rules/git-safety.md (Branch Integration)
@@ -57,12 +49,10 @@ The following memories were folded into project rules and deleted from memory:
 - feedback_no_edit_without_approval -> rules/planning.md (design discussion wait)
 - feedback_trust_learned_summaries -> rules/quality.md (Learned Summary Verification)
 - feedback_confirm_before_switching -> rules/session-start.md (Session Focus)
-- feedback_no_deferral -> ~/.claude/commands/implement.md (core rule + design-doc "Deferred" carve-out nuance)
-
-Deleted as duplicates of existing rules:
-- feedback_no_git_add (rules/git-safety.md)
-- feedback_no_git_reset (rules/git-safety.md)
-- feedback_multiple_commits (rules/git-safety.md)
-- feedback_test_failures_always_report (rules/anti-rationalization.md)
-- feedback_never_disable_gpg (CLAUDE.md)
-- feedback_consistency_predictability (implicit in all BLOCKING rules)
+- feedback_no_deferral -> /ze-implement skill (core rule + design-doc "Deferred" carve-out)
+- feedback_no_git_add -> rules/git-safety.md
+- feedback_no_git_reset -> rules/git-safety.md
+- feedback_multiple_commits -> rules/git-safety.md
+- feedback_test_failures_always_report -> rules/anti-rationalization.md
+- feedback_never_disable_gpg -> CLAUDE.md
+- feedback_consistency_predictability -> implicit in all BLOCKING rules
