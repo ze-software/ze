@@ -14,7 +14,6 @@ package lg
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -529,13 +528,13 @@ func transformRoutes(ze map[string]any, peerName string) map[string]any {
 			"primary":       getBool(route, "best"),
 			"bgp": map[string]any{
 				"origin":            getStr(route, "origin"),
-				"as_path":           route["as-path"],
+				"as_path":           getVal(route, "as-path"),
 				"next_hop":          getStr(route, "next-hop"),
 				"local_pref":        getNum(route, "local-preference"),
 				"med":               getNum(route, "med"),
-				"communities":       transformCommunities(route["community"]),
-				"large_communities": transformLargeCommunities(route["large-community"]),
-				"ext_communities":   route["extended-community"],
+				"communities":       transformCommunities(getVal(route, "community")),
+				"large_communities": transformLargeCommunities(getVal(route, "large-community")),
+				"ext_communities":   getVal(route, "extended-community"),
 			},
 		}
 
@@ -658,12 +657,24 @@ func getStr(m map[string]any, key string) string {
 		return ""
 	}
 
-	s, ok := v.(string)
-	if ok {
-		return s
+	if wrapped, ok := v.(map[string]any); ok {
+		if val, ok := wrapped["value"]; ok {
+			v = val
+		}
 	}
 
-	return fmt.Sprintf("%v", v)
+	switch t := v.(type) {
+	case string:
+		return t
+	case bool:
+		return strconv.FormatBool(t)
+	case float64:
+		return strconv.FormatFloat(t, 'f', -1, 64)
+	case int:
+		return strconv.Itoa(t)
+	default:
+		return ""
+	}
 }
 
 // getNum extracts a numeric value from a map, returning 0 if missing.
@@ -673,12 +684,20 @@ func getNum(m map[string]any, key string) float64 {
 		return 0
 	}
 
+	if wrapped, ok := v.(map[string]any); ok {
+		if val, ok := wrapped["value"]; ok {
+			v = val
+		}
+	}
+
 	switch n := v.(type) {
 	case float64:
 		return n
 	case int:
 		return float64(n)
 	case int64:
+		return float64(n)
+	case uint32:
 		return float64(n)
 	}
 
@@ -692,10 +711,44 @@ func getBool(m map[string]any, key string) bool {
 		return false
 	}
 
+	if wrapped, ok := v.(map[string]any); ok {
+		if val, ok := wrapped["value"]; ok {
+			v = val
+		}
+	}
+
 	b, ok := v.(bool)
 	if ok {
 		return b
 	}
 
 	return false
+}
+
+// unwrapRouteAttrs replaces flag-annotated attribute values in a route map
+// with their inner "value", so consumers see plain types.
+func unwrapRouteAttrs(rm map[string]any) {
+	for k, v := range rm {
+		if m, ok := v.(map[string]any); ok {
+			if val, ok := m["value"]; ok {
+				rm[k] = val
+			}
+		}
+	}
+}
+
+// getVal extracts a raw value from a map, unwrapping flag-annotated attributes.
+func getVal(m map[string]any, key string) any {
+	v, ok := m[key]
+	if !ok {
+		return nil
+	}
+
+	if wrapped, ok := v.(map[string]any); ok {
+		if val, ok := wrapped["value"]; ok {
+			return val
+		}
+	}
+
+	return v
 }

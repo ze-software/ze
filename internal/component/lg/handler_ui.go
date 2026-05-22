@@ -649,6 +649,7 @@ func extractRoutes(ze map[string]any) []any {
 				if _, has := rm["peer-address"]; !has {
 					rm["peer-address"] = peer
 				}
+				unwrapRouteAttrs(rm)
 				result = append(result, rm)
 			}
 		}

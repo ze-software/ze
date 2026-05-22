@@ -11,15 +11,12 @@ import (
 
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 )
-
-func originPtr(o attribute.Origin) *attribute.Origin { return &o }
 
 // newTestRIBManager creates a RIBManager with closed SDK connections for unit testing.
 // The SDK plugin is initialized but connections are closed, so RPC calls (updateRoute)

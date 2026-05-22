@@ -54,8 +54,19 @@ def main() -> None:
     # Check for expected content in ze-bgp JSON
     update_data = update.get('update', {})
     attr = update_data.get('attr', {})
-    if attr.get('origin') != 'igp':
-        print(f'ERROR: expected origin igp, got {attr.get("origin")}', file=sys.stderr)
+
+    # Ze native JSON wraps each attribute with RFC 4271 flag booleans.
+    origin_attr = attr.get('origin', {})
+    if not isinstance(origin_attr, dict) or origin_attr.get('value') != 'igp':
+        print(f'ERROR: expected origin value igp, got {origin_attr}', file=sys.stderr)
+        sys.exit(1)
+
+    if origin_attr.get('transitive') is not True:
+        print(f'ERROR: origin must be transitive, got {origin_attr}', file=sys.stderr)
+        sys.exit(1)
+
+    if origin_attr.get('optional') is not False:
+        print(f'ERROR: origin must not be optional, got {origin_attr}', file=sys.stderr)
         sys.exit(1)
 
     if '10.0.0.0/24' not in json_str:

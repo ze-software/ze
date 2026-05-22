@@ -20,7 +20,7 @@ func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string 
 	// Attributes
 	if len(result.Attributes) > 0 {
 		buf = append(buf, `"attr":{`...)
-		buf = appendAttributesJSON(buf, result)
+		buf = appendAttributesJSON(buf, result, true)
 		buf = append(buf, `},`...)
 	}
 

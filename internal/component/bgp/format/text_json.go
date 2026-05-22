@@ -75,7 +75,7 @@ func appendFilterResultJSON(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 	// Attributes inside update
 	if len(result.Attributes) > 0 {
 		buf = append(buf, `"attr":{`...)
-		buf = appendAttributesJSON(buf, result)
+		buf = appendAttributesJSON(buf, result, false)
 		buf = append(buf, `},`...)
 	}
 
@@ -289,7 +289,8 @@ func appendNLRIJSON(buf []byte, n nlri.NLRI) []byte {
 }
 
 // appendAttributesJSON appends attributes from FilterResult for JSON.
-func appendAttributesJSON(buf []byte, result bgpfilter.FilterResult) []byte {
+// When includeFlags is true, each attribute is wrapped with RFC 4271 flag booleans.
+func appendAttributesJSON(buf []byte, result bgpfilter.FilterResult, includeFlags bool) []byte {
 	if len(result.Attributes) == 0 {
 		return buf
 	}
@@ -300,7 +301,7 @@ func appendAttributesJSON(buf []byte, result bgpfilter.FilterResult) []byte {
 			buf = append(buf, ',')
 		}
 		first = false
-		buf = appendAttributeJSON(buf, code, attr)
+		buf = appendAttributeJSON(buf, code, attr, includeFlags)
 	}
 	return buf
 }
@@ -351,23 +352,30 @@ func appendFamilyOpsJSON(buf []byte, familyOps map[string][]familyOperation) []b
 
 // appendAttributeJSON appends a single attribute for JSON.
 // Known attribute types are formatted with named keys; unknown types use "attr-N" with hex value.
-func appendAttributeJSON(buf []byte, code attribute.AttributeCode, attr attribute.Attribute) []byte {
+// When includeFlags is true, each attribute value is wrapped with RFC 4271 flag booleans:
+// "name":{"value":<v>,"optional":bool,"transitive":bool,"partial":bool}.
+func appendAttributeJSON(buf []byte, code attribute.AttributeCode, attr attribute.Attribute, includeFlags bool) []byte {
 	switch code { //nolint:exhaustive // common attributes; unknown handled after switch
 	case attribute.AttrOrigin:
 		switch o := attr.(type) {
 		case *attribute.Origin:
-			buf = append(buf, `"origin":"`...)
+			buf = attrKeyOpen(buf, "origin", includeFlags)
+			buf = append(buf, '"')
 			buf = appendLower(buf, o.String())
 			buf = append(buf, '"')
+			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
 		case attribute.Origin:
-			buf = append(buf, `"origin":"`...)
+			buf = attrKeyOpen(buf, "origin", includeFlags)
+			buf = append(buf, '"')
 			buf = appendLower(buf, o.String())
 			buf = append(buf, '"')
+			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
 		}
 		return buf
 	case attribute.AttrASPath:
 		if ap, ok := attr.(*attribute.ASPath); ok {
-			buf = append(buf, `"as-path":[`...)
+			buf = attrKeyOpen(buf, "as-path", includeFlags)
+			buf = append(buf, '[')
 			first := true
 			for _, seg := range ap.Segments {
 				for _, asn := range seg.ASNs {
@@ -379,31 +387,37 @@ func appendAttributeJSON(buf []byte, code attribute.AttributeCode, attr attribut
 				}
 			}
 			buf = append(buf, ']')
+			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
 		}
 		return buf
 	case attribute.AttrMED:
 		switch m := attr.(type) {
 		case *attribute.MED:
-			buf = append(buf, `"med":`...)
+			buf = attrKeyOpen(buf, "med", includeFlags)
 			buf = strconv.AppendUint(buf, uint64(uint32(*m)), 10)
+			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
 		case attribute.MED:
-			buf = append(buf, `"med":`...)
+			buf = attrKeyOpen(buf, "med", includeFlags)
 			buf = strconv.AppendUint(buf, uint64(uint32(m)), 10)
+			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
 		}
 		return buf
 	case attribute.AttrLocalPref:
 		switch lp := attr.(type) {
 		case *attribute.LocalPref:
-			buf = append(buf, `"local-preference":`...)
+			buf = attrKeyOpen(buf, "local-preference", includeFlags)
 			buf = strconv.AppendUint(buf, uint64(uint32(*lp)), 10)
+			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
 		case attribute.LocalPref:
-			buf = append(buf, `"local-preference":`...)
+			buf = attrKeyOpen(buf, "local-preference", includeFlags)
 			buf = strconv.AppendUint(buf, uint64(uint32(lp)), 10)
+			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
 		}
 		return buf
 	case attribute.AttrCommunity:
 		if c, ok := attr.(*attribute.Communities); ok {
-			buf = append(buf, `"communities":[`...)
+			buf = attrKeyOpen(buf, "communities", includeFlags)
+			buf = append(buf, '[')
 			for i, comm := range *c {
 				if i > 0 {
 					buf = append(buf, ',')
@@ -413,11 +427,13 @@ func appendAttributeJSON(buf []byte, code attribute.AttributeCode, attr attribut
 				buf = append(buf, '"')
 			}
 			buf = append(buf, ']')
+			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
 		}
 		return buf
 	case attribute.AttrLargeCommunity:
 		if lc, ok := attr.(*attribute.LargeCommunities); ok {
-			buf = append(buf, `"large-communities":[`...)
+			buf = attrKeyOpen(buf, "large-communities", includeFlags)
+			buf = append(buf, '[')
 			for i, comm := range *lc {
 				if i > 0 {
 					buf = append(buf, ',')
@@ -427,11 +443,13 @@ func appendAttributeJSON(buf []byte, code attribute.AttributeCode, attr attribut
 				buf = append(buf, '"')
 			}
 			buf = append(buf, ']')
+			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
 		}
 		return buf
 	case attribute.AttrExtCommunity:
 		if ec, ok := attr.(*attribute.ExtendedCommunities); ok {
-			buf = append(buf, `"extended-communities":[`...)
+			buf = attrKeyOpen(buf, "extended-communities", includeFlags)
+			buf = append(buf, '[')
 			for i, comm := range *ec {
 				if i > 0 {
 					buf = append(buf, ',')
@@ -441,13 +459,15 @@ func appendAttributeJSON(buf []byte, code attribute.AttributeCode, attr attribut
 				buf = append(buf, '"')
 			}
 			buf = append(buf, ']')
+			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
 		}
 		return buf
 	case attribute.AttrAIGP:
 		if a, ok := attr.(*attribute.AIGP); ok {
 			if metric, found := a.Metric(); found {
-				buf = append(buf, `"aigp":`...)
+				buf = attrKeyOpen(buf, "aigp", includeFlags)
 				buf = strconv.AppendUint(buf, metric, 10)
+				buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
 				return buf
 			}
 		}
@@ -465,9 +485,40 @@ func appendAttributeJSON(buf []byte, code attribute.AttributeCode, attr attribut
 	attr.WriteTo(raw, 0)
 	buf = append(buf, `"attr-`...)
 	buf = strconv.AppendUint(buf, uint64(code), 10)
-	buf = append(buf, `":"`...)
+	if includeFlags {
+		buf = append(buf, `":{"value":"`...)
+	} else {
+		buf = append(buf, `":"`...)
+	}
 	buf = hex.AppendEncode(buf, raw)
 	buf = append(buf, '"')
+	buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
+	return buf
+}
+
+// attrKeyOpen writes `"name":` or `"name":{"value":` depending on includeFlags.
+func attrKeyOpen(buf []byte, name string, includeFlags bool) []byte {
+	buf = append(buf, '"')
+	buf = append(buf, name...)
+	buf = append(buf, `":`...)
+	if includeFlags {
+		buf = append(buf, `{"value":`...)
+	}
+	return buf
+}
+
+// attrFlagsClose appends RFC 4271 attribute flag booleans and closes the wrapper object.
+func attrFlagsClose(buf []byte, flags attribute.AttributeFlags, includeFlags bool) []byte {
+	if !includeFlags {
+		return buf
+	}
+	buf = append(buf, `,"optional":`...)
+	buf = strconv.AppendBool(buf, flags.IsOptional())
+	buf = append(buf, `,"transitive":`...)
+	buf = strconv.AppendBool(buf, flags.IsTransitive())
+	buf = append(buf, `,"partial":`...)
+	buf = strconv.AppendBool(buf, flags.IsPartial())
+	buf = append(buf, '}')
 	return buf
 }
 

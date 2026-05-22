@@ -15,6 +15,7 @@ import (
 
 // enrichRouteMapFromEntry adds path attributes from a pool-based RouteEntry to a route map.
 // Only adds attributes that are present (valid handle) — missing attributes are omitted.
+// Each attribute value is wrapped with RFC 4271 flag booleans.
 func enrichRouteMapFromEntry(routeMap map[string]any, entry storage.RouteEntry) {
 	if entry.StaleLevel > storage.StaleLevelFresh {
 		routeMap["stale"] = true
@@ -29,77 +30,87 @@ func enrichRouteMapFromEntry(routeMap map[string]any, entry storage.RouteEntry) 
 	if b.HasOrigin() {
 		if data, err := pool.Origin.Get(b.Origin); err == nil {
 			if origin := formatOrigin(data); origin != "" {
-				routeMap["origin"] = origin
+				routeMap["origin"] = attrWithFlags(origin, attribute.FlagTransitive)
 			}
 		}
 	}
 	if entry.HasASPath() {
 		if data, err := pool.ASPath.Get(entry.ASPath); err == nil {
 			if asPath := formatASPath(data); asPath != nil {
-				routeMap["as-path"] = asPath
+				routeMap["as-path"] = attrWithFlags(asPath, attribute.FlagTransitive)
 			}
 		}
 	}
 	if b.HasMED() {
 		if data, err := pool.MED.Get(b.MED); err == nil {
 			if v, ok := formatUint32Attr(data); ok {
-				routeMap["med"] = v
+				routeMap["med"] = attrWithFlags(v, attribute.FlagOptional)
 			}
 		}
 	}
 	if b.HasLocalPref() {
 		if data, err := pool.LocalPref.Get(b.LocalPref); err == nil {
 			if v, ok := formatUint32Attr(data); ok {
-				routeMap["local-preference"] = v
+				routeMap["local-preference"] = attrWithFlags(v, attribute.FlagTransitive)
 			}
 		}
 	}
 	if b.HasCommunities() {
 		if data, err := pool.Communities.Get(b.Communities); err == nil {
 			if communities := formatCommunities(data); communities != nil {
-				routeMap["community"] = communities
+				routeMap["community"] = attrWithFlags(communities, attribute.FlagOptional|attribute.FlagTransitive)
 			}
 		}
 	}
 }
 
 // enrichRouteMapFromRoute adds path attributes from a Route (Adj-RIB-Out) to a route map.
-// Only non-empty/non-nil attributes are added.
+// Only non-empty/non-nil attributes are added. Each value is wrapped with RFC 4271 flags.
 func enrichRouteMapFromRoute(routeMap map[string]any, rt *Route) {
 	if rt.Origin != nil {
 		if s := rt.Origin.LowerString(); s != "" {
-			routeMap["origin"] = s
+			routeMap["origin"] = attrWithFlags(s, attribute.FlagTransitive)
 		}
 	}
 	if len(rt.ASPath) > 0 {
-		routeMap["as-path"] = rt.ASPath
+		routeMap["as-path"] = attrWithFlags(rt.ASPath, attribute.FlagTransitive)
 	}
 	if rt.MED != nil {
-		routeMap["med"] = *rt.MED
+		routeMap["med"] = attrWithFlags(*rt.MED, attribute.FlagOptional)
 	}
 	if rt.LocalPreference != nil {
-		routeMap["local-preference"] = *rt.LocalPreference
+		routeMap["local-preference"] = attrWithFlags(*rt.LocalPreference, attribute.FlagTransitive)
 	}
 	if len(rt.Communities) > 0 {
 		strs := make([]string, len(rt.Communities))
 		for i, c := range rt.Communities {
 			strs[i] = c.String()
 		}
-		routeMap["community"] = strs
+		routeMap["community"] = attrWithFlags(strs, attribute.FlagOptional|attribute.FlagTransitive)
 	}
 	if len(rt.LargeCommunities) > 0 {
 		strs := make([]string, len(rt.LargeCommunities))
 		for i, lc := range rt.LargeCommunities {
 			strs[i] = lc.String()
 		}
-		routeMap["large-community"] = strs
+		routeMap["large-community"] = attrWithFlags(strs, attribute.FlagOptional|attribute.FlagTransitive)
 	}
 	if len(rt.ExtendedCommunities) > 0 {
 		strs := make([]string, len(rt.ExtendedCommunities))
 		for i, ec := range rt.ExtendedCommunities {
 			strs[i] = textbuf.Hex(ec[:])
 		}
-		routeMap["extended-community"] = strs
+		routeMap["extended-community"] = attrWithFlags(strs, attribute.FlagOptional|attribute.FlagTransitive)
+	}
+}
+
+// attrWithFlags wraps an attribute value with RFC 4271 flag booleans.
+func attrWithFlags(value any, flags attribute.AttributeFlags) map[string]any {
+	return map[string]any{
+		"value":      value,
+		"optional":   flags.IsOptional(),
+		"transitive": flags.IsTransitive(),
+		"partial":    flags.IsPartial(),
 	}
 }
 

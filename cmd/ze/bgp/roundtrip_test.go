@@ -54,6 +54,19 @@ func getAttributes(update map[string]any) (map[string]any, bool) {
 	return attrs, ok
 }
 
+func attrValue(attrs map[string]any, key string) any {
+	v, ok := attrs[key]
+	if !ok {
+		return nil
+	}
+	if m, ok := v.(map[string]any); ok {
+		if val, ok := m["value"]; ok {
+			return val
+		}
+	}
+	return v
+}
+
 // TestRoundTrip_BasicUnicast verifies encode → decode round-trip for basic unicast.
 //
 // VALIDATES: Encoded UPDATE can be decoded back with correct prefix and next-hop.
@@ -215,13 +228,13 @@ func TestRoundTrip_WithCommunity(t *testing.T) {
 		t.Fatalf("missing attribute section")
 	}
 
-	// Deep verification: Check exact values
-	if origin, ok := attrs["origin"].(string); !ok || origin != "igp" {
-		t.Errorf("expected origin=igp, got: %v", attrs["origin"])
+	// Deep verification: Check exact values (unwrap flag-annotated attributes).
+	if origin, ok := attrValue(attrs, "origin").(string); !ok || origin != "igp" {
+		t.Errorf("expected origin=igp, got: %v", attrValue(attrs, "origin"))
 	}
 
-	if lp, ok := attrs["local-preference"].(float64); !ok || lp != 200 {
-		t.Errorf("expected local-preference=200, got: %v", attrs["local-preference"])
+	if lp, ok := attrValue(attrs, "local-preference").(float64); !ok || lp != 200 {
+		t.Errorf("expected local-preference=200, got: %v", attrValue(attrs, "local-preference"))
 	}
 }
 
@@ -262,15 +275,15 @@ func TestRoundTrip_ASPath(t *testing.T) {
 		t.Fatalf("missing attribute section")
 	}
 
-	// Check as-path exists (format may be array or map depending on decoder)
-	if _, ok := attrs["as-path"]; !ok {
+	// Check as-path exists (unwrap flag-annotated attribute).
+	asPathRaw := attrValue(attrs, "as-path")
+	if asPathRaw == nil {
 		t.Fatalf("expected as-path in attributes, got: %v", attrs)
 	}
 
-	// Verify specific ASNs in the as-path attribute (not raw JSON string search).
-	asPath, ok := attrs["as-path"].([]any)
+	asPath, ok := asPathRaw.([]any)
 	if !ok {
-		t.Fatalf("expected as-path to be an array, got %T: %v", attrs["as-path"], attrs["as-path"])
+		t.Fatalf("expected as-path to be an array, got %T: %v", asPathRaw, asPathRaw)
 	}
 	wantASNs := []float64{65001, 65002, 65003}
 	if len(asPath) != len(wantASNs) {
@@ -321,9 +334,9 @@ func TestRoundTrip_MED(t *testing.T) {
 		t.Fatalf("missing attribute section")
 	}
 
-	// Deep verification: Check exact MED value
-	if med, ok := attrs["med"].(float64); !ok || med != 500 {
-		t.Errorf("expected med=500, got: %v", attrs["med"])
+	// Deep verification: Check exact MED value (unwrap flag-annotated attribute).
+	if med, ok := attrValue(attrs, "med").(float64); !ok || med != 500 {
+		t.Errorf("expected med=500, got: %v", attrValue(attrs, "med"))
 	}
 }
 

@@ -51,6 +51,27 @@ func requirePeerRoutes(t *testing.T, jsonStr, topKey, peerAddr string) []any {
 }
 
 // requireFirstRoute unmarshals JSON and extracts the first route for a peer.
+func attrVal(route map[string]any, key string) any {
+	v, ok := route[key]
+	if !ok {
+		return nil
+	}
+	if m, ok := v.(map[string]any); ok {
+		if val, ok := m["value"]; ok {
+			return val
+		}
+	}
+	return v
+}
+
+func attrSlice(t *testing.T, route map[string]any, key string) []any {
+	t.Helper()
+	v := attrVal(route, key)
+	arr, ok := v.([]any)
+	require.True(t, ok, "expected %s array", key)
+	return arr
+}
+
 func requireFirstRoute(t *testing.T, jsonStr, topKey, peerAddr string) map[string]any {
 	t.Helper()
 	var result map[string]any
@@ -97,19 +118,17 @@ func TestInboundShowWithAttributes(t *testing.T) {
 	assert.Equal(t, family.IPv4Unicast.String(), route["family"])
 	assert.Equal(t, "10.0.0.0/24", route["prefix"])
 	assert.Equal(t, "10.0.0.1", route["next-hop"])
-	assert.Equal(t, "igp", route["origin"])
-	assert.Equal(t, float64(100), route["med"])
-	assert.Equal(t, float64(100), route["local-preference"])
+	assert.Equal(t, "igp", attrVal(route, "origin"))
+	assert.Equal(t, float64(100), attrVal(route, "med"))
+	assert.Equal(t, float64(100), attrVal(route, "local-preference"))
 
 	// AS path comes as []any with float64 values in JSON
-	asPath, ok := route["as-path"].([]any)
-	require.True(t, ok, "expected as-path array")
+	asPath := attrSlice(t, route, "as-path")
 	require.Len(t, asPath, 1)
 	assert.Equal(t, float64(65001), asPath[0])
 
 	// Communities
-	communities, ok := route["community"].([]any)
-	require.True(t, ok, "expected community array")
+	communities := attrSlice(t, route, "community")
 	require.Len(t, communities, 1)
 	assert.Equal(t, "65000:100", communities[0])
 }
@@ -131,7 +150,7 @@ func TestInboundShowMinimalAttributes(t *testing.T) {
 
 	route := requireFirstRoute(t, r.showPipeline("192.0.2.1", []string{"received"}), "adj-rib-in", "192.0.2.1")
 
-	assert.Equal(t, "igp", route["origin"])
+	assert.Equal(t, "igp", attrVal(route, "origin"))
 	assert.Equal(t, "10.0.0.1", route["next-hop"])
 
 	// Optional attributes should be absent
@@ -158,7 +177,7 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 				Family:           family.IPv4Unicast,
 				Prefix:           "10.0.0.0/24",
 				NextHop:          "10.0.0.1",
-				Origin:           originPtr(OriginIGP),
+				Origin:           new(OriginIGP),
 				ASPath:           []uint32{65001, 65002},
 				MED:              &med,
 				LocalPreference:  &localPref,
@@ -173,23 +192,20 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 	assert.Equal(t, family.IPv4Unicast.String(), route["family"])
 	assert.Equal(t, "10.0.0.0/24", route["prefix"])
 	assert.Equal(t, "10.0.0.1", route["next-hop"])
-	assert.Equal(t, "igp", route["origin"])
-	assert.Equal(t, float64(100), route["med"])
-	assert.Equal(t, float64(200), route["local-preference"])
+	assert.Equal(t, "igp", attrVal(route, "origin"))
+	assert.Equal(t, float64(100), attrVal(route, "med"))
+	assert.Equal(t, float64(200), attrVal(route, "local-preference"))
 
-	asPath, ok := route["as-path"].([]any)
-	require.True(t, ok, "expected as-path array")
+	asPath := attrSlice(t, route, "as-path")
 	require.Len(t, asPath, 2)
 	assert.Equal(t, float64(65001), asPath[0])
 	assert.Equal(t, float64(65002), asPath[1])
 
-	communities, ok := route["community"].([]any)
-	require.True(t, ok, "expected community array")
+	communities := attrSlice(t, route, "community")
 	require.Len(t, communities, 1)
 	assert.Equal(t, "65000:100", communities[0])
 
-	largeCommunities, ok := route["large-community"].([]any)
-	require.True(t, ok, "expected large-community array")
+	largeCommunities := attrSlice(t, route, "large-community")
 	require.Len(t, largeCommunities, 1)
 	assert.Equal(t, "65000:1:2", largeCommunities[0])
 }

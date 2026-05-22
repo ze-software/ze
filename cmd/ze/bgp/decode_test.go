@@ -521,11 +521,13 @@ func TestFlowSpecWithExtendedCommunity(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON")
 
-	// Ze format: navigate through bgp.update.attr
-	bgp, _ := result["bgp"].(map[string]any)          //nolint:forcetypeassert // test
-	update, _ := bgp["update"].(map[string]any)       //nolint:forcetypeassert // test
-	attrs, _ := update["attr"].(map[string]any)       //nolint:forcetypeassert // test
-	extComm, _ := attrs["extended-community"].([]any) //nolint:forcetypeassert // test
+	// Ze format: navigate through bgp.update.attr (unwrap flag-annotated attributes).
+	bgp, _ := result["bgp"].(map[string]any)    //nolint:forcetypeassert // test
+	update, _ := bgp["update"].(map[string]any) //nolint:forcetypeassert // test
+	attrs, _ := update["attr"].(map[string]any) //nolint:forcetypeassert // test
+
+	ecWrapped, _ := attrs["extended-community"].(map[string]any) //nolint:forcetypeassert // test
+	extComm, _ := ecWrapped["value"].([]any)                     //nolint:forcetypeassert // test
 
 	require.Len(t, extComm, 1, "extended-community count")
 
@@ -621,9 +623,11 @@ func TestBGPLSAttribute(t *testing.T) {
 	update, _ := bgp["update"].(map[string]any) //nolint:forcetypeassert // test
 	attrs, _ := update["attr"].(map[string]any) //nolint:forcetypeassert // test
 
-	// Check for bgp-ls attribute
-	bgplsAttr, ok := attrs["bgp-ls"].(map[string]any)
+	// Check for bgp-ls attribute (unwrap flag-annotated attribute).
+	bgplsWrapped, ok := attrs["bgp-ls"].(map[string]any)
 	require.True(t, ok, "missing bgp-ls attribute")
+	bgplsAttr, ok := bgplsWrapped["value"].(map[string]any)
+	require.True(t, ok, "bgp-ls value missing")
 
 	// Check igp-metric
 	assert.NotNil(t, bgplsAttr["igp-metric"], "missing igp-metric in bgp-ls attribute")

@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // =============================================================================
@@ -153,44 +155,59 @@ func formatUpdateHuman(result map[string]any) string {
 
 // formatAttributesHuman formats path attributes for human output.
 func formatAttributesHuman(sb *strings.Builder, attrs map[string]any) {
-	// Origin
-	if origin, ok := attrs["origin"].(string); ok {
-		fmt.Fprintf(sb, "    %-20s %s\n", "origin", origin)
+	if origin, ok := unwrapAttr(attrs["origin"]).(string); ok {
+		writeAttrLine(sb, "origin", origin)
 	}
 
-	// AS-Path
-	if asPath, ok := attrs["as-path"].(map[string]any); ok {
-		fmt.Fprintf(sb, "    %-20s ", "as-path")
-		formatASPathHuman(sb, asPath)
-		sb.WriteString("\n")
+	switch asPath := unwrapAttr(attrs["as-path"]).(type) {
+	case []uint32:
+		writeAttrLabel(sb, "as-path")
+		for i, asn := range asPath {
+			if i > 0 {
+				sb.WriteByte(' ')
+			}
+			sb.WriteString(textbuf.Uint32(asn))
+		}
+		sb.WriteByte('\n')
+	case []any:
+		writeAttrLabel(sb, "as-path")
+		for i, v := range asPath {
+			if i > 0 {
+				sb.WriteByte(' ')
+			}
+			sb.WriteString(formatNumber(v))
+		}
+		sb.WriteByte('\n')
 	}
 
-	// Next-Hop (if present as attribute)
-	if nh, ok := attrs["next-hop"].(string); ok {
-		fmt.Fprintf(sb, "    %-20s %s\n", "next-hop", nh)
+	if nh, ok := unwrapAttr(attrs["next-hop"]).(string); ok {
+		writeAttrLine(sb, "next-hop", nh)
 	}
 
-	// Local Preference
-	if lp, ok := attrs["local-preference"]; ok {
-		fmt.Fprintf(sb, "    %-20s %v\n", "local-preference", formatNumber(lp))
+	if lp := unwrapAttr(attrs["local-preference"]); lp != nil {
+		writeAttrLine(sb, "local-preference", formatNumber(lp))
 	}
 
-	// MED
-	if med, ok := attrs["med"]; ok {
-		fmt.Fprintf(sb, "    %-20s %v\n", "med", formatNumber(med))
+	if med := unwrapAttr(attrs["med"]); med != nil {
+		writeAttrLine(sb, "med", formatNumber(med))
 	}
 
-	// Communities
-	if comms, ok := attrs["community"].([]any); ok {
-		fmt.Fprintf(sb, "    %-20s %v\n", "community", comms)
+	if comms, ok := unwrapAttr(attrs["community"]).([]any); ok {
+		writeAttrLabel(sb, "community")
+		for i, c := range comms {
+			if i > 0 {
+				sb.WriteByte(' ')
+			}
+			sb.WriteString(formatNumber(c))
+		}
+		sb.WriteByte('\n')
 	}
 
-	// Extended Communities
-	if extComms, ok := attrs["extended-community"].([]any); ok {
-		fmt.Fprintf(sb, "    %-20s ", "extended-community")
+	if extComms, ok := unwrapAttr(attrs["extended-community"]).([]any); ok {
+		writeAttrLabel(sb, "extended-community")
 		for i, ec := range extComms {
 			if i > 0 {
-				sb.WriteString(" ")
+				sb.WriteByte(' ')
 			}
 			if ecMap, ok := ec.(map[string]any); ok {
 				if s, ok := ecMap["string"].(string); ok {
@@ -198,26 +215,37 @@ func formatAttributesHuman(sb *strings.Builder, attrs map[string]any) {
 				}
 			}
 		}
-		sb.WriteString("\n")
+		sb.WriteByte('\n')
 	}
 }
 
-// formatASPathHuman formats AS_PATH for human output.
-func formatASPathHuman(sb *strings.Builder, asPath map[string]any) {
-	// AS_PATH is keyed by segment index ("0", "1", etc.)
-	var asns []string
-	for i := 0; ; i++ {
-		seg, ok := asPath[strconv.Itoa(i)].(map[string]any)
-		if !ok {
-			break
-		}
-		if values, ok := seg["value"].([]any); ok {
-			for _, v := range values {
-				asns = append(asns, formatNumber(v))
-			}
+// unwrapAttr extracts the value from a flag-annotated attribute map.
+func unwrapAttr(v any) any {
+	if m, ok := v.(map[string]any); ok {
+		if val, ok := m["value"]; ok {
+			return val
 		}
 	}
-	sb.WriteString(strings.Join(asns, " "))
+	return v
+}
+
+const attrLabelWidth = 20
+
+// writeAttrLine writes a padded "    name                 value\n" line.
+func writeAttrLine(sb *strings.Builder, name, value string) {
+	writeAttrLabel(sb, name)
+	sb.WriteString(value)
+	sb.WriteByte('\n')
+}
+
+// writeAttrLabel writes "    name" left-padded to attrLabelWidth, followed by a space.
+func writeAttrLabel(sb *strings.Builder, name string) {
+	sb.WriteString("    ")
+	sb.WriteString(name)
+	for i := len(name); i < attrLabelWidth; i++ {
+		sb.WriteByte(' ')
+	}
+	sb.WriteByte(' ')
 }
 
 // formatNLRIListHuman formats NLRI list for human output (announced routes).
