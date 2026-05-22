@@ -251,6 +251,12 @@ type Peer struct {
 	// forward pool keys). Computed once at peer creation.
 	addrString string
 
+	// dynImportFilters/dynExportFilters store the original unresolved filter
+	// chains for dynamic peers. Captured on first Established transition so
+	// reconnections re-resolve from the template, not from stale resolved values.
+	dynImportFilters []string
+	dynExportFilters []string
+
 	// Collision detection (RFC 4271 §6.8):
 	// When an incoming connection arrives while we're in OpenConfirm,
 	// we queue it here and wait for its OPEN to resolve the collision.

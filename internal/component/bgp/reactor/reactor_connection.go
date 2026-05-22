@@ -42,8 +42,15 @@ func (r *Reactor) handleConnection(conn net.Conn) {
 	r.mu.RUnlock()
 
 	if !exists {
-		closeConnQuietly(conn)
-		return
+		peer = r.tryCreateDynamicPeer(peerIP)
+		if peer == nil {
+			closeConnQuietly(conn)
+			return
+		}
+		// Re-read callback under lock (consistent with peer creation).
+		r.mu.RLock()
+		cb = r.connCallback
+		r.mu.RUnlock()
 	}
 
 	r.acceptOrReject(conn, peer, cb)
@@ -67,8 +74,14 @@ func (r *Reactor) handleConnectionWithContext(conn net.Conn, listenerAddr netip.
 	r.mu.RUnlock()
 
 	if !exists {
-		closeConnQuietly(conn)
-		return
+		peer = r.tryCreateDynamicPeer(peerIP)
+		if peer == nil {
+			closeConnQuietly(conn)
+			return
+		}
+		r.mu.RLock()
+		cb = r.connCallback
+		r.mu.RUnlock()
 	}
 
 	settings := peer.Settings()

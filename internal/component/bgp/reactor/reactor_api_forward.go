@@ -394,30 +394,54 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	// Hoisted outside the loop — loop-invariant.
 	srcAddr := update.SourcePeerIP
 
+	// RFC 7947: Parse community-based forwarding policy for RS-client peers.
+	var communityPolicy *wireu.CommunityPolicy
+	var communityStripBytes []byte
+	var communityParsed bool
+	var rsLocalAS uint32
+	a.r.mu.RLock()
+	if srcPeer, ok := a.r.findPeerByAddr(update.SourcePeerIP); ok {
+		rsLocalAS = srcPeer.Settings().GlobalLocalAS
+	}
+	a.r.mu.RUnlock()
+
 	for _, peer := range matchingPeers {
 		if peer.State() != PeerStateEstablished {
 			continue // Skip non-established peers
 		}
 
+		// RFC 7947: Community-based selective forwarding for RS-client peers.
+		// Skip when rsLocalAS is 0 (source peer disconnected; stale cache replay).
+		if rsLocalAS != 0 && peer.Settings().RSClient && peer.Settings().PeerAS != 0 {
+			if !communityParsed {
+				communityParsed = true
+				cp := wireu.ParseCommunityPolicy(update.WireUpdate.Payload(), rsLocalAS)
+				communityPolicy = &cp
+				communityStripBytes = wireu.StripControlCommunities(update.WireUpdate.Payload(), rsLocalAS)
+			}
+			if !communityPolicy.ShouldForwardTo(peer.Settings().PeerAS) {
+				continue
+			}
+		}
+
 		// RFC 4456: Route reflection forwarding rules.
-		// When source is iBGP, apply RR forwarding constraints:
-		//   - From client: forward to all clients + all non-clients (reflected)
-		//   - From non-client: forward to clients only (not to other non-clients)
-		// eBGP sources are forwarded to all peers (existing behavior, no RR filter).
 		if srcIsIBGP && !peer.Settings().IsEBGP() {
 			dstIsClient := peer.Settings().RouteReflectorClient
 			if srcIsRRClient {
 				// Client -> client and client -> non-client: always forward.
 			} else if !dstIsClient {
-				// Non-client -> non-client: suppress (standard iBGP split-horizon).
-				continue
+				continue // Non-client -> non-client: suppress.
 			}
-			// Non-client -> client: forward (this is the reflection).
 		}
 
 		// Egress peer filter chain: check if route should be sent to this peer.
 		// mods accumulates per-peer modifications; fresh for each peer.
 		var mods registry.ModAccumulator
+
+		// RFC 7947: Strip RS control communities (0:X, RS:X) before forwarding.
+		if peer.Settings().RSClient && len(communityStripBytes) > 0 {
+			mods.Op(8, registry.AttrModRemove, communityStripBytes)
+		}
 		if len(a.r.egressFilters) > 0 {
 			destFilter := registry.PeerFilterInfo{
 				Address:   peer.Settings().Address,
@@ -516,8 +540,9 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		// Select wire version for this peer.
 		// RFC 4271 §9.1.2: EBGP peers get AS-PATH-prepended wire.
 		// IBGP peers get original wire unchanged.
+		// RFC 7947 Section 2.2.2: RS MUST NOT modify AS_PATH for RS-client peers.
 		peerWire := peerBaseWire
-		if peer.Settings().IsEBGP() {
+		if peer.Settings().IsEBGP() && !peer.Settings().RSClient {
 			// Local-AS dual-AS mode: when the peer has a local-as override
 			// (LocalAS != GlobalLocalAS) and neither no-prepend nor replace-as
 			// is set, outbound AS_PATH dual-prepends both the override (closest

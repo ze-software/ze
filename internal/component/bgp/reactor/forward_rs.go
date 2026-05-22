@@ -249,7 +249,30 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 
 	var parseCache fwdParseCache
 
+	// RFC 7947: Parse community-based forwarding policy for RS-client peers.
+	// Parsed once before the peer loop; zero-cost when no RS-client peers exist.
+	var communityPolicy *wireu.CommunityPolicy
+	var communityStripBytes []byte
+	var communityParsed bool
+	var rsLocalAS uint32
+	if sourcePeer != nil {
+		rsLocalAS = sourcePeer.Settings().GlobalLocalAS
+	}
+
 	for _, peer := range matchingPeers {
+		// RFC 7947: Community-based selective forwarding for RS-client peers.
+		if peer.Settings().RSClient && peer.Settings().PeerAS != 0 {
+			if !communityParsed {
+				communityParsed = true
+				cp := wireu.ParseCommunityPolicy(update.WireUpdate.Payload(), rsLocalAS)
+				communityPolicy = &cp
+				communityStripBytes = wireu.StripControlCommunities(update.WireUpdate.Payload(), rsLocalAS)
+			}
+			if !communityPolicy.ShouldForwardTo(peer.Settings().PeerAS) {
+				continue
+			}
+		}
+
 		// RFC 4456: Route reflection forwarding rules.
 		if srcIsIBGP && !peer.Settings().IsEBGP() {
 			dstIsClient := peer.Settings().RouteReflectorClient
@@ -262,6 +285,11 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 
 		// Egress filter chain.
 		var mods registry.ModAccumulator
+
+		// RFC 7947: Strip RS control communities (0:X, RS:X) before forwarding.
+		if peer.Settings().RSClient && len(communityStripBytes) > 0 {
+			mods.Op(8, registry.AttrModRemove, communityStripBytes)
+		}
 		if len(r.egressFilters) > 0 {
 			destFilter := registry.PeerFilterInfo{
 				Address:   peer.Settings().Address,
@@ -312,8 +340,9 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		}
 
 		// Select wire version.
+		// RFC 7947 Section 2.2.2: RS MUST NOT modify AS_PATH for RS-client peers.
 		peerWire := update.WireUpdate
-		if peer.Settings().IsEBGP() {
+		if peer.Settings().IsEBGP() && !peer.Settings().RSClient {
 			var secondaryAS uint32
 			if peer.Settings().GlobalLocalAS != 0 &&
 				peer.Settings().GlobalLocalAS != peer.Settings().LocalAS &&

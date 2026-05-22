@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 
@@ -236,6 +237,158 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 	}
 
 	return peers, nil
+}
+
+// DynamicGroupsFromTree extracts dynamic group configs from the resolved BGP tree.
+// Returns nil if no dynamic groups are configured. The returned configs are ready
+// to be passed to Reactor.SetDynamicGroups.
+func DynamicGroupsFromTree(bgpTree map[string]any) []*reactor.DynamicGroupConfig {
+	raw, ok := bgpTree["dynamic-groups"]
+	if !ok {
+		return nil
+	}
+	templates, ok := raw.([]DynamicGroupTemplate)
+	if !ok {
+		return nil
+	}
+
+	var localAS uint32
+	if sessionMap, ok := bgpTree["session"].(map[string]any); ok {
+		if asnMap, ok := sessionMap["asn"].(map[string]any); ok {
+			if tv, ok := asnMap["local"].(string); ok {
+				if n, err := strconv.ParseUint(tv, 10, 32); err == nil {
+					localAS = uint32(n)
+				}
+			}
+		}
+	}
+
+	var routerID uint32
+	if v, ok := bgpTree["router-id"].(string); ok {
+		if addr, err := netip.ParseAddr(v); err == nil {
+			routerID = ipToUint32(addr)
+		}
+	}
+
+	groups := make([]*reactor.DynamicGroupConfig, 0, len(templates))
+	for _, tmpl := range templates {
+		ps := buildDynamicGroupSettings(tmpl, localAS, routerID)
+
+		groups = append(groups, &reactor.DynamicGroupConfig{
+			GroupName: tmpl.GroupName,
+			Ranges:    tmpl.Ranges,
+			MaxPeers:  tmpl.MaxPeers,
+			LocalAS:   localAS,
+			RouterID:  routerID,
+			RSClient:  tmpl.RSClient,
+			Settings:  ps,
+		})
+	}
+	return groups
+}
+
+// buildDynamicGroupSettings creates a PeerSettings template from a dynamic group's
+// resolved config tree. Unlike parsePeerFromTree, this accepts PeerAS=0 and no remote IP.
+func buildDynamicGroupSettings(tmpl DynamicGroupTemplate, globalLocalAS, globalRouterID uint32) *reactor.PeerSettings {
+	tree := tmpl.Template
+
+	sessionMap, _ := tree["session"].(map[string]any)
+	connMap, _ := tree["connection"].(map[string]any)
+
+	peerLocalAS := globalLocalAS
+	if sessionMap != nil {
+		if asnMap, ok := sessionMap["asn"].(map[string]any); ok {
+			if tv, ok := asnMap["local"].(string); ok {
+				if n, err := strconv.ParseUint(tv, 10, 32); err == nil {
+					peerLocalAS = uint32(n)
+				}
+			}
+		}
+	}
+
+	routerID := globalRouterID
+	if sessionMap != nil {
+		if v, ok := sessionMap["router-id"].(string); ok {
+			if addr, err := netip.ParseAddr(v); err == nil {
+				routerID = ipToUint32(addr)
+			}
+		}
+	}
+
+	ps := reactor.NewPeerSettings(netip.Addr{}, peerLocalAS, 0, routerID)
+	ps.GlobalLocalAS = globalLocalAS
+	ps.Connection = reactor.ConnectionPassive
+	ps.RSClient = tmpl.RSClient
+	ps.IsDynamic = true
+
+	// Parse local address from connection > local > ip.
+	if connMap != nil {
+		if localMap, ok := connMap["local"].(map[string]any); ok {
+			if ipStr, ok := localMap["ip"].(string); ok && ipStr != "auto" {
+				if addr, err := netip.ParseAddr(ipStr); err == nil {
+					ps.LocalAddress = addr
+				}
+			}
+		}
+	}
+
+	// Parse timers from timer container.
+	if timerMap, ok := tree["timer"].(map[string]any); ok {
+		if v, ok := parseUintFromMap(timerMap, "receive-hold-time"); ok {
+			ps.ReceiveHoldTime = time.Duration(v) * time.Second
+		}
+		if v, ok := parseUintFromMap(timerMap, "send-hold-time"); ok {
+			ps.SendHoldTime = time.Duration(v) * time.Second
+		}
+		if v, ok := parseUintFromMap(timerMap, "keepalive"); ok {
+			ps.KeepaliveTime = time.Duration(v) * time.Second
+		}
+		if v, ok := parseUintFromMap(timerMap, "connect-retry"); ok {
+			ps.ConnectRetry = time.Duration(v) * time.Second
+		}
+	}
+
+	// Parse next-hop mode from session > next-hop.
+	if sessionMap != nil {
+		if nhStr, ok := sessionMap["next-hop"].(string); ok {
+			switch nhStr {
+			case "self":
+				ps.NextHopMode = reactor.NextHopSelf
+			case "unchanged":
+				ps.NextHopMode = reactor.NextHopUnchanged
+			default:
+				if addr, err := netip.ParseAddr(nhStr); err == nil {
+					ps.NextHopMode = reactor.NextHopExplicit
+					ps.NextHopAddress = addr
+				}
+			}
+		}
+	}
+
+	// Parse behavior flags.
+	if behaviorMap, ok := tree["behavior"].(map[string]any); ok {
+		if v, ok := behaviorMap["group-updates"].(string); ok && v == configFalse {
+			ps.GroupUpdates = false
+		}
+		if v, ok := behaviorMap["rs-fast-path"].(string); ok && v == configTrue {
+			ps.RSFastPath = true
+		}
+	}
+
+	return ps
+}
+
+// parseUintFromMap extracts a uint32 from a map value that may be a string.
+func parseUintFromMap(m map[string]any, key string) (uint32, bool) {
+	v, ok := m[key].(string)
+	if !ok {
+		return 0, false
+	}
+	n, err := strconv.ParseUint(v, 10, 32)
+	if err != nil {
+		return 0, false
+	}
+	return uint32(n), true
 }
 
 // applyPeerSchemaDefaults applies YANG defaults to each peer entry in the resolved BGP tree.

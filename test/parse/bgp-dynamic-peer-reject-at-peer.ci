@@ -1,0 +1,33 @@
+# Test: ip dynamic rejected at peer level
+# Validates: AC-15 — ip dynamic at peer level skips the peer with a warning
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 1.1.1.1
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer bad-peer {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+				range 10.0.0.0/24
+			}
+			local {
+				ip 10.0.0.1
+			}
+		}
+		session {
+			asn {
+				remote 64512
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stderr:contains=ip dynamic is only valid at group level

@@ -75,6 +75,9 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 	if remoteIPStr == "" {
 		return nil, fmt.Errorf("peer %s: missing required connection > remote > ip: %w", name, ErrIncompleteConfig)
 	}
+	if remoteIPStr == "dynamic" {
+		return nil, fmt.Errorf("peer %s: ip dynamic is only valid at group level, not on individual peers: %w", name, ErrIncompleteConfig)
+	}
 	ip, err := netip.ParseAddr(remoteIPStr)
 	if err != nil {
 		return nil, fmt.Errorf("peer %s: invalid remote ip %q: %w", name, remoteIPStr, err)
@@ -257,6 +260,10 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 				return nil, fmt.Errorf("peer %s: invalid cluster-id: %w", name, err)
 			}
 			ps.ClusterID = ipToUint32(cid)
+		}
+		// RFC 7947: RS-client transparent AS-path forwarding.
+		if v, ok := mapBool(sessionMap, "rs-client"); ok {
+			ps.RSClient = v
 		}
 	}
 

@@ -297,8 +297,16 @@ module ze-bgp-conf {
             container remote {
                 description "Remote connection settings";
                 leaf ip {
-                    type zt:ip-address;
-                    description "Peer IP address";
+                    type union {
+                        type zt:ip-address;
+                        type enumeration {
+                            enum dynamic {
+                                description "Accept BGP sessions from any IP in the group's range.
+                                             Valid at group level only; rejected at peer level.";
+                            }
+                        }
+                    }
+                    description "Peer IP address or 'dynamic' for dynamic peer groups";
                 }
                 leaf port {
                     type zt:port;
@@ -308,6 +316,19 @@ module ze-bgp-conf {
                     type boolean;
                     default true;
                     description "Initiate outbound TCP connections to this remote endpoint (RFC 4271 Section 8.1.1)";
+                }
+                leaf-list range {
+                    type zt:ip-prefix;
+                    description "IP prefix ranges for dynamic peer groups.
+                                 Only meaningful when ip is 'dynamic'.
+                                 Connections from IPs within these ranges create dynamic peers.";
+                }
+                leaf max-peers {
+                    type uint32 {
+                        range "1..100000";
+                    }
+                    default 1000;
+                    description "Maximum number of dynamic peers for this group";
                 }
             }
 
@@ -480,6 +501,15 @@ module ze-bgp-conf {
             leaf router-id {
                 type zt:ipv4-address;
                 description "Override router ID for this peer";
+            }
+
+            leaf rs-client {
+                type boolean;
+                default false;
+                description "Mark this peer as an RS-client for transparent AS-path forwarding.
+                             RFC 7947 Section 2.2.2: the route server MUST NOT modify AS_PATH
+                             or any other transitive attribute. When true, the reactor skips
+                             AS-path prepending for this peer on the forwarding path.";
             }
 
             leaf route-reflector-client {

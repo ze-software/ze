@@ -129,6 +129,14 @@ module ze-types {
         description "Traffic rate string (for example 10mbit, 100kbit, 1gbps)";
     }
 
+    typedef ip-prefix {
+        type union {
+            type prefix-ipv4;
+            type prefix-ipv6;
+        }
+        description "IPv4 or IPv6 prefix in CIDR notation";
+    }
+
     typedef prefix-ipv4 {
         type string {
             pattern '(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}'

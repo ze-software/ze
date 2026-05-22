@@ -332,6 +332,14 @@ type PeerSettings struct {
 	// Default: true (reduces UPDATE count from O(routes) to O(routes/capacity)).
 	GroupUpdates bool
 
+	// IsDynamic marks this peer as created from a dynamic group template.
+	// Dynamic peers are created at connection time, not config time.
+	IsDynamic bool
+
+	// RSClient marks this peer as an RS-client for transparent AS-path forwarding.
+	// RFC 7947 Section 2.2.2: the RS MUST NOT modify AS_PATH for RS-client peers.
+	RSClient bool
+
 	// RSFastPath enables reactor-native RS forwarding for this peer's group.
 	// When true, received UPDATEs are forwarded directly from notifyMessageReceiver
 	// via reactorForwardRS, bypassing the plugin dispatch -> bgp-rs -> ForwardCached

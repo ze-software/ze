@@ -257,6 +257,10 @@ type Reactor struct {
 	// Keyed by attribute type code (uint8). Collected from registry at startup.
 	attrModHandlers map[uint8]registry.AttrModHandler
 
+	// dynamicGroups holds group configs with `ip dynamic` + `range`.
+	// Checked by findDynamicGroup when findPeerByAddr returns false.
+	dynamicGroups []*DynamicGroupConfig
+
 	// Peer lifecycle observers (called on state transitions)
 	peerObservers []PeerLifecycleObserver
 	observersMu   sync.RWMutex

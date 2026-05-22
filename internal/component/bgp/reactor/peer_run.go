@@ -324,6 +324,13 @@ func (p *Peer) runOnce() error {
 			p.setEncodingContexts(neg)
 			p.setState(PeerStateEstablished)
 			p.SetEstablishedNow()
+
+			// Dynamic peers: set PeerAS from OPEN and resolve config variables.
+			// Re-resolve on every establishment (ASN may change on reconnection).
+			if p.settings.IsDynamic {
+				p.resolveDynamicPeerSettings(session)
+			}
+
 			peerLogger().Info("session established", "peer", addr, "localAS", p.settings.LocalAS, "peerAS", p.settings.PeerAS)
 
 			// Reset per-session API sync: count plugins with SendUpdate permission.

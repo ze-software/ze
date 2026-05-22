@@ -276,6 +276,14 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		}
 	}
 
+	// Configure dynamic peer groups (ip dynamic + range).
+	// Re-resolve the BGP tree to extract dynamic group templates.
+	if bgpTree, resolveErr := ResolveBGPTree(tree); resolveErr != nil {
+		configLogger().Warn("dynamic group resolution failed", "error", resolveErr)
+	} else if dynGroups := DynamicGroupsFromTree(bgpTree); len(dynGroups) > 0 {
+		r.SetDynamicGroups(dynGroups)
+	}
+
 	return r, nil
 }
 
@@ -303,7 +311,9 @@ func chaosRateFromEnv() float64 {
 // fall back to a direct filesystem read. Without this, SIGHUP-driven reloads
 // fail with "read file/active/...: file does not exist" whenever the daemon
 // was started with a filesystem path that is not a blob key.
-func createReloadFunc(store storage.Storage) reactor.ReloadFunc {
+//
+// The reactor parameter is used to update dynamic groups on reload.
+func createReloadFunc(store storage.Storage, r *reactor.Reactor) reactor.ReloadFunc {
 	return func(configPath string) ([]*reactor.PeerSettings, error) {
 		data, err := store.ReadFile(configPath)
 		if err != nil && storage.IsBlobStorage(store) {
@@ -327,6 +337,17 @@ func createReloadFunc(store storage.Storage) reactor.ReloadFunc {
 		// Update redistribute rules on reload.
 		initRedistribute(tree)
 
-		return PeersFromConfigTree(tree)
+		// PeersFromConfigTree prunes inactive nodes and resolves the tree.
+		peers, err := PeersFromConfigTree(tree)
+		if err != nil {
+			return nil, err
+		}
+
+		// Update dynamic peer groups on reload (after pruning).
+		if bgpTree, resolveErr := ResolveBGPTree(tree); resolveErr == nil {
+			r.SetDynamicGroups(DynamicGroupsFromTree(bgpTree))
+		}
+
+		return peers, nil
 	}
 }

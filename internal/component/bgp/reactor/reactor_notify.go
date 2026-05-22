@@ -128,6 +128,11 @@ func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
 		r.updateGroups.Remove(peer)
 	}
 
+	// Schedule cleanup for dynamic peers after idle timeout.
+	if peer.Settings().IsDynamic {
+		r.scheduleDynamicPeerCleanup(peer)
+	}
+
 	r.observersMu.RLock()
 	observers := r.peerObservers
 	r.observersMu.RUnlock()

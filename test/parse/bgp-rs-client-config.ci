@@ -1,0 +1,39 @@
+# Test: BGP rs-client config option parsing
+# Validates: session { rs-client true; } accepted on a peer
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 1.1.1.1
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer ix-client {
+		connection {
+			remote {
+				ip 10.0.0.1
+			}
+			local {
+				ip 10.0.0.100
+			}
+		}
+		session {
+			asn {
+				remote 64512
+			}
+			rs-client true
+			next-hop unchanged
+			family ipv4/unicast {
+				mode enable
+				prefix {
+					maximum 100000
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

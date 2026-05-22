@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/syntax.md — BGP peer-group resolution and inheritance
+// Related: variables.go — config variable substitution for dynamic peers
 
 package bgpconfig
 
@@ -7,6 +8,7 @@ import (
 	"fmt"
 	"net/netip"
 	"sort"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -59,6 +61,8 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 	peerMap := make(map[string]any)
 	peerNames := make(map[string]string) // name -> addr (for uniqueness check)
 
+	var dynamicGroups []DynamicGroupTemplate
+
 	// Resolve grouped peers: bgp { group <name> { peer <name> { } } }
 	for _, groupEntry := range bgp.GetListOrdered("group") {
 		groupName := groupEntry.Key
@@ -72,6 +76,15 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 		// Extract group-level fields (everything except the nested peer list).
 		groupFields := groupTree.ToMap()
 		delete(groupFields, "peer") // Peer list is not a group-level field.
+
+		// Detect dynamic group: connection > remote > ip == "dynamic".
+		if isDynamicGroup(groupFields) {
+			tmpl, err := resolveDynamicGroup(groupName, groupFields, bgpDefaults)
+			if err != nil {
+				return nil, err
+			}
+			dynamicGroups = append(dynamicGroups, tmpl)
+		}
 
 		// Resolve each peer in this group.
 		for _, peerEntry := range groupTree.GetListOrdered("peer") {
@@ -145,7 +158,128 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 		result["peer"] = peerMap
 	}
 
+	if len(dynamicGroups) > 0 {
+		result["dynamic-groups"] = dynamicGroups
+	}
+
 	return result, nil
+}
+
+// DynamicGroupTemplate holds the resolved config for a dynamic peer group.
+// Exported by ResolveBGPTree for the reactor to build PeerSettings at connection time.
+type DynamicGroupTemplate struct {
+	GroupName string
+	Ranges    []netip.Prefix
+	MaxPeers  uint32
+	RSClient  bool
+	Template  map[string]any
+}
+
+// isDynamicGroup returns true when the group's connection > remote > ip is "dynamic".
+func isDynamicGroup(groupFields map[string]any) bool {
+	connMap, ok := groupFields["connection"].(map[string]any)
+	if !ok {
+		return false
+	}
+	remoteMap, ok := connMap["remote"].(map[string]any)
+	if !ok {
+		return false
+	}
+	ip, ok := remoteMap["ip"].(string)
+	return ok && ip == "dynamic"
+}
+
+// resolveDynamicGroup validates and resolves a dynamic group into a template.
+func resolveDynamicGroup(groupName string, groupFields, bgpDefaults map[string]any) (DynamicGroupTemplate, error) {
+	connMap, ok := groupFields["connection"].(map[string]any)
+	if !ok {
+		return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: missing connection block", groupName)
+	}
+	remoteMap, ok := connMap["remote"].(map[string]any)
+	if !ok {
+		return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: missing connection/remote block", groupName)
+	}
+
+	// Validate: range is required when ip is dynamic.
+	rangeVal, hasRange := remoteMap["range"]
+	if !hasRange {
+		return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: ip dynamic requires at least one range", groupName)
+	}
+
+	// Validate: connect false is required for dynamic groups.
+	// YANG default for connect is true, so absent means true.
+	connectVal, hasConnect := remoteMap["connect"]
+	if !hasConnect {
+		return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: dynamic group requires explicit connect false", groupName)
+	}
+	if s, ok := connectVal.(string); ok && s != "false" {
+		return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: dynamic group requires connect false", groupName)
+	}
+
+	// Parse ranges.
+	var ranges []netip.Prefix
+	switch v := rangeVal.(type) {
+	case string:
+		p, err := netip.ParsePrefix(v)
+		if err != nil {
+			return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: invalid range %q: %w", groupName, v, err)
+		}
+		ranges = append(ranges, p)
+	case []string:
+		for _, s := range v {
+			p, err := netip.ParsePrefix(s)
+			if err != nil {
+				return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: invalid range %q: %w", groupName, s, err)
+			}
+			ranges = append(ranges, p)
+		}
+	case []any:
+		for _, item := range v {
+			s, ok := item.(string)
+			if !ok {
+				continue
+			}
+			p, err := netip.ParsePrefix(s)
+			if err != nil {
+				return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: invalid range %q: %w", groupName, s, err)
+			}
+			ranges = append(ranges, p)
+		}
+	}
+
+	if len(ranges) == 0 {
+		return DynamicGroupTemplate{}, fmt.Errorf("bgp/group %s: ip dynamic requires at least one valid range", groupName)
+	}
+
+	// Parse max-peers (default 1000 from YANG).
+	var maxPeers uint32 = 1000
+	if mp, ok := remoteMap["max-peers"].(string); ok {
+		if n, err := strconv.ParseUint(mp, 10, 32); err == nil {
+			maxPeers = uint32(n)
+		}
+	}
+
+	// Check rs-client on the session block.
+	var rsClient bool
+	if sessionMap, ok := groupFields["session"].(map[string]any); ok {
+		if v, ok := sessionMap["rs-client"].(string); ok && v == "true" {
+			rsClient = true
+		}
+	}
+
+	// Build resolved template (merge bgp defaults + group fields).
+	resolved := make(map[string]any)
+	deepMergeMaps(resolved, deepCopyMap(bgpDefaults), cumulativePaths)
+	deepMergeMaps(resolved, groupFields, cumulativePaths)
+	resolved["group-name"] = groupName
+
+	return DynamicGroupTemplate{
+		GroupName: groupName,
+		Ranges:    ranges,
+		MaxPeers:  maxPeers,
+		RSClient:  rsClient,
+		Template:  resolved,
+	}, nil
 }
 
 // CheckRequiredFields validates that all ze:required fields on the peer list schema
@@ -281,6 +415,9 @@ func validatePeerName(name string) error {
 	}
 	if _, err := netip.ParseAddr(name); err == nil {
 		return fmt.Errorf("invalid peer name %q: must not be a valid IP address", name)
+	}
+	if strings.HasPrefix(name, "dyn-") {
+		return fmt.Errorf("invalid peer name %q: dyn- prefix is reserved for dynamic peers", name)
 	}
 	return nil
 }

@@ -103,7 +103,7 @@ func CreateReactor(cfg *config.LoadConfigResult, configPath string, store storag
 
 	if configPath != "" && configPath != "-" {
 		r.SetConfigPath(configPath)
-		r.SetReloadFunc(createReloadFunc(store))
+		r.SetReloadFunc(createReloadFunc(store, r))
 	}
 
 	return r, nil

@@ -1,0 +1,35 @@
+# Test: ip dynamic without range rejected
+# Validates: AC-14 — ip dynamic without range produces config error
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 1.1.1.1
+	session {
+		asn {
+			local 65000
+		}
+	}
+	group bad-group {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+			}
+			local {
+				ip 10.0.0.1
+			}
+		}
+		session {
+			family ipv4/unicast {
+				mode enable
+				prefix {
+					maximum 10000
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=ip dynamic requires at least one range
