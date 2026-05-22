@@ -229,12 +229,7 @@ func (s *Sender) buildMPBatch(prefixes []netip.Prefix) []byte {
 		off += nlri.WriteNLRI(inet, nlriBytes, off, false)
 	}
 
-	mpReach := &attribute.MPReachNLRI{
-		AFI:      afi,
-		SAFI:     safi,
-		NextHops: []netip.Addr{s.cfg.NextHop},
-		NLRI:     nlriBytes[:off],
-	}
+	mpReach := attribute.NewMPReachNLRI(afi, safi, []netip.Addr{s.cfg.NextHop}, nlriBytes[:off])
 	attrs = append(attrs, mpReach)
 
 	sort.Slice(attrs, func(i, j int) bool {
@@ -294,12 +289,7 @@ func (s *Sender) buildForceMPRoute(prefix netip.Prefix) []byte {
 	nlriBytes := make([]byte, nlri.LenWithContext(inet, false))
 	nlri.WriteNLRI(inet, nlriBytes, 0, false)
 
-	mpReach := &attribute.MPReachNLRI{
-		AFI:      attribute.AFIIPv4,
-		SAFI:     attribute.SAFIUnicast,
-		NextHops: []netip.Addr{s.cfg.NextHop},
-		NLRI:     nlriBytes,
-	}
+	mpReach := attribute.NewMPReachNLRI(attribute.AFIIPv4, attribute.SAFIUnicast, []netip.Addr{s.cfg.NextHop}, nlriBytes)
 	attrs = append(attrs, mpReach)
 
 	// Sort by type code per RFC 4271 Appendix F.3.

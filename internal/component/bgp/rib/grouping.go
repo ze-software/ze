@@ -3,7 +3,6 @@
 package rib
 
 import (
-	"bytes"
 	"sort"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
@@ -102,43 +101,42 @@ func GroupByAttributes(routes []*Route) []RouteGroup {
 // buildGroupKey creates a unique key for grouping routes.
 // Key includes: Family + NextHop + sorted attributes.
 func buildGroupKey(route *Route) string {
-	var buf bytes.Buffer
+	var key []byte
+	var stack [256]byte
+	key = stack[:0]
 
 	// Family
 	fam := route.NLRI().Family()
-	buf.WriteByte(byte(fam.AFI >> 8))
-	buf.WriteByte(byte(fam.AFI))
-	buf.WriteByte(byte(fam.SAFI))
+	key = append(key, byte(fam.AFI>>8), byte(fam.AFI), byte(fam.SAFI))
 
 	// Next-hop
 	if nh := route.NextHop(); nh.IsValid() {
-		buf.Write(nh.AsSlice())
+		key = append(key, nh.AsSlice()...)
 	}
 
 	// Attributes (sorted by code for consistency)
-	// IMPORTANT: Exclude AS_PATH from key - it's handled at level 2 of grouping
+	// Exclude AS_PATH from key - it's handled at level 2 of grouping
 	attrs := route.Attributes()
 	if len(attrs) > 0 {
-		// Sort by attribute code
-		sorted := make([]attribute.Attribute, len(attrs))
+		sorted := make([]attribute.Attribute, len(attrs)) // pool-fallback: escapes via sort closure
 		copy(sorted, attrs)
 		sort.Slice(sorted, func(i, j int) bool {
 			return sorted[i].Code() < sorted[j].Code()
 		})
 
-		// Write each attribute (excluding AS_PATH)
 		for _, attr := range sorted {
 			if attr.Code() == attribute.AttrASPath {
-				continue // AS_PATH is handled at level 2
+				continue
 			}
-			buf.WriteByte(byte(attr.Code()))
-			attrBuf := make([]byte, attr.Len())
+			key = append(key, byte(attr.Code()))
+			n := attr.Len()
+			attrBuf := make([]byte, n) // pool-fallback: escapes via append into key
 			attr.WriteTo(attrBuf, 0)
-			buf.Write(attrBuf)
+			key = append(key, attrBuf[:n]...)
 		}
 	}
 
-	return buf.String()
+	return string(key)
 }
 
 // hashASPathString returns a string key for grouping routes by AS_PATH.
@@ -149,17 +147,15 @@ func hashASPathString(asPath *attribute.ASPath) string {
 		return ""
 	}
 
-	var buf bytes.Buffer
+	var stack [128]byte
+	key := stack[:0]
 	for _, seg := range asPath.Segments {
-		buf.WriteByte(byte(seg.Type))
+		key = append(key, byte(seg.Type))
 		for _, asn := range seg.ASNs {
-			buf.WriteByte(byte(asn >> 24))
-			buf.WriteByte(byte(asn >> 16))
-			buf.WriteByte(byte(asn >> 8))
-			buf.WriteByte(byte(asn))
+			key = append(key, byte(asn>>24), byte(asn>>16), byte(asn>>8), byte(asn))
 		}
 	}
-	return buf.String()
+	return string(key)
 }
 
 // GroupByAttributesTwoLevel groups routes first by attributes, then by AS_PATH.

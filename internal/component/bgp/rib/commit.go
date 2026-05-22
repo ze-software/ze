@@ -416,12 +416,7 @@ func (c *CommitService) buildMPReachNLRI(fam family.Family, nextHop netip.Addr, 
 	}
 
 	// Standard MP_REACH_NLRI
-	return &attribute.MPReachNLRI{
-		AFI:      attribute.AFI(fam.AFI),
-		SAFI:     attribute.SAFI(fam.SAFI),
-		NextHops: []netip.Addr{nextHop},
-		NLRI:     nlriBytes,
-	}
+	return attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI), []netip.Addr{nextHop}, nlriBytes)
 }
 
 // buildVPNMPReachNLRI builds MP_REACH_NLRI for VPN routes with RD in next-hop.

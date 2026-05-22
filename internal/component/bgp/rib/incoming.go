@@ -115,7 +115,7 @@ func (r *IncomingRIB) ClearAll() int {
 		count += len(peerRoutes)
 	}
 
-	r.routes = make(map[string]map[string]*Route)
+	clear(r.routes)
 
 	return count
 }

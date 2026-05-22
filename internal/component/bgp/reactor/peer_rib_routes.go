@@ -103,12 +103,7 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 		nlri.WriteNLRI(routeNLRI, attrBuf, nlriOff, addPath)
 		nlriData := attrBuf[nlriOff : nlriOff+nlriLen]
 
-		mpReach := &attribute.MPReachNLRI{
-			AFI:      attribute.AFI(fam.AFI),
-			SAFI:     attribute.SAFI(fam.SAFI),
-			NextHops: []netip.Addr{route.NextHop()},
-			NLRI:     nlriData,
-		}
+		mpReach := attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI), []netip.Addr{route.NextHop()}, nlriData)
 
 		// MED if present (before LOCAL_PREF per RFC order)
 		for _, attr := range route.Attributes() {

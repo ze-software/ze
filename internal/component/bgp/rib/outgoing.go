@@ -254,7 +254,7 @@ func (r *OutgoingRIB) FlushAllPending() []*Route {
 	}
 
 	// Clear all pending
-	r.pending = make(map[family.Family]map[string]*Route)
+	clear(r.pending)
 
 	return routes
 }
@@ -390,7 +390,7 @@ func (r *OutgoingRIB) ClearSent() int {
 	}
 
 	// Clear the sent cache
-	r.sent = make(map[family.Family]map[string]*Route)
+	clear(r.sent)
 
 	return count
 }
@@ -439,8 +439,16 @@ func (r *OutgoingRIB) BeginTransaction(label string) error {
 
 	r.inTransaction = true
 	r.transactionID = label
-	r.txPending = make(map[family.Family]map[string]*Route)
-	r.txWithdrawals = make(map[family.Family]map[string]nlri.NLRI)
+	if r.txPending != nil {
+		clear(r.txPending)
+	} else {
+		r.txPending = make(map[family.Family]map[string]*Route)
+	}
+	if r.txWithdrawals != nil {
+		clear(r.txWithdrawals)
+	} else {
+		r.txWithdrawals = make(map[family.Family]map[string]nlri.NLRI)
+	}
 
 	return nil
 }

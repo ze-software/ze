@@ -799,7 +799,7 @@ func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
 		// half of the next-hop so downstream peers on the same link can still
 		// reach us.
 		if dest.LinkLocal.IsValid() && dest.LinkLocal.Is6() {
-			nh := make([]byte, 32)
+			nh := make([]byte, 32) // pool-fallback: escapes via ModAccumulator
 			global := local.As16()
 			ll := dest.LinkLocal.As16()
 			copy(nh[:16], global[:])

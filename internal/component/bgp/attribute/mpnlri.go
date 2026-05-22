@@ -85,8 +85,36 @@ const (
 type MPReachNLRI struct {
 	AFI      AFI          // RFC 4760 Section 3: Address Family Identifier (2 octets)
 	SAFI     SAFI         // RFC 4760 Section 3: Subsequent Address Family Identifier (1 octet)
-	NextHops []netip.Addr // RFC 4760 Section 3: Network Address of Next Hop (variable)
+	NextHops NextHopAddrs // RFC 4760 Section 3: Network Address of Next Hop (max 2, inline)
 	NLRI     []byte       // RFC 4760 Section 3: Network Layer Reachability Information (variable)
+}
+
+// NextHopAddrs stores up to 2 next-hop addresses inline without slice allocation.
+// Assignable from []netip.Addr via the implicit conversion in struct literals.
+type NextHopAddrs struct {
+	addrs [2]netip.Addr
+	count uint8
+}
+
+// NewNextHopAddrs creates NextHopAddrs from a slice.
+func NewNextHopAddrs(hops []netip.Addr) NextHopAddrs {
+	var n NextHopAddrs
+	n.count = uint8(min(len(hops), 2))
+	for i := range n.count {
+		n.addrs[i] = hops[i]
+	}
+	return n
+}
+
+// Slice returns the addresses as a slice (no allocation, backed by inline array).
+func (n *NextHopAddrs) Slice() []netip.Addr { return n.addrs[:n.count] }
+
+// Len returns the number of next-hops.
+func (n *NextHopAddrs) Len() int { return int(n.count) }
+
+// NewMPReachNLRI creates an MPReachNLRI with inline next-hop storage.
+func NewMPReachNLRI(afi AFI, safi SAFI, nextHops []netip.Addr, nlri []byte) *MPReachNLRI {
+	return &MPReachNLRI{AFI: afi, SAFI: safi, NextHops: NewNextHopAddrs(nextHops), NLRI: nlri}
 }
 
 // Code returns AttrMPReachNLRI (Type Code 14).
@@ -112,7 +140,7 @@ func (m *MPReachNLRI) nextHopLen() int {
 		rdOverhead = RDSize
 	}
 	total := 0
-	for _, nh := range m.NextHops {
+	for _, nh := range m.NextHops.Slice() {
 		if nh.Is4() {
 			total += rdOverhead + 4
 		} else {
@@ -138,7 +166,7 @@ func (m *MPReachNLRI) WriteTo(buf []byte, off int) int {
 	// RFC 4760 Section 3: Network Address of Next Hop (variable)
 	// RFC 4364 Section 4.3.4: VPN next-hops are prefixed with 8-byte RD (all zeros).
 	pos := off + 4
-	for _, nh := range m.NextHops {
+	for _, nh := range m.NextHops.Slice() {
 		if m.SAFI == SAFIVPN {
 			// Write 8-byte RD = 0 before each next-hop address.
 			for i := range RDSize {
@@ -201,7 +229,7 @@ func ParseMPReachNLRI(data []byte) (*MPReachNLRI, error) {
 	if err != nil {
 		return nil, err
 	}
-	m.NextHops = nextHops
+	m.NextHops = NewNextHopAddrs(nextHops)
 
 	// RFC 4760 Section 3: Reserved (1 octet) - "SHOULD be ignored upon receipt"
 	nlriOffset := 4 + nhLen + 1

@@ -24,7 +24,6 @@ package reactor
 
 import (
 	"bytes"
-	"hash/fnv"
 	"net/netip"
 	"sync"
 	"sync/atomic"
@@ -863,11 +862,14 @@ func fwdSupersedeKey(rawBodies [][]byte) uint64 {
 	if len(rawBodies) == 0 {
 		return 0
 	}
-	h := fnv.New64a()
+	h := uint64(fnvOffset64)
 	for _, body := range rawBodies {
-		h.Write(body) //nolint:errcheck // fnv.Write never returns error
+		for _, b := range body {
+			h ^= uint64(b)
+			h *= fnvPrime64
+		}
 	}
-	return h.Sum64()
+	return h
 }
 
 // fwdBodiesEqual compares two rawBodies slices for byte-level equality.

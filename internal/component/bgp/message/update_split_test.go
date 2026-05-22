@@ -353,7 +353,7 @@ func TestSplitMPReachNLRI_SmallFits(t *testing.T) {
 	mp := &attribute.MPReachNLRI{
 		AFI:      attribute.AFI(2), // IPv6
 		SAFI:     attribute.SAFI(1),
-		NextHops: []netip.Addr{netip.MustParseAddr("2001:db8::1")},
+		NextHops: attribute.NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("2001:db8::1")}),
 		NLRI:     []byte{0x40, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, 0x00, 0x00}, // 2001:db8:1::/64 (9 bytes)
 	}
 
@@ -378,7 +378,7 @@ func TestSplitMPReachNLRI_Overflow(t *testing.T) {
 	mp := &attribute.MPReachNLRI{
 		AFI:      attribute.AFI(2),
 		SAFI:     attribute.SAFI(1),
-		NextHops: []netip.Addr{netip.MustParseAddr("2001:db8::1")},
+		NextHops: attribute.NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("2001:db8::1")}),
 		NLRI:     nlri,
 	}
 
@@ -413,7 +413,7 @@ func TestSplitMPReachNLRI_OverheadTooLarge(t *testing.T) {
 	mp := &attribute.MPReachNLRI{
 		AFI:      attribute.AFI(2),
 		SAFI:     attribute.SAFI(1),
-		NextHops: []netip.Addr{netip.MustParseAddr("2001:db8::1")},
+		NextHops: attribute.NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("2001:db8::1")}),
 		NLRI:     []byte{0x40, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01},
 	}
 
@@ -497,7 +497,7 @@ func TestSplitMPReachNLRI_VPN(t *testing.T) {
 	mp := &attribute.MPReachNLRI{
 		AFI:      attribute.AFI(1),    // IPv4
 		SAFI:     attribute.SAFI(128), // MPLS VPN
-		NextHops: []netip.Addr{netip.MustParseAddr("192.168.1.1")},
+		NextHops: attribute.NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("192.168.1.1")}),
 		NLRI:     nlri,
 	}
 
@@ -571,7 +571,7 @@ func TestSplitUpdateWithAddPath_IPv6(t *testing.T) {
 	mp := &attribute.MPReachNLRI{
 		AFI:      attribute.AFI(2),
 		SAFI:     attribute.SAFI(1),
-		NextHops: []netip.Addr{netip.MustParseAddr("2001:db8::1")},
+		NextHops: attribute.NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("2001:db8::1")}),
 		NLRI:     nlri,
 	}
 
@@ -1072,7 +1072,7 @@ func TestSplitUpdate_FlowSpec_Split(t *testing.T) {
 	mp := &attribute.MPReachNLRI{
 		AFI:      attribute.AFI(1),    // IPv4
 		SAFI:     attribute.SAFI(133), // FlowSpec
-		NextHops: []netip.Addr{netip.MustParseAddr("192.168.1.1")},
+		NextHops: attribute.NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("192.168.1.1")}),
 		NLRI:     fsNLRI,
 	}
 

@@ -382,12 +382,7 @@ func (a *reactorAPIAdapter) buildWireModeUpdate(attrBuf []byte, attrOff int, nlr
 		attrOff += attribute.WriteAttrTo(lp, attrBuf, attrOff)
 	}
 
-	mpReach := &attribute.MPReachNLRI{
-		AFI:      attribute.AFI(fam.AFI),
-		SAFI:     attribute.SAFI(fam.SAFI),
-		NextHops: []netip.Addr{nextHop},
-		NLRI:     nlriBytes,
-	}
+	mpReach := attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI), []netip.Addr{nextHop}, nlriBytes)
 	attrOff += attribute.WriteAttrTo(mpReach, attrBuf, attrOff)
 
 	return &message.Update{

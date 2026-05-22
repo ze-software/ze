@@ -361,8 +361,11 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			}
 		}
 		payload := wireUpdate.Payload()
-		ingressMeta := make(map[string]any, 2) // Non-nil: filters may write to it.
+		var ingressMeta map[string]any
 		for _, filter := range r.ingressFilters {
+			if ingressMeta == nil {
+				ingressMeta = make(map[string]any, 2)
+			}
 			accept, modifiedPayload := safeIngressFilter(filter, src, payload, ingressMeta)
 			if !accept {
 				return false // Route rejected by ingress filter; don't cache or dispatch.
@@ -384,7 +387,6 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 				msg.ParseError = parseErr
 			}
 		}
-		// Only store metadata on ReceivedUpdate if any filter wrote to it.
 		if len(ingressMeta) > 0 {
 			routeMeta = ingressMeta
 		}

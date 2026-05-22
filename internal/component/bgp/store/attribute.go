@@ -8,7 +8,6 @@ package store
 
 import (
 	"context"
-	"hash/fnv"
 	"sync"
 	"sync/atomic"
 )
@@ -194,44 +193,53 @@ func (s *AttributeStore[T]) Wait() {
 	s.wg.Wait()
 }
 
-// HashBytes returns a 64-bit hash of a byte slice.
+const (
+	fnvOffset64 = 14695981039346656037
+	fnvPrime64  = 1099511628211
+)
+
+// HashBytes returns a 64-bit FNV-1a hash of a byte slice.
 func HashBytes(data []byte) uint64 {
-	h := fnv.New64a()
-	_, _ = h.Write(data)
-	return h.Sum64()
-}
-
-// HashUint32 returns a 64-bit hash of a uint32.
-func HashUint32(v uint32) uint64 {
-	h := fnv.New64a()
-	_, _ = h.Write([]byte{
-		byte(v >> 24),
-		byte(v >> 16),
-		byte(v >> 8),
-		byte(v),
-	})
-	return h.Sum64()
-}
-
-// HashString returns a 64-bit hash of a string.
-func HashString(s string) uint64 {
-	return HashBytes([]byte(s))
-}
-
-// CombineHashes combines multiple hashes into one.
-func CombineHashes(hashes ...uint64) uint64 {
-	h := fnv.New64a()
-	for _, hash := range hashes {
-		_, _ = h.Write([]byte{
-			byte(hash >> 56),
-			byte(hash >> 48),
-			byte(hash >> 40),
-			byte(hash >> 32),
-			byte(hash >> 24),
-			byte(hash >> 16),
-			byte(hash >> 8),
-			byte(hash),
-		})
+	h := uint64(fnvOffset64)
+	for _, b := range data {
+		h ^= uint64(b)
+		h *= fnvPrime64
 	}
-	return h.Sum64()
+	return h
+}
+
+// HashUint32 returns a 64-bit FNV-1a hash of a uint32.
+func HashUint32(v uint32) uint64 {
+	h := uint64(fnvOffset64)
+	h ^= uint64(v >> 24)
+	h *= fnvPrime64
+	h ^= uint64(v>>16) & 0xff
+	h *= fnvPrime64
+	h ^= uint64(v>>8) & 0xff
+	h *= fnvPrime64
+	h ^= uint64(v) & 0xff
+	h *= fnvPrime64
+	return h
+}
+
+// HashString returns a 64-bit FNV-1a hash of a string.
+func HashString(s string) uint64 {
+	h := uint64(fnvOffset64)
+	for i := range len(s) {
+		h ^= uint64(s[i])
+		h *= fnvPrime64
+	}
+	return h
+}
+
+// CombineHashes combines multiple hashes into one via FNV-1a.
+func CombineHashes(hashes ...uint64) uint64 {
+	h := uint64(fnvOffset64)
+	for _, hash := range hashes {
+		for shift := 56; shift >= 0; shift -= 8 {
+			h ^= (hash >> shift) & 0xff
+			h *= fnvPrime64
+		}
+	}
+	return h
 }

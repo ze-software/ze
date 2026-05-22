@@ -6,7 +6,6 @@ package reactor
 
 import (
 	"bytes"
-	"hash/fnv"
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
@@ -174,6 +173,21 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 	return result
 }
 
+const (
+	fnvOffset64 = 14695981039346656037
+	fnvPrime64  = 1099511628211
+)
+
+// fnvHash computes FNV-1a hash inline without allocating a hash.Hash interface.
+func fnvHash(data []byte) uint64 {
+	h := uint64(fnvOffset64)
+	for _, b := range data {
+		h ^= uint64(b)
+		h *= fnvPrime64
+	}
+	return h
+}
+
 // parseBucketBody extracts the components of an UPDATE body for bucket grouping.
 func parseBucketBody(body []byte) (bucketBodyParts, bool) {
 	var bp bucketBodyParts
@@ -195,9 +209,7 @@ func parseBucketBody(body []byte) (bucketBodyParts, bool) {
 	bp.attrs = body[attrStart:attrEnd]
 	bp.nlri = body[attrEnd:]
 
-	h := fnv.New64a()
-	h.Write(bp.attrs) //nolint:errcheck // fnv never errors
-	bp.attrHash = h.Sum64()
+	bp.attrHash = fnvHash(bp.attrs)
 	return bp, true
 }
 

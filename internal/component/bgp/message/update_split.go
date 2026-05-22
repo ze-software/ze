@@ -453,7 +453,7 @@ func SplitMPReachNLRIWithAddPath(mp *attribute.MPReachNLRI, maxAttrSize int, add
 
 	// Calculate overhead: AFI(2) + SAFI(1) + NH_Len(1) + NextHops + Reserved(1)
 	nhLen := 0
-	for _, nh := range mp.NextHops {
+	for _, nh := range mp.NextHops.Slice() {
 		if nh.Is4() {
 			nhLen += 4
 		} else {
@@ -479,14 +479,10 @@ func SplitMPReachNLRIWithAddPath(mp *attribute.MPReachNLRI, maxAttrSize int, add
 		return []*attribute.MPReachNLRI{mp}, nil
 	}
 
-	results := make([]*attribute.MPReachNLRI, 0, len(nlriChunks))
-	for _, chunk := range nlriChunks {
-		results = append(results, &attribute.MPReachNLRI{
-			AFI:      mp.AFI,
-			SAFI:     mp.SAFI,
-			NextHops: mp.NextHops, // Shared reference (immutable)
-			NLRI:     chunk,
-		})
+	nhs := mp.NextHops.Slice()
+	results := make([]*attribute.MPReachNLRI, len(nlriChunks)) // pool-fallback
+	for i, chunk := range nlriChunks {
+		results[i] = attribute.NewMPReachNLRI(mp.AFI, mp.SAFI, nhs, chunk)
 	}
 
 	return results, nil

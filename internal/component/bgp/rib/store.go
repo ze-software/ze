@@ -42,8 +42,7 @@ type hashableAttr struct {
 }
 
 func (h hashableAttr) Hash() uint64 {
-	// Hash the packed bytes
-	buf := make([]byte, h.attr.Len())
+	buf := make([]byte, h.attr.Len()) // pool-fallback: escapes via HashBytes
 	h.attr.WriteTo(buf, 0)
 	return store.HashBytes(buf)
 }
@@ -53,7 +52,6 @@ func (h hashableAttr) Equal(other any) bool {
 	if !ok {
 		return false
 	}
-	// Compare by code and packed bytes
 	if h.attr.Code() != o.attr.Code() {
 		return false
 	}
@@ -62,9 +60,9 @@ func (h hashableAttr) Equal(other any) bool {
 	if hLen != oLen {
 		return false
 	}
-	hBytes := make([]byte, hLen)
+	hBytes := make([]byte, hLen) // pool-fallback: escapes via WriteTo
 	h.attr.WriteTo(hBytes, 0)
-	oBytes := make([]byte, oLen)
+	oBytes := make([]byte, oLen) // pool-fallback: escapes via WriteTo
 	o.attr.WriteTo(oBytes, 0)
 	for i := range hBytes {
 		if hBytes[i] != oBytes[i] {
@@ -85,17 +83,14 @@ type hashableNLRI struct {
 }
 
 func (h hashableNLRI) Key() []byte {
-	// Phase 3: Include path ID in key for uniqueness
-	// WriteTo returns payload only, so prepend path ID if non-zero
 	payloadLen := h.n.Len()
 	pathID := h.n.PathID()
 	if pathID == 0 {
-		payload := make([]byte, payloadLen)
+		payload := make([]byte, payloadLen) // pool-fallback: returned slice
 		h.n.WriteTo(payload, 0)
 		return payload
 	}
-	// Prepend 4-byte path ID to payload
-	key := make([]byte, 4+payloadLen)
+	key := make([]byte, 4+payloadLen) // pool-fallback: returned slice
 	key[0] = byte(pathID >> 24)
 	key[1] = byte(pathID >> 16)
 	key[2] = byte(pathID >> 8)

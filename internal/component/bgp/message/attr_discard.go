@@ -147,7 +147,7 @@ func ExtractUpstreamAttrDiscard(pathAttrs []byte) []DiscardEntry {
 //   - allEntries: merged upstream + local entries (written into the new ATTR_DISCARD value)
 func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []DiscardEntry) []byte {
 	// Build set of codes to remove.
-	removeCodes := make(map[uint8]bool)
+	var removeCodes [256]bool
 	for _, e := range localEntries {
 		removeCodes[e.Code] = true
 	}

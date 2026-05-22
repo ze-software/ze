@@ -289,21 +289,40 @@ func (l LargeCommunities) Code() AttributeCode { return AttrLargeCommunity }
 // Flags returns the attribute flags (optional transitive) per RFC 8092 Section 3.
 func (l LargeCommunities) Flags() AttributeFlags { return FlagOptional | FlagTransitive }
 
-// Len returns the length in bytes (12 bytes per large community).
-// Note: If duplicates exist, actual packed length may be smaller.
-func (l LargeCommunities) Len() int { return len(l.deduplicate()) * 12 }
+// Len returns the length in bytes (12 bytes per unique large community).
+func (l LargeCommunities) Len() int { return len(l.unique()) * 12 }
 
-// WriteTo writes the large communities into buf at offset.
-// Per RFC 8092 Section 5, duplicate values are removed before transmission.
+// WriteTo writes the unique large communities into buf at offset.
 func (l LargeCommunities) WriteTo(buf []byte, off int) int {
-	unique := l.deduplicate()
-	for i, lc := range unique {
+	u := l.unique()
+	for i, lc := range u {
 		pos := off + i*12
 		binary.BigEndian.PutUint32(buf[pos:], lc.GlobalAdmin)
 		binary.BigEndian.PutUint32(buf[pos+4:], lc.LocalData1)
 		binary.BigEndian.PutUint32(buf[pos+8:], lc.LocalData2)
 	}
-	return len(unique) * 12
+	return len(u) * 12
+}
+
+// unique returns the deduplicated communities. If the slice has no duplicates
+// (the common case after ParseLargeCommunities), it returns the original slice
+// with zero allocation. Uses O(n^2) scan for small slices, falls back to
+// map-based dedup for large ones.
+func (l LargeCommunities) unique() LargeCommunities {
+	if len(l) <= 1 {
+		return l
+	}
+	if len(l) <= 16 {
+		for i := 1; i < len(l); i++ {
+			for j := range i {
+				if l[i] == l[j] {
+					return l.deduplicate()
+				}
+			}
+		}
+		return l
+	}
+	return l.deduplicate()
 }
 
 // WriteToWithContext writes large communities - context-independent.

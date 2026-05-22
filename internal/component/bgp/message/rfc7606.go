@@ -155,7 +155,7 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI, isIBGP, asn4 bool) *RFC760
 	var mpReachCount, mpUnreachCount int
 
 	// RFC 7606 Section 3.g: Track seen attribute codes to detect duplicates
-	seenCodes := make(map[uint8]bool)
+	var seenCodes [256]bool
 
 	// RFC 7606 Section 3.h: "If multiple errors are found, use the strongest action."
 	// Collect all errors to determine the strongest action.

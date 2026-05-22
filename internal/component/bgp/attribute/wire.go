@@ -268,7 +268,7 @@ func (a *AttributesWire) ensureIndexLocked() error {
 	// Build index locally first - only assign to a.index on success
 	// This ensures parse errors leave a.index nil for retry
 	index := make([]attrIndex, 0, 8)
-	seen := make(map[AttributeCode]bool, 8)
+	var seen [256]bool
 
 	offset := 0
 	for offset < len(a.packed) {

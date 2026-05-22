@@ -1003,7 +1003,7 @@ func TestSplitUpdate_DetectsMPReach(t *testing.T) {
 	mpReach := &attribute.MPReachNLRI{
 		AFI:      attribute.AFI(2),
 		SAFI:     attribute.SAFI(1),
-		NextHops: []netip.Addr{netip.MustParseAddr("2001:db8::1")},
+		NextHops: attribute.NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("2001:db8::1")}),
 		NLRI:     mpNLRI,
 	}
 
@@ -1080,7 +1080,7 @@ func TestSplitUpdate_PreservesOtherAttrs(t *testing.T) {
 	mpReach := &attribute.MPReachNLRI{
 		AFI:      attribute.AFI(2),
 		SAFI:     attribute.SAFI(1),
-		NextHops: []netip.Addr{netip.MustParseAddr("2001:db8::1")},
+		NextHops: attribute.NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("2001:db8::1")}),
 		NLRI:     mpNLRI,
 	}
 	mpReachLen := mpReach.Len()
@@ -1151,7 +1151,7 @@ func TestSplitUpdate_BothMPReachAndUnreach(t *testing.T) {
 	mpReach := &attribute.MPReachNLRI{
 		AFI:      attribute.AFI(2),
 		SAFI:     attribute.SAFI(1),
-		NextHops: []netip.Addr{netip.MustParseAddr("2001:db8::1")},
+		NextHops: attribute.NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("2001:db8::1")}),
 		NLRI:     reachNLRI,
 	}
 	mpReachLen := mpReach.Len()

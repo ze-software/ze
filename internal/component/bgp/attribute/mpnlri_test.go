@@ -18,7 +18,7 @@ func TestMPReachNLRI_WriteTo(t *testing.T) {
 			attr: &MPReachNLRI{
 				AFI:      AFIIPv6,
 				SAFI:     SAFIUnicast,
-				NextHops: []netip.Addr{netip.MustParseAddr("2001:db8::1")},
+				NextHops: NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("2001:db8::1")}),
 				NLRI:     []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x01}, // 2001:db8:0:1::/64
 			},
 			expected: []byte{
@@ -37,7 +37,7 @@ func TestMPReachNLRI_WriteTo(t *testing.T) {
 			attr: &MPReachNLRI{
 				AFI:      AFIIPv4,
 				SAFI:     SAFIVPN,
-				NextHops: []netip.Addr{netip.MustParseAddr("10.0.0.1")},
+				NextHops: NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("10.0.0.1")}),
 				NLRI:     []byte{0x01, 0x02, 0x03},
 			},
 			expected: []byte{
@@ -56,7 +56,7 @@ func TestMPReachNLRI_WriteTo(t *testing.T) {
 			attr: &MPReachNLRI{
 				AFI:      AFIIPv6,
 				SAFI:     SAFIVPN,
-				NextHops: []netip.Addr{netip.MustParseAddr("2001:db8::1")},
+				NextHops: NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("2001:db8::1")}),
 				NLRI:     []byte{0x01, 0x02},
 			},
 			expected: []byte{
@@ -74,10 +74,10 @@ func TestMPReachNLRI_WriteTo(t *testing.T) {
 			attr: &MPReachNLRI{
 				AFI:  AFIIPv6,
 				SAFI: SAFIUnicast,
-				NextHops: []netip.Addr{
+				NextHops: NewNextHopAddrs([]netip.Addr{
 					netip.MustParseAddr("2001:db8::1"),
 					netip.MustParseAddr("fe80::1"),
-				},
+				}),
 				NLRI: nil,
 			},
 			expected: []byte{
@@ -176,8 +176,8 @@ func TestParseMPReachNLRI(t *testing.T) {
 			if m.SAFI != tt.wantSAFI {
 				t.Errorf("SAFI = %d, want %d", m.SAFI, tt.wantSAFI)
 			}
-			if len(m.NextHops) != tt.wantNHLen {
-				t.Errorf("NextHops len = %d, want %d", len(m.NextHops), tt.wantNHLen)
+			if m.NextHops.Len() != tt.wantNHLen {
+				t.Errorf("NextHops len = %d, want %d", m.NextHops.Len(), tt.wantNHLen)
 			}
 			if len(m.NLRI) != tt.wantNLRI {
 				t.Errorf("NLRI len = %d, want %d", len(m.NLRI), tt.wantNLRI)
@@ -347,15 +347,15 @@ func TestParseMPReachNLRI_ExtendedNextHop(t *testing.T) {
 	}
 
 	// Verify IPv6 next-hop was parsed correctly
-	if len(m.NextHops) != 1 {
-		t.Fatalf("NextHops len = %d, want 1", len(m.NextHops))
+	if m.NextHops.Len() != 1 {
+		t.Fatalf("NextHops len = %d, want 1", m.NextHops.Len())
 	}
-	if !m.NextHops[0].Is6() {
-		t.Errorf("NextHops[0] is not IPv6: %v", m.NextHops[0])
+	if !m.NextHops.Slice()[0].Is6() {
+		t.Errorf("NextHops[0] is not IPv6: %v", m.NextHops.Slice()[0])
 	}
 	expected := netip.MustParseAddr("2001:db8::1")
-	if m.NextHops[0] != expected {
-		t.Errorf("NextHops[0] = %v, want %v", m.NextHops[0], expected)
+	if m.NextHops.Slice()[0] != expected {
+		t.Errorf("NextHops[0] = %v, want %v", m.NextHops.Slice()[0], expected)
 	}
 
 	// Verify NLRI
@@ -393,11 +393,11 @@ func TestParseMPReachNLRI_ExtendedNextHop_VPN(t *testing.T) {
 	if m.SAFI != SAFIVPN {
 		t.Errorf("SAFI = %d, want %d", m.SAFI, SAFIVPN)
 	}
-	if len(m.NextHops) != 1 {
-		t.Fatalf("NextHops len = %d, want 1", len(m.NextHops))
+	if m.NextHops.Len() != 1 {
+		t.Fatalf("NextHops len = %d, want 1", m.NextHops.Len())
 	}
-	if !m.NextHops[0].Is6() {
-		t.Errorf("NextHops[0] is not IPv6: %v", m.NextHops[0])
+	if !m.NextHops.Slice()[0].Is6() {
+		t.Errorf("NextHops[0] is not IPv6: %v", m.NextHops.Slice()[0])
 	}
 }
 
@@ -427,14 +427,14 @@ func TestParseMPReachNLRI_ExtendedNextHop_DualStack(t *testing.T) {
 		t.Fatalf("ParseMPReachNLRI() error = %v", err)
 	}
 
-	if len(m.NextHops) != 2 {
-		t.Fatalf("NextHops len = %d, want 2", len(m.NextHops))
+	if m.NextHops.Len() != 2 {
+		t.Fatalf("NextHops len = %d, want 2", m.NextHops.Len())
 	}
-	if !m.NextHops[0].Is6() {
-		t.Errorf("NextHops[0] is not IPv6: %v", m.NextHops[0])
+	if !m.NextHops.Slice()[0].Is6() {
+		t.Errorf("NextHops[0] is not IPv6: %v", m.NextHops.Slice()[0])
 	}
-	if !m.NextHops[1].Is6() {
-		t.Errorf("NextHops[1] is not IPv6: %v", m.NextHops[1])
+	if !m.NextHops.Slice()[1].Is6() {
+		t.Errorf("NextHops[1] is not IPv6: %v", m.NextHops.Slice()[1])
 	}
 }
 
@@ -471,17 +471,17 @@ func TestParseMPReachNLRI_VPNIPv4NextHop(t *testing.T) {
 	}
 
 	// Should have exactly one next-hop (the IPv4 address, not the RD)
-	if len(m.NextHops) != 1 {
-		t.Fatalf("NextHops len = %d, want 1", len(m.NextHops))
+	if m.NextHops.Len() != 1 {
+		t.Fatalf("NextHops len = %d, want 1", m.NextHops.Len())
 	}
 
 	// The next-hop should be the IPv4 address, not including the RD
 	expected := netip.MustParseAddr("10.0.0.1")
-	if m.NextHops[0] != expected {
-		t.Errorf("NextHops[0] = %v, want %v", m.NextHops[0], expected)
+	if m.NextHops.Slice()[0] != expected {
+		t.Errorf("NextHops[0] = %v, want %v", m.NextHops.Slice()[0], expected)
 	}
-	if !m.NextHops[0].Is4() {
-		t.Errorf("NextHops[0] should be IPv4, got: %v", m.NextHops[0])
+	if !m.NextHops.Slice()[0].Is4() {
+		t.Errorf("NextHops[0] should be IPv4, got: %v", m.NextHops.Slice()[0])
 	}
 }
 
@@ -537,14 +537,14 @@ func TestParseMPReachNLRI_VPNWithIPv6NextHop(t *testing.T) {
 			if m.SAFI != SAFIVPN {
 				t.Errorf("SAFI = %d, want %d", m.SAFI, SAFIVPN)
 			}
-			if len(m.NextHops) != 1 {
-				t.Fatalf("NextHops len = %d, want 1", len(m.NextHops))
+			if m.NextHops.Len() != 1 {
+				t.Fatalf("NextHops len = %d, want 1", m.NextHops.Len())
 			}
-			if m.NextHops[0] != expected {
-				t.Errorf("NextHops[0] = %v, want %v", m.NextHops[0], expected)
+			if m.NextHops.Slice()[0] != expected {
+				t.Errorf("NextHops[0] = %v, want %v", m.NextHops.Slice()[0], expected)
 			}
-			if !m.NextHops[0].Is6() {
-				t.Errorf("NextHops[0] should be IPv6, got: %v", m.NextHops[0])
+			if !m.NextHops.Slice()[0].Is6() {
+				t.Errorf("NextHops[0] should be IPv6, got: %v", m.NextHops.Slice()[0])
 			}
 		})
 	}
@@ -555,7 +555,7 @@ func TestMPReachNLRI_RoundTrip(t *testing.T) {
 	original := &MPReachNLRI{
 		AFI:      AFIIPv6,
 		SAFI:     SAFIUnicast,
-		NextHops: []netip.Addr{netip.MustParseAddr("2001:db8::1")},
+		NextHops: NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("2001:db8::1")}),
 		NLRI:     []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x01},
 	}
 
@@ -572,8 +572,8 @@ func TestMPReachNLRI_RoundTrip(t *testing.T) {
 	if parsed.SAFI != original.SAFI {
 		t.Errorf("SAFI = %d, want %d", parsed.SAFI, original.SAFI)
 	}
-	if len(parsed.NextHops) != len(original.NextHops) {
-		t.Errorf("NextHops len = %d, want %d", len(parsed.NextHops), len(original.NextHops))
+	if parsed.NextHops.Len() != original.NextHops.Len() {
+		t.Errorf("NextHops len = %d, want %d", parsed.NextHops.Len(), original.NextHops.Len())
 	}
 	if len(parsed.NLRI) != len(original.NLRI) {
 		t.Errorf("NLRI len = %d, want %d", len(parsed.NLRI), len(original.NLRI))
@@ -590,7 +590,7 @@ func TestMPReachNLRI_RoundTrip_VPN(t *testing.T) {
 	original := &MPReachNLRI{
 		AFI:      AFIIPv4,
 		SAFI:     SAFIVPN,
-		NextHops: []netip.Addr{netip.MustParseAddr("10.0.0.1")},
+		NextHops: NewNextHopAddrs([]netip.Addr{netip.MustParseAddr("10.0.0.1")}),
 		NLRI:     []byte{0x01, 0x02, 0x03},
 	}
 
@@ -613,11 +613,11 @@ func TestMPReachNLRI_RoundTrip_VPN(t *testing.T) {
 	if parsed.SAFI != original.SAFI {
 		t.Errorf("SAFI = %d, want %d", parsed.SAFI, original.SAFI)
 	}
-	if len(parsed.NextHops) != 1 {
-		t.Fatalf("NextHops len = %d, want 1", len(parsed.NextHops))
+	if parsed.NextHops.Len() != 1 {
+		t.Fatalf("NextHops len = %d, want 1", parsed.NextHops.Len())
 	}
-	if parsed.NextHops[0] != original.NextHops[0] {
-		t.Errorf("NextHops[0] = %v, want %v", parsed.NextHops[0], original.NextHops[0])
+	if parsed.NextHops.Slice()[0] != original.NextHops.Slice()[0] {
+		t.Errorf("NextHops[0] = %v, want %v", parsed.NextHops.Slice()[0], original.NextHops.Slice()[0])
 	}
 	if len(parsed.NLRI) != len(original.NLRI) {
 		t.Errorf("NLRI len = %d, want %d", len(parsed.NLRI), len(original.NLRI))
@@ -660,7 +660,7 @@ func TestMPReachNLRI_EncodeDecodeSymmetry(t *testing.T) {
 			original := &MPReachNLRI{
 				AFI:      tt.afi,
 				SAFI:     tt.safi,
-				NextHops: []netip.Addr{tt.nextHop},
+				NextHops: NewNextHopAddrs([]netip.Addr{tt.nextHop}),
 				NLRI:     nlriData,
 			}
 
@@ -689,11 +689,11 @@ func TestMPReachNLRI_EncodeDecodeSymmetry(t *testing.T) {
 			if parsed.SAFI != tt.safi {
 				t.Errorf("SAFI = %d, want %d", parsed.SAFI, tt.safi)
 			}
-			if len(parsed.NextHops) != 1 {
-				t.Fatalf("NextHops len = %d, want 1", len(parsed.NextHops))
+			if parsed.NextHops.Len() != 1 {
+				t.Fatalf("NextHops len = %d, want 1", parsed.NextHops.Len())
 			}
-			if parsed.NextHops[0] != tt.wantNH {
-				t.Errorf("NextHops[0] = %v, want %v", parsed.NextHops[0], tt.wantNH)
+			if parsed.NextHops.Slice()[0] != tt.wantNH {
+				t.Errorf("NextHops[0] = %v, want %v", parsed.NextHops.Slice()[0], tt.wantNH)
 			}
 		})
 	}

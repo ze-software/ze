@@ -485,18 +485,13 @@ func (ub *UpdateBuilder) buildMPReach(p *UnicastParams) *attribute.MPReachNLRI {
 	if p.LinkLocalNextHop.IsValid() && p.Prefix.Addr().Is6() {
 		nhCount = 2
 	}
-	nextHops := make([]netip.Addr, nhCount)
+	nextHops := make([]netip.Addr, nhCount) // pool-fallback: escapes via MPReachNLRI.NextHops
 	nextHops[0] = p.NextHop
 	if nhCount == 2 {
 		nextHops[1] = p.LinkLocalNextHop
 	}
 
-	return &attribute.MPReachNLRI{
-		AFI:      afi,
-		SAFI:     safi,
-		NextHops: nextHops,
-		NLRI:     nlriBytes,
-	}
+	return attribute.NewMPReachNLRI(afi, safi, nextHops, nlriBytes)
 }
 
 // rawAttribute is a simple wrapper for pre-encoded attribute data.

@@ -76,7 +76,7 @@ func (m *Map[K, V]) Len() int {
 
 // Clear removes all entries and resets internal state.
 func (m *Map[K, V]) Clear() {
-	m.items = make(map[K]*entry[K, V])
+	clear(m.items)
 	m.log = nil
 	m.dead = 0
 }

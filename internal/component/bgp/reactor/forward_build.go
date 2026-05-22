@@ -167,7 +167,7 @@ func buildModifiedPayload(
 
 		srcAttr := payload[srcOff : srcOff+attrTotalLen]
 
-		if codeOps, hasOps := opsByCode[code]; hasOps {
+		if codeOps := opsByCode[code]; len(codeOps) > 0 {
 			consumed[code] = true
 			handler := handlers[code]
 			if handler == nil {
@@ -210,8 +210,10 @@ func buildModifiedPayload(
 	}
 
 	// Step 6: Write unconsumed ops (new attributes).
-	for code, codeOps := range opsByCode {
-		if consumed[code] {
+	for codeInt := range opsByCode {
+		codeOps := opsByCode[codeInt]
+		code := uint8(codeInt)
+		if len(codeOps) == 0 || consumed[code] {
 			continue
 		}
 		handler := handlers[code]
@@ -502,11 +504,24 @@ func safeCopy(buf []byte, off int, src []byte) bool {
 	return true
 }
 
-// groupOpsByCode groups AttrOps by attribute code.
-func groupOpsByCode(ops []registry.AttrOp) map[uint8][]registry.AttrOp {
-	m := make(map[uint8][]registry.AttrOp, len(ops))
+// groupOpsByCode groups AttrOps by attribute code into a fixed array.
+// Two-pass: count first, then pre-allocate and fill.
+func groupOpsByCode(ops []registry.AttrOp) [256][]registry.AttrOp {
+	var counts [256]int
 	for i := range ops {
-		m[ops[i].Code] = append(m[ops[i].Code], ops[i])
+		counts[ops[i].Code]++
+	}
+	var m [256][]registry.AttrOp
+	for code := range counts {
+		if counts[code] > 0 {
+			m[code] = make([]registry.AttrOp, counts[code]) // pool-fallback
+			counts[code] = 0
+		}
+	}
+	for i := range ops {
+		c := ops[i].Code
+		m[c][counts[c]] = ops[i]
+		counts[c]++
 	}
 	return m
 }
