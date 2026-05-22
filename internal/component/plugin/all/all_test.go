@@ -58,6 +58,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"fib-p4",
 		"fib-vpp",
 		"firewall",
+		"flowspec-firewall",
 		"ike",
 		"interface",
 		"kernel",

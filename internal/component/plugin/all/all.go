@@ -55,9 +55,11 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/firewall/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/ipsec/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/lg/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/pki/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd/schema"
@@ -133,6 +135,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/vpp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/firewall/nft"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/firewall/vpp"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/flowspec-firewall"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/dhcp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/vpp"
@@ -154,7 +157,9 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
 
 	// RPC command packages -- pluginserver.RegisterRPCs registration.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/archive"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/bfd"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/l2tp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"
@@ -162,5 +167,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/pppoe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )
+

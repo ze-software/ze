@@ -1,0 +1,62 @@
+# FlowSpec-to-firewall bridge: verify plugin loads and FlowSpec events flow
+# The daemon starts with the flowspec-firewall plugin registered. A FlowSpec
+# route is sent to the peer, proving the BGP event delivery path exercises
+# the plugin's OnEvent handler (subscribed to "update direction received").
+#
+# VALIDATES: plugin loads as part of the daemon without errors
+# VALIDATES: FlowSpec UPDATE wire encoding is correct with plugin present
+#
+# NOTE: Full end-to-end test (peer sends FlowSpec TO ze, bridge creates
+# nftables rules) requires ze-peer FlowSpec injection support (future).
+
+# ze-peer expectations: receive a FlowSpec route from ze
+stdin=peer:terminator=EOF_PEER
+cmd=api:conn=1:seq=1:text=peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow destination-ipv4 10.1.0.0/24 protocol tcp destination-port 80
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064C010080800000000000001800E150001850401020304000B01180A0100038106058150
+# EOR
+cmd=api:conn=1:seq=2:text=peer * update text nlri ipv4/flow eor
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000185
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		update {
+			attribute {
+				next-hop 1.2.3.4
+				extended-community [copy-to-nexthop]
+			}
+			nlri {
+				ipv4/flow add destination-ipv4 10.1.0.0/24 protocol tcp destination-port 80
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

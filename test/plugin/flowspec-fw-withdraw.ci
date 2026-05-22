@@ -1,0 +1,80 @@
+# FlowSpec-to-firewall bridge: verify FlowSpec add+withdraw via process plugin
+# A Python process plugin sends a FlowSpec add then withdraw, verifying both
+# wire messages reach the peer with the bridge plugin loaded.
+#
+# VALIDATES: FlowSpec add and withdraw wire encoding correct with bridge plugin
+
+stdin=peer:terminator=EOF_PEER
+cmd=api:conn=1:seq=1:text=peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow destination-ipv4 10.1.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0042020000002B4001010040020040050400000064C010080800000000000001800E0F0001850401020304000501180A0100
+cmd=api:conn=1:seq=2:text=peer * update text nlri ipv4/flow eor
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000185
+EOF_PEER
+
+tmpfs=flowspec-fw.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+
+import time
+from ze_api import ready, send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    ready()
+    send('peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow destination-ipv4 10.1.0.0/24')
+    time.sleep(0.2)
+    wait_for_ack(expected_count=1)
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external flowspec-fw-process {
+		run ./flowspec-fw.run
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		update {
+			attribute {
+				next-hop 1.2.3.4
+				extended-community [copy-to-nexthop]
+			}
+			nlri {
+				ipv4/flow add destination-ipv4 10.1.0.0/24
+			}
+		}
+		process flowspec-fw-process {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

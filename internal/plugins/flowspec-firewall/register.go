@@ -1,0 +1,55 @@
+// Design: docs/architecture/core-design.md -- FlowSpec-to-firewall bridge registration
+// Related: engine.go -- runEngine entry point driven by this registration
+
+package flowspecfirewall
+
+import (
+	"fmt"
+	"os"
+	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
+)
+
+var (
+	eventBusMu  sync.Mutex
+	eventBusRef ze.EventBus
+)
+
+func setEventBusRef(eb ze.EventBus) {
+	eventBusMu.Lock()
+	defer eventBusMu.Unlock()
+	eventBusRef = eb
+}
+
+func getEventBusRef() ze.EventBus {
+	eventBusMu.Lock()
+	defer eventBusMu.Unlock()
+	return eventBusRef
+}
+
+func init() { //nolint:gochecknoinits // plugin registration
+	reg := registry.Registration{
+		Name:         "flowspec-firewall",
+		Description:  "Translates BGP FlowSpec routes into nftables firewall rules",
+		Dependencies: []string{"firewall"},
+		RunEngine:    runEngine,
+		ConfigureEngineLogger: func(loggerName string) {
+			setLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureEventBus: func(eb any) {
+			if e, ok := eb.(ze.EventBus); ok {
+				setEventBusRef(e)
+			}
+		},
+	}
+	reg.CLIHandler = func(_ []string) int {
+		return 1
+	}
+	if err := registry.Register(reg); err != nil {
+		fmt.Fprintf(os.Stderr, "flowspec-firewall: registration failed: %v\n", err)
+		os.Exit(1)
+	}
+}
