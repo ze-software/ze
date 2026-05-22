@@ -4,6 +4,22 @@
 Rationale: `ai/rationale/plugin-design.md`
 Structural template: `ai/patterns/plugin.md`
 
+## Cross-Boundary Value Types (BLOCKING)
+
+Payloads that cross plugin or component boundaries MUST be self-contained value types.
+No pointer fields pointing to data owned by another plugin or component, even when the
+target lives in a shared core package.
+
+| Surface | Rule |
+|---------|------|
+| Event bus (`Emit`/`Subscribe`) | Value types only: numeric IDs, `family.Family`, `netip.Prefix`, `netip.Addr`, enum uint8 |
+| Cross-plugin identifiers | Registered numeric IDs, not pointers into a shared registry |
+| Cross-component IPC | `*foopkg.Something` as a payload field is forbidden even when `foopkg` is "shared core" |
+| Registry surfaces | Store value types only (IDs, immutable string copies, bits), not pointers to producer-allocated handles |
+
+Shared type definitions (`family.Family`, `RouteChangeBatch`) are fine as compile-time contracts.
+What is forbidden is one plugin holding a pointer to data another plugin allocated.
+
 ## Architecture
 
 | Layer | Location | Purpose |

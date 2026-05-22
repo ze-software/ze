@@ -114,6 +114,14 @@
 |------|----------|-------------------|--------|
 | `test-xxx` | `test/.../*.ci` | [what user expects to happen] | |
 
+### Interop Tests (MANDATORY for protocol features)
+<!-- REQUIRED when the spec adds/changes wire protocol behavior (BGP, IPsec, L2TP). -->
+<!-- See ai/rules/interop-and-goal-validation.md for when interop is required. -->
+<!-- Skip this section (with justification) only for non-protocol features. -->
+| Scenario | Directory | Peer Daemon | What It Proves | Status |
+|----------|-----------|-------------|----------------|--------|
+| `NN-feature-peer` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP/strongSwan] | [protocol behavior validated] | |
+
 ### Future (if deferring any tests)
 - [Tests to add later and why deferred — requires explicit user approval]
 
@@ -317,6 +325,15 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - **Skipped:** (all require user approval)
 - **Changed:** (documented in Deviations)
 
+## Goal Validation (BLOCKING)
+
+<!-- MANDATORY: Maps each stated goal to concrete proof it was achieved. -->
+<!-- "Tests pass" is not sufficient. Each goal needs specific evidence. -->
+<!-- See ai/rules/interop-and-goal-validation.md for required evidence types. -->
+| Goal (from Task section) | Evidence Type | Concrete Evidence |
+|--------------------------|---------------|-------------------|
+| [what the feature is meant to achieve] | [interop test / functional test / benchmark / chaos test] | [test name, output, or file reference] |
+
 ## Review Gate
 
 <!-- BLOCKING (rules/planning.md Completion Checklist step 7): -->
@@ -397,6 +414,8 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for all numeric inputs
 - [ ] Functional tests for end-to-end behavior
+- [ ] Interop tests for protocol features (or N/A with justification)
+- [ ] Goal Validation table filled with concrete evidence
 
 ### Completion (BLOCKING — before ANY commit)
 - [ ] Critical Review passes — all 6 checks in `rules/quality.md` documented pass in spec. A single failure = work is not complete.

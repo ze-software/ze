@@ -59,6 +59,8 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
     - Paste evidence (grep output, test output, ls output)
     - If anything is missing or incomplete, go back to step 4 and implement it
     - Also re-read Acceptance Criteria -- verify each AC-N with file:line evidence
+    - **Goal Validation (BLOCKING):** Fill the spec's **Goal Validation** table. For each goal stated in the Task section, provide concrete evidence (test name, interop scenario, benchmark result) that the goal is achieved. Per `ai/rules/interop-and-goal-validation.md`: "tests pass" alone is not sufficient; map goals to evidence.
+    - **Interop (BLOCKING for protocol features):** If the spec adds/changes protocol behavior, verify an interop test scenario exists and passes. If none exists, create one before proceeding.
 12. **Security review:** Use the spec's **Security Review Checklist** table as the starting point. For each row:
     - Check the specific concern described
     - Also apply generic security checks:

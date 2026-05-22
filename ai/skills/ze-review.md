@@ -28,16 +28,32 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
     **If any wiring BLOCKER is found:** report it immediately. Do not proceed to the remaining review steps until the user acknowledges. Unwired code means the feature does not exist from the user's perspective, so reviewing its correctness, security, or edge cases is premature.
 
-2. **Identify changed files:** Run `git diff --name-only HEAD` to find all modified files.
-3. **Read the actual code:** For every changed file, read the diff. Understand what changed.
-4. **Understand intent via history:** For each changed region, run `git log --oneline -5` and `git blame` on the modified lines. Understand WHY the old code existed. Flag if the change removes a guard, workaround, or constraint that was added deliberately.
-5. **Check code comments:** Read WARNING, INVARIANT, NOTE, and TODO comments in modified files. Verify the changes do not violate stated invariants or ignore documented constraints.
-6. **Trace data flow:** For each changed component, trace data from entry through transformations to exit. Verify boundaries are respected.
-7. **Apply edge case techniques:** Apply EVERY technique in the table below to every changed component.
-8. **Security review:** Apply the security checklist to every user-controlled input.
-9. **Allocation review:** Check every `make()` in changed code for unbounded sizes.
-10. **Plugin traversal check:** If config structure changed, grep for all code reading the old structure.
-11. **Project rules cross-check:** For each changed file, verify compliance with applicable rules:
+2. **Functional test coverage (BLOCKING — immediately after wiring):** For every new or changed user-facing behavior in the diff, verify a functional test (`.ci` or `.et`) exists that exercises the full path. Apply the mapping from `ai/rules/functional-test-gate.md`: match the change type to the required test directory and check for a test covering the behavior.
+
+    | Change type | Required test |
+    |-------------|--------------|
+    | BGP wire behavior | `.ci` in `test/encode/` or `test/decode/` with hex match |
+    | Plugin behavior | `.ci` in `test/plugin/` with API commands |
+    | Config option | `.ci` in `test/parse/` |
+    | CLI subcommand | `.ci` in `test/ui/` |
+    | Web endpoint | `.ci` in `test/web/` |
+    | Editor behavior | `.et` in `test/editor/` |
+    | Config reload | `.ci` in `test/reload/` |
+
+    For each user-facing behavior: **"Which functional test proves this works through the daemon?"** If none exists, report it as a BLOCKER. Unit tests alone do not satisfy this check.
+
+    **Exception:** pure internal refactors with no user-visible effect, or changes where an existing functional test already covers the path.
+
+3. **Identify changed files:** Run `git diff --name-only HEAD` to find all modified files.
+4. **Read the actual code:** For every changed file, read the diff. Understand what changed.
+5. **Understand intent via history:** For each changed region, run `git log --oneline -5` and `git blame` on the modified lines. Understand WHY the old code existed. Flag if the change removes a guard, workaround, or constraint that was added deliberately.
+6. **Check code comments:** Read WARNING, INVARIANT, NOTE, and TODO comments in modified files. Verify the changes do not violate stated invariants or ignore documented constraints.
+7. **Trace data flow:** For each changed component, trace data from entry through transformations to exit. Verify boundaries are respected.
+8. **Apply edge case techniques:** Apply EVERY technique in the table below to every changed component.
+9. **Security review:** Apply the security checklist to every user-controlled input.
+10. **Allocation review:** Check every `make()` in changed code for unbounded sizes.
+11. **Plugin traversal check:** If config structure changed, grep for all code reading the old structure.
+12. **Project rules cross-check:** For each changed file, verify compliance with applicable rules:
 
 | Changed code touches | Check against |
 |---------------------|---------------|
@@ -49,7 +65,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 | Config parsing | `config-design.md` -- fail on unknown keys, no version numbers |
 | New data wrapper/struct | `design-principles.md` -- lazy over eager, no identity wrappers |
 
-12. **Filter false positives:** Before reporting, discard findings that match any of these:
+13. **Filter false positives:** Before reporting, discard findings that match any of these:
 
 | False positive | Why discard |
 |----------------|-------------|
@@ -60,9 +76,14 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 | General quality concern not tied to a specific bug | Too vague to act on |
 | Contradicts a project rule but has an explicit override comment in code | Intentional exception |
 
-    **Never discard wiring findings.** An unwired symbol is not a false positive, a pre-existing issue, or a quality concern. It is dead code in production. Wiring BLOCKERs from step 1 always survive this filter.
+    **Never discard wiring or functional-test findings.** An unwired symbol is not a false positive, a pre-existing issue, or a quality concern. It is dead code in production. A missing functional test is not a quality concern; it is a coverage gap. Wiring BLOCKERs from step 1 and functional-test BLOCKERs from step 2 always survive this filter.
 
-13. **Report findings** as a numbered list with severity:
+14. **Interop and goal validation check:** If the diff implements or modifies protocol behavior (BGP capability, NLRI family, session behavior, wire format, authentication), verify per `ai/rules/interop-and-goal-validation.md`:
+    - Does an interop test scenario exist that proves this works with another daemon?
+    - If the spec has a Goal Validation table, is every goal backed by concrete evidence?
+    Missing interop test for protocol work is a BLOCKER. Empty goal validation for a completed feature is an ISSUE.
+
+15. **Report findings** as a numbered list with severity:
     - **BLOCKER:** Bug that will cause incorrect behavior, crash, or security vulnerability
     - **ISSUE:** Missing test, edge case not handled, or quality problem
     - **NOTE:** Suggestion or minor observation

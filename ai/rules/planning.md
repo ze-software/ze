@@ -184,6 +184,13 @@ If a spec describes work that is **already implemented**, run the full Completio
         Disjoint systems (e.g., CLI and BGP encoding) get separate commits.
 ```
 
+## Verify Specs Against Code (BLOCKING)
+
+Never report spec progress by reading the spec alone. Grep the codebase to verify
+claims. Spec "What Remains" and "Implementation Summary" sections go stale. Before
+reporting any item as unimplemented, search for the function/type/test in the code.
+If it exists, the spec is stale, not the code. Update the spec to match reality.
+
 ## Deferred Work (BLOCKING)
 
 See `rules/deferral-tracking.md` for the full deferral process and log format.
