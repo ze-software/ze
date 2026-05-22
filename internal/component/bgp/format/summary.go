@@ -113,10 +113,8 @@ func appendSummaryJSON(buf []byte, peer *plugin.PeerInfo, msgID uint64, directio
 	buf = append(buf, `","id":`...)
 	buf = strconv.AppendUint(buf, msgID, 10)
 	if direction != "" {
-		// Defensive escape: direction is bounded today ("received"/"sent");
-		// keep the legacy escape shape without bringing fmt back.
 		buf = append(buf, `,"direction":"`...)
-		buf = appendJSONString(buf, direction)
+		buf = appendJSONSafeString(buf, direction)
 		buf = append(buf, '"')
 	}
 	buf = append(buf, `},`...)

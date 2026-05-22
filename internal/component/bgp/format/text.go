@@ -18,6 +18,27 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
+// IsJSONSafe reports whether s contains no bytes that require JSON escaping
+// (no backslash, no double quote, no control chars < 0x20). Call once at a
+// config boundary (peer creation, group creation) so the hot-path formatter
+// can use appendJSONSafeString without per-byte dispatch.
+func IsJSONSafe(s string) bool {
+	for i := range len(s) {
+		if s[i] < 0x20 || s[i] == '"' || s[i] == '\\' {
+			return false
+		}
+	}
+	return true
+}
+
+// appendJSONSafeString appends s to buf without JSON escaping. The caller
+// must guarantee that s contains no bytes requiring escaping (validated via
+// IsJSONSafe at a prior boundary, or from a bounded enum like direction).
+// Produces corrupt JSON if the precondition is violated.
+func appendJSONSafeString(buf []byte, s string) []byte {
+	return append(buf, s...)
+}
+
 // appendJSONString appends s to buf wrapped in JSON string escaping rules.
 // Escapes: \ " and control characters (0x00-0x1F). Byte-identical output
 // to the legacy JSON-escape path (writeJSONEscapedString + jsonSafeReplacer
@@ -80,7 +101,7 @@ func appendPeerJSON(buf []byte, peer *plugin.PeerInfo) []byte {
 	buf = append(buf, '"')
 	if peer.GroupName != "" {
 		buf = append(buf, `,"group":"`...)
-		buf = appendJSONString(buf, peer.GroupName)
+		buf = appendJSONSafeString(buf, peer.GroupName)
 		buf = append(buf, '"')
 	}
 	if peer.LocalAS > 0 || peer.LocalAddress.IsValid() {
@@ -102,7 +123,7 @@ func appendPeerJSON(buf []byte, peer *plugin.PeerInfo) []byte {
 		buf = append(buf, '}')
 	}
 	buf = append(buf, `,"name":"`...)
-	buf = appendJSONString(buf, peer.Name)
+	buf = appendJSONSafeString(buf, peer.Name)
 	buf = append(buf, `","remote":{"as":`...)
 	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
 	buf = append(buf, `}}`...)

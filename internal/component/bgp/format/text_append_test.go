@@ -83,6 +83,79 @@ func TestAppendJSONString(t *testing.T) {
 	}
 }
 
+func TestIsJSONSafe(t *testing.T) {
+	safe := []string{
+		"",
+		"plain",
+		"ipv4/unicast",
+		"received",
+		"sent",
+		"peer-name-123",
+		"AS65000",
+	}
+	for _, s := range safe {
+		if !IsJSONSafe(s) {
+			t.Errorf("IsJSONSafe(%q) = false, want true", s)
+		}
+	}
+	unsafe := []string{
+		`has"quote`,
+		`has\backslash`,
+		"has\nnewline",
+		"has\ttab",
+		"has\rreturn",
+		string([]byte{0x00}),
+		string([]byte{0x1F}),
+	}
+	for _, s := range unsafe {
+		if IsJSONSafe(s) {
+			t.Errorf("IsJSONSafe(%q) = true, want false", s)
+		}
+	}
+}
+
+func TestAppendJSONSafeString(t *testing.T) {
+	cases := []string{"received", "sent", "peer1", "ipv4/unicast", ""}
+	for _, s := range cases {
+		got := string(appendJSONSafeString(nil, s))
+		if got != s {
+			t.Errorf("appendJSONSafeString(%q) = %q, want %q", s, got, s)
+		}
+	}
+}
+
+func BenchmarkAppendJSONString_Short(b *testing.B) {
+	buf := make([]byte, 0, 256)
+	b.ReportAllocs()
+	for b.Loop() {
+		buf = appendJSONString(buf[:0], "received")
+	}
+}
+
+func BenchmarkAppendJSONSafeString_Short(b *testing.B) {
+	buf := make([]byte, 0, 256)
+	b.ReportAllocs()
+	for b.Loop() {
+		buf = appendJSONSafeString(buf[:0], "received")
+	}
+}
+
+func BenchmarkAppendJSONString_PeerName(b *testing.B) {
+	buf := make([]byte, 0, 256)
+	b.ReportAllocs()
+	for b.Loop() {
+		buf = appendJSONString(buf[:0], "core-rr1.fra.example")
+	}
+}
+
+func BenchmarkAppendJSONSafeString_PeerName(b *testing.B) {
+	buf := make([]byte, 0, 256)
+	b.ReportAllocs()
+	for b.Loop() {
+		buf = appendJSONSafeString(buf[:0], "core-rr1.fra.example")
+	}
+}
+
 // VALIDATES: appendReplacingByte replaces every `from` byte with `to`.
 // Uses the NOTIFICATION error-name corpus (AC-14), byte-identical to the
 // legacy strings.ReplaceAll for ASCII inputs.

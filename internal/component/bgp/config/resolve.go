@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/naming"
 )
@@ -410,6 +411,9 @@ func validatePeerName(name string) error {
 	if err := naming.ValidateNodeName("peer", name, maxPeerNameLen); err != nil {
 		return err
 	}
+	if !format.IsJSONSafe(name) {
+		return fmt.Errorf("invalid peer name %q: contains characters requiring JSON escaping", name)
+	}
 	if reservedPeerNames[name] {
 		return fmt.Errorf("invalid peer name %q: conflicts with \"peer\" subcommand", name)
 	}
@@ -426,7 +430,13 @@ func validateGroupName(name string) error {
 	if name == "" {
 		return errInvalidGroupNameMustNotBe
 	}
-	return naming.ValidateNodeName("group", name, maxPeerNameLen)
+	if err := naming.ValidateNodeName("group", name, maxPeerNameLen); err != nil {
+		return err
+	}
+	if !format.IsJSONSafe(name) {
+		return fmt.Errorf("invalid group name %q: contains characters requiring JSON escaping", name)
+	}
+	return nil
 }
 
 // deepCopyMap returns a deep copy of a map, recursively copying nested maps.

@@ -188,7 +188,7 @@ func appendRawFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 		buf = append(buf, '"')
 		if direction != rpc.DirectionUnspecified {
 			buf = append(buf, `,"direction":"`...)
-			buf = appendJSONString(buf, direction.String())
+			buf = appendJSONSafeString(buf, direction.String())
 			buf = append(buf, '"')
 		}
 		buf = append(buf, `},`...)
