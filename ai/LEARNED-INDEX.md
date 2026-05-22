@@ -26,6 +26,7 @@ System boundaries, component design, lifecycle patterns, subsystem separation.
 - [165](plan/learned/165-reactor-service-separation.md) -- Reactor service separation from protocol
 - [244](plan/learned/244-reactor-interface-split.md) -- Reactor interface split for testability
 - [247](plan/learned/247-plugin-restructure.md) -- Plugin restructure, circular import resolution
+- [752](plan/learned/752-subscriber-session-model.md) -- Unified subscriber session model: shared Session struct across PPPoE/L2TP, handler delegation, event bridge pattern
 
 ## Wire/Encoding
 
@@ -52,6 +53,7 @@ Registration, SDK, event flow, lifecycle, hook integration.
 - [301](plan/learned/301-plugin-sdk-interface.md) -- SDK public interface design
 - [303](plan/learned/303-plugin-api-dispatch.md) -- Plugin API dispatch via text commands
 - [325](plan/learned/325-plugin-rib-families.md) -- Plugin RIB family registration
+- [757](plan/learned/757-typed-route-result.md) -- Typed RouteResult replaces map[string]any in update-route, eliminating int/float64 transport divergence
 
 ## Configuration
 
@@ -68,6 +70,8 @@ YANG schema, migration, config reload, editor, environment variables.
 - [725](plan/learned/725-spec-cpe-3-dhcp-ranges.md) -- YANG container-to-list migration, composite pool with per-segment bitmaps, format detection for backward compat
 - [743](plan/learned/743-config-schema-stamp.md) -- Schema stamp as comment line (not YANG leaf), emitted at persistence site only, prep for downgrade recovery
 - [746](plan/learned/746-cpe-4-firewall-global-options.md) -- Firewall global-options: keyword-to-sysctl mapping via EventBus default layer; inverted semantics for ignore-type sysctls
+- [758](plan/learned/758-config-graph.md) -- Config dependency graph for agent impact analysis: derived from validation code paths, 7 edge kinds, plugin registry integration
+- [759](plan/learned/759-archive-pruning.md) -- Archive commit-revisions pruning: stable prefix from dual-timestamp diff, mtime-oldest-first, file:// only, uint16 max-keep
 
 ## CLI/API
 
@@ -86,6 +90,7 @@ Command structure, text format, IPC, RPC dispatch.
 - [729](plan/learned/729-diag-traceroute.md) -- ICMP traceroute (ttlSetter interface for IPv4/IPv6 TTL, pure Go over library, argTimeout goconst pattern)
 - [738](plan/learned/738-cli-grammar.md) -- CLI grammar: action before identifier (YANG sub-containers consume dispatch tokens, deprecation via JSON unmarshal not wrapping)
 - [730](plan/learned/730-diag-capture-interface.md) -- AF_PACKET live capture (mdlayher/packet + go-pcap BPF, portable/linux file split, Ethernet link type for raw sockets)
+- [755](plan/learned/755-ze-doctor.md) -- Offline system readiness checks: diagnostic code taxonomy, error/warning severity, platform-split checks, shared resolve package
 
 ## Web Interface
 
@@ -94,6 +99,7 @@ Web UI, HTMX, templates, looking glass, chaos dashboard.
 - [266](plan/learned/266-chaos-web-foundation.md) -- Chaos web foundation, SSE debounce, OOB swaps
 - [268](plan/learned/268-chaos-web-route-matrix.md) -- Route matrix visualization pattern
 - [741](plan/learned/741-graceful-listener-migration.md) -- Graceful listener migration on config reload (bind-before-close, cross-service conflict detection)
+- [756](plan/learned/756-web-auto-reload.md) -- Web UI auto-reload on commit: late-bound commit hook on EditorManager, moved reloadAfterCommit outside apiCfgOK guard
 
 ## RIB/Routing
 
@@ -136,6 +142,13 @@ Test patterns, infrastructure, chaos testing.
 - [608](plan/learned/608-concurrent-test-patterns.md) -- Concurrent-test flake patterns (locked-write/unlocked-read, subscribe-before-broadcast, gate-handler, barrier FIFO, cleanup-drains-work)
 - [723](plan/learned/723-chaos-actions-v2.md) -- Parameterized chaos actions: string-map params over typed unions, opt-in scheduling, per-instance weights
 
+## Build/Deployment
+
+Build system, Docker, CI, toolchain upgrades.
+
+- [753](plan/learned/753-docker-go126.md) -- Docker support: two-stage build to scratch, CGO_ENABLED=0, Go 1.26 upgrade across all project references
+- [754](plan/learned/754-makefile-split.md) -- Makefile split into mk/ includes: tiered help, component test groups, contributor testing docs
+
 ## Gotchas
 
 Reusable lessons extracted from gotchas sections across summaries.
@@ -169,3 +182,7 @@ Reusable lessons extracted from gotchas sections across summaries.
 - (744) EAP and NAT-T: MD4 removed from Go, must implement from scratch; RFC 2759 magic constants exclude trailing null (RFC C array size is off-by-one); EAP-TLS pipes crypto/tls through async net.Conn transport; DetectNAT must accept []byte not [8]byte for 20-byte SHA-1 hashes; NATDetected flag on SA propagates to child SA UDP encap automatically
 - (748) Self-update: SelfUpdater parallel to UpdateChecker (hub starts one or the other based on auto-apply); FNV-1a spread deterministic per device+version; manifest field named Ver to avoid hook false positive; atomic rename with .prev hard-link backup; history persisted across restart
 - (749) AI agent tooling: lower-kebab diagnostic codes over short prefixes; dropped errors/warnings arrays (diagnostics is single source); repair metadata on warnings is intentional for fix-plan; FindListenerConflict returns structured pair without breaking ValidateListenerConflicts callers; block-version-config hook needs string-concatenation workaround in test files
+- (753) `scratch` Docker image has no shell; `docker exec` debugging requires a multi-stage override or separate debug image
+- (754) Adding a named test group to `mk/test-unit.mk` requires adding the exclusion pattern to `ZE_GROUP_REST`
+- (756) Web commit hook runs synchronously in HTTP handler; slow reload blocks the response (acceptable because reload is <100ms)
+- (759) Archive pruning prefix computed by diff of two timestamps at different dates; if filename format has no time token, prefix equals full filename

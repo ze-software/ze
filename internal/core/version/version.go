@@ -117,7 +117,7 @@ func Extended() string {
 }
 
 // HTTPHeader returns a compact version string for the X-Ze-Version HTTP header.
-// Format: "ze/26.04.05 (ac8f5391; go1.25; darwin/arm64)".
+// Format: "ze/26.04.05 (ac8f5391; go1.26; darwin/arm64)".
 func HTTPHeader() string {
 	mu.RLock()
 	v := release
