@@ -49,6 +49,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/set/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscriber/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/system/schema"
@@ -167,6 +168,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/pppoe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscriber"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )

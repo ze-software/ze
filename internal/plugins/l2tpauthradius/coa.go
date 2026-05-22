@@ -15,6 +15,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	"codeberg.org/thomas-mangin/ze/internal/component/subscriber"
+	subevents "codeberg.org/thomas-mangin/ze/internal/component/subscriber/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -164,15 +166,45 @@ func (cl *coaListener) isAllowedSource(ip net.IP) bool {
 }
 
 func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
-	sid, ok := cl.findSession(pkt)
-	if !ok {
-		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseSessionNotFound)
-		return
-	}
-
 	downloadRate := extractRate(pkt)
 	if downloadRate == 0 {
 		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseUnsupportedAttribute)
+		return
+	}
+
+	// Try subscriber registry first (works for both PPPoE and L2TP).
+	if subSess, ok := cl.findSubscriberSession(pkt); ok {
+		if cl.bus != nil {
+			if _, emitErr := subevents.SessionRateChange.Emit(cl.bus, &subevents.SessionRateChangePayload{
+				SessionID:    subSess.ID,
+				DownloadRate: downloadRate,
+				UploadRate:   downloadRate,
+			}); emitErr != nil {
+				logger().Warn("coa: emit subscriber rate-change failed", "error", emitErr)
+			}
+		}
+		// For L2TP sessions, also emit the L2TP-specific event so the
+		// existing shaper plugin picks it up.
+		if subSess.AccessType == subscriber.AccessL2TP && cl.bus != nil {
+			if _, emitErr := l2tpevents.SessionRateChange.Emit(cl.bus, &l2tpevents.SessionRateChangePayload{
+				TunnelID:     subSess.TunnelID,
+				SessionID:    subSess.SessionID,
+				DownloadRate: downloadRate,
+				UploadRate:   downloadRate,
+			}); emitErr != nil {
+				logger().Warn("coa: emit l2tp rate-change failed", "error", emitErr)
+			}
+		}
+		cl.sendResponse(from, pkt, radius.CodeCoAACK, 0)
+		logger().Info("coa: accepted CoA",
+			"subscriber", subSess.ID, "rate-bps", downloadRate, "from", from)
+		return
+	}
+
+	// Fallback: L2TP-only lookup by session ID.
+	sid, ok := cl.findSession(pkt)
+	if !ok {
+		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseSessionNotFound)
 		return
 	}
 
@@ -204,6 +236,17 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 }
 
 func (cl *coaListener) handleDisconnect(pkt *radius.Packet, from *net.UDPAddr) {
+	// Try subscriber registry first for PPPoE sessions.
+	if subSess, ok := cl.findSubscriberSession(pkt); ok && subSess.AccessType == subscriber.AccessPPPoE {
+		// PPPoE disconnect: look up the PPPoE subsystem and tear down.
+		// The PPP driver's StopSession triggers EventSessionDown which
+		// cleans up the subscriber registry via the event consumer.
+		logger().Info("coa: disconnect-request for PPPoE session not yet wired to PPPoE teardown",
+			"subscriber", subSess.ID, "from", from)
+		cl.sendResponse(from, pkt, radius.CodeDisconnectNAK, radius.ErrorCauseSessionNotFound)
+		return
+	}
+
 	sid, ok := cl.findSession(pkt)
 	if !ok {
 		cl.sendResponse(from, pkt, radius.CodeDisconnectNAK, radius.ErrorCauseSessionNotFound)
@@ -224,6 +267,20 @@ func (cl *coaListener) handleDisconnect(pkt *radius.Packet, from *net.UDPAddr) {
 
 	cl.sendResponse(from, pkt, radius.CodeDisconnectACK, 0)
 	logger().Info("coa: disconnected session", "session", sid, "from", from)
+}
+
+// findSubscriberSession looks up the subscriber registry by Acct-Session-Id.
+// Works for both PPPoE and L2TP sessions.
+func (cl *coaListener) findSubscriberSession(pkt *radius.Packet) (subscriber.Session, bool) {
+	acctSessID := pkt.FindAttr(radius.AttrAcctSessionID)
+	if acctSessID == nil {
+		return subscriber.Session{}, false
+	}
+	svc := subscriber.LookupService()
+	if svc == nil {
+		return subscriber.Session{}, false
+	}
+	return svc.Registry.LookupByAcctSessionID(string(acctSessID))
 }
 
 // findSession identifies the target session from CoA/DM attributes.

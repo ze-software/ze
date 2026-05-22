@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 8/8 |
 | Updated | 2026-05-22 |
 
 ## Post-Compaction Recovery
@@ -525,16 +525,26 @@ Not applicable. No RFC behavior changes. PPP, L2TP, PPPoE wire protocols unchang
 ## Implementation Summary
 
 ### What Was Implemented
-- [pending]
+- `internal/component/subscriber/` package: Session struct, Registry, handler registries (Auth, Pool, Shaper), events namespace, service locator, metrics
+- L2TP handler delegation: `l2tp.RegisterAuthHandler` and `l2tp.RegisterPoolHandler` now delegate to `subscriber.*` with type adaptation
+- L2TP subscriber bridge: subscribes to L2TP session events, translates to subscriber namespace events, populates subscriber registry
+- PPPoE event consumer: expanded from SessionDown-only to full PPP event handling (SessionUp, SessionIPAssigned, SessionDown), emits subscriber events, populates subscriber registry
+- PPPoE auth/pool drain goroutines: mirrors L2TP pattern, uses subscriber handler registries
+- Show commands: `show subscriber summary` and `show subscriber detail <id>` via RPC registration with YANG schema
+- Subscriber metrics: `ze_subscriber_sessions`, `ze_subscriber_sessions_total`, `ze_subscriber_auth_results` with access_type labels
+- CoA for subscriber sessions: RADIUS CoA handler extended with `findSubscriberSession` lookup by Acct-Session-Id
 
 ### Bugs Found/Fixed
-- [pending]
+- None
 
 ### Documentation Updates
-- [pending]
+- YANG schema `ze-subscriber-cmd.yang` created
+- Architecture doc `docs/architecture/subscriber.md` needed (deferred to doc pass)
 
 ### Deviations from Plan
-- [pending]
+- Prefix handlers remain L2TP-scoped (they use TunnelID/SessionID tuples specific to L2TP); generalization deferred until prefix delegation is needed for PPPoE
+- PPPoE Disconnect-Message (AC-11) logs but does not wire teardown yet; requires PPPoE subsystem to expose a teardown-by-subscriber-ID method
+- Shaper handler registration exists but PPPoE does not yet call it on session-up (L2TP shaper subscribes to L2TP events; PPPoE shaper integration needs the subscriber event subscription in the shaper plugin)
 
 ## Implementation Audit
 

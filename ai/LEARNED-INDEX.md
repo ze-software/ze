@@ -26,7 +26,7 @@ System boundaries, component design, lifecycle patterns, subsystem separation.
 - [165](plan/learned/165-reactor-service-separation.md) -- Reactor service separation from protocol
 - [244](plan/learned/244-reactor-interface-split.md) -- Reactor interface split for testability
 - [247](plan/learned/247-plugin-restructure.md) -- Plugin restructure, circular import resolution
-- [752](plan/learned/752-subscriber-session-model.md) -- Unified subscriber session model: shared Session struct across PPPoE/L2TP, handler delegation, event bridge pattern
+- [760](plan/learned/760-subscriber-session-model.md) -- Unified subscriber session model: shared Session struct across PPPoE/L2TP, handler delegation, event bridge pattern
 
 ## Wire/Encoding
 

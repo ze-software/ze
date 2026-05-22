@@ -3,7 +3,12 @@
 
 package l2tp
 
-import "sync"
+import (
+	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
+	"codeberg.org/thomas-mangin/ze/internal/component/subscriber"
+)
 
 // PoolStats carries the current state of the IP address pool for
 // "show l2tp pool" CLI output.
@@ -19,65 +24,77 @@ type PoolStats struct {
 // the l2tp-pool plugin at init time.
 type PoolStatsProvider func() []PoolStats
 
+// Prefix handlers and pool stats remain L2TP-scoped (they use
+// TunnelID/SessionID tuples). Auth and pool delegate to subscriber.
 var (
 	handlerMu         sync.RWMutex
-	authHandler       AuthHandler
-	poolHandler       PoolHandler
 	prefixHandler     PrefixHandler
 	prefixReleaser    PrefixReleaser
 	poolStatsProvider PoolStatsProvider
 )
 
-// RegisterAuthHandler registers the production auth handler. Called
-// from plugin init(). Ignores nil handlers. If a handler is already
-// registered, it is replaced (last writer wins; import order determines
-// priority when multiple auth plugins are loaded).
+// RegisterAuthHandler delegates to subscriber.RegisterAuthHandler,
+// adapting the L2TP-typed handler to the subscriber type system.
 func RegisterAuthHandler(h AuthHandler) {
 	if h == nil {
 		return
 	}
-	handlerMu.Lock()
-	defer handlerMu.Unlock()
-	authHandler = h
+	subscriber.RegisterAuthHandler(func(req ppp.EventAuthRequest, respond subscriber.AuthRespondFunc) subscriber.AuthResult {
+		l2tpRespond := AuthRespondFunc(respond)
+		r := h(req, l2tpRespond)
+		return subscriber.AuthResult{
+			Accept:           r.Accept,
+			Message:          r.Message,
+			AuthResponseBlob: r.AuthResponseBlob,
+			Handled:          r.Handled,
+		}
+	})
 }
 
-// GetAuthHandler returns the registered auth handler, or nil if none.
+// GetAuthHandler returns the registered auth handler adapted from the
+// subscriber registry, or nil if none.
 func GetAuthHandler() AuthHandler {
-	handlerMu.RLock()
-	defer handlerMu.RUnlock()
-	return authHandler
+	sh := subscriber.GetAuthHandler()
+	if sh == nil {
+		return nil
+	}
+	return func(req ppp.EventAuthRequest, respond AuthRespondFunc) AuthResult {
+		subRespond := subscriber.AuthRespondFunc(respond)
+		r := sh(req, subRespond)
+		return AuthResult{
+			Accept:           r.Accept,
+			Message:          r.Message,
+			AuthResponseBlob: r.AuthResponseBlob,
+			Handled:          r.Handled,
+		}
+	}
 }
 
 // UnregisterAuthHandler removes the auth handler. Only for use in tests.
 func UnregisterAuthHandler() {
-	handlerMu.Lock()
-	defer handlerMu.Unlock()
-	authHandler = nil
+	subscriber.UnregisterAuthHandler()
 }
 
-// RegisterPoolHandler registers the production pool handler. Called
-// from plugin init(). Ignores nil handlers.
+// RegisterPoolHandler delegates to subscriber.RegisterPoolHandler.
 func RegisterPoolHandler(h PoolHandler) {
 	if h == nil {
 		return
 	}
-	handlerMu.Lock()
-	defer handlerMu.Unlock()
-	poolHandler = h
+	subscriber.RegisterPoolHandler(subscriber.PoolHandler(h))
 }
 
 // GetPoolHandler returns the registered pool handler, or nil if none.
 func GetPoolHandler() PoolHandler {
-	handlerMu.RLock()
-	defer handlerMu.RUnlock()
-	return poolHandler
+	sh := subscriber.GetPoolHandler()
+	if sh == nil {
+		return nil
+	}
+	return PoolHandler(sh)
 }
 
 // UnregisterPoolHandler removes the pool handler. Only for use in tests.
 func UnregisterPoolHandler() {
-	handlerMu.Lock()
-	defer handlerMu.Unlock()
-	poolHandler = nil
+	subscriber.UnregisterPoolHandler()
 }
 
 // RegisterPrefixHandler registers the production IPv6 prefix handler.
@@ -87,15 +104,16 @@ func RegisterPrefixHandler(h PrefixHandler) {
 		return
 	}
 	handlerMu.Lock()
-	defer handlerMu.Unlock()
 	prefixHandler = h
+	handlerMu.Unlock()
 }
 
 // GetPrefixHandler returns the registered prefix handler, or nil if none.
 func GetPrefixHandler() PrefixHandler {
 	handlerMu.RLock()
-	defer handlerMu.RUnlock()
-	return prefixHandler
+	h := prefixHandler
+	handlerMu.RUnlock()
+	return h
 }
 
 // RegisterPrefixReleaser registers the function that releases an IPv6
@@ -105,29 +123,30 @@ func RegisterPrefixReleaser(r PrefixReleaser) {
 		return
 	}
 	handlerMu.Lock()
-	defer handlerMu.Unlock()
 	prefixReleaser = r
+	handlerMu.Unlock()
 }
 
 // GetPrefixReleaser returns the registered prefix releaser, or nil if none.
 func GetPrefixReleaser() PrefixReleaser {
 	handlerMu.RLock()
-	defer handlerMu.RUnlock()
-	return prefixReleaser
+	r := prefixReleaser
+	handlerMu.RUnlock()
+	return r
 }
 
 // UnregisterPrefixHandler removes the prefix handler. Only for use in tests.
 func UnregisterPrefixHandler() {
 	handlerMu.Lock()
-	defer handlerMu.Unlock()
 	prefixHandler = nil
+	handlerMu.Unlock()
 }
 
 // UnregisterPrefixReleaser removes the prefix releaser. Only for use in tests.
 func UnregisterPrefixReleaser() {
 	handlerMu.Lock()
-	defer handlerMu.Unlock()
 	prefixReleaser = nil
+	handlerMu.Unlock()
 }
 
 // RegisterPoolStatsProvider registers the function that returns pool
@@ -138,13 +157,14 @@ func RegisterPoolStatsProvider(p PoolStatsProvider) {
 		return
 	}
 	handlerMu.Lock()
-	defer handlerMu.Unlock()
 	poolStatsProvider = p
+	handlerMu.Unlock()
 }
 
 // GetPoolStatsProvider returns the registered pool stats provider, or nil.
 func GetPoolStatsProvider() PoolStatsProvider {
 	handlerMu.RLock()
-	defer handlerMu.RUnlock()
-	return poolStatsProvider
+	p := poolStatsProvider
+	handlerMu.RUnlock()
+	return p
 }

@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
+	"codeberg.org/thomas-mangin/ze/internal/component/subscriber"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -83,6 +84,9 @@ type Subsystem struct {
 	// statsPoller periodically reads pppN interface counters for Prometheus.
 	// Created at Start when metrics registry is available; nil otherwise.
 	statsPoller *l2tpStatsPoller
+	// subBridge translates L2TP session events into subscriber namespace
+	// events and maintains the subscriber registry.
+	subBridge *subscriberBridge
 }
 
 // NewSubsystem constructs an L2TP subsystem from parsed Parameters. The returned
@@ -284,7 +288,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 				s.logger.Error("l2tp: no pool handler registered; all IP requests will be rejected")
 			}
 			s.drainDones = append(s.drainDones,
-				startAuthDrain(s.logger, pppDriver, authH),
+				startAuthDrain(s.logger, pppDriver, authH, bus),
 				startPoolDrain(s.logger, pppDriver, poolH),
 			)
 		}
@@ -332,12 +336,17 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	// spec-l2tp-10: bind Prometheus metrics and start the stats poller.
 	if reg, ok := registry.GetMetricsRegistry().(metrics.Registry); ok {
 		bindL2TPMetrics(reg)
+		subscriber.BindMetrics(reg)
 		pollInterval := parsePollInterval()
 		poller := newL2TPStatsPoller(s.reactors, pollInterval)
 		poller.start()
 		s.statsPoller = poller
 		s.logger.Info("l2tp: metrics bound and stats poller started",
 			"poll-interval", pollInterval)
+	}
+
+	if bus != nil {
+		s.subBridge = newSubscriberBridge(subscriber.DefaultRegistry, bus, s.logger)
 	}
 
 	s.started = true
@@ -415,6 +424,10 @@ func (s *Subsystem) unwindLocked() {
 		s.statsPoller.stop()
 		s.statsPoller = nil
 	}
+	if s.subBridge != nil {
+		s.subBridge.stop()
+		s.subBridge = nil
+	}
 	s.pppDrivers = nil
 	s.kernelWorkers = nil
 	s.timers = nil
@@ -486,6 +499,10 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	if s.observer != nil {
 		s.observer.Stop()
 		s.observer = nil
+	}
+	if s.subBridge != nil {
+		s.subBridge.stop()
+		s.subBridge = nil
 	}
 	s.pppDrivers = nil
 	s.kernelWorkers = nil

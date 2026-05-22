@@ -60,6 +60,26 @@ func (s *shaperPlugin) setEventBus(eb ze.EventBus) {
 	}
 }
 
+// handleSubscriberSessionUp is the subscriber.ShaperHandler registered
+// at init. Called by PPPoE on SessionUp. Applies TC with the default
+// configured rate (RADIUS metadata is L2TP-only for now).
+func (s *shaperPlugin) handleSubscriberSessionUp(iface string, downloadRate, _ uint64) {
+	cfg := s.cfgPtr.Load()
+	if cfg == nil {
+		return
+	}
+	if downloadRate == 0 {
+		downloadRate = cfg.DefaultRate
+	}
+	if err := s.applyTC(iface, cfg.QdiscType, downloadRate); err != nil {
+		logger().Warn("l2tp-shaper: failed to apply TC on subscriber session-up",
+			"interface", iface, "error", err)
+		return
+	}
+	logger().Info("l2tp-shaper: applied shaping (subscriber)",
+		"interface", iface, "rate-bps", downloadRate)
+}
+
 func (s *shaperPlugin) onSessionUp(payload *l2tpevents.SessionUpPayload) {
 	cfg := s.cfgPtr.Load()
 	if cfg == nil {

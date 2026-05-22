@@ -9,6 +9,9 @@ import (
 	"log/slog"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
+	"codeberg.org/thomas-mangin/ze/internal/component/subscriber"
+	subevents "codeberg.org/thomas-mangin/ze/internal/component/subscriber/events"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 // authDrainResponse carries the handler result plus session IDs so the
@@ -61,7 +64,7 @@ func drainAuth(logger *slog.Logger, ch <-chan ppp.AuthEvent, handler AuthHandler
 // from d.AuthEventsOut(), calls the registered handler, and forwards
 // the decision to d.AuthResponse(). Exits when the channel closes
 // (Driver.Stop). The done channel is closed on exit.
-func startAuthDrain(logger *slog.Logger, d *ppp.Driver, handler AuthHandler) <-chan struct{} {
+func startAuthDrain(logger *slog.Logger, d *ppp.Driver, handler AuthHandler, bus ze.EventBus) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -74,6 +77,18 @@ func startAuthDrain(logger *slog.Logger, d *ppp.Driver, handler AuthHandler) <-c
 				return d.AuthResponse(req.TunnelID, req.SessionID, accept, msg, blob)
 			}
 			r := callAuthHandler(logger, handler, req, respond)
+			subscriber.RecordAuthResult(subscriber.AccessL2TP, r.Accept)
+			if bus != nil {
+				if _, err := subevents.SessionAuthResult.Emit(bus, &subevents.SessionAuthResultPayload{
+					SessionID:  l2tpSessionID(req.TunnelID, req.SessionID),
+					AccessType: subscriber.AccessL2TP,
+					Username:   req.Username,
+					Accept:     r.Accept,
+					Reason:     r.Message,
+				}); err != nil {
+					logger.Warn("l2tp: auth-result emit failed", "error", err)
+				}
+			}
 			if r.Handled {
 				continue
 			}
