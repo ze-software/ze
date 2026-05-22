@@ -9,6 +9,8 @@ package ifacenetlink
 
 import (
 	"fmt"
+	"net"
+	"net/netip"
 	"strconv"
 	"syscall"
 
@@ -120,6 +122,53 @@ func (b *netlinkBackend) ListKernelRoutes(filterPrefix string, limit int) ([]ifa
 		}
 		result = append(result, entry)
 	}
+	return result, nil
+}
+
+// RouteLookup performs a longest-prefix-match lookup for the given
+// destination IP using netlink RouteGet.
+func (b *netlinkBackend) RouteLookup(dest netip.Addr) (map[string]any, error) {
+	routes, err := netlink.RouteGet(net.IP(dest.AsSlice()))
+	if err != nil {
+		return nil, fmt.Errorf("route lookup: %w", err)
+	}
+	if len(routes) == 0 {
+		return nil, fmt.Errorf("route lookup: no route to %s", dest)
+	}
+	r := routes[0]
+
+	result := map[string]any{
+		"destination": dest.String(),
+	}
+	if r.Dst != nil {
+		prefix, ok := netip.AddrFromSlice(r.Dst.IP)
+		if ok {
+			ones, _ := r.Dst.Mask.Size()
+			result["prefix"] = netip.PrefixFrom(prefix, ones).String()
+		}
+	} else {
+		if dest.Is4() {
+			result["prefix"] = "0.0.0.0/0"
+		} else {
+			result["prefix"] = "::/0"
+		}
+	}
+	if r.Gw != nil {
+		gw, ok := netip.AddrFromSlice(r.Gw)
+		if ok {
+			result["next-hop"] = gw.String()
+		}
+	}
+	if r.LinkIndex > 0 {
+		link, linkErr := netlink.LinkByIndex(r.LinkIndex)
+		if linkErr == nil {
+			result["interface"] = link.Attrs().Name
+		}
+	}
+	result["protocol"] = protocolName(int(r.Protocol))
+	result["metric"] = r.Priority
+	result["table"] = r.Table
+
 	return result, nil
 }
 

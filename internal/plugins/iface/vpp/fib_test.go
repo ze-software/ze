@@ -1,7 +1,9 @@
 package ifacevpp
 
 import (
+	"errors"
 	"fmt"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -10,6 +12,8 @@ import (
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/ip"
 	"go.fd.io/govpp/binapi/ip_types"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
 // clearStatsReplyTarget is a local alias so the test file's reply handler
@@ -18,7 +22,8 @@ import (
 // before every test has been wired.
 type clearStatsReplyTarget = interfaces.SwInterfaceClearStatsReply
 
-// routeChannel is a mock api.Channel for IPRouteV2Dump multi-requests.
+// routeChannel is a mock api.Channel for IPRouteV2Dump multi-requests
+// and IPRouteLookupV2 single-requests.
 // It returns v4Details on the first dump (IsIP6=false) and v6Details on
 // the second. SwInterfaceClearStats replies are served through the
 // single-request path so counter-reset tests can share the same fake.
@@ -28,6 +33,7 @@ type routeChannel struct {
 	v4Details     []ip.IPRouteV2Details
 	v6Details     []ip.IPRouteV2Details
 	clearReply    clearStatsReply
+	lookupReply   ip.IPRouteLookupV2Reply
 	sendErr       error
 	receiveErr    error
 	dumpCallCount int
@@ -74,8 +80,11 @@ func (r *routeRequestCtx) ReceiveReply(msg api.Message) error {
 	if r.ch.sendErr != nil {
 		return r.ch.sendErr
 	}
-	if reply, ok := msg.(*clearStatsReplyTarget); ok {
+	switch reply := msg.(type) {
+	case *clearStatsReplyTarget:
 		reply.Retval = r.ch.clearReply.retval
+	case *ip.IPRouteLookupV2Reply:
+		*reply = r.ch.lookupReply
 	}
 	return nil
 }
@@ -378,5 +387,100 @@ func TestFibSourceNameUnknown(t *testing.T) {
 	// 200 is outside the well-known range; expect decimal string.
 	if got := fibSourceName(200); got != "200" {
 		t.Errorf("fibSourceName(200): got %q, want 200", got)
+	}
+}
+
+// --- RouteLookup ---
+
+func TestVPPRouteLookup(t *testing.T) {
+	route := makeIP4Route(t, "10.20.0.0/24", "192.168.1.1", 19, 7)
+	ch := &routeChannel{
+		lookupReply: ip.IPRouteLookupV2Reply{
+			Retval: 0,
+			Route:  route.Route,
+		},
+	}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+	b.names.Add("xe7", 7, "xe7")
+	b.populate.Do(func() {})
+
+	dest := netip.MustParseAddr("10.20.0.1")
+	result, err := b.RouteLookup(dest)
+	if err != nil {
+		t.Fatalf("RouteLookup: %v", err)
+	}
+	if result["destination"] != "10.20.0.1" {
+		t.Errorf("destination: got %v, want 10.20.0.1", result["destination"])
+	}
+	if result["prefix"] != "10.20.0.0/24" {
+		t.Errorf("prefix: got %v, want 10.20.0.0/24", result["prefix"])
+	}
+	if result["next-hop"] != "192.168.1.1" {
+		t.Errorf("next-hop: got %v, want 192.168.1.1", result["next-hop"])
+	}
+	if result["interface"] != "xe7" {
+		t.Errorf("interface: got %v, want xe7", result["interface"])
+	}
+	if result["protocol"] != "bgp" {
+		t.Errorf("protocol: got %v, want bgp", result["protocol"])
+	}
+	if result["table"] != int(0) {
+		t.Errorf("table: got %v, want 0", result["table"])
+	}
+}
+
+func TestVPPRouteLookupNoRoute(t *testing.T) {
+	ch := &routeChannel{
+		lookupReply: ip.IPRouteLookupV2Reply{Retval: -1},
+	}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+	b.populate.Do(func() {})
+
+	dest := netip.MustParseAddr("10.99.0.1")
+	_, err := b.RouteLookup(dest)
+	if err == nil {
+		t.Fatal("expected error for no-route, got nil")
+	}
+}
+
+func TestVPPRouteLookupIPv6(t *testing.T) {
+	route := makeIP6Route(t, "2001:db8::/32", "fe80::1", 19)
+	ch := &routeChannel{
+		lookupReply: ip.IPRouteLookupV2Reply{
+			Retval: 0,
+			Route:  route.Route,
+		},
+	}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+	b.populate.Do(func() {})
+
+	dest := netip.MustParseAddr("2001:db8::1")
+	result, err := b.RouteLookup(dest)
+	if err != nil {
+		t.Fatalf("RouteLookup IPv6: %v", err)
+	}
+	if result["destination"] != "2001:db8::1" {
+		t.Errorf("destination: got %v, want 2001:db8::1", result["destination"])
+	}
+	if result["prefix"] != "2001:db8::/32" {
+		t.Errorf("prefix: got %v, want 2001:db8::/32", result["prefix"])
+	}
+	if result["next-hop"] != "fe80::1" {
+		t.Errorf("next-hop: got %v, want fe80::1", result["next-hop"])
+	}
+}
+
+func TestVPPRouteLookupChannelNotReady(t *testing.T) {
+	orig := getActiveConnector
+	getActiveConnector = func() vppConnector { return nil }
+	defer func() { getActiveConnector = orig }()
+
+	b := &vppBackendImpl{names: newNameMap()}
+	_, err := b.RouteLookup(netip.MustParseAddr("10.0.0.1"))
+	if err == nil {
+		t.Fatal("expected ErrBackendNotReady, got nil")
+	}
+	if !errors.Is(err, iface.ErrBackendNotReady) {
+		t.Fatalf("expected errors.Is(err, iface.ErrBackendNotReady), got %v", err)
 	}
 }

@@ -2,6 +2,7 @@ package iface
 
 import (
 	"fmt"
+	"net/netip"
 	"strings"
 	"sync"
 	"testing"
@@ -91,6 +92,9 @@ func (m *mockMigrateBackend) ListRoutes(_, _ string) ([]RouteInfo, error) {
 	return nil, fmt.Errorf("mock: not supported")
 }
 func (m *mockMigrateBackend) ListNeighbors(_ int) ([]NeighborInfo, error) {
+	return nil, fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) RouteLookup(_ netip.Addr) (map[string]any, error) {
 	return nil, fmt.Errorf("mock: not supported")
 }
 func (m *mockMigrateBackend) ListKernelRoutes(_ string, _ int) ([]KernelRoute, error) {

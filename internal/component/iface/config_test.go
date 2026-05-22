@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -2053,6 +2054,9 @@ func (b *fakeBackend) ListNeighbors(_ int) ([]NeighborInfo, error) {
 	return nil, nil
 }
 
+func (b *fakeBackend) RouteLookup(_ netip.Addr) (map[string]any, error) {
+	return map[string]any{}, nil
+}
 func (b *fakeBackend) ListKernelRoutes(_ string, _ int) ([]KernelRoute, error) {
 	return nil, nil
 }

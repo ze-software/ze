@@ -133,6 +133,72 @@ func (b *vppBackendImpl) ListKernelRoutes(filterPrefix string, limit int) ([]ifa
 	return result, nil
 }
 
+// RouteLookup performs a longest-prefix-match lookup for the given
+// destination IP in VPP's FIB via IPRouteLookupV2.
+func (b *vppBackendImpl) RouteLookup(dest netip.Addr) (map[string]any, error) {
+	if err := b.ensureChannel(); err != nil {
+		return nil, err
+	}
+
+	var prefix ip_types.Prefix
+	if dest.Is4() {
+		a4 := dest.As4()
+		var ip4 ip_types.IP4Address
+		copy(ip4[:], a4[:])
+		prefix = ip_types.Prefix{
+			Address: ip_types.Address{
+				Af: ip_types.ADDRESS_IP4,
+				Un: ip_types.AddressUnionIP4(ip4),
+			},
+			Len: 32,
+		}
+	} else {
+		a16 := dest.As16()
+		var ip6 ip_types.IP6Address
+		copy(ip6[:], a16[:])
+		prefix = ip_types.Prefix{
+			Address: ip_types.Address{
+				Af: ip_types.ADDRESS_IP6,
+				Un: ip_types.AddressUnionIP6(ip6),
+			},
+			Len: 128,
+		}
+	}
+
+	req := &ip.IPRouteLookupV2{
+		TableID: 0,
+		Exact:   0,
+		Prefix:  prefix,
+	}
+	reply := &ip.IPRouteLookupV2Reply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return nil, fmt.Errorf("ifacevpp: IPRouteLookupV2: %w", err)
+	}
+	if reply.Retval != 0 {
+		return nil, fmt.Errorf("ifacevpp: route lookup for %s: no route (retval=%d)", dest, reply.Retval)
+	}
+
+	entry, ok := routeV2ToKernelRoute(&reply.Route, b.names.LookupName)
+	if !ok {
+		return nil, fmt.Errorf("ifacevpp: route lookup for %s: malformed reply", dest)
+	}
+
+	result := map[string]any{
+		"destination": dest.String(),
+		"prefix":      entry.Destination,
+		"protocol":    entry.Protocol,
+		"metric":      entry.Metric,
+		"table":       int(reply.Route.TableID),
+	}
+	if entry.NextHop != "" {
+		result["next-hop"] = entry.NextHop
+	}
+	if entry.Device != "" {
+		result["interface"] = entry.Device
+	}
+	return result, nil
+}
+
 // routeV2ToKernelRoute converts a single VPP ip_route_v2 entry to the
 // iface.KernelRoute shape. Returns false when the route has no paths
 // (malformed reply) or an unusable prefix. lookupName resolves a

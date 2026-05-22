@@ -7,6 +7,7 @@ package iface
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -136,6 +137,12 @@ type Backend interface {
 	// family is one of NeighborFamilyAny / NeighborFamilyIPv4 / NeighborFamilyIPv6
 	// declared in iface.go; backends translate to their native constants.
 	ListNeighbors(family int) ([]NeighborInfo, error)
+
+	// RouteLookup performs a longest-prefix-match lookup for the given
+	// destination IP in the backend's FIB. Returns the matching route as
+	// a map suitable for JSON serialization with keys: destination, prefix,
+	// next-hop, interface, protocol, metric, table.
+	RouteLookup(dest netip.Addr) (map[string]any, error)
 
 	// ListKernelRoutes returns up to `limit` entries from the kernel's
 	// routing table. filterPrefix, when non-empty, restricts the result

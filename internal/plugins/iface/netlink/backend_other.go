@@ -7,6 +7,7 @@ package ifacenetlink
 
 import (
 	"fmt"
+	"net/netip"
 	"runtime"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
@@ -56,6 +57,7 @@ func (s *stubBackend) GetStats(_ string) (*iface.InterfaceStats, error)       { 
 func (s *stubBackend) ListInterfaces() ([]iface.InterfaceInfo, error)         { return nil, unsupported() }
 func (s *stubBackend) GetInterface(_ string) (*iface.InterfaceInfo, error)    { return nil, unsupported() }
 func (s *stubBackend) ListNeighbors(_ int) ([]iface.NeighborInfo, error)      { return nil, unsupported() }
+func (s *stubBackend) RouteLookup(_ netip.Addr) (map[string]any, error)       { return nil, unsupported() }
 func (s *stubBackend) ListKernelRoutes(_ string, _ int) ([]iface.KernelRoute, error) {
 	return nil, unsupported()
 }

@@ -443,11 +443,83 @@ def handle_sw_interface_set_mpls_enable(state, sock, context, body):
     write_frame(sock, reply)
 
 
+def handle_ip_route_lookup_v2(state, sock, context, body):
+    """Handle IPRouteLookupV2 by returning a canned route.
+
+    Request body layout after 10-byte msg header:
+      0..3    TableID (u32 BE)
+      4       Exact (u8)
+      5       Prefix.Address.Af (u8: 0=IP4, 1=IP6)
+      6..21   Prefix.Address.Un (16 bytes)
+      22      Prefix.Len (u8)
+
+    Reply body layout (IPRouteLookupV2Reply):
+      0..3    Retval (i32 BE)
+      4..7    Route.TableID (u32 BE)
+      8..11   Route.StatsIndex (u32 BE)
+      12      Route.Prefix.Address.Af (u8)
+      13..28  Route.Prefix.Address.Un (16 bytes)
+      29      Route.Prefix.Len (u8)
+      30      Route.NPaths (u8)
+      31      Route.Src (u8)
+      32+     Paths[NPaths] (each FibPath = 167 bytes)
+
+    The stub returns a canned 10.20.0.0/24 via 192.168.1.1 route for any
+    IPv4 lookup, or retval=-1 for IPv6 (no route). Enough for functional
+    testing that the daemon correctly wires IPRouteLookupV2 and renders
+    the result as JSON.
+    """
+    fields = {}
+    if len(body) >= 23:
+        (table_id,) = struct.unpack_from(">I", body, 0)
+        exact = body[4]
+        af = body[5]
+        un = body[6:22]
+        prefix_len = body[22]
+        fields["table_id"] = table_id
+        fields["exact"] = exact
+        fields["prefix"] = f"{_parse_ip_address(af, un)}/{prefix_len}"
+    state.log("ip_route_lookup_v2", context, fields)
+
+    if fields.get("prefix", "").startswith("10."):
+        # Return a canned route: 10.20.0.0/24 via 192.168.1.1, src=19 (bgp)
+        out = io.BytesIO()
+        out.write(struct.pack(">i", 0))  # Retval = 0
+        out.write(struct.pack(">I", 0))  # TableID
+        out.write(struct.pack(">I", 0))  # StatsIndex
+        out.write(struct.pack("B", 0))  # Af = IP4
+        pfx_un = bytearray(16)
+        pfx_un[0:4] = socket.inet_aton("10.20.0.0")
+        out.write(pfx_un)  # Prefix.Address.Un
+        out.write(struct.pack("B", 24))  # Prefix.Len
+        out.write(struct.pack("B", 1))  # NPaths
+        out.write(struct.pack("B", 19))  # Src (bgp)
+        # FibPath (167 bytes)
+        path = bytearray(167)
+        struct.pack_into(">I", path, 0, 0)  # SwIfIndex
+        struct.pack_into(">I", path, 22, 0)  # Proto = IP4
+        nh_un = bytearray(16)
+        nh_un[0:4] = socket.inet_aton("192.168.1.1")
+        path[26:42] = nh_un  # Nh.Address
+        path[12] = 1  # Weight
+        out.write(path)
+        reply = build_reply(state, "ip_route_lookup_v2_reply", context, out.getvalue())
+    else:
+        # No route for non-10.x lookups
+        body_out = struct.pack(">i", -1)
+        # Still need the route fields (all zeros) for GoVPP decode
+        body_out += b"\x00" * 28  # TableID + StatsIndex + Prefix + NPaths + Src
+        reply = build_reply(state, "ip_route_lookup_v2_reply", context, body_out)
+
+    write_frame(sock, reply)
+
+
 HANDLERS = {
     "sockclnt_create": handle_sockclnt_create,
     "sockclnt_delete": handle_sockclnt_delete,
     "control_ping": handle_control_ping,
     "ip_route_add_del": handle_ip_route_add_del,
+    "ip_route_lookup_v2": handle_ip_route_lookup_v2,
     "mpls_route_add_del": handle_mpls_route_add_del,
     "sw_interface_set_mpls_enable": handle_sw_interface_set_mpls_enable,
 }

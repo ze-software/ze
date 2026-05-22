@@ -6,6 +6,7 @@ package iface
 
 import (
 	"errors"
+	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -105,6 +106,16 @@ func ListNeighbors(family int) ([]NeighborInfo, error) {
 		return nil, err
 	}
 	return b.ListNeighbors(family)
+}
+
+// RouteLookup performs a longest-prefix-match lookup for the given
+// destination IP via the active backend.
+func RouteLookup(dest netip.Addr) (map[string]any, error) {
+	b, err := backendOrErr()
+	if err != nil {
+		return nil, err
+	}
+	return b.RouteLookup(dest)
 }
 
 // ListKernelRoutes returns up to `limit` entries from the kernel's

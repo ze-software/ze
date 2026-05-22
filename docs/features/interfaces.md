@@ -123,7 +123,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | **Platform** | Pluggable backend interface | have | |
 | | Linux netlink backend (default) | have | |
 | | YANG `backend` leaf (config-driven selection) | have | |
-| | VPP backend (ifacevpp, via GoVPP) | have | ResetCounters via sw_interface_clear_stats; ListKernelRoutes via ip_route_v2_dump (VPP FIB is authoritative); ListNeighbors via ip_neighbor_dump; VXLAN/GRE/IPIP/LCP/stats-socket/mirror/STP pending third-party vendoring |
+| | VPP backend (ifacevpp, via GoVPP) | have | ResetCounters via sw_interface_clear_stats; ListKernelRoutes via ip_route_v2_dump; RouteLookup via IPRouteLookupV2 (VPP FIB is authoritative); ListNeighbors via ip_neighbor_dump; VXLAN/GRE/IPIP/LCP/stats-socket/mirror/STP pending third-party vendoring |
 | | macOS / Darwin | missing | lower |
 | | FreeBSD / OpenBSD | missing | lower |
 | | systemd-networkd | missing | lower |
@@ -146,7 +146,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 <!-- source: internal/plugins/iface/vpp/query.go — ListInterfaces/GetInterface/Get/SetMACAddress via SwInterfaceDump and SwInterfaceSetMacAddress -->
 <!-- source: internal/plugins/iface/vpp/monitor.go — StartMonitor via WantInterfaceEvents + SubscribeNotification -->
 <!-- source: internal/plugins/iface/vpp/naming.go — ze short name <-> VPP SwIfIndex bidirectional map -->
-<!-- source: internal/plugins/iface/vpp/fib.go — ListKernelRoutes via ip_route_v2_dump over both v4 and v6 tables -->
+<!-- source: internal/plugins/iface/vpp/fib.go — RouteLookup via IPRouteLookupV2; ListKernelRoutes via ip_route_v2_dump over both v4 and v6 tables -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go — DHCPv4 worker -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go — DHCPv6 worker -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go — BGP integration -->
@@ -160,7 +160,7 @@ Config (YANG: ze-iface-conf.yang, "backend" leaf selects backend)
 iface component (register.go) -- OnConfigure() loads backend, starts monitor
   |
   v
-Backend interface (backend.go) -- 33 methods: lifecycle, address, sysctl, mirror, monitor
+Backend interface (backend.go) -- 34 methods: lifecycle, address, sysctl, mirror, monitor
   |
   v
 +------------------+--------------------+
@@ -214,7 +214,7 @@ tab press, returning MAC addresses from currently active OS interfaces.
 - **Descriptive names as keys, MAC as binding.** Interface names in config are user-chosen
   descriptive labels. The MAC address ties the config entry to physical hardware. This
   separates the logical identity (name) from the physical identity (MAC).
-- **Pluggable backends.** The iface component defines a `Backend` interface (33 methods).
+- **Pluggable backends.** The iface component defines a `Backend` interface (34 methods).
   OS-specific operations live in backend plugins (`ifacenetlink` for Linux). The YANG
   `backend` leaf selects the backend (default: `netlink`). DHCP is a separate plugin
   (`ifacedhcp`) that uses the backend for address operations.
@@ -459,7 +459,7 @@ and `wg(8)`.
 
 ## Backend Implementations
 
-The `Backend` interface declares 33 methods. Three implementations ship in
+The `Backend` interface declares 34 methods. Three implementations ship in
 tree; coverage varies per platform and dataplane. The table below lists
 each method against the backend and whether it is wired or returns an
 error. `err` means the method is implemented as a stub that rejects every
@@ -486,6 +486,7 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | **Route** | `AddRoute` | real | err (use fib-vpp plugin) | err |
 | | `RemoveRoute` | real | err (use fib-vpp plugin) | err |
 | | `ListRoutes` | real | err (use fib-vpp plugin) | err |
+| | `RouteLookup` | real (netlink RouteGet) | real (IPRouteLookupV2 LPM) | err |
 | | `ListKernelRoutes` | real | err [3] | err |
 | **Link state** | `SetAdminUp` | real | real (SwInterfaceSetFlags) | err |
 | | `SetAdminDown` | real | real (SwInterfaceSetFlags) | err |
