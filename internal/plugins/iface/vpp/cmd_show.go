@@ -1,6 +1,6 @@
-// Design: plan/spec-diag-0-umbrella.md -- VPP dataplane trace handlers
+// Design: plan/spec-backend-command-dispatch.md -- VPP dataplane trace handlers
 
-package show
+package ifacevpp
 
 import (
 	"regexp"
@@ -9,7 +9,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/component/vpp"
+	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
 )
 
 const maxTraceCount = 10000
@@ -34,7 +34,7 @@ func handleVPPTraceStart(_ *pluginserver.CommandContext, args []string) (*plugin
 			if i+1 < len(args) {
 				inputNode = args[i+1]
 			}
-		case argCount:
+		case "count":
 			if i+1 < len(args) {
 				if n, err := strconv.Atoi(args[i+1]); err == nil && n > 0 {
 					count = min(n, maxTraceCount)
@@ -45,7 +45,7 @@ func handleVPPTraceStart(_ *pluginserver.CommandContext, args []string) (*plugin
 	if !validNodeName.MatchString(inputNode) {
 		return &plugin.Response{Status: plugin.StatusError, Data: "invalid node name: must match [a-zA-Z0-9_-]+"}, nil
 	}
-	output, err := vpp.TraceStart(inputNode, count)
+	output, err := vppcomp.TraceStart(inputNode, count)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error
 	}
@@ -61,7 +61,7 @@ func handleVPPTraceStart(_ *pluginserver.CommandContext, args []string) (*plugin
 }
 
 func handleVPPTraceShow(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	output, err := vpp.TraceShow()
+	output, err := vppcomp.TraceShow()
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error
 	}
@@ -77,7 +77,7 @@ func handleVPPTraceShow(_ *pluginserver.CommandContext, _ []string) (*plugin.Res
 }
 
 func handleVPPTraceClear(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	output, err := vpp.TraceClear()
+	output, err := vppcomp.TraceClear()
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error
 	}
@@ -91,7 +91,7 @@ func handleVPPTraceClear(_ *pluginserver.CommandContext, _ []string) (*plugin.Re
 }
 
 func handleVPPRuntime(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	output, err := vpp.ShowRuntime()
+	output, err := vppcomp.ShowRuntime()
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error
 	}

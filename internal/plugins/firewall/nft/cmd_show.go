@@ -1,17 +1,15 @@
-// Design: docs/guide/command-reference.md -- `show firewall *` operational commands
-// Related: show.go -- show verb RPC registration
-// Related: ip.go -- sibling `show ip *` handlers
+// Design: plan/spec-backend-command-dispatch.md -- nft firewall show handlers
 
-package show
+package firewallnft
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func init() {
@@ -27,18 +25,6 @@ func init() {
 	)
 }
 
-// handleShowFirewallRuleset returns the per-rule packet/byte counters for
-// a named table, joined with the applied desired state so operators see
-// both what was configured and how much traffic has hit each term.
-//
-// Under exact-or-reject:
-//   - no backend loaded -> reject (firewall plugin idle)
-//   - active backend is not nft -> reject with the backend name
-//   - table not present in the last applied snapshot -> reject with the
-//     sorted list of known table names
-//
-// The positional argument is the bare table name (without the "ze_"
-// prefix that the kernel carries); unknown names reject.
 func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
 		return &plugin.Response{
@@ -57,9 +43,11 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 	}
 	backendName := firewall.ActiveBackendName()
 	if backendName != "" && backendName != "nft" {
+		var buf textbuf.Buffer
+		buf.Str("firewall: backend \"").Str(backendName).Str("\" does not support ruleset readback; only nft is supported")
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("firewall: backend %q does not support ruleset readback; only nft is supported", backendName),
+			Data:   buf.String(),
 		}, nil
 	}
 
@@ -75,13 +63,14 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 	}
 	if target == nil {
 		sort.Strings(names)
-		msg := fmt.Sprintf("firewall: table %q not found", wanted)
+		var buf textbuf.Buffer
+		buf.Str("firewall: table \"").Str(wanted).Str("\" not found")
 		if len(names) == 0 {
-			msg += "; no firewall tables have been applied"
+			buf.Str("; no firewall tables have been applied")
 		} else {
-			msg += "; valid: " + strings.Join(names, ", ")
+			buf.Str("; valid: ").Str(strings.Join(names, ", "))
 		}
-		return &plugin.Response{Status: plugin.StatusError, Data: msg}, nil
+		return &plugin.Response{Status: plugin.StatusError, Data: buf.String()}, nil
 	}
 
 	counters, err := b.GetCounters(target.Name)
@@ -89,8 +78,6 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error via Response
 	}
 
-	// Index counters by chain name, then by term name, so we can join
-	// O(chains * terms) cleanly against the desired-state chains/terms.
 	byChain := make(map[string]map[string]firewall.TermCounter, len(counters))
 	for i := range counters {
 		m := make(map[string]firewall.TermCounter, len(counters[i].Terms))
@@ -136,12 +123,6 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 	}, nil
 }
 
-// handleShowFirewallGroup returns the members of a named firewall set
-// (ze's equivalent of VyOS firewall groups). No kernel readback is
-// required -- the applied desired state carries the set definition.
-//
-// A bare invocation with no argument lists every known group name
-// across every applied table; a positional argument narrows to one.
 func handleShowFirewallGroup(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	applied := firewall.LastApplied()
 	type groupEntry struct {
@@ -192,13 +173,14 @@ func handleShowFirewallGroup(_ *pluginserver.CommandContext, args []string) (*pl
 	wanted := args[0]
 	entries, ok := groups[wanted]
 	if !ok {
-		msg := fmt.Sprintf("firewall: group %q not found", wanted)
+		var buf textbuf.Buffer
+		buf.Str("firewall: group \"").Str(wanted).Str("\" not found")
 		if len(names) == 0 {
-			msg += "; no firewall groups have been applied"
+			buf.Str("; no firewall groups have been applied")
 		} else {
-			msg += "; valid: " + strings.Join(names, ", ")
+			buf.Str("; valid: ").Str(strings.Join(names, ", "))
 		}
-		return &plugin.Response{Status: plugin.StatusError, Data: msg}, nil
+		return &plugin.Response{Status: plugin.StatusError, Data: buf.String()}, nil
 	}
 	perTable := make([]map[string]any, 0, len(entries))
 	for _, e := range entries {
