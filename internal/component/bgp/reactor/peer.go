@@ -250,6 +250,8 @@ type Peer struct {
 	// string allocation on the hot path (Prometheus labels, bus notifications,
 	// forward pool keys). Computed once at peer creation.
 	addrString string
+	// localAddrString caches settings.LocalAddress.String() for PeerInfo snapshots.
+	localAddrString string
 
 	// dynImportFilters/dynExportFilters store the original unresolved filter
 	// chains for dynamic peers. Captured on first Established transition so
@@ -283,16 +285,17 @@ func NewPeer(settings *PeerSettings) *Peer {
 		reconnectMin = DefaultReconnectMin
 	}
 	p := &Peer{
-		settings:      settings,
-		clock:         clock.RealClock{},
-		dialer:        &network.RealDialer{},
-		reconnectMin:  reconnectMin,
-		reconnectMax:  DefaultReconnectMax,
-		opQueue:       make([]PeerOp, 0, 16), // Pre-allocate small capacity
-		sourceID:      source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),
-		inboundNotify: make(chan struct{}, 1),
-		addrString:    settings.Address.String(),
-		history:       newFSMHistory(),
+		settings:        settings,
+		clock:           clock.RealClock{},
+		dialer:          &network.RealDialer{},
+		reconnectMin:    reconnectMin,
+		reconnectMax:    DefaultReconnectMax,
+		opQueue:         make([]PeerOp, 0, 16), // Pre-allocate small capacity
+		sourceID:        source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),
+		inboundNotify:   make(chan struct{}, 1),
+		addrString:      settings.Address.String(),
+		localAddrString: settings.LocalAddress.String(),
+		history:         newFSMHistory(),
 	}
 
 	return p

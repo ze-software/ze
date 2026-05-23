@@ -15,9 +15,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
+// benchUpdateData holds the immutable parts of a benchmark UPDATE so
+// per-iteration fields (AttrsWire) can be reconstructed without re-encoding.
+type benchUpdateData struct {
+	peer      *plugin.PeerInfo
+	msg       bgptypes.RawMessage
+	attrSlice []byte // raw attribute bytes (payload[4:4+attrLen])
+	ctxID     bgpctx.ContextID
+}
+
 // buildBenchUpdate builds a realistic UPDATE RawMessage for benchmarking.
 // Contains ORIGIN, AS_PATH, NEXT_HOP, MED, LOCAL_PREF attributes and an IPv4 NLRI.
-func buildBenchUpdate() (*plugin.PeerInfo, bgptypes.RawMessage) {
+func buildBenchUpdate() benchUpdateData {
 	// Minimal UPDATE payload: withdrawn(2) + attrs + NLRI
 	// Attrs: ORIGIN(IGP) + AS_PATH(65001) + NEXT_HOP(10.0.0.1) + MED(100) + LOCAL_PREF(200)
 	// NLRI: 10.0.0.0/24
@@ -66,13 +75,17 @@ func buildBenchUpdate() (*plugin.PeerInfo, bgptypes.RawMessage) {
 	wu := wireu.NewWireUpdate(payload, ctxID)
 	attrsWire := attribute.NewAttributesWire(payload[4:4+attrLen], ctxID)
 
+	peerAddr := netip.MustParseAddr("10.0.0.1")
+	localAddr := netip.MustParseAddr("10.0.0.254")
 	peer := plugin.PeerInfo{
-		Address:      netip.MustParseAddr("10.0.0.1"),
-		LocalAddress: netip.MustParseAddr("10.0.0.254"),
-		PeerAS:       65001,
-		LocalAS:      65000,
-		Name:         "peer1",
-		GroupName:    "group1",
+		Address:         peerAddr,
+		LocalAddress:    localAddr,
+		AddressStr:      peerAddr.String(),
+		LocalAddressStr: localAddr.String(),
+		PeerAS:          65001,
+		LocalAS:         65000,
+		Name:            "peer1",
+		GroupName:       "group1",
 	}
 
 	msg := bgptypes.RawMessage{
@@ -84,14 +97,19 @@ func buildBenchUpdate() (*plugin.PeerInfo, bgptypes.RawMessage) {
 		WireUpdate: wu,
 	}
 
-	return &peer, msg
+	return benchUpdateData{
+		peer:      &peer,
+		msg:       msg,
+		attrSlice: payload[4 : 4+attrLen],
+		ctxID:     ctxID,
+	}
 }
 
 // BenchmarkJSONPath measures the JSON format + parse round-trip.
 //
 // VALIDATES: AC-7 — baseline for JSON path cost (format + ParseEvent).
 func BenchmarkJSONPath(b *testing.B) {
-	peer, msg := buildBenchUpdate()
+	d := buildBenchUpdate()
 	encoder := format.NewJSONEncoder("")
 
 	b.ResetTimer()
@@ -99,7 +117,7 @@ func BenchmarkJSONPath(b *testing.B) {
 
 	for range b.N {
 		// Engine side: format to JSON text.
-		jsonStr := formatMessageForSubscription(encoder, peer, msg, "parsed", "json")
+		jsonStr := formatMessageForSubscription(encoder, d.peer, d.msg, "parsed", "json")
 		// Plugin side: parse JSON back to Event.
 		event, parseErr := bgp.ParseEvent([]byte(jsonStr))
 		if parseErr != nil {
@@ -114,19 +132,20 @@ func BenchmarkJSONPath(b *testing.B) {
 //
 // VALIDATES: AC-7 — structured path has fewer allocs than JSON path.
 func BenchmarkStructuredPath(b *testing.B) {
-	peer, msg := buildBenchUpdate()
+	d := buildBenchUpdate()
 
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for range b.N {
-		// Engine side: build StructuredEvent from PeerInfo + RawMessage.
-		se := getStructuredEvent(peer, &msg)
-		// Plugin side: read fields directly.
+		// Fresh AttrsWire per iteration so lazy-parse cache doesn't warm.
+		msg := d.msg
+		msg.AttrsWire = attribute.NewAttributesWire(d.attrSlice, d.ctxID)
+
+		se := getStructuredEvent(d.peer, &msg)
 		_ = se.PeerAddress
 		_ = se.PeerAS
 		_ = se.MessageID
-		// Read one attribute lazily (typical rpki path: AS_PATH only).
 		if m, ok := se.RawMessage.(*bgptypes.RawMessage); ok && m.AttrsWire != nil {
 			attr, attrErr := m.AttrsWire.Get(attribute.AttrASPath)
 			if attrErr != nil {

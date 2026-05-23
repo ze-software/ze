@@ -46,9 +46,16 @@ func (s PeerState) String() string {
 }
 
 // PeerInfo is a snapshot of BGP peer state for API output.
+//
+// AddrStr and LocalAddrStr return the cached address strings with fallback.
+// Use these methods instead of accessing AddressStr/LocalAddressStr directly
+// so test code and edge cases (missing cache) produce correct output.
 type PeerInfo struct {
 	Address         netip.Addr
 	LocalAddress    netip.Addr
+	AddressStr      string // Cached Address.String(); avoids per-event allocation
+	LocalAddressStr string // Cached LocalAddress.String(); avoids per-event allocation
+
 	Name            string // Human-readable peer name for CLI selector
 	GroupName       string // Peer-group this peer belongs to
 	LocalAS         uint32
@@ -95,6 +102,22 @@ type PeerInfo struct {
 	// exchange finishes. Used by `show bgp <family> summary` to scope the
 	// summary table to peers carrying a given address family.
 	NegotiatedFamilies []family.Family
+}
+
+// AddrStr returns the cached address string, falling back to Address.String().
+func (p *PeerInfo) AddrStr() string {
+	if p.AddressStr != "" {
+		return p.AddressStr
+	}
+	return p.Address.String()
+}
+
+// LocalAddrStr returns the cached local address string, falling back to LocalAddress.String().
+func (p *PeerInfo) LocalAddrStr() string {
+	if p.LocalAddressStr != "" {
+		return p.LocalAddressStr
+	}
+	return p.LocalAddress.String()
 }
 
 // PeerCapabilityConfig holds BGP capability configuration for a peer.

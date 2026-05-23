@@ -8,6 +8,7 @@ import (
 	"errors"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
@@ -109,16 +110,17 @@ func (c *RecentUpdateCache) SetConsumerUnordered(name string) {
 // cacheEntry wraps an update with consumer tracking.
 type cacheEntry struct {
 	update           *ReceivedUpdate
-	pending          bool      // True between Add() and Activate(); not evictable
-	retainedAt       time.Time // When consumers first became > 0 (for safety valve)
-	pendingConsumers int       // How many plugin acks are still needed
-	earlyAckCount    int       // Acks received before Activate() (fast plugin race)
-	retainCount      int32     // API-level retains (separate from plugin consumers)
+	pending          bool         // True between Add() and Activate(); not evictable
+	retainedAt       time.Time    // When consumers first became > 0 (for safety valve)
+	pendingConsumers int          // How many plugin acks are still needed
+	earlyAckCount    int          // Acks received before Activate() (fast plugin race)
+	retainCount      atomic.Int32 // API-level retains; atomic for lock-free Decrement fast path
 }
 
 // totalConsumers returns the total number of active consumers (plugin + API retain).
+// Must be called with c.mu held (reads pendingConsumers).
 func (e *cacheEntry) totalConsumers() int {
-	return e.pendingConsumers + int(e.retainCount)
+	return e.pendingConsumers + int(e.retainCount.Load())
 }
 
 // isGapEvictable reports whether this entry should be force-evicted by the safety valve.
@@ -471,16 +473,28 @@ func (c *RecentUpdateCache) evictLocked(id uint64, e *cacheEntry) {
 // Safe to call before Activate() — retainCount goes negative, corrected by Retain().
 // Returns true if entry found, false if not found.
 func (c *RecentUpdateCache) Decrement(id uint64) bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
+	// Fast path: atomically decrement retainCount without the cache lock.
+	// If the new value is positive, no eviction is possible (pendingConsumers >= 0),
+	// so skip the lock entirely. Only take the lock when eviction might be needed.
+	c.mu.RLock()
 	e, ok := c.entries.Get(id)
+	c.mu.RUnlock()
 	if !ok {
 		return false
 	}
 
-	e.retainCount--
+	newVal := e.retainCount.Add(-1)
+	if newVal > 0 {
+		return true
+	}
 
+	// Slow path: might need eviction. Take write lock and recheck.
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if _, still := c.entries.Get(id); !still {
+		return true
+	}
 	if e.totalConsumers() <= 0 && !e.pending {
 		c.evictLocked(id, e)
 	}
@@ -533,8 +547,8 @@ func (c *RecentUpdateCache) RetainN(id uint64, n int) bool {
 	defer c.mu.Unlock()
 
 	if e, ok := c.entries.Get(id); ok {
-		wasZero := e.retainCount == 0
-		e.retainCount += int32(min(n, 1<<30)) //nolint:gosec // clamped to safe range
+		wasZero := e.retainCount.Load() == 0
+		e.retainCount.Add(int32(min(n, 1<<30))) //nolint:gosec // clamped to safe range
 		if wasZero && e.pendingConsumers == 0 && e.retainedAt.IsZero() {
 			e.retainedAt = c.clock.Now()
 		}

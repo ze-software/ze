@@ -92,3 +92,39 @@ func BenchmarkRIBInsertNoOp(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkRIBInsertUnique(b *testing.B) {
+	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireLocalPref100, wireMED100)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		rib := NewFamilyRIB(family.IPv4Unicast, false)
+		for i := range 1000 {
+			pfx := netip.MustParsePrefix(
+				netip.AddrFrom4([4]byte{byte(10 + i>>16), byte(i >> 8), byte(i), 0}).String() + "/24",
+			)
+			rib.Insert(attrs, store.PrefixToNLRI(pfx), true)
+		}
+		rib.Release()
+	}
+}
+
+func BenchmarkRIBInsertReplace(b *testing.B) {
+	const n = 10_000
+	rib, nlris := benchSetupRIB(b, n)
+	defer rib.Release()
+	attrsA := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireLocalPref100, wireMED100)
+	attrsB := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireLocalPref100,
+		[]byte{0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0xC8}) // MED=200
+	attrSets := [2][]byte{attrsA, attrsB}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := range b.N {
+		attrs := attrSets[i&1]
+		for _, nlri := range nlris {
+			rib.Insert(attrs, nlri, true)
+		}
+	}
+}

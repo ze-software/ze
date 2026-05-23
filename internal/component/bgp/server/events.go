@@ -80,13 +80,13 @@ const monitorFormatKey = "parsed+json"
 // getStructuredEvent returns a StructuredEvent from the pool with peer fields populated.
 func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.StructuredEvent {
 	se := rpc.GetStructuredEvent()
-	se.PeerAddress = peer.Address.String()
+	se.PeerAddress = peer.AddrStr()
 	se.PeerName = peer.Name
 	se.PeerGroup = peer.GroupName
 	se.PeerAS = peer.PeerAS
 	se.LocalAS = peer.LocalAS
 	se.RouterID = peer.RouterID
-	se.LocalAddress = peer.LocalAddress.String()
+	se.LocalAddress = peer.LocalAddrStr()
 	se.EventType = messageTypeToEventKind(msg.Type)
 	se.Direction = msg.Direction
 	se.MessageID = msg.MessageID
@@ -98,13 +98,13 @@ func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.St
 // getStructuredStateEvent returns a StructuredEvent for a peer state change.
 func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reason string) *rpc.StructuredEvent {
 	se := rpc.GetStructuredEvent()
-	se.PeerAddress = peer.Address.String()
+	se.PeerAddress = peer.AddrStr()
 	se.PeerName = peer.Name
 	se.PeerGroup = peer.GroupName
 	se.PeerAS = peer.PeerAS
 	se.LocalAS = peer.LocalAS
 	se.RouterID = peer.RouterID
-	se.LocalAddress = peer.LocalAddress.String()
+	se.LocalAddress = peer.LocalAddrStr()
 	se.EventType = rpc.EventKindState
 	se.State = state
 	se.Reason = reason
@@ -175,7 +175,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 		return 0
 	}
 
-	peerAddr := peer.Address.String()
+	peerAddr := peer.AddrStr()
 	eventTypeStr := eventType.String()
 	dirStr := msg.Direction.String()
 	procs := s.Subscriptions().GetMatching(bgpNS(), eventKindToID(eventType), rpcDirToDir(msg.Direction), peerAddr, peer.Name)
@@ -268,7 +268,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 		return counts
 	}
 
-	peerAddr := peer.Address.String()
+	peerAddr := peer.AddrStr()
 	eventTypeStr := eventType.String()
 	procs := s.Subscriptions().GetMatching(bgpNS(), eventKindToID(eventType), rpcDirToDir(msgs[0].Direction), peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
@@ -517,7 +517,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 		return // Server shutting down, skip event delivery
 	}
 
-	peerAddr := peer.Address.String()
+	peerAddr := peer.AddrStr()
 	procs := s.Subscriptions().GetMatching(bgpNS(), events.LookupEventTypeID(bgpevents.EventState), events.DirUnspecified, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
@@ -593,7 +593,7 @@ func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer 
 		return
 	}
 
-	peerAddr := peer.Address.String()
+	peerAddr := peer.AddrStr()
 	procs := s.Subscriptions().GetMatching(bgpNS(), events.LookupEventTypeID(bgpevents.EventNegotiated), events.DirUnspecified, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
@@ -621,7 +621,7 @@ func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string)
 		return // Server shutting down, skip event delivery
 	}
 
-	peerAddr := peer.Address.String()
+	peerAddr := peer.AddrStr()
 	procs := s.Subscriptions().GetMatching(bgpNS(), events.LookupEventTypeID(bgpevents.EventEOR), events.DirReceived, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
@@ -699,7 +699,7 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 		return
 	}
 
-	peerAddr := peer.Address.String()
+	peerAddr := peer.AddrStr()
 	eventTypeStr := eventType.String()
 	procs := s.Subscriptions().GetMatching(bgpNS(), eventKindToID(eventType), events.DirSent, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
@@ -773,7 +773,7 @@ func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, event
 		return // Server shutting down, skip event delivery
 	}
 
-	peerAddr := peer.Address.String()
+	peerAddr := peer.AddrStr()
 	procs := s.Subscriptions().GetMatching(bgpNS(), events.LookupEventTypeID(eventType), events.DirUnspecified, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {

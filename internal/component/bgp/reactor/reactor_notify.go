@@ -108,12 +108,14 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 	}
 
 	peerInfo := plugin.PeerInfo{
-		Address:      peer.settings.Address,
-		LocalAddress: peer.settings.LocalAddress,
-		Name:         peer.settings.Name,
-		GroupName:    peer.settings.GroupName,
-		PeerAS:       peer.settings.PeerAS,
-		LocalAS:      peer.settings.LocalAS,
+		Address:         peer.settings.Address,
+		LocalAddress:    peer.settings.LocalAddress,
+		AddressStr:      peer.addrString,
+		LocalAddressStr: peer.localAddrString,
+		Name:            peer.settings.Name,
+		GroupName:       peer.settings.GroupName,
+		PeerAS:          peer.settings.PeerAS,
+		LocalAS:         peer.settings.LocalAS,
 	}
 
 	decoded := format.NegotiatedToDecoded(neg)
@@ -157,15 +159,18 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 		return
 	}
 	s := peer.Settings()
+	addrStr := peer.addrString
 	peerInfo := plugin.PeerInfo{
-		Address:      s.Address,
-		LocalAddress: s.LocalAddress,
-		Name:         s.Name,
-		GroupName:    s.GroupName,
-		LocalAS:      s.LocalAS,
-		PeerAS:       s.PeerAS,
-		RouterID:     s.RouterID,
-		State:        peer.State().PluginState(),
+		Address:         s.Address,
+		LocalAddress:    s.LocalAddress,
+		AddressStr:      addrStr,
+		LocalAddressStr: peer.localAddrString,
+		Name:            s.Name,
+		GroupName:       s.GroupName,
+		LocalAS:         s.LocalAS,
+		PeerAS:          s.PeerAS,
+		RouterID:        s.RouterID,
+		State:           peer.State().PluginState(),
 	}
 	r.mu.RUnlock()
 
@@ -176,7 +181,7 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 
 	// Cross-component consumers receive (bgp, congested) or (bgp, resumed) via the EventBus.
 	// eventType is bgpevents.EventCongested or bgpevents.EventResumed -- pass through directly.
-	r.emitCongestionEventBus(peerAddr.String(), eventType)
+	r.emitCongestionEventBus(addrStr, eventType)
 }
 
 // notifyMessageReceiver notifies the message receiver of a raw BGP message.
@@ -197,14 +202,16 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	if hasPeer {
 		s := peer.Settings()
 		peerInfo = plugin.PeerInfo{
-			Address:      s.Address,
-			LocalAddress: s.LocalAddress,
-			Name:         s.Name,
-			GroupName:    s.GroupName,
-			LocalAS:      s.LocalAS,
-			PeerAS:       s.PeerAS,
-			RouterID:     s.RouterID,
-			State:        peer.State().PluginState(),
+			Address:         s.Address,
+			LocalAddress:    s.LocalAddress,
+			AddressStr:      peer.addrString,
+			LocalAddressStr: peer.localAddrString,
+			Name:            s.Name,
+			GroupName:       s.GroupName,
+			LocalAS:         s.LocalAS,
+			PeerAS:          s.PeerAS,
+			RouterID:        s.RouterID,
+			State:           peer.State().PluginState(),
 		}
 		// Increment per-peer counters (lock-free atomics).
 		// Engine counts updates, keepalives, and EOR. NLRI-level counters
@@ -239,7 +246,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			}
 		}
 	} else {
-		peerInfo = plugin.PeerInfo{Address: peerAddr}
+		peerInfo = plugin.PeerInfo{Address: peerAddr, AddressStr: peerAddr.String()}
 	}
 
 	if r.capture != nil {

@@ -316,7 +316,7 @@ type fwdWorker struct {
 // Unlike bgp-rs/workerPool (single-goroutine caller), fwdPool supports concurrent
 // Dispatch and Stop from different goroutines (RPC workers vs reactor shutdown).
 type fwdPool struct {
-	mu      sync.Mutex
+	mu      sync.RWMutex
 	workers map[fwdKey]*fwdWorker
 	handler func(key fwdKey, items []fwdItem)
 	cfg     fwdPoolConfig
@@ -424,9 +424,9 @@ func (fp *fwdPool) UnregisterOutgoingPool(key fwdKey) {
 // OutgoingPool returns the Outgoing Peer Pool for the given key, or nil.
 // Used by ForwardUpdate to pass to buildModifiedPayload for copy-on-modify.
 func (fp *fwdPool) OutgoingPool(key fwdKey) *peerPool {
-	fp.mu.Lock()
+	fp.mu.RLock()
 	pp := fp.outgoingPools[key]
-	fp.mu.Unlock()
+	fp.mu.RUnlock()
 	return pp
 }
 
@@ -451,27 +451,40 @@ func (fp *fwdPool) releaseItem(item *fwdItem) {
 // Returns true if the item was enqueued, false if the pool is stopped.
 // Callers must clean up associated state (e.g., cache Release) on false.
 func (fp *fwdPool) Dispatch(key fwdKey, item fwdItem) bool {
-	fp.mu.Lock()
+	// Fast path: RLock when the worker already exists.
+	// pending.Add(1) must happen under RLock so the idle handler (which takes
+	// Lock) always sees pending > 0 while a Dispatch is in flight.
+	fp.mu.RLock()
 	if fp.stopped {
-		fp.mu.Unlock()
+		fp.mu.RUnlock()
 		return false
 	}
 
-	// Track this Dispatch so Stop can wait for all in-flight sends to
-	// exit the select before closing worker channels.
 	fp.dispatchWG.Add(1)
-	defer fp.dispatchWG.Done()
-
 	w, ok := fp.workers[key]
+	if ok {
+		w.pending.Add(1)
+	}
+	fp.mu.RUnlock()
+
 	if !ok {
-		w = fp.newWorker(key)
+		// Slow path: exclusive lock to create worker.
+		fp.dispatchWG.Done()
+		fp.mu.Lock()
+		if fp.stopped {
+			fp.mu.Unlock()
+			return false
+		}
+		fp.dispatchWG.Add(1)
+		w, ok = fp.workers[key]
+		if !ok {
+			w = fp.newWorker(key)
+		}
+		w.pending.Add(1)
+		fp.mu.Unlock()
 	}
 
-	// Increment pending BEFORE releasing the lock. The idle handler checks
-	// pending under the same lock, so it will see pending > 0 and not exit
-	// even if the channel is momentarily empty.
-	w.pending.Add(1)
-	fp.mu.Unlock()
+	defer fp.dispatchWG.Done()
 
 	// Blocking send: every cached UPDATE must be forwarded or released
 	// (CacheConsumer protocol). Dropping is not acceptable. If the channel
@@ -497,33 +510,58 @@ func (fp *fwdPool) Dispatch(key fwdKey, item fwdItem) bool {
 //   - Sets the worker's congested flag (if not already set)
 //   - Fires onCongested callback on false->true transition
 func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
-	fp.mu.Lock()
+	// Fast path: RLock for the common case where the worker already exists.
+	// The non-blocking send is performed under RLock to prevent the idle
+	// handler (which takes Lock) from deleting the worker between lookup
+	// and send. This is safe because the send never blocks.
+	fp.mu.RLock()
 	if fp.stopped {
-		fp.mu.Unlock()
+		fp.mu.RUnlock()
 		return false
 	}
 
-	// Track this TryDispatch so Stop can wait for all in-flight sends
-	// to exit before closing worker channels (prevents send-on-closed panic).
 	fp.dispatchWG.Add(1)
-	defer fp.dispatchWG.Done()
-
 	w, ok := fp.workers[key]
+
 	if !ok {
-		w = fp.newWorker(key)
+		fp.mu.RUnlock()
+		// Slow path: worker doesn't exist, need exclusive lock to create.
+		fp.dispatchWG.Done()
+		fp.mu.Lock()
+		if fp.stopped {
+			fp.mu.Unlock()
+			return false
+		}
+		fp.dispatchWG.Add(1)
+		w, ok = fp.workers[key]
+		if !ok {
+			w = fp.newWorker(key)
+		}
+		w.pending.Add(1)
+		fp.mu.Unlock()
+
+		select {
+		case w.ch <- item:
+			w.pending.Add(-1)
+			fp.dispatchWG.Done()
+			return true
+		default:
+			w.pending.Add(-1)
+			fp.dispatchWG.Done()
+			return false
+		}
 	}
 
-	fp.mu.Unlock()
-
-	// Non-blocking send. Per-peer pool buffers are not acquired here --
-	// they are taken by buildModifiedPayload only when egress filters
-	// need to modify the payload (copy-on-modify). The channel capacity
-	// provides the concurrency gate.
+	// Fast path: non-blocking send under RLock.
 	select {
 	case w.ch <- item:
+		fp.mu.RUnlock()
+		fp.dispatchWG.Done()
 		return true
-	default: // channel full — non-blocking fallback
-		// Mark congested and fire callback on transition.
+	default: // channel full
+		fp.mu.RUnlock()
+		fp.dispatchWG.Done()
+
 		w.overflowMu.Lock()
 		wasCongested := w.congested
 		w.congested = true
@@ -547,26 +585,48 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 // Returns true if the item was buffered, false if the pool is stopped
 // (in which case done() is called immediately to prevent cache leaks).
 func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
-	fp.mu.Lock()
+	// Fast path: RLock when the worker already exists.
+	// pending.Add(1) under RLock prevents the idle handler from deleting
+	// the worker between lookup and the overflow append below. RLock is
+	// released before buffer acquisition (which takes its own RLock).
+	fp.mu.RLock()
 	if fp.stopped {
-		fp.mu.Unlock()
-		// Pool stopped — call done immediately to prevent cache leaks.
+		fp.mu.RUnlock()
 		if item.done != nil {
 			item.done()
 		}
 		return false
 	}
 
-	// Track this DispatchOverflow so Stop can wait for all in-flight
-	// overflow appends before draining and closing channels.
 	fp.dispatchWG.Add(1)
-	defer fp.dispatchWG.Done()
-
 	w, ok := fp.workers[key]
-	if !ok {
-		w = fp.newWorker(key)
+	if ok {
+		w.pending.Add(1)
 	}
-	fp.mu.Unlock()
+	fp.mu.RUnlock()
+
+	if !ok {
+		// Slow path: exclusive lock to create worker.
+		fp.dispatchWG.Done()
+		fp.mu.Lock()
+		if fp.stopped {
+			fp.mu.Unlock()
+			if item.done != nil {
+				item.done()
+			}
+			return false
+		}
+		fp.dispatchWG.Add(1)
+		w, ok = fp.workers[key]
+		if !ok {
+			w = fp.newWorker(key)
+		}
+		w.pending.Add(1)
+		fp.mu.Unlock()
+	}
+
+	defer fp.dispatchWG.Done()
+	defer w.pending.Add(-1)
 
 	// Check buffer denial (AC-2): if the congestion controller says this
 	// destination peer is the worst offender, skip pool acquisition. The item
@@ -581,11 +641,11 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 		// Determine buffer size from the destination peer's Outgoing Peer Pool.
 		// Default to 4K (standard) if no pool is registered.
 		bufSize := message.MaxMsgLen
-		fp.mu.Lock()
+		fp.mu.RLock()
 		if pp := fp.outgoingPools[key]; pp != nil {
 			bufSize = pp.bufSize
 		}
-		fp.mu.Unlock()
+		fp.mu.RUnlock()
 
 		var h BufHandle
 		if bufSize >= message.ExtMsgLen {
@@ -729,14 +789,14 @@ func (fp *fwdPool) WorkerCount() int {
 // format used by weightTracker (peerAddrLabel) and Prometheus labels.
 // Called by the metrics update loop; must not block.
 func (fp *fwdPool) OverflowDepths() map[string]int {
-	fp.mu.Lock()
+	fp.mu.RLock()
 	result := make(map[string]int, len(fp.workers))
 	for _, w := range fp.workers {
 		w.overflowMu.Lock()
 		result[w.addrLabel] += len(w.overflow)
 		w.overflowMu.Unlock()
 	}
-	fp.mu.Unlock()
+	fp.mu.RUnlock()
 	return result
 }
 
@@ -1096,8 +1156,8 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 		case <-idle.C():
 			// Idle timeout — remove self from pool and exit.
 			// Check channel AND pending counter under lock: Dispatch increments
-			// pending under the same lock before sending, so if pending > 0, a
-			// send is in flight and we must not exit.
+			// pending under RLock before sending, so Lock here blocks until any
+			// in-flight RLock releases. If pending > 0, a send is in flight.
 			fp.mu.Lock()
 			if len(w.ch) > 0 || w.pending.Load() > 0 {
 				fp.mu.Unlock()
@@ -1156,16 +1216,14 @@ func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 	w.overflow = nil
 	w.overflowMu.Unlock()
 
-	fp.mu.Lock()
+	fp.mu.RLock()
 	if fp.stopped {
-		fp.mu.Unlock()
-		// Shutdown: FIFO no longer matters; Stop() is about to close w.ch.
-		// Process all items directly so their done/release callbacks run.
+		fp.mu.RUnlock()
 		fp.safeBatchHandle(key, items)
 		return
 	}
 	fp.dispatchWG.Add(1)
-	fp.mu.Unlock()
+	fp.mu.RUnlock()
 	defer fp.dispatchWG.Done()
 
 	for i := range items {

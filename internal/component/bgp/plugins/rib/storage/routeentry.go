@@ -34,6 +34,15 @@ type RouteEntry struct {
 	// RFC 4724: GR-stale routes (level 1) compete normally in best-path.
 	// RFC 9494: LLGR-stale routes (level 2+) are least preferred.
 	StaleLevel uint8
+	// AttrFingerprint is an FNV-1a hash of the raw attribute wire bytes and
+	// ASN4 flag at insert time. AttrLen stores the raw byte length. Together
+	// they form a probabilistic equality check: matching hash + length skips
+	// ParseAttributes for no-op re-announcements. Collision probability is
+	// ~N^2/2^65 for N distinct attribute blobs (at 1M uniques, P < 10^-7).
+	// A collision causes a missed attribute update; RIB refresh recovers.
+	// Zero fingerprint means "not set" (first insert or legacy entry).
+	AttrFingerprint uint64
+	AttrLen         uint32
 	// Bundle references a shared Bundle in BundlePool containing the 12
 	// non-AS_PATH attribute handles (Origin, NextHop, LocalPref, MED, etc.).
 	// 97% of routes share identical non-AS_PATH attributes.

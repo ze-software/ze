@@ -42,16 +42,18 @@ func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
 	}
 	s := peer.Settings()
 	peerInfo := plugin.PeerInfo{
-		Address:      s.Address,
-		LocalAddress: s.LocalAddress,
-		Name:         s.Name,
-		GroupName:    s.GroupName,
-		LocalAS:      s.LocalAS,
-		PeerAS:       s.PeerAS,
-		RouterID:     s.RouterID,
-		Connect:      s.Connection.Connect,
-		Accept:       s.Connection.Accept,
-		State:        peer.State().PluginState(),
+		Address:         s.Address,
+		LocalAddress:    s.LocalAddress,
+		AddressStr:      peer.addrString,
+		LocalAddressStr: peer.localAddrString,
+		Name:            s.Name,
+		GroupName:       s.GroupName,
+		LocalAS:         s.LocalAS,
+		PeerAS:          s.PeerAS,
+		RouterID:        s.RouterID,
+		Connect:         s.Connection.Connect,
+		Accept:          s.Connection.Accept,
+		State:           peer.State().PluginState(),
 	}
 	o.dispatcher.OnPeerStateChange(&peerInfo, rpc.SessionStateUp, "")
 }
@@ -62,16 +64,18 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
 	}
 	s := peer.Settings()
 	peerInfo := plugin.PeerInfo{
-		Address:      s.Address,
-		LocalAddress: s.LocalAddress,
-		Name:         s.Name,
-		GroupName:    s.GroupName,
-		LocalAS:      s.LocalAS,
-		PeerAS:       s.PeerAS,
-		RouterID:     s.RouterID,
-		Connect:      s.Connection.Connect,
-		Accept:       s.Connection.Accept,
-		State:        peer.State().PluginState(),
+		Address:         s.Address,
+		LocalAddress:    s.LocalAddress,
+		AddressStr:      peer.addrString,
+		LocalAddressStr: peer.localAddrString,
+		Name:            s.Name,
+		GroupName:       s.GroupName,
+		LocalAS:         s.LocalAS,
+		PeerAS:          s.PeerAS,
+		RouterID:        s.RouterID,
+		Connect:         s.Connection.Connect,
+		Accept:          s.Connection.Accept,
+		State:           peer.State().PluginState(),
 	}
 	o.dispatcher.OnPeerStateChange(&peerInfo, rpc.SessionStateDown, reason)
 }
@@ -93,6 +97,8 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 		info := plugin.PeerInfo{
 			Address:              s.Address,
 			LocalAddress:         s.LocalAddress,
+			AddressStr:           p.addrString,
+			LocalAddressStr:      p.localAddrString,
 			Name:                 s.Name,
 			GroupName:            s.GroupName,
 			LocalAS:              s.LocalAS,

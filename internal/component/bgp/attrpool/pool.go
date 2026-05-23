@@ -190,9 +190,6 @@ func (p *Pool) internLocked(data []byte) (Handle, error) {
 	// Track metrics
 	p.internTotal.Add(1)
 
-	// Mark activity
-	p.lastActivity.Store(time.Now().UnixNano())
-
 	// Check for existing entry (deduplication)
 	// Index always contains handles with currentBit
 	if h, ok := p.index[lookupKey]; ok {
@@ -204,6 +201,11 @@ func (p *Pool) internLocked(data []byte) (Handle, error) {
 			return h, nil
 		}
 	}
+
+	// Mark activity only on new entry creation, not dedup hits.
+	// Dedup hits don't change pool structure, so compaction scheduling
+	// (which uses IsIdle) doesn't need to see them as activity.
+	p.lastActivity.Store(time.Now().UnixNano())
 
 	// Check slot limit under lock (no race)
 	if len(p.slots) >= MaxSlots && len(p.freeSlots) == 0 {
