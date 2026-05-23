@@ -177,9 +177,96 @@ func rewriteInsertASPath(dst, payload []byte, asns []uint32, dstASN4 bool,
 }
 
 // rewritePrependASPath handles the case where an AS_PATH exists.
-// Parses it, prepends each asn in order (asns[len-1] ends up outermost),
-// re-encodes, and adjusts lengths.
+// Uses a fast offset-based path for the common single-ASN prepend into an
+// AS_SEQUENCE with room, falling back to full parse for complex cases.
 func rewritePrependASPath(dst, payload []byte, asns []uint32, srcASN4, dstASN4 bool,
+	aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen int) (int, error) {
+
+	if n, ok := tryDirectPrepend(dst, payload, asns, srcASN4, dstASN4,
+		aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen); ok {
+		return n, nil
+	}
+
+	return rewritePrependASPathFull(dst, payload, asns, srcASN4, dstASN4,
+		aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen)
+}
+
+// tryDirectPrepend attempts a zero-allocation offset-based AS_SEQUENCE prepend.
+// Succeeds when: same ASN encoding, single prepend, first segment is AS_SEQUENCE
+// with count < 255, and the new value length stays within the same header size class.
+// Returns (bytesWritten, true) on success, (0, false) to fall back.
+func tryDirectPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 bool,
+	aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen int) (int, bool) {
+
+	if srcASN4 != dstASN4 || len(asns) != 1 {
+		return 0, false
+	}
+
+	aspValueStart := aspAttrOff + aspHdrLen
+	aspValue := payload[aspValueStart : aspValueStart+aspValueLen]
+	if len(aspValue) < 2 {
+		return 0, false
+	}
+
+	segType := attribute.ASPathSegmentType(aspValue[0])
+	segCount := int(aspValue[1])
+	if segType != attribute.ASSequence || segCount >= attribute.MaxASPathSegmentLength {
+		return 0, false
+	}
+
+	asnSize := 4
+	if !dstASN4 {
+		asnSize = 2
+	}
+
+	newValueLen := aspValueLen + asnSize
+	newHdrLen := 3
+	if newValueLen > 255 {
+		newHdrLen = 4
+	}
+	if newHdrLen != aspHdrLen {
+		return 0, false
+	}
+
+	oldAttrWireSize := aspHdrLen + aspValueLen
+	newAttrWireSize := newHdrLen + newValueLen
+	shift := newAttrWireSize - oldAttrWireSize
+
+	off := 0
+	off += copy(dst[off:], payload[:aspAttrOff])
+
+	off += attribute.WriteHeaderTo(dst, off, attribute.FlagTransitive, attribute.AttrASPath, uint16(newValueLen)) //nolint:gosec // bounded by BGP max
+
+	dst[off] = byte(segType)
+	dst[off+1] = byte(segCount + 1)
+	off += 2
+
+	asn := asns[0]
+	if dstASN4 {
+		binary.BigEndian.PutUint32(dst[off:], asn)
+	} else {
+		if asn > 0xFFFF {
+			asn = 23456 // AS_TRANS per RFC 6793
+		}
+		binary.BigEndian.PutUint16(dst[off:], uint16(asn)) //nolint:gosec // AS_TRANS handles overflow
+	}
+	off += asnSize
+
+	off += copy(dst[off:], aspValue[2:])
+
+	aspAttrEnd := aspAttrOff + oldAttrWireSize
+	off += copy(dst[off:], payload[aspAttrEnd:])
+
+	newAttrLen := attrLen + shift
+	binary.BigEndian.PutUint16(dst[attrLenOff:attrLenOff+2], uint16(newAttrLen)) //nolint:gosec // bounded by BGP max
+
+	return off, true
+}
+
+// rewritePrependASPathFull is the fallback that parses the AS_PATH, prepends
+// via the ASPath object, and re-serializes. Handles AS_SET, segment overflow,
+// cross-ASN-encoding, and multi-ASN prepend.
+func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstASN4 bool,
 	aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen int) (int, error) {
 
 	// Parse existing AS_PATH value
