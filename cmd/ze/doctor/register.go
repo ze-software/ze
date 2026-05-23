@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("doctor", cmdregistry.Meta{
 		Description: "Check system readiness for running Ze",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "[--json] [<config-file>]",
 	})
 	cmdregistry.MustRegisterLocal("doctor", Run)

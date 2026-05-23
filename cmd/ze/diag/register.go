@@ -13,11 +13,13 @@ func init() {
 	cmdregistry.RegisterRoot("ping", cmdregistry.Meta{
 		Description: "Send ICMP echo-request (OS `ping` wrapper)",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "--count N, --interface IF",
 	})
 	cmdregistry.RegisterRoot("generate", cmdregistry.Meta{
 		Description: "Generate artifacts (keypairs, bundles)",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "wireguard keypair",
 	})
 	cmdregistry.MustRegisterLocal("ping", RunPing)

@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("passwd", cmdregistry.Meta{
 		Description: "Change stored SSH/HTTP passwords",
 		Mode:        "setup",
+		Section:     cmdregistry.SectionConfiguration,
 		Subs:        "",
 	})
 }

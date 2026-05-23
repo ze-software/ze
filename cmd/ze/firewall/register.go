@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("firewall", cmdregistry.Meta{
 		Description: "Firewall management",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionConfiguration,
 		Subs:        "show, apply",
 	})
 }

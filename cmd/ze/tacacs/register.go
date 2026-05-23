@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("tacacs", cmdregistry.Meta{
 		Description: "TACACS+ client helpers",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionConfiguration,
 		Subs:        "",
 	})
 }

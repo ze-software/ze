@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("completion", cmdregistry.Meta{
 		Description: "Shell completion scripts",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "bash, zsh, fish, nushell",
 	})
 }

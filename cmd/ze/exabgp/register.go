@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("exabgp", cmdregistry.Meta{
 		Description: "ExaBGP bridge tools",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionConfiguration,
 		Subs:        "plugin, migrate",
 	})
 }

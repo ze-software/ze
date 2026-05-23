@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("init", cmdregistry.Meta{
 		Description: "Bootstrap database with SSH credentials",
 		Mode:        "setup",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "--managed for fleet mode, --force to replace",
 	})
 }

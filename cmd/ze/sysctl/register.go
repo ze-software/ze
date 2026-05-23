@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("sysctl", cmdregistry.Meta{
 		Description: "Kernel sysctl helpers",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionConfiguration,
 		Subs:        "",
 	})
 }

@@ -12,6 +12,7 @@ func init() {
 	cmdregistry.RegisterRoot("bgp", cmdregistry.Meta{
 		Description: "BGP protocol tools",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "decode <hex>, encode <route>, plugin",
 	})
 	cmdregistry.MustRegisterLocal("show bgp decode", func(args []string) int {

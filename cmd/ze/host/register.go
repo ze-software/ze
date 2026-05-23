@@ -16,6 +16,7 @@ func init() {
 	cmdregistry.RegisterRoot("host", cmdregistry.Meta{
 		Description: "Show hardware inventory (CPU, NICs, DMI, memory, thermal, storage, kernel)",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "show [" + strings.ReplaceAll(sectionList(), ", ", "|") + "] [--text]",
 	})
 	cmdregistry.MustRegisterLocal("host show", RunShow)

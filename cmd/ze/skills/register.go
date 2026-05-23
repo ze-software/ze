@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("skills", cmdregistry.Meta{
 		Description: "Version-matched Ze skills for agents",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "list, get <name> [--full]",
 	})
 	cmdregistry.MustRegisterLocal("skills", Run)

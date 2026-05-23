@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("explain", cmdregistry.Meta{
 		Description: "Explain a diagnostic code",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "--json <code>",
 	})
 	cmdregistry.MustRegisterLocal("explain", Run)

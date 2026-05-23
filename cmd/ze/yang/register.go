@@ -11,6 +11,7 @@ func init() {
 	cmdregistry.RegisterRoot("yang", cmdregistry.Meta{
 		Description: "YANG tree analysis",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionConfiguration,
 		Subs:        "tree, completion, doc",
 	})
 	cmdregistry.MustRegisterLocal("show yang tree", func(args []string) int {

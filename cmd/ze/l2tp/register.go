@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("l2tp", cmdregistry.Meta{
 		Description: "L2TP tools",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionConfiguration,
 		Subs:        "",
 	})
 }

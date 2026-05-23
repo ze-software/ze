@@ -168,21 +168,25 @@ func registerLocalCommands() {
 	cmdregistry.RegisterRoot("start", cmdregistry.Meta{
 		Description: "Start daemon from database config",
 		Mode:        "setup",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "--web <port>, --insecure-web, --mcp <port>",
 	})
 	cmdregistry.RegisterRoot("version", cmdregistry.Meta{
 		Description: "Show version and build date",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "--extended",
 	})
 	cmdregistry.RegisterRoot("update-serve", cmdregistry.Meta{
 		Description: "Serve version.json and binary for update checks",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "--listen <addr>",
 	})
 	cmdregistry.RegisterRoot("help", cmdregistry.Meta{
 		Description: "Show help",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "--ai [--cli|--api|--mcp|--dispatch|--all]",
 	})
 
@@ -1050,23 +1054,55 @@ func bootstrapConfigFromTemplate(store storage.Storage, configName string) bool 
 	return true
 }
 
-func rootToolEntries() []helpfmt.HelpEntry {
-	roots := cmdregistry.ListRoot()
-	entries := make([]helpfmt.HelpEntry, len(roots))
-	for i, rc := range roots {
-		entries[i] = helpfmt.HelpEntry{Name: rc.Name, Desc: rc.Meta.Description}
-	}
-	return entries
-}
-
 func usage() {
-	// Dynamic verb list from YANG tree.
+	// Dynamic verb list from YANG tree goes into the operations section.
 	verbTree := cli.BuildCommandTree(false)
 	cmdEntries := command.HelpEntries(verbTree, nil)
 	verbEntries := make([]helpfmt.HelpEntry, len(cmdEntries))
 	for i, e := range cmdEntries {
 		verbEntries[i] = helpfmt.HelpEntry{Name: e.Name, Desc: e.Desc}
 	}
+
+	// Build command sections from registered metadata.
+	// Operations section: root commands (cli) first, then YANG verbs.
+	sections := []helpfmt.HelpSection{
+		{Title: cmdregistry.SectionTitle(cmdregistry.SectionOperations)},
+	}
+	for _, se := range cmdregistry.ListRootBySection() {
+		entries := make([]helpfmt.HelpEntry, len(se.Commands))
+		for i, rc := range se.Commands {
+			entries[i] = helpfmt.HelpEntry{Name: rc.Name, Desc: rc.Meta.Description}
+		}
+		title := cmdregistry.SectionTitle(se.Section)
+		if title == "" {
+			title = se.Section
+		}
+		if se.Section == cmdregistry.SectionOperations {
+			sections[0].Entries = append(entries, sections[0].Entries...)
+		} else {
+			sections = append(sections, helpfmt.HelpSection{Title: title, Entries: entries})
+		}
+	}
+	sections[0].Entries = append(sections[0].Entries, verbEntries...)
+
+	sections = append(sections, helpfmt.HelpSection{
+		Title: "Options",
+		Entries: []helpfmt.HelpEntry{
+			{Name: "-d, --debug", Desc: "Enable debug logging (sets ze.log=debug for all subsystems)"},
+			{Name: "-f <file>", Desc: "Use filesystem directly, bypass blob store"},
+			{Name: "--plugin <name>", Desc: "Load plugin before starting (repeatable)"},
+			{Name: "--plugins", Desc: "List available internal plugins"},
+			{Name: "--web <port>", Desc: "Start web server on given port"},
+			{Name: "--insecure-web", Desc: "Disable web auth (binds to localhost only)"},
+			{Name: "--mcp <port>", Desc: "Start MCP server on 127.0.0.1:<port>"},
+			{Name: "--mcp-token <token>", Desc: "Bearer token for MCP authentication"},
+			{Name: "--pprof <addr:port>", Desc: "Start pprof HTTP server (e.g. :6060)"},
+			{Name: "--color", Desc: "Force colored output (even when not a TTY)"},
+			{Name: "--no-color", Desc: "Disable colored output (also: NO_COLOR env var, TERM=dumb)"},
+			{Name: "-V, --version", Desc: "Show version and exit"},
+			{Name: "--extended-version", Desc: "Show extended version (commit, go, os/arch)"},
+		},
+	})
 
 	p := helpfmt.Page{
 		Command:  "ze",
@@ -1075,25 +1111,7 @@ func usage() {
 			"ze [--plugin <name>]... <config>   Start with config file",
 			"ze <verb> <command> [options]      Execute command (same grammar as ze cli)",
 		},
-		Sections: []helpfmt.HelpSection{
-			{Title: "Verbs (dispatched via YANG command tree)", Entries: verbEntries},
-			{Title: "Tools", Entries: rootToolEntries()},
-			{Title: "Options", Entries: []helpfmt.HelpEntry{
-				{Name: "-d, --debug", Desc: "Enable debug logging (sets ze.log=debug for all subsystems)"},
-				{Name: "-f <file>", Desc: "Use filesystem directly, bypass blob store"},
-				{Name: "--plugin <name>", Desc: "Load plugin before starting (repeatable)"},
-				{Name: "--plugins", Desc: "List available internal plugins"},
-				{Name: "--web <port>", Desc: "Start web server on given port"},
-				{Name: "--insecure-web", Desc: "Disable web auth (binds to localhost only)"},
-				{Name: "--mcp <port>", Desc: "Start MCP server on 127.0.0.1:<port>"},
-				{Name: "--mcp-token <token>", Desc: "Bearer token for MCP authentication"},
-				{Name: "--pprof <addr:port>", Desc: "Start pprof HTTP server (e.g. :6060)"},
-				{Name: "--color", Desc: "Force colored output (even when not a TTY)"},
-				{Name: "--no-color", Desc: "Disable colored output (also: NO_COLOR env var, TERM=dumb)"},
-				{Name: "-V, --version", Desc: "Show version and exit"},
-				{Name: "--extended-version", Desc: "Show extended version (commit, go, os/arch)"},
-			}},
-		},
+		Sections: sections,
 		Examples: []string{
 			"ze config.conf                       Start with config",
 			"ze --plugin ze.hostname config.conf  Start with hostname plugin",

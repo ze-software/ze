@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("traffic-control", cmdregistry.Meta{
 		Description: "Linux tc / VPP policer helpers",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionConfiguration,
 		Subs:        "",
 	})
 }

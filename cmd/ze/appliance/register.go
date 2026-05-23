@@ -8,6 +8,7 @@ func init() {
 	cmdregistry.RegisterRoot("appliance", cmdregistry.Meta{
 		Description: "Manage gokrazy-based Ze appliance images",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "init, build, assemble, push, config, config-push, list, show, export, import",
 	})
 }

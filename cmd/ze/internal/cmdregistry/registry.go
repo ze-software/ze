@@ -21,13 +21,35 @@ var errCmdregistryRegisterlocalEmptyPath = errors.New("cmdregistry.RegisterLocal
 // LocalHandler runs a CLI command in-process (no daemon required).
 type LocalHandler func(args []string) int
 
+const (
+	SectionOperations    = "operations"
+	SectionConfiguration = "configuration"
+	SectionSystem        = "system"
+)
+
+var sectionOrder = []string{SectionOperations, SectionConfiguration, SectionSystem}
+
+// SectionTitle returns the display title for a section constant.
+func SectionTitle(section string) string {
+	return sectionTitles[section]
+}
+
+var sectionTitles = map[string]string{
+	SectionOperations:    "Operations (interact with the running daemon)",
+	SectionConfiguration: "Configuration (change how the box behaves)",
+	SectionSystem:        "System (manage the process and environment)",
+}
+
 // Meta holds human-facing metadata for a registered command. Optional;
 // empty fields render as blank in help output. Mode is a short tag
 // used by the help printer ("offline", "daemon", "setup", "read-only").
-// Subs is a one-line hint at commonly-used sub-paths.
+// Section groups the command in help output ("operations",
+// "configuration", "system"). Subs is a one-line hint at commonly-used
+// sub-paths.
 type Meta struct {
 	Description string
 	Mode        string
+	Section     string
 	Subs        string
 }
 
@@ -164,5 +186,39 @@ func ListRoot() []RootCommand {
 		out = append(out, RootCommand{Name: name, Meta: meta})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+// SectionEntry pairs a section title with its commands.
+type SectionEntry struct {
+	Section  string
+	Commands []RootCommand
+}
+
+// ListRootBySection returns root commands grouped by section in
+// display order (operations, configuration, system). Commands
+// within each section are sorted by name.
+func ListRootBySection() []SectionEntry {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	bySection := make(map[string][]RootCommand, len(sectionOrder))
+	for name, meta := range rootCommands {
+		s := meta.Section
+		if s == "" {
+			s = SectionSystem
+		}
+		bySection[s] = append(bySection[s], RootCommand{Name: name, Meta: meta})
+	}
+
+	out := make([]SectionEntry, 0, len(sectionOrder))
+	for _, s := range sectionOrder {
+		cmds := bySection[s]
+		if len(cmds) == 0 {
+			continue
+		}
+		sort.Slice(cmds, func(i, j int) bool { return cmds[i].Name < cmds[j].Name })
+		out = append(out, SectionEntry{Section: s, Commands: cmds})
+	}
 	return out
 }

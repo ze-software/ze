@@ -102,7 +102,7 @@ func (p *Page) WriteTo(w io.Writer, color bool) {
 			// Pad based on raw name length, then apply color.
 			// ANSI codes add bytes that fmt.Sprintf counts, so pad first.
 			padded := fmt.Sprintf("%-*s", width, e.Name)
-			wr("  %s %s\n", styleEntry(color, padded), e.Desc)
+			wr("  %s %s\n", styleEntry(color, padded), oneLine(e.Desc))
 		}
 	}
 
@@ -135,6 +135,19 @@ func WriteError(w io.Writer, color bool, format string, a ...any) {
 func WriteHint(w io.Writer, color bool, format string, a ...any) {
 	prefix := styled(color, styleHint, "hint:")
 	fmt.Fprintf(w, "%s %s\n", prefix, fmt.Sprintf(format, a...)) //nolint:errcheck // help output to stderr
+}
+
+// oneLine returns only the first sentence of a description.
+// Multi-line YANG descriptions carry grammar and action details
+// that belong in per-command help, not the top-level listing.
+func oneLine(s string) string {
+	if i := strings.Index(s, ". "); i >= 0 {
+		return s[:i+1]
+	}
+	if before, _, ok := strings.Cut(s, "\n"); ok {
+		return strings.TrimRight(before, " ")
+	}
+	return s
 }
 
 // entryWidth returns the column width for a section's entries.

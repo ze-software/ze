@@ -11,6 +11,7 @@ func init() {
 	cmdregistry.RegisterRoot("schema", cmdregistry.Meta{
 		Description: "Schema discovery",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionConfiguration,
 		Subs:        "list, methods, events, handlers, protocol",
 	})
 	cmdregistry.MustRegisterLocal("show schema list", func(args []string) int {

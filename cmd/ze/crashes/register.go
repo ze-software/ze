@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("crashes", cmdregistry.Meta{
 		Description: "Show crash reports (works offline, no daemon required)",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "show [latest]",
 	})
 	cmdregistry.MustRegisterLocal("crashes show", RunShow)

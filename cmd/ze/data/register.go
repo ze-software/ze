@@ -11,6 +11,7 @@ func init() {
 	cmdregistry.RegisterRoot("data", cmdregistry.Meta{
 		Description: "ZeFS blob store management",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionConfiguration,
 		Subs:        "import, rm, ls, cat",
 	})
 	cmdregistry.MustRegisterLocal("show data ls", func(args []string) int {

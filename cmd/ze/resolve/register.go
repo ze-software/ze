@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("resolve", cmdregistry.Meta{
 		Description: "DNS resolver tools",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "",
 	})
 }

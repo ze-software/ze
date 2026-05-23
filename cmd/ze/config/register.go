@@ -15,6 +15,7 @@ func init() {
 	cmdregistry.RegisterRoot("config", cmdregistry.Meta{
 		Description: "Configuration management",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionConfiguration,
 		Subs:        "edit, set, deactivate, activate, migrate, rollback, archive, import, rename",
 	})
 	cmdregistry.MustRegisterLocal("show config dump", func(args []string) int {

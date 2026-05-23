@@ -11,6 +11,7 @@ func init() {
 	cmdregistry.RegisterRoot("env", cmdregistry.Meta{
 		Description: "Environment variable inspection",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "list, get, registered",
 	})
 	cmdregistry.MustRegisterLocal("show env list", func(args []string) int {

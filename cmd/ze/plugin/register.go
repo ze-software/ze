@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("plugin", cmdregistry.Meta{
 		Description: "Plugin system",
 		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
 		Subs:        "<plugin-name> for plugin CLI, test for debugging",
 	})
 }

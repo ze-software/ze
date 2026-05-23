@@ -10,6 +10,7 @@ func init() {
 	cmdregistry.RegisterRoot("cli", cmdregistry.Meta{
 		Description: "Interactive CLI for the running daemon",
 		Mode:        "daemon",
+		Section:     cmdregistry.SectionOperations,
 		Subs:        "-c <cmd> for single command",
 	})
 }
