@@ -192,3 +192,4 @@ Reusable lessons extracted from gotchas sections across summaries.
 - (754) Adding a named test group to `mk/test-unit.mk` requires adding the exclusion pattern to `ZE_GROUP_REST`
 - (756) Web commit hook runs synchronously in HTTP handler; slow reload blocks the response (acceptable because reload is <100ms)
 - (759) Archive pruning prefix computed by diff of two timestamps at different dates; if filename format has no time token, prefix equals full filename
+- (768) Enum-over-string for text event pipeline: Event.Type stays string (non-BGP types), TypeKind caches the parsed EventKind; FamilyOperation.Action typed as RouteAction; local familyOperation types in format/rs/rr/persist are independent; NLRI index map[string] is Go-idiomatic and not improvable

@@ -387,7 +387,10 @@ func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, readOnly bo
 // If no peer prefix, defaults to all peers ("*").
 // Priority: 1) builtin commands, 2) forked subsystems, 3) plugin registry.
 func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Response, error) {
-	tokens := tokenize(input)
+	tokens, err := tokenize(input)
+	if err != nil {
+		return nil, err
+	}
 	if len(tokens) == 0 {
 		return nil, ErrEmptyCommand
 	}
@@ -469,7 +472,10 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	remaining := strings.TrimSpace(input[matchedLen:])
 	var args []string
 	if remaining != "" {
-		args = tokenize(remaining)
+		args, err = tokenize(remaining)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Execute handler
@@ -534,7 +540,11 @@ func (d *Dispatcher) dispatchPlugin(ctx *CommandContext, input, lowerInput, peer
 	remaining := strings.TrimSpace(input[matchedLen:])
 	var args []string
 	if remaining != "" {
-		args = tokenize(remaining)
+		var err error
+		args, err = tokenize(remaining)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Route to process
@@ -571,14 +581,20 @@ func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredComma
 	return &plugin.Response{Status: plugin.StatusDone}, nil
 }
 
+var errBackslashInCommand = errors.New("backslash is not allowed in commands")
+
 // tokenize splits a command string into tokens.
 // Handles quoted strings: "hello world" → single token "hello world".
-// Backslash has no special meaning (no escape sequences).
+// Backslash is rejected: commands have no escape sequences.
 // Quotes are stripped from the result.
-func tokenize(input string) []string {
+func tokenize(input string) ([]string, error) {
 	input = strings.TrimSpace(input)
 	if input == "" {
-		return nil
+		return nil, nil
+	}
+
+	if strings.IndexByte(input, '\\') >= 0 {
+		return nil, errBackslashInCommand
 	}
 
 	var tokens []string
@@ -606,7 +622,7 @@ func tokenize(input string) []string {
 		tokens = append(tokens, current.String())
 	}
 
-	return tokens
+	return tokens, nil
 }
 
 // looksLikeIPOrGlob returns true if s looks like an IP address or glob pattern.

@@ -8,8 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // TestEnableValidation verifies enable-validation command sets the flag.
@@ -36,13 +38,13 @@ func TestPendingRouteStorage(t *testing.T) {
 	r.validationEnabled = true
 
 	event := &bgp.Event{
-		Message:       &bgp.MessageInfo{Type: "update", ID: 100},
+		Message:       &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 100},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
+				{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -157,13 +159,13 @@ func TestPassthroughWithoutValidation(t *testing.T) {
 	assert.False(t, r.validationEnabled, "validation should be disabled by default")
 
 	event := &bgp.Event{
-		Message:       &bgp.MessageInfo{Type: "update", ID: 100},
+		Message:       &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 100},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
+				{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -656,12 +658,12 @@ func TestWithdrawalRemovesPending(t *testing.T) {
 
 	// Receive withdrawal
 	withdraw := &bgp.Event{
-		Message:      &bgp.MessageInfo{Type: "update", ID: 101},
+		Message:      &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 101},
 		Peer:         testPeerJSON(t),
 		RawWithdrawn: map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
-				{Action: "del", NLRIs: []any{"10.0.0.0/24"}},
+				{Action: bgptypes.RouteActionDel, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}

@@ -272,6 +272,7 @@ const (
 	wireRefresh      = "refresh"
 	wireState        = "state"
 	wireEOR          = "eor"
+	wireNegotiated   = "negotiated"
 )
 
 // EventKind is the typed BGP event kind carried by StructuredEvent.EventType.
@@ -289,7 +290,9 @@ const (
 	EventKindEOR          EventKind = 7
 	EventKindBoRR         EventKind = 8
 	EventKindEoRR         EventKind = 9
-	EventKindCount        EventKind = 10
+	EventKindSent         EventKind = 10
+	EventKindNegotiated   EventKind = 11
+	EventKindCount        EventKind = 12
 )
 
 func (k EventKind) String() string {
@@ -312,6 +315,10 @@ func (k EventKind) String() string {
 		return "borr"
 	case EventKindEoRR:
 		return "eorr"
+	case EventKindSent:
+		return wireSent
+	case EventKindNegotiated:
+		return wireNegotiated
 	case EventKindUnspecified, EventKindCount:
 		return wireUnspecified
 	}
@@ -347,7 +354,12 @@ func (k *EventKind) UnmarshalText(data []byte) error {
 		*k = EventKindBoRR
 	case "eorr":
 		*k = EventKindEoRR
+	case wireSent:
+		*k = EventKindSent
+	case wireNegotiated:
+		*k = EventKindNegotiated
 	default:
+		*k = EventKindUnspecified
 		return fmt.Errorf("rpc: unknown event kind %q", string(data))
 	}
 	return nil

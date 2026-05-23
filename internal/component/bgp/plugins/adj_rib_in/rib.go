@@ -210,7 +210,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
 
 	// Build a bgp.Event with raw hex fields from wire data.
-	event := &bgp.Event{Type: "update"}
+	event := &bgp.Event{Type: "update", TypeKind: rpc.EventKindUpdate}
 
 	// Raw attributes hex (path attrs without MP_REACH/UNREACH).
 	if msg.AttrsWire != nil {
@@ -231,7 +231,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		addPath := ctx != nil && ctx.AddPath(fam)
 		event.AddPath[fam] = addPath
 		event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
-			Action: "add",
+			Action: bgptypes.RouteActionAdd,
 			NLRIs:  wireNLRIsToAny(nlriData, addPath, fam),
 		})
 	}
@@ -244,7 +244,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		addPath := ctx != nil && ctx.AddPath(fam)
 		event.AddPath[fam] = addPath
 		event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
-			Action: "del",
+			Action: bgptypes.RouteActionDel,
 			NLRIs:  wireNLRIsToAny(wdData, addPath, fam),
 		})
 	}
@@ -260,7 +260,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			event.AddPath[fam] = addPath
 			nhop := mpReach.NextHop().String()
 			event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
-				Action:  "add",
+				Action:  bgptypes.RouteActionAdd,
 				NextHop: nhop,
 				NLRIs:   wireNLRIsToAny(nlriBytes, addPath, fam),
 			})
@@ -277,7 +277,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			addPath := ctx != nil && ctx.AddPath(fam)
 			event.AddPath[fam] = addPath
 			event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
-				Action: "del",
+				Action: bgptypes.RouteActionDel,
 				NLRIs:  wireNLRIsToAny(wdBytes, addPath, fam),
 			})
 		}
@@ -372,9 +372,9 @@ func (r *AdjRIBInManager) dispatch(event *bgp.Event) {
 	eventType := event.GetEventType()
 
 	switch eventType {
-	case "update":
+	case rpc.EventKindUpdate:
 		r.handleReceived(event)
-	case "state":
+	case rpc.EventKindState:
 		r.handleState(event)
 	}
 }
@@ -407,7 +407,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 
 		for _, op := range ops {
 			switch op.Action {
-			case "add":
+			case bgptypes.RouteActionAdd:
 				// Skip adds without essential fields -- routes missing attributes
 				// or next-hop cannot be replayed correctly via "update hex" commands.
 				if event.RawAttributes == "" {
@@ -475,7 +475,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 					}
 				}
 
-			case "del":
+			case bgptypes.RouteActionDel:
 				for _, nlriVal := range op.NLRIs {
 					prefix, pathID := bgp.ParseNLRIValue(nlriVal)
 					if prefix == "" {

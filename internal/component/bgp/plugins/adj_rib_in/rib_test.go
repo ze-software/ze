@@ -10,8 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -63,13 +65,13 @@ func TestStoreReceivedRoute(t *testing.T) {
 
 	// format=full event: ORIGIN IGP (40 01 01 00), 10.0.0.0/24 (18 0a 00 00)
 	event := &bgp.Event{
-		Message:       &bgp.MessageInfo{Type: "update", ID: 100},
+		Message:       &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 100},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
+				{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -110,13 +112,13 @@ func TestStoreAllFamilies(t *testing.T) {
 	// The raw blob "deadbeef" must be stored as-is; prefixToWireHex would produce
 	// bare IPv4 bytes "180a0000" which is wrong for VPN wire format.
 	event := &bgp.Event{
-		Message:       &bgp.MessageInfo{Type: "update", ID: 200},
+		Message:       &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 200},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{ipv4VPN: "deadbeef"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			ipv4VPN: {
-				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
+				{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -148,13 +150,13 @@ func TestRemoveWithdrawnRoute(t *testing.T) {
 
 	// First announce
 	announce := &bgp.Event{
-		Message:       &bgp.MessageInfo{Type: "update", ID: 100},
+		Message:       &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 100},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
+				{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -163,13 +165,13 @@ func TestRemoveWithdrawnRoute(t *testing.T) {
 
 	// Then withdraw
 	withdraw := &bgp.Event{
-		Message: &bgp.MessageInfo{Type: "update", ID: 101},
+		Message: &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 101},
 		Peer:    peerJSON,
 		// Withdrawals may have raw-withdrawn but not raw-attributes
 		RawWithdrawn: map[family.Family]string{family.IPv4Unicast: "180a0000"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
-				{Action: "del", NLRIs: []any{"10.0.0.0/24"}},
+				{Action: bgptypes.RouteActionDel, NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -279,13 +281,13 @@ func TestSequenceIndexMonotonic(t *testing.T) {
 	for i, prefix := range []string{"10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24"} {
 		nlriHex := []string{"180a0000", "180a0001", "180a0002"}
 		event := &bgp.Event{
-			Message:       &bgp.MessageInfo{Type: "update", ID: uint64(100 + i)},
+			Message:       &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: uint64(100 + i)},
 			Peer:          peerJSON,
 			RawAttributes: "40010100",
 			RawNLRI:       map[family.Family]string{family.IPv4Unicast: nlriHex[i]},
 			FamilyOps: map[family.Family][]bgp.FamilyOperation{
 				family.IPv4Unicast: {
-					{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{prefix}},
+					{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{prefix}},
 				},
 			},
 		}
@@ -439,13 +441,13 @@ func TestMultipleNLRIsPerUpdate(t *testing.T) {
 
 	// Two NLRIs: 10.0.0.0/24 (18 0a 00 00) + 10.0.1.0/24 (18 0a 00 01)
 	event := &bgp.Event{
-		Message:       &bgp.MessageInfo{Type: "update", ID: 100},
+		Message:       &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 100},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000180a0001"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
-				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
+				{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
 		},
 	}
@@ -634,13 +636,13 @@ func TestComplexFamilyMultiNLRI(t *testing.T) {
 	// VPN UPDATE with 2 parsed NLRIs but a single concatenated raw blob.
 	// The raw blob contains both NLRIs in wire format (RD+labels+prefix).
 	event := &bgp.Event{
-		Message:       &bgp.MessageInfo{Type: "update", ID: 300},
+		Message:       &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 300},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
 		RawNLRI:       map[family.Family]string{ipv4VPN: "aabbccdd11223344"},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			ipv4VPN: {
-				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
+				{NextHop: "10.0.0.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
 		},
 	}

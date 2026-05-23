@@ -35,6 +35,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
@@ -674,20 +675,20 @@ func (r *RIBManager) dispatch(event *Event) {
 	logger().Debug("dispatch event", "eventType", eventType, "peer", event.GetPeerAddress())
 
 	switch eventType {
-	case "sent":
+	case rpc.EventKindSent:
 		r.handleSent(event)
-	case "update":
+	case rpc.EventKindUpdate:
 		// Received UPDATE from peer
 		r.handleReceived(event)
-	case "state":
+	case rpc.EventKindState:
 		r.handleState(event)
-	case "refresh":
+	case rpc.EventKindRefresh:
 		// RFC 7313: Normal route refresh request - resend Adj-RIB-Out with markers
 		r.handleRefresh(event)
-	case "borr":
+	case rpc.EventKindBoRR:
 		// RFC 7313: Beginning of Route Refresh from peer - log only
 		logger().Debug("received BoRR marker", "peer", event.GetPeerAddress())
-	case "eorr":
+	case rpc.EventKindEoRR:
 		// RFC 7313: End of Route Refresh from peer - log only
 		logger().Debug("received EoRR marker", "peer", event.GetPeerAddress())
 	}
@@ -723,7 +724,7 @@ func (r *RIBManager) handleSent(event *Event) {
 	for fam, ops := range event.FamilyOps {
 		for _, op := range ops {
 			switch op.Action {
-			case "add":
+			case bgptypes.RouteActionAdd:
 				// Initialize family map if needed
 				if r.ribOut[peerAddr][fam] == nil {
 					r.ribOut[peerAddr][fam] = make(map[string]*Route)
@@ -761,7 +762,7 @@ func (r *RIBManager) handleSent(event *Event) {
 						SourcePeer:          sourcePeer,
 					}
 				}
-			case "del":
+			case bgptypes.RouteActionDel:
 				// Remove routes from the family map
 				familyRoutes := r.ribOut[peerAddr][fam]
 				if familyRoutes == nil {

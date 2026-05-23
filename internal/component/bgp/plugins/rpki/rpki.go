@@ -425,7 +425,7 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 	}
 
 	eventType := event.GetEventType()
-	if eventType != "update" {
+	if eventType != rpc.EventKindUpdate {
 		return
 	}
 
@@ -462,7 +462,7 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 		familyResults := make(map[string]uint8)
 
 		for _, op := range ops {
-			if op.Action != "add" {
+			if op.Action != bgptypes.RouteActionAdd {
 				continue
 			}
 

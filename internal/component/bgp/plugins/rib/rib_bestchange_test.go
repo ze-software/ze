@@ -620,7 +620,7 @@ func TestPurgeBestPrevForPeerHandleState(t *testing.T) {
 	// Drive the non-structured path. handleState takes *Event with the
 	// peer encoded in Peer (JSON blob) + State.
 	event := &Event{
-		Message: &MessageInfo{Type: "state"},
+		Message: &MessageInfo{Type: rpc.EventKindState},
 		Peer:    mustMarshal(t, map[string]any{"address": peerAddr, "state": "down"}),
 	}
 	r.handleState(event)

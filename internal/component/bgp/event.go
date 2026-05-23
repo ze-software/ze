@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -81,12 +82,13 @@ func ParseEvent(data []byte) (*Event, error) {
 	_ = json.Unmarshal(payloadData, &bgpPayload)
 
 	// Determine event type: use message.type for ze-bgp JSON format if top-level type is missing.
-	eventType := bgpPayload.Type
-	if eventType == "" && bgpPayload.Message != nil && bgpPayload.Message.Type != "" {
-		eventType = bgpPayload.Message.Type
-		// For "sent" type, we know the nested data is under "update".
-		if eventType == "sent" {
-			eventType = "update"
+	// jsonKey stays a string for rawPayload map lookup; eventKind is the typed value.
+	jsonKey := bgpPayload.Type
+	if jsonKey == "" && bgpPayload.Message != nil && bgpPayload.Message.Type != rpc.EventKindUnspecified {
+		jsonKey = bgpPayload.Message.Type.String()
+		// For "sent" type, the nested data is under "update".
+		if bgpPayload.Message.Type == rpc.EventKindSent {
+			jsonKey = "update"
 		}
 	}
 
@@ -97,7 +99,7 @@ func ParseEvent(data []byte) (*Event, error) {
 	}
 
 	// For non-state events, merge in the nested event data.
-	if eventType != "" && eventType != "state" {
+	if jsonKey != "" && jsonKey != "state" {
 		var rawPayload map[string]json.RawMessage
 		if err := json.Unmarshal(payloadData, &rawPayload); err == nil {
 			// Extract raw wire bytes BEFORE narrowing payloadData.
@@ -106,7 +108,7 @@ func ParseEvent(data []byte) (*Event, error) {
 			if rawData, ok := rawPayload["raw"]; ok {
 				parseRawFields(&event, rawData)
 			}
-			if nestedData, ok := rawPayload[eventType]; ok && len(nestedData) > 0 {
+			if nestedData, ok := rawPayload[jsonKey]; ok && len(nestedData) > 0 {
 				// Only use nested data if it's an object (starts with '{'), not a string.
 				if len(nestedData) > 0 && nestedData[0] == '{' {
 					// Merge nested data into event (this adds attr, nlri, message, etc.).
@@ -117,9 +119,12 @@ func ParseEvent(data []byte) (*Event, error) {
 		}
 	}
 
-	// Preserve the event type.
-	if eventType != "" {
-		event.Type = eventType
+	// Preserve the event type parsed from the outer envelope.
+	if jsonKey != "" {
+		event.Type = jsonKey
+		var ek rpc.EventKind
+		_ = ek.UnmarshalText([]byte(jsonKey))
+		event.TypeKind = ek
 	}
 	// Preserve peer from bgp level.
 	if len(bgpPayload.Peer) > 0 {
@@ -294,9 +299,10 @@ func ParseFamilyOps(event *Event, data []byte) {
 // Event represents a JSON event from ze.
 // Handles both sent events (flat format) and received events (nested format).
 type Event struct {
-	// Sent events use top-level type.
-	Type  string `json:"type"`
-	MsgID uint64 `json:"msg-id"`
+	// Sent events use top-level type (string: may carry non-BGP event types like "cache", "request").
+	Type     string        `json:"type"`
+	TypeKind rpc.EventKind `json:"-"`
+	MsgID    uint64        `json:"msg-id"`
 
 	// Received events use message wrapper (includes type, id, direction).
 	Message *MessageInfo `json:"message,omitempty"`
@@ -354,25 +360,29 @@ type Event struct {
 // FamilyOperation represents a single add or del operation for a family.
 // RFC 7911: nlri items may have path-id when ADD-PATH is negotiated.
 type FamilyOperation struct {
-	NextHop string `json:"next-hop,omitempty"` // Only for "add" operations
-	Action  string `json:"action"`             // "add" or "del"
-	NLRIs   []any  `json:"nlri"`               // Strings or {"prefix":"...", "path-id":N}
+	NextHop string               `json:"next-hop,omitempty"` // Only for "add" operations
+	Action  bgptypes.RouteAction `json:"action"`
+	NLRIs   []any                `json:"nlri"` // Strings or {"prefix":"...", "path-id":N}
 }
 
 // MessageInfo contains message wrapper for received events.
 type MessageInfo struct {
-	Type      string               `json:"type"`
+	Type      rpc.EventKind        `json:"type"`
 	ID        uint64               `json:"id,omitempty"`
 	Direction rpc.MessageDirection `json:"direction,omitempty"`
 }
 
 // GetEventType returns unified event type.
-// For received events, uses message.type. For sent events, uses type.
-func (e *Event) GetEventType() string {
-	if e.Message != nil && e.Message.Type != "" {
+// For received events, uses message.type. For sent events, uses cached TypeKind
+// (populated by ParseEvent), falling back to parsing Type on first call.
+func (e *Event) GetEventType() rpc.EventKind {
+	if e.Message != nil && e.Message.Type != rpc.EventKindUnspecified {
 		return e.Message.Type
 	}
-	return e.Type
+	if e.TypeKind == rpc.EventKindUnspecified && e.Type != "" {
+		_ = e.TypeKind.UnmarshalText([]byte(e.Type))
+	}
+	return e.TypeKind
 }
 
 // GetMsgID returns message ID from either format.

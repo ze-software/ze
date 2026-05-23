@@ -118,7 +118,11 @@ func BenchmarkTokenize(b *testing.B) {
 		b.Run(tt.name, func(b *testing.B) {
 			b.ReportAllocs()
 			for range b.N {
-				_ = tokenize(tt.input)
+				tokens, err := tokenize(tt.input)
+				if err != nil {
+					b.Fatal(err)
+				}
+				_ = tokens
 			}
 		})
 	}

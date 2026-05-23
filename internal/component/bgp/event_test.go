@@ -6,7 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // TestParseEvent_ZeBGPUpdateFormat verifies parsing of ze-bgp JSON update events.
@@ -27,7 +29,7 @@ func TestParseEvent_ZeBGPUpdateFormat(t *testing.T) {
 	event, err := ParseEvent([]byte(input))
 	require.NoError(t, err)
 
-	assert.Equal(t, "update", event.GetEventType())
+	assert.Equal(t, rpc.EventKindUpdate, event.GetEventType())
 	assert.Equal(t, uint64(42), event.GetMsgID())
 	assert.Equal(t, "received", event.GetDirection())
 	assert.Equal(t, "10.0.0.1", event.GetPeerAddress())
@@ -38,7 +40,7 @@ func TestParseEvent_ZeBGPUpdateFormat(t *testing.T) {
 	require.Contains(t, event.FamilyOps, family.IPv4Unicast)
 	ops := event.FamilyOps[family.IPv4Unicast]
 	require.Len(t, ops, 1)
-	assert.Equal(t, "add", ops[0].Action)
+	assert.Equal(t, bgptypes.RouteActionAdd, ops[0].Action)
 	assert.Equal(t, "10.0.0.1", ops[0].NextHop)
 	require.Len(t, ops[0].NLRIs, 1)
 	assert.Equal(t, "10.0.0.0/24", ops[0].NLRIs[0])
@@ -54,7 +56,7 @@ func TestParseEvent_StateFormat(t *testing.T) {
 	event, err := ParseEvent([]byte(input))
 	require.NoError(t, err)
 
-	assert.Equal(t, "state", event.GetEventType())
+	assert.Equal(t, rpc.EventKindState, event.GetEventType())
 	assert.Equal(t, "10.0.0.1", event.GetPeerAddress())
 	assert.Equal(t, "up", event.GetPeerState())
 }

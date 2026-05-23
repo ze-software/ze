@@ -472,7 +472,7 @@ func handleQuoteChar(current *strings.Builder, tokens []string, inQuote bool) ([
 func joinTokensWithQuotes(tokens []string) string {
 	var parts []string
 	for _, t := range tokens {
-		if t == "" || strings.ContainsAny(t, " \t\"") {
+		if t == "" || strings.ContainsAny(t, " \t") {
 			parts = append(parts, "\""+t+"\"")
 		} else {
 			parts = append(parts, t)

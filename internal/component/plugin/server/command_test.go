@@ -177,28 +177,27 @@ func TestDispatcherTokenize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			tokens := tokenize(tt.input)
+			tokens, err := tokenize(tt.input)
+			require.NoError(t, err)
 			assert.Equal(t, tt.tokens, tokens)
 		})
 	}
 }
 
-// TestTokenizeBackslashLiteral verifies backslash has no special meaning.
+// TestTokenizeRejectsBackslash verifies backslash is rejected in commands.
 //
-// VALIDATES: Backslash is preserved as a literal character.
-// PREVENTS: Backslash being treated as an escape character.
-func TestTokenizeBackslashLiteral(t *testing.T) {
-	tests := []struct {
-		input  string
-		tokens []string
-	}{
-		{`set path C:\Users`, []string{"set", "path", `C:\Users`}},
-		{`myapp path "C:\Users\test"`, []string{"myapp", "path", `C:\Users\test`}},
+// VALIDATES: Commands with backslash return an error.
+// PREVENTS: Escape sequences in command input.
+func TestTokenizeRejectsBackslash(t *testing.T) {
+	inputs := []string{
+		`set path C:\Users`,
+		`myapp path "C:\Users\test"`,
+		`myapp set "value with \"quotes\""`,
 	}
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			tokens := tokenize(tt.input)
-			assert.Equal(t, tt.tokens, tokens)
+	for _, input := range inputs {
+		t.Run(input, func(t *testing.T) {
+			_, err := tokenize(input)
+			require.ErrorIs(t, err, errBackslashInCommand)
 		})
 	}
 }
