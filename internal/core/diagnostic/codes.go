@@ -98,6 +98,12 @@ var builtinCodes = []CodeMeta{
 
 	// Doctor diagnostic codes.
 	{
+		Code:        "doctor-store-integrity",
+		Title:       "Store integrity failure",
+		Description: "The zefs database has corrupt entries or a container-level error.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
 		Code:        "doctor-config-missing",
 		Title:       "Config file not found",
 		Description: "No config file could be resolved from storage. Ze cannot determine which services to check.",
@@ -167,6 +173,24 @@ var builtinCodes = []CodeMeta{
 		Code:        "doctor-iface-missing",
 		Title:       "Configured interface not found",
 		Description: "An ethernet interface named in the config does not exist on the system.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-config-reference",
+		Title:       "Dangling config reference",
+		Description: "A filter chain in BGP config references a policy name that is not defined under bgp/policy.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-disk-space",
+		Title:       "Low disk space on config partition",
+		Description: "The partition containing the config directory has less than 5% free space. The zefs database may fail to write.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-dns-resolver",
+		Title:       "No DNS resolver responding",
+		Description: "None of the name servers configured under system/name-server responded to a query.",
 		Examples:    []string{"ze doctor --json"},
 	},
 	{

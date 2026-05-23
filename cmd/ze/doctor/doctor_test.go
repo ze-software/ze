@@ -498,3 +498,142 @@ func generateTestCert(t *testing.T, notBefore, notAfter time.Time) []byte {
 
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 }
+
+// --- Config reference tests ---
+
+func TestCheckConfigReferences_NoBGP(t *testing.T) {
+	tree := config.NewTree()
+	diags := checkConfigReferences(tree)
+	assert.Empty(t, diags)
+}
+
+func TestCheckConfigReferences_NoPolicyNoRefs(t *testing.T) {
+	tree := config.NewTree()
+	tree.GetOrCreateContainer("bgp")
+	diags := checkConfigReferences(tree)
+	assert.Empty(t, diags)
+}
+
+func TestCheckConfigReferences_DanglingGlobalRef(t *testing.T) {
+	tree := config.NewTree()
+	bgp := tree.GetOrCreateContainer("bgp")
+	filter := bgp.GetOrCreateContainer("filter")
+	filter.SetSlice("import", []string{"nonexistent"})
+
+	diags := checkConfigReferences(tree)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-config-reference", diags[0].Code)
+	assert.Contains(t, diags[0].Message, "nonexistent")
+}
+
+func TestCheckConfigReferences_DefinedPolicyPasses(t *testing.T) {
+	tree := config.NewTree()
+	bgp := tree.GetOrCreateContainer("bgp")
+
+	policy := bgp.GetOrCreateContainer("policy")
+	policy.AddListEntry("prefix-list", "customers", config.NewTree())
+
+	filter := bgp.GetOrCreateContainer("filter")
+	filter.SetSlice("import", []string{"customers"})
+
+	diags := checkConfigReferences(tree)
+	assert.Empty(t, diags)
+}
+
+func TestCheckConfigReferences_NamespacedRefPasses(t *testing.T) {
+	tree := config.NewTree()
+	bgp := tree.GetOrCreateContainer("bgp")
+
+	policy := bgp.GetOrCreateContainer("policy")
+	policy.AddListEntry("prefix-list", "customers", config.NewTree())
+
+	filter := bgp.GetOrCreateContainer("filter")
+	filter.SetSlice("import", []string{"bgp-filter-prefix:customers"})
+
+	diags := checkConfigReferences(tree)
+	assert.Empty(t, diags)
+}
+
+func TestCheckConfigReferences_PeerLevelRef(t *testing.T) {
+	tree := config.NewTree()
+	bgp := tree.GetOrCreateContainer("bgp")
+
+	policy := bgp.GetOrCreateContainer("policy")
+	policy.AddListEntry("prefix-list", "allowed", config.NewTree())
+
+	peerTree := config.NewTree()
+	peerFilter := peerTree.GetOrCreateContainer("filter")
+	peerFilter.SetSlice("export", []string{"missing"})
+	bgp.AddListEntry("peer", "192.0.2.1", peerTree)
+
+	diags := checkConfigReferences(tree)
+	require.Len(t, diags, 1)
+	assert.Contains(t, diags[0].Message, "missing")
+	assert.Contains(t, diags[0].Message, "bgp/peer/192.0.2.1/filter/export")
+}
+
+// --- Disk space tests ---
+
+func TestCheckDiskSpace_ReturnsNilOnWorkingFilesystem(t *testing.T) {
+	diags := checkDiskSpace()
+	assert.Empty(t, diags)
+}
+
+// --- DNS resolver tests ---
+
+func TestCheckDNSResolvers_NoSystemBlock(t *testing.T) {
+	tree := config.NewTree()
+	diags := checkDNSResolvers(tree)
+	assert.Empty(t, diags)
+}
+
+func TestCheckDNSResolvers_NoNameServers(t *testing.T) {
+	tree := config.NewTree()
+	tree.GetOrCreateContainer("system")
+	diags := checkDNSResolvers(tree)
+	assert.Empty(t, diags)
+}
+
+func TestCheckDNSResolvers_UnreachableServer(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires network timeout")
+	}
+	tree := config.NewTree()
+	sys := tree.GetOrCreateContainer("system")
+	sys.SetSlice("name-server", []string{"192.0.2.254"})
+	diags := checkDNSResolvers(tree)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-dns-resolver", diags[0].Code)
+}
+
+func TestDNSServerResponds_Unreachable(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires network timeout")
+	}
+	assert.False(t, dnsServerResponds("192.0.2.254"))
+}
+
+// --- Filter instance name tests ---
+
+func TestFilterInstanceName(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"customers", "customers"},
+		{"prefix-list:customers", "customers"},
+		{"bgp-filter-prefix:customers", "customers"},
+	}
+	for _, tt := range tests {
+		got := filterInstanceName(tt.input)
+		assert.Equal(t, tt.want, got, "filterInstanceName(%q)", tt.input)
+	}
+}
+
+// --- Store integrity code registration test ---
+
+func TestDoctorStoreIntegrityCodeRegistered(t *testing.T) {
+	meta := diagnostic.Lookup("doctor-store-integrity")
+	require.NotNil(t, meta, "doctor-store-integrity code must be registered")
+	assert.NotEmpty(t, meta.Title)
+}

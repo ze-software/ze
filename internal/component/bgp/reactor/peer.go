@@ -276,6 +276,8 @@ type Peer struct {
 	// the FSM reaches Established and the peer opted in via config.
 	// stopBFDClient clears it on session teardown. See peer_bfd.go.
 	bfd bfdClient
+
+	health *sessionHealth
 }
 
 // NewPeer creates a new peer for the given settings.
@@ -284,18 +286,21 @@ func NewPeer(settings *PeerSettings) *Peer {
 	if reconnectMin == 0 {
 		reconnectMin = DefaultReconnectMin
 	}
+	addrStr := settings.Address.String()
+	clk := clock.RealClock{}
 	p := &Peer{
 		settings:        settings,
-		clock:           clock.RealClock{},
+		clock:           clk,
 		dialer:          &network.RealDialer{},
 		reconnectMin:    reconnectMin,
 		reconnectMax:    DefaultReconnectMax,
 		opQueue:         make([]PeerOp, 0, 16), // Pre-allocate small capacity
 		sourceID:        source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),
 		inboundNotify:   make(chan struct{}, 1),
-		addrString:      settings.Address.String(),
+		addrString:      addrStr,
 		localAddrString: settings.LocalAddress.String(),
 		history:         newFSMHistory(),
+		health:          newSessionHealth(addrStr, clk),
 	}
 
 	return p
@@ -656,6 +661,9 @@ func (p *Peer) setState(s PeerState) {
 	old := PeerState(p.state.Swap(int32(s)))
 	if old != s {
 		p.updatePeerStateMetric(old, s)
+		if p.health != nil {
+			p.health.onStateChange(old, s)
+		}
 		p.mu.RLock()
 		cb := p.callback
 		p.mu.RUnlock()

@@ -164,6 +164,9 @@ func (r *Reactor) removeDynamicPeer(peer *Peer) {
 
 	peer.Stop()
 	ClearPrefixStale(settings.Address.String())
+	if peer.health != nil {
+		peer.health.stop()
+	}
 	delete(r.peers, key)
 
 	if r.fwdWeights != nil {

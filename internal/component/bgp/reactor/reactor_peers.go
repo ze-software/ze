@@ -220,6 +220,10 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 	// during the session teardown defer in peer_run.go.
 	ClearPrefixStale(addr.String())
 
+	if peer.health != nil {
+		peer.health.stop()
+	}
+
 	delete(r.peers, key)
 	r.peerGeneration.Add(1)
 

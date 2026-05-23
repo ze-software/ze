@@ -480,6 +480,9 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 					// This mirrors the explicit RemovePeer path; without it,
 					// stale entries leak when peers are removed via config reload.
 					ClearPrefixStale(peerKey.Addr().String())
+					if peer.health != nil {
+						peer.health.stop()
+					}
 					delete(r.peers, peerKey)
 					reactorLogger().Debug(label+": removed peer", "peer", peerKey)
 				}

@@ -8,13 +8,16 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
@@ -112,6 +115,9 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkPlugins(result.Plugins)...)
 	diags = append(diags, checkSSHHostKey(tree, result.ConfigDir)...)
 	diags = append(diags, checkListeners(tree)...)
+	diags = append(diags, checkDiskSpace()...)
+	diags = append(diags, checkDNSResolvers(tree)...)
+	diags = append(diags, checkConfigReferences(tree)...)
 
 	return diags
 }
@@ -540,6 +546,175 @@ func extractSSHListeners(tree *config.Tree) []serviceListener {
 	}
 
 	return listeners
+}
+
+func checkConfigReferences(tree *config.Tree) []diagnostic.Diagnostic {
+	bgpBlock := tree.GetContainer("bgp")
+	if bgpBlock == nil {
+		return nil
+	}
+
+	// Collect defined filter instance names from bgp/policy.
+	// Policy lists (prefix-list, as-path, etc.) are added by plugins via YANG
+	// augment. Each list's keys are filter instance names.
+	defined := make(map[string]bool)
+	if policy := bgpBlock.GetContainer("policy"); policy != nil {
+		policyMap := policy.ToMap()
+		collectFilterNamesFromMap(policyMap, defined)
+	}
+
+	var diags []diagnostic.Diagnostic
+
+	// Collect all filter references from global, group, and peer levels.
+	if filter := bgpBlock.GetContainer("filter"); filter != nil {
+		diags = append(diags, checkFilterRefs(filter, defined, "bgp/filter")...)
+	}
+
+	groups := bgpBlock.GetListOrdered("group")
+	for _, g := range groups {
+		groupPath := "bgp/group/" + g.Key + "/filter"
+		if filter := g.Value.GetContainer("filter"); filter != nil {
+			diags = append(diags, checkFilterRefs(filter, defined, groupPath)...)
+		}
+		peers := g.Value.GetListOrdered("peer")
+		for _, p := range peers {
+			peerPath := "bgp/group/" + g.Key + "/peer/" + p.Key + "/filter"
+			if filter := p.Value.GetContainer("filter"); filter != nil {
+				diags = append(diags, checkFilterRefs(filter, defined, peerPath)...)
+			}
+		}
+	}
+
+	peers := bgpBlock.GetListOrdered("peer")
+	for _, p := range peers {
+		peerPath := "bgp/peer/" + p.Key + "/filter"
+		if filter := p.Value.GetContainer("filter"); filter != nil {
+			diags = append(diags, checkFilterRefs(filter, defined, peerPath)...)
+		}
+	}
+
+	return diags
+}
+
+// collectFilterNamesFromMap walks the policy map (from ToMap()) and collects
+// all second-level keys as filter instance names. The map structure is:
+//
+//	{"prefix-list": {"customers": {...}}, "as-path": {"as1234": {...}}}
+func collectFilterNamesFromMap(m map[string]any, defined map[string]bool) {
+	for _, v := range m {
+		sub, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		for name := range sub {
+			defined[name] = true
+		}
+	}
+}
+
+// filterInstanceName extracts the filter instance name from a reference.
+// Filter references can use three forms:
+//   - "bgp-filter-prefix:customers"  (plugin-process:name)
+//   - "prefix-list:customers"        (filter-type:name)
+//   - "customers"                    (plain name)
+//
+// All resolve to the same instance name after stripping the prefix.
+func filterInstanceName(ref string) string {
+	if i := strings.LastIndex(ref, ":"); i >= 0 {
+		return ref[i+1:]
+	}
+	return ref
+}
+
+func checkFilterRefs(filter *config.Tree, defined map[string]bool, path string) []diagnostic.Diagnostic {
+	var diags []diagnostic.Diagnostic
+	for _, dir := range []string{"import", "export"} {
+		refs := filter.GetSlice(dir)
+		for _, ref := range refs {
+			name := filterInstanceName(ref)
+			if len(defined) == 0 || !defined[name] {
+				diags = append(diags, diagnostic.Diagnostic{
+					Code:     "doctor-config-reference",
+					Severity: diagnostic.SeverityError,
+					Message:  path + "/" + dir + ": references undefined filter '" + ref + "'",
+				})
+			}
+		}
+	}
+	return diags
+}
+
+func checkDiskSpace() []diagnostic.Diagnostic {
+	configDir := paths.DefaultConfigDir()
+	if configDir == "" {
+		return nil
+	}
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(configDir, &stat); err != nil {
+		return nil
+	}
+	if stat.Blocks == 0 {
+		return nil
+	}
+	pctFree := (stat.Bavail * 100) / stat.Blocks
+	if pctFree < 5 {
+		pctStr := textbuf.UintStr(pctFree, "%")
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-disk-space",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "config partition has " + pctStr + " free space",
+			Path:     configDir,
+			Expected: ">= 5%",
+			Actual:   pctStr,
+		}}
+	}
+	return nil
+}
+
+func checkDNSResolvers(tree *config.Tree) []diagnostic.Diagnostic {
+	sysBlock := tree.GetContainer("system")
+	if sysBlock == nil {
+		return nil
+	}
+	servers := sysBlock.GetSlice("name-server")
+	if len(servers) == 0 {
+		return nil
+	}
+
+	if slices.ContainsFunc(servers, dnsServerResponds) {
+		return nil
+	}
+
+	return []diagnostic.Diagnostic{{
+		Code:     "doctor-dns-resolver",
+		Severity: diagnostic.SeverityWarning,
+		Message:  "none of the configured name servers responded",
+	}}
+}
+
+// dnsServerResponds probes a DNS server with a query. Returns true if the
+// server responds at all (including NXDOMAIN or SERVFAIL), false only if
+// the server is unreachable or times out.
+func dnsServerResponds(addr string) bool {
+	resolver := &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			d := net.Dialer{}
+			return d.DialContext(ctx, "udp", net.JoinHostPort(addr, "53"))
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err := resolver.LookupHost(ctx, "_dns-probe.invalid.")
+	if err == nil {
+		return true
+	}
+	// A DNS error (NXDOMAIN, SERVFAIL) means the server responded.
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) && !dnsErr.IsTimeout && !dnsErr.IsTemporary {
+		return true
+	}
+	return false
 }
 
 func resolvePath(p, configDir string) string {
