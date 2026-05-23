@@ -128,21 +128,41 @@ func (s *Session) startSendHoldTimer() {
 	s.sendHoldMu.Lock()
 	defer s.sendHoldMu.Unlock()
 	s.stopSendHoldTimerLocked()
-	s.sendHoldTimer = s.clock.AfterFunc(d, s.sendHoldTimerExpired)
+	s.sendHoldDeadline.Store(s.clock.Now().Add(d).UnixNano())
+	s.sendHoldTimer = s.clock.AfterFunc(d, s.sendHoldTimerCheck)
 }
 
 // resetSendHoldTimer resets the Send Hold Timer after a successful write.
-// Stops the current timer and creates a new AfterFunc. Timer.Reset is unsafe
-// for AfterFunc timers: it cannot guarantee the callback won't run concurrently
-// with a previously-fired instance (Go docs: "Reset does not wait for prior f
-// to complete"). Stop+AfterFunc ensures single-execution semantics.
+// Zero-allocation: stores the new deadline atomically. The timer callback
+// checks the deadline on expiry and reschedules if writes pushed it forward.
 func (s *Session) resetSendHoldTimer() {
-	s.sendHoldMu.Lock()
-	defer s.sendHoldMu.Unlock()
-	if s.sendHoldTimer != nil {
-		s.sendHoldTimer.Stop()
-		s.sendHoldTimer = s.clock.AfterFunc(s.sendHoldDuration(), s.sendHoldTimerExpired)
+	if s.sendHoldDeadline.Load() != 0 {
+		s.sendHoldDeadline.Store(s.clock.Now().Add(s.sendHoldDuration()).UnixNano())
 	}
+}
+
+// sendHoldTimerCheck is the timer callback. Checks whether the deadline was
+// pushed forward by writes since the timer was last scheduled. If so,
+// reschedules for the remaining time. If not, the timer has truly expired.
+// Reset is safe here: the timer already fired, this is the only running
+// instance of the callback, and reschedule under the mutex prevents races
+// with stopSendHoldTimer.
+func (s *Session) sendHoldTimerCheck() {
+	deadline := s.sendHoldDeadline.Load()
+	if deadline == 0 {
+		return
+	}
+	now := s.clock.Now().UnixNano()
+	remaining := deadline - now
+	if remaining > 0 {
+		s.sendHoldMu.Lock()
+		if s.sendHoldTimer != nil {
+			s.sendHoldTimer.Reset(time.Duration(remaining))
+		}
+		s.sendHoldMu.Unlock()
+		return
+	}
+	s.sendHoldTimerExpired()
 }
 
 // stopSendHoldTimer stops the Send Hold Timer.
@@ -153,6 +173,7 @@ func (s *Session) stopSendHoldTimer() {
 }
 
 func (s *Session) stopSendHoldTimerLocked() {
+	s.sendHoldDeadline.Store(0)
 	if s.sendHoldTimer != nil {
 		s.sendHoldTimer.Stop()
 		s.sendHoldTimer = nil

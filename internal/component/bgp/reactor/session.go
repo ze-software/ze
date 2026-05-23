@@ -310,12 +310,13 @@ type Session struct {
 	// between read goroutine and timer goroutine.
 	recentRead atomic.Bool
 
-	// sendHoldTimer detects when the local side cannot send any data to the
-	// peer (RFC 9687). Reset on every successful write. On expiry, the session
-	// is torn down with NOTIFICATION Error Code 8 (Send Hold Timer Expired).
-	// Started when session enters ESTABLISHED, stopped on close.
-	sendHoldTimer clock.Timer
-	sendHoldMu    sync.Mutex // protects sendHoldTimer
+	// Send Hold Timer (RFC 9687): detects when the local side cannot send.
+	// sendHoldDeadline stores the UnixNano of the next expiry; 0 = not running.
+	// Updated atomically on every write (zero-alloc hot path). A single timer
+	// checks the deadline on expiry and reschedules if writes pushed it forward.
+	sendHoldDeadline atomic.Int64
+	sendHoldTimer    clock.Timer
+	sendHoldMu       sync.Mutex // protects sendHoldTimer start/stop lifecycle
 
 	// coalesce holds a pending IPv4 unicast UPDATE whose NLRIs may be extended
 	// by subsequent UPDATEs with identical path attributes. Only used when

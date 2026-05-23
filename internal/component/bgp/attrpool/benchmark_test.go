@@ -92,22 +92,22 @@ func BenchmarkMetrics(b *testing.B) {
 
 // BenchmarkCompact measures performance of compaction.
 func BenchmarkCompact(b *testing.B) {
-
-	for b.Loop() {
-		p := New(1024 * 1024)
-		// Create entries
+	pools := make([]*Pool, b.N)
+	for i := range b.N {
+		p := New(16 * 1024)
 		handles := make([]Handle, 1000)
 		for j := range 1000 {
 			handles[j] = benchIntern(b, p, fmt.Appendf(nil, "data-%d", j))
 		}
-		// Release half
 		for j := range 500 {
 			_ = p.Release(handles[j])
 		}
+		pools[i] = p
+	}
 
-		b.StartTimer()
-		p.Compact()
-		b.StopTimer()
+	b.ResetTimer()
+	for i := range b.N {
+		pools[i].Compact()
 	}
 }
 

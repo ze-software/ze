@@ -4,6 +4,7 @@ import (
 	"net/netip"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -238,11 +239,25 @@ func BenchmarkPublishBusNotificationPattern(b *testing.B) {
 	}
 }
 
-// --- Timer reset pattern benchmark ---
+// --- Timer reset pattern benchmarks ---
 
-// BenchmarkTimerResetPattern measures the timer.Stop() + clock.AfterFunc() cycle
-// that happens in resetSendHoldTimer on every successful write.
+// BenchmarkTimerResetPattern measures the atomic deadline store that happens
+// in resetSendHoldTimer on every successful write.
 func BenchmarkTimerResetPattern(b *testing.B) {
+	clk := clock.RealClock{}
+	duration := 8 * time.Minute
+	var deadline atomic.Int64
+	deadline.Store(clk.Now().Add(duration).UnixNano())
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		deadline.Store(clk.Now().Add(duration).UnixNano())
+	}
+}
+
+// BenchmarkTimerResetPatternOld measures the old Stop+AfterFunc cycle for comparison.
+func BenchmarkTimerResetPatternOld(b *testing.B) {
 	clk := clock.RealClock{}
 	noop := func() {}
 	timer := clk.AfterFunc(time.Hour, noop)

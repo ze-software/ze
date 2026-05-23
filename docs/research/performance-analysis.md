@@ -1,5 +1,9 @@
 # Ze Performance Analysis Report
 
+> **Staleness warning (2026-05-23):** Several recommendations in this report are
+> now implemented. See `PERFORMANCE_OPTIMIZATION_REPORT.md` in the repo root for
+> current measurements and the up-to-date work list.
+
 **Date:** 2026-03-26
 **Scope:** Identify bottlenecks affecting ze-perf convergence, throughput, and latency
 **Method:** Code analysis + micro-benchmarks on hot path components
