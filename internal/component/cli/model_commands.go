@@ -415,7 +415,7 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 }
 
 // tokenizeCommand splits a command string into tokens, respecting quoted strings.
-// Supports backslash escapes inside quotes: \" for literal quote, \\ for literal backslash.
+// Backslash has no special meaning (no escape sequences).
 // Example: `set peer "my peer" description "test"` → ["set", "peer", "my peer", "description", "test"].
 func tokenizeCommand(input string) []string {
 	var tokens []string
@@ -425,27 +425,14 @@ func tokenizeCommand(input string) []string {
 	for i := 0; i < len(input); i++ {
 		c := input[i]
 
-		// Handle escape sequences inside quotes
-		if inQuote && c == '\\' && i+1 < len(input) {
-			next := input[i+1]
-			if next == '"' || next == '\\' {
-				current.WriteByte(next)
-				i++ // Skip the escaped character
-				continue
-			}
-			// Unrecognized escape - treat backslash as literal
-		}
-
 		isQuote := c == '"'
 		isSpace := c == ' ' || c == '\t'
 
-		// Handle quote toggle
 		if isQuote {
 			tokens, inQuote = handleQuoteChar(&current, tokens, inQuote)
 			continue
 		}
 
-		// Handle whitespace (token separator when not in quotes)
 		if isSpace && !inQuote {
 			if current.Len() > 0 {
 				tokens = append(tokens, current.String())
@@ -454,11 +441,9 @@ func tokenizeCommand(input string) []string {
 			continue
 		}
 
-		// Regular character (or space inside quotes)
 		current.WriteByte(c)
 	}
 
-	// Add final token if any
 	if current.Len() > 0 {
 		tokens = append(tokens, current.String())
 	}
@@ -483,16 +468,12 @@ func handleQuoteChar(current *strings.Builder, tokens []string, inQuote bool) ([
 }
 
 // joinTokensWithQuotes joins tokens into a command string, quoting tokens that need it.
-// Tokens containing spaces, tabs, quotes, or empty strings are quoted.
-// Embedded backslashes and quotes are escaped for round-trip compatibility with tokenizeCommand.
+// Tokens containing spaces, tabs, or empty strings are quoted.
 func joinTokensWithQuotes(tokens []string) string {
 	var parts []string
 	for _, t := range tokens {
 		if t == "" || strings.ContainsAny(t, " \t\"") {
-			// Escape backslashes first, then quotes (order matters!)
-			escaped := strings.ReplaceAll(t, `\`, `\\`)
-			escaped = strings.ReplaceAll(escaped, `"`, `\"`)
-			parts = append(parts, "\""+escaped+"\"")
+			parts = append(parts, "\""+t+"\"")
 		} else {
 			parts = append(parts, t)
 		}

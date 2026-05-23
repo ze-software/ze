@@ -620,11 +620,9 @@ func (m *Model) applyCompletion(comp Completion) {
 		words[len(words)-1] = comp.Text
 		m.textInput.SetValue(joinTokensWithQuotes(words) + " ")
 	} else {
-		// Append completion (quote and escape if needed)
+		// Append completion (quote if needed)
 		if strings.ContainsAny(comp.Text, " \t\"") {
-			escaped := strings.ReplaceAll(comp.Text, `\`, `\\`)
-			escaped = strings.ReplaceAll(escaped, `"`, `\"`)
-			m.textInput.SetValue(input + "\"" + escaped + "\" ")
+			m.textInput.SetValue(input + "\"" + comp.Text + "\" ")
 		} else {
 			m.textInput.SetValue(input + comp.Text + " ")
 		}

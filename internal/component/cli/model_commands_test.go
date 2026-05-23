@@ -609,30 +609,30 @@ func TestTokenizeCommandQuotedStrings(t *testing.T) {
 			input:  "",
 			expect: nil,
 		},
-		{
-			name:   "escaped quote in value",
-			input:  `set description "value with \" quote"`,
-			expect: []string{"set", "description", `value with " quote`},
-		},
-		{
-			name:   "escaped backslash",
-			input:  `set path "C:\\Users\\test"`,
-			expect: []string{"set", "path", `C:\Users\test`},
-		},
-		{
-			name:   "quote only token",
-			input:  `set value "\""`,
-			expect: []string{"set", "value", `"`},
-		},
-		{
-			name:   "backslash at end (not escape)",
-			input:  `set path C:\Users`,
-			expect: []string{"set", "path", `C:\Users`},
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			result := tokenizeCommand(tt.input)
+			assert.Equal(t, tt.expect, result)
+		})
+	}
+}
+
+// TestTokenizeCommandBackslashLiteral verifies backslash has no special meaning.
+//
+// VALIDATES: Backslash is preserved as a literal character.
+// PREVENTS: Backslash being treated as an escape character.
+func TestTokenizeCommandBackslashLiteral(t *testing.T) {
+	tests := []struct {
+		input  string
+		expect []string
+	}{
+		{`set path C:\Users`, []string{"set", "path", `C:\Users`}},
+		{`set path "C:\Users\test"`, []string{"set", "path", `C:\Users\test`}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
 			result := tokenizeCommand(tt.input)
 			assert.Equal(t, tt.expect, result)
 		})
@@ -744,11 +744,6 @@ func TestJoinTokensWithQuotes(t *testing.T) {
 			name:   "token with space",
 			tokens: []string{"set", "peer", "my peer"},
 			expect: `set peer "my peer"`,
-		},
-		{
-			name:   "embedded quote escaped",
-			tokens: []string{"set", "description", `my "special" peer`},
-			expect: `set description "my \"special\" peer"`,
 		},
 		{
 			name:   "empty string quoted",

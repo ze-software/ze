@@ -573,7 +573,7 @@ func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredComma
 
 // tokenize splits a command string into tokens.
 // Handles quoted strings: "hello world" → single token "hello world".
-// Supports backslash escaping: \" for literal quote, \\ for literal backslash.
+// Backslash has no special meaning (no escape sequences).
 // Quotes are stripped from the result.
 func tokenize(input string) []string {
 	input = strings.TrimSpace(input)
@@ -584,20 +584,8 @@ func tokenize(input string) []string {
 	var tokens []string
 	var current strings.Builder
 	inQuote := false
-	escape := false
 
 	for _, r := range input {
-		if escape {
-			current.WriteRune(r)
-			escape = false
-			continue
-		}
-
-		if r == '\\' {
-			escape = true
-			continue
-		}
-
 		if r == '"' {
 			inQuote = !inQuote
 			continue

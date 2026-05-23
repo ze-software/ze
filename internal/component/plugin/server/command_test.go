@@ -173,12 +173,28 @@ func TestDispatcherTokenize(t *testing.T) {
 		// Quoted strings
 		{`myapp check "hello world"`, []string{"myapp", "check", "hello world"}},
 		{`register command "myapp status" description "Show status"`, []string{"register", "command", "myapp status", "description", "Show status"}},
-		// Escaped quotes
-		{`myapp set "value with \"quotes\""`, []string{"myapp", "set", `value with "quotes"`}},
-		// Escaped backslash
-		{`myapp path "C:\\Users\\test"`, []string{"myapp", "path", `C:\Users\test`}},
 	}
 
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			tokens := tokenize(tt.input)
+			assert.Equal(t, tt.tokens, tokens)
+		})
+	}
+}
+
+// TestTokenizeBackslashLiteral verifies backslash has no special meaning.
+//
+// VALIDATES: Backslash is preserved as a literal character.
+// PREVENTS: Backslash being treated as an escape character.
+func TestTokenizeBackslashLiteral(t *testing.T) {
+	tests := []struct {
+		input  string
+		tokens []string
+	}{
+		{`set path C:\Users`, []string{"set", "path", `C:\Users`}},
+		{`myapp path "C:\Users\test"`, []string{"myapp", "path", `C:\Users\test`}},
+	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			tokens := tokenize(tt.input)

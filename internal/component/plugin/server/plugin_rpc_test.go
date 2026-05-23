@@ -142,11 +142,6 @@ func TestTokenize(t *testing.T) {
 			want:  []string{"hello world", "foo"},
 		},
 		{
-			name:  "escaped_quote",
-			input: `"hello \"world\""`,
-			want:  []string{`hello "world"`},
-		},
-		{
 			name:  "empty_string",
 			input: "",
 			want:  nil,
