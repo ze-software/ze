@@ -29,10 +29,11 @@ var (
 // Selector represents a peer selection pattern.
 // Supports: specific IP, all (*), exclude (!IP), or multiple IPs (ip,ip,ip).
 type Selector struct {
-	All     bool         // Match all peers
-	IP      netip.Addr   // Specific peer IP (if All=false and Exclude/IPs are empty)
-	Exclude netip.Addr   // Exclude this peer (if All=false and IP/IPs are empty)
-	IPs     []netip.Addr // Multiple specific peers (if All=false and IP/Exclude are empty)
+	All     bool                    // Match all peers
+	IP      netip.Addr              // Specific peer IP (if All=false and Exclude/IPs are empty)
+	Exclude netip.Addr              // Exclude this peer (if All=false and IP/IPs are empty)
+	IPs     []netip.Addr            // Multiple specific peers (if All=false and IP/Exclude are empty)
+	ipSet   map[netip.Addr]struct{} // O(1) lookup for multi-IP; built at parse time when len(IPs) > 16
 }
 
 // Parse parses a peer selector string.
@@ -108,7 +109,14 @@ func parseMultiIP(s string) (*Selector, error) {
 		ips = append(ips, ip)
 	}
 
-	return &Selector{IPs: ips}, nil
+	sel := &Selector{IPs: ips}
+	if len(ips) > 16 {
+		sel.ipSet = make(map[netip.Addr]struct{}, len(ips))
+		for _, ip := range ips {
+			sel.ipSet[ip] = struct{}{}
+		}
+	}
+	return sel, nil
 }
 
 // Matches returns true if the selector matches the given peer address.
@@ -118,6 +126,10 @@ func (sel *Selector) Matches(peer netip.Addr) bool {
 	}
 
 	if len(sel.IPs) > 0 {
+		if sel.ipSet != nil {
+			_, ok := sel.ipSet[peer]
+			return ok
+		}
 		return slices.Contains(sel.IPs, peer)
 	}
 

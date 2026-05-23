@@ -118,6 +118,7 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	// Set message callback to forward raw bytes to reactor's message receiver
 	peer.messageCallback = r.notifyMessageReceiver
 	r.peers[key] = peer
+	r.peerGeneration.Add(1)
 
 	// Track peer's prefix demand for pool auto-sizing (AC-28).
 	if r.fwdWeights != nil {
@@ -220,6 +221,7 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 	ClearPrefixStale(addr.String())
 
 	delete(r.peers, key)
+	r.peerGeneration.Add(1)
 
 	// Update Prometheus metrics if configured.
 	if r.rmetrics != nil {

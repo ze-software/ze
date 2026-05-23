@@ -455,13 +455,21 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	// (pending entries are accessible) and Decrement() adjusts the count
 	// (negative is corrected when Activate adds N).
 	if direction == rpc.DirectionReceived && wireUpdate != nil && buf.Buf != nil {
-		r.recentUpdates.Add(&ReceivedUpdate{
-			WireUpdate:   wireUpdate, // Zero-copy: slices into buf
-			poolBuf:      buf,        // Cache owns buf
+		ru := &ReceivedUpdate{
+			poolBuf:      buf, // Cache owns buf
 			SourcePeerIP: peerAddr,
 			ReceivedAt:   timestamp,
 			Meta:         routeMeta,
-		})
+		}
+		// Initialize WireUpdate inline to co-locate it within the ReceivedUpdate
+		// allocation (one fewer heap object per UPDATE). Fresh init from the same
+		// payload; lazy parse re-fires on first consumer access (~35ns, cheaper
+		// than the saved allocation).
+		wireu.InitWireUpdate(&ru.wireUpdateInline, wireUpdate.Payload(), wireUpdate.SourceCtxID())
+		ru.wireUpdateInline.SetMessageID(wireUpdate.MessageID())
+		ru.wireUpdateInline.SetSourceID(wireUpdate.SourceID())
+		ru.WireUpdate = &ru.wireUpdateInline
+		r.recentUpdates.Add(ru)
 		kept = true // Cache always accepts
 	}
 

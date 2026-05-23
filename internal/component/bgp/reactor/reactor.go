@@ -213,6 +213,7 @@ type Reactor struct {
 	rmetrics        *reactorMetrics  // cached metric references (nil when registry not set)
 
 	peers           map[netip.AddrPort]*Peer // keyed by netip.AddrPort (zero-alloc lookup)
+	peerGeneration  atomic.Uint64            // incremented on peer add/remove; used by ForwardUpdatesDirect batch cache
 	listener        *Listener                // deprecated: single listener for backward compat
 	listeners       map[string]*Listener     // keyed by "addr:port" (local endpoint)
 	signals         *SignalHandler

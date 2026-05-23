@@ -59,6 +59,14 @@ func NewWireUpdate(payload []byte, ctxID bgpctx.ContextID) *WireUpdate {
 	}
 }
 
+// InitWireUpdate initializes a caller-owned WireUpdate in place, avoiding
+// the heap allocation from NewWireUpdate. The WireUpdate must be zero-valued
+// (not previously used) since sync.Once fields are not safe to reinitialize.
+func InitWireUpdate(wu *WireUpdate, payload []byte, ctxID bgpctx.ContextID) {
+	wu.payload = payload
+	wu.sourceCtxID = ctxID
+}
+
 func (u *WireUpdate) ensureParsed() {
 	u.sectionOnce.Do(func() {
 		sections, err := wire.ParseUpdateSections(u.payload)

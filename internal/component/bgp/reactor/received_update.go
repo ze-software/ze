@@ -38,7 +38,13 @@ func nextMsgID() uint64 {
 type ReceivedUpdate struct {
 	// WireUpdate contains the UPDATE payload with zero-copy accessors.
 	// Provides Payload(), Attrs(), NLRI(), MPReach(), MPUnreach(), SourceCtxID(), MessageID().
+	// Points to wireUpdateInline so the WireUpdate lives inside the same
+	// heap allocation as ReceivedUpdate (one fewer allocation per UPDATE).
 	WireUpdate *wireu.WireUpdate
+
+	// wireUpdateInline is the storage backing WireUpdate. All callers use
+	// the pointer field above; this field must not be accessed directly.
+	wireUpdateInline wireu.WireUpdate
 
 	// poolBuf is the session read buffer handle that WireUpdate slices into.
 	// Returned to multiplexer when cache evicts this entry.
