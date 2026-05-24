@@ -1,0 +1,11 @@
+# Test: ze install serve -h — serve subcommand help
+# spec-install-4 AC-9: serve help shows required and optional flags.
+
+cmd=foreground:seq=1:exec=ze install serve -h
+expect=exit:code=0
+expect=stdout:contains=--interface
+expect=stdout:contains=--network
+expect=stdout:contains=--image
+expect=stdout:contains=--ssh-username
+expect=stdout:contains=--ssh-password
+expect=stdout:contains=--address

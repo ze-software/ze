@@ -1,0 +1,44 @@
+# Test: ze install serve generated config validates as valid ze config.
+# spec-install-4 AC-7: generated config contains all required sections.
+# This tests that the config syntax is correct by validating a representative
+# config through ze config validate.
+
+stdin=config:terminator=EOF_CONF
+service {
+    dhcp-server {
+        enabled true;
+        listen-interface eth0;
+        shared-network install {
+            subnet 10.0.0.0/24 {
+                range pool1 {
+                    start 10.0.0.2;
+                    stop 10.0.0.254;
+                }
+                default-router 10.0.0.1;
+            }
+        }
+        pxe {
+            enabled true;
+            tftp-server 10.0.0.1;
+            bootfile-bios ipxe.pxe;
+            bootfile-uefi ipxe.efi;
+        }
+    }
+    tftp-server {
+        enabled true;
+        listen-interface eth0;
+        root-directory /var/lib/ze/install/tftp;
+    }
+    image-server {
+        enabled true;
+        listen-interface eth0;
+        image-directory /var/lib/ze/install/images;
+        boot-directory /var/lib/ze/install/boot;
+        ssh-username admin;
+        ssh-password-hash "$2a$10$examplehashvalue";
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

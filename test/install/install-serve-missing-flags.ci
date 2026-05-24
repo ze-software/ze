@@ -1,0 +1,10 @@
+# Test: ze install serve — missing required flags
+# spec-install-4 AC-2..AC-5: missing required flags produce errors.
+
+cmd=foreground:seq=1:exec=ze install serve
+expect=exit:code=1
+expect=stderr:contains=--interface
+expect=stderr:contains=--network
+expect=stderr:contains=--image
+expect=stderr:contains=--ssh-username
+expect=stderr:contains=--ssh-password

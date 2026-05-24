@@ -1,0 +1,7 @@
+# Test: ze install — help output with no args
+# spec-install-4 AC-9: ze install with no subcommand prints usage help.
+
+cmd=foreground:seq=1:exec=ze install
+expect=exit:code=0
+expect=stdout:contains=serve
+expect=stdout:contains=provisioning
