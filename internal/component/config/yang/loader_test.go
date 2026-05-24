@@ -368,8 +368,8 @@ module test-rpc-io {
 	require.NotNil(t, output, "RPC should have output")
 	assert.Equal(t, gyang.OutputEntry, output.Kind, "output should be OutputEntry kind")
 
-	announcedLeaf := output.Dir["announced"]
-	require.NotNil(t, announcedLeaf, "announced output parameter should exist")
+	peersAffectedLeaf := output.Dir["peers-affected"]
+	require.NotNil(t, peersAffectedLeaf, "peers-affected output parameter should exist")
 }
 
 // TestYANGModuleWithRPCAndConfig verifies modules with both containers and RPCs.

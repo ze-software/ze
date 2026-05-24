@@ -422,7 +422,7 @@ func tokenizeCommand(input string) []string {
 	var current strings.Builder
 	inQuote := false
 
-	for i := 0; i < len(input); i++ {
+	for i := range len(input) {
 		c := input[i]
 
 		isQuote := c == '"'

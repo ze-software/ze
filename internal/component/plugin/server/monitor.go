@@ -33,14 +33,11 @@ func NewMonitorClient(ctx context.Context, id string, subs []*Subscription, bufS
 }
 
 // enqueue attempts a non-blocking send to the event channel.
-// Returns true if the event was enqueued, false if dropped due to backpressure.
-func (mc *MonitorClient) enqueue(output string) bool {
+func (mc *MonitorClient) enqueue(output string) {
 	select {
 	case mc.EventChan <- output:
-		return true
 	default: // channel full — backpressure drop
 		mc.Dropped.Add(1)
-		return false
 	}
 }
 

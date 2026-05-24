@@ -4,10 +4,12 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
 
 type fakeClock struct {
+	clock.RealClock
 	now time.Time
 }
 

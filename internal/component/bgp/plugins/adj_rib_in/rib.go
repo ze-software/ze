@@ -383,7 +383,7 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 func (r *AdjRIBInManager) dispatch(event *bgp.Event) {
 	eventType := event.GetEventType()
 
-	switch eventType {
+	switch eventType { //nolint:exhaustive // adj-rib-in only handles update+state
 	case rpc.EventKindUpdate:
 		r.handleReceived(event)
 	case rpc.EventKindState:
@@ -418,7 +418,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 		}
 
 		for _, op := range ops {
-			switch op.Action {
+			switch op.Action { //nolint:exhaustive // only Add/Del relevant for adj-rib-in
 			case bgptypes.RouteActionAdd:
 				// Skip adds without essential fields -- routes missing attributes
 				// or next-hop cannot be replayed correctly via "update hex" commands.

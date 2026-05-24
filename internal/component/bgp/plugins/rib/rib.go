@@ -674,7 +674,7 @@ func (r *RIBManager) dispatch(event *Event) {
 	eventType := event.GetEventType()
 	logger().Debug("dispatch event", "eventType", eventType, "peer", event.GetPeerAddress())
 
-	switch eventType {
+	switch eventType { //nolint:exhaustive // RIB only handles event types with route data
 	case rpc.EventKindSent:
 		r.handleSent(event)
 	case rpc.EventKindUpdate:
@@ -723,7 +723,7 @@ func (r *RIBManager) handleSent(event *Event) {
 	// Format: {"ipv4/unicast": [{"next-hop": "...", "action": "add", "nlri": [...]}]}
 	for fam, ops := range event.FamilyOps {
 		for _, op := range ops {
-			switch op.Action {
+			switch op.Action { //nolint:exhaustive // only Add/Del relevant for rib-out
 			case bgptypes.RouteActionAdd:
 				// Initialize family map if needed
 				if r.ribOut[peerAddr][fam] == nil {

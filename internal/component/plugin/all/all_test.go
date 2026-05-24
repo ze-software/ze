@@ -58,6 +58,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"fib-p4",
 		"fib-vpp",
 		"firewall",
+		"imageserver",
 		"flowspec-firewall",
 		"ike",
 		"interface",
@@ -74,6 +75,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"routing-table",
 		"static",
 		"sysctl",
+		"tftpserver",
 		"traffic",
 		"vpp",
 	}

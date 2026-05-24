@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -27,8 +28,8 @@ const (
 type sessionHealth struct {
 	mu           sync.Mutex
 	peerAddr     string
-	clock        interface{ Now() time.Time }
-	stuckTick    *time.Timer
+	clock        clock.Clock
+	stuckTick    clock.Timer
 	stuckTimeout time.Duration
 	stopped      bool
 	// Ring buffer of Established->non-Established transition timestamps.
@@ -37,12 +38,12 @@ type sessionHealth struct {
 	flapWarn  bool
 	// EOR timeout: timer fires warning if not all End-of-RIB markers are
 	// received within the negotiated GR restart-time after Established.
-	eorTick     *time.Timer
+	eorTick     clock.Timer
 	eorExpected int // number of negotiated families expecting EOR
 	eorReceived int // how many family EORs received so far
 }
 
-func newSessionHealth(peerAddr string, clk interface{ Now() time.Time }) *sessionHealth {
+func newSessionHealth(peerAddr string, clk clock.Clock) *sessionHealth {
 	return &sessionHealth{
 		peerAddr:     peerAddr,
 		clock:        clk,
@@ -78,7 +79,7 @@ func (sh *sessionHealth) onStateChange(from, to PeerState) {
 
 func (sh *sessionHealth) startStuckTimerLocked() {
 	sh.clearStuckLocked()
-	sh.stuckTick = time.AfterFunc(sh.stuckTimeout, func() {
+	sh.stuckTick = sh.clock.AfterFunc(sh.stuckTimeout, func() {
 		sh.mu.Lock()
 		if sh.stopped {
 			sh.mu.Unlock()
@@ -121,7 +122,7 @@ func (sh *sessionHealth) startEORTimer(restartSeconds uint16, familyCount int) {
 	sh.clearEORLocked()
 	sh.eorExpected = familyCount
 	sh.eorReceived = 0
-	sh.eorTick = time.AfterFunc(timeout, func() {
+	sh.eorTick = sh.clock.AfterFunc(timeout, func() {
 		sh.mu.Lock()
 		if sh.stopped {
 			sh.mu.Unlock()
