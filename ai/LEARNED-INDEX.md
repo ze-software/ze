@@ -120,6 +120,7 @@ Route storage, selection, forwarding, communities, path selection.
 - [395](plan/learned/395-local-rib-architecture.md) -- Local RIB architecture, index design
 - [402](plan/learned/402-bgp-route-selection.md) -- Best-path selection algorithm
 - [717](plan/learned/717-rib-2-multicast.md) -- Multicast RPF via generic LPM on sharded Loc-RIB; query-all-shards pattern; wiring gap caught by review
+- [772](plan/learned/772-nh-cascade-wiring.md) -- NH cascade wiring: async OnChange to avoid shard deadlock, LPM race fix, ECMP-aware cascade
 
 ## Protocol/RFC
 

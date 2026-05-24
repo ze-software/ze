@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -150,6 +151,11 @@ type sysRIB struct {
 	// lastECMP tracks the last emitted ECMP path set per prefix for
 	// suppressing duplicate emissions when only ECMP membership changes.
 	lastECMP map[prefixKey][]sysribevents.ECMPPath
+	// resolvedNH tracks the last emitted resolved next-hop per prefix.
+	// Used by the cascade worker to detect resolution changes. A valid
+	// address means the route is FIB-installed; absence means the NH was
+	// unreachable and the route is FIB-withdrawn (but still RIB-present).
+	resolvedNH map[prefixKey]netip.Addr
 	// adminDist maps protocol type (e.g., "ebgp", "ibgp", "static") to
 	// configured admin distance. Empty when no sysrib config is present,
 	// in which case incoming priorities pass through unchanged.
@@ -159,9 +165,10 @@ type sysRIB struct {
 
 func newSysRIB() *sysRIB {
 	return &sysRIB{
-		routes:   make(map[prefixKey]map[string]*protocolRoute),
-		best:     make(map[prefixKey]*protocolRoute),
-		lastECMP: make(map[prefixKey][]sysribevents.ECMPPath),
+		routes:     make(map[prefixKey]map[string]*protocolRoute),
+		best:       make(map[prefixKey]*protocolRoute),
+		lastECMP:   make(map[prefixKey][]sysribevents.ECMPPath),
+		resolvedNH: make(map[prefixKey]netip.Addr),
 	}
 }
 
@@ -361,6 +368,10 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		if prev != nil {
 			delete(s.best, key)
 			delete(s.lastECMP, key)
+			delete(s.resolvedNH, key)
+			if r := getNHResolver(); r != nil && prev.nextHop.IsValid() {
+				r.Untrack(prev.nextHop, key.prefix)
+			}
 			return &outgoingChange{
 				Action: bgptypes.RouteActionWithdraw,
 				Prefix: key.prefix,
@@ -382,10 +393,15 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		s.best[key] = winner
 		ecmpPaths := ecmpCollect(protocols, winner)
 		s.lastECMP[key] = ecmpPaths
+		resolved := resolveNextHop(winner.nextHop)
+		s.resolvedNH[key] = resolved
+		if r := getNHResolver(); r != nil && winner.nextHop.IsValid() {
+			r.Track(winner.nextHop, key.prefix)
+		}
 		return &outgoingChange{
 			Action:    bgptypes.RouteActionAdd,
 			Prefix:    key.prefix,
-			NextHop:   resolveNextHop(winner.nextHop),
+			NextHop:   resolved,
 			Protocol:  winner.protocol,
 			Labels:    winner.labels,
 			Metric:    winner.metric,
@@ -401,12 +417,23 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		return nil
 	}
 
+	if r := getNHResolver(); r != nil {
+		if prev.nextHop.IsValid() && prev.nextHop != winner.nextHop {
+			r.Untrack(prev.nextHop, key.prefix)
+		}
+		if winner.nextHop.IsValid() && winner.nextHop != prev.nextHop {
+			r.Track(winner.nextHop, key.prefix)
+		}
+	}
+
+	resolved := resolveNextHop(winner.nextHop)
 	s.best[key] = winner
 	s.lastECMP[key] = ecmpPaths
+	s.resolvedNH[key] = resolved
 	return &outgoingChange{
 		Action:    bgptypes.RouteActionUpdate,
 		Prefix:    key.prefix,
-		NextHop:   resolveNextHop(winner.nextHop),
+		NextHop:   resolved,
 		Protocol:  winner.protocol,
 		Labels:    winner.labels,
 		Metric:    winner.metric,
@@ -416,9 +443,10 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 
 // resolveNextHop attempts recursive resolution of nh via the NH resolver.
 // Returns the directly-connected next-hop if resolution succeeds, or nh unchanged.
-// Lock ordering: callers may hold sysRIB.mu; the resolver acquires Loc-RIB
-// shard read locks internally. Never wire a Loc-RIB OnChange callback that
-// acquires sysRIB.mu, or a deadlock results.
+// Lock ordering: callers hold sysRIB.mu; the resolver acquires Loc-RIB
+// shard read locks internally. The Loc-RIB OnChange handler queues to a
+// channel (run's worker goroutine) to avoid acquiring sysRIB.mu under the
+// shard write lock, which would deadlock with this LPM call.
 func resolveNextHop(nh netip.Addr) netip.Addr {
 	r := getNHResolver()
 	if r == nil || !nh.IsValid() {
@@ -441,6 +469,170 @@ func labelsEqual(a, b []uint32) bool {
 		}
 	}
 	return true
+}
+
+// cascadeRecompute re-resolves the NH for a prefix whose covering route
+// changed. Returns an outgoing change if the resolved NH differs from
+// the last emitted state, nil otherwise. Caller MUST hold s.mu.
+func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
+	best := s.best[key]
+	if best == nil || !best.nextHop.IsValid() {
+		return nil
+	}
+
+	r := getNHResolver()
+	if r == nil {
+		return nil
+	}
+
+	prevResolved := s.resolvedNH[key]
+	res := r.Resolve(best.nextHop)
+	protocols := s.routes[key]
+
+	if !res.Resolved {
+		// Winner's NH is unreachable. Check for reachable ECMP members.
+		ecmpPaths := ecmpCollectResolved(protocols, best, r)
+		if len(ecmpPaths) > 0 {
+			promoted := ecmpPaths[0].NextHop
+			remaining := ecmpPaths[1:]
+			if promoted == prevResolved && !ecmpChanged(s.lastECMP[key], remaining) {
+				return nil
+			}
+			s.resolvedNH[key] = promoted
+			s.lastECMP[key] = remaining
+			action := bgptypes.RouteActionUpdate
+			if !prevResolved.IsValid() {
+				action = bgptypes.RouteActionAdd
+			}
+			return &outgoingChange{
+				Action:    action,
+				Prefix:    key.prefix,
+				NextHop:   promoted,
+				Protocol:  best.protocol,
+				Labels:    best.labels,
+				Metric:    best.metric,
+				ECMPPaths: remaining,
+			}
+		}
+		if prevResolved.IsValid() {
+			delete(s.resolvedNH, key)
+			delete(s.lastECMP, key)
+			return &outgoingChange{
+				Action: bgptypes.RouteActionWithdraw,
+				Prefix: key.prefix,
+			}
+		}
+		return nil
+	}
+
+	newResolved := res.DirectNH
+	ecmpPaths := ecmpCollectResolved(protocols, best, r)
+	if newResolved == prevResolved && !ecmpChanged(s.lastECMP[key], ecmpPaths) {
+		return nil
+	}
+
+	s.resolvedNH[key] = newResolved
+	s.lastECMP[key] = ecmpPaths
+	action := bgptypes.RouteActionUpdate
+	if !prevResolved.IsValid() {
+		action = bgptypes.RouteActionAdd
+	}
+	return &outgoingChange{
+		Action:    action,
+		Prefix:    key.prefix,
+		NextHop:   newResolved,
+		Protocol:  best.protocol,
+		Labels:    best.labels,
+		Metric:    best.metric,
+		ECMPPaths: ecmpPaths,
+	}
+}
+
+// ecmpCollectResolved collects ECMP paths with resolved NHs, filtering
+// out members whose NHs are unreachable.
+func ecmpCollectResolved(protocols map[string]*protocolRoute, winner *protocolRoute, r *nhResolver) []sysribevents.ECMPPath {
+	if len(protocols) <= 1 {
+		return nil
+	}
+	var paths []sysribevents.ECMPPath
+	for _, route := range protocols {
+		if route == winner {
+			continue
+		}
+		if route.priority != winner.priority || route.metric != winner.metric {
+			continue
+		}
+		if !route.nextHop.IsValid() {
+			continue
+		}
+		memberRes := r.Resolve(route.nextHop)
+		if !memberRes.Resolved {
+			continue
+		}
+		paths = append(paths, sysribevents.ECMPPath{
+			NextHop: memberRes.DirectNH,
+			Weight:  1,
+			Labels:  route.labels,
+		})
+	}
+	if len(paths) == 0 {
+		return nil
+	}
+	slices.SortFunc(paths, func(a, b sysribevents.ECMPPath) int {
+		return a.NextHop.Compare(b.NextHop)
+	})
+	if len(paths) > sysribevents.MaxECMPPaths-1 {
+		paths = paths[:sysribevents.MaxECMPPaths-1]
+	}
+	return paths
+}
+
+// processCascade re-evaluates all prefixes that depend on the given NHs.
+// Handles multi-level cascades: if a re-evaluated prefix itself covers
+// other tracked NHs, those dependents are also re-evaluated.
+func (s *sysRIB) processCascade(nhs []netip.Addr) {
+	r := getNHResolver()
+	if r == nil {
+		return
+	}
+
+	seen := make(map[prefixKey]bool)
+	var workList []prefixKey
+	for _, nh := range nhs {
+		for _, dep := range r.Dependents(nh) {
+			key := prefixKey{family: familyForPrefix(dep), prefix: dep}
+			if !seen[key] {
+				seen[key] = true
+				workList = append(workList, key)
+			}
+		}
+	}
+
+	s.mu.Lock()
+	changesByFamily := make(map[family.Family][]outgoingChange)
+	for len(workList) > 0 {
+		key := workList[0]
+		workList = workList[1:]
+		change := s.cascadeRecompute(key)
+		if change == nil {
+			continue
+		}
+		changesByFamily[key.family] = append(changesByFamily[key.family], *change)
+		for _, nh := range r.CoveredNHs(key.prefix) {
+			for _, dep := range r.Dependents(nh) {
+				k := prefixKey{family: familyForPrefix(dep), prefix: dep}
+				if !seen[k] {
+					seen[k] = true
+					workList = append(workList, k)
+				}
+			}
+		}
+	}
+	s.mu.Unlock()
+
+	for fam, changes := range changesByFamily {
+		publishChanges(changes, fam)
+	}
 }
 
 // publishChanges emits one event on (system-rib, best-change) via the
@@ -503,6 +695,13 @@ func (s *sysRIB) replayBest() {
 // callback. Forked setups (each plugin in its own process) leave Loc-RIB
 // unwired because processes cannot share a struct; sysrib falls back to the
 // BGP EventBus stream. Both wire the same downstream emission.
+//
+// Loc-RIB OnChange handlers run under the shard write lock. To avoid
+// deadlock (processEvent -> resolveNextHop -> LPM re-locks the same
+// shard), the handler queues changes to a channel and a separate
+// worker goroutine processes them outside the lock. The cascade
+// (re-evaluating dependent prefixes when a covering route changes) is
+// handled inline in the same worker.
 func (s *sysRIB) run(ctx context.Context) {
 	eb := getEventBus()
 	if eb == nil {
@@ -514,16 +713,16 @@ func (s *sysRIB) run(ctx context.Context) {
 	source := "eventbus"
 	if loc := getLocRIB(); loc != nil {
 		source = "locrib"
+
+		changeCh := make(chan locrib.Change, 4096)
 		unsubBest = loc.OnChange(func(c locrib.Change) {
-			batch := changeToBatch(c)
-			if batch == nil {
-				return
-			}
-			fam, changes := s.processEvent(batch)
-			if len(changes) > 0 {
-				publishChanges(changes, fam)
+			select {
+			case changeCh <- c:
+			default: // channel full: bounded, overflow logged
+				logger().Warn("sysrib: change channel full, dropping event", "prefix", c.Prefix)
 			}
 		})
+
 		// Snapshot existing state so prefixes inserted before OnChange
 		// was registered are carried into sysrib. A live Change arriving
 		// between subscribe and this walk is idempotent on processEvent
@@ -537,6 +736,21 @@ func (s *sysRIB) run(ctx context.Context) {
 				return true
 			})
 		}
+
+		// Single long-lived worker: processes Loc-RIB changes and
+		// cascades outside the shard lock.
+		var workerWG sync.WaitGroup
+		workerWG.Go(func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case c := <-changeCh:
+					s.processLocRIBChange(c)
+				}
+			}
+		})
+		defer workerWG.Wait()
 	} else {
 		unsubBest = ribevents.BestChange.Subscribe(eb, func(batch *incomingBatch) {
 			fam, changes := s.processEvent(batch)
@@ -558,6 +772,26 @@ func (s *sysRIB) run(ctx context.Context) {
 	logger().Info("sysrib: running", "source", source)
 	<-ctx.Done()
 	logger().Info("sysrib: stopped")
+}
+
+// processLocRIBChange handles a single Loc-RIB change: converts it to
+// the internal batch shape, runs admin-distance arbitration, publishes
+// downstream, and triggers NH cascade if the changed prefix covers any
+// tracked next-hops.
+func (s *sysRIB) processLocRIBChange(c locrib.Change) {
+	batch := changeToBatch(c)
+	if batch == nil {
+		return
+	}
+	fam, changes := s.processEvent(batch)
+	if len(changes) > 0 {
+		publishChanges(changes, fam)
+	}
+	if r := getNHResolver(); r != nil {
+		if nhs := r.CoveredNHs(c.Prefix); len(nhs) > 0 {
+			s.processCascade(nhs)
+		}
+	}
 }
 
 // showRIB returns the current system RIB state as JSON.

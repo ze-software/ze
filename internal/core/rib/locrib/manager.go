@@ -334,17 +334,14 @@ func (r *RIB) LPM(fam family.Family, addr netip.Addr) (Path, netip.Prefix, bool)
 		sh := &fs.shards[i]
 		sh.mu.RLock()
 		g, pfx, ok := sh.store.LookupLPM(addr)
-		sh.mu.RUnlock()
-		if !ok {
-			continue
-		}
-		if !found || pfx.Bits() > bestPfx.Bits() {
+		if ok && (!found || pfx.Bits() > bestPfx.Bits()) {
 			if p, have := g.best(); have {
 				bestPath = p
 				bestPfx = pfx
 				found = true
 			}
 		}
+		sh.mu.RUnlock()
 	}
 	if !found {
 		return Path{}, netip.Prefix{}, false

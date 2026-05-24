@@ -630,7 +630,8 @@ func TestSysRIBConsumesLocRIB(t *testing.T) {
 	waitFor(t, 500*time.Millisecond, func() bool {
 		for _, e := range captureSysribEvents(bus) {
 			if b, ok := e.Payload.(*sysribevents.BestChangeBatch); ok {
-				for _, c := range b.Changes {
+				for i := range b.Changes {
+					c := &b.Changes[i]
 					if c.Action == bgptypes.RouteActionWithdraw && c.Prefix == netip.MustParsePrefix("10.0.0.0/24") {
 						return true
 					}
@@ -655,6 +656,315 @@ func waitFor(t *testing.T, timeout time.Duration, cond func() bool) {
 		time.Sleep(5 * time.Millisecond)
 	}
 	t.Fatalf("condition not met within %s", timeout)
+}
+
+// VALIDATES: AC-1 -- NH becomes unreachable (covering prefix withdrawn).
+// All routes using that NH withdrawn from FIB.
+// PREVENTS: Stale FIB entries when a recursive NH loses reachability.
+func TestNHCascadeWithdraw(t *testing.T) {
+	redistevents.ResetForTest()
+	bgpID := redistevents.RegisterProtocol("bgp")
+	connID := redistevents.RegisterProtocol("connected")
+
+	bus := newTestEventBus()
+	setEventBus(bus)
+	t.Cleanup(clearEventBus)
+
+	loc := locrib.NewRIB()
+	SetLocRIB(loc)
+	t.Cleanup(func() { SetLocRIB(nil) })
+
+	s := newSysRIB()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() { s.run(ctx); close(done) }()
+
+	coverPfx := netip.MustParsePrefix("10.0.0.0/24")
+	loc.Insert(family.IPv4Unicast, coverPfx, locrib.Path{
+		Source: connID, AdminDistance: 0, Metric: 10,
+	})
+
+	bgpPfx := netip.MustParsePrefix("192.168.1.0/24")
+	loc.Insert(family.IPv4Unicast, bgpPfx, locrib.Path{
+		Source: bgpID, NextHop: netip.MustParseAddr("10.0.0.1"),
+		AdminDistance: 20, Metric: 100,
+	})
+
+	waitFor(t, 500*time.Millisecond, func() bool {
+		return countAdds(bus) >= 2
+	})
+
+	loc.Remove(family.IPv4Unicast, coverPfx, connID, 0)
+
+	waitFor(t, time.Second, func() bool {
+		return hasWithdraw(bus, bgpPfx)
+	})
+
+	cancel()
+	<-done
+}
+
+// VALIDATES: AC-2 -- NH cost changes (covering prefix metric changes).
+// Best-path re-evaluated for all prefixes using that NH.
+// PREVENTS: Stale resolved NH when covering route metric changes.
+func TestNHCascadeCostChange(t *testing.T) {
+	redistevents.ResetForTest()
+	bgpID := redistevents.RegisterProtocol("bgp")
+	connID := redistevents.RegisterProtocol("connected")
+
+	bus := newTestEventBus()
+	setEventBus(bus)
+	t.Cleanup(clearEventBus)
+
+	loc := locrib.NewRIB()
+	SetLocRIB(loc)
+	t.Cleanup(func() { SetLocRIB(nil) })
+
+	s := newSysRIB()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() { s.run(ctx); close(done) }()
+
+	coverPfx := netip.MustParsePrefix("10.0.0.0/24")
+	loc.Insert(family.IPv4Unicast, coverPfx, locrib.Path{
+		Source: connID, AdminDistance: 0, Metric: 10,
+	})
+
+	bgpPfx := netip.MustParsePrefix("192.168.1.0/24")
+	loc.Insert(family.IPv4Unicast, bgpPfx, locrib.Path{
+		Source: bgpID, NextHop: netip.MustParseAddr("10.0.0.1"),
+		AdminDistance: 20, Metric: 100,
+	})
+
+	waitFor(t, 500*time.Millisecond, func() bool {
+		return countAdds(bus) >= 2
+	})
+
+	beforeCount := countSysribEvents(bus)
+
+	loc.Insert(family.IPv4Unicast, coverPfx, locrib.Path{
+		Source: connID, AdminDistance: 0, Metric: 999,
+	})
+
+	waitFor(t, time.Second, func() bool {
+		return countSysribEvents(bus) > beforeCount
+	})
+
+	cancel()
+	<-done
+}
+
+// VALIDATES: AC-3 -- One ECMP member's NH unreachable.
+// ECMP group updated (member removed), not full withdrawal.
+// PREVENTS: Complete route withdrawal when only one ECMP member fails.
+func TestECMPMemberFail(t *testing.T) {
+	redistevents.ResetForTest()
+	connID := redistevents.RegisterProtocol("connected")
+
+	bus := newTestEventBus()
+	setEventBus(bus)
+	t.Cleanup(clearEventBus)
+
+	loc := locrib.NewRIB()
+	SetLocRIB(loc)
+	t.Cleanup(func() { SetLocRIB(nil) })
+
+	s := newSysRIB()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() { s.run(ctx); close(done) }()
+
+	cover1 := netip.MustParsePrefix("10.0.0.0/24")
+	cover2 := netip.MustParsePrefix("10.1.0.0/24")
+	loc.Insert(family.IPv4Unicast, cover1, locrib.Path{
+		Source: connID, AdminDistance: 0, Metric: 10,
+	})
+	loc.Insert(family.IPv4Unicast, cover2, locrib.Path{
+		Source: connID, AdminDistance: 0, Metric: 10,
+	})
+
+	waitFor(t, 500*time.Millisecond, func() bool {
+		return countAdds(bus) >= 2
+	})
+
+	bgpPfx := netip.MustParsePrefix("192.168.1.0/24")
+	s.processEvent(makePayload("bgp-peer1", family.IPv4Unicast, []incomingChange{
+		{Action: bgptypes.RouteActionAdd, Prefix: bgpPfx,
+			NextHop: netip.MustParseAddr("10.0.0.1"), Priority: 20, Metric: 100},
+	}))
+	s.processEvent(makePayload("bgp-peer2", family.IPv4Unicast, []incomingChange{
+		{Action: bgptypes.RouteActionAdd, Prefix: bgpPfx,
+			NextHop: netip.MustParseAddr("10.1.0.1"), Priority: 20, Metric: 100},
+	}))
+
+	loc.Remove(family.IPv4Unicast, cover1, connID, 0)
+
+	waitFor(t, time.Second, func() bool {
+		for _, e := range captureSysribEvents(bus) {
+			b, ok := e.Payload.(*sysribevents.BestChangeBatch)
+			if !ok {
+				continue
+			}
+			for i := range b.Changes {
+				c := &b.Changes[i]
+				if c.Prefix == bgpPfx && c.Action == bgptypes.RouteActionUpdate {
+					return true
+				}
+			}
+		}
+		return false
+	})
+
+	for _, e := range captureSysribEvents(bus) {
+		b, ok := e.Payload.(*sysribevents.BestChangeBatch)
+		if !ok {
+			continue
+		}
+		for i := range b.Changes {
+			c := &b.Changes[i]
+			if c.Prefix == bgpPfx && c.Action == bgptypes.RouteActionWithdraw {
+				t.Fatal("ECMP prefix should not be fully withdrawn when one member fails")
+			}
+		}
+	}
+
+	cancel()
+	<-done
+}
+
+// VALIDATES: AC-4 -- NH restored after withdrawal.
+// Dependent routes re-installed.
+// PREVENTS: Routes staying withdrawn after NH becomes reachable again.
+func TestNHCascadeRestore(t *testing.T) {
+	redistevents.ResetForTest()
+	bgpID := redistevents.RegisterProtocol("bgp")
+	connID := redistevents.RegisterProtocol("connected")
+
+	bus := newTestEventBus()
+	setEventBus(bus)
+	t.Cleanup(clearEventBus)
+
+	loc := locrib.NewRIB()
+	SetLocRIB(loc)
+	t.Cleanup(func() { SetLocRIB(nil) })
+
+	s := newSysRIB()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() { s.run(ctx); close(done) }()
+
+	coverPfx := netip.MustParsePrefix("10.0.0.0/24")
+	loc.Insert(family.IPv4Unicast, coverPfx, locrib.Path{
+		Source: connID, AdminDistance: 0, Metric: 10,
+	})
+
+	bgpPfx := netip.MustParsePrefix("192.168.1.0/24")
+	loc.Insert(family.IPv4Unicast, bgpPfx, locrib.Path{
+		Source: bgpID, NextHop: netip.MustParseAddr("10.0.0.1"),
+		AdminDistance: 20, Metric: 100,
+	})
+
+	waitFor(t, 500*time.Millisecond, func() bool {
+		return countAdds(bus) >= 2
+	})
+
+	loc.Remove(family.IPv4Unicast, coverPfx, connID, 0)
+	waitFor(t, time.Second, func() bool {
+		return hasWithdraw(bus, bgpPfx)
+	})
+
+	loc.Insert(family.IPv4Unicast, coverPfx, locrib.Path{
+		Source: connID, AdminDistance: 0, Metric: 10,
+	})
+
+	waitFor(t, time.Second, func() bool {
+		for _, e := range captureSysribEvents(bus) {
+			b, ok := e.Payload.(*sysribevents.BestChangeBatch)
+			if !ok {
+				continue
+			}
+			for i := range b.Changes {
+				c := &b.Changes[i]
+				if c.Prefix == bgpPfx && c.Action == bgptypes.RouteActionAdd {
+					if hasWithdrawBefore(bus, bgpPfx, e) {
+						return true
+					}
+				}
+			}
+		}
+		return false
+	})
+
+	cancel()
+	<-done
+}
+
+func countAdds(bus *testEventBus) int {
+	count := 0
+	for _, e := range captureSysribEvents(bus) {
+		b, ok := e.Payload.(*sysribevents.BestChangeBatch)
+		if !ok {
+			continue
+		}
+		for i := range b.Changes {
+			if b.Changes[i].Action == bgptypes.RouteActionAdd {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func countSysribEvents(bus *testEventBus) int {
+	return len(captureSysribEvents(bus))
+}
+
+func hasWithdraw(bus *testEventBus, pfx netip.Prefix) bool {
+	for _, e := range captureSysribEvents(bus) {
+		b, ok := e.Payload.(*sysribevents.BestChangeBatch)
+		if !ok {
+			continue
+		}
+		for i := range b.Changes {
+			c := &b.Changes[i]
+			if c.Action == bgptypes.RouteActionWithdraw && c.Prefix == pfx {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasWithdrawBefore(bus *testEventBus, pfx netip.Prefix, after testEvent) bool {
+	bus.mu.Lock()
+	defer bus.mu.Unlock()
+	withdrawSeen := false
+	for _, e := range bus.events {
+		if e.Namespace == sysribevents.Namespace {
+			b, ok := e.Payload.(*sysribevents.BestChangeBatch)
+			if !ok {
+				continue
+			}
+			for i := range b.Changes {
+				c := &b.Changes[i]
+				if c.Action == bgptypes.RouteActionWithdraw && c.Prefix == pfx {
+					withdrawSeen = true
+				}
+			}
+		}
+		if e.Namespace == after.Namespace && e.EventType == after.EventType && e.Payload == after.Payload {
+			return withdrawSeen
+		}
+	}
+	return false
 }
 
 // captureSysribEvents returns every sysrib-namespace event seen by bus.

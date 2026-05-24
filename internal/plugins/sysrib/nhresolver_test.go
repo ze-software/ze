@@ -173,6 +173,41 @@ func TestNHResolver_IGPMetric(t *testing.T) {
 	}
 }
 
+func TestNHResolver_CoveredNHs(t *testing.T) {
+	rib := locrib.NewRIB()
+	resolver := newNHResolver(rib)
+
+	nh1 := netip.MustParseAddr("10.0.0.1")
+	nh2 := netip.MustParseAddr("10.0.0.5")
+	nh3 := netip.MustParseAddr("172.16.0.1")
+	pfx1 := netip.MustParsePrefix("192.168.1.0/24")
+	pfx2 := netip.MustParsePrefix("192.168.2.0/24")
+
+	resolver.Track(nh1, pfx1)
+	resolver.Track(nh2, pfx2)
+	resolver.Track(nh3, pfx1)
+
+	covered := resolver.CoveredNHs(netip.MustParsePrefix("10.0.0.0/24"))
+	if len(covered) != 2 {
+		t.Fatalf("CoveredNHs(10.0.0.0/24) = %d NHs, want 2", len(covered))
+	}
+
+	covered = resolver.CoveredNHs(netip.MustParsePrefix("172.16.0.0/16"))
+	if len(covered) != 1 {
+		t.Fatalf("CoveredNHs(172.16.0.0/16) = %d NHs, want 1", len(covered))
+	}
+
+	covered = resolver.CoveredNHs(netip.MustParsePrefix("0.0.0.0/0"))
+	if len(covered) != 3 {
+		t.Fatalf("CoveredNHs(0.0.0.0/0) = %d NHs, want 3", len(covered))
+	}
+
+	covered = resolver.CoveredNHs(netip.MustParsePrefix("8.8.8.0/24"))
+	if len(covered) != 0 {
+		t.Fatalf("CoveredNHs(8.8.8.0/24) = %d NHs, want 0", len(covered))
+	}
+}
+
 func TestNHResolver_Tracking(t *testing.T) {
 	rib := locrib.NewRIB()
 	resolver := newNHResolver(rib)

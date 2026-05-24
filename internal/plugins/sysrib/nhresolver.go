@@ -125,9 +125,26 @@ func (r *nhResolver) IGPMetric(addr netip.Addr) uint32 {
 	return res.Metric
 }
 
+// CoveredNHs returns all tracked next-hop addresses that fall within prefix.
+func (r *nhResolver) CoveredNHs(prefix netip.Prefix) []netip.Addr {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var result []netip.Addr
+	for nh := range r.tracking {
+		if prefix.Contains(nh) {
+			result = append(result, nh)
+		}
+	}
+	return result
+}
+
 func familyForAddr(addr netip.Addr) family.Family {
 	if addr.Is4() {
 		return family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}
 	}
 	return family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}
+}
+
+func familyForPrefix(p netip.Prefix) family.Family {
+	return familyForAddr(p.Addr())
 }
