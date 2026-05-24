@@ -1,7 +1,7 @@
-# Test: ze install serve -h — serve subcommand help
-# spec-install-4 AC-9: serve help shows required and optional flags.
+# Test: ze install remote -h — remote subcommand help
+# spec-install-4 AC-9: remote help shows required and optional flags.
 
-cmd=foreground:seq=1:exec=ze install serve -h
+cmd=foreground:seq=1:exec=ze install remote -h
 expect=exit:code=0
 expect=stdout:contains=--interface
 expect=stdout:contains=--network

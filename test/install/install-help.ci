@@ -3,5 +3,5 @@
 
 cmd=foreground:seq=1:exec=ze install
 expect=exit:code=0
-expect=stdout:contains=serve
-expect=stdout:contains=provisioning
+expect=stdout:contains=local
+expect=stdout:contains=remote

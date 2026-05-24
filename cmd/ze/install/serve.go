@@ -1,4 +1,4 @@
-// Design: plan/spec-install-0-umbrella.md — ze install serve: config gen + fork
+// Design: plan/spec-install-0-umbrella.md — ze install remote: config gen + fork
 
 package install
 
@@ -11,8 +11,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 )
 
-func runServe(args []string) int {
-	fs := flag.NewFlagSet("install serve", flag.ContinueOnError)
+func runRemote(args []string) int {
+	fs := flag.NewFlagSet("install remote", flag.ContinueOnError)
 
 	iface := fs.String("interface", "", "Network interface for provisioning")
 	network := fs.String("network", "", "Provisioning network CIDR (e.g. 10.0.0.0/24)")
@@ -21,7 +21,7 @@ func runServe(args []string) int {
 	sshPass := fs.String("ssh-password", "", "Admin password for installed target (bcrypt-hashed before use)")
 	address := fs.String("address", "", "Override server IP (default: first IPv4 on interface)")
 
-	fs.Usage = func() { serveUsage() }
+	fs.Usage = func() { remoteUsage() }
 
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -61,11 +61,11 @@ func runServe(args []string) int {
 	return forkAndServe(cfg)
 }
 
-func serveUsage() {
+func remoteUsage() {
 	p := helpfmt.Page{
-		Command: "ze install serve",
+		Command: "ze install remote",
 		Summary: "Start DHCP+PXE, TFTP, and HTTP provisioning servers (requires root)",
-		Usage:   []string{"ze install serve --interface <name> --network <cidr> --image <path> --ssh-username <user> --ssh-password <pass>"},
+		Usage:   []string{"ze install remote --interface <name> --network <cidr> --image <path> --ssh-username <user> --ssh-password <pass>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Required flags", Entries: []helpfmt.HelpEntry{
 				{Name: "--interface", Desc: "Network interface for provisioning"},

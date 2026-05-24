@@ -1,4 +1,4 @@
-// Design: plan/spec-install-0-umbrella.md — config generation for ze install serve
+// Design: plan/spec-install-0-umbrella.md — config generation for ze install remote
 
 package install
 

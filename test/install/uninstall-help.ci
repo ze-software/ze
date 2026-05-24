@@ -1,0 +1,8 @@
+# Test: ze uninstall -h — uninstall help
+
+cmd=foreground:seq=1:exec=ze uninstall -h
+expect=exit:code=0
+expect=stdout:contains=--prefix
+expect=stdout:contains=--purge
+expect=stdout:contains=--dry-run
+expect=stdout:contains=--yes

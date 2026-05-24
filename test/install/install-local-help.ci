@@ -1,0 +1,8 @@
+# Test: ze install local -h — local subcommand help
+
+cmd=foreground:seq=1:exec=ze install local -h
+expect=exit:code=0
+expect=stdout:contains=--prefix
+expect=stdout:contains=--systemd
+expect=stdout:contains=--no-systemd
+expect=stdout:contains=--dry-run

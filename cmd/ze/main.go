@@ -47,6 +47,7 @@ import (
 	zesysctl "codeberg.org/thomas-mangin/ze/cmd/ze/sysctl"
 	zetacacs "codeberg.org/thomas-mangin/ze/cmd/ze/tacacs"
 	zetc "codeberg.org/thomas-mangin/ze/cmd/ze/tc"
+	zeuninstall "codeberg.org/thomas-mangin/ze/cmd/ze/uninstall"
 	zeyang "codeberg.org/thomas-mangin/ze/cmd/ze/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -462,6 +463,8 @@ dispatch:
 		exit(zeappliance.Run(args[1:]))
 	case "install":
 		exit(zeinstall.Run(args[1:]))
+	case "uninstall":
+		exit(zeuninstall.Run(args[1:]))
 	case "run":
 		fmt.Fprintf(os.Stderr, "error: 'ze run' has been replaced by direct verb dispatch\n")
 		fmt.Fprintf(os.Stderr, "hint: use 'ze show <command>' for read-only commands\n")

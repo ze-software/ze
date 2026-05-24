@@ -1,0 +1,6 @@
+# Test: ze install local --dry-run — prints planned actions
+
+cmd=foreground:seq=1:exec=ze install local --prefix /usr/local --no-systemd --dry-run
+expect=exit:code=0
+expect=stderr:contains=would copy
+expect=stderr:contains=/usr/local/bin/ze

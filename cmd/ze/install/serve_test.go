@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestServeConfigGeneration(t *testing.T) {
+func TestRemoteConfigGeneration(t *testing.T) {
 	cfg := generateConfig(configParams{
 		iface:       "eth0",
 		network:     "10.0.0.0/24",
@@ -30,12 +30,12 @@ func TestServeConfigGeneration(t *testing.T) {
 	assert.NotContains(t, cfg, "\x00")
 }
 
-func TestRunServeMissingFlags(t *testing.T) {
-	code := runServe([]string{})
+func TestRunRemote_MissingFlags(t *testing.T) {
+	code := runRemote([]string{})
 	assert.Equal(t, 1, code, "should fail with no flags")
 }
 
-func TestRunServeHelp(t *testing.T) {
-	code := runServe([]string{"-h"})
+func TestRunRemote_Help(t *testing.T) {
+	code := runRemote([]string{"-h"})
 	assert.Equal(t, 0, code, "help should exit 0")
 }

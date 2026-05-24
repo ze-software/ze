@@ -6,9 +6,9 @@ import (
 
 func init() {
 	cmdregistry.RegisterRoot("install", cmdregistry.Meta{
-		Description: "Zero-touch provisioning server",
+		Description: "Install ze locally or provision remote devices",
 		Mode:        "setup",
 		Section:     cmdregistry.SectionSystem,
-		Subs:        "serve --interface --network --image --ssh-username --ssh-password",
+		Subs:        "local [--prefix] [--no-systemd], remote --interface --network --image --ssh-username --ssh-password",
 	})
 }

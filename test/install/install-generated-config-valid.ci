@@ -1,4 +1,4 @@
-# Test: ze install serve generated config validates as valid ze config.
+# Test: ze install remote generated config validates as valid ze config.
 # spec-install-4 AC-7: generated config contains all required sections.
 # This tests that the config syntax is correct by validating a representative
 # config through ze config validate.

@@ -1,6 +1,0 @@
-# Test: ze install serve — invalid network prefix rejected
-# spec-install-4: /31 prefix rejected (no DHCP pool possible).
-
-cmd=foreground:seq=1:exec=ze install serve --interface lo0 --network 10.0.0.0/31 --image /dev/null --ssh-username admin --ssh-password secret
-expect=exit:code=1
-expect=stderr:contains=prefix

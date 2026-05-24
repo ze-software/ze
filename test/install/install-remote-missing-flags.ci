@@ -1,7 +1,7 @@
-# Test: ze install serve — missing required flags
+# Test: ze install remote — missing required flags
 # spec-install-4 AC-2..AC-5: missing required flags produce errors.
 
-cmd=foreground:seq=1:exec=ze install serve
+cmd=foreground:seq=1:exec=ze install remote
 expect=exit:code=1
 expect=stderr:contains=--interface
 expect=stderr:contains=--network
