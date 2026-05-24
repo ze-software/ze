@@ -123,6 +123,22 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	}
 	r.peerMu.Unlock()
 
+	// Parse attributes once for all announcements in this UPDATE.
+	// An UPDATE carries one attribute block shared by all announced NLRIs.
+	// Parsing per-NLRI was the dominant RIB allocation site (~57% of space).
+	var parsed storage.RouteEntry
+	var fp uint64
+	var attrLen uint32
+	var haveParsed bool
+	if len(attrBytes) > 0 {
+		var parseErr error
+		parsed, fp, attrLen, parseErr = storage.ParseRouteEntry(attrBytes, asn4)
+		if parseErr == nil {
+			haveParsed = true
+			defer parsed.Release()
+		}
+	}
+
 	// Process IPv4 unicast announces (legacy NLRI section).
 	ipv4Family := family.Family{AFI: 1, SAFI: 1}
 	nlriData, err := wu.NLRI()
@@ -131,7 +147,11 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		if nlrisplit.Supported(ipv4Family) {
 			prefixes, _ := nlrisplit.Split(ipv4Family, nlriData, addPath)
 			for _, wirePrefix := range prefixes {
-				peerRIB.Insert(ipv4Family, attrBytes, wirePrefix, asn4)
+				if haveParsed {
+					peerRIB.InsertEntry(ipv4Family, parsed, fp, attrLen, wirePrefix)
+				} else {
+					peerRIB.Insert(ipv4Family, attrBytes, wirePrefix, asn4)
+				}
 				affected = append(affected, affectedPrefix{fam: ipv4Family, nlriBytes: wirePrefix, addPath: addPath})
 			}
 		}
@@ -162,9 +182,17 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 				isLabeled := fam.SAFI == family.SAFIMPLSLabel
 				for _, wirePrefix := range prefixes {
 					if isLabeled {
-						r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, asn4, &affected)
+						if haveParsed {
+							r.insertLabeledEntry(peerRIB, fam, parsed, fp, attrLen, wirePrefix, addPath, &affected)
+						} else {
+							r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, asn4, &affected)
+						}
 					} else {
-						peerRIB.Insert(fam, attrBytes, wirePrefix, asn4)
+						if haveParsed {
+							peerRIB.InsertEntry(fam, parsed, fp, attrLen, wirePrefix)
+						} else {
+							peerRIB.Insert(fam, attrBytes, wirePrefix, asn4)
+						}
 						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wirePrefix, addPath: addPath})
 					}
 				}
@@ -539,6 +567,24 @@ func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, 
 		return
 	}
 	peerRIB.Insert(fam, attrBytes, cidrBytes, asn4)
+	labelHandle := pool.InternLabels(labels)
+	if !peerRIB.SetLabelsIfRouteExists(fam, cidrBytes, labelHandle) {
+		if labelHandle.IsValid() {
+			_ = pool.Labels.Release(labelHandle)
+		}
+		return
+	}
+	*affected = append(*affected, affectedPrefix{fam: fam, nlriBytes: cidrBytes, addPath: addPath})
+}
+
+// insertLabeledEntry handles a single labeled unicast NLRI announce using a
+// pre-parsed RouteEntry. Same as insertLabeled but avoids re-parsing attributes.
+func (r *RIBManager) insertLabeledEntry(peerRIB *storage.PeerRIB, fam family.Family, entry storage.RouteEntry, fp uint64, attrLen uint32, wireEntry []byte, addPath bool, affected *[]affectedPrefix) {
+	labels, cidrBytes, err := nlrisplit.ExtractLabels(wireEntry, addPath)
+	if err != nil || len(cidrBytes) == 0 {
+		return
+	}
+	peerRIB.InsertEntry(fam, entry, fp, attrLen, cidrBytes)
 	labelHandle := pool.InternLabels(labels)
 	if !peerRIB.SetLabelsIfRouteExists(fam, cidrBytes, labelHandle) {
 		if labelHandle.IsValid() {

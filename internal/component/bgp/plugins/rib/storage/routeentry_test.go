@@ -90,8 +90,10 @@ func TestRouteEntry_Clone(t *testing.T) {
 	b.MED = mustIntern(t, pool.MED, []byte{0x00, 0x00, 0x00, 0x0A})
 
 	entry := RouteEntry{
-		Bundle: Bundles.Intern(b),
-		ASPath: mustIntern(t, pool.ASPath, []byte{0x02, 0x01, 0x00, 0x00, 0xFD, 0xE9}),
+		AttrFingerprint: 0xDEADBEEF,
+		AttrLen:         42,
+		Bundle:          Bundles.Intern(b),
+		ASPath:          mustIntern(t, pool.ASPath, []byte{0x02, 0x01, 0x00, 0x00, 0xFD, 0xE9}),
 	}
 
 	clone := entry.Clone()
@@ -99,6 +101,26 @@ func TestRouteEntry_Clone(t *testing.T) {
 
 	assert.Equal(t, entry.Bundle, clone.Bundle)
 	assert.Equal(t, entry.ASPath, clone.ASPath)
+	assert.Equal(t, entry.AttrFingerprint, clone.AttrFingerprint)
+	assert.Equal(t, entry.AttrLen, clone.AttrLen)
+
+	entry.Release()
+	clone.Release()
+}
+
+// TestRouteEntry_ClonePreservesFingerprint verifies Clone copies AttrFingerprint and AttrLen.
+func TestRouteEntry_ClonePreservesFingerprint(t *testing.T) {
+	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
+	entry, fp, attrLen, err := ParseRouteEntry(attrs, true)
+	require.NoError(t, err)
+
+	clone := entry.Clone()
+	require.NotNil(t, clone)
+
+	assert.Equal(t, fp, clone.AttrFingerprint)
+	assert.Equal(t, attrLen, clone.AttrLen)
+	assert.NotZero(t, clone.AttrFingerprint)
+	assert.NotZero(t, clone.AttrLen)
 
 	entry.Release()
 	clone.Release()

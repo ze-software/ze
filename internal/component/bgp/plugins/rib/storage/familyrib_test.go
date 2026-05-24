@@ -318,3 +318,122 @@ func TestFamilyRIB_ToWireBytes(t *testing.T) {
 	medData2, _ := attrpool.MED.Get(entry2.GetBundle().MED)
 	assert.Equal(t, medData1, medData2, "MED should match")
 }
+
+// TestFamilyRIB_InsertEntry_CIDR verifies that InsertEntry produces the same
+// RIB state as Insert for CIDR families.
+func TestFamilyRIB_InsertEntry_CIDR(t *testing.T) {
+	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireLocalPref100)
+	nlri1 := []byte{24, 10, 0, 0}
+	nlri2 := []byte{24, 10, 0, 1}
+	nlri3 := []byte{24, 10, 0, 2}
+
+	// Insert via old path.
+	ribOld := NewFamilyRIB(family.IPv4Unicast, false)
+	defer ribOld.Release()
+	ribOld.Insert(attrs, nlri1, true)
+	ribOld.Insert(attrs, nlri2, true)
+	ribOld.Insert(attrs, nlri3, true)
+
+	// Insert via new parse-once path.
+	ribNew := NewFamilyRIB(family.IPv4Unicast, false)
+	defer ribNew.Release()
+	entry, fp, attrLen, err := ParseRouteEntry(attrs, true)
+	require.NoError(t, err)
+	ribNew.InsertEntry(nlri1, entry, fp, attrLen)
+	ribNew.InsertEntry(nlri2, entry, fp, attrLen)
+	ribNew.InsertEntry(nlri3, entry, fp, attrLen)
+	entry.Release()
+
+	assert.Equal(t, ribOld.Len(), ribNew.Len())
+
+	// Both RIBs should have identical entries.
+	ribOld.IterateEntry(func(nlri []byte, oldE RouteEntry) bool {
+		newE, ok := ribNew.LookupEntry(nlri)
+		require.True(t, ok, "NLRI %x missing from InsertEntry RIB", nlri)
+		assert.True(t, entriesEqual(oldE, newE), "entries should have same handles for NLRI %x", nlri)
+		assert.Equal(t, oldE.AttrFingerprint, newE.AttrFingerprint)
+		assert.Equal(t, oldE.AttrLen, newE.AttrLen)
+		return true
+	})
+}
+
+// TestFamilyRIB_InsertEntry_NoOpFingerprint verifies that re-inserting the
+// same attributes via InsertEntry hits the fingerprint short-circuit.
+func TestFamilyRIB_InsertEntry_NoOpFingerprint(t *testing.T) {
+	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
+	nlri := []byte{24, 10, 0, 0}
+
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	defer rib.Release()
+
+	// First insert.
+	entry1, fp1, al1, err := ParseRouteEntry(attrs, true)
+	require.NoError(t, err)
+	rib.InsertEntry(nlri, entry1, fp1, al1)
+	entry1.Release()
+
+	e1, ok := rib.LookupEntry(nlri)
+	require.True(t, ok)
+	bundle1 := e1.Bundle
+
+	// Second insert with same attrs should be a no-op.
+	entry2, fp2, al2, err := ParseRouteEntry(attrs, true)
+	require.NoError(t, err)
+	rib.InsertEntry(nlri, entry2, fp2, al2)
+	entry2.Release()
+
+	e2, ok := rib.LookupEntry(nlri)
+	require.True(t, ok)
+	assert.Equal(t, bundle1, e2.Bundle, "no-op insert should preserve original entry")
+}
+
+// TestFamilyRIB_InsertEntry_Replace verifies that InsertEntry with different
+// attributes replaces the existing entry.
+func TestFamilyRIB_InsertEntry_Replace(t *testing.T) {
+	attrsA := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireLocalPref100)
+	attrsB := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireMED100)
+	nlri := []byte{24, 10, 0, 0}
+
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	defer rib.Release()
+
+	entryA, fpA, alA, err := ParseRouteEntry(attrsA, true)
+	require.NoError(t, err)
+	rib.InsertEntry(nlri, entryA, fpA, alA)
+	entryA.Release()
+
+	e1, _ := rib.LookupEntry(nlri)
+	bundleA := e1.Bundle
+
+	entryB, fpB, alB, err := ParseRouteEntry(attrsB, true)
+	require.NoError(t, err)
+	rib.InsertEntry(nlri, entryB, fpB, alB)
+	entryB.Release()
+
+	e2, ok := rib.LookupEntry(nlri)
+	require.True(t, ok)
+	assert.NotEqual(t, bundleA, e2.Bundle, "different attrs should replace entry")
+}
+
+// TestFamilyRIB_InsertEntry_Opaque verifies InsertEntry works for non-CIDR families.
+func TestFamilyRIB_InsertEntry_Opaque(t *testing.T) {
+	fam := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
+	rib := NewFamilyRIB(fam, false)
+	defer rib.Release()
+
+	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
+	nlri1 := []byte{0x02, 0x19, 0x01, 0x02, 0x03}
+	nlri2 := []byte{0x02, 0x19, 0x01, 0x02, 0x04}
+
+	entry, fp, attrLen, err := ParseRouteEntry(attrs, true)
+	require.NoError(t, err)
+	rib.InsertEntry(nlri1, entry, fp, attrLen)
+	rib.InsertEntry(nlri2, entry, fp, attrLen)
+	entry.Release()
+
+	assert.Equal(t, 2, rib.Len())
+	_, ok := rib.LookupEntry(nlri1)
+	assert.True(t, ok)
+	_, ok = rib.LookupEntry(nlri2)
+	assert.True(t, ok)
+}

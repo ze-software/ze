@@ -201,3 +201,30 @@ func TestPeerRIB_AddPath(t *testing.T) {
 
 	assert.Equal(t, 2, rib.Len())
 }
+
+// TestPeerRIB_InsertEntry verifies parse-once insertion across families.
+func TestPeerRIB_InsertEntry(t *testing.T) {
+	rib := NewPeerRIB("192.0.2.1")
+	defer rib.Release()
+
+	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
+	entry, fp, attrLen, err := ParseRouteEntry(attrs, true)
+	require.NoError(t, err)
+
+	nlri1 := []byte{24, 10, 0, 0}
+	nlri2 := []byte{24, 10, 0, 1}
+	nlri3 := []byte{24, 10, 0, 2}
+
+	rib.InsertEntry(family.IPv4Unicast, entry, fp, attrLen, nlri1)
+	rib.InsertEntry(family.IPv4Unicast, entry, fp, attrLen, nlri2)
+	rib.InsertEntry(family.IPv4Unicast, entry, fp, attrLen, nlri3)
+	entry.Release()
+
+	assert.Equal(t, 3, rib.Len())
+
+	e1, ok := rib.Lookup(family.IPv4Unicast, nlri1)
+	require.True(t, ok)
+	e2, ok := rib.Lookup(family.IPv4Unicast, nlri2)
+	require.True(t, ok)
+	assert.True(t, entriesEqual(e1, e2), "shared attrs should produce same handles")
+}

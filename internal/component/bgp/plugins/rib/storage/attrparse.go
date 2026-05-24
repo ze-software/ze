@@ -170,6 +170,26 @@ func ParseAttributes(raw []byte, asn4 bool) (RouteEntry, error) {
 	return RouteEntry{Bundle: bundleHandle, ASPath: aspathHandle}, nil
 }
 
+// ParseRouteEntry parses raw attribute wire bytes once and returns a RouteEntry
+// with its fingerprint and attribute length. Callers inserting multiple NLRIs
+// from the same UPDATE should parse once and call FamilyRIB.InsertEntry per
+// prefix instead of FamilyRIB.Insert (which re-parses per call).
+//
+// The returned RouteEntry owns one reference. Each InsertEntry call takes its
+// own reference via AddRef. The caller must call Release on the returned entry
+// after all inserts are done.
+func ParseRouteEntry(attrBytes []byte, asn4 bool) (RouteEntry, uint64, uint32, error) {
+	fp := attrFingerprint(attrBytes, asn4)
+	attrLen := uint32(len(attrBytes))
+	entry, err := ParseAttributes(attrBytes, asn4)
+	if err != nil {
+		return RouteEntry{}, 0, 0, err
+	}
+	entry.AttrFingerprint = fp
+	entry.AttrLen = attrLen
+	return entry, fp, attrLen, nil
+}
+
 // canonicalizeASPath returns AS_PATH value bytes in canonical 4-byte encoding.
 // RFC 6793 Section 4.2.3: when AS4_PATH is present, it carries the real
 // 4-byte AS path; AS_PATH in that case has 2-byte encoding with AS_TRANS

@@ -133,3 +133,72 @@ func BenchmarkRIBInsertReplace(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkRIBInsertUniqueSharedAttrs measures initial table load: 1000 unique
+// NLRIs sharing one attribute blob, parsed once via InsertEntry.
+func BenchmarkRIBInsertUniqueSharedAttrs(b *testing.B) {
+	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireLocalPref100, wireMED100)
+
+	nlris := make([][]byte, 1000)
+	for i := range 1000 {
+		pfx := netip.PrefixFrom(
+			netip.AddrFrom4([4]byte{byte(10 + i>>16), byte(i >> 8), byte(i), 0}), 24,
+		)
+		nlris[i] = store.PrefixToNLRI(pfx)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		rib := NewFamilyRIB(family.IPv4Unicast, false)
+		entry, fp, attrLen, err := ParseRouteEntry(attrs, true)
+		if err != nil {
+			b.Fatal(err)
+		}
+		for _, nlri := range nlris {
+			rib.InsertEntry(nlri, entry, fp, attrLen)
+		}
+		entry.Release()
+		rib.Release()
+	}
+}
+
+// BenchmarkRIBInsertReplaceSharedAttrs measures convergence: alternating
+// between two attribute blobs, each parsed once per pass via InsertEntry.
+func BenchmarkRIBInsertReplaceSharedAttrs(b *testing.B) {
+	const n = 10_000
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
+	defer rib.Release()
+	attrsA := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireLocalPref100, wireMED100)
+	attrsB := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireLocalPref100,
+		[]byte{0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0xC8}) // MED=200
+	attrSets := [2][]byte{attrsA, attrsB}
+
+	nlris := make([][]byte, n)
+	for i := range n {
+		pfx := netip.PrefixFrom(
+			netip.AddrFrom4([4]byte{byte(10 + i>>16), byte(i >> 8), byte(i), 0}), 24,
+		)
+		nlris[i] = store.PrefixToNLRI(pfx)
+	}
+	// Seed with attrsA.
+	entryA, fpA, alA, _ := ParseRouteEntry(attrsA, true)
+	for _, nlri := range nlris {
+		rib.InsertEntry(nlri, entryA, fpA, alA)
+	}
+	entryA.Release()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := range b.N {
+		raw := attrSets[i&1]
+		entry, fp, attrLen, err := ParseRouteEntry(raw, true)
+		if err != nil {
+			b.Fatal(err)
+		}
+		for _, nlri := range nlris {
+			rib.InsertEntry(nlri, entry, fp, attrLen)
+		}
+		entry.Release()
+	}
+}

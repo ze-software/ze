@@ -208,6 +208,70 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte, asn4 bool) {
 	r.direct.Insert(pfx, newEntry)
 }
 
+// InsertEntry adds a route using a caller-owned pre-parsed RouteEntry.
+// The caller parsed attributes once via ParseRouteEntry and passes the same
+// entry, fingerprint, and attribute length for each NLRI in the UPDATE.
+// InsertEntry calls AddRef before storing so the caller can Release its
+// copy after all inserts.
+func (r *FamilyRIB) InsertEntry(nlriBytes []byte, entry RouteEntry, fp uint64, attrLen uint32) {
+	if !r.cidr {
+		if r.insertOpaqueNoOp(nlriBytes, fp, attrLen) {
+			return
+		}
+		clone := entry
+		if err := clone.AddRef(); err != nil {
+			return
+		}
+		r.insertOpaque(nlriBytes, clone)
+		return
+	}
+
+	pathID, pfx, ok := r.parseNLRIKey(nlriBytes)
+	if !ok {
+		return
+	}
+
+	if r.addPath {
+		if r.insertMultiNoOp(pfx, pathID, fp, attrLen) {
+			return
+		}
+		clone := entry
+		if err := clone.AddRef(); err != nil {
+			return
+		}
+		r.insertMulti(pfx, pathID, clone)
+		return
+	}
+
+	if oldEntry, exists := r.direct.Lookup(pfx); exists {
+		if oldEntry.AttrFingerprint != 0 && oldEntry.AttrFingerprint == fp && oldEntry.AttrLen == attrLen {
+			if oldEntry.StaleLevel != StaleLevelFresh {
+				oldEntry.StaleLevel = StaleLevelFresh
+				r.direct.Insert(pfx, oldEntry)
+			}
+			return
+		}
+	}
+
+	clone := entry
+	if err := clone.AddRef(); err != nil {
+		return
+	}
+
+	if oldEntry, exists := r.direct.Lookup(pfx); exists {
+		if entriesEqual(oldEntry, clone) {
+			if oldEntry.StaleLevel != StaleLevelFresh {
+				oldEntry.StaleLevel = StaleLevelFresh
+				r.direct.Insert(pfx, oldEntry)
+			}
+			clone.Release()
+			return
+		}
+		oldEntry.Release()
+	}
+	r.direct.Insert(pfx, clone)
+}
+
 // insertOpaque upserts newEntry keyed by raw NLRI bytes for non-CIDR
 // families. ADD-PATH path-ids are part of those bytes, so no separate
 // per-path-id dispatch is needed.

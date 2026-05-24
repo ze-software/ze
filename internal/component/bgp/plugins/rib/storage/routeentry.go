@@ -111,9 +111,11 @@ func (e *RouteEntry) AddRef() error {
 // Returns nil if AddRef fails (e.g., pool shutdown).
 func (e *RouteEntry) Clone() *RouteEntry {
 	clone := &RouteEntry{
-		StaleLevel: e.StaleLevel,
-		Bundle:     e.Bundle,
-		ASPath:     e.ASPath,
+		StaleLevel:      e.StaleLevel,
+		AttrFingerprint: e.AttrFingerprint,
+		AttrLen:         e.AttrLen,
+		Bundle:          e.Bundle,
+		ASPath:          e.ASPath,
 	}
 	if err := clone.AddRef(); err != nil {
 		return nil

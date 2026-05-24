@@ -54,6 +54,18 @@ func (r *PeerRIB) Insert(fam family.Family, attrBytes, nlriBytes []byte, asn4 bo
 	rib.Insert(attrBytes, nlriBytes, asn4)
 }
 
+// InsertEntry adds an NLRI using a pre-parsed RouteEntry.
+// The caller parsed attributes once via ParseRouteEntry and reuses the same
+// entry for each NLRI in the UPDATE. InsertEntry takes its own reference
+// via AddRef internally.
+func (r *PeerRIB) InsertEntry(fam family.Family, entry RouteEntry, fp uint64, attrLen uint32, nlriBytes []byte) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	rib := r.getOrCreateFamily(fam)
+	rib.InsertEntry(nlriBytes, entry, fp, attrLen)
+}
+
 // Remove withdraws an NLRI from the RIB.
 // Returns true if the NLRI existed.
 func (r *PeerRIB) Remove(fam family.Family, nlriBytes []byte) bool {
