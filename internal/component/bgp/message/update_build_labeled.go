@@ -12,9 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 )
 
-// attrPrefixSID is the Prefix SID attribute type code (RFC 8669).
-// Defined locally -- the labeled plugin registers the display name via attribute.RegisterName.
-const attrPrefixSID = attribute.AttributeCode(40)
+const attrPrefixSID = attribute.AttrPrefixSID
 
 // LabeledUnicastParams contains parameters for building a labeled unicast route UPDATE.
 //

@@ -61,6 +61,7 @@ const (
 	AttrIPv6ExtCommunity AttributeCode = 25 // RFC 5701
 	AttrAIGP             AttributeCode = 26 // RFC 7311
 	AttrLargeCommunity   AttributeCode = 32 // RFC 8092
+	AttrPrefixSID        AttributeCode = 40 // RFC 8669
 )
 
 var attrCodeNames = map[AttributeCode]string{
@@ -82,6 +83,7 @@ var attrCodeNames = map[AttributeCode]string{
 	AttrIPv6ExtCommunity: "IPV6_EXTENDED_COMMUNITIES",
 	AttrAIGP:             "AIGP",
 	AttrLargeCommunity:   "LARGE_COMMUNITIES",
+	AttrPrefixSID:        "PREFIX_SID",
 }
 
 // RegisterName registers an attribute code and display name.

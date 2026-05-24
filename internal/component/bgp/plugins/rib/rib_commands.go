@@ -966,6 +966,10 @@ func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte)
 		if !ok {
 			continue
 		}
+		// RFC 9252 Section 5: path with SRv6 Service TLVs but no valid SID is ineligible.
+		if IsSRv6Ineligible(entry) {
+			continue
+		}
 		c := r.extractCandidate(peer, entry)
 		candidates = append(candidates, c)
 	}

@@ -137,8 +137,10 @@ type incomingChange = sysribevents.BestChangeEntry
 type fibVPP struct {
 	installed     map[string]string // prefix -> next-hop (IP routes)
 	mplsInstalled map[string]bool   // prefix -> true (MPLS labeled routes)
+	srv6Installed map[string]bool   // prefix -> true (SRv6 steered routes)
 	backend       vppBackend
 	mplsBackend   mplsBackend
+	srv6Backend   srv6Backend
 	mu            sync.RWMutex
 }
 
@@ -146,6 +148,7 @@ func newFibVPP(backend vppBackend) *fibVPP {
 	return &fibVPP{
 		installed:     make(map[string]string),
 		mplsInstalled: make(map[string]bool),
+		srv6Installed: make(map[string]bool),
 		backend:       backend,
 	}
 }
@@ -194,6 +197,10 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 		c := &batch.Changes[i]
 		if !c.Prefix.IsValid() {
 			logger().Warn("fib-vpp: skipping change with empty prefix")
+			continue
+		}
+		if c.SRv6SID.IsValid() || f.srv6Installed[c.Prefix.String()] {
+			f.processSRv6Change(c)
 			continue
 		}
 		if len(c.Labels) > 0 || f.mplsInstalled[c.Prefix.String()] {
@@ -294,6 +301,19 @@ func (f *fibVPP) flushRoutes() {
 		}
 	}
 	f.mplsInstalled = make(map[string]bool)
+
+	if f.srv6Backend != nil {
+		for prefixStr := range f.srv6Installed {
+			prefix, err := netip.ParsePrefix(prefixStr)
+			if err != nil {
+				continue
+			}
+			if err := f.srv6Backend.delSRv6Steer(prefix, 0); err != nil {
+				logger().Warn("fib-vpp: flush SRv6 del failed", "prefix", prefixStr, "error", err)
+			}
+		}
+	}
+	f.srv6Installed = make(map[string]bool)
 
 	if m := fibVPPMetricsPtr.Load(); m != nil {
 		m.routesInstalled.Set(0)

@@ -77,6 +77,23 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 	}
 	result := message.ValidateUpdateRFC7606(pathAttrs, hasNLRI, isIBGP, asn4)
 
+	// RFC 8669 Section 4: discard PrefixSID from EBGP unless configured to accept.
+	if !isIBGP && !s.settings.AcceptSRv6PrefixSID {
+		if _, _, _, found := attribute.AttrFind(pathAttrs, attribute.AttrPrefixSID); found {
+			entry := message.DiscardEntry{Code: uint8(attribute.AttrPrefixSID), Reason: message.DiscardReasonEBGPInvalid}
+			if result.Action < message.RFC7606ActionAttributeDiscard {
+				result = &message.RFC7606ValidationResult{
+					Action:         message.RFC7606ActionAttributeDiscard,
+					AttrCode:       uint8(attribute.AttrPrefixSID),
+					Description:    "RFC 8669 Section 4: PrefixSID from EBGP discarded (not configured to accept)",
+					DiscardEntries: []message.DiscardEntry{entry},
+				}
+			} else if result.Action == message.RFC7606ActionAttributeDiscard {
+				result.DiscardEntries = append(result.DiscardEntries, entry)
+			}
+		}
+	}
+
 	switch result.Action {
 	case message.RFC7606ActionNone:
 		return wu, message.RFC7606ActionNone, nil

@@ -736,6 +736,8 @@ func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
 			// Also emit MP_REACH next-hop as IPv4-mapped IPv6 for mixed-family sessions.
 			mapped := explicit.As16()
 			mods.Op(14, registry.AttrModSet, mapped[:])
+			// RFC 9252 Section 3.3: strip PrefixSID when next-hop changes.
+			mods.Op(40, registry.AttrModSuppress, nil)
 			return
 		}
 		// Explicit IPv6 next-hop: global-only (16-byte NH). The dual-address
@@ -745,6 +747,8 @@ func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
 		nh := explicit.As16()
 		mods.Op(14, registry.AttrModSet, nh[:])
 	}
+	// RFC 9252 Section 3.3: strip PrefixSID when next-hop changes.
+	mods.Op(40, registry.AttrModSuppress, nil)
 }
 
 // applySendCommunityFilter suppresses community attributes not in the peer's send list.

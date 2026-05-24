@@ -59,6 +59,7 @@ type BestChangeEntry struct {
 	Metric       uint32                   `json:"metric"`
 	ProtocolType bgptypes.BGPProtocolType `json:"protocol-type,omitempty"`
 	Labels       []uint32                 `json:"labels,omitempty"`
+	SRv6SID      netip.Addr               `json:"srv6-sid,omitzero"`
 }
 
 // BestChangeBatch is the payload of (bgp-rib, best-change). One batch is

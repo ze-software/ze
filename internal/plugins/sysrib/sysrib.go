@@ -133,7 +133,8 @@ type protocolRoute struct {
 	priority         int // effective admin distance (lower wins)
 	incomingPriority int // original priority from protocol RIB (before override)
 	metric           uint32
-	labels           []uint32 // MPLS label stack (nil for unlabeled routes)
+	labels           []uint32   // MPLS label stack (nil for unlabeled routes)
+	srv6SID          netip.Addr // SRv6 SID from PrefixSID attribute (zero if absent)
 }
 
 // prefixKey identifies a unique prefix in the system RIB.
@@ -292,6 +293,7 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 				incomingPriority: c.Priority,
 				metric:           c.Metric,
 				labels:           c.Labels,
+				srv6SID:          c.SRv6SID,
 			}
 		} else if c.Action == bgptypes.RouteActionWithdraw {
 			if proto == "" {
@@ -369,8 +371,13 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 			delete(s.best, key)
 			delete(s.lastECMP, key)
 			delete(s.resolvedNH, key)
-			if r := getNHResolver(); r != nil && prev.nextHop.IsValid() {
-				r.Untrack(prev.nextHop, key.prefix)
+			if r := getNHResolver(); r != nil {
+				if prev.nextHop.IsValid() {
+					r.Untrack(prev.nextHop, key.prefix)
+				}
+				if prev.srv6SID.IsValid() {
+					r.Untrack(prev.srv6SID, key.prefix)
+				}
 			}
 			return &outgoingChange{
 				Action: bgptypes.RouteActionWithdraw,
@@ -395,8 +402,16 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		s.lastECMP[key] = ecmpPaths
 		resolved := resolveNextHop(winner.nextHop)
 		s.resolvedNH[key] = resolved
-		if r := getNHResolver(); r != nil && winner.nextHop.IsValid() {
-			r.Track(winner.nextHop, key.prefix)
+		if r := getNHResolver(); r != nil {
+			if winner.nextHop.IsValid() {
+				r.Track(winner.nextHop, key.prefix)
+			}
+			if winner.srv6SID.IsValid() {
+				r.Track(winner.srv6SID, key.prefix)
+				if !srv6SIDResolvable(winner.srv6SID) {
+					return nil
+				}
+			}
 		}
 		return &outgoingChange{
 			Action:    bgptypes.RouteActionAdd,
@@ -404,6 +419,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 			NextHop:   resolved,
 			Protocol:  winner.protocol,
 			Labels:    winner.labels,
+			SRv6SID:   winner.srv6SID,
 			Metric:    winner.metric,
 			ECMPPaths: ecmpPaths,
 		}
@@ -412,6 +428,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 	ecmpPaths := ecmpCollect(protocols, winner)
 	if prev.protocol == winner.protocol && prev.nextHop == winner.nextHop &&
 		prev.priority == winner.priority && prev.metric == winner.metric &&
+		prev.srv6SID == winner.srv6SID &&
 		labelsEqual(prev.labels, winner.labels) && !ecmpChanged(s.lastECMP[key], ecmpPaths) {
 		s.best[key] = winner
 		return nil
@@ -423,6 +440,21 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		}
 		if winner.nextHop.IsValid() && winner.nextHop != prev.nextHop {
 			r.Track(winner.nextHop, key.prefix)
+		}
+		if prev.srv6SID.IsValid() && prev.srv6SID != winner.srv6SID {
+			r.Untrack(prev.srv6SID, key.prefix)
+		}
+		if winner.srv6SID.IsValid() && winner.srv6SID != prev.srv6SID {
+			r.Track(winner.srv6SID, key.prefix)
+		}
+		if winner.srv6SID.IsValid() && !srv6SIDResolvable(winner.srv6SID) {
+			s.best[key] = winner
+			s.lastECMP[key] = ecmpPaths
+			delete(s.resolvedNH, key)
+			return &outgoingChange{
+				Action: bgptypes.RouteActionWithdraw,
+				Prefix: key.prefix,
+			}
 		}
 	}
 
@@ -436,6 +468,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		NextHop:   resolved,
 		Protocol:  winner.protocol,
 		Labels:    winner.labels,
+		SRv6SID:   winner.srv6SID,
 		Metric:    winner.metric,
 		ECMPPaths: ecmpPaths,
 	}
@@ -457,6 +490,16 @@ func resolveNextHop(nh netip.Addr) netip.Addr {
 		return res.DirectNH
 	}
 	return nh
+}
+
+// srv6SIDResolvable checks whether an SRv6 SID has a covering route in the
+// Loc-RIB per RFC 9252 Section 5 resolvability requirement.
+func srv6SIDResolvable(sid netip.Addr) bool {
+	r := getNHResolver()
+	if r == nil {
+		return true // no resolver configured: permissive
+	}
+	return r.Resolve(sid).Resolved
 }
 
 func labelsEqual(a, b []uint32) bool {
@@ -510,10 +553,24 @@ func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 				NextHop:   promoted,
 				Protocol:  best.protocol,
 				Labels:    best.labels,
+				SRv6SID:   best.srv6SID,
 				Metric:    best.metric,
 				ECMPPaths: remaining,
 			}
 		}
+		if prevResolved.IsValid() {
+			delete(s.resolvedNH, key)
+			delete(s.lastECMP, key)
+			return &outgoingChange{
+				Action: bgptypes.RouteActionWithdraw,
+				Prefix: key.prefix,
+			}
+		}
+		return nil
+	}
+
+	// RFC 9252 Section 5: SRv6 SID must be resolvable.
+	if best.srv6SID.IsValid() && !srv6SIDResolvable(best.srv6SID) {
 		if prevResolved.IsValid() {
 			delete(s.resolvedNH, key)
 			delete(s.lastECMP, key)
@@ -543,6 +600,7 @@ func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 		NextHop:   newResolved,
 		Protocol:  best.protocol,
 		Labels:    best.labels,
+		SRv6SID:   best.srv6SID,
 		Metric:    best.metric,
 		ECMPPaths: ecmpPaths,
 	}
@@ -670,6 +728,7 @@ func (s *sysRIB) replayBest() {
 			NextHop:   resolveNextHop(route.nextHop),
 			Protocol:  route.protocol,
 			Labels:    route.labels,
+			SRv6SID:   route.srv6SID,
 			Metric:    route.metric,
 			ECMPPaths: s.lastECMP[key],
 		})

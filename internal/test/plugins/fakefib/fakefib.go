@@ -24,7 +24,7 @@ const Name = "fakefib"
 
 var (
 	errNoEventBus = errors.New("fakefib: no event bus")
-	errUsageEmit  = errors.New("usage: fakefib emit <add|withdraw> <family> <prefix> [nexthop <ip>] [routetype <blackhole|unreachable|prohibit>] [metric <n>] [tableid <n>] [labels <l1,l2,...>]")
+	errUsageEmit  = errors.New("usage: fakefib emit <add|withdraw> <family> <prefix> [nexthop <ip>] [routetype <blackhole|unreachable|prohibit>] [metric <n>] [tableid <n>] [labels <l1,l2,...>] [srv6-sid <ipv6>]")
 )
 
 var loggerPtr atomic.Pointer[slog.Logger]
@@ -178,6 +178,12 @@ func runEmit(args []string) (string, error) {
 				return "", err
 			}
 			change.Labels = labels
+		case "srv6-sid":
+			sid, err := netip.ParseAddr(val)
+			if err != nil {
+				return "", fmt.Errorf("invalid srv6-sid %q: %w", val, err)
+			}
+			change.SRv6SID = sid
 		default:
 			return "", fmt.Errorf("unknown attribute %q", key)
 		}
@@ -202,7 +208,7 @@ func dispatchCommand(_, command string, args []string, _ string) (string, string
 		return rpc.StatusDone, data, nil
 	}
 	if command == "fakefib help" {
-		return rpc.StatusDone, "fakefib emit add|withdraw <family> <prefix> [nexthop <ip>] [routetype <blackhole|unreachable|prohibit>] [metric <n>] [tableid <n>] [labels <l1,l2,...>]", nil
+		return rpc.StatusDone, "fakefib emit add|withdraw <family> <prefix> [nexthop <ip>] [routetype <blackhole|unreachable|prohibit>] [metric <n>] [tableid <n>] [labels <l1,l2,...>] [srv6-sid <ipv6>]", nil
 	}
 	return rpc.StatusError, "", fmt.Errorf("unknown command: %s", command)
 }

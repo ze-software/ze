@@ -352,7 +352,9 @@ func TestApplyNextHopMod_IPv6EmitsOnlyMPReach(t *testing.T) {
 	applyNextHopMod(dest, &mods)
 
 	ops := mods.Ops()
-	require.Len(t, ops, 1, "IPv6 local emits only MP_REACH op")
+	require.Len(t, ops, 2, "IPv6 local emits MP_REACH op + PrefixSID suppress")
 	assert.Equal(t, uint8(14), ops[0].Code, "op is MP_REACH_NLRI")
 	assert.Len(t, ops[0].Buf, 16, "IPv6 next-hop is 16 bytes")
+	assert.Equal(t, uint8(40), ops[1].Code, "RFC 9252 S3.3: PrefixSID suppress")
+	assert.Equal(t, registry.AttrModSuppress, ops[1].Action)
 }

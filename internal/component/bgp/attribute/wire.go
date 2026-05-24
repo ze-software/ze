@@ -415,8 +415,9 @@ func init() {
 	knownAttrParsers[AttrLargeCommunity] = func(d []byte, _ bool) (Attribute, error) { return ParseLargeCommunities(d) }
 	knownAttrParsers[AttrIPv6ExtCommunity] = func(d []byte, _ bool) (Attribute, error) { return ParseIPv6ExtendedCommunities(d) }
 	knownAttrParsers[AttrAIGP] = func(d []byte, _ bool) (Attribute, error) { return ParseAIGP(d) }
-	// Known codes without parsers yet (PMSI, TunnelEncap, BGPLS, PrefixSID):
+	// Known codes without parsers yet (PMSI, TunnelEncap, BGPLS):
 	// left nil — treated as opaque, same as truly unknown codes.
+	// PrefixSID (40): stored in OtherAttrs; SRv6 SID extracted at best-path time.
 }
 
 // parseKnownAttribute parses a known attribute value by code.

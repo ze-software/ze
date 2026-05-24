@@ -251,6 +251,8 @@ go.fd.io/govpp/binapi/nat44_ed
 go.fd.io/govpp/binapi/nat_types
 go.fd.io/govpp/binapi/policer
 go.fd.io/govpp/binapi/policer_types
+go.fd.io/govpp/binapi/sr
+go.fd.io/govpp/binapi/sr_types
 go.fd.io/govpp/codec
 go.fd.io/govpp/core
 go.fd.io/govpp/core/genericpool

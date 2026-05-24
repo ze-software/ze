@@ -705,12 +705,16 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		nextHop    netip.Addr
 		isEBGP     bool
 		bestLabels []uint32
+		srv6SID    netip.Addr
 	)
 	if newBest != nil {
 		nextHop = r.bestCandidateNextHopAddr(fam, nlriBytes, newBest)
 		isEBGP = r.protocolType(newBest) == bgptypes.BGPProtocolEBGP
 		if fam.SAFI == family.SAFIMPLSLabel {
 			bestLabels = r.lookupLabelsForBest(fam, nlriBytes, newBest.PeerAddr)
+		}
+		if fam.SAFI != family.SAFIMPLSLabel {
+			srv6SID = r.lookupSRv6SIDForBest(fam, nlriBytes, newBest.PeerAddr)
 		}
 	}
 
@@ -812,6 +816,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	}
 	entry := newRec.resolve(r.bestPathInterner, action, pfx, pathID, addPath)
 	entry.Labels = bestLabels
+	entry.SRv6SID = srv6SID
 	return entry, true
 }
 
@@ -826,6 +831,125 @@ func (r *RIBManager) lookupLabelsForBest(fam family.Family, nlriBytes []byte, pe
 	}
 	h := peerRIB.LookupLabels(fam, nlriBytes)
 	return pool.ResolveLabels(h)
+}
+
+// lookupSRv6SIDForBest extracts the SRv6 SID from the PrefixSID attribute
+// (code 40) stored in OtherAttrs of the winning peer's route entry.
+// For VPN/EVPN SAFIs, applies RFC 9252 Section 3.2.1 transposition to
+// reconstruct the full SID from the partial SID + NLRI label bits.
+// Returns an invalid Addr if the attribute is absent or not SRv6.
+// Caller must not hold r.peerMu.
+func (r *RIBManager) lookupSRv6SIDForBest(fam family.Family, nlriBytes []byte, peerAddr string) netip.Addr {
+	r.peerMu.RLock()
+	peerRIB := r.bgpPeers[peerAddr]
+	r.peerMu.RUnlock()
+	if peerRIB == nil {
+		return netip.Addr{}
+	}
+	entry, ok := peerRIB.Lookup(fam, nlriBytes)
+	if !ok {
+		return netip.Addr{}
+	}
+	b := entry.GetBundle()
+	if !b.HasOtherAttrs() {
+		return netip.Addr{}
+	}
+	result := extractSRv6SIDResultFromOtherAttrs(b)
+	if !result.SID.IsValid() {
+		return netip.Addr{}
+	}
+	// RFC 9252 Section 3.2.1: apply transposition for VPN/EVPN SAFIs.
+	if result.HasTranspos && needsTransposition(fam) {
+		h := peerRIB.LookupLabels(fam, nlriBytes)
+		labels := pool.ResolveLabels(h)
+		if len(labels) > 0 {
+			return pool.ApplyTransposition(result.SID, labels[0], result.TransposOffset, result.TransposLen)
+		}
+	}
+	return result.SID
+}
+
+func needsTransposition(fam family.Family) bool {
+	return fam.SAFI == family.SAFIVPN || fam.SAFI == family.SAFIEVPN
+}
+
+// IsSRv6Ineligible reports whether a route entry is ineligible for best-path
+// per RFC 9252 Section 5: a route with PrefixSID containing SRv6 Service TLVs
+// (type 5 or 6) but no extractable valid SID MUST be excluded from best-path.
+// Returns false (eligible) when no SRv6 TLVs are present or SID extraction succeeds.
+func IsSRv6Ineligible(entry storage.RouteEntry) bool {
+	b := entry.GetBundle()
+	if !b.HasOtherAttrs() {
+		return false
+	}
+	data, err := pool.OtherAttrs.Get(b.OtherAttrs)
+	if err != nil {
+		return false
+	}
+	var hasSRv6TLV bool
+	off := 0
+	for off+4 <= len(data) {
+		typeCode := data[off]
+		length := int(data[off+2])<<8 | int(data[off+3])
+		off += 4
+		if off+length > len(data) {
+			break
+		}
+		if typeCode == 40 {
+			if prefixSIDHasSRv6TLVs(data[off : off+length]) {
+				hasSRv6TLV = true
+				if sid := pool.ExtractSRv6SID(data[off : off+length]); sid.IsValid() {
+					return false // Valid SID found, eligible.
+				}
+			}
+			break
+		}
+		off += length
+	}
+	return hasSRv6TLV
+}
+
+// prefixSIDHasSRv6TLVs checks if PrefixSID attribute value contains any
+// SRv6 Service TLVs (type 5 = L3 Service, type 6 = L2 Service).
+func prefixSIDHasSRv6TLVs(prefixSIDValue []byte) bool {
+	off := 0
+	for off+3 <= len(prefixSIDValue) {
+		tlvType := prefixSIDValue[off]
+		tlvLen := int(prefixSIDValue[off+1])<<8 | int(prefixSIDValue[off+2])
+		off += 3
+		if off+tlvLen > len(prefixSIDValue) {
+			break
+		}
+		if tlvType == 5 || tlvType == 6 {
+			return true
+		}
+		off += tlvLen
+	}
+	return false
+}
+
+// extractSRv6SIDResultFromOtherAttrs finds PrefixSID (code 40) in OtherAttrs and
+// extracts the SRv6 SID with transposition parameters.
+// OtherAttrs format: [type(1)][flags(1)][length(2)][value(n)]...
+func extractSRv6SIDResultFromOtherAttrs(b storage.Bundle) pool.SRv6SIDResult {
+	data, err := pool.OtherAttrs.Get(b.OtherAttrs)
+	if err != nil {
+		return pool.SRv6SIDResult{}
+	}
+	off := 0
+	for off+4 <= len(data) {
+		typeCode := data[off]
+		length := int(data[off+2])<<8 | int(data[off+3])
+		off += 4
+		if off+length > len(data) {
+			break
+		}
+		if typeCode == 40 {
+			return pool.ExtractSRv6SIDFull(data[off : off+length])
+		}
+		off += length
+	}
+	return pool.SRv6SIDResult{}
 }
 
 // protocolType returns the protocol-type label for a candidate based on

@@ -124,6 +124,7 @@ func runFibVPPPlugin(conn net.Conn) int {
 			backend := newGovppBackend(ch, tableID)
 			fib = newFibVPP(backend)
 			fib.mplsBackend = newGovppMPLSBackend(ch, tableID)
+			fib.srv6Backend = newGovppSRv6Backend(ch, tableID)
 		}
 
 		startFib := func() {

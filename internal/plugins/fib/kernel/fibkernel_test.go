@@ -680,6 +680,26 @@ func TestKernelMPLSPush(t *testing.T) {
 	assert.Equal(t, []uint32{100, 200}, backend.richAdded[0].Labels)
 }
 
+// VALIDATES: SRv6 SID triggers rich route path.
+func TestKernelSRv6Encap(t *testing.T) {
+	backend := newRichMockBackend()
+	f := newFIBKernel(backend)
+
+	sid := netip.MustParseAddr("2001:db8::1")
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{
+			Action:   bgptypes.RouteActionAdd,
+			Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop:  netip.MustParseAddr("192.168.1.1"),
+			Protocol: "bgp",
+			SRv6SID:  sid,
+		},
+	}))
+
+	require.Len(t, backend.richAdded, 1)
+	assert.Equal(t, sid, backend.richAdded[0].SRv6SID)
+}
+
 // VALIDATES: plain route without rich fields still uses legacy backend path.
 func TestKernelPlainRouteLegacyPath(t *testing.T) {
 	backend := newRichMockBackend()

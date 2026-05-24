@@ -19,6 +19,7 @@ type RichRoute struct {
 	Metric    uint32
 	TableID   uint32
 	Labels    []uint32
+	SRv6SID   netip.Addr
 	ECMPPaths []sysribevents.ECMPPath
 }
 

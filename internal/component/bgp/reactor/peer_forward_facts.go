@@ -227,6 +227,10 @@ func applyFactsNextHop(f *peerForwardFacts, mods *registry.ModAccumulator) {
 	case nhModeSelfV6LL:
 		mods.Op(14, registry.AttrModSet, f.nhGlobalLL[:])
 	}
+	// RFC 9252 Section 3.3: when next-hop is changed, strip PrefixSID.
+	// Ze does not originate local SRv6 SIDs, so the correct behavior is
+	// to remove the attribute rather than rebuild with a local SID.
+	mods.Op(40, registry.AttrModSuppress, nil)
 }
 
 func applyFactsSendCommunity(f *peerForwardFacts, mods *registry.ModAccumulator) {

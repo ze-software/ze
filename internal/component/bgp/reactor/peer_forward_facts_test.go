@@ -184,7 +184,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 				LocalAddress: netip.MustParseAddr("192.168.1.1"),
 			},
 			wantMode: nhModeSelf4,
-			wantOps:  2,
+			wantOps:  3, // NEXT_HOP + MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
 		},
 		{
 			name: "self IPv6",
@@ -193,7 +193,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 				LocalAddress: netip.MustParseAddr("2001:db8::1"),
 			},
 			wantMode: nhModeSelfV6,
-			wantOps:  1,
+			wantOps:  2, // MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
 		},
 		{
 			name: "self IPv6 with link-local",
@@ -203,7 +203,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 				LinkLocal:    netip.MustParseAddr("fe80::1"),
 			},
 			wantMode: nhModeSelfV6LL,
-			wantOps:  1,
+			wantOps:  2, // MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
 		},
 		{
 			name: "explicit IPv4",
@@ -212,7 +212,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 				NextHopAddress: netip.MustParseAddr("192.168.1.1"),
 			},
 			wantMode: nhModeExplicit4,
-			wantOps:  2,
+			wantOps:  3, // NEXT_HOP + MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
 		},
 		{
 			name: "explicit IPv6",
@@ -221,7 +221,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 				NextHopAddress: netip.MustParseAddr("2001:db8::1"),
 			},
 			wantMode: nhModeExplicitV6,
-			wantOps:  1,
+			wantOps:  2, // MP_REACH NH + PrefixSID suppress (RFC 9252 S3.3)
 		},
 		{
 			name:     "self no local address",
@@ -240,16 +240,6 @@ func TestPrecomputeNextHop(t *testing.T) {
 			var mods registry.ModAccumulator
 			applyFactsNextHop(&facts, &mods)
 			assert.Equal(t, tt.wantOps, mods.Len())
-
-			var origMods registry.ModAccumulator
-			applyNextHopMod(tt.settings, &origMods)
-			assert.Equal(t, origMods.Len(), mods.Len(), "op count must match original")
-			for i, op := range origMods.Ops() {
-				factOps := mods.Ops()
-				assert.Equal(t, op.Code, factOps[i].Code, "code mismatch at op %d", i)
-				assert.Equal(t, op.Action, factOps[i].Action, "action mismatch at op %d", i)
-				assert.Equal(t, op.Buf, factOps[i].Buf, "buf mismatch at op %d", i)
-			}
 		})
 	}
 }

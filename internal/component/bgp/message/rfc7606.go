@@ -69,6 +69,7 @@ const (
 	attrCodeMPUnreachNLRI  uint8 = 15
 	attrCodeExtCommunity   uint8 = 16
 	attrCodeLargeCommunity uint8 = 32
+	attrCodePrefixSID      uint8 = 40
 )
 
 // Attribute flags bits (RFC 4271 Section 4.3).
@@ -374,6 +375,7 @@ func init() {
 	attrValidators[attrCodeLargeCommunity] = validateLargeCommunityAttr
 	attrValidators[attrCodeMPReachNLRI] = validateMPReachAttr
 	attrValidators[attrCodeMPUnreachNLRI] = validateMPUnreachAttr
+	attrValidators[attrCodePrefixSID] = validatePrefixSIDAttr
 }
 
 // validateAttribute checks a single attribute per RFC 7606 Section 7.
@@ -715,6 +717,69 @@ func validateMPReachNextHop(data []byte) *RFC7606ValidationResult {
 		}
 	}
 
+	return nil
+}
+
+// RFC 9252 Section 3.4: malformed SRv6 Service TLV triggers treat-as-withdraw.
+// RFC 8669 Section 6: overall malformed Prefix-SID triggers attribute-discard.
+func validatePrefixSIDAttr(code uint8, length int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
+	off := 0
+	for off+3 <= length {
+		tlvLen := int(attrData[off+1])<<8 | int(attrData[off+2])
+		off += 3
+		if off+tlvLen > length {
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionAttributeDiscard,
+				AttrCode:    code,
+				Reason:      DiscardReasonInvalidLength,
+				Description: "RFC 8669 Section 6: Prefix-SID TLV length exceeds attribute bounds",
+			}
+		}
+		tlvType := attrData[off-3]
+		if tlvType == 5 || tlvType == 6 {
+			if err := validateSRv6ServiceTLV(attrData[off:off+tlvLen], tlvType); err != nil {
+				return err
+			}
+		}
+		off += tlvLen
+	}
+	return nil
+}
+
+// validateSRv6ServiceTLV checks internal structure of an SRv6 L3/L2 Service TLV.
+func validateSRv6ServiceTLV(value []byte, tlvType uint8) *RFC7606ValidationResult {
+	// RFC 9252 Section 3.1: Service TLV value = Reserved(1) + Sub-TLVs.
+	if len(value) < 1 {
+		var b textbuf.Buffer
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    attrCodePrefixSID,
+			Description: b.Reset().Str("RFC 9252 Section 3.4: SRv6 Service TLV type ").Int(int64(tlvType)).Str(" empty value").String(),
+		}
+	}
+	off := 1 // skip Reserved
+	for off+3 <= len(value) {
+		subLen := int(value[off+1])<<8 | int(value[off+2])
+		off += 3
+		if off+subLen > len(value) {
+			var b textbuf.Buffer
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionTreatAsWithdraw,
+				AttrCode:    attrCodePrefixSID,
+				Description: b.Reset().Str("RFC 9252 Section 3.4: SRv6 Sub-TLV length exceeds Service TLV type ").Int(int64(tlvType)).String(),
+			}
+		}
+		// RFC 9252 Section 3.2: SID Info Sub-TLV (type 1) minimum length 21.
+		if value[off-3] == 1 && subLen < 21 {
+			var b textbuf.Buffer
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionTreatAsWithdraw,
+				AttrCode:    attrCodePrefixSID,
+				Description: b.Reset().Str("RFC 9252 Section 3.2: SID Info Sub-TLV length ").Int(int64(subLen)).Str(" < 21").String(),
+			}
+		}
+		off += subLen
+	}
 	return nil
 }
 

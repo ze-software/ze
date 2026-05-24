@@ -74,6 +74,8 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 
 	if len(r.Labels) > 0 && route.Type == unix.RTN_UNICAST {
 		route.Encap = buildMPLSEncap(r.Labels)
+	} else if r.SRv6SID.IsValid() && r.SRv6SID.Is6() && route.Type == unix.RTN_UNICAST {
+		route.Encap = buildSEG6Encap(r.SRv6SID)
 	}
 
 	return route, nil
@@ -121,4 +123,14 @@ func buildMPLSEncap(labels []uint32) *netlink.MPLSEncap {
 		intLabels[i] = int(l)
 	}
 	return &netlink.MPLSEncap{Labels: intLabels}
+}
+
+const seg6IptunModeEncap = 1
+
+func buildSEG6Encap(sid netip.Addr) *netlink.SEG6Encap {
+	ip6 := sid.As16()
+	return &netlink.SEG6Encap{
+		Mode:     seg6IptunModeEncap,
+		Segments: []net.IP{net.IP(ip6[:])},
+	}
 }

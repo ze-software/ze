@@ -295,6 +295,10 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		if v, ok := mapBool(sessionMap, "as-override"); ok {
 			ps.ASOverride = v
 		}
+		// RFC 8669 Section 4: accept PrefixSID from EBGP only when configured.
+		if v, ok := mapBool(sessionMap, "accept-srv6-prefix-sid"); ok {
+			ps.AcceptSRv6PrefixSID = v
+		}
 	}
 
 	// Send-community control from session > community > send (leaf-list).

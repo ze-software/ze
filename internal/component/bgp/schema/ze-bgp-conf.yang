@@ -471,6 +471,14 @@ module ze-bgp-conf {
                              Used in VPN/multi-site where the same customer ASN appears at multiple sites.";
             }
 
+            leaf accept-srv6-prefix-sid {
+                type boolean;
+                default false;
+                description "Accept BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.
+                             RFC 8669 Section 4: PrefixSID from EBGP outside the SR domain MUST be
+                             discarded unless configured to accept. Has no effect on IBGP (always accepted).";
+            }
+
             container community {
                 description "Community attribute control for this session";
                 leaf-list send {

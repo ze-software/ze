@@ -431,6 +431,12 @@ type PeerSettings struct {
 	// Set when the peer's import chain has inactive: on its loop-detection filter.
 	LoopDisabled bool
 
+	// AcceptSRv6PrefixSID allows PrefixSID attribute (code 40) from EBGP peers.
+	// RFC 8669 Section 4: PrefixSID from EBGP outside the SR domain MUST be
+	// discarded unless configured to accept. Default false = discard from EBGP.
+	// Has no effect on IBGP sessions (always accepted).
+	AcceptSRv6PrefixSID bool
+
 	// RouteReflectorClient marks this peer as a route reflector client (RFC 4456).
 	// When true, routes from this peer are forwarded to all other clients and non-clients.
 	// When false (non-client), routes from this peer are forwarded to clients only.
