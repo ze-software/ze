@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | blocked |
 | Depends | - |
 | Phase | - |
 | Updated | 2026-05-24 |
@@ -27,22 +27,22 @@ evidence matrix while keeping `ze-verify` fast.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `plan/learned/656-deployment-readiness-review.md` - established ze-release-check
+- [x] `plan/learned/656-deployment-readiness-review.md` - established ze-release-check
   → Decision: Docker-based clean-clone verify is a permanent gate target
   → Constraint: ZE_SKIP_SUITES mechanism for container-incompatible suites
 
 ### Source Files
-- [ ] `mk/test-functional.mk:48-86` - shell runner pattern with continue-on-failure
+- [x] `mk/test-functional.mk:48-86` - shell runner pattern with continue-on-failure
   → Constraint: use same run_suite() pattern for category tracking
-- [ ] `mk/test-integration.mk` - all heavy test targets and ze-deployment-preflight
+- [x] `mk/test-integration.mk` - all heavy test targets and ze-deployment-preflight
   → Constraint: preflight checks tools before starting, exits non-zero on missing
-- [ ] `mk/perf.mk` - ze-perf-bench and ze-perf-track targets
+- [x] `mk/perf.mk` - ze-perf-bench and ze-perf-track targets
   → Decision: ze-perf track --check already exits non-zero on regression
-- [ ] `mk/test-chaos.mk` - chaos test targets
+- [x] `mk/test-chaos.mk` - chaos test targets
   → Constraint: chaos tests run in-process, no external infra needed
-- [ ] `mk/test-fuzz.mk` - fuzz targets with all corpora
+- [x] `mk/test-fuzz.mk` - fuzz targets with all corpora
   → Constraint: 48 fuzz targets, 10s each, ~8 min total
-- [ ] `Makefile:178-194` - verify/all/all-test composition
+- [x] `Makefile:178-194` - verify/all/all-test composition
   → Decision: ze-verify stays unchanged, new target sits alongside
 
 **Key insights:**
@@ -54,10 +54,10 @@ evidence matrix while keeping `ze-verify` fast.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `test/interop/run.py` - BGP interop test runner, Docker-based, runs scenarios against FRR/BIRD/GoBGP
-- [ ] `test/perf/run.py` - perf benchmark runner, Docker-based, runs all DUTs with results to JSON
-- [ ] `scripts/evidence/effective-verify.sh` - clean-clone Docker verify, ZE_SKIP_SUITES, 1200s timeout
-- [ ] `scripts/evidence/qemu-run.py` - QEMU VM runner for integration tests on macOS
+- [x] `test/interop/run.py` - BGP interop test runner, Docker-based, runs scenarios against FRR/BIRD/GoBGP
+- [x] `test/perf/run.py` - perf benchmark runner, Docker-based, runs all DUTs with results to JSON
+- [x] `scripts/evidence/effective-verify.sh` - clean-clone Docker verify, ZE_SKIP_SUITES, 1200s timeout
+- [x] `scripts/evidence/qemu-run.py` - QEMU VM runner for integration tests on macOS
 
 **Behavior to preserve:**
 - `ze-verify` stays fast (~2 min), unchanged: lint + vet + unit(2-pass) + functional(12) + exabgp
@@ -90,17 +90,17 @@ component boundaries. The targets compose existing test runners.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Make → shell | Inline shell in recipe, same as ze-functional-test | [ ] |
-| Shell → Make sub-targets | `$(MAKE) ze-interop-test` etc. | [ ] |
+| Make → shell | Inline shell in recipe, same as ze-functional-test | [x] |
+| Shell → Make sub-targets | `$(MAKE) ze-interop-test` etc. | [x] |
 
 ### Integration Points
 - Calls existing targets: ze-verify, ze-chaos-test, ze-fuzz-test, ze-interop-test, ze-ipsec-interop-test, ze-deployment-l2tp-ppp-docker-test, ze-static-test, ze-traffic-test, ze-vpp-test, ze-l2tp-wire-test, ze-perf-gate (new), ze-qemu-integration-test, ze-deployment-vpp-test, ze-live-test
 
 ### Architectural Verification
-- [ ] No bypassed layers (calls existing targets, does not duplicate their logic)
-- [ ] No unintended coupling (new file included from Makefile, no cross-dependencies)
-- [ ] No duplicated functionality (composes, does not reimplement)
-- [ ] Zero-copy preserved where applicable (N/A, no data buffers)
+- [x] No bypassed layers (calls existing targets, does not duplicate their logic)
+- [x] No unintended coupling (new file included from Makefile, no cross-dependencies)
+- [x] No duplicated functionality (composes, does not reimplement)
+- [x] Zero-copy preserved where applicable (N/A, no data buffers)
 
 ## Wiring Test (MANDATORY)
 
@@ -214,17 +214,48 @@ Run in this order (fast/no-infra first, slow/heavy last):
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-8 all demonstrated
-- [ ] `make -n ze-release-evidence` shows correct target expansion
-- [ ] Feature code integrated (`mk/test-release.mk`, `Makefile`)
+- [x] `make -n ze-release-evidence` shows correct target expansion
+- [x] Feature code integrated (`mk/test-release.mk`, `Makefile`)
 - [ ] `make ze-test` passes (lint + all ze tests)
 
 ### Design
-- [ ] No premature abstraction
-- [ ] Follows ze-functional-test shell runner pattern
-- [ ] Minimal coupling (calls existing targets, no new Go code)
+- [x] No premature abstraction
+- [x] Follows ze-functional-test shell runner pattern
+- [x] Minimal coupling (calls existing targets, no new Go code)
 
 ### TDD
 - [ ] Tests written
 - [ ] Tests FAIL
 - [ ] Tests PASS
-- [ ] N/A: no Go code, verification via Make dry-run
+- [x] N/A: no Go code, verification via Make dry-run
+
+## Verification Evidence (2026-05-24)
+
+| Check | Result | Evidence |
+|-------|--------|----------|
+| AC-1 preflight success | PASS | `make ze-release-evidence-preflight` found Docker and `qemu-system-x86_64`, exited 0 |
+| AC-1 Docker missing | PASS | `PATH="/usr/bin:/bin" make ze-release-evidence-preflight` reported Docker missing and exited 1 |
+| AC-2 category runner | PARTIAL | `make ZE_RELEASE_SKIP=verify ze-release-evidence` ran the non-skipped matrix and printed per-category PASS/FAIL/SKIP plus summary |
+| AC-3 continue after failure | PASS | `make MAKE=false ZE_RELEASE_SKIP=fuzz,interop,ipsec-interop,l2tp-interop,functional-extra,perf,qemu,vpp-deployment,live ze-release-evidence` reported verify and chaos failures, then skipped remaining named categories and exited 1 |
+| AC-4 explicit skip | PASS | `make MAKE=true ZE_RELEASE_SKIP=interop,perf ze-release-evidence` reported `SKIPPED: interop perf` and exited 0 |
+| AC-5 perf gate | PARTIAL | `make -n ze-perf-gate` shows `ze-perf-bench PERF_DUT=ze`, history append, and `bin/ze-perf track --check`; full run failed because current `cmd/ze/hub` does not build in Docker |
+| AC-6 no QEMU skip | PASS | `make MAKE=true ZE_RELEASE_QEMU_BIN=definitely-not-qemu ZE_RELEASE_SKIP=interop,ipsec-interop,l2tp-interop,perf,vpp-deployment,live ze-release-evidence` skipped qemu and exited 0 |
+| AC-7 help output | PASS | `make help-test` shows `ze-release-evidence-preflight`, `ze-release-evidence`, and `ze-perf-gate` |
+| AC-8 all categories pass | FAIL | Not demonstrated. `make ZE_RELEASE_SKIP=verify ze-release-evidence` failed 7 of 10 attempted categories |
+| Required final gate | FAIL | `make ze-test` fails at `ze-lint` on unrelated `cmd/ze/service` errcheck/modernize/unused issues and `internal/component/web/handler_config_test.go` gofmt |
+
+Blocked failures from the release evidence run:
+
+| Category | Result | Cause |
+|----------|--------|-------|
+| verify | SKIPPED | User instructed to skip tests that cannot run; `make ze-test` is blocked by unrelated service/web lint failures |
+| chaos | PASS | Release evidence run passed this category |
+| fuzz | PASS | Release evidence run passed this category |
+| interop | FAIL | 24 interop scenarios passed, 11 failed |
+| ipsec-interop | FAIL | Linux cross-build failed: `buildSessionModelFactory` call sites missing `audit.Recorder` argument |
+| l2tp-interop | FAIL | Host kernel missing PPPoL2TP requirements |
+| functional-extra | FAIL | `ze-static-test`, `ze-traffic-test`, `ze-vpp-test`, and `ze-l2tp-wire-test` failed because `cmd/ze/hub` does not build |
+| perf | FAIL | Docker build for Ze image failed because `cmd/ze/hub` does not build |
+| qemu | FAIL | QEMU integration failures in `internal/component/iface` and `internal/plugins/firewall/nft` |
+| vpp-deployment | FAIL | `go build ./cmd/ze` failed: `wireManagedCommit` undefined |
+| live | PASS | RPKI live tests passed; ASPA live test skipped by test because stayrtr did not serve ASPA records |

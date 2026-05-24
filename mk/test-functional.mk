@@ -14,10 +14,10 @@
 #   make ze-l2tp-test          L2TP only
 #   make ze-firewall-test      Firewall only
 #   make ze-policy-test        Policy routing only
-#   make ze-static-test        Static routes (not in release gate)
-#   make ze-traffic-test       Traffic control (not in release gate)
-#   make ze-vpp-test           VPP stub (not in release gate)
-#   make ze-l2tp-wire-test     L2TP wire-level (not in release gate)
+#   make ze-static-test        Static routes (release evidence only)
+#   make ze-traffic-test       Traffic control (release evidence only)
+#   make ze-vpp-test           VPP stub (release evidence only)
+#   make ze-l2tp-wire-test     L2TP wire-level (release evidence only)
 
 .PHONY: ze-functional-test
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test
@@ -127,7 +127,7 @@ ze-policy-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test policy --all
 
 # ─── Non-gated functional test suites ───────────────────────────────────────
-# These suites are shipped but not in the default release gate. They require
+# These suites are shipped but not in the default ze-verify gate. They require
 # platform-specific tooling or separate fixture setup.
 
 ze-static-test: bin/ze-test
