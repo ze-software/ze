@@ -1,0 +1,37 @@
+# Test: ze doctor --json — dangling config reference detected
+# VALIDATES: AC-1/AC-2 dangling policy reference produces doctor-config-reference diagnostic
+
+tmpfs=dangling.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 10.0.0.1
+			}
+		}
+		session {
+			asn {
+				remote 65001
+			}
+			family {
+				ipv4/unicast {
+				}
+			}
+		}
+		filter {
+			import [ nonexistent-policy ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json dangling.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-config-reference
+expect=stdout:contains=nonexistent-policy

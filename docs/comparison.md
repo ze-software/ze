@@ -187,7 +187,9 @@ banner reads the same source, so nothing is silently hidden. See
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Crash capture (syslog + file) | Yes | No | No | No | No | No | No | No | No | No | No |
 | Config error diagnostics | Yes | Yes | No | Partial | No | No | No | No | No | No | Partial |
-| Docker image | No | Yes | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes |
+| Runtime health monitoring | Yes | No | No | No | No | No | No | No | No | No | No |
+| Pre-start readiness checks | Yes | No | No | No | No | No | No | No | No | No | No |
+| Docker image | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes |
 | Fuzz testing | Yes | Yes | No | Yes | No | No | No | No | No | No | No |
 | Interop test suite | Yes | Yes | No | Partial | No | No | No | No | No | No | Yes |
 | Static routes (ECMP+BFD) | Yes | No | Yes | No | No | Yes | No | No | Yes | Yes | Yes |
