@@ -131,6 +131,28 @@ func waitReady(ctx context.Context, path string, timeout time.Duration) {
 	}
 }
 
+func zeDaemonConfigArgIndex(args []string) int {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch arg {
+		case "-d", "--debug", "--insecure-web", "--color", "--no-color":
+			continue
+		case "-f", "--server", "--name", "--token", "--plugin", "--pprof", "--chaos-seed", "--chaos-rate", "--mcp", "--mcp-token", "--web":
+			i++
+			continue
+		}
+
+		if arg == "-" || strings.HasSuffix(arg, ".conf") || strings.HasSuffix(arg, ".cfg") || strings.HasSuffix(arg, ".yaml") || strings.HasSuffix(arg, ".yml") || strings.HasSuffix(arg, ".json") {
+			return i
+		}
+		if strings.Contains(arg, string(filepath.Separator)) || strings.HasPrefix(arg, ".") {
+			return i
+		}
+		return -1
+	}
+	return -1
+}
+
 // runTest executes a single test.
 func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) bool {
 	// option=skip-os matched the current GOOS at parse time: report SKIP
@@ -266,6 +288,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		textbuf.StrInt("ze_test_bgp_port=", int64(rec.Port)),
 		// NOTE: ze_bgp_tcp_bind removed - listeners now derived from peer LocalAddress
 		"PATH="+zeDir+":"+existingPath,
+		"ze.storage.blob=false",
 		"SLOG_LEVEL=DEBUG",            // Enable debug logging for tracing
 		"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
 	)
@@ -603,6 +626,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			"PATH="+zeDir+":"+existingPath,
 			"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
 		)
+		if binName == "ze" && zeDaemonConfigArgIndex(args) >= 0 {
+			// Functional daemon configs are per-test files. Keep them out of the
+			// developer's shared zefs active pointer so tests cannot load stale state.
+			proc.Env = append(proc.Env, "ze.storage.blob=false")
+		}
 		// Only set ze_test_bgp_port for ze and ze-peer binaries. Other processes
 		// (e.g., ze-chaos --in-process) manage their own port configuration and
 		// the override breaks their mock network setup.

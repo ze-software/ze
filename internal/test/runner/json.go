@@ -5,7 +5,6 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
 	"reflect"
 	"sort"
 	"strings"
@@ -153,7 +152,9 @@ func transformZeBGPFormat(envelope, result map[string]any) (map[string]any, stri
 
 	// Copy attributes to top level (from update.attr)
 	if attrs, ok := update["attr"].(map[string]any); ok {
-		maps.Copy(result, attrs)
+		for key, value := range attrs {
+			result[key] = pluginAttributeValue(value)
+		}
 	}
 
 	// Track detected family
@@ -173,6 +174,31 @@ func transformZeBGPFormat(envelope, result map[string]any) (map[string]any, stri
 	}
 
 	return result, detectedFamily
+}
+
+func pluginAttributeValue(value any) any {
+	m, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	plain, hasValue := m["value"]
+	if !hasValue || !hasAttributeFlag(m) {
+		return value
+	}
+	return plain
+}
+
+func hasAttributeFlag(m map[string]any) bool {
+	if _, ok := m["optional"]; ok {
+		return true
+	}
+	if _, ok := m["partial"]; ok {
+		return true
+	}
+	if _, ok := m["transitive"]; ok {
+		return true
+	}
+	return false
 }
 
 // comparePluginJSON compares actual transformed JSON with expected JSON string.
