@@ -58,13 +58,17 @@ func extractOriginAS(rawAttrHex string) uint32 {
 	if rawAttrHex == "" {
 		return OriginNone
 	}
-
 	data, err := hex.DecodeString(rawAttrHex)
 	if err != nil {
 		return OriginNone
 	}
+	return extractOriginASFromBytes(data)
+}
 
-	// Walk path attributes looking for AS_PATH (type code 2).
+func extractOriginASFromBytes(data []byte) uint32 {
+	if len(data) == 0 {
+		return OriginNone
+	}
 	offset := 0
 	for offset < len(data) {
 		if offset+3 > len(data) {

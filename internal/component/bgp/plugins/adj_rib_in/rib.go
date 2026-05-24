@@ -209,17 +209,17 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	wu := msg.WireUpdate
 	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
 
-	// Build a bgp.Event with raw hex fields from wire data.
+	// Build a bgp.Event with raw byte fields from wire data.
+	// Byte fields are set directly, skipping the hex encode/decode round-trip.
+	// Hex string fields are left empty; they are only needed for JSON serialization
+	// to external plugins, and consumers use GetRaw*Bytes() accessors that
+	// prefer the byte fields.
 	event := &bgp.Event{Type: "update", TypeKind: rpc.EventKindUpdate}
 
-	// Raw attributes hex (path attrs without MP_REACH/UNREACH).
 	if msg.AttrsWire != nil {
-		event.RawAttributes = hex.EncodeToString(msg.AttrsWire.Packed())
+		event.RawAttributeBytes = msg.AttrsWire.Packed()
 	}
 
-	// Build family ops + raw NLRI/withdrawn hex from wire sections.
-	event.RawNLRI = make(map[family.Family]string)
-	event.RawWithdrawn = make(map[family.Family]string)
 	event.FamilyOps = make(map[family.Family][]bgp.FamilyOperation)
 	event.AddPath = make(map[family.Family]bool)
 
@@ -227,7 +227,10 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
 		fam := family.IPv4Unicast
-		event.RawNLRI[fam] = hex.EncodeToString(nlriData)
+		if event.RawNLRIBytes == nil {
+			event.RawNLRIBytes = make(map[family.Family][]byte, 2)
+		}
+		event.RawNLRIBytes[fam] = nlriData
 		addPath := ctx != nil && ctx.AddPath(fam)
 		event.AddPath[fam] = addPath
 		event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
@@ -240,7 +243,10 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	wdData, err := wu.Withdrawn()
 	if err == nil && len(wdData) > 0 {
 		fam := family.IPv4Unicast
-		event.RawWithdrawn[fam] = hex.EncodeToString(wdData)
+		if event.RawWithdrawnBytes == nil {
+			event.RawWithdrawnBytes = make(map[family.Family][]byte, 2)
+		}
+		event.RawWithdrawnBytes[fam] = wdData
 		addPath := ctx != nil && ctx.AddPath(fam)
 		event.AddPath[fam] = addPath
 		event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
@@ -255,7 +261,10 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		fam := mpReach.Family()
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
-			event.RawNLRI[fam] = hex.EncodeToString(nlriBytes)
+			if event.RawNLRIBytes == nil {
+				event.RawNLRIBytes = make(map[family.Family][]byte, 2)
+			}
+			event.RawNLRIBytes[fam] = nlriBytes
 			addPath := ctx != nil && ctx.AddPath(fam)
 			event.AddPath[fam] = addPath
 			nhop := mpReach.NextHop().String()
@@ -273,7 +282,10 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		fam := mpUnreach.Family()
 		wdBytes := mpUnreach.WithdrawnBytes()
 		if len(wdBytes) > 0 {
-			event.RawWithdrawn[fam] = hex.EncodeToString(wdBytes)
+			if event.RawWithdrawnBytes == nil {
+				event.RawWithdrawnBytes = make(map[family.Family][]byte, 2)
+			}
+			event.RawWithdrawnBytes[fam] = wdBytes
 			addPath := ctx != nil && ctx.AddPath(fam)
 			event.AddPath[fam] = addPath
 			event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
@@ -399,7 +411,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 		// Split raw NLRI hex into individual prefixes for simple families.
 		// For complex families (VPN, EVPN), splitRawNLRIHex returns nil
 		// and the raw blob is used directly (see switch below).
-		rawNLRIHex := event.RawNLRI[fam]
+		rawNLRIHex := event.GetRawNLRIHex(fam)
 		var splitHexEntries []string
 		if rawNLRIHex != "" {
 			splitHexEntries = splitRawNLRIHex(rawNLRIHex, fam)
@@ -410,7 +422,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 			case bgptypes.RouteActionAdd:
 				// Skip adds without essential fields -- routes missing attributes
 				// or next-hop cannot be replayed correctly via "update hex" commands.
-				if event.RawAttributes == "" {
+				if event.GetRawAttributesHex() == "" {
 					continue
 				}
 				nhopHex := nhopToHex(op.NextHop)
@@ -448,7 +460,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 
 					route := &RawRoute{
 						Family:  fam,
-						AttrHex: event.RawAttributes,
+						AttrHex: event.GetRawAttributesHex(),
 						NHopHex: nhopHex,
 						NLRIHex: nlriHex,
 					}

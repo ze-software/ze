@@ -217,17 +217,40 @@ func parseRawFields(event *Event, rawData json.RawMessage) {
 	if err := json.Unmarshal(rawData, &rawFields); err == nil {
 		if rawFields.Attributes != "" {
 			event.RawAttributes = rawFields.Attributes
+			if b, err := hex.DecodeString(rawFields.Attributes); err == nil {
+				event.RawAttributeBytes = b
+			}
 		}
 		if len(rawFields.NLRI) > 0 {
 			event.RawNLRI = convertRawFamilyMap(rawFields.NLRI, "raw-nlri")
+			event.RawNLRIBytes = decodeHexFamilyMap(event.RawNLRI)
 		}
 		if len(rawFields.Withdrawn) > 0 {
 			event.RawWithdrawn = convertRawFamilyMap(rawFields.Withdrawn, "raw-withdrawn")
+			event.RawWithdrawnBytes = decodeHexFamilyMap(event.RawWithdrawn)
 		}
 		if len(rawFields.AddPath) > 0 {
 			event.AddPath = convertRawFamilyMap(rawFields.AddPath, "add-path")
 		}
 	}
+}
+
+// decodeHexFamilyMap decodes all hex strings in a family map to bytes.
+// Invalid hex entries are silently skipped.
+func decodeHexFamilyMap(in map[family.Family]string) map[family.Family][]byte {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[family.Family][]byte, len(in))
+	for fam, hexStr := range in {
+		if b, err := hex.DecodeString(hexStr); err == nil {
+			out[fam] = b
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // convertRawFamilyMap converts a JSON-decoded "afi/safi" -> value map to a
@@ -298,6 +321,9 @@ func ParseFamilyOps(event *Event, data []byte) {
 
 // Event represents a JSON event from ze.
 // Handles both sent events (flat format) and received events (nested format).
+// Event is single-owner: each instance is consumed by one goroutine.
+// Lazy accessors (GetRawAttributesHex, GetRawNLRIHex) cache derived values
+// by mutating string fields. Do not share an Event across goroutines.
 type Event struct {
 	// Sent events use top-level type (string: may carry non-BGP event types like "cache", "request").
 	Type     string        `json:"type"`
@@ -347,6 +373,13 @@ type Event struct {
 	RawAttributes string                   `json:"raw-attributes,omitempty"` // Path attributes (without MP_REACH/UNREACH)
 	RawNLRI       map[family.Family]string `json:"-"`                        // family -> hex bytes; populated by ParseEvent
 	RawWithdrawn  map[family.Family]string `json:"-"`                        // family -> hex bytes; populated by ParseEvent
+
+	// Decoded byte caches: set directly by structured producers to skip the
+	// hex encode/decode round-trip. Accessors return these when present,
+	// falling back to hex decoding the string fields for JSON-sourced events.
+	RawAttributeBytes []byte                   `json:"-"`
+	RawNLRIBytes      map[family.Family][]byte `json:"-"`
+	RawWithdrawnBytes map[family.Family][]byte `json:"-"`
 
 	// RFC 7911: ADD-PATH per-family flags from negotiated capabilities (format=full only).
 	// When true for a family, NLRI wire bytes include 4-byte path-ID prefix.
@@ -500,9 +533,47 @@ func (e *Event) GetPeerSelector() string {
 	return ""
 }
 
-// GetRawAttributesBytes decodes RawAttributes from hex string.
-// Returns nil if not present or invalid hex.
+// GetRawAttributesHex returns the hex-encoded raw attributes string.
+// If only the byte field is set (structured producer), encodes lazily.
+func (e *Event) GetRawAttributesHex() string {
+	if e.RawAttributes != "" {
+		return e.RawAttributes
+	}
+	if len(e.RawAttributeBytes) > 0 {
+		e.RawAttributes = hex.EncodeToString(e.RawAttributeBytes)
+		return e.RawAttributes
+	}
+	return ""
+}
+
+// GetRawNLRIHex returns the hex-encoded NLRI string for a specific family.
+// If only the byte field is set (structured producer), encodes lazily.
+func (e *Event) GetRawNLRIHex(fam family.Family) string {
+	if e.RawNLRI != nil {
+		if s, ok := e.RawNLRI[fam]; ok {
+			return s
+		}
+	}
+	if e.RawNLRIBytes != nil {
+		if b, ok := e.RawNLRIBytes[fam]; ok {
+			s := hex.EncodeToString(b)
+			if e.RawNLRI == nil {
+				e.RawNLRI = make(map[family.Family]string, 1)
+			}
+			e.RawNLRI[fam] = s
+			return s
+		}
+	}
+	return ""
+}
+
+// GetRawAttributesBytes returns raw attribute bytes.
+// Returns the cached []byte when set by a structured producer,
+// otherwise decodes the hex string field.
 func (e *Event) GetRawAttributesBytes() []byte {
+	if e.RawAttributeBytes != nil {
+		return e.RawAttributeBytes
+	}
 	if e.RawAttributes == "" {
 		return nil
 	}
@@ -514,8 +585,14 @@ func (e *Event) GetRawAttributesBytes() []byte {
 }
 
 // GetRawNLRIBytes returns decoded NLRI bytes for a specific family.
-// Returns nil if not present or invalid hex.
+// Returns the cached []byte when set by a structured producer,
+// otherwise decodes the hex string field.
 func (e *Event) GetRawNLRIBytes(fam family.Family) []byte {
+	if e.RawNLRIBytes != nil {
+		if b, ok := e.RawNLRIBytes[fam]; ok {
+			return b
+		}
+	}
 	if e.RawNLRI == nil {
 		return nil
 	}
@@ -531,8 +608,14 @@ func (e *Event) GetRawNLRIBytes(fam family.Family) []byte {
 }
 
 // GetRawWithdrawnBytes returns decoded withdrawn bytes for a specific family.
-// Returns nil if not present or invalid hex.
+// Returns the cached []byte when set by a structured producer,
+// otherwise decodes the hex string field.
 func (e *Event) GetRawWithdrawnBytes(fam family.Family) []byte {
+	if e.RawWithdrawnBytes != nil {
+		if b, ok := e.RawWithdrawnBytes[fam]; ok {
+			return b
+		}
+	}
 	if e.RawWithdrawn == nil {
 		return nil
 	}
@@ -545,4 +628,42 @@ func (e *Event) GetRawWithdrawnBytes(fam family.Family) []byte {
 		return nil
 	}
 	return b
+}
+
+// RawNLRIFamilies returns the set of families with raw NLRI data,
+// merged from both byte and string maps.
+func (e *Event) RawNLRIFamilies() []family.Family {
+	if len(e.RawNLRIBytes) == 0 && len(e.RawNLRI) == 0 {
+		return nil
+	}
+	var buf [4]family.Family
+	fams := buf[:0]
+	for fam := range e.RawNLRIBytes {
+		fams = append(fams, fam)
+	}
+	for fam := range e.RawNLRI {
+		if _, ok := e.RawNLRIBytes[fam]; !ok {
+			fams = append(fams, fam)
+		}
+	}
+	return fams
+}
+
+// RawWithdrawnFamilies returns the set of families with raw withdrawn data,
+// merged from both byte and string maps.
+func (e *Event) RawWithdrawnFamilies() []family.Family {
+	if len(e.RawWithdrawnBytes) == 0 && len(e.RawWithdrawn) == 0 {
+		return nil
+	}
+	var buf [4]family.Family
+	fams := buf[:0]
+	for fam := range e.RawWithdrawnBytes {
+		fams = append(fams, fam)
+	}
+	for fam := range e.RawWithdrawn {
+		if _, ok := e.RawWithdrawnBytes[fam]; !ok {
+			fams = append(fams, fam)
+		}
+	}
+	return fams
 }

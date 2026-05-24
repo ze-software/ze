@@ -757,7 +757,7 @@ func (r *RIBManager) handleSent(event *Event) {
 						Communities:         parseCommunityStrings(event.Communities),
 						LargeCommunities:    parseLargeCommunityStrings(event.LargeCommunities),
 						ExtendedCommunities: parseExtCommunityStrings(event.ExtendedCommunities),
-						RawAttrs:            event.RawAttributes,
+						RawAttrs:            event.GetRawAttributesHex(),
 						Meta:                event.RouteMeta,
 						SourcePeer:          sourcePeer,
 					}
@@ -804,8 +804,9 @@ func (r *RIBManager) handleReceived(event *Event) {
 		return
 	}
 
-	// Require raw fields (format=full)
-	hasRawFields := event.RawAttributes != "" || len(event.RawNLRI) > 0 || len(event.RawWithdrawn) > 0
+	// Require raw fields (format=full or structured byte path)
+	hasRawFields := event.RawAttributes != "" || len(event.RawNLRI) > 0 || len(event.RawWithdrawn) > 0 ||
+		len(event.RawAttributeBytes) > 0 || len(event.RawNLRIBytes) > 0 || len(event.RawWithdrawnBytes) > 0
 	if !hasRawFields {
 		logger().Warn("received event: missing raw fields, requires format=full", "peer", peerAddr)
 		return
@@ -823,80 +824,66 @@ func (r *RIBManager) handleReceived(event *Event) {
 // handleReceivedPool stores routes in pool storage.
 // Caller must hold write lock.
 func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
-	// Initialize PeerRIB if needed
 	if r.bgpPeers[peerAddr] == nil {
 		r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
 	}
 	peerRIB := r.bgpPeers[peerAddr]
 
-	// Get raw attribute bytes
 	attrBytes := event.GetRawAttributesBytes()
 
-	// Process announcements (raw-nlri)
-	for fam, hexNLRI := range event.RawNLRI {
-		famStr := fam.String()
-		if !nlrisplit.Supported(fam) {
-			logger().Debug("pool: no splitter for family", "peer", peerAddr, "family", famStr)
-			continue
-		}
-
+	for _, fam := range event.RawNLRIFamilies() {
 		nlriBytes := event.GetRawNLRIBytes(fam)
-		if len(nlriBytes) == 0 {
-			continue
+		if len(nlriBytes) > 0 {
+			r.insertPoolNLRIs(peerRIB, peerAddr, fam, nlriBytes, attrBytes, event.AddPath[fam])
 		}
-
-		// RFC 7911: ADD-PATH per-family flag from negotiated capabilities (via format=full JSON).
-		addPath := event.AddPath[fam]
-		if addPath {
-			peerRIB.SetAddPath(fam, true)
-		}
-
-		// Split concatenated NLRIs and insert each via the family-registered splitter.
-		prefixes, err := nlrisplit.Split(fam, nlriBytes, addPath)
-		if err != nil {
-			logger().Warn("pool: split error, inserting parsed prefix", "peer", peerAddr, "family", famStr, "error", err, "parsed", len(prefixes))
-		}
-		for _, wirePrefix := range prefixes {
-			peerRIB.Insert(fam, attrBytes, wirePrefix, true)
-		}
-
-		if m := metricsPtr.Load(); m != nil {
-			m.routeInserts.With(peerAddr, famStr).Add(float64(len(prefixes)))
-		}
-
-		logger().Debug("pool: inserted routes", "peer", peerAddr, "family", famStr,
-			"count", len(prefixes), "hex", hexNLRI[:min(16, len(hexNLRI))])
 	}
 
-	// Process withdrawals (raw-withdrawn)
-	for fam := range event.RawWithdrawn {
-		famStr := fam.String()
-		if !nlrisplit.Supported(fam) {
-			continue
-		}
-
+	for _, fam := range event.RawWithdrawnFamilies() {
 		wdBytes := event.GetRawWithdrawnBytes(fam)
-		if len(wdBytes) == 0 {
-			continue
+		if len(wdBytes) > 0 {
+			r.removePoolNLRIs(peerRIB, peerAddr, fam, wdBytes, event.AddPath[fam])
 		}
-
-		// Split and remove each.
-		// RFC 7911: ADD-PATH per-family flag from negotiated capabilities (via format=full JSON).
-		addPath := event.AddPath[fam]
-		withdrawns, err := nlrisplit.Split(fam, wdBytes, addPath)
-		if err != nil {
-			logger().Warn("pool: withdrawal split error", "peer", peerAddr, "family", famStr, "error", err, "parsed", len(withdrawns))
-		}
-		for _, wd := range withdrawns {
-			peerRIB.Remove(fam, wd)
-		}
-
-		if m := metricsPtr.Load(); m != nil {
-			m.routeWithdrawals.With(peerAddr, famStr).Add(float64(len(withdrawns)))
-		}
-
-		logger().Debug("pool: withdrew routes", "peer", peerAddr, "family", famStr, "count", len(withdrawns))
 	}
+}
+
+func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, peerAddr string, fam family.Family, nlriBytes, attrBytes []byte, addPath bool) {
+	famStr := fam.String()
+	if !nlrisplit.Supported(fam) {
+		logger().Debug("pool: no splitter for family", "peer", peerAddr, "family", famStr)
+		return
+	}
+	if addPath {
+		peerRIB.SetAddPath(fam, true)
+	}
+	prefixes, err := nlrisplit.Split(fam, nlriBytes, addPath)
+	if err != nil {
+		logger().Warn("pool: split error, inserting parsed prefix", "peer", peerAddr, "family", famStr, "error", err, "parsed", len(prefixes))
+	}
+	for _, wirePrefix := range prefixes {
+		peerRIB.Insert(fam, attrBytes, wirePrefix, true)
+	}
+	if m := metricsPtr.Load(); m != nil {
+		m.routeInserts.With(peerAddr, famStr).Add(float64(len(prefixes)))
+	}
+	logger().Debug("pool: inserted routes", "peer", peerAddr, "family", famStr, "count", len(prefixes))
+}
+
+func (r *RIBManager) removePoolNLRIs(peerRIB *storage.PeerRIB, peerAddr string, fam family.Family, wdBytes []byte, addPath bool) {
+	famStr := fam.String()
+	if !nlrisplit.Supported(fam) {
+		return
+	}
+	withdrawns, err := nlrisplit.Split(fam, wdBytes, addPath)
+	if err != nil {
+		logger().Warn("pool: withdrawal split error", "peer", peerAddr, "family", famStr, "error", err, "parsed", len(withdrawns))
+	}
+	for _, wd := range withdrawns {
+		peerRIB.Remove(fam, wd)
+	}
+	if m := metricsPtr.Load(); m != nil {
+		m.routeWithdrawals.With(peerAddr, famStr).Add(float64(len(withdrawns)))
+	}
+	logger().Debug("pool: withdrew routes", "peer", peerAddr, "family", famStr, "count", len(withdrawns))
 }
 
 // handleRefresh processes a normal route refresh request from a peer.

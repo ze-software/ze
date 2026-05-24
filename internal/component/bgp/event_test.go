@@ -121,6 +121,104 @@ func TestParseEvent_FormatFullRawFields(t *testing.T) {
 	})
 }
 
+// TestEvent_ByteFieldsSkipHexRoundTrip verifies that events with byte fields
+// set directly (structured producer path) return the same data from accessors
+// without requiring hex string fields.
+//
+// VALIDATES: GetRaw*Bytes accessors prefer byte fields over hex decode.
+// VALIDATES: GetRaw*Hex accessors lazily encode bytes to hex.
+// VALIDATES: RawNLRIFamilies/RawWithdrawnFamilies enumerate byte-only maps.
+// PREVENTS: Structured events silently losing data when hex strings are empty.
+func TestEvent_ByteFieldsSkipHexRoundTrip(t *testing.T) {
+	attrBytes := []byte{0x40, 0x01, 0x01, 0x00}
+	nlriBytes := []byte{0x18, 0x0a, 0x00, 0x00}
+	wdBytes := []byte{0x18, 0x0a, 0x01, 0x00}
+
+	event := &Event{
+		RawAttributeBytes: attrBytes,
+		RawNLRIBytes:      map[family.Family][]byte{family.IPv4Unicast: nlriBytes},
+		RawWithdrawnBytes: map[family.Family][]byte{family.IPv4Unicast: wdBytes},
+	}
+
+	assert.Equal(t, attrBytes, event.GetRawAttributesBytes())
+	assert.Equal(t, nlriBytes, event.GetRawNLRIBytes(family.IPv4Unicast))
+	assert.Equal(t, wdBytes, event.GetRawWithdrawnBytes(family.IPv4Unicast))
+	assert.Nil(t, event.GetRawNLRIBytes(family.IPv6Unicast))
+
+	assert.Equal(t, "40010100", event.GetRawAttributesHex())
+	assert.Equal(t, "180a0000", event.GetRawNLRIHex(family.IPv4Unicast))
+	assert.Equal(t, "", event.GetRawNLRIHex(family.IPv6Unicast))
+
+	nlriFams := event.RawNLRIFamilies()
+	require.Len(t, nlriFams, 1)
+	assert.Equal(t, family.IPv4Unicast, nlriFams[0])
+
+	wdFams := event.RawWithdrawnFamilies()
+	require.Len(t, wdFams, 1)
+	assert.Equal(t, family.IPv4Unicast, wdFams[0])
+}
+
+// TestEvent_StringFieldsFallback verifies that events with only hex string fields
+// (JSON-sourced, no byte cache) still work through the accessors.
+//
+// VALIDATES: GetRaw*Bytes falls back to hex decode when byte fields are nil.
+// PREVENTS: Regression in JSON-sourced event handling.
+func TestEvent_StringFieldsFallback(t *testing.T) {
+	event := &Event{
+		RawAttributes: "40010100",
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		RawWithdrawn:  map[family.Family]string{family.IPv4Unicast: "180a0100"},
+	}
+
+	assert.Equal(t, []byte{0x40, 0x01, 0x01, 0x00}, event.GetRawAttributesBytes())
+	assert.Equal(t, []byte{0x18, 0x0a, 0x00, 0x00}, event.GetRawNLRIBytes(family.IPv4Unicast))
+	assert.Equal(t, []byte{0x18, 0x0a, 0x01, 0x00}, event.GetRawWithdrawnBytes(family.IPv4Unicast))
+
+	assert.Equal(t, "40010100", event.GetRawAttributesHex())
+	assert.Equal(t, "180a0000", event.GetRawNLRIHex(family.IPv4Unicast))
+
+	fams := event.RawNLRIFamilies()
+	require.Len(t, fams, 1)
+	assert.Equal(t, family.IPv4Unicast, fams[0])
+}
+
+// TestParseEvent_FormatFullCachesByteFields verifies that parseRawFields
+// populates the byte cache alongside the hex strings.
+//
+// VALIDATES: JSON-parsed events have RawAttributeBytes, RawNLRIBytes set.
+// PREVENTS: JSON events paying double hex decode on accessor calls.
+func TestParseEvent_FormatFullCachesByteFields(t *testing.T) {
+	input := `{"type":"bgp","bgp":{
+		"peer":{"address":"10.0.0.1","remote":{"as":65001}},
+		"message":{"type":"update","id":1,"direction":"received"},
+		"update":{},
+		"raw":{"attributes":"40010100","nlri":{"ipv4/unicast":"180a0000"},"withdrawn":{"ipv4/unicast":"180a0100"}}
+	}}`
+
+	event, err := ParseEvent([]byte(input))
+	require.NoError(t, err)
+
+	require.NotNil(t, event.RawAttributeBytes)
+	assert.Equal(t, []byte{0x40, 0x01, 0x01, 0x00}, event.RawAttributeBytes)
+
+	require.NotNil(t, event.RawNLRIBytes)
+	assert.Equal(t, []byte{0x18, 0x0a, 0x00, 0x00}, event.RawNLRIBytes[family.IPv4Unicast])
+
+	require.NotNil(t, event.RawWithdrawnBytes)
+	assert.Equal(t, []byte{0x18, 0x0a, 0x01, 0x00}, event.RawWithdrawnBytes[family.IPv4Unicast])
+}
+
+// TestEvent_InvalidHexReturnsNil verifies that invalid hex in string fields
+// returns nil from accessors without panicking.
+func TestEvent_InvalidHexReturnsNil(t *testing.T) {
+	event := &Event{
+		RawAttributes: "zzzz",
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "not-hex"},
+	}
+	assert.Nil(t, event.GetRawAttributesBytes())
+	assert.Nil(t, event.GetRawNLRIBytes(family.IPv4Unicast))
+}
+
 // TestParseEvent_AddPathField verifies ADD-PATH per-family flags from format=full events.
 //
 // VALIDATES: ParseEvent extracts raw.add-path map into Event.AddPath.
@@ -283,5 +381,55 @@ func TestRouteKey(t *testing.T) {
 			got := RouteKey(tt.family, tt.prefix, tt.pathID)
 			assert.Equal(t, tt.want, got)
 		})
+	}
+}
+
+// BenchmarkGetRawAttributesBytes_ByteField measures the direct byte path
+// (structured producer, no hex decode).
+func BenchmarkGetRawAttributesBytes_ByteField(b *testing.B) {
+	event := &Event{
+		RawAttributeBytes: []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xfd, 0xe9},
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = event.GetRawAttributesBytes()
+	}
+}
+
+// BenchmarkGetRawAttributesBytes_HexDecode measures the hex decode fallback
+// (JSON-sourced events without byte cache).
+func BenchmarkGetRawAttributesBytes_HexDecode(b *testing.B) {
+	event := &Event{
+		RawAttributes: "400101004002060201000000fde9",
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = event.GetRawAttributesBytes()
+	}
+}
+
+// BenchmarkGetRawNLRIBytes_ByteField measures direct byte access per family.
+func BenchmarkGetRawNLRIBytes_ByteField(b *testing.B) {
+	event := &Event{
+		RawNLRIBytes: map[family.Family][]byte{
+			family.IPv4Unicast: {0x18, 0x0a, 0x00, 0x00, 0x18, 0x0a, 0x01, 0x00, 0x18, 0x0a, 0x02, 0x00},
+		},
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = event.GetRawNLRIBytes(family.IPv4Unicast)
+	}
+}
+
+// BenchmarkGetRawNLRIBytes_HexDecode measures the hex decode fallback per family.
+func BenchmarkGetRawNLRIBytes_HexDecode(b *testing.B) {
+	event := &Event{
+		RawNLRI: map[family.Family]string{
+			family.IPv4Unicast: "180a0000180a0100180a0200",
+		},
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = event.GetRawNLRIBytes(family.IPv4Unicast)
 	}
 }

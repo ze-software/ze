@@ -438,8 +438,12 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 	// Use parsed AS_PATH (already ASN4-normalized) when available.
 	// Fall back to raw attribute parsing only if ASPath is empty.
 	originAS := originASFromParsed(event.ASPath)
-	if originAS == OriginNone && event.RawAttributes != "" {
-		originAS = extractOriginAS(event.RawAttributes)
+	if originAS == OriginNone {
+		if len(event.RawAttributeBytes) > 0 {
+			originAS = extractOriginASFromBytes(event.RawAttributeBytes)
+		} else if event.RawAttributes != "" {
+			originAS = extractOriginAS(event.RawAttributes)
+		}
 	}
 
 	// Check if ROA cache is empty (unavailable).
