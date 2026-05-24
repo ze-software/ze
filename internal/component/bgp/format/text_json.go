@@ -372,6 +372,15 @@ func appendAttributeJSON(buf []byte, code attribute.AttributeCode, attr attribut
 			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
 		}
 		return buf
+	case attribute.AttrNextHop:
+		if nh, ok := attr.(*attribute.NextHop); ok {
+			buf = attrKeyOpen(buf, "next-hop", includeFlags)
+			buf = append(buf, '"')
+			buf = nh.Addr.AppendTo(buf)
+			buf = append(buf, '"')
+			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
+		}
+		return buf
 	case attribute.AttrASPath:
 		if ap, ok := attr.(*attribute.ASPath); ok {
 			buf = attrKeyOpen(buf, "as-path", includeFlags)
