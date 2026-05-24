@@ -123,3 +123,26 @@ func (mm *MonitorManager) Deliver(namespace, eventType, direction, peerAddr, pee
 		}
 	}
 }
+
+// DeliverLazy sends an event to matching monitors, invoking build only when
+// at least one monitor matches. This avoids formatting cost for events that
+// no monitor subscribes to (the common case when structured plugin consumers
+// are present but no CLI monitor is attached). build is called outside the
+// manager lock so JSON formatting does not block monitor registration.
+// peerName is the configured peer name (may be empty).
+//
+// Race note: GetMatching releases mm.mu before build() and enqueue() run, so
+// a concurrent Remove(id) may drop a monitor between matching and delivery.
+// That is safe: enqueue uses a non-blocking send on a buffered channel that
+// the removed client's reader will simply stop consuming on Ctx cancellation.
+// The dropped counter on the removed client may tick up, which is harmless.
+func (mm *MonitorManager) DeliverLazy(namespace, eventType, direction, peerAddr, peerName string, build func() string) {
+	matches := mm.GetMatching(namespace, eventType, direction, peerAddr, peerName)
+	if len(matches) == 0 {
+		return
+	}
+	output := build()
+	for _, mc := range matches {
+		mc.enqueue(output)
+	}
+}

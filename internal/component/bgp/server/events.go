@@ -240,12 +240,14 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 		}
 	}
 
-	// Deliver to CLI monitors. Reuse json+parsed from format cache if available.
-	jsonOutput, ok := fmtCache.get(monitorFormatKey)
-	if !ok {
-		jsonOutput = formatMessageForSubscription(encoder, peer, msg, "parsed", "json")
-	}
-	monitorDeliver(s, eventTypeStr, dirStr, peerAddr, peer.Name, jsonOutput)
+	// Deliver to CLI monitors lazily: only format json+parsed when a monitor matches.
+	// Reuse the value from fmtCache if a text/JSON plugin already produced it.
+	monitorDeliverLazy(s, eventTypeStr, dirStr, peerAddr, peer.Name, func() string {
+		if jsonOutput, ok := fmtCache.get(monitorFormatKey); ok {
+			return jsonOutput
+		}
+		return formatMessageForSubscription(encoder, peer, msg, "parsed", "json")
+	})
 
 	return cacheCount
 }
@@ -342,12 +344,14 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 
 		counts[i] = cacheCount
 
-		// Deliver to CLI monitors per message (non-blocking).
-		jsonOutput, ok := fmtCache.get(monitorFormatKey)
-		if !ok {
-			jsonOutput = formatMessageForSubscription(encoder, peer, *msg, "parsed", "json")
-		}
-		monitorDeliver(s, eventTypeStr, msg.Direction.String(), peerAddr, peer.Name, jsonOutput)
+		// Deliver to CLI monitors per message (non-blocking) — lazy: only format
+		// json+parsed when a monitor matches this message's peer/event/direction.
+		monitorDeliverLazy(s, eventTypeStr, msg.Direction.String(), peerAddr, peer.Name, func() string {
+			if jsonOutput, ok := fmtCache.get(monitorFormatKey); ok {
+				return jsonOutput
+			}
+			return formatMessageForSubscription(encoder, peer, *msg, "parsed", "json")
+		})
 
 		// RFC 4724 Section 2: detect EOR markers in received UPDATEs.
 		if isUpdate && msg.Direction == rpc.DirectionReceived && msg.WireUpdate != nil {
@@ -431,12 +435,13 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.Peer
 	}
 }
 
-// monitorDeliver delivers a pre-formatted JSON event to matching CLI monitors.
-// Called after plugin delivery in each event function. The output must be the
-// json+parsed format string. This is a no-op if no monitors match.
-// All events in this package are BGP namespace, so namespace is hardcoded.
-func monitorDeliver(s *pluginserver.Server, eventType, direction, peerAddr, peerName, jsonOutput string) {
-	s.Monitors().Deliver(bgpevents.Namespace, eventType, direction, peerAddr, peerName, jsonOutput)
+// monitorDeliverLazy delivers an event to matching CLI monitors, invoking build
+// only if at least one monitor matches. Use this in place of monitorDeliver
+// whenever the JSON output is built solely for monitor delivery, so structured
+// plugin consumers do not pay the parsed-JSON formatting cost when no monitor
+// is attached.
+func monitorDeliverLazy(s *pluginserver.Server, eventType, direction, peerAddr, peerName string, build func() string) {
+	s.Monitors().DeliverLazy(bgpevents.Namespace, eventType, direction, peerAddr, peerName, build)
 }
 
 // deliverToProcs enqueues events to long-lived per-process delivery goroutines and
@@ -571,12 +576,13 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 		}
 	}
 
-	// Deliver to CLI monitors.
-	jsonOutput, ok := fmtCache.get("json")
-	if !ok {
-		jsonOutput = string(format.AppendStateChange(scratchArr[:0], peer, state, reason, "json"))
-	}
-	monitorDeliver(s, bgpevents.EventState, "", peerAddr, peer.Name, jsonOutput)
+	// Deliver to CLI monitors lazily.
+	monitorDeliverLazy(s, bgpevents.EventState, "", peerAddr, peer.Name, func() string {
+		if jsonOutput, ok := fmtCache.get("json"); ok {
+			return jsonOutput
+		}
+		return string(format.AppendStateChange(scratchArr[:0], peer, state, reason, "json"))
+	})
 }
 
 // onPeerNegotiated handles capability negotiation completion.
@@ -603,12 +609,22 @@ func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer 
 	// Format once — negotiated output is identical for all plugins (always JSON).
 	// FormatNegotiated was a one-line wrapper around encoder.Negotiated; rewire
 	// directly now that the wrapper is deleted (spec-fmt-1-text-update AC-3).
-	output := encoder.Negotiated(peer, decoded)
+	// If there are no text/JSON plugins, defer formatting to lazy monitor delivery.
+	var output string
+	var formatted bool
+	if len(procs) > 0 {
+		output = encoder.Negotiated(peer, decoded)
+		formatted = true
+		deliverToProcs(s, procs, output, "OnPeerNegotiated")
+	}
 
-	deliverToProcs(s, procs, output, "OnPeerNegotiated")
-
-	// Deliver to CLI monitors (negotiated is always JSON format).
-	monitorDeliver(s, bgpevents.EventNegotiated, "", peerAddr, peer.Name, output)
+	// Deliver to CLI monitors (negotiated is always JSON format) lazily.
+	monitorDeliverLazy(s, bgpevents.EventNegotiated, "", peerAddr, peer.Name, func() string {
+		if formatted {
+			return output
+		}
+		return encoder.Negotiated(peer, decoded)
+	})
 }
 
 // onEORReceived handles End-of-RIB marker detection.
@@ -661,12 +677,13 @@ func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string)
 		}
 	}
 
-	// Deliver to CLI monitors.
-	jsonOutput, ok := fmtCache.get("json")
-	if !ok {
-		jsonOutput = string(format.AppendEOR(scratchArr[:0], peer, family, "json"))
-	}
-	monitorDeliver(s, bgpevents.EventEOR, events.DirectionReceived, peerAddr, peer.Name, jsonOutput)
+	// Deliver to CLI monitors lazily.
+	monitorDeliverLazy(s, bgpevents.EventEOR, events.DirectionReceived, peerAddr, peer.Name, func() string {
+		if jsonOutput, ok := fmtCache.get("json"); ok {
+			return jsonOutput
+		}
+		return string(format.AppendEOR(scratchArr[:0], peer, family, "json"))
+	})
 
 	// Cross-component consumers receive (bgp, eor) via the EventBus.
 	if eorEventBus != nil {
@@ -751,18 +768,22 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 		proc.Deliver(delivery)
 	}
 
-	// Deliver to CLI monitors. Reuse json+parsed from format cache if available.
-	jsonOutput, ok := fmtCache.get(monitorFormatKey)
-	if !ok {
+	// Deliver to CLI monitors lazily: only format json+parsed when a monitor matches.
+	// Reuse sentScratch (already allocated above for the plugin pass): by the time
+	// this closure runs, its contents have been copied into fmtCache strings and
+	// the backing storage is free to reuse. Declaring a fresh scratch inside the
+	// closure body would force a heap allocation even though the closure does not
+	// escape.
+	monitorDeliverLazy(s, eventTypeStr, events.DirectionSent, peerAddr, peer.Name, func() string {
+		if jsonOutput, ok := fmtCache.get(monitorFormatKey); ok {
+			return jsonOutput
+		}
 		if isUpdate {
 			content := bgptypes.ContentConfig{Encoding: "json", Format: "parsed"}
-			var monScratch [4096]byte
-			jsonOutput = string(format.AppendSentMessage(monScratch[:0], peer, msg, content))
-		} else {
-			jsonOutput = formatMessageForSubscription(encoder, peer, msg, "parsed", "json")
+			return string(format.AppendSentMessage(sentScratch[:0], peer, msg, content))
 		}
-	}
-	monitorDeliver(s, eventTypeStr, events.DirectionSent, peerAddr, peer.Name, jsonOutput)
+		return formatMessageForSubscription(encoder, peer, msg, "parsed", "json")
+	})
 }
 
 // onPeerCongestionChange handles forward-path congestion state transitions.
@@ -816,10 +837,11 @@ func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, event
 		}
 	}
 
-	// Deliver to CLI monitors.
-	jsonOutput, ok := fmtCache.get("json")
-	if !ok {
-		jsonOutput = string(format.AppendCongestion(scratchArr[:0], peer, eventType, "json"))
-	}
-	monitorDeliver(s, eventType, "", peerAddr, peer.Name, jsonOutput)
+	// Deliver to CLI monitors lazily.
+	monitorDeliverLazy(s, eventType, "", peerAddr, peer.Name, func() string {
+		if jsonOutput, ok := fmtCache.get("json"); ok {
+			return jsonOutput
+		}
+		return string(format.AppendCongestion(scratchArr[:0], peer, eventType, "json"))
+	})
 }
