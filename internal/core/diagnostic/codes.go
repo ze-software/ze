@@ -199,4 +199,16 @@ var builtinCodes = []CodeMeta{
 		Description: "An ethernet interface named in the config exists but its link is not up.",
 		Examples:    []string{"ze doctor --json"},
 	},
+	{
+		Code:        "doctor-clock-skew",
+		Title:       "System clock skewed",
+		Description: "The system clock differs from NTP by more than 5 minutes. TLS validation, BGP timers, and log correlation may be affected.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-vpp-version",
+		Title:       "VPP version check failed",
+		Description: "The VPP version could not be determined or is not compatible with the expected API.",
+		Examples:    []string{"ze doctor --json"},
+	},
 }

@@ -130,6 +130,134 @@ func TestSessionFlapDetection(t *testing.T) {
 	}
 }
 
+func TestEORTimeoutWarning(t *testing.T) {
+	report.ResetForTest()
+
+	clk := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	sh := newTestSessionHealth("192.0.2.10", clk)
+
+	// Start EOR timer: 1 second timeout, 2 families expected.
+	sh.startEORTimer(1, 2)
+
+	// Before timeout: no warning.
+	warnings := report.Warnings()
+	for _, w := range warnings {
+		if w.Code == reportCodeEORTimeout {
+			t.Fatal("eor-timeout warning raised before timeout")
+		}
+	}
+
+	time.Sleep(1200 * time.Millisecond)
+
+	warnings = report.Warnings()
+	found := false
+	for _, w := range warnings {
+		if w.Code == reportCodeEORTimeout && w.Subject == "192.0.2.10" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("eor-timeout warning not raised after timeout")
+	}
+
+	sh.stop()
+}
+
+func TestEORTimeoutClearedOnAllFamilies(t *testing.T) {
+	report.ResetForTest()
+
+	clk := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	sh := newTestSessionHealth("192.0.2.11", clk)
+
+	// 2 families expected, 1 second timeout.
+	sh.startEORTimer(1, 2)
+
+	time.Sleep(1200 * time.Millisecond)
+
+	// Verify warning is raised.
+	warnings := report.Warnings()
+	found := false
+	for _, w := range warnings {
+		if w.Code == reportCodeEORTimeout && w.Subject == "192.0.2.11" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("eor-timeout warning not raised")
+	}
+
+	// First EOR: one family still pending, warning stays.
+	sh.onEORReceived()
+	warnings = report.Warnings()
+	stillActive := false
+	for _, w := range warnings {
+		if w.Code == reportCodeEORTimeout && w.Subject == "192.0.2.11" {
+			stillActive = true
+		}
+	}
+	if !stillActive {
+		t.Fatal("eor-timeout warning cleared after only 1 of 2 family EORs")
+	}
+
+	// Second EOR: all families done, warning clears.
+	sh.onEORReceived()
+	warnings = report.Warnings()
+	for _, w := range warnings {
+		if w.Code == reportCodeEORTimeout && w.Subject == "192.0.2.11" {
+			t.Fatal("eor-timeout warning not cleared after all family EORs received")
+		}
+	}
+
+	sh.stop()
+}
+
+func TestEORTimeoutCancelledBeforeFiring(t *testing.T) {
+	report.ResetForTest()
+
+	clk := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	sh := newTestSessionHealth("192.0.2.12", clk)
+
+	// 1 family, 2 second timeout.
+	sh.startEORTimer(2, 1)
+
+	// EOR received before timeout.
+	sh.onEORReceived()
+
+	time.Sleep(2200 * time.Millisecond)
+
+	// Warning should never have fired.
+	warnings := report.Warnings()
+	for _, w := range warnings {
+		if w.Code == reportCodeEORTimeout && w.Subject == "192.0.2.12" {
+			t.Fatal("eor-timeout warning raised despite EOR received before timeout")
+		}
+	}
+
+	sh.stop()
+}
+
+func TestEORTimeoutZeroRestartTime(t *testing.T) {
+	report.ResetForTest()
+
+	clk := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	sh := newTestSessionHealth("192.0.2.13", clk)
+
+	// Zero restart-time means GR timer is disabled.
+	sh.startEORTimer(0, 2)
+
+	time.Sleep(100 * time.Millisecond)
+
+	warnings := report.Warnings()
+	for _, w := range warnings {
+		if w.Code == reportCodeEORTimeout {
+			t.Fatal("eor-timeout should not fire with restart-time=0")
+		}
+	}
+
+	sh.stop()
+}
+
 func TestSessionFlapNotTriggeredWithSlowTransitions(t *testing.T) {
 	report.ResetForTest()
 

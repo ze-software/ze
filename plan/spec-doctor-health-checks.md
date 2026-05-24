@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-05-22 |
+| Phase | 12/12 |
+| Updated | 2026-05-23 |
 
 ## Post-Compaction Recovery
 
@@ -453,17 +453,81 @@ BGP session monitoring observes existing FSM; no new RFC requirements.
 
 ## Implementation Summary
 
-### What Was Implemented
-- [pending]
+### What Was Implemented (commit 95353888c)
+- AC-7: registered missing `doctor-store-integrity` diagnostic code
+- AC-1/AC-2: `checkConfigReferences()` with namespace-aware filter name resolution
+- AC-3: `checkDNSResolvers()` with per-server probe and NXDOMAIN-counts-as-responded
+- AC-4: `checkDiskSpace()` using syscall.Statfs, <5% threshold
+- AC-8: `session-stuck` warning (5-min timer, raise/clear, stopped flag for race safety)
+- AC-9: `session-flap` warning (ring buffer, 3 transitions in 5 min)
+- 4 new diagnostic codes: doctor-store-integrity, doctor-config-reference, doctor-disk-space, doctor-dns-resolver
+- sessionHealth wired into Peer (create, setState, all 3 removal paths)
+- 17 new unit tests
+
+### What Was Implemented (session 32579)
+- AC-10: `route-count-anomaly` error on report bus when >50% prefix drop in single UPDATE
+  - `totalCount()` on `prefixCounts`, anomaly check via defer in `checkPrefixLimits`
+  - 3 tests: main case, zero-start, exact-50%-boundary
+- AC-11: `eor-timeout` warning when End-of-RIB not received within GR restart-time
+  - `startEORTimer(restartSeconds)` + `onEORReceived()` on `sessionHealth`
+  - Wired: `peer_run.go` starts timer on Established+GR, `reactor_notify.go` clears on EOR
+  - 4 tests: timeout fires, cleared on EOR, cancelled before firing, zero restart-time
+
+### What Was Implemented (session 32579, cont.)
+- AC-12: `fib-sync-failure` error on report bus for add/replace/delete failures in `processEvent`
+  - 2 tests: add failure, replace failure
+- AC-13: `fib-orphan` warning raised during `sweepStale` with orphan count, cleared when none
+  - 2 tests: orphan detected, no orphans after refresh
+- AC-14: `fib-programming-lag` warning when routes pending >30s (tracked via `pending` map)
+  - `trackPendingLocked` records first-failure time, `checkPendingLagLocked` raises/clears
+  - 2 tests: lag detected after 31s, cleared after successful install
+
+### What Was Implemented (session 32579, cont.)
+- AC-15: `firewall-stale-table` warning via `AuditTables()` comparing kernel ListTables vs LastApplied
+  - 1 test: stale table detected
+- AC-16: `firewall-drift` warning when chain count differs between kernel and config
+  - 1 test: drift detected, 1 test: clean audit
+- New file: `internal/component/firewall/audit.go`
+
+### What Was Implemented (session 32579, cont.)
+- AC-17: `plugin-crash` error + `plugin-down` warning in ProcessManager.Respawn
+  - Error on every crash, warning when respawn limit exceeded, cleared on successful restart
+  - 1 test: crash raises error, disabled raises warning
+- AC-19: `iface-errors` warning via `CheckInterfaceErrors` / `checkErrorsFromStats`
+  - Tracks per-interface error snapshots, raises warning on delta > 0
+  - 2 tests: errors detected, cleared when stable
+- New files: `internal/component/firewall/audit.go`, `internal/component/iface/health.go`
+
+### What Was Implemented (session 32579, cont.)
+- AC-20: health registry extended with bgp, fib, firewall, plugins components
+  - `checkBGPHealth`, `checkFIBHealth`, `checkFirewallHealth`, `checkPluginHealth`
+  - plugin-down produces StatusDown; others produce StatusDegraded
+  - 3 tests: BGP degraded, plugin down, registry aggregation
+- AC-21: `/health` endpoint includes new components (via existing handler)
+  - Verified: 503 when any component is down
+- New file: `internal/component/cmd/show/health_checks.go`
+
+### What Was Implemented (session 32579, final)
+- AC-5: `checkClockSkew()` SNTP query to pool.ntp.org, warns at >5 min skew
+  - `doctor-clock-skew` diagnostic code registered
+
+### What Was Implemented (session 32579, final cont.)
+- AC-6: `checkVPPVersion()` runs `vppctl show version` when VPP backend configured (Linux-only)
+  - Stub in checks_other.go for non-Linux. `doctor-vpp-version` diagnostic code registered.
+- AC-18: `checkVPPHealth()` probes VPP API socket, returns down/degraded/healthy
+  - Registered in health registry as "vpp" component
+
+### What Remains
+- All ACs implemented (AC-1 through AC-21)
 
 ### Bugs Found/Fixed
-- [pending]
+- `doctor-store-integrity` code was used in doctor.go but not registered in codes.go (AC-7)
 
 ### Documentation Updates
-- [pending]
+- [pending -- docs update deferred until remaining ACs complete]
 
 ### Deviations from Plan
-- [pending]
+- AC-5 (clock skew) and AC-6 (VPP version) not yet implemented, deferred to next phase
 
 ## Implementation Audit
 

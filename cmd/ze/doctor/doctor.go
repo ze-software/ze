@@ -118,6 +118,8 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkDiskSpace()...)
 	diags = append(diags, checkDNSResolvers(tree)...)
 	diags = append(diags, checkConfigReferences(tree)...)
+	diags = append(diags, checkClockSkew()...)
+	diags = append(diags, checkVPPVersion(tree)...)
 
 	return diags
 }
@@ -715,6 +717,56 @@ func dnsServerResponds(addr string) bool {
 		return true
 	}
 	return false
+}
+
+const clockSkewThreshold = 5 * time.Minute
+
+// checkClockSkew queries a public NTP pool and warns if the system clock
+// is off by more than 5 minutes. Uses a lightweight SNTP request (mode 3)
+// rather than a full NTP client.
+func checkClockSkew() []diagnostic.Diagnostic {
+	dialer := net.Dialer{Timeout: 3 * time.Second}
+	conn, err := dialer.DialContext(context.Background(), "udp", "pool.ntp.org:123")
+	if err != nil {
+		return nil // network unavailable, skip silently
+	}
+	defer func() { _ = conn.Close() }()
+
+	_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
+
+	// SNTP request: version 3, mode 3 (client), 48 bytes.
+	req := make([]byte, 48)
+	req[0] = 0x1B // LI=0, VN=3, Mode=3
+	if _, err := conn.Write(req); err != nil {
+		return nil
+	}
+
+	resp := make([]byte, 48)
+	if _, err := conn.Read(resp); err != nil {
+		return nil
+	}
+
+	// Transmit timestamp starts at byte 40 (seconds since 1900-01-01).
+	const ntpEpochOffset = 2208988800 // seconds between 1900 and 1970
+	secs := uint64(resp[40])<<24 | uint64(resp[41])<<16 | uint64(resp[42])<<8 | uint64(resp[43])
+	if secs < ntpEpochOffset {
+		return nil // invalid response
+	}
+	ntpTime := time.Unix(int64(secs-ntpEpochOffset), 0)
+	skew := time.Since(ntpTime)
+	if skew < 0 {
+		skew = -skew
+	}
+
+	if skew > clockSkewThreshold {
+		var b textbuf.Buffer
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-clock-skew",
+			Severity: diagnostic.SeverityWarning,
+			Message:  b.Reset().Str("system clock skewed by ").Int(int64(skew / time.Second)).Str("s (threshold ").Int(int64(clockSkewThreshold / time.Second)).Str("s)").String(),
+		}}
+	}
+	return nil
 }
 
 func resolvePath(p, configDir string) string {

@@ -14,6 +14,7 @@ import (
 
 const reportCodeSessionStuck = "session-stuck"
 const reportCodeSessionFlap = "session-flap"
+const reportCodeEORTimeout = "eor-timeout"
 
 const (
 	sessionStuckTimeout = 5 * time.Minute
@@ -21,8 +22,8 @@ const (
 	flapThreshold       = 3
 )
 
-// sessionHealth tracks session-stuck and flap detection state for a single peer.
-// All methods are safe for concurrent use.
+// sessionHealth tracks session-stuck, flap detection, and EOR timeout state
+// for a single peer. All methods are safe for concurrent use.
 type sessionHealth struct {
 	mu           sync.Mutex
 	peerAddr     string
@@ -34,6 +35,11 @@ type sessionHealth struct {
 	// Bounded at flapThreshold+1 entries.
 	flapTimes []time.Time
 	flapWarn  bool
+	// EOR timeout: timer fires warning if not all End-of-RIB markers are
+	// received within the negotiated GR restart-time after Established.
+	eorTick     *time.Timer
+	eorExpected int // number of negotiated families expecting EOR
+	eorReceived int // how many family EORs received so far
 }
 
 func newSessionHealth(peerAddr string, clk interface{ Now() time.Time }) *sessionHealth {
@@ -56,12 +62,16 @@ func (sh *sessionHealth) onStateChange(from, to PeerState) {
 
 	case PeerStateStopped:
 		sh.clearStuckLocked()
+		sh.clearEORLocked()
 		report.ClearWarning(reportSourceBGP, reportCodeSessionStuck, sh.peerAddr)
+		report.ClearWarning(reportSourceBGP, reportCodeEORTimeout, sh.peerAddr)
 
 	case PeerStateConnecting, PeerStateActive:
 		if from == PeerStateEstablished {
 			sh.recordFlapLocked()
 		}
+		sh.clearEORLocked()
+		report.ClearWarning(reportSourceBGP, reportCodeEORTimeout, sh.peerAddr)
 		sh.startStuckTimerLocked()
 	}
 }
@@ -92,6 +102,69 @@ func (sh *sessionHealth) clearStuckLocked() {
 		sh.stuckTick.Stop()
 		sh.stuckTick = nil
 	}
+}
+
+// startEORTimer begins a timer that raises an eor-timeout warning if not all
+// End-of-RIB markers are received within restartSeconds. familyCount is the
+// number of negotiated address families; the warning clears only when that
+// many EORs have been received (or the session ends). Called from peer_run.go
+// after the session reaches Established with GR negotiated.
+func (sh *sessionHealth) startEORTimer(restartSeconds uint16, familyCount int) {
+	if restartSeconds == 0 || familyCount == 0 {
+		return
+	}
+	timeout := time.Duration(restartSeconds) * time.Second
+
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+
+	sh.clearEORLocked()
+	sh.eorExpected = familyCount
+	sh.eorReceived = 0
+	sh.eorTick = time.AfterFunc(timeout, func() {
+		sh.mu.Lock()
+		if sh.stopped {
+			sh.mu.Unlock()
+			return
+		}
+		remaining := sh.eorExpected - sh.eorReceived
+		if remaining <= 0 {
+			sh.mu.Unlock()
+			return
+		}
+		addr := sh.peerAddr
+		report.RaiseWarning(
+			reportSourceBGP,
+			reportCodeEORTimeout,
+			addr,
+			"End-of-RIB incomplete: "+textbuf.Int(int64(remaining))+" of "+textbuf.Int(int64(sh.eorExpected))+" families pending after "+textbuf.Int(int64(restartSeconds))+"s",
+			map[string]any{"restart_time": restartSeconds, "pending": remaining, "expected": sh.eorExpected},
+		)
+		sh.mu.Unlock()
+	})
+}
+
+// onEORReceived records one family EOR. If all expected families have sent
+// EOR, cancels the timeout timer and clears any warning. Called from
+// reactor_notify.go when an EOR marker is detected.
+func (sh *sessionHealth) onEORReceived() {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+
+	sh.eorReceived++
+	if sh.eorExpected > 0 && sh.eorReceived >= sh.eorExpected {
+		sh.clearEORLocked()
+		report.ClearWarning(reportSourceBGP, reportCodeEORTimeout, sh.peerAddr)
+	}
+}
+
+func (sh *sessionHealth) clearEORLocked() {
+	if sh.eorTick != nil {
+		sh.eorTick.Stop()
+		sh.eorTick = nil
+	}
+	sh.eorExpected = 0
+	sh.eorReceived = 0
 }
 
 func (sh *sessionHealth) recordFlapLocked() {
@@ -138,8 +211,10 @@ func (sh *sessionHealth) stop() {
 
 	sh.stopped = true
 	sh.clearStuckLocked()
+	sh.clearEORLocked()
 	sh.flapTimes = nil
 	sh.flapWarn = false
 	report.ClearWarning(reportSourceBGP, reportCodeSessionStuck, sh.peerAddr)
 	report.ClearWarning(reportSourceBGP, reportCodeSessionFlap, sh.peerAddr)
+	report.ClearWarning(reportSourceBGP, reportCodeEORTimeout, sh.peerAddr)
 }

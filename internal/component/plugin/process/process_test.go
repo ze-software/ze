@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -725,4 +726,56 @@ func TestInternalPluginRunnerPanicRecovery(t *testing.T) {
 
 	// Verify the process is no longer running.
 	assert.False(t, proc.Running(), "process should not be running after panic")
+}
+
+// VALIDATES: AC-17 -- plugin crash raises plugin-crash error on report bus,
+// and plugin-down warning when disabled.
+// PREVENTS: Silent plugin failures going unnoticed by operators.
+func TestPluginCrashReportBus(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	pm := NewProcessManager([]plugin.PluginConfig{
+		{Name: "crash", Internal: true, Encoder: "json", RespawnEnabled: true},
+	})
+
+	err := pm.Start()
+	require.NoError(t, err)
+	defer pm.Stop()
+
+	// First respawn: plugin-crash error should appear.
+	_ = pm.Respawn("crash")
+
+	errs := report.Errors(0)
+	found := false
+	for _, e := range errs {
+		if e.Code == reportCodePluginCrash && e.Subject == "crash" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("plugin-crash error not raised on Respawn")
+	}
+
+	// Exhaust respawn limit to trigger plugin-down warning.
+	for range RespawnLimit + 2 {
+		respawnErr := pm.Respawn("crash")
+		if errors.Is(respawnErr, ErrRespawnLimitExceeded) || errors.Is(respawnErr, ErrProcessDisabled) {
+			break
+		}
+		require.Eventually(t, func() bool {
+			return !pm.IsRunning("crash")
+		}, 2*time.Second, time.Millisecond)
+	}
+
+	warnings := report.Warnings()
+	downFound := false
+	for _, w := range warnings {
+		if w.Code == reportCodePluginDown && w.Subject == "crash" {
+			downFound = true
+		}
+	}
+	if !downFound {
+		t.Fatal("plugin-down warning not raised after respawn limit exceeded")
+	}
 }

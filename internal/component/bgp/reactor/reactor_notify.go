@@ -224,6 +224,10 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 				if wireUpdate != nil {
 					if _, isEOR := wireUpdate.IsEOR(); isEOR {
 						peer.IncrEORReceived()
+						// Cancel EOR timeout warning (AC-11).
+						if peer.health != nil {
+							peer.health.onEORReceived()
+						}
 						// Notify weight tracker: may transition pre-EOR to
 						// post-EOR when all family EORs received, shrinking
 						// pool allocation (AC-28).

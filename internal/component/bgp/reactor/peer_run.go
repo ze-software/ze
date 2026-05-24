@@ -325,6 +325,11 @@ func (p *Peer) runOnce() error {
 			p.setState(PeerStateEstablished)
 			p.SetEstablishedNow()
 
+			// Start EOR timeout if GR was negotiated (AC-11).
+			if p.health != nil && neg != nil && neg.GracefulRestart != nil {
+				p.health.startEORTimer(neg.GracefulRestart.RestartTime, len(neg.Families()))
+			}
+
 			// Dynamic peers: set PeerAS from OPEN and resolve config variables.
 			// Re-resolve on every establishment (ASN may change on reconnection).
 			if p.settings.IsDynamic {

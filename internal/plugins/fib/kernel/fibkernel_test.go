@@ -1,15 +1,18 @@
 package fibkernel
 
 import (
+	"errors"
 	"net/netip"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
 
 // mockBackend records route operations for testing.
@@ -304,4 +307,238 @@ func (j *testJournal) Rollback() []error {
 
 func (j *testJournal) Discard() {
 	j.entries = nil
+}
+
+// failingBackend returns errors for specified operations.
+type failingBackend struct {
+	mockBackend
+	failAdd     bool
+	failReplace bool
+	failDel     bool
+}
+
+func (m *failingBackend) addRoute(prefix, nextHop string) error {
+	if m.failAdd {
+		return errors.New("netlink: operation not permitted")
+	}
+	return m.mockBackend.addRoute(prefix, nextHop)
+}
+
+func (m *failingBackend) replaceRoute(prefix, nextHop string) error {
+	if m.failReplace {
+		return errors.New("netlink: operation not permitted")
+	}
+	return m.mockBackend.replaceRoute(prefix, nextHop)
+}
+
+func (m *failingBackend) delRoute(prefix string) error {
+	if m.failDel {
+		return errors.New("netlink: no such process")
+	}
+	return m.mockBackend.delRoute(prefix)
+}
+
+// VALIDATES: AC-12 -- FIB programming error raises fib-sync-failure error on report bus.
+// PREVENTS: Silent FIB programming failures going unnoticed by operators.
+func TestFIBSyncFailure(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	backend := &failingBackend{mockBackend: *newMockBackend(), failAdd: true}
+	f := newFIBKernel(backend)
+
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+	}))
+
+	errs := report.Errors(0)
+	found := false
+	for _, e := range errs {
+		if e.Code == reportCodeFIBSyncFailure && e.Subject == "10.0.0.0/24" {
+			found = true
+			assert.Equal(t, "add", e.Detail["operation"])
+		}
+	}
+	if !found {
+		t.Fatal("fib-sync-failure error not raised on add failure")
+	}
+
+	assert.Empty(t, f.installed, "failed route should not be in installed map")
+}
+
+// VALIDATES: AC-12 -- FIB replace failure also raises fib-sync-failure.
+// PREVENTS: Replace errors not being reported.
+func TestFIBSyncFailureOnReplace(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	backend := &failingBackend{mockBackend: *newMockBackend(), failReplace: true}
+	f := newFIBKernel(backend)
+
+	// Install successfully first.
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+	}))
+
+	// Replace fails.
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{Action: bgptypes.RouteActionUpdate, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.2.1"), Protocol: "bgp"},
+	}))
+
+	errs := report.Errors(0)
+	found := false
+	for _, e := range errs {
+		if e.Code == reportCodeFIBSyncFailure && e.Subject == "10.0.0.0/24" {
+			found = true
+			assert.Equal(t, "replace", e.Detail["operation"])
+		}
+	}
+	if !found {
+		t.Fatal("fib-sync-failure error not raised on replace failure")
+	}
+}
+
+// VALIDATES: AC-13 -- Orphan routes detected during sweep raise fib-orphan warning.
+// PREVENTS: Stale kernel routes going unnoticed.
+func TestFIBOrphanWarning(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	backend := newMockBackend()
+	backend.zeRoutes = []installedRoute{
+		{prefix: "10.0.0.0/24", nextHop: "192.168.1.1"},
+		{prefix: "172.16.0.0/16", nextHop: "192.168.1.2"},
+	}
+	f := newFIBKernel(backend)
+
+	stale := f.startupSweep()
+
+	// Refresh only one route.
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+	}))
+
+	f.sweepStale(stale)
+
+	warnings := report.Warnings()
+	found := false
+	for _, w := range warnings {
+		if w.Code == reportCodeFIBOrphan {
+			found = true
+			assert.Equal(t, 1, w.Detail["orphan_count"])
+		}
+	}
+	if !found {
+		t.Fatal("fib-orphan warning not raised after sweep with orphan routes")
+	}
+}
+
+// VALIDATES: AC-13 -- No orphan warning when all routes are refreshed.
+// PREVENTS: False positive orphan warnings.
+func TestFIBOrphanClearedWhenNoOrphans(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	backend := newMockBackend()
+	backend.zeRoutes = []installedRoute{
+		{prefix: "10.0.0.0/24", nextHop: "192.168.1.1"},
+	}
+	f := newFIBKernel(backend)
+
+	stale := f.startupSweep()
+
+	// Refresh the only route.
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+	}))
+
+	f.sweepStale(stale)
+
+	warnings := report.Warnings()
+	for _, w := range warnings {
+		if w.Code == reportCodeFIBOrphan {
+			t.Fatal("fib-orphan warning raised when all routes were refreshed")
+		}
+	}
+}
+
+// VALIDATES: AC-14 -- Routes pending FIB install for >30s raise fib-programming-lag warning.
+// PREVENTS: Persistent FIB failures going unnoticed.
+func TestFIBProgrammingLag(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	backend := &failingBackend{mockBackend: *newMockBackend(), failAdd: true}
+	f := newFIBKernel(backend)
+
+	// First failure: sets pending timestamp to now. No lag yet.
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+	}))
+
+	warnings := report.Warnings()
+	for _, w := range warnings {
+		if w.Code == reportCodeFIBProgrammingLag {
+			t.Fatal("fib-programming-lag should not fire on first failure (not yet >30s)")
+		}
+	}
+
+	// Backdate the pending entry to simulate 31 seconds ago.
+	f.mu.Lock()
+	f.pending["10.0.0.0/24"] = time.Now().Add(-31 * time.Second)
+	f.mu.Unlock()
+
+	// Trigger another event to re-check lag.
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.1.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.2"), Protocol: "bgp"},
+	}))
+
+	warnings = report.Warnings()
+	found := false
+	for _, w := range warnings {
+		if w.Code == reportCodeFIBProgrammingLag {
+			found = true
+			assert.Equal(t, 1, w.Detail["lagging"])
+		}
+	}
+	if !found {
+		t.Fatal("fib-programming-lag warning not raised after >30s pending")
+	}
+}
+
+// VALIDATES: AC-14 -- Lag warning clears when pending route succeeds.
+// PREVENTS: Stale lag warnings after recovery.
+func TestFIBProgrammingLagCleared(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	backend := &failingBackend{mockBackend: *newMockBackend(), failAdd: true}
+	f := newFIBKernel(backend)
+
+	// Fail and backdate.
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+	}))
+	f.mu.Lock()
+	f.pending["10.0.0.0/24"] = time.Now().Add(-31 * time.Second)
+	f.mu.Unlock()
+
+	// Trigger lag warning.
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.1.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.2"), Protocol: "bgp"},
+	}))
+
+	// Now fix the backend and successfully install the lagging route.
+	backend.failAdd = false
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.1.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.2"), Protocol: "bgp"},
+	}))
+
+	warnings := report.Warnings()
+	for _, w := range warnings {
+		if w.Code == reportCodeFIBProgrammingLag {
+			t.Fatal("fib-programming-lag warning not cleared after successful install")
+		}
+	}
 }

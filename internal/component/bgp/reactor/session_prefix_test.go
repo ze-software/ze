@@ -219,6 +219,7 @@ func TestPrefixCountClampZero(t *testing.T) {
 }
 
 // TestPrefixNoPrefixConfig verifies no enforcement when prefix limits not configured.
+// Counts are still tracked (for anomaly detection) but no limits are enforced.
 //
 // VALIDATES: Session without prefix limits does not enforce anything.
 // PREVENTS: Panic or false triggers on unconfigured peers.
@@ -228,6 +229,7 @@ func TestPrefixNoPrefixConfig(t *testing.T) {
 	notif, drop := s.checkPrefixLimits(testWireUpdate([]byte{0, 0, 0, 0, 24, 10, 0, 0}))
 	assert.Nil(t, notif)
 	assert.False(t, drop)
+	assert.Equal(t, int64(1), s.prefixCounts.counts[ipv4UKey], "prefix counted even without limits")
 }
 
 // TestCountPrefixEntries verifies the prefix counting function.
@@ -475,6 +477,163 @@ func TestFamilyKeyRoundTrip(t *testing.T) {
 			t.Errorf("familyKeyString(%q) = %d, want %d", f.String(), k2, key)
 		}
 	}
+}
+
+// TestRouteCountAnomaly verifies that a >50% drop in received prefix count
+// within a single UPDATE raises a route-count-anomaly error on the report bus,
+// but only when the count is above minRouteCountAnomalyThreshold.
+//
+// VALIDATES: AC-10 ">50% drop raises error event".
+// PREVENTS: Silent route leaks or upstream failures going undetected.
+func TestRouteCountAnomaly(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	ps := newTestPeerSettingsWithPrefix(100000, 0)
+	s := NewSession(ps)
+
+	// Pre-fill to minRouteCountAnomalyThreshold (100) + 50 = 150 via direct count manipulation.
+	// Building 150 distinct /24 prefixes in raw UPDATE bytes is unnecessary;
+	// the prefix counter is the unit under test.
+	s.prefixCounts.counts[ipv4UKey] = 150
+
+	// Withdraw 76 of 150 (>50% drop, above threshold) -- anomaly.
+	withdrawBody := buildWithdrawBody(76)
+	checkOK(t, s, withdrawBody)
+	assert.Equal(t, int64(74), s.prefixCounts.counts[ipv4UKey])
+	errors := report.Errors(0)
+	found := false
+	for _, e := range errors {
+		if e.Code == reportCodeRouteCountAnomaly && e.Subject == "10.0.0.1" {
+			found = true
+			assert.Equal(t, int64(150), e.Detail["before"])
+			assert.Equal(t, int64(74), e.Detail["after"])
+		}
+	}
+	if !found {
+		t.Fatal("route-count-anomaly error not raised after >50% drop above threshold")
+	}
+}
+
+// TestRouteCountAnomalyBelowThreshold verifies no anomaly when count is below
+// minRouteCountAnomalyThreshold, even with a >50% drop.
+//
+// VALIDATES: AC-10 boundary: small tables don't trigger false positives.
+// PREVENTS: Noisy alerts on peers with few routes.
+func TestRouteCountAnomalyBelowThreshold(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	ps := newTestPeerSettingsWithPrefix(100000, 0)
+	s := NewSession(ps)
+
+	// Pre-fill to 20 (below threshold of 100).
+	s.prefixCounts.counts[ipv4UKey] = 20
+
+	// Withdraw 15 of 20 (75% drop, but below threshold).
+	withdrawBody := buildWithdrawBody(15)
+	checkOK(t, s, withdrawBody)
+	assert.Equal(t, int64(5), s.prefixCounts.counts[ipv4UKey])
+	errors := report.Errors(0)
+	for _, e := range errors {
+		if e.Code == reportCodeRouteCountAnomaly {
+			t.Fatal("route-count-anomaly should not fire below minimum threshold")
+		}
+	}
+}
+
+// TestRouteCountAnomalyNotFiredOnZero verifies no anomaly when starting from zero.
+//
+// VALIDATES: AC-10 boundary: 0 -> 0 and 0 -> N are not anomalies.
+// PREVENTS: False positive on first UPDATE or withdraw-only on empty session.
+func TestRouteCountAnomalyNotFiredOnZero(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	ps := newTestPeerSettingsWithPrefix(100000, 0)
+	s := NewSession(ps)
+
+	// Withdraw on empty session (0 -> 0).
+	checkOK(t, s, []byte{0, 4, 24, 10, 0, 0, 0, 0})
+	errors := report.Errors(0)
+	for _, e := range errors {
+		if e.Code == reportCodeRouteCountAnomaly {
+			t.Fatal("route-count-anomaly should not fire when starting from zero")
+		}
+	}
+}
+
+// TestRouteCountAnomalyExactHalf verifies no anomaly at exactly 50% drop.
+//
+// VALIDATES: AC-10 boundary: exactly 50% is not >50%, so no anomaly.
+// PREVENTS: Off-by-one in the >50% threshold check.
+func TestRouteCountAnomalyExactHalf(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	ps := newTestPeerSettingsWithPrefix(100000, 0)
+	s := NewSession(ps)
+
+	// Pre-fill to 200 (above threshold).
+	s.prefixCounts.counts[ipv4UKey] = 200
+
+	// Withdraw exactly 100 (50% drop, not >50%).
+	withdrawBody := buildWithdrawBody(100)
+	checkOK(t, s, withdrawBody)
+	assert.Equal(t, int64(100), s.prefixCounts.counts[ipv4UKey])
+	errors := report.Errors(0)
+	for _, e := range errors {
+		if e.Code == reportCodeRouteCountAnomaly {
+			t.Fatal("route-count-anomaly should not fire at exactly 50% (threshold is >50%)")
+		}
+	}
+}
+
+// TestRouteCountAnomalyWithoutPrefixLimits verifies anomaly detection works
+// even when no prefix limits are configured.
+//
+// VALIDATES: Finding 2: counting is unconditional.
+// PREVENTS: Anomaly detection silently disabled without prefix limits.
+func TestRouteCountAnomalyWithoutPrefixLimits(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	ps := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0)
+	s := NewSession(ps)
+
+	// Pre-fill to 200 (above threshold), no prefix limits configured.
+	s.prefixCounts.counts[ipv4UKey] = 200
+
+	// Withdraw 150 of 200 (75% drop).
+	withdrawBody := buildWithdrawBody(150)
+	checkOK(t, s, withdrawBody)
+	assert.Equal(t, int64(50), s.prefixCounts.counts[ipv4UKey])
+	errors := report.Errors(0)
+	found := false
+	for _, e := range errors {
+		if e.Code == reportCodeRouteCountAnomaly {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("route-count-anomaly should fire even without prefix limits configured")
+	}
+}
+
+// buildWithdrawBody builds a minimal UPDATE body withdrawing n distinct /24 prefixes.
+// Prefixes span 10.0.0.0/24 through 10.255.255.0/24 (max 65536 distinct).
+func buildWithdrawBody(n int) []byte {
+	if n > 65536 {
+		panic("buildWithdrawBody: n exceeds 65536 distinct /24 prefixes in 10.0.0.0/8")
+	}
+	wdLen := n * 4 // each /24 = prefix-len(1) + 3 bytes
+	body := make([]byte, 0, 2+wdLen+2)
+	body = append(body, byte(wdLen>>8), byte(wdLen))
+	for i := range n {
+		body = append(body, 24, 10, byte(i>>8), byte(i))
+	}
+	body = append(body, 0, 0) // empty path attributes
+	return body
 }
 
 // newTestPeerSettingsWithPrefix creates PeerSettings with prefix limits for testing.

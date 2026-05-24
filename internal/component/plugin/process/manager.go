@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
 
 var errProcessmanagerStartmoreCalledBeforeStartwithcontext = errors.New("ProcessManager: StartMore called before StartWithContext")
@@ -311,6 +312,10 @@ func (pm *ProcessManager) IsDisabled(name string) bool {
 	return pm.disabled[name]
 }
 
+const reportSourcePlugin = "plugin"
+const reportCodePluginCrash = "plugin-crash"
+const reportCodePluginDown = "plugin-down"
+
 // Respawn restarts a process, enforcing respawn limits.
 // Returns ErrRespawnLimitExceeded if limit exceeded within window.
 // Returns ErrProcessDisabled if process was previously disabled.
@@ -342,6 +347,10 @@ func (pm *ProcessManager) Respawn(name string) error {
 		return ErrProcessNotFound
 	}
 
+	// Validated: this is a real crash of a known, enabled plugin (AC-17).
+	report.RaiseError(reportSourcePlugin, reportCodePluginCrash, name,
+		"plugin process exited unexpectedly: "+name, nil)
+
 	// Check respawn enabled
 	if !cfg.RespawnEnabled && !cfg.Respawn {
 		return nil // Respawn not enabled, nothing to do
@@ -362,6 +371,9 @@ func (pm *ProcessManager) Respawn(name string) error {
 		pm.disabled[name] = true
 		pm.clearProcessCallbacks(name)
 		pm.deletePluginStatusLabel(name)
+		report.RaiseWarning(reportSourcePlugin, reportCodePluginDown, name,
+			"plugin disabled (respawn limit exceeded): "+name,
+			map[string]any{"limit": RespawnLimit, "window_seconds": int(RespawnWindow.Seconds())})
 		logger().Warn("respawn limit exceeded, process disabled",
 			"process", name, "limit", RespawnLimit, "window", RespawnWindow)
 		return ErrRespawnLimitExceeded
@@ -373,6 +385,9 @@ func (pm *ProcessManager) Respawn(name string) error {
 		pm.disabled[name] = true
 		pm.clearProcessCallbacks(name)
 		pm.deletePluginStatusLabel(name)
+		report.RaiseWarning(reportSourcePlugin, reportCodePluginDown, name,
+			"plugin disabled (cumulative respawn limit exceeded): "+name,
+			map[string]any{"total_respawns": pm.totalRespawns[name], "limit": MaxTotalRespawns})
 		logger().Warn("cumulative respawn limit exceeded, process disabled",
 			"process", name, "total", pm.totalRespawns[name], "limit", MaxTotalRespawns)
 		return ErrRespawnLimitExceeded
@@ -407,6 +422,9 @@ func (pm *ProcessManager) Respawn(name string) error {
 		return err
 	}
 	pm.processes[name] = newProc
+
+	// Successful restart clears the plugin-down warning.
+	report.ClearWarning(reportSourcePlugin, reportCodePluginDown, name)
 
 	// Increment restart counter after successful start.
 	if pm.pmetrics != nil {

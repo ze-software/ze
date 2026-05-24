@@ -20,3 +20,7 @@ func checkKernelModules(_ *config.Tree) []diagnostic.Diagnostic {
 func checkInterfaces(_ *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }
+
+func checkVPPVersion(_ *config.Tree) []diagnostic.Diagnostic {
+	return nil
+}

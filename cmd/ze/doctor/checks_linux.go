@@ -8,6 +8,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -136,6 +137,43 @@ func checkInterfaces(tree *config.Tree) []diagnostic.Diagnostic {
 		}
 	}
 	return diags
+}
+
+// checkVPPVersion runs `vppctl show version` and warns if the major version
+// is not in the expected range. Only runs when VPP backend is configured.
+func checkVPPVersion(tree *config.Tree) []diagnostic.Diagnostic {
+	if tree == nil {
+		return nil
+	}
+	ifaceBlock := tree.GetContainer("interface")
+	if ifaceBlock == nil {
+		return nil
+	}
+	backend, _ := ifaceBlock.Get("backend")
+	if backend != backendVPP {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "vppctl", "show", "version").Output() //nolint:gosec // fixed command
+	if err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-vpp-version",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "cannot determine VPP version: " + err.Error(),
+		}}
+	}
+
+	version := strings.TrimSpace(string(out))
+	if !strings.Contains(version, "vpp v") {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-vpp-version",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "unexpected VPP version output: " + version,
+		}}
+	}
+	return nil
 }
 
 func readLoadedModules() map[string]bool {

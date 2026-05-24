@@ -17,11 +17,14 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
@@ -139,17 +142,29 @@ type incomingBatch = sysribevents.BestChangeBatch
 // incomingChange aliases a single entry in an incoming batch.
 type incomingChange = sysribevents.BestChangeEntry
 
+const reportSourceFIB = "fib"
+const reportCodeFIBSyncFailure = "fib-sync-failure"
+const reportCodeFIBOrphan = "fib-orphan"
+const reportCodeFIBProgrammingLag = "fib-programming-lag"
+
+const fibLagTimeout = 30 * time.Second
+const maxPendingEntries = 10000
+
 // fibKernel manages route installation and monitoring.
 type fibKernel struct {
 	// installed tracks routes currently installed by ze in the kernel.
 	installed map[string]string // prefix -> next-hop
-	backend   routeBackend
-	mu        sync.RWMutex
+	// pending tracks routes that failed FIB programming with their first
+	// failure time. Used for fib-programming-lag detection (AC-14).
+	pending map[string]time.Time
+	backend routeBackend
+	mu      sync.RWMutex
 }
 
 func newFIBKernel(backend routeBackend) *fibKernel {
 	return &fibKernel{
 		installed: make(map[string]string),
+		pending:   make(map[string]time.Time),
 		backend:   backend,
 	}
 }
@@ -165,46 +180,60 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
+	now := time.Now()
+
 	for _, c := range batch.Changes {
 		if !c.Prefix.IsValid() {
 			logger().Warn("fib-kernel: skipping change with empty prefix")
 			continue
 		}
+		pfx := c.Prefix.String()
 		switch c.Action {
 		case bgptypes.RouteActionAdd:
-			if err := f.backend.addRoute(c.Prefix.String(), c.NextHop.String()); err != nil {
+			if err := f.backend.addRoute(pfx, c.NextHop.String()); err != nil {
 				logger().Error("fib-kernel: add route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
 					m.errors.With("add").Inc()
 				}
+				report.RaiseError(reportSourceFIB, reportCodeFIBSyncFailure, pfx,
+					"FIB add failed: "+err.Error(), map[string]any{"operation": "add", "prefix": pfx})
+				f.trackPendingLocked(pfx, now)
 				continue
 			}
-			f.installed[c.Prefix.String()] = c.NextHop.String()
+			f.installed[pfx] = c.NextHop.String()
+			delete(f.pending, pfx)
 			if m := fibMetricsPtr.Load(); m != nil {
 				m.routeInstalls.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
 			}
 		case bgptypes.RouteActionUpdate:
-			if err := f.backend.replaceRoute(c.Prefix.String(), c.NextHop.String()); err != nil {
+			if err := f.backend.replaceRoute(pfx, c.NextHop.String()); err != nil {
 				logger().Error("fib-kernel: replace route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
 					m.errors.With("replace").Inc()
 				}
+				report.RaiseError(reportSourceFIB, reportCodeFIBSyncFailure, pfx,
+					"FIB replace failed: "+err.Error(), map[string]any{"operation": "replace", "prefix": pfx})
+				f.trackPendingLocked(pfx, now)
 				continue
 			}
-			f.installed[c.Prefix.String()] = c.NextHop.String()
+			f.installed[pfx] = c.NextHop.String()
+			delete(f.pending, pfx)
 			if m := fibMetricsPtr.Load(); m != nil {
 				m.routeUpdates.Inc()
 			}
 		case bgptypes.RouteActionWithdraw, bgptypes.RouteActionDel:
-			if err := f.backend.delRoute(c.Prefix.String()); err != nil {
+			if err := f.backend.delRoute(pfx); err != nil {
 				logger().Error("fib-kernel: del route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
 					m.errors.With("delete").Inc()
 				}
+				report.RaiseError(reportSourceFIB, reportCodeFIBSyncFailure, pfx,
+					"FIB delete failed: "+err.Error(), map[string]any{"operation": "delete", "prefix": pfx})
 				continue
 			}
-			delete(f.installed, c.Prefix.String())
+			delete(f.installed, pfx)
+			delete(f.pending, pfx)
 			if m := fibMetricsPtr.Load(); m != nil {
 				m.routeRemovals.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
@@ -212,6 +241,38 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 		case bgptypes.RouteActionUnspecified:
 			logger().Warn("fib-kernel: skipping change with unspecified action", "prefix", c.Prefix)
 		}
+	}
+
+	f.checkPendingLagLocked(now)
+}
+
+// trackPendingLocked records a failed route's first-failure time.
+// Only sets the timestamp on the first failure; subsequent failures
+// for the same prefix preserve the original time.
+func (f *fibKernel) trackPendingLocked(pfx string, now time.Time) {
+	if _, exists := f.pending[pfx]; !exists {
+		if len(f.pending) >= maxPendingEntries {
+			return
+		}
+		f.pending[pfx] = now
+	}
+}
+
+// checkPendingLagLocked raises or clears the fib-programming-lag warning
+// based on whether any pending routes have been failing for >30 seconds.
+func (f *fibKernel) checkPendingLagLocked(now time.Time) {
+	lagging := 0
+	for _, firstFail := range f.pending {
+		if now.Sub(firstFail) > fibLagTimeout {
+			lagging++
+		}
+	}
+	if lagging > 0 {
+		report.RaiseWarning(reportSourceFIB, reportCodeFIBProgrammingLag, "pending",
+			strconv.Itoa(lagging)+" routes pending FIB install for >30s",
+			map[string]any{"lagging": lagging, "total_pending": len(f.pending)})
+	} else {
+		report.ClearWarning(reportSourceFIB, reportCodeFIBProgrammingLag, "pending")
 	}
 }
 
@@ -253,10 +314,12 @@ func (f *fibKernel) startupSweep() map[string]string {
 
 // sweepStale removes routes that are still stale (not refreshed by sysrib).
 // Uses write lock to keep f.installed consistent with kernel state.
+// Raises a fib-orphan warning if any orphan routes are swept (AC-13).
 func (f *fibKernel) sweepStale(stale map[string]string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
+	orphanCount := 0
 	for prefix := range stale {
 		if _, refreshed := f.installed[prefix]; refreshed {
 			continue // Route was refreshed by sysrib.
@@ -266,6 +329,15 @@ func (f *fibKernel) sweepStale(stale map[string]string) {
 		}
 		// Ensure installed map stays consistent -- stale route is gone from kernel.
 		delete(f.installed, prefix)
+		orphanCount++
+	}
+
+	if orphanCount > 0 {
+		report.RaiseWarning(reportSourceFIB, reportCodeFIBOrphan, "sweep",
+			strconv.Itoa(orphanCount)+" orphan routes removed from FIB (no RIB entry)",
+			map[string]any{"orphan_count": orphanCount})
+	} else {
+		report.ClearWarning(reportSourceFIB, reportCodeFIBOrphan, "sweep")
 	}
 
 	if m := fibMetricsPtr.Load(); m != nil {

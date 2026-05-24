@@ -39,6 +39,17 @@ const reportCodeNotificationReceived = "notification-received"
 // loss, peer FIN)". The Subject is the peer address.
 const reportCodeSessionDropped = "session-dropped"
 
+// reportCodeRouteCountAnomaly is the report bus code for "received prefix
+// count dropped >50% in a single UPDATE". This is an error (event, not state)
+// because the drop already happened even if the count recovers.
+const reportCodeRouteCountAnomaly = "route-count-anomaly"
+
+// minRouteCountAnomalyThreshold is the minimum aggregate prefix count before
+// the >50% drop anomaly check activates. Small peer tables (route-server
+// clients, management peers) routinely fluctuate by large percentages without
+// indicating a real problem.
+const minRouteCountAnomalyThreshold int64 = 100
+
 // raiseNotificationError pushes a notification-sent or notification-received
 // error event onto the report bus. dir is "sent" or "received".
 func raiseNotificationError(dir, peerAddr string, code, subcode uint8) {
@@ -131,6 +142,20 @@ func ClearPrefixStale(peerAddr string) {
 	report.ClearWarning(reportSourceBGP, reportCodePrefixStale, peerAddr)
 }
 
+// raiseRouteCountAnomaly pushes a route-count-anomaly error event onto the
+// report bus when the aggregate received prefix count drops >50% in a single
+// UPDATE. This is an error (event) because the drop already happened.
+func raiseRouteCountAnomaly(peerAddr string, before, after int64) {
+	var b textbuf.Buffer
+	report.RaiseError(
+		reportSourceBGP,
+		reportCodeRouteCountAnomaly,
+		peerAddr,
+		b.Reset().Str("received prefix count dropped from ").Int(before).Str(" to ").Int(after).Str(" (>50% in one update)").String(),
+		map[string]any{"before": before, "after": after},
+	)
+}
+
 // familyKey encodes an family.Family as a uint32 map key, avoiding fmt.Sprintf allocations
 // on the hot path. Layout: AFI in upper 16 bits, SAFI in bits 8-15, lower 8 bits zero.
 func familyKey(f family.Family) uint32 {
@@ -154,6 +179,16 @@ func familyKeyString(s string) (uint32, bool) {
 type prefixCounts struct {
 	counts map[uint32]int64
 	warned map[uint32]bool // true once warning has been logged for a family (reset on drop below)
+}
+
+// totalCount returns the sum of all per-family prefix counts.
+// Used to snapshot aggregate count before/after an UPDATE for anomaly detection.
+func (pc *prefixCounts) totalCount() int64 {
+	var total int64
+	for _, c := range pc.counts {
+		total += c
+	}
+	return total
 }
 
 // add adjusts the count for a family by delta (positive for announce, negative for withdraw).
@@ -188,9 +223,23 @@ func ipv4AddPathReceive(neg *capability.Negotiated) bool {
 //
 // RFC 4486 Section 4: "Maximum Number of Prefixes Reached" -- Cease subcode 1.
 func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notification, drop bool) {
-	if s.prefixCounts == nil || len(s.settings.PrefixMaximum) == 0 {
+	if s.prefixCounts == nil {
 		return nil, false
 	}
+
+	hasLimits := len(s.settings.PrefixMaximum) > 0
+
+	// Snapshot aggregate prefix count before this UPDATE for anomaly detection.
+	totalBefore := s.prefixCounts.totalCount()
+	defer func() {
+		if notif != nil {
+			return // teardown path, anomaly check not useful
+		}
+		totalAfter := s.prefixCounts.totalCount()
+		if totalBefore >= minRouteCountAnomalyThreshold && totalAfter*2 < totalBefore {
+			raiseRouteCountAnomaly(s.peerLabel(), totalBefore, totalAfter)
+		}
+	}()
 
 	// Determine ADD-PATH state for IPv4 unicast body NLRI parsing.
 	addPath := ipv4AddPathReceive(s.negotiated)
@@ -221,9 +270,15 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 	}
 
 	// Count IPv4 unicast body NLRI (announced).
+	// When limits are configured, applyPrefixCheck enforces them.
+	// Without limits, applyPrefixDelta just counts for anomaly detection.
 	if announced, err := countBodyNLRI(wu, addPath); err == nil && announced > 0 {
-		if n, d := s.applyPrefixCheck(ipv4Key, int64(announced)); n != nil || d {
-			return n, d
+		if hasLimits {
+			if n, d := s.applyPrefixCheck(ipv4Key, int64(announced)); n != nil || d {
+				return n, d
+			}
+		} else {
+			s.applyPrefixDelta(ipv4Key, int64(announced))
 		}
 	}
 
@@ -237,8 +292,12 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 		if nlriBytes := mpReach.NLRIBytes(); len(nlriBytes) > 0 {
 			count := countPrefixEntries(nlriBytes, mpAddPath)
 			if count > 0 {
-				if n, d := s.applyPrefixCheck(familyKey(fam), int64(count)); n != nil || d {
-					return n, d
+				if hasLimits {
+					if n, d := s.applyPrefixCheck(familyKey(fam), int64(count)); n != nil || d {
+						return n, d
+					}
+				} else {
+					s.applyPrefixDelta(familyKey(fam), int64(count))
 				}
 			}
 		}
@@ -289,11 +348,13 @@ func familyString(fk uint32) string {
 func (s *Session) applyPrefixDelta(fk uint32, delta int64) {
 	current := s.prefixCounts.add(fk, delta)
 
-	// Update Prometheus gauge (cold path -- string conversion OK).
+	if s.prefixMetrics == nil && len(s.settings.PrefixWarning) == 0 {
+		return
+	}
+
 	famName := familyString(fk)
 	s.setPrefixCountMetric(famName, current)
 
-	// Reset warning flag and metric when count drops below threshold.
 	_, warning, _ := s.prefixConfigLookup(fk)
 	if warning > 0 && current < int64(warning) {
 		if s.prefixCounts.warned[fk] {
