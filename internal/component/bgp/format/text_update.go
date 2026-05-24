@@ -9,14 +9,18 @@ package format
 import (
 	"encoding/hex"
 	"encoding/json"
+	"net/netip"
+	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/component/bgp/filter"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -63,6 +67,22 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 	// appendSummary still takes string direction (rendering boundary).
 	if content.Format == plugin.FormatSummary && msg.Type == message.TypeUPDATE {
 		return appendSummary(buf, peer, msg.RawBytes, msg.MessageID, direction.String(), messageType)
+	}
+
+	// Fast path: parsed JSON with no attribute or NLRI filter. Bypasses the
+	// filter machinery (map alloc, []Attribute slice, NLRI parsing) and writes
+	// directly from AttrsWire + body NLRI bytes. Falls through to the generic
+	// path for selective filters, text encoding, or non-UPDATE messages.
+	if msg.Type == message.TypeUPDATE &&
+		content.Encoding == plugin.EncodingJSON &&
+		content.Format == plugin.FormatParsed &&
+		content.Attributes == nil && content.NLRI == nil &&
+		msg.AttrsWire != nil {
+		var encCtx *bgpctx.EncodingContext
+		if msg.AttrsWire != nil {
+			encCtx = bgpctx.Registry.Get(msg.AttrsWire.SourceContext())
+		}
+		return appendParsedUpdateJSONDirect(buf, peer, msg, encCtx, direction, messageType)
 	}
 
 	// Get attribute filter (nil means all)
@@ -206,6 +226,244 @@ func appendRawFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 	buf = append(buf, " update raw "...)
 	buf = hex.AppendEncode(buf, msg.RawBytes)
 	buf = append(buf, '\n')
+	return buf
+}
+
+// appendParsedUpdateJSONDirect writes parsed JSON directly from AttrsWire and
+// body NLRI bytes, bypassing the filter machinery. This is the zero-alloc fast
+// path for the common case: all attributes, all families, parsed JSON encoding.
+// On a warm AttrsWire (attributes already parsed and cached), no allocations
+// occur; the entire output is appended to the caller-owned buffer.
+func appendParsedUpdateJSONDirect(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, ctx *bgpctx.EncodingContext, direction rpc.MessageDirection, messageType string) []byte {
+	buf = append(buf, `{"type":"bgp","bgp":{`...)
+
+	buf = append(buf, `"message":{"type":"`...)
+	buf = append(buf, messageType...)
+	buf = append(buf, '"')
+	if msg.MessageID > 0 {
+		buf = append(buf, `,"id":`...)
+		buf = strconv.AppendUint(buf, msg.MessageID, 10)
+	}
+	if direction != rpc.DirectionUnspecified {
+		buf = append(buf, `,"direction":"`...)
+		buf = appendJSONSafeString(buf, direction.String())
+		buf = append(buf, '"')
+	}
+	buf = append(buf, '}', ',')
+	buf = appendPeerJSON(buf, peer)
+
+	buf = append(buf, `,"update":{`...)
+
+	// Attributes: iterate AttrsWire directly (no []Attribute slice allocation).
+	// Skip MP_REACH/MP_UNREACH (rendered in the NLRI section).
+	hasAttrs := false
+	if msg.AttrsWire != nil {
+		buf = append(buf, `"attr":{`...)
+		first := true
+		_ = msg.AttrsWire.ForEach(func(code attribute.AttributeCode, attr attribute.Attribute) bool {
+			if code == attribute.AttrMPReachNLRI || code == attribute.AttrMPUnreachNLRI {
+				return true
+			}
+			if !first {
+				buf = append(buf, ',')
+			}
+			first = false
+			buf = appendAttributeJSON(buf, code, attr, false)
+			return true
+		})
+		buf = append(buf, `},`...)
+		hasAttrs = true
+	}
+	if !hasAttrs {
+		buf = append(buf, `"attr":{},`...)
+	}
+
+	// NLRI: extract from body + MP attributes without allocating intermediate
+	// slices. Body sections give IPv4 unicast; MP attributes give other families.
+	// RFC 4760: a single UPDATE may carry both body NLRI (legacy IPv4) and
+	// MP_REACH_NLRI for the same family with different next-hops.
+	buf = append(buf, `"nlri":{`...)
+	famFirst := true
+
+	ipv4AddPath := false
+	if ctx != nil {
+		ipv4AddPath = ctx.AddPathFor(family.IPv4Unicast)
+	}
+
+	nlriData, _ := msg.WireUpdate.NLRI()
+	withdrawnData, _ := msg.WireUpdate.Withdrawn()
+	mpReach, _ := msg.WireUpdate.MPReach()
+	mpUnreach, _ := msg.WireUpdate.MPUnreach()
+
+	// Check if MP_REACH also targets IPv4/unicast (dual next-hop case).
+	mpReachIsIPv4 := mpReach != nil && mpReach.Family() == family.IPv4Unicast
+
+	// IPv4 unicast: merge body NLRI and any MP_REACH for ipv4/unicast into
+	// a single "ipv4/unicast" array so dual next-hop UPDATEs produce two
+	// operation groups under one family key.
+	hasIPv4 := len(nlriData) > 0 || len(withdrawnData) > 0 || mpReachIsIPv4
+	if hasIPv4 {
+		buf = append(buf, `"ipv4/unicast":[`...)
+		opFirst := true
+
+		if len(nlriData) > 0 {
+			var nextHop netip.Addr
+			if nh, err := msg.AttrsWire.Get(attribute.AttrNextHop); err == nil && nh != nil {
+				if nhAttr, ok := nh.(*attribute.NextHop); ok {
+					nextHop = nhAttr.Addr
+				}
+			}
+			buf = append(buf, '{')
+			if nextHop.IsValid() {
+				buf = append(buf, `"next-hop":"`...)
+				buf = nextHop.AppendTo(buf)
+				buf = append(buf, `",`...)
+			}
+			buf = append(buf, `"action":"add","nlri":[`...)
+			buf = appendIPv4PrefixesFromWire(buf, nlriData, ipv4AddPath)
+			buf = append(buf, `]}`...)
+			opFirst = false
+		}
+
+		if mpReachIsIPv4 {
+			if !opFirst {
+				buf = append(buf, ',')
+			}
+			nh := mpReach.NextHop()
+			buf = append(buf, `{"next-hop":"`...)
+			buf = nh.AppendTo(buf)
+			buf = append(buf, `","action":"add","nlri":[`...)
+			mpNLRIs, err := mpReach.NLRIs(ipv4AddPath)
+			if err == nil {
+				for j, n := range mpNLRIs {
+					if j > 0 {
+						buf = append(buf, ',')
+					}
+					buf = appendNLRIJSONValue(buf, n, family.IPv4Unicast)
+				}
+			}
+			buf = append(buf, `]}`...)
+			opFirst = false
+		}
+
+		if len(withdrawnData) > 0 {
+			if !opFirst {
+				buf = append(buf, ',')
+			}
+			buf = append(buf, `{"action":"del","nlri":[`...)
+			buf = appendIPv4PrefixesFromWire(buf, withdrawnData, ipv4AddPath)
+			buf = append(buf, `]}`...)
+		}
+
+		buf = append(buf, ']')
+		famFirst = false
+	}
+
+	// Non-IPv4 MP_REACH families.
+	if mpReach != nil && !mpReachIsIPv4 {
+		if !famFirst {
+			buf = append(buf, ',')
+		}
+		fam := mpReach.Family()
+		mpAddPath := false
+		if ctx != nil {
+			mpAddPath = ctx.AddPathFor(fam)
+		}
+		buf = append(buf, '"')
+		buf = fam.AppendTo(buf)
+		buf = append(buf, `":[{"next-hop":"`...)
+		nh := mpReach.NextHop()
+		buf = nh.AppendTo(buf)
+		buf = append(buf, `","action":"add","nlri":[`...)
+		mpNLRIs, err := mpReach.NLRIs(mpAddPath)
+		if err == nil {
+			for j, n := range mpNLRIs {
+				if j > 0 {
+					buf = append(buf, ',')
+				}
+				buf = appendNLRIJSONValue(buf, n, fam)
+			}
+		}
+		buf = append(buf, `]}]`...)
+		famFirst = false
+	}
+
+	// MP_UNREACH families.
+	if mpUnreach != nil {
+		fam := mpUnreach.Family()
+		mpAddPath := false
+		if ctx != nil {
+			mpAddPath = ctx.AddPathFor(fam)
+		}
+		mpWdNLRIs, err := mpUnreach.NLRIs(mpAddPath)
+		if err == nil && len(mpWdNLRIs) > 0 {
+			if !famFirst {
+				buf = append(buf, ',')
+			}
+			buf = append(buf, '"')
+			buf = fam.AppendTo(buf)
+			buf = append(buf, `":[{"action":"del","nlri":[`...)
+			for j, n := range mpWdNLRIs {
+				if j > 0 {
+					buf = append(buf, ',')
+				}
+				buf = appendNLRIJSONValue(buf, n, fam)
+			}
+			buf = append(buf, `]}]`...)
+		}
+	}
+
+	buf = append(buf, '}') // close nlri
+	buf = append(buf, "}}}\n"...)
+	return buf
+}
+
+// appendIPv4PrefixesFromWire iterates raw IPv4 NLRI wire bytes and appends
+// each prefix as a JSON string (or ADD-PATH object) directly, without
+// allocating parsed NLRI structs or slices.
+func appendIPv4PrefixesFromWire(buf, data []byte, addPath bool) []byte {
+	offset := 0
+	first := true
+	for offset < len(data) {
+		var pathID uint32
+		if addPath {
+			if offset+4 > len(data) {
+				break
+			}
+			pathID = uint32(data[offset])<<24 | uint32(data[offset+1])<<16 |
+				uint32(data[offset+2])<<8 | uint32(data[offset+3])
+			offset += 4
+		}
+		if offset >= len(data) {
+			break
+		}
+		prefixBits := int(data[offset])
+		prefixBytes := (prefixBits + 7) / 8
+		offset++
+		if offset+prefixBytes > len(data) {
+			break
+		}
+		var addr [4]byte
+		copy(addr[:], data[offset:offset+prefixBytes])
+		offset += prefixBytes
+
+		pfx := netip.PrefixFrom(netip.AddrFrom4(addr), prefixBits)
+		if !first {
+			buf = append(buf, ',')
+		}
+		first = false
+		if addPath && pathID != 0 {
+			buf = append(buf, `{"prefix":"`...)
+			buf = pfx.AppendTo(buf)
+			buf = append(buf, `","path-id":`...)
+			buf = strconv.AppendUint(buf, uint64(pathID), 10)
+			buf = append(buf, '}')
+		} else {
+			buf = append(buf, '"')
+			buf = pfx.AppendTo(buf)
+			buf = append(buf, '"')
+		}
+	}
 	return buf
 }
 

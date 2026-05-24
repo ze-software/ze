@@ -238,6 +238,34 @@ func (a *AttributesWire) All() ([]Attribute, error) {
 	return result, nil
 }
 
+// ForEach iterates all attributes in wire order, calling fn for each one.
+// Unlike All(), no result slice is allocated. Attributes are parsed on demand
+// and cached for subsequent calls. If fn returns false, iteration stops early.
+func (a *AttributesWire) ForEach(fn func(AttributeCode, Attribute) bool) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if err := a.ensureIndexLocked(); err != nil {
+		return err
+	}
+
+	for i := range a.index {
+		attr := a.index[i].parsed
+		if attr == nil {
+			var err error
+			attr, err = a.parseAtLocked(a.index[i])
+			if err != nil {
+				return err
+			}
+			a.index[i].parsed = attr
+		}
+		if !fn(a.index[i].code, attr) {
+			break
+		}
+	}
+	return nil
+}
+
 // PackFor returns packed bytes for destination context.
 // Zero-copy if contexts match, otherwise re-encode.
 func (a *AttributesWire) PackFor(destCtxID bgpctx.ContextID) ([]byte, error) {
