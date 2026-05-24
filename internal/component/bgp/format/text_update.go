@@ -519,69 +519,10 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 	buf = append(buf, `,"raw":{`...)
 
 	hasContent := false
-	// Extract raw components if WireUpdate available
+	// Write raw components directly from WireUpdate sections, without
+	// allocating the RawUpdateComponents struct or its per-family maps.
 	if msg.WireUpdate != nil {
-		rawComps, err := wireu.ExtractRawComponents(msg.WireUpdate)
-		if err == nil && rawComps != nil {
-			// attributes: raw bytes without MP_REACH/MP_UNREACH
-			if len(rawComps.Attributes) > 0 {
-				buf = append(buf, `"attributes":"`...)
-				buf = hex.AppendEncode(buf, rawComps.Attributes)
-				buf = append(buf, '"')
-				hasContent = true
-			}
-
-			// nlri: per-fam raw bytes
-			if len(rawComps.NLRI) > 0 {
-				if hasContent {
-					buf = append(buf, ',')
-				}
-				buf = append(buf, `"nlri":{`...)
-				first := true
-				for fam, nlriBytes := range rawComps.NLRI {
-					if !first {
-						buf = append(buf, ',')
-					}
-					first = false
-					buf = append(buf, '"')
-					buf = append(buf, fam.String()...)
-					buf = append(buf, `":"`...)
-					buf = hex.AppendEncode(buf, nlriBytes)
-					buf = append(buf, '"')
-				}
-				buf = append(buf, '}')
-				hasContent = true
-			}
-
-			// withdrawn: per-fam raw bytes
-			if len(rawComps.Withdrawn) > 0 {
-				if hasContent {
-					buf = append(buf, ',')
-				}
-				buf = append(buf, `"withdrawn":{`...)
-				first := true
-				for fam, wdBytes := range rawComps.Withdrawn {
-					if !first {
-						buf = append(buf, ',')
-					}
-					first = false
-					buf = append(buf, '"')
-					buf = append(buf, fam.String()...)
-					buf = append(buf, `":"`...)
-					buf = hex.AppendEncode(buf, wdBytes)
-					buf = append(buf, '"')
-				}
-				buf = append(buf, '}')
-				hasContent = true
-			}
-
-			// RFC 7911 Section 3: ADD-PATH per-fam flags from negotiated capabilities.
-			// Consumers (e.g., bgp-rib) need this to parse NLRI wire bytes correctly --
-			// ADD-PATH prepends a 4-byte path-ID before each NLRI.
-			if ctx != nil {
-				buf, hasContent = appendAddPathFlags(buf, rawComps, ctx, hasContent)
-			}
-		}
+		buf, hasContent = appendRawSectionsJSON(buf, msg.WireUpdate, ctx)
 	}
 
 	// Add full update bytes
@@ -607,46 +548,173 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 	return buf
 }
 
-// appendAddPathFlags writes the RFC 7911 ADD-PATH per-family flags block to buf,
-// returning the updated buf and whether the bgp.raw object already has content
-// (so the caller knows whether to emit a separator before further keys).
-// The flags block only appears when at least one family has ADD-PATH negotiated.
-func appendAddPathFlags(buf []byte, rawComps *wireu.RawUpdateComponents, ctx *bgpctx.EncodingContext, hasContent bool) ([]byte, bool) {
-	// Collect families with ADD-PATH set, preserving the legacy dedup behavior:
-	// each family is emitted at most once, NLRI families first (iteration order),
-	// then withdrawn-only families.
-	first := true
-	emit := func(famStr string) {
-		if first {
-			if hasContent {
-				buf = append(buf, ',')
+// appendRawSectionsJSON writes the "raw" object contents directly from
+// WireUpdate sections, without allocating RawUpdateComponents or its maps.
+// Returns the updated buf and whether any content was written.
+func appendRawSectionsJSON(buf []byte, wu *wireu.WireUpdate, ctx *bgpctx.EncodingContext) ([]byte, bool) {
+	hasContent := false
+
+	// Attributes hex: packed bytes with MP_REACH (14) and MP_UNREACH (15) excluded.
+	// Skip the key entirely when filtering removes all attributes (all-MP UPDATE).
+	attrs, _ := wu.Attrs()
+	if attrs != nil {
+		packed := attrs.Packed()
+		if len(packed) > 0 {
+			mark := len(buf)
+			buf = append(buf, `"attributes":"`...)
+			beforeHex := len(buf)
+			buf = appendAttrHexFilterMP(buf, packed)
+			if len(buf) > beforeHex {
+				buf = append(buf, '"')
+				hasContent = true
+			} else {
+				buf = buf[:mark]
 			}
-			buf = append(buf, `"add-path":{`...)
-			first = false
-		} else {
-			buf = append(buf, ',')
 		}
-		buf = append(buf, '"')
-		buf = append(buf, famStr...)
-		buf = append(buf, `":true`...)
 	}
 
-	for fam := range rawComps.NLRI {
-		if ctx.AddPathFor(fam) {
-			emit(fam.String())
+	// NLRI per family: body IPv4 unicast + MP_REACH.
+	// When MP_REACH is also IPv4/unicast (dual next-hop), the old code's map
+	// overwrote body with MP. Replicate that: prefer MP_REACH bytes for the
+	// overlapping family to match ExtractAllRawNLRI semantics.
+	nlriData, _ := wu.NLRI()
+	mpReach, _ := wu.MPReach()
+	mpReachIsIPv4 := mpReach != nil && mpReach.Family() == family.IPv4Unicast
+	hasNLRI := len(nlriData) > 0 || mpReach != nil
+	if hasNLRI {
+		if hasContent {
+			buf = append(buf, ',')
 		}
-	}
-	for fam := range rawComps.Withdrawn {
-		if ctx.AddPathFor(fam) {
-			if _, inNLRI := rawComps.NLRI[fam]; inNLRI {
-				continue // already emitted from NLRI loop
+		buf = append(buf, `"nlri":{`...)
+		nlriFirst := true
+		if len(nlriData) > 0 && !mpReachIsIPv4 {
+			buf = append(buf, `"ipv4/unicast":"`...)
+			buf = hex.AppendEncode(buf, nlriData)
+			buf = append(buf, '"')
+			nlriFirst = false
+		}
+		if mpReach != nil {
+			if !nlriFirst {
+				buf = append(buf, ',')
 			}
-			emit(fam.String())
+			fam := mpReach.Family()
+			buf = append(buf, '"')
+			buf = fam.AppendTo(buf)
+			buf = append(buf, `":"`...)
+			buf = hex.AppendEncode(buf, mpReach.NLRIBytes())
+			buf = append(buf, '"')
 		}
-	}
-	if !first {
 		buf = append(buf, '}')
 		hasContent = true
 	}
+
+	// Withdrawn per family: body IPv4 unicast + MP_UNREACH.
+	wdData, _ := wu.Withdrawn()
+	mpUnreach, _ := wu.MPUnreach()
+	hasWd := len(wdData) > 0 || mpUnreach != nil
+	if hasWd {
+		if hasContent {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, `"withdrawn":{`...)
+		wdFirst := true
+		if len(wdData) > 0 {
+			buf = append(buf, `"ipv4/unicast":"`...)
+			buf = hex.AppendEncode(buf, wdData)
+			buf = append(buf, '"')
+			wdFirst = false
+		}
+		if mpUnreach != nil {
+			if !wdFirst {
+				buf = append(buf, ',')
+			}
+			fam := mpUnreach.Family()
+			buf = append(buf, '"')
+			buf = fam.AppendTo(buf)
+			buf = append(buf, `":"`...)
+			buf = hex.AppendEncode(buf, mpUnreach.WithdrawnBytes())
+			buf = append(buf, '"')
+		}
+		buf = append(buf, '}')
+		hasContent = true
+	}
+
+	// RFC 7911: ADD-PATH per-family flags.
+	if ctx != nil {
+		addPathFirst := true
+		emitAddPath := func(fam family.Family) {
+			if !ctx.AddPathFor(fam) {
+				return
+			}
+			if addPathFirst {
+				if hasContent {
+					buf = append(buf, ',')
+				}
+				buf = append(buf, `"add-path":{`...)
+				addPathFirst = false
+			} else {
+				buf = append(buf, ',')
+			}
+			buf = append(buf, '"')
+			buf = fam.AppendTo(buf)
+			buf = append(buf, `":true`...)
+		}
+		if len(nlriData) > 0 {
+			emitAddPath(family.IPv4Unicast)
+		}
+		if mpReach != nil {
+			emitAddPath(mpReach.Family())
+		}
+		if len(wdData) > 0 && len(nlriData) == 0 {
+			emitAddPath(family.IPv4Unicast)
+		}
+		if mpUnreach != nil && (mpReach == nil || mpReach.Family() != mpUnreach.Family()) {
+			emitAddPath(mpUnreach.Family())
+		}
+		if !addPathFirst {
+			buf = append(buf, '}')
+			hasContent = true
+		}
+	}
+
 	return buf, hasContent
+}
+
+// appendAttrHexFilterMP hex-encodes packed attribute bytes, skipping
+// MP_REACH_NLRI (14) and MP_UNREACH_NLRI (15) attributes inline.
+func appendAttrHexFilterMP(buf, packed []byte) []byte {
+	offset := 0
+	for offset < len(packed) {
+		if offset+2 > len(packed) {
+			break
+		}
+		flags := packed[offset]
+		code := packed[offset+1]
+
+		var attrLen int
+		headerLen := 3
+		if flags&0x10 != 0 { // Extended length
+			if offset+4 > len(packed) {
+				break
+			}
+			attrLen = int(packed[offset+2])<<8 | int(packed[offset+3])
+			headerLen = 4
+		} else {
+			if offset+3 > len(packed) {
+				break
+			}
+			attrLen = int(packed[offset+2])
+		}
+
+		totalLen := headerLen + attrLen
+		if offset+totalLen > len(packed) {
+			break
+		}
+
+		if code != byte(attribute.AttrMPReachNLRI) && code != byte(attribute.AttrMPUnreachNLRI) {
+			buf = hex.AppendEncode(buf, packed[offset:offset+totalLen])
+		}
+		offset += totalLen
+	}
+	return buf
 }
