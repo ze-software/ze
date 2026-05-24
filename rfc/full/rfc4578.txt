@@ -1,0 +1,395 @@
+
+
+
+
+
+
+Network Working Group                                        M. Johnston
+Request for Comments: 4578                             Intel Corporation
+Category: Informational                                   S. Venaas, Ed.
+                                                                 UNINETT
+                                                           November 2006
+
+
+      Dynamic Host Configuration Protocol (DHCP) Options for the
+               Intel Preboot eXecution Environment (PXE)
+
+Status of This Memo
+
+   This memo provides information for the Internet community.  It does
+   not specify an Internet standard of any kind.  Distribution of this
+   memo is unlimited.
+
+Copyright Notice
+
+   Copyright (C) The IETF Trust (2006).
+
+Abstract
+
+   We define Dynamic Host Configuration Protocol (DHCP) options being
+   used by Preboot eXecution Environment (PXE) and Extensible Firmware
+   Interface (EFI) clients to uniquely identify booting client machines
+   and their pre-OS runtime environment so that the DHCP and/or PXE boot
+   server can return the correct OS bootstrap image (or pre-boot
+   application) name and server to the client.
+
+Table of Contents
+
+   1. Introduction ....................................................2
+      1.1. Requirements Language ......................................2
+   2. Option Definitions ..............................................2
+      2.1. Client System Architecture Type Option Definition ..........2
+      2.2. Client Network Interface Identifier Option Definition ......3
+      2.3. Client Machine Identifier Option Definition ................4
+      2.4. Options Requested by PXE Clients ...........................4
+   3. Acknowledgements ................................................5
+   4. IANA Considerations .............................................5
+   5. Security Considerations .........................................5
+   6. Normative References ............................................5
+
+
+
+
+
+
+
+
+
+Johnston & Venaas            Informational                      [Page 1]
+
+RFC 4578                    DHCP PXE Options               November 2006
+
+
+1.  Introduction
+
+   These DHCP [2] options are being widely used by PXE-compliant clients
+   to uniquely identify booting client machines themselves and their
+   pre-OS runtime environment so that the DHCP and/or PXE boot server
+   can return the correct OS bootstrap image (or pre-boot application)
+   name and server to the client.  In the past, this work was done by
+   examining the network Media Access Code (MAC) address in the "chaddr"
+   field in the BOOTP/ DHCP header and keeping a database of MAC
+   addresses on the BOOTP/DHCP server.  This was deemed insufficient for
+   large and complex networks for two main reasons.  1) Multiple laptops
+   could end up with the same MAC address if the network interface was
+   in a shared docking station.  2) Multiple network devices and MAC
+   addresses could be used by one machine for redundancy or because of
+   repairs.  Another issue that came up was the machine that could
+   change its pre-OS runtime environment.  This issue caused the
+   creation of another new option to identify the runtime environment so
+   that the correct binary image could be matched up with the booting
+   machine.  These options are defined by Intel in the PXE [3] and EFI
+   [4] specifications and are being documented in this draft for
+   completeness within the IETF.
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [1].
+
+2.  Option Definitions
+
+   There are three DHCP options [5] defined for use by PXE clients.
+
+2.1.  Client System Architecture Type Option Definition
+
+   The format of the option is:
+
+                Code  Len  16-bit Type
+               +----+-----+-----+-----+
+               | 93 |  n  | n1  | n2  |
+               +----+-----+-----+-----+
+
+
+
+
+
+
+
+
+
+
+
+Johnston & Venaas            Informational                      [Page 2]
+
+RFC 4578                    DHCP PXE Options               November 2006
+
+
+   Octet "n" gives the number of octets containing "architecture types"
+   (not including the code and len fields).  It MUST be an even number
+   greater than zero.  Clients that support more than one architecture
+   type MAY include a list of these types in their initial DHCP and PXE
+   boot server packets.  The list of supported architecture types MAY be
+   reduced in any packet exchange between the client and server(s).
+   Octets "n1" and "n2" encode a 16-bit architecture type identifier
+   that describes the pre-boot runtime environment(s) of the client
+   machine.
+
+   As of the writing of this document, the following pre-boot
+   architecture types have been requested.
+
+            Type   Architecture Name
+            ----   -----------------
+              0    Intel x86PC
+              1    NEC/PC98
+              2    EFI Itanium
+              3    DEC Alpha
+              4    Arc x86
+              5    Intel Lean Client
+              6    EFI IA32
+              7    EFI BC
+              8    EFI Xscale
+              9    EFI x86-64
+
+   This option MUST be present in all DHCP and PXE packets sent by PXE-
+   compliant clients and servers.
+
+2.2.  Client Network Interface Identifier Option Definition
+
+   The format of the option is:
+
+                Code  Len  Type Major Minor
+               +----+-----+----+-----+-----+
+               | 94 |  3  |  t |  M  |  m  |
+               +----+-----+----+-----+-----+
+
+   Octet "t" encodes a network interface type.  For now the only
+   supported value is 1 for Universal Network Device Interface (UNDI).
+   Octets "M" and "m" describe the interface revision.  To encode the
+   UNDI revision of 2.11, "M" would be set to 2, and "m" would be set to
+   11 (0x0B).
+
+
+
+
+
+
+
+
+Johnston & Venaas            Informational                      [Page 3]
+
+RFC 4578                    DHCP PXE Options               November 2006
+
+
+         Revision  Description
+         --------  -----------
+         < 2.00    LANDesk service agent boot ROMs.  No PXE APIs.
+
+           2.00    First generation PXE boot ROMs.  (PXENV+) [3]
+
+           2.01    Second generation PXE boot ROMs.  (!PXE)  [3]
+
+           3.00    32/64-bit UNDI specification.    (Alpha)  [4]
+                   EFI boot services driver only.
+                   No EFI runtime support.
+
+           3.10    32/64-bit UNDI specification.     (Beta)  [4]
+                   First generation EFI runtime driver support.
+
+           3.20    32/64-bit UNDI specification.  (Release)  [4]
+                   Second generation EFI runtime driver support.
+
+   This option MUST be present in all DHCP and PXE packets sent by PXE-
+   compliant clients and servers.
+
+2.3.  Client Machine Identifier Option Definition
+
+   The format of the option is:
+
+                Code  Len  Type  Machine Identifier
+               +----+-----+----+-----+ . . . +-----+
+               | 97 |  n  |  t |     | . . . |     |
+               +----+-----+----+-----+ . . . +-----+
+
+   Octet "t" describes the type of the machine identifier in the
+   remaining octets in this option. 0 (zero) is the only value defined
+   for this octet at the present time, and it describes the remaining
+   octets as a 16-octet Globally Unique Identifier (GUID).  Octet "n" is
+   17 for type 0.  (One definition of GUID can be found in Appendix A of
+   the EFI specification [4].)
+
+   This option MUST be present in all DHCP and PXE packets sent by PXE-
+   compliant clients and servers.
+
+2.4.  Options Requested by PXE Clients
+
+   All compliant PXE clients MUST include a request for DHCP options 128
+   through 135 in all DHCP and PXE packets.  The format and contents of
+   these options are NOT defined by the PXE specification.  These
+   options MAY be present in the DHCP and PXE boot server replies and
+   are meant for use by the downloaded network bootstrap programs.
+   These options are NOT used by the PXE boot ROMs.
+
+
+
+Johnston & Venaas            Informational                      [Page 4]
+
+RFC 4578                    DHCP PXE Options               November 2006
+
+
+   As options 128-135 are not officially assigned for PXE use (before
+   November 2004 they were considered site-specific options, [6]), use
+   of these option values for PXE may conflict with other uses of the
+   same options on the same networks.
+
+3.  Acknowledgements
+
+   The authors thank Bernie Volz for valuable input.
+
+4.  IANA Considerations
+
+   IANA has updated the numbering space defined for public DHCP options
+   in [7] with references to this document for options 93, 94, and 97
+   (previously, there were references to [8]).  Also, IANA marked
+   options 128-135 as being used by PXE and referenced this document.
+
+5.  Security Considerations
+
+   By specifying incorrect values for some of these options, a client
+   may get access to, and possibly attempt to execute, code intended for
+   another platform or client.  This may have security ramifications.
+   Also note that these options contain information about a client's
+   system architecture and pre-OS runtime environment that is revealed
+   to anyone who is able to listen in on DHCP messages sent by the
+   client.  This information may be of use to potential attackers.
+
+6.  Normative References
+
+   [1]  Bradner, S., "Key words for use in RFCs to Indicate Requirement
+        Levels", BCP 14, RFC 2119, March 1997.
+
+   [2]  Droms, R., "Dynamic Host Configuration Protocol", RFC 2131,
+        March 1997.
+
+   [3]  Henry, M. and M. Johnston, "Preboot Execution Environment (PXE)
+        Specification", September 1999,
+        <http://www.pix.net/software/pxeboot/archive/pxespec.pdf>.
+
+   [4]  Intel Corp., "Extensible Firmware Interface Specification",
+        December 2002, <http://developer.intel.com/technology/efi/
+        main_specification.htm>.
+
+   [5]  Alexander, S. and R. Droms, "DHCP Options and BOOTP Vendor
+        Extensions", RFC 2132, March 1997.
+
+   [6]  Volz, B., "Reclassifying Dynamic Host Configuration Protocol
+        version 4 (DHCPv4) Options", RFC 3942, November 2004.
+
+
+
+
+Johnston & Venaas            Informational                      [Page 5]
+
+RFC 4578                    DHCP PXE Options               November 2006
+
+
+   [7]  Droms, R., "Procedures and IANA Guidelines for Definition of New
+        DHCP Options and Message Types", BCP 43, RFC 2939, September
+        2000.
+
+   [8]  Droms, R., "Unused Dynamic Host Configuration Protocol (DHCP)
+        Option Codes", RFC 3679, January 2004.
+
+Authors' Addresses
+
+   Michael Johnston
+   Intel Corporation
+   MS. JF1-239 2111 NE 25th Ave.
+   Hillsboro, OR  97124
+   USA
+
+   Phone: +1 503-264-9703
+   EMail: michael.johnston@intel.com
+
+
+   Stig Venaas
+   UNINETT
+   Trondheim  NO-7465
+   Norway
+
+   EMail: venaas@uninett.no
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Johnston & Venaas            Informational                      [Page 6]
+
+RFC 4578                    DHCP PXE Options               November 2006
+
+
+Full Copyright Statement
+
+   Copyright (C) The IETF Trust (2006).
+
+   This document is subject to the rights, licenses and restrictions
+   contained in BCP 78, and except as set forth therein, the authors
+   retain all their rights.
+
+   This document and the information contained herein are provided on an
+   "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/SHE REPRESENTS
+   OR IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY, THE IETF TRUST,
+   AND THE INTERNET ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT
+   THE USE OF THE INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY
+   IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR
+   PURPOSE.
+
+Intellectual Property
+
+   The IETF takes no position regarding the validity or scope of any
+   Intellectual Property Rights or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this document or the extent to which any license under such rights
+   might or might not be available; nor does it represent that it has
+   made any independent effort to identify any such rights.  Information
+   on the procedures with respect to rights in RFC documents can be
+   found in BCP 78 and BCP 79.
+
+   Copies of IPR disclosures made to the IETF Secretariat and any
+   assurances of licenses to be made available, or the result of an
+   attempt made to obtain a general license or permission for the use of
+   such proprietary rights by implementers or users of this
+   specification can be obtained from the IETF on-line IPR repository at
+   http://www.ietf.org/ipr.
+
+   The IETF invites any interested party to bring to its attention any
+   copyrights, patents or patent applications, or other proprietary
+   rights that may cover technology that may be required to implement
+   this standard.  Please address the information to the IETF at
+   ietf-ipr@ietf.org.
+
+Acknowledgement
+
+   Funding for the RFC Editor function is currently provided by the
+   Internet Society.
+
+
+
+
+
+
+Johnston & Venaas            Informational                      [Page 7]
+

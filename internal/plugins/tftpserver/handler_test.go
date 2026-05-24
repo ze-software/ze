@@ -1,0 +1,616 @@
+package tftpserver
+
+import (
+	"bytes"
+	"encoding/binary"
+	"net"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+)
+
+func closeUDP(t *testing.T, c *net.UDPConn) {
+	t.Helper()
+	if err := c.Close(); err != nil {
+		t.Logf("close: %v", err)
+	}
+}
+
+func TestTFTPParseRRQ(t *testing.T) {
+	t.Parallel()
+
+	pkt := make([]byte, 0, 30)
+	pkt = binary.BigEndian.AppendUint16(pkt, opRRQ)
+	pkt = append(pkt, "bootloader.bin"...)
+	pkt = append(pkt, 0)
+	pkt = append(pkt, "octet"...)
+	pkt = append(pkt, 0)
+
+	filename, mode, err := parseRRQ(pkt)
+	if err != nil {
+		t.Fatalf("parseRRQ: %v", err)
+	}
+	if filename != "bootloader.bin" {
+		t.Errorf("filename = %q, want bootloader.bin", filename)
+	}
+	if mode != "octet" {
+		t.Errorf("mode = %q, want octet", mode)
+	}
+}
+
+func TestTFTPParseRRQInvalid(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		pkt  []byte
+	}{
+		{"too short", []byte{0, 1, 'a'}},
+		{"no filename NUL", func() []byte {
+			p := make([]byte, 0, 10)
+			p = binary.BigEndian.AppendUint16(p, opRRQ)
+			p = append(p, "abcd"...)
+			return p
+		}()},
+		{"empty filename", func() []byte {
+			p := make([]byte, 0, 10)
+			p = binary.BigEndian.AppendUint16(p, opRRQ)
+			p = append(p, 0)
+			p = append(p, "octet"...)
+			p = append(p, 0)
+			return p
+		}()},
+		{"no mode NUL", func() []byte {
+			p := make([]byte, 0, 20)
+			p = binary.BigEndian.AppendUint16(p, opRRQ)
+			p = append(p, "file"...)
+			p = append(p, 0)
+			p = append(p, "octet"...)
+			return p
+		}()},
+		{"empty mode", func() []byte {
+			p := make([]byte, 0, 10)
+			p = binary.BigEndian.AppendUint16(p, opRRQ)
+			p = append(p, "file"...)
+			p = append(p, 0, 0)
+			return p
+		}()},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, _, err := parseRRQ(tc.pkt)
+			if err == nil {
+				t.Error("expected error")
+			}
+		})
+	}
+}
+
+func TestTFTPBuildDataPacket(t *testing.T) {
+	t.Parallel()
+
+	data := []byte("hello")
+	pkt := buildData(1, data)
+
+	if len(pkt) != 4+len(data) {
+		t.Fatalf("packet length = %d, want %d", len(pkt), 4+len(data))
+	}
+	if binary.BigEndian.Uint16(pkt[0:2]) != opDATA {
+		t.Errorf("opcode = %d, want %d", binary.BigEndian.Uint16(pkt[0:2]), opDATA)
+	}
+	if binary.BigEndian.Uint16(pkt[2:4]) != 1 {
+		t.Errorf("block = %d, want 1", binary.BigEndian.Uint16(pkt[2:4]))
+	}
+	if string(pkt[4:]) != "hello" {
+		t.Errorf("data = %q, want hello", string(pkt[4:]))
+	}
+}
+
+func TestTFTPBuildErrorPacket(t *testing.T) {
+	t.Parallel()
+
+	pkt := buildError(errFileNotFound, "file not found")
+
+	if binary.BigEndian.Uint16(pkt[0:2]) != opERROR {
+		t.Errorf("opcode = %d, want %d", binary.BigEndian.Uint16(pkt[0:2]), opERROR)
+	}
+	if binary.BigEndian.Uint16(pkt[2:4]) != errFileNotFound {
+		t.Errorf("error code = %d, want %d", binary.BigEndian.Uint16(pkt[2:4]), errFileNotFound)
+	}
+	msg := string(pkt[4 : len(pkt)-1])
+	if msg != "file not found" {
+		t.Errorf("message = %q, want 'file not found'", msg)
+	}
+	if pkt[len(pkt)-1] != 0 {
+		t.Error("missing NUL terminator")
+	}
+}
+
+func TestTFTPPathTraversal(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(rootDir, "allowed.txt"), []byte("ok"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name    string
+		file    string
+		wantErr bool
+	}{
+		{"valid file", "allowed.txt", false},
+		{"dotdot", "../etc/passwd", true},
+		{"absolute", "/etc/passwd", true},
+		{"dotdot nested", "sub/../../etc/passwd", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := resolvePath(rootDir, tc.file)
+			if tc.wantErr && err == nil {
+				t.Error("expected error for path traversal")
+			}
+			if !tc.wantErr && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestTFTPSymlinkTraversal(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	outsideDir := t.TempDir()
+	secretFile := filepath.Join(outsideDir, "secret.txt")
+	if err := os.WriteFile(secretFile, []byte("secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	linkPath := filepath.Join(rootDir, "escape")
+	if err := os.Symlink(outsideDir, linkPath); err != nil {
+		t.Skip("symlinks not supported")
+	}
+
+	_, err := resolvePath(rootDir, "escape/secret.txt")
+	if err == nil {
+		t.Error("expected error for symlink traversal")
+	}
+}
+
+func buildRRQPacket(filename, mode string) []byte {
+	pkt := make([]byte, 0, 2+len(filename)+1+len(mode)+1)
+	pkt = binary.BigEndian.AppendUint16(pkt, opRRQ)
+	pkt = append(pkt, filename...)
+	pkt = append(pkt, 0)
+	pkt = append(pkt, mode...)
+	pkt = append(pkt, 0)
+	return pkt
+}
+
+func buildWRQPacket(filename, mode string) []byte {
+	pkt := make([]byte, 0, 2+len(filename)+1+len(mode)+1)
+	pkt = binary.BigEndian.AppendUint16(pkt, opWRQ)
+	pkt = append(pkt, filename...)
+	pkt = append(pkt, 0)
+	pkt = append(pkt, mode...)
+	pkt = append(pkt, 0)
+	return pkt
+}
+
+func buildACKPacket(block uint16) []byte {
+	pkt := make([]byte, 4)
+	binary.BigEndian.PutUint16(pkt[0:2], opACK)
+	binary.BigEndian.PutUint16(pkt[2:4], block)
+	return pkt
+}
+
+func startTestTFTPServer(t *testing.T, rootDir string, maxTransfers int) *net.UDPAddr {
+	t.Helper()
+
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { closeUDP(t, conn) })
+
+	sem := make(chan struct{}, maxTransfers)
+	log := slogutil.DiscardLogger()
+
+	go serve(conn, rootDir, sem, log)
+
+	addr, ok := conn.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatal("unexpected address type")
+	}
+	return addr
+}
+
+func TestTFTPReadRequest(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	content := []byte("hello tftp")
+	if err := os.WriteFile(filepath.Join(rootDir, "test.bin"), content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srvAddr := startTestTFTPServer(t, rootDir, 10)
+
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client)
+
+	rrq := buildRRQPacket("test.bin", "octet")
+	if _, err := client.WriteToUDP(rrq, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 516)
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, _, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("no DATA response: %v", err)
+	}
+
+	if n < 4 {
+		t.Fatalf("response too short: %d bytes", n)
+	}
+	if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+		t.Fatalf("opcode = %d, want %d (DATA)", binary.BigEndian.Uint16(buf[0:2]), opDATA)
+	}
+	if binary.BigEndian.Uint16(buf[2:4]) != 1 {
+		t.Fatalf("block = %d, want 1", binary.BigEndian.Uint16(buf[2:4]))
+	}
+	if !bytes.Equal(buf[4:n], content) {
+		t.Errorf("data = %q, want %q", buf[4:n], content)
+	}
+}
+
+func TestTFTPReadLargeFile(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	content := make([]byte, 1500)
+	for i := range content {
+		content[i] = byte(i % 256)
+	}
+	if err := os.WriteFile(filepath.Join(rootDir, "large.bin"), content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srvAddr := startTestTFTPServer(t, rootDir, 10)
+
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client)
+
+	rrq := buildRRQPacket("large.bin", "octet")
+	if _, err := client.WriteToUDP(rrq, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	var received []byte
+	buf := make([]byte, 516)
+	expectedBlocks := 3 // 512 + 512 + 476
+
+	for block := uint16(1); block <= uint16(expectedBlocks); block++ {
+		if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+			t.Fatal(err)
+		}
+		n, senderAddr, readErr := client.ReadFromUDP(buf)
+		if readErr != nil {
+			t.Fatalf("block %d: no DATA: %v", block, readErr)
+		}
+
+		if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+			t.Fatalf("block %d: opcode = %d, want DATA", block, binary.BigEndian.Uint16(buf[0:2]))
+		}
+		gotBlock := binary.BigEndian.Uint16(buf[2:4])
+		if gotBlock != block {
+			t.Fatalf("got block %d, want %d", gotBlock, block)
+		}
+
+		received = append(received, buf[4:n]...)
+
+		ack := buildACKPacket(block)
+		if _, wErr := client.WriteToUDP(ack, senderAddr); wErr != nil {
+			t.Fatal(wErr)
+		}
+	}
+
+	if len(received) != len(content) {
+		t.Fatalf("received %d bytes, want %d", len(received), len(content))
+	}
+	for i := range content {
+		if received[i] != content[i] {
+			t.Fatalf("mismatch at byte %d: got %d, want %d", i, received[i], content[i])
+		}
+	}
+}
+
+func TestTFTPReadExact512(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	content := make([]byte, 512)
+	for i := range content {
+		content[i] = byte(i)
+	}
+	if err := os.WriteFile(filepath.Join(rootDir, "exact.bin"), content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srvAddr := startTestTFTPServer(t, rootDir, 10)
+
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client)
+
+	rrq := buildRRQPacket("exact.bin", "octet")
+	if _, err := client.WriteToUDP(rrq, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 516)
+
+	// Block 1: 512 bytes
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, senderAddr, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("block 1: %v", err)
+	}
+	if n-4 != 512 {
+		t.Fatalf("block 1: data = %d bytes, want 512", n-4)
+	}
+
+	ack := buildACKPacket(1)
+	if _, err := client.WriteToUDP(ack, senderAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	// Block 2: 0 bytes (signals end)
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, _, err = client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("block 2: %v", err)
+	}
+	if binary.BigEndian.Uint16(buf[2:4]) != 2 {
+		t.Fatalf("block number = %d, want 2", binary.BigEndian.Uint16(buf[2:4]))
+	}
+	if n-4 != 0 {
+		t.Fatalf("block 2: data = %d bytes, want 0 (end signal)", n-4)
+	}
+}
+
+func TestTFTPReadEmptyFile(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(rootDir, "empty.bin"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srvAddr := startTestTFTPServer(t, rootDir, 10)
+
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client)
+
+	rrq := buildRRQPacket("empty.bin", "octet")
+	if _, err := client.WriteToUDP(rrq, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 516)
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, _, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("no DATA: %v", err)
+	}
+	if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+		t.Fatalf("opcode = %d, want DATA", binary.BigEndian.Uint16(buf[0:2]))
+	}
+	if binary.BigEndian.Uint16(buf[2:4]) != 1 {
+		t.Fatalf("block = %d, want 1", binary.BigEndian.Uint16(buf[2:4]))
+	}
+	if n-4 != 0 {
+		t.Fatalf("data = %d bytes, want 0", n-4)
+	}
+}
+
+func TestTFTPWriteRejected(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	srvAddr := startTestTFTPServer(t, rootDir, 10)
+
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client)
+
+	wrq := buildWRQPacket("file.bin", "octet")
+	if _, err := client.WriteToUDP(wrq, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 100)
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, _, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("no ERROR response: %v", err)
+	}
+	if binary.BigEndian.Uint16(buf[0:2]) != opERROR {
+		t.Fatalf("opcode = %d, want ERROR", binary.BigEndian.Uint16(buf[0:2]))
+	}
+	if binary.BigEndian.Uint16(buf[2:4]) != errIllegalOp {
+		t.Errorf("error code = %d, want %d (illegal operation)", binary.BigEndian.Uint16(buf[2:4]), errIllegalOp)
+	}
+	_ = n
+}
+
+func TestTFTPFileNotFound(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	srvAddr := startTestTFTPServer(t, rootDir, 10)
+
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client)
+
+	rrq := buildRRQPacket("nonexistent.bin", "octet")
+	if _, err := client.WriteToUDP(rrq, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 100)
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, _, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("no ERROR response: %v", err)
+	}
+
+	opcode := binary.BigEndian.Uint16(buf[0:2])
+
+	// Server may send access violation (from handleRRQ path validation)
+	// or file not found (from serveFile). Both are correct.
+	if opcode != opERROR {
+		t.Fatalf("opcode = %d, want ERROR", opcode)
+	}
+	errCode := binary.BigEndian.Uint16(buf[2:4])
+	if errCode != errFileNotFound && errCode != errAccessViolation {
+		t.Errorf("error code = %d, want file-not-found (%d) or access-violation (%d)",
+			errCode, errFileNotFound, errAccessViolation)
+	}
+	_ = n
+}
+
+func TestTFTPModeHandling(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(rootDir, "test.bin"), []byte("data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srvAddr := startTestTFTPServer(t, rootDir, 10)
+
+	// "netascii" mode should be rejected
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client)
+
+	rrq := buildRRQPacket("test.bin", "netascii")
+	if _, err := client.WriteToUDP(rrq, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 100)
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, _, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("no ERROR response: %v", err)
+	}
+	if binary.BigEndian.Uint16(buf[0:2]) != opERROR {
+		t.Fatalf("opcode = %d, want ERROR", binary.BigEndian.Uint16(buf[0:2]))
+	}
+	if binary.BigEndian.Uint16(buf[2:4]) != errIllegalOp {
+		t.Errorf("error code = %d, want %d (illegal operation)", binary.BigEndian.Uint16(buf[2:4]), errIllegalOp)
+	}
+	_ = n
+}
+
+func TestTFTPConcurrentLimit(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	// Create a file large enough that transfers take time
+	content := make([]byte, 10*blockSize)
+	if err := os.WriteFile(filepath.Join(rootDir, "big.bin"), content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srvAddr := startTestTFTPServer(t, rootDir, 1)
+
+	// Start first transfer (will hold the semaphore)
+	client1, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client1)
+
+	rrq1 := buildRRQPacket("big.bin", "octet")
+	if _, err := client1.WriteToUDP(rrq1, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for first transfer to start
+	buf := make([]byte, 516)
+	if err := client1.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := client1.ReadFromUDP(buf); err != nil {
+		t.Fatalf("first transfer didn't start: %v", err)
+	}
+	// Don't ACK - keeps the transfer alive and holding the semaphore
+
+	// Try second transfer - should get rejected
+	client2, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client2)
+
+	rrq2 := buildRRQPacket("big.bin", "octet")
+	if _, err := client2.WriteToUDP(rrq2, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := client2.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, _, err := client2.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("no response for second transfer: %v", err)
+	}
+	if binary.BigEndian.Uint16(buf[0:2]) != opERROR {
+		t.Fatalf("expected ERROR for concurrent limit, got opcode %d", binary.BigEndian.Uint16(buf[0:2]))
+	}
+	_ = n
+}

@@ -37,20 +37,28 @@ const (
 
 // RFC 2132: option codes used by this server.
 const (
-	optPad          = 0
-	optSubnetMask   = 1
-	optRouter       = 3
-	optDNS          = 6
-	optDomainName   = 15
-	optRequestedIP  = 50
-	optLeaseTime    = 51
-	optMessageType  = 53
-	optServerID     = 54
-	optParamReqList = 55
-	optT1           = 58
-	optT2           = 59
-	optEnd          = 255
+	optPad            = 0
+	optSubnetMask     = 1
+	optRouter         = 3
+	optDNS            = 6
+	optDomainName     = 15
+	optVendorSpecific = 43
+	optRequestedIP    = 50
+	optLeaseTime      = 51
+	optMessageType    = 53
+	optServerID       = 54
+	optParamReqList   = 55
+	optT1             = 58
+	optT2             = 59
+	optVendorClassID  = 60
+	optTFTPServerName = 66
+	optBootfileName   = 67
+	optClientArch     = 93
+	optEnd            = 255
 )
+
+// RFC 4578 Section 2.1: client system architecture types.
+const pxeArchUEFIx64 = 7
 
 // RFC 2131 Section 2: fixed header size before options.
 const dhcpHeaderLen = 236
@@ -61,12 +69,13 @@ const minPacketLen = dhcpHeaderLen + 4 + 3 + 1
 type dhcpHandler struct {
 	subnet      subnetConfig
 	serverIP    netip.Addr
+	pxe         pxeConfig
 	pool        *pool
 	leases      *leaseTable
 	staticByMAC map[string]netip.Addr
 }
 
-func newDHCPHandler(sub subnetConfig, serverIP netip.Addr) *dhcpHandler {
+func newDHCPHandler(sub subnetConfig, serverIP netip.Addr, pxe pxeConfig) *dhcpHandler {
 	p := newPool(sub.Ranges, sub.StaticMappings)
 	lt := newLeaseTable(p)
 
@@ -78,6 +87,7 @@ func newDHCPHandler(sub subnetConfig, serverIP netip.Addr) *dhcpHandler {
 	return &dhcpHandler{
 		subnet:      sub,
 		serverIP:    serverIP,
+		pxe:         pxe,
 		pool:        p,
 		leases:      lt,
 		staticByMAC: staticByMAC,
@@ -205,7 +215,7 @@ func (h *dhcpHandler) allocateForClient(mac net.HardwareAddr) (netip.Addr, bool)
 }
 
 func (h *dhcpHandler) buildReply(req []byte, msgType byte, yiaddr netip.Addr) []byte {
-	resp := make([]byte, 576)
+	resp := make([]byte, 1500)
 	resp[0] = opReply
 	resp[1] = req[1]
 	resp[2] = req[2]
@@ -267,11 +277,46 @@ func (h *dhcpHandler) buildReply(req []byte, msgType byte, yiaddr netip.Addr) []
 		binary.BigEndian.PutUint32(t2b[:], t2)
 		off = safeAppendOption(resp, off, limit, optT1, t1b[:])
 		off = safeAppendOption(resp, off, limit, optT2, t2b[:])
+
+		off = h.appendPXEOptions(req, resp, off, limit)
 	}
 
 	resp[off] = optEnd
 
-	return resp
+	return resp[:off+1]
+}
+
+func (h *dhcpHandler) appendPXEOptions(req, resp []byte, off, limit int) int {
+	if !h.pxe.Enabled || !isPXEClient(req) {
+		return off
+	}
+
+	arch := parsePXEArch(req)
+	bootfile := h.pxe.BootfileBIOS
+	if arch == pxeArchUEFIx64 {
+		bootfile = h.pxe.BootfileUEFI
+	}
+
+	// RFC 2131 Section 4.3.1: siaddr identifies the TFTP server for next bootstrap step.
+	tftpIP := h.pxe.TFTPServer.As4()
+	copy(resp[20:24], tftpIP[:])
+
+	// RFC 2132 Section 9.6: option 60 vendor class identifier.
+	off = safeAppendOption(resp, off, limit, optVendorClassID, []byte("PXEClient"))
+
+	// RFC 2132 Section 9.9: option 66 TFTP server name.
+	off = safeAppendOption(resp, off, limit, optTFTPServerName, []byte(h.pxe.TFTPServer.String()))
+
+	// RFC 2132 Section 9.10: option 67 bootfile name.
+	off = safeAppendOption(resp, off, limit, optBootfileName, []byte(bootfile))
+
+	// PXE Specification 2.1: option 43 vendor-specific with boot item suboption (type 71).
+	off = safeAppendOption(resp, off, limit, optVendorSpecific, []byte{
+		71, 4, 0, 0, 0, 0,
+		255,
+	})
+
+	return off
 }
 
 func (h *dhcpHandler) buildNak(req []byte) []byte {
@@ -359,4 +404,41 @@ func prefixToMask(p netip.Prefix) [4]byte {
 	var b [4]byte
 	binary.BigEndian.PutUint32(b[:], mask)
 	return b
+}
+
+func parseOptionBytes(pkt []byte, code byte) []byte {
+	opts := pkt[240:]
+	for i := 0; i < len(opts)-1; {
+		if opts[i] == optEnd {
+			break
+		}
+		if opts[i] == optPad {
+			i++
+			continue
+		}
+		l := int(opts[i+1])
+		if i+2+l > len(opts) {
+			break
+		}
+		if opts[i] == code {
+			return opts[i+2 : i+2+l]
+		}
+		i += 2 + l
+	}
+	return nil
+}
+
+func isPXEClient(pkt []byte) bool {
+	opt60 := parseOptionBytes(pkt, optVendorClassID)
+	return len(opt60) >= 10 && string(opt60[:10]) == "PXEClient:"
+}
+
+// RFC 4578 Section 2.1: option 93 contains one or more 2-byte architecture types.
+// Returns the first type, or 0 (BIOS) if absent or malformed.
+func parsePXEArch(pkt []byte) uint16 {
+	opt93 := parseOptionBytes(pkt, optClientArch)
+	if len(opt93) < 2 || len(opt93)%2 != 0 {
+		return 0
+	}
+	return binary.BigEndian.Uint16(opt93[:2])
 }

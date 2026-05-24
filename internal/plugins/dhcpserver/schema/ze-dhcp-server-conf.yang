@@ -25,6 +25,31 @@ module ze-dhcp-server-conf {
                 description "Interfaces to serve DHCP on";
             }
 
+            container pxe {
+                description "PXE boot server settings (RFC 4578)";
+
+                leaf enabled {
+                    type boolean;
+                    default false;
+                    description "Enable PXE boot option injection";
+                }
+
+                leaf tftp-server {
+                    type string;
+                    description "TFTP server IP address for PXE boot (option 66, siaddr)";
+                }
+
+                leaf bootfile-bios {
+                    type string;
+                    description "Boot file path for BIOS clients (option 67)";
+                }
+
+                leaf bootfile-uefi {
+                    type string;
+                    description "Boot file path for UEFI clients (option 67)";
+                }
+            }
+
             list shared-network {
                 key "name";
                 description "Named network grouping of subnets";

@@ -360,6 +360,95 @@ func TestParseConfigOverlappingRanges(t *testing.T) {
 	}
 }
 
+func TestParsePXEConfig(t *testing.T) {
+	t.Parallel()
+
+	data := `{
+		"service": {
+			"dhcp-server": {
+				"enabled": "true",
+				"listen-interface": ["eth0"],
+				"pxe": {
+					"enabled": "true",
+					"tftp-server": "192.168.1.1",
+					"bootfile-bios": "ipxe.pxe",
+					"bootfile-uefi": "ipxe.efi"
+				},
+				"shared-network": {
+					"LAN": {
+						"subnet": {
+							"192.168.1.0/24": {
+								"range": {
+									"start": "192.168.1.100",
+									"stop": "192.168.1.200"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`
+
+	cfg, err := parseConfig(data)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	if !cfg.PXE.Enabled {
+		t.Error("expected PXE enabled=true")
+	}
+	if cfg.PXE.TFTPServer != netip.MustParseAddr("192.168.1.1") {
+		t.Errorf("PXE tftp-server = %v, want 192.168.1.1", cfg.PXE.TFTPServer)
+	}
+	if cfg.PXE.BootfileBIOS != "ipxe.pxe" {
+		t.Errorf("PXE bootfile-bios = %q, want ipxe.pxe", cfg.PXE.BootfileBIOS)
+	}
+	if cfg.PXE.BootfileUEFI != "ipxe.efi" {
+		t.Errorf("PXE bootfile-uefi = %q, want ipxe.efi", cfg.PXE.BootfileUEFI)
+	}
+}
+
+func TestParsePXEConfigMissing(t *testing.T) {
+	t.Parallel()
+
+	data := `{"service": {"dhcp-server": {"enabled": "true"}}}`
+	cfg, err := parseConfig(data)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	if cfg.PXE.Enabled {
+		t.Error("expected PXE disabled when no pxe block")
+	}
+}
+
+func TestParsePXEConfigInvalid(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		data string
+	}{
+		{
+			name: "invalid tftp-server IP",
+			data: `{"service":{"dhcp-server":{"pxe":{"enabled":"true","tftp-server":"not-an-ip"}}}}`,
+		},
+		{
+			name: "IPv6 tftp-server",
+			data: `{"service":{"dhcp-server":{"pxe":{"enabled":"true","tftp-server":"::1"}}}}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := parseConfig(tc.data)
+			if err == nil {
+				t.Error("expected validation error")
+			}
+		})
+	}
+}
+
 func TestParseConfigValidationErrors(t *testing.T) {
 	t.Parallel()
 

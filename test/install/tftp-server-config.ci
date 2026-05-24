@@ -1,0 +1,15 @@
+# Valid config: TFTP server plugin enabled with root directory.
+# spec-install-2 AC-1: tftpserver config parses and validates successfully.
+stdin=config:terminator=EOF_CONF
+service {
+    tftp-server {
+        enabled true
+        listen-interface eth0
+        root-directory /var/lib/tftp
+        max-transfers 20
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

@@ -1,0 +1,42 @@
+module ze-tftp-server-conf {
+    namespace "urn:ze:tftp-server:conf";
+    prefix tftpsrv;
+
+    description "TFTP server configuration for Ze (RFC 1350)";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    container service {
+        description "Service settings";
+
+        container tftp-server {
+            description "Read-only TFTP server (RFC 1350)";
+
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Enable TFTP server";
+            }
+
+            leaf-list listen-interface {
+                type string;
+                description "Interfaces to serve TFTP on";
+            }
+
+            leaf root-directory {
+                type string;
+                description "Directory to serve files from";
+            }
+
+            leaf max-transfers {
+                type uint16 {
+                    range "1..1000";
+                }
+                default 10;
+                description "Maximum concurrent TFTP transfers";
+            }
+        }
+    }
+}

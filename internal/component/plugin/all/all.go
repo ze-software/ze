@@ -77,6 +77,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/p4/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/vpp/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/imageserver/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/kernel/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthlocal/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthradius/schema"
@@ -88,6 +89,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/static/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/tftpserver/schema"
 
 	// Plugin packages — plugin + schema registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugin"
@@ -140,6 +142,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/dhcp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/vpp"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/imageserver"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/kernel"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthlocal"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthradius"
@@ -151,6 +154,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/static"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/tftpserver"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/netlink"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/vpp"
 

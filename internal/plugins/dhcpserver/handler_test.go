@@ -18,7 +18,7 @@ func newTestServer(t *testing.T) *dhcpHandler {
 		DomainName:    "home.lan",
 	}
 	serverIP := netip.MustParseAddr("192.168.1.1")
-	return newDHCPHandler(sub, serverIP)
+	return newDHCPHandler(sub, serverIP, pxeConfig{})
 }
 
 func newTestServerWithStatic(t *testing.T) *dhcpHandler {
@@ -38,7 +38,7 @@ func newTestServerWithStatic(t *testing.T) *dhcpHandler {
 		},
 	}
 	serverIP := netip.MustParseAddr("192.168.1.1")
-	return newDHCPHandler(sub, serverIP)
+	return newDHCPHandler(sub, serverIP, pxeConfig{})
 }
 
 func buildDiscover(mac net.HardwareAddr, xid uint32) []byte {
@@ -289,7 +289,7 @@ func TestDHCPPoolExhaustionSilent(t *testing.T) {
 		Ranges:       []addressRange{{Name: "pool", Start: netip.MustParseAddr("10.0.0.1"), Stop: netip.MustParseAddr("10.0.0.2")}},
 		LeaseTimeSec: 3600,
 	}
-	h := newDHCPHandler(sub, netip.MustParseAddr("10.0.0.1"))
+	h := newDHCPHandler(sub, netip.MustParseAddr("10.0.0.1"), pxeConfig{})
 	defer h.leases.stop()
 
 	for i := range 2 {
@@ -329,7 +329,7 @@ func TestDHCPStaticOnlySubnet(t *testing.T) {
 			},
 		},
 	}
-	h := newDHCPHandler(sub, netip.MustParseAddr("192.168.1.1"))
+	h := newDHCPHandler(sub, netip.MustParseAddr("192.168.1.1"), pxeConfig{})
 	defer h.leases.stop()
 
 	staticMAC := net.HardwareAddr{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}
@@ -627,6 +627,387 @@ func TestMalformedPackets(t *testing.T) {
 				t.Errorf("expected nil for malformed packet, got response type %d", getResponseMsgType(resp))
 			}
 		})
+	}
+}
+
+func newTestPXEServer(t *testing.T) *dhcpHandler {
+	t.Helper()
+	sub := subnetConfig{
+		Prefix:        netip.MustParsePrefix("192.168.1.0/24"),
+		Ranges:        []addressRange{{Name: "pool", Start: netip.MustParseAddr("192.168.1.100"), Stop: netip.MustParseAddr("192.168.1.200")}},
+		LeaseTimeSec:  3600,
+		DefaultRouter: netip.MustParseAddr("192.168.1.1"),
+		DNSServers:    []netip.Addr{netip.MustParseAddr("8.8.8.8")},
+	}
+	serverIP := netip.MustParseAddr("192.168.1.1")
+	pxe := pxeConfig{
+		Enabled:      true,
+		TFTPServer:   netip.MustParseAddr("192.168.1.1"),
+		BootfileBIOS: "ipxe.pxe",
+		BootfileUEFI: "ipxe.efi",
+	}
+	return newDHCPHandler(sub, serverIP, pxe)
+}
+
+func buildPXEDiscover(mac net.HardwareAddr, xid uint32, arch uint16) []byte {
+	pkt := make([]byte, 400)
+	pkt[0] = opRequest
+	pkt[1] = htypeEthernet
+	pkt[2] = hlenEthernet
+	binary.BigEndian.PutUint32(pkt[4:8], xid)
+	copy(pkt[28:34], mac)
+	binary.BigEndian.PutUint32(pkt[236:240], magicCookie)
+	off := 240
+	pkt[off] = optMessageType
+	pkt[off+1] = 1
+	pkt[off+2] = msgDiscover
+	off += 3
+
+	vendorClass := []byte("PXEClient:Arch:00000:UNDI:002001")
+	pkt[off] = optVendorClassID
+	pkt[off+1] = byte(len(vendorClass))
+	copy(pkt[off+2:], vendorClass)
+	off += 2 + len(vendorClass)
+
+	pkt[off] = optClientArch
+	pkt[off+1] = 2
+	binary.BigEndian.PutUint16(pkt[off+2:off+4], arch)
+	off += 4
+
+	pkt[off] = optEnd
+	return pkt
+}
+
+func buildPXERequest(mac net.HardwareAddr, xid uint32, requestedIP, serverID netip.Addr, arch uint16) []byte {
+	pkt := make([]byte, 400)
+	pkt[0] = opRequest
+	pkt[1] = htypeEthernet
+	pkt[2] = hlenEthernet
+	binary.BigEndian.PutUint32(pkt[4:8], xid)
+	copy(pkt[28:34], mac)
+	binary.BigEndian.PutUint32(pkt[236:240], magicCookie)
+	off := 240
+	pkt[off] = optMessageType
+	pkt[off+1] = 1
+	pkt[off+2] = msgRequest
+	off += 3
+	if requestedIP.IsValid() {
+		pkt[off] = optRequestedIP
+		pkt[off+1] = 4
+		ip4 := requestedIP.As4()
+		copy(pkt[off+2:off+6], ip4[:])
+		off += 6
+	}
+	if serverID.IsValid() {
+		pkt[off] = optServerID
+		pkt[off+1] = 4
+		ip4 := serverID.As4()
+		copy(pkt[off+2:off+6], ip4[:])
+		off += 6
+	}
+
+	vendorClass := []byte("PXEClient:Arch:00007:UNDI:003016")
+	pkt[off] = optVendorClassID
+	pkt[off+1] = byte(len(vendorClass))
+	copy(pkt[off+2:], vendorClass)
+	off += 2 + len(vendorClass)
+
+	pkt[off] = optClientArch
+	pkt[off+1] = 2
+	binary.BigEndian.PutUint16(pkt[off+2:off+4], arch)
+	off += 4
+
+	pkt[off] = optEnd
+	return pkt
+}
+
+func TestPXEDiscoverBIOS(t *testing.T) {
+	t.Parallel()
+
+	h := newTestPXEServer(t)
+	defer h.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}
+	discover := buildPXEDiscover(mac, 0xB101, 0)
+	resp := h.handle(discover)
+	if resp == nil {
+		t.Fatal("expected DHCPOFFER, got nil")
+	}
+
+	if getResponseMsgType(resp) != msgOffer {
+		t.Fatalf("message type = %d, want %d (OFFER)", getResponseMsgType(resp), msgOffer)
+	}
+
+	opt66 := getResponseOption(resp, optTFTPServerName)
+	if opt66 == nil {
+		t.Fatal("missing option 66 (TFTP server name)")
+	}
+	if string(opt66) != "192.168.1.1" {
+		t.Errorf("option 66 = %q, want %q", string(opt66), "192.168.1.1")
+	}
+
+	opt67 := getResponseOption(resp, optBootfileName)
+	if opt67 == nil {
+		t.Fatal("missing option 67 (bootfile name)")
+	}
+	if string(opt67) != "ipxe.pxe" {
+		t.Errorf("option 67 = %q, want %q (BIOS bootfile)", string(opt67), "ipxe.pxe")
+	}
+
+	siaddr := netip.AddrFrom4([4]byte(resp[20:24]))
+	if siaddr != netip.MustParseAddr("192.168.1.1") {
+		t.Errorf("siaddr = %v, want 192.168.1.1", siaddr)
+	}
+}
+
+func TestPXEDiscoverUEFI(t *testing.T) {
+	t.Parallel()
+
+	h := newTestPXEServer(t)
+	defer h.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x77}
+	discover := buildPXEDiscover(mac, 0xEF12, 7)
+	resp := h.handle(discover)
+	if resp == nil {
+		t.Fatal("expected DHCPOFFER, got nil")
+	}
+
+	opt67 := getResponseOption(resp, optBootfileName)
+	if opt67 == nil {
+		t.Fatal("missing option 67 (bootfile name)")
+	}
+	if string(opt67) != "ipxe.efi" {
+		t.Errorf("option 67 = %q, want %q (UEFI bootfile)", string(opt67), "ipxe.efi")
+	}
+}
+
+func TestNonPXEDiscoverUnchanged(t *testing.T) {
+	t.Parallel()
+
+	h := newTestPXEServer(t)
+	defer h.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x88}
+	discover := buildDiscover(mac, 0xBEEF)
+	resp := h.handle(discover)
+	if resp == nil {
+		t.Fatal("expected DHCPOFFER, got nil")
+	}
+
+	if getResponseOption(resp, optTFTPServerName) != nil {
+		t.Error("non-PXE client should not get option 66")
+	}
+	if getResponseOption(resp, optBootfileName) != nil {
+		t.Error("non-PXE client should not get option 67")
+	}
+	if getResponseOption(resp, optVendorClassID) != nil {
+		t.Error("non-PXE client should not get option 60")
+	}
+
+	siaddr := netip.AddrFrom4([4]byte(resp[20:24]))
+	if siaddr != h.serverIP {
+		t.Errorf("siaddr = %v, want %v (serverIP, not PXE override)", siaddr, h.serverIP)
+	}
+}
+
+func TestPXEDisabledIgnoresOptions(t *testing.T) {
+	t.Parallel()
+
+	h := newTestServer(t)
+	defer h.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x99}
+	discover := buildPXEDiscover(mac, 0xDEAD, 0)
+	resp := h.handle(discover)
+	if resp == nil {
+		t.Fatal("expected DHCPOFFER, got nil")
+	}
+
+	if getResponseOption(resp, optTFTPServerName) != nil {
+		t.Error("PXE disabled: should not get option 66")
+	}
+	if getResponseOption(resp, optBootfileName) != nil {
+		t.Error("PXE disabled: should not get option 67")
+	}
+}
+
+func TestPXENoArch93DefaultsBIOS(t *testing.T) {
+	t.Parallel()
+
+	h := newTestPXEServer(t)
+	defer h.leases.stop()
+
+	pkt := make([]byte, 400)
+	pkt[0] = opRequest
+	pkt[1] = htypeEthernet
+	pkt[2] = hlenEthernet
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0xAA}
+	binary.BigEndian.PutUint32(pkt[4:8], 0xCAFE)
+	copy(pkt[28:34], mac)
+	binary.BigEndian.PutUint32(pkt[236:240], magicCookie)
+	off := 240
+	pkt[off] = optMessageType
+	pkt[off+1] = 1
+	pkt[off+2] = msgDiscover
+	off += 3
+	vendorClass := []byte("PXEClient:Arch:00000:UNDI:002001")
+	pkt[off] = optVendorClassID
+	pkt[off+1] = byte(len(vendorClass))
+	copy(pkt[off+2:], vendorClass)
+	off += 2 + len(vendorClass)
+	pkt[off] = optEnd
+
+	resp := h.handle(pkt)
+	if resp == nil {
+		t.Fatal("expected DHCPOFFER, got nil")
+	}
+
+	opt67 := getResponseOption(resp, optBootfileName)
+	if opt67 == nil {
+		t.Fatal("missing option 67")
+	}
+	if string(opt67) != "ipxe.pxe" {
+		t.Errorf("option 67 = %q, want %q (BIOS default when no option 93)", string(opt67), "ipxe.pxe")
+	}
+}
+
+func TestIsPXEClient(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		opt60 string
+		want  bool
+	}{
+		{"PXE BIOS", "PXEClient:Arch:00000:UNDI:002001", true},
+		{"PXE UEFI", "PXEClient:Arch:00007:UNDI:003016", true},
+		{"PXE minimal", "PXEClient:x", true},
+		{"not PXE", "MSFT 5.0", false},
+		{"empty", "", false},
+		{"short prefix", "PXEClien", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			pkt := make([]byte, 400)
+			binary.BigEndian.PutUint32(pkt[236:240], magicCookie)
+			off := 240
+			if tc.opt60 != "" {
+				pkt[off] = optVendorClassID
+				pkt[off+1] = byte(len(tc.opt60))
+				copy(pkt[off+2:], tc.opt60)
+				off += 2 + len(tc.opt60)
+			}
+			pkt[off] = optEnd
+
+			got := isPXEClient(pkt)
+			if got != tc.want {
+				t.Errorf("isPXEClient = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestParsePXEArch(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		data []byte
+		want uint16
+	}{
+		{"BIOS", []byte{0, 0}, 0},
+		{"UEFI x64", []byte{0, 7}, 7},
+		{"too short", []byte{7}, 0},
+		{"too long", []byte{0, 7, 0}, 0},
+		{"missing", nil, 0},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			pkt := make([]byte, 400)
+			binary.BigEndian.PutUint32(pkt[236:240], magicCookie)
+			off := 240
+			if tc.data != nil {
+				pkt[off] = optClientArch
+				pkt[off+1] = byte(len(tc.data))
+				copy(pkt[off+2:], tc.data)
+				off += 2 + len(tc.data)
+			}
+			pkt[off] = optEnd
+
+			got := parsePXEArch(pkt)
+			if got != tc.want {
+				t.Errorf("parsePXEArch = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestPXERequestAck(t *testing.T) {
+	t.Parallel()
+
+	h := newTestPXEServer(t)
+	defer h.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0xBB}
+
+	discover := buildPXEDiscover(mac, 0xACDC, 7)
+	offer := h.handle(discover)
+	if offer == nil {
+		t.Fatal("no OFFER")
+	}
+	offeredIP := netip.AddrFrom4([4]byte(offer[16:20]))
+
+	request := buildPXERequest(mac, 0xACDC, offeredIP, h.serverIP, 7)
+	ack := h.handle(request)
+	if ack == nil {
+		t.Fatal("no ACK")
+	}
+
+	if getResponseMsgType(ack) != msgAck {
+		t.Fatalf("message type = %d, want %d (ACK)", getResponseMsgType(ack), msgAck)
+	}
+
+	opt67 := getResponseOption(ack, optBootfileName)
+	if opt67 == nil {
+		t.Fatal("ACK missing option 67")
+	}
+	if string(opt67) != "ipxe.efi" {
+		t.Errorf("ACK option 67 = %q, want %q", string(opt67), "ipxe.efi")
+	}
+
+	opt66 := getResponseOption(ack, optTFTPServerName)
+	if opt66 == nil {
+		t.Fatal("ACK missing option 66")
+	}
+}
+
+func TestPXEOption43(t *testing.T) {
+	t.Parallel()
+
+	h := newTestPXEServer(t)
+	defer h.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0xCC}
+	discover := buildPXEDiscover(mac, 0x4343, 0)
+	resp := h.handle(discover)
+	if resp == nil {
+		t.Fatal("expected DHCPOFFER, got nil")
+	}
+
+	opt43 := getResponseOption(resp, optVendorSpecific)
+	if opt43 == nil {
+		t.Fatal("missing option 43 (vendor-specific)")
+	}
+	if len(opt43) < 6 {
+		t.Fatalf("option 43 too short: %d bytes", len(opt43))
+	}
+	if opt43[0] != 71 || opt43[1] != 4 {
+		t.Errorf("option 43 boot item suboption: type=%d len=%d, want type=71 len=4", opt43[0], opt43[1])
 	}
 }
 

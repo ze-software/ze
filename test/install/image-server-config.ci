@@ -1,0 +1,18 @@
+# Valid config: image server plugin enabled with directories.
+# spec-install-3 AC-10: imageserver config parses and validates successfully.
+stdin=config:terminator=EOF_CONF
+service {
+    image-server {
+        enabled true
+        listen-interface eth0
+        listen-port 8080
+        image-directory /var/lib/images
+        boot-directory /var/lib/boot
+        ssh-username admin
+        ssh-password-hash "$2a$10$example"
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

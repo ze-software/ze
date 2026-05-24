@@ -98,7 +98,7 @@ func runDHCPServerPlugin(conn net.Conn) int {
 				if !serverIP.IsValid() {
 					serverIP = sub.Prefix.Addr()
 				}
-				h := newDHCPHandler(*sub, serverIP)
+				h := newDHCPHandler(*sub, serverIP, cfg.PXE)
 				handlers = append(handlers, h)
 			}
 		}

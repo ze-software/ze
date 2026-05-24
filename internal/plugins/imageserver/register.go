@@ -1,0 +1,186 @@
+// Design: plan/spec-install-3-image-server.md -- image server plugin registration
+
+package imageserver
+
+import (
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"strconv"
+	"sync/atomic"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	imgschema "codeberg.org/thomas-mangin/ze/internal/plugins/imageserver/schema"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+)
+
+const configRootService = "service"
+
+var loggerPtr atomic.Pointer[slog.Logger]
+
+func init() {
+	loggerPtr.Store(slogutil.DiscardLogger())
+
+	reg := registry.Registration{
+		Name:                    "imageserver",
+		Description:             "Image server: HTTP provisioning for disk images and boot files",
+		Features:                "yang",
+		YANG:                    imgschema.ZeImageServerConfYANG,
+		ConfigRoots:             []string{configRootService},
+		InProcessConfigVerifier: verifyImageConfig,
+		RunEngine:               runImageServerPlugin,
+	}
+	reg.CLIHandler = func(_ []string) int { return 1 }
+	reg.ConfigureEngineLogger = func(loggerName string) {
+		l := slogutil.Logger(loggerName)
+		if l != nil {
+			loggerPtr.Store(l)
+		}
+	}
+	if err := registry.Register(reg); err != nil {
+		fmt.Fprintf(os.Stderr, "imageserver: registration failed: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func verifyImageConfig(sections []sdk.ConfigSection) error {
+	for _, s := range sections {
+		if s.Root != configRootService {
+			continue
+		}
+		cfg, err := parseConfig(s.Data)
+		if err != nil {
+			return fmt.Errorf("imageserver: %w", err)
+		}
+		if err := verifyConfig(cfg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func runImageServerPlugin(conn net.Conn) int {
+	log := loggerPtr.Load()
+	log.Debug("imageserver plugin starting")
+
+	p := sdk.NewWithConn("imageserver", conn)
+	defer closeLogged(p, log, "plugin conn")
+
+	var httpServer *http.Server
+
+	stopServer := func() {
+		if httpServer != nil {
+			if err := httpServer.Close(); err != nil {
+				log.Debug("imageserver: http close failed", "error", err)
+			}
+			httpServer = nil
+		}
+	}
+
+	startServer := func(cfg imageConfig) {
+		stopServer()
+
+		if !cfg.Enabled {
+			log.Debug("imageserver: disabled in config")
+			return
+		}
+
+		mux := newMux(cfg)
+
+		bindIP := ""
+		if len(cfg.ListenInterfaces) > 0 {
+			resolved, resolveErr := resolveInterfaceIPv4(cfg.ListenInterfaces[0])
+			if resolveErr != nil {
+				log.Error("imageserver: resolve interface failed",
+					"interface", cfg.ListenInterfaces[0], "error", resolveErr)
+				return
+			}
+			bindIP = resolved
+		}
+		addr := bindIP + ":" + strconv.Itoa(cfg.ListenPort)
+		httpServer = &http.Server{
+			Addr:              addr,
+			Handler:           mux,
+			ReadTimeout:       30 * time.Second,
+			ReadHeaderTimeout: 10 * time.Second,
+			WriteTimeout:      5 * time.Minute,
+			MaxHeaderBytes:    1 << 16,
+		}
+
+		go func() {
+			log.Info("imageserver: started",
+				"addr", addr,
+				"image-directory", cfg.ImageDirectory,
+				"boot-directory", cfg.BootDirectory)
+			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Error("imageserver: listen failed", "error", err)
+			}
+		}()
+	}
+
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		for _, s := range sections {
+			if s.Root != configRootService {
+				continue
+			}
+			cfg, err := parseConfig(s.Data)
+			if err != nil {
+				return fmt.Errorf("imageserver: %w", err)
+			}
+			startServer(cfg)
+			return nil
+		}
+		return nil
+	})
+
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
+	if err := p.Run(ctx, sdk.Registration{
+		WantsConfig:  []string{configRootService},
+		VerifyBudget: 2,
+		ApplyBudget:  5,
+	}); err != nil {
+		log.Error("imageserver plugin failed", "error", err)
+		stopServer()
+		return 1
+	}
+
+	stopServer()
+	log.Info("imageserver plugin stopped")
+	return 0
+}
+
+func resolveInterfaceIPv4(ifaceName string) (string, error) {
+	iface, err := net.InterfaceByName(ifaceName)
+	if err != nil {
+		return "", fmt.Errorf("interface %q: %w", ifaceName, err)
+	}
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return "", fmt.Errorf("interface %q addrs: %w", ifaceName, err)
+	}
+	for _, a := range addrs {
+		ipNet, ok := a.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		if ipv4 := ipNet.IP.To4(); ipv4 != nil {
+			return ipv4.String(), nil
+		}
+	}
+	return "", fmt.Errorf("interface %q: no IPv4 address", ifaceName)
+}
+
+type closer interface {
+	Close() error
+}
+
+func closeLogged(c closer, log *slog.Logger, what string) {
+	if err := c.Close(); err != nil {
+		log.Debug("imageserver: close failed", "what", what, "error", err)
+	}
+}

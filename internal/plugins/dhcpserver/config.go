@@ -25,10 +25,18 @@ var (
 
 const maxRangesPerSubnet = 10
 
+type pxeConfig struct {
+	Enabled      bool
+	TFTPServer   netip.Addr
+	BootfileBIOS string
+	BootfileUEFI string
+}
+
 type serverConfig struct {
 	Enabled          bool
 	ListenInterfaces []string
 	SharedNetworks   []sharedNetwork
+	PXE              pxeConfig
 }
 
 type sharedNetwork struct {
@@ -91,6 +99,12 @@ func parseConfig(data string) (serverConfig, error) {
 			cfg.ListenInterfaces = append(cfg.ListenInterfaces, v)
 		}
 	}
+
+	pxe, err := parsePXEConfig(dhcpMap)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.PXE = pxe
 
 	snMap, ok := dhcpMap["shared-network"].(map[string]any)
 	if !ok {
@@ -341,4 +355,50 @@ func parseSingleRange(name string, data map[string]any, prefix netip.Prefix) (ad
 func addrToUint32(a netip.Addr) uint32 {
 	b := a.As4()
 	return binary.BigEndian.Uint32(b[:])
+}
+
+func parsePXEConfig(dhcpMap map[string]any) (pxeConfig, error) {
+	var pxe pxeConfig
+
+	pxeMap, ok := dhcpMap["pxe"].(map[string]any)
+	if !ok {
+		return pxe, nil
+	}
+
+	if v, ok := pxeMap["enabled"].(string); ok {
+		pxe.Enabled = v == "true"
+	}
+
+	if v, ok := pxeMap["tftp-server"].(string); ok && v != "" {
+		addr, err := netip.ParseAddr(v)
+		if err != nil {
+			return pxe, fmt.Errorf("pxe tftp-server: %w", err)
+		}
+		if !addr.Is4() {
+			return pxe, fmt.Errorf("pxe tftp-server: must be IPv4 address")
+		}
+		pxe.TFTPServer = addr
+	}
+
+	if v, ok := pxeMap["bootfile-bios"].(string); ok {
+		pxe.BootfileBIOS = v
+	}
+
+	if v, ok := pxeMap["bootfile-uefi"].(string); ok {
+		pxe.BootfileUEFI = v
+	}
+
+	if pxe.Enabled {
+		if !pxe.TFTPServer.IsValid() {
+			return pxe, fmt.Errorf("pxe: tftp-server is required when enabled")
+		}
+		if pxe.BootfileBIOS == "" {
+			return pxe, fmt.Errorf("pxe: bootfile-bios is required when enabled")
+		}
+		if pxe.BootfileUEFI == "" {
+			return pxe, fmt.Errorf("pxe: bootfile-uefi is required when enabled")
+		}
+	}
+
+	return pxe, nil
 }
