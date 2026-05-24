@@ -220,9 +220,16 @@ The remote endpoint must serve a JSON object with a `version` field:
 |------|---------|-------------|
 | `url` | (none, feature disabled) | HTTPS URL of the version manifest. HTTP allowed only for localhost. |
 | `interval` | 86400 (daily) | Check interval in seconds (range: 60 to 604800). |
+| `auto-apply` | false | Enable automated download, SHA-256 verification, and binary staging. |
+| `spread` | 3600 | Maximum random delay in seconds before download (deterministic per device+version). |
+| `maintenance-window/start` | (none) | Start of binary replacement window (HH:MM). |
+| `maintenance-window/end` | (none) | End of binary replacement window (HH:MM). Midnight crossing is valid. |
+| `restart/time` | (none) | Scheduled restart time (HH:MM). Use `restart { immediate; }` for immediate. |
 
 When a newer version is detected, a warning appears in `show warnings` and `show system update`.
-Ze never downloads or applies updates; it only reports availability.
+With `auto-apply false` (default), Ze only reports availability. With `auto-apply true`, Ze downloads
+the binary, verifies its SHA-256, and atomically replaces itself via rename with a `.prev` rollback backup.
+See [guide/self-update.md](guide/self-update.md) for the full guide.
 
 ### Serving Updates
 
@@ -246,6 +253,80 @@ a 404, which the checker logs as "check failed" and retries at the next interval
 
 Run it on a build server after compiling Ze so that deployed routers can check for updates.
 The router's web interface does not expose its own version (to avoid helping attackers fingerprint the device).
+
+### PKI Certificate Store
+
+```
+pki {
+    certificate <name> {
+        certificate-file <path>;
+        private-key-file <path>;
+    }
+    ca-certificate <name> {
+        certificate-file <path>;
+    }
+}
+```
+
+X.509 certificates and private keys for IPsec and TLS. PEM format. Validated at commit time. Health monitoring reports expiry warnings (30 days) and errors (expired).
+<!-- source: internal/component/pki/config.go -- PKI config parser -->
+
+### IPsec VPN
+
+```
+vpn {
+    ipsec {
+        tunnel <name> {
+            ike {
+                version 2;
+                proposal <name> { encryption aes256gcm16; dh-group modp2048; prf sha256; }
+                remote-address <ip>;
+                authentication { method certificate; certificate <pki-name>; ca-certificate <pki-name>; }
+                dpd { interval 30; timeout 120; }
+            }
+            child <name> {
+                esp-proposal { encryption aes256gcm16; }
+                local-ts <cidr>;
+                remote-ts <cidr>;
+                start-action auto;
+            }
+        }
+    }
+}
+```
+
+Native IKEv2 engine with XFRM dataplane. See [guide/configuration.md](guide/configuration.md) for the full reference.
+<!-- source: internal/component/ipsec/config.go -- IPsec config parser -->
+
+### XFRM Interfaces
+
+```
+interface {
+    xfrm <name> {
+        if-id <N>;
+        unit main {
+            ipv4 { address [ <cidr> ]; }
+        }
+    }
+}
+```
+
+Route-based IPsec. The `if-id` must match the IPsec SA's interface ID.
+
+### RPKI ASPA Policy
+
+```
+bgp {
+    rpki {
+        aspa-validation true;
+        aspa-policy {
+            invalid-action reject;   # reject | log-only | accept
+        }
+    }
+}
+```
+
+ASPA path verification with configurable policy enforcement. Requires RTR v2 cache server.
 
 ## Environment Variables
 
