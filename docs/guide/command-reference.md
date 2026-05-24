@@ -473,7 +473,7 @@ state the operator typed into config. Calling with no argument returns
 `{ name, tables[], members }` per group; a positional name returns the
 raw elements.
 
-<!-- source: internal/component/cmd/show/firewall.go -- handleShowFirewallRuleset, handleShowFirewallGroup -->
+<!-- source: internal/plugins/firewall/nft/cmd_show.go -- handleShowFirewallRuleset, handleShowFirewallGroup -->
 <!-- source: internal/component/firewall/engine.go -- runEngine; OnConfigApply stores LastApplied -->
 <!-- source: internal/plugins/firewall/nft/backend_linux.go -- applyChain (UserData + auto Counter), readRuleCounter -->
 
@@ -1260,7 +1260,7 @@ via local handlers before attempting SSH connection.
 
 `ze cli` accepts `-c <command>` for single-shot execution and
 `--format <format>` (default: yaml).
-<!-- source: cmd/ze/cli/main.go -- Run; cmd/ze/show/main.go -- Run -->
+<!-- source: cmd/ze/cli/main.go -- Run -->
 
 ### Peer Selector
 

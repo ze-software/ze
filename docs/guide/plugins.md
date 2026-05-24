@@ -254,7 +254,7 @@ Bus topics in the sysctl pipeline:
 | `sysctl/list-request` | CLI | `sysctl` | Request known keys table (request-id) |
 | `sysctl/list-result` | `sysctl` | requester | Known keys JSON (request-id, entries) |
 | `sysctl/clear-profile-defaults` | `iface` | `sysctl` | Clear stale profile defaults for an interface before re-emission (interface) |
-<!-- source: internal/component/plugin/events.go -- NamespaceSysctl, EventSysctl* -->
+<!-- source: internal/component/plugin/server/events.go -- NamespaceSysctl, EventSysctl* -->
 <!-- source: internal/plugins/sysctl/register.go -- EventBus subscribe/emit -->
 
 ### Redistribution Filters (planned)
@@ -317,7 +317,7 @@ NEXT_HOP. Producers that have an explicit address pass it through verbatim.
 Counters: `ze_bgp_redistribute_events_received`, `_announcements`,
 `_withdrawals`, `_filtered_protocol_total`, `_filtered_rule_total`.
 
-<!-- source: internal/component/bgp/plugins/redistribute/redistribute.go -- consumer plugin -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer plugin -->
 <!-- source: internal/core/redistevents/registry.go -- ProtocolID + producer registration -->
 
 ### Prefix-List Filter (`bgp-filter-prefix`)

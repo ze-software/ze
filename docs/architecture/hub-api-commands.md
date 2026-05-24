@@ -527,7 +527,7 @@ Returns validation errors if any.
 |---------|-------------|
 | `subscribe [peer <sel>] <ns> event <type> [direction <dir>]` | Subscribe to events |
 | `unsubscribe [peer <sel>] <ns> event <type> [direction <dir>]` | Unsubscribe |
-<!-- source: internal/component/plugin/events.go -- event subscription -->
+<!-- source: internal/component/plugin/server/events.go -- event subscription -->
 
 **Example:**
 ```

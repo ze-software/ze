@@ -197,6 +197,8 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | docker, container, scratch | `plan/learned/753-docker-go126.md`, `docs/guide/docker.md` |
 | chaos, fault injection, scheduler | `plan/learned/723-chaos-actions-v2.md`, `docs/architecture/chaos-web-dashboard.md` |
 
+| code-to-docs, reverse index, which docs | `ai/CODE-TO-DOCS.md` (generated, `make ze-doc-index`) |
+
 All architecture docs in `docs/architecture/` unless noted.
 
 ## Keyword → RFC

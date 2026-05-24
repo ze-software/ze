@@ -78,7 +78,7 @@ also drives the intra-BGP `IngressFilter` ACL when the source is `ibgp` /
 `ebgp`. Per-peer NEXT_HOP substitution (`nhop self`) is automatic; explicit
 producer-supplied NEXT_HOP is passed through verbatim.
 
-<!-- source: internal/component/bgp/plugins/redistribute/redistribute.go -- consumer -->
+<!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer -->
 <!-- source: internal/core/redistevents/events.go -- producer-shared payload -->
 
 ## Policy & Route Manipulation

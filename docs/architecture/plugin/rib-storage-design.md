@@ -581,8 +581,8 @@ The `maprib` build tag degrades `Store[T]` to map-only storage for both
 backends; `FamilyRIB` retains its two build-tagged files
 (`familyrib_bart.go`, `familyrib_map.go`) wrapping the corresponding
 `Store[T]` variant.
-<!-- source: internal/component/bgp/plugins/rib/storage/store_bart.go -- Store[T] default BART+map dispatch -->
-<!-- source: internal/component/bgp/plugins/rib/storage/store_map.go -- Store[T] map-only under maprib -->
+<!-- source: internal/core/rib/store/store_bart.go -- Store[T] default BART+map dispatch -->
+<!-- source: internal/core/rib/store/store_map.go -- Store[T] map-only under maprib -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPrevStore pairs two Store[bestPathRecord] -->
 
 `bestPathRecord` is a named `uint64` -- four 16-bit fields (MetricIdx,

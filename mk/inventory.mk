@@ -8,7 +8,7 @@
 
 .PHONY: ze-spec-status ze-spec-status-json ze-learned-counter
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
-.PHONY: ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test ze-consistency
+.PHONY: ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test ze-doc-index ze-consistency
 
 ze-spec-status:
 	@go run scripts/status/spec_status.go
@@ -58,6 +58,12 @@ ze-doc-test:
 		exit 1; \
 	fi; \
 	echo "Documentation tests PASSED"
+
+ze-doc-index:
+	@python3 scripts/dev/code_to_docs.py
+
+ze-doc-check-stale:
+	@python3 scripts/dev/code_to_docs.py --check
 
 ze-consistency:
 	@echo "Running consistency checks..."

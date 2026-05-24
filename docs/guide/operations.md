@@ -39,7 +39,7 @@ ze cli -c "peer list"       # single command
 ze show peer list              # read-only shorthand
 ze cli -c "peer transit teardown 2" # one-shot command
 ```
-<!-- source: cmd/ze/cli/main.go -- Run; cmd/ze/show/main.go -- Run -->
+<!-- source: cmd/ze/cli/main.go -- Run -->
 
 ### Override Host/Port
 

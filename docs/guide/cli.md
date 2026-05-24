@@ -1,7 +1,7 @@
 # CLI Reference
 
 Ze provides an interactive CLI and single-command execution for runtime queries and control. All CLI access goes through the daemon's SSH server.
-<!-- source: cmd/ze/cli/main.go -- Run; cmd/ze/show/main.go -- Run -->
+<!-- source: cmd/ze/cli/main.go -- Run -->
 
 ## Usage
 

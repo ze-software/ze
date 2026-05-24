@@ -1,9 +1,9 @@
 # Plugin Relationships
 
-<!-- source: internal/plugins/*/register.go -- plugin registrations -->
+<!-- source: internal/plugins/bfd/register.go -- plugin registrations (representative) -->
 <!-- source: internal/component/bgp/plugin/register.go -- BGP plugin -->
 <!-- source: internal/component/iface/register.go -- interface plugin -->
-<!-- source: internal/component/bgp/plugins/*/register.go -- BGP sub-plugins -->
+<!-- source: internal/component/bgp/plugins/rib/register.go -- BGP sub-plugins (representative) -->
 
 This document maps every plugin in ze, what it owns, what it depends on, and how
 plugins communicate. Use it to understand cross-plugin impacts when changing config,

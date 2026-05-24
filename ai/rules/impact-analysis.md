@@ -47,6 +47,11 @@ Changes to certain file types have predictable ripple effects.
 | Python observer | No `sys.exit(1)`, use `runtime_fail` (`rules/testing.md` observer section) |
 | Config in `tmpfs=` | Parse test validates syntax |
 
+### Go Source → Documentation
+
+When changing code, check `ai/CODE-TO-DOCS.md` for docs that reference the file.
+Update any claims that are now wrong. Regenerate: `make ze-doc-index`.
+
 ### Documentation (`docs/`)
 
 | What changed | Also check |

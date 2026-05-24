@@ -307,7 +307,7 @@ plugin spin-up.
 
 <!-- source: internal/component/config/redistribute/evaluator.go -- shared Global evaluator -->
 <!-- source: internal/component/config/redistribute/consumer.go -- consumer registry -->
-<!-- source: internal/component/bgp/redistribute/filter.go -- ingress ACL consumer -->
+<!-- source: internal/component/bgp/plugins/redistribute_ingress/filter.go -- ingress ACL consumer -->
 <!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- orchestrator -->
 
 ### Prefix-List Filter
