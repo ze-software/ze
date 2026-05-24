@@ -9,17 +9,58 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 const (
-	defaultVPPSocket = "/run/vpp/api.sock"
-	backendVPP       = "vpp"
+	defaultVPPSocket     = "/run/vpp/api.sock"
+	backendVPP           = "vpp"
+	doctorModulesEnv     = "ze.test.doctor.modules-file"
+	doctorProcRootEnv    = "ze.test.doctor.procfs-root"
+	doctorNetlinkFailEnv = "ze.test.doctor.netlink-fail"
 )
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         doctorModulesEnv,
+	Type:        "string",
+	Description: "Override /proc/modules path for doctor functional tests",
+	Private:     true,
+})
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         doctorProcRootEnv,
+	Type:        "string",
+	Description: "Override /proc root path for doctor functional tests",
+	Private:     true,
+})
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         doctorNetlinkFailEnv,
+	Type:        "bool",
+	Description: "Force route netlink doctor probe failure (test infrastructure)",
+	Private:     true,
+})
+
+type routeNetlinkHandle interface {
+	Close()
+}
+
+var loadedKernelModules = readLoadedModules
+var statPath = os.Stat
+var readFilePath = os.ReadFile
+var accessPath = unix.Access
+var newRouteNetlinkHandle = func() (routeNetlinkHandle, error) {
+	return netlink.NewHandle(unix.NETLINK_ROUTE)
+}
 
 func checkVPPSocket() []diagnostic.Diagnostic {
 	sockPath := defaultVPPSocket
@@ -49,6 +90,8 @@ func checkVPPSocket() []diagnostic.Diagnostic {
 func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 	var required []string
 	hasIPsec := false
+	l2tpRequired := false
+	pppoeRequired := false
 
 	if tree != nil {
 		ifaceBlock := tree.GetContainer("interface")
@@ -59,17 +102,25 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 			}
 		}
 
-		if tree.GetContainer("ipsec") != nil {
+		if l2tp := tree.GetContainer("l2tp"); configEnabled(l2tp, true) {
+			l2tpRequired = true
+		}
+
+		if pppoe := tree.GetContainer("pppoe"); configEnabled(pppoe, true) {
+			pppoeRequired = true
+		}
+
+		if tree.GetContainer("ipsec") != nil || getContainerPath(tree, "vpn", "ipsec") != nil {
 			hasIPsec = true
 			required = append(required, "xfrm_user", "xfrm_algo")
 		}
 	}
 
-	if len(required) == 0 {
+	if len(required) == 0 && !l2tpRequired && !pppoeRequired {
 		return nil
 	}
 
-	loaded := readLoadedModules()
+	loaded := loadedKernelModules()
 	var diags []diagnostic.Diagnostic
 	for _, mod := range required {
 		if !loaded[mod] {
@@ -79,6 +130,22 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 				Message:  "kernel module not loaded: " + mod,
 			})
 		}
+	}
+
+	if l2tpRequired && !loaded["l2tp_ppp"] && !loaded["pppol2tp"] {
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-l2tp-module",
+			Severity: diagnostic.SeverityError,
+			Message:  "L2TP kernel module not loaded: l2tp_ppp or pppol2tp",
+		})
+	}
+
+	if pppoeRequired && !loaded["pppoe"] {
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-pppoe-module",
+			Severity: diagnostic.SeverityError,
+			Message:  "PPPoE kernel module not loaded: pppoe",
+		})
 	}
 
 	if hasIPsec && !loaded["ip_tables"] && !loaded["nf_tables"] {
@@ -93,6 +160,9 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 }
 
 func checkInterfaces(tree *config.Tree) []diagnostic.Diagnostic {
+	if tree == nil {
+		return nil
+	}
 	ifaceBlock := tree.GetContainer("interface")
 	if ifaceBlock == nil {
 		return nil
@@ -177,7 +247,11 @@ func checkVPPVersion(tree *config.Tree) []diagnostic.Diagnostic {
 }
 
 func readLoadedModules() map[string]bool {
-	data, err := os.ReadFile("/proc/modules")
+	path := env.Get(doctorModulesEnv)
+	if path == "" {
+		path = procPath("modules")
+	}
+	data, err := readFilePath(path)
 	if err != nil {
 		return nil
 	}
@@ -191,12 +265,13 @@ func readLoadedModules() map[string]bool {
 }
 
 func checkKernelNexthop() []diagnostic.Diagnostic {
-	_, err := os.Stat("/proc/net/nexthop")
+	path := procPath("net", "nexthop")
+	_, err := statPath(path)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-kernel-nexthop",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "kernel nexthop objects unavailable (/proc/net/nexthop not found); ECMP uses legacy multipath",
+			Message:  "kernel nexthop objects unavailable (" + path + " not found); ECMP uses legacy multipath",
 		}}
 	}
 	return nil
@@ -219,7 +294,7 @@ func checkMPLSSupport(tree *config.Tree) []diagnostic.Diagnostic {
 		return nil
 	}
 
-	loaded := readLoadedModules()
+	loaded := loadedKernelModules()
 	if loaded == nil {
 		return nil
 	}
@@ -239,4 +314,121 @@ func checkMPLSSupport(tree *config.Tree) []diagnostic.Diagnostic {
 		Severity: diagnostic.SeverityWarning,
 		Message:  "MPLS kernel modules not loaded: " + strings.Join(missing, ", "),
 	}}
+}
+
+func checkFirewallBackend(tree *config.Tree) []diagnostic.Diagnostic {
+	if tree == nil {
+		return nil
+	}
+	firewall := tree.GetContainer("firewall")
+	if firewall == nil {
+		return nil
+	}
+	backend, _ := firewall.Get("backend")
+	if backend != "" && backend != "nft" {
+		return nil
+	}
+	if loadedKernelModules()["nf_tables"] {
+		return nil
+	}
+	return []diagnostic.Diagnostic{{
+		Code:     "doctor-firewall-nftables",
+		Severity: diagnostic.SeverityWarning,
+		Message:  "firewall: nf_tables kernel module not loaded",
+	}}
+}
+
+func checkTelemetryProcfs(tree *config.Tree) []diagnostic.Diagnostic {
+	prom := getContainerPath(tree, "telemetry", "prometheus")
+	if !configEnabled(prom, false) {
+		return nil
+	}
+	path := procPath("stat")
+	if _, err := readFilePath(path); err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-telemetry-procfs",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "telemetry: cannot read " + path + ": " + err.Error(),
+			Path:     path,
+		}}
+	}
+	return nil
+}
+
+func checkSysctlProcfs(tree *config.Tree) []diagnostic.Diagnostic {
+	if tree == nil || tree.GetContainer("sysctl") == nil {
+		return nil
+	}
+	path := procPath("sys")
+	if err := accessPath(path, unix.W_OK); err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-sysctl-procfs",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "sysctl: " + path + " is not writable: " + err.Error(),
+			Path:     path,
+		}}
+	}
+	return nil
+}
+
+func checkConntrackProcfs(tree *config.Tree) []diagnostic.Diagnostic {
+	if getContainerPath(tree, "system", "conntrack") == nil {
+		return nil
+	}
+	dir := procPath("sys", "net", "netfilter")
+	if _, err := statPath(dir); err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-conntrack-procfs",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "conntrack: " + dir + " unavailable: " + err.Error(),
+			Path:     dir,
+		}}
+	}
+	key := procPath("sys", "net", "netfilter", "nf_conntrack_max")
+	if err := accessPath(key, unix.W_OK); err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-conntrack-procfs",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "conntrack: " + key + " is not writable: " + err.Error(),
+			Path:     key,
+		}}
+	}
+	return nil
+}
+
+func checkPolicyRouteNetlink(tree *config.Tree) []diagnostic.Diagnostic {
+	policy := tree.GetContainer("policy")
+	if policy == nil || len(policy.GetList("route")) == 0 {
+		return nil
+	}
+	if env.IsEnabled(doctorNetlinkFailEnv) {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-policyroute-netlink",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "policy route: route netlink unavailable: forced failure",
+		}}
+	}
+	h, err := newRouteNetlinkHandle()
+	if err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-policyroute-netlink",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "policy route: route netlink unavailable: " + err.Error(),
+		}}
+	}
+	if h != nil {
+		h.Close()
+	}
+	return nil
+}
+
+func procPath(parts ...string) string {
+	root := env.Get(doctorProcRootEnv)
+	if root == "" {
+		root = "/proc"
+	}
+	all := make([]string, 0, len(parts)+1)
+	all = append(all, root)
+	all = append(all, parts...)
+	return filepath.Join(all...)
 }

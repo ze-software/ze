@@ -1,0 +1,18 @@
+# Test: ze doctor --json reports missing L2TP kernel module
+# VALIDATES: AC-1 L2TP config with no loaded PPPoL2TP module emits doctor-l2tp-module.
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=env:var=ze.test.doctor.modules-file:value=modules.empty
+
+tmpfs=modules.empty:terminator=EOF_MODULES
+EOF_MODULES
+
+tmpfs=l2tp.conf:terminator=EOF_CONF
+l2tp {
+    enabled true
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json l2tp.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-l2tp-module

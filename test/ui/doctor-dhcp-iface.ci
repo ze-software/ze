@@ -1,0 +1,16 @@
+# Test: ze doctor --json reports missing DHCP listen interface
+# VALIDATES: AC-4 DHCP server with missing listen interface emits doctor-dhcp-iface.
+
+tmpfs=dhcp-missing-iface.conf:terminator=EOF_CONF
+service {
+    dhcp-server {
+        enabled true
+        listen-interface ze-doctor-missing0
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json dhcp-missing-iface.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-dhcp-iface
+expect=stdout:contains=ze-doctor-missing0

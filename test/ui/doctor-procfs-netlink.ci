@@ -1,0 +1,47 @@
+# Test: ze doctor --json reports Linux procfs and netlink readiness failures
+# VALIDATES: AC-11, AC-15, AC-16, and policy route netlink diagnostics are emitted.
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=env:var=ze.test.doctor.procfs-root:value=proc-missing
+option=env:var=ze.test.doctor.netlink-fail:value=true
+
+tmpfs=procfs-netlink.conf:terminator=EOF_CONF
+telemetry {
+    prometheus {
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+}
+sysctl {
+    setting net.ipv4.ip_forward {
+        value 1
+    }
+}
+system {
+    conntrack {
+        table-size 1024
+    }
+}
+policy {
+    route pbr {
+        rule r1 {
+            from {
+                source-address 192.0.2.0/24
+            }
+            then {
+                table 3001
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json procfs-netlink.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-telemetry-procfs
+expect=stdout:contains=doctor-sysctl-procfs
+expect=stdout:contains=doctor-conntrack-procfs
+expect=stdout:contains=doctor-policyroute-netlink

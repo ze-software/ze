@@ -32,3 +32,23 @@ func checkKernelNexthop() []diagnostic.Diagnostic {
 func checkMPLSSupport(_ *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }
+
+func checkFirewallBackend(_ *config.Tree) []diagnostic.Diagnostic {
+	return nil
+}
+
+func checkTelemetryProcfs(_ *config.Tree) []diagnostic.Diagnostic {
+	return nil
+}
+
+func checkSysctlProcfs(_ *config.Tree) []diagnostic.Diagnostic {
+	return nil
+}
+
+func checkConntrackProcfs(_ *config.Tree) []diagnostic.Diagnostic {
+	return nil
+}
+
+func checkPolicyRouteNetlink(_ *config.Tree) []diagnostic.Diagnostic {
+	return nil
+}

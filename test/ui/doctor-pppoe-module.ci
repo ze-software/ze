@@ -1,0 +1,18 @@
+# Test: ze doctor --json reports missing PPPoE kernel module
+# VALIDATES: AC-2 PPPoE config with no loaded PPPoE module emits doctor-pppoe-module.
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=env:var=ze.test.doctor.modules-file:value=modules.empty
+
+tmpfs=modules.empty:terminator=EOF_MODULES
+EOF_MODULES
+
+tmpfs=pppoe.conf:terminator=EOF_CONF
+pppoe {
+    enabled true
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json pppoe.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-pppoe-module

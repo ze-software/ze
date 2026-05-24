@@ -1,0 +1,37 @@
+# Test: ze doctor --json reports unavailable BGP listener
+# VALIDATES: AC-5 BGP local address that cannot bind emits doctor-bgp-listen.
+
+tmpfs=bgp-listen.conf:terminator=EOF_CONF
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            local {
+                ip 203.0.113.254
+            }
+            remote {
+                ip 192.0.2.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+            family {
+                ipv4/unicast {
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json bgp-listen.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-bgp-listen
+expect=stdout:contains=203.0.113.254

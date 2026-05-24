@@ -139,7 +139,7 @@
 | CLI grammar (action before identifier) | [ ] | `ai/rules/cli-grammar.md` |
 | Editor autocomplete | [ ] | YANG-driven (automatic if YANG updated) |
 | Functional test for new RPC/API | [ ] | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Doctor check for runtime dependencies | [ ] | `cmd/ze/doctor/`, `ai/rules/doctor-checks.md` |
+| Doctor check for runtime dependencies | [ ] | If any file path, socket, external service, kernel module, listen port, procfs/sysctl, netlink, external binary, or certificate material is introduced: `cmd/ze/doctor/`, `internal/core/diagnostic/codes.go`, unit test, functional test |
 
 ### Documentation Update Checklist (BLOCKING)
 <!-- Every row MUST be answered Yes/No during the Completion Checklist (planning.md step 1). -->

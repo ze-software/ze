@@ -1,0 +1,43 @@
+# Test: ze doctor --json reports service listener readiness failures
+# VALIDATES: AC-8, AC-10, AC-13, AC-14, and AC-17 listener diagnostics are emitted.
+
+option=env:var=ze.test.doctor.listener-fail-code:value=doctor-bfd-port,doctor-ipsec-listen,doctor-tftp-listen,doctor-image-listen,doctor-ntp-listen
+option=env:var=ze.test.doctor.modules-file:value=modules.ok
+
+tmpfs=modules.ok:terminator=EOF_MODULES
+xfrm_user 16384 0 - Live 0x0
+xfrm_algo 16384 0 - Live 0x0
+nf_tables 16384 0 - Live 0x0
+EOF_MODULES
+
+tmpfs=listeners.conf:terminator=EOF_CONF
+bfd {
+    enabled true
+}
+vpn {
+    ipsec {
+    }
+}
+service {
+    tftp-server {
+        enabled true
+    }
+    image-server {
+        enabled true
+        listen-port 8080
+    }
+}
+environment {
+    ntp {
+        enabled true
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json listeners.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-bfd-port
+expect=stdout:contains=doctor-ipsec-listen
+expect=stdout:contains=doctor-tftp-listen
+expect=stdout:contains=doctor-image-listen
+expect=stdout:contains=doctor-ntp-listen

@@ -1,0 +1,14 @@
+# Test: ze doctor --json reports missing PKI CA certificate
+# VALIDATES: AC-9 PKI CA without certificate material emits doctor-pki-cert.
+
+tmpfs=pki-missing-cert.conf:terminator=EOF_CONF
+pki {
+    ca root {
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json pki-missing-cert.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-pki-cert
+expect=stdout:contains=PKI CA root

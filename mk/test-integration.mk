@@ -132,7 +132,7 @@ ze-qemu-integration-test:
 	@echo "Running integration tests in QEMU Linux VM (requires qemu + internet for first run)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "nftables iproute2 iputils-ping kmod iptables" \
-		--run 'go test -tags integration -count=1 -timeout 120s ./internal/component/iface/... ./internal/component/config/system/... ./internal/core/routewatch/... ./internal/plugins/fib/kernel/... ./internal/plugins/firewall/nft/... ./internal/plugins/firewall/vpp/... ./internal/plugins/traffic/netlink/...'
+		--run 'go test -tags integration -count=1 -timeout 120s ./cmd/ze/doctor ./internal/component/iface/... ./internal/component/config/system/... ./internal/core/routewatch/... ./internal/plugins/fib/kernel/... ./internal/plugins/firewall/nft/... ./internal/plugins/firewall/vpp/... ./internal/plugins/traffic/netlink/...'
 
 ze-qemu-l2tp-ppp-test:
 	@test -f tmp/kernel/vmlinuz || { echo "error: tmp/kernel/vmlinuz not found (run: make ze-kernel GOKRAZY_ARCH=arm64)"; exit 1; }

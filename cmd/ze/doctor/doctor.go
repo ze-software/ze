@@ -6,6 +6,7 @@ package doctor
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -25,11 +26,22 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	zeradius "codeberg.org/thomas-mangin/ze/internal/component/radius"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
+
+const doctorListenerFailEnv = "ze.test.doctor.listener-fail-code"
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         doctorListenerFailEnv,
+	Type:        "string",
+	Description: "Force selected doctor listener codes to fail (test infrastructure)",
+	Private:     true,
+})
 
 // Run executes the doctor command.
 func Run(args []string) int {
@@ -109,16 +121,25 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 
 	diags = append(diags, checkIfaceBackend(tree)...)
 	diags = append(diags, checkInterfaces(tree)...)
+	diags = append(diags, checkDHCPInterfaces(tree)...)
 	diags = append(diags, checkKernelModules(tree)...)
+	diags = append(diags, checkFirewallBackend(tree)...)
 	diags = append(diags, checkKernelNexthop()...)
 	diags = append(diags, checkMPLSSupport(tree)...)
 	diags = append(diags, checkTLS(tree, result.ConfigDir)...)
 	diags = append(diags, checkWebTLS(tree, store)...)
+	diags = append(diags, checkPKICerts(tree)...)
 	diags = append(diags, checkPlugins(result.Plugins)...)
 	diags = append(diags, checkSSHHostKey(tree, result.ConfigDir)...)
 	diags = append(diags, checkListeners(tree)...)
 	diags = append(diags, checkDiskSpace()...)
 	diags = append(diags, checkDNSResolvers(tree)...)
+	diags = append(diags, checkTACACSServers(tree)...)
+	diags = append(diags, checkRADIUSServers(tree)...)
+	diags = append(diags, checkTelemetryProcfs(tree)...)
+	diags = append(diags, checkSysctlProcfs(tree)...)
+	diags = append(diags, checkConntrackProcfs(tree)...)
+	diags = append(diags, checkPolicyRouteNetlink(tree)...)
 	diags = append(diags, checkConfigReferences(tree)...)
 	diags = append(diags, checkClockSkew()...)
 	diags = append(diags, checkVPPVersion(tree)...)
@@ -263,6 +284,103 @@ func checkWebTLS(tree *config.Tree, store storage.Storage) []diagnostic.Diagnost
 	}
 
 	return diags
+}
+
+func checkPKICerts(tree *config.Tree) []diagnostic.Diagnostic {
+	pki := tree.GetContainer("pki")
+	if pki == nil {
+		return nil
+	}
+
+	var diags []diagnostic.Diagnostic
+	for _, ca := range pki.GetListOrdered("ca") {
+		path := "pki/ca/" + ca.Key + "/certificate"
+		certData, ok := ca.Value.Get("certificate")
+		if !ok || certData == "" {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     "doctor-pki-cert",
+				Severity: diagnostic.SeverityError,
+				Message:  "PKI CA " + ca.Key + ": certificate missing",
+				Path:     path,
+			})
+			continue
+		}
+		diags = append(diags, checkBase64DERCert("PKI CA "+ca.Key, path, certData)...)
+	}
+
+	for _, cert := range pki.GetListOrdered("certificate") {
+		path := "pki/certificate/" + cert.Key + "/certificate"
+		certData, ok := cert.Value.Get("certificate")
+		if !ok || certData == "" {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     "doctor-pki-cert",
+				Severity: diagnostic.SeverityError,
+				Message:  "PKI certificate " + cert.Key + ": certificate missing",
+				Path:     path,
+			})
+			continue
+		}
+		diags = append(diags, checkBase64DERCert("PKI certificate "+cert.Key, path, certData)...)
+	}
+
+	return diags
+}
+
+func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
+	der, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-pki-cert",
+			Severity: diagnostic.SeverityError,
+			Message:  service + ": certificate is not base64 DER: " + err.Error(),
+			Path:     path,
+		}}
+	}
+
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-pki-cert",
+			Severity: diagnostic.SeverityError,
+			Message:  service + ": cannot parse certificate: " + err.Error(),
+			Path:     path,
+		}}
+	}
+
+	now := time.Now()
+	notAfter := cert.NotAfter.Format(time.RFC3339)
+	if now.After(cert.NotAfter) {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-pki-cert",
+			Severity: diagnostic.SeverityError,
+			Message:  service + ": certificate expired on " + notAfter,
+			Path:     path,
+			Expected: "not-after > now",
+			Actual:   notAfter,
+		}}
+	}
+	if now.Before(cert.NotBefore) {
+		notBefore := cert.NotBefore.Format(time.RFC3339)
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-pki-cert",
+			Severity: diagnostic.SeverityError,
+			Message:  service + ": certificate not yet valid (starts " + notBefore + ")",
+			Path:     path,
+			Expected: "not-before < now",
+			Actual:   notBefore,
+		}}
+	}
+
+	daysLeft := int(time.Until(cert.NotAfter).Hours() / 24)
+	if daysLeft < 30 {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-pki-cert",
+			Severity: diagnostic.SeverityWarning,
+			Message:  service + ": certificate expires in " + strconv.Itoa(daysLeft) + " days (" + notAfter + ")",
+			Path:     path,
+		}}
+	}
+	return nil
 }
 
 func checkCertPair(service, certPath, keyPath, configDir string) []diagnostic.Diagnostic {
@@ -442,10 +560,15 @@ func checkSSHHostKey(tree *config.Tree, configDir string) []diagnostic.Diagnosti
 }
 
 type serviceListener struct {
-	service string
-	host    string
-	port    string
+	service  string
+	network  string
+	host     string
+	port     string
+	code     string
+	severity diagnostic.Severity
 }
+
+var listenerProbe = probeListener
 
 func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
 	var diags []diagnostic.Diagnostic
@@ -454,57 +577,427 @@ func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
 
 	if webCfg, ok := config.ExtractWebConfig(tree); ok {
 		for _, s := range webCfg.Servers {
-			listeners = append(listeners, serviceListener{"web", s.Host, s.Port})
+			listeners = append(listeners, tcpListener("web", s.Host, s.Port, "doctor-listen-unavailable"))
 		}
 	}
 	if mcpCfg, ok := config.ExtractMCPConfig(tree); ok {
 		for _, s := range mcpCfg.Servers {
-			listeners = append(listeners, serviceListener{"mcp", s.Host, s.Port})
+			listeners = append(listeners, tcpListener("mcp", s.Host, s.Port, "doctor-listen-unavailable"))
 		}
 	}
 	if lgCfg, ok := config.ExtractLGConfig(tree); ok {
 		for _, s := range lgCfg.Servers {
-			listeners = append(listeners, serviceListener{"looking-glass", s.Host, s.Port})
+			listeners = append(listeners, tcpListener("looking-glass", s.Host, s.Port, "doctor-listen-unavailable"))
 		}
 	}
 
 	if apiCfg, ok := config.ExtractAPIConfig(tree); ok {
 		if apiCfg.RESTOn {
 			for _, s := range apiCfg.REST {
-				listeners = append(listeners, serviceListener{"api-rest", s.Host, s.Port})
+				listeners = append(listeners, tcpListener("api-rest", s.Host, s.Port, "doctor-listen-unavailable"))
 			}
 		}
 		if apiCfg.GRPCOn {
 			for _, s := range apiCfg.GRPC {
-				listeners = append(listeners, serviceListener{"api-grpc", s.Host, s.Port})
+				listeners = append(listeners, tcpListener("api-grpc", s.Host, s.Port, "doctor-listen-unavailable"))
 			}
 		}
 	}
 
 	listeners = append(listeners, extractSSHListeners(tree)...)
+	listeners = append(listeners, extractTelemetryListeners(tree)...)
+	listeners = append(listeners, extractBGPListeners(tree)...)
+	listeners = append(listeners, extractBFDListeners(tree)...)
+	listeners = append(listeners, extractIPsecListeners(tree)...)
+	listeners = append(listeners, extractTFTPListeners(tree)...)
+	listeners = append(listeners, extractImageListeners(tree)...)
+	listeners = append(listeners, extractNTPListeners(tree)...)
 
-	for _, l := range listeners {
-		addr := net.JoinHostPort(l.host, l.port)
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		var lc net.ListenConfig
-		ln, err := lc.Listen(ctx, "tcp", addr)
-		cancel()
-		if err != nil {
+	for _, l := range dedupeListeners(listeners) {
+		if err := listenerProbe(l); err != nil {
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "doctor-listen-unavailable",
-				Severity: diagnostic.SeverityWarning,
-				Message:  l.service + ": cannot bind " + addr + ": " + err.Error(),
-			})
-		} else if closeErr := ln.Close(); closeErr != nil {
-			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "doctor-listen-unavailable",
-				Severity: diagnostic.SeverityWarning,
-				Message:  l.service + ": close listener " + addr + ": " + closeErr.Error(),
+				Code:     l.code,
+				Severity: l.severity,
+				Message:  l.service + ": cannot bind " + l.network + " " + listenerAddress(l) + ": " + err.Error(),
 			})
 		}
 	}
 
 	return diags
+}
+
+func tcpListener(service, host, port, code string) serviceListener {
+	return serviceListener{service: service, network: "tcp", host: host, port: port, code: code, severity: diagnostic.SeverityWarning}
+}
+
+func udpListener(service, port, code string) serviceListener {
+	return serviceListener{service: service, network: "udp", host: "0.0.0.0", port: port, code: code, severity: diagnostic.SeverityWarning}
+}
+
+func probeListener(l serviceListener) error {
+	if forcedDoctorCode(l.code, env.Get(doctorListenerFailEnv)) {
+		return errors.New("forced listener failure")
+	}
+
+	addr := listenerAddress(l)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var lc net.ListenConfig
+	if l.network == "udp" {
+		pc, err := lc.ListenPacket(ctx, l.network, addr)
+		if err != nil {
+			return err
+		}
+		return pc.Close()
+	}
+
+	ln, err := lc.Listen(ctx, l.network, addr)
+	if err != nil {
+		return err
+	}
+	return ln.Close()
+}
+
+func listenerAddress(l serviceListener) string {
+	return net.JoinHostPort(l.host, l.port)
+}
+
+func dedupeListeners(listeners []serviceListener) []serviceListener {
+	seen := make(map[string]bool, len(listeners))
+	result := make([]serviceListener, 0, len(listeners))
+	for _, l := range listeners {
+		if l.code == "" {
+			l.code = "doctor-listen-unavailable"
+		}
+		if l.severity == "" {
+			l.severity = diagnostic.SeverityWarning
+		}
+		key := l.service + "\x00" + l.network + "\x00" + l.host + "\x00" + l.port + "\x00" + l.code
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		result = append(result, l)
+	}
+	return result
+}
+
+func extractTelemetryListeners(tree *config.Tree) []serviceListener {
+	prom := getContainerPath(tree, "telemetry", "prometheus")
+	if !configEnabled(prom, false) {
+		return nil
+	}
+
+	servers := prom.GetListOrdered("server")
+	if len(servers) == 0 {
+		return []serviceListener{tcpListener("telemetry", "127.0.0.1", "9273", "doctor-listen-unavailable")}
+	}
+
+	listeners := make([]serviceListener, 0, len(servers))
+	for _, s := range servers {
+		host := valueOrDefault(s.Value, "ip", "127.0.0.1")
+		port := valueOrDefault(s.Value, "port", "9273")
+		listeners = append(listeners, tcpListener("telemetry", host, port, "doctor-listen-unavailable"))
+	}
+	return listeners
+}
+
+func extractBGPListeners(tree *config.Tree) []serviceListener {
+	bgp := tree.GetContainer("bgp")
+	if bgp == nil {
+		return nil
+	}
+
+	var listeners []serviceListener
+	for _, p := range bgp.GetListOrdered("peer") {
+		listeners = appendBGPListener(listeners, nil, p.Value)
+	}
+	for _, g := range bgp.GetListOrdered("group") {
+		if remoteIP, _ := nestedValue(g.Value, "connection", "remote", "ip"); remoteIP == "dynamic" {
+			listeners = appendBGPListener(listeners, nil, g.Value)
+		}
+		for _, p := range g.Value.GetListOrdered("peer") {
+			listeners = appendBGPListener(listeners, g.Value, p.Value)
+		}
+	}
+	return listeners
+}
+
+func appendBGPListener(listeners []serviceListener, parent, node *config.Tree) []serviceListener {
+	if accept, ok := inheritedValue(parent, node, "connection", "local", "accept"); ok && accept == "false" {
+		return listeners
+	}
+
+	host, ok := inheritedValue(parent, node, "connection", "local", "ip")
+	if !ok || host == "" || host == "auto" {
+		return listeners
+	}
+
+	port, _ := inheritedValue(parent, node, "connection", "local", "port")
+	if port == "" {
+		port, _ = inheritedValue(parent, node, "connection", "remote", "port")
+	}
+	if port == "" {
+		port = "179"
+	}
+
+	return append(listeners, tcpListener("bgp", host, port, "doctor-bgp-listen"))
+}
+
+func extractBFDListeners(tree *config.Tree) []serviceListener {
+	bfd := tree.GetContainer("bfd")
+	if !configEnabled(bfd, true) {
+		return nil
+	}
+	return []serviceListener{udpListener("bfd", "3784", "doctor-bfd-port")}
+}
+
+func extractIPsecListeners(tree *config.Tree) []serviceListener {
+	if getContainerPath(tree, "vpn", "ipsec") == nil {
+		return nil
+	}
+	return []serviceListener{
+		udpListener("ipsec", "500", "doctor-ipsec-listen"),
+		udpListener("ipsec", "4500", "doctor-ipsec-listen"),
+	}
+}
+
+func extractTFTPListeners(tree *config.Tree) []serviceListener {
+	tftp := getContainerPath(tree, "service", "tftp-server")
+	if !configEnabled(tftp, false) {
+		return nil
+	}
+	return []serviceListener{udpListener("tftp", "69", "doctor-tftp-listen")}
+}
+
+func extractImageListeners(tree *config.Tree) []serviceListener {
+	image := getContainerPath(tree, "service", "image-server")
+	if !configEnabled(image, false) {
+		return nil
+	}
+	return []serviceListener{tcpListener("image-server", "0.0.0.0", valueOrDefault(image, "listen-port", "80"), "doctor-image-listen")}
+}
+
+func extractNTPListeners(tree *config.Tree) []serviceListener {
+	ntp := getContainerPath(tree, "environment", "ntp")
+	if !configEnabled(ntp, false) {
+		return nil
+	}
+	return []serviceListener{udpListener("ntp", "123", "doctor-ntp-listen")}
+}
+
+var interfaceByName = net.InterfaceByName
+
+func checkDHCPInterfaces(tree *config.Tree) []diagnostic.Diagnostic {
+	dhcp := getContainerPath(tree, "service", "dhcp-server")
+	if !configEnabled(dhcp, false) {
+		return nil
+	}
+
+	var diags []diagnostic.Diagnostic
+	for _, name := range dhcp.GetSlice("listen-interface") {
+		if strings.ContainsAny(name, "/\x00") || strings.Contains(name, "..") {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     "doctor-dhcp-iface",
+				Severity: diagnostic.SeverityError,
+				Message:  "DHCP server listen interface has invalid name: " + name,
+				Path:     "service/dhcp-server/listen-interface",
+			})
+			continue
+		}
+		if _, err := interfaceByName(name); err != nil {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     "doctor-dhcp-iface",
+				Severity: diagnostic.SeverityError,
+				Message:  "DHCP server listen interface not found: " + name,
+				Path:     "service/dhcp-server/listen-interface",
+			})
+		}
+	}
+	return diags
+}
+
+var tcpReachable = tcpServerReachable
+var udpReachable = udpServerReachable
+
+func checkTACACSServers(tree *config.Tree) []diagnostic.Diagnostic {
+	tacacs := getContainerPath(tree, "system", "authentication", "tacacs")
+	if tacacs == nil {
+		return nil
+	}
+
+	timeout := configTimeout(tacacs, "timeout", 5)
+	checked := false
+	for _, s := range tacacs.GetListOrdered("server") {
+		address := valueOrDefault(s.Value, "address", s.Key)
+		if address == "" {
+			continue
+		}
+		checked = true
+		if tcpReachable(net.JoinHostPort(address, valueOrDefault(s.Value, "port", "49")), timeout) {
+			return nil
+		}
+	}
+	if !checked {
+		return nil
+	}
+	return []diagnostic.Diagnostic{{
+		Code:     "doctor-tacacs-unreachable",
+		Severity: diagnostic.SeverityWarning,
+		Message:  "none of the configured TACACS+ servers are reachable",
+	}}
+}
+
+func checkRADIUSServers(tree *config.Tree) []diagnostic.Diagnostic {
+	radiusCfg := getContainerPath(tree, "l2tp", "auth", "radius")
+	if radiusCfg == nil {
+		return nil
+	}
+
+	timeout := configTimeout(radiusCfg, "timeout", 3)
+	nasID := valueOrDefault(radiusCfg, "nas-identifier", "ze-doctor")
+	var sourceIP net.IP
+	if source, ok := radiusCfg.Get("source-address"); ok && source != "" {
+		sourceIP = net.ParseIP(source)
+	}
+	checked := false
+	for _, s := range radiusCfg.GetListOrdered("server") {
+		address, ok := s.Value.Get("address")
+		if !ok || address == "" {
+			continue
+		}
+		checked = true
+		secret := []byte(valueOrDefault(s.Value, "shared-key", ""))
+		if udpReachable(net.JoinHostPort(address, valueOrDefault(s.Value, "port", "1812")), secret, sourceIP, nasID, timeout) {
+			return nil
+		}
+	}
+	if !checked {
+		return nil
+	}
+	return []diagnostic.Diagnostic{{
+		Code:     "doctor-radius-unreachable",
+		Severity: diagnostic.SeverityWarning,
+		Message:  "none of the configured RADIUS servers are reachable",
+	}}
+}
+
+func tcpServerReachable(addr string, timeout time.Duration) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	d := net.Dialer{Timeout: timeout}
+	conn, err := d.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
+}
+
+func udpServerReachable(addr string, secret []byte, sourceIP net.IP, nasID string, timeout time.Duration) bool {
+	if len(secret) == 0 {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	client, err := zeradius.NewClient(zeradius.ClientConfig{Timeout: timeout, Retries: 1, SourceAddress: sourceIP})
+	if err != nil {
+		return false
+	}
+	defer func() { _ = client.Close() }()
+
+	auth, err := zeradius.RandomAuthenticator()
+	if err != nil {
+		return false
+	}
+	attrs := []zeradius.Attr{
+		{Type: zeradius.AttrUserName, Value: zeradius.AttrString("ze-doctor")},
+		{Type: zeradius.AttrUserPassword, Value: zeradius.AttrString("ze-doctor")},
+	}
+	if nasID != "" {
+		attrs = append(attrs, zeradius.Attr{Type: zeradius.AttrNASIdentifier, Value: zeradius.AttrString(nasID)})
+	}
+	pkt := &zeradius.Packet{
+		Code:          zeradius.CodeAccessRequest,
+		Identifier:    byte(time.Now().UnixNano()),
+		Authenticator: auth,
+		Attrs:         attrs,
+	}
+	_, err = client.Exchange(ctx, pkt, secret, addr)
+	return err == nil
+}
+
+func forcedDoctorCode(code, configured string) bool {
+	if configured == "" {
+		return false
+	}
+	for item := range strings.SplitSeq(configured, ",") {
+		if strings.TrimSpace(item) == code {
+			return true
+		}
+	}
+	return false
+}
+
+func configTimeout(tree *config.Tree, leaf string, def int) time.Duration {
+	if v, ok := tree.Get(leaf); ok {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return time.Duration(n) * time.Second
+		}
+	}
+	return time.Duration(def) * time.Second
+}
+
+func configEnabled(tree *config.Tree, defaultValue bool) bool {
+	if tree == nil {
+		return false
+	}
+	if v, ok := tree.Get("enabled"); ok {
+		return v == "true"
+	}
+	return defaultValue
+}
+
+func getContainerPath(tree *config.Tree, names ...string) *config.Tree {
+	cur := tree
+	for _, name := range names {
+		if cur == nil {
+			return nil
+		}
+		cur = cur.GetContainer(name)
+	}
+	return cur
+}
+
+func nestedValue(tree *config.Tree, path ...string) (string, bool) {
+	if len(path) == 0 {
+		return "", false
+	}
+	containerPath := path[:len(path)-1]
+	leaf := path[len(path)-1]
+	container := getContainerPath(tree, containerPath...)
+	if container == nil {
+		return "", false
+	}
+	return container.Get(leaf)
+}
+
+func inheritedValue(parent, node *config.Tree, path ...string) (string, bool) {
+	if v, ok := nestedValue(node, path...); ok {
+		return v, true
+	}
+	return nestedValue(parent, path...)
+}
+
+func valueOrDefault(tree *config.Tree, name, def string) string {
+	if tree == nil {
+		return def
+	}
+	if v, ok := tree.Get(name); ok && v != "" {
+		return v
+	}
+	return def
 }
 
 func extractSSHListeners(tree *config.Tree) []serviceListener {
@@ -532,7 +1025,7 @@ func extractSSHListeners(tree *config.Tree) []serviceListener {
 			if v, ok := s.Value.Get("port"); ok && v != "" {
 				port = v
 			}
-			listeners = append(listeners, serviceListener{"ssh", host, port})
+			listeners = append(listeners, tcpListener("ssh", host, port, "doctor-listen-unavailable"))
 		}
 	} else if addrs := sshBlock.GetSlice("listen"); len(addrs) > 0 {
 		for _, addr := range addrs {
@@ -541,12 +1034,12 @@ func extractSSHListeners(tree *config.Tree) []serviceListener {
 				host = "127.0.0.1"
 				port = "2222"
 			}
-			listeners = append(listeners, serviceListener{"ssh", host, port})
+			listeners = append(listeners, tcpListener("ssh", host, port, "doctor-listen-unavailable"))
 		}
 	}
 
 	if len(listeners) == 0 {
-		listeners = append(listeners, serviceListener{"ssh", "127.0.0.1", "2222"})
+		listeners = append(listeners, tcpListener("ssh", "127.0.0.1", "2222", "doctor-listen-unavailable"))
 	}
 
 	return listeners

@@ -14,8 +14,12 @@ check in `cmd/ze/doctor/doctor.go` (or the platform-specific `checks_linux.go`):
 | Config leaf that names an external service or socket | Reachability probe |
 | Kernel module requirement | `/proc/modules` check (Linux) |
 | New listen address/port | Port bind probe |
+| New UDP listener | UDP `ListenPacket` bind probe |
 | New service with TLS | Certificate validity + expiry check |
+| Embedded certificate material | Parse certificate and check validity window |
 | External binary (plugin, helper) | `exec.LookPath` or `os.Stat` check |
+| Procfs/sysctl dependency | Read/write probe for the exact `/proc` path |
+| Netlink dependency | Open the specific netlink family/handle |
 
 ## Diagnostic Code Convention
 
@@ -44,4 +48,16 @@ a doctor check.
 | `interface/backend` | `checkIfaceBackend` |
 | `plugin/external` | `checkPlugins` |
 | Kernel module (IPsec, VPP, conntrack) | `checkKernelModules` (Linux) |
+| Procfs, sysctl, netlink | Platform-specific check in `checks_linux.go` with a stub in `checks_other.go` |
 | Blob storage | `checkStorage` |
+
+## Test Requirement
+
+Every new doctor check needs both:
+
+| Test type | What it proves |
+|-----------|----------------|
+| Unit test | The check fires only when the relevant config block is present and emits the registered code |
+| Functional test | `ze doctor --json <config>` exposes the behavior through the user entry point |
+
+Linux-only checks still need Linux-tagged tests and the package must be covered by the QEMU integration target when new `//go:build linux` code is added.

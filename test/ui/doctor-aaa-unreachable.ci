@@ -1,0 +1,41 @@
+# Test: ze doctor --json reports unreachable AAA backends
+# VALIDATES: AC-6 and AC-7 TACACS+ and RADIUS server readiness emit dedicated diagnostics.
+
+option=env:var=ze.test.doctor.modules-file:value=modules.ok
+
+tmpfs=modules.ok:terminator=EOF_MODULES
+l2tp_ppp 16384 0 - Live 0x0
+EOF_MODULES
+
+tmpfs=aaa.conf:terminator=EOF_CONF
+system {
+    authentication {
+        tacacs {
+            server 127.0.0.1 {
+                port $PORT
+                key testing123
+            }
+            timeout 1
+        }
+    }
+}
+l2tp {
+    enabled true
+    auth {
+        radius {
+            server radius1 {
+                address 127.0.0.1
+                port $PORT2
+                shared-key testing123
+            }
+            timeout 1
+            retries 1
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json aaa.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-tacacs-unreachable
+expect=stdout:contains=doctor-radius-unreachable

@@ -1,0 +1,17 @@
+# Test: ze doctor --json reports missing firewall nftables support
+# VALIDATES: AC-3 firewall config with no nf_tables module emits doctor-firewall-nftables.
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=env:var=ze.test.doctor.modules-file:value=modules.empty
+
+tmpfs=modules.empty:terminator=EOF_MODULES
+EOF_MODULES
+
+tmpfs=firewall.conf:terminator=EOF_CONF
+firewall {
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json firewall.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-firewall-nftables

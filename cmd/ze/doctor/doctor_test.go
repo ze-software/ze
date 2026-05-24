@@ -9,13 +9,16 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"io"
 	"math/big"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,6 +29,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	zeradius "codeberg.org/thomas-mangin/ze/internal/component/radius"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
@@ -114,7 +118,7 @@ func TestDoctorValidConfigText(t *testing.T) {
 		code := Run([]string{cfgPath})
 		assert.Equal(t, 0, code)
 	})
-	assert.Contains(t, out, "all checks passed")
+	assert.True(t, strings.Contains(out, "all checks passed") || strings.Contains(out, "ready (0 errors"), "unexpected doctor output: %s", out)
 }
 
 func TestDoctorInvalidConfig(t *testing.T) {
@@ -310,6 +314,182 @@ func TestCheckListeners_API(t *testing.T) {
 	assert.Contains(t, diags[0].Message, "api-rest")
 }
 
+func TestCheckDHCPInterfaces(t *testing.T) {
+	// VALIDATES: AC-4 DHCP server configured with a missing listen interface returns doctor-dhcp-iface.
+	// PREVENTS: DHCP bind failures surfacing only when the daemon starts.
+	tree := config.NewTree()
+	service := tree.GetOrCreateContainer("service")
+	dhcp := service.GetOrCreateContainer("dhcp-server")
+	dhcp.Set("enabled", "true")
+	dhcp.SetSlice("listen-interface", []string{"ze-doctor-missing0"})
+
+	diags := checkDHCPInterfaces(tree)
+	requireDiag(t, diags, "doctor-dhcp-iface", diagnostic.SeverityError)
+}
+
+func TestCheckListeners_BGP(t *testing.T) {
+	// VALIDATES: AC-5 BGP configured with a local address reports doctor-bgp-listen when the port is unavailable.
+	// PREVENTS: BGP TCP bind conflicts being hidden until reactor startup.
+	var lc net.ListenConfig
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() { _ = ln.Close() }()
+
+	_, port, err := net.SplitHostPort(ln.Addr().String())
+	require.NoError(t, err)
+
+	tree := config.NewTree()
+	bgp := tree.GetOrCreateContainer("bgp")
+	peer := config.NewTree()
+	conn := peer.GetOrCreateContainer("connection")
+	local := conn.GetOrCreateContainer("local")
+	local.Set("ip", "127.0.0.1")
+	local.Set("port", port)
+	remote := conn.GetOrCreateContainer("remote")
+	remote.Set("ip", "192.0.2.1")
+	session := peer.GetOrCreateContainer("session")
+	asn := session.GetOrCreateContainer("asn")
+	asn.Set("remote", "65001")
+	bgp.AddListEntry("peer", "p1", peer)
+
+	diags := checkListeners(tree)
+	requireDiag(t, diags, "doctor-bgp-listen", diagnostic.SeverityWarning)
+}
+
+func TestCheckListeners_ServicePorts(t *testing.T) {
+	// VALIDATES: AC-8/10/12/13/14 service listener failures use service-specific doctor codes.
+	// PREVENTS: New UDP/TCP runtime dependencies falling back to an unhelpful generic code.
+	oldProbe := listenerProbe
+	listenerProbe = func(l serviceListener) error {
+		if l.code == "doctor-bfd-port" || l.code == "doctor-ipsec-listen" || l.code == "doctor-tftp-listen" || l.code == "doctor-image-listen" || l.code == "doctor-ntp-listen" {
+			return errors.New("bind failed")
+		}
+		return nil
+	}
+	t.Cleanup(func() { listenerProbe = oldProbe })
+
+	tree := config.NewTree()
+	tree.GetOrCreateContainer("bfd")
+	vpn := tree.GetOrCreateContainer("vpn")
+	vpn.GetOrCreateContainer("ipsec")
+	service := tree.GetOrCreateContainer("service")
+	tftp := service.GetOrCreateContainer("tftp-server")
+	tftp.Set("enabled", "true")
+	image := service.GetOrCreateContainer("image-server")
+	image.Set("enabled", "true")
+	env := tree.GetOrCreateContainer("environment")
+	ntp := env.GetOrCreateContainer("ntp")
+	ntp.Set("enabled", "true")
+
+	diags := checkListeners(tree)
+	requireDiag(t, diags, "doctor-bfd-port", diagnostic.SeverityWarning)
+	requireDiag(t, diags, "doctor-ipsec-listen", diagnostic.SeverityWarning)
+	requireDiag(t, diags, "doctor-tftp-listen", diagnostic.SeverityWarning)
+	requireDiag(t, diags, "doctor-image-listen", diagnostic.SeverityWarning)
+	requireDiag(t, diags, "doctor-ntp-listen", diagnostic.SeverityWarning)
+}
+
+func TestCheckTACACSServers(t *testing.T) {
+	// VALIDATES: AC-6 unreachable TACACS+ servers return doctor-tacacs-unreachable.
+	// PREVENTS: AAA outages being discovered only after login attempts fail.
+	oldProbe := tcpReachable
+	tcpReachable = func(string, time.Duration) bool { return false }
+	t.Cleanup(func() { tcpReachable = oldProbe })
+
+	tree := config.NewTree()
+	system := tree.GetOrCreateContainer("system")
+	auth := system.GetOrCreateContainer("authentication")
+	tacacs := auth.GetOrCreateContainer("tacacs")
+	server := config.NewTree()
+	server.Set("address", "192.0.2.1")
+	server.Set("port", "49")
+	tacacs.AddListEntry("server", "192.0.2.1", server)
+
+	diags := checkTACACSServers(tree)
+	requireDiag(t, diags, "doctor-tacacs-unreachable", diagnostic.SeverityWarning)
+}
+
+func TestCheckRADIUSServers(t *testing.T) {
+	// VALIDATES: AC-7 unreachable RADIUS servers return doctor-radius-unreachable.
+	// PREVENTS: L2TP authentication failures surfacing only on subscriber login.
+	oldProbe := udpReachable
+	udpReachable = func(string, []byte, net.IP, string, time.Duration) bool { return false }
+	t.Cleanup(func() { udpReachable = oldProbe })
+
+	tree := config.NewTree()
+	l2tp := tree.GetOrCreateContainer("l2tp")
+	auth := l2tp.GetOrCreateContainer("auth")
+	radius := auth.GetOrCreateContainer("radius")
+	server := config.NewTree()
+	server.Set("address", "radius.example.invalid")
+	server.Set("port", "1812")
+	server.Set("shared-key", "testing123")
+	radius.AddListEntry("server", "primary", server)
+
+	diags := checkRADIUSServers(tree)
+	requireDiag(t, diags, "doctor-radius-unreachable", diagnostic.SeverityWarning)
+}
+
+func TestUDPServerReachableRequiresResponse(t *testing.T) {
+	// VALIDATES: The RADIUS readiness probe requires an authenticated response instead of accepting Dial success.
+	// PREVENTS: Unbound UDP ports or bad shared keys being reported as reachable.
+	secret := []byte("testing123")
+	var lc net.ListenConfig
+	pc, err := lc.ListenPacket(context.Background(), "udp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := pc.LocalAddr().String()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		buf := make([]byte, 64)
+		n, addr, readErr := pc.ReadFrom(buf)
+		if readErr != nil || n < 20 {
+			return
+		}
+		var reqAuth [zeradius.AuthenticatorLen]byte
+		copy(reqAuth[:], buf[4:4+zeradius.AuthenticatorLen])
+		resp := &zeradius.Packet{Code: zeradius.CodeAccessReject, Identifier: buf[1], Authenticator: reqAuth}
+		wire := make([]byte, zeradius.MaxPacketLen)
+		respLen, encodeErr := resp.EncodeTo(wire, 0)
+		if encodeErr != nil {
+			return
+		}
+		respAuth := zeradius.ResponseAuthenticator(resp.Code, resp.Identifier, uint16(respLen), reqAuth, wire[zeradius.HeaderLen:respLen], secret)
+		copy(wire[4:4+zeradius.AuthenticatorLen], respAuth[:])
+		_, _ = pc.WriteTo(wire[:respLen], addr)
+	}()
+
+	assert.True(t, udpServerReachable(addr, secret, nil, "ze-doctor", time.Second))
+	_ = pc.Close()
+	<-done
+	assert.False(t, udpServerReachable(addr, secret, nil, "ze-doctor", 10*time.Millisecond))
+}
+
+func TestCheckPKICerts_MissingCA(t *testing.T) {
+	// VALIDATES: AC-9 PKI CA entries without certificate material return doctor-pki-cert.
+	// PREVENTS: Certificate store gaps being missed until IPsec or TLS uses the CA.
+	tree := config.NewTree()
+	pki := tree.GetOrCreateContainer("pki")
+	pki.AddListEntry("ca", "root", config.NewTree())
+
+	diags := checkPKICerts(tree)
+	requireDiag(t, diags, "doctor-pki-cert", diagnostic.SeverityError)
+}
+
+func TestCheckPKICerts_ExpiredCA(t *testing.T) {
+	// VALIDATES: AC-9 PKI CA certificate validity is checked, not just presence.
+	// PREVENTS: Expired embedded CA certificates passing readiness checks.
+	tree := config.NewTree()
+	pki := tree.GetOrCreateContainer("pki")
+	ca := config.NewTree()
+	ca.Set("certificate", base64.StdEncoding.EncodeToString(generateTestCertDER(t, time.Now().Add(-48*time.Hour), time.Now().Add(-time.Hour))))
+	pki.AddListEntry("ca", "root", ca)
+
+	diags := checkPKICerts(tree)
+	requireDiag(t, diags, "doctor-pki-cert", diagnostic.SeverityError)
+}
+
 func TestCheckCertExpiry_BadDER(t *testing.T) {
 	pemData := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("not-der")})
 	diags := checkCertExpiry("test", "/test/cert.pem", pemData)
@@ -484,6 +664,12 @@ func TestResolveStorageWithDiag_Fallback(t *testing.T) {
 
 func generateTestCert(t *testing.T, notBefore, notAfter time.Time) []byte {
 	t.Helper()
+	certDER := generateTestCertDER(t, notBefore, notAfter)
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+}
+
+func generateTestCertDER(t *testing.T, notBefore, notAfter time.Time) []byte {
+	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
@@ -495,8 +681,18 @@ func generateTestCert(t *testing.T, notBefore, notAfter time.Time) []byte {
 	}
 	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
 	require.NoError(t, err)
+	return certDER
+}
 
-	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+func requireDiag(t *testing.T, diags []diagnostic.Diagnostic, code string, severity diagnostic.Severity) {
+	t.Helper()
+	for i := range diags {
+		if diags[i].Code == code {
+			assert.Equal(t, severity, diags[i].Severity, "severity for %s", code)
+			return
+		}
+	}
+	require.Failf(t, "missing diagnostic", "expected %s in %+v", code, diags)
 }
 
 // --- Config reference tests ---
@@ -636,4 +832,33 @@ func TestDoctorStoreIntegrityCodeRegistered(t *testing.T) {
 	meta := diagnostic.Lookup("doctor-store-integrity")
 	require.NotNil(t, meta, "doctor-store-integrity code must be registered")
 	assert.NotEmpty(t, meta.Title)
+}
+
+func TestDoctorCoverageCodesRegistered(t *testing.T) {
+	// VALIDATES: AC-17 every new doctor coverage diagnostic code is registered for ze explain.
+	// PREVENTS: ze doctor emitting codes that ze explain cannot describe.
+	for _, code := range []string{
+		"doctor-l2tp-module",
+		"doctor-pppoe-module",
+		"doctor-firewall-nftables",
+		"doctor-dhcp-iface",
+		"doctor-bgp-listen",
+		"doctor-tacacs-unreachable",
+		"doctor-radius-unreachable",
+		"doctor-bfd-port",
+		"doctor-pki-cert",
+		"doctor-ipsec-listen",
+		"doctor-telemetry-procfs",
+		"doctor-tftp-listen",
+		"doctor-image-listen",
+		"doctor-ntp-listen",
+		"doctor-sysctl-procfs",
+		"doctor-conntrack-procfs",
+		"doctor-policyroute-netlink",
+	} {
+		meta := diagnostic.Lookup(code)
+		require.NotNil(t, meta, "%s code must be registered", code)
+		assert.NotEmpty(t, meta.Title)
+		assert.NotEmpty(t, meta.Description)
+	}
 }
