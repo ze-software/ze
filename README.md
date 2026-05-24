@@ -1,6 +1,8 @@
 # Ze
 
-> **Pre-release** -- Ze is under active development and has not been released yet. The core BGP engine works and is extensively tested (as of 2026-04: 10,000+ unit tests, roughly 800 functional tests, 50+ fuzz targets, chaos testing, and 30+ Docker-based interop scenarios against FRR, BIRD, GoBGP, OpenBGPD, FreeRtr, and Rust implementations), but some advanced features are still incomplete. APIs and config syntax may change.
+**[ze-software.github.io/ze](https://ze-software.github.io/ze)**
+
+> **Pre-release** -- Ze is under active development and has not been released yet. The core BGP engine works and is extensively tested (as of 2026-04: 12,800+ unit tests, 900+ functional tests, 57 fuzz targets, chaos testing, and 35 Docker-based interop scenarios against FRR, BIRD, GoBGP, OpenBGPd, FreeRtr, RustyBGP, and rustbgpd), but some advanced features are still incomplete. APIs and config syntax may change.
 
 Ze is an open-source network operating system for Linux. It speaks BGP, manages network interfaces, programs the FIB, and serves a config editor over SSH and a web UI. Everything beyond the core is a plugin. Plugins can be Go modules or external processes in any language. An MCP server can let AI assistants discover all its features (including plugins) and operate them directly.
 
