@@ -47,8 +47,9 @@ func (mc *MonitorClient) enqueue(output string) bool {
 // MonitorManager manages active monitor clients.
 // Parallel to SubscriptionManager (which manages plugin process subscriptions).
 type MonitorManager struct {
-	mu       sync.RWMutex
-	monitors map[string]*MonitorClient
+	mu           sync.RWMutex
+	monitors     map[string]*MonitorClient
+	monitorCount atomic.Int64
 }
 
 // NewMonitorManager creates a new monitor manager.
@@ -62,6 +63,9 @@ func NewMonitorManager() *MonitorManager {
 func (mm *MonitorManager) Add(mc *MonitorClient) {
 	mm.mu.Lock()
 	defer mm.mu.Unlock()
+	if _, exists := mm.monitors[mc.id]; !exists {
+		mm.monitorCount.Add(1)
+	}
 	mm.monitors[mc.id] = mc
 }
 
@@ -69,6 +73,9 @@ func (mm *MonitorManager) Add(mc *MonitorClient) {
 func (mm *MonitorManager) Remove(id string) {
 	mm.mu.Lock()
 	defer mm.mu.Unlock()
+	if _, exists := mm.monitors[id]; exists {
+		mm.monitorCount.Add(-1)
+	}
 	delete(mm.monitors, id)
 }
 
@@ -77,6 +84,13 @@ func (mm *MonitorManager) Count() int {
 	mm.mu.RLock()
 	defer mm.mu.RUnlock()
 	return len(mm.monitors)
+}
+
+// HasMonitors returns true if any monitor clients are registered.
+// Uses an atomic load instead of acquiring the mutex, making it suitable
+// for hot-path early-exit checks.
+func (mm *MonitorManager) HasMonitors() bool {
+	return mm.monitorCount.Load() > 0
 }
 
 // GetMatching returns monitors with subscriptions matching the event.
@@ -96,6 +110,24 @@ func (mm *MonitorManager) GetMatching(namespace, eventType, direction, peerAddr,
 			if sub.Matches(nsID, etID, dirID, peerAddr, peerName) {
 				result = append(result, mc)
 				break // Only add monitor once, even if multiple subs match
+			}
+		}
+	}
+	return result
+}
+
+// GetMatchingTyped returns monitors with subscriptions matching the event,
+// using pre-resolved typed IDs. Avoids the string-to-ID lookups in GetMatching.
+func (mm *MonitorManager) GetMatchingTyped(ns events.NamespaceID, et events.EventTypeID, dir events.Direction, peerAddr, peerName string) []*MonitorClient {
+	mm.mu.RLock()
+	defer mm.mu.RUnlock()
+
+	var result []*MonitorClient
+	for _, mc := range mm.monitors {
+		for _, sub := range mc.subscriptions {
+			if sub.Matches(ns, et, dir, peerAddr, peerName) {
+				result = append(result, mc)
+				break
 			}
 		}
 	}
@@ -138,6 +170,24 @@ func (mm *MonitorManager) Deliver(namespace, eventType, direction, peerAddr, pee
 // The dropped counter on the removed client may tick up, which is harmless.
 func (mm *MonitorManager) DeliverLazy(namespace, eventType, direction, peerAddr, peerName string, build func() string) {
 	matches := mm.GetMatching(namespace, eventType, direction, peerAddr, peerName)
+	if len(matches) == 0 {
+		return
+	}
+	output := build()
+	for _, mc := range matches {
+		mc.enqueue(output)
+	}
+}
+
+// DeliverLazyTyped is the hot-path variant of DeliverLazy. It accepts
+// pre-resolved typed IDs, skipping the string-to-ID lookups and their
+// associated global event registry RLock acquisitions. Returns immediately
+// via an atomic load when no monitors are registered (the common production case).
+func (mm *MonitorManager) DeliverLazyTyped(ns events.NamespaceID, et events.EventTypeID, dir events.Direction, peerAddr, peerName string, build func() string) {
+	if mm.monitorCount.Load() == 0 {
+		return
+	}
+	matches := mm.GetMatchingTyped(ns, et, dir, peerAddr, peerName)
 	if len(matches) == 0 {
 		return
 	}

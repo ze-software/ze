@@ -178,8 +178,10 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	peerAddr := peer.AddrStr()
 	eventTypeStr := eventType.String()
 	dirStr := msg.Direction.String()
-	procs := s.Subscriptions().GetMatching(bgpNS(), eventKindToID(eventType), rpcDirToDir(msg.Direction), peerAddr, peer.Name)
-	hasMonitors := s.Monitors().Count() > 0
+	etID := eventKindToID(eventType)
+	dirID := rpcDirToDir(msg.Direction)
+	procs := s.Subscriptions().GetMatching(bgpNS(), etID, dirID, peerAddr, peer.Name)
+	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return 0
 	}
@@ -242,7 +244,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 
 	// Deliver to CLI monitors lazily: only format json+parsed when a monitor matches.
 	// Reuse the value from fmtCache if a text/JSON plugin already produced it.
-	monitorDeliverLazy(s, eventTypeStr, dirStr, peerAddr, peer.Name, func() string {
+	monitorDeliverLazyTyped(s, etID, dirID, peerAddr, peer.Name, func() string {
 		if jsonOutput, ok := fmtCache.get(monitorFormatKey); ok {
 			return jsonOutput
 		}
@@ -272,8 +274,9 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 
 	peerAddr := peer.AddrStr()
 	eventTypeStr := eventType.String()
-	procs := s.Subscriptions().GetMatching(bgpNS(), eventKindToID(eventType), rpcDirToDir(msgs[0].Direction), peerAddr, peer.Name)
-	hasMonitors := s.Monitors().Count() > 0
+	etID := eventKindToID(eventType)
+	procs := s.Subscriptions().GetMatching(bgpNS(), etID, rpcDirToDir(msgs[0].Direction), peerAddr, peer.Name)
+	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return counts
 	}
@@ -346,7 +349,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 
 		// Deliver to CLI monitors per message (non-blocking) — lazy: only format
 		// json+parsed when a monitor matches this message's peer/event/direction.
-		monitorDeliverLazy(s, eventTypeStr, msg.Direction.String(), peerAddr, peer.Name, func() string {
+		monitorDeliverLazyTyped(s, etID, rpcDirToDir(msg.Direction), peerAddr, peer.Name, func() string {
 			if jsonOutput, ok := fmtCache.get(monitorFormatKey); ok {
 				return jsonOutput
 			}
@@ -435,13 +438,12 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.Peer
 	}
 }
 
-// monitorDeliverLazy delivers an event to matching CLI monitors, invoking build
-// only if at least one monitor matches. Use this in place of monitorDeliver
-// whenever the JSON output is built solely for monitor delivery, so structured
-// plugin consumers do not pay the parsed-JSON formatting cost when no monitor
-// is attached.
-func monitorDeliverLazy(s *pluginserver.Server, eventType, direction, peerAddr, peerName string, build func() string) {
-	s.Monitors().DeliverLazy(bgpevents.Namespace, eventType, direction, peerAddr, peerName, build)
+// monitorDeliverLazyTyped delivers an event to matching CLI monitors using
+// pre-resolved typed IDs, avoiding string-to-ID lookups and their associated
+// global event registry RLock acquisitions. Returns immediately via atomic
+// load when no monitors are registered (the common production case).
+func monitorDeliverLazyTyped(s *pluginserver.Server, et events.EventTypeID, dir events.Direction, peerAddr, peerName string, build func() string) {
+	s.Monitors().DeliverLazyTyped(bgpNS(), et, dir, peerAddr, peerName, build)
 }
 
 // deliverToProcs enqueues events to long-lived per-process delivery goroutines and
@@ -523,8 +525,9 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 	}
 
 	peerAddr := peer.AddrStr()
-	procs := s.Subscriptions().GetMatching(bgpNS(), events.LookupEventTypeID(bgpevents.EventState), events.DirUnspecified, peerAddr, peer.Name)
-	hasMonitors := s.Monitors().Count() > 0
+	stateETID := events.LookupEventTypeID(bgpevents.EventState)
+	procs := s.Subscriptions().GetMatching(bgpNS(), stateETID, events.DirUnspecified, peerAddr, peer.Name)
+	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return
 	}
@@ -577,7 +580,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 	}
 
 	// Deliver to CLI monitors lazily.
-	monitorDeliverLazy(s, bgpevents.EventState, "", peerAddr, peer.Name, func() string {
+	monitorDeliverLazyTyped(s, stateETID, events.DirUnspecified, peerAddr, peer.Name, func() string {
 		if jsonOutput, ok := fmtCache.get("json"); ok {
 			return jsonOutput
 		}
@@ -600,8 +603,9 @@ func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer 
 	}
 
 	peerAddr := peer.AddrStr()
-	procs := s.Subscriptions().GetMatching(bgpNS(), events.LookupEventTypeID(bgpevents.EventNegotiated), events.DirUnspecified, peerAddr, peer.Name)
-	hasMonitors := s.Monitors().Count() > 0
+	negETID := events.LookupEventTypeID(bgpevents.EventNegotiated)
+	procs := s.Subscriptions().GetMatching(bgpNS(), negETID, events.DirUnspecified, peerAddr, peer.Name)
+	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return
 	}
@@ -619,7 +623,7 @@ func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer 
 	}
 
 	// Deliver to CLI monitors (negotiated is always JSON format) lazily.
-	monitorDeliverLazy(s, bgpevents.EventNegotiated, "", peerAddr, peer.Name, func() string {
+	monitorDeliverLazyTyped(s, negETID, events.DirUnspecified, peerAddr, peer.Name, func() string {
 		if formatted {
 			return output
 		}
@@ -638,8 +642,9 @@ func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string)
 	}
 
 	peerAddr := peer.AddrStr()
-	procs := s.Subscriptions().GetMatching(bgpNS(), events.LookupEventTypeID(bgpevents.EventEOR), events.DirReceived, peerAddr, peer.Name)
-	hasMonitors := s.Monitors().Count() > 0
+	eorETID := events.LookupEventTypeID(bgpevents.EventEOR)
+	procs := s.Subscriptions().GetMatching(bgpNS(), eorETID, events.DirReceived, peerAddr, peer.Name)
+	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return
 	}
@@ -678,7 +683,7 @@ func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string)
 	}
 
 	// Deliver to CLI monitors lazily.
-	monitorDeliverLazy(s, bgpevents.EventEOR, events.DirectionReceived, peerAddr, peer.Name, func() string {
+	monitorDeliverLazyTyped(s, eorETID, events.DirReceived, peerAddr, peer.Name, func() string {
 		if jsonOutput, ok := fmtCache.get("json"); ok {
 			return jsonOutput
 		}
@@ -718,8 +723,9 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 
 	peerAddr := peer.AddrStr()
 	eventTypeStr := eventType.String()
-	procs := s.Subscriptions().GetMatching(bgpNS(), eventKindToID(eventType), events.DirSent, peerAddr, peer.Name)
-	hasMonitors := s.Monitors().Count() > 0
+	sentETID := eventKindToID(eventType)
+	procs := s.Subscriptions().GetMatching(bgpNS(), sentETID, events.DirSent, peerAddr, peer.Name)
+	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return
 	}
@@ -774,7 +780,7 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 	// the backing storage is free to reuse. Declaring a fresh scratch inside the
 	// closure body would force a heap allocation even though the closure does not
 	// escape.
-	monitorDeliverLazy(s, eventTypeStr, events.DirectionSent, peerAddr, peer.Name, func() string {
+	monitorDeliverLazyTyped(s, sentETID, events.DirSent, peerAddr, peer.Name, func() string {
 		if jsonOutput, ok := fmtCache.get(monitorFormatKey); ok {
 			return jsonOutput
 		}
@@ -795,8 +801,9 @@ func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, event
 	}
 
 	peerAddr := peer.AddrStr()
-	procs := s.Subscriptions().GetMatching(bgpNS(), events.LookupEventTypeID(eventType), events.DirUnspecified, peerAddr, peer.Name)
-	hasMonitors := s.Monitors().Count() > 0
+	congETID := events.LookupEventTypeID(eventType)
+	procs := s.Subscriptions().GetMatching(bgpNS(), congETID, events.DirUnspecified, peerAddr, peer.Name)
+	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
 		return
 	}
@@ -838,7 +845,7 @@ func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, event
 	}
 
 	// Deliver to CLI monitors lazily.
-	monitorDeliverLazy(s, eventType, "", peerAddr, peer.Name, func() string {
+	monitorDeliverLazyTyped(s, congETID, events.DirUnspecified, peerAddr, peer.Name, func() string {
 		if jsonOutput, ok := fmtCache.get("json"); ok {
 			return jsonOutput
 		}
