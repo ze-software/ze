@@ -800,21 +800,23 @@ func (s *sysRIB) showRIB() (string, error) {
 	defer s.mu.RUnlock()
 
 	type entry struct {
-		Prefix   netip.Prefix  `json:"prefix"`
-		Family   family.Family `json:"family"`
-		NextHop  netip.Addr    `json:"next-hop,omitzero"`
-		Protocol string        `json:"protocol"`
-		Priority int           `json:"priority"`
+		Prefix    netip.Prefix            `json:"prefix"`
+		Family    family.Family           `json:"family"`
+		NextHop   netip.Addr              `json:"next-hop,omitzero"`
+		Protocol  string                  `json:"protocol"`
+		Priority  int                     `json:"priority"`
+		ECMPPaths []sysribevents.ECMPPath `json:"ecmp-paths,omitempty"`
 	}
 
 	entries := make([]entry, 0, len(s.best))
 	for key, route := range s.best {
 		entries = append(entries, entry{
-			Prefix:   key.prefix,
-			Family:   key.family,
-			NextHop:  route.nextHop,
-			Protocol: route.protocol,
-			Priority: route.priority,
+			Prefix:    key.prefix,
+			Family:    key.family,
+			NextHop:   route.nextHop,
+			Protocol:  route.protocol,
+			Priority:  route.priority,
+			ECMPPaths: s.lastECMP[key],
 		})
 	}
 

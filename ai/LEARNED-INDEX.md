@@ -121,6 +121,7 @@ Route storage, selection, forwarding, communities, path selection.
 - [402](plan/learned/402-bgp-route-selection.md) -- Best-path selection algorithm
 - [717](plan/learned/717-rib-2-multicast.md) -- Multicast RPF via generic LPM on sharded Loc-RIB; query-all-shards pattern; wiring gap caught by review
 - [772](plan/learned/772-nh-cascade-wiring.md) -- NH cascade wiring: async OnChange to avoid shard deadlock, LPM race fix, ECMP-aware cascade
+- [774](plan/learned/774-fib-depth-2-ecmp.md) -- ECMP is two mechanisms: bgp-rib multipath (within BGP) vs sysrib ecmpCollect (cross-protocol); locrib path means sysrib only sees one "bgp" entry
 
 ## Protocol/RFC
 
