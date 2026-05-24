@@ -126,7 +126,7 @@ missing layer, not the violation.
 
 ## Section C -- pull-model metrics decision (defer)
 
-Decision doc at `plan/decision-pull-model-metrics.md`. Recommendation:
+Decision doc at `docs/architecture/decisions/001-pull-model-metrics.md`. Recommendation:
 defer, not reject. The push-model plugin metrics (`ConfigureMetrics`
 callback, abstract `metrics.Registry` interface in
 `internal/core/metrics/metrics.go`) are correct and decoupled at the
@@ -256,7 +256,7 @@ of check.
 
 **Commit `7e0bfdd1` (Sections B/C/D, 4 files):**
 - `plan/spec-arch-1-grpc-types.md` (new)
-- `plan/decision-pull-model-metrics.md` (new)
+- `docs/architecture/decisions/001-pull-model-metrics.md` (new location)
 - `ai/rules/go-standards.md` (added "Style patterns to prefer"
   section)
 - `plan/handoff-bio-routing-followups.md` (closed sections B/C/D
