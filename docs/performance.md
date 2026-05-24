@@ -29,7 +29,7 @@ median convergence time) are automatically discarded.
 |-------|-------|
 | Platform | darwin/arm64 |
 | Virtualization | Docker (Colima VM) |
-| Date | 2026-04-22 |
+| Date | 2026-05-24 |
 | Routes | 100,000 |
 | Seed | 42 |
 | Iterations | 3 measured, 1 warmup |
@@ -80,8 +80,8 @@ Config files: `test/perf/configs/`
 
 | DUT | Convergence | +/- | Throughput (r/s) | +/- | p50 | p99 | +/- | Max | Lost |
 |-----|-------------|-----|------------------|-----|-----|-----|-----|-----|------|
-| bird | 50ms | 0ms | 2,000,000 | 32,675 | 18ms | 26ms | 0ms | 26ms | 0 |
-| ze | 91ms | 27ms | 1,098,901 | 461,693 | 20ms | 81ms | 27ms | 81ms | 0 |
+| bird | 44ms | 1ms | 2,272,727 | 62,858 | 16ms | 28ms | 5ms | 28ms | 0 |
+| ze | 71ms | 2ms | 1,408,450 | 44,964 | 25ms | 54ms | 4ms | 54ms | 0 |
 | rustbgpd | 179ms | 5ms | 558,659 | 15,247 | 90ms | 151ms | 12ms | 152ms | 0 |
 | rustybgp | 252ms | 14ms | 396,825 | 20,283 | 120ms | 233ms | 13ms | 235ms | 0 |
 | openbgpd | 472ms | 0ms | 211,864 | 0 | 217ms | 461ms | 0ms | 466ms | 0 |

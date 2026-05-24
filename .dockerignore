@@ -9,4 +9,6 @@ etc/
 gokrazy/
 ai/
 test/
+!test/scripts/ze_api.py
+!test/perf/configs/
 *.md
