@@ -48,6 +48,8 @@ Buffer-first, zero-copy, attribute pools, UPDATE building, NLRI parsing.
 - [764](plan/learned/764-attr-flags-json.md) -- Attribute flags in Ze native JSON: includeFlags parameter on shared formatter, static flags for pool RIB, unwrap at extractRoutes for LG consumers
 - [765](plan/learned/765-gc-pressure-reduction.md) -- GC pressure reduction: [256]bool for attr codes, inline FNV-1a, NextHopAddrs inline struct, LargeCommunities dedup fast path, clear() map reuse; stack arrays that escape via closure/interface/return are NOT optimizations
 - [767](plan/learned/767-tokenizer-no-escape.md) -- Command tokenizer: removed backslash escape handling, backslash is a normal character; no per-byte escape scan on every command
+- [770](plan/learned/770-precomputation-review.md) -- Precomputation critical review: 3 of 7 proposals rejected after source validation showed trivially cheap operations; profile before optimizing
+- [771](plan/learned/771-performance-optimization-campaign.md) -- Full optimization campaign: Ze 91ms->71ms convergence (22%), BIRD gap from 1.82x to 1.61x; profile-driven, lifecycle-boundary precomputation
 
 ## Plugin System
 
