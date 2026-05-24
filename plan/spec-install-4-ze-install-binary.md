@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-install-1, spec-install-2, spec-install-3 |
-| Phase | - |
+| Phase | 1/7 |
 | Updated | 2026-05-24 |
 | Parent | spec-install-0-umbrella |
 

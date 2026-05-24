@@ -31,6 +31,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
 	zeiface "codeberg.org/thomas-mangin/ze/cmd/ze/iface"
 	zeinit "codeberg.org/thomas-mangin/ze/cmd/ze/init"
+	zeinstall "codeberg.org/thomas-mangin/ze/cmd/ze/install"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdutil"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
@@ -459,6 +460,8 @@ dispatch:
 		exit(zel2tp.Run(args[1:]))
 	case "appliance":
 		exit(zeappliance.Run(args[1:]))
+	case "install":
+		exit(zeinstall.Run(args[1:]))
 	case "run":
 		fmt.Fprintf(os.Stderr, "error: 'ze run' has been replaced by direct verb dispatch\n")
 		fmt.Fprintf(os.Stderr, "hint: use 'ze show <command>' for read-only commands\n")
@@ -578,7 +581,7 @@ dispatch:
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
 	commands := []string{
 		"show", "set", "del", "update", "validate", "monitor",
-		"bgp", "plugin", "cli", "config", "data", "doctor", "env", "init", "interface", "start", "schema",
+		"bgp", "plugin", "cli", "config", "data", "doctor", "env", "init", "install", "interface", "start", "schema",
 		"sysctl", "l2tp", "yang", "exabgp", "signal", "status", "completion", "version", "help",
 	}
 	if suggestion := suggest.Command(arg, commands); suggestion != "" {
