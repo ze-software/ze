@@ -1,4 +1,6 @@
 // Design: docs/architecture/core-design.md -- System RIB plugin
+// Related: nhresolver.go -- recursive next-hop resolution using Loc-RIB LPM
+// Related: ecmp.go -- ECMP path collection from equal-cost protocol routes
 //
 // System RIB aggregates best routes from all protocol RIBs and selects
 // the system-wide best per prefix by administrative distance (lower wins).
@@ -14,6 +16,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib"
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -78,19 +81,25 @@ func setLogger(l *slog.Logger) {
 	}
 }
 
-// locRIBPtr stores the shared cross-protocol Loc-RIB. When set,
-// sysrib consumes locrib.OnChange notifications instead of subscribing to
-// the BGP-specific (rib, best-change) EventBus stream. Nil restores the
-// legacy path for tests and environments that have not wired a Loc-RIB.
+// locRIBPtr stores the shared cross-protocol Loc-RIB.
 var locRIBPtr atomic.Pointer[locrib.RIB]
 
-// SetLocRIB wires the shared Loc-RIB. Safe to call once at plugin setup;
-// passing nil reverts to the legacy EventBus-subscription path.
+// nhResolverPtr stores the NH resolver, created when a Loc-RIB is wired.
+var nhResolverPtr atomic.Pointer[nhResolver]
+
+// SetLocRIB wires the shared Loc-RIB and creates the NH resolver.
 func SetLocRIB(r *locrib.RIB) {
 	locRIBPtr.Store(r)
+	if r != nil {
+		resolver := newNHResolver(r)
+		nhResolverPtr.Store(resolver)
+		rib.SetIGPCostFunc(resolver.IGPMetric)
+	}
 }
 
 func getLocRIB() *locrib.RIB { return locRIBPtr.Load() }
+
+func getNHResolver() *nhResolver { return nhResolverPtr.Load() }
 
 // eventBusPtr stores the EventBus instance.
 var eventBusPtr atomic.Pointer[ze.EventBus]
@@ -138,6 +147,9 @@ type sysRIB struct {
 	routes map[prefixKey]map[string]*protocolRoute
 	// best[prefixKey] = current system best route.
 	best map[prefixKey]*protocolRoute
+	// lastECMP tracks the last emitted ECMP path set per prefix for
+	// suppressing duplicate emissions when only ECMP membership changes.
+	lastECMP map[prefixKey][]sysribevents.ECMPPath
 	// adminDist maps protocol type (e.g., "ebgp", "ibgp", "static") to
 	// configured admin distance. Empty when no sysrib config is present,
 	// in which case incoming priorities pass through unchanged.
@@ -147,8 +159,9 @@ type sysRIB struct {
 
 func newSysRIB() *sysRIB {
 	return &sysRIB{
-		routes: make(map[prefixKey]map[string]*protocolRoute),
-		best:   make(map[prefixKey]*protocolRoute),
+		routes:   make(map[prefixKey]map[string]*protocolRoute),
+		best:     make(map[prefixKey]*protocolRoute),
+		lastECMP: make(map[prefixKey][]sysribevents.ECMPPath),
 	}
 }
 
@@ -290,8 +303,8 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 	}
 
 	if m := sysribMetricsPtr.Load(); m != nil {
-		for _, c := range outChanges {
-			if ctr := m.routeChanges[c.Action]; ctr != nil {
+		for i := range outChanges {
+			if ctr := m.routeChanges[outChanges[i].Action]; ctr != nil {
 				ctr.Inc()
 			}
 		}
@@ -325,8 +338,8 @@ func (s *sysRIB) reapplyAdminDistances() map[family.Family][]outgoingChange {
 
 	if m := sysribMetricsPtr.Load(); m != nil {
 		for _, changes := range changesByFamily {
-			for _, c := range changes {
-				if ctr := m.routeChanges[c.Action]; ctr != nil {
+			for i := range changes {
+				if ctr := m.routeChanges[changes[i].Action]; ctr != nil {
 					ctr.Inc()
 				}
 			}
@@ -347,6 +360,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 	if len(protocols) == 0 {
 		if prev != nil {
 			delete(s.best, key)
+			delete(s.lastECMP, key)
 			return &outgoingChange{
 				Action: bgptypes.RouteActionWithdraw,
 				Prefix: key.prefix,
@@ -366,32 +380,55 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 
 	if prev == nil {
 		s.best[key] = winner
+		ecmpPaths := ecmpCollect(protocols, winner)
+		s.lastECMP[key] = ecmpPaths
 		return &outgoingChange{
-			Action:   bgptypes.RouteActionAdd,
-			Prefix:   key.prefix,
-			NextHop:  winner.nextHop,
-			Protocol: winner.protocol,
-			Labels:   winner.labels,
+			Action:    bgptypes.RouteActionAdd,
+			Prefix:    key.prefix,
+			NextHop:   resolveNextHop(winner.nextHop),
+			Protocol:  winner.protocol,
+			Labels:    winner.labels,
+			Metric:    winner.metric,
+			ECMPPaths: ecmpPaths,
 		}
 	}
 
+	ecmpPaths := ecmpCollect(protocols, winner)
 	if prev.protocol == winner.protocol && prev.nextHop == winner.nextHop &&
 		prev.priority == winner.priority && prev.metric == winner.metric &&
-		labelsEqual(prev.labels, winner.labels) {
-		// Update the pointer so s.best[key] tracks the current route object
-		// even when the values are unchanged (the old struct may be stale).
+		labelsEqual(prev.labels, winner.labels) && !ecmpChanged(s.lastECMP[key], ecmpPaths) {
 		s.best[key] = winner
 		return nil
 	}
 
 	s.best[key] = winner
+	s.lastECMP[key] = ecmpPaths
 	return &outgoingChange{
-		Action:   bgptypes.RouteActionUpdate,
-		Prefix:   key.prefix,
-		NextHop:  winner.nextHop,
-		Protocol: winner.protocol,
-		Labels:   winner.labels,
+		Action:    bgptypes.RouteActionUpdate,
+		Prefix:    key.prefix,
+		NextHop:   resolveNextHop(winner.nextHop),
+		Protocol:  winner.protocol,
+		Labels:    winner.labels,
+		Metric:    winner.metric,
+		ECMPPaths: ecmpPaths,
 	}
+}
+
+// resolveNextHop attempts recursive resolution of nh via the NH resolver.
+// Returns the directly-connected next-hop if resolution succeeds, or nh unchanged.
+// Lock ordering: callers may hold sysRIB.mu; the resolver acquires Loc-RIB
+// shard read locks internally. Never wire a Loc-RIB OnChange callback that
+// acquires sysRIB.mu, or a deadlock results.
+func resolveNextHop(nh netip.Addr) netip.Addr {
+	r := getNHResolver()
+	if r == nil || !nh.IsValid() {
+		return nh
+	}
+	res := r.Resolve(nh)
+	if res.Resolved {
+		return res.DirectNH
+	}
+	return nh
 }
 
 func labelsEqual(a, b []uint32) bool {
@@ -436,11 +473,13 @@ func (s *sysRIB) replayBest() {
 	changesByFamily := make(map[family.Family][]outgoingChange)
 	for key, route := range s.best {
 		changesByFamily[key.family] = append(changesByFamily[key.family], outgoingChange{
-			Action:   bgptypes.RouteActionAdd,
-			Prefix:   key.prefix,
-			NextHop:  route.nextHop,
-			Protocol: route.protocol,
-			Labels:   route.labels,
+			Action:    bgptypes.RouteActionAdd,
+			Prefix:    key.prefix,
+			NextHop:   resolveNextHop(route.nextHop),
+			Protocol:  route.protocol,
+			Labels:    route.labels,
+			Metric:    route.metric,
+			ECMPPaths: s.lastECMP[key],
 		})
 	}
 	s.mu.RUnlock()

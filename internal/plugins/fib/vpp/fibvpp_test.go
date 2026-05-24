@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"net/netip"
 	"testing"
+
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 )
 
 // parseBatch is a test helper that builds a typed (system-rib, best-change)
@@ -279,5 +283,95 @@ func TestToVPPPrefixIPv6(t *testing.T) {
 	}
 	if vp.Len != 32 {
 		t.Errorf("expected prefix length 32, got %d", vp.Len)
+	}
+}
+
+// VALIDATES: AC-5 -- ECMP with multiple paths uses addMultiPath.
+func TestVPPMultiPath(t *testing.T) {
+	mock := &mockBackend{}
+	f := newFibVPP(mock)
+
+	batch := &incomingBatch{
+		Family: family.IPv4Unicast,
+		Changes: []incomingChange{
+			{
+				Action:   bgptypes.RouteActionAdd,
+				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+				NextHop:  netip.MustParseAddr("192.168.1.1"),
+				Protocol: "bgp",
+				ECMPPaths: []sysribevents.ECMPPath{
+					{NextHop: netip.MustParseAddr("192.168.1.2"), Weight: 1},
+					{NextHop: netip.MustParseAddr("192.168.1.3"), Weight: 1},
+				},
+			},
+		},
+	}
+	f.processEvent(batch)
+
+	if len(mock.multiPaths) != 1 {
+		t.Fatalf("expected 1 multipath op, got %d", len(mock.multiPaths))
+	}
+	op := mock.multiPaths[0]
+	if len(op.nextHops) != 3 {
+		t.Errorf("expected 3 next-hops (primary+2 ECMP), got %d", len(op.nextHops))
+	}
+	if op.prefix != netip.MustParsePrefix("10.0.0.0/24") {
+		t.Errorf("wrong prefix: %v", op.prefix)
+	}
+}
+
+// VALIDATES: AC-9 -- TableID passed through to multi-path.
+func TestVPPTable(t *testing.T) {
+	mock := &mockBackend{}
+	f := newFibVPP(mock)
+
+	batch := &incomingBatch{
+		Family: family.IPv4Unicast,
+		Changes: []incomingChange{
+			{
+				Action:   bgptypes.RouteActionAdd,
+				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+				NextHop:  netip.MustParseAddr("192.168.1.1"),
+				Protocol: "bgp",
+				TableID:  42,
+				ECMPPaths: []sysribevents.ECMPPath{
+					{NextHop: netip.MustParseAddr("192.168.1.2"), Weight: 1},
+				},
+			},
+		},
+	}
+	f.processEvent(batch)
+
+	if len(mock.multiPaths) != 1 {
+		t.Fatalf("expected 1 multipath op, got %d", len(mock.multiPaths))
+	}
+	if mock.multiPaths[0].tableID != 42 {
+		t.Errorf("tableID = %d, want 42", mock.multiPaths[0].tableID)
+	}
+}
+
+// VALIDATES: plain single-path route still uses addRoute.
+func TestVPPSinglePathLegacy(t *testing.T) {
+	mock := &mockBackend{}
+	f := newFibVPP(mock)
+
+	batch := &incomingBatch{
+		Family: family.IPv4Unicast,
+		Changes: []incomingChange{
+			{
+				Action:   bgptypes.RouteActionAdd,
+				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+				NextHop:  netip.MustParseAddr("192.168.1.1"),
+				Protocol: "bgp",
+			},
+		},
+	}
+	f.processEvent(batch)
+
+	if len(mock.adds) != 1 {
+		t.Fatalf("expected 1 add, got %d", len(mock.adds))
+	}
+	if len(mock.multiPaths) != 0 {
+		t.Error("single-path route should not use multipath")
 	}
 }

@@ -22,16 +22,42 @@ const (
 	EventReplayRequest = "replay-request" // downstream consumer asking sysrib to replay
 )
 
+// RouteType identifies the forwarding action for a FIB entry.
+// Values match Linux RTN_ constants for direct mapping in the kernel backend.
+type RouteType uint8
+
+const (
+	RouteTypeUnicast     RouteType = 1
+	RouteTypeBlackhole   RouteType = 6
+	RouteTypeUnreachable RouteType = 7
+	RouteTypeProhibit    RouteType = 8
+)
+
+// ECMPPath is a single next-hop within an ECMP group.
+type ECMPPath struct {
+	NextHop netip.Addr `json:"next-hop"`
+	Weight  uint8      `json:"weight,omitempty"`
+	Labels  []uint32   `json:"labels,omitempty"`
+}
+
+// MaxECMPPaths is the maximum number of paths in an ECMP group.
+const MaxECMPPaths = 128
+
 // BestChangeEntry is one per-prefix entry in a BestChangeBatch. Action is the
 // typed wire token; JSON serializes as "add"/"update"/"withdraw" via
 // RouteAction.MarshalText, so FIB consumers that already parse the JSON form
 // keep working unchanged.
 type BestChangeEntry struct {
-	Action   bgptypes.RouteAction `json:"action"`
-	Prefix   netip.Prefix         `json:"prefix"`
-	NextHop  netip.Addr           `json:"next-hop,omitzero"`
-	Protocol string               `json:"protocol"`
-	Labels   []uint32             `json:"labels,omitempty"`
+	Action    bgptypes.RouteAction `json:"action"`
+	Prefix    netip.Prefix         `json:"prefix"`
+	NextHop   netip.Addr           `json:"next-hop,omitzero"`
+	Protocol  string               `json:"protocol"`
+	Labels    []uint32             `json:"labels,omitempty"`
+	RouteType RouteType            `json:"route-type,omitempty"`
+	Metric    uint32               `json:"metric,omitempty"`
+	TableID   uint32               `json:"table-id,omitempty"`
+	SRv6SID   netip.Addr           `json:"srv6-sid,omitzero"`
+	ECMPPaths []ECMPPath           `json:"ecmp-paths,omitempty"`
 }
 
 // BestChangeBatch is the payload of (system-rib, best-change). One batch is

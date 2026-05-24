@@ -18,6 +18,7 @@ type vppBackend interface {
 	addRoute(prefix netip.Prefix, nextHop netip.Addr) error
 	delRoute(prefix netip.Prefix) error
 	replaceRoute(prefix netip.Prefix, nextHop netip.Addr) error
+	addMultiPath(prefix netip.Prefix, nextHops []netip.Addr, tableID uint32) error
 	close() error
 }
 
@@ -42,6 +43,37 @@ func (b *govppBackend) delRoute(prefix netip.Prefix) error {
 func (b *govppBackend) replaceRoute(prefix netip.Prefix, nextHop netip.Addr) error {
 	// VPP IPRouteAddDel with IsAdd=true replaces existing route.
 	return b.routeAddDel(true, prefix, nextHop)
+}
+
+func (b *govppBackend) addMultiPath(prefix netip.Prefix, nextHops []netip.Addr, tableID uint32) error {
+	if len(nextHops) > 255 {
+		return fmt.Errorf("IPRouteAddDel multipath: %d paths exceeds uint8 limit", len(nextHops))
+	}
+	paths := make([]fib_types.FibPath, len(nextHops))
+	for i, nh := range nextHops {
+		paths[i] = toFibPath(nh)
+	}
+	tbl := b.tableID
+	if tableID != 0 {
+		tbl = tableID
+	}
+	req := &ip.IPRouteAddDel{
+		IsAdd: true,
+		Route: ip.IPRoute{
+			TableID: tbl,
+			Prefix:  toVPPPrefix(prefix),
+			NPaths:  uint8(len(paths)),
+			Paths:   paths,
+		},
+	}
+	reply := &ip.IPRouteAddDelReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("IPRouteAddDel multipath: %w", err)
+	}
+	if reply.Retval != 0 {
+		return fmt.Errorf("IPRouteAddDel multipath retval=%d", reply.Retval)
+	}
+	return nil
 }
 
 func (b *govppBackend) close() error {
@@ -123,13 +155,21 @@ func toFibPath(nextHop netip.Addr) fib_types.FibPath {
 	return path
 }
 
+// multiPathOp records a multi-path route operation.
+type multiPathOp struct {
+	prefix   netip.Prefix
+	nextHops []netip.Addr
+	tableID  uint32
+}
+
 // mockBackend is a test double that records calls for verification.
 type mockBackend struct {
-	adds     []routeOp
-	dels     []netip.Prefix
-	replaces []routeOp
-	closed   bool
-	err      error // if set, all operations return this error
+	adds       []routeOp
+	dels       []netip.Prefix
+	replaces   []routeOp
+	multiPaths []multiPathOp
+	closed     bool
+	err        error // if set, all operations return this error
 }
 
 type routeOp struct {
@@ -158,6 +198,16 @@ func (m *mockBackend) replaceRoute(prefix netip.Prefix, nextHop netip.Addr) erro
 		return m.err
 	}
 	m.replaces = append(m.replaces, routeOp{prefix, nextHop})
+	return nil
+}
+
+func (m *mockBackend) addMultiPath(prefix netip.Prefix, nextHops []netip.Addr, tableID uint32) error {
+	if m.err != nil {
+		return m.err
+	}
+	cp := make([]netip.Addr, len(nextHops))
+	copy(cp, nextHops)
+	m.multiPaths = append(m.multiPaths, multiPathOp{prefix, cp, tableID})
 	return nil
 }
 

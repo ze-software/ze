@@ -150,6 +150,36 @@ func newFibVPP(backend vppBackend) *fibVPP {
 	}
 }
 
+// ecmpNextHops collects all next-hops (primary + ECMP siblings) from a change.
+func ecmpNextHops(c *incomingChange) []netip.Addr {
+	nextHops := make([]netip.Addr, 0, len(c.ECMPPaths)+1)
+	if c.NextHop.IsValid() {
+		nextHops = append(nextHops, c.NextHop)
+	}
+	for _, p := range c.ECMPPaths {
+		if p.NextHop.IsValid() {
+			nextHops = append(nextHops, p.NextHop)
+		}
+	}
+	return nextHops
+}
+
+// addVPPRoute dispatches to multi-path or single-path based on ECMP presence.
+func (f *fibVPP) addVPPRoute(c *incomingChange) error {
+	if len(c.ECMPPaths) > 0 {
+		return f.backend.addMultiPath(c.Prefix, ecmpNextHops(c), c.TableID)
+	}
+	return f.backend.addRoute(c.Prefix, c.NextHop)
+}
+
+// replaceVPPRoute dispatches to multi-path or single-path replace.
+func (f *fibVPP) replaceVPPRoute(c *incomingChange) error {
+	if len(c.ECMPPaths) > 0 {
+		return f.backend.addMultiPath(c.Prefix, ecmpNextHops(c), c.TableID)
+	}
+	return f.backend.replaceRoute(c.Prefix, c.NextHop)
+}
+
 // processEvent handles a single (system-rib, best-change) payload received
 // via the typed BestChange handle.
 func (f *fibVPP) processEvent(batch *incomingBatch) {
@@ -160,7 +190,8 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	for _, c := range batch.Changes {
+	for i := range batch.Changes {
+		c := &batch.Changes[i]
 		if !c.Prefix.IsValid() {
 			logger().Warn("fib-vpp: skipping change with empty prefix")
 			continue
@@ -171,7 +202,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 		}
 		switch c.Action {
 		case bgptypes.RouteActionAdd:
-			if err := f.backend.addRoute(c.Prefix, c.NextHop); err != nil {
+			if err := f.addVPPRoute(c); err != nil {
 				logger().Error("fib-vpp: add route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
@@ -181,7 +212,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 				m.routesInstalled.Set(float64(len(f.installed)))
 			}
 		case bgptypes.RouteActionUpdate:
-			if err := f.backend.replaceRoute(c.Prefix, c.NextHop); err != nil {
+			if err := f.replaceVPPRoute(c); err != nil {
 				logger().Error("fib-vpp: replace route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
@@ -207,7 +238,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 
 // processMPLSChange handles a single best-change entry with MPLS labels.
 // Caller must hold f.mu.
-func (f *fibVPP) processMPLSChange(c incomingChange) {
+func (f *fibVPP) processMPLSChange(c *incomingChange) {
 	if f.mplsBackend == nil {
 		logger().Warn("fib-vpp: MPLS change but no MPLS backend configured", "prefix", c.Prefix)
 		return

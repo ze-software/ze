@@ -12,12 +12,35 @@ package rib
 import (
 	"fmt"
 	"net/netip"
+	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
+
+// IGPCostFunc is the type for the IGP cost lookup callback.
+type IGPCostFunc func(netip.Addr) uint32
+
+// igpCostFnPtr stores the IGP cost lookup function, set by sysrib.
+var igpCostFnPtr atomic.Pointer[IGPCostFunc]
+
+// SetIGPCostFunc registers the function used to look up IGP cost for a next-hop.
+// Called by sysrib after NH resolver initialization.
+func SetIGPCostFunc(fn IGPCostFunc) {
+	igpCostFnPtr.Store(&fn)
+}
+
+// lookupIGPCost returns the IGP metric for addr, or 0 if no resolver is set.
+func lookupIGPCost(addr netip.Addr) uint32 {
+	p := igpCostFnPtr.Load()
+	if p == nil {
+		return 0
+	}
+	return (*p)(addr)
+}
 
 // BestStep identifies which stage of the RFC 4271 §9.1.2 decision process
 // determined the result of a pairwise candidate comparison. Used by
@@ -87,6 +110,7 @@ type Candidate struct {
 	FirstAS      uint32           // first AS in path (for MED neighbor comparison)
 	Origin       attribute.Origin // ORIGIN: 0=IGP, 1=EGP, 2=INCOMPLETE
 	MED          uint32           // MED value (default 0 if absent)
+	IGPCost      uint32           // IGP metric to next-hop (0 = directly connected or unknown)
 	OriginatorIP netip.Addr       // ORIGINATOR_ID or Router ID (RFC 4456, zero-alloc comparison)
 	StaleLevel   uint8            // Route staleness level (0=fresh; plugin-defined higher levels)
 	ASPathHandle attrpool.Handle  // AS_PATH pool handle (for content-equal multipath comparison)
@@ -343,7 +367,13 @@ func comparePair(a, b *Candidate) (int, BestStep) {
 		}
 	}
 
-	// Step 6: Lowest IGP cost to NEXT_HOP — deferred.
+	// RFC 4271 Section 9.1.2.2 Step 6: "prefer the route with the lowest IGP metric to the BGP next-hop"
+	if a.IGPCost != b.IGPCost {
+		if a.IGPCost < b.IGPCost {
+			return -1, BestStepIGPCost
+		}
+		return 1, BestStepIGPCost
+	}
 
 	// Step 7: Lowest Router ID.
 	if a.OriginatorIP.IsValid() && b.OriginatorIP.IsValid() {
@@ -444,7 +474,14 @@ func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 		}
 	}
 
-	// Step 6: Lowest IGP cost to NEXT_HOP — deferred (requires IGP integration).
+	// RFC 4271 Section 9.1.2.2 Step 6: "prefer the route with the lowest IGP metric to the BGP next-hop"
+	if a.IGPCost != b.IGPCost {
+		reason := "igp-cost " + textbuf.Uint32(a.IGPCost) + " vs " + textbuf.Uint32(b.IGPCost)
+		if a.IGPCost < b.IGPCost {
+			return -1, BestStepIGPCost, reason
+		}
+		return 1, BestStepIGPCost, reason
+	}
 
 	// Step 7: Lowest Router ID (use ORIGINATOR_ID when present, RFC 4456).
 	// RFC 4271: BGP Identifier is a 32-bit unsigned integer — compare as IP bytes, not strings.

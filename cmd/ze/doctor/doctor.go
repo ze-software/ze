@@ -110,6 +110,8 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkIfaceBackend(tree)...)
 	diags = append(diags, checkInterfaces(tree)...)
 	diags = append(diags, checkKernelModules(tree)...)
+	diags = append(diags, checkKernelNexthop()...)
+	diags = append(diags, checkMPLSSupport(tree)...)
 	diags = append(diags, checkTLS(tree, result.ConfigDir)...)
 	diags = append(diags, checkWebTLS(tree, store)...)
 	diags = append(diags, checkPlugins(result.Plugins)...)

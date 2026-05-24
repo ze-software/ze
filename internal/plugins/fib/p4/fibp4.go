@@ -95,7 +95,8 @@ func (f *fibP4) processEvent(batch *incomingBatch) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	for _, c := range batch.Changes {
+	for i := range batch.Changes {
+		c := &batch.Changes[i]
 		if !c.Prefix.IsValid() {
 			logger().Warn("fib-p4: skipping change with empty prefix")
 			continue

@@ -1064,3 +1064,87 @@ func TestSelectMultipath_EmptyAndSingle(t *testing.T) {
 	assert.Same(t, solo, primary)
 	assert.Nil(t, siblings, "single candidate has no siblings")
 }
+
+// TestComparePairIGPCost verifies RFC 4271 §9.1.2.2 step 6: lowest IGP cost wins.
+//
+// VALIDATES: AC-1 — IGP cost comparison selects lower cost path.
+// PREVENTS: Step 6 remaining deferred (no-op comment).
+func TestComparePairIGPCost(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		a, b     *Candidate
+		wantAddr string
+		wantStep BestStep
+	}{
+		{
+			name: "lower igp cost wins",
+			a: &Candidate{
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"),
+				LocalPref: 100, ASPathLen: 2, LocalASN: 65000, PeerASN: 65000, IGPCost: 10,
+				OriginatorIP: netip.MustParseAddr("1.1.1.1"),
+			},
+			b: &Candidate{
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"),
+				LocalPref: 100, ASPathLen: 2, LocalASN: 65000, PeerASN: 65000, IGPCost: 50,
+				OriginatorIP: netip.MustParseAddr("2.2.2.2"),
+			},
+			wantAddr: "10.0.0.1",
+			wantStep: BestStepIGPCost,
+		},
+		{
+			name: "higher igp cost loses",
+			a: &Candidate{
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"),
+				LocalPref: 100, ASPathLen: 2, LocalASN: 65000, PeerASN: 65000, IGPCost: 100,
+				OriginatorIP: netip.MustParseAddr("1.1.1.1"),
+			},
+			b: &Candidate{
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"),
+				LocalPref: 100, ASPathLen: 2, LocalASN: 65000, PeerASN: 65000, IGPCost: 5,
+				OriginatorIP: netip.MustParseAddr("2.2.2.2"),
+			},
+			wantAddr: "10.0.0.2",
+			wantStep: BestStepIGPCost,
+		},
+		{
+			name: "equal igp cost falls through to router-id",
+			a: &Candidate{
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"),
+				LocalPref: 100, ASPathLen: 2, LocalASN: 65000, PeerASN: 65000, IGPCost: 20,
+				OriginatorIP: netip.MustParseAddr("1.1.1.1"),
+			},
+			b: &Candidate{
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"),
+				LocalPref: 100, ASPathLen: 2, LocalASN: 65000, PeerASN: 65000, IGPCost: 20,
+				OriginatorIP: netip.MustParseAddr("2.2.2.2"),
+			},
+			wantAddr: "10.0.0.1",
+			wantStep: BestStepRouterID,
+		},
+		{
+			name: "zero igp cost (directly connected) wins over non-zero",
+			a: &Candidate{
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"),
+				LocalPref: 100, ASPathLen: 2, LocalASN: 65000, PeerASN: 65000, IGPCost: 0,
+				OriginatorIP: netip.MustParseAddr("1.1.1.1"),
+			},
+			b: &Candidate{
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"),
+				LocalPref: 100, ASPathLen: 2, LocalASN: 65000, PeerASN: 65000, IGPCost: 30,
+				OriginatorIP: netip.MustParseAddr("2.2.2.2"),
+			},
+			wantAddr: "10.0.0.1",
+			wantStep: BestStepIGPCost,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			best := SelectBest([]*Candidate{tt.a, tt.b})
+			assert.Equal(t, tt.wantAddr, best.PeerAddr)
+			exp := SelectBestExplain([]*Candidate{tt.a, tt.b})
+			assert.Equal(t, tt.wantStep, exp.Steps[0].Step)
+		})
+	}
+}

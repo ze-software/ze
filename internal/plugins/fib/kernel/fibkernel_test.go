@@ -13,6 +13,7 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
+	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 )
 
 // mockBackend records route operations for testing.
@@ -541,4 +542,159 @@ func TestFIBProgrammingLagCleared(t *testing.T) {
 			t.Fatal("fib-programming-lag warning not cleared after successful install")
 		}
 	}
+}
+
+// richMockBackend records rich route operations for testing.
+type richMockBackend struct {
+	mockBackend
+	richAdded    []RichRoute
+	richReplaced []RichRoute
+	richDeleted  []netip.Prefix
+}
+
+func newRichMockBackend() *richMockBackend {
+	return &richMockBackend{
+		mockBackend: mockBackend{
+			added:    make(map[string]string),
+			replaced: make(map[string]string),
+		},
+	}
+}
+
+func (m *richMockBackend) addRichRoute(r RichRoute) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.richAdded = append(m.richAdded, r)
+	return nil
+}
+
+func (m *richMockBackend) delRichRoute(prefix netip.Prefix, _ uint32) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.richDeleted = append(m.richDeleted, prefix)
+	return nil
+}
+
+func (m *richMockBackend) replaceRichRoute(r RichRoute) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.richReplaced = append(m.richReplaced, r)
+	return nil
+}
+
+// VALIDATES: AC-6 -- BestChangeEntry with RouteType=blackhole programs correctly.
+func TestKernelRouteType(t *testing.T) {
+	backend := newRichMockBackend()
+	f := newFIBKernel(backend)
+
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{
+			Action:    bgptypes.RouteActionAdd,
+			Prefix:    netip.MustParsePrefix("192.0.2.0/24"),
+			Protocol:  "static",
+			RouteType: sysribevents.RouteTypeBlackhole,
+		},
+	}))
+
+	require.Len(t, backend.richAdded, 1)
+	assert.Equal(t, sysribevents.RouteTypeBlackhole, backend.richAdded[0].RouteType)
+	assert.Equal(t, netip.MustParsePrefix("192.0.2.0/24"), backend.richAdded[0].Prefix)
+}
+
+// VALIDATES: AC-8 -- BestChangeEntry with Metric sets route priority.
+func TestKernelMetric(t *testing.T) {
+	backend := newRichMockBackend()
+	f := newFIBKernel(backend)
+
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{
+			Action:   bgptypes.RouteActionAdd,
+			Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop:  netip.MustParseAddr("192.168.1.1"),
+			Protocol: "bgp",
+			Metric:   200,
+		},
+	}))
+
+	require.Len(t, backend.richAdded, 1)
+	assert.Equal(t, uint32(200), backend.richAdded[0].Metric)
+}
+
+// VALIDATES: AC-9 -- BestChangeEntry with TableID installs in correct table.
+func TestKernelVRFTable(t *testing.T) {
+	backend := newRichMockBackend()
+	f := newFIBKernel(backend)
+
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{
+			Action:   bgptypes.RouteActionAdd,
+			Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop:  netip.MustParseAddr("192.168.1.1"),
+			Protocol: "bgp",
+			TableID:  100,
+		},
+	}))
+
+	require.Len(t, backend.richAdded, 1)
+	assert.Equal(t, uint32(100), backend.richAdded[0].TableID)
+}
+
+// VALIDATES: AC-4 -- ECMP paths forwarded to backend.
+func TestKernelECMPGroup(t *testing.T) {
+	backend := newRichMockBackend()
+	f := newFIBKernel(backend)
+
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{
+			Action:   bgptypes.RouteActionAdd,
+			Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop:  netip.MustParseAddr("192.168.1.1"),
+			Protocol: "bgp",
+			ECMPPaths: []sysribevents.ECMPPath{
+				{NextHop: netip.MustParseAddr("192.168.1.2"), Weight: 1},
+				{NextHop: netip.MustParseAddr("192.168.1.3"), Weight: 1},
+			},
+		},
+	}))
+
+	require.Len(t, backend.richAdded, 1)
+	assert.Len(t, backend.richAdded[0].ECMPPaths, 2)
+}
+
+// VALIDATES: AC-10 -- Labels forwarded to kernel backend.
+func TestKernelMPLSPush(t *testing.T) {
+	backend := newRichMockBackend()
+	f := newFIBKernel(backend)
+
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{
+			Action:   bgptypes.RouteActionAdd,
+			Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop:  netip.MustParseAddr("192.168.1.1"),
+			Protocol: "bgp",
+			Labels:   []uint32{100, 200},
+		},
+	}))
+
+	require.Len(t, backend.richAdded, 1)
+	assert.Equal(t, []uint32{100, 200}, backend.richAdded[0].Labels)
+}
+
+// VALIDATES: plain route without rich fields still uses legacy backend path.
+func TestKernelPlainRouteLegacyPath(t *testing.T) {
+	backend := newRichMockBackend()
+	f := newFIBKernel(backend)
+
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{
+			Action:   bgptypes.RouteActionAdd,
+			Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop:  netip.MustParseAddr("192.168.1.1"),
+			Protocol: "bgp",
+		},
+	}))
+
+	// Rich backend should NOT be called for plain routes.
+	assert.Empty(t, backend.richAdded)
+	assert.Equal(t, "192.168.1.1", backend.added["10.0.0.0/24"])
 }

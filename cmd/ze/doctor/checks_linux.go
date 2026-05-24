@@ -189,3 +189,54 @@ func readLoadedModules() map[string]bool {
 	}
 	return set
 }
+
+func checkKernelNexthop() []diagnostic.Diagnostic {
+	_, err := os.Stat("/proc/net/nexthop")
+	if err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-kernel-nexthop",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "kernel nexthop objects unavailable (/proc/net/nexthop not found); ECMP uses legacy multipath",
+		}}
+	}
+	return nil
+}
+
+func checkMPLSSupport(tree *config.Tree) []diagnostic.Diagnostic {
+	if tree == nil {
+		return nil
+	}
+	bgpBlock := tree.GetContainer("bgp")
+	if bgpBlock == nil {
+		return nil
+	}
+	fibBlock := tree.GetContainer("fib")
+	if fibBlock == nil {
+		return nil
+	}
+	kernelBlock := fibBlock.GetContainer("kernel")
+	if kernelBlock == nil {
+		return nil
+	}
+
+	loaded := readLoadedModules()
+	if loaded == nil {
+		return nil
+	}
+	if loaded["mpls_router"] && loaded["mpls_iptunnel"] {
+		return nil
+	}
+
+	var missing []string
+	if !loaded["mpls_router"] {
+		missing = append(missing, "mpls_router")
+	}
+	if !loaded["mpls_iptunnel"] {
+		missing = append(missing, "mpls_iptunnel")
+	}
+	return []diagnostic.Diagnostic{{
+		Code:     "doctor-mpls-unavailable",
+		Severity: diagnostic.SeverityWarning,
+		Message:  "MPLS kernel modules not loaded: " + strings.Join(missing, ", "),
+	}}
+}

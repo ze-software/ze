@@ -24,3 +24,11 @@ func checkInterfaces(_ *config.Tree) []diagnostic.Diagnostic {
 func checkVPPVersion(_ *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }
+
+func checkKernelNexthop() []diagnostic.Diagnostic {
+	return nil
+}
+
+func checkMPLSSupport(_ *config.Tree) []diagnostic.Diagnostic {
+	return nil
+}

@@ -1037,5 +1037,14 @@ func (r *RIBManager) extractCandidate(peerAddr string, entry storage.RouteEntry)
 	// RFC 9494: LLGR-stale flag for best-path depreference.
 	c.StaleLevel = entry.StaleLevel
 
+	// RFC 4271 Section 9.1.2.2 Step 6: IGP cost to next-hop.
+	if b.HasNextHop() {
+		if data, err := pool.NextHop.Get(b.NextHop); err == nil {
+			if nhAddr := parseNextHopAddr(data); nhAddr.IsValid() {
+				c.IGPCost = lookupIGPCost(nhAddr)
+			}
+		}
+	}
+
 	return c
 }

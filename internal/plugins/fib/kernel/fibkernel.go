@@ -161,12 +161,58 @@ type fibKernel struct {
 	mu      sync.RWMutex
 }
 
+// asRichBackend returns the richRouteBackend if the backend supports it.
+func (f *fibKernel) asRichBackend() richRouteBackend {
+	if rb, ok := f.backend.(richRouteBackend); ok {
+		return rb
+	}
+	return nil
+}
+
 func newFIBKernel(backend routeBackend) *fibKernel {
 	return &fibKernel{
 		installed: make(map[string]string),
 		pending:   make(map[string]time.Time),
 		backend:   backend,
 	}
+}
+
+// hasRichFields reports whether a change carries attributes beyond prefix+next-hop.
+func hasRichFields(c *incomingChange) bool {
+	return c.RouteType != 0 || c.Metric != 0 || c.TableID != 0 || len(c.ECMPPaths) > 0 || len(c.Labels) > 0
+}
+
+func changeToRichRoute(c *incomingChange) RichRoute {
+	return RichRoute{
+		Prefix:    c.Prefix,
+		NextHop:   c.NextHop,
+		RouteType: c.RouteType,
+		Metric:    c.Metric,
+		TableID:   c.TableID,
+		Labels:    c.Labels,
+		ECMPPaths: c.ECMPPaths,
+	}
+}
+
+func (f *fibKernel) addChange(c *incomingChange, pfx string, rb richRouteBackend) error {
+	if rb != nil && hasRichFields(c) {
+		return rb.addRichRoute(changeToRichRoute(c))
+	}
+	return f.backend.addRoute(pfx, c.NextHop.String())
+}
+
+func (f *fibKernel) replaceChange(c *incomingChange, pfx string, rb richRouteBackend) error {
+	if rb != nil && hasRichFields(c) {
+		return rb.replaceRichRoute(changeToRichRoute(c))
+	}
+	return f.backend.replaceRoute(pfx, c.NextHop.String())
+}
+
+func (f *fibKernel) delChange(c *incomingChange, pfx string, rb richRouteBackend) error {
+	if rb != nil {
+		return rb.delRichRoute(c.Prefix, c.TableID)
+	}
+	return f.backend.delRoute(pfx)
 }
 
 // processEvent handles a single (system-rib, best-change) payload. The
@@ -181,8 +227,10 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 	defer f.mu.Unlock()
 
 	now := time.Now()
+	rb := f.asRichBackend()
 
-	for _, c := range batch.Changes {
+	for i := range batch.Changes {
+		c := &batch.Changes[i]
 		if !c.Prefix.IsValid() {
 			logger().Warn("fib-kernel: skipping change with empty prefix")
 			continue
@@ -190,7 +238,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 		pfx := c.Prefix.String()
 		switch c.Action {
 		case bgptypes.RouteActionAdd:
-			if err := f.backend.addRoute(pfx, c.NextHop.String()); err != nil {
+			if err := f.addChange(c, pfx, rb); err != nil {
 				logger().Error("fib-kernel: add route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
 					m.errors.With("add").Inc()
@@ -207,7 +255,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 				m.routesInstalled.Set(float64(len(f.installed)))
 			}
 		case bgptypes.RouteActionUpdate:
-			if err := f.backend.replaceRoute(pfx, c.NextHop.String()); err != nil {
+			if err := f.replaceChange(c, pfx, rb); err != nil {
 				logger().Error("fib-kernel: replace route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
 					m.errors.With("replace").Inc()
@@ -223,7 +271,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 				m.routeUpdates.Inc()
 			}
 		case bgptypes.RouteActionWithdraw, bgptypes.RouteActionDel:
-			if err := f.backend.delRoute(pfx); err != nil {
+			if err := f.delChange(c, pfx, rb); err != nil {
 				logger().Error("fib-kernel: del route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
 					m.errors.With("delete").Inc()

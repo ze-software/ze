@@ -211,4 +211,16 @@ var builtinCodes = []CodeMeta{
 		Description: "The VPP version could not be determined or is not compatible with the expected API.",
 		Examples:    []string{"ze doctor --json"},
 	},
+	{
+		Code:        "doctor-kernel-nexthop",
+		Title:       "Kernel nexthop objects unavailable",
+		Description: "The kernel does not support nexthop objects (requires Linux 5.3+). ECMP will fall back to multipath routes.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-mpls-unavailable",
+		Title:       "MPLS kernel support unavailable",
+		Description: "MPLS kernel modules (mpls_router, mpls_iptunnel) are not loaded. BGP labeled routes cannot be installed in the kernel FIB.",
+		Examples:    []string{"ze doctor --json"},
+	},
 }
