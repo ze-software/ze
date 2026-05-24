@@ -52,6 +52,7 @@ include mk/test-functional.mk
 include mk/test-fuzz.mk
 include mk/test-chaos.mk
 include mk/test-integration.mk
+include mk/test-release.mk
 include mk/perf.mk
 include mk/inventory.mk
 include mk/gokrazy.mk
@@ -380,6 +381,11 @@ help-test:
 	@echo "    ze-test                   All ze tests including fuzz"
 	@echo "    ze-all                    ze-verify + chaos-verify"
 	@echo "    ze-all-test               ze-test + chaos-verify"
+	@echo ""
+	@echo "  Release evidence (external infra required):"
+	@echo "    ze-release-evidence-preflight  Check required tooling (Docker, QEMU)"
+	@echo "    ze-release-evidence            Full matrix: interop + chaos + fuzz + perf + QEMU + deploy"
+	@echo "    ze-perf-gate                   Perf bench (ze DUT) + regression check"
 	@echo ""
 	@echo "  Escalation: single test -> package -> component group -> ze-verify"
 	@echo "  See docs/contributing/testing.md for the full workflow."
