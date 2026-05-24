@@ -1200,44 +1200,56 @@ func TestDedupIDsRewritesOnDuplicate(t *testing.T) {
 	assert.False(t, len(in) == len(out), "duplicate input must be rewritten")
 }
 
-// TestDestinationsToSelectorStripsIPv6Zone verifies that zone-scoped IPv6
+// TestResolveDestinationPeersStripsIPv6Zone verifies that zone-scoped IPv6
 // destinations (fe80::1%eth0) are normalized to their unscoped form so
-// selector.Parse accepts them (Round 2 ISSUE fix).
-func TestDestinationsToSelectorStripsIPv6Zone(t *testing.T) {
-	// Build an fe80:: link-local with zone.
+// peer matching works.
+func TestResolveDestinationPeersStripsIPv6Zone(t *testing.T) {
+	addr := netip.MustParseAddr("fe80::1")
+	s := &PeerSettings{
+		Connection: ConnectionBoth, Address: addr,
+		LocalAS: 65000, PeerAS: 65000, RouterID: 1,
+	}
+	p := NewPeer(s)
+
+	r := &Reactor{peers: map[netip.AddrPort]*Peer{s.PeerKey(): p}}
+	a := &reactorAPIAdapter{r: r}
+
 	scoped := netip.MustParseAddr("fe80::1%eth0")
 	require.Equal(t, "eth0", scoped.Zone())
 
 	dest := netip.AddrPortFrom(scoped, 0)
-	sel, err := destinationsToSelector([]netip.AddrPort{dest})
+	matched, err := a.resolveDestinationPeers([]netip.AddrPort{dest})
 	require.NoError(t, err, "zone-scoped addresses must be accepted after zone strip")
-	require.NotNil(t, sel)
-	// The selector should match the unscoped address.
-	unscoped := netip.MustParseAddr("fe80::1")
-	assert.True(t, sel.Matches(unscoped), "selector should match the zone-stripped address")
+	assert.Len(t, matched, 1)
+	assert.Equal(t, addr, matched[0].Settings().Address)
 }
 
-// TestDestinationsToSelectorEmptyReturnsSentinel verifies the sentinel
+// TestResolveDestinationPeersEmptyReturnsSentinel verifies the sentinel
 // error path feeds the caller's broadcast-refusal branch.
-func TestDestinationsToSelectorEmptyReturnsSentinel(t *testing.T) {
-	sel, err := destinationsToSelector(nil)
-	assert.Nil(t, sel)
+func TestResolveDestinationPeersEmptyReturnsSentinel(t *testing.T) {
+	r := &Reactor{peers: map[netip.AddrPort]*Peer{}}
+	a := &reactorAPIAdapter{r: r}
+
+	matched, err := a.resolveDestinationPeers(nil)
+	assert.Nil(t, matched)
 	assert.ErrorIs(t, err, errNoDestinations)
 
-	sel, err = destinationsToSelector([]netip.AddrPort{})
-	assert.Nil(t, sel)
+	matched, err = a.resolveDestinationPeers([]netip.AddrPort{})
+	assert.Nil(t, matched)
 	assert.ErrorIs(t, err, errNoDestinations)
 }
 
-// TestDestinationsToSelectorAllInvalidReturnsSentinel verifies that a
+// TestResolveDestinationPeersAllInvalidReturnsSentinel verifies that a
 // non-empty input where every entry has an invalid Addr returns the
 // sentinel, not a wildcard.
-func TestDestinationsToSelectorAllInvalidReturnsSentinel(t *testing.T) {
-	// The zero netip.Addr is invalid.
-	sel, err := destinationsToSelector([]netip.AddrPort{
+func TestResolveDestinationPeersAllInvalidReturnsSentinel(t *testing.T) {
+	r := &Reactor{peers: map[netip.AddrPort]*Peer{}}
+	a := &reactorAPIAdapter{r: r}
+
+	matched, err := a.resolveDestinationPeers([]netip.AddrPort{
 		netip.AddrPortFrom(netip.Addr{}, 179),
 		netip.AddrPortFrom(netip.Addr{}, 180),
 	})
-	assert.Nil(t, sel)
+	assert.Nil(t, matched)
 	assert.ErrorIs(t, err, errNoDestinations)
 }

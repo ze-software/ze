@@ -166,16 +166,10 @@ func (a *reactorAPIAdapter) sendRouteRefresh(peerSelector string, afi uint16, sa
 // (4096 without Extended Message, 65535 with), it is split into multiple
 // smaller UPDATEs that each fit within the limit.
 func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint64, pluginName string) error {
-	// Get read-only access to cached update (non-destructive)
-	// Cache retains buffer ownership; Ack() when done to record plugin acknowledgment
 	update, ok := a.r.recentUpdates.Get(updateID)
 	if !ok {
 		return ErrUpdateExpired
 	}
-	// Ack the entry after forwarding if caller is a cache consumer.
-	// Deferred so ack happens even on partial forwarding failures.
-	// Non-cache-consumer callers (pluginName == "") skip the ack — they
-	// are not tracked in the consumer set and must not pollute pluginLastAck.
 	if pluginName != "" {
 		defer func() {
 			if ackErr := a.r.recentUpdates.Ack(updateID, pluginName); ackErr != nil {
@@ -185,21 +179,30 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		}()
 	}
 
-	// Get matching peers. Stack array avoids heap allocation for <= 16 peers.
-	// Also determine source peer type for route reflection (RFC 4456).
+	// Resolve matching peers and source info under one lock.
 	a.r.mu.RLock()
 	var peersBuf [16]*Peer
 	matchingPeers := peersBuf[:0]
-	var srcIsRRClient, srcIsIBGP bool
-	var srcRemoteRouterID uint32 // Source peer's BGP Identifier (for ORIGINATOR_ID)
+	var srcInfo forwardSourceInfo
 	for _, peer := range a.r.peers {
 		addr := peer.Settings().Address
 		if addr == update.SourcePeerIP {
-			// Record source peer type for RR forwarding decisions.
-			srcIsIBGP = peer.Settings().IsIBGP()
-			srcIsRRClient = peer.Settings().RouteReflectorClient
-			srcRemoteRouterID = peer.RemoteRouterID()
-			continue // Don't forward back to source peer (implicit loop prevention)
+			s := peer.Settings()
+			srcInfo = forwardSourceInfo{
+				isIBGP:         s.IsIBGP(),
+				isRRClient:     s.RouteReflectorClient,
+				remoteRouterID: peer.RemoteRouterID(),
+				globalLocalAS:  s.GlobalLocalAS,
+			}
+			if len(a.r.egressFilters) > 0 {
+				srcInfo.filterInfo = registry.PeerFilterInfo{
+					Address:   s.Address,
+					PeerAS:    s.PeerAS,
+					Name:      s.Name,
+					GroupName: s.GroupName,
+				}
+			}
+			continue
 		}
 		if sel.Matches(addr) {
 			matchingPeers = append(matchingPeers, peer)
@@ -211,9 +214,28 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		return fmt.Errorf("no peers match selector %s", sel)
 	}
 
+	return a.forwardUpdateCore(update, updateID, matchingPeers, srcInfo)
+}
+
+// forwardSourceInfo holds source-peer facts resolved once per ForwardUpdate call
+// (or once per distinct source in a ForwardUpdatesDirect batch). These fields
+// drive RFC 4456 route reflection, RFC 7947 community-based RS forwarding,
+// and egress filter chain source matching.
+type forwardSourceInfo struct {
+	isIBGP         bool
+	isRRClient     bool
+	remoteRouterID uint32
+	globalLocalAS  uint32
+	filterInfo     registry.PeerFilterInfo
+}
+
+// forwardUpdateCore is the per-destination dispatch loop shared by ForwardUpdate
+// (selector-resolved peers) and ForwardUpdatesDirect (batch-resolved peers).
+// matchingPeers must not include the source peer (already excluded by the caller).
+func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID uint64, matchingPeers []*Peer, srcInfo forwardSourceInfo) error {
 	// EBGP preparation: lazily generate patched wires keyed by (localAS, secondaryAS, asn4).
-	// RFC 4271 §9.1.2: EBGP speakers MUST prepend their own AS to AS_PATH.
-	// RFC 6793 §4: ASN4->ASN2 transcoding uses AS_TRANS=23456.
+	// RFC 4271 S9.1.2: EBGP speakers MUST prepend their own AS to AS_PATH.
+	// RFC 6793 S4: ASN4->ASN2 transcoding uses AS_TRANS=23456.
 	//
 	// LocalAS can differ per peer (RFC 7705 local-as override), so wire variants
 	// are cached per (localAS, secondaryAS, dstASN4) combination rather than assuming
@@ -231,7 +253,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	// and cannot hold dual-prepended variants.
 	type ebgpWireKey struct {
 		localAS     uint32
-		secondaryAS uint32 // 0 = single prepend; non-zero = dual prepend behind localAS
+		secondaryAS uint32
 		asn4        bool
 	}
 	type ebgpWireEntry struct {
@@ -239,17 +261,11 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		failed bool
 	}
 	var ebgpWireCache map[ebgpWireKey]*ebgpWireEntry
-	var srcASN4 bool // computed once if any EBGP peer exists
+	var srcASN4 bool
 	var srcASN4Set bool
-	// Track the first localAS used per dstASN4 variant for ReceivedUpdate cache.
-	// Only single-prepend keys (secondaryAS == 0) are eligible.
 	var cachedLocalASN4, cachedLocalASN2 uint32
 	var cachedLocalASN4Set, cachedLocalASN2Set bool
 
-	// getEBGPWire returns the cached EBGP wire for the given
-	// (localAS, secondaryAS, asn4) combination, generating it lazily on first access.
-	// secondaryAS == 0 means single prepend; non-zero enables dual-AS prepend where
-	// localAS ends up closest to the peer and secondaryAS sits behind it.
 	getEBGPWire := func(localAS, secondaryAS uint32, asn4 bool) (*wireu.WireUpdate, bool) {
 		ek := ebgpWireKey{localAS: localAS, secondaryAS: secondaryAS, asn4: asn4}
 		if ebgpWireCache == nil {
@@ -258,7 +274,6 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		if entry, ok := ebgpWireCache[ek]; ok {
 			return entry.wire, !entry.failed
 		}
-		// Compute srcASN4 once.
 		if !srcASN4Set {
 			srcCtxID := update.WireUpdate.SourceCtxID()
 			srcCtx := bgpctx.Registry.Get(srcCtxID)
@@ -266,8 +281,6 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			srcASN4Set = true
 		}
 
-		// Use ReceivedUpdate cache only for the first single-prepend localAS per dstASN4.
-		// Dual-prepend variants cannot use it because its cache is keyed only by dstASN4.
 		canUseUpdateCache := false
 		if secondaryAS == 0 {
 			if asn4 {
@@ -301,7 +314,6 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			return wire, true
 		}
 
-		// Direct generation: either a secondary localAS (multi-override) or a dual-prepend variant.
 		payload := update.WireUpdate.Payload()
 		extendedMessage := len(payload) > message.MaxMsgLen-message.HeaderLen
 		dst := getReadBuf(extendedMessage)
@@ -326,23 +338,14 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		wire := wireu.NewWireUpdate(dst.Buf[:n], update.WireUpdate.SourceCtxID())
 		wire.SetMessageID(update.WireUpdate.MessageID())
 		wire.SetSourceID(update.WireUpdate.SourceID())
-		// Note: dst (pool buffer) is intentionally not returned here.
-		// It backs wire for the duration of this ForwardUpdate call.
-		// The buffer will be GC'd when the WireUpdate is no longer referenced.
-		// This is acceptable for the rare multi-LocalAS or dual-prepend case.
+		// dst (pool buffer) intentionally not returned: it backs wire for this call's lifetime.
 		ebgpWireCache[ek] = &ebgpWireEntry{wire: wire}
 		return wire, true
 	}
 
-	// Pre-compute send operations per peer, then dispatch to pool.
-	// CPU work (split/context comparison/lazy parsing) is fast and done here.
-	// TCP writes happen asynchronously in per-peer workers.
 	var parseCache fwdParseCache
 	var dispatchedCount int
 
-	// Pending dispatch buffer: accumulate items during the per-peer loop,
-	// then batch-retain and dispatch after. Avoids per-peer Retain lock
-	// acquisition (one RetainN call per ForwardUpdate instead of N Retains).
 	type pendingFwd struct {
 		item fwdItem
 		key  fwdKey
@@ -350,25 +353,16 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	var pendingBuf [16]pendingFwd
 	pending := pendingBuf[:0]
 
-	// Group-aware forward cache: when update groups are enabled, peers with
-	// the same sendCtxID receiving the same peerWire (no per-peer mods) get
-	// identical fwdItem bodies. Cache the computed rawBodies/updates per
-	// (destCtxID, peerWire) to avoid redundant context checks and parsing.
-	//
-	// rs-fastpath-3 hoists supersedeKey (FNV over rawBodies) and withdrawal
-	// (all-withdrawal classification) into the cache entry too, so peers
-	// sharing the same rawBodies skip redundant FNV hashes and attribute
-	// scans per destination.
 	type fwdBodyCacheKey struct {
 		destCtxID bgpctx.ContextID
-		wire      *wireu.WireUpdate // pointer identity (same wire = same payload)
-		extended  bool              // ExtendedMessage affects maxMsgSize and split decisions
+		wire      *wireu.WireUpdate
+		extended  bool
 	}
 	type fwdBodyCacheEntry struct {
 		rawBodies    [][]byte
 		updates      []*message.Update
-		supersedeKey uint64 // FNV-1a over rawBodies (AC-23); hoisted rs-fastpath-3
-		withdrawal   bool   // true if rawBodies/updates form a pure withdrawal (AC-25); hoisted rs-fastpath-3
+		supersedeKey uint64
+		withdrawal   bool
 	}
 	groupsEnabled := a.r.updateGroups != nil && a.r.updateGroups.Enabled()
 	var fwdBodyCache map[fwdBodyCacheKey]*fwdBodyCacheEntry
@@ -376,42 +370,23 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		fwdBodyCache = make(map[fwdBodyCacheKey]*fwdBodyCacheEntry)
 	}
 
-	// Build source PeerFilterInfo once for egress filter chain.
-	var srcFilter registry.PeerFilterInfo
-	if len(a.r.egressFilters) > 0 {
-		srcFilter = registry.PeerFilterInfo{Address: update.SourcePeerIP, PeerAS: 0}
-		// Look up source peer's ASN and identity from peers map (may have disconnected).
-		a.r.mu.RLock()
-		if srcPeer, ok := a.r.findPeerByAddr(update.SourcePeerIP); ok {
-			srcFilter.PeerAS = srcPeer.Settings().PeerAS
-			srcFilter.Name = srcPeer.Settings().Name
-			srcFilter.GroupName = srcPeer.Settings().GroupName
-		}
-		a.r.mu.RUnlock()
-	}
-
-	// Source peer address for overflow ratio tracking (AC-16).
+	srcFilter := srcInfo.filterInfo
 	srcAddr := update.SourcePeerIP
 
 	// RFC 4456 Section 8: ORIGINATOR_ID bytes are per-UPDATE (same source for all peers).
 	var origBuf [4]byte
-	if srcIsIBGP {
-		origBuf[0] = byte(srcRemoteRouterID >> 24)
-		origBuf[1] = byte(srcRemoteRouterID >> 16)
-		origBuf[2] = byte(srcRemoteRouterID >> 8)
-		origBuf[3] = byte(srcRemoteRouterID)
+	if srcInfo.isIBGP {
+		origBuf[0] = byte(srcInfo.remoteRouterID >> 24)
+		origBuf[1] = byte(srcInfo.remoteRouterID >> 16)
+		origBuf[2] = byte(srcInfo.remoteRouterID >> 8)
+		origBuf[3] = byte(srcInfo.remoteRouterID)
 	}
 
 	// RFC 7947: Parse community-based forwarding policy for RS-client peers.
 	var communityPolicy *wireu.CommunityPolicy
 	var communityStripBytes []byte
 	var communityParsed bool
-	var rsLocalAS uint32
-	a.r.mu.RLock()
-	if srcPeer, ok := a.r.findPeerByAddr(update.SourcePeerIP); ok {
-		rsLocalAS = srcPeer.Settings().GlobalLocalAS
-	}
-	a.r.mu.RUnlock()
+	rsLocalAS := srcInfo.globalLocalAS
 
 	for _, peer := range matchingPeers {
 		facts := peer.forwardFacts()
@@ -420,7 +395,6 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		}
 
 		// RFC 7947: Community-based selective forwarding for RS-client peers.
-		// Skip when rsLocalAS is 0 (source peer disconnected; stale cache replay).
 		if rsLocalAS != 0 && facts.rsClient && facts.peerAS != 0 {
 			if !communityParsed {
 				communityParsed = true
@@ -434,17 +408,14 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		}
 
 		// RFC 4456: Route reflection forwarding rules.
-		if srcIsIBGP && !facts.isEBGP {
-			if !srcIsRRClient && !facts.rrClient {
-				continue // Non-client -> non-client: suppress.
+		if srcInfo.isIBGP && !facts.isEBGP {
+			if !srcInfo.isRRClient && !facts.rrClient {
+				continue
 			}
 		}
 
-		// Egress peer filter chain: check if route should be sent to this peer.
-		// mods accumulates per-peer modifications; fresh for each peer.
 		var mods registry.ModAccumulator
 
-		// RFC 7947: Strip RS control communities (0:X, RS:X) before forwarding.
 		if facts.rsClient && len(communityStripBytes) > 0 {
 			mods.Op(8, registry.AttrModRemove, communityStripBytes)
 		}
@@ -459,11 +430,9 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				}
 			}
 			if suppressed {
-				continue // Route suppressed by egress filter for this peer.
+				continue
 			}
 		}
-		// Policy export filter chain: external plugin filters (after in-process filters).
-		// Per-peer wire override from export policy modification (P1-3: never mutate shared update).
 		var exportWireOverride *wireu.WireUpdate
 		if len(facts.exportFilters) > 0 && a.r.api != nil {
 			attrsWire, attrErr := update.WireUpdate.Attrs()
@@ -478,9 +447,8 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				updateText, a.r.policyFilterFunc(update.WireUpdate.Payload()),
 			)
 			if action == PolicyReject {
-				continue // Route suppressed by policy export filter for this peer.
+				continue
 			}
-			// Apply export modify delta (same pattern as import in reactor_notify.go).
 			if modifiedText != updateText {
 				var exportMods registry.ModAccumulator
 				textDeltaToModOps(updateText, modifiedText, &exportMods)
@@ -495,7 +463,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		}
 
 		// RFC 4456: Route reflection attribute injection.
-		if srcIsIBGP && !facts.isEBGP {
+		if srcInfo.isIBGP && !facts.isEBGP {
 			mods.Op(9, registry.AttrModSet, origBuf[:])
 			mods.Op(10, registry.AttrModPrepend, facts.clusterIDBytes[:])
 		}
@@ -503,7 +471,6 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		applyFactsNextHop(facts, &mods)
 		applyFactsSendCommunity(facts, &mods)
 
-		// Use per-peer export-modified wire when available, otherwise shared wire.
 		peerBaseWire := update.WireUpdate
 		if exportWireOverride != nil {
 			peerBaseWire = exportWireOverride
@@ -513,26 +480,23 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			applyASOverride(facts.peerAS, facts.localAS, peerBaseWire, facts.sendASN4, &mods)
 		}
 
-		// Select wire version for this peer.
-		// RFC 4271 §9.1.2: EBGP peers get AS-PATH-prepended wire.
+		// RFC 4271 S9.1.2: EBGP peers get AS-PATH-prepended wire.
 		// RFC 7947 Section 2.2.2: RS MUST NOT modify AS_PATH for RS-client peers.
 		peerWire := peerBaseWire
 		if facts.isEBGP && !facts.rsClient {
 			wire, ok := getEBGPWire(facts.localAS, facts.secondaryAS, facts.sendASN4)
 			if !ok {
-				continue // Skip: cannot forward without AS_PATH prepend (RFC 4271 §9.1.2)
+				continue
 			}
 			if wire != nil {
 				peerWire = wire
 			}
 		}
 
-		// Track per-peer pool buffer from copy-on-modify (set in mods.Len() > 0 branch).
 		var modBufIdx int
 		var modPoolRef *peerPool
 
 		// RFC 9494: Convert announce to withdrawal for this peer (LLGR egress filter).
-		// Checked before attribute mods since withdrawal replaces the entire payload.
 		if mods.IsWithdraw() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := a.r.fwdPool.OutgoingPool(peerKey)
@@ -555,7 +519,6 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			}
 		}
 
-		// Build the fwdItem with pre-computed send operations for this peer.
 		item := fwdItem{peer: peer, meta: update.Meta, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
 
 		extendedMessage := facts.extendedMsg
@@ -601,8 +564,6 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		})
 	}
 
-	// Batch retain + dispatch: one RetainN call replaces N individual Retains.
-	// Each dispatched item's done() calls Release, balancing the retain count.
 	if len(pending) > 0 {
 		a.r.recentUpdates.RetainN(updateID, len(pending))
 		for i := range pending {
@@ -614,8 +575,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				a.r.fwdPool.RecordOverflowed(srcAddr)
 				dispatchedCount++
 			}
-			// If DispatchOverflow returned false, pool is stopped -- done() was
-			// called immediately (releasing cache ref). Don't count as dispatched.
+			// DispatchOverflow false = pool stopped; done() already called (releasing cache ref).
 		}
 	}
 

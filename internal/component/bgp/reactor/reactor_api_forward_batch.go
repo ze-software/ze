@@ -8,10 +8,9 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
-	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 )
 
 var maxForwardDestinations = env.GetInt("ze.fwd.dest.cap", 4096)
@@ -23,6 +22,7 @@ var maxForwardDestinations = env.GetInt("ze.fwd.dest.cap", 4096)
 // unexported -- it reaches external plugins only as the string form
 // through the RPC boundary.
 var errNoDestinations = errors.New("forward-cached: empty destination list (use ReleaseCached to ack without forward)")
+var errNoPeersMatch = errors.New("forward-cached: no established peers match destinations")
 
 // ForwardUpdatesDirect forwards cached UPDATEs to an explicit destination list,
 // bypassing the text-command tokenise path used by ForwardUpdate. rs-fastpath-3:
@@ -50,15 +50,6 @@ var errNoDestinations = errors.New("forward-cached: empty destination list (use 
 // Non-empty updateIDs with every id missing returns the last per-id lookup
 // error. At least one id processed returns nil (per-id dispatch failures
 // are logged and do not fail the batch).
-//
-// TODO(rs-fastpath-followup): hoist the peer-map walk + source-info lookup
-// out of ForwardUpdate into a `forwardUpdateCore(matchingPeers, srcInfo,
-// update, id)` helper; call resolve once per Direct batch, core N times.
-// Saves ~100×(N-1) peer-map iterations per batch. NOT a drop-in refactor:
-// pre-resolving matchingPeers at batch start caches the peer set for the
-// full batch, so peers that join/leave mid-flush (50ms window) would be
-// missed where today ForwardUpdate re-walks the map per id. Needs a design
-// call + spec before landing. AC-1 met today via the selector-match wrapper.
 func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destinations []netip.AddrPort, pluginName string) error {
 	if len(updateIDs) == 0 {
 		return nil
@@ -69,55 +60,79 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 		return fmt.Errorf("forward-cached: %d destinations exceeds cap %d", len(destinations), maxForwardDestinations)
 	}
 
-	// Build the selector ONCE per call. Destinations are shared across every
-	// id in a batch (rs's per-source worker flushes a single destination set
-	// per flushBatch). Source-peer exclusion is handled inside ForwardUpdate
-	// and does not depend on the selector.
-	sel, selErr := destinationsToSelector(destinations)
-	if selErr != nil {
-		if errors.Is(selErr, errNoDestinations) {
-			// Empty / all-malformed: do NOT wildcard. Return the sentinel
-			// so the caller can distinguish "bug in destinations" from
-			// "no peers were up." No Ack happens here; the caller (engine
-			// RPC handler) returns this error to the plugin, which must
-			// either retry with valid destinations or call ReleaseCached.
+	// Resolve destination peers ONCE per batch under a single r.mu.RLock.
+	// Replaces per-ID ForwardUpdate peer-map walks that previously ran N times.
+	// The peer set is a batch-level snapshot: peers that join or leave during
+	// the flush window (~50ms) are not reflected, which is acceptable for a
+	// route-server flush window.
+	matchingPeers, resolveErr := a.resolveDestinationPeers(destinations)
+	if resolveErr != nil {
+		if errors.Is(resolveErr, errNoDestinations) {
 			fwdLogger().Warn("forward-cached: empty destination list, refusing to broadcast",
 				"ids", len(updateIDs), "plugin", pluginName)
-			return selErr
+			return resolveErr
+		}
+		if errors.Is(resolveErr, errNoPeersMatch) {
+			fwdLogger().Debug("forward-cached: no established peers match destinations",
+				"ids", len(updateIDs), "destinations", len(destinations), "plugin", pluginName)
+			return resolveErr
 		}
 		fwdLogger().Error("BUG: ForwardUpdatesDirect: invalid destinations",
-			"count", len(destinations), "err", selErr)
-		return selErr
+			"count", len(destinations), "err", resolveErr)
+		return resolveErr
 	}
 
-	// Dedup IDs up front. The API accepts any order but duplicates cause
-	// spurious per-id work (double retain/release, second Ack racing eviction).
 	ids := dedupIDs(updateIDs)
+
+	// Cache source info per distinct source address across the batch.
+	// Batches average well below 16 distinct sources per flush.
+	type srcCacheEntry struct {
+		addr netip.Addr
+		info forwardSourceInfo
+	}
+	var srcCacheBuf [4]srcCacheEntry
+	srcCache := srcCacheBuf[:0]
+
+	lookupSrcInfo := func(srcAddr netip.Addr) forwardSourceInfo {
+		for i := range srcCache {
+			if srcCache[i].addr == srcAddr {
+				return srcCache[i].info
+			}
+		}
+		info := a.resolveSourceInfo(srcAddr)
+		srcCache = append(srcCache, srcCacheEntry{addr: srcAddr, info: info})
+		return info
+	}
 
 	var lastErr error
 	processed := 0
 
 	for _, id := range ids {
-		// ForwardUpdate with pluginName="" performs the per-destination
-		// dispatch (Retain/Release balanced via fwdItem.done) WITHOUT acking
-		// the consumer -- the caller (us) owns the Ack so we can batch it
-		// per-id with our own consumer context.
-		fwdErr := a.ForwardUpdate(sel, id, "")
-		if errors.Is(fwdErr, ErrUpdateExpired) {
-			// Missing msgID should be impossible given the CacheConsumer +
-			// CacheConsumerUnordered pending-never-expires invariant (pinned by
-			// TestPendingCacheNeverExpires). Log a BUG and continue the batch.
+		update, ok := a.r.recentUpdates.Get(id)
+		if !ok {
 			fwdLogger().Error("BUG: ForwardUpdatesDirect: msgID missing from cache",
 				"id", id, "plugin", pluginName)
-			lastErr = fwdErr
+			lastErr = ErrUpdateExpired
 			continue
 		}
-		if fwdErr != nil {
-			// Non-fatal: "no peers match" / "no established peers" are
-			// expected when the destination list points at peers that have
-			// gone away. Debug-level; the Ack path still fires below.
-			fwdLogger().Debug("ForwardUpdatesDirect: ForwardUpdate returned",
-				"id", id, "err", fwdErr)
+
+		srcInfo := lookupSrcInfo(update.SourcePeerIP)
+
+		// Exclude source peer from destinations for this ID.
+		var filteredBuf [16]*Peer
+		filtered := filteredBuf[:0]
+		for _, peer := range matchingPeers {
+			if peer.Settings().Address != update.SourcePeerIP {
+				filtered = append(filtered, peer)
+			}
+		}
+
+		if len(filtered) > 0 {
+			fwdErr := a.forwardUpdateCore(update, id, filtered, srcInfo)
+			if fwdErr != nil {
+				fwdLogger().Debug("ForwardUpdatesDirect: dispatch returned",
+					"id", id, "err", fwdErr)
+			}
 		}
 
 		if pluginName != "" {
@@ -133,6 +148,79 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 		return lastErr
 	}
 	return nil
+}
+
+// resolveDestinationPeers maps destination addresses to established peers under
+// a single r.mu.RLock. Returns errNoDestinations when no valid destination
+// addresses are provided. The returned slice is a batch-level snapshot.
+func (a *reactorAPIAdapter) resolveDestinationPeers(destinations []netip.AddrPort) ([]*Peer, error) {
+	if len(destinations) == 0 {
+		return nil, errNoDestinations
+	}
+
+	// Dedup destination addresses. Port is ignored (match by Addr only).
+	// Zone-scoped IPv6 destinations are stripped to their unscoped form.
+	var addrsBuf [16]netip.Addr
+	addrs := addrsBuf[:0]
+	for _, d := range destinations {
+		addr := d.Addr().WithZone("")
+		if !addr.IsValid() {
+			continue
+		}
+		if slices.Contains(addrs, addr) {
+			continue
+		}
+		addrs = append(addrs, addr)
+	}
+	if len(addrs) == 0 {
+		return nil, errNoDestinations
+	}
+
+	a.r.mu.RLock()
+	var peersBuf [16]*Peer
+	matched := peersBuf[:0]
+	for _, peer := range a.r.peers {
+		if slices.Contains(addrs, peer.Settings().Address) {
+			matched = append(matched, peer)
+		}
+	}
+	a.r.mu.RUnlock()
+
+	if len(matched) == 0 {
+		return nil, errNoPeersMatch
+	}
+
+	// Return a heap copy so matched outlives the stack buffer.
+	result := make([]*Peer, len(matched))
+	copy(result, matched)
+	return result, nil
+}
+
+// resolveSourceInfo builds a forwardSourceInfo for the given source peer
+// address under r.mu.RLock. Safe to call when the source peer has disconnected
+// (returns zero-value info).
+func (a *reactorAPIAdapter) resolveSourceInfo(srcAddr netip.Addr) forwardSourceInfo {
+	var info forwardSourceInfo
+	a.r.mu.RLock()
+	if srcPeer, ok := a.r.findPeerByAddr(srcAddr); ok {
+		s := srcPeer.Settings()
+		info = forwardSourceInfo{
+			isIBGP:         s.IsIBGP(),
+			isRRClient:     s.RouteReflectorClient,
+			remoteRouterID: srcPeer.RemoteRouterID(),
+			globalLocalAS:  s.GlobalLocalAS,
+		}
+		if len(a.r.egressFilters) > 0 {
+			info.filterInfo = registry.PeerFilterInfo{
+				Address:   s.Address,
+				PeerAS:    s.PeerAS,
+				Name:      s.Name,
+				GroupName: s.GroupName,
+			}
+		}
+	}
+	a.r.mu.RUnlock()
+	return info
 }
 
 // ReleaseUpdates acks a batch of cached updateIDs for pluginName without
@@ -223,82 +311,4 @@ func dedupIDsMapFrom(ids []uint64, seen map[uint64]struct{}, start int) []uint64
 		out = append(out, id)
 	}
 	return out
-}
-
-// selectorScratch holds the three per-call working buffers used by
-// destinationsToSelector: dedup set, unique slice, and selector-string
-// builder. Pooled to drop the per-call allocation churn on the rs fast
-// path (rs-fastpath-3 follow-up).
-type selectorScratch struct {
-	seen map[netip.Addr]struct{}
-	uniq []netip.Addr
-	buf  []byte
-}
-
-// selectorScratchPool amortizes destinationsToSelector's working buffers
-// across calls. Initial capacity 64 covers the common multi-peer batch
-// size; larger batches grow naturally via append, and sync.Pool may drop
-// outsized scratches under GC pressure.
-var selectorScratchPool = sync.Pool{
-	New: func() any {
-		return &selectorScratch{
-			seen: make(map[netip.Addr]struct{}, 64),
-			uniq: make([]netip.Addr, 0, 64),
-			buf:  make([]byte, 0, 64*40),
-		}
-	},
-}
-
-// destinationsToSelector builds a selector.Selector matching the given
-// destination addresses. Port-zero entries expand to any peer instance with
-// the same address (rs plugin default). selector.Parse matches on Addr only,
-// so multi-port entries for the same address collapse into the same match.
-//
-// Returns errNoDestinations when the destination list is empty OR every
-// entry is malformed. This is intentional: empty MUST NOT fall through to a
-// wildcard broadcast (rules/exact-or-reject) -- callers that want a no-op
-// must call ReleaseUpdates instead. Zone-scoped IPv6 destinations are
-// stripped to their unscoped form before selector building; matching is
-// by address only.
-func destinationsToSelector(destinations []netip.AddrPort) (*selector.Selector, error) {
-	if len(destinations) == 0 {
-		return nil, errNoDestinations
-	}
-	s, _ := selectorScratchPool.Get().(*selectorScratch)
-	defer func() {
-		clear(s.seen)
-		s.uniq = s.uniq[:0]
-		s.buf = s.buf[:0]
-		selectorScratchPool.Put(s)
-	}()
-	// De-dup on the address component. Strip zones so selector.Parse
-	// (which wraps netip.ParseAddr and rejects zone-scoped literals when
-	// the scope is unknown) doesn't choke on fe80::1%eth0-style inputs.
-	for _, d := range destinations {
-		addr := d.Addr().WithZone("")
-		if !addr.IsValid() {
-			continue
-		}
-		if _, dup := s.seen[addr]; dup {
-			continue
-		}
-		s.seen[addr] = struct{}{}
-		s.uniq = append(s.uniq, addr)
-	}
-	if len(s.uniq) == 0 {
-		return nil, errNoDestinations
-	}
-	// Sort for deterministic selector string (log output stays stable
-	// across calls with the same destination set, simplifies debugging).
-	// slices.SortFunc avoids the reflection overhead of sort.Slice.
-	slices.SortFunc(s.uniq, func(a, b netip.Addr) int { return a.Compare(b) })
-	// 40 bytes per addr covers IPv6 full form (39) + comma. Minor
-	// over-alloc for IPv4; still bounded at maxForwardDestinations.
-	for i, addr := range s.uniq {
-		if i > 0 {
-			s.buf = append(s.buf, ',')
-		}
-		s.buf = addr.AppendTo(s.buf)
-	}
-	return selector.Parse(string(s.buf))
 }

@@ -79,3 +79,76 @@ func BenchmarkForwardDirect(b *testing.B) {
 		_ = adapter.ForwardUpdatesDirect(ids, dests, "rs")
 	}
 }
+
+// BenchmarkForwardDirect_Batch measures the batch-resolve optimization:
+// 8 update IDs dispatched to 32 peers in a single ForwardUpdatesDirect call.
+// The peer-map walk and source-info resolve happen once per batch, not per ID.
+func BenchmarkForwardDirect_Batch(b *testing.B) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
+
+	const batchSize = 8
+	const peerCount = 32
+
+	cache := NewRecentUpdateCache(b.N*batchSize + 100)
+	defer cache.Stop()
+	cache.RegisterConsumer("rs")
+	cache.SetConsumerUnordered("rs")
+
+	payload := []byte{0, 0, 0, 0}
+	for i := range b.N * batchSize {
+		id := uint64(i + 1) //nolint:gosec // bench loop
+		wu := wireu.NewWireUpdate(payload, ctxID)
+		wu.SetMessageID(id)
+		cache.Add(&ReceivedUpdate{
+			WireUpdate:   wu,
+			SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+			ReceivedAt:   time.Now(),
+		})
+		cache.Activate(id, 1)
+	}
+
+	peers := make(map[netip.AddrPort]*Peer, peerCount)
+	dests := make([]netip.AddrPort, 0, peerCount)
+	for i := range peerCount {
+		addr := netip.AddrFrom4([4]byte{10, 0, 1, byte(i + 1)})
+		s := &PeerSettings{
+			Connection: ConnectionBoth,
+			Address:    addr,
+			LocalAS:    65000,
+			PeerAS:     65000,
+			RouterID:   uint32(0x01020300 + i + 1),
+		}
+		p := NewPeer(s)
+		p.state.Store(int32(PeerStateEstablished))
+		p.negotiated.Store(&NegotiatedCapabilities{
+			families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
+			ExtendedMessage: false,
+		})
+		p.sendCtx.Store(ctx)
+		p.sendCtxID = ctxID
+		p.refreshForwardFacts()
+		peers[s.PeerKey()] = p
+		dests = append(dests, netip.AddrPortFrom(addr, 0))
+	}
+
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {}, fwdPoolConfig{chanSize: 4096, idleTimeout: time.Second})
+	b.Cleanup(pool.Stop)
+
+	r := &Reactor{
+		recentUpdates: cache,
+		peers:         peers,
+		fwdPool:       pool,
+	}
+	adapter := &reactorAPIAdapter{r: r}
+
+	ids := make([]uint64, batchSize)
+
+	b.ResetTimer()
+	for i := range b.N {
+		for j := range batchSize {
+			ids[j] = uint64(i*batchSize + j + 1) //nolint:gosec // bench loop
+		}
+		_ = adapter.ForwardUpdatesDirect(ids, dests, "rs")
+	}
+}
