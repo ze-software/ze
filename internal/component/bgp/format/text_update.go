@@ -36,9 +36,8 @@ const (
 // AppendMessage appends a RawMessage to buf based on ContentConfig.
 // Uses lazy parsing via AttrsWire when available for optimal performance.
 // Handles encoding (json/text), format (parsed/raw/full), and attribute filtering.
-// If overrideDir is non-empty, it overrides msg.Direction for formatting.
-func AppendMessage(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, overrideDir string) []byte {
-	return appendMessageTyped(buf, peer, msg, content, overrideDir, messageTypeUpdate)
+func AppendMessage(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig) []byte {
+	return appendMessageTyped(buf, peer, msg, content, rpc.DirectionUnspecified, messageTypeUpdate)
 }
 
 // AppendSentMessage appends a sent UPDATE to buf.
@@ -46,27 +45,22 @@ func AppendMessage(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, c
 // direction. No strings.Replace surgery -- the message type is written at
 // source by threading `messageType` into the JSON writers.
 func AppendSentMessage(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig) []byte {
-	return appendMessageTyped(buf, peer, msg, content, messageTypeSent, messageTypeSent)
+	return appendMessageTyped(buf, peer, msg, content, rpc.DirectionSent, messageTypeSent)
 }
 
 // appendMessageTyped is the shared implementation for AppendMessage and
 // AppendSentMessage. messageType is the literal JSON value for `message.type`
-// ("update" or "sent"); the text-form direction is chosen by overrideDir.
-func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, overrideDir, messageType string) []byte {
+// ("update" or "sent"); dirOverride replaces msg.Direction when non-zero.
+func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, dirOverride rpc.MessageDirection, messageType string) []byte {
 	content = content.WithDefaults()
 
-	// Compute effective typed direction. overrideDir is only non-empty for
-	// AppendSentMessage ("sent"), which maps to rpc.DirectionSent.
 	direction := msg.Direction
-	if overrideDir != "" {
-		_ = direction.UnmarshalText([]byte(overrideDir))
+	if dirOverride != rpc.DirectionUnspecified {
+		direction = dirOverride
 	}
 
-	// Summary format: lightweight NLRI metadata only (skip full attribute parsing).
-	// Must short-circuit before filter setup for performance.
-	// appendSummary still takes string direction (rendering boundary).
 	if content.Format == plugin.FormatSummary && msg.Type == message.TypeUPDATE {
-		return appendSummary(buf, peer, msg.RawBytes, msg.MessageID, direction.String(), messageType)
+		return appendSummary(buf, peer, msg.RawBytes, msg.MessageID, direction, messageType)
 	}
 
 	// Fast path: parsed JSON with no attribute or NLRI filter. Bypasses the
@@ -208,7 +202,7 @@ func appendRawFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 		buf = append(buf, '"')
 		if direction != rpc.DirectionUnspecified {
 			buf = append(buf, `,"direction":"`...)
-			buf = appendJSONSafeString(buf, direction.String())
+			buf = direction.AppendTo(buf)
 			buf = append(buf, '"')
 		}
 		buf = append(buf, `},`...)
@@ -246,7 +240,7 @@ func appendParsedUpdateJSONDirect(buf []byte, peer *plugin.PeerInfo, msg bgptype
 	}
 	if direction != rpc.DirectionUnspecified {
 		buf = append(buf, `,"direction":"`...)
-		buf = appendJSONSafeString(buf, direction.String())
+		buf = direction.AppendTo(buf)
 		buf = append(buf, '"')
 	}
 	buf = append(buf, '}', ',')

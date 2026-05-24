@@ -61,7 +61,7 @@ func appendFilterResultJSON(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 	}
 	if direction != rpc.DirectionUnspecified {
 		buf = append(buf, `,"direction":"`...)
-		buf = appendJSONSafeString(buf, direction.String())
+		buf = direction.AppendTo(buf)
 		buf = append(buf, '"')
 	}
 	buf = append(buf, '}', ',')

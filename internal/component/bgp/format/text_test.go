@@ -291,7 +291,7 @@ func TestFormatMessageText(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	got := string(AppendMessage(nil, &peer, msg, content, ""))
+	got := string(AppendMessage(nil, &peer, msg, content))
 
 	// Format: peer <ip> remote as <asn> <direction> update <id> <attrs> family <family> next-hop <ip> nlri add <prefixes>
 	if !strings.Contains(got, "peer 10.0.0.1 remote as 65001 received update") {
@@ -352,7 +352,7 @@ func TestFormatMessageJSON(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	got := string(AppendMessage(nil, &peer, msg, content, ""))
+	got := string(AppendMessage(nil, &peer, msg, content))
 
 	// Check key parts of the ze-bgp JSON JSON structure
 	// Outer wrapper: {"type":"bgp","bgp":{...}}
@@ -485,7 +485,7 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	got := string(AppendMessage(nil, &peer, msg, content, ""))
+	got := string(AppendMessage(nil, &peer, msg, content))
 
 	// Should use FormatOpen with uniform header: peer X remote as Y received open <msg-id> router-id R hold-time T cap ...
 	if !strings.Contains(got, "peer 10.0.0.1 remote as 42 received open") {
@@ -520,7 +520,7 @@ func TestFormatNonUpdateKeepalive(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	got := string(AppendMessage(nil, &peer, msg, content, ""))
+	got := string(AppendMessage(nil, &peer, msg, content))
 
 	// Should use uniform header: peer X remote as Y received keepalive
 	if !strings.Contains(got, "peer 10.0.0.1 remote as 65001 received keepalive") {
@@ -1061,14 +1061,14 @@ func TestFormatHexMatchesRaw(t *testing.T) {
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatRaw,
 	}
-	rawOut := string(AppendMessage(nil, &peer, msg, rawContent, ""))
+	rawOut := string(AppendMessage(nil, &peer, msg, rawContent))
 
 	// FormatHex output — should be identical to FormatRaw
 	hexContent := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatHex,
 	}
-	hexOut := string(AppendMessage(nil, &peer, msg, hexContent, ""))
+	hexOut := string(AppendMessage(nil, &peer, msg, hexContent))
 
 	if hexOut != rawOut {
 		t.Errorf("FormatHex and FormatRaw produce different output:\nhex: %s\nraw: %s", hexOut, rawOut)
@@ -1144,7 +1144,7 @@ func TestFormatMessageTextEncoding(t *testing.T) {
 		Encoding: plugin.EncodingText,
 		Format:   plugin.FormatParsed,
 	}
-	textOut := string(AppendMessage(nil, &peer, msg, textContent, ""))
+	textOut := string(AppendMessage(nil, &peer, msg, textContent))
 
 	// Text output should NOT be JSON
 	if strings.HasPrefix(textOut, "{") {
@@ -1160,7 +1160,7 @@ func TestFormatMessageTextEncoding(t *testing.T) {
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
-	jsonOut := string(AppendMessage(nil, &peer, msg, jsonContent, ""))
+	jsonOut := string(AppendMessage(nil, &peer, msg, jsonContent))
 	if !strings.HasPrefix(jsonOut, "{") {
 		t.Error("json encoding should produce JSON")
 	}

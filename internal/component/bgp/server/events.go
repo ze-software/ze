@@ -404,7 +404,7 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.Peer
 			Format:   fmtMode,
 		}
 		var updateScratch [4096]byte
-		return string(format.AppendMessage(updateScratch[:0], peer, msg, content, ""))
+		return string(format.AppendMessage(updateScratch[:0], peer, msg, content))
 
 	case message.TypeOPEN:
 		decoded := format.DecodeOpen(msg.RawBytes)

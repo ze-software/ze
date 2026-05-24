@@ -286,7 +286,7 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	// Parse JSON
 	var result map[string]any
@@ -536,7 +536,7 @@ func TestFormatMessageNotificationText_Parsed(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	// Verify text format
 	assert.Contains(t, output, "peer 10.0.0.1")
@@ -575,7 +575,7 @@ func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	// ...but we get TEXT because FormatMessage ignores Encoding for parsed non-UPDATE
 	assert.True(t, strings.HasPrefix(output, "peer "),
@@ -605,7 +605,7 @@ func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	// Parse JSON
 	var result map[string]any
@@ -675,7 +675,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	// Parse JSON
 	var result map[string]any
@@ -735,7 +735,7 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -798,7 +798,7 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	var result map[string]any
 	err = json.Unmarshal([]byte(output), &result)
@@ -865,7 +865,7 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -936,7 +936,7 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	var result map[string]any
 	err = json.Unmarshal([]byte(output), &result)
@@ -1121,7 +1121,7 @@ func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	var result map[string]any
 	err = json.Unmarshal([]byte(output), &result)
@@ -1782,7 +1782,7 @@ func TestEventJSONHasTopLevelType(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	var result map[string]any
 	err = json.Unmarshal([]byte(output), &result)
@@ -1884,7 +1884,7 @@ func TestEventJSONMessageMetadata(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -2042,7 +2042,7 @@ func TestEventJSONNestedStructure(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -2112,7 +2112,7 @@ func TestEventJSONRawSection(t *testing.T) {
 		Format:   plugin.FormatFull, // Request raw bytes
 	}
 
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)

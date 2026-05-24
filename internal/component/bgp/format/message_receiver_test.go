@@ -64,16 +64,16 @@ func TestFormatSwitchingParsedRawFull(t *testing.T) {
 	}
 
 	content := bgptypes.ContentConfig{Encoding: "json", Format: "raw"}
-	rawOutput := string(AppendMessage(nil, &peer, msg, content, ""))
+	rawOutput := string(AppendMessage(nil, &peer, msg, content))
 	require.Contains(t, rawOutput, "raw", "raw format should contain raw field")
 
 	content.Format = "parsed"
-	parsedOutput := string(AppendMessage(nil, &peer, msg, content, ""))
+	parsedOutput := string(AppendMessage(nil, &peer, msg, content))
 	// Parsed output should have update structure but no raw field
 	require.Contains(t, parsedOutput, "update")
 
 	content.Format = "full"
-	fullOutput := string(AppendMessage(nil, &peer, msg, content, ""))
+	fullOutput := string(AppendMessage(nil, &peer, msg, content))
 	require.Contains(t, fullOutput, "raw", "full format should contain raw field")
 	require.Contains(t, fullOutput, "update", "full format should contain parsed data")
 }
@@ -112,7 +112,7 @@ func TestFormatFullWithRoutes(t *testing.T) {
 
 	// Test JSON full format
 	content := bgptypes.ContentConfig{Encoding: "json", Format: "full"}
-	output := string(AppendMessage(nil, &peer, msg, content, ""))
+	output := string(AppendMessage(nil, &peer, msg, content))
 
 	require.Contains(t, output, "raw", "full format must contain raw field")
 	require.Contains(t, output, "10.0.0.0/24", "full format must contain parsed prefix")
@@ -122,7 +122,7 @@ func TestFormatFullWithRoutes(t *testing.T) {
 
 	// Test text full format
 	content.Encoding = "text"
-	textOutput := string(AppendMessage(nil, &peer, msg, content, ""))
+	textOutput := string(AppendMessage(nil, &peer, msg, content))
 
 	require.Contains(t, textOutput, "10.0.0.0/24", "text full format must contain parsed prefix")
 	require.Contains(t, textOutput, "raw", "text full format must contain raw marker")
@@ -510,7 +510,7 @@ func TestFormatFullAddPathFlags(t *testing.T) {
 			Format:   plugin.FormatFull,
 		}
 
-		output := string(AppendMessage(nil, &peer, msg, content, ""))
+		output := string(AppendMessage(nil, &peer, msg, content))
 
 		var result map[string]any
 		err = json.Unmarshal([]byte(output), &result)
@@ -554,7 +554,7 @@ func TestFormatFullAddPathFlags(t *testing.T) {
 			Format:   plugin.FormatFull,
 		}
 
-		output := string(AppendMessage(nil, &peer, msg, content, ""))
+		output := string(AppendMessage(nil, &peer, msg, content))
 
 		var result map[string]any
 		err = json.Unmarshal([]byte(output), &result)

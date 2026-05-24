@@ -12,6 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // appendSummary appends an UPDATE summary (lightweight NLRI metadata) to buf.
@@ -27,7 +28,7 @@ import (
 //
 // messageType is "update" or "sent" -- threaded through so callers do not run
 // strings.Replace surgery on the resulting JSON.
-func appendSummary(buf []byte, peer *plugin.PeerInfo, rawBytes []byte, msgID uint64, direction, messageType string) []byte {
+func appendSummary(buf []byte, peer *plugin.PeerInfo, rawBytes []byte, msgID uint64, direction rpc.MessageDirection, messageType string) []byte {
 	sections, err := wire.ParseUpdateSections(rawBytes)
 	if err != nil {
 		return appendSummaryJSON(buf, peer, msgID, direction, messageType, false, false, "", "")
@@ -107,14 +108,14 @@ func scanMPFamilies(attrs []byte) (mpReach, mpUnreach string) {
 // message.id is always included (even when 0) — intentional divergence from parsed/raw/full
 // formats which omit id when 0. Summary consumers need stable field presence for lightweight parsing.
 // messageType is written directly ("update" for received, "sent" for sent).
-func appendSummaryJSON(buf []byte, peer *plugin.PeerInfo, msgID uint64, direction, messageType string, announce, withdrawn bool, mpReach, mpUnreach string) []byte {
+func appendSummaryJSON(buf []byte, peer *plugin.PeerInfo, msgID uint64, direction rpc.MessageDirection, messageType string, announce, withdrawn bool, mpReach, mpUnreach string) []byte {
 	buf = append(buf, `{"type":"bgp","bgp":{"message":{"type":"`...)
 	buf = append(buf, messageType...)
 	buf = append(buf, `","id":`...)
 	buf = strconv.AppendUint(buf, msgID, 10)
-	if direction != "" {
+	if direction != rpc.DirectionUnspecified {
 		buf = append(buf, `,"direction":"`...)
-		buf = appendJSONSafeString(buf, direction)
+		buf = direction.AppendTo(buf)
 		buf = append(buf, '"')
 	}
 	buf = append(buf, `},`...)

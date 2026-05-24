@@ -59,7 +59,7 @@ func BenchmarkAppendUpdate_Reused(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		scratch = AppendMessage(scratch[:0], &peer, msg, content, "")
+		scratch = AppendMessage(scratch[:0], &peer, msg, content)
 	}
 	_ = scratch
 }
@@ -76,7 +76,7 @@ func BenchmarkAppendUpdate_Boundary_StringConvert(b *testing.B) {
 	b.ResetTimer()
 	var out string
 	for range b.N {
-		scratch = AppendMessage(scratch[:0], &peer, msg, content, "")
+		scratch = AppendMessage(scratch[:0], &peer, msg, content)
 		out = string(scratch)
 	}
 	_ = out
@@ -93,7 +93,7 @@ func BenchmarkAppendUpdate_FullPath(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		scratch = AppendMessage(scratch[:0], &peer, msg, content, "")
+		scratch = AppendMessage(scratch[:0], &peer, msg, content)
 	}
 	_ = scratch
 }

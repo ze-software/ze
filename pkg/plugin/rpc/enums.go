@@ -39,14 +39,15 @@ const (
 	DirectionReceived    MessageDirection = 2
 )
 
+var directionStrings = [3]string{
+	DirectionUnspecified: wireUnspecified,
+	DirectionSent:        wireSent,
+	DirectionReceived:    wireReceived,
+}
+
 func (d MessageDirection) String() string {
-	switch d {
-	case DirectionSent:
-		return wireSent
-	case DirectionReceived:
-		return wireReceived
-	case DirectionUnspecified:
-		return wireUnspecified
+	if d < MessageDirection(len(directionStrings)) {
+		return directionStrings[d]
 	}
 	return wireUnspecified
 }
@@ -295,32 +296,24 @@ const (
 	EventKindCount        EventKind = 12
 )
 
+var eventKindStrings = [EventKindCount]string{
+	EventKindUnspecified:  wireUnspecified,
+	EventKindUpdate:       wireUpdate,
+	EventKindOpen:         wireOpen,
+	EventKindNotification: wireNotification,
+	EventKindKeepalive:    wireKeepalive,
+	EventKindRefresh:      wireRefresh,
+	EventKindState:        wireState,
+	EventKindEOR:          wireEOR,
+	EventKindBoRR:         "borr",
+	EventKindEoRR:         "eorr",
+	EventKindSent:         wireSent,
+	EventKindNegotiated:   wireNegotiated,
+}
+
 func (k EventKind) String() string {
-	switch k {
-	case EventKindUpdate:
-		return wireUpdate
-	case EventKindOpen:
-		return wireOpen
-	case EventKindNotification:
-		return wireNotification
-	case EventKindKeepalive:
-		return wireKeepalive
-	case EventKindRefresh:
-		return wireRefresh
-	case EventKindState:
-		return wireState
-	case EventKindEOR:
-		return wireEOR
-	case EventKindBoRR:
-		return "borr"
-	case EventKindEoRR:
-		return "eorr"
-	case EventKindSent:
-		return wireSent
-	case EventKindNegotiated:
-		return wireNegotiated
-	case EventKindUnspecified, EventKindCount:
-		return wireUnspecified
+	if k < EventKindCount {
+		return eventKindStrings[k]
 	}
 	return wireUnspecified
 }
