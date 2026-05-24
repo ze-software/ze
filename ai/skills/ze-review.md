@@ -116,7 +116,27 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
     - If the spec has a Goal Validation table, is every goal backed by concrete evidence?
     Missing interop test for protocol work is a BLOCKER. Empty goal validation for a completed feature is an ISSUE.
 
-17. **Report findings** as a numbered list with severity:
+17. **RFC compliance check:** If the diff implements or modifies protocol behavior covered by an RFC, verify the code against the RFC summaries in `rfc/short/`.
+
+    **When to run:** The diff touches wire encoding/decoding, message handling, capability negotiation, state machine transitions, timer behavior, NLRI parsing, attribute handling, or any code with existing `// RFC NNNN` comments.
+
+    **How to check:**
+    1. Identify relevant RFCs: check the spec's Required Reading section, scan the diff for `// RFC` comments, and consult the Common RFCs table in `ai/rules/rfc-compliance.md`.
+    2. Read every matching `rfc/short/rfcNNNN.md` summary.
+    3. For each MUST/MUST NOT in the summary that applies to the changed code, verify the implementation enforces it. Check: is there a code path that violates the requirement?
+    4. For each SHOULD in the summary, verify the implementation follows it or has an explicit reason not to.
+    5. Verify that every MUST enforced in the changed code has a `// RFC NNNN Section X.Y: "quoted requirement"` comment directly above the enforcing code (per `ai/rules/rfc-compliance.md`).
+
+    | Finding | Severity |
+    |---------|----------|
+    | Code violates a MUST/MUST NOT | BLOCKER |
+    | Missing `// RFC` comment on a MUST enforcement | ISSUE |
+    | Code ignores a SHOULD without justification | ISSUE |
+    | MAY clause implemented without user decision | NOTE |
+
+    **Skip this step** if the diff has no protocol code (pure config, CLI, web, docs).
+
+18. **Report findings** as a numbered list with severity:
     - **BLOCKER:** Bug that will cause incorrect behavior, crash, or security vulnerability
     - **ISSUE:** Logic error, performance problem on hot path, missing test, edge case not handled
     - **NOTE:** Suggestion or minor observation
