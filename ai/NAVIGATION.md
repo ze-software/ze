@@ -12,7 +12,7 @@ action you're taking.
 
 | Feature kind | Read first | Then read | Cross-cutting |
 |---|---|---|---|
-| CLI command | `patterns/cli-command.md` | `.claude/rules/cli-grammar.md`, `.claude/rules/pipe-completeness.md` | `rules/derive-not-hardcode.md` if it lists things |
+| CLI command | `patterns/cli-command.md` | `ai/rules/cli-grammar.md`, `ai/rules/pipe-completeness.md` | `rules/derive-not-hardcode.md` if it lists things |
 | Web page/endpoint | `patterns/web-endpoint.md` | `docs/architecture/web-interface.md`, `docs/architecture/web-components.md` | SSE: `docs/architecture/web-components.md` SSE section |
 | Plugin | `patterns/plugin.md` | `rules/plugin-design.md`, `rules/goroutine-lifecycle.md` | `rules/naming.md` for registered names |
 | Config option | `patterns/config-option.md` | `rules/config-design.md` (listener pattern if network endpoint) | `rules/go-standards.md` env var section |
@@ -111,7 +111,7 @@ artifact type. Check them whenever your work touches the described concern.
 | Listing/enumerating things | `rules/derive-not-hardcode.md` | Help text, usage strings, error messages, any output that enumerates items |
 | Goroutine lifecycle | `rules/goroutine-lifecycle.md` | Any `go func()`, any `OnStarted` callback, any worker pattern |
 | File size | `rules/file-modularity.md` | Modified file exceeds 600 lines |
-| Pipe operators | `.claude/rules/pipe-completeness.md` | Any command producing output |
+| Pipe operators | `ai/rules/pipe-completeness.md` | Any command producing output |
 | Registered names | `rules/plugin-design.md` "Renaming" section | Changing any plugin/subsystem/dispatch/log name |
 | Sibling call sites | `rules/before-writing-code.md` "Sibling Call-Site Audit" | Adding a guard/fallback/retry to ANY call site |
 | Buffer allocation / memory | `rules/memory-architecture.md`, `rules/buffer-first.md`, `rules/no-sprintf-alloc.md` | Any allocation, pool use, string building, or wire encoding |

@@ -192,6 +192,19 @@ When the config structure changes (new container, new nesting level):
 3. For each plugin with multi-level handling: does per-item config correctly override parent defaults?
 4. Check for the "both-set" test for each plugin
 
+## Review Integrity
+
+**Verify claims against source code, not docs.** Before stating what the code
+does or comparing systems, read the implementation. Treat any existing
+documentation as potentially stale. When multiple subsystems need verification,
+spawn parallel agents to read each one.
+
+**Fresh eyes on every pass.** Each review must examine the full diff, not just
+the delta since the last review. Stacking reviews that only look at "what
+changed since last review" produces diminishing returns. The best pattern is
+alternating: implement, then full review with a different critical lens
+(logic and security on one pass, performance and completeness on the next).
+
 ## Rules
 
 - Do NOT fix anything. Report findings only.

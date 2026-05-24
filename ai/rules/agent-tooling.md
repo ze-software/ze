@@ -28,6 +28,12 @@ Repair metadata is plan-only. Commands must never edit config files.
 2. Safety labels: `format-only`, `section-local`, `behavior-preserving`, `api-changing`, `target-changing`, `requires-human-review`.
 3. If Ze cannot prove a repair is safe, use `requires-human-review` with id `manual-review`.
 
+## Prefer Skills Over Raw Agents
+
+When a skill covers the task (`/ze-rfc`, `/ze-review`, `/ze-implement`, etc.),
+use it instead of spawning a raw agent or improvising the workflow. Skills
+encode project conventions, gates, and ordering that a raw agent will miss.
+
 ## Skills
 
 Version-matched skill content is embedded in the binary.

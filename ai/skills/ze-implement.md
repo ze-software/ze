@@ -48,7 +48,7 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
    - Verify the "What to verify" column against the actual implementation
    - Document pass/fail for each check
    - Also apply generic checks from `ai/rules/quality.md` (Correctness, Simplicity, Consistency, Completeness, Quality, Tests)
-   - **CLI grammar (BLOCKING):** If any CLI command was added or changed, verify it follows action-before-identifier per `.claude/rules/cli-grammar.md`. Run the mechanical check: `args[0]` must always be a keyword, never a user identifier.
+   - **CLI grammar (BLOCKING):** If any CLI command was added or changed, verify it follows action-before-identifier per `ai/rules/cli-grammar.md`. Run the mechanical check: `args[0]` must always be a keyword, never a user identifier.
    - **Doctor checks (BLOCKING):** If the implementation adds any runtime dependency (file path, socket, kernel module, port, TLS cert, external binary), verify a `ze doctor` check exists per `ai/rules/doctor-checks.md`. Register diagnostic codes in `internal/core/diagnostic/codes.go`.
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
 8. **Fix every issue found** in the review

@@ -60,8 +60,8 @@ reason.
 | Standard Go | Ze | Rule | Why |
 |---|---|---|---|
 | `cobra` or `flag` | YANG-modeled dispatch with RPC handlers | `patterns/cli-command.md` | Unified schema for CLI, web, config, completion |
-| `command <identifier> [flags]` | `<verb> <noun> <action> [<identifier>]` | `.claude/rules/cli-grammar.md` | Identifier-keyword ambiguity elimination |
-| Format output as string | Return structured JSON, format via pipe operators | `.claude/rules/pipe-completeness.md` | `\| json`, `\| table`, `\| match`, `\| resolve`, etc. |
+| `command <identifier> [flags]` | `<verb> <noun> <action> [<identifier>]` | `ai/rules/cli-grammar.md` | Identifier-keyword ambiguity elimination |
+| Format output as string | Return structured JSON, format via pipe operators | `ai/rules/pipe-completeness.md` | `\| json`, `\| table`, `\| match`, `\| resolve`, etc. |
 | Hardcode help text | Derive from registry/schema | `rules/derive-not-hardcode.md` | Single source of truth; no stale enumerations |
 
 ## Scripts / Tooling

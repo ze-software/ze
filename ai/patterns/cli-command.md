@@ -3,7 +3,7 @@
 Structural template for adding CLI commands to Ze.
 Rules: `rules/cli-patterns.md`. Architecture: `docs/architecture/cli/plugin-modes.md`.
 
-**BLOCKING:** `.claude/rules/cli-grammar.md` -- action keyword before identifier, IDs as strings.
+**BLOCKING:** `ai/rules/cli-grammar.md` -- action keyword before identifier, IDs as strings.
 Every command grammar must place the action keyword before any user-supplied identifier.
 Read the grammar rule before designing any new command.
 
@@ -11,7 +11,7 @@ Read the grammar rule before designing any new command.
 
 | Rule | When it applies |
 |------|----------------|
-| `.claude/rules/pipe-completeness.md` | Every command producing output MUST support all pipe operators |
+| `ai/rules/pipe-completeness.md` | Every command producing output MUST support all pipe operators |
 | `rules/derive-not-hardcode.md` | If the command lists or enumerates things (help, show, status) |
 | `rules/goroutine-lifecycle.md` | If the command launches background work (monitor, streaming) |
 | `rules/json-format.md` | If the command emits JSON |

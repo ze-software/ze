@@ -52,6 +52,7 @@ request/response and adding DirectBridge to the anti-pattern table.
 
 | Anti-pattern | Instead |
 |--------------|---------|
+| "Docs say X supports Y" | Read the implementation. Docs may be stale or aspirational |
 | "Industry standard is X" | Grep ze for how it already does X |
 | "Good enough for dev" | "Do it right." Darwin could be prod |
 | "Translation layer for cleaner API" | "Explicit > implicit." Use native names |
@@ -69,3 +70,4 @@ request/response and adding DirectBridge to the anti-pattern table.
 4. Does my proposal contradict `rules/design-principles.md`?
 5. Am I inventing a name when standard/kernel/existing exists?
 6. Am I proposing a new communication mechanism? Read `pkg/plugin/rpc/bridge.go` first. DirectBridge likely already does it.
+7. Am I comparing systems or claiming capabilities? Read the implementation for each system being compared. Spawn parallel agents if multiple codepaths need verification. Never answer from docs alone.

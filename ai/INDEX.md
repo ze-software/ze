@@ -189,7 +189,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | EventBus, event, pub/sub, subscribe, emit | `pkg/ze/eventbus.go`, `rules/plugin-design.md` (EventBus Typed Payloads), `internal/component/plugin/events.go` |
 | DirectBridge, bridge, direct call, typed handler | `pkg/plugin/rpc/bridge.go`, `rules/plugin-design.md` (DirectBridge), `plan/learned/294-inprocess-direct-transport.md` |
 | BFD, bidirectional forwarding | `docs/architecture/bfd.md` |
-| resolve, origin, pipe, pipe operator | `docs/architecture/resolve.md`, `.claude/rules/pipe-completeness.md` |
+| resolve, origin, pipe, pipe operator | `docs/architecture/resolve.md`, `ai/rules/pipe-completeness.md` |
 | MCP, model context protocol | `docs/architecture/mcp/`, `internal/component/mcp/` |
 | self-update, manifest, auto-update | `plan/learned/748-self-update.md` |
 | ASPA, path verification, RTR | `plan/learned/721-bgp-2-aspa.md`, `plan/learned/722-spec-bgp-4-aspa-policy.md` |

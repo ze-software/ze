@@ -30,6 +30,11 @@ grep -rn 'Foo' internal/ cmd/ --include="*.go" | grep -v "_test.go" | grep -v "p
 If the only hits are the definition and test files, the symbol is dead code.
 Dead code is a BLOCKER, not a NOTE.
 
+For multi-consumer data (route attributes, config fields, bus events),
+grep all consumers: UI templates, graph rendering, functional tests,
+CLI formatters. Changing the producer without updating consumers is
+incomplete, not done.
+
 ## Common Violations
 
 | Pattern | Why it's wrong |

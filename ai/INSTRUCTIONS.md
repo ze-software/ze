@@ -89,7 +89,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 
 | Action | Read first |
 |--------|-----------|
-| Edit CLAUDE.md or AGENTS.md | Edit `ai/INSTRUCTIONS.md` (single source), then `make ze-ai-instructions` |
+| Edit CLAUDE.md, AGENTS.md, or any synced file | `ai/rules/canonical-sources.md` -- never edit generated files, edit canonical source + sync |
 | Start a session | `rules/session-start.md` |
 | Design or implement anything | `ai/rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
 | Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/` |
@@ -100,16 +100,20 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Add a map or dispatch table on a hot path | `ai/rules/enum-over-string.md` -- numeric keys, not strings; parse string at boundary |
 | Touch registration | `ai/patterns/registration.md` |
 | Add CLI/web/plugin/config | `ai/patterns/{cli-command,web-endpoint,plugin,config-option}.md` |
-| Add or change a CLI command grammar | `.claude/rules/cli-grammar.md` -- action before identifier, IDs as strings |
+| Add or change a CLI command grammar | `ai/rules/cli-grammar.md` -- action before identifier, IDs as strings |
 | Write help text, usage strings, error messages, or docs that enumerate things | `ai/rules/derive-not-hardcode.md` -- derive from the registry/map, never re-hardcode; return structured data, not pre-formatted strings |
 | Write tests | `ai/rules/testing.md`, `ai/rules/tdd.md`, `ai/rules/functional-test-gate.md`, `ai/rules/interop-and-goal-validation.md` |
 | Write linux-only code | `ai/rules/qemu-testing.md` -- QEMU integration tests are mandatory, never skip for "needs hardware" |
-| Implement an RFC | `ai/rules/rfc-compliance.md`, `rfc/short/` |
+| Implement an RFC | `ai/rules/rfc-compliance.md`, `ai/rules/rfc-reading.md`, `rfc/short/` |
 | Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |
 | Add a runtime dependency (file, socket, module, port) | `ai/rules/doctor-checks.md` -- add a `ze doctor` check so agents verify readiness |
 | Claim work is done | `ai/rules/no-partial-completion.md` -- every AC implemented, tested (unit + functional), wired |
+| Verify wiring and completeness | `ai/rules/wiring-completeness.md` -- every exported symbol has a non-test caller, grep all consumers |
+| Add a CLI command that produces output | `ai/rules/pipe-completeness.md` -- every command must support all pipe operators |
+| Report friction or confusion | `ai/rules/friction-reporting.md` -- report immediately, propose .claude fix |
+| Complete work autonomously | `ai/rules/no-asking.md` -- finish the task, then report; don't ask permission to start |
 | Commit | `ai/rules/git-safety.md` -- `make ze-verify` |
-| Run any test/build/lint command | `rules/bash-output.md` -- no pipes, read log after |
+| Run any test/build/lint command | `ai/rules/bash-output.md` -- no pipes, read log after |
 | Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first, always |
 | Look up anything | `ai/INDEX.md` (keyword->doc, keyword->RFC) |
 | Understand architecture | `docs/architecture/core-design.md` |
@@ -126,3 +130,4 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Find context for an unfamiliar area | `ai/NAVIGATION.md` -- task-to-context decision tree |
 | Know which hooks will check your code | `ai/rules/hook-mapping.md` -- pre-flight checklist by file type |
 | Understand how Ze differs from standard Go | `ai/rules/ze-divergences.md` -- buffer-first, registration, YANG, etc. |
+| Answer a factual question about file content | `ai/rules/no-fabrication.md` -- report only what the source explicitly states, never infer |

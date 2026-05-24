@@ -136,7 +136,7 @@
 |-------------------|---------|------|
 | YANG schema (new RPCs) | [ ] | `internal/yang/modules/*.yang` |
 | CLI commands/flags | [ ] | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (action before identifier) | [ ] | `.claude/rules/cli-grammar.md` |
+| CLI grammar (action before identifier) | [ ] | `ai/rules/cli-grammar.md` |
 | Editor autocomplete | [ ] | YANG-driven (automatic if YANG updated) |
 | Functional test for new RPC/API | [ ] | `test/plugin/*.ci` or `test/decode/*.ci` |
 | Doctor check for runtime dependencies | [ ] | `cmd/ze/doctor/`, `ai/rules/doctor-checks.md` |
@@ -227,7 +227,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | [feature-specific: e.g., "merge order correct", "error messages accurate"] |
 | Naming | [feature-specific: e.g., "JSON keys use kebab-case", "YANG uses kebab-case"] |
 | Data flow | [feature-specific: e.g., "resolution in X only, reactor unaware of Y"] |
-| CLI grammar | If CLI commands added: action before identifier per `.claude/rules/cli-grammar.md` |
+| CLI grammar | If CLI commands added: action before identifier per `ai/rules/cli-grammar.md` |
 | Doctor checks | If runtime dependencies added: `ze doctor` check registered per `ai/rules/doctor-checks.md` |
 | Rule: no-layering | [if replacing something: "old code fully deleted"] |
 | Rule: [other relevant rule] | [what to check] |

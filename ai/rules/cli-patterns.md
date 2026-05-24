@@ -36,7 +36,7 @@ Each subcommand: own `flag.NewFlagSet` with custom `fs.Usage`. Parse flags, chec
 
 ## Rules
 
-- **Grammar: action before identifier** (`.claude/rules/cli-grammar.md`, BLOCKING).
+- **Grammar: action before identifier** (`ai/rules/cli-grammar.md`, BLOCKING).
   First token after the noun must be a keyword, never an identifier. IDs are strings.
 - Errors to stderr: `fmt.Fprintf(os.Stderr, "error: %v\n", err)`
 - Return exit codes, never `os.Exit()` in handlers
@@ -46,7 +46,7 @@ Each subcommand: own `flag.NewFlagSet` with custom `fs.Usage`. Parse flags, chec
 ## New Command Checklist
 
 ```
-[ ] Grammar: action keyword before identifier (.claude/rules/cli-grammar.md)
+[ ] Grammar: action keyword before identifier (ai/rules/cli-grammar.md)
 [ ] Handler: cmd<Name>(args []string) int
 [ ] flag.NewFlagSet with fs.Usage including examples
 [ ] Handle --help/-h at parent level

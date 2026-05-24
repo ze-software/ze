@@ -439,6 +439,19 @@ After all selected agents complete, consolidate their findings into a single rep
 
 Multiple agents may find the same issue from different angles. Merge duplicates, keeping the most specific description and the highest severity.
 
+## Review Integrity
+
+**Verify claims against source code, not docs.** Each spawned agent must read
+the actual implementation, not rely on documentation or comments. Treat docs
+as potentially stale. Every capability claim in the report must cite a source
+file and line.
+
+**Fresh eyes on every pass.** Each review pass examines the full diff, not
+just the delta since the last review. The most effective pattern is alternating:
+implement, then full review with one critical lens; fix findings, then another
+full review with a different lens. Stacking reviews that only scope to "what
+changed since the last review" produces diminishing coverage.
+
 ## Rules
 
 - Do NOT fix anything. Report findings only.
