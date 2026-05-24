@@ -932,6 +932,41 @@ to the database as `ze.conf`.
 <!-- source: cmd/ze/init/main.go -- Run, defaultHost, defaultPort, generateInterfaceConfig -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 
+### ze install
+
+Zero-touch provisioning server. Generates a ze config from CLI flags and
+forks `ze -` to start DHCP+PXE, TFTP, and HTTP servers for PXE-booting
+target machines with a gokrazy image.
+
+```
+ze install serve --interface eth0 --network 10.0.0.0/24 \
+  --image /path/to/gokrazy.img \
+  --ssh-username admin --ssh-password secret
+```
+
+| Flag | Purpose |
+|------|---------|
+| `--interface` | Network interface for provisioning (required) |
+| `--network` | Provisioning network CIDR, /8../30 (required) |
+| `--image` | Path to gokrazy disk image (required) |
+| `--ssh-username` | Admin username for installed target (required) |
+| `--ssh-password` | Admin password, bcrypt-hashed before use (required) |
+| `--address` | Override server IP (default: first IPv4 on interface) |
+
+The DHCP pool range scales with subnet size: for a /24 the pool spans
+the full host range minus the server IP; for a /28 only the available
+hosts are offered. PXE options select BIOS or UEFI bootfile based on
+client architecture (option 93).
+
+Requires root on Linux (DHCP port 67, TFTP port 69, HTTP port 80).
+On gokrazy appliances ze runs as root by default.
+
+SIGTERM/SIGINT are forwarded to the child ze process for clean shutdown.
+<!-- source: cmd/ze/install/main.go -- Run, usage -->
+<!-- source: cmd/ze/install/serve.go -- runServe, serveUsage -->
+<!-- source: cmd/ze/install/config.go -- generateConfig, validateFlags -->
+<!-- source: cmd/ze/install/fork.go -- forkAndServe -->
+
 ### ze passwd
 
 Bcrypt-hash a plaintext password for use in `system.authentication.user.password`.
