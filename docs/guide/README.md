@@ -33,7 +33,10 @@
 | [Command Catalogue](command-catalogue.md) | Cross-vendor roadmap: VyOS/Junos/Nokia/Arista commands vs ze status and backend requirements |
 | [Config Editor](config-editor.md) | Interactive NOS-like editor with YANG tab completion |
 | [Config Archive](config-archive.md) | Archive configs to local/remote destinations on commit or schedule |
+| [Config Deactivate](config-deactivate.md) | Junos-style inactive marking on any YANG node |
 | [Config Reload](config-reload.md) | Live reload, what changes live vs. requires restart |
+| [Environment Variables](environment-variables.md) | Runtime tuning via `ze.*` env vars |
+| [Authentication](authentication.md) | User database, SSH keys, TACACS+, bcrypt |
 | [Web Interface](web-interface.md) | HTTPS web UI for config viewing, editing, and admin commands |
 
 ## Features
@@ -46,7 +49,18 @@
 | [ADD-PATH](add-path.md) | Forward all paths, not just best | Multiple paths per prefix (RFC 7911) |
 | [BGP Role](bgp-role.md) | Prevent route leaks | OTC attribute filtering (RFC 9234) |
 | [Monitoring](monitoring.md) | Watch sessions and routes | Real-time event streaming, JSON format |
+| [Health Checks](health-checks.md) | Pre-start and runtime health | `ze doctor`, `show health`, report bus |
+| [Production Diagnostics](production-diagnostics.md) | Debug without external tools | 11 commands replacing ss, dmesg, tcpdump, etc. |
+| [Self-Update](self-update.md) | Automated firmware updates | SHA-256 verified download, fleet rollout, rollback |
 | [Route Injection](route-injection.md) | Announce routes at runtime | Text, hex, base64 UPDATE commands, commit workflow |
+| [Static Routes](static-routes.md) | ECMP, BFD failover, PBR | Named tables, weighted next-hops, blackhole/reject |
+| [Firewall](firewall.md) | Packet filter and NAT | nftables and VPP backends, FlowSpec bridge |
+| [BFD](bfd.md) | Sub-second failure detection | RFC 5880, auth, echo mode, BGP opt-in |
+| [BMP](bmp.md) | BGP monitoring protocol | Receiver, sender, Adj-RIB-Out, looking glass |
+| [L2TP/PPP](l2tp.md) | BNG subscriber access | RFC 2661, RADIUS, CQM, web UI |
+| [PPPoE](pppoe.md) | Direct-attach subscribers | RFC 2516 access concentrator |
+| [IPsec VPN](../config-reference.md#ipsec-vpn) | Site-to-site VPN | Native IKEv2, XFRM, EAP, NAT-T |
+| [Zero-Touch Provisioning](ze-install.md) | PXE bare-metal provisioning | DHCP+TFTP+HTTP image server |
 | [VPP Data Plane](vpp.md) | High-throughput forwarding | Ze manages VPP lifecycle and programs its FIB directly via GoVPP |
 
 ## Operations
@@ -54,14 +68,21 @@
 | Guide | Description |
 |-------|-------------|
 | [Operations](operations.md) | SSH setup, signals, health checks, systemd, troubleshooting |
+| [Health Checks](health-checks.md) | `ze doctor` pre-start checks and runtime `show health` |
+| [Production Diagnostics](production-diagnostics.md) | Symptom-based troubleshooting with built-in diagnostic commands |
+| [Self-Update](self-update.md) | Automated firmware updates with fleet rollout and rollback |
 | [REST and gRPC API](api.md) | Programmatic API: OpenAPI, Swagger UI, SSE streaming, config sessions, TLS, per-user auth |
 | [Docker](docker.md) | Container image for evaluation, labs, and lightweight deployments |
 | [VM Appliance](appliance.md) | Bootable x86_64 image for N100 PCs using gokrazy |
+| [Zero-Touch Provisioning](ze-install.md) | PXE bare-metal provisioning |
 | [MCP Remote Access](mcp/remote-access.md) | SSH tunnels and WireGuard for remote MCP access |
 | [Logging](logging.md) | Log levels, backends, per-subsystem tuning, runtime changes |
+| [Operational Reports](operational-reports.md) | Warnings, errors, and the report bus |
+| [Benchmarking](benchmarking.md) | `ze-perf` cross-implementation latency benchmark |
 | [ExaBGP Migration](exabgp-migration.md) | Config conversion and plugin compatibility bridge |
 | [Chaos Testing](chaos-testing.md) | Fault injection, deterministic replay, property validation |
 | [Fleet Configuration](fleet-config.md) | Centralized config management for multi-node deployments |
+| [TACACS+ AAA](tacacs.md) | RFC 8907 SSH authentication and command accounting |
 
 ## Reference
 

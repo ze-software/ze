@@ -76,9 +76,13 @@ structured for Codeberg's wiki renderer. Key files:
 12. **Regenerate llms files:** `cd ../wiki && go run bin/gen-llms-txt.go`. These are generated from `_Sidebar.md` and page content. Never hand-edit them.
 13. **Bump `.source-commit`:** Write `git rev-parse HEAD` to `../wiki/.source-commit`. This is the LAST content step.
 
-### Phase 4: Commit
+### Phase 4: Regenerate reverse index
 
-14. **Write commit script** for the wiki: `../wiki/tmp-commit.sh` that `git add`s all changed/new files (including llms.txt, llms-full.txt) and commits with message format:
+14. **Regenerate `ai/CODE-TO-DOCS.md`:** Run `make ze-doc-index` to update the code-to-docs reverse index. If any docs/ source anchors were added, changed, or removed, this keeps the index in sync.
+
+### Phase 5: Commit
+
+16. **Write commit script** for the wiki: `../wiki/tmp-commit.sh` that `git add`s all changed/new files (including llms.txt, llms-full.txt) and commits with message format:
 
 ```
 docs(wiki): sync wiki with <old-short>..<new-short> (<N> commits)
@@ -92,7 +96,7 @@ Co-Authored-By: Claude <model> <noreply@anthropic.com>
 
 Tell the user to run: `cd ../wiki && bash tmp-commit.sh && rm tmp-commit.sh`
 
-15. **In-tree docs/ changes** are in the main repo working tree. Do not commit them; the user handles that separately (or via `/ze-commit`). Report which `docs/` files were changed so the user knows.
+17. **In-tree docs/ changes** are in the main repo working tree. Do not commit them; the user handles that separately (or via `/ze-commit`). Report which `docs/` files were changed so the user knows.
 
 ## Rules
 
