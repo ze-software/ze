@@ -15,8 +15,8 @@ func benchSetupRIB(b *testing.B, n int) (*FamilyRIB, [][]byte) {
 	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireLocalPref100, wireMED100)
 	nlris := make([][]byte, n)
 	for i := range n {
-		pfx := netip.MustParsePrefix(
-			netip.AddrFrom4([4]byte{byte(10 + i>>16), byte(i >> 8), byte(i), 0}).String() + "/24",
+		pfx := netip.PrefixFrom(
+			netip.AddrFrom4([4]byte{byte(10 + i>>16), byte(i >> 8), byte(i), 0}), 24,
 		)
 		nlris[i] = store.PrefixToNLRI(pfx)
 		rib.Insert(attrs, nlris[i], true)
@@ -96,15 +96,20 @@ func BenchmarkRIBInsertNoOp(b *testing.B) {
 func BenchmarkRIBInsertUnique(b *testing.B) {
 	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop, wireLocalPref100, wireMED100)
 
+	nlris := make([][]byte, 1000)
+	for i := range 1000 {
+		pfx := netip.PrefixFrom(
+			netip.AddrFrom4([4]byte{byte(10 + i>>16), byte(i >> 8), byte(i), 0}), 24,
+		)
+		nlris[i] = store.PrefixToNLRI(pfx)
+	}
+
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
 		rib := NewFamilyRIB(family.IPv4Unicast, false)
-		for i := range 1000 {
-			pfx := netip.MustParsePrefix(
-				netip.AddrFrom4([4]byte{byte(10 + i>>16), byte(i >> 8), byte(i), 0}).String() + "/24",
-			)
-			rib.Insert(attrs, store.PrefixToNLRI(pfx), true)
+		for _, nlri := range nlris {
+			rib.Insert(attrs, nlri, true)
 		}
 		rib.Release()
 	}

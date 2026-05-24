@@ -10,60 +10,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 )
 
-// bundleInterner binds a pool to a Bundle field for table-driven internment.
-type bundleInterner struct {
-	pool *attrpool.Pool
-	name string
-	get  func(*Bundle) attrpool.Handle
-	set  func(*Bundle, attrpool.Handle)
-}
-
-// bundleInterners maps non-AS_PATH attribute type codes to their pool+field bindings.
-// AS_PATH (type 2) is handled separately (stays on RouteEntry).
-var bundleInterners [256]*bundleInterner
-
-func init() {
-	reg := func(code attribute.AttributeCode, p *attrpool.Pool, name string,
-		get func(*Bundle) attrpool.Handle, set func(*Bundle, attrpool.Handle),
-	) {
-		bundleInterners[code] = &bundleInterner{pool: p, name: name, get: get, set: set}
-	}
-
-	reg(attribute.AttrOrigin, pool.Origin, "origin",
-		func(b *Bundle) attrpool.Handle { return b.Origin },
-		func(b *Bundle, h attrpool.Handle) { b.Origin = h })
-	reg(attribute.AttrNextHop, pool.NextHop, "next-hop",
-		func(b *Bundle) attrpool.Handle { return b.NextHop },
-		func(b *Bundle, h attrpool.Handle) { b.NextHop = h })
-	reg(attribute.AttrMED, pool.MED, "med",
-		func(b *Bundle) attrpool.Handle { return b.MED },
-		func(b *Bundle, h attrpool.Handle) { b.MED = h })
-	reg(attribute.AttrLocalPref, pool.LocalPref, "local-pref",
-		func(b *Bundle) attrpool.Handle { return b.LocalPref },
-		func(b *Bundle, h attrpool.Handle) { b.LocalPref = h })
-	reg(attribute.AttrAtomicAggregate, pool.AtomicAggregate, "atomic-aggregate",
-		func(b *Bundle) attrpool.Handle { return b.AtomicAggregate },
-		func(b *Bundle, h attrpool.Handle) { b.AtomicAggregate = h })
-	reg(attribute.AttrAggregator, pool.Aggregator, "aggregator",
-		func(b *Bundle) attrpool.Handle { return b.Aggregator },
-		func(b *Bundle, h attrpool.Handle) { b.Aggregator = h })
-	reg(attribute.AttrCommunity, pool.Communities, "communities",
-		func(b *Bundle) attrpool.Handle { return b.Communities },
-		func(b *Bundle, h attrpool.Handle) { b.Communities = h })
-	reg(attribute.AttrLargeCommunity, pool.LargeCommunities, "large-communities",
-		func(b *Bundle) attrpool.Handle { return b.LargeCommunities },
-		func(b *Bundle, h attrpool.Handle) { b.LargeCommunities = h })
-	reg(attribute.AttrExtCommunity, pool.ExtCommunities, "ext-communities",
-		func(b *Bundle) attrpool.Handle { return b.ExtCommunities },
-		func(b *Bundle, h attrpool.Handle) { b.ExtCommunities = h })
-	reg(attribute.AttrClusterList, pool.ClusterList, "cluster-list",
-		func(b *Bundle) attrpool.Handle { return b.ClusterList },
-		func(b *Bundle, h attrpool.Handle) { b.ClusterList = h })
-	reg(attribute.AttrOriginatorID, pool.OriginatorID, "originator-id",
-		func(b *Bundle) attrpool.Handle { return b.OriginatorID },
-		func(b *Bundle, h attrpool.Handle) { b.OriginatorID = h })
-}
-
 // ParseAttributes parses raw attribute wire bytes into a RouteEntry.
 // Individual attributes are interned in per-type pools. The 12 non-AS_PATH
 // handles are grouped into a Bundle and interned in BundlePool. AS_PATH is
@@ -111,14 +57,85 @@ func ParseAttributes(raw []byte, asn4 bool) (RouteEntry, error) {
 			as4pathValue = value
 			continue
 		}
-		if h := bundleInterners[typeCode]; h != nil {
-			handle, err := h.pool.Intern(value)
+		switch typeCode { //nolint:exhaustive // only bundle-interned attrs; rest goes to otherAttrs
+		case attribute.AttrOrigin:
+			h, err := pool.Origin.Intern(value)
 			if err != nil {
 				cleanup()
-				return RouteEntry{}, fmt.Errorf("intern %s: %w", h.name, err)
+				return RouteEntry{}, fmt.Errorf("intern origin: %w", err)
 			}
-			h.set(&bundle, handle)
-		} else {
+			bundle.Origin = h
+		case attribute.AttrNextHop:
+			h, err := pool.NextHop.Intern(value)
+			if err != nil {
+				cleanup()
+				return RouteEntry{}, fmt.Errorf("intern next-hop: %w", err)
+			}
+			bundle.NextHop = h
+		case attribute.AttrMED:
+			h, err := pool.MED.Intern(value)
+			if err != nil {
+				cleanup()
+				return RouteEntry{}, fmt.Errorf("intern med: %w", err)
+			}
+			bundle.MED = h
+		case attribute.AttrLocalPref:
+			h, err := pool.LocalPref.Intern(value)
+			if err != nil {
+				cleanup()
+				return RouteEntry{}, fmt.Errorf("intern local-pref: %w", err)
+			}
+			bundle.LocalPref = h
+		case attribute.AttrAtomicAggregate:
+			h, err := pool.AtomicAggregate.Intern(value)
+			if err != nil {
+				cleanup()
+				return RouteEntry{}, fmt.Errorf("intern atomic-aggregate: %w", err)
+			}
+			bundle.AtomicAggregate = h
+		case attribute.AttrAggregator:
+			h, err := pool.Aggregator.Intern(value)
+			if err != nil {
+				cleanup()
+				return RouteEntry{}, fmt.Errorf("intern aggregator: %w", err)
+			}
+			bundle.Aggregator = h
+		case attribute.AttrCommunity:
+			h, err := pool.Communities.Intern(value)
+			if err != nil {
+				cleanup()
+				return RouteEntry{}, fmt.Errorf("intern communities: %w", err)
+			}
+			bundle.Communities = h
+		case attribute.AttrLargeCommunity:
+			h, err := pool.LargeCommunities.Intern(value)
+			if err != nil {
+				cleanup()
+				return RouteEntry{}, fmt.Errorf("intern large-communities: %w", err)
+			}
+			bundle.LargeCommunities = h
+		case attribute.AttrExtCommunity:
+			h, err := pool.ExtCommunities.Intern(value)
+			if err != nil {
+				cleanup()
+				return RouteEntry{}, fmt.Errorf("intern ext-communities: %w", err)
+			}
+			bundle.ExtCommunities = h
+		case attribute.AttrClusterList:
+			h, err := pool.ClusterList.Intern(value)
+			if err != nil {
+				cleanup()
+				return RouteEntry{}, fmt.Errorf("intern cluster-list: %w", err)
+			}
+			bundle.ClusterList = h
+		case attribute.AttrOriginatorID:
+			h, err := pool.OriginatorID.Intern(value)
+			if err != nil {
+				cleanup()
+				return RouteEntry{}, fmt.Errorf("intern originator-id: %w", err)
+			}
+			bundle.OriginatorID = h
+		default:
 			otherAttrs = appendOtherAttr(otherAttrs, flags, typeCode, value)
 		}
 	}
