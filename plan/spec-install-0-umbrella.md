@@ -19,7 +19,7 @@
 
 ## Task
 
-Zero-touch provisioning for ze on bare-metal hardware. A new `ze-install` binary
+Zero-touch provisioning for ze on bare-metal hardware. `ze install serve`
 runs on an existing ze device and PXE-boots target machines with a gokrazy image
 containing ze. On first boot, ze enters bootstrap mode: discovers all interfaces,
 runs DHCP client on each, starts SSH, and waits for operator configuration.
@@ -86,10 +86,9 @@ SSHes in and configures it.
 
 ## Architecture Overview
 
-All protocol implementations live inside ze as components/plugins with YANG config.
-`ze-install` is a thin binary that composes them. This means TFTP, PXE-extended DHCP,
-and image serving are reusable by `ze` itself later (e.g., a ze device acting as a
-provisioning server via its normal config).
+All protocol implementations live inside ze as plugins with YANG config. This means
+TFTP, PXE-extended DHCP, and image serving are reusable by any ze device acting as
+a provisioning server via its normal config.
 
 Six components (four protocol pieces, one integration binary, one bootstrap mode):
 
@@ -98,14 +97,13 @@ Six components (four protocol pieces, one integration binary, one bootstrap mode
 | DHCP PXE extensions | Extend existing dhcpserver plugin with PXE options | `internal/plugins/dhcpserver/` |
 | TFTP server plugin | New plugin: read-only TFTP server (RFC 1350) | `internal/plugins/tftpserver/` |
 | Image server plugin | New plugin: HTTP endpoint serving disk images for provisioning | `internal/plugins/imageserver/` |
-| ze-install binary | Thin CLI that generates ze config from flags, calls `hub.Run()` | `cmd/ze-install/` |
+| ze install subcommand | Thin CLI that generates ze config from flags, forks `ze -` with stdin pipe | `cmd/ze/install/` |
 | ze bootstrap mode | First-boot behavior: DHCP on all interfaces, SSH, no BGP | Extension of existing `ze init` + startup path |
 | Installer initrd | Minimal Linux that writes gokrazy image to disk | Build artifact, not Go code |
 
-`ze-install` (`cmd/ze-install/`) is a thin binary that starts ze with a config
-enabling dhcpserver (with PXE), tftpserver, imageserver, and SSH.
-It may also be run as `ze` itself with the right config, making the separate
-binary a convenience, not a necessity.
+`ze install` (`cmd/ze/install/`) is a subcommand that generates a ze config
+from CLI flags, forks `ze -` (self-fork via `os.Executable()`), and pipes the
+config to stdin. Same pattern as `ze-chaos | ze -` but self-contained.
 
 The installer initrd (minimal Linux that writes gokrazy image to disk) is a
 build artifact, not Go code.
@@ -166,7 +164,7 @@ build artifact, not Go code.
 | 8 | ze | Discovers all interfaces, enables DHCP client on each, starts SSH |
 | 9 | Operator | SSHes into target, configures ze, commits |
 
-### ze-install Internal Flow
+### ze install Internal Flow
 
 1. Load ze config (brace format or `set` lines): service dhcpserver with PXE, service tftpserver, service imageserver
 2. Plugin startup: dhcpserver, tftpserver, imageserver start via standard ze plugin lifecycle
@@ -194,7 +192,7 @@ build artifact, not Go code.
 | `spec-install-1-dhcp-pxe.md` | Extend dhcpserver plugin with PXE options (43, 60, 66, 67, 93) | - |
 | `spec-install-2-tftpserver.md` | New tftpserver plugin (RFC 1350, read-only, YANG config) | - |
 | `spec-install-3-image-server.md` | New imageserver plugin (own HTTP listener, disk images + boot files) | - |
-| `spec-install-4-ze-install-binary.md` | `ze-install` thin binary composing the above | spec-install-1, 2, 3 |
+| `spec-install-4-ze-install-binary.md` | `ze install` subcommand: config gen + fork `ze -` | spec-install-1, 2, 3 |
 | `spec-install-5-bootstrap-mode.md` | ze first-boot: auto-init, DHCP-all, SSH-only mode | - |
 | `spec-install-6-installer-initrd.md` | Build system for the minimal installer image | spec-install-4 |
 
@@ -308,20 +306,20 @@ The dhcpserver plugin already tracks leases. PXE provisioning events can be
 logged via the bus (new event type) for observability. Optional "provision once"
 mode: dhcpserver stops offering PXE options to MACs that have completed installation.
 
-## Component 4 (spec-install-4): ze-install Binary
+## Component 4 (spec-install-4): ze install Subcommand
 
 ### Architecture
 
-`ze-install` imports ze's hub and components directly (same as `ze`). It is a
-convenience binary that accepts simple CLI flags, generates a ze config in memory,
-and calls `hub.Run()`. Since `hub.Run()` requires a `storage.Storage` argument,
-`ze-install` creates an ephemeral in-memory or temp-directory zefs database for
-the server side (no persistent state needed between runs).
+`ze install` is a subcommand of ze at `cmd/ze/install/`. It generates a ze config
+string from CLI flags, finds its own binary via `os.Executable()`, forks
+`ze -` (exec.Command with StdinPipe), and pipes the config + NUL sentinel to
+stdin. Same pattern as `ze-chaos | ze -` but internal: one command starts
+everything. No hub.Run() import, no ephemeral zefs creation.
 
-The same provisioning can be achieved with `ze start` and a hand-written config.
-`ze-install` exists to make the common case trivial:
+The same provisioning can be achieved with `ze` and a hand-written config.
+`ze install serve` makes the common case trivial:
 
-`ze-install serve --interface eth0 --image /path/to/gokrazy.img --network 192.168.1.0/24`
+`ze install serve --interface eth0 --image /path/to/gokrazy.img --network 192.168.1.0/24`
 
 The server's own IP is derived from the interface address (first IPv4 address on
 the interface). An explicit `--address` flag overrides this. The derived IP is
@@ -539,11 +537,11 @@ or a minimal Alpine-based initrd with busybox.
 | PXE as dhcpserver extension | Extend existing plugin | New PXE-specific DHCP server | No duplication; PXE is additive options on standard DHCP |
 | TFTP as separate plugin | `internal/plugins/tftpserver/` | Embed in dhcpserver | Different protocol, different config, different lifecycle |
 | Image server as plugin | `internal/plugins/imageserver/` | Web component endpoint | Own HTTP listener, isolation from web UI, independent lifecycle |
-| `ze-install` binary | Thin CLI that generates ze config and calls `hub.Run()` | Full standalone binary | Imports ze components, minimal own code. Same thing as `ze` with right config. |
+| `ze install` subcommand | `ze install` generates config, forks `ze -` with stdin pipe | Separate binary calling hub.Run() | No hub import, no ephemeral zefs. ze-chaos pattern, proven. Single binary. |
 | Bootstrap detection | No config AND no template in zefs | Explicit bootstrap marker | Extends existing startup check, no new state to manage |
 | Bootstrap config | New `EmitBootstrapConfig()` wrapping `EmitConfig()` | Modify `EmitConfig()` directly | Avoids regression risk in `ze init` and `ze interface scan` |
 | Zefs injection | Installer initrd downloads zefs from imageserver, writes to /perm | Embed creds in gokrazy image | Clean separation: image is generic, creds are per-deployment |
-| ze-install server storage | Ephemeral in-memory/temp zefs for `hub.Run()` | Persistent zefs | Server is stateless between runs, no persistent state needed |
+| ze install server storage | ze handles its own storage via stdin config path | Ephemeral zefs with hub.Run() | Fork pattern: ze install is a launcher, ze handles storage |
 | PXE boot with initrd | Option A (initrd writes image) | Option B (kexec into gokrazy) | Gokrazy owns the partition table. Clean write is safer than live migration. |
 | DHCP approach | Full DHCP server | Proxy DHCP | PXE network is isolated. Proxy mode can be added later. |
 | TFTP scope | Bootloader only | Full file serving | TFTP is slow. Kernel, initrd, and image go over HTTP. |
@@ -596,14 +594,14 @@ or a minimal Alpine-based initrd with busybox.
 3. **spec-install-3: image server** -- new imageserver plugin with own HTTP listener.
    Independent of web component, follows standard plugin registration pattern.
 
-4. **spec-install-4: ze-install binary** -- thin binary composing the above.
+4. **spec-install-4: ze install subcommand** -- config gen + fork `ze -`.
    Depends on 1-3 being functional.
 
 5. **spec-install-5: bootstrap mode** -- ze first-boot changes. Mostly wiring existing
    building blocks (interface discovery + DHCP client + SSH) into an automatic path.
 
 6. **spec-install-6: installer initrd** -- build system for the minimal Linux image.
-   Depends on ze-install being functional.
+   Depends on ze install being functional.
 
 ## Scope Boundaries (v1)
 
@@ -623,21 +621,21 @@ Umbrella spec. Wiring tests defined in child specs.
 | DHCP Discover with PXE option 60 | → | dhcpserver PXE reply with options 66/67 | `spec-install-1` |
 | TFTP RRQ packet | → | tftpserver file read + DATA response | `spec-install-2` |
 | HTTP GET `/install/image/<name>` | → | imageserver plugin serves file | `spec-install-3` |
-| `ze-install serve` CLI | → | ze hub start with install config | `spec-install-4` |
+| `ze install serve` CLI | -> | fork `ze -` with generated install config | `spec-install-4` |
 | ze startup (no config, no template) | → | Bootstrap mode DHCP-all + SSH | `spec-install-5` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `ze-install` started with valid config | DHCP (with PXE), TFTP, and HTTP servers listen on configured interface |
+| AC-1 | `ze install serve` with valid flags | DHCP (with PXE), TFTP, and HTTP servers listen on configured interface |
 | AC-2 | PXE client sends DHCP Discover with option 93 | `ze-install` responds with Offer containing bootfile path matching client architecture (BIOS/UEFI) |
 | AC-3 | PXE client TFTP-fetches bootloader | Bootloader served from `ze-install` TFTP directory |
 | AC-4 | Bootloader HTTP-fetches installer kernel+initrd | Files served from `ze-install` HTTP server |
 | AC-5 | Installer initrd runs on target | Downloads gokrazy image via HTTP, writes to first disk, reboots |
 | AC-6 | ze starts on target with zefs but no config | Bootstrap mode: discovers interfaces, DHCP client on all ethernet, SSH starts |
 | AC-7 | Operator SSHes to bootstrapped target | SSH accessible on DHCP-acquired addresses, CLI available for configuration |
-| AC-8 | `ze-install` config has ssh-username and ssh-password-hash | imageserver serves `/install/database.zefs` containing those credentials |
+| AC-8 | `ze install serve` with --ssh-username and --ssh-password | SSH creds bcrypt-hashed and embedded in generated config |
 | AC-9 | Installer initrd fetches `/install/database.zefs` | zefs written to target's /perm/ze/database.zefs, ze boots with working SSH |
 
 ## 🧪 TDD Test Plan
@@ -682,7 +680,7 @@ Umbrella spec. Detailed file lists in child specs.
 - `internal/plugins/dhcpserver/` - PXE extensions (spec-install-1)
 - `internal/plugins/dhcpserver/schema/` - YANG additions for PXE config (spec-install-1)
 - `internal/plugins/imageserver/` - new image server plugin (spec-install-3)
-- `cmd/ze-install/` - new thin binary (spec-install-4)
+- `cmd/ze/install/` - new subcommand (spec-install-4), `cmd/ze/main.go` dispatch
 - `cmd/ze/main.go` - add bootstrap-mode path (spec-install-5)
 - `internal/component/iface/emit.go` - extend EmitConfig for DHCP blocks (spec-install-5)
 
@@ -693,7 +691,7 @@ Umbrella spec. Detailed file lists in child specs.
 | YANG schema (dhcpserver PXE) | Yes | `internal/plugins/dhcpserver/schema/` |
 | YANG schema (tftpserver) | Yes | `internal/plugins/tftpserver/schema/` |
 | YANG schema (imageserver) | Yes | `internal/plugins/imageserver/schema/` |
-| CLI commands/flags | Yes | `cmd/ze-install/main.go` |
+| CLI commands/flags | Yes | `cmd/ze/install/main.go` |
 | Editor autocomplete | Yes | YANG-driven (automatic if YANG updated) |
 | Plugin registration | Yes | `internal/plugins/tftpserver/register.go`, `internal/plugins/imageserver/register.go` |
 | Plugin all.go import | Yes | `make generate` (all.go is code-generated by `scripts/codegen/plugin_imports.go`) |
@@ -726,7 +724,7 @@ Umbrella spec. Detailed file lists in child specs.
 - `internal/plugins/imageserver/handler.go` - HTTP file serving with Range support
 - `internal/plugins/imageserver/handler_test.go` - image server unit tests
 - `internal/plugins/imageserver/schema/` - YANG schema for imageserver
-- `cmd/ze-install/main.go` - thin binary, generates ze config from CLI flags, calls hub.Run()
+- `cmd/ze/install/main.go` - subcommand: generates ze config from CLI flags, forks `ze -`
 - `test/install/dhcp-pxe.ci` - PXE DHCP functional test
 - `test/install/tftp-boot.ci` - TFTP bootloader fetch functional test
 - `test/install/http-image.ci` - image server functional test
@@ -773,10 +771,10 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `imageserver/register.go`, `imageserver/handler.go`, `imageserver/schema/`
    - Verify: image served via HTTP with correct Content-Type, zefs download works
 
-5. **Phase: ze-install binary** -- thin composition binary
-   - Tests: binary builds, starts ze with install config
-   - Files: `cmd/ze-install/main.go`, `cmd/ze-install/serve.go`
-   - Verify: `ze-install serve` starts DHCP+PXE, TFTP, HTTP
+5. **Phase: ze install subcommand** -- config gen + fork pattern
+   - Tests: subcommand dispatches, forks ze with install config
+   - Files: `cmd/ze/install/main.go`, `cmd/ze/install/serve.go`, `cmd/ze/main.go`
+   - Verify: `ze install serve` starts DHCP+PXE, TFTP, HTTP via forked ze
 
 6. **Phase: Bootstrap mode** -- ze first-boot DHCP-all + SSH
    - Tests: bootstrap config generation test, bootstrap detection test
@@ -806,7 +804,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | dhcpserver PXE options in Offer | Unit test with PXE option 93 in Discover |
 | tftpserver serves file | Unit test with TFTP RRQ |
 | HTTP serves image | Unit test with HTTP GET `/install/image/` |
-| `ze-install` binary builds | `go build ./cmd/ze-install/` |
+| `ze install serve -h` prints usage | Run ze binary and check output |
 | Bootstrap mode activates | Unit test: no config triggers DHCP-all config |
 | YANG schemas validate | `make ze-lint` passes with new schemas |
 
@@ -928,7 +926,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] Feature code integrated (`cmd/ze-install/*`)
+- [ ] Feature code integrated (`cmd/ze/install/*` + `cmd/ze/main.go` dispatch)
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated
 

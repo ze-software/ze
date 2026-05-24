@@ -1,11 +1,11 @@
-# Spec: install-4-ze-install-binary
+# Spec: install-4-ze-install-subcommand
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Depends | spec-install-1, spec-install-2, spec-install-3 |
 | Phase | - |
-| Updated | 2026-05-21 |
+| Updated | 2026-05-24 |
 | Parent | spec-install-0-umbrella |
 
 ## Post-Compaction Recovery
@@ -13,72 +13,74 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `cmd/ze/hub/main.go` - hub.Run() signature and startup flow
-4. `cmd/ze/main.go` - how ze calls hub.Run() with storage
-5. `internal/component/config/storage/blob.go` - Storage interface and constructors
-6. `plan/spec-install-0-umbrella.md` - parent spec with architecture decisions
+3. `cmd/ze/main.go` - how ze reads stdin config (lines 538-545, looksLikeConfig("-"))
+4. `cmd/ze-chaos/main.go` - fork pattern: writeConfig() with NUL sentinel (lines 710-737)
+5. `plan/spec-install-0-umbrella.md` - parent spec with architecture decisions
 
 ## Task
 
-New `ze-install` binary at `cmd/ze-install/`. A thin CLI that accepts flags
-describing a provisioning scenario (interface, network, image, SSH credentials),
-generates a ze config in memory, and calls `hub.Run()` to start dhcpserver
-(with PXE), tftpserver, and imageserver plugins. The same provisioning can be
-achieved with `ze start` and a hand-written config; `ze-install` makes the
-common case trivial.
+New `ze install serve` subcommand at `cmd/ze/install/`. A thin CLI that accepts
+flags describing a provisioning scenario (interface, network, image, SSH credentials),
+generates a ze config string, forks `ze -` (self-fork via `os.Executable()`),
+and pipes the config to stdin with a NUL sentinel. Same pattern as
+`ze-chaos | ze -` but internal: one command starts everything.
+
+The same provisioning can be achieved with `ze` and a hand-written config;
+`ze install serve` makes the common case trivial.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `cmd/ze/hub/main.go` - hub.Run() signature, storage requirements
-  -> Decision: hub.Run() takes storage.Storage, configPath, plugins list, chaos params, web/mcp params
-  -> Constraint: ze-install must provide a valid Storage and write config into it before calling Run()
-- [ ] `cmd/ze/main.go` lines 764-806 - startup path showing hub.Run() call patterns
-  -> Decision: storage resolved first, config read from storage by hub.Run()
-  -> Constraint: storage must be blob storage for hub.Run() to function (IsBlobStorage check)
-- [ ] `cmd/ze-perf/main.go` - thin binary pattern: main() calls os.Exit(run(args)), subcommand dispatch
-  -> Decision: ze-install follows same pattern: main.go with subcommand dispatch
-- [ ] `internal/component/config/storage/blob.go` - NewBlob() constructor, zefs.Create/Open
-  -> Constraint: ze-install needs temp dir for zefs.Create(), cleaned up on exit
+- [ ] `cmd/ze/main.go` lines 538-545 - stdin config path: `looksLikeConfig("-")` dispatches to `hub.Run(resolveStorage(), "-", ...)`
+  -> Decision: ze already reads config from stdin when arg is "-"
+  -> Constraint: config piped to stdin, NUL byte marks end of config (ze keeps reading for shutdown signal)
+- [ ] `cmd/ze-chaos/main.go` lines 710-737 - writeConfig() pattern: config to stdout + NUL sentinel
+  -> Decision: ze install follows same fork pattern as `ze-chaos | ze -`
+  -> Constraint: NUL sentinel required so ze can parse config without waiting for EOF
+- [ ] `cmd/ze-chaos/main.go` lines 440-449 - auto-discover ze binary via os.Executable()
+  -> Decision: ze install finds itself and forks with `exec.Command(self, "-")`
 - [ ] `plan/spec-install-0-umbrella.md` - architecture overview, design decisions, data flow
-  -> Decision: ze-install generates ze config from flags, all protocols are ze plugins
+  -> Decision: ze install generates ze config from flags, all protocols are ze plugins
   -> Constraint: server IP derived from interface address unless --address override
 
 ### RFC Summaries (MUST for protocol work)
 None required directly (protocol work is in child specs 1-3).
 
 **Key insights:**
-- hub.Run() reads config from storage.Storage, so ze-install must create a temp zefs, write the generated config into it, then call hub.Run()
-- ze-perf pattern: main.go with os.Exit(run(args)), subcommand switch
+- ze already handles stdin config via `ze -` (looksLikeConfig returns true for "-")
+- ze-chaos writeConfig() pattern: write config + NUL byte to stdout, keep pipe open (EOF = shutdown)
+- Self-fork via os.Executable() to find the ze binary (same as ze-chaos auto-discover)
 - Server IP can be derived from the interface's first IPv4 address (net.InterfaceByName + Addrs())
-- bcrypt hashing for SSH password must happen in ze-install before writing to zefs
-- The generated config is standard ze brace format, written as a blob entry
+- bcrypt hashing for SSH password happens in ze install before embedding in generated config
+- No hub.Run() import, no ephemeral zefs: ze handles its own storage when reading stdin config
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `cmd/ze/hub/main.go:136` - `func Run(store storage.Storage, configPath string, plugins []string, ...)`
-  -> Constraint: hub.Run reads config via store.ReadFile(configPath), expects valid ze config content
-- [ ] `cmd/ze/main.go:764-806` - startup path: resolveStorage(), hub.Run() call
-  -> Constraint: storage must be blob storage (IsBlobStorage check at line 767)
-- [ ] `cmd/ze-perf/main.go` - thin binary pattern with subcommand dispatch
-  -> Decision: same pattern for ze-install
-- [ ] `internal/component/config/storage/blob.go:41` - NewBlob(blobPath, configDir) constructor
-  -> Constraint: requires a directory path for zefs database file
+- [ ] `cmd/ze/main.go:538-545` - stdin config path: when arg is "-", calls hub.Run(resolveStorage(), "-", ...)
+  -> Constraint: ze resolves its own storage; stdin config is just the config content
+- [ ] `cmd/ze/main.go:475-504` - "start" subcommand dispatch pattern
+  -> Decision: "install" follows same pattern: case in switch, dispatches to package Run()
+- [ ] `cmd/ze-chaos/main.go:710-737` - writeConfig(): config + NUL to stdout, pipe stays open
+  -> Constraint: NUL sentinel marks end of config; pipe EOF signals shutdown
+- [ ] `cmd/ze-chaos/main.go:440-449` - os.Executable() for self-discovery
+  -> Decision: ze install finds own binary path for the fork
+- [ ] `cmd/ze-chaos/main.go:157-167` - waitForZe() with pipeline mode retry
+  -> Decision: ze install uses similar wait logic after forking
 
 **Behavior to preserve:**
-- hub.Run() interface unchanged; ze-install is a caller, not a modifier
+- ze stdin config path unchanged; ze install is a launcher, not a modifier
 - All plugin behavior (dhcpserver, tftpserver, imageserver) comes from child specs
-- Storage interface unchanged
+- ze handles its own storage resolution when reading from stdin
 
 **Behavior to change:**
-- New binary `cmd/ze-install/` that generates config and calls hub.Run()
-- Ephemeral temp zefs created for the server's lifetime
+- New `ze install` subcommand at `cmd/ze/install/` that generates config and forks `ze -`
+- Config piped to child process stdin with NUL sentinel (ze-chaos pattern)
 
 ## Data Flow (MANDATORY - see `rules/data-flow-tracing.md`)
 
 ### Entry Point
-- `ze-install serve --interface eth0 --image /path/to/img --network 192.168.1.0/24 --ssh-username admin --ssh-password secret`
+- `ze install serve --interface eth0 --image /path/to/img --network 192.168.1.0/24 --ssh-username admin --ssh-password secret`
 - CLI flags parsed by standard Go flag package
 
 ### Transformation Path
@@ -87,70 +89,71 @@ None required directly (protocol work is in child specs 1-3).
 3. Validate: interface exists, image file exists, network is valid CIDR, SSH credentials non-empty
 4. Hash SSH password with bcrypt
 5. Generate ze config string (brace format) with dhcpserver+PXE, tftpserver, imageserver sections
-6. Create temp directory, call zefs.Create() to make ephemeral blob storage
-7. Write generated config into storage as active config
-8. Write SSH credentials into zefs using exact key structure: `KeySSHUsername.Key("127.0.0.1", "2222")` = username, `KeySSHPassword.Key("127.0.0.1", "2222")` = bcrypt hash, `KeySSHDefault.Pattern` = `"127.0.0.1/2222"` (matching `ze init` defaults and `loadZefsUsers()` expectations)
-9. Call hub.Run() with the ephemeral storage and config path
-10. On shutdown (signal): hub.Run() returns, temp directory cleaned up
+6. Find own binary via `os.Executable()`
+7. Create child process: `exec.Command(self, "-")` with StdinPipe
+8. Write config + NUL sentinel to child stdin (ze-chaos writeConfig pattern)
+9. Forward SIGTERM/SIGINT to child process
+10. Wait for child exit; propagate exit code
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| CLI flags -> config string | String template/builder with flag values | [ ] |
-| Config string -> storage | store.WriteFile(activeKey, configBytes, 0) | [ ] |
-| Storage -> hub.Run() | hub.Run(store, configPath, ...) | [ ] |
-| SSH creds -> zefs | store.WriteFile(zefs keys for username/password) | [ ] |
+| CLI flags -> config string | String builder with flag values | [ ] |
+| Config string -> child stdin | StdinPipe + NUL sentinel | [ ] |
+| Child ze reads stdin | `looksLikeConfig("-")` -> `hub.Run(store, "-", ...)` | [ ] |
+| Signal forwarding | Parent catches SIGTERM/SIGINT, sends to child | [ ] |
 
 ### Integration Points
-- `hub.Run()` in `cmd/ze/hub/main.go` - the main execution entry point
-- `storage.NewBlob()` in `internal/component/config/storage/blob.go` - ephemeral storage creation
-- `zefs.Create()` in `internal/component/config/zefs/` - blob database creation
+- `os.Executable()` - find ze binary for self-fork
+- `exec.Command(self, "-")` - start child ze with stdin config
+- `StdinPipe` + NUL sentinel - config delivery (same as ze-chaos)
 - dhcpserver plugin (spec-install-1) - started by generated config
 - tftpserver plugin (spec-install-2) - started by generated config
 - imageserver plugin (spec-install-3) - started by generated config
 
 ### Architectural Verification
-- [ ] No bypassed layers (config goes through standard storage -> hub.Run() path)
-- [ ] No unintended coupling (ze-install is a caller of hub, not a modifier)
-- [ ] No duplicated functionality (config generation is new; execution reuses hub.Run())
+- [ ] No bypassed layers (config goes through standard ze stdin path)
+- [ ] No unintended coupling (ze install is a launcher, not a modifier of ze internals)
+- [ ] No duplicated functionality (config generation is new; execution reuses ze stdin path)
 - [ ] Zero-copy preserved where applicable (not applicable; config is generated once at startup)
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| `ze-install serve` CLI invocation | -> | config generation + hub.Run() start | `TestServeConfigGeneration` |
-| `ze-install serve --interface eth0 ...` | -> | DHCP+TFTP+HTTP listeners active | `test-ze-install-serve` (.ci) |
+| `ze install serve` CLI invocation | -> | config generation + child ze fork | `TestServeConfigGeneration` |
+| `ze install serve --interface eth0 ...` | -> | DHCP+TFTP+HTTP listeners active via forked ze | `test-ze-install-serve` (.ci) |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `ze-install serve` with valid flags | DHCP (with PXE), TFTP, and HTTP servers listen on configured interface |
-| AC-2 | `ze-install serve` without --interface | Error message, exit code 1 |
-| AC-3 | `ze-install serve` without --image | Error message, exit code 1 |
-| AC-4 | `ze-install serve` without --network | Error message, exit code 1 |
-| AC-5 | `ze-install serve` without --ssh-username or --ssh-password | Error message, exit code 1 |
-| AC-6 | `ze-install serve` with --address override | Server IP uses override instead of interface address |
-| AC-7 | `ze-install serve` with valid flags | Generated config contains dhcp-server with PXE block, tftp-server, image-server sections |
-| AC-8 | `ze-install serve` with --ssh-username and --ssh-password | imageserver serves /install/database.zefs containing bcrypt-hashed credentials |
-| AC-9 | `ze-install` with no subcommand | Usage help printed, exit code 0 |
-| AC-10 | `ze-install serve` receives SIGTERM/SIGINT | Clean shutdown, temp directory removed |
-| AC-11 | `ze-install serve` with non-existent interface | Error message naming the interface, exit code 1 |
-| AC-12 | `ze-install serve` with non-existent image file | Error message naming the file, exit code 1 |
+| AC-1 | `ze install serve` with valid flags | Forks `ze -`, DHCP (with PXE), TFTP, and HTTP servers listen on configured interface |
+| AC-2 | `ze install serve` without --interface | Error message, exit code 1 |
+| AC-3 | `ze install serve` without --image | Error message, exit code 1 |
+| AC-4 | `ze install serve` without --network | Error message, exit code 1 |
+| AC-5 | `ze install serve` without --ssh-username or --ssh-password | Error message, exit code 1 |
+| AC-6 | `ze install serve` with --address override | Server IP uses override instead of interface address |
+| AC-7 | `ze install serve` with valid flags | Generated config contains dhcp-server with PXE block, tftp-server, image-server sections |
+| AC-8 | `ze install serve` with --ssh-username and --ssh-password | SSH password bcrypt-hashed, embedded in generated config as imageserver ssh-password-hash |
+| AC-9 | `ze install` with no subcommand | Usage help printed, exit code 0 |
+| AC-10 | `ze install serve` receives SIGTERM/SIGINT | Signal forwarded to child ze, clean shutdown |
+| AC-11 | `ze install serve` with non-existent interface | Error message naming the interface, exit code 1 |
+| AC-12 | `ze install serve` with non-existent image file | Error message naming the file, exit code 1 |
 
 ## TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestGenerateConfig` | `cmd/ze-install/config_test.go` | Config string has all required sections (dhcp-server, pxe, tftp-server, image-server) | |
-| `TestGenerateConfigPXEBlock` | `cmd/ze-install/config_test.go` | PXE block has tftp-server IP, bootfile-bios, bootfile-uefi | |
-| `TestGenerateConfigNetwork` | `cmd/ze-install/config_test.go` | DHCP range derived from network prefix length (scales with subnet size, not hardcoded .100-.200; for small subnets like /28, uses available host range minus gateway) | |
-| `TestResolveServerIP` | `cmd/ze-install/config_test.go` | Returns first IPv4 from named interface; override takes precedence | |
-| `TestValidateFlags` | `cmd/ze-install/config_test.go` | Missing required flags return descriptive errors | |
-| `TestPasswordHashing` | `cmd/ze-install/config_test.go` | Password is bcrypt-hashed, hash verifies against original | |
-| `TestGenerateConfigServerIP` | `cmd/ze-install/config_test.go` | Server IP appears in siaddr, option 54, default-router, tftp-server, image-server | |
+| `TestGenerateConfig` | `cmd/ze/install/config_test.go` | Config string has all required sections (dhcp-server, pxe, tftp-server, image-server) | |
+| `TestGenerateConfigPXEBlock` | `cmd/ze/install/config_test.go` | PXE block has tftp-server IP, bootfile-bios, bootfile-uefi | |
+| `TestGenerateConfigNetwork` | `cmd/ze/install/config_test.go` | DHCP range derived from network prefix length (scales with subnet size, not hardcoded .100-.200; for small subnets like /28, uses available host range minus gateway) | |
+| `TestResolveServerIP` | `cmd/ze/install/config_test.go` | Returns first IPv4 from named interface; override takes precedence | |
+| `TestValidateFlags` | `cmd/ze/install/config_test.go` | Missing required flags return descriptive errors | |
+| `TestPasswordHashing` | `cmd/ze/install/config_test.go` | Password is bcrypt-hashed, hash verifies against original | |
+| `TestGenerateConfigServerIP` | `cmd/ze/install/config_test.go` | Server IP appears in dhcp siaddr, default-router, tftp-server, image-server listen | |
+| `TestForkAndPipe` | `cmd/ze/install/serve_test.go` | Config written to pipe with NUL sentinel, child receives valid config | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -161,34 +164,35 @@ None required directly (protocol work is in child specs 1-3).
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-ze-install-serve` | `test/install/serve.ci` | ze-install starts all three servers from CLI flags | |
-| `test-ze-install-help` | `test/install/help.ci` | ze-install with no args prints usage | |
-| `test-ze-install-missing-flags` | `test/install/missing-flags.ci` | ze-install serve without required flags exits with error | |
+| `test-ze-install-serve` | `test/install/serve.ci` | ze install serve starts all three servers from CLI flags | |
+| `test-ze-install-help` | `test/install/help.ci` | ze install with no args prints usage | |
+| `test-ze-install-missing-flags` | `test/install/missing-flags.ci` | ze install serve without required flags exits with error | |
 
 ### Future (if deferring any tests)
 - Full PXE boot integration test (requires QEMU with PXE ROM, depends on installer initrd)
 
 ## Files to Modify
 
-None. This is a new binary. `cmd/ze/hub/main.go` is a read-only reference (hub.Run() signature).
+None. This is a new subcommand. `cmd/ze/main.go` needs a new case in the dispatch switch.
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
 | YANG schema (new RPCs) | No | N/A (uses existing plugin YANG schemas) |
-| CLI commands/flags | Yes | `cmd/ze-install/main.go` |
-| CLI grammar (action before identifier) | Yes | `serve` is the action, no user identifiers in command path |
-| Editor autocomplete | No | N/A (standalone binary) |
-| Functional test for new RPC/API | No | N/A (binary, not RPC) |
-| Doctor check for runtime dependencies | No | N/A (ze-install is operator tool, not daemon) |
-| Go build integration | Yes | Makefile target for `ze-install` |
+| CLI commands/flags | Yes | `cmd/ze/install/main.go` |
+| CLI grammar (action before identifier) | Yes | `install serve` is action-first, no user identifiers in command path |
+| Main dispatch | Yes | `cmd/ze/main.go` - add `case "install"` to switch |
+| Editor autocomplete | No | N/A (operator tool, not RPC-based) |
+| Functional test for new RPC/API | No | N/A (subcommand, not RPC) |
+| Doctor check for runtime dependencies | No | N/A (ze install is operator tool, not daemon) |
+| Go build integration | No | N/A (part of ze binary, no separate build) |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | Yes | `docs/features.md` - ze-install provisioning |
+| 1 | New user-facing feature? | Yes | `docs/features.md` - ze install provisioning |
 | 2 | Config syntax changed? | No | N/A |
-| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` - ze-install serve |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` - ze install serve |
 | 4 | API/RPC added/changed? | No | N/A |
 | 5 | Plugin added/changed? | No | N/A (plugins are child specs) |
 | 6 | Has a user guide page? | Yes | `docs/guide/ze-install.md` - provisioning guide |
@@ -201,11 +205,12 @@ None. This is a new binary. `cmd/ze/hub/main.go` is a read-only reference (hub.R
 
 ## Files to Create
 
-- `cmd/ze-install/main.go` - binary entry point, subcommand dispatch, usage
-- `cmd/ze-install/serve.go` - serve subcommand: flag parsing, validation, config generation, hub.Run()
-- `cmd/ze-install/config.go` - generateConfig(): builds ze config string from parameters
-- `cmd/ze-install/config_test.go` - unit tests for config generation and validation
-- `test/install/serve.ci` - functional test: ze-install starts all servers
+- `cmd/ze/install/main.go` - subcommand entry point: Run(), subcommand dispatch, usage
+- `cmd/ze/install/serve.go` - serve subcommand: flag parsing, validation, self-fork, stdin pipe
+- `cmd/ze/install/config.go` - generateConfig(): builds ze config string from parameters
+- `cmd/ze/install/config_test.go` - unit tests for config generation and validation
+- `cmd/ze/install/serve_test.go` - unit tests for fork/pipe logic
+- `test/install/serve.ci` - functional test: ze install starts all servers
 - `test/install/help.ci` - functional test: usage output
 - `test/install/missing-flags.ci` - functional test: missing flags error
 
@@ -229,25 +234,25 @@ None. This is a new binary. `cmd/ze/hub/main.go` is a read-only reference (hub.R
 
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- binary skeleton with serve subcommand that exits immediately
-   - Tests: `go build ./cmd/ze-install/` succeeds, `ze-install serve -h` prints usage
-   - Files: `cmd/ze-install/main.go`, `cmd/ze-install/serve.go`
-   - Verify: binary compiles and dispatches to serve subcommand
+1. **Phase: Wiring (MANDATORY FIRST)** -- subcommand skeleton with serve that exits immediately
+   - Tests: `ze install serve -h` prints usage
+   - Files: `cmd/ze/install/main.go`, `cmd/ze/install/serve.go`, `cmd/ze/main.go` (add case)
+   - Verify: ze dispatches to install subcommand
 
 2. **Phase: Config generation** -- generateConfig() builds valid ze config from parameters
    - Tests: `TestGenerateConfig`, `TestGenerateConfigPXEBlock`, `TestGenerateConfigNetwork`, `TestGenerateConfigServerIP`
-   - Files: `cmd/ze-install/config.go`, `cmd/ze-install/config_test.go`
+   - Files: `cmd/ze/install/config.go`, `cmd/ze/install/config_test.go`
    - Verify: generated config string parses as valid ze config with all required sections
 
 3. **Phase: Flag validation** -- validate required flags, resolve server IP
    - Tests: `TestValidateFlags`, `TestResolveServerIP`, `TestPasswordHashing`
-   - Files: `cmd/ze-install/serve.go`, `cmd/ze-install/config_test.go`
+   - Files: `cmd/ze/install/serve.go`, `cmd/ze/install/config_test.go`
    - Verify: missing flags produce clear errors, server IP resolved from interface
 
-4. **Phase: Ephemeral storage and hub integration** -- create temp zefs, write config, call hub.Run()
-   - Tests: `TestServeConfigGeneration` (wiring test)
-   - Files: `cmd/ze-install/serve.go`
-   - Verify: hub.Run() starts with generated config, cleanup on exit
+4. **Phase: Fork and pipe** -- self-fork via os.Executable(), pipe config to child stdin
+   - Tests: `TestForkAndPipe`, `TestServeConfigGeneration` (wiring test)
+   - Files: `cmd/ze/install/serve.go`, `cmd/ze/install/serve_test.go`
+   - Verify: child ze starts with piped config, signal forwarding works, clean shutdown
 
 5. **Functional tests** -- create after feature works
 6. **Full verification** -- `make ze-verify`
@@ -260,34 +265,34 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Completeness | Every AC-N has implementation with file:line |
 | Correctness | Generated config matches ze syntax exactly; bcrypt hash is valid |
 | Naming | CLI flags use --kebab-case; Go functions use camelCase |
-| Data flow | Flags -> config string -> storage -> hub.Run() chain verified |
-| CLI grammar | `serve` is action keyword before any arguments |
+| Data flow | Flags -> config string -> stdin pipe -> child ze chain verified |
+| CLI grammar | `install serve` is action-first, no user identifiers in command path |
 | Rule: no-sprintf-alloc | Config generation uses strings.Builder, not fmt.Sprintf loops |
 | Rule: buffer-first | Not applicable (config generation, not wire encoding) |
-| Cleanup | Temp directory removed on normal exit and signal |
+| Cleanup | Signal forwarded to child, child exit code propagated |
 
 ### Deliverables Checklist (/implement stage 10)
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| `ze-install` binary compiles | `go build ./cmd/ze-install/` |
-| `ze-install serve -h` prints usage | Run and check output |
+| `ze install serve -h` prints usage | Run and check output |
 | Config generation produces valid ze config | `TestGenerateConfig` passes |
 | Server IP resolved from interface | `TestResolveServerIP` passes |
 | SSH password bcrypt-hashed | `TestPasswordHashing` passes |
 | Missing flags produce clear errors | `TestValidateFlags` passes |
-| Ephemeral zefs created and cleaned up | `TestServeConfigGeneration` passes |
+| Fork + pipe delivers config to child ze | `TestForkAndPipe` passes |
+| Signal forwarding and clean shutdown | `TestServeConfigGeneration` passes |
 
 ### Security Review Checklist (/implement stage 11)
 
 | Check | What to look for |
 |-------|-----------------|
-| Credential handling | SSH password never logged in plaintext; only bcrypt hash stored in zefs |
+| Credential handling | SSH password never logged in plaintext; only bcrypt hash embedded in generated config |
 | Path traversal | Image path validated: must exist, must be a regular file |
-| Temp directory | Created with restrictive permissions (0700); cleaned up on all exit paths |
 | Config injection | Interface name validated with same character set as `safeEmitName()` in `internal/component/iface/emit.go` (reject `{`, `}`, `;`, whitespace, NUL) before interpolation into config string. Image path validated as existing regular file. |
-| Signal handling | SIGTERM/SIGINT trigger clean shutdown; no orphan listeners |
-| Privileged ports | DHCP (67), TFTP (69), HTTP (80) require root on Linux. `ze-install` must run as root. On gokrazy, ze runs as root by default. Document in usage/help output. |
+| Signal handling | SIGTERM/SIGINT forwarded to child ze; no orphan processes |
+| Privileged ports | DHCP (67), TFTP (69), HTTP (80) require root on Linux. `ze install` must run as root. On gokrazy, ze runs as root by default. Document in usage/help output. |
+| Child process | Child inherits only stdin pipe; stderr/stdout inherited for log visibility. No credential leakage via environment. |
 
 ### Failure Routing
 
@@ -397,7 +402,7 @@ Not applicable for this spec (protocol RFC handling is in child specs 1-3).
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] Feature code integrated (`cmd/ze-install/*`)
+- [ ] Feature code integrated (`cmd/ze/install/*` + `cmd/ze/main.go` dispatch)
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated
 

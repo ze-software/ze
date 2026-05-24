@@ -52,8 +52,41 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 8. **Apply edge case techniques:** Apply EVERY technique in the table below to every changed component.
 9. **Security review:** Apply the security checklist to every user-controlled input.
 10. **Allocation review:** Check every `make()` in changed code for unbounded sizes.
-11. **Plugin traversal check:** If config structure changed, grep for all code reading the old structure.
-12. **Project rules cross-check:** For each changed file, verify compliance with applicable rules:
+11. **Logic correctness review:** Read every changed function and check for:
+
+    | Check | What to look for |
+    |-------|-----------------|
+    | Inverted condition | `if err != nil` guarding the success path, `&&` vs `\|\|` swapped |
+    | Wrong variable | Copy-paste where the second use still references the first variable |
+    | Off-by-one | `<` vs `<=`, `len-1` vs `len`, loop starts at 1 when it should start at 0 |
+    | Unreachable branch | `switch` case that can never match, `if` after an unconditional return |
+    | Missing return/break | Fall-through in switch, early-return path that forgets cleanup |
+    | Shadowed variable | `:=` in inner scope hiding an outer variable the function relies on |
+    | Integer truncation | `uint16(bigValue)` silently wrapping, `int(uint32Val)` on 32-bit |
+    | Nil dereference path | Method call on a receiver that could be nil (check callers) |
+
+    For each function: does the code do what the function name says? If a guard was removed, check `git blame` for why it existed.
+
+12. **Performance review:** Check changed code for unnecessary allocations and algorithmic issues, especially on hot paths (see `no-sprintf-alloc.md` "Hot Path Rule" for the list).
+
+    | Check | What to look for |
+    |-------|-----------------|
+    | `fmt.Sprintf` / `fmt.Errorf` on hot path | Use `textbuf.Buffer`, `errors.New`, or append-based alternatives (see `no-sprintf-alloc.md`) |
+    | `.String()` concatenation on hot path | Use `AppendTo` or `textbuf.Buffer` chain |
+    | Allocation inside a loop | `make()`, `append()`, or string building per iteration when a single buffer outside the loop suffices |
+    | Heap escape via interface boxing | Passing a concrete value through `any` or `interface{}` on a hot path |
+    | Heap escape via closure capture | Closure capturing a local variable forces it to heap |
+    | Redundant computation | Same derivation computed multiple times when it could be computed once and reused |
+    | Missing precomputation | Value derived from configuration or negotiated state that does not change per-request but is recomputed on every call. Precompute at setup time, store on the struct, reuse on the hot path |
+    | O(n^2) or worse | Nested loops over the same collection, linear scan inside a loop when a map lookup suffices |
+    | Map with string key from known set | `map[string]V` where `map[uint16]V` or typed enum key would avoid hashing overhead |
+    | `string([]byte)` for comparison | Compare bytes directly instead of converting to string |
+    | Callee allocates what caller could provide | Function does `make([]byte, n)` when caller has a buffer in scope (see `memory-architecture.md`) |
+
+    Cold paths (startup, config load, CLI one-shot) are exempt. Focus on hot paths as defined in `no-sprintf-alloc.md`.
+
+13. **Plugin traversal check:** If config structure changed, grep for all code reading the old structure.
+14. **Project rules cross-check:** For each changed file, verify compliance with applicable rules (steps 11-12 above cover logic and performance specifically; this step covers structural and convention rules):
 
 | Changed code touches | Check against |
 |---------------------|---------------|
@@ -65,7 +98,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 | Config parsing | `config-design.md` -- fail on unknown keys, no version numbers |
 | New data wrapper/struct | `design-principles.md` -- lazy over eager, no identity wrappers |
 
-13. **Filter false positives:** Before reporting, discard findings that match any of these:
+15. **Filter false positives:** Before reporting, discard findings that match any of these:
 
 | False positive | Why discard |
 |----------------|-------------|
@@ -76,16 +109,36 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 | General quality concern not tied to a specific bug | Too vague to act on |
 | Contradicts a project rule but has an explicit override comment in code | Intentional exception |
 
-    **Never discard wiring or functional-test findings.** An unwired symbol is not a false positive, a pre-existing issue, or a quality concern. It is dead code in production. A missing functional test is not a quality concern; it is a coverage gap. Wiring BLOCKERs from step 1 and functional-test BLOCKERs from step 2 always survive this filter.
+    **Never discard wiring, functional-test, logic, or hot-path performance findings.** An unwired symbol is dead code in production. A missing functional test is a coverage gap. A logic bug (wrong condition, wrong variable, off-by-one) is a correctness defect. A hot-path allocation is measurable overhead. These always survive this filter.
 
-14. **Interop and goal validation check:** If the diff implements or modifies protocol behavior (BGP capability, NLRI family, session behavior, wire format, authentication), verify per `ai/rules/interop-and-goal-validation.md`:
+16. **Interop and goal validation check:** If the diff implements or modifies protocol behavior (BGP capability, NLRI family, session behavior, wire format, authentication), verify per `ai/rules/interop-and-goal-validation.md`:
     - Does an interop test scenario exist that proves this works with another daemon?
     - If the spec has a Goal Validation table, is every goal backed by concrete evidence?
     Missing interop test for protocol work is a BLOCKER. Empty goal validation for a completed feature is an ISSUE.
 
-15. **Report findings** as a numbered list with severity:
+17. **RFC compliance check:** If the diff implements or modifies protocol behavior covered by an RFC, verify the code against the RFC summaries in `rfc/short/`.
+
+    **When to run:** The diff touches wire encoding/decoding, message handling, capability negotiation, state machine transitions, timer behavior, NLRI parsing, attribute handling, or any code with existing `// RFC NNNN` comments.
+
+    **How to check:**
+    1. Identify relevant RFCs: check the spec's Required Reading section, scan the diff for `// RFC` comments, and consult the Common RFCs table in `ai/rules/rfc-compliance.md`.
+    2. Read every matching `rfc/short/rfcNNNN.md` summary.
+    3. For each MUST/MUST NOT in the summary that applies to the changed code, verify the implementation enforces it. Check: is there a code path that violates the requirement?
+    4. For each SHOULD in the summary, verify the implementation follows it or has an explicit reason not to.
+    5. Verify that every MUST enforced in the changed code has a `// RFC NNNN Section X.Y: "quoted requirement"` comment directly above the enforcing code (per `ai/rules/rfc-compliance.md`).
+
+    | Finding | Severity |
+    |---------|----------|
+    | Code violates a MUST/MUST NOT | BLOCKER |
+    | Missing `// RFC` comment on a MUST enforcement | ISSUE |
+    | Code ignores a SHOULD without justification | ISSUE |
+    | MAY clause implemented without user decision | NOTE |
+
+    **Skip this step** if the diff has no protocol code (pure config, CLI, web, docs).
+
+18. **Report findings** as a numbered list with severity:
     - **BLOCKER:** Bug that will cause incorrect behavior, crash, or security vulnerability
-    - **ISSUE:** Missing test, edge case not handled, or quality problem
+    - **ISSUE:** Logic error, performance problem on hot path, missing test, edge case not handled
     - **NOTE:** Suggestion or minor observation
 
 ## Edge Case Techniques (MANDATORY)

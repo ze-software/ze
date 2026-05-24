@@ -18,7 +18,7 @@ The orchestrator (this skill) runs at the session's model. Spawned agents use di
 
 | Model | Agents | Why |
 |-------|--------|-----|
-| **sonnet** | Security (#1), Concurrency (#2), Logic (#5), Data Flow (#6) | Reasoning-heavy: exploit paths, race analysis, subtle bugs, cross-boundary tracing |
+| **sonnet** | Security (#1), Concurrency (#2), Logic (#5), Data Flow (#6), Performance (#10) | Reasoning-heavy: exploit paths, race analysis, subtle bugs, cross-boundary tracing, escape analysis |
 | **haiku** | Error Handling (#3), Test Coverage (#4), API Compat (#7), Project Rules (#8), Documentation (#9) | Mechanical: checklist matching, grep callers, compare docs to code |
 
 ## Steps
@@ -34,7 +34,7 @@ Read the diff to understand the full changeset. Build a file list.
 
 ### 2. Select agents
 
-If the user's argument names specific agents (keywords: security, concurrency, error, test, logic, data, api, rules, docs/documentation), run only those. Otherwise, present this menu and **wait for the user to choose**:
+If the user's argument names specific agents (keywords: security, concurrency, error, test, logic, data, api, rules, docs/documentation, performance/perf/alloc), run only those. Otherwise, present this menu and **wait for the user to choose**:
 
 ```
 Which review agents should I run?
@@ -48,6 +48,7 @@ Which review agents should I run?
 7. API Compatibility & Contract Violations
 8. Project Rules Compliance
 9. Documentation Accuracy
+10. Performance & Allocations
 
 Enter numbers (e.g., 1,5), "all", or names (e.g., "security, logic"):
 ```
@@ -56,7 +57,7 @@ Enter numbers (e.g., 1,5), "all", or names (e.g., "security, logic"):
 
 ### 3. Launch selected agents
 
-Launch the selected agents simultaneously using the Agent tool. Use `model: sonnet` for agents 1, 2, 5, 6 and `model: haiku` for agents 3, 4, 7, 8, 9 (see Model Selection table). Each agent gets the file list, diff context, and the Agent Preamble above. Each agent MUST:
+Launch the selected agents simultaneously using the Agent tool. Use `model: sonnet` for agents 1, 2, 5, 6, 10 and `model: haiku` for agents 3, 4, 7, 8, 9 (see Model Selection table). Each agent gets the file list, diff context, and the Agent Preamble above. Each agent MUST:
 - Read the actual changed files (not just the diff)
 - Apply its specific lens exhaustively
 - Return findings in the structured format below
@@ -283,6 +284,7 @@ Read the project's .claude/rules/ directory to understand all rules. Then check 
 9. **design-doc-references.md**: // Design: comment present in every .go file
 10. **related-refs.md**: // Detail: / // Overview: / // Related: cross-references are bidirectional
 11. **file-modularity.md**: Files under 600 lines, single concern per file
+12. **rfc-compliance.md**: If the diff touches protocol code (wire, message, capability, FSM, NLRI, attributes), read the relevant `rfc/short/` summaries and verify: (a) every MUST/MUST NOT is enforced, (b) every MUST enforcement has a `// RFC NNNN Section X.Y: "quoted requirement"` comment, (c) no SHOULD is ignored without justification. A MUST violation is critical severity.
 
 For each violation report:
 FILE:LINE | RULE | VIOLATION | FIX
@@ -322,6 +324,63 @@ For each finding report:
 FILE:LINE | SEVERITY (critical/high/medium/low) | CATEGORY (stale-doc/missing-doc/broken-anchor/wrong-example/missing-update) | EVIDENCE (what the doc says vs what the code does) | FIX
 
 If documentation is accurate and complete, say "Documentation is accurate" with a brief summary of what was checked.
+```
+
+**Agent 10 -- Performance & Allocations**
+```
+You are a performance engineer reviewing Go code for a high-throughput daemon. Every allocation on a hot path adds GC pressure and latency.
+
+{AGENT_PREAMBLE}
+
+SCOPE: Review these changed files: {file_list}
+
+The project has strict allocation rules. Read these files for context:
+- ai/rules/no-sprintf-alloc.md (banned fmt patterns, textbuf.Buffer usage, hot path list)
+- ai/rules/memory-architecture.md (buffer ownership, pool lifecycle, data lifecycle)
+- ai/rules/buffer-first.md (WriteTo pattern for wire encoding)
+
+Identify hot paths from no-sprintf-alloc.md "Hot Path Rule" table. Any code in those
+directories is per-message, high-frequency code.
+
+For every changed function, check:
+
+1. **fmt on hot path:** Any fmt.Sprintf, fmt.Fprintf, fmt.Errorf where a zero-alloc
+   alternative exists? (textbuf.Buffer, errors.New, strconv.Append*, AppendTo)
+2. **.String() on hot path:** Any .String() call whose result is concatenated or
+   immediately discarded? Use AppendTo or textbuf.Buffer instead.
+3. **Allocation in loop:** Any make(), append(), or string building per iteration
+   when a buffer outside the loop would suffice?
+4. **Heap escape via interface:** Passing a concrete value through any/interface{}
+   on a hot path forces heap allocation. Check with: what is the receiver type?
+5. **Heap escape via closure:** Closure capturing a local variable forces it to heap.
+   On hot paths, prefer passing the variable as a parameter.
+6. **Redundant computation:** Same derivation (string format, map lookup, type assertion)
+   computed multiple times when it could be computed once and reused.
+7. **Missing precomputation:** A value derived from configuration or negotiated state
+   that does not change per-request but is recomputed on every call. These should be
+   computed once at setup/config-load time, stored on the struct, and reused on the
+   hot path. Examples: flag sets, capability masks, pre-formatted identifiers,
+   serialized header templates.
+8. **Algorithmic complexity:** O(n^2) patterns -- nested loops, linear scan inside a loop
+   when a map or pre-sorted slice would work. Check: what is n at scale?
+9. **Callee allocates what caller could provide:** Function does make([]byte, n)
+   internally when the caller has a buffer in scope. Should use WriteTo(buf, off) pattern.
+10. **Map with string key from known set:** map[string]V where a numeric/typed key
+    would avoid per-lookup string hashing and GC scanning.
+11. **string([]byte) for comparison:** Converting bytes to string just to compare.
+    Compare bytes directly.
+12. **Pool misuse:** sync.Pool Get without Put, or holding a pool buffer past its
+    intended lifecycle (across goroutine boundaries without tracking).
+13. **Unnecessary copy:** Copying data that could be referenced. Check against the
+    project's "When Copies Happen" list in memory-architecture.md.
+
+For each finding report:
+FILE:LINE | SEVERITY (critical/high/medium/low) | CATEGORY (fmt-hot-path/heap-escape/loop-alloc/redundant-compute/missing-precompute/complexity/pool-misuse/unnecessary-copy) | EVIDENCE (the specific allocation or pattern) | IMPACT (estimated allocs/op or complexity) | FIX (specific code change using project patterns)
+
+Cold paths (startup, config load, CLI, web rendering) are exempt unless the allocation
+is unbounded. Focus severity on hot-path issues.
+
+If no performance issues found, say "No performance issues found" with a brief explanation of what was checked.
 ```
 
 ---
@@ -366,6 +425,7 @@ After all selected agents complete, consolidate their findings into a single rep
 | API Compat | N | ... |
 | Project Rules | N | ... |
 | Documentation | N | ... |
+| Performance | N | ... |
 | **Total** | **N** | **highest** |
 
 ### Verdict
