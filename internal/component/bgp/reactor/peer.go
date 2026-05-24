@@ -278,6 +278,8 @@ type Peer struct {
 	bfd bfdClient
 
 	health *sessionHealth
+
+	fwdFacts atomic.Pointer[peerForwardFacts]
 }
 
 // NewPeer creates a new peer for the given settings.
@@ -420,7 +422,6 @@ func (p *Peer) SendContextID() bgpctx.ContextID {
 // Called when session transitions to Established.
 func (p *Peer) setEncodingContexts(neg *capability.Negotiated) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 
 	p.recvCtx = bgpctx.FromNegotiatedRecv(neg)
 	if p.recvCtx != nil {
@@ -443,11 +444,14 @@ func (p *Peer) setEncodingContexts(neg *capability.Negotiated) {
 		}
 	}
 
-	// Set context IDs on session for zero-copy WireUpdate and AttrsWire creation
 	if p.session != nil {
 		p.session.SetRecvCtxID(p.recvCtxID)
 		p.session.SetSendCtxID(p.sendCtxID)
 	}
+
+	p.mu.Unlock()
+
+	p.refreshForwardFacts()
 }
 
 // RemoteRouterID returns the peer's BGP Identifier from their OPEN message.
@@ -460,6 +464,8 @@ func (p *Peer) RemoteRouterID() uint32 {
 // clearEncodingContexts clears the encoding contexts.
 // Called when session is torn down.
 func (p *Peer) clearEncodingContexts() {
+	p.fwdFacts.Store(nil)
+
 	p.mu.Lock()
 	defer p.mu.Unlock()
 

@@ -312,6 +312,8 @@ func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 	if p.dynExportFilters != nil {
 		p.settings.ExportFilters = resolveFilterVars(p.dynExportFilters, localAS, remoteAS, remoteIP)
 	}
+
+	p.refreshForwardFacts()
 }
 
 // scheduleDynamicPeerCleanup starts a timer that removes a dynamic peer after

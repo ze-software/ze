@@ -1,0 +1,245 @@
+// Design: docs/architecture/core-design.md — peer forwarding facts precomputation
+// Related: peer.go — Peer struct, lifecycle methods
+// Related: reactor_api_forward.go — ForwardUpdate egress pipeline
+// Related: forward_rs.go — reactorForwardRS egress pipeline
+package reactor
+
+import (
+	"encoding/binary"
+	"net/netip"
+
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+)
+
+const (
+	nhModeNone       uint8 = iota // No next-hop ops (Auto or Unchanged)
+	nhModeSelf4                   // Self IPv4: legacy NEXT_HOP + mapped MP_REACH
+	nhModeSelfV6                  // Self IPv6: MP_REACH global only
+	nhModeSelfV6LL                // Self IPv6: MP_REACH global + link-local
+	nhModeExplicit4               // Explicit IPv4: legacy NEXT_HOP + mapped MP_REACH
+	nhModeExplicitV6              // Explicit IPv6: MP_REACH global only
+)
+
+type sendCommunityMask uint8
+
+const (
+	scSuppressStandard sendCommunityMask = 1 << iota
+	scSuppressExtended
+	scSuppressLarge
+)
+
+// peerForwardFacts holds precomputed per-peer forwarding decisions.
+// Built at session lifecycle boundaries, read on every UPDATE iteration.
+// Stored via atomic.Pointer on Peer; nil means not established.
+type peerForwardFacts struct {
+	addr    netip.Addr
+	peerKey netip.AddrPort
+	addrStr string
+
+	localAS       uint32
+	globalLocalAS uint32
+	peerAS        uint32
+	isEBGP        bool
+
+	rsClient         bool
+	rrClient         bool
+	asOverride       bool
+	localASNoPrepend bool
+	localASReplaceAS bool
+	name             string
+	groupName        string
+	exportFilters    []string
+
+	clusterID      uint32
+	clusterIDBytes [4]byte
+
+	sendCtxID   bgpctx.ContextID
+	sendASN4    bool
+	extendedMsg bool
+	maxMsgSize  int
+
+	filterInfo registry.PeerFilterInfo
+
+	secondaryAS uint32
+
+	nhMode     uint8
+	nhLegacy   [4]byte
+	nhMapped   [16]byte
+	nhGlobal   [16]byte
+	nhGlobalLL [32]byte
+
+	scMask sendCommunityMask
+}
+
+func (p *Peer) forwardFacts() *peerForwardFacts {
+	return p.fwdFacts.Load()
+}
+
+// refreshForwardFacts builds and stores a new forwarding facts snapshot.
+// Called at: setEncodingContexts (after unlock), resolveDynamicPeerSettings.
+func (p *Peer) refreshForwardFacts() {
+	s := p.settings
+
+	p.mu.RLock()
+	sendCtxID := p.sendCtxID
+	p.mu.RUnlock()
+
+	ctx := p.sendCtx.Load()
+	nc := p.negotiated.Load()
+
+	sendASN4 := true
+	if ctx != nil {
+		sendASN4 = ctx.ASN4()
+	}
+
+	extendedMsg := nc != nil && nc.ExtendedMessage
+
+	facts := &peerForwardFacts{
+		addr:    s.Address,
+		peerKey: s.PeerKey(),
+		addrStr: p.addrString,
+
+		localAS:       s.LocalAS,
+		globalLocalAS: s.GlobalLocalAS,
+		peerAS:        s.PeerAS,
+		isEBGP:        s.IsEBGP(),
+
+		rsClient:         s.RSClient,
+		rrClient:         s.RouteReflectorClient,
+		asOverride:       s.ASOverride,
+		localASNoPrepend: s.LocalASNoPrepend,
+		localASReplaceAS: s.LocalASReplaceAS,
+		name:             s.Name,
+		groupName:        s.GroupName,
+		exportFilters:    s.ExportFilters,
+
+		sendCtxID:   sendCtxID,
+		sendASN4:    sendASN4,
+		extendedMsg: extendedMsg,
+		maxMsgSize:  int(message.MaxMessageLength(message.TypeUPDATE, extendedMsg)),
+
+		filterInfo: registry.PeerFilterInfo{
+			Address:   s.Address,
+			PeerAS:    s.PeerAS,
+			Name:      s.Name,
+			GroupName: s.GroupName,
+		},
+	}
+
+	facts.clusterID = s.EffectiveClusterID()
+	binary.BigEndian.PutUint32(facts.clusterIDBytes[:], facts.clusterID)
+
+	if s.GlobalLocalAS != 0 && s.GlobalLocalAS != s.LocalAS &&
+		!s.LocalASNoPrepend && !s.LocalASReplaceAS {
+		facts.secondaryAS = s.GlobalLocalAS
+	}
+
+	precomputeNextHop(s, facts)
+	precomputeSendCommunity(s, facts)
+
+	p.fwdFacts.Store(facts)
+}
+
+func precomputeNextHop(s *PeerSettings, f *peerForwardFacts) {
+	switch s.NextHopMode {
+	case NextHopAuto, NextHopUnchanged:
+		f.nhMode = nhModeNone
+	case NextHopSelf:
+		if !s.LocalAddress.IsValid() {
+			f.nhMode = nhModeNone
+			return
+		}
+		local := s.LocalAddress.Unmap()
+		switch {
+		case local.Is4():
+			f.nhMode = nhModeSelf4
+			f.nhLegacy = local.As4()
+			f.nhMapped = local.As16()
+		case s.LinkLocal.IsValid() && s.LinkLocal.Is6():
+			f.nhMode = nhModeSelfV6LL
+			f.nhGlobal = local.As16()
+			ll := s.LinkLocal.As16()
+			copy(f.nhGlobalLL[:16], f.nhGlobal[:])
+			copy(f.nhGlobalLL[16:], ll[:])
+		default:
+			f.nhMode = nhModeSelfV6
+			f.nhGlobal = local.As16()
+		}
+	case NextHopExplicit:
+		if !s.NextHopAddress.IsValid() {
+			f.nhMode = nhModeNone
+			return
+		}
+		explicit := s.NextHopAddress.Unmap()
+		if explicit.Is4() {
+			f.nhMode = nhModeExplicit4
+			f.nhLegacy = explicit.As4()
+			f.nhMapped = explicit.As16()
+		} else {
+			f.nhMode = nhModeExplicitV6
+			f.nhGlobal = explicit.As16()
+		}
+	}
+}
+
+func precomputeSendCommunity(s *PeerSettings, f *peerForwardFacts) {
+	if len(s.SendCommunity) == 0 {
+		return
+	}
+	sendStandard, sendLarge, sendExtended := false, false, false
+	for _, v := range s.SendCommunity {
+		switch v {
+		case "all":
+			return
+		case "none":
+			f.scMask = scSuppressStandard | scSuppressExtended | scSuppressLarge
+			return
+		case "standard":
+			sendStandard = true
+		case "large":
+			sendLarge = true
+		case "extended":
+			sendExtended = true
+		}
+	}
+	if !sendStandard {
+		f.scMask |= scSuppressStandard
+	}
+	if !sendExtended {
+		f.scMask |= scSuppressExtended
+	}
+	if !sendLarge {
+		f.scMask |= scSuppressLarge
+	}
+}
+
+func applyFactsNextHop(f *peerForwardFacts, mods *registry.ModAccumulator) {
+	switch f.nhMode {
+	case nhModeNone:
+		return
+	case nhModeSelf4, nhModeExplicit4:
+		mods.Op(3, registry.AttrModSet, f.nhLegacy[:])
+		mods.Op(14, registry.AttrModSet, f.nhMapped[:])
+	case nhModeSelfV6, nhModeExplicitV6:
+		mods.Op(14, registry.AttrModSet, f.nhGlobal[:])
+	case nhModeSelfV6LL:
+		mods.Op(14, registry.AttrModSet, f.nhGlobalLL[:])
+	}
+}
+
+func applyFactsSendCommunity(f *peerForwardFacts, mods *registry.ModAccumulator) {
+	if f.scMask == 0 {
+		return
+	}
+	if f.scMask&scSuppressStandard != 0 {
+		mods.Op(8, registry.AttrModSuppress, nil)
+	}
+	if f.scMask&scSuppressExtended != 0 {
+		mods.Op(16, registry.AttrModSuppress, nil)
+	}
+	if f.scMask&scSuppressLarge != 0 {
+		mods.Op(32, registry.AttrModSuppress, nil)
+	}
+}

@@ -58,6 +58,7 @@ func BenchmarkForwardDirect(b *testing.B) {
 	})
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
+	peer.refreshForwardFacts()
 
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {}, fwdPoolConfig{chanSize: 4096, idleTimeout: time.Second})
 	b.Cleanup(pool.Stop)

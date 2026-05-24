@@ -391,8 +391,16 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	}
 
 	// Source peer address for overflow ratio tracking (AC-16).
-	// Hoisted outside the loop — loop-invariant.
 	srcAddr := update.SourcePeerIP
+
+	// RFC 4456 Section 8: ORIGINATOR_ID bytes are per-UPDATE (same source for all peers).
+	var origBuf [4]byte
+	if srcIsIBGP {
+		origBuf[0] = byte(srcRemoteRouterID >> 24)
+		origBuf[1] = byte(srcRemoteRouterID >> 16)
+		origBuf[2] = byte(srcRemoteRouterID >> 8)
+		origBuf[3] = byte(srcRemoteRouterID)
+	}
 
 	// RFC 7947: Parse community-based forwarding policy for RS-client peers.
 	var communityPolicy *wireu.CommunityPolicy
@@ -406,30 +414,28 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	a.r.mu.RUnlock()
 
 	for _, peer := range matchingPeers {
-		if peer.State() != PeerStateEstablished {
-			continue // Skip non-established peers
+		facts := peer.forwardFacts()
+		if facts == nil {
+			continue
 		}
 
 		// RFC 7947: Community-based selective forwarding for RS-client peers.
 		// Skip when rsLocalAS is 0 (source peer disconnected; stale cache replay).
-		if rsLocalAS != 0 && peer.Settings().RSClient && peer.Settings().PeerAS != 0 {
+		if rsLocalAS != 0 && facts.rsClient && facts.peerAS != 0 {
 			if !communityParsed {
 				communityParsed = true
 				cp := wireu.ParseCommunityPolicy(update.WireUpdate.Payload(), rsLocalAS)
 				communityPolicy = &cp
 				communityStripBytes = wireu.StripControlCommunities(update.WireUpdate.Payload(), rsLocalAS)
 			}
-			if !communityPolicy.ShouldForwardTo(peer.Settings().PeerAS) {
+			if !communityPolicy.ShouldForwardTo(facts.peerAS) {
 				continue
 			}
 		}
 
 		// RFC 4456: Route reflection forwarding rules.
-		if srcIsIBGP && !peer.Settings().IsEBGP() {
-			dstIsClient := peer.Settings().RouteReflectorClient
-			if srcIsRRClient {
-				// Client -> client and client -> non-client: always forward.
-			} else if !dstIsClient {
+		if srcIsIBGP && !facts.isEBGP {
+			if !srcIsRRClient && !facts.rrClient {
 				continue // Non-client -> non-client: suppress.
 			}
 		}
@@ -439,16 +445,11 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		var mods registry.ModAccumulator
 
 		// RFC 7947: Strip RS control communities (0:X, RS:X) before forwarding.
-		if peer.Settings().RSClient && len(communityStripBytes) > 0 {
+		if facts.rsClient && len(communityStripBytes) > 0 {
 			mods.Op(8, registry.AttrModRemove, communityStripBytes)
 		}
 		if len(a.r.egressFilters) > 0 {
-			destFilter := registry.PeerFilterInfo{
-				Address:   peer.Settings().Address,
-				PeerAS:    peer.Settings().PeerAS,
-				Name:      peer.Settings().Name,
-				GroupName: peer.Settings().GroupName,
-			}
+			destFilter := facts.filterInfo
 			payload := update.WireUpdate.Payload()
 			suppressed := false
 			for _, filter := range a.r.egressFilters {
@@ -464,16 +465,16 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		// Policy export filter chain: external plugin filters (after in-process filters).
 		// Per-peer wire override from export policy modification (P1-3: never mutate shared update).
 		var exportWireOverride *wireu.WireUpdate
-		if exportFilters := peer.Settings().ExportFilters; len(exportFilters) > 0 && a.r.api != nil {
+		if len(facts.exportFilters) > 0 && a.r.api != nil {
 			attrsWire, attrErr := update.WireUpdate.Attrs()
 			if attrErr != nil {
 				fwdLogger().Debug("attrs extraction for export filter",
-					"peer", peer.Settings().Address, "error", attrErr)
+					"peer", facts.addr, "error", attrErr)
 			}
 			var scratchArr [65536]byte
 			scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, update.WireUpdate, nil)
 			updateText := unsafe.String(unsafe.SliceData(scratch), len(scratch)) //nolint:gosec // audited: scratch outlives synchronous PolicyFilterChain+CallRPC
-			action, modifiedText := PolicyFilterChain(exportFilters, "export", peer.Settings().Address.String(), peer.Settings().PeerAS,
+			action, modifiedText := PolicyFilterChain(facts.exportFilters, "export", facts.addrStr, facts.peerAS,
 				updateText, a.r.policyFilterFunc(update.WireUpdate.Payload()),
 			)
 			if action == PolicyReject {
@@ -483,7 +484,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			if modifiedText != updateText {
 				var exportMods registry.ModAccumulator
 				textDeltaToModOps(updateText, modifiedText, &exportMods)
-				ExtractASPathPrependOps(modifiedText, peer.Settings().LocalAS, &exportMods)
+				ExtractASPathPrependOps(modifiedText, facts.localAS, &exportMods)
 				nlriOverride := extractLegacyNLRIOverride(updateText, modifiedText)
 				if exportMods.Len() > 0 || nlriOverride != nil {
 					if modPayload, _ := buildModifiedPayload(update.WireUpdate.Payload(), &exportMods, a.r.attrModHandlers, nil, nlriOverride); modPayload != nil {
@@ -494,37 +495,13 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		}
 
 		// RFC 4456: Route reflection attribute injection.
-		// When reflecting to iBGP peers, add ORIGINATOR_ID (if absent) and
-		// prepend own cluster-id to CLUSTER_LIST.
-		if srcIsIBGP && peer.Settings().IsIBGP() {
-			clusterID := peer.Settings().EffectiveClusterID()
-			// ORIGINATOR_ID (type 9): set to source peer's BGP Identifier if not already present.
-			// RFC 4456 Section 8: "If the ORIGINATOR_ID is not present, it MUST be set
-			// to the BGP Identifier of the originator of the route to the local AS."
-			// The handler checks if the attribute already exists and skips if so.
-			var origBuf [4]byte
-			origBuf[0] = byte(srcRemoteRouterID >> 24)
-			origBuf[1] = byte(srcRemoteRouterID >> 16)
-			origBuf[2] = byte(srcRemoteRouterID >> 8)
-			origBuf[3] = byte(srcRemoteRouterID)
-			mods.Op(9, registry.AttrModSet, origBuf[:]) // ORIGINATOR_ID
-
-			// CLUSTER_LIST (type 10): prepend own cluster-id.
-			// RFC 4456 Section 8: "The local CLUSTER_ID MUST be prepended to the
-			// CLUSTER_LIST."
-			var clBuf [4]byte
-			clBuf[0] = byte(clusterID >> 24)
-			clBuf[1] = byte(clusterID >> 16)
-			clBuf[2] = byte(clusterID >> 8)
-			clBuf[3] = byte(clusterID)
-			mods.Op(10, registry.AttrModPrepend, clBuf[:]) // CLUSTER_LIST
+		if srcIsIBGP && !facts.isEBGP {
+			mods.Op(9, registry.AttrModSet, origBuf[:])
+			mods.Op(10, registry.AttrModPrepend, facts.clusterIDBytes[:])
 		}
 
-		// RFC 4271 Section 5.1.3: Next-hop rewriting per destination peer.
-		applyNextHopMod(peer.Settings(), &mods)
-
-		// Send-community control: suppress community types not in the peer's send list.
-		applySendCommunityFilter(peer.Settings(), &mods)
+		applyFactsNextHop(facts, &mods)
+		applyFactsSendCommunity(facts, &mods)
 
 		// Use per-peer export-modified wire when available, otherwise shared wire.
 		peerBaseWire := update.WireUpdate
@@ -532,30 +509,16 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			peerBaseWire = exportWireOverride
 		}
 
-		// AS-override: replace peer's ASN with local ASN in outbound AS_PATH.
-		if peer.Settings().ASOverride && peer.Settings().IsEBGP() {
-			applyASOverride(peer.Settings(), peerBaseWire, peer.asn4(), &mods)
+		if facts.asOverride && facts.isEBGP {
+			applyASOverride(facts.peerAS, facts.localAS, peerBaseWire, facts.sendASN4, &mods)
 		}
 
 		// Select wire version for this peer.
 		// RFC 4271 §9.1.2: EBGP peers get AS-PATH-prepended wire.
-		// IBGP peers get original wire unchanged.
 		// RFC 7947 Section 2.2.2: RS MUST NOT modify AS_PATH for RS-client peers.
 		peerWire := peerBaseWire
-		if peer.Settings().IsEBGP() && !peer.Settings().RSClient {
-			// Local-AS dual-AS mode: when the peer has a local-as override
-			// (LocalAS != GlobalLocalAS) and neither no-prepend nor replace-as
-			// is set, outbound AS_PATH dual-prepends both the override (closest
-			// to peer) and the real global AS behind it. Either modifier falls
-			// back to single prepend of the override.
-			var secondaryAS uint32
-			if peer.Settings().GlobalLocalAS != 0 &&
-				peer.Settings().GlobalLocalAS != peer.Settings().LocalAS &&
-				!peer.Settings().LocalASNoPrepend &&
-				!peer.Settings().LocalASReplaceAS {
-				secondaryAS = peer.Settings().GlobalLocalAS
-			}
-			wire, ok := getEBGPWire(peer.Settings().LocalAS, secondaryAS, peer.asn4())
+		if facts.isEBGP && !facts.rsClient {
+			wire, ok := getEBGPWire(facts.localAS, facts.secondaryAS, facts.sendASN4)
 			if !ok {
 				continue // Skip: cannot forward without AS_PATH prepend (RFC 4271 §9.1.2)
 			}
@@ -571,7 +534,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		// RFC 9494: Convert announce to withdrawal for this peer (LLGR egress filter).
 		// Checked before attribute mods since withdrawal replaces the entire payload.
 		if mods.IsWithdraw() {
-			peerKey := fwdKey{peerAddr: peer.Settings().PeerKey()}
+			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := a.r.fwdPool.OutgoingPool(peerKey)
 			if withdrawal, bufIdx := buildWithdrawalPayload(peerWire.Payload(), modPool); withdrawal != nil {
 				peerWire = wireu.NewWireUpdate(withdrawal, peerWire.SourceCtxID())
@@ -579,16 +542,11 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				modPoolRef = modPool
 			} else {
 				fwdLogger().Warn("withdrawal conversion failed, suppressing route",
-					"peer", peer.Settings().Address)
+					"peer", facts.addr)
 				continue
 			}
 		} else if mods.Len() > 0 {
-			// Apply accumulated attribute modifications from egress filters.
-			// Runs AFTER wire selection so mods apply to the correct wire version
-			// (e.g., EBGP wire with AS-PATH prepended, not the original).
-			// Copy-on-modify: uses per-peer pool buffer when available, avoiding
-			// sync.Pool allocation. Zero-cost when mods.Len() == 0 (common case).
-			peerKey := fwdKey{peerAddr: peer.Settings().PeerKey()}
+			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := a.r.fwdPool.OutgoingPool(peerKey)
 			if modified, bufIdx := buildModifiedPayload(peerWire.Payload(), &mods, a.r.attrModHandlers, modPool, nil); modified != nil {
 				peerWire = wireu.NewWireUpdate(modified, peerWire.SourceCtxID())
@@ -600,16 +558,10 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		// Build the fwdItem with pre-computed send operations for this peer.
 		item := fwdItem{peer: peer, meta: update.Meta, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
 
-		// Get max message size for this peer (RFC 8654)
-		nc := peer.negotiated.Load()
-		extendedMessage := nc != nil && nc.ExtendedMessage
-		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, extendedMessage))
+		extendedMessage := facts.extendedMsg
+		maxMsgSize := facts.maxMsgSize
 
-		// Group-aware forward: check cache for peers with identical context
-		// and wire version. Avoids redundant context checks and parsing.
-		// rs-fastpath-3: supersedeKey/withdrawal are hoisted into the cache
-		// entry too; peers sharing rawBodies skip FNV hash + attribute scan.
-		destCtxID := peer.SendContextID()
+		destCtxID := facts.sendCtxID
 		if groupsEnabled {
 			cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage}
 			if cached, ok := fwdBodyCache[cacheKey]; ok {
@@ -622,7 +574,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		}
 
 		{
-			body, ok := buildFwdBody(peerWire, maxMsgSize, destCtxID, peer, peer.Settings().Address, &parseCache)
+			body, ok := buildFwdBody(peerWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
 			if !ok {
 				continue
 			}
@@ -645,7 +597,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 
 		pending = append(pending, pendingFwd{
 			item: item,
-			key:  fwdKey{peerAddr: peer.Settings().PeerKey()},
+			key:  fwdKey{peerAddr: facts.peerKey},
 		})
 	}
 
@@ -878,7 +830,7 @@ func applySendCommunityFilter(dest *PeerSettings, mods *registry.ModAccumulator)
 
 // applyASOverride replaces occurrences of the peer's ASN with local ASN in AS_PATH.
 // RFC 4271: AS_PATH is type 2. The handler rewrites the AS_PATH segment data.
-func applyASOverride(dest *PeerSettings, wire *wireu.WireUpdate, asn4 bool, mods *registry.ModAccumulator) {
+func applyASOverride(peerAS, localAS uint32, wire *wireu.WireUpdate, asn4 bool, mods *registry.ModAccumulator) {
 	attrs, err := wire.Attrs()
 	if err != nil || attrs == nil {
 		return
@@ -887,7 +839,6 @@ func applyASOverride(dest *PeerSettings, wire *wireu.WireUpdate, asn4 bool, mods
 	if err != nil || len(raw) == 0 {
 		return
 	}
-	// GetRaw returns header+value; extract value only (skip flags+code+len).
 	hdrLen := 3
 	if len(raw) > 0 && raw[0]&0x10 != 0 {
 		hdrLen = 4
@@ -896,7 +847,7 @@ func applyASOverride(dest *PeerSettings, wire *wireu.WireUpdate, asn4 bool, mods
 		return
 	}
 	data := raw[hdrLen:]
-	rewritten := rewriteASPathOverride(data, dest.PeerAS, dest.LocalAS, asn4)
+	rewritten := rewriteASPathOverride(data, peerAS, localAS, asn4)
 	if rewritten != nil {
 		mods.Op(2, registry.AttrModSet, rewritten)
 	}

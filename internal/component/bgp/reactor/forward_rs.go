@@ -104,12 +104,12 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			srcRemoteRouterID = peer.RemoteRouterID()
 			continue
 		}
-		if peer.State() != PeerStateEstablished {
+		pf := peer.forwardFacts()
+		if pf == nil {
 			continue
 		}
-		// Peers with ExportFilters fall back to bgp-rs ForwardCached.
-		if len(peer.Settings().ExportFilters) > 0 {
-			skipped = append(skipped, peer.Settings().PeerKey())
+		if len(pf.exportFilters) > 0 {
+			skipped = append(skipped, pf.peerKey)
 			continue
 		}
 		matchingPeers = append(matchingPeers, peer)
@@ -259,44 +259,48 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		rsLocalAS = sourcePeer.Settings().GlobalLocalAS
 	}
 
+	// RFC 4456 Section 8: ORIGINATOR_ID bytes are per-UPDATE constant.
+	var origBuf [4]byte
+	if srcIsIBGP {
+		origBuf[0] = byte(srcRemoteRouterID >> 24)
+		origBuf[1] = byte(srcRemoteRouterID >> 16)
+		origBuf[2] = byte(srcRemoteRouterID >> 8)
+		origBuf[3] = byte(srcRemoteRouterID)
+	}
+
 	for _, peer := range matchingPeers {
+		facts := peer.forwardFacts()
+		if facts == nil {
+			continue
+		}
+
 		// RFC 7947: Community-based selective forwarding for RS-client peers.
-		if peer.Settings().RSClient && peer.Settings().PeerAS != 0 {
+		if facts.rsClient && facts.peerAS != 0 {
 			if !communityParsed {
 				communityParsed = true
 				cp := wireu.ParseCommunityPolicy(update.WireUpdate.Payload(), rsLocalAS)
 				communityPolicy = &cp
 				communityStripBytes = wireu.StripControlCommunities(update.WireUpdate.Payload(), rsLocalAS)
 			}
-			if !communityPolicy.ShouldForwardTo(peer.Settings().PeerAS) {
+			if !communityPolicy.ShouldForwardTo(facts.peerAS) {
 				continue
 			}
 		}
 
 		// RFC 4456: Route reflection forwarding rules.
-		if srcIsIBGP && !peer.Settings().IsEBGP() {
-			dstIsClient := peer.Settings().RouteReflectorClient
-			if srcIsRRClient {
-				// Client -> client and client -> non-client: always forward.
-			} else if !dstIsClient {
-				continue // Non-client -> non-client: suppress.
+		if srcIsIBGP && !facts.isEBGP {
+			if !srcIsRRClient && !facts.rrClient {
+				continue
 			}
 		}
 
-		// Egress filter chain.
 		var mods registry.ModAccumulator
 
-		// RFC 7947: Strip RS control communities (0:X, RS:X) before forwarding.
-		if peer.Settings().RSClient && len(communityStripBytes) > 0 {
+		if facts.rsClient && len(communityStripBytes) > 0 {
 			mods.Op(8, registry.AttrModRemove, communityStripBytes)
 		}
 		if len(r.egressFilters) > 0 {
-			destFilter := registry.PeerFilterInfo{
-				Address:   peer.Settings().Address,
-				PeerAS:    peer.Settings().PeerAS,
-				Name:      peer.Settings().Name,
-				GroupName: peer.Settings().GroupName,
-			}
+			destFilter := facts.filterInfo
 			payload := update.WireUpdate.Payload()
 			suppressed := false
 			for _, filter := range r.egressFilters {
@@ -311,46 +315,22 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		}
 
 		// RFC 4456: Route reflection attribute injection for IBGP destinations.
-		if srcIsIBGP && peer.Settings().IsIBGP() {
-			clusterID := peer.Settings().EffectiveClusterID()
-			var origBuf [4]byte
-			origBuf[0] = byte(srcRemoteRouterID >> 24)
-			origBuf[1] = byte(srcRemoteRouterID >> 16)
-			origBuf[2] = byte(srcRemoteRouterID >> 8)
-			origBuf[3] = byte(srcRemoteRouterID)
+		if srcIsIBGP && !facts.isEBGP {
 			mods.Op(9, registry.AttrModSet, origBuf[:])
-
-			var clBuf [4]byte
-			clBuf[0] = byte(clusterID >> 24)
-			clBuf[1] = byte(clusterID >> 16)
-			clBuf[2] = byte(clusterID >> 8)
-			clBuf[3] = byte(clusterID)
-			mods.Op(10, registry.AttrModPrepend, clBuf[:])
+			mods.Op(10, registry.AttrModPrepend, facts.clusterIDBytes[:])
 		}
 
-		// RFC 4271 Section 5.1.3: Next-hop rewriting.
-		applyNextHopMod(peer.Settings(), &mods)
+		applyFactsNextHop(facts, &mods)
+		applyFactsSendCommunity(facts, &mods)
 
-		// Send-community control.
-		applySendCommunityFilter(peer.Settings(), &mods)
-
-		// AS-override.
-		if peer.Settings().ASOverride && peer.Settings().IsEBGP() {
-			applyASOverride(peer.Settings(), update.WireUpdate, peer.asn4(), &mods)
+		if facts.asOverride && facts.isEBGP {
+			applyASOverride(facts.peerAS, facts.localAS, update.WireUpdate, facts.sendASN4, &mods)
 		}
 
-		// Select wire version.
 		// RFC 7947 Section 2.2.2: RS MUST NOT modify AS_PATH for RS-client peers.
 		peerWire := update.WireUpdate
-		if peer.Settings().IsEBGP() && !peer.Settings().RSClient {
-			var secondaryAS uint32
-			if peer.Settings().GlobalLocalAS != 0 &&
-				peer.Settings().GlobalLocalAS != peer.Settings().LocalAS &&
-				!peer.Settings().LocalASNoPrepend &&
-				!peer.Settings().LocalASReplaceAS {
-				secondaryAS = peer.Settings().GlobalLocalAS
-			}
-			wire, ok := getEBGPWire(peer.Settings().LocalAS, secondaryAS, peer.asn4())
+		if facts.isEBGP && !facts.rsClient {
+			wire, ok := getEBGPWire(facts.localAS, facts.secondaryAS, facts.sendASN4)
 			if !ok {
 				continue
 			}
@@ -362,9 +342,8 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		var modBufIdx int
 		var modPoolRef *peerPool
 
-		// RFC 9494: Withdrawal conversion (LLGR egress filter).
 		if mods.IsWithdraw() {
-			peerKey := fwdKey{peerAddr: peer.Settings().PeerKey()}
+			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := r.fwdPool.OutgoingPool(peerKey)
 			if withdrawal, bufIdx := buildWithdrawalPayload(peerWire.Payload(), modPool); withdrawal != nil {
 				peerWire = wireu.NewWireUpdate(withdrawal, peerWire.SourceCtxID())
@@ -372,11 +351,11 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 				modPoolRef = modPool
 			} else {
 				fwdLogger().Warn("withdrawal conversion failed, suppressing route",
-					"peer", peer.Settings().Address)
+					"peer", facts.addr)
 				continue
 			}
 		} else if mods.Len() > 0 {
-			peerKey := fwdKey{peerAddr: peer.Settings().PeerKey()}
+			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := r.fwdPool.OutgoingPool(peerKey)
 			if modified, bufIdx := buildModifiedPayload(peerWire.Payload(), &mods, r.attrModHandlers, modPool, nil); modified != nil {
 				peerWire = wireu.NewWireUpdate(modified, peerWire.SourceCtxID())
@@ -387,11 +366,10 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 
 		item := fwdItem{peer: peer, meta: update.Meta, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
 
-		nc := peer.negotiated.Load()
-		extendedMessage := nc != nil && nc.ExtendedMessage
-		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, extendedMessage))
+		extendedMessage := facts.extendedMsg
+		maxMsgSize := facts.maxMsgSize
 
-		destCtxID := peer.SendContextID()
+		destCtxID := facts.sendCtxID
 		if groupsEnabled {
 			cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage}
 			for j := range bodySlotCount {
@@ -407,7 +385,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		}
 
 		{
-			body, ok := buildFwdBody(peerWire, maxMsgSize, destCtxID, peer, peer.Settings().Address, &parseCache)
+			body, ok := buildFwdBody(peerWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
 			if !ok {
 				continue
 			}
@@ -431,7 +409,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 
 		pending = append(pending, pendingFwd{
 			item: item,
-			key:  fwdKey{peerAddr: peer.Settings().PeerKey()},
+			key:  fwdKey{peerAddr: facts.peerKey},
 		})
 	}
 

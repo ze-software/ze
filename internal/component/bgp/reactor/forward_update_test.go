@@ -64,6 +64,7 @@ func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 	// Set send context to match source context → zero-copy path
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
+	peer.refreshForwardFacts()
 
 	// Capture dispatched items via test handler
 	var dispatched []fwdItem
@@ -156,6 +157,7 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 	})
 	peer1.sendCtx.Store(ctx)
 	peer1.sendCtxID = ctxID
+	peer1.refreshForwardFacts()
 
 	peer2Settings := &PeerSettings{
 		Connection: ConnectionBoth,
@@ -172,6 +174,7 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 	})
 	peer2.sendCtx.Store(ctx)
 	peer2.sendCtxID = ctxID
+	peer2.refreshForwardFacts()
 
 	// Block workers so we can observe Retain count while they're in flight
 	blocker := make(chan struct{})
@@ -256,6 +259,7 @@ func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 	})
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
+	peer.refreshForwardFacts()
 
 	// Create pool and stop it immediately
 	testPool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
@@ -327,6 +331,7 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 	})
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
+	peer.refreshForwardFacts()
 
 	// Marker attribute: code 250 (private), 2-byte value.
 	markerValue := []byte{0xDE, 0xAD}
@@ -440,6 +445,7 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	})
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
+	peer.refreshForwardFacts()
 
 	egressFilter := func(_, _ registry.PeerFilterInfo, _ []byte, _ map[string]any, mods *registry.ModAccumulator) bool {
 		mods.Op(251, registry.AttrModSet, []byte{0x01})
@@ -537,6 +543,7 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	})
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
+	peer.refreshForwardFacts()
 
 	// Egress filter writes an AttrOp for a code with NO registered handler.
 	egressFilter := func(_, _ registry.PeerFilterInfo, _ []byte, _ map[string]any, mods *registry.ModAccumulator) bool {
@@ -636,6 +643,7 @@ func fastpathSetup(t *testing.T, nPeers int, msgID uint64) (
 		})
 		p.sendCtx.Store(ctx)
 		p.sendCtxID = ctxID
+		p.refreshForwardFacts()
 		peersMap[settings.PeerKey()] = p
 		peers = append(peers, p)
 	}
@@ -742,6 +750,7 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 		})
 		p.sendCtx.Store(ctx)
 		p.sendCtxID = ctxID
+		p.refreshForwardFacts()
 		return p
 	}
 	peerA := mkPeer("10.0.0.2", 0x01020301)

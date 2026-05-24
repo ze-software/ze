@@ -40,6 +40,7 @@ func makeRSPeer(t testing.TB, addr string, peerAS uint32, ctx *bgpctx.EncodingCo
 	})
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
+	peer.refreshForwardFacts()
 	return peer
 }
 
@@ -145,6 +146,7 @@ func TestReactorForwardRSFallback(t *testing.T) {
 	// dst2 has export filters -- should be skipped.
 	dst2 := makeRSPeer(t, "10.0.0.3", 65003, ctx, ctxID)
 	dst2.settings.ExportFilters = []string{"bgp-rs:test-filter"}
+	dst2.refreshForwardFacts()
 
 	var dispatched []fwdItem
 	var mu sync.Mutex
@@ -230,6 +232,7 @@ func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 	})
 	dst.sendCtx.Store(ctx)
 	dst.sendCtxID = ctxID
+	dst.refreshForwardFacts()
 
 	var dispatched []fwdItem
 	var mu sync.Mutex
@@ -376,6 +379,7 @@ func TestReactorForwardRSRouteReflection(t *testing.T) {
 	})
 	src.sendCtx.Store(ctx)
 	src.sendCtxID = ctxID
+	src.refreshForwardFacts()
 	src.remoteRouterID.Store(0x0A000001) // 10.0.0.1
 
 	// Destination: IBGP non-client (route reflection target).
@@ -395,6 +399,7 @@ func TestReactorForwardRSRouteReflection(t *testing.T) {
 	})
 	dst.sendCtx.Store(ctx)
 	dst.sendCtxID = ctxID
+	dst.refreshForwardFacts()
 
 	handlers := attrModHandlersWithDefaults()
 
