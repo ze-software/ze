@@ -57,13 +57,13 @@ func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 		// open/close mini-sessions to stress Ze's session handling.
 		// The final reconnection is handled by runPeerLoop.
 		conn.Close() //nolint:errcheck,gosec // intentional close to start storm
-		executeReconnectStorm(ctx, cfg.Addr, p, emit)
+		executeReconnectStorm(ctx, cfg.Addr, p, cfg.Dialer, emit)
 		return ChaosResult{Disconnected: true}
 
 	case engine.ActionConnectionCollision:
 		// Open a second TCP connection with the same RouterID while
 		// the first is active. Tests RFC 4271 Section 6.8 collision handling.
-		executeConnectionCollision(ctx, cfg.Addr, p, emit)
+		executeConnectionCollision(ctx, cfg.Addr, p, cfg.Dialer, emit)
 		return ChaosResult{Disconnected: false}
 
 	case engine.ActionMalformedUpdate:
@@ -188,12 +188,21 @@ func pickRandomRoutes(routes []netip.Prefix, n int, seed uint64, peerIndex int) 
 
 // executeReconnectStorm performs rapid connect/disconnect cycles to stress
 // Ze's session handling. Each cycle does a minimal OPEN/KEEPALIVE handshake.
-func executeReconnectStorm(ctx context.Context, addr string, p SimProfile, emit func(Event)) {
-	d := net.Dialer{Timeout: 5 * time.Second}
+// When dialer is non-nil, it is used instead of net.Dialer (for in-process mode).
+func executeReconnectStorm(ctx context.Context, addr string, p SimProfile, dialer interface {
+	DialContext(ctx context.Context, network, address string) (net.Conn, error)
+}, emit func(Event)) {
+	var dial func(ctx context.Context, network, address string) (net.Conn, error)
+	if dialer != nil {
+		dial = dialer.DialContext
+	} else {
+		d := net.Dialer{Timeout: 5 * time.Second}
+		dial = d.DialContext
+	}
 	for range stormCycles {
 		time.Sleep(stormDelay)
 
-		stormConn, err := d.DialContext(ctx, "tcp", addr)
+		stormConn, err := dial(ctx, "tcp", addr)
 		if err != nil {
 			break
 		}
@@ -227,9 +236,18 @@ func executeReconnectStorm(ctx context.Context, addr string, p SimProfile, emit 
 
 // executeConnectionCollision opens a second TCP connection with the same
 // RouterID to trigger RFC 4271 Section 6.8 connection collision handling.
-func executeConnectionCollision(ctx context.Context, addr string, p SimProfile, emit func(Event)) {
-	d := net.Dialer{Timeout: 5 * time.Second}
-	collisionConn, err := d.DialContext(ctx, "tcp", addr)
+// When dialer is non-nil, it is used instead of net.Dialer (for in-process mode).
+func executeConnectionCollision(ctx context.Context, addr string, p SimProfile, dialer interface {
+	DialContext(ctx context.Context, network, address string) (net.Conn, error)
+}, emit func(Event)) {
+	var dial func(ctx context.Context, network, address string) (net.Conn, error)
+	if dialer != nil {
+		dial = dialer.DialContext
+	} else {
+		d := net.Dialer{Timeout: 5 * time.Second}
+		dial = d.DialContext
+	}
+	collisionConn, err := dial(ctx, "tcp", addr)
 	if err != nil {
 		emit(Event{Type: EventError, Err: fmt.Errorf("collision connection: %w", err)})
 		return

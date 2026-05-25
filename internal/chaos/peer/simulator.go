@@ -86,6 +86,13 @@ type SimulatorConfig struct {
 	// When non-nil, the keepalive loop uses this clock instead of real time.
 	// This allows VirtualClock.Advance() to drive keepalive timing deterministically.
 	Clock clock.Clock
+
+	// Dialer is an optional network dialer for in-process mode.
+	// When non-nil, executeReconnectStorm and executeConnectionCollision use
+	// this instead of net.Dialer{}. Allows mock connections in in-process mode.
+	Dialer interface {
+		DialContext(ctx context.Context, network, address string) (net.Conn, error)
+	}
 }
 
 // ChaosResult describes the outcome of a chaos action on this simulator.

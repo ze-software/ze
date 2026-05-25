@@ -13,9 +13,12 @@ import (
 	"time"
 
 	chaossim "codeberg.org/thomas-mangin/ze/internal/chaos"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/guard"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/mocknet"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/report"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/route"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -73,6 +76,30 @@ type RunConfig struct {
 	// current step delay. This enables dynamic speed control from the web
 	// dashboard. If it returns 0, the static StepDelay is used instead.
 	StepDelayFunc func() time.Duration
+
+	// ChaosRate is the per-peer probability of a chaos event per interval (0.0-1.0).
+	// Zero disables chaos scheduling (existing behavior).
+	ChaosRate float64
+
+	// ChaosInterval is the time between chaos scheduling checks.
+	// Defaults to 1s if ChaosRate > 0.
+	ChaosInterval time.Duration
+
+	// RouteRate is the per-peer probability of a route dynamics event per interval (0.0-1.0).
+	// Zero disables route dynamics (existing behavior).
+	RouteRate float64
+
+	// RouteInterval is the time between route dynamics checks.
+	// Defaults to 5s if RouteRate > 0.
+	RouteInterval time.Duration
+
+	// Warmup is the virtual time delay before chaos/route scheduling begins.
+	// Defaults to 5s.
+	Warmup time.Duration
+
+	// BaseRoutes is the base route count per peer for churn calculations.
+	// Defaults to the first profile's RouteCount if zero.
+	BaseRoutes int
 }
 
 // RunResult holds the output from an in-process chaos run.
@@ -186,6 +213,34 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 
 	localTCPAddr := &net.TCPAddr{IP: net.ParseIP(cfg.LocalAddr), Port: 179}
 	peerConns := make([]net.Conn, len(cfg.Profiles))
+	peerCount := len(cfg.Profiles)
+
+	// Set up chaos/route scheduling infrastructure when rates > 0.
+	chaosEnabled := cfg.ChaosRate > 0
+	routeEnabled := cfg.RouteRate > 0
+
+	var chaosChannels []chan engine.ChaosAction
+	var routeChannels []chan route.Action
+	var peerGuard *guard.Guard
+	var es *establishedState
+
+	if chaosEnabled || routeEnabled {
+		es = newEstablishedState(peerCount)
+		peerGuard = guard.New(peerCount)
+
+		if chaosEnabled {
+			chaosChannels = make([]chan engine.ChaosAction, peerCount)
+			for i := range chaosChannels {
+				chaosChannels[i] = make(chan engine.ChaosAction, 1)
+			}
+		}
+		if routeEnabled {
+			routeChannels = make([]chan route.Action, peerCount)
+			for i := range routeChannels {
+				routeChannels[i] = make(chan route.Action, 1)
+			}
+		}
+	}
 
 	for i := range cfg.Profiles {
 		profile := cfg.Profiles[i]
@@ -204,33 +259,79 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		// Queue the reactor end on the listener — this unblocks Accept().
 		ml.QueueConn(wrappedReactorEnd)
 
-		// Start the peer simulator with the peer end of the connection.
-		simWg.Add(1)
-		go func(p scenario.PeerProfile, conn net.Conn) {
-			defer simWg.Done()
-			peer.RunSimulator(simCtx, peer.SimulatorConfig{
-				Profile: peer.SimProfile{
-					Index:      p.Index,
-					ASN:        p.ASN,
-					RouterID:   p.RouterID,
-					IsIBGP:     p.IsIBGP,
-					HoldTime:   p.HoldTime,
-					RouteCount: p.RouteCount,
-					TotalPeers: len(cfg.Profiles),
-					Families:   p.Families,
-					SlowRead:   p.SlowRead,
-				},
-				Seed:   cfg.Seed,
-				Addr:   "", // Not used — Conn is set.
-				Events: events,
-				Conn:   conn,
-				Clock:  vc,
-			})
-		}(profile, peerEnd)
+		// Build SimulatorConfig with optional chaos/route channels and dialer.
+		simCfg := peer.SimulatorConfig{
+			Profile: peer.SimProfile{
+				Index:      profile.Index,
+				ASN:        profile.ASN,
+				RouterID:   profile.RouterID,
+				IsIBGP:     profile.IsIBGP,
+				HoldTime:   profile.HoldTime,
+				RouteCount: profile.RouteCount,
+				TotalPeers: peerCount,
+				Families:   profile.Families,
+				SlowRead:   profile.SlowRead,
+			},
+			Seed:   cfg.Seed,
+			Addr:   "",
+			Events: events,
+			Conn:   peerEnd,
+			Clock:  vc,
+		}
+		if chaosEnabled {
+			simCfg.Chaos = chaosChannels[i]
+			simCfg.Dialer = &reconnectDialer{
+				cpm:       cpm,
+				ml:        ml,
+				localAddr: localTCPAddr,
+				peerIP:    peerIP,
+			}
+		}
+		if routeEnabled {
+			simCfg.Routes = routeChannels[i]
+		}
+
+		// When chaos is enabled, wrap the simulator in a reconnection loop
+		// so it restarts after chaos-induced disconnects.
+		if chaosEnabled {
+			simWg.Add(1)
+			go func(sc peer.SimulatorConfig, idx int) {
+				defer simWg.Done()
+				for {
+					peer.RunSimulator(simCtx, sc)
+					if simCtx.Err() != nil {
+						return
+					}
+					// Emit reconnecting event (matches external orchestrator's runPeerLoop).
+					select {
+					case events <- peer.Event{Type: peer.EventReconnecting, PeerIndex: idx, Time: time.Now()}:
+					case <-simCtx.Done():
+						return
+					}
+					// Create new connection pair for reconnection.
+					newPeer, newReactor, err := cpm.NewPair()
+					if err != nil {
+						return
+					}
+					peerIP := net.IPv4(127, 0, 0, byte(2+idx))
+					remoteTCPAddr := &net.TCPAddr{IP: peerIP, Port: 0}
+					wrapped := mocknet.NewConnWithAddr(newReactor, localTCPAddr, remoteTCPAddr)
+					ml.QueueConn(wrapped)
+					sc.Conn = newPeer
+				}
+			}(simCfg, i)
+		} else {
+			simWg.Add(1)
+			go func(sc peer.SimulatorConfig) {
+				defer simWg.Done()
+				peer.RunSimulator(simCtx, sc)
+			}(simCfg)
+		}
 	}
 
 	// Drain events in real-time so the channel buffer doesn't fill up.
 	// When a Consumer is set (e.g., web dashboard), forward events as they arrive.
+	// When chaos/route is enabled, also update established state and guard.
 	var collectedEvents []peer.Event
 	var eventsMu sync.Mutex
 	eventsDone := make(chan struct{})
@@ -239,6 +340,16 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		for ev := range events {
 			if cfg.Consumer != nil {
 				cfg.Consumer.ProcessEvent(ev)
+			}
+			if es != nil {
+				switch ev.Type { //nolint:exhaustive // only tracking lifecycle transitions
+				case peer.EventEstablished:
+					es.Set(ev.PeerIndex, true)
+					peerGuard.OnEstablished(ev.PeerIndex)
+				case peer.EventDisconnected:
+					es.Set(ev.PeerIndex, false)
+					peerGuard.OnDisconnected(ev.PeerIndex)
+				}
 			}
 			eventsMu.Lock()
 			collectedEvents = append(collectedEvents, ev)
@@ -259,6 +370,53 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	// first few virtual time steps.
 	handshakeWait := 2*time.Second + time.Duration(len(cfg.Profiles))*200*time.Millisecond
 	time.Sleep(handshakeWait)
+
+	// Start chaos/route scheduler goroutines. They read from a tick channel
+	// fed by the advance loop below (virtual time drives scheduling).
+	var chaosTick, routeTick chan time.Time
+	if chaosEnabled {
+		chaosInterval := cfg.ChaosInterval
+		if chaosInterval == 0 {
+			chaosInterval = 1 * time.Second
+		}
+		warmup := cfg.Warmup
+		if warmup == 0 {
+			warmup = 5 * time.Second
+		}
+		chaosTick = make(chan time.Time, 1)
+		chaosSched := engine.NewScheduler(engine.SchedulerConfig{
+			Seed:      cfg.Seed,
+			PeerCount: peerCount,
+			Rate:      cfg.ChaosRate,
+			Interval:  chaosInterval,
+			Warmup:    warmup,
+		})
+		go chaosSchedulerLoop(simCtx, chaosSched, peerGuard, es, chaosChannels, chaosTick)
+	}
+	if routeEnabled {
+		routeInterval := cfg.RouteInterval
+		if routeInterval == 0 {
+			routeInterval = 5 * time.Second
+		}
+		warmup := cfg.Warmup
+		if warmup == 0 {
+			warmup = 5 * time.Second
+		}
+		baseRoutes := cfg.BaseRoutes
+		if baseRoutes == 0 && len(cfg.Profiles) > 0 {
+			baseRoutes = cfg.Profiles[0].RouteCount
+		}
+		routeTick = make(chan time.Time, 1)
+		routeSched := route.NewScheduler(route.SchedulerConfig{
+			Seed:       cfg.Seed + 1,
+			PeerCount:  peerCount,
+			Rate:       cfg.RouteRate,
+			Interval:   routeInterval,
+			Warmup:     warmup,
+			BaseRoutes: baseRoutes,
+		})
+		go routeSchedulerLoop(simCtx, routeSched, peerGuard, es, routeChannels, routeTick)
+	}
 
 	// Advance virtual time in 1-second steps with real-time pauses
 	// to let goroutines process timer-fired callbacks.
@@ -294,7 +452,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		// instantly, tearing down the session in microseconds. If we
 		// closed first and reconnected later (even 10ms later), the session
 		// would already be gone and no collision would occur.
-		if cfg.DisconnectAt > 0 && cfg.ReconnectDelay == 0 && simulated >= cfg.DisconnectAt && !disconnected {
+		if cfg.DisconnectAt > 0 && cfg.ReconnectDelay == 0 && !chaosEnabled && simulated >= cfg.DisconnectAt && !disconnected {
 			disconnected = true
 			reconnected = true
 			oldConn := peerConns[0]
@@ -345,7 +503,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		// Normal disconnect (with delayed reconnect).
 		// The 500ms real-time wait gives the reactor time to process the
 		// EOF and tear down the session before the reconnect phase.
-		if cfg.DisconnectAt > 0 && cfg.ReconnectDelay > 0 && simulated >= cfg.DisconnectAt && !disconnected {
+		if cfg.DisconnectAt > 0 && cfg.ReconnectDelay > 0 && !chaosEnabled && simulated >= cfg.DisconnectAt && !disconnected {
 			disconnected = true
 			if err := peerConns[0].Close(); err != nil {
 				fmt.Fprintf(os.Stderr, "disconnect close: %v\n", err)
@@ -401,6 +559,21 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 
 		vc.Advance(step)
 		simulated += step
+
+		// Feed virtual time to scheduler goroutines (non-blocking).
+		now := vc.Now()
+		if chaosTick != nil {
+			select {
+			case chaosTick <- now:
+			default: // scheduler still processing previous tick
+			}
+		}
+		if routeTick != nil {
+			select {
+			case routeTick <- now:
+			default: // scheduler still processing previous tick
+			}
+		}
 
 		// Dynamic speed: poll StepDelayFunc each iteration for dashboard control.
 		delay := stepDelay

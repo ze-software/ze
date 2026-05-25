@@ -599,12 +599,18 @@ Control:
 		ipCtx, ipCancel := context.WithTimeout(context.Background(), *duration+30*time.Second)
 		defer ipCancel()
 		ipCfg := inprocess.RunConfig{
-			Profiles:  profiles,
-			Seed:      *seed,
-			Duration:  *duration,
-			LocalAS:   65000,
-			RouterID:  netip.MustParseAddr("10.0.0.1"),
-			LocalAddr: *localAddr,
+			Profiles:      profiles,
+			Seed:          *seed,
+			Duration:      *duration,
+			LocalAS:       65000,
+			RouterID:      netip.MustParseAddr("10.0.0.1"),
+			LocalAddr:     *localAddr,
+			ChaosRate:     *chaosRate,
+			ChaosInterval: *chaosInterval,
+			RouteRate:     *routeRate,
+			RouteInterval: *routeInterval,
+			Warmup:        *warmup,
+			BaseRoutes:    *routes,
 		}
 		if wd != nil {
 			if ipConsumer != nil {

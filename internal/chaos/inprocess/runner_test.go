@@ -518,6 +518,217 @@ func TestInProcessScale20(t *testing.T) {
 		"at least %d of %d peers should establish sessions", minExpected, numPeers)
 }
 
+// TestInProcessChaosEvents verifies that chaos scheduling produces
+// EventChaosExecuted events in in-process mode.
+//
+// VALIDATES: AC-1: chaos events appear when --chaos-rate is set.
+// PREVENTS: Chaos scheduling not wired to in-process mode.
+func TestInProcessChaosEvents(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	profiles := []scenario.PeerProfile{
+		{
+			Index:      0,
+			ASN:        65000,
+			RouterID:   netip.MustParseAddr("10.0.0.2"),
+			IsIBGP:     true,
+			RouteCount: 5,
+			HoldTime:   90,
+			Families:   []string{"ipv4/unicast"},
+		},
+		{
+			Index:      1,
+			ASN:        65000,
+			RouterID:   netip.MustParseAddr("10.0.0.3"),
+			IsIBGP:     true,
+			RouteCount: 5,
+			HoldTime:   90,
+			Families:   []string{"ipv4/unicast"},
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	result, err := Run(ctx, RunConfig{
+		Profiles:      profiles,
+		Seed:          42,
+		Duration:      30 * time.Second,
+		LocalAS:       65000,
+		RouterID:      netip.MustParseAddr("10.0.0.1"),
+		LocalAddr:     "127.0.0.1",
+		ChaosRate:     0.5,
+		ChaosInterval: 1 * time.Second,
+		Warmup:        3 * time.Second,
+	})
+	require.NoError(t, err)
+
+	var chaosEvents int
+	for _, ev := range result.Events {
+		if ev.Type == peer.EventChaosExecuted {
+			chaosEvents++
+		}
+	}
+	assert.Greater(t, chaosEvents, 0, "should have at least one chaos event")
+}
+
+// TestInProcessRouteEvents verifies that route dynamics scheduling produces
+// EventRouteAction events in in-process mode.
+//
+// VALIDATES: AC-2: route action events appear when --route-rate is set.
+// PREVENTS: Route scheduling not wired to in-process mode.
+func TestInProcessRouteEvents(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	profiles := []scenario.PeerProfile{
+		{
+			Index:      0,
+			ASN:        65000,
+			RouterID:   netip.MustParseAddr("10.0.0.2"),
+			IsIBGP:     true,
+			RouteCount: 10,
+			HoldTime:   90,
+			Families:   []string{"ipv4/unicast"},
+		},
+		{
+			Index:      1,
+			ASN:        65000,
+			RouterID:   netip.MustParseAddr("10.0.0.3"),
+			IsIBGP:     true,
+			RouteCount: 10,
+			HoldTime:   90,
+			Families:   []string{"ipv4/unicast"},
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	result, err := Run(ctx, RunConfig{
+		Profiles:      profiles,
+		Seed:          42,
+		Duration:      30 * time.Second,
+		LocalAS:       65000,
+		RouterID:      netip.MustParseAddr("10.0.0.1"),
+		LocalAddr:     "127.0.0.1",
+		RouteRate:     0.5,
+		RouteInterval: 1 * time.Second,
+		Warmup:        3 * time.Second,
+		BaseRoutes:    10,
+	})
+	require.NoError(t, err)
+
+	var routeActions int
+	for _, ev := range result.Events {
+		if ev.Type == peer.EventRouteAction {
+			routeActions++
+		}
+	}
+	assert.Greater(t, routeActions, 0, "should have at least one route action event")
+}
+
+// TestInProcessChaosReconnect verifies that a chaos disconnect action
+// causes the simulator to reconnect via a new mock connection pair.
+//
+// VALIDATES: AC-3: simulator reconnects after chaos disconnect.
+// PREVENTS: Reconnection loop not working with mock connections.
+func TestInProcessChaosReconnect(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	// Short hold time (20s) so ActionHoldTimerExpiry causes disconnect within
+	// the 60s test window. Long duration gives time for re-establishment.
+	profiles := []scenario.PeerProfile{
+		{
+			Index:      0,
+			ASN:        65000,
+			RouterID:   netip.MustParseAddr("10.0.0.2"),
+			IsIBGP:     true,
+			RouteCount: 3,
+			HoldTime:   20,
+			Families:   []string{"ipv4/unicast"},
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	result, err := Run(ctx, RunConfig{
+		Profiles:      profiles,
+		Seed:          100,
+		Duration:      60 * time.Second,
+		LocalAS:       65000,
+		RouterID:      netip.MustParseAddr("10.0.0.1"),
+		LocalAddr:     "127.0.0.1",
+		ChaosRate:     1.0, // High rate to guarantee chaos events fire.
+		ChaosInterval: 1 * time.Second,
+		Warmup:        2 * time.Second,
+	})
+	require.NoError(t, err)
+
+	var established, disconnected int
+	for _, ev := range result.Events {
+		if ev.PeerIndex == 0 {
+			switch ev.Type { //nolint:exhaustive // only checking lifecycle events
+			case peer.EventEstablished:
+				established++
+			case peer.EventDisconnected:
+				disconnected++
+			}
+		}
+	}
+	// With chaos rate 1.0 and short hold time, the peer should disconnect
+	// (either via TCP disconnect or hold-timer expiry) and re-establish.
+	assert.Greater(t, disconnected, 0, "peer should have at least one disconnect from chaos")
+	assert.Greater(t, established, 1, "peer should re-establish after chaos disconnect")
+}
+
+// TestInProcessNoChaosDefault verifies that no chaos events occur when
+// ChaosRate is 0 (default behavior preserved).
+//
+// VALIDATES: AC-6: no regression when chaos disabled.
+// PREVENTS: Chaos firing when not configured.
+func TestInProcessNoChaosDefault(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+
+	profiles := []scenario.PeerProfile{
+		{
+			Index:      0,
+			ASN:        65000,
+			RouterID:   netip.MustParseAddr("10.0.0.2"),
+			IsIBGP:     true,
+			RouteCount: 3,
+			HoldTime:   90,
+			Families:   []string{"ipv4/unicast"},
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	result, err := Run(ctx, RunConfig{
+		Profiles:  profiles,
+		Seed:      42,
+		Duration:  10 * time.Second,
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+	})
+	require.NoError(t, err)
+
+	for _, ev := range result.Events {
+		assert.NotEqual(t, peer.EventChaosExecuted, ev.Type, "no chaos events when ChaosRate is 0")
+		assert.NotEqual(t, peer.EventRouteAction, ev.Type, "no route actions when RouteRate is 0")
+	}
+}
+
 // TestInProcessShrinkCompat verifies that events from in-process mode
 // are compatible with the shrink pipeline.
 //

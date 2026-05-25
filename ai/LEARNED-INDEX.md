@@ -156,6 +156,7 @@ Test patterns, infrastructure, chaos testing.
 - [265](plan/learned/265-bgp-chaos-selftest.md) -- Chaos self-test patterns
 - [608](plan/learned/608-concurrent-test-patterns.md) -- Concurrent-test flake patterns (locked-write/unlocked-read, subscribe-before-broadcast, gate-handler, barrier FIFO, cleanup-drains-work)
 - [723](plan/learned/723-chaos-actions-v2.md) -- Parameterized chaos actions: string-map params over typed unions, opt-in scheduling, per-instance weights
+- [787](plan/learned/787-chaos-inprocess-scheduling.md) -- In-process chaos: feed vc.Now() to existing schedulers, reconnectDialer factory for stochastic reconnection, tick-channel pattern
 
 ## Build/Deployment
 

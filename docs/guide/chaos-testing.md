@@ -39,6 +39,9 @@ ze chaos.conf
 # In-process mode: mock network + virtual clock (fully deterministic)
 ze-chaos --in-process --seed 42 --duration 30s
 
+# In-process with chaos and route dynamics
+ze-chaos --in-process --seed 42 --duration 60s --chaos-rate 0.1 --route-rate 0.05
+
 # Multi-family
 ze-chaos --families ipv4/unicast,ipv6/unicast --chaos-rate 0.2 | ./bin/ze -
 ```

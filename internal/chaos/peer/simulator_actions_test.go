@@ -2,6 +2,8 @@ package peer
 
 import (
 	"context"
+	"net"
+	"net/netip"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -82,4 +84,64 @@ func TestExecuteChaosSlowReadToggle(t *testing.T) {
 		assert.False(t, result.Disconnected)
 		assert.Equal(t, int64(2*time.Second), readDelayNs.Load(), "should toggle ON with configured delay")
 	})
+}
+
+// TestSimulatorDialerField verifies that executeReconnectStorm and
+// executeConnectionCollision use SimulatorConfig.Dialer when set.
+//
+// VALIDATES: AC-4/AC-5: Dialer field used by storm/collision actions.
+// PREVENTS: Hardcoded net.Dialer bypassing mock connections in-process.
+func TestSimulatorDialerField(t *testing.T) {
+	t.Run("reconnect_storm_uses_dialer", func(t *testing.T) {
+		var dialCount int
+		mockDialer := &countingDialer{onDial: func() (net.Conn, error) {
+			dialCount++
+			c1, c2 := net.Pipe()
+			go func() { _ = c2.Close() }()
+			return c1, nil
+		}}
+
+		p := SimProfile{ASN: 65000, RouterID: netip.MustParseAddr("10.0.0.2"), HoldTime: 90, Families: []string{"ipv4/unicast"}}
+		emit := func(Event) {}
+
+		executeReconnectStorm(context.Background(), "127.0.0.1:179", p, mockDialer, emit)
+		assert.Greater(t, dialCount, 0, "dialer should be called during reconnect storm")
+	})
+
+	t.Run("connection_collision_uses_dialer", func(t *testing.T) {
+		var dialCount int
+		mockDialer := &countingDialer{onDial: func() (net.Conn, error) {
+			dialCount++
+			c1, c2 := net.Pipe()
+			go func() { _ = c2.Close() }()
+			return c1, nil
+		}}
+
+		p := SimProfile{ASN: 65000, RouterID: netip.MustParseAddr("10.0.0.2"), HoldTime: 90, Families: []string{"ipv4/unicast"}}
+		emit := func(Event) {}
+
+		executeConnectionCollision(context.Background(), "127.0.0.1:179", p, mockDialer, emit)
+		assert.Equal(t, 1, dialCount, "dialer should be called once for collision")
+	})
+
+	t.Run("nil_dialer_uses_net_dialer", func(t *testing.T) {
+		p := SimProfile{ASN: 65000, RouterID: netip.MustParseAddr("10.0.0.2"), HoldTime: 90, Families: []string{"ipv4/unicast"}}
+		var events []Event
+		emit := func(ev Event) { events = append(events, ev) }
+
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+
+		// With nil dialer and unreachable addr, storm should fail gracefully.
+		executeReconnectStorm(ctx, "192.0.2.1:179", p, nil, emit)
+		// No panic, no hang - function returned.
+	})
+}
+
+type countingDialer struct {
+	onDial func() (net.Conn, error)
+}
+
+func (d *countingDialer) DialContext(_ context.Context, _, _ string) (net.Conn, error) {
+	return d.onDial()
 }
