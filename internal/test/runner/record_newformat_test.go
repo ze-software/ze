@@ -85,6 +85,43 @@ expect=json:conn=1:seq=1:json={"type":"keepalive"}`
 	assert.Equal(t, `{"type":"keepalive"}`, msg.JSON)
 }
 
+// TestParseCIExpectFile verifies parsing of expect:file lines.
+//
+// VALIDATES: expect=file:path and expect=file:glob checks are captured for post-run validation.
+// PREVENTS: daemon filesystem assertions requiring shell scripts in .ci tests.
+func TestParseCIExpectFile(t *testing.T) {
+	ResetNickCounter()
+
+	tmpDir := t.TempDir()
+	ciFile := filepath.Join(tmpDir, "test.ci")
+	confFile := filepath.Join(tmpDir, "test.conf")
+
+	ciContent := `option=file:path=test.conf
+expect=file:path=meta/config/active:exists=true
+expect=file:path=meta/config/candidate:absent=true
+expect=file:glob=rollback/ze-bgp-*.conf:count=2
+expect=file:glob=rollback/ze-bgp-*.conf:contains=router-id 1.2.3.4`
+
+	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
+	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
+
+	et := NewEncodingTests(tmpDir)
+	err := et.parseAndAdd(ciFile)
+	require.NoError(t, err)
+
+	rec := et.GetByNick("0")
+	require.NotNil(t, rec)
+	require.Len(t, rec.FileChecks, 4)
+	assert.Equal(t, "meta/config/active", rec.FileChecks[0].Path)
+	assert.True(t, rec.FileChecks[0].Exists)
+	assert.Equal(t, "meta/config/candidate", rec.FileChecks[1].Path)
+	assert.True(t, rec.FileChecks[1].Absent)
+	assert.Equal(t, "rollback/ze-bgp-*.conf", rec.FileChecks[2].Glob)
+	require.NotNil(t, rec.FileChecks[2].Count)
+	assert.Equal(t, 2, *rec.FileChecks[2].Count)
+	assert.Equal(t, "router-id 1.2.3.4", rec.FileChecks[3].Contains)
+}
+
 // TestParseCIOptionEnv verifies parsing of option:env lines.
 //
 // VALIDATES: option=env:var=X:value=Y is parsed correctly.
@@ -511,6 +548,16 @@ func TestParseHTTP(t *testing.T) {
 			name: "url_with_port_variable",
 			line: "http=get:seq=1:url=http://127.0.0.1:$PORT/viz/events:status=200",
 			want: HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:$PORT/viz/events", Status: 200},
+		},
+		{
+			name: "post_sendfile_content_type",
+			line: "http=post:seq=4:url=https://127.0.0.1:$PORT2/config/set/bgp/:status=200:sendfile=set.form:content-type=application/x-www-form-urlencoded:insecure-tls=true",
+			want: HTTPCheck{Seq: 4, Method: "post", URL: "https://127.0.0.1:$PORT2/config/set/bgp/", Status: 200, SendFile: "set.form", ContentType: "application/x-www-form-urlencoded", InsecureTLS: true},
+		},
+		{
+			name:    "invalid_insecure_tls",
+			line:    "http=get:seq=1:url=https://127.0.0.1:$PORT2/:status=200:insecure-tls=maybe",
+			wantErr: "invalid insecure-tls=",
 		},
 		{
 			name:    "missing_seq",

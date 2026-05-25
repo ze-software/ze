@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 )
 
 func TestToolProviderInterface(t *testing.T) {
@@ -92,6 +94,46 @@ func TestToolProviderInterface(t *testing.T) {
 	}
 	if resp.Result.ServerInfo.Name != "ze-mcp" {
 		t.Errorf("serverInfo.name = %q, want %q", resp.Result.ServerInfo.Name, "ze-mcp")
+	}
+}
+
+func TestLegacyHandlerBearerAuthFailureAuditRecord(t *testing.T) {
+	recorder, err := audit.NewMemory(100)
+	if err != nil {
+		t.Fatalf("NewMemory: %v", err)
+	}
+	provider := NewZeProvider(
+		func(cmd, _, _ string) (string, error) { return "ok: " + cmd, nil },
+		func() []CommandInfo { return nil },
+	)
+	handler := HandlerWithAudit(provider, "secret", recorder)
+	body := `{"jsonrpc":"2.0","id":1,"method":"initialize"}`
+	req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer alice:wrong")
+	req.Header.Set("Content-Type", "application/json")
+	req.RemoteAddr = "192.0.2.10:5555"
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+	entries := recorder.Query(audit.Filter{Action: audit.ActionAuthFail})
+	if len(entries) != 1 {
+		t.Fatalf("audit entries = %d, want 1", len(entries))
+	}
+	if entries[0].Actor != "alice" {
+		t.Fatalf("actor = %q, want alice", entries[0].Actor)
+	}
+	if entries[0].RemoteAddr != "192.0.2.10:5555" {
+		t.Fatalf("remote addr = %q, want 192.0.2.10:5555", entries[0].RemoteAddr)
+	}
+	if entries[0].Surface != audit.SurfaceMCP {
+		t.Fatalf("surface = %q, want %q", entries[0].Surface, audit.SurfaceMCP)
+	}
+	if entries[0].Outcome != audit.OutcomeDenied {
+		t.Fatalf("outcome = %q, want %q", entries[0].Outcome, audit.OutcomeDenied)
 	}
 }
 

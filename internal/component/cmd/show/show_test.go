@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
@@ -35,6 +36,54 @@ func TestHandleShowWarningsEmpty(t *testing.T) {
 	require.True(t, ok, "warnings should be []report.Issue, got %T", data["warnings"])
 	assert.Empty(t, warnings)
 	assert.NotNil(t, warnings, "warnings should be empty slice, not nil, for consistent JSON encoding")
+}
+
+// VALIDATES: AC-12 -- show aaa accounting exposes TACACS+ accounting drop count.
+// PREVENTS: Accounting queue drops being invisible to operators.
+func TestHandleShowAAAAccounting(t *testing.T) {
+	RegisterAAAAccountingProvider(func() map[string]any {
+		return map[string]any{"dropped-records": uint64(7)}
+	})
+	t.Cleanup(func() { RegisterAAAAccountingProvider(nil) })
+
+	resp, err := handleShowAAAAccounting(nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, uint64(7), data["dropped-records"])
+}
+
+// VALIDATES: AC-13 -- show audit returns structured audit records filterable by time range and action.
+// PREVENTS: Audit log existing on disk but being unavailable to operators.
+func TestHandleShowAuditFilters(t *testing.T) {
+	since := time.Date(2026, 5, 24, 10, 0, 0, 0, time.UTC)
+	until := since.Add(time.Hour)
+	var got audit.Filter
+	RegisterAuditProvider(func(filter audit.Filter) []audit.Entry {
+		got = filter
+		return []audit.Entry{{Timestamp: since, Actor: "alice", Surface: audit.SurfaceSSH, Action: audit.ActionConfigCommit, Outcome: audit.OutcomeSuccess}}
+	})
+	t.Cleanup(func() { RegisterAuditProvider(nil) })
+
+	resp, err := handleShowAudit(nil, []string{"action", audit.ActionConfigCommit, "since", since.Format(time.RFC3339), "until", until.Format(time.RFC3339), "count", "5"})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	assert.Equal(t, audit.ActionConfigCommit, got.Action)
+	assert.Equal(t, since, got.Since)
+	assert.Equal(t, until, got.Until)
+	assert.Equal(t, 5, got.Limit)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, 1, data["count"])
+	entries, ok := data["entries"].([]audit.Entry)
+	require.True(t, ok)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "alice", entries[0].Actor)
 }
 
 // TestHandleShowWarningsPopulated verifies handleShowWarnings returns the

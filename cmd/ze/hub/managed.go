@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/managed"
 )
 
-func wireManagedCommit(client *managed.ClientConfig, store storage.Storage, configPath string, reload func() error) {
+func wireManagedCommit(client *managed.ClientConfig, store storage.Storage, configPath string, reload func() error, recorder audit.Recorder) {
 	client.OnCommit = func(data []byte) error {
 		if _, err := storage.WriteCandidateVersion(store, configPath, data, time.Now()); err != nil {
 			return err
@@ -22,6 +23,7 @@ func wireManagedCommit(client *managed.ClientConfig, store storage.Storage, conf
 			}
 			return err
 		}
+		recordDaemonReloadAudit(recorder, "managed", "local", audit.SurfaceSystem, "managed config push")
 		return nil
 	}
 }

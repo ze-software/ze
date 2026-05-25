@@ -854,7 +854,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	managedCtx, managedCancel := context.WithCancel(context.Background())
 	defer managedCancel()
 	if managedClient != nil && storage.IsBlobStorage(store) {
-		wireManagedCommit(managedClient, store, configPath, reloadAfterCommit)
+		wireManagedCommit(managedClient, store, configPath, reloadAfterCommit, auditLog)
 	}
 	if webEditorMgr != nil {
 		webEditorMgr.SetCommitHook(reloadAfterCommit)

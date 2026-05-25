@@ -76,6 +76,14 @@ func init() {
 			Handler:    handleShowWarnings,
 		},
 		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:aaa-accounting",
+			Handler:    handleShowAAAAccounting,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:audit",
+			Handler:    handleShowAudit,
+		},
+		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:errors",
 			Handler:    handleShowErrors,
 		},

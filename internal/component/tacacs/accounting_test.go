@@ -93,6 +93,19 @@ func TestAccountantEnqueueConcurrentStop(t *testing.T) {
 	wg.Wait()
 }
 
+// VALIDATES: AC-12 -- TACACS+ accounting queue drops increment an operator-visible counter.
+// PREVENTS: Accounting record loss being visible only in logs.
+func TestTacacsAccountingDropCounter(t *testing.T) {
+	client := NewTacacsClient(TacacsClientConfig{})
+	acct := NewTacacsAccountant(client, nil)
+
+	for range cap(acct.queue) + 1 {
+		_ = acct.CommandStart("user", "192.0.2.10:1", "show version")
+	}
+
+	assert.Equal(t, uint64(1), acct.DropCount())
+}
+
 // VALIDATES: AcctRequest marshaling produces correct START/STOP flag encoding.
 // PREVENTS: wrong flag bits sent to TACACS+ server.
 func TestAcctRequestStartStopFlags(t *testing.T) {

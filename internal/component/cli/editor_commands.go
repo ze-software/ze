@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
 var (
@@ -576,12 +578,9 @@ func (e *Editor) Save() error {
 		return nil
 	}
 
-	// Hash any plaintext-password siblings of ze:bcrypt leaves before
-	// serialization. Mirrors the commit-time hashing done in CommitSession.
-	if e.treeValid && e.tree != nil && e.schema != nil {
-		if err := config.ApplyPasswordHashing(e.tree, e.schema); err != nil {
-			return fmt.Errorf("hash password: %w", err)
-		}
+	content, err := e.commitContent()
+	if err != nil {
+		return err
 	}
 
 	// Create backup of original
@@ -590,19 +589,60 @@ func (e *Editor) Save() error {
 	}
 
 	// Write serialized tree (or raw text fallback) to original path
-	content := config.FormatSchemaStamp(config.SchemaStamp) + e.WorkingContent()
 	if err := e.store.WriteFile(e.originalPath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
-	// Update original to match saved
-	e.originalContent = content
-	e.dirty.Store(false)
-
-	// Delete edit file on successful commit
-	e.deleteEditFile()
+	e.MarkCommittedContent(content)
 
 	return nil
+}
+
+// StageCandidate writes the current working config as a timestamped candidate.
+// It does not update the editor's committed state; callers do that only after
+// the daemon promotes the candidate.
+func (e *Editor) StageCandidate(stamp time.Time) (string, string, error) {
+	if e.session != nil {
+		return "", "", errSaveNotAllowedWithActiveSession
+	}
+	content, err := e.commitContent()
+	if err != nil {
+		return "", "", err
+	}
+	stampStr, err := storage.WriteCandidateVersion(e.store, e.originalPath, []byte(content), stamp)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to write candidate: %w", err)
+	}
+	return content, stampStr, nil
+}
+
+// MarkCommittedContent updates editor state after the daemon has promoted a candidate.
+func (e *Editor) MarkCommittedContent(content string) {
+	e.cleanupCommittedSession()
+	e.originalContent = content
+	e.workingContent = content
+	if e.schema != nil {
+		if tree, meta, err := parseConfigWithFormat(content, e.schema); err == nil {
+			e.tree = tree
+			e.meta = meta
+			e.treeValid = true
+		} else {
+			e.treeValid = false
+		}
+	}
+	e.dirty.Store(false)
+	e.deleteEditFile()
+}
+
+func (e *Editor) commitContent() (string, error) {
+	// Hash any plaintext-password siblings of ze:bcrypt leaves before
+	// serialization. Mirrors the commit-time hashing done in CommitSession.
+	if e.treeValid && e.tree != nil && e.schema != nil {
+		if err := config.ApplyPasswordHashing(e.tree, e.schema); err != nil {
+			return "", fmt.Errorf("hash password: %w", err)
+		}
+	}
+	return config.FormatSchemaStamp(config.SchemaStamp) + e.WorkingContent(), nil
 }
 
 // RestoreOriginalContent writes the previous committed content back to disk

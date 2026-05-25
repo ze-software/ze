@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
@@ -22,7 +23,7 @@ import (
 // buildSessionModelFactory creates a SessionModelFactory that produces bubbletea
 // models for SSH sessions. This is the logic formerly in ssh/session.go's
 // createSessionModel, moved here to decouple ssh from cli.
-func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParams) contract.SessionModelFactory {
+func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParams, recorder audit.Recorder) contract.SessionModelFactory {
 	log := slogutil.Logger("hub.session")
 
 	return func(username, remoteAddr string) tea.Model {
@@ -58,6 +59,7 @@ func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParam
 				if modelErr != nil {
 					log.Warn("session model creation failed", "user", username, "error", modelErr)
 				} else {
+					m.SetAuditRecorder(recorder, audit.SurfaceSSH, username, remoteAddr)
 					m.SetCommandCompleter(cmdCompleter)
 					if executor != nil {
 						m.SetCommandExecutor(executor)

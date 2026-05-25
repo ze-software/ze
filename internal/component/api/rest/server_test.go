@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 )
 
 // testEngine creates an APIEngine with fake implementations for testing.
@@ -32,7 +33,9 @@ func testEngine() *api.APIEngine {
 	}
 	cmds := func() []api.CommandMeta {
 		return []api.CommandMeta{
+			{Name: "summary", Description: "Show summary", ReadOnly: true},
 			{Name: "bgp summary", Description: "Show BGP summary", ReadOnly: true},
+			{Name: "bgp monitor", Description: "Monitor BGP events", ReadOnly: true},
 			{Name: "bgp rib routes", Description: "Show routes", ReadOnly: true, Params: []api.ParamMeta{
 				{Name: "family", Type: "string", Description: "Address family"},
 			}},
@@ -139,7 +142,11 @@ func (e *fakeEditor) Diff() string {
 	return b.String()
 }
 
-func (e *fakeEditor) Save() error                         { return nil }
+func (e *fakeEditor) Save() error { return nil }
+func (e *fakeEditor) StageCandidate(time.Time) (string, string, error) {
+	return e.WorkingContent(), "test-version", nil
+}
+func (e *fakeEditor) MarkCommittedContent(string)         {}
 func (e *fakeEditor) RestoreOriginalContent(string) error { return nil }
 func (e *fakeEditor) Discard() error                      { e.values = make(map[string]string); return nil }
 func (e *fakeEditor) OriginalContent() string             { return "# original\n" }
@@ -154,7 +161,7 @@ func TestRESTListCommands(t *testing.T) {
 
 	var cmds []api.CommandMeta
 	require.NoError(t, json.Unmarshal([]byte(r.Body), &cmds))
-	assert.Len(t, cmds, 3)
+	assert.Len(t, cmds, 5)
 }
 
 // VALIDATES: AC-2 -- POST /api/v1/execute returns command output.
@@ -240,6 +247,53 @@ func TestRESTExecuteUnauthorized(t *testing.T) {
 	assert.Equal(t, http.StatusOK, r.Status)
 }
 
+// VALIDATES: AC-16 -- REST failed authentication emits an audit record with source IP and attempted user.
+// PREVENTS: REST auth failures being visible only as HTTP 401 responses.
+func TestRESTAuthFailureAuditRecord(t *testing.T) {
+	engine := testEngine()
+	openAPI, _ := api.OpenAPISchema(nil)
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	srv, err := NewRESTServer(RESTConfig{
+		ListenAddrs: []string{"127.0.0.1:0"},
+		Authenticator: func(header string) (string, bool) {
+			return "", false
+		},
+		AuditRecorder: recorder,
+	}, engine, nil, func() []byte { return openAPI })
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/execute", strings.NewReader(`{"command":"bgp summary"}`))
+	req.Header.Set("Authorization", "Bearer alice:wrong")
+	req.Header.Set("Content-Type", "application/json")
+	req.RemoteAddr = "192.0.2.10:4444"
+	rec := httptest.NewRecorder()
+
+	srv.srv.Handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	entries := recorder.Query(audit.Filter{Action: audit.ActionAuthFail})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "alice", entries[0].Actor)
+	assert.Equal(t, "192.0.2.10:4444", entries[0].RemoteAddr)
+	assert.Equal(t, audit.SurfaceREST, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeDenied, entries[0].Outcome)
+}
+
+// VALIDATES: AC-8 -- REST no-auth mode gives the default api identity read-only access, not admin access.
+// PREVENTS: REST without authenticator or token accepting write commands and config sessions.
+func TestRESTNoAuthReadOnly(t *testing.T) {
+	srv := testServer(t)
+
+	read := do(t, srv, "POST", "/api/v1/execute", `{"command":"bgp summary"}`)
+	assert.Equal(t, http.StatusOK, read.Status)
+
+	write := do(t, srv, "POST", "/api/v1/execute", `{"command":"daemon reload"}`)
+	assert.Equal(t, http.StatusForbidden, write.Status)
+
+	session := do(t, srv, "POST", "/api/v1/config/sessions", "")
+	assert.Equal(t, http.StatusForbidden, session.Status)
+}
+
 // VALIDATES: AC-4 -- GET /api/v1/peers returns peer summary.
 // PREVENTS: convenience route broken.
 func TestRESTPeersConvenience(t *testing.T) {
@@ -255,10 +309,18 @@ func TestRESTPeersConvenience(t *testing.T) {
 // VALIDATES: AC-5 -- Config session create + set + commit.
 // PREVENTS: config lifecycle broken over REST.
 func TestRESTConfigSession(t *testing.T) {
-	srv := testServer(t)
+	engine := testEngine()
+	openAPI, err := api.OpenAPISchema(engine.ListCommands(&api.ListCommandsRequest{}))
+	require.NoError(t, err)
+	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
+		return &fakeEditor{values: make(map[string]string)}, nil
+	})
+	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Token: "secret"}, engine, sessions, func() []byte { return openAPI })
+	require.NoError(t, err)
+	headers := map[string]string{"Authorization": "Bearer secret", "Content-Type": "application/json"}
 
 	// Create session.
-	r := do(t, srv, "POST", "/api/v1/config/sessions", "")
+	r := doWithHeader(t, srv, "POST", "/api/v1/config/sessions", "", headers)
 	assert.Equal(t, http.StatusCreated, r.Status)
 	var created map[string]string
 	require.NoError(t, json.Unmarshal([]byte(r.Body), &created))
@@ -266,19 +328,87 @@ func TestRESTConfigSession(t *testing.T) {
 	assert.NotEmpty(t, id)
 
 	// Set value.
-	r = do(t, srv, "PUT", "/api/v1/config/sessions/"+id,
-		`{"path":"bgp.router-id","value":"10.0.0.1"}`)
+	r = doWithHeader(t, srv, "PUT", "/api/v1/config/sessions/"+id,
+		`{"path":"bgp.router-id","value":"10.0.0.1"}`, headers)
 	assert.Equal(t, http.StatusOK, r.Status)
 
 	// Diff.
-	r = do(t, srv, "GET", "/api/v1/config/sessions/"+id+"/diff", "")
+	r = doWithHeader(t, srv, "GET", "/api/v1/config/sessions/"+id+"/diff", "", headers)
 	assert.Equal(t, http.StatusOK, r.Status)
 	assert.Contains(t, r.Body, "diff")
 
 	// Commit.
-	r = do(t, srv, "POST", "/api/v1/config/sessions/"+id+"/commit", "")
+	r = doWithHeader(t, srv, "POST", "/api/v1/config/sessions/"+id+"/commit", "", headers)
 	assert.Equal(t, http.StatusOK, r.Status)
 	assert.Contains(t, r.Body, "committed")
+}
+
+// VALIDATES: AC-9 -- Config commit via REST emits an audit record with actor, surface, action, and summary.
+// PREVENTS: REST config session commits bypassing the unified audit trail.
+func TestRESTConfigCommitAuditRecord(t *testing.T) {
+	engine := testEngine()
+	openAPI, err := api.OpenAPISchema(engine.ListCommands(&api.ListCommandsRequest{}))
+	require.NoError(t, err)
+	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
+		return &fakeEditor{values: make(map[string]string)}, nil
+	})
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Token: "secret", AuditRecorder: recorder}, engine, sessions, func() []byte { return openAPI })
+	require.NoError(t, err)
+	headers := map[string]string{"Authorization": "Bearer secret", "Content-Type": "application/json"}
+
+	created := doWithHeader(t, srv, "POST", "/api/v1/config/sessions", "", headers)
+	require.Equal(t, http.StatusCreated, created.Status)
+	var createdBody map[string]string
+	require.NoError(t, json.Unmarshal([]byte(created.Body), &createdBody))
+	id := createdBody["session-id"]
+
+	set := doWithHeader(t, srv, "PUT", "/api/v1/config/sessions/"+id, `{"path":"bgp.router-id","value":"10.0.0.1"}`, headers)
+	require.Equal(t, http.StatusOK, set.Status)
+	commit := doWithHeader(t, srv, "POST", "/api/v1/config/sessions/"+id+"/commit", "", headers)
+	require.Equal(t, http.StatusOK, commit.Status)
+
+	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigCommit})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "api", entries[0].Actor)
+	assert.Equal(t, audit.SurfaceREST, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
+	assert.Contains(t, entries[0].Detail, "bgp.router-id")
+}
+
+// VALIDATES: AC-10 -- Config discard via REST emits an audit record with actor, surface, action, and summary.
+// PREVENTS: REST config discards losing audit attribution.
+func TestRESTConfigDiscardAuditRecord(t *testing.T) {
+	engine := testEngine()
+	openAPI, err := api.OpenAPISchema(engine.ListCommands(&api.ListCommandsRequest{}))
+	require.NoError(t, err)
+	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
+		return &fakeEditor{values: make(map[string]string)}, nil
+	})
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Token: "secret", AuditRecorder: recorder}, engine, sessions, func() []byte { return openAPI })
+	require.NoError(t, err)
+	headers := map[string]string{"Authorization": "Bearer secret", "Content-Type": "application/json"}
+
+	created := doWithHeader(t, srv, "POST", "/api/v1/config/sessions", "", headers)
+	require.Equal(t, http.StatusCreated, created.Status)
+	var createdBody map[string]string
+	require.NoError(t, json.Unmarshal([]byte(created.Body), &createdBody))
+	id := createdBody["session-id"]
+
+	set := doWithHeader(t, srv, "PUT", "/api/v1/config/sessions/"+id, `{"path":"bgp.router-id","value":"10.0.0.1"}`, headers)
+	require.Equal(t, http.StatusOK, set.Status)
+	discard := doWithHeader(t, srv, "DELETE", "/api/v1/config/sessions/"+id, "", headers)
+	require.Equal(t, http.StatusOK, discard.Status)
+
+	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigDiscard})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "api", entries[0].Actor)
+	assert.Equal(t, audit.SurfaceREST, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
+	assert.Contains(t, entries[0].Detail, "bgp.router-id")
 }
 
 // VALIDATES: AC-6 -- GET /api/v1/openapi.json returns valid spec.

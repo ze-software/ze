@@ -46,3 +46,13 @@ func closeAAABundle(logger *slog.Logger) {
 		}
 	}
 }
+
+type liveAAABundleAuthorizer struct{}
+
+func (liveAAABundleAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
+	bundle := aaaBundle.Load()
+	if bundle == nil || bundle.Authorizer == nil {
+		return true
+	}
+	return bundle.Authorizer.Authorize(username, remoteAddr, command, isReadOnly)
+}

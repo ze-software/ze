@@ -17,6 +17,8 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 )
 
 // Styles for the editor UI.
@@ -148,6 +150,12 @@ type Model struct {
 
 	// Login warnings (set by SSH session, displayed on first render)
 	loginWarnings []LoginWarning
+
+	// Audit context (set by SSH session for config commit/discard attribution)
+	auditRecorder   audit.Recorder
+	auditSurface    string
+	auditUsername   string
+	auditRemoteAddr string
 
 	// Daemon lifecycle callbacks (set by SSH session for stop/restart commands)
 	shutdownFunc func() // Called on "stop" in interactive CLI (no GR marker)
@@ -875,6 +883,44 @@ func (m *Model) SetCommandExecutor(fn func(string) (string, error)) {
 // Called by the SSH session after collecting warnings from the daemon.
 func (m *Model) SetLoginWarnings(warnings []LoginWarning) {
 	m.loginWarnings = warnings
+}
+
+// SetAuditRecorder sets the audit sink and caller metadata for config mutations.
+func (m *Model) SetAuditRecorder(recorder audit.Recorder, surface, username, remoteAddr string) {
+	m.auditRecorder = recorder
+	m.auditSurface = surface
+	m.auditUsername = username
+	m.auditRemoteAddr = remoteAddr
+}
+
+func (m *Model) recordConfigCommit(detail string) {
+	m.recordAudit(audit.ActionConfigCommit, detail)
+}
+
+func (m *Model) recordConfigDiscard(detail string) {
+	m.recordAudit(audit.ActionConfigDiscard, detail)
+}
+
+func (m *Model) recordAudit(action, detail string) {
+	if m.auditRecorder == nil {
+		return
+	}
+	actor := m.auditUsername
+	if actor == "" && m.editor != nil && m.editor.session != nil {
+		actor = m.editor.session.User
+	}
+	surface := m.auditSurface
+	if surface == "" {
+		surface = audit.SurfaceCLI
+	}
+	_ = m.auditRecorder.Record(audit.Entry{
+		Actor:      actor,
+		RemoteAddr: m.auditRemoteAddr,
+		Surface:    surface,
+		Action:     action,
+		Detail:     detail,
+		Outcome:    audit.OutcomeSuccess,
+	})
 }
 
 // SetShutdownFunc sets the callback for the "stop" interactive CLI command.

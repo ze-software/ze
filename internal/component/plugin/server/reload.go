@@ -101,9 +101,31 @@ var ErrReloadInProgress = errors.New("config reload already in progress")
 // Set on Server.configLoader before calling ReloadFromDisk.
 type ConfigLoader func() (map[string]any, error)
 
+// FullReloadFunc runs the hub-level reload path for commits triggered through RPC.
+// It includes plugin transactions plus ConfigProvider, engine, and subsystem refresh.
+type FullReloadFunc func(context.Context) error
+
 // SetConfigLoader sets the function used by ReloadFromDisk to load the config tree.
 func (s *Server) SetConfigLoader(loader ConfigLoader) {
 	s.configLoader = loader
+}
+
+// SetFullReloadFunc sets the function used by daemon-reload RPC when the hub is wired.
+func (s *Server) SetFullReloadFunc(fn FullReloadFunc) {
+	s.fullReload = fn
+}
+
+// HasFullReloadFunc reports whether a hub-level reload hook has been set.
+func (s *Server) HasFullReloadFunc() bool {
+	return s.fullReload != nil
+}
+
+// ReloadFull runs the hub-level reload hook.
+func (s *Server) ReloadFull(ctx context.Context) error {
+	if s.fullReload == nil {
+		return errNoConfigLoaderConfigured
+	}
+	return s.fullReload(ctx)
 }
 
 // HasConfigLoader reports whether a config loader has been set.

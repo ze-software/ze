@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,6 +34,33 @@ func TestHandleSystemDispatch(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.Equal(t, []string{"dnsr"}, receivedArgs)
+}
+
+// TestHandleDaemonReloadUsesFullReload verifies daemon-reload prefers the hub-level reload hook.
+//
+// VALIDATES: CLI reload RPC reaches the full daemon reload path when it is wired.
+// PREVENTS: CLI commit refreshing plugins but skipping provider, engine, and subsystem reloads.
+func TestHandleDaemonReloadUsesFullReload(t *testing.T) {
+	reactor := &mockReactor{}
+	server, err := NewServer(&ServerConfig{}, reactor)
+	require.NoError(t, err)
+	t.Cleanup(func() { server.Stop() })
+
+	called := false
+	server.SetFullReloadFunc(func(ctx context.Context) error {
+		called = true
+		assert.NotNil(t, ctx)
+		return nil
+	})
+	server.SetConfigLoader(func() (map[string]any, error) {
+		return nil, fmt.Errorf("plugin-only reload should not be used")
+	})
+
+	resp, err := handleDaemonReload(&CommandContext{Server: server}, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	assert.True(t, called, "full reload hook should be called")
 }
 
 // TestHandleSystemDispatchMissingCommand verifies error on empty args.

@@ -109,7 +109,16 @@ Records are queued to a single long-lived background worker. The worker
 sends one record at a time over the same TACACS+ client used for
 authentication, with the same server failover. Accounting failures are
 logged (`TACACS+ accounting failed`) and never block the command. Records
-queued after `Stop()` are dropped silently.
+that cannot be queued increment the local drop counter.
+
+Use `ze show aaa accounting` to inspect the counter:
+
+```
+ze show aaa accounting
+```
+
+The response includes `dropped-records`. A non-zero value means at least one
+START/STOP record was lost locally before the TACACS+ client could send it.
 
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher accountant hook -->
 <!-- source: internal/component/tacacs/accounting.go -- worker, processOne, enqueue -->
@@ -155,8 +164,9 @@ local bcrypt user accepted the credentials.
   connections inherit the same VRF context.
 - **Single-connect mode** (RFC 8907 §4.4) is tested via `tacacs-singleconnect.ci`.
 - **Operational tooling**: `ze tacacs show <config>` displays the parsed
-  TACACS+ configuration offline. Runtime `ze show tacacs` per-server
-  reachability and counters are tracked in `plan/deferrals.md`.
+  TACACS+ configuration offline. Runtime `ze show aaa accounting` exposes
+  local accounting queue drops. Per-server reachability remains tracked in
+  `plan/deferrals.md`.
 
 ## RFC reference
 

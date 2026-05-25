@@ -20,6 +20,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 )
 
 var errMcpOauthAsMetadataEmptyIssuer = errors.New("mcp oauth: AS metadata: empty issuer")
@@ -81,6 +83,8 @@ type StreamableConfig struct {
 	OAuth OAuthConfig
 	// Tasks holds per-server task registry limits.
 	Tasks TaskRegistryConfig
+	// AuditRecorder records failed authentication attempts when set.
+	AuditRecorder audit.Recorder
 }
 
 // BearerListEntry is one row of the AuthMode=BearerList identity table.
@@ -417,6 +421,7 @@ func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 	if req.Method == "initialize" {
 		identity, aerr := s.authenticate(r)
 		if aerr != nil {
+			recordMCPAuthFailure(s.cfg.AuditRecorder, r.Header.Get("Authorization"), r.RemoteAddr)
 			writeAuthError(w, aerr)
 			return
 		}

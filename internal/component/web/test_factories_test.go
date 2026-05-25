@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
@@ -55,6 +56,10 @@ func (a *testEditorAdapter) RenameListEntry(parentPath []string, listName, oldKe
 func (a *testEditorAdapter) CommitSession() (*contract.CommitResult, error) {
 	return a.ed.CommitSession()
 }
+func (a *testEditorAdapter) CommitSessionCandidate(stamp time.Time) (*contract.CommitResult, string, error) {
+	return a.ed.CommitSessionCandidate(stamp)
+}
+func (a *testEditorAdapter) MarkCommittedContent(content string) { a.ed.MarkCommittedContent(content) }
 func (a *testEditorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
 	return a.ed.CopyListEntry(parentPath, listName, srcKey, dstKey)
 }

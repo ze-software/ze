@@ -12,9 +12,16 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
+
+const (
+	terminalOutputCommitSuccessful = "commit successful"
+	terminalOutputChangesDiscarded = "changes discarded"
 )
 
 // terminalResponse is the JSON envelope returned by the terminal endpoint.
@@ -36,6 +43,13 @@ type terminalResponse struct {
 // config the workbench shows (the daemon's running config, not just the
 // editor's on-disk file).
 func HandleCLITerminal(mgr *EditorManager, schema *config.Schema, tree *config.Tree) http.HandlerFunc {
+	return HandleCLITerminalWithAuthorizerAndAudit(mgr, schema, tree, nil, nil)
+}
+
+// HandleCLITerminalWithAuthorizerAndAudit returns a terminal-mode handler that
+// enforces profile-based RBAC before direct editor mutations and records
+// successful commit/discard/rollback actions.
+func HandleCLITerminalWithAuthorizerAndAudit(mgr *EditorManager, schema *config.Schema, tree *config.Tree, authorizer aaa.Authorizer, recorder audit.Recorder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -78,12 +92,21 @@ func HandleCLITerminal(mgr *EditorManager, schema *config.Schema, tree *config.T
 		}
 
 		cmd := parseCLICommand(command)
+		if authCommand := terminalAuthCommand(cmd); authCommand != "" {
+			if !authorizeWebConfigMutation(w, r, authorizer, username, authCommand) {
+				return
+			}
+		}
+		auditAction, auditDetail := terminalAuditContext(mgr, username, cmd, command)
 
 		// Keep the committed hub tree as the compare baseline. Display commands
 		// use the per-user working tree when one exists.
 		viewTree := tree
 
 		newPath, output := executeTerminalNav(schema, viewTree, mgr, username, contextPath, cmd)
+		if terminalAuditSucceeded(auditAction, output) {
+			recordWebAudit(recorder, r, username, auditAction, auditDetail)
+		}
 
 		resp := terminalResponse{
 			Output:   output,
@@ -107,6 +130,52 @@ func HandleCLITerminal(mgr *EditorManager, schema *config.Schema, tree *config.T
 	}
 }
 
+func terminalAuthCommand(cmd cliCommand) string {
+	switch cmd.Verb {
+	case verbSet, verbActivate:
+		return webCommandConfigSet
+	case verbDelete, verbDeactivate:
+		return webCommandConfigDelete
+	case verbCommit:
+		return webCommandConfigCommit
+	case verbDiscard:
+		return webCommandConfigDiscard
+	case verbRollback:
+		return webCommandConfigRollback
+	case verbRename:
+		return webCommandConfigRename
+	case verbCopy, verbInsert:
+		return webCommandConfigAdd
+	case verbSave:
+		return webCommandConfigSave
+	}
+	return ""
+}
+
+func terminalAuditContext(mgr *EditorManager, username string, cmd cliCommand, raw string) (string, string) {
+	switch cmd.Verb {
+	case verbCommit:
+		detail, _ := mgr.Diff(username)
+		return audit.ActionConfigCommit, detail
+	case verbDiscard:
+		detail, _ := mgr.Diff(username)
+		return audit.ActionConfigDiscard, detail
+	case verbRollback:
+		return audit.ActionConfigDiscard, raw
+	}
+	return "", ""
+}
+
+func terminalAuditSucceeded(action, output string) bool {
+	switch action {
+	case audit.ActionConfigCommit:
+		return output == terminalOutputCommitSuccessful
+	case audit.ActionConfigDiscard:
+		return output == terminalOutputChangesDiscarded || strings.HasPrefix(output, "rolled back to ")
+	}
+	return false
+}
+
 // terminalFeedback returns the message-area feedback line for a command.
 func terminalFeedback(cmd cliCommand, output string) string {
 	switch cmd.Verb {
@@ -122,9 +191,9 @@ func terminalFeedback(cmd cliCommand, output string) string {
 		if strings.HasPrefix(output, "error") || strings.HasPrefix(output, "commit conflicts") {
 			return output
 		}
-		return "commit successful"
+		return terminalOutputCommitSuccessful
 	case verbDiscard:
-		return "changes discarded"
+		return terminalOutputChangesDiscarded
 	case verbEdit:
 		return "edit " + strings.Join(cmd.Args, " ")
 	case verbUp:
@@ -211,7 +280,7 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		if err := mgr.Discard(username); err != nil {
 			return nil, "error: " + err.Error()
 		}
-		return nil, "changes discarded"
+		return nil, terminalOutputChangesDiscarded
 	case verbWho:
 		sessions := mgr.ActiveSessions()
 		if len(sessions) == 0 {
@@ -648,7 +717,7 @@ func executeTerminalCommit(mgr *EditorManager, username string) string {
 		return msg.String()
 	}
 
-	return "commit successful"
+	return terminalOutputCommitSuccessful
 }
 
 // HandleCLIModeToggle returns a POST handler for /cli/mode that toggles

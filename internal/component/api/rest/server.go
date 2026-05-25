@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -55,6 +56,7 @@ type RESTConfig struct {
 	Token         string        // Single bearer token (empty = no auth). Ignored when Authenticator is set.
 	Authenticator Authenticator // Per-user auth callback. When set, Token is not checked.
 	CORSOrigin    string        // Allowed CORS origin (empty = no CORS headers)
+	AuditRecorder audit.Recorder
 }
 
 // OpenAPIProvider returns the OpenAPI spec bytes.
@@ -73,6 +75,7 @@ type RESTServer struct {
 	token         string
 	authenticator Authenticator
 	corsOrigin    string
+	auditRecorder audit.Recorder
 
 	srv *http.Server
 	// configured holds the addresses passed in by the caller, in original order.
@@ -113,6 +116,7 @@ func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		token:         cfg.Token,
 		authenticator: cfg.Authenticator,
 		corsOrigin:    cfg.CORSOrigin,
+		auditRecorder: cfg.AuditRecorder,
 		configured:    append([]string(nil), cfg.ListenAddrs...),
 		listeners:     make(map[string]net.Listener),
 	}
@@ -407,6 +411,10 @@ type usernameKeyType struct{}
 
 var usernameKey = usernameKeyType{}
 
+type readOnlyKeyType struct{}
+
+var readOnlyKey = readOnlyKeyType{}
+
 // withAuth wraps a handler with Bearer token authentication and CORS.
 // On success, stores the authenticated username in the request context.
 func (s *RESTServer) withAuth(next http.HandlerFunc) http.HandlerFunc {
@@ -416,38 +424,53 @@ func (s *RESTServer) withAuth(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		username := "api" // default for no-auth mode
+		readOnly := s.authenticator == nil && s.token == ""
 
 		// Per-user authenticator takes precedence over single token.
 		if s.authenticator != nil {
 			auth := r.Header.Get("Authorization")
 			user, ok := s.authenticator(auth)
 			if !ok {
+				s.recordAuthFailure(r, attemptedBearerUser(auth))
 				writeError(w, http.StatusUnauthorized, "unauthorized")
 				return
 			}
 			username = user
+			readOnly = false
 		} else if s.token != "" {
 			auth := r.Header.Get("Authorization")
 			expected := "Bearer " + s.token
 			gotHash := sha256.Sum256([]byte(auth))
 			wantHash := sha256.Sum256([]byte(expected))
 			if subtle.ConstantTimeCompare(gotHash[:], wantHash[:]) != 1 {
+				s.recordAuthFailure(r, attemptedBearerUser(auth))
 				writeError(w, http.StatusUnauthorized, "unauthorized")
 				return
 			}
+			readOnly = false
 		}
 
 		ctx := context.WithValue(r.Context(), usernameKey, username)
+		ctx = context.WithValue(ctx, readOnlyKey, readOnly)
 		next(w, r.WithContext(ctx))
 	}
 }
 
 // callerIdentity extracts trusted caller metadata from the request.
 func (s *RESTServer) callerIdentity(r *http.Request) api.CallerIdentity {
+	readOnly, _ := r.Context().Value(readOnlyKey).(bool)
 	if user, ok := r.Context().Value(usernameKey).(string); ok {
-		return api.CallerIdentity{Username: user, RemoteAddr: r.RemoteAddr}
+		return api.CallerIdentity{Username: user, RemoteAddr: r.RemoteAddr, Surface: audit.SurfaceREST, ReadOnly: readOnly}
 	}
-	return api.CallerIdentity{Username: "api", RemoteAddr: r.RemoteAddr}
+	return api.CallerIdentity{Username: "api", RemoteAddr: r.RemoteAddr, Surface: audit.SurfaceREST, ReadOnly: s.authenticator == nil && s.token == ""}
+}
+
+func requireWriteAccess(w http.ResponseWriter, caller api.CallerIdentity) bool {
+	if !caller.ReadOnly {
+		return true
+	}
+	writeError(w, http.StatusForbidden, "read-only API caller cannot modify configuration")
+	return false
 }
 
 func (s *RESTServer) handleListCommands(w http.ResponseWriter, r *http.Request) {
@@ -607,7 +630,11 @@ func (s *RESTServer) handleConfigEnter(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "config sessions not available")
 		return
 	}
-	id, err := s.sessions.Enter(s.callerIdentity(r).Username)
+	caller := s.callerIdentity(r)
+	if !requireWriteAccess(w, caller) {
+		return
+	}
+	id, err := s.sessions.Enter(caller.Username)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -633,7 +660,11 @@ func (s *RESTServer) handleConfigSet(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	username := s.callerIdentity(r).Username
+	caller := s.callerIdentity(r)
+	if !requireWriteAccess(w, caller) {
+		return
+	}
+	username := caller.Username
 	if err := s.sessions.Set(fromRESTConfigSetRequest(username, id, req.Path, req.Value)); err != nil {
 		writeSessionError(w, err)
 		return
@@ -653,12 +684,25 @@ func (s *RESTServer) handleConfigDeleteOrDiscard(w http.ResponseWriter, r *http.
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	username := s.callerIdentity(r).Username
+	caller := s.callerIdentity(r)
+	if !requireWriteAccess(w, caller) {
+		return
+	}
+	username := caller.Username
 	if len(parts) == 1 {
+		detail, _ := s.sessions.Diff(fromRESTConfigDiffRequest(username, id))
 		if err := s.sessions.Discard(fromRESTConfigDiscardRequest(username, id)); err != nil {
 			writeSessionError(w, err)
 			return
 		}
+		s.recordAudit(audit.Entry{
+			Actor:      username,
+			RemoteAddr: caller.RemoteAddr,
+			Surface:    audit.SurfaceREST,
+			Action:     audit.ActionConfigDiscard,
+			Detail:     detail,
+			Outcome:    audit.OutcomeSuccess,
+		})
 		writeJSON(w, http.StatusOK, map[string]string{"status": "discarded"})
 		return
 	}
@@ -708,11 +752,55 @@ func (s *RESTServer) handleConfigCommit(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := s.sessions.Commit(fromRESTConfigCommitRequest(s.callerIdentity(r).Username, id)); err != nil {
+	caller := s.callerIdentity(r)
+	if !requireWriteAccess(w, caller) {
+		return
+	}
+	detail, _ := s.sessions.Diff(fromRESTConfigDiffRequest(caller.Username, id))
+	if err := s.sessions.Commit(fromRESTConfigCommitRequest(caller.Username, id)); err != nil {
 		writeSessionError(w, err)
 		return
 	}
+	s.recordAudit(audit.Entry{
+		Actor:      caller.Username,
+		RemoteAddr: caller.RemoteAddr,
+		Surface:    audit.SurfaceREST,
+		Action:     audit.ActionConfigCommit,
+		Detail:     detail,
+		Outcome:    audit.OutcomeSuccess,
+	})
 	writeJSON(w, http.StatusOK, map[string]string{"status": "committed"})
+}
+
+func (s *RESTServer) recordAudit(entry audit.Entry) {
+	if s.auditRecorder == nil {
+		return
+	}
+	if err := s.auditRecorder.Record(entry); err != nil {
+		logger.Warn("REST audit record failed", "action", entry.Action, "actor", entry.Actor, "error", err)
+	}
+}
+
+func (s *RESTServer) recordAuthFailure(r *http.Request, actor string) {
+	s.recordAudit(audit.Entry{
+		Actor:      actor,
+		RemoteAddr: r.RemoteAddr,
+		Surface:    audit.SurfaceREST,
+		Action:     audit.ActionAuthFail,
+		Outcome:    audit.OutcomeDenied,
+	})
+}
+
+func attemptedBearerUser(header string) string {
+	raw, ok := strings.CutPrefix(header, "Bearer ")
+	if !ok {
+		return ""
+	}
+	username, _, ok := strings.Cut(raw, ":")
+	if !ok {
+		return ""
+	}
+	return username
 }
 
 // writeSessionError writes an HTTP error for config session errors.

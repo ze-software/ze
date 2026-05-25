@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 )
 
@@ -351,6 +352,31 @@ func TestLoginHandler(t *testing.T) {
 
 		assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
 	})
+}
+
+// VALIDATES: AC-16 -- Web failed login emits an audit record with source IP and attempted user.
+// PREVENTS: Browser login failures being visible only in web logs.
+func TestLoginHandlerAuthFailureAuditRecord(t *testing.T) {
+	store := NewSessionStore()
+	users := testUsers(t)
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	handler := LoginHandlerWithAudit(store, &authz.LocalAuthenticator{Users: users}, noopRenderer, recorder)
+	form := url.Values{"username": {"alice"}, "password": {"wrongpass"}}
+	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.RemoteAddr = "192.0.2.10:4444"
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	entries := recorder.Query(audit.Filter{Action: audit.ActionAuthFail})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "alice", entries[0].Actor)
+	assert.Equal(t, "192.0.2.10:4444", entries[0].RemoteAddr)
+	assert.Equal(t, audit.SurfaceWeb, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeDenied, entries[0].Outcome)
 }
 
 // TestInvalidateUser verifies that InvalidateUser removes the session for a user.

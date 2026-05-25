@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
@@ -88,8 +89,10 @@ const verbRIB = "rib"
 func IsReadOnlyPath(path string) bool {
 	verb, _, _ := strings.Cut(path, " ")
 	switch verb {
+	case "daemon":
+		return path == "daemon status"
 	case "show", "validate", "monitor",
-		"summary", "help", "command", "event", "daemon",
+		"summary", "help", "command", "event",
 		"system", "plugin", "peer", verbRIB, "cache",
 		"metrics", "subscribe", "unsubscribe":
 		return true
@@ -114,6 +117,7 @@ type CommandContext struct {
 	Peer           string           // Peer selector: "*" for all, or specific IP. Empty = "*"
 	Username       string           // Authenticated username (empty = no auth, full access)
 	RemoteAddr     string           // Remote address of the client (e.g., SSH peer IP:port)
+	Surface        string           // Trusted caller surface for audit attribution.
 	Meta           map[string]any   // Route metadata from UpdateRoute RPC; nil if not set.
 }
 
@@ -220,6 +224,7 @@ type Dispatcher struct {
 	subsystems *SubsystemManager // Forked subsystem processes
 	authorizer aaa.Authorizer    // Authorization checker (nil = allow all)
 	accountant aaa.Accountant    // Accounting recorder (nil = disabled)
+	audit      audit.Recorder    // Local audit recorder (nil = disabled)
 }
 
 // NewDispatcher creates a new command dispatcher.
@@ -266,6 +271,11 @@ func (d *Dispatcher) SetAuthorizer(a aaa.Authorizer) {
 // Accounting failures never block command execution.
 func (d *Dispatcher) SetAccountingHook(h aaa.Accountant) {
 	d.accountant = h
+}
+
+// SetAuditRecorder sets the structured audit recorder for mutation commands.
+func (d *Dispatcher) SetAuditRecorder(recorder audit.Recorder) {
+	d.audit = recorder
 }
 
 // Subsystems returns the subsystem manager.
@@ -487,7 +497,42 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	// Accounting failures never block command execution.
 	defer d.BeginAccounting(ctx, input)()
 
-	return matchedCmd.Handler(ctx, args)
+	resp, handlerErr := matchedCmd.Handler(ctx, args)
+	d.recordCommandAudit(ctx, input, resp, handlerErr)
+	return resp, handlerErr
+}
+
+func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, input string, resp *plugin.Response, err error) {
+	action := auditActionForCommand(input)
+	if d.audit == nil || action == "" || err != nil {
+		return
+	}
+	if resp != nil && resp.Status == plugin.StatusError {
+		return
+	}
+	entry := audit.Entry{
+		Surface: audit.SurfaceCLI,
+		Action:  action,
+		Detail:  input,
+		Outcome: audit.OutcomeSuccess,
+	}
+	if ctx != nil {
+		entry.Actor = ctx.Username
+		entry.RemoteAddr = ctx.RemoteAddr
+		if ctx.Surface != "" {
+			entry.Surface = ctx.Surface
+		}
+	}
+	if recordErr := d.audit.Record(entry); recordErr != nil {
+		logger().Warn("audit record failed", "action", action, "command", input, "error", recordErr)
+	}
+}
+
+func auditActionForCommand(input string) string {
+	if strings.ToLower(strings.TrimSpace(input)) == "daemon reload" {
+		return audit.ActionDaemonReload
+	}
+	return ""
 }
 
 // dispatchSubsystem routes a command to a forked subsystem process.

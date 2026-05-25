@@ -54,7 +54,7 @@ Three modes, in order of precedence:
 |------|--------------|-------------------------|
 | Per-user (recommended) | Run `ze init` to create the zefs user database | `Authorization: Bearer username:password` |
 | Single token | Set `ze.api-server.token=<secret>` or YANG `api-server { token "secret"; }` | `Authorization: Bearer <secret>` |
-| No auth | Leave both unset | (no header required) |
+| No auth | Leave both unset | No header required, read-only identity |
 
 Per-user mode uses the same user list as SSH and the web UI. Each request
 authenticates as a specific user, and the engine enforces per-user
@@ -69,6 +69,9 @@ If neither per-user nor token is configured, ze warns:
 ```
 warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or initialize zefs
 ```
+
+In no-auth mode the built-in `api` identity is read-only. Command reads work,
+but write commands, REST config sessions, and gRPC config sessions return 403.
 
 ## REST Endpoints
 
@@ -130,6 +133,9 @@ identical to calling `execute` directly.
 Sessions are owned by the authenticated user. Another user cannot access a
 session they did not create (returns 403 Forbidden). Idle sessions expire
 after 30 minutes.
+
+No-auth REST/gRPC callers cannot create config sessions. Configure a token or
+per-user authentication for API-driven config changes.
 
 <!-- source: internal/component/api/config_session.go -- ConfigSessionManager -->
 

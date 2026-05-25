@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/version"
@@ -169,6 +170,11 @@ func (s *SessionStore) InvalidateUser(username string) {
 // HTMX requests (HX-Request header) with expired sessions receive a 401 with
 // a login overlay instead of a full page, enabling in-place session recovery.
 func AuthMiddleware(store *SessionStore, authenticator authz.Authenticator, loginRenderer func(w http.ResponseWriter, r *http.Request), next http.Handler) http.Handler {
+	return AuthMiddlewareWithAudit(store, authenticator, loginRenderer, next, nil)
+}
+
+// AuthMiddlewareWithAudit wraps next with authentication and records failed Basic Auth attempts.
+func AuthMiddlewareWithAudit(store *SessionStore, authenticator authz.Authenticator, loginRenderer func(w http.ResponseWriter, r *http.Request), next http.Handler, recorder audit.Recorder) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check session cookie first.
 		if cookie, err := r.Cookie("ze-session"); err == nil {
@@ -195,6 +201,7 @@ func AuthMiddleware(store *SessionStore, authenticator authz.Authenticator, logi
 			}
 
 			logger.Warn("basic auth failed", "username", username, "remote", r.RemoteAddr)
+			recordWebAuthFailure(recorder, username, r.RemoteAddr)
 		}
 
 		// Unauthenticated: return 401 without WWW-Authenticate header.
@@ -208,6 +215,11 @@ func AuthMiddleware(store *SessionStore, authenticator authz.Authenticator, logi
 // On successful authentication, it creates a session, sets the ze-session cookie,
 // and redirects to "/". On failure, it returns 401 with the login page.
 func LoginHandler(store *SessionStore, authenticator authz.Authenticator, loginRenderer func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
+	return LoginHandlerWithAudit(store, authenticator, loginRenderer, nil)
+}
+
+// LoginHandlerWithAudit returns a login handler that records failed login attempts.
+func LoginHandlerWithAudit(store *SessionStore, authenticator authz.Authenticator, loginRenderer func(w http.ResponseWriter, r *http.Request), recorder audit.Recorder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -227,6 +239,7 @@ func LoginHandler(store *SessionStore, authenticator authz.Authenticator, loginR
 		})
 		if err != nil || !result.Authenticated {
 			logger.Warn("login failed", "username", username, "remote", r.RemoteAddr)
+			recordWebAuthFailure(recorder, username, r.RemoteAddr)
 			addSecurityHeaders(w)
 			w.WriteHeader(http.StatusUnauthorized)
 			loginRenderer(w, r)
@@ -265,6 +278,21 @@ func LoginHandler(store *SessionStore, authenticator authz.Authenticator, loginR
 		}
 
 		http.Redirect(w, r, target, http.StatusSeeOther)
+	}
+}
+
+func recordWebAuthFailure(recorder audit.Recorder, username, remoteAddr string) {
+	if recorder == nil {
+		return
+	}
+	if err := recorder.Record(audit.Entry{
+		Actor:      username,
+		RemoteAddr: remoteAddr,
+		Surface:    audit.SurfaceWeb,
+		Action:     audit.ActionAuthFail,
+		Outcome:    audit.OutcomeDenied,
+	}); err != nil {
+		logger.Warn("audit record failed", "action", audit.ActionAuthFail, "user", username, "error", err)
 	}
 }
 

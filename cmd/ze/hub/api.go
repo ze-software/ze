@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
 	apigrpc "codeberg.org/thomas-mangin/ze/internal/component/api/grpc"
 	"codeberg.org/thomas-mangin/ze/internal/component/api/rest"
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -60,7 +61,7 @@ func configValidationHook(configPath string) api.ConfigValidationHook {
 // servers based on the config. Explicit transport configuration fails closed:
 // construction and bind errors return to the caller instead of silently
 // disabling the requested API listener.
-func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store storage.Storage, configPath string, users []authz.UserConfig, reloadAfterCommit func() error) (*apiServers, error) {
+func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store storage.Storage, configPath string, users []authz.UserConfig, reloadAfterCommit func() error, recorder audit.Recorder) (*apiServers, error) {
 	engine := buildAPIEngine(server)
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
 		ed, err := cli.NewEditorWithStorage(store, configPath)
@@ -110,6 +111,7 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 			Token:         cfg.Token,
 			Authenticator: authenticator,
 			CORSOrigin:    cfg.RESTCORSOrigin,
+			AuditRecorder: recorder,
 		}, engine, sessions, lazySpec)
 		if restErr != nil {
 			return nil, fmt.Errorf("create REST API: %w", restErr)
@@ -136,6 +138,7 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 			Authenticator: authenticator,
 			TLSCert:       cfg.GRPCTLSCert,
 			TLSKey:        cfg.GRPCTLSKey,
+			AuditRecorder: recorder,
 		}, engine, sessions)
 		if grpcErr != nil {
 			servers.Shutdown(context.Background())
@@ -222,6 +225,7 @@ func apiExecutor(s *pluginserver.Server) api.Executor {
 			RequestContext: ctx,
 			Username:       auth.Username,
 			RemoteAddr:     auth.RemoteAddr,
+			Surface:        auth.Surface,
 		}
 		resp, err := d.Dispatch(cmdCtx, command)
 		if err != nil {
@@ -268,6 +272,7 @@ func apiStreamSource(s *pluginserver.Server) api.StreamSource {
 			RequestContext: ctx,
 			Username:       caller.Username,
 			RemoteAddr:     caller.RemoteAddr,
+			Surface:        caller.Surface,
 		}
 		// Streaming commands are monitor-style read-only commands today.
 		// If write-capable streams are added, the registry must carry metadata.

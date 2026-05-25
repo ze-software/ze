@@ -182,6 +182,23 @@ module ze-cli-show-cmd {
             description "Show active operator-visible warnings from all subsystems (report bus snapshot)";
         }
 
+        container aaa {
+            config false;
+            description "AAA operational state";
+
+            container accounting {
+                config false;
+                ze:command "ze-show:aaa-accounting";
+                description "Show AAA accounting counters, including dropped TACACS+ records";
+            }
+        }
+
+        container audit {
+            config false;
+            ze:command "ze-show:audit";
+            description "Show audit log entries ([action <type>] [actor <name>] [surface <name>] [since <RFC3339>] [until <RFC3339>] [count <N>])";
+        }
+
         container errors {
             config false;
             ze:command "ze-show:errors";

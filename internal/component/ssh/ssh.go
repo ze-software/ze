@@ -28,6 +28,7 @@ import (
 	"github.com/charmbracelet/ssh"
 	gossh "golang.org/x/crypto/ssh"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -94,6 +95,7 @@ type Config struct {
 	MaxSessions   int
 	Users         []authz.UserConfig
 	Authenticator authz.Authenticator // pluggable auth backend (nil = use Users with bcrypt)
+	AuditRecorder audit.Recorder      // records failed authentication attempts when set
 	Executor      CommandExecutor     // injected by daemon, not from config
 }
 
@@ -185,6 +187,21 @@ func NewServer(cfg Config) (*Server, error) {
 		config: cfg,
 		logger: slog.Default().With("subsystem", "ssh"),
 	}, nil
+}
+
+func (s *Server) recordAuthFailure(username, remote string) {
+	if s == nil || s.config.AuditRecorder == nil {
+		return
+	}
+	if err := s.config.AuditRecorder.Record(audit.Entry{
+		Actor:      username,
+		RemoteAddr: remote,
+		Surface:    audit.SurfaceSSH,
+		Action:     audit.ActionAuthFail,
+		Outcome:    audit.OutcomeDenied,
+	}); err != nil {
+		s.logger.Warn("audit record failed", "action", audit.ActionAuthFail, "user", username, "error", err)
+	}
 }
 
 // Name returns the subsystem identifier.
@@ -396,6 +413,7 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 					"profiles", truncateProfiles(profiles))
 				return true
 			}
+			s.recordAuthFailure(username, remote)
 			return false
 		}),
 		wish.WithPasswordAuth(func(ctx ssh.Context, pass string) bool {
@@ -416,6 +434,7 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 				return true
 			}
 			s.logger.Warn("SSH auth failure", "username", username, "remote", remote)
+			s.recordAuthFailure(username, remote)
 			return false
 		}),
 	}

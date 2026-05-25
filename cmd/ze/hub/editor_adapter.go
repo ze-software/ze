@@ -5,6 +5,7 @@ package hub
 
 import (
 	"fmt"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
@@ -37,6 +38,10 @@ func (a *editorAdapter) RenameListEntry(parentPath []string, listName, oldKey, n
 func (a *editorAdapter) CommitSession() (*contract.CommitResult, error) {
 	return a.ed.CommitSession()
 }
+func (a *editorAdapter) CommitSessionCandidate(stamp time.Time) (*contract.CommitResult, string, error) {
+	return a.ed.CommitSessionCandidate(stamp)
+}
+func (a *editorAdapter) MarkCommittedContent(content string) { a.ed.MarkCommittedContent(content) }
 func (a *editorAdapter) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
 	return a.ed.CopyListEntry(parentPath, listName, srcKey, dstKey)
 }

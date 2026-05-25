@@ -213,6 +213,21 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 	if err != nil {
 		return errResp, err
 	}
+	if ctx.Server != nil && ctx.Server.HasFullReloadFunc() {
+		if err := ctx.Server.ReloadFull(ctx.Context()); err != nil {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Data:   fmt.Sprintf("reload failed: %v", err),
+			}, err
+		}
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data: map[string]any{
+				"message": "configuration reloaded",
+			},
+		}, nil
+	}
+
 	// Use coordinator path when available: reloads config from disk, verifies with
 	// all plugins that registered WantsConfigRoots, then applies to each.
 	if ctx.Server != nil && ctx.Server.HasConfigLoader() {

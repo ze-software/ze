@@ -7,6 +7,7 @@ package runner
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -291,6 +292,116 @@ func (r *Runner) validateLogging(rec *Record, stderr string, syslogSrv *syslog.S
 	return nil
 }
 
+func (r *Runner) validateFileChecks(rec *Record) error {
+	if len(rec.FileChecks) == 0 {
+		return nil
+	}
+	baseDir := filepath.Dir(rec.CIFile)
+	if rec.TmpfsTempDir != "" {
+		baseDir = rec.TmpfsTempDir
+	}
+	for _, check := range rec.FileChecks {
+		if err := validateOneFileCheck(baseDir, check); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateOneFileCheck(baseDir string, check FileCheck) error {
+	if check.Path != "" {
+		return validateOnePathCheck(baseDir, check)
+	}
+	return validateOneGlobCheck(baseDir, check)
+}
+
+func validateOnePathCheck(baseDir string, check FileCheck) error {
+	path, err := resolveCheckPath(baseDir, check.Path)
+	if err != nil {
+		return err
+	}
+	data, readErr := os.ReadFile(path) //nolint:gosec // path is constrained relative to test temp dir
+	if check.Absent {
+		if errors.Is(readErr, os.ErrNotExist) {
+			return nil
+		}
+		if readErr != nil {
+			return fmt.Errorf("expect=file:path=%s: stat failed: %w", check.Path, readErr)
+		}
+		return fmt.Errorf("expect=file:path=%s: expected absent", check.Path)
+	}
+	if readErr != nil {
+		return fmt.Errorf("expect=file:path=%s: read failed: %w", check.Path, readErr)
+	}
+	return validateFileContent(check.Path, string(data), check)
+}
+
+func validateOneGlobCheck(baseDir string, check FileCheck) error {
+	pattern, err := resolveCheckPath(baseDir, check.Glob)
+	if err != nil {
+		return err
+	}
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return fmt.Errorf("expect=file:glob=%s: invalid glob: %w", check.Glob, err)
+	}
+	sort.Strings(matches)
+	if check.Count != nil && len(matches) != *check.Count {
+		return fmt.Errorf("expect=file:glob=%s: count=%d, want %d", check.Glob, len(matches), *check.Count)
+	}
+	if check.Absent && len(matches) != 0 {
+		return fmt.Errorf("expect=file:glob=%s: expected absent, matched %d", check.Glob, len(matches))
+	}
+	if check.Exists && len(matches) == 0 {
+		return fmt.Errorf("expect=file:glob=%s: expected at least one match", check.Glob)
+	}
+	if check.Contains != "" {
+		for _, match := range matches {
+			data, readErr := os.ReadFile(match) //nolint:gosec // path comes from constrained glob under test temp dir
+			if readErr != nil {
+				return fmt.Errorf("expect=file:glob=%s: read %s: %w", check.Glob, match, readErr)
+			}
+			if strings.Contains(string(data), check.Contains) {
+				return nil
+			}
+		}
+		return fmt.Errorf("expect=file:glob=%s: no matched file contains %q", check.Glob, check.Contains)
+	}
+	if check.NotContains != "" {
+		for _, match := range matches {
+			data, readErr := os.ReadFile(match) //nolint:gosec // path comes from constrained glob under test temp dir
+			if readErr != nil {
+				return fmt.Errorf("expect=file:glob=%s: read %s: %w", check.Glob, match, readErr)
+			}
+			if strings.Contains(string(data), check.NotContains) {
+				return fmt.Errorf("expect=file:glob=%s: %s contains %q", check.Glob, filepath.Base(match), check.NotContains)
+			}
+		}
+	}
+	return nil
+}
+
+func validateFileContent(label, content string, check FileCheck) error {
+	if check.Contains != "" && !strings.Contains(content, check.Contains) {
+		return fmt.Errorf("expect=file:path=%s: missing %q", label, check.Contains)
+	}
+	if check.NotContains != "" && strings.Contains(content, check.NotContains) {
+		return fmt.Errorf("expect=file:path=%s: found forbidden %q", label, check.NotContains)
+	}
+	return nil
+}
+
+func resolveCheckPath(baseDir, rel string) (string, error) {
+	if filepath.IsAbs(rel) {
+		return "", fmt.Errorf("expect=file path must be relative: %s", rel)
+	}
+	clean := filepath.Clean(rel)
+	if clean == "." || clean == "" || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("expect=file path escapes test directory: %s", rel)
+	}
+	return filepath.Join(baseDir, clean), nil
+}
+
 // decodeToEnvelope decodes a hex message using ze bgp decode and returns the envelope.
 func (r *Runner) decodeToEnvelope(hexMsg string) (map[string]any, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -319,10 +430,9 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 		return checks[i].Seq < checks[j].Seq
 	})
 
-	client := &http.Client{Timeout: 5 * time.Second}
-
 	ciDir := filepath.Dir(rec.CIFile)
 	for _, chk := range checks {
+		client := httpClientForCheck(chk)
 		url := strings.ReplaceAll(chk.URL, "$PORT2", strconv.Itoa(rec.Port+1))
 		url = strings.ReplaceAll(url, "$PORT", strconv.Itoa(rec.Port))
 		// Resolve bodyfile and sendfile paths relative to .ci file directory.
@@ -348,6 +458,17 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 		}
 	}
 	return nil
+}
+
+func httpClientForCheck(chk HTTPCheck) *http.Client {
+	client := &http.Client{Timeout: 5 * time.Second}
+	if !chk.InsecureTLS {
+		return client
+	}
+	client.Transport = &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // test runner for self-signed local web servers
+	}
+	return client
 }
 
 // executeOneHTTPCheck performs a single HTTP request with retry+backoff.
@@ -376,7 +497,11 @@ func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, c
 			return fmt.Errorf("http %s %s: invalid request: %w", chk.Method, url, err)
 		}
 		if chk.SendFile != "" {
-			req.Header.Set("Content-Type", "application/json")
+			contentType := chk.ContentType
+			if contentType == "" {
+				contentType = "application/json"
+			}
+			req.Header.Set("Content-Type", contentType)
 		}
 
 		resp, err := client.Do(req)
@@ -451,9 +576,8 @@ func (r *Runner) executeHTTPWaits(ctx context.Context, rec *Record) error {
 		return waits[i].Seq < waits[j].Seq
 	})
 
-	client := &http.Client{Timeout: 5 * time.Second}
-
 	for _, w := range waits {
+		client := httpClientForCheck(w)
 		url := strings.ReplaceAll(w.URL, "$PORT2", strconv.Itoa(rec.Port+1))
 		url = strings.ReplaceAll(url, "$PORT", strconv.Itoa(rec.Port))
 		if err := r.executeOneHTTPWait(ctx, client, w, url); err != nil {

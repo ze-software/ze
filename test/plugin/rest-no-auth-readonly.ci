@@ -1,0 +1,151 @@
+# Test: REST no-auth callers are read-only
+# VALIDATES: AC-8 -- REST without authenticator or token permits reads and denies writes.
+# PREVENTS: unauthenticated REST access silently becoming admin access.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=25s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=rest-readonly-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+import time
+import urllib.error
+import urllib.request
+from ze_api import API
+
+REST_PORT = 18086
+BASE_URL = f'http://127.0.0.1:{REST_PORT}/api/v1'
+
+def wait_for_rest(url, timeout=10):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            urllib.request.urlopen(url, timeout=2).read()
+            return True
+        except (urllib.error.URLError, ConnectionRefusedError, OSError):
+            time.sleep(0.5)
+    return False
+
+def post_json(url, payload):
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode(),
+        headers={'Content-Type': 'application/json'},
+    )
+    return urllib.request.urlopen(req, timeout=5)
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    try:
+        if not wait_for_rest(f'{BASE_URL}/commands'):
+            print('FAIL: REST API did not respond', file=sys.stderr)
+            sys.exit(1)
+
+        resp = post_json(f'{BASE_URL}/execute', {'command': 'show version'})
+        body = json.loads(resp.read())
+        if body.get('status') != 'done':
+            print(f'FAIL: read command status={body.get("status")}', file=sys.stderr)
+            sys.exit(1)
+        print('OK: no-auth REST read command allowed', file=sys.stderr)
+
+        try:
+            post_json(f'{BASE_URL}/execute', {'command': 'daemon reload'}).read()
+            print('FAIL: no-auth REST write command succeeded', file=sys.stderr)
+            sys.exit(1)
+        except urllib.error.HTTPError as err:
+            if err.code != 403:
+                print(f'FAIL: write command status={err.code}, want 403', file=sys.stderr)
+                sys.exit(1)
+        print('OK: no-auth REST write command denied', file=sys.stderr)
+
+        try:
+            req = urllib.request.Request(f'{BASE_URL}/config/sessions', data=b'', method='POST')
+            urllib.request.urlopen(req, timeout=5).read()
+            print('FAIL: no-auth REST config session succeeded', file=sys.stderr)
+            sys.exit(1)
+        except urllib.error.HTTPError as err:
+            if err.code != 403:
+                print(f'FAIL: config session status={err.code}, want 403', file=sys.stderr)
+                sys.exit(1)
+        print('OK: no-auth REST config session denied', file=sys.stderr)
+    finally:
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rest-readonly-test {
+		run ./rest-readonly-test.run
+		encoder json
+	}
+}
+
+environment {
+	api-server {
+		rest {
+			enabled true;
+			server main {
+				ip 127.0.0.1;
+				port 18086;
+			}
+		}
+	}
+}
+
+bgp {
+	router-id 1.2.3.4
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process rest-readonly-test { }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=exit:code=0

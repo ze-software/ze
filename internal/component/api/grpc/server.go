@@ -28,6 +28,7 @@ import (
 
 	zepb "codeberg.org/thomas-mangin/ze/api/proto"
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -51,6 +52,7 @@ type GRPCConfig struct {
 	Authenticator Authenticator // Per-user auth callback. When set, Token is not checked.
 	TLSCert       string        // Path to TLS certificate file (empty = plaintext)
 	TLSKey        string        // Path to TLS key file (empty = plaintext)
+	AuditRecorder audit.Recorder
 }
 
 // GRPCServer is the gRPC API server.
@@ -63,6 +65,7 @@ type GRPCServer struct {
 	sessions      *api.ConfigSessionManager
 	token         string
 	authenticator Authenticator
+	auditRecorder audit.Recorder
 	srv           *grpc.Server
 	// configured holds the addresses passed in by the caller, in original order.
 	configured []string
@@ -108,6 +111,7 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		sessions:      sessions,
 		token:         cfg.Token,
 		authenticator: cfg.Authenticator,
+		auditRecorder: cfg.AuditRecorder,
 		configured:    append([]string(nil), cfg.ListenAddrs...),
 		listeners:     make(map[string]net.Listener),
 	}
@@ -132,7 +136,7 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 
 	s.srv = grpc.NewServer(opts...)
 	zepb.RegisterZeServiceServer(s.srv, &zeServiceImpl{engine: engine})
-	zepb.RegisterZeConfigServiceServer(s.srv, &zeConfigServiceImpl{engine: engine, sessions: sessions})
+	zepb.RegisterZeConfigServiceServer(s.srv, &zeConfigServiceImpl{engine: engine, sessions: sessions, auditRecorder: cfg.AuditRecorder})
 	reflection.Register(s.srv)
 
 	return s, nil
@@ -370,6 +374,10 @@ type usernameKeyType struct{}
 
 var usernameKey = usernameKeyType{}
 
+type readOnlyKeyType struct{}
+
+var readOnlyKey = readOnlyKeyType{}
+
 // usernameFromContext extracts the authenticated username, defaulting to defaultUsername.
 func usernameFromContext(ctx context.Context) string {
 	if user, ok := ctx.Value(usernameKey).(string); ok {
@@ -378,8 +386,13 @@ func usernameFromContext(ctx context.Context) string {
 	return defaultUsername
 }
 
+func readOnlyFromContext(ctx context.Context) bool {
+	readOnly, _ := ctx.Value(readOnlyKey).(bool)
+	return readOnly
+}
+
 func callerIdentityFromContext(ctx context.Context) api.CallerIdentity {
-	caller := api.CallerIdentity{Username: usernameFromContext(ctx)}
+	caller := api.CallerIdentity{Username: usernameFromContext(ctx), Surface: audit.SurfaceGRPC, ReadOnly: readOnlyFromContext(ctx)}
 	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
 		caller.RemoteAddr = p.Addr.String()
 	}
@@ -395,52 +408,97 @@ type wrappedStream struct {
 func (w *wrappedStream) Context() context.Context { return w.ctx }
 
 func (s *GRPCServer) authUnaryInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-	user, err := s.checkAuth(ctx)
+	user, readOnly, err := s.checkAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return handler(context.WithValue(ctx, usernameKey, user), req)
+	ctx = context.WithValue(ctx, usernameKey, user)
+	ctx = context.WithValue(ctx, readOnlyKey, readOnly)
+	return handler(ctx, req)
 }
 
 func (s *GRPCServer) authStreamInterceptor(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	user, err := s.checkAuth(ss.Context())
+	user, readOnly, err := s.checkAuth(ss.Context())
 	if err != nil {
 		return err
 	}
-	wrapped := &wrappedStream{ServerStream: ss, ctx: context.WithValue(ss.Context(), usernameKey, user)}
+	ctx := context.WithValue(ss.Context(), usernameKey, user)
+	ctx = context.WithValue(ctx, readOnlyKey, readOnly)
+	wrapped := &wrappedStream{ServerStream: ss, ctx: ctx}
 	return handler(srv, wrapped)
 }
 
 // checkAuth validates the Authorization metadata and returns the authenticated username.
-func (s *GRPCServer) checkAuth(ctx context.Context) (string, error) {
+func (s *GRPCServer) checkAuth(ctx context.Context) (string, bool, error) {
 	if s.authenticator == nil && s.token == "" {
-		return defaultUsername, nil
+		return defaultUsername, true, nil
 	}
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return "", status.Error(codes.Unauthenticated, "missing metadata")
+		s.recordAuthFailure(ctx, "")
+		return "", false, status.Error(codes.Unauthenticated, "missing metadata")
 	}
 	tokens := md.Get("authorization")
 	if len(tokens) == 0 {
-		return "", status.Error(codes.Unauthenticated, "missing authorization")
+		s.recordAuthFailure(ctx, "")
+		return "", false, status.Error(codes.Unauthenticated, "missing authorization")
 	}
 
 	if s.authenticator != nil {
 		user, ok := s.authenticator(tokens[0])
 		if !ok {
-			return "", status.Error(codes.Unauthenticated, "invalid credentials")
+			s.recordAuthFailure(ctx, attemptedBearerUser(tokens[0]))
+			return "", false, status.Error(codes.Unauthenticated, "invalid credentials")
 		}
-		return user, nil
+		return user, false, nil
 	}
 
 	expected := "Bearer " + s.token
 	got := sha256.Sum256([]byte(tokens[0]))
 	want := sha256.Sum256([]byte(expected))
 	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
-		return "", status.Error(codes.Unauthenticated, "invalid token")
+		s.recordAuthFailure(ctx, attemptedBearerUser(tokens[0]))
+		return "", false, status.Error(codes.Unauthenticated, "invalid token")
 	}
-	return defaultUsername, nil
+	return defaultUsername, false, nil
+}
+
+func (s *GRPCServer) recordAuthFailure(ctx context.Context, actor string) {
+	if s.auditRecorder == nil {
+		return
+	}
+	entry := audit.Entry{
+		Actor:   actor,
+		Surface: audit.SurfaceGRPC,
+		Action:  audit.ActionAuthFail,
+		Outcome: audit.OutcomeDenied,
+	}
+	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
+		entry.RemoteAddr = p.Addr.String()
+	}
+	if err := s.auditRecorder.Record(entry); err != nil {
+		logger.Warn("gRPC audit record failed", "action", entry.Action, "actor", entry.Actor, "error", err)
+	}
+}
+
+func attemptedBearerUser(header string) string {
+	raw, ok := strings.CutPrefix(header, "Bearer ")
+	if !ok {
+		return ""
+	}
+	username, _, ok := strings.Cut(raw, ":")
+	if !ok {
+		return ""
+	}
+	return username
+}
+
+func requireWriteAccess(ctx context.Context) error {
+	if !readOnlyFromContext(ctx) {
+		return nil
+	}
+	return status.Error(codes.PermissionDenied, "read-only API caller cannot modify configuration")
 }
 
 // --- ZeService implementation ---
@@ -528,8 +586,9 @@ func (s *zeServiceImpl) Complete(_ context.Context, _ *zepb.CompleteRequest) (*z
 
 type zeConfigServiceImpl struct {
 	zepb.UnimplementedZeConfigServiceServer
-	engine   *api.APIEngine
-	sessions *api.ConfigSessionManager
+	engine        *api.APIEngine
+	sessions      *api.ConfigSessionManager
+	auditRecorder audit.Recorder
 }
 
 func (s *zeConfigServiceImpl) GetRunningConfig(ctx context.Context, _ *zepb.Empty) (*zepb.ConfigResponse, error) {
@@ -554,6 +613,9 @@ func (s *zeConfigServiceImpl) EnterSession(ctx context.Context, _ *zepb.Empty) (
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
+	if err := requireWriteAccess(ctx); err != nil {
+		return nil, err
+	}
 	id, err := s.sessions.Enter(usernameFromContext(ctx))
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -565,6 +627,9 @@ func (s *zeConfigServiceImpl) SetConfig(ctx context.Context, req *zepb.ConfigSet
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
+	if err := requireWriteAccess(ctx); err != nil {
+		return nil, err
+	}
 	if err := s.sessions.Set(fromProtoConfigSetRequest(req, usernameFromContext(ctx))); err != nil {
 		return nil, sessionStatusError(err)
 	}
@@ -574,6 +639,9 @@ func (s *zeConfigServiceImpl) SetConfig(ctx context.Context, req *zepb.ConfigSet
 func (s *zeConfigServiceImpl) DeleteConfig(ctx context.Context, req *zepb.ConfigDeleteRequest) (*zepb.ConfigDeleteResponse, error) {
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
+	}
+	if err := requireWriteAccess(ctx); err != nil {
+		return nil, err
 	}
 	if err := s.sessions.Delete(fromProtoConfigDeleteRequest(req, usernameFromContext(ctx))); err != nil {
 		return nil, sessionStatusError(err)
@@ -596,9 +664,22 @@ func (s *zeConfigServiceImpl) CommitSession(ctx context.Context, req *zepb.Commi
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.sessions.Commit(fromProtoCommitRequest(req, usernameFromContext(ctx))); err != nil {
+	if err := requireWriteAccess(ctx); err != nil {
+		return nil, err
+	}
+	caller := callerIdentityFromContext(ctx)
+	detail, _ := s.sessions.Diff(fromProtoSessionRequest(&zepb.SessionRequest{SessionId: req.GetSessionId()}, caller.Username))
+	if err := s.sessions.Commit(fromProtoCommitRequest(req, caller.Username)); err != nil {
 		return nil, sessionStatusError(err)
 	}
+	s.recordAudit(audit.Entry{
+		Actor:      caller.Username,
+		RemoteAddr: caller.RemoteAddr,
+		Surface:    audit.SurfaceGRPC,
+		Action:     audit.ActionConfigCommit,
+		Detail:     detail,
+		Outcome:    audit.OutcomeSuccess,
+	})
 	return &zepb.CommitResponse{Success: true}, nil
 }
 
@@ -606,10 +687,32 @@ func (s *zeConfigServiceImpl) DiscardSession(ctx context.Context, req *zepb.Sess
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.sessions.Discard(fromProtoDiscardRequest(req, usernameFromContext(ctx))); err != nil {
+	if err := requireWriteAccess(ctx); err != nil {
+		return nil, err
+	}
+	caller := callerIdentityFromContext(ctx)
+	detail, _ := s.sessions.Diff(fromProtoSessionRequest(req, caller.Username))
+	if err := s.sessions.Discard(fromProtoDiscardRequest(req, caller.Username)); err != nil {
 		return nil, sessionStatusError(err)
 	}
+	s.recordAudit(audit.Entry{
+		Actor:      caller.Username,
+		RemoteAddr: caller.RemoteAddr,
+		Surface:    audit.SurfaceGRPC,
+		Action:     audit.ActionConfigDiscard,
+		Detail:     detail,
+		Outcome:    audit.OutcomeSuccess,
+	})
 	return &zepb.DiscardResponse{Success: true}, nil
+}
+
+func (s *zeConfigServiceImpl) recordAudit(entry audit.Entry) {
+	if s.auditRecorder == nil {
+		return
+	}
+	if err := s.auditRecorder.Record(entry); err != nil {
+		logger.Warn("gRPC audit record failed", "action", entry.Action, "actor", entry.Actor, "error", err)
+	}
 }
 
 // sessionStatusError maps config session errors to gRPC status codes.

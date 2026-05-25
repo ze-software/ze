@@ -34,6 +34,7 @@ type TacacsAccountant struct {
 	client   *TacacsClient
 	logger   *slog.Logger
 	taskSeq  atomic.Uint64 // monotonic task ID generator
+	drops    atomic.Uint64 // records dropped because queue was full or stopped
 	queue    chan acctMsg  // buffered channel for the worker (never closed)
 	done     chan struct{} // closed when worker exits
 	stopCh   chan struct{} // closed by Stop; checked by worker and enqueue
@@ -69,6 +70,14 @@ func (a *TacacsAccountant) Stop() {
 		close(a.stopCh)
 	})
 	<-a.done
+}
+
+// DropCount returns the number of accounting records dropped by the send path.
+func (a *TacacsAccountant) DropCount() uint64 {
+	if a == nil {
+		return 0
+	}
+	return a.drops.Load()
 }
 
 // worker reads from the queue and sends each request to the TACACS+ server.
@@ -171,6 +180,7 @@ func (a *TacacsAccountant) CommandStart(username, remoteAddr, command string) st
 	}
 
 	if !a.enqueue(req) {
+		a.drops.Add(1)
 		a.logger.Warn("TACACS+ accounting queue full, dropping START",
 			"username", username, "command", command)
 	}
@@ -198,6 +208,7 @@ func (a *TacacsAccountant) CommandStop(taskID, username, remoteAddr, command str
 	}
 
 	if !a.enqueue(req) {
+		a.drops.Add(1)
 		a.logger.Warn("TACACS+ accounting queue full, dropping STOP",
 			"username", username, "command", command)
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	gossh "golang.org/x/crypto/ssh"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
@@ -77,6 +78,24 @@ func TestNewServerNoUsers(t *testing.T) {
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
 	assert.Empty(t, srv.Users(), "no users configured")
+}
+
+// VALIDATES: AC-16 -- SSH failed authentication emits an audit record with source IP and attempted user.
+// PREVENTS: SSH login failures being visible only in server logs.
+func TestSSHAuthFailureAuditRecord(t *testing.T) {
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	srv, err := NewServer(Config{HostKeyPath: t.TempDir() + "/test_host_key", AuditRecorder: recorder})
+	require.NoError(t, err)
+
+	srv.recordAuthFailure("alice", "192.0.2.10:2222")
+
+	entries := recorder.Query(audit.Filter{Action: audit.ActionAuthFail})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "alice", entries[0].Actor)
+	assert.Equal(t, "192.0.2.10:2222", entries[0].RemoteAddr)
+	assert.Equal(t, audit.SurfaceSSH, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeDenied, entries[0].Outcome)
 }
 
 func TestServerName(t *testing.T) {

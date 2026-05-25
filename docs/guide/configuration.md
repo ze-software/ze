@@ -851,6 +851,27 @@ commit. For end-to-end usage (login, hashing, multi-user setup) see
 <!-- source: internal/component/ssh/schema/ze-ssh-conf.yang -- system.authentication.user -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
 
+### Authorization and web/API effects
+
+Authorization profiles apply to command dispatch and web config mutation.
+The web config editor checks the user's profile before `set`, `add`,
+`delete`, `rename`, `commit`, or `discard`. Read-only users can still load
+`/show/` pages. Terminal-mode web config commands use the same checks before
+they mutate a draft.
+
+REST and gRPC without a token or per-user authenticator use the `api`
+identity as read-only. Reads such as `show version` and `bgp summary` work;
+write commands and config sessions return 403. Configure
+`environment.api-server.token` or per-user credentials when API clients need
+write access.
+
+Config commits, discards, daemon reloads, and failed logins are recorded in
+the local audit log. See [audit.md](audit.md) for storage and query details.
+
+<!-- source: internal/component/web/handler_config.go -- web config RBAC -->
+<!-- source: internal/component/api/engine.go -- read-only API caller enforcement -->
+<!-- source: internal/component/audit/audit.go -- audit Entry and actions -->
+
 ### TACACS+ AAA
 
 `system.authentication.tacacs` adds RFC 8907 TACACS+ as the first backend

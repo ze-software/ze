@@ -4,9 +4,10 @@
 # 1. ze-test tacacs-mock logs every received packet (incl. ACCT START/STOP)
 # 2. Daemon authenticates admin via TACACS+ and has accounting enabled
 # 3. ze cli -c "summary" triggers the Dispatcher accounting hook
-# 4. Mock log shows at least one "ACCT START" and one "ACCT STOP"
+# 4. show aaa accounting exposes the local drop counter
+# 5. Mock log shows at least one "ACCT START" and one "ACCT STOP"
 #
-# VALIDATES: AC-8 -- TACACS+ accounting enabled, command executed => ACCT start+stop sent.
+# VALIDATES: TACACS+ accounting dispatch and AC-12 -- the local drop counter is visible.
 # PREVENTS: Accounting hook installed but never dispatching to the configured backend.
 
 tmpfs=test-tacacs-acct.sh:mode=755:terminator=EOF_SH
@@ -105,6 +106,20 @@ OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "summar
 	exit 1
 }
 echo "OK: summary ran via TACACS+ auth" >&2
+
+AAA_OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show aaa accounting" 2>&1) || {
+	echo "FAIL: show aaa accounting" >&2
+	echo "OUTPUT: $AAA_OUTPUT" >&2
+	exit 1
+}
+case "$AAA_OUTPUT" in
+	*dropped-records*) echo "OK: show aaa accounting exposes dropped-records" >&2 ;;
+	*)
+		echo "FAIL: show aaa accounting missing dropped-records" >&2
+		echo "$AAA_OUTPUT" >&2
+		exit 1
+		;;
+esac
 
 # Give the accounting worker time to send both START and STOP over its
 # buffered channel before we assert.

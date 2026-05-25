@@ -34,6 +34,7 @@ var (
 	errExpectBgpMissingHex              = errors.New("expect:bgp missing hex=")
 	errExpectJsonMissingJson            = errors.New("expect:json missing json=")
 	errExpectExitMissingCode            = errors.New("expect:exit missing code=")
+	errExpectFileMissingTarget          = errors.New("expect:file missing path= or glob=")
 	errActionSendMissingHex             = errors.New("action:send missing hex=")
 	errActionRewriteMissingSource       = errors.New("action:rewrite missing source=")
 	errActionRewriteMissingDest         = errors.New("action:rewrite missing dest=")
@@ -393,10 +394,51 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		pattern := kv["pattern"]
 		r.ExpectSyslog = append(r.ExpectSyslog, pattern)
 
+	case "file":
+		check, err := parseFileCheck(kv)
+		if err != nil {
+			return err
+		}
+		r.FileChecks = append(r.FileChecks, check)
+
 	default:
 		return fmt.Errorf("unknown expect type %q", expType)
 	}
 	return nil
+}
+
+func parseFileCheck(kv map[string]string) (FileCheck, error) {
+	check := FileCheck{
+		Path:        kv["path"],
+		Glob:        kv["glob"],
+		Contains:    kv["contains"],
+		NotContains: kv["not-contains"],
+		Exists:      isTruthy(kv["exists"]),
+		Absent:      isTruthy(kv["absent"]),
+	}
+	if check.Path == "" && check.Glob == "" {
+		return FileCheck{}, errExpectFileMissingTarget
+	}
+	if check.Path != "" && check.Glob != "" {
+		return FileCheck{}, errors.New("expect:file must use only one of path= or glob=")
+	}
+	if countText := kv["count"]; countText != "" {
+		count, err := strconv.Atoi(countText)
+		if err != nil || count < 0 {
+			return FileCheck{}, fmt.Errorf("expect:file invalid count=%q", countText)
+		}
+		check.Count = &count
+	}
+	return check, nil
+}
+
+func isTruthy(s string) bool {
+	switch strings.ToLower(s) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 // parseReject handles reject:type:... lines.
@@ -602,6 +644,8 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 	containsMarker := ":contains="
 	bodyfileMarker := ":bodyfile="
 	sendfileMarker := ":sendfile="
+	contentTypeMarker := ":content-type="
+	insecureTLSMarker := ":insecure-tls="
 	timeoutMarker := ":timeout="
 
 	seqIdx := strings.Index(line, seqMarker)
@@ -610,6 +654,8 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 	containsIdx := strings.Index(line, containsMarker)
 	bodyfileIdx := strings.Index(line, bodyfileMarker)
 	sendfileIdx := strings.Index(line, sendfileMarker)
+	contentTypeIdx := strings.Index(line, contentTypeMarker)
+	insecureTLSIdx := strings.Index(line, insecureTLSMarker)
 	timeoutIdx := strings.Index(line, timeoutMarker)
 
 	if seqIdx < 0 {
@@ -622,7 +668,7 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 		return errHttpMissingStatus
 	}
 
-	allMarkers := []string{seqMarker, urlMarker, statusMarker, containsMarker, bodyfileMarker, sendfileMarker, timeoutMarker}
+	allMarkers := []string{seqMarker, urlMarker, statusMarker, containsMarker, bodyfileMarker, sendfileMarker, contentTypeMarker, insecureTLSMarker, timeoutMarker}
 
 	// Extract seq value: from after ":seq=" to next known marker or end.
 	seqStart := seqIdx + len(seqMarker)
@@ -671,6 +717,26 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 		sendfile = line[sendfileStart:sendfileEnd]
 	}
 
+	// Extract optional content-type value for sendfile POST bodies.
+	var contentType string
+	if contentTypeIdx >= 0 {
+		contentTypeStart := contentTypeIdx + len(contentTypeMarker)
+		contentTypeEnd := nextMarker(line, contentTypeStart, allMarkers...)
+		contentType = line[contentTypeStart:contentTypeEnd]
+	}
+
+	// Extract optional insecure TLS flag for self-signed HTTPS test servers.
+	var insecureTLS bool
+	if insecureTLSIdx >= 0 {
+		insecureTLSStart := insecureTLSIdx + len(insecureTLSMarker)
+		insecureTLSEnd := nextMarker(line, insecureTLSStart, allMarkers...)
+		insecureTLSStr := line[insecureTLSStart:insecureTLSEnd]
+		insecureTLS, err = strconv.ParseBool(insecureTLSStr)
+		if err != nil {
+			return fmt.Errorf("http= invalid insecure-tls=%q", insecureTLSStr)
+		}
+	}
+
 	// Extract optional timeout value (wait only).
 	var timeout string
 	if timeoutIdx >= 0 {
@@ -683,14 +749,16 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 	}
 
 	chk := HTTPCheck{
-		Seq:      seq,
-		Method:   method,
-		URL:      url,
-		Status:   status,
-		Contains: contains,
-		BodyFile: bodyfile,
-		SendFile: sendfile,
-		Timeout:  timeout,
+		Seq:         seq,
+		Method:      method,
+		URL:         url,
+		Status:      status,
+		Contains:    contains,
+		BodyFile:    bodyfile,
+		SendFile:    sendfile,
+		ContentType: contentType,
+		InsecureTLS: insecureTLS,
+		Timeout:     timeout,
 	}
 	if isWait {
 		chk.Method = "get" // wait polls with GET

@@ -1126,17 +1126,20 @@ Cross-component coupling follows a strict hierarchy:
 
 | Component | Allowed imports (other components) |
 |-----------|-----------------------------------|
-| authz | config/yang (schema registration) |
+| api | audit, config/yang |
+| authz | aaa, config/yang (schema registration) |
 | bgp | config, plugin (no cli, ssh, web, iface) |
-| cli | command, config, plugin/server |
-| cmd (protocol-agnostic) | config/yang, plugin, plugin/server |
+| cli | audit, command, config, plugin/server |
+| cmd (protocol-agnostic) | audit, config/yang, plugin, plugin/server |
 | config | plugin, plugin/registry, command |
 | hub | everything (orchestrator) |
 | iface | config/yang, plugin, plugin/registry |
 | l2tp | config/yang, plugin/server (CLI RPCs), events (observer, route-change), web (handler_l2tp) |
+| mcp | audit |
+| plugin/server | aaa, audit |
 | pppoe | config/yang, plugin/server (CLI RPCs), ppp (Driver, DevPPPSetup), iface |
-| ssh | cli, authz, config, plugin/server |
-| web | cli, authz, config |
+| ssh | audit, cli, authz, config, plugin/server |
+| web | aaa, audit, cli, authz, config |
 
 **Authentication** lives in `authz` (not `ssh`). Both `ssh` and `web`
 import `authz` for `UserConfig`, `CheckPassword`, `AuthenticateUser`.
@@ -1160,6 +1163,13 @@ cleanly. The TACACS+ accountant hooks into `Dispatcher.Dispatch()` so
 START/STOP records cover SSH exec, interactive TUI, and local CLI
 commands through a single point.
 
+**Audit trail.** `internal/component/audit` owns the local structured audit
+log and exposes a small `Recorder` interface. Transport components accept
+that interface for user-facing failures or direct config mutations: SSH, web,
+REST, gRPC, MCP, and the dispatcher record through it, while the hub owns log
+creation and provider registration for `show audit`. Components do not open
+audit files themselves.
+
 **Infrastructure wiring** (SSH server creation, command executor, monitor
 factory, login warnings) is handled by the hub via `bgpconfig.InfraHook`.
 The BGP config package extracts plain data; the hub creates servers.
@@ -1168,6 +1178,8 @@ This avoids bgp importing ssh, cli, or web.
 <!-- source: internal/component/authz/auth.go -- UserConfig, AuthenticateUser -->
 <!-- source: internal/component/aaa/aaa.go -- Authenticator/Authorizer/Accountant interfaces, ChainAuthenticator -->
 <!-- source: internal/component/aaa/all/all.go -- backend blank-imports (authz, tacacs) -->
+<!-- source: internal/component/audit/audit.go -- Recorder and Entry -->
+<!-- source: internal/component/cmd/show/audit.go -- RegisterAuditProvider -->
 <!-- source: internal/component/tacacs/register.go -- tacacsBackend.Build, AAA registration -->
 <!-- source: cmd/ze/hub/aaa_lifecycle.go -- atomic bundle swap on reload -->
 <!-- source: cmd/ze/hub/infra_setup.go -- buildAAABundle, SSH wiring, accountant hook installation -->

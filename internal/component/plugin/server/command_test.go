@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -890,6 +891,45 @@ func TestDispatcherAuthorizationUsesReadOnly(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 	assert.False(t, capturedReadOnly, "config set should be ReadOnly=false")
+}
+
+// VALIDATES: AC-8 -- daemon lifecycle commands are write commands for API read-only enforcement.
+// PREVENTS: no-auth API callers running daemon reload/shutdown because the daemon prefix was treated as read-only.
+func TestIsReadOnlyPathDaemonLifecycle(t *testing.T) {
+	assert.True(t, IsReadOnlyPath("daemon status"), "status is a read-only daemon query")
+
+	for _, path := range []string{"daemon reload", "daemon shutdown", "daemon reboot", "daemon quit"} {
+		t.Run(path, func(t *testing.T) {
+			assert.False(t, IsReadOnlyPath(path), "%s mutates daemon state", path)
+		})
+	}
+}
+
+// VALIDATES: AC-11 -- Daemon reload through dispatcher emits an audit record with actor, surface, and action.
+// PREVENTS: Lifecycle operations bypassing the unified audit trail.
+func TestDispatcherDaemonReloadAuditRecord(t *testing.T) {
+	d := NewDispatcher()
+	d.RegisterWithOptions("daemon reload", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone, Data: "ok"}, nil
+	}, "reload", RegisterOptions{})
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	d.SetAuditRecorder(recorder)
+
+	resp, err := d.Dispatch(&CommandContext{
+		Username:   "alice",
+		RemoteAddr: "192.0.2.10:2222",
+		Surface:    audit.SurfaceSSH,
+	}, "daemon reload")
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	entries := recorder.Query(audit.Filter{Action: audit.ActionDaemonReload})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "alice", entries[0].Actor)
+	assert.Equal(t, "192.0.2.10:2222", entries[0].RemoteAddr)
+	assert.Equal(t, audit.SurfaceSSH, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 }
 
 // readOnlyCapture captures the readOnly argument passed to Authorize.

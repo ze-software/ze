@@ -18,6 +18,7 @@ import (
 
 	zepb "codeberg.org/thomas-mangin/ze/api/proto"
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 )
 
 // testEngine creates an APIEngine with fake implementations.
@@ -33,6 +34,7 @@ func testEngine() *api.APIEngine {
 	cmds := func() []api.CommandMeta {
 		return []api.CommandMeta{
 			{Name: "bgp summary", Description: "Show BGP summary", ReadOnly: true},
+			{Name: "bgp monitor", Description: "Monitor BGP events", ReadOnly: true},
 			{Name: "daemon reload", Description: "Reload config", ReadOnly: false},
 		}
 	}
@@ -73,7 +75,11 @@ func (e *fakeEditor) Diff() string {
 	return b.String()
 }
 
-func (e *fakeEditor) Save() error                         { return nil }
+func (e *fakeEditor) Save() error { return nil }
+func (e *fakeEditor) StageCandidate(time.Time) (string, string, error) {
+	return e.WorkingContent(), "test-version", nil
+}
+func (e *fakeEditor) MarkCommittedContent(string)         {}
 func (e *fakeEditor) RestoreOriginalContent(string) error { return nil }
 func (e *fakeEditor) Discard() error                      { e.values = make(map[string]string); return nil }
 func (e *fakeEditor) OriginalContent() string             { return "# original\n" }
@@ -99,6 +105,11 @@ func startTestServer(t *testing.T, token string) (zepb.ZeServiceClient, zepb.ZeC
 
 func startTestServerWithEngine(t *testing.T, token string, engine *api.APIEngine) (zepb.ZeServiceClient, zepb.ZeConfigServiceClient) {
 	t.Helper()
+	return startTestServerWithEngineAndAudit(t, token, engine, nil)
+}
+
+func startTestServerWithEngineAndAudit(t *testing.T, token string, engine *api.APIEngine, recorder audit.Recorder) (zepb.ZeServiceClient, zepb.ZeConfigServiceClient) {
+	t.Helper()
 
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
 		return &fakeEditor{values: make(map[string]string)}, nil
@@ -108,8 +119,9 @@ func startTestServerWithEngine(t *testing.T, token string, engine *api.APIEngine
 	// bypass Serve() and bind their own listener via serveBackground below,
 	// so the value here is a placeholder that never gets bound.
 	srv, err := NewGRPCServer(GRPCConfig{
-		ListenAddrs: []string{"127.0.0.1:0"},
-		Token:       token,
+		ListenAddrs:   []string{"127.0.0.1:0"},
+		Token:         token,
+		AuditRecorder: recorder,
 	}, engine, sessions)
 	require.NoError(t, err)
 
@@ -135,7 +147,7 @@ func TestGRPCListCommands(t *testing.T) {
 
 	resp, err := ze.ListCommands(t.Context(), &zepb.ListCommandsRequest{})
 	require.NoError(t, err)
-	assert.Len(t, resp.GetCommands(), 2)
+	assert.Len(t, resp.GetCommands(), 3)
 	assert.Equal(t, "bgp summary", resp.GetCommands()[0].GetName())
 }
 
@@ -199,6 +211,64 @@ func TestGRPCExecuteUnauthorized(t *testing.T) {
 	assert.Equal(t, "done", resp.GetStatus())
 }
 
+// VALIDATES: AC-16 -- gRPC failed authentication emits an audit record with source IP and attempted user.
+// PREVENTS: gRPC auth failures being visible only as Unauthenticated status codes.
+func TestGRPCAuthFailureAuditRecord(t *testing.T) {
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	engine := testEngine()
+	srv, err := NewGRPCServer(GRPCConfig{
+		ListenAddrs: []string{"127.0.0.1:0"},
+		Authenticator: func(header string) (string, bool) {
+			return "", false
+		},
+		AuditRecorder: recorder,
+	}, engine, nil)
+	require.NoError(t, err)
+
+	var lc net.ListenConfig
+	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	serveBackground(srv.srv, ln)
+	t.Cleanup(srv.Stop)
+
+	conn, err := grpc.NewClient(ln.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, conn.Close()) })
+	ze := zepb.NewZeServiceClient(conn)
+	md := metadata.Pairs("authorization", "Bearer alice:wrong")
+	ctx := metadata.NewOutgoingContext(t.Context(), md)
+
+	_, err = ze.Execute(ctx, &zepb.CommandRequest{Command: "bgp summary"})
+
+	require.Error(t, err)
+	assert.Equal(t, codes.Unauthenticated, status.Code(err))
+	entries := recorder.Query(audit.Filter{Action: audit.ActionAuthFail})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "alice", entries[0].Actor)
+	assert.Contains(t, entries[0].RemoteAddr, "127.0.0.1:")
+	assert.Equal(t, audit.SurfaceGRPC, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeDenied, entries[0].Outcome)
+}
+
+// VALIDATES: AC-8 -- gRPC no-auth mode gives the default api identity read-only access, not admin access.
+// PREVENTS: gRPC without authenticator or token accepting write commands and config sessions.
+func TestGRPCNoAuthReadOnly(t *testing.T) {
+	ze, cfg := startTestServer(t, "")
+
+	readResp, readErr := ze.Execute(t.Context(), &zepb.CommandRequest{Command: "bgp summary"})
+	require.NoError(t, readErr)
+	assert.Equal(t, "done", readResp.GetStatus())
+
+	_, writeErr := ze.Execute(t.Context(), &zepb.CommandRequest{Command: "daemon reload"})
+	require.Error(t, writeErr)
+	assert.Equal(t, codes.PermissionDenied, status.Code(writeErr))
+
+	_, sessionErr := cfg.EnterSession(t.Context(), &zepb.Empty{})
+	require.Error(t, sessionErr)
+	assert.Equal(t, codes.PermissionDenied, status.Code(sessionErr))
+}
+
 // execWithErr calls Execute and returns only the error.
 func execWithErr(t *testing.T, ze zepb.ZeServiceClient, ctx context.Context, command string) error {
 	t.Helper()
@@ -231,9 +301,10 @@ func TestGRPCStream(t *testing.T) {
 // VALIDATES: AC-5 -- Config session lifecycle via gRPC.
 // PREVENTS: config RPCs broken.
 func TestGRPCConfigSession(t *testing.T) {
-	_, cfg := startTestServer(t, "")
+	_, cfg := startTestServer(t, "secret")
 
-	ctx := t.Context()
+	md := metadata.Pairs("authorization", "Bearer secret")
+	ctx := metadata.NewOutgoingContext(t.Context(), md)
 
 	// Enter session.
 	sessResp, err := cfg.EnterSession(ctx, &zepb.Empty{})
@@ -255,6 +326,58 @@ func TestGRPCConfigSession(t *testing.T) {
 	// Commit.
 	_, err = cfg.CommitSession(ctx, &zepb.CommitRequest{SessionId: id})
 	require.NoError(t, err)
+}
+
+// VALIDATES: AC-9 -- Config commit via gRPC emits an audit record with actor, surface, action, and summary.
+// PREVENTS: gRPC config session commits bypassing the unified audit trail.
+func TestGRPCConfigCommitAuditRecord(t *testing.T) {
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	_, cfg := startTestServerWithEngineAndAudit(t, "secret", testEngine(), recorder)
+
+	md := metadata.Pairs("authorization", "Bearer secret")
+	ctx := metadata.NewOutgoingContext(t.Context(), md)
+	sessResp, err := cfg.EnterSession(ctx, &zepb.Empty{})
+	require.NoError(t, err)
+	id := sessResp.GetSessionId()
+
+	_, err = cfg.SetConfig(ctx, &zepb.ConfigSetRequest{SessionId: id, Path: "bgp.router-id", Value: "10.0.0.1"})
+	require.NoError(t, err)
+	_, err = cfg.CommitSession(ctx, &zepb.CommitRequest{SessionId: id})
+	require.NoError(t, err)
+
+	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigCommit})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "api", entries[0].Actor)
+	assert.Equal(t, audit.SurfaceGRPC, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
+	assert.Contains(t, entries[0].Detail, "bgp.router-id")
+}
+
+// VALIDATES: AC-10 -- Config discard via gRPC emits an audit record with actor, surface, action, and summary.
+// PREVENTS: gRPC config discards losing audit attribution.
+func TestGRPCConfigDiscardAuditRecord(t *testing.T) {
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	_, cfg := startTestServerWithEngineAndAudit(t, "secret", testEngine(), recorder)
+
+	md := metadata.Pairs("authorization", "Bearer secret")
+	ctx := metadata.NewOutgoingContext(t.Context(), md)
+	sessResp, err := cfg.EnterSession(ctx, &zepb.Empty{})
+	require.NoError(t, err)
+	id := sessResp.GetSessionId()
+
+	_, err = cfg.SetConfig(ctx, &zepb.ConfigSetRequest{SessionId: id, Path: "bgp.router-id", Value: "10.0.0.1"})
+	require.NoError(t, err)
+	_, err = cfg.DiscardSession(ctx, &zepb.SessionRequest{SessionId: id})
+	require.NoError(t, err)
+
+	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigDiscard})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "api", entries[0].Actor)
+	assert.Equal(t, audit.SurfaceGRPC, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
+	assert.Contains(t, entries[0].Detail, "bgp.router-id")
 }
 
 // VALIDATES: AC-6 -- gRPC reflection enabled and services reachable.

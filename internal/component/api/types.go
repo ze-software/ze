@@ -50,6 +50,9 @@ type ExecResult struct {
 type CallerIdentity struct {
 	Username   string
 	RemoteAddr string
+	Surface    string
+	// ReadOnly means the transport admitted the caller with read-only access only.
+	ReadOnly bool
 }
 
 // Status constants for ExecResult.

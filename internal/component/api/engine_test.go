@@ -140,6 +140,21 @@ func TestEngineExecuteUnauthorized(t *testing.T) {
 	assert.Contains(t, result.Error, "authorization denied")
 }
 
+// VALIDATES: AC-8 -- a no-auth/read-only API caller can run reads but not writes.
+// PREVENTS: REST/gRPC no-auth mode granting admin write access to the default api identity.
+func TestEngineReadOnlyCallerDeniedWrite(t *testing.T) {
+	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
+
+	readResult, readErr := eng.Execute(t.Context(), &ExecuteRequest{Caller: CallerIdentity{Username: "api", ReadOnly: true}, Command: "bgp summary"})
+	require.NoError(t, readErr)
+	assert.Equal(t, StatusDone, readResult.Status)
+
+	writeResult, writeErr := eng.Execute(t.Context(), &ExecuteRequest{Caller: CallerIdentity{Username: "api", ReadOnly: true}, Command: "daemon reload"})
+	assert.ErrorIs(t, writeErr, ErrUnauthorized)
+	assert.Equal(t, StatusError, writeResult.Status)
+	assert.Contains(t, writeResult.Error, "authorization denied")
+}
+
 // VALIDATES: Execute propagates executor errors.
 // PREVENTS: swallowed errors in dispatch path.
 func TestEngineExecuteError(t *testing.T) {

@@ -90,6 +90,13 @@ func (e *APIEngine) DescribeCommand(req *DescribeCommandRequest) (CommandMeta, e
 // Execute runs a command and returns the result.
 // Returns ErrUnauthorized if the auth checker denies the request.
 func (e *APIEngine) Execute(ctx context.Context, req *ExecuteRequest) (*ExecResult, error) {
+	readOnly := e.commandReadOnly(req.Command)
+	if req.Caller.ReadOnly && !readOnly {
+		return &ExecResult{
+			Status: StatusError,
+			Error:  "authorization denied for " + strconv.Quote(req.Command),
+		}, ErrUnauthorized
+	}
 	if e.auth != nil && !e.auth(req.Caller.Username, req.Command) {
 		return &ExecResult{
 			Status: StatusError,
@@ -124,8 +131,36 @@ func (e *APIEngine) Stream(ctx context.Context, req *StreamRequest) (<-chan stri
 	if e.stream == nil {
 		return nil, nil, errors.New("streaming not supported")
 	}
+	readOnly := e.commandReadOnly(req.Command)
+	if req.Caller.ReadOnly && !readOnly {
+		return nil, nil, ErrUnauthorized
+	}
 	if e.auth != nil && !e.auth(req.Caller.Username, req.Command) {
 		return nil, nil, ErrUnauthorized
 	}
 	return e.stream(ctx, req.Caller, req.Command)
+}
+
+func (e *APIEngine) commandReadOnly(command string) bool {
+	if e.commands == nil {
+		return false
+	}
+	input := strings.ToLower(strings.TrimSpace(command))
+	longest := 0
+	readOnly := false
+	for _, cmd := range e.commands() {
+		name := strings.ToLower(strings.TrimSpace(cmd.Name))
+		if name == "" || len(name) <= longest {
+			continue
+		}
+		if !strings.HasPrefix(input, name) {
+			continue
+		}
+		if len(input) != len(name) && input[len(name)] != ' ' {
+			continue
+		}
+		longest = len(name)
+		readOnly = cmd.ReadOnly
+	}
+	return readOnly
 }

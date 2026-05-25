@@ -13,10 +13,12 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
+	showCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
@@ -50,14 +52,34 @@ func buildAAABundle(tree *zeconfig.Tree, users []aaa.UserCredential, store *auth
 	return aaa.Default.Build(params)
 }
 
+type accountingDropCounter interface {
+	DropCount() uint64
+}
+
+func registerAAAAccountingProvider(bundle *aaa.Bundle) {
+	var counter accountingDropCounter
+	if bundle != nil {
+		counter, _ = bundle.Accountant.(accountingDropCounter)
+	}
+	showCmd.RegisterAAAAccountingProvider(func() map[string]any {
+		var drops uint64
+		if counter != nil {
+			drops = counter.DropCount()
+		}
+		return map[string]any{"dropped-records": drops}
+	})
+}
+
 // setupInfraHook creates and registers the infrastructure setup hook.
-func setupInfraHook() {
-	bgpconfig.SetInfraHook(infraSetup)
+func setupInfraHook(recorder audit.Recorder) {
+	bgpconfig.SetInfraHook(func(params bgpconfig.InfraHookParams) {
+		infraSetup(params, recorder)
+	})
 }
 
 // infraSetup creates SSH server, wires authorization, command executors,
 // monitor factory, and login warnings on the reactor's post-start callback.
-func infraSetup(params bgpconfig.InfraHookParams) {
+func infraSetup(params bgpconfig.InfraHookParams, recorder audit.Recorder) {
 	log := slogutil.Logger("hub.infra")
 	r := params.Reactor
 
@@ -111,6 +133,7 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 		log.Warn("AAA backend build failed", "error", buildErr)
 		bundle = nil
 	}
+	registerAAAAccountingProvider(bundle)
 	swapAAABundle(bundle, log)
 
 	if hasSSHConfig && bundle != nil {
@@ -123,6 +146,7 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 			MaxSessions:   sshCfg.MaxSessions,
 			Users:         users,
 			Authenticator: bundle.Authenticator,
+			AuditRecorder: recorder,
 		}
 		cfg.ConfigDir = params.ConfigDir
 		if cfg.ConfigDir == "" {
@@ -143,7 +167,7 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 				if writeErr := os.WriteFile(ephemeralFile, []byte(srv.Address()), 0o600); writeErr != nil {
 					log.Warn("failed to write ephemeral SSH address", "error", writeErr)
 				}
-				sshSrv.SetSessionModelFactory(buildSessionModelFactory(sshSrv, params))
+				sshSrv.SetSessionModelFactory(buildSessionModelFactory(sshSrv, params, recorder))
 			}
 		}
 	}

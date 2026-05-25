@@ -1,0 +1,191 @@
+# Test: web config mutation denies read-only user
+# VALIDATES: AC-1 through AC-6 and AC-15 -- read-only web user can view but cannot edit config.
+# PREVENTS: web config handlers bypassing profile authorization.
+
+option=timeout:value=30s
+
+tmpfs=web-rbac-check.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import base64
+import ssl
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+BASE_URL = 'https://127.0.0.1:18443'
+AUTH = 'Basic ' + base64.b64encode(b'readonly:readonlypass').decode()
+CTX = ssl._create_unverified_context()
+
+def request(method, path, data=None, content_type=None):
+    headers = {'Authorization': AUTH}
+    body = None
+    if data is not None:
+        body = data
+        if content_type:
+            headers['Content-Type'] = content_type
+    req = urllib.request.Request(BASE_URL + path, data=body, headers=headers, method=method)
+    return urllib.request.urlopen(req, timeout=5, context=CTX)
+
+def wait_for_show(timeout=10):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            resp = request('GET', '/show/environment/daemon/')
+            resp.read()
+            return True
+        except (urllib.error.URLError, ConnectionRefusedError, OSError):
+            time.sleep(0.5)
+    return False
+
+def wait_for_rbac(timeout=10):
+    deadline = time.time() + timeout
+    form = urllib.parse.urlencode({'leaf': 'bad/name', 'value': 'probe'}).encode()
+    while time.time() < deadline:
+        try:
+            request('POST', '/config/set/environment/daemon/', form, 'application/x-www-form-urlencoded').read()
+        except urllib.error.HTTPError as err:
+            if err.code == 403:
+                return True
+        except (urllib.error.URLError, ConnectionRefusedError, OSError):
+            pass
+        time.sleep(0.5)
+    return False
+
+def expect_forbidden(path, fields, label):
+    form = urllib.parse.urlencode(fields).encode()
+    try:
+        request('POST', path, form, 'application/x-www-form-urlencoded').read()
+        print(f'FAIL: read-only web {label} succeeded', file=sys.stderr)
+        sys.exit(1)
+    except urllib.error.HTTPError as err:
+        if err.code != 403:
+            print(f'FAIL: web {label} status={err.code}, want 403', file=sys.stderr)
+            sys.exit(1)
+    print(f'OK: read-only web {label} denied', file=sys.stderr)
+
+def main():
+    if not wait_for_show():
+        print('FAIL: web show page did not become available', file=sys.stderr)
+        sys.exit(1)
+    print('OK: read-only web user can view show page', file=sys.stderr)
+
+    if not wait_for_rbac():
+        print('FAIL: web RBAC did not become active', file=sys.stderr)
+        sys.exit(1)
+
+    expect_forbidden('/config/set/environment/daemon/', {'leaf': 'zeuser', 'value': 'blocked-user'}, 'config set')
+    expect_forbidden('/config/add/bgp/peer/', {'name': 'blocked-peer'}, 'config add')
+    expect_forbidden('/config/delete/environment/daemon/', {'leaf': 'zeuser'}, 'config delete')
+    expect_forbidden('/config/rename/bgp/peer/peer1/', {'new-key': 'peer2'}, 'config rename')
+    expect_forbidden('/config/commit/', {}, 'config commit')
+    expect_forbidden('/config/discard/', {}, 'config discard')
+    expect_forbidden('/cli/terminal', {'command': 'set zeuser blocked-terminal'}, 'terminal config set')
+
+    body = request('GET', '/show/environment/daemon/').read().decode(errors='replace')
+    if 'blocked-user' in body or 'blocked-terminal' in body:
+        print('FAIL: denied config set changed rendered config', file=sys.stderr)
+        sys.exit(1)
+    print('OK: denied web mutations left config unchanged', file=sys.stderr)
+
+if __name__ == '__main__':
+    main()
+EOF_PY
+
+tmpfs=test-web-rbac-deny.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+ZE_DIR=$(mktemp -d)
+DAEMON_PID=""
+cleanup() {
+	rm -rf "$ZE_DIR"
+	if [ -n "$DAEMON_PID" ]; then
+		kill "$DAEMON_PID" 2>/dev/null || true
+		wait "$DAEMON_PID" 2>/dev/null || true
+	fi
+}
+trap cleanup EXIT
+
+printf 'readonly\nreadonlypass\n127.0.0.1\n2222\n' | ZE_CONFIG_DIR="$ZE_DIR" ze init >/dev/null
+DB="$ZE_DIR/database.zefs"
+printf 'readonly' > zefs-username
+ze data --path "$DB" write 'meta/ssh/{host}/{port}/username' zefs-username >/dev/null
+ze data --path "$DB" cat 'meta/ssh/127.0.0.1/2222/password' > zefs-password
+ze data --path "$DB" write 'meta/ssh/{host}/{port}/password' zefs-password >/dev/null
+
+cat > web-rbac-deny.conf << 'ZECONF'
+system {
+	authentication {
+		user readonly {
+			password "$2a$04$P5lzA6RZkZjT4nkUSNITpOgM8tFzFeGkROQ6wbJCje4PXFlj2JzP6"
+			profile [ readweb ]
+		}
+	}
+	authorization {
+		profile readweb {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action deny
+			}
+		}
+	}
+}
+
+environment {
+	web {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port 18443;
+		}
+	}
+}
+
+bgp {
+	router-id 1.2.3.4
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+ZECONF
+
+export ze_test_bgp_port=$((12000 + ($$ % 40000)))
+ZE_CONFIG_DIR="$ZE_DIR" ze web-rbac-deny.conf 2>daemon.log &
+DAEMON_PID=$!
+
+./web-rbac-check.py
+kill $DAEMON_PID 2>/dev/null || true
+wait $DAEMON_PID 2>/dev/null || true
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-web-rbac-deny.sh:timeout=30s
+expect=exit:code=0

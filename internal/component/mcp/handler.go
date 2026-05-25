@@ -20,6 +20,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 )
 
 // maxRequestBody limits the size of MCP HTTP request bodies (1 MB).
@@ -51,6 +53,12 @@ type CommandDispatcher func(command, username, remoteAddr string) (string, error
 // For the 2025-06-18 Streamable HTTP profile (sessions, SSE, GET/DELETE),
 // use NewStreamable instead.
 func Handler(provider ToolProvider, token string) http.Handler {
+	return HandlerWithAudit(provider, token, nil)
+}
+
+// HandlerWithAudit returns a legacy MCP JSON-RPC handler that records failed
+// bearer authentication attempts when recorder is set.
+func HandlerWithAudit(provider ToolProvider, token string, recorder audit.Recorder) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -64,6 +72,7 @@ func Handler(provider ToolProvider, token string) http.Handler {
 			gotHash := sha256.Sum256([]byte(auth))
 			wantHash := sha256.Sum256([]byte(expected))
 			if subtle.ConstantTimeCompare(gotHash[:], wantHash[:]) != 1 {
+				recordMCPAuthFailure(recorder, auth, r.RemoteAddr)
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}

@@ -37,6 +37,7 @@
 | [Config Reload](config-reload.md) | Live reload, what changes live vs. requires restart |
 | [Environment Variables](environment-variables.md) | Runtime tuning via `ze.*` env vars |
 | [Authentication](authentication.md) | User database, SSH keys, TACACS+, bcrypt |
+| [Audit Trail](audit.md) | Local structured records for config changes, reloads, and failed logins |
 | [Web Interface](web-interface.md) | HTTPS web UI for config viewing, editing, and admin commands |
 
 ## Features
@@ -78,6 +79,7 @@
 | [MCP Remote Access](mcp/remote-access.md) | SSH tunnels and WireGuard for remote MCP access |
 | [Logging](logging.md) | Log levels, backends, per-subsystem tuning, runtime changes |
 | [Operational Reports](operational-reports.md) | Warnings, errors, and the report bus |
+| [Audit Trail](audit.md) | `show audit`, config commit/discard records, auth-fail records |
 | [Benchmarking](benchmarking.md) | `ze-perf` cross-implementation latency benchmark |
 | [ExaBGP Migration](exabgp-migration.md) | Config conversion and plugin compatibility bridge |
 | [Chaos Testing](chaos-testing.md) | Fault injection, deterministic replay, property validation |

@@ -147,6 +147,9 @@ type Record struct {
 	HTTPChecks []HTTPCheck // http= assertions in seq order
 	HTTPWaits  []HTTPCheck // http=wait readiness polls (run before checks)
 
+	// File checks for post-run filesystem assertions.
+	FileChecks []FileCheck
+
 	// Skip reason: when non-empty, the runner skips the test without executing
 	// it and reports the reason (e.g. option=skip-os:value=darwin on non-Linux
 	// platforms). Set at parse time and persists across Activate() calls.
@@ -164,20 +167,34 @@ type RunCommand struct {
 
 // HTTPCheck represents an HTTP request assertion in a .ci test.
 // Format: http=get:seq=N:url=URL:status=CODE[:contains=TEXT]
-// Format: http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:sendfile=FILE]
+// Format: http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:sendfile=FILE][:content-type=TYPE][:insecure-tls=true]
 // Format: http=wait:seq=N:url=URL:status=CODE[:contains=TEXT][:timeout=DUR]
 // "get"/"post" checks are assertions; "wait" polls until the condition is met
 // (retrying on both connection errors and content mismatches).
 // Executed after all cmd= processes start, with retry+backoff for startup.
 type HTTPCheck struct {
-	Seq      int    // Execution order (lower first, among HTTP checks)
-	Method   string // HTTP method: "get", "post", or "wait"
-	URL      string // Request URL (supports $PORT substitution)
-	Status   int    // Expected HTTP status code
-	Contains string // Expected body substring (optional, empty = skip body check)
-	BodyFile string // Path to file with expected body content (exact match)
-	SendFile string // Path to file whose content is sent as the POST request body
-	Timeout  string // Poll timeout for wait checks (default "15s")
+	Seq         int    // Execution order (lower first, among HTTP checks)
+	Method      string // HTTP method: "get", "post", or "wait"
+	URL         string // Request URL (supports $PORT substitution)
+	Status      int    // Expected HTTP status code
+	Contains    string // Expected body substring (optional, empty = skip body check)
+	BodyFile    string // Path to file with expected body content (exact match)
+	SendFile    string // Path to file whose content is sent as the POST request body
+	ContentType string // Content-Type header for sendfile bodies (default application/json)
+	InsecureTLS bool   // Accept self-signed TLS certificates for HTTPS test endpoints
+	Timeout     string // Poll timeout for wait checks (default "15s")
+}
+
+// FileCheck represents an expect=file assertion in a .ci test.
+// Path checks target one file. Glob checks target all files matching a pattern.
+type FileCheck struct {
+	Path        string
+	Glob        string
+	Contains    string
+	NotContains string
+	Exists      bool
+	Absent      bool
+	Count       *int
 }
 
 // NewRecord creates a new test record.

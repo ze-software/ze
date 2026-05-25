@@ -34,7 +34,7 @@ func TestWireManagedCommitStagesCandidateAndPromotes(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, "new", string(data))
 		return storage.PromoteCandidate(store, configPath)
-	})
+	}, nil)
 
 	require.NotNil(t, client.OnCommit)
 	require.NoError(t, client.OnCommit([]byte("new")))
@@ -67,7 +67,7 @@ func TestWireManagedCommitClearsCandidateOnReloadFailure(t *testing.T) {
 	client := &managed.ClientConfig{}
 	wireManagedCommit(client, store, configPath, func() error {
 		return errors.New("verify rejected")
-	})
+	}, nil)
 
 	err := client.OnCommit([]byte("new"))
 	require.Error(t, err)

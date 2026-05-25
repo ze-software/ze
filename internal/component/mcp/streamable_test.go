@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 )
 
 // newTestStreamable returns a Streamable wired with a trivial dispatcher and
@@ -451,6 +453,47 @@ func TestStreamableBearerAuthRejectsMissingToken(t *testing.T) {
 
 	if status := initializeWithAuth(t, hs, ""); status != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", status)
+	}
+}
+
+func TestStreamableBearerAuthFailureAuditRecord(t *testing.T) {
+	recorder, err := audit.NewMemory(100)
+	if err != nil {
+		t.Fatalf("NewMemory: %v", err)
+	}
+	srv, err := NewStreamable(StreamableConfig{Token: "secret", AuditRecorder: recorder})
+	if err != nil {
+		t.Fatalf("NewStreamable: %v", err)
+	}
+	defer srv.Close()
+
+	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`
+	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer alice:wrong")
+	req.Header.Set("Content-Type", "application/json")
+	req.RemoteAddr = "192.0.2.10:4444"
+	rec := httptest.NewRecorder()
+
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+	entries := recorder.Query(audit.Filter{Action: audit.ActionAuthFail})
+	if len(entries) != 1 {
+		t.Fatalf("audit entries = %d, want 1", len(entries))
+	}
+	if entries[0].Actor != "alice" {
+		t.Fatalf("actor = %q, want alice", entries[0].Actor)
+	}
+	if entries[0].RemoteAddr != "192.0.2.10:4444" {
+		t.Fatalf("remote addr = %q, want 192.0.2.10:4444", entries[0].RemoteAddr)
+	}
+	if entries[0].Surface != audit.SurfaceMCP {
+		t.Fatalf("surface = %q, want %q", entries[0].Surface, audit.SurfaceMCP)
+	}
+	if entries[0].Outcome != audit.OutcomeDenied {
+		t.Fatalf("outcome = %q, want %q", entries[0].Outcome, audit.OutcomeDenied)
 	}
 }
 

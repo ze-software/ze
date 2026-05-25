@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
+	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema" // Register BGP YANG for editor tests.
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -404,6 +406,60 @@ func TestTerminalModeCommand(t *testing.T) {
 	var resp terminalResponse
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	assert.Contains(t, resp.Output, "commands:")
+}
+
+// PREVENTS: terminal-mode web config commands bypassing profile RBAC.
+func TestTerminalModeRBACDeny(t *testing.T) {
+	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
+	store := authz.NewStore()
+	store.AddProfile(authz.BuiltinReadOnlyProfile())
+	store.AssignProfiles("testuser", []string{"read-only"})
+	authorizer := authz.StoreAuthorizer{Store: store}
+	handler := HandleCLITerminalWithAuthorizerAndAudit(mgr, schema, tree, authorizer, nil)
+
+	body := url.Values{"command": {"set router-id 10.0.0.2"}}
+	w := httptest.NewRecorder()
+	r := authedRequest(http.MethodPost, "/cli/terminal", body)
+	handler.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Equal(t, 0, mgr.ChangeCount("testuser"))
+}
+
+// PREVENTS: terminal-mode web commits bypassing the unified audit trail.
+func TestTerminalModeCommitAuditRecord(t *testing.T) {
+	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "10.0.0.2"))
+	handler := HandleCLITerminalWithAuthorizerAndAudit(mgr, schema, tree, nil, recorder)
+
+	resp := runTerminalCommand(t, handler, "commit")
+	require.Equal(t, "commit successful", resp.Output)
+
+	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigCommit})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "testuser", entries[0].Actor)
+	assert.Equal(t, audit.SurfaceWeb, entries[0].Surface)
+	assert.Contains(t, entries[0].Detail, "10.0.0.2")
+}
+
+// PREVENTS: terminal-mode web discards bypassing the unified audit trail.
+func TestTerminalModeDiscardAuditRecord(t *testing.T) {
+	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "10.0.0.2"))
+	handler := HandleCLITerminalWithAuthorizerAndAudit(mgr, schema, tree, nil, recorder)
+
+	resp := runTerminalCommand(t, handler, "discard")
+	require.Equal(t, "changes discarded", resp.Output)
+
+	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigDiscard})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "testuser", entries[0].Actor)
+	assert.Equal(t, audit.SurfaceWeb, entries[0].Surface)
+	assert.Contains(t, entries[0].Detail, "10.0.0.2")
 }
 
 // PREVENTS: Pipe operators broken or missing in the web CLI terminal.
