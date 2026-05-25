@@ -511,7 +511,7 @@ func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, input string, resp 
 		return
 	}
 	entry := audit.Entry{
-		Surface: audit.SurfaceCLI,
+		Surface: audit.CLI,
 		Action:  action,
 		Detail:  input,
 		Outcome: audit.OutcomeSuccess,

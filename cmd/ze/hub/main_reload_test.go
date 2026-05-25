@@ -225,13 +225,13 @@ func TestRecordDaemonReloadAudit(t *testing.T) {
 	recorder, err := audit.NewMemory(100)
 	require.NoError(t, err)
 
-	recordDaemonReloadAudit(recorder, "system", "signal", audit.SurfaceSystem, "SIGHUP")
+	recordDaemonReloadAudit(recorder, "system", "signal", audit.System, "SIGHUP")
 
 	entries := recorder.Query(audit.Filter{Action: audit.ActionDaemonReload})
 	require.Len(t, entries, 1)
 	assert.Equal(t, "system", entries[0].Actor)
 	assert.Equal(t, "signal", entries[0].RemoteAddr)
-	assert.Equal(t, audit.SurfaceSystem, entries[0].Surface)
+	assert.Equal(t, audit.System, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 	assert.Equal(t, "SIGHUP", entries[0].Detail)
 }

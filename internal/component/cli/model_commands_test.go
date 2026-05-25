@@ -1018,7 +1018,7 @@ func TestCLIConfigCommitAuditRecord(t *testing.T) {
 	require.NoError(t, err)
 	model, err := NewModel(ed)
 	require.NoError(t, err)
-	model.SetAuditRecorder(recorder, audit.SurfaceSSH, "alice", "192.0.2.10:2222")
+	model.SetAuditRecorder(recorder, audit.SSH, "alice", "192.0.2.10:2222")
 
 	_, err = model.cmdCommit()
 	require.NoError(t, err)
@@ -1027,7 +1027,7 @@ func TestCLIConfigCommitAuditRecord(t *testing.T) {
 	require.Len(t, entries, 1)
 	assert.Equal(t, "alice", entries[0].Actor)
 	assert.Equal(t, "192.0.2.10:2222", entries[0].RemoteAddr)
-	assert.Equal(t, audit.SurfaceSSH, entries[0].Surface)
+	assert.Equal(t, audit.SSH, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 	assert.Contains(t, entries[0].Detail, "5.6.7.8")
 }
@@ -1048,7 +1048,7 @@ func TestCLIConfigDiscardAuditRecord(t *testing.T) {
 	require.NoError(t, err)
 	model, err := NewModel(ed)
 	require.NoError(t, err)
-	model.SetAuditRecorder(recorder, audit.SurfaceSSH, "alice", "192.0.2.10:2222")
+	model.SetAuditRecorder(recorder, audit.SSH, "alice", "192.0.2.10:2222")
 
 	_, err = model.cmdDiscard()
 	require.NoError(t, err)
@@ -1057,7 +1057,7 @@ func TestCLIConfigDiscardAuditRecord(t *testing.T) {
 	require.Len(t, entries, 1)
 	assert.Equal(t, "alice", entries[0].Actor)
 	assert.Equal(t, "192.0.2.10:2222", entries[0].RemoteAddr)
-	assert.Equal(t, audit.SurfaceSSH, entries[0].Surface)
+	assert.Equal(t, audit.SSH, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 	assert.Contains(t, entries[0].Detail, "5.6.7.8")
 }
@@ -1078,7 +1078,7 @@ func TestCLIConfigRollbackAuditRecord(t *testing.T) {
 	require.NoError(t, err)
 	model, err := NewModel(ed)
 	require.NoError(t, err)
-	model.SetAuditRecorder(recorder, audit.SurfaceSSH, "alice", "192.0.2.10:2222")
+	model.SetAuditRecorder(recorder, audit.SSH, "alice", "192.0.2.10:2222")
 
 	_, err = model.cmdRollback([]string{"1"})
 	require.NoError(t, err)
@@ -1087,7 +1087,7 @@ func TestCLIConfigRollbackAuditRecord(t *testing.T) {
 	require.Len(t, entries, 1)
 	assert.Equal(t, "alice", entries[0].Actor)
 	assert.Equal(t, "192.0.2.10:2222", entries[0].RemoteAddr)
-	assert.Equal(t, audit.SurfaceSSH, entries[0].Surface)
+	assert.Equal(t, audit.SSH, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 	assert.Contains(t, entries[0].Detail, "rollback ")
 }

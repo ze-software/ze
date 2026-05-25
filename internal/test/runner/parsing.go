@@ -540,14 +540,14 @@ func (r *ParsingRunner) runOneCommand(ctx context.Context, test *ParsingTest, ci
 		}
 	}
 
-	var stdout, stderr strings.Builder
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	var outBuf, errBuf strings.Builder
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
 	runErr := cmd.Run()
 
-	stdoutStr := stdout.String()
-	stderrStr := stderr.String()
-	allOutput.WriteString(stdoutStr + stderrStr)
+	stdout := outBuf.String()
+	stderr := errBuf.String()
+	allOutput.WriteString(stdout + stderr)
 
 	exitCode := 0
 	if runErr != nil {
@@ -562,11 +562,11 @@ func (r *ParsingRunner) runOneCommand(ctx context.Context, test *ParsingTest, ci
 
 	if ci.HasExitCode && exitCode != ci.ExpectExitCode {
 		test.Error = fmt.Errorf("seq %d: expected exit code %d, got %d\nstdout: %s\nstderr: %s",
-			ci.Seq, ci.ExpectExitCode, exitCode, stdoutStr, stderrStr)
+			ci.Seq, ci.ExpectExitCode, exitCode, stdout, stderr)
 		return false
 	}
 
-	if msg := checkExpectations(ci, stdoutStr, stderrStr); msg != "" {
+	if msg := checkExpectations(ci, stdout, stderr); msg != "" {
 		test.Error = fmt.Errorf("seq %d: %s", ci.Seq, msg)
 		return false
 	}
@@ -574,40 +574,40 @@ func (r *ParsingRunner) runOneCommand(ctx context.Context, test *ParsingTest, ci
 	return true
 }
 
-func checkExpectations(ci *ciCommand, stdoutStr, stderrStr string) string {
+func checkExpectations(ci *ciCommand, stdout, stderr string) string {
 	for _, expect := range ci.ExpectStdout {
-		if !strings.Contains(stdoutStr, expect) {
-			return fmt.Sprintf("stdout missing %q\nstdout: %s", expect, stdoutStr)
+		if !strings.Contains(stdout, expect) {
+			return fmt.Sprintf("stdout missing %q\nstdout: %s", expect, stdout)
 		}
 	}
 	for _, expect := range ci.ExpectStdoutNot {
-		if strings.Contains(stdoutStr, expect) {
-			return fmt.Sprintf("stdout must not contain %q\nstdout: %s", expect, stdoutStr)
+		if strings.Contains(stdout, expect) {
+			return fmt.Sprintf("stdout must not contain %q\nstdout: %s", expect, stdout)
 		}
 	}
 	for _, re := range ci.ExpectStdoutRe {
-		if !re.MatchString(stdoutStr) {
-			return fmt.Sprintf("stdout does not match regex %q\nstdout: %s", re.String(), stdoutStr)
+		if !re.MatchString(stdout) {
+			return fmt.Sprintf("stdout does not match regex %q\nstdout: %s", re.String(), stdout)
 		}
 	}
 	for _, expect := range ci.ExpectStderr {
-		if !strings.Contains(stderrStr, expect) {
-			return fmt.Sprintf("stderr missing %q\nstderr: %s", expect, stderrStr)
+		if !strings.Contains(stderr, expect) {
+			return fmt.Sprintf("stderr missing %q\nstderr: %s", expect, stderr)
 		}
 	}
 	for _, reject := range ci.RejectStdout {
-		if strings.Contains(stdoutStr, reject) {
-			return fmt.Sprintf("stdout must not contain %q\nstdout: %s", reject, stdoutStr)
+		if strings.Contains(stdout, reject) {
+			return fmt.Sprintf("stdout must not contain %q\nstdout: %s", reject, stdout)
 		}
 	}
 	for _, re := range ci.RejectStdoutRe {
-		if re.MatchString(stdoutStr) {
-			return fmt.Sprintf("stdout matches forbidden pattern %q\nstdout: %s", re.String(), stdoutStr)
+		if re.MatchString(stdout) {
+			return fmt.Sprintf("stdout matches forbidden pattern %q\nstdout: %s", re.String(), stdout)
 		}
 	}
 	for _, re := range ci.RejectStderrRe {
-		if re.MatchString(stderrStr) {
-			return fmt.Sprintf("stderr matches forbidden pattern %q\nstderr: %s", re.String(), stderrStr)
+		if re.MatchString(stderr) {
+			return fmt.Sprintf("stderr matches forbidden pattern %q\nstderr: %s", re.String(), stderr)
 		}
 	}
 	return ""

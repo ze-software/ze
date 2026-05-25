@@ -275,7 +275,7 @@ func TestRESTAuthFailureAuditRecord(t *testing.T) {
 	require.Len(t, entries, 1)
 	assert.Equal(t, "alice", entries[0].Actor)
 	assert.Equal(t, "192.0.2.10:4444", entries[0].RemoteAddr)
-	assert.Equal(t, audit.SurfaceREST, entries[0].Surface)
+	assert.Equal(t, audit.REST, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeDenied, entries[0].Outcome)
 }
 
@@ -372,7 +372,7 @@ func TestRESTConfigCommitAuditRecord(t *testing.T) {
 	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigCommit})
 	require.Len(t, entries, 1)
 	assert.Equal(t, "api", entries[0].Actor)
-	assert.Equal(t, audit.SurfaceREST, entries[0].Surface)
+	assert.Equal(t, audit.REST, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 	assert.Contains(t, entries[0].Detail, "bgp.router-id")
 }
@@ -406,7 +406,7 @@ func TestRESTConfigDiscardAuditRecord(t *testing.T) {
 	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigDiscard})
 	require.Len(t, entries, 1)
 	assert.Equal(t, "api", entries[0].Actor)
-	assert.Equal(t, audit.SurfaceREST, entries[0].Surface)
+	assert.Equal(t, audit.REST, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 	assert.Contains(t, entries[0].Detail, "bgp.router-id")
 }

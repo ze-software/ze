@@ -104,20 +104,20 @@ func runEmit(args []string) (string, error) {
 		return "", errUsageEmit
 	}
 
-	actionStr := args[0]
-	familyStr := args[1]
-	prefixStr := args[2]
+	action := args[0]
+	familyName := args[1]
+	raw := args[2]
 
-	fam, ok := family.LookupFamily(familyStr)
+	fam, ok := family.LookupFamily(familyName)
 	if !ok {
-		return "", fmt.Errorf("unknown family %q", familyStr)
+		return "", fmt.Errorf("unknown family %q", familyName)
 	}
-	prefix, err := netip.ParsePrefix(prefixStr)
+	prefix, err := netip.ParsePrefix(raw)
 	if err != nil {
-		return "", fmt.Errorf("invalid prefix %q: %w", prefixStr, err)
+		return "", fmt.Errorf("invalid prefix %q: %w", raw, err)
 	}
 
-	if actionStr == "withdraw" {
+	if action == "withdraw" {
 		change := sysribevents.BestChangeEntry{
 			Action: bgptypes.RouteActionWithdraw,
 			Prefix: prefix,
@@ -130,8 +130,8 @@ func runEmit(args []string) (string, error) {
 		return b.Reset().Str(`{"delivered":`).Int(int64(delivered)).Byte('}').String(), nil
 	}
 
-	if actionStr != "add" {
-		return "", fmt.Errorf("invalid action %q (want add or withdraw)", actionStr)
+	if action != "add" {
+		return "", fmt.Errorf("invalid action %q (want add or withdraw)", action)
 	}
 
 	change := sysribevents.BestChangeEntry{
@@ -194,7 +194,7 @@ func runEmit(args []string) (string, error) {
 		return "", err
 	}
 
-	logger().Debug("fakefib: emitted", "action", actionStr, "family", fam, "prefix", prefix, "delivered", delivered)
+	logger().Debug("fakefib: emitted", "action", action, "family", fam, "prefix", prefix, "delivered", delivered)
 	var b textbuf.Buffer
 	return b.Reset().Str(`{"delivered":`).Int(int64(delivered)).Byte('}').String(), nil
 }

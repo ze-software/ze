@@ -1017,7 +1017,7 @@ func recordWebAudit(recorder audit.Recorder, r *http.Request, username, action, 
 	if err := recorder.Record(audit.Entry{
 		Actor:      username,
 		RemoteAddr: r.RemoteAddr,
-		Surface:    audit.SurfaceWeb,
+		Surface:    audit.Web,
 		Action:     action,
 		Detail:     detail,
 		Outcome:    audit.OutcomeSuccess,

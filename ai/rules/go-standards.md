@@ -117,6 +117,21 @@ Every exported struct field that reaches JSON output **must** have a `json:"keba
 Keys are lowercase kebab-case, matching the YANG leaf or config tree key. Full rules
 and attribute table: `ai/rules/json-format.md`.
 
+## Naming: describe what, not the type
+
+Names of variables and constants must describe what the value IS, not its Go type.
+
+| Banned pattern | Why | Fix |
+|---------------|-----|-----|
+| `*Str` suffix (`famStr`, `levelStr`, `addrStr`) | Encodes "string" type into the name | `family`, `level`, `addr` |
+| `*Int`, `*Bool`, `*Bytes` suffixes | Same problem | Name the concept |
+| Field/type-as-prefix on enum constants (`SurfaceSSH`, `SurfaceWeb`) | Encodes the struct field into the name; use the package for context | `audit.SSH`, `audit.Web` |
+
+When two variables hold the same concept in different representations (typed
+value and its string form), distinguish by what they represent, not by type:
+`afiName` (the name) vs `afi` (the numeric code). When scope makes it
+unambiguous, just use the shorter name.
+
 ## Forbidden
 
 - `panic()` for error handling. Allowed prefixes (enforced by `block-panic-error.sh`): `panic("BUG: ...")`, `panic("unreachable: ...")`, `panic("not implemented")`, `panic("unimplemented")`, `panic("TODO: ...")`, `panic("impossible: ...")`. Use `panic("BUG: <what>")` for programmer-error guards that must never fire at runtime. Any other `panic()` call is rejected at Write/Edit time (test files and `scripts/` excepted)

@@ -179,7 +179,7 @@ func (r *Registry) IsActive(id SourceID) bool {
 func (r *Registry) String(id SourceID) string {
 	src, ok := r.Get(id)
 	if !ok {
-		return unknownStr
+		return unknown
 	}
 	return src.String()
 }

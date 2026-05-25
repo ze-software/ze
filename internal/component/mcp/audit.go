@@ -17,7 +17,7 @@ func recordMCPAuthFailure(recorder audit.Recorder, authHeader, remoteAddr string
 	_ = recorder.Record(audit.Entry{
 		Actor:      attemptedMCPBearerActor(authHeader),
 		RemoteAddr: remoteAddr,
-		Surface:    audit.SurfaceMCP,
+		Surface:    audit.MCP,
 		Action:     audit.ActionAuthFail,
 		Outcome:    audit.OutcomeDenied,
 	})

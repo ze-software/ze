@@ -490,10 +490,10 @@ func ListLevels() map[string]string {
 
 // SetLevel changes the log level for a subsystem at runtime.
 // Returns an error if the subsystem is unknown or the level string is invalid.
-func SetLevel(subsystem, levelStr string) error {
-	lvl, enabled := parseLevel(levelStr)
+func SetLevel(subsystem, level string) error {
+	lvl, enabled := parseLevel(level)
 	if !enabled {
-		return fmt.Errorf("invalid level %q (valid: %s)", levelStr, strings.Join(validLevelNames, ", "))
+		return fmt.Errorf("invalid level %q (valid: %s)", level, strings.Join(validLevelNames, ", "))
 	}
 
 	val, ok := levelRegistry.Load(subsystem)

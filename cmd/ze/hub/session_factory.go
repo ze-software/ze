@@ -59,7 +59,7 @@ func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParam
 				if modelErr != nil {
 					log.Warn("session model creation failed", "user", username, "error", modelErr)
 				} else {
-					m.SetAuditRecorder(recorder, audit.SurfaceSSH, username, remoteAddr)
+					m.SetAuditRecorder(recorder, audit.SSH, username, remoteAddr)
 					m.SetCommandCompleter(cmdCompleter)
 					if executor != nil {
 						m.SetCommandExecutor(executor)

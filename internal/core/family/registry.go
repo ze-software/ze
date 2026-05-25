@@ -59,10 +59,10 @@ type registry struct {
 
 // familyRegistration holds one entry collected by RegisterFamily.
 type familyRegistration struct {
-	afi     AFI
-	safi    SAFI
-	afiStr  string
-	safiStr string
+	afi      AFI
+	safi     SAFI
+	afiName  string
+	safiName string
 }
 
 var (
@@ -117,7 +117,7 @@ var (
 
 // RegisterFamily registers a family with its AFI/SAFI names. Returns the Family value.
 //
-// The canonical family string is derived as afiStr + "/" + safiStr.
+// The canonical family string is derived as afiName + "/" + safiName.
 // Re-registration with identical values is a no-op.
 // Re-registration with conflicting AFI or SAFI names returns an error.
 //
@@ -125,36 +125,36 @@ var (
 //
 // Concurrency: writers serialize through writeMu. Readers never block on
 // RegisterFamily because they read state.Load() instead of taking writeMu.
-func RegisterFamily(afi AFI, safi SAFI, afiStr, safiStr string) (Family, error) {
+func RegisterFamily(afi AFI, safi SAFI, afiName, safiName string) (Family, error) {
 	writeMu.Lock()
 	defer writeMu.Unlock()
 
-	if afiStr == "" || safiStr == "" {
+	if afiName == "" || safiName == "" {
 		return Family{}, fmt.Errorf("%w: AFI %d SAFI %d", ErrEmptyName, afi, safi)
 	}
 
 	cur := state.Load()
 
 	if existing, ok := cur.afiNames[afi]; ok {
-		if existing != afiStr {
-			return Family{}, fmt.Errorf("%w: AFI %d is %q, got %q", ErrAFIConflict, afi, existing, afiStr)
+		if existing != afiName {
+			return Family{}, fmt.Errorf("%w: AFI %d is %q, got %q", ErrAFIConflict, afi, existing, afiName)
 		}
 	}
 
 	if existing, ok := cur.safiNames[safi]; ok {
-		if existing != safiStr {
-			return Family{}, fmt.Errorf("%w: SAFI %d is %q, got %q", ErrSAFIConflict, safi, existing, safiStr)
+		if existing != safiName {
+			return Family{}, fmt.Errorf("%w: SAFI %d is %q, got %q", ErrSAFIConflict, safi, existing, safiName)
 		}
 	}
 
 	f := Family{AFI: afi, SAFI: safi}
-	canonical := afiStr + "/" + safiStr
+	canonical := afiName + "/" + safiName
 	if _, ok := cur.familyByName[canonical]; ok {
 		return f, nil
 	}
 
 	// Record in the write-only workspace, then build a fresh snapshot.
-	registrations = append(registrations, familyRegistration{afi: afi, safi: safi, afiStr: afiStr, safiStr: safiStr})
+	registrations = append(registrations, familyRegistration{afi: afi, safi: safi, afiName: afiName, safiName: safiName})
 
 	next := &registry{
 		afiNames:     maps.Clone(cur.afiNames),
@@ -163,11 +163,11 @@ func RegisterFamily(afi AFI, safi SAFI, afiStr, safiStr string) (Family, error) 
 		afiByName:    maps.Clone(cur.afiByName),
 		safiByName:   maps.Clone(cur.safiByName),
 	}
-	next.afiNames[afi] = afiStr
-	next.safiNames[safi] = safiStr
+	next.afiNames[afi] = afiName
+	next.safiNames[safi] = safiName
 	next.familyByName[canonical] = f
-	next.afiByName[afiStr] = afi
-	next.safiByName[safiStr] = safi
+	next.afiByName[afiName] = afi
+	next.safiByName[safiName] = safi
 	next.pack, next.idx = buildPack(registrations)
 
 	state.Store(next)
@@ -177,8 +177,8 @@ func RegisterFamily(afi AFI, safi SAFI, afiStr, safiStr string) (Family, error) 
 // MustRegister wraps RegisterFamily and panics on error. Use from package init()
 // where any registration error indicates a programming bug (conflicting names,
 // empty strings) that must abort startup.
-func MustRegister(afi AFI, safi SAFI, afiStr, safiStr string) Family {
-	f, err := RegisterFamily(afi, safi, afiStr, safiStr)
+func MustRegister(afi AFI, safi SAFI, afiName, safiName string) Family {
+	f, err := RegisterFamily(afi, safi, afiName, safiName)
 	if err != nil {
 		panic("BUG: family.MustRegister: " + err.Error())
 	}
@@ -233,7 +233,7 @@ func buildPack(regs []familyRegistration) ([]byte, [familyAFISlots][256]uint8) {
 		if slot < 0 {
 			continue
 		}
-		s := r.afiStr + "/" + r.safiStr
+		s := r.afiName + "/" + r.safiName
 		pos := uint16(len(strBuf))
 		strBuf = append(strBuf, s...)
 		spans = append(spans, span{pos: pos, size: uint16(len(s))})

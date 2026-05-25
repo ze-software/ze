@@ -570,10 +570,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	// Command dispatchers for user surfaces (use plugin server, not reactor directly).
-	webDispatch := serverDispatcherWithSurface(apiServer, audit.SurfaceWeb)
-	sshDispatch := serverDispatcherWithSurface(apiServer, audit.SurfaceSSH)
-	mcpDispatch := serverDispatcherWithSurface(apiServer, audit.SurfaceMCP)
-	cliDispatch := serverDispatcherWithSurface(apiServer, audit.SurfaceCLI)
+	webDispatch := serverDispatcherWithSurface(apiServer, audit.Web)
+	sshDispatch := serverDispatcherWithSurface(apiServer, audit.SSH)
+	mcpDispatch := serverDispatcherWithSurface(apiServer, audit.MCP)
+	cliDispatch := serverDispatcherWithSurface(apiServer, audit.CLI)
 
 	// Create shared resolvers for web UI, looking glass, and MCP.
 	sc := system.ExtractSystemConfig(loadResult.Tree)

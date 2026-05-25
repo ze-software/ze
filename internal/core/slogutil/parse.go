@@ -35,8 +35,7 @@ func ParseLogLine(line string) (slog.Level, string, []any) {
 	if levelEnd == -1 {
 		levelEnd = len(line) - levelStart - 6
 	}
-	levelStr := line[levelStart+6 : levelStart+6+levelEnd]
-	level := parseSlogLevel(levelStr)
+	level := parseSlogLevel(line[levelStart+6 : levelStart+6+levelEnd])
 
 	// Parse msg
 	msgStart := strings.Index(line, "msg=")

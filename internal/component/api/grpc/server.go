@@ -392,7 +392,7 @@ func readOnlyFromContext(ctx context.Context) bool {
 }
 
 func callerIdentityFromContext(ctx context.Context) api.CallerIdentity {
-	caller := api.CallerIdentity{Username: usernameFromContext(ctx), Surface: audit.SurfaceGRPC, ReadOnly: readOnlyFromContext(ctx)}
+	caller := api.CallerIdentity{Username: usernameFromContext(ctx), Surface: audit.GRPC, ReadOnly: readOnlyFromContext(ctx)}
 	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
 		caller.RemoteAddr = p.Addr.String()
 	}
@@ -470,7 +470,7 @@ func (s *GRPCServer) recordAuthFailure(ctx context.Context, actor string) {
 	}
 	entry := audit.Entry{
 		Actor:   actor,
-		Surface: audit.SurfaceGRPC,
+		Surface: audit.GRPC,
 		Action:  audit.ActionAuthFail,
 		Outcome: audit.OutcomeDenied,
 	}
@@ -675,7 +675,7 @@ func (s *zeConfigServiceImpl) CommitSession(ctx context.Context, req *zepb.Commi
 	s.recordAudit(audit.Entry{
 		Actor:      caller.Username,
 		RemoteAddr: caller.RemoteAddr,
-		Surface:    audit.SurfaceGRPC,
+		Surface:    audit.GRPC,
 		Action:     audit.ActionConfigCommit,
 		Detail:     detail,
 		Outcome:    audit.OutcomeSuccess,
@@ -698,7 +698,7 @@ func (s *zeConfigServiceImpl) DiscardSession(ctx context.Context, req *zepb.Sess
 	s.recordAudit(audit.Entry{
 		Actor:      caller.Username,
 		RemoteAddr: caller.RemoteAddr,
-		Surface:    audit.SurfaceGRPC,
+		Surface:    audit.GRPC,
 		Action:     audit.ActionConfigDiscard,
 		Detail:     detail,
 		Outcome:    audit.OutcomeSuccess,

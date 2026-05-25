@@ -230,8 +230,8 @@ func ExtractTelemetryConfig(tree map[string]any) TelemetryConfig {
 	}
 
 	// Service must be explicitly enabled (default false).
-	enabledStr, _ := prom["enabled"].(string)
-	if enabledStr != "true" {
+	enabled, _ := prom["enabled"].(string)
+	if enabled != "true" {
 		return zero
 	}
 
@@ -288,7 +288,7 @@ func extractBasicAuthConfig(prom map[string]any) BasicAuthConfig {
 	if !ok {
 		return cfg
 	}
-	if enabledStr, ok := authMap["enabled"].(string); ok && enabledStr == "true" {
+	if enabled, ok := authMap["enabled"].(string); ok && enabled == "true" {
 		cfg.Enabled = true
 	}
 	if realm, ok := authMap["realm"].(string); ok && realm != "" {
@@ -305,7 +305,7 @@ func extractNetdataConfig(prom map[string]any) (NetdataConfig, []string) {
 	netdata, hasNetdata := prom["netdata"].(map[string]any)
 
 	if hasNetdata {
-		if enabledStr, ok := netdata["enabled"].(string); ok && enabledStr == "false" {
+		if enabled, ok := netdata["enabled"].(string); ok && enabled == "false" {
 			cfg.Enabled = false
 		}
 	}
@@ -385,7 +385,7 @@ func parseCollectorConfigs(collMap map[string]any) map[string]CollectorConfig {
 			continue
 		}
 		cc := CollectorConfig{Enabled: true}
-		if enabledStr, ok := entry["enabled"].(string); ok && enabledStr == "false" {
+		if enabled, ok := entry["enabled"].(string); ok && enabled == "false" {
 			cc.Enabled = false
 		}
 		cc.Interval = parseCollectorInterval(entry["interval"], cc.Interval)

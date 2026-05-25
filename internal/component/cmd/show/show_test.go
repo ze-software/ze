@@ -64,7 +64,7 @@ func TestHandleShowAuditFilters(t *testing.T) {
 	var got audit.Filter
 	RegisterAuditProvider(func(filter audit.Filter) []audit.Entry {
 		got = filter
-		return []audit.Entry{{Timestamp: since, Actor: "alice", Surface: audit.SurfaceSSH, Action: audit.ActionConfigCommit, Outcome: audit.OutcomeSuccess}}
+		return []audit.Entry{{Timestamp: since, Actor: "alice", Surface: audit.SSH, Action: audit.ActionConfigCommit, Outcome: audit.OutcomeSuccess}}
 	})
 	t.Cleanup(func() { RegisterAuditProvider(nil) })
 

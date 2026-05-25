@@ -919,7 +919,7 @@ func TestDispatcherDaemonReloadAuditRecord(t *testing.T) {
 	resp, err := d.Dispatch(&CommandContext{
 		Username:   "alice",
 		RemoteAddr: "192.0.2.10:2222",
-		Surface:    audit.SurfaceSSH,
+		Surface:    audit.SSH,
 	}, "daemon reload")
 
 	require.NoError(t, err)
@@ -928,7 +928,7 @@ func TestDispatcherDaemonReloadAuditRecord(t *testing.T) {
 	require.Len(t, entries, 1)
 	assert.Equal(t, "alice", entries[0].Actor)
 	assert.Equal(t, "192.0.2.10:2222", entries[0].RemoteAddr)
-	assert.Equal(t, audit.SurfaceSSH, entries[0].Surface)
+	assert.Equal(t, audit.SSH, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 }
 

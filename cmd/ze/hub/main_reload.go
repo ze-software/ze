@@ -40,7 +40,7 @@ func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *
 			}
 			fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
 		} else {
-			recordDaemonReloadAudit(recorder, "system", "signal", audit.SurfaceSystem, "SIGHUP")
+			recordDaemonReloadAudit(recorder, "system", "signal", audit.System, "SIGHUP")
 		}
 		// After reload completes, drain any queued SIGHUP.
 		if s.DrainSIGHUP() {
@@ -52,13 +52,13 @@ func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *
 			if err := doReload(s, eng, cp, store, configPath, load, lm); err != nil {
 				fmt.Fprintf(os.Stderr, "queued reload error: %v\n", err)
 			} else {
-				recordDaemonReloadAudit(recorder, "system", "signal", audit.SurfaceSystem, "queued SIGHUP")
+				recordDaemonReloadAudit(recorder, "system", "signal", audit.System, "queued SIGHUP")
 			}
 		}
 	}
 }
 
-func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface, detail string) { //nolint:unparam // surface is always SurfaceSystem today but callers should state intent
+func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface, detail string) { //nolint:unparam // surface is always System today but callers should state intent
 	if recorder == nil {
 		return
 	}

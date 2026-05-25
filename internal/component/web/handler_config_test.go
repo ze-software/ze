@@ -596,7 +596,7 @@ func TestWebConfigCommitAuditRecord(t *testing.T) {
 	require.Len(t, entries, 1)
 	assert.Equal(t, "alice", entries[0].Actor)
 	assert.Equal(t, "192.0.2.10:12345", entries[0].RemoteAddr)
-	assert.Equal(t, audit.SurfaceWeb, entries[0].Surface)
+	assert.Equal(t, audit.Web, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 	assert.Contains(t, entries[0].Detail, "router-id")
 }
@@ -638,7 +638,7 @@ func TestWebConfigDiscardAuditRecord(t *testing.T) {
 	require.Len(t, entries, 1)
 	assert.Equal(t, "alice", entries[0].Actor)
 	assert.Equal(t, "192.0.2.10:12345", entries[0].RemoteAddr)
-	assert.Equal(t, audit.SurfaceWeb, entries[0].Surface)
+	assert.Equal(t, audit.Web, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 	assert.Contains(t, entries[0].Detail, "router-id")
 }

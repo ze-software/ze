@@ -9,10 +9,10 @@ import "log/slog"
 // Safe to call multiple times (re-registration with same values is a no-op).
 func RegisterTestFamilies() {
 	families := []struct {
-		afi     AFI
-		safi    SAFI
-		afiStr  string
-		safiStr string
+		afi      AFI
+		safi     SAFI
+		afiName  string
+		safiName string
 	}{
 		{AFIIPv4, SAFIUnicast, "ipv4", "unicast"},
 		{AFIIPv6, SAFIUnicast, "ipv6", "unicast"},
@@ -37,7 +37,7 @@ func RegisterTestFamilies() {
 		{AFIBGPLS, SAFIBGPLinkStateVPN, "bgp-ls", "bgp-ls-vpn"},
 	}
 	for _, f := range families {
-		if _, err := RegisterFamily(f.afi, f.safi, f.afiStr, f.safiStr); err != nil {
+		if _, err := RegisterFamily(f.afi, f.safi, f.afiName, f.safiName); err != nil {
 			slog.Error("RegisterTestFamilies failed", "afi", f.afi, "safi", f.safi, "error", err)
 		}
 	}

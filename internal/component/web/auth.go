@@ -288,7 +288,7 @@ func recordWebAuthFailure(recorder audit.Recorder, username, remoteAddr string) 
 	if err := recorder.Record(audit.Entry{
 		Actor:      username,
 		RemoteAddr: remoteAddr,
-		Surface:    audit.SurfaceWeb,
+		Surface:    audit.Web,
 		Action:     audit.ActionAuthFail,
 		Outcome:    audit.OutcomeDenied,
 	}); err != nil {

@@ -1,4 +1,5 @@
 // Design: plan/spec-diag-core.md -- shared /proc reading infrastructure
+// Related: reader_other.go -- non-Linux stub
 
 package procfs
 
@@ -48,32 +49,32 @@ func TCPStateString(state int) string {
 	return textbuf.StrIntStr("UNKNOWN(", int64(state), ")")
 }
 
-func ParseHexAddr(hexStr string) string {
-	if len(hexStr) == 8 {
-		return parseHexIPv4(hexStr)
+func ParseHexAddr(encoded string) string {
+	if len(encoded) == 8 {
+		return parseHexIPv4(encoded)
 	}
-	if len(hexStr) == 32 {
-		return parseHexIPv6(hexStr)
+	if len(encoded) == 32 {
+		return parseHexIPv6(encoded)
 	}
-	return hexStr
+	return encoded
 }
 
-func parseHexIPv4(hexStr string) string {
-	b, err := strconv.ParseUint(hexStr, 16, 32)
+func parseHexIPv4(encoded string) string {
+	b, err := strconv.ParseUint(encoded, 16, 32)
 	if err != nil {
-		return hexStr
+		return encoded
 	}
 	addr := netip.AddrFrom4([4]byte{byte(b), byte(b >> 8), byte(b >> 16), byte(b >> 24)})
 	return textbuf.Addr(addr)
 }
 
-func parseHexIPv6(hexStr string) string {
-	if len(hexStr) != 32 {
-		return hexStr
+func parseHexIPv6(encoded string) string {
+	if len(encoded) != 32 {
+		return encoded
 	}
-	raw, err := hex.DecodeString(hexStr)
+	raw, err := hex.DecodeString(encoded)
 	if err != nil || len(raw) != 16 {
-		return hexStr
+		return encoded
 	}
 	// /proc/net/tcp6 stores each 32-bit word in host byte order (little-endian on x86/arm).
 	var addr16 [16]byte
@@ -87,8 +88,8 @@ func parseHexIPv6(hexStr string) string {
 	return textbuf.Addr(addr)
 }
 
-func ParseHexPort(hexStr string) int {
-	v, err := strconv.ParseUint(hexStr, 16, 16)
+func ParseHexPort(encoded string) int {
+	v, err := strconv.ParseUint(encoded, 16, 16)
 	if err != nil {
 		return 0
 	}

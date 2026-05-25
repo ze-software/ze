@@ -489,8 +489,8 @@ func TestStreamableBearerAuthFailureAuditRecord(t *testing.T) {
 	if entries[0].RemoteAddr != "192.0.2.10:4444" {
 		t.Fatalf("remote addr = %q, want 192.0.2.10:4444", entries[0].RemoteAddr)
 	}
-	if entries[0].Surface != audit.SurfaceMCP {
-		t.Fatalf("surface = %q, want %q", entries[0].Surface, audit.SurfaceMCP)
+	if entries[0].Surface != audit.MCP {
+		t.Fatalf("surface = %q, want %q", entries[0].Surface, audit.MCP)
 	}
 	if entries[0].Outcome != audit.OutcomeDenied {
 		t.Fatalf("outcome = %q, want %q", entries[0].Outcome, audit.OutcomeDenied)

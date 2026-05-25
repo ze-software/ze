@@ -460,9 +460,9 @@ func (s *RESTServer) withAuth(next http.HandlerFunc) http.HandlerFunc {
 func (s *RESTServer) callerIdentity(r *http.Request) api.CallerIdentity {
 	readOnly, _ := r.Context().Value(readOnlyKey).(bool)
 	if user, ok := r.Context().Value(usernameKey).(string); ok {
-		return api.CallerIdentity{Username: user, RemoteAddr: r.RemoteAddr, Surface: audit.SurfaceREST, ReadOnly: readOnly}
+		return api.CallerIdentity{Username: user, RemoteAddr: r.RemoteAddr, Surface: audit.REST, ReadOnly: readOnly}
 	}
-	return api.CallerIdentity{Username: "api", RemoteAddr: r.RemoteAddr, Surface: audit.SurfaceREST, ReadOnly: s.authenticator == nil && s.token == ""}
+	return api.CallerIdentity{Username: "api", RemoteAddr: r.RemoteAddr, Surface: audit.REST, ReadOnly: s.authenticator == nil && s.token == ""}
 }
 
 func requireWriteAccess(w http.ResponseWriter, caller api.CallerIdentity) bool {
@@ -698,7 +698,7 @@ func (s *RESTServer) handleConfigDeleteOrDiscard(w http.ResponseWriter, r *http.
 		s.recordAudit(audit.Entry{
 			Actor:      username,
 			RemoteAddr: caller.RemoteAddr,
-			Surface:    audit.SurfaceREST,
+			Surface:    audit.REST,
 			Action:     audit.ActionConfigDiscard,
 			Detail:     detail,
 			Outcome:    audit.OutcomeSuccess,
@@ -764,7 +764,7 @@ func (s *RESTServer) handleConfigCommit(w http.ResponseWriter, r *http.Request) 
 	s.recordAudit(audit.Entry{
 		Actor:      caller.Username,
 		RemoteAddr: caller.RemoteAddr,
-		Surface:    audit.SurfaceREST,
+		Surface:    audit.REST,
 		Action:     audit.ActionConfigCommit,
 		Detail:     detail,
 		Outcome:    audit.OutcomeSuccess,
@@ -785,7 +785,7 @@ func (s *RESTServer) recordAuthFailure(r *http.Request, actor string) {
 	s.recordAudit(audit.Entry{
 		Actor:      actor,
 		RemoteAddr: r.RemoteAddr,
-		Surface:    audit.SurfaceREST,
+		Surface:    audit.REST,
 		Action:     audit.ActionAuthFail,
 		Outcome:    audit.OutcomeDenied,
 	})

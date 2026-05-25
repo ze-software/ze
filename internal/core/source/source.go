@@ -121,13 +121,13 @@ func ParseSourceID(s string) SourceID {
 	}
 
 	typ := s[:colon]
-	numStr := s[colon+1:]
+	num := s[colon+1:]
 
 	// Parse number with overflow protection
 	var n uint32
 	const maxUint32Div10 = 429496729 // MaxUint32 / 10
-	for i := range len(numStr) {
-		c := numStr[i]
+	for i := range len(num) {
+		c := num[i]
 		if c < '0' || c > '9' {
 			return InvalidSourceID
 		}
@@ -148,7 +148,7 @@ func ParseSourceID(s string) SourceID {
 	}
 
 	switch typ {
-	case configStr:
+	case config:
 		if n != 1 {
 			return InvalidSourceID // only config:1 valid
 		}
@@ -172,23 +172,23 @@ func ParseSourceID(s string) SourceID {
 }
 
 const (
-	unknownStr = "unknown"
-	configStr  = "config"
+	unknown = "unknown"
+	config  = "config"
 )
 
 // String returns the human-readable name of the source type.
 func (t SourceType) String() string {
 	switch t {
 	case SourceUnknown:
-		return unknownStr
+		return unknown
 	case SourcePeer:
 		return "peer"
 	case SourceAPI:
 		return "api"
 	case SourceConfig:
-		return configStr
+		return config
 	default:
-		return unknownStr
+		return unknown
 	}
 }
 
@@ -215,7 +215,7 @@ func (s Source) Type() SourceType {
 func (s Source) String() string {
 	switch s.Type() {
 	case SourceUnknown:
-		return unknownStr
+		return unknown
 	case SourcePeer:
 		return "peer:" + s.PeerIP.String()
 	case SourceAPI:
@@ -223,6 +223,6 @@ func (s Source) String() string {
 	case SourceConfig:
 		return "config:1"
 	default:
-		return unknownStr
+		return unknown
 	}
 }

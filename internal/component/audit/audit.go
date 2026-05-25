@@ -31,14 +31,14 @@ const (
 )
 
 const (
-	SurfaceAPI    = "api"
-	SurfaceCLI    = "cli"
-	SurfaceGRPC   = "grpc"
-	SurfaceMCP    = "mcp"
-	SurfaceREST   = "rest"
-	SurfaceSSH    = "ssh"
-	SurfaceSystem = "system"
-	SurfaceWeb    = "web"
+	API    = "api"
+	CLI    = "cli"
+	GRPC   = "grpc"
+	MCP    = "mcp"
+	REST   = "rest"
+	SSH    = "ssh"
+	System = "system"
+	Web    = "web"
 )
 
 // Entry is one structured audit record.

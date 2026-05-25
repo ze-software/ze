@@ -23,7 +23,7 @@ func wireManagedCommit(client *managed.ClientConfig, store storage.Storage, conf
 			}
 			return err
 		}
-		recordDaemonReloadAudit(recorder, "managed", "local", audit.SurfaceSystem, "managed config push")
+		recordDaemonReloadAudit(recorder, "managed", "local", audit.System, "managed config push")
 		return nil
 	}
 }

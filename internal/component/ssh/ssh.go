@@ -196,7 +196,7 @@ func (s *Server) recordAuthFailure(username, remote string) {
 	if err := s.config.AuditRecorder.Record(audit.Entry{
 		Actor:      username,
 		RemoteAddr: remote,
-		Surface:    audit.SurfaceSSH,
+		Surface:    audit.SSH,
 		Action:     audit.ActionAuthFail,
 		Outcome:    audit.OutcomeDenied,
 	}); err != nil {

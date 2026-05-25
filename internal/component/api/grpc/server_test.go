@@ -247,7 +247,7 @@ func TestGRPCAuthFailureAuditRecord(t *testing.T) {
 	require.Len(t, entries, 1)
 	assert.Equal(t, "alice", entries[0].Actor)
 	assert.Contains(t, entries[0].RemoteAddr, "127.0.0.1:")
-	assert.Equal(t, audit.SurfaceGRPC, entries[0].Surface)
+	assert.Equal(t, audit.GRPC, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeDenied, entries[0].Outcome)
 }
 
@@ -349,7 +349,7 @@ func TestGRPCConfigCommitAuditRecord(t *testing.T) {
 	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigCommit})
 	require.Len(t, entries, 1)
 	assert.Equal(t, "api", entries[0].Actor)
-	assert.Equal(t, audit.SurfaceGRPC, entries[0].Surface)
+	assert.Equal(t, audit.GRPC, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 	assert.Contains(t, entries[0].Detail, "bgp.router-id")
 }
@@ -375,7 +375,7 @@ func TestGRPCConfigDiscardAuditRecord(t *testing.T) {
 	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigDiscard})
 	require.Len(t, entries, 1)
 	assert.Equal(t, "api", entries[0].Actor)
-	assert.Equal(t, audit.SurfaceGRPC, entries[0].Surface)
+	assert.Equal(t, audit.GRPC, entries[0].Surface)
 	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
 	assert.Contains(t, entries[0].Detail, "bgp.router-id")
 }

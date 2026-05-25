@@ -20,7 +20,7 @@ import (
 func TestColorizeLineLevelColors(t *testing.T) {
 	tests := []struct {
 		level     slog.Level
-		levelStr  string
+		label     string
 		wantColor string
 	}{
 		{slog.LevelDebug, "DEBUG", ansiCyan},
@@ -29,10 +29,10 @@ func TestColorizeLineLevelColors(t *testing.T) {
 		{slog.LevelError, "ERROR", ansiBoldRed},
 	}
 	for _, tt := range tests {
-		t.Run(tt.levelStr, func(t *testing.T) {
-			line := "time=2025-01-18T12:00:00Z level=" + tt.levelStr + " msg=test\n"
+		t.Run(tt.label, func(t *testing.T) {
+			line := "time=2025-01-18T12:00:00Z level=" + tt.label + " msg=test\n"
 			result := colorizeLine(line, tt.level)
-			assert.Contains(t, result, tt.wantColor+tt.levelStr+ansiReset)
+			assert.Contains(t, result, tt.wantColor+tt.label+ansiReset)
 		})
 	}
 }

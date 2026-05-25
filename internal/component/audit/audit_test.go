@@ -20,7 +20,7 @@ func TestAuditRecordConfigCommit(t *testing.T) {
 		Timestamp:  ts,
 		Actor:      "alice",
 		RemoteAddr: "192.0.2.1:12345",
-		Surface:    SurfaceWeb,
+		Surface:    Web,
 		Action:     ActionConfigCommit,
 		Detail:     "bgp.router-id changed",
 		Outcome:    OutcomeSuccess,
@@ -32,7 +32,7 @@ func TestAuditRecordConfigCommit(t *testing.T) {
 	assert.Equal(t, ts, entries[0].Timestamp)
 	assert.Equal(t, "alice", entries[0].Actor)
 	assert.Equal(t, "192.0.2.1:12345", entries[0].RemoteAddr)
-	assert.Equal(t, SurfaceWeb, entries[0].Surface)
+	assert.Equal(t, Web, entries[0].Surface)
 	assert.Equal(t, ActionConfigCommit, entries[0].Action)
 	assert.Equal(t, "bgp.router-id changed", entries[0].Detail)
 	assert.Equal(t, OutcomeSuccess, entries[0].Outcome)
@@ -44,12 +44,12 @@ func TestAuditRecordConfigDiscard(t *testing.T) {
 	log, err := NewMemory(100)
 	require.NoError(t, err)
 
-	require.NoError(t, log.Record(Entry{Timestamp: time.Unix(101, 0).UTC(), Actor: "bob", Surface: SurfaceREST, Action: ActionConfigDiscard, Outcome: OutcomeSuccess}))
+	require.NoError(t, log.Record(Entry{Timestamp: time.Unix(101, 0).UTC(), Actor: "bob", Surface: REST, Action: ActionConfigDiscard, Outcome: OutcomeSuccess}))
 
 	entries := log.Query(Filter{Action: ActionConfigDiscard})
 	require.Len(t, entries, 1)
 	assert.Equal(t, "bob", entries[0].Actor)
-	assert.Equal(t, SurfaceREST, entries[0].Surface)
+	assert.Equal(t, REST, entries[0].Surface)
 	assert.Equal(t, ActionConfigDiscard, entries[0].Action)
 }
 
@@ -59,12 +59,12 @@ func TestAuditRecordDaemonReload(t *testing.T) {
 	log, err := NewMemory(100)
 	require.NoError(t, err)
 
-	require.NoError(t, log.Record(Entry{Timestamp: time.Unix(102, 0).UTC(), Actor: "carol", Surface: SurfaceCLI, Action: ActionDaemonReload, Outcome: OutcomeSuccess}))
+	require.NoError(t, log.Record(Entry{Timestamp: time.Unix(102, 0).UTC(), Actor: "carol", Surface: CLI, Action: ActionDaemonReload, Outcome: OutcomeSuccess}))
 
 	entries := log.Query(Filter{Action: ActionDaemonReload})
 	require.Len(t, entries, 1)
 	assert.Equal(t, "carol", entries[0].Actor)
-	assert.Equal(t, SurfaceCLI, entries[0].Surface)
+	assert.Equal(t, CLI, entries[0].Surface)
 }
 
 // VALIDATES: AC-13 -- audit queries filter by inclusive time range and action.
@@ -74,9 +74,9 @@ func TestAuditQueryTimeRange(t *testing.T) {
 	require.NoError(t, err)
 	base := time.Unix(200, 0).UTC()
 
-	require.NoError(t, log.Record(Entry{Timestamp: base.Add(-time.Second), Actor: "old", Surface: SurfaceCLI, Action: ActionConfigCommit, Outcome: OutcomeSuccess}))
-	require.NoError(t, log.Record(Entry{Timestamp: base, Actor: "inside", Surface: SurfaceWeb, Action: ActionConfigCommit, Outcome: OutcomeSuccess}))
-	require.NoError(t, log.Record(Entry{Timestamp: base.Add(time.Second), Actor: "other-action", Surface: SurfaceWeb, Action: ActionAuthFail, Outcome: OutcomeDenied}))
+	require.NoError(t, log.Record(Entry{Timestamp: base.Add(-time.Second), Actor: "old", Surface: CLI, Action: ActionConfigCommit, Outcome: OutcomeSuccess}))
+	require.NoError(t, log.Record(Entry{Timestamp: base, Actor: "inside", Surface: Web, Action: ActionConfigCommit, Outcome: OutcomeSuccess}))
+	require.NoError(t, log.Record(Entry{Timestamp: base.Add(time.Second), Actor: "other-action", Surface: Web, Action: ActionAuthFail, Outcome: OutcomeDenied}))
 
 	entries := log.Query(Filter{Since: base, Until: base.Add(time.Second), Action: ActionConfigCommit})
 	require.Len(t, entries, 1)
@@ -90,7 +90,7 @@ func TestAuditPersistence(t *testing.T) {
 	log, err := Open(path, 100)
 	require.NoError(t, err)
 	timestamp := time.Unix(300, 0).UTC()
-	require.NoError(t, log.Record(Entry{Timestamp: timestamp, Actor: "dana", Surface: SurfaceAPI, Action: ActionConfigCommit, Outcome: OutcomeSuccess}))
+	require.NoError(t, log.Record(Entry{Timestamp: timestamp, Actor: "dana", Surface: API, Action: ActionConfigCommit, Outcome: OutcomeSuccess}))
 
 	reopened, err := Open(path, 100)
 	require.NoError(t, err)
@@ -106,13 +106,13 @@ func TestAuditAuthFailRecord(t *testing.T) {
 	log, err := NewMemory(100)
 	require.NoError(t, err)
 
-	require.NoError(t, log.Record(Entry{Timestamp: time.Unix(400, 0).UTC(), Actor: "mallory", RemoteAddr: "198.51.100.10:55000", Surface: SurfaceSSH, Action: ActionAuthFail, Outcome: OutcomeDenied}))
+	require.NoError(t, log.Record(Entry{Timestamp: time.Unix(400, 0).UTC(), Actor: "mallory", RemoteAddr: "198.51.100.10:55000", Surface: SSH, Action: ActionAuthFail, Outcome: OutcomeDenied}))
 
 	entries := log.Query(Filter{Action: ActionAuthFail})
 	require.Len(t, entries, 1)
 	assert.Equal(t, "mallory", entries[0].Actor)
 	assert.Equal(t, "198.51.100.10:55000", entries[0].RemoteAddr)
-	assert.Equal(t, SurfaceSSH, entries[0].Surface)
+	assert.Equal(t, SSH, entries[0].Surface)
 	assert.Equal(t, OutcomeDenied, entries[0].Outcome)
 }
 

@@ -440,7 +440,7 @@ func TestTerminalModeCommitAuditRecord(t *testing.T) {
 	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigCommit})
 	require.Len(t, entries, 1)
 	assert.Equal(t, "testuser", entries[0].Actor)
-	assert.Equal(t, audit.SurfaceWeb, entries[0].Surface)
+	assert.Equal(t, audit.Web, entries[0].Surface)
 	assert.Contains(t, entries[0].Detail, "10.0.0.2")
 }
 
@@ -458,7 +458,7 @@ func TestTerminalModeDiscardAuditRecord(t *testing.T) {
 	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigDiscard})
 	require.Len(t, entries, 1)
 	assert.Equal(t, "testuser", entries[0].Actor)
-	assert.Equal(t, audit.SurfaceWeb, entries[0].Surface)
+	assert.Equal(t, audit.Web, entries[0].Surface)
 	assert.Contains(t, entries[0].Detail, "10.0.0.2")
 }
 

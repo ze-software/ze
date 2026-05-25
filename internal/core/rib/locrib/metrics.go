@@ -58,26 +58,26 @@ func SetMetricsRegistry(reg metrics.Registry) {
 // shardLabel formats the shard index as a metric label value.
 func shardLabel(idx int) string { return strconv.Itoa(idx) }
 
-func recordInsert(famStr string, shardIdx int) {
+func recordInsert(family string, shardIdx int) {
 	if m := locribMetricsPtr.Load(); m != nil {
-		m.inserts.With(famStr, shardLabel(shardIdx)).Inc()
+		m.inserts.With(family, shardLabel(shardIdx)).Inc()
 	}
 }
 
-func recordRemove(famStr string, shardIdx int) {
+func recordRemove(family string, shardIdx int) {
 	if m := locribMetricsPtr.Load(); m != nil {
-		m.removes.With(famStr, shardLabel(shardIdx)).Inc()
+		m.removes.With(family, shardLabel(shardIdx)).Inc()
 	}
 }
 
-func recordLookup(famStr string, shardIdx int) {
+func recordLookup(family string, shardIdx int) {
 	if m := locribMetricsPtr.Load(); m != nil {
-		m.lookups.With(famStr, shardLabel(shardIdx)).Inc()
+		m.lookups.With(family, shardLabel(shardIdx)).Inc()
 	}
 }
 
-func updateDepth(famStr string, shardIdx, depth int) {
+func updateDepth(family string, shardIdx, depth int) {
 	if m := locribMetricsPtr.Load(); m != nil {
-		m.depth.With(famStr, shardLabel(shardIdx)).Set(float64(depth))
+		m.depth.With(family, shardLabel(shardIdx)).Set(float64(depth))
 	}
 }

@@ -79,8 +79,8 @@ func resolveIDs(cfg DropConfig) (uid, gid int, suppGroups []int, err error) {
 	// Always include the primary gid.
 	suppGroups = []int{gid}
 	if groupIDs, err := u.GroupIds(); err == nil {
-		for _, gidStr := range groupIDs {
-			if g, err := strconv.Atoi(gidStr); err == nil && g != gid {
+		for _, id := range groupIDs {
+			if g, err := strconv.Atoi(id); err == nil && g != gid {
 				suppGroups = append(suppGroups, g)
 			}
 		}

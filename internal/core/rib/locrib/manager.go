@@ -161,7 +161,7 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 	}
 	fs := r.familyShardsFor(fam)
 	sh := fs.shardFor(prefix)
-	famStr := fam.String()
+	family := fam.String()
 	shardIdx := shardIndex(prefix, len(fs.shards))
 
 	sh.mu.Lock()
@@ -200,11 +200,11 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 		retBest = newBest
 	}
 	sh.mu.Unlock()
-	recordInsert(famStr, shardIdx)
+	recordInsert(family, shardIdx)
 	// Depth only changes on the Add branch (new prefix entered the store).
 	// Update and no-op Inserts leave the prefix set size unchanged.
 	if changed && !hadBest {
-		updateDepth(famStr, shardIdx, depth)
+		updateDepth(family, shardIdx, depth)
 	}
 	return retBest, changed
 }
@@ -225,7 +225,7 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 		return Path{}, false
 	}
 	sh := fs.shardFor(prefix)
-	famStr := fam.String()
+	family := fam.String()
 	shardIdx := shardIndex(prefix, len(fs.shards))
 
 	sh.mu.Lock()
@@ -261,12 +261,12 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 			sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeRemove})
 		}
 		sh.mu.Unlock()
-		recordRemove(famStr, shardIdx)
+		recordRemove(family, shardIdx)
 		// Depth changed only when the prefix itself was deleted from the
 		// store (empty == true). empty == false && !newHad means paths
 		// remain but none is valid -- prefix count unchanged.
 		if empty {
-			updateDepth(famStr, shardIdx, depth)
+			updateDepth(family, shardIdx, depth)
 		}
 		return Path{}, hadBest
 	}
@@ -274,9 +274,9 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest})
 	}
 	sh.mu.Unlock()
-	recordRemove(famStr, shardIdx)
+	recordRemove(family, shardIdx)
 	if empty {
-		updateDepth(famStr, shardIdx, depth)
+		updateDepth(family, shardIdx, depth)
 	}
 	return newBest, changed
 }

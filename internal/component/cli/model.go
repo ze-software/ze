@@ -911,7 +911,7 @@ func (m *Model) recordAudit(action, detail string) {
 	}
 	surface := m.auditSurface
 	if surface == "" {
-		surface = audit.SurfaceCLI
+		surface = audit.CLI
 	}
 	_ = m.auditRecorder.Record(audit.Entry{
 		Actor:      actor,
