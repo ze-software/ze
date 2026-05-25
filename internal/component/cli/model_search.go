@@ -33,9 +33,8 @@ func (m *Model) searchConfig(query string) []Completion {
 
 	sensitiveKeys := m.editor.SensitiveKeys()
 	tokens := strings.Fields(query)
-	lines := strings.Split(m.searchCache, "\n")
 	var results []Completion
-	for _, line := range lines {
+	for line := range strings.SplitSeq(m.searchCache, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

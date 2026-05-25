@@ -199,9 +199,8 @@ func (h *History) Load(mode string) []string {
 	}
 
 	// Split and filter empty lines.
-	lines := strings.Split(string(data), "\n")
-	result := make([]string, 0, len(lines))
-	for _, line := range lines {
+	result := make([]string, 0, h.max)
+	for line := range strings.SplitSeq(string(data), "\n") {
 		if line != "" {
 			result = append(result, line)
 		}

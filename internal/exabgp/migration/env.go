@@ -35,7 +35,9 @@ func ParseExaBGPEnv(input string) ([]ExaEnvEntry, error) {
 	var currentSection string
 	seenSection := false
 
-	for lineNum, line := range strings.Split(input, "\n") {
+	lineNum := 0
+	for line := range strings.SplitSeq(input, "\n") {
+		lineNum++
 		line = strings.TrimSpace(line)
 
 		// Skip empty lines and comments.
@@ -59,13 +61,13 @@ func ParseExaBGPEnv(input string) ([]ExaEnvEntry, error) {
 		keyPart, valuePart, hasEquals := strings.Cut(line, "=")
 		if !hasEquals {
 			if !seenSection {
-				return nil, fmt.Errorf("line %d: key without section: %s", lineNum+1, line)
+				return nil, fmt.Errorf("line %d: key without section: %s", lineNum, line)
 			}
 			continue
 		}
 
 		if !seenSection {
-			return nil, fmt.Errorf("line %d: key without section: %s", lineNum+1, line)
+			return nil, fmt.Errorf("line %d: key without section: %s", lineNum, line)
 		}
 
 		// Skip keys in non-exabgp sections.

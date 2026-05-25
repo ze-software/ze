@@ -20,8 +20,8 @@ from pathlib import Path
 
 ANCHOR_RE = re.compile(r"<!--\s*source:\s*(.+?)\s*-->")
 
-PATH_PREFIX = ("internal/", "cmd/", "pkg/", "test/", "scripts/", "rfc/")
-DESC_SEP = re.compile(r"\s+(?:--|—)\s+")
+PATH_PREFIX = ("Makefile", "go.mod", "internal/", "cmd/", "pkg/", "test/", "scripts/", "rfc/", "mk/")
+DESC_SEP = re.compile(r"\s+(?:--|-|\u2014)\s+")
 
 
 def extract_paths(content: str) -> list[str]:
@@ -37,7 +37,7 @@ def extract_paths(content: str) -> list[str]:
         seg = seg.strip()
         if not seg:
             continue
-        # Strip description after -- or em-dash
+        # Strip description after accepted source-anchor separators.
         seg_path = DESC_SEP.split(seg, maxsplit=1)[0].strip()
 
         # Handle comma-separated paths within a segment
@@ -160,10 +160,13 @@ def main():
         lines.append("")
 
     content = "\n".join(lines)
-    output_file.write_text(content, encoding="utf-8")
 
     n_stale = len(stale)
-    print(f"wrote {output_file} ({len(index)} code paths, {len(pkg_index)} packages)")
+    if check_mode:
+        print(f"checked {len(index)} code paths, {len(pkg_index)} packages")
+    else:
+        output_file.write_text(content, encoding="utf-8")
+        print(f"wrote {output_file} ({len(index)} code paths, {len(pkg_index)} packages)")
     if check_mode:
         if n_stale:
             print(f"WARNING: {n_stale} stale references (code path no longer exists)")

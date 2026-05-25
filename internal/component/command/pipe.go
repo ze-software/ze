@@ -61,10 +61,13 @@ var knownPipeOps = map[string]pipeKind{
 // ParsePipe splits user input into the command and a chain of pipe operators.
 // Input "peer list | match established | count" returns ("peer list", [{match,"established"}, {count,""}]).
 func ParsePipe(input string) (command string, ops []pipeOp) {
-	parts := strings.Split(input, "|")
-	command = strings.TrimSpace(parts[0])
+	command, rest, hasPipe := strings.Cut(input, "|")
+	command = strings.TrimSpace(command)
+	if !hasPipe {
+		return command, nil
+	}
 
-	for _, part := range parts[1:] {
+	for part := range strings.SplitSeq(rest, "|") {
 		fields := strings.Fields(strings.TrimSpace(part))
 		if len(fields) == 0 {
 			continue

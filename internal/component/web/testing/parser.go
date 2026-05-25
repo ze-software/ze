@@ -59,7 +59,9 @@ func ParseWBFile(content string) (*WBTestCase, error) {
 		Timeout: "30s",
 	}
 
-	for lineNum, line := range strings.Split(content, "\n") {
+	lineNum := 0
+	for line := range strings.SplitSeq(content, "\n") {
+		lineNum++
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			if strings.HasPrefix(line, "# ") {
@@ -70,19 +72,19 @@ func ParseWBFile(content string) (*WBTestCase, error) {
 
 		directive, rest, found := strings.Cut(line, "=")
 		if !found {
-			return nil, fmt.Errorf("line %d: missing '=' in directive: %s", lineNum+1, line)
+			return nil, fmt.Errorf("line %d: missing '=' in directive: %s", lineNum, line)
 		}
 
 		var err error
 		switch directive {
 		case "option":
-			err = parseWBOption(tc, rest, lineNum+1)
+			err = parseWBOption(tc, rest, lineNum)
 		case "action":
-			err = parseWBAction(tc, rest, lineNum+1)
+			err = parseWBAction(tc, rest, lineNum)
 		case "expect":
-			err = parseWBExpect(tc, rest, lineNum+1)
+			err = parseWBExpect(tc, rest, lineNum)
 		default: // unknown directive -- fail immediately
-			return nil, fmt.Errorf("line %d: unknown directive %q", lineNum+1, directive)
+			return nil, fmt.Errorf("line %d: unknown directive %q", lineNum, directive)
 		}
 		if err != nil {
 			return nil, err

@@ -300,11 +300,12 @@ func PortSpecValidator() yang.CustomValidator {
 				return fmt.Errorf("%q is not a valid port set reference", str)
 			}
 
-			entries := strings.Split(str, ",")
-			if len(entries) > 128 {
-				return fmt.Errorf("port spec %q has more than 128 entries", str)
-			}
-			for _, entry := range entries {
+			count := 0
+			for entry := range strings.SplitSeq(str, ",") {
+				count++
+				if count > 128 {
+					return fmt.Errorf("port spec %q has more than 128 entries", str)
+				}
 				if entry == "" || strings.TrimSpace(entry) != entry {
 					return fmt.Errorf("invalid empty or spaced port entry %q in %q", entry, str)
 				}

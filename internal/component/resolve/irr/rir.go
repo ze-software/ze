@@ -221,35 +221,29 @@ func parseDelegation(r io.Reader) ([]RIREntry, error) {
 			continue
 		}
 
-		fields := strings.Split(line, "|")
-		if len(fields) < 7 {
+		fields, ok := parseDelegationFields(line)
+		if !ok {
 			continue
 		}
 
-		registry := fields[0]
-		recType := fields[2]
-		startStr := fields[3]
-		countStr := fields[4]
-		status := fields[6]
-
-		if recType != "asn" {
+		if fields.recType != "asn" {
 			continue
 		}
-		if status != "allocated" && status != "assigned" {
+		if fields.status != "allocated" && fields.status != "assigned" {
 			continue
 		}
 
-		rir, knownRIR := rirNames[registry]
+		rir, knownRIR := rirNames[fields.registry]
 		if !knownRIR {
 			continue
 		}
-		whois := rirWhois[registry]
+		whois := rirWhois[fields.registry]
 
-		start, err := strconv.ParseUint(startStr, 10, 32)
+		start, err := strconv.ParseUint(fields.start, 10, 32)
 		if err != nil {
 			continue
 		}
-		count, err := strconv.ParseUint(countStr, 10, 32)
+		count, err := strconv.ParseUint(fields.count, 10, 32)
 		if err != nil || count == 0 {
 			continue
 		}
@@ -271,6 +265,38 @@ func parseDelegation(r io.Reader) ([]RIREntry, error) {
 	}
 
 	return entries, nil
+}
+
+type delegationFields struct {
+	registry string
+	recType  string
+	start    string
+	count    string
+	status   string
+}
+
+func parseDelegationFields(line string) (delegationFields, bool) {
+	var fields delegationFields
+	field := 0
+	for value := range strings.SplitSeq(line, "|") {
+		switch field {
+		case 0:
+			fields.registry = value
+		case 2:
+			fields.recType = value
+		case 3:
+			fields.start = value
+		case 4:
+			fields.count = value
+		case 6:
+			fields.status = value
+		}
+		field++
+		if field >= 7 {
+			return fields, true
+		}
+	}
+	return delegationFields{}, false
 }
 
 // collapseRanges merges adjacent or overlapping ranges with the same RIR.

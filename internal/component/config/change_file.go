@@ -155,7 +155,9 @@ func ParseChangeFile(content string, parser *SetParser) (*Tree, *MetaTree, []Str
 		configLines []string
 	)
 
-	for lineNum, line := range strings.Split(content, "\n") {
+	lineNum := 0
+	for line := range strings.SplitSeq(content, "\n") {
+		lineNum++
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
 			configLines = append(configLines, line)
@@ -164,7 +166,7 @@ func ParseChangeFile(content string, parser *SetParser) (*Tree, *MetaTree, []Str
 
 		entry, cmdLine := extractMeta(trimmed)
 		if strings.HasPrefix(cmdLine, ChangeFileRenameToken+" ") {
-			op, err := parseRenameLine(lineNum+1, entry, cmdLine)
+			op, err := parseRenameLine(lineNum, entry, cmdLine)
 			if err != nil {
 				return nil, nil, nil, err
 			}

@@ -415,7 +415,6 @@ func replaceAtContext(fullConfig string, contextPath []string, newContent string
 		return fullConfig // nothing to replace
 	}
 
-	lines := strings.Split(fullConfig, "\n")
 	var result strings.Builder
 
 	// Build the pattern to match (e.g., "peer 1.1.1.1" or just "bgp")
@@ -431,7 +430,7 @@ func replaceAtContext(fullConfig string, contextPath []string, newContent string
 	targetDepth := 0
 	currentDepth := 0
 
-	for _, line := range lines {
+	for line := range strings.SplitSeq(fullConfig, "\n") {
 		trimmed := strings.TrimSpace(line)
 		openBraces := strings.Count(trimmed, "{")
 		closeBraces := strings.Count(trimmed, "}")
@@ -486,7 +485,6 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 		return fullConfig // nothing to merge into
 	}
 
-	lines := strings.Split(fullConfig, "\n")
 	var result strings.Builder
 
 	// Build the pattern to match (e.g., "peer 1.1.1.1" or just "bgp")
@@ -503,7 +501,7 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 	currentDepth := 0
 	contentInserted := false
 
-	for _, line := range lines {
+	for line := range strings.SplitSeq(fullConfig, "\n") {
 		trimmed := strings.TrimSpace(line)
 		openBraces := strings.Count(trimmed, "{")
 		closeBraces := strings.Count(trimmed, "}")
@@ -620,17 +618,20 @@ func (m *Model) cmdShowPipe(args []string, filters []PipeFilter) (commandResult,
 // ApplyPipeFilter applies a single pipe filter to content.
 // Returns error for unknown filter types.
 func ApplyPipeFilter(content string, filter PipeFilter) (string, error) {
-	lines := strings.Split(content, "\n")
-
 	switch filter.Type {
 	case cmdMatch:
-		var matched []string
-		for _, line := range lines {
+		var result strings.Builder
+		first := true
+		for line := range strings.SplitSeq(content, "\n") {
 			if strings.Contains(line, filter.Arg) {
-				matched = append(matched, line)
+				if !first {
+					result.WriteByte('\n')
+				}
+				result.WriteString(line)
+				first = false
 			}
 		}
-		return strings.Join(matched, "\n"), nil
+		return result.String(), nil
 
 	case cmdHead:
 		n := 10 // default
@@ -639,10 +640,19 @@ func ApplyPipeFilter(content string, filter PipeFilter) (string, error) {
 				n = parsed
 			}
 		}
-		if n > len(lines) {
-			n = len(lines)
+		var result strings.Builder
+		written := 0
+		for line := range strings.SplitSeq(content, "\n") {
+			if written >= n {
+				break
+			}
+			if written > 0 {
+				result.WriteByte('\n')
+			}
+			result.WriteString(line)
+			written++
 		}
-		return strings.Join(lines[:n], "\n"), nil
+		return result.String(), nil
 
 	case cmdTail:
 		n := 10 // default
@@ -651,25 +661,43 @@ func ApplyPipeFilter(content string, filter PipeFilter) (string, error) {
 				n = parsed
 			}
 		}
-		if n > len(lines) {
-			n = len(lines)
+		ring := make([]string, n)
+		count := 0
+		for line := range strings.SplitSeq(content, "\n") {
+			ring[count%n] = line
+			count++
 		}
-		return strings.Join(lines[len(lines)-n:], "\n"), nil
+		take := min(n, count)
+		start := count - take
+		var result strings.Builder
+		for i := range take {
+			if i > 0 {
+				result.WriteByte('\n')
+			}
+			result.WriteString(ring[(start+i)%n])
+		}
+		return result.String(), nil
 
 	case cmdCompare:
 		// Compare filter marks each line with + or - based on content
 		// This is a simplified version - it just prefixes lines to indicate changes
 		// A proper implementation would need the original content to compute a real diff
-		var result []string
-		for _, line := range lines {
+		var result strings.Builder
+		first := true
+		for line := range strings.SplitSeq(content, "\n") {
 			if strings.TrimSpace(line) != "" {
-				result = append(result, "+ "+line)
+				if !first {
+					result.WriteByte('\n')
+				}
+				result.WriteString("+ ")
+				result.WriteString(line)
+				first = false
 			}
 		}
-		if len(result) == 0 {
+		if first {
 			return "(no changes)", nil
 		}
-		return strings.Join(result, "\n"), nil
+		return result.String(), nil
 	}
 
 	return "", fmt.Errorf("unknown pipe filter: %s", filter.Type)
