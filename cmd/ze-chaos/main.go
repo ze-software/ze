@@ -154,13 +154,17 @@ func run(args []string) int {
 	zePID := fs.Int("ze-pid", 0, "Ze process PID (for config-reload chaos events)")
 	zeBinary := fs.String("ze", "", "Path to ze binary for plugin run directives (default: ze from PATH)")
 	inProcess := fs.Bool("in-process", false, "Run reactor in-process with mock network and virtual clock")
+	configOnly := fs.Bool("config-only", false, "Generate config and exit (no orchestrator)")
+	pipe := fs.Bool("pipe", false, "Write config to stdout for piping (ze-chaos --pipe | ze -)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `ze-chaos - Chaos monkey for Ze BGP route server testing
 
 Usage:
-  ze-chaos [options] | ze -         Pipe config to Ze, diagnostics on stderr
-  ze-chaos --config-out chaos.conf  Write config to file (start Ze separately)
+  ze-chaos [options]                Run with forked ze (default)
+  ze-chaos --pipe [options] | ze -  Pipe config to ze (old behavior)
+  ze-chaos --config-only            Generate config to stdout and exit
+  ze-chaos --config-out chaos.conf  Write config to file (start ze separately)
 
 Scenario:
   --seed <uint64>            Deterministic seed (default: random, always printed)
@@ -232,6 +236,8 @@ Control:
   --ze-pid <N>               Ze process PID (for config-reload chaos events)
   --ze <path>                Path to ze binary for plugin run directives (default: ze from PATH)
   --in-process               Run reactor in-process (mock network, virtual clock)
+  --config-only              Generate config and exit (no orchestrator)
+  --pipe                     Write config to stdout for piping (ze-chaos --pipe | ze -)
 `)
 	}
 
@@ -274,6 +280,24 @@ Control:
 	}
 	if modeCount > 1 {
 		fmt.Fprintf(os.Stderr, "error: --shrink, --replay, and --diff are mutually exclusive\n")
+		return 1
+	}
+
+	// Validate --config-only / --pipe exclusivity.
+	if *configOnly && *pipe {
+		fmt.Fprintf(os.Stderr, "error: --config-only and --pipe are mutually exclusive\n")
+		return 1
+	}
+	if *pipe && *configOut != "" {
+		fmt.Fprintf(os.Stderr, "error: --pipe and --config-out are mutually exclusive\n")
+		return 1
+	}
+	if (*configOnly || *pipe) && modeCount > 0 {
+		fmt.Fprintf(os.Stderr, "error: --config-only/--pipe cannot be used with --shrink/--replay/--diff\n")
+		return 1
+	}
+	if *configOnly && *inProcess {
+		fmt.Fprintf(os.Stderr, "error: --config-only and --in-process are mutually exclusive\n")
 		return 1
 	}
 
@@ -466,6 +490,22 @@ Control:
 	}
 	zeConfig := scenario.GenerateConfig(configParams)
 
+	// Config-only mode: output config and exit (no orchestrator).
+	if *configOnly {
+		if *configOut != "" {
+			if err := os.WriteFile(*configOut, []byte(zeConfig), 0o600); err != nil {
+				fmt.Fprintf(os.Stderr, "error: writing config: %v\n", err)
+				return 1
+			}
+		} else {
+			fmt.Print(zeConfig)
+		}
+		if !*quiet {
+			fmt.Fprint(os.Stderr, scenario.PeerSummary(configParams))
+		}
+		return 0
+	}
+
 	// Per-peer ports eliminate the need for loopback aliases.
 	// Each peer gets a unique Ze listen port on 127.0.0.1.
 
@@ -479,9 +519,13 @@ Control:
 		}
 	}
 
-	if writeErr := writeConfig(zeConfig, configParams, *configOut, *quiet); writeErr != nil {
-		fmt.Fprintf(os.Stderr, "error: writing config: %v\n", writeErr)
-		return 1
+	// Write config for pipe, config-out, and in-process modes.
+	// Fork mode (default) pipes config to the child process instead.
+	if *pipe || *configOut != "" || *inProcess {
+		if writeErr := writeConfig(zeConfig, configParams, *configOut, *quiet); writeErr != nil {
+			fmt.Fprintf(os.Stderr, "error: writing config: %v\n", writeErr)
+			return 1
+		}
 	}
 
 	// In-process mode: run reactor and peers in the same process with
@@ -589,6 +633,26 @@ Control:
 		return 0
 	}
 
+	// Fork mode (default): start ze as a child process with stdin pipe.
+	var child *zeChild
+	if !*pipe && *configOut == "" {
+		var forkErr error
+		child, forkErr = forkZe(context.Background(), zeConfig, *zeBinary)
+		if forkErr != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", forkErr)
+			return 1
+		}
+		defer child.Shutdown()
+		if *zePID != 0 {
+			fmt.Fprintf(os.Stderr, "warning: --ze-pid ignored in fork mode (using child pid %d)\n", child.PID())
+		}
+		*zePID = child.PID()
+		if !*quiet {
+			fmt.Fprintf(os.Stderr, "ze-chaos | forked ze (pid %d)\n", child.PID())
+			fmt.Fprint(os.Stderr, scenario.PeerSummary(configParams))
+		}
+	}
+
 	// Set up parent context for signal handling (process lifetime).
 	parentCtx, parentCancel := context.WithCancel(context.Background())
 	defer parentCancel()
@@ -602,6 +666,9 @@ Control:
 			fmt.Fprintf(os.Stderr, "ze-chaos | shutting down...\n")
 		}
 		parentCancel()
+		if child != nil {
+			child.Signal(syscall.SIGTERM)
+		}
 	}()
 
 	// Print the dashboard URL early so the user can open their browser
