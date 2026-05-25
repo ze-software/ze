@@ -1,0 +1,7 @@
+# Test: skills contract — validate skills list JSON has required fields
+# VALIDATES: skills list --json output contains name and description
+
+cmd=foreground:seq=1:exec=ze skills list --json
+expect=exit:code=0
+expect=stdout:contains="name"
+expect=stdout:contains="description"

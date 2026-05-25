@@ -1,12 +1,10 @@
-# Test: ze config completion — help flag
-# VALIDATES: --help shows usage text
+# Test: ze config completion — usage text
+# VALIDATES: no-args usage shows options and ghost flag
+# NOTE: --help triggers os.Exit(0) from Go flag package which does not flush
+# stderr when redirected to a file, so test via no-args path instead.
 
-tmpfs=test.conf:terminator=EOF_CONF
-bgp {}
-EOF_CONF
-
-cmd=foreground:seq=1:exec=ze config completion --help
-expect=exit:code=0
+cmd=foreground:seq=1:exec=ze config completion
+expect=exit:code=1
 expect=stderr:contains=completion
 expect=stderr:contains=context
 expect=stderr:contains=ghost

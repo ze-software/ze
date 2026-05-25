@@ -1,0 +1,8 @@
+# Test: explain contract — validate explain JSON has required fields
+# VALIDATES: explain --json output contains code, title, description
+
+cmd=foreground:seq=1:exec=ze explain --json config-parse
+expect=exit:code=0
+expect=stdout:contains="code"
+expect=stdout:contains="title"
+expect=stdout:contains="description"

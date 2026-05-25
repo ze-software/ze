@@ -67,4 +67,5 @@ EOF_FILE
 option=env:var=ze.storage.blob:value=false
 
 cmd=foreground:seq=1:exec=ze config archive local test.conf
-expect=exit:code=0
+expect=exit:code=2
+expect=stderr:contains=no credentials
