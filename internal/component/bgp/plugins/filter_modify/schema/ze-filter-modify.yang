@@ -14,8 +14,8 @@ module ze-filter-modify {
                  as-path-list, community-match) earlier in the chain.
                  Referenced from peer filter chains as modify:NAME.";
 
-    revision 2026-04-12 {
-        description "Initial revision";
+    revision 2026-05-25 {
+        description "Add increment/decrement containers and community add/remove leaf-lists";
     }
 
     augment "/bgp:bgp/bgp:policy" {
@@ -76,6 +76,92 @@ module ze-filter-modify {
                                  The actual ASN prepended is the peer's local-as
                                  (from session config). Range 1-32 prevents
                                  excessive path inflation.";
+                }
+
+                leaf-list community-add {
+                    type string;
+                    description "Standard community values to add (ASN:VAL format).";
+                }
+
+                leaf-list community-remove {
+                    type string;
+                    description "Standard community values to remove (ASN:VAL format).";
+                }
+
+                leaf-list large-community-add {
+                    type string;
+                    description "Large community values to add (GA:LD1:LD2 format).";
+                }
+
+                leaf-list large-community-remove {
+                    type string;
+                    description "Large community values to remove (GA:LD1:LD2 format).";
+                }
+
+                leaf-list extended-community-add {
+                    type string;
+                    description "Extended community values to add (target:ASN:NN or hex).";
+                }
+
+                leaf-list extended-community-remove {
+                    type string;
+                    description "Extended community values to remove (target:ASN:NN or hex).";
+                }
+            }
+
+            container increment {
+                description "Attributes to increment on matching routes.
+                             Adds the specified value to the current attribute
+                             value. Saturates at uint32 max (4294967295).
+                             Mutually exclusive with set for the same attribute.";
+
+                leaf local-preference {
+                    type uint32 {
+                        range "1..4294967295";
+                    }
+                    description "Increment LOCAL_PREF by this value.";
+                }
+
+                leaf med {
+                    type uint32 {
+                        range "1..4294967295";
+                    }
+                    description "Increment MED by this value.";
+                }
+
+                leaf aigp {
+                    type uint32 {
+                        range "1..4294967295";
+                    }
+                    description "Increment AIGP metric by this value.";
+                }
+            }
+
+            container decrement {
+                description "Attributes to decrement on matching routes.
+                             Subtracts the specified value from the current
+                             attribute value. Floors at 0 (no underflow).
+                             Mutually exclusive with set for the same attribute.";
+
+                leaf local-preference {
+                    type uint32 {
+                        range "1..4294967295";
+                    }
+                    description "Decrement LOCAL_PREF by this value.";
+                }
+
+                leaf med {
+                    type uint32 {
+                        range "1..4294967295";
+                    }
+                    description "Decrement MED by this value.";
+                }
+
+                leaf aigp {
+                    type uint32 {
+                        range "1..4294967295";
+                    }
+                    description "Decrement AIGP metric by this value.";
                 }
             }
         }

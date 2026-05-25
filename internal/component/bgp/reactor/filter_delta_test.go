@@ -968,3 +968,110 @@ func TestRewriteASPathOverride(t *testing.T) {
 		assert.Nil(t, result)
 	})
 }
+
+// VALIDATES: AC-7 -- community-add directive emits AttrModAdd.
+func TestCommunityAddDeltaToModOps(t *testing.T) {
+	original := "origin igp community 65000:100 as-path 65001"
+	modified := "origin igp community 65000:100 community-add 65000:200 as-path 65001"
+
+	var mods registry.ModAccumulator
+	textDeltaToModOps(original, modified, &mods)
+
+	ops := mods.Ops()
+	found := false
+	for _, op := range ops {
+		if op.Code == byte(attribute.AttrCommunity) && op.Action == registry.AttrModAdd {
+			found = true
+			if len(op.Buf) != 4 {
+				t.Errorf("expected 4-byte community value, got %d", len(op.Buf))
+			}
+		}
+	}
+	if !found {
+		t.Error("expected AttrModAdd op for COMMUNITY, not found")
+	}
+}
+
+// VALIDATES: AC-8 -- community-remove directive emits AttrModRemove.
+func TestCommunityRemoveDeltaToModOps(t *testing.T) {
+	original := "origin igp community 65000:100 65000:200 as-path 65001"
+	modified := "origin igp community 65000:100 65000:200 community-remove 65000:100 as-path 65001"
+
+	var mods registry.ModAccumulator
+	textDeltaToModOps(original, modified, &mods)
+
+	ops := mods.Ops()
+	found := false
+	for _, op := range ops {
+		if op.Code == byte(attribute.AttrCommunity) && op.Action == registry.AttrModRemove {
+			found = true
+			if len(op.Buf) != 4 {
+				t.Errorf("expected 4-byte community value, got %d", len(op.Buf))
+			}
+		}
+	}
+	if !found {
+		t.Error("expected AttrModRemove op for COMMUNITY, not found")
+	}
+}
+
+// VALIDATES: AC-7 via large-community -- large-community-add emits AttrModAdd.
+func TestLargeCommunityAddDeltaToModOps(t *testing.T) {
+	original := "origin igp as-path 65001"
+	modified := "origin igp large-community-add 65000:100:200 as-path 65001"
+
+	var mods registry.ModAccumulator
+	textDeltaToModOps(original, modified, &mods)
+
+	ops := mods.Ops()
+	found := false
+	for _, op := range ops {
+		if op.Code == byte(attribute.AttrLargeCommunity) && op.Action == registry.AttrModAdd {
+			found = true
+			if len(op.Buf) != 12 {
+				t.Errorf("expected 12-byte large community value, got %d", len(op.Buf))
+			}
+		}
+	}
+	if !found {
+		t.Error("expected AttrModAdd op for LARGE_COMMUNITY, not found")
+	}
+}
+
+// VALIDATES: community-remove with multiple values emits one op per value.
+// PREVENTS: multi-value remove silently doing nothing (removeValues rejects mismatched sizes).
+func TestCommunityRemoveMultiValue(t *testing.T) {
+	original := "origin igp community 65000:100 65000:200 65000:300 as-path 65001"
+	modified := "origin igp community 65000:100 65000:200 65000:300 community-remove 65000:100 65000:200 as-path 65001"
+
+	var mods registry.ModAccumulator
+	textDeltaToModOps(original, modified, &mods)
+
+	removeCount := 0
+	for _, op := range mods.Ops() {
+		if op.Code == byte(attribute.AttrCommunity) && op.Action == registry.AttrModRemove {
+			if len(op.Buf) != 4 {
+				t.Errorf("remove op should be exactly 4 bytes, got %d", len(op.Buf))
+			}
+			removeCount++
+		}
+	}
+	if removeCount != 2 {
+		t.Errorf("expected 2 AttrModRemove ops (one per value), got %d", removeCount)
+	}
+}
+
+// VALIDATES: community directives don't interfere with regular community Set path.
+func TestCommunityDirectiveNoSetInterference(t *testing.T) {
+	original := "origin igp community 65000:100 as-path 65001"
+	modified := "origin igp community 65000:100 community-add 65000:200 as-path 65001"
+
+	var mods registry.ModAccumulator
+	textDeltaToModOps(original, modified, &mods)
+
+	for _, op := range mods.Ops() {
+		if op.Code == byte(attribute.AttrCommunity) && op.Action == registry.AttrModSet {
+			t.Error("unexpected AttrModSet for COMMUNITY (should only have AttrModAdd)")
+		}
+	}
+}

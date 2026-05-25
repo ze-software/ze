@@ -224,6 +224,27 @@ func textDeltaToModOps(original, modified string, mods *registry.ModAccumulator)
 		mods.Op(byte(code), registry.AttrModSet, wireVal)
 	}
 
+	// Community add/remove directives: new keys that don't exist in original.
+	for name, modVal := range modAttrs {
+		directive, ok := communityDirectives[name]
+		if !ok {
+			continue
+		}
+		wireVal, err := encodeAttrValue(directive.encoderName, modVal)
+		if err != nil {
+			fwdLogger().Warn("policy filter delta: community directive encode failed",
+				"directive", name, "value", modVal, "error", err)
+			continue
+		}
+		if directive.action == registry.AttrModRemove && directive.valueSize > 0 {
+			for off := 0; off+directive.valueSize <= len(wireVal); off += directive.valueSize {
+				mods.Op(byte(directive.code), directive.action, wireVal[off:off+directive.valueSize])
+			}
+		} else {
+			mods.Op(byte(directive.code), directive.action, wireVal)
+		}
+	}
+
 	// Removed attributes: present in original, absent in modified.
 	for name := range origAttrs {
 		if name == policyAttrNLRI || name == policyAttrASPath || name == policyAttrASPathPrepend || name == policyAttrRemovePrivate {
@@ -239,6 +260,22 @@ func textDeltaToModOps(original, modified string, mods *registry.ModAccumulator)
 		// Zero-length Set: handler omits optional attributes, writes empty well-known.
 		mods.Op(byte(code), registry.AttrModSet, nil)
 	}
+}
+
+type communityDirective struct {
+	code        attribute.AttributeCode
+	action      uint8
+	encoderName string // key into encodeAttrValue
+	valueSize   int    // per-value wire size (4=standard, 12=large, 8=extended)
+}
+
+var communityDirectives = map[string]communityDirective{
+	"community-add":             {attribute.AttrCommunity, registry.AttrModAdd, "community", 4},
+	"community-remove":          {attribute.AttrCommunity, registry.AttrModRemove, "community", 4},
+	"large-community-add":       {attribute.AttrLargeCommunity, registry.AttrModAdd, "large-community", 12},
+	"large-community-remove":    {attribute.AttrLargeCommunity, registry.AttrModRemove, "large-community", 12},
+	"extended-community-add":    {attribute.AttrExtCommunity, registry.AttrModAdd, "extended-community", 8},
+	"extended-community-remove": {attribute.AttrExtCommunity, registry.AttrModRemove, "extended-community", 8},
 }
 
 // encodeAttrValue converts a text attribute value to wire VALUE bytes.

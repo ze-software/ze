@@ -161,7 +161,7 @@ func TestParseModifyDefs(t *testing.T) {
 			wantCount: 0,
 		},
 		{
-			name: "missing_set",
+			name: "no_operations",
 			bgpCfg: map[string]any{
 				"policy": map[string]any{
 					"modify": map[string]any{
@@ -170,10 +170,10 @@ func TestParseModifyDefs(t *testing.T) {
 				},
 			},
 			wantErr:   true,
-			errSubstr: "missing 'set'",
+			errSubstr: "no operations defined",
 		},
 		{
-			name: "empty_set",
+			name: "empty_set_no_other_ops",
 			bgpCfg: map[string]any{
 				"policy": map[string]any{
 					"modify": map[string]any{
@@ -184,7 +184,7 @@ func TestParseModifyDefs(t *testing.T) {
 				},
 			},
 			wantErr:   true,
-			errSubstr: "no attributes",
+			errSubstr: "no operations defined",
 		},
 		{
 			name: "name_too_long",
@@ -234,7 +234,6 @@ func TestParseModifyDefs(t *testing.T) {
 // VALIDATES: handleFilterUpdate returns modify with pre-built delta.
 // PREVENTS: Wrong action or missing delta.
 func TestHandleFilterUpdate(t *testing.T) {
-	// Set up a known modifier.
 	defs := map[string]*modifyDef{
 		"PREFER-LOCAL": {name: "PREFER-LOCAL", delta: "local-preference 200"},
 	}
@@ -274,6 +273,268 @@ func TestHandleFilterUpdate(t *testing.T) {
 			}
 			if out.Update != tt.wantDelta {
 				t.Errorf("delta = %q, want %q", out.Update, tt.wantDelta)
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-1 -- increment local-preference produces correct absolute value.
+// VALIDATES: AC-3 -- increment saturates at uint32 max.
+func TestBuildDynamicDeltaIncrement(t *testing.T) {
+	tests := []struct {
+		name       string
+		def        *modifyDef
+		updateText string
+		wantPart   string
+	}{
+		{
+			name:       "increment_lp_100_by_50",
+			def:        &modifyDef{increments: []incdec{{attr: "local-preference", value: 50}}},
+			updateText: "origin igp local-preference 100 as-path 65001",
+			wantPart:   "local-preference 150",
+		},
+		{
+			name:       "increment_med_by_10",
+			def:        &modifyDef{increments: []incdec{{attr: "med", value: 10}}},
+			updateText: "origin igp med 90 as-path 65001",
+			wantPart:   "med 100",
+		},
+		{
+			name:       "increment_saturates_at_max",
+			def:        &modifyDef{increments: []incdec{{attr: "local-preference", value: 50}}},
+			updateText: "origin igp local-preference 4294967280 as-path 65001",
+			wantPart:   "local-preference 4294967295",
+		},
+		{
+			name:       "increment_missing_attr_treats_as_zero",
+			def:        &modifyDef{increments: []incdec{{attr: "local-preference", value: 50}}},
+			updateText: "origin igp as-path 65001",
+			wantPart:   "local-preference 50",
+		},
+		{
+			name:       "increment_aigp",
+			def:        &modifyDef{increments: []incdec{{attr: "aigp", value: 100}}},
+			updateText: "origin igp aigp 500 as-path 65001",
+			wantPart:   "aigp 600",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildDynamicDelta(tt.def, tt.updateText)
+			if !strings.Contains(got, tt.wantPart) {
+				t.Errorf("buildDynamicDelta() = %q, want to contain %q", got, tt.wantPart)
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-2 -- decrement floors at zero.
+func TestBuildDynamicDeltaDecrement(t *testing.T) {
+	tests := []struct {
+		name       string
+		def        *modifyDef
+		updateText string
+		wantPart   string
+	}{
+		{
+			name:       "decrement_med_90_by_30",
+			def:        &modifyDef{decrements: []incdec{{attr: "med", value: 30}}},
+			updateText: "origin igp med 90 as-path 65001",
+			wantPart:   "med 60",
+		},
+		{
+			name:       "decrement_floors_at_zero",
+			def:        &modifyDef{decrements: []incdec{{attr: "med", value: 30}}},
+			updateText: "origin igp med 20 as-path 65001",
+			wantPart:   "med 0",
+		},
+		{
+			name:       "decrement_exact_zero",
+			def:        &modifyDef{decrements: []incdec{{attr: "med", value: 50}}},
+			updateText: "origin igp med 50 as-path 65001",
+			wantPart:   "med 0",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildDynamicDelta(tt.def, tt.updateText)
+			if !strings.Contains(got, tt.wantPart) {
+				t.Errorf("buildDynamicDelta() = %q, want to contain %q", got, tt.wantPart)
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-4 -- community-add directive in delta.
+// VALIDATES: AC-6 -- large-community-add directive in delta.
+func TestBuildDynamicDeltaCommunityOps(t *testing.T) {
+	tests := []struct {
+		name     string
+		def      *modifyDef
+		wantPart string
+	}{
+		{
+			name: "community_add",
+			def: &modifyDef{commOps: []commOp{
+				{directive: "community-add", values: "65000:200"},
+			}},
+			wantPart: "community-add 65000:200",
+		},
+		{
+			name: "community_remove",
+			def: &modifyDef{commOps: []commOp{
+				{directive: "community-remove", values: "65000:100"},
+			}},
+			wantPart: "community-remove 65000:100",
+		},
+		{
+			name: "large_community_add",
+			def: &modifyDef{commOps: []commOp{
+				{directive: "large-community-add", values: "65000:100:200"},
+			}},
+			wantPart: "large-community-add 65000:100:200",
+		},
+		{
+			name: "combined_static_and_dynamic",
+			def: &modifyDef{
+				delta: "local-preference 200",
+				commOps: []commOp{
+					{directive: "community-add", values: "65000:200"},
+				},
+			},
+			wantPart: "community-add 65000:200",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildDynamicDelta(tt.def, "origin igp as-path 65001")
+			if !strings.Contains(got, tt.wantPart) {
+				t.Errorf("buildDynamicDelta() = %q, want to contain %q", got, tt.wantPart)
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-13 -- set and increment for same attr rejected at parse time.
+func TestParseModifyDefsConflict(t *testing.T) {
+	bgpCfg := map[string]any{
+		"policy": map[string]any{
+			"modify": map[string]any{
+				"BAD": map[string]any{
+					"set":       map[string]any{"local-preference": float64(200)},
+					"increment": map[string]any{"local-preference": float64(50)},
+				},
+			},
+		},
+	}
+	_, err := parseModifyDefs(bgpCfg)
+	if err == nil {
+		t.Fatal("expected conflict error, got nil")
+	}
+	if !strings.Contains(err.Error(), "conflicts") {
+		t.Errorf("error %q does not mention conflicts", err.Error())
+	}
+}
+
+// VALIDATES: increment config parsing accepts valid input.
+func TestParseModifyDefsIncrement(t *testing.T) {
+	bgpCfg := map[string]any{
+		"policy": map[string]any{
+			"modify": map[string]any{
+				"INC-LP": map[string]any{
+					"increment": map[string]any{"local-preference": float64(50)},
+				},
+			},
+		},
+	}
+	defs, err := parseModifyDefs(bgpCfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(defs) != 1 {
+		t.Fatalf("expected 1 def, got %d", len(defs))
+	}
+	def := defs["INC-LP"]
+	if len(def.increments) != 1 {
+		t.Fatalf("expected 1 increment, got %d", len(def.increments))
+	}
+	if def.increments[0].attr != "local-preference" || def.increments[0].value != 50 {
+		t.Errorf("increment = %+v, want local-preference 50", def.increments[0])
+	}
+}
+
+// VALIDATES: community-add config parsing.
+func TestParseModifyDefsCommunityAdd(t *testing.T) {
+	bgpCfg := map[string]any{
+		"policy": map[string]any{
+			"modify": map[string]any{
+				"TAG": map[string]any{
+					"set": map[string]any{
+						"community-add": []any{"65000:100", "65000:200"},
+					},
+				},
+			},
+		},
+	}
+	defs, err := parseModifyDefs(bgpCfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	def := defs["TAG"]
+	if len(def.commOps) != 1 {
+		t.Fatalf("expected 1 commOp, got %d", len(def.commOps))
+	}
+	if def.commOps[0].directive != "community-add" {
+		t.Errorf("directive = %q, want community-add", def.commOps[0].directive)
+	}
+	if def.commOps[0].values != "65000:100 65000:200" {
+		t.Errorf("values = %q, want %q", def.commOps[0].values, "65000:100 65000:200")
+	}
+}
+
+// VALIDATES: handleFilterUpdate with dynamic increment modifier.
+func TestHandleFilterUpdateIncrement(t *testing.T) {
+	defs := map[string]*modifyDef{
+		"INC-LP": {
+			name:       "INC-LP",
+			increments: []incdec{{attr: "local-preference", value: 50}},
+		},
+	}
+	defsByName.Store(&defs)
+	defer defsByName.Store(nil)
+
+	in := &sdk.FilterUpdateInput{
+		Filter: "INC-LP",
+		Peer:   "127.0.0.1",
+		Update: "origin igp local-preference 100 as-path 65001 nlri ipv4/unicast add 10.0.0.0/24",
+	}
+	out := handleFilterUpdate(in)
+	if out.Action != sdk.FilterModify {
+		t.Fatalf("action = %v, want modify", out.Action)
+	}
+	if !strings.Contains(out.Update, "local-preference 150") {
+		t.Errorf("delta = %q, want to contain 'local-preference 150'", out.Update)
+	}
+}
+
+func TestExtractUint32Attr(t *testing.T) {
+	tests := []struct {
+		name       string
+		updateText string
+		attr       string
+		want       uint32
+	}{
+		{"present", "origin igp local-preference 100 as-path 65001", "local-preference", 100},
+		{"absent", "origin igp as-path 65001", "local-preference", 0},
+		{"at_end", "origin igp med 50", "med", 50},
+		{"zero_value", "origin igp local-preference 0 as-path 65001", "local-preference", 0},
+		{"max_value", "origin igp local-preference 4294967295 as-path 65001", "local-preference", 4294967295},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractUint32Attr(tt.updateText, tt.attr)
+			if got != tt.want {
+				t.Errorf("extractUint32Attr(%q, %q) = %d, want %d", tt.updateText, tt.attr, got, tt.want)
 			}
 		})
 	}

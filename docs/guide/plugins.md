@@ -389,25 +389,44 @@ work as match values because the filter text format renders them as names.
 
 ### Route Attribute Modifier (`bgp-filter-modify`)
 
-`bgp-filter-modify` unconditionally sets declared attributes on every route
-that reaches it in the filter chain. Defined in `bgp { policy { modify NAME {
-set { local-preference 200; med 50; origin igp; next-hop 10.0.0.1;
-as-path-prepend 3; } } } }`. Only present leaves are applied; undeclared
-attributes pass through unchanged.
+`bgp-filter-modify` unconditionally applies declared operations on every route
+that reaches it in the filter chain. Three operation types are supported:
+
+**Set** (absolute value): `set { local-preference 200; med 50; origin igp;
+next-hop 10.0.0.1; as-path-prepend 3; }`. Only present leaves are applied.
+
+**Increment/Decrement** (relative adjustment): `increment { local-preference 50; }`
+or `decrement { med 30; }`. Supported attributes: local-preference, med, aigp.
+Increment saturates at uint32 max (4294967295). Decrement floors at 0.
+Set and increment/decrement for the same attribute are mutually exclusive.
+
+**Community Add/Remove**: `set { community-add [ 65000:200 ]; community-remove
+[ 65000:100 ]; large-community-add [ 65000:100:200 ]; }`. Adds or removes
+individual community values (standard, large, extended) without replacing the
+entire attribute. The engine maps these to AttrModAdd/AttrModRemove operations.
 
 For conditional modification, compose with match filters earlier in the chain:
 `filter import [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ]`.
 
 Chain references: `bgp-filter-modify:NAME` or `modify:NAME`.
 
-The plugin returns `action=modify` with a pre-built text delta. The engine
-handles wire-level rewriting via `textDeltaToModOps` and
-`buildModifiedPayload`. AS-path prepend uses a dedicated `AttrModPrepend`
-handler that inserts N copies of the peer's local AS before the existing path.
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate, buildDynamicDelta -->
+<!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDelta, buildDynamicDelta -->
+<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps, communityDirectives -->
 
-<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps -->
-<!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- aspathHandler -->
+### AS-Path Length Filter (`bgp-filter-aspath-length`)
+
+`bgp-filter-aspath-length` accepts or rejects routes based on AS_PATH hop count.
+Configure named filters with min and/or max bounds:
+`bgp { policy { as-path-length REJECT-LONG { max 30; } } }`.
+Routes outside the configured range are rejected. At least one of max or min
+is required. Path length counts AS_SEQUENCE entries individually and AS_SET as 1,
+following RFC 4271 Section 9.1.2.2.
+
+Chain references: `bgp-filter-aspath-length:NAME` or `as-path-length:NAME`.
+
+<!-- source: internal/component/bgp/plugins/filter_aspath_length/filter_aspath_length.go -- handleFilterUpdate -->
+<!-- source: internal/component/bgp/plugins/filter_aspath_length/aspath_length.go -- evaluateASPathLength, countASPathHops -->
 
 ### Remove Private AS (`bgp-filter-remove-private-as`)
 

@@ -1,0 +1,98 @@
+# Test: modify filter increments local-preference on import
+# VALIDATES: AC-1 -- increment local-preference from absent (0) by 50
+# PREVENTS: Increment not computed, static delta returned instead
+#
+# Flow:
+# 1. ze-peer sends EBGP UPDATE (no LOCAL_PREF, per RFC 4271)
+# 2. Filter chain calls bgp-filter-modify:INC-LP
+# 3. Plugin sees no local-preference (treated as 0), increments by 50, returns delta "local-preference 50"
+# 4. Engine applies wire-level modification
+
+option=env:var=ze.log.bgp.filter.modify:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_PEER
+
+tmpfs=test-modify-inc.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Observer for modify increment test: clean shutdown."""
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(3.0)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-modify-inc {
+		run ./test-modify-inc.run
+		encoder json
+	}
+}
+bgp {
+	policy {
+		modify INC-LP {
+			increment {
+				local-preference 50
+			}
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		filter {
+			import [ modify:INC-LP ]
+		}
+
+		process test-modify-inc {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-modify --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+expect=stderr:pattern=modify apply
+expect=stderr:pattern=filter=INC-LP
+expect=stderr:pattern=local-preference 50

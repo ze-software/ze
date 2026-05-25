@@ -19,6 +19,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_aspath/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_aspath_length/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community_match/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_modify/schema"
@@ -98,6 +99,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/aigp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bmp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_aspath"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_aspath_length"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community_match"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_modify"
@@ -178,4 +180,3 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )
-

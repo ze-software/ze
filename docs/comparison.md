@@ -107,9 +107,10 @@ roles enforcement. Filters compose in ordered chains:
 | Standard communities | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Extended communities | Yes | Yes | Yes | No | No | Yes | Yes | Yes | Yes | Yes | Yes |
 | Large communities (RFC 8092) | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Yes | Yes |
-| Community add/remove/replace | API | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
-| MED manipulation | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
-| LOCAL_PREF set | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
+| Community add/remove/replace | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
+| MED manipulation (set/inc/dec) | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
+| LOCAL_PREF set/inc/dec | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
+| AS-path length filter | Yes | No | Yes | No | No | No | No | No | Yes | Yes | No |
 | AS-path prepend | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
 | Next-hop set/self | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
 | RPKI validation match | Yes | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes | Yes |

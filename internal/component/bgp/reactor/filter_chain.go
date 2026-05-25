@@ -99,6 +99,13 @@ func applyFilterDelta(current, delta string) string {
 	return formatFilterAttrs(currentAttrs)
 }
 
+var policySingleToken = map[string]bool{
+	"origin": true, "next-hop": true, "med": true,
+	"local-preference": true, policyAttrAtomicAggregate: true,
+	"aggregator": true, "originator-id": true,
+	"as-path-prepend": true, policyAttrRemovePrivate: true, "aigp": true,
+}
+
 // parseFilterAttrs parses text-format attributes into a map.
 // Each attribute is "name value" where value may contain spaces.
 // Special key "nlri" captures the NLRI section.
@@ -106,14 +113,6 @@ func parseFilterAttrs(text string) map[string]string {
 	attrs := make(map[string]string)
 	if text == "" {
 		return attrs
-	}
-
-	// Single-token attributes (one value after name).
-	singleToken := map[string]bool{
-		"origin": true, "next-hop": true, "med": true,
-		"local-preference": true, policyAttrAtomicAggregate: true,
-		"aggregator": true, "originator-id": true,
-		"as-path-prepend": true, policyAttrRemovePrivate: true, "aigp": true,
 	}
 
 	fields := strings.Fields(text)
@@ -137,7 +136,7 @@ func parseFilterAttrs(text string) map[string]string {
 			continue
 		}
 
-		if singleToken[name] {
+		if policySingleToken[name] {
 			if i < len(fields) {
 				attrs[name] = fields[i]
 				i++
@@ -163,7 +162,10 @@ func isPolicyAttrName(s string) bool {
 	case "origin", "as-path", "next-hop", "med", "local-preference",
 		policyAttrAtomicAggregate, "aggregator", "community", "originator-id",
 		"cluster-list", "extended-community", "aigp", "large-community", "nlri",
-		"as-path-prepend", policyAttrRemovePrivate:
+		"as-path-prepend", policyAttrRemovePrivate,
+		"community-add", "community-remove",
+		"large-community-add", "large-community-remove",
+		"extended-community-add", "extended-community-remove":
 		return true
 	}
 	return false
@@ -176,6 +178,9 @@ func formatFilterAttrs(attrs map[string]string) string {
 		"origin", "as-path", "next-hop", "med", "local-preference",
 		policyAttrAtomicAggregate, "aggregator", "community", "originator-id",
 		"cluster-list", "extended-community", "aigp", "large-community",
+		"community-add", "community-remove",
+		"large-community-add", "large-community-remove",
+		"extended-community-add", "extended-community-remove",
 		"as-path-prepend", policyAttrRemovePrivate, "nlri",
 	}
 

@@ -80,7 +80,8 @@ func RunFilterModify(conn net.Conn) int {
 }
 
 // handleFilterUpdate dispatches a single filter-update RPC.
-// Returns "modify" with the pre-built delta for known modifiers.
+// Static modifiers return the pre-built delta. Dynamic modifiers (inc/dec,
+// community ops) read the current update text and compute the delta at runtime.
 // Unknown modifier names fail closed with "reject".
 func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	defsP := defsByName.Load()
@@ -95,6 +96,13 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
-	logger().Info("modify apply", "filter", in.Filter, "peer", in.Peer, "delta", def.delta)
-	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: def.delta}
+	var delta string
+	if def.isDynamic() {
+		delta = buildDynamicDelta(def, in.Update)
+	} else {
+		delta = def.delta
+	}
+
+	logger().Info("modify apply", "filter", in.Filter, "peer", in.Peer, "delta", delta)
+	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: delta}
 }
