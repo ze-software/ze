@@ -64,7 +64,7 @@ flowchart TB
     CP -->|"Get('bgp')"| REACTOR
     LOAD --> CP
     ED -->|"formatted events"| PluginServer
-    HANDSHAKE <-->|"JSON events ↓\ncommands ↑"| PLUGIN
+    HANDSHAKE <-->|"YANG RPC + events"| PLUGIN
 ```
 
 **Key principles:**
@@ -76,8 +76,8 @@ flowchart TB
 - **EventDispatcher** handles plugin data delivery (format negotiation, DirectBridge with `StructuredEvent`, cache counts). Internal plugins receive `*rpc.StructuredEvent` via DirectBridge (no JSON round-trip); external plugins receive formatted JSON text. Called directly by reactor -- not via Bus.
 - **Plugin Server** handles 5-stage handshake, subscriptions, command dispatch. Uses PluginManager for process creation.
 - **Five-phase plugin startup** -- Phase 1: config-path plugins (BGP, iface, fib via ConfigRoots). Phase 2: explicit plugins (from config `plugin { }` block). Phase 3: unclaimed families. Phase 4: custom event types. Phase 5: custom send types. Each phase uses tier-ordered handshake based on Dependencies.
-- **Pipes** carry JSON events (with base64 wire bytes) and text commands.
-- **BGP cache** enables zero-copy forwarding (`bgp cache 123 forward <sel>`).
+- **Plugin IPC** uses newline-framed YANG RPC over one bidirectional connection. Internal plugins use `net.Pipe()` for startup and DirectBridge after ready; external plugins use TLS connect-back. External event payloads are formatted text or JSON according to the process binding.
+- **BGP cache** enables zero-copy forwarding (`bgp cache forward 123 <sel>`).
 - **Dynamic event types** -- plugins declare event types they produce via `Registration.EventTypes`. Engine registers them into `ValidEvents` at startup.
 - **Dynamic send types** -- plugins declare send types they enable via `Registration.SendTypes`. Engine registers them into `ValidSendTypes` at startup.
 <!-- source: internal/component/plugin/registry/ -- plugin registry, Register -->
@@ -333,9 +333,9 @@ The NextHop type must handle this context-dependent encoding.
 
 ---
 
-## 6. API Pipe Communication
+## 6. Plugin API Communication
 
-Ze engine communicates with plugins via stdin/stdout pipes.
+Ze engine communicates with plugins via newline-framed YANG RPC over a single bidirectional connection. Internal plugins start on `net.Pipe()` and switch supported hot paths to DirectBridge after Stage 5. External plugins connect back to the plugin hub over TLS.
 
 ### Two Input Modes
 
@@ -368,30 +368,31 @@ See `docs/architecture/api/update-syntax.md` for full syntax specification.
 
 ### JSON Events (Engine → Plugin)
 
-Engine sends events with base64-encoded wire bytes:
+When a process binding requests JSON output, the engine sends formatted BGP event payloads via `deliver-event` or `deliver-batch`:
 
 ```json
 {
-  "message": {"type": "update", "id": 12345, "direction": "received"},
-  "peer": {"address": "10.0.0.1", "context-id": 42},
-  "raw-attributes": "QAEBAQA=",
-  "raw-nlri": "GApAAA==",
-  "parsed": { ... }
+  "type": "bgp",
+  "bgp": {
+    "message": {"type": "update", "id": 12345, "direction": "received"},
+    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
+    "update": {"attr": {"origin": "igp"}, "nlri": {}}
+  }
 }
 ```
 
-**`context-id`**: Plugin uses this for zero-copy forwarding decisions. If source and dest peers have same context-id, forward wire bytes unchanged.
+**Message ID**: Plugins use the `message.id` for cache-control operations such as forwarding or releasing cached UPDATEs.
 
 Plugin can:
-- Use `parsed` for decisions
-- Store `raw-*` bytes directly (for forwarding)
-- Forward by ID: `"bgp cache 12345 forward !10.0.0.1"` (or batch: `"bgp cache 1,2,3 forward !10.0.0.1"`)
+- Use formatted `attr` and `nlri` fields for decisions
+- Use raw fields when the binding format includes them
+- Forward by ID: `"bgp cache forward 12345 !10.0.0.1"` (or batch: `"bgp cache forward 1,2,3 !10.0.0.1"`)
 
 ### What Engine Stores vs Plugin Stores
 
 | Component | Engine Stores | Plugin Stores |
 |-----------|---------------|---------------|
-| **BGP cache** | WireUpdate by ID (for `bgp cache <id>[,<id>...] forward`) | - |
+| **BGP cache** | WireUpdate by ID (for `bgp cache forward <id>[,<id>...] <sel>`) | - |
 | **Peer state** | Negotiated caps, FSM state | - |
 | **RIB** | - | NLRI → attribute refs (with pools) |
 | **Policy** | - | Route filters, preferences |
@@ -534,7 +535,7 @@ Receive UPDATE → Assign msg-id → Ingress filter pipeline → Cache WireUpdat
                                                                                  ▼
                      ┌──────────────────── slow path (text RPC) ───────┬──── fast path (typed SDK) ────┐
                      ▼                                                  ▼                              ▼
-          "bgp cache 123 forward <sel>" → tokenise → command registry → ForwardUpdate     Plugin.ForwardCached(ids, destinations) → DirectBridge → ForwardUpdatesDirect
+          "bgp cache forward 123 <sel>" → tokenise → command registry → ForwardUpdate     Plugin.ForwardCached(ids, destinations) → DirectBridge → ForwardUpdatesDirect
                      │                                                                                  │
                      └──────────────────────────── ForwardUpdate (shared core) ─────────────────────────┘
                                                                 │
@@ -560,7 +561,7 @@ state trackers consume the cached `WireUpdate` and emit `locrib.Change` events
 for downstream best-change consumers. The two trigger shapes coexist by design:
 forwarder needs differ from state-tracker needs (per-event vs. per-best-change).
 
-**Slow path** (`bgp cache <id> forward <sel>`) still exists for ad-hoc and external
+**Slow path** (`bgp cache forward <id> <sel>`) still exists for ad-hoc and external
 callers. Tokenises the text command, walks the plugin command registry, dispatches
 to `ForwardUpdate`.
 
@@ -568,8 +569,8 @@ to `ForwardUpdate`.
 server today; route reflector / redistribute next). `Plugin.ForwardCached(ctx,
 ids, destinations)` goes through `DirectBridge` when the plugin is in-process
 (zero socket I/O, zero tokenisation, zero registry walk) and falls back to
-`ze-plugin-engine:forward-cached` JSON-RPC over the pipe for out-of-process
-plugins. The engine entry point is `reactorAPIAdapter.ForwardUpdatesDirect`, which
+`ze-plugin-engine:forward-cached` over the newline-framed plugin RPC connection
+for out-of-process plugins. The engine entry point is `reactorAPIAdapter.ForwardUpdatesDirect`, which
 builds a selector from the `netip.AddrPort` list once, de-dupes IDs, and calls
 `ForwardUpdate` per id. Symmetric `ReleaseCached` handles the "decided not to
 forward" ack path. Destinations are capped at `ze.fwd.dest.cap` (default 4096).

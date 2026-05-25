@@ -34,7 +34,7 @@
 |---------|-------------|
 | **Engine Role** | FSM, parsing, wire I/O, BGP cache |
 | **API Role** | RIB storage, policy, best-path, GR state |
-| **Communication** | JSON events + base64 wire bytes |
+| **Communication** | YANG RPC wire format (`#<id> <verb> [json]`) with JSON events and DirectBridge for in-process hot paths |
 | **Key Types** | `Server`, `Client`, `Process`, `Dispatcher` |
 | **RIB** | Owned by API program (use `internal/component/bgp/rib/` as reference) |
 | **Polyglot** | API programs can be Go, Python, Rust, etc. |
@@ -67,7 +67,7 @@
 | Policy | Import/export filters, route manipulation |
 | Best-path | Selection algorithm (if needed) |
 | GR/RR | Graceful restart, route refresh handling |
-| Cache Control | Retain/release/expire via `bgp cache <id>` commands |
+| Cache Control | Retain/release/expire via `bgp cache retain/release/expire <id>` commands |
 
 ### Wire Bytes in Events
 
@@ -101,11 +101,11 @@ API decodes and stores in pool for deduplication.
 API controls cache lifetime via `bgp cache` commands:
 
 ```
-bgp cache 123 retain    # Keep until released
-bgp cache 123 release   # Allow eviction
-bgp cache 123 expire    # Remove immediately
+bgp cache retain 123    # Keep until released
+bgp cache release 123   # Allow eviction
+bgp cache expire 123    # Remove immediately
 bgp cache list          # List cached msg-ids
-bgp cache 123 forward !10.0.0.1  # Forward to all except source
+bgp cache forward 123 !10.0.0.1  # Forward to all except source
 ```
 
 ---
@@ -201,34 +201,36 @@ The Ze API system enables external route injection and daemon control via:
 
 ```
 internal/component/plugin/
-├── server.go         # Server, Client, plugin response handling
-├── process.go        # Process, subprocess management
-├── command.go        # Dispatcher, CommandContext, AllBuiltinRPCs()
-├── handler.go        # RPCRegistration struct, constants
-├── bgp.go            # BGP handlers (daemon, peer, introspection)
-├── system.go         # System handlers (help, version, command, complete)
-├── rib_handler.go    # RIB handlers (show/clear in/out, introspection)
-├── session.go        # Session handlers (ready, ping, bye)
-├── plugin.go         # Plugin handlers (register/unregister/response)
-├── schema.go         # SchemaRegistry (RPC/notification indexing)
-├── registry.go       # CommandRegistry for plugin commands
-├── pending.go        # PendingRequests tracker (timeout, streaming)
-├── route.go          # Route handlers (announce, withdraw)
-├── commit.go         # Transaction handlers
-├── commit_manager.go # Transaction management
-├── types.go          # ReactorInterface, RouteSpec, Response
-├── subscribe.go      # Event subscription handlers
-└── text.go           # ExaBGP-style text encoding
+├── registration.go        # Runtime registration types for the 5-stage protocol
+├── resolve.go             # Config-to-plugin resolution helpers
+├── inprocess.go           # Internal plugin runner lookup
+├── registry/registry.go   # Compile-time plugin registry
+├── process/process.go     # Internal and external process lifecycle
+├── process/delivery.go    # Event queue and batch delivery
+├── server/server.go       # Plugin server lifecycle
+├── server/startup.go      # Five startup phases and 5-stage handshake
+├── server/dispatch.go     # Plugin-to-engine RPC dispatch
+├── server/rpc_register.go # Built-in RPC handler registry
+├── server/events.go       # Event and NLRI routing
+├── ipc/rpc.go             # Engine-side PluginConn wrapper
+├── ipc/tls.go             # External TLS connect-back transport
+├── schema/                # ze-plugin-conf.yang
+└── all/all.go             # Generated blank imports for internal plugins
 
-internal/ipc/
-├── dispatch.go       # RPCDispatcher (wire-method exact-match dispatch)
-├── framing.go        # NUL-byte framing (Spec 1)
-├── message.go        # Request/Response/Error types (Spec 1)
-└── schema/           # ze-system-api.yang, ze-plugin-api.yang
+pkg/plugin/
+├── rpc/conn.go            # Newline-framed RPC connection
+├── rpc/mux.go             # Bidirectional request/response multiplexer
+├── rpc/bridge.go          # DirectBridge for in-process plugins
+└── sdk/                   # Callback-based SDK for plugin authors
 
-internal/yang/
-├── rpc.go            # Extract RPCs/notifications from YANG Entry tree
-└── loader.go         # YANG module loader
+internal/core/ipc/
+├── dispatch.go            # RPCDispatcher (wire-method exact-match dispatch)
+├── message.go             # Request/Response/Error types
+└── schema/                # ze-system, ze-plugin, and command YANG API modules
+
+internal/component/config/yang/
+├── rpc.go                 # Extract RPCs/notifications from YANG Entry tree
+└── loader.go              # YANG module loader
 ```
 
 ### Plugin Auto-Loading
@@ -286,16 +288,16 @@ No other wiring is needed. The engine discovers it through registry queries, the
 
 Each YANG module defines RPCs and notifications for a domain. Every RPC maps 1:1 to a handler function via `RPCRegistration`:
 
-| Module | Location | RPCs | Notifications |
-|--------|----------|------|---------------|
-| `ze-bgp-api` | `internal/component/bgp/schema/` | 25 | 7 |
-| `ze-bgp-cmd-log-api` | `internal/component/cmd/log/schema/` | 2 | 0 |
-| `ze-bgp-cmd-metrics-api` | `internal/component/cmd/metrics/schema/` | 2 | 0 |
-| `ze-system-api` | `internal/ipc/schema/` | 8 | 0 |
-| `ze-plugin-api` | `internal/ipc/schema/` | 8 | 0 |
-| `ze-rib-api` | `internal/component/plugin/rib/schema/` | 9 | 1 |
-| `ze-plugin-engine` | `internal/yang/modules/` | 11 | 0 |
-| `ze-plugin-callback` | `internal/yang/modules/` | 8 | 0 |
+| Module | Location | Contains |
+|--------|----------|----------|
+| `ze-bgp-api` | `internal/component/bgp/schema/` | BGP daemon, peer, monitor, and decode RPCs |
+| `ze-bgp-cmd-log-api` | `internal/component/cmd/log/schema/` | Log command RPCs |
+| `ze-bgp-cmd-metrics-api` | `internal/component/cmd/metrics/schema/` | Metrics command RPCs |
+| `ze-system-api` | `internal/core/ipc/schema/` | System RPCs |
+| `ze-plugin-api` | `internal/core/ipc/schema/` | Plugin lifecycle RPCs |
+| `ze-rib-api` | `internal/component/bgp/plugins/rib/schema/` | RIB RPCs and notifications |
+| `ze-plugin-engine` | `internal/core/ipc/schema/` | Engine RPCs served to plugins |
+| `ze-plugin-callback` | `internal/core/ipc/schema/` | Callback RPCs served by plugins |
 
 Wire methods use `module:rpc-name` format with `-api` suffix stripped (e.g., `ze-bgp-api` defines `ze-bgp:peer-list`). This is done by `WireModule()` in `internal/component/config/yang/rpc.go`.
 <!-- source: internal/component/config/yang/rpc.go -- WireModule -->
@@ -404,9 +406,9 @@ internal/component/plugin/ipc/
 ├── tls.go            # TLS transport, auth, PluginAcceptor (external)
 └── rpc.go            # PluginConn (typed stage methods, MuxConn shadowing)
 
-internal/yang/modules/
-├── ze-plugin-engine.yang    # RPCs engine serves (12: startup, routes, dispatch, subscriptions, decode/encode)
-└── ze-plugin-callback.yang  # RPCs plugin serves (8: configure, deliver-event, bye, etc.)
+internal/core/ipc/schema/
+├── ze-plugin-engine.yang    # RPCs engine serves (startup, routes, dispatch, subscriptions, decode/encode)
+└── ze-plugin-callback.yang  # RPCs plugin serves (configure, deliver-event, bye, etc.)
 ```
 
 **Transport:**
@@ -1002,7 +1004,7 @@ type PendingRequests struct {
 - **Timeout:** 30s default, configurable per-command
 - **Streaming:** `@serial+` resets timeout, collected into array
 
-See `PROCESS_PROTOCOL.md` for full protocol details.
+See `process-protocol.md` for full protocol details.
 
 ## Adj-RIB-Out (API Owned)
 
@@ -1046,7 +1048,7 @@ Peer A → Receive UPDATE → Store (wire + msg-id) → API output (partial pars
                                                             ↓
                                                    External process decides
                                                             ↓
-                          API command: "bgp cache 123 forward !<ip>"
+                          API command: "bgp cache forward 123 !<ip>"
                                                             ↓
 Peer B,C ← Send wire bytes directly ← Lookup cache by ID
 ```
@@ -1060,7 +1062,7 @@ Peer B,C ← Send wire bytes directly ← Lookup cache by ID
 | **Direction** | `"sent"` or `"received"` indicator at top level for all messages |
 | **Time-based cache** | Recent updates cached for fast lookup (TTL configurable) |
 | **Partial parsing** | Only parse attributes needed for API output |
-| **Forward by ID** | API references updates by ID via `bgp cache <id> forward` |
+| **Forward by ID** | API references updates by ID via `bgp cache forward <id> <sel>` |
 | **`!<ip>`** | Negated selector for "all except this peer" |
 
 ### Flow Details
@@ -1068,7 +1070,7 @@ Peer B,C ← Send wire bytes directly ← Lookup cache by ID
 1. **Receive:** Assign msg-id, cache UPDATE, store NLRIs in RIB
 2. **API output:** Parse only configured attributes, include msg-id
 3. **External decision:** Policy engine decides destinations
-4. **Forward command:** `bgp cache <id> forward !<source-ip>`
+4. **Forward command:** `bgp cache forward <id> !<source-ip>`
 5. **Send:** Lookup cached update, use wire bytes (zero-copy if contexts match)
 
 ### API Output with Message ID and Direction
@@ -1096,10 +1098,10 @@ Peer B,C ← Send wire bytes directly ← Lookup cache by ID
 
 ```
 # Forward update to all peers except source
-bgp cache 12345 forward !10.0.0.1
+bgp cache forward 12345 !10.0.0.1
 
 # Forward to specific peer
-bgp cache 12345 forward 10.0.0.2
+bgp cache forward 12345 10.0.0.2
 ```
 
 ### Attribute Filtering (Partial Parse)
@@ -1132,7 +1134,7 @@ Peer A (Role: Customer) → Receive → Tag with role → API output (role + upd
                                                             ↓
                                       External process decides based on ROLE
                                                             ↓
-                             API command: "peer !<ip> forward update-id 123"
+                             API command: "bgp cache forward 123 !<ip>"
 ```
 
 Each route carries a `RouteTag`:
@@ -1239,7 +1241,7 @@ Process stdin
 
 ## RIB Plugin and Route Replay
 
-The RIB plugin (`internal/component/plugin/rib/`) tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out), replaying outgoing routes on session re-establishment.
+The RIB plugin (`internal/component/bgp/plugins/rib/`) tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out), replaying outgoing routes on session re-establishment.
 
 ### RIB Plugin Features
 
@@ -1300,22 +1302,27 @@ if needsAPIWait {
 
 | File | Purpose |
 |------|---------|
-| `internal/component/plugin/server.go` | Server, Client, socket handling |
-| `internal/component/plugin/process.go` | Subprocess management |
-| `internal/component/plugin/command.go` | Dispatcher, AllBuiltinRPCs() |
-| `internal/component/plugin/handler.go` | RPCRegistration struct, constants |
-| `internal/component/plugin/bgp.go` | BGP handlers (daemon, peer, introspection) |
-| `internal/component/plugin/system.go` | System handlers (help, version, command) |
-| `internal/component/plugin/rib_handler.go` | RIB handlers (show/clear, introspection) |
-| `internal/component/plugin/session.go` | Session handlers (ready, ping, bye) |
-| `internal/component/plugin/schema.go` | SchemaRegistry (YANG RPC/notification indexing) |
+| `internal/component/plugin/server/server.go` | Plugin server lifecycle and client handling |
+| `internal/component/plugin/server/startup.go` | Five startup phases and 5-stage handshake |
+| `internal/component/plugin/process/process.go` | Internal and external plugin process lifecycle |
+| `internal/component/plugin/process/delivery.go` | Event queue and batched delivery |
+| `internal/component/plugin/server/dispatch.go` | Plugin-to-engine RPC dispatch |
+| `internal/component/plugin/server/rpc_register.go` | Built-in RPC registration |
+| `internal/component/plugin/server/events.go` | Event and NLRI routing |
+| `internal/component/plugin/server/session.go` | Session handlers (ready, ping, bye) |
+| `internal/component/plugin/server/schema.go` | SchemaRegistry (YANG RPC/notification indexing) |
+| `internal/component/plugin/ipc/rpc.go` | Engine-side PluginConn wrapper |
+| `internal/component/plugin/ipc/tls.go` | External TLS connect-back transport |
+| `internal/component/plugin/registry/registry.go` | Compile-time plugin registry |
 | `internal/component/bgp/route/route.go` | Route attribute/NLRI parsing |
 | `internal/component/plugin/types.go` | ReactorInterface, RouteSpec |
-| `internal/component/plugin/text.go` | Text/JSON formatting including FormatStateChange |
-| `internal/component/plugin/commit_manager.go` | Transaction management |
-| `internal/ipc/dispatch.go` | RPCDispatcher (wire-method exact-match) |
-| `internal/yang/rpc.go` | YANG RPC/notification extraction |
-| `internal/component/plugin/rib/rib.go` | RIB plugin (Adj-RIB-In/Out, route replay) |
+| `internal/core/ipc/dispatch.go` | RPCDispatcher (wire-method exact-match) |
+| `internal/component/config/yang/rpc.go` | YANG RPC/notification extraction |
+| `pkg/plugin/rpc/conn.go` | Newline-framed RPC connection |
+| `pkg/plugin/rpc/mux.go` | Bidirectional RPC multiplexer |
+| `pkg/plugin/rpc/bridge.go` | DirectBridge in-process hot path |
+| `pkg/plugin/sdk/` | Callback-based SDK for plugin authors |
+| `internal/component/bgp/plugins/rib/rib.go` | RIB plugin (Adj-RIB-In/Out, route replay) |
 | `internal/component/bgp/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
 | `internal/component/bgp/reactor/peer.go` | FSM callback, reactor notification, API sync |
 | `internal/component/bgp/reactor/session.go` | Session lifecycle, teardown handling |

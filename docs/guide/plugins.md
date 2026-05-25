@@ -113,10 +113,10 @@ process my-plugin {
 
 | Mode | Config Syntax | Description |
 |------|--------------|-------------|
-| Internal | `use bgp-rib` | Goroutine + net.Pipe (best performance) |
-| External | `run "/usr/local/bin/my-plugin"` | External binary or script |
+| Internal | `use bgp-rib` | Compiled-in plugin using `net.Pipe` for startup and DirectBridge for hot paths |
+| External | `run "/usr/local/bin/my-plugin"` | External binary or script using TLS connect-back |
 
-Internal mode (`use pluginname`) runs the plugin as a goroutine within the ze process, using direct function calls instead of IPC. This is the fastest mode but requires the plugin to be compiled into ze.
+Internal mode (`use pluginname`) runs a compiled-in plugin as a goroutine within the ze process. Startup still uses the same YANG RPC handshake as external plugins, then DirectBridge bypasses socket I/O for supported hot paths. External mode starts a separate process; that process connects back to the plugin hub over TLS and authenticates with its per-plugin token.
 <!-- source: internal/component/plugin/server/ -- plugin invocation modes; internal/component/plugin/cli/cli.go -- RunPlugin -->
 
 ## Built-In Plugins
@@ -491,7 +491,7 @@ plugin {
         server local {
             host 127.0.0.1;
             port 0;                               # auto-assign port
-            secret my-shared-secret-key-here;     # TLS auth token
+            secret change-this-token-to-at-least-32-chars;  # TLS auth token
         }
     }
 }
@@ -500,7 +500,7 @@ plugin {
 
 ## Writing External Plugins
 
-External plugins communicate with ze over a JSON-RPC protocol. Ze provides a Python SDK:
+External plugins communicate with ze using the same newline-framed YANG RPC protocol as internal plugins: `#<id> <verb> [json]`. External processes connect back to the plugin hub over TLS using the `ZE_PLUGIN_HUB_*` environment variables set by the engine. The Go SDK in `pkg/plugin/sdk` is the reference implementation; the functional-test helper `test/scripts/ze_api.py` shows the Python shape:
 
 ```python
 from ze_api import API
@@ -521,7 +521,9 @@ while True:
         pass
 ```
 
-See [plugin-development/](../plugin-development/) for the full protocol reference.
+See [plugin-development/protocol.md](../plugin-development/protocol.md) for the full protocol reference.
+<!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv, Run -->
+<!-- source: test/scripts/ze_api.py -- API YANG RPC client -->
 
 ## Dependencies
 
@@ -540,7 +542,7 @@ Dependencies are declared in the plugin's registration, not in config. The engin
 | Hard | `Dependencies` | Startup fails with `ErrMissingDependency`. |
 | Optional | `OptionalDependencies` | Silently skipped. Plugin owner handles runtime absence (typically a one-shot WARN + feature disabled). |
 
-`bgp-rs` uses `bgp-adj-rib-in` optionally: when both are loaded, replay-on-peer-up works; when `bgp-adj-rib-in` is absent, forwarding still works and a single WARN log announces that replay is disabled. `bgp-rs` forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3) instead of the legacy text-RPC `bgp cache <id> forward <sel>` pipeline. See [architecture/api/commands](../architecture/api/commands.md#fast-path-typed-sdk-rs-fastpath-3) for the full SDK surface.
+`bgp-rs` uses `bgp-adj-rib-in` optionally: when both are loaded, replay-on-peer-up works; when `bgp-adj-rib-in` is absent, forwarding still works and a single WARN log announces that replay is disabled. `bgp-rs` forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3) instead of the legacy text-RPC `bgp cache forward <id> <sel>` pipeline. See [architecture/api/commands](../architecture/api/commands.md#fast-path-typed-sdk-rs-fastpath-3) for the full SDK surface.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies + Registration.OptionalDependencies -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- flushBatch via Plugin.ForwardCached -->
 

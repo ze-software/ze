@@ -112,10 +112,10 @@ Fast plugins may ack before `Activate()` is called. The `earlyAckCount` field tr
 | Command | Description |
 |---------|-------------|
 | `bgp cache list` | List cached message IDs and count |
-| `bgp cache <id> retain` | Increment retain count (prevents eviction) |
-| `bgp cache <id> release` | Cache consumer: ack without forwarding. Otherwise: decrement retain count |
-| `bgp cache <id> expire` | Admin override: force-remove immediately |
-| `bgp cache <id> forward <sel>` | Forward wire bytes to matching peers, then record ack |
+| `bgp cache retain <id>` | Increment retain count (prevents eviction) |
+| `bgp cache release <id>` | Cache consumer: ack without forwarding. Otherwise: decrement retain count |
+| `bgp cache expire <id>` | Admin override: force-remove immediately |
+| `bgp cache forward <id> <sel>` | Forward wire bytes to matching peers, then record ack |
 
 ### `release` Dual Purpose
 

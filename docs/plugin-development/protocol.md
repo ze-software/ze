@@ -1,7 +1,8 @@
 # Plugin Protocol
 
-Ze plugins communicate with the engine via JSON RPCs over a single bidirectional
-connection. Internal plugins use `net.Pipe()`; external plugins connect back via TLS.
+Ze plugins communicate with the engine via newline-framed YANG RPCs over a single
+bidirectional connection. Internal plugins use `net.Pipe()` for startup; external
+plugins connect back via TLS.
 <!-- source: pkg/plugin/sdk/sdk.go -- NewWithConn, NewFromTLSEnv -->
 
 All messages use newline-delimited framing with the wire format `#<id> <verb> [<json>]\n`.

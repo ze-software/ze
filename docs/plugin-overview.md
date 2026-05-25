@@ -16,14 +16,14 @@ registries and never imports plugin code directly.
 ## Registration Pattern
 
 Plugins register at startup via `init()` in a `register.go` file. Each plugin
-provides a `Registration` struct declaring its name, dependencies, capabilities,
-config roots, event types, and YANG schema.
+provides a `Registration` struct declaring its name, dependencies, capability
+decoders, config roots, event types, and YANG schema.
 
 The "delete the folder" test: if you delete `internal/component/bgp/plugins/rib/`,
 only RIB functionality disappears. The engine, reactor, FSM, and all other plugins
 continue to work.
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib plugin registration -->
-<!-- source: internal/component/plugin/types.go -- Registration struct -->
+<!-- source: internal/component/plugin/registry/registry.go -- Registration struct -->
 
 ## Invocation Modes
 
@@ -50,9 +50,10 @@ authenticate with a token (`ZE_PLUGIN_HUB_TOKEN`).
 | 4. Registry | Engine -> Plugin | `ze-plugin-callback:share-registry` |
 | 5. Ready | Plugin -> Engine | `ze-plugin-engine:ready` |
 
-After stage 5, the SDK wraps the socket in `MuxConn` for concurrent RPCs. The
-wire format is `#<id> <verb> [<json>]\n` with newline-delimited, UTF-8 messages
-and correlation IDs.
+The SDK uses `MuxConn` for the startup connection and runtime RPCs. After Stage 5,
+internal plugins can switch supported hot paths to DirectBridge; external plugins
+continue using newline-framed YANG RPC over TLS. The wire format is
+`#<id> <verb> [<json>]\n` with newline-delimited, UTF-8 messages and correlation IDs.
 <!-- source: internal/component/plugin/server/server.go -- plugin server, handshake -->
 <!-- source: pkg/plugin/sdk/sdk.go -- plugin SDK, MuxConn wrapping -->
 

@@ -14,7 +14,7 @@ Ze is transitioning to an architecture where **all RIB data and logic lives in A
 1. **Engine = Protocol** - FSM, parsing, wire I/O, capability negotiation
 2. **API = Policy** - RIB storage, best-path selection, route refresh, GR state
 3. **Polyglot** - API programs can be Go, Python, Rust, etc.
-4. **Wire bytes** - Engine sends base64-encoded wire bytes for pool storage in API
+4. **Wire bytes** - Engine sends cached message IDs and raw UPDATE sections when requested by the binding
 
 ---
 
@@ -43,7 +43,7 @@ Engine receives UPDATE → Cache wire bytes (msg-id) → Send event to plugins �
 ### Target: API Program Owns RIB
 
 ```
-Engine receives UPDATE → Send JSON+wire bytes → API stores in pool → API decides forwarding
+Engine receives UPDATE → Send event metadata + cached wire message ID → API stores route state → API decides forwarding
 ```
 
 | Component | Location | Benefit |
@@ -74,7 +74,7 @@ Engine receives UPDATE → Send JSON+wire bytes → API stores in pool → API d
 │                                                                         │
 │  NO RIB  │  NO Route Storage  │  NO Best-Path  │  NO Policy           │
 └─────────────────────────────────────────────────────────────────────────┘
-                    │ JSON events + base64 wire bytes
+                    │ YANG RPC events + cached wire message IDs
                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                     API PROGRAM (Full RIB Owner)                         │
@@ -129,7 +129,7 @@ What the engine does:
 - **Parsing**: Parse on demand (only when needed for API output)
 - **Wire I/O**: Read/write BGP messages
 - **Capabilities**: Negotiate with peers
-- **API Server**: Unix socket, JSON protocol
+- **Plugin Server**: newline-framed YANG RPC over `net.Pipe` or TLS connect-back, with DirectBridge for internal hot paths
 - **msg-id Cache**: Store wire bytes, lifetime controlled by API
 <!-- source: internal/component/bgp/reactor/reactor.go -- Reactor (engine core) -->
 <!-- source: internal/component/bgp/fsm/ -- FSM states -->
@@ -152,40 +152,37 @@ The API program owns all routing logic:
 
 ### 3. Wire Bytes Transfer
 
-Engine sends base64-encoded wire bytes to API:
+Engine sends formatted events to API programs. Message metadata includes the cache `id`; raw sections are present only when the binding format requests them:
 ```json
 {
-  "type": "update",
-  "msg-id": 123,
-  "source-ctx-id": 42,
-  "raw-attributes": "AQEBAQECAQID...",
-  "raw-nlri": {
-    "ipv4/unicast": "GApAAA==",
-    "ipv6/unicast": "QCABDbgAAAAA..."
-  },
-  "parsed": { ... }
+  "type": "bgp",
+  "bgp": {
+    "message": {"type": "update", "id": 123, "direction": "received"},
+    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
+    "update": {"attr": {"origin": "igp"}, "nlri": {}}
+  }
 }
 ```
 
-**Note:** `raw-nlri` is a map keyed by family since UPDATE can contain multiple address families.
+Internal plugins can receive `StructuredEvent.RawMessage`, which carries `AttrsWire` and `WireUpdate` for zero-copy section access. External plugins receive formatted text or JSON according to the process binding.
 
 API stores wire bytes in pool for deduplication and zero-copy replay.
 
 ### 4. msg-id Cache Control
 
-API controls msg-id lifetime via commands:
+API controls msg-id lifetime via `bgp cache` commands:
 ```
 # Keep msg-id until API releases it
-msg-id 123 retain
+bgp cache retain 123
 
 # Release msg-id (can be evicted)
-msg-id 123 release
+bgp cache release 123
 
 # List all cached msg-ids
-msg-id list
+bgp cache list
 
 # Expire specific msg-id immediately
-msg-id 123 expire
+bgp cache expire 123
 ```
 
 See [msg-id Cache Control](#msg-id-cache-control) for details.
@@ -209,16 +206,16 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
 | `internal/component/bgp/rib/` | Keep as library for API programs |
 | Route storage in reactor | Remove (API owns) |
 | Best-path selection | Remove (API owns) |
-| `buildRIBRouteUpdate` | Keep for API "announce raw" |
+| `buildRIBRouteUpdate` | Keep for route construction helpers |
 
 ### Patterns for API Programs
 
 | Pattern | Description |
 |---------|-------------|
-| Store wire bytes | `pool.Intern(base64Decode(event.RawAttributes))` |
-| Forward by msg-id | `peer X forward update-id Y` (zero-copy) |
-| Announce raw | `peer X announce raw <attrs> nlri <family> <nlri>` |
-| Control msg-id | `msg-id N retain/release/expire` |
+| Store wire bytes | `pool.Intern(raw UPDATE sections from StructuredEvent or raw event fields)` |
+| Forward by msg-id | `bgp cache forward Y <selector>` (zero-copy where contexts match) |
+| Announce raw | `bgp peer X raw update hex <update-payload-hex>` |
+| Control msg-id | `bgp cache retain/release/expire N` |
 
 ---
 
@@ -240,7 +237,7 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
 | `plugin/rib-storage-design.md` | **MOVED** - Design reference for API programs |
 | `spec-unified-handle-nlri.md` | Design valid, implement in API program |
 | `spec-context-full-integration.md` | Context tracking in API program |
-| `spec-attributes-wire.md` | Wire bytes via base64 in events |
+| `spec-attributes-wire.md` | Raw UPDATE sections when requested by binding format |
 | `spec-encoding-context-impl.md` | Engine uses for negotiation |
 
 **Note:** These specs describe valid designs - only the *location* changed from engine to API.
@@ -260,15 +257,15 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
 ## Implementation Order
 
 ```
-1. ✅ Engine: Add raw-attributes/raw-nlri to UPDATE events
+1. ✅ Engine: Add cached message IDs and optional raw UPDATE sections to events
         ↓
 2. ✅ Engine: Add msg-id control commands (retain/release/expire/list)
         ↓
-3. ✅ Engine: Add "peer X announce raw <attrs> nlri <nlri>" command
+3. ✅ Engine: Add `bgp peer X raw update hex <payload>` command
         ↓
-4. ✅ API: Update ze plugin rr to use wire bytes + pool
+4. ✅ API: Update `bgp-rs` to use cached message IDs
         ↓
-5. ✅ API: Update ze plugin rib with msg-id control
+5. ✅ API: Update `bgp-rib` with msg-id control
         ↓
 6. ⚠️  Engine: Remove RIB storage from reactor (API owns)
         — ribIn and ribStore removed. Watchdog extracted to bgp-watchdog plugin.
@@ -329,10 +326,10 @@ The engine maintains a cache of UPDATE wire bytes indexed by msg-id. API program
 
 | Command | Description |
 |---------|-------------|
-| `msg-id <id> retain` | Keep msg-id until explicitly released |
-| `msg-id <id> release` | Allow msg-id to be evicted |
-| `msg-id <id> expire` | Remove msg-id immediately |
-| `msg-id list` | List all cached msg-ids with status |
+| `bgp cache retain <id>` | Keep msg-id until explicitly released |
+| `bgp cache release <id>` | Allow msg-id to be evicted |
+| `bgp cache expire <id>` | Remove msg-id immediately |
+| `bgp cache list` | List all cached msg-ids with status |
 
 ### Lifecycle
 
@@ -340,10 +337,10 @@ The engine maintains a cache of UPDATE wire bytes indexed by msg-id. API program
 1. Engine receives UPDATE, assigns msg-id, caches wire bytes
 2. Engine sends event to API with msg-id
 3. API stores route in RIB with msg-id reference
-4. API sends: msg-id 123 retain
+4. API sends: bgp cache retain 123
 5. ... peer goes down, comes back up ...
-6. API replays: peer X forward update-id 123
-7. When route withdrawn: msg-id 123 release
+6. API replays: bgp cache forward 123 X
+7. When route withdrawn: bgp cache release 123
 ```
 
 ### List Output
@@ -361,7 +358,7 @@ The engine maintains a cache of UPDATE wire bytes indexed by msg-id. API program
 ### Default Behavior
 
 - msg-ids NOT retained are evicted after 60 seconds of no use
-- Each `forward update-id` resets the 60s timer
+- Each `bgp cache forward <id> <selector>` resets the 60s timer
 - Retained msg-ids never evicted until `release` or `expire`
 
 ---
@@ -373,9 +370,10 @@ The engine maintains a cache of UPDATE wire bytes indexed by msg-id. API program
 ```go
 // Handle UPDATE event
 func (s *Server) handleUpdate(event *Event) {
-    // Decode wire bytes
-    attrBytes, _ := base64.StdEncoding.DecodeString(event.RawAttributes)
-    nlriBytes, _ := base64.StdEncoding.DecodeString(event.RawNLRI)
+    // Read raw UPDATE sections from StructuredEvent.RawMessage or from
+    // configured raw event fields on external process bindings.
+    attrBytes := event.RawAttributes
+    nlriBytes := event.RawNLRI
 
     // Store in pool
     attrHandle := s.pool.Intern(attrBytes)
@@ -386,15 +384,14 @@ func (s *Server) handleUpdate(event *Event) {
         AttrHandle:  attrHandle,
         NLRIHandle:  nlriHandle,
         MsgID:       event.MsgID,
-        SourceCtxID: event.SourceCtxID,
     }
     s.rib.Insert(event.Peer, route)
 
     // Retain msg-id for replay
-    s.send("msg-id %d retain", event.MsgID)
+    s.send("bgp cache retain %d", event.MsgID)
 
     // Forward to other peers
-    s.send("peer !%s forward update-id %d", event.Peer, event.MsgID)
+    s.send("bgp cache forward %d !%s", event.MsgID, event.Peer)
 }
 ```
 
@@ -402,37 +399,39 @@ func (s *Server) handleUpdate(event *Event) {
 
 ```python
 def handle_update(event):
-    # Decode wire bytes
-    attr_bytes = base64.b64decode(event['raw-attributes'])
-    nlri_bytes = base64.b64decode(event['raw-nlri'])
+    # Read raw fields when the binding format includes them.
+    bgp = event['bgp']
+    msg_id = bgp['message']['id']
+    peer = bgp['peer']['address']
+    attr_bytes = event.get('raw-attributes', b'')
+    nlri_bytes = event.get('raw-nlri', b'')
 
     # Store in dict (no dedup)
     route = {
         'attrs': attr_bytes,
         'nlri': nlri_bytes,
-        'msg_id': event['msg-id'],
-        'source_ctx_id': event['source-ctx-id'],
+        'msg_id': msg_id,
     }
-    rib[event['peer']][route_key(event)] = route
+    rib[peer][route_key(event)] = route
 
     # Retain msg-id
-    send(f"msg-id {event['msg-id']} retain")
+    send(f"bgp cache retain {msg_id}")
 
     # Forward
-    send(f"peer !{event['peer']} forward update-id {event['msg-id']}")
+    send(f"bgp cache forward {msg_id} !{peer}")
 ```
 
 ---
 
-## Announce Raw Command
+## Raw Message Command
 
-When msg-id cache is unavailable (long outage, cache evicted), API can announce raw wire bytes:
+When msg-id cache is unavailable (long outage, cache evicted), API can send a preserved raw UPDATE payload:
 
 ```
-peer upstream1 announce raw <base64-attrs> nlri ipv4/unicast <base64-nlri>
+bgp peer 192.0.2.1 raw update hex <update-payload-hex>
 ```
 
-Family is required for proper UPDATE construction. This allows API to rebuild UPDATEs from its pool without needing engine cache.
+This bypasses normal UPDATE construction and validation. Use it only when the API has preserved the exact UPDATE payload and the engine cache is unavailable.
 
 ---
 
@@ -467,7 +466,7 @@ Family is required for proper UPDATE construction. This allows API to rebuild UP
 | Go types and interfaces | May change without notice |
 | Internal wire representations | May change without notice |
 
-**Implication:** Plugins should communicate via text/JSON protocol over stdin/stdout, not by importing Ze Go packages. This enables polyglot plugins and avoids coupling to internal structure.
+**Implication:** External plugins should communicate through newline-framed YANG RPC over the process connection, not by importing Ze Go packages. This enables polyglot plugins and avoids coupling to internal structure.
 
 ---
 

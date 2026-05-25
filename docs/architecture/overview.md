@@ -57,8 +57,8 @@ Ze is a Go BGP implementation with a plugin architecture. Key characteristics:
 │    Plugin Registry · Process Manager · Hub · SDK · DirectBridge             │
 └─────────────────────────────────────────────────────────────────────────────┘
                               │                 ▲
-          JSON events (down)  │                 │  commands (up)
-          + base64 wire bytes │                 │  update/forward/withdraw
+          YANG RPC + events   │                 │  commands (up)
+          cached msg-ids      │                 │  update/forward/withdraw
                               ▼                 │
 ═══════════════════════ PROCESS BOUNDARY (TLS / net.Pipe) ═══════════════
                               │                 ▲
@@ -74,7 +74,7 @@ Ze is a Go BGP implementation with a plugin architecture. Key characteristics:
 - **Config Pipeline** parses config and feeds both BGP Subsystem and Plugin Infrastructure
 - **Plugin Infrastructure** manages plugin lifecycle, process spawning, message routing
 - **Plugins** implement RIB storage, policy, route reflection
-- **Pipes** carry JSON events (with base64 wire bytes) and text commands
+- **Plugin IPC** uses newline-framed YANG RPC over `net.Pipe` or TLS connect-back, with DirectBridge for internal hot paths
 
 ---
 

@@ -52,7 +52,7 @@ The pool lives in the **API program**, not the engine. Wire bytes flow from engi
 │   │  Assign msg-id, cache wire bytes                                 │      │
 │   └─────────────────────────────────────────────────────────────────┘      │
 │        │                                                                    │
-│        │ JSON event with base64 wire bytes                                  │
+│        │ StructuredEvent or formatted JSON event with cached msg-id          │
 │        ▼                                                                    │
 └─────────────────────────────────────────────────────────────────────────────┘
                               │
@@ -63,8 +63,8 @@ The pool lives in the **API program**, not the engine. Wire bytes flow from engi
 │                           API PROGRAM                                        │
 │                                                                             │
 │   ┌─────────────────────────────────────────────────────────────────┐      │
-│   │  Receive JSON event                                              │      │
-│   │  Decode base64: attrBytes, nlriBytes                             │      │
+│   │  Receive StructuredEvent or formatted JSON event                  │      │
+│   │  Read raw UPDATE sections when the binding includes them          │      │
 │   └─────────────────────────────────────────────────────────────────┘      │
 │        │                                                                    │
 │        │ raw []byte                                                         │
@@ -92,7 +92,7 @@ The pool lives in the **API program**, not the engine. Wire bytes flow from engi
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| Wire bytes | Engine → API (base64) | Raw BGP data |
+| Wire bytes | Engine -> API (`StructuredEvent` or raw JSON fields) | Raw BGP data |
 | Pool | API program | Deduplication |
 | RIB | API program | Route storage |
 | msg-id cache | Engine | Zero-copy forwarding |
@@ -101,9 +101,10 @@ The pool lives in the **API program**, not the engine. Wire bytes flow from engi
 
 ```go
 func (s *Server) handleUpdate(event *Event) {
-    // Decode base64 wire bytes from event
-    attrBytes, _ := base64.StdEncoding.DecodeString(event.RawAttributes)
-    nlriBytes, _ := base64.StdEncoding.DecodeString(event.RawNLRI)
+    // Read raw UPDATE sections from StructuredEvent.RawMessage or from
+    // configured raw JSON fields on external process bindings.
+    attrBytes := event.RawAttributes
+    nlriBytes := event.RawNLRI
 
     // Store in pool (deduplication)
     attrHandle := s.pool.Intern(attrBytes)
@@ -118,7 +119,7 @@ func (s *Server) handleUpdate(event *Event) {
     s.rib.Insert(event.Peer, route)
 
     // Tell engine to retain msg-id
-    s.send("msg-id %d retain", event.MsgID)
+    s.send("bgp cache retain %d", event.MsgID)
 }
 ```
 
@@ -817,8 +818,8 @@ entry, _ := storage.ParseAttributes(attrBytes)  // Parses into per-type handles
 
 - `docs/architecture/rib-transition.md` - Overall architecture (RIB in API)
 - `internal/component/bgp/attrpool/` - Pool implementation
-- `internal/component/plugin/rib/storage/` - RIB storage using pool
-- `internal/component/plugin/rib/storage/familyrib_perattr.go` - Per-attribute RIB storage
+- `internal/component/bgp/plugins/rib/storage/` - RIB storage using pool
+- `internal/component/bgp/plugins/rib/storage/familyrib_perattr.go` - Per-attribute RIB storage
 
 ---
 

@@ -6,8 +6,8 @@
 
 ## Overview
 
-Ze plugins communicate with the engine via JSON RPCs over a single bidirectional
-connection. All messages use newline-delimited framing with the wire format
+Ze plugins communicate with the engine via newline-framed YANG RPCs over a
+single bidirectional connection. All messages use the wire format
 `#<id> <verb> [<json>]\n`.
 <!-- source: pkg/plugin/rpc/conn.go -- Conn doc comment -->
 
@@ -310,7 +310,7 @@ The SDK unpacks the batch and dispatches each event to the `OnEvent` handler ind
 
 For internal plugins with an active `DirectBridge`, `deliverBatch()` calls
 `bridge.DeliverEvents(events)` directly instead of `conn.SendDeliverBatch()`,
-bypassing JSON-RPC envelope construction, newline framing, and pipe I/O. The plugin's
+bypassing RPC envelope construction, newline framing, and pipe I/O. The plugin's
 `onEvent` handler is called synchronously in the delivery goroutine.
 <!-- source: pkg/plugin/sdk/sdk.go -- Run, bridge activation -->
 
@@ -427,7 +427,7 @@ Each plugin registers the families it handles at startup, then processes request
 |   +------------------------------------------------------------------+   |
 |   |       FLOWSPEC PLUGIN (long-lived goroutine / process)            |   |
 |   |                                                                    |   |
-|   |  1. 5-stage startup (JSON RPCs)                                   |   |
+|   |  1. 5-stage startup (YANG RPCs)                                   |   |
 |   |  2. Event loop (encode/decode callbacks)                          |   |
 |   +------------------------------------------------------------------+   |
 +--------------------------------------------------------------------------+
@@ -465,22 +465,23 @@ when config doesn't specify families.
 **Auto-loading plugins:** When a family is configured but no plugin has claimed it,
 the engine automatically loads the internal plugin for that family (if one exists).
 
-**Four-phase plugin startup:**
-1. **Phase 1:** Explicit plugins start first and register their families
-2. **Phase 2:** After Phase 1 completes, engine checks which configured families are still unclaimed. Internal plugins are auto-loaded ONLY for unclaimed families.
-3. **Phase 3:** After Phase 2 completes, engine checks which custom event types are referenced in peer `receive` config but not produced by any running plugin. Producing plugins (and their transitive dependencies) are auto-loaded. For example, `receive [ update-rpki ]` auto-loads `bgp-rpki-decorator` and its dependency `bgp-rpki`.
-4. **Phase 4:** After Phase 3 completes, engine checks which custom send types are referenced in peer `send` config but not enabled by any running plugin. Enabling plugins (and their transitive dependencies) are auto-loaded. For example, `send [ enhanced-refresh ]` auto-loads `bgp-route-refresh`.
+**Five-phase plugin startup:**
+1. **Phase 1:** Config-path plugins start first (for example, BGP, interface, and FIB infrastructure plugins)
+2. **Phase 2:** Explicit plugins from `plugin { external ... }` start after config-path infrastructure is available
+3. **Phase 3:** The engine checks which configured families are still unclaimed. Internal plugins are auto-loaded only for unclaimed families.
+4. **Phase 4:** The engine checks which custom event types are referenced in peer `receive` config but not produced by any running plugin. Producing plugins and their transitive dependencies are auto-loaded. For example, `receive [ update-rpki ]` auto-loads `bgp-rpki-decorator` and its dependency `bgp-rpki`.
+5. **Phase 5:** The engine checks which custom send types are referenced in peer `send` config but not enabled by any running plugin. Enabling plugins and their transitive dependencies are auto-loaded. For example, `send [ enhanced-refresh ]` auto-loads `bgp-route-refresh`.
 
-**Family auto-loading** (Phase 2) is **prevented** when:
+**Family auto-loading** (Phase 3) is **prevented** when:
 1. An explicit plugin declares `decode` for the family (family-based check)
-2. `--plugin ze.<name>` is passed on command line (prevents auto-load for that plugin)
+2. `--plugin <name>` is passed on command line (prevents auto-load for that plugin)
 
 The check is based on **family claims**, not plugin name. Plugin names are informational only.
 
 | Config | Plugin | Result |
 |--------|--------|--------|
-| `family { ipv4/flow; }` | None | Auto-loads `ze.flowspec` |
-| `family { ipv4/flow; }` | `--plugin ze.flowspec` | Uses explicit plugin (no auto-load) |
+| `family { ipv4/flow; }` | None | Auto-loads `bgp-nlri-flowspec` |
+| `family { ipv4/flow; }` | `--plugin bgp-nlri-flowspec` | Uses explicit plugin (no auto-load) |
 | `family { ipv4/flow; }` | `plugin { external my-traffic { declares ipv4/flow } }` | Uses config plugin (no auto-load, family claimed) |
 | `family { ipv4/foo; }` | None | Startup fails (no plugin for family) |
 
@@ -572,12 +573,12 @@ flow through `bridge.CallbackCh()`.
 
 | Direction | Socket path (before) | Direct path (after) |
 |-----------|---------------------|---------------------|
-| Engine to Plugin events (text) | JSON-RPC envelope -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `onEvent` | `bridge.DeliverEvents(events)` -> `onEvent` directly |
+| Engine to Plugin events (text) | RPC envelope -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `onEvent` | `bridge.DeliverEvents(events)` -> `onEvent` directly |
 | Engine to Plugin events (structured) | -- | `bridge.DeliverStructured([]any)` -> `onStructuredEvent` with `*StructuredEvent` (no text formatting, no JSON parsing) |
 | Plugin to Engine RPCs (generic) | `json.Marshal` -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `dispatcher.Dispatch` | `bridge.DispatchRPC(method, params)` -> `dispatcher.Dispatch` directly |
 | Plugin to Engine dispatch-command | JSON marshal `DispatchCommandInput` -> RPC -> unmarshal -> dispatch | `bridge.DispatchCommand(command)` -> `dispatchCommand()` directly (Go strings, no JSON) |
 | Plugin to Engine emit-event | JSON marshal `EmitEventInput` -> RPC -> unmarshal -> deliver | `bridge.EmitEvent(namespace, eventType, ...)` -> `deliverEvent()` directly (Go strings, no JSON) |
-| Engine to Plugin callbacks | JSON-RPC via MuxConn + 3-way select | `bridge.SendCallback()` -> callback channel -> `bridgeEventLoop` 2-way select |
+| Engine to Plugin callbacks | MuxConn RPC + 3-way select | `bridge.SendCallback()` -> callback channel -> `bridgeEventLoop` 2-way select |
 
 **Callback dispatch:** Both event loops (pipe and bridge) dispatch through a generic
 callback registry (`map[string]callbackHandler`). Each `On*` method registers a typed
@@ -616,7 +617,7 @@ For external plugins (Python, Rust, etc.) -- runs as separate process:
 4. Engine validates token matches the per-plugin token generated for that name (name binding prevents impersonation)
 5. Token is cleared from the child's OS environment after first read (`Secret: true` registration)
 6. Single bidirectional connection using `MuxConn` (responses routed by `#id`, requests via `Requests()` channel)
-7. No `DirectBridge` -- always uses JSON-RPC over TLS
+7. No `DirectBridge` -- always uses newline-framed RPC over TLS
 8. Same 5-stage handshake over the same connection
 <!-- source: internal/component/plugin/process/process.go -- startExternal env var setup -->
 <!-- source: internal/component/plugin/ipc/tls.go -- TokenForPlugin, CertFingerprint, combinedLookup -->
@@ -730,7 +731,7 @@ These RPCs allow plugins to request full UPDATE or MP attribute decoding:
 | File | Purpose |
 |------|---------|
 | `internal/component/plugin/registration.go` | Family registry, conflict detection |
-| `internal/component/plugin/server.go` | NLRI routing |
+| `internal/component/plugin/server/events.go` | NLRI routing |
 | `pkg/plugin/rpc/types.go` | RPC input/output types |
 | `pkg/plugin/sdk/sdk_engine.go` | SDK encode/decode methods |
 | `pkg/plugin/sdk/sdk_dispatch.go` | SDK encode/decode callback handlers |
@@ -996,7 +997,7 @@ This is a **standalone mode** separate from the 5-stage startup protocol.
 
 ```bash
 # Decode OPEN message with plugin-provided capability decoding
-ze bgp decode --plugin ze.hostname --open FFFF...
+ze bgp decode --plugin bgp-hostname --open FFFF...
 ```
 
 Without plugin, unknown capabilities show raw hex:
@@ -1066,7 +1067,7 @@ If plugin cannot decode:
 Plugin entry point with `--decode` flag:
 
 ```bash
-ze plugin hostname --decode
+ze plugin bgp-hostname --decode
 ```
 
 Plugin reads decode requests from stdin, writes responses to stdout, exits on EOF.
@@ -1075,11 +1076,10 @@ Plugin reads decode requests from stdin, writes responses to stdout, exits on EO
 
 | File | Purpose |
 |------|---------|
-| `cmd/ze/bgp/decode.go` | Invokes plugin decode API |
-| `cmd/ze/bgp/plugin_hostname.go` | `--decode` flag handling (hostname) |
-| `cmd/ze/bgp/plugin_flowspec.go` | `--decode` flag handling (flowspec) |
-| `internal/component/plugin/hostname/hostname.go` | `RunDecodeMode()` - hostname capability |
-| `internal/component/plugin/flowspec/plugin.go` | `RunFlowSpecDecode()` - FlowSpec NLRI |
+| `cmd/ze/bgp/decode_plugin.go` | Invokes plugin decode API |
+| `cmd/ze/bgp/cmd_plugin.go` | `ze plugin <name> --decode` entrypoint |
+| `internal/component/bgp/plugins/hostname/hostname.go` | `RunDecodeMode()` - hostname capability |
+| `internal/component/bgp/plugins/nlri/flowspec/plugin.go` | `RunFlowSpecDecode()` - FlowSpec NLRI |
 
 ---
 

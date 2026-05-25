@@ -41,7 +41,7 @@ All families decode. Most encode. Use `ze --plugins` to see the current state.
 
 ### Plugins
 
-Over 40 built-in plugins covering protocol features, all address families, BFD, BMP, route filters, L2TP/PPP, firewall, traffic control, VPP, NTP, sysctl, and TACACS+ AAA. The plugin lifecycle (5-stage handshake, JSON-RPC IPC, event dispatch) is stable. Plugins can be written in any language.
+Over 40 built-in plugins covering protocol features, all address families, BFD, BMP, route filters, L2TP/PPP, firewall, traffic control, VPP, NTP, sysctl, and TACACS+ AAA. The plugin lifecycle (5-stage handshake, newline-framed YANG RPC IPC, event dispatch) is stable. Plugins can be written in any language.
 
 | Plugin | Status |
 |--------|--------|

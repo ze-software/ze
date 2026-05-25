@@ -7,8 +7,8 @@ Plugins have three distinct operating modes with different input/output formats.
 | Mode | Invocation | Input Format | Use Case |
 |------|------------|--------------|----------|
 | **CLI Mode** | `ze plugin <name> --nlri <hex>` | Flag value or `-` for stdin | Direct user invocation |
-| **Engine Decode Mode** | `ze plugin <name> --decode` | Protocol commands on stdin | Engine decode delegation |
-| **Engine Mode** | `ze plugin <name>` | Full API protocol (stdin) | Engine-plugin communication |
+| **Engine Decode Mode** | `ze plugin <name> --decode` | Decode commands on stdin/stdout | Engine decode delegation |
+| **Engine Mode** | `ze plugin <name>` | YANG RPC over TLS connect-back | Engine-plugin communication |
 <!-- source: cmd/ze/bgp/cmd_plugin.go -- plugin CLI dispatch -->
 
 ## Design Principle
@@ -16,37 +16,37 @@ Plugins have three distinct operating modes with different input/output formats.
 **CLI mode is for humans. Engine mode is for machines.**
 
 - CLI mode: Simple, direct input. No protocol framing.
-- Engine decode mode: Protocol commands for decode delegation.
-- Engine mode: Full structured protocol for engine-plugin IPC.
+- Engine decode mode: stdin/stdout decode commands for one decoder process.
+- Engine mode: full YANG RPC protocol over the plugin hub TLS connection.
 
 ## Plugin Features
 
 Plugins declare what decode features they support via `--features`:
 
 ```bash
-ze plugin evpn --features
+ze plugin bgp-nlri-evpn --features
 # Output: nlri
 
-ze plugin hostname --features
+ze plugin bgp-hostname --features
 # Output: capa yang
 
-ze plugin gr --features
+ze plugin bgp-gr --features
 # Output: capa
 
-ze plugin rib --features
-# Output: (empty)
+ze plugin bgp-rib --features
+# Output: yang
 ```
 
 ### Feature Matrix
 
 | Plugin | --capa | --nlri | Notes |
 |--------|--------|--------|-------|
-| hostname | ✓ | ✗ | FQDN capability (code 73) |
-| gr | ✓ | ✗ | Graceful Restart (code 64) |
-| evpn | ✗ | ✓ | l2vpn/evpn NLRI |
-| flowspec | ✗ | ✓ | ipv4/flow, ipv6/flow NLRI |
-| rib | ✗ | ✗ | No decode features |
-| rr | ✗ | ✗ | No decode features |
+| bgp-hostname | yes | no | FQDN capability (code 73) |
+| bgp-gr | yes | no | Graceful Restart (code 64) |
+| bgp-nlri-evpn | no | yes | l2vpn/evpn NLRI |
+| bgp-nlri-flowspec | no | yes | ipv4/flow, ipv6/flow NLRI |
+| bgp-rib | no | no | YANG only |
+| bgp-rr | no | no | No decode features |
 <!-- source: internal/component/plugin/registry/ -- plugin registration, Features field -->
 
 ### Feature Names
@@ -59,33 +59,33 @@ ze plugin rib --features
 
 For direct command-line use. Takes raw hex input, outputs decoded result.
 
-### NLRI Plugins (evpn, flowspec)
+### NLRI Plugins (`bgp-nlri-evpn`, `bgp-nlri-flowspec`)
 
 ```bash
 # JSON output (default)
-ze plugin evpn --nlri 02210001252C37370001...
+ze plugin bgp-nlri-evpn --nlri 02210001252C37370001...
 
 # Text output
-ze plugin evpn --nlri 02210001252C37370001... --text
+ze plugin bgp-nlri-evpn --nlri 02210001252C37370001... --text
 
 # From stdin
-echo "02210001252C..." | ze plugin evpn --nlri -
+echo "02210001252C..." | ze plugin bgp-nlri-evpn --nlri -
 
 # With family context (flowspec)
-ze plugin flowspec --nlri 0718... --family ipv4/flow
+ze plugin bgp-nlri-flowspec --nlri 0718... --family ipv4/flow
 ```
 
-### Capability Plugins (hostname, gr)
+### Capability Plugins (`bgp-hostname`, `bgp-gr`)
 
 ```bash
 # JSON output (default)
-ze plugin hostname --capa 07726f7574657231...
+ze plugin bgp-hostname --capa 07726f7574657231...
 
 # Text output
-ze plugin hostname --capa 07726f7574657231... --text
+ze plugin bgp-hostname --capa 07726f7574657231... --text
 
 # From stdin
-echo "07726f7574657231..." | ze plugin hostname --capa -
+echo "07726f7574657231..." | ze plugin bgp-hostname --capa -
 ```
 
 ### Unsupported Features
@@ -93,12 +93,12 @@ echo "07726f7574657231..." | ze plugin hostname --capa -
 Standard error when requesting unsupported decode type:
 
 ```bash
-ze plugin hostname --nlri 02210001252C...
-# stderr: error: plugin 'hostname' does not support --nlri (available: --capa)
+ze plugin bgp-hostname --nlri 02210001252C...
+# stderr: error: plugin 'bgp-hostname' does not support --nlri (available: --capa)
 # exit code: 1
 
-ze plugin evpn --capa 07726f7574657231...
-# stderr: error: plugin 'evpn' does not support --capa (available: --nlri)
+ze plugin bgp-nlri-evpn --capa 07726f7574657231...
+# stderr: error: plugin 'bgp-nlri-evpn' does not support --capa (available: --nlri)
 # exit code: 1
 ```
 
@@ -142,35 +142,37 @@ protocol commands on stdin like `decode nlri l2vpn/evpn <hex>`.
 
 ```bash
 # Started by engine's decode.go
-ze plugin evpn --decode
+ze plugin bgp-nlri-evpn --decode
 # Then receives: decode nlri l2vpn/evpn <hex>
 # Responds: decoded json [...]
 ```
 
 ## Engine Mode (no flags, no args)
 
-For engine-plugin communication. Uses structured protocol on stdin/stdout.
+For engine-plugin communication. The process manager starts the plugin with
+`ZE_PLUGIN_HUB_*` environment variables, then the plugin connects back to the
+hub TLS listener and speaks newline-framed YANG RPC.
 
 ### Invocation
 
 ```bash
-# Started by engine
-ze plugin evpn
+# Started by engine with ZE_PLUGIN_HUB_* env vars
+ze plugin bgp-nlri-evpn
 ```
 
 ### Protocol
 
-Uses the plugin API protocol with line-based commands:
+Uses the plugin process protocol:
 
 ```
-# Engine sends request
-decode nlri l2vpn/evpn 02210001252C...
+# Plugin declares its registration
+#1 ze-plugin-engine:declare-registration {"families":[{"name":"l2vpn/evpn","mode":"both"}]}
 
-# Plugin responds
-decoded json [{"code":2,"parsed":true,...}]
+# Engine responds
+#1 ok
 ```
 
-See `docs/architecture/api/plugin-protocol.md` for full protocol.
+See `docs/architecture/api/process-protocol.md` for the full protocol.
 
 ## Why Three Modes?
 
@@ -184,7 +186,7 @@ See `docs/architecture/api/plugin-protocol.md` for full protocol.
 ### Engine Decode Mode Benefits
 
 - **Stateless delegation**: Engine delegates decode to plugin
-- **Protocol-based**: Consistent request/response format
+- **Protocol-based**: Consistent request/response format for decode delegation
 
 ### Engine Mode Benefits
 
@@ -257,13 +259,13 @@ The `ze bgp decode` command supports three plugin invocation modes based on nami
 
 ```bash
 # Fork mode: subprocess (default)
-ze bgp decode --plugin flowspec --nlri ipv4/flow 0501180a0000
+ze bgp decode --plugin bgp-nlri-flowspec --nlri ipv4/flow 0501180a0000
 
 # Internal mode: goroutine + pipe
-ze bgp decode --plugin ze.flowspec --nlri ipv4/flow 0501180a0000
+ze bgp decode --plugin ze.bgp-nlri-flowspec --nlri ipv4/flow 0501180a0000
 
 # Direct mode: synchronous in-process (fastest)
-ze bgp decode --plugin ze-flowspec --nlri ipv4/flow 0501180a0000
+ze bgp decode --plugin ze-bgp-nlri-flowspec --nlri ipv4/flow 0501180a0000
 
 # Fork mode: external binary
 ze bgp decode --plugin /usr/local/bin/my-decoder --nlri ipv4/custom abc123
@@ -278,7 +280,7 @@ ze bgp decode --plugin "/usr/local/bin/my-decoder --verbose --format yaml" --nlr
 |--------|------|----------|--------|
 | Process | New process | Same process | Same process |
 | Concurrency | OS-level | Goroutine | None (blocking) |
-| Communication | stdin/stdout pipes | Go io.Pipe | Function return |
+| Communication | stdin/stdout decode protocol | Go io.Pipe | Function return |
 | Isolation | Full | Memory shared | Memory shared |
 | Speed | Slowest | Medium | Fastest |
 | Fallback | In-process retry | None | None |
@@ -333,6 +335,6 @@ Arguments are split by whitespace. The `--decode` flag is always appended last.
 
 ## Related
 
-- `docs/architecture/api/plugin-protocol.md` - Engine-plugin protocol
+- `docs/architecture/api/process-protocol.md` - Engine-plugin protocol
 - `docs/architecture/debugging/plugin-testing.md` - Testing plugins
 - `plan/learned/198-plugin-invocation.md` - Implementation spec

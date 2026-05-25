@@ -504,10 +504,10 @@ Returns validation errors if any.
 | Command | Description |
 |---------|-------------|
 | `bgp cache list` | List cached message IDs |
-| `bgp cache <id> retain` | Keep in cache |
-| `bgp cache <id> release` | Allow eviction |
-| `bgp cache <id> expire` | Remove immediately |
-| `bgp cache <id> forward <sel>` | Forward to peers |
+| `bgp cache retain <id>` | Keep in cache |
+| `bgp cache release <id>` | Allow eviction |
+| `bgp cache expire <id>` | Remove immediately |
+| `bgp cache forward <id> <sel>` | Forward to peers |
 <!-- source: internal/component/bgp/reactor/recent_cache.go -- cache operations -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- command dispatch -->
 

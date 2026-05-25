@@ -7,9 +7,9 @@
 | bgp-rib | Route Information Base -- stores received/sent routes |
 | bgp-adj-rib-in | Adj-RIB-In -- raw hex replay of received routes |
 | bgp-persist | Route persistence across restarts |
-| bgp-rs | Route server -- client-to-client route reflection (RFC 7947). Forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3): DirectBridge in-process, `ze-plugin-engine:forward-cached` JSON-RPC for out-of-process plugins. No text-RPC tokenise on the hot path. `bgp-adj-rib-in` is an optional dep; when absent, forwarding still works and replay-on-peer-up is disabled with a WARN. |
+| bgp-rs | Route server -- client-to-client route reflection (RFC 7947). Forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3): DirectBridge in-process, `ze-plugin-engine:forward-cached` over newline-framed YANG RPC for out-of-process plugins. No text-RPC tokenise on the hot path. `bgp-adj-rib-in` is an optional dep; when absent, forwarding still works and replay-on-peer-up is disabled with a WARN. |
 | bgp-watchdog | Deferred route announcement with named watchdog groups |
-| bgp-healthcheck | Service healthcheck with FSM-controlled route announcement/withdrawal via watchdog groups. [Guide](guide/healthcheck.md) |
+| bgp-healthcheck | Service healthcheck with FSM-controlled route announcement/withdrawal via watchdog groups. [Guide](../guide/healthcheck.md) |
 
 ### Redistribution Filters (planned)
 
@@ -42,7 +42,7 @@ Three filter categories:
 |--------|-------------|
 | bgp-gr | Graceful Restart (RFC 4724) and Long-Lived GR (RFC 9494) state machine |
 | bgp-aigp | Accumulated IGP Metric (RFC 7311) |
-| bgp-rpki | RPKI origin validation via RTR protocol (RFC 6811, RFC 8210). [Guide](guide/rpki.md) |
+| bgp-rpki | RPKI origin validation via RTR protocol (RFC 6811, RFC 8210). [Guide](../guide/rpki.md) |
 | bgp-rpki-decorator | Correlates UPDATE + RPKI events into merged update-rpki events |
 | bgp-route-refresh | Route Refresh handling (RFC 2918, RFC 7313) |
 | role | BGP Role capability enforcement (RFC 9234) |

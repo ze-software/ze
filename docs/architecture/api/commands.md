@@ -27,7 +27,7 @@ identity is injected only by trusted transport wiring.
 | Encoder | json or text (v4), json only (v6) | json or text |
 | Peer selectors | `*`, IP, filters (`[local-as ...]`) | `*`, IP, negated (`!IP`) |
 | Multi-session filters | Supported (draft) | Not supported |
-| Forward command | Not available | `forward update-id` for route reflection |
+| Forward command | Not available | `bgp cache forward <id> <selector>` for route reflection |
 
 See [json-format.md](json-format.md#exabgp-differences) for output format differences.
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher -->
@@ -406,15 +406,15 @@ peer <sel> flush         # Wait for forward pool to drain (barrier)
 > **Implementation spec:** `plan/learned/148-api-command-restructure-step-8.md`
 
 ```
-bgp cache <id> forward <sel>    # Forward cached UPDATE to peers
-bgp cache <id> retain           # Prevent eviction
-bgp cache <id> release          # Allow eviction (reset TTL)
-bgp cache <id> expire           # Remove immediately
+bgp cache forward <id> <sel>    # Forward cached UPDATE to peers
+bgp cache retain <id>           # Prevent eviction
+bgp cache release <id>          # Allow eviction (reset TTL)
+bgp cache expire <id>           # Remove immediately
 bgp cache list                  # List cached message IDs
 
 # Batch variants (comma-separated IDs, max 1000):
-bgp cache <id1>,<id2>,...,<idN> forward <sel>  # Batch forward
-bgp cache <id1>,<id2>,...,<idN> release        # Batch release
+bgp cache forward <id1>,<id2>,...,<idN> <sel>  # Batch forward
+bgp cache release <id1>,<id2>,...,<idN>        # Batch release
 ```
 
 The cache commands enable route reflection via API:
@@ -427,14 +427,14 @@ The cache commands enable route reflection via API:
 
 #### Fast-path typed SDK (rs-fastpath-3)
 
-The text-RPC `bgp cache <id> forward <sel>` path tokenises, parses, and walks the command registry on every call. Plugins that forward many cached UPDATEs per second (route server, future route reflector) use a typed SDK pair instead:
+The text-RPC `bgp cache forward <id> <sel>` path tokenises, parses, and walks the command registry on every call. Plugins that forward many cached UPDATEs per second (route server, future route reflector) use a typed SDK pair instead:
 
 ```go
 Plugin.ForwardCached(ctx, ids []uint64, destinations []netip.AddrPort) error
 Plugin.ReleaseCached(ctx, ids []uint64) error
 ```
 
-Both methods round-trip via `DirectBridge` when the plugin is in-process (zero socket I/O, no tokenisation, no command-registry lookup) and fall back to the `ze-plugin-engine:forward-cached` / `:release-cached` JSON-RPC over the pipe when the plugin is out-of-process. The engine handler is `reactorAPIAdapter.ForwardUpdatesDirect` / `ReleaseUpdates`.
+Both methods round-trip via `DirectBridge` when the plugin is in-process (zero socket I/O, no tokenisation, no command-registry lookup) and fall back to the `ze-plugin-engine:forward-cached` / `:release-cached` methods over the newline-framed plugin RPC connection when the plugin is out-of-process. The engine handler is `reactorAPIAdapter.ForwardUpdatesDirect` / `ReleaseUpdates`.
 
 Destinations are peer addresses (`netip.AddrPort`). Port-0 entries match any peer instance with the same address. Cap: 4096 destinations per call (override via `ze.fwd.dest.cap`); exceeding the cap is an explicit error, not silent truncation. Empty destination list returns an error too, guarding against an accidental wildcard broadcast — use `ReleaseCached` to ack without forwarding.
 
@@ -481,7 +481,7 @@ peer !upstream1           # All peers EXCEPT this one (for route reflection)
 The `!<ip>` negated selector is useful for route reflection:
 ```
 # Forward update to all peers except the source
-bgp cache 12345 forward !upstream1
+bgp cache forward 12345 !upstream1
 ```
 
 > **Note:** Filter selectors (`[local-as ...]`, `[peer-as ...]`) from ExaBGP multi-session

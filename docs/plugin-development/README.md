@@ -64,8 +64,10 @@ func main() {
 
 ```bash
 go build -o my-plugin
-ze plugin validate binary ./my-plugin
 ```
+
+`ze plugin test [options] <config-file>` inspects plugin YANG loading and config delivery. It does not validate an arbitrary plugin binary. To exercise an external binary, run ze with a config that declares it in `plugin { external ... }`, or add a functional test that starts the plugin through the normal process manager.
+<!-- source: cmd/ze/plugin/test_cmd.go -- cmdPluginTest usage -->
 
 ### 3. Configure Ze
 
@@ -75,13 +77,20 @@ plugin {
         server local {
             ip 127.0.0.1;
             port 12700;
-            secret "shared-token";
+            secret "change-this-token-to-at-least-32-chars";
         }
+    }
+
+    external my-plugin {
+        run "./my-plugin";
+        encoder json;
     }
 }
 
-process my-plugin {
-    run "./my-plugin";
+peer transit-a {
+    process my-plugin {
+        receive [ update state ];
+    }
 }
 ```
 
@@ -151,10 +160,10 @@ Ze Engine                          Plugin
 <!-- source: pkg/plugin/sdk/sdk.go -- Run (stages 1-5) -->
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput, ConfigureInput, DeclareCapabilitiesInput, ShareRegistryInput, ReadyInput, ExecuteCommandInput, UpdateRouteInput, ByeInput -->
 
-Plugins communicate via a single bidirectional TLS connection using the `#<id> <verb> [<json>]` wire format. MuxConn multiplexes concurrent RPCs by distinguishing responses (`ok`/`error`) from requests (method name as verb).
+External plugins communicate via a single bidirectional TLS connection using the `#<id> <verb> [<json>]` wire format. MuxConn multiplexes concurrent RPCs by distinguishing responses (`ok`/`error`) from requests (method name as verb).
 <!-- source: pkg/plugin/rpc/message.go -- ParseLine, FormatRequest, FormatResult, FormatError -->
 
-For internal plugins (running as goroutines inside the engine), the connection is a `net.Pipe`, and after startup a DirectBridge bypasses the pipe for event delivery.
+For internal plugins (running as goroutines inside the engine), startup uses a `net.Pipe`, and after Stage 5 DirectBridge bypasses the pipe for supported hot paths.
 <!-- source: pkg/plugin/sdk/sdk.go -- NewWithConn, bridge discovery -->
 
 ## Documentation

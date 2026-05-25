@@ -5,12 +5,12 @@
 | Feature | Status | Notes |
 |---------|--------|-------|
 | `msg-id` in events | ✅ Done | `internal/component/plugin/json.go` |
-| `bgp cache <id> forward` | ✅ Done | `internal/component/plugin/cache.go` |
+| `bgp cache forward <id> <sel>` | ✅ Done | `internal/component/bgp/plugins/cmd/cache/` |
 | `capability route-refresh` | ✅ Done | `internal/component/plugin/rr/` |
 | `plugin session ready` | ✅ Done | `internal/component/plugin/plugin.go` |
 | Refresh event handling | ✅ Done | `internal/component/plugin/rr/` |
-| `bgp cache <id> retain/release/expire` | ✅ Done | `internal/component/plugin/cache.go` |
-| `bgp cache list` | ✅ Done | `internal/component/plugin/cache.go` |
+| `bgp cache retain/release/expire <id>` | ✅ Done | `internal/component/bgp/plugins/cmd/cache/` |
+| `bgp cache list` | ✅ Done | `internal/component/bgp/plugins/cmd/cache/` |
 | Stage timeout | ✅ Done | Configurable per-plugin, default 5s |
 | Config validation (GR/RR→API) | ✅ Done | Config validation |
 | `borr`/`eorr` markers | ✅ Done | RFC 7313 full support, RIB plugin responds to refresh |
@@ -42,7 +42,7 @@
 │  • BGP cache (lifetime controlled by API via `bgp cache` commands)  │
 │  • NO RIB, NO route storage                                         │
 └─────────────────────────────────────────────────────────────────────┘
-                    │ JSON events + base64 wire bytes
+                    │ YANG RPC events + cached msg-ids
                     ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  API Process (Full RIB Owner)                                        │
@@ -53,7 +53,7 @@
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-Engine delegates all route storage to API. Reference implementations: `ze plugin rr`, `ze plugin rib`.
+Engine delegates all route storage to API. Reference implementations: `bgp-rs`, `bgp-rib`.
 
 ---
 
@@ -76,22 +76,22 @@ API controls BGP cache lifetime in engine:
 
 | Command | Description |
 |---------|-------------|
-| `bgp cache <id> retain` | Keep in cache until released |
-| `bgp cache <id> release` | Allow eviction (default 60s timeout) |
-| `bgp cache <id> expire` | Remove immediately |
+| `bgp cache retain <id>` | Keep in cache until released |
+| `bgp cache release <id>` | Allow eviction (default 60s timeout) |
+| `bgp cache expire <id>` | Remove immediately |
 | `bgp cache list` | List cached msg-ids |
-| `bgp cache <id> forward <sel>` | Forward cached UPDATE to peers |
+| `bgp cache forward <id> <sel>` | Forward cached UPDATE to peers |
 
 ### Graceful Restart Flow
 
 ```
 1. Peer A announces route (msg-id 123)
 2. Engine sends event to API
-3. API stores in RIB, sends: bgp cache 123 retain
+3. API stores in RIB, sends: bgp cache retain 123
 4. ... Peer A goes down ...
 5. ... Peer A reconnects ...
 6. Engine sends state event: peer A up
-7. API replays: bgp cache 123 forward A
+7. API replays: bgp cache forward 123 A
 8. API sends: peer A eor ipv4/unicast
 ```
 
@@ -100,7 +100,7 @@ API controls BGP cache lifetime in engine:
 If cache was cleared (shouldn't happen with retain), API can re-announce from pool:
 
 ```
-peer A announce raw <base64-attrs> nlri ipv4/unicast <base64-nlri>
+bgp peer 192.0.2.1 raw update hex <update-payload-hex>
 ```
 
 ---
@@ -199,8 +199,8 @@ When `encoding json`:
 
 | Plugin | Use Case | RIB Type |
 |--------|----------|----------|
-| `ze plugin rr` | Route Server (multi-peer) | ribIn (routes FROM peers) |
-| `ze plugin rib` | Full RIB (Adj-RIB-In/Out) | Both ribIn and ribOut |
+| `bgp-rs` | Route Server (multi-peer) | ribIn (routes FROM peers) |
+| `bgp-rib` | Full RIB (Adj-RIB-In/Out) | Both ribIn and ribOut |
 <!-- source: internal/component/bgp/plugins/rs/ -- route server plugin -->
 <!-- source: internal/component/bgp/plugins/rib/ -- RIB plugin -->
 
