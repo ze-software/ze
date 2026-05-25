@@ -50,6 +50,7 @@ Buffer-first, zero-copy, attribute pools, UPDATE building, NLRI parsing.
 - [767](plan/learned/767-tokenizer-no-escape.md) -- Command tokenizer: removed backslash escape handling, backslash is a normal character; no per-byte escape scan on every command
 - [770](plan/learned/770-precomputation-review.md) -- Precomputation critical review: 3 of 7 proposals rejected after source validation showed trivially cheap operations; profile before optimizing
 - [771](plan/learned/771-performance-optimization-campaign.md) -- Full optimization campaign: Ze 91ms->71ms convergence (22%), BIRD gap from 1.82x to 1.61x; profile-driven, lifecycle-boundary precomputation
+- [785](plan/learned/785-rfc7606-validation-cache.md) -- RFC 7606 validation cache: rejected, validation too cheap (67-138 ns) to benefit from caching despite 77-97% hit rate; cache lookup cost rivals validation cost
 
 ## Plugin System
 
