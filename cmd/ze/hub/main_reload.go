@@ -58,7 +58,7 @@ func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *
 	}
 }
 
-func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface, detail string) {
+func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface, detail string) { //nolint:unparam // surface is always SurfaceSystem today but callers should state intent
 	if recorder == nil {
 		return
 	}
