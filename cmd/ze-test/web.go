@@ -17,6 +17,7 @@ import (
 	"time"
 
 	webtesting "codeberg.org/thomas-mangin/ze/internal/component/web/testing"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
 
@@ -174,27 +175,29 @@ Examples:
 	// Run tests sequentially (one browser session, shared server).
 	colors := runner.NewColors()
 	passed, failed, skipped := 0, 0, 0
+	total := len(tests)
 
-	for _, t := range tests {
+	fmt.Fprintf(os.Stdout, "Running %d web tests...\n", total) //nolint:errcheck // terminal output
+
+	for i, t := range tests {
 		if ctx.Err() != nil {
 			break
 		}
+		fmt.Fprintf(os.Stdout, "[%d/%d] %s ... ", i+1, total, t.Name) //nolint:errcheck // terminal output
+		start := time.Now()
 		result := webtesting.RunWBFile(t.Path, baseURL)
+		elapsed := time.Since(start)
 		switch {
 		case result.Skipped:
 			skipped++
-			if *verbose {
-				fmt.Fprintf(os.Stdout, "○ %s (%s)\n", t.Name, result.SkipReason) //nolint:errcheck // terminal output
-			}
+			fmt.Fprintf(os.Stdout, "skip (%s) %s\n", result.SkipReason, formatElapsed(elapsed)) //nolint:errcheck // terminal output
 		case result.Passed:
 			passed++
-			if *verbose {
-				fmt.Fprintln(os.Stdout, colors.Green("✓ "+t.Name)) //nolint:errcheck // terminal output
-			}
+			fmt.Fprintln(os.Stdout, colors.Green("pass")+" "+formatElapsed(elapsed)) //nolint:errcheck // terminal output
 		default:
 			failed++
-			fmt.Fprintln(os.Stdout, colors.Red("✗ "+t.Name)) //nolint:errcheck // terminal output
-			fmt.Fprintf(os.Stdout, "  %s\n", result.Error)   //nolint:errcheck // terminal output
+			fmt.Fprintln(os.Stdout, colors.Red("FAIL")+" "+formatElapsed(elapsed)) //nolint:errcheck // terminal output
+			fmt.Fprintf(os.Stdout, "  %s\n", result.Error)                         //nolint:errcheck // terminal output
 		}
 	}
 
@@ -208,6 +211,15 @@ Examples:
 		return fmt.Errorf("%d test(s) failed", failed)
 	}
 	return nil
+}
+
+func formatElapsed(d time.Duration) string {
+	if d < time.Second {
+		return textbuf.IntStr(d.Milliseconds(), "ms")
+	}
+	var b textbuf.Buffer
+	b.Float2(d.Seconds()).Str("s")
+	return b.String()
 }
 
 func closeBrowser() {
