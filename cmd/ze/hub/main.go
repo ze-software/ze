@@ -26,6 +26,7 @@ import (
 	mdns "github.com/miekg/dns"
 
 	zecli "codeberg.org/thomas-mangin/ze/cmd/ze/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	clearCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear"
@@ -40,6 +41,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/engine"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ipsec"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
+	"codeberg.org/thomas-mangin/ze/internal/component/managed"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pki"
 	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -98,7 +100,13 @@ func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	ring := pluginserver.NewEventRing(128)
 	ring.Append("web", "server.started")
 	dispatch := webOnlyDispatcher(ring)
-	webSrv, broker, _ := startWebServer(store, listenAddrs, insecureWeb, dispatch, resolvers)
+	auditLog, auditErr := openAuditLog("")
+	if auditErr != nil {
+		fmt.Fprintf(os.Stderr, "error: audit log: %v\n", auditErr)
+		return 1
+	}
+	showCmd.RegisterAuditProvider(auditLog.Query)
+	webSrv, broker, _ := startWebServer(store, "", listenAddrs, insecureWeb, dispatch, resolvers, nil, auditLog)
 	if webSrv == nil {
 		return 1
 	}
@@ -134,6 +142,16 @@ func forceExitOnSignal(sigCh <-chan os.Signal) {
 // chaosSeed > 0 enables chaos self-test mode; chaosRate < 0 means "use default".
 // Returns exit code.
 func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach ...bool) int {
+	return run(store, configPath, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, len(cliAttach) > 0 && cliAttach[0], nil)
+}
+
+// RunWithManagedClient executes the hub and starts the managed client after
+// the runtime commit hook is available.
+func RunWithManagedClient(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, managedClient *managed.ClientConfig) int {
+	return run(store, configPath, plugins, chaosSeed, chaosRate, false, "", false, "", "", false, managedClient)
+}
+
+func run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, managedClient *managed.ClientConfig) int {
 	if !skipRootCheck {
 		for _, w := range privilege.CheckPrivileges() {
 			fmt.Fprintln(os.Stderr, "warning: "+w)
@@ -148,13 +166,18 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	var err error
 	if configPath == "-" {
 		data, stdinOpen, err = readStdinConfig()
-	} else {
-		data, err = store.ReadFile(configPath)
-		if err != nil && storage.IsBlobStorage(store) {
+	} else if storage.IsBlobStorage(store) {
+		if clearErr := clearStaleCandidateOnBoot(store, configPath); clearErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: clear stale candidate: %v\n", clearErr)
+		}
+		data, err = storage.ReadActiveConfig(store, configPath)
+		if err != nil {
 			// Config may live on the filesystem (e.g., gokrazy read-only root)
 			// while blob handles TLS certs, SSH keys, and persistent state.
 			data, err = os.ReadFile(configPath) //nolint:gosec // user-provided config path
 		}
+	} else {
+		data, err = store.ReadFile(configPath)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read config: %v\n", err)
@@ -165,7 +188,7 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	switch zeconfig.ProbeConfigType(string(data)) {
 	case zeconfig.ConfigTypeBGP, zeconfig.ConfigTypeUnknown:
 		// Non-BGP YANG config: auto-load plugins via ConfigRoots.
-		return runYANGConfig(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, len(cliAttach) > 0 && cliAttach[0])
+		return runYANGConfig(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliAttach, managedClient)
 	case zeconfig.ConfigTypeHub:
 		if len(plugins) > 0 {
 			fmt.Fprintf(os.Stderr, "error: --plugin is not supported with hub/orchestrator configs; use plugin { external ... } in the config file\n")
@@ -175,6 +198,13 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	}
 
 	return 1
+}
+
+func clearStaleCandidateOnBoot(store storage.Storage, configPath string) error {
+	if store == nil || configPath == "" || configPath == "-" {
+		return nil
+	}
+	return storage.ClearCandidate(store, configPath)
 }
 
 // readStdinConfig reads config from stdin, stopping at a NUL byte sentinel
@@ -212,7 +242,7 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // runYANGConfig handles all YANG-based configs. Plugins are auto-loaded
 // via ConfigRoots matching: bgp {} loads BGP, interface {} loads iface, etc.
 // This is the unified startup path for all ze configs (except hub orchestrator mode).
-func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool) int { //nolint:cyclop // startup orchestration
+func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, managedClient *managed.ClientConfig) int { //nolint:cyclop // startup orchestration
 	// Close the AAA bundle on every exit path so TACACS+ accounting and other
 	// backend workers drain before the process terminates. swapAAABundle is
 	// called by infraSetup on config load; closeAAABundle here matches it.
@@ -228,8 +258,20 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			return 1
 		}
 	}
+	if configPath != "" && configPath != "-" && storage.IsBlobStorage(store) {
+		if _, _, activeErr := storage.EnsureActiveVersion(store, configPath, data, time.Now()); activeErr != nil {
+			fmt.Fprintf(os.Stderr, "error: initialize active config: %v\n", activeErr)
+			return 1
+		}
+	}
 
 	configPaths := zeconfig.CollectContainerPaths(loadResult.Tree)
+	auditLog, auditErr := openAuditLog(configPath)
+	if auditErr != nil {
+		fmt.Fprintf(os.Stderr, "error: audit log: %v\n", auditErr)
+		return 1
+	}
+	showCmd.RegisterAuditProvider(auditLog.Query)
 
 	// Resolve web/LG/MCP listen addresses. Precedence per service:
 	//   env var (compound ip:port[,ip:port]) > CLI flag > config file > off
@@ -348,7 +390,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	system.RegisterConntrackManagedKeys()
 	// Register infrastructure hook before engine starts.
 	// The BGP plugin calls this when creating the reactor.
-	setupInfraHook()
+	setupInfraHook(auditLog)
 	coordinator := zePlugin.NewCoordinator(configTree)
 
 	// Store config state for the BGP plugin's reactor factory.
@@ -407,6 +449,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 	apiServer.SetProcessSpawner(pm)
+	apiServer.Dispatcher().SetAuditRecorder(auditLog)
 	registry.SetPluginServer(apiServer)
 	// The plugin server implements ze.EventBus via its Emit/Subscribe
 	// methods, so internal plugins receive a single namespaced pub/sub
@@ -429,9 +472,19 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	var loadBoth func() (map[string]any, *zeconfig.Tree, error)
 	if configPath != "" && configPath != "-" {
 		readAndParse := func() (*zeconfig.LoadConfigResult, error) {
-			reloadData, readErr := store.ReadFile(configPath)
-			if readErr != nil && storage.IsBlobStorage(store) {
-				reloadData, readErr = os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
+			var reloadData []byte
+			var readErr error
+			if storage.IsBlobStorage(store) {
+				var hasCandidate bool
+				reloadData, _, hasCandidate, readErr = storage.ReadCandidateConfig(store, configPath)
+				if readErr == nil && !hasCandidate {
+					reloadData, readErr = storage.ReadActiveConfig(store, configPath)
+				}
+				if readErr != nil {
+					reloadData, readErr = os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
+				}
+			} else {
+				reloadData, readErr = store.ReadFile(configPath)
 			}
 			if readErr != nil {
 				return nil, fmt.Errorf("read config: %w", readErr)
@@ -519,8 +572,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 
-	// Command dispatcher for web/LG/MCP (uses plugin server, not reactor directly).
-	dispatch := serverDispatcher(apiServer)
+	// Command dispatchers for user surfaces (use plugin server, not reactor directly).
+	webDispatch := serverDispatcherWithSurface(apiServer, audit.SurfaceWeb)
+	sshDispatch := serverDispatcherWithSurface(apiServer, audit.SurfaceSSH)
+	mcpDispatch := serverDispatcherWithSurface(apiServer, audit.SurfaceMCP)
+	cliDispatch := serverDispatcherWithSurface(apiServer, audit.SurfaceCLI)
 
 	// Create shared resolvers for web UI, looking glass, and MCP.
 	sc := system.ExtractSystemConfig(loadResult.Tree)
@@ -614,11 +670,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	lm := NewListenerMigrator(nil)
 
 	var webEditorMgr *zeweb.EditorManager
-	if webEnabled {
+	if webEnabled && storage.IsBlobStorage(store) {
 		if len(webAddrs) == 0 {
 			webAddrs = []string{"0.0.0.0:3443"}
 		}
-		if webSrv, broker, editorMgr := startWebServer(store, webAddrs, insecureWeb, dispatch, resolvers); webSrv != nil {
+		if webSrv, broker, editorMgr := startWebServer(store, configPath, webAddrs, insecureWeb, webDispatch, resolvers, liveAAABundleAuthorizer{}, auditLog); webSrv != nil {
 			webEditorMgr = editorMgr
 			lm.SetWeb(webSrv)
 			if ring := apiServer.EventRing(); ring != nil {
@@ -656,15 +712,16 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			HasConfig: true,
 		}
 	}
-	if sshCfg.HasConfig && !hasBGPBlock {
+	if sshCfg.HasConfig && !hasBGPBlock && storage.IsBlobStorage(store) {
 		cfg := zessh.Config{
-			Listen:       sshCfg.Listen,
-			ListenAddrs:  sshCfg.ListenAddrs,
-			HostKeyPath:  sshCfg.HostKeyPath,
-			HostCertPath: sshCfg.HostCertPath,
-			IdleTimeout:  sshCfg.IdleTimeout,
-			MaxSessions:  sshCfg.MaxSessions,
-			Users:        sshCfg.Users,
+			Listen:        sshCfg.Listen,
+			ListenAddrs:   sshCfg.ListenAddrs,
+			HostKeyPath:   sshCfg.HostKeyPath,
+			HostCertPath:  sshCfg.HostCertPath,
+			IdleTimeout:   sshCfg.IdleTimeout,
+			MaxSessions:   sshCfg.MaxSessions,
+			Users:         sshCfg.Users,
+			AuditRecorder: auditLog,
 		}
 		if zefsUsers, err := loadZefsUsers(); err == nil {
 			cfg.Users = append(zefsUsers, cfg.Users...)
@@ -677,7 +734,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, cfg.Users, nil, aaaLog)
 		if aaaErr != nil {
 			aaaLog.Warn("AAA backend build failed; SSH authenticator not set", "error", aaaErr)
+			registerAAAAccountingProvider(nil)
 		} else {
+			registerAAAAccountingProvider(aaaBundle)
 			cfg.Authenticator = aaaBundle.Authenticator
 			swapAAABundle(aaaBundle, aaaLog)
 		}
@@ -697,12 +756,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			sshSrv.SetSessionModelFactory(buildSessionModelFactory(sshSrv, bgpconfig.InfraHookParams{
 				ConfigPath: configPath,
 				Store:      cfg.Storage,
-			}))
+			}, auditLog))
 			// Wire executor factory for non-interactive exec commands
 			// (e.g., config edit's "run show traceroute" via SSH exec).
 			sshSrv.SetExecutorFactory(func(username, remoteAddr string) zessh.CommandExecutor {
 				return func(input string) (string, error) {
-					return dispatch(input, username, remoteAddr)
+					return sshDispatch(input, username, remoteAddr)
 				}
 			})
 			if startErr := sshSrv.Start(context.Background(), nil, nil); startErr != nil {
@@ -724,7 +783,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	if len(lgAddrs) > 0 {
-		lgDispatch := func(cmd string) (string, error) { return dispatch(cmd, "", "") }
+		lgDispatch := func(cmd string) (string, error) { return webDispatch(cmd, "", "") }
 		if lgSrv := startLGServer(store, lgAddrs, lgTLS, lgDispatch, resolvers); lgSrv != nil {
 			lm.SetLG(lgSrv)
 			defer func() {
@@ -737,14 +796,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	var mcpSrv *MCPServerHandle
 	if len(mcpAddrs) > 0 {
-		mcpStreamCfg := zemcp.StreamableConfig{Token: mcpToken}
+		mcpStreamCfg := zemcp.StreamableConfig{Token: mcpToken, AuditRecorder: auditLog}
 		var mcpTLSCert, mcpTLSKey string
 		if mcpCfgOK {
 			mcpStreamCfg = mcpConfigToStreamable(mcpCfg, mcpStreamCfg)
 			mcpTLSCert = mcpCfg.TLS.Cert
 			mcpTLSKey = mcpCfg.TLS.Key
 		}
-		mcpSrv = startMCPServer(mcpAddrs, dispatch, serverCommandLister(apiServer), mcpStreamCfg, mcpTLSCert, mcpTLSKey)
+		mcpSrv = startMCPServer(mcpAddrs, mcpDispatch, serverCommandLister(apiServer), mcpStreamCfg, mcpTLSCert, mcpTLSKey)
 		if mcpSrv != nil {
 			lm.SetMCP(mcpSrv)
 		}
@@ -785,24 +844,27 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		apiCfg.Token = token
 	}
 	reloadAfterCommit := func() error {
-		return doReload(apiServer, eng, configProvider, loadBoth, lm)
+		return doReload(apiServer, eng, configProvider, store, configPath, loadBoth, lm)
+	}
+	apiServer.SetFullReloadFunc(func(context.Context) error {
+		return reloadAfterCommit()
+	})
+	managedCtx, managedCancel := context.WithCancel(context.Background())
+	defer managedCancel()
+	if managedClient != nil && storage.IsBlobStorage(store) {
+		wireManagedCommit(managedClient, store, configPath, reloadAfterCommit)
 	}
 	if webEditorMgr != nil {
 		webEditorMgr.SetCommitHook(reloadAfterCommit)
 	}
-	if apiCfgOK {
-		// Load zefs users for per-user auth; if unavailable, falls back to Token.
+	if apiCfgOK && storage.IsBlobStorage(store) {
 		var apiUsers []authz.UserConfig
-		if storage.IsBlobStorage(store) {
-			u, uErr := loadZefsUsers()
-			switch {
-			case uErr != nil:
-				fmt.Fprintf(os.Stderr, "warning: API per-user auth disabled: load zefs users: %v\n", uErr)
-			default:
-				apiUsers = u
-			}
-		} else {
-			fmt.Fprintln(os.Stderr, "warning: API per-user auth disabled: requires blob storage (run ze init first)")
+		u, uErr := loadZefsUsers()
+		switch {
+		case uErr != nil:
+			fmt.Fprintf(os.Stderr, "warning: API per-user auth disabled: load zefs users: %v\n", uErr)
+		default:
+			apiUsers = u
 		}
 
 		// Report active auth mode to make silent degradation visible.
@@ -822,7 +884,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 
 		var apiErr error
-		apiSrvs, apiErr = startAPIServers(apiCfg, apiServer, store, configPath, apiUsers, reloadAfterCommit)
+		apiSrvs, apiErr = startAPIServers(apiCfg, apiServer, store, configPath, apiUsers, reloadAfterCommit, auditLog)
 		if apiErr != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
 			apiServer.Stop()
@@ -847,7 +909,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// refreshes the shared ConfigProvider, then notifies every registered
 	// subsystem so it can hot-apply diff-able knobs.
 	reloadCh := make(chan os.Signal, 1)
-	go handleSIGHUPReload(reloadCh, apiServer, eng, configProvider, loadBoth, lm)
+	go handleSIGHUPReload(reloadCh, apiServer, eng, configProvider, store, configPath, loadBoth, lm, auditLog)
 
 	if stdinOpen {
 		go monitorStdinEOF(sigCh)
@@ -872,6 +934,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			f.Close() //nolint:errcheck,gosec // best-effort readiness signal
 		}
 	}
+	if managedClient != nil && storage.IsBlobStorage(store) {
+		go managed.RunManagedClient(managedCtx, *managedClient)
+	}
 
 	if cliAttach {
 		fmt.Println("Ze running. Type 'exit' or Ctrl+D to detach CLI (daemon keeps running).")
@@ -881,7 +946,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	if cliAttach {
 		zecli.RunAttached(func(command string) (string, error) {
-			return dispatch(command, "root", "local")
+			return cliDispatch(command, "root", "local")
 		})
 		fmt.Println("CLI detached. Press Ctrl+C to stop daemon.")
 	}

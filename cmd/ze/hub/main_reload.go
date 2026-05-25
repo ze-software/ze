@@ -10,9 +10,12 @@ import (
 	"os"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 // handleSIGHUPReload is the SIGHUP reload worker. Reads signals from reloadCh,
@@ -22,24 +25,52 @@ import (
 // If a transaction is in progress (lock held), the SIGHUP is queued and replayed
 // after the current reload completes.
 // Lifecycle goroutine (one-time, runs for daemon lifetime).
-func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, load func() (map[string]any, *zeconfig.Tree, error), lm *ListenerMigrator) {
+func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *ListenerMigrator, recorder audit.Recorder) {
 	for range reloadCh {
 		fmt.Fprintf(os.Stderr, "received SIGHUP, reloading config...\n")
-		if err := doReload(s, eng, cp, load, lm); err != nil {
+		if err := stageSIGHUPCandidate(store, configPath); err != nil {
+			fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
+			continue
+		}
+		if err := doReload(s, eng, cp, store, configPath, load, lm); err != nil {
 			if errors.Is(err, pluginserver.ErrReloadInProgress) {
 				fmt.Fprintf(os.Stderr, "transaction in progress, queuing SIGHUP...\n")
 				s.QueueSIGHUP()
 				continue
 			}
 			fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
+		} else {
+			recordDaemonReloadAudit(recorder, "system", "signal", audit.SurfaceSystem, "SIGHUP")
 		}
 		// After reload completes, drain any queued SIGHUP.
 		if s.DrainSIGHUP() {
 			fmt.Fprintf(os.Stderr, "replaying queued SIGHUP...\n")
-			if err := doReload(s, eng, cp, load, lm); err != nil {
+			if err := stageSIGHUPCandidate(store, configPath); err != nil {
 				fmt.Fprintf(os.Stderr, "queued reload error: %v\n", err)
+				continue
+			}
+			if err := doReload(s, eng, cp, store, configPath, load, lm); err != nil {
+				fmt.Fprintf(os.Stderr, "queued reload error: %v\n", err)
+			} else {
+				recordDaemonReloadAudit(recorder, "system", "signal", audit.SurfaceSystem, "queued SIGHUP")
 			}
 		}
+	}
+}
+
+func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface, detail string) {
+	if recorder == nil {
+		return
+	}
+	if err := recorder.Record(audit.Entry{
+		Actor:      actor,
+		RemoteAddr: remoteAddr,
+		Surface:    surface,
+		Action:     audit.ActionDaemonReload,
+		Detail:     detail,
+		Outcome:    audit.OutcomeSuccess,
+	}); err != nil {
+		slogutil.Logger("hub.audit").Warn("audit record failed", "action", audit.ActionDaemonReload, "error", err)
 	}
 }
 
@@ -63,9 +94,23 @@ func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *
 // Keeping the tree single-sourced eliminates the race where the file
 // changes between the plugin-server read and the subsystem read, and
 // avoids redundant I/O + YANG parse on every SIGHUP.
-func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, load func() (map[string]any, *zeconfig.Tree, error), lm *ListenerMigrator) error {
+func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *ListenerMigrator) error {
 	reloadCtx, reloadCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer reloadCancel()
+	candidateSet := false
+	if store != nil && configPath != "" && configPath != "-" && storage.IsBlobStorage(store) {
+		_, _, ok, err := storage.ReadCandidateConfig(store, configPath)
+		if err != nil {
+			return fmt.Errorf("reload: read candidate: %w", err)
+		}
+		candidateSet = ok
+	}
+	clearCandidate := func() error {
+		if !candidateSet {
+			return nil
+		}
+		return storage.ClearCandidate(store, configPath)
+	}
 
 	if load == nil {
 		// stdin-config daemons have no reload source. Fall back to the
@@ -76,6 +121,9 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 
 	newTree, parsedTree, loadErr := load()
 	if loadErr != nil {
+		if clearErr := clearCandidate(); clearErr != nil {
+			return fmt.Errorf("reload: parse config: %w (candidate cleanup failed: %w)", loadErr, clearErr)
+		}
 		return fmt.Errorf("reload: parse config: %w", loadErr)
 	}
 	var priorProvider map[string]map[string]any
@@ -83,11 +131,17 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 		var snapErr error
 		priorProvider, snapErr = snapshotProvider(cp)
 		if snapErr != nil {
+			if clearErr := clearCandidate(); clearErr != nil {
+				return fmt.Errorf("reload: snapshot config provider: %w (candidate cleanup failed: %w)", snapErr, clearErr)
+			}
 			return fmt.Errorf("reload: snapshot config provider: %w", snapErr)
 		}
 	}
 
 	if err := s.ReloadConfig(reloadCtx, newTree); err != nil {
+		if clearErr := clearCandidate(); clearErr != nil {
+			return fmt.Errorf("%w (candidate cleanup failed: %w)", err, clearErr)
+		}
 		return err
 	}
 
@@ -98,9 +152,30 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 	if eng != nil {
 		if err := eng.Reload(reloadCtx); err != nil {
 			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider); rollbackErr != nil {
+				if clearErr := clearCandidate(); clearErr != nil {
+					return fmt.Errorf("subsystem reload: %w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
+				}
 				return fmt.Errorf("subsystem reload: %w (rollback failed: %w)", err, rollbackErr)
 			}
+			if clearErr := clearCandidate(); clearErr != nil {
+				return fmt.Errorf("subsystem reload: %w (candidate cleanup failed: %w)", err, clearErr)
+			}
 			return fmt.Errorf("subsystem reload: %w", err)
+		}
+	}
+
+	if lm != nil && parsedTree != nil {
+		if err := lm.ReloadListeners(reloadCtx, parsedTree); err != nil {
+			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider); rollbackErr != nil {
+				if clearErr := clearCandidate(); clearErr != nil {
+					return fmt.Errorf("reload: listener migration: %w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
+				}
+				return fmt.Errorf("reload: listener migration: %w (rollback failed: %w)", err, rollbackErr)
+			}
+			if clearErr := clearCandidate(); clearErr != nil {
+				return fmt.Errorf("reload: listener migration: %w (candidate cleanup failed: %w)", err, clearErr)
+			}
+			return fmt.Errorf("reload: listener migration: %w", err)
 		}
 	}
 
@@ -110,12 +185,35 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 	applyUpdateCheckerFromMap(newTree)
 	applyArchiveSchedulerFromMap(s.ConfigPath(), s)
 
-	if lm != nil && parsedTree != nil {
-		if err := lm.ReloadListeners(reloadCtx, parsedTree); err != nil {
-			return fmt.Errorf("reload: listener migration: %w", err)
+	if candidateSet {
+		if err := storage.PromoteCandidate(store, configPath); err != nil {
+			return fmt.Errorf("reload: promote candidate: %w", err)
 		}
 	}
 
+	return nil
+}
+
+func stageSIGHUPCandidate(store storage.Storage, configPath string) error {
+	if store == nil || configPath == "" || configPath == "-" || !storage.IsBlobStorage(store) {
+		return nil
+	}
+	if _, _, ok, err := storage.ReadCandidateConfig(store, configPath); err != nil || ok {
+		if err != nil {
+			return err
+		}
+		return storage.ErrCandidateExists
+	}
+	data, err := os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
+	if err != nil && storage.IsBlobStorage(store) {
+		data, err = store.ReadFile(configPath)
+	}
+	if err != nil {
+		return fmt.Errorf("stage SIGHUP candidate: read config: %w", err)
+	}
+	if _, err := storage.WriteCandidateVersion(store, configPath, data, time.Now()); err != nil {
+		return fmt.Errorf("stage SIGHUP candidate: %w", err)
+	}
 	return nil
 }
 
