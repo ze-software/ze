@@ -287,11 +287,10 @@ func handleBgpCacheForward(ctx *pluginserver.CommandContext, id uint64, args []s
 // All valid IDs are processed even if some are invalid — errors are collected
 // and returned as a combined error if any ID failed.
 func handleBgpCacheBatch(ctx *pluginserver.CommandContext, idList, action string, actionArgs []string) (*plugin.Response, error) {
-	parts := strings.Split(idList, ",")
 	var errs []string
 	processed := 0
 
-	for _, part := range parts {
+	for part := range strings.SplitSeq(idList, ",") {
 		id, err := strconv.ParseUint(part, 10, 64)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("invalid id %q: %v", part, err))

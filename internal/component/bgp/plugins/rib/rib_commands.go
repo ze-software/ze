@@ -23,6 +23,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 )
 
 // grTimerMargin is the extra time added to restart-time for the RIB's safety-net timer.
@@ -460,8 +461,8 @@ func (r *RIBManager) rpfLookup(args []string) (string, string, error) {
 
 // parseASNList parses a comma-separated list of ASNs into uint32 slice.
 func parseASNList(s string) ([]uint32, error) {
-	parts := strings.Split(s, ",")
-	asns := make([]uint32, 0, len(parts))
+	parts, count := stringsx.SplitCount(s, ",")
+	asns := make([]uint32, 0, count)
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
 		if p == "" {

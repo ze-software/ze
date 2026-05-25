@@ -16,6 +16,8 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 )
 
 //go:embed templates
@@ -166,7 +168,8 @@ func NewRenderer() (*Renderer, error) {
 			if opts == "" {
 				return nil
 			}
-			return strings.Split(opts, ",")
+			parts, _ := stringsx.SplitCount(opts, ",")
+			return parts
 		},
 		"fieldFor": func(f any) template.HTML {
 			// Render: wrapper_start + input_<type> + wrapper_end.

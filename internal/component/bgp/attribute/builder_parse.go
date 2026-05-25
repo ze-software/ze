@@ -9,6 +9,8 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 )
 
 var errEmptyOriginValue = errors.New("empty origin value")
@@ -85,15 +87,16 @@ func (b *Builder) ParseASPath(s string) error {
 		return nil
 	}
 
-	// Split by space or comma
 	var tokens []string
+	tokenCount := 0
 	if strings.Contains(s, ",") {
-		tokens = strings.Split(s, ",")
+		tokens, tokenCount = stringsx.SplitCount(s, ",")
 	} else {
 		tokens = strings.Fields(s)
+		tokenCount = len(tokens)
 	}
 
-	asPath := make([]uint32, 0, len(tokens))
+	asPath := make([]uint32, 0, tokenCount)
 	for _, tok := range tokens {
 		tok = strings.TrimSpace(tok)
 		if tok == "" {

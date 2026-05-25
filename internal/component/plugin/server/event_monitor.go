@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -187,8 +188,8 @@ func ParseEventMonitorArgs(args []string) (*EventMonitorOpts, error) {
 // parseEventTypeList splits a comma-separated list of event types, trims whitespace,
 // validates each type, and rejects empty entries (e.g., trailing comma).
 func parseEventTypeList(raw string) ([]string, error) {
-	parts := strings.Split(raw, ",")
-	result := make([]string, 0, len(parts))
+	parts, count := stringsx.SplitCount(raw, ",")
+	result := make([]string, 0, count)
 	for _, p := range parts {
 		t := strings.TrimSpace(p)
 		if t == "" {

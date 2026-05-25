@@ -16,6 +16,8 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 )
 
 var (
@@ -94,8 +96,8 @@ func Parse(s string) (*Selector, error) {
 
 // parseMultiIP parses comma-separated IPs.
 func parseMultiIP(s string) (*Selector, error) {
-	parts := strings.Split(s, ",")
-	ips := make([]netip.Addr, 0, len(parts))
+	parts, count := stringsx.SplitCount(s, ",")
+	ips := make([]netip.Addr, 0, count)
 
 	for _, part := range parts {
 		part = strings.TrimSpace(part)

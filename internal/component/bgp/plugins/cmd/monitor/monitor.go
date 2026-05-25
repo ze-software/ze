@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -260,14 +261,16 @@ func parseMonitorArgs(args []string) (*monitorOpts, error) {
 				return nil, errMissingValueForEvent
 			}
 			i++
-			types := strings.Split(args[i], ",")
-			for _, t := range types {
+			parts, count := stringsx.SplitCount(args[i], ",")
+			types := make([]string, 0, count)
+			for _, t := range parts {
 				if t == "" {
 					return nil, errEmptyEventTypeInList
 				}
 				if !events.IsValidEvent(bgpevents.Namespace, t) {
 					return nil, fmt.Errorf("invalid event type: %s (valid: %s)", t, events.ValidEventNames(bgpevents.Namespace))
 				}
+				types = append(types, t)
 			}
 			opts.eventTypes = types
 

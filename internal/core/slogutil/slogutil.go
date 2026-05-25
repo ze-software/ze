@@ -37,6 +37,7 @@ import (
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 )
 
 // Env var registrations for logging.
@@ -254,14 +255,14 @@ func createHandler(level slog.Leveler) slog.Handler {
 	backend := getSpecialEnv("backend")
 
 	// Split on comma: "kmsg,stderr" -> ["kmsg", "stderr"]
-	parts := strings.Split(strings.ToLower(backend), ",")
+	parts, count := stringsx.SplitCount(strings.ToLower(backend), ",")
 
 	// Single syslog backend (not composable with io.Writer).
 	if len(parts) == 1 && strings.TrimSpace(parts[0]) == backendSyslog {
 		return newRingHandler(newSyslogHandler(opts), globalLogRing)
 	}
 
-	writers := make([]io.Writer, 0, len(parts))
+	writers := make([]io.Writer, 0, count)
 	for _, p := range parts {
 		name := strings.TrimSpace(p)
 		if w := writerForBackend(name); w != nil {

@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -291,9 +292,9 @@ func matchASPath(asPath []uint32, pattern string) bool {
 		p = p[1:]
 	}
 
-	// Parse pattern ASNs
-	parts := strings.Split(p, ",")
-	needles := make([]uint32, 0, len(parts))
+	// Parse pattern ASNs.
+	parts, count := stringsx.SplitCount(p, ",")
+	needles := make([]uint32, 0, count)
 	for _, s := range parts {
 		s = strings.TrimSpace(s)
 		if s == "" {

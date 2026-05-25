@@ -12,6 +12,7 @@
 //   - File size limits (warn >600, error >1000)
 //   - Plugin structure completeness (dispatch_test.go, schema/, doc.go)
 //   - Stale package references in docs and scripts
+//   - Comma split materialization uses internal/core/stringsx.SplitCount
 package main
 
 import (
@@ -64,6 +65,7 @@ func main() {
 	checkCrossRefs(root)
 	checkFileSizes(root)
 	checkPluginStructure(root)
+	checkSplitCountUsage(root)
 
 	// Print results grouped by category.
 	if len(findings) == 0 {
@@ -125,7 +127,7 @@ func checkJSONTags(root string) {
 		scanLines(path, func(line int, text string) {
 			matches := jsonTagRE.FindAllStringSubmatch(text, -1)
 			for _, m := range matches {
-				tag := strings.Split(m[1], ",")[0] // strip ,omitempty etc.
+				tag, _, _ := strings.Cut(m[1], ",") // strip ,omitempty etc.
 				if tag == "-" || tag == "" {
 					continue
 				}
@@ -260,6 +262,30 @@ func checkCrossRefs(root string) {
 			}
 		}
 	}
+}
+
+// --- SplitCount Usage Check ---
+
+var (
+	commaSplitRE = regexp.MustCompile(`strings\.Split\(.*,\s*","`)
+	commaCountRE = regexp.MustCompile(`strings\.Count\(.*,\s*","`)
+)
+
+func checkSplitCountUsage(root string) {
+	walkGoFiles(root, func(path string) {
+		if strings.Contains(path, "internal/core/stringsx/") {
+			return
+		}
+		scanLines(path, func(line int, text string) {
+			if commaCountRE.MatchString(text) && strings.Contains(text, "+1") {
+				report(sevWarn, "split-count", path, line, "comma split capacity counted separately -- use stringsx.SplitCount")
+				return
+			}
+			if commaSplitRE.MatchString(text) {
+				report(sevWarn, "split-count", path, line, "comma strings.Split materializes via a pre-count -- use stringsx.SplitCount when keeping the slice")
+			}
+		})
+	})
 }
 
 // --- File Size Check ---

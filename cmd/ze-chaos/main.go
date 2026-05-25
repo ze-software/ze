@@ -48,6 +48,7 @@ import (
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 )
 
 // Env var registrations for ze-chaos port flags.
@@ -410,10 +411,10 @@ Control:
 	// Parse family filters.
 	var familyList, excludeList []string
 	if *families != "" {
-		familyList = strings.Split(*families, ",")
+		familyList, _ = stringsx.SplitCount(*families, ",")
 	}
 	if *excludeFamilies != "" {
-		excludeList = strings.Split(*excludeFamilies, ",")
+		excludeList, _ = stringsx.SplitCount(*excludeFamilies, ",")
 	}
 
 	// Generate scenario from seed.

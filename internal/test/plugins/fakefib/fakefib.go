@@ -14,6 +14,7 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -83,8 +84,8 @@ func parseRouteType(s string) (sysribevents.RouteType, error) {
 }
 
 func parseLabels(s string) ([]uint32, error) {
-	parts := strings.Split(s, ",")
-	labels := make([]uint32, 0, len(parts))
+	parts, count := stringsx.SplitCount(s, ",")
+	labels := make([]uint32, 0, count)
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
 		if p == "" {

@@ -19,6 +19,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 )
 
 // RTR PDU types (RFC 8210 Section 5, RFC 9582 Section 5.12).
@@ -97,8 +99,8 @@ func (a *aspaList) Set(s string) error {
 		return fmt.Errorf("invalid customer AS %q: %w", parts[0], err)
 	}
 
-	provStrs := strings.Split(parts[1], ",")
-	providers := make([]uint32, 0, len(provStrs))
+	provStrs, count := stringsx.SplitCount(parts[1], ",")
+	providers := make([]uint32, 0, count)
 	for _, ps := range provStrs {
 		p, err := strconv.ParseUint(strings.TrimSpace(ps), 10, 32)
 		if err != nil {

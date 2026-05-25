@@ -12,6 +12,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 )
 
 var (
@@ -183,7 +184,7 @@ func checkCompletion(exp Expectation, state State) error {
 	}
 
 	if expected, hasContains := exp.Values["contains"]; hasContains {
-		expectedItems := strings.Split(expected, ",")
+		expectedItems, _ := stringsx.SplitCount(expected, ",")
 		compTexts := make(map[string]bool)
 		for _, c := range comps {
 			compTexts[c.Text] = true
@@ -203,7 +204,7 @@ func checkCompletion(exp Expectation, state State) error {
 	}
 
 	if expected, hasExcludes := exp.Values["excludes"]; hasExcludes {
-		excludedItems := strings.Split(expected, ",")
+		excludedItems, _ := stringsx.SplitCount(expected, ",")
 		compTexts := make(map[string]bool)
 		for _, c := range comps {
 			compTexts[c.Text] = true
@@ -223,7 +224,7 @@ func checkCompletion(exp Expectation, state State) error {
 	}
 
 	if expected, hasExact := exp.Values["exact"]; hasExact {
-		expectedItems := strings.Split(expected, ",")
+		expectedItems, _ := stringsx.SplitCount(expected, ",")
 		if len(comps) != len(expectedItems) {
 			return fmt.Errorf("expected exactly %d completions, got %d", len(expectedItems), len(comps))
 		}

@@ -30,6 +30,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 )
 
 func main() {
@@ -93,7 +94,7 @@ func runChecks(root string) []issue {
 }
 
 func functionalGateSuites(root string) []string {
-	lines, err := readLines(filepath.Join(root, "Makefile"))
+	lines, err := readMakefileLines(root, "Makefile", make(map[string]bool))
 	if err != nil {
 		return nil
 	}
@@ -125,6 +126,50 @@ func functionalGateSuites(root string) []string {
 		suites = append(suites, suite)
 	}
 	return suites
+}
+
+func readMakefileLines(root, rel string, seen map[string]bool) ([]string, error) {
+	rel = filepath.Clean(rel)
+	if seen[rel] {
+		return nil, nil
+	}
+	seen[rel] = true
+
+	lines, err := readLines(filepath.Join(root, rel))
+	if err != nil {
+		return nil, err
+	}
+
+	var out []string
+	base := filepath.Dir(rel)
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		fields := strings.Fields(trimmed)
+		if strings.HasPrefix(line, "\t") || len(fields) < 2 || (fields[0] != "include" && fields[0] != "-include" && fields[0] != "sinclude") {
+			out = append(out, line)
+			continue
+		}
+
+		for _, inc := range fields[1:] {
+			if strings.ContainsAny(inc, "$*?[{(") {
+				out = append(out, line)
+				continue
+			}
+			incRel := filepath.Clean(inc)
+			if !filepath.IsAbs(incRel) && base != "." {
+				incRel = filepath.Join(base, incRel)
+			}
+			incLines, err := readMakefileLines(root, incRel, seen)
+			if err != nil {
+				if fields[0] == "-include" || fields[0] == "sinclude" {
+					continue
+				}
+				return nil, err
+			}
+			out = append(out, incLines...)
+		}
+	}
+	return out, nil
 }
 
 func zeTestSuiteFromMakeLine(line string) (string, bool) {
@@ -592,10 +637,23 @@ func checkMakefileHelp(root string, gateSuites []string) []issue {
 		return nil
 	}
 
-	re := regexp.MustCompile(`ze-functional-test\s+- Run ze functional tests \(([^)]*)\)`)
+	listRe := regexp.MustCompile(`ze-functional-test\s+- Run ze functional tests \(([^)]*)\)`)
+	countRe := regexp.MustCompile(`ze-functional-test\s+All\s+(\d+)\s+gating suites`)
 	for i, line := range lines {
-		m := re.FindStringSubmatch(line)
+		m := listRe.FindStringSubmatch(line)
 		if len(m) < 2 {
+			if count := countRe.FindStringSubmatch(line); len(count) == 2 {
+				claimed, _ := strconv.Atoi(count[1])
+				if claimed == len(gateSuites) {
+					return nil
+				}
+				return []issue{{
+					File:    "Makefile",
+					Line:    i + 1,
+					Message: fmt.Sprintf("ze-functional-test help claims %d suites, target has %d", claimed, len(gateSuites)),
+					Detail:  fmt.Sprintf("target: %s", strings.Join(gateSuites, ", ")),
+				}}
+			}
 			continue
 		}
 		claimed := splitSuiteList(m[1])
@@ -618,8 +676,8 @@ func checkMakefileHelp(root string, gateSuites []string) []issue {
 }
 
 func splitSuiteList(raw string) []string {
-	parts := strings.Split(raw, ",")
-	out := make([]string, 0, len(parts))
+	parts, count := stringsx.SplitCount(raw, ",")
+	out := make([]string, 0, count)
 	for _, part := range parts {
 		name := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(part), "and "))
 		if name != "" {

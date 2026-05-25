@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"os"
 	osexec "os/exec"
 	"path/filepath"
 	"strings"
@@ -59,6 +60,78 @@ func TestDocDriftScriptRuns(t *testing.T) {
 		!strings.Contains(s, "Documentation drift") &&
 		!strings.Contains(s, "No documentation drift") {
 		t.Fatalf("doc_drift.go did not produce expected output:\n%s", s)
+	}
+}
+
+// VALIDATES: scripts/docvalid/doc_drift.go follows Makefile include files when
+// deriving ze-functional-test suites.
+// PREVENTS: docs drift falling back to a tool failure after the Makefile is split.
+func TestDocDriftDerivesFunctionalSuites(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+	defer cancel()
+	cmd := osexec.CommandContext(ctx, "go", "run", "scripts/docvalid/doc_drift.go")
+	cmd.Dir = repoRoot(t)
+	out, _ := cmd.CombinedOutput() //nolint:errcheck // drift exit code is informational here
+	s := string(out)
+	if strings.Contains(s, "could not derive ze-functional-test suites") {
+		t.Fatalf("doc_drift.go did not derive functional suites from split Makefiles:\n%s", s)
+	}
+}
+
+// VALIDATES: scripts/dev/code_to_docs.py accepts the source-anchor separators
+// already used by docs.
+// PREVENTS: false stale references when anchors use a single hyphen separator.
+func TestCodeToDocsParsesSourceAnchorSeparators(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+	defer cancel()
+	script := "import sys\n" +
+		"sys.path.insert(0, 'scripts/dev')\n" +
+		"import code_to_docs\n" +
+		"paths = code_to_docs.extract_paths('internal/core/metrics/metrics.go - Registry interface; internal/core/metrics/prometheus.go -- PrometheusRegistry; internal/core/metrics/nop.go \\u2014 NopRegistry')\n" +
+		"print('\\n'.join(paths))\n"
+	cmd := osexec.CommandContext(ctx, "python3", "-c", script)
+	cmd.Dir = repoRoot(t)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("code_to_docs.py import failed: %v\n%s", err, out)
+	}
+	s := string(out)
+	for _, want := range []string{
+		"internal/core/metrics/metrics.go",
+		"internal/core/metrics/prometheus.go",
+		"internal/core/metrics/nop.go",
+	} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("missing parsed path %q in:\n%s", want, s)
+		}
+	}
+}
+
+// VALIDATES: scripts/dev/code_to_docs.py --check reports stale anchors without
+// regenerating ai/CODE-TO-DOCS.md.
+// PREVENTS: audit/check mode mutating generated documentation indexes.
+func TestCodeToDocsCheckModeIsReadOnly(t *testing.T) {
+	root := repoRoot(t)
+	indexPath := filepath.Join(root, "ai", "CODE-TO-DOCS.md")
+	before, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatalf("read code-to-docs index before check: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+	defer cancel()
+	cmd := osexec.CommandContext(ctx, "python3", "scripts/dev/code_to_docs.py", "--check")
+	cmd.Dir = root
+	out, _ := cmd.CombinedOutput() //nolint:errcheck // stale refs may make check exit non-zero
+	if strings.Contains(string(out), "wrote ") {
+		t.Fatalf("check mode reported a write:\n%s", out)
+	}
+	after, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatalf("read code-to-docs index after check: %v", err)
+	}
+	if string(before) != string(after) {
+		t.Fatalf("code-to-docs index changed in check mode")
 	}
 }
 

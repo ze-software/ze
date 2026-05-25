@@ -16,6 +16,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 )
 
 var (
@@ -187,8 +189,8 @@ func ParseBracketedList(args []string) ([]string, int) {
 
 	// Single value without brackets
 	// Expand comma-separated if present
-	parts := strings.Split(args[0], ",")
-	var expanded []string
+	parts, count := stringsx.SplitCount(args[0], ",")
+	expanded := make([]string, 0, count)
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
 		if p != "" {

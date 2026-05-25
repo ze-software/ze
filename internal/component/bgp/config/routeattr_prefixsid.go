@@ -9,6 +9,8 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 )
 
 var (
@@ -180,8 +182,8 @@ func parseSRGBList(s string) ([]srgbEntry, error) {
 		}
 
 		pair := s[start+1 : end]
-		parts := strings.Split(pair, ",")
-		if len(parts) != 2 {
+		parts, count := stringsx.SplitCount(pair, ",")
+		if count != 2 {
 			return nil, fmt.Errorf("invalid SRGB pair %q: expected (base,range)", pair)
 		}
 
@@ -304,9 +306,9 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 			return PrefixSID{}, errInvalidSrv6PrefixSidUnmatched
 		}
 		structStr := s[1:end]
-		parts := strings.Split(structStr, ",")
-		if len(parts) != 6 {
-			return PrefixSID{}, fmt.Errorf("invalid srv6 SID structure: expected 6 values, got %d", len(parts))
+		parts, count := stringsx.SplitCount(structStr, ",")
+		if count != 6 {
+			return PrefixSID{}, fmt.Errorf("invalid srv6 SID structure: expected 6 values, got %d", count)
 		}
 		for _, p := range parts {
 			v, err := strconv.ParseUint(strings.TrimSpace(p), 10, 8)
