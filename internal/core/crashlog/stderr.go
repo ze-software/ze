@@ -103,8 +103,9 @@ func stderrReader(pr *os.File, syslogW *syslog.Writer, crashDirPath string) {
 			inPanic = true
 			ring := slogutil.GlobalLogRing()
 			entries := ring.Snapshot(64, "", "")
+			panicBuf = appendCrashMetadata(panicBuf)
 			panicBuf = appendRingHeader(panicBuf, entries)
-			panicBuf = append(panicBuf, "=== Panic ===\n"...)
+			panicBuf = append(panicBuf, "\n=== Panic ===\n"...)
 		}
 
 		if inPanic {
