@@ -1,0 +1,8 @@
+# Test: ze service help exposes install, uninstall, and status
+# VALIDATES: service-1-systemd CLI surface is reachable through the shell entry point.
+
+cmd=foreground:seq=1:exec=ze service -h
+expect=exit:code=0
+expect=stdout:contains=install
+expect=stdout:contains=uninstall
+expect=stdout:contains=status

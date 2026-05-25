@@ -10,7 +10,7 @@ optionally sets up a systemd service, and creates the config directory.
 ### Quick Start
 
 ```bash
-ze install local
+sudo ze install local --no-systemd
 ```
 
 This presents an interactive menu to select the installation prefix:
@@ -26,7 +26,7 @@ Choice [1]:
 Use `--prefix` for non-interactive use:
 
 ```bash
-ze install local --prefix /usr/local
+sudo ze install local --prefix /usr/local --no-systemd
 ```
 
 ### Flags
@@ -57,7 +57,18 @@ After installation, run `ze init` to bootstrap the database.
 
 ### Systemd Unit
 
-The generated unit file:
+`ze install local` can install a minimal unit as part of binary installation.
+For the current service-management path, install the binary with `--no-systemd`,
+then use `ze service install` after `ze init`. This avoids creating a legacy
+unit first and then having `ze service install` refuse the existing unit.
+
+```bash
+sudo ze install local --prefix /usr/local --no-systemd
+sudo ze init
+sudo ze service install --start
+```
+
+The generated service-management unit file:
 
 ```ini
 [Unit]
@@ -67,14 +78,38 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+User=ze
+Group=ze
 ExecStart=<prefix>/bin/ze start
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5
 LimitNOFILE=65536
+LimitCORE=infinity
+WorkingDirectory=<config-dir>
+Environment=ZE_CONFIG_DIR=<config-dir>
+Environment=XDG_RUNTIME_DIR=/run/ze
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ProtectHome=true
+RuntimeDirectory=ze
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+`ze service install` refuses to run unless `<config-dir>/database.zefs` exists.
+It creates the `ze` user and group if missing, changes ownership of the config
+directory and `database.zefs` to `ze:ze`, writes `/etc/systemd/system/ze.service`,
+runs `systemctl daemon-reload`, and enables the service. Use `--dry-run` to
+print the unit file without root or systemd, `--config <dir>` to override the
+config directory in the unit, `--force` to overwrite an existing unit, and
+`--start` to start the service after enabling it.
+
+The systemd unit sets `XDG_RUNTIME_DIR=/run/ze`, so the daemon socket is
+`/run/ze/ze.socket`. For local operator CLI access, configure
+`daemon { socket "/run/ze/ze.socket"; }` or export `XDG_RUNTIME_DIR=/run/ze`.
 
 ## Uninstalling
 
@@ -97,6 +132,12 @@ ze uninstall --dry-run    # preview what would be removed
 
 Without `--yes`, uninstall shows what will be removed and asks for
 confirmation before proceeding.
+
+To remove only the systemd service unit and keep the binary and config, use:
+
+```bash
+sudo ze service uninstall
+```
 
 ## Remote Provisioning (PXE)
 

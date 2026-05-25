@@ -43,6 +43,7 @@ import (
 	zeremote "codeberg.org/thomas-mangin/ze/cmd/ze/remote"
 	zeresolve "codeberg.org/thomas-mangin/ze/cmd/ze/resolve"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
+	zeservice "codeberg.org/thomas-mangin/ze/cmd/ze/service"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	zesysctl "codeberg.org/thomas-mangin/ze/cmd/ze/sysctl"
 	zetacacs "codeberg.org/thomas-mangin/ze/cmd/ze/tacacs"
@@ -461,6 +462,8 @@ dispatch:
 		exit(zel2tp.Run(args[1:]))
 	case "appliance":
 		exit(zeappliance.Run(args[1:]))
+	case "service":
+		exit(zeservice.Run(args[1:]))
 	case "install":
 		exit(zeinstall.Run(args[1:]))
 	case "uninstall":

@@ -156,37 +156,74 @@ ze env get ze.log              # details for one var
 
 ## systemd
 
-Example unit file:
+Use `ze service install` on standard Linux hosts:
+
+```bash
+sudo ze init
+sudo ze service install --start
+```
+
+This writes `/etc/systemd/system/ze.service`, creates the `ze` user/group if
+missing, assigns ownership of the config directory and `database.zefs`, reloads
+systemd, enables the service, and starts it when `--start` is present.
+
+Inspect the generated unit without writing anything:
+
+```bash
+ze service install --dry-run --config /etc/ze
+```
+
+Run doctor after installation to verify the service account and binary path:
+
+```bash
+ze doctor
+```
+
+When `/etc/systemd/system/ze.service` exists, doctor checks that the unit's
+`ExecStart` binary exists and is executable, and that the configured `User` and
+`Group` exist on the host.
+
+The service runs with `XDG_RUNTIME_DIR=/run/ze`, so the daemon socket is
+`/run/ze/ze.socket`. Configure the same socket in ze config or export
+`XDG_RUNTIME_DIR=/run/ze` before running local operator CLI commands.
+
+Remove only the service unit:
+
+```bash
+sudo ze service uninstall
+```
+
+Generated unit shape:
 
 ```ini
 [Unit]
-Description=Ze BGP Daemon
+Description=Ze Network OS
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/ze /etc/ze/config.conf
-ExecReload=/usr/local/bin/ze signal reload
-ExecStop=/usr/local/bin/ze signal stop
+User=ze
+Group=ze
+ExecStart=/usr/local/bin/ze start
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5
-LimitNOFILE=65535
-
-# Logging goes to journald via stderr
-StandardError=journal
-SyslogIdentifier=ze
+LimitNOFILE=65536
+WorkingDirectory=/etc/ze
+Environment=ZE_CONFIG_DIR=/etc/ze
+Environment=XDG_RUNTIME_DIR=/run/ze
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ProtectHome=true
+RuntimeDirectory=ze
 
 [Install]
 WantedBy=multi-user.target
 ```
-
-Initialize credentials before starting:
-
-```bash
-sudo ze init
-sudo systemctl enable --now ze
-```
+<!-- source: cmd/ze/service/cmd_install.go -- cmdInstall -->
+<!-- source: cmd/ze/service/unit.go -- buildUnitFile -->
 
 ## Troubleshooting
 

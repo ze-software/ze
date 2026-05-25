@@ -1,0 +1,20 @@
+# Test: ze service install --dry-run prints systemd unit content
+# VALIDATES: service-1-systemd AC-6/AC-8/AC-10/AC-13/AC-14 dry-run exposes unit generation through the CLI.
+
+cmd=foreground:seq=1:exec=ze service install --dry-run --config /custom/path
+expect=exit:code=0
+expect=stdout:contains=[Unit]
+expect=stdout:contains=Description=Ze Network OS
+expect=stdout:contains=After=network-online.target
+expect=stdout:contains=ExecStart=
+expect=stdout:contains=/bin/ze start
+expect=stdout:contains=WorkingDirectory=/custom/path
+expect=stdout:contains=Environment=ZE_CONFIG_DIR=/custom/path
+expect=stdout:contains=User=ze
+expect=stdout:contains=Group=ze
+expect=stdout:contains=AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+expect=stdout:contains=CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+expect=stdout:contains=Environment=XDG_RUNTIME_DIR=/run/ze
+expect=stdout:contains=RuntimeDirectory=ze
+expect=stdout:contains=ProtectSystem=true
+expect=stdout:contains=WantedBy=multi-user.target

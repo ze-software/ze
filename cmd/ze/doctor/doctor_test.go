@@ -17,6 +17,7 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -200,6 +201,99 @@ func TestCheckPlugins_MissingBinary(t *testing.T) {
 	diags := checkPlugins(plugins)
 	require.Len(t, diags, 1)
 	assert.Equal(t, "doctor-plugin-missing", diags[0].Code)
+}
+
+func TestCheckSystemdServiceInstallMissingAccountAndExecutable(t *testing.T) {
+	// VALIDATES: doctor reports missing service user/group and non-executable ExecStart.
+	// PREVENTS: ze service install regressions that leave a unit which systemd cannot execute.
+	oldRead := readServiceUnitFile
+	oldStat := statServiceExecutable
+	oldUser := lookupServiceUser
+	oldGroup := lookupServiceGroup
+	readServiceUnitFile = func(string) ([]byte, error) {
+		return []byte("[Service]\nUser=ze\nGroup=ze\nExecStart=/missing/ze start\n"), nil
+	}
+	statServiceExecutable = func(string) (os.FileInfo, error) { return nil, os.ErrNotExist }
+	lookupServiceUser = func(string) (*user.User, error) { return nil, errors.New("missing user") }
+	lookupServiceGroup = func(string) (*user.Group, error) { return nil, errors.New("missing group") }
+	t.Cleanup(func() {
+		readServiceUnitFile = oldRead
+		statServiceExecutable = oldStat
+		lookupServiceUser = oldUser
+		lookupServiceGroup = oldGroup
+	})
+
+	diags := checkSystemdServiceInstall()
+	require.Len(t, diags, 3)
+	assertDiagCode(t, diags, "doctor-service-executable")
+	assertDiagCode(t, diags, "doctor-service-user")
+	assertDiagCode(t, diags, "doctor-service-group")
+}
+
+func TestCheckSystemdServiceInstallExecutableOK(t *testing.T) {
+	// VALIDATES: doctor accepts an ExecStart binary that exists and has executable bits.
+	// PREVENTS: false-positive service executable diagnostics after ze install.
+	binPath := filepath.Join(t.TempDir(), "ze")
+	require.NoError(t, os.WriteFile(binPath, []byte("#!/bin/sh\n"), 0o755))
+
+	oldRead := readServiceUnitFile
+	readServiceUnitFile = func(string) ([]byte, error) {
+		return []byte("[Service]\nExecStart=" + binPath + " start\n"), nil
+	}
+	t.Cleanup(func() { readServiceUnitFile = oldRead })
+
+	diags := checkSystemdServiceInstall()
+	assert.Empty(t, diags)
+}
+
+func TestParseServiceUnitLastExecStartWins(t *testing.T) {
+	// VALIDATES: systemd override semantics where last ExecStart= wins.
+	// PREVENTS: false "no ExecStart" when a drop-in clears and re-sets the value.
+	data := []byte("[Service]\nExecStart=\nExecStart=/opt/ze/bin/ze start\n")
+	unit := parseServiceUnit(data)
+	assert.Equal(t, "/opt/ze/bin/ze", unit.execStart)
+}
+
+func TestParseServiceUnitIgnoresNonServiceSection(t *testing.T) {
+	// VALIDATES: parser only reads keys from [Service], not [Unit] or [Install].
+	// PREVENTS: false diagnostics from keys in wrong sections of operator-edited units.
+	data := []byte("[Unit]\nDescription=Ze\nUser=bogus\n\n[Service]\nExecStart=/usr/bin/ze start\nUser=ze\nGroup=ze\n\n[Install]\nWantedBy=multi-user.target\n")
+	unit := parseServiceUnit(data)
+	assert.Equal(t, "/usr/bin/ze", unit.execStart)
+	assert.Equal(t, "ze", unit.user, "should read User from [Service], not [Unit]")
+	assert.Equal(t, "ze", unit.group)
+}
+
+func TestFirstSystemdCommandStripsAllPrefixes(t *testing.T) {
+	// VALIDATES: systemd exec prefixes (-, +, !, !!, @, :) are stripped from ExecStart.
+	// PREVENTS: confusing "not absolute path" diagnostic on prefixed exec lines.
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"/usr/bin/ze start", "/usr/bin/ze"},
+		{"-/usr/bin/ze start", "/usr/bin/ze"},
+		{"+/usr/bin/ze start", "/usr/bin/ze"},
+		{"!!/usr/bin/ze start", "/usr/bin/ze"},
+		{"@/usr/bin/ze start", "/usr/bin/ze"},
+		{":/usr/bin/ze start", "/usr/bin/ze"},
+		{"-+/usr/bin/ze start", "/usr/bin/ze"},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		got := firstSystemdCommand(tt.input)
+		assert.Equal(t, tt.want, got, "input=%q", tt.input)
+	}
+}
+
+func assertDiagCode(t *testing.T, diags []diagnostic.Diagnostic, code string) {
+	t.Helper()
+	for i := range diags {
+		if diags[i].Code == code {
+			return
+		}
+	}
+	t.Fatalf("missing diagnostic %s in %#v", code, diags)
 }
 
 func sshEnabledTree() *config.Tree {

@@ -29,6 +29,8 @@ remediation guidance.
 | `doctor-config-reference` | Dangling policy/filter references |
 | `doctor-tls-*` | TLS cert existence, expiry, validity |
 | `doctor-plugin-missing` | Plugin binary on PATH |
+| `doctor-service-executable` | Installed systemd unit `ExecStart` points to an executable ze binary |
+| `doctor-service-user` / `doctor-service-group` | User/group referenced by installed `ze.service` exists |
 | `doctor-ssh-hostkey-missing` | SSH host key |
 | `doctor-listen-unavailable` | Port binding |
 | `doctor-iface-missing` / `doctor-iface-down` | Interface existence and state |

@@ -14,6 +14,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -34,7 +35,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
-const doctorListenerFailEnv = "ze.test.doctor.listener-fail-code"
+const (
+	doctorListenerFailEnv = "ze.test.doctor.listener-fail-code"
+	doctorServiceUnitEnv  = "ze.test.doctor.service-unit"
+	configTrueValue       = "true"
+	defaultServiceUnit    = "/etc/systemd/system/ze.service"
+)
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorListenerFailEnv,
@@ -42,6 +48,18 @@ var _ = env.MustRegister(env.EnvEntry{
 	Description: "Force selected doctor listener codes to fail (test infrastructure)",
 	Private:     true,
 })
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         doctorServiceUnitEnv,
+	Type:        "string",
+	Description: "Override ze.service unit path for doctor functional tests",
+	Private:     true,
+})
+
+var readServiceUnitFile = os.ReadFile
+var statServiceExecutable = os.Stat
+var lookupServiceUser = user.Lookup
+var lookupServiceGroup = user.LookupGroup
 
 // Run executes the doctor command.
 func Run(args []string) int {
@@ -95,6 +113,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	}()
 
 	diags = append(diags, checkStoreIntegrity()...)
+	diags = append(diags, checkSystemdServiceInstall()...)
 
 	configData, configName, err := loadConfigData(store, configPath)
 	if err != nil {
@@ -215,6 +234,160 @@ func checkStoreIntegrity() []diagnostic.Diagnostic {
 		}}
 	}
 
+	return nil
+}
+
+type serviceUnitInfo struct {
+	execStart string
+	user      string
+	group     string
+}
+
+func checkSystemdServiceInstall() []diagnostic.Diagnostic {
+	unitPath := env.Get(doctorServiceUnitEnv)
+	if unitPath == "" {
+		unitPath = defaultServiceUnit
+	}
+
+	data, err := readServiceUnitFile(unitPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-service-unit",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "systemd service unit cannot be read: " + unitPath + ": " + err.Error(),
+			Path:     unitPath,
+		}}
+	}
+
+	unit := parseServiceUnit(data)
+	var diags []diagnostic.Diagnostic
+	diags = append(diags, checkServiceExecutable(unitPath, unit.execStart)...)
+	if unit.user != "" {
+		diags = append(diags, checkServiceUser(unitPath, unit.user)...)
+	}
+	if unit.group != "" {
+		diags = append(diags, checkServiceGroup(unitPath, unit.group)...)
+	}
+	return diags
+}
+
+func parseServiceUnit(data []byte) serviceUnitInfo {
+	var unit serviceUnitInfo
+	inService := false
+	for line := range strings.SplitSeq(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+			continue
+		}
+		if strings.HasPrefix(line, "[") {
+			inService = line == "[Service]"
+			continue
+		}
+		if !inService {
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		switch strings.TrimSpace(key) {
+		case "ExecStart":
+			unit.execStart = firstSystemdCommand(value)
+		case "User":
+			unit.user = strings.TrimSpace(value)
+		case "Group":
+			unit.group = strings.TrimSpace(value)
+		}
+	}
+	return unit
+}
+
+func firstSystemdCommand(value string) string {
+	fields := strings.Fields(strings.TrimSpace(value))
+	if len(fields) == 0 {
+		return ""
+	}
+	cmd := strings.Trim(fields[0], `"'`)
+	for cmd != "" {
+		switch cmd[0] {
+		case '-', '+', '!', '@', ':':
+			cmd = cmd[1:]
+		default:
+			return cmd
+		}
+	}
+	return cmd
+}
+
+func checkServiceExecutable(unitPath, executable string) []diagnostic.Diagnostic {
+	if executable == "" {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-service-executable",
+			Severity: diagnostic.SeverityError,
+			Message:  "systemd service unit has no ExecStart command: " + unitPath,
+			Path:     unitPath,
+		}}
+	}
+	if !filepath.IsAbs(executable) {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-service-executable",
+			Severity: diagnostic.SeverityError,
+			Message:  "systemd service ExecStart is not an absolute path: " + executable,
+			Path:     unitPath,
+			Expected: "absolute executable path",
+			Actual:   executable,
+		}}
+	}
+	info, err := statServiceExecutable(executable)
+	if err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-service-executable",
+			Severity: diagnostic.SeverityError,
+			Message:  "systemd service executable not found: " + executable + ": " + err.Error(),
+			Path:     executable,
+		}}
+	}
+	if info.IsDir() || info.Mode().Perm()&0o111 == 0 {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-service-executable",
+			Severity: diagnostic.SeverityError,
+			Message:  "systemd service executable is not executable: " + executable,
+			Path:     executable,
+			Expected: "executable file",
+			Actual:   info.Mode().String(),
+		}}
+	}
+	return nil
+}
+
+func checkServiceUser(unitPath, name string) []diagnostic.Diagnostic {
+	if _, err := lookupServiceUser(name); err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-service-user",
+			Severity: diagnostic.SeverityError,
+			Message:  "systemd service user not found: " + name,
+			Path:     unitPath,
+			Expected: "existing user",
+			Actual:   name,
+		}}
+	}
+	return nil
+}
+
+func checkServiceGroup(unitPath, name string) []diagnostic.Diagnostic {
+	if _, err := lookupServiceGroup(name); err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-service-group",
+			Severity: diagnostic.SeverityError,
+			Message:  "systemd service group not found: " + name,
+			Path:     unitPath,
+			Expected: "existing group",
+			Actual:   name,
+		}}
+	}
 	return nil
 }
 
@@ -522,7 +695,7 @@ func checkSSHHostKey(tree *config.Tree, configDir string) []diagnostic.Diagnosti
 		return nil
 	}
 	enabled, _ := sshBlock.Get("enabled")
-	if enabled != "true" {
+	if enabled != configTrueValue {
 		return nil
 	}
 
@@ -954,7 +1127,7 @@ func configEnabled(tree *config.Tree, defaultValue bool) bool {
 		return false
 	}
 	if v, ok := tree.Get("enabled"); ok {
-		return v == "true"
+		return v == configTrueValue
 	}
 	return defaultValue
 }
@@ -1010,7 +1183,7 @@ func extractSSHListeners(tree *config.Tree) []serviceListener {
 		return nil
 	}
 	enabled, _ := sshBlock.Get("enabled")
-	if enabled != "true" {
+	if enabled != configTrueValue {
 		return nil
 	}
 

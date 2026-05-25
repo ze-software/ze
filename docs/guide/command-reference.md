@@ -967,6 +967,41 @@ SIGTERM/SIGINT are forwarded to the child ze process for clean shutdown.
 <!-- source: cmd/ze/install/config.go -- generateConfig, validateFlags -->
 <!-- source: cmd/ze/install/fork.go -- forkAndServe -->
 
+### ze service
+
+Manage ze as a systemd service on standard Linux hosts. This command is for
+non-gokrazy deployments where ze runs under systemd.
+
+```
+sudo ze service install              # write and enable ze.service
+sudo ze service install --start      # install, enable, and start
+ze service install --dry-run         # print the unit file, no writes
+ze service status                    # run systemctl status ze.service
+sudo ze service uninstall            # stop, disable, and remove the unit
+```
+
+| Flag | Purpose |
+|------|---------|
+| `--config <dir>` | Override the config directory used in the unit file |
+| `--start` | Start the service after enabling it |
+| `--force` | Overwrite an existing `/etc/systemd/system/ze.service` |
+| `--dry-run` | Print the generated unit file to stdout without root, systemctl, or filesystem writes |
+
+`ze service install` requires Linux, `systemctl`, root, and an existing
+`<config-dir>/database.zefs`. Run `sudo ze init` first. The generated unit runs
+as user/group `ze`, sets `XDG_RUNTIME_DIR=/run/ze`, creates `/run/ze` through
+`RuntimeDirectory=ze`, and grants `CAP_NET_ADMIN`, `CAP_NET_RAW`, and
+`CAP_NET_BIND_SERVICE` through systemd capabilities.
+
+The daemon socket is `/run/ze/ze.socket` under this unit. Configure
+`daemon { socket "/run/ze/ze.socket"; }` or run operator commands with
+`XDG_RUNTIME_DIR=/run/ze` so local CLI commands connect to the same socket.
+<!-- source: cmd/ze/service/main.go -- Run -->
+<!-- source: cmd/ze/service/cmd_install.go -- cmdInstall -->
+<!-- source: cmd/ze/service/cmd_uninstall.go -- cmdUninstall -->
+<!-- source: cmd/ze/service/cmd_status.go -- cmdStatus -->
+<!-- source: cmd/ze/service/unit.go -- buildUnitFile -->
+
 ### ze passwd
 
 Bcrypt-hash a plaintext password for use in `system.authentication.user.password`.

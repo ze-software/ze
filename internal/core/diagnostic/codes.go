@@ -158,6 +158,30 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json"},
 	},
 	{
+		Code:        "doctor-service-unit",
+		Title:       "Systemd service unit unreadable",
+		Description: "The installed ze systemd unit exists but cannot be read by doctor.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-service-unit"},
+	},
+	{
+		Code:        "doctor-service-executable",
+		Title:       "Systemd service executable invalid",
+		Description: "The installed ze systemd unit ExecStart does not point to an existing executable file.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-service-executable"},
+	},
+	{
+		Code:        "doctor-service-user",
+		Title:       "Systemd service user missing",
+		Description: "The user configured in the ze systemd unit does not exist on this host.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-service-user"},
+	},
+	{
+		Code:        "doctor-service-group",
+		Title:       "Systemd service group missing",
+		Description: "The group configured in the ze systemd unit does not exist on this host.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-service-group"},
+	},
+	{
 		Code:        "doctor-ssh-hostkey-missing",
 		Title:       "SSH host key not found",
 		Description: "The SSH host key file could not be found at the expected path.",
