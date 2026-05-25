@@ -887,4 +887,59 @@ routes = {}  # (peer, prefix) -> {'attrs': bytes, 'nlri': bytes, 'msg_id': int}
 
 ---
 
-**Last Updated:** 2026-01-30
+## Memory Profile (Measured 2026-05-25)
+
+Three storage layers hold route data. Each has different memory
+characteristics. Measured at 100K IPv4/32 routes, Apple M4 Max, Go 1.26.
+
+### Per-Route Memory by Layer
+
+| Layer | Location | Struct | Measured | Allocs | Per-peer? |
+|-------|----------|--------|----------|--------|-----------|
+| Plugin RIB (adj-rib-in) | `plugins/rib/storage/` | 32 B | **69 B** | 1.0 | No |
+| Engine OutgoingRIB | `bgp/rib/outgoing.go` | 160 B | **478 B** | 10.0 | Yes |
+| Plugin ribOut | `bgp/route.go` in `rib.go` | 288 B | **385-741 B** | 6-10 | Yes |
+
+"Measured" = TotalAlloc / routes. Includes struct, backing data (strings,
+slices, wire bytes), and map overhead. "Per-peer?" means the data is
+duplicated for every peer.
+
+### Scaling Impact
+
+The plugin RIB stores one copy per route (shared attributes via pool handles).
+Both outgoing layers store a full copy per peer.
+
+| Scenario | Plugin RIB | Engine Out | Plugin ribOut | Total |
+|----------|-----------|------------|---------------|-------|
+| 100K routes, 1 peer | 7 MB | 46 MB | 37 MB | 90 MB |
+| 100K routes, 10 peers | 7 MB | 456 MB | 367 MB | 830 MB |
+| 1M routes, 10 peers | 66 MB | 4.6 GB | 3.7 GB | 8.4 GB |
+| 1M routes, 50 peers | 66 MB | 22.8 GB | 18.4 GB | 41.3 GB |
+
+### Where the Bytes Go
+
+**Engine rib.Route (478 B):** 160 B struct (NLRI interface, nextHop, attributes
+slice, ASPath pointer, refCount, indexCache, wireBytes, nlriWireBytes,
+sourceCtxID) + ~220 B backing data (NLRI prefix, 3 attribute interface values,
+ASPath segments, 40 B wire cache, 4 B NLRI cache, 15 B index cache) + ~70 B
+map overhead (string key + bucket).
+
+**Plugin bgp.Route (385-741 B):** 288 B struct (strings for Prefix/NextHop/
+SourcePeer, slices for ASPath/Communities, pointers for Origin/MED/LocalPref,
+hex RawAttrs string, Meta map) + backing data. Rich attributes (large
+communities, extended communities, meta map) push from 385 to 741 B.
+
+**Plugin RIB RouteEntry (69 B):** 32 B struct (Bundle handle + ASPath handle +
+fingerprint + stale level) + 37 B BART trie node overhead. Pool attribute
+data is shared across routes, not counted per-route.
+
+### Optimization Opportunity
+
+Both per-peer layers duplicate full route data. Extending the pool-handle
+pattern (already proven in the plugin RIB at 69 B/route) to the outgoing
+layers could reduce 863 B/route/peer to ~4 B/route/peer + shared pool.
+See `plan/research-adjribout-memory-profiling.md` for the detailed proposal.
+
+---
+
+**Last Updated:** 2026-05-25
