@@ -1,5 +1,7 @@
 # Plan: Shard the Loc-RIB by prefix hash (Phase 4)
 
+Status: **done** (2026-04-20, commit 2bcbe9a0d)
+
 Working design document. Precedes a formal spec.
 
 ## Why
@@ -105,26 +107,32 @@ Step order matters: step 1-2 is additive (old tests still pass), step
 - `internal/core/rib/locrib/shard_bench_test.go` -- new; sharded vs
   single benchmark.
 
-## Deferred to a later phase
+## Resolved: previously deferred
 
-- Sharding the BGP-plugin-internal `bestPrev` store
-  (`rib_bestchange.go:247-249`) is a separate change with the same
-  shape. Do after locrib sharding lands so the pattern is proven.
-- Per-shard metrics (insertions/shard, queue depth/shard) are
-  observability, not correctness; add when debugging a hot shard.
+Both deferred items landed in the same commit (2bcbe9a0d):
 
-## Open questions
+- **BGP bestPrev sharding** -- `bestPrevShards` in
+  `internal/component/bgp/plugins/rib/bestprev_shard.go`. Same shape as
+  locrib sharding: `shardIndex(prefix, n)` picks a shard, writer takes
+  only that shard's lock. Configurable via `ze.bgp.rib.bestprev.shards`.
+- **Per-shard metrics** -- both locrib (`ze_locrib_shard_{inserts,removes,
+  lookups,depth}`) and BGP (`ze_rib_bestprev_shard_depth`) export per-
+  (family, shard) Prometheus counters/gauges.
 
-1. Should the OnChange subscriber list be per-shard too? A per-shard
-   copy-on-write list avoids one atomic load per dispatch but a subscriber
-   registered after one shard's Insert but before another's would see
-   inconsistent state. Start with a single shared list; revisit if the
-   atomic load shows up in profiles.
-2. Iterate order. Some callers (replay, show) expect sorted output
-   today. Document the ordering change explicitly in each caller; if a
-   caller genuinely needs sorted order, sort at the caller not in
-   locrib.
-3. Family creation races. Two goroutines inserting into a previously-
-   absent family must cooperate. The outer map keyed by family.Family
-   needs one writer at a time -- smallest mutex covers it; families
-   are created O(few) per process lifetime.
+Follow-up work (commit 51c883952, learned 783-rib-peer-lock-split):
+the outer `RIBManager.mu` was narrowed to `peerMu` covering only peer-
+keyed maps, completing the lock decomposition.
+
+## Resolved: open questions
+
+1. **Per-shard subscriber lists: yes.** Each shard owns its own copy-on-
+   write `subscriberList`. `RIB.OnChange` replicates registration into
+   every existing shard plus a template that newly-created families
+   inherit, so subscribers registered before first Insert still see
+   Changes from every shard. No inconsistent-state window.
+2. **Iterate order: documented as unordered.** Callers that need sorted
+   output sort at the call site; locrib does not promise prefix ordering
+   across shards.
+3. **Family creation races: outer lock.** A minimal outer lock serializes
+   family creation (O(few) per process lifetime). Once the family exists,
+   per-shard locks carry normal traffic.
