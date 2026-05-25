@@ -7,6 +7,22 @@ Rationale: `ai/rationale/json-format.md`
 
 All JSON keys: lowercase kebab-case. Never camelCase or snake_case.
 
+**Deriving the name:** the JSON key must match the YANG leaf name or config tree key.
+A config key `remove-private-as` becomes `json:"remove-private-as"`, never
+`remove-private` or `remove_private_as`. When no YANG leaf exists,
+use the same kebab-case convention: lowercase words separated by hyphens.
+
+**Go struct tags:** `json:"kebab-name"` or `json:"kebab-name,omitempty"`. The tag
+is the contract. Go field names are PascalCase (Go convention), JSON tags are
+kebab-case (Ze convention). Never let Go's default JSON marshaling (which uses the
+Go field name) leak into output.
+
+| Wrong | Right | Why |
+|-------|-------|-----|
+| `json:"remove-private"` | `json:"remove-private-as"` | Truncated; must match the full config key |
+| `json:"policyAttrASPathRemovePrivate"` | `json:"remove-private-as"` | camelCase is not kebab-case |
+| No `json` tag on exported field | `json:"kebab-name"` | Go default leaks PascalCase |
+
 **Exception:** `internal/component/lg/handler_api.go` uses birdwatcher-convention `snake_case` for external compatibility with Alice-LG and other looking glass frontends. This is the only file exempt from kebab-case.
 
 ## Ze IPC Envelope

@@ -111,6 +111,12 @@ the relevant code.
   `// TODO:` rather than a panic, a `//nolint`, or nothing. A reviewer
   should see the gap in a diff.
 
+## JSON Struct Tags (MANDATORY)
+
+Every exported struct field that reaches JSON output **must** have a `json:"kebab-name"` tag.
+Keys are lowercase kebab-case, matching the YANG leaf or config tree key. Full rules
+and attribute table: `ai/rules/json-format.md`.
+
 ## Forbidden
 
 - `panic()` for error handling. Allowed prefixes (enforced by `block-panic-error.sh`): `panic("BUG: ...")`, `panic("unreachable: ...")`, `panic("not implemented")`, `panic("unimplemented")`, `panic("TODO: ...")`, `panic("impossible: ...")`. Use `panic("BUG: <what>")` for programmer-error guards that must never fire at runtime. Any other `panic()` call is rejected at Write/Edit time (test files and `scripts/` excepted)

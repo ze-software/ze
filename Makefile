@@ -5,6 +5,7 @@
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp
 .PHONY: _ze-verify-impl _ze-verify-changed-impl
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
+.PHONY: ze-regen ze-regen-check
 .PHONY: check ze-setup
 .PHONY: help-test help-deploy help-dev
 
@@ -227,6 +228,18 @@ ze-ai-instructions:
 ze-ai-sync:
 	@scripts/dev/skill_sync.sh
 
+ze-regen: generate ze-ai-instructions ze-ai-sync ze-doc-index
+	@echo "All generated files updated"
+
+ze-regen-check: ze-regen
+	@if ! git diff --quiet -- CLAUDE.md AGENTS.md .claude/skills/ .codex/skills/ .agents/skills/ ai/CODE-TO-DOCS.md internal/component/plugin/all/all.go 2>/dev/null; then \
+		echo "ERROR: Generated files are stale. Run 'make ze-regen' and commit the result." >&2; \
+		git diff --stat -- CLAUDE.md AGENTS.md .claude/skills/ .codex/skills/ .agents/skills/ ai/CODE-TO-DOCS.md internal/component/plugin/all/all.go; \
+		exit 1; \
+	fi
+	@python3 scripts/dev/code_to_docs.py --check
+	@echo "All generated files are up to date"
+
 clean:
 	@echo "Cleaning..."
 	rm -rf bin/ tmp/
@@ -443,11 +456,14 @@ help-dev:
 	@echo "    tidy                     Tidy go.mod"
 	@echo "    check                    Quick check (fmt + vet)"
 	@echo ""
-	@echo "  Vendor/AI:"
-	@echo "    ze-sync-vendor-web       Sync vendored web assets"
-	@echo "    ze-check-vendor-web      Check for newer web asset versions"
+	@echo "  Generated files:"
+	@echo "    ze-regen                 Regenerate all generated files"
+	@echo "    ze-regen-check           Verify generated files are up to date"
 	@echo "    ze-ai-instructions       Generate CLAUDE.md and AGENTS.md"
 	@echo "    ze-ai-sync               Sync canonical skills to tool directories"
+	@echo "    ze-doc-index             Regenerate ai/CODE-TO-DOCS.md"
+	@echo "    ze-sync-vendor-web       Sync vendored web assets"
+	@echo "    ze-check-vendor-web      Check for newer web asset versions"
 	@echo ""
 	@echo "  Cleanup:"
 	@echo "    clean                    Remove bin/ and tmp/"
