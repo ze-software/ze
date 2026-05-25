@@ -62,6 +62,7 @@ Registration, SDK, event flow, lifecycle, hook integration.
 - [303](plan/learned/303-plugin-api-dispatch.md) -- Plugin API dispatch via text commands
 - [325](plan/learned/325-plugin-rib-families.md) -- Plugin RIB family registration
 - [757](plan/learned/757-typed-route-result.md) -- Typed RouteResult replaces map[string]any in update-route, eliminating int/float64 transport divergence
+- [781](plan/learned/781-remove-private-as.md) -- Remove-private-as: plugin intent + reactor wire rewrite; Set+Prepend composition
 
 ## Configuration
 
@@ -122,6 +123,7 @@ Route storage, selection, forwarding, communities, path selection.
 - [717](plan/learned/717-rib-2-multicast.md) -- Multicast RPF via generic LPM on sharded Loc-RIB; query-all-shards pattern; wiring gap caught by review
 - [772](plan/learned/772-nh-cascade-wiring.md) -- NH cascade wiring: async OnChange to avoid shard deadlock, LPM race fix, ECMP-aware cascade
 - [774](plan/learned/774-fib-depth-2-ecmp.md) -- ECMP is two mechanisms: bgp-rib multipath (within BGP) vs sysrib ecmpCollect (cross-protocol); locrib path means sysrib only sees one "bgp" entry
+- [776](plan/learned/776-srv6-prefix-sid.md) -- SRv6 via lazy OtherAttrs extraction; SID resolvability reuses NH resolver; transposition at emission time; Reserved-byte trap in RFC 9252 wire format
 
 ## Protocol/RFC
 

@@ -85,6 +85,7 @@ var genericAttrCodes = []struct {
 }{
 	{attribute.AttrOrigin, 0x40},          // Well-known mandatory
 	{attribute.AttrASPath, 0x40},          // Well-known mandatory
+	{attribute.AttrAS4Path, 0xC0},         // Optional transitive (RFC 6793)
 	{attribute.AttrNextHop, 0x40},         // Well-known mandatory
 	{attribute.AttrMED, 0x80},             // Optional non-transitive
 	{attribute.AttrLocalPref, 0x40},       // Well-known (IBGP)
@@ -374,13 +375,17 @@ func aspathHandler() registry.AttrModHandler {
 	setHandler := genericAttrSetHandler(0x40, byte(attribute.AttrASPath))
 
 	return func(src []byte, ops []registry.AttrOp, buf []byte, off int) int {
-		// Check for prepend ops.
+		// Check for prepend ops and a possible Set base. Set is applied first,
+		// then prepend ops are placed in front of that base path.
 		var prependBufs [][]byte
 		hasPrepend := false
+		var setOp *registry.AttrOp
 		for i := range ops {
 			if ops[i].Action == registry.AttrModPrepend && len(ops[i].Buf) > 0 {
 				prependBufs = append(prependBufs, ops[i].Buf)
 				hasPrepend = true
+			} else if ops[i].Action == registry.AttrModSet || ops[i].Action == registry.AttrModSuppress {
+				setOp = &ops[i]
 			}
 		}
 
@@ -389,9 +394,16 @@ func aspathHandler() registry.AttrModHandler {
 			return setHandler(src, ops, buf, off)
 		}
 
-		// Prepend: extract existing value from source, prepend new segment(s).
+		if setOp != nil && setOp.Action == registry.AttrModSuppress {
+			return off
+		}
+
+		// Prepend: use Set as the base when present, otherwise extract existing
+		// value from source, then prepend new segment(s).
 		var existingVal []byte
-		if len(src) > 2 {
+		if setOp != nil {
+			existingVal = setOp.Buf
+		} else if len(src) > 2 {
 			hdrLen := 3
 			if src[0]&0x10 != 0 {
 				hdrLen = 4

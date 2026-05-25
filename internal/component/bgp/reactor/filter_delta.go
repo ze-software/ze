@@ -19,6 +19,9 @@ import (
 const (
 	policyAttrASPath        = "as-path"
 	policyAttrASPathPrepend = "as-path-prepend"
+	policyAttrRemovePrivate = "remove-private"
+	removePrivateASStrip    = "strip"
+	removePrivateASPeerAS   = "peer-as"
 )
 
 // extractLegacyNLRIOverride compares the nlri field in the original and
@@ -198,7 +201,7 @@ func textDeltaToModOps(original, modified string, mods *registry.ModAccumulator)
 
 	// Changed or added attributes.
 	for name, modVal := range modAttrs {
-		if name == policyAttrNLRI || name == policyAttrASPath || name == policyAttrASPathPrepend {
+		if name == policyAttrNLRI || name == policyAttrASPath || name == policyAttrASPathPrepend || name == policyAttrRemovePrivate {
 			continue
 		}
 		origVal, existed := origAttrs[name]
@@ -223,7 +226,7 @@ func textDeltaToModOps(original, modified string, mods *registry.ModAccumulator)
 
 	// Removed attributes: present in original, absent in modified.
 	for name := range origAttrs {
-		if name == policyAttrNLRI || name == policyAttrASPath || name == policyAttrASPathPrepend {
+		if name == policyAttrNLRI || name == policyAttrASPath || name == policyAttrASPathPrepend || name == policyAttrRemovePrivate {
 			continue
 		}
 		if _, still := modAttrs[name]; still {
@@ -519,4 +522,120 @@ func ExtractASPathPrependOps(modified string, localAS uint32, mods *registry.Mod
 		binary.BigEndian.PutUint32(buf[2+i*4:], localAS)
 	}
 	mods.Op(byte(attribute.AttrASPath), registry.AttrModPrepend, buf)
+}
+
+// ExtractRemovePrivateASOps checks the modified filter text for an
+// "remove-private" directive and emits AS_PATH / AS4_PATH Set or
+// Suppress ops after rewriting raw path segments. The plugin supplies the
+// policy intent; the reactor owns wire-safe segment preservation.
+//
+// RFC 6996 Section 4 requires private-use ASNs to be removed from AS path
+// attributes (including AS4_PATH if utilizing a four-octet AS number space)
+// before being advertised to the global Internet.
+func ExtractRemovePrivateASOps(modified string, attrs *attribute.AttributesWire, asn4 bool, peerAS uint32, mods *registry.ModAccumulator) {
+	mode, ok := extractRemovePrivateASMode(modified)
+	if !ok || attrs == nil {
+		return
+	}
+
+	rawASPath, err := attrs.GetRaw(attribute.AttrASPath)
+	if err == nil && len(rawASPath) > 0 {
+		if rewritten, changed := rewriteASPathRemovePrivate(rawASPath, asn4, mode, peerAS); changed {
+			mods.Op(byte(attribute.AttrASPath), registry.AttrModSet, rewritten)
+		}
+	} else if err != nil {
+		fwdLogger().Warn("remove-private-as: AS_PATH raw lookup failed", "error", err)
+	}
+
+	rawAS4Path, err := attrs.GetRaw(attribute.AttrAS4Path)
+	if err == nil && len(rawAS4Path) > 0 {
+		if rewritten, changed := rewriteAS4PathRemovePrivate(rawAS4Path, mode, peerAS); changed {
+			if len(rewritten) == 0 {
+				mods.Op(byte(attribute.AttrAS4Path), registry.AttrModSuppress, nil)
+			} else {
+				mods.Op(byte(attribute.AttrAS4Path), registry.AttrModSet, rewritten)
+			}
+		}
+	} else if err != nil {
+		fwdLogger().Warn("remove-private-as: AS4_PATH raw lookup failed", "error", err)
+	}
+}
+
+func extractRemovePrivateASMode(modified string) (string, bool) {
+	attrs := parseFilterAttrs(modified)
+	mode, ok := attrs[policyAttrRemovePrivate]
+	if !ok {
+		return "", false
+	}
+	switch mode {
+	case removePrivateASStrip, removePrivateASPeerAS:
+		return mode, true
+	default:
+		fwdLogger().Warn("remove-private-as: invalid mode", "mode", mode)
+		return "", false
+	}
+}
+
+func rewriteASPathRemovePrivate(value []byte, asn4 bool, mode string, peerAS uint32) ([]byte, bool) {
+	path, err := attribute.ParseASPath(value, asn4)
+	if err != nil {
+		fwdLogger().Warn("remove-private-as: parse AS_PATH failed", "error", err)
+		return nil, false
+	}
+	segments, changed := rewritePrivateASSegments(path.Segments, mode, peerAS)
+	if !changed {
+		return nil, false
+	}
+	rewritten := &attribute.ASPath{Segments: segments}
+	buf := make([]byte, rewritten.LenWithASN4(asn4))
+	rewritten.WriteToWithASN4(buf, 0, asn4)
+	return buf, true
+}
+
+func rewriteAS4PathRemovePrivate(value []byte, mode string, peerAS uint32) ([]byte, bool) {
+	path, err := attribute.ParseAS4Path(value)
+	if err != nil {
+		fwdLogger().Warn("remove-private-as: parse AS4_PATH failed", "error", err)
+		return nil, false
+	}
+	segments, changed := rewritePrivateASSegments(path.Segments, mode, peerAS)
+	if !changed {
+		return nil, false
+	}
+	rewritten := &attribute.AS4Path{Segments: segments}
+	buf := make([]byte, rewritten.Len())
+	rewritten.WriteTo(buf, 0)
+	return buf, true
+}
+
+func rewritePrivateASSegments(segments []attribute.ASPathSegment, mode string, peerAS uint32) ([]attribute.ASPathSegment, bool) {
+	out := make([]attribute.ASPathSegment, 0, len(segments))
+	changed := false
+	for _, seg := range segments {
+		asns := make([]uint32, 0, len(seg.ASNs))
+		for _, asn := range seg.ASNs {
+			if !isRFC6996PrivateASN(asn) {
+				asns = append(asns, asn)
+				continue
+			}
+			changed = true
+			if mode == removePrivateASPeerAS {
+				asns = append(asns, peerAS)
+			}
+		}
+		if len(asns) == 0 {
+			continue
+		}
+		out = append(out, attribute.ASPathSegment{Type: seg.Type, ASNs: asns})
+	}
+	if !changed {
+		return nil, false
+	}
+	return out, true
+}
+
+// RFC 6996 Section 5: Private Use ASNs are 64512-65534 and
+// 4200000000-4294967294, inclusive.
+func isRFC6996PrivateASN(asn uint32) bool {
+	return (asn >= 64512 && asn <= 65534) || (asn >= 4200000000 && asn <= 4294967294)
 }

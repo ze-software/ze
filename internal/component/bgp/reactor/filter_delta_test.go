@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
@@ -729,6 +730,204 @@ func TestAspathHandler(t *testing.T) {
 		require.Equal(t, 9, off)
 		assert.Equal(t, newVal, buf[3:9])
 	})
+
+	t.Run("set_and_prepend", func(t *testing.T) {
+		setVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xEA}     // 65002
+		prependVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xE8} // 65000
+		ops := []registry.AttrOp{
+			{Code: byte(attribute.AttrASPath), Action: registry.AttrModSet, Buf: setVal},
+			{Code: byte(attribute.AttrASPath), Action: registry.AttrModPrepend, Buf: prependVal},
+		}
+
+		off := handler(nil, ops, buf, 0)
+		require.Equal(t, 15, off)
+		assert.Equal(t, byte(12), buf[2])
+		assert.Equal(t, prependVal, buf[3:9])
+		assert.Equal(t, setVal, buf[9:15])
+	})
+}
+
+// TestExtractRemovePrivateASOps verifies the policy directive emits segment-preserving AS_PATH ops.
+//
+// VALIDATES: AC-5/AC-12 -- private ASNs are stripped while segment types are preserved.
+// PREVENTS: text-level AS_PATH flattening from clobbering AS_SET or AS_SEQUENCE structure.
+func TestExtractRemovePrivateASOps(t *testing.T) {
+	// AS_SEQUENCE [64496 64512], AS_SET [64497 65534]
+	asPathVal := []byte{
+		byte(attribute.ASSequence), 2,
+		0, 0, 0xFB, 0xF0,
+		0, 0, 0xFC, 0x00,
+		byte(attribute.ASSet), 2,
+		0, 0, 0xFB, 0xF1,
+		0, 0, 0xFF, 0xFE,
+	}
+	attrs := makeAttr(0x40, byte(attribute.AttrASPath), asPathVal)
+	attrsWire := attribute.NewAttributesWire(attrs, 0)
+	var mods registry.ModAccumulator
+
+	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
+	require.Equal(t, 1, mods.Len())
+	op := mods.Ops()[0]
+	require.Equal(t, byte(attribute.AttrASPath), op.Code)
+	require.Equal(t, registry.AttrModSet, op.Action)
+	want := []byte{
+		byte(attribute.ASSequence), 1,
+		0, 0, 0xFB, 0xF0,
+		byte(attribute.ASSet), 1,
+		0, 0, 0xFB, 0xF1,
+	}
+	assert.Equal(t, want, op.Buf)
+}
+
+// VALIDATES: AC-11 -- replace-with peer-as replaces Private Use ASNs with the peer ASN.
+// PREVENTS: replace mode accidentally stripping ASNs or using local AS.
+func TestExtractRemovePrivateASOpsReplacePeerAS(t *testing.T) {
+	asPathVal := []byte{
+		byte(attribute.ASSequence), 2,
+		0, 0, 0xFB, 0xF0,
+		0, 0, 0xFC, 0x00,
+	}
+	attrs := makeAttr(0x40, byte(attribute.AttrASPath), asPathVal)
+	attrsWire := attribute.NewAttributesWire(attrs, 0)
+	var mods registry.ModAccumulator
+
+	ExtractRemovePrivateASOps("remove-private peer-as", attrsWire, true, 65001, &mods)
+	require.Equal(t, 1, mods.Len())
+	op := mods.Ops()[0]
+	want := []byte{
+		byte(attribute.ASSequence), 2,
+		0, 0, 0xFB, 0xF0,
+		0, 0, 0xFD, 0xE9,
+	}
+	assert.Equal(t, want, op.Buf)
+}
+
+// VALIDATES: AC-15/AC-16 -- AS4_PATH is rewritten and suppressed when empty.
+// PREVENTS: RFC 6996 AS4_PATH removal requirement being skipped.
+func TestExtractRemovePrivateASOpsAS4Path(t *testing.T) {
+	as4Val := []byte{
+		byte(attribute.ASSequence), 1,
+		0xFA, 0x56, 0xEA, 0x00, // 4200000000
+	}
+	attrs := makeAttr(0xC0, byte(attribute.AttrAS4Path), as4Val)
+	attrsWire := attribute.NewAttributesWire(attrs, 0)
+	var mods registry.ModAccumulator
+
+	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
+	require.Equal(t, 1, mods.Len())
+	op := mods.Ops()[0]
+	assert.Equal(t, byte(attribute.AttrAS4Path), op.Code)
+	assert.Equal(t, registry.AttrModSuppress, op.Action)
+}
+
+// VALIDATES: AC-14 -- AS_PATH stays present with an empty value when every ASN is stripped.
+// PREVENTS: treating mandatory AS_PATH like optional AS4_PATH suppression.
+func TestExtractRemovePrivateASOpsEmptyASPath(t *testing.T) {
+	asPathVal := []byte{
+		byte(attribute.ASSequence), 2,
+		0, 0, 0xFC, 0x00,
+		0, 0, 0xFF, 0xFE,
+	}
+	attrs := makeAttr(0x40, byte(attribute.AttrASPath), asPathVal)
+	attrsWire := attribute.NewAttributesWire(attrs, 0)
+	var mods registry.ModAccumulator
+
+	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
+	require.Equal(t, 1, mods.Len())
+	op := mods.Ops()[0]
+	assert.Equal(t, byte(attribute.AttrASPath), op.Code)
+	assert.Equal(t, registry.AttrModSet, op.Action)
+	assert.Empty(t, op.Buf)
+}
+
+// VALIDATES: AC-19 -- no private ASN means no modification op is emitted.
+// PREVENTS: allocating a modified payload on the no-op fast path.
+func TestExtractRemovePrivateASOpsNoPrivateASN(t *testing.T) {
+	asPathVal := []byte{
+		byte(attribute.ASSequence), 2,
+		0, 0, 0xFB, 0xF0,
+		0, 0, 0xFB, 0xF1,
+	}
+	attrs := makeAttr(0x40, byte(attribute.AttrASPath), asPathVal)
+	attrsWire := attribute.NewAttributesWire(attrs, 0)
+	var mods registry.ModAccumulator
+
+	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
+	assert.Equal(t, 0, mods.Len())
+}
+
+// VALIDATES: AC-21 -- malformed AS_PATH is not rewritten into guessed bytes.
+// PREVENTS: policy rewrite corrupting a malformed route attribute.
+func TestExtractRemovePrivateASOpsMalformedASPath(t *testing.T) {
+	asPathVal := []byte{byte(attribute.ASSequence), 1, 0, 0}
+	attrs := makeAttr(0x40, byte(attribute.AttrASPath), asPathVal)
+	attrsWire := attribute.NewAttributesWire(attrs, 0)
+	var mods registry.ModAccumulator
+
+	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
+	assert.Equal(t, 0, mods.Len())
+}
+
+// VALIDATES: AC-17 -- export remove-private-AS rewrite feeds EBGP prepend.
+// PREVENTS: EBGP rewrite using the original cached wire and reintroducing private ASNs.
+func TestExportRemovePrivateASBeforeEBGPPrepend(t *testing.T) {
+	origin := makeAttr(0x40, byte(attribute.AttrOrigin), []byte{0x00})
+	asPathVal := []byte{
+		byte(attribute.ASSequence), 3,
+		0, 0, 0xFB, 0xF0, // 64496
+		0, 0, 0xFC, 0x00, // 64512
+		0, 0, 0xFB, 0xF1, // 64497
+	}
+	asPath := makeAttr(0x40, byte(attribute.AttrASPath), asPathVal)
+	nextHop := makeAttr(0x40, byte(attribute.AttrNextHop), []byte{1, 1, 1, 1})
+	attrs := append(append(append([]byte{}, origin...), asPath...), nextHop...)
+	payload := buildModTestPayload(attrs, []byte{24, 10, 0, 0})
+	attrsWire := attribute.NewAttributesWire(attrs, 0)
+
+	var mods registry.ModAccumulator
+	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65002, &mods)
+	modified, _ := buildModifiedPayload(payload, &mods, attrModHandlersWithDefaults(), nil, nil)
+	require.NotNil(t, modified)
+
+	dst := make([]byte, len(modified)+64)
+	n, err := wireu.RewriteASPath(dst, modified, 65000, true, true)
+	require.NoError(t, err)
+	finalPath, err := attribute.ParseASPath(payloadASPathValue(t, dst[:n]), true)
+	require.NoError(t, err)
+	require.Len(t, finalPath.Segments, 1)
+	assert.Equal(t, []uint32{65000, 64496, 64497}, finalPath.Segments[0].ASNs)
+}
+
+func payloadASPathValue(t testing.TB, payload []byte) []byte {
+	t.Helper()
+	require.GreaterOrEqual(t, len(payload), 4)
+	wdLen := int(binary.BigEndian.Uint16(payload[0:2]))
+	attrLenOff := 2 + wdLen
+	require.GreaterOrEqual(t, len(payload), attrLenOff+2)
+	attrLen := int(binary.BigEndian.Uint16(payload[attrLenOff : attrLenOff+2]))
+	off := attrLenOff + 2
+	end := off + attrLen
+	require.GreaterOrEqual(t, len(payload), end)
+	for off < end {
+		require.GreaterOrEqual(t, end, off+3)
+		code := payload[off+1]
+		hdrLen := 3
+		valueLen := int(payload[off+2])
+		if payload[off]&0x10 != 0 {
+			require.GreaterOrEqual(t, end, off+4)
+			hdrLen = 4
+			valueLen = int(binary.BigEndian.Uint16(payload[off+2 : off+4]))
+		}
+		valueStart := off + hdrLen
+		valueEnd := valueStart + valueLen
+		require.GreaterOrEqual(t, end, valueEnd)
+		if code == byte(attribute.AttrASPath) {
+			return payload[valueStart:valueEnd]
+		}
+		off = valueEnd
+	}
+	t.Fatalf("AS_PATH not found")
+	return nil
 }
 
 // TestRewriteASPathOverride verifies AS-override replaces peer ASN with local ASN.

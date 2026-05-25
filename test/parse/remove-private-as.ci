@@ -1,0 +1,38 @@
+# Test: ze config validate with remove-private-as policy filter
+# VALIDATES: remove-private-as YANG schema accepts default strip and peer-as replacement modes.
+# PREVENTS: new filter schema missing from config validation.
+stdin=config:terminator=EOF_CONF
+bgp {
+	policy {
+		remove-private-as STRIP {
+		}
+		remove-private-as REPLACE {
+			replace-with peer-as
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 64496
+				remote 64497
+			}
+		}
+		filter {
+			export [ remove-private-as:STRIP remove-private-as:REPLACE ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

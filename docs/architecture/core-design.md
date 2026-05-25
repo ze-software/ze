@@ -653,6 +653,10 @@ Egress filters write `AttrOp` entries via `mods.Op(code, action, buf)`:
 | Buf | []byte | Pre-built wire bytes of the VALUE |
 
 Multiple entries with the same code accumulate -- the handler receives all ops at once.
+When policy actions produce both an AS_PATH Set and Prepend, Set establishes the
+base path and Prepend is inserted in front of that base. This keeps export
+actions such as `remove-private-as` ordered before the normal EBGP local-AS
+prepend.
 
 ### Progressive Build (applyMods)
 

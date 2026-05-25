@@ -476,7 +476,7 @@ func (v *Validator) validateBoolean(path string, value any) error {
 	case bool:
 		return nil
 	case string:
-		if val == "true" || val == "false" {
+		if val == "true" || val == "false" || val == "enable" || val == "disable" {
 			return nil
 		}
 	}

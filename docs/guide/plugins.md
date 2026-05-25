@@ -409,6 +409,42 @@ handler that inserts N copies of the peer's local AS before the existing path.
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps -->
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- aspathHandler -->
 
+### Remove Private AS (`bgp-filter-remove-private-as`)
+
+`bgp-filter-remove-private-as` removes RFC 6996 Private Use ASNs from AS path
+attributes in an import or export policy chain. Define named actions in
+`bgp { policy { remove-private-as NAME { ... } } }` and reference them from a
+peer, group, or global filter chain with `remove-private-as:NAME`.
+
+Default mode strips private ASNs from `AS_PATH` and `AS4_PATH`. The optional
+`replace-with peer-as` mode replaces each private ASN with the destination peer
+AS on export, or the source peer AS on import.
+
+```
+bgp {
+    policy {
+        remove-private-as STRIP {
+        }
+        remove-private-as REPLACE {
+            replace-with peer-as
+        }
+    }
+    peer transit-a {
+        filter {
+            export [ remove-private-as:STRIP ]
+        }
+    }
+}
+```
+
+The plugin emits policy intent only. The reactor performs the wire rewrite so
+AS_SEQUENCE, AS_SET, and confederation segment structure is preserved. On export
+to EBGP peers, private-AS removal runs before the normal local-AS prepend.
+
+<!-- source: internal/component/bgp/plugins/filter_remove_private_as/filter_remove_private_as.go -- handleFilterUpdate -->
+<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractRemovePrivateASOps -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- export policy before EBGP prepend -->
+
 ### NLRI Encoders/Decoders
 
 NLRI plugins register address family support at init time via `family.MustRegister(afi, safi, afiStr, safiStr)`. The four base families (`ipv4/unicast`, `ipv6/unicast`, `ipv4/multicast`, `ipv6/multicast`) live in `internal/core/family/registry.go` itself; everything else is owned by its plugin's `types.go`. Plugins are loaded automatically when the corresponding family is configured.

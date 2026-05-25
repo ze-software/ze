@@ -1,0 +1,35 @@
+# Test: ze config validate rejects invalid remove-private-as replace-with value
+# VALIDATES: replace-with only accepts the YANG enum peer-as.
+# PREVENTS: invalid policy action modes being silently accepted.
+stdin=config:terminator=EOF_CONF
+bgp {
+	policy {
+		remove-private-as BAD {
+			replace-with local-as
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 64496
+				remote 64497
+			}
+		}
+		filter {
+			export [ remove-private-as:BAD ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1

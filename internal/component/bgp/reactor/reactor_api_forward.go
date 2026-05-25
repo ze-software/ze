@@ -266,7 +266,36 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 	var cachedLocalASN4, cachedLocalASN2 uint32
 	var cachedLocalASN4Set, cachedLocalASN2Set bool
 
-	getEBGPWire := func(localAS, secondaryAS uint32, asn4 bool) (*wireu.WireUpdate, bool) {
+	getEBGPWire := func(baseWire *wireu.WireUpdate, localAS, secondaryAS uint32, asn4 bool) (*wireu.WireUpdate, bool) {
+		if baseWire == nil {
+			return nil, false
+		}
+		if baseWire != update.WireUpdate {
+			srcCtx := bgpctx.Registry.Get(baseWire.SourceCtxID())
+			baseSrcASN4 := srcCtx != nil && srcCtx.ASN4()
+			extendedMessage := len(baseWire.Payload()) > message.MaxMsgLen-message.HeaderLen
+			dst := getReadBuf(extendedMessage)
+			if dst.Buf == nil {
+				return nil, false
+			}
+			var n int
+			var err error
+			if secondaryAS != 0 {
+				n, err = wireu.RewriteASPathDual(dst.Buf, baseWire.Payload(), localAS, secondaryAS, baseSrcASN4, asn4)
+			} else {
+				n, err = wireu.RewriteASPath(dst.Buf, baseWire.Payload(), localAS, baseSrcASN4, asn4)
+			}
+			if err != nil {
+				ReturnReadBuffer(dst)
+				fwdLogger().Warn("EBGP wire rewrite failed",
+					"id", updateID, "localAS", localAS, "secondaryAS", secondaryAS, "asn4", asn4, "err", err)
+				return nil, false
+			}
+			wire := wireu.NewWireUpdate(dst.Buf[:n], baseWire.SourceCtxID())
+			wire.SetMessageID(baseWire.MessageID())
+			wire.SetSourceID(baseWire.SourceID())
+			return wire, true
+		}
 		ek := ebgpWireKey{localAS: localAS, secondaryAS: secondaryAS, asn4: asn4}
 		if ebgpWireCache == nil {
 			ebgpWireCache = make(map[ebgpWireKey]*ebgpWireEntry)
@@ -452,6 +481,9 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			if modifiedText != updateText {
 				var exportMods registry.ModAccumulator
 				textDeltaToModOps(updateText, modifiedText, &exportMods)
+				srcCtx := bgpctx.Registry.Get(update.WireUpdate.SourceCtxID())
+				srcASN4 := srcCtx != nil && srcCtx.ASN4()
+				ExtractRemovePrivateASOps(modifiedText, attrsWire, srcASN4, facts.peerAS, &exportMods)
 				ExtractASPathPrependOps(modifiedText, facts.localAS, &exportMods)
 				nlriOverride := extractLegacyNLRIOverride(updateText, modifiedText)
 				if exportMods.Len() > 0 || nlriOverride != nil {
@@ -484,7 +516,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		// RFC 7947 Section 2.2.2: RS MUST NOT modify AS_PATH for RS-client peers.
 		peerWire := peerBaseWire
 		if facts.isEBGP && !facts.rsClient {
-			wire, ok := getEBGPWire(facts.localAS, facts.secondaryAS, facts.sendASN4)
+			wire, ok := getEBGPWire(peerBaseWire, facts.localAS, facts.secondaryAS, facts.sendASN4)
 			if !ok {
 				continue
 			}

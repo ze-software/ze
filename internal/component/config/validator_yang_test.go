@@ -66,6 +66,46 @@ func TestValidateTree_ValidConfig(t *testing.T) {
 	assert.Empty(t, errs, "valid config should produce no errors")
 }
 
+// TestValidateTree_BooleanConfigAliases verifies YANG validation accepts the
+// boolean aliases that the config serializers emit.
+//
+// VALIDATES: YANG validation accepts Ze boolean syntax aliases.
+// PREVENTS: Session-mode validation rejecting set-format enable/disable values.
+func TestValidateTree_BooleanConfigAliases(t *testing.T) {
+	v := newTestValidator(t)
+
+	data := map[string]any{
+		"router-id": "192.0.2.1",
+		"session": map[string]any{
+			"asn": map[string]any{
+				"local": uint32(65001),
+			},
+		},
+		"peer": map[string]any{
+			"peer1": map[string]any{
+				"connection": map[string]any{
+					"remote": map[string]any{
+						"ip":      "192.0.2.2",
+						"connect": "enable",
+					},
+					"local": map[string]any{
+						"ip":     "192.0.2.1",
+						"accept": "disable",
+					},
+				},
+				"session": map[string]any{
+					"asn": map[string]any{
+						"remote": uint32(65002),
+					},
+				},
+			},
+		},
+	}
+
+	errs := v.ValidateTree("bgp", data)
+	assert.Empty(t, errs, "boolean aliases should produce no errors")
+}
+
 // TestValidateTree_EnumViolation verifies invalid enum values are caught at any depth.
 //
 // VALIDATES: Enum violation detected in nested container (AC-1).

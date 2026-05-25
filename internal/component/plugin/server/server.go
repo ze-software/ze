@@ -393,13 +393,21 @@ func (s *Server) FilterOnError(pluginName, filterName string) rpc.OnErrorPolicy 
 	if reg == nil {
 		return rpc.OnErrorReject
 	}
-	for _, f := range reg.Filters {
+	var wildcard *plugin.FilterRegistration
+	for i := range reg.Filters {
+		f := &reg.Filters[i]
 		if f.Name == filterName {
 			if f.OnError == rpc.OnErrorAccept {
 				return rpc.OnErrorAccept
 			}
 			return rpc.OnErrorReject
 		}
+		if f.Name == "*" {
+			wildcard = f
+		}
+	}
+	if wildcard != nil && wildcard.OnError == rpc.OnErrorAccept {
+		return rpc.OnErrorAccept
 	}
 	return rpc.OnErrorReject
 }
@@ -419,10 +427,18 @@ func (s *Server) FilterInfo(pluginName, filterName string) (declaredAttrs []stri
 	if reg == nil {
 		return nil, false
 	}
-	for _, f := range reg.Filters {
+	var wildcard *plugin.FilterRegistration
+	for i := range reg.Filters {
+		f := &reg.Filters[i]
 		if f.Name == filterName {
 			return f.Attributes, f.Raw
 		}
+		if f.Name == "*" {
+			wildcard = f
+		}
+	}
+	if wildcard != nil {
+		return wildcard.Attributes, wildcard.Raw
 	}
 	return nil, false
 }

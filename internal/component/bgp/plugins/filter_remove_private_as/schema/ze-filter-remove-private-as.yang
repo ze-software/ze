@@ -1,0 +1,36 @@
+module ze-filter-remove-private-as {
+    namespace "urn:ze:filter-remove-private-as";
+    prefix frpa;
+
+    import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
+
+    description "Remove Private Use ASNs from AS_PATH and AS4_PATH in the BGP policy framework.
+                 Referenced from peer filter chains as remove-private-as:NAME.";
+
+    revision 2026-05-24 {
+        description "Initial revision";
+    }
+
+    augment "/bgp:bgp/bgp:policy" {
+        list remove-private-as {
+            ze:filter;
+            key "name";
+            description "Named action filter that removes RFC 6996 Private Use ASNs.";
+
+            leaf name {
+                type string;
+                description "Filter instance name.";
+            }
+
+            leaf replace-with {
+                type enumeration {
+                    enum peer-as {
+                        description "Replace Private Use ASNs with the neighbor peer ASN.";
+                    }
+                }
+                description "Replacement mode. When absent, Private Use ASNs are stripped.";
+            }
+        }
+    }
+}

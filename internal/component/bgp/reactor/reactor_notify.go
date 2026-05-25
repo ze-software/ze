@@ -435,6 +435,9 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			if modifiedText != updateText {
 				var importMods registry.ModAccumulator
 				textDeltaToModOps(updateText, modifiedText, &importMods)
+				srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
+				srcASN4 := srcCtx != nil && srcCtx.ASN4()
+				ExtractRemovePrivateASOps(modifiedText, attrsWire, srcASN4, peerInfo.PeerAS, &importMods)
 				ExtractASPathPrependOps(modifiedText, peer.settings.LocalAS, &importMods)
 				nlriOverride := extractLegacyNLRIOverride(updateText, modifiedText)
 				if importMods.Len() > 0 || nlriOverride != nil {

@@ -1,0 +1,188 @@
+// Design: docs/architecture/core-design.md -- remove-private-as policy action
+// RFC: rfc/short/rfc6996.md -- Private Use ASN ranges
+// Related: filter_remove_private_as.go -- SDK entry point and filter handler
+
+package filter_remove_private_as
+
+import (
+	"encoding/binary"
+	"encoding/hex"
+	"strconv"
+	"strings"
+)
+
+const (
+	removePrivateASDirective = "remove-private"
+	removeModeStripText      = "strip"
+	removeModePeerASText     = "peer-as"
+)
+
+type removeMode uint8
+
+const (
+	removeModeStrip removeMode = iota
+	removeModePeerAS
+)
+
+func (m removeMode) String() string {
+	if m == removeModePeerAS {
+		return removeModePeerASText
+	}
+	return removeModeStripText
+}
+
+// RFC 6996 Section 5: Private Use ASNs are 64512-65534 and
+// 4200000000-4294967294, inclusive.
+func isPrivateASN(asn uint32) bool {
+	return (asn >= 64512 && asn <= 65534) || (asn >= 4200000000 && asn <= 4294967294)
+}
+
+// rewriteASPathText rewrites the flat filter-text AS-path value. The reactor
+// performs the authoritative wire rewrite; this text rewrite lets later text
+// filters in the same chain see the intended path.
+func rewriteASPathText(value string, mode removeMode, peerAS uint32) (string, bool) {
+	tokens := asPathTokens(value)
+	if len(tokens) == 0 {
+		return "", false
+	}
+
+	out := make([]uint32, 0, len(tokens))
+	changed := false
+	for _, tok := range tokens {
+		asn64, err := strconv.ParseUint(tok, 10, 32)
+		if err != nil {
+			return "", false
+		}
+		asn := uint32(asn64) //nolint:gosec // bounded by ParseUint 32-bit
+		if !isPrivateASN(asn) {
+			out = append(out, asn)
+			continue
+		}
+		changed = true
+		if mode == removeModePeerAS {
+			out = append(out, peerAS)
+		}
+	}
+	if !changed {
+		return value, false
+	}
+	return formatASPathTokens(out), true
+}
+
+func asPathTokens(value string) []string {
+	value = strings.TrimSpace(value)
+	if len(value) >= 2 && value[0] == '[' && value[len(value)-1] == ']' {
+		value = strings.TrimSpace(value[1 : len(value)-1])
+	}
+	if value == "" {
+		return nil
+	}
+	return strings.Fields(value)
+}
+
+func formatASPathTokens(asns []uint32) string {
+	if len(asns) == 0 {
+		return "[]"
+	}
+	var b strings.Builder
+	if len(asns) > 1 {
+		b.WriteByte('[')
+	}
+	for i, asn := range asns {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+		b.WriteString(strconv.FormatUint(uint64(asn), 10))
+	}
+	if len(asns) > 1 {
+		b.WriteByte(']')
+	}
+	return b.String()
+}
+
+func buildDirectiveDelta(mode removeMode, asPathValue string, asPathChanged bool) string {
+	var b strings.Builder
+	if asPathChanged {
+		b.WriteString("as-path ")
+		b.WriteString(asPathValue)
+		b.WriteByte(' ')
+	}
+	b.WriteString(removePrivateASDirective)
+	b.WriteByte(' ')
+	b.WriteString(mode.String())
+	return b.String()
+}
+
+func hasPrivateAS4Path(rawHex string) bool {
+	if rawHex == "" {
+		return false
+	}
+	payload, err := hex.DecodeString(rawHex)
+	if err != nil {
+		return false
+	}
+	return hasPrivateAS4PathPayload(payload)
+}
+
+func hasPrivateAS4PathPayload(payload []byte) bool {
+	if len(payload) < 4 {
+		return false
+	}
+	withdrawnLen := int(binary.BigEndian.Uint16(payload[0:2]))
+	attrLenOff := 2 + withdrawnLen
+	if len(payload) < attrLenOff+2 {
+		return false
+	}
+	attrLen := int(binary.BigEndian.Uint16(payload[attrLenOff : attrLenOff+2]))
+	attrStart := attrLenOff + 2
+	attrEnd := attrStart + attrLen
+	if len(payload) < attrEnd {
+		return false
+	}
+	for off := attrStart; off < attrEnd; {
+		if off+3 > attrEnd {
+			return false
+		}
+		flags := payload[off]
+		code := payload[off+1]
+		hdrLen := 3
+		valueLen := int(payload[off+2])
+		if flags&0x10 != 0 {
+			if off+4 > attrEnd {
+				return false
+			}
+			hdrLen = 4
+			valueLen = int(binary.BigEndian.Uint16(payload[off+2 : off+4]))
+		}
+		valueStart := off + hdrLen
+		valueEnd := valueStart + valueLen
+		if valueEnd > attrEnd {
+			return false
+		}
+		if code == 17 && as4PathValueHasPrivateASN(payload[valueStart:valueEnd]) {
+			return true
+		}
+		off = valueEnd
+	}
+	return false
+}
+
+func as4PathValueHasPrivateASN(value []byte) bool {
+	for off := 0; off < len(value); {
+		if off+2 > len(value) {
+			return false
+		}
+		count := int(value[off+1])
+		off += 2
+		for range count {
+			if off+4 > len(value) {
+				return false
+			}
+			if isPrivateASN(binary.BigEndian.Uint32(value[off:])) {
+				return true
+			}
+			off += 4
+		}
+	}
+	return false
+}

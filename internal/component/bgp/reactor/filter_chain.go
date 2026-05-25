@@ -113,7 +113,7 @@ func parseFilterAttrs(text string) map[string]string {
 		"origin": true, "next-hop": true, "med": true,
 		"local-preference": true, policyAttrAtomicAggregate: true,
 		"aggregator": true, "originator-id": true,
-		"as-path-prepend": true, "aigp": true,
+		"as-path-prepend": true, policyAttrRemovePrivate: true, "aigp": true,
 	}
 
 	fields := strings.Fields(text)
@@ -163,7 +163,7 @@ func isPolicyAttrName(s string) bool {
 	case "origin", "as-path", "next-hop", "med", "local-preference",
 		policyAttrAtomicAggregate, "aggregator", "community", "originator-id",
 		"cluster-list", "extended-community", "aigp", "large-community", "nlri",
-		"as-path-prepend":
+		"as-path-prepend", policyAttrRemovePrivate:
 		return true
 	}
 	return false
@@ -176,7 +176,7 @@ func formatFilterAttrs(attrs map[string]string) string {
 		"origin", "as-path", "next-hop", "med", "local-preference",
 		policyAttrAtomicAggregate, "aggregator", "community", "originator-id",
 		"cluster-list", "extended-community", "aigp", "large-community",
-		"as-path-prepend", "nlri",
+		"as-path-prepend", policyAttrRemovePrivate, "nlri",
 	}
 
 	var buf []byte

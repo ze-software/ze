@@ -28,6 +28,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"bgp-filter-community-match",
 		"bgp-filter-modify",
 		"bgp-filter-prefix",
+		"bgp-filter-remove-private-as",
 		"bgp-gr",
 		"bgp-healthcheck",
 		"bgp-hostname",
