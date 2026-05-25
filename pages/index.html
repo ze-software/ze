@@ -1519,6 +1519,7 @@
                             >
                         </h3>
                         <span class="card-label purple">SSH</span>
+                        <span class="card-label purple">RBAC</span>
                         <span class="card-label purple">RPKI</span>
                         <span class="card-label purple">ASPA</span>
                         <ul>
@@ -1557,17 +1558,17 @@
                         </div>
                         <div class="terminal-body">
                             <pre><span class="term-comment"># build from source</span>
-                            <span class="term-prompt">$</span> <span class="term-cmd">git clone</span> https://github.com/ze-software/ze.git
-                            <span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze && <span class="term-cmd">make</span> build
+<span class="term-prompt">$</span> <span class="term-cmd">git clone</span> https://github.com/ze-software/ze.git
+<span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze && <span class="term-cmd">make</span> build
 
-                            <span class="term-comment"># install the binary</span>
-                            <span class="term-prompt">$</span> <span class="term-cmd">sudo</span> bin/ze <span class="term-cmd">install local</span> --prefix /usr/local --no-systemd
+<span class="term-comment"># install the binary</span>
+<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> bin/ze <span class="term-cmd">install local</span> --prefix /usr/local --no-systemd
 
-                            <span class="term-comment"># configure and start as a service</span>
-                            <span class="term-prompt">$</span> <span class="term-cmd">sudo</span> /usr/local/bin/ze init
-                            <span class="term-prompt">$</span> <span class="term-cmd">sudo</span> /usr/local/bin/ze config import router.conf
-                            <span class="term-prompt">$</span> <span class="term-cmd">sudo</span> /usr/local/bin/ze config edit
-                            <span class="term-prompt">$</span> <span class="term-cmd">sudo</span> /usr/local/bin/ze service install --start</pre>
+<span class="term-comment"># configure and start as a service</span>
+<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> /usr/local/bin/ze init
+<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> /usr/local/bin/ze config import router.conf
+<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> /usr/local/bin/ze config edit
+<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> /usr/local/bin/ze service install --start</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
