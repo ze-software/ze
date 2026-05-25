@@ -32,4 +32,4 @@ Ze includes an HTTPS web interface for configuration viewing, editing, and runti
 <!-- source: internal/component/web/sse.go -- EventBroker SSE broadcast -->
 <!-- source: internal/component/web/editor.go -- EditorManager per-user sessions -->
 
-See [Web Interface Guide](guide/web-interface.md) for usage instructions.
+See [Web Interface Guide](../guide/web-interface.md) for usage instructions.

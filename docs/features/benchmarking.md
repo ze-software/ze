@@ -19,4 +19,4 @@ their propagation.
 <!-- source: internal/perf/metrics.go -- aggregation and outlier removal -->
 <!-- source: internal/perf/regression.go -- regression detection -->
 
-See [Benchmarking Guide](guide/benchmarking.md) for usage instructions.
+See [Benchmarking Guide](../guide/benchmarking.md) for usage instructions.

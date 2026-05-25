@@ -14,11 +14,11 @@ make ze-reload-test       # Reload tests only
 
 ## Release Gate Coverage
 
-`make ze-verify` runs: lint, unit tests (two-pass:
+`make ze-verify` runs: lint, evidence script vetting, unit tests (two-pass:
 cached full + `-race` on changed groups), `ze-functional-test`, and exabgp-compat.
 The functional test target runs 12 suites: encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, web.
-<!-- source: Makefile -- ze-functional-test -->
+<!-- source: Makefile -- ze-verify; mk/test-functional.mk -- ze-functional-test -->
 
 The following shipped test suites are **not in the default release gate** and
 must be run manually:
@@ -1116,9 +1116,10 @@ parsing, cryptographic operations, and protocol state machines. Fuzz tests
 catch crashes, panics, and memory corruption on malformed input.
 
 ```bash
-make ze-fuzz-test                                    # All fuzz targets, 15s each
+make ze-fuzz-test                                    # All fuzz targets, 10s each
 make ze-fuzz-one FUZZ=FuzzParseUpdate TIME=30s       # Single target, custom duration
 ```
+<!-- source: mk/test-fuzz.mk -- ze-fuzz-test -->
 
 Fuzz tests are not part of `make ze-verify` (they're time-bounded, not pass/fail
 in the traditional sense). Run them periodically or before releases.

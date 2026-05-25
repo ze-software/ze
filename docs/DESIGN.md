@@ -325,6 +325,8 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `bgp-nlri-mvpn` | Multicast VPN NLRI decode |
 | `bgp-nlri-rtc` | Route Target Constraint NLRI decode |
 | `bgp-filter-aspath` | AS-path filter (regex + exact match) |
+| `bgp-filter-aspath-length` | Named AS-path length filter by hop count |
+| `bgp-filter-remove-private-as` | AS-path action filter that removes RFC 6996 Private Use ASNs |
 | `bgp-filter-prefix` | Prefix-list filter |
 | `bgp-filter-modify` | Attribute modification filter (set LP, prepend, communities) |
 | `bgp-filter-community-match` | Community match filter |
@@ -338,21 +340,28 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `static` | Static route management |
 | `sysctl` | Kernel sysctl tuning |
 | `sysrib` | System RIB (route table management) |
+| `kernel` | Redistribute externally installed kernel routes into BGP |
 | `fib-kernel` | FIB route installation via netlink |
 | `fib-p4` | FIB route installation via P4 backend |
 | `fib-vpp` | FIB route installation via VPP binary API |
 | `firewall` | Firewall management via nftables |
+| `flowspec-firewall` | Translate BGP FlowSpec routes into nftables firewall rules |
 | `traffic` | Traffic control (TC qdisc/class) via netlink or VPP backend |
 | `interface` | Interface management via netlink or VPP backend |
 | `iface-dhcp` | DHCP client for interface address assignment |
+| `routing-table` | Named routing table registry for kernel table IDs |
 | `l2tp-auth-local` | L2TP local user authentication |
 | `l2tp-auth-radius` | L2TP RADIUS authentication/accounting |
 | `l2tp-pool` | L2TP IP address pool management |
 | `l2tp-shaper` | L2TP per-subscriber traffic shaping |
 | `ntp` | NTP time synchronization |
+| `dhcpserver` | DHCP server for LAN client address assignment |
+| `tftpserver` | Read-only TFTP file server for PXE boot |
+| `imageserver` | HTTP provisioning server for disk images and boot files |
 | `connected` | Redistribute directly connected interface prefixes |
 | `policy-routes` | Policy-based routing |
 | `vpp` | VPP lifecycle and telemetry management |
+| `ike` | IKEv2 engine for native IPsec VPN |
 
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib plugin -->
 <!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs plugin -->
@@ -363,6 +372,8 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 <!-- source: internal/component/bgp/plugins/rpki_decorator/register.go -- bgp-rpki-decorator plugin -->
 <!-- source: internal/component/bgp/plugins/aigp/register.go -- bgp-aigp plugin -->
 <!-- source: internal/component/bgp/plugins/filter_community/register.go -- bgp-filter-community plugin -->
+<!-- source: internal/component/bgp/plugins/filter_aspath_length/register.go -- bgp-filter-aspath-length plugin -->
+<!-- source: internal/component/bgp/plugins/filter_remove_private_as/register.go -- bgp-filter-remove-private-as plugin -->
 <!-- source: internal/component/bgp/reactor/filter/register.go -- loop plugin -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- bgp-nlri-evpn plugin -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- bgp-nlri-flowspec plugin -->
@@ -373,6 +384,13 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 <!-- source: internal/component/bgp/plugins/nlri/labeled/register.go -- bgp-nlri-labeled plugin -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- bgp-nlri-mvpn plugin -->
 <!-- source: internal/component/bgp/plugins/nlri/rtc/register.go -- bgp-nlri-rtc plugin -->
+<!-- source: internal/plugins/kernel/register.go -- kernel plugin -->
+<!-- source: internal/plugins/flowspec-firewall/register.go -- flowspec-firewall plugin -->
+<!-- source: internal/plugins/routingtable/register.go -- routing-table plugin -->
+<!-- source: internal/plugins/dhcpserver/register.go -- dhcpserver plugin -->
+<!-- source: internal/plugins/tftpserver/register.go -- tftpserver plugin -->
+<!-- source: internal/plugins/imageserver/register.go -- imageserver plugin -->
+<!-- source: internal/component/ike/engine/register.go -- ike plugin -->
 
 ---
 
@@ -731,9 +749,10 @@ entry points is not a substitute.
 **Interop tests** (`test/interop/`, `test/exabgp/`) validate compatibility with other
 BGP daemons. Ze establishes real sessions with FRR, BIRD, and GoBGP in containers and
 verifies correct behavior: session establishment, route exchange, graceful restart,
-route refresh, and next-hop handling. 33 interop scenarios across multiple implementations,
-written in Python with automated container orchestration. Interop correctness is
-measured by real peers, not unit tests alone.
+route refresh, next-hop handling, BFD failover, ECMP, SRv6, and remove-private-as policy.
+37 interop scenarios run across multiple implementations, written in Python with
+automated container orchestration. Interop correctness is measured by real peers,
+not unit tests alone.
 
 | What you are testing | Required evidence |
 |---------------------|-------------------|

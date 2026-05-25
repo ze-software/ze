@@ -132,6 +132,11 @@ All session waiters poll with a configurable timeout (default 90s, override via 
 | 30 | flowspec-gobgp | Ze, GoBGP | FlowSpec rule exchange |
 | 31 | multihop-ebgp-bird | Ze, BIRD | Multi-hop eBGP with outgoing-ttl |
 | 32 | multihop-ebgp-gobgp | Ze, GoBGP | Multi-hop eBGP with outgoing-ttl |
+| 33 | bfd-frr | Ze, FRR | BFD opt-in and BFD-triggered BGP teardown |
+| 34 | ecmp-frr | Ze, FRR, GoBGP | FRR ECMP selection for the same prefix from Ze and GoBGP |
+| 35 | srv6-frr | Ze, FRR | SRv6 VPNv6 route exchange and Prefix-SID handling |
+| 36 | remove-private-as-frr | Ze, FRR, GoBGP | remove-private-as export policy to FRR |
+| 37 | remove-private-as-as4path-frr | Ze, FRR, BIRD | remove-private-as handling for AS4_PATH private ASNs |
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 
 ### Running
@@ -233,14 +238,14 @@ standard verification suite.
 
 Interop scenarios cover core BGP: session establishment, route exchange, withdrawal,
 capabilities (4-byte ASN, ADD-PATH, GR, route refresh), communities, MD5 auth,
-route server behavior, and non-unicast address families (EVPN, VPN, FlowSpec).
+route server behavior, BFD failover, ECMP, SRv6 VPNv6, remove-private-as export
+policy, and non-unicast address families (EVPN, VPN, FlowSpec).
 ExaBGP compat covers wire encoding for all supported address families.
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 
 Not yet covered by interop tests:
 
 - Long-Lived Graceful Restart with live peers
-- BFD (no BFD protocol support in Ze)
 
 ## Known Vendor Limitations
 

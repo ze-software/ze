@@ -93,7 +93,7 @@ bin/ze config validate example.conf
 Expected output:
 
 ```
-configuration valid (1 peer, 1 plugin)
+configuration valid: example.conf
 ```
 
 ## Start

@@ -16,7 +16,7 @@ ze plugin test [options] <config-file>
 
 | Flag | Description |
 |------|-------------|
-| `--plugin <name>` | Plugin to test (repeatable: `ze.hostname`, `ze.rib`, etc.) |
+| `--plugin <name>` | Plugin to test (repeatable: `bgp-hostname`, `bgp-rib`, etc.) |
 | `--schema` | Show schema fields for capability block |
 | `--tree` | Show raw config tree that would be sent to plugins |
 | `--json` | Show exact JSON delivery format |
@@ -27,7 +27,7 @@ ze plugin test [options] <config-file>
 
 **Verify plugin YANG schema is loaded:**
 ```bash
-ze plugin test --plugin ze.hostname --schema config.conf
+ze plugin test --plugin bgp-hostname --schema config.conf
 ```
 
 Output shows schema structure including augmented fields:
@@ -45,7 +45,7 @@ Output shows schema structure including augmented fields:
 
 **Show config tree structure:**
 ```bash
-ze plugin test --plugin ze.hostname --tree config.conf
+ze plugin test --plugin bgp-hostname --tree config.conf
 ```
 
 Output shows the parsed config as JSON:
@@ -68,7 +68,7 @@ Output shows the parsed config as JSON:
 
 **Show exact JSON delivery format:**
 ```bash
-ze plugin test --plugin ze.hostname --json config.conf
+ze plugin test --plugin bgp-hostname --json config.conf
 ```
 
 Output shows the exact line sent to plugins:
@@ -81,7 +81,7 @@ Output shows the exact line sent to plugins:
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| "unknown field in capability: hostname" | Plugin YANG not loaded | Add `--plugin ze.hostname` |
+| "unknown field in capability: hostname" | Plugin YANG not loaded | Add `--plugin bgp-hostname` |
 | "root not found in tree" | Wrong root name | Check available roots in tree output |
 | Empty hostname in tree | Config syntax error | Check config file syntax |
 <!-- source: cmd/ze/plugin/test_cmd.go -- cmdPluginTest, --schema/--tree/--json modes -->
@@ -149,7 +149,7 @@ export ze_log_server=debug
 export ze_log_config=debug
 
 # Hostname plugin (if using --log-level flag)
-ze plugin hostname --log-level debug
+ze plugin bgp-hostname --log-level debug
 ```
 
 ### Log Subsystems
@@ -167,19 +167,19 @@ When plugin capabilities aren't appearing in OPEN messages:
 
 1. **Verify YANG loads:**
    ```bash
-   ze plugin test --plugin ze.hostname --schema config.conf
+   ze plugin test --plugin bgp-hostname --schema config.conf
    ```
    Look for plugin fields in capability container.
 
 2. **Verify config parses:**
    ```bash
-   ze plugin test --plugin ze.hostname --tree config.conf
+   ze plugin test --plugin bgp-hostname --tree config.conf
    ```
    Check hostname values appear in tree.
 
 3. **Verify JSON format:**
    ```bash
-   ze plugin test --plugin ze.hostname --json config.conf
+   ze plugin test --plugin bgp-hostname --json config.conf
    ```
    Compare with plugin's expected format.
 
@@ -192,5 +192,5 @@ When plugin capabilities aren't appearing in OPEN messages:
 5. **Enable debug logging:**
    ```bash
    export ze_log_server=debug
-   ze bgp server --plugin ze.hostname config.conf
+   ze --plugin bgp-hostname config.conf
    ```

@@ -10,7 +10,7 @@ daemon instances in containers and exchange real BGP messages.
 | Feature | Description |
 |---------|-------------|
 | Target daemons | FRR, BIRD, GoBGP (tested), rustbgpd, RustyBGP, freeRtr (Dockerfiles ready) |
-| Scenario count | 32 scenarios covering core protocol and extensions |
+| Scenario count | 37 scenarios covering core protocol and extensions |
 | Runner | `make ze-interop-test` (all) or `make ze-interop-test INTEROP_SCENARIO=name` (single) |
 | Container images | Customizable via env vars (e.g., `FRR_IMAGE=quay.io/frrouting/frr:10.3`) |
 
@@ -50,6 +50,11 @@ daemon instances in containers and exchange real BGP messages.
 | 30 | FlowSpec | GoBGP |
 | 31 | Multihop eBGP | BIRD |
 | 32 | Multihop eBGP | GoBGP |
+| 33 | BFD failover | FRR |
+| 34 | ECMP | FRR + GoBGP |
+| 35 | SRv6 VPNv6 | FRR |
+| 36 | Remove private AS | FRR |
+| 37 | Remove private AS via AS4_PATH | FRR + BIRD |
 
 Only Ze and rustbgpd ship cross-implementation interop test suites among open-source
 BGP daemons. Ze's suite has more scenarios and tests against more target implementations.

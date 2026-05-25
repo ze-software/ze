@@ -96,7 +96,7 @@ When `ze.user` is not set, no privilege dropping occurs.
 
 ## Log Variables
 
-See [logging.md](../logging.md) for the full list. Config-block
+See [logging.md](../../guide/logging.md) for the full list. Config-block
 `environment { log { level X; <subsystem> Y; } }` is plumbed to
 `ze.log.*` env vars by `slogutil.ApplyLogConfig`.
 <!-- source: internal/core/slogutil/slogutil.go -- ApplyLogConfig -->

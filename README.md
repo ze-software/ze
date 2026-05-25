@@ -83,7 +83,7 @@ bin/ze config import router.conf  # or: ze config edit
 bin/ze start
 ```
 
-Requires **Go 1.25+**. See the [Quick Start guide](docs/guide/quickstart.md).
+Requires **Go 1.26+**. See the [Quick Start guide](docs/guide/quickstart.md).
 
 ## I Want To...
 

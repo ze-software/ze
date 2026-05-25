@@ -504,7 +504,7 @@ type WireWriter interface {
 
 ### Attribute Parsing
 
-Parsing uses `AttributesWire` (lazy parsing, `internal/component/bgp/attribute/wire.go`) or `ParseAttributes` (`internal/component/plugin/rib/storage/attrparse.go`).
+Parsing uses `AttributesWire` (lazy parsing, `internal/component/bgp/attribute/wire.go`) or `ParseAttributes` (`internal/component/bgp/plugins/rib/storage/attrparse.go`).
 
 Simplified parsing logic (pseudocode):
 
