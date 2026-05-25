@@ -1,0 +1,39 @@
+// Design: plan/learned/786-backend-command-dispatch.md -- nft firewall health check
+
+package firewallnft
+
+import (
+	"context"
+	"slices"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"codeberg.org/thomas-mangin/ze/internal/core/health"
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
+)
+
+// RegisterHealthCheck registers the firewall health check with the default registry.
+func RegisterHealthCheck() {
+	health.Register("firewall", checkFirewallHealth)
+}
+
+func checkFirewallHealth() (health.Status, string) {
+	done := make(chan struct{})
+	go func() {
+		firewall.AuditTables()
+		close(done)
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	select {
+	case <-done:
+	case <-ctx.Done():
+		return health.StatusDegraded, "firewall audit timed out"
+	}
+	for _, w := range report.Warnings() {
+		if slices.Contains([]string{"firewall-stale-table", "firewall-drift"}, w.Code) {
+			return health.StatusDegraded, w.Message
+		}
+	}
+	return health.StatusHealthy, ""
+}

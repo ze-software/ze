@@ -88,7 +88,7 @@ func (b *Builder) ParseASPath(s string) error {
 	}
 
 	var tokens []string
-	tokenCount := 0
+	var tokenCount int
 	if strings.Contains(s, ",") {
 		tokens, tokenCount = stringsx.SplitCount(s, ",")
 	} else {

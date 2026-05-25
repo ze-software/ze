@@ -11,7 +11,7 @@ import (
 func SplitCount(s, sep string) ([]string, int) {
 	if sep == "" {
 		parts := make([]string, 0, len(s))
-		for len(s) > 0 {
+		for s != "" {
 			_, size := utf8.DecodeRuneInString(s)
 			parts = append(parts, s[:size])
 			s = s[size:]

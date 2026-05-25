@@ -12,4 +12,5 @@ func init() {
 		fmt.Fprintf(os.Stderr, "firewallnft: registration failed: %v\n", err)
 		os.Exit(1)
 	}
+	RegisterHealthCheck()
 }

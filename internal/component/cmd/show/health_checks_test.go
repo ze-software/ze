@@ -47,12 +47,11 @@ func TestHealthRegistryNewComponents(t *testing.T) {
 	reg := &health.Registry{}
 	reg.Register("bgp", checkBGPHealth)
 	reg.Register("fib", checkFIBHealth)
-	reg.Register("firewall", checkFirewallHealth)
 	reg.Register("plugins", checkPluginHealth)
 
 	rpt := reg.Check()
 	assert.Equal(t, health.StatusHealthy, rpt.Status)
-	assert.Len(t, rpt.Components, 4)
+	assert.Len(t, rpt.Components, 3)
 
 	report.RaiseWarning("plugin", "plugin-down", "test", "crashed", nil)
 	rpt = reg.Check()

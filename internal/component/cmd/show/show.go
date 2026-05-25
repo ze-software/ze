@@ -57,10 +57,8 @@ func init() {
 
 	health.Register("bgp", checkBGPHealth)
 	health.Register("fib", checkFIBHealth)
-	health.Register("firewall", checkFirewallHealth)
 	health.Register("iface", checkIfaceHealth)
 	health.Register("plugins", checkPluginHealth)
-	health.Register("vpp", checkVPPHealth)
 
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{

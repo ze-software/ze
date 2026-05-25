@@ -1,4 +1,4 @@
-// Design: plan/spec-backend-command-dispatch.md -- VPP show handler wiring tests
+// Design: plan/learned/786-backend-command-dispatch.md -- VPP show handler wiring tests
 
 package ifacevpp
 

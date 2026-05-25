@@ -1,4 +1,4 @@
-// Design: plan/spec-backend-command-dispatch.md -- nft firewall show handler tests
+// Design: plan/learned/786-backend-command-dispatch.md -- nft firewall show handler tests
 
 package firewallnft
 
