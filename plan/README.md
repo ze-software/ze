@@ -54,7 +54,6 @@
 |------|-------------|----------|
 | `exabgp-migration-tool.md` | CLI tool to convert ExaBGP configs | Medium |
 | `plugin-system-mvp.md` | Plugin system MVP specification | Low |
-| `plugin-system.md` | Plugin system full design | Deferred |
 
 ### 📖 Reference
 
