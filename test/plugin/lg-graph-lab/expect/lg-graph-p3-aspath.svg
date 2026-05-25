@@ -10,6 +10,6 @@
 <g class="edge"><line x1="220" y1="40" x2="340" y2="40"/><polygon points="340,40 332,36 332,44"/></g>
 <g class="edge"><line x1="220" y1="140" x2="340" y2="40"/><polygon points="340,40 332,36 332,44"/></g>
 <g class="node"><rect x="20" y="20" width="200" height="40"/><text x="36" y="44" class="asn">AS13335 Cloudflare, Inc.</text><title>AS13335 - Cloudflare, Inc.</title></g>
-<g class="node"><rect x="20" y="120" width="200" height="40"/><text x="36" y="144" class="asn">AS20940 AKAMAI-ASN1, NL</text><title>AS20940 - AKAMAI-ASN1, NL</title></g>
+<g class="node"><rect x="20" y="120" width="200" height="40"/><text x="36" y="144" class="asn">AS20940 Akamai Internat…</text><title>AS20940 - Akamai International B.V.</title></g>
 <g class="node"><rect x="340" y="20" width="81" height="40"/><text x="356" y="44" class="asn">AS65300</text><title>AS65300</title></g>
 </svg>

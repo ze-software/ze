@@ -34,7 +34,7 @@
 ZE_SUITE_TIMEOUT ?= 600s
 ZE_SUITE_KILL_AFTER ?= 10s
 ZE_ENCODE_PARALLEL ?= 8
-ZE_PLUGIN_PARALLEL ?= 2
+ZE_PLUGIN_PARALLEL ?= 8
 SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 
 # Run ze functional tests (all types, continue on failure to show all results)

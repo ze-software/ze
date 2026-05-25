@@ -1,12 +1,12 @@
 # task-cancel - create a task, wait for completion, then cancel
 # Exercises: createTask on required tool -> tasks/cancel on terminal task -> task-get
-# Uses ze_monitor (task-support: required) to exercise the required path.
+# Uses ze_monitor_bgp (task-support: required) to exercise the required path.
 # cancel on an already-completed task is a no-op (returns current state).
 
 # MCP commands: wait for auto-generated tools, then run monitor bgp as a task
 stdin=mcp:terminator=EOF_MCP
-wait-tool ze_monitor
-task-call ze_monitor {"action":"bgp"}
+wait-tool ze_monitor_bgp
+task-call ze_monitor_bgp {}
 task-wait $LAST completed
 task-cancel $LAST
 task-get $LAST

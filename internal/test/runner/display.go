@@ -22,6 +22,9 @@ const (
 	cr = "\r"
 )
 
+// nonTTYStatusInterval is how often non-TTY progress lines are emitted.
+const nonTTYStatusInterval = 5 * time.Second
+
 // Display manages test status output.
 type Display struct {
 	tests     *Tests
@@ -33,6 +36,8 @@ type Display struct {
 	timeout   time.Duration
 	parallel  int // for batch display (0 = all at once)
 	total     int // total test count
+
+	lastNonTTYStatus time.Time // rate-limit non-TTY progress lines
 }
 
 // NewDisplay creates a new display.
@@ -229,10 +234,53 @@ func (d *Display) Status() {
 
 	// Clear line and print status
 	if d.colors.Enabled() {
-		// TTY mode: update in place
 		d.print(clearLine + status + d.colors.Reset() + cr)
+	} else if running > 0 && now.Sub(d.lastNonTTYStatus) >= nonTTYStatusInterval {
+		d.lastNonTTYStatus = now
+		maxParallel := d.parallel
+		if maxParallel <= 0 {
+			maxParallel = d.total
+		}
+		var b textbuf.Buffer
+		b.Str(padRight(formatDuration(now.Sub(d.startTime)), 7))
+		b.Str(padLeft(textbuf.Int(int64(completed)), 4)).Byte('/').Str(padRight(textbuf.Int(int64(completed+running+pending)), 4))
+		b.Str("  ").Str(padLeft(textbuf.Int(int64(running)), 2)).Byte('/').Str(padRight(textbuf.Int(int64(maxParallel)), 2))
+		b.Str(" running  ")
+		for i, nick := range runningTests {
+			if i > 0 {
+				b.Str(", ")
+			}
+			r := d.tests.byNick[nick]
+			elapsed := now.Sub(r.StartTime)
+			b.Str(nick).Byte('(').Str(formatDuration(elapsed)).Byte(')')
+		}
+		d.println(b.String())
 	}
-	// Non-TTY: skip intermediate updates (final summary will show results)
+}
+
+// TestFinished emits a per-test result line in non-TTY mode so redirected
+// logs show each completion with its elapsed time and outcome.
+func (d *Display) TestFinished(nick string, state State, elapsed time.Duration) {
+	if d.quiet || d.colors.Enabled() {
+		return
+	}
+	var tag string
+	switch state {
+	case StateSuccess:
+		tag = "PASS"
+	case StateFail:
+		tag = "FAIL"
+	case StateTimeout:
+		tag = "TIME"
+	case StateSkip:
+		tag = "SKIP"
+	default:
+		return
+	}
+	var b textbuf.Buffer
+	b.Str(padRight(formatDuration(elapsed), 7))
+	b.Str("  ").Str(tag).Str("  ").Str(nick)
+	d.println(b.String())
 }
 
 // Newline prints a newline to move past the status line.
@@ -490,6 +538,20 @@ func (d *Display) DebugHints() {
 	}
 	d.Printf("\n  %s\n", d.colors.Gray("Add -v for verbose output"))
 	d.println("")
+}
+
+func padLeft(s string, width int) string {
+	if len(s) >= width {
+		return s
+	}
+	return strings.Repeat(" ", width-len(s)) + s
+}
+
+func padRight(s string, width int) string {
+	if len(s) >= width {
+		return s
+	}
+	return s + strings.Repeat(" ", width-len(s))
 }
 
 // formatDuration formats a duration for display.
