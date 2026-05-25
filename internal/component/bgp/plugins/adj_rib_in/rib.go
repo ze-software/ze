@@ -296,7 +296,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	}
 
 	// Set peer field so GetPeerAddress works.
-	event.Peer = []byte(`{"address":"` + se.PeerAddress + `"}`)
+	event.Peer = []byte(`{"remote":{"address":"` + se.PeerAddress + `"}}`)
 
 	r.dispatch(event)
 }

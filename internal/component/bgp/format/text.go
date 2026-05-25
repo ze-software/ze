@@ -92,39 +92,27 @@ func appendReplacingByte(buf []byte, s string, from, to byte) []byte {
 }
 
 // appendPeerJSON appends the peer JSON object (no leading comma) to buf.
-// Structure matches the YANG peer-info grouping: address, group, local,
-// name, remote.as. Key order is alphabetical (matching json.Marshal output
-// from peerMap).
+// Key order is alphabetical (matching json.Marshal output from peerMap).
+// Both local and remote blocks are always present with address + as.
 func appendPeerJSON(buf []byte, peer *plugin.PeerInfo) []byte {
-	buf = append(buf, `"peer":{"address":"`...)
-	buf = peer.Address.AppendTo(buf)
-	buf = append(buf, '"')
+	buf = append(buf, `"peer":{`...)
 	if peer.GroupName != "" {
-		buf = append(buf, `,"group":"`...)
+		buf = append(buf, `"group":"`...)
 		buf = appendJSONSafeString(buf, peer.GroupName)
-		buf = append(buf, '"')
+		buf = append(buf, `",`...)
 	}
-	if peer.LocalAS > 0 || peer.LocalAddress.IsValid() {
-		buf = append(buf, `,"local":{`...)
-		first := true
-		if peer.LocalAddress.IsValid() {
-			buf = append(buf, `"address":"`...)
-			buf = peer.LocalAddress.AppendTo(buf)
-			buf = append(buf, '"')
-			first = false
-		}
-		if peer.LocalAS > 0 {
-			if !first {
-				buf = append(buf, ',')
-			}
-			buf = append(buf, `"as":`...)
-			buf = strconv.AppendUint(buf, uint64(peer.LocalAS), 10)
-		}
-		buf = append(buf, '}')
+	buf = append(buf, `"local":{"address":"`...)
+	if peer.LocalAddress.IsValid() {
+		buf = peer.LocalAddress.AppendTo(buf)
 	}
+	buf = append(buf, `","as":`...)
+	buf = strconv.AppendUint(buf, uint64(peer.LocalAS), 10)
+	buf = append(buf, '}')
 	buf = append(buf, `,"name":"`...)
 	buf = appendJSONSafeString(buf, peer.Name)
-	buf = append(buf, `","remote":{"as":`...)
+	buf = append(buf, `","remote":{"address":"`...)
+	buf = peer.Address.AppendTo(buf)
+	buf = append(buf, `","as":`...)
 	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
 	buf = append(buf, `}}`...)
 	return buf

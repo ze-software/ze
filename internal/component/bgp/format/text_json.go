@@ -35,7 +35,7 @@ import (
 //	  "type": "bgp",
 //	  "bgp": {
 //	    "message": {"type": "update", "id": 123, "direction": "received"},
-//	    "peer": {"address": "...", "name": "...", "remote": {"as": ...}},
+//	    "peer": {"local": {"address": "...", "as": ...}, "name": "...", "remote": {"address": "...", "as": ...}},
 //	    "update": {
 //	      "attr": {"origin": "igp", ...},
 //	      "nlri": {

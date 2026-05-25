@@ -31,8 +31,9 @@ func TestBuildRPKIEvent(t *testing.T) {
 	if !ok {
 		t.Fatal("missing peer key")
 	}
-	if peerMap["address"] != "10.0.0.1" {
-		t.Fatalf("expected peer address=10.0.0.1, got %v", peerMap["address"])
+	remoteMap0, ok0 := peerMap["remote"].(map[string]any)
+	if !ok0 || remoteMap0["address"] != "10.0.0.1" {
+		t.Fatalf("expected peer remote.address=10.0.0.1, got %v", peerMap["remote"])
 	}
 	remoteMap, ok := peerMap["remote"].(map[string]any)
 	if !ok {
@@ -123,8 +124,9 @@ func TestBuildRPKIEventUnavailable(t *testing.T) {
 	if !ok {
 		t.Fatal("missing peer key")
 	}
-	if peerMap["address"] != "10.0.0.1" {
-		t.Fatalf("expected peer address=10.0.0.1, got %v", peerMap["address"])
+	remoteMap0, ok0 := peerMap["remote"].(map[string]any)
+	if !ok0 || remoteMap0["address"] != "10.0.0.1" {
+		t.Fatalf("expected peer remote.address=10.0.0.1, got %v", peerMap["remote"])
 	}
 
 	// rpki field is now always an object: {"status":"unavailable"}
@@ -181,8 +183,9 @@ func TestBuildRPKIEventEscaping(t *testing.T) {
 	if !ok {
 		t.Fatal("missing peer key")
 	}
-	if peerMap["address"] != `peer"addr` {
-		t.Fatalf("peer address not preserved through escaping: %v", peerMap["address"])
+	remoteEsc, okEsc := peerMap["remote"].(map[string]any)
+	if !okEsc || remoteEsc["address"] != `peer"addr` {
+		t.Fatalf("peer remote.address not preserved through escaping: %v", peerMap["remote"])
 	}
 }
 

@@ -126,7 +126,7 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
   "type": "bgp",
   "bgp": {
     "message": {"type": "update", "id": 123, "direction": "received"},
-    "peer": {"address": "10.0.0.1", "group": "transit", "name": "upstream1", "remote": {"as": 65001}},
+    "peer": {"address": "10.0.0.1", "group": "transit", "local": {"address": "10.0.0.2", "as": 65000}, "name": "upstream1", "remote": {"address": "10.0.0.1", "as": 65001}},
     "update": {
       "attr": {"origin": "igp", "as-path": [65001]},
       "nlri": {"ipv4/unicast": [{"action": "add", "next-hop": "10.0.0.1", "nlri": ["10.0.0.0/24"]}]}
@@ -152,7 +152,7 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `message` | object | Always | `{"type":"<event>"}` with optional `"id"` and `"direction"` fields |
-| `peer` | object | Always | `{"address":"<ip>", "remote":{"as":<asn>}}` - at bgp level. Optional `"name"` and `"group"` when configured. |
+| `peer` | object | Always | `{"address":"<ip>", "local":{"address":"<local-ip>","as":<local-asn>}, "remote":{"address":"<ip>","as":<asn>}}` - at bgp level. Optional `"name"` and `"group"` when configured. |
 | `<type>` | object/string | Usually | Event data nested under event type key (string for state events) |
 
 **Message metadata fields (inside `bgp.message`):**
@@ -181,7 +181,7 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
 | `type` | string | Always | `cache`, `route` |
 | `action` | string | Always | `new`, `evict`, `add`, `remove` |
 | `msg-id` | uint64 | For cache events | Message cache ID |
-| `peer` | object | Always | `{"address":"<ip>", "remote":{"as":<asn>}}`. Optional `"name"` and `"group"` when configured. |
+| `peer` | object | Always | `{"address":"<ip>", "local":{"address":"<local-ip>","as":<local-asn>}, "remote":{"address":"<ip>","as":<asn>}}`. Optional `"name"` and `"group"` when configured. |
 
 **Message object fields (BGP wire messages only):**
 
@@ -474,7 +474,7 @@ RIB events include `peer` field indicating which peer caused the event.
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
+    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
     "update": {
       "message": {"id": 123, "direction": "received"},
       "attr": {
@@ -498,7 +498,7 @@ RIB events include `peer` field indicating which peer caused the event.
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
+    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
     "update": {
       "message": {"id": 0, "direction": "sent"},
       "attr": {
@@ -523,7 +523,7 @@ RIB events include `peer` field indicating which peer caused the event.
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
+    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
     "update": {
       "message": {"id": 123, "direction": "received"},
       "attr": {
@@ -551,7 +551,7 @@ RIB events include `peer` field indicating which peer caused the event.
   "type": "bgp",
   "bgp": {
     "type": "state",
-    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
+    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
     "state": "up"
   }
 }
@@ -563,7 +563,7 @@ RIB events include `peer` field indicating which peer caused the event.
   "type": "bgp",
   "bgp": {
     "type": "state",
-    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
+    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}},
     "state": "down",
     "reason": "hold timer expired"
   }
@@ -578,7 +578,7 @@ RIB events include `peer` field indicating which peer caused the event.
     "type": "cache",
     "action": "new",
     "msg-id": 12345,
-    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}}
+    "peer": {"address": "192.0.2.1", "local": {"address": "192.0.2.2", "as": 65000}, "remote": {"address": "192.0.2.1", "as": 65001}}
   }
 }
 ```

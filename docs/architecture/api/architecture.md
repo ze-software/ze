@@ -78,7 +78,7 @@ Engine sends wire bytes to API in IPC Protocol format (when `format full` is con
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
+    "peer": {"address": "10.0.0.1", "local": {"address": "10.0.0.2", "as": 65000}, "remote": {"address": "10.0.0.1", "as": 65001}},
     "update": {
       "message": {"id": 123, "direction": "received"},
       "attr": {"origin": "igp", "as-path": [65001]},
@@ -788,7 +788,7 @@ Each address family contains a list of operations grouped by next-hop.
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
+    "peer": {"address": "10.0.0.1", "local": {"address": "10.0.0.2", "as": 65000}, "remote": {"address": "10.0.0.1", "as": 65001}},
     "update": {
       "message": {"id": 1, "direction": "received"},
       "attr": {
@@ -811,7 +811,7 @@ Each address family contains a list of operations grouped by next-hop.
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
+    "peer": {"address": "10.0.0.1", "local": {"address": "10.0.0.2", "as": 65000}, "remote": {"address": "10.0.0.1", "as": 65001}},
     "update": {
       "message": {"id": 2, "direction": "received"},
       "nlri": {
@@ -828,7 +828,7 @@ Each address family contains a list of operations grouped by next-hop.
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
+    "peer": {"address": "10.0.0.1", "local": {"address": "10.0.0.2", "as": 65000}, "remote": {"address": "10.0.0.1", "as": 65001}},
     "update": {
       "message": {"id": 3, "direction": "received"},
       "attr": {"origin": "igp"},
@@ -1080,7 +1080,7 @@ Peer B,C ← Send wire bytes directly ← Lookup cache by ID
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
+    "peer": {"address": "10.0.0.1", "local": {"address": "10.0.0.2", "as": 65000}, "remote": {"address": "10.0.0.1", "as": 65001}},
     "update": {
       "message": {"id": 12345, "direction": "received"},
       "attr": {"as-path": [65001, 65002]},
@@ -1207,8 +1207,8 @@ peer 192.0.2.1 remote as 65001 state down
 
 **JSON format:**
 ```json
-{"type":"bgp","bgp":{"type":"state","peer":{"address":"192.0.2.1","remote":{"as":65001}},"state":"up"}}
-{"type":"bgp","bgp":{"type":"state","peer":{"address":"192.0.2.1","remote":{"as":65001}},"state":"down","reason":"hold timer expired"}}
+{"type":"bgp","bgp":{"type":"state","peer":{"address":"192.0.2.1","local":{"address":"192.0.2.2","as":65000},"remote":{"address":"192.0.2.1","as":65001}},"state":"up"}}
+{"type":"bgp","bgp":{"type":"state","peer":{"address":"192.0.2.1","local":{"address":"192.0.2.2","as":65000},"remote":{"address":"192.0.2.1","as":65001}},"state":"down","reason":"hold timer expired"}}
 ```
 <!-- source: internal/component/bgp/format/text.go -- FormatStateChange -->
 

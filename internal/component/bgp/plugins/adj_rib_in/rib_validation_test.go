@@ -497,7 +497,7 @@ func TestPeerDownClearsPending(t *testing.T) {
 	// Peer goes down
 	downEvent := &bgp.Event{
 		Type:  "state",
-		Peer:  mustMarshal(t, bgp.PeerInfoJSON{Address: "10.0.0.1", Remote: bgp.PeerRemoteInfo{AS: 65001}}),
+		Peer:  mustMarshal(t, bgp.PeerInfoJSON{Remote: bgp.PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
 		State: "down",
 	}
 	r.handleState(downEvent)
@@ -620,7 +620,7 @@ func TestClearPeerPendingPreservesOthers(t *testing.T) {
 	// Peer 1 goes down
 	downEvent := &bgp.Event{
 		Type:  "state",
-		Peer:  mustMarshal(t, bgp.PeerInfoJSON{Address: "10.0.0.1", Remote: bgp.PeerRemoteInfo{AS: 65001}}),
+		Peer:  mustMarshal(t, bgp.PeerInfoJSON{Remote: bgp.PeerRemoteInfo{Address: "10.0.0.1", AS: 65001}}),
 		State: "down",
 	}
 	r.handleState(downEvent)

@@ -36,7 +36,7 @@ const (
 //	{
 //	  "type": "bgp",
 //	  "bgp": {
-//	    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
+//	    "peer": {"local": {"address": "...", "as": ...}, "remote": {"address": "10.0.0.1", "as": 65001}},
 //	    "message": {"id": 1, "direction": "received", "type": "update"},
 //	    "update": {
 //	      "attr": {"origin": "igp"},
@@ -99,9 +99,10 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 
 	// Get peer from bgp level (ze-bgp JSON format)
 	peer, _ := bgpPayload["peer"].(map[string]any)
-	peerAddr, _ := peer["address"].(string)
+	var peerAddr string
 	var peerASN float64
 	if remote, ok := peer["remote"].(map[string]any); ok {
+		peerAddr, _ = remote["address"].(string)
 		peerASN, _ = remote["as"].(float64)
 	}
 

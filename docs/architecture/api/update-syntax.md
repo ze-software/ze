@@ -461,7 +461,7 @@ peer 10.0.0.1 remote as 65001 received update 123 attr 400101... nlri ipv4/unica
 ```json
 {
   "message": {"type": "update", "direction": "received", "id": 123},
-  "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
+  "peer": {"address": "10.0.0.1", "local": {"address": "10.0.0.2", "as": 65000}, "remote": {"address": "10.0.0.1", "as": 65001}},
   "attr": {
     "encoding": "hex",
     "data": "400101400206020100001f94"

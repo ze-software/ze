@@ -621,7 +621,7 @@ func TestPurgeBestPrevForPeerHandleState(t *testing.T) {
 	// peer encoded in Peer (JSON blob) + State.
 	event := &Event{
 		Message: &MessageInfo{Type: rpc.EventKindState},
-		Peer:    mustMarshal(t, map[string]any{"address": peerAddr, "state": "down"}),
+		Peer:    mustMarshal(t, map[string]any{"remote": map[string]any{"address": peerAddr}, "state": "down"}),
 	}
 	r.handleState(event)
 

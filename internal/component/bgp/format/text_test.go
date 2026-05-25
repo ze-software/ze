@@ -62,20 +62,20 @@ func TestFormatStateChange(t *testing.T) {
 			name:     "json up",
 			state:    rpc.SessionStateUp,
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"state":"up"}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"local":{"address":"","as":0},"name":"","remote":{"address":"10.0.0.1","as":65001}},"state":"up"}}` + "\n",
 		},
 		{
 			name:     "json down no reason",
 			state:    rpc.SessionStateDown,
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"state":"down"}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"local":{"address":"","as":0},"name":"","remote":{"address":"10.0.0.1","as":65001}},"state":"down"}}` + "\n",
 		},
 		{
 			name:     "json down with reason",
 			state:    rpc.SessionStateDown,
 			reason:   "notification",
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"state":"down","reason":"notification"}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"local":{"address":"","as":0},"name":"","remote":{"address":"10.0.0.1","as":65001}},"state":"down","reason":"notification"}}` + "\n",
 		},
 	}
 
@@ -106,7 +106,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 				PeerAS:  65001,
 				Name:    "upstream1",
 			},
-			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","name":"upstream1","remote":{"as":65001}},"state":"up"}}` + "\n",
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"local":{"address":"","as":0},"name":"upstream1","remote":{"address":"10.0.0.1","as":65001}},"state":"up"}}` + "\n",
 		},
 		{
 			name: "name and group",
@@ -116,7 +116,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 				Name:      "peer_east",
 				GroupName: "transit",
 			},
-			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.2","group":"transit","name":"peer_east","remote":{"as":65002}},"state":"up"}}` + "\n",
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"group":"transit","local":{"address":"","as":0},"name":"peer_east","remote":{"address":"10.0.0.2","as":65002}},"state":"up"}}` + "\n",
 		},
 		{
 			name: "group only",
@@ -125,7 +125,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 				PeerAS:    65003,
 				GroupName: "edge",
 			},
-			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.3","group":"edge","name":"","remote":{"as":65003}},"state":"up"}}` + "\n",
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"group":"edge","local":{"address":"","as":0},"name":"","remote":{"address":"10.0.0.3","as":65003}},"state":"up"}}` + "\n",
 		},
 		{
 			name: "no name no group",
@@ -133,7 +133,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 				Address: netip.MustParseAddr("10.0.0.4"),
 				PeerAS:  65004,
 			},
-			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.4","name":"","remote":{"as":65004}},"state":"up"}}` + "\n",
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"local":{"address":"","as":0},"name":"","remote":{"address":"10.0.0.4","as":65004}},"state":"up"}}` + "\n",
 		},
 	}
 
@@ -179,13 +179,13 @@ func TestFormatEOR(t *testing.T) {
 			name:     "ipv4/unicast json",
 			fam:      "ipv4/unicast",
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"eor":{"family":"ipv4/unicast"}}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"local":{"address":"","as":0},"name":"","remote":{"address":"10.0.0.1","as":65001}},"eor":{"family":"ipv4/unicast"}}}` + "\n",
 		},
 		{
 			name:     "ipv6/unicast json",
 			fam:      "ipv6/unicast",
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"eor":{"family":"ipv6/unicast"}}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"local":{"address":"","as":0},"name":"","remote":{"address":"10.0.0.1","as":65001}},"eor":{"family":"ipv6/unicast"}}}` + "\n",
 		},
 	}
 
@@ -231,13 +231,13 @@ func TestFormatCongestion(t *testing.T) {
 			name:      "congested json",
 			eventType: "congested",
 			encoding:  plugin.EncodingJSON,
-			want:      `{"type":"bgp","bgp":{"message":{"type":"congested"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}}}}` + "\n",
+			want:      `{"type":"bgp","bgp":{"message":{"type":"congested"},"peer":{"local":{"address":"","as":0},"name":"","remote":{"address":"10.0.0.1","as":65001}}}}` + "\n",
 		},
 		{
 			name:      "resumed json",
 			eventType: "resumed",
 			encoding:  plugin.EncodingJSON,
-			want:      `{"type":"bgp","bgp":{"message":{"type":"resumed"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}}}}` + "\n",
+			want:      `{"type":"bgp","bgp":{"message":{"type":"resumed"},"peer":{"local":{"address":"","as":0},"name":"","remote":{"address":"10.0.0.1","as":65001}}}}` + "\n",
 		},
 	}
 
@@ -370,7 +370,7 @@ func TestFormatMessageJSON(t *testing.T) {
 	if !strings.Contains(got, `"direction":"received"`) {
 		t.Error("missing direction:received in message wrapper")
 	}
-	if !strings.Contains(got, `"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}}`) {
+	if !strings.Contains(got, `"peer":{"local":{"address":"","as":0},"name":"","remote":{"address":"10.0.0.1","as":65001}}`) {
 		t.Error("missing peer info")
 	}
 	// NLRIs under "nlri" object with family key

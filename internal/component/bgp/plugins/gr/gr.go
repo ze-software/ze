@@ -382,7 +382,8 @@ func (gp *grPlugin) handleEvent(event string) error {
 	msgType, _ := msgObj["type"].(string)
 
 	peerObj, _ := bgpPayload["peer"].(map[string]any)
-	peerAddr, _ := peerObj["address"].(string)
+	remoteObj, _ := peerObj["remote"].(map[string]any)
+	peerAddr, _ := remoteObj["address"].(string)
 	if peerAddr == "" {
 		return nil
 	}

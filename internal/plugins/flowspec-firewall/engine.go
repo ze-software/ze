@@ -56,7 +56,9 @@ func (b *bridge) handleEvent(jsonStr string) error {
 		Type  string `json:"type"`
 		State string `json:"state,omitempty"`
 		Peer  struct {
-			Address string `json:"address"`
+			Remote struct {
+				Address string `json:"address"`
+			} `json:"remote"`
 		} `json:"peer"`
 	}
 	if err := json.Unmarshal([]byte(jsonStr), &envelope); err != nil {
@@ -66,12 +68,12 @@ func (b *bridge) handleEvent(jsonStr string) error {
 
 	switch envelope.Type {
 	case "state":
-		if envelope.State != "up" && envelope.Peer.Address != "" {
-			b.handlePeerDown(envelope.Peer.Address)
+		if envelope.State != "up" && envelope.Peer.Remote.Address != "" {
+			b.handlePeerDown(envelope.Peer.Remote.Address)
 		}
 	case "update":
-		if envelope.Peer.Address != "" {
-			b.handleUpdate(jsonStr, envelope.Peer.Address)
+		if envelope.Peer.Remote.Address != "" {
+			b.handleUpdate(jsonStr, envelope.Peer.Remote.Address)
 		}
 	}
 	return nil

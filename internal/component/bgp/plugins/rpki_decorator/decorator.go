@@ -99,14 +99,16 @@ func extractPeerAddress(jsonStr string) string {
 	var envelope struct {
 		BGP struct {
 			Peer struct {
-				Address string `json:"address"`
+				Remote struct {
+					Address string `json:"address"`
+				} `json:"remote"`
 			} `json:"peer"`
 		} `json:"bgp"`
 	}
 	if err := json.Unmarshal([]byte(jsonStr), &envelope); err != nil {
 		return ""
 	}
-	return envelope.BGP.Peer.Address
+	return envelope.BGP.Peer.Remote.Address
 }
 
 // parseEventMeta extracts event type, peer address, and message ID from a JSON event string.
@@ -115,7 +117,9 @@ func parseEventMeta(jsonStr string) (eventType, peerAddr string, msgID uint64) {
 	var envelope struct {
 		BGP struct {
 			Peer struct {
-				Address string `json:"address"`
+				Remote struct {
+					Address string `json:"address"`
+				} `json:"remote"`
 			} `json:"peer"`
 			Message struct {
 				ID   uint64 `json:"id"`
@@ -126,5 +130,5 @@ func parseEventMeta(jsonStr string) (eventType, peerAddr string, msgID uint64) {
 	if err := json.Unmarshal([]byte(jsonStr), &envelope); err != nil {
 		return "", "", 0
 	}
-	return envelope.BGP.Message.Type, envelope.BGP.Peer.Address, envelope.BGP.Message.ID
+	return envelope.BGP.Message.Type, envelope.BGP.Peer.Remote.Address, envelope.BGP.Message.ID
 }

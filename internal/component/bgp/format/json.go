@@ -30,26 +30,19 @@ func NewJSONEncoder(_ string) *JSONEncoder {
 }
 
 // peerMap builds the "peer" JSON object from PeerInfo.
-// Structure matches YANG peer-info grouping: address, name, remote.as, group.
-// Always includes address, name, and remote.as. Includes group when non-empty.
+// Both local and remote are always present with address + as.
 func peerMap(peer *plugin.PeerInfo) map[string]any {
+	localAddr := ""
+	if peer.LocalAddress.IsValid() {
+		localAddr = peer.LocalAddrStr()
+	}
 	m := map[string]any{
-		"address": peer.AddrStr(),
-		"name":    peer.Name,
-		"remote":  map[string]any{"as": peer.PeerAS},
+		"name":   peer.Name,
+		"local":  map[string]any{"address": localAddr, "as": peer.LocalAS},
+		"remote": map[string]any{"address": peer.AddrStr(), "as": peer.PeerAS},
 	}
 	if peer.GroupName != "" {
 		m["group"] = peer.GroupName
-	}
-	if peer.LocalAS > 0 || peer.LocalAddress.IsValid() {
-		local := map[string]any{}
-		if peer.LocalAddress.IsValid() {
-			local["address"] = peer.LocalAddrStr()
-		}
-		if peer.LocalAS > 0 {
-			local["as"] = peer.LocalAS
-		}
-		m["local"] = local
 	}
 	return m
 }

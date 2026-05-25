@@ -136,7 +136,7 @@ When the rpki plugin is loaded, it emits validation events that other plugins ca
 {
   "type": "bgp",
   "bgp": {
-    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
+    "peer": {"address": "10.0.0.1", "local": {"address": "10.0.0.2", "as": 65000}, "remote": {"address": "10.0.0.1", "as": 65001}},
     "message": {"id": 42, "type": "rpki"},
     "rpki": {
       "ipv4/unicast": {
@@ -187,7 +187,7 @@ The merged event contains the full UPDATE JSON with an `rpki` section injected:
 {
   "type": "bgp",
   "bgp": {
-    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
+    "peer": {"address": "10.0.0.1", "local": {"address": "10.0.0.2", "as": 65000}, "remote": {"address": "10.0.0.1", "as": 65001}},
     "message": {"id": 42, "type": "update-rpki"},
     "update": {"attr": {"origin": "igp"}, ...},
     "rpki": {"ipv4/unicast": {"10.0.1.0/24": "valid"}}
@@ -259,7 +259,7 @@ The `"aspa-state"` field is included alongside per-prefix origin validation resu
 {
   "type": "bgp",
   "bgp": {
-    "peer": {"address": "10.0.0.1", "name": "upstream", "remote": {"as": 65001}},
+    "peer": {"address": "10.0.0.1", "local": {"address": "10.0.0.2", "as": 65000}, "name": "upstream", "remote": {"address": "10.0.0.1", "as": 65001}},
     "message": {"id": 42, "type": "rpki"},
     "rpki": {
       "ipv4/unicast": {

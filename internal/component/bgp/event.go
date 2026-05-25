@@ -436,7 +436,8 @@ func (e *Event) GetDirection() string {
 
 // PeerRemoteInfo holds the remote peer identity (YANG: container remote).
 type PeerRemoteInfo struct {
-	AS uint32 `json:"as"`
+	Address string `json:"address,omitempty"`
+	AS      uint32 `json:"as"`
 }
 
 // PeerLocalInfo holds local peer identity (YANG: container local).
@@ -446,25 +447,24 @@ type PeerLocalInfo struct {
 }
 
 // PeerInfoJSON is the YANG-aligned peer format for all events.
-// Flat events (state, sent) omit Local. Full events include Local.
+// Both local and remote are always present with address + as.
 type PeerInfoJSON struct {
-	Address string         `json:"address"`
-	Name    string         `json:"name,omitempty"`
-	Group   string         `json:"group,omitempty"`
-	Remote  PeerRemoteInfo `json:"remote"`
-	Local   *PeerLocalInfo `json:"local,omitempty"`
-	State   string         `json:"state,omitempty"`
+	Name   string         `json:"name,omitempty"`
+	Group  string         `json:"group,omitempty"`
+	Remote PeerRemoteInfo `json:"remote"`
+	Local  *PeerLocalInfo `json:"local,omitempty"`
+	State  string         `json:"state,omitempty"`
 }
 
-// GetPeerAddress extracts the peer address (YANG: address leaf).
+// GetPeerAddress extracts the peer address from remote.address.
 func (e *Event) GetPeerAddress() string {
 	if len(e.Peer) == 0 {
 		return ""
 	}
 
 	var info PeerInfoJSON
-	if err := json.Unmarshal(e.Peer, &info); err == nil && info.Address != "" {
-		return info.Address
+	if err := json.Unmarshal(e.Peer, &info); err == nil && info.Remote.Address != "" {
+		return info.Remote.Address
 	}
 
 	return ""

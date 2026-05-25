@@ -42,13 +42,19 @@ type rpkiEventBGP struct {
 }
 
 type rpkiEventPeer struct {
-	Address string          `json:"address"`
-	Name    string          `json:"name"`
-	Remote  rpkiEventRemote `json:"remote"`
+	Local  rpkiEventLocal  `json:"local"`
+	Name   string          `json:"name"`
+	Remote rpkiEventRemote `json:"remote"`
+}
+
+type rpkiEventLocal struct {
+	Address string `json:"address"`
+	AS      uint32 `json:"as"`
 }
 
 type rpkiEventRemote struct {
-	AS uint32 `json:"as"`
+	Address string `json:"address"`
+	AS      uint32 `json:"as"`
 }
 
 type rpkiEventMessage struct {
@@ -84,7 +90,7 @@ func buildRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, fam
 	evt := rpkiEventJSON{
 		Type: "bgp",
 		BGP: rpkiEventBGP{
-			Peer:    rpkiEventPeer{Address: peerAddr, Name: peerName, Remote: rpkiEventRemote{AS: peerASN}},
+			Peer:    rpkiEventPeer{Name: peerName, Remote: rpkiEventRemote{Address: peerAddr, AS: peerASN}},
 			Message: rpkiEventMessage{ID: msgID, Type: "rpki"},
 			RPKI:    rpkiSection,
 		},
@@ -105,7 +111,7 @@ func buildRPKIEventUnavailable(peerAddr, peerName string, peerASN uint32, msgID 
 	evt := rpkiEventJSON{
 		Type: "bgp",
 		BGP: rpkiEventBGP{
-			Peer:    rpkiEventPeer{Address: peerAddr, Name: peerName, Remote: rpkiEventRemote{AS: peerASN}},
+			Peer:    rpkiEventPeer{Name: peerName, Remote: rpkiEventRemote{Address: peerAddr, AS: peerASN}},
 			Message: rpkiEventMessage{ID: msgID, Type: "rpki"},
 			RPKI:    map[string]string{"status": "unavailable"},
 		},

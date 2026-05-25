@@ -24,7 +24,7 @@ func TestHandleEventOpenCapture(t *testing.T) {
 	}
 
 	// GR capability: restart-time=120 (0x0078), IPv4/unicast F-bit=1 (AFI=1 SAFI=1 flags=0x80)
-	event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},"peer":{"address":"10.0.0.1","remote":{"as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":64,"name":"graceful-restart","value":"00780001018000020180"}]}}}`
+	event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":64,"name":"graceful-restart","value":"00780001018000020180"}]}}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
@@ -52,7 +52,7 @@ func TestHandleEventOpenNoGR(t *testing.T) {
 		state:    newGRStateManager(nil),
 	}
 
-	event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},"peer":{"address":"10.0.0.1","remote":{"as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":1,"name":"multiprotocol","value":"00010001"}]}}}`
+	event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":1,"name":"multiprotocol","value":"00010001"}]}}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func TestHandleEventStateDown(t *testing.T) {
 		Families:    []grCapFamily{{Family: family.IPv4Unicast, ForwardState: true}},
 	}
 
-	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","remote":{"as":65001}},"state":"down","reason":"tcp-failure"}}`
+	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"state":"down","reason":"tcp-failure"}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
@@ -104,7 +104,7 @@ func TestHandleEventStateDownNotification(t *testing.T) {
 		Families:    []grCapFamily{{Family: family.IPv4Unicast, ForwardState: true}},
 	}
 
-	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","remote":{"as":65001}},"state":"down","reason":"notification"}}`
+	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"state":"down","reason":"notification"}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
@@ -122,7 +122,7 @@ func TestHandleEventStateDownNoGRCap(t *testing.T) {
 		state:    newGRStateManager(nil),
 	}
 
-	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","remote":{"as":65001}},"state":"down","reason":"tcp-failure"}}`
+	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"state":"down","reason":"tcp-failure"}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
@@ -152,7 +152,7 @@ func TestHandleEventEOR(t *testing.T) {
 	gp.state.onSessionReestablished("10.0.0.1", cap, nil)
 
 	// EOR for IPv4
-	event := `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","remote":{"as":65001}},"eor":{"family":"ipv4/unicast"}}}`
+	event := `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"eor":{"family":"ipv4/unicast"}}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
@@ -161,7 +161,7 @@ func TestHandleEventEOR(t *testing.T) {
 	assert.True(t, gp.state.peerActive("10.0.0.1"))
 
 	// EOR for IPv6 -- completes GR
-	event = `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","remote":{"as":65001}},"eor":{"family":"ipv6/unicast"}}}`
+	event = `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"eor":{"family":"ipv6/unicast"}}}`
 
 	err = gp.handleEvent(event)
 	require.NoError(t, err)
@@ -193,7 +193,7 @@ func TestHandleEventUnknownType(t *testing.T) {
 		state:    newGRStateManager(nil),
 	}
 
-	event := `{"type":"bgp","bgp":{"message":{"type":"keepalive"},"peer":{"address":"10.0.0.1","remote":{"as":65001}}}}`
+	event := `{"type":"bgp","bgp":{"message":{"type":"keepalive"},"peer":{"remote":{"address":"10.0.0.1","as":65001}}}}`
 
 	err := gp.handleEvent(event)
 	assert.NoError(t, err)
@@ -225,7 +225,7 @@ func TestHandleEventStateUp(t *testing.T) {
 		Families:    []grCapFamily{{Family: family.IPv4Unicast, ForwardState: true}},
 	}
 
-	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","remote":{"as":65001}},"state":"up"}}`
+	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"state":"up"}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
@@ -252,7 +252,7 @@ func TestHandleOpenEventCapHexDecode(t *testing.T) {
 		"type": "bgp",
 		"bgp": map[string]any{
 			"message": map[string]any{"type": "open", "direction": "received"},
-			"peer":    map[string]any{"address": "10.0.0.2", "remote": map[string]any{"as": float64(65002)}},
+			"peer":    map[string]any{"remote": map[string]any{"address": "10.0.0.2", "as": float64(65002)}},
 			"open": map[string]any{
 				"asn":       float64(65002),
 				"router-id": "2.2.2.2",
@@ -293,7 +293,7 @@ func TestHandleEventOpenLLGR(t *testing.T) {
 
 	// GR: restart-time=120, ipv4/unicast F=1
 	// LLGR: ipv4/unicast F=1, LLST=3600 (0x000E10)
-	event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},"peer":{"address":"10.0.0.1","remote":{"as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":64,"name":"graceful-restart","value":"007800010180"},{"code":71,"name":"long-lived-graceful-restart","value":"00010180000e10"}]}}}`
+	event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":64,"name":"graceful-restart","value":"007800010180"},{"code":71,"name":"long-lived-graceful-restart","value":"00010180000e10"}]}}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)
@@ -326,7 +326,7 @@ func TestHandleEventOpenLLGR_NoGR(t *testing.T) {
 	}
 
 	// Only LLGR capability, no GR
-	event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},"peer":{"address":"10.0.0.1","remote":{"as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":71,"name":"long-lived-graceful-restart","value":"00010180000e10"}]}}}`
+	event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},"peer":{"remote":{"address":"10.0.0.1","as":65001}},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":71,"name":"long-lived-graceful-restart","value":"00010180000e10"}]}}}`
 
 	err := gp.handleEvent(event)
 	require.NoError(t, err)

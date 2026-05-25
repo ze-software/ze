@@ -158,7 +158,7 @@ Engine sends formatted events to API programs. Message metadata includes the cac
   "type": "bgp",
   "bgp": {
     "message": {"type": "update", "id": 123, "direction": "received"},
-    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
+    "peer": {"address": "10.0.0.1", "local": {"address": "10.0.0.2", "as": 65000}, "remote": {"address": "10.0.0.1", "as": 65001}},
     "update": {"attr": {"origin": "igp"}, "nlri": {}}
   }
 }

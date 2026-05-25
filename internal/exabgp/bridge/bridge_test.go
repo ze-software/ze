@@ -26,7 +26,7 @@ func TestZebgpToExabgpJSON_UpdateAnnounce(t *testing.T) {
 			"type": "update",
 			"peer": map[string]any{
 				"address": "10.0.0.1",
-				"remote":  map[string]any{"as": float64(65001)},
+				"remote":  map[string]any{"address": "10.0.0.1", "as": float64(65001)},
 			},
 			"update": map[string]any{
 				"message": map[string]any{
@@ -96,7 +96,7 @@ func TestZebgpToExabgpJSON_UpdateWithdraw(t *testing.T) {
 		"type": "bgp",
 		"bgp": map[string]any{
 			"type": "update",
-			"peer": map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": float64(65001)}},
+			"peer": map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": float64(65001)}},
 			"update": map[string]any{
 				"message": map[string]any{"direction": "received"},
 				"nlri": map[string]any{
@@ -357,7 +357,7 @@ func TestRoundTrip(t *testing.T) {
 		"type": "bgp",
 		"bgp": map[string]any{
 			"type": "update",
-			"peer": map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": float64(65001)}},
+			"peer": map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": float64(65001)}},
 			"update": map[string]any{
 				"message": map[string]any{"direction": "received"},
 				"attr":    map[string]any{"origin": "igp"},
@@ -858,7 +858,7 @@ func TestZebgpToExabgpJSON_Negotiated(t *testing.T) {
 		"bgp": map[string]any{
 			"peer": map[string]any{
 				"address": "10.0.0.1",
-				"remote":  map[string]any{"as": float64(65001)},
+				"remote":  map[string]any{"address": "10.0.0.1", "as": float64(65001)},
 			},
 			"message": map[string]any{
 				"type": "negotiated",
@@ -926,7 +926,7 @@ func TestZebgpToExabgpJSON_NegotiatedMinimal(t *testing.T) {
 		"bgp": map[string]any{
 			"peer": map[string]any{
 				"address": "10.0.0.1",
-				"remote":  map[string]any{"as": float64(65001)},
+				"remote":  map[string]any{"address": "10.0.0.1", "as": float64(65001)},
 			},
 			"message": map[string]any{
 				"type": "negotiated",
@@ -959,7 +959,7 @@ func TestZebgpToExabgpJSON_NegotiatedMissing(t *testing.T) {
 		"bgp": map[string]any{
 			"peer": map[string]any{
 				"address": "10.0.0.1",
-				"remote":  map[string]any{"as": float64(65001)},
+				"remote":  map[string]any{"address": "10.0.0.1", "as": float64(65001)},
 			},
 			"message": map[string]any{
 				"type": "negotiated",
@@ -1200,7 +1200,7 @@ func TestExtractBatchEvents(t *testing.T) {
 // PREVENTS: Events silently dropped after 5-stage startup.
 func TestMuxConnEventTranslation(t *testing.T) {
 	// Build a MuxConn deliver-batch line containing a ze-bgp UPDATE event.
-	zeEvent := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"type":"update","direction":"received"},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"action":"add","next-hop":"10.0.0.1","nlri":["192.168.1.0/24"]}]}}}}`
+	zeEvent := `{"type":"bgp","bgp":{"peer":{"remote":{"address":"10.0.0.1","as":65001}},"message":{"type":"update","direction":"received"},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"action":"add","next-hop":"10.0.0.1","nlri":["192.168.1.0/24"]}]}}}}`
 	// The event is JSON-encoded as a string inside the events array.
 	eventsJSON, err := json.Marshal([]string{zeEvent})
 	require.NoError(t, err)
@@ -1274,7 +1274,7 @@ func TestMuxConnCommandFormatting(t *testing.T) {
 // VALIDATES: Bridge parses deliver-event MuxConn request, translates, forwards to plugin.
 // PREVENTS: Single-event delivery broken while batch works.
 func TestMuxConnDeliverEvent(t *testing.T) {
-	zeEvent := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.2","remote":{"as":65002}},"message":{"type":"state","direction":"received"},"state":"up"}}`
+	zeEvent := `{"type":"bgp","bgp":{"peer":{"remote":{"address":"10.0.0.2","as":65002}},"message":{"type":"state","direction":"received"},"state":"up"}}`
 	eventPayload, err := json.Marshal(map[string]string{"event": zeEvent})
 	require.NoError(t, err)
 	line := fmt.Sprintf("#5 ze-plugin-callback:deliver-event %s", string(eventPayload))
@@ -1357,8 +1357,8 @@ func TestMuxConnDispatchResponseIgnored(t *testing.T) {
 // VALIDATES: All events in a deliver-batch are translated and forwarded.
 // PREVENTS: Only first event processed, rest dropped.
 func TestMuxConnMultipleBatchEvents(t *testing.T) {
-	event1 := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"type":"update","direction":"received"},"update":{"nlri":{"ipv4/unicast":[{"action":"add","next-hop":"10.0.0.1","nlri":["192.168.1.0/24"]}]}}}}`
-	event2 := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.2","remote":{"as":65002}},"message":{"type":"update","direction":"received"},"update":{"nlri":{"ipv4/unicast":[{"action":"add","next-hop":"10.0.0.2","nlri":["172.16.0.0/16"]}]}}}}`
+	event1 := `{"type":"bgp","bgp":{"peer":{"remote":{"address":"10.0.0.1","as":65001}},"message":{"type":"update","direction":"received"},"update":{"nlri":{"ipv4/unicast":[{"action":"add","next-hop":"10.0.0.1","nlri":["192.168.1.0/24"]}]}}}}`
+	event2 := `{"type":"bgp","bgp":{"peer":{"remote":{"address":"10.0.0.2","as":65002}},"message":{"type":"update","direction":"received"},"update":{"nlri":{"ipv4/unicast":[{"action":"add","next-hop":"10.0.0.2","nlri":["172.16.0.0/16"]}]}}}}`
 	eventsJSON, err := json.Marshal([]string{event1, event2})
 	require.NoError(t, err)
 	line := fmt.Sprintf(`#10 ze-plugin-callback:deliver-batch {"events":%s}`, string(eventsJSON))

@@ -22,7 +22,7 @@ func FormatMonitorLine(raw string) string {
 	}
 
 	dir := formatDirection(ev.BGP.Message.Direction)
-	peer := ev.BGP.Peer.Address
+	peer := ev.BGP.Peer.Remote.Address
 	asn := textbuf.StrInt("AS", int64(ev.BGP.Peer.Remote.AS))
 
 	switch ev.BGP.Message.Type {
@@ -132,9 +132,9 @@ var knownFamilies = []string{
 type monitorEvent struct {
 	BGP struct {
 		Peer struct {
-			Address string `json:"address"`
-			Remote  struct {
-				AS uint32 `json:"as"`
+			Remote struct {
+				Address string `json:"address"`
+				AS      uint32 `json:"as"`
 			} `json:"remote"`
 		} `json:"peer"`
 		Message struct {

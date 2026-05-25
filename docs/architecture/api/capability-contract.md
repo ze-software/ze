@@ -177,9 +177,9 @@ peer peer-east eorr ipv4/unicast
 When `encoding json`:
 
 ```json
-{"type":"bgp","bgp":{"message":{"type":"refresh","direction":"received"},"peer":{"address":"192.168.1.1","remote":{"as":65001}},"refresh":{"afi":"ipv4","safi":"unicast"}}}
-{"type":"bgp","bgp":{"message":{"type":"borr","direction":"received"},"peer":{"address":"192.168.1.1","remote":{"as":65001}},"borr":{"afi":"ipv4","safi":"unicast"}}}
-{"type":"bgp","bgp":{"message":{"type":"eorr","direction":"received"},"peer":{"address":"192.168.1.1","remote":{"as":65001}},"eorr":{"afi":"ipv4","safi":"unicast"}}}
+{"type":"bgp","bgp":{"message":{"type":"refresh","direction":"received"},"peer":{"address":"192.168.1.1","local":{"address":"192.168.1.2","as":65000},"remote":{"address":"192.168.1.1","as":65001}},"refresh":{"afi":"ipv4","safi":"unicast"}}}
+{"type":"bgp","bgp":{"message":{"type":"borr","direction":"received"},"peer":{"address":"192.168.1.1","local":{"address":"192.168.1.2","as":65000},"remote":{"address":"192.168.1.1","as":65001}},"borr":{"afi":"ipv4","safi":"unicast"}}}
+{"type":"bgp","bgp":{"message":{"type":"eorr","direction":"received"},"peer":{"address":"192.168.1.1","local":{"address":"192.168.1.2","as":65000},"remote":{"address":"192.168.1.1","as":65001}},"eorr":{"afi":"ipv4","safi":"unicast"}}}
 ```
 
 ---
