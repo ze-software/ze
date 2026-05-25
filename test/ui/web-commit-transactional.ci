@@ -1,0 +1,51 @@
+# Test: web commit promotes a staged config candidate
+# VALIDATES: AC-3 -- Web commit writes a candidate, promotes it to active, and records rollback.
+# PREVENTS: web commit saving config before runtime reload accepts it.
+
+option=env:var=ze.config.dir:value=.
+option=timeout:value=20s
+
+tmpfs=web-commit.conf:terminator=EOF_CONF
+bgp {
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=set-router-id.form:encoding=base64:terminator=EOF_SET
+bGVhZj1yb3V0ZXItaWQmdmFsdWU9Mi4yLjIuMg==
+EOF_SET
+
+tmpfs=show-bgp.form:encoding=base64:terminator=EOF_SHOW
+Y29tbWFuZD1zaG93K2JncA==
+EOF_SHOW
+
+cmd=foreground:seq=1:exec=ze --web $PORT2 --insecure-web web-commit.conf:timeout=20s
+
+http=wait:seq=1:url=https://127.0.0.1:$PORT2/config/edit/:status=200:contains=bgp:insecure-tls=true:timeout=15s
+http=post:seq=2:url=https://127.0.0.1:$PORT2/config/set/bgp/:status=200:sendfile=set-router-id.form:content-type=application/x-www-form-urlencoded:insecure-tls=true
+http=post:seq=3:url=https://127.0.0.1:$PORT2/config/commit/:status=200:insecure-tls=true
+http=post:seq=4:url=https://127.0.0.1:$PORT2/cli:status=200:contains=2.2.2.2:sendfile=show-bgp.form:content-type=application/x-www-form-urlencoded:insecure-tls=true

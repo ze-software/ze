@@ -68,18 +68,6 @@ func (m *EditorManager) SetCommitHook(hook func() error) {
 	m.mu.Unlock()
 }
 
-// RunCommitHook calls the commit hook if one is set. Returns nil when no hook is configured.
-func (m *EditorManager) RunCommitHook() error {
-	m.mu.RLock()
-	hook := m.commitHook
-	m.mu.RUnlock()
-
-	if hook == nil {
-		return nil
-	}
-	return hook()
-}
-
 // GetOrCreate returns the existing userSession for the given username, or creates
 // a new one backed by a fresh Editor and EditSession. When the session count exceeds
 // maxSessions, idle sessions older than idleTimeout are evicted.
@@ -186,7 +174,22 @@ func (m *EditorManager) Commit(username string) (*contract.CommitResult, error) 
 	us.mu.Lock()
 	defer us.mu.Unlock()
 
-	return us.editor.CommitSession()
+	m.mu.RLock()
+	hook := m.commitHook
+	m.mu.RUnlock()
+	if hook == nil {
+		return us.editor.CommitSession()
+	}
+	result, content, err := us.editor.CommitSessionCandidate(time.Now())
+	if err != nil || result == nil || len(result.Conflicts) > 0 || result.Applied == 0 {
+		return result, err
+	}
+	if err := hook(); err != nil {
+		_ = storage.ClearCandidate(m.store, m.configPath)
+		return nil, err
+	}
+	us.editor.MarkCommittedContent(content)
+	return result, nil
 }
 
 // Discard reverts the user's working tree to the original state and removes

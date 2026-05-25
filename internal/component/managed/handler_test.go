@@ -32,25 +32,24 @@ func TestClientHandleConfigChanged(t *testing.T) {
 	assert.Equal(t, "abcdef0123456789", fetchVersion)
 }
 
-// TestClientValidateConfigOk verifies that valid config is accepted and cached.
+// TestClientValidateConfigOk verifies that valid config is accepted without caching.
 //
-// VALIDATES: Valid config accepted, cached in blob (AC-1, AC-2).
-// PREVENTS: Valid config being rejected.
+// VALIDATES: Managed handler validates only; cache is deferred until OnCommit succeeds.
+// PREVENTS: Managed push mutating local config before runtime transaction succeeds.
 func TestClientValidateConfigOk(t *testing.T) {
 	t.Parallel()
 
 	configData := []byte("bgp { peer 10.0.0.1 { peer-as 65001; } }")
 	encoded := base64.StdEncoding.EncodeToString(configData)
 
-	var cachedData []byte
+	var cacheWasCalled bool
 
 	h := &Handler{
 		Validate: func(data []byte) error {
 			return nil // valid
 		},
 		Cache: func(data []byte) error {
-			cachedData = make([]byte, len(data))
-			copy(cachedData, data)
+			cacheWasCalled = true
 			return nil
 		},
 	}
@@ -63,7 +62,7 @@ func TestClientValidateConfigOk(t *testing.T) {
 	assert.True(t, ack.OK, "should accept valid config")
 	assert.Equal(t, fleet.VersionHash(configData), ack.Version)
 	assert.Empty(t, ack.Error)
-	assert.Equal(t, configData, cachedData, "config should be cached")
+	assert.False(t, cacheWasCalled, "cache should be deferred to OnCommit")
 }
 
 // TestClientValidateConfigBad verifies that invalid config is rejected.

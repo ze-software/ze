@@ -25,6 +25,8 @@ type ConfigEditor interface {
 	DeleteByPath(fullPath []string) error
 	Diff() string
 	Save() error
+	StageCandidate(stamp time.Time) (content string, version string, err error)
+	MarkCommittedContent(content string)
 	RestoreOriginalContent(content string) error
 	Discard() error
 	OriginalContent() string
@@ -217,19 +219,20 @@ func (m *ConfigSessionManager) Commit(req *ConfigCommitRequest) error {
 			return fmt.Errorf("commit validation: %w", validateErr)
 		}
 	}
-	if saveErr := session.Editor.Save(); saveErr != nil {
-		return fmt.Errorf("commit: %w", saveErr)
-	}
 	m.mu.RLock()
 	onCommit := m.onCommit
 	m.mu.RUnlock()
 	if onCommit != nil {
-		if hookErr := onCommit(); hookErr != nil {
-			if restoreErr := session.Editor.RestoreOriginalContent(previous); restoreErr != nil {
-				return fmt.Errorf("commit runtime reload failed: %w; rollback restore failed: %w", hookErr, restoreErr)
-			}
-			return fmt.Errorf("commit runtime reload failed, restored previous config: %w", hookErr)
+		content, _, stageErr := session.Editor.StageCandidate(time.Now())
+		if stageErr != nil {
+			return fmt.Errorf("commit candidate: %w", stageErr)
 		}
+		if hookErr := onCommit(); hookErr != nil {
+			return fmt.Errorf("commit runtime reload failed: %w", hookErr)
+		}
+		session.Editor.MarkCommittedContent(content)
+	} else if saveErr := session.Editor.Save(); saveErr != nil {
+		return fmt.Errorf("commit: %w", saveErr)
 	}
 	session.closed = true
 	m.mu.Lock()

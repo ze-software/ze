@@ -16,6 +16,8 @@ import (
 	"time"
 
 	zeconfigcmd "codeberg.org/thomas-mangin/ze/cmd/ze/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -78,14 +80,14 @@ func webOnlyDispatcher(ring *pluginserver.EventRing) zeweb.CommandDispatcher {
 	}
 }
 
-// serverDispatcher creates a CommandDispatcher from the plugin server's dispatcher.
-func serverDispatcher(s *pluginserver.Server) func(command, username, remoteAddr string) (string, error) {
+// serverDispatcherWithSurface creates a CommandDispatcher with fixed audit surface attribution.
+func serverDispatcherWithSurface(s *pluginserver.Server, surface string) func(command, username, remoteAddr string) (string, error) {
 	return func(input, username, remoteAddr string) (string, error) {
 		d := s.Dispatcher()
 		if d == nil {
 			return "", errServerNotReady
 		}
-		ctx := &pluginserver.CommandContext{Server: s, Username: username, RemoteAddr: remoteAddr}
+		ctx := &pluginserver.CommandContext{Server: s, Username: username, RemoteAddr: remoteAddr, Surface: surface}
 		resp, err := d.Dispatch(ctx, input)
 		if err != nil {
 			return "", err
@@ -184,7 +186,7 @@ func endpointsToAddrs(servers []zeconfig.ServerEndpoint) []string {
 // Every entry in listenAddrs becomes a bound listener on the same
 // *http.Server; Shutdown closes all of them.
 // Requires blob storage -- TLS keys and config must not leak to the filesystem.
-func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb bool, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers) (*zeweb.WebServer, *zeweb.EventBroker, *zeweb.EditorManager) {
+func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, commitHook func() error) (*zeweb.WebServer, *zeweb.EventBroker, *zeweb.EditorManager) {
 	if !storage.IsBlobStorage(store) {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: requires blob storage (run ze init first)\n")
 		return nil, nil, nil
@@ -259,7 +261,9 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	}
 
 	// Ensure a config file exists for the editor.
-	configPath := resolveConfigPath(store)
+	if configPath == "" {
+		configPath = resolveConfigPath(store)
+	}
 	if !store.Exists(configPath) {
 		if writeErr := store.WriteFile(configPath, []byte("# ze config\n"), 0o600); writeErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: cannot create config: %v\n", writeErr)
@@ -277,6 +281,10 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 
 	// Create editor manager for config editing via web.
 	editorMgr := zeweb.NewEditorManager(store, configPath, schema, newEditorFactory(zeconfigcmd.ValidateContent), newEditSessionFactory())
+	if commitHook != nil {
+		// Install before serving so early commits cannot bypass daemon reload.
+		editorMgr.SetCommitHook(commitHook)
+	}
 
 	// Create CLI completer for Tab/? autocomplete.
 	completer := cli.NewCompleter()
@@ -312,15 +320,15 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	fragmentHandler := finderHandler
 
 	// Config set, add, and delete handlers for editing leaf values.
-	setHandler := zeweb.HandleConfigSet(editorMgr, schema, renderer)
-	addHandler := zeweb.HandleConfigAdd(editorMgr, schema, renderer)
+	setHandler := zeweb.HandleConfigSetWithAuthorizer(editorMgr, schema, renderer, authorizer)
+	addHandler := zeweb.HandleConfigAddWithAuthorizer(editorMgr, schema, renderer, authorizer)
 	addFormHandler := zeweb.HandleConfigAddForm(editorMgr, schema, renderer)
-	renameHandler := zeweb.HandleConfigRename(editorMgr, schema)
-	deleteHandler := zeweb.HandleConfigDelete(editorMgr)
+	renameHandler := zeweb.HandleConfigRenameWithAuthorizer(editorMgr, schema, authorizer)
+	deleteHandler := zeweb.HandleConfigDeleteWithAuthorizer(editorMgr, authorizer)
 
 	// Commit and discard handlers.
-	commitHandler := zeweb.HandleConfigCommit(editorMgr, renderer, broker)
-	discardHandler := zeweb.HandleConfigDiscard(editorMgr)
+	commitHandler := zeweb.HandleConfigCommitWithAuthorizerAndAudit(editorMgr, renderer, broker, authorizer, recorder)
+	discardHandler := zeweb.HandleConfigDiscardWithAuthorizerAndAudit(editorMgr, authorizer, recorder)
 
 	// Diff handler: returns the diff modal HTML (open, with content).
 	diffHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -354,7 +362,7 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	// CLI handlers: command execution, autocomplete, terminal mode.
 	cliHandler := zeweb.HandleCLICommand(editorMgr, schema, renderer)
 	completeHandler := zeweb.HandleCLIComplete(completer, editorMgr, schema)
-	terminalHandler := zeweb.HandleCLITerminal(editorMgr, schema, tree)
+	terminalHandler := zeweb.HandleCLITerminalWithAuthorizerAndAudit(editorMgr, schema, tree, authorizer, recorder)
 	modeHandler := zeweb.HandleCLIModeToggle(editorMgr, schema, renderer)
 
 	// Auth wrapper for protecting individual routes.
@@ -364,14 +372,14 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 		authWrap = zeweb.InsecureMiddleware
 	} else {
 		authWrap = func(h http.Handler) http.Handler {
-			return zeweb.AuthMiddleware(sessionStore, webAuth, loginRenderer, h)
+			return zeweb.AuthMiddlewareWithAudit(sessionStore, webAuth, loginRenderer, h, recorder)
 		}
 	}
 	mutationWrap := func(h http.Handler) http.Handler {
 		return authWrap(zeweb.RequireSameOrigin(h))
 	}
 
-	loginHandler := zeweb.LoginHandler(sessionStore, webAuth, loginRenderer)
+	loginHandler := zeweb.LoginHandlerWithAudit(sessionStore, webAuth, loginRenderer, recorder)
 	assetHandler := http.StripPrefix("/assets/", renderer.AssetHandler())
 
 	// Admin command tree for web UI. Derive from the merged YANG command
@@ -416,7 +424,9 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	srv.Handle("/config/diff", authWrap(diffHandler))
 	srv.Handle("/config/diff-close", authWrap(diffCloseHandler))
 	srv.Handle("/config/commit", mutationWrap(commitHandler))
+	srv.Handle("/config/commit/", mutationWrap(commitHandler))
 	srv.Handle("POST /config/discard", mutationWrap(discardHandler))
+	srv.Handle("POST /config/discard/", mutationWrap(discardHandler))
 	// V2 workbench related-tool execution. Browser submits only tool id +
 	// context path; the handler resolves the descriptor server-side and
 	// dispatches via the standard CommandDispatcher (same authz pipeline

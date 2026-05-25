@@ -27,7 +27,10 @@ import (
 
 var errEmptyExecCommand = errors.New("empty exec command")
 
-const modeForeground = "foreground"
+const (
+	modeForeground  = "foreground"
+	fileCheckFailed = "file_check_failed"
+)
 
 // syncWriter is an io.Writer that captures output and supports waiting for patterns.
 // Used to wait for ze-peer's "listening on" message before starting the client.
@@ -151,6 +154,19 @@ func zeDaemonConfigArgIndex(args []string) int {
 		return -1
 	}
 	return -1
+}
+
+func zeDaemonUsesWeb(args []string) bool {
+	for _, arg := range args {
+		if arg == "--web" || strings.HasPrefix(arg, "--web=") {
+			return true
+		}
+	}
+	return false
+}
+
+func zeDaemonShouldForceFileStorage(args []string) bool {
+	return zeDaemonConfigArgIndex(args) >= 0 && !zeDaemonUsesWeb(args)
 }
 
 // runTest executes a single test.
@@ -382,6 +398,11 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 			rec.FailureType = FailTypeLoggingMismatch
 			return false
 		}
+		if fileErr := r.validateFileChecks(rec); fileErr != nil {
+			rec.Error = fileErr
+			rec.FailureType = fileCheckFailed
+			return false
+		}
 
 		return true
 	}
@@ -460,7 +481,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	var tmpFilesToClean []string
 	defer func() {
 		for _, name := range tmpFilesToClean {
-			os.Remove(name) //nolint:errcheck // best-effort temp file cleanup
+			os.RemoveAll(name) //nolint:errcheck,gosec // best-effort temp path cleanup
 		}
 	}()
 
@@ -587,15 +608,17 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 					configPath := filepath.Join(rec.TmpfsTempDir, "ze-bgp.conf")
 					tmpFile, err = os.Create(configPath) //nolint:gosec // test runner, path from temp dir
 				} else {
-					tmpFile, err = os.CreateTemp("", "ze-config-*.conf")
+					configDir, mkdirErr := os.MkdirTemp("", "ze-config-*")
+					if mkdirErr != nil {
+						rec.Error = fmt.Errorf("create temp config dir: %w", mkdirErr)
+						return false
+					}
+					tmpFilesToClean = append(tmpFilesToClean, configDir)
+					tmpFile, err = os.Create(filepath.Join(configDir, "ze-bgp.conf")) //nolint:gosec // test runner, path from temp dir
 				}
 				if err != nil {
 					rec.Error = fmt.Errorf("create temp config file: %w", err)
 					return false
-				}
-				if rec.TmpfsTempDir == "" {
-					// Only cleanup if not in tmpfs dir (tmpfs cleanup handles it)
-					tmpFilesToClean = append(tmpFilesToClean, tmpFile.Name())
 				}
 				if _, err := tmpFile.Write(stdinContent); err != nil {
 					tmpFile.Close() //nolint:errcheck,gosec // best-effort close on write error
@@ -626,7 +649,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			"PATH="+zeDir+":"+existingPath,
 			"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
 		)
-		if binName == "ze" && zeDaemonConfigArgIndex(args) >= 0 {
+		if binName == "ze" && zeDaemonShouldForceFileStorage(args) {
 			// Functional daemon configs are per-test files. Keep them out of the
 			// developer's shared zefs active pointer so tests cannot load stale state.
 			proc.Env = append(proc.Env, "ze.storage.blob=false")
@@ -779,6 +802,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 		// If HTTP checks are the only assertions (no peer, no exit code), pass.
 		if len(rec.Expects) == 0 && rec.ExpectExitCode == nil {
+			if fileErr := r.validateFileChecks(rec); fileErr != nil {
+				rec.Error = fileErr
+				rec.FailureType = fileCheckFailed
+				return false
+			}
 			rec.Duration = time.Since(rec.StartTime)
 			return true
 		}
@@ -914,6 +942,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			rec.FailureType = FailTypeLoggingMismatch
 			return false
 		}
+		if fileErr := r.validateFileChecks(rec); fileErr != nil {
+			rec.Error = fileErr
+			rec.FailureType = fileCheckFailed
+			return false
+		}
 
 		return true
 	}
@@ -930,6 +963,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		if logErr := r.validateLogging(rec, clientStderr.String(), syslogSrv); logErr != nil {
 			rec.Error = logErr
 			rec.FailureType = FailTypeLoggingMismatch
+			return false
+		}
+		if fileErr := r.validateFileChecks(rec); fileErr != nil {
+			rec.Error = fileErr
+			rec.FailureType = fileCheckFailed
 			return false
 		}
 		return true

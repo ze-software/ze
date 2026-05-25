@@ -147,6 +147,9 @@ ze signal quit                   # Immediate exit + goroutine dump
 | `--port` | SSH port (default: 2222 or `ze_ssh_port`) |
 
 Exit codes: 0 = ok, 1 = not running, 4 = command failed.
+Reload is transactional: the daemon stages the new config as a candidate version,
+runs verification and apply, then promotes the candidate to active only after the
+runtime accepts it.
 <!-- source: cmd/ze/signal/main.go -- Commands registry, ExitSuccess/ExitNotRunning/ExitNoCredentials/ExitSignalFailed -->
 
 ### ze status
@@ -267,6 +270,29 @@ filtered by source `bgp`. One active warning shows the detail line; multiple
 warnings collapse to a count line pointing at `show warnings`.
 
 <!-- source: internal/component/bgp/config/loader.go -- collectPrefixWarnings -->
+
+### ze show audit / ze show aaa accounting
+
+Audit and accounting visibility for operator actions.
+
+```
+ze show audit
+ze show audit action config-commit
+ze show audit actor alice surface web count 20
+ze show audit since 2026-05-24T10:00:00Z until 2026-05-24T11:00:00Z
+ze show aaa accounting
+```
+
+`show audit` returns `entries` and `count`. Each entry includes `timestamp`,
+`actor`, `remote-addr`, `surface`, `action`, `detail`, and `outcome`.
+Filters are optional and can be combined. Time filters use RFC 3339.
+
+`show aaa accounting` currently reports TACACS+ accounting queue drops:
+`dropped-records` is the number of START/STOP accounting records that could not
+be queued because the worker was stopped or the queue was full.
+
+<!-- source: internal/component/cmd/show/audit.go -- handleShowAudit -->
+<!-- source: internal/component/cmd/show/aaa.go -- handleShowAAAAccounting -->
 
 ### ze show system
 

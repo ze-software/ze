@@ -936,6 +936,14 @@ class API:
                 # Filter handled; loop back to read next event.
                 continue
 
+            if method in (
+                "ze-plugin-callback:config-verify",
+                "ze-plugin-callback:config-apply",
+                "ze-plugin-callback:config-rollback",
+            ):
+                self._handle_callback(req_id, method, params)
+                continue
+
             if method == "ze-plugin-callback:post-startup":
                 self._post_startup_received = True
                 self._respond_ok(req_id)

@@ -1,6 +1,6 @@
-# Test: Commit succeeds even when daemon reload fails
-# VALIDATES: Save completes, status warns about reload failure
-# PREVENTS: Commit blocked by daemon not running
+# Test: Commit fails cleanly when daemon reload fails
+# VALIDATES: Transactional commit leaves dirty state and reports reload failure
+# PREVENTS: Accepting an un-applied candidate after daemon reload failure
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -42,10 +42,10 @@ input=type:text=set bgp router-id 5.6.7.8
 input=enter
 expect=dirty:true
 
-# Commit should succeed but warn about reload
+# Commit should fail because the daemon did not accept the candidate
 input=type:text=commit
 input=enter
-expect=status:contains=committed
-expect=status:contains=reload errors
-expect=dirty:false
+expect=status:contains=commit failed
+expect=status:contains=daemon not reachable
+expect=dirty:true
 expect=error:none

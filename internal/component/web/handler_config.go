@@ -20,6 +20,8 @@ import (
 	"slices"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -34,6 +36,17 @@ const (
 	htmxRequestTrue = "true"
 	boolTrue        = "true"
 	boolFalse       = "false"
+)
+
+const (
+	webCommandConfigSet      = "config set"
+	webCommandConfigAdd      = "config add"
+	webCommandConfigDelete   = "config delete"
+	webCommandConfigRename   = "config rename"
+	webCommandConfigCommit   = "config commit"
+	webCommandConfigDiscard  = "config discard"
+	webCommandConfigRollback = "config rollback"
+	webCommandConfigSave     = "config save"
 )
 
 // ConfigViewData holds all data needed for any config template.
@@ -90,6 +103,17 @@ type LeafField struct {
 	OldValue     string // previous value before modification
 }
 
+func authorizeWebConfigMutation(w http.ResponseWriter, r *http.Request, authorizer aaa.Authorizer, username, command string) bool {
+	if authorizer == nil {
+		return true
+	}
+	if authorizer.Authorize(username, r.RemoteAddr, command, false) {
+		return true
+	}
+	http.Error(w, "forbidden", http.StatusForbidden)
+	return false
+}
+
 // HandleConfigSet returns a POST handler for /config/set/<yang-path>/.
 // It extracts the authenticated username from the request context, parses
 // the form body for "leaf" (field name) and "value" (new value), and calls
@@ -100,6 +124,12 @@ type LeafField struct {
 // On validation error from SetValue, returns an error notification.
 // HTMX requests receive HX-Redirect instead of an HTTP redirect.
 func HandleConfigSet(mgr *EditorManager, schema *config.Schema, renderer *Renderer) http.HandlerFunc {
+	return HandleConfigSetWithAuthorizer(mgr, schema, renderer, nil)
+}
+
+// HandleConfigSetWithAuthorizer returns a POST handler for /config/set/<yang-path>/
+// that enforces profile-based RBAC before mutating the user's draft.
+func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, renderer *Renderer, authorizer aaa.Authorizer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -109,6 +139,9 @@ func HandleConfigSet(mgr *EditorManager, schema *config.Schema, renderer *Render
 		username := GetUsernameFromRequest(r)
 		if username == "" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if !authorizeWebConfigMutation(w, r, authorizer, username, webCommandConfigSet) {
 			return
 		}
 
@@ -238,6 +271,12 @@ func HandleConfigSet(mgr *EditorManager, schema *config.Schema, renderer *Render
 // Form fields with "field:" prefix set values on the new entry (e.g., field:remote/ip=1.2.3.4).
 // For HTMX requests, returns the updated list table fragment.
 func HandleConfigAdd(mgr *EditorManager, schema *config.Schema, renderer *Renderer) http.HandlerFunc {
+	return HandleConfigAddWithAuthorizer(mgr, schema, renderer, nil)
+}
+
+// HandleConfigAddWithAuthorizer returns a POST handler for /config/add/<yang-path>/
+// that enforces profile-based RBAC before mutating the user's draft.
+func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, renderer *Renderer, authorizer aaa.Authorizer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -247,6 +286,9 @@ func HandleConfigAdd(mgr *EditorManager, schema *config.Schema, renderer *Render
 		username := GetUsernameFromRequest(r)
 		if username == "" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if !authorizeWebConfigMutation(w, r, authorizer, username, webCommandConfigAdd) {
 			return
 		}
 
@@ -399,6 +441,12 @@ func HandleConfigAdd(mgr *EditorManager, schema *config.Schema, renderer *Render
 // It renames a keyed list entry through the per-user session editor and then
 // redirects back to the parent list view.
 func HandleConfigRename(mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
+	return HandleConfigRenameWithAuthorizer(mgr, schema, nil)
+}
+
+// HandleConfigRenameWithAuthorizer returns a POST handler for /config/rename/<entry-path>/
+// that enforces profile-based RBAC before mutating the user's draft.
+func HandleConfigRenameWithAuthorizer(mgr *EditorManager, schema *config.Schema, authorizer aaa.Authorizer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -408,6 +456,9 @@ func HandleConfigRename(mgr *EditorManager, schema *config.Schema) http.HandlerF
 		username := GetUsernameFromRequest(r)
 		if username == "" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if !authorizeWebConfigMutation(w, r, authorizer, username, webCommandConfigRename) {
 			return
 		}
 
@@ -723,6 +774,12 @@ func HandleConfigChanges(mgr *EditorManager, renderer *Renderer) http.HandlerFun
 //
 // On success, redirects one level up. HTMX support mirrors HandleConfigSet.
 func HandleConfigDelete(mgr *EditorManager) http.HandlerFunc {
+	return HandleConfigDeleteWithAuthorizer(mgr, nil)
+}
+
+// HandleConfigDeleteWithAuthorizer returns a POST handler for /config/delete/<yang-path>/
+// that enforces profile-based RBAC before mutating the user's draft.
+func HandleConfigDeleteWithAuthorizer(mgr *EditorManager, authorizer aaa.Authorizer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -732,6 +789,9 @@ func HandleConfigDelete(mgr *EditorManager) http.HandlerFunc {
 		username := GetUsernameFromRequest(r)
 		if username == "" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if !authorizeWebConfigMutation(w, r, authorizer, username, webCommandConfigDelete) {
 			return
 		}
 
@@ -780,6 +840,18 @@ func HandleConfigDelete(mgr *EditorManager) http.HandlerFunc {
 // On conflict, re-renders the commit page with conflict errors.
 // HTMX requests receive HX-Redirect instead of an HTTP redirect.
 func HandleConfigCommit(mgr *EditorManager, renderer *Renderer, broker *EventBroker) http.HandlerFunc {
+	return HandleConfigCommitWithAuthorizer(mgr, renderer, broker, nil)
+}
+
+// HandleConfigCommitWithAuthorizer returns a handler for /config/commit/ that
+// enforces profile-based RBAC on POST before committing the user's draft.
+func HandleConfigCommitWithAuthorizer(mgr *EditorManager, renderer *Renderer, broker *EventBroker, authorizer aaa.Authorizer) http.HandlerFunc {
+	return HandleConfigCommitWithAuthorizerAndAudit(mgr, renderer, broker, authorizer, nil)
+}
+
+// HandleConfigCommitWithAuthorizerAndAudit returns a handler for /config/commit/
+// that enforces profile-based RBAC and records successful commits.
+func HandleConfigCommitWithAuthorizerAndAudit(mgr *EditorManager, renderer *Renderer, broker *EventBroker, authorizer aaa.Authorizer, recorder audit.Recorder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		username := GetUsernameFromRequest(r)
 		if username == "" {
@@ -793,7 +865,10 @@ func HandleConfigCommit(mgr *EditorManager, renderer *Renderer, broker *EventBro
 		}
 
 		if r.Method == http.MethodPost {
-			handleCommitPost(w, r, mgr, renderer, username, broker)
+			if !authorizeWebConfigMutation(w, r, authorizer, username, webCommandConfigCommit) {
+				return
+			}
+			handleCommitPost(w, r, mgr, renderer, username, broker, recorder)
 			return
 		}
 
@@ -825,7 +900,8 @@ func handleCommitGet(w http.ResponseWriter, mgr *EditorManager, renderer *Render
 
 // handleCommitPost applies pending changes and redirects or re-renders on conflict.
 // On successful commit (no conflicts), broadcasts a config-change SSE event.
-func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager, renderer *Renderer, username string, broker *EventBroker) {
+func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager, renderer *Renderer, username string, broker *EventBroker, recorder audit.Recorder) {
+	detail, _ := mgr.Diff(username)
 	result, err := mgr.Commit(username)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("commit: %v", err), http.StatusInternalServerError)
@@ -869,12 +945,7 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 		return
 	}
 
-	if err := mgr.RunCommitHook(); err != nil {
-		serverLogger.Error("post-commit reload failed", "error", err)
-		http.Error(w, "config saved but reload failed: "+err.Error()+"; send SIGHUP or restart to apply", http.StatusInternalServerError)
-		return
-	}
-
+	recordWebAudit(recorder, r, username, audit.ActionConfigCommit, detail)
 	BroadcastConfigChange(broker, username, "committed")
 
 	// Return closed diff modal + empty commit bar. No redirect -- the page
@@ -899,6 +970,18 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 // HandleConfigDiscard returns a POST handler for /config/discard/.
 // It discards the user's pending changes and redirects to /config/edit/.
 func HandleConfigDiscard(mgr *EditorManager) http.HandlerFunc {
+	return HandleConfigDiscardWithAuthorizer(mgr, nil)
+}
+
+// HandleConfigDiscardWithAuthorizer returns a POST handler for /config/discard/
+// that enforces profile-based RBAC before discarding the user's draft.
+func HandleConfigDiscardWithAuthorizer(mgr *EditorManager, authorizer aaa.Authorizer) http.HandlerFunc {
+	return HandleConfigDiscardWithAuthorizerAndAudit(mgr, authorizer, nil)
+}
+
+// HandleConfigDiscardWithAuthorizerAndAudit returns a POST handler for
+// /config/discard/ that enforces profile-based RBAC and records successful discards.
+func HandleConfigDiscardWithAuthorizerAndAudit(mgr *EditorManager, authorizer aaa.Authorizer, recorder audit.Recorder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -910,15 +993,36 @@ func HandleConfigDiscard(mgr *EditorManager) http.HandlerFunc {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
+		if !authorizeWebConfigMutation(w, r, authorizer, username, webCommandConfigDiscard) {
+			return
+		}
 
+		detail, _ := mgr.Diff(username)
 		if err := mgr.Discard(username); err != nil {
 			http.Error(w, fmt.Sprintf("discard: %v", err), http.StatusInternalServerError)
 			return
 		}
+		recordWebAudit(recorder, r, username, audit.ActionConfigDiscard, detail)
 
 		// Navigate back one level from where the user was.
 		target := parentFromCurrentURL(r)
 		htmxRedirect(w, r, target)
+	}
+}
+
+func recordWebAudit(recorder audit.Recorder, r *http.Request, username, action, detail string) {
+	if recorder == nil {
+		return
+	}
+	if err := recorder.Record(audit.Entry{
+		Actor:      username,
+		RemoteAddr: r.RemoteAddr,
+		Surface:    audit.SurfaceWeb,
+		Action:     action,
+		Detail:     detail,
+		Outcome:    audit.OutcomeSuccess,
+	}); err != nil {
+		serverLogger.Warn("audit record failed", "action", action, "user", username, "error", err)
 	}
 }
 

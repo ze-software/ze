@@ -16,7 +16,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	zeappliance "codeberg.org/thomas-mangin/ze/cmd/ze/appliance"
@@ -822,16 +821,11 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 	configName := internalresolve.DefaultConfig(store)
 
 	if store.Exists(configName) {
-		// Start background hub connection if client block found.
+		// The hub starts the managed client after the runtime commit hook is wired.
 		clientCfg := extractManagedClientConfig(store, configName)
-		if clientCfg != nil {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			go managed.RunManagedClient(ctx, *clientCfg)
-		}
 
 		return withPanicCapture(func() int {
-			return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false, "", "")
+			return hub.RunWithManagedClient(store, configName, plugins, chaosSeed, chaosRate, clientCfg)
 		})
 	}
 
@@ -874,16 +868,12 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 		return 1
 	}
 
-	// Start background hub connection for first-boot too.
+	// The hub starts the managed client for first boot too, after the runtime
+	// commit hook is available.
 	clientCfg := extractManagedClientConfig(store, configName)
-	if clientCfg != nil {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		go managed.RunManagedClient(ctx, *clientCfg)
-	}
 
 	return withPanicCapture(func() int {
-		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false, "", "")
+		return hub.RunWithManagedClient(store, configName, plugins, chaosSeed, chaosRate, clientCfg)
 	})
 }
 
@@ -924,15 +914,6 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 				_, parseErr := config.LoadConfig(string(cfgData), "", nil)
 				return parseErr
 			},
-			Cache: func(cfgData []byte) error {
-				return store.WriteFile(configName, cfgData, 0)
-			},
-		},
-		OnReload: func() {
-			// Trigger runtime reload via SIGHUP so the hub applies the new config.
-			if p, err := os.FindProcess(os.Getpid()); err == nil {
-				_ = p.Signal(syscall.SIGHUP)
-			}
 		},
 		CheckManaged: func() bool {
 			return isManaged(store)

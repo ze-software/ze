@@ -59,7 +59,7 @@ ze signal reload --host 10.0.0.1 --port 2222
 
 | Command | Effect |
 |---------|--------|
-| `ze signal reload` | Reload configuration (add/remove/update peers) |
+| `ze signal reload` | Transactionally reload configuration (add/remove/update peers) |
 | `ze signal stop` | Graceful shutdown (no GR marker) |
 | `ze signal restart` | Graceful restart (writes GR marker for RFC 4724) |
 | `ze signal status` | Dump daemon status |
@@ -70,10 +70,14 @@ ze signal reload --host 10.0.0.1 --port 2222
 
 | Signal | Effect |
 |--------|--------|
-| `SIGHUP` | Reload configuration |
+| `SIGHUP` | Transactionally reload configuration |
 | `SIGTERM` / `SIGINT` | Graceful shutdown (NOTIFICATION Cease to all peers) |
 | `SIGUSR1` | Dump status to stderr |
 <!-- source: cmd/ze/hub/main.go -- signal.Notify, SIGHUP/SIGTERM/SIGINT handling -->
+
+Reload writes the edited config as a candidate version. The active pointer moves
+only after verification, apply, and subsystem reload succeed. A failed reload
+clears the candidate and keeps the previous active config.
 
 ### Exit Codes (signal command)
 

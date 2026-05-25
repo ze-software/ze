@@ -5,6 +5,7 @@ package hub
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -36,11 +37,11 @@ type serviceChange struct {
 // config reload. It detects cross-service address conflicts and sequences
 // migrations to minimize downtime.
 type ListenerMigrator struct {
-	web    *zeweb.WebServer
-	lg     *lg.LGServer
-	mcp    *MCPServerHandle
-	rest   *rest.RESTServer
-	grpc   *apigrpc.GRPCServer
+	web    Reconfigurable
+	lg     Reconfigurable
+	mcp    Reconfigurable
+	rest   Reconfigurable
+	grpc   Reconfigurable
 	logger *slog.Logger
 }
 
@@ -117,30 +118,53 @@ func (m *ListenerMigrator) ReloadListeners(ctx context.Context, tree *zeconfig.T
 
 	conflicts := detectConflicts(changes)
 
+	ordered := make([]serviceChange, 0, len(changes))
+	for i := range changes {
+		if !conflicts[changes[i].name] {
+			ordered = append(ordered, changes[i])
+		}
+	}
 	for i := range changes {
 		if conflicts[changes[i].name] {
-			continue
-		}
-		m.logger.Info("reconfiguring listeners", "service", changes[i].name,
-			"add", changes[i].add, "remove", changes[i].remove)
-		if err := changes[i].server.Reconfigure(ctx, changes[i].newAddr); err != nil {
-			return fmt.Errorf("reconfigure %s: %w", changes[i].name, err)
+			ordered = append(ordered, changes[i])
 		}
 	}
 
-	for i := range changes {
-		if !conflicts[changes[i].name] {
-			continue
+	var applied []serviceChange
+	for i := range ordered {
+		change := ordered[i]
+		label := change.name
+		if conflicts[change.name] {
+			label += " (conflicting)"
+			m.logger.Warn("sequenced listener migration (brief gap expected)",
+				"service", change.name,
+				"add", change.add, "remove", change.remove)
+		} else {
+			m.logger.Info("reconfiguring listeners", "service", change.name,
+				"add", change.add, "remove", change.remove)
 		}
-		m.logger.Warn("sequenced listener migration (brief gap expected)",
-			"service", changes[i].name,
-			"add", changes[i].add, "remove", changes[i].remove)
-		if err := changes[i].server.Reconfigure(ctx, changes[i].newAddr); err != nil {
-			return fmt.Errorf("reconfigure %s (conflicting): %w", changes[i].name, err)
+		if err := change.server.Reconfigure(ctx, change.newAddr); err != nil {
+			if rollbackErr := m.rollbackAppliedListeners(ctx, applied); rollbackErr != nil {
+				return fmt.Errorf("reconfigure %s: %w (listener rollback failed: %w)", label, err, rollbackErr)
+			}
+			return fmt.Errorf("reconfigure %s: %w", label, err)
 		}
+		applied = append(applied, change)
 	}
 
 	return nil
+}
+
+func (m *ListenerMigrator) rollbackAppliedListeners(ctx context.Context, applied []serviceChange) error {
+	var rollbackErrs []error
+	for i := len(applied) - 1; i >= 0; i-- {
+		change := applied[i]
+		m.logger.Warn("rolling back listener migration", "service", change.name, "addr", change.oldAddr)
+		if err := change.server.Reconfigure(ctx, change.oldAddr); err != nil {
+			rollbackErrs = append(rollbackErrs, fmt.Errorf("rollback %s: %w", change.name, err))
+		}
+	}
+	return errors.Join(rollbackErrs...)
 }
 
 func (m *ListenerMigrator) buildChange(name string, srv Reconfigurable, newAddrs []string) (serviceChange, bool) {

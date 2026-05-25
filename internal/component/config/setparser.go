@@ -201,10 +201,11 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		if len(tokens) != 1 {
 			return fmt.Errorf("line %d: leaf %s expects exactly one value", lineNum, name)
 		}
-		if err := ValidateLeafValue(leaf, tokens[0]); err != nil {
+		value := tokens[0]
+		if err := ValidateLeafValue(leaf, value); err != nil {
 			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 		}
-		tree.Set(name, tokens[0])
+		tree.Set(name, normalizeSetValue(leaf.Type, value))
 		return nil
 	}
 
@@ -641,6 +642,13 @@ func parseBracketValue(tokens []string) string {
 		tokens = tokens[1 : len(tokens)-1]
 	}
 	return strings.Join(tokens, " ")
+}
+
+func normalizeSetValue(typ ValueType, value string) string {
+	if typ == TypeBool {
+		return NormalizeBool(value)
+	}
+	return value
 }
 
 func bracketItems(tokens []string) []string {

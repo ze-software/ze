@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
+	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema" // Register BGP YANG for editor tests.
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -452,6 +454,231 @@ func postConfigRequest(t *testing.T, urlPath string, formData url.Values, userna
 	return req.WithContext(ctx)
 }
 
+func readOnlyWebAuthorizer() authz.StoreAuthorizer {
+	store := authz.NewStore()
+	store.AddProfile(authz.BuiltinReadOnlyProfile())
+	store.AssignProfiles("alice", []string{"read-only"})
+	return authz.StoreAuthorizer{Store: store}
+}
+
+func adminWebAuthorizer() authz.StoreAuthorizer {
+	store := authz.NewStore()
+	store.AddProfile(authz.BuiltinAdminProfile())
+	store.AssignProfiles("alice", []string{"admin"})
+	return authz.StoreAuthorizer{Store: store}
+}
+
+// VALIDATES: AC-1 -- Web user with read-only profile POSTs to /config/set/ gets 403 and config unchanged.
+// PREVENTS: Web config set bypassing profile-based RBAC.
+func TestWebConfigSetRBACDeny(t *testing.T) {
+	mgr, schema := newHandlerTestManager(t)
+	authorizer := readOnlyWebAuthorizer()
+	handler := HandleConfigSetWithAuthorizer(mgr, schema, nil, authorizer)
+
+	form := url.Values{"leaf": {"router-id"}, "value": {"5.6.7.8"}}
+	req := postConfigRequest(t, "/config/set/bgp/", form, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+	tree := mgr.Tree("alice")
+	if tree != nil {
+		if bgp := tree.GetContainer("bgp"); bgp != nil {
+			_, ok := bgp.Get("router-id")
+			assert.False(t, ok, "router-id must not be written when RBAC denies set")
+		}
+	}
+}
+
+// VALIDATES: AC-2 -- Web user with read-only profile POSTs to /config/add/ gets 403 and config unchanged.
+// PREVENTS: Web config add bypassing profile-based RBAC.
+func TestWebConfigAddRBACDeny(t *testing.T) {
+	mgr, schema := newHandlerTestManager(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	authorizer := readOnlyWebAuthorizer()
+	handler := HandleConfigAddWithAuthorizer(mgr, schema, renderer, authorizer)
+
+	form := url.Values{"name": {"denied"}, "field:connection/remote/ip": {"10.0.0.1"}}
+	req := postConfigRequest(t, "/config/add/bgp/peer/", form, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+	tree := mgr.Tree("alice")
+	if tree != nil {
+		if bgp := tree.GetContainer("bgp"); bgp != nil {
+			assert.Nil(t, bgp.GetList("peer")["denied"], "peer must not be created when RBAC denies add")
+		}
+	}
+}
+
+// VALIDATES: AC-3 -- Web user with read-only profile POSTs to /config/delete/ gets 403 and config unchanged.
+// PREVENTS: Web config delete bypassing profile-based RBAC.
+func TestWebConfigDeleteRBACDeny(t *testing.T) {
+	mgr, _ := newHandlerTestManager(t)
+	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9"))
+	authorizer := readOnlyWebAuthorizer()
+	handler := HandleConfigDeleteWithAuthorizer(mgr, authorizer)
+
+	form := url.Values{"leaf": {"router-id"}}
+	req := postConfigRequest(t, "/config/delete/bgp/", form, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+	value, ok := mgr.Tree("alice").GetContainer("bgp").Get("router-id")
+	assert.True(t, ok)
+	assert.Equal(t, "9.9.9.9", value)
+}
+
+// VALIDATES: AC-4 -- Web user with read-only profile POSTs to /config/rename/ gets 403 and config unchanged.
+// PREVENTS: Web config rename bypassing profile-based RBAC.
+func TestWebConfigRenameRBACDeny(t *testing.T) {
+	mgr, schema := newHandlerTestManager(t)
+	require.NoError(t, mgr.CreateEntry("alice", []string{"bgp", "peer", "london"}))
+	authorizer := readOnlyWebAuthorizer()
+	handler := HandleConfigRenameWithAuthorizer(mgr, schema, authorizer)
+
+	form := url.Values{"new-key": {"paris"}}
+	req := postConfigRequest(t, "/config/rename/bgp/peer/london/", form, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+	peers := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
+	require.NotNil(t, peers["london"])
+	assert.Nil(t, peers["paris"])
+}
+
+// VALIDATES: AC-5 -- Web user with read-only profile POSTs to /config/commit/ gets 403 and config unchanged.
+// PREVENTS: Web config commit bypassing profile-based RBAC.
+func TestWebConfigCommitRBACDeny(t *testing.T) {
+	mgr, _ := newHandlerTestManager(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9"))
+	authorizer := readOnlyWebAuthorizer()
+	handler := HandleConfigCommitWithAuthorizer(mgr, renderer, nil, authorizer)
+
+	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+	assert.Equal(t, 1, mgr.ChangeCount("alice"), "denied commit must leave draft changes pending")
+}
+
+// VALIDATES: AC-9 -- Config commit via web emits an audit record with actor, surface, action, and summary.
+// PREVENTS: Web config commits bypassing the unified audit trail.
+func TestWebConfigCommitAuditRecord(t *testing.T) {
+	mgr, _ := newHandlerTestManager(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9"))
+	handler := HandleConfigCommitWithAuthorizerAndAudit(mgr, renderer, nil, adminWebAuthorizer(), recorder)
+
+	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
+	req.RemoteAddr = "192.0.2.10:12345"
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusSeeOther, rec.Code)
+	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigCommit})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "alice", entries[0].Actor)
+	assert.Equal(t, "192.0.2.10:12345", entries[0].RemoteAddr)
+	assert.Equal(t, audit.SurfaceWeb, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
+	assert.Contains(t, entries[0].Detail, "router-id")
+}
+
+// VALIDATES: AC-6 -- Web user with read-only profile POSTs to /config/discard/ gets 403 and config unchanged.
+// PREVENTS: Web config discard bypassing profile-based RBAC.
+func TestWebConfigDiscardRBACDeny(t *testing.T) {
+	mgr, _ := newHandlerTestManager(t)
+	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9"))
+	authorizer := readOnlyWebAuthorizer()
+	handler := HandleConfigDiscardWithAuthorizer(mgr, authorizer)
+
+	req := postConfigRequest(t, "/config/discard/", url.Values{}, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+	assert.Equal(t, 1, mgr.ChangeCount("alice"), "denied discard must leave draft changes pending")
+}
+
+// VALIDATES: AC-10 -- Config discard via web emits an audit record with actor, surface, action, and summary.
+// PREVENTS: Web config discard losing audit attribution.
+func TestWebConfigDiscardAuditRecord(t *testing.T) {
+	mgr, _ := newHandlerTestManager(t)
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9"))
+	handler := HandleConfigDiscardWithAuthorizerAndAudit(mgr, adminWebAuthorizer(), recorder)
+
+	req := postConfigRequest(t, "/config/discard/", url.Values{}, "alice")
+	req.RemoteAddr = "192.0.2.10:12345"
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusSeeOther, rec.Code)
+	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigDiscard})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "alice", entries[0].Actor)
+	assert.Equal(t, "192.0.2.10:12345", entries[0].RemoteAddr)
+	assert.Equal(t, audit.SurfaceWeb, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
+	assert.Contains(t, entries[0].Detail, "router-id")
+}
+
+// VALIDATES: AC-7 -- Web user with admin profile POSTs to /config/set/ gets 200/redirect and config changes.
+// PREVENTS: RBAC enforcement blocking authorized web config mutations.
+func TestWebConfigSetAdminAllowed(t *testing.T) {
+	mgr, schema := newHandlerTestManager(t)
+	authorizer := adminWebAuthorizer()
+	handler := HandleConfigSetWithAuthorizer(mgr, schema, nil, authorizer)
+
+	form := url.Values{"leaf": {"router-id"}, "value": {"5.6.7.8"}}
+	req := postConfigRequest(t, "/config/set/bgp/", form, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusSeeOther, rec.Code)
+	value, ok := mgr.Tree("alice").GetContainer("bgp").Get("router-id")
+	assert.True(t, ok)
+	assert.Equal(t, "5.6.7.8", value)
+}
+
+// VALIDATES: AC-15 -- Web user with view-only access GETs /show/ pages with 200 OK.
+// PREVENTS: Mutation RBAC enforcement blocking read-only show pages.
+func TestWebShowUnaffectedByRBAC(t *testing.T) {
+	_, schema := newHandlerTestManager(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	handler := HandleConfigView(renderer, schema, config.NewTree())
+
+	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	req = req.WithContext(context.WithValue(req.Context(), ctxKeyUsername, "alice"))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
 // TestHandleConfigSet verifies that POST /config/set/bgp/ with valid form data
 // sets the value in the user's draft and returns a redirect response.
 //
@@ -836,6 +1063,14 @@ func TestHandleConfigCommitPOST_HookCalled(t *testing.T) {
 	var hookCalled bool
 	mgr.SetCommitHook(func() error {
 		hookCalled = true
+		candidate, _, ok, readErr := storage.ReadCandidateConfig(mgr.store, mgr.configPath)
+		require.NoError(t, readErr)
+		require.True(t, ok, "web commit should stage candidate before hook")
+		assert.Contains(t, string(candidate), "router-id 9.9.9.9")
+		activeBefore, readErr := os.ReadFile(mgr.configPath)
+		require.NoError(t, readErr)
+		assert.Contains(t, string(activeBefore), "router-id 1.2.3.4", "active file must not change before hook promotes")
+		require.NoError(t, storage.PromoteCandidate(mgr.store, mgr.configPath))
 		return nil
 	})
 

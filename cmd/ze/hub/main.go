@@ -106,7 +106,7 @@ func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 		return 1
 	}
 	showCmd.RegisterAuditProvider(auditLog.Query)
-	webSrv, broker, _ := startWebServer(store, "", listenAddrs, insecureWeb, dispatch, resolvers, nil, auditLog)
+	webSrv, broker, _ := startWebServer(store, "", listenAddrs, insecureWeb, dispatch, resolvers, nil, auditLog, nil)
 	if webSrv == nil {
 		return 1
 	}
@@ -164,9 +164,10 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	var data []byte
 	var stdinOpen bool
 	var err error
-	if configPath == "-" {
+	switch {
+	case configPath == "-":
 		data, stdinOpen, err = readStdinConfig()
-	} else if storage.IsBlobStorage(store) {
+	case storage.IsBlobStorage(store):
 		if clearErr := clearStaleCandidateOnBoot(store, configPath); clearErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: clear stale candidate: %v\n", clearErr)
 		}
@@ -176,7 +177,7 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 			// while blob handles TLS certs, SSH keys, and persistent state.
 			data, err = os.ReadFile(configPath) //nolint:gosec // user-provided config path
 		}
-	} else {
+	default:
 		data, err = store.ReadFile(configPath)
 	}
 	if err != nil {
@@ -258,7 +259,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			return 1
 		}
 	}
-	if configPath != "" && configPath != "-" && storage.IsBlobStorage(store) {
+	if configPath != "" && configPath != "-" {
 		if _, _, activeErr := storage.EnsureActiveVersion(store, configPath, data, time.Now()); activeErr != nil {
 			fmt.Fprintf(os.Stderr, "error: initialize active config: %v\n", activeErr)
 			return 1
@@ -474,17 +475,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		readAndParse := func() (*zeconfig.LoadConfigResult, error) {
 			var reloadData []byte
 			var readErr error
-			if storage.IsBlobStorage(store) {
-				var hasCandidate bool
-				reloadData, _, hasCandidate, readErr = storage.ReadCandidateConfig(store, configPath)
-				if readErr == nil && !hasCandidate {
-					reloadData, readErr = storage.ReadActiveConfig(store, configPath)
-				}
-				if readErr != nil {
-					reloadData, readErr = os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
-				}
-			} else {
-				reloadData, readErr = store.ReadFile(configPath)
+			var hasCandidate bool
+			reloadData, _, hasCandidate, readErr = storage.ReadCandidateConfig(store, configPath)
+			if readErr == nil && !hasCandidate {
+				reloadData, readErr = storage.ReadActiveConfig(store, configPath)
+			}
+			if readErr != nil {
+				reloadData, readErr = os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
 			}
 			if readErr != nil {
 				return nil, fmt.Errorf("read config: %w", readErr)
@@ -668,13 +665,21 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	defer stopArchiveScheduler()
 
 	lm := NewListenerMigrator(nil)
+	reloadAfterCommit := func() error {
+		startupCtx, startupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer startupCancel()
+		if err := apiServer.WaitForStartupComplete(startupCtx); err != nil {
+			return fmt.Errorf("wait for plugin startup: %w", err)
+		}
+		return doReload(apiServer, eng, configProvider, store, configPath, loadBoth, lm)
+	}
 
 	var webEditorMgr *zeweb.EditorManager
 	if webEnabled && storage.IsBlobStorage(store) {
 		if len(webAddrs) == 0 {
 			webAddrs = []string{"0.0.0.0:3443"}
 		}
-		if webSrv, broker, editorMgr := startWebServer(store, configPath, webAddrs, insecureWeb, webDispatch, resolvers, liveAAABundleAuthorizer{}, auditLog); webSrv != nil {
+		if webSrv, broker, editorMgr := startWebServer(store, configPath, webAddrs, insecureWeb, webDispatch, resolvers, liveAAABundleAuthorizer{}, auditLog, reloadAfterCommit); webSrv != nil {
 			webEditorMgr = editorMgr
 			lm.SetWeb(webSrv)
 			if ring := apiServer.EventRing(); ring != nil {
@@ -712,7 +717,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			HasConfig: true,
 		}
 	}
-	if sshCfg.HasConfig && !hasBGPBlock && storage.IsBlobStorage(store) {
+	if sshCfg.HasConfig && !hasBGPBlock {
 		cfg := zessh.Config{
 			Listen:        sshCfg.Listen,
 			ListenAddrs:   sshCfg.ListenAddrs,
@@ -843,9 +848,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if token := env.Get("ze.api-server.token"); token != "" && apiCfg.Token == "" {
 		apiCfg.Token = token
 	}
-	reloadAfterCommit := func() error {
-		return doReload(apiServer, eng, configProvider, store, configPath, loadBoth, lm)
-	}
 	apiServer.SetFullReloadFunc(func(context.Context) error {
 		return reloadAfterCommit()
 	})
@@ -857,7 +859,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if webEditorMgr != nil {
 		webEditorMgr.SetCommitHook(reloadAfterCommit)
 	}
-	if apiCfgOK && storage.IsBlobStorage(store) {
+	if apiCfgOK {
 		var apiUsers []authz.UserConfig
 		u, uErr := loadZefsUsers()
 		switch {

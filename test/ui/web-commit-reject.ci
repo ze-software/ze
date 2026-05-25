@@ -1,0 +1,91 @@
+# Test: web commit rejection preserves running config
+# VALIDATES: AC-4 -- Web commit failure clears the candidate, leaves active unchanged, and returns an HTTP error.
+# PREVENTS: web commit saving a rejected candidate before runtime reload accepts it.
+
+option=env:var=ze.config.dir:value=.
+option=timeout:value=20s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=web-commit-reject.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import sys
+from ze_api import API
+
+def reject_apply(params):
+    return {'status': 'error', 'error': 'web test apply rejected'}
+
+def main():
+    api = API()
+    api.declare_config('bgp')
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.on_config_apply(reject_apply)
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+    while not api._shutdown:
+        api.read_line(timeout=0.5)
+    print('OK: web reject plugin stopped', file=sys.stderr)
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+tmpfs=web-commit-reject.conf:terminator=EOF_CONF
+plugin {
+    external web-commit-reject {
+        run ./web-commit-reject.run
+        encoder json
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+        process web-commit-reject { }
+    }
+}
+EOF_CONF
+
+tmpfs=set-router-id.form:encoding=base64:terminator=EOF_SET
+bGVhZj1yb3V0ZXItaWQmdmFsdWU9Mi4yLjIuMg==
+EOF_SET
+
+tmpfs=show-bgp.form:encoding=base64:terminator=EOF_SHOW
+Y29tbWFuZD1zaG93K2JncA==
+EOF_SHOW
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --web $PORT2 --insecure-web web-commit-reject.conf:timeout=20s
+
+http=wait:seq=1:url=https://127.0.0.1:$PORT2/config/edit/:status=200:contains=bgp:insecure-tls=true:timeout=15s
+http=post:seq=2:url=https://127.0.0.1:$PORT2/config/set/bgp/:status=200:sendfile=set-router-id.form:content-type=application/x-www-form-urlencoded:insecure-tls=true
+http=post:seq=3:url=https://127.0.0.1:$PORT2/config/commit/:status=500:contains=web test apply rejected:insecure-tls=true
+http=post:seq=4:url=https://127.0.0.1:$PORT2/cli:status=200:contains=1.2.3.4:sendfile=show-bgp.form:content-type=application/x-www-form-urlencoded:insecure-tls=true

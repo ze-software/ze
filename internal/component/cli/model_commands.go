@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -351,6 +352,7 @@ func (m *Model) cmdRollback(args []string) (commandResult, error) {
 		return commandResult{}, err
 	}
 	m.searchCache = "" // tree changed, invalidate cached set-view
+	m.recordConfigDiscard("rollback " + backups[n-1].Path)
 
 	return commandResult{
 		statusMessage: "Rolled back to " + backups[n-1].Path,
@@ -744,8 +746,8 @@ func (m *Model) cmdSave() (commandResult, error) {
 }
 
 // cmdCommit saves changes with validation check.
-// If a ReloadNotifier is set (daemon was reachable at startup), attempts to reload.
-// Reload failure does not fail the commit — config is saved regardless.
+// If a ReloadNotifier is set, stages a transactional candidate and asks the daemon to reload.
+// Reload failure fails the commit and leaves the editor dirty.
 // Both errors and warnings block commit — config must be fully correct.
 func (m *Model) cmdCommit() (commandResult, error) {
 	// Validate inline - don't rely on m.validationErrors which may be stale
@@ -803,9 +805,15 @@ func (m *Model) cmdCommitForce() (commandResult, error) {
 // commitSaveAndReload performs the save, archive, and reload steps shared
 // by cmdCommit and cmdCommitForce. Called after validation has passed.
 func (m *Model) commitSaveAndReload() (commandResult, error) {
+	detail := m.editor.Diff()
+	if m.editor.HasReloadNotifier() {
+		return m.commitCandidateAndReload(detail)
+	}
+
 	if err := m.editor.Save(); err != nil {
 		return commandResult{}, err
 	}
+	m.recordConfigCommit(detail)
 	m.searchCache = ""
 
 	var archiveMsg string
@@ -816,16 +824,43 @@ func (m *Model) commitSaveAndReload() (commandResult, error) {
 		}
 	}
 
-	if !m.editor.HasReloadNotifier() {
-		return commandResult{statusMessage: "Configuration committed (daemon not running)" + archiveMsg, refreshConfig: true, revalidate: true}, nil
+	return commandResult{statusMessage: "Configuration committed (daemon not running)" + archiveMsg, refreshConfig: true, revalidate: true}, nil
+}
+
+func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
+	content, _, err := m.editor.StageCandidate(time.Now())
+	if err != nil {
+		return commandResult{}, err
 	}
-	reloadMsg := m.tryReload()
-	return commandResult{statusMessage: "Configuration committed" + reloadMsg + archiveMsg, refreshConfig: true, revalidate: true}, nil
+	m.searchCache = ""
+	m.reloadErrors = nil
+	if err := m.editor.NotifyReload(); err != nil {
+		m.reloadErrors = []string{err.Error()}
+		if clearErr := storage.ClearCandidate(m.editor.store, m.editor.originalPath); clearErr != nil {
+			m.reloadErrors = append(m.reloadErrors, clearErr.Error())
+		}
+		return commandResult{
+			statusMessage: "commit failed: " + err.Error(),
+			configView:    m.configViewAtPath(m.contextPath),
+			revalidate:    true,
+		}, nil
+	}
+	m.editor.MarkCommittedContent(content)
+	m.recordConfigCommit(detail)
+
+	var archiveMsg string
+	if m.editor.HasArchiveNotifier() {
+		if errs := m.editor.NotifyArchive([]byte(content)); len(errs) > 0 {
+			archiveMsg = textbuf.StrIntStr(" (archive: ", int64(len(errs)), " error(s))")
+		}
+	}
+	return commandResult{statusMessage: "Configuration committed and reloaded" + archiveMsg, refreshConfig: true, revalidate: true}, nil
 }
 
 // cmdCommitSession commits only the current session's changes with conflict detection.
 // Validates the resulting config before committing (same check as non-session commit).
 func (m *Model) cmdCommitSession() (commandResult, error) {
+	detail := m.editor.Diff()
 	// Validate the current config before attempting commit.
 	// Session mode uses set/delete commands that validate per-field, but
 	// whole-config validation catches semantic issues (mandatory fields, etc.).
@@ -840,7 +875,17 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 		}, nil
 	}
 
-	commitResult, err := m.editor.CommitSession()
+	var (
+		commitResult *CommitResult
+		content      string
+		err          error
+	)
+	transactional := m.editor.HasReloadNotifier()
+	if transactional {
+		commitResult, content, err = m.editor.CommitSessionCandidate(time.Now())
+	} else {
+		commitResult, err = m.editor.CommitSession()
+	}
 	if err != nil {
 		return commandResult{}, err
 	}
@@ -863,24 +908,43 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 		}, nil
 	}
 
+	if transactional && commitResult.Applied > 0 {
+		m.searchCache = ""
+		m.reloadErrors = nil
+		if err := m.editor.NotifyReload(); err != nil {
+			m.reloadErrors = []string{err.Error()}
+			if clearErr := storage.ClearCandidate(m.editor.store, m.editor.originalPath); clearErr != nil {
+				m.reloadErrors = append(m.reloadErrors, clearErr.Error())
+			}
+			return commandResult{
+				statusMessage: "commit failed: " + err.Error(),
+				configView:    m.configViewAtPath(m.contextPath),
+				revalidate:    true,
+			}, nil
+		}
+		m.editor.MarkCommittedContent(content)
+	}
+
 	m.searchCache = "" // tree changed, invalidate cached set-view
+	m.recordConfigCommit(detail)
 
 	msg := textbuf.StrIntStr("Session committed: ", int64(commitResult.Applied), " change(s) applied")
 	if commitResult.MigrationWarning != "" {
 		msg += " (warning: " + commitResult.MigrationWarning + ")"
 	}
+	if transactional && commitResult.Applied > 0 {
+		msg += " and reloaded"
+	}
 
 	// Archive config to remote locations (best-effort, non-fatal).
 	if m.editor.HasArchiveNotifier() {
-		content := []byte(m.editor.OriginalContent())
-		if errs := m.editor.NotifyArchive(content); len(errs) > 0 {
+		archiveContent := m.editor.OriginalContent()
+		if transactional {
+			archiveContent = content
+		}
+		if errs := m.editor.NotifyArchive([]byte(archiveContent)); len(errs) > 0 {
 			msg += textbuf.StrIntStr(" (archive: ", int64(len(errs)), " error(s))")
 		}
-	}
-
-	// Notify daemon of config change (best-effort).
-	if m.editor.HasReloadNotifier() {
-		msg += m.tryReload()
 	}
 
 	return commandResult{statusMessage: msg, refreshConfig: true, revalidate: true}, nil
@@ -897,10 +961,12 @@ func (m *Model) cmdDiscardSession(args []string) (commandResult, error) {
 		path = args
 	}
 
+	detail := m.editor.Diff()
 	if err := m.editor.DiscardSessionPath(path); err != nil {
 		return commandResult{}, err
 	}
 	m.searchCache = "" // tree changed, invalidate cached set-view
+	m.recordConfigDiscard(detail)
 
 	msg := "Session changes discarded"
 	if len(path) > 0 {
@@ -1046,10 +1112,12 @@ func (m *Model) cmdDisconnectSession(args []string) (commandResult, error) {
 
 // cmdDiscard reverts all changes.
 func (m *Model) cmdDiscard() (commandResult, error) {
+	detail := m.editor.Diff()
 	if err := m.editor.Discard(); err != nil {
 		return commandResult{}, err
 	}
 	m.searchCache = "" // tree changed, invalidate cached set-view
+	m.recordConfigDiscard(detail)
 
 	return commandResult{
 		statusMessage: "Changes discarded",

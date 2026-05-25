@@ -21,7 +21,7 @@ individual plugins beyond publishing events.
 | Plugin autonomy | Plugins decide what they need. A plugin that depends on an interface being created waits for both the apply event and the interface event. The engine does not manage per-plugin dependency graphs at runtime. |
 | Plugin-estimated timeouts | Plugins declare verify and apply budgets at registration, update them after each transaction. Engine enforces the dependency-graph-aware critical path. No mid-transaction negotiation. |
 | Rollback is an event | The engine emits a single rollback event when any plugin's apply fails or times out. All plugins that already applied undo via their journals. The engine drains rollback acks in reverse dependency-tier order. |
-| Runtime is authoritative | Config file is written only after all plugins confirm. Disk failure is a warning, not a rollback trigger. |
+| Runtime is authoritative | A candidate config is promoted to the active pointer only after runtime reload succeeds. Persistence failure after apply is a warning, not a plugin rollback trigger. |
 
 ---
 
@@ -150,19 +150,37 @@ finalization events:
 
 | Outcome | Action | Event |
 |---------|--------|-------|
-| All plugins applied | Engine emits `(config, committed)`, then writes the config file. | Runtime is authoritative. |
-| All applied, file write fails | `committed` already emitted. Warning reported to caller. Runtime is live, file is stale. | Caller can retry save. |
+| All plugins applied | Engine emits `(config, committed)`. The hub promotes the staged candidate to active after the full subsystem reload succeeds. | Runtime is authoritative. |
+| All applied, pointer promotion fails | `committed` already emitted. Warning reported to caller. Runtime is live, active pointer may still reference the previous version. | Caller can retry commit/reload. |
 | Rollback occurred | Config file untouched, engine emits `(config, rolled-back)`. | File still matches pre-transaction runtime. |
 
 Runtime is the authority, not the file. The transaction succeeds when all
-plugins apply. The file write is a persistence step that happens after
-`(config, committed)`. If the file write fails, the runtime is still live
-and correct -- the caller gets a warning (`saved=false` in the `applied`
-event payload) and can retry.
+plugins apply. In production, CLI, web, API, SIGHUP, and managed pushes write
+the proposed config as an immutable version and set `meta/config/candidate`.
+The hub reload path reads that candidate, runs plugin verification/apply, then
+promotes the candidate to `meta/config/active` only after the wider subsystem
+reload succeeds. If pointer promotion fails after runtime apply, the runtime is
+still live and correct, and the caller gets an error/warning to retry.
 
 `(config, applied)` and `(config, rolled-back)` are informational events for
 observers (monitoring, web UI refresh, logging). `applied` includes a `saved`
 boolean indicating whether the file write succeeded.
+
+### Persistence Pointers
+
+The production commit path stores versioned configs and moves named pointers:
+
+| Pointer | Meaning |
+|---------|---------|
+| `meta/config/active` | Timestamp of the config version that boot and runtime consider active |
+| `meta/config/candidate` | Transient timestamp staged for the current commit attempt |
+| `meta/config/rollback` | Previous active timestamp after a successful promotion |
+| `meta/config/recovery` | Operator-selected known-good timestamp for future recovery commands |
+
+On success, promotion sets `rollback` to the previous `active`, sets `active`
+to `candidate`, then clears `candidate`. On failure, the hub clears
+`candidate` and leaves `active` unchanged. On boot, stale `candidate` is ignored
+and cleaned up; the daemon loads `active` when present.
 
 ---
 
@@ -564,12 +582,12 @@ Engine ----(config, apply-dhcp)-------> [dhcp]
   |
 Engine ----(config, committed)--> [iface] [bgp] [rib] [dhcp]   (discard journals)
   |
-  | write config file (best effort -- failure is warning, not rollback)
+  | promote candidate pointer (after subsystem reload succeeds)
   |
-Engine ----(config, applied)----> [web-ui] [monitoring] [logging]  (saved=true/false)
+Engine ----(config, applied)----> [web-ui] [monitoring] [logging]
   |
   v
-Caller: commit succeeded
+Caller: commit succeeded after active pointer promotion
 ```
 
 ---
@@ -591,10 +609,10 @@ events delivered through the engine's existing pub/sub fan-out:
 
 ### API Engine (spec-api-0-umbrella)
 
-The API engine's `ConfigCommit(sessionID, message)` calls `CommitSession`, which
-triggers the transaction protocol. The API gets verify/apply/rollback for free.
-The response includes the transaction outcome (`saved` flag indicates whether
-the config file was persisted).
+REST config sessions stage a candidate version, call the hub reload hook, and
+close the session only after the hook succeeds. The API gets
+verify/apply/rollback through the same hub path as web, CLI, SIGHUP, and managed
+pushes.
 
 ### Plugin SDK
 
@@ -608,7 +626,8 @@ The SDK exposes transaction participation through callbacks:
 
 Plugins that do not implement `OnConfigRollback` cannot undo. If such a plugin's
 apply succeeds but another plugin triggers rollback, the engine logs a warning.
-The config file is not reverted (it is the source of truth for intended state).
+The active pointer is not promoted on rollback; it remains the source of truth
+for the last accepted runtime state.
 
 Participation is declared in Stage 1 of the 5-stage startup protocol:
 
@@ -655,9 +674,9 @@ If the plugin reports `broken` again after restart, the engine stops it and logs
 an error. No restart loop. An operator must investigate and use a command to
 force restart after fixing the underlying issue.
 
-The config file always matches runtime (written only after successful apply).
-A restarted plugin converges to the config file state by applying its config
-roots from scratch during Stage 2.
+The active pointer matches the last accepted runtime state. A restarted plugin
+converges to that active config by applying its roots from scratch during Stage
+2. A stale candidate left by a crash is ignored on boot.
 
 ---
 
@@ -671,8 +690,8 @@ roots from scratch during Stage 2.
 | Rollback callback fails | Log error, continue rollback ack drain for other plugins. |
 | Multiple plugins fail simultaneously | First failure triggers rollback. Subsequent failures are logged. |
 | Plugin receives rollback before starting apply | Skip apply, emit `(config, rollback-ok)` with code `ok`. |
-| Config file write fails (after apply) | Warning to caller. Runtime is live. `(config, applied)` with `saved=false`. No rollback. |
+| Candidate promotion fails (after apply) | Warning/error to caller. Runtime is live. Active pointer may still reference previous version. No plugin rollback. |
 | Concurrent commit attempted | Rejected with error. SIGHUP queued instead of rejected. |
-| Engine crashes during transaction | Plugins hold journals. On restart, no `(config, committed)` arrives. Plugins detect stale journal (no matching active tx) and roll back on next startup. |
+| Engine crashes during transaction | Plugins hold journals. On restart, no `(config, committed)` arrives. Stale candidate is ignored; active pointer is loaded. Plugins detect stale journal (no matching active tx) and roll back on next startup. |
 | Plugin exceeds rollback deadline (3x apply) | Treated as `broken`. Engine restarts plugin. |
 | Plugin reports `broken` | Engine restarts plugin once via 5-stage protocol between rollback tiers. Second `broken` stops the plugin. |

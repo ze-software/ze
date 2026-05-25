@@ -437,6 +437,28 @@ expect=syslog:pattern=<regex>
 Validates that captured syslog output matches the regex pattern. When any `expect=syslog:` line is present, the test runner automatically starts a UDP syslog server and injects `ze.log.backend=syslog` and `ze.log.destination=127.0.0.1:<port>` into the test environment.
 <!-- source: internal/test/syslog/testsyslog.go -- UDP syslog server for tests -->
 
+### File Expectations
+
+```
+expect=file:path=<rel>:exists=true
+expect=file:path=<rel>:absent=true
+expect=file:path=<rel>:contains=<text>
+expect=file:path=<rel>:not-contains=<text>
+expect=file:glob=<rel-pattern>:count=<N>
+expect=file:glob=<rel-pattern>:contains=<text>
+expect=file:glob=<rel-pattern>:not-contains=<text>
+```
+
+Validates files after the test process or peer sequence has completed. Paths and
+glob patterns are relative to the tmpfs directory when the test uses `tmpfs=`,
+otherwise relative to the `.ci` file directory. For glob `contains`, at least one
+matched file must contain the text. For glob `not-contains`, no matched file may
+contain it.
+
+Use file expectations for post-run artifacts such as generated configs, pointer
+files, and logs. Do not write shell just to inspect files.
+<!-- source: internal/test/runner/runner_validate.go -- validateFileChecks -->
+
 ### Negative Expectations (reject)
 
 ```
@@ -524,7 +546,7 @@ Executed in `seq` order with automatic retry on connection errors (server starti
 
 ```
 http=get:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH]
-http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH]
+http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:sendfile=PATH][:content-type=TYPE][:insecure-tls=true]
 ```
 
 | Key | Required | Description |
@@ -534,6 +556,9 @@ http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH]
 | `status` | Yes | Expected HTTP status code |
 | `contains` | No | Expected body substring |
 | `bodyfile` | No | Path to file with expected body (exact match, resolved relative to `.ci` file) |
+| `sendfile` | No | Path to file sent as POST request body, resolved from tmpfs first |
+| `content-type` | No | Request body content type for `sendfile`, defaults to `application/json` |
+| `insecure-tls` | No | Set `true` for self-signed local HTTPS endpoints |
 <!-- source: internal/test/runner/runner_validate.go -- executeOneHTTPCheck -->
 
 Retries up to 20 times at 200ms intervals on transient connection errors (ECONNREFUSED, ECONNRESET, EOF).
@@ -625,7 +650,7 @@ Different components consume different line types:
 | `option=` | Test runner + ze-peer |
 | `cmd=api:` | Test runner (sends to ze-peer) |
 | `cmd=foreground:`, `cmd=background:` | Test runner (process orchestration) |
-| `expect=exit:`, `stdout:`, `stderr:`, `json:`, `syslog:` | Test runner |
+| `expect=exit:`, `stdout:`, `stderr:`, `json:`, `syslog:`, `file:` | Test runner |
 | `reject=stderr:`, `reject=syslog:` | Test runner (negative expectations) |
 | `http=get:`, `http=post:` | Test runner (HTTP assertion checks) |
 | `http=wait:` | Test runner (HTTP readiness polls) |
@@ -703,7 +728,7 @@ Editor tests simulate user input sequences against the headless configuration ed
 | `expect=timer:active` | Confirm timer running | `expect=timer:active` |
 | `expect=file:path=<rel>:contains=<text>` | On-disk file content | `expect=file:path=test.conf:contains=bgp` |
 | `expect=file:path=<rel>:not-contains=<text>` | File must NOT contain | `expect=file:path=test.conf:not-contains=old` |
-| `expect=file:path=<rel>:absent` | File does not exist | `expect=file:path=test.conf:absent` |
+| `expect=file:path=<rel>:absent=true` | File does not exist | `expect=file:path=test.conf:absent=true` |
 <!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
 
 ### Wait Actions

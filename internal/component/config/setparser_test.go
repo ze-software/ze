@@ -127,6 +127,46 @@ set neighbor 192.0.2.1 family ipv6 unicast true
 	require.Equal(t, "true", val)
 }
 
+// TestSetParserBoolNormalizesConfigSyntax verifies set-format boolean syntax
+// is stored in the internal canonical form.
+//
+// VALIDATES: set parser normalizes enable/disable to true/false.
+// PREVENTS: YANG validation rejecting set-format trees serialized by the editor.
+func TestSetParserBoolNormalizesConfigSyntax(t *testing.T) {
+	input := `set neighbor 192.0.2.1 family ipv4 unicast disable`
+
+	p := NewSetParser(testSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	neighbor := tree.GetList("neighbor")["192.0.2.1"]
+	family := neighbor.GetContainer("family")
+	ipv4 := family.GetContainer("ipv4")
+	val, ok := ipv4.Get("unicast")
+	require.True(t, ok)
+	assert.Equal(t, "false", val)
+}
+
+// TestSetParserWithMetaBoolNormalizesConfigSyntax verifies set-meta boolean
+// syntax is stored in the internal canonical form.
+//
+// VALIDATES: set-meta parser normalizes enable/disable to true/false.
+// PREVENTS: Session-mode validation rejecting editor-generated set-meta content.
+func TestSetParserWithMetaBoolNormalizesConfigSyntax(t *testing.T) {
+	input := `#alice @local %2026-05-25T00:00:00Z set neighbor 192.0.2.1 family ipv4 unicast disable`
+
+	p := NewSetParser(testSchema())
+	tree, _, err := p.ParseWithMeta(input)
+	require.NoError(t, err)
+
+	neighbor := tree.GetList("neighbor")["192.0.2.1"]
+	family := neighbor.GetContainer("family")
+	ipv4 := family.GetContainer("ipv4")
+	val, ok := ipv4.Get("unicast")
+	require.True(t, ok)
+	assert.Equal(t, "false", val)
+}
+
 // TestSetParserNestedList verifies nested list paths.
 //
 // VALIDATES: Lists inside containers work.
@@ -679,7 +719,7 @@ func TestParseInlineArgs(t *testing.T) {
 		"session", "asn", "remote", "65001",
 		"session", "asn", "local", "65000",
 		"timer", "receive-hold-time", "90",
-		"connection", "remote", "connect", "false",
+		"connection", "remote", "connect", "disable",
 	})
 	require.NoError(t, err)
 
@@ -693,7 +733,7 @@ func TestParseInlineArgs(t *testing.T) {
 	assert.Equal(t, "65001", asn["remote"])
 	assert.Equal(t, "65000", asn["local"])
 
-	// Verify connection.remote.connect
+	// Verify connection.remote.connect is normalized from config syntax.
 	connection, ok := m["connection"].(map[string]any)
 	require.True(t, ok, "connection should be a map")
 	connRemote, ok := connection["remote"].(map[string]any)

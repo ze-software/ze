@@ -11,6 +11,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/migration"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
 // CommitSession commits the current session's changes to config.conf.
@@ -186,6 +187,180 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	e.dirty.Store(false)
 
 	return &CommitResult{Applied: applied, MigrationWarning: migrationWarning}, nil
+}
+
+// CommitSessionCandidate merges the current session's changes into a staged
+// candidate version instead of overwriting the active config file. Session
+// draft/change files are left intact until MarkCommittedContent confirms the
+// daemon promoted the candidate.
+//
+//nolint:cyclop,funlen // Mirrors CommitSession's conflict and merge protocol.
+func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string, error) {
+	if e.session == nil {
+		return nil, "", errNoSessionSet
+	}
+
+	if liveConflicts := e.DetectConflicts(); len(liveConflicts) > 0 {
+		return &CommitResult{Conflicts: liveConflicts}, "", nil
+	}
+
+	if err := e.SaveDraft(); err != nil {
+		return nil, "", fmt.Errorf("commit save: %w", err)
+	}
+
+	guard, err := e.store.AcquireLock(e.originalPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("commit lock: %w", err)
+	}
+	released := false
+	defer func() {
+		if !released {
+			guard.Release() //nolint:errcheck // Best effort unlock on all paths
+		}
+	}()
+
+	committedData, err := guard.ReadFile(e.originalPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("read config: %w", err)
+	}
+	committedContent := string(committedData)
+	committedTree, existingMeta, err := parseConfigWithFormat(committedContent, e.schema)
+	if err != nil {
+		return nil, "", fmt.Errorf("parse config: %w", err)
+	}
+
+	var migrationWarning string
+	if config.DetectFormat(committedContent) == config.FormatHierarchical {
+		if migration.NeedsMigration(committedTree) {
+			result, migrateErr := migration.Migrate(committedTree)
+			if migrateErr == nil {
+				committedTree = result.Tree
+			} else {
+				migrationWarning = fmt.Sprintf("tree migration skipped: %v", migrateErr)
+			}
+		}
+	}
+
+	draftPath := DraftPath(e.originalPath)
+	draftData, err := guard.ReadFile(draftPath)
+	if err != nil {
+		return &CommitResult{Applied: 0}, "", nil
+	}
+	setParser := config.NewSetParser(e.schema)
+	_, draftMeta, err := setParser.ParseWithMeta(string(draftData))
+	if err != nil {
+		return nil, "", fmt.Errorf("parse draft: %w", err)
+	}
+
+	changePath := ChangePath(e.originalPath, e.session.User)
+	_, _, changeOps := e.readChangeFile(guard, changePath)
+
+	myEntries := draftMeta.SessionEntries(e.session.ID)
+	myOps := filterStructuralOps(changeOps, e.session.ID)
+	if len(myEntries) == 0 && len(myOps) == 0 {
+		return &CommitResult{Applied: 0}, "", nil
+	}
+
+	var conflicts []Conflict
+	for i := range myOps {
+		if conflict := renameStaleConflict(committedTree, e.schema, myOps[i]); conflict != nil {
+			conflicts = append(conflicts, *conflict)
+		}
+	}
+	for _, se := range myEntries {
+		pathParts := strings.Fields(se.Path)
+		myValue := se.Entry.Value
+
+		committedValue := getValueAtPath(committedTree, e.schema, pathParts)
+		isStale := myValue != committedValue &&
+			((se.Entry.Previous != "" && committedValue != se.Entry.Previous) ||
+				(se.Entry.Previous == "" && committedValue != ""))
+		if isStale {
+			conflicts = append(conflicts, Conflict{
+				Path:          se.Path,
+				Type:          ConflictStale,
+				MyValue:       myValue,
+				OtherValue:    committedValue,
+				PreviousValue: se.Entry.Previous,
+			})
+		}
+	}
+
+	if len(conflicts) > 0 {
+		return &CommitResult{Conflicts: conflicts}, "", nil
+	}
+
+	if err := applyStructuralOps(committedTree, e.schema, myOps, false); err != nil {
+		return nil, "", fmt.Errorf("apply rename: %w", err)
+	}
+	applied := len(myOps)
+	for _, se := range myEntries {
+		pathParts := strings.Fields(se.Path)
+		value := se.Entry.Value
+		if len(pathParts) > 0 {
+			leafName := pathParts[len(pathParts)-1]
+			parentPath := pathParts[:len(pathParts)-1]
+			target, walkErr := e.walkOrCreateIn(committedTree, parentPath)
+			if walkErr != nil {
+				continue
+			}
+			if value != "" {
+				target.Set(leafName, value)
+			} else {
+				target.Delete(leafName)
+			}
+			applied++
+		}
+	}
+
+	if err := config.ApplyPasswordHashing(committedTree, e.schema); err != nil {
+		return nil, "", fmt.Errorf("hash password: %w", err)
+	}
+	myEntries = dropPlaintextPasswordEntries(myEntries)
+
+	commitMeta := buildCommitMeta(existingMeta, draftMeta, myEntries, myOps, e.session.User, stamp, e.schema)
+	committedOutput := config.FormatSchemaStamp(config.SchemaStamp) + config.SerializeSetWithMeta(committedTree, commitMeta, e.schema)
+	if _, err := storage.WriteCandidateVersionWithGuard(e.store, guard, e.originalPath, []byte(committedOutput), stamp); err != nil {
+		return nil, "", fmt.Errorf("write candidate: %w", err)
+	}
+
+	if err := guard.Release(); err != nil {
+		return nil, "", fmt.Errorf("commit unlock: %w", err)
+	}
+	released = true
+
+	e.dirty.Store(true)
+
+	return &CommitResult{Applied: applied, MigrationWarning: migrationWarning}, committedOutput, nil
+}
+
+func (e *Editor) cleanupCommittedSession() {
+	if e.session == nil {
+		return
+	}
+	guard, err := e.store.AcquireLock(e.originalPath)
+	if err != nil {
+		return
+	}
+	defer guard.Release() //nolint:errcheck // Best effort cleanup after successful commit
+
+	draftPath := DraftPath(e.originalPath)
+	draftData, err := guard.ReadFile(draftPath)
+	if err == nil {
+		draftTree, draftMeta, parseErr := config.NewSetParser(e.schema).ParseWithMeta(string(draftData))
+		if parseErr == nil {
+			draftMeta.RemoveSession(e.session.ID)
+			if len(draftMeta.AllSessions()) == 0 {
+				guard.Remove(draftPath) //nolint:errcheck // Best effort cleanup after successful commit
+			} else {
+				draftOutput := config.SerializeSetWithMeta(draftTree, draftMeta, e.schema)
+				guard.WriteFile(draftPath, []byte(draftOutput), 0o600) //nolint:errcheck // Best effort cleanup after successful commit
+			}
+		}
+	}
+
+	changePath := ChangePath(e.originalPath, e.session.User)
+	guard.Remove(changePath) //nolint:errcheck // Best effort cleanup after successful commit
 }
 
 // DiscardSessionPath discards this session's changes at the given path.

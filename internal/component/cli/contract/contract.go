@@ -10,6 +10,7 @@ package contract
 
 import (
 	"context"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -129,6 +130,8 @@ type Editor interface {
 	DeactivatePath(path []string) error
 	ActivatePath(path []string) error
 	CommitSession() (*CommitResult, error)
+	CommitSessionCandidate(stamp time.Time) (*CommitResult, string, error)
+	MarkCommittedContent(content string)
 	Discard() error
 	DiscardSessionPath(path []string) error
 	DisconnectSession(sessionID string) error

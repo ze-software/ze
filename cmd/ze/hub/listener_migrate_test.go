@@ -1,88 +1,68 @@
-// Design: docs/architecture/web-interface.md -- Cross-service conflict detection tests
-
 package hub
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
-// TestConflictDetection verifies that swapping addresses between two services
-// is detected as a conflict.
-// VALIDATES: AC-9.
-func TestConflictDetection(t *testing.T) {
-	changes := []serviceChange{
-		{
-			name:   "web",
-			remove: []string{"0.0.0.0:3443"},
-			add:    []string{"0.0.0.0:8080"},
-		},
-		{
-			name:   "api",
-			remove: []string{"0.0.0.0:8080"},
-			add:    []string{"0.0.0.0:3443"},
-		},
-	}
-
-	conflicts := detectConflicts(changes)
-	assert.True(t, conflicts["web"], "web must be flagged as conflicting")
-	assert.True(t, conflicts["api"], "api must be flagged as conflicting")
+type recordingReconfigurable struct {
+	addrs []string
+	fail  error
+	calls [][]string
 }
 
-// TestConflictDetectionNoConflict verifies that independent address changes
-// are not flagged as conflicts.
-func TestConflictDetectionNoConflict(t *testing.T) {
-	changes := []serviceChange{
-		{
-			name:   "web",
-			remove: []string{"0.0.0.0:3443"},
-			add:    []string{"0.0.0.0:9090"},
-		},
-		{
-			name:   "api",
-			remove: []string{"0.0.0.0:8080"},
-			add:    []string{"0.0.0.0:7070"},
-		},
-	}
-
-	conflicts := detectConflicts(changes)
-	assert.Empty(t, conflicts, "no conflicts expected for independent changes")
+func (r *recordingReconfigurable) Addresses() []string {
+	return append([]string(nil), r.addrs...)
 }
 
-// TestConflictDetectionOneDirection verifies that a one-directional conflict
-// (one service releases an address another acquires, but not vice versa)
-// is still detected.
-func TestConflictDetectionOneDirection(t *testing.T) {
-	changes := []serviceChange{
-		{
-			name:   "web",
-			remove: []string{"0.0.0.0:3443"},
-			add:    []string{"0.0.0.0:9090"},
-		},
-		{
-			name:   "mcp",
-			remove: nil,
-			add:    []string{"0.0.0.0:3443"},
-		},
+func (r *recordingReconfigurable) Reconfigure(_ context.Context, newAddrs []string) error {
+	r.calls = append(r.calls, append([]string(nil), newAddrs...))
+	if r.fail != nil {
+		return r.fail
 	}
-
-	conflicts := detectConflicts(changes)
-	assert.True(t, conflicts["web"], "web must be flagged (releases addr mcp wants)")
-	assert.True(t, conflicts["mcp"], "mcp must be flagged (acquires addr web releases)")
+	r.addrs = append([]string(nil), newAddrs...)
+	return nil
 }
 
-// TestConflictDetectionSingleService verifies that a single service changing
-// addresses has no cross-service conflict.
-func TestConflictDetectionSingleService(t *testing.T) {
-	changes := []serviceChange{
-		{
-			name:   "web",
-			remove: []string{"0.0.0.0:3443"},
-			add:    []string{"0.0.0.0:8080"},
-		},
-	}
+func TestReloadListenersRollsBackAppliedServiceOnLaterFailure(t *testing.T) {
+	web := &recordingReconfigurable{addrs: []string{"127.0.0.1:3443"}}
+	lg := &recordingReconfigurable{addrs: []string{"127.0.0.1:8443"}, fail: fmt.Errorf("lg refused")}
+	migrator := NewListenerMigrator(nil)
+	migrator.web = web
+	migrator.lg = lg
 
-	conflicts := detectConflicts(changes)
-	assert.Empty(t, conflicts, "single service cannot conflict with itself")
+	// VALIDATES: listener migration is all-or-revert inside a rejected reload.
+	// PREVENTS: one service staying on the rejected address after a later service fails.
+	err := migrator.ReloadListeners(context.Background(), listenerMigrationTree())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "lg refused")
+
+	assert.Equal(t, [][]string{{"127.0.0.1:3444"}, {"127.0.0.1:3443"}}, web.calls)
+	assert.Equal(t, []string{"127.0.0.1:3443"}, web.addrs)
+	assert.Equal(t, [][]string{{"127.0.0.1:8444"}}, lg.calls)
+}
+
+func listenerMigrationTree() *zeconfig.Tree {
+	tree := zeconfig.NewTree()
+	env := zeconfig.NewTree()
+	env.SetContainer("web", listenerServiceTree("3444"))
+	env.SetContainer("looking-glass", listenerServiceTree("8444"))
+	tree.SetContainer("environment", env)
+	return tree
+}
+
+func listenerServiceTree(port string) *zeconfig.Tree {
+	svc := zeconfig.NewTree()
+	svc.Set("enabled", "true")
+	srv := zeconfig.NewTree()
+	srv.Set("ip", "127.0.0.1")
+	srv.Set("port", port)
+	svc.AddListEntry("server", "main", srv)
+	return svc
 }

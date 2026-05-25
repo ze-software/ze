@@ -43,8 +43,8 @@ type ClientConfig struct {
 	Version      string // Current config version hash (empty on first boot)
 	TLSInsecure  bool   // Skip TLS certificate verification (INSECURE: only for testing or self-signed hubs with explicit opt-in)
 	Handler      *Handler
-	OnReload     func()      // Called after new config is cached and applied
-	CheckManaged func() bool // Returns false when meta/instance/managed is disabled; nil = always managed
+	OnCommit     func([]byte) error // Called to transactionally commit fetched config
+	CheckManaged func() bool        // Returns false when meta/instance/managed is disabled; nil = always managed
 }
 
 // RunManagedClient connects to the hub and maintains the connection with
@@ -173,7 +173,7 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 	return notificationLoop(ctx, mc, cfg, hbDone)
 }
 
-// fetchAndProcess fetches config from hub, validates, caches, and signals reload.
+// fetchAndProcess fetches config from hub, validates, commits, and ACKs the result.
 func fetchAndProcess(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig) error {
 	resp, err := FetchConfig(ctx, mc, cfg.Version)
 	if err != nil {
@@ -185,16 +185,22 @@ func fetchAndProcess(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig) er
 		return nil
 	}
 
-	ack := cfg.Handler.ProcessConfig(resp)
+	data, ack := cfg.Handler.ValidateConfig(resp)
+	if ack.OK {
+		if cfg.OnCommit == nil {
+			ack.OK = false
+			ack.Error = "commit not ready"
+		} else if err := cfg.OnCommit(data); err != nil {
+			ack.OK = false
+			ack.Error = fmt.Sprintf("commit config: %v", err)
+		}
+	}
 	if ackErr := SendConfigAck(ctx, mc, ack); ackErr != nil {
 		logger().Warn("send ack failed", "error", ackErr)
 	}
 	if ack.OK {
 		cfg.Version = resp.Version
 		logger().Info("config updated", "version", resp.Version)
-		if cfg.OnReload != nil {
-			cfg.OnReload()
-		}
 	} else {
 		logger().Warn("config rejected", "error", ack.Error)
 	}

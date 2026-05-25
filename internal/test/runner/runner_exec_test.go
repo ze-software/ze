@@ -27,3 +27,26 @@ func TestZeDaemonConfigArgIndex(t *testing.T) {
 		})
 	}
 }
+
+func TestZeDaemonShouldForceFileStorage(t *testing.T) {
+	// VALIDATES: web functional tests keep blob storage enabled because the web
+	// server requires it, while plain daemon tests still avoid shared zefs state.
+	tests := []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{name: "plain config", args: []string{"test.conf"}, want: true},
+		{name: "web config", args: []string{"--web", "3443", "--insecure-web", "test.conf"}, want: false},
+		{name: "web equals", args: []string{"--web=3443", "test.conf"}, want: false},
+		{name: "subcommand", args: []string{"config", "validate", "test.conf"}, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := zeDaemonShouldForceFileStorage(tt.args); got != tt.want {
+				t.Fatalf("zeDaemonShouldForceFileStorage(%v) = %v, want %v", tt.args, got, tt.want)
+			}
+		})
+	}
+}

@@ -23,7 +23,7 @@ type Handler struct {
 	// Returns nil if the config is acceptable.
 	Validate func(data []byte) error
 
-	// Cache writes validated config bytes to the local blob store.
+	// Cache is deprecated. Fetched config is now committed through ClientConfig.OnCommit.
 	Cache func(data []byte) error
 }
 
@@ -35,12 +35,18 @@ func (h *Handler) HandleConfigChanged(n fleet.ConfigChanged) {
 	}
 }
 
-// ProcessConfig validates and caches a config received from the hub.
+// ProcessConfig validates a config received from the hub.
 // Returns a ConfigAck indicating success or failure.
 func (h *Handler) ProcessConfig(resp fleet.ConfigFetchResponse) fleet.ConfigAck {
+	_, ack := h.ValidateConfig(resp)
+	return ack
+}
+
+// ValidateConfig decodes and validates a config received from the hub.
+func (h *Handler) ValidateConfig(resp fleet.ConfigFetchResponse) ([]byte, fleet.ConfigAck) {
 	data, err := base64.StdEncoding.DecodeString(resp.Config)
 	if err != nil {
-		return fleet.ConfigAck{
+		return nil, fleet.ConfigAck{
 			Version: resp.Version,
 			OK:      false,
 			Error:   fmt.Sprintf("decode config: %v", err),
@@ -49,7 +55,7 @@ func (h *Handler) ProcessConfig(resp fleet.ConfigFetchResponse) fleet.ConfigAck 
 
 	if h.Validate != nil {
 		if err := h.Validate(data); err != nil {
-			return fleet.ConfigAck{
+			return nil, fleet.ConfigAck{
 				Version: resp.Version,
 				OK:      false,
 				Error:   fmt.Sprintf("validate config: %v", err),
@@ -57,17 +63,7 @@ func (h *Handler) ProcessConfig(resp fleet.ConfigFetchResponse) fleet.ConfigAck 
 		}
 	}
 
-	if h.Cache != nil {
-		if err := h.Cache(data); err != nil {
-			return fleet.ConfigAck{
-				Version: resp.Version,
-				OK:      false,
-				Error:   fmt.Sprintf("cache config: %v", err),
-			}
-		}
-	}
-
-	return fleet.ConfigAck{
+	return data, fleet.ConfigAck{
 		Version: resp.Version,
 		OK:      true,
 	}

@@ -98,7 +98,7 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 	reloadCtx, reloadCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer reloadCancel()
 	candidateSet := false
-	if store != nil && configPath != "" && configPath != "-" && storage.IsBlobStorage(store) {
+	if store != nil && configPath != "" && configPath != "-" {
 		_, _, ok, err := storage.ReadCandidateConfig(store, configPath)
 		if err != nil {
 			return fmt.Errorf("reload: read candidate: %w", err)
@@ -195,7 +195,7 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 }
 
 func stageSIGHUPCandidate(store storage.Storage, configPath string) error {
-	if store == nil || configPath == "" || configPath == "-" || !storage.IsBlobStorage(store) {
+	if store == nil || configPath == "" || configPath == "-" {
 		return nil
 	}
 	if _, _, ok, err := storage.ReadCandidateConfig(store, configPath); err != nil || ok {

@@ -1,16 +1,20 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
 // TestModelErrorsCommand verifies errors command output.
@@ -848,10 +852,10 @@ func TestSetInQuotedListEntry(t *testing.T) {
 	assert.Contains(t, content, `group "my group" {`)
 }
 
-// TestCommitTriggersReload verifies commit calls reload notifier after save.
+// TestCommitTriggersReload verifies commit stages a candidate before reload.
 //
-// VALIDATES: After save, reload notification is attempted.
-// PREVENTS: Config saved but daemon not notified of changes.
+// VALIDATES: AC-1 stages candidate, reload promotes active, then CLI reports success.
+// PREVENTS: CLI commit mutating active storage before daemon verification.
 func TestCommitTriggersReload(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
@@ -863,10 +867,19 @@ func TestCommitTriggersReload(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
-	// Track whether notifier was called
 	notified := false
 	ed.SetReloadNotifier(func() error {
 		notified = true
+		candidate, _, ok, readErr := storage.ReadCandidateConfig(ed.store, ed.originalPath)
+		require.NoError(t, readErr)
+		require.True(t, ok, "candidate must be staged before reload notification")
+		assert.Contains(t, string(candidate), "router-id 1.2.3.4")
+
+		activeBefore, readErr := os.ReadFile(configPath)
+		require.NoError(t, readErr)
+		assert.Equal(t, testValidBGPConfig, string(activeBefore), "active file must not change before promotion")
+
+		require.NoError(t, storage.PromoteCandidate(ed.store, ed.originalPath))
 		return nil
 	})
 
@@ -882,12 +895,13 @@ func TestCommitTriggersReload(t *testing.T) {
 	assert.True(t, notified, "reload notifier should have been called")
 	assert.Contains(t, result.statusMessage, "committed")
 	assert.Contains(t, result.statusMessage, "reloaded")
+	assert.False(t, ed.Dirty(), "editor should be clean after successful transactional commit")
 }
 
-// TestCommitReloadFailsGracefully verifies commit succeeds even when reload fails.
+// TestCommitReloadFailsGracefully verifies reload failure rejects the commit.
 //
-// VALIDATES: Daemon not running → commit succeeds with warning.
-// PREVENTS: Save lost because daemon notification failed.
+// VALIDATES: AC-2 reload failure leaves active unchanged and reports commit failure.
+// PREVENTS: CLI commit reporting success when daemon rejected the candidate.
 func TestCommitReloadFailsGracefully(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
@@ -910,13 +924,17 @@ func TestCommitReloadFailsGracefully(t *testing.T) {
 	require.NoError(t, err)
 
 	result, err := model.cmdCommit()
-	require.NoError(t, err, "commit should succeed even when reload fails")
+	require.NoError(t, err, "commit failure is reported as command status")
 
-	// Save should still succeed
-	assert.False(t, ed.Dirty(), "editor should no longer be dirty")
-	// Status should indicate reload failure
-	assert.Contains(t, result.statusMessage, "committed")
-	assert.Contains(t, result.statusMessage, "reload")
+	data, readErr := os.ReadFile(configPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, testValidBGPConfig, string(data), "active file should remain unchanged")
+	assert.True(t, ed.Dirty(), "editor should remain dirty after rejected commit")
+	assert.Contains(t, result.statusMessage, "commit failed")
+	assert.Contains(t, result.statusMessage, "connection refused")
+	_, ok, pointerErr := storage.ReadPointer(ed.store, ed.originalPath, storage.PointerCandidate)
+	require.NoError(t, pointerErr)
+	assert.False(t, ok, "failed commit should clear local candidate pointer")
 }
 
 // TestCommitValidationFailsNoReload verifies no reload when validation fails.
@@ -982,6 +1000,96 @@ func TestCommitNoNotifierStandalone(t *testing.T) {
 	assert.Contains(t, result.statusMessage, "committed")
 	assert.Contains(t, result.statusMessage, "daemon not running", "standalone mode should inform daemon is not running")
 	assert.NotContains(t, result.statusMessage, "reloaded", "standalone mode should not claim reloaded")
+}
+
+// VALIDATES: AC-9 -- Config commit via SSH CLI emits an audit record with actor, surface, action, and summary.
+// PREVENTS: Interactive CLI config commits bypassing the unified audit trail.
+func TestCLIConfigCommitAuditRecord(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+	ed.SetWorkingContent(strings.Replace(testValidBGPConfig, "router-id 1.2.3.4", "router-id 5.6.7.8", 1))
+
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.SetAuditRecorder(recorder, audit.SurfaceSSH, "alice", "192.0.2.10:2222")
+
+	_, err = model.cmdCommit()
+	require.NoError(t, err)
+
+	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigCommit})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "alice", entries[0].Actor)
+	assert.Equal(t, "192.0.2.10:2222", entries[0].RemoteAddr)
+	assert.Equal(t, audit.SurfaceSSH, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
+	assert.Contains(t, entries[0].Detail, "5.6.7.8")
+}
+
+// VALIDATES: AC-10 -- Config discard via SSH CLI emits an audit record with actor, surface, action, and summary.
+// PREVENTS: Interactive CLI config discards losing audit attribution.
+func TestCLIConfigDiscardAuditRecord(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+	ed.SetWorkingContent(strings.Replace(testValidBGPConfig, "router-id 1.2.3.4", "router-id 5.6.7.8", 1))
+
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.SetAuditRecorder(recorder, audit.SurfaceSSH, "alice", "192.0.2.10:2222")
+
+	_, err = model.cmdDiscard()
+	require.NoError(t, err)
+
+	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigDiscard})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "alice", entries[0].Actor)
+	assert.Equal(t, "192.0.2.10:2222", entries[0].RemoteAddr)
+	assert.Equal(t, audit.SurfaceSSH, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
+	assert.Contains(t, entries[0].Detail, "5.6.7.8")
+}
+
+// VALIDATES: AC-10 -- Config rollback via SSH CLI emits a discard audit record with actor and backup path.
+// PREVENTS: Interactive CLI rollback bypassing the unified audit trail.
+func TestCLIConfigRollbackAuditRecord(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+	require.NoError(t, ed.createBackup(ed.OriginalContent(), nil))
+
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.SetAuditRecorder(recorder, audit.SurfaceSSH, "alice", "192.0.2.10:2222")
+
+	_, err = model.cmdRollback([]string{"1"})
+	require.NoError(t, err)
+
+	entries := recorder.Query(audit.Filter{Action: audit.ActionConfigDiscard})
+	require.Len(t, entries, 1)
+	assert.Equal(t, "alice", entries[0].Actor)
+	assert.Equal(t, "192.0.2.10:2222", entries[0].RemoteAddr)
+	assert.Equal(t, audit.SurfaceSSH, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeSuccess, entries[0].Outcome)
+	assert.Contains(t, entries[0].Detail, "rollback ")
 }
 
 // TestSetThroughList verifies set with full path through a list from root context.
@@ -1670,10 +1778,10 @@ func TestAutoSaveOnQuitSkipsSession(t *testing.T) {
 	assert.True(t, os.IsNotExist(statErr), ".edit should not exist in session mode")
 }
 
-// TestCmdCommitSessionReload verifies session commit triggers reload notifier.
+// TestCmdCommitSessionReload verifies session commit stages a candidate before reload.
 //
-// VALIDATES: cmdCommitSession (model_commands.go:630-635) reload path.
-// PREVENTS: Daemon not refreshed after session commit.
+// VALIDATES: AC-1 stages session commit candidate, reload promotes it, then CLI reports success.
+// PREVENTS: Session commit mutating active storage before daemon verification.
 func TestCmdCommitSessionReload(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
@@ -1687,6 +1795,16 @@ func TestCmdCommitSessionReload(t *testing.T) {
 	notified := false
 	ed.SetReloadNotifier(func() error {
 		notified = true
+		candidate, _, ok, readErr := storage.ReadCandidateConfig(ed.store, ed.originalPath)
+		require.NoError(t, readErr)
+		require.True(t, ok, "session candidate must be staged before reload notification")
+		assert.Contains(t, string(candidate), "router-id 9.9.9.9")
+
+		activeBefore, readErr := os.ReadFile(configPath)
+		require.NoError(t, readErr)
+		assert.Equal(t, testValidBGPConfigSimplePeer, string(activeBefore), "active file must not change before promotion")
+
+		require.NoError(t, storage.PromoteCandidate(ed.store, ed.originalPath))
 		return nil
 	})
 
@@ -1703,12 +1821,13 @@ func TestCmdCommitSessionReload(t *testing.T) {
 
 	assert.True(t, notified, "reload notifier should be called")
 	assert.Contains(t, result.statusMessage, "reloaded", "status should mention reloaded")
+	assert.False(t, ed.Dirty(), "editor should be clean after successful transactional session commit")
 }
 
-// TestCmdCommitSessionReloadFails verifies session commit handles reload failure.
+// TestCmdCommitSessionReloadFails verifies session commit rejects reload failure.
 //
-// VALIDATES: cmdCommitSession (model_commands.go:631-632) reload error path.
-// PREVENTS: Session commit failing when daemon is unreachable.
+// VALIDATES: AC-2 leaves active unchanged and session edits pending when daemon rejects candidate.
+// PREVENTS: Session commit losing edits or reporting success after reload failure.
 func TestCmdCommitSessionReloadFails(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
@@ -1732,10 +1851,53 @@ func TestCmdCommitSessionReloadFails(t *testing.T) {
 	require.NoError(t, err)
 
 	result, err := model.cmdCommitSession()
-	require.NoError(t, err, "session commit should not fail on reload error")
+	require.NoError(t, err, "session commit failure is reported as command status")
 
-	assert.Contains(t, result.statusMessage, "reload errors", "status should warn about reload failure")
-	assert.Contains(t, result.statusMessage, "change(s) applied", "status should show changes applied")
+	data, readErr := os.ReadFile(configPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, testValidBGPConfigSimplePeer, string(data), "active file should remain unchanged")
+	assert.True(t, ed.Dirty(), "editor should remain dirty after rejected session commit")
+	assert.Contains(t, result.statusMessage, "commit failed")
+	assert.Contains(t, result.statusMessage, "connection refused")
+	_, ok, pointerErr := storage.ReadPointer(ed.store, ed.originalPath, storage.PointerCandidate)
+	require.NoError(t, pointerErr)
+	assert.False(t, ok, "failed session commit should clear local candidate pointer")
+	assert.NotEmpty(t, ed.PendingChanges(session.ID), "session changes should remain pending after rejection")
+}
+
+// TestCmdCommitSessionRejectsExistingCandidate verifies session commits do not overwrite an in-flight candidate.
+//
+// VALIDATES: AC-13 rejects concurrent transactional commits from the session path.
+// PREVENTS: session commits bypassing candidate existence checks and replacing another caller's candidate.
+func TestCmdCommitSessionRejectsExistingCandidate(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+	ed.SetReloadNotifier(func() error { return nil })
+
+	_, err = storage.WriteCandidateVersion(ed.store, ed.originalPath, []byte("in-flight"), time.Date(2026, 5, 24, 10, 0, 0, 0, time.Local))
+	require.NoError(t, err)
+
+	session := NewEditSession("alice", "local")
+	ed.SetSession(session)
+	require.NoError(t, ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9"))
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	_, err = model.cmdCommitSession()
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, storage.ErrCandidateExists))
+
+	data, _, ok, readErr := storage.ReadCandidateConfig(ed.store, ed.originalPath)
+	require.NoError(t, readErr)
+	require.True(t, ok)
+	assert.Equal(t, "in-flight", string(data))
 }
 
 // TestCmdCommitSessionValidatesSetFormat verifies session commit validates set-format content.
@@ -1773,6 +1935,91 @@ func TestCmdCommitSessionValidatesSetFormat(t *testing.T) {
 
 	assert.Contains(t, result.statusMessage, "change(s) applied",
 		"session commit should succeed with set-format validation")
+}
+
+// TestCmdCommitSessionValidatesPeerProcessConfig verifies session validation
+// accepts a complete peer config with process binding.
+//
+// VALIDATES: AC-2 direct SSH CLI reject tests reach daemon transaction verify,
+// not local editor validation.
+// PREVENTS: Session-mode set/meta serialization dropping peer fields and
+// blocking commits before transactional reload can reject a candidate.
+func TestCmdCommitSessionValidatesPeerProcessConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	content := `plugin {
+    external cli-reject-plugin {
+        run ./cli-reject-plugin.run
+        encoder json
+    }
+}
+
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port 2200;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 1
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+        process cli-reject-plugin { }
+    }
+}`
+	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o600))
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("alice", "local")
+	ed.SetSession(session)
+	require.NoError(t, ed.SetValue([]string{"bgp"}, "router-id", "2.2.2.2"))
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result := model.validator.ValidateTransition(ed.OriginalContent(), ed.WorkingContent())
+	assert.Empty(t, result.Errors, "expected no validation errors for serialized working content: %s", ed.WorkingContent())
+	assert.Empty(t, result.Warnings, "expected no validation warnings for serialized working content: %s", ed.WorkingContent())
 }
 
 // TestRenameListEntry verifies the rename command renames a peer.

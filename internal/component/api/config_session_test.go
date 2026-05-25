@@ -14,11 +14,13 @@ import (
 
 // fakeEditor implements ConfigEditor for testing.
 type fakeEditor struct {
-	values          map[string]string
-	saved           bool
-	discarded       bool
-	originalContent string
-	restored        []string
+	values           map[string]string
+	saved            bool
+	discarded        bool
+	originalContent  string
+	stagedContent    string
+	committedContent string
+	restored         []string
 }
 
 func newFakeEditor() *fakeEditor {
@@ -49,6 +51,16 @@ func (e *fakeEditor) Diff() string {
 func (e *fakeEditor) Save() error {
 	e.saved = true
 	return nil
+}
+
+func (e *fakeEditor) StageCandidate(_ time.Time) (string, string, error) {
+	e.stagedContent = e.WorkingContent()
+	return e.stagedContent, "20260524-100000.000", nil
+}
+
+func (e *fakeEditor) MarkCommittedContent(content string) {
+	e.committedContent = content
+	e.originalContent = content
 }
 
 func (e *fakeEditor) RestoreOriginalContent(content string) error {
@@ -91,9 +103,13 @@ func (e *serializingEditor) SetValue(_ []string, _, _ string) error {
 	return nil
 }
 
-func (e *serializingEditor) DeleteByPath(_ []string) error       { return nil }
-func (e *serializingEditor) Diff() string                        { return "" }
-func (e *serializingEditor) Save() error                         { return nil }
+func (e *serializingEditor) DeleteByPath(_ []string) error { return nil }
+func (e *serializingEditor) Diff() string                  { return "" }
+func (e *serializingEditor) Save() error                   { return nil }
+func (e *serializingEditor) StageCandidate(time.Time) (string, string, error) {
+	return "", "20260524-100000.000", nil
+}
+func (e *serializingEditor) MarkCommittedContent(string)         {}
 func (e *serializingEditor) RestoreOriginalContent(string) error { return nil }
 func (e *serializingEditor) Discard() error                      { return nil }
 func (e *serializingEditor) OriginalContent() string             { return "" }
@@ -133,7 +149,8 @@ func TestEngineConfigSession(t *testing.T) {
 // VALIDATES: Commit calls the configured runtime apply hook after saving.
 // PREVENTS: REST/gRPC config commit returning success for file-only writes.
 func TestConfigSessionCommitHook(t *testing.T) {
-	mgr := NewConfigSessionManager(fakeEditorFactory())
+	editor := newFakeEditor()
+	mgr := NewConfigSessionManager(func() (ConfigEditor, error) { return editor, nil })
 	called := false
 	mgr.SetCommitHook(func() error {
 		called = true
@@ -146,6 +163,9 @@ func TestConfigSessionCommitHook(t *testing.T) {
 
 	require.NoError(t, mgr.Commit(&ConfigCommitRequest{Username: "admin", SessionID: id}))
 	assert.True(t, called, "commit hook should be called")
+	assert.False(t, editor.saved, "transactional API commit should stage candidate instead of saving active")
+	assert.Equal(t, "# config\n", editor.stagedContent)
+	assert.Equal(t, "# config\n", editor.committedContent)
 
 	_, err = mgr.Diff(&ConfigDiffRequest{Username: "admin", SessionID: id})
 	assert.Error(t, err, "session should be removed after successful hook")
@@ -173,12 +193,12 @@ func TestConfigSessionCommitHookFailureKeepsSession(t *testing.T) {
 	assert.NoError(t, err, "session should remain after failed hook")
 }
 
-// TestConfigSessionCommitHookFailureRollsBackSavedConfig verifies runtime
-// reload failure restores the previous file content before returning.
+// TestConfigSessionCommitHookFailureDoesNotRestore verifies runtime reload
+// failure leaves active content untouched because only a candidate was staged.
 //
-// VALIDATES: API commit is transactional across save and runtime reload.
+// VALIDATES: AC-6 stages a candidate, returns hook errors, and keeps the session open.
 // PREVENTS: config file diverging from running state after reload rejects.
-func TestConfigSessionCommitHookFailureRollsBackSavedConfig(t *testing.T) {
+func TestConfigSessionCommitHookFailureDoesNotRestore(t *testing.T) {
 	editor := newFakeEditor()
 	mgr := NewConfigSessionManager(func() (ConfigEditor, error) { return editor, nil })
 	calls := 0
@@ -195,8 +215,10 @@ func TestConfigSessionCommitHookFailureRollsBackSavedConfig(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "runtime reload failed")
 	assert.Contains(t, err.Error(), "candidate rejected")
-	assert.Equal(t, 1, calls, "reload called once, file restored without second reload")
-	assert.Equal(t, []string{"# original\n"}, editor.restored)
+	assert.Equal(t, 1, calls, "reload called once")
+	assert.False(t, editor.saved, "active config should not be saved before runtime commit")
+	assert.Empty(t, editor.restored, "no file rollback is needed when active was never overwritten")
+	assert.Equal(t, "# config\n", editor.stagedContent)
 	assert.Equal(t, "# original\n", editor.OriginalContent())
 	assert.Equal(t, "# config\n", editor.WorkingContent(), "candidate should remain available for retry")
 

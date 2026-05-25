@@ -263,10 +263,11 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		if len(tokens) != 1 {
 			return fmt.Errorf("line %d: leaf %s expects exactly one value", lineNum, name)
 		}
-		if err := ValidateLeafValue(leaf, tokens[0]); err != nil {
+		value := tokens[0]
+		if err := ValidateLeafValue(leaf, value); err != nil {
 			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 		}
-		setLeafMeta(tokens[0])
+		setLeafMeta(normalizeSetValue(leaf.Type, value))
 		return nil
 	}
 

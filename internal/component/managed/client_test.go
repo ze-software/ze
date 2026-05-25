@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -54,6 +55,128 @@ func mockHub(t *testing.T, conn net.Conn, configData []byte) {
 	if err := rc.SendResult(ctx, req.ID, resp); err != nil {
 		t.Logf("mockHub: send error: %v", err)
 	}
+}
+
+func mockHubFetchAndAck(t *testing.T, conn net.Conn, configData []byte, ackCh chan<- fleet.ConfigAck) {
+	t.Helper()
+	rc := rpc.NewConn(conn, conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	fetchReq, err := rc.ReadRequest(ctx)
+	if err != nil {
+		t.Logf("mockHubFetchAndAck: read fetch: %v", err)
+		return
+	}
+	if fetchReq.Method != fleet.VerbConfigFetch {
+		t.Logf("mockHubFetchAndAck: unexpected fetch method %q", fetchReq.Method)
+		return
+	}
+	resp := fleet.ConfigFetchResponse{
+		Version: fleet.VersionHash(configData),
+		Config:  base64.StdEncoding.EncodeToString(configData),
+	}
+	if err := rc.SendResult(ctx, fetchReq.ID, resp); err != nil {
+		t.Logf("mockHubFetchAndAck: send fetch response: %v", err)
+		return
+	}
+
+	ackReq, err := rc.ReadRequest(ctx)
+	if err != nil {
+		t.Logf("mockHubFetchAndAck: read ack: %v", err)
+		return
+	}
+	if ackReq.Method != fleet.VerbConfigAck {
+		t.Logf("mockHubFetchAndAck: unexpected ack method %q", ackReq.Method)
+		return
+	}
+	var ack fleet.ConfigAck
+	if err := json.Unmarshal(ackReq.Params, &ack); err != nil {
+		t.Logf("mockHubFetchAndAck: unmarshal ack: %v", err)
+		return
+	}
+	ackCh <- ack
+	_ = rc.SendResult(ctx, ackReq.ID, nil)
+}
+
+// TestManagedOnCommitNil verifies config pushes are temporarily rejected until the hub wires OnCommit.
+//
+// VALIDATES: AC-11 nil OnCommit returns rejection and does not advance version.
+// PREVENTS: managed client ACKing config before transactional commit wiring exists.
+func TestManagedOnCommitNil(t *testing.T) {
+	configData := []byte("bgp { router-id 1.1.1.1; }")
+	clientEnd, hubEnd := net.Pipe()
+	defer clientEnd.Close() //nolint:errcheck // test cleanup
+	defer hubEnd.Close()    //nolint:errcheck // test cleanup
+	ackCh := make(chan fleet.ConfigAck, 1)
+	go mockHubFetchAndAck(t, hubEnd, configData, ackCh)
+
+	mc := rpc.NewMuxConn(rpc.NewConn(clientEnd, clientEnd))
+	defer mc.Close() //nolint:errcheck // test cleanup
+	cfg := &ClientConfig{Handler: &Handler{Validate: func([]byte) error { return nil }}}
+
+	require.NoError(t, fetchAndProcess(context.Background(), mc, cfg))
+	ack := <-ackCh
+	assert.False(t, ack.OK)
+	assert.Contains(t, ack.Error, "commit not ready")
+	assert.Empty(t, cfg.Version)
+}
+
+// TestManagedACKDeferredUntilCommit verifies ACK is sent after OnCommit succeeds.
+//
+// VALIDATES: AC-9 managed push ACK OK is sent only after OnCommit returns nil.
+// PREVENTS: hub seeing success before runtime transaction completes.
+func TestManagedACKDeferredUntilCommit(t *testing.T) {
+	configData := []byte("bgp { router-id 1.1.1.1; }")
+	clientEnd, hubEnd := net.Pipe()
+	defer clientEnd.Close() //nolint:errcheck // test cleanup
+	defer hubEnd.Close()    //nolint:errcheck // test cleanup
+	ackCh := make(chan fleet.ConfigAck, 1)
+	go mockHubFetchAndAck(t, hubEnd, configData, ackCh)
+
+	mc := rpc.NewMuxConn(rpc.NewConn(clientEnd, clientEnd))
+	defer mc.Close() //nolint:errcheck // test cleanup
+	committed := false
+	cfg := &ClientConfig{
+		Handler: &Handler{Validate: func([]byte) error { return nil }},
+		OnCommit: func(data []byte) error {
+			assert.Equal(t, configData, data)
+			committed = true
+			return nil
+		},
+	}
+
+	require.NoError(t, fetchAndProcess(context.Background(), mc, cfg))
+	ack := <-ackCh
+	assert.True(t, committed, "OnCommit must run before ACK is sent")
+	assert.True(t, ack.OK)
+	assert.Equal(t, fleet.VersionHash(configData), cfg.Version)
+}
+
+// TestManagedACKErrorOnCommitFail verifies OnCommit failure is reported to the hub.
+//
+// VALIDATES: AC-10 managed push returns ACK error when runtime commit rejects.
+// PREVENTS: failed runtime transaction being reported as accepted.
+func TestManagedACKErrorOnCommitFail(t *testing.T) {
+	configData := []byte("bgp { router-id 1.1.1.1; }")
+	clientEnd, hubEnd := net.Pipe()
+	defer clientEnd.Close() //nolint:errcheck // test cleanup
+	defer hubEnd.Close()    //nolint:errcheck // test cleanup
+	ackCh := make(chan fleet.ConfigAck, 1)
+	go mockHubFetchAndAck(t, hubEnd, configData, ackCh)
+
+	mc := rpc.NewMuxConn(rpc.NewConn(clientEnd, clientEnd))
+	defer mc.Close() //nolint:errcheck // test cleanup
+	cfg := &ClientConfig{
+		Handler:  &Handler{Validate: func([]byte) error { return nil }},
+		OnCommit: func([]byte) error { return fmt.Errorf("verify rejected") },
+	}
+
+	require.NoError(t, fetchAndProcess(context.Background(), mc, cfg))
+	ack := <-ackCh
+	assert.False(t, ack.OK)
+	assert.Contains(t, ack.Error, "verify rejected")
+	assert.Empty(t, cfg.Version)
 }
 
 // TestClientFetchConfig verifies that the client fetches config from hub.

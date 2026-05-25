@@ -61,7 +61,11 @@ func consumeOneField(tree *Tree, parent Node, tokens []string) (int, error) {
 		if err := validateLeafValue(child, name, tokens[1]); err != nil {
 			return 0, err
 		}
-		tree.Set(name, tokens[1])
+		value := tokens[1]
+		if leaf, ok := child.(*LeafNode); ok {
+			value = normalizeSetValue(leaf.Type, value)
+		}
+		tree.Set(name, value)
 		return 2, nil
 
 	case NodeContainer:

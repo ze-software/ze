@@ -1,0 +1,84 @@
+# Test: SIGHUP transactional commit rejection preserves active pointer
+# VALIDATES: AC-8 -- failed SIGHUP clears candidate and leaves active pointer on the known-good version.
+# PREVENTS: failed reload making the next boot use the edited bad config file.
+
+option=env:var=ZE_STORAGE_BLOB:value=false
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=rewrite:conn=1:seq=1:source=tx-bad.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=1
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=tx-bad.conf:terminator=EOF_BAD_CONF
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer broken {
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 192.0.2.2
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+        timer {
+            receive-hold-time 2
+        }
+    }
+}
+EOF_BAD_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+
+expect=stderr:contains=reload error
+expect=file:path=meta/config/active:exists=true
+expect=file:path=meta/config/candidate:absent=true
+expect=file:path=meta/config/rollback:absent=true
+expect=file:glob=rollback/ze-bgp-*.conf:count=1
+expect=file:glob=rollback/ze-bgp-*.conf:contains=router-id 1.2.3.4
+expect=file:glob=rollback/ze-bgp-*.conf:not-contains=receive-hold-time 2
