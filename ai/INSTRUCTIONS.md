@@ -111,6 +111,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |
 | Add a runtime dependency (file, socket, module, port) | `ai/rules/doctor-checks.md` -- add a `ze doctor` check so agents verify readiness |
 | Claim work is done | `ai/rules/no-partial-completion.md` -- every AC implemented, tested (unit + functional), wired |
+| Finish Go edits | `ai/rules/lint-gate.md` -- run `make ze-lint-changed` before claiming done |
 | Verify wiring and completeness | `ai/rules/wiring-completeness.md` -- every exported symbol has a non-test caller, grep all consumers |
 | Add a CLI command that produces output | `ai/rules/pipe-completeness.md` -- every command must support all pipe operators |
 | Report friction or confusion | `ai/rules/friction-reporting.md` -- report immediately, propose .claude fix |
