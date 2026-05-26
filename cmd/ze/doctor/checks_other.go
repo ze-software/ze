@@ -9,7 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 )
 
-func checkVPPSocket() []diagnostic.Diagnostic {
+func checkVPPSocket(_ string) []diagnostic.Diagnostic {
 	return nil
 }
 

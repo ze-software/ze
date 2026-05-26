@@ -278,6 +278,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-bgp-listen"},
 	},
 	{
+		Code:        "doctor-bgp-md5",
+		Title:       "BGP TCP MD5 not supported",
+		Description: "A BGP peer has TCP MD5 authentication configured but the platform does not support TCP_MD5SIG.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-bgp-md5"},
+	},
+	{
 		Code:        "doctor-tacacs-unreachable",
 		Title:       "TACACS+ servers unreachable",
 		Description: "No configured TACACS+ authentication server accepted a TCP connection within the probe timeout.",

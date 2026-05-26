@@ -1,0 +1,18 @@
+# Test: ze doctor --json uses configured VPP api-socket path
+# VALIDATES: AC-9 VPP configured socket is probed instead of default.
+
+option=skip-os:value=aix,android,darwin,dragonfly,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+
+tmpfs=vpp-socket.conf:terminator=EOF_CONF
+interface {
+    backend vpp
+}
+vpp {
+    api-socket /nonexistent-ze-doctor-test/vpp.sock
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json vpp-socket.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-vpp-unreachable
+expect=stdout:contains=/nonexistent-ze-doctor-test/vpp.sock

@@ -33,6 +33,7 @@ import (
 	zeradius "codeberg.org/thomas-mangin/ze/internal/component/radius"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -960,6 +961,7 @@ func TestDoctorCoverageCodesRegistered(t *testing.T) {
 func TestDoctorImprovementsCodesRegistered(t *testing.T) {
 	// VALIDATES: AC-13 every new doctor-improvements diagnostic code is registered.
 	for _, code := range []string{
+		"doctor-bgp-md5",
 		"doctor-ntp-server-unreachable",
 		"doctor-rpki-unreachable",
 		"doctor-bmp-unreachable",
@@ -1075,4 +1077,47 @@ func TestDoctorWritableDestinations(t *testing.T) {
 	}
 	assert.Contains(t, codes, "doctor-write-destination")
 	assert.GreaterOrEqual(t, len(diags), 2, "expected at least NTP persist + BFD persist diagnostics")
+}
+
+func TestDoctorBGPMD5_NoPeers(t *testing.T) {
+	// VALIDATES: AC-4 no diagnostic when no BGP peers exist.
+	tree := config.NewTree()
+	diags := checkBGPMD5(tree)
+	assert.Empty(t, diags)
+}
+
+func TestDoctorBGPMD5_PeerWithoutMD5(t *testing.T) {
+	// VALIDATES: AC-4 no diagnostic when peers have no MD5.
+	tree := config.NewTree()
+	bgp := tree.GetOrCreateContainer("bgp")
+	peer := config.NewTree()
+	conn := peer.GetOrCreateContainer("connection")
+	remote := conn.GetOrCreateContainer("remote")
+	remote.Set("ip", "192.0.2.1")
+	bgp.AddListEntry("peer", "p1", peer)
+
+	diags := checkBGPMD5(tree)
+	assert.Empty(t, diags)
+}
+
+func TestDoctorBGPMD5_PeerWithMD5(t *testing.T) {
+	// VALIDATES: AC-4 BGP MD5 warning on non-supporting platforms.
+	if network.TCPMD5Supported() {
+		t.Skip("TCP MD5 is supported on this platform; warning would not fire")
+	}
+
+	tree := config.NewTree()
+	bgp := tree.GetOrCreateContainer("bgp")
+	peer := config.NewTree()
+	conn := peer.GetOrCreateContainer("connection")
+	md5 := conn.GetOrCreateContainer("md5")
+	md5.Set("password", "secret")
+	remote := conn.GetOrCreateContainer("remote")
+	remote.Set("ip", "192.0.2.1")
+	bgp.AddListEntry("peer", "p1", peer)
+
+	diags := checkBGPMD5(tree)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-bgp-md5", diags[0].Code)
+	assert.Contains(t, diags[0].Message, "p1")
 }

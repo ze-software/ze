@@ -62,8 +62,10 @@ var newRouteNetlinkHandle = func() (routeNetlinkHandle, error) {
 	return netlink.NewHandle(unix.NETLINK_ROUTE)
 }
 
-func checkVPPSocket() []diagnostic.Diagnostic {
-	sockPath := defaultVPPSocket
+func checkVPPSocket(sockPath string) []diagnostic.Diagnostic {
+	if sockPath == "" {
+		sockPath = defaultVPPSocket
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var d net.Dialer
@@ -110,7 +112,7 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 			pppoeRequired = true
 		}
 
-		if tree.GetContainer("ipsec") != nil || getContainerPath(tree, "vpn", "ipsec") != nil {
+		if getContainerPath(tree, "vpn", "ipsec") != nil {
 			hasIPsec = true
 			required = append(required, "xfrm_user", "xfrm_algo")
 		}

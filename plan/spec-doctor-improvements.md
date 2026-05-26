@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-doctor-coverage.md (closed) |
-| Phase | Phase 3 complete, Phase 4-6 remaining |
+| Phase | Phase 4 partial, Phase 5-6 remaining |
 | Updated | 2026-05-26 |
 
 ## Post-Compaction Recovery
@@ -366,8 +366,11 @@ This spec intentionally depends on `spec-doctor-coverage.md`. Do not start imple
 - AC-10 (partial): RPKI cache-server TCP reachability via `checkRPKIServers`. BMP sender collector TCP reachability via `checkBMPCollectors`. Both use `checked` flag to avoid false positives on empty addresses.
 - AC-11 (partial): Writable file destination checks via `checkWritableDestinations` for NTP persist-path and BFD persist-dir. Temp file probe with cleanup.
 - AC-13 (partial): 4 new diagnostic codes registered: `doctor-ntp-server-unreachable`, `doctor-rpki-unreachable`, `doctor-bmp-unreachable`, `doctor-write-destination`.
+- AC-4: BGP MD5 platform detection via `checkBGPMD5`. Uses `network.TCPMD5Supported()`; warns when MD5-configured peers exist on unsupporting platforms.
+- AC-6: Removed dead `tree.GetContainer("ipsec")` fallback from `checkKernelModules`. Only `vpn/ipsec` path is checked now.
+- AC-9 (partial): `checkVPPSocket` now accepts a socket path parameter. `checkIfaceBackend` reads `vpp/api-socket` from config (falls back to `/run/vpp/api.sock`).
 - 4 functional tests: `doctor-config-validation.ci`, `doctor-ntp-client.ci`, `doctor-rpki-bmp.ci`, `doctor-writable-paths.ci`.
-- 7 unit tests covering all new check functions.
+- 10 unit tests covering all new check functions.
 
 ### Bugs Found/Fixed
 - NTP reachability initially used TCP probe (port 123). NTP is UDP; TCP port 123 is typically closed. Fixed to use SNTP UDP probe matching `checkClockSkew` pattern.
@@ -399,12 +402,12 @@ This spec intentionally depends on `spec-doctor-coverage.md`. Do not start imple
 | AC-1 | not started | - | Blocked on YANG refine defaults |
 | AC-2 | not started | - | Same blocker as AC-1 |
 | AC-3 | done (coverage spec) | `extractBGPListeners` | Already handles accept/local/ip |
-| AC-4 | not started | - | BGP MD5 platform detection |
+| AC-4 | done | `TestDoctorBGPMD5_PeerWithMD5` | Uses `network.TCPMD5Supported()` |
 | AC-5 | done | `TestDoctorConfigValidationBridge`, `doctor-config-validation.ci` | |
-| AC-6 | done (coverage spec) | `extractIPsecListeners` uses `vpn/ipsec` | Dead `ipsec` fallback cleanup deferred |
+| AC-6 | done | `extractIPsecListeners` uses `vpn/ipsec` | Dead `ipsec` fallback removed from `checkKernelModules` |
 | AC-7 | done (coverage spec) | `checkPKICerts` | base64 DER validation |
 | AC-8 | partial | `TestDoctorNTPClientReadiness`, `doctor-ntp-client.ci` | Missing: clock-adjust privilege |
-| AC-9 | not started | - | VPP configured socket + DPDK |
+| AC-9 | partial | `checkIfaceBackend` reads `vpp/api-socket` | DPDK sysfs checks not added |
 | AC-10 | partial | `TestDoctorRPKI/BMP`, `doctor-rpki-bmp.ci` | Missing: update-check, archive |
 | AC-11 | partial | `TestDoctorWritableDestinations`, `doctor-writable-paths.ci` | Missing: DNS resolv, archive file://, self-update |
 | AC-12 | not started | - | Dependency inventory guardrail test |
@@ -450,9 +453,9 @@ This spec intentionally depends on `spec-doctor-coverage.md`. Do not start imple
 
 ### Audit Summary
 - **Total items:** 13 ACs
-- **Done:** 5 (AC-3, AC-5, AC-6, AC-7, AC-13)
-- **Partial:** 3 (AC-8, AC-10, AC-11)
-- **Not started:** 5 (AC-1, AC-2, AC-4, AC-9, AC-12)
+- **Done:** 7 (AC-3, AC-4, AC-5, AC-6, AC-7, AC-13, plus AC-3/6/7 from coverage spec)
+- **Partial:** 3 (AC-8, AC-9, AC-10, AC-11)
+- **Not started:** 3 (AC-1, AC-2, AC-12)
 - **Changed:** AC-1/AC-2 approach needs redesign (YANG refine defaults not in schema)
 
 ## Goal Validation (BLOCKING)

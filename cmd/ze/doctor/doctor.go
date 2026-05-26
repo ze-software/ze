@@ -30,6 +30,7 @@ import (
 	zeradius "codeberg.org/thomas-mangin/ze/internal/component/radius"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
@@ -163,6 +164,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkConfigReferences(tree)...)
 	diags = append(diags, checkClockSkew()...)
 	diags = append(diags, checkVPPVersion(tree)...)
+	diags = append(diags, checkBGPMD5(tree)...)
 	diags = append(diags, checkNTPClient(tree)...)
 	diags = append(diags, checkRPKIServers(tree)...)
 	diags = append(diags, checkBMPCollectors(tree)...)
@@ -407,7 +409,11 @@ func checkIfaceBackend(tree *config.Tree) []diagnostic.Diagnostic {
 	}
 
 	if backend == "vpp" {
-		return checkVPPSocket()
+		sockPath := ""
+		if vpp := tree.GetContainer("vpp"); vpp != nil {
+			sockPath, _ = vpp.Get("api-socket")
+		}
+		return checkVPPSocket(sockPath)
 	}
 
 	return nil
@@ -1444,6 +1450,52 @@ func checkClockSkew() []diagnostic.Diagnostic {
 
 func checkSemanticValidation(tree *config.Tree) []diagnostic.Diagnostic {
 	return config.ValidateSemantics(tree)
+}
+
+func checkBGPMD5(tree *config.Tree) []diagnostic.Diagnostic {
+	if network.TCPMD5Supported() {
+		return nil
+	}
+	bgp := tree.GetContainer("bgp")
+	if bgp == nil {
+		return nil
+	}
+
+	hasMD5 := func(parent, node *config.Tree) bool {
+		if pw, ok := inheritedValue(parent, node, "connection", "md5", "password"); ok && pw != "" {
+			return true
+		}
+		return false
+	}
+
+	for _, p := range bgp.GetListOrdered("peer") {
+		if hasMD5(nil, p.Value) {
+			return []diagnostic.Diagnostic{{
+				Code:     "doctor-bgp-md5",
+				Severity: diagnostic.SeverityWarning,
+				Message:  "BGP peer " + p.Key + " requires TCP MD5 but platform does not support it",
+			}}
+		}
+	}
+	for _, g := range bgp.GetListOrdered("group") {
+		if hasMD5(nil, g.Value) {
+			return []diagnostic.Diagnostic{{
+				Code:     "doctor-bgp-md5",
+				Severity: diagnostic.SeverityWarning,
+				Message:  "BGP group " + g.Key + " requires TCP MD5 but platform does not support it",
+			}}
+		}
+		for _, p := range g.Value.GetListOrdered("peer") {
+			if hasMD5(g.Value, p.Value) {
+				return []diagnostic.Diagnostic{{
+					Code:     "doctor-bgp-md5",
+					Severity: diagnostic.SeverityWarning,
+					Message:  "BGP peer " + g.Key + "/" + p.Key + " requires TCP MD5 but platform does not support it",
+				}}
+			}
+		}
+	}
+	return nil
 }
 
 func checkNTPClient(tree *config.Tree) []diagnostic.Diagnostic {

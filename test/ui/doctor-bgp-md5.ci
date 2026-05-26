@@ -1,0 +1,38 @@
+# Test: ze doctor --json warns about BGP MD5 on non-supporting platforms
+# VALIDATES: AC-4 BGP MD5 platform detection emits doctor-bgp-md5.
+
+option=skip-os:value=linux,freebsd
+
+tmpfs=bgp-md5.conf:terminator=EOF_CONF
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            md5 {
+                password testing123
+            }
+            remote {
+                ip 192.0.2.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+            family {
+                ipv4/unicast {
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json bgp-md5.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-bgp-md5
