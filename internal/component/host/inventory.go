@@ -302,9 +302,9 @@ type StorageDevice struct {
 }
 
 // SmartInfo holds SMART health data obtained from smartctl.
-// A nil SmartInfo means SMART detection was not attempted or smartctl
-// is not installed. A non-nil SmartInfo with Unavailable set means
-// the device does not support SMART.
+// A nil SmartInfo means SMART detection was not attempted (e.g. testdata
+// mode or device not found). A non-nil SmartInfo with Unavailable set means
+// the device does not support SMART or privileges are insufficient.
 type SmartInfo struct {
 	Healthy         bool   `json:"healthy"`
 	TempCelsius     int    `json:"temp-celsius,omitempty"`

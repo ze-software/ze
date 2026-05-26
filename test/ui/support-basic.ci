@@ -1,0 +1,8 @@
+# Test: ze support produces a tar.gz archive with manifest
+# VALIDATES: AC-1 of spec-support.md -- basic archive generation
+cmd=foreground:seq=1:exec=ze support --module version --json --output /tmp
+expect=exit:code=0
+expect=stdout:contains="schema-version"
+expect=stdout:contains="archive-path"
+expect=stdout:contains="version"
+expect=stdout:contains="collected"

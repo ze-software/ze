@@ -1,0 +1,6 @@
+# Test: ze support --reason embeds reason in manifest
+# VALIDATES: AC-7 of spec-support.md -- reason metadata
+cmd=foreground:seq=1:exec=ze support --module version --reason "BGP flap test" --json --output /tmp
+expect=exit:code=0
+expect=stdout:contains="BGP flap test"
+expect=stdout:contains="reason"

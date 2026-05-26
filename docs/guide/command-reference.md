@@ -376,6 +376,27 @@ new virtual drivers (wireguard, ipvlan, etc.) are filtered uniformly.
 `ErrUnsupported` per section; `ze host show` reports "unsupported on this
 platform" with exit 0 so scripts can probe gracefully.
 
+### ze support
+
+Generate a tech-support archive for troubleshooting. Collects system state,
+health checks, configuration, logs, and diagnostics into a compressed tar.gz
+with one JSON file per module. No shell-outs; gokrazy-safe.
+
+```
+ze support                             # Full bundle, all 19 modules
+ze support --module version,doctor     # Only named modules
+ze support --exclude logs              # All except named modules
+ze support --json                      # Output manifest JSON to stdout
+ze support --list-modules              # List available modules
+ze support --reason "BGP flap"         # Embed reason in manifest
+ze support --sensitive                 # Include passwords (default: redacted)
+ze support --since 2h                  # Time scope for log collection
+ze support --output /var/support/      # Output directory (default: cwd)
+```
+
+<!-- source: cmd/ze/support/support.go -- Run, collect, moduleRegistry -->
+<!-- source: cmd/ze/support/modules.go -- ModuleNames, ModuleList -->
+
 ### ze interface
 
 OS network interface management (standalone, no daemon needed for most commands).

@@ -1,0 +1,6 @@
+# Test: ze support --module filters to named modules only
+# VALIDATES: AC-2 of spec-support.md -- module selection
+cmd=foreground:seq=1:exec=ze support --module version,runtime --json --output /tmp
+expect=exit:code=0
+expect=stdout:contains="version"
+expect=stdout:contains="runtime"

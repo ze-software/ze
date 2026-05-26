@@ -96,6 +96,10 @@ import (
 	// cmdregistry for version-matched agent skill content.
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/skills"
 
+	// Blank import: support's init() registers `support` with
+	// cmdregistry for tech-support archive generation.
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/support"
+
 	// Import all AAA backends so their init() fires and aaa.Default
 	// contains the backend factories before the hub calls aaa.Default.Build.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/aaa/all"

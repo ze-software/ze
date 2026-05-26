@@ -1,6 +1,6 @@
-// Design: plan/spec-host-3-smart.md — SMART health monitoring via smartctl
+// Design: plan/learned/695-host-3-smart.md — SMART health monitoring
 // Overview: inventory.go — SmartInfo type
-// Detail: smart_linux.go — detectSMART exec wrapper (linux-only)
+// Detail: smart_linux.go — detectSMART via direct ioctl (linux-only)
 
 package host
 
