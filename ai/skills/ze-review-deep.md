@@ -457,6 +457,7 @@ changed since the last review" produces diminishing coverage.
 - Do NOT fix anything. Report findings only.
 - Do NOT make any changes to code -- no Edit, Write, or Bash commands that modify files.
 - After presenting the report, ask the user which findings to fix.
+- **Regression test required per fix:** When fixing an issue found by this review, add a test that would have caught the problem during development. The issue exists because a test was missing; the fix is incomplete without one. If a regression test is genuinely impossible (e.g., the finding is a naming convention violation), note why in the fix. Otherwise, no test = not fixed.
 - Each agent runs in the background -- launch all selected agents simultaneously.
 - If an agent finds nothing, that's fine -- report "clean" for that category.
 - If an agent times out, report "timed out" -- do not block the review.

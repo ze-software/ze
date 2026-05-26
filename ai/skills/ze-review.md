@@ -210,4 +210,5 @@ alternating: implement, then full review with a different critical lens
 - Do NOT fix anything. Report findings only.
 - Do NOT check spec completeness -- that is `/ze-review-spec`.
 - After the user reviews your list, they will tell you which to fix.
+- **Regression test required per fix:** When fixing an issue found by this review, add a test that would have caught the problem during development. The issue exists because a test was missing; the fix is incomplete without one. If a regression test is genuinely impossible (e.g., the finding is a naming convention violation), note why in the fix. Otherwise, no test = not fixed.
 - No cap on review passes. Run a fresh pass whenever the code has changed since the last one, and keep running passes until a pass finds nothing. "I already reviewed this" is not a reason to stop -- fixes introduce new code, new code needs review.
