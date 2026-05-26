@@ -134,12 +134,17 @@
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new RPCs) | [ ] | `internal/yang/modules/*.yang` |
+| YANG schema (new RPCs/config) | [ ] | `internal/yang/modules/*.yang` or `internal/component/<name>/schema/` |
+| YANG validation constraints | [ ] | Every leaf MUST have maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
+| YANG custom validators | [ ] | If native YANG constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for tab-completion. Register in `validators_register.go` |
 | CLI commands/flags | [ ] | `cmd/ze/*/main.go` or subcommand files |
 | CLI grammar (action before identifier) | [ ] | `ai/rules/cli-grammar.md` |
-| Editor autocomplete | [ ] | YANG-driven (automatic if YANG updated) |
+| Editor autocomplete | [ ] | Automatic for YANG enum/type leaves. For dynamic values: `CompleteFn` in custom validator returns valid options |
 | Functional test for new RPC/API | [ ] | `test/plugin/*.ci` or `test/decode/*.ci` |
+| Pipe completeness | [ ] | If command produces output: route through `ApplyPipes`/`ProcessPipes`, support all pipe operators per `ai/rules/pipe-completeness.md` |
+| Env var registration | [ ] | If YANG config leaves added under `environment/`: matching `ze.<name>.<leaf>` env var via `env.MustRegister()` |
 | Doctor check for runtime dependencies | [ ] | If any file path, socket, external service, kernel module, listen port, procfs/sysctl, netlink, external binary, or certificate material is introduced: `cmd/ze/doctor/`, `internal/core/diagnostic/codes.go`, unit test, functional test |
+| Prometheus counters/metrics | [ ] | If feature has observable state: define counters, register in telemetry, list metric names and labels in this spec |
 
 ### Documentation Update Checklist (BLOCKING)
 <!-- Every row MUST be answered Yes/No during the Completion Checklist (planning.md step 1). -->
@@ -159,6 +164,8 @@
 | 10 | Test infrastructure changed? | [ ] | `docs/functional-tests.md` |
 | 11 | Affects daemon comparison? | [ ] | `docs/comparison.md` |
 | 12 | Internal architecture changed? | [ ] | `docs/architecture/core-design.md` or subsystem doc |
+| 13 | Route metadata keys added/changed? | [ ] | `docs/architecture/meta/README.md`, `docs/architecture/meta/<plugin>.md` |
+| 14 | Prometheus counters added/changed? | [ ] | `docs/architecture/telemetry/` or subsystem telemetry doc |
 
 ## Files to Create
 - `internal/...` - [new feature file]
@@ -214,7 +221,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 4. **Functional tests** → Create after feature works. Cover user-visible behavior.
 5. **RFC refs** → Add `// RFC NNNN Section X.Y` comments (protocol work only)
 6. **Full verification** → `make ze-verify` (lint + all ze tests except fuzz)
-7. **Complete spec** → Fill audit tables, write learned summary to `plan/learned/NNN-<name>.md`, delete spec from `plan/`. BLOCKING: summary is part of the commit, not a follow-up.
+7. **Complete spec** → Fill audit tables, write learned summary to `plan/learned/NNN-<name>.md`. TWO commits: commit A saves code + tests + spec + learned summary; commit B does `git rm` of the spec. BLOCKING: summary is part of commit A, not a follow-up.
 
 ### Critical Review Checklist (/implement stage 6)
 
@@ -229,6 +236,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Data flow | [feature-specific: e.g., "resolution in X only, reactor unaware of Y"] |
 | CLI grammar | If CLI commands added: action before identifier per `ai/rules/cli-grammar.md` |
 | Doctor checks | If runtime dependencies added: `ze doctor` check registered per `ai/rules/doctor-checks.md` |
+| YANG validation | If YANG leaves added: every leaf has max native constraints (`range`/`length`/`pattern`/`enum`). Bare `type string` is a red flag. Custom validator + `CompleteFn` where native is insufficient |
+| Prometheus counters | If observable state exists: counters defined, registered, metric names listed |
 | Rule: no-layering | [if replacing something: "old code fully deleted"] |
 | Rule: [other relevant rule] | [what to check] |
 
@@ -278,6 +287,23 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Design Insights
 <!-- LIVE — write IMMEDIATELY when you learn something -->
 <!-- Route at completion: subsystem → arch doc, process → rules, knowledge → memory.md -->
+
+## Core Insight
+<!-- Optional: the single most important design revelation from this work. -->
+<!-- Not all specs have one. Delete this section if nothing qualifies. -->
+<!-- Source for learned summary Decisions section (METHODOLOGY.md extraction step 2). -->
+
+## Key Design Decisions
+<!-- Record each significant design choice as it is made. -->
+<!-- Format: "Chose X over Y because Z." Include rejected alternatives. -->
+<!-- Source for learned summary Decisions section (METHODOLOGY.md extraction step 2). -->
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+
+## Known Limitations
+<!-- Deliberate scope boundaries and constraints accepted. -->
+<!-- Source for learned summary Consequences section (METHODOLOGY.md extraction step 3). -->
+- [What was deliberately not done and why]
 
 ## RFC Documentation
 
@@ -423,4 +449,5 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled (every requirement, AC, test, file has status + location)
 - [ ] Write learned summary to `plan/learned/NNN-<name>.md`
-- [ ] **Summary included in commit** — NEVER commit implementation without the completed summary. One commit = code + tests + summary.
+- [ ] **Commit A:** code + tests + docs + spec (with all edits) + learned summary + counter bump
+- [ ] **Commit B:** `git rm plan/<spec>` only (preserves edited spec in git history from commit A)

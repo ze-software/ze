@@ -50,6 +50,8 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
    - Also apply generic checks from `ai/rules/quality.md` (Correctness, Simplicity, Consistency, Completeness, Quality, Tests)
    - **CLI grammar (BLOCKING):** If any CLI command was added or changed, verify it follows action-before-identifier per `ai/rules/cli-grammar.md`. Run the mechanical check: `args[0]` must always be a keyword, never a user identifier.
    - **Doctor checks (BLOCKING):** If the implementation adds any runtime dependency (file path, socket, kernel module, port, TLS cert, external binary), verify a `ze doctor` check exists per `ai/rules/doctor-checks.md`. Register diagnostic codes in `internal/core/diagnostic/codes.go`.
+   - **Prometheus counters:** If the feature has observable state (connections, errors, rates, gauges), verify counters are defined, registered in telemetry, and listed in the spec's Integration Checklist.
+   - **YANG validation:** If YANG leaves were added, verify each has maximum native constraints (`range`, `length`, `pattern`, `enumeration`). If native is insufficient, verify a custom validator with `CompleteFn` exists per `ai/patterns/config-option.md`. A leaf with `type string` and no constraint is a red flag.
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
 8. **Fix every issue found** in the review
 9. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
@@ -94,20 +96,26 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
     b. Update `ai/LEARNED-INDEX.md` if the summary contains a structural decision (not just task completion).
     c. Remove your line from `tmp/session/selected-spec`.
     d. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
-    e. Prepare ONE commit script (`tmp/commit-SESSION.sh`) that does EVERYTHING in a single commit:
+    e. Prepare ONE commit script (`tmp/commit-SESSION.sh`) that produces TWO commits:
        - Guard: `if ls plan/learned/NNN-*.md 1>/dev/null 2>&1; then echo "ERROR: NNN already taken, re-read .counter"; exit 1; fi`
-       - `git add` all implementation files (code, tests, docs, schema)
-       - `git add plan/learned/NNN-<spec-stem>.md`
-       - `git add ai/LEARNED-INDEX.md` (if updated)
-       - `git rm plan/<spec-name>`
-       - Bump `plan/learned/.counter` to NNN+1 and `git add plan/learned/.counter`
-       - Commit message file with both the feature description AND the spec closure
+       - **Commit A (implementation + spec):**
+         - `git add` all implementation files (code, tests, docs, schema)
+         - `git add plan/learned/NNN-<spec-stem>.md`
+         - `git add ai/LEARNED-INDEX.md` (if updated)
+         - `git add plan/<spec-name>` (preserves all edits from implementation in git history)
+         - Bump `plan/learned/.counter` to NNN+1 and `git add plan/learned/.counter`
+         - Commit with feature description message
+       - **Commit B (spec closure):**
+         - `git rm plan/<spec-name>`
+         - Commit with spec closure message
     f. Present the commit script to the user. This is the end.
 
-    **Why one script, one commit, no follow-up:** the user will not ask for a second step.
+    **Why one script, two commits, no follow-up:** the user will not ask for a second step.
     They will not remember that the spec needs closing. They will not prompt you for the
     learned summary. If closure is not in the script, it will never happen and the spec
     rots in `plan/` forever. Include everything. There is nothing after this step.
+    Two commits because `git rm` destroys the working copy. Commit A preserves the
+    edited spec in git history; commit B cleanly removes it.
 
 ## Rules
 

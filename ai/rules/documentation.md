@@ -24,6 +24,7 @@ Name the file, name the section, describe the change. Never say "update document
 | 11 | Comparison | `docs/comparison.md` | Feature parity with other daemons |
 | 12 | Architecture | `docs/architecture/core-design.md` or subsystem doc | Structural design changes |
 | 13 | Route metadata | `docs/architecture/meta/README.md` + `docs/architecture/meta/<plugin>.md` | Plugin sets or reads route metadata keys |
+| 14 | Prometheus counters | `docs/architecture/telemetry/` or subsystem telemetry doc | Counters/gauges added or changed |
 
 ## In Specs
 
