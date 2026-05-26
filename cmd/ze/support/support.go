@@ -378,6 +378,12 @@ func collectHost(opts *CollectOptions) (any, error) {
 	return hostinv.Detect()
 }
 
+// collectPlatform gathers runtime platform type and capabilities.
+func collectPlatform(opts *CollectOptions) (any, error) {
+	_ = opts
+	return hostinv.DetectPlatform()
+}
+
 // collectConfig loads and optionally sanitizes the configuration.
 func collectConfig(opts *CollectOptions) (any, error) {
 	store, err := resolve.Storage()

@@ -97,6 +97,15 @@ func handleShowSystemSubsystemList(ctx *pluginserver.CommandContext, _ []string)
 	}, nil
 }
 
+// handleShowSystemPlatform reports the runtime platform type and capabilities.
+func handleShowSystemPlatform(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	p, err := host.DetectPlatform()
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: p}, nil
+}
+
 // handleShowSystemDate reports the daemon's current wall-clock view in
 // RFC3339, Unix seconds, and the configured timezone name.
 func handleShowSystemDate(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {

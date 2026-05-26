@@ -1,0 +1,10 @@
+# Test: ze doctor --json includes platform detection without errors
+# VALIDATES: checkPlatform runs and produces valid JSON output.
+
+tmpfs=empty.conf:terminator=EOF_CONF
+# empty config
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json empty.conf
+expect=stdout:contains="diagnostics"
+expect=stdout:not-contains=doctor-platform-detect

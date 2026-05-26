@@ -9,6 +9,17 @@ module ze-cli-set-cmd {
         config false;
         description "Create or modify configuration";
 
+        container system {
+            config false;
+            description "System runtime parameters";
+
+            container file-descriptors {
+                config false;
+                ze:command "ze-set:system-file-descriptors";
+                description "Raise the process file descriptor soft limit (<uint64> or 'max' for hard limit)";
+            }
+        }
+
         container bgp {
             config false;
             description "BGP configuration changes";

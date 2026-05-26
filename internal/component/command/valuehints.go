@@ -18,25 +18,24 @@ func WireValueHints(tree *Node) {
 		return
 	}
 
-	if rib, ok := tree.Children["rib"]; ok {
-		rib.ValueHints = FamilyValueHints
-	}
-
+	wireRibHints(tree)
 	wireLogSetHints(tree)
+	wireFDSetHints(tree)
+}
+
+func wireRibHints(tree *Node) {
+	if node := navigatePath(tree, "show", "bgp", "rib"); node != nil {
+		node.ValueHints = FamilyValueHints
+	}
+	if node := navigatePath(tree, "rib"); node != nil {
+		node.ValueHints = FamilyValueHints
+	}
 }
 
 func wireLogSetHints(tree *Node) {
-	if tree == nil || tree.Children == nil {
-		return
-	}
-	// Navigate to the slog level set node.
 	verbName := "lo" + "g" // avoid hook false-positive on literal
-	node, ok := tree.Children[verbName]
-	if !ok {
-		return
-	}
-	if setNode, ok := node.Children["set"]; ok {
-		setNode.ValueHints = LevelValueHints
+	if node := navigatePath(tree, verbName, "set"); node != nil {
+		node.ValueHints = LevelValueHints
 	}
 }
 
@@ -65,4 +64,34 @@ func LevelValueHints() []Suggestion {
 		{Text: "warn", Description: "Warning level", Type: "value"},
 		{Text: "err", Description: "Error level", Type: "value"},
 	}
+}
+
+func wireFDSetHints(tree *Node) {
+	setNode := navigatePath(tree, "set", "system", "file-descriptors")
+	if setNode != nil {
+		setNode.ValueHints = FDLimitValueHints
+	}
+}
+
+// FDLimitValueHints returns suggestions for the file descriptor limit argument.
+func FDLimitValueHints() []Suggestion {
+	return []Suggestion{
+		{Text: "max", Description: "Set to hard limit", Type: "value"},
+	}
+}
+
+// navigatePath walks the tree by successive child lookups.
+func navigatePath(tree *Node, path ...string) *Node {
+	current := tree
+	for _, name := range path {
+		if current == nil || current.Children == nil {
+			return nil
+		}
+		child, ok := current.Children[name]
+		if !ok {
+			return nil
+		}
+		current = child
+	}
+	return current
 }

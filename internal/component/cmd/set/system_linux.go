@@ -1,0 +1,64 @@
+// Design: (none -- new runtime FD limit adjustment)
+
+//go:build linux
+
+package set
+
+import (
+	"strconv"
+	"syscall"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
+
+func init() {
+	pluginserver.RegisterRPCs(
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-set:system-file-descriptors",
+			Handler:    handleSetSystemFD,
+		},
+	)
+}
+
+func handleSetSystemFD(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if len(args) == 0 {
+		return &plugin.Response{Status: plugin.StatusError, Data: "usage: set system file-descriptors <limit|max>"}, nil
+	}
+
+	var current syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &current); err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: "getrlimit: " + err.Error()}, nil //nolint:nilerr // operational error in Response
+	}
+
+	var requested uint64
+	if args[0] == "max" {
+		requested = current.Max
+	} else {
+		var err error
+		requested, err = strconv.ParseUint(args[0], 10, 64)
+		if err != nil || requested == 0 {
+			return &plugin.Response{Status: plugin.StatusError, Data: "invalid limit: " + args[0]}, nil
+		}
+		if requested > current.Max {
+			msg := "requested " + args[0] + " exceeds hard limit " + textbuf.Uint(current.Max)
+			return &plugin.Response{Status: plugin.StatusError, Data: msg}, nil
+		}
+	}
+
+	prev := current.Cur
+	current.Cur = requested
+	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &current); err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: "setrlimit: " + err.Error()}, nil //nolint:nilerr // operational error in Response
+	}
+
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"previous":   prev,
+			"current":    requested,
+			"hard-limit": current.Max,
+		},
+	}, nil
+}

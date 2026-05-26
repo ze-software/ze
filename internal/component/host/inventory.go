@@ -29,14 +29,15 @@ const strUnknown = "unknown"
 // millicelsius, *-mbps, *-seconds). Enum-valued fields are typed identities
 // internally; the String forms appear only in JSON output.
 type Inventory struct {
-	CPU     *CPUInfo     `json:"cpu,omitempty"`
-	NICs    []NICInfo    `json:"nics,omitempty"`
-	DMI     *DMIInfo     `json:"dmi,omitempty"`
-	Memory  *MemoryInfo  `json:"memory,omitempty"`
-	Thermal *ThermalInfo `json:"thermal,omitempty"`
-	Storage *StorageInfo `json:"storage,omitempty"`
-	Kernel  *KernelInfo  `json:"kernel,omitempty"`
-	Host    *HostInfo    `json:"host,omitempty"`
+	CPU      *CPUInfo      `json:"cpu,omitempty"`
+	NICs     []NICInfo     `json:"nics,omitempty"`
+	DMI      *DMIInfo      `json:"dmi,omitempty"`
+	Memory   *MemoryInfo   `json:"memory,omitempty"`
+	Thermal  *ThermalInfo  `json:"thermal,omitempty"`
+	Storage  *StorageInfo  `json:"storage,omitempty"`
+	Kernel   *KernelInfo   `json:"kernel,omitempty"`
+	Host     *HostInfo     `json:"host,omitempty"`
+	Platform *PlatformInfo `json:"platform,omitempty"`
 
 	// Errors collects non-fatal read/parse errors encountered during
 	// detection. A populated Errors slice with a non-nil section means
@@ -323,6 +324,53 @@ type HostInfo struct {
 	Timezone      string `json:"timezone,omitempty"`
 }
 
+// PlatformType identifies the runtime platform Ze is running on.
+type PlatformType uint8
+
+const (
+	PlatformUnknown    PlatformType = 0
+	PlatformGokrazy    PlatformType = 1
+	PlatformSystemd    PlatformType = 2
+	PlatformContainer  PlatformType = 3
+	PlatformPlainLinux PlatformType = 4
+	PlatformDarwin     PlatformType = 5
+)
+
+var platformTypeNames = map[PlatformType]string{
+	PlatformUnknown:    "unknown",
+	PlatformGokrazy:    "gokrazy",
+	PlatformSystemd:    "systemd",
+	PlatformContainer:  "container",
+	PlatformPlainLinux: "plain-linux",
+	PlatformDarwin:     "darwin",
+}
+
+func (p PlatformType) String() string {
+	if s, ok := platformTypeNames[p]; ok {
+		return s
+	}
+	return strUnknown
+}
+
+func (p PlatformType) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + p.String() + `"`), nil
+}
+
+// PlatformInfo describes the runtime platform and its capabilities.
+type PlatformInfo struct {
+	Type                      PlatformType `json:"type"`
+	ReadOnlyRoot              bool         `json:"read-only-root"`
+	PermAvailable             bool         `json:"perm-available"`
+	SystemdAvailable          bool         `json:"systemd-available"`
+	GokrazyUpdateSocket       bool         `json:"gokrazy-update-socket"`
+	GokrazyUIAvailable        bool         `json:"gokrazy-ui-available"`
+	RebootAllowed             bool         `json:"reboot-allowed"`
+	PersistentStorageWritable bool         `json:"persistent-storage-writable"`
+	FDLimitSoftCurrent        uint64       `json:"fd-limit-soft-current"`
+	FDLimitHardMax            uint64       `json:"fd-limit-hard-max"`
+	FDLimitRaisable           bool         `json:"fd-limit-raisable"`
+}
+
 // Detector runs inventory detection with configurable filesystem root.
 // The default Detector (zero value) reads from "/" and is safe for
 // production use. Tests construct their own Detector with Root pointed
@@ -380,14 +428,15 @@ var ErrUnknownSection = errors.New("host: unknown section")
 // replaces was a second parallel `validSections` table in
 // cmd/ze/host/host.go that had to be kept in sync by hand.
 var sectionDetectors = map[string]func(*Detector) (any, error){
-	"cpu":     func(d *Detector) (any, error) { return d.DetectCPU() },
-	"nic":     func(d *Detector) (any, error) { return d.DetectNICs() },
-	"dmi":     func(d *Detector) (any, error) { return d.DetectDMI() },
-	"memory":  func(d *Detector) (any, error) { return d.DetectMemory() },
-	"thermal": func(d *Detector) (any, error) { return d.DetectThermal() },
-	"storage": func(d *Detector) (any, error) { return d.DetectStorage() },
-	"kernel":  func(d *Detector) (any, error) { return d.DetectKernel() },
-	"all":     func(_ *Detector) (any, error) { return Detect() },
+	"cpu":      func(d *Detector) (any, error) { return d.DetectCPU() },
+	"nic":      func(d *Detector) (any, error) { return d.DetectNICs() },
+	"dmi":      func(d *Detector) (any, error) { return d.DetectDMI() },
+	"memory":   func(d *Detector) (any, error) { return d.DetectMemory() },
+	"thermal":  func(d *Detector) (any, error) { return d.DetectThermal() },
+	"storage":  func(d *Detector) (any, error) { return d.DetectStorage() },
+	"kernel":   func(d *Detector) (any, error) { return d.DetectKernel() },
+	"platform": func(d *Detector) (any, error) { return d.DetectPlatform() },
+	"all":      func(_ *Detector) (any, error) { return Detect() },
 }
 
 // SectionNames returns the sorted list of valid section names. The
@@ -462,6 +511,9 @@ func DetectKernel() (*KernelInfo, error) { return defaultDetector.DetectKernel()
 // DetectHost returns the host section using the default Detector.
 func DetectHost() (*HostInfo, error) { return defaultDetector.DetectHost() }
 
+// DetectPlatform returns the platform section using the default Detector.
+func DetectPlatform() (*PlatformInfo, error) { return defaultDetector.DetectPlatform() }
+
 // Detect assembles the full Inventory.
 func (d *Detector) Detect() (*Inventory, error) {
 	inv := &Inventory{}
@@ -512,6 +564,12 @@ func (d *Detector) Detect() (*Inventory, error) {
 		inv.Host = h
 	} else if !errors.Is(err, ErrUnsupported) {
 		inv.Errors = append(inv.Errors, DetectError{Path: "host", Err: err.Error()})
+	}
+
+	if p, err := d.DetectPlatform(); err == nil {
+		inv.Platform = p
+	} else if !errors.Is(err, ErrUnsupported) {
+		inv.Errors = append(inv.Errors, DetectError{Path: "platform", Err: err.Error()})
 	}
 
 	return inv, nil

@@ -39,6 +39,7 @@ var moduleRegistry = map[string]ModuleCollector{
 	"neighbors":  collectNeighbors,
 	"env":        collectEnv,
 	"sysctl":     collectSysctl,
+	"platform":   collectPlatform,
 	"runtime":    collectRuntime,
 	"dmesg":      collectDmesg,
 	"sockets":    collectSockets,

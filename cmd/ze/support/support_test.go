@@ -16,7 +16,7 @@ import (
 )
 
 func TestModuleRegistry_AllRegistered(t *testing.T) {
-	expected := []string{"config", "conntrack", "crashes", "disk", "dmesg", "dns", "doctor", "env", "fds", "firewall", "host", "interfaces", "modules", "neighbors", "routes", "runtime", "sockets", "sysctl", "version"}
+	expected := []string{"config", "conntrack", "crashes", "disk", "dmesg", "dns", "doctor", "env", "fds", "firewall", "host", "interfaces", "modules", "neighbors", "platform", "routes", "runtime", "sockets", "sysctl", "version"}
 	names := ModuleNames()
 	if !slices.Equal(names, expected) {
 		t.Errorf("ModuleNames() = %v, want %v", names, expected)

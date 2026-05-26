@@ -96,7 +96,33 @@ var builtinCodes = []CodeMeta{
 		Description: "A warning from semantic validation without a more specific diagnostic code.",
 	},
 
-	// Doctor diagnostic codes.
+	// Doctor diagnostic codes -- platform.
+	{
+		Code:        "doctor-platform-detect",
+		Title:       "Platform detection failed",
+		Description: "Runtime platform detection encountered an error.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-platform-unknown",
+		Title:       "Unknown runtime platform",
+		Description: "The runtime platform could not be identified as gokrazy, systemd, container, or plain Linux.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-platform-perm",
+		Title:       "Gokrazy /perm not writable",
+		Description: "Running on gokrazy but /perm is not writable. Config persistence and state storage require a writable /perm partition.",
+		Examples:    []string{"ze doctor --json"},
+	},
+	{
+		Code:        "doctor-platform-container-ro",
+		Title:       "Container with read-only root",
+		Description: "Running in a container with a read-only root filesystem. Writable volumes must be mounted for config and state.",
+		Examples:    []string{"ze doctor --json"},
+	},
+
+	// Doctor diagnostic codes -- storage and config.
 	{
 		Code:        "doctor-store-integrity",
 		Title:       "Store integrity failure",

@@ -28,6 +28,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/resolve"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	zeradius "codeberg.org/thomas-mangin/ze/internal/component/radius"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
@@ -115,6 +116,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 		}
 	}()
 
+	diags = append(diags, checkPlatform()...)
 	diags = append(diags, checkStoreIntegrity()...)
 	diags = append(diags, checkSystemdServiceInstall()...)
 
@@ -211,6 +213,40 @@ func loadConfigData(store storage.Storage, configPath string) ([]byte, string, e
 		return nil, "", fmt.Errorf("no config found (tried %s): %w", configName, err)
 	}
 	return data, configName, nil
+}
+
+func checkPlatform() []diagnostic.Diagnostic {
+	p, err := host.DetectPlatform()
+	if err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-platform-detect",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "platform detection failed: " + err.Error(),
+		}}
+	}
+	var diags []diagnostic.Diagnostic
+	if p.Type == host.PlatformUnknown {
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-platform-unknown",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "could not identify runtime platform",
+		})
+	}
+	if p.Type == host.PlatformGokrazy && !p.PersistentStorageWritable {
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-platform-perm",
+			Severity: diagnostic.SeverityError,
+			Message:  "gokrazy /perm partition is not writable; config and state persistence will fail",
+		})
+	}
+	if p.Type == host.PlatformContainer && p.ReadOnlyRoot {
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-platform-container-ro",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "running in container with read-only root filesystem; ensure writable volumes are mounted for config and state",
+		})
+	}
+	return diags
 }
 
 func checkStoreIntegrity() []diagnostic.Diagnostic {

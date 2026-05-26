@@ -40,6 +40,10 @@ remediation guidance.
 | `doctor-vpp-unreachable` | VPP API socket (Linux) |
 | `doctor-vpp-version` | VPP version compatibility (Linux) |
 | `doctor-module-missing` | Kernel modules (Linux) |
+| `doctor-platform-detect` | Platform detection failure |
+| `doctor-platform-unknown` | Unrecognized runtime platform |
+| `doctor-platform-perm` | Gokrazy /perm not writable |
+| `doctor-platform-container-ro` | Container with read-only root |
 
 Exit code 0 means ready; exit code 1 means at least one error-severity issue.
 

@@ -388,6 +388,21 @@ Same workflow: decode base64, analyze with `go tool pprof`.
 
 CPU profiling is mutex-protected. A second concurrent request returns an error. This prevents resource contention from overlapping profiles.
 
+## Platform Detection
+
+`show system platform` reports the runtime platform type and capability flags:
+
+```
+show system platform
+show system platform | json
+```
+
+Detected platforms: **gokrazy**, **systemd**, **container**, **plain-linux**, **darwin**.
+
+Capability flags: `read-only-root`, `perm-available`, `systemd-available`, `gokrazy-update-socket`, `gokrazy-ui-available`, `reboot-allowed`, `persistent-storage-writable`, `fd-limit-soft-current`, `fd-limit-hard-max`, `fd-limit-raisable`.
+
+Platform information is also included in `ze doctor` checks (e.g. gokrazy /perm writability) and `ze support` archives (as the `platform` module).
+
 ## Platform Notes
 
 Commands that read `/proc` (sockets, kernel-log, file-descriptors, memory-map) are Linux-only. On other platforms they return "not available on this platform". The remaining commands (tcp-check, traceroute, goroutines, dns, profile) work on all platforms but traceroute requires CAP_NET_RAW.

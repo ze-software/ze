@@ -43,6 +43,12 @@ module ze-cli-show-cmd {
                 description "Show current wall-clock time in the daemon's timezone";
             }
 
+            container platform {
+                config false;
+                ze:command "ze-show:system-platform";
+                description "Show runtime platform type and capabilities (gokrazy, systemd, container, plain-linux, darwin)";
+            }
+
             container subsystem {
                 config false;
                 description "Subsystem operations";

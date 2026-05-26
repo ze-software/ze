@@ -304,6 +304,7 @@ runtime state for the running ze process. Available via daemon SSH
 ze show system memory              # runtime.MemStats (alloc, heap, GC) + hardware enrichment
 ze show system cpu                 # goroutine count, logical CPUs, GOMAXPROCS + hardware
 ze show system date                # wall-clock time: RFC3339, Unix, timezone
+ze show system platform            # runtime platform type and capabilities
 ```
 
 Each response is a flat JSON map with kebab-case keys:
@@ -313,6 +314,7 @@ Each response is a flat JSON map with kebab-case keys:
 | `show system memory` | `alloc`, `total-alloc`, `sys`, `heap-alloc`, `heap-sys`, `heap-in-use`, `heap-objects`, `stack-in-use`, `num-gc`, `gc-cpu-pct`, `hardware` (optional: physical memory + ECC from `host.DetectMemory()`) |
 | `show system cpu` | `num-cpu`, `num-goroutines`, `max-procs`, `go-version`, `hardware` (optional: `host.DetectCPU()`) |
 | `show system date` | `time` (RFC3339), `unix`, `unix-nano`, `timezone`, `utc-offset-secs` |
+| `show system platform` | `type` (gokrazy, systemd, container, plain-linux, darwin), `read-only-root`, `perm-available`, `systemd-available`, `gokrazy-update-socket`, `gokrazy-ui-available`, `reboot-allowed`, `persistent-storage-writable`, `fd-limit-soft-current`, `fd-limit-hard-max`, `fd-limit-raisable` |
 | `show system conntrack` | `count`, `max`, `buckets`, `expect-max`, `accounting`, `timestamp`, `checksum`, `log-invalid`, `modules` (loaded nf_conntrack_* list), `timeouts` (per-protocol), `tcp-behavior` (be-liberal, loose, max-retrans, ignore-invalid-rst) |
 
 The `hardware` subobject under `memory` and `cpu` mirrors the data
@@ -1424,6 +1426,7 @@ Many commands take a `peer <selector>` argument:
 
 | Command | Access | Purpose |
 |---------|--------|---------|
+| `set system file-descriptors <N\|max>` | write | Raise process FD soft limit (Linux only; `max` sets to hard limit) |
 | `set bgp peer <name> with <config>` | write | Create peer with configuration |
 | `set bgp peer <sel> save` | write | Save running peers to config |
 

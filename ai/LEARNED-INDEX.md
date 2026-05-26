@@ -103,6 +103,7 @@ Command structure, text format, IPC, RPC dispatch.
 - [755](plan/learned/755-ze-doctor.md) -- Offline system readiness checks: diagnostic code taxonomy, error/warning severity, platform-split checks, shared resolve package
 - [788](plan/learned/788-doctor-improvements.md) -- Doctor schema-driven listener inventory, RegisterListenerDefault pattern, show doctor provider, dependency inventory guardrail
 - [791](plan/learned/791-spec-cli-default-format.md) -- Configurable default CLI output format: env.Get in command package, session override via env.Set, intercept placement before isConfigCommand
+- [792](plan/learned/792-platform-detection.md) -- Runtime platform detection: gokrazy/systemd/container/plain-linux/darwin classification, cgroups v1+v2, FD limits, set system file-descriptors
 
 ## Web Interface
 
