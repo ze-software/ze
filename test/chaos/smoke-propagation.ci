@@ -1,0 +1,6 @@
+# Smoke test: 3 peers, no chaos, verify route propagation through RR
+# Uses fork mode (default) to start Ze automatically
+# Fixed seed for deterministic reproduction
+
+cmd=foreground:seq=1:exec=ze-chaos --seed 42 --peers 3 --duration 10s --chaos-rate 0 --quiet --port $PORT:timeout=20s
+expect=exit:code=0

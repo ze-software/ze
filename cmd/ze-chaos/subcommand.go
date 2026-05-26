@@ -150,6 +150,29 @@ func checkPortFree(addr string) error {
 	return fmt.Errorf("checking port %s: %w", addr, err)
 }
 
+// allocatePort binds a TCP listener on 127.0.0.1:0, reads the kernel-assigned
+// port, and closes the listener. The caller uses the returned port for Ze config
+// and peer connections. Small race window (port freed then Ze binds) is acceptable
+// for testing.
+func allocatePort(ctx context.Context, addr string) (int, error) {
+	var lc net.ListenConfig
+	ln, err := lc.Listen(ctx, "tcp", net.JoinHostPort(addr, "0"))
+	if err != nil {
+		return 0, fmt.Errorf("allocating port: %w", err)
+	}
+	tcpAddr, ok := ln.Addr().(*net.TCPAddr)
+	if !ok {
+		if closeErr := ln.Close(); closeErr != nil {
+			return 0, fmt.Errorf("allocated listener has non-TCP address (close: %w)", closeErr)
+		}
+		return 0, fmt.Errorf("allocated listener has non-TCP address")
+	}
+	if err := ln.Close(); err != nil {
+		return 0, fmt.Errorf("closing allocated listener: %w", err)
+	}
+	return tcpAddr.Port, nil
+}
+
 // waitForZe waits for Ze to start listening on addr.
 // In pipeline mode, Ze is reading piped config and needs time to initialize.
 // Uses TCP connect only — no BGP OPEN, to avoid corrupting the peer session

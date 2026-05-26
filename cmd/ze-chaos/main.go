@@ -33,6 +33,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -373,9 +374,9 @@ Control:
 		return 1
 	}
 
-	// Validate port.
-	if *port < 1024 || *port > 65535 {
-		fmt.Fprintf(os.Stderr, "error: --port must be 1024-65535, got %d\n", *port)
+	// Validate port (0 = auto-allocate, otherwise 1024-65535).
+	if *port != 0 && (*port < 1024 || *port > 65535) {
+		fmt.Fprintf(os.Stderr, "error: --port must be 0 (auto) or 1024-65535, got %d\n", *port)
 		return 1
 	}
 
@@ -386,6 +387,8 @@ Control:
 	}
 
 	// Check for single-port listeners falling inside allocated port ranges.
+	// When port=0 (auto-allocate), bgp range [0, peers*2] won't conflict with
+	// any real service (all > 1024), but listenBase range is still checked.
 	if err := validateRangeConflicts(*port, *listenBase, *peers, *sshPort, *webUIPort, *lgPort, *zeMCPPort, *webAddr, *pprofAddr, *metricsAddr, *debugAddr, *mcpAddr); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -439,6 +442,19 @@ Control:
 	}
 	if *excludeFamilies != "" {
 		excludeList, _ = stringsx.SplitCount(*excludeFamilies, ",")
+	}
+
+	// Port auto-allocation: --port 0 asks the kernel for a free port.
+	if *port == 0 {
+		allocated, allocErr := allocatePort(context.Background(), *localAddr)
+		if allocErr != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", allocErr)
+			return 1
+		}
+		*port = allocated
+		if !*quiet {
+			fmt.Fprintf(os.Stderr, "ze-chaos | allocated port: %d\n", *port)
+		}
 	}
 
 	// Generate scenario from seed.
@@ -677,6 +693,22 @@ Control:
 		}
 	}()
 
+	// Monitor child process: detect unexpected Ze exit (crash).
+	var zeCrashed atomic.Bool
+	if child != nil {
+		go func() {
+			<-child.done
+			if parentCtx.Err() != nil {
+				return
+			}
+			zeCrashed.Store(true)
+			if !*quiet {
+				fmt.Fprintf(os.Stderr, "ze-chaos | ze crashed: %v\n", child.waitErr)
+			}
+			parentCancel()
+		}()
+	}
+
 	// Print the dashboard URL early so the user can open their browser
 	// while Ze is still initializing. The HTTP server starts once
 	// setupReporting runs inside runOrchestrator.
@@ -776,6 +808,9 @@ Control:
 			profiles = newProfiles
 			continue
 		default:
+			if zeCrashed.Load() {
+				return 2
+			}
 			return exitCode
 		}
 	}

@@ -1,0 +1,5 @@
+# Smoke test: 4 peers with moderate chaos, verify no validation failures
+# Longer run to exercise reconnect and withdrawal paths
+
+cmd=foreground:seq=1:exec=ze-chaos --seed 7777 --peers 4 --duration 20s --chaos-rate 0.3 --quiet --port $PORT:timeout=35s
+expect=exit:code=0

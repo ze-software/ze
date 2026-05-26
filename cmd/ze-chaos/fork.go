@@ -13,8 +13,10 @@ import (
 )
 
 type zeChild struct {
-	cmd   *exec.Cmd
-	stdin io.WriteCloser
+	cmd     *exec.Cmd
+	stdin   io.WriteCloser
+	done    chan struct{}
+	waitErr error
 }
 
 func forkZe(ctx context.Context, config, binary string) (*zeChild, error) {
@@ -39,16 +41,31 @@ func forkZe(ctx context.Context, config, binary string) (*zeChild, error) {
 		return nil, fmt.Errorf("starting ze: %w", err)
 	}
 
+	cleanup := func() {
+		if err := cmd.Process.Kill(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: killing ze: %v\n", err)
+		}
+		if err := cmd.Wait(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: waiting for ze: %v\n", err)
+		}
+	}
+
 	if _, err := stdin.Write([]byte(config)); err != nil {
-		killAndWait(cmd)
+		cleanup()
 		return nil, fmt.Errorf("writing config: %w", err)
 	}
 	if _, err := stdin.Write([]byte{0}); err != nil {
-		killAndWait(cmd)
+		cleanup()
 		return nil, fmt.Errorf("writing sentinel: %w", err)
 	}
 
-	return &zeChild{cmd: cmd, stdin: stdin}, nil
+	child := &zeChild{cmd: cmd, stdin: stdin, done: make(chan struct{})}
+	go func() {
+		child.waitErr = cmd.Wait()
+		close(child.done)
+	}()
+
+	return child, nil
 }
 
 func (z *zeChild) PID() int {
@@ -65,25 +82,16 @@ func (z *zeChild) Shutdown() {
 	if err := z.stdin.Close(); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: closing ze stdin: %v\n", err)
 	}
-	done := make(chan error, 1)
-	go func() { done <- z.cmd.Wait() }()
 	select {
-	case err := <-done:
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "warning: ze exited: %v\n", err)
+	case <-z.done:
+		if z.waitErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: ze exited: %v\n", z.waitErr)
 		}
 	case <-time.After(5 * time.Second):
 		fmt.Fprintf(os.Stderr, "warning: ze did not exit within 5s, killing\n")
-		_ = z.cmd.Process.Kill()
-		<-done
-	}
-}
-
-func killAndWait(cmd *exec.Cmd) {
-	if err := cmd.Process.Kill(); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: killing ze: %v\n", err)
-	}
-	if err := cmd.Wait(); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: waiting for ze: %v\n", err)
+		if err := z.cmd.Process.Kill(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: killing ze: %v\n", err)
+		}
+		<-z.done
 	}
 }

@@ -30,8 +30,9 @@ var errTestsFailed = errors.New("tests failed")
 
 // Command name constants for test suites.
 const (
-	cmdPlugin   = "plugin"
-	cmdChaosWeb = "chaos-web"
+	cmdPlugin    = "plugin"
+	cmdChaosWeb  = "chaos-web"
+	cmdChaosIntg = "chaos"
 )
 
 var _ = register("bgp", "Run BGP functional tests (encoding, plugin, decoding, parsing)", bgpCmd)
@@ -72,7 +73,7 @@ func bgpMain() error {
 
 	// Route to appropriate handler
 	switch cli.command {
-	case "encode", cmdPlugin, "reload", cmdChaosWeb:
+	case "encode", cmdPlugin, "reload", cmdChaosWeb, cmdChaosIntg:
 		return runEncodingOrAPI(ctx, cli, baseDir)
 	case "decode":
 		return runSimpleTests(ctx, cli, baseDir, newDecodingTestSuite)
@@ -270,6 +271,8 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 		testDir = filepath.Join(baseDir, "test", "reload")
 	case cmdChaosWeb:
 		testDir = filepath.Join(baseDir, "test", "chaos-web")
+	case cmdChaosIntg:
+		testDir = filepath.Join(baseDir, "test", "chaos")
 	}
 
 	if err := tests.Discover(testDir); err != nil {
@@ -329,9 +332,15 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 	defer r.Cleanup()
 
 	// Extra binaries needed by specific test suites.
-	if cli.command == cmdChaosWeb {
+	switch cli.command {
+	case cmdChaosWeb:
 		r.SetExtraBinaries(map[string]string{
 			"ze-chaos": "./cmd/ze-chaos",
+		})
+	case cmdChaosIntg:
+		r.SetExtraBinaries(map[string]string{
+			"ze-chaos": "./cmd/ze-chaos",
+			"ze":       "./cmd/ze",
 		})
 	}
 
@@ -590,12 +599,13 @@ func parseRunCLI() *runCLIFlags {
 	}
 
 	validCommands := map[string]bool{
-		"encode":    true,
-		cmdPlugin:   true,
-		"decode":    true,
-		"parse":     true,
-		"reload":    true,
-		cmdChaosWeb: true,
+		"encode":     true,
+		cmdPlugin:    true,
+		"decode":     true,
+		"parse":      true,
+		"reload":     true,
+		cmdChaosIntg: true,
+		cmdChaosWeb:  true,
 	}
 
 	if !validCommands[command] {
@@ -646,6 +656,7 @@ Types:
   decode    Run decode tests (BGP message hex to JSON)
   parse     Run parse tests (config file validation)
   reload    Run reload tests (SIGHUP config reload)
+  chaos     Run chaos integration tests (Ze + chaos peers end-to-end)
   chaos-web Run chaos web dashboard tests (HTTP endpoint checks)
 
 Modes:

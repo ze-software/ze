@@ -1,0 +1,5 @@
+# Smoke test: 3 peers, guaranteed disconnect events, verify withdrawal propagation
+# chaos-rate 1.0 ensures every check interval triggers a disconnect
+
+cmd=foreground:seq=1:exec=ze-chaos --seed 100 --peers 3 --duration 15s --chaos-rate 1.0 --quiet --port $PORT:timeout=25s
+expect=exit:code=0
