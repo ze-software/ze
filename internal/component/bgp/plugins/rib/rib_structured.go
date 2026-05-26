@@ -8,10 +8,10 @@
 package rib
 
 import (
-	"encoding/hex"
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri/nlrisplit"
@@ -251,7 +251,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 }
 
 // handleSentStructured processes sent UPDATE events from wire types.
-// Reads attributes lazily via AttrsWire.Get() per attribute type.
+// Interns wire attribute bytes into pool.RibOut for deduplication.
 func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	peerAddr := se.PeerAddress
 	msgID := se.MessageID
@@ -279,32 +279,32 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	// Get encoding context for add-path flags.
 	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
 
-	// Extract parsed attributes lazily from AttrsWire.
-	core := extractCoreAttrs(msg.AttrsWire)
-	comm := extractCommunityAttrs(msg.AttrsWire)
-
-	// Get raw attributes hex for route replay.
-	var rawAttrsHex string
+	// Intern wire attribute bytes once for the entire UPDATE.
+	var attrHandle attrpool.Handle
 	if msg.AttrsWire != nil {
-		rawAttrsHex = hex.EncodeToString(msg.AttrsWire.Packed())
+		if packed := msg.AttrsWire.Packed(); len(packed) > 0 {
+			attrHandle, _ = pool.RibOut.Intern(packed)
+		}
+	}
+
+	var sourcePeer string
+	if se.Meta != nil {
+		sourcePeer, _ = se.Meta["source-peer"].(string)
 	}
 
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
 
 	if r.ribOut[peerAddr] == nil {
-		r.ribOut[peerAddr] = make(map[family.Family]map[string]*Route)
+		r.ribOut[peerAddr] = make(map[family.Family]map[string]ribOutEntry)
 	}
 
-	// Process IPv4 unicast announces (legacy NLRI section).
+	// Process IPv4 unicast announces (NLRI section).
 	ipv4Family := family.IPv4Unicast
-	nextHop := extractNextHop(msg.AttrsWire)
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
-		r.storeSentNLRIs(peerAddr, ipv4Family, nlriData, addPath, msgID, nextHop,
-			core.origin, core.asPath, core.med, core.localPref, comm.communities, comm.largeCommunities, comm.extCommunities,
-			rawAttrsHex, se.Meta)
+		r.storeSentEntries(peerAddr, ipv4Family, nlriData, addPath, msgID, attrHandle, sourcePeer)
 	}
 
 	// Process IPv4 unicast withdrawals.
@@ -318,13 +318,10 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	mpReach, err := wu.MPReach()
 	if err == nil && mpReach != nil {
 		fam := mpReach.Family()
-		mpNextHop := mpReach.NextHop().String()
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
-			r.storeSentNLRIs(peerAddr, fam, nlriBytes, addPath, msgID, mpNextHop,
-				core.origin, core.asPath, core.med, core.localPref, comm.communities, comm.largeCommunities, comm.extCommunities,
-				rawAttrsHex, se.Meta)
+			r.storeSentEntries(peerAddr, fam, nlriBytes, addPath, msgID, attrHandle, sourcePeer)
 		}
 	}
 
@@ -338,22 +335,20 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 			r.removeSentNLRIs(peerAddr, fam, wdBytes, addPath)
 		}
 	}
+
+	// Release the initial intern ref (each stored entry holds its own AddRef).
+	if attrHandle.IsValid() {
+		_ = pool.RibOut.Release(attrHandle)
+	}
 }
 
-// storeSentNLRIs walks NLRI bytes and stores Route entries in ribOut.
+// storeSentEntries walks NLRI bytes and stores ribOutEntry records in ribOut.
 // Caller must hold write lock.
-func (r *RIBManager) storeSentNLRIs(peerAddr string, fam family.Family, nlriData []byte, addPath bool,
-	msgID uint64, nextHop string, origin attribute.Origin, asPath []uint32, med, localPref *uint32,
-	communities []attribute.Community, largeCommunities []attribute.LargeCommunity, extCommunities []attribute.ExtendedCommunity,
-	rawAttrsHex string, meta map[string]any) {
+func (r *RIBManager) storeSentEntries(peerAddr string, fam family.Family, nlriData []byte, addPath bool,
+	msgID uint64, attrHandle attrpool.Handle, sourcePeer string) {
 
 	if r.ribOut[peerAddr][fam] == nil {
-		r.ribOut[peerAddr][fam] = make(map[string]*Route)
-	}
-
-	var sourcePeer string
-	if meta != nil {
-		sourcePeer, _ = meta["source-peer"].(string)
+		r.ribOut[peerAddr][fam] = make(map[string]ribOutEntry)
 	}
 
 	iter := nlri.NewNLRIIterator(nlriData, addPath)
@@ -367,27 +362,22 @@ func (r *RIBManager) storeSentNLRIs(peerAddr string, fam family.Family, nlriData
 			continue
 		}
 		key := outRouteKey(prefix, pathID)
-		r.ribOut[peerAddr][fam][key] = &Route{
-			MsgID:               msgID,
-			Family:              fam,
-			Prefix:              prefix,
-			PathID:              pathID,
-			NextHop:             nextHop,
-			Origin:              &origin,
-			ASPath:              asPath,
-			MED:                 med,
-			LocalPreference:     localPref,
-			Communities:         communities,
-			LargeCommunities:    largeCommunities,
-			ExtendedCommunities: extCommunities,
-			RawAttrs:            rawAttrsHex,
-			Meta:                meta,
-			SourcePeer:          sourcePeer,
+		_, existed := r.ribOut[peerAddr][fam][key]
+		if existed {
+			r.ribOut[peerAddr][fam][key].release()
 		}
+		if attrHandle.IsValid() {
+			_ = pool.RibOut.AddRef(attrHandle)
+		}
+		r.ribOut[peerAddr][fam][key] = ribOutEntry{
+			MsgID:      msgID,
+			AttrHandle: attrHandle,
+		}
+		r.setRibOutSource(fam, key, sourcePeer, !existed)
 	}
 }
 
-// removeSentNLRIs walks NLRI bytes and removes Route entries from ribOut.
+// removeSentNLRIs walks NLRI bytes and removes ribOutEntry records from ribOut.
 // Caller must hold write lock.
 func (r *RIBManager) removeSentNLRIs(peerAddr string, fam family.Family, wdData []byte, addPath bool) {
 	familyRoutes := r.ribOut[peerAddr][fam]
@@ -406,7 +396,11 @@ func (r *RIBManager) removeSentNLRIs(peerAddr string, fam family.Family, wdData 
 			continue
 		}
 		key := outRouteKey(prefix, pathID)
-		delete(familyRoutes, key)
+		if old, exists := familyRoutes[key]; exists {
+			old.release()
+			delete(familyRoutes, key)
+		}
+		r.releaseRibOutSource(fam, key)
 	}
 
 	if len(familyRoutes) == 0 {
@@ -447,13 +441,7 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 		return
 	}
 
-	var routesToSend []*Route
-	if familyRoutes := r.ribOut[peerAddr][fam]; familyRoutes != nil {
-		routesToSend = make([]*Route, 0, len(familyRoutes))
-		for _, rt := range familyRoutes {
-			routesToSend = append(routesToSend, rt)
-		}
-	}
+	routesToSend := r.collectRibOutRoutes(peerAddr, fam)
 	r.peerMu.RUnlock()
 
 	r.updateRoute(peerAddr, "borr "+fam.String())

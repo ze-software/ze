@@ -207,11 +207,13 @@ func newOutboundSource(r *RIBManager, selector string) *outboundSource {
 		if !matchesPeer(peer, selector) {
 			continue
 		}
-		for _, familyRoutes := range peerFamilies {
-			for _, rt := range familyRoutes {
+		for fam, familyRoutes := range peerFamilies {
+			for key, entry := range familyRoutes {
+				src := r.ribOutSourcePeer(fam, key)
+				rt := reconstructRoute(entry, fam, key, src)
 				items = append(items, RouteItem{
 					Peer:      peer,
-					Family:    rt.Family,
+					Family:    fam,
 					Prefix:    rt.Prefix,
 					Direction: rpc.DirectionSent,
 					OutRoute:  rt,

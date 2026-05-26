@@ -55,12 +55,12 @@ func init() {
 	OtherAttrs = mustPool(14, 1<<16)
 }
 
-// AllPools returns all 13 attribute pools for scheduler construction.
+// AllPools returns all attribute pools for scheduler construction.
 func AllPools() []*attrpool.Pool {
 	return []*attrpool.Pool{
 		Origin, ASPath, LocalPref, MED, NextHop,
 		Communities, LargeCommunities, ExtCommunities,
 		ClusterList, OriginatorID, AtomicAggregate,
-		Aggregator, OtherAttrs,
+		Aggregator, OtherAttrs, RibOut,
 	}
 }

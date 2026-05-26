@@ -365,13 +365,13 @@ func TestShowPipelineBothDirections(t *testing.T) {
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Add outbound route
-	r.ribOut["192.0.2.2"] = map[family.Family]map[string]*Route{
+	r.ribOut["192.0.2.2"] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"172.16.0.0/24": {
 				Family: family.IPv4Unicast, Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
 			},
 		},
-	}
+	})
 
 	result := r.showPipeline("*", []string{"count"})
 	var parsed map[string]any
@@ -395,13 +395,13 @@ func TestShowPipelineReceivedScope(t *testing.T) {
 	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
-	r.ribOut["192.0.2.2"] = map[family.Family]map[string]*Route{
+	r.ribOut["192.0.2.2"] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"172.16.0.0/24": {
 				Family: family.IPv4Unicast, Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
 			},
 		},
-	}
+	})
 
 	result := r.showPipeline("*", []string{"received", "count"})
 	var parsed map[string]any
@@ -424,13 +424,13 @@ func TestShowPipelineSentScope(t *testing.T) {
 	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
-	r.ribOut["192.0.2.2"] = map[family.Family]map[string]*Route{
+	r.ribOut["192.0.2.2"] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"172.16.0.0/24": {
 				Family: family.IPv4Unicast, Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
 			},
 		},
-	}
+	})
 
 	result := r.showPipeline("*", []string{"sent", "count"})
 	var parsed map[string]any
@@ -447,7 +447,7 @@ func TestShowPipelineComposed(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	med100 := uint32(100)
-	r.ribOut["192.0.2.1"] = map[family.Family]map[string]*Route{
+	r.ribOut["192.0.2.1"] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {
 				Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1",
@@ -462,7 +462,7 @@ func TestShowPipelineComposed(t *testing.T) {
 				ASPath: []uint32{64503}, Communities: []attribute.Community{attribute.Community(65000<<16 | 100)}, MED: &med100,
 			},
 		},
-	}
+	})
 
 	// path 64501 community 65000:100 count -> should match only first route
 	result := r.showPipeline("*", []string{"sent", "path", "64501", "community", "65000:100", "count"})
@@ -753,13 +753,13 @@ func TestShowPipelineExplicitSentReceived(t *testing.T) {
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Add outbound route
-	r.ribOut["192.0.2.2"] = map[family.Family]map[string]*Route{
+	r.ribOut["192.0.2.2"] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"172.16.0.0/24": {
 				Family: family.IPv4Unicast, Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
 			},
 		},
-	}
+	})
 
 	// Explicit sent-received scope
 	result := r.showPipeline("*", []string{"sent-received", "count"})

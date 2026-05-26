@@ -17,8 +17,8 @@ package rib
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net"
 	"sort"
@@ -27,7 +27,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri/nlrisplit"
@@ -221,7 +220,14 @@ type RIBManager struct {
 
 	// ribOut stores routes sent TO peers (Adj-RIB-Out), keyed per-family.
 	// Enables per-family operations (route refresh, LLGR readvertisement).
-	ribOut map[string]map[family.Family]map[string]*Route // peerAddr -> family -> prefixKey -> route
+	// Wire attribute bytes are deduplicated in pool.RibOut (idx 16).
+	ribOut map[string]map[family.Family]map[string]ribOutEntry // peerAddr -> family -> prefixKey -> entry
+
+	// ribOutSource tracks the originating peer per (family, routeKey).
+	// One entry per unique route (not per destination peer), used for
+	// GR stale propagation (RFC 9494). Refcounted: cleaned up when the
+	// last destination peer withdraws the route.
+	ribOutSource map[family.Family]map[string]ribOutSourceRef
 
 	// peerUp tracks which peers are currently up
 	peerUp map[string]bool
@@ -483,7 +489,8 @@ func NewRIBManager(plugin *sdk.Plugin) *RIBManager {
 			bmpProtocolID: make(map[string]*storage.PeerRIB),
 		},
 		bgpPeers:         bgpInner,
-		ribOut:           make(map[string]map[family.Family]map[string]*Route),
+		ribOut:           make(map[string]map[family.Family]map[string]ribOutEntry),
+		ribOutSource:     make(map[family.Family]map[string]ribOutSourceRef),
 		peerUp:           make(map[string]bool),
 		peerMeta:         make(map[string]*PeerMeta),
 		retainedPeers:    make(map[string]bool),
@@ -711,59 +718,62 @@ func (r *RIBManager) handleSent(event *Event) {
 		return
 	}
 
+	// Intern wire bytes BEFORE acquiring peerMu to maintain lock ordering
+	// (pool.RibOut.mu must not be acquired under peerMu).
+	rawHex := event.GetRawAttributesHex()
+	var attrHandle attrpool.Handle
+	if rawHex != "" {
+		if rawBytes, err := hex.DecodeString(rawHex); err == nil {
+			attrHandle, _ = pool.RibOut.Intern(rawBytes)
+		}
+	}
+	if !attrHandle.IsValid() {
+		nextHop := firstAddNextHop(event)
+		if packed := packEventAttrs(event, nextHop); len(packed) > 0 {
+			attrHandle, _ = pool.RibOut.Intern(packed)
+		}
+	}
+
+	var sourcePeer string
+	if event.RouteMeta != nil {
+		sourcePeer, _ = event.RouteMeta["source-peer"].(string)
+	}
+
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
 
-	// Initialize peer's ribOut if needed
 	if r.ribOut[peerAddr] == nil {
-		r.ribOut[peerAddr] = make(map[family.Family]map[string]*Route)
+		r.ribOut[peerAddr] = make(map[family.Family]map[string]ribOutEntry)
 	}
 
-	// Process family operations
-	// Format: {"ipv4/unicast": [{"next-hop": "...", "action": "add", "nlri": [...]}]}
 	for fam, ops := range event.FamilyOps {
 		for _, op := range ops {
 			switch op.Action { //nolint:exhaustive // only Add/Del relevant for rib-out
 			case bgptypes.RouteActionAdd:
-				// Initialize family map if needed
 				if r.ribOut[peerAddr][fam] == nil {
-					r.ribOut[peerAddr][fam] = make(map[string]*Route)
+					r.ribOut[peerAddr][fam] = make(map[string]ribOutEntry)
 				}
-				// Store routes with their next-hop
 				for _, nlriVal := range op.NLRIs {
 					prefix, pathID := parseNLRIValue(nlriVal)
 					if prefix == "" {
-						logger().Warn("sent: invalid nlri value",
-							"peer", peerAddr, "family", fam, "got", fmt.Sprintf("%T", nlriVal))
+						logger().Warn("sent: invalid nlri value", "peer", peerAddr, "family", fam)
 						continue
 					}
 					key := outRouteKey(prefix, pathID)
-					var origin attribute.Origin
-					_ = origin.UnmarshalText([]byte(event.Origin))
-					var sourcePeer string
-					if event.RouteMeta != nil {
-						sourcePeer, _ = event.RouteMeta["source-peer"].(string)
+					_, existed := r.ribOut[peerAddr][fam][key]
+					if existed {
+						r.ribOut[peerAddr][fam][key].release()
 					}
-					r.ribOut[peerAddr][fam][key] = &Route{
-						MsgID:               msgID,
-						Family:              fam,
-						Prefix:              prefix,
-						PathID:              pathID,
-						NextHop:             op.NextHop,
-						Origin:              &origin,
-						ASPath:              event.ASPath,
-						MED:                 event.MED,
-						LocalPreference:     event.LocalPreference,
-						Communities:         parseCommunityStrings(event.Communities),
-						LargeCommunities:    parseLargeCommunityStrings(event.LargeCommunities),
-						ExtendedCommunities: parseExtCommunityStrings(event.ExtendedCommunities),
-						RawAttrs:            event.GetRawAttributesHex(),
-						Meta:                event.RouteMeta,
-						SourcePeer:          sourcePeer,
+					if attrHandle.IsValid() {
+						_ = pool.RibOut.AddRef(attrHandle)
 					}
+					r.ribOut[peerAddr][fam][key] = ribOutEntry{
+						MsgID:      msgID,
+						AttrHandle: attrHandle,
+					}
+					r.setRibOutSource(fam, key, sourcePeer, !existed)
 				}
 			case bgptypes.RouteActionDel:
-				// Remove routes from the family map
 				familyRoutes := r.ribOut[peerAddr][fam]
 				if familyRoutes == nil {
 					continue
@@ -774,18 +784,23 @@ func (r *RIBManager) handleSent(event *Event) {
 						continue
 					}
 					key := outRouteKey(prefix, pathID)
-					delete(familyRoutes, key)
+					if old, exists := familyRoutes[key]; exists {
+						old.release()
+						delete(familyRoutes, key)
+					}
+					r.releaseRibOutSource(fam, key)
 				}
-				// Clean up empty family map
 				if len(familyRoutes) == 0 {
 					delete(r.ribOut[peerAddr], fam)
 				}
-				// Clean up empty peer map
 				if len(r.ribOut[peerAddr]) == 0 {
 					delete(r.ribOut, peerAddr)
 				}
 			}
 		}
+	}
+	if attrHandle.IsValid() {
+		_ = pool.RibOut.Release(attrHandle)
 	}
 }
 
@@ -905,14 +920,7 @@ func (r *RIBManager) handleRefresh(event *Event) {
 		return
 	}
 
-	// Direct fam lookup -- no linear scan of all routes
-	var routesToSend []*Route
-	if familyRoutes := r.ribOut[peerAddr][fam]; familyRoutes != nil {
-		routesToSend = make([]*Route, 0, len(familyRoutes))
-		for _, rt := range familyRoutes {
-			routesToSend = append(routesToSend, rt)
-		}
-	}
+	routesToSend := r.collectRibOutRoutes(peerAddr, fam)
 	r.peerMu.RUnlock()
 
 	// RFC 7313 Section 4: Send BoRR, routes, EoRR sequence
@@ -939,12 +947,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 
 	if isUp && !wasUp {
 		delete(r.retainedPeers, peerAddr)
-		peerFamilies := r.ribOut[peerAddr]
-		for _, familyRoutes := range peerFamilies {
-			for _, rt := range familyRoutes {
-				routesToReplay = append(routesToReplay, rt)
-			}
-		}
+		routesToReplay = r.collectAllRibOutRoutes(peerAddr)
 	} else if !isUp && wasUp {
 		if r.retainedPeers[peerAddr] {
 			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
@@ -995,14 +998,7 @@ func (r *RIBManager) handleState(event *Event) {
 	if isUp && !wasUp {
 		// Peer came up - clear retain flag (fresh session replaces stale state).
 		delete(r.retainedPeers, peerAddr)
-
-		// Copy routes for replay while holding lock — flatten all families
-		peerFamilies := r.ribOut[peerAddr]
-		for _, familyRoutes := range peerFamilies {
-			for _, rt := range familyRoutes {
-				routesToReplay = append(routesToReplay, rt)
-			}
-		}
+		routesToReplay = r.collectAllRibOutRoutes(peerAddr)
 	} else if !isUp && wasUp {
 		// Peer went down - clear Adj-RIB-In unless retained for GR.
 		if r.retainedPeers[peerAddr] {

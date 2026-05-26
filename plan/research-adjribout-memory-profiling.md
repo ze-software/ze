@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-05-25 |
+| Phase | 2 |
+| Updated | 2026-05-26 |
 
 ## Post-Compaction Recovery
 
@@ -19,12 +19,15 @@
 
 ## Task
 
-Reduce per-peer route memory in the engine OutgoingRIB and plugin ribOut
-by replacing per-peer full-copy storage with shared pool handles.
+Reduce per-peer route memory in the plugin ribOut by replacing per-peer
+full-copy storage with shared pool handles.
 
-Measured current cost: 863 bytes/route/peer (478 engine + 385 plugin).
-Target: ~4 bytes/route/peer + shared pool.
-At 1M routes, 10 peers: 8.4 GB current, ~440 MB target (95% reduction).
+-> Decision: Engine OutgoingRIB has zero production callers (test-only). Phase 1 dropped.
+-> Decision: Phase 2 target is 16 B/route/peer (not 4 B; handle is 4 B but entry needs MsgID + StaleLevel).
+
+Measured current cost: 385 bytes/route/peer (plugin ribOut).
+Target: 16 bytes/route/peer + shared pool.
+At 1M routes, 10 peers: 3.7 GB current, ~230 MB target (94% reduction).
 
 ## Required Reading
 

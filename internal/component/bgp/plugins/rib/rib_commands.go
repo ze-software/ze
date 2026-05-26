@@ -597,7 +597,7 @@ func (r *RIBManager) outboundResendJSON(selector, famStr string) string {
 	var peersToResend []string
 	routesToResend := make(map[string][]*Route)
 
-	for peer, peerFamilies := range r.ribOut {
+	for peer := range r.ribOut {
 		if !matchesPeer(peer, selector) {
 			continue
 		}
@@ -606,19 +606,11 @@ func (r *RIBManager) outboundResendJSON(selector, famStr string) string {
 		}
 		var routesCopy []*Route
 		if famStr != "" {
-			// Single family resend
 			if fam, ok := family.LookupFamily(famStr); ok {
-				for _, rt := range peerFamilies[fam] {
-					routesCopy = append(routesCopy, rt)
-				}
+				routesCopy = r.collectRibOutRoutes(peer, fam)
 			}
 		} else {
-			// All families
-			for _, familyRoutes := range peerFamilies {
-				for _, rt := range familyRoutes {
-					routesCopy = append(routesCopy, rt)
-				}
-			}
+			routesCopy = r.collectAllRibOutRoutes(peer)
 		}
 		if len(routesCopy) > 0 {
 			peersToResend = append(peersToResend, peer)
@@ -800,11 +792,17 @@ func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
 	// Only routes originally received from peerAddr are marked; routes from other
 	// peers are left fresh. During LLGR readvertisement, sendRoutes carries
 	// meta["stale"] through ForwardUpdate to egress filters.
-	for _, peerFamilies := range r.ribOut {
-		for _, familyRoutes := range peerFamilies {
-			for _, route := range familyRoutes {
-				if route.SourcePeer == peerAddr {
-					route.StaleLevel = staleLevel
+	for fam, keys := range r.ribOutSource {
+		for key, src := range keys {
+			if src.peer != peerAddr {
+				continue
+			}
+			for _, peerFamilies := range r.ribOut {
+				if familyRoutes, ok := peerFamilies[fam]; ok {
+					if entry, exists := familyRoutes[key]; exists {
+						entry.StaleLevel = staleLevel
+						familyRoutes[key] = entry
+					}
 				}
 			}
 		}

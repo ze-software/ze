@@ -171,7 +171,7 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 
 	med := uint32(100)
 	localPref := uint32(200)
-	r.ribOut["192.0.2.1"] = map[family.Family]map[string]*Route{
+	r.ribOut["192.0.2.1"] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {
 				Family:           family.IPv4Unicast,
@@ -185,7 +185,7 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 				LargeCommunities: []attribute.LargeCommunity{{GlobalAdmin: 65000, LocalData1: 1, LocalData2: 2}},
 			},
 		},
-	}
+	})
 
 	route := requireFirstRoute(t, r.showPipeline("*", []string{"sent"}), "adj-rib-out", "192.0.2.1")
 
@@ -275,7 +275,7 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 func TestOutboundShowMinimalAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut["192.0.2.2"] = map[family.Family]map[string]*Route{
+	r.ribOut["192.0.2.2"] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {
 				Family:  family.IPv4Unicast,
@@ -283,7 +283,7 @@ func TestOutboundShowMinimalAttributes(t *testing.T) {
 				NextHop: "10.0.0.1",
 			},
 		},
-	}
+	})
 
 	route := requireFirstRoute(t, r.showPipeline("*", []string{"sent"}), "adj-rib-out", "192.0.2.2")
 
