@@ -5,6 +5,7 @@ package config
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -27,6 +28,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -656,6 +658,9 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, d
 	// Run Bubble Tea program
 	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
+		if errors.Is(err, tea.ErrProgramPanic) {
+			crashlog.HandleCaughtPanic(err)
+		}
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}

@@ -7,6 +7,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -44,6 +45,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"  // init() registers interface show/migrate RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all" // init() registers all YANG schemas
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 
 	tea "charm.land/bubbletea/v2"
@@ -151,6 +153,9 @@ func runInteractiveWithDispatch(dispatch CommandFunc) int {
 	restoreOutput()
 
 	if runErr != nil {
+		if errors.Is(runErr, tea.ErrProgramPanic) {
+			crashlog.HandleCaughtPanic(runErr)
+		}
 		fmt.Fprintf(os.Stderr, "error: %v\n", runErr)
 		return 1
 	}
@@ -215,6 +220,9 @@ func runInteractiveSession(client *cliClient) int {
 
 	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
+		if errors.Is(err, tea.ErrProgramPanic) {
+			crashlog.HandleCaughtPanic(err)
+		}
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}

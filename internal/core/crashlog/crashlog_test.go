@@ -174,6 +174,35 @@ func TestParseSyslogAddr(t *testing.T) {
 	}
 }
 
+func TestHandleCaughtPanic(t *testing.T) {
+	dir := t.TempDir()
+	crashDir = dir
+	crashKeep = 5
+	startTime = time.Now()
+
+	HandleCaughtPanic(os.ErrPermission)
+
+	files := listCrashFileNames(dir)
+	if len(files) != 1 {
+		t.Fatalf("expected 1 crash file, got %d", len(files))
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, files[0]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "=== Ze Crash Report ===") {
+		t.Error("crash file missing metadata header")
+	}
+	if !strings.Contains(content, "permission denied") {
+		t.Error("crash file missing error value")
+	}
+	if strings.Contains(content, "=== Stack Trace ===") {
+		t.Error("caught panic should not include stack trace")
+	}
+}
+
 func TestHandlePanic(t *testing.T) {
 	dir := t.TempDir()
 	crashDir = dir

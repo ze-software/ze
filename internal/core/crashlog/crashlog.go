@@ -77,6 +77,26 @@ func HandlePanic(r any) {
 	writeMsg(origStderr, report)
 }
 
+// HandleCaughtPanic writes a crash report when a panic was caught by a
+// framework (e.g. bubbletea) before Ze's own recover could fire. When
+// stderr is redirected to the pipe reader, the reader produces a more
+// complete crash file (with the stack trace), so this function only
+// writes to syslog. When stderr is not redirected, this function
+// writes the crash file directly.
+func HandleCaughtPanic(err error) {
+	if crashDir != "" && pipeW == nil {
+		writeCrashFile(crashDir, crashKeep, buildCrashReport(err, nil))
+	}
+
+	if syslogAddr != "" {
+		errStr := err.Error()
+		msg := make([]byte, 0, len("PANIC (caught): ")+len(errStr))
+		msg = append(msg, "PANIC (caught): "...)
+		msg = append(msg, errStr...)
+		writeSyslogCrash(syslogAddr, string(msg))
+	}
+}
+
 func appendValue(b []byte, v any) []byte {
 	switch val := v.(type) {
 	case string:
