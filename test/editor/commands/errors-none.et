@@ -33,7 +33,7 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Check errors
-input=type:text=errors
+input=type:text=show | errors
 input=enter
 
 # Should show no issues

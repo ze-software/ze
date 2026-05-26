@@ -358,23 +358,13 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	}
 
 	// Handle mode switching commands.
-	// "run" in config mode -> switch to operational mode.
-	// "run <args>" in config mode -> switch to operational mode and execute.
+	// "run <args>" in config mode -> one-shot execution, stay in config mode.
 	// "configure" in operational mode -> switch to config mode.
 	// Config commands (set, delete, etc.) in operational mode -> switch to config mode and execute.
-	if m.mode == ModeConfig && input == cmdRun {
-		m.textInput.SetValue("")
-		m.SwitchMode(ModeOperational)
-		m.updateCompletions()
-		return m, nil
-	}
 	if m.mode == ModeConfig && strings.HasPrefix(input, cmdRun+" ") {
 		args := strings.TrimSpace(strings.TrimPrefix(input, cmdRun))
 		m.textInput.SetValue("")
-		m.SwitchMode(ModeOperational)
-		m.updateCompletions()
-		// Save to history and execute.
-		if m.history.Append(args) {
+		if m.history.Append(input) {
 			m.history.Save(m.mode.String())
 		}
 		m.showDropdown = false
@@ -416,6 +406,11 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		}
 		m.statusMessage = "running..."
 		return m, m.executeOperationalCommand(args)
+	}
+	if m.mode == ModeConfig && input == cmdRun {
+		m.textInput.SetValue("")
+		m.statusMessage = "usage: run <command>"
+		return m, nil
 	}
 	if m.mode == ModeOperational && input == cmdConfigure {
 		if !m.hasEditor() {

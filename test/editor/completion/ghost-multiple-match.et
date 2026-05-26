@@ -12,16 +12,10 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Type "de" which matches "deactivate" and "delete" (common prefix "de")
-# With only "de" typed, the common prefix is "de" itself, so no ghost extension.
-# Type "del" to get a unique match ("delete") with ghost "ete".
-# But we want multiple matches: use "ro" -> "rollback" (common prefix "ro")
-# Actually use "re" -> "rename" only. Use "hi" -> "history" only.
-# Use "set " which gives config path completions.
-# Simplest: "com" matches "commit" and "compare" (common prefix "com").
-input=type:text=com
-expect=completion:contains=commit,compare
+# Type "di" which matches "discard" and "disconnect" (common prefix "dis").
+# Ghost text shows "s" (the common extension beyond "di").
+input=type:text=di
+expect=completion:contains=discard,disconnect
 
-# Ghost text is empty: "commit" and "compare" diverge at index 3 ("com").
-# Typed "com" = common prefix, no further extension.
-expect=ghost:empty
+# Ghost text extends to common prefix "dis" -> shows "s" after "di".
+expect=ghost:text=s

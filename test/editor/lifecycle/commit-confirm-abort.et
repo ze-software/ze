@@ -44,7 +44,7 @@ input=enter
 expect=status:contains=Confirm within
 
 # Abort the commit
-input=type:text=abort
+input=type:text=confirm abort
 input=enter
 expect=status:contains=rolled back
 expect=error:none

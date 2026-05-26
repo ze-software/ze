@@ -93,9 +93,9 @@ func (m *Model) SwitchMode(target EditorMode) {
 var configModeCommands = map[string]bool{
 	cmdSet: true, cmdDelete: true, cmdShow: true, cmdOption: true, cmdEdit: true,
 	cmdDeactivate: true, cmdActivate: true,
-	cmdCommit: true, cmdSave: true, cmdDiscard: true, cmdCompare: true,
-	cmdRollback: true, cmdHistory: true, cmdLoad: true,
-	cmdErrors: true, cmdTop: true, cmdUp: true,
+	cmdCommit: true, cmdSave: true, cmdDiscard: true,
+	cmdRollback: true, cmdLoad: true,
+	cmdTop: true, cmdUp: true,
 	cmdWho: true, cmdDisconnect: true,
 }
 
@@ -109,7 +109,7 @@ func isOperationalVerb(input string) bool {
 		return false
 	}
 	switch fields[0] {
-	case cmdShow, cmdErrors, cmdWho, cmdCompare, cmdHistory:
+	case cmdShow, cmdWho:
 		return true
 	}
 	return false

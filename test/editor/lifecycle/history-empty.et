@@ -17,7 +17,7 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Check history (no prior commits)
-input=type:text=history
+input=type:text=show | history
 input=enter
 expect=viewport:contains=No backups
 expect=error:none

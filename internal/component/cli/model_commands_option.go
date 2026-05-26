@@ -10,7 +10,7 @@ import (
 	"slices"
 )
 
-var errUsageOptionBlamechangesauthordatesourceallnoneenabledisable = errors.New("usage: option <blame|changes|author|date|source|all|none> [enable|disable]")
+var errUsageOption = errors.New("usage: option <author|date|source|changes|all|none|errors> [enable|disable|hints|hide]")
 
 // isOptionColumn returns true if the name is a valid display column.
 var optionColumnNames = []string{colAuthor, colDate, colSource, colChanges}
@@ -26,7 +26,7 @@ func (m *Model) cmdOption(args []string) (commandResult, error) {
 	}
 
 	if len(args) == 0 {
-		return commandResult{}, errUsageOptionBlamechangesauthordatesourceallnoneenabledisable
+		return commandResult{}, errUsageOption
 	}
 
 	// Column toggles: option <column> enable|disable
@@ -34,15 +34,14 @@ func (m *Model) cmdOption(args []string) (commandResult, error) {
 		return m.cmdOptionColumnToggle(args)
 	}
 
-	// View modes: blame, changes require an active session.
-	if args[0] == cmdBlame || args[0] == cmdChanges {
-		if !m.editor.HasSession() {
-			return commandResult{}, fmt.Errorf("option %s requires an active editing session", args[0])
-		}
-		if args[0] == cmdBlame {
-			return m.cmdShowBlame()
-		}
-		return m.cmdShowChanges(args[1:])
+	// Moved to pipe filter: redirect users.
+	if args[0] == cmdBlame {
+		return commandResult{}, fmt.Errorf("use 'show | %s' instead", args[0])
+	}
+
+	// Error display toggles: option errors hints / option errors hide
+	if args[0] == cmdErrors {
+		return m.cmdOptionErrors(args[1:])
 	}
 
 	// Column query: bare "option <column>" reports current state.
@@ -126,40 +125,33 @@ func (m *Model) cmdOptionAllColumns(enable bool) (commandResult, error) {
 	return result, nil
 }
 
-// cmdOptionPipe executes option subcommands with pipe filters (grep, head, tail).
-func (m *Model) cmdOptionPipe(args []string, filters []PipeFilter) (commandResult, error) {
-	var result commandResult
-	var err error
-
-	if len(args) > 0 && (args[0] == cmdBlame || args[0] == cmdChanges) {
-		if !m.editor.HasSession() {
-			return commandResult{}, fmt.Errorf("option %s requires an active editing session", args[0])
+// cmdOptionErrors handles error display toggles: option errors hints / option errors hide.
+func (m *Model) cmdOptionErrors(args []string) (commandResult, error) {
+	if len(args) == 0 {
+		state := "disabled"
+		if m.showHints {
+			state = "enabled"
 		}
-		if args[0] == cmdBlame {
-			result, err = m.cmdShowBlame()
-		} else {
-			result, err = m.cmdShowChanges(args[1:])
-		}
-	} else {
-		// Column toggles don't produce pipeable output; just run the option command.
-		return m.cmdOption(args)
-	}
-	if err != nil {
-		return result, err
+		return commandResult{statusMessage: "error hints: " + state}, nil
 	}
 
-	if len(filters) == 0 {
-		return result, nil
+	switch args[0] {
+	case "hints":
+		m.showHints = !m.showHints
+		msg := "Inline hints disabled"
+		if m.showHints {
+			msg = "Inline hints enabled"
+		}
+		return commandResult{
+			statusMessage: msg,
+			configView:    m.configViewAtPath(m.contextPath),
+		}, nil
+	case "hide":
+		return commandResult{
+			statusMessage: "Errors hidden",
+			configView:    m.configViewAtPath(m.contextPath),
+		}, nil
 	}
 
-	// Apply text filters to the output.
-	output := result.output
-	for _, f := range filters {
-		output, err = ApplyPipeFilter(output, f)
-		if err != nil {
-			return commandResult{}, err
-		}
-	}
-	result.output = output
-	return result, nil
+	return commandResult{}, fmt.Errorf("unknown option errors subcommand: %s (use hints or hide)", args[0])
 }

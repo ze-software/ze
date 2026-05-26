@@ -91,9 +91,6 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 	case cmdOption:
 		return m.cmdOption(args)
 
-	case cmdCompare:
-		return commandResult{output: m.editor.Diff()}, nil
-
 	case cmdCommit:
 		// Parse force flag: "commit force", "commit force confirmed <N>"
 		force := len(args) >= 1 && args[0] == "force"
@@ -129,10 +126,10 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		return m.cmdCommit()
 
 	case cmdConfirm:
+		if len(args) >= 1 && args[0] == cmdAbort {
+			return m.cmdAbort()
+		}
 		return m.cmdConfirm()
-
-	case cmdAbort:
-		return m.cmdAbort()
 
 	case cmdDiscard:
 		// Session-aware discard: requires path or cmdAll when session is active.
@@ -140,9 +137,6 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 			return m.cmdDiscardSession(args)
 		}
 		return m.cmdDiscard()
-
-	case cmdHistory:
-		return m.cmdHistory()
 
 	case cmdRollback:
 		return m.cmdRollback(args)
@@ -165,9 +159,6 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 
 	case cmdSave:
 		return m.cmdSave()
-
-	case cmdErrors:
-		return m.cmdErrors(args)
 
 	case cmdWho:
 		if !m.editor.HasSession() {
@@ -1126,55 +1117,25 @@ func (m *Model) cmdDiscard() (commandResult, error) {
 	}, nil
 }
 
-// cmdErrors handles the errors command with subcommands:
-//
-//	errors / errors show — display validation issues in viewport.
-//	errors hints — toggle inline diagnostic hints (← missing: ...).
-//	errors hide — return to config view.
-func (m *Model) cmdErrors(args []string) (commandResult, error) {
-	sub := "show"
-	if len(args) > 0 {
-		sub = args[0]
+// cmdErrors displays validation issues in the viewport.
+// Called by the show | errors pipe filter.
+func (m *Model) cmdErrors(_ []string) (commandResult, error) { //nolint:unparam // signature matches pipe filter pattern
+	issues := make([]ConfigValidationError, 0, len(m.validationErrors)+len(m.validationWarnings))
+	issues = append(issues, m.validationErrors...)
+	issues = append(issues, m.validationWarnings...)
+
+	var parts []string
+	if len(issues) > 0 {
+		parts = append(parts, formatIssueList(issues))
 	}
-
-	switch sub {
-	case "show":
-		issues := make([]ConfigValidationError, 0, len(m.validationErrors)+len(m.validationWarnings))
-		issues = append(issues, m.validationErrors...)
-		issues = append(issues, m.validationWarnings...)
-
-		var parts []string
-		if len(issues) > 0 {
-			parts = append(parts, formatIssueList(issues))
-		}
-		if len(m.reloadErrors) > 0 {
-			parts = append(parts, "Reload errors:")
-			parts = append(parts, m.reloadErrors...)
-		}
-		if len(parts) == 0 {
-			return commandResult{output: "No issues"}, nil
-		}
-		return commandResult{output: strings.Join(parts, "\n")}, nil
-
-	case "hints":
-		m.showHints = !m.showHints
-		msg := "Inline hints disabled"
-		if m.showHints {
-			msg = "Inline hints enabled"
-		}
-		return commandResult{
-			statusMessage: msg,
-			configView:    m.configViewAtPath(m.contextPath),
-		}, nil
-
-	case "hide":
-		return commandResult{
-			statusMessage: "Errors hidden",
-			configView:    m.configViewAtPath(m.contextPath),
-		}, nil
+	if len(m.reloadErrors) > 0 {
+		parts = append(parts, "Reload errors:")
+		parts = append(parts, m.reloadErrors...)
 	}
-
-	return commandResult{}, fmt.Errorf("unknown errors subcommand: %s (use show, hints, or hide)", sub)
+	if len(parts) == 0 {
+		return commandResult{output: "No issues"}, nil
+	}
+	return commandResult{output: strings.Join(parts, "\n")}, nil
 }
 
 // formatIssueList formats validation issues for viewport display.
@@ -1312,12 +1273,12 @@ func (m *Model) cmdCopy(args []string) (commandResult, error) {
 	}, nil
 }
 
-// filterOutSessionCommands removes session-dependent commands and show subcommands
-// (who, disconnect, blame, changes) from completions when no editing session is active.
+// filterOutSessionCommands removes session-dependent commands
+// (who, disconnect) from completions when no editing session is active.
 func filterOutSessionCommands(completions []Completion) []Completion {
 	result := make([]Completion, 0, len(completions))
 	for _, c := range completions {
-		if c.Text == cmdBlame || c.Text == cmdChanges || c.Text == cmdWho || c.Text == cmdDisconnect {
+		if c.Text == cmdWho || c.Text == cmdDisconnect {
 			continue
 		}
 		result = append(result, c)

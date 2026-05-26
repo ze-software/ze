@@ -34,7 +34,7 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Initially no backups
-input=type:text=history
+input=type:text=show | history
 input=enter
 expect=viewport:contains=No backups
 expect=error:none
@@ -50,7 +50,7 @@ expect=dirty:false
 expect=status:contains=committed
 
 # Now history should show backup
-input=type:text=history
+input=type:text=show | history
 input=enter
 expect=viewport:not-contains=No backups
 expect=viewport:contains=test

@@ -33,7 +33,7 @@ expect=status:contains=committed
 expect=error:none
 
 # Check history exists and shows backup
-input=type:text=history
+input=type:text=show | history
 input=enter
 expect=viewport:contains=test
 expect=error:none

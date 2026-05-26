@@ -1,5 +1,5 @@
-# Test: Abort without pending commit confirm
-# VALIDATES: abort command when no timer is active shows message
+# Test: Confirm abort without pending commit confirm
+# VALIDATES: confirm abort command when no timer is active shows message
 # PREVENTS: Unexpected behavior for out-of-sequence command
 
 tmpfs=test.conf:terminator=EOF_CONF
@@ -30,6 +30,6 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Abort without prior commit confirm
-input=type:text=abort
+input=type:text=confirm abort
 input=enter
 expect=error:contains=pending

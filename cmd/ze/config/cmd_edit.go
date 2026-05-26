@@ -402,11 +402,11 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 					{Name: "top", Desc: "Return to root context"},
 					{Name: "up", Desc: "Go up one level"},
 					{Name: "show [section]", Desc: "Display current configuration"},
-					{Name: "compare", Desc: "Show diff vs original"},
+					{Name: "show | <filter>", Desc: "Pipe: blame, changes, compare, errors, history"},
 					{Name: "commit", Desc: "Save changes (creates backup)"},
 					{Name: "discard", Desc: "Revert all changes"},
-					{Name: "history", Desc: "List backup files"},
 					{Name: "rollback <N>", Desc: "Restore backup N"},
+					{Name: "run <command>", Desc: "Execute operational command"},
 					{Name: "exit/quit", Desc: "Exit (prompts if unsaved changes)"},
 				}},
 				{Title: "Mode switching", Entries: []helpfmt.HelpEntry{

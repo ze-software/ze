@@ -35,6 +35,6 @@ option=timeout:value=10s
 expect=errors:count=0
 
 # Errors command output is visible
-input=type:text=errors
+input=type:text=show | errors
 input=enter
 expect=error:none

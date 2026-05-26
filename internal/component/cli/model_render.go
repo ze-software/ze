@@ -468,7 +468,7 @@ func (m Model) validationHintLine() string {
 	if len(m.validationErrors) == 0 && len(m.validationWarnings) == 0 {
 		return ""
 	}
-	hint := "  red=error, yellow=missing field — 'errors' for details, 'show' for config"
+	hint := "  red=error, yellow=missing field — 'show | errors' for details, 'show' for config"
 	return dimStyle.Render(hint)
 }
 
@@ -774,30 +774,32 @@ func (m Model) renderHelpOverlay(base string) string {
   show                 Display configuration (scrollable)
   show confirmed       Display committed (on-disk) config
   show saved           Display saved draft file
-  show | format config Display as set commands
+  show | blame         Annotate with authorship
+  show | changes [all] Pending changes (session or all)
   show | compare       Diff against committed config
   show | compare saved Diff against saved draft
   show | compare rollback N  Diff against backup N
   show | compare <user>      Diff against user's changes
+  show | errors        Validation issues
+  show | format config Display as set commands
+  show | history       List rollback revisions
   option <col> enable  Enable display column (author/date/source/changes)
   option <col> disable Disable display column
   option all / none    Enable/disable all columns
-  option blame         Show blame view
-  option changes       Show pending changes
-  compare              Show diff vs original
+  option errors hints  Toggle inline diagnostic hints
+  option errors hide   Hide error annotations
   commit               Save changes with backup
   commit force         Save despite warnings (errors still block)
   commit confirmed <N> Save with auto-revert after N seconds
   commit force confirmed <N> Force + auto-revert
   confirm              Make pending commit permanent
-  abort                Cancel pending commit and roll back
+  confirm abort        Cancel pending commit and roll back
   discard              Revert all changes
-  history              List backup files
   rollback <N>         Restore backup N
   exit                 Return to operational mode
 
 Modes:
-  run <cmd>            Execute an operational command
+  run <cmd>            Execute operational command (stays in config mode)
   configure            Enter config mode (from operational mode)
   (config commands in operational mode auto-switch to config mode)
 

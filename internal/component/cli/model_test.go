@@ -1117,13 +1117,10 @@ func TestEditCommandsUnavailableWithoutEditor(t *testing.T) {
 		"set bgp router-id 1.2.3.4",
 		"delete bgp",
 		"show",
-		"compare",
 		"commit",
 		"discard",
-		"history",
 		"rollback 1",
 		"load file absolute replace test.conf",
-		"errors",
 		"top",
 		"up",
 	}

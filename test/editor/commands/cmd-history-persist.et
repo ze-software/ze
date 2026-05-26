@@ -21,19 +21,19 @@ option=history:store
 input=type:text=show
 input=enter
 
-input=type:text=compare
+input=type:text=show | compare
 input=enter
 
 # Verify history exists before restart
 input=up
-expect=input:value=compare
+expect=input:value=show | compare
 
 # Simulate exit + relaunch
 restart=editor
 
 # After restart, press Up -- history should be restored from zefs
 input=up
-expect=input:value=compare
+expect=input:value=show | compare
 
 input=up
 expect=input:value=show

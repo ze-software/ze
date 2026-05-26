@@ -29,7 +29,7 @@ option=timeout:value=10s
 expect=warnings:contains=remote
 
 # Errors command shows the issue (unified issue list)
-input=type:text=errors
+input=type:text=show | errors
 input=enter
 expect=viewport:contains=issue
 expect=viewport:contains=remote

@@ -20,12 +20,12 @@ option=timeout:value=10s
 input=type:text=show
 input=enter
 
-input=type:text=compare
+input=type:text=show | compare
 input=enter
 
 # Up shows most recent
 input=up
-expect=input:value=compare
+expect=input:value=show | compare
 
 # Up again shows older
 input=up
@@ -33,7 +33,7 @@ expect=input:value=show
 
 # Down returns to more recent
 input=down
-expect=input:value=compare
+expect=input:value=show | compare
 
 # Down past end restores empty input
 input=down

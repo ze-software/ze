@@ -1368,13 +1368,11 @@ func TestFormatChangeEntryDelete(t *testing.T) {
 
 // TestFilterOutSessionCommands verifies session-dependent command filtering.
 //
-// VALIDATES: who, disconnect, blame, changes are removed; other commands preserved.
+// VALIDATES: who, disconnect are removed; other commands preserved.
 // PREVENTS: Non-session commands accidentally filtered or session commands leaking.
 func TestFilterOutSessionCommands(t *testing.T) {
 	input := []Completion{
 		{Text: cmdSet, Type: "command"},
-		{Text: cmdBlame, Type: "keyword"},
-		{Text: cmdChanges, Type: "keyword"},
 		{Text: cmdWho, Type: "command"},
 		{Text: cmdDisconnect, Type: "command"},
 		{Text: cmdExit, Type: "command"},
@@ -1389,17 +1387,15 @@ func TestFilterOutSessionCommands(t *testing.T) {
 	assert.Contains(t, texts, cmdSet)
 	assert.Contains(t, texts, cmdExit)
 	assert.Contains(t, texts, cmdShow)
-	assert.NotContains(t, texts, cmdBlame)
-	assert.NotContains(t, texts, cmdChanges)
 	assert.NotContains(t, texts, cmdWho)
 	assert.NotContains(t, texts, cmdDisconnect)
 }
 
-// TestCmdOptionBlameRequiresSession verifies option blame errors without session.
+// TestCmdOptionBlameRedirectsToPipe verifies option blame redirects to pipe syntax.
 //
-// VALIDATES: "option blame" returns error when no editing session is active.
-// PREVENTS: Nil pointer or empty output when blame called without session.
-func TestCmdOptionBlameRequiresSession(t *testing.T) {
+// VALIDATES: "option blame" tells user to use "show | blame".
+// PREVENTS: Stale muscle memory from old syntax silently failing.
+func TestCmdOptionBlameRedirectsToPipe(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
@@ -1412,17 +1408,16 @@ func TestCmdOptionBlameRequiresSession(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// No session set -- option blame should error
 	_, err = model.cmdOption([]string{cmdBlame})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "requires an active editing session")
+	assert.Contains(t, err.Error(), "show | blame")
 }
 
-// TestCmdOptionChangesRequiresSession verifies option changes errors without session.
+// TestCmdOptionChangesRedirectsToPipe verifies option changes redirects to pipe syntax.
 //
-// VALIDATES: "option changes" returns error when no editing session is active.
-// PREVENTS: Empty or misleading output when changes called without session.
-func TestCmdOptionChangesRequiresSession(t *testing.T) {
+// VALIDATES: "option changes" tells user to use "show | changes".
+// PREVENTS: Stale muscle memory from old syntax silently failing.
+func TestCmdOptionChangesRedirectsToPipe(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
@@ -1437,7 +1432,7 @@ func TestCmdOptionChangesRequiresSession(t *testing.T) {
 
 	_, err = model.cmdOption([]string{cmdChanges})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "requires an active editing session")
+	assert.Contains(t, err.Error(), "show | changes")
 }
 
 // TestCmdShowFormatConfigWithoutSession verifies show | format config works without session.

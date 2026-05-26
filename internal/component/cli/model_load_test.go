@@ -133,9 +133,9 @@ func TestModelConfirmCancelsTimer(t *testing.T) {
 	assert.Contains(t, result.statusMessage, "confirmed", "status should mention confirmed")
 }
 
-// TestModelAbortRollsBack verifies "abort" command cancels timer and rolls back.
+// TestModelAbortRollsBack verifies "confirm abort" command cancels timer and rolls back.
 //
-// VALIDATES: "abort" after "commit confirm" reverts to backup.
+// VALIDATES: "confirm abort" after "commit confirmed" reverts to backup.
 // PREVENTS: Abort not reverting changes.
 func TestModelAbortRollsBack(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -1019,9 +1019,9 @@ func TestConfirmTriggersReload(t *testing.T) {
 	assert.Contains(t, confirmResult.statusMessage, "confirmed", "status should mention confirmed")
 }
 
-// TestAbortTriggersReload verifies abort command notifies daemon after rollback.
+// TestAbortTriggersReload verifies "confirm abort" notifies daemon after rollback.
 //
-// VALIDATES: "abort" after "commit confirm" rolls back and reloads.
+// VALIDATES: "confirm abort" after "commit confirmed" rolls back and reloads.
 // PREVENTS: Daemon running new config after abort.
 func TestAbortTriggersReload(t *testing.T) {
 	tmpDir := t.TempDir()

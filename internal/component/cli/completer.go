@@ -94,15 +94,12 @@ var commands = []Completion{
 	{Text: cmdDelete, Description: "Delete a configuration value", Type: "command"},
 	{Text: cmdEdit, Description: "Enter a subsection context", Type: "command"},
 	{Text: cmdShow, Description: "Display configuration", Type: "command"},
-	{Text: cmdOption, Description: "Display settings (columns, blame)", Type: "command"},
-	{Text: cmdCompare, Description: "Show diff vs original", Type: "command"},
+	{Text: cmdOption, Description: "Display settings (columns, errors)", Type: "command"},
 	{Text: cmdCommit, Description: "Apply config (must be valid)", Type: "command"},
 	{Text: cmdSave, Description: "Snapshot work-in-progress", Type: "command"},
-	{Text: cmdErrors, Description: "Validation issues (show/hints/hide)", Type: "command"},
 	{Text: cmdDiscard, Description: "Revert all changes", Type: "command"},
 	{Text: cmdTop, Description: "Return to root context", Type: "command"},
 	{Text: cmdUp, Description: "Go up one level", Type: "command"},
-	{Text: cmdHistory, Description: "List backup files", Type: "command"},
 	{Text: cmdRollback, Description: "Restore from backup", Type: "command"},
 	{Text: cmdExit, Description: "Exit current mode", Type: "command"},
 	{Text: cmdHelp, Description: "Show help", Type: "command"},
@@ -156,15 +153,6 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 			}
 		}
 		return cmdCompletions
-	}
-
-	// Check for pipe in any command that supports it.
-	if cmd == cmdErrors {
-		for i, t := range tokens[1:] {
-			if t == "|" {
-				return completePipeFilter(textPipeFilters, tokens[i+2:], endsWithSpace)
-			}
-		}
 	}
 
 	// Dispatch based on command
@@ -394,11 +382,11 @@ func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace
 
 // optionSubcommands are completions offered when typing "option ".
 var optionSubcommands = []Completion{
-	{Text: cmdBlame, Description: "Annotated tree view with authorship", Type: "keyword"},
-	{Text: cmdChanges, Description: "Pending changes (mine or all)", Type: "keyword"},
 	{Text: colAuthor, Description: "Toggle author column (enable/disable)", Type: "keyword"},
 	{Text: colDate, Description: "Toggle date column (enable/disable)", Type: "keyword"},
 	{Text: colSource, Description: "Toggle source column (enable/disable)", Type: "keyword"},
+	{Text: colChanges, Description: "Toggle changes column (enable/disable)", Type: "keyword"},
+	{Text: cmdErrors, Description: "Error display (hints/hide)", Type: "keyword"},
 	{Text: cmdAll, Description: "Enable all display columns", Type: "keyword"},
 	{Text: cmdNone, Description: "Disable all display columns", Type: "keyword"},
 }
@@ -413,12 +401,11 @@ func (c *Completer) completeOptionPath(tokens, _ []string, endsWithSpace bool) [
 		return filterCompletions(optionSubcommands, prefix)
 	}
 
-	// "option changes " -> offer "all" subcommand and enable/disable.
-	if len(tokens) == 1 && tokens[0] == cmdChanges && endsWithSpace {
+	// "option errors " -> offer hints/hide.
+	if len(tokens) == 1 && tokens[0] == cmdErrors && endsWithSpace {
 		return []Completion{
-			{Text: cmdAll, Description: "All sessions' pending changes", Type: "keyword"},
-			{Text: cmdEnable, Description: "Enable changes column", Type: "keyword"},
-			{Text: cmdDisable, Description: "Disable changes column", Type: "keyword"},
+			{Text: "hints", Description: "Toggle inline diagnostic hints", Type: "keyword"},
+			{Text: "hide", Description: "Hide error annotations", Type: "keyword"},
 		}
 	}
 
@@ -442,8 +429,12 @@ var textPipeFilters = []Completion{
 
 // showPipeFilters extend text filters with show-specific pipes.
 var showPipeFilters = append([]Completion{
+	{Text: cmdBlame, Description: "Annotate with authorship", Type: "keyword"},
+	{Text: cmdChanges, Description: "Pending changes", Type: "keyword"},
+	{Text: cmdCompare, Description: "Diff against baseline", Type: "keyword"},
+	{Text: cmdErrors, Description: "Validation issues", Type: "keyword"},
 	{Text: cmdFormat, Description: "Output format (tree or config)", Type: "keyword"},
-	{Text: cmdCompare, Description: "Compare with committed config", Type: "keyword"},
+	{Text: cmdHistory, Description: "Rollback revisions", Type: "keyword"},
 	{Text: cmdActive, Description: "Show only active nodes (hide inactive)", Type: "keyword"},
 	{Text: cmdInactive, Description: "Show only inactive nodes", Type: "keyword"},
 }, textPipeFilters...)
@@ -489,6 +480,14 @@ func completePipeFilter(available []Completion, tokens []string, endsWithSpace b
 			{Text: "committed", Description: "Compare with committed config", Type: "keyword"},
 			{Text: "saved", Description: "Compare with saved draft", Type: "keyword"},
 			{Text: "rollback", Description: "Compare with rollback N", Type: "keyword"},
+		}, prefix)
+	case cmdChanges:
+		prefix := ""
+		if !endsWithSpace && len(tokens) >= 2 {
+			prefix = tokens[len(tokens)-1]
+		}
+		return filterCompletions([]Completion{
+			{Text: cmdAll, Description: "All sessions' pending changes", Type: "keyword"},
 		}, prefix)
 	}
 

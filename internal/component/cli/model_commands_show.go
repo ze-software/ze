@@ -19,11 +19,16 @@ func (m *Model) cmdShow(args []string) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("command %q requires config mode (no config file loaded)", cmdShow)
 	}
 
-	// Reject old show subcommands that moved to "option".
+	// Reject subcommands that moved to pipe filters or option.
 	if len(args) > 0 {
-		if args[0] == cmdBlame || args[0] == cmdChanges || isOptionColumn(args[0]) ||
-			args[0] == cmdAll || args[0] == cmdNone {
-			return commandResult{}, fmt.Errorf("display settings moved: use 'option %s' instead", strings.Join(args, " "))
+		switch args[0] {
+		case cmdBlame, cmdChanges, cmdErrors, cmdHistory, cmdCompare:
+			return commandResult{}, fmt.Errorf("use 'show | %s' instead", args[0])
+		case cmdAll, cmdNone:
+			return commandResult{}, fmt.Errorf("use 'option %s' instead", args[0])
+		}
+		if isOptionColumn(args[0]) {
+			return commandResult{}, fmt.Errorf("use 'option %s' instead", args[0])
 		}
 	}
 

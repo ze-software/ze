@@ -70,9 +70,21 @@ func TestCmdOptionUnknownName(t *testing.T) {
 func TestCmdShowRejectsOldSubcommands(t *testing.T) {
 	m := testShowModel(t)
 
+	// Moved to pipe filters: should redirect to "show | <filter>".
 	for _, old := range [][]string{
 		{cmdBlame},
 		{cmdChanges},
+		{cmdErrors},
+		{cmdHistory},
+		{cmdCompare},
+	} {
+		_, err := m.cmdShow(old)
+		require.Error(t, err, "show %v should error", old)
+		assert.Contains(t, err.Error(), "show |", "error should mention pipe syntax")
+	}
+
+	// Moved to option: should redirect to "option <x>".
+	for _, old := range [][]string{
 		{colAuthor, cmdEnable},
 		{cmdAll},
 		{cmdNone},
@@ -145,9 +157,9 @@ func TestCmdOptionAllNone(t *testing.T) {
 }
 
 // TestCmdOptionChangesEnableDisambiguation verifies "option changes enable" toggles column,
-// while "option changes" without enable/disable shows pending changes.
+// while "option changes" without enable/disable redirects to pipe.
 //
-// VALIDATES: "changes" used as column name with enable/disable, vs view mode without.
+// VALIDATES: "changes" used as column name with enable/disable, vs redirect without.
 // PREVENTS: "option changes enable" interpreted as pending changes subcommand.
 func TestCmdOptionChangesEnableDisambiguation(t *testing.T) {
 	m := testShowModel(t)
@@ -158,10 +170,10 @@ func TestCmdOptionChangesEnableDisambiguation(t *testing.T) {
 	assert.Contains(t, result.statusMessage, "changes column enabled")
 	assert.True(t, m.editor.ShowColumnEnabled(colChanges))
 
-	// "option changes" without enable/disable -> requires session (view mode)
-	_, err = m.cmdOption([]string{cmdChanges})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "requires an active editing session")
+	// "option changes" without enable/disable -> reports column state
+	result, err = m.cmdOption([]string{colChanges})
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "changes")
 }
 
 // TestCmdShowWithArgs verifies show ignores args and displays tree.

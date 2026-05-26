@@ -68,7 +68,7 @@ option=timeout:value=10s
 expect=errors:count=2
 
 # Errors with match for specific peer name
-input=type:text=errors | match peer2
+input=type:text=show | errors | match peer2
 input=enter
 expect=error:none
 

@@ -20,11 +20,15 @@ The editor starts an ephemeral ze instance in the background for live YANG valid
 | `delete <path>` | Delete a configuration value or section |
 | `show` | Display current configuration |
 | `show <path>` | Display a specific section |
-| `diff` | Show uncommitted changes |
+| `show \| blame` | Annotate with authorship |
+| `show \| changes [all]` | Pending changes (session or all) |
+| `show \| compare` | Diff against committed config |
+| `show \| errors` | Validation issues |
+| `show \| history` | List rollback revisions |
 | `commit` | Save changes and notify daemon |
 | `commit confirmed <N>` | Commit with N-second auto-revert window (1-3600) |
 | `confirm` | Make a pending confirmed commit permanent |
-| `abort` | Roll back a pending confirmed commit immediately |
+| `confirm abort` | Roll back a pending confirmed commit immediately |
 | `rollback <N>` | Restore revision N |
 | `top` | Navigate to config root |
 | `up` | Navigate up one level |
@@ -66,14 +70,14 @@ Tab completion is driven by registered YANG schemas. The editor suggests:
 | `commit confirmed 60` | Config saved, daemon notified, 60-second timer starts |
 | Verify the change works | BGP sessions come up, routes propagate, etc. |
 | `confirm` | Timer stops, config is permanent |
-| *or* `abort` | Config reverts immediately |
+| *or* `confirm abort` | Config reverts immediately |
 | *or* timer expires | Config reverts automatically |
 
 The seconds parameter accepts values from 1 to 3600 (one hour).
 
 ## Rollback
 
-The editor automatically saves a rollback revision before each commit. Use `ze config history` to list revisions and `ze config rollback <N>` to restore.
+The editor automatically saves a rollback revision before each commit. Inside the editor, use `show | history` to list revisions and `rollback <N>` to restore. From the shell: `ze config history <file>` and `ze config rollback <N> <file>`.
 
 ## Exit Codes
 

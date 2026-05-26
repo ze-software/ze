@@ -112,7 +112,7 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 	}
 
 	return commandResult{
-		statusMessage:         "Committed" + reloadWarning + ". Confirm within " + textbuf.IntStr(int64(seconds), "s or auto-revert. Use 'confirm' or 'abort'."),
+		statusMessage:         "Committed" + reloadWarning + ". Confirm within " + textbuf.IntStr(int64(seconds), "s or auto-revert. Use 'confirm' or 'confirm abort'."),
 		refreshConfig:         true,
 		revalidate:            true,
 		setConfirmTimer:       true,
@@ -209,7 +209,7 @@ func (m Model) handleConfirmCountdown() (tea.Model, tea.Cmd) {
 	}
 
 	// Update countdown display
-	m.statusMessage = textbuf.StrIntStr("Confirm within ", int64(m.confirmSecondsLeft), "s or auto-revert. Use 'confirm' or 'abort'.")
+	m.statusMessage = textbuf.StrIntStr("Confirm within ", int64(m.confirmSecondsLeft), "s or auto-revert. Use 'confirm' or 'confirm abort'.")
 	return m, tea.Tick(time.Second, func(_ time.Time) tea.Msg {
 		return confirmCountdownMsg{}
 	})
@@ -588,6 +588,36 @@ func (m *Model) cmdShowPipe(args []string, filters []PipeFilter) (commandResult,
 		return m.cmdShowFiltered(opts.TreeFilter, opts.TextFilters)
 	}
 
+	if opts.Blame {
+		if !m.editor.HasSession() {
+			return commandResult{}, fmt.Errorf("show | blame requires an active editing session")
+		}
+		r, e := m.cmdShowBlame()
+		return m.applyTextFilters(r, e, opts.TextFilters)
+	}
+
+	if opts.Changes {
+		if !m.editor.HasSession() {
+			return commandResult{}, fmt.Errorf("show | changes requires an active editing session")
+		}
+		var cargs []string
+		if opts.ChangesAll {
+			cargs = []string{cmdAll}
+		}
+		r, e := m.cmdShowChanges(cargs)
+		return m.applyTextFilters(r, e, opts.TextFilters)
+	}
+
+	if opts.Errors {
+		r, e := m.cmdErrors(nil)
+		return m.applyTextFilters(r, e, opts.TextFilters)
+	}
+
+	if opts.History {
+		r, e := m.cmdHistory()
+		return m.applyTextFilters(r, e, opts.TextFilters)
+	}
+
 	result, err := m.cmdShowDisplayWithSource(opts.Format, opts.CompareTarget, source)
 	if err != nil {
 		return result, err
@@ -612,6 +642,25 @@ func (m *Model) cmdShowPipe(args []string, filters []PipeFilter) (commandResult,
 	}
 	result.output = output
 
+	return result, nil
+}
+
+func (m *Model) applyTextFilters(result commandResult, err error, filters []PipeFilter) (commandResult, error) {
+	if err != nil || len(filters) == 0 {
+		return result, err
+	}
+	output := result.output
+	if output == "" && result.configView != nil {
+		output = result.configView.content
+		result.configView = nil
+	}
+	for _, f := range filters {
+		output, err = ApplyPipeFilter(output, f)
+		if err != nil {
+			return commandResult{}, err
+		}
+	}
+	result.output = output
 	return result, nil
 }
 
@@ -848,21 +897,6 @@ func (m *Model) dispatchWithPipe(cmdTokens, pipeTokens []string) (commandResult,
 	switch cmd {
 	case cmdShow:
 		return m.cmdShowPipe(cmdTokens[1:], filters)
-	case cmdOption:
-		return m.cmdOptionPipe(cmdTokens[1:], filters)
-	case cmdErrors:
-		result, err := m.cmdErrors(nil)
-		if err != nil {
-			return result, err
-		}
-		// Apply filters to errors output
-		for _, f := range filters {
-			result.output, err = ApplyPipeFilter(result.output, f)
-			if err != nil {
-				return commandResult{}, err
-			}
-		}
-		return result, nil
 	}
 
 	return commandResult{}, fmt.Errorf("command '%s' does not support piping", cmd)
@@ -904,6 +938,11 @@ type ShowPipeOpts struct {
 	Format        string       // "tree" (default) or "config"
 	CompareTarget string       // "", "confirmed", "saved", "rollback N"
 	TreeFilter    string       // "", "active", "inactive"
+	Blame         bool         // show | blame
+	Changes       bool         // show | changes
+	ChangesAll    bool         // show | changes all
+	Errors        bool         // show | errors
+	History       bool         // show | history
 	TextFilters   []PipeFilter // remaining text filters (match, head, tail)
 }
 
@@ -927,6 +966,15 @@ func ClassifyShowPipes(filters []PipeFilter) (ShowPipeOpts, error) {
 			}
 		case cmdActive, cmdInactive:
 			opts.TreeFilter = f.Type
+		case cmdBlame:
+			opts.Blame = true
+		case cmdChanges:
+			opts.Changes = true
+			opts.ChangesAll = f.Arg == cmdAll
+		case cmdErrors:
+			opts.Errors = true
+		case cmdHistory:
+			opts.History = true
 		default:
 			opts.TextFilters = append(opts.TextFilters, f)
 		}

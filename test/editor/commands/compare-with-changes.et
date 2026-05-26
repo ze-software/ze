@@ -40,7 +40,7 @@ expect=viewport:contains=listen
 expect=error:none
 
 # Compare should show the difference
-input=type:text=compare
+input=type:text=show | compare
 input=enter
 expect=viewport:contains=+
 expect=viewport:contains=listen

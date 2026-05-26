@@ -12,7 +12,7 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Check errors - should have validation errors from load
-input=type:text=errors
+input=type:text=show | errors
 input=enter
 
 # Should show errors
