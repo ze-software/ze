@@ -1,0 +1,14 @@
+# Test: environment { cli { format { default bogus; } } } rejected at parse time
+# VALIDATES: AC-10 -- YANG enum rejects unknown format values
+stdin=config:terminator=EOF_CONF
+environment {
+	cli {
+		format {
+			default bogus
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1

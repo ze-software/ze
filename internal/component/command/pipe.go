@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -397,7 +398,7 @@ type PipeFlags struct {
 	HasFormat bool
 }
 
-// ProcessPipesDetectLog is like ProcessPipesDefaultTable but also reports
+// ProcessPipesDetectLog is like ProcessPipesDefaultFormat but also reports
 // pipe flags (log, resolve, origin) and validates the pipe chain upfront.
 // Returns a non-empty errMsg if the pipe chain is invalid.
 func ProcessPipesDetectLog(input string) (cmd string, format func(string) string, flags PipeFlags, errMsg string) {
@@ -430,11 +431,7 @@ func ProcessPipesDetectLog(input string) (cmd string, format func(string) string
 	flags.HasFormat = HasFormatOp(ops)
 
 	if !flags.HasFormat {
-		defaultFmt := pipeTable
-		if flags.Origin || flags.Resolve {
-			defaultFmt = pipeText
-		}
-		ops = append(ops, pipeOp{kind: defaultFmt})
+		ops = append(ops, pipeOp{kind: configuredDefault()})
 	}
 
 	return cmd, func(rawJSON string) string {
@@ -446,14 +443,37 @@ func ProcessPipesDetectLog(input string) (cmd string, format func(string) string
 	}, flags, ""
 }
 
-// ProcessPipesDefaultTable is like ProcessPipes but defaults to table format
-// when no explicit format pipe (json, table, yaml, count) is specified.
-func ProcessPipesDefaultTable(input string) (command string, format func(string) string) {
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.cli.format", Type: "string", Default: "text", Description: "Default CLI output format (text, table, json, yaml, ndjson)"})
+
+// configuredDefault returns the user-configured default pipe format.
+// Reads ze.cli.format env var (set from YANG config or `set cli format`).
+// Falls back to pipeText if unset or invalid.
+func configuredDefault() pipeKind {
+	v := env.Get("ze.cli.format")
+	switch v {
+	case "text":
+		return pipeText
+	case "table":
+		return pipeTable
+	case "json":
+		return pipeJSON
+	case "yaml":
+		return pipeYAML
+	case "ndjson":
+		return pipeNDJSON
+	default:
+		return pipeText
+	}
+}
+
+// ProcessPipesDefaultFormat is like ProcessPipes but defaults to the configured
+// format when no explicit format pipe (json, table, yaml, text) is specified.
+func ProcessPipesDefaultFormat(input string) (command string, format func(string) string) {
 	command, ops := ParsePipe(input)
 	command, ops = FoldServerPipeline(command, ops)
 
 	if !HasFormatOp(ops) {
-		ops = append(ops, pipeOp{kind: pipeTable})
+		ops = append(ops, pipeOp{kind: configuredDefault()})
 	}
 
 	return command, func(rawJSON string) string {

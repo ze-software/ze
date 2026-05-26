@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // handleKeyMsg dispatches keyboard input to the appropriate handler.
@@ -426,6 +428,12 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		m.updateCompletions()
 		return m, nil
 	}
+	if m.mode == ModeOperational && handleSetCLIFormat(input, &m) {
+		if m.history.Append(input) {
+			m.history.Save(m.mode.String())
+		}
+		return m, nil
+	}
 	if m.mode == ModeOperational && isConfigCommand(input) {
 		if m.hasEditor() {
 			m.SwitchMode(ModeConfig)
@@ -655,4 +663,66 @@ func (m Model) handleHistoryDown() tea.Model {
 	m.textInput.CursorEnd()
 	m.updateCompletions()
 	return m
+}
+
+var validCLIFormats = map[string]bool{
+	"text": true, "table": true, "json": true, "yaml": true, "ndjson": true,
+}
+
+func appendCLIFormatCompletions(completions []Completion, input string) []Completion {
+	const cmd = "set cli format"
+	if input == "" || strings.HasPrefix(cmd, input) {
+		return append(completions, Completion{
+			Text: cmd, Description: "Set default output format", Type: "command",
+		})
+	}
+	if input == cmd || input == cmd+" " {
+		for name := range validCLIFormats {
+			completions = append(completions, Completion{
+				Text: cmd + " " + name, Description: name + " format", Type: "value",
+			})
+		}
+		return completions
+	}
+	if strings.HasPrefix(input, cmd+" ") {
+		partial := input[len(cmd)+1:]
+		for name := range validCLIFormats {
+			if strings.HasPrefix(name, partial) {
+				completions = append(completions, Completion{
+					Text: cmd + " " + name, Description: name + " format", Type: "value",
+				})
+			}
+		}
+	}
+	return completions
+}
+
+// handleSetCLIFormat handles `set cli format [<value>]` in operational mode.
+// Returns true if the input was handled.
+func handleSetCLIFormat(input string, m *Model) bool {
+	const prefix = "set cli format"
+	if input != prefix && !strings.HasPrefix(input, prefix+" ") {
+		return false
+	}
+	rest := strings.TrimSpace(input[len(prefix):])
+
+	m.textInput.SetValue("")
+
+	if rest == "" {
+		current := env.Get("ze.cli.format")
+		if current == "" {
+			current = "text"
+		}
+		m.statusMessage = "cli format: " + current
+		return true
+	}
+
+	if !validCLIFormats[rest] {
+		m.statusMessage = "invalid format: " + rest + " (valid: text, table, json, yaml, ndjson)"
+		return true
+	}
+
+	_ = env.Set("ze.cli.format", rest)
+	m.statusMessage = "cli format set to " + rest
+	return true
 }

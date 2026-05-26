@@ -3,6 +3,8 @@ package command
 import (
 	"strings"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // VALIDATES: pipe operator parsing splits command from pipe chain.
@@ -439,31 +441,34 @@ func TestApplyPipesMultipleFormats(t *testing.T) {
 	}
 }
 
-// TestProcessPipesDefaultTable verifies default table format is added when no format pipe present.
+// TestProcessPipesDefaultFormat verifies default format is applied when no format pipe present.
 //
-// VALIDATES: ProcessPipesDefaultTable adds table format by default.
-// PREVENTS: Editor command mode showing raw JSON instead of table.
-func TestProcessPipesDefaultTable(t *testing.T) {
+// VALIDATES: ProcessPipesDefaultFormat uses configuredDefault() (text by default).
+// PREVENTS: Editor command mode showing raw JSON instead of formatted output.
+func TestProcessPipesDefaultFormat(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
 	tests := []struct {
 		name      string
 		input     string
 		wantCmd   string
 		wantTable bool // true if result should contain box-drawing chars (table)
 	}{
-		{"no pipe adds table", "peer list", "peer list", true},
-		{"match only adds table", "peer list | match name", "peer list", true},
-		{"explicit json skips table", "peer list | json", "peer list", false},
-		{"explicit table keeps table", "peer list | table", "peer list", true},
-		{"explicit text skips table", "peer list | text", "peer list", false},
-		{"explicit yaml skips table", "peer list | yaml", "peer list", false},
-		{"count gets default table", "peer list | count", "peer list", true},
+		{"no pipe uses text default", "peer list", "peer list", false},
+		{"match only uses text default", "peer list | match name", "peer list", false},
+		{"explicit json skips default", "peer list | json", "peer list", false},
+		{"explicit table produces table", "peer list | table", "peer list", true},
+		{"explicit text produces text", "peer list | text", "peer list", false},
+		{"explicit yaml skips default", "peer list | yaml", "peer list", false},
+		{"count uses text default", "peer list | count", "peer list", false},
 	}
 
 	jsonInput := `[{"name":"a","value":1},{"name":"b","value":2}]`
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd, format := ProcessPipesDefaultTable(tt.input)
+			cmd, format := ProcessPipesDefaultFormat(tt.input)
 			if cmd != tt.wantCmd {
 				t.Errorf("command = %q, want %q", cmd, tt.wantCmd)
 			}
@@ -473,6 +478,76 @@ func TestProcessPipesDefaultTable(t *testing.T) {
 				t.Errorf("hasTable = %v, want %v; result:\n%s", hasTable, tt.wantTable, result)
 			}
 		})
+	}
+}
+
+// TestConfiguredDefault verifies configuredDefault() maps env values to pipeKind.
+func TestConfiguredDefault(t *testing.T) {
+	tests := []struct {
+		envVal      string
+		wantTable   bool
+		wantContain string
+	}{
+		{"text", false, "a"},
+		{"table", true, ""},
+		{"json", false, "\"name\""},
+		{"yaml", false, "name:"},
+		{"ndjson", false, "{\"name\""},
+	}
+
+	jsonInput := `[{"name":"a","value":1}]`
+
+	for _, tt := range tests {
+		t.Run(tt.envVal, func(t *testing.T) {
+			t.Setenv("ze.cli.format", tt.envVal)
+			env.ResetCache()
+			t.Cleanup(env.ResetCache)
+
+			cmd, format := ProcessPipesDefaultFormat("peer list")
+			if cmd != "peer list" {
+				t.Errorf("command = %q, want peer list", cmd)
+			}
+			result := format(jsonInput)
+			hasTable := strings.Contains(result, "┌") || strings.Contains(result, "│")
+			if hasTable != tt.wantTable {
+				t.Errorf("env=%q hasTable = %v, want %v", tt.envVal, hasTable, tt.wantTable)
+			}
+			if tt.wantContain != "" && !strings.Contains(result, tt.wantContain) {
+				t.Errorf("env=%q result missing %q; got:\n%s", tt.envVal, tt.wantContain, result)
+			}
+		})
+	}
+}
+
+// TestConfiguredDefaultInvalid verifies configuredDefault() falls back to pipeText for invalid values.
+func TestConfiguredDefaultInvalid(t *testing.T) {
+	t.Setenv("ze.cli.format", "bogus")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	jsonInput := `[{"name":"a","value":1}]`
+	_, format := ProcessPipesDefaultFormat("peer list")
+	result := format(jsonInput)
+	hasTable := strings.Contains(result, "┌") || strings.Contains(result, "│")
+	if hasTable {
+		t.Errorf("invalid env value should fall back to text, got table output")
+	}
+}
+
+// TestProcessPipesDefaultFormat_Configured verifies explicit pipe wins over configured default.
+func TestProcessPipesDefaultFormat_Configured(t *testing.T) {
+	t.Setenv("ze.cli.format", "json")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	jsonInput := `[{"name":"a","value":1}]`
+
+	// Explicit | table should produce table even when default is json.
+	_, format := ProcessPipesDefaultFormat("peer list | table")
+	result := format(jsonInput)
+	hasTable := strings.Contains(result, "┌") || strings.Contains(result, "│")
+	if !hasTable {
+		t.Errorf("explicit | table should produce table even with json default; result:\n%s", result)
 	}
 }
 

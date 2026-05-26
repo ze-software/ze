@@ -112,6 +112,20 @@ func TestApplyEnvConfigExabgpACK(t *testing.T) {
 	}
 }
 
+// TestApplyEnvConfigCLIFormat verifies `environment { cli { format { default json; } } }`
+// lands as env var `ze.cli.format`.
+func TestApplyEnvConfigCLIFormat(t *testing.T) {
+	resetEnvCache(t)
+
+	ApplyEnvConfig(map[string]map[string]string{
+		"cli.format": {"default": "json"},
+	})
+
+	if got := env.Get("ze.cli.format"); got != "json" {
+		t.Errorf("ze.cli.format = %q, want json", got)
+	}
+}
+
 // TestApplyEnvConfigOSWins verifies a pre-existing OS env var is NOT
 // overwritten by a config-file value (same rule as slogutil.ApplyLogConfig).
 //

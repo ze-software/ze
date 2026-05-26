@@ -1,0 +1,44 @@
+# Test: set cli format session override
+# VALIDATES: AC-7 -- set cli format json sets the default
+# VALIDATES: AC-8 -- set cli format invalid shows error
+# PREVENTS: Session format override silently ignored
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Switch to operational mode
+input=type:text=run
+input=enter
+expect=mode:is=operational
+
+# Show current format (should be text default)
+input=type:text=set cli format
+input=enter
+expect=status:contains=cli format: text
+
+# Set to json
+input=type:text=set cli format json
+input=enter
+expect=status:contains=cli format set to json
+
+# Set to table
+input=type:text=set cli format table
+input=enter
+expect=status:contains=cli format set to table
+
+# Invalid value
+input=type:text=set cli format bogus
+input=enter
+expect=status:contains=invalid format
+expect=status:contains=valid: text, table, json, yaml, ndjson
+
+# Show current (should be table from last valid set)
+input=type:text=set cli format
+input=enter
+expect=status:contains=cli format: table

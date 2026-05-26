@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // TestModelErrorsCommand verifies errors command output.
@@ -2829,4 +2830,48 @@ func TestCopyViaDispatch(t *testing.T) {
 	content := ed.WorkingContent()
 	assert.Contains(t, content, "peer peer1")
 	assert.Contains(t, content, "peer cloned-peer")
+}
+
+// TestSetCLIFormat verifies `set cli format json` sets the env var.
+func TestSetCLIFormat(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	m := &Model{}
+	ok := handleSetCLIFormat("set cli format json", m)
+	assert.True(t, ok, "should handle set cli format")
+	assert.Equal(t, "cli format set to json", m.statusMessage)
+	assert.Equal(t, "json", env.Get("ze.cli.format"))
+}
+
+// TestSetCLIFormatInvalid verifies `set cli format bogus` returns an error.
+func TestSetCLIFormatInvalid(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	m := &Model{}
+	ok := handleSetCLIFormat("set cli format bogus", m)
+	assert.True(t, ok, "should handle set cli format")
+	assert.Contains(t, m.statusMessage, "invalid format")
+	assert.Contains(t, m.statusMessage, "valid: text, table, json, yaml, ndjson")
+}
+
+// TestSetCLIFormatShow verifies `set cli format` (no value) shows current setting.
+func TestSetCLIFormatShow(t *testing.T) {
+	t.Setenv("ze.cli.format", "yaml")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	m := &Model{}
+	ok := handleSetCLIFormat("set cli format", m)
+	assert.True(t, ok, "should handle set cli format")
+	assert.Equal(t, "cli format: yaml", m.statusMessage)
+}
+
+// TestSetCLIFormatNotMatched verifies unrelated commands are not intercepted.
+func TestSetCLIFormatNotMatched(t *testing.T) {
+	m := &Model{}
+	assert.False(t, handleSetCLIFormat("set bgp peer something", m), "should not handle unrelated set commands")
+	assert.False(t, handleSetCLIFormat("set cli formatting foo", m), "should not match prefix-only (regression: #1)")
+	assert.False(t, handleSetCLIFormat("set cli formatjson", m), "should not match without space separator")
 }

@@ -1,0 +1,14 @@
+# Test: environment { cli { format { default json; } } } parses successfully
+# VALIDATES: AC-10 -- YANG enum accepts valid format values
+stdin=config:terminator=EOF_CONF
+environment {
+	cli {
+		format {
+			default json
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

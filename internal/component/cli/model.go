@@ -671,6 +671,7 @@ func (m *Model) updateCompletions() {
 			m.completions = m.commandCompleter.Complete(input)
 			m.ghostText = m.commandCompleter.GhostText(input)
 		}
+		m.completions = appendCLIFormatCompletions(m.completions, input)
 		if m.hasEditor() && (input == "" || strings.HasPrefix(cmdConfigure, input)) {
 			m.completions = append(m.completions, Completion{
 				Text: cmdConfigure, Description: "Enter config mode", Type: "command",

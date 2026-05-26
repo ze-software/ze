@@ -70,6 +70,24 @@ module ze-hub-conf {
             leaf rate { type string; default "0.1"; description "Fault probability per operation (0.0-1.0)"; }
         }
 
+        container cli {
+            description "CLI session settings";
+            container format {
+                description "Default output format settings";
+                leaf default {
+                    type enumeration {
+                        enum text { description "Space-aligned columns without box-drawing"; }
+                        enum table { description "Nushell-style table with box-drawing characters"; }
+                        enum json { description "JSON output (pretty-printed)"; }
+                        enum yaml { description "YAML output"; }
+                        enum ndjson { description "Newline-delimited JSON (one object per line)"; }
+                    }
+                    default "text";
+                    description "Default output format when no pipe operator is specified";
+                }
+            }
+        }
+
         container exabgp {
             description "ExaBGP compatibility settings for the migration bridge";
             container api {

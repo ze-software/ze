@@ -1043,10 +1043,20 @@ environment {
         level warn;        # default log level
         bgp.routes debug;  # per-subsystem override
     }
+    cli {
+        format {
+            default text;  # default output format: text, table, json, yaml, ndjson
+        }
+    }
 }
 ```
 
+The `cli { format { default } }` leaf controls the output format when no explicit
+pipe operator is specified. The default is `text`. Override per-session with
+`set cli format <value>` in operational mode; explicit pipe operators always win.
+
 <!-- source: internal/component/config/environment.go -- environment block parsing; internal/core/slogutil/slogutil.go -- log level config -->
+<!-- source: internal/component/command/pipe.go -- configuredDefault -->
 
 ### Named Listeners
 
