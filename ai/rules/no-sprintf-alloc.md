@@ -4,7 +4,7 @@
 zero-allocation or lower-allocation alternative exists. Never use `.String()`
 concatenation on a hot path when an append-into-buffer pattern exists.
 Conceptual model: `rules/memory-architecture.md` -- data lifecycle, caller-owned buffers.
-Reference: `plan/analysis-printf-allocations.md`
+Reference: git log -- plan/analysis-printf-allocations.md (completed, removed from tree)
 
 ## Three Rules
 
