@@ -887,7 +887,7 @@ routes = {}  # (peer, prefix) -> {'attrs': bytes, 'nlri': bytes, 'msg_id': int}
 
 ---
 
-## Memory Profile (Measured 2026-05-25)
+## Memory Profile (Measured 2026-05-25, ribOut optimized 2026-05-26)
 
 Three storage layers hold route data. Each has different memory
 characteristics. Measured at 100K IPv4/32 routes, Apple M4 Max, Go 1.26.
@@ -897,49 +897,53 @@ characteristics. Measured at 100K IPv4/32 routes, Apple M4 Max, Go 1.26.
 | Layer | Location | Struct | Measured | Allocs | Per-peer? |
 |-------|----------|--------|----------|--------|-----------|
 | Plugin RIB (adj-rib-in) | `plugins/rib/storage/` | 32 B | **69 B** | 1.0 | No |
-| Engine OutgoingRIB | `bgp/rib/outgoing.go` | 160 B | **478 B** | 10.0 | Yes |
-| Plugin ribOut | `bgp/route.go` in `rib.go` | 288 B | **385-741 B** | 6-10 | Yes |
+| Engine OutgoingRIB | `bgp/rib/outgoing.go` | 160 B | **478 B** | 10.0 | Yes (test-only, no production callers) |
+| Plugin ribOut (before) | `bgp/route.go` in `rib.go` | 288 B | **385-741 B** | 6-10 | Yes |
+| Plugin ribOut (after) | `plugins/rib/ribout_entry.go` | 16 B | **~16 B** + shared pool | 0 | Yes (entry) / No (pool) |
 
 "Measured" = TotalAlloc / routes. Includes struct, backing data (strings,
 slices, wire bytes), and map overhead. "Per-peer?" means the data is
 duplicated for every peer.
 
+### ribOut Compact Storage (pool.RibOut, idx 16)
+
+The plugin ribOut now stores a 16 B `ribOutEntry` per peer per route:
+`MsgID` (8 B) + `AttrHandle` (4 B) + `StaleLevel` (1 B) + padding (3 B).
+Wire attribute bytes are deduplicated in `pool.RibOut`: the same UPDATE
+sent to N peers stores one pool copy and N 4-byte handles.
+
+Full `*Route` is reconstructed on demand (cold paths only: replay, show,
+refresh) by parsing wire bytes from the pool via `reconstructRoute()`.
+
+Source peer tracking uses a separate refcounted map (`ribOutSource`)
+with one entry per unique route, not per destination peer.
+
 ### Scaling Impact
 
-The plugin RIB stores one copy per route (shared attributes via pool handles).
-Both outgoing layers store a full copy per peer.
+| Scenario | Plugin RIB | Plugin ribOut | Shared Pool | Total |
+|----------|-----------|---------------|-------------|-------|
+| 100K routes, 1 peer | 7 MB | 2 MB | ~7 MB | 16 MB |
+| 100K routes, 10 peers | 7 MB | 15 MB | ~7 MB | 29 MB |
+| 1M routes, 10 peers | 66 MB | 153 MB | ~70 MB | 289 MB |
+| 1M routes, 50 peers | 66 MB | 763 MB | ~70 MB | 899 MB |
 
-| Scenario | Plugin RIB | Engine Out | Plugin ribOut | Total |
-|----------|-----------|------------|---------------|-------|
-| 100K routes, 1 peer | 7 MB | 46 MB | 37 MB | 90 MB |
-| 100K routes, 10 peers | 7 MB | 456 MB | 367 MB | 830 MB |
-| 1M routes, 10 peers | 66 MB | 4.6 GB | 3.7 GB | 8.4 GB |
-| 1M routes, 50 peers | 66 MB | 22.8 GB | 18.4 GB | 41.3 GB |
+Engine OutgoingRIB is excluded: it has no production callers (test-only).
+Previous totals included it at 478 B/route/peer, inflating projections.
 
 ### Where the Bytes Go
 
-**Engine rib.Route (478 B):** 160 B struct (NLRI interface, nextHop, attributes
-slice, ASPath pointer, refCount, indexCache, wireBytes, nlriWireBytes,
-sourceCtxID) + ~220 B backing data (NLRI prefix, 3 attribute interface values,
-ASPath segments, 40 B wire cache, 4 B NLRI cache, 15 B index cache) + ~70 B
-map overhead (string key + bucket).
-
-**Plugin bgp.Route (385-741 B):** 288 B struct (strings for Prefix/NextHop/
-SourcePeer, slices for ASPath/Communities, pointers for Origin/MED/LocalPref,
-hex RawAttrs string, Meta map) + backing data. Rich attributes (large
-communities, extended communities, meta map) push from 385 to 741 B.
+**Plugin ribOutEntry (16 B):** MsgID (uint64, 8 B) + AttrHandle (uint32,
+4 B) + StaleLevel (uint8, 1 B) + padding (3 B). Zero heap allocations
+per entry. Map overhead adds ~50 B/entry.
 
 **Plugin RIB RouteEntry (69 B):** 32 B struct (Bundle handle + ASPath handle +
 fingerprint + stale level) + 37 B BART trie node overhead. Pool attribute
 data is shared across routes, not counted per-route.
 
-### Optimization Opportunity
-
-Both per-peer layers duplicate full route data. Extending the pool-handle
-pattern (already proven in the plugin RIB at 69 B/route) to the outgoing
-layers could reduce 863 B/route/peer to ~4 B/route/peer + shared pool.
-See `plan/research-adjribout-memory-profiling.md` for the detailed proposal.
+**Shared pool (pool.RibOut):** Wire attribute bytes stored once. Typical
+UPDATE attributes are 40-200 bytes. Deduplication ratio is high when
+the same UPDATE is forwarded to multiple peers.
 
 ---
 
-**Last Updated:** 2026-05-25
+**Last Updated:** 2026-05-26

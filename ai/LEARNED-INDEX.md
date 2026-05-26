@@ -128,6 +128,7 @@ Route storage, selection, forwarding, communities, path selection.
 - [776](plan/learned/776-srv6-prefix-sid.md) -- SRv6 via lazy OtherAttrs extraction; SID resolvability reuses NH resolver; transposition at emission time; Reserved-byte trap in RFC 9252 wire format
 - [783](plan/learned/783-rib-peer-lock-split.md) -- RIB peerMu lock split: narrow r.mu to peer-keyed maps only, push RLock into helpers, three-phase UPDATE handler for concurrent peer processing
 - [784](plan/learned/784-rib-rs-fastpath.md) -- locrib ForwardHandle: interface-based zero-copy wire bytes on Change for state-tracker consumers; two-trigger model (receive-path for forwarders, OnChange for state trackers) stays
+- [789](plan/learned/789-adjribout-compact-storage.md) -- ribOut compact storage: 16 B entry + pool handle replaces 385 B *Route per peer; engine OutgoingRIB is dead code (zero production callers); refcounted source tracking
 
 ## Protocol/RFC
 
