@@ -92,14 +92,12 @@ func TestCommitStampsSchemaVersion(t *testing.T) {
 	require.NoError(t, err)
 
 	content := string(data)
-	stamp := config.FormatSchemaStamp(config.SchemaStamp)
-	assert.True(t, strings.HasPrefix(content, stamp),
+	assert.True(t, strings.HasPrefix(content, "# ze-schema: "),
 		"committed config should start with schema stamp, got first line: %q",
 		strings.SplitN(content, "\n", 2)[0])
 
-	scanned := config.ScanSchemaStamp(data)
-	assert.Equal(t, config.SchemaStamp, scanned,
-		"ScanSchemaStamp should read back the stamped value")
+	scanned := config.ScanStampRelease(data)
+	assert.NotEmpty(t, scanned, "stamp release should be present")
 
 	// AC-7: show config (WorkingContent) must NOT include the stamp.
 	showOutput := ed.WorkingContent()
@@ -117,8 +115,8 @@ func TestCommitStampsSchemaVersion(t *testing.T) {
 	if assert.NotEmpty(t, backups, "should have at least one backup") {
 		backupData, readErr := os.ReadFile(backups[0].Path)
 		require.NoError(t, readErr)
-		backupStamp := config.ScanSchemaStamp(backupData)
-		assert.Equal(t, config.SchemaStamp, backupStamp,
+		backupRelease := config.ScanStampRelease(backupData)
+		assert.NotEmpty(t, backupRelease,
 			"backup should contain schema stamp from committed config")
 	}
 }

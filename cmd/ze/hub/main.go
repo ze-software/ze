@@ -259,6 +259,17 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			return 1
 		}
 	}
+
+	// Phase 1b: Schema evolution. Apply registered evolutions newer than the
+	// config's stamped release, then re-stamp and write back.
+	evolveLogger := slogutil.Logger("hub.evolve")
+	outcome, evolveErr := applyEvolutions(evolveLogger, store, configPath, data, loadResult.Tree, zeconfig.ScanStampRelease(data))
+	if evolveErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: schema evolution failed: %v\n", evolveErr)
+	}
+	loadResult.Tree = outcome.tree
+	data = outcome.data
+
 	if configPath != "" && configPath != "-" {
 		if _, _, activeErr := storage.EnsureActiveVersion(store, configPath, data, time.Now()); activeErr != nil {
 			fmt.Fprintf(os.Stderr, "error: initialize active config: %v\n", activeErr)

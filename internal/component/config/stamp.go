@@ -5,36 +5,33 @@
 package config
 
 import (
-	"strconv"
 	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/version"
 )
-
-const SchemaStamp = 1
 
 const schemaStampPrefix = "# ze-schema: "
 
-func FormatSchemaStamp(stamp int) string {
-	return schemaStampPrefix + strconv.Itoa(stamp) + "\n"
+// FormatSchemaStamp returns the stamp header line for a config file.
+// Format: "# ze-schema: <release>\n" where release is YY.MM.DD.
+func FormatSchemaStamp() string {
+	return schemaStampPrefix + version.Release() + "\n"
 }
 
-func ScanSchemaStamp(raw []byte) int {
+// ScanStampRelease extracts the Ze release from the first line of raw config.
+// Returns empty string if no valid stamp is found.
+func ScanStampRelease(raw []byte) string {
 	if len(raw) == 0 {
-		return 0
+		return ""
 	}
 	line := firstLine(raw)
 	if !strings.HasPrefix(line, schemaStampPrefix) {
-		return 0
+		return ""
 	}
-	s := line[len(schemaStampPrefix):]
-	v, err := strconv.Atoi(s)
-	if err != nil || v < 0 {
-		return 0
-	}
-	return v
+	return strings.TrimSpace(line[len(schemaStampPrefix):])
 }
 
 func firstLine(raw []byte) string {
@@ -47,25 +44,27 @@ func firstLine(raw []byte) string {
 }
 
 // RecoverConfig attempts to load config from rollback history when the current
-// config has a schema stamp newer than this binary supports. It walks rollback
-// versions newest-first, skipping those with stamps above SchemaStamp, and
-// attempts a full parse on each candidate. The first version that parses
-// successfully is written back as the current config (stamped with the current
-// binary's SchemaStamp) so the displayed/active config matches what is on disk.
+// config was written by a newer binary (its stamp release > this binary's release).
+// It walks rollback versions newest-first, skipping those from newer binaries,
+// and attempts a full parse on each candidate. The first version that parses
+// successfully is written back as the current config (re-stamped with this
+// binary's release) so the active config matches what is on disk.
 //
 // Returns the loaded result and true if recovery succeeded, or nil and false
 // if no compatible rollback was found.
 func RecoverConfig(store storage.Storage, configPath string, currentData []byte, cliPlugins []string) (*LoadConfigResult, bool) {
 	logger := slogutil.Logger("config.recover")
 
-	currentStamp := ScanSchemaStamp(currentData)
-	if currentStamp <= SchemaStamp {
+	configRelease := ScanStampRelease(currentData)
+	binaryRelease := version.Release()
+
+	if !version.IsNewerRelease(configRelease, binaryRelease) {
 		return nil, false
 	}
 
-	logger.Warn("config schema newer than binary",
-		"config-stamp", currentStamp,
-		"binary-stamp", SchemaStamp,
+	logger.Warn("config from newer binary",
+		"config-release", configRelease,
+		"binary-release", binaryRelease,
 		"action", "walking rollback history")
 
 	versions, err := store.ListVersions(configPath)
@@ -79,8 +78,8 @@ func RecoverConfig(store storage.Storage, configPath string, currentData []byte,
 		if readErr != nil {
 			continue
 		}
-		stamp := ScanSchemaStamp(raw)
-		if stamp > SchemaStamp {
+		rollbackRelease := ScanStampRelease(raw)
+		if version.IsNewerRelease(rollbackRelease, binaryRelease) {
 			continue
 		}
 
@@ -96,7 +95,7 @@ func RecoverConfig(store storage.Storage, configPath string, currentData []byte,
 		writtenBack := false
 		schema, schemaErr := YANGSchema()
 		if schemaErr == nil {
-			stamped := FormatSchemaStamp(SchemaStamp) + SerializeSetWithMeta(result.Tree, NewMetaTree(), schema)
+			stamped := FormatSchemaStamp() + SerializeSetWithMeta(result.Tree, NewMetaTree(), schema)
 			if writeErr := store.WriteFile(configPath, []byte(stamped), 0o600); writeErr != nil {
 				logger.Error("write recovered config", "error", writeErr)
 			} else {
@@ -106,22 +105,20 @@ func RecoverConfig(store storage.Storage, configPath string, currentData []byte,
 
 		if writtenBack {
 			logger.Warn("recovered config from rollback",
-				"rollback-stamp", v.Stamp,
-				"rollback-date", v.Date.Format("2006-01-02 15:04:05"),
-				"schema-stamp", stamp)
+				"rollback-release", rollbackRelease,
+				"rollback-date", v.Date.Format("2006-01-02 15:04:05"))
 		} else {
 			logger.Warn("recovered config from rollback (write-back failed, will re-recover on next restart)",
-				"rollback-stamp", v.Stamp,
-				"rollback-date", v.Date.Format("2006-01-02 15:04:05"),
-				"schema-stamp", stamp)
+				"rollback-release", rollbackRelease,
+				"rollback-date", v.Date.Format("2006-01-02 15:04:05"))
 		}
 
 		return result, true
 	}
 
 	logger.Error("no compatible config found in rollback history",
-		"config-stamp", currentStamp,
-		"binary-stamp", SchemaStamp,
+		"config-release", configRelease,
+		"binary-release", binaryRelease,
 		"versions-checked", len(versions))
 
 	return nil, false

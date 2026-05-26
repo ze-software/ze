@@ -116,6 +116,46 @@ func Extended() string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
+// CompareReleases compares two Ze releases (YY.MM.DD format).
+// Returns -1 if a < b, 0 if a == b, 1 if a > b.
+// Unparseable releases (e.g. "dev", "") sort as infinitely old (-1 against any valid release).
+func CompareReleases(a, b string) int {
+	aok := IsValidRelease(a)
+	bok := IsValidRelease(b)
+
+	if !aok && !bok {
+		return 0
+	}
+	if !aok {
+		return -1
+	}
+	if !bok {
+		return 1
+	}
+
+	if a < b {
+		return -1
+	}
+	if a > b {
+		return 1
+	}
+	return 0
+}
+
+// IsNewerRelease returns true if candidate release is newer than base.
+// Returns false when candidate is unparseable (unknown is never "newer").
+func IsNewerRelease(candidate, base string) bool {
+	return CompareReleases(candidate, base) > 0
+}
+
+// IsValidRelease returns true if v has the YY.MM.DD format (8 chars, dots at positions 2 and 5).
+func IsValidRelease(v string) bool {
+	if len(v) != 8 {
+		return false
+	}
+	return v[2] == '.' && v[5] == '.'
+}
+
 // HTTPHeader returns a compact version string for the X-Ze-Version HTTP header.
 // Format: "ze/26.04.05 (ac8f5391; go1.26; darwin/arm64)".
 func HTTPHeader() string {

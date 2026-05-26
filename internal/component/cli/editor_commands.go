@@ -642,7 +642,7 @@ func (e *Editor) commitContent() (string, error) {
 			return "", fmt.Errorf("hash password: %w", err)
 		}
 	}
-	return config.FormatSchemaStamp(config.SchemaStamp) + e.WorkingContent(), nil
+	return config.FormatSchemaStamp() + e.WorkingContent(), nil
 }
 
 // RestoreOriginalContent writes the previous committed content back to disk
