@@ -1109,6 +1109,20 @@ for localhost, 127.0.0.1, ::1, and the listen address.
 See [Web Interface Guide](web-interface.md) for full usage documentation.
 <!-- source: cmd/ze/main.go -- cmdStart, cmd/ze/hub/main.go -- startWebServer -->
 
+### ze debug
+
+Persistent debug flags stored in ZeFS. Flags survive daemon restarts.
+
+```
+ze debug enable <subsystem|all>    # Enable debug logging
+ze debug disable <subsystem|all>   # Disable debug logging
+ze debug show                      # Show debug state for all subsystems
+```
+
+Three-tier resolution: global override > per-subsystem key > default (off).
+Hierarchical prefixes work: `ze debug enable bgp` enables all bgp.* subsystems.
+<!-- source: cmd/ze/debug/debug.go -- Run -->
+
 ### ze data
 
 Low-level blob store management.
@@ -1731,9 +1745,12 @@ Inside `ze cli`:
 | Pipe: ASN lookup | `show traceroute 8.8.8.8 \| origin` |
 | Pipe: streaming log | `monitor traceroute 8.8.8.8 \| log` |
 | Pipe: disable paging | `peer list \| no-more` |
+| Set default format | `set cli format json` (session override) |
+| Show current format | `set cli format` (no argument) |
 | Tab completion | Contextual command/argument completion |
 <!-- source: cmd/ze/cli/main.go -- pipe operators, interactive model -->
 <!-- source: internal/component/command/pipe.go -- pipe operator definitions -->
+<!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat -->
 
 ---
 

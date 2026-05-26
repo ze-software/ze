@@ -1,0 +1,7 @@
+# Test: ze debug enable writes zefs key and show reflects the state
+# VALIDATES: AC-1, AC-2, AC-5 of spec-debug-flags.md
+cmd=foreground:seq=1:exec=ze debug show
+expect=exit:code=0
+expect=stdout:contains=SUBSYSTEM
+expect=stdout:contains=DEBUG
+expect=stdout:contains=SOURCE

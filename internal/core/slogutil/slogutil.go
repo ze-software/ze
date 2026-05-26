@@ -124,6 +124,7 @@ func Subsystems() []SubsystemInfo {
 // Log level and backend string constants.
 const (
 	levelDisabled = "disabled"
+	levelDebug    = "debug"
 	levelError    = "error"
 	backendStdout = "stdout"
 	backendSyslog = "syslog"
@@ -132,7 +133,7 @@ const (
 )
 
 // validLevelNames lists accepted level strings for parseLevel (excluding "disabled").
-var validLevelNames = []string{"debug", "info", "warn", "warning", "err", "error"}
+var validLevelNames = []string{levelDebug, "info", "warn", "warning", "err", "error"}
 
 // levelRegistry tracks subsystem names to their *slog.LevelVar for runtime level changes.
 // Only loggers created via Logger() or LazyLogger() are registered (not disabled ones).
@@ -352,7 +353,7 @@ func parseLevel(s string) (slog.Level, bool) {
 	switch strings.ToLower(s) {
 	case levelDisabled:
 		return slog.LevelInfo, false
-	case "debug":
+	case levelDebug:
 		return slog.LevelDebug, true
 	case "info":
 		return slog.LevelInfo, true
@@ -514,7 +515,7 @@ func SetLevel(subsystem, level string) error {
 func LevelString(level slog.Level) string {
 	switch level {
 	case slog.LevelDebug:
-		return "debug"
+		return levelDebug
 	case slog.LevelInfo:
 		return "info"
 	case slog.LevelWarn:

@@ -24,6 +24,7 @@ import (
 	zecompletion "codeberg.org/thomas-mangin/ze/cmd/ze/completion"
 	zeconfig "codeberg.org/thomas-mangin/ze/cmd/ze/config"
 	zedata "codeberg.org/thomas-mangin/ze/cmd/ze/data"
+	zedebug "codeberg.org/thomas-mangin/ze/cmd/ze/debug"
 	zeenv "codeberg.org/thomas-mangin/ze/cmd/ze/environ"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	zefirewall "codeberg.org/thomas-mangin/ze/cmd/ze/firewall"
@@ -435,6 +436,8 @@ dispatch:
 		exit(zepasswd.Run(args[1:]))
 	case "data":
 		exit(zedata.Run(args[1:]))
+	case "debug":
+		exit(zedebug.Run(args[1:]))
 	case "schema":
 		exit(schema.Run(args[1:], plugins))
 	case "yang":

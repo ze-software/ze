@@ -1,0 +1,7 @@
+# Test: ze debug with no args shows usage
+# VALIDATES: CLI help output for debug command
+cmd=foreground:seq=1:exec=ze debug
+expect=exit:code=1
+expect=stdout:contains=enable
+expect=stdout:contains=disable
+expect=stdout:contains=show

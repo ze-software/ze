@@ -28,4 +28,6 @@ var (
 	KeyFileVersion           = MustRegister(KeyEntry{Pattern: "file/{date}/{basename}", Description: "Historical config version"})
 	KeyFileTemplate          = MustRegister(KeyEntry{Pattern: "file/template/{basename}", Description: "Config template (merged with discovery on first boot)"})
 	KeyConfigLastKnownGood   = MustRegister(KeyEntry{Pattern: "meta/config/last-known-good", Description: "SHA-256 hash of validated seed config"})
+	KeyDebugAll              = MustRegister(KeyEntry{Pattern: "state/debug/all", Description: "Global debug override (on/off)"})
+	KeyDebugSubsystem        = MustRegister(KeyEntry{Pattern: "state/debug/{subsystem}", Description: "Per-subsystem debug flag (on/off)"})
 )

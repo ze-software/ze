@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 // Storage provides abstracted file operations for config, draft, and backup files.
@@ -105,6 +107,16 @@ type WriteGuard interface {
 func IsBlobStorage(s Storage) bool {
 	_, ok := s.(*blobStorage)
 	return ok
+}
+
+// BlobStoreFrom returns the underlying *zefs.BlobStore if s is blob-backed.
+// Returns nil, false for filesystem storage.
+func BlobStoreFrom(s Storage) (*zefs.BlobStore, bool) {
+	bs, ok := s.(*blobStorage)
+	if !ok {
+		return nil, false
+	}
+	return bs.store, true
 }
 
 // filesystemStorage wraps os calls for direct filesystem I/O.
