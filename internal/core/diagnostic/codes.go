@@ -349,4 +349,28 @@ var builtinCodes = []CodeMeta{
 		Description: "Policy routing is configured but a route netlink handle could not be opened.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-policyroute-netlink"},
 	},
+	{
+		Code:        "doctor-ntp-server-unreachable",
+		Title:       "NTP servers unreachable",
+		Description: "None of the configured NTP servers responded to a reachability probe. Clock synchronization may fail.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-ntp-server-unreachable"},
+	},
+	{
+		Code:        "doctor-rpki-unreachable",
+		Title:       "RPKI cache servers unreachable",
+		Description: "None of the configured RPKI cache servers accepted a TCP connection within the probe timeout.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-rpki-unreachable"},
+	},
+	{
+		Code:        "doctor-bmp-unreachable",
+		Title:       "BMP collectors unreachable",
+		Description: "None of the configured BMP sender collectors accepted a TCP connection within the probe timeout.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-bmp-unreachable"},
+	},
+	{
+		Code:        "doctor-write-destination",
+		Title:       "Write destination not writable",
+		Description: "A configured file write destination (persist path, output directory) is not writable.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-write-destination"},
+	},
 }

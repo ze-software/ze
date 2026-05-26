@@ -956,3 +956,123 @@ func TestDoctorCoverageCodesRegistered(t *testing.T) {
 		assert.NotEmpty(t, meta.Description)
 	}
 }
+
+func TestDoctorImprovementsCodesRegistered(t *testing.T) {
+	// VALIDATES: AC-13 every new doctor-improvements diagnostic code is registered.
+	for _, code := range []string{
+		"doctor-ntp-server-unreachable",
+		"doctor-rpki-unreachable",
+		"doctor-bmp-unreachable",
+		"doctor-write-destination",
+	} {
+		meta := diagnostic.Lookup(code)
+		require.NotNil(t, meta, "%s code must be registered", code)
+		assert.NotEmpty(t, meta.Title)
+		assert.NotEmpty(t, meta.Description)
+	}
+}
+
+func TestDoctorConfigValidationBridge(t *testing.T) {
+	// VALIDATES: AC-5 config validation errors surface as doctor diagnostics.
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	mcp := env.GetOrCreateContainer("mcp")
+	mcp.Set("enabled", "true")
+	mcp.Set("auth-mode", "oauth")
+	srv := config.NewTree()
+	srv.Set("ip", "127.0.0.1")
+	srv.Set("port", "6274")
+	mcp.AddListEntry("server", "default", srv)
+
+	diags := checkSemanticValidation(tree)
+
+	found := false
+	for i := range diags {
+		if diags[i].Code == "config-mcp-invalid" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected config-mcp-invalid diagnostic from validation bridge")
+}
+
+func TestDoctorNTPClientReadiness(t *testing.T) {
+	// VALIDATES: AC-8 NTP client readiness: server reachability via UDP probe.
+	origNTPReachable := ntpServerReachable
+	defer func() { ntpServerReachable = origNTPReachable }()
+	ntpServerReachable = func(string, time.Duration) bool { return false }
+
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	ntp := env.GetOrCreateContainer("ntp")
+	ntp.Set("enabled", "true")
+	srv := config.NewTree()
+	srv.Set("address", "pool.ntp.org")
+	ntp.AddListEntry("server", "s1", srv)
+
+	diags := checkNTPClient(tree)
+
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-ntp-server-unreachable", diags[0].Code)
+}
+
+func TestDoctorRPKIServers(t *testing.T) {
+	// VALIDATES: AC-10 external service reachability (RPKI).
+	origTCPReachable := tcpReachable
+	defer func() { tcpReachable = origTCPReachable }()
+	tcpReachable = func(string, time.Duration) bool { return false }
+
+	tree := config.NewTree()
+	bgp := tree.GetOrCreateContainer("bgp")
+	rpki := bgp.GetOrCreateContainer("rpki")
+	srv := config.NewTree()
+	srv.Set("port", "8282")
+	rpki.AddListEntry("cache-server", "192.0.2.1", srv)
+
+	diags := checkRPKIServers(tree)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-rpki-unreachable", diags[0].Code)
+}
+
+func TestDoctorBMPCollectors(t *testing.T) {
+	// VALIDATES: AC-10 external service reachability (BMP).
+	origTCPReachable := tcpReachable
+	defer func() { tcpReachable = origTCPReachable }()
+	tcpReachable = func(string, time.Duration) bool { return false }
+
+	tree := config.NewTree()
+	bgp := tree.GetOrCreateContainer("bgp")
+	bmp := bgp.GetOrCreateContainer("bmp")
+	sender := bmp.GetOrCreateContainer("sender")
+	coll := config.NewTree()
+	coll.Set("address", "192.0.2.10")
+	coll.Set("port", "11019")
+	sender.AddListEntry("collector", "c1", coll)
+
+	diags := checkBMPCollectors(tree)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-bmp-unreachable", diags[0].Code)
+}
+
+func TestDoctorWritableDestinations(t *testing.T) {
+	// VALIDATES: AC-11 writable file destinations.
+	origProbeWritable := probeWritable
+	defer func() { probeWritable = origProbeWritable }()
+	probeWritable = func(string) error { return errors.New("no such directory") }
+
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	ntp := env.GetOrCreateContainer("ntp")
+	ntp.Set("enabled", "true")
+	ntp.Set("persist-path", "/perm/ze/timefile")
+	bfd := tree.GetOrCreateContainer("bfd")
+	bfd.Set("persist-dir", "/perm/bfd")
+
+	diags := checkWritableDestinations(tree)
+	var codes []string
+	for i := range diags {
+		codes = append(codes, diags[i].Code)
+	}
+	assert.Contains(t, codes, "doctor-write-destination")
+	assert.GreaterOrEqual(t, len(diags), 2, "expected at least NTP persist + BFD persist diagnostics")
+}

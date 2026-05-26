@@ -1,0 +1,15 @@
+# Test: ze doctor --json reports unwritable file destinations
+# VALIDATES: AC-11 writable file destination checks emit doctor-write-destination.
+
+tmpfs=writable.conf:terminator=EOF_CONF
+environment {
+    ntp {
+        enabled true
+        persist-path /nonexistent-ze-doctor-test/timefile
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json writable.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-write-destination

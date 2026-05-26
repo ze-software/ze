@@ -1,0 +1,17 @@
+# Test: ze doctor --json reports unreachable NTP servers
+# VALIDATES: AC-8 NTP client readiness emits doctor-ntp-server-unreachable.
+
+tmpfs=ntp-client.conf:terminator=EOF_CONF
+environment {
+    ntp {
+        enabled true
+        server unreachable {
+            address 198.51.100.1
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json ntp-client.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-ntp-server-unreachable

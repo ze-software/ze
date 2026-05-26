@@ -1,0 +1,19 @@
+# Test: ze doctor --json surfaces config semantic validation errors
+# VALIDATES: AC-5 config validation bridge emits config-mcp-invalid.
+
+tmpfs=mcp-invalid.conf:terminator=EOF_CONF
+environment {
+    mcp {
+        enabled true
+        auth-mode oauth
+        server default {
+            ip 127.0.0.1
+            port 6274
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json mcp-invalid.conf
+expect=exit:code=1
+expect=stdout:contains=config-mcp-invalid

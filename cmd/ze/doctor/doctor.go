@@ -138,6 +138,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 
 	tree := result.Tree
 
+	diags = append(diags, checkSemanticValidation(tree)...)
 	diags = append(diags, checkIfaceBackend(tree)...)
 	diags = append(diags, checkInterfaces(tree)...)
 	diags = append(diags, checkDHCPInterfaces(tree)...)
@@ -162,6 +163,10 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkConfigReferences(tree)...)
 	diags = append(diags, checkClockSkew()...)
 	diags = append(diags, checkVPPVersion(tree)...)
+	diags = append(diags, checkNTPClient(tree)...)
+	diags = append(diags, checkRPKIServers(tree)...)
+	diags = append(diags, checkBMPCollectors(tree)...)
+	diags = append(diags, checkWritableDestinations(tree)...)
 
 	return diags
 }
@@ -1435,6 +1440,183 @@ func checkClockSkew() []diagnostic.Diagnostic {
 		}}
 	}
 	return nil
+}
+
+func checkSemanticValidation(tree *config.Tree) []diagnostic.Diagnostic {
+	return config.ValidateSemantics(tree)
+}
+
+func checkNTPClient(tree *config.Tree) []diagnostic.Diagnostic {
+	ntp := getContainerPath(tree, "environment", "ntp")
+	if !configEnabled(ntp, false) {
+		return nil
+	}
+
+	var diags []diagnostic.Diagnostic
+
+	servers := ntp.GetListOrdered("server")
+	reachable := false
+	checked := false
+	for _, s := range servers {
+		addr, ok := s.Value.Get("address")
+		if !ok || addr == "" {
+			continue
+		}
+		checked = true
+		if ntpServerReachable(net.JoinHostPort(addr, "123"), 3*time.Second) {
+			reachable = true
+			break
+		}
+	}
+	if checked && !reachable {
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-ntp-server-unreachable",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "none of the configured NTP servers are reachable",
+		})
+	}
+
+	return diags
+}
+
+func checkRPKIServers(tree *config.Tree) []diagnostic.Diagnostic {
+	rpki := getContainerPath(tree, "bgp", "rpki")
+	if rpki == nil {
+		return nil
+	}
+	cacheServers := rpki.GetListOrdered("cache-server")
+	if len(cacheServers) == 0 {
+		return nil
+	}
+
+	checked := false
+	for _, s := range cacheServers {
+		port := valueOrDefault(s.Value, "port", "323")
+		addr := s.Key
+		if addr == "" {
+			continue
+		}
+		checked = true
+		if tcpReachable(net.JoinHostPort(addr, port), 3*time.Second) {
+			return nil
+		}
+	}
+	if !checked {
+		return nil
+	}
+	return []diagnostic.Diagnostic{{
+		Code:     "doctor-rpki-unreachable",
+		Severity: diagnostic.SeverityWarning,
+		Message:  "none of the configured RPKI cache servers are reachable",
+	}}
+}
+
+func checkBMPCollectors(tree *config.Tree) []diagnostic.Diagnostic {
+	bmp := getContainerPath(tree, "bgp", "bmp", "sender")
+	if bmp == nil {
+		return nil
+	}
+	collectors := bmp.GetListOrdered("collector")
+	if len(collectors) == 0 {
+		return nil
+	}
+
+	checked := false
+	for _, c := range collectors {
+		addr, ok := c.Value.Get("address")
+		if !ok || addr == "" {
+			continue
+		}
+		checked = true
+		port := valueOrDefault(c.Value, "port", "11019")
+		if tcpReachable(net.JoinHostPort(addr, port), 3*time.Second) {
+			return nil
+		}
+	}
+	if !checked {
+		return nil
+	}
+	return []diagnostic.Diagnostic{{
+		Code:     "doctor-bmp-unreachable",
+		Severity: diagnostic.SeverityWarning,
+		Message:  "none of the configured BMP collectors are reachable",
+	}}
+}
+
+var ntpServerReachable = probeNTPServer
+
+func probeNTPServer(addr string, timeout time.Duration) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	d := net.Dialer{Timeout: timeout}
+	conn, err := d.DialContext(ctx, "udp", addr)
+	if err != nil {
+		return false
+	}
+	defer func() { _ = conn.Close() }()
+	if deadlineErr := conn.SetDeadline(time.Now().Add(timeout)); deadlineErr != nil {
+		return false
+	}
+	req := make([]byte, 48)
+	req[0] = 0x1B // SNTP: LI=0, VN=3, Mode=3 (client)
+	if _, writeErr := conn.Write(req); writeErr != nil {
+		return false
+	}
+	resp := make([]byte, 48)
+	_, readErr := conn.Read(resp)
+	return readErr == nil
+}
+
+var probeWritable = probeWritableDir
+
+func probeWritableDir(dir string) error {
+	if dir == "" {
+		return errors.New("empty path")
+	}
+	f, err := os.CreateTemp(dir, ".ze-doctor-probe-*")
+	if err != nil {
+		return err
+	}
+	name := f.Name()
+	closeErr := f.Close()
+	removeErr := os.Remove(name)
+	if closeErr != nil {
+		return closeErr
+	}
+	return removeErr
+}
+
+func checkWritableDestinations(tree *config.Tree) []diagnostic.Diagnostic {
+	var diags []diagnostic.Diagnostic
+
+	if ntp := getContainerPath(tree, "environment", "ntp"); configEnabled(ntp, false) {
+		if persistPath, ok := ntp.Get("persist-path"); ok && persistPath != "" {
+			dir := filepath.Dir(persistPath)
+			if err := probeWritable(dir); err != nil {
+				diags = append(diags, diagnostic.Diagnostic{
+					Code:     "doctor-write-destination",
+					Severity: diagnostic.SeverityWarning,
+					Message:  "NTP persist-path parent not writable: " + dir,
+					Path:     persistPath,
+				})
+			}
+		}
+	}
+
+	if bfd := tree.GetContainer("bfd"); bfd != nil {
+		if persistDir, ok := bfd.Get("persist-dir"); ok && persistDir != "" {
+			if err := probeWritable(persistDir); err != nil {
+				diags = append(diags, diagnostic.Diagnostic{
+					Code:     "doctor-write-destination",
+					Severity: diagnostic.SeverityWarning,
+					Message:  "BFD persist-dir not writable: " + persistDir,
+					Path:     persistDir,
+				})
+			}
+		}
+	}
+
+	return diags
 }
 
 func resolvePath(p, configDir string) string {

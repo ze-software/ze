@@ -1,0 +1,31 @@
+# Test: ze doctor --json reports unreachable RPKI and BMP servers
+# VALIDATES: AC-10 external service reachability (RPKI, BMP).
+
+tmpfs=rpki-bmp.conf:terminator=EOF_CONF
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    rpki {
+        cache-server 198.51.100.1 {
+            port 8282
+        }
+    }
+    bmp {
+        sender {
+            collector c1 {
+                address 198.51.100.2
+                port 11019
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json rpki-bmp.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-rpki-unreachable
+expect=stdout:contains=doctor-bmp-unreachable

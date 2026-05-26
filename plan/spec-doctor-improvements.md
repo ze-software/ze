@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
-| Depends | spec-doctor-coverage.md |
-| Phase | - |
-| Updated | 2026-05-24 |
+| Status | in-progress |
+| Depends | spec-doctor-coverage.md (closed) |
+| Phase | Phase 3 complete, Phase 4-6 remaining |
+| Updated | 2026-05-26 |
 
 ## Post-Compaction Recovery
 
@@ -337,13 +337,19 @@ This spec intentionally depends on `spec-doctor-coverage.md`. Do not start imple
 | IPsec block is top-level `ipsec` | Runtime parser uses `vpn/ipsec` | `ze-ipsec-conf.yang` and `ipsec/config.go` | Existing module trigger can silently miss configured IPsec |
 | `CollectListeners` is enough as-is for doctor | It currently omits endpoints relying only on YANG refine defaults | `listener.go` comments | Doctor needs default-aware runtime endpoints |
 
+| YANG refine defaults are in schema `LeafNode.Default` | Ze YANG compiler does not process `refine` statements; `LeafNode.Default` is empty for `uses zt:listener` children | Debug test showed `ip default=""` and `port default=""` on SSH server list node | `CollectListenersWithDefaults` cannot read defaults from schema; needs `RegisterListenerDefault` registration or YANG compiler fix |
+| NTP reachability can use `tcpReachable` | NTP is UDP protocol; TCP port 123 is typically closed | Review finding: every NTP server would report false "unreachable" | Changed to SNTP UDP probe matching `checkClockSkew` pattern |
+
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
 |----------|---------------|-------------|
+| Read YANG refine defaults from `ListNode` children | `LeafNode.Default` is empty because Ze YANG compiler skips refine statements | `RegisterListenerDefault` registration pattern (built, tested, removed pending service wiring) |
+| `SchemaDefault(schema, "environment/ssh/server/ip")` path lookup | Schema root has 0 children from external packages; YANG modules register via `init()` side effects | Direct `ListNode.Get("ip")` access, which also showed empty defaults |
 
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
+| YANG refine defaults not in schema | first occurrence | Consider `ai/rules/yang-limitations.md` documenting what the Ze YANG compiler does not support | Proposal only |
 
 ## Design Insights
 
@@ -355,41 +361,99 @@ This spec intentionally depends on `spec-doctor-coverage.md`. Do not start imple
 ## Implementation Summary
 
 ### What Was Implemented
-- [List actual changes made]
+- AC-5: Config validation bridge via `config.ValidateSemantics(tree)` in new file `internal/component/config/validate_semantic.go`. Surfaces MCP, plugin verify, and hub validation errors as doctor diagnostics before OS probes.
+- AC-8 (partial): NTP client readiness via `checkNTPClient`. UDP SNTP probe to configured NTP servers (not TCP). Persist-path writeability covered by AC-11.
+- AC-10 (partial): RPKI cache-server TCP reachability via `checkRPKIServers`. BMP sender collector TCP reachability via `checkBMPCollectors`. Both use `checked` flag to avoid false positives on empty addresses.
+- AC-11 (partial): Writable file destination checks via `checkWritableDestinations` for NTP persist-path and BFD persist-dir. Temp file probe with cleanup.
+- AC-13 (partial): 4 new diagnostic codes registered: `doctor-ntp-server-unreachable`, `doctor-rpki-unreachable`, `doctor-bmp-unreachable`, `doctor-write-destination`.
+- 4 functional tests: `doctor-config-validation.ci`, `doctor-ntp-client.ci`, `doctor-rpki-bmp.ci`, `doctor-writable-paths.ci`.
+- 7 unit tests covering all new check functions.
 
 ### Bugs Found/Fixed
-- [Any bugs discovered]
+- NTP reachability initially used TCP probe (port 123). NTP is UDP; TCP port 123 is typically closed. Fixed to use SNTP UDP probe matching `checkClockSkew` pattern.
+- NTP persist-path was checked in both `checkNTPClient` and `checkWritableDestinations`, producing duplicate diagnostics. Removed from `checkNTPClient`.
+- RPKI/BMP checks reported "unreachable" even when all configured addresses were empty strings. Added `checked` flag matching TACACS+ pattern.
+- `probeWritableDir` leaked temp file on `Close()` error. Fixed to always call `os.Remove` before returning.
 
 ### Documentation Updates
-- [Docs updated, or "None"]
+- None
 
 ### Deviations from Plan
-- [Differences from original plan and why]
+- AC-1/AC-2 (schema-driven listener refactor): Built `CollectListenersWithDefaults` + `RegisterListenerDefault` infrastructure, then removed it. YANG refine defaults are not propagated to schema `LeafNode.Default` by the Ze YANG compiler. The registration pattern works but requires wiring calls into every service's `register.go`, which is deferred to a follow-up.
+- `doctor-ntp-persist` code was planned but removed; NTP persist writeability uses the generic `doctor-write-destination` code via `checkWritableDestinations` instead of a dedicated check.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Shared listener inventory | not started | - | Blocked on YANG refine default propagation |
+| Config validation bridge | done | `validate_semantic.go` + `doctor.go:checkSemanticValidation` | |
+| Correct feature triggers | partial | `doctor.go:checkNTPClient` | NTP client done; VPP/IPsec cleanup remaining |
+| Second-order dependency checks | partial | `doctor.go:checkRPKI/BMP/Writable` | RPKI, BMP, NTP persist, BFD persist done |
+| Dependency inventory test | not started | - | AC-12 |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | not started | - | Blocked on YANG refine defaults |
+| AC-2 | not started | - | Same blocker as AC-1 |
+| AC-3 | done (coverage spec) | `extractBGPListeners` | Already handles accept/local/ip |
+| AC-4 | not started | - | BGP MD5 platform detection |
+| AC-5 | done | `TestDoctorConfigValidationBridge`, `doctor-config-validation.ci` | |
+| AC-6 | done (coverage spec) | `extractIPsecListeners` uses `vpn/ipsec` | Dead `ipsec` fallback cleanup deferred |
+| AC-7 | done (coverage spec) | `checkPKICerts` | base64 DER validation |
+| AC-8 | partial | `TestDoctorNTPClientReadiness`, `doctor-ntp-client.ci` | Missing: clock-adjust privilege |
+| AC-9 | not started | - | VPP configured socket + DPDK |
+| AC-10 | partial | `TestDoctorRPKI/BMP`, `doctor-rpki-bmp.ci` | Missing: update-check, archive |
+| AC-11 | partial | `TestDoctorWritableDestinations`, `doctor-writable-paths.ci` | Missing: DNS resolv, archive file://, self-update |
+| AC-12 | not started | - | Dependency inventory guardrail test |
+| AC-13 | done (for implemented codes) | `TestDoctorImprovementsCodesRegistered` | Will need more codes for AC-4/AC-9 |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestDoctorConfigValidationBridge` | pass | `doctor_test.go` | AC-5 |
+| `TestDoctorNTPClientReadiness` | pass | `doctor_test.go` | AC-8 |
+| `TestDoctorRPKIServers` | pass | `doctor_test.go` | AC-10 |
+| `TestDoctorBMPCollectors` | pass | `doctor_test.go` | AC-10 |
+| `TestDoctorWritableDestinations` | pass | `doctor_test.go` | AC-11 |
+| `TestDoctorImprovementsCodesRegistered` | pass | `doctor_test.go` | AC-13 |
+| `doctor-config-validation.ci` | pass | `test/ui/` | AC-5 functional |
+| `doctor-ntp-client.ci` | pass | `test/ui/` | AC-8 functional |
+| `doctor-rpki-bmp.ci` | pass | `test/ui/` | AC-10 functional |
+| `doctor-writable-paths.ci` | pass | `test/ui/` | AC-11 functional |
+| `TestDoctorListenersPrometheus` | not started | - | AC-1 blocked |
+| `TestDoctorListenersPluginHub` | not started | - | AC-1 blocked |
+| `TestDoctorListenersWireguardUDP` | not started | - | AC-1 blocked |
+| `TestDoctorListenerDefaults` | not started | - | AC-2 blocked |
+| `TestDoctorListenersBGPMD5` | not started | - | AC-4 |
+| `TestDoctorIPsecPathVPN` | not needed | - | AC-6 already correct |
+| `TestDoctorPKIMaterial` | not needed | - | AC-7 already done |
+| `TestDoctorVPPConfiguredSocket` | not started | - | AC-9 |
+| `TestDoctorDependencyInventory` | not started | - | AC-12 |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `cmd/ze/doctor/doctor.go` | modified | 5 new check functions, wired in `runChecks` |
+| `cmd/ze/doctor/doctor_test.go` | modified | 7 new tests |
+| `internal/component/config/validate_semantic.go` | new | Shared semantic validation |
+| `internal/core/diagnostic/codes.go` | modified | 4 new codes |
+| `test/ui/doctor-config-validation.ci` | new | AC-5 functional |
+| `test/ui/doctor-ntp-client.ci` | new | AC-8 functional |
+| `test/ui/doctor-rpki-bmp.ci` | new | AC-10 functional |
+| `test/ui/doctor-writable-paths.ci` | new | AC-11 functional |
+| `cmd/ze/doctor/checks_linux.go` | not modified | AC-4/AC-9 deferred |
+| `cmd/ze/doctor/checks_other.go` | not modified | AC-4 deferred |
+| `internal/component/config/listener.go` | not modified | AC-1/AC-2 deferred |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 13 ACs
+- **Done:** 5 (AC-3, AC-5, AC-6, AC-7, AC-13)
+- **Partial:** 3 (AC-8, AC-10, AC-11)
+- **Not started:** 5 (AC-1, AC-2, AC-4, AC-9, AC-12)
+- **Changed:** AC-1/AC-2 approach needs redesign (YANG refine defaults not in schema)
 
 ## Goal Validation (BLOCKING)
 
