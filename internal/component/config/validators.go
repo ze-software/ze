@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
@@ -362,9 +363,9 @@ func RedistributeSourceValidator() yang.CustomValidator {
 	}
 }
 
-// CommunityRangeValidator returns a validator that checks BGP community ASN:value ranges.
-// Both parts must be uint16 (0-65535).
-
+// CommunityRangeValidator returns a validator that checks BGP community values.
+// Accepts well-known names (no-export, blackhole, graceful-shutdown, etc.),
+// ASN:value format (both parts uint16 0-65535), hex (0xNNNNNNNN), and bare uint32.
 func CommunityRangeValidator() yang.CustomValidator {
 	return yang.CustomValidator{
 		ValidateFn: func(path string, value any) error {
@@ -372,17 +373,12 @@ func CommunityRangeValidator() yang.CustomValidator {
 			if !ok {
 				return fmt.Errorf("expected string, got %T", value)
 			}
-			parts := strings.SplitN(str, ":", 2)
-			if len(parts) != 2 {
-				return fmt.Errorf("community %q must be in ASN:value format", str)
-			}
-			if _, err := strconv.ParseUint(parts[0], 10, 16); err != nil {
-				return fmt.Errorf("community ASN part %q exceeds uint16 range (0-65535)", parts[0])
-			}
-			if _, err := strconv.ParseUint(parts[1], 10, 16); err != nil {
-				return fmt.Errorf("community value part %q exceeds uint16 range (0-65535)", parts[1])
+			_, err := attribute.ParseCommunity(str)
+			if err != nil {
+				return fmt.Errorf("invalid community %q: %w", str, err)
 			}
 			return nil
 		},
+		CompleteFn: attribute.WellKnownCommunityNames,
 	}
 }

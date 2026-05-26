@@ -9,8 +9,21 @@ import (
 
 func TestCommunityString(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "NO_EXPORT", CommunityNoExport.String())
-	assert.Equal(t, "NO_ADVERTISE", CommunityNoAdvertise.String())
+	assert.Equal(t, "no-export", CommunityNoExport.String())
+	assert.Equal(t, "no-advertise", CommunityNoAdvertise.String())
+	assert.Equal(t, "no-export-subconfed", CommunityNoExportSubconfed.String())
+	assert.Equal(t, "nopeer", CommunityNoPeer.String())
+	assert.Equal(t, "graceful-shutdown", CommunityGracefulShutdown.String())
+	assert.Equal(t, "accept-own", CommunityAcceptOwn.String())
+	assert.Equal(t, "route-filter-translated-v4", CommunityRouteFilterTranslatedV4.String())
+	assert.Equal(t, "route-filter-v4", CommunityRouteFilterV4.String())
+	assert.Equal(t, "route-filter-translated-v6", CommunityRouteFilterTranslatedV6.String())
+	assert.Equal(t, "route-filter-v6", CommunityRouteFilterV6.String())
+	assert.Equal(t, "llgr-stale", CommunityLLGRStale.String())
+	assert.Equal(t, "no-llgr", CommunityNoLLGR.String())
+	assert.Equal(t, "accept-own-nexthop", CommunityAcceptOwnNexthop.String())
+	assert.Equal(t, "standby-pe", CommunityStandbyPE.String())
+	assert.Equal(t, "blackhole", CommunityBlackhole.String())
 	assert.Equal(t, "65001:100", Community(0xFDE90064).String())
 }
 
@@ -89,6 +102,70 @@ func TestCommunityRegistryFallback(t *testing.T) {
 	t.Parallel()
 	unknown := Community(0xFDE90064)
 	assert.Equal(t, "65001:100", unknown.String())
+}
+
+func TestCommunityWellKnownValues(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		comm  Community
+		value uint32
+	}{
+		{"GRACEFUL_SHUTDOWN", CommunityGracefulShutdown, 0xFFFF0000},
+		{"ACCEPT_OWN", CommunityAcceptOwn, 0xFFFF0001},
+		{"ROUTE_FILTER_TRANSLATED_v4", CommunityRouteFilterTranslatedV4, 0xFFFF0002},
+		{"ROUTE_FILTER_v4", CommunityRouteFilterV4, 0xFFFF0003},
+		{"ROUTE_FILTER_TRANSLATED_v6", CommunityRouteFilterTranslatedV6, 0xFFFF0004},
+		{"ROUTE_FILTER_v6", CommunityRouteFilterV6, 0xFFFF0005},
+		{"LLGR_STALE", CommunityLLGRStale, 0xFFFF0006},
+		{"NO_LLGR", CommunityNoLLGR, 0xFFFF0007},
+		{"accept-own-nexthop", CommunityAcceptOwnNexthop, 0xFFFF0008},
+		{"STANDBY_PE", CommunityStandbyPE, 0xFFFF0009},
+		{"BLACKHOLE", CommunityBlackhole, 0xFFFF029A},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, Community(tt.value), tt.comm)
+		})
+	}
+}
+
+func TestParseCommunityWellKnownNames(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input string
+		want  uint32
+	}{
+		{"graceful-shutdown", 0xFFFF0000},
+		{"graceful_shutdown", 0xFFFF0000},
+		{"gshut", 0xFFFF0000},
+		{"accept-own", 0xFFFF0001},
+		{"accept_own", 0xFFFF0001},
+		{"route-filter-translated-v4", 0xFFFF0002},
+		{"route-filter-v4", 0xFFFF0003},
+		{"route-filter-translated-v6", 0xFFFF0004},
+		{"route-filter-v6", 0xFFFF0005},
+		{"llgr-stale", 0xFFFF0006},
+		{"llgr_stale", 0xFFFF0006},
+		{"no-llgr", 0xFFFF0007},
+		{"no_llgr", 0xFFFF0007},
+		{"accept-own-nexthop", 0xFFFF0008},
+		{"standby-pe", 0xFFFF0009},
+		{"standby_pe", 0xFFFF0009},
+		{"blackhole", 0xFFFF029A},
+		{"no-export", 0xFFFFFF01},
+		{"no-advertise", 0xFFFFFF02},
+		{"nopeer", 0xFFFFFF04},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
+			got, err := ParseCommunity(tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
 
 func TestCommunityFrom4(t *testing.T) {

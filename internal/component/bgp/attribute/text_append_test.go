@@ -201,7 +201,17 @@ func TestAppendText_Community_WellKnown(t *testing.T) {
 		{uint32(CommunityNoAdvertise), "community no-advertise"},
 		{uint32(CommunityNoExportSubconfed), "community no-export-subconfed"},
 		{uint32(CommunityNoPeer), "community nopeer"},
-		{0xFFFF029A, "community blackhole"},
+		{uint32(CommunityGracefulShutdown), "community graceful-shutdown"},
+		{uint32(CommunityAcceptOwn), "community accept-own"},
+		{uint32(CommunityRouteFilterTranslatedV4), "community route-filter-translated-v4"},
+		{uint32(CommunityRouteFilterV4), "community route-filter-v4"},
+		{uint32(CommunityRouteFilterTranslatedV6), "community route-filter-translated-v6"},
+		{uint32(CommunityRouteFilterV6), "community route-filter-v6"},
+		{uint32(CommunityLLGRStale), "community llgr-stale"},
+		{uint32(CommunityNoLLGR), "community no-llgr"},
+		{uint32(CommunityAcceptOwnNexthop), "community accept-own-nexthop"},
+		{uint32(CommunityStandbyPE), "community standby-pe"},
+		{uint32(CommunityBlackhole), "community blackhole"},
 	}
 	for _, c := range cases {
 		got := string(Communities{Community(c.comm)}.AppendText(nil))
@@ -221,8 +231,7 @@ func TestAppendText_Community_Plain(t *testing.T) {
 	}{
 		{0x00000000, "community 0:0"},
 		{0x0000FFFF, "community 0:65535"},
-		{0xFFFF0000, "community 65535:0"},
-		// 0xFFFFFFFF collides with no well-known name, so renders as 65535:65535.
+		{0xFFFE0000, "community 65534:0"},
 	}
 	for _, c := range cases {
 		got := string(Communities{Community(c.comm)}.AppendText(nil))

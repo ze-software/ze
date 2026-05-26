@@ -94,17 +94,22 @@ func TestPortSpecValidator(t *testing.T) {
 	}
 }
 
-// TestCommunityRangeValidator verifies community ASN:value range checking.
+// TestCommunityRangeValidator verifies community validation.
 //
-// VALIDATES: Valid communities accepted, out-of-range parts rejected (AC-21, AC-22).
+// VALIDATES: ASN:value, well-known names, hex, bare integers accepted; invalid rejected.
 // PREVENTS: Communities with values exceeding uint16 silently accepted.
 func TestCommunityRangeValidator(t *testing.T) {
 	v := CommunityRangeValidator()
 
-	// Valid communities.
+	// Valid ASN:value communities.
 	assert.NoError(t, v.ValidateFn("bgp/peer/route.community", "0:0"))
 	assert.NoError(t, v.ValidateFn("bgp/peer/route.community", "65535:65535"))
 	assert.NoError(t, v.ValidateFn("bgp/peer/route.community", "100:200"))
+
+	// Well-known community names.
+	assert.NoError(t, v.ValidateFn("bgp/peer/route.community", "no-export"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/route.community", "blackhole"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/route.community", "graceful-shutdown"))
 
 	// ASN part out of range.
 	err := v.ValidateFn("bgp/peer/route.community", "65536:0")
@@ -116,13 +121,20 @@ func TestCommunityRangeValidator(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "65536")
 
-	// Missing colon.
+	// Invalid string.
 	err = v.ValidateFn("bgp/peer/route.community", "nocolon")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "ASN:value")
+	assert.Contains(t, err.Error(), "invalid community")
 
 	// Non-string rejected.
 	assert.Error(t, v.ValidateFn("bgp/peer/route.community", 42))
+
+	// CompleteFn returns well-known names.
+	require.NotNil(t, v.CompleteFn)
+	names := v.CompleteFn()
+	assert.Contains(t, names, "no-export")
+	assert.Contains(t, names, "graceful-shutdown")
+	assert.Contains(t, names, "blackhole")
 }
 
 // TestReceiveEventValidator_Validate verifies receive event type validation.

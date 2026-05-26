@@ -52,6 +52,30 @@ const (
 	// advertised to peers.
 	CommunityNoPeer Community = 0xFFFFFF04 // NOPEER (RFC 3765)
 
+	// CommunityGracefulShutdown - RFC 8326: Signals that a BGP session or
+	// link is about to go down. Receivers should de-preference tagged routes.
+	CommunityGracefulShutdown Community = 0xFFFF0000 // GRACEFUL_SHUTDOWN (RFC 8326)
+
+	// CommunityAcceptOwn - RFC 7611: Allows a router to accept routes with
+	// its own AS in the AS_PATH for VRF-to-VRF re-import on the same PE.
+	CommunityAcceptOwn Community = 0xFFFF0001 // ACCEPT_OWN (RFC 7611)
+
+	// CommunityRouteFilterTranslatedV4 - IANA: Used by route servers to
+	// signal translated IPv4 route filter results to clients.
+	CommunityRouteFilterTranslatedV4 Community = 0xFFFF0002
+
+	// CommunityRouteFilterV4 - IANA: Used by route servers to signal
+	// IPv4 route filter results to clients.
+	CommunityRouteFilterV4 Community = 0xFFFF0003
+
+	// CommunityRouteFilterTranslatedV6 - IANA: Used by route servers to
+	// signal translated IPv6 route filter results to clients.
+	CommunityRouteFilterTranslatedV6 Community = 0xFFFF0004
+
+	// CommunityRouteFilterV6 - IANA: Used by route servers to signal
+	// IPv6 route filter results to clients.
+	CommunityRouteFilterV6 Community = 0xFFFF0005
+
 	// CommunityLLGRStale - RFC 9494 Section 3: Routes retained beyond the
 	// Graceful Restart timer are marked with this community. LLGR_STALE routes
 	// are treated as least preferred in route selection.
@@ -61,6 +85,18 @@ const (
 	// MUST NOT be retained when Long-Lived Graceful Restart procedures are in
 	// effect. They are deleted immediately when the LLGR period begins.
 	CommunityNoLLGR Community = 0xFFFF0007 // NO_LLGR (RFC 9494)
+
+	// CommunityAcceptOwnNexthop - IANA (draft): Allows accepting routes
+	// where the next-hop is the receiving router's own address.
+	CommunityAcceptOwnNexthop Community = 0xFFFF0008
+
+	// CommunityStandbyPE - RFC 9026: Used in EVPN multi-homing to signal
+	// that the advertising PE is the standby for the Ethernet Segment.
+	CommunityStandbyPE Community = 0xFFFF0009 // STANDBY_PE (RFC 9026)
+
+	// CommunityBlackhole - RFC 7999: Signals to upstream providers to
+	// null-route traffic destined for the tagged prefix (RTBH filtering).
+	CommunityBlackhole Community = 0xFFFF029A // BLACKHOLE (RFC 7999)
 )
 
 // communityNames maps well-known community values to display names.
@@ -68,10 +104,21 @@ const (
 // names via RegisterCommunityName during init().
 // Read-only after init phase completes; no mutex needed.
 var communityNames = map[Community]string{
-	CommunityNoExport:          "NO_EXPORT",
-	CommunityNoAdvertise:       "NO_ADVERTISE",
-	CommunityNoExportSubconfed: "NO_EXPORT_SUBCONFED",
-	CommunityNoPeer:            "NOPEER",
+	CommunityNoExport:                "no-export",
+	CommunityNoAdvertise:             "no-advertise",
+	CommunityNoExportSubconfed:       "no-export-subconfed",
+	CommunityNoPeer:                  "nopeer",
+	CommunityGracefulShutdown:        "graceful-shutdown",
+	CommunityAcceptOwn:               "accept-own",
+	CommunityRouteFilterTranslatedV4: "route-filter-translated-v4",
+	CommunityRouteFilterV4:           "route-filter-v4",
+	CommunityRouteFilterTranslatedV6: "route-filter-translated-v6",
+	CommunityRouteFilterV6:           "route-filter-v6",
+	CommunityLLGRStale:               "llgr-stale",
+	CommunityNoLLGR:                  "no-llgr",
+	CommunityAcceptOwnNexthop:        "accept-own-nexthop",
+	CommunityStandbyPE:               "standby-pe",
+	CommunityBlackhole:               "blackhole",
 }
 
 // CommunityFrom4 constructs a Community from 4 raw bytes (network byte order).

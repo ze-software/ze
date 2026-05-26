@@ -35,8 +35,29 @@ Attributes are flat: keyword followed by value. No `set`/`add`/`del` on attribut
 
 ### Well-Known Communities
 
-`no-export`, `no-advertise`, `no-export-subconfed`, `nopeer`
-<!-- source: internal/component/bgp/attribute/ -- community name constants -->
+All IANA-registered well-known communities are accepted by name:
+
+| Name | Value | Reference |
+|------|-------|-----------|
+| `no-export` | 0xFFFFFF01 | RFC 1997 |
+| `no-advertise` | 0xFFFFFF02 | RFC 1997 |
+| `no-export-subconfed` | 0xFFFFFF03 | RFC 1997 |
+| `nopeer` | 0xFFFFFF04 | RFC 3765 |
+| `graceful-shutdown` | 0xFFFF0000 | RFC 8326 |
+| `accept-own` | 0xFFFF0001 | RFC 7611 |
+| `route-filter-translated-v4` | 0xFFFF0002 | IANA |
+| `route-filter-v4` | 0xFFFF0003 | IANA |
+| `route-filter-translated-v6` | 0xFFFF0004 | IANA |
+| `route-filter-v6` | 0xFFFF0005 | IANA |
+| `llgr-stale` | 0xFFFF0006 | RFC 9494 |
+| `no-llgr` | 0xFFFF0007 | RFC 9494 |
+| `accept-own-nexthop` | 0xFFFF0008 | IANA |
+| `standby-pe` | 0xFFFF0009 | RFC 9026 |
+| `blackhole` | 0xFFFF029A | RFC 7999 |
+
+Underscore variants (e.g., `no_export`, `graceful_shutdown`) and the shorthand
+`gshut` are also accepted. Tab completion in the config editor suggests all names.
+<!-- source: internal/component/bgp/attribute/text.go -- wellKnownCommunityNames map -->
 
 ### Next-Hop Self
 

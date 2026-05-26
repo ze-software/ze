@@ -591,12 +591,21 @@ func transformCommunities(v any) any {
 }
 
 var wellKnownCommunities = map[string][2]int{
-	"NO_EXPORT":           {65535, 65281},
-	"NO_ADVERTISE":        {65535, 65282},
-	"NO_EXPORT_SUBCONFED": {65535, 65283},
-	"NOPEER":              {65535, 65284},
-	"LLGR_STALE":          {65535, 6},
-	"NO_LLGR":             {65535, 7},
+	"no-export":                  {65535, 65281},
+	"no-advertise":               {65535, 65282},
+	"no-export-subconfed":        {65535, 65283},
+	"nopeer":                     {65535, 65284},
+	"graceful-shutdown":          {65535, 0},
+	"accept-own":                 {65535, 1},
+	"route-filter-translated-v4": {65535, 2},
+	"route-filter-v4":            {65535, 3},
+	"route-filter-translated-v6": {65535, 4},
+	"route-filter-v6":            {65535, 5},
+	"llgr-stale":                 {65535, 6},
+	"no-llgr":                    {65535, 7},
+	"accept-own-nexthop":         {65535, 8},
+	"standby-pe":                 {65535, 9},
+	"blackhole":                  {65535, 666},
 }
 
 func wellKnownCommunityPair(name string) ([]any, bool) {

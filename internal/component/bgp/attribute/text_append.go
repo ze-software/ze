@@ -67,12 +67,33 @@ func appendCommunityText(buf []byte, c uint32) []byte {
 		return append(buf, "no-export-subconfed"...)
 	case uint32(CommunityNoPeer):
 		return append(buf, "nopeer"...)
-	case 0xFFFF029A: // RFC 7999 blackhole
+	case uint32(CommunityGracefulShutdown):
+		return append(buf, "graceful-shutdown"...)
+	case uint32(CommunityAcceptOwn):
+		return append(buf, "accept-own"...)
+	case uint32(CommunityRouteFilterTranslatedV4):
+		return append(buf, "route-filter-translated-v4"...)
+	case uint32(CommunityRouteFilterV4):
+		return append(buf, "route-filter-v4"...)
+	case uint32(CommunityRouteFilterTranslatedV6):
+		return append(buf, "route-filter-translated-v6"...)
+	case uint32(CommunityRouteFilterV6):
+		return append(buf, "route-filter-v6"...)
+	case uint32(CommunityLLGRStale):
+		return append(buf, "llgr-stale"...)
+	case uint32(CommunityNoLLGR):
+		return append(buf, "no-llgr"...)
+	case uint32(CommunityAcceptOwnNexthop):
+		return append(buf, "accept-own-nexthop"...)
+	case uint32(CommunityStandbyPE):
+		return append(buf, "standby-pe"...)
+	case uint32(CommunityBlackhole):
 		return append(buf, "blackhole"...)
+	default:
+		buf = strconv.AppendUint(buf, uint64(c>>16), 10)
+		buf = append(buf, ':')
+		buf = strconv.AppendUint(buf, uint64(c&0xFFFF), 10)
 	}
-	buf = strconv.AppendUint(buf, uint64(c>>16), 10)
-	buf = append(buf, ':')
-	buf = strconv.AppendUint(buf, uint64(c&0xFFFF), 10)
 	return buf
 }
 

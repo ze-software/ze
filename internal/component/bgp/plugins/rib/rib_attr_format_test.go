@@ -155,17 +155,17 @@ func TestFormatCommunities(t *testing.T) {
 		{
 			"no_export",
 			[]byte{0xFF, 0xFF, 0xFF, 0x01},
-			[]string{"NO_EXPORT"},
+			[]string{"no-export"},
 		},
 		{
 			"no_advertise",
 			[]byte{0xFF, 0xFF, 0xFF, 0x02},
-			[]string{"NO_ADVERTISE"},
+			[]string{"no-advertise"},
 		},
 		{
 			"mixed_wellknown_and_normal",
 			[]byte{0xFD, 0xE8, 0x00, 0x64, 0xFF, 0xFF, 0xFF, 0x01},
-			[]string{"65000:100", "NO_EXPORT"},
+			[]string{"65000:100", "no-export"},
 		},
 		{"empty", []byte{}, nil},
 		{"nil", nil, nil},

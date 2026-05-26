@@ -19,8 +19,8 @@ func init() {
 		value attribute.Community
 		name  string
 	}{
-		{attribute.CommunityLLGRStale, "LLGR_STALE"},
-		{attribute.CommunityNoLLGR, "NO_LLGR"},
+		{attribute.CommunityLLGRStale, "llgr-stale"},
+		{attribute.CommunityNoLLGR, "no-llgr"},
 	} {
 		if err := attribute.RegisterCommunityName(c.value, c.name); err != nil {
 			logger().Error("community registration failed", "error", err)
