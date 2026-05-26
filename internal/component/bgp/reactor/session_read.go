@@ -90,6 +90,9 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 	// if the hold timer fires while recentRead is true, the daemon is
 	// CPU-congested (data arrived but wasn't processed in time).
 	s.recentRead.Store(true)
+	if s.onRead != nil {
+		s.onRead()
+	}
 
 	hdr, err := message.ParseHeader(buf.Buf[:message.HeaderLen])
 	if err != nil {

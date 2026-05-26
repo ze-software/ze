@@ -199,6 +199,15 @@ func (p *Peer) runOnce() error {
 	}
 	session.onNotifSent = p.IncrNotificationSent
 	session.onNotifRecv = p.IncrNotificationReceived
+	session.onOpenSent = p.IncrOpensSent
+	session.onOpenRecv = p.IncrOpensReceived
+	session.onRefreshRecv = p.IncrRefreshReceived
+	session.onRead = p.TouchLastRead
+	session.onWrite = p.TouchLastWrite
+	session.onNegotiated = func(holdSec, keepaliveSec uint32) {
+		p.negotiatedHoldTime.Store(holdSec)
+		p.negotiatedKeepaliveTime.Store(keepaliveSec)
+	}
 	session.SetSourceID(p.sourceID)
 	session.SetPluginCapabilityGetter(p.getPluginCapabilities)
 	session.SetPluginFamiliesGetter(p.getPluginFamilies)
@@ -210,6 +219,8 @@ func (p *Peer) runOnce() error {
 
 	defer func() {
 		p.negotiated.Store(nil) // Clear negotiated capabilities
+		p.negotiatedHoldTime.Store(0)
+		p.negotiatedKeepaliveTime.Store(0)
 		p.clearEncodingContexts()
 		// Clear prefix-threshold warnings raised by this session from the report
 		// bus so they do not linger after the session ends. Must be called before

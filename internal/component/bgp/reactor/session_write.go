@@ -87,6 +87,9 @@ func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 
 	// Successful write -- reset RFC 9687 Send Hold Timer.
 	s.resetSendHoldTimer()
+	if s.onWrite != nil {
+		s.onWrite()
+	}
 
 	// Notify callback after successful send.
 	// Body is data after the 19-byte header (16-byte marker + 2-byte length + 1-byte type).
@@ -252,6 +255,10 @@ func (s *Session) writeUpdate(update *message.Update) error {
 		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta)
 	}
 
+	if s.onWrite != nil {
+		s.onWrite()
+	}
+
 	return nil
 }
 
@@ -282,6 +289,10 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 	if s.onMessageReceived != nil {
 		sessionLogger().Debug("SendRawUpdateBody", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "bodyLen", len(body))
 		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta)
+	}
+
+	if s.onWrite != nil {
+		s.onWrite()
 	}
 
 	return nil

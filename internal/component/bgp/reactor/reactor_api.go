@@ -94,6 +94,11 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 	for _, p := range a.r.peers {
 		s := p.Settings()
 		stats := p.Stats()
+		peerType := "external"
+		if s.LocalAS == s.PeerAS {
+			peerType = "internal"
+		}
+		localPort, remotePort := p.TCPPorts()
 		info := plugin.PeerInfo{
 			Address:              s.Address,
 			LocalAddress:         s.LocalAddress,
@@ -124,12 +129,56 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			NextHopAddress:       s.NextHopAddress,
 			ImportFilters:        s.ImportFilters,
 			ExportFilters:        s.ExportFilters,
+
+			OpensReceived:         stats.OpensReceived,
+			OpensSent:             stats.OpensSent,
+			NotificationsReceived: stats.NotificationsReceived,
+			NotificationsSent:     stats.NotificationsSent,
+			RefreshReceived:       stats.RefreshReceived,
+			RefreshSent:           stats.RefreshSent,
+
+			ConnectionsEstablished: stats.ConnectionsEstablished,
+			ConnectionsDropped:     stats.ConnectionsDropped,
+			LastNotifCode:          stats.LastNotifCode,
+			LastNotifSubcode:       stats.LastNotifSubcode,
+			LastNotifRecv:          stats.LastNotifRecv,
+			LastNotifTime:          stats.LastNotifTime,
+			LastReadTime:           stats.LastReadTime,
+			LastWriteTime:          stats.LastWriteTime,
+
+			PeerType:                peerType,
+			LocalPort:               localPort,
+			RemotePort:              remotePort,
+			MD5Enabled:              s.MD5Key != "",
+			BFDEnabled:              s.BFD != nil,
+			NegotiatedHoldTime:      time.Duration(p.NegotiatedHoldTime()) * time.Second,
+			NegotiatedKeepaliveTime: time.Duration(p.NegotiatedKeepaliveTime()) * time.Second,
 		}
 		if estAt := p.EstablishedAt(); !estAt.IsZero() {
 			info.Uptime = a.r.clock.Now().Sub(estAt)
 		}
+		if p.health != nil {
+			info.FlapCount = p.health.FlapCount()
+		}
 		if neg := p.negotiated.Load(); neg != nil {
 			info.NegotiatedFamilies = neg.Families()
+			info.NegotiationComplete = true
+			info.NegotiatedASN4 = neg.ASN4
+			info.NegotiatedExtMsg = neg.ExtendedMessage
+			info.NegotiatedRouteRefresh = neg.RouteRefresh
+			info.NegotiatedEnhancedRR = neg.EnhancedRouteRefresh
+			for _, f := range neg.Families() {
+				if p.addPathFor(f) {
+					if info.NegotiatedAddPath == nil {
+						info.NegotiatedAddPath = make(map[string]string)
+					}
+					info.NegotiatedAddPath[f.String()] = addPathSendDirection
+				}
+			}
+			if neg.GracefulRestart != nil {
+				info.GracefulRestart = true
+				info.GRRestartTime = neg.GracefulRestart.RestartTime
+			}
 		}
 		result = append(result, info)
 	}

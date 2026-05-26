@@ -260,6 +260,33 @@ func TestEORTimeoutZeroRestartTime(t *testing.T) {
 	sh.stop()
 }
 
+// TestSessionHealthFlapLifetime verifies the lifetime flap counter increments
+// on every Established->non-Established transition.
+func TestSessionHealthFlapLifetime(t *testing.T) {
+	report.ResetForTest()
+
+	clk := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	sh := newTestSessionHealth("192.0.2.20", clk)
+
+	if sh.FlapCount() != 0 {
+		t.Fatal("expected zero flap count initially")
+	}
+
+	sh.onStateChange(PeerStateEstablished, PeerStateActive)
+	if sh.FlapCount() != 1 {
+		t.Fatalf("expected 1 flap, got %d", sh.FlapCount())
+	}
+
+	clk.advance(10 * time.Minute)
+	sh.onStateChange(PeerStateActive, PeerStateEstablished)
+	sh.onStateChange(PeerStateEstablished, PeerStateConnecting)
+	if sh.FlapCount() != 2 {
+		t.Fatalf("expected 2 flaps, got %d", sh.FlapCount())
+	}
+
+	sh.stop()
+}
+
 func TestSessionFlapNotTriggeredWithSlowTransitions(t *testing.T) {
 	report.ResetForTest()
 

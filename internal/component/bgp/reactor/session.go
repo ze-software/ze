@@ -303,6 +303,25 @@ type Session struct {
 	// Set by Peer in runOnce() for Prometheus notification counter.
 	onNotifRecv func(code, subcode uint8)
 
+	// onOpenSent is called after an OPEN message is sent.
+	onOpenSent func()
+
+	// onOpenRecv is called after an OPEN message is received.
+	onOpenRecv func()
+
+	// onRefreshRecv is called after a ROUTE-REFRESH message is received.
+	onRefreshRecv func()
+
+	// onRead is called after any successful message read.
+	onRead func()
+
+	// onWrite is called after any successful message write.
+	onWrite func()
+
+	// onNegotiated is called after capability negotiation completes.
+	// Receives the negotiated hold time and keepalive in seconds.
+	onNegotiated func(holdSec, keepaliveSec uint32)
+
 	// recentRead is set to true by the read loop on every successful message read.
 	// The hold timer callback checks and clears it: if true, the daemon is
 	// CPU-congested (data arrived but wasn't processed in time), so the hold

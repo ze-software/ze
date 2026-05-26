@@ -26,6 +26,27 @@ type PeerStats struct {
 	KeepalivesSent     uint32
 	EORReceived        uint32
 	EORSent            uint32
+
+	OpensReceived         uint32
+	OpensSent             uint32
+	NotificationsReceived uint32
+	NotificationsSent     uint32
+	RefreshReceived       uint32
+	RefreshSent           uint32
+
+	// Lifetime counters (survive ClearStats).
+	ConnectionsEstablished uint32
+	ConnectionsDropped     uint32
+
+	// Last notification details (survive ClearStats).
+	LastNotifCode    uint8
+	LastNotifSubcode uint8
+	LastNotifRecv    bool
+	LastNotifTime    time.Time
+
+	// Activity timestamps.
+	LastReadTime  time.Time
+	LastWriteTime time.Time
 }
 
 // peerCounters holds atomic counters for per-peer statistics.
@@ -39,18 +60,60 @@ type peerCounters struct {
 	eorReceived        atomic.Uint32
 	eorSent            atomic.Uint32
 	establishedAt      atomic.Int64 // UnixNano; 0 = not established
+
+	opensReceived         atomic.Uint32
+	opensSent             atomic.Uint32
+	notificationsReceived atomic.Uint32
+	notificationsSent     atomic.Uint32
+	refreshReceived       atomic.Uint32
+	refreshSent           atomic.Uint32
+
+	// Lifetime counters (not reset by ClearStats).
+	connectionsEstablished atomic.Uint32
+	connectionsDropped     atomic.Uint32
+
+	// Last notification details (not reset by ClearStats).
+	lastNotifCode    atomic.Uint32 // uint8 stored in uint32
+	lastNotifSubcode atomic.Uint32
+	lastNotifRecv    atomic.Bool
+	lastNotifTime    atomic.Int64 // UnixNano
+
+	// Activity timestamps.
+	lastReadTime  atomic.Int64 // UnixNano
+	lastWriteTime atomic.Int64 // UnixNano
 }
 
 // Stats returns a snapshot of the peer's counters.
 func (p *Peer) Stats() PeerStats {
-	return PeerStats{
-		UpdatesReceived:    p.counters.updatesReceived.Load(),
-		UpdatesSent:        p.counters.updatesSent.Load(),
-		KeepalivesReceived: p.counters.keepalivesReceived.Load(),
-		KeepalivesSent:     p.counters.keepalivesSent.Load(),
-		EORReceived:        p.counters.eorReceived.Load(),
-		EORSent:            p.counters.eorSent.Load(),
+	stats := PeerStats{
+		UpdatesReceived:        p.counters.updatesReceived.Load(),
+		UpdatesSent:            p.counters.updatesSent.Load(),
+		KeepalivesReceived:     p.counters.keepalivesReceived.Load(),
+		KeepalivesSent:         p.counters.keepalivesSent.Load(),
+		EORReceived:            p.counters.eorReceived.Load(),
+		EORSent:                p.counters.eorSent.Load(),
+		OpensReceived:          p.counters.opensReceived.Load(),
+		OpensSent:              p.counters.opensSent.Load(),
+		NotificationsReceived:  p.counters.notificationsReceived.Load(),
+		NotificationsSent:      p.counters.notificationsSent.Load(),
+		RefreshReceived:        p.counters.refreshReceived.Load(),
+		RefreshSent:            p.counters.refreshSent.Load(),
+		ConnectionsEstablished: p.counters.connectionsEstablished.Load(),
+		ConnectionsDropped:     p.counters.connectionsDropped.Load(),
+		LastNotifCode:          uint8(p.counters.lastNotifCode.Load()),
+		LastNotifSubcode:       uint8(p.counters.lastNotifSubcode.Load()),
+		LastNotifRecv:          p.counters.lastNotifRecv.Load(),
 	}
+	if ns := p.counters.lastNotifTime.Load(); ns != 0 {
+		stats.LastNotifTime = time.Unix(0, ns)
+	}
+	if ns := p.counters.lastReadTime.Load(); ns != 0 {
+		stats.LastReadTime = time.Unix(0, ns)
+	}
+	if ns := p.counters.lastWriteTime.Load(); ns != 0 {
+		stats.LastWriteTime = time.Unix(0, ns)
+	}
+	return stats
 }
 
 // peerAddrLabel returns the peer address string for Prometheus labels.
@@ -139,12 +202,37 @@ func notificationCodeLabel(code uint8) string {
 	}
 }
 
+// IncrOpensReceived increments the received OPEN counter.
+func (p *Peer) IncrOpensReceived() {
+	p.counters.opensReceived.Add(1)
+	if p.reactor != nil && p.reactor.rmetrics != nil {
+		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "open").Inc()
+	}
+}
+
+// IncrOpensSent increments the sent OPEN counter.
+func (p *Peer) IncrOpensSent() {
+	p.counters.opensSent.Add(1)
+	if p.reactor != nil && p.reactor.rmetrics != nil {
+		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "open").Inc()
+	}
+}
+
+func (p *Peer) recordNotification(code, subcode uint8, recv bool) {
+	p.counters.lastNotifCode.Store(uint32(code))
+	p.counters.lastNotifSubcode.Store(uint32(subcode))
+	p.counters.lastNotifRecv.Store(recv)
+	p.counters.lastNotifTime.Store(p.clock.Now().UnixNano())
+	p.notificationExchanged.Store(true)
+}
+
 // IncrNotificationSent increments the sent NOTIFICATION counter with code/subcode
 // labels and pushes a notification-sent error event onto the report bus.
 // Sets p.notificationExchanged so the FSM Established->Idle transition handler
 // in peer_run.go can suppress the duplicate session-dropped error.
 func (p *Peer) IncrNotificationSent(code, subcode uint8) {
-	p.notificationExchanged.Store(true)
+	p.counters.notificationsSent.Add(1)
+	p.recordNotification(code, subcode, false)
 	raiseNotificationError("sent", p.peerAddrLabel(), code, subcode)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.notifSent.With(
@@ -162,7 +250,8 @@ func (p *Peer) IncrNotificationSent(code, subcode uint8) {
 // transition handler in peer_run.go can suppress the duplicate session-dropped
 // error.
 func (p *Peer) IncrNotificationReceived(code, subcode uint8) {
-	p.notificationExchanged.Store(true)
+	p.counters.notificationsReceived.Add(1)
+	p.recordNotification(code, subcode, true)
 	raiseNotificationError("received", p.peerAddrLabel(), code, subcode)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.notifRecv.With(
@@ -174,9 +263,47 @@ func (p *Peer) IncrNotificationReceived(code, subcode uint8) {
 	}
 }
 
-// SetEstablishedNow records the current time as session establishment time.
+// IncrRefreshReceived increments the received ROUTE-REFRESH counter.
+func (p *Peer) IncrRefreshReceived() {
+	p.counters.refreshReceived.Add(1)
+	if p.reactor != nil && p.reactor.rmetrics != nil {
+		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "refresh").Inc()
+	}
+}
+
+// IncrRefreshSent increments the sent ROUTE-REFRESH counter.
+func (p *Peer) IncrRefreshSent() {
+	p.counters.refreshSent.Add(1)
+	if p.reactor != nil && p.reactor.rmetrics != nil {
+		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "refresh").Inc()
+	}
+}
+
+// IncrConnectionsEstablished increments the lifetime connections-established counter.
+func (p *Peer) IncrConnectionsEstablished() {
+	p.counters.connectionsEstablished.Add(1)
+}
+
+// IncrConnectionsDropped increments the lifetime connections-dropped counter.
+func (p *Peer) IncrConnectionsDropped() {
+	p.counters.connectionsDropped.Add(1)
+}
+
+// TouchLastRead records the current time as the last message read time.
+func (p *Peer) TouchLastRead() {
+	p.counters.lastReadTime.Store(p.clock.Now().UnixNano())
+}
+
+// TouchLastWrite records the current time as the last message write time.
+func (p *Peer) TouchLastWrite() {
+	p.counters.lastWriteTime.Store(p.clock.Now().UnixNano())
+}
+
+// SetEstablishedNow records the current time as session establishment time
+// and increments the lifetime connections-established counter.
 func (p *Peer) SetEstablishedNow() {
 	p.counters.establishedAt.Store(p.clock.Now().UnixNano())
+	p.IncrConnectionsEstablished()
 }
 
 // EstablishedAt returns the time the session was established.
@@ -189,8 +316,9 @@ func (p *Peer) EstablishedAt() time.Time {
 	return time.Unix(0, ns)
 }
 
-// ClearStats resets all counters and the established timestamp.
+// ClearStats resets per-session counters and the established timestamp.
 // Called on session teardown to start fresh for the next session.
+// Lifetime counters (connections, flaps, last notification) are preserved.
 func (p *Peer) ClearStats() {
 	p.counters.updatesReceived.Store(0)
 	p.counters.updatesSent.Store(0)
@@ -199,6 +327,14 @@ func (p *Peer) ClearStats() {
 	p.counters.eorReceived.Store(0)
 	p.counters.eorSent.Store(0)
 	p.counters.establishedAt.Store(0)
+	p.counters.opensReceived.Store(0)
+	p.counters.opensSent.Store(0)
+	p.counters.notificationsReceived.Store(0)
+	p.counters.notificationsSent.Store(0)
+	p.counters.refreshReceived.Store(0)
+	p.counters.refreshSent.Store(0)
+	p.counters.lastReadTime.Store(0)
+	p.counters.lastWriteTime.Store(0)
 }
 
 // peerStateNames lists all PeerState.String() values for metric label cleanup.

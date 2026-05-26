@@ -178,6 +178,10 @@ type Peer struct {
 	// Per-peer message and route counters for operational statistics.
 	counters peerCounters
 
+	// Negotiated timer values (set during OPEN exchange, cleared on teardown).
+	negotiatedHoldTime      atomic.Uint32 // seconds
+	negotiatedKeepaliveTime atomic.Uint32 // seconds
+
 	state           atomic.Int32
 	callback        PeerCallback
 	messageCallback MessageCallback // Called when any BGP message is received
@@ -311,6 +315,40 @@ func NewPeer(settings *PeerSettings) *Peer {
 // Settings returns the configured peer settings.
 func (p *Peer) Settings() *PeerSettings {
 	return p.settings
+}
+
+// NegotiatedHoldTime returns the negotiated hold time in seconds.
+func (p *Peer) NegotiatedHoldTime() uint32 { return p.negotiatedHoldTime.Load() }
+
+// NegotiatedKeepaliveTime returns the negotiated keepalive time in seconds.
+func (p *Peer) NegotiatedKeepaliveTime() uint32 { return p.negotiatedKeepaliveTime.Load() }
+
+// TCPPorts returns the local and remote TCP ports of the active session.
+// Returns 0, 0 if no session or connection is active.
+func (p *Peer) TCPPorts() (localPort, remotePort uint16) {
+	p.mu.RLock()
+	sess := p.session
+	p.mu.RUnlock()
+	if sess == nil {
+		return 0, 0
+	}
+	sess.mu.RLock()
+	conn := sess.conn
+	sess.mu.RUnlock()
+	if conn == nil {
+		return 0, 0
+	}
+	if addr := conn.LocalAddr(); addr != nil {
+		if la, ok := addr.(*net.TCPAddr); ok {
+			localPort = uint16(la.Port)
+		}
+	}
+	if addr := conn.RemoteAddr(); addr != nil {
+		if ra, ok := addr.(*net.TCPAddr); ok {
+			remotePort = uint16(ra.Port)
+		}
+	}
+	return localPort, remotePort
 }
 
 // SourceID returns the unique source ID for this peer.
@@ -666,6 +704,9 @@ func (p *Peer) State() PeerState {
 func (p *Peer) setState(s PeerState) {
 	old := PeerState(p.state.Swap(int32(s)))
 	if old != s {
+		if old == PeerStateEstablished && s != PeerStateEstablished {
+			p.IncrConnectionsDropped()
+		}
 		p.updatePeerStateMetric(old, s)
 		if p.health != nil {
 			p.health.onStateChange(old, s)

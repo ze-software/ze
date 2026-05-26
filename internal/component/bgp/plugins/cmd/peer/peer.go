@@ -28,6 +28,13 @@ var (
 	errMissingRequiredRemoteAs = errors.New("missing required remote as")
 )
 
+func notifDirection(recv bool) string {
+	if recv {
+		return "received"
+	}
+	return "sent"
+}
+
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-list", Handler: handleBgpPeerList},
@@ -153,6 +160,7 @@ func HandleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 			"remote-as":           p.PeerAS,
 			"local-as":            p.LocalAS,
 			"router-id":           routerID,
+			"peer-type":           p.PeerType,
 			"timer":               timer,
 			"connect":             p.Connect,
 			"accept":              p.Accept,
@@ -164,6 +172,29 @@ func HandleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 			"keepalives-sent":     p.KeepalivesSent,
 			"eor-received":        p.EORReceived,
 			"eor-sent":            p.EORSent,
+			"messages": map[string]any{
+				"received": map[string]any{
+					"opens":         p.OpensReceived,
+					"updates":       p.UpdatesReceived,
+					"notifications": p.NotificationsReceived,
+					"keepalives":    p.KeepalivesReceived,
+					"route-refresh": p.RefreshReceived,
+					"eor":           p.EORReceived,
+					"total":         p.OpensReceived + p.UpdatesReceived + p.NotificationsReceived + p.KeepalivesReceived + p.RefreshReceived + p.EORReceived,
+				},
+				"sent": map[string]any{
+					"opens":         p.OpensSent,
+					"updates":       p.UpdatesSent,
+					"notifications": p.NotificationsSent,
+					"keepalives":    p.KeepalivesSent,
+					"route-refresh": p.RefreshSent,
+					"eor":           p.EORSent,
+					"total":         p.OpensSent + p.UpdatesSent + p.NotificationsSent + p.KeepalivesSent + p.RefreshSent + p.EORSent,
+				},
+			},
+			"connections-established": p.ConnectionsEstablished,
+			"connections-dropped":     p.ConnectionsDropped,
+			"flap-count":              p.FlapCount,
 		}
 		if p.Name != "" {
 			row["name"] = p.Name
@@ -173,6 +204,18 @@ func HandleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 		}
 		if p.LocalAddress.IsValid() {
 			row["local-ip"] = p.LocalAddress.String()
+		}
+		if p.LocalPort != 0 {
+			row["local-port"] = p.LocalPort
+		}
+		if p.RemotePort != 0 {
+			row["remote-port"] = p.RemotePort
+		}
+		if p.MD5Enabled {
+			row["md5"] = true
+		}
+		if p.BFDEnabled {
+			row["bfd"] = true
 		}
 		if p.RouteReflectorClient {
 			row["route-reflector-client"] = true
@@ -188,6 +231,53 @@ func HandleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 				row["next-hop-address"] = p.NextHopAddress.String()
 			}
 		}
+		if p.NegotiatedHoldTime > 0 {
+			row["negotiated-hold-time"] = int(p.NegotiatedHoldTime.Seconds())
+			row["negotiated-keepalive-time"] = int(p.NegotiatedKeepaliveTime.Seconds())
+		}
+		if !p.LastNotifTime.IsZero() {
+			row["last-notification"] = map[string]any{
+				"code":      p.LastNotifCode,
+				"subcode":   p.LastNotifSubcode,
+				"direction": notifDirection(p.LastNotifRecv),
+				"time":      p.LastNotifTime.UTC().Format(time.RFC3339),
+			}
+		}
+		if !p.LastReadTime.IsZero() {
+			row["last-read"] = p.LastReadTime.UTC().Format(time.RFC3339)
+		}
+		if !p.LastWriteTime.IsZero() {
+			row["last-write"] = p.LastWriteTime.UTC().Format(time.RFC3339)
+		}
+		if len(p.ImportFilters) > 0 {
+			row["import-policy"] = p.ImportFilters
+		}
+		if len(p.ExportFilters) > 0 {
+			row["export-policy"] = p.ExportFilters
+		}
+		caps := map[string]any{
+			"negotiation-complete":   p.NegotiationComplete,
+			"asn4":                   p.NegotiatedASN4,
+			"extended-message":       p.NegotiatedExtMsg,
+			"route-refresh":          p.NegotiatedRouteRefresh,
+			"enhanced-route-refresh": p.NegotiatedEnhancedRR,
+		}
+		if p.NegotiationComplete {
+			famStrs := make([]string, len(p.NegotiatedFamilies))
+			for j, f := range p.NegotiatedFamilies {
+				famStrs[j] = f.String()
+			}
+			caps["families"] = famStrs
+			if p.NegotiatedAddPath != nil {
+				caps["add-path"] = p.NegotiatedAddPath
+			}
+			if p.GracefulRestart {
+				caps["graceful-restart"] = map[string]any{
+					"restart-time": p.GRRestartTime,
+				}
+			}
+		}
+		row["capabilities"] = caps
 		if p.PrefixUpdated != "" {
 			row["prefix-updated"] = p.PrefixUpdated
 			if t, err := time.Parse(time.DateOnly, p.PrefixUpdated); err == nil {

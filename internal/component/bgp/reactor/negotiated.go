@@ -21,6 +21,12 @@ type NegotiatedCapabilities struct {
 	RouteRefresh         bool                   // RFC 2918: Route refresh
 	EnhancedRouteRefresh bool                   // RFC 7313: Enhanced route refresh
 	ASN4                 bool                   // RFC 6793: 4-byte ASN support
+
+	// RFC 4271 Section 4.2: negotiated hold time in seconds.
+	HoldTime uint16
+
+	// RFC 4724: Graceful Restart. Nil if not negotiated.
+	GracefulRestart *capability.GracefulRestart
 }
 
 // NewNegotiatedCapabilities creates from capability negotiation result.
@@ -35,6 +41,8 @@ func NewNegotiatedCapabilities(neg *capability.Negotiated) *NegotiatedCapabiliti
 		RouteRefresh:         neg.RouteRefresh,
 		EnhancedRouteRefresh: neg.EnhancedRouteRefresh,
 		ASN4:                 neg.ASN4,
+		HoldTime:             neg.HoldTime,
+		GracefulRestart:      neg.GracefulRestart,
 	}
 
 	for _, f := range neg.Families() {

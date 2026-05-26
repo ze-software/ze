@@ -142,6 +142,8 @@ func (a *reactorAPIAdapter) sendRouteRefresh(peerSelector string, afi uint16, sa
 		// Send full packet (msgType=0 means data includes header)
 		if err := peer.SendRawMessage(0, data); err != nil {
 			errs = append(errs, err)
+		} else {
+			peer.IncrRefreshSent()
 		}
 	}
 

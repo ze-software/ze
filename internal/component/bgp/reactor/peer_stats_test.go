@@ -346,6 +346,118 @@ func TestIncrNotificationReceivedRaisesReport(t *testing.T) {
 	assert.Equal(t, uint8(4), e.Detail["subcode"])
 }
 
+// TestPeerStatsOpens verifies open message counter increment methods.
+func TestPeerStatsOpens(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	peer := NewPeer(settings)
+
+	peer.IncrOpensReceived()
+	peer.IncrOpensSent()
+	peer.IncrOpensSent()
+
+	stats := peer.Stats()
+	assert.Equal(t, uint32(1), stats.OpensReceived)
+	assert.Equal(t, uint32(2), stats.OpensSent)
+}
+
+// TestPeerStatsRefresh verifies route-refresh counter increment methods.
+func TestPeerStatsRefresh(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	peer := NewPeer(settings)
+
+	peer.IncrRefreshReceived()
+	peer.IncrRefreshReceived()
+	peer.IncrRefreshSent()
+
+	stats := peer.Stats()
+	assert.Equal(t, uint32(2), stats.RefreshReceived)
+	assert.Equal(t, uint32(1), stats.RefreshSent)
+}
+
+// TestPeerStatsLastNotification verifies last notification details are stored.
+func TestPeerStatsLastNotification(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	peer, _ := newPeerWithMetrics()
+
+	peer.IncrNotificationSent(6, 2)
+	stats := peer.Stats()
+	assert.Equal(t, uint8(6), stats.LastNotifCode)
+	assert.Equal(t, uint8(2), stats.LastNotifSubcode)
+	assert.False(t, stats.LastNotifRecv)
+	assert.False(t, stats.LastNotifTime.IsZero())
+	assert.Equal(t, uint32(1), stats.NotificationsSent)
+
+	peer.IncrNotificationReceived(3, 1)
+	stats = peer.Stats()
+	assert.Equal(t, uint8(3), stats.LastNotifCode)
+	assert.Equal(t, uint8(1), stats.LastNotifSubcode)
+	assert.True(t, stats.LastNotifRecv)
+	assert.Equal(t, uint32(1), stats.NotificationsReceived)
+}
+
+// TestPeerStatsConnectionCounts verifies lifetime connection counters.
+func TestPeerStatsConnectionCounts(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	peer := NewPeer(settings)
+
+	peer.SetEstablishedNow()
+	peer.SetEstablishedNow()
+
+	stats := peer.Stats()
+	assert.Equal(t, uint32(2), stats.ConnectionsEstablished)
+	assert.Equal(t, uint32(0), stats.ConnectionsDropped)
+
+	peer.IncrConnectionsDropped()
+	stats = peer.Stats()
+	assert.Equal(t, uint32(1), stats.ConnectionsDropped)
+}
+
+// TestPeerStatsLastReadWrite verifies last read/write timestamp tracking.
+func TestPeerStatsLastReadWrite(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	peer := NewPeer(settings)
+
+	stats := peer.Stats()
+	assert.True(t, stats.LastReadTime.IsZero())
+	assert.True(t, stats.LastWriteTime.IsZero())
+
+	peer.TouchLastRead()
+	peer.TouchLastWrite()
+
+	stats = peer.Stats()
+	assert.False(t, stats.LastReadTime.IsZero())
+	assert.False(t, stats.LastWriteTime.IsZero())
+}
+
+// TestPeerStatsClearPreservesLifetime verifies ClearStats resets per-session
+// counters but preserves lifetime counters.
+func TestPeerStatsClearPreservesLifetime(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	peer, _ := newPeerWithMetrics()
+
+	peer.IncrOpensReceived()
+	peer.IncrRefreshSent()
+	peer.IncrNotificationSent(6, 2)
+	peer.SetEstablishedNow()
+	peer.IncrConnectionsDropped()
+	peer.TouchLastRead()
+
+	peer.ClearStats()
+
+	stats := peer.Stats()
+	assert.Equal(t, uint32(0), stats.OpensReceived, "per-session counter should reset")
+	assert.Equal(t, uint32(0), stats.RefreshSent, "per-session counter should reset")
+	assert.True(t, stats.LastReadTime.IsZero(), "per-session timestamp should reset")
+	assert.Equal(t, uint32(1), stats.ConnectionsEstablished, "lifetime counter should survive")
+	assert.Equal(t, uint32(1), stats.ConnectionsDropped, "lifetime counter should survive")
+	assert.Equal(t, uint8(6), stats.LastNotifCode, "last notification should survive")
+	assert.False(t, stats.LastNotifTime.IsZero(), "last notification time should survive")
+}
+
 // TestRaiseSessionDropped verifies that raiseSessionDropped pushes a
 // session-dropped error event with the given reason.
 //

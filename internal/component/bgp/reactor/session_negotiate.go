@@ -63,8 +63,17 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 
 	// RFC 4271 Section 10: clamp keepalive when negotiated hold-time shrinks.
 	// A configured keepalive >= negotiated hold-time would cause session flap.
+	// The effective keepalive is: configured value if valid, otherwise hold/3.
+	effectiveKeepalive := s.settings.KeepaliveTime
+	if effectiveKeepalive == 0 || (negotiatedHold > 0 && effectiveKeepalive >= negotiatedHold) {
+		effectiveKeepalive = negotiatedHold / 3
+	}
 	if ka := s.settings.KeepaliveTime; ka > 0 && negotiatedHold > 0 && ka >= negotiatedHold {
-		s.timers.SetKeepaliveTime(negotiatedHold / 3)
+		s.timers.SetKeepaliveTime(effectiveKeepalive)
+	}
+
+	if s.onNegotiated != nil {
+		s.onNegotiated(uint32(negotiatedHold/time.Second), uint32(effectiveKeepalive/time.Second))
 	}
 }
 
@@ -145,7 +154,11 @@ func (s *Session) sendOpen(conn net.Conn) error {
 	s.localOpen = open
 	s.mu.Unlock()
 
-	return s.writeMessage(conn, open)
+	err := s.writeMessage(conn, open)
+	if err == nil && s.onOpenSent != nil {
+		s.onOpenSent()
+	}
+	return err
 }
 
 // buildOptionalParams builds optional parameters from capabilities.

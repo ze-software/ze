@@ -128,6 +128,9 @@ func (s *Session) AcceptWithOpen(conn net.Conn, peerOpen *message.Open) error {
 // processOpen handles a pre-parsed OPEN message.
 // Used by AcceptWithOpen for collision resolution.
 func (s *Session) processOpen(open *message.Open) error {
+	if s.onOpenRecv != nil {
+		s.onOpenRecv()
+	}
 	// Validate version
 	if open.Version != 4 {
 		s.mu.RLock()

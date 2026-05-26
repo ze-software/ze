@@ -34,8 +34,9 @@ type sessionHealth struct {
 	stopped      bool
 	// Ring buffer of Established->non-Established transition timestamps.
 	// Bounded at flapThreshold+1 entries.
-	flapTimes []time.Time
-	flapWarn  bool
+	flapTimes    []time.Time
+	flapWarn     bool
+	flapLifetime uint32 // Lifetime flap count (not windowed).
 	// EOR timeout: timer fires warning if not all End-of-RIB markers are
 	// received within the negotiated GR restart-time after Established.
 	eorTick     clock.Timer
@@ -168,8 +169,16 @@ func (sh *sessionHealth) clearEORLocked() {
 	sh.eorReceived = 0
 }
 
+// FlapCount returns the lifetime flap count for this peer.
+func (sh *sessionHealth) FlapCount() uint32 {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	return sh.flapLifetime
+}
+
 func (sh *sessionHealth) recordFlapLocked() {
 	now := sh.clock.Now()
+	sh.flapLifetime++
 
 	sh.flapTimes = append(sh.flapTimes, now)
 	// Trim to bounded size.

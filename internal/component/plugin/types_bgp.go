@@ -97,6 +97,54 @@ type PeerInfo struct {
 	EORReceived        uint32
 	EORSent            uint32
 
+	// Full message counters (all message types).
+	OpensReceived         uint32
+	OpensSent             uint32
+	NotificationsReceived uint32
+	NotificationsSent     uint32
+	RefreshReceived       uint32
+	RefreshSent           uint32
+
+	// Lifetime session stability counters.
+	ConnectionsEstablished uint32
+	ConnectionsDropped     uint32
+	FlapCount              uint32
+
+	// Last notification details (lifetime, survives session reset).
+	LastNotifCode    uint8
+	LastNotifSubcode uint8
+	LastNotifRecv    bool
+	LastNotifTime    time.Time
+
+	// Activity timestamps.
+	LastReadTime  time.Time
+	LastWriteTime time.Time
+
+	// Peer type derived from LocalAS vs PeerAS.
+	PeerType string // "internal" or "external"
+
+	// Transport details.
+	LocalPort  uint16
+	RemotePort uint16
+	MD5Enabled bool
+	BFDEnabled bool
+
+	// RFC 4271 Section 4.2: negotiated timers (min of local and remote).
+	NegotiatedHoldTime      time.Duration
+	NegotiatedKeepaliveTime time.Duration
+
+	// Inline capabilities (negotiated).
+	NegotiationComplete    bool
+	NegotiatedASN4         bool
+	NegotiatedExtMsg       bool
+	NegotiatedRouteRefresh bool
+	NegotiatedEnhancedRR   bool
+	NegotiatedAddPath      map[string]string // family -> "send"/"receive"/"both"
+
+	// RFC 4724: Graceful restart state.
+	GracefulRestart bool
+	GRRestartTime   uint16
+
 	// NegotiatedFamilies is the list of address families that completed
 	// RFC 4760 multiprotocol negotiation with this peer. Empty until OPEN
 	// exchange finishes. Used by `show bgp <family> summary` to scope the

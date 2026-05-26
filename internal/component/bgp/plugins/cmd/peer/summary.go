@@ -113,6 +113,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			"name":                p.Name,
 			"description":         p.GroupName,
 			"remote-as":           p.PeerAS,
+			"peer-type":           p.PeerType,
 			"state":               p.State.String(),
 			"uptime":              p.Uptime.String(),
 			"updates-received":    p.UpdatesReceived,
@@ -121,6 +122,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			"keepalives-sent":     p.KeepalivesSent,
 			"eor-received":        p.EORReceived,
 			"eor-sent":            p.EORSent,
+			"connections-dropped": p.ConnectionsDropped,
 		})
 	}
 	if familyFilter != "" && !matched {

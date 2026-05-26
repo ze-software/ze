@@ -37,6 +37,9 @@ func (s *Session) handleUnknownType(msgType message.MessageType) error {
 
 // handleOpen processes a received OPEN message.
 func (s *Session) handleOpen(body []byte) error {
+	if s.onOpenRecv != nil {
+		s.onOpenRecv()
+	}
 	open, err := message.UnpackOpen(body)
 	if err != nil {
 		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
@@ -253,6 +256,9 @@ func (s *Session) handleNotification(body []byte) error {
 // that were not advertised in the OPEN message.
 // RFC 7313: Enhanced Route Refresh with BoRR/EoRR markers.
 func (s *Session) handleRouteRefresh(body []byte) error {
+	if s.onRefreshRecv != nil {
+		s.onRefreshRecv()
+	}
 	// RFC 7313 Section 5: "If the length... is not 4, then the BGP speaker
 	// MUST send a NOTIFICATION message with Error Code 'ROUTE-REFRESH Message Error'
 	// and subcode 'Invalid Message Length'."
