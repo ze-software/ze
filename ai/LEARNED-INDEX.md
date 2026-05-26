@@ -101,6 +101,7 @@ Command structure, text format, IPC, RPC dispatch.
 - [738](plan/learned/738-cli-grammar.md) -- CLI grammar: action before identifier (YANG sub-containers consume dispatch tokens, deprecation via JSON unmarshal not wrapping)
 - [730](plan/learned/730-diag-capture-interface.md) -- AF_PACKET live capture (mdlayher/packet + go-pcap BPF, portable/linux file split, Ethernet link type for raw sockets)
 - [755](plan/learned/755-ze-doctor.md) -- Offline system readiness checks: diagnostic code taxonomy, error/warning severity, platform-split checks, shared resolve package
+- [788](plan/learned/788-doctor-improvements.md) -- Doctor schema-driven listener inventory, RegisterListenerDefault pattern, show doctor provider, dependency inventory guardrail
 
 ## Web Interface
 

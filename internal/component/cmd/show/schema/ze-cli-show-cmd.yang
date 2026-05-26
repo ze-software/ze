@@ -270,6 +270,12 @@ module ze-cli-show-cmd {
             description "Show aggregated component health status";
         }
 
+        container doctor {
+            config false;
+            ze:command "ze-show:doctor";
+            description "Run offline readiness checks (same output as ze doctor --json)";
+        }
+
         container metrics-query {
             config false;
             ze:command "ze-show:metrics-query";

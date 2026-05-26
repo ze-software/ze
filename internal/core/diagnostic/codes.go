@@ -379,4 +379,28 @@ var builtinCodes = []CodeMeta{
 		Description: "A configured file write destination (persist path, output directory) is not writable.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-write-destination"},
 	},
+	{
+		Code:        "doctor-ntp-clock-privilege",
+		Title:       "NTP clock adjustment privilege missing",
+		Description: "NTP is configured but the process lacks CAP_SYS_TIME. Clock adjustment will fail unless running as root or with the capability granted.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-ntp-clock-privilege"},
+	},
+	{
+		Code:        "doctor-vpp-dpdk",
+		Title:       "VPP DPDK readiness failure",
+		Description: "VPP DPDK is configured but a required VFIO kernel module is not loaded or a PCI device is not present in sysfs.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-vpp-dpdk"},
+	},
+	{
+		Code:        "doctor-update-check-unreachable",
+		Title:       "Update check URL unreachable",
+		Description: "The configured firmware update-check URL did not respond to an HTTP HEAD probe within the timeout.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-update-check-unreachable"},
+	},
+	{
+		Code:        "doctor-archive-unreachable",
+		Title:       "Archive destination unreachable",
+		Description: "A configured HTTP/HTTPS config archive destination did not respond to an HTTP HEAD probe within the timeout.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-archive-unreachable"},
+	},
 }

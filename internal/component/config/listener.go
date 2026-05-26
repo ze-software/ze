@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // Protocol names for listener endpoints. Endpoints on different protocols
@@ -323,4 +324,80 @@ func ipsConflict(a, b net.IP) bool {
 		return a.Equal(net.IPv4zero) || b.Equal(net.IPv4zero)
 	}
 	return a.Equal(net.IPv6zero) || b.Equal(net.IPv6zero)
+}
+
+// ListenerDefault holds the default IP and port for a ze:listener service.
+type ListenerDefault struct {
+	IP   string
+	Port string
+}
+
+var listenerDefaultsMu sync.RWMutex
+var listenerDefaults = map[string]ListenerDefault{}
+
+// RegisterListenerDefault registers the default IP and port for a named
+// ze:listener service. Doctor uses these defaults when a service is enabled
+// but its server list is empty (YANG refine defaults are not propagated).
+func RegisterListenerDefault(serviceName, ip, port string) {
+	listenerDefaultsMu.Lock()
+	listenerDefaults[serviceName] = ListenerDefault{IP: ip, Port: port}
+	listenerDefaultsMu.Unlock()
+}
+
+// CollectListenersWithDefaults extends CollectListeners to fill in registered
+// defaults for services whose server list is empty. This covers services that
+// rely on YANG refine defaults which the Ze YANG compiler does not propagate.
+func CollectListenersWithDefaults(tree *Tree, schema *Schema) []ListenerEndpoint {
+	endpoints := CollectListeners(tree, schema)
+
+	services := DiscoverListenerServices(schema)
+	listenerDefaultsMu.RLock()
+	defer listenerDefaultsMu.RUnlock()
+
+	for _, svc := range services {
+		container := tree
+		for _, name := range svc.containers {
+			container = container.GetContainer(name)
+			if container == nil {
+				break
+			}
+		}
+		if container == nil {
+			continue
+		}
+
+		if svc.hasEnabledLeaf {
+			v, ok := container.Get("enabled")
+			if !ok || v != configTrue {
+				continue
+			}
+		}
+
+		entries := container.GetListOrdered(svc.listName)
+		if len(entries) > 0 {
+			continue
+		}
+
+		def, ok := listenerDefaults[svc.name]
+		if !ok {
+			continue
+		}
+
+		ip := net.ParseIP(def.IP)
+		if ip == nil {
+			ip = net.IPv4zero
+		}
+		port, err := strconv.ParseUint(def.Port, 10, 16)
+		if err != nil || port == 0 {
+			continue
+		}
+		endpoints = append(endpoints, ListenerEndpoint{
+			Service:  svc.name,
+			Protocol: svc.protocol,
+			IP:       ip,
+			Port:     uint16(port), //nolint:gosec // ParseUint bitSize=16 bounds value
+		})
+	}
+
+	return endpoints
 }

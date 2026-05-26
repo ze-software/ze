@@ -1,0 +1,17 @@
+# Test: ze doctor --json reports unwritable DNS resolv-conf-path and archive file locations
+# VALIDATES: AC-11 extended writable destination checks.
+
+tmpfs=writable-ext.conf:terminator=EOF_CONF
+system {
+    dns {
+        resolv-conf-path /nonexistent-ze-doctor-test/resolv.conf
+    }
+    archive local-backup {
+        location file:///nonexistent-ze-doctor-test/archive
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json writable-ext.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-write-destination

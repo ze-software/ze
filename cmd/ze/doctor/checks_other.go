@@ -52,3 +52,11 @@ func checkConntrackProcfs(_ *config.Tree) []diagnostic.Diagnostic {
 func checkPolicyRouteNetlink(_ *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }
+
+func checkNTPClockPrivilege(_ *config.Tree) []diagnostic.Diagnostic {
+	return nil
+}
+
+func checkVPPDPDK(_ *config.Tree) []diagnostic.Diagnostic {
+	return nil
+}

@@ -2,6 +2,7 @@ package config
 
 import (
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -523,4 +524,55 @@ func TestValidateListenerConflicts_WireguardDuplicatePort(t *testing.T) {
 	assert.Contains(t, err.Error(), "wg0")
 	assert.Contains(t, err.Error(), "wg1")
 	assert.Contains(t, err.Error(), "udp")
+}
+
+func TestCollectListenersWithDefaults_EmptyServerList(t *testing.T) {
+	schema := listenerTestSchema(t)
+
+	RegisterListenerDefault("ssh", "127.0.0.1", "2222")
+	RegisterListenerDefault("web", "0.0.0.0", "3443")
+
+	tree := NewTree()
+	env := NewTree()
+	ssh := NewTree()
+	ssh.Set("enabled", "true")
+	env.SetContainer("ssh", ssh)
+	tree.SetContainer("environment", env)
+
+	endpoints := CollectListenersWithDefaults(tree, schema)
+
+	found := false
+	for _, ep := range endpoints {
+		if ep.Service == "ssh" && ep.Port == 2222 {
+			found = true
+			assert.Equal(t, "127.0.0.1", ep.IP.String())
+			break
+		}
+	}
+	assert.True(t, found, "expected ssh default endpoint when server list is empty")
+}
+
+func TestCollectListenersWithDefaults_ExplicitOverridesDefault(t *testing.T) {
+	schema := listenerTestSchema(t)
+
+	RegisterListenerDefault("ssh", "127.0.0.1", "2222")
+
+	tree := NewTree()
+	env := NewTree()
+	ssh := NewTree()
+	ssh.Set("enabled", "true")
+	srv := NewTree()
+	srv.Set("ip", "10.0.0.1")
+	srv.Set("port", "2223")
+	ssh.AddListEntry("server", "s1", srv)
+	env.SetContainer("ssh", ssh)
+	tree.SetContainer("environment", env)
+
+	endpoints := CollectListenersWithDefaults(tree, schema)
+
+	for _, ep := range endpoints {
+		if strings.Contains(ep.Service, "ssh") {
+			assert.NotEqual(t, uint16(2222), ep.Port, "default port should not appear when explicit entry exists")
+		}
+	}
 }

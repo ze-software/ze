@@ -4,6 +4,7 @@ package doctor
 
 import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 )
 
 func init() {
@@ -14,4 +15,5 @@ func init() {
 		Subs:        "[--json] [<config-file>]",
 	})
 	cmdregistry.MustRegisterLocal("doctor", Run)
+	diagnostic.RegisterDoctorProvider(runChecks)
 }

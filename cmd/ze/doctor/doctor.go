@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/user"
@@ -19,6 +20,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -166,8 +168,12 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkVPPVersion(tree)...)
 	diags = append(diags, checkBGPMD5(tree)...)
 	diags = append(diags, checkNTPClient(tree)...)
+	diags = append(diags, checkNTPClockPrivilege(tree)...)
 	diags = append(diags, checkRPKIServers(tree)...)
 	diags = append(diags, checkBMPCollectors(tree)...)
+	diags = append(diags, checkVPPDPDK(tree)...)
+	diags = append(diags, checkUpdateCheckURL(tree)...)
+	diags = append(diags, checkArchiveDestinations(tree)...)
 	diags = append(diags, checkWritableDestinations(tree)...)
 
 	return diags
@@ -754,9 +760,36 @@ type serviceListener struct {
 
 var listenerProbe = probeListener
 
-func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
-	var diags []diagnostic.Diagnostic
+var registerListenerDefaultsOnce sync.Once
 
+func collectSchemaListeners(tree *config.Tree) []serviceListener {
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return collectHardcodedListeners(tree)
+	}
+	services := config.DiscoverListenerServices(schema)
+	if len(services) == 0 {
+		return collectHardcodedListeners(tree)
+	}
+	registerListenerDefaultsOnce.Do(config.RegisterBuiltinListenerDefaults)
+	endpoints := config.CollectListenersWithDefaults(tree, schema)
+
+	listeners := make([]serviceListener, 0, len(endpoints))
+	for _, ep := range endpoints {
+		l := serviceListener{
+			service:  ep.Service,
+			network:  ep.Protocol,
+			host:     ep.IP.String(),
+			port:     textbuf.Uint16(ep.Port),
+			code:     "doctor-listen-unavailable",
+			severity: diagnostic.SeverityWarning,
+		}
+		listeners = append(listeners, l)
+	}
+	return listeners
+}
+
+func collectHardcodedListeners(tree *config.Tree) []serviceListener {
 	var listeners []serviceListener
 
 	if webCfg, ok := config.ExtractWebConfig(tree); ok {
@@ -774,7 +807,6 @@ func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
 			listeners = append(listeners, tcpListener("looking-glass", s.Host, s.Port, "doctor-listen-unavailable"))
 		}
 	}
-
 	if apiCfg, ok := config.ExtractAPIConfig(tree); ok {
 		if apiCfg.RESTOn {
 			for _, s := range apiCfg.REST {
@@ -787,9 +819,71 @@ func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
 			}
 		}
 	}
-
 	listeners = append(listeners, extractSSHListeners(tree)...)
 	listeners = append(listeners, extractTelemetryListeners(tree)...)
+	return listeners
+}
+
+func extractSSHListeners(tree *config.Tree) []serviceListener {
+	envBlock := tree.GetContainer("environment")
+	if envBlock == nil {
+		return nil
+	}
+	sshBlock := envBlock.GetContainer("ssh")
+	if sshBlock == nil {
+		return nil
+	}
+	enabled, _ := sshBlock.Get("enabled")
+	if enabled != configTrueValue {
+		return nil
+	}
+
+	var listeners []serviceListener
+	if servers := sshBlock.GetListOrdered("server"); len(servers) > 0 {
+		for _, s := range servers {
+			host := "0.0.0.0"
+			port := "2222"
+			if v, ok := s.Value.Get("ip"); ok && v != "" {
+				host = v
+			}
+			if v, ok := s.Value.Get("port"); ok && v != "" {
+				port = v
+			}
+			listeners = append(listeners, tcpListener("ssh", host, port, "doctor-listen-unavailable"))
+		}
+	}
+
+	if len(listeners) == 0 {
+		listeners = append(listeners, tcpListener("ssh", "127.0.0.1", "2222", "doctor-listen-unavailable"))
+	}
+
+	return listeners
+}
+
+func extractTelemetryListeners(tree *config.Tree) []serviceListener {
+	prom := getContainerPath(tree, "telemetry", "prometheus")
+	if !configEnabled(prom, false) {
+		return nil
+	}
+
+	servers := prom.GetListOrdered("server")
+	if len(servers) == 0 {
+		return []serviceListener{tcpListener("telemetry", "127.0.0.1", "9273", "doctor-listen-unavailable")}
+	}
+
+	listeners := make([]serviceListener, 0, len(servers))
+	for _, s := range servers {
+		host := valueOrDefault(s.Value, "ip", "127.0.0.1")
+		port := valueOrDefault(s.Value, "port", "9273")
+		listeners = append(listeners, tcpListener("telemetry", host, port, "doctor-listen-unavailable"))
+	}
+	return listeners
+}
+
+func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
+	var diags []diagnostic.Diagnostic
+
+	listeners := collectSchemaListeners(tree)
 	listeners = append(listeners, extractBGPListeners(tree)...)
 	listeners = append(listeners, extractBFDListeners(tree)...)
 	listeners = append(listeners, extractIPsecListeners(tree)...)
@@ -865,26 +959,6 @@ func dedupeListeners(listeners []serviceListener) []serviceListener {
 		result = append(result, l)
 	}
 	return result
-}
-
-func extractTelemetryListeners(tree *config.Tree) []serviceListener {
-	prom := getContainerPath(tree, "telemetry", "prometheus")
-	if !configEnabled(prom, false) {
-		return nil
-	}
-
-	servers := prom.GetListOrdered("server")
-	if len(servers) == 0 {
-		return []serviceListener{tcpListener("telemetry", "127.0.0.1", "9273", "doctor-listen-unavailable")}
-	}
-
-	listeners := make([]serviceListener, 0, len(servers))
-	for _, s := range servers {
-		host := valueOrDefault(s.Value, "ip", "127.0.0.1")
-		port := valueOrDefault(s.Value, "port", "9273")
-		listeners = append(listeners, tcpListener("telemetry", host, port, "doctor-listen-unavailable"))
-	}
-	return listeners
 }
 
 func extractBGPListeners(tree *config.Tree) []serviceListener {
@@ -1182,51 +1256,6 @@ func valueOrDefault(tree *config.Tree, name, def string) string {
 		return v
 	}
 	return def
-}
-
-func extractSSHListeners(tree *config.Tree) []serviceListener {
-	envBlock := tree.GetContainer("environment")
-	if envBlock == nil {
-		return nil
-	}
-	sshBlock := envBlock.GetContainer("ssh")
-	if sshBlock == nil {
-		return nil
-	}
-	enabled, _ := sshBlock.Get("enabled")
-	if enabled != configTrueValue {
-		return nil
-	}
-
-	var listeners []serviceListener
-	if servers := sshBlock.GetListOrdered("server"); len(servers) > 0 {
-		for _, s := range servers {
-			host := "0.0.0.0"
-			port := "2222"
-			if v, ok := s.Value.Get("ip"); ok && v != "" {
-				host = v
-			}
-			if v, ok := s.Value.Get("port"); ok && v != "" {
-				port = v
-			}
-			listeners = append(listeners, tcpListener("ssh", host, port, "doctor-listen-unavailable"))
-		}
-	} else if addrs := sshBlock.GetSlice("listen"); len(addrs) > 0 {
-		for _, addr := range addrs {
-			host, port, err := net.SplitHostPort(addr)
-			if err != nil {
-				host = "127.0.0.1"
-				port = "2222"
-			}
-			listeners = append(listeners, tcpListener("ssh", host, port, "doctor-listen-unavailable"))
-		}
-	}
-
-	if len(listeners) == 0 {
-		listeners = append(listeners, tcpListener("ssh", "127.0.0.1", "2222", "doctor-listen-unavailable"))
-	}
-
-	return listeners
 }
 
 func checkConfigReferences(tree *config.Tree) []diagnostic.Diagnostic {
@@ -1638,6 +1667,75 @@ func probeWritableDir(dir string) error {
 	return removeErr
 }
 
+var httpHead = defaultHTTPHead
+
+func defaultHTTPHead(url string, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, http.NoBody)
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	_ = resp.Body.Close()
+	return nil
+}
+
+func checkUpdateCheckURL(tree *config.Tree) []diagnostic.Diagnostic {
+	uc := getContainerPath(tree, "system", "update-check")
+	if uc == nil {
+		return nil
+	}
+	url, ok := uc.Get("url")
+	if !ok || url == "" {
+		return nil
+	}
+
+	if err := httpHead(url, 5*time.Second); err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-update-check-unreachable",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "update-check URL unreachable: " + err.Error(),
+			Path:     url,
+		}}
+	}
+	return nil
+}
+
+func checkArchiveDestinations(tree *config.Tree) []diagnostic.Diagnostic {
+	system := tree.GetContainer("system")
+	if system == nil {
+		return nil
+	}
+	archives := system.GetListOrdered("archive")
+	if len(archives) == 0 {
+		return nil
+	}
+
+	var diags []diagnostic.Diagnostic
+	for _, a := range archives {
+		loc, ok := a.Value.Get("location")
+		if !ok || loc == "" {
+			continue
+		}
+		if !strings.HasPrefix(loc, "http://") && !strings.HasPrefix(loc, "https://") {
+			continue
+		}
+		if err := httpHead(loc, 5*time.Second); err != nil {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     "doctor-archive-unreachable",
+				Severity: diagnostic.SeverityWarning,
+				Message:  "archive " + a.Key + ": location unreachable: " + err.Error(),
+				Path:     loc,
+			})
+		}
+	}
+	return diags
+}
+
 func checkWritableDestinations(tree *config.Tree) []diagnostic.Diagnostic {
 	var diags []diagnostic.Diagnostic
 
@@ -1664,6 +1762,61 @@ func checkWritableDestinations(tree *config.Tree) []diagnostic.Diagnostic {
 					Message:  "BFD persist-dir not writable: " + persistDir,
 					Path:     persistDir,
 				})
+			}
+		}
+	}
+
+	if dns := getContainerPath(tree, "system", "dns"); dns != nil {
+		if rcPath, ok := dns.Get("resolv-conf-path"); ok && rcPath != "" {
+			dir := filepath.Dir(rcPath)
+			if err := probeWritable(dir); err != nil {
+				diags = append(diags, diagnostic.Diagnostic{
+					Code:     "doctor-write-destination",
+					Severity: diagnostic.SeverityWarning,
+					Message:  "DNS resolv-conf-path parent not writable: " + dir,
+					Path:     rcPath,
+				})
+			}
+		}
+	}
+
+	if system := tree.GetContainer("system"); system != nil {
+		for _, a := range system.GetListOrdered("archive") {
+			loc, ok := a.Value.Get("location")
+			if !ok || loc == "" {
+				continue
+			}
+			if !strings.HasPrefix(loc, "file://") {
+				continue
+			}
+			path := strings.TrimPrefix(loc, "file://")
+			if path == "" {
+				continue
+			}
+			if err := probeWritable(path); err != nil {
+				diags = append(diags, diagnostic.Diagnostic{
+					Code:     "doctor-write-destination",
+					Severity: diagnostic.SeverityWarning,
+					Message:  "archive " + a.Key + ": file location not writable: " + path,
+					Path:     path,
+				})
+			}
+		}
+	}
+
+	if uc := getContainerPath(tree, "system", "update-check"); uc != nil {
+		autoApply, _ := uc.Get("auto-apply")
+		if autoApply == configTrueValue {
+			if exe, err := os.Executable(); err == nil {
+				dir := filepath.Dir(exe)
+				if writeErr := probeWritable(dir); writeErr != nil {
+					diags = append(diags, diagnostic.Diagnostic{
+						Code:     "doctor-write-destination",
+						Severity: diagnostic.SeverityWarning,
+						Message:  "self-update auto-apply: binary parent not writable: " + dir,
+						Path:     exe,
+					})
+				}
 			}
 		}
 	}

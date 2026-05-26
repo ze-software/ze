@@ -133,6 +133,95 @@ func TestCheckPolicyRouteNetlink(t *testing.T) {
 	requireDiag(t, diags, "doctor-policyroute-netlink", diagnostic.SeverityWarning)
 }
 
+func TestCheckNTPClockPrivilege_Missing(t *testing.T) {
+	oldRead := readFilePath
+	readFilePath = func(string) ([]byte, error) {
+		return []byte("Name:\tze\nCapEff:\t0000000000000000\n"), nil
+	}
+	t.Cleanup(func() { readFilePath = oldRead })
+
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	ntp := env.GetOrCreateContainer("ntp")
+	ntp.Set("enabled", "true")
+
+	diags := checkNTPClockPrivilege(tree)
+	requireDiag(t, diags, "doctor-ntp-clock-privilege", diagnostic.SeverityWarning)
+}
+
+func TestCheckNTPClockPrivilege_Present(t *testing.T) {
+	oldRead := readFilePath
+	readFilePath = func(string) ([]byte, error) {
+		return []byte("Name:\tze\nCapEff:\t0000000002000000\n"), nil
+	}
+	t.Cleanup(func() { readFilePath = oldRead })
+
+	tree := config.NewTree()
+	env := tree.GetOrCreateContainer("environment")
+	ntp := env.GetOrCreateContainer("ntp")
+	ntp.Set("enabled", "true")
+
+	diags := checkNTPClockPrivilege(tree)
+	assert.Empty(t, diags)
+}
+
+func TestCheckNTPClockPrivilege_Disabled(t *testing.T) {
+	tree := config.NewTree()
+	diags := checkNTPClockPrivilege(tree)
+	assert.Empty(t, diags)
+}
+
+func TestCheckVPPDPDK_ModuleMissing(t *testing.T) {
+	oldModules := loadedKernelModules
+	oldStat := statPath
+	loadedKernelModules = func() map[string]bool { return map[string]bool{} }
+	statPath = func(string) (os.FileInfo, error) { return nil, os.ErrNotExist }
+	t.Cleanup(func() {
+		loadedKernelModules = oldModules
+		statPath = oldStat
+	})
+
+	tree := config.NewTree()
+	iface := tree.GetOrCreateContainer("interface")
+	iface.Set("backend", "vpp")
+	vpp := tree.GetOrCreateContainer("vpp")
+	dpdk := vpp.GetOrCreateContainer("dpdk")
+	pci := config.NewTree()
+	pci.Set("name", "xe0")
+	dpdk.AddListEntry("interface", "0000:03:00.0", pci)
+
+	diags := checkVPPDPDK(tree)
+	foundModule := false
+	foundPCI := false
+	for i := range diags {
+		if diags[i].Code == "doctor-vpp-dpdk" && strings.Contains(diags[i].Message, "VFIO") {
+			foundModule = true
+		}
+		if diags[i].Code == "doctor-vpp-dpdk" && strings.Contains(diags[i].Message, "PCI") {
+			foundPCI = true
+		}
+	}
+	assert.True(t, foundModule, "expected VFIO module diagnostic")
+	assert.True(t, foundPCI, "expected PCI device diagnostic")
+}
+
+func TestCheckVPPDPDK_NoInterfaces(t *testing.T) {
+	tree := config.NewTree()
+	iface := tree.GetOrCreateContainer("interface")
+	iface.Set("backend", "vpp")
+	tree.GetOrCreateContainer("vpp")
+
+	diags := checkVPPDPDK(tree)
+	assert.Empty(t, diags)
+}
+
+func TestCheckVPPDPDK_NotVPP(t *testing.T) {
+	tree := config.NewTree()
+	tree.GetOrCreateContainer("interface")
+	diags := checkVPPDPDK(tree)
+	assert.Empty(t, diags)
+}
+
 func TestCheckKernelModules_L2TPOneAccepted(t *testing.T) {
 	oldModules := loadedKernelModules
 	loadedKernelModules = func() map[string]bool { return map[string]bool{"pppol2tp": true} }

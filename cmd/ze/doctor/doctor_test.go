@@ -636,26 +636,26 @@ func TestResolveDefaultConfig_ValidName(t *testing.T) {
 	assert.Equal(t, "myrouter.conf", name)
 }
 
-func TestExtractSSHListeners_DefaultFallback(t *testing.T) {
+func TestCollectSchemaListeners_SSHDefault(t *testing.T) {
 	tree := config.NewTree()
 	env := tree.GetOrCreateContainer("environment")
 	ssh := env.GetOrCreateContainer("ssh")
 	ssh.Set("enabled", "true")
 
-	listeners := extractSSHListeners(tree)
-	require.Len(t, listeners, 1)
-	assert.Equal(t, "ssh", listeners[0].service)
-	assert.Equal(t, "127.0.0.1", listeners[0].host)
-	assert.Equal(t, "2222", listeners[0].port)
+	listeners := collectSchemaListeners(tree)
+	found := false
+	for _, l := range listeners {
+		if l.service == "ssh" {
+			found = true
+			assert.Equal(t, "127.0.0.1", l.host)
+			assert.Equal(t, "2222", l.port)
+			break
+		}
+	}
+	assert.True(t, found, "expected ssh listener from fallback collection")
 }
 
-func TestExtractSSHListeners_Disabled(t *testing.T) {
-	tree := config.NewTree()
-	listeners := extractSSHListeners(tree)
-	assert.Nil(t, listeners)
-}
-
-func TestExtractSSHListeners_ServerList(t *testing.T) {
+func TestCollectSchemaListeners_SSHExplicit(t *testing.T) {
 	tree := config.NewTree()
 	env := tree.GetOrCreateContainer("environment")
 	ssh := env.GetOrCreateContainer("ssh")
@@ -665,11 +665,16 @@ func TestExtractSSHListeners_ServerList(t *testing.T) {
 	srv.Set("port", "2223")
 	ssh.AddListEntry("server", "s1", srv)
 
-	listeners := extractSSHListeners(tree)
-	require.Len(t, listeners, 1)
-	assert.Equal(t, "ssh", listeners[0].service)
-	assert.Equal(t, "10.0.0.1", listeners[0].host)
-	assert.Equal(t, "2223", listeners[0].port)
+	listeners := collectSchemaListeners(tree)
+	found := false
+	for _, l := range listeners {
+		if strings.Contains(l.service, "ssh") && l.port == "2223" {
+			found = true
+			assert.Equal(t, "10.0.0.1", l.host)
+			break
+		}
+	}
+	assert.True(t, found, "expected explicit ssh listener from fallback collection")
 }
 
 func TestCheckWebTLS_NoCerts(t *testing.T) {
@@ -1120,4 +1125,205 @@ func TestDoctorBGPMD5_PeerWithMD5(t *testing.T) {
 	require.Len(t, diags, 1)
 	assert.Equal(t, "doctor-bgp-md5", diags[0].Code)
 	assert.Contains(t, diags[0].Message, "p1")
+}
+
+func TestDoctorUpdateCheckURL_Unreachable(t *testing.T) {
+	origHTTPHead := httpHead
+	defer func() { httpHead = origHTTPHead }()
+	httpHead = func(string, time.Duration) error { return errors.New("connection refused") }
+
+	tree := config.NewTree()
+	system := tree.GetOrCreateContainer("system")
+	uc := system.GetOrCreateContainer("update-check")
+	uc.Set("url", "https://update.example.invalid/version.json")
+
+	diags := checkUpdateCheckURL(tree)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-update-check-unreachable", diags[0].Code)
+}
+
+func TestDoctorUpdateCheckURL_NoConfig(t *testing.T) {
+	tree := config.NewTree()
+	diags := checkUpdateCheckURL(tree)
+	assert.Empty(t, diags)
+}
+
+func TestDoctorArchiveDestinations_HTTPUnreachable(t *testing.T) {
+	origHTTPHead := httpHead
+	defer func() { httpHead = origHTTPHead }()
+	httpHead = func(string, time.Duration) error { return errors.New("connection refused") }
+
+	tree := config.NewTree()
+	system := tree.GetOrCreateContainer("system")
+	arch := config.NewTree()
+	arch.Set("location", "https://archive.example.invalid/configs")
+	system.AddListEntry("archive", "remote-backup", arch)
+
+	diags := checkArchiveDestinations(tree)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-archive-unreachable", diags[0].Code)
+	assert.Contains(t, diags[0].Message, "remote-backup")
+}
+
+func TestDoctorArchiveDestinations_FileSkipped(t *testing.T) {
+	tree := config.NewTree()
+	system := tree.GetOrCreateContainer("system")
+	arch := config.NewTree()
+	arch.Set("location", "file:///var/backup/configs")
+	system.AddListEntry("archive", "local", arch)
+
+	diags := checkArchiveDestinations(tree)
+	assert.Empty(t, diags, "file:// archives should not be probed by HTTP")
+}
+
+func TestDoctorWritableDestinations_DNSResolvConf(t *testing.T) {
+	origProbeWritable := probeWritable
+	defer func() { probeWritable = origProbeWritable }()
+	probeWritable = func(string) error { return errors.New("permission denied") }
+
+	tree := config.NewTree()
+	system := tree.GetOrCreateContainer("system")
+	dns := system.GetOrCreateContainer("dns")
+	dns.Set("resolv-conf-path", "/nonexistent/resolv.conf")
+
+	diags := checkWritableDestinations(tree)
+	found := false
+	for i := range diags {
+		if diags[i].Code == "doctor-write-destination" && strings.Contains(diags[i].Message, "DNS resolv-conf-path") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected DNS resolv-conf-path diagnostic")
+}
+
+func TestDoctorWritableDestinations_ArchiveFile(t *testing.T) {
+	origProbeWritable := probeWritable
+	defer func() { probeWritable = origProbeWritable }()
+	probeWritable = func(string) error { return errors.New("no such directory") }
+
+	tree := config.NewTree()
+	system := tree.GetOrCreateContainer("system")
+	arch := config.NewTree()
+	arch.Set("location", "file:///nonexistent/backup")
+	system.AddListEntry("archive", "local-backup", arch)
+
+	diags := checkWritableDestinations(tree)
+	found := false
+	for i := range diags {
+		if diags[i].Code == "doctor-write-destination" && strings.Contains(diags[i].Message, "archive") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected archive file location diagnostic")
+}
+
+func TestDoctorWritableDestinations_SelfUpdate(t *testing.T) {
+	origProbeWritable := probeWritable
+	defer func() { probeWritable = origProbeWritable }()
+	probeWritable = func(string) error { return errors.New("read-only filesystem") }
+
+	tree := config.NewTree()
+	system := tree.GetOrCreateContainer("system")
+	uc := system.GetOrCreateContainer("update-check")
+	uc.Set("url", "https://update.example.com/version.json")
+	uc.Set("auto-apply", "true")
+
+	diags := checkWritableDestinations(tree)
+	found := false
+	for i := range diags {
+		if diags[i].Code == "doctor-write-destination" && strings.Contains(diags[i].Message, "self-update") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected self-update auto-apply writable diagnostic")
+}
+
+func TestDoctorImprovementsCodesRegistered_Extended(t *testing.T) {
+	for _, code := range []string{
+		"doctor-bgp-md5",
+		"doctor-ntp-server-unreachable",
+		"doctor-rpki-unreachable",
+		"doctor-bmp-unreachable",
+		"doctor-write-destination",
+		"doctor-ntp-clock-privilege",
+		"doctor-vpp-dpdk",
+		"doctor-update-check-unreachable",
+		"doctor-archive-unreachable",
+	} {
+		meta := diagnostic.Lookup(code)
+		require.NotNil(t, meta, "%s code must be registered", code)
+		assert.NotEmpty(t, meta.Title)
+		assert.NotEmpty(t, meta.Description)
+	}
+}
+
+func TestDoctorDependencyInventory(t *testing.T) {
+	covered := map[string]string{
+		"listener/web":           "doctor-listen-unavailable",
+		"listener/mcp":           "doctor-listen-unavailable",
+		"listener/looking-glass": "doctor-listen-unavailable",
+		"listener/api-rest":      "doctor-listen-unavailable",
+		"listener/api-grpc":      "doctor-listen-unavailable",
+		"listener/ssh":           "doctor-listen-unavailable",
+		"listener/bgp":           "doctor-bgp-listen",
+		"listener/bfd":           "doctor-bfd-port",
+		"listener/ipsec":         "doctor-ipsec-listen",
+		"listener/tftp":          "doctor-tftp-listen",
+		"listener/image-server":  "doctor-image-listen",
+		"listener/ntp":           "doctor-ntp-listen",
+		"listener/telemetry":     "doctor-listen-unavailable",
+		"external/tacacs":        "doctor-tacacs-unreachable",
+		"external/radius":        "doctor-radius-unreachable",
+		"external/rpki":          "doctor-rpki-unreachable",
+		"external/bmp":           "doctor-bmp-unreachable",
+		"external/ntp-server":    "doctor-ntp-server-unreachable",
+		"external/update-check":  "doctor-update-check-unreachable",
+		"external/archive-http":  "doctor-archive-unreachable",
+		"external/dns":           "doctor-dns-resolver",
+		"writable/ntp-persist":   "doctor-write-destination",
+		"writable/bfd-persist":   "doctor-write-destination",
+		"writable/dns-resolv":    "doctor-write-destination",
+		"writable/archive-file":  "doctor-write-destination",
+		"writable/self-update":   "doctor-write-destination",
+		"module/l2tp":            "doctor-l2tp-module",
+		"module/pppoe":           "doctor-pppoe-module",
+		"module/ipsec":           "doctor-module-missing",
+		"module/mpls":            "doctor-mpls-unavailable",
+		"module/nftables":        "doctor-firewall-nftables",
+		"module/vfio":            "doctor-vpp-dpdk",
+		"socket/vpp":             "doctor-vpp-unreachable",
+		"binary/plugin":          "doctor-plugin-missing",
+		"binary/vpp":             "doctor-vpp-version",
+		"cert/tls":               "doctor-tls-missing",
+		"cert/pki":               "doctor-pki-cert",
+		"cert/ssh":               "doctor-ssh-hostkey-missing",
+		"privilege/ntp":          "doctor-ntp-clock-privilege",
+		"sysfs/dpdk":             "doctor-vpp-dpdk",
+		"procfs/telemetry":       "doctor-telemetry-procfs",
+		"procfs/sysctl":          "doctor-sysctl-procfs",
+		"procfs/conntrack":       "doctor-conntrack-procfs",
+		"netlink/policyroute":    "doctor-policyroute-netlink",
+		"config/bgp-md5":         "doctor-bgp-md5",
+		"config/references":      "doctor-config-reference",
+		"config/semantic":        "config-mcp-invalid",
+	}
+
+	excluded := map[string]string{
+		"listener/wireguard":  "YANG refine defaults not propagated to schema",
+		"listener/plugin-hub": "YANG refine defaults not propagated to schema",
+		"listener/prometheus": "covered by telemetry listener check",
+	}
+
+	for dep, code := range covered {
+		meta := diagnostic.Lookup(code)
+		assert.NotNilf(t, meta, "dependency %s maps to unregistered code %s", dep, code)
+	}
+
+	const expectedTotal = 50
+	total := len(covered) + len(excluded)
+	assert.Equal(t, expectedTotal, total,
+		"dependency inventory changed; update covered or excluded map (got %d)", total)
 }

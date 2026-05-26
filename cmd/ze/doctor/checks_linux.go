@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,6 +28,9 @@ const (
 	doctorModulesEnv     = "ze.test.doctor.modules-file"
 	doctorProcRootEnv    = "ze.test.doctor.procfs-root"
 	doctorNetlinkFailEnv = "ze.test.doctor.netlink-fail"
+
+	capSysTime      = 25
+	dpdkSysfsDevDir = "/sys/bus/pci/devices"
 )
 
 var _ = env.MustRegister(env.EnvEntry{
@@ -433,4 +437,95 @@ func procPath(parts ...string) string {
 	all = append(all, root)
 	all = append(all, parts...)
 	return filepath.Join(all...)
+}
+
+func checkNTPClockPrivilege(tree *config.Tree) []diagnostic.Diagnostic {
+	ntp := getContainerPath(tree, "environment", "ntp")
+	if !configEnabled(ntp, false) {
+		return nil
+	}
+
+	if os.Getuid() == 0 {
+		return nil
+	}
+
+	data, err := readFilePath(procPath("self", "status"))
+	if err != nil {
+		return nil
+	}
+
+	for line := range strings.SplitSeq(string(data), "\n") {
+		hex, ok := strings.CutPrefix(line, "CapEff:\t")
+		if !ok {
+			continue
+		}
+		caps, parseErr := strconv.ParseUint(strings.TrimSpace(hex), 16, 64)
+		if parseErr != nil {
+			return nil
+		}
+		if caps&(1<<capSysTime) == 0 {
+			return []diagnostic.Diagnostic{{
+				Code:     "doctor-ntp-clock-privilege",
+				Severity: diagnostic.SeverityWarning,
+				Message:  "NTP: CAP_SYS_TIME not granted; clock adjustment will fail",
+			}}
+		}
+		return nil
+	}
+	return nil
+}
+
+var dpdkVFIOModules = []string{"vfio", "vfio_pci", "vfio_iommu_type1"}
+
+func checkVPPDPDK(tree *config.Tree) []diagnostic.Diagnostic {
+	ifaceBlock := tree.GetContainer("interface")
+	if ifaceBlock == nil {
+		return nil
+	}
+	backend, _ := ifaceBlock.Get("backend")
+	if backend != backendVPP {
+		return nil
+	}
+
+	vppBlock := tree.GetContainer("vpp")
+	if vppBlock == nil {
+		return nil
+	}
+	dpdk := vppBlock.GetContainer("dpdk")
+	if dpdk == nil {
+		return nil
+	}
+
+	interfaces := dpdk.GetListOrdered("interface")
+	if len(interfaces) == 0 {
+		return nil
+	}
+
+	var diags []diagnostic.Diagnostic
+
+	loaded := loadedKernelModules()
+	for _, mod := range dpdkVFIOModules {
+		if !loaded[mod] {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     "doctor-vpp-dpdk",
+				Severity: diagnostic.SeverityError,
+				Message:  "VPP DPDK: VFIO kernel module not loaded: " + mod,
+			})
+		}
+	}
+
+	for _, iface := range interfaces {
+		pci := iface.Key
+		sysfsPath := filepath.Join(dpdkSysfsDevDir, pci)
+		if _, err := statPath(sysfsPath); err != nil {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     "doctor-vpp-dpdk",
+				Severity: diagnostic.SeverityError,
+				Message:  "VPP DPDK: PCI device not found: " + pci,
+				Path:     sysfsPath,
+			})
+		}
+	}
+
+	return diags
 }

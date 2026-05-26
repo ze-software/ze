@@ -1,0 +1,18 @@
+# Test: ze doctor --json reports unreachable update-check and archive destinations
+# VALIDATES: AC-10 update-check URL and archive HTTP destination probes.
+
+tmpfs=update-archive.conf:terminator=EOF_CONF
+system {
+    update-check {
+        url https://198.51.100.99/version.json
+    }
+    archive remote {
+        location https://198.51.100.99/archive
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json update-archive.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-update-check-unreachable
+expect=stdout:contains=doctor-archive-unreachable

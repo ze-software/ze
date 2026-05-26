@@ -162,6 +162,10 @@ func init() {
 			Handler:    handleShowHealth,
 		},
 		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:doctor",
+			Handler:    handleShowDoctor,
+		},
+		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:traceroute",
 			Handler:    handleTraceroute,
 		},
