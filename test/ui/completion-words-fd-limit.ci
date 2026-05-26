@@ -1,0 +1,6 @@
+# Test: ze completion words -- ValueHints include 'max' for set system file-descriptors
+# VALIDATES: set system file-descriptors offers 'max' hint via ValueHints
+
+cmd=foreground:seq=1:exec=ze completion words run set system file-descriptors
+expect=exit:code=0
+expect=stdout:contains=max
