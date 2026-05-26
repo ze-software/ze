@@ -1096,6 +1096,7 @@ environment {
         format {
             default text;  # default output format: text, table, json, yaml, ndjson
         }
+        transcript enabled;  # record session commands and output to local file
     }
 }
 ```
@@ -1104,8 +1105,15 @@ The `cli { format { default } }` leaf controls the output format when no explici
 pipe operator is specified. The default is `text`. Override per-session with
 `set cli format <value>` in operational mode; explicit pipe operators always win.
 
+The `cli { transcript }` leaf enables local transcript recording. When set to
+`enabled`, `ze cli` and `ze config edit` sessions write all commands and their
+output to `~/.local/share/ze/transcripts/`. Transcripts include a header with
+timestamp, username, and remote host. Transcript writes are best-effort and
+never block CLI operation. Default is `disabled`.
+
 <!-- source: internal/component/config/environment.go -- environment block parsing; internal/core/slogutil/slogutil.go -- log level config -->
 <!-- source: internal/component/command/pipe.go -- configuredDefault -->
+<!-- source: internal/component/cli/transcript.go -- TranscriptWriter, TranscriptEnabled -->
 
 ### Named Listeners
 

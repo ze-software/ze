@@ -119,9 +119,17 @@ func runInteractiveWithDispatch(dispatch CommandFunc) int {
 		}
 	}
 
-	m.SetCommandExecutor(func(input string) (string, error) {
+	executor := func(input string) (string, error) {
 		return dispatch(input)
-	})
+	}
+
+	if tf := openTranscriptFile(); tf != nil {
+		tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), "local")
+		defer tw.Close() //nolint:errcheck // best-effort transcript
+		executor = unicli.WrapExecutorWithTranscript(executor, tw)
+	}
+
+	m.SetCommandExecutor(executor)
 
 	cmdTree := buildRuntimeTreeFromDispatch(dispatch)
 	m.SetCommandCompleter(unicli.NewCommandCompleter(cmdTree))
@@ -202,9 +210,17 @@ func runInteractiveSession(client *cliClient) int {
 		}
 	}
 
-	m.SetCommandExecutor(func(input string) (string, error) {
+	executor := func(input string) (string, error) {
 		return client.SendCommand(input)
-	})
+	}
+
+	if tf := openTranscriptFile(); tf != nil {
+		tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), client.creds.Host+":"+client.creds.Port)
+		defer tw.Close() //nolint:errcheck // best-effort transcript
+		executor = unicli.WrapExecutorWithTranscript(executor, tw)
+	}
+
+	m.SetCommandExecutor(executor)
 
 	cmdTree := buildRuntimeTree(client)
 	m.SetCommandCompleter(unicli.NewCommandCompleter(cmdTree))
@@ -279,6 +295,11 @@ func runBGP(args []string) int {
 		if isMonitorCommand(*runCmd) {
 			return client.StreamMonitor(*runCmd)
 		}
+		if tf := openTranscriptFile(); tf != nil {
+			tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), creds.Host+":"+creds.Port)
+			defer tw.Close() //nolint:errcheck // best-effort transcript
+			return client.ExecuteWithTranscript(*runCmd, *format, tw)
+		}
 		return client.Execute(*runCmd, *format)
 	}
 
@@ -303,6 +324,24 @@ func (c *cliClient) Execute(command, format string) int {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
+
+	formatted := formatFn(output)
+	printFormatted(formatted, format)
+	return 0
+}
+
+// ExecuteWithTranscript is like Execute but also records the command and response
+// to the given transcript writer. Records the original command (with pipe
+// operators) for transcript fidelity.
+func (c *cliClient) ExecuteWithTranscript(command, format string, tw *unicli.TranscriptWriter) int {
+	cmdStr, formatFn := cmd.ProcessPipes(command)
+	output, err := c.SendCommand(cmdStr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+
+	tw.Record(command, output)
 
 	formatted := formatFn(output)
 	printFormatted(formatted, format)
@@ -433,6 +472,7 @@ func BuildCommandTree(readOnly bool) *Command {
 	// BuildTree creates nodes without descriptions; YANG modules define them.
 	if yangCmdTree != nil {
 		mergeDescriptions(tree, yangCmdTree)
+		mergeArgDefs(tree, yangCmdTree)
 	}
 	wireValueHints(tree)
 	return tree
@@ -453,6 +493,24 @@ func mergeDescriptions(dst, src *Command) {
 			dstChild.Description = srcChild.Description
 		}
 		mergeDescriptions(dstChild, srcChild)
+	}
+}
+
+// mergeArgDefs copies ArgDefs from the YANG tree into dst for nodes that
+// exist in both trees but have no ArgDefs in dst.
+func mergeArgDefs(dst, src *Command) {
+	if dst == nil || src == nil {
+		return
+	}
+	for name, dstChild := range dst.Children {
+		srcChild, ok := src.Children[name]
+		if !ok {
+			continue
+		}
+		if len(dstChild.ArgDefs) == 0 && len(srcChild.ArgDefs) > 0 {
+			dstChild.ArgDefs = srcChild.ArgDefs
+		}
+		mergeArgDefs(dstChild, srcChild)
 	}
 }
 

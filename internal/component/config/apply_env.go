@@ -44,6 +44,7 @@ var envPlumbingTable = []envPlumbing{
 	{section: "reactor", option: "coalesce", envKey: "ze.bgp.reactor.coalesce"},
 	{section: "exabgp.api", option: "ack", envKey: "exabgp.api.ack"},
 	{section: "cli.format", option: "default", envKey: "ze.cli.format"},
+	{section: "cli", option: "transcript", envKey: "ze.cli.transcript"},
 	{section: "", option: "pprof", envKey: "ze.pprof"},
 }
 

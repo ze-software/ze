@@ -236,12 +236,22 @@ func probeSSHWithTimeout(host, port string, timeout time.Duration) bool {
 	return true
 }
 
-// wireSSHCommandExecutor sets up a command executor that dispatches via SSH exec.
-// If credentials are unavailable, command mode will show an error on Enter (best-effort).
-func wireSSHCommandExecutor(m *cli.Model, creds sshclient.Credentials) {
-	m.SetCommandExecutor(func(input string) (string, error) {
+// wireSSHCommandExecutor sets up a command executor that dispatches via SSH exec,
+// optionally wrapping with transcript recording if enabled. Returns the
+// TranscriptWriter (nil if disabled) so the caller can defer Close.
+func wireSSHCommandExecutor(m *cli.Model, creds sshclient.Credentials, username, remoteHost string) *cli.TranscriptWriter {
+	executor := func(input string) (string, error) {
 		return sshclient.ExecCommand(creds, input)
-	})
+	}
+
+	var tw *cli.TranscriptWriter
+	if tf := openTranscriptFile(); tf != nil {
+		tw = cli.NewTranscriptWriter(tf, username, remoteHost)
+		executor = cli.WrapExecutorWithTranscript(executor, tw)
+	}
+
+	m.SetCommandExecutor(executor)
+	return tw
 }
 
 const createPromptTimeout = 10 * time.Second
@@ -652,7 +662,10 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, d
 	// daemon that starts after the editor (or was missed by the probe) still works.
 	m.SetCommandCompleter(cli.NewCommandCompleter(buildEditorCommandTree()))
 	if credsErr == nil {
-		wireSSHCommandExecutor(&m, creds)
+		remoteHost := creds.Host + ":" + creds.Port
+		if tw := wireSSHCommandExecutor(&m, creds, username, remoteHost); tw != nil {
+			defer tw.Close() //nolint:errcheck // best-effort transcript
+		}
 	}
 
 	// Run Bubble Tea program

@@ -86,6 +86,14 @@ module ze-hub-conf {
                     description "Default output format when no pipe operator is specified";
                 }
             }
+            leaf transcript {
+                type enumeration {
+                    enum enabled { description "Record CLI session commands and output to local transcript file"; }
+                    enum disabled { description "No transcript recording"; }
+                }
+                default "disabled";
+                description "CLI session transcript recording to ~/.local/share/ze/transcripts/";
+            }
         }
 
         container exabgp {

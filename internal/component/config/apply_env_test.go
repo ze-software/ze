@@ -126,6 +126,21 @@ func TestApplyEnvConfigCLIFormat(t *testing.T) {
 	}
 }
 
+// TestTranscriptEnvPlumbing verifies `environment { cli { transcript enabled; } }`
+// lands as env var `ze.cli.transcript`.
+func TestTranscriptEnvPlumbing(t *testing.T) {
+	env.MustRegister(env.EnvEntry{Key: "ze.cli.transcript", Type: "bool", Default: "false", Description: "test"})
+	resetEnvCache(t)
+
+	ApplyEnvConfig(map[string]map[string]string{
+		"cli": {"transcript": "enabled"},
+	})
+
+	if got := env.Get("ze.cli.transcript"); got != "enabled" {
+		t.Errorf("ze.cli.transcript = %q, want enabled", got)
+	}
+}
+
 // TestApplyEnvConfigOSWins verifies a pre-existing OS env var is NOT
 // overwritten by a config-file value (same rule as slogutil.ApplyLogConfig).
 //
