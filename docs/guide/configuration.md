@@ -1107,7 +1107,8 @@ pipe operator is specified. The default is `text`. Override per-session with
 
 The `cli { transcript }` leaf enables local transcript recording. When set to
 `enabled`, `ze cli` and `ze config edit` sessions write all commands and their
-output to `~/.local/share/ze/transcripts/`. Transcripts include a header with
+output to `$XDG_DATA_HOME/ze/transcripts/` (defaults to
+`~/.local/share/ze/transcripts/`). Transcripts include a header with
 timestamp, username, and remote host. Transcript writes are best-effort and
 never block CLI operation. Default is `disabled`.
 

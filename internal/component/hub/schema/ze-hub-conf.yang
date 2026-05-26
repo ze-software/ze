@@ -92,7 +92,7 @@ module ze-hub-conf {
                     enum disabled { description "No transcript recording"; }
                 }
                 default "disabled";
-                description "CLI session transcript recording to ~/.local/share/ze/transcripts/";
+                description "CLI session transcript recording to $XDG_DATA_HOME/ze/transcripts/";
             }
         }
 

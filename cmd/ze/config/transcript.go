@@ -20,13 +20,17 @@ func openTranscriptFile() *os.File {
 		return nil
 	}
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: transcript: %v\n", err)
-		return nil
+	dataHome := os.Getenv("XDG_DATA_HOME")
+	if dataHome == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: transcript: %v\n", err)
+			return nil
+		}
+		dataHome = filepath.Join(home, ".local", "share")
 	}
 
-	dir := filepath.Join(home, ".local", "share", "ze", "transcripts")
+	dir := filepath.Join(dataHome, "ze", "transcripts")
 	if mkErr := os.MkdirAll(dir, 0o700); mkErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: transcript directory: %v\n", mkErr)
 		return nil
