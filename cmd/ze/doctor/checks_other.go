@@ -60,3 +60,7 @@ func checkNTPClockPrivilege(_ *config.Tree) []diagnostic.Diagnostic {
 func checkVPPDPDK(_ *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }
+
+func checkSmartEnabled(_ *config.Tree) []diagnostic.Diagnostic {
+	return nil
+}

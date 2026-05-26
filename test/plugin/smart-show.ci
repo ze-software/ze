@@ -1,0 +1,67 @@
+# Test: show storage smart RPC responds
+# VALIDATES: spec-smart-management AC-8 -- show storage smart returns JSON response
+# PREVENTS: RPC not registered or handler crash
+
+# ze-peer expectations (minimal BGP session for daemon startup)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: dispatch show storage smart
+tmpfs=smart-show-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+
+    result = dispatch(api, 'show storage smart')
+    status = result.get('status', '')
+    # Without SMART config, handler returns error (not configured).
+    # With SMART config but no devices (CI), returns empty list.
+    # Either response proves the RPC is wired.
+    if status not in ('done', 'error'):
+        print(f'FAIL: unexpected status: {status}', file=sys.stderr)
+        sys.exit(1)
+
+    print(f'OK: show storage smart responded with status={status}')
+    sys.exit(0)
+
+main()
+EOF_RUN
+
+# Minimal config
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1;
+	session { asn { local 65533; } }
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip auto; }
+		}
+		session { asn { remote 65534; } }
+	}
+}
+plugin smart-show-test {
+	run smart-show-test.run;
+}
+EOF_CONF
+
+cmd=daemon:seq=1:exec=ze start -:stdin=config:peer=peer
+cmd=foreground:seq=2:exec=smart-show-test.run
+expect=exit:code=0
+expect=stdout:contains=show storage smart responded

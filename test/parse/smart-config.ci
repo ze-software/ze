@@ -1,0 +1,42 @@
+# Test: storage SMART configuration parses and validates
+# VALIDATES: spec-smart-management AC-1 -- SMART config accepted by parser
+
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1;
+	session { asn { local 65533; } }
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip auto; }
+		}
+		session { asn { remote 65534; } }
+	}
+}
+storage {
+	smart {
+		enabled true;
+		check-interval 1800;
+		temperature {
+			difference 4;
+			informational 45;
+			critical 55;
+		}
+		self-test {
+			short {
+				interval 24h;
+				time 02:00;
+			}
+			long {
+				interval 7d;
+				time 03:00;
+				day sunday;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

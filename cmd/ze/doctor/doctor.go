@@ -175,6 +175,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkUpdateCheckURL(tree)...)
 	diags = append(diags, checkArchiveDestinations(tree)...)
 	diags = append(diags, checkWritableDestinations(tree)...)
+	diags = append(diags, checkSmartEnabled(tree)...)
 
 	return diags
 }

@@ -209,6 +209,7 @@ banner reads the same source, so nothing is silently hidden. See
 | Atomic commit workflow | Yes | No | No | No | No | No | No | No | No | No | No |
 | Schema discovery (CLI) | Yes | No | No | No | No | No | No | No | No | No | No |
 | Healthcheck tool | Yes | No | No | Partial | No | No | No | Yes | No | No | No |
+| SMART disk management | Yes | No | No | No | No | No | No | No | No | No | No |
 | PeeringDB prefix integration | Yes | No | No | No | No | No | No | No | No | No | No |
 | Propagation benchmark tool | Yes | No | No | No | No | No | No | No | No | No | No |
 | Update groups | Auto | No | No | No | No | Explicit | No | No | No | No | No |

@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/smart"
 )
 
 const (
@@ -525,6 +526,58 @@ func checkVPPDPDK(tree *config.Tree) []diagnostic.Diagnostic {
 				Path:     sysfsPath,
 			})
 		}
+	}
+
+	return diags
+}
+
+func checkSmartEnabled(tree *config.Tree) []diagnostic.Diagnostic {
+	storageCfg := tree.GetContainer("storage")
+	if storageCfg == nil {
+		return nil
+	}
+	smartCfg := storageCfg.GetContainer("smart")
+	if smartCfg == nil {
+		return nil
+	}
+	enabled, ok := smartCfg.Get("enabled")
+	if !ok || enabled != "true" {
+		return nil
+	}
+
+	entries, err := os.ReadDir("/sys/class/block")
+	if err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-smart-sysfs",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "cannot enumerate block devices: " + err.Error(),
+		}}
+	}
+
+	var diags []diagnostic.Diagnostic
+	checked := 0
+	accessible := 0
+	for _, e := range entries {
+		name := e.Name()
+		if _, statErr := os.Stat(filepath.Join("/sys/class/block", name, "partition")); statErr == nil {
+			continue
+		}
+		checked++
+		info := smart.Detect(name, "")
+		if info == nil {
+			continue
+		}
+		if !info.Unavailable {
+			accessible++
+		}
+	}
+
+	if checked > 0 && accessible == 0 {
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-smart-access",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "SMART enabled in config but no devices are accessible (check privileges)",
+		})
 	}
 
 	return diags

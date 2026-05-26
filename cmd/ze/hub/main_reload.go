@@ -184,6 +184,7 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 	applyConntrackFromMap(newTree, s)
 	applyUpdateCheckerFromMap(newTree)
 	applyArchiveSchedulerFromMap(s.ConfigPath(), s)
+	reloadSmartManager(parsedTree)
 
 	if candidateSet {
 		if err := storage.PromoteCandidate(store, configPath); err != nil {

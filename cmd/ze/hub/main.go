@@ -673,6 +673,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	applyHostTuning(&sc)
+	startSmartManager(loadResult.Tree)
+	defer stopSmartManager()
 	applyConsole(&sc)
 	applyConntrack(&sc, apiServer)
 	startUpdateChecker(&sc)

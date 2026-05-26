@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
+	showCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
@@ -24,6 +26,7 @@ import (
 	resolveDNS "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
+	zestorage "codeberg.org/thomas-mangin/ze/internal/component/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/telemetry/collector"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
@@ -478,5 +481,168 @@ func stopArchiveScheduler() {
 	if archiveSchedulerCancel != nil {
 		archiveSchedulerCancel()
 		archiveSchedulerCancel = nil
+	}
+}
+
+var smartManager *zestorage.Manager
+
+// startSmartManager extracts SMART config from the tree and starts the
+// storage health manager if enabled.
+func startSmartManager(tree *zeconfig.Tree) {
+	cfg := extractSmartConfig(tree)
+	if cfg == nil {
+		return
+	}
+	smartManager = zestorage.NewManager(*cfg)
+	smartManager.Start()
+	showCmd.SetStorageManager(smartManager)
+}
+
+func stopSmartManager() {
+	if smartManager != nil {
+		smartManager.Stop()
+	}
+}
+
+func reloadSmartManager(tree *zeconfig.Tree) {
+	if tree == nil {
+		return
+	}
+	cfg := extractSmartConfig(tree)
+	if cfg == nil {
+		if smartManager != nil {
+			smartManager.Stop()
+			smartManager = nil
+			showCmd.SetStorageManager(nil)
+		}
+		return
+	}
+	if smartManager != nil {
+		smartManager.Reconfigure(*cfg)
+	} else {
+		smartManager = zestorage.NewManager(*cfg)
+		smartManager.Start()
+		showCmd.SetStorageManager(smartManager)
+	}
+}
+
+func extractSmartConfig(tree *zeconfig.Tree) *zestorage.Config {
+	storageCfg := tree.GetContainer("storage")
+	if storageCfg == nil {
+		return nil
+	}
+	smartCfg := storageCfg.GetContainer("smart")
+	if smartCfg == nil {
+		return nil
+	}
+	enabled, ok := smartCfg.Get("enabled")
+	if !ok || enabled != "true" {
+		return nil
+	}
+
+	logger := slogutil.Logger("storage")
+	cfg := zestorage.DefaultConfig()
+	cfg.Enabled = true
+
+	if v, ok := smartCfg.Get("check-interval"); ok {
+		if secs, valid := parsePositiveInt(v); valid {
+			cfg.CheckInterval = time.Duration(secs) * time.Second
+		} else {
+			logger.Warn("invalid check-interval, using default", "value", v)
+		}
+	}
+
+	if tempCfg := smartCfg.GetContainer("temperature"); tempCfg != nil {
+		if v, ok := tempCfg.Get("difference"); ok {
+			if n, valid := parsePositiveInt(v); valid {
+				cfg.Temperature.Difference = n
+			} else {
+				logger.Warn("invalid temperature difference, using default", "value", v)
+			}
+		}
+		if v, ok := tempCfg.Get("informational"); ok {
+			if n, valid := parsePositiveInt(v); valid {
+				cfg.Temperature.Informational = n
+			} else {
+				logger.Warn("invalid temperature informational, using default", "value", v)
+			}
+		}
+		if v, ok := tempCfg.Get("critical"); ok {
+			if n, valid := parsePositiveInt(v); valid {
+				cfg.Temperature.Critical = n
+			} else {
+				logger.Warn("invalid temperature critical, using default", "value", v)
+			}
+		}
+	}
+
+	if stCfg := smartCfg.GetContainer("self-test"); stCfg != nil {
+		if shortCfg := stCfg.GetContainer("short"); shortCfg != nil {
+			if v, ok := shortCfg.Get("interval"); ok {
+				if d, valid := parseDuration(v); valid {
+					cfg.SelfTest.Short.Interval = d
+				} else {
+					logger.Warn("invalid short self-test interval, using default", "value", v)
+				}
+			}
+			if v, ok := shortCfg.Get("time"); ok {
+				cfg.SelfTest.Short.TimeOfDay = v
+			}
+		}
+		if longCfg := stCfg.GetContainer("long"); longCfg != nil {
+			if v, ok := longCfg.Get("interval"); ok {
+				if d, valid := parseDuration(v); valid {
+					cfg.SelfTest.Long.Interval = d
+				} else {
+					logger.Warn("invalid long self-test interval, using default", "value", v)
+				}
+			}
+			if v, ok := longCfg.Get("time"); ok {
+				cfg.SelfTest.Long.TimeOfDay = v
+			}
+			if v, ok := longCfg.Get("day"); ok {
+				cfg.SelfTest.Long.Day = v
+			}
+		}
+	}
+
+	return &cfg
+}
+
+func parsePositiveInt(s string) (int, bool) {
+	n, err := strconv.Atoi(s)
+	if err != nil || n <= 0 {
+		return 0, false
+	}
+	return n, true
+}
+
+func parseDuration(s string) (time.Duration, bool) {
+	if len(s) < 2 {
+		return 0, false
+	}
+	unit := s[len(s)-1]
+	switch unit {
+	case 'h', 'd', 'm', 's':
+		n, ok := parsePositiveInt(s[:len(s)-1])
+		if !ok {
+			return 0, false
+		}
+		switch unit {
+		case 'h':
+			return time.Duration(n) * time.Hour, true
+		case 'd':
+			return time.Duration(n) * 24 * time.Hour, true
+		case 'm':
+			return time.Duration(n) * time.Minute, true
+		default:
+			return time.Duration(n) * time.Second, true
+		}
+	default:
+		n, ok := parsePositiveInt(s)
+		if !ok {
+			return 0, false
+		}
+		return time.Duration(n) * time.Second, true
 	}
 }

@@ -359,7 +359,7 @@ share the same detection library; the JSON shapes are identical.
 | `dmi` | `system-vendor`, `system-product`, `board-*`, `bios-*`, `chassis-*` |
 | `memory` | `total-bytes`, `free-bytes`, `available-bytes`, `buffers-bytes`, `cached-bytes`, `swap-total-bytes`, `swap-free-bytes`, `ecc-correctable-errors`, `ecc-uncorrectable-errors`, `ecc-present` |
 | `thermal` | `sensors[]` (hwmon: `name`, `device`, `temp-mc`, `alarm`), `throttle[]` (per-CPU `core-throttle-count`, `package-throttle-count`) |
-| `storage` | `devices[]` with `name`, `size-bytes`, `model`, `serial`, `transport` (`nvme`/`sata`/`mmc`/`virtio`/`unknown`), `rotational`, `nvme-firmware-version` (NVMe only), `smart` (when smartctl installed: `healthy`, `temp-celsius`, `power-on-hours`, `error-count`; `unavailable` + `unavailable-note` when device lacks SMART) |
+| `storage` | `devices[]` with `name`, `size-bytes`, `model`, `serial`, `transport` (`nvme`/`sata`/`mmc`/`virtio`/`unknown`), `rotational`, `nvme-firmware-version` (NVMe only), `smart` (via direct ioctl, no smartctl binary: `healthy`, `temp-celsius`, `power-on-hours`, `error-count`, `percent-used` (NVMe), `available-spare` (NVMe); `unavailable` + `unavailable-note` when device lacks SMART or insufficient privileges) |
 | `kernel` | `release`, `version`, `architecture`, `cmdline`, `boot-time` (RFC3339), `boot-time-unix`, `microcode-revision`, `arch-flags[]` (security-relevant subset: `smep`, `smap`, `ibt`, `user_shstk`, `ibrs`, `ibrs_enhanced`, `ssbd`) |
 
 All temperatures are reported in **millicelsius** (kernel hwmon convention).
@@ -375,6 +375,37 @@ new virtual drivers (wireguard, ipvlan, etc.) are filtered uniformly.
 **Platform**: Linux only. Darwin and other platforms return
 `ErrUnsupported` per section; `ze host show` reports "unsupported on this
 platform" with exit 0 so scripts can probe gracefully.
+
+### show storage smart
+
+Online RPC (requires running daemon with `storage { smart { enabled true } }` config):
+
+```
+show storage smart                 # Per-device SMART health status
+```
+
+<!-- source: internal/component/cmd/show/storage.go -- handleShowStorageSmart -->
+<!-- source: internal/component/storage/manager.go -- Manager.Status -->
+
+Returns a JSON array of per-device objects:
+
+| Field | Description |
+|-------|-------------|
+| `name` | Block device name (e.g. `sda`, `nvme0n1`) |
+| `transport` | `nvme`, `sata`, or `unknown` |
+| `healthy` | SMART overall health assessment |
+| `temp-celsius` | Current temperature (0 = not reported) |
+| `power-on-hours` | Cumulative powered-on hours |
+| `error-count` | Reallocated sector count (ATA) or media errors (NVMe) |
+| `percent-used` | NVMe endurance estimate (0-255, NVMe only) |
+| `available-spare` | NVMe spare capacity percentage (NVMe only) |
+| `smart-enabled` | Whether SMART enable command succeeded |
+| `last-checked` | Timestamp of last health poll |
+| `last-short-test` | Timestamp of last short self-test (if scheduled) |
+| `last-long-test` | Timestamp of last extended self-test (if scheduled) |
+
+Temperature alerts are emitted to the report bus (`show warnings` / `show errors`):
+`temp-high` (informational threshold), `temp-rising` (rate-of-change), `temp-critical` (critical threshold), `smart-failing` (health status failed).
 
 ### ze support
 

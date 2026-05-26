@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/smart"
 )
 
 // ErrUnsupported is returned by detectors on platforms that cannot
@@ -291,27 +293,14 @@ type StorageInfo struct {
 
 // StorageDevice describes one block device.
 type StorageDevice struct {
-	Name         string     `json:"name"`
-	SizeBytes    uint64     `json:"size-bytes"`
-	Model        string     `json:"model,omitempty"`
-	Serial       string     `json:"serial,omitempty"`
-	Transport    string     `json:"transport,omitempty"`
-	Rotational   bool       `json:"rotational"`
-	NVMeFirmware string     `json:"nvme-firmware-version,omitempty"`
-	Smart        *SmartInfo `json:"smart,omitempty"`
-}
-
-// SmartInfo holds SMART health data obtained from smartctl.
-// A nil SmartInfo means SMART detection was not attempted (e.g. testdata
-// mode or device not found). A non-nil SmartInfo with Unavailable set means
-// the device does not support SMART or privileges are insufficient.
-type SmartInfo struct {
-	Healthy         bool   `json:"healthy"`
-	TempCelsius     int    `json:"temp-celsius,omitempty"`
-	PowerOnHours    uint64 `json:"power-on-hours,omitempty"`
-	ErrorCount      uint64 `json:"error-count"`
-	Unavailable     bool   `json:"unavailable,omitempty"`
-	UnavailableNote string `json:"unavailable-note,omitempty"`
+	Name         string      `json:"name"`
+	SizeBytes    uint64      `json:"size-bytes"`
+	Model        string      `json:"model,omitempty"`
+	Serial       string      `json:"serial,omitempty"`
+	Transport    string      `json:"transport,omitempty"`
+	Rotational   bool        `json:"rotational"`
+	NVMeFirmware string      `json:"nvme-firmware-version,omitempty"`
+	Smart        *smart.Info `json:"smart,omitempty"`
 }
 
 // KernelInfo reports /proc/version, /proc/cmdline, and selected CPU

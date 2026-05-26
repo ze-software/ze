@@ -772,5 +772,16 @@ module ze-cli-show-cmd {
                 }
             }
         }
+
+        container storage {
+            config false;
+            description "Storage device management";
+
+            container smart {
+                config false;
+                ze:command "ze-show:storage-smart";
+                description "Show SMART health status, temperature, power-on hours, and self-test schedule for all block devices";
+            }
+        }
     }
 }

@@ -159,6 +159,7 @@ the bus from buggy or malicious producers.
 | `ze-update:system-firmware-rollback` | `handleFirmwareRollback` in `firmware.go` | `{"status": "rolling back"}` |
 | `ze-show:interface` (args: `rate [<name>]`) | `handleShowInterfaceRate` in `interface_rate.go` | JSON array of `InterfaceRate` (all) or single object (named); fields: `name`, `rx-bps`, `tx-bps`, `rx-pps`, `tx-pps`, `stats` |
 | `ze-monitor:interface-rate` | `streamInterfaceRate` in `interface_rate.go` | Streaming JSON lines (1/s); optional `<name>` filter |
+| `ze-show:storage-smart` | `handleShowStorageSmart` in `storage.go` | JSON array of per-device objects: `name`, `transport`, `healthy`, `temp-celsius`, `power-on-hours`, `error-count`, `percent-used` (NVMe), `available-spare` (NVMe), `smart-enabled`, `last-checked`, `last-short-test`, `last-long-test`. Returns error if SMART management not configured. |
 
 Both warnings/errors handlers accept optional `source <name>` filter and
 errors accepts `count <N>` limit. Return a non-nil empty slice when empty.

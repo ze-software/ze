@@ -819,6 +819,55 @@ compatibility but emits a deprecation warning. Use `rpf-check` in new configs.
 <!-- source: internal/component/iface/config.go -- parseIPv4Settings, parseIPv6Settings, RPFMode -->
 <!-- source: internal/component/iface/config_sysctl.go -- applySysctl -->
 
+## Storage SMART Management
+
+Ze can monitor disk health via direct ATA/NVMe ioctls (no `smartctl` binary needed).
+
+```
+storage {
+    smart {
+        enabled true;
+        check-interval 1800;
+        temperature {
+            informational 45;
+            critical 55;
+            difference 4;
+        }
+        self-test {
+            short {
+                interval 24h;
+                time 02:00;
+            }
+            long {
+                interval 7d;
+                time 03:00;
+                day sunday;
+            }
+        }
+    }
+}
+```
+
+| Leaf | Type | Default | Description |
+|------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable SMART monitoring |
+| `check-interval` | uint32 (60-86400) | `1800` | Health poll interval in seconds |
+| `temperature/informational` | uint8 (1-100) | `45` | Informational warning threshold (Celsius) |
+| `temperature/critical` | uint8 (1-100) | `55` | Critical error threshold (Celsius) |
+| `temperature/difference` | uint8 (1-50) | `4` | Rate-of-change warning threshold (Celsius per interval) |
+| `self-test/short/interval` | duration | `24h` | Short self-test interval |
+| `self-test/short/time` | HH:MM | `02:00` | Preferred time of day for short tests |
+| `self-test/long/interval` | duration | `7d` | Extended self-test interval |
+| `self-test/long/time` | HH:MM | `03:00` | Preferred time of day for extended tests |
+| `self-test/long/day` | weekday | `sunday` | Preferred day for extended tests |
+
+Temperature alerts are emitted to the report bus: `temp-high` (above informational),
+`temp-rising` (rate of change exceeds difference), `temp-critical` (above critical),
+`smart-failing` (SMART health status failed). Live status via `show storage smart`.
+
+<!-- source: internal/component/storage/schema/ze-storage-conf.yang -->
+<!-- source: internal/component/storage/manager.go -- Manager -->
+
 ## Authentication Users
 
 Local SSH login users are declared under `system.authentication.user`. The
