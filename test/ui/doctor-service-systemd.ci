@@ -2,6 +2,7 @@
 # VALIDATES: doctor-service-user, doctor-service-group, and doctor-service-executable expose service install failures.
 
 option=env:var=ze.test.doctor.service-unit:value=ze.service
+option=env:var=ze.test.doctor.platform:value=systemd
 
 tmpfs=ze.service:terminator=EOF_UNIT
 [Unit]

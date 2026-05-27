@@ -29,6 +29,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/resolve"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	zeradius "codeberg.org/thomas-mangin/ze/internal/component/radius"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
@@ -224,7 +225,7 @@ func TestCheckSystemdServiceInstallMissingAccountAndExecutable(t *testing.T) {
 		lookupServiceGroup = oldGroup
 	})
 
-	diags := checkSystemdServiceInstall()
+	diags := checkSystemdServiceInstall(nil)
 	require.Len(t, diags, 3)
 	assertDiagCode(t, diags, "doctor-service-executable")
 	assertDiagCode(t, diags, "doctor-service-user")
@@ -243,7 +244,7 @@ func TestCheckSystemdServiceInstallExecutableOK(t *testing.T) {
 	}
 	t.Cleanup(func() { readServiceUnitFile = oldRead })
 
-	diags := checkSystemdServiceInstall()
+	diags := checkSystemdServiceInstall(nil)
 	assert.Empty(t, diags)
 }
 
@@ -795,6 +796,225 @@ func requireDiag(t *testing.T, diags []diagnostic.Diagnostic, code string, sever
 	require.Failf(t, "missing diagnostic", "expected %s in %+v", code, diags)
 }
 
+func assertNoDiagCode(t *testing.T, diags []diagnostic.Diagnostic, code string) {
+	t.Helper()
+	for i := range diags {
+		assert.NotEqual(t, code, diags[i].Code, "unexpected diagnostic: %+v", diags[i])
+	}
+}
+
+func testPlatform(platformType host.PlatformType) *host.PlatformInfo {
+	return &host.PlatformInfo{Type: platformType}
+}
+
+func ntpTree(enabled bool) *config.Tree {
+	tree := config.NewTree()
+	envTree := tree.GetOrCreateContainer("environment")
+	ntp := envTree.GetOrCreateContainer("ntp")
+	if enabled {
+		ntp.Set("enabled", "true")
+	}
+	return tree
+}
+
+func ntpPersistTree(path string) *config.Tree {
+	tree := ntpTree(true)
+	ntp := getContainerPath(tree, "environment", "ntp")
+	ntp.Set("persist-path", path)
+	return tree
+}
+
+func resolvConfTree(path string) *config.Tree {
+	tree := config.NewTree()
+	system := tree.GetOrCreateContainer("system")
+	dns := system.GetOrCreateContainer("dns")
+	dns.Set("resolv-conf-path", path)
+	return tree
+}
+
+func withWritableProbe(t *testing.T, fn func(string) error) {
+	t.Helper()
+	oldProbeWritable := probeWritable
+	probeWritable = fn
+	t.Cleanup(func() { probeWritable = oldProbeWritable })
+}
+
+func TestCheckPlatformReturnsPlatformInfo(t *testing.T) {
+	// VALIDATES: checkPlatform() returns usable PlatformInfo alongside diagnostics.
+	// PREVENTS: runChecks discarding platform context before coherence checks run.
+	require.NoError(t, env.Set(doctorPlatformEnv, "systemd"))
+	t.Cleanup(func() { _ = env.Set(doctorPlatformEnv, "") })
+
+	platform, diags := checkPlatform()
+
+	require.NotNil(t, platform)
+	assert.Equal(t, host.PlatformSystemd, platform.Type)
+	assert.Empty(t, diags)
+}
+
+func TestCheckNTPCoherenceGokrazyNoNTP(t *testing.T) {
+	// VALIDATES: AC-1 Gokrazy platform, Ze NTP disabled emits error doctor-clock-no-sync.
+	// PREVENTS: appliances booting with neither gokrazy NTP nor Ze NTP configured.
+	diags := checkNTPClient(config.NewTree(), testPlatform(host.PlatformGokrazy))
+
+	requireDiag(t, diags, "doctor-clock-no-sync", diagnostic.SeverityError)
+}
+
+func TestCheckNTPCoherenceSystemdNoNTP(t *testing.T) {
+	// VALIDATES: AC-2 systemd platform, Ze NTP disabled emits warning doctor-clock-no-sync.
+	// PREVENTS: standard Linux hosts silently relying on unverified external clock sync.
+	diags := checkNTPClient(config.NewTree(), testPlatform(host.PlatformSystemd))
+
+	requireDiag(t, diags, "doctor-clock-no-sync", diagnostic.SeverityWarning)
+}
+
+func TestCheckNTPCoherenceDarwinNoNTP(t *testing.T) {
+	// VALIDATES: AC-3 Darwin platform, Ze NTP disabled emits no clock-sync diagnostic.
+	// PREVENTS: non-Linux developer hosts getting appliance-specific warnings.
+	diags := checkNTPClient(config.NewTree(), testPlatform(host.PlatformDarwin))
+
+	assertNoDiagCode(t, diags, "doctor-clock-no-sync")
+}
+
+func TestCheckNTPCoherenceUnknownNoNTP(t *testing.T) {
+	// VALIDATES: AC-3 unknown platform, Ze NTP disabled emits no clock-sync diagnostic.
+	// PREVENTS: uncertain platform detection from inventing appliance-specific warnings.
+	diags := checkNTPClient(config.NewTree(), testPlatform(host.PlatformUnknown))
+
+	assertNoDiagCode(t, diags, "doctor-clock-no-sync")
+}
+
+func TestCheckNTPCoherenceGokrazyNTPEnabled(t *testing.T) {
+	// VALIDATES: AC-4 Gokrazy platform with Ze NTP enabled and servers emits no clock-sync gap.
+	// PREVENTS: configured Ze-owned clock sync being reported as absent.
+	oldNTPReachable := ntpServerReachable
+	ntpServerReachable = func(string, time.Duration) bool { return true }
+	t.Cleanup(func() { ntpServerReachable = oldNTPReachable })
+
+	tree := ntpTree(true)
+	server := config.NewTree()
+	server.Set("address", "pool.ntp.org")
+	getContainerPath(tree, "environment", "ntp").AddListEntry("server", "pool", server)
+
+	diags := checkNTPClient(tree, testPlatform(host.PlatformGokrazy))
+
+	assertNoDiagCode(t, diags, "doctor-clock-no-sync")
+	assert.Empty(t, diags)
+}
+
+func TestCheckSystemdServiceSkipsGokrazy(t *testing.T) {
+	// VALIDATES: AC-5 Gokrazy platform skips irrelevant systemd unit checks.
+	// PREVENTS: appliance readiness from depending on absent systemd files.
+	called := false
+	oldRead := readServiceUnitFile
+	readServiceUnitFile = func(string) ([]byte, error) {
+		called = true
+		return []byte("[Service]\nExecStart=/missing/ze\n"), nil
+	}
+	t.Cleanup(func() { readServiceUnitFile = oldRead })
+
+	diags := checkSystemdServiceInstall(testPlatform(host.PlatformGokrazy))
+
+	assert.False(t, called, "systemd unit should not be read on gokrazy")
+	assert.Empty(t, diags)
+}
+
+func TestCheckSystemdServiceSkipsContainer(t *testing.T) {
+	// VALIDATES: AC-6 container platform skips irrelevant systemd unit checks.
+	// PREVENTS: container doctor runs warning about host-level systemd units.
+	called := false
+	oldRead := readServiceUnitFile
+	readServiceUnitFile = func(string) ([]byte, error) {
+		called = true
+		return []byte("[Service]\nExecStart=/missing/ze\n"), nil
+	}
+	t.Cleanup(func() { readServiceUnitFile = oldRead })
+
+	diags := checkSystemdServiceInstall(testPlatform(host.PlatformContainer))
+
+	assert.False(t, called, "systemd unit should not be read in containers")
+	assert.Empty(t, diags)
+}
+
+func TestCheckSystemdServiceRunsOnSystemd(t *testing.T) {
+	// VALIDATES: AC-7 systemd platform still validates installed unit files.
+	// PREVENTS: platform-aware skip logic from disabling the real systemd readiness check.
+	oldRead := readServiceUnitFile
+	oldStat := statServiceExecutable
+	readServiceUnitFile = func(string) ([]byte, error) {
+		return []byte("[Service]\nExecStart=/missing/ze start\n"), nil
+	}
+	statServiceExecutable = func(string) (os.FileInfo, error) { return nil, os.ErrNotExist }
+	t.Cleanup(func() {
+		readServiceUnitFile = oldRead
+		statServiceExecutable = oldStat
+	})
+
+	diags := checkSystemdServiceInstall(testPlatform(host.PlatformSystemd))
+
+	requireDiag(t, diags, "doctor-service-executable", diagnostic.SeverityError)
+}
+
+func TestCheckPersistPathMismatchSystemd(t *testing.T) {
+	// VALIDATES: AC-8 /perm/ze/timefile on systemd emits doctor-config-platform-mismatch.
+	// PREVENTS: gokrazy persistence defaults being silently used on standard Linux.
+	withWritableProbe(t, func(string) error { return nil })
+
+	diags := checkWritableDestinations(ntpPersistTree("/perm/ze/timefile"), testPlatform(host.PlatformSystemd))
+
+	requireDiag(t, diags, "doctor-config-platform-mismatch", diagnostic.SeverityWarning)
+}
+
+func TestCheckPersistPathMatchGokrazy(t *testing.T) {
+	// VALIDATES: AC-9 /perm/ze/timefile on gokrazy emits no mismatch diagnostic.
+	// PREVENTS: appliance defaults being reported as wrong on appliances.
+	withWritableProbe(t, func(string) error { return nil })
+
+	diags := checkWritableDestinations(ntpPersistTree("/perm/ze/timefile"), testPlatform(host.PlatformGokrazy))
+
+	assertNoDiagCode(t, diags, "doctor-config-platform-mismatch")
+}
+
+func TestCheckResolvConfMismatchSystemd(t *testing.T) {
+	// VALIDATES: AC-10 /tmp/resolv.conf on systemd emits doctor-config-platform-mismatch.
+	// PREVENTS: gokrazy DNS defaults being silently used on standard Linux.
+	diags := checkResolvConfPath(resolvConfTree("/tmp/resolv.conf"), testPlatform(host.PlatformSystemd))
+
+	requireDiag(t, diags, "doctor-config-platform-mismatch", diagnostic.SeverityWarning)
+}
+
+func TestCheckResolvConfMismatchGokrazy(t *testing.T) {
+	// VALIDATES: AC-11 /etc/resolv.conf on gokrazy emits doctor-config-platform-mismatch.
+	// PREVENTS: writing DNS config into a read-only gokrazy rootfs path.
+	diags := checkResolvConfPath(resolvConfTree("/etc/resolv.conf"), testPlatform(host.PlatformGokrazy))
+
+	requireDiag(t, diags, "doctor-config-platform-mismatch", diagnostic.SeverityWarning)
+}
+
+func TestCheckResolvConfMatchGokrazy(t *testing.T) {
+	// VALIDATES: AC-12 /tmp/resolv.conf on gokrazy emits no mismatch diagnostic.
+	// PREVENTS: appliance DNS defaults being reported as wrong on appliances.
+	diags := checkResolvConfPath(resolvConfTree("/tmp/resolv.conf"), testPlatform(host.PlatformGokrazy))
+
+	assertNoDiagCode(t, diags, "doctor-config-platform-mismatch")
+}
+
+func TestCheckCoherenceNilPlatform(t *testing.T) {
+	// VALIDATES: AC-15 nil platform preserves current behavior without new coherence diagnostics.
+	// PREVENTS: platform detection failures from crashing or inventing platform-specific warnings.
+	withWritableProbe(t, func(string) error { return nil })
+
+	var diags []diagnostic.Diagnostic
+	diags = append(diags, checkNTPClient(config.NewTree(), nil)...)
+	diags = append(diags, checkWritableDestinations(ntpPersistTree("/perm/ze/timefile"), nil)...)
+	diags = append(diags, checkResolvConfPath(resolvConfTree("/tmp/resolv.conf"), nil)...)
+	diags = append(diags, checkMachineID(nil)...)
+
+	assertNoDiagCode(t, diags, "doctor-clock-no-sync")
+	assertNoDiagCode(t, diags, "doctor-config-platform-mismatch")
+	assertNoDiagCode(t, diags, "doctor-machine-id-missing")
+}
+
 // --- Config reference tests ---
 
 func TestCheckConfigReferences_NoBGP(t *testing.T) {
@@ -968,9 +1188,12 @@ func TestDoctorImprovementsCodesRegistered(t *testing.T) {
 	for _, code := range []string{
 		"doctor-bgp-md5",
 		"doctor-ntp-server-unreachable",
+		"doctor-clock-no-sync",
 		"doctor-rpki-unreachable",
 		"doctor-bmp-unreachable",
 		"doctor-write-destination",
+		"doctor-config-platform-mismatch",
+		"doctor-machine-id-missing",
 	} {
 		meta := diagnostic.Lookup(code)
 		require.NotNil(t, meta, "%s code must be registered", code)
@@ -1017,7 +1240,7 @@ func TestDoctorNTPClientReadiness(t *testing.T) {
 	srv.Set("address", "pool.ntp.org")
 	ntp.AddListEntry("server", "s1", srv)
 
-	diags := checkNTPClient(tree)
+	diags := checkNTPClient(tree, nil)
 
 	require.Len(t, diags, 1)
 	assert.Equal(t, "doctor-ntp-server-unreachable", diags[0].Code)
@@ -1075,7 +1298,7 @@ func TestDoctorWritableDestinations(t *testing.T) {
 	bfd := tree.GetOrCreateContainer("bfd")
 	bfd.Set("persist-dir", "/perm/bfd")
 
-	diags := checkWritableDestinations(tree)
+	diags := checkWritableDestinations(tree, nil)
 	var codes []string
 	for i := range diags {
 		codes = append(codes, diags[i].Code)
@@ -1186,7 +1409,7 @@ func TestDoctorWritableDestinations_DNSResolvConf(t *testing.T) {
 	dns := system.GetOrCreateContainer("dns")
 	dns.Set("resolv-conf-path", "/nonexistent/resolv.conf")
 
-	diags := checkWritableDestinations(tree)
+	diags := checkWritableDestinations(tree, nil)
 	found := false
 	for i := range diags {
 		if diags[i].Code == "doctor-write-destination" && strings.Contains(diags[i].Message, "DNS resolv-conf-path") {
@@ -1208,7 +1431,7 @@ func TestDoctorWritableDestinations_ArchiveFile(t *testing.T) {
 	arch.Set("location", "file:///nonexistent/backup")
 	system.AddListEntry("archive", "local-backup", arch)
 
-	diags := checkWritableDestinations(tree)
+	diags := checkWritableDestinations(tree, nil)
 	found := false
 	for i := range diags {
 		if diags[i].Code == "doctor-write-destination" && strings.Contains(diags[i].Message, "archive") {
@@ -1230,7 +1453,7 @@ func TestDoctorWritableDestinations_SelfUpdate(t *testing.T) {
 	uc.Set("url", "https://update.example.com/version.json")
 	uc.Set("auto-apply", "true")
 
-	diags := checkWritableDestinations(tree)
+	diags := checkWritableDestinations(tree, nil)
 	found := false
 	for i := range diags {
 		if diags[i].Code == "doctor-write-destination" && strings.Contains(diags[i].Message, "self-update") {
@@ -1245,9 +1468,12 @@ func TestDoctorImprovementsCodesRegistered_Extended(t *testing.T) {
 	for _, code := range []string{
 		"doctor-bgp-md5",
 		"doctor-ntp-server-unreachable",
+		"doctor-clock-no-sync",
 		"doctor-rpki-unreachable",
 		"doctor-bmp-unreachable",
 		"doctor-write-destination",
+		"doctor-config-platform-mismatch",
+		"doctor-machine-id-missing",
 		"doctor-ntp-clock-privilege",
 		"doctor-vpp-dpdk",
 		"doctor-update-check-unreachable",
@@ -1262,53 +1488,56 @@ func TestDoctorImprovementsCodesRegistered_Extended(t *testing.T) {
 
 func TestDoctorDependencyInventory(t *testing.T) {
 	covered := map[string]string{
-		"listener/web":           "doctor-listen-unavailable",
-		"listener/mcp":           "doctor-listen-unavailable",
-		"listener/looking-glass": "doctor-listen-unavailable",
-		"listener/api-rest":      "doctor-listen-unavailable",
-		"listener/api-grpc":      "doctor-listen-unavailable",
-		"listener/ssh":           "doctor-listen-unavailable",
-		"listener/bgp":           "doctor-bgp-listen",
-		"listener/bfd":           "doctor-bfd-port",
-		"listener/ipsec":         "doctor-ipsec-listen",
-		"listener/tftp":          "doctor-tftp-listen",
-		"listener/image-server":  "doctor-image-listen",
-		"listener/ntp":           "doctor-ntp-listen",
-		"listener/telemetry":     "doctor-listen-unavailable",
-		"external/tacacs":        "doctor-tacacs-unreachable",
-		"external/radius":        "doctor-radius-unreachable",
-		"external/rpki":          "doctor-rpki-unreachable",
-		"external/bmp":           "doctor-bmp-unreachable",
-		"external/ntp-server":    "doctor-ntp-server-unreachable",
-		"external/update-check":  "doctor-update-check-unreachable",
-		"external/archive-http":  "doctor-archive-unreachable",
-		"external/dns":           "doctor-dns-resolver",
-		"writable/ntp-persist":   "doctor-write-destination",
-		"writable/bfd-persist":   "doctor-write-destination",
-		"writable/dns-resolv":    "doctor-write-destination",
-		"writable/archive-file":  "doctor-write-destination",
-		"writable/self-update":   "doctor-write-destination",
-		"module/l2tp":            "doctor-l2tp-module",
-		"module/pppoe":           "doctor-pppoe-module",
-		"module/ipsec":           "doctor-module-missing",
-		"module/mpls":            "doctor-mpls-unavailable",
-		"module/nftables":        "doctor-firewall-nftables",
-		"module/vfio":            "doctor-vpp-dpdk",
-		"socket/vpp":             "doctor-vpp-unreachable",
-		"binary/plugin":          "doctor-plugin-missing",
-		"binary/vpp":             "doctor-vpp-version",
-		"cert/tls":               "doctor-tls-missing",
-		"cert/pki":               "doctor-pki-cert",
-		"cert/ssh":               "doctor-ssh-hostkey-missing",
-		"privilege/ntp":          "doctor-ntp-clock-privilege",
-		"sysfs/dpdk":             "doctor-vpp-dpdk",
-		"procfs/telemetry":       "doctor-telemetry-procfs",
-		"procfs/sysctl":          "doctor-sysctl-procfs",
-		"procfs/conntrack":       "doctor-conntrack-procfs",
-		"netlink/policyroute":    "doctor-policyroute-netlink",
-		"config/bgp-md5":         "doctor-bgp-md5",
-		"config/references":      "doctor-config-reference",
-		"config/semantic":        "config-mcp-invalid",
+		"listener/web":            "doctor-listen-unavailable",
+		"listener/mcp":            "doctor-listen-unavailable",
+		"listener/looking-glass":  "doctor-listen-unavailable",
+		"listener/api-rest":       "doctor-listen-unavailable",
+		"listener/api-grpc":       "doctor-listen-unavailable",
+		"listener/ssh":            "doctor-listen-unavailable",
+		"listener/bgp":            "doctor-bgp-listen",
+		"listener/bfd":            "doctor-bfd-port",
+		"listener/ipsec":          "doctor-ipsec-listen",
+		"listener/tftp":           "doctor-tftp-listen",
+		"listener/image-server":   "doctor-image-listen",
+		"listener/ntp":            "doctor-ntp-listen",
+		"listener/telemetry":      "doctor-listen-unavailable",
+		"external/tacacs":         "doctor-tacacs-unreachable",
+		"external/radius":         "doctor-radius-unreachable",
+		"external/rpki":           "doctor-rpki-unreachable",
+		"external/bmp":            "doctor-bmp-unreachable",
+		"external/ntp-server":     "doctor-ntp-server-unreachable",
+		"external/update-check":   "doctor-update-check-unreachable",
+		"external/archive-http":   "doctor-archive-unreachable",
+		"external/dns":            "doctor-dns-resolver",
+		"writable/ntp-persist":    "doctor-write-destination",
+		"writable/bfd-persist":    "doctor-write-destination",
+		"writable/dns-resolv":     "doctor-write-destination",
+		"writable/archive-file":   "doctor-write-destination",
+		"writable/self-update":    "doctor-write-destination",
+		"module/l2tp":             "doctor-l2tp-module",
+		"module/pppoe":            "doctor-pppoe-module",
+		"module/ipsec":            "doctor-module-missing",
+		"module/mpls":             "doctor-mpls-unavailable",
+		"module/nftables":         "doctor-firewall-nftables",
+		"module/vfio":             "doctor-vpp-dpdk",
+		"socket/vpp":              "doctor-vpp-unreachable",
+		"binary/plugin":           "doctor-plugin-missing",
+		"binary/vpp":              "doctor-vpp-version",
+		"cert/tls":                "doctor-tls-missing",
+		"cert/pki":                "doctor-pki-cert",
+		"cert/ssh":                "doctor-ssh-hostkey-missing",
+		"privilege/ntp":           "doctor-ntp-clock-privilege",
+		"sysfs/dpdk":              "doctor-vpp-dpdk",
+		"procfs/telemetry":        "doctor-telemetry-procfs",
+		"procfs/sysctl":           "doctor-sysctl-procfs",
+		"procfs/conntrack":        "doctor-conntrack-procfs",
+		"netlink/policyroute":     "doctor-policyroute-netlink",
+		"config/bgp-md5":          "doctor-bgp-md5",
+		"coherence/clock-sync":    "doctor-clock-no-sync",
+		"coherence/machine-id":    "doctor-machine-id-missing",
+		"coherence/platform-path": "doctor-config-platform-mismatch",
+		"config/references":       "doctor-config-reference",
+		"config/semantic":         "config-mcp-invalid",
 	}
 
 	excluded := map[string]string{
@@ -1322,7 +1551,7 @@ func TestDoctorDependencyInventory(t *testing.T) {
 		assert.NotNilf(t, meta, "dependency %s maps to unregistered code %s", dep, code)
 	}
 
-	const expectedTotal = 50
+	const expectedTotal = 53
 	total := len(covered) + len(excluded)
 	assert.Equal(t, expectedTotal, total,
 		"dependency inventory changed; update covered or excluded map (got %d)", total)

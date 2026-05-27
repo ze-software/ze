@@ -1,0 +1,18 @@
+# Test: ze doctor --json reports platform coherence diagnostics
+# VALIDATES: ze doctor --json threads detected platform context into clock and config coherence checks.
+
+option=env:var=ze.test.doctor.platform:value=gokrazy
+
+tmpfs=platform-coherence.conf:terminator=EOF_CONF
+system {
+    dns {
+        resolv-conf-path /etc/resolv.conf
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json platform-coherence.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-clock-no-sync
+expect=stdout:contains=doctor-config-platform-mismatch
+expect=stdout:contains="diagnostics"

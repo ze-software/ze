@@ -41,9 +41,13 @@ import (
 
 const (
 	doctorListenerFailEnv = "ze.test.doctor.listener-fail-code"
+	doctorPlatformEnv     = "ze.test.doctor.platform"
 	doctorServiceUnitEnv  = "ze.test.doctor.service-unit"
 	configTrueValue       = "true"
 	defaultServiceUnit    = "/etc/systemd/system/ze.service"
+	defaultNTPPersistPath = "/perm/ze/timefile"
+	gokrazyResolvConfPath = "/tmp/resolv.conf"
+	linuxResolvConfPath   = "/etc/resolv.conf"
 )
 
 var _ = env.MustRegister(env.EnvEntry{
@@ -57,6 +61,13 @@ var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorServiceUnitEnv,
 	Type:        "string",
 	Description: "Override ze.service unit path for doctor functional tests",
+	Private:     true,
+})
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         doctorPlatformEnv,
+	Type:        "string",
+	Description: "Override doctor platform detection for functional tests",
 	Private:     true,
 })
 
@@ -116,9 +127,11 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 		}
 	}()
 
-	diags = append(diags, checkPlatform()...)
+	platform, platformDiags := checkPlatform()
+	diags = append(diags, platformDiags...)
 	diags = append(diags, checkStoreIntegrity()...)
-	diags = append(diags, checkSystemdServiceInstall()...)
+	diags = append(diags, checkSystemdServiceInstall(platform)...)
+	diags = append(diags, checkMachineID(platform)...)
 
 	configData, configName, err := loadConfigData(store, configPath)
 	if err != nil {
@@ -169,14 +182,15 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkClockSkew()...)
 	diags = append(diags, checkVPPVersion(tree)...)
 	diags = append(diags, checkBGPMD5(tree)...)
-	diags = append(diags, checkNTPClient(tree)...)
+	diags = append(diags, checkNTPClient(tree, platform)...)
 	diags = append(diags, checkNTPClockPrivilege(tree)...)
 	diags = append(diags, checkRPKIServers(tree)...)
 	diags = append(diags, checkBMPCollectors(tree)...)
 	diags = append(diags, checkVPPDPDK(tree)...)
 	diags = append(diags, checkUpdateCheckURL(tree)...)
 	diags = append(diags, checkArchiveDestinations(tree)...)
-	diags = append(diags, checkWritableDestinations(tree)...)
+	diags = append(diags, checkWritableDestinations(tree, platform)...)
+	diags = append(diags, checkResolvConfPath(tree, platform)...)
 	diags = append(diags, checkSmartEnabled(tree)...)
 
 	return diags
@@ -215,13 +229,20 @@ func loadConfigData(store storage.Storage, configPath string) ([]byte, string, e
 	return data, configName, nil
 }
 
-func checkPlatform() []diagnostic.Diagnostic {
-	p, err := host.DetectPlatform()
+func checkPlatform() (*host.PlatformInfo, []diagnostic.Diagnostic) {
+	p, err := detectDoctorPlatform()
 	if err != nil {
-		return []diagnostic.Diagnostic{{
+		return nil, []diagnostic.Diagnostic{{
 			Code:     "doctor-platform-detect",
 			Severity: diagnostic.SeverityWarning,
 			Message:  "platform detection failed: " + err.Error(),
+		}}
+	}
+	if p == nil {
+		return nil, []diagnostic.Diagnostic{{
+			Code:     "doctor-platform-detect",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "platform detection returned no platform information",
 		}}
 	}
 	var diags []diagnostic.Diagnostic
@@ -246,7 +267,34 @@ func checkPlatform() []diagnostic.Diagnostic {
 			Message:  "running in container with read-only root filesystem; ensure writable volumes are mounted for config and state",
 		})
 	}
-	return diags
+	return p, diags
+}
+
+func detectDoctorPlatform() (*host.PlatformInfo, error) {
+	forced := strings.TrimSpace(env.Get(doctorPlatformEnv))
+	if forced != "" {
+		return forcedPlatformInfo(forced)
+	}
+	return host.DetectPlatform()
+}
+
+func forcedPlatformInfo(name string) (*host.PlatformInfo, error) {
+	switch strings.ToLower(name) {
+	case "unknown":
+		return &host.PlatformInfo{Type: host.PlatformUnknown}, nil
+	case "gokrazy":
+		return &host.PlatformInfo{Type: host.PlatformGokrazy, ReadOnlyRoot: true, PermAvailable: true, PersistentStorageWritable: true}, nil
+	case "systemd":
+		return &host.PlatformInfo{Type: host.PlatformSystemd, SystemdAvailable: true}, nil
+	case "container":
+		return &host.PlatformInfo{Type: host.PlatformContainer}, nil
+	case "plain", "plain-linux":
+		return &host.PlatformInfo{Type: host.PlatformPlainLinux}, nil
+	case "darwin":
+		return &host.PlatformInfo{Type: host.PlatformDarwin}, nil
+	default:
+		return nil, errors.New("unknown forced platform: " + name)
+	}
 }
 
 func checkStoreIntegrity() []diagnostic.Diagnostic {
@@ -293,7 +341,11 @@ type serviceUnitInfo struct {
 	group     string
 }
 
-func checkSystemdServiceInstall() []diagnostic.Diagnostic {
+func checkSystemdServiceInstall(platform *host.PlatformInfo) []diagnostic.Diagnostic {
+	if platform != nil && (platform.Type == host.PlatformGokrazy || platform.Type == host.PlatformContainer) {
+		return nil
+	}
+
 	unitPath := env.Get(doctorServiceUnitEnv)
 	if unitPath == "" {
 		unitPath = defaultServiceUnit
@@ -1564,9 +1616,19 @@ func checkBGPMD5(tree *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }
 
-func checkNTPClient(tree *config.Tree) []diagnostic.Diagnostic {
+func checkNTPClient(tree *config.Tree, platform *host.PlatformInfo) []diagnostic.Diagnostic {
 	ntp := getContainerPath(tree, "environment", "ntp")
 	if !configEnabled(ntp, false) {
+		if severity, ok := clockNoSyncSeverity(platform); ok {
+			return []diagnostic.Diagnostic{{
+				Code:     "doctor-clock-no-sync",
+				Severity: severity,
+				Message:  clockNoSyncMessage(platform),
+				Path:     "environment/ntp/enabled",
+				Expected: "enabled Ze NTP or verified external clock synchronization",
+				Actual:   "Ze NTP disabled",
+			}}
+		}
 		return nil
 	}
 
@@ -1595,6 +1657,30 @@ func checkNTPClient(tree *config.Tree) []diagnostic.Diagnostic {
 	}
 
 	return diags
+}
+
+func clockNoSyncSeverity(platform *host.PlatformInfo) (diagnostic.Severity, bool) {
+	if platform == nil {
+		return "", false
+	}
+	switch platform.Type {
+	case host.PlatformGokrazy:
+		return diagnostic.SeverityError, true
+	case host.PlatformSystemd, host.PlatformContainer, host.PlatformPlainLinux:
+		return diagnostic.SeverityWarning, true
+	default:
+		return "", false
+	}
+}
+
+func clockNoSyncMessage(platform *host.PlatformInfo) string {
+	if platform != nil && platform.Type == host.PlatformGokrazy {
+		return "gokrazy platform has no configured clock synchronization; enable environment/ntp because Ze owns appliance services"
+	}
+	if platform != nil {
+		return "Ze NTP is disabled on " + platform.Type.String() + "; verify external clock synchronization or enable environment/ntp"
+	}
+	return "Ze NTP is disabled; verify external clock synchronization or enable environment/ntp"
 }
 
 func checkRPKIServers(tree *config.Tree) []diagnostic.Diagnostic {
@@ -1773,11 +1859,13 @@ func checkArchiveDestinations(tree *config.Tree) []diagnostic.Diagnostic {
 	return diags
 }
 
-func checkWritableDestinations(tree *config.Tree) []diagnostic.Diagnostic {
+func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) []diagnostic.Diagnostic {
 	var diags []diagnostic.Diagnostic
 
 	if ntp := getContainerPath(tree, "environment", "ntp"); configEnabled(ntp, false) {
-		if persistPath, ok := ntp.Get("persist-path"); ok && persistPath != "" {
+		persistPath := valueOrDefault(ntp, "persist-path", defaultNTPPersistPath)
+		if persistPath != "" {
+			diags = append(diags, checkNTPPersistPath(persistPath, platform)...)
 			dir := filepath.Dir(persistPath)
 			if err := probeWritable(dir); err != nil {
 				diags = append(diags, diagnostic.Diagnostic{
@@ -1859,6 +1947,75 @@ func checkWritableDestinations(tree *config.Tree) []diagnostic.Diagnostic {
 	}
 
 	return diags
+}
+
+func checkNTPPersistPath(persistPath string, platform *host.PlatformInfo) []diagnostic.Diagnostic {
+	if platform == nil || persistPath == "" || !strings.HasPrefix(persistPath, "/perm/") {
+		return nil
+	}
+	if platform.Type == host.PlatformGokrazy || platform.Type == host.PlatformUnknown || platform.Type == host.PlatformDarwin {
+		return nil
+	}
+	return []diagnostic.Diagnostic{platformMismatch(
+		"NTP persist-path uses gokrazy /perm storage on "+platform.Type.String(),
+		"environment/ntp/persist-path",
+		"non-/perm writable path for "+platform.Type.String(),
+		persistPath,
+	)}
+}
+
+func checkResolvConfPath(tree *config.Tree, platform *host.PlatformInfo) []diagnostic.Diagnostic {
+	if platform == nil {
+		return nil
+	}
+	path := effectiveResolvConfPath(tree)
+	if path == "" {
+		return nil
+	}
+	switch platform.Type {
+	case host.PlatformGokrazy:
+		if strings.HasPrefix(path, "/etc/") {
+			return []diagnostic.Diagnostic{platformMismatch(
+				"DNS resolv-conf-path points at read-only gokrazy root filesystem",
+				"system/dns/resolv-conf-path",
+				gokrazyResolvConfPath,
+				path,
+			)}
+		}
+	case host.PlatformSystemd, host.PlatformPlainLinux:
+		if path == gokrazyResolvConfPath {
+			return []diagnostic.Diagnostic{platformMismatch(
+				"DNS resolv-conf-path uses gokrazy default on "+platform.Type.String(),
+				"system/dns/resolv-conf-path",
+				linuxResolvConfPath,
+				path,
+			)}
+		}
+	default:
+		return nil
+	}
+	return nil
+}
+
+func effectiveResolvConfPath(tree *config.Tree) string {
+	path := gokrazyResolvConfPath
+	if dns := getContainerPath(tree, "system", "dns"); dns != nil {
+		if value, ok := dns.Get("resolv-conf-path"); ok {
+			path = value
+		}
+	}
+	return path
+}
+
+func platformMismatch(message, path, expected, actual string) diagnostic.Diagnostic {
+	return diagnostic.Diagnostic{
+		Code:     "doctor-config-platform-mismatch",
+		Severity: diagnostic.SeverityWarning,
+		Message:  message,
+		Path:     path,
+		Expected: expected,
+		Actual:   actual,
+	}
 }
 
 func resolvePath(p, configDir string) string {

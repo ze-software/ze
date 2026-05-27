@@ -6,6 +6,7 @@ package doctor
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 )
 
@@ -54,6 +55,10 @@ func checkPolicyRouteNetlink(_ *config.Tree) []diagnostic.Diagnostic {
 }
 
 func checkNTPClockPrivilege(_ *config.Tree) []diagnostic.Diagnostic {
+	return nil
+}
+
+func checkMachineID(_ *host.PlatformInfo) []diagnostic.Diagnostic {
 	return nil
 }
 

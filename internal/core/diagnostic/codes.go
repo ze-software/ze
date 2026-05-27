@@ -388,6 +388,24 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-ntp-server-unreachable"},
 	},
 	{
+		Code:        "doctor-clock-no-sync",
+		Title:       "No clock synchronization configured",
+		Description: "Ze NTP is disabled on a platform where clock synchronization must be provided by Ze or explicitly verified externally.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-clock-no-sync"},
+	},
+	{
+		Code:        "doctor-config-platform-mismatch",
+		Title:       "Config default mismatches platform",
+		Description: "A configured or default path matches a different runtime platform, such as gokrazy /perm storage on systemd or /etc/resolv.conf on gokrazy.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-config-platform-mismatch"},
+	},
+	{
+		Code:        "doctor-machine-id-missing",
+		Title:       "Machine ID missing",
+		Description: "The platform expects /etc/machine-id to exist and contain a stable machine identifier, but it is missing or empty.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-machine-id-missing"},
+	},
+	{
 		Code:        "doctor-rpki-unreachable",
 		Title:       "RPKI cache servers unreachable",
 		Description: "None of the configured RPKI cache servers accepted a TCP connection within the probe timeout.",

@@ -7,13 +7,16 @@ package doctor
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 func TestCheckKernelModules_L2TP(t *testing.T) {
@@ -135,10 +138,15 @@ func TestCheckPolicyRouteNetlink(t *testing.T) {
 
 func TestCheckNTPClockPrivilege_Missing(t *testing.T) {
 	oldRead := readFilePath
+	oldUID := currentUID
 	readFilePath = func(string) ([]byte, error) {
 		return []byte("Name:\tze\nCapEff:\t0000000000000000\n"), nil
 	}
-	t.Cleanup(func() { readFilePath = oldRead })
+	currentUID = func() int { return 1000 }
+	t.Cleanup(func() {
+		readFilePath = oldRead
+		currentUID = oldUID
+	})
 
 	tree := config.NewTree()
 	env := tree.GetOrCreateContainer("environment")
@@ -151,10 +159,15 @@ func TestCheckNTPClockPrivilege_Missing(t *testing.T) {
 
 func TestCheckNTPClockPrivilege_Present(t *testing.T) {
 	oldRead := readFilePath
+	oldUID := currentUID
 	readFilePath = func(string) ([]byte, error) {
 		return []byte("Name:\tze\nCapEff:\t0000000002000000\n"), nil
 	}
-	t.Cleanup(func() { readFilePath = oldRead })
+	currentUID = func() int { return 1000 }
+	t.Cleanup(func() {
+		readFilePath = oldRead
+		currentUID = oldUID
+	})
 
 	tree := config.NewTree()
 	env := tree.GetOrCreateContainer("environment")
@@ -233,5 +246,48 @@ func TestCheckKernelModules_L2TPOneAccepted(t *testing.T) {
 	diags := checkKernelModules(tree)
 	for i := range diags {
 		assert.NotEqual(t, "doctor-l2tp-module", diags[i].Code)
+	}
+}
+
+func TestCheckMachineIDMissingGokrazy(t *testing.T) {
+	// VALIDATES: AC-13 Gokrazy without /etc/machine-id emits doctor-machine-id-missing.
+	// PREVENTS: appliance identity gaps being missed until services need a machine ID.
+	oldRead := readFilePath
+	readFilePath = func(string) ([]byte, error) { return nil, os.ErrNotExist }
+	t.Cleanup(func() { readFilePath = oldRead })
+
+	diags := checkMachineID(&host.PlatformInfo{Type: host.PlatformGokrazy})
+
+	requireDiag(t, diags, "doctor-machine-id-missing", diagnostic.SeverityWarning)
+}
+
+func TestCheckMachineIDPresentSystemd(t *testing.T) {
+	// VALIDATES: AC-14 Systemd with /etc/machine-id emits no machine-id diagnostic.
+	// PREVENTS: false positives on standard Linux hosts with a valid machine ID.
+	oldRead := readFilePath
+	readFilePath = func(string) ([]byte, error) { return []byte("00112233445566778899aabbccddeeff\n"), nil }
+	t.Cleanup(func() { readFilePath = oldRead })
+
+	diags := checkMachineID(&host.PlatformInfo{Type: host.PlatformSystemd})
+
+	assert.Empty(t, diags)
+}
+
+func TestCheckMachineIDPathOverride(t *testing.T) {
+	// VALIDATES: the private machine-id path override drives deterministic functional-test fixtures.
+	// PREVENTS: doctor-machine-id-missing coverage depending on the host's real /etc/machine-id.
+	path := filepath.Join(t.TempDir(), "missing-machine-id")
+	if err := env.Set(doctorMachineIDEnv, path); err != nil {
+		t.Fatalf("set %s: %v", doctorMachineIDEnv, err)
+	}
+	t.Cleanup(func() { _ = env.Set(doctorMachineIDEnv, "") })
+
+	diags := checkMachineID(&host.PlatformInfo{Type: host.PlatformGokrazy})
+
+	requireDiag(t, diags, "doctor-machine-id-missing", diagnostic.SeverityWarning)
+	for i := range diags {
+		if diags[i].Code == "doctor-machine-id-missing" {
+			assert.Equal(t, path, diags[i].Path)
+		}
 	}
 }

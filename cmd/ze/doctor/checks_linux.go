@@ -6,6 +6,7 @@ package doctor
 
 import (
 	"context"
+	"errors"
 	"net"
 	"os"
 	"os/exec"
@@ -18,6 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/smart"
@@ -29,9 +31,11 @@ const (
 	doctorModulesEnv     = "ze.test.doctor.modules-file"
 	doctorProcRootEnv    = "ze.test.doctor.procfs-root"
 	doctorNetlinkFailEnv = "ze.test.doctor.netlink-fail"
+	doctorMachineIDEnv   = "ze.test.doctor.machine-id-path"
 
 	capSysTime      = 25
 	dpdkSysfsDevDir = "/sys/bus/pci/devices"
+	machineIDPath   = "/etc/machine-id"
 )
 
 var _ = env.MustRegister(env.EnvEntry{
@@ -55,6 +59,13 @@ var _ = env.MustRegister(env.EnvEntry{
 	Private:     true,
 })
 
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         doctorMachineIDEnv,
+	Type:        "string",
+	Description: "Override /etc/machine-id path for doctor functional tests",
+	Private:     true,
+})
+
 type routeNetlinkHandle interface {
 	Close()
 }
@@ -63,6 +74,7 @@ var loadedKernelModules = readLoadedModules
 var statPath = os.Stat
 var readFilePath = os.ReadFile
 var accessPath = unix.Access
+var currentUID = os.Getuid
 var newRouteNetlinkHandle = func() (routeNetlinkHandle, error) {
 	return netlink.NewHandle(unix.NETLINK_ROUTE)
 }
@@ -446,7 +458,7 @@ func checkNTPClockPrivilege(tree *config.Tree) []diagnostic.Diagnostic {
 		return nil
 	}
 
-	if os.Getuid() == 0 {
+	if currentUID() == 0 {
 		return nil
 	}
 
@@ -474,6 +486,38 @@ func checkNTPClockPrivilege(tree *config.Tree) []diagnostic.Diagnostic {
 		return nil
 	}
 	return nil
+}
+
+func checkMachineID(platform *host.PlatformInfo) []diagnostic.Diagnostic {
+	if platform == nil || (platform.Type != host.PlatformGokrazy && platform.Type != host.PlatformSystemd) {
+		return nil
+	}
+
+	path := doctorMachineIDPath()
+	data, err := readFilePath(path)
+	if err == nil && strings.TrimSpace(string(data)) != "" {
+		return nil
+	}
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
+	return []diagnostic.Diagnostic{{
+		Code:     "doctor-machine-id-missing",
+		Severity: diagnostic.SeverityWarning,
+		Message:  "machine-id is missing or empty on " + platform.Type.String(),
+		Path:     path,
+		Expected: "non-empty " + path,
+		Actual:   "missing or empty",
+	}}
+}
+
+func doctorMachineIDPath() string {
+	path := strings.TrimSpace(env.Get(doctorMachineIDEnv))
+	if path != "" {
+		return path
+	}
+	return machineIDPath
 }
 
 var dpdkVFIOModules = []string{"vfio", "vfio_pci", "vfio_iommu_type1"}
