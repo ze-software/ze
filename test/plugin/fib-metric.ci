@@ -64,7 +64,7 @@ def main():
     time.sleep(2.0)
 
     # Verify sysrib received the route.
-    r = dispatch(api, 'rib show')
+    r = dispatch(api, 'show rib')
     if r.get('status') != 'done':
         runtime_fail(f'rib show failed: {r}')
 

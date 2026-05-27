@@ -198,15 +198,32 @@ func runSysRIBPlugin(conn net.Conn) int {
 		return nil
 	})
 
+	const cmdDone = "done"
+	const cmdError = "error"
+
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
-		if command == "rib show" {
+		switch command {
+		case "show rib":
 			data, err := s.showRIB()
 			if err != nil {
-				return "error", "", err
+				return cmdError, "", err
 			}
-			return "done", data, nil
+			return cmdDone, data, nil
+		case "show nexthop-table":
+			data, err := s.showNHTable()
+			if err != nil {
+				return cmdError, "", err
+			}
+			return cmdDone, data, nil
+		case "show ecmp-groups":
+			data, err := s.showECMPGroups()
+			if err != nil {
+				return cmdError, "", err
+			}
+			return cmdDone, data, nil
+		default:
+			return cmdError, "", fmt.Errorf("unknown command: %s", command)
 		}
-		return "error", "", fmt.Errorf("unknown command: %s", command)
 	})
 
 	ctx, cancel := sdk.SignalContext()
@@ -216,7 +233,9 @@ func runSysRIBPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  2,
 		Commands: []sdk.CommandDecl{
-			{Name: "rib show"},
+			{Name: "show rib"},
+			{Name: "show nexthop-table"},
+			{Name: "show ecmp-groups"},
 		},
 	})
 	if err != nil {

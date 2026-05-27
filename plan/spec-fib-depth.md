@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-vrf-0-umbrella (VRF/table support) |
-| Phase | 6/12 |
-| Updated | 2026-05-24 |
+| Phase | 7/12 |
+| Updated | 2026-05-27 |
 
 ## Post-Compaction Recovery
 
@@ -42,7 +42,7 @@ Ze must reach parity on the attributes that matter for production routing.
 | Junos | yes | yes | yes (nhg) | yes | yes | yes | yes | yes |
 | Nokia SR OS | yes | yes | yes (nhg) | yes | yes | yes | yes | yes |
 | Arista EOS | yes | yes | yes (nhg) | yes | yes | yes | yes | yes |
-| Ze (today) | no | no | no | no | no | no | VPP only | no |
+| Ze (today) | yes | yes (multipath) | no | no | yes | yes | yes | no |
 
 ### Design Decisions (proposed, pending approval)
 

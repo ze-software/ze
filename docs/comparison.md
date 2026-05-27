@@ -237,7 +237,9 @@ processes and injects routes from them. It is a route injector/receiver, not a r
 | Stale route demotion (GR) | Yes | Yes | Yes | No | No | Yes | Yes | N/A | Yes | Yes | Yes |
 | RPKI preference | Yes | Yes | Yes | No | Yes | Yes | Yes | N/A | Yes | Yes | Yes |
 | AIGP | Yes | No | No | No | No | Yes | Yes | N/A | No | No | Yes |
-| Multipath/ECMP | Partial | Partial | Yes | Yes | No | Yes | Yes | N/A | Yes | Yes | Yes |
+| IGP cost to next-hop | Yes | No | Yes | No | No | Yes | No | N/A | Yes | Yes | Yes |
+| Recursive next-hop | Yes | No | Yes | No | No | Yes | No | N/A | Yes | Yes | Yes |
+| Multipath/ECMP | Yes | Partial | Yes | Yes | No | Yes | Yes | N/A | Yes | Yes | Yes |
 
 ## Positioning
 
@@ -245,7 +247,7 @@ processes and injects routes from them. It is a route injector/receiver, not a r
 daemon on any Linux (systemd or any process manager) or as a dedicated appliance image built
 with gokrazy for purpose-built hardware -- same binary, same config. It speaks BGP, manages
 network interfaces (ethernet, bridge, VLAN, tunnels, WireGuard, DHCP), installs routes into
-the kernel FIB or VPP data plane (including MPLS label push/swap/pop from BGP labeled unicast), and serves a config editor over SSH and a web UI. A plugin
+the kernel FIB or VPP data plane (recursive next-hop resolution, ECMP nexthop groups, route type/metric/table, MPLS label push/swap/pop from BGP labeled unicast, SRv6), and serves a config editor over SSH and a web UI. A plugin
 architecture with YANG-modeled schemas allows extending the engine without modifying it.
 Lazy-parsed wire format and pool-based attribute deduplication reduce memory overhead; when
 encoding contexts match, UPDATEs are forwarded without re-parsing. Written in Go with an

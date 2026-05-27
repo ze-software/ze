@@ -62,7 +62,7 @@ def get_best_entry(api, prefix):
 
 def sysrib_has_prefix(api, prefix):
     """Check if sysrib has the prefix."""
-    r = dispatch(api, 'rib show')
+    r = dispatch(api, 'show rib')
     if r.get('status') != 'done':
         return False
     try:

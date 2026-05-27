@@ -40,7 +40,7 @@ func TestProcessEventAdd(t *testing.T) {
 	if mock.adds[0].nextHop != netip.MustParseAddr("192.168.1.1") {
 		t.Errorf("wrong next-hop: %v", mock.adds[0].nextHop)
 	}
-	if f.installed["10.0.0.0/24"] != "192.168.1.1" {
+	if f.installed["10.0.0.0/24"].nextHop != "192.168.1.1" {
 		t.Errorf("installed map not updated")
 	}
 }
@@ -50,7 +50,7 @@ func TestProcessEventDel(t *testing.T) {
 	// PREVENTS: route lingering after withdraw
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
-	f.installed["10.0.0.0/24"] = "192.168.1.1"
+	f.installed["10.0.0.0/24"] = installedRoute{nextHop: "192.168.1.1"}
 
 	f.processEvent(parseBatch(t, `{"family":"ipv4/unicast","changes":[{"action":"withdraw","prefix":"10.0.0.0/24","protocol":"bgp"}]}`))
 
@@ -70,7 +70,7 @@ func TestProcessEventReplace(t *testing.T) {
 	// PREVENTS: stale next-hop after update
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
-	f.installed["10.0.0.0/24"] = "192.168.1.1"
+	f.installed["10.0.0.0/24"] = installedRoute{nextHop: "192.168.1.1"}
 
 	f.processEvent(parseBatch(t, `{"family":"ipv4/unicast","changes":[{"action":"update","prefix":"10.0.0.0/24","next-hop":"192.168.2.2","protocol":"bgp"}]}`))
 
@@ -80,7 +80,7 @@ func TestProcessEventReplace(t *testing.T) {
 	if mock.replaces[0].nextHop != netip.MustParseAddr("192.168.2.2") {
 		t.Errorf("wrong next-hop: %v", mock.replaces[0].nextHop)
 	}
-	if f.installed["10.0.0.0/24"] != "192.168.2.2" {
+	if f.installed["10.0.0.0/24"].nextHop != "192.168.2.2" {
 		t.Errorf("installed map not updated to new next-hop")
 	}
 }
@@ -286,7 +286,7 @@ func TestToVPPPrefixIPv6(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-5 -- ECMP with multiple paths uses addMultiPath.
+// VALIDATES: AC-5 -- ECMP with multiple paths uses rich route.
 func TestVPPMultiPath(t *testing.T) {
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
@@ -308,19 +308,22 @@ func TestVPPMultiPath(t *testing.T) {
 	}
 	f.processEvent(batch)
 
-	if len(mock.multiPaths) != 1 {
-		t.Fatalf("expected 1 multipath op, got %d", len(mock.multiPaths))
+	if len(mock.richAdds) != 1 {
+		t.Fatalf("expected 1 rich add, got %d", len(mock.richAdds))
 	}
-	op := mock.multiPaths[0]
-	if len(op.nextHops) != 3 {
-		t.Errorf("expected 3 next-hops (primary+2 ECMP), got %d", len(op.nextHops))
+	op := mock.richAdds[0]
+	if len(op.ecmpPaths) != 2 {
+		t.Errorf("expected 2 ECMP paths, got %d", len(op.ecmpPaths))
 	}
 	if op.prefix != netip.MustParsePrefix("10.0.0.0/24") {
 		t.Errorf("wrong prefix: %v", op.prefix)
 	}
+	if op.nextHop != netip.MustParseAddr("192.168.1.1") {
+		t.Errorf("wrong primary next-hop: %v", op.nextHop)
+	}
 }
 
-// VALIDATES: AC-9 -- TableID passed through to multi-path.
+// VALIDATES: AC-9 -- TableID passed through to rich route.
 func TestVPPTable(t *testing.T) {
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
@@ -342,11 +345,192 @@ func TestVPPTable(t *testing.T) {
 	}
 	f.processEvent(batch)
 
-	if len(mock.multiPaths) != 1 {
-		t.Fatalf("expected 1 multipath op, got %d", len(mock.multiPaths))
+	if len(mock.richAdds) != 1 {
+		t.Fatalf("expected 1 rich add, got %d", len(mock.richAdds))
 	}
-	if mock.multiPaths[0].tableID != 42 {
-		t.Errorf("tableID = %d, want 42", mock.multiPaths[0].tableID)
+	if mock.richAdds[0].tableID != 42 {
+		t.Errorf("tableID = %d, want 42", mock.richAdds[0].tableID)
+	}
+}
+
+// VALIDATES: AC-6/7 -- RouteType blackhole/unreachable/prohibit uses rich route with correct type.
+func TestVPPRouteType(t *testing.T) {
+	tests := []struct {
+		name      string
+		routeType sysribevents.RouteType
+	}{
+		{"blackhole", sysribevents.RouteTypeBlackhole},
+		{"unreachable", sysribevents.RouteTypeUnreachable},
+		{"prohibit", sysribevents.RouteTypeProhibit},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := &mockBackend{}
+			f := newFibVPP(mock)
+
+			batch := &incomingBatch{
+				Family: family.IPv4Unicast,
+				Changes: []incomingChange{
+					{
+						Action:    bgptypes.RouteActionAdd,
+						Prefix:    netip.MustParsePrefix("10.0.0.0/24"),
+						Protocol:  "bgp",
+						RouteType: tt.routeType,
+					},
+				},
+			}
+			f.processEvent(batch)
+
+			if len(mock.richAdds) != 1 {
+				t.Fatalf("expected 1 rich add, got %d", len(mock.richAdds))
+			}
+			if mock.richAdds[0].routeType != tt.routeType {
+				t.Errorf("routeType = %d, want %d", mock.richAdds[0].routeType, tt.routeType)
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-8 -- Metric propagated to rich route.
+func TestVPPMetric(t *testing.T) {
+	mock := &mockBackend{}
+	f := newFibVPP(mock)
+
+	batch := &incomingBatch{
+		Family: family.IPv4Unicast,
+		Changes: []incomingChange{
+			{
+				Action:   bgptypes.RouteActionAdd,
+				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+				NextHop:  netip.MustParseAddr("192.168.1.1"),
+				Protocol: "bgp",
+				Metric:   100,
+			},
+		},
+	}
+	f.processEvent(batch)
+
+	if len(mock.richAdds) != 1 {
+		t.Fatalf("expected 1 rich add, got %d", len(mock.richAdds))
+	}
+	if mock.richAdds[0].metric != 100 {
+		t.Errorf("metric = %d, want 100", mock.richAdds[0].metric)
+	}
+}
+
+// VALIDATES: AC-9 -- TableID on single-path route uses rich route.
+func TestVPPTableSinglePath(t *testing.T) {
+	mock := &mockBackend{}
+	f := newFibVPP(mock)
+
+	batch := &incomingBatch{
+		Family: family.IPv4Unicast,
+		Changes: []incomingChange{
+			{
+				Action:   bgptypes.RouteActionAdd,
+				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+				NextHop:  netip.MustParseAddr("192.168.1.1"),
+				Protocol: "bgp",
+				TableID:  99,
+			},
+		},
+	}
+	f.processEvent(batch)
+
+	if len(mock.richAdds) != 1 {
+		t.Fatalf("expected 1 rich add, got %d", len(mock.richAdds))
+	}
+	if mock.richAdds[0].tableID != 99 {
+		t.Errorf("tableID = %d, want 99", mock.richAdds[0].tableID)
+	}
+	if len(mock.adds) != 0 {
+		t.Error("single-path with tableID should not use legacy addRoute")
+	}
+}
+
+// VALIDATES: AC-9 -- TableID on withdraw uses rich delete.
+func TestVPPTableDelete(t *testing.T) {
+	mock := &mockBackend{}
+	f := newFibVPP(mock)
+	f.installed["10.0.0.0/24"] = installedRoute{nextHop: "192.168.1.1"}
+
+	batch := &incomingBatch{
+		Family: family.IPv4Unicast,
+		Changes: []incomingChange{
+			{
+				Action:   bgptypes.RouteActionWithdraw,
+				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+				Protocol: "bgp",
+				TableID:  99,
+			},
+		},
+	}
+	f.processEvent(batch)
+
+	if len(mock.richDels) != 1 {
+		t.Fatalf("expected 1 rich del, got %d", len(mock.richDels))
+	}
+	if mock.richDels[0].tableID != 99 {
+		t.Errorf("tableID = %d, want 99", mock.richDels[0].tableID)
+	}
+	if len(mock.dels) != 0 {
+		t.Error("withdraw with tableID should not use legacy delRoute")
+	}
+}
+
+// VALIDATES: AC-9 -- Withdraw with TableID=0 uses stored tableID from install.
+func TestVPPTableDeleteStoredTableID(t *testing.T) {
+	mock := &mockBackend{}
+	f := newFibVPP(mock)
+	f.installed["10.0.0.0/24"] = installedRoute{nextHop: "192.168.1.1", tableID: 42}
+
+	batch := &incomingBatch{
+		Family: family.IPv4Unicast,
+		Changes: []incomingChange{
+			{
+				Action:   bgptypes.RouteActionWithdraw,
+				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+				Protocol: "bgp",
+			},
+		},
+	}
+	f.processEvent(batch)
+
+	if len(mock.richDels) != 1 {
+		t.Fatalf("expected 1 rich del, got %d", len(mock.richDels))
+	}
+	if mock.richDels[0].tableID != 42 {
+		t.Errorf("tableID = %d, want 42 (from stored install)", mock.richDels[0].tableID)
+	}
+	if len(mock.dels) != 0 {
+		t.Error("should use rich delete, not legacy")
+	}
+}
+
+// VALIDATES: AC-6 -- RouteType update uses rich replace.
+func TestVPPRouteTypeUpdate(t *testing.T) {
+	mock := &mockBackend{}
+	f := newFibVPP(mock)
+	f.installed["10.0.0.0/24"] = installedRoute{nextHop: "192.168.1.1"}
+
+	batch := &incomingBatch{
+		Family: family.IPv4Unicast,
+		Changes: []incomingChange{
+			{
+				Action:    bgptypes.RouteActionUpdate,
+				Prefix:    netip.MustParsePrefix("10.0.0.0/24"),
+				Protocol:  "bgp",
+				RouteType: sysribevents.RouteTypeBlackhole,
+			},
+		},
+	}
+	f.processEvent(batch)
+
+	if len(mock.richReplaces) != 1 {
+		t.Fatalf("expected 1 rich replace, got %d", len(mock.richReplaces))
+	}
+	if mock.richReplaces[0].routeType != sysribevents.RouteTypeBlackhole {
+		t.Errorf("routeType = %d, want blackhole(%d)", mock.richReplaces[0].routeType, sysribevents.RouteTypeBlackhole)
 	}
 }
 
@@ -371,7 +555,7 @@ func TestVPPSinglePathLegacy(t *testing.T) {
 	if len(mock.adds) != 1 {
 		t.Fatalf("expected 1 add, got %d", len(mock.adds))
 	}
-	if len(mock.multiPaths) != 0 {
-		t.Error("single-path route should not use multipath")
+	if len(mock.richAdds) != 0 {
+		t.Error("single-path route should not use rich route")
 	}
 }

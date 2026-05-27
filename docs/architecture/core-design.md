@@ -1013,7 +1013,24 @@ The `rib` plugin subscribes to the `bgp-rib/best-change/` Bus topic prefix (matc
 all protocols). It maintains a per-prefix table of each protocol's best route and
 selects the system-wide best by administrative distance (lower wins). When the
 system best changes, it publishes a batch to `system-rib/best-change`.
+
+After admin-distance selection, the system RIB performs two additional phases:
+
+1. **Recursive NH resolution** (`nhresolver.go`): resolves next-hops that are not
+   directly connected by walking the Loc-RIB via LPM, up to 8 levels deep. Tracks
+   dependencies so that when a covering route changes (reachability or metric),
+   all dependent prefixes are re-evaluated via cascade. Exposes `IGPMetric()` for
+   best-path step 6 (RFC 4271 Section 9.1.2.2).
+
+2. **ECMP grouping** (`ecmp.go`): collects all protocol routes for a prefix that
+   share the winner's effective priority and metric into a single `BestChangeEntry`
+   with `ECMPPaths[]`. FIB backends receive one event per prefix, not N separate
+   single-path events.
+
+CLI: `show nexthop-table` (resolver tracking table), `show ecmp-groups` (active groups).
 <!-- source: internal/plugins/sysrib/sysrib.go -- protocolRoute, admin distance, outgoingBatch -->
+<!-- source: internal/plugins/sysrib/nhresolver.go -- recursive NH resolution, IGP metric, cascade -->
+<!-- source: internal/plugins/sysrib/ecmp.go -- ECMP path collection -->
 <!-- source: internal/plugins/sysrib/register.go -- rib plugin registration -->
 
 ### Shared Route Watcher
@@ -1036,7 +1053,15 @@ routes are distinguishable from other routing daemons. On startup, existing ze r
 are marked stale; after reconvergence, stale routes are swept. A routewatch consumer
 detects external modifications (other daemons, manual changes) and re-asserts ze routes
 when overwritten.
+
+When `BestChangeEntry` carries rich fields (route type, metric, table ID, ECMP paths,
+MPLS labels, or SRv6 SID), the backend dispatches to `richRouteBackend` which builds
+a full `netlink.Route` with `RTN_BLACKHOLE`/`RTN_UNREACHABLE`/`RTN_PROHIBIT` type,
+`Priority` from metric, per-route `Table`, `MultiPath` for ECMP, `MPLSEncap` for
+MPLS lwtunnel, and `SEG6Encap` for SRv6.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- routeBackend, startupSweep, sweepStale -->
+<!-- source: internal/plugins/fib/kernel/richroute.go -- RichRoute, richRouteBackend interface -->
+<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildRichRoute, routeTypeToLinux, buildMultiPath -->
 <!-- source: internal/plugins/fib/kernel/backend_linux.go -- netlink backend, RTPROT_ZE -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- routewatch consumer for external change detection -->
 <!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel plugin registration -->
@@ -1060,7 +1085,14 @@ label push uses `IPRouteAddDel` with `LabelStack` on the FibPath, label swap/pop
 `MplsRouteAddDel`. Entries without labels use standard `IPRouteAddDel`. The MPLS table
 (0) is created implicitly by VPP on first use. Interface MPLS enable uses
 `SwInterfaceSetMplsEnable`.
-<!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent, processMPLSChange -->
+
+When `BestChangeEntry` carries rich fields (route type, metric, table ID, or ECMP
+paths), the backend dispatches to `addRichRoute` which maps route types to VPP path
+types (`FIB_API_PATH_TYPE_DROP`/`ICMP_UNREACH`/`ICMP_PROHIBIT`), propagates metric
+to `FibPath.Weight`, uses per-change table ID, and builds multi-path routes with
+`NPaths > 1`.
+<!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent, processMPLSChange, hasRichFields -->
+<!-- source: internal/plugins/fib/vpp/backend.go -- vppRichRoute, richRouteAddDel, routeTypeToVPP -->
 <!-- source: internal/plugins/fib/vpp/mpls.go -- govppMPLSBackend, mplsBackend interface -->
 <!-- source: internal/plugins/fib/vpp/register.go -- fib-vpp plugin registration -->
 

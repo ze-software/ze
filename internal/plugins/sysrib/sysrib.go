@@ -853,6 +853,77 @@ func (s *sysRIB) processLocRIBChange(c locrib.Change) {
 	}
 }
 
+// showNHTable returns the NH resolver tracking table as JSON.
+func (s *sysRIB) showNHTable() (string, error) {
+	r := getNHResolver()
+	if r == nil {
+		return "[]", nil
+	}
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	type nhEntry struct {
+		NextHop    netip.Addr     `json:"next-hop"`
+		Resolved   bool           `json:"resolved"`
+		DirectNH   netip.Addr     `json:"direct-nh,omitzero"`
+		IGPMetric  uint32         `json:"igp-metric,omitempty"`
+		Dependents []netip.Prefix `json:"dependents"`
+	}
+
+	entries := make([]nhEntry, 0, len(r.tracking))
+	for nh, deps := range r.tracking {
+		res := r.Resolve(nh)
+		prefixes := make([]netip.Prefix, 0, len(deps))
+		for pfx := range deps {
+			prefixes = append(prefixes, pfx)
+		}
+		entries = append(entries, nhEntry{
+			NextHop:    nh,
+			Resolved:   res.Resolved,
+			DirectNH:   res.DirectNH,
+			IGPMetric:  res.Metric,
+			Dependents: prefixes,
+		})
+	}
+
+	data, err := json.Marshal(entries)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+// showECMPGroups returns the current ECMP groups as JSON.
+func (s *sysRIB) showECMPGroups() (string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	type ecmpEntry struct {
+		Prefix netip.Prefix            `json:"prefix"`
+		Family family.Family           `json:"family"`
+		Paths  []sysribevents.ECMPPath `json:"paths"`
+	}
+
+	var entries []ecmpEntry
+	for key, paths := range s.lastECMP {
+		if len(paths) == 0 {
+			continue
+		}
+		entries = append(entries, ecmpEntry{
+			Prefix: key.prefix,
+			Family: key.family,
+			Paths:  paths,
+		})
+	}
+
+	data, err := json.Marshal(entries)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
 // showRIB returns the current system RIB state as JSON.
 func (s *sysRIB) showRIB() (string, error) {
 	s.mu.RLock()

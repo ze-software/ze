@@ -133,11 +133,17 @@ type incomingBatch = sysribevents.BestChangeBatch
 // incomingChange aliases a single entry in an incoming batch.
 type incomingChange = sysribevents.BestChangeEntry
 
+// installedRoute tracks a route installed in VPP for correct flush/delete.
+type installedRoute struct {
+	nextHop string
+	tableID uint32
+}
+
 // fibVPP manages VPP FIB route programming.
 type fibVPP struct {
-	installed     map[string]string // prefix -> next-hop (IP routes)
-	mplsInstalled map[string]bool   // prefix -> true (MPLS labeled routes)
-	srv6Installed map[string]bool   // prefix -> true (SRv6 steered routes)
+	installed     map[string]installedRoute // prefix -> installed state
+	mplsInstalled map[string]bool           // prefix -> true (MPLS labeled routes)
+	srv6Installed map[string]bool           // prefix -> true (SRv6 steered routes)
 	backend       vppBackend
 	mplsBackend   mplsBackend
 	srv6Backend   srv6Backend
@@ -146,41 +152,59 @@ type fibVPP struct {
 
 func newFibVPP(backend vppBackend) *fibVPP {
 	return &fibVPP{
-		installed:     make(map[string]string),
+		installed:     make(map[string]installedRoute),
 		mplsInstalled: make(map[string]bool),
 		srv6Installed: make(map[string]bool),
 		backend:       backend,
 	}
 }
 
-// ecmpNextHops collects all next-hops (primary + ECMP siblings) from a change.
-func ecmpNextHops(c *incomingChange) []netip.Addr {
-	nextHops := make([]netip.Addr, 0, len(c.ECMPPaths)+1)
-	if c.NextHop.IsValid() {
-		nextHops = append(nextHops, c.NextHop)
-	}
-	for _, p := range c.ECMPPaths {
-		if p.NextHop.IsValid() {
-			nextHops = append(nextHops, p.NextHop)
-		}
-	}
-	return nextHops
+// hasRichFields reports whether a change carries attributes beyond prefix+next-hop.
+func hasRichFields(c *incomingChange) bool {
+	return c.RouteType != 0 || c.Metric != 0 || c.TableID != 0 || len(c.ECMPPaths) > 0
 }
 
-// addVPPRoute dispatches to multi-path or single-path based on ECMP presence.
+func changeToRichRoute(c *incomingChange) vppRichRoute {
+	return vppRichRoute{
+		Prefix:    c.Prefix,
+		NextHop:   c.NextHop,
+		RouteType: c.RouteType,
+		Metric:    c.Metric,
+		TableID:   c.TableID,
+		ECMPPaths: c.ECMPPaths,
+	}
+}
+
+// addVPPRoute dispatches to rich, multi-path, or single-path based on fields present.
 func (f *fibVPP) addVPPRoute(c *incomingChange) error {
-	if len(c.ECMPPaths) > 0 {
-		return f.backend.addMultiPath(c.Prefix, ecmpNextHops(c), c.TableID)
+	if hasRichFields(c) {
+		return f.backend.addRichRoute(changeToRichRoute(c))
 	}
 	return f.backend.addRoute(c.Prefix, c.NextHop)
 }
 
-// replaceVPPRoute dispatches to multi-path or single-path replace.
+// replaceVPPRoute dispatches to rich, multi-path, or single-path replace.
 func (f *fibVPP) replaceVPPRoute(c *incomingChange) error {
-	if len(c.ECMPPaths) > 0 {
-		return f.backend.addMultiPath(c.Prefix, ecmpNextHops(c), c.TableID)
+	if hasRichFields(c) {
+		return f.backend.replaceRichRoute(changeToRichRoute(c))
 	}
 	return f.backend.replaceRoute(c.Prefix, c.NextHop)
+}
+
+// delVPPRoute dispatches to rich or legacy delete. Uses the stored tableID
+// from the installed map (sysrib withdrawals carry TableID=0 even when the
+// route was installed in a non-default table).
+func (f *fibVPP) delVPPRoute(c *incomingChange) error {
+	tableID := c.TableID
+	if tableID == 0 {
+		if ir, ok := f.installed[c.Prefix.String()]; ok {
+			tableID = ir.tableID
+		}
+	}
+	if tableID != 0 {
+		return f.backend.delRichRoute(c.Prefix, tableID)
+	}
+	return f.backend.delRoute(c.Prefix)
 }
 
 // processEvent handles a single (system-rib, best-change) payload received
@@ -213,7 +237,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 				logger().Error("fib-vpp: add route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
-			f.installed[c.Prefix.String()] = c.NextHop.String()
+			f.installed[c.Prefix.String()] = installedRoute{nextHop: c.NextHop.String(), tableID: c.TableID}
 			if m := fibVPPMetricsPtr.Load(); m != nil {
 				m.routeInstalls.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
@@ -223,12 +247,12 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 				logger().Error("fib-vpp: replace route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
-			f.installed[c.Prefix.String()] = c.NextHop.String()
+			f.installed[c.Prefix.String()] = installedRoute{nextHop: c.NextHop.String(), tableID: c.TableID}
 			if m := fibVPPMetricsPtr.Load(); m != nil {
 				m.routeUpdates.Inc()
 			}
 		case bgptypes.RouteActionWithdraw, bgptypes.RouteActionDel:
-			if err := f.backend.delRoute(c.Prefix); err != nil {
+			if err := f.delVPPRoute(c); err != nil {
 				logger().Error("fib-vpp: del route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
@@ -278,16 +302,22 @@ func (f *fibVPP) flushRoutes() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	for prefixStr := range f.installed {
+	for prefixStr, ir := range f.installed {
 		prefix, err := netip.ParsePrefix(prefixStr)
 		if err != nil {
 			continue
 		}
-		if err := f.backend.delRoute(prefix); err != nil {
-			logger().Warn("fib-vpp: flush del failed", "prefix", prefixStr, "error", err)
+		if ir.tableID != 0 {
+			if err := f.backend.delRichRoute(prefix, ir.tableID); err != nil {
+				logger().Warn("fib-vpp: flush del failed", "prefix", prefixStr, "error", err)
+			}
+		} else {
+			if err := f.backend.delRoute(prefix); err != nil {
+				logger().Warn("fib-vpp: flush del failed", "prefix", prefixStr, "error", err)
+			}
 		}
 	}
-	f.installed = make(map[string]string)
+	f.installed = make(map[string]installedRoute)
 
 	if f.mplsBackend != nil {
 		for prefixStr := range f.mplsInstalled {
@@ -332,8 +362,8 @@ func (f *fibVPP) showInstalled() string {
 	}
 
 	entries := make([]entry, 0, len(f.installed)+len(f.mplsInstalled))
-	for prefix, nextHop := range f.installed {
-		entries = append(entries, entry{Prefix: prefix, NextHop: nextHop})
+	for prefix, ir := range f.installed {
+		entries = append(entries, entry{Prefix: prefix, NextHop: ir.nextHop})
 	}
 	for prefix := range f.mplsInstalled {
 		entries = append(entries, entry{Prefix: prefix, MPLS: true})

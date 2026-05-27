@@ -185,7 +185,7 @@ func TestProcessEventWithdrawLabeled(t *testing.T) {
 // newFibVPPWithMPLS creates a fibVPP with both IP and MPLS backends for testing.
 func newFibVPPWithMPLS(ip vppBackend, mpls mplsBackend) *fibVPP {
 	return &fibVPP{
-		installed:     make(map[string]string),
+		installed:     make(map[string]installedRoute),
 		mplsInstalled: make(map[string]bool),
 		backend:       ip,
 		mplsBackend:   mpls,

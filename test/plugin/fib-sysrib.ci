@@ -81,7 +81,7 @@ def main():
     time.sleep(2.0)
 
     # Query sysrib.
-    r = dispatch(api, 'rib show')
+    r = dispatch(api, 'show rib')
     check('rib-show', r, 'done')
     data_str = r.get('data', '')
     try:
