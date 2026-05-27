@@ -1192,7 +1192,23 @@ This avoids bgp importing ssh, cli, or web.
 
 ---
 
-## 20. Appliance Config Loading Priority
+## 20. System Update Backend
+
+The system update surface is a single registered backend interface in `internal/component/config/system`. The hub selects `ze-self-update` for normal Linux, systemd, container, and Darwin platforms, and `gokrazy-ab` for gokrazy appliances. CLI and API handlers read the active backend through `ActiveBackend()` rather than holding separate checker/updater globals.
+<!-- source: internal/component/config/system/backend.go -- UpdateBackend, NewUpdateBackend, ActiveBackend -->
+<!-- source: cmd/ze/hub/main_system.go -- startUpdateBackend platform selection -->
+
+The `ze-self-update` backend delegates to the existing passive `UpdateChecker` when only version checking is configured, and to `SelfUpdater` when auto-apply or restart policy is configured. This preserves the existing download, verification, staging, restart, and history code path.
+<!-- source: internal/component/config/system/backend_ze.go -- zeBackend wrapper -->
+<!-- source: internal/component/config/system/update.go -- UpdateChecker -->
+<!-- source: internal/component/config/system/selfupdate.go -- SelfUpdater -->
+
+The `gokrazy-ab` backend does not perform Ze binary replacement. It returns `managed by gokrazy` status, probes the gokrazy management Unix socket for reachability and update features, and makes manual firmware commands return a structured unsupported response.
+<!-- source: internal/component/config/system/backend_gokrazy.go -- gokrazyBackend status and firmware operations -->
+
+---
+
+## 21. Appliance Config Loading Priority
 
 On gokrazy appliances, `cmdStart` resolves the effective config with a priority chain before calling `hub.Run`:
 
@@ -1225,4 +1241,4 @@ Runtime: after `config-push` applies a new config, a 30-second health window mon
 
 ---
 
-**Last Updated:** 2026-04-08 (Added component boundaries section)
+**Last Updated:** 2026-05-27 (Added system update backend section)

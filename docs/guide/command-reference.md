@@ -833,14 +833,14 @@ rollback, `.prev` no longer exists and the new version is gone from disk.
 
 <!-- source: internal/component/cmd/update/firmware.go -- firmware CLI handlers -->
 
-### show bgp summary
+### show summary
 
 ```
-ze show bgp summary                  # Every configured peer
-ze show bgp ipv4 summary             # Expanded to ipv4/unicast
-ze show bgp ipv6 summary             # Expanded to ipv6/unicast
-ze show bgp l2vpn summary            # Expanded to l2vpn/evpn
-ze show bgp <afi>/<safi> summary     # Full AFI/SAFI form (e.g. ipv4/vpn)
+ze show summary                  # Every configured peer
+ze show summary ipv4             # Expanded to ipv4/unicast
+ze show summary ipv6             # Expanded to ipv6/unicast
+ze show summary l2vpn            # Expanded to l2vpn/evpn
+ze show summary <afi>/<safi>     # Full AFI/SAFI form (e.g. ipv4/vpn)
 ```
 
 The family argument is validated against the families any peer has
@@ -1410,12 +1410,13 @@ Many commands take a `peer <selector>` argument:
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `peer list` | read-only | List all peers (IP, ASN, state, uptime) |
-| `peer <sel> detail` | read-only | Detailed peer info (config, state, counters, `prefix-updated` date, `prefix-stale` warning) |
-| `peer <sel> capabilities` | read-only | Negotiated capabilities |
-| `peer <sel> statistics` | read-only | Per-peer update statistics with rates |
-| `bgp summary` | read-only | BGP summary table (all peers) |
-| `bgp summary <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
+| `show peer list` | read-only | List all peers (IP, ASN, state, uptime) |
+| `show peer detail <sel>` | read-only | Detailed peer info (config, state, counters, `prefix-updated` date, `prefix-stale` warning) |
+| `show peer capabilities <sel>` | read-only | Negotiated capabilities |
+| `show peer statistics <sel>` | read-only | Per-peer update statistics with rates |
+| `show peer history <sel>` | read-only | FSM transition history |
+| `show summary` | read-only | BGP summary table (all peers) |
+| `show summary <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
 | `peer <sel> pause` | write | Pause read loop (flow control) |
 | `peer <sel> resume` | write | Resume read loop |
 | `peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
@@ -1500,10 +1501,13 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `rib status` | read-only | RIB summary (peer count, routes, families) |
-| `rib routes [received\|sent] [peer] [family]` | read-only | Adj-RIB-In/Out inspection |
-| `rib show best [<prefix>]` | read-only | Best-path per prefix |
-| `rib show best status` | read-only | Best-path computation status |
+| `show bgp rib status` | read-only | RIB summary (peer count, routes, families) |
+| `show bgp rib` | read-only | Stream Adj-RIB-In and Adj-RIB-Out routes |
+| `show bgp rib \| received` | read-only | Stream received routes only |
+| `show bgp rib \| advertised` | read-only | Stream advertised routes only |
+| `show bgp rib \| peer <selector>` | read-only | Stream routes for one peer selector |
+| `show bgp rib best` | read-only | Best-path per prefix |
+| `show bgp rib best status` | read-only | Best-path computation status |
 | `rib clear in <selector>` | write | Clear Adj-RIB-In (`*` for all peers) |
 | `rib clear out <selector> [family]` | write | Regenerate and re-advertise Adj-RIB-Out (`*` for all peers, optional family filter) |
 | `rib inject <peer> <family> <prefix> [attrs...]` | write | Insert route into Adj-RIB-In as if received from peer |
@@ -1767,18 +1771,18 @@ Inside `ze cli`:
 
 | Feature | Syntax |
 |---------|--------|
-| Pipe: filter lines | `peer list \| match established` |
-| Pipe: count | `peer list \| count` |
-| Pipe: table format | `rib routes \| table` |
-| Pipe: text format | `peer list \| text` |
-| Pipe: JSON pretty | `peer list \| json` |
-| Pipe: JSON compact | `peer list \| json compact` |
-| Pipe: NDJSON | `peer list \| ndjson` |
-| Pipe: YAML | `peer list \| yaml` |
+| Pipe: filter lines | `show peer list \| match established` |
+| Pipe: count | `show peer list \| count` |
+| Pipe: table format | `show bgp rib \| table` |
+| Pipe: text format | `show peer list \| text` |
+| Pipe: JSON pretty | `show peer list \| json` |
+| Pipe: JSON compact | `show peer list \| json compact` |
+| Pipe: NDJSON | `show peer list \| ndjson` |
+| Pipe: YAML | `show peer list \| yaml` |
 | Pipe: reverse DNS | `show traceroute 8.8.8.8 \| resolve` |
 | Pipe: ASN lookup | `show traceroute 8.8.8.8 \| origin` |
 | Pipe: streaming log | `monitor traceroute 8.8.8.8 \| log` |
-| Pipe: disable paging | `peer list \| no-more` |
+| Pipe: disable paging | `show peer list \| no-more` |
 | Set default format | `set cli format json` (session override) |
 | Show current format | `set cli format` (no argument) |
 | Tab completion | Contextual command/argument completion |

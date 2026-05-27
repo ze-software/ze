@@ -41,7 +41,7 @@ The action verb determines the command's behavior; the module implements it.
 
 | Verb | Purpose | Examples |
 |------|---------|---------|
-| `show` | Read-only display (returns data, exits) | `show bgp peer X`, `show bgp warnings` |
+| `show` | Read-only display (returns data, exits) | `show peer detail X`, `show bgp warnings` |
 | `set` | Create or modify | `set bgp peer X ...` |
 | `del` | Remove | `del bgp peer X` |
 | `update` | Route operations (announce, withdraw, refresh) | `update bgp peer * prefix ...` |
@@ -150,9 +150,9 @@ the bus from buggy or malicious producers.
 | `ze-show:dns-cache` | `handleDNSCache` in `dns.go` | `{"entries": N, "capacity": N, "hits": N, "misses": N, "evictions": N, "expired": N}` |
 | `ze-show:system-profile` | `handleShowSystemProfile` in `profile.go` | `{"type": "...", "format": "pprof-base64", "data": "..."}` |
 | `ze-show:system-memory-map` | `handleShowSystemMemoryMap` in `memory_map_linux.go` | `{"vm-rss-kb": N, "vm-size-kb": N, ...}` (Linux only) |
-| `ze-show:system-update` | `handleShowSystemUpdate` in `update.go` | `{"running-version": "...", "remote-version": "...", "update-available": bool, "status": "...", "download-status": "...", "staged-version": "...", ...}` |
+| `ze-show:system-update` | `handleShowSystemUpdate` in `update.go` | `{"backend": "ze-self-update"|"gokrazy-ab", "running-version": "...", "remote-version": "...", "update-available": bool, "status": "...", "download-status": "...", "staged-version": "...", "gokrazy-reachable": bool, "gokrazy-features": [...]}` |
 | `ze-show:system-update-history` | `handleShowSystemUpdateHistory` in `update.go` | `{"history": [{"timestamp": "...", "from": "...", "to": "...", "result": "..."}], "count": N}` |
-| `ze-update:system-firmware-check` | `handleFirmwareCheck` in `firmware.go` | `{"running-version": "...", "update-available": bool, ...}` |
+| `ze-update:system-firmware-check` | `handleFirmwareCheck` in `firmware.go` | `{"running-version": "...", "update-available": bool, ...}` or on gokrazy `{"backend":"gokrazy-ab", "status":"unsupported", "message":"updates managed by gokrazy"}` |
 | `ze-update:system-firmware-download` | `handleFirmwareDownload` in `firmware.go` | `{"downloaded-version": "...", "status": "complete"}` |
 | `ze-update:system-firmware-apply` | `handleFirmwareApply` in `firmware.go` | `{"applied-version": "...", "status": "restarting"}` |
 | `ze-update:system-firmware-restart` | `handleFirmwareRestart` in `firmware.go` | `{"status": "restarting"}` |
@@ -388,13 +388,11 @@ daemon reload            # Reload the configuration
 ### Peer Commands
 
 ```
-peer list                # List all peers
-peer detail              # Show all peers (detailed)
-peer <ip> detail         # Show specific peer detail
-peer capabilities        # Show peer capabilities
-peer <ip> capabilities   # Show specific peer capabilities
-peer statistics          # Show peer statistics (counters)
-peer <ip> statistics     # Show specific peer statistics
+show peer list                # List all peers
+show peer detail <selector>   # Show specific peer detail
+show peer capabilities <selector>  # Show specific peer capabilities
+show peer statistics <selector>    # Show specific peer statistics
+show peer history <selector>       # Show FSM transition history
 peer <ip> teardown <code> [<reason>]  # Disconnect peer
 set bgp peer <name> with <config>  # Create peer with configuration
 del bgp peer <name>                # Remove dynamic peer
@@ -548,19 +546,21 @@ update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog s
 ### RIB Commands
 
 ```
-rib routes [scope] [filters...] [terminal]  # Unified route display with pipeline
-    scope: sent | received | sent-received (default)
-    filters: path <pattern>, prefix <pattern>, community <value>,
-             family <afi/safi>, match <text>
-    terminals: count, json, prefix-summary, graph (AS topology box-drawing)
-rib show best [filters...] [terminal]       # Best-path per prefix (RFC 4271 §9.1.2)
-rib status                                  # RIB status (peer/route counts)
+show bgp rib [filters...] [terminal]        # Unified route display with pipeline
+    source filters: received | advertised
+    filters: peer <selector>, path <pattern>, prefix <pattern>, community <value>,
+             family <afi/safi>
+    terminals: count, prefix-summary, graph (AS topology box-drawing)
+show bgp rib best [filters...] [terminal]   # Best-path per prefix (RFC 4271 §9.1.2)
+show bgp rib status                         # RIB status (peer/route counts)
 rib clear in <selector>                      # Clear Adj-RIB-In (* for all peers)
 rib clear out <selector> [family]           # Resend Adj-RIB-Out (* for all, optional family)
 rib inject <peer> <family> <prefix> [attrs] # Insert route into Adj-RIB-In (no session needed)
 rib withdraw <peer> <family> <prefix>       # Remove route from Adj-RIB-In
 rib rpf <family> <source-addr>              # RPF lookup (longest-prefix-match in Loc-RIB)
 ```
+
+Generic pipes such as `match`, `json`, `ndjson`, `table`, `text`, `yaml`, `resolve`, `origin`, `log`, and `no-more` remain client-side pipe operators. RIB route filters such as `received`, `advertised`, `peer`, `family`, `prefix`, `path`, and `community` are command-specific filters registered by the RIB command and folded into the RIB iterator request before route output is generated.
 
 Inject attributes: `origin <igp|egp|incomplete>`, `nhop <ip>`, `aspath <asn,asn,...>`, `localpref <n>`, `med <n>`. Peer address is a label (valid IP, no session required). Only simple prefix families (IPv4/IPv6 unicast/multicast). IPv4-mapped IPv6 next-hops accepted.
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
