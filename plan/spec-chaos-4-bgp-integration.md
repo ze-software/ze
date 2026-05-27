@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-03-03 |
+| Phase | 1/5 |
+| Updated | 2026-05-27 |
 
 **Master design:** `plan/spec-bgp-chaos.md`
 **Previous spec:** `spec-bgp-chaos-selftest.md` (Phase 10)
@@ -241,6 +241,11 @@ expect=exit:code=0
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
+| `--config-only` flag | → | `cmd/ze-chaos/main.go:509` | `TestConfigOnly`, `TestConfigOnlyFile` |
+| Fork mode (default) | → | `cmd/ze-chaos/fork.go:22` | `.ci` smoke tests via `ze-test bgp chaos` |
+| `--port 0` auto-alloc | → | `cmd/ze-chaos/subcommand.go:157` | `TestAllocatePort`, `TestAllocatePortUnique` |
+| `ze-test bgp chaos` | → | `cmd/ze-test/bgp.go:275` | `make ze-chaos-integration-test` |
+| `make ze-chaos-integration-test` | → | `mk/test-chaos.mk:35` | CI target |
 
 ### Documentation Update Checklist (BLOCKING)
 <!-- Every row MUST be answered Yes/No during the Completion Checklist (planning.md step 1). -->
@@ -260,6 +265,44 @@ expect=exit:code=0
 | 10 | Test infrastructure changed? | [ ] | `docs/functional-tests.md` |
 | 11 | Affects daemon comparison? | [ ] | `docs/comparison.md` |
 | 12 | Internal architecture changed? | [ ] | `docs/architecture/core-design.md` or subsystem doc |
+
+### Critical Review Checklist
+
+| # | What to verify | How to verify |
+|---|----------------|---------------|
+| 1 | Ze subprocess cleaned up on all exit paths (normal, error, signal, panic) | Code review: `defer child.Shutdown()` in fork.go |
+| 2 | Fork mode pipes config via stdin (no temp file to leak) | Code review: fork.go stdin.Write, no os.CreateTemp |
+| 3 | Config generation deterministic (same seed = identical output) | TestConfigOnlyDeterministic |
+| 4 | Stdin close → 5s wait → SIGKILL escalation | Code review: fork.go:81-97 + smoke-propagation.ci |
+| 5 | Ze crash detected and reported as exit code 2 | Code review: main.go:697-709 zeCrashed atomic |
+| 6 | Port auto-allocation works (--port 0) | TestAllocatePort, TestAllocatePortUnique |
+| 7 | --config-only does NOT start peers or Ze | TestConfigOnlyNoNetwork |
+| 8 | Ze stderr forwarded for diagnostics | Code review: fork.go:33 `cmd.Stderr = os.Stderr` |
+| 9 | .ci tests use $PORT for parallel safety | grep $PORT in test/chaos/*.ci |
+
+### Deliverables Checklist
+
+| # | Deliverable | Verification method |
+|---|-------------|---------------------|
+| 1 | `--config-only` flag | `ze-chaos --config-only --seed 42 --peers 3` exits 0 with valid config |
+| 2 | Fork mode (default, = spec's `--managed`) | `ze-chaos --seed 42 --peers 3 --duration 5s` exits 0 |
+| 3 | `fork.go` (= spec's `managed.go`) | `ls cmd/ze-chaos/fork.go` |
+| 4 | `main_test.go` (= spec's `managed_test.go`) | `go test ./cmd/ze-chaos/ -run TestConfigOnly` |
+| 5 | `test/chaos/smoke-propagation.ci` | `ls test/chaos/smoke-propagation.ci` |
+| 6 | `test/chaos/smoke-disconnect.ci` | `ls test/chaos/smoke-disconnect.ci` |
+| 7 | `test/chaos/smoke-chaos.ci` | `ls test/chaos/smoke-chaos.ci` |
+| 8 | `make ze-chaos-integration-test` target | `make -n ze-chaos-integration-test` succeeds |
+| 9 | Chaos test suite registered | `grep chaos cmd/ze-test/bgp.go` |
+
+### Security Review Checklist
+
+| # | Concern | What to check |
+|---|---------|---------------|
+| 1 | Command injection via ze binary path | Binary from --ze flag or exec.LookPath, not user web input |
+| 2 | No temp files to leak | Fork mode pipes config via stdin, no os.CreateTemp |
+| 3 | Subprocess environment | Ze subprocess inherits parent env (appropriate for test tool) |
+| 4 | Port binding scope | localAddr defaults to 127.0.0.1, not 0.0.0.0 |
+| 5 | Resource exhaustion | Ze startup timeout via waitForZe; shutdown timeout 5s in fork.go |
 
 ## Implementation Steps
 
@@ -363,65 +406,82 @@ expect=exit:code=0
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| `--config-only` flag | ❌ Not implemented | — | |
-| `--managed` flag | ❌ Not implemented | — | |
-| Ze subprocess lifecycle | ❌ Not implemented | — | |
-| Ready detection (port polling) | ❌ Not implemented | — | |
-| Clean shutdown (SIGTERM → SIGKILL) | ❌ Not implemented | — | |
-| Ze crash detection | ❌ Not implemented | — | |
-| `make functional-chaos` target | ❌ Not implemented | — | |
-| Smoke test: propagation | ❌ Not implemented | — | |
-| Smoke test: disconnect | ❌ Not implemented | — | |
-| Smoke test: chaos | ❌ Not implemented | — | |
-| Test runner registration | ❌ Not implemented | — | |
-| Port auto-allocation | ❌ Not implemented | — | |
+| `--config-only` flag | ✅ Done | `main.go:158,509-523` | Pre-existing |
+| `--managed` flag | ✅ Done (as fork mode) | `fork.go:22` | Default mode, no flag needed |
+| Ze subprocess lifecycle | ✅ Done | `fork.go:22-97` | forkZe + zeChild.Shutdown |
+| Ready detection (port polling) | ✅ Done | `subcommand.go:180` | waitForZe with backoff |
+| Clean shutdown (SIGTERM → SIGKILL) | ✅ Done | `fork.go:81-97` | 5s timeout then SIGKILL |
+| Ze crash detection | ✅ Done | `main.go:697-709` | zeCrashed atomic, exit 2 |
+| `make ze-chaos-integration-test` | ✅ Done | `mk/test-chaos.mk:35` | Was `functional-chaos` in spec |
+| Smoke test: propagation | ✅ Done | `test/chaos/smoke-propagation.ci` | Pre-existing |
+| Smoke test: disconnect | ✅ Done | `test/chaos/smoke-disconnect.ci` | Pre-existing |
+| Smoke test: chaos | ✅ Done | `test/chaos/smoke-chaos.ci` | Pre-existing |
+| Test runner registration | ✅ Done | `cmd/ze-test/bgp.go:275` | chaos suite |
+| Port auto-allocation | ✅ Done | `subcommand.go:157,main.go:447` | Pre-existing |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | ❌ Not implemented | — | --config-only not built |
-| AC-2 | ❌ Not implemented | — | --config-only + --config-out not built |
-| AC-3 | ❌ Not implemented | — | Config validation not tested |
-| AC-4 | ❌ Not implemented | — | --managed mode not built |
-| AC-5 | ❌ Not implemented | — | --managed with chaos not built |
-| AC-6 | ❌ Not implemented | — | Ze crash detection not built |
-| AC-7 | ❌ Not implemented | — | Ctrl-C clean shutdown not built |
-| AC-8 | ❌ Not implemented | — | make functional-chaos not built |
-| AC-9 | ❌ Not implemented | — | Port conflict avoidance not built |
-| AC-10 | ❌ Not implemented | — | --port 0 auto-allocate not built |
+| AC-1 | ✅ Done | `TestConfigOnly` | main_test.go |
+| AC-2 | ✅ Done | `TestConfigOnlyFile` | main_test.go |
+| AC-3 | ✅ Done | `TestConfigOnlyDeterministic` | main_test.go |
+| AC-4 | ✅ Done | `smoke-propagation.ci` | Fork mode = managed mode |
+| AC-5 | ✅ Done | `smoke-chaos.ci` | chaos-rate 0.3 |
+| AC-6 | ✅ Done | `main.go:697-709` | zeCrashed → exit 2 |
+| AC-7 | ✅ Done | `main.go:682-694,fork.go:81` | SIGTERM handler + Shutdown |
+| AC-8 | ✅ Done | `mk/test-chaos.mk:35` | `make ze-chaos-integration-test` |
+| AC-9 | ✅ Done | `$PORT` in .ci files | Test runner allocates ports |
+| AC-10 | ✅ Done | `TestAllocatePort` | main_test.go |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| All unit tests | ❌ Not implemented | — | Entire spec not started |
-| All functional tests | ❌ Not implemented | — | No .ci files created |
+| `TestConfigOnly` | ✅ | `main_test.go` | Stdout output |
+| `TestConfigOnlyFile` | ✅ | `main_test.go` | File output |
+| `TestConfigOnlyDeterministic` | ✅ | `main_test.go` | Same seed = identical |
+| `TestConfigOnlyNoNetwork` | ✅ | `main_test.go` | No TCP side effects |
+| `TestConfigOnlyPipeExclusive` | ✅ | `main_test.go` | Flag exclusivity |
+| `TestConfigOnlyInProcessExclusive` | ✅ | `main_test.go` | Flag exclusivity |
+| `TestAllocatePort` | ✅ | `main_test.go` | Valid port range |
+| `TestAllocatePortUnique` | ✅ | `main_test.go` | No duplicates |
+| `TestCheckPortFree` | ✅ | `main_test.go` | Occupied port |
+| `TestCheckPortFreeAvailable` | ✅ | `main_test.go` | Free port |
+| `TestWaitForZeTimeout` | ✅ | `main_test.go` | Timeout on no listener |
+| `TestWaitForZeSuccess` | ✅ | `main_test.go` | Success with listener |
+| `TestRunInvalidPeers` | ✅ | `main_test.go` | Boundary: 0 and 51 |
+| `TestRunInvalidChaosRate` | ✅ | `main_test.go` | Boundary: -0.1 and 1.1 |
+| `TestRunInvalidPort` | ✅ | `main_test.go` | Boundary: privileged port |
+| Functional: propagation | ✅ | `test/chaos/smoke-propagation.ci` | Pre-existing |
+| Functional: disconnect | ✅ | `test/chaos/smoke-disconnect.ci` | Pre-existing |
+| Functional: chaos | ✅ | `test/chaos/smoke-chaos.ci` | Pre-existing |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `managed.go` | ❌ Not created | |
-| `managed_test.go` | ❌ Not created | |
-| `test/chaos/smoke-propagation.ci` | ❌ Not created | |
-| `test/chaos/smoke-disconnect.ci` | ❌ Not created | |
-| `test/chaos/smoke-chaos.ci` | ❌ Not created | |
-| `main.go` | ❌ Not modified | --config-only/--managed not added |
-| `orchestrator.go` | ❌ Not modified | |
-| `cmd/ze-test/bgp.go` | ❌ Not modified | chaos suite not registered |
-| `Makefile` | ❌ Not modified | functional-chaos target not added |
+| `managed.go` | ✅ (as `fork.go`) | Fork mode is the managed mode |
+| `managed_test.go` | ✅ (as `main_test.go`) | Tests cover run(), allocatePort, waitForZe, checkPortFree |
+| `test/chaos/smoke-propagation.ci` | ✅ Pre-existing | |
+| `test/chaos/smoke-disconnect.ci` | ✅ Pre-existing | |
+| `test/chaos/smoke-chaos.ci` | ✅ Pre-existing | |
+| `main.go` | ✅ Pre-existing | --config-only already implemented |
+| `orchestrator.go` | ✅ Pre-existing | |
+| `cmd/ze-test/bgp.go` | ✅ Pre-existing | chaos suite registered |
+| `mk/test-chaos.mk` | ✅ Pre-existing | Replaces planned Makefile changes |
 
 ### Audit Summary
 - **Total items:** 33
-- **Done:** 0
+- **Done:** 33
 - **Partial:** 0
-- **Not implemented:** 33 (entire spec not started)
+- **Not implemented:** 0
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-10 demonstrated
 - [ ] Tests pass (`make ze-unit-test`)
+- [ ] Tests pass (`make ze-test`)
 - [ ] No regressions (`make ze-functional-test`)
-- [ ] `make functional-chaos` passes
+- [ ] `make ze-chaos-integration-test` passes
 
 ### Quality Gates (SHOULD pass)
 - [ ] `make ze-lint` passes
