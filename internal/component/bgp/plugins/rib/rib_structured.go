@@ -10,7 +10,6 @@ package rib
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
@@ -447,103 +446,6 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 	r.updateRoute(peerAddr, "borr "+fam.String())
 	r.sendRoutes(peerAddr, routesToSend)
 	r.updateRoute(peerAddr, "eorr "+fam.String())
-}
-
-// coreAttrs holds parsed core path attributes from AttrsWire.
-type coreAttrs struct {
-	origin    attribute.Origin
-	asPath    []uint32
-	med       *uint32
-	localPref *uint32
-}
-
-// extractCoreAttrs reads Origin, ASPath, MED, LocalPref from AttrsWire.
-func extractCoreAttrs(attrs *attribute.AttributesWire) coreAttrs {
-	var result coreAttrs
-	if attrs == nil {
-		return result
-	}
-
-	if attr, err := attrs.Get(attribute.AttrOrigin); err == nil && attr != nil {
-		if o, ok := attr.(attribute.Origin); ok {
-			result.origin = o
-		}
-	}
-
-	if attr, err := attrs.Get(attribute.AttrASPath); err == nil && attr != nil {
-		if asp, ok := attr.(*attribute.ASPath); ok {
-			for _, seg := range asp.Segments {
-				result.asPath = append(result.asPath, seg.ASNs...)
-			}
-		}
-	}
-
-	if attr, err := attrs.Get(attribute.AttrMED); err == nil && attr != nil {
-		if m, ok := attr.(attribute.MED); ok {
-			v := uint32(m)
-			result.med = &v
-		}
-	}
-
-	if attr, err := attrs.Get(attribute.AttrLocalPref); err == nil && attr != nil {
-		if lp, ok := attr.(attribute.LocalPref); ok {
-			v := uint32(lp)
-			result.localPref = &v
-		}
-	}
-
-	return result
-}
-
-// communityAttrs holds parsed community attributes from AttrsWire.
-type communityAttrs struct {
-	communities      []attribute.Community
-	largeCommunities []attribute.LargeCommunity
-	extCommunities   []attribute.ExtendedCommunity
-}
-
-// extractCommunityAttrs reads community attributes from AttrsWire.
-func extractCommunityAttrs(attrs *attribute.AttributesWire) communityAttrs {
-	var result communityAttrs
-	if attrs == nil {
-		return result
-	}
-
-	if attr, err := attrs.Get(attribute.AttrCommunity); err == nil && attr != nil {
-		if c, ok := attr.(attribute.Communities); ok {
-			result.communities = []attribute.Community(c)
-		}
-	}
-
-	if attr, err := attrs.Get(attribute.AttrLargeCommunity); err == nil && attr != nil {
-		if lc, ok := attr.(attribute.LargeCommunities); ok {
-			result.largeCommunities = []attribute.LargeCommunity(lc)
-		}
-	}
-
-	if attr, err := attrs.Get(attribute.AttrExtCommunity); err == nil && attr != nil {
-		if ec, ok := attr.(attribute.ExtendedCommunities); ok {
-			result.extCommunities = []attribute.ExtendedCommunity(ec)
-		}
-	}
-
-	return result
-}
-
-// extractNextHop reads the NEXT_HOP attribute as string.
-func extractNextHop(attrs *attribute.AttributesWire) string {
-	if attrs == nil {
-		return ""
-	}
-	attr, err := attrs.Get(attribute.AttrNextHop)
-	if err != nil || attr == nil {
-		return ""
-	}
-	nh, ok := attr.(*attribute.NextHop)
-	if !ok {
-		return ""
-	}
-	return nh.Addr.String()
 }
 
 // insertLabeled handles a single labeled unicast NLRI announce. It strips
