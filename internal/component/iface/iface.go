@@ -16,6 +16,8 @@
 // two-layer model: physical interface + logical units.
 package iface
 
+import "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+
 // Bus topic constants for interface events.
 // Topics are hierarchical strings matching the Bus prefix subscription model.
 const (
@@ -98,6 +100,7 @@ type DHCPPayload struct {
 
 // InterfaceInfo describes an OS network interface for display.
 type InterfaceInfo struct {
+	plugin.DataMarker
 	Name        string          `json:"name"`
 	Index       int             `json:"index"`
 	Type        string          `json:"type"`
@@ -175,6 +178,7 @@ type RouterEventPayload struct {
 // InterfaceRate holds computed per-second rates and the raw stats snapshot
 // for a single interface. Produced by the rate tracker goroutine.
 type InterfaceRate struct {
+	plugin.DataMarker
 	Name  string          `json:"name"`
 	RxBps float64         `json:"rx-bps"`
 	TxBps float64         `json:"tx-bps"`
@@ -194,6 +198,7 @@ type InterfaceRate struct {
 // this layer -- the emitter is responsible for passing them through
 // secret.Encode before writing them to the config file.
 type DiscoveredInterface struct {
+	plugin.DataMarker
 	Name      string         `json:"name"`
 	Type      string         `json:"type"`
 	MAC       string         `json:"mac-address,omitempty"`

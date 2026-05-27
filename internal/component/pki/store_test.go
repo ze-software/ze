@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 func testPKIConfig(t *testing.T) *PKIConfig {
@@ -460,9 +462,9 @@ func TestShowPKICertificates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("handleShowPKICertificates: %v", err)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
-		t.Fatalf("expected map[string]any, got %T", resp.Data)
+		t.Fatalf("expected plugin.Map, got %T", resp.Data)
 	}
 	count, ok := data["count"].(int)
 	if !ok || count != 2 {
@@ -480,9 +482,9 @@ func TestShowPKICertificateByName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("handleShowPKICertificate: %v", err)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
-		t.Fatalf("expected map[string]any, got %T", resp.Data)
+		t.Fatalf("expected plugin.Map, got %T", resp.Data)
 	}
 	if data["name"] != "dev-1" {
 		t.Errorf("expected name=dev-1, got %v", data["name"])

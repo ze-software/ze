@@ -24,7 +24,7 @@ func handleShowAAAAccounting(_ *pluginserver.CommandContext, _ []string) (*plugi
 	fn := aaaAccountingProvider.fn
 	aaaAccountingProvider.RUnlock()
 	if fn == nil {
-		return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{"dropped-records": uint64(0)}}, nil
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"dropped-records": uint64(0)}}, nil
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: fn()}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(fn())}, nil
 }

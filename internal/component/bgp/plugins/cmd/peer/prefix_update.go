@@ -63,7 +63,7 @@ func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 	if configPath == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "config path not available",
+			Error:  "config path not available",
 		}, errConfigPathNotSet
 	}
 
@@ -74,7 +74,7 @@ func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 	if len(peers) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "no peers found matching selector",
+			Error:  "no peers found matching selector",
 		}, errNoPeersMatched
 	}
 
@@ -83,7 +83,7 @@ func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("cannot open config: %v", err),
+			Error:  fmt.Sprintf("cannot open config: %v", err),
 		}, fmt.Errorf("open config: %w", err)
 	}
 	defer func() { _ = ed.Close() }()
@@ -94,7 +94,7 @@ func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 	if err := validatePeeringDBURL(sc.PeeringDBURL); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid peeringdb url: %v", err),
+			Error:  fmt.Sprintf("invalid peeringdb url: %v", err),
 		}, err
 	}
 
@@ -120,7 +120,7 @@ func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 		if errors.Is(lookupErr, context.Canceled) || errors.Is(lookupErr, context.DeadlineExceeded) {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   lookupErr.Error(),
+				Error:  lookupErr.Error(),
 			}, lookupErr
 		}
 		if lookupErr != nil {
@@ -152,7 +152,7 @@ func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 		if err := ed.Save(); err != nil {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   fmt.Sprintf("failed to save config: %v", err),
+				Error:  fmt.Sprintf("failed to save config: %v", err),
 			}, fmt.Errorf("save config: %w", err)
 		}
 	}
@@ -160,7 +160,7 @@ func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 	var b textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"results": results,
 			"updated": updated,
 			"total":   len(peers),

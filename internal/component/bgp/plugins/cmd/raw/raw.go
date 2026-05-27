@@ -47,7 +47,7 @@ func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Respons
 	if ctx.Peer == "" || ctx.Peer == "*" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "raw requires specific peer: bgp peer <addr> raw ...",
+			Error:  "raw requires specific peer: bgp peer <addr> raw ...",
 		}, errRawRequiresSpecificPeer
 	}
 
@@ -55,14 +55,14 @@ func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Respons
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "invalid peer address: " + ctx.Peer,
+			Error:  "invalid peer address: " + ctx.Peer,
 		}, fmt.Errorf("invalid peer address: %w", err)
 	}
 
 	if len(args) < 2 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: raw [<type>] <encoding> <data>",
+			Error:  "usage: raw [<type>] <encoding> <data>",
 		}, errRawRequiresAtLeastEncodingAnd
 	}
 
@@ -77,7 +77,7 @@ func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Respons
 		if len(args) < 2 {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   "usage: raw <type> <encoding> <data>",
+				Error:  "usage: raw <type> <encoding> <data>",
 			}, errMissingEncodingAfterType
 		}
 		encoding = args[1]
@@ -98,7 +98,7 @@ func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Respons
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("decode error: %v", err),
+			Error:  fmt.Sprintf("decode error: %v", err),
 		}, err
 	}
 
@@ -110,7 +110,7 @@ func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Respons
 	if err := r.SendRawMessage(peerAddr, msgType, payload); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("send error: %v", err),
+			Error:  fmt.Sprintf("send error: %v", err),
 		}, err
 	}
 
@@ -126,7 +126,7 @@ func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Respons
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   respData,
+		Data:   plugin.Map(respData),
 	}, nil
 }
 

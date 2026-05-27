@@ -6,6 +6,7 @@
 package show
 
 import (
+	"encoding/json"
 	"errors"
 	"maps"
 	"runtime"
@@ -43,7 +44,7 @@ func handleShowSystemMemory(_ *pluginserver.CommandContext, _ []string) (*plugin
 	} else if err != nil && !errors.Is(err, host.ErrUnsupported) {
 		data["hardware-error"] = err.Error()
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(data)}, nil
 }
 
 // handleShowSystemCPU reports goroutine count, logical CPU count, and
@@ -63,7 +64,7 @@ func handleShowSystemCPU(_ *pluginserver.CommandContext, _ []string) (*plugin.Re
 	} else if err != nil && !errors.Is(err, host.ErrUnsupported) {
 		data["hardware-error"] = err.Error()
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(data)}, nil
 }
 
 // handleShowSystemSubsystemList returns available subsystems with their state.
@@ -71,14 +72,14 @@ func handleShowSystemSubsystemList(ctx *pluginserver.CommandContext, _ []string)
 	if ctx == nil || ctx.Server == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   map[string]any{"subsystems": []any{}, "count": 0},
+			Data:   plugin.Map{"subsystems": []any{}, "count": 0},
 		}, nil
 	}
 	pm := ctx.Server.ProcessManager()
 	if pm == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   map[string]any{"subsystems": []any{}, "count": 0},
+			Data:   plugin.Map{"subsystems": []any{}, "count": 0},
 		}, nil
 	}
 	procs := pm.AllProcesses()
@@ -93,7 +94,7 @@ func handleShowSystemSubsystemList(ctx *pluginserver.CommandContext, _ []string)
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"subsystems": out, "count": len(out)},
+		Data:   plugin.Map{"subsystems": out, "count": len(out)},
 	}, nil
 }
 
@@ -101,9 +102,13 @@ func handleShowSystemSubsystemList(ctx *pluginserver.CommandContext, _ []string)
 func handleShowSystemPlatform(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	p, err := host.DetectPlatform()
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: p}, nil
+	b, jsonErr := json.Marshal(p)
+	if jsonErr != nil {
+		return nil, jsonErr
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.RawJSON(b)}, nil
 }
 
 // handleShowSystemDate reports the daemon's current wall-clock view in
@@ -123,6 +128,6 @@ func handleShowSystemDate(_ *pluginserver.CommandContext, _ []string) (*plugin.R
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   data,
+		Data:   plugin.Map(data),
 	}, nil
 }

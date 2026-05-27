@@ -27,7 +27,7 @@ func showCrashList() (*plugin.Response, error) {
 	if len(summaries) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data: map[string]any{
+			Data: plugin.Map{
 				"crashes": []any{},
 				"count":   0,
 				"dir":     crashlog.CrashDir(),
@@ -46,7 +46,7 @@ func showCrashList() (*plugin.Response, error) {
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"crashes": entries,
 			"count":   len(entries),
 			"dir":     crashlog.CrashDir(),
@@ -65,7 +65,7 @@ func showCrashContent(name string) (*plugin.Response, error) {
 	if content == "" {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data: map[string]any{
+			Data: plugin.Map{
 				"message": "no crash report found",
 			},
 		}, nil
@@ -73,7 +73,7 @@ func showCrashContent(name string) (*plugin.Response, error) {
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"content": content,
 		},
 	}, nil

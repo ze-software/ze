@@ -667,15 +667,17 @@ func (r *Reactor) ExecuteCommand(input string) (string, error) {
 	if resp == nil {
 		return "", nil
 	}
-	data, ok := resp.Data.(string)
-	if !ok {
-		b, err := json.Marshal(resp.Data)
-		if err != nil {
-			return "", fmt.Errorf("marshal response: %w", err)
-		}
-		return string(b), nil
+	if resp.Error != "" {
+		return "", errors.New(resp.Error)
 	}
-	return data, nil
+	if resp.Data == nil {
+		return "", nil
+	}
+	b, err := json.Marshal(resp.Data)
+	if err != nil {
+		return "", fmt.Errorf("marshal response: %w", err)
+	}
+	return string(b), nil
 }
 
 // ConfigTree returns the full config as a map.

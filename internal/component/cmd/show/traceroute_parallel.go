@@ -25,16 +25,16 @@ const defaultProbeMaxHops = 16
 func HandleProbeRound(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	target, maxHops, _, _, err := parseTracerouteArgs(args)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	if maxHops == defaultTracerouteMaxHops {
 		maxHops = defaultProbeMaxHops
 	}
 	hops, probeErr := doProbeRound(target, maxHops, time.Second)
 	if probeErr != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: probeErr.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: probeErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{
 		"hops": hops,
 	}}, nil
 }

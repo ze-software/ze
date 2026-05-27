@@ -35,7 +35,7 @@ func TestDispatchBGPPeerList(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	peers, ok := data["peers"].(map[string]any)
 	require.True(t, ok)
@@ -76,7 +76,7 @@ func TestDispatchShowSummary(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	_, ok = data["summary"]
 	assert.True(t, ok)
@@ -98,7 +98,7 @@ func TestDispatchShowPeerList(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	peers, ok := data["peers"].(map[string]any)
 	require.True(t, ok)
@@ -122,7 +122,7 @@ func TestDispatchShowPeerDetail(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	peers, ok := data["peers"].(map[string]any)
 	require.True(t, ok)
@@ -147,7 +147,7 @@ func TestDispatchShowPeerCapabilities(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "192.0.2.1", data["peer"])
 }
@@ -168,7 +168,7 @@ func TestDispatchShowPeerStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "192.0.2.1", data["address"])
 }
@@ -192,7 +192,7 @@ func TestDispatchShowPeerHistory(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "192.0.2.1", data["peer"])
 	assert.Equal(t, 1, data["count"])

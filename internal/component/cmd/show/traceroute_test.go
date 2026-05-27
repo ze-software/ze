@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,13 +17,13 @@ func TestTraceroute_Wiring(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	if resp.Status == "error" {
-		data, _ := resp.Data.(string)
+		data := resp.Error
 		if data != "" {
 			t.Skipf("traceroute requires CAP_NET_RAW: %s", data)
 		}
 	}
 	assert.Equal(t, "done", resp.Status)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "expected map response, got %T", resp.Data)
 	assert.Equal(t, "127.0.0.1", data["target"])
 	hops, ok := data["hops"].([]map[string]any)

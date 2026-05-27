@@ -26,7 +26,7 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 	if len(args) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: config archive <name>",
+			Error:  "usage: config archive <name>",
 		}, nil
 	}
 
@@ -35,7 +35,7 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 	if ctx.Server == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "server not available",
+			Error:  "server not available",
 		}, nil
 	}
 
@@ -43,7 +43,7 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 	if configPath == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "no config file path available",
+			Error:  "no config file path available",
 		}, nil
 	}
 
@@ -51,7 +51,7 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "read config: " + err.Error(),
+			Error:  "read config: " + err.Error(),
 		}, err
 	}
 
@@ -59,7 +59,7 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 	if schErr != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "load schema: " + schErr.Error(),
+			Error:  "load schema: " + schErr.Error(),
 		}, schErr
 	}
 
@@ -68,7 +68,7 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 	if parseErr != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "parse config: " + parseErr.Error(),
+			Error:  "parse config: " + parseErr.Error(),
 		}, parseErr
 	}
 
@@ -77,7 +77,7 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 	if len(configs) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "no archive blocks configured in system { archive { } }",
+			Error:  "no archive blocks configured in system { archive { } }",
 		}, nil
 	}
 
@@ -96,14 +96,14 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 		}
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "archive block " + archiveName + " not found (available: " + strings.Join(names, ", ") + ")",
+			Error:  "archive block " + archiveName + " not found (available: " + strings.Join(names, ", ") + ")",
 		}, nil
 	}
 
 	if err := archive.ValidateLocation(ac.Location); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "invalid location for " + archiveName + ": " + err.Error(),
+			Error:  "invalid location for " + archiveName + ": " + err.Error(),
 		}, err
 	}
 
@@ -120,13 +120,13 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 	if len(errs) > 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "archive " + archiveName + " failed: " + errs[0].Error(),
+			Error:  "archive " + archiveName + " failed: " + errs[0].Error(),
 		}, nil
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"message": "archived " + archiveName + " to " + ac.Location,
 		},
 	}, nil

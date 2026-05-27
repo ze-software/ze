@@ -66,7 +66,7 @@ func TestHandleClearInterfaceCounters_Grammars(t *testing.T) {
 			if resp.Status != plugin.StatusDone {
 				return
 			}
-			data, ok := resp.Data.(map[string]any)
+			data, ok := resp.Data.(plugin.Map)
 			require.True(t, ok)
 			assert.Equal(t, tt.want, data["cleared"], "args=%v", tt.args)
 		})
@@ -90,7 +90,7 @@ func TestHandleClearInterfaceCounters_RejectBadGrammar(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, plugin.StatusError, resp.Status, "args=%v should reject", args)
-		msg, _ := resp.Data.(string)
+		msg := resp.Error
 		assert.Contains(t, msg, "usage", "args=%v error should include usage line", args)
 	}
 }
@@ -113,7 +113,7 @@ func TestClearInterface_DeprecatedNameFirst(t *testing.T) {
 			if resp.Status != plugin.StatusDone {
 				return
 			}
-			data, ok := resp.Data.(map[string]any)
+			data, ok := resp.Data.(plugin.Map)
 			require.True(t, ok)
 			assert.Equal(t, tt.want, data["cleared"])
 			dep, hasDeprecated := data["deprecated"]
@@ -141,7 +141,7 @@ func TestClearInterface_CanonicalNoDeprecation(t *testing.T) {
 			if resp.Status != plugin.StatusDone {
 				return
 			}
-			data, ok := resp.Data.(map[string]any)
+			data, ok := resp.Data.(plugin.Map)
 			require.True(t, ok)
 			_, hasDeprecated := data["deprecated"]
 			assert.False(t, hasDeprecated, "canonical grammar should not have deprecation")

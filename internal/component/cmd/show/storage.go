@@ -32,11 +32,11 @@ func handleShowStorageSmart(_ *pluginserver.CommandContext, _ []string) (*plugin
 	if m == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "storage SMART management not configured",
+			Error:  "storage SMART management not configured",
 		}, nil
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   m.Status(),
+		Data:   plugin.Map{"devices": m.Status()},
 	}, nil
 }

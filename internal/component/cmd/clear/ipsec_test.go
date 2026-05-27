@@ -29,7 +29,7 @@ func TestClearIPsecSA_AllNoEngine(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "clear-all", data["action"])
 	assert.Equal(t, 0, data["terminated"])
@@ -47,7 +47,6 @@ func TestClearIPsecSA_PeerNotFound(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, ok := resp.Data.(string)
-	require.True(t, ok)
+	msg := resp.Error
 	assert.Contains(t, msg, "peer not found")
 }

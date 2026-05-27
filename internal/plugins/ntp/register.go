@@ -230,13 +230,13 @@ func handleShowSystemNTP(_ *pluginserver.CommandContext, _ []string) (*plugin.Re
 	if st == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   map[string]any{"enabled": false},
+			Data:   plugin.Map{"enabled": false},
 		}, nil
 	}
 	if !st.Enabled {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   map[string]any{"enabled": false},
+			Data:   plugin.Map{"enabled": false},
 		}, nil
 	}
 	data := map[string]any{
@@ -250,7 +250,7 @@ func handleShowSystemNTP(_ *pluginserver.CommandContext, _ []string) (*plugin.Re
 	if !st.LastSync.IsZero() {
 		data["last-sync"] = st.LastSync.Format(time.RFC3339)
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(data)}, nil
 }
 
 // handleShowSystemNTPPeers returns per-server NTP state.
@@ -259,7 +259,7 @@ func handleShowSystemNTPPeers(_ *pluginserver.CommandContext, _ []string) (*plug
 	if st == nil || len(st.Servers) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   map[string]any{"peers": []map[string]any{}, "count": 0},
+			Data:   plugin.Map{"peers": []map[string]any{}, "count": 0},
 		}, nil
 	}
 	peers := make([]map[string]any, 0, len(st.Servers))
@@ -282,6 +282,6 @@ func handleShowSystemNTPPeers(_ *pluginserver.CommandContext, _ []string) (*plug
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"peers": peers, "count": len(peers)},
+		Data:   plugin.Map{"peers": peers, "count": len(peers)},
 	}, nil
 }

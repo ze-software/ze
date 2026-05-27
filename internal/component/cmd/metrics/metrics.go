@@ -35,7 +35,7 @@ func getPrometheusHandler() (http.Handler, *plugin.Response) {
 	if reg == nil {
 		return nil, &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "metrics not available",
+			Error:  "metrics not available",
 		}
 	}
 
@@ -43,7 +43,7 @@ func getPrometheusHandler() (http.Handler, *plugin.Response) {
 	if !ok {
 		return nil, &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "metrics not available",
+			Error:  "metrics not available",
 		}
 	}
 
@@ -89,13 +89,13 @@ func captureAndReturnMetrics(handler http.Handler) *plugin.Response {
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("capturing metrics: %v", err),
+			Error:  fmt.Sprintf("capturing metrics: %v", err),
 		}
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"metrics": text,
 		},
 	}
@@ -107,7 +107,7 @@ func captureAndReturnNames(handler http.Handler) *plugin.Response {
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("capturing metrics: %v", err),
+			Error:  fmt.Sprintf("capturing metrics: %v", err),
 		}
 	}
 
@@ -115,7 +115,7 @@ func captureAndReturnNames(handler http.Handler) *plugin.Response {
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"names": names,
 			"count": len(names),
 		},
@@ -192,7 +192,7 @@ func handlePoolStats(_ *pluginserver.CommandContext, _ []string) (*plugin.Respon
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"pools":            rows,
 			"count":            len(rows),
 			"total-live-slots": totalLive,

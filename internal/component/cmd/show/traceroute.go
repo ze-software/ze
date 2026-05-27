@@ -40,13 +40,13 @@ const (
 func handleTraceroute(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	target, maxHops, timeout, probes, err := parseTracerouteArgs(args)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	hops, trErr := doTraceroute(target, maxHops, timeout, probes)
 	if trErr != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: trErr.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: trErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{
 		"hops": hops,
 	}}, nil
 }

@@ -28,7 +28,7 @@ func init() {
 func handlePluginHelp(_ *CommandContext, _ []string) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"subcommands": []string{"session", "command"},
 		},
 	}, nil
@@ -49,7 +49,7 @@ func handlePluginCommandList(ctx *CommandContext, _ []string) (*plugin.Response,
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"commands": commands,
 		},
 	}, nil
@@ -60,7 +60,7 @@ func handlePluginCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: plugin command help \"<name>\"",
+			Error:  "usage: plugin command help \"<name>\"",
 		}, errMissingCommandName
 	}
 
@@ -70,7 +70,7 @@ func handlePluginCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 		if cmd := ctx.Dispatcher().Registry().Lookup(name); cmd != nil {
 			return &plugin.Response{
 				Status: plugin.StatusDone,
-				Data: map[string]any{
+				Data: plugin.Map{
 					"command":     cmd.Name,
 					"description": cmd.Description,
 					"args":        cmd.Args,
@@ -82,7 +82,7 @@ func handlePluginCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 
 	return &plugin.Response{
 		Status: plugin.StatusError,
-		Data:   "unknown plugin command: " + name,
+		Error:  "unknown plugin command: " + name,
 	}, fmt.Errorf("unknown plugin command: %s", name)
 }
 
@@ -91,7 +91,7 @@ func handlePluginCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: plugin command complete \"<partial>\"",
+			Error:  "usage: plugin command complete \"<partial>\"",
 		}, errMissingPartialInput
 	}
 
@@ -104,7 +104,7 @@ func handlePluginCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"completions": completions,
 		},
 	}, nil

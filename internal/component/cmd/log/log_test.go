@@ -33,7 +33,7 @@ func TestLogLevelsHandler(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "expected map[string]any data")
 
 	levels, ok := data["levels"].(map[string]string)
@@ -62,7 +62,7 @@ func TestLogSetHandler(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "sethandlertest", data["subsystem"])
 	assert.Equal(t, "debug", data["level"])
@@ -83,13 +83,13 @@ func TestLogSetMissingArgs(t *testing.T) {
 	resp, err := handleLogSet(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "usage")
+	assert.Contains(t, resp.Error, "usage")
 
 	// One arg
 	resp, err = handleLogSet(ctx, []string{"server"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "usage")
+	assert.Contains(t, resp.Error, "usage")
 }
 
 // TestLogSetInvalidLevel verifies handler returns error for bad level string.
@@ -111,7 +111,7 @@ func TestLogSetInvalidLevel(t *testing.T) {
 	resp, err := handleLogSet(ctx, []string{"invalidsettest", "badlevel"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "invalid level")
+	assert.Contains(t, resp.Error, "invalid level")
 }
 
 // TestLogSetUnknownSubsystem verifies handler returns error for unknown subsystem.
@@ -126,7 +126,7 @@ func TestLogSetUnknownSubsystem(t *testing.T) {
 	resp, err := handleLogSet(ctx, []string{"nonexistent", "info"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "unknown subsystem")
+	assert.Contains(t, resp.Error, "unknown subsystem")
 }
 
 // --- handleLogRecent ---
@@ -145,7 +145,7 @@ func TestLogRecent_NoArgs(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	entries, ok := data["entries"].([]map[string]any)
 	require.True(t, ok)
@@ -166,7 +166,7 @@ func TestLogRecent_FilterComponent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	entries, ok := data["entries"].([]map[string]any)
 	require.True(t, ok)
@@ -191,7 +191,7 @@ func TestLogRecent_FilterLevel(t *testing.T) {
 	resp, err := handleLogRecent(ctx, []string{"level", slog.LevelWarn.String(), "component", "recent-lvl-filter"})
 	require.NoError(t, err)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	entries, ok := data["entries"].([]map[string]any)
 	require.True(t, ok)
@@ -215,7 +215,7 @@ func TestLogRecent_Limit(t *testing.T) {
 	resp, err := handleLogRecent(ctx, []string{"component", "recent-limit", "count", "2"})
 	require.NoError(t, err)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	entries, ok := data["entries"].([]map[string]any)
 	require.True(t, ok)
@@ -227,7 +227,7 @@ func TestLogRecent_UnknownOption(t *testing.T) {
 	resp, err := handleLogRecent(ctx, []string{"bogus"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "unknown option")
+	assert.Contains(t, resp.Error, "unknown option")
 }
 
 func TestLogRecent_TrailingKeyword(t *testing.T) {
@@ -235,7 +235,7 @@ func TestLogRecent_TrailingKeyword(t *testing.T) {
 	resp, err := handleLogRecent(ctx, []string{"level"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "requires a value")
+	assert.Contains(t, resp.Error, "requires a value")
 }
 
 func TestLogRecent_InvalidCount(t *testing.T) {
@@ -243,7 +243,7 @@ func TestLogRecent_InvalidCount(t *testing.T) {
 	resp, err := handleLogRecent(ctx, []string{"count", "abc"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "not a positive number")
+	assert.Contains(t, resp.Error, "not a positive number")
 }
 
 func TestLogRecent_ZeroCount(t *testing.T) {
@@ -251,5 +251,5 @@ func TestLogRecent_ZeroCount(t *testing.T) {
 	resp, err := handleLogRecent(ctx, []string{"count", "0"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "not a positive number")
+	assert.Contains(t, resp.Error, "not a positive number")
 }

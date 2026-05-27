@@ -70,7 +70,7 @@ func handleBgpCache(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 		if len(args) < 2 {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   "usage: cache " + args[0] + " <id>",
+				Error:  "usage: cache " + args[0] + " <id>",
 			}, errMissingID
 		}
 		return dispatchCacheByID(ctx, args[0], args[1], args[2:], false)
@@ -78,7 +78,7 @@ func handleBgpCache(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 		if len(args) < 3 {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   "usage: cache forward <id> <selector>",
+				Error:  "usage: cache forward <id> <selector>",
 			}, errMissingSelector
 		}
 		return dispatchCacheByID(ctx, actionForward, args[1], args[2:], false)
@@ -88,13 +88,13 @@ func handleBgpCache(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	if len(args) < 2 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: cache retain|release|expire|forward <id>",
+			Error:  "usage: cache retain|release|expire|forward <id>",
 		}, errMissingAction
 	}
 	if !cacheActionKeywords[args[1]] {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "unknown cache action: " + args[1],
+			Error:  "unknown cache action: " + args[1],
 		}, fmt.Errorf("unknown action: %s", args[1])
 	}
 	return dispatchCacheByID(ctx, args[1], args[0], args[2:], true)
@@ -106,7 +106,7 @@ func dispatchCacheByID(ctx *pluginserver.CommandContext, action, idStr string, e
 		if !deprecated || resp == nil || resp.Status != plugin.StatusDone {
 			return resp
 		}
-		if data, ok := resp.Data.(map[string]any); ok {
+		if data, ok := resp.Data.(plugin.Map); ok {
 			data["deprecated"] = "use: cache " + action + " " + idStr
 		}
 		return resp
@@ -121,7 +121,7 @@ func dispatchCacheByID(ctx *pluginserver.CommandContext, action, idStr string, e
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "invalid cache id: " + idStr,
+			Error:  "invalid cache id: " + idStr,
 		}, fmt.Errorf("invalid cache id: %w", err)
 	}
 
@@ -138,7 +138,7 @@ func dispatchCacheByID(ctx *pluginserver.CommandContext, action, idStr string, e
 	default:
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "unknown cache action: " + action,
+			Error:  "unknown cache action: " + action,
 		}, fmt.Errorf("unknown action: %s", action)
 	}
 	return addDeprecation(resp), err
@@ -148,7 +148,7 @@ func dispatchCacheByID(ctx *pluginserver.CommandContext, action, idStr string, e
 func bgpCacheHelp() (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"commands": []map[string]string{
 				{"command": "cache list", "description": "List cached message IDs"},
 				{"command": "cache retain <id>", "description": "Prevent eviction of cached message"},
@@ -170,7 +170,7 @@ func handleBgpCacheList(ctx *pluginserver.CommandContext) (*plugin.Response, err
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"ids":   ids,
 			"count": len(ids),
 		},
@@ -186,13 +186,13 @@ func handleBgpCacheRetain(ctx *pluginserver.CommandContext, id uint64) (*plugin.
 	if err := r.RetainUpdate(id); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("retain failed: %v", err),
+			Error:  fmt.Sprintf("retain failed: %v", err),
 		}, err
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"id":       id,
 			"retained": true,
 		},
@@ -210,13 +210,13 @@ func handleBgpCacheRelease(ctx *pluginserver.CommandContext, id uint64) (*plugin
 	if err := r.ReleaseUpdate(id, cacheConsumerNameFromCtx(ctx)); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("release failed: %v", err),
+			Error:  fmt.Sprintf("release failed: %v", err),
 		}, err
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"id":       id,
 			"released": true,
 		},
@@ -232,13 +232,13 @@ func handleBgpCacheExpire(ctx *pluginserver.CommandContext, id uint64) (*plugin.
 	if err := r.DeleteUpdate(id); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("expire failed: %v", err),
+			Error:  fmt.Sprintf("expire failed: %v", err),
 		}, err
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"id":      id,
 			"expired": true,
 		},
@@ -250,7 +250,7 @@ func handleBgpCacheForward(ctx *pluginserver.CommandContext, id uint64, args []s
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: cache forward <id> <selector>",
+			Error:  "usage: cache forward <id> <selector>",
 		}, errMissingSelector
 	}
 
@@ -258,7 +258,7 @@ func handleBgpCacheForward(ctx *pluginserver.CommandContext, id uint64, args []s
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid selector: %v", err),
+			Error:  fmt.Sprintf("invalid selector: %v", err),
 		}, err
 	}
 
@@ -269,13 +269,13 @@ func handleBgpCacheForward(ctx *pluginserver.CommandContext, id uint64, args []s
 	if err := r.ForwardUpdate(sel, id, cacheConsumerNameFromCtx(ctx)); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("forward failed: %v", err),
+			Error:  fmt.Sprintf("forward failed: %v", err),
 		}, err
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"id":       id,
 			"selector": sel.String(),
 		},
@@ -310,7 +310,7 @@ func handleBgpCacheBatch(ctx *pluginserver.CommandContext, idList, action string
 		default:
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   "unknown cache action: " + action,
+				Error:  "unknown cache action: " + action,
 			}, fmt.Errorf("unknown action: %s", action)
 		}
 		if actionErr != nil {
@@ -323,16 +323,13 @@ func handleBgpCacheBatch(ctx *pluginserver.CommandContext, idList, action string
 	if len(errs) > 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data: map[string]any{
-				"processed": processed,
-				"errors":    errs,
-			},
+			Error:  "batch " + action + ": " + strconv.Itoa(processed) + " processed, " + strconv.Itoa(len(errs)) + " errors",
 		}, fmt.Errorf("batch %s: %d errors", action, len(errs))
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"processed": processed,
 		},
 	}, nil

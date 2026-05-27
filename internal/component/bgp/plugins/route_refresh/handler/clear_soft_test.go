@@ -22,7 +22,7 @@ func TestPeerClearSoftHandler(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "192.0.2.1", data["peer"])
 	assert.Equal(t, "soft-clear", data["action"])

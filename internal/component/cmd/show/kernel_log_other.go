@@ -17,5 +17,5 @@ func init() {
 }
 
 func handleShowSystemKernelLog(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	return &plugin.Response{Status: plugin.StatusError, Data: "not available on this platform"}, nil
+	return &plugin.Response{Status: plugin.StatusError, Error: "not available on this platform"}, nil
 }

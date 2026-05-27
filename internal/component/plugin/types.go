@@ -10,6 +10,7 @@
 package plugin
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -85,41 +86,64 @@ type ProtocolReactor interface {
 	SignalPluginStartupComplete()
 }
 
+// ResponseData is the marker interface for typed response payloads.
+// Only concrete types that implement this interface can be assigned
+// to Response.Data, preventing bare strings from bypassing pipe operators.
+type ResponseData interface {
+	responseData()
+}
+
+// Map is a named map type that satisfies ResponseData.
+type Map map[string]any
+
+func (Map) responseData() {}
+
+// DataMarker is embedded in structs to satisfy ResponseData.
+type DataMarker struct{}
+
+func (DataMarker) responseData() {}
+
+// Slice is a generic named slice type that satisfies ResponseData.
+type Slice[T any] []T
+
+func (Slice[T]) responseData() {}
+
+// RawJSON holds pre-serialized JSON from an RPC boundary.
+type RawJSON string
+
+func (RawJSON) responseData() {}
+
+func (r RawJSON) MarshalJSON() ([]byte, error) {
+	if r == "" {
+		return []byte("null"), nil
+	}
+	b := []byte(r)
+	if !json.Valid(b) {
+		return json.Marshal(string(r))
+	}
+	return b, nil
+}
+
 // Response represents an API command response.
 // Serial is included only if command had #N prefix.
 type Response struct {
-	Serial  string `json:"serial,omitempty"`  // Correlation ID (omitted if no prefix)
-	Status  string `json:"status"`            // "done", "error", or "partial"
-	Partial bool   `json:"partial,omitempty"` // True for streaming chunks, false for final
-	Data    any    `json:"data,omitempty"`    // Payload (success data or error message)
+	Serial  string       `json:"serial,omitempty"`  // Correlation ID (omitted if no prefix)
+	Status  string       `json:"status"`            // "done", "error", or "partial"
+	Partial bool         `json:"partial,omitempty"` // True for streaming chunks, false for final
+	Data    ResponseData `json:"data,omitempty"`    // Typed success payload
+	Error   string       `json:"error,omitempty"`   // Error message (set when Status is "error")
 }
 
 // RouteResult is the typed payload for update-route command responses.
-// Carried as Response.Data so extractors can type-assert instead of
-// probing map keys and guessing value types.
 type RouteResult struct {
+	DataMarker
 	Announced uint32   `json:"announced"`
 	Withdrawn uint32   `json:"withdrawn"`
 	Warnings  []string `json:"warnings,omitempty"`
 }
 
-// ResponseWrapper wraps a Response with type field for ze-bgp JSON.
-// All responses are wrapped: {"type":"response","response":{...}}.
-type ResponseWrapper struct {
-	Type     string    `json:"type"`     // Always "response"
-	Response *Response `json:"response"` // Payload
-}
-
-// WrapResponse wraps a Response in a ResponseWrapper for ze-bgp JSON.
-func WrapResponse(r *Response) *ResponseWrapper {
-	return &ResponseWrapper{
-		Type:     "response",
-		Response: r,
-	}
-}
-
 // NewResponse creates a new Response with the given status and data.
-func NewResponse(status string, data any) *Response {
+func NewResponse(status string, data ResponseData) *Response {
 	return &Response{
 		Status: status,
 		Data:   data,
@@ -130,7 +154,7 @@ func NewResponse(status string, data any) *Response {
 func NewErrorResponse(message string) *Response {
 	return &Response{
 		Status: StatusError,
-		Data:   message,
+		Error:  message,
 	}
 }
 

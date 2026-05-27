@@ -26,7 +26,7 @@ func init() {
 func handlePluginSessionPing(_ *CommandContext, _ []string) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"pong": os.Getpid(),
 		},
 	}, nil
@@ -39,7 +39,7 @@ func handlePluginSessionBye(_ *CommandContext, _ []string) (*plugin.Response, er
 	// Future: could clean up client-specific state.
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"status": "goodbye",
 		},
 	}, nil
@@ -53,7 +53,7 @@ func handlePluginSessionReady(ctx *CommandContext, _ []string) (*plugin.Response
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"api": "ready acknowledged",
 		},
 	}, nil

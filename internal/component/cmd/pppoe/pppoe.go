@@ -164,14 +164,17 @@ func parseIDArg(args []string) (uint16, error) {
 	return uint16(n), nil
 }
 
-func jsonResponse(op string, payload any) (*plugin.Response, error) {
+func jsonResponse(_ string, payload any) (*plugin.Response, error) {
+	if m, ok := payload.(map[string]any); ok {
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(m)}, nil
+	}
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return nil, fmt.Errorf("%s: marshal: %w", op, err)
+		return nil, err
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.RawJSON(data)}, nil
 }
 
 func errResponse(err error) *plugin.Response {
-	return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}
+	return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}
 }

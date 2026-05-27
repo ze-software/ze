@@ -26,7 +26,7 @@ func RegisterAuditProvider(fn func(zeaudit.Filter) []zeaudit.Entry) {
 func handleShowAudit(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	filter, parseErr := parseAuditFilter(args)
 	if parseErr != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: parseErr.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: parseErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	auditProvider.RLock()
 	fn := auditProvider.fn
@@ -35,7 +35,7 @@ func handleShowAudit(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 	if fn != nil {
 		entries = fn(filter)
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{"entries": entries, "count": len(entries)}}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"entries": entries, "count": len(entries)}}, nil
 }
 
 func parseAuditFilter(args []string) (zeaudit.Filter, error) {

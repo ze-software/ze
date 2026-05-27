@@ -21,6 +21,6 @@ func init() {
 func handleSetSystemFD(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusError,
-		Data:   "set system file-descriptors is only supported on Linux",
+		Error:  "set system file-descriptors is only supported on Linux",
 	}, nil
 }

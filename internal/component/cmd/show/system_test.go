@@ -3,6 +3,8 @@ package show
 import (
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // TestHandleShowSystemMemory asserts that the handler returns the expected
@@ -17,7 +19,7 @@ func TestHandleShowSystemMemory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatalf("expected map[string]any, got %T", resp.Data)
 	}
@@ -48,7 +50,7 @@ func TestHandleShowSystemCPU(t *testing.T) {
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatalf("expected map[string]any, got %T", resp.Data)
 	}
@@ -87,7 +89,7 @@ func TestHandleShowSystemDate(t *testing.T) {
 		t.Fatalf("handler returned error: %v", err)
 	}
 	after := time.Now()
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatalf("expected map[string]any, got %T", resp.Data)
 	}

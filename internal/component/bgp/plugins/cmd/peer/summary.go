@@ -64,14 +64,14 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	if ctx == nil || ctx.Reactor() == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "reactor not available",
+			Error:  "reactor not available",
 		}, errReactorNotAvailable
 	}
 
 	var familyFilter string
 	if len(args) > 0 {
 		if err := validateFamilyArg(args[0]); err != nil {
-			return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+			return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 		}
 		familyFilter = expandFamilyShorthand(args[0])
 	}
@@ -147,7 +147,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 		summary["family"] = familyFilter
 		summary["peers-in-family"] = len(peerRows)
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{"summary": summary}}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"summary": summary}}, nil
 }
 
 // validateFamilyArg caps length + charset on the operator-supplied
@@ -188,7 +188,7 @@ func rejectFamily(wanted string, seen map[string]struct{}) (*plugin.Response, er
 	} else {
 		msg += "; currently negotiated: " + strings.Join(known, ", ")
 	}
-	return &plugin.Response{Status: plugin.StatusError, Data: msg}, nil
+	return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil
 }
 
 // expandFamilyShorthand accepts three operator-friendly short forms:
@@ -227,7 +227,7 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, args []string) 
 	if len(peers) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "no matching peers",
+			Error:  "no matching peers",
 		}, errNoMatchingPeers
 	}
 
@@ -260,16 +260,14 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, args []string) 
 		results[i] = entry
 	}
 
-	// Single peer: flat object. Multiple: array.
-	var data any = results
 	if len(results) == 1 {
-		data = results[0]
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(results[0])}, nil
 	}
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data:   data,
-	}, nil
+	typed := make(plugin.Slice[plugin.Map], len(results))
+	for i, r := range results {
+		typed[i] = plugin.Map(r)
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: typed}, nil
 }
 
 // handleBgpPeerStatistics returns per-peer update statistics with rates.
@@ -285,7 +283,7 @@ func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, args []string) (*
 	if len(peers) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "no matching peers",
+			Error:  "no matching peers",
 		}, errNoMatchingPeers
 	}
 
@@ -324,14 +322,12 @@ func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, args []string) (*
 		results[i] = entry
 	}
 
-	// Single peer: flat object. Multiple: array.
-	var data any = results
 	if len(results) == 1 {
-		data = results[0]
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(results[0])}, nil
 	}
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data:   data,
-	}, nil
+	typed := make(plugin.Slice[plugin.Map], len(results))
+	for i, r := range results {
+		typed[i] = plugin.Map(r)
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: typed}, nil
 }

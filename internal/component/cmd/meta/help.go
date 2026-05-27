@@ -56,7 +56,7 @@ func handleBgpHelp(ctx *pluginserver.CommandContext, _ []string) (*plugin.Respon
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"commands": commands,
 		},
 	}, nil
@@ -83,7 +83,7 @@ func handleBgpCommandList(ctx *pluginserver.CommandContext, args []string) (*plu
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"commands": commands,
 		},
 	}, nil
@@ -109,7 +109,7 @@ func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plu
 			}
 			return &plugin.Response{
 				Status: plugin.StatusDone,
-				Data:   data,
+				Data:   plugin.Map(data),
 			}, nil
 		}
 	}
@@ -155,7 +155,7 @@ func handleBgpCommandComplete(ctx *pluginserver.CommandContext, args []string) (
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"completions": completions,
 		},
 	}, nil
@@ -165,7 +165,7 @@ func handleBgpCommandComplete(ctx *pluginserver.CommandContext, args []string) (
 func handleBgpEventList(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"events": bgpEventTypes(),
 		},
 	}, nil
@@ -182,7 +182,7 @@ func handleEventMonitor(_ *pluginserver.CommandContext, args []string) (*plugin.
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"status":    "monitor-configured",
 			"include":   opts.IncludeTypes,
 			"exclude":   opts.ExcludeTypes,

@@ -45,7 +45,7 @@ func handleBgpPluginEncoding(ctx *pluginserver.CommandContext, args []string) (*
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"encoding": enc,
 		},
 	}, nil
@@ -70,7 +70,7 @@ func handleBgpPluginFormat(ctx *pluginserver.CommandContext, args []string) (*pl
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"format": format,
 		},
 	}, nil
@@ -99,7 +99,7 @@ func handleBgpPluginAck(ctx *pluginserver.CommandContext, args []string) (*plugi
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"ack": mode,
 		},
 	}, nil

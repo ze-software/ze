@@ -1,7 +1,6 @@
 package bfd
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
 
@@ -57,10 +56,9 @@ func TestHandleShowSessions(t *testing.T) {
 	if resp.Status != plugin.StatusDone {
 		t.Fatalf("status = %q, want %q", resp.Status, plugin.StatusDone)
 	}
-	data, _ := resp.Data.(string)
-	var out []bfdapi.SessionState
-	if err := json.Unmarshal([]byte(data), &out); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+	out, ok := resp.Data.(plugin.Slice[bfdapi.SessionState])
+	if !ok {
+		t.Fatalf("expected plugin.Slice[bfdapi.SessionState], got %T", resp.Data)
 	}
 	if len(out) != 2 || out[0].Peer != "203.0.113.1" || out[1].Peer != "203.0.113.2" {
 		t.Fatalf("payload = %+v", out)
@@ -80,7 +78,7 @@ func TestHandleShowSessions_ServiceUnavailable(t *testing.T) {
 	if resp.Status != plugin.StatusError {
 		t.Fatalf("status = %q, want %q", resp.Status, plugin.StatusError)
 	}
-	msg, _ := resp.Data.(string)
+	msg := resp.Error
 	if !strings.Contains(msg, "bfd: plugin not loaded") {
 		t.Fatalf("message = %q", msg)
 	}
@@ -98,7 +96,7 @@ func TestHandleShowSession_NotFound(t *testing.T) {
 	if resp.Status != plugin.StatusError {
 		t.Fatalf("status = %q, want %q", resp.Status, plugin.StatusError)
 	}
-	msg, _ := resp.Data.(string)
+	msg := resp.Error
 	if !strings.Contains(msg, "no session for peer") {
 		t.Fatalf("message = %q", msg)
 	}
@@ -116,7 +114,7 @@ func TestHandleShowSession_InvalidPeer(t *testing.T) {
 	if resp.Status != plugin.StatusError {
 		t.Fatalf("status = %q, want %q", resp.Status, plugin.StatusError)
 	}
-	msg, _ := resp.Data.(string)
+	msg := resp.Error
 	if !strings.Contains(msg, "invalid peer") {
 		t.Fatalf("message = %q", msg)
 	}
@@ -141,10 +139,9 @@ func TestHandleShowProfile(t *testing.T) {
 	if resp.Status != plugin.StatusDone {
 		t.Fatalf("empty status = %q", resp.Status)
 	}
-	data, _ := resp.Data.(string)
-	var all []bfdapi.ProfileState
-	if err := json.Unmarshal([]byte(data), &all); err != nil {
-		t.Fatalf("unmarshal all: %v", err)
+	all, ok := resp.Data.(plugin.Slice[bfdapi.ProfileState])
+	if !ok {
+		t.Fatalf("expected plugin.Slice[ProfileState], got %T", resp.Data)
 	}
 	if len(all) != 2 {
 		t.Fatalf("all len = %d", len(all))
@@ -158,10 +155,9 @@ func TestHandleShowProfile(t *testing.T) {
 	if resp.Status != plugin.StatusDone {
 		t.Fatalf("fast status = %q", resp.Status)
 	}
-	data, _ = resp.Data.(string)
-	var one bfdapi.ProfileState
-	if err := json.Unmarshal([]byte(data), &one); err != nil {
-		t.Fatalf("unmarshal fast: %v", err)
+	one, ok := resp.Data.(bfdapi.ProfileState)
+	if !ok {
+		t.Fatalf("expected ProfileState, got %T", resp.Data)
 	}
 	if one.Name != "fast" || one.DesiredMinTxUs != 50_000 {
 		t.Fatalf("fast payload = %+v", one)

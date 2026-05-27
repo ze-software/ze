@@ -31,7 +31,7 @@ func handleShowSystemFD(_ *pluginserver.CommandContext, args []string) (*plugin.
 
 	fds, err := readProcSelfFD()
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 
 	counts := map[string]int{}

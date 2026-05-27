@@ -6,6 +6,7 @@
 package show
 
 import (
+	"encoding/json"
 	"errors"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
@@ -55,10 +56,14 @@ func dispatchHostSection(section string) (*plugin.Response, error) {
 		if errors.Is(err, host.ErrUnknownSection) {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   "unknown host section; valid: " + host.SectionList(),
+				Error:  "unknown host section; valid: " + host.SectionList(),
 			}, nil
 		}
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error propagated via Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error propagated via Response
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
+	b, jsonErr := json.Marshal(data)
+	if jsonErr != nil {
+		return nil, jsonErr
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.RawJSON(b)}, nil
 }

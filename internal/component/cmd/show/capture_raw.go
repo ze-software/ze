@@ -62,7 +62,7 @@ func handleCaptureRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	default:
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: capture-raw [start|stop|dump] [l2tp|bgp|bfd] [pcap|json] [count N]",
+			Error:  "usage: capture-raw [start|stop|dump] [l2tp|bgp|bfd] [pcap|json] [count N]",
 		}, nil
 	}
 }
@@ -92,7 +92,7 @@ func captureRawStart(ctx *pluginserver.CommandContext, protocol string) (*plugin
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"action":  "start",
 			"started": started,
 		},
@@ -124,7 +124,7 @@ func captureRawStop(ctx *pluginserver.CommandContext, protocol string) (*plugin.
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"action":  "stop",
 			"stopped": stopped,
 		},
@@ -224,7 +224,7 @@ func captureRawDump(ctx *pluginserver.CommandContext, protocol, format string, l
 		}
 	}
 
-	return &plugin.Response{Status: plugin.StatusDone, Data: result}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(result)}, nil
 }
 
 func rawEntriesToJSON(entries []l2tp.RawCaptureEntry) []map[string]any {

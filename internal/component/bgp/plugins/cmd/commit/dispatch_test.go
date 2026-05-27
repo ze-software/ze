@@ -30,7 +30,7 @@ func TestDispatchBGPCommitList(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 0, data["count"])
 }

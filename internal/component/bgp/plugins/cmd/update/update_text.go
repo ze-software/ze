@@ -689,12 +689,12 @@ func handleUpdate(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 func handleUpdateText(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	result, err := ParseUpdateText(args)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 	}
 
 	if result.WatchdogName != "" {
 		errMsg := "watchdog not yet implemented for update text"
-		return &plugin.Response{Status: plugin.StatusError, Data: errMsg}, errors.New(errMsg)
+		return &plugin.Response{Status: plugin.StatusError, Error: errMsg}, errors.New(errMsg)
 	}
 
 	// BGP-specific operations: EOR, announce, withdraw
@@ -708,7 +708,7 @@ func handleUpdateText(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	var eorSent int
 	for _, fam := range result.EORFamilies {
 		if err := bgpReactor.AnnounceEOR(peerSelector, uint16(fam.AFI), uint8(fam.SAFI)); err != nil {
-			return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
+			return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 		}
 		eorSent++
 	}
@@ -718,14 +718,14 @@ func handleUpdateText(ctx *pluginserver.CommandContext, args []string) (*plugin.
 		if eorSent > 0 {
 			return &plugin.Response{
 				Status: plugin.StatusDone,
-				Data: map[string]any{
+				Data: plugin.Map{
 					"eor": eorSent,
 				},
 			}, nil
 		}
 		return &plugin.Response{
 			Status: "warning",
-			Data:   "no routes or EOR markers to send",
+			Data:   plugin.Map{"message": "no routes or EOR markers to send"},
 		}, nil
 	}
 
@@ -736,7 +736,7 @@ func handleUpdateText(ctx *pluginserver.CommandContext, args []string) (*plugin.
 
 	// Add EOR count to response if both were sent
 	if eorSent > 0 {
-		if respData, ok := resp.Data.(map[string]any); ok {
+		if respData, ok := resp.Data.(plugin.Map); ok {
 			respData["eor"] = eorSent
 		}
 	}
@@ -769,7 +769,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 					warnings = append(warnings, fmt.Sprintf("announce %v: %s", group.Family, err))
 					continue
 				}
-				return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
+				return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 			}
 			announced += len(group.Announce)
 		}
@@ -783,7 +783,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 					warnings = append(warnings, fmt.Sprintf("withdraw %v: %s", group.Family, err))
 					continue
 				}
-				return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
+				return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 			}
 			withdrawn += len(group.Withdraw)
 		}
@@ -796,7 +796,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 		}
 		return &plugin.Response{
 			Status: "warning",
-			Data:   msg,
+			Data:   plugin.Map{"message": msg},
 		}, nil
 	}
 

@@ -36,12 +36,12 @@ func handleMonitorSystemNetlink(_ *pluginserver.CommandContext, args []string) (
 	default:
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "unknown netlink group (valid: route, link, address, all)",
+			Error:  "unknown netlink group (valid: route, link, address, all)",
 		}, nil
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"status": "monitor-configured",
 			"group":  group,
 		},

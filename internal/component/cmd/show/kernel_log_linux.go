@@ -56,12 +56,12 @@ func handleShowSystemKernelLog(_ *pluginserver.CommandContext, args []string) (*
 
 	entries, err := readKmsg(count, maxLevel)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"entries": entries,
 			"count":   len(entries),
 		},

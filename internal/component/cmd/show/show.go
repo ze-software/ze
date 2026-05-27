@@ -191,7 +191,7 @@ func handleShowWarnings(_ *pluginserver.CommandContext, args []string) (*plugin.
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"warnings": issues,
 			"count":    len(issues),
 		},
@@ -211,7 +211,7 @@ func handleShowErrors(_ *pluginserver.CommandContext, args []string) (*plugin.Re
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"errors": issues,
 			"count":  len(issues),
 		},
@@ -263,12 +263,12 @@ func handleShowTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.R
 	if backend == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "traffic control not available on this platform",
+			Error:  "traffic control not available on this platform",
 		}, nil
 	}
 	ifaces, err := iface.ListInterfaces()
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	ifName := ""
 	for _, a := range args {
@@ -280,11 +280,11 @@ func handleShowTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.R
 	if ifName != "" {
 		qos, qErr := backend.ListQdiscs(ifName)
 		if qErr != nil {
-			return &plugin.Response{Status: plugin.StatusError, Data: qErr.Error()}, nil //nolint:nilerr // operational error in Response
+			return &plugin.Response{Status: plugin.StatusError, Error: qErr.Error()}, nil //nolint:nilerr // operational error in Response
 		}
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data: map[string]any{
+			Data: plugin.Map{
 				"interface":     qos.Interface,
 				"qdisc":         qos.Qdisc.Type.String(),
 				"class-count":   len(qos.Qdisc.Classes),
@@ -315,18 +315,18 @@ func handleShowTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.R
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"interfaces": rows, "count": len(rows)},
+		Data:   plugin.Map{"interfaces": rows, "count": len(rows)},
 	}, nil
 }
 
 func handleShowL2TPHealth(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	svc := l2tp.LookupService()
 	if svc == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "l2tp subsystem not running"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "l2tp subsystem not running"}, nil
 	}
 	summaries := svc.LoginSummaries()
 	if summaries == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "observer not enabled (CQM disabled)"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "observer not enabled (CQM disabled)"}, nil
 	}
 	rows := make([]map[string]any, 0, len(summaries))
 	for i := range summaries {
@@ -352,13 +352,13 @@ func handleShowL2TPHealth(_ *pluginserver.CommandContext, _ []string) (*plugin.R
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"logins": rows, "count": len(rows), "degraded": degraded},
+		Data:   plugin.Map{"logins": rows, "count": len(rows), "degraded": degraded},
 	}, nil
 }
 
 func handleShowBGPHealth(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	if ctx == nil || ctx.Reactor() == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "reactor not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "reactor not available"}, nil
 	}
 	peers := ctx.Reactor().Peers()
 	rows := make([]map[string]any, 0, len(peers))
@@ -379,18 +379,18 @@ func handleShowBGPHealth(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"peers": rows, "count": len(rows), "not-established": notEstablished},
+		Data:   plugin.Map{"peers": rows, "count": len(rows), "not-established": notEstablished},
 	}, nil
 }
 
 func handleShowMetricsQuery(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	reg := registry.GetMetricsRegistry()
 	if reg == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "metrics not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "metrics not available"}, nil
 	}
 	promReg, ok := reg.(*metrics.PrometheusRegistry)
 	if !ok {
-		return &plugin.Response{Status: plugin.StatusError, Data: "metrics not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "metrics not available"}, nil
 	}
 	metricName := ""
 	labelFilters := make(map[string]string)
@@ -407,11 +407,11 @@ func handleShowMetricsQuery(_ *pluginserver.CommandContext, args []string) (*plu
 		}
 	}
 	if metricName == "" {
-		return &plugin.Response{Status: plugin.StatusError, Data: "usage: metrics-query <name> [label=value ...]"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "usage: metrics-query <name> [label=value ...]"}, nil
 	}
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", http.NoBody)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	rec := httptest.NewRecorder()
 	promReg.Handler().ServeHTTP(rec, req)
@@ -420,7 +420,7 @@ func handleShowMetricsQuery(_ *pluginserver.CommandContext, args []string) (*plu
 	matched := filterMetricLines(text, metricName, labelFilters)
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"metric": metricName, "series": matched, "count": len(matched)},
+		Data:   plugin.Map{"metric": metricName, "series": matched, "count": len(matched)},
 	}, nil
 }
 
@@ -462,11 +462,11 @@ func filterMetricLines(text, name string, labelFilters map[string]string) []map[
 
 func handleShowEventRecent(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if ctx == nil || ctx.Server == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "event ring not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "event ring not available"}, nil
 	}
 	ring := ctx.Server.EventRing()
 	if ring == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "event ring not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "event ring not available"}, nil
 	}
 	namespace := extractNamespaceFilter(args)
 	limit := extractCountFilter(args)
@@ -481,17 +481,17 @@ func handleShowEventRecent(ctx *pluginserver.CommandContext, args []string) (*pl
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"events": out, "count": len(out)},
+		Data:   plugin.Map{"events": out, "count": len(out)},
 	}, nil
 }
 
 func handleShowEventNamespaces(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	if ctx == nil || ctx.Server == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "event ring not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "event ring not available"}, nil
 	}
 	ring := ctx.Server.EventRing()
 	if ring == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "event ring not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "event ring not available"}, nil
 	}
 	counts := ring.NamespaceCounts()
 	rows := make([]map[string]any, 0, len(counts))
@@ -508,7 +508,7 @@ func handleShowEventNamespaces(ctx *pluginserver.CommandContext, _ []string) (*p
 	})
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"namespaces": rows, "count": len(rows)},
+		Data:   plugin.Map{"namespaces": rows, "count": len(rows)},
 	}, nil
 }
 
@@ -534,7 +534,7 @@ func handleShowHealth(_ *pluginserver.CommandContext, _ []string) (*plugin.Respo
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"status":     string(report.Status),
 			"components": components,
 			"count":      len(components),
@@ -604,7 +604,7 @@ func handleShowCapture(ctx *pluginserver.CommandContext, args []string) (*plugin
 		}
 	}
 
-	return &plugin.Response{Status: plugin.StatusDone, Data: result}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(result)}, nil
 }
 
 // handleShowVersion returns the ze version and build date.
@@ -612,7 +612,7 @@ func handleShowVersion(_ *pluginserver.CommandContext, _ []string) (*plugin.Resp
 	v, d := pluginserver.GetVersion()
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   "ze " + v + " (built " + d + ")",
+		Data:   plugin.Map{"version": "ze " + v + " (built " + d + ")"},
 	}, nil
 }
 
@@ -621,14 +621,14 @@ func handleShowUptime(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 	if ctx == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "daemon not running",
+			Error:  "daemon not running",
 		}, nil
 	}
 	r := ctx.Reactor()
 	if r == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "daemon not running",
+			Error:  "daemon not running",
 		}, nil
 	}
 	stats := r.Stats()
@@ -641,7 +641,7 @@ func handleShowUptime(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 	} else if err != nil && !errors.Is(err, host.ErrUnsupported) {
 		data["hardware-error"] = err.Error()
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(data)}, nil
 }
 
 // handleShowInterface dispatches interface subcommands. Keywords: brief,
@@ -657,7 +657,7 @@ func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin
 		return showInterfaceBrief()
 	case "type":
 		if len(args) < 2 {
-			return &plugin.Response{Status: plugin.StatusError, Data: "usage: show interface type <type>"}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: "usage: show interface type <type>"}, nil
 		}
 		return showInterfaceByType(args[1])
 	case "errors":
@@ -673,7 +673,7 @@ func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin
 		if len(args) > 1 {
 			return showInterfaceCounters(args[1])
 		}
-		return &plugin.Response{Status: plugin.StatusError, Data: "usage: show interface counters <name>"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show interface counters <name>"}, nil
 	}
 
 	// Deprecated: "show interface <name> [counters]" -- name in keyword position.
@@ -694,27 +694,23 @@ func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin
 func showInterfaceDetail(name string) (*plugin.Response, error) {
 	info, err := iface.GetInterface(name)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	data, jsonErr := json.Marshal(info)
-	if jsonErr != nil {
-		return nil, fmt.Errorf("show interface: marshal: %w", jsonErr)
-	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: info}, nil
 }
 
 func showInterfaceCounters(name string) (*plugin.Response, error) {
 	info, err := iface.GetInterface(name)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	if info.Stats == nil {
-		return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{
 			"name":  info.Name,
 			"stats": "no counters available",
 		}}, nil
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{
 		"name":  info.Name,
 		"stats": info.Stats,
 	}}, nil
@@ -723,29 +719,28 @@ func showInterfaceCounters(name string) (*plugin.Response, error) {
 func showInterfaceAll() (*plugin.Response, error) {
 	ifaces, err := iface.ListInterfaces()
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	data, jsonErr := json.Marshal(ifaces)
-	if jsonErr != nil {
-		return nil, fmt.Errorf("show interface: marshal: %w", jsonErr)
-	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Slice[iface.InterfaceInfo](ifaces)}, nil
 }
 
 // withDeprecation adds a deprecation hint to a successful response.
 func withDeprecation(resp *plugin.Response, newForm string) *plugin.Response {
-	if resp == nil || resp.Status != plugin.StatusDone {
+	if resp == nil || resp.Status != plugin.StatusDone || resp.Data == nil {
 		return resp
 	}
-	switch data := resp.Data.(type) {
-	case map[string]any:
+	if data, ok := resp.Data.(plugin.Map); ok {
 		data["deprecated"] = "use: " + newForm
-	case string:
-		var m map[string]any
-		if json.Unmarshal([]byte(data), &m) == nil {
-			m["deprecated"] = "use: " + newForm
-			resp.Data = m
-		}
+		return resp
+	}
+	b, err := json.Marshal(resp.Data)
+	if err != nil {
+		return resp
+	}
+	var m plugin.Map
+	if json.Unmarshal(b, &m) == nil {
+		m["deprecated"] = "use: " + newForm
+		resp.Data = m
 	}
 	return resp
 }
@@ -756,13 +751,9 @@ func withDeprecation(resp *plugin.Response, newForm string) *plugin.Response {
 func handleShowInterfaceScan(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	discovered, err := iface.DiscoverInterfaces()
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	data, jsonErr := json.Marshal(discovered)
-	if jsonErr != nil {
-		return nil, fmt.Errorf("show interface scan: marshal: %w", jsonErr)
-	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Slice[iface.DiscoveredInterface](discovered)}, nil
 }
 
 // showInterfaceByType filters the interface list to entries whose Type
@@ -771,7 +762,7 @@ func handleShowInterfaceScan(_ *pluginserver.CommandContext, _ []string) (*plugi
 func showInterfaceByType(wanted string) (*plugin.Response, error) {
 	ifaces, err := iface.ListInterfaces()
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	wantedLower := strings.ToLower(wanted)
 	seen := make(map[string]struct{})
@@ -797,7 +788,7 @@ func showInterfaceByType(wanted string) (*plugin.Response, error) {
 		} else {
 			msg += "; valid types: " + strings.Join(valid, ", ")
 		}
-		return &plugin.Response{Status: plugin.StatusError, Data: msg}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil
 	}
 	// Single-key wrapper so the `| table` renderer unwraps to the
 	// slice and produces a proper columnar table (see
@@ -806,7 +797,7 @@ func showInterfaceByType(wanted string) (*plugin.Response, error) {
 	// caller from the command line.
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"interfaces": filtered,
 		},
 	}, nil
@@ -818,7 +809,7 @@ func showInterfaceByType(wanted string) (*plugin.Response, error) {
 func showInterfaceErrors() (*plugin.Response, error) {
 	ifaces, err := iface.ListInterfaces()
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	rows := make([]map[string]any, 0, len(ifaces))
 	for i := range ifaces {
@@ -841,7 +832,7 @@ func showInterfaceErrors() (*plugin.Response, error) {
 	// columnar output. Count is derivable via `| count`.
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"interfaces": rows,
 		},
 	}, nil
@@ -851,7 +842,7 @@ func showInterfaceErrors() (*plugin.Response, error) {
 func showInterfaceBrief() (*plugin.Response, error) {
 	ifaces, err := iface.ListInterfaces()
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	rows := make([]map[string]any, 0, len(ifaces))
 	for i := range ifaces {
@@ -867,7 +858,7 @@ func showInterfaceBrief() (*plugin.Response, error) {
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"interfaces": rows,
 			"count":      len(rows),
 		},

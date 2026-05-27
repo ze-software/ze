@@ -31,7 +31,7 @@ func TestMetricsShowWithRegistry(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "expected map[string]any data")
 	output, ok := data["metrics"].(string)
 	require.True(t, ok, "expected string in metrics field")
@@ -51,7 +51,7 @@ func TestMetricsShowNoRegistry(t *testing.T) {
 	resp, err := handleMetricsValues(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "metrics not available")
+	assert.Contains(t, resp.Error, "metrics not available")
 }
 
 // TestMetricsListWithRegistry verifies handler returns metric names only.
@@ -72,7 +72,7 @@ func TestMetricsListWithRegistry(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "expected map[string]any data")
 	names, ok := data["names"].([]string)
 	require.True(t, ok, "expected []string in names field")
@@ -93,5 +93,5 @@ func TestMetricsListNoRegistry(t *testing.T) {
 	resp, err := handleMetricsList(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "metrics not available")
+	assert.Contains(t, resp.Error, "metrics not available")
 }

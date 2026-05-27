@@ -1407,9 +1407,7 @@ func TestHandleUpdateText_WatchdogDeferred(t *testing.T) {
 	resp, err := handleUpdateText(ctx, args)
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
-	dataStr, ok := resp.Data.(string)
-	require.True(t, ok, "response Data should be a string")
-	assert.Contains(t, dataStr, "watchdog")
+	assert.Contains(t, resp.Error, "watchdog")
 }
 
 // TestHandleUpdateText_EmptyResult verifies empty groups returns warning.
@@ -1501,7 +1499,9 @@ func TestHandleUpdateText_FamilyNotAccepted(t *testing.T) {
 	resp, err := handleUpdateText(ctx, args)
 	require.NoError(t, err) // Warning is not an error at handler level
 	assert.Equal(t, "warning", resp.Status)
-	assert.Contains(t, resp.Data, "no peers have family negotiated")
+	m, ok := resp.Data.(plugin.Map)
+	require.True(t, ok, "expected plugin.Map, got %T", resp.Data)
+	assert.Contains(t, m["message"], "no peers have family negotiated")
 }
 
 // TestHandleUpdateText_PartialFamilyAccepted verifies mixed success/warning.

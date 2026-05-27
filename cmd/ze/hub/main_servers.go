@@ -95,18 +95,20 @@ func serverDispatcherWithSurface(s *pluginserver.Server, surface string) func(co
 		if resp == nil {
 			return "", nil
 		}
-		data, ok := resp.Data.(string)
-		if !ok {
-			b, jsonErr := json.Marshal(resp.Data)
-			if jsonErr != nil {
-				return "", fmt.Errorf("marshal response: %w", jsonErr)
-			}
-			data = string(b)
+		if resp.Error != "" {
+			return "", errors.New(resp.Error)
 		}
 		if resp.Status == plugin.StatusError {
-			return "", errors.New(data)
+			return "", errors.New("unknown error")
 		}
-		return data, nil
+		if resp.Data == nil {
+			return "", nil
+		}
+		b, jsonErr := json.Marshal(resp.Data)
+		if jsonErr != nil {
+			return "", fmt.Errorf("marshal response: %w", jsonErr)
+		}
+		return string(b), nil
 	}
 }
 

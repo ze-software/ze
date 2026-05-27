@@ -9,7 +9,11 @@
 // observation (counts, timestamps) computed from the express loop.
 package api
 
-import "time"
+import (
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+)
 
 // SessionState is a point-in-time copy of one BFD session's identity,
 // negotiated timers, and recent history. Returned by Service.Snapshot
@@ -23,6 +27,7 @@ import "time"
 // oldest first. An empty slice means the session has not yet crossed a
 // state boundary since creation.
 type SessionState struct {
+	plugin.DataMarker
 	Peer              string             `json:"peer"`
 	Local             string             `json:"local,omitempty"`
 	Interface         string             `json:"interface,omitempty"`
@@ -64,6 +69,7 @@ const TransitionHistoryDepth = 8
 // the resolved (post-default) profile parameters an operator would see
 // after `show bfd profile <name>`.
 type ProfileState struct {
+	plugin.DataMarker
 	Name            string `json:"name"`
 	DetectMult      uint8  `json:"detect-multiplier"`
 	DesiredMinTxUs  uint32 `json:"desired-min-tx-us"`

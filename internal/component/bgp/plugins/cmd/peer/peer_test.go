@@ -61,7 +61,7 @@ func TestHandlerPeerList(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "expected map response data")
 	peers, ok := data["peers"].(map[string]any)
 	require.True(t, ok, "expected peers map indexed by IP")
@@ -113,7 +113,7 @@ func TestHandlerPeerSave(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	saved, ok := data["saved"].([]string)
 	require.True(t, ok)

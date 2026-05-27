@@ -1,13 +1,17 @@
 package show
 
-import "testing"
+import (
+	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+)
 
 func TestDNSLookup_Wiring(t *testing.T) {
 	resp, err := handleDNSLookup(nil, []string{"localhost"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatal("expected map response")
 	}
@@ -38,7 +42,7 @@ func TestDNSCacheEntries_NoProvider(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatal("expected map response")
 	}
@@ -60,7 +64,7 @@ func TestDNSCacheEntries_WithProvider(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatal("expected map response")
 	}
@@ -91,7 +95,7 @@ func TestDNSCacheRecords_FilterByName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatal("expected map response")
 	}

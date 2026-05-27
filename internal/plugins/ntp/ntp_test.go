@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -274,7 +276,7 @@ func TestShowSystemNTPWiring(t *testing.T) {
 	resp, err := handleShowSystemNTP(nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "expected map response")
 	assert.Equal(t, false, data["enabled"])
 }
@@ -291,7 +293,7 @@ func TestShowSystemNTPPeersWiring(t *testing.T) {
 	resp, err := handleShowSystemNTPPeers(nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "expected map response")
 	peers, ok := data["peers"].([]map[string]any)
 	require.True(t, ok, "expected peers array")
@@ -321,7 +323,7 @@ func TestShowSystemNTPEnabled(t *testing.T) {
 
 	resp, err := handleShowSystemNTP(nil, nil)
 	require.NoError(t, err)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, true, data["enabled"])
 	assert.Equal(t, true, data["synced"])
@@ -346,7 +348,7 @@ func TestShowSystemNTPDisabled(t *testing.T) {
 
 	resp, err := handleShowSystemNTP(nil, nil)
 	require.NoError(t, err)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, false, data["enabled"])
 	_, hasSynced := data["synced"]
@@ -384,7 +386,7 @@ func TestShowSystemNTPPeers(t *testing.T) {
 
 	resp, err := handleShowSystemNTPPeers(nil, nil)
 	require.NoError(t, err)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 2, data["count"])
 	peers, ok := data["peers"].([]map[string]any)
@@ -414,7 +416,7 @@ func TestShowSystemNTPPeersEmpty(t *testing.T) {
 
 	resp, err := handleShowSystemNTPPeers(nil, nil)
 	require.NoError(t, err)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 0, data["count"])
 }

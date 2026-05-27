@@ -70,7 +70,7 @@ func TestSubscribeNoProcess(t *testing.T) {
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Equal(t, "subscribe requires a process context", resp.Data)
+	assert.Equal(t, "subscribe requires a process context", resp.Error)
 }
 
 // TestSubscribeNoSubscriptionManager verifies handleSubscribe fails when Server is nil.
@@ -87,7 +87,7 @@ func TestSubscribeNoSubscriptionManager(t *testing.T) {
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Equal(t, "subscription manager not available", resp.Data)
+	assert.Equal(t, "subscription manager not available", resp.Error)
 }
 
 // TestSubscribeSuccess verifies handleSubscribe succeeds with valid context.
@@ -135,7 +135,7 @@ func TestSubscribeSuccess(t *testing.T) {
 			require.NotNil(t, resp)
 			assert.Equal(t, plugin.StatusDone, resp.Status)
 
-			data, ok := resp.Data.(map[string]any)
+			data, ok := resp.Data.(plugin.Map)
 			require.True(t, ok, "response data should be map[string]any")
 			assert.Equal(t, tt.namespace, data["namespace"])
 			assert.Equal(t, tt.event, data["event"])
@@ -190,7 +190,7 @@ func TestUnsubscribeNoProcess(t *testing.T) {
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Equal(t, "unsubscribe requires a process context", resp.Data)
+	assert.Equal(t, "unsubscribe requires a process context", resp.Error)
 }
 
 // TestUnsubscribeSuccess verifies handleUnsubscribe succeeds after subscribing.
@@ -213,7 +213,7 @@ func TestUnsubscribeSuccess(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "response data should be map[string]any")
 	assert.Equal(t, true, data["removed"])
 	assert.Equal(t, "bgp", data["namespace"])
@@ -237,7 +237,7 @@ func TestUnsubscribeNotFound(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "response data should be map[string]any")
 	assert.Equal(t, false, data["removed"])
 	assert.Equal(t, "bgp", data["namespace"])

@@ -23,7 +23,7 @@ func handleCreateDummy(_ *pluginserver.CommandContext, args []string) (*plugin.R
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   "created dummy interface " + args[0],
+		Data:   plugin.Map{"message": "created dummy interface " + args[0]},
 	}, nil
 }
 
@@ -36,7 +36,7 @@ func handleCreateVeth(_ *pluginserver.CommandContext, args []string) (*plugin.Re
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   "created veth pair " + args[0] + " <-> " + args[1],
+		Data:   plugin.Map{"message": "created veth pair " + args[0] + " <-> " + args[1]},
 	}, nil
 }
 
@@ -49,7 +49,7 @@ func handleCreateBridge(_ *pluginserver.CommandContext, args []string) (*plugin.
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   "created bridge interface " + args[0],
+		Data:   plugin.Map{"message": "created bridge interface " + args[0]},
 	}, nil
 }
 
@@ -62,7 +62,7 @@ func handleDelete(_ *pluginserver.CommandContext, args []string) (*plugin.Respon
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   "deleted interface " + args[0],
+		Data:   plugin.Map{"message": "deleted interface " + args[0]},
 	}, nil
 }
 
@@ -75,7 +75,7 @@ func handleAddrAdd(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   "added " + args[1] + " to " + args[0],
+		Data:   plugin.Map{"message": "added " + args[1] + " to " + args[0]},
 	}, nil
 }
 
@@ -88,7 +88,7 @@ func handleAddrDel(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   "removed " + args[1] + " from " + args[0],
+		Data:   plugin.Map{"message": "removed " + args[1] + " from " + args[0]},
 	}, nil
 }
 
@@ -106,7 +106,7 @@ func handleUnitAdd(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 	var bData textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   bData.Reset().Str("created unit ").Str(args[0]).Byte('.').Int(int64(vid)).String(),
+		Data:   plugin.Map{"message": bData.Reset().Str("created unit ").Str(args[0]).Byte('.').Int(int64(vid)).String()},
 	}, nil
 }
 
@@ -119,7 +119,7 @@ func handleUnitDel(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   "deleted unit " + args[0],
+		Data:   plugin.Map{"message": "deleted unit " + args[0]},
 	}, nil
 }
 
@@ -133,7 +133,7 @@ func handleInterfaceUp(_ *pluginserver.CommandContext, args []string) (*plugin.R
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   "interface " + args[0] + " up",
+		Data:   plugin.Map{"message": "interface " + args[0] + " up"},
 	}, nil
 }
 
@@ -147,7 +147,7 @@ func handleInterfaceDown(_ *pluginserver.CommandContext, args []string) (*plugin
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   "interface " + args[0] + " down",
+		Data:   plugin.Map{"message": "interface " + args[0] + " down"},
 	}, nil
 }
 
@@ -185,7 +185,7 @@ func handleInterfaceMTU(_ *pluginserver.CommandContext, args []string) (*plugin.
 	var bMtu textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   bMtu.Reset().Str("interface ").Str(args[0]).Str(" mtu ").Int(int64(mtu)).String(),
+		Data:   plugin.Map{"message": bMtu.Reset().Str("interface ").Str(args[0]).Str(" mtu ").Int(int64(mtu)).String()},
 	}, nil
 }
 
@@ -220,6 +220,6 @@ func handleInterfaceMAC(_ *pluginserver.CommandContext, args []string) (*plugin.
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   "interface " + args[0] + " mac " + args[1],
+		Data:   plugin.Map{"message": "interface " + args[0] + " mac " + args[1]},
 	}, nil
 }

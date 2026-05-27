@@ -13,17 +13,17 @@ import (
 
 func handleRouteLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
-		return &plugin.Response{Status: plugin.StatusError, Data: "usage: show ip route lookup <destination-ip>"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show ip route lookup <destination-ip>"}, nil
 	}
 	dest, err := netip.ParseAddr(args[0])
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid destination %q: %v", args[0], err)}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: fmt.Sprintf("invalid destination %q: %v", args[0], err)}, nil //nolint:nilerr // operational error in Response
 	}
 
 	route, lookupErr := iface.RouteLookup(dest)
 	if lookupErr != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: lookupErr.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: lookupErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 
-	return &plugin.Response{Status: plugin.StatusDone, Data: route}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(route)}, nil
 }

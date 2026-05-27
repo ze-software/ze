@@ -28,7 +28,7 @@ func RegisterDNSCacheClearProvider(fn func(action, name, typeName string) map[st
 
 func handleClearDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if dnsCacheClearProvider == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "DNS cache not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "DNS cache not available"}, nil
 	}
 
 	action := clearActionAll
@@ -54,9 +54,9 @@ func handleClearDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin
 	}
 
 	if action == clearActionRecord && name == "" {
-		return &plugin.Response{Status: plugin.StatusError, Data: "clear dns cache record: missing name"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "clear dns cache record: missing name"}, nil
 	}
 
 	result := dnsCacheClearProvider(action, name, typeName)
-	return &plugin.Response{Status: plugin.StatusDone, Data: result}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(result)}, nil
 }

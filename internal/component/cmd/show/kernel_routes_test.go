@@ -41,8 +41,7 @@ func TestHandleShowKernelRoutes_InvalidPrefix(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, ok := resp.Data.(string)
-	require.True(t, ok)
+	msg := resp.Error
 	assert.Contains(t, msg, "invalid prefix")
 }
 
@@ -58,8 +57,7 @@ func TestHandleShowKernelRoutes_LimitValidated(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, ok := resp.Data.(string)
-	require.True(t, ok)
+	msg := resp.Error
 	assert.Contains(t, msg, "positive integer")
 }
 
@@ -77,7 +75,7 @@ func TestHandleShowKernelRoutes_DispatchShape(t *testing.T) {
 	if resp.Status == plugin.StatusError {
 		return // no backend loaded in unit tests; error path is valid evidence
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "data must be a map[string]any wrapper")
 	_, ok = data["routes"]
 	require.True(t, ok, "data must carry a `routes` key")

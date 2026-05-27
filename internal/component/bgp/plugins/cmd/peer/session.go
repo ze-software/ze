@@ -21,7 +21,7 @@ func handlePeerSessionReady(ctx *pluginserver.CommandContext, _ []string) (*plug
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"api": "peer ready acknowledged",
 		},
 	}, nil

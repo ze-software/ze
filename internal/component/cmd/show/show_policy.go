@@ -52,7 +52,7 @@ func handleShowPolicyList(_ *pluginserver.CommandContext, _ []string) (*plugin.R
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"filter-types": entries,
 			"count":        len(entries),
 		},
@@ -63,7 +63,7 @@ func handleShowPolicyList(_ *pluginserver.CommandContext, _ []string) (*plugin.R
 // a peer after group inheritance. Used by `show policy chain peer X [import|export]`.
 func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if ctx.Reactor() == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "reactor not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "reactor not available"}, nil
 	}
 
 	allPeers := ctx.Reactor().Peers()
@@ -73,7 +73,7 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*pl
 	if len(matched) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "peer not found: " + selector,
+			Error:  "peer not found: " + selector,
 		}, nil
 	}
 
@@ -84,7 +84,7 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*pl
 		if direction != "import" && direction != "export" {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   fmt.Sprintf("invalid direction %q (expected import or export)", direction),
+				Error:  fmt.Sprintf("invalid direction %q (expected import or export)", direction),
 			}, nil
 		}
 	}
@@ -114,7 +114,7 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*pl
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"chains": chains,
 		},
 	}, nil

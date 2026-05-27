@@ -38,8 +38,9 @@ func TestShowIPsecSA_NoEngine(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	rows, ok := resp.Data.([]map[string]any)
+	m, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
+	rows, _ := m["peers"].([]map[string]any)
 	assert.Empty(t, rows)
 }
 
@@ -72,8 +73,9 @@ func TestShowIPsecSA_WithSAs(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	rows, ok := resp.Data.([]map[string]any)
+	m, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
+	rows, _ := m["peers"].([]map[string]any)
 	require.Len(t, rows, 1)
 
 	row := rows[0]
@@ -106,7 +108,7 @@ func TestShowIPsecStatus_WithSAs(t *testing.T) {
 
 	resp, err := handleShowVPNIPsecStatus(nil, nil)
 	require.NoError(t, err)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, true, data["engine-running"])
 	assert.Equal(t, 1, data["active-ike-sas"])
@@ -120,7 +122,7 @@ func TestShowIPsecStatus_NoEngine(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, false, data["engine-running"])
 }
@@ -140,7 +142,7 @@ func TestShowIPsecPeer_Found(t *testing.T) {
 	resp, err := handleShowVPNIPsecPeer(nil, []string{"mgmt-peer"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "mgmt-peer", data["peer-name"])
 	sas, ok := data["ike-sas"].([]map[string]any)
@@ -153,8 +155,7 @@ func TestShowIPsecPeer_MissingArg(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, ok := resp.Data.(string)
-	require.True(t, ok)
+	msg := resp.Error
 	assert.Contains(t, msg, "usage")
 }
 
@@ -181,7 +182,6 @@ func TestShowIPsecPeer_NotFound(t *testing.T) {
 	resp, err := handleShowVPNIPsecPeer(nil, []string{"nonexistent"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, ok := resp.Data.(string)
-	require.True(t, ok)
+	msg := resp.Error
 	assert.Contains(t, msg, "peer not found")
 }

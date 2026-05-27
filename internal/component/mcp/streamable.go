@@ -526,7 +526,7 @@ func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 // Both JSON-RPC response shapes are handled:
 //
 //   - Success: {"id":...,"result":{"action":...,"content":...}}. Normal path.
-//   - Error:   {"id":...,"error":{...}}. MCP does not document elicit-error
+//   - Error:  {"id":...,"error":{...}}. MCP does not document elicit-error
 //     semantics; we deliver it as an explicit cancel (Action="cancel",
 //     Content=nil) so the suspended handler unblocks via ErrElicitCanceled
 //     rather than ErrElicitMalformed. An RPC-level failure on the reply leg

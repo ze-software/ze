@@ -214,7 +214,6 @@ func (s *Server) handleDispatchCommandRPC(proc *process.Process, conn *plugipc.P
 }
 
 // responseToDispatchOutput converts a dispatcher Response to DispatchCommandOutput.
-// The Data field is JSON-encoded if it's a structured type, or used as-is for strings.
 func responseToDispatchOutput(resp *plugin.Response) *rpc.DispatchCommandOutput {
 	output := &rpc.DispatchCommandOutput{}
 	if resp == nil {
@@ -222,17 +221,17 @@ func responseToDispatchOutput(resp *plugin.Response) *rpc.DispatchCommandOutput 
 		return output
 	}
 	output.Status = resp.Status
+	if resp.Error != "" {
+		output.Data = resp.Error
+		return output
+	}
 	if resp.Data != nil {
-		if s, ok := resp.Data.(string); ok {
-			output.Data = s
+		encoded, err := json.Marshal(resp.Data)
+		if err != nil {
+			output.Status = plugin.StatusError
+			output.Data = "marshal response data: " + err.Error()
 		} else {
-			encoded, err := json.Marshal(resp.Data)
-			if err != nil {
-				output.Status = plugin.StatusError
-				output.Data = "marshal response data: " + err.Error()
-			} else {
-				output.Data = string(encoded)
-			}
+			output.Data = string(encoded)
 		}
 	}
 	return output

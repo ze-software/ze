@@ -45,10 +45,10 @@ func handleShowSystemProfile(_ *pluginserver.CommandContext, args []string) (*pl
 				i++
 				d, err := time.ParseDuration(args[i])
 				if err != nil {
-					return &plugin.Response{Status: plugin.StatusError, Data: "profile: invalid duration: " + args[i]}, nil //nolint:nilerr // operational error in Response
+					return &plugin.Response{Status: plugin.StatusError, Error: "profile: invalid duration: " + args[i]}, nil //nolint:nilerr // operational error in Response
 				}
 				if d < time.Second || d > maxCPUProfileDuration {
-					return &plugin.Response{Status: plugin.StatusError, Data: "profile: duration must be between 1s and 60s"}, nil
+					return &plugin.Response{Status: plugin.StatusError, Error: "profile: duration must be between 1s and 60s"}, nil
 				}
 				duration = d
 			}
@@ -65,20 +65,20 @@ func handleShowSystemProfile(_ *pluginserver.CommandContext, args []string) (*pl
 
 func profileCPU(duration time.Duration) (*plugin.Response, error) {
 	if !cpuProfileMu.TryLock() {
-		return &plugin.Response{Status: plugin.StatusError, Data: errCPUProfileInProgress.Error()}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: errCPUProfileInProgress.Error()}, nil
 	}
 	defer cpuProfileMu.Unlock()
 
 	var buf bytes.Buffer
 	if err := pprof.StartCPUProfile(&buf); err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	time.Sleep(duration)
 	pprof.StopCPUProfile()
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"type":     "cpu",
 			"duration": duration.String(),
 			"format":   "pprof-base64",
@@ -92,18 +92,18 @@ func profileSnapshot(profileType string) (*plugin.Response, error) {
 	if p == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "unknown profile type: " + profileType,
+			Error:  "unknown profile type: " + profileType,
 		}, nil
 	}
 
 	var buf bytes.Buffer
 	if err := p.WriteTo(&buf, 0); err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"type":   profileType,
 			"count":  p.Count(),
 			"format": "pprof-base64",

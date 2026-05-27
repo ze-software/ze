@@ -43,14 +43,14 @@ func HandleNodeWith(
 	if selector == "*" || selector == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "set requires specific " + treeKey + " selector",
+			Error:  "set requires specific " + treeKey + " selector",
 		}, fmt.Errorf("no %s specified", treeKey)
 	}
 
 	if len(args) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "set " + treeKey + " requires configuration arguments",
+			Error:  "set " + treeKey + " requires configuration arguments",
 		}, fmt.Errorf("no config args for %s", treeKey)
 	}
 
@@ -69,13 +69,13 @@ func HandleNodeWith(
 	if err := apply(selector, nodeTree); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("failed to set %s %s: %v", treeKey, selector, err),
+			Error:  fmt.Sprintf("failed to set %s %s: %v", treeKey, selector, err),
 		}, fmt.Errorf("set %s %s: %w", treeKey, selector, err)
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			treeKey:   selector,
 			"message": treeKey + " set",
 		},
@@ -118,12 +118,12 @@ func ParseInlineArgsForSchema(schemaPath string, args []string) (map[string]any,
 	node := GetSchemaNode(schemaPath)
 	if node == nil {
 		msg := "internal error: schema " + schemaPath + " not available"
-		return nil, &plugin.Response{Status: plugin.StatusError, Data: msg}, fmt.Errorf("%s", msg)
+		return nil, &plugin.Response{Status: plugin.StatusError, Error: msg}, fmt.Errorf("%s", msg)
 	}
 
 	tree, err := config.ParseInlineArgs(node, args)
 	if err != nil {
-		return nil, &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
+		return nil, &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 	}
 
 	return tree.ToMap(), nil, nil

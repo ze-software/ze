@@ -21,7 +21,7 @@ func TestHandlerCacheList(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 3, data["count"])
 }
@@ -37,7 +37,7 @@ func TestHandlerCacheListEmpty(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 0, data["count"])
 }
@@ -152,7 +152,7 @@ func TestHandlerCacheUnknownAction(t *testing.T) {
 	resp, err := handleBgpCache(ctx, []string{"42", "bogus"})
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "unknown cache action")
+	assert.Contains(t, resp.Error, "unknown cache action")
 }
 
 // TestHandlerCacheNilReactor verifies cache errors without reactor.
@@ -257,7 +257,7 @@ func TestBgpCache_ActionFirst(t *testing.T) {
 			resp, err := handleBgpCache(ctx, tt.args)
 			require.NoError(t, err)
 			assert.Equal(t, plugin.StatusDone, resp.Status)
-			data, ok := resp.Data.(map[string]any)
+			data, ok := resp.Data.(plugin.Map)
 			require.True(t, ok)
 			_, hasDeprecated := data["deprecated"]
 			assert.False(t, hasDeprecated, "canonical grammar should not have deprecation")
@@ -274,7 +274,7 @@ func TestBgpCache_ActionFirstForward(t *testing.T) {
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	require.Len(t, reactor.forwardedUpdates, 1)
 	assert.Equal(t, uint64(42), reactor.forwardedUpdates[0].id)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	_, hasDeprecated := data["deprecated"]
 	assert.False(t, hasDeprecated)
@@ -287,7 +287,7 @@ func TestBgpCache_DeprecatedIdFirst(t *testing.T) {
 	resp, err := handleBgpCache(ctx, []string{"42", "retain"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	dep, hasDeprecated := data["deprecated"]
 	assert.True(t, hasDeprecated, "deprecated grammar should have deprecation warning")

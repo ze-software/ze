@@ -181,9 +181,9 @@ func TestSubsystemRPCCommand(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
-	data, ok := resp.Data.(string)
-	require.True(t, ok, "expected string data")
-	assert.Contains(t, data, "pong")
+	data, ok := resp.Data.(plugin.RawJSON)
+	require.True(t, ok, "expected RawJSON data, got %T", resp.Data)
+	assert.Contains(t, string(data), "pong")
 }
 
 // TestSubsystemShutdown verifies graceful shutdown closes connections.
@@ -343,8 +343,8 @@ func TestDispatcherSubsystemIntegration(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
 
-	if data, ok := resp.Data.(string); ok {
-		assert.Contains(t, data, "pong")
+	if data, ok := resp.Data.(plugin.RawJSON); ok {
+		assert.Contains(t, string(data), "pong")
 	}
 }
 

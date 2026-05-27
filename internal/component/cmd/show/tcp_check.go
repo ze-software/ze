@@ -38,7 +38,7 @@ func init() {
 func handleTCPCheck(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	host, port, source, timeout, err := parseTCPCheckArgs(args)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response, not a Go error
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response, not a Go error
 	}
 
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
@@ -78,7 +78,7 @@ func handleTCPCheck(_ *pluginserver.CommandContext, args []string) (*plugin.Resp
 		result["source"] = source
 	}
 
-	return &plugin.Response{Status: plugin.StatusDone, Data: result}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(result)}, nil
 }
 
 func isTimeout(err error) bool {

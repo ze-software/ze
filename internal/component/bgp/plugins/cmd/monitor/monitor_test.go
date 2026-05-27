@@ -306,7 +306,7 @@ func TestHandleMonitor(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, resp.Status)
 
 			// Verify response data contains expected fields.
-			data, ok := resp.Data.(map[string]any)
+			data, ok := resp.Data.(plugin.Map)
 			require.True(t, ok, "response data should be a map")
 			assert.Equal(t, "monitor-configured", data["status"])
 		})
@@ -322,7 +322,7 @@ func TestHandleMonitorResponseContent(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "10.0.0.1", data["peer"])
 	assert.Equal(t, "received", data["direction"])

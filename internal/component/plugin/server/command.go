@@ -187,7 +187,7 @@ func RequireReactor(ctx *CommandContext) (plugin.ReactorLifecycle, *plugin.Respo
 	if r == nil {
 		return nil, &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "reactor not available",
+			Error:  "reactor not available",
 		}, errReactorNotAvailable
 	}
 	return r, nil, nil
@@ -453,7 +453,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	if matchedCmd != nil && !d.isAuthorized(ctx, input, matchedCmd.ReadOnly) {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("authorization denied for %q", input),
+			Error:  "authorization denied for " + input,
 		}, ErrUnauthorized
 	}
 
@@ -463,7 +463,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		if !d.isAuthorized(ctx, input, false) {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   fmt.Sprintf("authorization denied for %q", input),
+				Error:  "authorization denied for " + input,
 			}, ErrUnauthorized
 		}
 		if d.subsystems != nil {
@@ -499,7 +499,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		if valErr := validateCommandArgs(args, matchedCmd.ArgDefs); valErr != nil {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   valErr.Error(),
+				Error:  valErr.Error(),
 			}, valErr
 		}
 	}
@@ -734,10 +734,13 @@ func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredComma
 
 	rpcOut, err := conn.SendExecuteCommand(rpcCtx, "", cmd.Name, args, peerSelector)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "failed to send request: " + err.Error()}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "failed to send request: " + err.Error()}, nil
 	}
 	if rpcOut != nil {
-		return &plugin.Response{Status: rpcOut.Status, Data: rpcOut.Data}, nil
+		if rpcOut.Status == plugin.StatusError {
+			return &plugin.Response{Status: plugin.StatusError, Error: rpcOut.Data}, nil
+		}
+		return &plugin.Response{Status: rpcOut.Status, Data: plugin.RawJSON(rpcOut.Data)}, nil
 	}
 	return &plugin.Response{Status: plugin.StatusDone}, nil
 }

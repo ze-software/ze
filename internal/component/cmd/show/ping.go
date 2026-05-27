@@ -35,13 +35,13 @@ const (
 func handlePing(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	dest, count, timeout, err := parsePingArgs(args)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	results, pingErr := doPing(dest, count, timeout)
 	if pingErr != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: pingErr.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: pingErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: results}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(results)}, nil
 }
 
 func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {

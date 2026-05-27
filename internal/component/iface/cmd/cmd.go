@@ -51,7 +51,7 @@ func init() {
 // errResp builds an error response for operational failures. The Go error
 // return is nil so the framework uses the Response (not the raw error).
 func errResp(msg string) (*plugin.Response, error) {
-	return &plugin.Response{Status: plugin.StatusError, Data: msg}, nil
+	return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil
 }
 
 // handleInterfaceMigrate performs a make-before-break IP migration.
@@ -73,7 +73,7 @@ func handleInterfaceMigrate(_ *pluginserver.CommandContext, args []string) (*plu
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   "migration complete: " + cfg.OldIface + " -> " + cfg.NewIface + " (" + cfg.Address + ")",
+		Data:   plugin.Map{"message": "migration complete: " + cfg.OldIface + " -> " + cfg.NewIface + " (" + cfg.Address + ")"},
 	}, nil
 }
 

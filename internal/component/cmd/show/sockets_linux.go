@@ -86,7 +86,7 @@ func handleShowSystemSockets(_ *pluginserver.CommandContext, args []string) (*pl
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"sockets": filtered,
 			"count":   len(filtered),
 		},

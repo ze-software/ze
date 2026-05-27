@@ -46,7 +46,7 @@ func handleSystemDispatch(ctx *CommandContext, args []string) (*plugin.Response,
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: system dispatch \"<command>\"",
+			Error:  "usage: system dispatch \"<command>\"",
 		}, errMissingCommand
 	}
 
@@ -54,7 +54,7 @@ func handleSystemDispatch(ctx *CommandContext, args []string) (*plugin.Response,
 	if d == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "dispatcher not available",
+			Error:  "dispatcher not available",
 		}, errDispatcherNotAvailable
 	}
 
@@ -98,7 +98,7 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*plugin.Response, error)
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"commands": commands,
 		},
 	}, nil
@@ -108,7 +108,7 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*plugin.Response, error)
 func handleSystemVersionSoftware(_ *CommandContext, _ []string) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"version":    version,
 			"build-date": buildDate,
 		},
@@ -119,7 +119,7 @@ func handleSystemVersionSoftware(_ *CommandContext, _ []string) (*plugin.Respons
 func handleSystemVersionAPI(_ *CommandContext, _ []string) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"version": APIVersion,
 		},
 	}, nil
@@ -134,7 +134,7 @@ func handleDaemonShutdown(ctx *CommandContext, _ []string) (*plugin.Response, er
 	ctx.Reactor().Stop()
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"message": "shutdown initiated",
 		},
 	}, nil
@@ -151,13 +151,13 @@ func handleDaemonReboot(ctx *CommandContext, _ []string) (*plugin.Response, erro
 	if ctx.Server == nil || ctx.Server.rebootFunc == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "reboot not available",
+			Error:  "reboot not available",
 		}, errRebootFunctionNotConfigured
 	}
 	ctx.Server.rebootFunc()
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"message": "reboot initiated",
 		},
 	}, nil
@@ -181,7 +181,7 @@ func handleDaemonQuit(ctx *CommandContext, _ []string) (*plugin.Response, error)
 	ctx.Reactor().Stop()
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"message": "quit initiated (goroutines dumped)",
 		},
 	}, nil
@@ -196,7 +196,7 @@ func handleDaemonStatus(ctx *CommandContext, _ []string) (*plugin.Response, erro
 	stats := ctx.Reactor().Stats()
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"uptime":     stats.Uptime.String(),
 			"peer_count": stats.PeerCount,
 			"start_time": stats.StartTime.Format("2006-01-02T15:04:05Z07:00"),
@@ -217,12 +217,12 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 		if err := ctx.Server.ReloadFull(ctx.Context()); err != nil {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   fmt.Sprintf("reload failed: %v", err),
+				Error:  "reload failed: " + err.Error(),
 			}, err
 		}
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data: map[string]any{
+			Data: plugin.Map{
 				"message": "configuration reloaded",
 			},
 		}, nil
@@ -234,12 +234,12 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 		if err := ctx.Server.ReloadFromDisk(ctx.Server.Context()); err != nil {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   fmt.Sprintf("reload failed: %v", err),
+				Error:  "reload failed: " + err.Error(),
 			}, err
 		}
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data: map[string]any{
+			Data: plugin.Map{
 				"message": "configuration reloaded",
 			},
 		}, nil
@@ -249,12 +249,12 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 	if err := ctx.Reactor().Reload(); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("reload failed: %v", err),
+			Error:  "reload failed: " + err.Error(),
 		}, err
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"message": "configuration reloaded",
 		},
 	}, nil
@@ -265,14 +265,14 @@ func handleSystemSubsystemList(ctx *CommandContext, _ []string) (*plugin.Respons
 	if ctx == nil || ctx.Server == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   map[string]any{"subsystems": []any{}, "count": 0},
+			Data:   plugin.Map{"subsystems": []any{}, "count": 0},
 		}, nil
 	}
 	pm := ctx.Server.ProcessManager()
 	if pm == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   map[string]any{"subsystems": []any{}, "count": 0},
+			Data:   plugin.Map{"subsystems": []any{}, "count": 0},
 		}, nil
 	}
 	procs := pm.AllProcesses()
@@ -287,7 +287,7 @@ func handleSystemSubsystemList(ctx *CommandContext, _ []string) (*plugin.Respons
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"subsystems": out, "count": len(out)},
+		Data:   plugin.Map{"subsystems": out, "count": len(out)},
 	}, nil
 }
 
@@ -325,7 +325,7 @@ func handleSystemCommandList(ctx *CommandContext, args []string) (*plugin.Respon
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"commands": commands,
 		},
 	}, nil
@@ -336,7 +336,7 @@ func handleSystemCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: system command help \"<name>\"",
+			Error:  "usage: system command help \"<name>\"",
 		}, errMissingCommandName
 	}
 
@@ -350,7 +350,7 @@ func LookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
 			return &plugin.Response{
 				Status: plugin.StatusDone,
-				Data: map[string]any{
+				Data: plugin.Map{
 					"command":     cmd.Name,
 					"description": cmd.Help,
 					"source":      sourceBuiltin,
@@ -361,7 +361,7 @@ func LookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 		if cmd := ctx.Dispatcher().Registry().Lookup(name); cmd != nil {
 			return &plugin.Response{
 				Status: plugin.StatusDone,
-				Data: map[string]any{
+				Data: plugin.Map{
 					"command":     cmd.Name,
 					"description": cmd.Description,
 					"args":        cmd.Args,
@@ -374,7 +374,7 @@ func LookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 
 	return &plugin.Response{
 		Status: plugin.StatusError,
-		Data:   "unknown " + kind + ": " + name,
+		Error:  "unknown " + kind + ": " + name,
 	}, fmt.Errorf("unknown %s: %s", kind, name)
 }
 
@@ -387,7 +387,7 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: system command complete \"<partial>\"",
+			Error:  "usage: system command complete \"<partial>\"",
 		}, errMissingPartialInput
 	}
 
@@ -426,7 +426,7 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"completions": completions,
 		},
 	}, nil
@@ -436,7 +436,7 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []string, partial string) (*plugin.Response, error) {
 	emptyResult := &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"completions": []Completion{}},
+		Data:   plugin.Map{"completions": []Completion{}},
 	}
 
 	if ctx.Dispatcher() == nil {
@@ -482,8 +482,10 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 	switch {
 	case rpcErr != nil:
 		ctx.Dispatcher().Pending().Complete(serial, emptyResult)
+	case rpcOut != nil && rpcOut.Status == plugin.StatusError:
+		ctx.Dispatcher().Pending().Complete(serial, &plugin.Response{Status: plugin.StatusError, Error: rpcOut.Data})
 	case rpcOut != nil:
-		ctx.Dispatcher().Pending().Complete(serial, &plugin.Response{Status: rpcOut.Status, Data: rpcOut.Data})
+		ctx.Dispatcher().Pending().Complete(serial, &plugin.Response{Status: rpcOut.Status, Data: plugin.RawJSON(rpcOut.Data)})
 	case rpcOut == nil: // no output and no error — complete with empty result
 		ctx.Dispatcher().Pending().Complete(serial, emptyResult)
 	}

@@ -31,7 +31,7 @@ func init() {
 func handleShowVPNIPsecSA(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	table := engine.ActiveTable()
 	if table == nil {
-		return &plugin.Response{Status: plugin.StatusDone, Data: []map[string]any{}}, nil
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"peers": []map[string]any{}}}, nil
 	}
 
 	allSAs := table.All()
@@ -45,7 +45,7 @@ func handleShowVPNIPsecSA(_ *pluginserver.CommandContext, _ []string) (*plugin.R
 		rows = append(rows, row)
 	}
 
-	return &plugin.Response{Status: plugin.StatusDone, Data: rows}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"peers": rows}}, nil
 }
 
 func handleShowVPNIPsecStatus(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
@@ -72,7 +72,7 @@ func handleShowVPNIPsecStatus(_ *pluginserver.CommandContext, _ []string) (*plug
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"engine-running":   running,
 			"configured-peers": configuredPeers,
 			"active-ike-sas":   activeSAs,
@@ -83,16 +83,16 @@ func handleShowVPNIPsecStatus(_ *pluginserver.CommandContext, _ []string) (*plug
 
 func handleShowVPNIPsecPeer(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
-		return &plugin.Response{Status: plugin.StatusError, Data: "usage: show vpn ipsec peer <name>"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show vpn ipsec peer <name>"}, nil
 	}
 	peerName := args[0]
 	if peerName == "" || len(peerName) > 255 {
-		return &plugin.Response{Status: plugin.StatusError, Data: "peer name must be 1-255 characters"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "peer name must be 1-255 characters"}, nil
 	}
 
 	table := engine.ActiveTable()
 	if table == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "ipsec engine not running"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "ipsec engine not running"}, nil
 	}
 
 	allSAs := table.All()
@@ -106,12 +106,12 @@ func handleShowVPNIPsecPeer(_ *pluginserver.CommandContext, args []string) (*plu
 	}
 
 	if len(matched) == 0 {
-		return &plugin.Response{Status: plugin.StatusError, Data: "peer not found: " + peerName}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "peer not found: " + peerName}, nil
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"peer-name": peerName,
 			"ike-sas":   matched,
 		},

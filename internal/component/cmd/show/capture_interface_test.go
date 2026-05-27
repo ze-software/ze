@@ -398,8 +398,8 @@ func TestCaptureInterfaceValidation(t *testing.T) {
 	if resp.Status != "error" {
 		t.Fatalf("expected error status, got %q", resp.Status)
 	}
-	data, ok := resp.Data.(string)
-	if !ok {
+	data := resp.Error
+	if data == "" {
 		t.Fatalf("expected string data, got %T", resp.Data)
 	}
 	// On Linux: "interface not found: ..."; on non-Linux: "not available on this platform"

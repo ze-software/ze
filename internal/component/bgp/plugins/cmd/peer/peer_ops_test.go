@@ -28,7 +28,7 @@ func TestHandlerPeerDetailAllPeers(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	peers, ok := data["peers"].(map[string]any)
 	require.True(t, ok)
@@ -61,7 +61,7 @@ func TestHandlerPeerDetailFilterByIP(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	peers, ok := data["peers"].(map[string]any)
 	require.True(t, ok)
@@ -107,7 +107,7 @@ func TestHandlerTeardownWithMessage(t *testing.T) {
 	assert.Equal(t, "maintenance window", reactor.teardownCalls[0].message)
 
 	// Verify response includes the truncated wire message with kebab-case key
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "maintenance window", data["shutdown-message"])
 }
@@ -129,7 +129,7 @@ func TestHandlerTeardownWithoutMessage(t *testing.T) {
 	assert.Empty(t, reactor.teardownCalls[0].message)
 
 	// Verify response does not include shutdown-message key when empty
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	_, hasMessage := data["shutdown-message"]
 	assert.False(t, hasMessage, "empty message should not appear in response")
@@ -255,7 +255,7 @@ func TestHandlerPeerAddMissingASN(t *testing.T) {
 	resp, err := HandleBgpPeerWith(ctx, nil)
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "requires configuration arguments")
+	assert.Contains(t, resp.Error, "requires configuration arguments")
 }
 
 // TestHandlerPeerAddWildcardPeer verifies peer add rejects wildcard.
@@ -282,7 +282,7 @@ func TestHandlerPeerAddUnknownOption(t *testing.T) {
 	resp, err := HandleBgpPeerWith(ctx, []string{"remote", "as", "65001", "bogus-option"})
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "unknown option")
+	assert.Contains(t, resp.Error, "unknown option")
 }
 
 // TestHandlerPeerRemove verifies peer remove calls reactor.
@@ -516,7 +516,7 @@ func TestSetPeerWithOldKeysRejected(t *testing.T) {
 			resp, err := HandleBgpPeerWith(ctx, []string{key, "65001"})
 			require.Error(t, err)
 			assert.Equal(t, plugin.StatusError, resp.Status)
-			assert.Contains(t, resp.Data, "unknown option")
+			assert.Contains(t, resp.Error, "unknown option")
 		})
 	}
 }
@@ -532,7 +532,7 @@ func TestSetPeerWithMissingRemoteAS(t *testing.T) {
 	resp, err := HandleBgpPeerWith(ctx, nil)
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "requires configuration arguments")
+	assert.Contains(t, resp.Error, "requires configuration arguments")
 }
 
 // TestSetPeerWithUnknownKey verifies error on unknown config key.
@@ -546,7 +546,7 @@ func TestSetPeerWithUnknownKey(t *testing.T) {
 	resp, err := HandleBgpPeerWith(ctx, []string{"remote", "as", "65001", "bogus-key", "value"})
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "unknown option")
+	assert.Contains(t, resp.Error, "unknown option")
 }
 
 // TestSetPeerWithASNOutOfRange verifies ASN range validation.
@@ -560,7 +560,7 @@ func TestSetPeerWithASNOutOfRange(t *testing.T) {
 	resp, err := HandleBgpPeerWith(ctx, []string{"session", "asn", "remote", "99999999999"})
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "invalid uint32")
+	assert.Contains(t, resp.Error, "invalid uint32")
 }
 
 // TestSetPeerWithLinkLocal verifies link-local IPv6 address field.
@@ -719,7 +719,7 @@ func TestBgpSummaryHandler(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 
 	summary, ok := data["summary"].(map[string]any)
@@ -781,7 +781,7 @@ func TestBgpPeerCapabilitiesHandler(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "192.0.2.1", data["peer"])
 	assert.Equal(t, "established", data["state"])
@@ -867,7 +867,7 @@ func TestHandlerTeardownUnknownName(t *testing.T) {
 	resp, err := handleTeardown(ctx, []string{"2"})
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "unknown peer")
+	assert.Contains(t, resp.Error, "unknown peer")
 }
 
 // TestHandlerTeardownSubcodeOutOfRange verifies teardown rejects subcode > 255.
@@ -883,5 +883,5 @@ func TestHandlerTeardownSubcodeOutOfRange(t *testing.T) {
 	resp, err := handleTeardown(ctx, []string{"256"})
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "invalid subcode")
+	assert.Contains(t, resp.Error, "invalid subcode")
 }

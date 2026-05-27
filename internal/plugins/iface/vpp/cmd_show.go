@@ -43,15 +43,15 @@ func handleVPPTraceStart(_ *pluginserver.CommandContext, args []string) (*plugin
 		}
 	}
 	if !validNodeName.MatchString(inputNode) {
-		return &plugin.Response{Status: plugin.StatusError, Data: "invalid node name: must match [a-zA-Z0-9_-]+"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "invalid node name: must match [a-zA-Z0-9_-]+"}, nil
 	}
 	output, err := vppcomp.TraceStart(inputNode, count)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"command":    "trace add " + inputNode,
 			"count":      count,
 			"output":     strings.TrimSpace(output),
@@ -63,12 +63,12 @@ func handleVPPTraceStart(_ *pluginserver.CommandContext, args []string) (*plugin
 func handleVPPTraceShow(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	output, err := vppcomp.TraceShow()
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error
 	}
 	lines := strings.Count(output, "\n")
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"command": "show trace",
 			"output":  strings.TrimSpace(output),
 			"lines":   lines,
@@ -79,11 +79,11 @@ func handleVPPTraceShow(_ *pluginserver.CommandContext, _ []string) (*plugin.Res
 func handleVPPTraceClear(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	output, err := vppcomp.TraceClear()
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"command": "clear trace",
 			"output":  strings.TrimSpace(output),
 		},
@@ -93,12 +93,12 @@ func handleVPPTraceClear(_ *pluginserver.CommandContext, _ []string) (*plugin.Re
 func handleVPPRuntime(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	output, err := vppcomp.ShowRuntime()
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error
 	}
 	lines := strings.Count(output, "\n")
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"command": "show runtime",
 			"output":  strings.TrimSpace(output),
 			"lines":   lines,

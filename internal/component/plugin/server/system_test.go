@@ -23,7 +23,7 @@ func TestHandleSystemDispatch(t *testing.T) {
 	var receivedArgs []string
 	handler := func(_ *CommandContext, args []string) (*plugin.Response, error) {
 		receivedArgs = args
-		return &plugin.Response{Status: plugin.StatusDone, Data: "ok"}, nil
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "ok"}}, nil
 	}
 	d.Register("watchdog announce", handler, "Announce watchdog")
 

@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // TestPluginSessionPing verifies the plugin session ping command.
@@ -22,7 +24,7 @@ func TestPluginSessionPing(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "response should contain data map")
 	assert.Contains(t, data, "pong", "response should contain pong field")
 }
@@ -58,7 +60,7 @@ func TestPluginSessionReady(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "ready acknowledged", data["api"])
 }

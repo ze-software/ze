@@ -69,13 +69,13 @@ func publishFake(t *testing.T, svc l2tppkg.Service) {
 	t.Cleanup(func() { l2tppkg.PublishService(nil) })
 }
 
-// responseString type-asserts Response.Data to string. Fails the
-// test when Data is any other type.
+// responseString marshals Response.Data to a JSON string for assertion.
 func responseString(t *testing.T, r *plugin.Response) string {
 	t.Helper()
-	s, ok := r.Data.(string)
-	require.True(t, ok, "expected Response.Data to be string, got %T", r.Data)
-	return s
+	require.NotNil(t, r.Data, "expected non-nil Response.Data")
+	b, err := json.Marshal(r.Data)
+	require.NoError(t, err, "marshal Response.Data")
+	return string(b)
 }
 
 // VALIDATES: AC-6 summary handler returns JSON with aggregate counts.
@@ -109,7 +109,7 @@ func TestHandlerSubsystemDownReturnsStatusError(t *testing.T) {
 	resp, err := handleSummary(nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
-	require.Contains(t, resp.Data, "not running")
+	require.Contains(t, resp.Error, "not running")
 }
 
 // VALIDATES: AC-8 handler returns detail JSON for a known tunnel.
@@ -147,7 +147,7 @@ func TestHandleTunnelUnknownIDErrors(t *testing.T) {
 	resp, err := handleTunnel(nil, []string{"999"})
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
-	require.Contains(t, resp.Data, "999")
+	require.Contains(t, resp.Error, "999")
 }
 
 // VALIDATES: Positional arg parser rejects missing and zero IDs.
@@ -191,7 +191,7 @@ func TestHandleTunnelTeardownUnknownID(t *testing.T) {
 	resp, err := handleTunnelTeardown(nil, []string{"999"})
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, resp.Status)
-	require.Contains(t, resp.Data, "tunnel not found")
+	require.Contains(t, resp.Error, "tunnel not found")
 }
 
 // VALIDATES: AC-15 tunnel teardown-all reports the count.

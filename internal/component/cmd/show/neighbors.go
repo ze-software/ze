@@ -47,26 +47,26 @@ func handleShowNeighbors(_ *pluginserver.CommandContext, args []string) (*plugin
 		default:
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   fmt.Sprintf("unknown family %q; valid: ipv4, ipv6, any", args[0]),
+				Error:  fmt.Sprintf("unknown family %q; valid: ipv4, ipv6, any", args[0]),
 			}, nil
 		}
 	default:
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "too many arguments; " + usage,
+			Error:  "too many arguments; " + usage,
 		}, nil
 	}
 
 	neighbors, err := iface.ListNeighbors(family)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error via Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error via Response
 	}
 
 	// Single-key wrapper so `| table` renders a columnar view and
 	// `| count` returns the entry count.
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"neighbors": neighbors,
 		},
 	}, nil

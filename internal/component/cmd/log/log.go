@@ -26,7 +26,7 @@ func handleLogLevels(_ *pluginserver.CommandContext, _ []string) (*plugin.Respon
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"levels": levels,
 			"count":  len(levels),
 		},
@@ -38,7 +38,7 @@ func handleLogSet(_ *pluginserver.CommandContext, args []string) (*plugin.Respon
 	if len(args) < 2 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: bgp log set <subsystem> <level>",
+			Error:  "usage: bgp log set <subsystem> <level>",
 		}, nil
 	}
 
@@ -57,7 +57,7 @@ func handleLogRecent(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 			if i+1 >= len(args) {
 				return &plugin.Response{
 					Status: plugin.StatusError,
-					Data:   "log recent: \"level\" requires a value",
+					Error:  "log recent: \"level\" requires a value",
 				}, nil
 			}
 			i++
@@ -66,7 +66,7 @@ func handleLogRecent(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 			if i+1 >= len(args) {
 				return &plugin.Response{
 					Status: plugin.StatusError,
-					Data:   "log recent: \"component\" requires a value",
+					Error:  "log recent: \"component\" requires a value",
 				}, nil
 			}
 			i++
@@ -75,7 +75,7 @@ func handleLogRecent(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 			if i+1 >= len(args) {
 				return &plugin.Response{
 					Status: plugin.StatusError,
-					Data:   "log recent: \"count\" requires a value",
+					Error:  "log recent: \"count\" requires a value",
 				}, nil
 			}
 			i++
@@ -83,14 +83,14 @@ func handleLogRecent(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 			if n < 1 {
 				return &plugin.Response{
 					Status: plugin.StatusError,
-					Data:   fmt.Sprintf("log recent: count %q: not a positive number", args[i]),
+					Error:  fmt.Sprintf("log recent: count %q: not a positive number", args[i]),
 				}, nil
 			}
 			limit = n
 		default:
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   fmt.Sprintf("log recent: unknown option %q", args[i]),
+				Error:  fmt.Sprintf("log recent: unknown option %q", args[i]),
 			}, nil
 		}
 	}
@@ -106,7 +106,7 @@ func handleLogRecent(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"entries": out, "count": len(out)},
+		Data:   plugin.Map{"entries": out, "count": len(out)},
 	}, nil
 }
 
@@ -115,13 +115,13 @@ func setLevel(subsystem, levelStr string) *plugin.Response {
 	if err := slogutil.SetLevel(subsystem, levelStr); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   err.Error(),
+			Error:  err.Error(),
 		}
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"subsystem": subsystem,
 			"level":     levelStr,
 		},

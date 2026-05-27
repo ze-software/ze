@@ -31,25 +31,17 @@ func handleShowInterfaceRate(args []string) (*plugin.Response, error) {
 		name := args[0]
 		rate, ok := iface.GetRate(name)
 		if !ok {
-			return &plugin.Response{Status: plugin.StatusError, Data: "interface not found: " + name}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: "interface not found: " + name}, nil
 		}
-		data, err := json.Marshal(rate)
-		if err != nil {
-			return nil, err
-		}
-		return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+		return &plugin.Response{Status: plugin.StatusDone, Data: rate}, nil
 	}
 
 	result := sortedRates()
 	if result == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "rate tracker not running"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "rate tracker not running"}, nil
 	}
 
-	data, err := json.Marshal(result)
-	if err != nil {
-		return nil, err
-	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Slice[iface.InterfaceRate](result)}, nil
 }
 
 func sortedRates() []iface.InterfaceRate {
@@ -72,7 +64,7 @@ func handleMonitorInterfaceRate(_ *pluginserver.CommandContext, args []string) (
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"status": "monitor-configured",
 			"filter": filterName,
 		},

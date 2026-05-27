@@ -32,5 +32,5 @@ func TestHandleVPPTraceStart_InvalidNodeName(t *testing.T) {
 	resp, err := handleVPPTraceStart(nil, []string{"node", "invalid;name"})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.Contains(t, resp.Data, "invalid node name")
+	require.Contains(t, resp.Error, "invalid node name")
 }

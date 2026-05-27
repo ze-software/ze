@@ -48,7 +48,7 @@ func TestShowSystemSockets_Wiring(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatal("expected map response")
 	}

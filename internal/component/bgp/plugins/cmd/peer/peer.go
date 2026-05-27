@@ -70,7 +70,7 @@ func filterPeersByArgs(ctx *pluginserver.CommandContext, args []string) ([]plugi
 
 func filterPeersBySelectorValue(ctx *pluginserver.CommandContext, selector string) ([]plugin.PeerInfo, *plugin.Response, error) {
 	if ctx.Reactor() == nil {
-		return nil, &plugin.Response{Status: plugin.StatusError, Data: "reactor not available"}, errReactorNotAvailable
+		return nil, &plugin.Response{Status: plugin.StatusError, Error: "reactor not available"}, errReactorNotAvailable
 	}
 	allPeers := ctx.Reactor().Peers()
 
@@ -140,7 +140,7 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, args []string) (*plugin
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"peers": result,
 		},
 	}, nil
@@ -302,7 +302,7 @@ func HandleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plug
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"peers": result,
 		},
 	}, nil
@@ -321,7 +321,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: peer <ip> teardown <subcode> [message]",
+			Error:  "usage: peer <ip> teardown <subcode> [message]",
 		}, errMissingCeaseSubcode
 	}
 
@@ -330,7 +330,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	if peer == "*" || peer == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "teardown requires specific peer: peer <name> teardown <subcode>",
+			Error:  "teardown requires specific peer: peer <name> teardown <subcode>",
 		}, errNoPeerSpecified
 	}
 
@@ -350,7 +350,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 		if !found {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   "unknown peer: " + peer,
+				Error:  "unknown peer: " + peer,
 			}, fmt.Errorf("unknown peer %s", peer)
 		}
 	}
@@ -360,13 +360,13 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "invalid subcode: " + args[0],
+			Error:  "invalid subcode: " + args[0],
 		}, fmt.Errorf("invalid subcode %s: %w", args[0], err)
 	}
 	if code > 255 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "invalid subcode: " + args[0] + " (must be 0-255)",
+			Error:  "invalid subcode: " + args[0] + " (must be 0-255)",
 		}, fmt.Errorf("subcode out of range: %d", code)
 	}
 	subcode := uint8(code)
@@ -380,7 +380,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	if err := ctx.Reactor().TeardownPeer(addr, subcode, shutdownMsg); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("teardown failed: %v", err),
+			Error:  fmt.Sprintf("teardown failed: %v", err),
 		}, fmt.Errorf("teardown peer %s: %w", addr, err)
 	}
 
@@ -398,7 +398,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   resp,
+		Data:   plugin.Map(resp),
 	}, nil
 }
 
@@ -429,7 +429,7 @@ func preparePeerTree(selector string, nodeTree map[string]any) (*plugin.Response
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "invalid peer address: " + selector,
+			Error:  "invalid peer address: " + selector,
 		}, fmt.Errorf("invalid peer address %s: %w", selector, err)
 	}
 
@@ -442,7 +442,7 @@ func preparePeerTree(selector string, nodeTree map[string]any) (*plugin.Response
 	if asn == nil || asn["remote"] == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "remote as is required: set bgp peer <ip> with session asn remote <asn>",
+			Error:  "remote as is required: set bgp peer <ip> with session asn remote <asn>",
 		}, errMissingRequiredRemoteAs
 	}
 
@@ -475,7 +475,7 @@ func HandleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	if peer == "*" || peer == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "remove requires specific peer: peer <ip> remove",
+			Error:  "remove requires specific peer: peer <ip> remove",
 		}, errNoPeerSpecified
 	}
 
@@ -483,7 +483,7 @@ func HandleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "invalid peer address: " + peer,
+			Error:  "invalid peer address: " + peer,
 		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
 	}
 
@@ -491,13 +491,13 @@ func HandleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	if err := ctx.Reactor().RemovePeer(addr); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("failed to remove peer: %v", err),
+			Error:  fmt.Sprintf("failed to remove peer: %v", err),
 		}, fmt.Errorf("remove peer %s: %w", addr, err)
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"peer":    addr.String(),
 			"message": "peer removed",
 		},
@@ -531,7 +531,7 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 	if peer == "*" || peer == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   action + " requires specific peer: peer <ip> " + action,
+			Error:  action + " requires specific peer: peer <ip> " + action,
 		}, errNoPeerSpecified
 	}
 
@@ -539,20 +539,20 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "invalid peer address: " + peer,
+			Error:  "invalid peer address: " + peer,
 		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
 	}
 
 	if err := fn(ctx.Reactor(), addr); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("%s failed: %v", action, err),
+			Error:  fmt.Sprintf("%s failed: %v", action, err),
 		}, fmt.Errorf("%s peer %s: %w", action, addr, err)
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"peer":   addr.String(),
 			"action": action,
 		},
@@ -577,12 +577,12 @@ func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ []string) (*plugin.R
 		if err := ctx.Reactor().FlushForwardPool(flushCtx); err != nil {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   fmt.Sprintf("flush failed: %v", err),
+				Error:  fmt.Sprintf("flush failed: %v", err),
 			}, fmt.Errorf("flush forward pool: %w", err)
 		}
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data: map[string]any{
+			Data: plugin.Map{
 				"action": "flush",
 				"peer":   "*",
 			},
@@ -612,13 +612,13 @@ func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ []string) (*plugin.R
 	if err := ctx.Reactor().FlushForwardPoolPeer(flushCtx, peerAddr); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("flush failed: %v", err),
+			Error:  fmt.Sprintf("flush failed: %v", err),
 		}, fmt.Errorf("flush forward pool peer %s: %w", peerAddr, err)
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"action": "flush",
 			"peer":   peerAddr,
 		},
@@ -649,23 +649,23 @@ func parseRouterID(s string) (uint32, error) {
 
 func handlePeerHistory(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 && ctx.PeerSelector() == "*" {
-		return &plugin.Response{Status: plugin.StatusError, Data: "no peer specified"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "no peer specified"}, nil
 	}
 	peers, errResp, err := filterPeersByArgs(ctx, args)
 	if err != nil {
 		return errResp, nil //nolint:nilerr // operational error in Response
 	}
 	if len(peers) == 0 {
-		return &plugin.Response{Status: plugin.StatusError, Data: "peer not found"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "peer not found"}, nil
 	}
 	hp, ok := ctx.Reactor().(plugin.FSMHistoryProvider)
 	if !ok || hp == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "FSM history not available"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "FSM history not available"}, nil
 	}
 	addr := peers[0].Address.String()
 	transitions := hp.PeerFSMHistory(addr)
 	if transitions == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "no history for peer " + addr}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "no history for peer " + addr}, nil
 	}
 	out := make([]map[string]any, 0, len(transitions))
 	for i := range transitions {
@@ -684,7 +684,7 @@ func handlePeerHistory(ctx *pluginserver.CommandContext, args []string) (*plugin
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"peer":        addr,
 			"transitions": out,
 			"count":       len(out),

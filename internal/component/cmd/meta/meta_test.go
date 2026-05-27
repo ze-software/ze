@@ -27,7 +27,7 @@ func TestHandlerEventList(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	events, ok := data["events"].([]string)
 	require.True(t, ok)
@@ -155,7 +155,7 @@ func TestHandlerHelp(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	commands, ok := data["commands"].([]string)
 	require.True(t, ok)
@@ -182,7 +182,7 @@ func TestHandlerHelpNilDispatcher(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	// commands should be nil (no dispatcher to populate)
 	assert.Nil(t, data["commands"])
@@ -198,7 +198,7 @@ func TestHandlerCommandList(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	commands, ok := data["commands"].([]pluginserver.Completion)
 	require.True(t, ok)
@@ -223,7 +223,7 @@ func TestHandlerCommandListVerbose(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	commands, ok := data["commands"].([]pluginserver.Completion)
 	require.True(t, ok)
@@ -244,7 +244,7 @@ func TestHandlerCommandHelp(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "help", data["command"])
 	assert.NotEmpty(t, data["description"])
@@ -262,7 +262,7 @@ func TestCommandHelp_PipeFilters(t *testing.T) {
 	resp, err := handleBgpCommandHelp(ctx, []string{"help"})
 	require.NoError(t, err)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	filters, ok := data["pipe-filters"].([]map[string]any)
 	require.True(t, ok)
@@ -302,7 +302,7 @@ func TestHandlerCommandComplete(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	completions, ok := data["completions"].([]pluginserver.Completion)
 	require.True(t, ok)

@@ -23,6 +23,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
@@ -234,15 +235,20 @@ func apiExecutor(s *pluginserver.Server) api.Executor {
 		if resp == nil {
 			return "", nil
 		}
-		data, ok := resp.Data.(string)
-		if !ok {
-			b, jsonErr := json.Marshal(resp.Data)
-			if jsonErr != nil {
-				return "", fmt.Errorf("marshal response: %w", jsonErr)
-			}
-			return string(b), nil
+		if resp.Error != "" {
+			return "", errors.New(resp.Error)
 		}
-		return data, nil
+		if resp.Status == plugin.StatusError {
+			return "", errors.New("unknown error")
+		}
+		if resp.Data == nil {
+			return "", nil
+		}
+		b, jsonErr := json.Marshal(resp.Data)
+		if jsonErr != nil {
+			return "", fmt.Errorf("marshal response: %w", jsonErr)
+		}
+		return string(b), nil
 	}
 }
 

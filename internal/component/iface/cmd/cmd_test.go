@@ -138,7 +138,7 @@ func TestHandleInterfaceMigrateNoBus(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Data, "bus not available")
+	assert.Contains(t, resp.Error, "bus not available")
 }
 
 // TestHandleInterfaceMTU_Validation verifies the MTU handler rejects
@@ -165,7 +165,7 @@ func TestHandleInterfaceMTU_Validation(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, "error", resp.Status)
-			assert.Contains(t, resp.Data, tt.wantErr)
+			assert.Contains(t, resp.Error, tt.wantErr)
 		})
 	}
 }
@@ -194,7 +194,7 @@ func TestHandleInterfaceMAC_Validation(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, "error", resp.Status)
-			assert.Contains(t, resp.Data, tt.wantErr)
+			assert.Contains(t, resp.Error, tt.wantErr)
 		})
 	}
 }
@@ -239,13 +239,13 @@ func TestHandleInterfaceUpDown_UsageGate(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Data, "usage: interface up")
+	assert.Contains(t, resp.Error, "usage: interface up")
 
 	resp, err = handleInterfaceDown(nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Data, "usage: interface down")
+	assert.Contains(t, resp.Error, "usage: interface down")
 }
 
 // TestHandleCreateBridge_UsageGate verifies the create-bridge handler
@@ -255,5 +255,5 @@ func TestHandleCreateBridge_UsageGate(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Data, "usage: interface create-bridge")
+	assert.Contains(t, resp.Error, "usage: interface create-bridge")
 }

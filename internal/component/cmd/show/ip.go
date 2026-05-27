@@ -58,19 +58,19 @@ func handleShowArp(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 		if args[i] != "--family" {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   fmt.Sprintf("unknown argument %q; %s", args[i], usage),
+				Error:  fmt.Sprintf("unknown argument %q; %s", args[i], usage),
 			}, nil
 		}
 		if i+1 >= len(args) {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   "--family requires a value: ipv4, ipv6, or any",
+				Error:  "--family requires a value: ipv4, ipv6, or any",
 			}, nil
 		}
 		if familySet {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   "--family given more than once",
+				Error:  "--family given more than once",
 			}, nil
 		}
 		switch strings.ToLower(args[i+1]) {
@@ -83,7 +83,7 @@ func handleShowArp(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 		default:
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   fmt.Sprintf("unknown family %q; valid: ipv4, ipv6, any", args[i+1]),
+				Error:  fmt.Sprintf("unknown family %q; valid: ipv4, ipv6, any", args[i+1]),
 			}, nil
 		}
 		familySet = true
@@ -92,14 +92,14 @@ func handleShowArp(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 
 	neighbors, err := iface.ListNeighbors(family)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error via Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error via Response
 	}
 
 	// Single-key wrapper so `| table` renders a proper columnar view;
 	// `| count` returns the entry count.
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"neighbors": neighbors,
 		},
 	}, nil
@@ -133,32 +133,32 @@ func dumpKernelRoutes(args []string, usage string, defaultLimit int) (*plugin.Re
 		switch {
 		case args[i] == "--limit":
 			if i+1 >= len(args) {
-				return &plugin.Response{Status: plugin.StatusError, Data: "--limit requires a value"}, nil
+				return &plugin.Response{Status: plugin.StatusError, Error: "--limit requires a value"}, nil
 			}
 			n, parseErr := strconv.Atoi(args[i+1])
 			if parseErr != nil || n <= 0 {
 				msg := fmt.Sprintf("invalid --limit %q: must be a positive integer", args[i+1])
-				return &plugin.Response{Status: plugin.StatusError, Data: msg}, nil //nolint:nilerr // operational error via Response
+				return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil //nolint:nilerr // operational error via Response
 			}
 			limit = n
 			i++
 		case strings.HasPrefix(args[i], "--"):
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Data:   fmt.Sprintf("unknown flag %q; %s", args[i], usage),
+				Error:  fmt.Sprintf("unknown flag %q; %s", args[i], usage),
 			}, nil
 		default:
 			if filter != "" {
 				return &plugin.Response{
 					Status: plugin.StatusError,
-					Data:   "too many positional arguments; " + usage,
+					Error:  "too many positional arguments; " + usage,
 				}, nil
 			}
 			if args[i] != "default" {
 				if _, err := netip.ParsePrefix(args[i]); err != nil {
 					return &plugin.Response{
 						Status: plugin.StatusError,
-						Data:   fmt.Sprintf("invalid prefix %q: %v", args[i], err),
+						Error:  fmt.Sprintf("invalid prefix %q: %v", args[i], err),
 					}, nil
 				}
 			}
@@ -172,7 +172,7 @@ func dumpKernelRoutes(args []string, usage string, defaultLimit int) (*plugin.Re
 	// allocation cost rather than just the response-size cost.
 	routes, err := iface.ListKernelRoutes(filter, limit+1)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error via Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error via Response
 	}
 	truncated := false
 	if len(routes) > limit {
@@ -184,5 +184,5 @@ func dumpKernelRoutes(args []string, usage string, defaultLimit int) (*plugin.Re
 		data["truncated"] = true
 		data["limit"] = limit
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(data)}, nil
 }

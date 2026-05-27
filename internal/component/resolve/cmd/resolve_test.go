@@ -29,7 +29,7 @@ func TestRequireArg_Empty(t *testing.T) {
 	val, errResp := requireArg([]string{}, "hostname")
 	require.NotNil(t, errResp)
 	assert.Equal(t, plugin.StatusError, errResp.Status)
-	assert.Contains(t, errResp.Data, "hostname")
+	assert.Contains(t, errResp.Error, "hostname")
 	assert.Equal(t, "", val)
 }
 
@@ -39,7 +39,7 @@ func TestRequireArg_Nil(t *testing.T) {
 	val, errResp := requireArg(nil, "asn")
 	require.NotNil(t, errResp)
 	assert.Equal(t, plugin.StatusError, errResp.Status)
-	assert.Contains(t, errResp.Data, "asn")
+	assert.Contains(t, errResp.Error, "asn")
 	assert.Equal(t, "", val)
 }
 
@@ -73,7 +73,7 @@ func TestRequireASN_NonNumeric(t *testing.T) {
 	asn, errResp := requireASN([]string{"abc"})
 	require.NotNil(t, errResp)
 	assert.Equal(t, plugin.StatusError, errResp.Status)
-	assert.Contains(t, errResp.Data, "invalid ASN")
+	assert.Contains(t, errResp.Error, "invalid ASN")
 	assert.Equal(t, uint32(0), asn)
 }
 
@@ -92,7 +92,7 @@ func TestRequireASN_Overflow(t *testing.T) {
 	asn, errResp := requireASN([]string{"4294967296"})
 	require.NotNil(t, errResp)
 	assert.Equal(t, plugin.StatusError, errResp.Status)
-	assert.Contains(t, errResp.Data, "invalid ASN")
+	assert.Contains(t, errResp.Error, "invalid ASN")
 	assert.Equal(t, uint32(0), asn)
 }
 
@@ -105,7 +105,7 @@ func TestErrResponse(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Equal(t, "something failed", resp.Data)
+	assert.Equal(t, "something failed", resp.Error)
 }
 
 // --- dnsResult ---
@@ -118,7 +118,9 @@ func TestDnsResult_Success(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	assert.Equal(t, "192.168.1.1\n192.168.1.2", resp.Data)
+	m, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	assert.Equal(t, records, m["records"])
 }
 
 // VALIDATES: dnsResult returns StatusError when resolveErr is non-nil.
@@ -128,7 +130,7 @@ func TestDnsResult_Error(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Equal(t, "NXDOMAIN", resp.Data)
+	assert.Equal(t, "NXDOMAIN", resp.Error)
 }
 
 // VALIDATES: dnsResult handles empty record list.
@@ -138,7 +140,9 @@ func TestDnsResult_EmptyRecords(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	assert.Equal(t, "", resp.Data)
+	m, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	assert.Empty(t, m["records"])
 }
 
 // VALIDATES: dnsResult handles single record.
@@ -147,7 +151,10 @@ func TestDnsResult_SingleRecord(t *testing.T) {
 	resp, err := dnsResult([]string{"10.0.0.1"}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	assert.Equal(t, "10.0.0.1", resp.Data)
+	m, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	recs, _ := m["records"].([]string)
+	assert.Equal(t, []string{"10.0.0.1"}, recs)
 }
 
 // --- Nil-resolver guard tests for all 9 handlers ---
@@ -189,7 +196,7 @@ func TestHandlers_NilResolvers(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, plugin.StatusError, resp.Status)
-			assert.Contains(t, resp.Data, h.errMsg)
+			assert.Contains(t, resp.Error, h.errMsg)
 		})
 	}
 }
@@ -208,7 +215,7 @@ func TestHandlers_ZeroValueResolvers(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, plugin.StatusError, resp.Status)
-			assert.Contains(t, resp.Data, h.errMsg)
+			assert.Contains(t, resp.Error, h.errMsg)
 		})
 	}
 }
@@ -302,49 +309,49 @@ func TestHandlePing_InvalidTarget(t *testing.T) {
 	resp, err := handlePing(&pluginserver.CommandContext{}, []string{"foo;bar"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "invalid character")
+	assert.Contains(t, resp.Error, "invalid character")
 }
 
 func TestHandlePing_InvalidSource(t *testing.T) {
 	resp, err := handlePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "source", "not-ip"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "not a valid IP address")
+	assert.Contains(t, resp.Error, "not a valid IP address")
 }
 
 func TestHandlePing_InvalidCount(t *testing.T) {
 	resp, err := handlePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "count", "abc"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "not a valid number")
+	assert.Contains(t, resp.Error, "not a valid number")
 }
 
 func TestHandlePing_CountOutOfRange(t *testing.T) {
 	resp, err := handlePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "count", "200"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "out of range")
+	assert.Contains(t, resp.Error, "out of range")
 }
 
 func TestHandlePing_SizeOutOfRange(t *testing.T) {
 	resp, err := handlePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "size", "99999"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "out of range")
+	assert.Contains(t, resp.Error, "out of range")
 }
 
 func TestHandlePing_UnknownOption(t *testing.T) {
 	resp, err := handlePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "bogus", "val"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "unknown option")
+	assert.Contains(t, resp.Error, "unknown option")
 }
 
 func TestHandlePing_TrailingKeyword(t *testing.T) {
 	resp, err := handlePing(&pluginserver.CommandContext{}, []string{"192.168.1.1", "count"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "requires a value")
+	assert.Contains(t, resp.Error, "requires a value")
 }
 
 // --- Traceroute validation ---
@@ -353,26 +360,26 @@ func TestHandleTraceroute_InvalidTarget(t *testing.T) {
 	resp, err := handleTraceroute(&pluginserver.CommandContext{}, []string{"foo;bar"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "invalid character")
+	assert.Contains(t, resp.Error, "invalid character")
 }
 
 func TestHandleTraceroute_InvalidSource(t *testing.T) {
 	resp, err := handleTraceroute(&pluginserver.CommandContext{}, []string{"192.168.1.1", "source", "not-ip"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "not a valid IP address")
+	assert.Contains(t, resp.Error, "not a valid IP address")
 }
 
 func TestHandleTraceroute_UnknownOption(t *testing.T) {
 	resp, err := handleTraceroute(&pluginserver.CommandContext{}, []string{"192.168.1.1", "bogus"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "unknown option")
+	assert.Contains(t, resp.Error, "unknown option")
 }
 
 func TestHandleTraceroute_SourceMissingValue(t *testing.T) {
 	resp, err := handleTraceroute(&pluginserver.CommandContext{}, []string{"192.168.1.1", "source"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "requires a value")
+	assert.Contains(t, resp.Error, "requires a value")
 }

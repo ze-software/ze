@@ -49,7 +49,7 @@ func TestBgpSummaryFormat(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 
 	summary, ok := data["summary"].(map[string]any)
@@ -92,7 +92,7 @@ func TestBgpSummaryNoPeers(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 
 	summary, ok := data["summary"].(map[string]any)
@@ -136,7 +136,7 @@ func TestBgpSummary_FilterByFamily(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	summary, ok := data["summary"].(map[string]any)
 	require.True(t, ok)
@@ -168,7 +168,7 @@ func TestBgpSummary_FamilyShorthand(t *testing.T) {
 	resp, err := handleBgpSummary(ctx, []string{"ipv4"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	summary, ok := data["summary"].(map[string]any)
 	require.True(t, ok)
@@ -194,8 +194,7 @@ func TestBgpSummary_UnknownFamilyRejects(t *testing.T) {
 	resp, err := handleBgpSummary(ctx, []string{"ipv6/unicast"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, ok := resp.Data.(string)
-	require.True(t, ok)
+	msg := resp.Error
 	assert.Contains(t, msg, "ipv6/unicast")
 	assert.Contains(t, msg, "ipv4/unicast")
 }
@@ -209,13 +208,13 @@ func TestBgpSummary_NilReactor(t *testing.T) {
 		resp, err := handleBgpSummary(nil, nil)
 		require.Error(t, err)
 		assert.Equal(t, plugin.StatusError, resp.Status)
-		assert.Equal(t, "reactor not available", resp.Data)
+		assert.Equal(t, "reactor not available", resp.Error)
 	})
 	t.Run("nil reactor on ctx", func(t *testing.T) {
 		resp, err := handleBgpSummary(newTestContext(nil), nil)
 		require.Error(t, err)
 		assert.Equal(t, plugin.StatusError, resp.Status)
-		assert.Equal(t, "reactor not available", resp.Data)
+		assert.Equal(t, "reactor not available", resp.Error)
 	})
 }
 
@@ -242,8 +241,7 @@ func TestBgpSummary_FamilyArgValidation(t *testing.T) {
 			resp, err := handleBgpSummary(ctx, []string{tc.arg})
 			require.NoError(t, err)
 			assert.Equal(t, plugin.StatusError, resp.Status)
-			msg, ok := resp.Data.(string)
-			require.True(t, ok)
+			msg := resp.Error
 			assert.NotEmpty(t, msg)
 		})
 	}
@@ -272,7 +270,7 @@ func TestPeerCapabilitiesHandler(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 
 	assert.Equal(t, "192.0.2.1", data["peer"])
@@ -317,7 +315,7 @@ func TestPeerShowStatistics(t *testing.T) {
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
 	// Single peer → flat object
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 
 	// Counter fields
@@ -358,7 +356,7 @@ func TestPeerShowStatisticsZeroUptime(t *testing.T) {
 	resp, err := handleBgpPeerStatistics(ctx, nil)
 	require.NoError(t, err)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 
 	assert.Equal(t, 0.0, data["rate-updates-received"])
@@ -385,7 +383,7 @@ func TestPeerCapabilitiesNotEstablished(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, false, data["negotiation-complete"])
 }

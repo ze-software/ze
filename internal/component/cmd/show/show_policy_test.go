@@ -52,7 +52,7 @@ func TestHandleShowPolicyList(t *testing.T) {
 	if resp.Status != plugin.StatusDone {
 		t.Fatalf("status = %q, want %q", resp.Status, plugin.StatusDone)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatalf("data is %T, want map[string]any", resp.Data)
 	}

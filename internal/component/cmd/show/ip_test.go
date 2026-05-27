@@ -48,8 +48,7 @@ func TestHandleShowArp_UnknownFamilyRejects(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, ok := resp.Data.(string)
-	require.True(t, ok)
+	msg := resp.Error
 	assert.Contains(t, msg, "ipv5")
 	assert.Contains(t, msg, "ipv4")
 	assert.Contains(t, msg, "ipv6")
@@ -67,8 +66,7 @@ func TestHandleShowArp_FamilyRequiresValue(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, ok := resp.Data.(string)
-	require.True(t, ok)
+	msg := resp.Error
 	assert.Contains(t, msg, "requires a value")
 }
 
@@ -87,8 +85,7 @@ func TestHandleShowIPRoute_DispatchShape(t *testing.T) {
 	require.NotNil(t, resp)
 
 	if resp.Status == plugin.StatusError {
-		msg, ok := resp.Data.(string)
-		require.True(t, ok, "error Data should be string")
+		msg := resp.Error
 		assert.True(t,
 			strings.Contains(msg, "no backend") ||
 				strings.Contains(msg, "ListKernelRoutes") ||
@@ -99,7 +96,7 @@ func TestHandleShowIPRoute_DispatchShape(t *testing.T) {
 	}
 
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "Data should be map[string]any, got %T", resp.Data)
 	_, hasRoutes := data["routes"]
 	assert.True(t, hasRoutes, "response should carry the routes key")
@@ -117,7 +114,7 @@ func TestHandleShowArp_UnknownPositional(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, _ := resp.Data.(string)
+	msg := resp.Error
 	assert.Contains(t, msg, "unknown argument")
 }
 
@@ -130,7 +127,7 @@ func TestHandleShowArp_FamilyRepeatRejects(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, _ := resp.Data.(string)
+	msg := resp.Error
 	assert.Contains(t, msg, "more than once")
 }
 
@@ -151,7 +148,7 @@ func TestHandleShowIPRoute_InvalidPrefixRejects(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, plugin.StatusError, resp.Status, "arg=%q should reject", arg)
-		msg, _ := resp.Data.(string)
+		msg := resp.Error
 		assert.Contains(t, msg, "invalid prefix", "arg=%q", arg)
 	}
 
@@ -161,7 +158,7 @@ func TestHandleShowIPRoute_InvalidPrefixRejects(t *testing.T) {
 	require.NotNil(t, resp)
 	// Backend may or may not be loaded; only assert we did not stop at prefix-validation.
 	if resp.Status == plugin.StatusError {
-		msg, _ := resp.Data.(string)
+		msg := resp.Error
 		assert.NotContains(t, msg, "invalid prefix", "default should not be rejected as bad CIDR")
 	}
 }
@@ -204,8 +201,7 @@ func TestHandleShowArp_DispatchShape(t *testing.T) {
 	if resp.Status == plugin.StatusError {
 		// No backend loaded, or VPP active -- handler correctly surfaced
 		// the error from iface.ListNeighbors without wrapping.
-		msg, ok := resp.Data.(string)
-		require.True(t, ok, "error Data should be string")
+		msg := resp.Error
 		// Accept either "no backend loaded" or backend-specific reject.
 		assert.True(t,
 			strings.Contains(msg, "no backend") || strings.Contains(msg, "ListNeighbors") || strings.Contains(msg, "neigh"),
@@ -215,7 +211,7 @@ func TestHandleShowArp_DispatchShape(t *testing.T) {
 	}
 
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "Data should be map[string]any, got %T", resp.Data)
 	_, hasNeighbors := data["neighbors"]
 	assert.True(t, hasNeighbors, "response should carry the neighbors key")

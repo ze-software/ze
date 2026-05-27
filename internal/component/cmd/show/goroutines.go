@@ -65,7 +65,7 @@ func goroutinesFull() (*plugin.Response, error) {
 		g.mu.Unlock()
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   map[string]any{"mode": goroutineModeFull, "stacks": res},
+			Data:   plugin.Map{"mode": goroutineModeFull, "stacks": res},
 		}, nil
 	}
 	g.running = true
@@ -84,7 +84,7 @@ func goroutinesFull() (*plugin.Response, error) {
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"mode": goroutineModeFull, "stacks": stacks},
+		Data:   plugin.Map{"mode": goroutineModeFull, "stacks": stacks},
 	}, nil
 }
 
@@ -142,7 +142,7 @@ func goroutinesFiltered(onlyBlocked bool) (*plugin.Response, error) {
 	} else {
 		result["mode"] = goroutineModeSummary
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: result}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(result)}, nil
 }
 
 func parseGoroutineStacks(stacks string) []goroutineInfo {

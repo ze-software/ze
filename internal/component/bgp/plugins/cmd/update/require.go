@@ -22,14 +22,14 @@ func requireBGPReactor(ctx *pluginserver.CommandContext) (bgptypes.BGPReactor, *
 	if r == nil {
 		return nil, &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "reactor not available",
+			Error:  "reactor not available",
 		}, errReactorNotAvailable
 	}
 	bgp, ok := r.(bgptypes.BGPReactor)
 	if !ok {
 		return nil, &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "BGP reactor not available",
+			Error:  "BGP reactor not available",
 		}, errBgpReactorNotAvailable
 	}
 	return bgp, nil, nil

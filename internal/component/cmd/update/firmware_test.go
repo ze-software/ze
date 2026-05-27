@@ -3,6 +3,7 @@
 package update
 
 import (
+	"strings"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
@@ -27,17 +28,10 @@ func TestFirmwareCheckGokrazyUnsupported(t *testing.T) {
 	if resp.Status != plugin.StatusError {
 		t.Fatalf("Status = %q, want %q", resp.Status, plugin.StatusError)
 	}
-	data, ok := resp.Data.(map[string]any)
-	if !ok {
-		t.Fatalf("Data = %T, want map[string]any", resp.Data)
+	if resp.Error == "" {
+		t.Fatal("expected non-empty Error field")
 	}
-	if got := data["backend"]; got != string(system.BackendGokrazyAB) {
-		t.Fatalf("backend = %v, want %q", got, system.BackendGokrazyAB)
-	}
-	if got := data["status"]; got != "unsupported" {
-		t.Fatalf("status = %v, want unsupported", got)
-	}
-	if got := data["message"]; got != "updates managed by gokrazy" {
-		t.Fatalf("message = %v, want updates managed by gokrazy", got)
+	if !strings.Contains(resp.Error, "unsupported") {
+		t.Fatalf("Error = %q, want contains 'unsupported'", resp.Error)
 	}
 }

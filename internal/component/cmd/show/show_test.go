@@ -28,7 +28,7 @@ func TestHandleShowWarningsEmpty(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "Data should be map[string]any, got %T", resp.Data)
 	assert.Equal(t, 0, data["count"])
 
@@ -51,7 +51,7 @@ func TestHandleShowAAAAccounting(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, uint64(7), data["dropped-records"])
 }
@@ -77,7 +77,7 @@ func TestHandleShowAuditFilters(t *testing.T) {
 	assert.Equal(t, since, got.Since)
 	assert.Equal(t, until, got.Until)
 	assert.Equal(t, 5, got.Limit)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 1, data["count"])
 	entries, ok := data["entries"].([]audit.Entry)
@@ -113,7 +113,7 @@ func TestHandleShowWarningsPopulated(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 2, data["count"])
 	warnings, ok := data["warnings"].([]report.Issue)
@@ -155,7 +155,7 @@ func TestHandleShowErrorsEmpty(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "Data should be map[string]any, got %T", resp.Data)
 	assert.Equal(t, 0, data["count"])
 
@@ -186,7 +186,7 @@ func TestHandleShowErrorsPopulated(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 2, data["count"])
 	errs, ok := data["errors"].([]report.Issue)
@@ -219,18 +219,17 @@ func TestHandleShowInterface(t *testing.T) {
 	resp, err := handleShowInterface(nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	if resp.Status == "error" && resp.Data == "iface: no backend loaded" {
+	if resp.Status == "error" && resp.Error == "iface: no backend loaded" {
 		t.Skip("iface backend not available in test environment")
 	}
 	assert.Equal(t, "done", resp.Status)
-	assert.Contains(t, resp.Data, "lo") // loopback always exists
 
 	// Show specific interface -- loopback always exists.
 	resp, err = handleShowInterface(nil, []string{"lo"})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
-	assert.Contains(t, resp.Data, "lo")
+	assert.Contains(t, resp.Error, "lo")
 
 	// Show nonexistent interface -- should return error response.
 	resp, err = handleShowInterface(nil, []string{"nonexistent_iface99"})
@@ -263,7 +262,7 @@ func TestHandleShowInterfaceBrief(t *testing.T) {
 	// On systems without netlink (CI), returns "error" from ListInterfaces.
 	// Either way, the brief path was taken (not the single-interface path).
 	if resp.Status == "done" {
-		data, ok := resp.Data.(map[string]any)
+		data, ok := resp.Data.(plugin.Map)
 		require.True(t, ok, "brief response should be map")
 		_, hasInterfaces := data["interfaces"]
 		assert.True(t, hasInterfaces, "should have interfaces key")
@@ -282,13 +281,13 @@ func TestWarningsFilterBySource(t *testing.T) {
 
 	resp, err := handleShowWarnings(nil, []string{"source", "bgp"})
 	require.NoError(t, err)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 2, data["count"])
 
 	resp2, err := handleShowWarnings(nil, []string{"source", "l2tp"})
 	require.NoError(t, err)
-	data2, ok := resp2.Data.(map[string]any)
+	data2, ok := resp2.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 1, data2["count"])
 }
@@ -302,7 +301,7 @@ func TestWarningsNoFilter(t *testing.T) {
 
 	resp, err := handleShowWarnings(nil, nil)
 	require.NoError(t, err)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 2, data["count"])
 }
@@ -318,7 +317,7 @@ func TestErrorsFilterBySource(t *testing.T) {
 
 	resp, err := handleShowErrors(nil, []string{"source", "l2tp", "count", "1"})
 	require.NoError(t, err)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	issues, ok2 := data["errors"].([]report.Issue)
 	require.True(t, ok2, "errors should be []report.Issue")

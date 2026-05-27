@@ -16,7 +16,7 @@ func TestHandleSetSystemFD_Max(t *testing.T) {
 	if resp.Status != plugin.StatusDone {
 		t.Errorf("status = %v, want done", resp.Status)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatalf("data type = %T, want map[string]any", resp.Data)
 	}

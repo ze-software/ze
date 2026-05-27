@@ -20,25 +20,25 @@ func handleClearIPsecSA(_ *pluginserver.CommandContext, args []string) (*plugin.
 			continue
 		}
 		if i+1 >= len(args) {
-			return &plugin.Response{Status: plugin.StatusError, Data: "clear vpn ipsec sa peer: missing peer name"}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: "clear vpn ipsec sa peer: missing peer name"}, nil
 		}
 		name := args[i+1]
 		if name == "" || len(name) > 255 {
-			return &plugin.Response{Status: plugin.StatusError, Data: "clear vpn ipsec sa peer: name must be 1-255 characters"}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: "clear vpn ipsec sa peer: name must be 1-255 characters"}, nil
 		}
 		ok := engine.TerminatePeerSA(name)
 		if !ok {
-			return &plugin.Response{Status: plugin.StatusError, Data: "peer not found: " + name}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: "peer not found: " + name}, nil
 		}
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   map[string]any{"action": "clear-peer", "peer": name},
+			Data:   plugin.Map{"action": "clear-peer", "peer": name},
 		}, nil
 	}
 
 	count := engine.TerminateAllSAs()
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"action": "clear-all", "terminated": count},
+		Data:   plugin.Map{"action": "clear-all", "terminated": count},
 	}, nil
 }

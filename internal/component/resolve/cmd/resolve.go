@@ -12,7 +12,6 @@ import (
 	"net"
 	"os/exec"
 	"strconv"
-	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -56,7 +55,7 @@ func requireArg(args []string, name string) (string, *plugin.Response) {
 	if len(args) == 0 {
 		return "", &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: resolve ... <" + name + ">",
+			Error:  "usage: resolve ... <" + name + ">",
 		}
 	}
 	return args[0], nil
@@ -71,14 +70,14 @@ func requireASN(args []string) (uint32, *plugin.Response) {
 	if err != nil {
 		return 0, &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid ASN %q: %v", s, err),
+			Error:  fmt.Sprintf("invalid ASN %q: %v", s, err),
 		}
 	}
 	return uint32(n), nil
 }
 
 func errResponse(msg string) (*plugin.Response, error) {
-	return &plugin.Response{Status: plugin.StatusError, Data: msg}, nil
+	return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil
 }
 
 func dnsResult(records []string, resolveErr error) (*plugin.Response, error) {
@@ -87,7 +86,7 @@ func dnsResult(records []string, resolveErr error) (*plugin.Response, error) {
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   strings.Join(records, "\n"),
+		Data:   plugin.Map{"records": records},
 	}, nil
 }
 
@@ -194,7 +193,7 @@ func handleCymruASNName(ctx *pluginserver.CommandContext, args []string) (*plugi
 	if name == "" {
 		name = "(unknown)"
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: name}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"name": name}}, nil
 }
 
 // PeeringDB handlers.
@@ -213,7 +212,7 @@ func handlePeeringDBMaxPrefix(ctx *pluginserver.CommandContext, args []string) (
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"asn":  asn,
 			"ipv4": counts.IPv4,
 			"ipv6": counts.IPv6,
@@ -235,7 +234,7 @@ func handlePeeringDBASSet(ctx *pluginserver.CommandContext, args []string) (*plu
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   strings.Join(sets, "\n"),
+		Data:   plugin.Map{"sets": sets},
 	}, nil
 }
 
@@ -259,7 +258,7 @@ func handleIRRExpand(ctx *pluginserver.CommandContext, args []string) (*plugin.R
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   strings.Join(parts, "\n"),
+		Data:   plugin.Map{"members": parts},
 	}, nil
 }
 
@@ -284,7 +283,7 @@ func handleIRRPrefix(ctx *pluginserver.CommandContext, args []string) (*plugin.R
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   strings.Join(lines, "\n"),
+		Data:   plugin.Map{"prefixes": lines},
 	}, nil
 }
 
@@ -341,7 +340,7 @@ func handlePing(ctx *pluginserver.CommandContext, args []string) (*plugin.Respon
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data: map[string]any{
+			Data: plugin.Map{
 				"target": target,
 				"output": string(out),
 				"error":  err.Error(),
@@ -350,7 +349,7 @@ func handlePing(ctx *pluginserver.CommandContext, args []string) (*plugin.Respon
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"target": target,
 			"output": string(out),
 		},
@@ -392,7 +391,7 @@ func handleTraceroute(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data: map[string]any{
+			Data: plugin.Map{
 				"target": target,
 				"output": string(out),
 				"error":  err.Error(),
@@ -401,7 +400,7 @@ func handleTraceroute(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"target": target,
 			"output": string(out),
 		},

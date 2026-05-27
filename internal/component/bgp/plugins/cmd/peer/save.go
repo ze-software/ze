@@ -40,7 +40,7 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 	if configPath == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "config path not available",
+			Error:  "config path not available",
 		}, errConfigPathNotSet
 	}
 
@@ -52,7 +52,7 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 	if len(peers) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "no peers found matching selector",
+			Error:  "no peers found matching selector",
 		}, errNoPeersMatched
 	}
 
@@ -61,7 +61,7 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("cannot open config: %v", err),
+			Error:  fmt.Sprintf("cannot open config: %v", err),
 		}, fmt.Errorf("open config: %w", err)
 	}
 	defer func() { _ = ed.Close() }()
@@ -156,13 +156,13 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 	if err := ed.Save(); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("failed to save config: %v", err),
+			Error:  fmt.Sprintf("failed to save config: %v", err),
 		}, fmt.Errorf("save config: %w", err)
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"saved":   saved,
 			"config":  configPath,
 			"message": textbuf.StrIntStr("saved ", int64(len(saved)), " peer(s) to config"),
@@ -174,6 +174,6 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 func saveFieldError(addr netip.Addr, key string, err error) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusError,
-		Data:   fmt.Sprintf("cannot set %s for %s: %v", key, addr, err),
+		Error:  fmt.Sprintf("cannot set %s for %s: %v", key, addr, err),
 	}, fmt.Errorf("set %s: %w", key, err)
 }

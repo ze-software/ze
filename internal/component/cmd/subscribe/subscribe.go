@@ -32,21 +32,21 @@ func handleSubscribe(ctx *pluginserver.CommandContext, args []string) (*plugin.R
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   err.Error(),
+			Error:  err.Error(),
 		}, err
 	}
 
 	if ctx.Process == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "subscribe requires a process context",
+			Error:  "subscribe requires a process context",
 		}, ErrNoProcessContext
 	}
 
 	if ctx.Subscriptions() == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "subscription manager not available",
+			Error:  "subscription manager not available",
 		}, ErrNoSubscriptionManager
 	}
 
@@ -54,7 +54,7 @@ func handleSubscribe(ctx *pluginserver.CommandContext, args []string) (*plugin.R
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"namespace": sub.Namespace.String(),
 			"event":     sub.EventType.String(),
 			"direction": sub.Direction.String(),
@@ -68,21 +68,21 @@ func handleUnsubscribe(ctx *pluginserver.CommandContext, args []string) (*plugin
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   err.Error(),
+			Error:  err.Error(),
 		}, err
 	}
 
 	if ctx.Process == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "unsubscribe requires a process context",
+			Error:  "unsubscribe requires a process context",
 		}, ErrNoProcessContext
 	}
 
 	if ctx.Subscriptions() == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "subscription manager not available",
+			Error:  "subscription manager not available",
 		}, ErrNoSubscriptionManager
 	}
 
@@ -90,7 +90,7 @@ func handleUnsubscribe(ctx *pluginserver.CommandContext, args []string) (*plugin
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"removed":   removed,
 			"namespace": sub.Namespace.String(),
 			"event":     sub.EventType.String(),

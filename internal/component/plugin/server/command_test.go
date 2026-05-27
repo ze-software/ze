@@ -342,10 +342,8 @@ func TestDispatchSubsystemUsesCommandContextContext(t *testing.T) {
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, ok := resp.Data.(string)
-	require.True(t, ok, "expected string response data, got %T", resp.Data)
-	if !strings.Contains(msg, context.Canceled.Error()) {
-		t.Fatalf("expected canceled error in response, got %q", msg)
+	if !strings.Contains(resp.Error, context.Canceled.Error()) {
+		t.Fatalf("expected canceled error in response, got %q", resp.Error)
 	}
 
 	select {
@@ -400,10 +398,8 @@ func TestRouteToProcessUsesParentContextTimeout(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, ok := resp.Data.(string)
-	require.True(t, ok, "expected string response data, got %T", resp.Data)
-	if !strings.Contains(msg, context.Canceled.Error()) {
-		t.Fatalf("expected canceled error in response, got %q", msg)
+	if !strings.Contains(resp.Error, context.Canceled.Error()) {
+		t.Fatalf("expected canceled error in response, got %q", resp.Error)
 	}
 
 	select {
@@ -642,10 +638,8 @@ func TestForwardToPluginUsesParentContext(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, ok := resp.Data.(string)
-	require.True(t, ok, "expected string response data, got %T", resp.Data)
-	if !strings.Contains(msg, context.Canceled.Error()) {
-		t.Fatalf("expected canceled error in response, got %q", msg)
+	if !strings.Contains(resp.Error, context.Canceled.Error()) {
+		t.Fatalf("expected canceled error in response, got %q", resp.Error)
 	}
 
 	select {
@@ -838,7 +832,7 @@ func TestDispatcherAuthorizationDeny(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "authorization denied")
+	assert.Contains(t, resp.Error, "authorization denied")
 }
 
 // TestDispatcherNoAuthorizerAllowsAll verifies nil authorizer permits everything.
@@ -911,7 +905,7 @@ func TestIsReadOnlyPathDaemonLifecycle(t *testing.T) {
 func TestDispatcherDaemonReloadAuditRecord(t *testing.T) {
 	d := NewDispatcher()
 	d.RegisterWithOptions("daemon reload", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
-		return &plugin.Response{Status: plugin.StatusDone, Data: "ok"}, nil
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "ok"}}, nil
 	}, "reload", RegisterOptions{})
 	recorder, err := audit.NewMemory(100)
 	require.NoError(t, err)
@@ -1053,7 +1047,7 @@ func TestDispatcherAuthorizationAppliesToUnknownCommands(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Data, "authorization denied")
+	assert.Contains(t, resp.Error, "authorization denied")
 }
 
 // TestLooksLikeASNSelector verifies that the ASN selector format is correctly
@@ -1255,7 +1249,7 @@ func TestDispatcherAccountingHook(t *testing.T) {
 	d.SetAccountingHook(acct)
 
 	d.Register("show version", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
-		return &plugin.Response{Status: plugin.StatusDone, Data: "v1.0"}, nil
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"version": "v1.0"}}, nil
 	}, "Show version")
 
 	ctx := &CommandContext{Username: "admin", RemoteAddr: "10.0.0.1:12345"}
@@ -1361,7 +1355,7 @@ func TestDispatcherArgValidation(t *testing.T) {
 	resp, err = d.Dispatch(nil, "show system goroutines invalid")
 	require.Error(t, err)
 	assert.False(t, called)
-	assert.Contains(t, resp.Data, "invalid")
+	assert.Contains(t, resp.Error, "invalid")
 }
 
 // TestDispatcherKeywordExtraction verifies keyword-value pair matching.
@@ -1421,7 +1415,7 @@ func TestDispatcherPositionalMatching(t *testing.T) {
 	// Invalid positional.
 	resp, err = d.Dispatch(nil, "show system goroutines invalid")
 	require.Error(t, err)
-	assert.Contains(t, resp.Data, "invalid")
+	assert.Contains(t, resp.Error, "invalid")
 }
 
 // TestDispatcherMixedArgs verifies mixed positional + keyword args.
@@ -1540,7 +1534,7 @@ func TestDispatcherArgValidationUnion(t *testing.T) {
 	resp, err = d.Dispatch(nil, "set system file-descriptors invalid")
 	require.Error(t, err)
 	assert.False(t, called)
-	assert.Contains(t, resp.Data, "invalid")
+	assert.Contains(t, resp.Error, "invalid")
 }
 
 // TestDispatcherDuplicateKeywordRejected verifies that duplicate keywords are rejected.
@@ -1587,6 +1581,6 @@ func TestDispatcherPositionalErrorMessage(t *testing.T) {
 
 	resp, err := d.Dispatch(nil, "show ping hello")
 	require.Error(t, err)
-	assert.Contains(t, resp.Data, "unexpected argument")
-	assert.Contains(t, resp.Data, "count")
+	assert.Contains(t, resp.Error, "unexpected argument")
+	assert.Contains(t, resp.Error, "count")
 }

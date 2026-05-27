@@ -38,8 +38,7 @@ func TestHandleShowFirewallRuleset_MissingArg(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, ok := resp.Data.(string)
-	require.True(t, ok)
+	msg := resp.Error
 	assert.Contains(t, msg, "usage")
 }
 
@@ -55,8 +54,7 @@ func TestHandleShowFirewallRuleset_NoBackend(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, ok := resp.Data.(string)
-	require.True(t, ok)
+	msg := resp.Error
 	assert.Contains(t, msg, "no backend")
 }
 
@@ -68,7 +66,7 @@ func TestHandleShowFirewallGroup_Empty(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	groups, ok := data["groups"].([]map[string]any)
 	require.True(t, ok, "groups should be []map[string]any, got %T", data["groups"])
@@ -96,7 +94,7 @@ func TestHandleShowFirewallGroup_Lookup(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "allow-src", data["name"])
 	tables, ok := data["tables"].([]map[string]any)
@@ -112,8 +110,7 @@ func TestHandleShowFirewallGroup_Lookup(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	msg, ok := resp.Data.(string)
-	require.True(t, ok)
+	msg := resp.Error
 	assert.Contains(t, msg, "nonexistent")
 	assert.Contains(t, msg, "allow-src")
 }

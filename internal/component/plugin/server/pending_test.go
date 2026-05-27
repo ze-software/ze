@@ -40,7 +40,7 @@ func TestPendingRequests_AddComplete(t *testing.T) {
 	}
 
 	// Complete the request
-	ok := pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone, Data: "test"})
+	ok := pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "test"}})
 	if !ok {
 		t.Error("Complete should return true for valid serial")
 	}
@@ -88,8 +88,8 @@ func TestPendingRequests_Timeout(t *testing.T) {
 			if resp.Status != plugin.StatusError {
 				t.Errorf("expected status 'error' for timeout, got %q", resp.Status)
 			}
-			if resp.Data == nil {
-				t.Error("expected error message in Data")
+			if resp.Error == "" {
+				t.Error("expected error message in Error")
 			}
 			return true
 		default:
@@ -269,7 +269,7 @@ func TestPendingRequests_StreamingResponse(t *testing.T) {
 	for i := range 3 {
 		ok := pending.Partial(serial, &plugin.Response{
 			Status: "partial",
-			Data:   map[string]int{"chunk": i},
+			Data:   plugin.Map{"chunk": i},
 		})
 		if !ok {
 			t.Errorf("Partial should succeed for chunk %d", i)
@@ -281,7 +281,7 @@ func TestPendingRequests_StreamingResponse(t *testing.T) {
 	}
 
 	// Complete
-	ok := pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone, Data: "final"})
+	ok := pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "final"}})
 	if !ok {
 		t.Error("Complete should succeed after partials")
 	}

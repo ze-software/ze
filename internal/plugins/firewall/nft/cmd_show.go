@@ -29,7 +29,7 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: show firewall ruleset <name>",
+			Error:  "usage: show firewall ruleset <name>",
 		}, nil
 	}
 	wanted := args[0]
@@ -38,7 +38,7 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 	if b == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "firewall: no backend configured; firewall section absent from config",
+			Error:  "firewall: no backend configured; firewall section absent from config",
 		}, nil
 	}
 	backendName := firewall.ActiveBackendName()
@@ -47,7 +47,7 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 		buf.Str("firewall: backend \"").Str(backendName).Str("\" does not support ruleset readback; only nft is supported")
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   buf.String(),
+			Error:  buf.String(),
 		}, nil
 	}
 
@@ -70,12 +70,12 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 		} else {
 			buf.Str("; valid: ").Str(strings.Join(names, ", "))
 		}
-		return &plugin.Response{Status: plugin.StatusError, Data: buf.String()}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: buf.String()}, nil
 	}
 
 	counters, err := b.GetCounters(target.Name)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error via Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error via Response
 	}
 
 	byChain := make(map[string]map[string]firewall.TermCounter, len(counters))
@@ -115,7 +115,7 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"table":  wanted,
 			"family": target.Family.String(),
 			"chains": chainRows,
@@ -164,7 +164,7 @@ func handleShowFirewallGroup(_ *pluginserver.CommandContext, args []string) (*pl
 		}
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data: map[string]any{
+			Data: plugin.Map{
 				"groups": list,
 			},
 		}, nil
@@ -180,7 +180,7 @@ func handleShowFirewallGroup(_ *pluginserver.CommandContext, args []string) (*pl
 		} else {
 			buf.Str("; valid: ").Str(strings.Join(names, ", "))
 		}
-		return &plugin.Response{Status: plugin.StatusError, Data: buf.String()}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: buf.String()}, nil
 	}
 	perTable := make([]map[string]any, 0, len(entries))
 	for _, e := range entries {
@@ -196,7 +196,7 @@ func handleShowFirewallGroup(_ *pluginserver.CommandContext, args []string) (*pl
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"name":   wanted,
 			"tables": perTable,
 		},

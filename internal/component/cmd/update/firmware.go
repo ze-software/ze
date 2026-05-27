@@ -39,7 +39,7 @@ func init() {
 func activeBackend() (system.UpdateBackend, *plugin.Response) {
 	backend := system.ActiveBackend()
 	if backend == nil {
-		return nil, &plugin.Response{Status: plugin.StatusError, Data: "update checker not configured"}
+		return nil, &plugin.Response{Status: plugin.StatusError, Error: "update checker not configured"}
 	}
 	return backend, nil
 }
@@ -77,7 +77,7 @@ func handleFirmwareCheck(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 		data["last-error"] = st.LastError
 	}
 
-	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(data)}, nil
 }
 
 func handleFirmwareDownload(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
@@ -93,7 +93,7 @@ func handleFirmwareDownload(ctx *pluginserver.CommandContext, _ []string) (*plug
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   res.Map(),
+		Data:   plugin.Map(res.Map()),
 	}, nil
 }
 
@@ -110,7 +110,7 @@ func handleFirmwareApply(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   res.Map(),
+		Data:   plugin.Map(res.Map()),
 	}, nil
 }
 
@@ -127,7 +127,7 @@ func handleFirmwareRestart(_ *pluginserver.CommandContext, _ []string) (*plugin.
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   res.Map(),
+		Data:   plugin.Map(res.Map()),
 	}, nil
 }
 
@@ -144,7 +144,7 @@ func handleFirmwareRollback(_ *pluginserver.CommandContext, _ []string) (*plugin
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   res.Map(),
+		Data:   plugin.Map(res.Map()),
 	}, nil
 }
 
@@ -153,7 +153,7 @@ func errorResponse(backend system.UpdateBackend, res system.FirmwareResult, err 
 		if res.Status == "" {
 			res = system.UnsupportedResult(backend.Name())
 		}
-		return &plugin.Response{Status: plugin.StatusError, Data: res.Map()}
+		return &plugin.Response{Status: plugin.StatusError, Error: res.Status + ": " + res.Message}
 	}
-	return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}
+	return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}
 }

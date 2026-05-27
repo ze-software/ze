@@ -260,10 +260,13 @@ func (h *SubsystemHandler) Handle(ctx context.Context, command string) (*plugin.
 	}
 	out, err := conn.SendExecuteCommand(ctx, "", command, nil, "")
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 	}
 
-	return &plugin.Response{Status: out.Status, Data: out.Data}, nil
+	if out.Status == plugin.StatusError {
+		return &plugin.Response{Status: plugin.StatusError, Error: out.Data}, nil
+	}
+	return &plugin.Response{Status: out.Status, Data: plugin.RawJSON(out.Data)}, nil
 }
 
 // SubsystemManager manages multiple subsystem handlers.

@@ -26,7 +26,7 @@ func TestAPIExecutorPropagatesRequestContextAndRemoteAddr(t *testing.T) {
 	var seen *pluginserver.CommandContext
 	server.Dispatcher().Register("test api", func(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 		seen = ctx
-		return &plugin.Response{Status: plugin.StatusDone, Data: "ok"}, nil
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "ok"}}, nil
 	}, "test api")
 
 	exec := apiExecutor(server)
@@ -37,7 +37,7 @@ func TestAPIExecutorPropagatesRequestContextAndRemoteAddr(t *testing.T) {
 		RemoteAddr: "198.51.100.10:4444",
 	}, "test api")
 	require.NoError(t, err)
-	assert.Equal(t, "ok", output)
+	assert.Equal(t, `{"result":"ok"}`, output)
 
 	require.NotNil(t, seen)
 	assert.Equal(t, "alice", seen.Username)

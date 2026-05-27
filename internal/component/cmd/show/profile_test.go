@@ -14,7 +14,7 @@ func TestShowSystemProfile_Wiring(t *testing.T) {
 	if resp.Status != plugin.StatusDone {
 		t.Fatalf("expected StatusDone, got %v", resp.Status)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatal("expected map response")
 	}

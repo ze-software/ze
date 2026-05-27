@@ -24,12 +24,12 @@ func init() {
 
 func handleSetSystemFD(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
-		return &plugin.Response{Status: plugin.StatusError, Data: "usage: set system file-descriptors <limit|max>"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "usage: set system file-descriptors <limit|max>"}, nil
 	}
 
 	var current syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &current); err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "getrlimit: " + err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: "getrlimit: " + err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 
 	var requested uint64
@@ -39,23 +39,23 @@ func handleSetSystemFD(_ *pluginserver.CommandContext, args []string) (*plugin.R
 		var err error
 		requested, err = strconv.ParseUint(args[0], 10, 64)
 		if err != nil || requested == 0 {
-			return &plugin.Response{Status: plugin.StatusError, Data: "invalid limit: " + args[0]}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: "invalid limit: " + args[0]}, nil
 		}
 		if requested > current.Max {
 			msg := "requested " + args[0] + " exceeds hard limit " + textbuf.Uint(current.Max)
-			return &plugin.Response{Status: plugin.StatusError, Data: msg}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil
 		}
 	}
 
 	prev := current.Cur
 	current.Cur = requested
 	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &current); err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "setrlimit: " + err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: "setrlimit: " + err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"previous":   prev,
 			"current":    requested,
 			"hard-limit": current.Max,

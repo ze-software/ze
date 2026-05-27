@@ -64,7 +64,7 @@ func init() {
 func handleMonitorPing(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"status": "monitor-ping-configured"},
+		Data:   plugin.Map{"status": "monitor-ping-configured"},
 	}, nil
 }
 
@@ -80,14 +80,14 @@ func handleMonitor(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   err.Error(),
+			Error:  err.Error(),
 		}, err
 	}
 
 	// Return the parsed configuration. The SSH streaming path uses StreamMonitor instead.
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"status":      "monitor-configured",
 			"peer":        opts.peer,
 			"event-types": opts.eventTypes,

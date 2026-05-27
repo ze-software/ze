@@ -34,16 +34,16 @@ func init() {
 func handleCaptureInterface(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	ca, err := parseCaptureArgs(args)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 
 	ifc, lookupErr := net.InterfaceByName(ca.iface)
 	if lookupErr != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "interface not found: " + ca.iface}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "interface not found: " + ca.iface}, nil
 	}
 
 	if _, loaded := activeCaptures.LoadOrStore(ca.iface, true); loaded {
-		return &plugin.Response{Status: plugin.StatusError, Data: "capture already active on " + ca.iface}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "capture already active on " + ca.iface}, nil
 	}
 	defer activeCaptures.Delete(ca.iface)
 
@@ -51,19 +51,19 @@ func handleCaptureInterface(_ *pluginserver.CommandContext, args []string) (*plu
 	if ca.filter != "" {
 		rawInsns, err = compileBPF(ca.filter)
 		if err != nil {
-			return &plugin.Response{Status: plugin.StatusError, Data: "filter compilation failed: " + err.Error()}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: "filter compilation failed: " + err.Error()}, nil
 		}
 	}
 
 	conn, err := packet.Listen(ifc, packet.Raw, 0, nil)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: "capture: " + err.Error() + " (requires CAP_NET_RAW)"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "capture: " + err.Error() + " (requires CAP_NET_RAW)"}, nil
 	}
 	defer func() { _ = conn.Close() }()
 
 	if len(rawInsns) > 0 {
 		if setErr := conn.SetBPF(rawInsns); setErr != nil {
-			return &plugin.Response{Status: plugin.StatusError, Data: "BPF attach failed: " + setErr.Error()}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: "BPF attach failed: " + setErr.Error()}, nil
 		}
 	}
 
@@ -123,7 +123,7 @@ func capturePcap(ctx context.Context, conn *packet.Conn, ca captureArgs) (*plugi
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"format":   captureFormatPcap,
 			"packets":  captured,
 			"pcap":     base64.StdEncoding.EncodeToString(buf.Bytes()),
@@ -168,7 +168,7 @@ func captureText(ctx context.Context, conn *packet.Conn, ca captureArgs) (*plugi
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"format":  captureFormatText,
 			"packets": captured,
 			"lines":   lines,

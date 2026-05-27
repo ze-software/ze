@@ -3,6 +3,8 @@ package show
 import (
 	"strings"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 func TestParseGoroutineStacks(t *testing.T) {
@@ -61,7 +63,7 @@ func TestGoroutineSingleflight(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatal("expected map response")
 	}
@@ -76,7 +78,7 @@ func TestShowSystemGoroutines_Wiring(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatal("expected map response")
 	}
@@ -93,7 +95,7 @@ func TestGoroutinesBufferGrowth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatal("expected map response")
 	}
@@ -108,7 +110,7 @@ func TestGoroutinesBlockedMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	if !ok {
 		t.Fatal("expected map response")
 	}

@@ -390,12 +390,12 @@ func handleUpdateB64(ctx *pluginserver.CommandContext, args []string) (*plugin.R
 func handleUpdateWire(ctx *pluginserver.CommandContext, args []string, encoding plugin.WireEncoding) (*plugin.Response, error) {
 	result, err := ParseUpdateWire(args, encoding)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 	}
 
 	if result.WatchdogName != "" {
 		errMsg := "watchdog not yet implemented for wire mode"
-		return &plugin.Response{Status: plugin.StatusError, Data: errMsg}, errors.New(errMsg)
+		return &plugin.Response{Status: plugin.StatusError, Error: errMsg}, errors.New(errMsg)
 	}
 
 	return DispatchNLRIGroups(ctx, result.Groups)

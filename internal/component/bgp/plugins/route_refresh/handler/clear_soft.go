@@ -34,7 +34,7 @@ func handleBgpPeerClearSoft(ctx *pluginserver.CommandContext, _ []string) (*plug
 	if peer == "*" || peer == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "clear soft requires specific peer: bgp peer <ip> clear soft",
+			Error:  "clear soft requires specific peer: bgp peer <ip> clear soft",
 		}, errNoPeerSpecified
 	}
 
@@ -42,7 +42,7 @@ func handleBgpPeerClearSoft(ctx *pluginserver.CommandContext, _ []string) (*plug
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "invalid peer address: " + peer,
+			Error:  "invalid peer address: " + peer,
 		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
 	}
 
@@ -50,13 +50,13 @@ func handleBgpPeerClearSoft(ctx *pluginserver.CommandContext, _ []string) (*plug
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("soft clear failed: %v", err),
+			Error:  fmt.Sprintf("soft clear failed: %v", err),
 		}, fmt.Errorf("soft clear peer %s: %w", addr, err)
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"peer":               addr.String(),
 			"action":             "soft-clear",
 			"families-refreshed": families,

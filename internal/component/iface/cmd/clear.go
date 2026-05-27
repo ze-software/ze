@@ -60,14 +60,14 @@ func handleClearInterfaceCounters(_ *pluginserver.CommandContext, args []string)
 			name = args[0]
 			deprecated = true
 		default:
-			return &plugin.Response{Status: plugin.StatusError, Data: usage}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: usage}, nil
 		}
 	default:
-		return &plugin.Response{Status: plugin.StatusError, Data: usage}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: usage}, nil
 	}
 
 	if err := iface.ResetCounters(name); err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error via Response
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error via Response
 	}
 
 	scope := name
@@ -76,7 +76,7 @@ func handleClearInterfaceCounters(_ *pluginserver.CommandContext, args []string)
 	}
 	resp := &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"cleared": scope,
 		},
 	}
@@ -85,7 +85,7 @@ func handleClearInterfaceCounters(_ *pluginserver.CommandContext, args []string)
 		if name != "" {
 			newForm += " " + name
 		}
-		if data, ok := resp.Data.(map[string]any); ok {
+		if data, ok := resp.Data.(plugin.Map); ok {
 			data["deprecated"] = "use: " + newForm
 		}
 	}

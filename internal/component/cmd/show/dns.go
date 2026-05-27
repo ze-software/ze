@@ -125,17 +125,17 @@ func handleDNSLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 	}
 
 	if name == "" {
-		return &plugin.Response{Status: plugin.StatusError, Data: "dns lookup: missing hostname"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "dns lookup: missing hostname"}, nil
 	}
 	if len(name) > 253 {
-		return &plugin.Response{Status: plugin.StatusError, Data: "dns lookup: hostname exceeds 253-character limit"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "dns lookup: hostname exceeds 253-character limit"}, nil
 	}
 
 	qtypeNum, ok := dnsTypeMap[qtype]
 	if !ok {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "dns lookup: unsupported type " + qtype + " (use A, AAAA, MX, NS, TXT, CNAME, PTR)",
+			Error:  "dns lookup: unsupported type " + qtype + " (use A, AAAA, MX, NS, TXT, CNAME, PTR)",
 		}, nil
 	}
 
@@ -176,7 +176,7 @@ func handleDNSLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 		}
 	}
 
-	return &plugin.Response{Status: plugin.StatusDone, Data: result}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(result)}, nil
 }
 
 func handleDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
@@ -200,16 +200,16 @@ func handleDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin.Resp
 
 	switch action {
 	case dnsCacheActionStats:
-		return &plugin.Response{Status: plugin.StatusDone, Data: getDNSCacheStats()}, nil
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(getDNSCacheStats())}, nil
 	case dnsCacheActionList:
-		return &plugin.Response{Status: plugin.StatusDone, Data: getDNSCacheEntries("")}, nil
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(getDNSCacheEntries(""))}, nil
 	case dnsCacheActionRecord:
 		if filterName == "" {
-			return &plugin.Response{Status: plugin.StatusError, Data: "dns cache record: missing name"}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: "dns cache record: missing name"}, nil
 		}
-		return &plugin.Response{Status: plugin.StatusDone, Data: getDNSCacheEntries(filterName)}, nil
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(getDNSCacheEntries(filterName))}, nil
 	default:
-		return &plugin.Response{Status: plugin.StatusError, Data: "dns cache: unknown action (use: stats, list, record <name>)"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "dns cache: unknown action (use: stats, list, record <name>)"}, nil
 	}
 }
 

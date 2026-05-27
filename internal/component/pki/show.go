@@ -5,6 +5,7 @@ package pki
 import (
 	"crypto/x509"
 	"sort"
+	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -48,7 +49,7 @@ func handleShowPKICertificates(_ *pluginserver.CommandContext, _ []string) (*plu
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
+		Data: plugin.Map{
 			"certificates": rows,
 			"count":        len(rows),
 		},
@@ -59,7 +60,7 @@ func handleShowPKICertificate(_ *pluginserver.CommandContext, args []string) (*p
 	if len(args) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: show pki certificate <name>",
+			Error:  "usage: show pki certificate <name>",
 		}, nil
 	}
 	name := args[0]
@@ -70,14 +71,14 @@ func handleShowPKICertificate(_ *pluginserver.CommandContext, args []string) (*p
 	if ca, ok := s.caCerts[name]; ok {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   certDetailMap(name, "ca", ca.Certificate, false, now, s),
+			Data:   plugin.Map(certDetailMap(name, "ca", ca.Certificate, false, now, s)),
 		}, nil
 	}
 
 	if entry, ok := s.certificates[name]; ok {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   certDetailMap(name, "device", entry.Certificate, entry.PrivateKey != nil, now, s),
+			Data:   plugin.Map(certDetailMap(name, "device", entry.Certificate, entry.PrivateKey != nil, now, s)),
 		}, nil
 	}
 
@@ -93,10 +94,10 @@ func handleShowPKICertificate(_ *pluginserver.CommandContext, args []string) (*p
 	if len(names) > 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   map[string]any{"error": "pki: certificate " + name + " not found", "available": names},
+			Error:  "pki: certificate " + name + " not found (available: " + strings.Join(names, ", ") + ")",
 		}, nil
 	}
-	return &plugin.Response{Status: plugin.StatusError, Data: "pki: certificate " + name + " not found"}, nil
+	return &plugin.Response{Status: plugin.StatusError, Error: "pki: certificate " + name + " not found"}, nil
 }
 
 func certDetailMap(name, typ string, cert *x509.Certificate, hasKey bool, now time.Time, s *storeState) map[string]any {

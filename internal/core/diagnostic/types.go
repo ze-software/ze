@@ -4,6 +4,8 @@
 // explanations for Ze's agent-facing tooling surface.
 package diagnostic
 
+import "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+
 // SchemaVersion is the current diagnostic JSON contract version.
 const SchemaVersion = 1
 
@@ -115,6 +117,7 @@ func NewValidateResult(path string, valid bool, diags []Diagnostic, cfg any) Val
 
 // DoctorResult is the JSON envelope for ze doctor --json.
 type DoctorResult struct {
+	plugin.DataMarker
 	SchemaVersion int          `json:"schema-version"`
 	Ready         bool         `json:"ready"`
 	Diagnostics   []Diagnostic `json:"diagnostics"`

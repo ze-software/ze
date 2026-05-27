@@ -18,9 +18,7 @@
 package bfd
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/netip"
 	"strings"
 
@@ -62,14 +60,9 @@ func init() {
 func handleShowSessions(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	svc := bfdapi.GetService()
 	if svc == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: errBFDServiceUnavailable.Error()}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: errBFDServiceUnavailable.Error()}, nil
 	}
-	sessions := svc.Snapshot()
-	data, err := json.Marshal(sessions)
-	if err != nil {
-		return nil, fmt.Errorf("bfd show sessions: marshal: %w", err)
-	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Slice[bfdapi.SessionState](svc.Snapshot())}, nil
 }
 
 // handleShowSession returns one session matched by peer address. The
@@ -87,24 +80,20 @@ func handleShowSession(_ *pluginserver.CommandContext, args []string) (*plugin.R
 		break
 	}
 	if peer == "" {
-		return &plugin.Response{Status: plugin.StatusError, Data: "bfd show session: missing peer argument"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "bfd show session: missing peer argument"}, nil
 	}
 	if _, err := netip.ParseAddr(peer); err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("bfd show session: invalid peer %q: %v", peer, err)}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "bfd show session: invalid peer " + peer + ": " + err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	svc := bfdapi.GetService()
 	if svc == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: errBFDServiceUnavailable.Error()}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: errBFDServiceUnavailable.Error()}, nil
 	}
 	session, ok := svc.SessionDetail(peer)
 	if !ok {
-		return &plugin.Response{Status: plugin.StatusError, Data: "bfd: no session for peer " + peer}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "bfd: no session for peer " + peer}, nil
 	}
-	data, err := json.Marshal(session)
-	if err != nil {
-		return nil, fmt.Errorf("bfd show session: marshal: %w", err)
-	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: session}, nil
 }
 
 // handleShowProfile returns the set of configured profiles. An empty
@@ -114,7 +103,7 @@ func handleShowSession(_ *pluginserver.CommandContext, args []string) (*plugin.R
 func handleShowProfile(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	svc := bfdapi.GetService()
 	if svc == nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: errBFDServiceUnavailable.Error()}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: errBFDServiceUnavailable.Error()}, nil
 	}
 	profiles := svc.Profiles()
 	wanted := ""
@@ -128,18 +117,10 @@ func handleShowProfile(_ *pluginserver.CommandContext, args []string) (*plugin.R
 	if wanted != "" {
 		for i := range profiles {
 			if profiles[i].Name == wanted {
-				data, err := json.Marshal(profiles[i])
-				if err != nil {
-					return nil, fmt.Errorf("bfd show profile: marshal: %w", err)
-				}
-				return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+				return &plugin.Response{Status: plugin.StatusDone, Data: profiles[i]}, nil
 			}
 		}
-		return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("bfd: no profile named %q", wanted)}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "bfd: no profile named " + wanted}, nil
 	}
-	data, err := json.Marshal(profiles)
-	if err != nil {
-		return nil, fmt.Errorf("bfd show profile: marshal: %w", err)
-	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Slice[bfdapi.ProfileState](profiles)}, nil
 }

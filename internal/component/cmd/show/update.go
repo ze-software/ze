@@ -83,7 +83,7 @@ func handleShowSystemUpdate(_ *pluginserver.CommandContext, _ []string) (*plugin
 		data["status"] = "up to date"
 	}
 
-	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(data)}, nil
 }
 
 func handleShowSystemUpdateHistory(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
@@ -91,7 +91,7 @@ func handleShowSystemUpdateHistory(_ *pluginserver.CommandContext, _ []string) (
 	if backend == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   map[string]any{"history": []any{}, "count": 0},
+			Data:   plugin.Map{"history": []any{}, "count": 0},
 		}, nil
 	}
 
@@ -108,6 +108,6 @@ func handleShowSystemUpdateHistory(_ *pluginserver.CommandContext, _ []string) (
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"history": rows, "count": len(rows)},
+		Data:   plugin.Map{"history": rows, "count": len(rows)},
 	}, nil
 }

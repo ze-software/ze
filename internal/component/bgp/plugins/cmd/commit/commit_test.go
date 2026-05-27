@@ -20,7 +20,7 @@ func TestHandlerCommitList(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 0, data["count"])
 }
@@ -42,7 +42,7 @@ func TestHandlerCommitStartAndShow(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "test-commit", data["commit"])
 	assert.Equal(t, 0, data["queued"])
@@ -63,7 +63,7 @@ func TestHandlerCommitStartAndEnd(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "end", data["action"])
 	assert.Equal(t, 0, data["queued"])
@@ -83,7 +83,7 @@ func TestHandlerCommitStartAndEOR(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "eor", data["action"])
 }
@@ -102,7 +102,7 @@ func TestHandlerCommitRollback(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "test-commit", data["commit"])
 }
@@ -117,7 +117,7 @@ func TestHandlerCommitUnknownAction(t *testing.T) {
 	resp, err := handleCommit(ctx, []string{"test-commit", "bogus"})
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Data, "unknown commit action")
+	assert.Contains(t, resp.Error, "unknown commit action")
 }
 
 // TestHandlerCommitMissingName verifies commit rejects single-arg (no action).
@@ -162,7 +162,7 @@ func TestHandlerCommitWithdrawRoute(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "10.0.0.0/24", data["prefix"])
 	assert.Equal(t, 1, data["withdrawals"])
@@ -182,7 +182,7 @@ func TestHandlerCommitWithdrawIPv6(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "2001:db8::/32", data["prefix"])
 }
@@ -230,7 +230,7 @@ func TestHandlerCommitListAfterStart(t *testing.T) {
 	resp, err := handleCommit(ctx, []string{"list"})
 	require.NoError(t, err)
 
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 1, data["count"])
 }
@@ -254,7 +254,7 @@ func TestCommit_ActionFirst(t *testing.T) {
 	resp, err := handleCommit(ctx, []string{"start", "my-commit"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	_, hasDeprecated := data["deprecated"]
 	assert.False(t, hasDeprecated, "canonical grammar should not have deprecation")
@@ -262,7 +262,7 @@ func TestCommit_ActionFirst(t *testing.T) {
 	resp, err = handleCommit(ctx, []string{"show", "my-commit"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
-	data, ok = resp.Data.(map[string]any)
+	data, ok = resp.Data.(plugin.Map)
 	require.True(t, ok)
 	_, hasDeprecated = data["deprecated"]
 	assert.False(t, hasDeprecated)
@@ -276,7 +276,7 @@ func TestCommit_DeprecatedNameFirst(t *testing.T) {
 	resp, err := handleCommit(ctx, []string{"my-commit", "start"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	dep, hasDeprecated := data["deprecated"]
 	assert.True(t, hasDeprecated, "deprecated grammar should have deprecation warning")
@@ -293,7 +293,7 @@ func TestCommit_ActionFirstWithdraw(t *testing.T) {
 	resp, err := handleCommit(ctx, []string{"withdraw", "my-commit", "route", "10.0.0.0/24"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
-	data, ok := resp.Data.(map[string]any)
+	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, "10.0.0.0/24", data["prefix"])
 	_, hasDeprecated := data["deprecated"]

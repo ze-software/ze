@@ -62,7 +62,7 @@ func handleShowSystemConntrack(_ *pluginserver.CommandContext, _ []string) (*plu
 	}
 	data["tcp-behavior"] = tcpBehavior
 
-	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(data)}, nil
 }
 
 func readProcSysctl(path string) int {

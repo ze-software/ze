@@ -759,15 +759,18 @@ func sessionTrafficRow(ss l2tp.SessionSnapshot) (map[string]any, error) {
 // jsonResponse marshals payload into a plugin.StatusDone response.
 // Returns the marshal error as a transport-level error so the caller
 // surfaces it to the CLI.
-func jsonResponse(op string, payload any) (*plugin.Response, error) {
+func jsonResponse(_ string, payload any) (*plugin.Response, error) {
+	if m, ok := payload.(map[string]any); ok {
+		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(m)}, nil
+	}
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return nil, fmt.Errorf("%s: marshal: %w", op, err)
+		return nil, err
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.RawJSON(data)}, nil
 }
 
 // errResponse wraps err into a plugin.StatusError response.
 func errResponse(err error) *plugin.Response {
-	return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}
+	return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}
 }
