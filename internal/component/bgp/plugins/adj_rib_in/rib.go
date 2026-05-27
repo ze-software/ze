@@ -22,6 +22,7 @@ import (
 	"time"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	adjschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in/schema"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
@@ -90,6 +91,10 @@ type AdjRIBInManager struct {
 	// Key: "peerAddr|family|prefix". Empty when validation is disabled.
 	pending map[string]*PendingRoute
 
+	// earlyDecisions buffers RPKI decisions that arrived before the route.
+	// Key: same as pending. Swept on the same ticker.
+	earlyDecisions map[string]*EarlyDecision
+
 	// validationEnabled is set by "adj-rib-in enable-validation" command.
 	// When true, received routes are stored as pending instead of installed.
 	validationEnabled bool
@@ -118,10 +123,11 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	r := &AdjRIBInManager{
-		plugin:  p,
-		ribIn:   make(map[string]*seqmap.Map[string, *RawRoute]),
-		peerUp:  make(map[string]bool),
-		pending: make(map[string]*PendingRoute),
+		plugin:         p,
+		ribIn:          make(map[string]*seqmap.Map[string, *RawRoute]),
+		peerUp:         make(map[string]bool),
+		pending:        make(map[string]*PendingRoute),
+		earlyDecisions: make(map[string]*EarlyDecision),
 	}
 
 	// Structured event handler for DirectBridge delivery.
@@ -227,6 +233,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
 		fam := family.IPv4Unicast
+		nhop := legacyNextHop(msg.AttrsWire)
 		if event.RawNLRIBytes == nil {
 			event.RawNLRIBytes = make(map[family.Family][]byte, 2)
 		}
@@ -234,8 +241,9 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		addPath := ctx != nil && ctx.AddPath(fam)
 		event.AddPath[fam] = addPath
 		event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
-			Action: bgptypes.RouteActionAdd,
-			NLRIs:  wireNLRIsToAny(nlriData, addPath, fam),
+			Action:  bgptypes.RouteActionAdd,
+			NextHop: nhop,
+			NLRIs:   wireNLRIsToAny(nlriData, addPath, fam),
 		})
 	}
 
@@ -299,6 +307,21 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	event.Peer = []byte(`{"remote":{"address":"` + se.PeerAddress + `"}}`)
 
 	r.dispatch(event)
+}
+
+func legacyNextHop(attrs *attribute.AttributesWire) string {
+	if attrs == nil {
+		return ""
+	}
+	attr, err := attrs.Get(attribute.AttrNextHop)
+	if err != nil || attr == nil {
+		return ""
+	}
+	nhop, ok := attr.(*attribute.NextHop)
+	if !ok || !nhop.Addr.IsValid() {
+		return ""
+	}
+	return nhop.Addr.String()
 }
 
 // wireNLRIsToAny walks wire NLRI bytes and returns prefix strings as []any.
@@ -466,9 +489,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 					}
 
 					if r.validationEnabled {
-						// Store as pending — validator will accept or reject.
-						pKey := pendingKey(peerAddr, routeKey)
-						r.pending[pKey] = &PendingRoute{
+						pr := &PendingRoute{
 							peerAddr:   peerAddr,
 							family:     fam,
 							prefix:     prefix,
@@ -476,6 +497,10 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 							route:      route,
 							receivedAt: time.Now(),
 							state:      ValidationPending,
+						}
+						if !r.applyEarlyDecision(peerAddr, routeKey, pr) {
+							pKey := pendingKey(peerAddr, routeKey)
+							r.pending[pKey] = pr
 						}
 					} else {
 						// No validation — install immediately (zero overhead path).

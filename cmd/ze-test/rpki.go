@@ -10,7 +10,7 @@
 // Usage:
 //
 //	ze-test rpki --port 3323
-//	ze-test rpki --port 3323 --valid-asn 65001 --invalid-asn 65099
+//	ze-test rpki --bind 0.0.0.0 --port 3323 --valid-asn 65001 --invalid-asn 65099
 package main
 
 import (
@@ -45,12 +45,14 @@ func rpkiCmd() int {
 	fs := flag.NewFlagSet("ze-test rpki", flag.ExitOnError)
 
 	var (
+		bind       string
 		port       int
 		validASN   uint
 		invalidASN uint
 		serial     uint
 	)
 
+	fs.StringVar(&bind, "bind", "127.0.0.1", "TCP bind address")
 	fs.IntVar(&port, "port", 0, "TCP listen port (0 = auto)")
 	fs.UintVar(&validASN, "valid-asn", 65001, "ASN for Valid VRPs (octet % 3 == 0)")
 	fs.UintVar(&invalidASN, "invalid-asn", 65099, "ASN for Invalid VRPs (octet % 3 == 1)")
@@ -87,7 +89,7 @@ Flags:
 	}
 
 	lc := &net.ListenConfig{}
-	ln, err := lc.Listen(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	ln, err := lc.Listen(context.Background(), "tcp", net.JoinHostPort(bind, fmt.Sprintf("%d", port)))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: listen: %v\n", err)
 		return 1
@@ -95,8 +97,8 @@ Flags:
 	defer func() { _ = ln.Close() }()
 
 	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
-	fmt.Fprintf(os.Stderr, "ze-test rpki: listening on port %s (valid-asn=%d, invalid-asn=%d)\n",
-		portStr, srv.validASN, srv.invalidASN)
+	fmt.Fprintf(os.Stderr, "ze-test rpki: listening on %s:%s (valid-asn=%d, invalid-asn=%d)\n",
+		bind, portStr, srv.validASN, srv.invalidASN)
 
 	for {
 		conn, err := ln.Accept()

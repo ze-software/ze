@@ -521,12 +521,9 @@ func (rp *RPKIPlugin) emitRPKIEvent(peerAddr, peerName string, peerASN uint32, m
 	}
 }
 
-// validationRetries is the number of retries for validation commands.
-const validationRetries = 3
-
 // validationWorker is a long-lived goroutine that processes validation decisions.
-// It drains validateCh and issues DispatchCommand calls with retry logic,
-// keeping the SDK event callback goroutine free from blocking I/O.
+// It drains validateCh and issues DispatchCommand calls. adj-rib-in buffers
+// early decisions, so no retry loop is needed for event ordering races.
 func (rp *RPKIPlugin) validationWorker() {
 	for {
 		select {
@@ -538,9 +535,8 @@ func (rp *RPKIPlugin) validationWorker() {
 	}
 }
 
-// dispatchValidation sends a single accept/reject command with retry.
+// dispatchValidation sends a single accept/reject command to adj-rib-in.
 func (rp *RPKIPlugin) dispatchValidation(req validationRequest) {
-	// Guard: NotValidated (0) should not reach here; skip silently.
 	if req.state == ValidationNotValidated {
 		return
 	}
@@ -549,7 +545,6 @@ func (rp *RPKIPlugin) dispatchValidation(req validationRequest) {
 		m.validationOutcomes.With(validationStateString(req.state)).Inc()
 	}
 
-	// Validate fields contain no whitespace (prevents command injection).
 	if strings.ContainsAny(req.peerAddr, " \t\n\r") ||
 		strings.ContainsAny(req.family, " \t\n\r") ||
 		strings.ContainsAny(req.prefix, " \t\n\r") {
@@ -558,7 +553,7 @@ func (rp *RPKIPlugin) dispatchValidation(req validationRequest) {
 		return
 	}
 
-	pathIDStr := strconv.FormatUint(uint64(req.pathID), 10)
+	pathIDStr := textbuf.Uint32(req.pathID)
 
 	var cmd string
 	if req.state == ValidationInvalid {
@@ -571,7 +566,6 @@ func (rp *RPKIPlugin) dispatchValidation(req validationRequest) {
 		cmd = "adj-rib-in accept-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + pathIDStr + " " + stateStr
 	}
 
-	// ASPA policy override: if origin accepts but ASPA demands reject, override.
 	if req.state != ValidationInvalid && req.aspaState != aspaStateNone {
 		if aspaOverridesAccept(req.aspaState,
 			uint8(rp.aspaInvalidAction.Load()),   //nolint:gosec // stored as uint8, fits
@@ -580,21 +574,12 @@ func (rp *RPKIPlugin) dispatchValidation(req validationRequest) {
 		}
 	}
 
-	for attempt := range validationRetries {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_, _, err := rp.plugin.DispatchCommand(ctx, cmd)
-		cancel()
-		if err == nil {
-			return
-		}
-		// Retry with exponential backoff for event ordering race.
-		if attempt < validationRetries-1 {
-			backoff := time.Duration(10*(1<<attempt)) * time.Millisecond // 10ms, 20ms
-			time.Sleep(backoff)
-			continue
-		}
-		logger().Warn("rpki: validation command failed after retries",
-			"command", cmd, "error", err, "attempts", validationRetries)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	_, _, err := rp.plugin.DispatchCommand(ctx, cmd)
+	cancel()
+	if err != nil {
+		logger().Warn("rpki: validation command failed",
+			"command", cmd, "error", err)
 	}
 }
 

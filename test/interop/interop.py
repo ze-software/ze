@@ -9,6 +9,7 @@ import atexit
 import json
 import os
 import re
+import shutil
 import subprocess
 import time
 
@@ -19,12 +20,24 @@ ZE_CONTAINER = "ze-iop-ze-%s" % _SUFFIX
 FRR_CONTAINER = "ze-iop-frr-%s" % _SUFFIX
 BIRD_CONTAINER = "ze-iop-bird-%s" % _SUFFIX
 GOBGP_CONTAINER = "ze-iop-gobgp-%s" % _SUFFIX
+BMP_CONTAINER = "ze-iop-bmp-%s" % _SUFFIX
+RPKI_CONTAINER = "ze-iop-rpki-%s" % _SUFFIX
 
 # IP addresses on the test network.
+_BASE_SUBNET_PREFIX = "172.30.0."
+_SUBNET_POOLS = ((172, 30), (172, 31), (10, 254))
+SUBNET_PREFIX = _BASE_SUBNET_PREFIX
+SUBNET_CIDR = "172.30.0.0/24"
 ZE_IP = "172.30.0.2"
 FRR_IP = "172.30.0.3"
 BIRD_IP = "172.30.0.4"
 GOBGP_IP = "172.30.0.5"
+BMP_IP = "172.30.0.6"
+RPKI_IP = "172.30.0.7"
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT = os.path.abspath(os.path.join(_SCRIPT_DIR, "..", ".."))
+_RENDER_ROOT = os.path.join(_PROJECT_ROOT, "tmp", "interop-rendered")
 
 # Default timeout for session establishment (seconds).
 try:
@@ -53,6 +66,110 @@ def log_fail(msg):
 def log_debug(msg):
     if VERBOSE:
         print("  [debug] %s" % msg)
+
+
+def _set_subnet_prefix(prefix):
+    """Update global peer IPs for the allocated /24."""
+    global SUBNET_PREFIX, SUBNET_CIDR, ZE_IP, FRR_IP, BIRD_IP, GOBGP_IP, BMP_IP, RPKI_IP
+    if not prefix.endswith("."):
+        prefix += "."
+    SUBNET_PREFIX = prefix
+    SUBNET_CIDR = "%s0/24" % prefix
+    ZE_IP = "%s2" % prefix
+    FRR_IP = "%s3" % prefix
+    BIRD_IP = "%s4" % prefix
+    GOBGP_IP = "%s5" % prefix
+    BMP_IP = "%s6" % prefix
+    RPKI_IP = "%s7" % prefix
+
+
+def _candidate_subnet_prefixes():
+    """Yield /24 prefixes to try for this scenario run."""
+    explicit_prefix = os.environ.get("ZE_INTEROP_SUBNET_PREFIX")
+    if explicit_prefix:
+        yield explicit_prefix
+        return
+
+    explicit_index = os.environ.get("ZE_INTEROP_SUBNET_INDEX")
+    if explicit_index:
+        try:
+            index = int(explicit_index)
+        except ValueError as exc:
+            raise RuntimeError(
+                "invalid ZE_INTEROP_SUBNET_INDEX %r" % explicit_index
+            ) from exc
+        max_index = len(_SUBNET_POOLS) * 256 - 1
+        if index < 0 or index > max_index:
+            raise RuntimeError(
+                "ZE_INTEROP_SUBNET_INDEX must be between 0 and %d" % max_index
+            )
+        first, second = _SUBNET_POOLS[index // 256]
+        yield "%d.%d.%d." % (first, second, index % 256)
+        return
+
+    for first, second in _SUBNET_POOLS:
+        for index in range(256):
+            yield "%d.%d.%d." % (first, second, index)
+
+
+def _create_network():
+    """Create the Docker network, retrying on overlapping subnets."""
+    last_error = ""
+    forced = os.environ.get("ZE_INTEROP_SUBNET_PREFIX") or os.environ.get(
+        "ZE_INTEROP_SUBNET_INDEX"
+    )
+    for prefix in _candidate_subnet_prefixes():
+        _set_subnet_prefix(prefix)
+        result = subprocess.run(
+            ["docker", "network", "create", "--subnet=%s" % SUBNET_CIDR, NETWORK],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            log_debug(
+                "created Docker network %s with subnet %s" % (NETWORK, SUBNET_CIDR)
+            )
+            return
+        last_error = result.stderr.strip()
+        if "already exists" in last_error:
+            log_debug("reusing existing Docker network %s" % NETWORK)
+            return
+        if forced or "overlap" not in last_error.lower():
+            raise RuntimeError("docker network create failed: %s" % last_error)
+
+    raise RuntimeError(
+        "docker network create failed: no available /24: %s" % last_error
+    )
+
+
+def _render_scenario_dir(source_dir, name):
+    """Copy a scenario and replace the default Docker subnet prefix."""
+    target = os.path.join(_RENDER_ROOT, "%s-%s" % (name, _SUFFIX))
+    shutil.rmtree(target, ignore_errors=True)
+    for root, dirs, files in os.walk(source_dir):
+        dirs[:] = [d for d in dirs if d != "__pycache__"]
+        rel = os.path.relpath(root, source_dir)
+        dst_root = target if rel == "." else os.path.join(target, rel)
+        os.makedirs(dst_root, exist_ok=True)
+        for fname in files:
+            if fname.endswith(".pyc"):
+                continue
+            src = os.path.join(root, fname)
+            dst = os.path.join(dst_root, fname)
+            with open(src, "rb") as fh:
+                data = fh.read()
+            try:
+                text = data.decode("utf-8")
+            except UnicodeDecodeError:
+                with open(dst, "wb") as fh:
+                    fh.write(data)
+            else:
+                text = text.replace(_BASE_SUBNET_PREFIX, SUBNET_PREFIX)
+                with open(dst, "w", encoding="utf-8") as fh:
+                    fh.write(text)
+            shutil.copymode(src, dst)
+    return target
 
 
 # --- Docker helpers ----------------------------------------------------------
@@ -145,9 +262,9 @@ def docker_logs(container, lines=30):
 class FRR:
     """Helpers for querying FRR via vtysh."""
 
-    def __init__(self, container=FRR_CONTAINER, ip=FRR_IP):
-        self.container = container
-        self.ip = ip
+    def __init__(self, container=None, ip=None):
+        self.container = container or FRR_CONTAINER
+        self.ip = ip or FRR_IP
 
     def _vtysh_quiet(self, command):
         """Run a vtysh command, return stdout or empty string on failure."""
@@ -379,9 +496,9 @@ class FRR:
 class BIRD:
     """Helpers for querying BIRD via birdc."""
 
-    def __init__(self, container=BIRD_CONTAINER, ip=BIRD_IP):
-        self.container = container
-        self.ip = ip
+    def __init__(self, container=None, ip=None):
+        self.container = container or BIRD_CONTAINER
+        self.ip = ip or BIRD_IP
 
     def _birdc_quiet(self, command):
         """Run a birdc command, return stdout or empty string on failure."""
@@ -474,9 +591,9 @@ class BIRD:
 class GoBGP:
     """Helpers for querying GoBGP via gobgp CLI."""
 
-    def __init__(self, container=GOBGP_CONTAINER, ip=GOBGP_IP):
-        self.container = container
-        self.ip = ip
+    def __init__(self, container=None, ip=None):
+        self.container = container or GOBGP_CONTAINER
+        self.ip = ip or GOBGP_IP
 
     def _gobgp_quiet(self, args):
         """Run a gobgp command, return stdout or empty string on failure."""
@@ -556,8 +673,10 @@ class GoBGP:
         output = self._gobgp_quiet(["neighbor", neighbor])
         return "established" in output.lower()
 
-    def inject_route(self, prefix, nexthop="172.30.0.5"):
+    def inject_route(self, prefix, nexthop=None):
         """Inject a route into GoBGP's global RIB. Raises on failure."""
+        if nexthop is None:
+            nexthop = GOBGP_IP
         docker_exec(
             self.container,
             [
@@ -679,7 +798,9 @@ class Scenario:
     """Manages container lifecycle for a scenario."""
 
     def __init__(self, scenario_dir, frr_image):
+        self.source_dir = scenario_dir
         self.scenario_dir = scenario_dir
+        self.rendered_dir = None
         self.frr_image = frr_image
         self.name = os.path.basename(scenario_dir.rstrip("/"))
 
@@ -687,21 +808,39 @@ class Scenario:
         """Create network, start containers based on which config files exist."""
         self.teardown()
 
-        # Create network.
-        result = subprocess.run(
-            ["docker", "network", "create", "--subnet=172.30.0.0/24", NETWORK],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if result.returncode != 0 and "already exists" not in result.stderr:
-            raise RuntimeError(
-                "docker network create failed: %s" % result.stderr.strip()
-            )
+        _create_network()
+        self.rendered_dir = _render_scenario_dir(self.source_dir, self.name)
+        self.scenario_dir = self.rendered_dir
 
         ze_conf = os.path.join(self.scenario_dir, "ze.conf")
         if not os.path.isfile(ze_conf):
             raise RuntimeError("missing ze.conf in %s" % self.name)
+
+        # Start a BMP collector sidecar before Ze if the scenario provides one.
+        # This avoids racing Ze's BMP sender reconnect backoff against a process
+        # plugin that would only start after Ze itself is already running.
+        bmp_collector = os.path.join(self.scenario_dir, "bmp-collector.py")
+        if os.path.isfile(bmp_collector):
+            docker_run(
+                BMP_CONTAINER,
+                "ze-interop",
+                BMP_IP,
+                volumes=["%s:/bmp-collector.py:ro" % os.path.abspath(bmp_collector)],
+                extra_args=["--entrypoint", "python3"],
+                cmd=["/bmp-collector.py"],
+            )
+
+        rpki_server = os.path.join(self.scenario_dir, "rpki-server")
+        if os.path.isfile(rpki_server):
+            with open(rpki_server, "r", encoding="utf-8") as fh:
+                rpki_args = fh.read().split()
+            docker_run(
+                RPKI_CONTAINER,
+                "ze-interop",
+                RPKI_IP,
+                extra_args=["--entrypoint", "ze-test"],
+                cmd=["rpki", "--bind", "0.0.0.0"] + rpki_args,
+            )
 
         # Collect extra volume mounts for Ze (plugin scripts, etc.).
         volumes = ["%s:/etc/ze/bgp.conf:ro" % os.path.abspath(ze_conf)]
@@ -775,12 +914,18 @@ class Scenario:
         docker_rm(FRR_CONTAINER)
         docker_rm(BIRD_CONTAINER)
         docker_rm(GOBGP_CONTAINER)
+        docker_rm(BMP_CONTAINER)
+        docker_rm(RPKI_CONTAINER)
         subprocess.run(
             ["docker", "network", "rm", NETWORK],
             capture_output=True,
             text=True,
             timeout=30,
         )
+        if self.rendered_dir:
+            shutil.rmtree(self.rendered_dir, ignore_errors=True)
+            self.rendered_dir = None
+            self.scenario_dir = self.source_dir
 
     def run_check(self):
         """Import and run check.py."""
@@ -807,7 +952,14 @@ class Scenario:
 
 def global_cleanup():
     """Remove all containers and network on exit."""
-    for name in [ZE_CONTAINER, FRR_CONTAINER, BIRD_CONTAINER, GOBGP_CONTAINER]:
+    for name in [
+        ZE_CONTAINER,
+        FRR_CONTAINER,
+        BIRD_CONTAINER,
+        GOBGP_CONTAINER,
+        BMP_CONTAINER,
+        RPKI_CONTAINER,
+    ]:
         subprocess.run(
             ["docker", "rm", "-f", name], capture_output=True, text=True, timeout=30
         )

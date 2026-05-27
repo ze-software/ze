@@ -52,11 +52,8 @@ func (r *AdjRIBInManager) promoteToInstalled(pr *PendingRoute, validationState u
 }
 
 // sweepExpiredPending promotes pending routes that have exceeded the validation timeout.
-// Called periodically by the timeout scanner goroutine.
+// Caller must hold r.mu write lock.
 func (r *AdjRIBInManager) sweepExpiredPending() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	now := time.Now()
 	timeout := r.validationTimeout
 	if timeout == 0 {
@@ -73,12 +70,18 @@ func (r *AdjRIBInManager) sweepExpiredPending() {
 	}
 }
 
-// clearPeerPending removes all pending routes for a given peer.
+// clearPeerPending removes all pending routes and early decisions for a peer.
 // Caller must hold r.mu write lock.
 func (r *AdjRIBInManager) clearPeerPending(peerAddr string) {
 	for key, pr := range r.pending {
 		if pr.peerAddr == peerAddr {
 			delete(r.pending, key)
+		}
+	}
+	prefix := peerAddr + "|"
+	for key := range r.earlyDecisions {
+		if len(key) > len(prefix) && key[:len(prefix)] == prefix {
+			delete(r.earlyDecisions, key)
 		}
 	}
 }
@@ -102,6 +105,71 @@ func parseValidationState(s string) (uint8, error) {
 	return 0, fmt.Errorf("invalid validation state: %s (expected 1=Valid or 2=NotFound)", s)
 }
 
+// EarlyDecision stores a validation decision that arrived before the route.
+type EarlyDecision struct {
+	action     earlyAction // accept or reject
+	state      uint8       // validation state (only meaningful for accept)
+	receivedAt time.Time
+}
+
+type earlyAction uint8
+
+const (
+	earlyAccept earlyAction = 1
+	earlyReject earlyAction = 2
+)
+
+// earlyDecisionTimeout is how long an early decision stays buffered.
+// Expiry means the route never arrived, which indicates a bug.
+const earlyDecisionTimeout = 1 * time.Minute
+
+// applyEarlyDecision checks for a buffered decision and applies it to a
+// newly-pending route. Returns true if a decision was found and applied.
+// Caller must hold r.mu write lock.
+func (r *AdjRIBInManager) applyEarlyDecision(peerAddr, routeKey string, pr *PendingRoute) bool {
+	key := pendingKey(peerAddr, routeKey)
+	ed, ok := r.earlyDecisions[key]
+	if !ok {
+		return false
+	}
+	delete(r.earlyDecisions, key)
+	switch ed.action {
+	case earlyAccept:
+		r.promoteToInstalled(pr, ed.state)
+	case earlyReject:
+		logger().Debug("applied early reject", "peer", peerAddr, "route", routeKey)
+	default:
+		logger().Warn("early decision with unknown action, ignoring",
+			"peer", peerAddr, "route", routeKey, "action", ed.action)
+		return false
+	}
+	return true
+}
+
+// storeEarlyDecision buffers a validation decision for a route not yet pending.
+// Caller must hold r.mu write lock.
+func (r *AdjRIBInManager) storeEarlyDecision(peerAddr, routeKey string, action earlyAction, state uint8) {
+	key := pendingKey(peerAddr, routeKey)
+	r.earlyDecisions[key] = &EarlyDecision{
+		action:     action,
+		state:      state,
+		receivedAt: time.Now(),
+	}
+}
+
+// sweepExpiredEarlyDecisions removes stale early decisions.
+// Caller must hold r.mu write lock.
+func (r *AdjRIBInManager) sweepExpiredEarlyDecisions() {
+	now := time.Now()
+	for key, ed := range r.earlyDecisions {
+		if now.Sub(ed.receivedAt) > earlyDecisionTimeout {
+			logger().Warn("early validation decision expired without matching route",
+				"key", key, "action", ed.action, "age", now.Sub(ed.receivedAt))
+			delete(r.earlyDecisions, key)
+		}
+	}
+}
+
 // sweepInterval is the period between timeout scans.
 const sweepInterval = 5 * time.Second
 
@@ -116,7 +184,10 @@ func (r *AdjRIBInManager) startTimeoutScanner(stopCh <-chan struct{}) {
 			case <-stopCh:
 				return
 			case <-ticker.C:
+				r.mu.Lock()
 				r.sweepExpiredPending()
+				r.sweepExpiredEarlyDecisions()
+				r.mu.Unlock()
 			}
 		}
 	}()

@@ -7,9 +7,12 @@ Usage:
     VERBOSE=1 python3 test/interop/run.py            # verbose output
 
 Environment:
-    FRR_IMAGE   - FRR Docker image (default: quay.io/frrouting/frr:10.3.1)
-    VERBOSE     - set to 1 for debug output
-    NO_BUILD    - set to 1 to skip image builds
+    FRR_IMAGE                 - FRR Docker image
+                                (default: quay.io/frrouting/frr:10.3.1)
+    VERBOSE                   - set to 1 for debug output
+    NO_BUILD                  - set to 1 to skip image builds
+    ZE_INTEROP_SUBNET_INDEX   - force a rendered lab subnet slot
+    ZE_INTEROP_SUBNET_PREFIX  - force a rendered lab prefix, e.g. 172.30.44.
 """
 
 import os

@@ -29,6 +29,7 @@ must be run manually:
 | Traffic control | `bin/ze-test traffic` | Requires traffic-control platform support |
 | VPP | `bin/ze-test vpp` | Requires Python VPP stub setup |
 | L2TP wire | `bin/ze-test l2tp-wire` | Wire-level fixture separate from release-gate L2TP daemon scenarios |
+| BGP interop | `python3 test/interop/run.py [scenario]` | Requires Docker peer daemons and image builds |
 | Chaos web | `bin/ze-test bgp chaos-web` | Chaos dashboard scenarios live under the BGP runner |
 
 These suites also have `make` targets: `make ze-static-test`,
@@ -157,9 +158,25 @@ Static route tests - routes defined in config, sent at session establishment.
 
 ### 2. Parse Tests (`test/parse/`)
 
-Config parsing tests - verify configurations parse correctly.
+Config parsing tests verify configurations parse correctly.
 
 **Files:** All parse tests use `.ci` format with embedded config.
+
+Parse coverage configs live in `test/parse/coverage-*.ci`. They are positive
+parse/validate coverage for realistic multi-feature configurations, such as
+IXP peering, large peer sets, RPKI policy, and redistribution. Run a specific
+coverage case by name, for example `bin/ze-test bgp parse coverage-ixp-peering`.
+
+BGP interop scenarios live under `test/interop/scenarios/NN-name/` and run with
+`python3 test/interop/run.py NN-name`. Scenario files are written with the
+default `172.30.0.x` lab prefix, then copied to `tmp/interop-rendered/` and
+rewritten to an available `/24` before containers start. The default slot is
+`172.30.0.0/24`; concurrent runs retry on `172.30.1.0/24`, `172.30.2.0/24`, and
+so on. Use `ZE_INTEROP_SUBNET_INDEX=N` or `ZE_INTEROP_SUBNET_PREFIX=A.B.C.` to
+force a specific lab prefix. A scenario that includes `bmp-collector.py` gets a
+pre-started collector sidecar on the run's `.6` address so Ze's internal BMP
+sender can connect before peer events are generated. A scenario that includes
+`rpki-server` starts `ze-test rpki --bind 0.0.0.0` on the run's `.7` address.
 
 **Positive tests** (expect success):
 ```

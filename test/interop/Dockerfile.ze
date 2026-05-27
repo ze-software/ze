@@ -11,12 +11,14 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 go build -o /ze ./cmd/ze
+RUN CGO_ENABLED=0 go build -o /ze-test ./cmd/ze-test
 
 FROM alpine:3.21
 
 RUN apk add --no-cache tini python3
 
 COPY --from=builder /ze /usr/local/bin/ze
+COPY --from=builder /ze-test /usr/local/bin/ze-test
 
 # ze_api.py is needed by process plugin scripts that announce routes.
 COPY test/scripts/ze_api.py /usr/lib/ze/ze_api.py

@@ -1,0 +1,45 @@
+# Test: RPKI cache and origin-validation policy config validates
+# VALIDATES: AC-14 supported subset -- RTR cache and global RPKI policy validate.
+# PREVENTS: RPKI cache, origin-validation policy, or ASPA policy schema regressions.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 198.51.100.1
+	rpki {
+		cache-server 192.0.2.200 {
+			port 3323
+			preference 10
+		}
+		cache-server rpki-cache.example.net {
+			port 3324
+			preference 20
+		}
+		validation-timeout 30
+		policy {
+			invalid-action reject
+			not-found-action accept
+		}
+		aspa {
+			validation true
+			policy {
+				invalid-action log-only
+				unknown-action accept
+			}
+		}
+	}
+	peer rpki-covered-peer {
+		connection {
+			remote { ip 192.0.2.2; }
+			local { ip 192.0.2.1; }
+		}
+		session {
+			asn { local 65000; remote 65100; }
+			router-id 198.51.100.1
+			family { ipv4/unicast { prefix { maximum 100000; } } }
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

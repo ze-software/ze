@@ -1,0 +1,129 @@
+# Test: IXP-style BGP peering config validates
+# VALIDATES: AC-10 supported subset -- dual-stack, 4 peer groups, bogon filters, and filter chains validate.
+# PREVENTS: Realistic peer-group inheritance and policy chains regressing independently.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 198.51.100.1
+	session {
+		asn {
+			local 65000
+		}
+	}
+	policy {
+		prefix-list V4-BOGON {
+			entry 0.0.0.0/0 {
+				le 7
+				action reject
+			}
+			entry 10.0.0.0/8 {
+				le 32
+				action reject
+			}
+			entry 192.0.2.0/24 {
+				ge 24
+				le 24
+				action accept
+			}
+		}
+		prefix-list V6-BOGON {
+			entry 2001:db8::/32 {
+				ge 32
+				le 48
+				action accept
+			}
+		}
+		as-path-list BOGON-ASN {
+			entry ".* 0 .*" {
+				action reject
+			}
+			entry "^$" {
+				action accept
+			}
+		}
+		community-match NO-EXPORT {
+			entry no-export {
+				type standard
+				action reject
+			}
+		}
+		modify IXP-IN {
+			set {
+				local-preference 200
+				community-add [ 65000:100 ]
+			}
+		}
+		modify IXP-OUT {
+			set {
+				med 20
+				community-add [ 65000:200 ]
+			}
+		}
+	}
+	group RS-V4 {
+		session {
+			family {
+				ipv4/unicast { prefix { maximum 200000; } }
+			}
+		}
+		filter {
+			import [ bgp-filter-prefix:V4-BOGON as-path-list:BOGON-ASN community-match:NO-EXPORT modify:IXP-IN ]
+			export [ bgp-filter-prefix:V4-BOGON modify:IXP-OUT ]
+		}
+		peer rs-v4-a {
+			connection { remote { ip 192.0.2.11; } local { ip 192.0.2.1; } }
+			session { asn { remote 65101; } }
+		}
+		peer rs-v4-b {
+			connection { remote { ip 192.0.2.12; } local { ip 192.0.2.1; } }
+			session { asn { remote 65102; } }
+		}
+	}
+	group RS-V6 {
+		session {
+			family {
+				ipv6/unicast { prefix { maximum 200000; } }
+			}
+		}
+		filter {
+			import [ bgp-filter-prefix:V6-BOGON as-path-list:BOGON-ASN modify:IXP-IN ]
+			export [ bgp-filter-prefix:V6-BOGON modify:IXP-OUT ]
+		}
+		peer rs-v6-a {
+			connection { remote { ip 2001:db8::11; } local { ip 2001:db8::1; } }
+			session { asn { remote 65111; } }
+		}
+	}
+	group TRANSIT {
+		session {
+			family {
+				ipv4/unicast { prefix { maximum 1000000; } }
+				ipv6/unicast { prefix { maximum 1000000; } }
+			}
+		}
+		filter {
+			import [ as-path-list:BOGON-ASN modify:IXP-IN ]
+			export [ modify:IXP-OUT ]
+		}
+		peer transit-a {
+			connection { remote { ip 198.51.100.2; } local { ip 198.51.100.1; } }
+			session { asn { remote 65200; } }
+		}
+	}
+	group RS-MONITOR {
+		timer { receive-hold-time 180; }
+		session {
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		peer monitor-a {
+			connection { remote { ip 203.0.113.10; } local { ip 203.0.113.1; } }
+			session { asn { remote 65300; } }
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

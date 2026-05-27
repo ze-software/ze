@@ -251,23 +251,32 @@ func TestRevalidateInstalledRoute(t *testing.T) {
 	assert.Contains(t, data, "10.0.0.0/24", "revalidate should return route data")
 }
 
-// TestAcceptNonExistentRoute verifies error for unknown pending route.
+// TestAcceptNonExistentRoute verifies early decision buffering.
 //
-// VALIDATES: accept-routes for non-existent pending route returns error.
-// PREVENTS: Panic or silent success on invalid accept.
+// VALIDATES: accept-routes for non-existent pending route buffers an early decision.
+// PREVENTS: Race between RPKI and adj-rib-in event delivery ordering.
 func TestAcceptNonExistentRoute(t *testing.T) {
 	r := newTestManager(t)
 	r.validationEnabled = true
 
-	status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1")
-	assert.Equal(t, statusError, status)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no pending route")
+	status, data, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1")
+	assert.Equal(t, statusDone, status)
+	assert.NoError(t, err)
+	assert.Contains(t, data, "early")
+
+	rKey := bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0)
+	key := pendingKey("10.0.0.1", rKey)
+	r.mu.RLock()
+	ed, ok := r.earlyDecisions[key]
+	r.mu.RUnlock()
+	require.True(t, ok, "early decision should be buffered")
+	assert.Equal(t, earlyAccept, ed.action)
+	assert.Equal(t, ValidationValid, ed.state)
 }
 
-// TestRejectAlreadyInstalled verifies error when rejecting an already-installed route.
+// TestRejectAlreadyInstalled verifies early buffering when rejecting a non-pending route.
 //
-// VALIDATES: reject-routes for non-pending route returns error, no state change.
+// VALIDATES: reject-routes for non-pending route buffers early decision, installed unchanged.
 // PREVENTS: Installed routes being incorrectly removed by late reject.
 func TestRejectAlreadyInstalled(t *testing.T) {
 	r := newTestManager(t)
@@ -282,13 +291,86 @@ func TestRejectAlreadyInstalled(t *testing.T) {
 	r.ribIn["10.0.0.1"] = m
 
 	status, _, err := r.handleCommand("adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0")
-	assert.Equal(t, statusError, status)
-	assert.Error(t, err)
+	assert.Equal(t, statusDone, status)
+	assert.NoError(t, err)
 
 	// Installed route should be unchanged
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	assert.Equal(t, 1, r.ribIn["10.0.0.1"].Len(), "installed route should not be removed")
+}
+
+// TestEarlyDecisionAppliedOnArrival verifies the store-and-reconcile flow:
+// RPKI decision arrives before the route, route is promoted immediately on arrival.
+//
+// VALIDATES: early decision is consumed when the route arrives as pending.
+// PREVENTS: Route stuck in pending when RPKI already decided.
+func TestEarlyDecisionAppliedOnArrival(t *testing.T) {
+	r := newTestManager(t)
+	r.validationEnabled = true
+
+	// Step 1: RPKI sends accept before the route exists.
+	status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 192.168.1.0/24 0 1")
+	require.NoError(t, err)
+	assert.Equal(t, statusDone, status)
+
+	// Step 2: Route arrives and goes through the pending path.
+	rKey := bgp.RouteKey("ipv4/unicast", "192.168.1.0/24", 0)
+	route := &RawRoute{
+		Family: family.IPv4Unicast, AttrHex: "40010100",
+		NHopHex: "0a000001", NLRIHex: "18c0a801",
+	}
+	pr := &PendingRoute{
+		peerAddr: "10.0.0.1", family: family.IPv4Unicast,
+		prefix: "192.168.1.0/24", routeKey: rKey, route: route,
+	}
+	r.mu.Lock()
+	applied := r.applyEarlyDecision("10.0.0.1", rKey, pr)
+	r.mu.Unlock()
+
+	assert.True(t, applied, "early decision should have been applied")
+
+	r.mu.RLock()
+	_, edExists := r.earlyDecisions[pendingKey("10.0.0.1", rKey)]
+	routes, ribExists := r.ribIn["10.0.0.1"]
+	r.mu.RUnlock()
+
+	assert.False(t, edExists, "early decision should be consumed")
+	require.True(t, ribExists, "route should be installed")
+	assert.Equal(t, 1, routes.Len())
+}
+
+// TestEarlyRejectDropsRoute verifies early reject prevents route installation.
+//
+// VALIDATES: early reject discards route on arrival instead of leaving it pending.
+// PREVENTS: Invalid routes being installed when RPKI rejects before delivery.
+func TestEarlyRejectDropsRoute(t *testing.T) {
+	r := newTestManager(t)
+	r.validationEnabled = true
+
+	status, _, err := r.handleCommand("adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 172.16.0.0/24 0")
+	require.NoError(t, err)
+	assert.Equal(t, statusDone, status)
+
+	rKey := bgp.RouteKey("ipv4/unicast", "172.16.0.0/24", 0)
+	route := &RawRoute{
+		Family: family.IPv4Unicast, AttrHex: "40010100",
+		NHopHex: "0a000001", NLRIHex: "18ac1000",
+	}
+	pr := &PendingRoute{
+		peerAddr: "10.0.0.1", family: family.IPv4Unicast,
+		prefix: "172.16.0.0/24", routeKey: rKey, route: route,
+	}
+	r.mu.Lock()
+	applied := r.applyEarlyDecision("10.0.0.1", rKey, pr)
+	r.mu.Unlock()
+
+	assert.True(t, applied, "early reject should have been applied")
+
+	r.mu.RLock()
+	_, ribExists := r.ribIn["10.0.0.1"]
+	r.mu.RUnlock()
+	assert.False(t, ribExists, "rejected route should not be installed")
 }
 
 // TestMultiplePendingRoutes verifies independent resolution of multiple pending routes.

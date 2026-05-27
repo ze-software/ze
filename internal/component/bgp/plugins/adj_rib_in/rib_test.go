@@ -1,6 +1,7 @@
 package adj_rib_in
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"net"
 	"strings"
@@ -10,7 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -32,10 +36,11 @@ func newTestManager(t *testing.T) *AdjRIBInManager {
 	p := sdk.NewWithConn("adj-rib-in-test", pluginEnd)
 	t.Cleanup(func() { _ = p.Close() })
 	return &AdjRIBInManager{
-		plugin:  p,
-		ribIn:   make(map[string]*seqmap.Map[string, *RawRoute]),
-		peerUp:  make(map[string]bool),
-		pending: make(map[string]*PendingRoute),
+		plugin:         p,
+		ribIn:          make(map[string]*seqmap.Map[string, *RawRoute]),
+		peerUp:         make(map[string]bool),
+		pending:        make(map[string]*PendingRoute),
+		earlyDecisions: make(map[string]*EarlyDecision),
 	}
 }
 
@@ -96,6 +101,44 @@ func TestStoreReceivedRoute(t *testing.T) {
 	assert.Equal(t, "0a000001", route.NHopHex, "next-hop 10.0.0.1 as wire hex")
 	assert.Equal(t, "180a0000", route.NLRIHex, "NLRI wire bytes as hex")
 	assert.Equal(t, uint64(1), routeSeq, "first route gets sequence 1")
+}
+
+// TestHandleReceivedStructuredIPv4NextHop verifies structured IPv4 UPDATEs keep NEXT_HOP.
+//
+// VALIDATES: structured IPv4/unicast received UPDATEs are stored with NEXT_HOP from attributes.
+// PREVENTS: adj-rib-in dropping direct-bridge IPv4 routes because FamilyOperation.NextHop is empty.
+func TestHandleReceivedStructuredIPv4NextHop(t *testing.T) {
+	r := newTestManager(t)
+	body, err := hex.DecodeString("0000001c400101025002000602010000fde9400304ac1e00038004040000000018092b00180a2b00180b2b00")
+	require.NoError(t, err)
+
+	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+	wu := wireu.NewWireUpdate(body, ctxID)
+	attrs, err := wu.Attrs()
+	require.NoError(t, err)
+	require.Equal(t, "172.30.0.3", legacyNextHop(attrs))
+	nlri, err := wu.NLRI()
+	require.NoError(t, err)
+	require.Len(t, wireNLRIsToAny(nlri, false, family.IPv4Unicast), 3)
+
+	r.handleReceivedStructured(&rpc.StructuredEvent{
+		EventType:   rpc.EventKindUpdate,
+		PeerAddress: "172.30.0.3",
+		RawMessage: &bgptypes.RawMessage{
+			Type:       message.TypeUPDATE,
+			WireUpdate: wu,
+			AttrsWire:  attrs,
+		},
+	})
+
+	routes, ok := r.ribIn["172.30.0.3"]
+	require.True(t, ok, "should have peer entry")
+	require.Equal(t, 3, routes.Len(), "should store all announced routes")
+
+	routes.Range(func(key string, _ uint64, route *RawRoute) bool {
+		assert.Equal(t, "ac1e0003", route.NHopHex, "route %s should keep NEXT_HOP", key)
+		return true
+	})
 }
 
 // TestStoreAllFamilies verifies VPN, EVPN, FlowSpec routes are stored (no filtering).

@@ -1,0 +1,38 @@
+# Test: supported redistribution config validates
+# VALIDATES: AC-15 supported subset -- BGP and kernel redistribution sources validate.
+# PREVENTS: Registered redistribution source validation regressing for supported sources.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 198.51.100.1
+	peer upstream-a {
+		connection { remote { ip 192.0.2.2; } local { ip 192.0.2.1; } }
+		session {
+			asn { local 65000; remote 65100; }
+			family { ipv4/unicast { prefix { maximum 100000; } } }
+		}
+	}
+	peer upstream-b {
+		connection { remote { ip 2001:db8::2; } local { ip 2001:db8::1; } }
+		session {
+			asn { local 65000; remote 65200; }
+			family { ipv6/unicast { prefix { maximum 100000; } } }
+		}
+	}
+}
+
+redistribute {
+	destination bgp {
+		import kernel {
+			family [ ipv4/unicast ipv6/unicast ]
+		}
+		import ebgp {
+			family [ ipv4/unicast ]
+		}
+		import ibgp
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

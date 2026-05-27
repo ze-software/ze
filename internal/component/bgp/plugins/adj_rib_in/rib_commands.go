@@ -173,7 +173,8 @@ func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, string, 
 	key := pendingKey(peerAddr, rKey)
 	pr, ok := r.pending[key]
 	if !ok {
-		return statusError, "", fmt.Errorf("no pending route for %s %s %s (pathID %d)", peerAddr, fam, prefix, pathID)
+		r.storeEarlyDecision(peerAddr, rKey, earlyAccept, valState)
+		return statusDone, `{"status":"ok","early":true}`, nil
 	}
 
 	r.promoteToInstalled(pr, valState)
@@ -204,7 +205,8 @@ func (r *AdjRIBInManager) rejectRoutesCommand(selector string) (string, string, 
 	rKey := bgp.RouteKey(fam, prefix, uint32(pathID))
 	key := pendingKey(peerAddr, rKey)
 	if _, ok := r.pending[key]; !ok {
-		return statusError, "", fmt.Errorf("no pending route for %s %s %s (pathID %d)", peerAddr, fam, prefix, pathID)
+		r.storeEarlyDecision(peerAddr, rKey, earlyReject, 0)
+		return statusDone, `{"status":"ok","early":true}`, nil
 	}
 
 	delete(r.pending, key)

@@ -1,0 +1,81 @@
+# Test: large BGP peering config validates
+# VALIDATES: AC-13 -- 20+ neighbors with multiple policy chains validate.
+# PREVENTS: Large peer-group configs regressing while small single-peer tests pass.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 198.51.100.254
+	session {
+		asn { local 65000; }
+	}
+	policy {
+		prefix-list CUSTOMERS-V4 {
+			entry 10.0.0.0/8 { ge 16; le 24; action accept; }
+			entry 172.16.0.0/12 { ge 16; le 24; action accept; }
+		}
+		prefix-list CUSTOMERS-V6 {
+			entry 2001:db8:100::/40 { ge 48; le 64; action accept; }
+		}
+		as-path-list CUSTOMER-ASN {
+			entry "^[0-9]+$" { action accept; }
+		}
+		community-match CUSTOMER-TAG {
+			entry 65000:300 { type standard; action accept; }
+		}
+		modify CUSTOMER-IN {
+			set {
+				local-preference 180
+				community-add [ 65000:300 ]
+			}
+		}
+		modify CUSTOMER-OUT {
+			set {
+				med 30
+				community-add [ 65000:400 ]
+			}
+		}
+	}
+	group CUSTOMER-V4 {
+		session {
+			family { ipv4/unicast { prefix { maximum 50000; warning 45000; } } }
+		}
+		filter {
+			import [ as-path-list:CUSTOMER-ASN bgp-filter-prefix:CUSTOMERS-V4 modify:CUSTOMER-IN ]
+			export [ bgp-filter-prefix:CUSTOMERS-V4 modify:CUSTOMER-OUT ]
+		}
+		peer cust-v4-01 { connection { remote { ip 192.0.2.11; } local { ip 192.0.2.1; } } session { asn { remote 65101; } } }
+		peer cust-v4-02 { connection { remote { ip 192.0.2.12; } local { ip 192.0.2.1; } } session { asn { remote 65102; } } }
+		peer cust-v4-03 { connection { remote { ip 192.0.2.13; } local { ip 192.0.2.1; } } session { asn { remote 65103; } } }
+		peer cust-v4-04 { connection { remote { ip 192.0.2.14; } local { ip 192.0.2.1; } } session { asn { remote 65104; } } }
+		peer cust-v4-05 { connection { remote { ip 192.0.2.15; } local { ip 192.0.2.1; } } session { asn { remote 65105; } } }
+		peer cust-v4-06 { connection { remote { ip 192.0.2.16; } local { ip 192.0.2.1; } } session { asn { remote 65106; } } }
+		peer cust-v4-07 { connection { remote { ip 192.0.2.17; } local { ip 192.0.2.1; } } session { asn { remote 65107; } } }
+		peer cust-v4-08 { connection { remote { ip 192.0.2.18; } local { ip 192.0.2.1; } } session { asn { remote 65108; } } }
+		peer cust-v4-09 { connection { remote { ip 192.0.2.19; } local { ip 192.0.2.1; } } session { asn { remote 65109; } } }
+		peer cust-v4-10 { connection { remote { ip 192.0.2.20; } local { ip 192.0.2.1; } } session { asn { remote 65110; } } }
+	}
+	group CUSTOMER-V6 {
+		session {
+			family { ipv6/unicast { prefix { maximum 50000; warning 45000; } } }
+		}
+		filter {
+			import [ as-path-list:CUSTOMER-ASN bgp-filter-prefix:CUSTOMERS-V6 modify:CUSTOMER-IN ]
+			export [ bgp-filter-prefix:CUSTOMERS-V6 modify:CUSTOMER-OUT ]
+		}
+		peer cust-v6-01 { connection { remote { ip 2001:db8:1::11; } local { ip 2001:db8:1::1; } } session { asn { remote 65201; } } }
+		peer cust-v6-02 { connection { remote { ip 2001:db8:1::12; } local { ip 2001:db8:1::1; } } session { asn { remote 65202; } } }
+		peer cust-v6-03 { connection { remote { ip 2001:db8:1::13; } local { ip 2001:db8:1::1; } } session { asn { remote 65203; } } }
+		peer cust-v6-04 { connection { remote { ip 2001:db8:1::14; } local { ip 2001:db8:1::1; } } session { asn { remote 65204; } } }
+		peer cust-v6-05 { connection { remote { ip 2001:db8:1::15; } local { ip 2001:db8:1::1; } } session { asn { remote 65205; } } }
+		peer cust-v6-06 { connection { remote { ip 2001:db8:1::16; } local { ip 2001:db8:1::1; } } session { asn { remote 65206; } } }
+		peer cust-v6-07 { connection { remote { ip 2001:db8:1::17; } local { ip 2001:db8:1::1; } } session { asn { remote 65207; } } }
+		peer cust-v6-08 { connection { remote { ip 2001:db8:1::18; } local { ip 2001:db8:1::1; } } session { asn { remote 65208; } } }
+		peer cust-v6-09 { connection { remote { ip 2001:db8:1::19; } local { ip 2001:db8:1::1; } } session { asn { remote 65209; } } }
+		peer cust-v6-10 { connection { remote { ip 2001:db8:1::20; } local { ip 2001:db8:1::1; } } session { asn { remote 65210; } } }
+		peer cust-v6-11 { connection { remote { ip 2001:db8:1::21; } local { ip 2001:db8:1::1; } } session { asn { remote 65211; } } }
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid
