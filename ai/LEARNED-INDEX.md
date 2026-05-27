@@ -164,6 +164,7 @@ Test patterns, infrastructure, chaos testing.
 - [608](plan/learned/608-concurrent-test-patterns.md) -- Concurrent-test flake patterns (locked-write/unlocked-read, subscribe-before-broadcast, gate-handler, barrier FIFO, cleanup-drains-work)
 - [723](plan/learned/723-chaos-actions-v2.md) -- Parameterized chaos actions: string-map params over typed unions, opt-in scheduling, per-instance weights
 - [787](plan/learned/787-chaos-inprocess-scheduling.md) -- In-process chaos: feed vc.Now() to existing schedulers, reconnectDialer factory for stochastic reconnection, tick-channel pattern
+- [797](plan/learned/797-interop-gap-coverage.md) -- Interop gap coverage: 5 scenarios (RR, policy, RPKI, BMP, max-prefix) with FRR/BIRD/GoBGP peers, concurrent Docker subnet retry, parse coverage for IXP/large-scale/RPKI/redistribution
 
 ## Build/Deployment
 
@@ -213,3 +214,4 @@ Reusable lessons extracted from gotchas sections across summaries.
 - (768-b) Doctor health checks: unconditional prefix counting needs familyString early-return guard; AuditTables must guard nil LastApplied; VPP health check must gate on socket existence; health check kernel calls need 1s timeout goroutine; plugin-crash error must come after validation guards; EOR timer needs familyCount=0 guard; pending map needs cap
 - (786) Backend-specific health checks belong in their backend plugin packages (RegisterHealthCheck pattern), not cmd/show/; block-init-register hook requires explicit registration, not direct health.Register in init()
 - (790) Debug flags: three-tier resolution (global > per-subsystem > default) in zefs `state/debug/` keys; `storage.BlobStoreFrom()` exposes underlying BlobStore from Storage interface; `state/` is the new namespace for runtime state keys
+- (797) Interop helpers must not bind peer IPs as default args (subnet chosen at setup time); BMP sidecar must start before Ze (races PeerUp); structured adj-rib-in must preserve legacy IPv4 NEXT_HOP from path attributes; BGP interop runner accepts only one scenario filter argument
