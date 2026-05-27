@@ -43,7 +43,7 @@ func applyEvolutions(logger *slog.Logger, store storage.Storage, configPath stri
 
 	schema, schemaErr := zeconfig.YANGSchema()
 	if schemaErr != nil {
-		return evolveOutcome{tree: result.Tree, data: data, applied: result.Applied}, nil
+		return evolveOutcome{tree: result.Tree, data: data, applied: result.Applied}, schemaErr
 	}
 
 	stamped := zeconfig.FormatSchemaStamp() +

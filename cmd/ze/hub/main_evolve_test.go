@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"bytes"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -122,7 +123,7 @@ func TestApplyEvolutionsDataUpdated(t *testing.T) {
 		t.Fatal(evolveErr)
 	}
 
-	if string(outcome.data) == string(originalData) {
+	if bytes.Equal(outcome.data, originalData) {
 		t.Error("data should be updated to evolved bytes, got original")
 	}
 	stampedRelease := zeconfig.ScanStampRelease(outcome.data)
@@ -151,7 +152,7 @@ func TestApplyEvolutionsNoEvolutionsNeeded(t *testing.T) {
 	if len(outcome.applied) != 0 {
 		t.Errorf("expected no evolutions, got %v", outcome.applied)
 	}
-	if string(outcome.data) != string(originalData) {
+	if !bytes.Equal(outcome.data, originalData) {
 		t.Error("data should be unchanged when no evolutions apply")
 	}
 }
@@ -176,7 +177,7 @@ func TestApplyEvolutionsStdinConfig(t *testing.T) {
 	if len(outcome.applied) == 0 {
 		t.Fatal("expected evolutions to apply even for stdin")
 	}
-	if string(outcome.data) != string(originalData) {
+	if !bytes.Equal(outcome.data, originalData) {
 		t.Error("data should be unchanged for stdin config (no write-back)")
 	}
 }
@@ -212,7 +213,7 @@ func TestApplyEvolutionsWriteBackMatchesDisk(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(outcome.data) != string(diskData) {
+	if !bytes.Equal(outcome.data, diskData) {
 		t.Error("outcome.data should match what was written to disk")
 	}
 }

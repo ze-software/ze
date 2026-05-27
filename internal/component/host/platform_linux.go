@@ -8,11 +8,9 @@ import (
 	"os"
 	"strings"
 	"syscall"
-)
 
-// gokrazySocketPath is the Unix socket gokrazy's HTTP management
-// interface listens on unconditionally.
-const gokrazySocketPath = "/run/gokrazy-http.sock"
+	"codeberg.org/thomas-mangin/ze/internal/core/gokrazyutil"
+)
 
 // DetectPlatform identifies the runtime platform and probes capabilities.
 // Detection order matters: gokrazy and container are checked first
@@ -26,7 +24,7 @@ func (d *Detector) DetectPlatform() (*PlatformInfo, error) {
 	info.ReadOnlyRoot = isReadOnlyRoot(root)
 	info.PermAvailable = isDir(root + "/perm")
 	info.SystemdAvailable = isDir(root + "/run/systemd/system")
-	info.GokrazyUpdateSocket = isSocket(root + gokrazySocketPath)
+	info.GokrazyUpdateSocket = isSocket(root + gokrazyutil.DefaultSocketPath)
 	info.GokrazyUIAvailable = info.GokrazyUpdateSocket
 	info.RebootAllowed = os.Getuid() == 0
 	info.PersistentStorageWritable = isWritableDir(root + "/perm")
