@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
@@ -275,5 +276,124 @@ func TestOutgoingRIB_Transaction_GetPendingRoutes(t *testing.T) {
 	}
 
 	// Rollback to clean up
-	_, _ = rib.RollbackTransaction()
+	if _, err := rib.RollbackTransaction(); err != nil {
+		t.Fatalf("RollbackTransaction failed: %v", err)
+	}
+}
+
+// TestOutgoingRIB_QueueWithdraw_RemovesBothExactAndSuffixed verifies that
+// QueueWithdraw cancels pending announcements whether the route key is an
+// exact NLRI index match or has an AS-PATH hash suffix appended.
+//
+// PREVENTS: Fast-path exact delete skipping suffixed entries (regression).
+func TestOutgoingRIB_QueueWithdraw_RemovesBothExactAndSuffixed(t *testing.T) {
+	r := NewOutgoingRIB()
+
+	fam := family.IPv4Unicast
+	prefix := "10.0.0.0/24"
+
+	// Queue a route without AS-PATH (exact key = NLRI index).
+	plain := testRoute(prefix)
+	r.QueueAnnounce(plain)
+
+	// Queue a route with AS-PATH (key = NLRI index + 8-byte hash suffix).
+	asPath := &attribute.ASPath{
+		Segments: []attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{65001}},
+		},
+	}
+	withAS := testRouteWithASPath(prefix, "1.2.3.4", nil, asPath)
+	r.QueueAnnounce(withAS)
+
+	pending := r.GetPending(fam)
+	if len(pending) != 2 {
+		t.Fatalf("pending before withdraw = %d, want 2", len(pending))
+	}
+
+	// Withdraw the NLRI: both pending entries must be removed.
+	n := nlri.NewINET(fam, netip.MustParsePrefix(prefix), 0)
+	r.QueueWithdraw(n)
+
+	pending = r.GetPending(fam)
+	if len(pending) != 0 {
+		t.Errorf("pending after withdraw = %d, want 0", len(pending))
+	}
+}
+
+// TestOutgoingRIB_FlushWithdrawals_RemovesSuffixedSentEntries verifies that
+// FlushWithdrawals removes sent-cache entries with AS-PATH hash suffixes.
+//
+// PREVENTS: Loop reversal optimization losing suffix-matched deletes.
+func TestOutgoingRIB_FlushWithdrawals_RemovesSuffixedSentEntries(t *testing.T) {
+	r := NewOutgoingRIB()
+
+	fam := family.IPv4Unicast
+	prefix := "10.0.0.0/24"
+
+	// Queue and flush a route with AS-PATH to populate the sent cache.
+	asPath := &attribute.ASPath{
+		Segments: []attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{65001}},
+		},
+	}
+	withAS := testRouteWithASPath(prefix, "1.2.3.4", nil, asPath)
+	r.QueueAnnounce(withAS)
+	flushed := r.FlushPending(fam)
+	if len(flushed) != 1 {
+		t.Fatalf("FlushPending = %d, want 1", len(flushed))
+	}
+
+	sentBefore := r.GetSentRoutes()
+	if len(sentBefore) != 1 {
+		t.Fatalf("sent before withdrawal = %d, want 1", len(sentBefore))
+	}
+
+	// Queue a withdrawal for the same NLRI, then flush.
+	n := nlri.NewINET(fam, netip.MustParsePrefix(prefix), 0)
+	r.QueueWithdraw(n)
+	r.FlushWithdrawals(fam)
+
+	sentAfter := r.GetSentRoutes()
+	if len(sentAfter) != 0 {
+		t.Errorf("sent after FlushWithdrawals = %d, want 0", len(sentAfter))
+	}
+}
+
+// TestOutgoingRIB_RemoveFromSent_RemovesBothExactAndSuffixed verifies that
+// RemoveFromSent clears both exact-match and suffix-match entries.
+//
+// PREVENTS: Fast-path early return skipping suffixed entries (regression).
+func TestOutgoingRIB_RemoveFromSent_RemovesBothExactAndSuffixed(t *testing.T) {
+	r := NewOutgoingRIB()
+
+	fam := family.IPv4Unicast
+	prefix := "10.0.0.0/24"
+
+	// Populate sent cache with a plain route and a route with AS-PATH.
+	plain := testRoute(prefix)
+	r.QueueAnnounce(plain)
+	r.FlushPending(fam)
+
+	asPath := &attribute.ASPath{
+		Segments: []attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{65001}},
+		},
+	}
+	withAS := testRouteWithASPath(prefix, "1.2.3.4", nil, asPath)
+	r.QueueAnnounce(withAS)
+	r.FlushPending(fam)
+
+	sentBefore := r.GetSentRoutes()
+	if len(sentBefore) != 2 {
+		t.Fatalf("sent before RemoveFromSent = %d, want 2", len(sentBefore))
+	}
+
+	// RemoveFromSent must remove both entries.
+	n := nlri.NewINET(fam, netip.MustParsePrefix(prefix), 0)
+	r.RemoveFromSent(n)
+
+	sentAfter := r.GetSentRoutes()
+	if len(sentAfter) != 0 {
+		t.Errorf("sent after RemoveFromSent = %d, want 0", len(sentAfter))
+	}
 }

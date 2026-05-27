@@ -123,10 +123,10 @@ func (r *OutgoingRIB) QueueWithdraw(n nlri.NLRI) {
 
 	// Cancel any pending announcement for this NLRI
 	if familyPending, ok := targetPending[fam]; ok {
-		// Need to find and remove any matching announcement
+		// Fast path: exact key match (route has no AS-PATH hash suffix).
+		delete(familyPending, idx)
+		// Slow path: scan for routes whose key has an AS-PATH hash suffix.
 		for pendingIdx := range familyPending {
-			// Check if this pending route matches the NLRI being withdrawn
-			// The pending index includes AS-PATH hash, so we compare NLRI portion only
 			if matchesNLRI(pendingIdx, idx) {
 				delete(familyPending, pendingIdx)
 			}
@@ -277,12 +277,15 @@ func (r *OutgoingRIB) FlushWithdrawals(fam family.Family) []nlri.NLRI {
 	// Clear withdrawals
 	delete(r.withdrawals, fam)
 
-	// Remove from sent cache
+	// Remove from sent cache. Walk sentFamily once (large) and check each
+	// entry against familyWithdrawals (small) to avoid re-traversing the
+	// large map W times.
 	if sentFamily, ok := r.sent[fam]; ok {
-		for idx := range familyWithdrawals {
-			for sentIdx := range sentFamily {
+		for sentIdx := range sentFamily {
+			for idx := range familyWithdrawals {
 				if matchesNLRI(sentIdx, idx) {
 					delete(sentFamily, sentIdx)
+					break
 				}
 			}
 		}
@@ -359,7 +362,9 @@ func (r *OutgoingRIB) RemoveFromSent(n nlri.NLRI) {
 	nlriIdx := string(buildNLRIIndex(n))
 
 	if sentFamily, ok := r.sent[fam]; ok {
-		// Find and remove any route matching this NLRI
+		// Fast path: exact key match (route has no AS-PATH hash suffix).
+		delete(sentFamily, nlriIdx)
+		// Slow path: scan for routes whose key has an AS-PATH hash suffix.
 		for routeIdx := range sentFamily {
 			if matchesNLRI(routeIdx, nlriIdx) {
 				delete(sentFamily, routeIdx)
