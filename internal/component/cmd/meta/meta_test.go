@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	cmdpkg "codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
@@ -248,6 +249,27 @@ func TestHandlerCommandHelp(t *testing.T) {
 	assert.Equal(t, "help", data["command"])
 	assert.NotEmpty(t, data["description"])
 	assert.Equal(t, "builtin", data["source"])
+}
+
+// VALIDATES: Command help returns pipe filters from registration.
+// PREVENTS: Pipe completion and help drifting apart.
+func TestCommandHelp_PipeFilters(t *testing.T) {
+	cmdpkg.ResetPipeFiltersForTest()
+	t.Cleanup(cmdpkg.ResetPipeFiltersForTest)
+	cmdpkg.RegisterPipeFilters([]string{"help"}, cmdpkg.PipeFilter{Name: "sample", Description: "sample filter", TakesArg: true})
+
+	ctx := newTestContext()
+	resp, err := handleBgpCommandHelp(ctx, []string{"help"})
+	require.NoError(t, err)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	filters, ok := data["pipe-filters"].([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, filters, 1)
+	assert.Equal(t, "sample", filters[0]["name"])
+	assert.Equal(t, "sample filter", filters[0]["description"])
+	assert.Equal(t, true, filters[0]["takes-arg"])
 }
 
 // TestHandlerCommandHelpMissingArg verifies command help rejects empty args.

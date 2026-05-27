@@ -11,6 +11,7 @@
 package rib
 
 import (
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
@@ -30,6 +31,8 @@ const (
 )
 
 func init() {
+	registerPipeFilters()
+
 	pluginserver.RegisterRPCs(
 		// Read-only commands (exposed via "ze show")
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:status", Handler: forwardRibStatus, PluginCommand: cmdRibStatus},
@@ -43,6 +46,35 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:withdraw", Handler: forwardRibWithdraw, PluginCommand: cmdRibWithdraw},
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:rpf", Handler: forwardRibRPF, PluginCommand: cmdRibRPF},
 	)
+}
+
+func registerPipeFilters() {
+	command.RegisterPipeFilters([]string{"show bgp rib", "rib routes", cmdRibShow},
+		command.PipeFilter{Name: "received", Description: "Select received routes", Leading: true},
+		command.PipeFilter{Name: "advertised", Description: "Select advertised routes", Leading: true},
+		command.PipeFilter{Name: "peer", Description: "Filter by peer", TakesArg: true},
+		command.PipeFilter{Name: "family", Description: "Filter by AFI/SAFI", TakesArg: true},
+		command.PipeFilter{Name: "prefix", Description: "Filter by prefix", TakesArg: true},
+		command.PipeFilter{Name: "path", Description: "Filter by AS path", TakesArg: true},
+		command.PipeFilter{Name: "community", Description: "Filter by standard community", TakesArg: true},
+		command.PipeFilter{Name: "match", Description: "Cross-field structured match", TakesArg: true},
+		command.PipeFilter{Name: "count", Description: "Count matching routes without serializing rows"},
+		command.PipeFilter{Name: "prefix-summary", Description: "Summarize by family and prefix length"},
+		command.PipeFilter{Name: "graph", Description: "Render AS-path topology graph"},
+	)
+	command.RegisterPipeFilters([]string{"show bgp rib best", "rib best", cmdRibBest},
+		command.PipeFilter{Name: "peer", Description: "Filter by peer", TakesArg: true},
+		command.PipeFilter{Name: "family", Description: "Filter by AFI/SAFI", TakesArg: true},
+		command.PipeFilter{Name: "prefix", Description: "Filter by prefix", TakesArg: true},
+		command.PipeFilter{Name: "path", Description: "Filter by AS path", TakesArg: true},
+		command.PipeFilter{Name: "community", Description: "Filter by standard community", TakesArg: true},
+		command.PipeFilter{Name: "match", Description: "Cross-field structured match", TakesArg: true},
+		command.PipeFilter{Name: "count", Description: "Count matching best paths without serializing rows"},
+		command.PipeFilter{Name: "prefix-summary", Description: "Summarize by family and prefix length"},
+		command.PipeFilter{Name: "graph", Description: "Render AS-path topology graph"},
+		command.PipeFilter{Name: "reason", Description: "Explain best-path selection"},
+	)
+	command.RegisterPipeFilters([]string{"show bgp rib status", "show bgp rib best status", "rib status", "rib best status", cmdRibStatus, cmdRibBestStatus})
 }
 
 func forwardRibStatus(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

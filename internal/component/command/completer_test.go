@@ -158,6 +158,37 @@ func TestCommandModePipeCompletion(t *testing.T) {
 	}
 }
 
+// VALIDATES: registered pipe filters are added to completions.
+// PREVENTS: filters being hardcoded into global pipe completion.
+func TestCommandModePipeCompletion_WithFilters(t *testing.T) {
+	ResetPipeFiltersForTest()
+	t.Cleanup(ResetPipeFiltersForTest)
+	RegisterPipeFilters([]string{"rib show"}, PipeFilter{Name: "source", Description: "Select source"})
+
+	cc := NewTreeCompleter(testCommandTree())
+	comps := cc.Complete("rib show | sou")
+	if len(comps) != 1 {
+		t.Fatalf("expected 1 command pipe completion, got %d: %v", len(comps), comps)
+	}
+	if comps[0].Text != "source" {
+		t.Fatalf("completion = %q, want source", comps[0].Text)
+	}
+}
+
+// VALIDATES: pipe filters are scoped to their registered command.
+// PREVENTS: one command's filters leaking into every completion.
+func TestCommandModePipeCompletion_NoFilters(t *testing.T) {
+	ResetPipeFiltersForTest()
+	t.Cleanup(ResetPipeFiltersForTest)
+	RegisterPipeFilters([]string{"rib show"}, PipeFilter{Name: "source", Description: "Select source"})
+
+	cc := NewTreeCompleter(testCommandTree())
+	comps := cc.Complete("peer list | sou")
+	if len(comps) != 0 {
+		t.Fatalf("expected no source completion for peer list, got %v", comps)
+	}
+}
+
 // VALIDATES: partial pipe operator input filters correctly.
 // PREVENTS: wrong pipe operators shown for partial input.
 func TestCommandModePipePartialCompletion(t *testing.T) {

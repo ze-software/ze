@@ -31,6 +31,7 @@ const (
 	pipeOrigin                  // | origin — add ASN and network name for IP address values
 	pipeLog                     // | log — append each update instead of replacing
 	pipeUnknown                 // unrecognized operator
+	pipeInvalid                 // validation error produced while folding command filters
 )
 
 const (
@@ -99,50 +100,108 @@ func ParsePipe(input string) (command string, ops []pipeOp) {
 	return command, ops
 }
 
-// FoldServerPipeline rewrites command and ops for commands that support server-side pipelines.
-// For "bgp rib routes" commands, pipe segments containing server pipeline keywords are folded
-// back into the command string. Only client-side ops (no-more, table) remain as ops.
-// Example: "bgp rib routes received | path 65001 | count" → command="bgp rib routes received path 65001 count", ops=nil.
-func FoldServerPipeline(command string, ops []pipeOp) (string, []pipeOp) {
+// FoldFilters rewrites command-owned pipe filters into command arguments.
+// Generic display and transform pipes stay client-side.
+func FoldFilters(command string, ops []pipeOp) (string, []pipeOp) {
 	trimmed := strings.TrimSpace(command)
-	lower := strings.ToLower(trimmed)
 
-	// Only fold for rib routes and rib show best commands (server-side pipeline).
-	if !strings.HasPrefix(lower, "bgp rib routes") && !strings.HasPrefix(lower, "bgp rib show best") {
+	set, ok := lookupPipeFilters(trimmed)
+	if !ok || len(set.filters) == 0 {
 		return command, ops
 	}
 
+	var leadingArgs []string
 	var serverArgs []string
 	var clientOps []pipeOp
 
 	for _, op := range ops {
 		switch op.kind { //nolint:exhaustive // only classify server vs client ops
-		case pipeNoMore, pipeTable, pipeText, pipeYAML, pipeResolve, pipeOrigin, pipeNDJSON, pipeLog:
-			// Client-side only
+		case pipeNoMore, pipeJSON, pipeNDJSON, pipeTable, pipeText, pipeYAML, pipeResolve, pipeOrigin, pipeLog:
 			clientOps = append(clientOps, op)
 		case pipeMatch:
-			// "match" is a server pipeline keyword for rib routes
-			if op.arg != "" {
-				serverArgs = append(serverArgs, "match", op.arg)
+			if filter, ok := set.byName["match"]; ok {
+				serverArgs = appendFilter(serverArgs, filter, op.arg)
 			} else {
-				serverArgs = append(serverArgs, "match")
+				clientOps = append(clientOps, op)
 			}
 		case pipeCount:
-			serverArgs = append(serverArgs, "count")
-		case pipeJSON:
-			serverArgs = append(serverArgs, "json")
+			if filter, ok := set.byName["count"]; ok {
+				serverArgs = appendFilter(serverArgs, filter, "")
+			} else {
+				clientOps = append(clientOps, op)
+			}
 		case pipeUnknown:
-			// Pipeline keywords like "path", "prefix", "community", "family"
-			// are parsed as pipeUnknown by ParsePipe. Fold them back.
-			serverArgs = append(serverArgs, op.arg)
+			filter, arg, known := lookupFilter(set, op.arg)
+			if !known {
+				clientOps = append(clientOps, pipeOp{kind: pipeInvalid, arg: unknownFilterError(trimmed, op.arg, set)})
+				continue
+			}
+			if msg := validateFilter(filter, arg); msg != "" {
+				clientOps = append(clientOps, pipeOp{kind: pipeInvalid, arg: msg})
+				continue
+			}
+			if filter.Leading {
+				leadingArgs = appendFilter(leadingArgs, filter, arg)
+			} else {
+				serverArgs = appendFilter(serverArgs, filter, arg)
+			}
 		}
 	}
 
-	if len(serverArgs) > 0 {
-		command = trimmed + " " + strings.Join(serverArgs, " ")
+	allServerArgs := make([]string, 0, len(leadingArgs)+len(serverArgs))
+	allServerArgs = append(allServerArgs, leadingArgs...)
+	allServerArgs = append(allServerArgs, serverArgs...)
+	if len(allServerArgs) > 0 {
+		command = trimmed + " " + strings.Join(allServerArgs, " ")
 	}
 
 	return command, clientOps
+}
+
+func validateFilter(filter PipeFilter, arg string) string {
+	arg = strings.TrimSpace(arg)
+	if filter.TakesArg {
+		if arg == "" {
+			return "pipe filter " + filter.Name + " requires an argument"
+		}
+		return ""
+	}
+	if arg != "" {
+		return "pipe filter " + filter.Name + " does not accept an argument"
+	}
+	return ""
+}
+
+func unknownFilterError(command, raw string, set pipeFilterSet) string {
+	name := raw
+	if fields := strings.Fields(raw); len(fields) > 0 {
+		name = fields[0]
+	}
+	valid := set.filterNames()
+	if valid == "" {
+		return "unknown pipe filter for " + command + ": " + name
+	}
+	return "unknown pipe filter for " + command + ": " + name + " (valid: " + valid + ")"
+}
+
+func lookupFilter(set pipeFilterSet, raw string) (PipeFilter, string, bool) {
+	fields := strings.Fields(raw)
+	if len(fields) == 0 {
+		return PipeFilter{}, "", false
+	}
+	filter, ok := set.byName[strings.ToLower(fields[0])]
+	if !ok {
+		return PipeFilter{}, "", false
+	}
+	return filter, strings.Join(fields[1:], " "), true
+}
+
+func appendFilter(args []string, filter PipeFilter, value string) []string {
+	args = append(args, filter.Name)
+	if value != "" {
+		args = append(args, strings.Fields(value)...)
+	}
+	return args
 }
 
 // ApplyPipes runs the output through each pipe operator in order.
@@ -189,6 +248,8 @@ func ApplyPipes(output string, ops []pipeOp) (string, string) {
 			// Display-mode modifier, not a data transform. Handled by caller.
 		case pipeUnknown:
 			return "", "unknown pipe operator: " + op.arg
+		case pipeInvalid:
+			return "", op.arg
 		}
 	}
 	return result, ""
@@ -210,6 +271,9 @@ func HasFormatOp(ops []pipeOp) bool {
 func ValidatePipes(ops []pipeOp) string {
 	formatCount := 0
 	for _, op := range ops {
+		if op.kind == pipeInvalid {
+			return op.arg
+		}
 		if op.kind == pipeUnknown {
 			return "unknown pipe operator: " + op.arg
 		}
@@ -374,11 +438,23 @@ func applyYAML(input string) string {
 // The returned function applies pipe operators (table, json, yaml, match, count)
 // to raw JSON output. If no pipes are present, the formatter returns raw JSON unchanged.
 func ProcessPipes(input string) (command string, format func(string) string) {
+	command, format, errMsg := ProcessPipesChecked(input)
+	if errMsg != "" {
+		return command, func(string) string { return "pipe error: " + errMsg }
+	}
+	return command, format
+}
+
+// ProcessPipesChecked is ProcessPipes with upfront pipe validation.
+func ProcessPipesChecked(input string) (command string, format func(string) string, errMsg string) {
 	command, ops := ParsePipe(input)
-	command, ops = FoldServerPipeline(command, ops)
+	command, ops = FoldFilters(command, ops)
+	if msg := ValidatePipes(ops); msg != "" {
+		return command, nil, msg
+	}
 
 	if len(ops) == 0 {
-		return command, func(s string) string { return s }
+		return command, func(s string) string { return s }, ""
 	}
 
 	return command, func(rawJSON string) string {
@@ -387,7 +463,7 @@ func ProcessPipes(input string) (command string, format func(string) string) {
 			return "pipe error: " + errMsg
 		}
 		return result
-	}
+	}, ""
 }
 
 // PipeFlags captures display-mode and data-transform flags from a pipe chain.
@@ -403,7 +479,7 @@ type PipeFlags struct {
 // Returns a non-empty errMsg if the pipe chain is invalid.
 func ProcessPipesDetectLog(input string) (cmd string, format func(string) string, flags PipeFlags, errMsg string) {
 	cmd, ops := ParsePipe(input)
-	cmd, ops = FoldServerPipeline(cmd, ops)
+	cmd, ops = FoldFilters(cmd, ops)
 
 	if msg := ValidatePipes(ops); msg != "" {
 		return cmd, nil, PipeFlags{}, msg
@@ -469,8 +545,20 @@ func configuredDefault() pipeKind {
 // ProcessPipesDefaultFormat is like ProcessPipes but defaults to the configured
 // format when no explicit format pipe (json, table, yaml, text) is specified.
 func ProcessPipesDefaultFormat(input string) (command string, format func(string) string) {
+	command, format, errMsg := ProcessPipesDefaultFormatChecked(input)
+	if errMsg != "" {
+		return command, func(string) string { return "pipe error: " + errMsg }
+	}
+	return command, format
+}
+
+// ProcessPipesDefaultFormatChecked is ProcessPipesDefaultFormat with upfront pipe validation.
+func ProcessPipesDefaultFormatChecked(input string) (command string, format func(string) string, errMsg string) {
 	command, ops := ParsePipe(input)
-	command, ops = FoldServerPipeline(command, ops)
+	command, ops = FoldFilters(command, ops)
+	if msg := ValidatePipes(ops); msg != "" {
+		return command, nil, msg
+	}
 
 	if !HasFormatOp(ops) {
 		ops = append(ops, pipeOp{kind: configuredDefault()})
@@ -482,7 +570,7 @@ func ProcessPipesDefaultFormat(input string) (command string, format func(string
 			return "pipe error: " + errMsg
 		}
 		return result
-	}
+	}, ""
 }
 
 // ProcessPipesDefaultFunc is like ProcessPipes but applies defaultFn as the
@@ -491,7 +579,7 @@ func ProcessPipesDefaultFormat(input string) (command string, format func(string
 // one-liner for streaming monitors) while still respecting explicit pipes.
 func ProcessPipesDefaultFunc(input string, defaultFn func(string) string) (command string, format func(string) string) {
 	command, ops := ParsePipe(input)
-	command, ops = FoldServerPipeline(command, ops)
+	command, ops = FoldFilters(command, ops)
 
 	if !HasFormatOp(ops) {
 		if len(ops) == 0 {

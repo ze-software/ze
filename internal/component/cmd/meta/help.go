@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
@@ -94,22 +95,41 @@ func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plu
 		return nil, errors.New("usage: command help \"<name>\"")
 	}
 
-	name := args[0]
+	name := strings.Join(args, " ")
 
 	if ctx.Dispatcher() != nil {
 		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
+			data := map[string]any{
+				"command":     cmd.Name,
+				"description": cmd.Help,
+				"source":      sourceBuiltin,
+			}
+			if filters := pipeFilterHelp(command.PipeFiltersForCommand(cmd.Name)); len(filters) > 0 {
+				data["pipe-filters"] = filters
+			}
 			return &plugin.Response{
 				Status: plugin.StatusDone,
-				Data: map[string]any{
-					"command":     cmd.Name,
-					"description": cmd.Help,
-					"source":      sourceBuiltin,
-				},
+				Data:   data,
 			}, nil
 		}
 	}
 
 	return nil, fmt.Errorf("unknown command: %s", name)
+}
+
+func pipeFilterHelp(filters []command.PipeFilter) []map[string]any {
+	if len(filters) == 0 {
+		return nil
+	}
+	items := make([]map[string]any, 0, len(filters))
+	for _, filter := range filters {
+		items = append(items, map[string]any{
+			"name":        filter.Name,
+			"description": filter.Description,
+			"takes-arg":   filter.TakesArg,
+		})
+	}
+	return items
 }
 
 // handleBgpCommandComplete returns completions for commands.

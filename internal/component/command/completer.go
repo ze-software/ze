@@ -61,10 +61,20 @@ var pipeSubArgs = map[string][]Suggestion{
 	},
 }
 
-// CompletePipe returns pipe operator completions matching the partial input.
+// CompletePipe returns global pipe operator completions matching the partial input.
 // When a pipe operator is fully matched (e.g., "json "), returns sub-argument
 // completions instead of repeating the operator.
 func CompletePipe(partial string) []Suggestion {
+	return completePipe(partial, nil)
+}
+
+// CompletePipeForCommand returns global pipe completions plus filters registered
+// by the resolved command.
+func CompletePipeForCommand(command, partial string) []Suggestion {
+	return completePipe(partial, filterSuggestions(command))
+}
+
+func completePipe(partial string, commandFilters []Suggestion) []Suggestion {
 	trimmed := strings.TrimSpace(partial)
 
 	// Check if the first word is a fully matched operator.
@@ -100,14 +110,32 @@ func CompletePipe(partial string) []Suggestion {
 			completions = append(completions, op)
 		}
 	}
+	for _, op := range commandFilters {
+		if pipeSuggestionExists(completions, op.Text) {
+			continue
+		}
+		if trimmed == "" || strings.HasPrefix(op.Text, trimmed) {
+			completions = append(completions, op)
+		}
+	}
 	return completions
+}
+
+func pipeSuggestionExists(items []Suggestion, text string) bool {
+	for _, item := range items {
+		if item.Text == text {
+			return true
+		}
+	}
+	return false
 }
 
 // Complete returns completions for the given input.
 func (c *TreeCompleter) Complete(input string) []Suggestion {
 	// After a pipe character, complete pipe operators.
 	if pipeIdx := strings.LastIndex(input, "|"); pipeIdx >= 0 {
-		return CompletePipe(input[pipeIdx+1:])
+		base, _, _ := strings.Cut(input, "|")
+		return CompletePipeForCommand(base, input[pipeIdx+1:])
 	}
 
 	if c.root == nil || c.root.Children == nil {

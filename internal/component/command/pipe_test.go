@@ -317,91 +317,227 @@ func TestApplyPipesCountOfCount(t *testing.T) {
 	}
 }
 
-// VALIDATES: FoldServerPipeline folds pipe segments into rib routes command args.
-// PREVENTS: server-side pipeline keywords being treated as unknown client ops.
-func TestFoldServerPipeline(t *testing.T) {
+// VALIDATES: FoldFilters folds registered filters into command args.
+// PREVENTS: filters being hardcoded in generic pipe code.
+func TestFoldFilters(t *testing.T) {
+	ResetPipeFiltersForTest()
+	t.Cleanup(ResetPipeFiltersForTest)
+	RegisterPipeFilters([]string{"show routes"},
+		PipeFilter{Name: "first", Description: "first source", Leading: true},
+		PipeFilter{Name: "second", Description: "second source", Leading: true},
+		PipeFilter{Name: "path", Description: "AS path", TakesArg: true},
+		PipeFilter{Name: "match", Description: "structured match", TakesArg: true},
+		PipeFilter{Name: "count", Description: "count routes"},
+	)
+	RegisterPipeFilters([]string{"show routes status"})
+
 	tests := []struct {
-		name       string
-		command    string
-		ops        []pipeOp
-		wantCmd    string
-		wantOpsLen int
+		name    string
+		command string
+		ops     []pipeOp
+		wantCmd string
+		wantOps []pipeKind
 	}{
 		{
-			name:       "non-rib-routes unchanged",
-			command:    "peer list",
-			ops:        []pipeOp{{kind: pipeMatch, arg: "established"}},
-			wantCmd:    "peer list",
-			wantOpsLen: 1,
+			name:    "unregistered command unchanged",
+			command: "peer list",
+			ops:     []pipeOp{{kind: pipeMatch, arg: "established"}},
+			wantCmd: "peer list",
+			wantOps: []pipeKind{pipeMatch},
 		},
 		{
-			name:       "bgp rib routes with path filter",
-			command:    "bgp rib routes received",
-			ops:        []pipeOp{{kind: pipeUnknown, arg: "path 65001"}},
-			wantCmd:    "bgp rib routes received path 65001",
-			wantOpsLen: 0,
+			name:    "registered command with path filter",
+			command: "show routes first",
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "path 65001"}},
+			wantCmd: "show routes first path 65001",
 		},
 		{
-			name:       "bgp rib routes with count terminal",
-			command:    "bgp rib routes",
-			ops:        []pipeOp{{kind: pipeCount}},
-			wantCmd:    "bgp rib routes count",
-			wantOpsLen: 0,
+			name:    "registered command rejects unknown filter",
+			command: "show routes",
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "bogus"}},
+			wantCmd: "show routes",
+			wantOps: []pipeKind{pipeInvalid},
 		},
 		{
-			name:       "bgp rib routes with match filter",
-			command:    "bgp rib routes received",
-			ops:        []pipeOp{{kind: pipeMatch, arg: "10.0.0.0"}},
-			wantCmd:    "bgp rib routes received match 10.0.0.0",
-			wantOpsLen: 0,
+			name:    "registered command rejects missing filter argument",
+			command: "show routes",
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "path"}},
+			wantCmd: "show routes",
+			wantOps: []pipeKind{pipeInvalid},
 		},
 		{
-			name:       "bgp rib routes keeps no-more client-side",
-			command:    "bgp rib routes",
-			ops:        []pipeOp{{kind: pipeUnknown, arg: "path 65001"}, {kind: pipeNoMore}},
-			wantCmd:    "bgp rib routes path 65001",
-			wantOpsLen: 1,
+			name:    "registered command rejects extra flag argument",
+			command: "show routes",
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "first unexpected"}},
+			wantCmd: "show routes",
+			wantOps: []pipeKind{pipeInvalid},
 		},
 		{
-			name:       "bgp rib routes keeps table client-side",
-			command:    "bgp rib routes received",
-			ops:        []pipeOp{{kind: pipeCount}, {kind: pipeTable}},
-			wantCmd:    "bgp rib routes received count",
-			wantOpsLen: 1,
+			name:    "registered command with count terminal",
+			command: "show routes",
+			ops:     []pipeOp{{kind: pipeCount}},
+			wantCmd: "show routes count",
 		},
 		{
-			name:       "bgp rib routes with json terminal",
-			command:    "bgp rib routes",
-			ops:        []pipeOp{{kind: pipeJSON, arg: jsonPretty}},
-			wantCmd:    "bgp rib routes json",
-			wantOpsLen: 0,
+			name:    "registered command reorders leading selector",
+			command: "show routes",
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "path 65001"}, {kind: pipeUnknown, arg: "second"}},
+			wantCmd: "show routes second path 65001",
 		},
 		{
-			name:       "bgp rib show best with path filter",
-			command:    "bgp rib show best",
-			ops:        []pipeOp{{kind: pipeUnknown, arg: "path 65001"}},
-			wantCmd:    "bgp rib show best path 65001",
-			wantOpsLen: 0,
+			name:    "match folded server-side when registered",
+			command: "show routes",
+			ops:     []pipeOp{{kind: pipeMatch, arg: "10.0.0.0"}},
+			wantCmd: "show routes match 10.0.0.0",
+		},
+		{
+			name:    "match stays client-side when not registered",
+			command: "peer list",
+			ops:     []pipeOp{{kind: pipeMatch, arg: "established"}},
+			wantCmd: "peer list",
+			wantOps: []pipeKind{pipeMatch},
+		},
+		{
+			name:    "registered command keeps no-more client-side",
+			command: "show routes",
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "path 65001"}, {kind: pipeNoMore}},
+			wantCmd: "show routes path 65001",
+			wantOps: []pipeKind{pipeNoMore},
+		},
+		{
+			name:    "registered command keeps table client-side",
+			command: "show routes first",
+			ops:     []pipeOp{{kind: pipeCount}, {kind: pipeTable}},
+			wantCmd: "show routes first count",
+			wantOps: []pipeKind{pipeTable},
+		},
+		{
+			name:    "registered command keeps json client-side",
+			command: "show routes",
+			ops:     []pipeOp{{kind: pipeJSON, arg: jsonPretty}},
+			wantCmd: "show routes",
+			wantOps: []pipeKind{pipeJSON},
+		},
+		{
+			name:    "more specific command with empty registration keeps count client-side",
+			command: "show routes status",
+			ops:     []pipeOp{{kind: pipeCount}},
+			wantCmd: "show routes status",
+			wantOps: []pipeKind{pipeCount},
+		},
+		{
+			name:    "more specific command with empty registration rejects route filters as generic unknowns",
+			command: "show routes status",
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "first"}},
+			wantCmd: "show routes status",
+			wantOps: []pipeKind{pipeUnknown},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd, ops := FoldServerPipeline(tt.command, tt.ops)
+			cmd, ops := FoldFilters(tt.command, tt.ops)
 			if cmd != tt.wantCmd {
 				t.Errorf("command = %q, want %q", cmd, tt.wantCmd)
 			}
-			if len(ops) != tt.wantOpsLen {
-				t.Errorf("got %d client ops, want %d", len(ops), tt.wantOpsLen)
+			if len(ops) != len(tt.wantOps) {
+				t.Fatalf("got %d client ops, want %d", len(ops), len(tt.wantOps))
+			}
+			for i, want := range tt.wantOps {
+				if ops[i].kind != want {
+					t.Errorf("client op %d = %v, want %v", i, ops[i].kind, want)
+				}
 			}
 		})
+	}
+}
+
+// VALIDATES: pipe validation reports metadata-derived errors.
+// PREVENTS: typos being forwarded as server arguments after a pipe.
+func TestFoldFiltersValidationErrors(t *testing.T) {
+	ResetPipeFiltersForTest()
+	t.Cleanup(ResetPipeFiltersForTest)
+	RegisterPipeFilters([]string{"show routes"},
+		PipeFilter{Name: "received", Description: "received source", Leading: true},
+		PipeFilter{Name: "path", Description: "AS path", TakesArg: true},
+	)
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "unknown filter lists registered filters",
+			input: "show routes | bogus",
+			want:  "unknown pipe filter for show routes: bogus (valid: path, received)",
+		},
+		{
+			name:  "missing argument",
+			input: "show routes | path",
+			want:  "pipe filter path requires an argument",
+		},
+		{
+			name:  "extra argument",
+			input: "show routes | received now",
+			want:  "pipe filter received does not accept an argument",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd, ops := ParsePipe(tt.input)
+			_, ops = FoldFilters(cmd, ops)
+			if got := ValidatePipes(ops); got != tt.want {
+				t.Fatalf("validation error = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// VALIDATES: checked pipe processing returns validation errors before formatting.
+// PREVENTS: invalid filters dispatching the base command first.
+func TestProcessPipesChecked_InvalidFilter(t *testing.T) {
+	ResetPipeFiltersForTest()
+	t.Cleanup(ResetPipeFiltersForTest)
+	RegisterPipeFilters([]string{"show routes"}, PipeFilter{Name: "path", Description: "AS path", TakesArg: true})
+
+	cmd, format, errMsg := ProcessPipesChecked("show routes | bogus")
+	if cmd != "show routes" {
+		t.Fatalf("command = %q, want show routes", cmd)
+	}
+	if format != nil {
+		t.Fatal("format should be nil on validation error")
+	}
+	if errMsg != "unknown pipe filter for show routes: bogus (valid: path)" {
+		t.Fatalf("error = %q", errMsg)
+	}
+}
+
+// VALIDATES: display pipes stay client-side when server filters are folded.
+// PREVENTS: explicit JSON output being reformatted by the interactive default formatter.
+func TestProcessPipesDefaultFormat_FilterKeepsJSON(t *testing.T) {
+	ResetPipeFiltersForTest()
+	t.Cleanup(ResetPipeFiltersForTest)
+	RegisterPipeFilters([]string{"show routes"}, PipeFilter{Name: "count", Description: "count routes"})
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	cmd, format := ProcessPipesDefaultFormat("show routes | count | json")
+	if cmd != "show routes count" {
+		t.Fatalf("command = %q, want %q", cmd, "show routes count")
+	}
+
+	result := format(`{"count":2}`)
+	if !strings.Contains(result, `"count": 2`) {
+		t.Fatalf("expected JSON output, got %q", result)
 	}
 }
 
 // VALIDATES: parsePipe preserves full segment text for unknown ops.
 // PREVENTS: loss of filter arguments (e.g., "path 65001" becomes just "path").
 func TestParsePipeUnknownPreservesArgs(t *testing.T) {
-	_, ops := ParsePipe("bgp rib routes | path 65001")
+	_, ops := ParsePipe("show routes | path 65001")
 	if len(ops) != 1 {
 		t.Fatalf("got %d ops, want 1", len(ops))
 	}
