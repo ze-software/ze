@@ -132,6 +132,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkStoreIntegrity()...)
 	diags = append(diags, checkSystemdServiceInstall(platform)...)
 	diags = append(diags, checkMachineID(platform)...)
+	diags = append(diags, checkRandomSeed(platform)...)
 
 	configData, configName, err := loadConfigData(store, configPath)
 	if err != nil {

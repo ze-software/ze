@@ -447,4 +447,10 @@ var builtinCodes = []CodeMeta{
 		Description: "A configured HTTP/HTTPS config archive destination did not respond to an HTTP HEAD probe within the timeout.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-archive-unreachable"},
 	},
+	{
+		Code:        "doctor-random-seed",
+		Title:       "No random seed persistence",
+		Description: "The platform has no known random-seed persistence service. On gokrazy, randomd saves to /perm/random.seed; on systemd, systemd-random-seed.service saves to /var/lib/systemd/random-seed. Without seed persistence, early-boot entropy may be poor, weakening cryptographic operations like BGP TCP-AO or TLS key generation.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-random-seed"},
+	},
 }

@@ -249,6 +249,67 @@ func TestCheckKernelModules_L2TPOneAccepted(t *testing.T) {
 	}
 }
 
+func TestCheckRandomSeedGokrazyMissing(t *testing.T) {
+	oldStat := statPath
+	statPath = func(string) (os.FileInfo, error) { return nil, os.ErrNotExist }
+	t.Cleanup(func() { statPath = oldStat })
+
+	diags := checkRandomSeed(&host.PlatformInfo{Type: host.PlatformGokrazy})
+	requireDiag(t, diags, "doctor-random-seed", diagnostic.SeverityWarning)
+	assert.Contains(t, diags[0].Message, "/perm/random.seed")
+}
+
+func TestCheckRandomSeedGokrazyPresent(t *testing.T) {
+	oldStat := statPath
+	statPath = func(string) (os.FileInfo, error) { return nil, nil }
+	t.Cleanup(func() { statPath = oldStat })
+
+	diags := checkRandomSeed(&host.PlatformInfo{Type: host.PlatformGokrazy})
+	assert.Empty(t, diags)
+}
+
+func TestCheckRandomSeedSystemdMissing(t *testing.T) {
+	oldStat := statPath
+	statPath = func(string) (os.FileInfo, error) { return nil, os.ErrNotExist }
+	t.Cleanup(func() { statPath = oldStat })
+
+	diags := checkRandomSeed(&host.PlatformInfo{Type: host.PlatformSystemd})
+	requireDiag(t, diags, "doctor-random-seed", diagnostic.SeverityWarning)
+	assert.Contains(t, diags[0].Message, "/var/lib/systemd/random-seed")
+}
+
+func TestCheckRandomSeedSystemdPresent(t *testing.T) {
+	oldStat := statPath
+	statPath = func(string) (os.FileInfo, error) { return nil, nil }
+	t.Cleanup(func() { statPath = oldStat })
+
+	diags := checkRandomSeed(&host.PlatformInfo{Type: host.PlatformSystemd})
+	assert.Empty(t, diags)
+}
+
+func TestCheckRandomSeedPlainLinux(t *testing.T) {
+	diags := checkRandomSeed(&host.PlatformInfo{Type: host.PlatformPlainLinux})
+	requireDiag(t, diags, "doctor-random-seed", diagnostic.SeverityWarning)
+	assert.Contains(t, diags[0].Message, "non-systemd Linux")
+}
+
+func TestCheckRandomSeedNilPlatform(t *testing.T) {
+	diags := checkRandomSeed(nil)
+	assert.Empty(t, diags)
+}
+
+func TestCheckRandomSeedPathOverride(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "missing-seed")
+	if err := env.Set(doctorRandomSeedEnv, path); err != nil {
+		t.Fatalf("set %s: %v", doctorRandomSeedEnv, err)
+	}
+	t.Cleanup(func() { _ = env.Set(doctorRandomSeedEnv, "") })
+
+	diags := checkRandomSeed(&host.PlatformInfo{Type: host.PlatformGokrazy})
+	requireDiag(t, diags, "doctor-random-seed", diagnostic.SeverityWarning)
+	assert.Equal(t, path, diags[0].Path)
+}
+
 func TestCheckMachineIDMissingGokrazy(t *testing.T) {
 	// VALIDATES: AC-13 Gokrazy without /etc/machine-id emits doctor-machine-id-missing.
 	// PREVENTS: appliance identity gaps being missed until services need a machine ID.

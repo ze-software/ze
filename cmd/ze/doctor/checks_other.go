@@ -66,6 +66,10 @@ func checkVPPDPDK(_ *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }
 
+func checkRandomSeed(_ *host.PlatformInfo) []diagnostic.Diagnostic {
+	return nil
+}
+
 func checkSmartEnabled(_ *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }

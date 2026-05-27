@@ -32,10 +32,14 @@ const (
 	doctorProcRootEnv    = "ze.test.doctor.procfs-root"
 	doctorNetlinkFailEnv = "ze.test.doctor.netlink-fail"
 	doctorMachineIDEnv   = "ze.test.doctor.machine-id-path"
+	doctorRandomSeedEnv  = "ze.test.doctor.random-seed-path"
 
 	capSysTime      = 25
 	dpdkSysfsDevDir = "/sys/bus/pci/devices"
 	machineIDPath   = "/etc/machine-id"
+
+	gokrazyRandomSeedPath = "/perm/random.seed"
+	systemdRandomSeedPath = "/var/lib/systemd/random-seed"
 )
 
 var _ = env.MustRegister(env.EnvEntry{
@@ -63,6 +67,13 @@ var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorMachineIDEnv,
 	Type:        "string",
 	Description: "Override /etc/machine-id path for doctor functional tests",
+	Private:     true,
+})
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         doctorRandomSeedEnv,
+	Type:        "string",
+	Description: "Override random-seed path for doctor functional tests",
 	Private:     true,
 })
 
@@ -573,6 +584,59 @@ func checkVPPDPDK(tree *config.Tree) []diagnostic.Diagnostic {
 	}
 
 	return diags
+}
+
+func checkRandomSeed(platform *host.PlatformInfo) []diagnostic.Diagnostic {
+	if platform == nil {
+		return nil
+	}
+
+	switch platform.Type {
+	case host.PlatformGokrazy:
+		path := randomSeedPath(gokrazyRandomSeedPath)
+		if _, err := statPath(path); err == nil {
+			return nil
+		}
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-random-seed",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "gokrazy random seed not found at " + path + "; verify randomd is included in the gokrazy image",
+			Path:     path,
+			Expected: "randomd seed file",
+			Actual:   "missing",
+		}}
+
+	case host.PlatformSystemd:
+		path := randomSeedPath(systemdRandomSeedPath)
+		if _, err := statPath(path); err == nil {
+			return nil
+		}
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-random-seed",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "systemd random seed not found at " + path + "; systemd-random-seed.service may not be enabled",
+			Path:     path,
+			Expected: "systemd-random-seed.service seed file",
+			Actual:   "missing",
+		}}
+
+	case host.PlatformPlainLinux:
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-random-seed",
+			Severity: diagnostic.SeverityWarning,
+			Message:  "non-systemd Linux without a known random-seed service; early-boot entropy may be insufficient for cryptographic operations",
+		}}
+
+	default:
+		return nil
+	}
+}
+
+func randomSeedPath(defaultPath string) string {
+	if override := strings.TrimSpace(env.Get(doctorRandomSeedEnv)); override != "" {
+		return override
+	}
+	return defaultPath
 }
 
 func checkSmartEnabled(tree *config.Tree) []diagnostic.Diagnostic {

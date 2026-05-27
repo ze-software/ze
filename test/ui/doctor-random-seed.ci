@@ -1,0 +1,15 @@
+# Test: ze doctor --json reports missing random seed on gokrazy
+# VALIDATES: ze doctor --json exposes doctor-random-seed through the user entry point.
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=env:var=ze.test.doctor.platform:value=gokrazy
+option=env:var=ze.test.doctor.random-seed-path:value=missing-random-seed
+
+tmpfs=empty.conf:terminator=EOF_CONF
+# empty config
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json empty.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-random-seed
+expect=stdout:contains="diagnostics"

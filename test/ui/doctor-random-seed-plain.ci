@@ -1,0 +1,13 @@
+# Test: ze doctor --json reports missing random seed on plain Linux
+# VALIDATES: ze doctor --json exposes doctor-random-seed on non-systemd minimal Linux.
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=env:var=ze.test.doctor.platform:value=plain-linux
+
+tmpfs=empty.conf:terminator=EOF_CONF
+# empty config
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json empty.conf
+expect=stdout:contains=doctor-random-seed
+expect=stdout:contains="diagnostics"

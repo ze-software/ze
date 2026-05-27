@@ -1009,10 +1009,12 @@ func TestCheckCoherenceNilPlatform(t *testing.T) {
 	diags = append(diags, checkWritableDestinations(ntpPersistTree("/perm/ze/timefile"), nil)...)
 	diags = append(diags, checkResolvConfPath(resolvConfTree("/tmp/resolv.conf"), nil)...)
 	diags = append(diags, checkMachineID(nil)...)
+	diags = append(diags, checkRandomSeed(nil)...)
 
 	assertNoDiagCode(t, diags, "doctor-clock-no-sync")
 	assertNoDiagCode(t, diags, "doctor-config-platform-mismatch")
 	assertNoDiagCode(t, diags, "doctor-machine-id-missing")
+	assertNoDiagCode(t, diags, "doctor-random-seed")
 }
 
 // --- Config reference tests ---
@@ -1478,6 +1480,7 @@ func TestDoctorImprovementsCodesRegistered_Extended(t *testing.T) {
 		"doctor-vpp-dpdk",
 		"doctor-update-check-unreachable",
 		"doctor-archive-unreachable",
+		"doctor-random-seed",
 	} {
 		meta := diagnostic.Lookup(code)
 		require.NotNil(t, meta, "%s code must be registered", code)
@@ -1536,6 +1539,7 @@ func TestDoctorDependencyInventory(t *testing.T) {
 		"coherence/clock-sync":    "doctor-clock-no-sync",
 		"coherence/machine-id":    "doctor-machine-id-missing",
 		"coherence/platform-path": "doctor-config-platform-mismatch",
+		"coherence/random-seed":   "doctor-random-seed",
 		"config/references":       "doctor-config-reference",
 		"config/semantic":         "config-mcp-invalid",
 	}
@@ -1551,7 +1555,7 @@ func TestDoctorDependencyInventory(t *testing.T) {
 		assert.NotNilf(t, meta, "dependency %s maps to unregistered code %s", dep, code)
 	}
 
-	const expectedTotal = 53
+	const expectedTotal = 54
 	total := len(covered) + len(excluded)
 	assert.Equal(t, expectedTotal, total,
 		"dependency inventory changed; update covered or excluded map (got %d)", total)
