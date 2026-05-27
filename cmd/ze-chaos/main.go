@@ -153,7 +153,8 @@ func run(args []string) int {
 	duration := fs.Duration("duration", 0, "Max runtime (0 = run forever until Ctrl-C)")
 	warmup := fs.Duration("warmup", 5*time.Second, "Time before chaos starts")
 	zePID := fs.Int("ze-pid", 0, "Ze process PID (for config-reload chaos events)")
-	zeBinary := fs.String("ze", "", "Path to ze binary for plugin run directives (default: ze from PATH)")
+	application := fs.String("application", "ze", "Target BGP daemon: ze, frr, bird")
+	daemonBinary := fs.String("binary", "", "Path to daemon binary (default: auto-discover based on --application)")
 	inProcess := fs.Bool("in-process", false, "Run reactor in-process with mock network and virtual clock")
 	configOnly := fs.Bool("config-only", false, "Generate config and exit (no orchestrator)")
 	pipe := fs.Bool("pipe", false, "Write config to stdout for piping (ze-chaos --pipe | ze -)")
@@ -162,10 +163,12 @@ func run(args []string) int {
 		fmt.Fprintf(os.Stderr, `ze-chaos - Chaos monkey for Ze BGP route server testing
 
 Usage:
-  ze-chaos [options]                Run with forked ze (default)
-  ze-chaos --pipe [options] | ze -  Pipe config to ze (old behavior)
-  ze-chaos --config-only            Generate config to stdout and exit
-  ze-chaos --config-out chaos.conf  Write config to file (start ze separately)
+  ze-chaos [options]                        Run with forked ze (default)
+  ze-chaos --application frr [options]      Run with forked FRR bgpd
+  ze-chaos --application bird [options]     Run with forked BIRD
+  ze-chaos --pipe [options] | ze -          Pipe config to ze (old behavior)
+  ze-chaos --config-only                    Generate config to stdout and exit
+  ze-chaos --config-only --application frr  Generate FRR config to stdout
 
 Scenario:
   --seed <uint64>            Deterministic seed (default: random, always printed)
@@ -231,11 +234,14 @@ Ze Services (injected into generated config):
   --lg <port>                Enable Ze looking glass on port (127.0.0.1)
   --ze-mcp <port>            Enable Ze MCP server on port (127.0.0.1)
 
+Target:
+  --application <name>       Target daemon: ze (default), frr, bird
+  --binary <path>            Path to daemon binary (default: auto-discover)
+
 Control:
   --duration <dur>           Max runtime (default: 0 = run forever until Ctrl-C)
   --warmup <dur>             Time before chaos starts (default: 5s)
   --ze-pid <N>               Ze process PID (for config-reload chaos events)
-  --ze <path>                Path to ze binary for plugin run directives (default: ze from PATH)
   --in-process               Run reactor in-process (mock network, virtual clock)
   --config-only              Generate config and exit (no orchestrator)
   --pipe                     Write config to stdout for piping (ze-chaos --pipe | ze -)
@@ -300,6 +306,40 @@ Control:
 	if *configOnly && *inProcess {
 		fmt.Fprintf(os.Stderr, "error: --config-only and --in-process are mutually exclusive\n")
 		return 1
+	}
+
+	// Parse --application into a Target.
+	target, targetErr := scenario.ParseTarget(*application)
+	if targetErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", targetErr)
+		return 1
+	}
+
+	if target != scenario.TargetZe && *pipe {
+		fmt.Fprintf(os.Stderr, "error: --pipe is only supported with --application ze\n")
+		return 1
+	}
+	if target != scenario.TargetZe && *inProcess {
+		fmt.Fprintf(os.Stderr, "error: --in-process is only supported with --application ze\n")
+		return 1
+	}
+
+	if target != scenario.TargetZe {
+		if *sshPort > 0 {
+			fmt.Fprintf(os.Stderr, "warning: --ssh is ignored with --application %s\n", *application)
+		}
+		if *webUIPort > 0 {
+			fmt.Fprintf(os.Stderr, "warning: --web-ui is ignored with --application %s\n", *application)
+		}
+		if *lgPort > 0 {
+			fmt.Fprintf(os.Stderr, "warning: --lg is ignored with --application %s\n", *application)
+		}
+		if *zeMCPPort > 0 {
+			fmt.Fprintf(os.Stderr, "warning: --ze-mcp is ignored with --application %s\n", *application)
+		}
+		if *debugAddr != "" {
+			fmt.Fprintf(os.Stderr, "warning: --ze-pprof is ignored with --application %s\n", *application)
+		}
 	}
 
 	// Warn if --properties is set in non-live modes (it has no effect there).
@@ -478,25 +518,24 @@ Control:
 		return 1
 	}
 
-	// Auto-discover ze binary: if --ze is not set, look for "ze" next to
-	// the running binary (e.g., ./bin/ze-chaos → ./bin/ze). This avoids
-	// requiring ze in PATH when both binaries are built to the same directory.
-	if *zeBinary == "" {
+	// Auto-discover daemon binary: if --binary is not set, look for the
+	// target's default binary next to the running binary first, then PATH.
+	if *daemonBinary == "" && target == scenario.TargetZe {
 		if exe, exeErr := os.Executable(); exeErr == nil {
-			candidate := filepath.Join(filepath.Dir(exe), "ze")
+			candidate := filepath.Join(filepath.Dir(exe), target.DefaultBinary())
 			if _, statErr := os.Stat(candidate); statErr == nil {
-				*zeBinary = candidate
+				*daemonBinary = candidate
 			}
 		}
 	}
 
-	// Generate and output Ze config.
+	// Generate config for the target daemon.
 	configParams := scenario.ConfigParams{
 		LocalAS:   65000,
 		RouterID:  netip.MustParseAddr("10.0.0.1"),
 		LocalAddr: *localAddr,
 		BasePort:  *port,
-		ZeBinary:  *zeBinary,
+		ZeBinary:  *daemonBinary,
 		Profiles:  profiles,
 		PprofAddr: *debugAddr,
 		SSHPort:   *sshPort,
@@ -504,17 +543,26 @@ Control:
 		LGPort:    *lgPort,
 		MCPPort:   *zeMCPPort,
 	}
-	zeConfig := scenario.GenerateConfig(configParams)
+
+	var daemonConfig string
+	switch target {
+	case scenario.TargetFRR:
+		daemonConfig = scenario.GenerateFRRConfig(configParams)
+	case scenario.TargetBIRD:
+		daemonConfig = scenario.GenerateBIRDConfig(configParams)
+	default:
+		daemonConfig = scenario.GenerateConfig(configParams)
+	}
 
 	// Config-only mode: output config and exit (no orchestrator).
 	if *configOnly {
 		if *configOut != "" {
-			if err := os.WriteFile(*configOut, []byte(zeConfig), 0o600); err != nil {
+			if err := os.WriteFile(*configOut, []byte(daemonConfig), 0o600); err != nil {
 				fmt.Fprintf(os.Stderr, "error: writing config: %v\n", err)
 				return 1
 			}
 		} else {
-			fmt.Print(zeConfig)
+			fmt.Print(daemonConfig)
 		}
 		if !*quiet {
 			fmt.Fprint(os.Stderr, scenario.PeerSummary(configParams))
@@ -538,7 +586,7 @@ Control:
 	// Write config for pipe, config-out, and in-process modes.
 	// Fork mode (default) pipes config to the child process instead.
 	if *pipe || *configOut != "" || *inProcess {
-		if writeErr := writeConfig(zeConfig, configParams, *configOut, *quiet); writeErr != nil {
+		if writeErr := writeConfig(daemonConfig, configParams, *configOut, *quiet); writeErr != nil {
 			fmt.Fprintf(os.Stderr, "error: writing config: %v\n", writeErr)
 			return 1
 		}
@@ -655,11 +703,15 @@ Control:
 		return 0
 	}
 
-	// Fork mode (default): start ze as a child process with stdin pipe.
+	// Fork mode (default): start the daemon as a child process.
 	var child *zeChild
 	if !*pipe && *configOut == "" {
 		var forkErr error
-		child, forkErr = forkZe(context.Background(), zeConfig, *zeBinary)
+		if target == scenario.TargetZe {
+			child, forkErr = forkZe(context.Background(), daemonConfig, *daemonBinary)
+		} else {
+			child, forkErr = forkDaemon(context.Background(), daemonConfig, *daemonBinary, target, *port, *localAddr)
+		}
 		if forkErr != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", forkErr)
 			return 1
@@ -757,6 +809,7 @@ Control:
 		start := time.Now()
 		orchCfg := orchestratorConfig{
 			profiles:            profiles,
+			target:              target,
 			seed:                *seed,
 			localAddr:           *localAddr,
 			zePort:              *port,
@@ -776,7 +829,7 @@ Control:
 			onStop:              runCancel,
 		}
 
-		exitCode := runOrchestrator(runCtx, orchCfg)
+		exitCode := runOrchestrator(runCtx, &orchCfg)
 		runCancel()
 
 		// Check for pending restart.

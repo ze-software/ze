@@ -165,6 +165,8 @@ Test patterns, infrastructure, chaos testing.
 - [723](plan/learned/723-chaos-actions-v2.md) -- Parameterized chaos actions: string-map params over typed unions, opt-in scheduling, per-instance weights
 - [787](plan/learned/787-chaos-inprocess-scheduling.md) -- In-process chaos: feed vc.Now() to existing schedulers, reconnectDialer factory for stochastic reconnection, tick-channel pattern
 - [797](plan/learned/797-interop-gap-coverage.md) -- Interop gap coverage: 5 scenarios (RR, policy, RPKI, BMP, max-prefix) with FRR/BIRD/GoBGP peers, concurrent Docker subnet retry, parse coverage for IXP/large-scale/RPKI/redistribution
+- [800](plan/learned/800-bgp-chaos-integration.md) -- Chaos integration tests: fork mode default, run() testability, port auto-allocation
+- [802](plan/learned/802-chaos-multi-target.md) -- Multi-target chaos: FRR/BIRD config gen, temp-file fork, single-port dialing, BIRD channel mapping limits
 
 ## Build/Deployment
 

@@ -50,6 +50,7 @@ type RouteConfig struct {
 // orchestratorConfig holds all parameters for runOrchestrator.
 type orchestratorConfig struct {
 	profiles            []scenario.PeerProfile
+	target              scenario.Target
 	seed                uint64
 	localAddr           string
 	zePort              int

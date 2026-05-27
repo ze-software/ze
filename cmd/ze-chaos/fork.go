@@ -10,6 +10,9 @@ import (
 	"os"
 	"os/exec"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 type zeChild struct {
@@ -17,6 +20,7 @@ type zeChild struct {
 	stdin   io.WriteCloser
 	done    chan struct{}
 	waitErr error
+	tmpFile string
 }
 
 func forkZe(ctx context.Context, config, binary string) (*zeChild, error) {
@@ -24,11 +28,11 @@ func forkZe(ctx context.Context, config, binary string) (*zeChild, error) {
 		var err error
 		binary, err = exec.LookPath("ze")
 		if err != nil {
-			return nil, fmt.Errorf("ze not found in PATH (use --ze to specify): %w", err)
+			return nil, fmt.Errorf("ze not found in PATH (use --binary to specify): %w", err)
 		}
 	}
 
-	cmd := exec.CommandContext(ctx, binary, "-") // #nosec G204 - binary from --ze flag or PATH
+	cmd := exec.CommandContext(ctx, binary, "-") // #nosec G204 - binary from --binary flag or PATH
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -79,19 +83,99 @@ func (z *zeChild) Signal(sig os.Signal) {
 }
 
 func (z *zeChild) Shutdown() {
-	if err := z.stdin.Close(); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: closing ze stdin: %v\n", err)
+	if z.stdin != nil {
+		if err := z.stdin.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: closing stdin: %v\n", err)
+		}
 	}
 	select {
 	case <-z.done:
 		if z.waitErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: ze exited: %v\n", z.waitErr)
+			fmt.Fprintf(os.Stderr, "warning: daemon exited: %v\n", z.waitErr)
 		}
 	case <-time.After(5 * time.Second):
-		fmt.Fprintf(os.Stderr, "warning: ze did not exit within 5s, killing\n")
+		fmt.Fprintf(os.Stderr, "warning: daemon did not exit within 5s, killing\n")
 		if err := z.cmd.Process.Kill(); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: killing ze: %v\n", err)
+			fmt.Fprintf(os.Stderr, "warning: killing daemon: %v\n", err)
 		}
 		<-z.done
 	}
+	if z.tmpFile != "" {
+		if err := os.Remove(z.tmpFile); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: removing temp config: %v\n", err)
+		}
+	}
+}
+
+// forkDaemon launches an external BGP daemon (FRR bgpd or BIRD) with config
+// written to a temp file. The daemon runs in the foreground as a child process.
+func forkDaemon(ctx context.Context, config, binary string, target scenario.Target, port int, localAddr string) (*zeChild, error) {
+	if binary == "" {
+		var err error
+		binary, err = exec.LookPath(target.DefaultBinary())
+		if err != nil {
+			return nil, fmt.Errorf("%s not found in PATH (use --binary to specify): %w", target.DefaultBinary(), err)
+		}
+	}
+
+	tmpFile, err := os.CreateTemp("", "ze-chaos-*.conf")
+	if err != nil {
+		return nil, fmt.Errorf("creating temp config: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+
+	if _, err := tmpFile.WriteString(config); err != nil {
+		if rmErr := os.Remove(tmpPath); rmErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: removing temp config: %v\n", rmErr)
+		}
+		return nil, fmt.Errorf("writing config to %s: %w", tmpPath, err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		if rmErr := os.Remove(tmpPath); rmErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: removing temp config: %v\n", rmErr)
+		}
+		return nil, fmt.Errorf("closing temp config: %w", err)
+	}
+
+	var args []string
+	switch target {
+	case scenario.TargetFRR:
+		args = []string{
+			"-f", tmpPath,
+			"-p", textbuf.Int(int64(port)),
+			"-l", localAddr,
+			"-P", "0",
+		}
+	case scenario.TargetBIRD:
+		ctlPath := tmpPath + ".ctl"
+		args = []string{
+			"-f",
+			"-c", tmpPath,
+			"-s", ctlPath,
+		}
+	default:
+		if rmErr := os.Remove(tmpPath); rmErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: removing temp config: %v\n", rmErr)
+		}
+		return nil, fmt.Errorf("forkDaemon does not support target %q", target)
+	}
+
+	cmd := exec.CommandContext(ctx, binary, args...) // #nosec G204 G702 - binary from --binary flag or PATH
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		if rmErr := os.Remove(tmpPath); rmErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: removing temp config: %v\n", rmErr)
+		}
+		return nil, fmt.Errorf("starting %s: %w", target, err)
+	}
+
+	child := &zeChild{cmd: cmd, done: make(chan struct{}), tmpFile: tmpPath}
+	go func() {
+		child.waitErr = cmd.Wait()
+		close(child.done)
+	}()
+
+	return child, nil
 }

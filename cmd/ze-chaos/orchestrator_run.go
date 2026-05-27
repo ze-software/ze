@@ -27,6 +27,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/watchdog"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/web"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errMcpRequiresWebMcpReadsDashboard = errors.New("--mcp requires --web (MCP reads dashboard state)")
@@ -34,7 +35,7 @@ var errMcpRequiresWebMcpReadsDashboard = errors.New("--mcp requires --web (MCP r
 // runOrchestrator launches N peer simulators and validates route propagation.
 // When chaos is enabled (chaosCfg.Rate > 0), it also starts the chaos scheduler
 // and wraps each peer in a reconnection loop.
-func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
+func runOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 	// Save terminal state before launching subprocesses.
 	// After Ctrl+C, a dying subprocess can leave ONLCR disabled,
 	// causing \n to line-feed without carriage-return (staircase output).
@@ -158,8 +159,16 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 				routeCh = routeChannels[prof.Index]
 			}
 
-			// Each peer dials its unique Ze-facing port on localhost.
-			peerAddr := fmt.Sprintf("%s:%d", cfg.localAddr, prof.ZePort)
+			// Ze uses per-peer ports; FRR/BIRD use a single port with
+			// per-peer source addresses.
+			var peerAddr, srcAddr string
+			var tb textbuf.Buffer
+			if cfg.target.SinglePort() {
+				peerAddr = tb.Reset().Str(cfg.localAddr).Byte(':').Int(int64(cfg.zePort)).String()
+				srcAddr = prof.Address.String()
+			} else {
+				peerAddr = tb.Reset().Str(cfg.localAddr).Byte(':').Int(int64(prof.ZePort)).String()
+			}
 
 			simCfg := peer.SimulatorConfig{
 				Profile: peer.SimProfile{
@@ -173,14 +182,15 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 					Families:   prof.Families,
 					SlowRead:   prof.SlowRead,
 				},
-				Seed:    cfg.seed,
-				Addr:    peerAddr,
-				Events:  events,
-				Chaos:   chaosCh,
-				Routes:  routeCh,
-				ZePID:   cfg.zePID,
-				Verbose: cfg.verbose,
-				Quiet:   cfg.quiet,
+				Seed:      cfg.seed,
+				Addr:      peerAddr,
+				LocalAddr: srcAddr,
+				Events:    events,
+				Chaos:     chaosCh,
+				Routes:    routeCh,
+				ZePID:     cfg.zePID,
+				Verbose:   cfg.verbose,
+				Quiet:     cfg.quiet,
 			}
 
 			if !chaosEnabled {
@@ -395,7 +405,7 @@ type reportingResult struct {
 }
 
 // setupReporting creates the Reporter with optional consumers based on CLI flags.
-func setupReporting(cfg orchestratorConfig, peerCount int) (*reportingResult, error) {
+func setupReporting(cfg *orchestratorConfig, peerCount int) (*reportingResult, error) {
 	var consumers []report.Consumer
 	var cleanups []func()
 	var controlCh chan web.ControlCommand
