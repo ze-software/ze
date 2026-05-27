@@ -186,10 +186,13 @@ func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []stri
 		return `{"adj-rib-in":{}}`
 	}
 
-	_, stages, errMsg := parsePipelineArgs(args)
+	_, pipeSelector, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {
 		data, _ := json.Marshal(map[string]any{"error": errMsg})
 		return string(data)
+	}
+	if pipeSelector != "" {
+		selector = pipeSelector
 	}
 
 	source := PipelineIterator(newProtocolInboundSource(r, protoID, selector))

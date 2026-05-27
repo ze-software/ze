@@ -439,6 +439,64 @@ func TestShowPipelineSentScope(t *testing.T) {
 	assert.Equal(t, float64(1), count, "expected 1 sent route")
 }
 
+// TestShowPipelineAdvertisedScope verifies advertised is the user-facing Adj-RIB-Out scope.
+//
+// VALIDATES: show bgp rib | advertised selects adj-rib-out routes.
+// PREVENTS: operators needing the internal "sent" name for advertised routes.
+func TestShowPipelineAdvertisedScope(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	peerRIB.Insert(family.IPv4Unicast, concatBytes(testWireOriginIGP, testWireNextHop), []byte{24, 10, 0, 0}, true)
+	r.bgpPeers["192.0.2.1"] = peerRIB
+
+	r.ribOut["192.0.2.2"] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
+			"172.16.0.0/24": {Family: family.IPv4Unicast, Prefix: "172.16.0.0/24", NextHop: "10.0.0.1"},
+		},
+	})
+
+	result := r.showPipeline("*", []string{"advertised", "count"})
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	assert.Equal(t, float64(1), parsed["count"], "expected 1 advertised route")
+}
+
+// TestShowPipelineRejectsConflictingDirection verifies received and advertised are exclusive.
+//
+// VALIDATES: route direction filters reject conflicting combinations.
+// PREVENTS: last-one-wins behavior hiding operator mistakes.
+func TestShowPipelineRejectsConflictingDirection(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	result := r.showPipeline("*", []string{"received", "advertised", "count"})
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	assert.Contains(t, parsed["error"], "multiple route direction filters")
+}
+
+// TestShowPipelinePeerFilter verifies peer pipe filter constrains generation.
+//
+// VALIDATES: show bgp rib | received | peer <selector> filters at source selection.
+// PREVENTS: peer pipe filter being treated as a generic text pipe.
+func TestShowPipelinePeerFilter(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	for peer, prefix := range map[string][]byte{
+		"192.0.2.1": {24, 10, 0, 0},
+		"192.0.2.2": {24, 10, 0, 1},
+	} {
+		peerRIB := storage.NewPeerRIB(peer)
+		peerRIB.Insert(family.IPv4Unicast, concatBytes(testWireOriginIGP, testWireNextHop), prefix, true)
+		r.bgpPeers[peer] = peerRIB
+	}
+
+	result := r.showPipeline("*", []string{"received", "peer", "192.0.2.2", "count"})
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	assert.Equal(t, float64(1), parsed["count"], "expected routes from one peer")
+}
+
 // TestShowPipelineComposed verifies composing multiple filters.
 //
 // VALIDATES: Multiple filters compose via pipeline (path + community + count).
@@ -635,12 +693,12 @@ func TestFilterMatchCrossField(t *testing.T) {
 // VALIDATES: path filter with non-numeric ASN returns error from parsePipelineArgs.
 // PREVENTS: invalid ASN silently passing through to matchASPath where it returns false.
 func TestParsePipelineInvalidASN(t *testing.T) {
-	_, _, errMsg := parsePipelineArgs([]string{"path", "abc"})
+	_, _, _, errMsg := parsePipelineArgs([]string{"path", "abc"})
 	assert.NotEmpty(t, errMsg, "expected error for invalid ASN")
 	assert.Contains(t, errMsg, "invalid ASN", "error should mention invalid ASN")
 
 	// Also verify via bestPipelineArgs
-	_, errMsg = parseBestPipelineArgs([]string{"path", "abc"})
+	_, _, errMsg = parseBestPipelineArgs([]string{"path", "abc"})
 	assert.NotEmpty(t, errMsg, "expected error for invalid ASN in best pipeline")
 	assert.Contains(t, errMsg, "invalid ASN", "error should mention invalid ASN")
 }
@@ -684,7 +742,7 @@ func TestFilterMatchCrossFieldInEntry(t *testing.T) {
 // VALIDATES: AC-10 — terminal before filter is invalid.
 // PREVENTS: Silently ignoring filters placed after a terminal stage.
 func TestParsePipelineTerminalBeforeFilter(t *testing.T) {
-	_, _, errMsg := parsePipelineArgs([]string{"count", "path", "64501"})
+	_, _, _, errMsg := parsePipelineArgs([]string{"count", "path", "64501"})
 	assert.Contains(t, errMsg, "filter after terminal")
 }
 
@@ -693,7 +751,7 @@ func TestParsePipelineTerminalBeforeFilter(t *testing.T) {
 // VALIDATES: AC-10 — multiple terminals not allowed.
 // PREVENTS: Ambiguous pipeline with two terminal stages.
 func TestParsePipelineTwoTerminals(t *testing.T) {
-	_, _, errMsg := parsePipelineArgs([]string{"count", "json"})
+	_, _, _, errMsg := parsePipelineArgs([]string{"count", "json"})
 	assert.Contains(t, errMsg, "multiple terminals not allowed")
 }
 
