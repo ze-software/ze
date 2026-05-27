@@ -29,8 +29,14 @@ The `ze-chaos` tool is a chaos simulator that runs multiple BGP peers against a 
 The web dashboard shows real-time peer status, per-family route propagation, convergence progress, and fault triggers. Color coding indicates propagation state: green = complete, orange = partial, red = zero.
 
 ```bash
+# Fork mode (default): ze-chaos starts ze as a child process
+ze-chaos --seed 42 --peers 8 --duration 60s
+
+# Specify ze binary path
+ze-chaos --binary ./bin/ze --seed 42 --peers 8 --duration 60s
+
 # Pipeline mode: config on stdout, diagnostics on stderr
-ze-chaos --ze ./bin/ze --seed 42 --peers 8 --duration 60s | ./bin/ze -
+ze-chaos --pipe --seed 42 --peers 8 --duration 60s | ./bin/ze -
 
 # Write config to file
 ze-chaos --config-out chaos.conf --seed 42 --peers 8
@@ -43,8 +49,89 @@ ze-chaos --in-process --seed 42 --duration 30s
 ze-chaos --in-process --seed 42 --duration 60s --chaos-rate 0.1 --route-rate 0.05
 
 # Multi-family
-ze-chaos --families ipv4/unicast,ipv6/unicast --chaos-rate 0.2 | ./bin/ze -
+ze-chaos --families ipv4/unicast,ipv6/unicast --chaos-rate 0.2 --pipe | ./bin/ze -
 ```
+
+### Multi-Daemon Testing (FRR, BIRD)
+
+ze-chaos can generate configs for and fork FRR (bgpd) or BIRD, so the same
+chaos scenario runs against different BGP implementations.
+
+```bash
+# Generate FRR config to inspect
+ze-chaos --config-only --application frr --seed 42 --peers 4
+
+# Generate BIRD config to inspect
+ze-chaos --config-only --application bird --seed 42 --peers 4
+
+# Fork FRR bgpd (auto-discovers bgpd in PATH)
+ze-chaos --application frr --seed 42 --peers 4 --duration 60s
+
+# Fork BIRD with explicit binary path
+ze-chaos --application bird --binary /usr/sbin/bird --seed 42 --peers 4 --duration 60s
+
+# Write config to file, start daemon manually
+ze-chaos --config-only --application frr --config-out chaos-frr.conf
+bgpd -f chaos-frr.conf -p 1850 -l 127.0.0.1 -P 0 -n -Z -S
+```
+
+FRR and BIRD use a single BGP port with peers identified by source IP address
+(127.0.0.x), unlike Ze's per-peer port model. On Linux, the 127.0.0.0/8 range
+is routed to loopback by default. On macOS, loopback aliases are needed:
+
+```bash
+# macOS only: create loopback aliases for each peer
+for i in $(seq 2 $((peers+1))); do
+  sudo ifconfig lo0 alias 127.0.0.$i
+done
+```
+
+#### Running via Docker
+
+When FRR or BIRD is not installed locally, use Docker. The `--network host`
+flag shares the host network so ze-chaos simulators can connect directly
+(Linux only; macOS Docker Desktop does not support host networking).
+
+```bash
+# Start FRR in Docker, ze-chaos on the host
+ze-chaos --config-only --application frr --seed 42 --peers 4 \
+  --config-out chaos-frr.conf
+docker run --rm --network host \
+  -v ./chaos-frr.conf:/etc/frr/bgpd.conf:ro \
+  quay.io/frrouting/frr:10.3.1 \
+  /usr/lib/frr/bgpd -f /etc/frr/bgpd.conf -p 1850 -l 127.0.0.1 -P 0 -n -Z -S
+
+# In another terminal: run ze-chaos against the FRR instance
+ze-chaos --application frr --seed 42 --peers 4 --duration 60s \
+  --config-out /dev/null
+
+# Same pattern for BIRD
+ze-chaos --config-only --application bird --seed 42 --peers 4 \
+  --config-out chaos-bird.conf
+docker run --rm --network host \
+  -v ./chaos-bird.conf:/etc/bird.conf:ro \
+  --entrypoint bird bird-interop:latest \
+  -f -c /etc/bird.conf -s /tmp/bird.ctl
+```
+
+#### Config Validation (no live session)
+
+Validate generated configs without running a full session:
+
+```bash
+# FRR: -C flag checks config and exits
+ze-chaos --config-only --application frr > frr.conf
+docker run --rm -v ./frr.conf:/etc/frr/bgpd.conf:ro \
+  quay.io/frrouting/frr:10.3.1 \
+  /usr/lib/frr/bgpd -C -f /etc/frr/bgpd.conf -n -Z -S -p 0 -P 0
+
+# BIRD: -p flag parses config and exits
+ze-chaos --config-only --application bird > bird.conf
+docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
+  --entrypoint sh bird-interop:latest \
+  -c 'bird -p -c /etc/bird.conf'
+```
+<!-- source: cmd/ze-chaos/main.go -- --application, --binary flags; internal/chaos/scenario/config_frr.go, config_bird.go -->
 
 ### Event Logging and Replay
 

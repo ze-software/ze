@@ -34,9 +34,9 @@ func TestBIRDConfigStructure(t *testing.T) {
 	config := GenerateBIRDConfig(testBIRDParams())
 
 	assert.Contains(t, config, "router id 10.0.0.1;")
-	assert.Contains(t, config, "listen bgp address 127.0.0.1 port 1179;")
 	assert.Contains(t, config, "protocol device {}")
 	assert.Contains(t, config, "log stderr all;")
+	assert.NotContains(t, config, "listen bgp")
 }
 
 func TestBIRDConfigPeers(t *testing.T) {
@@ -46,9 +46,12 @@ func TestBIRDConfigPeers(t *testing.T) {
 	assert.Contains(t, config, "protocol bgp chaos_peer_1")
 	assert.Contains(t, config, "neighbor 127.0.0.2 as 65001;")
 	assert.Contains(t, config, "neighbor 127.0.0.3 as 65000;")
-	assert.Contains(t, config, "local as 65000;")
+	assert.Contains(t, config, "local 127.0.0.1 port 1179 as 65000;")
 	assert.Equal(t, 2, strings.Count(config, "passive;"))
-	assert.Equal(t, 2, strings.Count(config, "rs client;"))
+	// Peer 0 is eBGP (AS 65001 != local 65000) -> rs client.
+	// Peer 1 is iBGP (AS 65000 == local 65000) -> rr client.
+	assert.Equal(t, 1, strings.Count(config, "rs client;"))
+	assert.Equal(t, 1, strings.Count(config, "rr client;"))
 }
 
 func TestBIRDConfigHoldTime(t *testing.T) {
@@ -96,22 +99,40 @@ func TestBIRDConfigMultiplePeers(t *testing.T) {
 
 func TestBIRDConfigUnsupportedFamilySkipped(t *testing.T) {
 	params := testBIRDParams()
-	params.Profiles[0].Families = []string{"ipv4/unicast", "l2vpn/evpn", "ipv4/multicast", "ipv6/multicast"}
+	params.Profiles[0].Families = []string{"ipv4/unicast", "l2vpn/evpn"}
 
 	config := GenerateBIRDConfig(params)
 
 	peer0 := extractBIRDProtocol(config, "chaos_peer_0")
 	assert.Contains(t, peer0, "ipv4 {")
 	assert.NotContains(t, peer0, "l2vpn")
-	assert.NotContains(t, peer0, "multicast")
 }
 
-func TestBIRDConfigPortEmbedded(t *testing.T) {
+func TestBIRDConfigMulticastChannels(t *testing.T) {
+	params := testBIRDParams()
+	params.Profiles[0].Families = []string{"ipv4/unicast", "ipv4/multicast", "ipv6/multicast"}
+
+	config := GenerateBIRDConfig(params)
+
+	// Table declarations emitted at top level.
+	assert.Contains(t, config, "ipv4 table mrib4;")
+	assert.Contains(t, config, "ipv6 table mrib6;")
+
+	// Multicast channels reference their tables.
+	peer0 := extractBIRDProtocol(config, "chaos_peer_0")
+	assert.Contains(t, peer0, "ipv4 multicast {")
+	assert.Contains(t, peer0, "table mrib4;")
+	assert.Contains(t, peer0, "ipv6 multicast {")
+	assert.Contains(t, peer0, "table mrib6;")
+}
+
+func TestBIRDConfigPortInLocal(t *testing.T) {
 	params := testBIRDParams()
 	params.BasePort = 2179
 
 	config := GenerateBIRDConfig(params)
-	assert.Contains(t, config, "listen bgp address 127.0.0.1 port 2179;")
+	assert.Contains(t, config, "port 2179 as")
+	assert.NotContains(t, config, "listen bgp")
 }
 
 func extractBIRDProtocol(config, name string) string {
