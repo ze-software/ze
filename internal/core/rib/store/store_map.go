@@ -65,6 +65,12 @@ func (s *Store[T]) Iterate(fn func(pfx netip.Prefix, v T) bool) {
 	}
 }
 
+// IterateSorted visits every entry in sorted prefix order. The map backend
+// has no natural order, so this delegates to Iterate.
+func (s *Store[T]) IterateSorted(fn func(pfx netip.Prefix, v T) bool) {
+	s.Iterate(fn)
+}
+
 // Modify calls fn with a pointer to the entry for pfx. Mutations persist.
 // Returns false if the entry is absent.
 func (s *Store[T]) Modify(pfx netip.Prefix, fn func(*T)) bool {

@@ -55,7 +55,7 @@ func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]
 			if !matchesPeer(peer, selector) {
 				continue
 			}
-			peerRIB.Iterate(func(fam family.Family, nlriBytes []byte, _ storage.RouteEntry) bool {
+			peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, _ storage.RouteEntry) bool {
 				fStr := formatFamily(fam)
 				pStr := formatNLRIAsPrefix(fam, nlriBytes, peerRIB.IsAddPath(fam))
 				key := fStr + "|" + string(nlriBytes)
@@ -157,10 +157,13 @@ func (r *RIBManager) bestPipeline(selector string, args []string) string {
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 
-	stages, errMsg := parseBestPipelineArgs(args)
+	pipeSelector, stages, errMsg := parseBestPipelineArgs(args)
 	if errMsg != "" {
 		data, _ := json.Marshal(map[string]any{"error": errMsg})
 		return string(data)
+	}
+	if pipeSelector != "" {
+		selector = pipeSelector
 	}
 
 	// The reason terminal needs access to every candidate (not just the
@@ -227,31 +230,47 @@ func hasReasonTerminal(stages []pipelineStage) bool {
 }
 
 // parseBestPipelineArgs parses args for bgp rib show best (no scope keyword, filters + terminals only).
-// Returns (stages, errorMessage).
+// Returns (peerSelector, stages, errorMessage).
 // Validates ordering: filters must precede terminals, and at most one terminal is allowed.
 //
 // In addition to the generic terminalKeywords accepted across all pipelines,
 // this parser also accepts bestTerminalReason ("reason") which is specific to
 // the best-path pipeline -- it reports WHY a particular path won the per-
 // prefix decision process.
-func parseBestPipelineArgs(args []string) ([]pipelineStage, string) {
+func parseBestPipelineArgs(args []string) (string, []pipelineStage, string) {
+	selector := ""
 	var stages []pipelineStage
 	i := 0
 	sawTerminal := false
 	for i < len(args) {
 		keyword := args[i]
-
-		if filterKeywords[keyword] {
+		if keyword == "peer" {
 			if sawTerminal {
-				return nil, "filter after terminal: " + keyword
+				return "", nil, "filter after terminal: peer"
+			}
+			if selector != "" {
+				return "", nil, "duplicate peer filter"
 			}
 			i++
 			if i >= len(args) {
-				return nil, keyword + " requires a value"
+				return "", nil, "peer requires a value"
+			}
+			selector = args[i]
+			i++
+			continue
+		}
+
+		if filterKeywords[keyword] {
+			if sawTerminal {
+				return "", nil, "filter after terminal: " + keyword
+			}
+			i++
+			if i >= len(args) {
+				return "", nil, keyword + " requires a value"
 			}
 			if keyword == filterPath {
 				if errMsg := validatePathPattern(args[i]); errMsg != "" {
-					return nil, errMsg
+					return "", nil, errMsg
 				}
 			}
 			stages = append(stages, pipelineStage{kind: keyword, arg: args[i]})
@@ -261,7 +280,7 @@ func parseBestPipelineArgs(args []string) ([]pipelineStage, string) {
 
 		if terminalKeywords[keyword] || keyword == bestTerminalReason {
 			if sawTerminal {
-				return nil, "multiple terminals not allowed"
+				return "", nil, "multiple terminals not allowed"
 			}
 			sawTerminal = true
 			stages = append(stages, pipelineStage{kind: keyword, terminal: true})
@@ -269,9 +288,9 @@ func parseBestPipelineArgs(args []string) ([]pipelineStage, string) {
 			continue
 		}
 
-		return nil, "unknown keyword: " + keyword
+		return "", nil, "unknown keyword: " + keyword
 	}
-	return stages, ""
+	return selector, stages, ""
 }
 
 // --- Best-path reason terminal ---

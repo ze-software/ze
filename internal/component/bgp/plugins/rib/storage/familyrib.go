@@ -404,6 +404,16 @@ func (r *FamilyRIB) Len() int {
 // interpreted as bytes and is valid for the duration of that callback only.
 // Callbacks MUST copy if they need to retain it.
 func (r *FamilyRIB) IterateEntry(fn func(nlriBytes []byte, entry RouteEntry) bool) {
+	r.iterateEntry(fn, false)
+}
+
+// IterateEntrySorted is like IterateEntry but CIDR families are visited in
+// numerically sorted prefix order. Non-CIDR families have no natural order.
+func (r *FamilyRIB) IterateEntrySorted(fn func(nlriBytes []byte, entry RouteEntry) bool) {
+	r.iterateEntry(fn, true)
+}
+
+func (r *FamilyRIB) iterateEntry(fn func(nlriBytes []byte, entry RouteEntry) bool, sorted bool) {
 	if !r.cidr {
 		for key, entry := range r.opaque {
 			if !fn([]byte(key), entry) {
@@ -414,7 +424,11 @@ func (r *FamilyRIB) IterateEntry(fn func(nlriBytes []byte, entry RouteEntry) boo
 	}
 	if !r.addPath {
 		var buf [21]byte
-		r.direct.Iterate(func(pfx netip.Prefix, entry RouteEntry) bool {
+		iter := r.direct.Iterate
+		if sorted {
+			iter = r.direct.IterateSorted
+		}
+		iter(func(pfx netip.Prefix, entry RouteEntry) bool {
 			nlri := r.buildNLRIBytes(0, pfx, buf[:])
 			if nlri == nil {
 				return true
@@ -424,7 +438,11 @@ func (r *FamilyRIB) IterateEntry(fn func(nlriBytes []byte, entry RouteEntry) boo
 		return
 	}
 	var buf [21]byte
-	r.multi.Iterate(func(pfx netip.Prefix, ps pathSet) bool {
+	iter := r.multi.Iterate
+	if sorted {
+		iter = r.multi.IterateSorted
+	}
+	iter(func(pfx netip.Prefix, ps pathSet) bool {
 		for i := range ps.entries {
 			nlri := r.buildNLRIBytes(ps.entries[i].pathID, pfx, buf[:])
 			if nlri == nil {

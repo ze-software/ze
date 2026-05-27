@@ -80,6 +80,16 @@ func (s *Store[T]) Iterate(fn func(pfx netip.Prefix, v T) bool) {
 	}
 }
 
+// IterateSorted visits every entry in numerically sorted prefix order.
+// Same cost as Iterate (trie walk, no buffering) but deterministic.
+func (s *Store[T]) IterateSorted(fn func(pfx netip.Prefix, v T) bool) {
+	for pfx, v := range s.trie.AllSorted() {
+		if !fn(pfx, v) {
+			return
+		}
+	}
+}
+
 // Modify calls fn with a pointer to the entry for pfx. The mutated value is
 // written back on return. Returns false if the entry is absent or pfx is
 // invalid.

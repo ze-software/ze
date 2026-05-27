@@ -105,7 +105,7 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 			continue
 		}
 
-		peerRIB.Iterate(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
+		peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
 			prefixStr := formatNLRIAsPrefix(fam, nlriBytes, peerRIB.IsAddPath(fam))
 			s.items = append(s.items, RouteItem{
 				Peer:       peer,
@@ -172,7 +172,7 @@ func (s *protocolInboundSource) Next() (RouteItem, bool) {
 			continue
 		}
 
-		peerRIB.Iterate(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
+		peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
 			prefixStr := formatNLRIAsPrefix(fam, nlriBytes, peerRIB.IsAddPath(fam))
 			s.items = append(s.items, RouteItem{
 				Peer:       peer,
@@ -902,10 +902,13 @@ func (r *RIBManager) showPipeline(selector string, args []string) string {
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 
-	scope, stages, errMsg := parsePipelineArgs(args)
+	scope, pipeSelector, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {
 		data, _ := json.Marshal(map[string]any{"error": errMsg})
 		return string(data)
+	}
+	if pipeSelector != "" {
+		selector = pipeSelector
 	}
 
 	// Create source based on scope
@@ -997,25 +1000,29 @@ var terminalKeywords = map[string]bool{
 
 // scopeKeywords are positional scope keywords (must appear first).
 var scopeKeywords = map[string]string{
+	"advertised":    scopeSent,
 	"sent":          scopeSent,
 	"received":      scopeReceived,
 	"sent-received": scopeSentReceived,
 }
 
-// parsePipelineArgs parses args into scope + ordered stage list.
-// Returns (scope, stages, errorMessage).
+// parsePipelineArgs parses args into scope, selector, and ordered stage list.
+// Returns (scope, peerSelector, stages, errorMessage).
 // Validates ordering: filters must precede terminals, and at most one terminal is allowed.
-func parsePipelineArgs(args []string) (string, []pipelineStage, string) {
+func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) {
 	scope := scopeSentReceived
+	selector := ""
 	var stages []pipelineStage
 
 	i := 0
 	sawTerminal := false
+	scopeName := ""
 
 	// Check for optional scope keyword at position 0
 	if i < len(args) {
 		if s, ok := scopeKeywords[args[i]]; ok {
 			scope = s
+			scopeName = args[i]
 			i++
 		}
 	}
@@ -1023,18 +1030,45 @@ func parsePipelineArgs(args []string) (string, []pipelineStage, string) {
 	// Parse remaining args as filter/terminal stages
 	for i < len(args) {
 		keyword := args[i]
-
-		if filterKeywords[keyword] {
+		if _, ok := scopeKeywords[keyword]; ok {
 			if sawTerminal {
-				return "", nil, "filter after terminal: " + keyword
+				return "", "", nil, "filter after terminal: " + keyword
+			}
+			if scopeName != "" {
+				return "", "", nil, "multiple route direction filters: " + scopeName + " and " + keyword
+			}
+			scope = scopeKeywords[keyword]
+			scopeName = keyword
+			i++
+			continue
+		}
+		if keyword == "peer" {
+			if sawTerminal {
+				return "", "", nil, "filter after terminal: peer"
+			}
+			if selector != "" {
+				return "", "", nil, "duplicate peer filter"
 			}
 			i++
 			if i >= len(args) {
-				return "", nil, keyword + " requires a value"
+				return "", "", nil, "peer requires a value"
+			}
+			selector = args[i]
+			i++
+			continue
+		}
+
+		if filterKeywords[keyword] {
+			if sawTerminal {
+				return "", "", nil, "filter after terminal: " + keyword
+			}
+			i++
+			if i >= len(args) {
+				return "", "", nil, keyword + " requires a value"
 			}
 			if keyword == filterPath {
 				if errMsg := validatePathPattern(args[i]); errMsg != "" {
-					return "", nil, errMsg
+					return "", "", nil, errMsg
 				}
 			}
 			stages = append(stages, pipelineStage{kind: keyword, arg: args[i]})
@@ -1044,7 +1078,7 @@ func parsePipelineArgs(args []string) (string, []pipelineStage, string) {
 
 		if terminalKeywords[keyword] {
 			if sawTerminal {
-				return "", nil, "multiple terminals not allowed"
+				return "", "", nil, "multiple terminals not allowed"
 			}
 			sawTerminal = true
 			stages = append(stages, pipelineStage{kind: keyword, terminal: true})
@@ -1052,10 +1086,10 @@ func parsePipelineArgs(args []string) (string, []pipelineStage, string) {
 			continue
 		}
 
-		return "", nil, "unknown keyword: " + keyword
+		return "", "", nil, "unknown keyword: " + keyword
 	}
 
-	return scope, stages, ""
+	return scope, selector, stages, ""
 }
 
 // hasTerminal returns true if any stage is a terminal.

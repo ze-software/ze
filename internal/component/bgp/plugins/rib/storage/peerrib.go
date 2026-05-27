@@ -135,6 +135,24 @@ func (r *PeerRIB) Iterate(fn func(fam family.Family, nlriBytes []byte, entry Rou
 	}
 }
 
+// IterateSorted is like Iterate but CIDR families are visited in sorted
+// prefix order. Use for user-facing output; Iterate for internal processing.
+func (r *PeerRIB) IterateSorted(fn func(fam family.Family, nlriBytes []byte, entry RouteEntry) bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for fam, rib := range r.families {
+		shouldContinue := true
+		rib.IterateEntrySorted(func(nlriBytes []byte, entry RouteEntry) bool {
+			shouldContinue = fn(fam, nlriBytes, entry)
+			return shouldContinue
+		})
+		if !shouldContinue {
+			return
+		}
+	}
+}
+
 // IterateFamily calls fn for each NLRI in a specific family.
 // Stops if fn returns false.
 func (r *PeerRIB) IterateFamily(fam family.Family, fn func(nlriBytes []byte, entry RouteEntry) bool) {
@@ -146,6 +164,18 @@ func (r *PeerRIB) IterateFamily(fam family.Family, fn func(nlriBytes []byte, ent
 		return
 	}
 	rib.IterateEntry(fn)
+}
+
+// IterateFamilySorted is like IterateFamily but in sorted prefix order.
+func (r *PeerRIB) IterateFamilySorted(fam family.Family, fn func(nlriBytes []byte, entry RouteEntry) bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	rib, exists := r.families[fam]
+	if !exists {
+		return
+	}
+	rib.IterateEntrySorted(fn)
 }
 
 // ModifyFamilyEntry calls fn with a pointer to the entry for the given NLRI in the given family.
