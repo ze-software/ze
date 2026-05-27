@@ -4,6 +4,7 @@ package update
 
 import (
 	"context"
+	"errors"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -35,15 +36,15 @@ func init() {
 	)
 }
 
-func activeSelfUpdater() (*system.SelfUpdater, *plugin.Response) {
-	su := system.ActiveSelfUpdaterInstance()
-	if su == nil {
+func activeBackend() (system.UpdateBackend, *plugin.Response) {
+	backend := system.ActiveBackend()
+	if backend == nil {
 		return nil, &plugin.Response{Status: plugin.StatusError, Data: "update checker not configured"}
 	}
-	return su, nil
+	return backend, nil
 }
 
-func requestContext(ctx *pluginserver.CommandContext) context.Context {
+func reqCtx(ctx *pluginserver.CommandContext) context.Context {
 	if ctx != nil && ctx.RequestContext != nil {
 		return ctx.RequestContext
 	}
@@ -51,15 +52,18 @@ func requestContext(ctx *pluginserver.CommandContext) context.Context {
 }
 
 func handleFirmwareCheck(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	su, errResp := activeSelfUpdater()
+	backend, errResp := activeBackend()
 	if errResp != nil {
 		return errResp, nil
 	}
 
-	su.ManualCheck(requestContext(ctx))
-
-	st := su.ExtendedStatus()
+	ext, err := backend.Check(reqCtx(ctx))
+	if err != nil {
+		return errorResponse(backend, system.FirmwareResult{}, err), nil
+	}
+	st := ext.UpdateStatus
 	data := map[string]any{
+		"backend":          string(backend.Name()),
 		"running-version":  st.RunningVersion,
 		"update-available": st.UpdateAvailable,
 	}
@@ -77,67 +81,79 @@ func handleFirmwareCheck(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 }
 
 func handleFirmwareDownload(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	su, errResp := activeSelfUpdater()
+	backend, errResp := activeBackend()
 	if errResp != nil {
 		return errResp, nil
 	}
 
-	ver, err := su.ManualDownload(requestContext(ctx))
+	res, err := backend.Download(reqCtx(ctx))
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error reported in Response
+		return errorResponse(backend, res, err), nil
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"downloaded-version": ver, "status": "complete"},
+		Data:   res.Map(),
 	}, nil
 }
 
 func handleFirmwareApply(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	su, errResp := activeSelfUpdater()
+	backend, errResp := activeBackend()
 	if errResp != nil {
 		return errResp, nil
 	}
 
-	ver, err := su.ManualApply(requestContext(ctx))
+	res, err := backend.Apply(reqCtx(ctx))
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error reported in Response
+		return errorResponse(backend, res, err), nil
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"applied-version": ver, "status": "restarting"},
+		Data:   res.Map(),
 	}, nil
 }
 
 func handleFirmwareRestart(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	su, errResp := activeSelfUpdater()
+	backend, errResp := activeBackend()
 	if errResp != nil {
 		return errResp, nil
 	}
 
-	if err := su.ManualRestart(); err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error reported in Response
+	res, err := backend.Restart()
+	if err != nil {
+		return errorResponse(backend, res, err), nil
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"status": "restarting"},
+		Data:   res.Map(),
 	}, nil
 }
 
 func handleFirmwareRollback(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	su, errResp := activeSelfUpdater()
+	backend, errResp := activeBackend()
 	if errResp != nil {
 		return errResp, nil
 	}
 
-	if err := su.Rollback(); err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error reported in Response
+	res, err := backend.Rollback()
+	if err != nil {
+		return errorResponse(backend, res, err), nil
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   map[string]any{"status": "rolling back"},
+		Data:   res.Map(),
 	}, nil
+}
+
+func errorResponse(backend system.UpdateBackend, res system.FirmwareResult, err error) *plugin.Response {
+	if errors.Is(err, system.ErrFirmwareUnsupported) {
+		if res.Status == "" {
+			res = system.UnsupportedResult(backend.Name())
+		}
+		return &plugin.Response{Status: plugin.StatusError, Data: res.Map()}
+	}
+	return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}
 }

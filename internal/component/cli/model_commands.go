@@ -972,7 +972,7 @@ func (m *Model) cmdDiscardSession(args []string) (commandResult, error) {
 }
 
 // cmdShowBlame displays blame-annotated configuration with per-line authorship.
-func (m *Model) cmdShowBlame() (commandResult, error) {
+func (m *Model) cmdShowBlame() (commandResult, error) { //nolint:unparam // dispatch table requires (commandResult, error)
 	return commandResult{output: m.editor.BlameView()}, nil
 }
 

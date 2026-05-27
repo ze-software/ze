@@ -322,9 +322,9 @@ module ze-system-conf {
             }
         }
 
-        // Firmware update check and self-update
+        // System update check and platform update backend
         container update-check {
-            description "Firmware version check and self-update";
+            description "System version check and platform update orchestration. On gokrazy, image updates are managed by gokrazy.";
 
             leaf url {
                 type string;
@@ -342,7 +342,7 @@ module ze-system-conf {
             leaf auto-apply {
                 type boolean;
                 default false;
-                description "When true, automatically download, verify, and stage updates. When false, only check and report.";
+                description "When true, automatically download, verify, and stage Ze binary updates on platforms managed by Ze. When false, only check and report.";
             }
 
             leaf spread {

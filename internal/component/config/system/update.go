@@ -27,31 +27,6 @@ const (
 	updateMaxBody      = 64 << 10 // 64 KiB
 )
 
-var (
-	activeCheckerMu sync.RWMutex
-	activeChecker   *UpdateChecker
-)
-
-// ActiveUpdateStatus returns the status of the running update checker,
-// or a zero UpdateStatus if no checker is active.
-func ActiveUpdateStatus() UpdateStatus {
-	activeCheckerMu.RLock()
-	uc := activeChecker
-	activeCheckerMu.RUnlock()
-	if uc == nil {
-		return UpdateStatus{}
-	}
-	return uc.Status()
-}
-
-// SetActiveChecker registers the daemon's update checker for CLI queries.
-// Pass nil to clear.
-func SetActiveChecker(uc *UpdateChecker) {
-	activeCheckerMu.Lock()
-	activeChecker = uc
-	activeCheckerMu.Unlock()
-}
-
 // UpdateStatus holds the last update check result.
 type UpdateStatus struct {
 	LastCheck       time.Time

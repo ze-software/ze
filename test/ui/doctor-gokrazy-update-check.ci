@@ -1,0 +1,20 @@
+# Test: ze doctor warns update-check is ignored on gokrazy
+# VALIDATES: AC-9 and AC-10 gokrazy skips writable self-update warning and reports ignored update-check config.
+# PREVENTS: appliance doctor runs treating Ze self-update config as active on gokrazy.
+
+tmpfs=gokrazy-update-check.conf:terminator=EOF_CONF
+system {
+    update-check {
+        url https://198.51.100.99/version.json
+        auto-apply true
+    }
+}
+EOF_CONF
+
+option=env:var=ze.test.doctor.platform:value=gokrazy
+cmd=foreground:seq=1:exec=ze doctor --json gokrazy-update-check.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-config-platform-mismatch
+expect=stdout:contains=ignored on gokrazy
+reject=stdout:contains=self-update auto-apply: binary parent not writable
+reject=stdout:contains=doctor-update-check-unreachable

@@ -31,7 +31,7 @@ module ze-cli-update-cmd {
 
             container firmware {
                 config false;
-                description "Firmware self-update operations";
+                description "System firmware update operations";
 
                 container check {
                     config false;
@@ -48,7 +48,7 @@ module ze-cli-update-cmd {
                 container apply {
                     config false;
                     ze:command "ze-update:system-firmware-apply";
-                    description "Download+verify+stage+restart (full one-shot cycle)";
+                    description "Download, verify, stage, and restart where Ze manages updates";
                 }
 
                 container restart {
@@ -60,7 +60,7 @@ module ze-cli-update-cmd {
                 container rollback {
                     config false;
                     ze:command "ze-update:system-firmware-rollback";
-                    description "Restore .prev binary and restart";
+                    description "Restore previous Ze binary and restart where supported";
                 }
             }
         }

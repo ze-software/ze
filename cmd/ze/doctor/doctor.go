@@ -188,7 +188,8 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkRPKIServers(tree)...)
 	diags = append(diags, checkBMPCollectors(tree)...)
 	diags = append(diags, checkVPPDPDK(tree)...)
-	diags = append(diags, checkUpdateCheckURL(tree)...)
+	diags = append(diags, checkUpdateCheckURL(tree, platform)...)
+	diags = append(diags, checkUpdateBackendConfig(tree, platform)...)
 	diags = append(diags, checkArchiveDestinations(tree)...)
 	diags = append(diags, checkWritableDestinations(tree, platform)...)
 	diags = append(diags, checkResolvConfPath(tree, platform)...)
@@ -1808,9 +1809,12 @@ func defaultHTTPHead(url string, timeout time.Duration) error {
 	return nil
 }
 
-func checkUpdateCheckURL(tree *config.Tree) []diagnostic.Diagnostic {
+func checkUpdateCheckURL(tree *config.Tree, platform *host.PlatformInfo) []diagnostic.Diagnostic {
 	uc := getContainerPath(tree, "system", "update-check")
 	if uc == nil {
+		return nil
+	}
+	if platform != nil && platform.Type == host.PlatformGokrazy {
 		return nil
 	}
 	url, ok := uc.Get("url")
@@ -1827,6 +1831,22 @@ func checkUpdateCheckURL(tree *config.Tree) []diagnostic.Diagnostic {
 		}}
 	}
 	return nil
+}
+
+func checkUpdateBackendConfig(tree *config.Tree, platform *host.PlatformInfo) []diagnostic.Diagnostic {
+	if platform == nil || platform.Type != host.PlatformGokrazy {
+		return nil
+	}
+	uc := getContainerPath(tree, "system", "update-check")
+	if uc == nil {
+		return nil
+	}
+	return []diagnostic.Diagnostic{{
+		Code:     "doctor-config-platform-mismatch",
+		Severity: diagnostic.SeverityWarning,
+		Message:  "system update-check config is ignored on gokrazy; image updates are managed by gokrazy",
+		Path:     "system/update-check",
+	}}
 }
 
 func checkArchiveDestinations(tree *config.Tree) []diagnostic.Diagnostic {
@@ -1933,6 +1953,9 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 	if uc := getContainerPath(tree, "system", "update-check"); uc != nil {
 		autoApply, _ := uc.Get("auto-apply")
 		if autoApply == configTrueValue {
+			if platform != nil && platform.Type == host.PlatformGokrazy {
+				return diags
+			}
 			if exe, err := os.Executable(); err == nil {
 				dir := filepath.Dir(exe)
 				if writeErr := probeWritable(dir); writeErr != nil {

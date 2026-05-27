@@ -28,6 +28,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
 	zestorage "codeberg.org/thomas-mangin/ze/internal/component/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/telemetry/collector"
+	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/identity"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
@@ -241,135 +242,57 @@ func SetIdentityStore(s identity.Storage) {
 	hubIdentityOnce.Do(func() { hubIdentityStore = s })
 }
 
-// updateStopper is implemented by both UpdateChecker and SelfUpdater.
-type updateStopper interface {
-	Stop()
-	Status() system.UpdateStatus
+func startUpdateChecker(sc *system.SystemConfig) system.UpdateBackend {
+	cfg := system.UpdateCheckConfig{
+		URL:        sc.UpdateCheckURL,
+		Interval:   sc.UpdateCheckInterval,
+		SelfUpdate: sc.UpdateSelfUpdate,
+	}
+	return startBackend(cfg, "started")
 }
 
-// startUpdateChecker starts the periodic firmware update checker if configured.
-// If auto-apply is enabled, starts a SelfUpdater instead. Returns a stopper or nil.
-func startUpdateChecker(sc *system.SystemConfig) updateStopper {
-	if sc.UpdateCheckURL == "" {
+func applyUpdateCheckerFromMap(tree map[string]any) {
+	cfg := system.ExtractUpdateCheckFromMap(tree)
+	stopBackend()
+	startBackend(cfg, "reloaded")
+}
+
+var detectPlatform = sync.OnceValues(host.DetectPlatform)
+
+func startBackend(cfg system.UpdateCheckConfig, action string) system.UpdateBackend {
+	platform, err := detectPlatform()
+	if err != nil {
+		slogutil.Logger("update-check").Warn("platform detection failed", "error", err)
+		platform = &host.PlatformInfo{Type: host.PlatformUnknown}
+	}
+	platformType := platform.Type
+	if platformType != host.PlatformGokrazy && cfg.URL == "" {
+		system.SetActiveBackend(nil)
 		return nil
 	}
-	if err := system.ValidateUpdateCheckURL(sc.UpdateCheckURL); err != nil {
+
+	backend, err := system.NewBackend(platformType, cfg, system.BackendOptions{
+		GokrazySocketPath: coreenv.Get("ze.gokrazy.socket"),
+		IdentityStore:     hubIdentityStore,
+	})
+	if err != nil {
 		slogutil.Logger("update-check").Warn("invalid config", "error", err)
 		return nil
 	}
-	interval := sc.UpdateCheckInterval
-	if interval == 0 {
-		interval = 86400
-	}
 
-	cfg := sc.UpdateSelfUpdate
-	if err := system.ValidateSelfUpdateConfig(cfg); err != nil {
-		slogutil.Logger("self-update").Warn("invalid self-update config", "error", err)
-		return nil
-	}
-	system.WarnConfigConflicts(cfg)
+	backend.Start(context.Background())
+	system.SetActiveBackend(backend)
 
-	if cfg.AutoApply || cfg.RestartImmediate || cfg.RestartTime != "" {
-		su := system.NewSelfUpdater(sc.UpdateCheckURL, interval, cfg, hubIdentityStore)
-		system.SetActiveSelfUpdater(su)
-		system.SetActiveChecker(nil)
-		su.Start(context.Background())
-		activeCheckerMu.Lock()
-		activeCheckerInstance = nil
-		activeSelfUpdaterInstance = su
-		activeCheckerMu.Unlock()
-		slogutil.Logger("self-update").Info("started", "url", sc.UpdateCheckURL, "interval", interval, "auto-apply", cfg.AutoApply)
-		return su
-	}
-
-	uc := system.NewUpdateChecker(sc.UpdateCheckURL, interval)
-	system.SetActiveChecker(uc)
-	uc.Start(context.Background())
-	activeCheckerMu.Lock()
-	activeCheckerInstance = uc
-	activeSelfUpdaterInstance = nil
-	activeCheckerMu.Unlock()
-	slogutil.Logger("update-check").Info("started", "url", sc.UpdateCheckURL, "interval", interval)
-	return uc
+	slogutil.Logger("update-check").Info(action,
+		"backend", backend.Name(), "url", cfg.URL, "interval", cfg.Interval)
+	return backend
 }
 
-// applyUpdateCheckerFromMap restarts the update checker on config reload.
-func applyUpdateCheckerFromMap(tree map[string]any) {
-	cfg := system.ExtractUpdateCheckFromMap(tree)
-
-	activeCheckerMu.Lock()
-	prevChecker := activeCheckerInstance
-	prevSelf := activeSelfUpdaterInstance
-	activeCheckerInstance = nil
-	activeSelfUpdaterInstance = nil
-	activeCheckerMu.Unlock()
-
-	if prevChecker != nil {
-		prevChecker.Stop()
-		system.SetActiveChecker(nil)
-	}
-	if prevSelf != nil {
-		prevSelf.Stop()
-		system.SetActiveSelfUpdater(nil)
-	}
-
-	if cfg.URL == "" {
-		return
-	}
-
-	if err := system.ValidateUpdateCheckURL(cfg.URL); err != nil {
-		slogutil.Logger("update-check").Warn("invalid config on reload", "error", err)
-		return
-	}
-
-	if err := system.ValidateSelfUpdateConfig(cfg.SelfUpdate); err != nil {
-		slogutil.Logger("self-update").Warn("invalid self-update config on reload", "error", err)
-		return
-	}
-	system.WarnConfigConflicts(cfg.SelfUpdate)
-
-	if cfg.SelfUpdate.AutoApply || cfg.SelfUpdate.RestartImmediate || cfg.SelfUpdate.RestartTime != "" {
-		su := system.NewSelfUpdater(cfg.URL, cfg.Interval, cfg.SelfUpdate, hubIdentityStore)
-		system.SetActiveSelfUpdater(su)
-		su.Start(context.Background())
-		activeCheckerMu.Lock()
-		activeSelfUpdaterInstance = su
-		activeCheckerMu.Unlock()
-		slogutil.Logger("self-update").Info("reloaded", "url", cfg.URL, "interval", cfg.Interval)
-		return
-	}
-
-	uc := system.NewUpdateChecker(cfg.URL, cfg.Interval)
-	system.SetActiveChecker(uc)
-	uc.Start(context.Background())
-	activeCheckerMu.Lock()
-	activeCheckerInstance = uc
-	activeCheckerMu.Unlock()
-	slogutil.Logger("update-check").Info("reloaded", "url", cfg.URL, "interval", cfg.Interval)
-}
-
-var (
-	activeCheckerMu           sync.Mutex
-	activeCheckerInstance     *system.UpdateChecker
-	activeSelfUpdaterInstance *system.SelfUpdater
-)
-
-// stopActiveUpdateChecker stops whichever update checker is currently active
-// (whether created at startup or by a reload). Called at daemon shutdown.
-func stopActiveUpdateChecker() {
-	activeCheckerMu.Lock()
-	uc := activeCheckerInstance
-	su := activeSelfUpdaterInstance
-	activeCheckerInstance = nil
-	activeSelfUpdaterInstance = nil
-	activeCheckerMu.Unlock()
-	if uc != nil {
-		uc.Stop()
-		system.SetActiveChecker(nil)
-	}
-	if su != nil {
-		su.Stop()
-		system.SetActiveSelfUpdater(nil)
+func stopBackend() {
+	backend := system.ActiveBackend()
+	system.SetActiveBackend(nil)
+	if backend != nil {
+		backend.Stop()
 	}
 }
 

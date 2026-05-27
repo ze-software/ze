@@ -894,8 +894,7 @@ func (m *Model) dispatchWithPipe(cmdTokens, pipeTokens []string) (commandResult,
 	filters := ParsePipeFilters(pipeTokens)
 
 	cmd := cmdTokens[0]
-	switch cmd {
-	case cmdShow:
+	if cmd == cmdShow {
 		return m.cmdShowPipe(cmdTokens[1:], filters)
 	}
 

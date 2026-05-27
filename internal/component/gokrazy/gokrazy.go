@@ -15,7 +15,6 @@ package gokrazy
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"io"
 	"net"
 	"net/http"
@@ -25,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/gokrazyutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -34,17 +34,13 @@ import (
 // caller wraps this with ze's auth middleware.
 func Handler(socketPath string) http.Handler {
 	if socketPath == "" {
-		socketPath = "/run/gokrazy-http.sock"
+		socketPath = gokrazyutil.DefaultSocketPath
 	}
 
 	logger := slogutil.Logger("gokrazy")
 
-	password := readGokrazyPassword()
-	var authHeader string
-	if password != "" {
-		creds := base64.StdEncoding.EncodeToString([]byte("gokrazy:" + password))
-		authHeader = "Basic " + creds
-	} else {
+	authHeader := gokrazyutil.AuthHeader()
+	if authHeader == "" {
 		logger.Info("gokrazy password not found, proxying without auth injection")
 	}
 
@@ -145,17 +141,4 @@ func rewriteAttr(body []byte, attr string) []byte {
 	body = bytes.ReplaceAll(body, bare, rewritten)
 	body = bytes.ReplaceAll(body, marker, already)
 	return body
-}
-
-// readGokrazyPassword reads the HTTP password from the same locations
-// gokrazy uses: /perm/gokr-pw.txt, /etc/gokr-pw.txt, /gokr-pw.txt.
-// Returns empty string if no password file is found.
-func readGokrazyPassword() string {
-	for _, path := range []string{"/perm/gokr-pw.txt", "/etc/gokr-pw.txt", "/gokr-pw.txt"} {
-		data, err := os.ReadFile(path) //nolint:gosec // paths are hardcoded constants
-		if err == nil {
-			return strings.TrimSpace(string(data))
-		}
-	}
-	return ""
 }

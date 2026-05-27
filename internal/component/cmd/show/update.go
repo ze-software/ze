@@ -13,8 +13,18 @@ func handleShowSystemUpdate(_ *pluginserver.CommandContext, _ []string) (*plugin
 	st := ext.UpdateStatus
 
 	data := map[string]any{
+		"backend":          string(ext.Backend),
 		"running-version":  st.RunningVersion,
 		"update-available": st.UpdateAvailable,
+	}
+	if ext.Message != "" {
+		data["message"] = ext.Message
+	}
+	if ext.Backend == system.BackendGokrazyAB {
+		data["gokrazy-reachable"] = ext.GokrazyReachable
+		if len(ext.GokrazyFeatures) > 0 {
+			data["gokrazy-features"] = ext.GokrazyFeatures
+		}
 	}
 
 	if !st.LastCheck.IsZero() {
@@ -47,6 +57,8 @@ func handleShowSystemUpdate(_ *pluginserver.CommandContext, _ []string) (*plugin
 	data["server-paused"] = ext.ServerPaused
 
 	switch {
+	case ext.StatusText != "":
+		data["status"] = ext.StatusText
 	case ext.DownloadStatus == "staged":
 		data["status"] = "staged"
 	case ext.DownloadStatus == "downloading":
@@ -75,15 +87,15 @@ func handleShowSystemUpdate(_ *pluginserver.CommandContext, _ []string) (*plugin
 }
 
 func handleShowSystemUpdateHistory(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	su := system.ActiveSelfUpdaterInstance()
-	if su == nil {
+	backend := system.ActiveBackend()
+	if backend == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
 			Data:   map[string]any{"history": []any{}, "count": 0},
 		}, nil
 	}
 
-	events := su.History()
+	events := backend.History()
 	rows := make([]map[string]any, 0, len(events))
 	for i := range events {
 		rows = append(rows, map[string]any{

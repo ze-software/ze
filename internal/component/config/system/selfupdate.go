@@ -71,13 +71,18 @@ type extendedManifest struct {
 // ExtendedUpdateStatus holds the full update status including self-update state.
 type ExtendedUpdateStatus struct {
 	UpdateStatus
-	DownloadStatus string
-	DownloadSHA256 string
-	StagedVersion  string
-	StagedPath     string
-	RestartPolicy  string
-	ServerPaused   bool
-	HeldVersion    string
+	Backend          BackendName
+	StatusText       string
+	Message          string
+	GokrazyReachable bool
+	GokrazyFeatures  []string
+	DownloadStatus   string
+	DownloadSHA256   string
+	StagedVersion    string
+	StagedPath       string
+	RestartPolicy    string
+	ServerPaused     bool
+	HeldVersion      string
 }
 
 // SelfUpdater extends UpdateChecker with download/verify/stage/restart logic.
@@ -1103,38 +1108,4 @@ func hashFile(path string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
-}
-
-// --- global active self-updater ---
-
-var (
-	activeSelfUpdaterMu sync.RWMutex
-	activeSelfUpdater   *SelfUpdater
-)
-
-// ActiveSelfUpdaterInstance returns the active self-updater or nil.
-func ActiveSelfUpdaterInstance() *SelfUpdater {
-	activeSelfUpdaterMu.RLock()
-	defer activeSelfUpdaterMu.RUnlock()
-	return activeSelfUpdater
-}
-
-// SetActiveSelfUpdater registers the daemon's self-updater for CLI queries.
-func SetActiveSelfUpdater(su *SelfUpdater) {
-	activeSelfUpdaterMu.Lock()
-	activeSelfUpdater = su
-	activeSelfUpdaterMu.Unlock()
-}
-
-// ActiveExtendedUpdateStatus returns the extended status from the active
-// self-updater, or falls back to the basic update checker status.
-func ActiveExtendedUpdateStatus() ExtendedUpdateStatus {
-	activeSelfUpdaterMu.RLock()
-	su := activeSelfUpdater
-	activeSelfUpdaterMu.RUnlock()
-	if su != nil {
-		return su.ExtendedStatus()
-	}
-	basic := ActiveUpdateStatus()
-	return ExtendedUpdateStatus{UpdateStatus: basic}
 }

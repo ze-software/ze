@@ -1362,14 +1362,14 @@ func TestDoctorUpdateCheckURL_Unreachable(t *testing.T) {
 	uc := system.GetOrCreateContainer("update-check")
 	uc.Set("url", "https://update.example.invalid/version.json")
 
-	diags := checkUpdateCheckURL(tree)
+	diags := checkUpdateCheckURL(tree, testPlatform(host.PlatformPlainLinux))
 	require.Len(t, diags, 1)
 	assert.Equal(t, "doctor-update-check-unreachable", diags[0].Code)
 }
 
 func TestDoctorUpdateCheckURL_NoConfig(t *testing.T) {
 	tree := config.NewTree()
-	diags := checkUpdateCheckURL(tree)
+	diags := checkUpdateCheckURL(tree, nil)
 	assert.Empty(t, diags)
 }
 
