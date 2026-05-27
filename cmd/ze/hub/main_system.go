@@ -28,6 +28,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
 	zestorage "codeberg.org/thomas-mangin/ze/internal/component/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/telemetry/collector"
+	"codeberg.org/thomas-mangin/ze/internal/core/identity"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -229,6 +230,17 @@ func applyConntrackConfig(cc *system.ConntrackConfig, eb ze.EventBus) {
 	}
 }
 
+var (
+	hubIdentityOnce  sync.Once
+	hubIdentityStore identity.Storage
+)
+
+// SetIdentityStore sets the storage backend used for machine identity
+// resolution. Called once at hub startup before startUpdateChecker.
+func SetIdentityStore(s identity.Storage) {
+	hubIdentityOnce.Do(func() { hubIdentityStore = s })
+}
+
 // updateStopper is implemented by both UpdateChecker and SelfUpdater.
 type updateStopper interface {
 	Stop()
@@ -258,7 +270,7 @@ func startUpdateChecker(sc *system.SystemConfig) updateStopper {
 	system.WarnConfigConflicts(cfg)
 
 	if cfg.AutoApply || cfg.RestartImmediate || cfg.RestartTime != "" {
-		su := system.NewSelfUpdater(sc.UpdateCheckURL, interval, cfg)
+		su := system.NewSelfUpdater(sc.UpdateCheckURL, interval, cfg, hubIdentityStore)
 		system.SetActiveSelfUpdater(su)
 		system.SetActiveChecker(nil)
 		su.Start(context.Background())
@@ -317,7 +329,7 @@ func applyUpdateCheckerFromMap(tree map[string]any) {
 	system.WarnConfigConflicts(cfg.SelfUpdate)
 
 	if cfg.SelfUpdate.AutoApply || cfg.SelfUpdate.RestartImmediate || cfg.SelfUpdate.RestartTime != "" {
-		su := system.NewSelfUpdater(cfg.URL, cfg.Interval, cfg.SelfUpdate)
+		su := system.NewSelfUpdater(cfg.URL, cfg.Interval, cfg.SelfUpdate, hubIdentityStore)
 		system.SetActiveSelfUpdater(su)
 		su.Start(context.Background())
 		activeCheckerMu.Lock()

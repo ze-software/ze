@@ -58,7 +58,7 @@ func newTestServer(t *testing.T, manifest map[string]any, binaryContent []byte) 
 
 func newTestUpdater(t *testing.T, serverURL, target string, cfg SelfUpdateConfig) *SelfUpdater {
 	t.Helper()
-	su := NewSelfUpdater(serverURL+"/version.json", 86400, cfg)
+	su := NewSelfUpdater(serverURL+"/version.json", 86400, cfg, nil)
 	su.running = "26.01.01"
 	su.targetPath = target
 	su.restartFunc = func(string) error { return nil }
@@ -166,13 +166,13 @@ func TestSelfUpdateServerPaused(t *testing.T) {
 }
 
 func TestSelfUpdateSpreadDeterministic(t *testing.T) {
-	su1 := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{Spread: 3600})
+	su1 := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{Spread: 3600}, nil)
 	su1.identityFunc = func() string { return "device-A" }
 
-	su2 := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{Spread: 3600})
+	su2 := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{Spread: 3600}, nil)
 	su2.identityFunc = func() string { return "device-A" }
 
-	su3 := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{Spread: 3600})
+	su3 := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{Spread: 3600}, nil)
 	su3.identityFunc = func() string { return "device-B" }
 
 	d1 := su1.computeSpreadDelay("26.05.20")
@@ -239,7 +239,7 @@ func TestSelfUpdateMaintenanceWindowMidnight(t *testing.T) {
 	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{
 		MaintenanceStart: "22:00",
 		MaintenanceEnd:   "06:00",
-	})
+	}, nil)
 
 	// 23:00 should be in window
 	su.nowFunc = func() time.Time { return time.Date(2026, 5, 21, 23, 0, 0, 0, time.UTC) }
@@ -302,7 +302,7 @@ func TestSelfUpdateDiskSpaceCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{})
+	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
 
 	// Should not error for reasonable size (disk is not full)
@@ -315,7 +315,7 @@ func TestSelfUpdateDiskSpaceCheck(t *testing.T) {
 func TestSelfUpdateAtomicRename(t *testing.T) {
 	target := newTestBinary(t)
 
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{})
+	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
 
 	// Create a temp file to stage
@@ -359,7 +359,7 @@ func TestSelfUpdateRollback(t *testing.T) {
 	}
 
 	restarted := false
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{})
+	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
 	su.restartFunc = func(string) error { restarted = true; return nil }
 
@@ -391,7 +391,7 @@ func TestSelfUpdateRollbackNoPrev(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{})
+	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
 	su.restartFunc = func(string) error { return nil }
 
@@ -406,7 +406,7 @@ func TestSelfUpdateRollbackNoPrev(t *testing.T) {
 
 func TestSelfUpdateHistory(t *testing.T) {
 	dir := t.TempDir()
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{})
+	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = filepath.Join(dir, "ze-test")
 	su.nowFunc = func() time.Time { return time.Date(2026, 5, 21, 12, 0, 0, 0, time.UTC) }
 
@@ -484,7 +484,7 @@ func TestSelfUpdateManualBypassesPause(t *testing.T) {
 }
 
 func TestSelfUpdateDownloadURLValidation(t *testing.T) {
-	su := NewSelfUpdater("https://update.example.com/version.json", 86400, SelfUpdateConfig{})
+	su := NewSelfUpdater("https://update.example.com/version.json", 86400, SelfUpdateConfig{}, nil)
 
 	// HTTPS download URL should be accepted
 	_, err := su.resolveDownloadURL(extendedManifest{DownloadURL: "https://cdn.example.com/ze"})
@@ -649,7 +649,7 @@ func TestSelfUpdateStaleCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{})
+	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
 	su.cleanStaleTempFiles()
 
@@ -665,7 +665,7 @@ func TestSelfUpdateHistoryPersist(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "ze-test")
 
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{})
+	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
 	su.nowFunc = func() time.Time { return time.Date(2026, 5, 21, 12, 0, 0, 0, time.UTC) }
 
@@ -673,7 +673,7 @@ func TestSelfUpdateHistoryPersist(t *testing.T) {
 	su.recordEvent("26.05.20", "26.05.21", "failed-checksum")
 
 	// New updater loads from persisted file
-	su2 := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{})
+	su2 := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su2.targetPath = target
 	su2.loadHistory()
 
@@ -699,7 +699,7 @@ func TestSelfUpdateHistoryPersistCorrupt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{})
+	su := NewSelfUpdater("http://localhost/version.json", 86400, SelfUpdateConfig{}, nil)
 	su.targetPath = target
 	su.loadHistory()
 

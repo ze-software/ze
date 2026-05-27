@@ -1008,7 +1008,7 @@ func TestCheckCoherenceNilPlatform(t *testing.T) {
 	diags = append(diags, checkNTPClient(config.NewTree(), nil)...)
 	diags = append(diags, checkWritableDestinations(ntpPersistTree("/perm/ze/timefile"), nil)...)
 	diags = append(diags, checkResolvConfPath(resolvConfTree("/tmp/resolv.conf"), nil)...)
-	diags = append(diags, checkMachineID(nil)...)
+	diags = append(diags, checkMachineID(nil, nil)...)
 	diags = append(diags, checkRandomSeed(nil)...)
 
 	assertNoDiagCode(t, diags, "doctor-clock-no-sync")
@@ -1464,6 +1464,61 @@ func TestDoctorWritableDestinations_SelfUpdate(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "expected self-update auto-apply writable diagnostic")
+}
+
+func TestDoctorGokrazySkipsWritable(t *testing.T) {
+	// VALIDATES: AC-9 ze doctor on gokrazy with auto-apply skips writable-binary warning.
+	// PREVENTS: gokrazy appliances warning about Ze binary replacement when gokrazy owns image updates.
+	withWritableProbe(t, func(string) error { return errors.New("read-only filesystem") })
+
+	tree := config.NewTree()
+	system := tree.GetOrCreateContainer("system")
+	uc := system.GetOrCreateContainer("update-check")
+	uc.Set("url", "https://update.example.com/version.json")
+	uc.Set("auto-apply", "true")
+
+	diags := checkWritableDestinations(tree, testPlatform(host.PlatformGokrazy))
+	for _, diag := range diags {
+		if diag.Code == "doctor-write-destination" && strings.Contains(diag.Message, "self-update") {
+			t.Fatalf("unexpected self-update writable diagnostic on gokrazy: %+v", diag)
+		}
+	}
+}
+
+func TestDoctorGokrazyWarnsIgnoredConfig(t *testing.T) {
+	// VALIDATES: AC-10 ze doctor on gokrazy with update-check config warns that Ze self-update config is ignored.
+	// PREVENTS: operators believing update-check config controls gokrazy image updates.
+	tree := config.NewTree()
+	system := tree.GetOrCreateContainer("system")
+	uc := system.GetOrCreateContainer("update-check")
+	uc.Set("url", "https://update.example.com/version.json")
+
+	diags := checkUpdateBackendConfig(tree, testPlatform(host.PlatformGokrazy))
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-config-platform-mismatch", diags[0].Code)
+	assert.Contains(t, diags[0].Message, "ignored on gokrazy")
+}
+
+func TestDoctorLinuxWritableUnchanged(t *testing.T) {
+	// VALIDATES: AC-11 ze doctor on plain Linux with auto-apply keeps the existing writable-binary check.
+	// PREVENTS: the gokrazy skip from disabling the normal Linux self-update readiness warning.
+	withWritableProbe(t, func(string) error { return errors.New("read-only filesystem") })
+
+	tree := config.NewTree()
+	system := tree.GetOrCreateContainer("system")
+	uc := system.GetOrCreateContainer("update-check")
+	uc.Set("url", "https://update.example.com/version.json")
+	uc.Set("auto-apply", "true")
+
+	diags := checkWritableDestinations(tree, testPlatform(host.PlatformPlainLinux))
+	found := false
+	for _, diag := range diags {
+		if diag.Code == "doctor-write-destination" && strings.Contains(diag.Message, "self-update") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected self-update writable diagnostic on plain Linux")
 }
 
 func TestDoctorImprovementsCodesRegistered_Extended(t *testing.T) {

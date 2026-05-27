@@ -677,6 +677,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	defer stopSmartManager()
 	applyConsole(&sc)
 	applyConntrack(&sc, apiServer)
+	SetIdentityStore(store)
 	startUpdateChecker(&sc)
 	defer stopActiveUpdateChecker()
 	startArchiveScheduler(loadResult.Tree, configPath, apiServer)

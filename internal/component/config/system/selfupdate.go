@@ -4,7 +4,6 @@ package system
 
 import (
 	"context"
-	crand "crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -21,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/identity"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/version"
@@ -111,13 +111,16 @@ type SelfUpdater struct {
 	cancel context.CancelFunc
 	done   chan struct{}
 
+	store        identity.Storage
 	restartFunc  func(binPath string) error
 	nowFunc      func() time.Time
 	identityFunc func() string
 }
 
 // NewSelfUpdater creates a self-updater. Call Start to begin.
-func NewSelfUpdater(url string, intervalSecs uint32, cfg SelfUpdateConfig) *SelfUpdater {
+// The store parameter is used for persisting machine identity in zefs;
+// nil is safe (falls back to filesystem sources).
+func NewSelfUpdater(url string, intervalSecs uint32, cfg SelfUpdateConfig, store identity.Storage) *SelfUpdater {
 	return &SelfUpdater{
 		url:      url,
 		interval: time.Duration(intervalSecs) * time.Second,
@@ -130,6 +133,7 @@ func NewSelfUpdater(url string, intervalSecs uint32, cfg SelfUpdateConfig) *Self
 		spreadFirstSeen: make(map[string]time.Time),
 		restartFunc:     defaultRestart,
 		nowFunc:         time.Now,
+		store:           store,
 	}
 }
 
@@ -882,26 +886,8 @@ func (su *SelfUpdater) resolvedIdentity() string {
 		su.identity = su.identityFunc()
 		return su.identity
 	}
-	su.identity = resolveDeviceIdentity()
+	su.identity = identity.Resolve(su.store)
 	return su.identity
-}
-
-func resolveDeviceIdentity() string {
-	if data, err := os.ReadFile("/etc/machine-id"); err == nil {
-		if id := strings.TrimSpace(string(data)); id != "" {
-			return id
-		}
-	}
-
-	if h, err := os.Hostname(); err == nil && h != "" {
-		return h
-	}
-
-	var buf [16]byte
-	if _, err := io.ReadFull(crand.Reader, buf[:]); err == nil {
-		return hex.EncodeToString(buf[:])
-	}
-	return "unknown"
 }
 
 // --- target resolution ---

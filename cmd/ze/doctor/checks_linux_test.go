@@ -317,7 +317,7 @@ func TestCheckMachineIDMissingGokrazy(t *testing.T) {
 	readFilePath = func(string) ([]byte, error) { return nil, os.ErrNotExist }
 	t.Cleanup(func() { readFilePath = oldRead })
 
-	diags := checkMachineID(&host.PlatformInfo{Type: host.PlatformGokrazy})
+	diags := checkMachineID(&host.PlatformInfo{Type: host.PlatformGokrazy}, nil)
 
 	requireDiag(t, diags, "doctor-machine-id-missing", diagnostic.SeverityWarning)
 }
@@ -329,7 +329,7 @@ func TestCheckMachineIDPresentSystemd(t *testing.T) {
 	readFilePath = func(string) ([]byte, error) { return []byte("00112233445566778899aabbccddeeff\n"), nil }
 	t.Cleanup(func() { readFilePath = oldRead })
 
-	diags := checkMachineID(&host.PlatformInfo{Type: host.PlatformSystemd})
+	diags := checkMachineID(&host.PlatformInfo{Type: host.PlatformSystemd}, nil)
 
 	assert.Empty(t, diags)
 }
@@ -343,7 +343,7 @@ func TestCheckMachineIDPathOverride(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = env.Set(doctorMachineIDEnv, "") })
 
-	diags := checkMachineID(&host.PlatformInfo{Type: host.PlatformGokrazy})
+	diags := checkMachineID(&host.PlatformInfo{Type: host.PlatformGokrazy}, nil)
 
 	requireDiag(t, diags, "doctor-machine-id-missing", diagnostic.SeverityWarning)
 	for i := range diags {

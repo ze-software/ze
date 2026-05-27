@@ -19,10 +19,12 @@ import (
 	"golang.org/x/sys/unix"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/smart"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 const (
@@ -499,7 +501,7 @@ func checkNTPClockPrivilege(tree *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }
 
-func checkMachineID(platform *host.PlatformInfo) []diagnostic.Diagnostic {
+func checkMachineID(platform *host.PlatformInfo, store storage.Storage) []diagnostic.Diagnostic {
 	if platform == nil || (platform.Type != host.PlatformGokrazy && platform.Type != host.PlatformSystemd) {
 		return nil
 	}
@@ -513,12 +515,20 @@ func checkMachineID(platform *host.PlatformInfo) []diagnostic.Diagnostic {
 		return nil
 	}
 
+	if store != nil {
+		if zefsData, zefsErr := store.ReadFile(zefs.KeyMachineID.Pattern); zefsErr == nil {
+			if strings.TrimSpace(string(zefsData)) != "" {
+				return nil
+			}
+		}
+	}
+
 	return []diagnostic.Diagnostic{{
 		Code:     "doctor-machine-id-missing",
 		Severity: diagnostic.SeverityWarning,
 		Message:  "machine-id is missing or empty on " + platform.Type.String(),
 		Path:     path,
-		Expected: "non-empty " + path,
+		Expected: "non-empty " + path + " or zefs meta/instance/machine-id",
 		Actual:   "missing or empty",
 	}}
 }
