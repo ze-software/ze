@@ -1,0 +1,171 @@
+# Test: show pki certificate export commands (pem, bundle pem, fingerprint)
+# Exercises: dispatch-command -> ze-show:pki-certificate-pem, ze-show:pki-certificate-bundle-pem, ze-show:pki-certificate-fingerprint
+# Verifies: PEM output contains certificate header, bundle contains both cert and key, fingerprint is colon-separated hex
+
+# ze-peer: accepts connection
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=asn:value=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=show-pki-export-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+from ze_api import API, runtime_fail
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def check_status(label, resp):
+    status = resp.get('status')
+    if status is None:
+        runtime_fail(f'{label}: dispatch returned no status: {resp}')
+    if status != 'done':
+        runtime_fail(f'{label}: status={status} error={resp.get("error")}')
+    return resp.get('data', '')
+
+def parse_data(label, data):
+    if isinstance(data, str) and data:
+        return json.loads(data)
+    if isinstance(data, dict):
+        return data
+    runtime_fail(f'{label}: expected dict, got {type(data).__name__}')
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    try:
+        # Test 1: show pki certificate dev-1 pem
+        resp = dispatch(api, 'show pki certificate dev-1 pem')
+        data = parse_data('pem', check_status('pem', resp))
+        pem_str = data.get('pem', '')
+        if 'BEGIN CERTIFICATE' not in pem_str:
+            runtime_fail(f'pem: missing certificate header')
+        if 'PRIVATE KEY' in pem_str:
+            runtime_fail(f'pem: should not contain private key')
+        print(f'OK: pki certificate pem returned {len(pem_str)} bytes', file=sys.stderr)
+
+        # Test 2: show pki certificate dev-1 bundle pem
+        resp = dispatch(api, 'show pki certificate dev-1 bundle pem')
+        data = parse_data('bundle', check_status('bundle', resp))
+        bundle_str = data.get('pem', '')
+        if 'BEGIN CERTIFICATE' not in bundle_str:
+            runtime_fail(f'bundle: missing certificate')
+        if 'BEGIN PRIVATE KEY' not in bundle_str:
+            runtime_fail(f'bundle: missing private key')
+        cert_pos = bundle_str.index('BEGIN CERTIFICATE')
+        key_pos = bundle_str.index('BEGIN PRIVATE KEY')
+        if cert_pos > key_pos:
+            runtime_fail(f'bundle: certificate must appear before key')
+        print(f'OK: pki certificate bundle pem returned {len(bundle_str)} bytes', file=sys.stderr)
+
+        # Test 3: show pki certificate dev-1 fingerprint (default sha256)
+        resp = dispatch(api, 'show pki certificate dev-1 fingerprint')
+        data = parse_data('fingerprint', check_status('fingerprint', resp))
+        fp = data.get('fingerprint', '')
+        algo = data.get('algorithm', '')
+        if algo != 'sha256':
+            runtime_fail(f'fingerprint: expected sha256, got {algo}')
+        if ':' not in fp:
+            runtime_fail(f'fingerprint: expected colon-separated, got {fp}')
+        # SHA-256 = 64 hex chars + 31 colons = 95 chars
+        if len(fp) != 95:
+            runtime_fail(f'fingerprint: expected length 95, got {len(fp)}')
+        print(f'OK: pki certificate fingerprint = {fp}', file=sys.stderr)
+
+        # Test 4: show pki certificate test-ca pem (CA cert)
+        resp = dispatch(api, 'show pki certificate test-ca pem')
+        data = parse_data('ca-pem', check_status('ca-pem', resp))
+        ca_pem = data.get('pem', '')
+        if 'BEGIN CERTIFICATE' not in ca_pem:
+            runtime_fail(f'ca-pem: missing certificate header')
+        print(f'OK: pki ca certificate pem returned {len(ca_pem)} bytes', file=sys.stderr)
+
+        # Test 5: bundle pem rejects CA certs
+        resp = dispatch(api, 'show pki certificate test-ca bundle pem')
+        if resp.get('status') != 'error':
+            runtime_fail(f'ca-bundle: expected error for CA cert, got {resp.get("status")}')
+        print(f'OK: pki bundle correctly rejects CA cert', file=sys.stderr)
+
+    finally:
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+pki {
+    ca test-ca {
+        certificate MIIBejCCAR+gAwIBAgIUASUIVXkq6uaKIefHVx5TTlbqBa0wCgYIKoZIzj0EAwIwEjEQMA4GA1UEAwwHVGVzdCBDQTAeFw0yNjA1MjcyMTEzMzlaFw0zNjA1MjQyMTEzMzlaMBIxEDAOBgNVBAMMB1Rlc3QgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARqGLUVOKEwCqhSj29rXAWT18dt8Q/OxiPHQOL0UgVRPaEb3efVwRRoEYy1NXgzPZ99UpShLzyYUMgfxCwy2xXuo1MwUTAdBgNVHQ4EFgQURqPveUJj82PXb4jn5zwIY/G3TNgwHwYDVR0jBBgwFoAURqPveUJj82PXb4jn5zwIY/G3TNgwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAoRUwCiZXZZUbUl/Z2K2leoWBtxmwwHel90o1gHUKKoUCIQCjRFKmgUxiRiNLiFhXcgbkD8glVlwbVbxkW2d8MT7X1g==
+    }
+    certificate dev-1 {
+        certificate MIIBbDCCARKgAwIBAgIUaqCyTtq9FBqPTZhuFff2Mpzuf7UwCgYIKoZIzj0EAwIwEjEQMA4GA1UEAwwHVGVzdCBDQTAeFw0yNjA1MjcyMTEzMzlaFw0zNjA1MjQyMTEzMzlaMBYxFDASBgNVBAMMC1Rlc3QgRGV2aWNlMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJaBraKhv1svTYU3pLuHZzLRDloOaD9Pu4XYDTAxBsNh3/SGG2Kfd3XdfinZ9SarAZjgAHm20Oo0hPX+lguH4S6NCMEAwHQYDVR0OBBYEFB9fIwVA4QHPQxi1fkDCKVx7C5SuMB8GA1UdIwQYMBaAFEaj73lCY/Nj12+I5+c8CGPxt0zYMAoGCCqGSM49BAMCA0gAMEUCIQDBx83D3sYBj67cznpq1vhqXpRNdlA0Smw40BpaTnDGLwIgbLWaxwZ/e+4qpZ08K1578o73K/nm4QQ1loJRZW1Y9yQ=
+        private {
+            key MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgcB7/8yWgsXMhdewDNNnoIrIm0uflDeXk7p+tYC4A3UqhRANCAAQloGtoqG/Wy9NhTeku4dnMtEOWg5oP0+7hdgNMDEGw2Hf9IYbYp93dd1+Kdn1JqsBmOAAebbQ6jSE9f6WC4fhL
+        }
+    }
+}
+
+plugin {
+    external show-pki-export-test {
+        run ./show-pki-export-test.run
+        encoder json
+    }
+}
+
+bgp {
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast {
+                    prefix {
+                        maximum 10000
+                    }
+                }
+            }
+            capability {
+                graceful-restart disable
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+
+        process show-pki-export-test {
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

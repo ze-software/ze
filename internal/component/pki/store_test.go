@@ -519,6 +519,257 @@ func TestShowPKICertificateNoArgs(t *testing.T) {
 	}
 }
 
+func TestShowPKICertPEM(t *testing.T) {
+	cfg := testPKIConfig(t)
+	if err := Load(cfg); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	resp, err := handleShowPKICertificate(nil, []string{"dev-1", "pem"})
+	if err != nil {
+		t.Fatalf("show pki certificate dev-1 pem: %v", err)
+	}
+	data, ok := resp.Data.(plugin.Map)
+	if !ok {
+		t.Fatalf("expected plugin.Map, got %T", resp.Data)
+	}
+	pemStr, ok := data["pem"].(string)
+	if !ok || pemStr == "" {
+		t.Fatal("expected non-empty pem string")
+	}
+	if !strings.Contains(pemStr, "BEGIN CERTIFICATE") {
+		t.Error("PEM output missing certificate header")
+	}
+	if strings.Contains(pemStr, "PRIVATE KEY") {
+		t.Error("PEM output should not contain private key")
+	}
+}
+
+func TestShowPKICertPEMCA(t *testing.T) {
+	cfg := testPKIConfig(t)
+	if err := Load(cfg); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	resp, err := handleShowPKICertificate(nil, []string{"test-ca", "pem"})
+	if err != nil {
+		t.Fatalf("show pki certificate test-ca pem: %v", err)
+	}
+	data, ok := resp.Data.(plugin.Map)
+	if !ok {
+		t.Fatalf("expected plugin.Map, got %T", resp.Data)
+	}
+	pemStr, ok := data["pem"].(string)
+	if !ok || pemStr == "" {
+		t.Fatal("expected non-empty pem string")
+	}
+	if !strings.Contains(pemStr, "BEGIN CERTIFICATE") {
+		t.Error("CA PEM output missing certificate header")
+	}
+}
+
+func TestShowPKICertPEMNotFound(t *testing.T) {
+	cfg := testPKIConfig(t)
+	if err := Load(cfg); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	resp, err := handleShowPKICertificate(nil, []string{"nonexistent", "pem"})
+	if err != nil {
+		t.Fatalf("show pki certificate nonexistent pem: %v", err)
+	}
+	if resp.Status != "error" {
+		t.Errorf("expected error status, got %q", resp.Status)
+	}
+}
+
+func TestShowPKICertBundlePEM(t *testing.T) {
+	cfg := testPKIConfig(t)
+	if err := Load(cfg); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	resp, err := handleShowPKICertificate(nil, []string{"dev-1", "bundle", "pem"})
+	if err != nil {
+		t.Fatalf("show pki certificate dev-1 bundle pem: %v", err)
+	}
+	data, ok := resp.Data.(plugin.Map)
+	if !ok {
+		t.Fatalf("expected plugin.Map, got %T", resp.Data)
+	}
+	pemStr, ok := data["pem"].(string)
+	if !ok || pemStr == "" {
+		t.Fatal("expected non-empty pem string")
+	}
+	if !strings.Contains(pemStr, "BEGIN CERTIFICATE") {
+		t.Error("bundle missing certificate")
+	}
+	if !strings.Contains(pemStr, "BEGIN PRIVATE KEY") {
+		t.Error("bundle missing private key")
+	}
+	certIdx := strings.Index(pemStr, "BEGIN CERTIFICATE")
+	keyIdx := strings.Index(pemStr, "BEGIN PRIVATE KEY")
+	if certIdx > keyIdx {
+		t.Error("certificate should appear before private key in bundle")
+	}
+}
+
+func TestShowPKICertBundlePEMRejectsCA(t *testing.T) {
+	cfg := testPKIConfig(t)
+	if err := Load(cfg); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	resp, err := handleShowPKICertificate(nil, []string{"test-ca", "bundle", "pem"})
+	if err != nil {
+		t.Fatalf("show pki certificate test-ca bundle pem: %v", err)
+	}
+	if resp.Status != "error" {
+		t.Errorf("expected error for CA cert, got %q", resp.Status)
+	}
+}
+
+func TestShowPKICertBundlePEMNoKey(t *testing.T) {
+	caKey, caDER := testCACertDER(t)
+	caCert, err := x509.ParseCertificate(caDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, devDER := testDeviceCertDER(t, caKey, caDER)
+	devCert, err := x509.ParseCertificate(devDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &PKIConfig{
+		CACerts: map[string]*CACertEntry{
+			"test-ca": {Name: "test-ca", Certificate: caCert, Raw: caDER},
+		},
+		Certificates: map[string]*CertificateEntry{
+			"no-key": {Name: "no-key", Certificate: devCert, Raw: devDER},
+		},
+	}
+	if lErr := Load(cfg); lErr != nil {
+		t.Fatalf("Load: %v", lErr)
+	}
+
+	resp, rErr := handleShowPKICertificate(nil, []string{"no-key", "bundle", "pem"})
+	if rErr != nil {
+		t.Fatalf("show pki certificate no-key bundle pem: %v", rErr)
+	}
+	if resp.Status != "error" {
+		t.Errorf("expected error for cert without key, got %q", resp.Status)
+	}
+}
+
+func TestShowPKICertFingerprint(t *testing.T) {
+	cfg := testPKIConfig(t)
+	if err := Load(cfg); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	resp, err := handleShowPKICertificate(nil, []string{"dev-1", "fingerprint"})
+	if err != nil {
+		t.Fatalf("show pki certificate dev-1 fingerprint: %v", err)
+	}
+	data, ok := resp.Data.(plugin.Map)
+	if !ok {
+		t.Fatalf("expected plugin.Map, got %T", resp.Data)
+	}
+	if data["name"] != "dev-1" {
+		t.Errorf("expected name=dev-1, got %v", data["name"])
+	}
+	if data["algorithm"] != "sha256" {
+		t.Errorf("expected default sha256, got %v", data["algorithm"])
+	}
+	fp, ok := data["fingerprint"].(string)
+	if !ok || fp == "" {
+		t.Fatal("expected non-empty fingerprint")
+	}
+	if !strings.Contains(fp, ":") {
+		t.Error("fingerprint should be colon-separated")
+	}
+}
+
+func TestShowPKICertFingerprintSHA512(t *testing.T) {
+	cfg := testPKIConfig(t)
+	if err := Load(cfg); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	resp, err := handleShowPKICertificate(nil, []string{"dev-1", "fingerprint", "sha512"})
+	if err != nil {
+		t.Fatalf("show pki certificate dev-1 fingerprint sha512: %v", err)
+	}
+	data, ok := resp.Data.(plugin.Map)
+	if !ok {
+		t.Fatalf("expected plugin.Map, got %T", resp.Data)
+	}
+	if data["algorithm"] != "sha512" {
+		t.Errorf("expected sha512, got %v", data["algorithm"])
+	}
+	fp, ok := data["fingerprint"].(string)
+	if !ok || fp == "" {
+		t.Fatal("expected non-empty fingerprint")
+	}
+	// SHA-512 = 128 hex chars + 63 colons
+	if len(fp) != 191 {
+		t.Errorf("expected sha512 fingerprint length 191, got %d", len(fp))
+	}
+}
+
+func TestShowPKICertFingerprintBadAlgo(t *testing.T) {
+	cfg := testPKIConfig(t)
+	if err := Load(cfg); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	resp, err := handleShowPKICertificate(nil, []string{"dev-1", "fingerprint", "md5"})
+	if err != nil {
+		t.Fatalf("show pki certificate dev-1 fingerprint md5: %v", err)
+	}
+	if resp.Status != "error" {
+		t.Errorf("expected error for md5, got %q", resp.Status)
+	}
+}
+
+func TestShowPKICertFingerprintNotFound(t *testing.T) {
+	cfg := testPKIConfig(t)
+	if err := Load(cfg); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	resp, err := handleShowPKICertificate(nil, []string{"nonexistent", "fingerprint"})
+	if err != nil {
+		t.Fatalf("show pki certificate nonexistent fingerprint: %v", err)
+	}
+	if resp.Status != "error" {
+		t.Errorf("expected error status, got %q", resp.Status)
+	}
+}
+
+func TestShowPKICertBadSubcommand(t *testing.T) {
+	cfg := testPKIConfig(t)
+	if err := Load(cfg); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	resp, err := handleShowPKICertificate(nil, []string{"dev-1", "garbage"})
+	if err != nil {
+		t.Fatalf("show pki certificate dev-1 garbage: %v", err)
+	}
+	if resp.Status != "error" {
+		t.Errorf("expected error for bad subcommand, got %q", resp.Status)
+	}
+}
+
+func TestFormatFingerprint(t *testing.T) {
+	got := formatFingerprint("aabbccdd")
+	if got != "aa:bb:cc:dd" {
+		t.Errorf("expected aa:bb:cc:dd, got %q", got)
+	}
+}
+
 func TestCertCN(t *testing.T) {
 	cfg := testPKIConfig(t)
 	if err := Load(cfg); err != nil {

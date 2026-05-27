@@ -1039,7 +1039,7 @@ module ze-cli-show-cmd {
             container certificate {
                 config false;
                 ze:command "ze-show:pki-certificate";
-                description "Show full details of a named certificate. Usage: show pki certificate <name>.";
+                description "Show certificate details, PEM, bundle, or fingerprint. Usage: show pki certificate <name> [pem | bundle pem | fingerprint [sha256|sha384|sha512]].";
             }
         }
 

@@ -20,7 +20,8 @@ module ze-pki-api {
     }
 
     rpc certificate {
-        description "Show details of a named certificate.";
+        description "Show details, PEM, bundle, or fingerprint of a named certificate.
+                     Sub-commands: pem, bundle pem, fingerprint [sha256|sha384|sha512].";
         input {
             leaf name {
                 type string;
@@ -30,7 +31,8 @@ module ze-pki-api {
         output {
             leaf certificate {
                 type string;
-                description "JSON object with full certificate details.";
+                description "JSON object: certificate details, PEM text, or fingerprint
+                             depending on sub-command.";
             }
         }
     }

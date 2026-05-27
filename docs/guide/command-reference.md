@@ -513,8 +513,12 @@ PKI certificate store introspection. Shows certificates loaded from
 the `pki {}` config section.
 
 ```
-ze show pki certificates                # List all loaded certs (CA + device)
-ze show pki certificate <name>          # Full details for a named certificate
+ze show pki certificates                           # List all loaded certs (CA + device)
+ze show pki certificate <name>                     # Full details for a named certificate
+ze show pki certificate <name> pem                 # PEM-encoded certificate (+ intermediate)
+ze show pki certificate <name> bundle pem          # Certificate + private key in one PEM
+ze show pki certificate <name> fingerprint         # SHA-256 fingerprint (colon-separated hex)
+ze show pki certificate <name> fingerprint sha512  # SHA-512 fingerprint
 ```
 
 **`show pki certificates`** returns a sorted list of all loaded
@@ -524,6 +528,16 @@ expiry date, key algorithm, and validity status.
 **`show pki certificate <name>`** returns full details: subject,
 issuer, serial, validity period, key algorithm, key size, SANs,
 key usage, private key presence, and chain validation status.
+
+**`show pki certificate <name> pem`** returns the certificate in PEM
+format. Includes the intermediate certificate if one is stored.
+
+**`show pki certificate <name> bundle pem`** returns the certificate
+and its private key concatenated in PEM format (device certificates
+only). Useful for clients that need a single PEM file (e.g. OpenConnect).
+
+**`show pki certificate <name> fingerprint [sha256|sha384|sha512]`**
+returns the DER fingerprint as colon-separated hex. Defaults to SHA-256.
 
 <!-- source: internal/component/pki/show.go -- handleShowPKICertificates, handleShowPKICertificate -->
 

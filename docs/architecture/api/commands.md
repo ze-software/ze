@@ -160,6 +160,8 @@ the bus from buggy or malicious producers.
 | `ze-show:interface` (args: `rate [<name>]`) | `handleShowInterfaceRate` in `interface_rate.go` | JSON array of `InterfaceRate` (all) or single object (named); fields: `name`, `rx-bps`, `tx-bps`, `rx-pps`, `tx-pps`, `stats` |
 | `ze-monitor:interface-rate` | `streamInterfaceRate` in `interface_rate.go` | Streaming JSON lines (1/s); optional `<name>` filter |
 | `ze-show:storage-smart` | `handleShowStorageSmart` in `storage.go` | JSON array of per-device objects: `name`, `transport`, `healthy`, `temp-celsius`, `power-on-hours`, `error-count`, `percent-used` (NVMe), `available-spare` (NVMe), `smart-enabled`, `last-checked`, `last-short-test`, `last-long-test`. Returns error if SMART management not configured. |
+| `ze-show:pki-certificates` | `handleShowPKICertificates` in `internal/component/pki/show.go` | `{"certificates": [CertSummary, ...], "count": N}` |
+| `ze-show:pki-certificate` (args: `<name> [pem \| bundle pem \| fingerprint [algo]]`) | `handleShowPKICertificate` in `internal/component/pki/show.go` | No sub-command: full detail map. `pem`: `{"pem": "..."}`. `bundle pem`: `{"pem": "cert+key"}`. `fingerprint`: `{"name": "...", "algorithm": "sha256", "fingerprint": "aa:bb:..."}`. |
 
 Both warnings/errors handlers accept optional `source <name>` filter and
 errors accepts `count <N>` limit. Return a non-nil empty slice when empty.
