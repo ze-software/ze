@@ -28,6 +28,12 @@ const (
 	EventVerify   = txevents.EventVerify
 	EventApply    = txevents.EventApply
 	EventRollback = txevents.EventRollback
+
+	EventOperationDecompose = txevents.EventOperationDecompose
+	EventOperationVerify    = txevents.EventOperationVerify
+	EventOperationApply     = txevents.EventOperationApply
+	EventOperationRollback  = txevents.EventOperationRollback
+	EventOperationCommit    = txevents.EventOperationCommit
 )
 
 // Engine -> plugins broadcast event types.
@@ -45,6 +51,17 @@ const (
 	EventApplyOK      = txevents.EventApplyOK
 	EventApplyFailed  = txevents.EventApplyFailed
 	EventRollbackOK   = txevents.EventRollbackOK
+
+	EventOperationDecomposeOK     = txevents.EventOperationDecomposeOK
+	EventOperationDecomposeFailed = txevents.EventOperationDecomposeFailed
+	EventOperationVerifyOK        = txevents.EventOperationVerifyOK
+	EventOperationVerifyFailed    = txevents.EventOperationVerifyFailed
+	EventOperationApplyOK         = txevents.EventOperationApplyOK
+	EventOperationApplyFailed     = txevents.EventOperationApplyFailed
+	EventOperationRollbackOK      = txevents.EventOperationRollbackOK
+	EventOperationRollbackFailed  = txevents.EventOperationRollbackFailed
+	EventOperationCommitOK        = txevents.EventOperationCommitOK
+	EventOperationCommitFailed    = txevents.EventOperationCommitFailed
 )
 
 // ReservedPluginNames are plugin names that would cause per-plugin event
@@ -95,6 +112,31 @@ func EventVerifyFor(name string) string {
 // produces a string that collides with a broadcast or ack event type.
 func EventApplyFor(name string) string {
 	return EventApply + "-" + name
+}
+
+// EventOperationDecomposeFor returns the per-plugin operation decomposition event type.
+func EventOperationDecomposeFor(name string) string {
+	return EventOperationDecompose + "-" + name
+}
+
+// EventOperationVerifyFor returns the per-plugin operation verification event type.
+func EventOperationVerifyFor(name string) string {
+	return EventOperationVerify + "-" + name
+}
+
+// EventOperationApplyFor returns the per-plugin operation apply event type.
+func EventOperationApplyFor(name string) string {
+	return EventOperationApply + "-" + name
+}
+
+// EventOperationRollbackFor returns the per-plugin operation rollback event type.
+func EventOperationRollbackFor(name string) string {
+	return EventOperationRollback + "-" + name
+}
+
+// EventOperationCommitFor returns the per-plugin operation commit event type.
+func EventOperationCommitFor(name string) string {
+	return EventOperationCommit + "-" + name
 }
 
 // Failure codes for transaction ack events.

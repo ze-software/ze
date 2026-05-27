@@ -268,7 +268,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	// (CodeBroken) acks; the orchestrator reacts to those acks via the
 	// same state machine it uses for real plugin-reported failures.
 	logger().Info("config reload: verify+apply phase", "plugins", len(affected))
-	if err := s.runTxCoordinator(ctx, affected, diff); err != nil {
+	if err := s.runTxCoordinator(ctx, affected, diff, running, newTree); err != nil {
 		logger().Warn("config reload: transaction failed", "error", err)
 		if len(autoLoaded) > 0 {
 			logger().Info("config reload: stopping auto-loaded plugins after failed transaction", "plugins", autoLoaded)

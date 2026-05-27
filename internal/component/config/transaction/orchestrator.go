@@ -53,11 +53,12 @@ var errConfigWriteFailed = errors.New("config write failed")
 
 // Participant describes a plugin participating in a config transaction.
 type Participant struct {
-	Name         string
-	ConfigRoots  []string // Roots this plugin owns.
-	WantsConfig  []string // Roots this plugin reads (not owner).
-	VerifyBudget int      // Estimated verify seconds.
-	ApplyBudget  int      // Estimated apply seconds.
+	Name             string
+	ConfigRoots      []string // Roots this plugin owns.
+	WantsConfig      []string // Roots this plugin reads (not owner).
+	ConfigOperations []ConfigOperationDecl
+	VerifyBudget     int // Estimated verify seconds.
+	ApplyBudget      int // Estimated apply seconds.
 }
 
 // TxResult is the outcome of a transaction execution.
@@ -73,14 +74,24 @@ type ConfigWriter func() error
 // RestartFunc restarts a broken plugin via the 5-stage protocol.
 type RestartFunc func(pluginName string) error
 
+// OperationPlanRequest is the input to operation planning after full verify.
+type OperationPlanRequest struct {
+	TransactionID string
+	Diffs         map[string][]DiffSection
+}
+
+// OperationPlanner returns ordering-sensitive operations for a transaction.
+type OperationPlanner func(context.Context, OperationPlanRequest) ([]ConfigOperation, error)
+
 // TxCoordinator coordinates a single config transaction across participants.
 // One TxCoordinator instance per transaction. Not reusable.
 type TxCoordinator struct {
-	gateway      EventGateway
-	participants []Participant
-	restartFn    RestartFunc
-	configWriter ConfigWriter
-	txID         string
+	gateway          EventGateway
+	participants     []Participant
+	restartFn        RestartFunc
+	configWriter     ConfigWriter
+	operationPlanner OperationPlanner
+	txID             string
 
 	// Deadline overrides for testing.
 	verifyDeadlineOverride time.Duration
@@ -167,6 +178,9 @@ func (o *TxCoordinator) SetApplyDeadlineOverride(d time.Duration) { o.applyDeadl
 // SetConfigWriter sets the function to write the config file after apply.
 func (o *TxCoordinator) SetConfigWriter(fn ConfigWriter) { o.configWriter = fn }
 
+// SetOperationPlanner sets the operation planner used after full-config verify.
+func (o *TxCoordinator) SetOperationPlanner(fn OperationPlanner) { o.operationPlanner = fn }
+
 // ParticipantBudgets returns the current budgets for a participant.
 func (o *TxCoordinator) ParticipantBudgets(name string) Participant {
 	o.mu.Lock()
@@ -191,6 +205,17 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 	if err := o.runVerify(ctx, diffs); err != nil {
 		o.publishAbort(err.Error())
 		return &TxResult{State: StateAborted, Err: err}
+	}
+
+	if o.operationPlanner != nil {
+		ops, err := o.operationPlanner(ctx, OperationPlanRequest{TransactionID: o.txID, Diffs: diffs})
+		if err != nil {
+			o.publishAbort(err.Error())
+			return &TxResult{State: StateAborted, Err: err}
+		}
+		if len(ops) > 0 {
+			return o.runOperationPath(ctx, ops)
+		}
 	}
 
 	// Phase 2: Apply.
@@ -229,10 +254,7 @@ func (o *TxCoordinator) subscribeAcks() {
 			if ack.TransactionID != o.txID {
 				return
 			}
-			if !trySendVerifyAck(ch, ack) {
-				logger().Warn("ack channel full, dropping verify ack",
-					"tx", o.txID, "plugin", ack.Plugin, "event-type", eventType)
-			}
+			trySendVerifyAck(ch, ack, o.txID, eventType)
 		})
 		o.unsubs = append(o.unsubs, unsub)
 	}
@@ -246,10 +268,7 @@ func (o *TxCoordinator) subscribeAcks() {
 			if ack.TransactionID != o.txID {
 				return
 			}
-			if !trySendApplyAck(ch, ack) {
-				logger().Warn("ack channel full, dropping apply ack",
-					"tx", o.txID, "plugin", ack.Plugin, "event-type", eventType)
-			}
+			trySendApplyAck(ch, ack, o.txID, eventType)
 		})
 		o.unsubs = append(o.unsubs, unsub)
 	}
@@ -267,43 +286,34 @@ func (o *TxCoordinator) subscribeAcks() {
 		if ack.TransactionID != o.txID {
 			return
 		}
-		if !trySendRollbackAck(o.rollbackOKCh, ack) {
-			logger().Warn("ack channel full, dropping rollback ack",
-				"tx", o.txID, "plugin", ack.Plugin, "event-type", EventRollbackOK)
-		}
+		trySendRollbackAck(o.rollbackOKCh, ack, o.txID)
 	}))
 }
 
-// trySendVerifyAck attempts a non-blocking send onto a VerifyAck channel.
-// Returns false if the channel is full.
-func trySendVerifyAck(ch chan<- VerifyAck, ack VerifyAck) bool {
+func trySendVerifyAck(ch chan<- VerifyAck, ack VerifyAck, txID, eventType string) {
 	select {
 	case ch <- ack:
-		return true
 	default:
-		return false
+		logger().Warn("ack channel full, dropping verify ack",
+			"tx", txID, "plugin", ack.Plugin, "event-type", eventType)
 	}
 }
 
-// trySendApplyAck attempts a non-blocking send onto an ApplyAck channel.
-// Returns false if the channel is full.
-func trySendApplyAck(ch chan<- ApplyAck, ack ApplyAck) bool {
+func trySendApplyAck(ch chan<- ApplyAck, ack ApplyAck, txID, eventType string) {
 	select {
 	case ch <- ack:
-		return true
 	default:
-		return false
+		logger().Warn("ack channel full, dropping apply ack",
+			"tx", txID, "plugin", ack.Plugin, "event-type", eventType)
 	}
 }
 
-// trySendRollbackAck attempts a non-blocking send onto a RollbackAck channel.
-// Returns false if the channel is full.
-func trySendRollbackAck(ch chan<- RollbackAck, ack RollbackAck) bool {
+func trySendRollbackAck(ch chan<- RollbackAck, ack RollbackAck, txID string) {
 	select {
 	case ch <- ack:
-		return true
 	default:
-		return false
+		logger().Warn("ack channel full, dropping rollback ack",
+			"tx", txID, "plugin", ack.Plugin, "event-type", EventRollbackOK)
 	}
 }
 
@@ -418,6 +428,43 @@ func (o *TxCoordinator) runApply(ctx context.Context, diffs map[string][]DiffSec
 	}
 
 	return nil
+}
+
+func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperation) *TxResult {
+	graph, err := BuildOperationGraph(ops, ConstraintRules())
+	if err != nil {
+		o.publishAbort(err.Error())
+		return &TxResult{State: StateAborted, Err: err}
+	}
+	sorted, err := TopologicalSort(graph)
+	if err != nil {
+		o.publishAbort(err.Error())
+		return &TxResult{State: StateAborted, Err: err}
+	}
+	executor := NewOperationExecutor(o.gateway, o.txID)
+	o.mu.Lock()
+	o.applyDeadline = o.computeApplyDeadline()
+	deadline := o.applyDeadline
+	o.mu.Unlock()
+	executor.SetDeadlineMS(time.Now().Add(deadline).UnixMilli())
+	if err := executor.Verify(ctx, sorted); err != nil {
+		o.publishAbort(err.Error())
+		return &TxResult{State: StateAborted, Err: err}
+	}
+	if err := executor.Execute(ctx, sorted); err != nil {
+		o.publishRollback(err.Error())
+		o.collectRollbackAcks(ctx)
+		return &TxResult{State: StateRolledBack, Err: err}
+	}
+	if err := executor.Commit(ctx, sorted); err != nil {
+		o.publishRollback(err.Error())
+		o.collectRollbackAcks(ctx)
+		return &TxResult{State: StateRolledBack, Err: err}
+	}
+	o.publishCommitted()
+	saved := o.writeConfigFile()
+	o.publishApplied(saved)
+	return &TxResult{State: StateCommitted, Saved: saved}
 }
 
 // filterDiffs returns only the diffs relevant to a participant.

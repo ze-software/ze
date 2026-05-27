@@ -246,6 +246,100 @@ func (p *Plugin) OnConfigRollback(fn func(txID string) error) {
 	}
 }
 
+// OnConfigOperationDecompose sets the handler for operation decomposition.
+func (p *Plugin) OnConfigOperationDecompose(fn func(ConfigOperationDecomposeInput) (*ConfigOperationDecomposeOutput, error)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.callbacks[callbackOpDecompose] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.ConfigOperationDecomposeInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return marshalStatusError(fmt.Sprintf("unmarshal config-operation-decompose: %v", err))
+		}
+		out, err := fn(input)
+		if err != nil {
+			return marshalStatusError(err.Error())
+		}
+		if out == nil {
+			out = &rpc.ConfigOperationDecomposeOutput{Status: rpc.StatusOK}
+		}
+		if out.Status == "" {
+			out.Status = rpc.StatusOK
+		}
+		return json.Marshal(out)
+	}
+}
+
+// OnConfigOperationVerify sets the handler for operation verification.
+func (p *Plugin) OnConfigOperationVerify(fn func(ConfigOperationVerifyInput) error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.callbacks[callbackOpVerify] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.ConfigOperationVerifyInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return marshalStatusError(fmt.Sprintf("unmarshal config-operation-verify: %v", err))
+		}
+		if err := fn(input); err != nil {
+			return marshalStatusError(err.Error())
+		}
+		return json.Marshal(&rpc.ConfigOperationVerifyOutput{Status: rpc.StatusOK})
+	}
+}
+
+// OnConfigOperationApply sets the handler for applying one operation.
+func (p *Plugin) OnConfigOperationApply(fn func(ConfigOperationApplyInput) (*ConfigOperationApplyOutput, error)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.callbacks[callbackOpApply] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.ConfigOperationApplyInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return marshalStatusError(fmt.Sprintf("unmarshal config-operation-apply: %v", err))
+		}
+		out, err := fn(input)
+		if err != nil {
+			return marshalStatusError(err.Error())
+		}
+		if out == nil {
+			out = &rpc.ConfigOperationApplyOutput{Status: rpc.StatusOK}
+		}
+		if out.Status == "" {
+			out.Status = rpc.StatusOK
+		}
+		return json.Marshal(out)
+	}
+}
+
+// OnConfigOperationRollback sets the handler for rolling back operations.
+func (p *Plugin) OnConfigOperationRollback(fn func(ConfigOperationRollbackInput) error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.callbacks[callbackOpRollback] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.ConfigOperationRollbackInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return marshalStatusError(fmt.Sprintf("unmarshal config-operation-rollback: %v", err))
+		}
+		if err := fn(input); err != nil {
+			return marshalStatusError(err.Error())
+		}
+		return json.Marshal(&rpc.ConfigOperationRollbackOutput{Status: rpc.StatusOK})
+	}
+}
+
+// OnConfigOperationCommit sets the handler for committing operation journals.
+func (p *Plugin) OnConfigOperationCommit(fn func(ConfigOperationCommitInput) error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.callbacks[callbackOpCommit] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.ConfigOperationCommitInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return marshalStatusError(fmt.Sprintf("unmarshal config-operation-commit: %v", err))
+		}
+		if err := fn(input); err != nil {
+			return marshalStatusError(err.Error())
+		}
+		return json.Marshal(&rpc.ConfigOperationCommitOutput{Status: rpc.StatusOK})
+	}
+}
+
 // OnValidateOpen sets the handler for OPEN validation requests.
 // The handler receives both local and remote OPEN messages and returns accept/reject.
 // When registered, WantsValidateOpen is automatically set in Stage 1 registration.

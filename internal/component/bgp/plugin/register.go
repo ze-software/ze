@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"sync"
 
 	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
@@ -169,6 +170,8 @@ func runBGPEngine(conn net.Conn) int {
 	// Transaction protocol: verify, apply with journal, rollback.
 	var pendingTree map[string]any
 	var activeJournal *sdk.Journal
+	operationJournals := make(map[string]*sdk.Journal)
+	var operationMu sync.Mutex
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		for _, s := range sections {
@@ -218,6 +221,7 @@ func runBGPEngine(conn net.Conn) int {
 	})
 
 	p.OnConfigRollback(func(_ string) error {
+		pendingTree = nil
 		j := activeJournal
 		activeJournal = nil
 		if j == nil {
@@ -230,10 +234,74 @@ func runBGPEngine(conn net.Conn) int {
 		return nil
 	})
 
+	p.OnConfigOperationDecompose(func(input sdk.ConfigOperationDecomposeInput) (*sdk.ConfigOperationDecomposeOutput, error) {
+		return decomposeBGPOperationInput(context.Background(), input)
+	})
+
+	p.OnConfigOperationVerify(func(input sdk.ConfigOperationVerifyInput) error {
+		return verifyBGPOperation(&input.Operation, bgpReactor)
+	})
+
+	p.OnConfigOperationApply(func(input sdk.ConfigOperationApplyInput) (*sdk.ConfigOperationApplyOutput, error) {
+		j := sdk.NewJournal()
+		out, err := applyBGPOperation(&input.Operation, bgpReactor, j)
+		if err != nil {
+			if rollbackErrs := j.Rollback(); len(rollbackErrs) > 0 {
+				log.Error("bgp operation apply: rollback errors", "count", len(rollbackErrs))
+			}
+			return nil, err
+		}
+		operationMu.Lock()
+		operationJournals[operationJournalKey(input.TransactionID, input.Operation.ID)] = j
+		operationMu.Unlock()
+		return out, nil
+	})
+
+	p.OnConfigOperationRollback(func(input sdk.ConfigOperationRollbackInput) error {
+		operationMu.Lock()
+		defer operationMu.Unlock()
+		for i := range input.Operations {
+			op := &input.Operations[i]
+			key := operationJournalKey(input.TransactionID, op.ID)
+			j := operationJournals[key]
+			delete(operationJournals, key)
+			if j == nil {
+				continue
+			}
+			if errs := j.Rollback(); len(errs) > 0 {
+				return fmt.Errorf("bgp operation rollback %s: %d errors", op.ID, len(errs))
+			}
+		}
+		return nil
+	})
+
+	p.OnConfigOperationCommit(func(input sdk.ConfigOperationCommitInput) error {
+		operationMu.Lock()
+		for key, j := range operationJournals {
+			if strings.HasPrefix(key, input.TransactionID+"\x00") {
+				j.Discard()
+				delete(operationJournals, key)
+			}
+		}
+		operationMu.Unlock()
+		pendingTree = nil
+		log.Info("bgp config operation journal committed")
+		return nil
+	})
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"bgp"},
+		WantsConfig: []string{"bgp"},
+		ConfigOperations: []sdk.ConfigOperationDecl{{
+			Root:      configRootBGP,
+			Decompose: true,
+			Operations: []sdk.ConfigOperationType{
+				sdk.OperationAddPeer,
+				sdk.OperationRemovePeer,
+				sdk.OperationModifyPeer,
+			},
+		}},
 		VerifyBudget: 5,
 		ApplyBudget:  30,
 	}); err != nil {

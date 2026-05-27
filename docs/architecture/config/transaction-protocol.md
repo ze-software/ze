@@ -695,3 +695,369 @@ converges to that active config by applying its roots from scratch during Stage
 | Engine crashes during transaction | Plugins hold journals. On restart, no `(config, committed)` arrives. Stale candidate is ignored; active pointer is loaded. Plugins detect stale journal (no matching active tx) and roll back on next startup. |
 | Plugin exceeds rollback deadline (3x apply) | Treated as `broken`. Engine restarts plugin. |
 | Plugin reports `broken` | Engine restarts plugin once via 5-stage protocol between rollback tiers. Second `broken` stops the plugin. |
+
+---
+
+## 15. Operation Graph Extension
+
+<!-- source: internal/component/config/transaction/operation.go -- operation types, registries -->
+<!-- source: internal/component/config/transaction/depgraph.go -- graph construction from constraint rules -->
+<!-- source: internal/component/config/transaction/solver.go -- topological sort with cycle relaxation -->
+<!-- source: internal/component/config/transaction/executor.go -- ordered execution with settlement -->
+<!-- source: internal/component/iface/operation.go -- iface decomposer and constraint/settlement rules -->
+<!-- source: internal/component/bgp/plugin/operation.go -- BGP decomposer and constraint rules -->
+
+The stream-based transaction protocol (sections 1-14) applies config diffs as a
+single broadcast per plugin. This works when plugins can independently apply their
+portion of the diff. It breaks when operations span plugins and have ordering
+constraints: a BGP peer cannot bind to an address that the iface plugin has not
+yet assigned, and an IP swap between two interfaces creates a circular dependency
+between remove-old and add-new.
+
+The operation graph extension adds a secondary apply path that decomposes
+full-config diffs into typed atomic operations, orders them via a constraint
+graph, and executes them one at a time with inter-operation settlement.
+
+### When the operation path activates
+
+The operation path is not the default. It activates only when all three conditions
+hold:
+
+1. **Full-config verify succeeds.** Phase 1 (section 2) runs exactly as before.
+   Every plugin validates the candidate config. Verify-failed or timeout aborts
+   the transaction before the operation path is considered.
+
+2. **An operation planner is registered.** The orchestrator holds an optional
+   `OperationPlanner` set via `TxCoordinator.SetOperationPlanner`. If no planner
+   is set, the orchestrator always takes the existing full-diff apply path.
+
+3. **The planner returns operations.** The planner calls each registered
+   `OperationDecomposer` for the affected config roots. If all decomposers return
+   empty slices (no ordering-sensitive changes), the planner returns nil and the
+   orchestrator falls through to the existing Phase 2 broadcast apply.
+
+When the planner returns a non-empty operation list, the orchestrator calls
+`runOperationPath` instead of `runApply`. The existing full-diff apply, rollback,
+and commit paths are skipped entirely for that transaction.
+
+```
+orchestrator.go: Execute(ctx, diffs)
+  |
+  | Phase 1: full-config verify (unchanged)
+  |
+  | operationPlanner(ctx, OperationPlanRequest{diffs})
+  |   \-- calls OperationDecomposerFor(root) per affected root
+  |
+  +-- ops == nil  --> Phase 2: full-diff apply (existing path)
+  |
+  +-- ops != nil  --> runOperationPath(ctx, ops)
+                        |
+                        | BuildOperationGraph(ops, ConstraintRules())
+                        | TopologicalSort(graph)
+                        | executor.Verify(ctx, sorted)
+                        | executor.Execute(ctx, sorted)   // per-op apply + settlement
+                        | executor.Commit(ctx, sorted)
+```
+
+### Operation types and the constraint rule registry
+
+An operation is a typed, self-describing value (`ConfigOperation` in
+`pkg/plugin/rpc/types.go`). Every operation carries:
+
+| Field | Purpose |
+|-------|---------|
+| `ID` | Unique within a transaction (e.g., `interface-add-address-eth0-10.0.0.1_24`) |
+| `Root` | Config root that owns this operation (`interface`, `bgp`, ...) |
+| `Owner` | Plugin name responsible for apply/rollback |
+| `Type` | One of the registered `ConfigOperationType` constants |
+| `Target` | `ResourceRef`: kind, name, interface, address, peer, port, prefix, next-hop |
+| `Params` | `ConfigOperationParams`: operation-specific values, config payloads, AllowDual flag |
+
+Operation types are kebab-case string constants registered in `pkg/plugin/rpc/types.go`:
+
+| Type | Resource kind | Example |
+|------|--------------|---------|
+| `add-interface` | `interface` | Create dummy0 |
+| `remove-interface` | `interface` | Delete dummy0 |
+| `add-address` | `address` | Assign 10.0.0.1/24 to eth0 |
+| `remove-address` | `address` | Remove 10.0.0.1/24 from eth0 |
+| `add-peer` | `peer` | Start BGP peer "upstream" |
+| `remove-peer` | `peer` | Stop BGP peer "upstream" |
+| `modify-peer` | `peer` | Update peer config in place |
+| `add-listener` | `listener` | Bind BGP listener on 10.0.0.1:179 |
+| `remove-listener` | `listener` | Unbind BGP listener |
+| `add-bridge-member` | `bridge-member` | Add eth1 to br0 |
+| `remove-bridge-member` | `bridge-member` | Remove eth1 from br0 |
+| `set-property` | (varies) | Set MTU, admin state, etc. |
+| `add-static-route` | `static-route` | Install a static route |
+| `remove-static-route` | `static-route` | Remove a static route |
+| `set-admin-distance` | (varies) | Change administrative distance |
+| `set-sysctl` | `sysctl` | Set a kernel parameter |
+| `start-dhcp` | `dhcp` | Start DHCP client on an interface |
+| `stop-dhcp` | `dhcp` | Stop DHCP client |
+| `add-tunnel` | `tunnel` | Create a tunnel interface |
+| `remove-tunnel` | `tunnel` | Destroy a tunnel interface |
+
+#### Constraint rules
+
+Ordering edges are produced by `ConstraintRule` values registered as data in
+`operation.go`. A rule matches a pair of operations via selectors (type +
+resource kind) and a relation (how their resources are connected). When both
+selectors match and the relation holds, the graph builder adds an edge
+`before -> after`.
+
+| Field | Purpose |
+|-------|---------|
+| `ID` | Unique rule identifier (e.g., `iface-add-interface-before-address`) |
+| `Before` | `OperationSelector{Type, ResourceKind}` matching the operation that must run first |
+| `After` | `OperationSelector{Type, ResourceKind}` matching the operation that must run second |
+| `Relation` | How the two operations' resources relate (see below) |
+
+Resource relations:
+
+| Relation | Meaning |
+|----------|---------|
+| (empty) | Any pair of matching operations |
+| `same-resource` | Both target the same resource (same kind + key) |
+| `interface-address` | The "before" operation's interface matches the "after" operation's address interface |
+| `address-used-by` | The address in one operation matches the address used by the other |
+| `same-address` | Both operations target the same IP address |
+
+Rules are registered via `RegisterConstraintRule` in component `init()` functions.
+Examples from the codebase:
+
+| Rule ID | Before | After | Relation | Component |
+|---------|--------|-------|----------|-----------|
+| `iface-add-interface-before-address` | `add-interface/interface` | `add-address/address` | `interface-address` | iface |
+| `iface-remove-address-before-interface` | `remove-address/address` | `remove-interface/interface` | `interface-address` | iface |
+| `iface-remove-address-before-add-same-address` | `remove-address/address` | `add-address/address` | `same-address` | iface |
+| `bgp-add-address-before-peer` | `add-address/address` | `add-peer/peer` | `address-used-by` | bgp |
+| `bgp-remove-peer-before-address` | `remove-peer/peer` | `remove-address/address` | `address-used-by` | bgp |
+| `bgp-add-address-before-listener` | `add-address/address` | `add-listener/listener` | `address-used-by` | bgp |
+| `bgp-remove-listener-before-address` | `remove-listener/listener` | `remove-address/address` | `address-used-by` | bgp |
+
+Rules are sorted by ID before graph construction for deterministic edge ordering.
+
+### Decomposition ownership
+
+Decomposition is component-owned, not centralized. Each component that knows how
+to break its config root into atomic operations registers a decomposer via
+`RegisterOperationDecomposer(root, fn)` in its `init()`. The planner calls
+`OperationDecomposerFor(root)` per affected root and collects the results.
+
+| Component | Config root | Decomposer | What it produces |
+|-----------|------------|------------|-----------------|
+| iface | `interface` | `decomposeIfaceOperations` | `add-interface`, `remove-interface`, `add-address`, `remove-address` per managed interface and IP |
+| bgp | `bgp` | `decomposeBGPOperations` | `add-peer`, `remove-peer` per changed peer (modify = remove + add) |
+
+A decomposer receives a `DecomposeRequest` with the transaction ID, the config
+root name, the active and candidate root data (full JSON for that root), and
+the diff. It returns a slice of `ConfigOperation` values. Each operation carries
+its `Owner` field so the executor knows which plugin to contact for apply and
+rollback.
+
+Decomposers are selective: `decomposeIfaceOperations` returns nil unless the diff
+touches addresses or managed interface types. `decomposeBGPOperations` returns nil
+unless the diff touches the peer section. When a decomposer returns nil, that
+root's changes flow through the existing full-diff apply path in the next
+transaction (the operation path only activates when at least one decomposer
+produces operations).
+
+Components that do not register a decomposer (DNS, telemetry, DHCP) always use
+the full-diff apply path. No code change is needed in those components.
+
+### Graph construction and topological sort
+
+`BuildOperationGraph` (in `depgraph.go`) takes the flat operation list and the
+sorted constraint rules, then matches every operation pair against every rule.
+When both selectors match and the resource relation holds, it adds a directed
+edge. Duplicate edges (same from/to pair) are suppressed.
+
+`TopologicalSort` (in `solver.go`) runs Kahn's algorithm on the graph. If all
+operations are emitted, the sort is complete. If some operations remain (a cycle
+exists), the solver attempts cycle relaxation.
+
+#### Cycle detection and dual-presence fallback
+
+Address operations can form cycles. An IP swap (move 10.0.0.1 from eth0 to eth1)
+creates:
+
+- Rule: `remove-address(10.0.0.1/eth0)` before `add-address(10.0.0.1/eth1)` (same-address uniqueness)
+- Rule: `add-address(*/eth0)` before `remove-address(*/eth0)` (make-before-break on same interface)
+
+If both interfaces are involved symmetrically (e.g., three-way rotation), these
+edges form a cycle.
+
+The solver handles this with `tryRelaxCycle`:
+
+1. **Verify all cycle members are address operations.** If any non-address
+   operation is in the cycle, the solver returns `ErrOperationCycle` (the
+   transaction is aborted).
+
+2. **Remove cross-interface edges.** Edges between address operations on
+   different interfaces are dropped. Same-interface edges (make-before-break
+   ordering) are preserved.
+
+3. **Re-run Kahn's algorithm** on the reduced edge set. If the sort completes,
+   the cycle is resolved.
+
+4. **Mark dual-presence.** `ADD_ADDRESS` operations that were part of the relaxed
+   cycle get `Params.AllowDual = true`. This tells the iface plugin that the
+   address may temporarily exist on two interfaces during the transition. The
+   kernel allows this; the solver makes it explicit.
+
+Non-address cycles and same-interface cycles are not relaxable and cause
+`ErrOperationCycle`, which aborts the transaction.
+
+### Per-operation execution with settlement
+
+The `OperationExecutor` (in `executor.go`) applies sorted operations sequentially
+through per-plugin event callbacks. For each operation the sequence is:
+
+1. **Arm settlement waiters** before emitting the apply event. For each
+   `SettlementRule` matching the operation, the executor subscribes to the
+   readiness event (namespace + event type + resource filter).
+
+2. **Emit apply event** to the operation's owner plugin via
+   `(config, operation-apply-<owner>)`.
+
+3. **Wait for apply ack.** The owner responds with `operation-apply-ok` or
+   `operation-apply-failed`.
+
+4. **Wait for settlement.** Each armed waiter blocks until the matching readiness
+   event arrives or the settlement timeout expires.
+
+5. **Proceed to next operation** only after all settlement waiters for the
+   current operation are satisfied.
+
+#### Settlement waiter protocol
+
+Settlement rules are registered as data via `RegisterSettlementRule`. Each rule
+declares:
+
+| Field | Purpose |
+|-------|---------|
+| `ID` | Unique rule identifier |
+| `Operation` | `OperationSelector` matching which operations require this settlement |
+| `Readiness` | `ConfigOperationReadiness{Namespace, EventType, Resource}` -- the event that signals completion |
+| `ResourceFrom` | Which operation field supplies the resource value to match (`address`, `interface`, `peer`) |
+| `Timeout` | Maximum wait time (capped at 60 seconds) |
+
+The executor arms waiters before emitting the apply event so that readiness
+events arriving during the apply callback are not missed. Each waiter subscribes
+to the readiness event's namespace and event type via `gateway.SubscribeEvent`.
+The waiter's callback checks whether the event payload contains the expected
+resource value (matched against known keys: `resource`, `address`, `name`,
+`interface`, `peer` in the payload JSON).
+
+Examples from the codebase:
+
+| Rule ID | Operation | Readiness event | Resource from | Timeout |
+|---------|-----------|----------------|---------------|---------|
+| `iface-add-address-settles-addr-added` | `add-address/address` | `(interface, addr-added)` | `address` | 5s |
+| `iface-add-interface-settles-created` | `add-interface/interface` | `(interface, created)` | `interface` | 5s |
+| `bgp-add-peer-settles-listener-ready` | `add-peer/peer` | `(bgp, listener-ready)` | `address` | 10s |
+
+If a settlement timeout fires, the executor treats the operation as failed and
+begins rollback.
+
+### Operation verify phase
+
+Before applying any operations, the executor runs a per-operation verify pass.
+For each operation in sorted order, it emits
+`(config, operation-verify-<owner>)` and waits for `operation-verify-ok` or
+`operation-verify-failed`. A single failure aborts the transaction. This is
+separate from the full-config verify in Phase 1: Phase 1 validates the overall
+candidate config, while operation verify validates each atomic operation in the
+context of the execution order.
+
+### Rollback ordering
+
+When an operation apply or settlement fails, the executor rolls back all
+previously applied operations in reverse order:
+
+1. **Per-operation reverse rollback.** For each applied operation, starting from
+   the most recent, the executor emits
+   `(config, operation-rollback-<owner>)` with that single operation. The owner
+   undoes it and responds with `operation-rollback-ok` or
+   `operation-rollback-failed`.
+
+2. **Broadcast full-config rollback.** After per-operation rollback completes,
+   the orchestrator emits the standard `(config, rollback)` broadcast (section 2,
+   Phase 3) so that all transaction participants (including plugins that used the
+   full-diff path for their roots) can undo via their journals.
+
+3. **Reverse-tier ack collection.** Rollback acks are collected in reverse
+   dependency-tier order, exactly as described in section 2.
+
+This two-layer rollback ensures that operation-level changes are undone in the
+correct reverse dependency order before the broader journal-based rollback
+handles any remaining state.
+
+### Operation commit
+
+After all operations execute and settle successfully, the executor sends a commit
+event per unique owner via `(config, operation-commit-<owner>)`. This tells each
+owner to finalize its per-operation journals. The orchestrator then emits the
+standard `(config, committed)` broadcast for the full transaction.
+
+### Operation event types
+
+All operation events live in the `config` namespace alongside the existing
+transaction events. They are defined in
+`internal/component/config/transaction/events/events.go`.
+
+| Event type | Direction | Purpose |
+|------------|-----------|---------|
+| `operation-decompose-<plugin>` | Engine -> plugin | Decompose a root diff into operations |
+| `operation-decompose-ok` | Plugin -> engine | Decomposition succeeded, includes operations |
+| `operation-decompose-failed` | Plugin -> engine | Decomposition rejected |
+| `operation-verify-<plugin>` | Engine -> plugin | Verify one operation before mutation |
+| `operation-verify-ok` | Plugin -> engine | Operation verification passed |
+| `operation-verify-failed` | Plugin -> engine | Operation verification rejected |
+| `operation-apply-<plugin>` | Engine -> plugin | Apply one operation |
+| `operation-apply-ok` | Plugin -> engine | Operation applied successfully |
+| `operation-apply-failed` | Plugin -> engine | Operation apply failed |
+| `operation-rollback-<plugin>` | Engine -> plugin | Roll back one or more operations |
+| `operation-rollback-ok` | Plugin -> engine | Operation rollback succeeded |
+| `operation-rollback-failed` | Plugin -> engine | Operation rollback failed |
+| `operation-commit-<plugin>` | Engine -> plugin | Finalize operation journals |
+| `operation-commit-ok` | Plugin -> engine | Operation commit succeeded |
+| `operation-commit-failed` | Plugin -> engine | Operation commit failed |
+
+### Plugin SDK callbacks
+
+The SDK exposes five operation callbacks alongside the existing three
+transaction callbacks:
+
+| SDK method | RPC name | Phase | Required |
+|------------|----------|-------|----------|
+| `OnConfigOperationDecompose` | `config-operation-decompose` | Planning | Only for decomposer plugins |
+| `OnConfigOperationVerify` | `config-operation-verify` | Per-operation verify | Only for operation owners |
+| `OnConfigOperationApply` | `config-operation-apply` | Per-operation apply | Only for operation owners |
+| `OnConfigOperationRollback` | `config-operation-rollback` | Per-operation rollback | Only for operation owners |
+| `OnConfigOperationCommit` | `config-operation-commit` | Per-operation commit | Only for operation owners |
+
+Plugins declare operation support in Stage 1 of the 5-stage startup protocol
+via `ConfigOperations` in their registration, which lists the config roots
+and operation types they handle.
+
+### Integration with existing phases
+
+The operation graph extension does not replace the existing transaction protocol.
+It is an optional secondary path within a single transaction:
+
+| Phase | Without operations | With operations |
+|-------|-------------------|-----------------|
+| Verify (Phase 1) | Full-config verify, all plugins | Identical -- unchanged |
+| Plan | Skipped | Planner calls decomposers, builds operation list |
+| Operation verify | Skipped | Per-operation verify in sorted order |
+| Apply (Phase 2) | Full-diff broadcast to all plugins | Per-operation apply in sorted order with settlement |
+| Commit | `(config, committed)` broadcast | Per-owner `operation-commit`, then `(config, committed)` broadcast |
+| Rollback (Phase 3) | `(config, rollback)` broadcast | Per-operation reverse rollback, then `(config, rollback)` broadcast |
+| Finalize | `(config, applied)` or `(config, rolled-back)` | Identical -- unchanged |
+
+Transaction exclusion (section 6), apply journals (section 7), persistence
+pointers (section 2), failure codes (section 12), and recovery (section 13) all
+apply unchanged. The operation path is internal to the apply phase; the
+transaction boundary and external-facing events remain the same.

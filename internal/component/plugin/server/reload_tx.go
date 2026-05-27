@@ -7,6 +7,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -35,7 +36,7 @@ const bgpParticipantName = "bgp"
 // rollback (apply failed), or gateway misconfiguration. Callers use the
 // returned error verbatim as the reload error so operators see the same
 // message they did on the legacy RPC loop.
-func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin, diff *configDiff) error {
+func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin, diff *configDiff, runningTree, candidateTree map[string]any) error {
 	if len(affected) == 0 {
 		return nil
 	}
@@ -56,9 +57,180 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 	if err != nil {
 		return fmt.Errorf("create transaction coordinator: %w", err)
 	}
+	coordinator.SetOperationPlanner(operationPlannerFromTrees(gateway, runningTree, candidateTree, participants))
 
 	result := coordinator.Execute(ctx, diffs)
 	return txResultToError(result)
+}
+
+func operationPlannerFromTrees(gateway transaction.EventGateway, runningTree, candidateTree map[string]any, participants []transaction.Participant) transaction.OperationPlanner {
+	return func(ctx context.Context, req transaction.OperationPlanRequest) ([]transaction.ConfigOperation, error) {
+		decomposeOKCh := make(chan transaction.ConfigOperationDecomposeAck, len(req.Diffs))
+		decomposeFailedCh := make(chan transaction.ConfigOperationDecomposeAck, len(req.Diffs))
+		var unsubs []func()
+		if gateway != nil {
+			unsubs = append(unsubs,
+				gateway.SubscribeConfigEvent(transaction.EventOperationDecomposeOK, func(payload []byte) {
+					var ack transaction.ConfigOperationDecomposeAck
+					if err := json.Unmarshal(payload, &ack); err == nil && ack.TransactionID == req.TransactionID {
+						decomposeOKCh <- ack
+					}
+				}),
+				gateway.SubscribeConfigEvent(transaction.EventOperationDecomposeFailed, func(payload []byte) {
+					var ack transaction.ConfigOperationDecomposeAck
+					if err := json.Unmarshal(payload, &ack); err == nil && ack.TransactionID == req.TransactionID {
+						decomposeFailedCh <- ack
+					}
+				}),
+			)
+			defer closeUnsubs(unsubs)
+		}
+
+		roots := make([]string, 0, len(req.Diffs))
+		for root := range req.Diffs {
+			roots = append(roots, root)
+		}
+		sort.Strings(roots)
+
+		var operations []transaction.ConfigOperation
+		for _, root := range roots {
+			decomposer, _ := transaction.OperationDecomposerFor(root)
+			activeRoot, err := marshalOperationRoot(runningTree, root)
+			if err != nil {
+				return nil, err
+			}
+			candidateRoot, err := marshalOperationRoot(candidateTree, root)
+			if err != nil {
+				return nil, err
+			}
+			for _, diff := range req.Diffs[root] {
+				ops, err := decomposeRootOperations(ctx, gateway, req.TransactionID, root, activeRoot, candidateRoot, diff, decomposer, participants, decomposeOKCh, decomposeFailedCh)
+				if err != nil {
+					return nil, err
+				}
+				operations = append(operations, ops...)
+			}
+		}
+		if err := validateOperationDeclarations(participants, operations); err != nil {
+			return nil, err
+		}
+		return operations, nil
+	}
+}
+
+func decomposeRootOperations(ctx context.Context, gateway transaction.EventGateway, txID, root, activeRoot, candidateRoot string, diff transaction.DiffSection, decomposer transaction.OperationDecomposer, participants []transaction.Participant, okCh, failedCh <-chan transaction.ConfigOperationDecomposeAck) ([]transaction.ConfigOperation, error) {
+	if decomposer != nil {
+		return decomposer(ctx, transaction.DecomposeRequest{
+			TransactionID: txID,
+			Root:          diff.Root,
+			ActiveRoot:    activeRoot,
+			CandidateRoot: candidateRoot,
+			Diff:          diff,
+		})
+	}
+
+	participant, decl, ok := operationDeclForRoot(participants, root)
+	if !ok {
+		return nil, nil
+	}
+	if !decl.Decompose {
+		return nil, fmt.Errorf("plugin %s declares config operations for root %s without operation decomposition", participant.Name, root)
+	}
+	if gateway == nil {
+		return nil, fmt.Errorf("plugin %s declares operation decomposition for root %s but no event gateway is available", participant.Name, root)
+	}
+	payload, err := json.Marshal(transaction.ConfigOperationDecomposeEvent{
+		TransactionID: txID,
+		Root:          root,
+		ActiveRoot:    activeRoot,
+		CandidateRoot: candidateRoot,
+		Diff:          diff,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal operation decompose %s: %w", root, err)
+	}
+	if _, err := gateway.EmitConfigEvent(transaction.EventOperationDecomposeFor(participant.Name), payload); err != nil {
+		return nil, fmt.Errorf("emit operation decompose %s: %w", root, err)
+	}
+	return waitDecomposeAck(ctx, participant.Name, root, okCh, failedCh)
+}
+
+func operationDeclForRoot(participants []transaction.Participant, root string) (transaction.Participant, transaction.ConfigOperationDecl, bool) {
+	for _, participant := range participants {
+		for _, decl := range participant.ConfigOperations {
+			if decl.Root == root {
+				return participant, decl, true
+			}
+		}
+	}
+	return transaction.Participant{}, transaction.ConfigOperationDecl{}, false
+}
+
+func waitDecomposeAck(ctx context.Context, pluginName, root string, okCh, failedCh <-chan transaction.ConfigOperationDecomposeAck) ([]transaction.ConfigOperation, error) {
+	for {
+		select {
+		case ack := <-okCh:
+			if ack.Plugin != pluginName || ack.Root != root {
+				continue
+			}
+			if ack.Status != transaction.CodeOK {
+				return nil, fmt.Errorf("operation decompose for %s/%s failed: %s", pluginName, root, ack.Error)
+			}
+			return ack.Operations, nil
+		case ack := <-failedCh:
+			if ack.Plugin != pluginName || ack.Root != root {
+				continue
+			}
+			return nil, fmt.Errorf("operation decompose for %s/%s failed: %s", pluginName, root, ack.Error)
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+}
+
+func validateOperationDeclarations(participants []transaction.Participant, operations []transaction.ConfigOperation) error {
+	for i := range operations {
+		op := &operations[i]
+		if !declaresOperation(participants, op) {
+			return fmt.Errorf("plugin %s does not declare config operation %s for root %s", op.Owner, op.Type, op.Root)
+		}
+	}
+	return nil
+}
+
+func declaresOperation(participants []transaction.Participant, op *transaction.ConfigOperation) bool {
+	if op == nil || op.Owner == "" || op.Root == "" || op.Type == "" {
+		return false
+	}
+	for _, participant := range participants {
+		if participant.Name != op.Owner {
+			continue
+		}
+		for _, decl := range participant.ConfigOperations {
+			if decl.Root == op.Root && slices.Contains(decl.Operations, op.Type) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func closeUnsubs(unsubs []func()) {
+	for _, unsub := range unsubs {
+		unsub()
+	}
+}
+
+func marshalOperationRoot(tree map[string]any, root string) (string, error) {
+	subtree := ExtractConfigSubtree(tree, root)
+	if subtree == nil {
+		return "{}", nil
+	}
+	data, err := json.Marshal(subtree)
+	if err != nil {
+		return "", fmt.Errorf("marshal operation root %s: %w", root, err)
+	}
+	return string(data), nil
 }
 
 // buildTxInputs turns the affected plugin list into the typed participant
@@ -114,10 +286,11 @@ func buildTxInputs(affected []affectedPlugin, diff *configDiff) ([]transaction.P
 		}
 		roots := expandWildcardRoots(reg.WantsConfigRoots, allRoots)
 		participants = append(participants, transaction.Participant{
-			Name:         ap.proc.Name(),
-			ConfigRoots:  roots,
-			VerifyBudget: reg.VerifyBudget,
-			ApplyBudget:  reg.ApplyBudget,
+			Name:             ap.proc.Name(),
+			ConfigRoots:      roots,
+			ConfigOperations: reg.ConfigOperations,
+			VerifyBudget:     reg.VerifyBudget,
+			ApplyBudget:      reg.ApplyBudget,
 		})
 		copied := make([]rpc.ConfigSection, len(ap.sections))
 		copy(copied, ap.sections)

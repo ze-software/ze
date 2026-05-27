@@ -778,6 +778,7 @@ func registerPluginFamilies(families []rpc.FamilyDecl) error {
 func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegistration {
 	reg := &plugin.PluginRegistration{
 		WantsConfigRoots:  input.WantsConfig,
+		ConfigOperations:  input.ConfigOperations,
 		VerifyBudget:      input.VerifyBudget,
 		ApplyBudget:       input.ApplyBudget,
 		WantsValidateOpen: input.WantsValidateOpen,

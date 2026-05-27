@@ -30,6 +30,7 @@ type DeclareRegistrationInput struct {
 	Commands               []CommandDecl           `json:"commands,omitempty"`
 	Dependencies           []string                `json:"dependencies,omitempty"`
 	WantsConfig            []string                `json:"wants-config,omitempty"`
+	ConfigOperations       []ConfigOperationDecl   `json:"config-operations,omitempty"`
 	VerifyBudget           int                     `json:"verify-budget,omitempty"` // Estimated verify time in seconds (0 = trivial).
 	ApplyBudget            int                     `json:"apply-budget,omitempty"`  // Estimated apply time in seconds (0 = trivial).
 	Schema                 *SchemaDecl             `json:"schema,omitempty"`
@@ -334,6 +335,174 @@ type ConfigApplyInput struct {
 type ConfigApplyOutput struct {
 	Status string `json:"status"`          // "ok" or "error"
 	Error  string `json:"error,omitempty"` // Reason for failure
+}
+
+// ConfigOperationType identifies one atomic config operation. Wire values are
+// kebab-case so external plugin payloads stay stable and readable.
+type ConfigOperationType string
+
+const (
+	OperationAddInterface       ConfigOperationType = "add-interface"
+	OperationRemoveInterface    ConfigOperationType = "remove-interface"
+	OperationAddAddress         ConfigOperationType = "add-address"
+	OperationRemoveAddress      ConfigOperationType = "remove-address"
+	OperationSetProperty        ConfigOperationType = "set-property"
+	OperationAddBridgeMember    ConfigOperationType = "add-bridge-member"
+	OperationRemoveBridgeMember ConfigOperationType = "remove-bridge-member"
+	OperationAddPeer            ConfigOperationType = "add-peer"
+	OperationRemovePeer         ConfigOperationType = "remove-peer"
+	OperationModifyPeer         ConfigOperationType = "modify-peer"
+	OperationAddListener        ConfigOperationType = "add-listener"
+	OperationRemoveListener     ConfigOperationType = "remove-listener"
+	OperationAddStaticRoute     ConfigOperationType = "add-static-route"
+	OperationRemoveStaticRoute  ConfigOperationType = "remove-static-route"
+	OperationSetAdminDistance   ConfigOperationType = "set-admin-distance"
+	OperationSetSysctl          ConfigOperationType = "set-sysctl"
+	OperationStartDHCP          ConfigOperationType = "start-dhcp"
+	OperationStopDHCP           ConfigOperationType = "stop-dhcp"
+	OperationAddTunnel          ConfigOperationType = "add-tunnel"
+	OperationRemoveTunnel       ConfigOperationType = "remove-tunnel"
+)
+
+// ResourceKind identifies the resource an operation targets. It is deliberately
+// coarse: component-owned decomposers keep detailed semantics in Params while
+// the generic solver uses resource keys for ordering.
+type ResourceKind string
+
+const (
+	ResourceInterface    ResourceKind = "interface"
+	ResourceAddress      ResourceKind = "address"
+	ResourcePeer         ResourceKind = "peer"
+	ResourceListener     ResourceKind = "listener"
+	ResourceBridgeMember ResourceKind = "bridge-member"
+	ResourceStaticRoute  ResourceKind = "static-route"
+	ResourceSysctl       ResourceKind = "sysctl"
+	ResourceDHCP         ResourceKind = "dhcp"
+	ResourceTunnel       ResourceKind = "tunnel"
+)
+
+// ConfigOperationDecl declares operation callback support during Stage 1.
+type ConfigOperationDecl struct {
+	Root       string                `json:"root"`
+	Decompose  bool                  `json:"decompose,omitempty"`
+	Operations []ConfigOperationType `json:"operations,omitempty"`
+}
+
+// ResourceRef is the solver-visible target for an operation. All fields are
+// values so the payload is safe across internal and external plugin boundaries.
+type ResourceRef struct {
+	Kind      ResourceKind `json:"kind"`
+	Name      string       `json:"name,omitempty"`
+	Interface string       `json:"interface,omitempty"`
+	Address   string       `json:"address,omitempty"`
+	Peer      string       `json:"peer,omitempty"`
+	Port      uint16       `json:"port,omitempty"`
+	Prefix    string       `json:"prefix,omitempty"`
+	NextHop   string       `json:"next-hop,omitempty"`
+}
+
+// ConfigOperationParams carries operation-specific values. Component-owned
+// decomposers interpret only the fields relevant to their operations.
+type ConfigOperationParams struct {
+	Name      string          `json:"name,omitempty"`
+	Interface string          `json:"interface,omitempty"`
+	CIDR      string          `json:"cidr,omitempty"`
+	Address   string          `json:"address,omitempty"`
+	Peer      string          `json:"peer,omitempty"`
+	Port      uint16          `json:"port,omitempty"`
+	Prefix    string          `json:"prefix,omitempty"`
+	NextHop   string          `json:"next-hop,omitempty"`
+	Metric    int             `json:"metric,omitempty"`
+	Property  string          `json:"property,omitempty"`
+	Value     string          `json:"value,omitempty"`
+	OldValue  string          `json:"old-value,omitempty"`
+	AllowDual bool            `json:"allow-dual,omitempty"`
+	Spec      json.RawMessage `json:"spec,omitempty"`
+	Config    json.RawMessage `json:"config,omitempty"`
+	OldConfig json.RawMessage `json:"old-config,omitempty"`
+	Changed   json.RawMessage `json:"changed,omitempty"`
+}
+
+// ConfigOperation is one atomic operation in an ordering-sensitive config transaction.
+type ConfigOperation struct {
+	ID     string                `json:"id"`
+	Root   string                `json:"root"`
+	Owner  string                `json:"owner"`
+	Type   ConfigOperationType   `json:"type"`
+	Target ResourceRef           `json:"target"`
+	Params ConfigOperationParams `json:"params,omitzero"`
+}
+
+// ConfigOperationDecomposeInput is the input for
+// ze-plugin-callback:config-operation-decompose.
+type ConfigOperationDecomposeInput struct {
+	TransactionID string            `json:"transaction-id"`
+	Root          string            `json:"root"`
+	Active        ConfigSection     `json:"active"`
+	Candidate     ConfigSection     `json:"candidate"`
+	Diff          ConfigDiffSection `json:"diff"`
+}
+
+// ConfigOperationDecomposeOutput is the output for config-operation-decompose.
+type ConfigOperationDecomposeOutput struct {
+	Status     string            `json:"status"`
+	Error      string            `json:"error,omitempty"`
+	Operations []ConfigOperation `json:"operations,omitempty"`
+}
+
+// ConfigOperationVerifyInput is the input for config-operation-verify.
+type ConfigOperationVerifyInput struct {
+	TransactionID string          `json:"transaction-id"`
+	Operation     ConfigOperation `json:"operation"`
+}
+
+// ConfigOperationVerifyOutput is the output for config-operation-verify.
+type ConfigOperationVerifyOutput struct {
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
+}
+
+// ConfigOperationApplyInput is the input for config-operation-apply.
+type ConfigOperationApplyInput struct {
+	TransactionID string          `json:"transaction-id"`
+	Operation     ConfigOperation `json:"operation"`
+}
+
+// ConfigOperationReadiness reports side-effect readiness produced by an operation.
+type ConfigOperationReadiness struct {
+	Namespace string `json:"namespace"`
+	EventType string `json:"event-type"`
+	Resource  string `json:"resource,omitempty"`
+}
+
+// ConfigOperationApplyOutput is the output for config-operation-apply.
+type ConfigOperationApplyOutput struct {
+	Status    string                     `json:"status"`
+	Error     string                     `json:"error,omitempty"`
+	Readiness []ConfigOperationReadiness `json:"readiness,omitempty"`
+}
+
+// ConfigOperationRollbackInput is the input for config-operation-rollback.
+type ConfigOperationRollbackInput struct {
+	TransactionID string            `json:"transaction-id"`
+	Operations    []ConfigOperation `json:"operations,omitempty"`
+}
+
+// ConfigOperationRollbackOutput is the output for config-operation-rollback.
+type ConfigOperationRollbackOutput struct {
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
+}
+
+// ConfigOperationCommitInput is the input for config-operation-commit.
+type ConfigOperationCommitInput struct {
+	TransactionID string `json:"transaction-id"`
+}
+
+// ConfigOperationCommitOutput is the output for config-operation-commit.
+type ConfigOperationCommitOutput struct {
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
 }
 
 // ByeInput is the input for ze-plugin-callback:bye (shutdown).

@@ -63,3 +63,12 @@ func (g *ConfigEventGateway) SubscribeConfigEvent(eventType string, handler func
 		}
 	})
 }
+
+// SubscribeEvent registers a handler for any namespace/event pair. Operation
+// settlement uses this to wait for side-effect events outside config.
+func (g *ConfigEventGateway) SubscribeEvent(namespace, eventType string, handler func(payload any)) func() {
+	if handler == nil {
+		return func() {}
+	}
+	return g.server.SubscribeEngineEvent(namespace, eventType, handler)
+}

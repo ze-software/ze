@@ -335,6 +335,71 @@ func (pc *PluginConn) SendConfigRollback(ctx context.Context, txID string) error
 	return err
 }
 
+// SendConfigOperationDecompose sends one operation decomposition request.
+func (pc *PluginConn) SendConfigOperationDecompose(ctx context.Context, input *rpc.ConfigOperationDecomposeInput) (*rpc.ConfigOperationDecomposeOutput, error) {
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:config-operation-decompose", input)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.ConfigOperationDecomposeOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal config-operation-decompose result: %w", err)
+	}
+	return &out, nil
+}
+
+// SendConfigOperationVerify sends one operation verification request.
+func (pc *PluginConn) SendConfigOperationVerify(ctx context.Context, input *rpc.ConfigOperationVerifyInput) (*rpc.ConfigOperationVerifyOutput, error) {
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:config-operation-verify", input)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.ConfigOperationVerifyOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal config-operation-verify result: %w", err)
+	}
+	return &out, nil
+}
+
+// SendConfigOperationApply sends one operation apply request.
+func (pc *PluginConn) SendConfigOperationApply(ctx context.Context, input *rpc.ConfigOperationApplyInput) (*rpc.ConfigOperationApplyOutput, error) {
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:config-operation-apply", input)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.ConfigOperationApplyOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal config-operation-apply result: %w", err)
+	}
+	return &out, nil
+}
+
+// SendConfigOperationRollback sends operation rollback for a transaction.
+func (pc *PluginConn) SendConfigOperationRollback(ctx context.Context, input *rpc.ConfigOperationRollbackInput) (*rpc.ConfigOperationRollbackOutput, error) {
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:config-operation-rollback", input)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.ConfigOperationRollbackOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal config-operation-rollback result: %w", err)
+	}
+	return &out, nil
+}
+
+// SendConfigOperationCommit finalizes operation journals for a transaction.
+func (pc *PluginConn) SendConfigOperationCommit(ctx context.Context, input *rpc.ConfigOperationCommitInput) (*rpc.ConfigOperationCommitOutput, error) {
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:config-operation-commit", input)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.ConfigOperationCommitOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal config-operation-commit result: %w", err)
+	}
+	return &out, nil
+}
+
 // SendValidateOpen sends a validate-open request to the plugin.
 // Returns the plugin's validation result (accept/reject with optional NOTIFICATION codes).
 func (pc *PluginConn) SendValidateOpen(ctx context.Context, input *rpc.ValidateOpenInput) (*rpc.ValidateOpenOutput, error) {

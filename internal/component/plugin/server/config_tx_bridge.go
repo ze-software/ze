@@ -23,7 +23,8 @@ import (
 )
 
 // configTxBridge translates the transaction orchestrator's per-plugin stream
-// events into plugin RPC calls (config-verify, config-apply, config-rollback)
+// events into plugin RPC calls (config-verify, config-apply, config-rollback,
+// config-operation-apply)
 // and feeds the resulting status back onto the stream as ack events. It is a
 // thin engine-side adapter between the typed orchestrator state machine and
 // the existing plugin SDK callback surface.
@@ -109,11 +110,31 @@ func (b *configTxBridge) Subscribe(ctx context.Context) error {
 		if err := events.RegisterEventType(txevents.Namespace, transaction.EventApplyFor(name)); err != nil {
 			return fmt.Errorf("register apply event for %s: %w", name, err)
 		}
+		if err := events.RegisterEventType(txevents.Namespace, transaction.EventOperationDecomposeFor(name)); err != nil {
+			return fmt.Errorf("register operation decompose event for %s: %w", name, err)
+		}
+		if err := events.RegisterEventType(txevents.Namespace, transaction.EventOperationVerifyFor(name)); err != nil {
+			return fmt.Errorf("register operation verify event for %s: %w", name, err)
+		}
+		if err := events.RegisterEventType(txevents.Namespace, transaction.EventOperationApplyFor(name)); err != nil {
+			return fmt.Errorf("register operation apply event for %s: %w", name, err)
+		}
+		if err := events.RegisterEventType(txevents.Namespace, transaction.EventOperationRollbackFor(name)); err != nil {
+			return fmt.Errorf("register operation rollback event for %s: %w", name, err)
+		}
+		if err := events.RegisterEventType(txevents.Namespace, transaction.EventOperationCommitFor(name)); err != nil {
+			return fmt.Errorf("register operation commit event for %s: %w", name, err)
+		}
 	}
 
 	for _, name := range b.participantNames {
 		b.subscribePhase(ctx, name, phaseVerify)
 		b.subscribePhase(ctx, name, phaseApply)
+		b.subscribeOperationDecompose(ctx, name)
+		b.subscribeOperationVerify(ctx, name)
+		b.subscribeOperationApply(ctx, name)
+		b.subscribeOperationRollback(ctx, name)
+		b.subscribeOperationCommit(ctx, name)
 	}
 	b.subscribeRollback(ctx)
 	return nil
@@ -296,6 +317,342 @@ func (b *configTxBridge) subscribePhase(parentCtx context.Context, name string, 
 	b.addUnsub(unsub)
 }
 
+type operationIDProbe struct {
+	ID string `json:"id"`
+}
+
+type opDecomposeProbe struct {
+	TransactionID string `json:"transaction-id"`
+	Root          string `json:"root"`
+}
+
+type opApplyProbe struct {
+	TransactionID string           `json:"transaction-id"`
+	Operation     operationIDProbe `json:"operation"`
+}
+
+type opRollbackProbe struct {
+	TransactionID string             `json:"transaction-id"`
+	Operations    []operationIDProbe `json:"operations"`
+}
+
+type opCommitProbe struct {
+	TransactionID string `json:"transaction-id"`
+}
+
+// subscribeOperationDecompose registers the operation decomposition handler for one plugin.
+func (b *configTxBridge) subscribeOperationDecompose(parentCtx context.Context, name string) {
+	eventType := transaction.EventOperationDecomposeFor(name)
+	unsub := b.server.SubscribeEngineEvent(txevents.Namespace, eventType, func(p any) {
+		event, ok := p.(string)
+		if !ok {
+			logger().Error("config tx bridge: non-string operation decompose payload",
+				"plugin", name, "event-type", eventType, "got", reflect.TypeOf(p))
+			return
+		}
+		raw := []byte(event)
+
+		var probe opDecomposeProbe
+		if err := json.Unmarshal(raw, &probe); err != nil {
+			logger().Error("config tx bridge: extract operation decompose tx id",
+				"plugin", name, "event-type", eventType, "error", err)
+			return
+		}
+
+		var ev transaction.ConfigOperationDecomposeEvent
+		if err := json.Unmarshal(raw, &ev); err != nil {
+			logger().Error("config tx bridge: unmarshal operation decompose event",
+				"plugin", name, "event-type", eventType, "error", err)
+			b.emitOperationDecomposeFailed(probe.TransactionID, name, probe.Root, "unmarshal operation decompose event: "+err.Error())
+			return
+		}
+
+		proc := b.lookupProcess(name)
+		if proc == nil {
+			b.emitOperationDecomposeFailed(ev.TransactionID, name, ev.Root, "plugin process not found (crashed?)")
+			return
+		}
+		conn := proc.Conn()
+		if conn == nil {
+			b.emitOperationDecomposeFailed(ev.TransactionID, name, ev.Root, "plugin connection closed (crashed?)")
+			return
+		}
+
+		rpcCtx, cancel := deadlineCtx(parentCtx, ev.DeadlineMS)
+		defer cancel()
+
+		out, err := conn.SendConfigOperationDecompose(rpcCtx, &rpc.ConfigOperationDecomposeInput{
+			TransactionID: ev.TransactionID,
+			Root:          ev.Root,
+			Active:        rpc.ConfigSection{Root: ev.Root, Data: ev.ActiveRoot},
+			Candidate:     rpc.ConfigSection{Root: ev.Root, Data: ev.CandidateRoot},
+			Diff:          diffSectionToDiffRPCSection(ev.Diff),
+		})
+		if err != nil {
+			b.emitOperationDecomposeFailed(ev.TransactionID, name, ev.Root, err.Error())
+			return
+		}
+		if out != nil && out.Status == plugin.StatusError {
+			b.emitOperationDecomposeFailed(ev.TransactionID, name, ev.Root, out.Error)
+			return
+		}
+		var ops []transaction.ConfigOperation
+		if out != nil {
+			ops = out.Operations
+		}
+		b.emitOperationDecomposeOK(ev.TransactionID, name, ev.Root, ops)
+	})
+	b.addUnsub(unsub)
+}
+
+// subscribeOperationVerify registers the operation verification handler for one plugin.
+func (b *configTxBridge) subscribeOperationVerify(parentCtx context.Context, name string) {
+	eventType := transaction.EventOperationVerifyFor(name)
+	unsub := b.server.SubscribeEngineEvent(txevents.Namespace, eventType, func(p any) {
+		event, ok := p.(string)
+		if !ok {
+			logger().Error("config tx bridge: non-string operation verify payload",
+				"plugin", name, "event-type", eventType, "got", reflect.TypeOf(p))
+			return
+		}
+		raw := []byte(event)
+
+		var probe opApplyProbe
+		if err := json.Unmarshal(raw, &probe); err != nil {
+			logger().Error("config tx bridge: extract operation verify tx id",
+				"plugin", name, "event-type", eventType, "error", err)
+			return
+		}
+
+		var ev transaction.ConfigOperationVerifyEvent
+		if err := json.Unmarshal(raw, &ev); err != nil {
+			logger().Error("config tx bridge: unmarshal operation verify event",
+				"plugin", name, "event-type", eventType, "error", err)
+			b.emitOperationVerifyFailed(probe.TransactionID, name, probe.Operation.ID, "unmarshal operation verify event: "+err.Error())
+			return
+		}
+
+		proc := b.lookupProcess(name)
+		if proc == nil {
+			b.emitOperationVerifyFailed(ev.TransactionID, name, ev.Operation.ID, "plugin process not found (crashed?)")
+			return
+		}
+		conn := proc.Conn()
+		if conn == nil {
+			b.emitOperationVerifyFailed(ev.TransactionID, name, ev.Operation.ID, "plugin connection closed (crashed?)")
+			return
+		}
+
+		rpcCtx, cancel := deadlineCtx(parentCtx, ev.DeadlineMS)
+		defer cancel()
+
+		out, err := conn.SendConfigOperationVerify(rpcCtx, &rpc.ConfigOperationVerifyInput{TransactionID: ev.TransactionID, Operation: ev.Operation})
+		if err != nil {
+			b.emitOperationVerifyFailed(ev.TransactionID, name, ev.Operation.ID, err.Error())
+			return
+		}
+		if out != nil && out.Status == plugin.StatusError {
+			b.emitOperationVerifyFailed(ev.TransactionID, name, ev.Operation.ID, out.Error)
+			return
+		}
+		b.emitOperationVerifyOK(ev.TransactionID, name, ev.Operation.ID)
+	})
+	b.addUnsub(unsub)
+}
+
+// subscribeOperationApply registers the operation apply handler for one plugin.
+// The operation executor publishes these per-plugin events; the bridge turns
+// each event into the public SDK/RPC config-operation-apply callback.
+func (b *configTxBridge) subscribeOperationApply(parentCtx context.Context, name string) {
+	eventType := transaction.EventOperationApplyFor(name)
+	unsub := b.server.SubscribeEngineEvent(txevents.Namespace, eventType, func(p any) {
+		event, ok := p.(string)
+		if !ok {
+			logger().Error("config tx bridge: non-string operation apply payload",
+				"plugin", name, "event-type", eventType, "got", reflect.TypeOf(p))
+			return
+		}
+		raw := []byte(event)
+
+		var probe opApplyProbe
+		if err := json.Unmarshal(raw, &probe); err != nil {
+			logger().Error("config tx bridge: extract operation apply tx id",
+				"plugin", name, "event-type", eventType, "error", err)
+			return
+		}
+
+		var ev transaction.ConfigOperationApplyEvent
+		if err := json.Unmarshal(raw, &ev); err != nil {
+			logger().Error("config tx bridge: unmarshal operation apply event",
+				"plugin", name, "event-type", eventType, "error", err)
+			b.emitOperationApplyFailed(probe.TransactionID, name, probe.Operation.ID, "unmarshal operation apply event: "+err.Error())
+			return
+		}
+
+		proc := b.lookupProcess(name)
+		if proc == nil {
+			b.emitOperationApplyFailed(ev.TransactionID, name, ev.Operation.ID, "plugin process not found (crashed?)")
+			return
+		}
+		conn := proc.Conn()
+		if conn == nil {
+			b.emitOperationApplyFailed(ev.TransactionID, name, ev.Operation.ID, "plugin connection closed (crashed?)")
+			return
+		}
+
+		rpcCtx, cancel := deadlineCtx(parentCtx, ev.DeadlineMS)
+		defer cancel()
+
+		out, err := conn.SendConfigOperationApply(rpcCtx, &rpc.ConfigOperationApplyInput{
+			TransactionID: ev.TransactionID,
+			Operation:     ev.Operation,
+		})
+		if err != nil {
+			b.emitOperationApplyFailed(ev.TransactionID, name, ev.Operation.ID, err.Error())
+			return
+		}
+		if out != nil && out.Status == plugin.StatusError {
+			b.emitOperationApplyFailed(ev.TransactionID, name, ev.Operation.ID, out.Error)
+			return
+		}
+		var readiness []transaction.ConfigOperationReadiness
+		if out != nil {
+			readiness = out.Readiness
+		}
+		b.emitOperationApplyOK(ev.TransactionID, name, ev.Operation.ID, readiness)
+	})
+	b.addUnsub(unsub)
+}
+
+// subscribeOperationRollback registers the operation rollback handler for one plugin.
+func (b *configTxBridge) subscribeOperationRollback(parentCtx context.Context, name string) {
+	eventType := transaction.EventOperationRollbackFor(name)
+	unsub := b.server.SubscribeEngineEvent(txevents.Namespace, eventType, func(p any) {
+		event, ok := p.(string)
+		if !ok {
+			logger().Error("config tx bridge: non-string operation rollback payload",
+				"plugin", name, "event-type", eventType, "got", reflect.TypeOf(p))
+			return
+		}
+		raw := []byte(event)
+
+		var probe opRollbackProbe
+		if err := json.Unmarshal(raw, &probe); err != nil {
+			logger().Error("config tx bridge: extract operation rollback tx id",
+				"plugin", name, "event-type", eventType, "error", err)
+			return
+		}
+		operationID := firstOperationID(probe.Operations)
+
+		var ev transaction.ConfigOperationRollbackEvent
+		if err := json.Unmarshal(raw, &ev); err != nil {
+			logger().Error("config tx bridge: unmarshal operation rollback event",
+				"plugin", name, "event-type", eventType, "error", err)
+			b.emitOperationRollbackFailed(probe.TransactionID, name, operationID, "unmarshal operation rollback event: "+err.Error())
+			return
+		}
+		operationID = operationIDFromOperations(ev.Operations)
+
+		proc := b.lookupProcess(name)
+		if proc == nil {
+			b.emitOperationRollbackFailed(ev.TransactionID, name, operationID, "plugin process not found (crashed?)")
+			return
+		}
+		conn := proc.Conn()
+		if conn == nil {
+			b.emitOperationRollbackFailed(ev.TransactionID, name, operationID, "plugin connection closed (crashed?)")
+			return
+		}
+
+		rpcCtx, cancel := deadlineCtx(parentCtx, ev.DeadlineMS)
+		defer cancel()
+
+		out, err := conn.SendConfigOperationRollback(rpcCtx, &rpc.ConfigOperationRollbackInput{
+			TransactionID: ev.TransactionID,
+			Operations:    ev.Operations,
+		})
+		if err != nil {
+			b.emitOperationRollbackFailed(ev.TransactionID, name, operationID, err.Error())
+			return
+		}
+		if out != nil && out.Status == plugin.StatusError {
+			b.emitOperationRollbackFailed(ev.TransactionID, name, operationID, out.Error)
+			return
+		}
+		b.emitOperationRollbackOK(ev.TransactionID, name, operationID)
+	})
+	b.addUnsub(unsub)
+}
+
+// subscribeOperationCommit registers the operation commit handler for one plugin.
+func (b *configTxBridge) subscribeOperationCommit(parentCtx context.Context, name string) {
+	eventType := transaction.EventOperationCommitFor(name)
+	unsub := b.server.SubscribeEngineEvent(txevents.Namespace, eventType, func(p any) {
+		event, ok := p.(string)
+		if !ok {
+			logger().Error("config tx bridge: non-string operation commit payload",
+				"plugin", name, "event-type", eventType, "got", reflect.TypeOf(p))
+			return
+		}
+		raw := []byte(event)
+
+		var probe opCommitProbe
+		if err := json.Unmarshal(raw, &probe); err != nil {
+			logger().Error("config tx bridge: extract operation commit tx id",
+				"plugin", name, "event-type", eventType, "error", err)
+			return
+		}
+
+		var ev transaction.ConfigOperationCommitEvent
+		if err := json.Unmarshal(raw, &ev); err != nil {
+			logger().Error("config tx bridge: unmarshal operation commit event",
+				"plugin", name, "event-type", eventType, "error", err)
+			b.emitOperationCommitFailed(probe.TransactionID, name, "unmarshal operation commit event: "+err.Error())
+			return
+		}
+
+		proc := b.lookupProcess(name)
+		if proc == nil {
+			b.emitOperationCommitFailed(ev.TransactionID, name, "plugin process not found (crashed?)")
+			return
+		}
+		conn := proc.Conn()
+		if conn == nil {
+			b.emitOperationCommitFailed(ev.TransactionID, name, "plugin connection closed (crashed?)")
+			return
+		}
+
+		rpcCtx, cancel := deadlineCtx(parentCtx, ev.DeadlineMS)
+		defer cancel()
+
+		out, err := conn.SendConfigOperationCommit(rpcCtx, &rpc.ConfigOperationCommitInput{TransactionID: ev.TransactionID})
+		if err != nil {
+			b.emitOperationCommitFailed(ev.TransactionID, name, err.Error())
+			return
+		}
+		if out != nil && out.Status == plugin.StatusError {
+			b.emitOperationCommitFailed(ev.TransactionID, name, out.Error)
+			return
+		}
+		b.emitOperationCommitOK(ev.TransactionID, name)
+	})
+	b.addUnsub(unsub)
+}
+
+func firstOperationID(ops []operationIDProbe) string {
+	if len(ops) == 0 {
+		return ""
+	}
+	return ops[0].ID
+}
+
+func operationIDFromOperations(ops []transaction.ConfigOperation) string {
+	if len(ops) == 0 {
+		return ""
+	}
+	return ops[0].ID
+}
+
 // deadlineCtx derives a per-RPC context. When the event carries a non-zero
 // Unix-millis deadline the returned context honors it; otherwise the parent
 // is returned unchanged with a no-op cancel. Derived deadlines use the
@@ -417,6 +774,111 @@ func (b *configTxBridge) emitApplyFailed(txID, name, errMsg string) {
 	b.emitAck(transaction.EventApplyFailed, ack, txID, name)
 }
 
+func (b *configTxBridge) emitOperationDecomposeOK(txID, name, root string, ops []transaction.ConfigOperation) {
+	ack := transaction.ConfigOperationDecomposeAck{
+		TransactionID: txID,
+		Plugin:        name,
+		Root:          root,
+		Status:        transaction.CodeOK,
+		Operations:    ops,
+	}
+	b.emitAck(transaction.EventOperationDecomposeOK, ack, txID, name)
+}
+
+func (b *configTxBridge) emitOperationDecomposeFailed(txID, name, root, errMsg string) {
+	ack := transaction.ConfigOperationDecomposeAck{
+		TransactionID: txID,
+		Plugin:        name,
+		Root:          root,
+		Status:        transaction.CodeError,
+		Error:         errMsg,
+	}
+	b.emitAck(transaction.EventOperationDecomposeFailed, ack, txID, name)
+}
+
+func (b *configTxBridge) emitOperationVerifyOK(txID, name, operationID string) {
+	ack := transaction.ConfigOperationVerifyAck{
+		TransactionID: txID,
+		Plugin:        name,
+		OperationID:   operationID,
+		Status:        transaction.CodeOK,
+	}
+	b.emitAck(transaction.EventOperationVerifyOK, ack, txID, name)
+}
+
+func (b *configTxBridge) emitOperationVerifyFailed(txID, name, operationID, errMsg string) {
+	ack := transaction.ConfigOperationVerifyAck{
+		TransactionID: txID,
+		Plugin:        name,
+		OperationID:   operationID,
+		Status:        transaction.CodeError,
+		Error:         errMsg,
+	}
+	b.emitAck(transaction.EventOperationVerifyFailed, ack, txID, name)
+}
+
+func (b *configTxBridge) emitOperationApplyOK(txID, name, operationID string, readiness []transaction.ConfigOperationReadiness) {
+	ack := transaction.ConfigOperationApplyAck{
+		TransactionID: txID,
+		Plugin:        name,
+		OperationID:   operationID,
+		Status:        transaction.CodeOK,
+		Readiness:     readiness,
+	}
+	b.emitAck(transaction.EventOperationApplyOK, ack, txID, name)
+}
+
+func (b *configTxBridge) emitOperationApplyFailed(txID, name, operationID, errMsg string) {
+	ack := transaction.ConfigOperationApplyAck{
+		TransactionID: txID,
+		Plugin:        name,
+		OperationID:   operationID,
+		Status:        transaction.CodeError,
+		Error:         errMsg,
+	}
+	b.emitAck(transaction.EventOperationApplyFailed, ack, txID, name)
+}
+
+func (b *configTxBridge) emitOperationRollbackOK(txID, name, operationID string) {
+	ack := transaction.ConfigOperationRollbackAck{
+		TransactionID: txID,
+		Plugin:        name,
+		OperationID:   operationID,
+		Status:        transaction.CodeOK,
+	}
+	b.emitAck(transaction.EventOperationRollbackOK, ack, txID, name)
+}
+
+func (b *configTxBridge) emitOperationRollbackFailed(txID, name, operationID, errMsg string) {
+	ack := transaction.ConfigOperationRollbackAck{
+		TransactionID: txID,
+		Plugin:        name,
+		OperationID:   operationID,
+		Status:        transaction.CodeError,
+		Error:         errMsg,
+	}
+	b.emitAck(transaction.EventOperationRollbackFailed, ack, txID, name)
+}
+
+func (b *configTxBridge) emitOperationCommitOK(txID, name string) {
+	ack := transaction.ConfigOperationCommitAck{
+		TransactionID: txID,
+		Plugin:        name,
+		Status:        transaction.CodeOK,
+	}
+	b.emitAck(transaction.EventOperationCommitOK, ack, txID, name)
+}
+
+func (b *configTxBridge) emitOperationCommitFailed(txID, name, errMsg string) {
+	ack := transaction.ConfigOperationCommitAck{
+		TransactionID: txID,
+		Plugin:        name,
+		Status:        transaction.CodeError,
+		Error:         errMsg,
+	}
+	b.emitAck(transaction.EventOperationCommitFailed, ack, txID, name)
+}
+
 // emitRollbackAck publishes a rollback-ok ack. A non-OK code signals the
 // orchestrator to restart the plugin via restartFn before draining the
 // next dependency tier.
@@ -473,12 +935,16 @@ func registrationApplyBudget(proc *process.Process) int {
 func diffSectionsToDiffRPCSections(diffs []transaction.DiffSection) []rpc.ConfigDiffSection {
 	out := make([]rpc.ConfigDiffSection, 0, len(diffs))
 	for _, d := range diffs {
-		out = append(out, rpc.ConfigDiffSection{
-			Root:    d.Root,
-			Added:   d.Added,
-			Removed: d.Removed,
-			Changed: d.Changed,
-		})
+		out = append(out, diffSectionToDiffRPCSection(d))
 	}
 	return out
+}
+
+func diffSectionToDiffRPCSection(d transaction.DiffSection) rpc.ConfigDiffSection {
+	return rpc.ConfigDiffSection{
+		Root:    d.Root,
+		Added:   d.Added,
+		Removed: d.Removed,
+		Changed: d.Changed,
+	}
 }

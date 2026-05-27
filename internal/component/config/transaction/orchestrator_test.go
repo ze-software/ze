@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -31,9 +32,15 @@ func findReportError(source, code, subject string) *report.Issue {
 // It records emitted events and dispatches synchronously to registered handlers,
 // matching the production adapter's semantics (engine handlers fire inline).
 type testGateway struct {
-	mu       sync.Mutex
-	emitted  []emittedEvent
-	handlers map[string][]func(payload []byte)
+	mu            sync.Mutex
+	emitted       []emittedEvent
+	handlers      map[string][]func(payload []byte)
+	eventHandlers map[testEventKey][]func(payload any)
+}
+
+type testEventKey struct {
+	Namespace string
+	EventType string
 }
 
 type emittedEvent struct {
@@ -43,7 +50,8 @@ type emittedEvent struct {
 
 func newTestGateway() *testGateway {
 	return &testGateway{
-		handlers: make(map[string][]func([]byte)),
+		handlers:      make(map[string][]func([]byte)),
+		eventHandlers: make(map[testEventKey][]func(any)),
 	}
 }
 
@@ -83,12 +91,43 @@ func (g *testGateway) SubscribeConfigEvent(eventType string, handler func(payloa
 	}
 }
 
+// SubscribeEvent registers a handler for non-config settlement events.
+func (g *testGateway) SubscribeEvent(namespace, eventType string, handler func(payload any)) func() {
+	if handler == nil {
+		return func() {}
+	}
+	key := testEventKey{Namespace: namespace, EventType: eventType}
+	g.mu.Lock()
+	g.eventHandlers[key] = append(g.eventHandlers[key], handler)
+	idx := len(g.eventHandlers[key]) - 1
+	g.mu.Unlock()
+
+	return func() {
+		g.mu.Lock()
+		defer g.mu.Unlock()
+		hs := g.eventHandlers[key]
+		if idx < len(hs) {
+			g.eventHandlers[key] = append(hs[:idx], hs[idx+1:]...)
+		}
+	}
+}
+
 // mustEmit calls EmitConfigEvent and panics on error. The fake never errors,
 // so this exists purely to keep test helper code straight-line without
 // triggering the ignored-errors lint hook.
 func (g *testGateway) mustEmit(eventType string, payload []byte) {
 	if _, err := g.EmitConfigEvent(eventType, payload); err != nil {
 		panic(err)
+	}
+}
+
+func (g *testGateway) emitEvent(namespace, eventType string, payload any) {
+	g.mu.Lock()
+	handlers := append([]func(any){}, g.eventHandlers[testEventKey{Namespace: namespace, EventType: eventType}]...)
+	g.mu.Unlock()
+
+	for _, h := range handlers {
+		h(payload)
 	}
 }
 
@@ -422,6 +461,83 @@ func TestOrchestratorApplyAllOk(t *testing.T) {
 	applied := gw.findEmitted(EventApplied)
 	if len(applied) == 0 {
 		t.Fatal("config/applied not emitted")
+	}
+}
+
+// VALIDATES: Operation-sensitive transactions use operation verify/apply/commit instead of legacy apply.
+// PREVENTS: Operation planning being built but never wired into TxCoordinator.Execute.
+func TestOrchestratorUsesOperationPathWhenPlannerReturnsOperations(t *testing.T) {
+	gw := newTestGateway()
+	p1 := testParticipant{name: "iface", configRoots: []string{"interface"}}
+	orch := newTestOrchestrator(t, gw, []testParticipant{p1})
+	orch.SetOperationPlanner(func(_ context.Context, req OperationPlanRequest) ([]ConfigOperation, error) {
+		if req.TransactionID != orch.TransactionID() {
+			t.Fatalf("planner tx = %q, want %q", req.TransactionID, orch.TransactionID())
+		}
+		return []ConfigOperation{{ID: "addr-add", Root: "interface", Owner: "iface", Type: OperationAddAddress, Target: ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "192.0.2.1/32"}}}, nil
+	})
+
+	var operationEvents []string
+	gw.SubscribeConfigEvent(EventOperationVerifyFor("iface"), func(payload []byte) {
+		operationEvents = append(operationEvents, EventOperationVerifyFor("iface"))
+		var ev ConfigOperationVerifyEvent
+		if err := json.Unmarshal(payload, &ev); err != nil {
+			t.Fatalf("unmarshal operation verify: %v", err)
+		}
+		ack := ConfigOperationVerifyAck{TransactionID: ev.TransactionID, Plugin: "iface", OperationID: ev.Operation.ID, Status: CodeOK}
+		ackPayload, _ := json.Marshal(ack)
+		gw.mustEmit(EventOperationVerifyOK, ackPayload)
+	})
+	gw.SubscribeConfigEvent(EventOperationApplyFor("iface"), func(payload []byte) {
+		operationEvents = append(operationEvents, EventOperationApplyFor("iface"))
+		var ev ConfigOperationApplyEvent
+		if err := json.Unmarshal(payload, &ev); err != nil {
+			t.Fatalf("unmarshal operation apply: %v", err)
+		}
+		ack := ConfigOperationApplyAck{TransactionID: ev.TransactionID, Plugin: "iface", OperationID: ev.Operation.ID, Status: CodeOK}
+		ackPayload, _ := json.Marshal(ack)
+		gw.mustEmit(EventOperationApplyOK, ackPayload)
+	})
+	gw.SubscribeConfigEvent(EventOperationCommitFor("iface"), func(payload []byte) {
+		operationEvents = append(operationEvents, EventOperationCommitFor("iface"))
+		var ev ConfigOperationCommitEvent
+		if err := json.Unmarshal(payload, &ev); err != nil {
+			t.Fatalf("unmarshal operation commit: %v", err)
+		}
+		ack := ConfigOperationCommitAck{TransactionID: ev.TransactionID, Plugin: "iface", Status: CodeOK}
+		ackPayload, _ := json.Marshal(ack)
+		gw.mustEmit(EventOperationCommitOK, ackPayload)
+	})
+
+	diffs := map[string][]DiffSection{"interface": {{Root: "interface", Added: `{"interface/eth0/address/192.0.2.1/32":true}`}}}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resultCh := make(chan *TxResult, 1)
+	go func() {
+		resultCh <- orch.Execute(ctx, diffs)
+	}()
+
+	waitForEmit(t, gw, EventVerifyFor("iface"))
+	p1.respondVerify(gw, orch.TransactionID())
+
+	select {
+	case result := <-resultCh:
+		if result.Err != nil {
+			t.Fatalf("unexpected error: %v", result.Err)
+		}
+		if result.State != StateCommitted {
+			t.Fatalf("state = %s, want %s", result.State, StateCommitted)
+		}
+	case <-ctx.Done():
+		t.Fatal("timed out")
+	}
+
+	if applies := gw.findEmitted(EventApplyFor("iface")); len(applies) != 0 {
+		t.Fatalf("legacy apply emitted in operation path: %d", len(applies))
+	}
+	if got, want := operationEvents, []string{EventOperationVerifyFor("iface"), EventOperationApplyFor("iface"), EventOperationCommitFor("iface")}; !slices.Equal(got, want) {
+		t.Fatalf("operation events = %v, want %v", got, want)
 	}
 }
 

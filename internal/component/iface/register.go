@@ -270,6 +270,8 @@ func runEngine(conn net.Conn) int {
 	// Initialized from OnConfigure so the first reload rollback restores startup state.
 	var activeCfg atomic.Pointer[ifaceConfig]
 	var activeJournal *sdk.Journal
+	operationJournals := make(map[string]*sdk.Journal)
+	var operationMu sync.Mutex
 
 	// vppReadyOnce guards the one-shot subscription to vppevents so that a
 	// config reload does not double-subscribe. The subscription lives inside
@@ -556,6 +558,7 @@ func runEngine(conn net.Conn) int {
 	})
 
 	p.OnConfigRollback(func(_ string) error {
+		pendingCfg = nil
 		j := activeJournal
 		activeJournal = nil
 		if j == nil {
@@ -568,6 +571,60 @@ func runEngine(conn net.Conn) int {
 		return nil
 	})
 
+	p.OnConfigOperationVerify(func(input sdk.ConfigOperationVerifyInput) error {
+		return verifyIfaceOperation(&input.Operation)
+	})
+
+	p.OnConfigOperationApply(func(input sdk.ConfigOperationApplyInput) (*sdk.ConfigOperationApplyOutput, error) {
+		b := GetBackend()
+		if b == nil {
+			return nil, errInterfaceConfigApplyNoBackendLoaded
+		}
+		j, err := applyIfaceOperation(&input.Operation, b)
+		if err != nil {
+			return nil, err
+		}
+		operationMu.Lock()
+		operationJournals[operationJournalKey(input.TransactionID, input.Operation.ID)] = j
+		operationMu.Unlock()
+		return &sdk.ConfigOperationApplyOutput{Status: "ok"}, nil
+	})
+
+	p.OnConfigOperationRollback(func(input sdk.ConfigOperationRollbackInput) error {
+		operationMu.Lock()
+		defer operationMu.Unlock()
+		for i := range input.Operations {
+			op := &input.Operations[i]
+			key := operationJournalKey(input.TransactionID, op.ID)
+			j := operationJournals[key]
+			delete(operationJournals, key)
+			if j == nil {
+				continue
+			}
+			if errs := j.Rollback(); len(errs) > 0 {
+				return fmt.Errorf("interface operation rollback %s: %d errors", op.ID, len(errs))
+			}
+		}
+		return nil
+	})
+
+	p.OnConfigOperationCommit(func(input sdk.ConfigOperationCommitInput) error {
+		operationMu.Lock()
+		for key, j := range operationJournals {
+			if strings.HasPrefix(key, input.TransactionID+"\x00") {
+				j.Discard()
+				delete(operationJournals, key)
+			}
+		}
+		operationMu.Unlock()
+		if pendingCfg != nil {
+			activeCfg.Store(pendingCfg)
+			pendingCfg = nil
+		}
+		log.Info("interface config operation journal committed")
+		return nil
+	})
+
 	tracker := newRateTracker()
 	globalTracker.Store(tracker)
 	tracker.Start()
@@ -575,9 +632,10 @@ func runEngine(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"interface"},
-		VerifyBudget: 2,
-		ApplyBudget:  10,
+		WantsConfig:      []string{"interface"},
+		ConfigOperations: ifaceConfigOperationDecls(),
+		VerifyBudget:     2,
+		ApplyBudget:      10,
 	}); err != nil {
 		log.Error("interface plugin failed", "error", err)
 		return 1

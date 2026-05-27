@@ -137,6 +137,9 @@ func TestRPCRegistrationToRegistry(t *testing.T) {
 			{Name: "peer * refresh", Description: "Refresh peer"},
 		},
 		WantsConfig: []string{"bgp"},
+		ConfigOperations: []rpc.ConfigOperationDecl{
+			{Root: "bgp", Decompose: true, Operations: []rpc.ConfigOperationType{rpc.OperationAddPeer}},
+		},
 		Schema: &rpc.SchemaDecl{
 			Module:    "ze-rib-conf",
 			Namespace: "urn:ze:rib:conf",
@@ -153,6 +156,7 @@ func TestRPCRegistrationToRegistry(t *testing.T) {
 	assert.Equal(t, "rib", registry.LookupCommand("bgp rib adjacent in show"))
 	assert.Equal(t, "rib", registry.LookupCommand("peer * refresh"))
 	assert.Empty(t, registry.LookupCommand("unknown cmd"))
+	assert.Equal(t, input.ConfigOperations, reg.ConfigOperations)
 
 	// Verify decode families registered
 	assert.Equal(t, "rib", registry.LookupFamily("ipv4/flow"))

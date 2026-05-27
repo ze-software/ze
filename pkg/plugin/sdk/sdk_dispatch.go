@@ -27,6 +27,11 @@ const (
 	callbackConfigVerify     = "ze-plugin-callback:config-verify"
 	callbackConfigApply      = "ze-plugin-callback:config-apply"
 	callbackConfigRollback   = "ze-plugin-callback:config-rollback"
+	callbackOpDecompose      = "ze-plugin-callback:config-operation-decompose"
+	callbackOpVerify         = "ze-plugin-callback:config-operation-verify"
+	callbackOpApply          = "ze-plugin-callback:config-operation-apply"
+	callbackOpRollback       = "ze-plugin-callback:config-operation-rollback"
+	callbackOpCommit         = "ze-plugin-callback:config-operation-commit"
 	callbackValidateOpen     = "ze-plugin-callback:validate-open"
 	callbackFilterUpdate     = "ze-plugin-callback:filter-update"
 	// callbackPostStartup is sent by the engine after all startup phases

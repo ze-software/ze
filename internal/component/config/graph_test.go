@@ -187,6 +187,48 @@ func TestBuildGraph_NoDuplicateNodes(t *testing.T) {
 	assert.Equal(t, 1, count, "plugin/bgp-rib should appear exactly once")
 }
 
+func TestGraphAddressNodes(t *testing.T) {
+	schema := graphTestSchema(t)
+	tree := NewTree()
+
+	// Build interface section with a dummy interface that has an address.
+	iface := NewTree()
+	dum0 := NewTree()
+	unit := NewTree()
+	ipv4 := NewTree()
+	ipv4.SetSlice("address", []string{"10.0.0.1/32"})
+	unit.SetContainer("ipv4", ipv4)
+	dum0.AddListEntry("unit", "default", unit)
+	iface.AddListEntry("dummy", "dum0", dum0)
+	tree.SetContainer("interface", iface)
+
+	// Build a BGP peer whose connection > local > ip matches the address.
+	bgp := NewTree()
+	peer := NewTree()
+	conn := NewTree()
+	local := NewTree()
+	local.Set("ip", "10.0.0.1")
+	conn.SetContainer("local", local)
+	peer.SetContainer("connection", conn)
+	bgp.AddListEntry("peer", "upstream1", peer)
+	tree.SetContainer("bgp", bgp)
+
+	g := BuildGraph(tree, schema)
+
+	// Verify the address node exists with the correct kind.
+	addrNode := findNode(g, "address/dum0/10.0.0.1/32")
+	require.NotNil(t, addrNode, "address/dum0/10.0.0.1/32 node must exist")
+	assert.Equal(t, NodeAddress, addrNode.Kind)
+
+	// Verify EdgeContains from section/interface to the address node.
+	assert.True(t, hasEdge(g, "section/interface", "address/dum0/10.0.0.1/32", EdgeContains),
+		"section/interface should contain the address node")
+
+	// Verify EdgeUsesAddress from the peer to the address node.
+	assert.True(t, hasEdge(g, "peer/upstream1", "address/dum0/10.0.0.1/32", EdgeUsesAddress),
+		"peer should have uses-address edge to matching address node")
+}
+
 func TestBuildGraph_EmptyConfig(t *testing.T) {
 	schema := graphTestSchema(t)
 	tree := NewTree()

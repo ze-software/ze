@@ -1,0 +1,88 @@
+# Test: Config apply ordering -- create interface then add peer
+# Initial config: empty bgp block (no peers, no interfaces)
+# After SIGHUP: config adds a dummy interface and a BGP peer
+# The operation graph solver must order:
+#   ADD_INTERFACE(dummy) -> ADD_PEER(peer1)
+# so the interface exists before the peer attempts to bind.
+# Expected: peer connects and sends route after ordering-aware reload.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+
+# Connection 1: Static route from newly added peer (192.168.1.0/24) + EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Initial ze bgp configuration (empty -- no peers, no interfaces)
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+}
+EOF_CONF
+
+# Rewritten config (dummy interface + BGP peer added together)
+tmpfs=config2.conf:terminator=EOF_CONF2
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+interface {
+	dummy order-test0 {
+	}
+}
+EOF_CONF2
+
+# Trigger script: waits for daemon to start, then rewrites config and sends SIGHUP
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+cp config2.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+EOF_TRIGGER
+
+# Process orchestration
+# seq=1: ze-peer listens for the new peer connection
+# seq=2: trigger script waits then rewrites config + sends SIGHUP
+# seq=3: ze daemon starts with empty config (no peers)
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s

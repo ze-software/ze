@@ -55,6 +55,91 @@ type ConfigVerifyOutput = rpc.ConfigVerifyOutput
 // ConfigApplyOutput is the output for config-apply (reload).
 type ConfigApplyOutput = rpc.ConfigApplyOutput
 
+// ConfigOperationDecl declares operation callback support during Stage 1.
+type ConfigOperationDecl = rpc.ConfigOperationDecl
+
+// ConfigOperationType identifies one atomic config operation.
+type ConfigOperationType = rpc.ConfigOperationType
+
+// ConfigOperation is one atomic operation in an ordering-sensitive config transaction.
+type ConfigOperation = rpc.ConfigOperation
+
+// ConfigOperationParams carries operation-specific values.
+type ConfigOperationParams = rpc.ConfigOperationParams
+
+// ResourceKind identifies the resource an operation targets.
+type ResourceKind = rpc.ResourceKind
+
+// ResourceRef is the solver-visible target for an operation.
+type ResourceRef = rpc.ResourceRef
+
+// Config operation type values.
+const (
+	OperationAddInterface       = rpc.OperationAddInterface
+	OperationRemoveInterface    = rpc.OperationRemoveInterface
+	OperationAddAddress         = rpc.OperationAddAddress
+	OperationRemoveAddress      = rpc.OperationRemoveAddress
+	OperationSetProperty        = rpc.OperationSetProperty
+	OperationAddBridgeMember    = rpc.OperationAddBridgeMember
+	OperationRemoveBridgeMember = rpc.OperationRemoveBridgeMember
+	OperationAddPeer            = rpc.OperationAddPeer
+	OperationRemovePeer         = rpc.OperationRemovePeer
+	OperationModifyPeer         = rpc.OperationModifyPeer
+	OperationAddListener        = rpc.OperationAddListener
+	OperationRemoveListener     = rpc.OperationRemoveListener
+	OperationAddStaticRoute     = rpc.OperationAddStaticRoute
+	OperationRemoveStaticRoute  = rpc.OperationRemoveStaticRoute
+	OperationSetAdminDistance   = rpc.OperationSetAdminDistance
+	OperationSetSysctl          = rpc.OperationSetSysctl
+	OperationStartDHCP          = rpc.OperationStartDHCP
+	OperationStopDHCP           = rpc.OperationStopDHCP
+	OperationAddTunnel          = rpc.OperationAddTunnel
+	OperationRemoveTunnel       = rpc.OperationRemoveTunnel
+)
+
+// Resource kind values.
+const (
+	ResourceInterface    = rpc.ResourceInterface
+	ResourceAddress      = rpc.ResourceAddress
+	ResourcePeer         = rpc.ResourcePeer
+	ResourceListener     = rpc.ResourceListener
+	ResourceBridgeMember = rpc.ResourceBridgeMember
+	ResourceStaticRoute  = rpc.ResourceStaticRoute
+	ResourceSysctl       = rpc.ResourceSysctl
+	ResourceDHCP         = rpc.ResourceDHCP
+	ResourceTunnel       = rpc.ResourceTunnel
+)
+
+// ConfigOperationDecomposeInput is the input for config-operation-decompose.
+type ConfigOperationDecomposeInput = rpc.ConfigOperationDecomposeInput
+
+// ConfigOperationDecomposeOutput is the output for config-operation-decompose.
+type ConfigOperationDecomposeOutput = rpc.ConfigOperationDecomposeOutput
+
+// ConfigOperationVerifyInput is the input for config-operation-verify.
+type ConfigOperationVerifyInput = rpc.ConfigOperationVerifyInput
+
+// ConfigOperationVerifyOutput is the output for config-operation-verify.
+type ConfigOperationVerifyOutput = rpc.ConfigOperationVerifyOutput
+
+// ConfigOperationApplyInput is the input for config-operation-apply.
+type ConfigOperationApplyInput = rpc.ConfigOperationApplyInput
+
+// ConfigOperationApplyOutput is the output for config-operation-apply.
+type ConfigOperationApplyOutput = rpc.ConfigOperationApplyOutput
+
+// ConfigOperationRollbackInput is the input for config-operation-rollback.
+type ConfigOperationRollbackInput = rpc.ConfigOperationRollbackInput
+
+// ConfigOperationRollbackOutput is the output for config-operation-rollback.
+type ConfigOperationRollbackOutput = rpc.ConfigOperationRollbackOutput
+
+// ConfigOperationCommitInput is the input for config-operation-commit.
+type ConfigOperationCommitInput = rpc.ConfigOperationCommitInput
+
+// ConfigOperationCommitOutput is the output for config-operation-commit.
+type ConfigOperationCommitOutput = rpc.ConfigOperationCommitOutput
+
 // ValidateOpenInput is the input for validate-open (OPEN validation).
 type ValidateOpenInput = rpc.ValidateOpenInput
 

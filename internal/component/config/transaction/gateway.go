@@ -40,4 +40,10 @@ type EventGateway interface {
 	// If handler is nil, the returned function is a no-op (no
 	// registration is performed).
 	SubscribeConfigEvent(eventType string, handler func(payload []byte)) func()
+
+	// SubscribeEvent registers a handler for non-config settlement events.
+	// The handler receives the publisher's typed payload. It is used by the
+	// operation executor to wait for async side effects such as interface
+	// addr-added or bgp listener-ready.
+	SubscribeEvent(namespace, eventType string, handler func(payload any)) func()
 }

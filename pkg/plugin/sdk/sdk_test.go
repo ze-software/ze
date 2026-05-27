@@ -727,6 +727,73 @@ func TestSDKDispatchConfigApply(t *testing.T) {
 	}
 }
 
+// TestSDKDispatchConfigOperationApply verifies config-operation-apply dispatch
+// in the event loop.
+//
+// VALIDATES: Engine sends config-operation-apply, SDK dispatches to registered handler.
+// PREVENTS: External operation callbacks being rejected as unknown methods.
+func TestSDKDispatchConfigOperationApply(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	applyReceived := make(chan ConfigOperationApplyInput, 1)
+	p.OnConfigOperationApply(func(input ConfigOperationApplyInput) (*ConfigOperationApplyOutput, error) {
+		applyReceived <- input
+		return &ConfigOperationApplyOutput{Status: "ok"}, nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	applyInput := ConfigOperationApplyInput{
+		TransactionID: "tx-1",
+		Operation: ConfigOperation{
+			ID:     "op-1",
+			Root:   "interface",
+			Owner:  "interface",
+			Type:   OperationAddAddress,
+			Target: ResourceRef{Kind: ResourceAddress, Interface: "eth0", Address: "10.0.0.1/32"},
+			Params: ConfigOperationParams{Interface: "eth0", CIDR: "10.0.0.1/32"},
+		},
+	}
+
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:config-operation-apply", applyInput)
+	require.NoError(t, err)
+
+	var result ConfigOperationApplyOutput
+	require.NoError(t, json.Unmarshal(raw, &result))
+	assert.Equal(t, "ok", result.Status)
+
+	select {
+	case got := <-applyReceived:
+		assert.Equal(t, "tx-1", got.TransactionID)
+		assert.Equal(t, OperationAddAddress, got.Operation.Type)
+		assert.Equal(t, "eth0", got.Operation.Params.Interface)
+	case <-time.After(time.Second):
+		t.Fatal("config-operation-apply callback not called")
+	}
+
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
 // TestSDKConfigVerifyReject verifies handler rejection produces status "error" response.
 //
 // VALIDATES: Handler returning error → SDK sends {status:"error", error:"..."}.

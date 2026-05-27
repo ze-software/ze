@@ -22,6 +22,7 @@ const (
 	NodeProfile  GraphNodeKind = "profile"
 	NodeUser     GraphNodeKind = "user"
 	NodeListener GraphNodeKind = "listener"
+	NodeAddress  GraphNodeKind = "address"
 )
 
 // GraphEdgeKind identifies the dependency relationship.
@@ -35,6 +36,7 @@ const (
 	EdgeListensOn    GraphEdgeKind = "listens-on"
 	EdgeDependsOn    GraphEdgeKind = "depends-on"
 	EdgeProcessBinds GraphEdgeKind = "process-binds"
+	EdgeUsesAddress  GraphEdgeKind = "uses-address"
 )
 
 // GraphNode is a node in the config dependency graph.
@@ -75,6 +77,8 @@ func BuildGraph(tree *Tree, schema *Schema) *Graph {
 	addAuthzEdges(g, tree)
 	addListenerNodes(g, tree, schema)
 	addPluginRegistryEdges(g)
+	addAddressNodes(g, tree)
+	addAddressUsageEdges(g, tree)
 
 	sortGraph(g)
 	return g
@@ -262,6 +266,117 @@ func addPluginRegistryEdges(g *Graph) {
 	}
 }
 
+// ifaceListKinds enumerates the interface list names that carry addresses.
+// Each corresponds to a keyed list under the "interface" container whose
+// entries have unit > ipv4/ipv6 > address leaf-lists.
+var ifaceListKinds = []string{
+	"dummy", "ethernet", "veth", "bridge", "tunnel", "wireguard", "xfrm",
+}
+
+// addAddressNodes walks the interface config section and creates an address
+// node for every configured CIDR. Each address node gets an EdgeContains
+// edge from the section/interface node.
+func addAddressNodes(g *Graph, tree *Tree) {
+	iface := tree.GetContainer("interface")
+	if iface == nil {
+		return
+	}
+
+	for _, kind := range ifaceListKinds {
+		for _, entry := range iface.GetListOrdered(kind) {
+			ifName := entry.Key
+			unitList := entry.Value.GetListOrdered("unit")
+			for _, unitEntry := range unitList {
+				for _, cidr := range collectUnitAddresses(unitEntry.Value) {
+					addrID := "address/" + ifName + "/" + cidr
+					g.addNode(addrID, NodeAddress, ifName+"/"+cidr)
+					g.addEdge("section/interface", addrID, EdgeContains)
+				}
+			}
+		}
+	}
+
+	// Loopback is a container, not a list entry.
+	lo := iface.GetContainer("loopback")
+	if lo != nil {
+		for _, unitEntry := range lo.GetListOrdered("unit") {
+			for _, cidr := range collectUnitAddresses(unitEntry.Value) {
+				addrID := "address/lo/" + cidr
+				g.addNode(addrID, NodeAddress, "lo/"+cidr)
+				g.addEdge("section/interface", addrID, EdgeContains)
+			}
+		}
+	}
+}
+
+// collectUnitAddresses returns all CIDR strings from a unit tree's ipv4 and
+// ipv6 family containers.
+func collectUnitAddresses(unit *Tree) []string {
+	var addrs []string
+	for _, family := range []string{"ipv4", "ipv6"} {
+		fam := unit.GetContainer(family)
+		if fam == nil {
+			continue
+		}
+		addrs = append(addrs, fam.GetSlice("address")...)
+	}
+	return addrs
+}
+
+// addAddressUsageEdges links each BGP peer whose connection > local > ip
+// matches an existing address node with an EdgeUsesAddress edge.
+func addAddressUsageEdges(g *Graph, tree *Tree) {
+	// Build a set of address-node IPs (without prefix length) -> node IDs.
+	addrIndex := make(map[string]string) // bare IP -> address node ID
+	for _, n := range g.Nodes {
+		if n.Kind != NodeAddress {
+			continue
+		}
+		// Node ID is "address/<iface>/<cidr>". Extract the IP part of the CIDR.
+		cidr := n.ID[strings.LastIndex(n.ID[:strings.LastIndex(n.ID, "/")], "/")+1:]
+		ip, _, ok := strings.Cut(cidr, "/")
+		if !ok {
+			ip = cidr
+		}
+		addrIndex[ip] = n.ID
+	}
+	if len(addrIndex) == 0 {
+		return
+	}
+
+	bgp := tree.GetContainer("bgp")
+	if bgp == nil {
+		return
+	}
+
+	linkPeerAddress := func(peerID string, peerTree *Tree) {
+		conn := peerTree.GetContainer("connection")
+		if conn == nil {
+			return
+		}
+		local := conn.GetContainer("local")
+		if local == nil {
+			return
+		}
+		ip, ok := local.Get("ip")
+		if !ok || ip == "" || ip == "auto" {
+			return
+		}
+		if addrNodeID, found := addrIndex[ip]; found {
+			g.addEdge(peerID, addrNodeID, EdgeUsesAddress)
+		}
+	}
+
+	for _, groupEntry := range bgp.GetListOrdered("group") {
+		for _, peerEntry := range groupEntry.Value.GetListOrdered("peer") {
+			linkPeerAddress("peer/"+peerEntry.Key, peerEntry.Value)
+		}
+	}
+	for _, peerEntry := range bgp.GetListOrdered("peer") {
+		linkPeerAddress("peer/"+peerEntry.Key, peerEntry.Value)
+	}
+}
+
 // sortGraph deduplicates nodes and edges, creates implicit nodes for dangling
 // edge endpoints, and sorts both for deterministic output.
 func sortGraph(g *Graph) {
@@ -338,6 +453,8 @@ func kindFromID(id string) GraphNodeKind {
 		return NodeUser
 	case NodeListener:
 		return NodeListener
+	case NodeAddress:
+		return NodeAddress
 	default:
 		return NodeSection
 	}

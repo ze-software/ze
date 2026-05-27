@@ -20,6 +20,36 @@ type ApplyEvent struct {
 	DeadlineMS    int64         `json:"deadline-ms"` // Unix millis for apply deadline.
 }
 
+// ConfigOperationApplyEvent asks one plugin to apply one ordered operation.
+type ConfigOperationApplyEvent struct {
+	TransactionID string          `json:"transaction-id"`
+	Operation     ConfigOperation `json:"operation"`
+	DeadlineMS    int64           `json:"deadline-ms,omitempty"`
+}
+
+// ConfigOperationDecomposeEvent asks one plugin to decompose a root diff.
+type ConfigOperationDecomposeEvent struct {
+	TransactionID string      `json:"transaction-id"`
+	Root          string      `json:"root"`
+	ActiveRoot    string      `json:"active-root,omitempty"`
+	CandidateRoot string      `json:"candidate-root,omitempty"`
+	Diff          DiffSection `json:"diff"`
+	DeadlineMS    int64       `json:"deadline-ms,omitempty"`
+}
+
+// ConfigOperationVerifyEvent asks one plugin to verify one operation.
+type ConfigOperationVerifyEvent struct {
+	TransactionID string          `json:"transaction-id"`
+	Operation     ConfigOperation `json:"operation"`
+	DeadlineMS    int64           `json:"deadline-ms,omitempty"`
+}
+
+// ConfigOperationCommitEvent asks one plugin to finalize operation journals.
+type ConfigOperationCommitEvent struct {
+	TransactionID string `json:"transaction-id"`
+	DeadlineMS    int64  `json:"deadline-ms,omitempty"`
+}
+
 // RollbackEvent is published by the engine to all participants.
 type RollbackEvent struct {
 	TransactionID string `json:"transaction-id"`
@@ -62,6 +92,59 @@ type ApplyAck struct {
 	Error            string `json:"error,omitempty"`
 	VerifyBudgetSecs int    `json:"verify-budget-secs,omitempty"` // Updated for next tx.
 	ApplyBudgetSecs  int    `json:"apply-budget-secs,omitempty"`  // Updated for next tx.
+}
+
+// ConfigOperationApplyAck acknowledges one operation apply callback.
+type ConfigOperationApplyAck struct {
+	TransactionID string                     `json:"transaction-id"`
+	Plugin        string                     `json:"plugin"`
+	OperationID   string                     `json:"operation-id"`
+	Status        string                     `json:"status"`
+	Error         string                     `json:"error,omitempty"`
+	Readiness     []ConfigOperationReadiness `json:"readiness,omitempty"`
+}
+
+// ConfigOperationDecomposeAck acknowledges one operation decompose callback.
+type ConfigOperationDecomposeAck struct {
+	TransactionID string            `json:"transaction-id"`
+	Plugin        string            `json:"plugin"`
+	Root          string            `json:"root"`
+	Status        string            `json:"status"`
+	Error         string            `json:"error,omitempty"`
+	Operations    []ConfigOperation `json:"operations,omitempty"`
+}
+
+// ConfigOperationVerifyAck acknowledges one operation verify callback.
+type ConfigOperationVerifyAck struct {
+	TransactionID string `json:"transaction-id"`
+	Plugin        string `json:"plugin"`
+	OperationID   string `json:"operation-id"`
+	Status        string `json:"status"`
+	Error         string `json:"error,omitempty"`
+}
+
+// ConfigOperationCommitAck acknowledges one operation commit callback.
+type ConfigOperationCommitAck struct {
+	TransactionID string `json:"transaction-id"`
+	Plugin        string `json:"plugin"`
+	Status        string `json:"status"`
+	Error         string `json:"error,omitempty"`
+}
+
+// ConfigOperationRollbackEvent asks one plugin to roll back ordered operations.
+type ConfigOperationRollbackEvent struct {
+	TransactionID string            `json:"transaction-id"`
+	Operations    []ConfigOperation `json:"operations,omitempty"`
+	DeadlineMS    int64             `json:"deadline-ms,omitempty"`
+}
+
+// ConfigOperationRollbackAck acknowledges one operation rollback callback.
+type ConfigOperationRollbackAck struct {
+	TransactionID string `json:"transaction-id"`
+	Plugin        string `json:"plugin"`
+	OperationID   string `json:"operation-id,omitempty"`
+	Status        string `json:"status"`
+	Error         string `json:"error,omitempty"`
 }
 
 // RollbackAck is published by a plugin to acknowledge rollback.

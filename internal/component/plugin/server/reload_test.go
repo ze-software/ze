@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
@@ -51,19 +52,34 @@ func (m *mockReloadReactor) SetConfigTree(tree map[string]any) {
 // plugin receives the correct candidate data (not diff-shaped JSON as the
 // earlier bridge implementation accidentally sent).
 type mockPluginResponder struct {
-	pluginConn      *ipc.PluginConn
-	pluginName      string // label recorded by orderRecorder on apply
-	verifyResp      *rpc.ConfigVerifyOutput
-	applyResp       *rpc.ConfigApplyOutput
-	rollbackErr     error  // non-nil → SendError on rollback (CodeBroken path)
-	beforeVerifyRsp func() // Called BEFORE verify response is sent (blocks coordinator)
-	verifyCalls     int
-	applyCalls      int
-	rollbackCalls   int
-	verifySections  []rpc.ConfigSection     // last verify payload
-	applySections   []rpc.ConfigDiffSection // last apply payload
-	order           *orderRecorder          // optional ordering trace
-	mu              sync.Mutex
+	pluginConn       *ipc.PluginConn
+	pluginName       string // label recorded by orderRecorder on apply
+	verifyResp       *rpc.ConfigVerifyOutput
+	applyResp        *rpc.ConfigApplyOutput
+	opDecomposeResp  *rpc.ConfigOperationDecomposeOutput
+	opVerifyResp     *rpc.ConfigOperationVerifyOutput
+	opApplyResp      *rpc.ConfigOperationApplyOutput
+	opRollbackResp   *rpc.ConfigOperationRollbackOutput
+	opCommitResp     *rpc.ConfigOperationCommitOutput
+	rollbackErr      error  // non-nil → SendError on rollback (CodeBroken path)
+	beforeVerifyRsp  func() // Called BEFORE verify response is sent (blocks coordinator)
+	verifyCalls      int
+	applyCalls       int
+	opDecomposeCalls int
+	opVerifyCalls    int
+	opApplyCalls     int
+	opRollbackCalls  int
+	opCommitCalls    int
+	rollbackCalls    int
+	verifySections   []rpc.ConfigSection     // last verify payload
+	applySections    []rpc.ConfigDiffSection // last apply payload
+	opDecomposeInput rpc.ConfigOperationDecomposeInput
+	opVerifyInput    rpc.ConfigOperationVerifyInput
+	opApplyInput     rpc.ConfigOperationApplyInput
+	opRollbackInput  rpc.ConfigOperationRollbackInput
+	opCommitInput    rpc.ConfigOperationCommitInput
+	order            *orderRecorder // optional ordering trace
+	mu               sync.Mutex
 }
 
 // orderRecorder tracks the sequence in which plugins receive config-apply
@@ -138,6 +154,61 @@ func (m *mockPluginResponder) start(ctx context.Context) {
 				}
 				_ = m.pluginConn.SendResult(ctx, req.ID, resp)
 
+			case "ze-plugin-callback:config-operation-decompose":
+				m.opDecomposeCalls++
+				if len(req.Params) > 0 {
+					_ = json.Unmarshal(req.Params, &m.opDecomposeInput)
+				}
+				resp := m.opDecomposeResp
+				if resp == nil {
+					resp = &rpc.ConfigOperationDecomposeOutput{Status: rpc.StatusOK}
+				}
+				_ = m.pluginConn.SendResult(ctx, req.ID, resp)
+
+			case "ze-plugin-callback:config-operation-verify":
+				m.opVerifyCalls++
+				if len(req.Params) > 0 {
+					_ = json.Unmarshal(req.Params, &m.opVerifyInput)
+				}
+				resp := m.opVerifyResp
+				if resp == nil {
+					resp = &rpc.ConfigOperationVerifyOutput{Status: rpc.StatusOK}
+				}
+				_ = m.pluginConn.SendResult(ctx, req.ID, resp)
+
+			case "ze-plugin-callback:config-operation-apply":
+				m.opApplyCalls++
+				if len(req.Params) > 0 {
+					_ = json.Unmarshal(req.Params, &m.opApplyInput)
+				}
+				resp := m.opApplyResp
+				if resp == nil {
+					resp = &rpc.ConfigOperationApplyOutput{Status: rpc.StatusOK}
+				}
+				_ = m.pluginConn.SendResult(ctx, req.ID, resp)
+
+			case "ze-plugin-callback:config-operation-rollback":
+				m.opRollbackCalls++
+				if len(req.Params) > 0 {
+					_ = json.Unmarshal(req.Params, &m.opRollbackInput)
+				}
+				resp := m.opRollbackResp
+				if resp == nil {
+					resp = &rpc.ConfigOperationRollbackOutput{Status: rpc.StatusOK}
+				}
+				_ = m.pluginConn.SendResult(ctx, req.ID, resp)
+
+			case "ze-plugin-callback:config-operation-commit":
+				m.opCommitCalls++
+				if len(req.Params) > 0 {
+					_ = json.Unmarshal(req.Params, &m.opCommitInput)
+				}
+				resp := m.opCommitResp
+				if resp == nil {
+					resp = &rpc.ConfigOperationCommitOutput{Status: rpc.StatusOK}
+				}
+				_ = m.pluginConn.SendResult(ctx, req.ID, resp)
+
 			case "ze-plugin-callback:config-rollback":
 				m.rollbackCalls++
 				if m.rollbackErr != nil {
@@ -166,6 +237,36 @@ func (m *mockPluginResponder) getApplyCalls() int {
 	return m.applyCalls
 }
 
+func (m *mockPluginResponder) getOperationDecomposeCalls() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.opDecomposeCalls
+}
+
+func (m *mockPluginResponder) getOperationVerifyCalls() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.opVerifyCalls
+}
+
+func (m *mockPluginResponder) getOperationApplyCalls() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.opApplyCalls
+}
+
+func (m *mockPluginResponder) getOperationRollbackCalls() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.opRollbackCalls
+}
+
+func (m *mockPluginResponder) getOperationCommitCalls() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.opCommitCalls
+}
+
 func (m *mockPluginResponder) getRollbackCalls() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -178,6 +279,7 @@ func (m *mockPluginResponder) getRollbackCalls() int {
 type pluginDef struct {
 	name       string
 	roots      []string
+	configOps  []rpc.ConfigOperationDecl
 	verifyResp *rpc.ConfigVerifyOutput
 	applyResp  *rpc.ConfigApplyOutput
 	order      *orderRecorder // optional: shared across plugins to capture cross-plugin apply order
@@ -216,6 +318,7 @@ func newTestReloadServer(t *testing.T, reactor *mockReloadReactor, plugins []plu
 		proc.SetIndex(i)
 		proc.SetRegistration(&plugin.PluginRegistration{
 			WantsConfigRoots: pd.roots,
+			ConfigOperations: pd.configOps,
 		})
 		proc.SetCapabilities(&plugin.PluginCapabilities{})
 		proc.SetConn(engineConn)
@@ -1029,4 +1132,378 @@ func TestReloadTxApplyBGPLast(t *testing.T) {
 	calls := order.snapshot()
 	require.Len(t, calls, 3)
 	assert.Equal(t, "bgp", calls[len(calls)-1], "bgp participant must receive config-apply last; got order %v", calls)
+}
+
+// TestReloadUsesRegisteredOperationDecomposer verifies that production reload
+// wiring calls component-owned operation decomposers and uses operation RPCs
+// instead of the legacy full-diff apply callback when operations are returned.
+//
+// VALIDATES: ReloadConfig -> registered decomposer -> operation verify/apply/commit callbacks.
+// PREVENTS: Operation planning existing only behind test-only coordinator injection.
+func TestReloadUsesRegisteredOperationDecomposer(t *testing.T) {
+	root := fmt.Sprintf("oproot-reload-operation-path-%d", time.Now().UnixNano())
+	owner := "opowner"
+	require.NoError(t, transaction.RegisterOperationDecomposer(root, func(_ context.Context, req transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
+		assert.Equal(t, root, req.Root)
+		assert.Contains(t, req.ActiveRoot, "old")
+		assert.Contains(t, req.CandidateRoot, "new")
+		return []transaction.ConfigOperation{{ID: "op-reload-1", Root: root, Owner: owner, Type: transaction.OperationSetProperty, Target: transaction.ResourceRef{Kind: transaction.ResourceSysctl, Name: "test"}}}, nil
+	}))
+
+	oldTree := map[string]any{root: map[string]any{"value": "old"}}
+	newTree := map[string]any{root: map[string]any{"value": "new"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+	plugins := []pluginDef{{
+		name:  owner,
+		roots: []string{root},
+		configOps: []rpc.ConfigOperationDecl{{
+			Root:       root,
+			Decompose:  true,
+			Operations: []rpc.ConfigOperationType{rpc.OperationSetProperty},
+		}},
+	}}
+	s := newTestReloadServer(t, reactor, plugins)
+
+	err := s.ReloadConfig(context.Background(), newTree)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool { return plugins[0].responder.getOperationVerifyCalls() == 1 }, 2*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return plugins[0].responder.getOperationApplyCalls() == 1 }, 2*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return plugins[0].responder.getOperationCommitCalls() == 1 }, 2*time.Second, 10*time.Millisecond)
+	assert.Equal(t, 0, plugins[0].responder.getApplyCalls(), "legacy config-apply must be skipped when operation path is used")
+}
+
+// TestReloadRejectsUndeclaredConfigOperation verifies production reload rejects
+// operation-path commits when a plugin has not declared support for the
+// operation callback it is about to receive.
+//
+// VALIDATES: Operation callbacks are exact-or-reject gated by Stage 1 declarations.
+// PREVENTS: Undeclared operation callbacks being invoked by accident.
+func TestReloadRejectsUndeclaredConfigOperation(t *testing.T) {
+	root := fmt.Sprintf("oproot-undeclared-operation-%d", time.Now().UnixNano())
+	owner := "opowner-undeclared"
+	require.NoError(t, transaction.RegisterOperationDecomposer(root, func(context.Context, transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
+		return []transaction.ConfigOperation{{ID: "op-undeclared-1", Root: root, Owner: owner, Type: transaction.OperationSetProperty, Target: transaction.ResourceRef{Kind: transaction.ResourceSysctl, Name: "test"}}}, nil
+	}))
+
+	oldTree := map[string]any{root: map[string]any{"value": "old"}}
+	newTree := map[string]any{root: map[string]any{"value": "new"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+	plugins := []pluginDef{{name: owner, roots: []string{root}}}
+	s := newTestReloadServer(t, reactor, plugins)
+
+	err := s.ReloadConfig(context.Background(), newTree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not declare config operation")
+	assert.Equal(t, 0, plugins[0].responder.getOperationApplyCalls())
+}
+
+// TestReloadUsesExternalOperationDecompose verifies a plugin that declares a
+// decompose callback can provide operations over the same event/RPC bridge as
+// internal decomposers.
+//
+// VALIDATES: Stage 1 ConfigOperations declarations drive external operation decomposition.
+// PREVENTS: External operation callback support being stored but never read.
+func TestReloadUsesExternalOperationDecompose(t *testing.T) {
+	root := fmt.Sprintf("oproot-external-decompose-%d", time.Now().UnixNano())
+	owner := "opowner-external"
+	op := transaction.ConfigOperation{ID: "op-external-1", Root: root, Owner: owner, Type: transaction.OperationSetProperty, Target: transaction.ResourceRef{Kind: transaction.ResourceSysctl, Name: "test"}}
+
+	oldTree := map[string]any{root: map[string]any{"value": "old"}}
+	newTree := map[string]any{root: map[string]any{"value": "new"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+	plugins := []pluginDef{{
+		name:  owner,
+		roots: []string{root},
+		configOps: []rpc.ConfigOperationDecl{{
+			Root:       root,
+			Decompose:  true,
+			Operations: []rpc.ConfigOperationType{rpc.OperationSetProperty},
+		}},
+	}}
+	s := newTestReloadServer(t, reactor, plugins)
+	plugins[0].responder.mu.Lock()
+	plugins[0].responder.opDecomposeResp = &rpc.ConfigOperationDecomposeOutput{Status: rpc.StatusOK, Operations: []rpc.ConfigOperation{op}}
+	plugins[0].responder.mu.Unlock()
+
+	err := s.ReloadConfig(context.Background(), newTree)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool { return plugins[0].responder.getOperationDecomposeCalls() == 1 }, 2*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return plugins[0].responder.getOperationApplyCalls() == 1 }, 2*time.Second, 10*time.Millisecond)
+	assert.Equal(t, 0, plugins[0].responder.getApplyCalls(), "legacy config-apply must be skipped when external operation decompose returns operations")
+}
+
+// TestConfigTxBridgeDispatchesOperationApply verifies that operation apply
+// stream events use the same bridge path as full-diff apply events: the bridge
+// receives the per-plugin config event, calls the SDK/RPC operation callback,
+// and publishes an operation ack back to the config namespace.
+//
+// VALIDATES: config operation apply event -> config-operation-apply RPC -> operation apply ack.
+// PREVENTS: Operation executor events being registered but never reaching external plugins.
+func TestConfigTxBridgeDispatchesOperationApply(t *testing.T) {
+	t.Parallel()
+
+	reactor := &mockReloadReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}}
+	plugins := []pluginDef{
+		{name: "bgp", roots: []string{"bgp"}},
+	}
+	s := newTestReloadServer(t, reactor, plugins)
+	gw := NewConfigEventGateway(s)
+	bridge := newConfigTxBridge(s, gw, []string{"bgp"}, map[string][]rpc.ConfigSection{})
+	require.NoError(t, bridge.Subscribe(context.Background()))
+	defer bridge.Close()
+
+	ackCh := make(chan transaction.ConfigOperationApplyAck, 1)
+	errCh := make(chan error, 1)
+	unsub := gw.SubscribeConfigEvent(transaction.EventOperationApplyOK, func(payload []byte) {
+		var ack transaction.ConfigOperationApplyAck
+		if err := json.Unmarshal(payload, &ack); err != nil {
+			errCh <- err
+			return
+		}
+		ackCh <- ack
+	})
+	defer unsub()
+
+	op := transaction.ConfigOperation{
+		ID:    "op-1",
+		Root:  "bgp",
+		Owner: "bgp",
+		Type:  transaction.OperationAddPeer,
+		Target: transaction.ResourceRef{
+			Kind: transaction.ResourcePeer,
+			Peer: "192.0.2.1",
+		},
+		Params: transaction.ConfigOperationParams{Peer: "192.0.2.1"},
+	}
+	payload, err := json.Marshal(transaction.ConfigOperationApplyEvent{
+		TransactionID: "tx-op",
+		Operation:     op,
+		DeadlineMS:    time.Now().Add(time.Second).UnixMilli(),
+	})
+	require.NoError(t, err)
+
+	_, err = gw.EmitConfigEvent(transaction.EventOperationApplyFor("bgp"), payload)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool { return plugins[0].responder.getOperationApplyCalls() == 1 }, 2*time.Second, 10*time.Millisecond)
+	plugins[0].responder.mu.Lock()
+	gotInput := plugins[0].responder.opApplyInput
+	plugins[0].responder.mu.Unlock()
+	assert.Equal(t, "tx-op", gotInput.TransactionID)
+	assert.Equal(t, op.ID, gotInput.Operation.ID)
+	assert.Equal(t, op.Type, gotInput.Operation.Type)
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case ack := <-ackCh:
+		assert.Equal(t, "tx-op", ack.TransactionID)
+		assert.Equal(t, "bgp", ack.Plugin)
+		assert.Equal(t, op.ID, ack.OperationID)
+		assert.Equal(t, transaction.CodeOK, ack.Status)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for operation apply ack")
+	}
+}
+
+// TestConfigTxBridgeDispatchesOperationRollback verifies that executor rollback
+// events reach the plugin operation rollback callback and produce a config ack.
+//
+// VALIDATES: config operation rollback event -> config-operation-rollback RPC -> operation rollback ack.
+// PREVENTS: Executor rollback events being emitted without reaching plugin journals.
+func TestConfigTxBridgeDispatchesOperationRollback(t *testing.T) {
+	t.Parallel()
+
+	reactor := &mockReloadReactor{tree: map[string]any{"interface": map[string]any{"eth0": map[string]any{}}}}
+	plugins := []pluginDef{
+		{name: "iface", roots: []string{"interface"}},
+	}
+	s := newTestReloadServer(t, reactor, plugins)
+	gw := NewConfigEventGateway(s)
+	bridge := newConfigTxBridge(s, gw, []string{"iface"}, map[string][]rpc.ConfigSection{})
+	require.NoError(t, bridge.Subscribe(context.Background()))
+	defer bridge.Close()
+
+	ackCh := make(chan transaction.ConfigOperationRollbackAck, 1)
+	errCh := make(chan error, 1)
+	unsub := gw.SubscribeConfigEvent(transaction.EventOperationRollbackOK, func(payload []byte) {
+		var ack transaction.ConfigOperationRollbackAck
+		if err := json.Unmarshal(payload, &ack); err != nil {
+			errCh <- err
+			return
+		}
+		ackCh <- ack
+	})
+	defer unsub()
+
+	op := transaction.ConfigOperation{
+		ID:    "op-rollback-1",
+		Root:  "interface",
+		Owner: "iface",
+		Type:  transaction.OperationAddAddress,
+		Target: transaction.ResourceRef{
+			Kind:      transaction.ResourceAddress,
+			Interface: "eth0",
+			Address:   "192.0.2.1/32",
+		},
+	}
+	payload, err := json.Marshal(transaction.ConfigOperationRollbackEvent{
+		TransactionID: "tx-op-rollback",
+		Operations:    []transaction.ConfigOperation{op},
+		DeadlineMS:    time.Now().Add(time.Second).UnixMilli(),
+	})
+	require.NoError(t, err)
+
+	_, err = gw.EmitConfigEvent(transaction.EventOperationRollbackFor("iface"), payload)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool { return plugins[0].responder.getOperationRollbackCalls() == 1 }, 2*time.Second, 10*time.Millisecond)
+	plugins[0].responder.mu.Lock()
+	gotInput := plugins[0].responder.opRollbackInput
+	plugins[0].responder.mu.Unlock()
+	assert.Equal(t, "tx-op-rollback", gotInput.TransactionID)
+	require.Len(t, gotInput.Operations, 1)
+	assert.Equal(t, op.ID, gotInput.Operations[0].ID)
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case ack := <-ackCh:
+		assert.Equal(t, "tx-op-rollback", ack.TransactionID)
+		assert.Equal(t, "iface", ack.Plugin)
+		assert.Equal(t, op.ID, ack.OperationID)
+		assert.Equal(t, transaction.CodeOK, ack.Status)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for operation rollback ack")
+	}
+}
+
+// TestConfigTxBridgeDispatchesOperationDecompose verifies operation decompose
+// callbacks carry active root, candidate root, and diff context to the plugin.
+//
+// VALIDATES: config operation decompose event -> config-operation-decompose RPC -> operation decompose ack.
+// PREVENTS: External plugins being unable to participate in component-owned decomposition.
+func TestConfigTxBridgeDispatchesOperationDecompose(t *testing.T) {
+	t.Parallel()
+
+	reactor := &mockReloadReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}}
+	plugins := []pluginDef{{name: "bgp", roots: []string{"bgp"}}}
+	s := newTestReloadServer(t, reactor, plugins)
+	gw := NewConfigEventGateway(s)
+	bridge := newConfigTxBridge(s, gw, []string{"bgp"}, map[string][]rpc.ConfigSection{})
+	require.NoError(t, bridge.Subscribe(context.Background()))
+	defer bridge.Close()
+
+	op := rpc.ConfigOperation{ID: "decomposed-1", Root: "bgp", Owner: "bgp", Type: rpc.OperationAddPeer}
+	plugins[0].responder.mu.Lock()
+	plugins[0].responder.opDecomposeResp = &rpc.ConfigOperationDecomposeOutput{Status: rpc.StatusOK, Operations: []rpc.ConfigOperation{op}}
+	plugins[0].responder.mu.Unlock()
+
+	ackCh := make(chan transaction.ConfigOperationDecomposeAck, 1)
+	unsub := gw.SubscribeConfigEvent(transaction.EventOperationDecomposeOK, func(payload []byte) {
+		var ack transaction.ConfigOperationDecomposeAck
+		require.NoError(t, json.Unmarshal(payload, &ack))
+		ackCh <- ack
+	})
+	defer unsub()
+
+	payload, err := json.Marshal(transaction.ConfigOperationDecomposeEvent{
+		TransactionID: "tx-op-decompose",
+		Root:          "bgp",
+		ActiveRoot:    `{"bgp":{"router-id":"1.2.3.4"}}`,
+		CandidateRoot: `{"bgp":{"router-id":"5.6.7.8"}}`,
+		Diff:          transaction.DiffSection{Root: "bgp", Changed: `{"bgp/router-id":{"old":"1.2.3.4","new":"5.6.7.8"}}`},
+		DeadlineMS:    time.Now().Add(time.Second).UnixMilli(),
+	})
+	require.NoError(t, err)
+
+	_, err = gw.EmitConfigEvent(transaction.EventOperationDecomposeFor("bgp"), payload)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool { return plugins[0].responder.getOperationDecomposeCalls() == 1 }, 2*time.Second, 10*time.Millisecond)
+	plugins[0].responder.mu.Lock()
+	gotInput := plugins[0].responder.opDecomposeInput
+	plugins[0].responder.mu.Unlock()
+	assert.Equal(t, "tx-op-decompose", gotInput.TransactionID)
+	assert.Equal(t, "bgp", gotInput.Root)
+	assert.Equal(t, "bgp", gotInput.Active.Root)
+	assert.Contains(t, gotInput.Candidate.Data, "5.6.7.8")
+	assert.Equal(t, "bgp", gotInput.Diff.Root)
+
+	select {
+	case ack := <-ackCh:
+		assert.Equal(t, "tx-op-decompose", ack.TransactionID)
+		assert.Equal(t, "bgp", ack.Plugin)
+		require.Len(t, ack.Operations, 1)
+		assert.Equal(t, op.ID, ack.Operations[0].ID)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for operation decompose ack")
+	}
+}
+
+// TestConfigTxBridgeDispatchesOperationVerifyAndCommit verifies the remaining
+// operation lifecycle callbacks used before and after execution.
+//
+// VALIDATES: operation verify and commit events reach SDK/RPC callbacks and ack.
+// PREVENTS: Operation journals being applied without verify or finalization callbacks.
+func TestConfigTxBridgeDispatchesOperationVerifyAndCommit(t *testing.T) {
+	t.Parallel()
+
+	reactor := &mockReloadReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}}
+	plugins := []pluginDef{{name: "bgp", roots: []string{"bgp"}}}
+	s := newTestReloadServer(t, reactor, plugins)
+	gw := NewConfigEventGateway(s)
+	bridge := newConfigTxBridge(s, gw, []string{"bgp"}, map[string][]rpc.ConfigSection{})
+	require.NoError(t, bridge.Subscribe(context.Background()))
+	defer bridge.Close()
+
+	verifyAckCh := make(chan transaction.ConfigOperationVerifyAck, 1)
+	verifyUnsub := gw.SubscribeConfigEvent(transaction.EventOperationVerifyOK, func(payload []byte) {
+		var ack transaction.ConfigOperationVerifyAck
+		require.NoError(t, json.Unmarshal(payload, &ack))
+		verifyAckCh <- ack
+	})
+	defer verifyUnsub()
+	commitAckCh := make(chan transaction.ConfigOperationCommitAck, 1)
+	commitUnsub := gw.SubscribeConfigEvent(transaction.EventOperationCommitOK, func(payload []byte) {
+		var ack transaction.ConfigOperationCommitAck
+		require.NoError(t, json.Unmarshal(payload, &ack))
+		commitAckCh <- ack
+	})
+	defer commitUnsub()
+
+	op := transaction.ConfigOperation{ID: "verify-1", Root: "bgp", Owner: "bgp", Type: transaction.OperationAddPeer}
+	verifyPayload, err := json.Marshal(transaction.ConfigOperationVerifyEvent{TransactionID: "tx-op-lifecycle", Operation: op, DeadlineMS: time.Now().Add(time.Second).UnixMilli()})
+	require.NoError(t, err)
+	_, err = gw.EmitConfigEvent(transaction.EventOperationVerifyFor("bgp"), verifyPayload)
+	require.NoError(t, err)
+
+	commitPayload, err := json.Marshal(transaction.ConfigOperationCommitEvent{TransactionID: "tx-op-lifecycle", DeadlineMS: time.Now().Add(time.Second).UnixMilli()})
+	require.NoError(t, err)
+	_, err = gw.EmitConfigEvent(transaction.EventOperationCommitFor("bgp"), commitPayload)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool { return plugins[0].responder.getOperationVerifyCalls() == 1 }, 2*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return plugins[0].responder.getOperationCommitCalls() == 1 }, 2*time.Second, 10*time.Millisecond)
+	plugins[0].responder.mu.Lock()
+	gotVerify := plugins[0].responder.opVerifyInput
+	gotCommit := plugins[0].responder.opCommitInput
+	plugins[0].responder.mu.Unlock()
+	assert.Equal(t, op.ID, gotVerify.Operation.ID)
+	assert.Equal(t, "tx-op-lifecycle", gotCommit.TransactionID)
+
+	select {
+	case ack := <-verifyAckCh:
+		assert.Equal(t, "tx-op-lifecycle", ack.TransactionID)
+		assert.Equal(t, op.ID, ack.OperationID)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for operation verify ack")
+	}
+	select {
+	case ack := <-commitAckCh:
+		assert.Equal(t, "tx-op-lifecycle", ack.TransactionID)
+		assert.Equal(t, "bgp", ack.Plugin)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for operation commit ack")
+	}
 }

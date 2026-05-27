@@ -64,6 +64,32 @@ func TestConfigEventTypeConstants(t *testing.T) {
 	if got := EventApplyFor("interface"); got != "apply-interface" {
 		t.Errorf("EventApplyFor(interface) = %q, want %q", got, "apply-interface")
 	}
+	if got := EventOperationApplyFor("bgp"); got != "operation-apply-bgp" {
+		t.Errorf("EventOperationApplyFor(bgp) = %q, want %q", got, "operation-apply-bgp")
+	}
+
+	// Operation callback event bases and acks.
+	if EventOperationDecompose != "operation-decompose" {
+		t.Errorf("EventOperationDecompose = %q, want %q", EventOperationDecompose, "operation-decompose")
+	}
+	if EventOperationVerify != "operation-verify" {
+		t.Errorf("EventOperationVerify = %q, want %q", EventOperationVerify, "operation-verify")
+	}
+	if EventOperationApply != "operation-apply" {
+		t.Errorf("EventOperationApply = %q, want %q", EventOperationApply, "operation-apply")
+	}
+	if EventOperationRollback != "operation-rollback" {
+		t.Errorf("EventOperationRollback = %q, want %q", EventOperationRollback, "operation-rollback")
+	}
+	if EventOperationCommit != "operation-commit" {
+		t.Errorf("EventOperationCommit = %q, want %q", EventOperationCommit, "operation-commit")
+	}
+	if EventOperationApplyOK != "operation-apply-ok" {
+		t.Errorf("EventOperationApplyOK = %q, want %q", EventOperationApplyOK, "operation-apply-ok")
+	}
+	if EventOperationApplyFailed != "operation-apply-failed" {
+		t.Errorf("EventOperationApplyFailed = %q, want %q", EventOperationApplyFailed, "operation-apply-failed")
+	}
 
 	// Failure codes.
 	codes := []string{CodeOK, CodeTimeout, CodeTransient, CodeError, CodeBroken}
@@ -118,7 +144,7 @@ func TestValidatePluginName(t *testing.T) {
 // PREVENTS: ReservedPluginNames drifting out of sync with config event types
 // after a new ack/broadcast event type is added in a future phase.
 func TestReservedPluginNamesMatchValidEvents(t *testing.T) {
-	bases := []string{EventVerify, EventApply, EventRollback}
+	bases := []string{EventVerify, EventApply, EventRollback, EventOperationDecompose, EventOperationVerify, EventOperationApply, EventOperationRollback, EventOperationCommit}
 
 	// Every reserved name must actually collide with at least one event.
 	for reserved := range ReservedPluginNames {
@@ -153,18 +179,40 @@ func TestReservedPluginNamesMatchValidEvents(t *testing.T) {
 	// EventVerifyFor/EventApplyFor on every reserved name must collide;
 	// on every accepted name must not.
 	for reserved := range ReservedPluginNames {
-		vf := EventVerifyFor(reserved)
-		af := EventApplyFor(reserved)
-		if !events.IsValidEvent(txevents.Namespace, vf) && !events.IsValidEvent(txevents.Namespace, af) {
-			t.Errorf("neither EventVerifyFor(%q) nor EventApplyFor(%q) collide with config events", reserved, reserved)
+		candidates := []string{
+			EventVerifyFor(reserved),
+			EventApplyFor(reserved),
+			EventOperationDecomposeFor(reserved),
+			EventOperationVerifyFor(reserved),
+			EventOperationApplyFor(reserved),
+			EventOperationRollbackFor(reserved),
+			EventOperationCommitFor(reserved),
+		}
+		collided := false
+		for _, candidate := range candidates {
+			if events.IsValidEvent(txevents.Namespace, candidate) {
+				collided = true
+				break
+			}
+		}
+		if !collided {
+			t.Errorf("no per-plugin event helper for reserved name %q collides with config events", reserved)
 		}
 	}
 	for _, safe := range []string{"bgp", "interface", "rib", "bgp-rib"} {
-		if events.IsValidEvent(txevents.Namespace, EventVerifyFor(safe)) {
-			t.Errorf("EventVerifyFor(%q) = %q collides with a broadcast/ack event type", safe, EventVerifyFor(safe))
+		candidates := []string{
+			EventVerifyFor(safe),
+			EventApplyFor(safe),
+			EventOperationDecomposeFor(safe),
+			EventOperationVerifyFor(safe),
+			EventOperationApplyFor(safe),
+			EventOperationRollbackFor(safe),
+			EventOperationCommitFor(safe),
 		}
-		if events.IsValidEvent(txevents.Namespace, EventApplyFor(safe)) {
-			t.Errorf("EventApplyFor(%q) = %q collides with a broadcast/ack event type", safe, EventApplyFor(safe))
+		for _, candidate := range candidates {
+			if events.IsValidEvent(txevents.Namespace, candidate) {
+				t.Errorf("per-plugin event for %q = %q collides with a broadcast/ack event type", safe, candidate)
+			}
 		}
 	}
 }
