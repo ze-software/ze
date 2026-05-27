@@ -18,6 +18,7 @@ type mockReactor struct {
 	peers    []plugin.PeerInfo
 	stats    plugin.ReactorStats
 	peerCaps *plugin.PeerCapabilitiesInfo
+	history  map[string][]plugin.FSMTransitionRecord
 
 	rawMessages []struct {
 		addr    netip.Addr
@@ -78,6 +79,9 @@ func (m *mockReactor) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessB
 func (m *mockReactor) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig         { return nil }
 func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return m.peerCaps
+}
+func (m *mockReactor) PeerFSMHistory(addr string) []plugin.FSMTransitionRecord {
+	return m.history[addr]
 }
 func (m *mockReactor) GetConfigTree() map[string]any          { return m.configTree }
 func (m *mockReactor) SetConfigTree(_ map[string]any)         {}

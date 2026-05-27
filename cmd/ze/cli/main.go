@@ -318,7 +318,11 @@ func newCLIClient(creds sshclient.Credentials) *cliClient {
 // Execute sends a command via SSH and prints the response in the given format.
 // Valid formats: "yaml" (default), "json", "table".
 func (c *cliClient) Execute(command, format string) int {
-	cmdStr, formatFn := cmd.ProcessPipes(command)
+	cmdStr, formatFn, pipeErr := cmd.ProcessPipesChecked(command)
+	if pipeErr != "" {
+		fmt.Fprintf(os.Stderr, "pipe error: %s\n", pipeErr)
+		return 1
+	}
 	output, err := c.SendCommand(cmdStr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -334,7 +338,11 @@ func (c *cliClient) Execute(command, format string) int {
 // to the given transcript writer. Records the original command (with pipe
 // operators) for transcript fidelity.
 func (c *cliClient) ExecuteWithTranscript(command, format string, tw *unicli.TranscriptWriter) int {
-	cmdStr, formatFn := cmd.ProcessPipes(command)
+	cmdStr, formatFn, pipeErr := cmd.ProcessPipesChecked(command)
+	if pipeErr != "" {
+		fmt.Fprintf(os.Stderr, "pipe error: %s\n", pipeErr)
+		return 1
+	}
 	output, err := c.SendCommand(cmdStr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -430,6 +438,8 @@ var cliLoader = func() *yang.Loader {
 // Built once at package init from the shared DefaultLoader.
 var cliWireToPath = yang.WireMethodToPath(cliLoader)
 
+var cliWireToPaths = yang.WireMethodToPaths(cliLoader)
+
 // WireToPath returns the YANG-derived WireMethod to CLI dispatch path mapping.
 // Used by help generation to show dispatch keys alongside RPC names.
 func WireToPath() map[string]string {
@@ -454,18 +464,20 @@ func BuildCommandTree(readOnly bool) *Command {
 	rpcs := AllCLIRPCs()
 	infos := make([]cmd.RPCInfo, 0, len(rpcs))
 	for _, reg := range rpcs {
-		cliPath := cliWireToPath[reg.WireMethod]
-		if cliPath == "" {
+		paths := cliWireToPaths[reg.WireMethod]
+		if len(paths) == 0 {
 			continue
 		}
-		isRO := pluginserver.IsReadOnlyPath(cliPath)
-		if readOnly && !isRO {
-			continue
+		for _, cliPath := range paths {
+			isRO := pluginserver.IsReadOnlyPath(cliPath)
+			if readOnly && !isRO {
+				continue
+			}
+			infos = append(infos, cmd.RPCInfo{
+				CLICommand: cliPath,
+				ReadOnly:   isRO,
+			})
 		}
-		infos = append(infos, cmd.RPCInfo{
-			CLICommand: cliPath,
-			ReadOnly:   isRO,
-		})
 	}
 	tree := cmd.BuildTree(infos, false) // readOnly already filtered above
 	// Merge descriptions from the YANG command tree into the RPC-built tree.
@@ -592,14 +604,16 @@ func buildRuntimeTree(client *cliClient) *Command {
 		if reg.PluginCommand != "" && !available[strings.ToLower(reg.PluginCommand)] {
 			continue // Plugin not running -- skip this proxy command
 		}
-		cliPath := cliWireToPath[reg.WireMethod]
-		if cliPath == "" {
+		paths := cliWireToPaths[reg.WireMethod]
+		if len(paths) == 0 {
 			continue
 		}
-		filtered = append(filtered, cmd.RPCInfo{
-			CLICommand: cliPath,
-			ReadOnly:   pluginserver.IsReadOnlyPath(cliPath),
-		})
+		for _, cliPath := range paths {
+			filtered = append(filtered, cmd.RPCInfo{
+				CLICommand: cliPath,
+				ReadOnly:   pluginserver.IsReadOnlyPath(cliPath),
+			})
+		}
 	}
 
 	tree := cmd.BuildTree(filtered, false)

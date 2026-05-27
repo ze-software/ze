@@ -218,8 +218,8 @@ func expandFamilyShorthand(in string) string {
 // handleBgpPeerCapabilities returns negotiated capabilities for matched peers.
 // If no OPEN exchange completed, returns negotiation-complete=false per peer.
 // Single peer: flat object. Multiple peers: array of objects.
-func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	peers, errResp, err := filterPeersBySelector(ctx)
+func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	peers, errResp, err := filterPeersByArgs(ctx, args)
 	if errResp != nil {
 		return errResp, err
 	}
@@ -276,8 +276,8 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, _ []string) (*p
 // Rate is computed from cumulative counters and uptime: counter / uptime_seconds.
 // Returns 0 for all rates when uptime is zero (peer not established).
 // Single peer: flat object. Multiple peers: array.
-func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	peers, errResp, err := filterPeersBySelector(ctx)
+func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	peers, errResp, err := filterPeersByArgs(ctx, args)
 	if errResp != nil {
 		return errResp, err
 	}

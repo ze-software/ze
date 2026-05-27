@@ -60,6 +60,144 @@ func TestDispatchBGPPeerDetail(t *testing.T) {
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 }
 
+// TestDispatchShowSummary verifies the show-convention summary command.
+//
+// VALIDATES: show summary reaches the BGP summary handler.
+// PREVENTS: summary remaining only as a noun-first command.
+func TestDispatchShowSummary(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+		},
+	}
+	ctx := newDispatchContext(reactor)
+
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show summary")
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	_, ok = data["summary"]
+	assert.True(t, ok)
+}
+
+// TestDispatchShowPeerList verifies the show-convention peer list command.
+//
+// VALIDATES: show peer list reaches the peer list handler.
+// PREVENTS: peer list remaining only as a noun-first command.
+func TestDispatchShowPeerList(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+		},
+	}
+	ctx := newDispatchContext(reactor)
+
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show peer list")
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	peers, ok := data["peers"].(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, peers, "192.0.2.1")
+}
+
+// TestDispatchShowPeerDetail verifies action-before-selector peer detail grammar.
+//
+// VALIDATES: show peer detail <selector> reaches peer detail handler with the selector as an arg.
+// PREVENTS: peer detail requiring the old noun-first command surface.
+func TestDispatchShowPeerDetail(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002, State: plugin.PeerStateStopped},
+		},
+	}
+	ctx := newDispatchContext(reactor)
+
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show peer detail 192.0.2.2")
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	peers, ok := data["peers"].(map[string]any)
+	require.True(t, ok)
+	assert.Len(t, peers, 1)
+	assert.Contains(t, peers, "192.0.2.2")
+}
+
+// TestDispatchShowPeerCapabilities verifies action-before-selector capabilities grammar.
+//
+// VALIDATES: show peer capabilities <selector> reaches the capabilities handler.
+// PREVENTS: capabilities requiring the old noun-first command surface.
+func TestDispatchShowPeerCapabilities(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+		},
+		peerCaps: &plugin.PeerCapabilitiesInfo{Families: []string{"ipv4/unicast"}, ASN4: true},
+	}
+	ctx := newDispatchContext(reactor)
+
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show peer capabilities 192.0.2.1")
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "192.0.2.1", data["peer"])
+}
+
+// TestDispatchShowPeerStatistics verifies action-before-selector statistics grammar.
+//
+// VALIDATES: show peer statistics <selector> reaches the statistics handler.
+// PREVENTS: statistics requiring the old noun-first command surface.
+func TestDispatchShowPeerStatistics(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished, Uptime: time.Minute},
+		},
+	}
+	ctx := newDispatchContext(reactor)
+
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show peer statistics 192.0.2.1")
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "192.0.2.1", data["address"])
+}
+
+// TestDispatchShowPeerHistory verifies action-before-selector history grammar.
+//
+// VALIDATES: show peer history <selector> reaches the FSM history handler.
+// PREVENTS: history requiring the old show bgp peer-history command surface.
+func TestDispatchShowPeerHistory(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+		},
+		history: map[string][]plugin.FSMTransitionRecord{
+			"192.0.2.1": {{From: "idle", To: "established", Reason: "test"}},
+		},
+	}
+	ctx := newDispatchContext(reactor)
+
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show peer history 192.0.2.1")
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "192.0.2.1", data["peer"])
+	assert.Equal(t, 1, data["count"])
+}
+
 // TestDispatchBGPPeerTeardown verifies "peer <addr> teardown" dispatches correctly.
 //
 // VALIDATES: Dispatch chain reaches handleBgpPeerTeardown with peer selector.

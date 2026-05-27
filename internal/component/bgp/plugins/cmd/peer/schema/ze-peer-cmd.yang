@@ -11,6 +11,56 @@ module ze-peer-cmd {
         description "Show BGP summary; optional AFI/SAFI argument scopes the table (shorthands ipv4, ipv6, l2vpn).";
     }
 
+    container show {
+        config false;
+        description "Show commands";
+
+        container summary {
+            config false;
+            ze:command "ze-bgp:summary";
+            description "Show BGP summary; optional AFI/SAFI argument scopes the table (shorthands ipv4, ipv6, l2vpn).";
+        }
+
+        container peer {
+            config false;
+            description "Show peer information";
+
+            container list {
+                config false;
+                ze:command "ze-bgp:peer-list";
+                description "List peer(s) (brief)";
+            }
+
+            container detail {
+                config false;
+                ze:command "ze-bgp:peer-detail";
+                description "Peer details (config, state, counters)";
+                leaf selector { type string; description "Peer selector"; }
+            }
+
+            container capabilities {
+                config false;
+                ze:command "ze-bgp:peer-capabilities";
+                description "Negotiated capabilities for peer(s)";
+                leaf selector { type string; description "Peer selector"; }
+            }
+
+            container statistics {
+                config false;
+                ze:command "ze-bgp:peer-statistics";
+                description "Per-peer update statistics with rates";
+                leaf selector { type string; description "Peer selector"; }
+            }
+
+            container history {
+                config false;
+                ze:command "ze-bgp:peer-history";
+                description "FSM transition history for a peer";
+                leaf selector { type string; description "Peer selector"; }
+            }
+        }
+    }
+
     container peer {
         config false;
         description "Peer operations";

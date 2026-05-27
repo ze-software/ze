@@ -45,7 +45,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-flush", Handler: handleBgpPeerFlush, RequiresSelector: true},
 		// CLI verb RPCs (moved from cmd/show, cmd/del, cmd/set, cmd/update).
 		pluginserver.RPCRegistration{WireMethod: "ze-show:bgp-peer", Handler: HandleBgpPeerDetail, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-history", Handler: handlePeerHistory, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-history", Handler: handlePeerHistory},
 		pluginserver.RPCRegistration{WireMethod: "ze-del:bgp-peer", Handler: HandleBgpPeerRemove, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-set:bgp-peer-with", Handler: HandleBgpPeerWith, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-set:bgp-peer-save", Handler: HandleBgpPeerSave, RequiresSelector: true},
@@ -57,11 +57,22 @@ func init() {
 // If the selector is "*", all peers are returned. Otherwise, filters by IP,
 // peer name, or ASN ("as<N>" format).
 func filterPeersBySelector(ctx *pluginserver.CommandContext) ([]plugin.PeerInfo, *plugin.Response, error) {
+	return filterPeersBySelectorValue(ctx, ctx.PeerSelector())
+}
+
+func filterPeersByArgs(ctx *pluginserver.CommandContext, args []string) ([]plugin.PeerInfo, *plugin.Response, error) {
+	selector := ctx.PeerSelector()
+	if len(args) > 0 && args[0] != "" {
+		selector = args[0]
+	}
+	return filterPeersBySelectorValue(ctx, selector)
+}
+
+func filterPeersBySelectorValue(ctx *pluginserver.CommandContext, selector string) ([]plugin.PeerInfo, *plugin.Response, error) {
 	if ctx.Reactor() == nil {
 		return nil, &plugin.Response{Status: plugin.StatusError, Data: "reactor not available"}, errReactorNotAvailable
 	}
 	allPeers := ctx.Reactor().Peers()
-	selector := ctx.PeerSelector()
 
 	if selector == "*" {
 		return allPeers, nil, nil
@@ -104,8 +115,8 @@ func filterPeersBySelector(ctx *pluginserver.CommandContext) ([]plugin.PeerInfo,
 // handleBgpPeerList returns a brief list of peer(s) indexed by IP.
 // Used by "peer <selector> list" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
-func handleBgpPeerList(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	peers, errResp, err := filterPeersBySelector(ctx)
+func handleBgpPeerList(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	peers, errResp, err := filterPeersByArgs(ctx, args)
 	if errResp != nil {
 		return errResp, err
 	}
@@ -138,8 +149,8 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 // HandleBgpPeerDetail returns detailed peer information indexed by IP.
 // Used by "show bgp peer <selector>" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
-func HandleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	peers, errResp, err := filterPeersBySelector(ctx)
+func HandleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	peers, errResp, err := filterPeersByArgs(ctx, args)
 	if errResp != nil {
 		return errResp, err
 	}
@@ -636,8 +647,11 @@ func parseRouterID(s string) (uint32, error) {
 	return uint32(n), nil
 }
 
-func handlePeerHistory(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	peers, errResp, err := filterPeersBySelector(ctx)
+func handlePeerHistory(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if len(args) == 0 && ctx.PeerSelector() == "*" {
+		return &plugin.Response{Status: plugin.StatusError, Data: "no peer specified"}, nil
+	}
+	peers, errResp, err := filterPeersByArgs(ctx, args)
 	if err != nil {
 		return errResp, nil //nolint:nilerr // operational error in Response
 	}

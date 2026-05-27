@@ -206,8 +206,9 @@ func ExtractSelector(words []string, tree *cli.Command) (treeWords []string, sel
 			current = current.Children[word]
 			continue
 		}
-		// Word doesn't match tree — only treat as selector if it looks like an IP or glob.
-		if !looksLikeSelector(word) {
+		// Word doesn't match tree. Treat it as a selector/value only when it
+		// looks like a peer selector or the command declares a positional arg.
+		if !looksLikeSelector(word) && len(current.ArgDefs) == 0 {
 			return words, ""
 		}
 		treeWords = make([]string, 0, len(words)-1)
@@ -223,6 +224,18 @@ func ExtractSelector(words []string, tree *cli.Command) (treeWords []string, sel
 func looksLikeSelector(s string) bool {
 	if s == "*" {
 		return true
+	}
+	if len(s) > 2 && (s[0] == 'a' || s[0] == 'A') && (s[1] == 's' || s[1] == 'S') {
+		allDigits := true
+		for i := 2; i < len(s); i++ {
+			if s[i] < '0' || s[i] > '9' {
+				allDigits = false
+				break
+			}
+		}
+		if allDigits {
+			return true
+		}
 	}
 	// Contains dot (IPv4) or colon (IPv6)
 	return strings.ContainsAny(s, ".:")
