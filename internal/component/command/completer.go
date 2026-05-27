@@ -262,6 +262,41 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 		}
 	}
 
+	// YANG-declared argument definitions: enum values as value suggestions,
+	// leaf names as keyword suggestions. Deduplicate against ValueHints.
+	var seen map[string]bool
+	if node.ValueHints != nil && len(node.ArgDefs) > 0 {
+		seen = make(map[string]bool, len(completions))
+		for _, s := range completions {
+			seen[s.Text] = true
+		}
+	}
+	for i := range node.ArgDefs {
+		def := &node.ArgDefs[i]
+		for _, v := range def.EnumValues {
+			if seen != nil && seen[v] {
+				continue
+			}
+			if prefix == "" || strings.HasPrefix(v, prefix) {
+				completions = append(completions, Suggestion{
+					Text: v,
+					Type: "value",
+				})
+			}
+		}
+		if def.Kind == ArgUint || def.Kind == ArgString {
+			if seen != nil && seen[def.Name] {
+				continue
+			}
+			if prefix == "" || strings.HasPrefix(def.Name, prefix) {
+				completions = append(completions, Suggestion{
+					Text: def.Name,
+					Type: "value",
+				})
+			}
+		}
+	}
+
 	return completions
 }
 

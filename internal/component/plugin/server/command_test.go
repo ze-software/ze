@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
@@ -1326,4 +1327,266 @@ func TestDispatcherBeginAccounting(t *testing.T) {
 
 	stop()
 	assert.Equal(t, []string{"monitor event"}, acct.stops)
+}
+
+// TestDispatcherArgValidation verifies that valid args pass and invalid args are rejected
+// when ArgDefs are configured on a command.
+//
+// VALIDATES: AC-7, AC-8 -- valid args pass, invalid enum rejected before handler.
+func TestDispatcherArgValidation(t *testing.T) {
+	d := NewDispatcher()
+
+	var called bool
+	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		called = true
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	d.RegisterWithOptions("show system goroutines", handler, "Show goroutines", RegisterOptions{
+		ReadOnly: true,
+		ArgDefs: []command.ArgDef{
+			{Name: "mode", Kind: command.ArgEnum, EnumValues: []string{"blocked", "full", "summary"}},
+		},
+	})
+
+	// Valid enum arg.
+	called = false
+	resp, err := d.Dispatch(nil, "show system goroutines summary")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.True(t, called)
+
+	// Invalid enum arg.
+	called = false
+	resp, err = d.Dispatch(nil, "show system goroutines invalid")
+	require.Error(t, err)
+	assert.False(t, called)
+	assert.Contains(t, resp.Data, "invalid")
+}
+
+// TestDispatcherKeywordExtraction verifies keyword-value pair matching.
+//
+// VALIDATES: AC-13, AC-14 -- keyword-value pairs matched and validated.
+func TestDispatcherKeywordExtraction(t *testing.T) {
+	d := NewDispatcher()
+
+	var receivedArgs []string
+	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		receivedArgs = args
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	d.RegisterWithOptions("show ping", handler, "Ping", RegisterOptions{
+		ReadOnly: true,
+		ArgDefs: []command.ArgDef{
+			{Name: "count", Kind: command.ArgUint, UintBits: 32},
+			{Name: "dest", Kind: command.ArgString},
+		},
+	})
+
+	// Valid keyword-value pair.
+	resp, err := d.Dispatch(nil, "show ping count 5")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, []string{"count", "5"}, receivedArgs)
+
+	// Missing value after keyword.
+	_, err = d.Dispatch(nil, "show ping count")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires a value")
+}
+
+// TestDispatcherPositionalMatching verifies positional arg validation.
+//
+// VALIDATES: AC-15 -- unmatched positional args validated against enum types.
+func TestDispatcherPositionalMatching(t *testing.T) {
+	d := NewDispatcher()
+
+	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	d.RegisterWithOptions("show system goroutines", handler, "Goroutines", RegisterOptions{
+		ReadOnly: true,
+		ArgDefs: []command.ArgDef{
+			{Name: "mode", Kind: command.ArgEnum, EnumValues: []string{"blocked", "full", "summary"}},
+		},
+	})
+
+	// Valid positional.
+	resp, err := d.Dispatch(nil, "show system goroutines blocked")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+
+	// Invalid positional.
+	resp, err = d.Dispatch(nil, "show system goroutines invalid")
+	require.Error(t, err)
+	assert.Contains(t, resp.Data, "invalid")
+}
+
+// TestDispatcherMixedArgs verifies mixed positional + keyword args.
+//
+// VALIDATES: AC-16 -- mixed positional and keyword args parsed correctly.
+func TestDispatcherMixedArgs(t *testing.T) {
+	d := NewDispatcher()
+
+	var receivedArgs []string
+	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		receivedArgs = args
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	d.RegisterWithOptions("show ping", handler, "Ping", RegisterOptions{
+		ReadOnly: true,
+		ArgDefs: []command.ArgDef{
+			{Name: "count", Kind: command.ArgUint, UintBits: 32},
+			{Name: "dest", Kind: command.ArgString},
+			{Name: "timeout", Kind: command.ArgString},
+		},
+	})
+
+	resp, err := d.Dispatch(nil, "show ping 192.168.1.1 count 5 timeout 3s")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, []string{"192.168.1.1", "count", "5", "timeout", "3s"}, receivedArgs)
+}
+
+// TestDispatcherMandatoryMissing verifies that missing mandatory args are rejected.
+//
+// VALIDATES: AC-17 -- required argument missing rejected.
+func TestDispatcherMandatoryMissing(t *testing.T) {
+	d := NewDispatcher()
+
+	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	d.RegisterWithOptions("show tcp-check", handler, "TCP check", RegisterOptions{
+		ReadOnly: true,
+		ArgDefs: []command.ArgDef{
+			{Name: "host", Kind: command.ArgString, Mandatory: true},
+			{Name: "port", Kind: command.ArgUint, UintBits: 16, Mandatory: true},
+		},
+	})
+
+	// Missing mandatory args.
+	_, err := d.Dispatch(nil, "show tcp-check")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "required argument missing")
+}
+
+// TestDispatcherNoArgDefsPassthrough verifies commands without ArgDefs skip validation.
+//
+// VALIDATES: Commands without ArgDefs skip validation entirely.
+func TestDispatcherNoArgDefsPassthrough(t *testing.T) {
+	d := NewDispatcher()
+
+	var receivedArgs []string
+	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		receivedArgs = args
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	d.Register("show version", handler, "Show version")
+
+	resp, err := d.Dispatch(nil, "show version anything goes here")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, []string{"anything", "goes", "here"}, receivedArgs)
+}
+
+// TestDispatcherArgValidationUnion verifies union type validation in the dispatcher.
+//
+// VALIDATES: AC-11, AC-12 -- union accepts enum and uint members.
+func TestDispatcherArgValidationUnion(t *testing.T) {
+	d := NewDispatcher()
+
+	var called bool
+	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		called = true
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	d.RegisterWithOptions("set system file-descriptors", handler, "Set FD limit", RegisterOptions{
+		ArgDefs: []command.ArgDef{
+			{
+				Name: "limit",
+				Kind: command.ArgUnion,
+				UnionDefs: []command.ArgDef{
+					{Kind: command.ArgUint, UintBits: 64},
+					{Kind: command.ArgEnum, EnumValues: []string{"max"}},
+				},
+				EnumValues: []string{"max"},
+			},
+		},
+	})
+
+	// Enum member.
+	called = false
+	resp, err := d.Dispatch(nil, "set system file-descriptors max")
+	require.NoError(t, err)
+	assert.True(t, called)
+	assert.Equal(t, "done", resp.Status)
+
+	// Uint member.
+	called = false
+	resp, err = d.Dispatch(nil, "set system file-descriptors 1024")
+	require.NoError(t, err)
+	assert.True(t, called)
+	assert.Equal(t, "done", resp.Status)
+
+	// Invalid.
+	called = false
+	resp, err = d.Dispatch(nil, "set system file-descriptors invalid")
+	require.Error(t, err)
+	assert.False(t, called)
+	assert.Contains(t, resp.Data, "invalid")
+}
+
+// TestDispatcherDuplicateKeywordRejected verifies that duplicate keywords are rejected.
+//
+// VALIDATES: Review fix -- duplicate keywords like "count 5 count 10" are rejected.
+func TestDispatcherDuplicateKeywordRejected(t *testing.T) {
+	d := NewDispatcher()
+
+	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	d.RegisterWithOptions("show ping", handler, "Ping", RegisterOptions{
+		ReadOnly: true,
+		ArgDefs: []command.ArgDef{
+			{Name: "count", Kind: command.ArgUint, UintBits: 32},
+			{Name: "dest", Kind: command.ArgString},
+		},
+	})
+
+	_, err := d.Dispatch(nil, "show ping count 5 count 10")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate keyword")
+}
+
+// TestDispatcherPositionalErrorMessage verifies that unmatched positional args
+// produce a helpful error listing valid keywords when no enum/union exists.
+//
+// VALIDATES: Review fix -- positionalError lists keyword names instead of empty enum.
+func TestDispatcherPositionalErrorMessage(t *testing.T) {
+	d := NewDispatcher()
+
+	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	d.RegisterWithOptions("show ping", handler, "Ping", RegisterOptions{
+		ReadOnly: true,
+		ArgDefs: []command.ArgDef{
+			{Name: "count", Kind: command.ArgUint, UintBits: 32},
+			{Name: "timeout", Kind: command.ArgUint, UintBits: 32},
+		},
+	})
+
+	resp, err := d.Dispatch(nil, "show ping hello")
+	require.Error(t, err)
+	assert.Contains(t, resp.Data, "unexpected argument")
+	assert.Contains(t, resp.Data, "count")
 }

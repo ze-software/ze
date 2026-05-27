@@ -17,6 +17,15 @@ module ze-cli-set-cmd {
                 config false;
                 ze:command "ze-set:system-file-descriptors";
                 description "Raise the process file descriptor soft limit (<uint64> or 'max' for hard limit)";
+                leaf limit {
+                    type union {
+                        type uint64;
+                        type enumeration {
+                            enum max;
+                        }
+                    }
+                    description "New limit or max for hard limit";
+                }
             }
         }
 

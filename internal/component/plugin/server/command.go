@@ -13,6 +13,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
@@ -49,7 +50,7 @@ func BuiltinCount() int {
 // The wireToPath map provides the dispatch key for each handler, derived from
 // the YANG command tree (WireMethod -> CLI path). pathToDesc provides YANG
 // descriptions for help text. Handlers without a YANG entry are skipped.
-func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc map[string]string) {
+func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc map[string]string, pathToArgDefs map[string][]command.ArgDef) {
 	for _, reg := range AllBuiltinRPCs() {
 		name := wireToPath[reg.WireMethod]
 		if name == "" {
@@ -59,13 +60,14 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc map[string]string) {
 			ReadOnly:         IsReadOnlyPath(name),
 			RequiresSelector: reg.RequiresSelector,
 			PluginProxy:      reg.PluginCommand != "",
+			ArgDefs:          pathToArgDefs[name],
 		})
 	}
 }
 
 // LoadBuiltinsWithAliases registers all builtin handlers with the dispatcher,
 // including all YANG command aliases for each wire method.
-func LoadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pathToDesc map[string]string) {
+func LoadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pathToDesc map[string]string, pathToArgDefs map[string][]command.ArgDef) {
 	for _, reg := range AllBuiltinRPCs() {
 		paths := wireToPaths[reg.WireMethod]
 		if len(paths) == 0 {
@@ -76,6 +78,7 @@ func LoadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pat
 				ReadOnly:         IsReadOnlyPath(name),
 				RequiresSelector: reg.RequiresSelector,
 				PluginProxy:      reg.PluginCommand != "",
+				ArgDefs:          pathToArgDefs[name],
 			})
 		}
 	}
@@ -101,8 +104,8 @@ func IsReadOnlyPath(path string) bool {
 }
 
 // RegisterDefaultHandlers registers all builtin handlers with the dispatcher.
-func RegisterDefaultHandlers(d *Dispatcher, wireToPath, pathToDesc map[string]string) {
-	LoadBuiltins(d, wireToPath, pathToDesc)
+func RegisterDefaultHandlers(d *Dispatcher, wireToPath, pathToDesc map[string]string, pathToArgDefs map[string][]command.ArgDef) {
+	LoadBuiltins(d, wireToPath, pathToDesc, pathToArgDefs)
 }
 
 // Handler processes a command and returns a response.
@@ -204,15 +207,17 @@ type Command struct {
 	Name             string
 	Handler          Handler
 	Help             string
-	ReadOnly         bool // True if command only reads state (safe for "ze show")
-	RequiresSelector bool // True if command requires explicit peer selector (not default "*")
+	ReadOnly         bool             // True if command only reads state (safe for "ze show")
+	RequiresSelector bool             // True if command requires explicit peer selector (not default "*")
+	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves.
 }
 
 // RegisterOptions holds optional settings for command registration.
 type RegisterOptions struct {
-	ReadOnly         bool // True if command only reads state
-	RequiresSelector bool // True if "bgp peer <command>" must have an explicit peer selector
-	PluginProxy      bool // True if this builtin proxies to a plugin command (allows plugin to register same name)
+	ReadOnly         bool             // True if command only reads state
+	RequiresSelector bool             // True if "bgp peer <command>" must have an explicit peer selector
+	PluginProxy      bool             // True if this builtin proxies to a plugin command (allows plugin to register same name)
+	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves
 }
 
 // Dispatcher routes commands to handlers.
@@ -323,6 +328,7 @@ func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help stri
 		Help:             help,
 		ReadOnly:         opts.ReadOnly,
 		RequiresSelector: opts.RequiresSelector,
+		ArgDefs:          opts.ArgDefs,
 	}
 	d.updateSortedKeys()
 
@@ -488,6 +494,16 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		}
 	}
 
+	// Validate args against YANG-declared types (when present).
+	if len(matchedCmd.ArgDefs) > 0 {
+		if valErr := validateCommandArgs(args, matchedCmd.ArgDefs); valErr != nil {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Data:   valErr.Error(),
+			}, valErr
+		}
+	}
+
 	// Execute handler
 	if matchedCmd.Handler == nil {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
@@ -500,6 +516,106 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	resp, handlerErr := matchedCmd.Handler(ctx, args)
 	d.recordCommandAudit(ctx, input, resp, handlerErr)
 	return resp, handlerErr
+}
+
+// validateCommandArgs implements two-phase validation of command arguments
+// against YANG-declared ArgDefs.
+//
+// Phase 1 (keyword extraction): scan args for tokens matching ArgDef leaf names;
+// when found, the next token is validated as that leaf's typed value.
+// Phase 2 (positional matching): remaining args are validated against ArgDefs
+// with enum values. Unmatched args pass through to the handler.
+// Phase 3 (mandatory check): ArgDefs with Mandatory=true must have been matched.
+func validateCommandArgs(args []string, defs []command.ArgDef) error {
+	if len(defs) == 0 {
+		return nil
+	}
+
+	defByName := make(map[string]*command.ArgDef, len(defs))
+	for i := range defs {
+		defByName[defs[i].Name] = &defs[i]
+	}
+
+	consumed := make([]bool, len(args))
+	matched := make(map[string]bool)
+
+	// Phase 1: keyword-value extraction.
+	for i := 0; i < len(args); i++ {
+		def, ok := defByName[args[i]]
+		if !ok {
+			continue
+		}
+		if matched[def.Name] {
+			return fmt.Errorf("duplicate keyword %q", args[i])
+		}
+		consumed[i] = true
+		if i+1 >= len(args) {
+			return fmt.Errorf("%s requires a value", args[i])
+		}
+		i++
+		consumed[i] = true
+		if err := command.ValidateArgString(args[i], def); err != nil {
+			return err
+		}
+		matched[def.Name] = true
+	}
+
+	// Phase 2: positional matching for unconsumed args.
+	for i, arg := range args {
+		if consumed[i] {
+			continue
+		}
+		found := false
+		for j := range defs {
+			def := &defs[j]
+			if matched[def.Name] {
+				continue
+			}
+			if def.Kind == command.ArgEnum || def.Kind == command.ArgUnion {
+				if command.ValidateArgString(arg, def) == nil {
+					matched[def.Name] = true
+					found = true
+					break
+				}
+			}
+			if def.Kind == command.ArgString {
+				if err := command.ValidateArgString(arg, def); err != nil {
+					continue
+				}
+				matched[def.Name] = true
+				found = true
+				break
+			}
+		}
+		if !found {
+			return positionalError(arg, defs)
+		}
+	}
+
+	// Phase 3: mandatory check.
+	for i := range defs {
+		if defs[i].Mandatory && !matched[defs[i].Name] {
+			return fmt.Errorf("required argument missing: %s", defs[i].Name)
+		}
+	}
+
+	return nil
+}
+
+// positionalError builds an error for an unmatched positional arg.
+// Uses the first enum/union ArgDef for a specific message, or lists
+// available keyword names when no enum/union exists.
+func positionalError(arg string, defs []command.ArgDef) error {
+	for i := range defs {
+		if defs[i].Kind == command.ArgEnum || defs[i].Kind == command.ArgUnion {
+			return command.ValidateArgString(arg, &defs[i])
+		}
+	}
+	names := make([]string, 0, len(defs))
+	for i := range defs {
+		names = append(names, defs[i].Name)
+	}
+	return fmt.Errorf("unexpected argument %q, valid keywords: %s", arg, strings.Join(names, ", "))
 }
 
 func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, input string, resp *plugin.Response, err error) {

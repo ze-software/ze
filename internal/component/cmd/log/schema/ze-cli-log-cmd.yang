@@ -19,12 +19,44 @@ module ze-cli-log-cmd {
             config false;
             ze:command "ze-bgp:log-set";
             description "Set subsystem log level at runtime";
+            leaf logger {
+                type string;
+                description "Logger/subsystem name";
+            }
+            leaf level {
+                type enumeration {
+                    enum disabled;
+                    enum debug;
+                    enum info;
+                    enum warn;
+                    enum err;
+                }
+                description "Target log level";
+            }
         }
 
         container recent {
             config false;
             ze:command "ze-bgp:log-recent";
             description "Show recent log entries (level <lvl> component <name> count <N>)";
+            leaf level {
+                type enumeration {
+                    enum disabled;
+                    enum debug;
+                    enum info;
+                    enum warn;
+                    enum err;
+                }
+                description "Filter by log level";
+            }
+            leaf component {
+                type string;
+                description "Filter by component name";
+            }
+            leaf count {
+                type uint32;
+                description "Maximum number of entries";
+            }
         }
     }
 }

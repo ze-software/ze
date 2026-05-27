@@ -1,0 +1,8 @@
+# Test: ze completion words -- ArgDefs enum values for show system goroutines
+# VALIDATES: AC-5 -- YANG enum ArgDef produces completion suggestions
+
+cmd=foreground:seq=1:exec=ze completion words run show system goroutines
+expect=exit:code=0
+expect=stdout:contains=summary
+expect=stdout:contains=blocked
+expect=stdout:contains=full

@@ -2,6 +2,7 @@ package yang
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
@@ -855,4 +856,266 @@ module test-backend-tree-cmd {
 	general := tree.Children["general"]
 	require.NotNil(t, general)
 	assert.Nil(t, general.Backend)
+}
+
+// TestArgDefFromEnumYANG verifies that enum leaves inside ze:command containers
+// produce ArgDef entries with EnumValues populated.
+//
+// VALIDATES: AC-1 -- enum leaf produces ArgDef with EnumValues.
+func TestArgDefFromEnumYANG(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+
+	yangText := `
+module test-enum-cmd {
+    namespace "urn:test:enum:cmd";
+    prefix tec;
+    import ze-extensions { prefix ze; }
+
+    container show {
+        config false;
+        container goroutines {
+            config false;
+            ze:command "ze-show:system-goroutines";
+            description "Show goroutines";
+            leaf mode {
+                type enumeration {
+                    enum summary;
+                    enum blocked;
+                    enum full;
+                }
+                description "Display mode";
+            }
+        }
+    }
+}
+`
+	require.NoError(t, loader.AddModuleFromText("test-enum-cmd.yang", yangText))
+	require.NoError(t, loader.Resolve())
+
+	tree := BuildCommandTree(loader)
+	goroutines := tree.Children["show"].Children["goroutines"]
+	require.NotNil(t, goroutines)
+	require.Len(t, goroutines.ArgDefs, 1)
+
+	def := goroutines.ArgDefs[0]
+	assert.Equal(t, "mode", def.Name)
+	assert.Equal(t, command.ArgEnum, def.Kind)
+	assert.Equal(t, []string{"blocked", "full", "summary"}, def.EnumValues)
+}
+
+// TestArgDefFromUnionYANG verifies that union(uint64, enum) leaves produce
+// ArgDef with Kind=ArgUnion and enum values extracted.
+//
+// VALIDATES: AC-2 -- union leaf produces ArgDef with extracted enum values.
+func TestArgDefFromUnionYANG(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+
+	yangText := `
+module test-union-cmd {
+    namespace "urn:test:union:cmd";
+    prefix tuc;
+    import ze-extensions { prefix ze; }
+
+    container set {
+        config false;
+        container file-descriptors {
+            config false;
+            ze:command "ze-set:system-file-descriptors";
+            description "Set FD limit";
+            leaf limit {
+                type union {
+                    type uint64;
+                    type enumeration {
+                        enum max;
+                    }
+                }
+                description "New limit or max";
+            }
+        }
+    }
+}
+`
+	require.NoError(t, loader.AddModuleFromText("test-union-cmd.yang", yangText))
+	require.NoError(t, loader.Resolve())
+
+	tree := BuildCommandTree(loader)
+	fd := tree.Children["set"].Children["file-descriptors"]
+	require.NotNil(t, fd)
+	require.Len(t, fd.ArgDefs, 1)
+
+	def := fd.ArgDefs[0]
+	assert.Equal(t, "limit", def.Name)
+	assert.Equal(t, command.ArgUnion, def.Kind)
+	assert.Equal(t, []string{"max"}, def.EnumValues)
+	require.Len(t, def.UnionDefs, 2)
+	assert.Equal(t, command.ArgUint, def.UnionDefs[0].Kind)
+	assert.Equal(t, command.ArgEnum, def.UnionDefs[1].Kind)
+}
+
+// TestArgDefFromUintRangeYANG verifies uint leaves with range constraints.
+//
+// VALIDATES: AC-3 -- uint leaf with range produces ArgDef with range metadata.
+func TestArgDefFromUintRangeYANG(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+
+	yangText := `
+module test-uint-cmd {
+    namespace "urn:test:uint:cmd";
+    prefix turc;
+    import ze-extensions { prefix ze; }
+
+    container show {
+        config false;
+        container capture {
+            config false;
+            ze:command "ze-show:capture";
+            description "Capture packets";
+            leaf count {
+                type uint32 {
+                    range "1..10000";
+                }
+                description "Packet count";
+            }
+        }
+    }
+}
+`
+	require.NoError(t, loader.AddModuleFromText("test-uint-cmd.yang", yangText))
+	require.NoError(t, loader.Resolve())
+
+	tree := BuildCommandTree(loader)
+	capture := tree.Children["show"].Children["capture"]
+	require.NotNil(t, capture)
+	require.Len(t, capture.ArgDefs, 1)
+
+	def := capture.ArgDefs[0]
+	assert.Equal(t, "count", def.Name)
+	assert.Equal(t, command.ArgUint, def.Kind)
+	assert.Equal(t, 32, def.UintBits)
+	require.Len(t, def.Ranges, 1)
+	assert.Equal(t, uint64(1), def.Ranges[0].Min)
+	assert.Equal(t, uint64(10000), def.Ranges[0].Max)
+}
+
+// TestArgDefFromPatternYANG verifies string leaves with pattern constraints.
+//
+// VALIDATES: AC-4 -- string leaf with pattern produces ArgDef with Pattern.
+func TestArgDefFromPatternYANG(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+
+	yangText := `
+module test-pattern-cmd {
+    namespace "urn:test:pattern:cmd";
+    prefix tpc;
+    import ze-extensions { prefix ze; }
+
+    container show {
+        config false;
+        container ping {
+            config false;
+            ze:command "ze-show:ping";
+            description "Ping host";
+            leaf timeout {
+                type string {
+                    pattern '\d+[smh]?';
+                }
+                description "Timeout duration";
+            }
+        }
+    }
+}
+`
+	require.NoError(t, loader.AddModuleFromText("test-pattern-cmd.yang", yangText))
+	require.NoError(t, loader.Resolve())
+
+	tree := BuildCommandTree(loader)
+	ping := tree.Children["show"].Children["ping"]
+	require.NotNil(t, ping)
+	require.Len(t, ping.ArgDefs, 1)
+
+	def := ping.ArgDefs[0]
+	assert.Equal(t, "timeout", def.Name)
+	assert.Equal(t, command.ArgString, def.Kind)
+	require.NotNil(t, def.Pattern)
+	assert.True(t, def.Pattern.MatchString("30s"))
+	assert.False(t, def.Pattern.MatchString("abc"))
+}
+
+// TestArgDefsPopulated verifies that all commands with typed arguments have
+// ArgDefs populated after BuildCommandTree using real YANG schemas.
+//
+// VALIDATES: AC-18 -- all commands with typed args have ArgDefs after BuildCommandTree.
+func TestArgDefsPopulated(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+
+	// Load all real -cmd YANG modules.
+	cmdFiles := []string{
+		cmdBase + "show/schema/ze-cli-show-cmd.yang",
+		cmdBase + "set/schema/ze-cli-set-cmd.yang",
+		cmdBase + "log/schema/ze-cli-log-cmd.yang",
+	}
+	for _, path := range cmdFiles {
+		loadCmdModule(t, loader, path)
+	}
+	require.NoError(t, loader.Resolve())
+
+	tree := BuildCommandTree(loader)
+
+	// Commands that should have ArgDefs (from the Typed Argument Catalog).
+	wantArgDefs := map[string]int{
+		"show system goroutines":       1, // mode
+		"show system file-descriptors": 1, // mode
+		"show system sockets":          3, // protocol, state, port
+		"show system kernel-log":       2, // level, count
+		"show system profile":          2, // type, duration
+		"show audit":                   6, // action, actor, surface, since, until, count
+		"show ping":                    3, // dest, count, timeout
+		"show traceroute":              4, // dest, max-hops, timeout, probes
+		"show tcp-check":               4, // host, port, source, timeout
+		"show probe-round":             4, // dest, probes, max-hops, timeout
+		"show dns lookup":              2, // hostname, type
+		"show dns cache":               2, // action, name
+		"show capture":                 4, // protocol, tunnel-id, count, peer
+		"show capture raw":             4, // action, protocol, format, count
+		"show capture interface":       6, // iface, count, duration, snap-len, format, protocol
+		"show ip arp":                  1, // family
+		"show ip route":                2, // prefix, limit
+		"show neighbors":               1, // family
+		"show crashes":                 1, // name
+		"set system file-descriptors":  1, // limit
+		"log set":                      2, // logger, level
+		"log recent":                   3, // level, component, count
+	}
+
+	for path, wantCount := range wantArgDefs {
+		node := navigateTree(tree, path)
+		if node == nil {
+			t.Errorf("command %q not found in tree", path)
+			continue
+		}
+		if len(node.ArgDefs) != wantCount {
+			t.Errorf("command %q: want %d ArgDefs, got %d", path, wantCount, len(node.ArgDefs))
+		}
+	}
+}
+
+// navigateTree walks a command tree by space-separated path.
+func navigateTree(root *command.Node, path string) *command.Node {
+	current := root
+	for name := range strings.FieldsSeq(path) {
+		if current == nil || current.Children == nil {
+			return nil
+		}
+		child, ok := current.Children[name]
+		if !ok {
+			return nil
+		}
+		current = child
+	}
+	return current
 }

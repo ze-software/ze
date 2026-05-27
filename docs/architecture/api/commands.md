@@ -999,6 +999,41 @@ func Dispatch(tree DispatchTree, tokens *Tokenizer, reactor *Reactor) (Handler, 
 ```
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher, Handler -->
 
+### YANG-Typed Command Arguments
+
+Operational commands declare their argument types as YANG leaves inside
+`ze:command` containers. The same leaf metadata drives three consumers:
+
+1. **Completer** (`command/completer.go`): enum values become tab-completion
+   suggestions; keyword leaf names appear as completable tokens.
+2. **Dispatcher** (`plugin/server/command.go`): validates args against ArgDefs
+   between tokenize and handler call (two-phase: keyword extraction, then
+   positional matching).
+3. **Documentation**: leaf descriptions provide help text.
+
+```go
+type ArgDef struct {
+    Name       string         // YANG leaf name (kebab-case)
+    Kind       ArgKind        // ArgString, ArgEnum, ArgUint, ArgUnion
+    EnumValues []string       // Valid enum values
+    UintBits   int            // 8, 16, 32, or 64
+    Ranges     []UintRange    // Valid ranges (disjoint segments supported)
+    Pattern    *regexp.Regexp // Compiled XSD pattern for ArgString
+    UnionDefs  []ArgDef       // Member types for ArgUnion
+    Mandatory  bool           // True if YANG leaf has mandatory true
+}
+```
+
+ArgDefs are extracted from YANG by `BuildCommandTree` (`config/yang/command.go`)
+and stored on `command.Node.ArgDefs`. The dispatcher receives them via
+`RegisterOptions.ArgDefs` populated by `PathToArgDefs`.
+
+Runtime-dynamic hints (e.g., address families from plugin registry) remain as
+`ValueHints` callbacks. Static hints (log levels, FD limit "max") are
+YANG-declared and served through ArgDefs.
+<!-- source: internal/component/command/node.go -- ArgDef, Node.ArgDefs -->
+<!-- source: internal/component/config/yang/command.go -- extractArgDefs -->
+
 ### Peer Selector Parsing
 
 ```go

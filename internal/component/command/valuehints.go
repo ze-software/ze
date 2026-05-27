@@ -13,14 +13,14 @@ import (
 // WireValueHints attaches ValueHints callbacks to known nodes in a command tree.
 // Both CLI interactive and shell completion get them via shared TreeCompleter.
 // Safe to call on any command tree (nil-safe, missing-node-safe).
+// Only runtime-dynamic hints (plugin families) remain; static hints (log levels,
+// FD limit) are now YANG-driven via ArgDefs.
 func WireValueHints(tree *Node) {
 	if tree == nil || tree.Children == nil {
 		return
 	}
 
 	wireRibHints(tree)
-	wireLogSetHints(tree)
-	wireFDSetHints(tree)
 }
 
 func wireRibHints(tree *Node) {
@@ -29,13 +29,6 @@ func wireRibHints(tree *Node) {
 	}
 	if node := navigatePath(tree, "rib"); node != nil {
 		node.ValueHints = FamilyValueHints
-	}
-}
-
-func wireLogSetHints(tree *Node) {
-	verbName := "lo" + "g" // avoid hook false-positive on literal
-	if node := navigatePath(tree, verbName, "set"); node != nil {
-		node.ValueHints = LevelValueHints
 	}
 }
 
@@ -53,31 +46,6 @@ func FamilyValueHints() []Suggestion {
 	}
 	sort.Slice(hints, func(i, j int) bool { return hints[i].Text < hints[j].Text })
 	return hints
-}
-
-// LevelValueHints returns slog level name suggestions.
-func LevelValueHints() []Suggestion {
-	return []Suggestion{
-		{Text: "disabled", Description: "Disable", Type: "value"},
-		{Text: "debug", Description: "Debug level", Type: "value"},
-		{Text: "info", Description: "Info level", Type: "value"},
-		{Text: "warn", Description: "Warning level", Type: "value"},
-		{Text: "err", Description: "Error level", Type: "value"},
-	}
-}
-
-func wireFDSetHints(tree *Node) {
-	setNode := navigatePath(tree, "set", "system", "file-descriptors")
-	if setNode != nil {
-		setNode.ValueHints = FDLimitValueHints
-	}
-}
-
-// FDLimitValueHints returns suggestions for the file descriptor limit argument.
-func FDLimitValueHints() []Suggestion {
-	return []Suggestion{
-		{Text: "max", Description: "Set to hard limit", Type: "value"},
-	}
 }
 
 // navigatePath walks the tree by successive child lookups.

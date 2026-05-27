@@ -8,6 +8,38 @@
 // completion, and pipe operators.
 package command
 
+import "regexp"
+
+// ArgKind identifies the type of a command argument from YANG leaf metadata.
+type ArgKind uint8
+
+const (
+	ArgString ArgKind = iota
+	ArgEnum
+	ArgUint
+	ArgUnion
+)
+
+// UintRange represents a contiguous range of unsigned integer values.
+type UintRange struct {
+	Min uint64
+	Max uint64
+}
+
+// ArgDef declares a typed argument for an operational command, extracted from
+// YANG leaves inside ze:command containers. Drives completion, validation,
+// and documentation from a single source.
+type ArgDef struct {
+	Name       string         // YANG leaf name (kebab-case, used as keyword detector)
+	Kind       ArgKind        // Argument type category
+	EnumValues []string       // Valid enum values (for ArgEnum and ArgUnion)
+	UintBits   int            // 8, 16, 32, or 64 for ArgUint
+	Ranges     []UintRange    // Valid ranges for ArgUint (disjoint segments supported)
+	Pattern    *regexp.Regexp // Compiled XSD pattern for ArgString (nil = accept any)
+	UnionDefs  []ArgDef       // Member types for ArgUnion (tried in order)
+	Mandatory  bool           // True if YANG leaf has mandatory true
+}
+
 // Node represents a node in the operational command tree.
 // Used for completion and command validation across CLI and editor command mode.
 type Node struct {
@@ -17,6 +49,7 @@ type Node struct {
 	TaskSupport string   // MCP task-support level (from ze:task-support). Empty = optional.
 	Backend     []string // Allowed backends (from ze:backend). Nil = unrestricted.
 	Children    map[string]*Node
+	ArgDefs     []ArgDef // Typed argument definitions from YANG leaves inside ze:command.
 
 	// DynamicChildren returns additional completion suggestions at this node.
 	// Called alongside static Children when completing. Used for runtime data

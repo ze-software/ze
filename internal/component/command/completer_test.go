@@ -442,3 +442,142 @@ func TestGhostTextWithValueHints(t *testing.T) {
 		t.Errorf("GhostText('rib ipv') = %q, want '' (ambiguous)", ghost)
 	}
 }
+
+// TestCompleterArgDefsEnumSuggestions verifies that enum values from ArgDefs
+// appear as value suggestions in the completer output.
+//
+// VALIDATES: AC-5 -- enum values from ArgDefs appear as suggestions.
+func TestCompleterArgDefsEnumSuggestions(t *testing.T) {
+	root := &Node{
+		Children: map[string]*Node{
+			"show": {
+				Name: "show",
+				Children: map[string]*Node{
+					"goroutines": {
+						Name:       "goroutines",
+						WireMethod: "ze-show:system-goroutines",
+						ArgDefs: []ArgDef{
+							{Name: "mode", Kind: ArgEnum, EnumValues: []string{"blocked", "full", "summary"}},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	cc := NewTreeCompleter(root)
+	completions := cc.Complete("show goroutines ")
+
+	texts := make(map[string]bool)
+	for _, s := range completions {
+		texts[s.Text] = true
+	}
+	for _, want := range []string{"blocked", "full", "summary"} {
+		if !texts[want] {
+			t.Errorf("missing enum suggestion %q", want)
+		}
+	}
+}
+
+// TestCompleterArgDefsKeywordSuggestions verifies that keyword arg names from
+// ArgDefs appear as suggestions.
+//
+// VALIDATES: AC-6 -- leaf names appear as keyword suggestions.
+func TestCompleterArgDefsKeywordSuggestions(t *testing.T) {
+	root := &Node{
+		Children: map[string]*Node{
+			"show": {
+				Name: "show",
+				Children: map[string]*Node{
+					"audit": {
+						Name:       "audit",
+						WireMethod: "ze-show:audit",
+						ArgDefs: []ArgDef{
+							{Name: "action", Kind: ArgString},
+							{Name: "count", Kind: ArgUint, UintBits: 32},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	cc := NewTreeCompleter(root)
+	completions := cc.Complete("show audit ")
+
+	texts := make(map[string]bool)
+	for _, s := range completions {
+		texts[s.Text] = true
+	}
+	for _, want := range []string{"action", "count"} {
+		if !texts[want] {
+			t.Errorf("missing keyword suggestion %q", want)
+		}
+	}
+}
+
+// TestCompleterArgDefsPrefixFilter verifies that ArgDef suggestions are prefix-filtered.
+func TestCompleterArgDefsPrefixFilter(t *testing.T) {
+	root := &Node{
+		Children: map[string]*Node{
+			"show": {
+				Name: "show",
+				Children: map[string]*Node{
+					"goroutines": {
+						Name:       "goroutines",
+						WireMethod: "ze-show:system-goroutines",
+						ArgDefs: []ArgDef{
+							{Name: "mode", Kind: ArgEnum, EnumValues: []string{"blocked", "full", "summary"}},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	cc := NewTreeCompleter(root)
+	completions := cc.Complete("show goroutines b")
+
+	if len(completions) != 1 {
+		t.Fatalf("expected 1 completion for prefix 'b', got %d", len(completions))
+	}
+	if completions[0].Text != "blocked" {
+		t.Errorf("expected 'blocked', got %q", completions[0].Text)
+	}
+}
+
+// TestCompleterArgDefsDedup verifies that overlapping ValueHints and ArgDefs
+// do not produce duplicate suggestions.
+//
+// VALIDATES: Review fix -- deduplication of ValueHints and ArgDefs.
+func TestCompleterArgDefsDedup(t *testing.T) {
+	root := &Node{
+		Children: map[string]*Node{
+			"test": {
+				Name:       "test",
+				WireMethod: "ze-test:cmd",
+				ValueHints: func() []Suggestion {
+					return []Suggestion{
+						{Text: "max", Type: "value"},
+					}
+				},
+				ArgDefs: []ArgDef{
+					{Name: "limit", Kind: ArgUnion, EnumValues: []string{"max"}},
+				},
+			},
+		},
+	}
+
+	cc := NewTreeCompleter(root)
+	completions := cc.Complete("test ")
+
+	count := 0
+	for _, s := range completions {
+		if s.Text == "max" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected 'max' once, got %d times", count)
+	}
+}

@@ -4,6 +4,7 @@
 package yang
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 
@@ -125,6 +126,34 @@ func collectTaskSupport(node *command.Node, prefix string, result map[string]str
 	}
 }
 
+// PathToArgDefs walks all -cmd YANG modules and builds a map from CLI path
+// to ArgDef slices. Only paths with at least one ArgDef are included.
+func PathToArgDefs(loader *Loader) map[string][]command.ArgDef {
+	result := make(map[string][]command.ArgDef)
+	if loader == nil {
+		return result
+	}
+	tree := BuildCommandTree(loader)
+	collectArgDefs(tree, "", result)
+	return result
+}
+
+func collectArgDefs(node *command.Node, prefix string, result map[string][]command.ArgDef) {
+	if node == nil {
+		return
+	}
+	for name, child := range node.Children {
+		path := name
+		if prefix != "" {
+			path = prefix + " " + name
+		}
+		if len(child.ArgDefs) > 0 {
+			result[path] = child.ArgDefs
+		}
+		collectArgDefs(child, path, result)
+	}
+}
+
 // BuildCommandTree walks all -cmd YANG modules in the loader and builds
 // a merged command.Node tree. Multiple modules contributing to the same
 // container path (e.g., 4 modules defining peer > ...) are merged.
@@ -195,9 +224,133 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 			target.Backend = be
 		}
 
+		// Extract typed argument definitions from leaf children of ze:command nodes.
+		if wm != "" && len(target.ArgDefs) == 0 {
+			target.ArgDefs = extractArgDefs(child)
+		}
+
 		// Recurse into children (merge overlapping branches from multiple modules).
 		mergeYANGEntry(target, child)
 	}
+}
+
+// extractArgDefs reads leaf children of a ze:command YANG entry and converts
+// their type metadata into ArgDef entries. Leaves have Config == TSUnset
+// (inherited, not explicit), so the main mergeYANGEntry filter skips them.
+func extractArgDefs(entry *gyang.Entry) []command.ArgDef {
+	if entry == nil || entry.Dir == nil {
+		return nil
+	}
+	var defs []command.ArgDef
+	for name, leaf := range entry.Dir {
+		if leaf.Type == nil {
+			continue
+		}
+		def, ok := yangTypeToArgDef(name, leaf.Type)
+		if !ok {
+			continue
+		}
+		if leaf.Mandatory == gyang.TSTrue {
+			def.Mandatory = true
+		}
+		defs = append(defs, def)
+	}
+	sort.Slice(defs, func(i, j int) bool { return defs[i].Name < defs[j].Name })
+	return defs
+}
+
+// yangTypeToArgDef converts a goyang YangType into an ArgDef.
+func yangTypeToArgDef(name string, yt *gyang.YangType) (command.ArgDef, bool) {
+	def := command.ArgDef{Name: name}
+
+	//nolint:exhaustive // only handle types relevant to command arguments
+	switch yt.Kind {
+	case gyang.Yenum:
+		def.Kind = command.ArgEnum
+		if yt.Enum != nil {
+			def.EnumValues = enumNames(yt.Enum)
+		}
+
+	case gyang.Yuint8:
+		def.Kind = command.ArgUint
+		def.UintBits = 8
+		applyRange(&def, yt.Range)
+	case gyang.Yuint16:
+		def.Kind = command.ArgUint
+		def.UintBits = 16
+		applyRange(&def, yt.Range)
+	case gyang.Yuint32:
+		def.Kind = command.ArgUint
+		def.UintBits = 32
+		applyRange(&def, yt.Range)
+	case gyang.Yuint64:
+		def.Kind = command.ArgUint
+		def.UintBits = 64
+		applyRange(&def, yt.Range)
+
+	case gyang.Ystring:
+		def.Kind = command.ArgString
+		if len(yt.Pattern) > 0 {
+			compiled, err := compileYANGPattern(yt.Pattern[0])
+			if err == nil {
+				def.Pattern = compiled
+			}
+		}
+
+	case gyang.Yunion:
+		def.Kind = command.ArgUnion
+		for _, member := range yt.Type {
+			sub, ok := yangTypeToArgDef(name, member)
+			if ok {
+				def.UnionDefs = append(def.UnionDefs, sub)
+				if sub.Kind == command.ArgEnum {
+					def.EnumValues = append(def.EnumValues, sub.EnumValues...)
+				}
+			}
+		}
+
+	default:
+		return def, false
+	}
+
+	return def, true
+}
+
+// enumNames extracts sorted enum value names from a goyang EnumType.
+func enumNames(enum *gyang.EnumType) []string {
+	if enum == nil || len(enum.ToInt) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(enum.ToInt))
+	for name := range enum.ToInt {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// applyRange converts each YangRange segment into a UintRange on the ArgDef.
+// Supports disjoint ranges (e.g., "1..100 | 200..300").
+func applyRange(def *command.ArgDef, r gyang.YangRange) {
+	if len(r) == 0 {
+		return
+	}
+	def.Ranges = make([]command.UintRange, len(r))
+	for i, seg := range r {
+		def.Ranges[i] = command.UintRange{Min: seg.Min.Value, Max: seg.Max.Value}
+	}
+}
+
+// compileYANGPattern compiles an XSD-style pattern into a Go regexp, anchoring it.
+func compileYANGPattern(pattern string) (*regexp.Regexp, error) {
+	anchored := pattern
+	if !strings.HasPrefix(anchored, "^") {
+		anchored = "^" + anchored
+	}
+	if !strings.HasSuffix(anchored, "$") {
+		anchored += "$"
+	}
+	return regexp.Compile(anchored)
 }
 
 // GetCommandExtension reads the ze:command extension from a YANG entry.

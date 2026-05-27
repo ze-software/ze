@@ -96,30 +96,92 @@ module ze-cli-show-cmd {
                 config false;
                 ze:command "ze-show:system-sockets";
                 description "Show TCP/UDP socket state ([tcp|udp] [state <STATE>] [port <N>])";
+                leaf protocol {
+                    type enumeration {
+                        enum tcp;
+                        enum udp;
+                    }
+                    description "Filter by protocol";
+                }
+                leaf state {
+                    type string;
+                    description "Filter by socket state";
+                }
+                leaf port {
+                    type uint32;
+                    description "Filter by port number";
+                }
             }
 
             container kernel-log {
                 config false;
                 ze:command "ze-show:system-kernel-log";
                 description "Show kernel log messages from /dev/kmsg ([level <LEVEL>] [count <N>])";
+                leaf level {
+                    type enumeration {
+                        enum emerg;
+                        enum alert;
+                        enum crit;
+                        enum err;
+                        enum warn;
+                        enum notice;
+                        enum info;
+                        enum debug;
+                    }
+                    description "Filter by syslog level";
+                }
+                leaf count {
+                    type uint32;
+                    description "Maximum number of messages";
+                }
             }
 
             container goroutines {
                 config false;
                 ze:command "ze-show:system-goroutines";
                 description "Show goroutine dump ([summary|blocked|full])";
+                leaf mode {
+                    type enumeration {
+                        enum summary;
+                        enum blocked;
+                        enum full;
+                    }
+                    description "Display mode";
+                }
             }
 
             container file-descriptors {
                 config false;
                 ze:command "ze-show:system-file-descriptors";
                 description "Show open file descriptors ([summary|detail])";
+                leaf mode {
+                    type enumeration {
+                        enum summary;
+                        enum detail;
+                    }
+                    description "Display mode";
+                }
             }
 
             container profile {
                 config false;
                 ze:command "ze-show:system-profile";
                 description "Capture runtime profile ([cpu|heap|goroutine|allocs] [duration <D>])";
+                leaf type {
+                    type enumeration {
+                        enum cpu;
+                        enum heap;
+                        enum goroutine;
+                        enum allocs;
+                    }
+                    description "Profile type";
+                }
+                leaf duration {
+                    type string {
+                        pattern '\d+[smh]?';
+                    }
+                    description "Profile duration";
+                }
             }
 
             container memory-map {
@@ -203,6 +265,30 @@ module ze-cli-show-cmd {
             config false;
             ze:command "ze-show:audit";
             description "Show audit log entries ([action <type>] [actor <name>] [surface <name>] [since <RFC3339>] [until <RFC3339>] [count <N>])";
+            leaf action {
+                type string;
+                description "Filter by action type";
+            }
+            leaf actor {
+                type string;
+                description "Filter by actor name";
+            }
+            leaf surface {
+                type string;
+                description "Filter by surface name";
+            }
+            leaf since {
+                type string;
+                description "Start time (RFC3339)";
+            }
+            leaf until {
+                type string;
+                description "End time (RFC3339)";
+            }
+            leaf count {
+                type uint32;
+                description "Maximum number of entries";
+            }
         }
 
         container errors {
@@ -221,24 +307,94 @@ module ze-cli-show-cmd {
             config false;
             ze:command "ze-show:ping";
             description "ICMP ping from the router (<dest> [count N] [timeout Ns])";
+            leaf dest {
+                type string;
+                description "Target host or IP address";
+            }
+            leaf count {
+                type uint32;
+                description "Number of ping packets";
+            }
+            leaf timeout {
+                type string {
+                    pattern '\d+[smh]?';
+                }
+                description "Timeout duration";
+            }
         }
 
         container traceroute {
             config false;
             ze:command "ze-show:traceroute";
             description "Trace path to target (<dest> [max-hops N] [timeout Ns] [probes N])";
+            leaf dest {
+                type string;
+                description "Target host or IP address";
+            }
+            leaf max-hops {
+                type uint32;
+                description "Maximum number of hops";
+            }
+            leaf timeout {
+                type string {
+                    pattern '\d+[smh]?';
+                }
+                description "Timeout duration";
+            }
+            leaf probes {
+                type uint32;
+                description "Number of probes per hop";
+            }
         }
 
         container tcp-check {
             config false;
             ze:command "ze-show:tcp-check";
             description "TCP port connectivity test (<host> <port> [source <IP>] [timeout <D>])";
+            leaf host {
+                type string;
+                mandatory true;
+                description "Target host";
+            }
+            leaf port {
+                type uint16;
+                mandatory true;
+                description "Target port";
+            }
+            leaf source {
+                type string;
+                description "Source IP address";
+            }
+            leaf timeout {
+                type string {
+                    pattern '\d+[smh]?';
+                }
+                description "Connection timeout";
+            }
         }
 
         container probe-round {
             config false;
             ze:command "ze-show:probe-round";
             description "Batch probe round for parallel traceroute (<dest> [probes N] [max-hops N] [timeout <D>])";
+            leaf dest {
+                type string;
+                description "Target host or IP address";
+            }
+            leaf probes {
+                type uint32;
+                description "Number of probes per hop";
+            }
+            leaf max-hops {
+                type uint32;
+                description "Maximum number of hops";
+            }
+            leaf timeout {
+                type string {
+                    pattern '\d+[smh]?';
+                }
+                description "Timeout duration";
+            }
         }
 
         container dns {
@@ -249,12 +405,40 @@ module ze-cli-show-cmd {
                 config false;
                 ze:command "ze-show:dns-lookup";
                 description "DNS lookup (<hostname> [type <A|AAAA|MX|NS|TXT|CNAME|PTR>])";
+                leaf hostname {
+                    type string;
+                    description "Hostname to resolve";
+                }
+                leaf type {
+                    type enumeration {
+                        enum A;
+                        enum AAAA;
+                        enum MX;
+                        enum NS;
+                        enum TXT;
+                        enum CNAME;
+                        enum PTR;
+                    }
+                    description "DNS record type";
+                }
             }
 
             container cache {
                 config false;
                 ze:command "ze-show:dns-cache";
                 description "DNS cache (stats | list | record <name>)";
+                leaf action {
+                    type enumeration {
+                        enum stats;
+                        enum list;
+                        enum record;
+                    }
+                    description "Cache operation";
+                }
+                leaf name {
+                    type string;
+                    description "Record name (for record action)";
+                }
             }
         }
 
@@ -292,17 +476,95 @@ module ze-cli-show-cmd {
             config false;
             ze:command "ze-show:capture";
             description "Show captured control messages (l2tp [tunnel-id N] [count N] [peer X])";
+            leaf protocol {
+                type enumeration {
+                    enum l2tp;
+                    enum bgp;
+                }
+                description "Protocol filter";
+            }
+            leaf tunnel-id {
+                type uint16;
+                description "L2TP tunnel ID filter";
+            }
+            leaf count {
+                type uint32;
+                description "Maximum number of messages";
+            }
+            leaf peer {
+                type string;
+                description "Peer address filter";
+            }
 
             container raw {
                 config false;
                 ze:command "ze-show:capture-raw";
                 description "Raw byte capture: start/stop activation and pcap/json dump ([start|stop|dump] [l2tp|bgp] [pcap|json] [count N])";
+                leaf action {
+                    type enumeration {
+                        enum start;
+                        enum stop;
+                        enum dump;
+                    }
+                    description "Capture action";
+                }
+                leaf protocol {
+                    type enumeration {
+                        enum l2tp;
+                        enum bgp;
+                    }
+                    description "Protocol to capture";
+                }
+                leaf format {
+                    type enumeration {
+                        enum pcap;
+                        enum json;
+                    }
+                    description "Output format";
+                }
+                leaf count {
+                    type uint32;
+                    description "Maximum number of messages";
+                }
             }
 
             container interface {
                 config false;
                 ze:command "ze-show:capture-interface";
                 description "Live packet capture on an interface using AF_PACKET (<iface> [protocol <P> port <N>] [count <N>] [duration <D>] [snap-len <N>] [format pcap|text])";
+                leaf iface {
+                    type string;
+                    description "Interface name";
+                }
+                leaf count {
+                    type uint32 {
+                        range "1..10000";
+                    }
+                    description "Packet count";
+                }
+                leaf duration {
+                    type string {
+                        pattern '\d+[smh]?';
+                    }
+                    description "Capture duration";
+                }
+                leaf snap-len {
+                    type uint32 {
+                        range "64..65535";
+                    }
+                    description "Snap length in bytes";
+                }
+                leaf format {
+                    type enumeration {
+                        enum pcap;
+                        enum text;
+                    }
+                    description "Output format";
+                }
+                leaf protocol {
+                    type string;
+                    description "Protocol filter";
+                }
             }
         }
 
@@ -589,12 +851,29 @@ module ze-cli-show-cmd {
                 config false;
                 ze:command "ze-show:ip-arp";
                 description "Kernel neighbor table: IPv4 ARP and IPv6 ND entries. Optional --family ipv4|ipv6 narrows the dump. Equivalent to the top-level `show neighbors`; the two surface the same data and differ only in argument shape (--family vs positional).";
+                leaf family {
+                    type enumeration {
+                        enum ipv4;
+                        enum ipv6;
+                        enum any;
+                        enum all;
+                    }
+                    description "Address family filter";
+                }
             }
 
             container route {
                 config false;
                 ze:command "ze-show:ip-route";
                 description "Kernel routing table. Optional positional CIDR (or 'default') narrows the dump. Equivalent to the top-level `show kernel-routes`; same handler, same flags.";
+                leaf prefix {
+                    type string;
+                    description "CIDR prefix filter";
+                }
+                leaf limit {
+                    type uint32;
+                    description "Maximum number of routes";
+                }
 
                 container lookup {
                     config false;
@@ -608,12 +887,25 @@ module ze-cli-show-cmd {
             config false;
             ze:command "ze-show:neighbors";
             description "Kernel neighbor table (ARP/ND) via the iface backend. Optional positional 'ipv4', 'ipv6', or 'any' narrows the dump. Top-level shortcut for `show ip arp`; use whichever reads better in your session.";
+            leaf family {
+                type enumeration {
+                    enum ipv4;
+                    enum ipv6;
+                    enum any;
+                    enum all;
+                }
+                description "Address family filter";
+            }
         }
 
         container crashes {
             config false;
             ze:command "ze-show:crashes";
             description "Crash reports. No argument lists files. Positional 'latest' or a filename shows report content.";
+            leaf name {
+                type string;
+                description "Crash report name (latest or filename)";
+            }
         }
 
         container kernel-routes {

@@ -486,9 +486,9 @@ func TestBuildCommandTreeFamilyValueHints(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-3 — BuildCommandTree wires log level ValueHints to log set node.
-// PREVENTS: missing log level completions.
-func TestBuildCommandTreeLogLevelValueHints(t *testing.T) {
+// VALIDATES: log set node has level ArgDef with enum values for completion.
+// PREVENTS: missing log level completions after YANG migration.
+func TestBuildCommandTreeLogLevelArgDefs(t *testing.T) {
 	tree := BuildCommandTree(false)
 
 	logNode := tree.Children["log"]
@@ -501,21 +501,19 @@ func TestBuildCommandTreeLogLevelValueHints(t *testing.T) {
 		t.Fatal("log set node missing from command tree")
 	}
 
-	if setNode.ValueHints == nil {
-		t.Fatal("log set node should have ValueHints for log levels")
+	if len(setNode.ArgDefs) == 0 {
+		t.Fatal("log set node should have ArgDefs for log levels")
 	}
 
-	hints := setNode.ValueHints()
 	found := make(map[string]bool)
-	for _, h := range hints {
-		found[h.Text] = true
-		if h.Type != "value" {
-			t.Errorf("level hint %q should have Type 'value', got %q", h.Text, h.Type)
+	for _, def := range setNode.ArgDefs {
+		for _, v := range def.EnumValues {
+			found[v] = true
 		}
 	}
 	for _, want := range []string{"debug", "info", "warn", "err", "disabled"} {
 		if !found[want] {
-			t.Errorf("log set ValueHints missing level %q", want)
+			t.Errorf("log set ArgDefs missing level %q", want)
 		}
 	}
 }
