@@ -150,7 +150,10 @@ func (m Model) executeOperationalCommand(input string) tea.Cmd {
 				err: errNoDaemonConnectionOperationalModeRequires,
 			}
 		}
-		cmdStr, formatFn := command.ProcessPipesDefaultFormat(input)
+		cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(input)
+		if pipeErr != "" {
+			return commandResultMsg{err: errors.New("pipe error: " + pipeErr)}
+		}
 		output, err := executor(cmdStr)
 		if err != nil {
 			return commandResultMsg{err: err}
