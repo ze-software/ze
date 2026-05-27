@@ -194,6 +194,7 @@ Read every changed function. For each one:
 7. For map operations: is there a check for key existence before access?
 8. For slice operations: are indices bounds-checked before access?
 9. Does the code match its git history intent? (Use git blame/log to understand WHY old code existed -- flag if a guard or workaround is being removed)
+10. Removed-behavior audit: for every line the diff DELETES or replaces, name the invariant or behavior it enforced. Search the new code for where that invariant is re-established. If you cannot find it, that is a finding: a removed guard, a dropped error path, a narrowed validation, a deleted test that covered a real case.
 
 Specifically check for:
 - Inverted conditions
@@ -285,6 +286,7 @@ Read the project's .claude/rules/ directory to understand all rules. Then check 
 10. **related-refs.md**: // Detail: / // Overview: / // Related: cross-references are bidirectional
 11. **file-modularity.md**: Files under 600 lines, single concern per file
 12. **rfc-compliance.md**: If the diff touches protocol code (wire, message, capability, FSM, NLRI, attributes), read the relevant `rfc/short/` summaries and verify: (a) every MUST/MUST NOT is enforced, (b) every MUST enforcement has a `// RFC NNNN Section X.Y: "quoted requirement"` comment, (c) no SHOULD is ignored without justification. A MUST violation is critical severity.
+13. **Altitude check**: Is each change at the right depth? A special case layered on shared infrastructure is a sign the underlying mechanism should be generalized instead. Prefer deepening the shared abstraction over adding per-caller workarounds. Flag bandaid fixes with the deeper alternative named.
 
 For each violation report:
 FILE:LINE | RULE | VIOLATION | FIX
@@ -385,11 +387,27 @@ If no performance issues found, say "No performance issues found" with a brief e
 
 ---
 
-### 4. Consolidate results
+### 4. Collect and deduplicate
 
-After all selected agents complete, consolidate their findings into a single report:
+After all selected agents complete, collect their raw findings into a flat list. Deduplicate: when multiple agents report the same defect at the same location for the same reason, merge into one entry keeping the most specific description and the highest severity.
 
-#### Report Format
+### 5. Verify findings
+
+For each remaining finding, classify it as one of:
+
+- **CONFIRMED:** The defect is provable from the code. A specific input, state, or sequence produces wrong behavior.
+- **PLAUSIBLE:** The scenario is realistic but depends on runtime state. Keep these.
+- **REFUTED:** Provably impossible from the code. Quote the guard, cite the type constraint, or show the invariant that prevents it. Or: factually wrong about what the code does.
+
+**PLAUSIBLE is the default.** Do not refute a finding for being "speculative" or "depends on runtime state" when the state is realistic: concurrency races, nil on a rare-but-reachable path (error handler, cold cache, missing optional field), falsy-zero treated as missing, off-by-one on a boundary the code does not exclude, retry storms, partial failures, regex that lost an anchor. Only refute when you can construct the proof from the code itself.
+
+Drop REFUTED findings. Keep CONFIRMED and PLAUSIBLE.
+
+When under 20 findings remain after dedup, verify each one yourself by reading the relevant code. When 20 or more, spawn a verification agent (model: sonnet) with the diff, relevant files, and the candidate list.
+
+### 6. Format report
+
+Format the surviving findings into the report:
 
 ```
 ## Deep Review: [scope description]
@@ -434,10 +452,6 @@ After all selected agents complete, consolidate their findings into a single rep
 - **FIX:** [count] medium issues should be fixed
 - **CONSIDER:** [count] low issues worth reviewing
 ```
-
-### 5. Deduplicate
-
-Multiple agents may find the same issue from different angles. Merge duplicates, keeping the most specific description and the highest severity.
 
 ## Review Integrity
 

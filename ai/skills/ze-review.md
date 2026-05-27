@@ -47,12 +47,13 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 3. **Identify changed files:** Run `git diff --name-only HEAD` to find all modified files.
 4. **Read the actual code:** For every changed file, read the diff. Understand what changed.
 5. **Understand intent via history:** For each changed region, run `git log --oneline -5` and `git blame` on the modified lines. Understand WHY the old code existed. Flag if the change removes a guard, workaround, or constraint that was added deliberately.
-6. **Check code comments:** Read WARNING, INVARIANT, NOTE, and TODO comments in modified files. Verify the changes do not violate stated invariants or ignore documented constraints.
-7. **Trace data flow:** For each changed component, trace data from entry through transformations to exit. Verify boundaries are respected.
-8. **Apply edge case techniques:** Apply EVERY technique in the table below to every changed component.
-9. **Security review:** Apply the security checklist to every user-controlled input.
-10. **Allocation review:** Check every `make()` in changed code for unbounded sizes.
-11. **Logic correctness review:** Read every changed function and check for:
+6. **Removed-behavior audit:** For every line the diff DELETES or replaces, name the invariant or behavior it enforced. Then search the new code for where that invariant is re-established. If you cannot find it, that is a finding: a removed guard, a dropped error path, a narrowed validation, a deleted test that covered a real case. This step is distinct from step 5: step 5 asks "why did the old code exist?" This step asks "is the protection still there?"
+7. **Check code comments:** Read WARNING, INVARIANT, NOTE, and TODO comments in modified files. Verify the changes do not violate stated invariants or ignore documented constraints.
+8. **Trace data flow:** For each changed component, trace data from entry through transformations to exit. Verify boundaries are respected.
+9. **Apply edge case techniques:** Apply EVERY technique in the table below to every changed component.
+10. **Security review:** Apply the security checklist to every user-controlled input.
+11. **Allocation review:** Check every `make()` in changed code for unbounded sizes.
+12. **Logic correctness review:** Read every changed function and check for:
 
     | Check | What to look for |
     |-------|-----------------|
@@ -65,9 +66,9 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
     | Integer truncation | `uint16(bigValue)` silently wrapping, `int(uint32Val)` on 32-bit |
     | Nil dereference path | Method call on a receiver that could be nil (check callers) |
 
-    For each function: does the code do what the function name says? If a guard was removed, check `git blame` for why it existed.
+    For each function: does the code do what the function name says?
 
-12. **Performance review:** Check changed code for unnecessary allocations and algorithmic issues, especially on hot paths (see `no-sprintf-alloc.md` "Hot Path Rule" for the list).
+13. **Performance review:** Check changed code for unnecessary allocations and algorithmic issues, especially on hot paths (see `no-sprintf-alloc.md` "Hot Path Rule" for the list).
 
     | Check | What to look for |
     |-------|-----------------|
@@ -85,8 +86,9 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
     Cold paths (startup, config load, CLI one-shot) are exempt. Focus on hot paths as defined in `no-sprintf-alloc.md`.
 
-13. **Plugin traversal check:** If config structure changed, grep for all code reading the old structure.
-14. **Project rules cross-check:** For each changed file, verify compliance with applicable rules (steps 11-12 above cover logic and performance specifically; this step covers structural and convention rules):
+14. **Plugin traversal check:** If config structure changed, grep for all code reading the old structure.
+15. **Altitude check:** For each change, ask: is this fix at the right depth? A special case layered on shared infrastructure is a sign the underlying mechanism should be generalized instead. Prefer deepening the shared abstraction over adding per-caller workarounds. Report bandaid fixes as ISSUE with the deeper alternative named.
+16. **Project rules cross-check:** For each changed file, verify compliance with applicable rules (steps 12-13 above cover logic and performance specifically; this step covers structural and convention rules):
 
 | Changed code touches | Check against |
 |---------------------|---------------|
@@ -98,7 +100,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 | Config parsing | `config-design.md` -- fail on unknown keys, no version numbers |
 | New data wrapper/struct | `design-principles.md` -- lazy over eager, no identity wrappers |
 
-15. **Filter false positives:** Before reporting, discard findings that match any of these:
+17. **Filter false positives:** Before reporting, discard findings that match any of these:
 
 | False positive | Why discard |
 |----------------|-------------|
@@ -109,14 +111,16 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 | General quality concern not tied to a specific bug | Too vague to act on |
 | Contradicts a project rule but has an explicit override comment in code | Intentional exception |
 
-    **Never discard wiring, functional-test, logic, or hot-path performance findings.** An unwired symbol is dead code in production. A missing functional test is a coverage gap. A logic bug (wrong condition, wrong variable, off-by-one) is a correctness defect. A hot-path allocation is measurable overhead. These always survive this filter.
+    **Never discard wiring, functional-test, removed-behavior, logic, altitude, or hot-path performance findings.** An unwired symbol is dead code in production. A missing functional test is a coverage gap. A lost invariant from deleted code is a correctness regression. A logic bug (wrong condition, wrong variable, off-by-one) is a correctness defect. A bandaid fix at the wrong depth compounds maintenance cost. A hot-path allocation is measurable overhead. These always survive this filter.
 
-16. **Interop and goal validation check:** If the diff implements or modifies protocol behavior (BGP capability, NLRI family, session behavior, wire format, authentication), verify per `ai/rules/interop-and-goal-validation.md`:
+    **PLAUSIBLE by default.** Do not discard a finding for being "speculative" or "depends on runtime state" when the state is realistic: concurrency races, nil on a rare-but-reachable path (error handler, cold cache, missing optional field), falsy-zero treated as missing, off-by-one on a boundary the code does not exclude, retry storms, regex that lost an anchor. These are real findings. Only discard when you can prove the scenario is impossible from the code (quote the guard, cite the type constraint, show the invariant).
+
+18. **Interop and goal validation check:** If the diff implements or modifies protocol behavior (BGP capability, NLRI family, session behavior, wire format, authentication), verify per `ai/rules/interop-and-goal-validation.md`:
     - Does an interop test scenario exist that proves this works with another daemon?
     - If the spec has a Goal Validation table, is every goal backed by concrete evidence?
     Missing interop test for protocol work is a BLOCKER. Empty goal validation for a completed feature is an ISSUE.
 
-17. **RFC compliance check:** If the diff implements or modifies protocol behavior covered by an RFC, verify the code against the RFC summaries in `rfc/short/`.
+19. **RFC compliance check:** If the diff implements or modifies protocol behavior covered by an RFC, verify the code against the RFC summaries in `rfc/short/`.
 
     **When to run:** The diff touches wire encoding/decoding, message handling, capability negotiation, state machine transitions, timer behavior, NLRI parsing, attribute handling, or any code with existing `// RFC NNNN` comments.
 
@@ -136,7 +140,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
     **Skip this step** if the diff has no protocol code (pure config, CLI, web, docs).
 
-18. **Report findings** as a numbered list with severity:
+20. **Report findings** as a numbered list with severity:
     - **BLOCKER:** Bug that will cause incorrect behavior, crash, or security vulnerability
     - **ISSUE:** Logic error, performance problem on hot path, missing test, edge case not handled
     - **NOTE:** Suggestion or minor observation
