@@ -165,6 +165,10 @@ github.com/muesli/reflow/ansi
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
+# github.com/openconfig/gnmi v0.14.1
+## explicit; go 1.22.0
+github.com/openconfig/gnmi/proto/gnmi
+github.com/openconfig/gnmi/proto/gnmi_ext
 # github.com/openconfig/goyang v1.6.3
 ## explicit; go 1.22.0
 github.com/openconfig/goyang/pkg/indent

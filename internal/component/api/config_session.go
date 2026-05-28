@@ -182,6 +182,31 @@ func (m *ConfigSessionManager) Set(req *ConfigSetRequest) error {
 	return session.Editor.SetValue(parts[:len(parts)-1], parts[len(parts)-1], req.Value)
 }
 
+// SetSegments modifies a config path using pre-split path segments.
+// Use instead of Set when the path contains dots that are not separators
+// (e.g., IP addresses in YANG list keys from gNMI).
+func (m *ConfigSessionManager) SetSegments(username, sessionID string, path []string, value string) error {
+	session, err := m.getLocked(username, sessionID)
+	if err != nil {
+		return err
+	}
+	defer session.mu.Unlock()
+	if len(path) < 2 { //nolint:mnd // path needs at least parent + leaf
+		return fmt.Errorf("path too short: %d segments", len(path))
+	}
+	return session.Editor.SetValue(path[:len(path)-1], path[len(path)-1], value)
+}
+
+// DeleteSegments removes a config path using pre-split path segments.
+func (m *ConfigSessionManager) DeleteSegments(username, sessionID string, path []string) error {
+	session, err := m.getLocked(username, sessionID)
+	if err != nil {
+		return err
+	}
+	defer session.mu.Unlock()
+	return session.Editor.DeleteByPath(path)
+}
+
 // Delete removes a config path from the session's candidate.
 func (m *ConfigSessionManager) Delete(req *ConfigDeleteRequest) error {
 	session, err := m.getLocked(req.Username, req.SessionID)

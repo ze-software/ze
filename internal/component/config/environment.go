@@ -79,6 +79,11 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.grpc.listen", Type: "string", Default: "0.0.0.0:50051", Description: "gRPC API listen address (ip:port)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.token", Type: "string", Description: "API bearer token (shared by REST and gRPC)", Secret: true})
 
+	// gNMI.
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.enabled", Type: "bool", Description: "Enable gNMI server"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.listen", Type: "string", Default: "0.0.0.0:9339", Description: "gNMI listen address (ip:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.token", Type: "string", Description: "gNMI bearer token", Secret: true})
+
 	// Looking glass.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.listen", Type: "string", Default: "0.0.0.0:8443", Description: "Looking glass listen address (ip:port)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.enabled", Type: "bool", Description: "Enable looking glass server"})

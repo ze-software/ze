@@ -441,6 +441,21 @@ func apiCommandLister(s *pluginserver.Server) api.CommandSource {
 	}
 }
 
+// buildGNMISessionManager creates a ConfigSessionManager for gNMI Set operations.
+// Same factory + hooks as the API session manager.
+func buildGNMISessionManager(store storage.Storage, configPath string, reloadAfterCommit func() error) *api.ConfigSessionManager {
+	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
+		ed, err := cli.NewEditorWithStorage(store, configPath)
+		if err != nil {
+			return nil, fmt.Errorf("create editor: %w", err)
+		}
+		return ed, nil
+	})
+	sessions.SetValidationHook(configValidationHook(configPath))
+	sessions.SetCommitHook(reloadAfterCommit)
+	return sessions
+}
+
 // logRESTServerErrors logs runtime serving failures after startup already
 // bound every requested REST listener successfully.
 func logRESTServerErrors(errCh <-chan error) {

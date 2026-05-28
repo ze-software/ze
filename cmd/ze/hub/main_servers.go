@@ -23,6 +23,7 @@ import (
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	zegnmi "codeberg.org/thomas-mangin/ze/internal/component/gnmi"
 	zegokrazy "codeberg.org/thomas-mangin/ze/internal/component/gokrazy"
 	"codeberg.org/thomas-mangin/ze/internal/component/lg"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
@@ -608,5 +609,27 @@ func serveLG(srv *lg.LGServer) {
 func serveLGBlocking(srv *lg.LGServer) {
 	if serveErr := srv.ListenAndServe(context.Background()); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
 		slogutil.Logger("lg.server").Error("looking glass server error", "error", serveErr)
+	}
+}
+
+// serveGNMI runs the gNMI server's Serve in a background goroutine.
+// This is a one-time component startup, not a per-event goroutine.
+func serveGNMI(ctx context.Context, srv *zegnmi.Server) {
+	if serveErr := srv.Serve(ctx); serveErr != nil {
+		slogutil.Logger("gnmi.server").Error("gNMI server error", "error", serveErr)
+	}
+}
+
+// waitForGNMIBind polls until the gNMI server has a bound address or ctx expires.
+func waitForGNMIBind(ctx context.Context, srv *zegnmi.Server) bool {
+	for {
+		if addr := srv.Address(); addr != "" {
+			return true
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(10 * time.Millisecond):
+		}
 	}
 }

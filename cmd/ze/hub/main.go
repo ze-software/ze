@@ -35,7 +35,9 @@ import (
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
+	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
+	zegnmi "codeberg.org/thomas-mangin/ze/internal/component/gnmi"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/engine"
@@ -922,6 +924,33 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
+	// Start gNMI server if enabled via env var.
+	var gnmiSrv *zegnmi.Server
+	if env.IsEnabled("ze.gnmi.enabled") {
+		gnmiAddr := env.Get("ze.gnmi.listen")
+		if gnmiAddr == "" {
+			gnmiAddr = "0.0.0.0:9339"
+		}
+		gnmiCtx, gnmiCancel := context.WithCancel(context.Background())
+		gnmiSessions := buildGNMISessionManager(store, configPath, reloadAfterCommit)
+		go gnmiSessions.RunCleanup(gnmiCtx)
+		gnmiSrv = zegnmi.NewServer(zegnmi.Config{
+			ListenAddr: gnmiAddr,
+			Token:      env.Get("ze.gnmi.token"),
+		}, func() *zeconfig.Tree { return loadResult.Tree }, gnmiSessions, yangloader.DefaultLoader, zegnmi.NewChangeNotifier())
+		// Component startup goroutine (one-time, same pattern as startWebServer).
+		go serveGNMI(gnmiCtx, gnmiSrv)
+		defer gnmiCancel()
+		readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		gnmiReady := waitForGNMIBind(readyCtx, gnmiSrv)
+		readyCancel()
+		if gnmiReady {
+			fmt.Fprintf(os.Stderr, "gNMI server listening on %s\n", gnmiSrv.Address())
+		} else {
+			fmt.Fprintf(os.Stderr, "warning: gNMI server failed to bind on %s\n", gnmiAddr)
+		}
+	}
+
 	// Signal handling: SIGINT/SIGTERM for shutdown, SIGHUP for config reload.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
@@ -993,6 +1022,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		mcpCtx, mcpCancel := context.WithTimeout(context.Background(), 3*time.Second)
 		_ = mcpSrv.Shutdown(mcpCtx)
 		mcpCancel()
+	}
+
+	if gnmiSrv != nil {
+		gnmiSrv.Stop()
 	}
 
 	if apiSrvs != nil {

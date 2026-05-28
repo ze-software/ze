@@ -33,6 +33,8 @@ require (
 	google.golang.org/protobuf v1.36.11
 )
 
+require github.com/openconfig/gnmi v0.14.1
+
 require (
 	charm.land/log/v2 v2.0.0 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
