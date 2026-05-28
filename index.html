@@ -1,0 +1,1738 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Ze - Open, Programmable Network OS For Linux</title>
+        <meta
+            name="description"
+            content="Ze is a pre-release open-source network OS for Linux, built around a native BGP engine, operator interfaces, telemetry, and plugins."
+        />
+        <meta
+            property="og:title"
+            content="Ze - Open, Programmable Network OS For Linux"
+        />
+        <meta
+            property="og:description"
+            content="A serious BGP core and a growing network OS around it. Early, tested, open, and ready for labs."
+        />
+        <meta property="og:type" content="website" />
+        <link rel="icon" href="assets/ze.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Lato:wght@300;400;700&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                color-scheme: light;
+                --purple: #312783;
+                --cyan: #009fe3;
+                --teal: #2ed9b9;
+                --bg: #f7fcff;
+                --bg-soft: #edf8fc;
+                --panel: rgba(255, 255, 255, 0.86);
+                --panel-strong: rgba(255, 255, 255, 0.96);
+                --line: rgba(49, 39, 131, 0.16);
+                --line-strong: rgba(139, 107, 181, 0.46);
+                --text: #142837;
+                --muted: #536d80;
+                --dim: #7d92a1;
+                --blue: #5b9ec9;
+                --green: #6ab870;
+                --amber: #e0a840;
+                --coral: #e08878;
+                --lavender: #9b80c8;
+                --sky: #68acd0;
+                --lime: #78b858;
+                --pink: #d888a8;
+                --gold: #d0a850;
+                --shadow: rgba(49, 39, 131, 0.13);
+                --max: 1180px;
+                --term-bg: #0f1923;
+                --term-text: #c8dce8;
+                --term-prompt: #2ed9b9;
+                --term-cmd: #7ec8e8;
+                --term-comment: #536d80;
+                --grid-color: rgba(49, 39, 131, 0.045);
+                --header-bg: rgba(255, 255, 255, 0.84);
+                --header-border: rgba(49, 39, 131, 0.12);
+                --card-hover-border: rgba(139, 107, 181, 0.36);
+                --card-hover-shadow: rgba(139, 107, 181, 0.08);
+                --bird-card-bg-1: rgba(255, 255, 255, 0.92);
+                --bird-card-bg-2: rgba(255, 255, 255, 0.58);
+                --bird-label-bg: rgba(255, 255, 255, 0.82);
+                --proof-bg: rgba(255, 255, 255, 0.72);
+                --status-table-bg: rgba(255, 255, 255, 0.34);
+                --link-bg: rgba(255, 255, 255, 0.7);
+                --audience-bg: rgba(255, 255, 255, 0.72);
+                --btn-bg: rgba(255, 255, 255, 0.66);
+                --body-bg-1: #ffffff;
+                --body-bg-2: #eaf6ff;
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            html {
+                scroll-behavior: smooth;
+                scroll-padding-top: 4rem;
+            }
+
+            body {
+                margin: 0;
+                min-height: 100vh;
+                font-family:
+                    Lato,
+                    ui-sans-serif,
+                    system-ui,
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    "Segoe UI",
+                    sans-serif;
+                color: var(--text);
+                background: #e8eef4;
+            }
+
+            body::before {
+                position: fixed;
+                inset: 0;
+                z-index: -1;
+                pointer-events: none;
+                content: "";
+                background-image:
+                    linear-gradient(var(--grid-color) 1px, transparent 1px),
+                    linear-gradient(
+                        90deg,
+                        var(--grid-color) 1px,
+                        transparent 1px
+                    );
+                background-size: 48px 48px;
+                mask-image: linear-gradient(
+                    to bottom,
+                    rgba(0, 0, 0, 0.72),
+                    transparent 78%
+                );
+            }
+
+            a {
+                color: inherit;
+            }
+
+            .site-header {
+                position: sticky;
+                top: 0;
+                z-index: 20;
+                border-bottom: 1px solid var(--header-border);
+                background: var(--header-bg);
+                backdrop-filter: blur(18px);
+            }
+
+            .nav {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                width: min(var(--max), calc(100% - 2rem));
+                margin: 0 auto;
+                padding: 0.85rem 0;
+                gap: 1rem;
+            }
+
+            .brand {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.7rem;
+                color: var(--text);
+                font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
+                font-weight: 800;
+                letter-spacing: -0.03em;
+                text-decoration: none;
+            }
+
+            .brand img {
+                width: 2rem;
+                height: 2rem;
+            }
+
+            .brand span {
+                font-size: 1.12rem;
+            }
+
+            .nav-links {
+                display: flex;
+                align-items: center;
+                gap: 0.6rem;
+                color: var(--muted);
+                font-size: 0.9rem;
+            }
+
+            .nav-links a {
+                padding: 0.5rem 0.65rem;
+                border-radius: 999px;
+                text-decoration: none;
+                transition:
+                    color 160ms ease,
+                    background 160ms ease;
+            }
+
+            .nav-links a:hover {
+                color: var(--text);
+                background: rgba(139, 107, 181, 0.1);
+            }
+
+            main {
+                width: min(var(--max), calc(100% - 2rem));
+                margin: 0 auto;
+            }
+
+            .hero {
+                display: grid;
+                grid-template-columns: minmax(0, 1.08fr) minmax(18rem, 0.72fr);
+                gap: clamp(2rem, 5vw, 5rem);
+                align-items: center;
+                min-height: auto;
+                padding: clamp(2rem, 5vw, 4rem) 0 1.5rem;
+            }
+
+            .eyebrow {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.55rem;
+                width: fit-content;
+                margin: 0 0 1.4rem;
+                padding: 0.42rem 0.75rem;
+                border: 1px solid transparent;
+                border-radius: 999px;
+                color: #3a6828;
+                background: #c8e8c0;
+                font-size: 0.78rem;
+                font-weight: 800;
+                letter-spacing: 0.11em;
+                text-transform: uppercase;
+            }
+
+            .eyebrow::before {
+                width: 0.55rem;
+                height: 0.55rem;
+                border-radius: 999px;
+                background: var(--lime);
+                box-shadow: 0 0 0.8rem rgba(106, 174, 64, 0.6);
+                content: "";
+                animation: pulse 2.4s ease-in-out infinite;
+            }
+
+            @keyframes pulse {
+                0%,
+                100% {
+                    box-shadow: 0 0 0.6rem rgba(106, 174, 64, 0.4);
+                }
+                50% {
+                    box-shadow: 0 0 1.2rem rgba(106, 174, 64, 0.8);
+                }
+            }
+
+            h1,
+            h2,
+            h3,
+            p {
+                margin-top: 0;
+            }
+
+            h1,
+            h2,
+            h3 {
+                font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
+            }
+
+            h1 {
+                max-width: 18ch;
+                margin-bottom: 1.35rem;
+                color: #2c5aa0;
+                font-size: clamp(3.2rem, 7vw, 6.4rem);
+                font-weight: 700;
+                line-height: 1;
+                letter-spacing: -0.055em;
+            }
+
+            h2 {
+                margin-bottom: 1rem;
+                color: #2c5aa0;
+                font-size: clamp(2rem, 4vw, 3.35rem);
+                line-height: 0.98;
+                letter-spacing: -0.045em;
+            }
+
+            h3 {
+                margin-bottom: 0.65rem;
+                color: #1e3048;
+                font-size: 1.08rem;
+                letter-spacing: -0.02em;
+            }
+
+            .hl {
+                font-weight: 700;
+            }
+            .hl.blue {
+                color: var(--sky);
+            }
+            .hl.coral {
+                color: var(--coral);
+            }
+            .hl.green {
+                color: var(--lime);
+            }
+            .hl.purple {
+                color: var(--lavender);
+            }
+
+            a.hl {
+                text-decoration: none;
+            }
+            a.hl:hover {
+                text-decoration: underline;
+            }
+
+            .lead {
+                max-width: 46rem;
+                margin-bottom: 1.6rem;
+                color: var(--text);
+                font-size: clamp(1.12rem, 2vw, 1.48rem);
+                line-height: 1.65;
+                opacity: 0.85;
+            }
+
+            .sublead {
+                max-width: 44rem;
+                color: var(--muted);
+                font-size: 1.02rem;
+                line-height: 1.75;
+            }
+
+            .actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.8rem;
+                margin-top: 2rem;
+            }
+
+            .button {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 3rem;
+                padding: 0 1.3rem;
+                border: 1px solid var(--line);
+                border-radius: 0.95rem;
+                color: var(--text);
+                background: #ffffff;
+                font-weight: 750;
+                text-decoration: none;
+                transition:
+                    border-color 200ms ease,
+                    transform 200ms ease,
+                    background 200ms ease,
+                    box-shadow 200ms ease;
+            }
+
+            .button.primary {
+                border-color: transparent;
+                background: #c8e2f0;
+                color: #2a6a90;
+                box-shadow: none;
+            }
+
+            .button:hover {
+                border-color: rgba(139, 107, 181, 0.4);
+                background: rgba(139, 107, 181, 0.08);
+                transform: translateY(-2px);
+                box-shadow: 0 0.5rem 1.6rem var(--card-hover-shadow);
+            }
+
+            .button.primary:hover {
+                box-shadow: 0 1.2rem 3rem rgba(80, 168, 216, 0.18);
+            }
+
+            .bird-card {
+                position: relative;
+                display: grid;
+                min-height: 34rem;
+                place-items: center;
+                border: 1px solid var(--line);
+                border-radius: 2rem;
+                overflow: hidden;
+                background: var(--panel);
+                box-shadow: 0 2rem 5rem var(--shadow);
+                transition:
+                    transform 400ms ease,
+                    box-shadow 400ms ease;
+            }
+
+            .bird-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 2.4rem 6rem var(--shadow);
+            }
+
+            .bird-card::before {
+                position: absolute;
+                inset: 1rem;
+                border: 1px solid rgba(50, 84, 106, 0.12);
+                border-radius: 1.45rem;
+                content: "";
+            }
+
+            .bird-card img {
+                position: relative;
+                z-index: 1;
+                width: min(80%, 24rem);
+                filter: drop-shadow(0 1.6rem 2.2rem rgba(49, 39, 131, 0.18));
+                transition: transform 400ms ease;
+            }
+
+            .bird-card:hover img {
+                transform: scale(1.03) translateY(-4px);
+            }
+
+            .bird-label {
+                position: absolute;
+                right: 1rem;
+                bottom: 1rem;
+                z-index: 2;
+                padding: 0.7rem 0.85rem;
+                border: 1px solid rgba(49, 39, 131, 0.14);
+                border-radius: 1rem;
+                color: var(--muted);
+                background: var(--bird-label-bg);
+                backdrop-filter: blur(8px);
+                font-size: 0.82rem;
+                line-height: 1.4;
+            }
+
+            .proof-strip {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 0.75rem;
+                margin-bottom: 1.2rem;
+            }
+
+            .proof {
+                padding: 1.1rem 1.2rem;
+                border: 1px solid transparent;
+                border-left: 4px solid var(--coral);
+                border-radius: 1.2rem;
+                background: #ffffff;
+                transition:
+                    border-color 200ms ease,
+                    transform 200ms ease,
+                    box-shadow 200ms ease;
+            }
+
+            .proof:nth-child(2) {
+                border-left-color: var(--sky);
+            }
+            .proof:nth-child(3) {
+                border-left-color: var(--lavender);
+            }
+            .proof:nth-child(4) {
+                border-left-color: var(--lime);
+            }
+
+            .proof:hover {
+                border-color: var(--card-hover-border);
+                transform: translateY(-2px);
+                box-shadow: 0 0.5rem 1.6rem var(--card-hover-shadow);
+            }
+
+            .proof strong {
+                display: block;
+                margin-bottom: 0.25rem;
+                color: var(--coral);
+                font-size: clamp(1.35rem, 3vw, 2.1rem);
+                font-weight: 800;
+                letter-spacing: -0.05em;
+            }
+
+            .proof strong .label {
+                display: block;
+                font-size: 1.1rem;
+                font-weight: 700;
+                letter-spacing: 0;
+            }
+
+            .proof:nth-child(2) strong {
+                color: var(--sky);
+            }
+            .proof:nth-child(3) strong {
+                color: var(--lavender);
+            }
+            .proof:nth-child(4) strong {
+                color: var(--lime);
+            }
+
+            .proof span {
+                font-size: 0.9rem;
+                line-height: 1.45;
+            }
+
+            .proof ul {
+                margin: 0;
+                padding-left: 1.2rem;
+                font-size: 0.9rem;
+                line-height: 1.65;
+                list-style-type: disc;
+                list-style-position: outside;
+            }
+
+            .proof ul {
+                color: var(--muted);
+            }
+
+            section {
+                padding: 1.2rem 0;
+            }
+
+            .reveal {
+                opacity: 0;
+                transform: translateY(1.5rem);
+                transition:
+                    opacity 600ms ease,
+                    transform 600ms ease;
+            }
+
+            .reveal.visible {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            .section-head {
+                display: grid;
+                grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
+                gap: 2rem;
+                align-items: end;
+                margin-bottom: 1.5rem;
+            }
+
+            .section-head p {
+                color: var(--muted);
+                line-height: 1.75;
+            }
+
+            .status-panel {
+                display: grid;
+                grid-template-columns: minmax(0, 0.78fr) minmax(0, 1fr);
+                gap: 1rem;
+                border: 1px solid rgba(49, 39, 131, 0.16);
+                border-radius: 1.6rem;
+                background: var(--panel);
+                overflow: hidden;
+            }
+
+            .status-copy {
+                padding: clamp(1.4rem, 3vw, 2rem);
+            }
+
+            .status-copy p {
+                color: var(--muted);
+                line-height: 1.75;
+            }
+
+            .status-copy p:last-child {
+                margin-bottom: 0;
+            }
+
+            .status-table {
+                display: grid;
+                background: var(--status-table-bg);
+            }
+
+            .status-row {
+                display: grid;
+                grid-template-columns: 9rem 1fr;
+                gap: 1rem;
+                align-items: center;
+                padding: 1rem 1.2rem;
+                border-top: 1px solid var(--line);
+                color: var(--muted);
+                transition: background 160ms ease;
+            }
+
+            .status-row:first-child {
+                border-top: 0;
+            }
+
+            .status-row:hover {
+                background: rgba(139, 107, 181, 0.05);
+            }
+
+            .status-row strong {
+                font-size: 0.92rem;
+            }
+
+            .status-row:nth-child(1) strong {
+                color: var(--sky);
+            }
+            .status-row:nth-child(2) strong {
+                color: var(--coral);
+            }
+            .status-row:nth-child(3) strong {
+                color: var(--lime);
+            }
+            .status-row:nth-child(4) strong {
+                color: var(--lavender);
+            }
+
+            .tag {
+                display: inline-flex;
+                width: fit-content;
+                margin-bottom: 1rem;
+                padding: 0.35rem 0.62rem;
+                border: 1px solid transparent;
+                border-radius: 999px;
+                color: #604888;
+                background: #dcd0f0;
+                font-size: 0.72rem;
+                font-weight: 800;
+                letter-spacing: 0.09em;
+                text-transform: uppercase;
+            }
+
+            .cards {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 1rem;
+            }
+
+            .card {
+                min-height: 13rem;
+                padding: 1.25rem;
+                border: 1px solid transparent;
+                border-radius: 1.35rem;
+                background: #ffffff;
+                transition:
+                    border-color 200ms ease,
+                    transform 200ms ease,
+                    box-shadow 200ms ease;
+            }
+
+            .card:hover {
+                border-color: var(--card-hover-border);
+                transform: translateY(-3px);
+                box-shadow: 0 0.8rem 2.4rem var(--card-hover-shadow);
+            }
+
+            .card p {
+                margin-bottom: 0;
+                color: var(--muted);
+                line-height: 1.65;
+            }
+
+            .card ul {
+                margin: 0 0 0.5rem;
+                padding-left: 1.2rem;
+                color: var(--muted);
+                line-height: 1.75;
+                list-style-type: disc;
+                list-style-position: outside;
+            }
+
+            .card ul:last-child {
+                margin-bottom: 0;
+            }
+
+            .card li {
+                margin-bottom: 0.15rem;
+                display: list-item;
+            }
+
+            .card li::marker {
+                content: "\2022  ";
+                color: var(--muted);
+            }
+
+            .card-label {
+                display: inline-flex;
+                width: fit-content;
+                margin-bottom: 0.6rem;
+                margin-right: 0.3rem;
+                padding: 0.32rem 0.56rem;
+                border: 1px solid;
+                border-radius: 999px;
+                font-family:
+                    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+                    "Liberation Mono", monospace;
+                font-size: 0.8rem;
+                font-weight: 700;
+            }
+
+            .card-label.blue {
+                color: #2a6a90;
+                border-color: transparent;
+                background: #c8e2f0;
+            }
+            .card-label.coral {
+                color: #904838;
+                border-color: transparent;
+                background: #f0d0c8;
+            }
+            .card-label.green {
+                color: #3a6828;
+                border-color: transparent;
+                background: #c8e8c0;
+            }
+            .card-label.purple {
+                color: #604888;
+                border-color: transparent;
+                background: #dcd0f0;
+            }
+
+            .card h3 a {
+                color: inherit;
+                text-decoration: none;
+            }
+            .card h3 a:hover {
+                text-decoration: underline;
+            }
+
+            .card:nth-child(1) h3 {
+                color: var(--coral);
+            }
+            .card:nth-child(2) h3 {
+                color: var(--sky);
+            }
+            .card:nth-child(3) h3 {
+                color: var(--lime);
+            }
+            .card:nth-child(4) h3 {
+                color: var(--lavender);
+            }
+            .card:nth-child(5) h3 {
+                color: var(--sky);
+            }
+            .card:nth-child(6) h3 {
+                color: var(--coral);
+            }
+            .card:nth-child(7) h3 {
+                color: var(--lavender);
+            }
+            .card:nth-child(8) h3 {
+                color: var(--coral);
+            }
+            .card:nth-child(9) h3 {
+                color: var(--lime);
+            }
+            .card:nth-child(10) h3 {
+                color: var(--sky);
+            }
+            .card:nth-child(11) h3 {
+                color: var(--coral);
+            }
+            .card:nth-child(12) h3 {
+                color: var(--lavender);
+            }
+
+            .terminal-panel {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 0.86fr);
+                gap: 1rem;
+                align-items: stretch;
+            }
+
+            .terminal {
+                position: relative;
+                padding: 0;
+                border: 1px solid rgba(139, 107, 181, 0.24);
+                border-radius: 1.35rem;
+                background: var(--term-bg);
+                box-shadow:
+                    0 1rem 3rem rgba(0, 0, 0, 0.2),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+                overflow: hidden;
+            }
+
+            .terminal-dots {
+                display: flex;
+                gap: 0.45rem;
+                padding: 0.85rem 1.1rem 0.5rem;
+            }
+
+            .terminal-dots span {
+                width: 0.65rem;
+                height: 0.65rem;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.12);
+            }
+
+            .terminal-body {
+                padding: 0.6rem 1.35rem 1.35rem;
+            }
+
+            pre {
+                margin: 0;
+                color: var(--term-text);
+                font-family:
+                    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+                    "Liberation Mono", monospace;
+                font-size: 0.88rem;
+                line-height: 1.85;
+                white-space: pre-wrap;
+            }
+
+            .term-prompt {
+                color: var(--term-prompt);
+            }
+            .term-cmd {
+                color: var(--term-cmd);
+            }
+            .term-comment {
+                color: var(--term-comment);
+                font-style: italic;
+            }
+
+            .terminal-note {
+                padding: 1.35rem;
+                border: 1px solid var(--line);
+                border-radius: 1.35rem;
+                background: var(--panel-strong);
+            }
+
+            .terminal-note p {
+                color: var(--muted);
+                line-height: 1.75;
+            }
+
+            .link-list {
+                display: grid;
+                gap: 0.75rem;
+                margin-top: 1.4rem;
+            }
+
+            .link-list a {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                padding: 0.88rem 1rem;
+                border: 1px solid var(--line);
+                border-radius: 1rem;
+                color: var(--text);
+                background: #ffffff;
+                text-decoration: none;
+                transition:
+                    border-color 200ms ease,
+                    transform 160ms ease,
+                    padding 200ms ease;
+            }
+
+            .link-list a span {
+                color: var(--muted);
+                transition: color 200ms ease;
+            }
+
+            .link-list a::after {
+                content: "\2192";
+                color: var(--muted);
+                opacity: 0;
+                transform: translateX(-0.4rem);
+                transition:
+                    opacity 200ms ease,
+                    transform 200ms ease;
+            }
+
+            .link-list a:hover {
+                border-color: var(--line-strong);
+                padding-right: 0.7rem;
+            }
+
+            .link-list a:hover::after {
+                opacity: 1;
+                transform: translateX(0);
+                color: var(--coral);
+            }
+
+            .link-list a:hover span {
+                color: var(--coral);
+            }
+
+            .audience {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 1rem;
+            }
+
+            .audience-card {
+                padding: 1.25rem;
+                border: 1px solid transparent;
+                border-radius: 1.35rem;
+                background: #ffffff;
+                transition:
+                    border-color 200ms ease,
+                    transform 200ms ease,
+                    box-shadow 200ms ease;
+            }
+
+            .audience-card:hover {
+                border-color: var(--card-hover-border);
+                transform: translateY(-3px);
+                box-shadow: 0 0.8rem 2.4rem var(--card-hover-shadow);
+            }
+
+            .audience-card:nth-child(1) h3 {
+                color: var(--coral);
+            }
+            .audience-card:nth-child(2) h3 {
+                color: var(--sky);
+            }
+            .audience-card:nth-child(3) h3 {
+                color: var(--lavender);
+            }
+
+            .audience-card p {
+                margin-bottom: 0;
+                color: var(--muted);
+                line-height: 1.65;
+            }
+
+            .closing {
+                display: grid;
+                grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+                gap: 2rem;
+                align-items: center;
+                margin-bottom: 3rem;
+                padding: clamp(1.5rem, 4vw, 3rem);
+                border: 1px solid var(--line);
+                border-radius: 1.8rem;
+                background: var(--panel);
+            }
+
+            .closing p {
+                margin-bottom: 0;
+                color: var(--muted);
+                line-height: 1.75;
+            }
+
+            footer {
+                border-top: 1px solid var(--header-border);
+                color: var(--dim);
+            }
+
+            .footer-inner {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between;
+                width: min(var(--max), calc(100% - 2rem));
+                margin: 0 auto;
+                padding: 1.5rem 0;
+                gap: 1rem;
+                font-size: 0.9rem;
+            }
+
+            .footer-links {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.8rem;
+            }
+
+            .footer-links a {
+                color: var(--muted);
+                text-decoration: none;
+                transition: color 160ms ease;
+            }
+
+            .footer-links a:hover {
+                color: var(--text);
+            }
+
+            @media (max-width: 960px) {
+                .hero,
+                .section-head,
+                .status-panel,
+                .terminal-panel,
+                .closing {
+                    grid-template-columns: 1fr;
+                }
+
+                .proof-strip,
+                .cards,
+                .audience {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
+
+                .bird-card {
+                    min-height: 28rem;
+                }
+            }
+
+            @media (max-width: 700px) {
+                .nav {
+                    align-items: flex-start;
+                    flex-direction: column;
+                }
+
+                .nav-links {
+                    width: 100%;
+                    overflow-x: auto;
+                    padding-bottom: 0.2rem;
+                    -webkit-overflow-scrolling: touch;
+                }
+
+                .hero {
+                    min-height: auto;
+                    padding-top: 3rem;
+                }
+
+                .proof-strip,
+                .cards,
+                .audience {
+                    grid-template-columns: 1fr;
+                }
+
+                .status-row {
+                    grid-template-columns: 1fr;
+                    gap: 0.35rem;
+                }
+
+                section {
+                    padding: 1rem 0;
+                }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                .reveal {
+                    opacity: 1;
+                    transform: none;
+                    transition: none;
+                }
+                h1 {
+                    animation: none;
+                }
+                .eyebrow::before {
+                    animation: none;
+                }
+                .bird-card,
+                .bird-card img,
+                .card,
+                .proof,
+                .audience-card,
+                .button {
+                    transition: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="nav" aria-label="Main navigation">
+                <a class="brand" href="#top" aria-label="Ze home">
+                    <img src="assets/ze.svg" alt="" width="32" height="32" />
+                    <span>Ze</span>
+                </a>
+                <div class="nav-links">
+                    <a href="#status">Status</a>
+                    <a href="#core">Core</a>
+                    <a href="#try">Try</a>
+                    <a href="#talks">Talks</a>
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                </div>
+            </nav>
+        </header>
+
+        <main id="top">
+            <section class="hero" aria-labelledby="hero-title">
+                <div>
+                    <p class="eyebrow">
+                        Open, programmable network OS for Linux
+                    </p>
+                    <h1 id="hero-title">Ze</h1>
+                    <p class="lead">
+                        Ze creates
+                        <strong class="hl coral">appliances</strong> or makes
+                        <strong class="hl green">Linux</strong> speak
+                        <strong class="hl blue">BGP</strong>, manage
+                        <strong class="hl green">interfaces</strong>, program
+                        the <strong class="hl coral">FIB</strong>, and give
+                        operators a <strong class="hl purple">CLI</strong>,
+                        <strong class="hl green">web UI</strong>, telemetry,
+                        <strong class="hl blue">looking glass</strong>, API, and
+                        <strong class="hl coral">plugin</strong> system around
+                        one coherent configuration model.
+                    </p>
+                    <p class="sublead">
+                        Successor to <strong class="hl blue">ExaBGP</strong>.
+                        Built for people who want a network stack they can
+                        inspect, automate, and extend.
+                    </p>
+                    <div class="actions">
+                        <a
+                            class="button primary"
+                            href="https://github.com/ze-software/ze#quick-start"
+                            target="_blank"
+                            rel="noopener"
+                            >Quick Start</a
+                        >
+                        <a
+                            class="button"
+                            href="https://github.com/ze-software/ze/tree/main/docs"
+                            target="_blank"
+                            rel="noopener"
+                            >Read Docs</a
+                        >
+                        <a
+                            class="button"
+                            href="https://discord.gg/3Sx4S2dYQ"
+                            target="_blank"
+                            rel="noopener"
+                            >Get Help</a
+                        >
+                    </div>
+                </div>
+                <aside class="bird-card" aria-label="Zeledon mascot">
+                    <img
+                        src="assets/zeledon.svg"
+                        alt="Zeledon, the Ze bird mascot"
+                    />
+                    <div class="bird-label">Zeledon, Ze mascot.</div>
+                </aside>
+            </section>
+
+            <div class="proof-strip reveal" aria-label="Project evidence">
+                <div class="proof">
+                    <strong
+                        >12,800+ <span class="label">unit tests</span></strong
+                    >
+                    <ul>
+                        <li>Wire encoding, parsing</li>
+                        <li>Config, FSM, plugins</li>
+                    </ul>
+                </div>
+                <div class="proof">
+                    <strong
+                        >900+
+                        <span class="label">end to end tests</span></strong
+                    >
+                    <ul>
+                        <li>Peering, sessions, updates</li>
+                        <li>Editor, commits, reloads</li>
+                    </ul>
+                </div>
+                <div class="proof">
+                    <strong>50+ <span class="label">fuzz targets</span></strong>
+                    <ul>
+                        <li>Parsers, external inputs</li>
+                        <li>Wire formats, config files</li>
+                    </ul>
+                </div>
+                <div class="proof">
+                    <strong
+                        >7 <span class="label">interop targets</span></strong
+                    >
+                    <ul>
+                        <li>FRR, BIRD, GoBGP</li>
+                        <li>OpenBGPd, FreeRtr</li>
+                        <li>RustyBGP, rustbgpd</li>
+                    </ul>
+                </div>
+            </div>
+
+            <section id="status" aria-labelledby="status-title">
+                <div class="status-panel reveal">
+                    <div class="status-copy">
+                        <span class="tag">Current status</span>
+                        <h2 id="status-title">Jump in early.</h2>
+                        <p>
+                            Ze has a modern BGP implementation and a friendly
+                            network OS. The code is heavily tested, and the
+                            project is moving fast.
+                        </p>
+                        <p>
+                            It is still young. Operational mileage is limited
+                            and configuration may change. Upgrade paths will be
+                            provided after the first release. Use it in labs,
+                            break it, read the code, and tell us what is wrong.
+                        </p>
+                    </div>
+                    <div class="status-table" aria-label="Feature status">
+                        <div class="status-row">
+                            <strong>Full-featured BGP</strong>
+                            <span
+                                >Sessions, capabilities, UPDATE handling,
+                                IPv4/IPv6 unicast, and growing FlowSpec family
+                                coverage.</span
+                            >
+                        </div>
+                        <div class="status-row">
+                            <strong>Powerful tooling</strong>
+                            <span
+                                >SSH CLI with diff and commit, web workbench,
+                                looking glass, telemetry, all from one config
+                                model.</span
+                            >
+                        </div>
+                        <div class="status-row">
+                            <strong>Extensible by design</strong>
+                            <span
+                                >RIB, route-server, graceful restart, RPKI,
+                                policy, persistence, and external process
+                                plugins.</span
+                            >
+                        </div>
+                        <div class="status-row">
+                            <strong>Easy to explore</strong>
+                            <span
+                                >Built-in doctor checks, readable state, MCP
+                                server for AI-assisted debugging, clear errors
+                                throughout.</span
+                            >
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="core" aria-labelledby="core-title">
+                <div class="section-head reveal">
+                    <h2 id="core-title">Built for demanding operators.</h2>
+                    <p>
+                        Ze owns its BGP engine, configuration model, plugin
+                        system, and operator surfaces. They are designed as one
+                        system.
+                    </p>
+                </div>
+                <div class="cards reveal">
+                    <article class="card">
+                        <h3>
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/features/cli-commands.md"
+                                target="_blank"
+                                rel="noopener"
+                                >SSH CLI</a
+                            >
+                        </h3>
+                        <span class="card-label coral">Autocomplete</span>
+                        <span class="card-label coral">History</span>
+                        <ul>
+                            <li><strong class="hl coral">commit</strong>,</li>
+                            <li>
+                                commit
+                                <strong class="hl coral">confirmed</strong>,
+                            </li>
+                            <li>
+                                <strong class="hl coral">rollback</strong>,
+                                <strong class="hl coral">diff</strong>,
+                            </li>
+                            <li>
+                                <strong class="hl coral">Command</strong> mode
+                            </li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3>
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/features/configuration.md"
+                                target="_blank"
+                                rel="noopener"
+                                >YANG Configuration</a
+                            >
+                        </h3>
+                        <span class="card-label blue">YANG</span>
+                        <span class="card-label blue">ExaBGP</span>
+                        <ul>
+                            <li>
+                                Schema-driven
+                                <strong class="hl blue">validation</strong>
+                            </li>
+                            <li>
+                                <strong class="hl blue">One model</strong>
+                                for everything
+                            </li>
+                            <li>
+                                <strong class="hl blue">Plugin</strong>
+                                defined
+                            </li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3>
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/features/web-interface.md"
+                                target="_blank"
+                                rel="noopener"
+                                >Web Workbench</a
+                            >
+                        </h3>
+                        <span class="card-label green">HTMX</span>
+                        <span class="card-label green">SSE</span>
+                        <ul>
+                            <li>
+                                No SPA,
+                                <strong class="hl green"
+                                    >server-rendered</strong
+                                >
+                            </li>
+                            <li>
+                                Config editor,
+                                <strong class="hl green">admin</strong> panel
+                            </li>
+                            <li>
+                                <strong class="hl green">Live updates</strong>
+                                via SSE
+                            </li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3>
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/features/looking-glass.md"
+                                target="_blank"
+                                rel="noopener"
+                                >Looking Glass</a
+                            >
+                        </h3>
+                        <span class="card-label purple">Routes</span>
+                        <span class="card-label purple">Topology</span>
+                        <span class="card-label purple">Birdwatcher</span>
+                        <ul>
+                            <li>
+                                Peer and
+                                <strong class="hl purple">route viewer</strong>
+                            </li>
+                            <li>
+                                <strong class="hl purple">Topology</strong>
+                                graph
+                            </li>
+                            <li>
+                                SSE streaming for
+                                <strong class="hl purple">live state</strong>
+                            </li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3>
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/features/bgp-protocol.md"
+                                target="_blank"
+                                rel="noopener"
+                                >Native BGP Engine</a
+                            >
+                        </h3>
+                        <span class="card-label blue">BGP</span>
+                        <span class="card-label blue">IPv4/IPv6</span>
+                        <span class="card-label blue">FlowSpec</span>
+                        <ul>
+                            <li>
+                                Full implementation in
+                                <strong class="hl blue">Go</strong>
+                            </li>
+                            <li>
+                                <strong class="hl blue">Lazy parsing</strong>,
+                                buffer-first encoding
+                            </li>
+                            <li>
+                                Negotiated
+                                <strong class="hl blue">capabilities</strong>
+                            </li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3>
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/features/plugins.md"
+                                target="_blank"
+                                rel="noopener"
+                                >Plugin System</a
+                            >
+                        </h3>
+                        <span class="card-label coral">ExaBGP</span>
+                        <span class="card-label coral">RPKI</span>
+                        <span class="card-label coral">Policy</span>
+                        <ul>
+                            <li>
+                                Route-server,
+                                <strong class="hl coral"
+                                    >graceful restart</strong
+                                >
+                            </li>
+                            <li>
+                                <strong class="hl coral">Persistence</strong>,
+                                NLRI families
+                            </li>
+                            <li>
+                                Independent,
+                                <strong class="hl coral">composable</strong>
+                            </li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3>
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/features/api-commands.md"
+                                target="_blank"
+                                rel="noopener"
+                                >Programmable</a
+                            >
+                        </h3>
+                        <span class="card-label purple">REST</span>
+                        <span class="card-label purple">Plugins</span>
+                        <ul>
+                            <li><strong class="hl purple">REST API</strong></li>
+                            <li>
+                                External
+                                <strong class="hl purple"
+                                    >process plugins</strong
+                                >
+                            </li>
+                            <li>
+                                Automate from
+                                <strong class="hl purple">any language</strong>
+                            </li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3>
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/features/mcp-integration.md"
+                                target="_blank"
+                                rel="noopener"
+                                >Easy to Explore</a
+                            >
+                        </h3>
+                        <span class="card-label coral">MCP</span>
+                        <span class="card-label coral">Doctor</span>
+                        <ul>
+                            <li>
+                                <strong class="hl coral">MCP server</strong> for
+                                AI debugging
+                            </li>
+                            <li>
+                                Built-in
+                                <strong class="hl coral">doctor</strong> checks
+                            </li>
+                            <li>
+                                Readable
+                                <strong class="hl coral">state</strong> and
+                                errors
+                            </li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3>
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/features/introspection.md"
+                                target="_blank"
+                                rel="noopener"
+                                >Runs Itself</a
+                            >
+                        </h3>
+                        <span class="card-label green">Update</span>
+                        <span class="card-label green">Systemd</span>
+                        <ul>
+                            <li>
+                                Binary
+                                <strong class="hl green">self-update</strong>
+                            </li>
+                            <li>
+                                Built-in
+                                <strong class="hl green">readiness</strong>
+                                checks
+                            </li>
+                            <li>
+                                No
+                                <strong class="hl green">orchestrator</strong>
+                                needed
+                            </li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3>
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/features/interfaces.md"
+                                target="_blank"
+                                rel="noopener"
+                                >Two Targets</a
+                            >
+                        </h3>
+                        <span class="card-label blue">Appliance</span>
+                        <span class="card-label blue">Server</span>
+                        <ul>
+                            <li>
+                                Lean
+                                <strong class="hl blue"
+                                    >bootable appliance</strong
+                                >
+                            </li>
+                            <li>
+                                Linux server with
+                                <strong class="hl blue">systemd</strong>
+                            </li>
+                        </ul>
+                        <ul>
+                            <li>
+                                Single
+                                <strong class="hl blue">static binary</strong>
+                            </li>
+                            <li>
+                                Ideal for
+                                <strong class="hl blue"
+                                    >virtual networking</strong
+                                >
+                            </li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3>
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/features/interoperability-testing.md"
+                                target="_blank"
+                                rel="noopener"
+                                >Evidence Over Claims</a
+                            >
+                        </h3>
+                        <span class="card-label coral">Fuzz</span>
+                        <span class="card-label coral">Interop</span>
+                        <span class="card-label coral">Docker</span>
+                        <ul>
+                            <li>
+                                Unit, functional,
+                                <strong class="hl coral">fuzz</strong>, chaos
+                            </li>
+                            <li>
+                                Performance
+                                <strong class="hl coral">benchmarks</strong>
+                            </li>
+                            <li>
+                                <strong class="hl coral">Interop</strong> vs
+                                FRR, BIRD, GoBGP
+                            </li>
+                        </ul>
+                    </article>
+                    <article class="card">
+                        <h3>
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/features/plugins.md"
+                                target="_blank"
+                                rel="noopener"
+                                >Secure by Default</a
+                            >
+                        </h3>
+                        <span class="card-label purple">SSH</span>
+                        <span class="card-label purple">RBAC</span>
+                        <span class="card-label purple">RPKI</span>
+                        <span class="card-label purple">ASPA</span>
+                        <ul>
+                            <li>
+                                <strong class="hl purple">SSH</strong> access to
+                                the CLI
+                            </li>
+                            <li>
+                                <strong class="hl purple">RPKI</strong> route
+                                origin validation
+                            </li>
+                            <li>
+                                No
+                                <strong class="hl purple">other daemons</strong>
+                                needed
+                            </li>
+                        </ul>
+                    </article>
+                </div>
+            </section>
+
+            <section id="try" aria-labelledby="try-title">
+                <div class="section-head reveal">
+                    <h2 id="try-title">Discover what makes Ze unique.</h2>
+                    <p>
+                        The best users today are people building labs,
+                        route-server experiments, BGP tooling, network
+                        appliances, migration paths from ExaBGP, or want to know
+                        what makes Ze better.
+                    </p>
+                </div>
+                <div class="terminal-panel reveal">
+                    <div class="terminal" aria-label="Quick start commands">
+                        <div class="terminal-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <div class="terminal-body">
+                            <pre><span class="term-comment"># build from source</span>
+<span class="term-prompt">$</span> <span class="term-cmd">git clone</span> https://github.com/ze-software/ze.git
+<span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze && <span class="term-cmd">make</span> build
+
+<span class="term-comment"># install the binary</span>
+<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> bin/ze <span class="term-cmd">install local</span> --prefix /usr/local --no-systemd
+
+<span class="term-comment"># configure and start as a service</span>
+<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> /usr/local/bin/ze init
+<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> /usr/local/bin/ze config import router.conf
+<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> /usr/local/bin/ze config edit
+<span class="term-prompt">$</span> <span class="term-cmd">sudo</span> /usr/local/bin/ze service install --start</pre>
+                        </div>
+                    </div>
+                    <div class="terminal-note">
+                        <span class="tag">Good first paths</span>
+                        <p>
+                            Start with a lab peer, a migrated ExaBGP config, or
+                            a looking-glass instance. The project needs feedback
+                            from people who know what real routing operations
+                            look like.
+                        </p>
+                        <div class="link-list">
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/architecture.md"
+                                target="_blank"
+                                rel="noopener"
+                                >YANG Configuration
+                                <span>one model for everything</span></a
+                            >
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/features.md"
+                                target="_blank"
+                                rel="noopener"
+                                >Programmable
+                                <span>API, plugins, automation</span></a
+                            >
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/guide/quickstart.md"
+                                target="_blank"
+                                rel="noopener"
+                                >MCP Control
+                                <span>AI-assisted operations</span></a
+                            >
+                            <a
+                                href="https://github.com/ze-software/ze/blob/main/docs/comparison.md"
+                                target="_blank"
+                                rel="noopener"
+                                >Looking Glass
+                                <span>peer and route viewer</span></a
+                            >
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section aria-labelledby="audience-title">
+                <div class="section-head reveal">
+                    <h2 id="audience-title">Who should look now?</h2>
+                    <p>
+                        Ze is early enough that strong feedback can still change
+                        the shape of the system. That is useful if you care
+                        about how open routing software should feel in 2026 and
+                        after.
+                    </p>
+                </div>
+                <div class="audience reveal">
+                    <article class="audience-card">
+                        <h3>BGP Operators</h3>
+                        <p>
+                            People who understand peering, route servers,
+                            policy, RPKI, and the pain of debugging
+                            control-plane state.
+                        </p>
+                    </article>
+                    <article class="audience-card">
+                        <h3>Network Builders</h3>
+                        <p>
+                            People building Linux appliances, labs, automation
+                            systems, test harnesses, or routing experiments.
+                        </p>
+                    </article>
+                    <article class="audience-card">
+                        <h3>ExaBGP Users</h3>
+                        <p>
+                            People with existing ExaBGP workflows who want a
+                            path toward a fuller programmable network stack.
+                        </p>
+                    </article>
+                </div>
+            </section>
+
+            <section id="talks" aria-labelledby="talks-title">
+                <div class="section-head reveal">
+                    <h2 id="talks-title">Talks and presentations.</h2>
+                    <p>
+                        Ze presented at networking community events.
+                    </p>
+                </div>
+                <div class="audience reveal">
+                    <a class="audience-card" href="presentations/linx-2026-06/index.html" style="text-decoration:none;color:inherit;cursor:pointer">
+                        <h3>LINX</h3>
+                        <p>From ExaBGP to a Network OS with AI</p>
+                        <p style="margin-top:0.5em;font-size:0.85em;opacity:0.7">11 June 2026</p>
+                    </a>
+                    <a class="audience-card" href="presentations/netmcr-2026-04/index.html" style="text-decoration:none;color:inherit;cursor:pointer">
+                        <h3>Net Manchester</h3>
+                        <p>Ze: Redoing and improving on ExaBGP</p>
+                        <p style="margin-top:0.5em;font-size:0.85em;opacity:0.7">9 April 2026</p>
+                    </a>
+                </div>
+            </section>
+
+            <section aria-label="Closing statement">
+                <div class="closing reveal">
+                    <h2>Open routing needs boring miles.</h2>
+                    <p>
+                        Ze has the shape of the system we want: open, modern,
+                        and programmable. It still needs users, hardware,
+                        failures, odd networks, and the slow confidence that
+                        comes from deployments.
+                    </p>
+                </div>
+            </section>
+        </main>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.12 },
+                );
+                document.querySelectorAll(".reveal").forEach(function (el) {
+                    observer.observe(el);
+                });
+            });
+        </script>
+
+        <footer>
+            <div class="footer-inner">
+                <span>Ze is AGPLv3 open source.</span>
+                <div class="footer-links">
+                    <a
+                        href="https://github.com/ze-software/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >GitHub</a
+                    >
+                    <a
+                        href="https://codeberg.org/thomas-mangin/ze"
+                        target="_blank"
+                        rel="noopener"
+                        >Codeberg</a
+                    >
+                    <a
+                        href="https://github.com/ze-software/ze/issues"
+                        target="_blank"
+                        rel="noopener"
+                        >Issues</a
+                    >
+                    <a
+                        href="https://discord.gg/3Sx4S2dYQ"
+                        target="_blank"
+                        rel="noopener"
+                        >Discord</a
+                    >
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>
