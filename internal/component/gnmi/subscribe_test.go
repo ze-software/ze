@@ -63,6 +63,30 @@ func TestChangeNotifierNotify(t *testing.T) {
 	}
 }
 
+func TestExternalCommitNotifiesGNMI(t *testing.T) {
+	cn := NewChangeNotifier()
+	ch := cn.Subscribe()
+	defer cn.Unsubscribe(ch)
+
+	cn.NotifyConfigReload()
+
+	select {
+	case got := <-ch:
+		if got == nil {
+			t.Fatal("expected non-nil notification")
+		}
+		if len(got.Update) != 1 {
+			t.Fatalf("expected 1 update, got %d", len(got.Update))
+		}
+		val := got.Update[0].GetVal().GetStringVal()
+		if val != "config-reload" {
+			t.Errorf("expected config-reload value, got %q", val)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for config reload notification")
+	}
+}
+
 func TestChangeNotifierNotifyChange(t *testing.T) {
 	cn := NewChangeNotifier()
 	ch := cn.Subscribe()

@@ -12,6 +12,9 @@ import (
 
 // Capabilities returns the set of YANG models and encodings supported by Ze.
 func (s *Server) Capabilities(_ context.Context, _ *gpb.CapabilityRequest) (*gpb.CapabilityResponse, error) {
+	if s.metrics != nil {
+		s.metrics.requestsTotal.With("Capabilities").Inc()
+	}
 	s.modelsOnce.Do(s.loadModels)
 
 	return &gpb.CapabilityResponse{

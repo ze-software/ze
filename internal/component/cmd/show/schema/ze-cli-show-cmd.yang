@@ -244,6 +244,12 @@ module ze-cli-show-cmd {
             }
         }
 
+        container gnmi {
+            config false;
+            ze:command "ze-show:gnmi";
+            description "Show gNMI server status (enabled, listen address, auth, TLS, subscribers)";
+        }
+
         container warnings {
             config false;
             ze:command "ze-show:warnings";

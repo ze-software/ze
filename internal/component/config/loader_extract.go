@@ -398,6 +398,53 @@ func ExtractLGConfig(tree *Tree) (LGListenConfig, bool) {
 	return cfg, true
 }
 
+// GNMIListenConfig holds parsed environment.gnmi settings.
+type GNMIListenConfig struct {
+	Servers []ServerEndpoint
+	Token   string
+	TLS     struct {
+		Cert string
+		Key  string
+	}
+}
+
+// ExtractGNMIConfig returns the environment.gnmi config if enabled.
+func ExtractGNMIConfig(tree *Tree) (GNMIListenConfig, bool) {
+	if tree == nil {
+		return GNMIListenConfig{}, false
+	}
+	envBlock := tree.GetContainer("environment")
+	if envBlock == nil {
+		return GNMIListenConfig{}, false
+	}
+	gnmi := envBlock.GetContainer("gnmi")
+	if gnmi == nil {
+		return GNMIListenConfig{}, false
+	}
+
+	enabled, _ := gnmi.Get("enabled")
+	if enabled != configTrue {
+		return GNMIListenConfig{}, false
+	}
+
+	cfg := GNMIListenConfig{Servers: extractServerList(gnmi, "0.0.0.0", "9339")}
+
+	if v, ok := gnmi.Get("token"); ok {
+		cfg.Token = v
+	}
+
+	if tls := gnmi.GetContainer("tls"); tls != nil {
+		if v, ok := tls.Get("cert"); ok {
+			cfg.TLS.Cert = v
+		}
+		if v, ok := tls.Get("key"); ok {
+			cfg.TLS.Key = v
+		}
+	}
+
+	return cfg, true
+}
+
 // minTokenLength is the minimum length for hub auth tokens.
 const minTokenLength = 32
 

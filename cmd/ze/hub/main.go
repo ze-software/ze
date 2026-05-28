@@ -56,6 +56,7 @@ import (
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/reboot"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -686,13 +687,20 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	defer stopArchiveScheduler()
 
 	lm := NewListenerMigrator(nil)
+	var gnmiNotifier *zegnmi.ChangeNotifier
 	reloadAfterCommit := func() error {
 		startupCtx, startupCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer startupCancel()
 		if err := apiServer.WaitForStartupComplete(startupCtx); err != nil {
 			return fmt.Errorf("wait for plugin startup: %w", err)
 		}
-		return doReload(apiServer, eng, configProvider, store, configPath, loadBoth, lm)
+		if err := doReload(apiServer, eng, configProvider, store, configPath, loadBoth, lm); err != nil {
+			return err
+		}
+		if gnmiNotifier != nil {
+			gnmiNotifier.NotifyConfigReload()
+		}
+		return nil
 	}
 
 	var webEditorMgr *zeweb.EditorManager
@@ -924,20 +932,72 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	// Start gNMI server if enabled via env var.
-	var gnmiSrv *zegnmi.Server
+	// Start gNMI server if enabled (env var or YANG config).
+	var (
+		gnmiSrv     *zegnmi.Server
+		gnmiEnabled bool
+		gnmiAddr    string
+		gnmiToken   string
+		gnmiTLSCert string
+		gnmiTLSKey  string
+	)
 	if env.IsEnabled("ze.gnmi.enabled") {
-		gnmiAddr := env.Get("ze.gnmi.listen")
+		gnmiEnabled = true
+	}
+	gnmiAddr = env.Get("ze.gnmi.listen")
+	gnmiToken = env.Get("ze.gnmi.token")
+	gnmiTLSCert = env.Get("ze.gnmi.tls.cert")
+	gnmiTLSKey = env.Get("ze.gnmi.tls.key")
+
+	if gnmiYANG, ok := zeconfig.ExtractGNMIConfig(loadResult.Tree); ok {
+		gnmiEnabled = true
+		if gnmiAddr == "" {
+			gnmiAddr = endpointsToAddrs(gnmiYANG.Servers)[0]
+			if len(gnmiYANG.Servers) > 1 {
+				slog.Warn("gNMI: only first server listener is used, extra listeners ignored", "configured", len(gnmiYANG.Servers))
+			}
+		}
+		if gnmiToken == "" {
+			gnmiToken = gnmiYANG.Token
+		}
+		if gnmiTLSCert == "" {
+			gnmiTLSCert = gnmiYANG.TLS.Cert
+		}
+		if gnmiTLSKey == "" {
+			gnmiTLSKey = gnmiYANG.TLS.Key
+		}
+	}
+
+	if gnmiEnabled {
 		if gnmiAddr == "" {
 			gnmiAddr = "0.0.0.0:9339"
+		}
+		gnmiCfg := zegnmi.Config{
+			ListenAddr: gnmiAddr,
+			Token:      gnmiToken,
+		}
+		if gnmiTLSCert != "" {
+			var err error
+			if gnmiCfg.CertPEM, err = os.ReadFile(gnmiTLSCert); err != nil { //nolint:gosec // operator-configured cert path
+				fmt.Fprintf(os.Stderr, "warning: gNMI TLS cert: %v\n", err)
+			}
+		}
+		if gnmiTLSKey != "" {
+			var err error
+			if gnmiCfg.KeyPEM, err = os.ReadFile(gnmiTLSKey); err != nil { //nolint:gosec // operator-configured key path
+				fmt.Fprintf(os.Stderr, "warning: gNMI TLS key: %v\n", err)
+			}
 		}
 		gnmiCtx, gnmiCancel := context.WithCancel(context.Background())
 		gnmiSessions := buildGNMISessionManager(store, configPath, reloadAfterCommit)
 		go gnmiSessions.RunCleanup(gnmiCtx)
-		gnmiSrv = zegnmi.NewServer(zegnmi.Config{
-			ListenAddr: gnmiAddr,
-			Token:      env.Get("ze.gnmi.token"),
-		}, func() *zeconfig.Tree { return loadResult.Tree }, gnmiSessions, yangloader.DefaultLoader, zegnmi.NewChangeNotifier())
+		gnmiNotifier = zegnmi.NewChangeNotifier()
+		gnmiSrv = zegnmi.NewServer(gnmiCfg, func() *zeconfig.Tree { return loadResult.Tree }, gnmiSessions, yangloader.DefaultLoader, gnmiNotifier)
+		if reg, ok := registry.GetMetricsRegistry().(metrics.Registry); ok {
+			gnmiSrv.SetMetricsRegistry(reg)
+		}
+		zegnmi.RegisterGlobal(gnmiSrv)
+		defer zegnmi.RegisterGlobal(nil)
 		// Component startup goroutine (one-time, same pattern as startWebServer).
 		go serveGNMI(gnmiCtx, gnmiSrv)
 		defer gnmiCancel()

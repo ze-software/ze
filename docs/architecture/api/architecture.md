@@ -1298,6 +1298,20 @@ if needsAPIWait {
 
 ---
 
+## gNMI Transport
+
+Ze implements a gNMI (gRPC Network Management Interface) server as an independent component (`internal/component/gnmi/`). gNMI provides industry-standard YANG-modeled device management, making Ze addressable by the same tooling used for Cisco, Juniper, and Arista devices (gnmic, Ansible, controllers).
+
+The gNMI server runs on a separate port (default 9339) with independent TLS and auth configuration. It supports Capabilities, Get, Set, and Subscribe (ONCE + STREAM) RPCs. Set operations use segment-based config paths through `ConfigSessionManager.SetSegments`/`DeleteSegments` to preserve IP addresses in list keys (Ze's dot-separated `splitPath` would break on IPs).
+
+Configuration is YANG-modeled under `environment { gnmi { enabled; token; tls { cert; key; } server <name> { ip; port; } } }` with env var overrides (`ze.gnmi.enabled`, `ze.gnmi.listen`, `ze.gnmi.token`, `ze.gnmi.tls.cert`, `ze.gnmi.tls.key`).
+
+Subscribe STREAM delivers change notifications from both gNMI Set operations and external config commits (web, CLI, managed). External commits trigger a generic config-reload notification via the `ChangeNotifier`, which is wired into the hub's `reloadAfterCommit` hook.
+
+Prometheus counters: `ze_gnmi_requests_total{rpc}`, `ze_gnmi_subscribe_active`, `ze_gnmi_errors_total{rpc,code}`.
+
+CLI: `show gnmi` returns server status (enabled, listen address, auth, TLS, active subscribers).
+
 ## Files
 
 | File | Purpose |

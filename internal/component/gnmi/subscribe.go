@@ -72,6 +72,19 @@ func (cn *ChangeNotifier) Notify(n *gpb.Notification) {
 	}
 }
 
+// NotifyConfigReload broadcasts a generic config-changed notification to all
+// subscribers. Used when config is committed from a non-gNMI source (web, CLI,
+// managed) so STREAM subscribers can re-fetch current state.
+func (cn *ChangeNotifier) NotifyConfigReload() {
+	cn.Notify(&gpb.Notification{
+		Timestamp: time.Now().UnixNano(),
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{},
+			Val:  &gpb.TypedValue{Value: &gpb.TypedValue_StringVal{StringVal: "config-reload"}},
+		}},
+	})
+}
+
 // NotifyChange creates and broadcasts a change notification for a path.
 func (cn *ChangeNotifier) NotifyChange(path []string, listNames map[string]bool, value any) {
 	data, err := json.Marshal(value)
@@ -93,6 +106,10 @@ func (cn *ChangeNotifier) NotifyChange(path []string, listNames map[string]bool,
 
 // Subscribe handles gNMI Subscribe RPCs (ONCE and STREAM modes).
 func (s *Server) Subscribe(stream gpb.GNMI_SubscribeServer) error {
+	if s.metrics != nil {
+		s.metrics.requestsTotal.With("Subscribe").Inc()
+	}
+
 	req, err := stream.Recv()
 	if err != nil {
 		return err
@@ -100,6 +117,7 @@ func (s *Server) Subscribe(stream gpb.GNMI_SubscribeServer) error {
 
 	sub := req.GetSubscribe()
 	if sub == nil {
+		s.recordError("Subscribe", codes.InvalidArgument)
 		return status.Error(codes.InvalidArgument, "first message must be SubscribeRequest with subscribe field")
 	}
 
@@ -109,15 +127,18 @@ func (s *Server) Subscribe(stream gpb.GNMI_SubscribeServer) error {
 	case gpb.SubscriptionList_STREAM:
 		return s.handleSubscribeStream(stream)
 	case gpb.SubscriptionList_POLL:
+		s.recordError("Subscribe", codes.Unimplemented)
 		return status.Error(codes.Unimplemented, "POLL subscribe mode not supported")
 	}
 
+	s.recordError("Subscribe", codes.InvalidArgument)
 	return status.Errorf(codes.InvalidArgument, "unknown subscribe mode %v", sub.GetMode())
 }
 
 func (s *Server) handleSubscribeOnce(stream gpb.GNMI_SubscribeServer, sub *gpb.SubscriptionList) error {
 	tree := s.tree()
 	if tree == nil {
+		s.recordError("Subscribe", codes.Unavailable)
 		return status.Error(codes.Unavailable, "config tree not available")
 	}
 
@@ -128,6 +149,7 @@ func (s *Server) handleSubscribeOnce(stream gpb.GNMI_SubscribeServer, sub *gpb.S
 		m := tree.ToMap()
 		data, err := json.Marshal(m)
 		if err != nil {
+			s.recordError("Subscribe", codes.Internal)
 			return status.Errorf(codes.Internal, "marshal config: %v", err)
 		}
 		if sendErr := stream.Send(&gpb.SubscribeResponse{
@@ -146,6 +168,7 @@ func (s *Server) handleSubscribeOnce(stream gpb.GNMI_SubscribeServer, sub *gpb.S
 			path := subscription.GetPath()
 			segments, pathErr := pathToSegments(path)
 			if pathErr != nil {
+				s.recordError("Subscribe", codes.InvalidArgument)
 				return status.Errorf(codes.InvalidArgument, "subscribe path: %v", pathErr)
 			}
 			subtree, remaining := walkTree(tree, segments)
@@ -154,6 +177,7 @@ func (s *Server) handleSubscribeOnce(stream gpb.GNMI_SubscribeServer, sub *gpb.S
 			}
 			val, encErr := treeToTypedValue(subtree, segments)
 			if encErr != nil {
+				s.recordError("Subscribe", codes.Internal)
 				return status.Errorf(codes.Internal, "encode value: %v", encErr)
 			}
 			if sendErr := stream.Send(&gpb.SubscribeResponse{
@@ -174,14 +198,21 @@ func (s *Server) handleSubscribeOnce(stream gpb.GNMI_SubscribeServer, sub *gpb.S
 
 func (s *Server) handleSubscribeStream(stream gpb.GNMI_SubscribeServer) error {
 	if s.notifier == nil {
+		s.recordError("Subscribe", codes.Unavailable)
 		return status.Error(codes.Unavailable, "change notifications not available")
 	}
 
 	ch := s.notifier.Subscribe()
 	if ch == nil {
+		s.recordError("Subscribe", codes.ResourceExhausted)
 		return status.Error(codes.ResourceExhausted, "too many subscribe clients")
 	}
 	defer s.notifier.Unsubscribe(ch)
+
+	if s.metrics != nil {
+		s.metrics.subscribeActive.Inc()
+		defer s.metrics.subscribeActive.Dec()
+	}
 
 	ctx := stream.Context()
 	for {

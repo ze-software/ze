@@ -166,6 +166,7 @@ banner reads the same source, so nothing is silently hidden. See
 
 | Feature | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| gNMI | Yes | No | No | No | No | Partial | No | No | No | No | No |
 | gRPC API | Yes | Yes | No | Yes | Yes | Partial | Yes | No | No | No | No |
 | REST API | Yes | Partial | No | No | No | Partial | No | No | No | No | No |
 | YANG model | Yes | No | No | No | No | Partial | No | No | No | No | No |

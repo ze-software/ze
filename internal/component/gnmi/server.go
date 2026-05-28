@@ -28,10 +28,31 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
-var logger = slogutil.Logger("gnmi")
+var (
+	logger = slogutil.Logger("gnmi")
+
+	globalMu     sync.Mutex
+	globalServer *Server
+)
+
+// RegisterGlobal stores a reference to the gNMI server for show command access.
+func RegisterGlobal(s *Server) {
+	globalMu.Lock()
+	globalServer = s
+	globalMu.Unlock()
+}
+
+// LookupServer returns the registered gNMI server, or nil if not running.
+func LookupServer() *Server {
+	globalMu.Lock()
+	defer globalMu.Unlock()
+	return globalServer
+}
 
 // Config holds gNMI server configuration.
 type Config struct {
@@ -54,9 +75,36 @@ type Server struct {
 	listener net.Listener
 	mu       sync.Mutex
 	stopped  bool
+	metrics  *gnmiMetrics
 
 	modelsOnce sync.Once
 	models     []*gpb.ModelData
+}
+
+// ServerStatus holds gNMI server state for the show command.
+type ServerStatus struct {
+	plugin.DataMarker
+	Enabled       bool   `json:"enabled"`
+	ListenAddress string `json:"listen-address"`
+	TokenSet      bool   `json:"token-set"`
+	TLSConfigured bool   `json:"tls-configured"`
+	Subscribers   int    `json:"subscribers"`
+}
+
+// Status returns the current gNMI server state.
+func (s *Server) Status() ServerStatus {
+	st := ServerStatus{
+		Enabled:       true,
+		ListenAddress: s.Address(),
+		TokenSet:      s.config.Token != "",
+		TLSConfigured: len(s.config.CertPEM) > 0 && len(s.config.KeyPEM) > 0,
+	}
+	if s.notifier != nil {
+		s.notifier.mu.RLock()
+		st.Subscribers = len(s.notifier.clients)
+		s.notifier.mu.RUnlock()
+	}
+	return st
 }
 
 // NewServer creates a gNMI server.
@@ -67,6 +115,14 @@ func NewServer(cfg Config, tree func() *zeconfig.Tree, sessions *api.ConfigSessi
 		sessions: sessions,
 		loader:   loader,
 		notifier: notifier,
+	}
+}
+
+// SetMetricsRegistry enables Prometheus instrumentation for gNMI RPCs.
+// Must be called before Serve. Nil registry disables metrics.
+func (s *Server) SetMetricsRegistry(reg metrics.Registry) {
+	if reg != nil {
+		s.metrics = initGNMIMetrics(reg)
 	}
 }
 
@@ -160,6 +216,12 @@ func (s *Server) authStreamInterceptor(srv any, ss grpc.ServerStream, _ *grpc.St
 		return err
 	}
 	return handler(srv, ss)
+}
+
+func (s *Server) recordError(rpc string, code codes.Code) {
+	if s.metrics != nil {
+		s.metrics.errorsTotal.With(rpc, code.String()).Inc()
+	}
 }
 
 func (s *Server) checkAuth(ctx context.Context) error {

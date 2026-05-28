@@ -23,17 +23,24 @@ const gnmiUsername = "gnmi"
 // All updates, replaces, and deletes in a single SetRequest are applied
 // within one config session and committed together.
 func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse, error) {
+	if s.metrics != nil {
+		s.metrics.requestsTotal.With("Set").Inc()
+	}
+
 	if s.sessions == nil {
+		s.recordError("Set", codes.Unavailable)
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
 
 	total := len(req.GetDelete()) + len(req.GetReplace()) + len(req.GetUpdate())
 	if total == 0 {
+		s.recordError("Set", codes.InvalidArgument)
 		return nil, status.Error(codes.InvalidArgument, "no operations in set request")
 	}
 
 	sessionID, err := s.sessions.Enter(gnmiUsername)
 	if err != nil {
+		s.recordError("Set", codes.Internal)
 		return nil, status.Errorf(codes.Internal, "create config session: %v", err)
 	}
 
@@ -42,15 +49,18 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 	for _, del := range req.GetDelete() {
 		segments, pathErr := pathToSegments(del)
 		if pathErr != nil {
+			s.recordError("Set", codes.InvalidArgument)
 			s.discardSession(ctx, sessionID)
 			return nil, status.Errorf(codes.InvalidArgument, "delete path: %v", pathErr)
 		}
 		if len(segments) == 0 {
+			s.recordError("Set", codes.InvalidArgument)
 			s.discardSession(ctx, sessionID)
 			return nil, status.Error(codes.InvalidArgument, "empty delete path")
 		}
 		deleteErr := s.sessions.DeleteSegments(gnmiUsername, sessionID, segments)
 		if deleteErr != nil {
+			s.recordError("Set", codes.InvalidArgument)
 			s.discardSession(ctx, sessionID)
 			return nil, status.Errorf(codes.InvalidArgument, "delete %s: %v", pathString(segments), deleteErr)
 		}
@@ -62,6 +72,7 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 
 	for _, replace := range req.GetReplace() {
 		if replaceErr := s.applyUpdate(sessionID, replace); replaceErr != nil {
+			s.recordError("Set", codes.InvalidArgument)
 			s.discardSession(ctx, sessionID)
 			return nil, replaceErr
 		}
@@ -73,6 +84,7 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 
 	for _, update := range req.GetUpdate() {
 		if updateErr := s.applyUpdate(sessionID, update); updateErr != nil {
+			s.recordError("Set", codes.InvalidArgument)
 			s.discardSession(ctx, sessionID)
 			return nil, updateErr
 		}
@@ -87,6 +99,7 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 		SessionID: sessionID,
 	})
 	if commitErr != nil {
+		s.recordError("Set", codes.Aborted)
 		s.discardSession(ctx, sessionID)
 		return nil, status.Errorf(codes.Aborted, "commit: %v", commitErr)
 	}

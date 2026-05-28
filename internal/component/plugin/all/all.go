@@ -56,6 +56,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/system/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/firewall/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/gnmi/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ipsec/schema"

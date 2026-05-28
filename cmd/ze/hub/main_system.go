@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
@@ -332,6 +333,7 @@ func startStandaloneTelemetry(tree *zeconfig.Tree) *standaloneTelemetry {
 		slog.Warn("standalone telemetry: metrics server failed to start", "error", err)
 		return nil
 	}
+	registry.SetMetricsRegistry(reg)
 	for _, path := range telemetryCfg.DeprecatedAliases {
 		slog.Warn("standalone telemetry: deprecated prometheus config; move setting under telemetry.prometheus.netdata", "path", path)
 	}

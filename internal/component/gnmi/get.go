@@ -19,12 +19,18 @@ import (
 
 // Get reads config state from the running tree and returns it as TypedValue.
 func (s *Server) Get(_ context.Context, req *gpb.GetRequest) (*gpb.GetResponse, error) {
+	if s.metrics != nil {
+		s.metrics.requestsTotal.With("Get").Inc()
+	}
+
 	tree := s.tree()
 	if tree == nil {
+		s.recordError("Get", codes.Unavailable)
 		return nil, status.Error(codes.Unavailable, "config tree not available")
 	}
 
 	if len(req.GetPath()) == 0 {
+		s.recordError("Get", codes.InvalidArgument)
 		return nil, status.Error(codes.InvalidArgument, "at least one path required")
 	}
 
@@ -34,19 +40,23 @@ func (s *Server) Get(_ context.Context, req *gpb.GetRequest) (*gpb.GetResponse, 
 	for _, path := range req.GetPath() {
 		segments, err := pathToSegments(path)
 		if err != nil {
+			s.recordError("Get", codes.InvalidArgument)
 			return nil, status.Errorf(codes.InvalidArgument, "path: %v", err)
 		}
 		if len(segments) == 0 {
+			s.recordError("Get", codes.InvalidArgument)
 			return nil, status.Error(codes.InvalidArgument, errEmptyPath.Error())
 		}
 
 		subtree, remaining := walkTree(tree, segments)
 		if subtree == nil || len(remaining) > 0 {
+			s.recordError("Get", codes.NotFound)
 			return nil, status.Errorf(codes.NotFound, "path not found: %s", pathString(segments))
 		}
 
 		val, err := treeToTypedValue(subtree, segments)
 		if err != nil {
+			s.recordError("Get", codes.Internal)
 			return nil, status.Errorf(codes.Internal, "encode value: %v", err)
 		}
 

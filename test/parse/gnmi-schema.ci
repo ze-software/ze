@@ -1,0 +1,42 @@
+# Test: gNMI config block is accepted by YANG schema parser
+# VALIDATES: gnmi environment block parses without errors
+# PREVENTS: gnmi config being rejected as unknown key
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+    gnmi {
+        enabled true;
+        token secret-token;
+        tls {
+            cert /tmp/cert.pem;
+            key /tmp/key.pem;
+        }
+        server default {
+            ip 0.0.0.0;
+            port 9339;
+        }
+    }
+}
+bgp {
+    peer peer1 {
+    	connection {
+    		remote {
+    			ip 127.0.0.1
+    		}
+    		local {
+    			ip 127.0.0.1
+    		}
+    	}
+    	session {
+    		asn {
+    			local 1
+    			remote 1
+    		}
+    		router-id 1.2.3.4
+    	}
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ze-bgp
+expect=exit:code=0

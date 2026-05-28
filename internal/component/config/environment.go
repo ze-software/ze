@@ -83,6 +83,8 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.enabled", Type: "bool", Description: "Enable gNMI server"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.listen", Type: "string", Default: "0.0.0.0:9339", Description: "gNMI listen address (ip:port)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.token", Type: "string", Description: "gNMI bearer token", Secret: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.tls.cert", Type: "string", Description: "gNMI TLS PEM certificate file path"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.tls.key", Type: "string", Description: "gNMI TLS PEM private-key file path", Secret: true})
 
 	// Looking glass.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.listen", Type: "string", Default: "0.0.0.0:8443", Description: "Looking glass listen address (ip:port)"})

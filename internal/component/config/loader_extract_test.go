@@ -10,6 +10,7 @@ import (
 	// YANGSchema() picks up environment/{api-server,web,mcp,looking-glass}
 	// used by these tests.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/api/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/gnmi/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/lg/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/web/schema"
@@ -845,4 +846,81 @@ func TestExtractMCPConfig_AnyListenerNonLoopback(t *testing.T) {
 			assert.Equal(t, tc.want, tc.cfg.AnyListenerNonLoopback())
 		})
 	}
+}
+
+func TestExtractGNMIConfig_FullConfig(t *testing.T) {
+	input := `
+environment {
+	gnmi {
+		enabled true;
+		token secret-token;
+		tls {
+			cert /etc/ze/gnmi.crt;
+			key /etc/ze/gnmi.key;
+		}
+		server default {
+			ip 0.0.0.0;
+			port 9339;
+		}
+	}
+}
+`
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	cfg, ok := ExtractGNMIConfig(tree)
+	require.True(t, ok)
+	assert.Equal(t, "secret-token", cfg.Token)
+	assert.Equal(t, "/etc/ze/gnmi.crt", cfg.TLS.Cert)
+	assert.Equal(t, "/etc/ze/gnmi.key", cfg.TLS.Key)
+	require.Len(t, cfg.Servers, 1)
+	assert.Equal(t, "0.0.0.0", cfg.Servers[0].Host)
+	assert.Equal(t, "9339", cfg.Servers[0].Port)
+}
+
+func TestExtractGNMIConfig_Disabled(t *testing.T) {
+	input := `
+environment {
+	gnmi {
+		token secret-token;
+	}
+}
+`
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	_, ok := ExtractGNMIConfig(tree)
+	assert.False(t, ok)
+}
+
+func TestExtractGNMIConfig_EmptyListUsesDefaults(t *testing.T) {
+	input := `
+environment {
+	gnmi {
+		enabled true;
+	}
+}
+`
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	cfg, ok := ExtractGNMIConfig(tree)
+	require.True(t, ok)
+	require.Len(t, cfg.Servers, 1)
+	assert.Equal(t, "0.0.0.0", cfg.Servers[0].Host)
+	assert.Equal(t, "9339", cfg.Servers[0].Port)
+}
+
+func TestExtractGNMIConfig_NilTree(t *testing.T) {
+	_, ok := ExtractGNMIConfig(nil)
+	assert.False(t, ok)
 }
