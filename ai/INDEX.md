@@ -22,6 +22,7 @@
 | Find context for an unfamiliar area | `ai/NAVIGATION.md` | Task-to-context decision tree |
 | Understand Ze vs standard Go | `ai/rules/ze-divergences.md` | Buffer-first, registration, YANG, etc. |
 | Know which hooks will check my code | `ai/rules/hook-mapping.md` | Pre-flight compliance checklist |
+| Edit the website or presentations | `docs/gh-pages.md` then `../gh-pages/AI.md` | Worktree layout, tooling, adding a talk |
 
 ## Dev Tools
 
@@ -30,6 +31,7 @@
 | `go_extract.go` | `scripts/dev/` | Move Go symbols between files |
 | `replace.py` | `scripts/dev/` | Bulk find-and-replace with diff preview (run without `--apply` to review, then `--apply` to write). Supports `--regex` and `--all`. |
 | `yang_move.py` | `scripts/dev/` | Format-aware YANG path refactoring. When YANG nodes move, updates slash paths, set commands, brace blocks, and GetContainer chains across the codebase. `remove <seg> --under <path>`, `rename <old> <new> --under <path>`, `move <src> <dst>`. Preview by default, `--apply` to write. Run `--test` for self-tests. |
+| `bundle-html.py` | `gh-pages: presentations/tools/` | Inline local images, slides.md, and embeds into HTML as a self-contained file. Output: `<name>-inlined.html`. Accepts multiple files. |
 
 ## Pattern Cookbooks
 
