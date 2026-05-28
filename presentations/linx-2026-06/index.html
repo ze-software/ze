@@ -87,8 +87,8 @@
         .nav button { background: rgba(0, 159, 227, 0.2); border: 2px solid var(--cyan); color: #fff; padding: clamp(6px, 0.8vw, 12px) clamp(12px, 1.5vw, 24px); margin: 0 5px; border-radius: 30px; cursor: pointer; font-size: clamp(11px, 1vw, 16px); font-weight: 600; }
         .nav button:hover { background: var(--cyan); }
         .counter { position: fixed; top: 30px; right: 120px; color: var(--cyan); font-size: clamp(12px, 1.2vw, 18px); z-index: 1001; }
-        .logo { position: fixed; top: 8px; left: 40px; height: clamp(16px, 1.8vw, 28px); z-index: 1000; }
-        .logo-right { position: fixed; top: 8px; right: 40px; height: clamp(24px, 2.5vw, 40px); z-index: 1000; }
+        .logo { position: fixed; top: 32px; left: 40px; height: clamp(16px, 1.8vw, 28px); z-index: 1000; }
+        .logo-right { position: fixed; top: 28px; right: 40px; height: clamp(24px, 2.5vw, 40px); z-index: 1000; }
         .logo-bird { display: none; }
         .logo-bird.visible { display: block; }
         pre {
@@ -107,7 +107,7 @@
         th { text-align: left; padding: clamp(5px, 0.7vw, 10px) clamp(8px, 0.9vw, 14px); color: var(--cyan); border-bottom: 2px solid var(--purple); font-size: clamp(12px, 1.2vw, 18px); }
         td { padding: clamp(4px, 0.5vw, 8px) clamp(8px, 0.9vw, 14px); border-bottom: 1px solid rgba(255,255,255,0.1); font-size: clamp(12px, 1.2vw, 18px); }
         tr:hover td { background: rgba(49, 39, 131, 0.2); }
-        code { color: var(--teal); background: rgba(46, 217, 185, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+        code { color: var(--cyan); background: rgba(0, 159, 227, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
         pre code { background: none; padding: 0; }
         strong { color: var(--cyan); font-weight: 600; }
         em { opacity: 0.85; }
@@ -222,13 +222,26 @@
         }
 
         var screenshotMap = {
-            'terminal output of /ze-review finding issues': 'cli-ze-review',
-            'SSH session showing tab completion and set/diff/commit workflow': 'cli-session',
-            'Finder-style column navigation with config diff': 'web-config-editor',
+            'terminal output of /ze-review finding issues': 'cli-session',
+            'SSH session showing tab completion and set/diff/commit workflow': 'web-config-editor',
+            'Finder-style column navigation with config diff': 'web-show-bgp-peer',
             'peer dashboard with AS path topology SVG': 'lg-peers',
             'route lookup results with Team Cymru org name annotations': 'lg-routes',
             'chaos web dashboard showing convergence tracking': 'chaos-dashboard'
         };
+
+        function splitTableRow(row) {
+            var cells = [];
+            var cur = '';
+            var inCode = false;
+            for (var i = 0; i < row.length; i++) {
+                if (row[i] === '`') { inCode = !inCode; cur += '`'; }
+                else if (row[i] === '|' && !inCode) { cells.push(cur); cur = ''; }
+                else { cur += row[i]; }
+            }
+            cells.push(cur);
+            return cells.filter(function(c) { return c.trim().length > 0; });
+        }
 
         function renderSlide(md) {
             var lines = md.split('\n');
@@ -246,11 +259,12 @@
             }
             function flushTable() {
                 if (!inTable) return;
+                var hasHeader = tableRows.length > 1 && splitTableRow(tableRows[1]).every(function(c) { return /^[\s\-:]+$/.test(c); });
                 var h = '<table>';
                 for (var i = 0; i < tableRows.length; i++) {
-                    var cells = tableRows[i].split('|').filter(function(c) { return c.trim().length > 0; });
-                    if (i === 1 && cells.every(function(c) { return /^[\s\-:]+$/.test(c); })) continue;
-                    var tag = i === 0 ? 'th' : 'td';
+                    var cells = splitTableRow(tableRows[i]);
+                    if (i === 1 && hasHeader) continue;
+                    var tag = (i === 0 && hasHeader) ? 'th' : 'td';
                     h += '<tr>' + cells.map(function(c) { return '<' + tag + '>' + inlineMarkup(c.trim()) + '</' + tag + '>'; }).join('') + '</tr>';
                 }
                 h += '</table>';
@@ -291,6 +305,28 @@
                         'onerror="this.outerHTML=\'<div class=screenshot-placeholder>' + escapeHtml(desc) + '</div>\'" ' +
                         'alt="' + escapeHtml(desc) + '">'
                     );
+                    continue;
+                }
+                var embedMatch = line.match(/^<!--\s*embed:\s*(.+?)\s*-->$/);
+                if (embedMatch) {
+                    closeList(); flushTable(); flushBQ();
+                    var embedName = embedMatch[1].replace(/[^a-z0-9._-]+/gi, '-').toLowerCase();
+                    var embeddedEl = document.getElementById('embedded-' + embedName.replace(/\./g, '-'));
+                    if (embeddedEl) {
+                        var decoded = new TextDecoder().decode(Uint8Array.from(atob(embeddedEl.textContent.trim()), function(c) { return c.charCodeAt(0); }));
+                        parts.push(
+                            '<iframe class="screenshot-img" srcdoc="' + decoded.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '" ' +
+                            'style="width:100%;height:70vh;border:none;border-radius:8px;">' +
+                            '</iframe>'
+                        );
+                    } else {
+                        parts.push(
+                            '<iframe class="screenshot-img" src="' + escapeHtml(embedName) + '" ' +
+                            'style="width:100%;height:70vh;border:none;border-radius:8px;" ' +
+                            'onerror="this.outerHTML=\'<div class=screenshot-placeholder>' + escapeHtml(embedMatch[1]) + '</div>\'">' +
+                            '</iframe>'
+                        );
+                    }
                     continue;
                 }
                 if (/^<!--.*-->$/.test(line)) continue;
@@ -375,25 +411,33 @@
             if (Math.abs(diff) > 50) changeSlide(diff < 0 ? 1 : -1);
         });
 
+        function buildSlides(md) {
+            var slideTexts = parseMarkdown(md);
+            var container = document.getElementById('slides-container');
+            for (var i = 0; i < slideTexts.length; i++) {
+                var div = document.createElement('div');
+                div.className = 'slide' + (i === 0 ? ' active title-slide' : '');
+                var rendered = renderSlide(slideTexts[i]);
+                if (i === 0) {
+                    rendered = rendered.replace('<h1>', '<h1><img class="bird-float" src="zeledon.svg" alt="Zeledon">');
+                }
+                div.innerHTML = rendered;
+                container.appendChild(div);
+            }
+            showSlide(0);
+        }
+
         (function loadPresentation() {
+            var embedded = document.getElementById('embedded-slides');
+            if (embedded && embedded.textContent.trim()) {
+                buildSlides(new TextDecoder().decode(Uint8Array.from(atob(embedded.textContent.trim()), function(c) { return c.charCodeAt(0); })));
+                return;
+            }
             var xhr = new XMLHttpRequest();
             xhr.open('GET', 'slides.md', true);
             xhr.onload = function() {
                 if (xhr.status !== 200) return;
-                var slideTexts = parseMarkdown(xhr.responseText);
-                var container = document.getElementById('slides-container');
-                for (var i = 0; i < slideTexts.length; i++) {
-                    var div = document.createElement('div');
-                    div.className = 'slide' + (i === 0 ? ' active title-slide' : '');
-                    // Content is from our own controlled .md file, not user input
-                    var rendered = renderSlide(slideTexts[i]);
-                    if (i === 0) {
-                        rendered = rendered.replace('<h1>', '<h1><img class="bird-float" src="zeledon.svg" alt="Zeledon">');
-                    }
-                    div.innerHTML = rendered;
-                    container.appendChild(div);
-                }
-                showSlide(0);
+                buildSlides(xhr.responseText);
             };
             xhr.send();
         })();

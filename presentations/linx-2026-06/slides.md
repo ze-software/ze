@@ -6,22 +6,27 @@
 
 (with HTML skillz from Claude)
 
-*Network engineers who know ExaBGP: thank you for your trust, you will feel at home*
-*Network engineers who don't: this was the "first" popular programmable BGP toolkit*
-*Happy to answer quick questions as we go, keep big ones for the end*
+* **Network engineers who use or used ExaBGP:** thank you for your trust
+* **Network engineers who didn't:** It is ok, I now have a better solution for you
 
 ---
 
-## A NOS That Owns Its Stack
+## Ze: A NOS That Owns Its Stack
 
 ### What Ze ships
 
-- **BGP**: 21 address families, full RFC 4271 best-path, route server (RFC 7947)
-- **IKEv2/IPsec**: native Go engine, EAP, NAT-T, XFRM interfaces
-- **L2TP/PPP**: tunnel FSM, PPPoE, RADIUS, DHCPv6-PD
-- **Firewall**: nftables and VPP ACL backends, traffic control, NAT
-- **VPP and NetLink dataplane**: GoVPP, FIB programming, stats telemetry
-- **CLI, SSH, Web UI, REST, gRPC, MCP**: one config model drives them all
+| | |
+|--|--|
+| Linux **Appliance** or **Daemon** |  Run it as you prefer |
+| **VPP** or **NetLink** dataplane |  GoVPP, FIB programming, stats telemetry |
+| **IPsec** with **IKEv2** or **WireGuard**|  native Go engine, EAP, NAT-T, XFRM interfaces |
+| **PPP** and **L2TP** |  tunnel FSM, PPPoE, RADIUS, DHCPv6-PD |
+| **Firewall** |  nftables and VPP ACL backends, traffic control, NAT |
+| **BGP** | 21 address families, best-path, route server |
+| **ZeFS** | optional blob store for config: revisions, integrity checks, rollback |
+| **Plugins** | extend the YANG schema to add features, CLI, and API surface |
+| **SSH CLI**, **Web UI** |  one YANG config model drives them (and all the API) |
+| **REST**, **gRPC**, **gNMI**, **MCP** |  programmatic control: same config model, same validation |
 
 ### What Ze does not shell out to
 
@@ -29,20 +34,24 @@
 - No glue scripts reconciling config formats between daemons.
 - **One binary. One config language. One event bus.**
 
-### How
-
-- Written in Go. One person + AI.
-- Started December 2025.
 - AGPL-3.0, developed on Codeberg, hosted on Github
 
 ---
 
-## The Problem: NOS as Assembly
+## The Story ... so far
+
+<!-- embed: activity.html -->
+
+---
+
+## Why Build an Open Source NOS?
 
 ### ExaBGP
 
-- HTTP+CGI for BGP: a programmable toolkit, not an OS
-- Well received by the community, but limited in scope
+- programmable and Python, not a NOS
+- could not correctly extended to become one
+- HTTP+CGI for BGP: a programmable toolkit
+- Well received by the community and still used, but limited in scope
 - Your scripts still work: `ze config migrate` + `ze exabgp plugin`
 
 ### VyOS
@@ -50,12 +59,10 @@
 - I worked with the VyOS team for 3 months (early 2020)
 - Full NOS, but assembles external daemons: FRR, strongSwan, ISC DHCP
 - We build our content filtering CPE on top of VyOS
-- Adding our own services is painful: no plugin system
+- Adding our own services is painful: no plugin system, not yours to reshape
 
-### The gap
+### Ze 
 
-- ExaBGP: programmable, but not a NOS
-- VyOS: a NOS, but not yours to reshape
 - **Nobody offers: an integrated, plugin-first, programmable, AI-ready NOS**
 - And I want one, and we could do with one for our CPE product
 
@@ -63,67 +70,28 @@
 
 ## The Enabler: AI
 
+### Which became work relevant
+
+- We want control of our infrastructure
+- We presented our Client CPE at NetMcr
+- AI made this possible/easy
+- **Ze is part of that effort.**
+
 ### AI collaboration
 
 - The latest ExaBGP release got many features added by Claude
 - Learned a lot: lots went wrong (Sonnet struggled with type issues)
 - Then Claude 4.5 came out: from fighting the AI to pleasant collaboration
-- Claude 4.6 has a **1M token context window**: game changer. A single feature often needs 350-500k tokens of context
-- We don't talk about Claude 4.7 *(no, no, no)*
+- Claude 4.6 has a **1M token context window**: game changer.
+- A single feature often needs 350-500k tokens of context to be easy to develop
+- ** We don't talk about Claude 4.7 *(no, no, no)* **
 
 ### Why Go
 
-- I picked **Go**: concurrency (goroutines), tooling (perf analysis, race detection, cross-compilation) and mature libraries
+- Python is not the right language for a NOS
+- **Go** has good concurrency, tooling (perf analysis, race detection, cross-compilation) and mature libraries
+- Made prototypes in **Go**, **Odin**, **V** and **Zig** (no **rust** here)
 - Single binary: like the ExaBGP zipapp (nobody uses). Copy one file, done!
-- Made prototypes in **Go**, **Odin**, **V** and **Zig**. Go won: our own code is already Go, and it targets **gokrazy** appliances.
-
-### Which became work relevant
-
-- We want control of our infrastructure
-- We presented our Client CPE at NetMcr
-- **Ze is part of that effort.**
-
----
-
-## How We Use Claude
-
-From Anthropic `/insights`
-
->  Based on Thomas Mangin's usage over the last 30 days:
->
->  Work Type Breakdown:
->    Plan & Design     ████████████████████  47%
->    Build Feature     ███████░░░░░░░░░░░░░  17%
->    Improve Quality   ███████░░░░░░░░░░░░░  17%
->    Debug & Fix       █████░░░░░░░░░░░░░░░  12%
->    Write Docs        ███░░░░░░░░░░░░░░░░░   7%
->
->  Top Skills & Commands:
->    /ze-review      ████████████████████  383x/month
->    /ze-implement   ████░░░░░░░░░░░░░░░░   36x/month
->    /rename         ███░░░░░░░░░░░░░░░░░   25x/month
->    /ze-commit      ██░░░░░░░░░░░░░░░░░░   24x/month
->    /ze-design      ██░░░░░░░░░░░░░░░░░░   18x/month
-
-* You operate in a highly structured, spec-driven workflow ...
-* You have zero tolerance for fabrication, verbosity, or workflow drift.
-* Your interaction style is terse and corrective rather than prescriptive upfront.
-
----
-
-## The Story ... so far
-
-- Like during COVID and VyOS, recently, I had time I could invest in R&D
-- A good occasion to explore how AI changes development
-
-| What | Count |
-|------|-------|
-| Commits | 3,363 |
-| Go source files | 1,951 (396k lines) |
-| Go test files | 1,191 (373k lines) |
-| Functional tests (.ci) | 887 |
-| Editor tests (.et) | 145 |
-| YANG modules | 118 |
 
 ---
 
@@ -180,7 +148,7 @@ AI code: industrial process, staff need induction, ISO processes, or you get slo
 ### What Worked
 
 - Test Driven Development, Test generation, refactoring across files
-- **2,437 co-authored commits**
+- **2,557 co-authored commits**
 - 98 RFC summaries so the AI can implement from condensed protocol specs
 
 ### What Doesn't
@@ -194,7 +162,7 @@ AI code: industrial process, staff need induction, ISO processes, or you get slo
 ### How to work with it
 
 - Make sure that you give the AI **Context**
-  * Example, telling Claude it has OCD during reviews makes it **stricter and better**
+  * Example, telling Claude it has **OCD** during reviews makes it **stricter**
 - Be ready to stop and argue: like with a Junior Dev
   * It will give you advice having not read the full code and be **wrong**
 - It can write tools to fix things well: **let it!**
@@ -207,7 +175,7 @@ Those problems don't go away, so you build systems to catch them.
 
 ### Rules with reasons
 
-- 39 rationale files explaining **why** each rule exists: so the AI reasons, not just follows
+- 44 rationale files explaining **why** each rule exists: so the AI reasons, not just follows
 - Anti-rationalization rules: "the answer is always no"
 
 **"Too simple to need a test"** -> Test it
@@ -222,7 +190,7 @@ It still does what it was trained to do (more and more once the context exceeds 
 - Skills: How-To instructions to get what you want
 - Hook: Heavy handed control. The code doesn't land. No negotiation. No override.
 - Review: Never trust check the work done
-- 775 learned summaries: preserve decisions across sessions: institutional memory
+- 820 learned summaries: preserve decisions across sessions: institutional memory
 
 ---
 
@@ -249,6 +217,32 @@ The system is as much a deliverable as the code itself
 
 ---
 
+## How We Use Claude
+
+From Anthropic `/insights`
+
+>  Based on Thomas Mangin's usage over the last 30 days:
+>
+>  Work Type Breakdown:
+>    Plan & Design     ████████████████████  47%
+>    Build Feature     ███████░░░░░░░░░░░░░  17%
+>    Improve Quality   ███████░░░░░░░░░░░░░  17%
+>    Debug & Fix       █████░░░░░░░░░░░░░░░  12%
+>    Write Docs        ███░░░░░░░░░░░░░░░░░   7%
+>
+>  Top Skills & Commands:
+>    /ze-review      ████████████████████  383x/month
+>    /ze-implement   ████░░░░░░░░░░░░░░░░   36x/month
+>    /rename         ███░░░░░░░░░░░░░░░░░   25x/month
+>    /ze-commit      ██░░░░░░░░░░░░░░░░░░   24x/month
+>    /ze-design      ██░░░░░░░░░░░░░░░░░░   18x/month
+
+> * You operate in a highly structured, spec-driven workflow ...
+> * You have zero tolerance for fabrication, verbosity, or workflow drift.
+> * Your interaction style is terse and corrective rather than prescriptive upfront.
+
+---
+
 ## "simple" review
 
 <!-- screenshot: terminal output of /ze-review finding issues -->
@@ -266,7 +260,7 @@ The system is as much a deliverable as the code itself
 
 ### Self-contained plugins
 
-- **60 plugins** today, each self-contained with YANG schemas
+- **22 plugins** today, each self-contained with YANG schemas
 - Plugins register via Go `init()`: everyone can add modules, or remove them
 
 ```
@@ -288,47 +282,28 @@ Ze Engine Core (event bus for components and plugins)
 
 ---
 
-## The Plugin Architecture (continued)
-
-### Registration: Extensibility and Discoverability
-
-- Every environment variable must be declared: typos are caught at startup, not in production
-- Every CLI command auto-generated from registrations: no hand-wired dispatch
-- **The binary tells you what it can do.** Add a plugin, its env vars and RPCs appear automatically.
-
-| Command | What it checks |
-|---------|---------------|
-| `make ze-inventory` | Plugins, families, RPCs, YANG modules, tests, packages |
-| `make ze-validate-commands` | Every CLI command matches its YANG schema |
-| `make ze-doc-drift` | Documentation matches reality |
-
----
-
 ## CLI, SSH, and ZeFS
 
-### ZeFS: config as a blob store
+### Linux Daemon
 
 - Ze stores config in **ZeFS**: a blob store that tracks revisions, not a flat text file
 - Per-record CRC32c integrity, `ze zefs check` / `ze zefs repair`
-- This is what makes Ze behave like a **network OS**, not a Unix daemon, even on <Insert Linux Distro Here>
+- This is what makes Ze behave like a network OS
+- But **you can disable it and use it like a Linux daemon**
 
-### Network OS workflow (via built-in SSH server)
+### Network OS 
 
 - CLI connects to a built-in SSH server (same interface local or remote)
+- Per-user command history persisted across restarts
+- Tab completion driven by YANG schemas
 
 | Command | Description |
 |---------|-------------|
 | `ze config edit` | Opens interactive editor session |
 | `set bgp peer 10.0.0.1 as 65001` | Modify config in draft |
-| `show : compare` | Review pending changes |
-| `commit` / `commit confirmed 5` | Apply (with optional auto-revert in N minutes) |
+| `show | compare | json` | Review pending changes in json |
+| `commit confirmed 5` | Apply (with optional auto-revert in N minutes) |
 | `rollback 1` | Restore previous revision |
-
-### Extras
-
-- Per-user command history persisted across restarts
-- Tab completion driven by YANG schemas
-- Every command supports `--json`: machine-parseable output for scripting
 
 ---
 
@@ -342,9 +317,9 @@ Ze Engine Core (event bus for components and plugins)
 
 ### Schema-driven
 
-- **118 YANG modules** define the entire config surface
+- **2,183 config nodes** across 151 YANG schemas define the entire config surface
 - Typo? Ze rejects unknown keys and suggests the closest match
-- No version numbers: machine-transformable schema evolution
+- Machine-transformable schema evolution
 
 ### Runtime
 
@@ -370,6 +345,11 @@ Ze Engine Core (event bus for components and plugins)
 - HTTPS server with **macOS Finder-style column navigation**
 - Every UI element generated from YANG schemas: zero hardcoded forms
 
+### Second Web Interface
+
+- You get a web ui ! And you get a web ui ! Everybody gets a web ui!
+- Second interface under work
+
 ### Collaboration
 
 - Per-user draft sessions with inline diff review and conflict detection
@@ -377,7 +357,7 @@ Ze Engine Core (event bus for components and plugins)
 
 ### Extras
 
-- CLI bar at the bottom: same grammar as SSH CLI
+- CLI page same as SSH CLI
 - YANG decorators: AS numbers annotated with org names via Team Cymru DNS
 
 ---
@@ -395,7 +375,7 @@ Ze Engine Core (event bus for components and plugins)
 - Every CLI command is automatically available to AI and programs
 - No separate API to learn: one interface for humans and machines
 - MCP transport: any AI assistant connects and gets full daemon control
-- REST API with Swagger UI, gRPC with proto definitions
+- REST API with Swagger UI, gRPC with proto definitions, gNMI for YANG-modeled config management
 
 ### Self-describing runtime
 
@@ -416,7 +396,7 @@ Ze Engine Core (event bus for components and plugins)
 
 ---
 
-## Protocol Coverage
+## BGP Protocol Coverage
 
 ### 21 Address Families
 
@@ -433,7 +413,7 @@ Ze Engine Core (event bus for components and plugins)
 |----------|-------------|
 | Core | 4-byte ASN, Extended Messages, Route Refresh, Enhanced Route Refresh |
 | Routing | Add-Path, Extended Next-Hop, GR, Long-Lived GR |
-| Operations | BGP Roles, RPKI, Software Version, Hostname, Link-Local NH |
+| Operations | BGP Roles, RPKI, ASPA, Software Version, Hostname, Link-Local NH |
 
 **Full RFC 4271 best-path selection.**
 All families registered by plugins at startup: adding a new family means writing a plugin, no engine changes needed.
@@ -483,6 +463,11 @@ All families registered by plugins at startup: adding a new family means writing
 | VPP | High-performance forwarding |
 
 Same config, same plugins, same CLI. The backend is a plugin choice.
+
+### I am a Real Vendor
+
+- Not all features are available on all backend
+- The CLI does not let you autocomplete what does not work
 
 ---
 
@@ -620,8 +605,8 @@ DUT_REPEAT=10 make ze-perf-bench PERF_DUT="ze bird"
 
 | DUT | Convergence | +/- | Throughput (r/s) | +/- | p50 | p99 | +/- | Max | Lost |
 |-----|-------------|-----|------------------|-----|-----|-----|-----|-----|------|
-| bird | 50ms | 0ms | 2,000,000 | 32,675 | 18ms | 26ms | 0ms | 26ms | 0 |
-| ze | 91ms | 27ms | 1,098,901 | 461,693 | 20ms | 81ms | 27ms | 81ms | 0 |
+| bird | 44ms | 1ms | 2,272,727 | 62,858 | 16ms | 28ms | 5ms | 28ms | 0 |
+| ze | 71ms | 2ms | 1,408,450 | 44,964 | 25ms | 54ms | 4ms | 54ms | 0 |
 | rustbgpd | 179ms | 5ms | 558,659 | 15,247 | 90ms | 151ms | 12ms | 152ms | 0 |
 | rustybgp | 252ms | 14ms | 396,825 | 20,283 | 120ms | 233ms | 13ms | 235ms | 0 |
 | openbgpd | 472ms | 0ms | 211,864 | 0 | 217ms | 461ms | 0ms | 466ms | 0 |
@@ -635,8 +620,8 @@ DUT_REPEAT=10 make ze-perf-bench PERF_DUT="ze bird"
 
 ### Coverage
 
-- **887 functional tests** (.ci): real config, real daemon, real wire output
-- 33 interop scenarios against 7 implementations in Docker: FRR, BIRD, GoBGP, OpenBGPd, RustyBGP, rustbgpd, FreeRTR
+- **997 functional tests** (.ci): real config, real daemon, real wire output
+- 42 interop scenarios against 7 implementations in Docker: FRR, BIRD, GoBGP, OpenBGPd, RustyBGP, rustbgpd, FreeRTR
 - Fuzz testing on all wire parsers
 
 ### Specialized testing
@@ -691,7 +676,6 @@ DUT_REPEAT=10 make ze-perf-bench PERF_DUT="ze bird"
 ### How this shaped Ze's storage
 
 - 55M routes, but almost all share the same attribute bundle (minus AS_PATH)
-- Naive per-route storage wastes memory on millions of identical copies
 - Ze uses **per-attribute-type pools with reference-counted dedup**: routes point to shared bundles
 - AS_PATH stored separately: it's the one attribute that's almost always unique
 - 72% single-prefix UPDATEs: no need for large batch structures, simple per-peer buffers suffice
@@ -717,7 +701,7 @@ But: all ExaBGP compatibility tests pass and you can play with it.
 
 ## Fleet Management
 
-*(highly experimental and untested)*
+*(WIP)
 
 ### Distribution
 
@@ -743,6 +727,7 @@ But: all ExaBGP compatibility tests pass and you can play with it.
 ### Deployment
 
 - **Single static binary:** copy it, run it. No runtime dependencies.
+- **AGPL-3.0**: open source, network use included
 - Linux (amd64, arm64), targets gokrazy appliance (no systemd, read-only A/B root, one write partition)
 - Docker images if you need them
 
@@ -779,11 +764,11 @@ Two lines to enable the RIB and route server plugins. The rest is familiar BGP c
 ### The velocity
 
 - The scope is no longer aspirational. BGP, IPsec, L2TP, firewall, VPP: all native, all in one binary.
-  * Since April, IPsec, L2TP, VPP, firewall, traffic control, REST/gRPC API, BMP, policy framework, config transactions.
-  * The .claude system compounds: each feature builds on patterns the AI already knows. 775 learned summaries mean new sessions start with institutional memory.
+  * New since April, IPsec, L2TP, VPP, firewall, traffic control, REST/gRPC API, gNMI, BMP, policy framework, config transactions.
+  * The .claude system compounds: each feature builds on patterns the AI already knows. 820 learned summaries mean new sessions start with institutional memory.
 
 - Adding a new protocol means writing a plugin. The engine, config, CLI, web, API, and metrics come for free.
-  * Only **800k lines** / **23MB** of Go code
+  * Only **816k lines** / **23MB** of Go code
   * Only **36MB** of vendoring code
 
 ### Status
@@ -791,7 +776,7 @@ Two lines to enable the RIB and route server plugins. The rest is familiar BGP c
 - **Pre-release:** looking for early adopters and feedback
 - **Careful release:** the YANG model *is* the API. Once it's public, every consumer depends on it. Changing it means breaking people. Getting it right before v1 matters more than shipping fast.
 - Community and documentation
-**github.com/ze-software/ze**
+- **github.com/ze-software/ze**
 
 ### Questions?
 
