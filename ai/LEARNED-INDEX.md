@@ -64,6 +64,8 @@ Registration, SDK, event flow, lifecycle, hook integration.
 - [325](plan/learned/325-plugin-rib-families.md) -- Plugin RIB family registration
 - [757](plan/learned/757-typed-route-result.md) -- Typed RouteResult replaces map[string]any in update-route, eliminating int/float64 transport divergence
 - [781](plan/learned/781-remove-private-as.md) -- Remove-private-as: plugin intent + reactor wire rewrite; Set+Prepend composition
+- [806](plan/learned/806-install-1-dhcp-pxe.md) -- DHCP PXE extension: additive options in existing buildReply, server-wide pxeConfig, 1500-byte reply buffer, siaddr+option 66 dual-set for PXE ROM compat
+- [807](plan/learned/807-install-2-tftpserver.md) -- TFTP server plugin: RFC 1350 read-only, ephemeral port per transfer, channel semaphore for concurrency, SO_BINDTODEVICE on Linux, 32MB block-number limit acceptable for bootloaders
 
 ## Configuration
 
@@ -109,6 +111,8 @@ Command structure, text format, IPC, RPC dispatch.
 - [796](plan/learned/796-doctor-platform-coherence.md) -- Platform-aware doctor checks: thread PlatformInfo as local, severity tiers by platform, env overrides for deterministic functional tests, naming convention (thing checked, not analysis type)
 - [803](plan/learned/803-gnmi.md) -- gNMI component: segment-based paths, ChangeNotifier, time.After(0) trap
 - [804](plan/learned/804-gnmi-yang.md) -- gNMI YANG config, show command, Prometheus counters, external commit notify
+- [809](plan/learned/809-pol-3-validation.md) -- Policy plain names: unique filter names as default operator form, show policy chain output shape change (name+canonical), prefixed forms as escape hatch
+- [810](plan/learned/810-show-command-pipe-filters.md) -- Command-owned pipe filters: PipeFilter registration, longest-prefix lookup, FoldFilters rewrite, show verb-first grammar, generic pipe code BGP-free
 
 ## Web Interface
 
