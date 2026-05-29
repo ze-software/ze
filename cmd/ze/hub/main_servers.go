@@ -189,7 +189,7 @@ func endpointsToAddrs(servers []zeconfig.ServerEndpoint) []string {
 // Every entry in listenAddrs becomes a bound listener on the same
 // *http.Server; Shutdown closes all of them.
 // Requires blob storage -- TLS keys and config must not leak to the filesystem.
-func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, commitHook func() error) (*zeweb.WebServer, *zeweb.EventBroker, *zeweb.EditorManager) {
+func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, commitHook func() error, configUsers []authz.UserConfig) (*zeweb.WebServer, *zeweb.EventBroker, *zeweb.EditorManager) {
 	if !storage.IsBlobStorage(store) {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: requires blob storage (run ze init first)\n")
 		return nil, nil, nil
@@ -201,10 +201,18 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	var users []authz.UserConfig
 	if !insecureWeb {
-		var err error
-		users, err = loadZefsUsers()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "warning: web server disabled: %v\n", err)
+		// Both the always-on zefs power user and config-file users may log in.
+		// A failure to load the power user is not fatal as long as config users
+		// exist; the server is only disabled when there are no users at all
+		// (fail closed -- never serve an unauthenticated admin UI).
+		if zefsUsers, err := loadZefsUsers(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: web power-user auth unavailable: %v\n", err)
+		} else {
+			users = zefsUsers
+		}
+		users = mergeAuthUsers(users, configUsers)
+		if len(users) == 0 {
+			fmt.Fprintf(os.Stderr, "warning: web server disabled: no authenticatable users\n")
 			return nil, nil, nil
 		}
 	} else {
@@ -487,6 +495,30 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	return srv, broker, editorMgr
 }
 
+// Well-known bootstrap SSH coordinates, matching ze init and the outbound SSH
+// client (cmd/ze/internal/ssh/client). Used only as a fallback when the
+// meta/ssh/default pointer is absent.
+const (
+	zefsDefaultSSHHost = "127.0.0.1"
+	zefsDefaultSSHPort = "2222"
+)
+
+// mergeAuthUsers returns the always-on zefs power user(s) followed by the
+// config-file users, so both authenticate on a surface. Mirrors the SSH paths
+// (infra_setup.go / main.go). Order puts the power user first; the result is a
+// fresh slice (never aliases either input).
+//
+// Duplicate names are intentionally NOT deduplicated: if a name appears in both
+// sources (e.g. both define "admin"), both entries are kept and the
+// authenticator accepts either password. There is no override -- the power user
+// cannot be shadowed or disabled by a config-file user of the same name.
+func mergeAuthUsers(zefsUsers, configUsers []authz.UserConfig) []authz.UserConfig {
+	out := make([]authz.UserConfig, 0, len(zefsUsers)+len(configUsers))
+	out = append(out, zefsUsers...)
+	out = append(out, configUsers...)
+	return out
+}
+
 // loadZefsUsers reads credentials from the zefs database (created by ze init).
 func loadZefsUsers() ([]authz.UserConfig, error) {
 	dir := env.Get("ze.config.dir")
@@ -502,11 +534,22 @@ func loadZefsUsers() ([]authz.UserConfig, error) {
 		return nil, fmt.Errorf("open %s: %w", dbPath, err)
 	}
 	defer db.Close() //nolint:errcheck // read-only access
-	username, err := db.ReadFile(zefs.KeySSHUsername.Pattern)
+	return usersFromZefsDB(db)
+}
+
+// usersFromZefsDB resolves the stored SSH credential the same way the outbound
+// client does (cmd/ze/internal/ssh/client). The per-target keys carry
+// {host}/{port} placeholders, so the concrete entry is located by following the
+// meta/ssh/default pointer rather than reading the placeholder key literally
+// (which is never written). Missing or empty credentials return an error so the
+// caller fails closed (treats it as "no zefs users").
+func usersFromZefsDB(db *zefs.BlobStore) ([]authz.UserConfig, error) {
+	host, port := zefsDefaultTarget(db)
+	username, err := db.ReadFile(zefs.KeySSHUsername.Key(host, port))
 	if err != nil {
 		return nil, fmt.Errorf("read username: %w", err)
 	}
-	hash, err := db.ReadFile(zefs.KeySSHPassword.Pattern)
+	hash, err := db.ReadFile(zefs.KeySSHPassword.Key(host, port))
 	if err != nil {
 		return nil, fmt.Errorf("read password hash: %w", err)
 	}
@@ -514,7 +557,26 @@ func loadZefsUsers() ([]authz.UserConfig, error) {
 	if name == "" {
 		return nil, errEmptyUsernameInZefs
 	}
+	if len(hash) == 0 {
+		// Fail closed: never hand an empty password hash to the authorizer.
+		return nil, errEmptyPasswordInZefs
+	}
 	return []authz.UserConfig{{Name: name, Hash: string(hash)}}, nil
+}
+
+// zefsDefaultTarget returns the host/port named by the meta/ssh/default pointer,
+// falling back to the well-known bootstrap coordinates when it is absent or
+// malformed. Empty or ".."-containing components are rejected because they would
+// panic zefs.KeyEntry.Key (which is then used to read the credential), so a
+// corrupt pointer must never crash the daemon at startup.
+func zefsDefaultTarget(db *zefs.BlobStore) (host, port string) {
+	if data, err := db.ReadFile(zefs.KeySSHDefault.Pattern); err == nil {
+		if h, p, ok := strings.Cut(strings.TrimSpace(string(data)), "/"); ok &&
+			h != "" && p != "" && !strings.Contains(h, "..") && !strings.Contains(p, "..") {
+			return h, p
+		}
+	}
+	return zefsDefaultSSHHost, zefsDefaultSSHPort
 }
 
 // blobCertStore implements web.CertStore backed by zefs blob storage.
