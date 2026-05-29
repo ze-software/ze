@@ -149,6 +149,8 @@
 ### Documentation Update Checklist (BLOCKING)
 <!-- Every row MUST be answered Yes/No during the Completion Checklist (planning.md step 1). -->
 <!-- Every Yes MUST name the file and what to add/change. -->
+<!-- Every No MUST be backed by a source-aware check, not a guess. At minimum, grep docs for source anchors pointing at changed files. -->
+<!-- Any factual doc change MUST include or update a source-anchor HTML comment after the claim. -->
 <!-- See planning.md "Documentation Update Checklist" for the full table with examples. -->
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
@@ -166,6 +168,9 @@
 | 12 | Internal architecture changed? | [ ] | `docs/architecture/core-design.md` or subsystem doc |
 | 13 | Route metadata keys added/changed? | [ ] | `docs/architecture/meta/README.md`, `docs/architecture/meta/<plugin>.md` |
 | 14 | Prometheus counters added/changed? | [ ] | `docs/architecture/telemetry/` or subsystem telemetry doc |
+| 15 | Registered plugin, event type, send type, command, capability, or runtime inventory changed? | [ ] | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md`, relevant guide |
+| 16 | Any changed source file is referenced by existing doc source anchors? | [ ] | Grep `docs/` for `source: <changed-file>` and update each stale claim |
+| 17 | Existing docs show config/CLI/API examples for this area? | [ ] | Verify examples against YANG/parser/handler and update stale syntax |
 
 ## Files to Create
 - `internal/...` - [new feature file]
@@ -319,7 +324,8 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [Any bugs discovered — add test for each]
 
 ### Documentation Updates
-- [Docs updated, or "None"]
+- [Docs updated, with source anchors named, or "None" with grep evidence]
+- [If docs were changed: `make ze-doc-test` result]
 
 ### Deviations from Plan
 - [Differences from original plan and why]
@@ -410,6 +416,12 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
 
+### Documentation Verified
+<!-- For EVERY Yes in Documentation Update Checklist: verify the edited doc claim against source. -->
+<!-- For EVERY No: paste the grep/source check that proves no doc update was needed. -->
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+
 ## Checklist
 
 ### Goal Gates (MUST pass)
@@ -419,7 +431,8 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
-- [ ] Architecture docs updated
+- [ ] Documentation Update Checklist answered Yes/No with source evidence
+- [ ] Architecture docs and guides updated where changed behavior is documented
 - [ ] Critical Review passes (all 6 checks in `rules/quality.md` — no failures)
 
 ### Quality Gates (SHOULD pass — defer with user approval)

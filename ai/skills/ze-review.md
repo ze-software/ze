@@ -44,16 +44,29 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
     **Exception:** pure internal refactors with no user-visible effect, or changes where an existing functional test already covers the path.
 
-3. **Identify changed files:** Run `git diff --name-only HEAD` to find all modified files.
-4. **Read the actual code:** For every changed file, read the diff. Understand what changed.
-5. **Understand intent via history:** For each changed region, run `git log --oneline -5` and `git blame` on the modified lines. Understand WHY the old code existed. Flag if the change removes a guard, workaround, or constraint that was added deliberately.
-6. **Removed-behavior audit:** For every line the diff DELETES or replaces, name the invariant or behavior it enforced. Then search the new code for where that invariant is re-established. If you cannot find it, that is a finding: a removed guard, a dropped error path, a narrowed validation, a deleted test that covered a real case. This step is distinct from step 5: step 5 asks "why did the old code exist?" This step asks "is the protection still there?"
-7. **Check code comments:** Read WARNING, INVARIANT, NOTE, and TODO comments in modified files. Verify the changes do not violate stated invariants or ignore documented constraints.
-8. **Trace data flow:** For each changed component, trace data from entry through transformations to exit. Verify boundaries are respected.
-9. **Apply edge case techniques:** Apply EVERY technique in the table below to every changed component.
-10. **Security review:** Apply the security checklist to every user-controlled input.
-11. **Allocation review:** Check every `make()` in changed code for unbounded sizes.
-12. **Logic correctness review:** Read every changed function and check for:
+3. **Documentation drift check (BLOCKING for user-visible or architecture changes):** For every changed source file and every changed behavior, verify documentation stayed current.
+
+    | Change type | Required doc check |
+    |-------------|--------------------|
+    | Config/YANG/parser | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md`, and any guide examples use accepted syntax |
+    | CLI command/output | `docs/guide/command-reference.md` and command docs match handler grammar/output |
+    | API/RPC/event/send type | `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md`, and plugin docs match types/handlers |
+    | Plugin registration/inventory | Runtime inventory docs match registry or `bin/ze --plugins` output |
+    | Architecture/data flow | Relevant `docs/architecture/*` claims match current source and have source anchors |
+    | Metrics | Telemetry docs list metric names and labels |
+
+    Also grep `docs/` for `source: <changed-file>` for every changed source file. If any anchored claim is stale or missing after the code change, report an ISSUE. If a user-visible behavior changed and no documentation was updated or explicitly proven unnecessary, report an ISSUE.
+
+4. **Identify changed files:** Run `git diff --name-only HEAD` to find all modified files.
+5. **Read the actual code:** For every changed file, read the diff. Understand what changed.
+6. **Understand intent via history:** For each changed region, run `git log --oneline -5` and `git blame` on the modified lines. Understand WHY the old code existed. Flag if the change removes a guard, workaround, or constraint that was added deliberately.
+7. **Removed-behavior audit:** For every line the diff DELETES or replaces, name the invariant or behavior it enforced. Then search the new code for where that invariant is re-established. If you cannot find it, that is a finding: a removed guard, a dropped error path, a narrowed validation, a deleted test that covered a real case. This step is distinct from step 6: step 6 asks "why did the old code exist?" This step asks "is the protection still there?"
+8. **Check code comments:** Read WARNING, INVARIANT, NOTE, and TODO comments in modified files. Verify the changes do not violate stated invariants or ignore documented constraints.
+9. **Trace data flow:** For each changed component, trace data from entry through transformations to exit. Verify boundaries are respected.
+10. **Apply edge case techniques:** Apply EVERY technique in the table below to every changed component.
+11. **Security review:** Apply the security checklist to every user-controlled input.
+12. **Allocation review:** Check every `make()` in changed code for unbounded sizes.
+13. **Logic correctness review:** Read every changed function and check for:
 
     | Check | What to look for |
     |-------|-----------------|
@@ -68,7 +81,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
     For each function: does the code do what the function name says?
 
-13. **Performance review:** Check changed code for unnecessary allocations and algorithmic issues, especially on hot paths (see `no-sprintf-alloc.md` "Hot Path Rule" for the list).
+14. **Performance review:** Check changed code for unnecessary allocations and algorithmic issues, especially on hot paths (see `no-sprintf-alloc.md` "Hot Path Rule" for the list).
 
     | Check | What to look for |
     |-------|-----------------|
@@ -86,9 +99,9 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
     Cold paths (startup, config load, CLI one-shot) are exempt. Focus on hot paths as defined in `no-sprintf-alloc.md`.
 
-14. **Plugin traversal check:** If config structure changed, grep for all code reading the old structure.
-15. **Altitude check:** For each change, ask: is this fix at the right depth? A special case layered on shared infrastructure is a sign the underlying mechanism should be generalized instead. Prefer deepening the shared abstraction over adding per-caller workarounds. Report bandaid fixes as ISSUE with the deeper alternative named.
-16. **Project rules cross-check:** For each changed file, verify compliance with applicable rules (steps 12-13 above cover logic and performance specifically; this step covers structural and convention rules):
+15. **Plugin traversal check:** If config structure changed, grep for all code reading the old structure.
+16. **Altitude check:** For each change, ask: is this fix at the right depth? A special case layered on shared infrastructure is a sign the underlying mechanism should be generalized instead. Prefer deepening the shared abstraction over adding per-caller workarounds. Report bandaid fixes as ISSUE with the deeper alternative named.
+17. **Project rules cross-check:** For each changed file, verify compliance with applicable rules (steps 13-14 above cover logic and performance specifically; this step covers structural and convention rules):
 
 | Changed code touches | Check against |
 |---------------------|---------------|
@@ -100,7 +113,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 | Config parsing | `config-design.md` -- fail on unknown keys, no version numbers |
 | New data wrapper/struct | `design-principles.md` -- lazy over eager, no identity wrappers |
 
-17. **Filter false positives:** Before reporting, discard findings that match any of these:
+18. **Filter false positives:** Before reporting, discard findings that match any of these:
 
 | False positive | Why discard |
 |----------------|-------------|
@@ -115,12 +128,12 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
     **PLAUSIBLE by default.** Do not discard a finding for being "speculative" or "depends on runtime state" when the state is realistic: concurrency races, nil on a rare-but-reachable path (error handler, cold cache, missing optional field), falsy-zero treated as missing, off-by-one on a boundary the code does not exclude, retry storms, regex that lost an anchor. These are real findings. Only discard when you can prove the scenario is impossible from the code (quote the guard, cite the type constraint, show the invariant).
 
-18. **Interop and goal validation check:** If the diff implements or modifies protocol behavior (BGP capability, NLRI family, session behavior, wire format, authentication), verify per `ai/rules/interop-and-goal-validation.md`:
+19. **Interop and goal validation check:** If the diff implements or modifies protocol behavior (BGP capability, NLRI family, session behavior, wire format, authentication), verify per `ai/rules/interop-and-goal-validation.md`:
     - Does an interop test scenario exist that proves this works with another daemon?
     - If the spec has a Goal Validation table, is every goal backed by concrete evidence?
     Missing interop test for protocol work is a BLOCKER. Empty goal validation for a completed feature is an ISSUE.
 
-19. **RFC compliance check:** If the diff implements or modifies protocol behavior covered by an RFC, verify the code against the RFC summaries in `rfc/short/`.
+20. **RFC compliance check:** If the diff implements or modifies protocol behavior covered by an RFC, verify the code against the RFC summaries in `rfc/short/`.
 
     **When to run:** The diff touches wire encoding/decoding, message handling, capability negotiation, state machine transitions, timer behavior, NLRI parsing, attribute handling, or any code with existing `// RFC NNNN` comments.
 
@@ -140,7 +153,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
     **Skip this step** if the diff has no protocol code (pure config, CLI, web, docs).
 
-20. **Report findings** as a numbered list with severity:
+21. **Report findings** as a numbered list with severity:
     - **BLOCKER:** Bug that will cause incorrect behavior, crash, or security vulnerability
     - **ISSUE:** Logic error, performance problem on hot path, missing test, edge case not handled
     - **NOTE:** Suggestion or minor observation

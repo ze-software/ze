@@ -80,11 +80,17 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 13. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
 14. **Documentation review (BLOCKING):** Use the spec's **Documentation Update Checklist** table. For each row:
     - Answer Yes or No. Every Yes MUST name the file and describe the update needed.
+    - Every No MUST be backed by source-aware evidence. At minimum, grep `docs/` for source anchors pointing at changed files and check the category does not apply.
     - Do NOT say "update the docs." Name the specific file, the specific section, and what to add.
     - Categories: feature list, user guide, config syntax, CLI reference, API/RPC docs, plugin SDK, wire format, RFC compliance, comparison table, test infrastructure, architecture design.
     - If the spec has no Documentation Update Checklist, use `ai/rules/planning.md` "Documentation Update Checklist" as the reference and fill it for the spec.
+    - If config syntax changed, verify examples against the actual YANG/parser before writing docs.
+    - If CLI/API/RPC changed, verify docs against the actual handler or RPC type, not the spec.
+    - If plugins, commands, event types, send types, or capabilities changed, refresh runtime inventory docs from the registry or binary output, not memory.
+    - If any existing doc has a `<!-- source: changed/file.go -- ... -->` anchor, re-read that doc claim and update it if stale.
+    - Every factual doc update MUST include or update a `<!-- source: path -- symbol -->` anchor immediately after the claim.
     - **Doctor checks (BLOCKING):** If the implementation adds any runtime dependency (file path, external socket, kernel module, listen port, external binary, TLS cert), verify a corresponding `ze doctor` check exists per `ai/rules/doctor-checks.md`. Add missing checks and register diagnostic codes in `internal/core/diagnostic/codes.go`.
-    - Write the doc updates. Include them in the commit.
+    - Write the doc updates, run `make ze-doc-test`, and record the result in the spec's Documentation Updates or Pre-Commit Verification section. Include docs in Commit A.
 15. **Close spec and present commit (BLOCKING -- do ALL of this BEFORE presenting the commit script):**
     The user runs the commit script and considers the work FINISHED. They will not come back
     to ask "what's next" or "close the spec now." There is no step 16. The script is the
@@ -125,3 +131,4 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 - If the same issue reappears after 3 fix attempts (3-Fix Rule, `ai/rules/anti-rationalization.md`), STOP and ask for guidance. Otherwise keep reviewing -- there is no pass limit.
 - If the spec is missing a **Critical Review Checklist**, **Deliverables Checklist**, **Security Review Checklist**, or **Documentation Update Checklist**, STOP and inform the user that the spec needs updating before implementation can proceed
 - Before reporting done, re-read the spec and confirm each item is actually implemented in the code
+- Before reporting done, verify documentation stayed current: source anchors for changed files checked, examples validated against code, and `make ze-doc-test` run when docs changed
