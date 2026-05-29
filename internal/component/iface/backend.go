@@ -129,6 +129,11 @@ type Backend interface {
 	SetMACAddress(ifaceName, mac string) error
 	GetMACAddress(ifaceName string) (string, error)
 	GetStats(ifaceName string) (*InterfaceStats, error)
+	// LinkSpeedDuplex returns the link speed (Mbit/s) and duplex ("full"/"half")
+	// for the named interface, or (0, "") when unknown. Best-effort enrichment
+	// for the flow-export sFlow if_counters; on Linux it reads sysfs, other
+	// backends (VPP, non-Linux stub) return (0, "").
+	LinkSpeedDuplex(ifaceName string) (speedMbps int, duplex string)
 
 	// Query.
 	ListInterfaces() ([]InterfaceInfo, error)

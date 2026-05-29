@@ -58,3 +58,42 @@ func TestGetInterfaceInvalidName(t *testing.T) {
 	_, err = b.GetInterface("a/b")
 	require.Error(t, err)
 }
+
+// TestParseLinkSpeedDuplex covers the sysfs value handling for the flow-export
+// sFlow ifSpeed/ifDirection fields: a real ethernet link, a down link (kernel
+// reports "-1" / "unknown"), and garbage. Split from the file reads so the
+// sanitisation is testable without /sys.
+func TestParseLinkSpeedDuplex(t *testing.T) {
+	cases := []struct {
+		name       string
+		speedRaw   string
+		duplexRaw  string
+		wantSpeed  int
+		wantDuplex string
+	}{
+		{"ethernet full", "10000\n", "full\n", 10000, "full"},
+		{"ethernet half", "100\n", "half\n", 100, "half"},
+		{"down link", "-1\n", "unknown\n", 0, ""},
+		{"empty", "", "", 0, ""},
+		{"garbage speed", "notanumber", "full", 0, "full"},
+		{"zero speed", "0", "full", 0, "full"},
+		{"unknown duplex", "1000", "weird", 1000, ""},
+	}
+	for _, c := range cases {
+		gotSpeed, gotDuplex := parseLinkSpeedDuplex(c.speedRaw, c.duplexRaw)
+		assert.Equal(t, c.wantSpeed, gotSpeed, "%s: speed", c.name)
+		assert.Equal(t, c.wantDuplex, gotDuplex, "%s: duplex", c.name)
+	}
+}
+
+// TestLinkSpeedDuplexLoopback verifies the backend method returns the unknown
+// pair for loopback (no /sys speed/duplex), confirming the read path is wired
+// and degrades cleanly. The generic ListInterfaces/GetInterface output no longer
+// carries speed/duplex at all (removed from InterfaceInfo), so only this
+// explicit accessor performs the sysfs read.
+func TestLinkSpeedDuplexLoopback(t *testing.T) {
+	b := &netlinkBackend{}
+	speed, duplex := b.LinkSpeedDuplex("lo")
+	assert.Equal(t, 0, speed)
+	assert.Equal(t, "", duplex)
+}

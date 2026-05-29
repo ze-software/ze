@@ -8,6 +8,9 @@ package ifacenetlink
 import (
 	"fmt"
 	"net"
+	"os"
+	"strconv"
+	"strings"
 
 	"github.com/vishvananda/netlink"
 
@@ -23,6 +26,22 @@ func (b *netlinkBackend) ListInterfaces() ([]iface.InterfaceInfo, error) {
 	for _, link := range links {
 		info := linkToInfo(link)
 		info.Addresses = addrList(link)
+		// Populate raw kernel counters: the rate tracker and flow-export
+		// counter snapshot both consume Stats from ListInterfaces. Without
+		// this they see nil Stats and skip every interface.
+		if s := link.Attrs().Statistics; s != nil {
+			info.Stats = &iface.InterfaceStats{
+				RxBytes:     s.RxBytes,
+				RxPackets:   s.RxPackets,
+				RxErrors:    s.RxErrors,
+				RxDropped:   s.RxDropped,
+				RxMulticast: s.Multicast,
+				TxBytes:     s.TxBytes,
+				TxPackets:   s.TxPackets,
+				TxErrors:    s.TxErrors,
+				TxDropped:   s.TxDropped,
+			}
+		}
 		result = append(result, info)
 	}
 	return result, nil
@@ -41,14 +60,15 @@ func (b *netlinkBackend) GetInterface(name string) (*iface.InterfaceInfo, error)
 	s := link.Attrs().Statistics
 	if s != nil {
 		info.Stats = &iface.InterfaceStats{
-			RxBytes:   s.RxBytes,
-			RxPackets: s.RxPackets,
-			RxErrors:  s.RxErrors,
-			RxDropped: s.RxDropped,
-			TxBytes:   s.TxBytes,
-			TxPackets: s.TxPackets,
-			TxErrors:  s.TxErrors,
-			TxDropped: s.TxDropped,
+			RxBytes:     s.RxBytes,
+			RxPackets:   s.RxPackets,
+			RxErrors:    s.RxErrors,
+			RxDropped:   s.RxDropped,
+			RxMulticast: s.Multicast,
+			TxBytes:     s.TxBytes,
+			TxPackets:   s.TxPackets,
+			TxErrors:    s.TxErrors,
+			TxDropped:   s.TxDropped,
 		}
 	}
 	return &info, nil
@@ -63,11 +83,12 @@ func linkToInfo(link netlink.Link) iface.InterfaceInfo {
 		state = "up"
 	}
 	info := iface.InterfaceInfo{
-		Name:  attrs.Name,
-		Index: attrs.Index,
-		Type:  link.Type(),
-		State: state,
-		MTU:   attrs.MTU,
+		Name:    attrs.Name,
+		Index:   attrs.Index,
+		Type:    link.Type(),
+		State:   state,
+		MTU:     attrs.MTU,
+		Promisc: attrs.Promisc > 0,
 	}
 	if len(attrs.HardwareAddr) > 0 {
 		info.MAC = attrs.HardwareAddr.String()
@@ -77,6 +98,47 @@ func linkToInfo(link netlink.Link) iface.InterfaceInfo {
 		info.ParentIndex = attrs.ParentIndex
 	}
 	return info
+}
+
+// LinkSpeedDuplex reads the link speed (Mbit/s) and duplex from sysfs, the
+// ethtool-backed values the kernel exposes without an ioctl. Both files are
+// absent or unreadable for virtual devices and report a negative speed /
+// "unknown" duplex for a down link; in every such case this returns the zero
+// value (0, "").
+//
+// This is deliberately NOT called from linkToInfo: that would put two sysfs
+// reads per interface on every ListInterfaces call (the 1Hz rate-tracker tick,
+// every show/web/health caller), even when nothing consumes the values. Only
+// the flow-export counter snapshot needs ifSpeed/ifDirection, so only it calls
+// this -- and only when flow-export is configured.
+func (b *netlinkBackend) LinkSpeedDuplex(name string) (int, string) {
+	speedRaw := ""
+	if data, err := os.ReadFile("/sys/class/net/" + name + "/speed"); err == nil {
+		speedRaw = string(data)
+	}
+	duplexRaw := ""
+	if data, err := os.ReadFile("/sys/class/net/" + name + "/duplex"); err == nil {
+		duplexRaw = string(data)
+	}
+	return parseLinkSpeedDuplex(speedRaw, duplexRaw)
+}
+
+// parseLinkSpeedDuplex turns the raw sysfs speed/duplex file contents into a
+// sanitised (Mbit/s, duplex) pair. A non-positive or unparseable speed becomes
+// 0; only "full" and "half" are accepted as duplex, anything else (including
+// the kernel's "unknown") becomes "". Split out from the file reads so the
+// value handling is unit-testable without touching /sys.
+func parseLinkSpeedDuplex(speedRaw, duplexRaw string) (int, string) {
+	speed := 0
+	if v, err := strconv.Atoi(strings.TrimSpace(speedRaw)); err == nil && v > 0 {
+		speed = v
+	}
+	duplex := ""
+	switch d := strings.TrimSpace(duplexRaw); d {
+	case "full", "half":
+		duplex = d
+	}
+	return speed, duplex
 }
 
 func addrList(link netlink.Link) []iface.AddrInfo {

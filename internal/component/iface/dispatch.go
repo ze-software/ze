@@ -203,6 +203,18 @@ func GetStats(iface string) (*InterfaceStats, error) {
 	return s, nil
 }
 
+// LinkSpeedDuplex returns the link speed (Mbit/s) and duplex for the named
+// interface, or (0, "") when unknown or no backend is loaded. Best-effort
+// enrichment for the flow-export sFlow if_counters; never errors so a missing
+// backend simply leaves ifSpeed/ifDirection unset.
+func LinkSpeedDuplex(name string) (int, string) {
+	b := GetBackend()
+	if b == nil {
+		return 0, ""
+	}
+	return b.LinkSpeedDuplex(name)
+}
+
 func ListInterfaces() ([]InterfaceInfo, error) {
 	b, err := backendOrErr()
 	if err != nil {

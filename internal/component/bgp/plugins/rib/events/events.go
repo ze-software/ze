@@ -60,6 +60,12 @@ type BestChangeEntry struct {
 	ProtocolType bgptypes.BGPProtocolType `json:"protocol-type,omitempty"`
 	Labels       []uint32                 `json:"labels,omitempty"`
 	SRv6SID      netip.Addr               `json:"srv6-sid,omitzero"`
+	// OriginAS is the last ASN in the best path's AS_PATH (the route's origin);
+	// ASPath is the full path. Both are populated on add/update from the winning
+	// candidate, and are empty on withdraw and on full-table replay. Consumers
+	// such as flow-export enrichment use them for bgpSource/DestinationAsNumber.
+	OriginAS uint32   `json:"origin-as,omitempty"`
+	ASPath   []uint32 `json:"as-path,omitempty"`
 }
 
 // BestChangeBatch is the payload of (bgp-rib, best-change). One batch is

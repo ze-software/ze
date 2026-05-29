@@ -25,6 +25,44 @@ func TestBaseline_SubtractsWhenSet(t *testing.T) {
 	assert.Equal(t, uint64(10), raw.TxPackets)
 }
 
+// TestBaseline_SubtractsRxMulticast verifies the rx-multicast counter is
+// baseline-adjusted alongside the others, so `clear interface counters` gives a
+// consistent since-clear view across every field.
+//
+// VALIDATES: rx-multicast (added for sFlow if_counters) participates in the
+// clear-counters baseline like every other InterfaceStats field.
+// PREVENTS: regression where a field is added to InterfaceStats but applyBaseline
+// is not updated, leaving that field showing since-boot totals while the rest
+// show since-clear deltas.
+func TestBaseline_SubtractsRxMulticast(t *testing.T) {
+	store := &baselineStore{data: map[string]InterfaceStats{
+		"eth0": {RxBytes: 100, RxPackets: 10, RxMulticast: 7, TxBytes: 200},
+	}}
+	raw := &InterfaceStats{RxBytes: 150, RxPackets: 15, RxMulticast: 12, TxBytes: 300}
+	store.applyBaseline("eth0", raw)
+	assert.Equal(t, uint64(5), raw.RxMulticast, "rx-multicast must be baseline-adjusted")
+	assert.Equal(t, uint64(50), raw.RxBytes)
+}
+
+// TestBaseline_WrapOnRxMulticast verifies a multicast-only counter regression
+// (raw rx-multicast below baseline) is treated as a kernel reset and rebases,
+// matching the other fields in wrapped().
+func TestBaseline_WrapOnRxMulticast(t *testing.T) {
+	store := &baselineStore{data: map[string]InterfaceStats{
+		"eth0": {RxBytes: 100, RxMulticast: 50},
+	}}
+	// Only rx-multicast regressed (driver reset a subset of counters).
+	raw := &InterfaceStats{RxBytes: 150, RxMulticast: 3}
+	store.applyBaseline("eth0", raw)
+	// Wrap detected -> raw returned unchanged, baseline dropped.
+	assert.Equal(t, uint64(150), raw.RxBytes)
+	assert.Equal(t, uint64(3), raw.RxMulticast)
+	store.mu.RLock()
+	_, present := store.data["eth0"]
+	store.mu.RUnlock()
+	assert.False(t, present, "rx-multicast regression should drop the baseline")
+}
+
 // TestBaseline_NoopWhenMissing verifies applyBaseline leaves the
 // stats untouched when no baseline is stored for the interface.
 //

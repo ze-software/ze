@@ -529,16 +529,24 @@ Specific constraints:
 ## Implementation Summary
 
 ### What Was Implemented
-- [Pending]
+- Integration layer connecting the spec-2 primitives to the Exporter (none existed before): neutral `FlowSample`/`ConntrackFlow` value types and `FlowSampleEncoder`/`FlowRecordEncoder` interfaces (flowtypes.go), factory registration in sflow/netflow9/ipfix (flow_adapter.go + register.go).
+- `samplingWorker`: installs tc sample on configured interfaces and runs a long-lived psample read loop dispatching sFlow flow samples (sampling_worker.go), delegating OS specifics to the sampling package (_linux/_other).
+- `conntrackWorker`: periodic conntrack dump + per-flow delta + dispatch to NetFlow v9 / IPFIX flow encoders (conntrack_worker.go).
+- BGP enrichment: `bgpEnrichBuilder` subscribes to the typed `ribevents.BestChange` handle and rebuilds the `enrich` radix tree atomically (enrichbgp.go).
+- Exporter dispatch (`ExportFlowSample`, `ExportFlows`) with enrichment fan-out and deadlock-safe `Stop` ordering; YANG `sampling`/`conntrack`/`enrichment` config + parse + boundary validation; metrics `samples_total`/`flows_total`/`flows_active`.
 
 ### Bugs Found/Fixed
-- [Pending]
+- Reload deadlock risk: worker `Stop()` waits on goroutines that take `e.mu`; `Exporter.Stop` now runs stoppers outside the mutex.
 
 ### Documentation Updates
-- [Pending]
+- docs/guide/flow-export.md sampling/conntrack/enrichment sections + Limitations; docs/features.md, comparison.md, core-design.md updated (shared with spec 1).
 
 ### Deviations from Plan
-- [Pending]
+- BGP AS enrichment: RESOLVED. Added `OriginAS uint32` + `ASPath []uint32` to `ribevents.BestChangeEntry`, populated in `rib_bestchange.go checkBestPathChange` from the winning candidate's interned AS_PATH handle (via `pool.ASPath.Get` + `formatASPath`); `enrichbgp.go applyBatch` stores them in `enrich.ASEntry`, so `ExportFlows` now fills SrcAS/DstAS (AC-5 / IPFIX IE 16/17). Cold path (once per best-path change). Caveat: full-table replay events omit AS data (the packed best-path record drops the AS-path handle); replayed entries are corrected by the next incremental change. RIB best-change tests pass.
+- Extended sFlow if_counters: ifType (IANA, via link-type map) and ifPromiscuousMode (via `InterfaceInfo.Promisc` from netlink link flags) now populated. ifSpeed/ifDirection/multicast/broadcast left zero -- kernel `rtnl_link_stats64` exposes neither per-direction multicast nor broadcast, and speed/duplex need a sysfs read not yet wired into the 1s snapshot path (the iface `ListInterfaces` stats path is the place; tracked as follow-up).
+- Per-flow records are IPv4-only (NF9/IPFIX flow templates use IPv4 fields; `As4()` panics on IPv6). IPv6 deferred (C1).
+- Conntrack export is periodic-dump only; no immediate destroy-event export (AC-8) -- vishvananda/netlink lacks the NFNLGRP_CONNTRACK_DESTROY binding (C4).
+- Netlink worker paths are CI-gated: they cross-compile (`GOOS=linux go vet`) but require a privileged Linux runner to exercise end-to-end (darwin dev host cannot run them).
 
 ## Implementation Audit
 
@@ -549,6 +557,19 @@ Specific constraints:
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `sampling.SetupSampling` via `samplingWorker.Start`; `sampling/tc_linux.go` | CI-gated (Linux+CAP_NET_ADMIN) |
+| AC-2 | Done | `PsampleReader.Read` loop in `samplingWorker.run` | CI-gated |
+| AC-3 | Done | `sflow.FlowEncoder.EncodeFlowSample` -> WriteSampledHeader; `test/flow-export/sampling.ci` | header capped to MTU |
+| AC-4 | Done | flow_sample fields in `WriteFlowSample` (rate/input/pool) | output ifIndex 0 (egress unknown) |
+| AC-5 | Partial | `WriteExtendedGateway` exists; enricher provides next-hop only | AS-path deferred (event lacks AS) |
+| AC-6 | Done | `conntrackWorker` -> `netflow9.FlowEncoder.EncodeFlows`; `netflow9/flow_*_test.go` | IPv4 only |
+| AC-7 | Partial | `ipfix.FlowEncoder.EncodeFlows`; IEs 8/12/7/11/4/85/86/152/153 | IE 16/17/18 require AS data (deferred) |
+| AC-8 | Deferred | periodic dump only | no destroy-event listener (C4) |
+| AC-9 | Done | `samplingWorker.Stop` RemoveSampling; reload via exporter swap | CI-gated |
+| AC-10 | Done | sample filter priority 100 (`sampling.SampleFilterPriority`), mirror at 1 | `test/flow-export/coexist` future |
+| AC-11 | Done | `ze_flowexport_samples_total`; show surfaces collector stats | per-interface sampling detail follow-up |
+| AC-12 | Done | conntrack worker degrades when accounting/reader unavailable (logged) | |
+| AC-13 | Done | `samplesTotal`/`flowsTotal`/`flowsActive` in metrics.go | |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -570,17 +591,52 @@ Specific constraints:
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | spec-2 packages had no production caller (no lifecycle/dispatch) | flowexport/ | Fixed: built integration layer (workers, dispatch, factories, enrich) |
+| 2 | ISSUE | reload deadlock: worker Stop waits on goroutine holding e.mu | exporter.go | Fixed: run stoppers outside e.mu |
+| 3 | NOTE | BestChange event lacks AS_PATH | enrichbgp.go | Documented: next-hop-only enrichment |
+| 4 | NOTE | NF9/IPFIX flow templates IPv4-only (As4 panic on IPv6) | conntrack_worker.go | Documented: IPv4 guard, IPv6 deferred |
 
 ### Fixes applied
-- [Pending]
+- Built the full integration layer (finding 1) and fixed the Stop ordering (finding 2). Re-verified: `golangci-lint` 0 issues; `go test ./internal/component/flowexport/...` pass; `go vet` clean on darwin and `GOOS=linux`; `go build -o bin/ze` (darwin) ok.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | NOTE | AC-5/AC-7 AS enrichment, AC-8 destroy events, IPv6 records deferred | -- | Recorded in Deviations |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+Closure note: code-complete and CI-gated per user direction. Netlink worker paths
+cross-compile but require a privileged Linux runner to exercise. The Linux daemon now
+builds (the cmd/show plugin.ResponseData break was resolved). The two-commit closure is
+user-triggered.
+
+### Run 3 (/ze-review-deep, 10 agents)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | MEDIUM | NF9 flow seqNum advanced per record, not per packet (RFC 3954) | netflow9/flow_adapter.go | Fixed: e.seqNum++ per datagram; regression test TestNetflow9FlowSeqNumPerPacket |
+| 2 | MEDIUM | stale docs claimed per-flow IPv4-only after IPv6 landed | docs/guide/flow-export.md, features.md | Fixed |
+| 3 | MEDIUM | conntrack zero StartTime -> garbage flowStart timestamps | conntrack_worker.go | Fixed: safeUnixMillis guard |
+| 4 | LOW | enrich tree full-rebuild every 1s = GC pressure at scale | enrichbgp.go | Fixed: 5s debounce; incremental noted as follow-up |
+| 5 | LOW | bgpEnrichBuilder.Stop did not wait for goroutine | enrichbgp.go | Fixed: doneCh + started guard |
+| 6 | LOW | samplingWorker.run could spin on sustained parse errors | sampling_worker.go | Fixed: consecutive-error backoff |
+| 7 | LOW | agent-address not validated (silent 0.0.0.0 fallback) | config.go | Fixed: validate() rejects bad agent-address |
+| 8 | LOW | ipfix WriteDataSet lacked per-iteration bounds guard | ipfix/data.go | Fixed: matches netflow9/flow_data guard |
+| 9 | LOW | sFlow sample_pool uint32 overflow at high rate*seq | sflow/flow_adapter.go | Fixed: uint64 saturating compute |
+| 10 | LOW | missing bidirectional // Related: refs | flow_template/flow.go | Fixed |
+| 11 | HIGH(test) | exporter dispatch/Stop + family split untested | exporter_test.go, netflow9/flow_adapter_test.go | Fixed: added unit + regression tests |
+
+### Run 3 accepted / documented (not changed)
+- Config silently ignores unknown JSON keys: the YANG schema is the authoritative unknown-key gate before this JSON is produced; the lenient map parse is a secondary layer shared with the pre-existing collector parser. Accepted.
+- `Enrichment.SrcASPath/DstASPath` are scaffolding for the deferred AS-path feature (nil today); kept rather than churned.
+- Per-packet `make` in psample parse and Prometheus `With()` on the sample path: codebase-wide metrics pattern; sampling is rate-limited (1-in-N). Noted as a future optimization, not changed in isolation.
+- `WriteExtendedGateway` bounds (dead code) / `WriteMessage` template+data combo: unreachable today; documented preconditions.
+
+### Final status
+- [ ] `/ze-review-deep` clean: 0 critical, 0 unaddressed high (the one HIGH was a test-coverage gap, now filled)
+- Re-verified: golangci-lint 0 issues, `go test -race ./internal/component/flowexport/...` pass, go vet clean darwin + GOOS=linux, ze + ze.linux + ze-test build.
 
 ## Pre-Commit Verification
 

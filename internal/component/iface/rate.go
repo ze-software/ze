@@ -53,6 +53,24 @@ func bindMetricsRegistry(reg metrics.Registry) {
 
 var globalTracker atomic.Pointer[rateTracker]
 
+// CollectNotifyFunc is called after each collect() cycle with the raw
+// (pre-baseline) interface data from ListInterfaces(). Used by the
+// flowexport component to receive counter snapshots without polling.
+type CollectNotifyFunc func([]InterfaceInfo)
+
+var collectNotifyPtr atomic.Pointer[CollectNotifyFunc]
+
+// RegisterCollectNotify sets the callback invoked after each collect()
+// with raw interface data. Only one callback is supported; the last
+// registration wins. Pass nil to unregister.
+func RegisterCollectNotify(fn CollectNotifyFunc) {
+	if fn == nil {
+		collectNotifyPtr.Store(nil)
+		return
+	}
+	collectNotifyPtr.Store(&fn)
+}
+
 // rateTracker computes per-interface rates from kernel counter deltas.
 //
 // Goroutine confinement: prev, prevAt, and knownNames are accessed
@@ -154,6 +172,10 @@ func (t *rateTracker) collect() {
 
 	updateIfaceMetrics(newRates)
 	cleanStaleIfaceMetrics(previousNames, newNames)
+
+	if fn := collectNotifyPtr.Load(); fn != nil {
+		(*fn)(ifs)
+	}
 }
 
 func rateDelta(cur, prev uint64, elapsed float64) float64 {

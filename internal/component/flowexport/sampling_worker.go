@@ -1,0 +1,137 @@
+// Design: plan/spec-flow-export-2-flow-records.md -- packet sampling lifecycle
+// Related: sampling/tc_linux.go -- SetupSampling / RemoveSampling (tc sample action)
+// Related: sampling/psample_linux.go -- PsampleReader (generic netlink reception)
+
+package flowexport
+
+import (
+	"net"
+	"sync/atomic"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/flowexport/sampling"
+)
+
+const (
+	// maxConsecutiveReadErrors is how many back-to-back psample read errors
+	// are tolerated before the reader backs off. A sustained stream of
+	// unparseable kernel messages would otherwise spin the CPU at 100%.
+	maxConsecutiveReadErrors = 10
+	// psampleErrorBackoff is the pause inserted after the error threshold.
+	psampleErrorBackoff = 100 * time.Millisecond
+)
+
+// samplingWorker installs tc sample actions on the configured interfaces and
+// runs a single long-lived goroutine that reads sampled packets from the
+// kernel psample group and dispatches them to the exporter's sFlow
+// collectors as flow samples.
+//
+// Platform specifics live in the sampling package: on non-Linux hosts
+// SetupSampling and NewPsampleReader return errors and the worker degrades
+// to a no-op (logged once).
+type samplingWorker struct {
+	exp    *Exporter
+	cfgs   []SamplingConfig
+	reader *sampling.PsampleReader
+
+	idxToName map[uint32]string
+	stopped   atomic.Bool
+	doneCh    chan struct{}
+}
+
+func newSamplingWorker(exp *Exporter, cfgs []SamplingConfig) *samplingWorker {
+	return &samplingWorker{
+		exp:       exp,
+		cfgs:      cfgs,
+		idxToName: make(map[uint32]string),
+		doneCh:    make(chan struct{}),
+	}
+}
+
+// Start installs sampling on each configured interface and launches the
+// reader goroutine. Failures are logged; a failed setup leaves the worker
+// idle rather than aborting the whole exporter.
+func (w *samplingWorker) Start() {
+	log := loggerPtr.Load()
+
+	for i := range w.cfgs {
+		c := &w.cfgs[i]
+		if err := sampling.SetupSampling(c.Interface, c.Rate, c.Group, c.TruncSize); err != nil {
+			log.Warn("flow-export: tc sample setup failed",
+				"interface", c.Interface, "error", err)
+			continue
+		}
+		if iface, err := net.InterfaceByName(c.Interface); err == nil {
+			w.idxToName[uint32(iface.Index)] = c.Interface
+		}
+		log.Info("flow-export: packet sampling enabled",
+			"interface", c.Interface, "rate", c.Rate, "group", c.Group)
+	}
+
+	reader, err := sampling.NewPsampleReader()
+	if err != nil {
+		log.Warn("flow-export: psample reader unavailable; sampling idle", "error", err)
+		close(w.doneCh)
+		return
+	}
+	w.reader = reader
+
+	go w.run()
+}
+
+func (w *samplingWorker) run() {
+	defer close(w.doneCh)
+	consecutiveErrs := 0
+	for {
+		pkt, err := w.reader.Read()
+		if err != nil {
+			// A closed socket (Stop) and transient parse errors both surface
+			// here. Exit on stop; otherwise keep reading, but back off if the
+			// errors are sustained so a stream of unparseable kernel messages
+			// cannot spin the CPU.
+			if w.stopped.Load() {
+				return
+			}
+			consecutiveErrs++
+			if consecutiveErrs == maxConsecutiveReadErrors {
+				loggerPtr.Load().Warn("flow-export: repeated psample read errors, backing off", "error", err)
+			}
+			if consecutiveErrs >= maxConsecutiveReadErrors {
+				time.Sleep(psampleErrorBackoff)
+			}
+			continue
+		}
+		consecutiveErrs = 0
+
+		// Samples arrive only for interfaces we set up; an unmapped ifIndex
+		// is unexpected, so it is attributed to a generic label.
+		name := w.idxToName[pkt.IfIndex]
+		if name == "" {
+			name = "unknown"
+		}
+		incSamples(name)
+
+		w.exp.ExportFlowSample(FlowSample{
+			IfIndex:  pkt.IfIndex,
+			Rate:     pkt.Rate,
+			OrigSize: pkt.OrigSize,
+			Header:   pkt.Header,
+		})
+	}
+}
+
+// Stop removes the tc sample actions, closes the reader (unblocking the
+// goroutine), and waits for it to exit.
+func (w *samplingWorker) Stop() {
+	w.stopped.Store(true)
+	if w.reader != nil {
+		_ = w.reader.Close()
+	}
+	for i := range w.cfgs {
+		if err := sampling.RemoveSampling(w.cfgs[i].Interface); err != nil {
+			loggerPtr.Load().Debug("flow-export: tc sample teardown",
+				"interface", w.cfgs[i].Interface, "error", err)
+		}
+	}
+	<-w.doneCh
+}

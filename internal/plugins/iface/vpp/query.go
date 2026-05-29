@@ -116,6 +116,10 @@ func (b *vppBackendImpl) GetMACAddress(name string) (string, error) {
 	return info.MAC, nil
 }
 
+// LinkSpeedDuplex returns (0, ""): VPP owns its interfaces in userspace, so
+// they have no /sys/class/net entry to read speed/duplex from.
+func (b *vppBackendImpl) LinkSpeedDuplex(_ string) (int, string) { return 0, "" }
+
 // SetMACAddress changes the L2 address of the named interface. The MAC is
 // parsed from the Ethernet-standard colon form ("aa:bb:cc:dd:ee:ff"). VPP
 // rejects multicast and broadcast MACs with a non-zero retval.

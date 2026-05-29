@@ -54,6 +54,7 @@ func (m *mockMigrateBackend) SetMACAddress(_, _ string) error {
 func (m *mockMigrateBackend) GetMACAddress(_ string) (string, error) {
 	return "", fmt.Errorf("mock: not supported")
 }
+func (m *mockMigrateBackend) LinkSpeedDuplex(_ string) (int, string) { return 0, "" }
 func (m *mockMigrateBackend) GetStats(_ string) (*InterfaceStats, error) {
 	return nil, fmt.Errorf("mock: not supported")
 }

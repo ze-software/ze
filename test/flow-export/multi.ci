@@ -1,0 +1,150 @@
+# Test: two collectors (sFlow + IPFIX) each receive their own datagram.
+#
+# VALIDATES: spec-flow-export-1 AC-1 -- each configured collector opens its own
+#            UDP socket to its own address:port.
+#            spec-flow-export-1 AC-6 -- multiple collectors coexist; each runs
+#            its own exporter with the correct protocol encoder (sFlow version 5
+#            on one, IPFIX version 10 on the other).
+# PREVENTS:  regression where a second collector shadows the first, where both
+#            collectors share one encoder/socket, or where only one of two
+#            configured collectors actually transmits.
+#
+# Architecture:
+#   One external receiver binds BOTH UDP ports before signalling ready:
+#   $PORT2 (sflow) and $PORT (ipfix). No ze-peer is used in this suite, so
+#   $PORT is free for the second receiver socket. With polling-interval 1 both
+#   datagrams arrive within ~1-2s; the receiver asserts each carries the right
+#   version byte, then dispatches `daemon shutdown`.
+
+option=env:var=ze.log.flow.export:value=info
+option=timeout:value=25s
+
+tmpfs=multi-receiver.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Bind two UDP ports, assert sFlow(v5) on $PORT2 and IPFIX(v10) on $PORT."""
+import select
+import socket
+import struct
+
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+
+
+def bind(port):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind(('127.0.0.1', port))
+    return s
+
+
+def main():
+    sflow_sock = bind($PORT2)
+    ipfix_sock = bind($PORT)
+
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    got_sflow = False
+    got_ipfix = False
+    import time
+    deadline = time.time() + 10.0
+    while time.time() < deadline and not (got_sflow and got_ipfix):
+        ready, _, _ = select.select([sflow_sock, ipfix_sock], [], [], 1.0)
+        for s in ready:
+            data, _ = s.recvfrom(65535)
+            if s is sflow_sock:
+                if len(data) >= 4 and struct.unpack('!I', data[:4])[0] == 5:
+                    got_sflow = True
+                else:
+                    runtime_fail('sFlow datagram had wrong version')
+            elif s is ipfix_sock:
+                if len(data) >= 2 and struct.unpack('!H', data[:2])[0] == 0x000a:
+                    got_ipfix = True
+                else:
+                    runtime_fail('IPFIX datagram had wrong version')
+
+    if not got_sflow:
+        runtime_fail('no sFlow datagram received on $PORT2')
+    if not got_ipfix:
+        runtime_fail('no IPFIX datagram received on $PORT')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external multi-receiver {
+		run ./multi-receiver.run
+		encoder json
+	}
+}
+
+environment {
+	log {
+		flow.export info
+	}
+}
+
+flow-export {
+	collector sflow1 {
+		address 127.0.0.1
+		port $PORT2
+		protocol sflow
+		polling-interval 1
+	}
+	collector ipfix1 {
+		address 127.0.0.1
+		port $PORT
+		protocol ipfix
+		polling-interval 1
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process multi-receiver {
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=25s
+expect=exit:code=0
+expect=stderr:contains=flow-export configured

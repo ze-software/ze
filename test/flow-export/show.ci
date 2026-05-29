@@ -1,0 +1,135 @@
+# Test: `show flow-export` returns the configured sFlow collector.
+#
+# VALIDATES: spec-flow-export-1 AC-7 -- the show handler surfaces per-collector
+#            status (name, address, port, protocol, datagrams-sent, bytes-sent,
+#            errors, sequence, last-export-time) for every configured collector.
+#            spec-flow-export-1 AC-1 -- a single sflow collector config starts
+#            the exporter so GetExporter() is non-nil and Status() reports it.
+# PREVENTS:  regression where the flow-export config parses but the exporter is
+#            never registered (GetExporter()==nil -> "not-configured"), or where
+#            the collector list is empty because Status() reads stale state.
+#
+# Architecture:
+#   The external observer (spawned by ze via plugin/external) dispatches
+#   `show flow-export`, asserts the configured collector is visible with the
+#   right name/address/protocol, then dispatches `daemon shutdown`.
+
+option=env:var=ze.log.flow.export:value=info
+option=timeout:value=20s
+
+tmpfs=show-flow-export.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Dispatch show flow-export and assert the configured collector is present."""
+import json
+import time
+
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    collectors = None
+    for _ in range(100):
+        r = dispatch(api, 'show flow-export')
+        if r.get('status') == 'done':
+            try:
+                data = json.loads(r.get('data', '') or 'null')
+            except json.JSONDecodeError:
+                data = None
+            # not-configured is a dict; configured collectors are a list.
+            if isinstance(data, list) and len(data) >= 1:
+                collectors = data
+                break
+        time.sleep(0.1)
+    if collectors is None:
+        runtime_fail('no collector ever appeared in `show flow-export`')
+
+    c = collectors[0]
+    if c.get('name') != 'c1':
+        runtime_fail(f'collector name={c.get("name")!r} want "c1"')
+    if c.get('address') != '127.0.0.1':
+        runtime_fail(f'collector address={c.get("address")!r} want "127.0.0.1"')
+    if c.get('protocol') != 'sflow':
+        runtime_fail(f'collector protocol={c.get("protocol")!r} want "sflow"')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external show-flow-export-test {
+		run ./show-flow-export.run
+		encoder json
+	}
+}
+
+environment {
+	log {
+		flow.export info
+	}
+}
+
+flow-export {
+	collector c1 {
+		address 127.0.0.1
+		port $PORT2
+		protocol sflow
+		polling-interval 1
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process show-flow-export-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=flow-export configured

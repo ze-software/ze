@@ -514,16 +514,24 @@ Specific RFC constraints to document in code:
 ## Implementation Summary
 
 ### What Was Implemented
-- [Pending]
+- `flowexport` component (register.go) running in-process via the SDK, registering a counter snapshot callback with the iface rate tracker (`iface.RegisterCollectNotify`) -- single collection, multiple consumers, raw pre-baseline counters.
+- Shared UDP sender + 1400-byte `sync.Pool` buffer infrastructure (sender.go).
+- sFlow v5 counter datagram encoder (sflow/), NetFlow v9 template + data FlowSet encoder (netflow9/), IPFIX template Set + data Set encoder (ipfix/), all buffer-first.
+- YANG config (collector list) + parse/validate with boundary checks; `show flow-export [<collector>]` RPC (`ze-show:flow-export`) and its CLI tree container; Prometheus metrics (datagrams/bytes/errors).
 
-### Bugs Found/Fixed
-- [Pending]
+### Bugs Found/Fixed (this closure session)
+- IPFIX counter records used Delta IEs (1/2) for raw cumulative counters; changed to Total IEs (85/86) so collectors do not misread them as per-interval deltas.
+- `MaxDatagramSize` was duplicated in the sflow package; now references `flowexport.MaxDatagramSize`.
+- `ze_flowexport_datagrams_total` counted once per Encode call; sFlow can emit several datagrams per call, so it now increments by the sender datagram-count delta.
+- Template refresh timestamp advanced even on a failed template send; now advances only on success.
+- `show flow-export` was unreachable: added the `flow-export` container to the show-command YANG tree.
 
 ### Documentation Updates
-- [Pending]
+- docs/features.md, docs/guide/flow-export.md (new), docs/guide/configuration.md, docs/guide/command-reference.md, docs/comparison.md, docs/architecture/core-design.md, docs/architecture/api/commands.md.
 
 ### Deviations from Plan
-- [Pending]
+- AC-9: implemented for all three protocols. sFlow batches+spills via WriteCounterDatagrams; the NetFlow v9 and IPFIX adapters now chunk interface records across datagrams (`maxCounterRecordsPerDatagram`). This also fixed a latent IPFIX buffer-overflow panic for devices with more than ~43 interfaces (WriteDataSet had no bounds guard).
+- AC-10: implemented as a `health.Register("flow-export", ...)` check (component-idiomatic, mirrors ipsec/firewall/vpp) rather than a `diagnostic` doctor provider. Outbound UDP has no reachability handshake, so the check reports per-collector send-error state, which is the observable equivalent.
 
 ## Implementation Audit
 
@@ -534,6 +542,18 @@ Specific RFC constraints to document in code:
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `NewExporter`/`NewSender` open UDP to collector; `test/flow-export/sflow.ci` | |
+| AC-2 | Done | `sflow.WriteCounterDatagrams`; `sflow/counter_test.go`; `sflow.ci` | if_counters 88-byte XDR |
+| AC-3 | Done | `notifyFromRateTracker` maps raw kernel stats to if_counters | ifSpeed/ifType zero (deferred C3) |
+| AC-4 | Done | `netflow9.WriteExportPacket` + `EncodeTemplate`; `netflow9/*_test.go`; `netflow9.ci` | |
+| AC-5 | Done | `ipfix.WriteMessage`; `ipfix/*_test.go`; `ipfix.ci` | Total IEs 85/86 |
+| AC-6 | Done | `OnConfigure` swaps exporter on reload; `test/flow-export/reload.ci`, `multi.ci` | |
+| AC-7 | Done | `Exporter.Status`; `cmd/show/flow_export.go`; `test/flow-export/show.ci` | |
+| AC-8 | Done | `notifyFromRateTracker` sets IfStatus from interface State each tick | |
+| AC-9 | Done | sFlow `WriteCounterDatagrams` batches+overflows; NF9/IPFIX adapters chunk records across datagrams (`maxCounterRecordsPerDatagram`); `{netflow9,ipfix}/adapter_test.go` | seq increments per datagram |
+| AC-10 | Done | `health.go` registers `flow-export` health check; reports per-collector send-error state | UDP is connectionless: "reachability" realised as send-error health (true reachability unobservable) |
+| AC-11 | Done | `metrics.go` BindMetrics; `grep ze_flowexport internal/component/flowexport` | |
+| AC-12 | Done | `hasFlowExportSection` gate; no socket without config | |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -555,17 +575,30 @@ Specific RFC constraints to document in code:
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | `show flow-export` missing from show-command YANG tree (unreachable) | cmd/show/schema/ze-cli-show-cmd.yang | Fixed: added flow-export container |
+| 2 | ISSUE | template timestamp set even on EncodeTemplate failure | exporter.go | Fixed: advance only on success |
+| 3 | ISSUE | datagrams metric counted per Encode call, not per datagram | exporter.go | Fixed: sender datagram-count delta |
+| 4 | ISSUE | duplicate MaxDatagramSize constant in sflow | sflow/encoder.go | Fixed: use flowexport.MaxDatagramSize |
+| 5 | ISSUE | IPFIX used Delta IEs for cumulative counters | ipfix/{ie,template,data}.go | Fixed: octetTotalCount/packetTotalCount (85/86) |
 
 ### Fixes applied
-- [Pending]
+- All five findings above fixed in this session. Re-verified: `golangci-lint` 0 issues, `go test ./internal/component/flowexport/...` pass, `go vet` clean on darwin and `GOOS=linux`.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 6 | BLOCKER | IPFIX WriteDataSet had no buffer bound: panic for >~43 interfaces | ipfix/adapter.go | Fixed: chunk records across datagrams (AC-9); proven by ipfix/adapter_test.go |
+| 7 | ISSUE | NetFlow v9 silently truncated counter records beyond one datagram | netflow9/adapter.go | Fixed: same chunking |
+| 8 | ISSUE | AC-10 collector health not surfaced | health.go | Fixed: flow-export health check |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+Closure note: Findings 1-8 fixed and re-verified (golangci-lint 0 issues, unit tests pass
+including the new chunking tests, go vet clean darwin + GOOS=linux). All AC-1..AC-12 are
+Done. The formal `/ze-review` pass and the two-commit closure are user-triggered (commits
+cannot be made from the agent per repo git-safety rules).
 
 ## Pre-Commit Verification
 

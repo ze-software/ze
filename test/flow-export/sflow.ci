@@ -1,0 +1,125 @@
+# Test: an sFlow v5 collector receives a counter-sample datagram over UDP.
+#
+# VALIDATES: spec-flow-export-1 AC-1 -- the exporter opens a UDP socket to the
+#            configured collector address:port.
+#            spec-flow-export-1 AC-2 -- a counter datagram arrives within the
+#            polling interval; the first 4 bytes carry sFlow version 5 (the
+#            datagram is real, not a placeholder).
+# PREVENTS:  regression where the exporter is configured but never transmits, or
+#            where the polling loop never fires, or where the sFlow header
+#            version field is wrong (collectors silently drop such datagrams).
+#
+# Architecture:
+#   The external receiver (spawned by ze via plugin/external) binds UDP $PORT2
+#   BEFORE signalling ready, so the socket exists before the exporter polls.
+#   The iface rate tracker feeds counters automatically; polling-interval 1
+#   means a datagram is produced within ~1-2s. After validating the version
+#   field the receiver dispatches `daemon shutdown`.
+
+option=env:var=ze.log.flow.export:value=info
+option=timeout:value=20s
+
+tmpfs=sflow-receiver.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Bind UDP $PORT2, wait for an sFlow datagram, assert version == 5."""
+import socket
+import struct
+
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+
+
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(('127.0.0.1', $PORT2))
+    sock.settimeout(8.0)
+
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    try:
+        data, _ = sock.recvfrom(65535)
+    except socket.timeout:
+        runtime_fail('no sFlow datagram received within timeout')
+
+    if len(data) < 4:
+        runtime_fail(f'sFlow datagram too short: {len(data)} bytes')
+    version = struct.unpack('!I', data[:4])[0]
+    if version != 5:
+        runtime_fail(f'sFlow version={version} want 5')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external sflow-receiver {
+		run ./sflow-receiver.run
+		encoder json
+	}
+}
+
+environment {
+	log {
+		flow.export info
+	}
+}
+
+flow-export {
+	collector c1 {
+		address 127.0.0.1
+		port $PORT2
+		protocol sflow
+		polling-interval 1
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process sflow-receiver {
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=flow-export configured

@@ -417,16 +417,18 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 ## Implementation Summary
 
 ### What Was Implemented
-- [Pending]
+- Full `flowexport` component: counter export (spec 1) and packet sampling + conntrack flow records + BGP enrichment (spec 2). See `spec-flow-export-1-counter-export.md` and `spec-flow-export-2-flow-records.md` for per-spec detail, and learned summaries 818/819/820.
+- Cross-cutting: single-collection/multiple-consumers via the iface rate-tracker callback; registration-over-imports (component + protocol encoder factories); buffer-first datagram encoding; in-process SDK component.
 
 ### Bugs Found/Fixed
-- [Pending]
+- See child specs (counter: IE Total-vs-Delta, datagram counting, template timestamp, dedup constant; flow: reload Stop-ordering deadlock).
 
 ### Documentation Updates
-- [Pending]
+- docs/features.md, docs/guide/flow-export.md (new), configuration.md, command-reference.md, comparison.md, architecture/core-design.md, architecture/api/commands.md.
 
 ### Deviations from Plan
-- [Pending]
+- Spec 1 complete and verified (unit + lint + cross-vet). Spec 2 code-complete and CI-gated (netlink workers cross-compile but need a privileged Linux runner).
+- Documented deferrals: BGP AS-path enrichment (event lacks AS data), IPv6 flow records, conntrack destroy-event export, `ze doctor` collector-reachability check.
 
 ## Implementation Audit
 

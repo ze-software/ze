@@ -54,6 +54,7 @@ func (s *stubBackend) SetMTU(_ string, _ int) error                           { 
 func (s *stubBackend) SetMACAddress(_, _ string) error                        { return unsupported() }
 func (s *stubBackend) GetMACAddress(_ string) (string, error)                 { return "", unsupported() }
 func (s *stubBackend) GetStats(_ string) (*iface.InterfaceStats, error)       { return nil, unsupported() }
+func (s *stubBackend) LinkSpeedDuplex(_ string) (int, string)                 { return 0, "" }
 func (s *stubBackend) ListInterfaces() ([]iface.InterfaceInfo, error)         { return nil, unsupported() }
 func (s *stubBackend) GetInterface(_ string) (*iface.InterfaceInfo, error)    { return nil, unsupported() }
 func (s *stubBackend) ListNeighbors(_ int) ([]iface.NeighborInfo, error)      { return nil, unsupported() }

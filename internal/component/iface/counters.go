@@ -99,6 +99,7 @@ func (s *baselineStore) applyBaseline(name string, stats *InterfaceStats) {
 	stats.RxPackets -= base.RxPackets
 	stats.RxErrors -= base.RxErrors
 	stats.RxDropped -= base.RxDropped
+	stats.RxMulticast -= base.RxMulticast
 	stats.TxBytes -= base.TxBytes
 	stats.TxPackets -= base.TxPackets
 	stats.TxErrors -= base.TxErrors
@@ -115,6 +116,7 @@ func wrapped(raw, base *InterfaceStats) bool {
 		raw.RxPackets < base.RxPackets ||
 		raw.RxErrors < base.RxErrors ||
 		raw.RxDropped < base.RxDropped ||
+		raw.RxMulticast < base.RxMulticast ||
 		raw.TxBytes < base.TxBytes ||
 		raw.TxPackets < base.TxPackets ||
 		raw.TxErrors < base.TxErrors ||

@@ -74,14 +74,15 @@ type StatePayload struct {
 
 // InterfaceStats holds interface traffic counters from the kernel.
 type InterfaceStats struct {
-	RxBytes   uint64 `json:"rx-bytes"`
-	RxPackets uint64 `json:"rx-packets"`
-	RxErrors  uint64 `json:"rx-errors"`
-	RxDropped uint64 `json:"rx-dropped"`
-	TxBytes   uint64 `json:"tx-bytes"`
-	TxPackets uint64 `json:"tx-packets"`
-	TxErrors  uint64 `json:"tx-errors"`
-	TxDropped uint64 `json:"tx-dropped"`
+	RxBytes     uint64 `json:"rx-bytes"`
+	RxPackets   uint64 `json:"rx-packets"`
+	RxErrors    uint64 `json:"rx-errors"`
+	RxDropped   uint64 `json:"rx-dropped"`
+	RxMulticast uint64 `json:"rx-multicast,omitempty"`
+	TxBytes     uint64 `json:"tx-bytes"`
+	TxPackets   uint64 `json:"tx-packets"`
+	TxErrors    uint64 `json:"tx-errors"`
+	TxDropped   uint64 `json:"tx-dropped"`
 }
 
 // DHCPPayload is the JSON payload for DHCP lease events.
@@ -111,6 +112,7 @@ type InterfaceInfo struct {
 	Stats       *InterfaceStats `json:"stats,omitempty"`
 	ParentIndex int             `json:"parent-index,omitempty"`
 	VlanID      int             `json:"vlan-id,omitempty"`
+	Promisc     bool            `json:"promiscuous,omitempty"`
 }
 
 // AddrInfo describes an IP address assigned to an interface.

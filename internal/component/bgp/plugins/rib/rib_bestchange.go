@@ -817,6 +817,18 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	entry := newRec.resolve(r.bestPathInterner, action, pfx, pathID, addPath)
 	entry.Labels = bestLabels
 	entry.SRv6SID = srv6SID
+	// Attach the winner's AS_PATH and origin AS for downstream consumers
+	// (e.g. flow-export BGP enrichment). Cold path: once per best-path change,
+	// not per packet. The AS_PATH bytes are already interned in the pool;
+	// formatASPath turns them into a flat ASN slice.
+	if newBest.ASPathHandle.IsValid() {
+		if data, err := pool.ASPath.Get(newBest.ASPathHandle); err == nil {
+			if asPath := formatASPath(data); len(asPath) > 0 {
+				entry.ASPath = asPath
+				entry.OriginAS = asPath[len(asPath)-1]
+			}
+		}
+	}
 	return entry, true
 }
 

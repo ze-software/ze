@@ -429,13 +429,14 @@ func (b *netlinkBackend) GetStats(ifaceName string) (*iface.InterfaceStats, erro
 		return &iface.InterfaceStats{}, nil
 	}
 	return &iface.InterfaceStats{
-		RxBytes:   s.RxBytes,
-		RxPackets: s.RxPackets,
-		RxErrors:  s.RxErrors,
-		RxDropped: s.RxDropped,
-		TxBytes:   s.TxBytes,
-		TxPackets: s.TxPackets,
-		TxErrors:  s.TxErrors,
-		TxDropped: s.TxDropped,
+		RxBytes:     s.RxBytes,
+		RxPackets:   s.RxPackets,
+		RxErrors:    s.RxErrors,
+		RxDropped:   s.RxDropped,
+		RxMulticast: s.Multicast,
+		TxBytes:     s.TxBytes,
+		TxPackets:   s.TxPackets,
+		TxErrors:    s.TxErrors,
+		TxDropped:   s.TxDropped,
 	}, nil
 }
