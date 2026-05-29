@@ -71,6 +71,7 @@ func runImageServerPlugin(conn net.Conn) int {
 	defer closeLogged(p, log, "plugin conn")
 
 	var httpServer *http.Server
+	var zefsDir string
 
 	stopServer := func() {
 		if httpServer != nil {
@@ -78,6 +79,12 @@ func runImageServerPlugin(conn net.Conn) int {
 				log.Debug("imageserver: http close failed", "error", err)
 			}
 			httpServer = nil
+		}
+		if zefsDir != "" {
+			if err := os.RemoveAll(zefsDir); err != nil {
+				log.Debug("imageserver: remove zefs dir failed", "error", err)
+			}
+			zefsDir = ""
 		}
 	}
 
@@ -89,7 +96,28 @@ func runImageServerPlugin(conn net.Conn) int {
 			return
 		}
 
-		mux := newMux(cfg)
+		var zefsPath string
+		if cfg.SSHUsername != "" && cfg.SSHPasswordHash != "" {
+			tmpDir, tmpErr := os.MkdirTemp("", "imageserver-zefs-*")
+			if tmpErr != nil {
+				log.Error("imageserver: create zefs temp dir failed", "error", tmpErr)
+				return
+			}
+			zefsDir = tmpDir
+
+			var buildErr error
+			zefsPath, buildErr = buildZefsDB(tmpDir, cfg.SSHUsername, cfg.SSHPasswordHash)
+			if buildErr != nil {
+				log.Error("imageserver: build zefs database failed", "error", buildErr)
+				if rmErr := os.RemoveAll(tmpDir); rmErr != nil {
+					log.Debug("imageserver: remove zefs temp dir failed", "error", rmErr)
+				}
+				zefsDir = ""
+				return
+			}
+		}
+
+		mux := newMux(cfg, zefsPath)
 
 		bindIP := ""
 		if len(cfg.ListenInterfaces) > 0 {

@@ -90,5 +90,11 @@ func verifyConfig(cfg imageConfig) error {
 	if cfg.ImageDirectory == "" && cfg.BootDirectory == "" {
 		return errors.New("image-server: at least one of image-directory or boot-directory is required when enabled")
 	}
+	// SSH credentials drive the /install/database.zefs endpoint; requiring both
+	// or neither prevents a half-configured state that silently 404s the
+	// endpoint with no indication the credential pair is incomplete.
+	if (cfg.SSHUsername == "") != (cfg.SSHPasswordHash == "") {
+		return errors.New("image-server: ssh-username and ssh-password-hash must both be set or both empty")
+	}
 	return nil
 }

@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 func closeBody(t *testing.T, resp *http.Response) {
@@ -55,7 +57,7 @@ func newTestMux(t *testing.T) *http.ServeMux {
 		ImageDirectory: imageDir,
 		BootDirectory:  bootDir,
 	}
-	return newMux(cfg)
+	return newMux(cfg, "")
 }
 
 func TestServeImage(t *testing.T) {
@@ -240,6 +242,114 @@ func TestServeBootPathTraversal(t *testing.T) {
 
 	if resp.StatusCode == http.StatusOK {
 		t.Error("path traversal should not return 200")
+	}
+}
+
+func TestServeZefsDB(t *testing.T) {
+	t.Parallel()
+
+	imageDir := t.TempDir()
+	bootDir := t.TempDir()
+	zefsDir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(imageDir, "gokrazy.img"), []byte("IMG"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	zefsPath, err := buildZefsDB(zefsDir, "admin", "$2a$10$examplehash")
+	if err != nil {
+		t.Fatalf("buildZefsDB: %v", err)
+	}
+
+	cfg := imageConfig{
+		Enabled:        true,
+		ImageDirectory: imageDir,
+		BootDirectory:  bootDir,
+	}
+	mux := newMux(cfg, zefsPath)
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	resp := testGet(t, ts.URL+"/install/database.zefs")
+	defer closeBody(t, resp)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(body) == 0 {
+		t.Fatal("expected non-empty zefs database")
+	}
+
+	// Verify the served zefs contains the expected SSH credentials.
+	tmpFile := filepath.Join(t.TempDir(), "verify.zefs")
+	if err := os.WriteFile(tmpFile, body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	store, err := zefs.Open(tmpFile)
+	if err != nil {
+		t.Fatalf("zefs.Open: %v", err)
+	}
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("close store: %v", err)
+		}
+	}()
+
+	username, err := store.ReadFile(zefs.KeySSHUsername.Key("127.0.0.1", "2222"))
+	if err != nil {
+		t.Fatalf("read username: %v", err)
+	}
+	if string(username) != "admin" {
+		t.Errorf("username = %q, want admin", string(username))
+	}
+
+	password, err := store.ReadFile(zefs.KeySSHPassword.Key("127.0.0.1", "2222"))
+	if err != nil {
+		t.Fatalf("read password: %v", err)
+	}
+	if string(password) != "$2a$10$examplehash" {
+		t.Errorf("password = %q, want $2a$10$examplehash", string(password))
+	}
+
+	def, err := store.ReadFile(zefs.KeySSHDefault.Pattern)
+	if err != nil {
+		t.Fatalf("read default: %v", err)
+	}
+	if string(def) != "127.0.0.1/2222" {
+		t.Errorf("default = %q, want 127.0.0.1/2222", string(def))
+	}
+}
+
+func TestServeZefsDBNoCreds(t *testing.T) {
+	t.Parallel()
+
+	imageDir := t.TempDir()
+	bootDir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(imageDir, "gokrazy.img"), []byte("IMG"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := imageConfig{
+		Enabled:        true,
+		ImageDirectory: imageDir,
+		BootDirectory:  bootDir,
+	}
+	mux := newMux(cfg, "")
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	resp := testGet(t, ts.URL+"/install/database.zefs")
+	defer closeBody(t, resp)
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", resp.StatusCode)
 	}
 }
 

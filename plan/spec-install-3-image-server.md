@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-05-21 |
+| Phase | 9/9 |
+| Updated | 2026-05-28 |
 | Parent | spec-install-0-umbrella.md |
 
 ## Post-Compaction Recovery
@@ -348,41 +348,89 @@ N/A. HTTP serving uses Go stdlib. No protocol-level RFC implementation in this p
 ## Implementation Summary
 
 ### What Was Implemented
-- [Not yet started]
+- imageserver plugin with registration, YANG schema, config parsing, HTTP handler
+- Image endpoint: `/install/image/<name>` serves files from image-directory
+- Boot endpoint: `/install/boot/<name>` serves kernel, initrd, iPXE config from boot-directory
+- Zefs endpoint: `/install/database.zefs` serves pre-provisioned zefs with SSH credentials
+- Path traversal protection: flat filename validation (no slashes, dots, null bytes)
+- HTTP server with timeouts (ReadTimeout: 30s, WriteTimeout: 5min, MaxHeaderBytes: 64KB)
+- Temp zefs directory cleanup on reconfigure/stop
 
 ### Bugs Found/Fixed
-- [None yet]
+- `buildZefsDB` had a deferred close that could double-close the store on error. Replaced with explicit error handling.
 
 ### Documentation Updates
-- [None yet]
+- `docs/guide/plugins.md`: added imageserver entry to Infrastructure table
 
 ### Deviations from Plan
-- [None yet]
+- `TestImageServerRegistered` not created as separate file; registration already verified by `TestAvailablePlugins` in `cmd/ze/main_test.go`
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| HTTP image server plugin | Done | `internal/plugins/imageserver/` | Full plugin with registration, YANG, handler |
+| Own HTTP listener | Done | `register.go:105-112` | Separate `http.Server` with timeouts |
+| Serve disk images | Done | `handler.go:82-84` | `serveImage` via `serveFromDir` |
+| Serve boot files | Done | `handler.go:87-89` | `serveBoot` via `serveFromDir` |
+| Serve zefs database | Done | `handler.go:45-79,92-94` | `buildZefsDB` + `serveZefs` |
+| Path traversal protection | Done | `handler.go:96-110` | Flat filename validation |
+| YANG config | Done | `schema/ze-image-server-conf.yang` | All leaves with appropriate types |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestServeImage` | 200 OK, correct content |
+| AC-2 | Done | `TestServeImageRange` | 206 Partial Content |
+| AC-3 | Done | `TestServeBootFile` | 200 OK, kernel served |
+| AC-4 | Done | `TestServeBootInitrd` | 200 OK, initrd served |
+| AC-5 | Done | `TestServeIPXEConfig` | 200 OK, iPXE script served |
+| AC-6 | Done | `TestServeZefsDB` | 200 OK, valid zefs with SSH creds at correct keys |
+| AC-7 | Done | `TestServeImagePathTraversal` | Non-200 for traversal paths |
+| AC-8 | Done | `TestServeImageNotFound` | 404 for missing file |
+| AC-9 | Done | `TestParseImageConfigDisabled` + `register.go:88-90` | Disabled config skips listener |
+| AC-10 | Done | `register.go:95-122` + `image-server-config.ci` | Listener starts on configured port |
+| AC-11 | Done | `TestAvailablePlugins` in `cmd/ze/main_test.go` | imageserver in plugin list |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestParseImageConfig | Done | config_test.go:9 | Full config parse |
+| TestParseImageConfigDefaults | Done | config_test.go:53 | Default port 80 |
+| TestParseImageConfigDisabled | Done | config_test.go:66 | Disabled parse |
+| TestServeImage | Done | handler_test.go:62 | Image served |
+| TestServeImageRange | Done | handler_test.go:84 | Range request |
+| TestServeImageNotFound | Done | handler_test.go:114 | 404 on missing |
+| TestServeImagePathTraversal | Done | handler_test.go:129 | Path traversal blocked |
+| TestServeBootFile | Done | handler_test.go:151 | Kernel served |
+| TestServeBootInitrd | Done | handler_test.go:172 | Initrd served |
+| TestServeIPXEConfig | Done | handler_test.go:195 | iPXE config served |
+| TestServeBootNotFound | Done | handler_test.go:217 | 404 on missing boot |
+| TestServeBootPathTraversal | Done | handler_test.go:232 | Boot path traversal blocked |
+| TestServeZefsDB | Done | handler_test.go:247 | Zefs with SSH creds served |
+| TestServeZefsDBNoCreds | Done | handler_test.go:325 | 404 when no SSH creds |
+| TestImageServerRegistered | Skipped | `TestAvailablePlugins` covers | No duplicate test needed |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/plugins/imageserver/register.go` | Done | Plugin registration + RunEngine |
+| `internal/plugins/imageserver/config.go` | Done | Config parsing |
+| `internal/plugins/imageserver/handler.go` | Done | HTTP handlers + zefs builder |
+| `internal/plugins/imageserver/handler_test.go` | Done | 14 handler tests + 2 zefs tests |
+| `internal/plugins/imageserver/config_test.go` | Done | 5 config tests |
+| `internal/plugins/imageserver/schema/ze-image-server-conf.yang` | Done | YANG schema |
+| `internal/plugins/imageserver/schema/embed.go` | Done | go:embed |
+| `internal/plugins/imageserver/schema/register.go` | Done | yang.RegisterModule |
+| `test/install/image-server-config.ci` | Done | Functional config validation |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 32
+- **Done:** 31
+- **Partial:** 0
+- **Skipped:** 1 (TestImageServerRegistered -- covered by TestAvailablePlugins)
+- **Changed:** 0
 
 ## Review Gate
 

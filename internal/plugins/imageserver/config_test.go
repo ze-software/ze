@@ -88,6 +88,9 @@ func TestVerifyImageConfig(t *testing.T) {
 		{"enabled with image-dir", imageConfig{Enabled: true, ImageDirectory: "/tmp"}, false},
 		{"enabled with boot-dir", imageConfig{Enabled: true, BootDirectory: "/tmp"}, false},
 		{"enabled no dirs", imageConfig{Enabled: true}, true},
+		{"both ssh creds", imageConfig{Enabled: true, ImageDirectory: "/tmp", SSHUsername: "admin", SSHPasswordHash: "$2y$.."}, false},
+		{"ssh username only", imageConfig{Enabled: true, ImageDirectory: "/tmp", SSHUsername: "admin"}, true},
+		{"ssh hash only", imageConfig{Enabled: true, ImageDirectory: "/tmp", SSHPasswordHash: "$2y$.."}, true},
 	}
 
 	for _, tc := range tests {
