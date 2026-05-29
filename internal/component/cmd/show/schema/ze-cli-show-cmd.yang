@@ -193,7 +193,7 @@ module ze-cli-show-cmd {
 
         container host {
             config false;
-            description "Hardware inventory: CPU, NICs, DMI, memory, thermal, storage, kernel";
+            description "Hardware inventory: CPU, NICs, DMI, memory, thermal, storage, kernel, platform";
 
             container cpu {
                 config false;
@@ -235,6 +235,12 @@ module ze-cli-show-cmd {
                 config false;
                 ze:command "ze-show:host-kernel";
                 description "Show Linux kernel release, cmdline, microcode revision, boot time, and security-relevant CPU flags";
+            }
+
+            container platform {
+                config false;
+                ze:command "ze-show:host-platform";
+                description "Show runtime platform type and capability flags: read-only root, privilege availability, systemd, gokrazy update socket and UI, reboot-allowed, persistent-storage writability, and file-descriptor limits";
             }
 
             container all {
