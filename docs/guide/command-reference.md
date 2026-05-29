@@ -475,6 +475,25 @@ ze show traffic                   # Summary of all interfaces with qdiscs
 ze show traffic <ifname>          # Detail for one interface
 ```
 
+### show flow-export
+
+Per-collector flow export statistics for the `flowexport` component (sFlow v5,
+NetFlow v9, IPFIX). Returns `{"status": "not-configured"}` when no
+`flow-export { }` section is present.
+
+```
+ze show flow-export               # All configured collectors
+ze show flow-export <collector>   # One collector by name (error if not found)
+```
+
+Each entry reports `name`, `address`, `port`, `protocol`, `datagrams-sent`,
+`bytes-sent`, `errors`, `sequence`, and `last-export-time` (Unix seconds,
+omitted before the first poll). JSON by default; full pipe operators supported.
+See the [Flow Export guide](flow-export.md).
+
+<!-- source: internal/component/cmd/show/flow_export.go -- handleShowFlowExport, ze-show:flow-export -->
+<!-- source: internal/component/flowexport/exporter.go -- Exporter.Status -->
+
 ### show ip
 
 Kernel routing and neighbor tables. Both commands dispatch through the
@@ -506,6 +525,26 @@ preferred-source IP when the kernel reports one.
 <!-- source: internal/component/cmd/show/ip.go -- handleShowArp, handleShowIPRoute -->
 <!-- source: internal/plugins/iface/netlink/neighbor_linux.go -- ListNeighbors -->
 <!-- source: internal/plugins/iface/netlink/route_linux.go -- ListKernelRoutes -->
+
+### show mpls
+
+MPLS label-switching forwarding table, read directly from the kernel
+AF_MPLS routing table (the authoritative dataplane state, like `show ip
+route` for IP).
+
+```
+ze show mpls forwarding                 # All installed MPLS forwarding entries
+ze show mpls forwarding --limit 500     # Cap the response size
+```
+
+Each entry reports the incoming label (`in-label`), the `operation`
+applied (`swap` when an outgoing label stack is programmed, `pop` for
+disposition / implicit-null), any `out-labels`, the `next-hop`, and the
+egress `device`. On non-Linux platforms the table is empty (the kernel
+MPLS FIB is Linux-only).
+
+<!-- source: internal/component/cmd/show/mpls_forwarding.go -- handleShowMPLSForwarding -->
+<!-- source: internal/component/cmd/show/mpls_forwarding_linux.go -- dumpMPLSRoutes -->
 
 ### show pki
 
@@ -1033,7 +1072,7 @@ forks `ze -` to start DHCP+PXE, TFTP, and HTTP servers for PXE-booting
 target machines with a gokrazy image.
 
 ```
-ze install serve --interface eth0 --network 10.0.0.0/24 \
+ze install remote --interface eth0 --network 10.0.0.0/24 \
   --image /path/to/gokrazy.img \
   --ssh-username admin --ssh-password secret
 ```
@@ -1057,7 +1096,7 @@ On gokrazy appliances ze runs as root by default.
 
 SIGTERM/SIGINT are forwarded to the child ze process for clean shutdown.
 <!-- source: cmd/ze/install/main.go -- Run, usage -->
-<!-- source: cmd/ze/install/serve.go -- runServe, serveUsage -->
+<!-- source: cmd/ze/install/serve.go -- runRemote, remoteUsage -->
 <!-- source: cmd/ze/install/config.go -- generateConfig, validateFlags -->
 <!-- source: cmd/ze/install/fork.go -- forkAndServe -->
 
@@ -1436,6 +1475,25 @@ Many commands take a `peer <selector>` argument:
 | `peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
 | `peer <sel> flush` | write | Block until all queued updates for peer are on the wire |
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang -->
+
+### Policy Test (Dry-Run)
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `show policy test peer <sel> export update <HEX>` | read-only | Dry-run the peer's configured export chain against a BGP UPDATE |
+| `show policy test peer <sel> import update <HEX>` | read-only | Dry-run the peer's configured import chain against a BGP UPDATE |
+| `show policy test peer <sel> export filter <NAME> update <HEX>` | read-only | Dry-run a single named filter against a BGP UPDATE |
+
+The peer selector comes first (`peer <sel>`, matching `show bgp peer <sel> ...`), then the direction (`import`/`export`), then optional `filter <NAME>`, then `update <HEX>`.
+
+`<HEX>` is a hex-encoded full BGP UPDATE message (including the 19-byte header). The `0x` prefix is optional.
+
+Optional: `source-asn4 false` to test with ASN2 encoding context (default: ASN4). This is what makes AS4_PATH (RFC 6793) the active path carrier.
+
+Output is structured JSON with fields: `direction`, `peer`, `action` (accept/reject/modify), `trace` (per-filter decisions), `text-before`, `text-after`, `changed-attrs`, and `wire-changes` (wire-level attribute ops such as `AS4_PATH suppressed` that the flat filter text cannot express).
+
+This command does not forward routes, update the RIB, populate cache, or mutate peer state.
+<!-- source: internal/component/cmd/show/show_policy_test_cmd.go -->
 
 ### Set Commands
 

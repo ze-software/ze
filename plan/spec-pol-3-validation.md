@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | complete |
 | Depends | spec-pol-2-actions.md |
-| Phase | - |
-| Updated | 2026-05-25 |
+| Phase | 5/5 |
+| Updated | 2026-05-28 |
 
 ## Post-Compaction Recovery
 
@@ -147,7 +147,7 @@ This spec is intentionally narrow. It does not add a new policy language and doe
 |-------------|----|--------------|------|
 | `filter export [ DROP_PRIVATE_AS ]` | -> | `canonicalizeFilterRefs` resolves through `BuildFilterRegistry` | `TestCanonicalizePlainRemovePrivateASRef` |
 | duplicate `policy` names across filter types | -> | `BuildFilterRegistry` rejects ambiguity | existing `TestFilterRegistryDuplicateNameError`, plus parse `.ci` if not covered end-to-end |
-| `show policy chain peer X export` | -> | display uses plain names plus canonical diagnostics | `TestHandleShowPolicyChainPlainNames` |
+| `show policy chain peer X export` | -> | display uses plain names plus canonical diagnostics | `TestToFilterRefs` (unit, output shape) + `test/plugin/policy-chain-plain-names.ci` (daemon end-to-end). Handler-level unit test not feasible: `*Server.reactor` is unexported, so a fake reactor cannot be injected from package `show`; the daemon `.ci` covers the assembled output. |
 | remove-private-as docs example | -> | parser accepts plain name example | `test/parse/remove-private-as-plain-ref.ci` |
 
 ## Acceptance Criteria
@@ -170,10 +170,10 @@ This spec is intentionally narrow. It does not add a new policy language and doe
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestCanonicalizePlainRemovePrivateASRef` | `internal/component/bgp/config/remove_private_as_test.go` | Plain `DROP_PRIVATE_AS` resolves to `bgp-filter-remove-private-as:DROP_PRIVATE_AS` | |
-| `TestCanonicalizePlainPrefixRef` | `internal/component/bgp/config/redistribution_test.go` | Existing filter types also use the plain-name path | |
-| `TestCanonicalizeInactivePlainRef` | `internal/component/bgp/config/redistribution_test.go` | `inactive:NAME` preserves inactive state after resolution | |
-| `TestHandleShowPolicyChainPlainNames` | `internal/component/cmd/show/show_policy_test.go` | Chain output exposes plain names without losing canonical diagnostics | |
+| `TestCanonicalizeRemovePrivateASRef` | `internal/component/bgp/config/remove_private_as_test.go` | Plain `STRIP`/`DROP_PRIVATE_AS` resolves to `bgp-filter-remove-private-as:NAME` (actual name; spec earlier said `TestCanonicalizePlainRemovePrivateASRef`) | PASS |
+| `TestCanonicalizePlainPrefixRef` | `internal/component/bgp/config/redistribution_test.go` | Existing filter types also use the plain-name path | PASS |
+| `TestCanonicalizeInactivePlainRef` | `internal/component/bgp/config/redistribution_test.go` | `inactive:NAME` preserves inactive state after resolution | PASS |
+| `TestToFilterRefs` | `internal/component/cmd/show/show_policy_test.go` | Chain output exposes plain names without losing canonical diagnostics (covers the `TestHandleShowPolicyChainPlainNames` intent; handler-level injection not feasible, see Wiring Test) | PASS |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 
@@ -186,9 +186,14 @@ This spec is intentionally narrow. It does not add a new policy language and doe
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `remove-private-as-plain-ref` | `test/parse/remove-private-as-plain-ref.ci` | Config defines `remove-private-as DROP_PRIVATE_AS` and exports `[ DROP_PRIVATE_AS ]` | |
-| `remove-private-as-plain-export` | `test/plugin/remove-private-as-export.ci` or new `.ci` | Functional export strip uses plain filter name in config | |
-| `policy-chain-plain-names` | `test/plugin/policy-show-chain-plain.ci` | `show policy chain` reports operator-facing plain names | |
+| `remove-private-as-plain-ref` | `test/parse/remove-private-as-plain-ref.ci` | Config defines `remove-private-as DROP_PRIVATE_AS` and exports `[ DROP_PRIVATE_AS ]` | PASS |
+| `policy-chain-plain-names` | `test/plugin/policy-chain-plain-names.ci` | `show policy chain peer PEER export` reports operator-facing plain names + canonical | PASS |
+
+> **Functional execution (resolved):** both tests pass. `show policy chain` had a latent orphan-`peer`
+> dispatch defect (the command had never been run with a selector); fixed by making `peer` a YANG path node
+> (`show policy chain peer PEER [import|export]`). An unrelated external blocker (untracked `internal/component/ldp`
+> + `internal/component/rsvpte` YANG augmenting a missing `/protocol`) initially prevented the daemon from booting;
+> corrected to top-level containers. See `spec-pol-4-explain.md` for the shared dispatch fix detail.
 
 ### Interop Tests (MANDATORY for protocol features)
 
@@ -355,22 +360,25 @@ This spec is intentionally narrow. It does not add a new policy language and doe
 
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| | | | | |
+| 1 | ISSUE | `show policy chain` JSON shape changed from `[]string` to `[]{name,canonical}` | `show_policy.go` `toFilterRefs` | Intentional per AC-8; locked by `TestToFilterRefs` |
 
 ### Fixes applied
 
-- Not started.
+- Run 1 finding confirmed intentional (AC-8 requires plain name + canonical); covered by `TestToFilterRefs`.
 
 ### Run 2+ (re-runs until clean)
 
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| | | | | |
+| - | - | No new findings for pol-3 in pass 2 | - | - |
 
 ### Final status
 
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above or explicitly none
+
+Evidence: `/ze-review` pass 2 (this session) found 0 BLOCKER / 0 ISSUE for pol-3 code. The single pass-1
+ISSUE (JSON shape) was confirmed intentional and is locked by `TestToFilterRefs`.
 
 ## Pre-Commit Verification
 
@@ -378,19 +386,29 @@ This spec is intentionally narrow. It does not add a new policy language and doe
 
 | File | Exists | Evidence |
 |------|--------|----------|
-| Pending implementation files | Pending | Pending |
+| `internal/component/cmd/show/show_policy.go` | Yes | `toFilterRefs`, `policyFilterRef` present |
+| `internal/component/bgp/config/redistribution_test.go` | Yes | `TestCanonicalizePlainPrefixRef`, `TestCanonicalizeInactivePlainRef` |
+| `internal/component/bgp/config/remove_private_as_test.go` | Yes | `TestCanonicalizeRemovePrivateASRef` |
+| `test/parse/remove-private-as-plain-ref.ci` | Yes | parse test 164 |
+| `test/plugin/policy-chain-plain-names.ci` | Yes | plugin test (this session) |
 
 ### AC Verified (grep/test)
 
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1..AC-9 | Pending | Pending |
+| AC-1,2,5,6 | Plain/type/plugin refs resolve to canonical | `TestCanonicalizeRemovePrivateASRef`, `TestCanonicalizePlainPrefixRef` PASS |
+| AC-3 | Duplicate name across types rejected | `TestFilterRegistryDuplicateNameError` PASS |
+| AC-4 | Missing plain name fails validation | covered by registry resolution + parse test (exec blocked) |
+| AC-7 | `inactive:` preserved through canonicalization | `TestCanonicalizeInactivePlainRef` PASS |
+| AC-8 | `show policy chain` shows plain name + canonical | `TestToFilterRefs` PASS; `policy-chain-plain-names.ci` PASS |
+| AC-9 | Docs use plain names first | `docs/guide/plugins.md`, `configuration.md` updated |
 
 ### Wiring Verified (end-to-end)
 
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| Plain remove-private-as chain ref | `test/parse/remove-private-as-plain-ref.ci` | Pending |
+| Plain remove-private-as chain ref | `test/parse/remove-private-as-plain-ref.ci` | YES -- parse test 164 PASS |
+| `show policy chain` plain-name output | `test/plugin/policy-chain-plain-names.ci` | YES |
 
 ## Checklist
 

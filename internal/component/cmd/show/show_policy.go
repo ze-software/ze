@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/commands.md -- show policy introspection handlers
 // Related: show.go -- show verb RPC registration
+// Related: show_policy_test_cmd.go -- policy dry-run test handler
 //
 // Policy introspection commands: list filter types/instances, show peer chains.
 // Read-only queries with no state mutation.
@@ -7,15 +8,20 @@
 package show
 
 import (
-	"fmt"
 	"net/netip"
 	"sort"
 	"strconv"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
+
+type policyFilterRef struct {
+	Name      string `json:"name"`
+	Canonical string `json:"canonical"`
+}
 
 func init() {
 	pluginserver.RegisterRPCs(
@@ -84,16 +90,16 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*pl
 		if direction != "import" && direction != "export" {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Error:  fmt.Sprintf("invalid direction %q (expected import or export)", direction),
+				Error:  "invalid direction " + strconv.Quote(direction) + " (expected import or export)",
 			}, nil
 		}
 	}
 
 	type peerChain struct {
-		Peer   string   `json:"peer"`
-		Name   string   `json:"name,omitempty"`
-		Import []string `json:"import,omitempty"`
-		Export []string `json:"export,omitempty"`
+		Peer   string            `json:"peer"`
+		Name   string            `json:"name,omitempty"`
+		Import []policyFilterRef `json:"import,omitempty"`
+		Export []policyFilterRef `json:"export,omitempty"`
 	}
 
 	chains := make([]peerChain, 0, len(matched))
@@ -104,10 +110,10 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*pl
 			Name: p.Name,
 		}
 		if direction == "" || direction == "import" {
-			entry.Import = p.ImportFilters
+			entry.Import = toFilterRefs(p.ImportFilters)
 		}
 		if direction == "" || direction == "export" {
-			entry.Export = p.ExportFilters
+			entry.Export = toFilterRefs(p.ExportFilters)
 		}
 		chains = append(chains, entry)
 	}
@@ -160,4 +166,26 @@ func filterPeersByPolicySelector(peers []plugin.PeerInfo, selector string) []plu
 	}
 
 	return nil
+}
+
+// toFilterRefs converts canonical runtime refs (e.g. "bgp-filter-prefix:CUSTOMERS")
+// into policyFilterRef entries exposing both the operator-facing plain name and the
+// canonical form for diagnostics.
+func toFilterRefs(canonicals []string) []policyFilterRef {
+	if len(canonicals) == 0 {
+		return nil
+	}
+	refs := make([]policyFilterRef, len(canonicals))
+	for i, c := range canonicals {
+		inactive := strings.TrimPrefix(c, "inactive:")
+		name := inactive
+		if _, after, ok := strings.Cut(inactive, ":"); ok {
+			name = after
+		}
+		if c != inactive {
+			name = "inactive:" + name
+		}
+		refs[i] = policyFilterRef{Name: name, Canonical: c}
+	}
+	return refs
 }

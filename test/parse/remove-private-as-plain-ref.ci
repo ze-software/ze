@@ -1,0 +1,35 @@
+# Test: ze config validate with remove-private-as using plain filter name
+# VALIDATES: AC-1, AC-9 -- plain unique name DROP_PRIVATE_AS resolves without prefix.
+# PREVENTS: Regression requiring remove-private-as:NAME prefix for filter chain refs.
+stdin=config:terminator=EOF_CONF
+bgp {
+	policy {
+		remove-private-as DROP_PRIVATE_AS {
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 64496
+				remote 64497
+			}
+		}
+		filter {
+			export [ DROP_PRIVATE_AS ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

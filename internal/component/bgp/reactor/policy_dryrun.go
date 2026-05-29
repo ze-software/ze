@@ -1,0 +1,306 @@
+// Design: docs/architecture/core-design.md -- policy filter chain
+// Spec: plan/spec-pol-4-explain.md -- policy dry-run trace
+// Related: filter_chain.go -- PolicyFilterChain (runtime execution)
+// Related: filter_format.go -- AppendUpdateForFilter (text rendering)
+// Related: filter_delta.go -- textDeltaToModOps (wire diff extraction)
+
+package reactor
+
+import (
+	"errors"
+	"net/netip"
+	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+)
+
+// TracePolicyFilterChain runs a chain of named filters on an update text and
+// records per-filter trace entries. It reuses the same PolicyFilterFunc and
+// semantics as PolicyFilterChain (reject short-circuits, default accept,
+// inactive filters skipped) but captures each filter's decision.
+func TracePolicyFilterChain(filterRefs []string, direction, peer string, peerAS uint32, updateText string, callFilter PolicyFilterFunc) (PolicyAction, string, []plugin.PolicyTraceEntry) {
+	if len(filterRefs) == 0 {
+		return PolicyAccept, updateText, nil
+	}
+
+	var trace []plugin.PolicyTraceEntry
+	current := updateText
+
+	for _, ref := range filterRefs {
+		if strings.HasPrefix(ref, "inactive:") {
+			continue
+		}
+		pluginName, filterName, _ := strings.Cut(ref, ":")
+		result := callFilter(pluginName, filterName, direction, peer, peerAS, current)
+
+		entry := plugin.PolicyTraceEntry{
+			Filter:    filterName,
+			Canonical: ref,
+		}
+
+		switch result.Action {
+		case PolicyReject:
+			entry.Action = dryRunActionReject
+			entry.TextAfter = ""
+			trace = append(trace, entry)
+			return PolicyReject, "", trace
+		case PolicyModify:
+			entry.Action = dryRunActionModify
+			entry.Delta = result.Delta
+			current = applyFilterDelta(current, result.Delta)
+			entry.TextAfter = current
+		case PolicyAccept:
+			entry.Action = dryRunActionAccept
+			entry.TextAfter = current
+		}
+
+		trace = append(trace, entry)
+	}
+
+	return PolicyAccept, current, trace
+}
+
+const (
+	dryRunActionAccept = "accept"
+	dryRunActionReject = "reject"
+	dryRunActionModify = "modify"
+)
+
+var (
+	errPeerNotFound      = errors.New("peer not found")
+	errFilterNotFound    = errors.New("filter not found in peer chain")
+	errInvalidUpdateBody = errors.New("invalid UPDATE message body")
+	errInvalidDirection  = errors.New("direction must be import or export")
+)
+
+// PolicyDryRun implements plugin.PolicyDryRunner on reactorAPIAdapter.
+func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride string, updateBody []byte, asn4 bool) (*plugin.PolicyDryRunResult, error) {
+	// Defense-in-depth: the CLI parser already enforces import/export, but
+	// PolicyDryRun is an exported interface. Reject an unknown direction so a
+	// direct caller cannot silently get an empty (accept) chain.
+	if direction != "import" && direction != "export" {
+		return nil, errInvalidDirection
+	}
+
+	addr, err := netip.ParseAddr(peerAddr)
+	if err != nil {
+		return nil, errPeerNotFound
+	}
+
+	// Snapshot everything needed from the peer under r.mu: ImportFilters /
+	// ExportFilters can be rewritten by the peer FSM goroutine
+	// (resolveDynamicPeerSettings) for dynamic peers, so copy the slice here
+	// rather than reading it after the lock is released. peerAS/localAS are
+	// fixed at NewPeer and safe to read in the same critical section.
+	r := a.r
+	var filterRefs []string
+	var peerAS, localAS uint32
+	found := false
+	r.mu.RLock()
+	for _, p := range r.peers {
+		s := p.Settings()
+		if s.Address != addr {
+			continue
+		}
+		found = true
+		peerAS = s.PeerAS
+		localAS = s.LocalAS
+		switch direction {
+		case "import":
+			filterRefs = append([]string(nil), s.ImportFilters...)
+		case "export":
+			filterRefs = append([]string(nil), s.ExportFilters...)
+		}
+		break
+	}
+	r.mu.RUnlock()
+
+	if !found {
+		return nil, errPeerNotFound
+	}
+
+	// If a single filter override is specified, find it in the chain.
+	if filterOverride != "" {
+		ref := resolveFilterOverride(filterOverride, filterRefs)
+		if ref == "" {
+			return nil, errFilterNotFound
+		}
+		filterRefs = []string{ref}
+	}
+
+	// Validate the UPDATE body parses correctly before proceeding.
+	if _, err := message.UnpackUpdate(updateBody); err != nil {
+		return nil, errInvalidUpdateBody
+	}
+
+	// Build a temporary WireUpdate for text rendering.
+	ctxID := bgpctx.APIContextID
+	if !asn4 {
+		// Register the ASN2 encoding context. The only failure is registry
+		// exhaustion (65535 distinct contexts); surface it rather than silently
+		// falling back to ctxID 0, which would render with the wrong ASN4 setting.
+		id, regErr := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(false))
+		if regErr != nil {
+			return nil, regErr
+		}
+		ctxID = id
+	}
+	wu := wireu.NewWireUpdate(updateBody, ctxID)
+
+	// Parse attributes from the update body.
+	attrs, err := wu.Attrs()
+	if err != nil {
+		return nil, errInvalidUpdateBody
+	}
+
+	var buf []byte
+	buf = AppendUpdateForFilter(buf, attrs, wu, nil)
+	textBefore := string(buf)
+
+	// Run the trace chain using the real filter function (calls plugins via IPC).
+	callFilter := r.policyFilterFunc(updateBody)
+	action, textAfter, trace := TracePolicyFilterChain(
+		filterRefs, direction, peerAddr, peerAS, textBefore, callFilter,
+	)
+
+	var actionStr string
+	switch action {
+	case PolicyReject:
+		actionStr = dryRunActionReject
+	case PolicyModify:
+		// TracePolicyFilterChain never returns PolicyModify (only PolicyAccept/PolicyReject),
+		// but exhaustive switch requires coverage.
+		actionStr = dryRunActionModify
+	case PolicyAccept:
+		if textAfter != textBefore {
+			actionStr = dryRunActionModify
+		} else {
+			actionStr = dryRunActionAccept
+		}
+	}
+
+	// Compute changed attributes.
+	var changedAttrs []string
+	var wireChanges []string
+	if textBefore != textAfter && textAfter != "" {
+		changedAttrs = computeChangedAttrs(textBefore, textAfter)
+		wireChanges = computeWireChanges(textBefore, textAfter, attrs, asn4, peerAS, localAS)
+	}
+
+	return &plugin.PolicyDryRunResult{
+		Direction:    direction,
+		Peer:         peerAddr,
+		Action:       actionStr,
+		Trace:        trace,
+		TextBefore:   textBefore,
+		TextAfter:    textAfter,
+		ChangedAttrs: changedAttrs,
+		WireChanges:  wireChanges,
+	}, nil
+}
+
+// computeWireChanges mirrors the runtime egress/ingress text-to-wire path
+// (reactor_api_forward.go and reactor_notify.go) to surface wire-level
+// attribute modifications that the flat filter text cannot express. The
+// principal case is remove-private-as (RFC 6996) suppressing or rewriting
+// AS4_PATH (RFC 6793), which never appears in the text format because
+// AppendUpdateForFilter renders only the merged "as-path".
+//
+// It builds the same ModAccumulator the forward path builds but does not
+// construct a modified payload: this is a read-only explanation, so it only
+// reports the operations as "<ATTRIBUTE> <verb>" strings.
+func computeWireChanges(before, after string, attrs *attribute.AttributesWire, asn4 bool, peerAS, localAS uint32) []string {
+	var mods registry.ModAccumulator
+	textDeltaToModOps(before, after, &mods)
+	ExtractRemovePrivateASOps(after, attrs, asn4, peerAS, &mods)
+	ExtractASPathPrependOps(after, localAS, &mods)
+
+	ops := mods.Ops()
+	if len(ops) == 0 {
+		return nil
+	}
+
+	changes := make([]string, 0, len(ops))
+	for _, op := range ops {
+		changes = append(changes, attribute.AttributeCode(op.Code).String()+" "+wireModVerb(op.Action))
+	}
+	return changes
+}
+
+// wireModVerb maps a ModAccumulator action to a human-readable verb for
+// dry-run output.
+func wireModVerb(action uint8) string {
+	switch action {
+	case registry.AttrModSet:
+		return "set"
+	case registry.AttrModAdd:
+		return "add"
+	case registry.AttrModRemove:
+		return "remove"
+	case registry.AttrModPrepend:
+		return "prepend"
+	case registry.AttrModSuppress:
+		return "suppressed"
+	default:
+		return "modified"
+	}
+}
+
+// resolveFilterOverride finds the canonical ref for a filter override name.
+// Accepts plain names, type-prefixed, and plugin-prefixed forms.
+//
+// Inactive refs (prefixed "inactive:") are skipped: TracePolicyFilterChain
+// never runs them, so matching one would silently yield an "accept" result
+// with an empty trace, misleading the operator into thinking the filter is
+// permissive. Returning "" makes the handler report "filter not found"
+// instead.
+func resolveFilterOverride(name string, chain []string) string {
+	for _, ref := range chain {
+		if strings.HasPrefix(ref, "inactive:") {
+			continue
+		}
+		if ref == name {
+			return ref
+		}
+		// Match by filter instance name (after first colon, e.g. "plugin:FILTER" -> "FILTER").
+		if _, after, ok := strings.Cut(ref, ":"); ok {
+			if after == name {
+				return ref
+			}
+		}
+	}
+	return ""
+}
+
+// computeChangedAttrs compares before and after filter text and returns
+// the list of attribute names that differ.
+func computeChangedAttrs(before, after string) []string {
+	beforeAttrs := parseFilterAttrs(before)
+	afterAttrs := parseFilterAttrs(after)
+
+	// Iterate in the canonical attribute order used by formatFilterAttrs
+	// so output is deterministic without sorting.
+	order := [...]string{
+		"origin", "as-path", "next-hop", "med", "local-preference",
+		policyAttrAtomicAggregate, "aggregator", "community", "originator-id",
+		"cluster-list", "extended-community", "aigp", "large-community",
+		"community-add", "community-remove",
+		"large-community-add", "large-community-remove",
+		"extended-community-add", "extended-community-remove",
+		"as-path-prepend", policyAttrRemovePrivate, policyAttrNLRI,
+	}
+	var changed []string
+	for _, name := range order {
+		bv, bOK := beforeAttrs[name]
+		av, aOK := afterAttrs[name]
+		if bOK != aOK || bv != av {
+			changed = append(changed, name)
+		}
+	}
+	return changed
+}

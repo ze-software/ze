@@ -802,8 +802,53 @@ module ze-cli-show-cmd {
 
             container chain {
                 config false;
-                ze:command "ze-show:policy-chain";
                 description "Show effective filter chain for a peer (import/export)";
+
+                container peer {
+                    config false;
+                    ze:command "ze-show:policy-chain";
+                    description "Peer selector, then optional import|export direction";
+                    leaf direction {
+                        type enumeration {
+                            enum import;
+                            enum export;
+                        }
+                        description "Policy direction to show (default: both)";
+                    }
+                }
+            }
+
+            container test {
+                config false;
+                description "Dry-run a BGP UPDATE through a policy chain or single filter (read-only, no forwarding)";
+
+                container peer {
+                    config false;
+                    ze:command "ze-show:policy-test";
+                    description "Peer selector, then direction, optional filter, and update bytes";
+                    leaf direction {
+                        type enumeration {
+                            enum import;
+                            enum export;
+                        }
+                        description "Policy direction to test";
+                    }
+                    leaf filter {
+                        type string;
+                        description "Optional single filter instance name to test instead of the full chain";
+                    }
+                    leaf update {
+                        type string;
+                        description "Hex-encoded BGP UPDATE message bytes (preceded by the 'update' keyword)";
+                    }
+                    leaf source-asn4 {
+                        type enumeration {
+                            enum true;
+                            enum false;
+                        }
+                        description "Source ASN4 encoding context (default: true)";
+                    }
+                }
             }
         }
 
@@ -918,6 +963,57 @@ module ze-cli-show-cmd {
             config false;
             ze:command "ze-show:kernel-routes";
             description "Kernel routing table via the iface backend. Optional positional CIDR (or 'default') narrows the dump; --limit N caps the response size. Top-level shortcut for `show ip route`; same handler.";
+        }
+
+        container mpls {
+            config false;
+            description "MPLS label-switching introspection";
+
+            container forwarding {
+                config false;
+                ze:command "ze-show:mpls-forwarding";
+                description "Installed MPLS forwarding entries from the kernel AF_MPLS table (in-label, operation, next-hop). --limit N caps the response size.";
+            }
+        }
+
+        container rsvp-te {
+            config false;
+            description "RSVP-TE traffic-engineering introspection";
+
+            container lsp {
+                config false;
+                ze:command "ze-show:rsvp-te-lsp";
+                description "RSVP-TE LSPs: state, role, bandwidth, in/out labels.";
+            }
+
+            container interface {
+                config false;
+                ze:command "ze-show:rsvp-te-interface";
+                description "RSVP-TE per-interface reserved / available / max bandwidth.";
+            }
+
+            container tunnel {
+                config false;
+                ze:command "ze-show:rsvp-te-tunnel";
+                description "RSVP-TE configured tunnels and their state.";
+            }
+        }
+
+        container ldp {
+            config false;
+            description "LDP label-distribution introspection";
+
+            container neighbor {
+                config false;
+                ze:command "ze-show:ldp-neighbor";
+                description "LDP neighbors with session state and transport address.";
+            }
+
+            container binding {
+                config false;
+                ze:command "ze-show:ldp-binding";
+                description "LDP FEC-to-label bindings (local and remote).";
+            }
         }
 
         container vpp {
@@ -1086,6 +1182,12 @@ module ze-cli-show-cmd {
                 ze:command "ze-show:storage-smart";
                 description "Show SMART health status, temperature, power-on hours, and self-test schedule for all block devices";
             }
+        }
+
+        container flow-export {
+            config false;
+            ze:command "ze-show:flow-export";
+            description "Show flow export collector status, protocol stats, and errors. Usage: show flow-export [<collector>].";
         }
     }
 }

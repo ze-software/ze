@@ -67,3 +67,67 @@ func TestHandleShowPolicyList(t *testing.T) {
 		t.Errorf("count = %d, want >= 0", count)
 	}
 }
+
+// VALIDATES: AC-8 -- toFilterRefs extracts plain name from canonical plugin refs.
+// PREVENTS: show policy chain exposing only plugin-prefixed names to operators.
+func TestToFilterRefs(t *testing.T) {
+	tests := []struct {
+		name       string
+		canonicals []string
+		wantNames  []string
+		wantCanon  []string
+	}{
+		{
+			name:       "plugin_prefixed",
+			canonicals: []string{"bgp-filter-prefix:CUSTOMERS"},
+			wantNames:  []string{"CUSTOMERS"},
+			wantCanon:  []string{"bgp-filter-prefix:CUSTOMERS"},
+		},
+		{
+			name:       "remove_private_as",
+			canonicals: []string{"bgp-filter-remove-private-as:STRIP"},
+			wantNames:  []string{"STRIP"},
+			wantCanon:  []string{"bgp-filter-remove-private-as:STRIP"},
+		},
+		{
+			name:       "inactive",
+			canonicals: []string{"inactive:bgp-filter-prefix:DENY"},
+			wantNames:  []string{"inactive:DENY"},
+			wantCanon:  []string{"inactive:bgp-filter-prefix:DENY"},
+		},
+		{
+			name:       "plain_passthrough",
+			canonicals: []string{"UNRESOLVED"},
+			wantNames:  []string{"UNRESOLVED"},
+			wantCanon:  []string{"UNRESOLVED"},
+		},
+		{
+			name:       "empty",
+			canonicals: nil,
+			wantNames:  nil,
+			wantCanon:  nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			refs := toFilterRefs(tt.canonicals)
+			if tt.wantNames == nil {
+				if refs != nil {
+					t.Fatalf("expected nil, got %v", refs)
+				}
+				return
+			}
+			if len(refs) != len(tt.wantNames) {
+				t.Fatalf("len = %d, want %d", len(refs), len(tt.wantNames))
+			}
+			for i, r := range refs {
+				if r.Name != tt.wantNames[i] {
+					t.Errorf("[%d] name = %q, want %q", i, r.Name, tt.wantNames[i])
+				}
+				if r.Canonical != tt.wantCanon[i] {
+					t.Errorf("[%d] canonical = %q, want %q", i, r.Canonical, tt.wantCanon[i])
+				}
+			}
+		})
+	}
+}

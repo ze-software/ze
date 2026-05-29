@@ -7,7 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_prefix"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // TestFilterConfigParse verifies parsing filter leaf-lists.
@@ -321,4 +323,37 @@ bgp {
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
 	assert.Contains(t, peers[0].ImportFilters, "rpki:validate")
+}
+
+// TestCanonicalizePlainPrefixRef verifies plain filter names resolve through
+// the filter registry and FilterTypesMap for prefix-list filters.
+//
+// VALIDATES: AC-1, AC-2 -- plain unique name resolves to canonical plugin ref.
+// PREVENTS: Plain name left unresolved, reaching runtime as bare string.
+func TestCanonicalizePlainPrefixRef(t *testing.T) {
+	reg := &FilterRegistry{entries: map[string]FilterEntry{
+		"CUSTOMERS": {Name: "CUSTOMERS", Type: "prefix-list"},
+	}}
+	typesMap := registry.FilterTypesMap()
+
+	got := canonicalizeOne("CUSTOMERS", reg, typesMap)
+	assert.Equal(t, "bgp-filter-prefix:CUSTOMERS", got)
+
+	got = canonicalizeOne("prefix-list:CUSTOMERS", reg, typesMap)
+	assert.Equal(t, "bgp-filter-prefix:CUSTOMERS", got)
+}
+
+// TestCanonicalizeInactivePlainRef verifies inactive: prefix is preserved
+// around plain name canonicalization.
+//
+// VALIDATES: AC-7 -- inactive state survives plain-name resolution.
+// PREVENTS: inactive: stripped or inactive filter reactivated by canonicalization.
+func TestCanonicalizeInactivePlainRef(t *testing.T) {
+	reg := &FilterRegistry{entries: map[string]FilterEntry{
+		"CUSTOMERS": {Name: "CUSTOMERS", Type: "prefix-list"},
+	}}
+	typesMap := registry.FilterTypesMap()
+
+	got := canonicalizeOne("inactive:CUSTOMERS", reg, typesMap)
+	assert.Equal(t, "inactive:bgp-filter-prefix:CUSTOMERS", got)
 }

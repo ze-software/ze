@@ -214,6 +214,41 @@ type ReactorIntrospector interface {
 	GetPeerCapabilityConfigs() []PeerCapabilityConfig
 }
 
+// PolicyTraceEntry holds the result of one filter invocation during a dry-run.
+type PolicyTraceEntry struct {
+	Filter    string `json:"filter"`
+	Canonical string `json:"canonical"`
+	Action    string `json:"action"`
+	Delta     string `json:"delta,omitempty"`
+	TextAfter string `json:"text-after"`
+}
+
+// PolicyDryRunResult holds the complete output of a policy dry-run.
+type PolicyDryRunResult struct {
+	DataMarker
+	Direction    string             `json:"direction"`
+	Peer         string             `json:"peer"`
+	Action       string             `json:"action"`
+	Trace        []PolicyTraceEntry `json:"trace"`
+	TextBefore   string             `json:"text-before"`
+	TextAfter    string             `json:"text-after"`
+	ChangedAttrs []string           `json:"changed-attrs,omitempty"`
+	// WireChanges lists the wire-level attribute modification operations the
+	// policy would apply, mirroring the runtime egress/ingress text-to-wire
+	// path. It includes effects the flat filter text cannot express, notably
+	// AS4_PATH suppression/rewrite by remove-private-as (RFC 6996/6793).
+	// Each entry has the form "<attribute> <verb>", e.g. "AS4_PATH suppressed"
+	// or "AS_PATH set". Text-visible changes (e.g. MED) also appear here as
+	// their wire operation, complementing the text view in ChangedAttrs.
+	WireChanges []string `json:"wire-changes,omitempty"`
+}
+
+// PolicyDryRunner is an optional interface for reactors that support
+// read-only policy dry-run testing. Command handlers type-assert to this.
+type PolicyDryRunner interface {
+	PolicyDryRun(peerAddr, direction, filterOverride string, updatePayload []byte, asn4 bool) (*PolicyDryRunResult, error)
+}
+
 // FSMTransitionRecord is one peer FSM state change for diagnostic display.
 type FSMTransitionRecord struct {
 	Timestamp time.Time

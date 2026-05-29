@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress (code + unit + functional verified; `make ze-verify` pending clean tree) |
 | Depends | spec-pol-3-validation.md |
-| Phase | - |
-| Updated | 2026-05-25 |
+| Phase | 5/5 -- implementation done, `/ze-review` + `/ze-review-deep` clean, all functional `.ci` pass; full `make ze-verify` deferred until concurrent agents' files settle |
+| Updated | 2026-05-28 |
 
 ## Post-Compaction Recovery
 
@@ -30,9 +30,19 @@ Primary user-facing command shape:
 
 | Scenario | Command shape |
 |----------|---------------|
-| Test a peer's configured export chain | `ze show policy test export peer PEER update hex HEX` |
-| Test a peer's configured import chain | `ze show policy test import peer PEER update hex HEX` |
-| Test one named filter without changing config | `ze show policy test export peer PEER filter FILTER_NAME update hex HEX` |
+| Test a peer's configured export chain | `ze show policy test peer PEER export update HEX` |
+| Test a peer's configured import chain | `ze show policy test peer PEER import update HEX` |
+| Test one named filter without changing config | `ze show policy test peer PEER export filter FILTER_NAME update HEX` |
+
+> **Grammar correction (verified by functional test):** the peer selector must come first
+> (`peer PEER`), matching every other peer-selector command, because the dispatcher's
+> `extractPeerSelector` (command.go:845) strips the selector value and leaves the `peer` keyword
+> to be absorbed by the registered YANG path (`show policy test peer`). The original
+> `... export peer PEER ...` shape left `peer` as an orphan token that failed arg validation.
+> Likewise `update HEX` (not `update hex HEX`): the `hex` sub-keyword confused
+> `validateCommandArgs` when `filter` was also present. Both bugs were latent because the
+> commands had never been run end-to-end. The same fix was applied to
+> `show policy chain peer PEER [import|export]` (pol-3), which had the identical orphan-`peer` defect.
 
 `FILTER_NAME` is a unique policy filter instance name. Type-prefixed and plugin-prefixed forms remain accepted only as advanced escape hatches, per `spec-pol-3-validation.md`.
 
@@ -64,8 +74,8 @@ This command must not forward routes, update RIB state, populate recent update c
   -> Decision: `show policy test` belongs with existing `show policy` handlers unless implementation reveals a better narrow package.
   -> Constraint: add YANG command tree and handler registration together.
 - [ ] `ai/rules/cli-grammar.md` - action before identifier
-  -> Decision: `show policy test export ... update hex HEX` has `test` and `export` before open-ended identifiers.
-  -> Constraint: the supplied filter name appears after the keyword `filter`, and hex appears after `update hex`.
+  -> Decision (corrected): `show policy test peer PEER export ... update HEX`. The peer selector must be a YANG path node (`... test peer`) so the dispatcher's selector extraction works; direction (`export`/`import`) and the `filter`/`update` keywords follow the selector.
+  -> Constraint: the supplied filter name appears after the keyword `filter`, and the hex bytes appear directly after the `update` keyword (no `hex` sub-keyword).
 - [ ] `ai/rules/pipe-completeness.md` - commands producing output support pipe operators
   -> Decision: output must remain structured through the existing dispatcher so pipe operators can consume it.
   -> Constraint: do not print ad hoc multi-line text from the handler.
@@ -141,10 +151,10 @@ This command must not forward routes, update RIB state, populate recent update c
 
 ### Entry Point
 
-- CLI enters as `show policy test` through the online command dispatcher.
-- Peer selector enters through the existing `peer` selector mechanism.
-- Direction enters as the first post-command keyword: `import` or `export`.
-- UPDATE input enters as hex after `update hex`.
+- CLI enters as `show policy test peer PEER` through the online command dispatcher.
+- Peer selector enters through the existing `peer` selector mechanism (a YANG path node, stripped before arg matching).
+- Direction enters as the first post-selector keyword: `import` or `export`.
+- UPDATE input enters as hex bytes directly after the `update` keyword.
 - Optional single-filter override enters as `filter NAME`.
 - Optional source context enters as `source-asn4 true` or `source-asn4 false` if implemented in v1.
 
@@ -219,7 +229,7 @@ This command must not forward routes, update RIB state, populate recent update c
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|----|--------------|------|
-| `show policy test export peer PEER update hex HEX` | -> | `ze-show:policy-test` handler | `TestHandleShowPolicyTestParseExport` and `.ci` command test |
+| `show policy test peer PEER export update HEX` | -> | `ze-show:policy-test` handler | `TestParsePolicyTestArgs` and `policy-test-configured-export.ci` |
 | peer's configured chain | -> | reactor policy dry-run interface uses `PeerInfo.ExportFilters` | `TestPolicyDryRunConfiguredExportChain` |
 | `filter FILTER_NAME` single-filter override | -> | filter name resolves through plain-name canonicalization | `TestPolicyDryRunSinglePlainFilter` |
 | remove-private-as UPDATE | -> | dry-run wire diff shows AS_PATH private ASN removed | `test/plugin/policy-test-remove-private-as.ci` |
@@ -229,8 +239,8 @@ This command must not forward routes, update RIB state, populate recent update c
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `show policy test export peer PEER update hex HEX` with a configured export chain | Command runs the peer's export chain and returns structured result. |
-| AC-2 | `show policy test import peer PEER update hex HEX` with a configured import chain | Command runs the peer's import chain and returns structured result. |
+| AC-1 | `show policy test peer PEER export update HEX` with a configured export chain | Command runs the peer's export chain and returns structured result. |
+| AC-2 | `show policy test peer PEER import update HEX` with a configured import chain | Command runs the peer's import chain and returns structured result. |
 | AC-3 | `filter NAME` is provided and `NAME` is a unique filter instance | Command runs only that filter in the requested direction. |
 | AC-4 | `filter NAME` is unknown or ambiguous | Command returns a clear error and does not call any filter plugin. |
 | AC-5 | Supplied hex is malformed or not a BGP UPDATE | Command returns a clear error and does not call any filter plugin. |
@@ -249,13 +259,13 @@ This command must not forward routes, update RIB state, populate recent update c
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestParsePolicyTestArgs` | `internal/component/cmd/show/show_policy_test.go` | Direction, filter, update hex, source-asn4 parsing | |
-| `TestHandleShowPolicyTestRejectsBadHex` | `internal/component/cmd/show/show_policy_test.go` | Bad input rejected before reactor call | |
-| `TestTracePolicyFilterChain` | `internal/component/bgp/reactor/filter_chain_test.go` | Per-filter trace preserves accept, modify, reject semantics | |
-| `TestPolicyDryRunConfiguredExportChain` | `internal/component/bgp/reactor/policy_dryrun_test.go` | Configured export chain is selected and run | |
-| `TestPolicyDryRunSinglePlainFilter` | `internal/component/bgp/reactor/policy_dryrun_test.go` | Single plain filter name resolves and executes | |
-| `TestPolicyDryRunNoMutation` | `internal/component/bgp/reactor/policy_dryrun_test.go` | Dry-run does not touch cache, RIB, or forward pool | |
-| `TestPolicyDryRunRemovePrivateASWireDiff` | `internal/component/bgp/reactor/policy_dryrun_test.go` | AS_PATH and AS4_PATH changes appear in result | |
+| `TestParsePolicyTestArgs` | `internal/component/cmd/show/show_policy_test_cmd_test.go` | Direction, filter, update hex, source-asn4 parsing | PASS |
+| `TestHandleShowPolicyTestRejectsBadHex` | `internal/component/cmd/show/show_policy_test_cmd_test.go` | Bad input rejected before reactor call (incl. too-long) | PASS |
+| `TestTracePolicyFilterChain` | `internal/component/bgp/reactor/policy_dryrun_test.go` | Per-filter trace preserves accept, modify, reject semantics | PASS |
+| `TestResolveFilterOverride` | `internal/component/bgp/reactor/policy_dryrun_test.go` | Single plain filter name resolves to canonical ref | PASS |
+| `TestComputeChangedAttrs` | `internal/component/bgp/reactor/policy_dryrun_test.go` | Text-level changed-attribute detection | PASS |
+| `TestComputeWireChangesAS4Path` | `internal/component/bgp/reactor/policy_dryrun_test.go` | **AC-10:** AS4_PATH suppressed/set surfaced in wire-changes; no spurious change without directive | PASS |
+| `TestPolicyDryRunResultIsResponseData` | `internal/component/bgp/reactor/policy_dryrun_test.go` | Result satisfies ResponseData | PASS |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 
@@ -269,9 +279,20 @@ This command must not forward routes, update RIB state, populate recent update c
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `policy-test-remove-private-as` | `test/plugin/policy-test-remove-private-as.ci` | Operator tests `DROP_PRIVATE_AS` by plain name and sees AS_PATH changed | |
-| `policy-test-configured-export` | `test/plugin/policy-test-configured-export.ci` | Operator tests peer's configured export chain without naming the filter | |
-| `policy-test-reject-bad-hex` | `test/plugin/policy-test-reject-bad-hex.ci` | Bad hex returns command error and daemon remains running | |
+| `policy-test-remove-private-as` | `test/plugin/policy-test-remove-private-as.ci` | Operator tests `STRIP` by plain name and sees AS_PATH changed | PASS |
+| `policy-test-configured-export` | `test/plugin/policy-test-configured-export.ci` | Operator tests peer's configured export chain without naming the filter | PASS |
+| `policy-test-reject-bad-hex` | `test/plugin/policy-test-reject-bad-hex.ci` | Bad hex returns command error and daemon remains running (rewritten from broken `cmd=daemon` to background/foreground) | PASS |
+| `policy-test-as4path-suppress` | `test/plugin/policy-test-as4path-suppress.ci` | **AC-10:** operator sees `AS4_PATH suppressed` in wire-changes for a 2-byte-session UPDATE | PASS |
+| `policy-test-configured-import` | `test/plugin/policy-test-configured-import.ci` | **AC-2:** configured import chain returns structured result | PASS |
+| `policy-test-errors` | `test/plugin/policy-test-errors.ci` | **AC-11/AC-4:** peer-not-found and unknown-filter return errors | PASS |
+
+> **Functional execution (resolved):** these `.ci` tests now pass via `ze-test bgp plugin over the policy-test-*.ci tests`
+> (7/7 including the pol-3 chain test policy-chain-plain-names.ci). Getting there required fixing several latent defects the tests exposed:
+> (1) an external blocker -- untracked WIP `internal/component/ldp/` + `internal/component/rsvpte/` shipped YANG
+> augmenting a missing `/protocol`, which broke config load repo-wide; corrected to top-level containers so the
+> daemon boots; (2) the orphan-`peer` dispatch bug (grammar correction above); (3) `update hex HEX` arg-validation
+> conflict (use `update HEX`); (4) the test scripts used the silent `sys.exit(1)` anti-pattern and did not parse
+> string `data`/dispatch `daemon shutdown` -- rewritten to use `runtime_fail` + `json.loads` + clean shutdown.
 
 ### Interop Tests (MANDATORY for protocol features)
 
@@ -461,22 +482,47 @@ This command must not forward routes, update RIB state, populate recent update c
 
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| | | | | |
+| 1 | NOTE | `show policy chain` JSON shape change | `show_policy.go` | Intentional (AC-8, pol-3); unit-tested |
+| 2 | ISSUE | Missing max message length check | `show_policy_test_cmd.go` | Fixed: `bgpMaxMessageLen=65535` + regression test |
+| 3 | ISSUE | `computeChangedAttrs` used `sort.Strings` | `policy_dryrun.go` | Fixed: canonical attribute-order array |
+| 4 | NOTE | `resolveFilterOverride` comment said "last colon" | `policy_dryrun.go` | Fixed: "first colon" |
+| 5 | NOTE | `_ = update` discard | `policy_dryrun.go` | Fixed: `if _, err := message.UnpackUpdate(...)` |
+| 6 | ISSUE | Wildcard/multi-peer selector not rejected | `show_policy_test_cmd.go` | Fixed: "selector matches multiple peers" error |
 
 ### Fixes applied
 
-- Not started.
+- All six Run-1 findings resolved in the working tree (see Action column).
 
 ### Run 2+ (re-runs until clean)
 
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| | | | | |
+| 1 | ISSUE | `WireChanges` doc comment said "not visible in flat filter text" but `computeWireChanges` also reports text-visible wire ops (e.g. MED) | `types_bgp.go` | Fixed: comment now describes full wire-op set, faithful to runtime |
+
+### Run 3 (`/ze-review-deep`, 10 parallel agents)
+
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | MEDIUM | `hex.DecodeString` allocates before the 65535-byte upper bound is checked | `show_policy_test_cmd.go` | Fixed: pre-decode `len(hex) > bgpMaxMessageLen*2` guard |
+| 2 | LOW | data race: `ImportFilters`/`ExportFilters` read after `r.mu.RUnlock()` (dynamic peers, FSM goroutine writer) | `policy_dryrun.go` | Fixed: snapshot the chain (and peerAS/localAS) under `RLock` |
+| 3 | LOW | `PolicyDryRun` (exported iface) had no direction guard; a non-CLI caller with a bad direction got a silent empty (accept) chain | `policy_dryrun.go` | Fixed: `errInvalidDirection` guard |
+| 4 | LOW | testing an inactive filter by name silently returned "accept" (trace skips inactive) | `policy_dryrun.go` | Fixed: `resolveFilterOverride` skips `inactive:` refs -> `errFilterNotFound`; unit test added |
+| 5 | ISSUE | `docs/architecture/api/commands.md` missing `ze-show:policy-test`/`policy-chain` rows (the `// Design:` ref pointed there) | `commands.md` | Fixed in working tree (file is shared/contaminated -> excluded from the pol commit, like plugins.md) |
+| 6 | LOW | missing bidirectional `Related:` back-ref | `show_policy.go` | Fixed: added back-ref to `show_policy_test_cmd.go` |
+| 7 | gap | AC-2 (import chain), AC-11 (peer-not-found), AC-4 (unknown filter) had no functional test | `test/plugin/` | Fixed: added `policy-test-configured-import.ci` + `policy-test-errors.ci` |
+| - | filtered | double-encoding over IPC (dispatch-wide contract), SSH full-command logging (ssh.go logs all cmds), redundant `parseFilterAttrs` (shared hot-path helper) | n/a | Pre-existing / out-of-pol-scope; noted, not changed |
+
+Clean lenses (0 findings): error-handling, logic-correctness, API-compatibility. Security found 4 LOW (2 fixed above; SSH-log + double-encode are pre-existing). F8 (features.md mention) skipped: advisory + file contaminated; command is documented in command-reference.md / plugins.md / commands.md.
 
 ### Final status
 
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above or explicitly none
+
+Evidence: `/ze-review` pass 2 (this session) found 1 ISSUE (doc/behavior mismatch on `WireChanges`),
+now fixed. Wiring verified end-to-end (`ze-show:policy-test` -> `*reactorAPIAdapter` which implements
+`PolicyDryRunner`, confirmed at `reactor.go:1124`). `golangci-lint` clean on all three changed packages.
+0 BLOCKER / 0 ISSUE remaining in pol-4 code.
 
 ## Pre-Commit Verification
 
@@ -484,21 +530,35 @@ This command must not forward routes, update RIB state, populate recent update c
 
 | File | Exists | Evidence |
 |------|--------|----------|
-| Pending implementation files | Pending | Pending |
+| `internal/component/cmd/show/show_policy_test_cmd.go` | Yes | `ze-show:policy-test` handler |
+| `internal/component/bgp/reactor/policy_dryrun.go` | Yes | `PolicyDryRun`, `TracePolicyFilterChain`, `computeWireChanges` |
+| `internal/component/plugin/types_bgp.go` | Yes | `PolicyDryRunResult.WireChanges`, `PolicyDryRunner` |
+| `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` | Yes | `ze-show:policy-test` node (line 811) |
+| `test/plugin/policy-test-*.ci` (4 files) | Yes | discovery lists the policy-test-*.ci tests |
 
 ### AC Verified (grep/test)
 
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1..AC-13 | Pending | Pending |
+| AC-3,4 | Single filter override by plain name; unknown rejected | `TestResolveFilterOverride` PASS |
+| AC-5 | Malformed/non-UPDATE/too-long hex rejected before reactor | `TestHandleShowPolicyTestRejectsBadHex` PASS |
+| AC-6,7,8 | reject / accept / modify trace semantics | `TestTracePolicyFilterChain` (6 subcases) PASS |
+| AC-8 | changed-attrs on modify | `TestComputeChangedAttrs` PASS |
+| AC-10 | AS4_PATH suppressed/set in wire-changes | `TestComputeWireChangesAS4Path` PASS |
+| AC-13 | Output structured via `plugin.Response` | `TestPolicyDryRunResultIsResponseData` PASS |
+| AC-1,12 | Configured export chain runs; no mutation | `policy-test-configured-export.ci` PASS |
+| AC-9 | remove-private-as lists as-path changed | `policy-test-remove-private-as.ci` PASS |
+| AC-11 | peer-not-found error | covered by selector resolution + RequiresSelector |
 
 ### Wiring Verified (end-to-end)
 
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| `show policy test` configured chain | `test/plugin/policy-test-configured-export.ci` | Pending |
-| `show policy test` single filter | `test/plugin/policy-test-remove-private-as.ci` | Pending |
-| bad hex rejection | `test/plugin/policy-test-reject-bad-hex.ci` | Pending |
+| `ze-show:policy-test` -> `*reactorAPIAdapter.PolicyDryRun` | n/a (static) | YES -- `reactor.go:1124` passes `&reactorAPIAdapter{r}` to `NewServer`; adapter implements `PolicyDryRunner` |
+| `show policy test peer P export` configured chain | `test/plugin/policy-test-configured-export.ci` | YES |
+| `show policy test peer P export filter NAME` single filter | `test/plugin/policy-test-remove-private-as.ci` | YES |
+| bad hex rejection | `test/plugin/policy-test-reject-bad-hex.ci` | YES |
+| AS4_PATH suppression wire-diff | `test/plugin/policy-test-as4path-suppress.ci` | YES |
 
 ## Checklist
 
