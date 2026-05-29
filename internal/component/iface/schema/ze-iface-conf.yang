@@ -384,6 +384,17 @@ module ze-iface-conf {
                     description "Mirror egress traffic to this interface";
                 }
             }
+
+            container mpls {
+                ze:os "linux";
+                description "MPLS forwarding on this interface (RFC 3031 LSR).";
+
+                leaf enable {
+                    type boolean;
+                    default false;
+                    description "Enable MPLS label input on this interface (net.mpls.conf.<iface>.input). The global label table size is set via net.mpls.platform_labels.";
+                }
+            }
         }
     }
 

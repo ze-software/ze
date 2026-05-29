@@ -77,4 +77,22 @@ func init() {
 		Name: "net.ipv6.conf.<iface>.forwarding", Type: TypeBool, Template: true,
 		Description: "Enable IPv6 forwarding on interface", Platform: PlatformLinux,
 	})
+
+	// MPLS sysctl keys (RFC 3031, RFC 3032).
+	MustRegister(KeyDef{
+		Name: "net.mpls.platform_labels", Type: TypeIntRange, Min: 0, Max: 1048575,
+		Description: "Maximum MPLS label value supported by the platform", Platform: PlatformLinux,
+	})
+	MustRegister(KeyDef{
+		Name: "net.mpls.ip_ttl_propagate", Type: TypeBool,
+		Description: "Propagate IP TTL into MPLS header", Platform: PlatformLinux,
+	})
+	MustRegister(KeyDef{
+		Name: "net.mpls.default_ttl", Type: TypeIntRange, Min: 1, Max: 255,
+		Description: "Default TTL for MPLS-encapsulated packets", Platform: PlatformLinux,
+	})
+	MustRegister(KeyDef{
+		Name: "net.mpls.conf.<iface>.input", Type: TypeBool, Template: true,
+		Description: "Enable MPLS input on interface", Platform: PlatformLinux,
+	})
 }

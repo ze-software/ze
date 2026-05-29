@@ -64,6 +64,12 @@ func applySysctl(osName string, u unitEntry) {
 			emit("net.ipv4.conf."+osName+".rp_filter", strconv.Itoa(s.RPFCheck.rpfSysctlValue()))
 		}
 	}
+	if u.MPLSEnable != nil {
+		// RFC 3031: enabling MPLS label input on the interface. The global
+		// net.mpls.platform_labels sysctl (label table size) is managed
+		// separately via the sysctl config/known keys.
+		emit("net.mpls.conf."+osName+".input", boolVal(*u.MPLSEnable))
+	}
 	if s := u.IPv6; s != nil {
 		if s.Autoconf != nil {
 			emit("net.ipv6.conf."+osName+".autoconf", boolVal(*s.Autoconf))

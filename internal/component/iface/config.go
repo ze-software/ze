@@ -149,6 +149,7 @@ type unitEntry struct {
 	IPv6           *ipv6Settings
 	MirrorIngress  string // destination interface name, empty = not configured
 	MirrorEgress   string
+	MPLSEnable     *bool // enable MPLS label input (net.mpls.conf.<iface>.input)
 }
 
 // dhcpUnitConfig holds DHCPv4 client settings parsed from the YANG
@@ -854,6 +855,13 @@ func parseUnits(m map[string]any) ([]unitEntry, error) {
 			if mirrorMap, ok := um["mirror"].(map[string]any); ok {
 				u.MirrorIngress, _ = mirrorMap["ingress"].(string)
 				u.MirrorEgress, _ = mirrorMap["egress"].(string)
+			}
+
+			if mplsMap, ok := um["mpls"].(map[string]any); ok {
+				if v, ok := mplsMap["enable"].(string); ok {
+					b := v == yangTrue
+					u.MPLSEnable = &b
+				}
 			}
 		}
 		units = append(units, u)

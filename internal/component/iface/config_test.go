@@ -1298,6 +1298,50 @@ func TestParseUnitDHCPv4Enabled(t *testing.T) {
 	}
 }
 
+// TestParseUnitMPLSEnable verifies `unit { mpls { enable } }` drives the
+// per-interface MPLS input setting.
+//
+// VALIDATES: mpls-1 AC-4 -- interface mpls enable parsed for sysctl emission.
+func TestParseUnitMPLSEnable(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {
+							"mpls": {
+								"enable": "true"
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 1)
+	u := cfg.Ethernet[0].Units[0]
+	require.NotNil(t, u.MPLSEnable, "MPLS enable should be parsed")
+	assert.True(t, *u.MPLSEnable)
+}
+
+// TestParseUnitMPLSAbsent verifies MPLSEnable is nil when not configured, so no
+// sysctl is emitted for interfaces that do not opt in.
+func TestParseUnitMPLSAbsent(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {"0": {"ipv4": {"address": ["10.0.0.1/30"]}}}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 1)
+	assert.Nil(t, cfg.Ethernet[0].Units[0].MPLSEnable, "no mpls config means nil (unconfigured)")
+}
+
 // TestParseUnitDHCPv4Hostname verifies hostname and client-id parsing.
 //
 // VALIDATES: AC-3 - hostname and client-id parsed from ipv4 { dhcp {} }.
