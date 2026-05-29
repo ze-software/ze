@@ -64,18 +64,11 @@
 ### Ze 
 
 - **Nobody offers: an integrated, plugin-first, programmable, AI-ready NOS**
-- And I want one, and we could do with one for our CPE product
+- And "I" want/need one, and we could do with one for our CPE product
 
 ---
 
 ## The Enabler: AI
-
-### Which became work relevant
-
-- We want control of our infrastructure
-- We presented our Client CPE at NetMcr
-- AI made this possible/easy
-- **Ze is part of that effort.**
 
 ### AI collaboration
 
