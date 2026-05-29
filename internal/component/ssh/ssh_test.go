@@ -10,8 +10,10 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
@@ -761,4 +763,37 @@ func TestLoginWarningsPanicRecovery(t *testing.T) {
 	require.NotNil(t, fn)
 	// Verify the function panics (hub session factory handles recovery).
 	assert.Panics(t, func() { fn() })
+}
+
+// VALIDATES: truncateForLog bounds long SSH commands (e.g. show policy test with
+// a large hex payload) in the operational log while leaving short commands intact.
+// PREVENTS: dumping a full BGP UPDATE hex blob into the SSH exec log (security review).
+func TestTruncateForLog(t *testing.T) {
+	short := "show bgp summary"
+	if got := truncateForLog(short); got != short {
+		t.Errorf("short command altered: got %q, want %q", got, short)
+	}
+
+	long := "show policy test peer 10.0.0.1 export update " + strings.Repeat("FF", 70000)
+	got := truncateForLog(long)
+	if len(got) >= len(long) {
+		t.Errorf("long command not truncated: len(got)=%d len(long)=%d", len(got), len(long))
+	}
+	if !strings.HasPrefix(got, "show policy test peer 10.0.0.1 export update FF") {
+		t.Errorf("truncated form lost its prefix: %q", got)
+	}
+	if !strings.Contains(got, "bytes total") {
+		t.Errorf("truncated form missing byte-count suffix: %q", got)
+	}
+
+	// A multi-byte rune straddling the 256-byte cut must not be logged
+	// half-encoded: the result must remain valid UTF-8.
+	utf8cmd := strings.Repeat("a", 255) + "é" + strings.Repeat("b", 100)
+	gotUTF := truncateForLog(utf8cmd)
+	if !utf8.ValidString(gotUTF) {
+		t.Errorf("truncated form is not valid UTF-8: %q", gotUTF)
+	}
+	if !strings.Contains(gotUTF, "bytes total") {
+		t.Errorf("utf8 command not truncated: %q", gotUTF)
+	}
 }

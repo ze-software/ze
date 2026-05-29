@@ -20,6 +20,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/wish/v2"
@@ -626,6 +627,29 @@ func (s *Server) maxSessionsMiddleware() wish.Middleware {
 	}
 }
 
+// maxLoggedCommandLen bounds how much of an SSH exec command is written to the
+// operational log. Commands such as `show policy test ... update <HEX>` carry a
+// large hex payload (a full BGP UPDATE) that would otherwise bloat the log and
+// record route data in it.
+const maxLoggedCommandLen = 256
+
+// truncateForLog returns cmd unchanged when short, or a bounded prefix with a
+// byte-count suffix when it exceeds maxLoggedCommandLen. Used only for logging;
+// the full command is still passed to the executor.
+func truncateForLog(cmd string) string {
+	if len(cmd) <= maxLoggedCommandLen {
+		return cmd
+	}
+	// Back off to a UTF-8 rune boundary so a multi-byte rune straddling the cut
+	// is never logged half-encoded.
+	cut := maxLoggedCommandLen
+	for cut > 0 && !utf8.RuneStart(cmd[cut]) {
+		cut--
+	}
+	var b textbuf.Buffer
+	return b.Reset().Str(cmd[:cut]).Str("...(").Int(int64(len(cmd))).Str(" bytes total)").String()
+}
+
 // execMiddleware handles non-interactive SSH exec commands (e.g., "ssh daemon stop").
 // If the session has a command, it dispatches through the executor.
 // Interactive sessions (no command) pass through to the next middleware (BubbleTea).
@@ -639,7 +663,10 @@ func (s *Server) execMiddleware() wish.Middleware {
 			}
 
 			input := strings.Join(cmd, " ")
-			s.logger.Info("SSH exec command", "user", sess.User(), "command", input, "remote", sess.RemoteAddr().String())
+			// Truncate the logged form: commands like `show policy test ... update <HEX>`
+			// carry a large hex payload that would bloat the operational log and dump
+			// route data into it. The full command still flows to the executor.
+			s.logger.Info("SSH exec command", "user", sess.User(), "command", truncateForLog(input), "remote", sess.RemoteAddr().String())
 
 			// Handle lifecycle commands. Authorization is checked via the
 			// command executor; only explicit ErrUnauthorized blocks the
