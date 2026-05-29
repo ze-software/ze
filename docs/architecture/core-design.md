@@ -1096,6 +1096,18 @@ to `FibPath.Weight`, uses per-change table ID, and builds multi-path routes with
 <!-- source: internal/plugins/fib/vpp/mpls.go -- govppMPLSBackend, mplsBackend interface -->
 <!-- source: internal/plugins/fib/vpp/register.go -- fib-vpp plugin registration -->
 
+### Flow Export
+
+The `flowexport` component is a registered component that loads only when a
+`flow-export { }` config section is present. It exports interface counters and
+per-flow records to external collectors over UDP (sFlow v5, NetFlow v9, IPFIX).
+Counter export is driven by the `iface` rate tracker's snapshot callback rather
+than its own poll loop, so it reuses the same 1s interface sampler. For BGP
+next-hop enrichment (`enrichment { bgp true }`) the component consumes the RIB
+best-change event so flow records can carry the destination prefix's next-hop.
+<!-- source: internal/component/flowexport/exporter.go -- Exporter, rate-snapshot callback consumer -->
+<!-- source: internal/component/flowexport/schema/ze-flowexport-conf.yang -- flow-export config surface -->
+
 ### Sysctl
 
 The `sysctl` plugin centralizes kernel tunable management. Plugins declare required

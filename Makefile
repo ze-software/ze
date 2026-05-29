@@ -375,6 +375,7 @@ help-test:
 	@echo "  QEMU (macOS-friendly, no Docker Desktop kernel limits):"
 	@echo "    ze-qemu-integration-test  Integration tests in QEMU Alpine VM"
 	@echo "    ze-qemu-l2tp-ppp-test     L2TP PPP/NCP in QEMU with gokrazy kernel"
+	@echo "    ze-qemu-ldp-frr-test      LDP interop against FRR ldpd in QEMU"
 	@echo ""
 	@echo "  Live (Docker + internet):"
 	@echo "    ze-live-test              All live tests"
