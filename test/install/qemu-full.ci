@@ -1,0 +1,20 @@
+# Full QEMU-based PXE boot integration test.
+# Requires: qemu-system-x86_64, built initrd, test gokrazy image.
+# This test is skipped in CI unless QEMU is available.
+
+name    qemu-full-pxe-install
+tags    install qemu slow
+timeout 120
+
+# Skip if QEMU is not available
+require qemu-system-x86_64
+
+# Build a minimal test disk image (just partition table, no real gokrazy)
+setup   truncate -s 256M "$TMPDIR/test.img"
+setup   printf '\x00' | dd of="$TMPDIR/test.img" bs=1 count=1 conv=notrunc 2>/dev/null
+
+# Start ze install server in background
+# (This test validates the full chain: DHCP -> TFTP -> HTTP -> initrd -> reboot)
+# Due to QEMU and network requirements, this test is a placeholder for
+# manual or dedicated CI infrastructure testing.
+skip    "Requires QEMU with PXE ROM and dedicated test infrastructure"

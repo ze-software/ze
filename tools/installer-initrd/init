@@ -1,0 +1,316 @@
+#!/bin/sh
+# PID 1 init script for ze installer initrd.
+# Downloads a gokrazy disk image from a ze-install server, writes it to the
+# first non-removable block device, injects a pre-provisioned zefs database
+# onto partition 4 (/perm), and reboots.
+#
+# Kernel cmdline parameters:
+#   ze.server=<ip>    (required) ze-install server IP address
+#   ze.image=<name>   (optional) image name, defaults to "ze.img"
+#   ip=dhcp           (required) kernel-level DHCP for network config
+
+set -e
+
+RETRY_MAX=3
+RETRY_DELAY=5
+
+# Scratch files for transfer failure detection and checksum verification.
+# A POSIX pipeline reports only the exit status of its LAST command, so a
+# `wget | dd` would mask a wget failure: the marker file records it instead.
+WGET_FAIL_MARKER="/tmp/ze-wget.fail"
+HASH_FILE="/tmp/ze-image.sha256"
+
+# -- helpers --
+
+log() {
+    echo "[ze-install] $1"
+}
+
+fatal() {
+    echo "[ze-install] FATAL: $1" >&2
+    echo "[ze-install] Dropping to shell for debugging."
+    exec /bin/sh
+}
+
+# -- cmdline parsing --
+
+parse_cmdline() {
+    ZE_SERVER=""
+    ZE_IMAGE="ze.img"
+
+    if [ ! -f /proc/cmdline ]; then
+        return
+    fi
+
+    for param in $(cat /proc/cmdline); do
+        case "$param" in
+            ze.server=*)
+                ZE_SERVER="${param#ze.server=}"
+                ;;
+            ze.image=*)
+                ZE_IMAGE="${param#ze.image=}"
+                ;;
+        esac
+    done
+}
+
+validate_ipv4() {
+    case "$1" in
+        ""|*[!0-9.]*)
+            return 1
+            ;;
+    esac
+
+    old_ifs="$IFS"
+    IFS='.'
+    set -- $1
+    IFS="$old_ifs"
+
+    [ $# -eq 4 ] || return 1
+
+    for octet in "$@"; do
+        [ -z "$octet" ] && return 1
+        # Reject non-canonical leading zeros (e.g. 08, 00). This also keeps the
+        # range test below from interpreting "08"/"09" as invalid octal.
+        case "$octet" in
+            0?*) return 1 ;;
+        esac
+        [ "$octet" -ge 0 ] 2>/dev/null && [ "$octet" -le 255 ] || return 1
+    done
+
+    return 0
+}
+
+# validate_image_name accepts only safe filename characters. ze.image comes
+# from the kernel cmdline (set by the DHCP/TFTP server); restricting it blocks
+# path traversal, HTTP header injection via newlines, and terminal-escape
+# injection into the serial console log if a rogue server sets it.
+validate_image_name() {
+    case "$1" in
+        ""|*[!a-zA-Z0-9._-]*)
+            return 1
+            ;;
+    esac
+    return 0
+}
+
+# -- disk detection --
+
+find_target_disk() {
+    TARGET_DISK=""
+
+    for dev in /sys/block/*; do
+        name="$(basename "$dev")"
+
+        case "$name" in
+            loop*|ram*|dm-*|sr*|fd*|md*|zram*)
+                continue
+                ;;
+        esac
+
+        if [ -f "$dev/removable" ]; then
+            removable="$(cat "$dev/removable")"
+            if [ "$removable" = "1" ]; then
+                continue
+            fi
+        fi
+
+        TARGET_DISK="/dev/$name"
+        break
+    done
+}
+
+# -- partition detection --
+
+find_partition_4() {
+    PART4=""
+
+    case "$TARGET_DISK" in
+        /dev/nvme*|/dev/mmcblk*)
+            PART4="${TARGET_DISK}p4"
+            ;;
+        *)
+            PART4="${TARGET_DISK}4"
+            ;;
+    esac
+}
+
+# -- download with retry --
+
+download() {
+    url="$1"
+    dest="$2"
+    attempt=1
+
+    while [ "$attempt" -le "$RETRY_MAX" ]; do
+        log "Downloading $url (attempt $attempt/$RETRY_MAX)"
+        if wget -q -O "$dest" "$url" 2>/dev/null; then
+            return 0
+        fi
+        attempt=$((attempt + 1))
+        if [ "$attempt" -le "$RETRY_MAX" ]; then
+            sleep "$RETRY_DELAY"
+            RETRY_DELAY=$((RETRY_DELAY * 2))
+        fi
+    done
+
+    return 1
+}
+
+# download_to_disk streams an image from $url straight onto block device
+# $disk (no intermediate file, so it works in a RAM-constrained initrd) and,
+# when $expected_sha is non-empty, verifies the bytes written match that
+# SHA-256 before declaring success.
+#
+# Correctness note: `wget | dd` cannot be trusted on its own. Under POSIX sh
+# (busybox ash) the pipeline's exit status is dd's, so a wget that dies
+# mid-stream (connection reset, server error, truncated body) leaves dd
+# exiting 0 -- a partial image silently accepted, then booted on a disk we
+# just wiped. Two guards close that hole:
+#   1. wget failure is captured into $WGET_FAIL_MARKER inside the pipe.
+#   2. the streamed bytes are hashed in one pass via a FIFO and compared to
+#      the server-provided checksum.
+download_to_disk() {
+    url="$1"
+    disk="$2"
+    expected_sha="$3"   # optional; empty disables checksum verification
+    attempt=1
+    local_retry_delay="$RETRY_DELAY"
+
+    while [ "$attempt" -le "$RETRY_MAX" ]; do
+        log "Streaming $url to $disk (attempt $attempt/$RETRY_MAX)"
+        rm -f "$WGET_FAIL_MARKER" "$HASH_FILE"
+
+        fifo="$(mktemp -u)"
+        mkfifo "$fifo"
+        sha256sum < "$fifo" > "$HASH_FILE" &
+        hash_pid=$!
+
+        # tee fans the stream out to the hashing FIFO and onward to dd. The
+        # `|| : > marker` records a wget failure that the pipeline status hides.
+        # The pipeline lives in an `if` so `set -e` never aborts on a dd
+        # failure here: failures must flow into the retry loop below, not kill
+        # the script. (Do not rely on the caller's context to suppress -e.)
+        if { wget -q -O - "$url" 2>/dev/null || : > "$WGET_FAIL_MARKER"; } \
+            | tee "$fifo" \
+            | dd of="$disk" bs=4M 2>/dev/null; then
+            dd_rc=0
+        else
+            dd_rc=$?
+        fi
+
+        wait "$hash_pid" 2>/dev/null || true
+        rm -f "$fifo"
+
+        if [ "$dd_rc" -ne 0 ] || [ -f "$WGET_FAIL_MARKER" ]; then
+            log "Transfer failed (dd status $dd_rc, wget failed: $([ -f "$WGET_FAIL_MARKER" ] && echo yes || echo no))"
+        elif [ -z "$expected_sha" ]; then
+            return 0
+        else
+            actual_sha="$(cut -d' ' -f1 < "$HASH_FILE" 2>/dev/null)"
+            if [ "$actual_sha" = "$expected_sha" ]; then
+                return 0
+            fi
+            log "Checksum mismatch: expected $expected_sha, got ${actual_sha:-<none>}"
+        fi
+
+        attempt=$((attempt + 1))
+        if [ "$attempt" -le "$RETRY_MAX" ]; then
+            sleep "$local_retry_delay"
+            local_retry_delay=$((local_retry_delay * 2))
+        fi
+    done
+
+    return 1
+}
+
+# -- main --
+
+main() {
+    log "Ze installer initrd starting"
+
+    mount -t proc none /proc 2>/dev/null || true
+    mount -t sysfs none /sys 2>/dev/null || true
+    mount -t devtmpfs none /dev 2>/dev/null || true
+    mkdir -p /mnt/perm
+
+    parse_cmdline
+
+    if [ -z "$ZE_SERVER" ]; then
+        fatal "ze.server not set on kernel cmdline"
+    fi
+
+    if ! validate_ipv4 "$ZE_SERVER"; then
+        fatal "ze.server '$ZE_SERVER' is not a valid IPv4 address"
+    fi
+
+    # Reject before logging or using in a URL: the raw value is not echoed so a
+    # crafted name cannot inject terminal escapes into the console at this point.
+    if ! validate_image_name "$ZE_IMAGE"; then
+        fatal "ze.image contains invalid characters (allowed: a-z A-Z 0-9 . _ -)"
+    fi
+
+    log "Server: $ZE_SERVER"
+    log "Image: $ZE_IMAGE"
+
+    find_target_disk
+    if [ -z "$TARGET_DISK" ]; then
+        fatal "No non-removable block device found"
+    fi
+    log "Target disk: $TARGET_DISK"
+
+    # Fetch the image checksum first (best-effort). When present it lets
+    # download_to_disk reject a corrupt or truncated write before we reboot
+    # onto it; when absent we fall back to transfer-success detection only.
+    EXPECTED_SHA=""
+    if download "http://${ZE_SERVER}/install/image/${ZE_IMAGE}.sha256" /tmp/image.sha256.txt; then
+        EXPECTED_SHA="$(cut -d' ' -f1 < /tmp/image.sha256.txt)"
+        log "Expected image SHA-256: $EXPECTED_SHA"
+    else
+        log "WARNING: no ${ZE_IMAGE}.sha256 on server; skipping image checksum verification"
+    fi
+
+    log "Writing disk image..."
+    if ! download_to_disk "http://${ZE_SERVER}/install/image/${ZE_IMAGE}" "$TARGET_DISK" "$EXPECTED_SHA"; then
+        fatal "Failed to download and write disk image after $RETRY_MAX attempts"
+    fi
+    sync
+    log "Disk image written successfully"
+
+    log "Re-reading partition table..."
+    blockdev --rereadpt "$TARGET_DISK" 2>/dev/null || true
+    sleep 1
+
+    find_partition_4
+    if [ ! -b "$PART4" ]; then
+        fatal "Partition 4 ($PART4) not found after image write"
+    fi
+
+    log "Mounting partition 4 ($PART4)..."
+    if ! mount -t ext4 "$PART4" /mnt/perm; then
+        fatal "Failed to mount $PART4 as ext4"
+    fi
+
+    mkdir -p /mnt/perm/ze
+
+    log "Downloading zefs database..."
+    if ! download "http://${ZE_SERVER}/install/database.zefs" /mnt/perm/ze/database.zefs; then
+        umount /mnt/perm 2>/dev/null || true
+        fatal "Failed to download database.zefs after $RETRY_MAX attempts"
+    fi
+    log "zefs database written to /mnt/perm/ze/database.zefs"
+
+    umount /mnt/perm
+    sync
+
+    log "Installation complete. Rebooting..."
+    sleep 2
+    reboot -f 2>/dev/null || echo b > /proc/sysrq-trigger
+}
+
+# Guard so test harnesses can source this script to exercise individual
+# functions without running the installer. Production boot leaves the var
+# unset, so main runs as PID 1.
+if [ "${ZE_INIT_NO_MAIN:-}" != "1" ]; then
+    main "$@"
+fi

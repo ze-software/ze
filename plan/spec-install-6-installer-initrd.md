@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | spec-install-4 |
-| Phase | - |
-| Updated | 2026-05-21 |
+| Phase | 8/8 |
+| Updated | 2026-05-28 |
 | Parent | spec-install-0-umbrella.md |
 
 ## Post-Compaction Recovery
@@ -305,41 +305,76 @@ No RFC work needed. HTTP downloads use standard clients, not custom protocol cod
 ## Implementation Summary
 
 ### What Was Implemented
-- [Not started]
+- `tools/installer-initrd/init` -- PID 1 init script: mounts proc/sys/dev, parses cmdline for ze.server/ze.image, validates IPv4, detects first non-removable disk via sysfs, streams disk image via wget+dd, re-reads partition table, mounts partition 4 (ext4), downloads and injects database.zefs to /perm/ze/, reboots. Drops to shell on any fatal error.
+- `tools/installer-initrd/Makefile` -- build system using busybox-static, cpio, gzip. Creates rootfs with busybox symlinks, copies init, produces initrd.img.gz.
+- `tools/installer-initrd/test/test-cmdline-parse.sh` -- 12 assertions: server+image present, image default, neither present, IPv4 validation (valid and invalid cases).
+- `tools/installer-initrd/test/test-disk-detect.sh` -- 8 assertions: SATA, NVMe, eMMC detection; removable skip; all-removable; no devices; virtual device skip.
+- `test/install/qemu-full.ci` -- QEMU integration test (skipped: requires dedicated infrastructure).
+- `test/install/initrd-flow.ci` -- functional test running shell unit tests.
 
 ### Bugs Found/Fixed
-- [None yet]
+- None
 
 ### Documentation Updates
-- [None yet]
+- `docs/guide/ze-install.md` -- added Installer Initrd section (building, cmdline params, disk selection, error handling, running tests)
+- `docs/features.md` -- added initrd description to Installation feature line
 
 ### Deviations from Plan
-- [None yet]
+- QEMU full integration test is a skip-stub; it requires PXE ROM infrastructure not available in standard CI. Shell unit tests cover the logic.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Init script parses cmdline | Done | `tools/installer-initrd/init:46-62` | parse_cmdline function |
+| IPv4 validation | Done | `tools/installer-initrd/init:64-80` | validate_ipv4 function |
+| Disk detection via sysfs | Done | `tools/installer-initrd/init:84-104` | find_target_disk function |
+| Partition 4 naming | Done | `tools/installer-initrd/init:108-119` | find_partition_4, handles nvme/mmcblk/sda |
+| HTTP download with retry | Done | `tools/installer-initrd/init:123-140` | download function, 3 retries with backoff |
+| Stream image to disk | Done | `tools/installer-initrd/init:142-158` | download_to_disk, wget pipe to dd |
+| Zefs injection | Done | `tools/installer-initrd/init:184-191` | Downloads to /mnt/perm/ze/database.zefs |
+| Build system | Done | `tools/installer-initrd/Makefile` | busybox+cpio+gzip |
+| Error drops to shell | Done | `tools/installer-initrd/init:23-26` | fatal() execs /bin/sh |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `init:46-62`, `test-cmdline-parse.sh` | Parses ze.server from /proc/cmdline |
+| AC-2 | Done | `init:48`, `test-cmdline-parse.sh:test2` | Defaults to "ze.img" |
+| AC-3 | Done | `init:172-178`, `test-disk-detect.sh` | Downloads image, writes to first non-removable disk |
+| AC-4 | Done | `init:180-181` | blockdev --rereadpt preserves partition table |
+| AC-5 | Done | `init:184-191` | database.zefs at /perm/ze/database.zefs |
+| AC-6 | Done | `init:170`, `test-disk-detect.sh:test5,6` | Drops to shell if no disk |
+| AC-7 | Done | `init:123-140,175` | 3 retries with exponential backoff, then fatal |
+| AC-8 | Done | `init:196-197` | reboot -f or sysrq-trigger |
+| AC-9 | Done | `Makefile` | Produces initrd.img.gz |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| test-cmdline-parse | Done | `tools/installer-initrd/test/test-cmdline-parse.sh` | 12 assertions |
+| test-disk-detect | Done | `tools/installer-initrd/test/test-disk-detect.sh` | 8 assertions |
+| test-default-image-name | Done | `test-cmdline-parse.sh:test2` | Part of cmdline tests |
+| test-install-qemu-full | Skip | `test/install/qemu-full.ci` | Requires QEMU+PXE infra |
+| test-initrd-install-flow | Done | `test/install/initrd-flow.ci` | Runs shell unit tests |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `tools/installer-initrd/Makefile` | Done | Build system |
+| `tools/installer-initrd/init` | Done | Init script, executable |
+| `tools/installer-initrd/test/test-cmdline-parse.sh` | Done | 12 assertions |
+| `tools/installer-initrd/test/test-disk-detect.sh` | Done | 8 assertions |
+| `test/install/qemu-full.ci` | Skip | Requires QEMU infrastructure |
+| `test/install/initrd-flow.ci` | Done | Functional test |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 23
+- **Done:** 22
+- **Partial:** 0
+- **Skipped:** 1 (QEMU full integration test)
+- **Changed:** 0
 
 ## Review Gate
 

@@ -1,0 +1,16 @@
+# Installer initrd unit tests: cmdline parsing, disk detection, and the
+# image download/write path (transfer-failure detection + checksum verify).
+# Runs the shell-based test scripts from tools/installer-initrd/test/.
+
+name    initrd-install-flow
+tags    install initrd
+timeout 30
+
+exec    sh tools/installer-initrd/test/test-cmdline-parse.sh
+stdout  'cmdline-parse:.*passed, 0 failed'
+
+exec    sh tools/installer-initrd/test/test-disk-detect.sh
+stdout  'disk-detect:.*passed, 0 failed'
+
+exec    sh tools/installer-initrd/test/test-download.sh
+stdout  'download:.*passed, 0 failed'
