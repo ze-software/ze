@@ -47,6 +47,7 @@ __pycache__/
 .claude/.session-*
 .claude/.compaction-detected
 .claude/.compaction-detected-*
+.claude/scheduled_tasks.lock
 
 # Generated AI tool config (canonical sources: ai/skills/, ai/INSTRUCTIONS.md)
 # Regenerate with: make ze-ai-sync
