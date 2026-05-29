@@ -1,0 +1,9 @@
+# Test: ze install appliance build — no bin/gok dependency
+# spec-install-7b AC-1: build subcommand does not require bin/gok binary.
+
+# The build command should not check for bin/gok existence.
+# It will fail for other reasons (no config) but NOT because of missing bin/gok.
+cmd=foreground:seq=1:exec=ze install appliance build nonexistent
+expect=exit:code=1
+expect=stderr:contains=error
+expect=stderr:not-contains=bin/gok
