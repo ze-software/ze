@@ -201,20 +201,17 @@ func TestLowerLogUnsetLeavesDefaults(t *testing.T) {
 	}
 }
 
-// VALIDATES: Category A -- Masquerade fields the backend cannot program
-// (Port, PortEnd, Flags) reject rather than silently disappear.
-func TestLowerMasqueradeRejectsUnsupportedFields(t *testing.T) {
+// VALIDATES: a masquerade port-range end without a start port is rejected --
+// the only unsupported masquerade shape after port mapping and flags support
+// landed. Port, Port+PortEnd, and the random/fully-random/persistent flags are
+// now programmed by lowerMasquerade and covered by
+// TestLowerMasqueradeWith{Ports,PortsSingle,Flags} and test/firewall/015,016.
+func TestLowerMasqueradeRejectsPortEndWithoutStartPort(t *testing.T) {
 	if _, err := lowerMasquerade(firewall.Masquerade{}); err != nil {
 		t.Fatalf("plain masquerade: %v", err)
 	}
-	if _, err := lowerMasquerade(firewall.Masquerade{Port: 1024}); err == nil {
-		t.Error("masquerade with port must reject")
-	}
 	if _, err := lowerMasquerade(firewall.Masquerade{PortEnd: 2048}); err == nil {
-		t.Error("masquerade with port end must reject")
-	}
-	if _, err := lowerMasquerade(firewall.Masquerade{Flags: 1}); err == nil {
-		t.Error("masquerade with flags must reject")
+		t.Error("masquerade with port-range end but no start port must reject")
 	}
 }
 
