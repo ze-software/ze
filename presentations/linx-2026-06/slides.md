@@ -141,7 +141,7 @@ AI code: industrial process, staff need induction, ISO processes, or you get slo
 ### What Worked
 
 - Test Driven Development, Test generation, refactoring across files
-- **2,557 co-authored commits**
+- **2,594 co-authored commits**
 - 98 RFC summaries so the AI can implement from condensed protocol specs
 
 ### What Doesn't
@@ -183,7 +183,7 @@ It still does what it was trained to do (more and more once the context exceeds 
 - Skills: How-To instructions to get what you want
 - Hook: Heavy handed control. The code doesn't land. No negotiation. No override.
 - Review: Never trust check the work done
-- 820 learned summaries: preserve decisions across sessions: institutional memory
+- 836 learned summaries: preserve decisions across sessions: institutional memory
 
 ---
 
@@ -310,7 +310,7 @@ Ze Engine Core (event bus for components and plugins)
 
 ### Schema-driven
 
-- **2,183 config nodes** across 151 YANG schemas define the entire config surface
+- **2,330 config nodes** across 151 YANG schemas define the entire config surface
 - Typo? Ze rejects unknown keys and suggests the closest match
 - Machine-transformable schema evolution
 
@@ -613,7 +613,7 @@ DUT_REPEAT=10 make ze-perf-bench PERF_DUT="ze bird"
 
 ### Coverage
 
-- **997 functional tests** (.ci): real config, real daemon, real wire output
+- **1030 functional tests** (.ci): real config, real daemon, real wire output
 - 42 interop scenarios against 7 implementations in Docker: FRR, BIRD, GoBGP, OpenBGPd, RustyBGP, rustbgpd, FreeRTR
 - Fuzz testing on all wire parsers
 
@@ -758,10 +758,10 @@ Two lines to enable the RIB and route server plugins. The rest is familiar BGP c
 
 - The scope is no longer aspirational. BGP, IPsec, L2TP, firewall, VPP: all native, all in one binary.
   * New since April, IPsec, L2TP, VPP, firewall, traffic control, REST/gRPC API, gNMI, BMP, policy framework, config transactions.
-  * The .claude system compounds: each feature builds on patterns the AI already knows. 820 learned summaries mean new sessions start with institutional memory.
+  * The .claude system compounds: each feature builds on patterns the AI already knows. 836 learned summaries mean new sessions start with institutional memory.
 
 - Adding a new protocol means writing a plugin. The engine, config, CLI, web, API, and metrics come for free.
-  * Only **816k lines** / **23MB** of Go code
+  * Only **840k lines** / **23MB** of Go code
   * Only **36MB** of vendoring code
 
 ### Status
