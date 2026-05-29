@@ -139,6 +139,118 @@ To remove only the systemd service unit and keep the binary and config, use:
 sudo ze service uninstall
 ```
 
+## Installing on Real Hardware (End to End)
+
+This is the bare-metal walkthrough for the PXE install flow. It is exactly what
+`make ze-install-qemu-test` exercises in software (build an image, serve it,
+boot an installer kernel + initrd that writes the disk, then log in over SSH) —
+see [End-to-End QEMU Verification](#end-to-end-qemu-verification) to dry-run the
+same chain before touching hardware. The reference subsections below
+(Remote Provisioning, Installer Kernel, Installer Initrd, Bootstrap Mode) cover
+each piece in detail; this section sequences them.
+
+### 1. Build the disk image
+
+Use the structured appliance builder (full reference:
+[appliance guide](appliance.md), "ze install appliance"):
+
+```bash
+ze install appliance init prod
+GOKRAZY_ARCH=amd64 ze install appliance build prod   # arm64 for ARM targets
+```
+
+This produces `~/.config/ze/appliances/prod/ze-<timestamp>.img` with TLS, SSH
+credentials, and a seed config baked into its `/perm` zefs. Match
+`GOKRAZY_ARCH` to the target CPU.
+
+### 2. Build the installer kernel and initrd
+
+The target PXE-boots a kernel + initrd, *not* the disk image. Build both for the
+target architecture:
+
+```bash
+make -C tools/installer-kernel ARCH=x86_64   # build/Image (bzImage); ARCH=arm64 for ARM
+make -C tools/installer-initrd               # build/initrd.img.gz
+```
+
+A stock distro kernel will **not** boot the module-free initrd — it needs
+virtio/ext4/IP-autoconfig built in. The reference kernel above does; see
+[Installer Kernel](#installer-kernel).
+
+### 3. Stage the boot artifacts
+
+`ze install remote` serves from fixed directories on the provisioning device:
+
+| Artifact | Location |
+|----------|----------|
+| iPXE bootloaders (`ipxe.pxe`, `ipxe.efi`) | `/var/lib/ze/install/tftp/` |
+| installer kernel | `/var/lib/ze/install/boot/` |
+| installer initrd | `/var/lib/ze/install/boot/` |
+| disk image | path passed to `--image` (served at `/install/image/<filename>`) |
+
+The kernel command line is set by **your iPXE script** (ze does not generate
+one). After DHCP chainloads iPXE, point it at the kernel/initrd over HTTP and
+pass the installer parameters — `ze.image` must match the served image filename:
+
+```ipxe
+#!ipxe
+kernel http://${next-server}/install/boot/vmlinuz ze.server=${next-server} ze.image=ze-<timestamp>.img ip=dhcp panic=-1
+initrd http://${next-server}/install/boot/initrd.img.gz
+boot
+```
+
+Add `ze.port=<port>` only if the image server does not listen on port 80.
+
+### 4. Start the provisioning server
+
+On a ze device on the (isolated) provisioning network:
+
+```bash
+sudo ze install remote \
+  --interface eth0 \
+  --network 192.168.50.0/24 \
+  --image ~/.config/ze/appliances/prod/ze-<timestamp>.img \
+  --ssh-username admin \
+  --ssh-password 'choose-a-strong-one'
+```
+
+This runs DHCP (with PXE options), TFTP (bootloaders), and the HTTP image
+server on `eth0`. It serves the image at `/install/image/<filename>` and a
+credential `database.zefs` (generated from `--ssh-*`, password stored hashed) at
+`/install/database.zefs`. See [Remote Provisioning (PXE)](#remote-provisioning-pxe).
+
+### 5. Net-boot the target
+
+Set the target firmware to network boot. It then:
+
+1. DHCPs an address and bootfile, and chainloads iPXE.
+2. iPXE loads the installer kernel + initrd with your `ze.server` / `ze.image`.
+3. The initrd downloads the image and `database.zefs`, writes the first fixed
+   disk (`/dev/sda`, `/dev/nvme0n1`, `/dev/mmcblk0` ...; removable, virtual,
+   optical and `mtdblock` flash devices are skipped), and reboots.
+4. The target boots ze in [bootstrap mode](#bootstrap-mode) and starts SSH.
+
+### 6. Log in and configure
+
+```bash
+ssh admin@<target-ip>      # the password given to --ssh-password
+```
+
+ze's SSH endpoint is the network-OS CLI. Configure with `ze config edit` and
+commit; the committed config replaces the bootstrap config on the next restart.
+
+### Troubleshooting
+
+- **Installer drops to a shell** instead of rebooting on a bad `ze.server`, no
+  writable disk, or a download that fails 3 times — read the serial/VGA console
+  for the `[ze-install] FATAL:` line.
+- **Wrong disk** written: the initrd picks the first non-removable disk; detach
+  extra fixed disks or net-boot into the shell and inspect `/sys/block`.
+- **Download stalls / non-standard port**: confirm the image server's port and
+  pass `ze.port=` in the iPXE cmdline.
+- **Dry-run first**: `make ze-install-qemu-test` reproduces the whole chain in
+  QEMU and will surface a broken image, kernel, or initrd without hardware.
+
 ## Remote Provisioning (PXE)
 
 `ze install remote` is a one-command provisioning server that PXE-boots
@@ -301,8 +413,8 @@ and the initrd's init script installs ze.
 
 ### What It Does
 
-1. Parses `ze.server` and `ze.image` from the kernel command line
-2. Downloads the gokrazy disk image from `http://<server>/install/image/<name>`
+1. Parses `ze.server`, `ze.port`, and `ze.image` from the kernel command line
+2. Downloads the gokrazy disk image from `http://<server>:<port>/install/image/<name>`
 3. Writes the image directly to the first non-removable block device
 4. Re-reads the partition table, mounts partition 4 (ext4, /perm)
 5. Downloads `database.zefs` from `http://<server>/install/database.zefs`
@@ -333,18 +445,25 @@ The bootloader (iPXE) sets these parameters:
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
-| `ze.server` | Yes | | IP address of the ze-install server |
+| `ze.server` | Yes | | IPv4 address of the ze-install server |
+| `ze.port` | No | `80` | TCP port of the install HTTP server (1-65535) |
 | `ze.image` | No | `ze.img` | Name of the disk image to download |
 | `ip=dhcp` | Yes | | Kernel-level network configuration |
+
+`ze.port` exists for install servers that cannot bind the privileged port 80
+(for example an unprivileged HTTP server, or a QEMU test harness that serves on
+an ephemeral port). When omitted the initrd uses port 80, so existing
+`ze install remote` deployments need no change.
 
 ### Disk Selection
 
 The init script selects the first non-removable block device via the
-sysfs `removable` attribute. Virtual devices (loop, ram, dm, zram) and
-optical drives (sr) are skipped.
+sysfs `removable` attribute. Virtual devices (loop, ram, dm, zram, md),
+optical drives (sr), floppies (fd), and firmware/CFI flash (`mtdblock`,
+the QEMU `virt` machine's pflash) are skipped.
 
-Supported device types: `/dev/sda` (SATA/SCSI), `/dev/nvme0n1` (NVMe),
-`/dev/mmcblk0` (eMMC).
+Supported device types: `/dev/sda` (SATA/SCSI), `/dev/vda` (virtio-blk,
+used by QEMU/KVM), `/dev/nvme0n1` (NVMe), `/dev/mmcblk0` (eMMC).
 
 ### Error Handling
 
@@ -359,5 +478,77 @@ hardware issues.
 make -C tools/installer-initrd test
 ```
 
-This runs the cmdline parsing and disk detection unit tests without
-requiring QEMU or real hardware.
+This runs the cmdline parsing, disk detection, and download unit tests
+without requiring QEMU or real hardware.
+
+### Busybox Applets
+
+The initrd is a single static busybox plus symlinks. The Makefile symlinks
+every applet the init script uses (`sh cat mount umount mkdir sleep wget dd
+sync reboot blockdev basename rm mktemp mkfifo sha256sum tee` ...), and `/init`
+also runs `busybox --install -s /bin` at boot as defence in depth. A missing
+applet would otherwise surface only at install time as a `not found` error and
+a kernel panic, so the init avoids non-essential externals (for example it
+parses the checksum file with the shell `read` builtin rather than `cut`).
+
+## Installer Kernel
+
+The initrd carries **no kernel modules**, so the kernel it boots alongside must
+have virtio-net, virtio-blk, ext4, devtmpfs, initramfs and `ip=dhcp`
+autoconfiguration all built in (`=y`). Stock distro/cloud kernels ship these as
+modules and cannot boot the initrd. `ze` deliberately ships no installer kernel:
+the right kernel is site-specific.
+
+`tools/installer-kernel/` builds a reference kernel that satisfies these
+requirements (and is what the end-to-end QEMU test boots):
+
+```bash
+make -C tools/installer-kernel                 # build/Image for the docker host arch (arm64 on colima)
+make -C tools/installer-kernel ARCH=x86_64     # for an x86_64 docker host
+make -C tools/installer-kernel LINUX_VERSION=6.12.9
+```
+
+`build.sh` verifies the required options resolved to `=y` before building and
+fails loudly if any did not. Output is `build/Image` (the kernel) and
+`build/config` (the resolved config). See `tools/installer-kernel/README.md`
+for the full rationale and the list of forced options.
+
+## End-to-End QEMU Verification
+
+`make ze-install-qemu-test` exercises the entire chain in QEMU with no hardware:
+it builds the initrd, builds a real appliance image with `ze install appliance`
+(see the [appliance guide](appliance.md)), boots the installer kernel + initrd
+against a blank virtio disk, has the initrd download and write the image and
+zefs over HTTP, then boots the **written disk** and logs in over SSH as the
+provisioned power user. That final login is the regression test for credential
+loading from the installed zefs.
+
+```bash
+ZE_INSTALL_KERNEL=$PWD/tools/installer-kernel/build/Image make ze-install-qemu-test
+```
+
+The test self-skips (does not fail) when `ZE_INSTALL_KERNEL` is unset or a
+container runtime / `qemu-system-*` is unavailable, because there is no safe
+default installer kernel.
+
+### Environment Knobs
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `ZE_INSTALL_KERNEL` | (none — self-skips) | Path to the installer kernel `Image`/`vmlinuz` |
+| `GOKRAZY_ARCH` | host arch | Target architecture for the appliance image (`arm64`/`amd64`) |
+| `ZE_INSTALL_BOOT_TIMEOUT` | `300` | Seconds to wait for the installer to write the disk |
+| `ZE_INSTALL_IMAGE_SIZE` | appliance default (2 GiB) | Override image `size-bytes` (must stay large enough for the gokrazy A/B layout) |
+| `ZE_INSTALL_SSH_USER` / `ZE_INSTALL_SSH_PASS` | `admin` / `secret` | Power-user credentials provisioned into the image and used for the AC login |
+| `ZE_INSTALL_NIC` | `e1000` | QEMU NIC model for the installer boot |
+| `ZE_INSTALL_KEEP` | unset | Keep the work directory (image, written disk, serial logs) for inspection |
+| `ZE_INSTALL_IMAGE` / `ZE_INSTALL_ZEFS` | unset | Reuse a prebuilt image + zefs instead of building one |
+
+### QEMU Networking Note
+
+The test points the guest at the slirp gateway (`ze.server=10.0.2.2
+ze.port=<ephemeral>`) rather than a `guestfwd` forward. A `guestfwd` services
+only the first guest connection, which stalls the installer's second and third
+downloads (image, zefs); the gateway handles the sequential connections the
+installer makes. This is purely a test-harness concern — real PXE installs use a
+real network and `ze install remote` on port 80.

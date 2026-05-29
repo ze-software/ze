@@ -16,6 +16,7 @@
 #   make ze-policy-test        Policy routing only
 #   make ze-static-test        Static routes (release evidence only)
 #   make ze-traffic-test       Traffic control (release evidence only)
+#   make ze-flow-export-test   Flow export sFlow/NetFlow/IPFIX (release evidence only)
 #   make ze-vpp-test           VPP stub (release evidence only)
 #   make ze-l2tp-wire-test     L2TP wire-level (release evidence only)
 
@@ -23,7 +24,7 @@
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test
 .PHONY: ze-ui-test ze-editor-test ze-web-test ze-managed-test
 .PHONY: ze-l2tp-test ze-firewall-test ze-policy-test
-.PHONY: ze-static-test ze-traffic-test ze-vpp-test ze-l2tp-wire-test
+.PHONY: ze-static-test ze-traffic-test ze-flow-export-test ze-vpp-test ze-l2tp-wire-test
 
 # Per-suite wall-clock cap. A stuck subprocess that holds an output pipe open
 # can make ze-test's own cmd.Wait() block indefinitely after SIGKILL; `timeout`
@@ -40,8 +41,8 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 # Run ze functional tests (all types, continue on failure to show all results)
 # Release evidence matrix: encode, plugin, parse, decode, reload, ui, editor,
 # managed, l2tp, firewall, policy, web. Suites not in this list (static,
-# traffic, vpp, l2tp-wire, chaos-web) have runners but need platform deps
-# or infra.
+# traffic, flow-export, vpp, l2tp-wire, chaos-web) have runners but need
+# platform deps or infra.
 # ZE_SKIP_SUITES: comma-separated list of suites to skip (e.g. firewall,web
 # for Docker environments without agent-browser or native process control).
 ZE_SKIP_SUITES ?=
@@ -68,6 +69,7 @@ ze-functional-test: bin/ze bin/ze-test
 	run_suite firewall $(SUITE_RUN) bin/ze-test firewall --all; \
 	run_suite policy $(SUITE_RUN) bin/ze-test policy --all; \
 	run_suite web $(SUITE_RUN) bin/ze-test web --all; \
+	run_suite install $(SUITE_RUN) bin/ze-test install --all; \
 	if [ -n "$$skipped_names" ]; then \
 		printf "\n\033[33mSKIPPED suites (ZE_SKIP_SUITES): %s\033[0m\n" "$$skipped_names"; \
 	fi; \
@@ -135,6 +137,13 @@ ze-static-test: bin/ze-test
 
 ze-traffic-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test traffic --all
+
+# Flow export (sFlow v5 / NetFlow v9 / IPFIX). Like static and traffic, this
+# suite needs the Linux daemon and (for packet sampling) CAP_NET_ADMIN +
+# kernel psample, so it is release-evidence-only and not in the gating
+# ze-functional-test run_suite list above.
+ze-flow-export-test: bin/ze-test
+	@$(SUITE_RUN) bin/ze-test flow-export --all
 
 ze-vpp-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test vpp --all

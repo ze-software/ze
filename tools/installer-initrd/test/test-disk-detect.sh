@@ -33,7 +33,7 @@ find_target_disk_mock() {
         name="$(basename "$dev")"
 
         case "$name" in
-            loop*|ram*|dm-*|sr*|fd*|md*|zram*)
+            loop*|ram*|dm-*|sr*|fd*|md*|zram*|mtdblock*)
                 continue
                 ;;
         esac
@@ -101,6 +101,14 @@ echo "0" > "$TMPDIR/test8/block/dm-0/removable"
 echo "0" > "$TMPDIR/test8/block/sda/removable"
 find_target_disk_mock "$TMPDIR/test8"
 assert_eq "skip-zram-dm" "/dev/sda" "$TARGET_DISK"
+
+# Test 9: QEMU `virt` machine layout -- pflash mtdblock devices sort before the
+# virtio disk in /sys/block and have no removable attribute, so without the
+# mtdblock* skip the installer would target firmware flash instead of vda.
+mkdir -p "$TMPDIR/test9/block/mtdblock0" "$TMPDIR/test9/block/mtdblock1" "$TMPDIR/test9/block/vda"
+echo "0" > "$TMPDIR/test9/block/vda/removable"
+find_target_disk_mock "$TMPDIR/test9"
+assert_eq "skip-mtdblock" "/dev/vda" "$TARGET_DISK"
 
 echo "---"
 echo "disk-detect: $PASS passed, $FAIL failed"

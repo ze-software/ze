@@ -32,11 +32,15 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 		t.Fatal("gokBuildFn was not called")
 	}
 
+	// runGokBuild passes absolute paths because ze-gok/gok is invoked with a
+	// different working directory; relative paths would resolve incorrectly.
+	wantParent, _ := filepath.Abs("gokrazy")
+	wantImg, _ := filepath.Abs("/tmp/test.img")
 	wantArgs := []string{
-		"--parent_dir", "gokrazy",
+		"--parent_dir", wantParent,
 		"-i", "ze",
 		"overwrite",
-		"--full", "/tmp/test.img",
+		"--full", wantImg,
 		"--target_storage_bytes", "1073741824",
 	}
 	if len(gotArgs) != len(wantArgs) {

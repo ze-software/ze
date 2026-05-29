@@ -18,23 +18,32 @@ const (
 	exitError = 1
 )
 
-var handlers = map[string]func([]string) int{
-	"init":         cmdInit,
-	"assemble":     cmdAssemble,
-	"build":        cmdBuild,
-	"passwd":       cmdPasswd,
-	"replace-cert": cmdReplaceCert,
-	"rekey":        cmdRekey,
-	"clone":        cmdClone,
-	"list":         cmdList,
-	"show":         cmdShow,
-	"run":          cmdRun,
-	"unlock":       cmdUnlock,
-	"export":       cmdExport,
-	"import":       cmdImport,
-	"push":         cmdPush,
-	"config":       cmdConfig,
-	"config-push":  cmdConfigPush,
+// dispatchTable maps each subcommand to its handler. It is built at call time,
+// NOT as a package-level var: the cmd*.go files install their real handlers
+// into the cmd* vars from func init(), and a map literal evaluated during
+// package-variable initialization would capture the stub values before those
+// init functions run (Go runs var initializers before init funcs), leaving
+// every subcommand permanently stubbed. Building the map inside Run() reads the
+// vars after all init funcs have completed.
+func dispatchTable() map[string]func([]string) int {
+	return map[string]func([]string) int{
+		"init":         cmdInit,
+		"assemble":     cmdAssemble,
+		"build":        cmdBuild,
+		"passwd":       cmdPasswd,
+		"replace-cert": cmdReplaceCert,
+		"rekey":        cmdRekey,
+		"clone":        cmdClone,
+		"list":         cmdList,
+		"show":         cmdShow,
+		"run":          cmdRun,
+		"unlock":       cmdUnlock,
+		"export":       cmdExport,
+		"import":       cmdImport,
+		"push":         cmdPush,
+		"config":       cmdConfig,
+		"config-push":  cmdConfigPush,
+	}
 }
 
 // baseDir holds the resolved appliance directory for the current invocation.
@@ -60,6 +69,7 @@ func Run(args []string) int {
 		return exitOK
 	}
 
+	handlers := dispatchTable()
 	if handler, ok := handlers[subcmd]; ok {
 		return handler(subArgs)
 	}

@@ -19,6 +19,8 @@ RETRY_DELAY=5
 # `wget | dd` would mask a wget failure: the marker file records it instead.
 WGET_FAIL_MARKER="/tmp/ze-wget.fail"
 HASH_FILE="/tmp/ze-image.sha256"
+WGET_ERR="/tmp/ze-wget.err"
+WGET_RC_FILE="/tmp/ze-wget.rc"
 
 # -- helpers --
 
@@ -37,6 +39,7 @@ fatal() {
 parse_cmdline() {
     ZE_SERVER=""
     ZE_IMAGE="ze.img"
+    ZE_PORT="80"
 
     if [ ! -f /proc/cmdline ]; then
         return
@@ -49,6 +52,9 @@ parse_cmdline() {
                 ;;
             ze.image=*)
                 ZE_IMAGE="${param#ze.image=}"
+                ;;
+            ze.port=*)
+                ZE_PORT="${param#ze.port=}"
                 ;;
         esac
     done
@@ -81,6 +87,16 @@ validate_ipv4() {
     return 0
 }
 
+# validate_port accepts a decimal TCP port in 1..65535. ze.port comes from the
+# kernel cmdline; restricting it keeps a crafted value out of the download URL.
+validate_port() {
+    case "$1" in
+        ""|*[!0-9]*) return 1 ;;
+    esac
+    [ "$1" -ge 1 ] 2>/dev/null && [ "$1" -le 65535 ] || return 1
+    return 0
+}
+
 # validate_image_name accepts only safe filename characters. ze.image comes
 # from the kernel cmdline (set by the DHCP/TFTP server); restricting it blocks
 # path traversal, HTTP header injection via newlines, and terminal-escape
@@ -103,7 +119,12 @@ find_target_disk() {
         name="$(basename "$dev")"
 
         case "$name" in
-            loop*|ram*|dm-*|sr*|fd*|md*|zram*)
+            loop*|ram*|dm-*|sr*|fd*|md*|zram*|mtdblock*)
+                # mtdblock* is the QEMU `virt` machine's pflash/CFI flash, which
+                # sorts before vda in /sys/block and is never a gokrazy install
+                # target (gokrazy writes to SD/eMMC/NVMe/SATA/USB). Skipping it
+                # keeps the installer from clobbering firmware flash instead of
+                # the real disk.
                 continue
                 ;;
         esac
@@ -179,19 +200,20 @@ download_to_disk() {
 
     while [ "$attempt" -le "$RETRY_MAX" ]; do
         log "Streaming $url to $disk (attempt $attempt/$RETRY_MAX)"
-        rm -f "$WGET_FAIL_MARKER" "$HASH_FILE"
+        rm -f "$WGET_FAIL_MARKER" "$HASH_FILE" "$WGET_RC_FILE"
 
         fifo="$(mktemp -u)"
         mkfifo "$fifo"
         sha256sum < "$fifo" > "$HASH_FILE" &
         hash_pid=$!
 
-        # tee fans the stream out to the hashing FIFO and onward to dd. The
-        # `|| : > marker` records a wget failure that the pipeline status hides.
+        # tee fans the stream out to the hashing FIFO and onward to dd. wget's
+        # own exit status is recorded into $WGET_RC_FILE inside the subshell so
+        # it survives the pipeline (a POSIX pipeline reports only dd's status).
         # The pipeline lives in an `if` so `set -e` never aborts on a dd
         # failure here: failures must flow into the retry loop below, not kill
         # the script. (Do not rely on the caller's context to suppress -e.)
-        if { wget -q -O - "$url" 2>/dev/null || : > "$WGET_FAIL_MARKER"; } \
+        if { wget -q -O - "$url" 2>"$WGET_ERR"; echo $? > "$WGET_RC_FILE"; } \
             | tee "$fifo" \
             | dd of="$disk" bs=4M 2>/dev/null; then
             dd_rc=0
@@ -202,12 +224,27 @@ download_to_disk() {
         wait "$hash_pid" 2>/dev/null || true
         rm -f "$fifo"
 
+        read -r wget_rc < "$WGET_RC_FILE" 2>/dev/null || wget_rc=1
+        if [ "$wget_rc" != "0" ]; then
+            : > "$WGET_FAIL_MARKER"
+        fi
+
         if [ "$dd_rc" -ne 0 ] || [ -f "$WGET_FAIL_MARKER" ]; then
-            log "Transfer failed (dd status $dd_rc, wget failed: $([ -f "$WGET_FAIL_MARKER" ] && echo yes || echo no))"
+            log "Transfer failed (dd status $dd_rc, wget rc ${wget_rc})"
+            if [ -s "$WGET_ERR" ]; then
+                log "wget: $(cat "$WGET_ERR")"
+            fi
+            if [ "$attempt" -eq 1 ]; then
+                log "DIAG net: $(ip -o -4 addr 2>&1 | tr '\n' ';')"
+                diag_n="$(wget -O - "$url" 2>/tmp/ze-diag.err | wc -c)"
+                diag_rc=$?
+                log "DIAG direct: bytes=${diag_n} piperc=${diag_rc} err=[$(cat /tmp/ze-diag.err 2>/dev/null)]"
+            fi
         elif [ -z "$expected_sha" ]; then
             return 0
         else
-            actual_sha="$(cut -d' ' -f1 < "$HASH_FILE" 2>/dev/null)"
+            actual_sha=""
+            read -r actual_sha _ < "$HASH_FILE" 2>/dev/null || true
             if [ "$actual_sha" = "$expected_sha" ]; then
                 return 0
             fi
@@ -229,6 +266,13 @@ download_to_disk() {
 main() {
     log "Ze installer initrd starting"
 
+    # Defense in depth: symlink every applet busybox provides into /bin so a
+    # command added to this script later cannot silently 404 at boot the way
+    # `cut`/`mkfifo`/`sha256sum` once did. The Makefile also symlinks the known
+    # set explicitly (deterministic even if this busybox lacks the installer
+    # feature); this line covers anything that list misses.
+    /bin/busybox --install -s /bin 2>/dev/null || true
+
     mount -t proc none /proc 2>/dev/null || true
     mount -t sysfs none /sys 2>/dev/null || true
     mount -t devtmpfs none /dev 2>/dev/null || true
@@ -244,13 +288,21 @@ main() {
         fatal "ze.server '$ZE_SERVER' is not a valid IPv4 address"
     fi
 
+    if ! validate_port "$ZE_PORT"; then
+        fatal "ze.port '$ZE_PORT' is not a valid TCP port (1-65535)"
+    fi
+
     # Reject before logging or using in a URL: the raw value is not echoed so a
     # crafted name cannot inject terminal escapes into the console at this point.
     if ! validate_image_name "$ZE_IMAGE"; then
         fatal "ze.image contains invalid characters (allowed: a-z A-Z 0-9 . _ -)"
     fi
 
-    log "Server: $ZE_SERVER"
+    # Base URL for all installer fetches. ze.port defaults to 80; an explicit
+    # port supports install servers that cannot bind the privileged port.
+    ZE_BASE="http://${ZE_SERVER}:${ZE_PORT}"
+
+    log "Server: $ZE_SERVER:$ZE_PORT"
     log "Image: $ZE_IMAGE"
 
     find_target_disk
@@ -263,15 +315,19 @@ main() {
     # download_to_disk reject a corrupt or truncated write before we reboot
     # onto it; when absent we fall back to transfer-success detection only.
     EXPECTED_SHA=""
-    if download "http://${ZE_SERVER}/install/image/${ZE_IMAGE}.sha256" /tmp/image.sha256.txt; then
-        EXPECTED_SHA="$(cut -d' ' -f1 < /tmp/image.sha256.txt)"
+    if download "${ZE_BASE}/install/image/${ZE_IMAGE}.sha256" /tmp/image.sha256.txt; then
+        # `|| true`, not `|| EXPECTED_SHA=""`: read returns non-zero when the
+        # last line has no trailing newline but STILL assigns the field, so
+        # clearing here would silently drop a valid hash and disable checksum
+        # verification. Swallow the status, keep the value.
+        read -r EXPECTED_SHA _ < /tmp/image.sha256.txt || true
         log "Expected image SHA-256: $EXPECTED_SHA"
     else
         log "WARNING: no ${ZE_IMAGE}.sha256 on server; skipping image checksum verification"
     fi
 
     log "Writing disk image..."
-    if ! download_to_disk "http://${ZE_SERVER}/install/image/${ZE_IMAGE}" "$TARGET_DISK" "$EXPECTED_SHA"; then
+    if ! download_to_disk "${ZE_BASE}/install/image/${ZE_IMAGE}" "$TARGET_DISK" "$EXPECTED_SHA"; then
         fatal "Failed to download and write disk image after $RETRY_MAX attempts"
     fi
     sync
@@ -294,7 +350,7 @@ main() {
     mkdir -p /mnt/perm/ze
 
     log "Downloading zefs database..."
-    if ! download "http://${ZE_SERVER}/install/database.zefs" /mnt/perm/ze/database.zefs; then
+    if ! download "${ZE_BASE}/install/database.zefs" /mnt/perm/ze/database.zefs; then
         umount /mnt/perm 2>/dev/null || true
         fatal "Failed to download database.zefs after $RETRY_MAX attempts"
     fi

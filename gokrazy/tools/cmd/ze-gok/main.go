@@ -24,12 +24,19 @@ import (
 )
 
 func main() {
-	wd, err := os.Getwd()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ze-gok: %v\n", err)
-		os.Exit(1)
+	// Honor a GOMODCACHE supplied by the caller (e.g. `ze install appliance
+	// build`, which runs ze-gok with its working directory set to gokrazy/tools
+	// and so cannot rely on os.Getwd() resolving to the repo root). Only fall
+	// back to a CWD-relative cache when run standalone from the repo root.
+	modcache := os.Getenv("GOMODCACHE")
+	if modcache == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ze-gok: %v\n", err)
+			os.Exit(1)
+		}
+		modcache = filepath.Join(wd, "gokrazy", "modcache")
 	}
-	modcache := filepath.Join(wd, "gokrazy", "modcache")
 	if err := os.MkdirAll(modcache, 0o750); err != nil {
 		fmt.Fprintf(os.Stderr, "ze-gok: %v\n", err)
 		os.Exit(1)

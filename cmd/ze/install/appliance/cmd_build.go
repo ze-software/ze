@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gokrazy/tools/gok"
 )
 
 var errNoPartitionsFoundInGpt = errors.New("no partitions found in GPT")
@@ -33,7 +35,7 @@ const (
 var (
 	e2fsDir       = resolveE2FSDir()
 	runExternalFn = runExternal
-	gokBuildFn    = runGokViaGoRun
+	gokBuildFn    = runGokInProcess
 )
 
 func resolveE2FSDir() string {
@@ -179,51 +181,59 @@ func gokSizeArg(n int64) string {
 	return string(buf)
 }
 
-func runGokViaGoRun(args []string) error {
+// runGokInProcess runs the gokrazy builder (gok) embedded in-process rather
+// than shelling out to a separate ze-gok binary. gok still spawns its own
+// `go build`/`go list` subprocesses for the target packages, and those resolve
+// modules from the repo-local gokrazy/modcache, so GOMODCACHE is pointed there
+// (gok hardcodes -mod=mod, so it always reads the module cache). Must run from
+// the ze source tree root, where gokrazy/{ze,modcache} live.
+func runGokInProcess(args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), buildTimeout)
 	defer cancel()
-
-	// The vendored builder lives at gokrazy/tools/ relative to the repo root,
-	// so `ze install appliance build` must run from there. Fail with a clear
-	// message rather than an opaque `go run` error when invoked elsewhere.
-	toolsDir := filepath.Join("gokrazy", "tools")
-	if _, statErr := os.Stat(filepath.Join(toolsDir, "cmd", "ze-gok")); statErr != nil {
-		return fmt.Errorf("vendored gokrazy builder not found at %s; run from the ze source tree root: %w", toolsDir, statErr)
-	}
-
-	goRunArgs := make([]string, 0, 3+len(args))
-	goRunArgs = append(goRunArgs, "run", "-mod=vendor", "./cmd/ze-gok")
-	goRunArgs = append(goRunArgs, args...)
-
-	cmd := exec.CommandContext(ctx, "go", goRunArgs...) //nolint:gosec // controlled invocation
-	cmd.Dir = toolsDir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
 	wd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("getwd: %w", err)
 	}
 	modcache := filepath.Join(wd, "gokrazy", "modcache")
-	if mkErr := os.MkdirAll(modcache, 0o750); mkErr != nil {
-		return fmt.Errorf("create modcache: %w", mkErr)
+	if _, statErr := os.Stat(modcache); statErr != nil {
+		return fmt.Errorf("gokrazy module cache not found at %s; run from the ze source tree root: %w", modcache, statErr)
 	}
-	cmd.Env = append(os.Environ(), "GOMODCACHE="+modcache)
+	if setErr := os.Setenv("GOMODCACHE", modcache); setErr != nil {
+		return fmt.Errorf("set GOMODCACHE: %w", setErr)
+	}
 
-	return cmd.Run()
+	return gok.Context{
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+		Args:   args,
+	}.Execute(ctx)
 }
 
 func runGokBuild(cfg *ApplianceConfig, imgPath string) int {
 	fmt.Fprintf(os.Stderr, "building gokrazy image...\n")
 
-	err := gokBuildFn([]string{
-		"--parent_dir", "gokrazy",
+	// ze-gok runs with its working directory set to gokrazy/tools (so `go run`
+	// resolves the vendored builder module), so relative paths passed to it are
+	// resolved against gokrazy/tools, not the repo root. Pass absolute paths.
+	parentDir, err := filepath.Abs("gokrazy")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: resolve gokrazy parent dir: %v\n", err)
+		return exitError
+	}
+	absImg, err := filepath.Abs(imgPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: resolve image path: %v\n", err)
+		return exitError
+	}
+
+	if err := gokBuildFn([]string{
+		"--parent_dir", parentDir,
 		"-i", "ze",
 		"overwrite",
-		"--full", imgPath,
+		"--full", absImg,
 		"--target_storage_bytes", gokSizeArg(cfg.Image.SizeBytes),
-	})
-	if err != nil {
+	}); err != nil {
 		fmt.Fprintf(os.Stderr, "error: gok build failed: %v\n", err)
 		return exitError
 	}

@@ -3,10 +3,31 @@ package appliance
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
+
+// TestDispatchTableWired guards against the regression where the dispatch map
+// captured the stub handlers before the per-command init() functions installed
+// the real implementations. Every subcommand must resolve to a real handler.
+func TestDispatchTableWired(t *testing.T) {
+	stubPtr := reflect.ValueOf(stub).Pointer()
+	table := dispatchTable()
+	if len(table) == 0 {
+		t.Fatal("dispatchTable is empty")
+	}
+	for name, h := range table {
+		if h == nil {
+			t.Errorf("subcommand %q has a nil handler", name)
+			continue
+		}
+		if reflect.ValueOf(h).Pointer() == stubPtr {
+			t.Errorf("subcommand %q is not wired (still points at stub)", name)
+		}
+	}
+}
 
 func setApplianceDir(t *testing.T, value string) {
 	t.Helper()

@@ -36,6 +36,22 @@ require (
 require github.com/openconfig/gnmi v0.14.1
 
 require (
+	github.com/antihax/optional v1.0.0 // indirect
+	github.com/donovanhide/eventsource v0.0.0-20210830082556-c59027999da0 // indirect
+	github.com/gokrazy/gokapi v0.0.0-20251205165548-0927bab199d4 // indirect
+	github.com/gokrazy/internal v0.0.0-20251208203110-3c1aa9087c82 // indirect
+	github.com/gokrazy/tools v0.0.0-20260406155313-5861e2403dc8 // indirect
+	github.com/gokrazy/updater v0.0.0-20250705135802-db129c40879c // indirect
+	github.com/google/renameio/v2 v2.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/spf13/cobra v1.10.1 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
+	golang.org/x/crypto/x509roots/fallback v0.0.0-20250911151450-96dc232fbd79 // indirect
+	golang.org/x/oauth2 v0.34.0 // indirect
+)
+
+require (
 	charm.land/log/v2 v2.0.0 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
@@ -62,8 +78,8 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/lunixbochs/struc v0.0.0-20200521075829-a4cb8d33dbbe // indirect
 	github.com/mattn/go-runewidth v0.0.21 // indirect
-	github.com/mdlayher/genetlink v1.3.2 // indirect
-	github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42 // indirect
+	github.com/mdlayher/genetlink v1.3.2
+	github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42
 	github.com/mdlayher/packet v1.1.2
 	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect

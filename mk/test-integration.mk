@@ -20,7 +20,7 @@
 .PHONY: ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-docker-evidence ze-deployment-preflight
-.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test
+.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-ldp-frr-test ze-install-qemu-test
 
 # ─── Interop ────────────────────────────────────────────────────────────────
 
@@ -132,7 +132,24 @@ ze-qemu-integration-test:
 	@echo "Running integration tests in QEMU Linux VM (requires qemu + internet for first run)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "nftables iproute2 iputils-ping kmod iptables" \
-		--run 'go test -tags integration -count=1 -timeout 120s ./cmd/ze/doctor ./internal/component/iface/... ./internal/component/config/system/... ./internal/core/routewatch/... ./internal/plugins/fib/kernel/... ./internal/plugins/firewall/nft/... ./internal/plugins/firewall/vpp/... ./internal/plugins/traffic/netlink/...'
+		--run 'go test -tags integration -count=1 -timeout 120s ./cmd/ze/doctor ./internal/component/iface/... ./internal/component/config/system/... ./internal/core/routewatch/... ./internal/plugins/fib/kernel/... ./internal/plugins/firewall/nft/... ./internal/plugins/firewall/vpp/... ./internal/plugins/traffic/netlink/... ./internal/plugins/tftpserver/... ./internal/plugins/dhcpserver/...'
+
+ze-qemu-ldp-frr-test:
+	@echo "Running LDP interop test against FRR ldpd in QEMU Linux VM (installs frr)..."
+	python3 scripts/evidence/qemu-run.py \
+		--packages "frr iproute2 kmod" \
+		--run 'go test -tags integration -count=1 -timeout 150s -run TestLDPInteropFRR ./internal/component/ldp/...'
+
+ze-install-qemu-test:
+	@echo "Running full installer-chain QEMU evidence (builds initrd + image, boots installer, verifies SSH login)..."
+	@echo "Set ZE_INSTALL_KERNEL=/path/to/vmlinuz (IP_PNP_DHCP/VIRTIO_NET/VIRTIO_BLK/EXT4 built in); self-skips otherwise."
+	@# macOS: point docker at colima's socket when DOCKER_HOST is unset, else the
+	@# default context is down and busybox extraction (and the test) self-skips.
+	@if [ "$$(uname)" = "Darwin" ] && [ -z "$$DOCKER_HOST" ] && [ -S "$$HOME/.colima/default/docker.sock" ]; then \
+		DOCKER_HOST="unix://$$HOME/.colima/default/docker.sock" python3 scripts/evidence/effective-install-qemu.py; \
+	else \
+		python3 scripts/evidence/effective-install-qemu.py; \
+	fi
 
 ze-qemu-l2tp-ppp-test:
 	@test -f tmp/kernel/vmlinuz || { echo "error: tmp/kernel/vmlinuz not found (run: make ze-kernel GOKRAZY_ARCH=arm64)"; exit 1; }

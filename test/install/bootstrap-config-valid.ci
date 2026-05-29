@@ -7,6 +7,10 @@
 # TestEmitBootstrapConfig*; its well-formedness (balanced braces, every line
 # ends with ; { or }) by TestEmitBootstrapConfigStructure. Keep them in sync.
 
+# The ipv4/dhcp containers are ze:os "linux" gated, so `ze config validate`
+# only recognises them on Linux; on darwin they parse as unknown fields.
+option=skip-os:value=darwin
+
 stdin=config:terminator=EOF_CONF
 interface {
     ethernet eth0 {

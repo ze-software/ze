@@ -1,0 +1,302 @@
+swagger: "2.0"
+info:
+  description: "OpenAPI for GUS (gokrazy update service)"
+  version: "1.4.0"
+  title: "GUS (gokrazy update service)"
+  contact:
+    email: "michael+gokrazy@stapelberg.ch"
+  license:
+    name: "BSD 3-clause revised license"
+    url: "https://github.com/gokrazy/gus/blob/main/LICENSE"
+
+host: "gus.gokrazy.org"
+
+basePath: "/api/v1"
+
+schemes:
+- "https"
+
+tags:
+- name: "heartbeat"
+  description: "heartbeat"
+
+- name: "ingest"
+  description: "ingest"
+
+- name: "update"
+  description: "update"
+
+paths:
+  /heartbeat:
+    post:
+      tags:
+        - "heartbeat"
+      summary: "device sends a heartbeat"
+      description: >-
+        The heartbeat indicates that the device is active (for display
+        in the GUS user interface) and contains:
+
+        1. the SBOM (Software Bill Of Materials)
+
+        1. human readable system information, like model or kernel version
+      operationId: "heartbeat"
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: JSON-encoded heartbeat request
+          schema:
+            $ref: '#/definitions/heartbeatRequest'
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "heartbeat accepted"
+          schema:
+            $ref: '#/definitions/heartbeatResponse'
+
+  /push:
+    put:
+      tags:
+        - "ingest"
+      summary: "push a gokrazy build into the local disk registry"
+      description: >-
+        If the GUS server was started with a non-empty `--image_dir`,
+        you can push gokrazy builds into the image directory. Example:
+
+        ```
+        gok push --gaf disk.gaf --server http://localhost:8655
+        ```
+
+
+        This is the most convenient form of build registry
+        (registry type `localdisk`), as no other service providers
+        are involved — you directly upload builds to the GUS server,
+        devices download the builds from the GUS server.
+
+
+        A /push request is typically followed by a /ingest request.
+      operationId: "push"
+      consumes:
+        - application/octet-stream
+      parameters:
+        - in: body
+          name: body
+          description: build as a GAF file (gokrazy archive format)
+          schema:
+            type: string
+            format: binary
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "push succeeded"
+          schema:
+            $ref: '#/definitions/pushResponse'
+
+  /ingest:
+    post:
+      tags:
+        - "ingest"
+      summary: "ingest a gokrazy build into the GUS database"
+      description: >-
+        Ingesting a gokrazy build makes it available for update
+        on the machines matching the specified `machine_id_pattern`.
+      operationId: "ingest"
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: JSON-encoded ingest request
+          schema:
+            $ref: '#/definitions/ingestRequest'
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "ingest accepted"
+          schema:
+            $ref: '#/definitions/ingestResponse'
+
+  /update:
+    post:
+      tags:
+        - "update"
+      summary: "check if an update is available"
+      description: >-
+        The gokrazy/selfupdate program calls this request periodically
+        to see if an update is available.
+      operationId: "update"
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: JSON-encoded update request
+          schema:
+            $ref: '#/definitions/updateRequest'
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "update accepted"
+          schema:
+            $ref: '#/definitions/updateResponse'
+
+  /attempt:
+    post:
+      tags:
+        - "update"
+      summary: "note that an update will be attempted"
+      operationId: "attempt"
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: JSON-encoded update request
+          schema:
+            $ref: '#/definitions/attemptRequest'
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "attempt noted"
+          schema:
+            $ref: '#/definitions/attemptResponse'
+
+definitions:
+  machineId:
+    type: string
+    description: "gok new generates a unique machine-id"
+    example: 8838abd21a6144a599e40fa3615f204a
+
+  sbomHash:
+    type: string
+    description: "a hash that uniquely identifies a SBOM (Software Bill Of Materials)"
+    example: "de4d97b7d7aca1051fd6d58d30928c9fd96c5cbaa47d3fb749be03bc451d7126"
+
+  pathHash:
+    title: pathHash
+    type: object
+    properties:
+      path:
+        type: string
+        description: "relative or absolute file path"
+        example: "/home/michael/gokrazy/hello/config.json"
+      hash:
+        type: string
+        description: "TODO"
+        example: "4d74a25e9f0e899a023fd159e22a77726a40dc1710e264fb330102d2e864546a"
+
+  pushResponse:
+    title: pushResponse
+    type: object
+    properties:
+      download_link:
+        type: string
+        description: "relative download link for the pushed GAF file"
+        example: "/images/2023-02-21T20:27:45+01:00-1757853214/disk.gaf"
+
+  updateRequest:
+    title: updateRequest
+    type: object
+    properties:
+      machine_id:
+        $ref: '#/definitions/machineId'
+
+  updateResponse:
+    title: updateResponse
+    type: object
+    properties:
+      sbom_hash:
+        $ref: '#/definitions/sbomHash'
+      registry_type:
+        type: string
+        description: "the type of registry on which the build is stored. see download_link"
+        example: "localdisk"
+      download_link:
+        type: string
+        description: "relative (localdisk registry) or absolute download link with which gokrazy devices can download the build"
+        example: "/images/2023-02-21T20:27:45+01:00-1757853214/disk.gaf"
+
+  attemptRequest:
+    title: updateRequest
+    type: object
+    properties:
+      machine_id:
+        $ref: '#/definitions/machineId'
+      sbom_hash:
+        $ref: '#/definitions/sbomHash'
+
+  attemptResponse:
+    title: attemptResponse
+    type: object
+
+  ingestRequest:
+    title: ingestRequest
+    type: object
+    properties:
+      machine_id_pattern:
+        type: string
+        description: TODO
+        example: "TODO"
+      sbom_hash:
+        $ref: '#/definitions/sbomHash'
+      registry_type:
+        type: string
+        description: "the type of registry on which the build is stored. see download_link"
+        example: "localdisk"
+      download_link:
+        type: string
+        description: "relative (localdisk registry) or absolute download link with which gokrazy devices can download the build"
+        example: "/images/2023-02-21T20:27:45+01:00-1757853214/disk.gaf"
+
+  ingestResponse:
+    title: ingestResponse
+    type: object
+
+  heartbeatRequest:
+    title: heartbeatRequest
+    type: object
+    properties:
+      machine_id:
+        $ref: '#/definitions/machineId'
+      hostname:
+        type: string
+        description: TODO
+        example: "scanner"
+      sbom_hash:
+        $ref: '#/definitions/sbomHash'
+      sbom:
+        type: object
+        description: TODO
+        properties:
+          config_hash:
+            $ref: '#/definitions/pathHash'
+          go_mod_hashes:
+            type: array
+            description: TODO
+            items:
+              $ref: '#/definitions/pathHash'
+            example:
+              - path: "builddir/github.com/gokrazy/gokrazy/go.mod"
+                hash: "7447acf9460a4ca37ab89d6a4bf5abacbc334b6924a0ff540b3f871913ef31cf"
+      human_readable:
+        type: object
+        description: TODO
+        properties:
+          kernel:
+            type: string
+            description: Linux kernel version
+            example: "Linux 6.2.0 (aarch64)"
+          model:
+            type: string
+            description: Model
+            example: "Raspberry Pi Zero 2 W Rev 1.0"
+
+  heartbeatResponse:
+    title: heartbeatResponse
+    type: object
