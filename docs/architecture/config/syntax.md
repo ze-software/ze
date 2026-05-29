@@ -577,13 +577,13 @@ Invalid enum values are rejected at parse time.
 
 ---
 
-## Redistribution Block (planned)
+## Filter Block
 
-Route filtering via external plugin filters. Appears in `peer-fields` grouping
-(group and peer levels) and `bgp` container (global level).
+Route filtering via named filter instances. Appears in `peer-fields` grouping
+(group and peer levels) and the `bgp` container (global level).
 
 ```
-redistribution {
+filter {
     import [ rpki:validate community:scrub ];
     export [ aspath:prepend ];
 }
@@ -599,10 +599,16 @@ filters (e.g., `rfc:otc`) always run first and cannot be configured. Default
 filters (e.g., `rfc:no-self-as`) run unless overridden by a user filter that
 declares `overrides`.
 
-Validation: the `<plugin>` must exist and must have declared a filter named
-`<filter>` for the matching direction. Validated after plugin stage 1 completes.
+Validation checks local policy filter names, canonicalizes short filter-type
+references through the plugin registry, and leaves explicit `<plugin>:<filter>`
+references for runtime dispatch. Runtime calls use the `filter-update` callback
+on the selected plugin.
 
-<!-- source: plan/spec-redistribution-filter.md -- redistribution YANG config design -->
+<!-- source: plan/learned/479-redistribution-filter.md -- redistribution YANG config design -->
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- policy and filter containers -->
+<!-- source: internal/component/bgp/config/redistribution.go -- redistribution config parsing -->
+<!-- source: internal/component/bgp/config/filter_registry.go -- local policy filter validation -->
+<!-- source: internal/component/plugin/registry/registry.go -- FilterTypes registry -->
 
 ---
 

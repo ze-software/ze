@@ -136,7 +136,11 @@ ze --plugins
 | `bgp-persist` | Route persistence across restarts | `receive [ update state ] send [ update ]` |
 | `bgp-rs` | Route server (forward-all) | `receive [ update ] send [ update ]` |
 | `bgp-watchdog` | Deferred route announcement | `receive [ update ]` |
-<!-- source: internal/component/bgp/plugins/rib/register.go; internal/component/bgp/plugins/adj_rib_in/register.go; internal/component/bgp/plugins/persist/register.go; internal/component/bgp/plugins/rs/register.go; internal/component/bgp/plugins/watchdog/register.go -->
+<!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib registration -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/register.go -- bgp-adj-rib-in registration -->
+<!-- source: internal/component/bgp/plugins/persist/register.go -- bgp-persist registration -->
+<!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs registration -->
+<!-- source: internal/component/bgp/plugins/watchdog/register.go -- bgp-watchdog registration -->
 
 ### Protocol
 
@@ -151,7 +155,15 @@ ze --plugins
 | `bgp-softver` | Software version capability | -- |
 | `bgp-llnh` | Link-local next-hop (RFC 2545) | -- |
 | `bgp-bmp` | BMP receiver + sender (RFC 7854) | `receive [ state update ]` |
-<!-- source: internal/component/bgp/plugins/gr/register.go; internal/component/bgp/plugins/rpki/register.go; internal/component/bgp/plugins/rpki_decorator/register.go; internal/component/bgp/plugins/route_refresh/register.go; internal/component/bgp/plugins/role/register.go; internal/component/bgp/plugins/hostname/register.go; internal/component/bgp/plugins/softver/register.go; internal/component/bgp/plugins/llnh/register.go; internal/component/bgp/plugins/bmp/register.go -->
+<!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr registration -->
+<!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration -->
+<!-- source: internal/component/bgp/plugins/rpki_decorator/register.go -- bgp-rpki-decorator registration -->
+<!-- source: internal/component/bgp/plugins/route_refresh/register.go -- bgp-route-refresh registration -->
+<!-- source: internal/component/bgp/plugins/role/register.go -- bgp-role registration -->
+<!-- source: internal/component/bgp/plugins/hostname/register.go -- bgp-hostname registration -->
+<!-- source: internal/component/bgp/plugins/softver/register.go -- bgp-softver registration -->
+<!-- source: internal/component/bgp/plugins/llnh/register.go -- bgp-llnh registration -->
+<!-- source: internal/component/bgp/plugins/bmp/register.go -- bgp-bmp registration -->
 
 ### Infrastructure
 
@@ -262,12 +274,12 @@ Bus topics in the sysctl pipeline:
 <!-- source: internal/component/plugin/server/events.go -- NamespaceSysctl, EventSysctl* -->
 <!-- source: internal/plugins/sysctl/register.go -- EventBus subscribe/emit -->
 
-### Redistribution Filters (planned)
+### Route Filters
 
 Plugins can declare named filters at stage 1 for import and/or export filtering.
 Each filter specifies which attributes it needs, and the engine sends only those
 attributes as text for each UPDATE. Filters respond accept, reject, or modify
-(delta-only). See [Redistribution Guide](redistribution.md) for configuration.
+(delta-only). See [Route Filters](redistribution.md) for configuration.
 
 A single plugin can offer multiple named filters. Config references them as
 `<plugin>:<filter>` (e.g., `rpki:validate`, `community:scrub`).
@@ -276,18 +288,18 @@ A single plugin can offer multiple named filters. Config references them as
 |----------|----------|---------|
 | Mandatory | Always on, cannot be overridden | `rfc:otc` |
 | Default | On by default, overridable per-peer | `rfc:no-self-as` |
-| User | Explicit in `redistribution {}` config | `rpki:validate` |
+| User | Explicit in `filter {}` config | `rpki:validate` |
 
 Filters can declare `overrides` to remove default filters from the chain
 (e.g., `allow-own-as:relaxed` overrides `rfc:no-self-as` for a specific peer).
 
-<!-- source: plan/spec-redistribution-filter.md -- redistribution filter design -->
+<!-- source: plan/learned/479-redistribution-filter.md -- redistribution filter design -->
 
 ### Cross-Protocol Redistribute (`redistribute-orchestrator`)
 
 `redistribute-orchestrator` is the single subscriber that dispatches non-consumer
 protocol route-change events to registered `RedistConsumer` implementations.
-Unlike the redistribution filter chain above (which gates intra-BGP traffic),
+Unlike the route filter chain above (which gates intra-BGP traffic),
 the orchestrator lets operators redistribute locally-originated routes from
 other protocols (L2TP sessions, connected interface prefixes, static routes,
 future OSPF / ISIS) into destination protocols (BGP, future OSPF/ISIS).
@@ -499,7 +511,16 @@ NLRI plugins register address family support at init time via `family.MustRegist
 | `bgp-nlri-mvpn` | ipv4/mvpn, ipv6/mvpn |
 | `bgp-nlri-rtc` | ipv4/rtc |
 | `bgp-nlri-ls` | bgp-ls/bgp-ls, bgp-ls/bgp-ls-vpn |
-<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go; internal/component/bgp/plugins/nlri/evpn/types.go; internal/component/bgp/plugins/nlri/vpls/types.go; internal/component/bgp/plugins/nlri/flowspec/types.go; internal/component/bgp/plugins/nlri/labeled/types.go; internal/component/bgp/plugins/nlri/mup/types.go; internal/component/bgp/plugins/nlri/mvpn/types.go; internal/component/bgp/plugins/nlri/rtc/types.go; internal/component/bgp/plugins/nlri/ls/types.go; internal/core/family/registry.go -->
+<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- VPN family types -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPN family types -->
+<!-- source: internal/component/bgp/plugins/nlri/vpls/types.go -- VPLS family types -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowSpec family types -->
+<!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- labeled unicast family types -->
+<!-- source: internal/component/bgp/plugins/nlri/mup/types.go -- MUP family types -->
+<!-- source: internal/component/bgp/plugins/nlri/mvpn/types.go -- MVPN family types -->
+<!-- source: internal/component/bgp/plugins/nlri/rtc/types.go -- RTC family types -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGP-LS family types -->
+<!-- source: internal/core/family/registry.go -- family registry -->
 
 ## Hub Configuration
 

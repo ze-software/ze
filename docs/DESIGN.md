@@ -1,6 +1,6 @@
 # Ze -- Design Document
 
-A plugin-first, wire-first BGP daemon in Go, built for programmability and performance.
+A plugin-first, wire-first Network OS in Go, built for programmability and performance.
 
 **Architect:** Thomas Mangin
 **Code:** Primarily authored by Claude (Anthropic), directed by the architect
@@ -11,13 +11,14 @@ A plugin-first, wire-first BGP daemon in Go, built for programmability and perfo
 
 ## Goals
 
-**Component architecture.** Ze is a generic engine with a hub/bus at its center.
-Subsystems (BGP, and in the future interface control, firewall, and others) and plugins
-(RIB, route reflection, graceful restart, policy) are all components that connect to
-the hub. BGP was the first subsystem -- built to match ExaBGP's capabilities -- but the
-architecture does not assume it is the only one. The goal is to lower the barrier to
-network development: anyone can write a plugin in any language -- Go, Python, Rust, or
-anything that reads lines and writes lines -- without understanding the engine internals.
+**Component architecture.** Ze is a generic engine with a hub/bus, config provider,
+plugin manager, and registered subsystems. BGP was the first subsystem, but the
+current tree also contains interface management, firewall, traffic control, FIB,
+VPP, L2TP/PPP, PPPoE, IPsec/IKE, LDP, RSVP-TE, telemetry, web, API, gNMI, MCP,
+storage, audit, and diagnostics components. The goal is to lower the barrier to
+network development: anyone can write a plugin in any language -- Go, Python,
+Rust, or anything that reads lines and writes lines -- without understanding the
+engine internals.
 Everyone can extend Ze by writing a plugin, not by forking a monolith. Internal
 components communicate via `net.Pipe()` with DirectBridge; external ones connect back
 over TLS. CLI access to the running daemon uses SSH.
@@ -41,10 +42,11 @@ correctness for speed of implementation.
 FlowSpec, FlowSpec VPN, EVPN, VPLS, BGP-LS, MPLS, MUP, MVPN, RTC), 13 capabilities
 (Multiprotocol Extensions, ASN4, ADD-PATH, Extended Message, Extended Next Hop,
 Graceful Restart, Long-Lived Graceful Restart, Route Refresh, Enhanced Route Refresh,
-BGP Role, Hostname, Software Version, Link-Local Next Hop), 25 plugins, and 15 path attribute
-types. RFC 8203 Administrative Shutdown Communication for graceful teardown with
-human-readable messages. All encode, decode, and round-trip through the same wire
-representation.
+BGP Role, Hostname, Software Version, Link-Local Next Hop), 65 registered plugins,
+and BGP path attribute support including AIGP. RFC 8203 Administrative Shutdown
+Communication provides graceful teardown with human-readable messages. Encode,
+decode, and round-trip paths share the same wire representation.
+<!-- source: internal/component/plugin/all/all.go -- generated plugin imports -->
 
 **ExaBGP migration path.** `ze config migrate` converts ExaBGP configuration files to
 ze-native format. `ze exabgp plugin` runs existing ExaBGP processes with Ze as the BGP
@@ -60,8 +62,10 @@ fault injection.
 
 ## Non-Goals
 
-**Full routing suite (deferred).** OSPF, IS-IS, LDP, and MPLS control plane are not
-currently in scope. The focus is on getting BGP right first.
+**Full routing suite.** OSPF and IS-IS are not implemented in the current tree.
+LDP, RSVP-TE, MPLS FIB programming, BFD, static routes, connected routes, kernel
+route redistribution, and FIB backends exist, but Ze is still pre-release and the
+feature inventory is the authority for support status.
 
 **Backwards compatibility with itself.** Ze has never been released. No users, no compat
 code, no shims, no fallbacks. If something needs to change, it changes.
@@ -113,11 +117,13 @@ graph TD
     end
 
     Engine --> HubSG
-    HubSG <--> BGP
+    Engine --> BGP
+    Engine --> IFACE["interface<br/>component"]
+    Engine --> FW["firewall<br/>component"]
+    Engine --> API["web/API/gNMI/MCP<br/>components"]
     HubSG <--> RIB["bgp-rib<br/>plugin"]
-    HubSG <--> RS["bgp-rs<br/>plugin"]
-    HubSG <--> GR["bgp-gr<br/>plugin"]
-    HubSG <--> MORE["role, bgp-rpki, ...<br/>other plugins"]
+    HubSG <--> FIB["sysrib/fib-kernel/static<br/>plugins"]
+    HubSG <--> MORE["bgp-rs, bgp-gr, bgp-role,<br/>l2tp, vpp, telemetry, ..."]
 
     subgraph BGP["BGP Subsystem -- internal/component/bgp/"]
         direction TB
@@ -133,23 +139,23 @@ graph TD
 **Engine** is the supervisor: it manages lifecycle, configuration, and coordinates
 startup/shutdown. It does not know about BGP specifics.
 
-**Hub / Bus** is the central message router. It is content-agnostic -- it routes
+**Hub / Bus** is the central notification router. It is content-agnostic -- it routes
 `[]byte` payloads on hierarchical topics (e.g., `bgp/update`, `bgp/events/peer-up`)
-with prefix-based subscription matching. All components connect to the hub: subsystems,
-plugins, config provider. Like RabbitMQ or Kafka -- the bus never inspects payload
-content.
+with prefix-based subscription matching. It is used for broadcast state changes;
+request/response calls use the plugin dispatcher, DirectBridge, or typed package
+interfaces. The bus never inspects payload content.
 
-**BGP Subsystem** is a component that connects to the hub. It owns the protocol: TCP
+**BGP Subsystem** is a registered subsystem. It owns the protocol: TCP
 connections, FSM state machines, wire parsing, capability negotiation, and the reactor
 event loop. It produces structured events and consumes commands. It never imports
-plugin code. BGP is the first (and currently only) subsystem, but the architecture
-does not assume it is the last.
+plugin code. It is no longer the only protocol or service component in the tree.
 
-**Plugins** are components that also connect to the hub. They implement RIB storage
+**Plugins** implement RIB storage
 (`bgp-rib`), route server reflection (`bgp-rs`), graceful restart (`bgp-gr`), BGP
 role enforcement (`bgp-role`), and per-family NLRI decode/encode (`bgp-nlri-evpn`,
-`bgp-nlri-flowspec`, etc.). Plugins can run in-process (goroutine + DirectBridge) or
-as external processes (TLS connect-back).
+`bgp-nlri-flowspec`, etc.), as well as FIB, sysctl, static routes, DHCP, L2TP helpers,
+flow export, VPP, and other non-BGP functions. Plugins can run in-process (goroutine
++ DirectBridge) or as external processes (TLS connect-back).
 
 For detailed architecture, see `docs/architecture/core-design.md`.
 
@@ -361,6 +367,9 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `connected` | Redistribute directly connected interface prefixes |
 | `policy-routes` | Policy-based routing |
 | `vpp` | VPP lifecycle and telemetry management |
+| `flow-export` | sFlow, NetFlow v9, and IPFIX counter export |
+| `ldp` | Label Distribution Protocol for MPLS label distribution (RFC 5036) |
+| `rsvp-te` | RSVP-TE signaling for MPLS traffic-engineered LSPs (RFC 3209) |
 | `ike` | IKEv2 engine for native IPsec VPN |
 
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib plugin -->
@@ -390,6 +399,9 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 <!-- source: internal/plugins/dhcpserver/register.go -- dhcpserver plugin -->
 <!-- source: internal/plugins/tftpserver/register.go -- tftpserver plugin -->
 <!-- source: internal/plugins/imageserver/register.go -- imageserver plugin -->
+<!-- source: internal/component/flowexport/register.go -- flow-export plugin -->
+<!-- source: internal/component/ldp/register.go -- ldp plugin -->
+<!-- source: internal/component/rsvpte/register.go -- rsvp-te plugin -->
 <!-- source: internal/component/ike/engine/register.go -- ike plugin -->
 
 ---
@@ -750,7 +762,7 @@ entry points is not a substitute.
 BGP daemons. Ze establishes real sessions with FRR, BIRD, and GoBGP in containers and
 verifies correct behavior: session establishment, route exchange, graceful restart,
 route refresh, next-hop handling, BFD failover, ECMP, SRv6, and remove-private-as policy.
-37 interop scenarios run across multiple implementations, written in Python with
+42 interop scenarios run across multiple implementations, written in Python with
 automated container orchestration. Interop correctness is measured by real peers,
 not unit tests alone.
 

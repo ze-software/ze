@@ -84,7 +84,8 @@ producer-supplied NEXT_HOP is passed through verbatim.
 ## Policy & Route Manipulation
 
 Ze takes a programmable approach to policy: external plugin filters manipulate routes
-via the `redistribution {}` config block using `<plugin>:<filter>` references.
+via `filter { import [...] export [...] }` chains using named filter instances or
+explicit `<plugin>:<filter>` references.
 Filters chain as piped transforms (accept/reject/modify) with delta-only output.
 RFC-mandated checks run as default filters that can be selectively overridden.
 Built-in filter plugins (shipped with ze) include `bgp-filter-prefix` for
@@ -312,7 +313,7 @@ selection with AIGP. Has BMP, MRT dumps, BFD, and SSH CLI access. Actively devel
 with 4000+ functional test cases. No programmatic API (CLI-only), no YANG model, no structured
 logging. The own-stack design means Docker integration requires a raw socket bridge (rawInt.bin)
 between the container interface and freeRtr's virtual network layer.
-<!-- source: external -- codeberg.org/m36/freeRtr -->
+<!-- source: https://codeberg.org/m36/freeRtr -- upstream project -->
 
 ## BNG Capabilities
 

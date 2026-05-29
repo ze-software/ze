@@ -1,22 +1,28 @@
 # Ze Architecture Overview
 
 **Status:** Implementation Reference
-**Last Updated:** 2026-02-04
+**Last Updated:** 2026-05-29
 **Canonical Reference:** See `core-design.md` for detailed design
 
 ---
 
 ## 1. What is Ze?
 
-Ze is a Go BGP implementation with a plugin architecture. Key characteristics:
+Ze is a Go network operating system with a plugin-first architecture. BGP is the
+oldest and deepest subsystem, but the current tree also contains interface,
+firewall, traffic-control, FIB, VPP, L2TP/PPP, PPPoE, IPsec/IKE, LDP, RSVP-TE,
+telemetry, web, API, gNMI, MCP, storage, audit, and operational diagnostic
+components.
 
-- **Engine + Plugin model** - Engine handles BGP protocol, plugins implement policy/RIB
+Key characteristics:
+
+- **Engine + Plugin model** - The engine supervises lifecycle, config, bus, and plugin manager without BGP-specific knowledge
 - **Wire-first design** - Lazy parsing, zero-copy forwarding where possible
 - **ExaBGP heritage** - Similar concepts, different architecture
 
 ### Non-Goals
 
-- FIB manipulation (BGP protocol only, like ExaBGP)
+- OSPF and IS-IS are not implemented in the current tree
 - Backwards compatibility with itself (no releases yet)
 
 ---
@@ -47,10 +53,10 @@ Ze is a Go BGP implementation with a plugin architecture. Key characteristics:
                                       │  formatted events
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  Config Pipeline  (internal/component/config/)                                        │
-│  File → Tree → ResolveBGPTree()                                             │
-│    ├─ PeersFromTree()            → peer definitions → Reactor               │
-│    └─ ExtractPluginsFromTree()   → plugin config   → Plugin Infrastructure  │
+│  Config Pipeline  (internal/component/config/)                              │
+│  File -> Tree -> ConfigProvider roots                                       │
+│    ├─ BGP root -> ResolveBGPTree() -> PeersFromTree() -> Reactor            │
+│    └─ ConfigRoots -> Plugin auto-load and config delivery                   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │               Plugin Infrastructure  (internal/component/plugin/)                     │
@@ -70,109 +76,30 @@ Ze is a Go BGP implementation with a plugin architecture. Key characteristics:
 ```
 
 **Key principles:**
-- **BGP Subsystem** handles BGP protocol, TCP, FSM, wire parsing, event dispatch
-- **Config Pipeline** parses config and feeds both BGP Subsystem and Plugin Infrastructure
-- **Plugin Infrastructure** manages plugin lifecycle, process spawning, message routing
-- **Plugins** implement RIB storage, policy, route reflection
+- **Engine** supervises plugin manager and registered subsystems; it has no BGP-specific logic
+- **BGP Subsystem** handles BGP protocol, TCP, FSM, wire parsing, and event dispatch
+- **Config Pipeline** parses YANG-modeled config into roots consumed by subsystems and plugins
+- **Plugin Infrastructure** manages lifecycle, process spawning, startup phases, message routing, and DirectBridge
+- **Plugins and components** implement RIB storage, policy, route reflection, FIB programming, interface backends, firewall backends, telemetry exporters, and service integrations
 - **Plugin IPC** uses newline-framed YANG RPC over `net.Pipe` or TLS connect-back, with DirectBridge for internal hot paths
 
 ---
 
 ## 3. Directory Structure
 
-```
-ze/
-├── cmd/
-│   ├── ze/                     # Main CLI
-│   │   ├── main.go
-│   │   ├── bgp/                # ze bgp subcommands
-│   │   ├── config/             # ze config subcommands
-│   │   ├── schema/             # ze schema subcommands
-│   │   ├── hub/                # ze hub subcommands
-│   │   └── exabgp/             # ze exabgp subcommands
-│   ├── ze-test/                # Functional test runner
-│   ├── ze-perf/                # Performance benchmarking
-│   ├── ze-chaos/               # Chaos testing
-│   └── ze-analyse/             # Analysis tools
-│
-├── internal/
-│   ├── component/              # Main application components
-│   │   ├── authz/              # Authorization
-│   │   ├── bgp/                # BGP subsystem (engine core)
-│   │   │   ├── attribute/      # Path attributes
-│   │   │   ├── attrpool/       # Per-attribute-type dedup pools
-│   │   │   ├── capability/     # BGP capabilities + negotiation
-│   │   │   ├── context/        # Encoding context registry
-│   │   │   ├── fsm/            # Finite state machine
-│   │   │   ├── message/        # BGP messages (OPEN, UPDATE, etc.)
-│   │   │   ├── nlri/           # NLRI types (INET, VPN, EVPN, FlowSpec, etc.)
-│   │   │   ├── plugins/        # Plugin implementations (rib, rs, gr, role, etc.)
-│   │   │   ├── reactor/        # Core event loop
-│   │   │   ├── rib/            # RIB storage
-│   │   │   ├── route/          # Route building
-│   │   │   ├── schema/         # YANG schema
-│   │   │   ├── server/         # EventDispatcher (reactor -> plugin bridge)
-│   │   │   ├── store/          # Deduplication stores
-│   │   │   ├── subsystem/      # BGPSubsystem adapter
-│   │   │   ├── types/          # Shared BGP types (RouteSpec, etc.)
-│   │   │   ├── wire/           # Wire format utilities
-│   │   │   └── wireu/          # WireUpdate type
-│   │   ├── bus/                # Content-agnostic pub/sub bus
-│   │   ├── cli/                # CLI infrastructure
-│   │   ├── cmd/                # Command handling
-│   │   ├── command/            # Command dispatch
-│   │   ├── config/             # Configuration pipeline
-│   │   ├── engine/             # Engine supervisor
-│   │   ├── hub/                # Hub architecture
-│   │   ├── managed/            # Managed services
-│   │   ├── mcp/                # MCP server
-│   │   ├── plugin/             # Plugin infrastructure (generic, zero BGP knowledge)
-│   │   │   ├── all/            # Blank imports triggering init()
-│   │   │   ├── manager/        # Plugin lifecycle management
-│   │   │   ├── process/        # External process management
-│   │   │   ├── registry/       # Plugin registry
-│   │   │   └── server/         # Plugin server
-│   │   ├── ssh/                # SSH transport
-│   │   ├── telemetry/          # Telemetry
-│   │   └── web/                # Web interface
-│   │
-│   ├── chaos/                  # Chaos testing framework
-│   ├── core/                   # Core utilities
-│   │   ├── env/                # Environment handling
-│   │   ├── ipc/                # IPC utilities
-│   │   ├── selector/           # Peer selection
-│   │   ├── slogutil/           # Logging utilities
-│   │   ├── source/             # Source identification
-│   │   └── ...                 # clock, metrics, network, parse, etc.
-│   ├── exabgp/                 # ExaBGP compatibility bridge
-│   ├── iter/                   # Iterator utilities
-│   ├── perf/                   # Performance testing
-│   └── test/                   # Test utilities
-│       ├── ci/                 # CI test format
-│       ├── peer/               # Test peer library
-│       ├── runner/             # Test runner
-│       └── syslog/             # Syslog testing
-│
-├── test/                       # Functional tests (.ci files)
-│   ├── encode/                 # Encoding tests
-│   ├── decode/                 # Decoding tests
-│   ├── parse/                  # Config parsing tests
-│   ├── plugin/                 # Plugin tests
-│   ├── exabgp/                 # ExaBGP compatibility tests
-│   ├── integration/            # Integration tests
-│   ├── editor/                 # Editor TUI tests (.et files)
-│   └── ...                     # hub, web, managed, etc.
-│
-├── docs/
-│   ├── architecture/           # Architecture documentation
-│   └── guide/                  # User guides
-│
-├── plan/                       # Specs, learned summaries, deferrals
-│
-└── rfc/                        # RFC references
-    ├── full/                   # Full RFC text
-    └── short/                  # RFC summaries
-```
+| Area | Location | Purpose |
+|------|----------|---------|
+| Main binary | `cmd/ze/` | CLI verbs, daemon startup, install/service/support tooling |
+| Other binaries | `cmd/ze-test/`, `cmd/ze-perf/`, `cmd/ze-chaos/`, `cmd/ze-analyse/` | Functional tests, benchmarks, chaos testing, MRT/RIB analysis |
+| Components | `internal/component/` | Engine, BGP, config, CLI, command dispatcher, API, web, gNMI, MCP, interface, firewall, traffic, IPsec/IKE, L2TP, PPPoE, LDP, RSVP-TE, telemetry, storage, and related services |
+| BGP subsystem | `internal/component/bgp/` | FSM, reactor, wire parsing, attributes, capabilities, NLRI, BGP plugins, and command handlers |
+| Generic plugins | `internal/plugins/` | FIB, static routes, sysrib, sysctl, BFD, connected/kernel redistribution, policy routing, DHCP/TFTP/image services, VPP/firewall/traffic backends, L2TP helpers |
+| Core utilities | `internal/core/` | Shared value types and services such as family, metrics, health, report bus, sysctl, routewatch, rib, paths, source IDs, and logging |
+| Public packages | `pkg/` | Plugin SDK/RPC, Ze interfaces, and ZeFS storage |
+| Functional tests | `test/` | `.ci` and `.et` tests plus interop and integration assets |
+| Documentation | `docs/` | User, architecture, feature, plugin, migration, contributing, and research docs |
+| Plans and history | `plan/` | Specs, learned summaries, deferrals, and design history |
+| RFC references | `rfc/` | Full RFCs and short summaries |
 
 ---
 

@@ -2,7 +2,7 @@
 
 Ze is in **early active development**. It is not yet released and should not be used in production. APIs, configuration syntax, and plugin interfaces may change without notice.
 
-That said, brave souls who understand the risks may find Ze already useful for specific use cases -- particularly if they're coming from ExaBGP and want a more capable architecture.
+That said, brave souls who understand the risks may find Ze already useful for specific use cases, particularly if they are coming from ExaBGP and want a more capable architecture.
 
 ## What Works Today
 
@@ -41,7 +41,8 @@ All families decode. Most encode. Use `ze --plugins` to see the current state.
 
 ### Plugins
 
-Over 40 built-in plugins covering protocol features, all address families, BFD, BMP, route filters, L2TP/PPP, firewall, traffic control, VPP, NTP, sysctl, and TACACS+ AAA. The plugin lifecycle (5-stage handshake, newline-framed YANG RPC IPC, event dispatch) is stable. Plugins can be written in any language.
+The current binary reports 65 registered plugins covering protocol features, all address families, BFD, BMP, route filters, L2TP/PPP helpers, firewall, traffic control, VPP, NTP, sysctl, FIB backends, route redistribution, and TACACS+ AAA. The plugin lifecycle uses a 5-stage handshake, newline-framed YANG RPC IPC, and DirectBridge for internal hot paths. Plugins can be written in any language.
+<!-- source: internal/component/plugin/all/all.go -- generated plugin imports -->
 
 | Plugin | Status |
 |--------|--------|
@@ -69,7 +70,7 @@ Over 40 built-in plugins covering protocol features, all address families, BFD, 
 | SSH-based CLI | Working -- interactive and single-command modes |
 | Hierarchical logging | Working -- per-subsystem levels, runtime changes |
 | ExaBGP config migration | Working -- auto-detect and convert |
-| ExaBGP plugin bridge | Partial -- 20/37 compatibility tests passing |
+| ExaBGP plugin bridge | Partial -- compatibility bridge exists, but not all ExaBGP behavior is equivalent |
 | Chaos testing (ze-chaos) | Working -- deterministic replay, property validation |
 <!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- YANG config; cmd/ze/config/ -- config CLI; internal/component/cli/ -- interactive CLI; internal/core/slogutil/ -- hierarchical logging; internal/exabgp/ -- ExaBGP migration -->
 
@@ -78,7 +79,7 @@ Over 40 built-in plugins covering protocol features, all address families, BFD, 
 | Type | Count |
 |------|-------|
 | Unit test functions | 10,400+ |
-| Functional test files (.ci) | 790 |
+| Functional test files (.ci) | 790+ |
 | Fuzz targets | 57 |
 | Linters | 26 |
 
@@ -92,10 +93,9 @@ Unit tests run with the race detector enabled (`-race`). Functional, browser, an
 | Feature | Notes |
 |---------|-------|
 | MRT dump (RFC 6396) writing | Reading works via `ze-analyse`. Writing is not implemented. |
-| Confederation (RFC 5065) | Not implemented. |
-| ASPA verification | Not implemented. RPKI origin validation only. |
+| Full BGP confederation behavior | AS path segment parsing exists, but full confederation deployment behavior is not listed as supported. |
 | Flowspec redirect to VRF | 4-byte ASN with IP redirect (Type 0x82) extended community not yet supported. |
-| Auto plugin discovery | Plugins must be explicitly declared in config. |
+| External plugin filesystem discovery | External plugins must be configured. Built-in plugins auto-load by config roots, families, event types, and send types. |
 | Multi-instance | Single daemon per config file. |
 
 ### Known rough edges
@@ -106,7 +106,7 @@ Unit tests run with the race detector enabled (`-race`). Functional, browser, an
 | TTL security | Parsed from config but enforcement not yet wired to socket options |
 | macOS MD5 | TCP MD5 auth returns "not supported" on Darwin (kernel limitation, not a bug) |
 | Error messages | Some parse errors could be more specific about what went wrong |
-| Packaging | No Docker image, no binary releases, no package manager support yet |
+| Packaging | Docker build support and install commands exist; binary release and package-manager workflows are still pre-release. |
 <!-- source: internal/component/bgp/ -- FSM, wire layer, reactor implementation -->
 
 ### API stability
@@ -139,10 +139,10 @@ Nothing is stable yet. Expect changes in:
 - **Complete wire encoding** -- handles more edge cases in attribute encoding
 - **Proven integrations** -- well-documented integration patterns with monitoring and SDN systems
 
-### Choose neither (use FRR or BIRD) if you need
+### Choose another routing suite if you need
 
-- **Actual routing** -- FIB programming, OSPF/IS-IS, MPLS forwarding, VRF support
-- **Full router functionality** -- Ze and ExaBGP are control-plane tools, not routers
+- **Mature OSPF/IS-IS** -- not implemented in Ze today
+- **Production-proven router functionality** -- Ze has FIB, static, connected, kernel, MPLS, LDP, RSVP-TE, firewall, interface, and VPP code in tree, but it remains pre-release
 
 ## For the Brave
 

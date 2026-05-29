@@ -320,22 +320,22 @@
 |-------------|---------|------------|
 | `main.py` | Entry point | `cmd/ze/bgp/main.go` |
 | `run.py` | Run daemon | `cmd/ze/bgp/run.go` |
-| `cli.py` | CLI interface | `cmd/ze/bgp-cli/main.go` |
-| `shell.py` | Interactive shell | `cmd/ze/bgp-cli/shell.go` |
-| `unixsocket.py` | Unix socket client | `cmd/ze/bgp-cli/socket.go` |
-| `decode.py` | Message decoder | `cmd/ze/bgp-decode/main.go` |
-| `encode.py` | Message encoder | `cmd/ze/bgp-decode/encode.go` |
-| `validate.py` | Config validator | `cmd/ze/bgp/validate.go` |
-| `healthcheck.py` | Health checking | N/A (Kubernetes probes) |
-| `pipe.py` | Pipe handling | `internal/component/plugin/pipe.go` |
-| `server.py` | Server mode | `cmd/ze/bgp/server.go` |
+| `cli.py` | CLI interface | `cmd/ze/cli/main.go`, `internal/component/cli/` |
+| `shell.py` | Interactive shell | `internal/component/cli/` |
+| `unixsocket.py` | Unix socket client | SSH CLI and command dispatcher (`cmd/ze/cli/`, `internal/component/command/`) |
+| `decode.py` | Message decoder | `cmd/ze/bgp/decode.go` |
+| `encode.py` | Message encoder | `cmd/ze/bgp/encode.go` |
+| `validate.py` | Config validator | `cmd/ze/config/cmd_validate.go` |
+| `healthcheck.py` | Health checking | `internal/component/bgp/plugins/healthcheck/`, `cmd/ze/doctor/` |
+| `pipe.py` | Pipe handling | `internal/component/command/pipe.go` |
+| `server.py` | Server mode | `cmd/ze/main.go`, `cmd/ze/hub/main.go` |
 | `flow.py` | Flow generator | N/A (separate tool) |
-| `netlink.py` | Netlink interface | N/A (no FIB) |
-| `shortcuts.py` | CLI shortcuts | `cmd/ze/bgp-cli/shortcuts.go` |
-| `environ.py` | Environment | `internal/component/config/environ.go` |
+| `netlink.py` | Netlink interface | `internal/plugins/fib/kernel/`, `internal/plugins/iface/netlink/`, `internal/core/routewatch/` |
+| `shortcuts.py` | CLI shortcuts | command registry and help metadata (`cmd/ze/internal/cmdregistry/`, `internal/component/cmd/`) |
+| `environ.py` | Environment | `internal/component/config/environment.go`, `internal/component/config/env/` |
 | `schema.py` | Schema command | `cmd/ze/bgp/schema.go` |
 | `version.py` | Version command | `cmd/ze/bgp/version.go` |
-| `error.py` | Error handling | `internal/errors/errors.go` |
+| `error.py` | Error handling | Go errors in owning packages, for example `internal/component/bgp/message/errors.go` |
 
 ---
 

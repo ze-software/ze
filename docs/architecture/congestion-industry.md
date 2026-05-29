@@ -92,7 +92,7 @@ the TX path back to the routing table.
 | FRR | `stream_fifo` per peer (obuf) | Yes (outq_limit default 10K) | Yes (update groups) |
 | OpenBGPd | `msgbuf` per peer (wbuf) | XOFF at 2000 bytes, XON at 500 | No |
 | bio-rd | Unbounded `toSend` map per address family | No | No |
-| Ze (current) | Per-peer channel + unbounded overflow | No | Not yet (planned) |
+| Ze (current) | Per-peer channel + weighted overflow pool with fail-closed teardown path | Partial | Yes (overflow superseding + withdrawal priority) |
 
 *Sources: BIRD `packets.c` (bgp_bucket), GoBGP `fsm.go` (InfiniteChannel), RustBGPd `event.rs` (mpsc)*
 
@@ -126,10 +126,10 @@ via CLI: `write-quanta (1-64)`.
 
 ### Write Priority
 
-| Priority | BIRD | RustBGPd | Ze (planned) |
+| Priority | BIRD | RustBGPd | Ze |
 |----------|------|----------|-------------|
 | 1 (highest) | CLOSE | OPEN/KEEPALIVE/NOTIFICATION (urgent Vec) | N/A (separate paths) |
-| 2 | NOTIFICATION | Withdrawals | Withdrawals (planned AC-25) |
+| 2 | NOTIFICATION | Withdrawals | Withdrawals |
 | 3 | OPEN | Announcements | Announcements |
 | 4 | KEEPALIVE | EOR (End-of-RIB) | EOR |
 | 5 (lowest) | UPDATE | - | - |
@@ -245,11 +245,11 @@ receiving data proves the peer is alive.
 
 ## Backpressure Mechanisms
 
-| Layer | BIRD | GoBGP | RustBGPd | FRR | OpenBGPd | bio-rd | Ze (planned) |
+| Layer | BIRD | GoBGP | RustBGPd | FRR | OpenBGPd | bio-rd | Ze |
 |-------|------|-------|----------|-----|----------|--------|-------------|
 | Channel buffer | N/A | InfiniteChannel | Unbounded mpsc | stream_fifo (obuf) | msgbuf (wbuf) | Unbuffered channels | 64-item channel |
-| Queue limit | Unbounded | Unbounded | Unbounded | outq_limit (default 10K), inq_limit (default 10K) | XOFF at 2000B, XON at 500B | Unbounded map | Pre-allocated pool |
-| Read throttling | None | None | None | Stops reading at inq_limit (TCP window shrinks) | None | None (unbuffered chan blocks) | Sleep + TCP window zero |
+| Queue limit | Unbounded | Unbounded | Unbounded | outq_limit (default 10K), inq_limit (default 10K) | XOFF at 2000B, XON at 500B | Unbounded map | Weighted pool budget, then overflow backlog until teardown |
+| Read throttling | None | None | None | Stops reading at inq_limit (TCP window shrinks) | None | None (unbuffered chan blocks) | Manual pause/resume API; congestion path emits events and uses pool denial/teardown |
 | Write throttling | None | None | None | Stops generating UPDATEs at outq_limit | XOFF signal pauses RDE route generation | None | N/A (pool-based) |
 | Session teardown | Hold timer only | Write failure (fatal) | Write failure (fatal) | Send Hold Timer (2x holdtime) | Send Hold Timer (holdtime). GR-aware. | KEEPALIVE failure only | GR-aware teardown |
 
@@ -271,16 +271,24 @@ below 500 bytes (`SESS_MSG_LOW_MARK`), XON resumes it
 BIRD, GoBGP, and RustBGPd all use unbounded queues and rely solely on TCP flow
 control.
 
-Ze's planned four-layer design (channel buffer, pre-allocated overflow pool,
-read throttling, GR-aware teardown) is novel in the BGP ecosystem.
+Ze's current congestion path combines per-peer workers, a weighted overflow pool,
+overflow superseding, withdrawal priority, batch limits, and GR-aware teardown.
+The read-loop pause/resume API exists separately and is exposed through peer
+operations; automatic congestion handling currently emits events and relies on
+pool denial plus teardown rather than directly pausing source reads.
+
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdPool overflow, superseding, withdrawal priority, batch limit -->
+<!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- two-threshold congestion controller -->
+<!-- source: internal/component/bgp/reactor/session_flow.go -- Pause and Resume -->
+<!-- source: internal/component/bgp/reactor/reactor.go -- congestion callbacks emit events -->
 
 ## Fairness
 
-| Mechanism | BIRD | RustBGPd | FRR | OpenBGPd | bio-rd | Ze (planned) |
+| Mechanism | BIRD | RustBGPd | FRR | OpenBGPd | bio-rd | Ze |
 |-----------|------|----------|-----|----------|--------|-------------|
 | Per-peer isolation | Single-threaded, round-robin | Per-peer tokio task | Per-peer I/O events + update groups | Single-threaded, poll loop | Per-peer FSM goroutine | Per-peer worker goroutine |
 | Cross-family fairness | 16-message stickiness, then rotate | All families in same write loop | Update groups batch by shared attributes | Serial per peer | Per-family update sender | Per forward batch |
-| TX budget | 1024 messages per event cycle | 2048 attribute records per iteration | 64 messages per writev (configurable 1-64) | 25 (MSG_PROCESS_LIMIT) | None (ticker-based batching) | Planned (AC-24) |
+| TX budget | 1024 messages per event cycle | 2048 attribute records per iteration | 64 messages per writev (configurable 1-64) | 25 (MSG_PROCESS_LIMIT) | None (ticker-based batching) | 1024 items per drain batch by default (`ze.fwd.batch.limit`) |
 | fast_rx during handshake | Yes (priority reads for OPEN/KEEPALIVE) | No | No | No | No | No |
 
 *Source: BIRD [packets.c:3063](https://gitlab.nic.cz/labs/bird/-/blob/v3.2.0/proto/bgp/packets.c#L3063) (bgp_get_channel_to_send)*
@@ -299,8 +307,8 @@ is cleared and the socket shares the event loop fairly with other protocols.
 | Hold timer congestion extension | BIRD only | **Done** |
 | Write deadline on control messages | No implementation does this explicitly | **Done** |
 | Buffer pooling + bufio batching | No implementation does both | **Done** (existing) |
-| Route superseding | BIRD, FRR | Planned |
-| Withdrawal priority | RustBGPd (safe due to per-prefix dedup) | Planned (AC-25, requires AC-23 route superseding first) |
+| Route superseding | BIRD, FRR | **Done** (overflow raw-body superseding) |
+| Withdrawal priority | RustBGPd (safe due to per-prefix dedup) | **Done** (withdrawals before announcements inside batches) |
 | TX budget | BIRD (1024), RustBGPd (2048) | **Done** (AC-24, default 1024) |
 | Real backpressure | FRR (queue limits), OpenBGPd (XOFF/XON) | **Done** (two-threshold buffer denial + forced teardown) |
 | GR-aware congestion teardown | None explicitly | **Done** (GR: TCP close, non-GR: Cease/OutOfResources) |

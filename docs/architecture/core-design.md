@@ -615,7 +615,7 @@ Two filter chains run in order:
    buffer is heap-allocated (not pool-backed).
 
 2. **External-plugin import policy filter chain** (`peer.settings.ImportFilters`,
-   resolved via `redistribution { import [...] }` config). Runs `PolicyFilterChain`
+   resolved via `filter { import [...] }` config). Runs `PolicyFilterChain`
    with `direction="import"`. Returns `Accept` / `Reject` / `Modify`. `Reject`
    drops the route. `Modify` produces a modified text representation, which the
    reactor converts to wire-attribute mod operations (`ModAccumulator`) and
@@ -682,11 +682,11 @@ build is skipped entirely -- zero allocation, zero copy.
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdate egress filter chain -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload progressive build -->
 
-### Policy Filter Chain (planned)
+### Policy Filter Chain
 
 After in-process filters (role OTC), a configurable policy filter chain runs for
 external plugin filters. Filters are referenced by `<plugin>:<filter>` in
-`redistribution { import [...] export [...] }` config at bgp/group/peer levels.
+`filter { import [...] export [...] }` config at bgp/group/peer levels.
 
 ```
 Ingress:  Wire → In-process (mandatory) → Default filters → Policy chain (user) → Cache
@@ -709,7 +709,9 @@ modified attributes are re-encoded.
 A filter may declare `overrides` to remove a default filter from the chain for
 peers where it is configured (e.g., `allow-own-as:relaxed` overrides `rfc:no-self-as`).
 
-<!-- source: plan/spec-redistribution-filter.md -- redistribution filter design -->
+<!-- source: plan/learned/479-redistribution-filter.md -- redistribution filter design -->
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- filter containers -->
+<!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain and canonicalizeFilterRefs -->
 
 ---
 
@@ -1271,7 +1273,7 @@ Runtime: after `config-push` applies a new config, a 30-second health window mon
 <!-- source: cmd/ze/main.go -- cmdStart, checkPushedConfig, writeConfigActiveHash -->
 <!-- source: cmd/ze/pushed_config.go -- pushed config loading and validation -->
 <!-- source: cmd/ze/health_revert.go -- auto-revert health monitor -->
-<!-- source: cmd/ze/appliance/cmd_assemble.go -- last-known-good hash write -->
+<!-- source: cmd/ze/install/appliance/cmd_assemble.go -- last-known-good hash write -->
 
 ---
 

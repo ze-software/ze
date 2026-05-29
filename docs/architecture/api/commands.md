@@ -170,7 +170,10 @@ Both warnings/errors handlers accept optional `source <name>` filter and
 errors accepts `count <N>` limit. Return a non-nil empty slice when empty.
 
 <!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->
-<!-- source: internal/component/cmd/show/show_static.go, show_policy_routes.go, show_bmp.go, show_rr.go -- ForwardToPlugin proxies -->
+<!-- source: internal/component/cmd/show/show_static.go -- ForwardToPlugin proxy -->
+<!-- source: internal/component/cmd/show/show_policy_routes.go -- ForwardToPlugin proxy -->
+<!-- source: internal/component/cmd/show/show_bmp.go -- ForwardToPlugin proxy -->
+<!-- source: internal/component/cmd/show/show_rr.go -- ForwardToPlugin proxy -->
 <!-- source: internal/component/cmd/show/schema/ze-cli-show-cmd.yang -- top-level warnings / errors containers -->
 
 ### Issue JSON shape
@@ -851,7 +854,7 @@ withdraw ipv4/flow \
 
 ---
 
-## Filter Callbacks (planned)
+## Filter Callbacks
 
 The engine sends `filter-update` callbacks to external plugin filters during
 UPDATE processing. This is a callback RPC (engine to plugin), not a user command.
@@ -867,7 +870,7 @@ UPDATE processing. This is a callback RPC (engine to plugin), not a user command
 Response: `{"action":"accept"}`, `{"action":"reject"}`, or
 `{"action":"modify","update":"<delta>"}` with only changed fields.
 
-<!-- source: plan/spec-redistribution-filter.md -- filter-update RPC design -->
+<!-- source: plan/learned/479-redistribution-filter.md -- filter-update RPC design -->
 
 ---
 

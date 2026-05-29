@@ -3,7 +3,7 @@
 An honest assessment of when Ze is the right tool and when it is not.
 
 > Ze is pre-release software. This page reflects the current state of development
-> and will be updated as features mature. Last updated: 2026-03-21. Corrections
+> and will be updated as features mature. Last updated: 2026-05-29. Corrections
 > welcome via the [issue tracker](https://codeberg.org/thomas-mangin/ze/issues).
 
 ## When to use Ze
@@ -75,26 +75,28 @@ debugging, test generation, and education.
 
 ## When not to use Ze
 
-### You need a router
+### You need a production-proven router
 
-Ze does not install routes into the kernel forwarding table. It speaks BGP but does
-not route packets. If you need a BGP daemon that populates the FIB, use FRR, BIRD,
-or OpenBGPd.
+Ze now has a FIB pipeline, static routes, connected route redistribution, kernel
+route redistribution, policy routing, MPLS FIB programming, firewall, interface,
+and VPP code in tree. Those pieces are still pre-release. If you need a router
+that has years of production mileage, use FRR, BIRD, OpenBGPd, or a vendor NOS.
 
-Ze is a protocol speaker and route injector, not a router. This is a deliberate
-design choice inherited from ExaBGP: the daemon's job is to talk BGP and expose
-events, not to manage the data plane.
+Ze is becoming a Network OS, not just an ExaBGP-style protocol speaker. Treat its
+dataplane features according to the status labels in `features.md`.
 
 ### You need a full routing suite
 
-Ze does BGP. It does not do OSPF, IS-IS, LDP, PIM, BFD, or MPLS control plane. If
-you need multi-protocol routing, FRR is the only open-source option with full coverage.
+Ze does BGP, BFD, LDP, RSVP-TE, static routes, route redistribution, IPsec/IKE,
+L2TP/PPP, PPPoE, and several dataplane integrations. It does not implement OSPF,
+IS-IS, or PIM today. If you need a mature multi-protocol routing suite, FRR is the
+open-source option with the broadest coverage.
 
 ### You need proven production stability
 
-Ze has not been released yet. It has extensive testing (8,000+ unit tests, 550+
-functional tests, fuzz testing, chaos testing, interop tests against FRR, BIRD,
-and GoBGP), but it has no production deployments. BIRD has been running IXP route
+Ze has not been released yet. It has extensive testing, functional tests, fuzz
+testing, chaos testing, and interop tests against FRR, BIRD, GoBGP, OpenBGPD,
+FreeRtr, and Rust implementations, but it has no production deployments. BIRD has been running IXP route
 servers since 1998. FRR runs in commercial products. OpenBGPd operates at LINX and
 Netnod. Production confidence comes from production use, and Ze does not have that yet.
 
@@ -102,17 +104,11 @@ Netnod. Production confidence comes from production use, and Ze does not have th
 
 | Missing feature | Impact | Alternative |
 |---|---|---|
-| BMP (RFC 7854) | No route collection export to BMP collectors | rustbgpd, BIRD 3, FRR, GoBGP |
 | MRT dump (RFC 6396) | No route data archival in standard format | rustbgpd, BIRD 3, FRR, GoBGP |
-| BFD integration | No sub-second failure detection; relies on hold timer (90s default) | BIRD 3, FRR |
-| Dynamic neighbors | Every peer must be explicitly configured | BIRD 3, FRR, GoBGP |
-| Confederation (RFC 5065) | Cannot deploy in large ISP confederations | BIRD 3, FRR, GoBGP |
-| Private AS removal | Route servers cannot strip private ASNs | rustbgpd, BIRD 3, FRR, GoBGP, OpenBGPd |
-| ASPA verification | No path validation beyond RPKI origin | rustbgpd, BIRD 3, OpenBGPd |
-| gRPC API | No industry-standard programmatic interface | rustbgpd, GoBGP, FRR (partial) |
+| Mature OSPF / IS-IS | No IGP suite in Ze today | FRR, BIRD |
+| Full BGP confederation behavior | AS path parsing exists, deployment support is not listed as supported | BIRD 3, FRR, GoBGP |
+| PIM multicast routing | Not implemented | FRR |
 | Embeddable library | Cannot import Ze as a Go library into your application | GoBGP |
-| FIB/kernel integration | Cannot install routes into the forwarding table | BIRD 3, FRR, GoBGP, OpenBGPd |
-| AIGP | No accumulated IGP metric support | FRR, GoBGP |
 | TCP-AO (RFC 5925) | No modern session authentication | Nobody has this yet |
 
 Some of these are planned. Check the [feature comparison](comparison.md) for the
@@ -120,12 +116,13 @@ current state.
 
 ### You need gRPC
 
-The industry converged on gRPC and protobuf for network automation. gNMI, gNOI, and
-OpenConfig all use gRPC. Ze uses a custom text command protocol and JSON events over
-Unix sockets. Every automation tool that talks to Ze needs a Ze-specific client.
+Ze includes gNMI and REST/gRPC API components, but its native operational surface is
+still the Ze command grammar, YANG RPC model, and plugin IPC. If your infrastructure
+expects GoBGP-style protobuf APIs for every BGP operation, GoBGP or rustbgpd may fit
+with less translation.
 
-If your infrastructure is built around gRPC, GoBGP or rustbgpd integrate with less
-friction.
+If your infrastructure is built around gNMI and YANG-modeled config, check the Ze
+gNMI guide and current API status before deciding.
 
 ### You need vendor adoption or a permissive license
 

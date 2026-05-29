@@ -11,11 +11,11 @@
 | bgp-watchdog | Deferred route announcement with named watchdog groups |
 | bgp-healthcheck | Service healthcheck with FSM-controlled route announcement/withdrawal via watchdog groups. [Guide](../guide/healthcheck.md) |
 
-### Redistribution Filters (planned)
+### Route Filters
 
 External plugins can act as route filters on import and export. Filters are
-configured per peer/group/globally via `redistribution { import [...] export [...] }`
-using `<plugin>:<filter>` references. Multiple filters chain as piped transforms
+configured per peer/group/globally via `filter { import [...] export [...] }`
+using named filter instances or explicit `<plugin>:<filter>` references. Multiple filters chain as piped transforms
 (each sees previous filter's output). Filters respond accept/reject/modify with
 delta-only attribute changes and dirty tracking for efficient re-encoding.
 
@@ -27,7 +27,7 @@ Three filter categories:
 | Default | On by default, can be overridden per-peer | `rfc:no-self-as` (loop prevention) |
 | User | Only present when explicitly configured | `rpki:validate`, `community:scrub` |
 
-<!-- source: plan/spec-redistribution-filter.md -- redistribution filter design -->
+<!-- source: plan/learned/479-redistribution-filter.md -- redistribution filter design -->
 
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/register.go -- bgp-adj-rib-in -->
@@ -45,32 +45,41 @@ Three filter categories:
 | bgp-rpki | RPKI origin validation via RTR protocol (RFC 6811, RFC 8210). [Guide](../guide/rpki.md) |
 | bgp-rpki-decorator | Correlates UPDATE + RPKI events into merged update-rpki events |
 | bgp-route-refresh | Route Refresh handling (RFC 2918, RFC 7313) |
-| role | BGP Role capability enforcement (RFC 9234) |
+| bgp-role | BGP Role capability enforcement (RFC 9234) |
 | bgp-llnh | Link-local next-hop for IPv6 (RFC 2545) |
 | bgp-hostname | FQDN capability for peer identification |
 | bgp-softver | Software version capability advertisement |
-| filter-community | Community tag/strip filter (standard, large, extended) |
+| bgp-filter-community | Community tag/strip filter (standard, large, extended) |
 | loop | Route loop detection (RFC 4271 S9, RFC 4456 S8) |
 
 <!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr -->
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki -->
 <!-- source: internal/component/bgp/plugins/rpki_decorator/register.go -- bgp-rpki-decorator -->
 <!-- source: internal/component/bgp/plugins/route_refresh/register.go -- bgp-route-refresh -->
-<!-- source: internal/component/bgp/plugins/role/register.go -- role -->
+<!-- source: internal/component/bgp/plugins/role/register.go -- bgp-role -->
 <!-- source: internal/component/bgp/plugins/llnh/register.go -- bgp-llnh -->
 <!-- source: internal/component/bgp/plugins/hostname/register.go -- bgp-hostname -->
 <!-- source: internal/component/bgp/plugins/softver/register.go -- bgp-softver -->
 <!-- source: internal/component/bgp/plugins/aigp/register.go -- bgp-aigp -->
-<!-- source: internal/component/bgp/plugins/filter_community/register.go -- filter-community -->
+<!-- source: internal/component/bgp/plugins/filter_community/register.go -- bgp-filter-community -->
 <!-- source: internal/component/bgp/reactor/filter/register.go -- loop -->
 
 ### Infrastructure
 
 | Plugin | Description |
 |--------|-------------|
-| iface | OS network interface monitoring via netlink (Linux). Publishes interface and address events to the Bus. |
+| interface | OS network interface monitoring and management via netlink or VPP. Publishes interface and address events to the bus. |
+| static | Config-driven static route programming with ECMP. |
+| connected | Redistributes directly connected interface prefixes. |
+| kernel | Redistributes externally-installed kernel routes. |
+| rib | System RIB selection by administrative distance. |
+| fib-kernel | Programs OS routes from the system RIB. |
+| fib-vpp | Programs VPP routes from the system RIB. |
+| sysctl | Kernel tunable management with default, transient, and config layers. |
+| traffic | Traffic control lifecycle and backend dispatch. |
+| vpp | VPP lifecycle and telemetry. |
 
-<!-- source: internal/component/iface/register.go -- iface -->
+<!-- source: internal/component/iface/register.go -- interface -->
 
 ### Plugin Health Metrics
 

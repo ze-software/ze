@@ -6,10 +6,13 @@ An overview of Ze's plugin system. For writing your own plugins, see
 
 ## Concept
 
-Everything beyond the core engine is a plugin. Plugins handle RIB storage, route
-reflection, graceful restart, RPKI validation, NLRI encoding, FIB programming,
-firewall rules, traffic control, and more. The engine discovers plugins through
-registries and never imports plugin code directly.
+Most runtime features beyond the core engine are registered components or plugins.
+Plugins handle RIB storage, route reflection, graceful restart, RPKI validation,
+NLRI encoding, FIB programming, route redistribution, DHCP/PXE helpers, L2TP
+helpers, and backend integrations. Components such as interface, firewall,
+traffic, VPP, LDP, RSVP-TE, and flow export also register through the same plugin
+registry when they need config-driven lifecycle or IPC. The engine discovers them
+through registries and never imports implementation packages directly.
 <!-- source: internal/component/plugin/registry/registry.go -- plugin registry -->
 <!-- source: internal/component/plugin/all/all.go -- plugin blank imports -->
 
@@ -83,6 +86,10 @@ when you configure the corresponding address family. You do not need to declare 
 
 ## Shipped Plugins
 
+`bin/ze --plugins` is the runtime source of truth for the complete registered
+plugin list. The groups below mirror the current registrations in
+`internal/component/plugin/all/all.go`.
+
 ### BGP Plugins
 
 | Plugin | Purpose |
@@ -98,12 +105,12 @@ when you configure the corresponding address family. You do not need to declare 
 | `bgp-rpki` | RPKI origin validation (RFC 6811, RFC 8210) |
 | `bgp-rpki-decorator` | Merged UPDATE + RPKI events |
 | `bgp-aigp` | Accumulated IGP Metric (RFC 7311) |
+| `bgp-bmp` | BMP receiver and sender (RFC 7854, RFC 8671) |
 | `bgp-watchdog` | Deferred route announcement with named groups |
 | `bgp-hostname` | FQDN capability (code 73) |
 | `bgp-softver` | Software version capability (code 75) |
 | `bgp-llnh` | Link-local next-hop for IPv6 |
 | `bgp-healthcheck` | Health-dependent route withdrawal |
-| `bgp-bmp` | BMP monitoring station (RFC 7854) |
 | `bgp-redistribute` | Redistribute learned routes into system RIB |
 | `redistribute-orchestrator` | Dispatch redistributed routes to registered protocol consumers |
 | `loop` | Route loop detection (RFC 4271 S9, RFC 4456 S8) |
@@ -115,9 +122,11 @@ when you configure the corresponding address family. You do not need to declare 
 |--------|---------|
 | `bgp-filter-community` | Community tag/strip filter (standard, large, extended) |
 | `bgp-filter-aspath` | AS-path filter (regex + exact match) |
+| `bgp-filter-aspath-length` | AS-path length filter |
 | `bgp-filter-prefix` | Prefix-list filter |
-| `bgp-filter-modify` | Attribute modification (set LP, prepend, communities) |
+| `bgp-filter-modify` | Attribute modification (local-pref, MED, origin, next-hop, communities, AIGP) |
 | `bgp-filter-community-match` | Community match filter |
+| `bgp-filter-remove-private-as` | Remove RFC 6996 private-use ASNs |
 <!-- source: internal/component/bgp/plugins/filter_community/register.go -- filter plugins -->
 
 ### NLRI Family Plugins
@@ -139,20 +148,36 @@ when you configure the corresponding address family. You do not need to declare 
 
 | Plugin | Purpose |
 |--------|---------|
-| `rib` | Shared route information base (system RIB) |
+| `bgp` | BGP routing daemon subsystem plugin |
+| `rib` | System RIB: selects best route across protocols by admin distance |
 | `static` | Static route management |
 | `sysctl` | Kernel sysctl tuning |
-| `sysrib` | System RIB (route table management) |
+| `routing-table` | Named routing table registry |
+| `connected` | Connected route redistribution |
+| `kernel` | Kernel route redistribution |
+| `policy-routes` | Policy-based routing with nftables marks and ip rules |
 | `fib-kernel` | FIB route installation via netlink |
 | `fib-p4` | FIB route installation via P4 backend |
 | `fib-vpp` | FIB route installation via VPP binary API |
 | `firewall` | Firewall management via nftables |
+| `flowspec-firewall` | BGP FlowSpec to nftables bridge |
+| `flow-export` | sFlow, NetFlow v9, and IPFIX export |
 | `traffic` | Traffic control (TC qdisc/class) |
 | `interface` | Interface management via netlink or VPP |
 | `iface-dhcp` | DHCP client for interface address assignment |
 | `bfd` | BFD session management (RFC 5880, RFC 5881, RFC 5883) |
+| `dhcpserver` | DHCP server for LAN/PXE clients |
+| `imageserver` | HTTP image server for provisioning |
+| `tftpserver` | Read-only TFTP server for PXE |
 | `ntp` | NTP time synchronization |
 | `vpp` | VPP lifecycle and telemetry management |
+| `ike` | IKEv2 engine for native IPsec VPN |
+| `ldp` | Label Distribution Protocol |
+| `rsvp-te` | RSVP-TE signaling |
+| `l2tp-auth-local` | Local L2TP PPP authentication |
+| `l2tp-auth-radius` | RADIUS authentication and accounting for L2TP PPP sessions |
+| `l2tp-pool` | IPv4 and IPv6 pool allocation for L2TP PPP sessions |
+| `l2tp-shaper` | Traffic shaping for L2TP subscriber sessions |
 <!-- source: internal/plugins/ -- infrastructure plugin implementations -->
 
 ## Which Plugins Do I Need?

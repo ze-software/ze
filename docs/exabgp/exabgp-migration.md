@@ -2,34 +2,34 @@
 
 ## TL;DR
 
-ZeBGP aims for **easy migration from ExaBGP**, not 100% compatibility.
+Ze aims for **easy migration from ExaBGP**, not 100% compatibility.
 
 | Principle | Description |
 |-----------|-------------|
 | **Config migration** | `ze config migrate` converts ExaBGP configs |
 | **API differences OK** | Document differences, provide migration path |
 | **No silent breakage** | Breaking changes must have migration or clear error |
-| **Plural communities** | ZeBGP uses `communities` (plural), ExaBGP uses `community` |
+| **Plural communities** | Ze uses `communities` (plural), ExaBGP uses `community` |
 
 ## Migration Rules
 
 ### 1. Config Files
 - ExaBGP configs MUST work with `ze config migrate`
-- New ZeBGP-only features MAY use different syntax
+- New Ze-only features MAY use different syntax
 - Deprecated ExaBGP syntax MUST be migrated automatically
 
 ### 2. API Output
-- ZeBGP uses different JSON structure for UPDATE events
+- Ze uses different JSON structure for UPDATE events
 - Differences documented below
 
 ### 3. API Commands
-- ZeBGP MAY extend command syntax
+- Ze MAY extend command syntax
 - Core commands SHOULD match ExaBGP
 - New commands MAY use different patterns
 
 ## Key Differences
 
-| Area | ExaBGP | ZeBGP | Notes |
+| Area | ExaBGP | Ze | Notes |
 |------|--------|-------|-------|
 | Keyword | `neighbor` | `peer` | Migration converts |
 | API output | `community` | `communities` | Plural for consistency |
@@ -53,7 +53,7 @@ ZeBGP aims for **easy migration from ExaBGP**, not 100% compatibility.
 }
 ```
 
-### ZeBGP Style (NEW)
+### Ze Style (NEW)
 ```json
 {
   "ipv4/unicast": [
@@ -131,21 +131,21 @@ ze config migrate --in-place old.conf
 
 ### Running ExaBGP Plugins
 
-Use `ze exabgp plugin` to run existing ExaBGP plugins with ZeBGP:
+Use `ze exabgp plugin` to run existing ExaBGP plugins with Ze:
 
 ```bash
 # Command line
 ze exabgp plugin /path/to/exabgp-plugin.py
 
-# In ZeBGP config
+# In Ze config
 process exabgp-compat {
     run "ze exabgp plugin /path/to/plugin.py";
 }
 ```
 
 The bridge translates bidirectionally:
-- ZeBGP JSON → ExaBGP JSON (to plugin stdin)
-- ExaBGP commands → ZeBGP commands (from plugin stdout)
+- Ze JSON -> ExaBGP JSON (to plugin stdin)
+- ExaBGP commands -> Ze commands (from plugin stdout)
 
 See `internal/exabgp/` for the Go library implementation.
 

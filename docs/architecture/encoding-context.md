@@ -446,7 +446,7 @@ type Message interface {
     Type() MessageType
 }
 
-// internal/component/bgp/attribute/attribute.go (planned)
+// internal/component/bgp/attribute/attribute.go
 type Attribute interface {
     context.WireWriter
     Code() AttributeCode

@@ -70,16 +70,19 @@ Engine (supervisor, lifecycle, config)
 
 ## Hub / Bus
 
-The bus is the central message router. It routes opaque `[]byte` payloads on
-hierarchical topics (e.g., `bgp/update`, `interface/up`) with prefix-based
-subscription matching. All components connect to the hub. The bus never inspects
-payload content.
+The bus is the central notification router. It routes opaque `[]byte` payloads
+on hierarchical topics (e.g., `bgp/update`, `interface/up`) with prefix-based
+subscription matching. It is used for broadcast state changes and event fan-out;
+request/response calls use the plugin dispatcher, DirectBridge, or typed package
+interfaces. The bus never inspects payload content.
 <!-- source: internal/component/hub/hub.go -- Hub message routing and pub/sub backbone -->
 
-Cross-component communication always flows through the bus. Components never
-import each other directly. BGP subscribes to `interface/` events to react when
-addresses appear or disappear. The FIB pipeline uses bus topics to carry
-best-path decisions from BGP RIB through system RIB to kernel route installation.
+Components avoid importing each other's implementation packages. They communicate
+through registries, bus topics, plugin RPC, DirectBridge, or shared core value
+types depending on the direction and latency requirements. BGP subscribes to
+interface events to react when addresses appear or disappear. The FIB pipeline
+uses bus topics to carry best-path decisions from BGP RIB through system RIB to
+kernel route installation.
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- best-path tracking via bus -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- FIB route programming via bus -->
 
@@ -157,7 +160,7 @@ Best-path decisions flow through the bus:
 
 | Area | Location |
 |------|----------|
-| Components | `internal/component/` (bgp, cli, config, dns, iface, firewall, traffic, web, lg, ssh, ...) |
+| Components | `internal/component/` (api, bgp, cli, config, firewall, flowexport, gnmi, iface, ike, ipsec, l2tp, ldp, lg, mcp, pki, pppoe, resolve, rsvpte, ssh, storage, telemetry, traffic, vpp, web, ...) |
 | BGP engine | `internal/component/bgp/` (reactor, FSM, wire, message, capability) |
 | Plugin implementations | `internal/plugins/` and `internal/component/bgp/plugins/` |
 | Plugin infrastructure | `internal/component/plugin/` (registry, process, hub, SDK) |

@@ -18,26 +18,30 @@ never acceptable.
 
 ## Two-Tier Pool Model
 
-Forward dispatch uses a two-tier pool:
+Forward dispatch uses separate pools for read buffers, per-peer modified output,
+and shared overflow accounting:
 
-| Tier | Scope | Size | Buffer size | Lifecycle |
+| Pool | Scope | Size | Buffer size | Lifecycle |
 |------|-------|------|-------------|-----------|
-| Peer Pool | One peer | 64 buffers | Negotiated (4K or 64K) | Peer add to peer remove |
-| Global Shared Pool | All peers | Auto-sized (byte budget) | Mixed: 64K blocks, subdivisible to 4K | Reactor lifetime |
+| Read/build BufMux | All sessions | Auto-sized combined byte budget | 4K before Extended Message, 64K after negotiation | Reactor lifetime |
+| Outgoing Peer Pool | One destination peer | 64 buffers | Negotiated (4K or 64K) | Peer add to peer remove |
+| Forward overflow MixedBufMux | All destination peers | Auto-sized byte budget | Mixed: 64K blocks, subdivisible to 4K | Reactor lifetime |
 
-Each peer has two Peer Pools of the same type (same struct, size set at init):
-an Incoming Peer Pool (inbound wire data) and an Outgoing Peer Pool (outbound modification).
-When a Peer Pool is exhausted, overflow goes to the Global Shared Pool. When the
-Global Shared Pool is exhausted (byte budget reached), dispatch proceeds without a
-buffer but congestion controller thresholds escalate (denial at 80%,
-teardown at 95%).
+Session reads take buffers from shared `BufMux` instances. Destination peers get
+an `Outgoing Peer Pool` for copy-on-modify output. When a destination worker's
+channel is full, `DispatchOverflow` may take a handle from the forward overflow
+`MixedBufMux`; if that pool is denied or exhausted, the item is still queued and
+congestion thresholds escalate (denial at 80%, teardown at 95%).
+
+<!-- source: internal/component/bgp/reactor/session.go -- getReadBuffer -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- peerPool, DispatchOverflow, overflowMux -->
 
 ## Buffer Ownership: Zero-Copy with Copy-on-Modify
 
 The forwarding path is zero-copy by default. When a source peer's UPDATE
 is forwarded to N destination peers, all destinations share the same
-source buffer from the source peer's Incoming Peer Pool. The source buffer
-is released via `done()` when the last destination has written to TCP.
+source read buffer. The source buffer is released via `done()` when the last
+destination has written to TCP.
 
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdItem.rawBodies -->
 
@@ -52,26 +56,30 @@ peers use the shared source buffer.
 
 | Path | Buffer source | Copy? | When |
 |------|--------------|-------|------|
-| No modification | Source peer's Incoming Peer Pool | No | Most forwards |
+| No modification | Source read buffer | No | Most forwards |
 | Egress filter modifies | Destination peer's Outgoing Peer Pool | Yes | AS-PATH prepend, attribute rewrite |
-| Peer Pool exhausted | Global Shared Pool | Yes | Outgoing Peer Pool full |
+| Outgoing Peer Pool exhausted | `modBufPool` or fresh allocation | Yes | Modified output buffer fallback |
 
-Each Peer Pool pre-allocates 64 buffers at the peer's negotiated
-message size (4K or 64K) in one contiguous allocation. The buffer is
-returned to the pool after the modified payload is written to TCP.
+Each Outgoing Peer Pool pre-allocates 64 buffers at the peer's negotiated
+message size (4K or 64K) in one contiguous allocation. The buffer is returned
+to the pool after the modified payload is written to TCP.
+
+<!-- source: internal/component/bgp/reactor/forward_build.go -- acquireModBuf fallback order -->
 
 ## Four-Layer Congestion Response
 
 | Layer | Mechanism | Trigger |
 |-------|-----------|---------|
-| 1 | Peer Pools (64 buffers at negotiated message size) | Absorbs steady-state traffic |
-| 2 | Global Shared Pool (auto-sized byte budget) | Peer Pool full |
-| 3 | Buffer denial on culprit source peers (natural TCP backpressure) | Global Shared Pool filling |
-| 4 | Session teardown (GR-aware, last resort) | Global Shared Pool exhausted, backpressure insufficient |
+| 1 | Per-destination worker channel | Absorbs steady-state traffic |
+| 2 | Forward overflow MixedBufMux (auto-sized byte budget) | Destination channel full |
+| 3 | Overflow pool denial for the worst destination peer | Forward overflow pool usage above 80% |
+| 4 | Session teardown (GR-aware, last resort) | Forward overflow pool above 95%, worst peer over 2x weight share for grace period |
+
+<!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- ShouldDeny and CheckTeardown -->
 
 ## Overflow Sizing Formula
 
-The Global Shared Pool byte budget is auto-sized from peer prefix maximums
+The forward overflow pool byte budget is auto-sized from peer prefix maximums
 using a restart-burst formula (`overflowPoolBudget()` in `forward_pool_weight.go`):
 
 1. `largest` = max peer's `peerBufferDemand(prefixMax, preEOR=true)`
@@ -95,7 +103,7 @@ The weight is derived from expected prefix count (in priority order):
 4. Compiled-in PeeringDB/routing table data
 5. PeeringDB API refresh (on-demand, for unknown ASNs)
 
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- peerPool, Global Shared Pool -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- peerPool and overflowMux -->
 
 Adding a peer increases the pool's maximum potential size. Removing a peer
 decreases it. The pool's maximum is the sum of all peer weights scaled by
@@ -231,7 +239,7 @@ K = max(1, sqrt(total_peers))
 overflow = sum of K largest peer buffer demands
 ```
 
-This says: "the Global Shared Pool can handle sqrt(N) of the largest peers
+This says: "the forward overflow pool can handle sqrt(N) of the largest peers
 being stuck simultaneously." The scaling adapts without configuration:
 
 | Total peers | K (simultaneous slow) | Reasoning |
@@ -388,7 +396,7 @@ burst subsides, the overflow path stops receiving `Get()` calls --
 traffic is normal. But the normal read path calls `Get()` on the same
 multiplexer for every BGP message received from the network. The
 `probedPool` wrapper fires a probe callback on every `Get()`. The probe
-target (Global Shared Pool) owns the counter and decides when to act --
+target pool owns the counter and decides when to act --
 currently every 100th tick triggers a collapse check. No timer needed
 -- network traffic is the heartbeat. The wrapper is a pure trigger; the
 counter and interval belong to the target, not the wrapper.
@@ -423,9 +431,9 @@ all new gets to block 0, while higher blocks only received returns.
 
 ## Zero-Copy Buffer Ownership
 
-The key design decision: during congestion, the Global Shared Pool provides
-read buffers to the source peer directly. There is no copy or ownership
-transfer step.
+The key design decision: the received UPDATE buffer is shared read-only on the
+zero-copy path. During destination congestion, the forward overflow pool tracks
+ownership for queued work; it does not copy the route payload.
 
 ### Normal Path (no congestion)
 
@@ -442,26 +450,34 @@ transfer step.
 
 | Step | Buffer |
 |------|--------|
-| Read loop detects destination channel full | -- |
-| Read loop requests handle from multiplexer (weighted access check) | `Get()` checks usage-to-weight ratio before granting |
-| TCP read fills `handle.Buf` with UPDATE | Handle held by multiplexer (buffer is in a block) |
-| Item queued in overflow backlog | Handle passed to backlog -- no copy, buffer stays in same block |
+| Forward dispatch finds destination channel full | -- |
+| Dispatch checks congestion controller | `ShouldDeny()` denies overflow-pool handles to the worst destination peer above 80% pool usage |
+| Dispatch requests an overflow handle when not denied | `MixedBufMux.Get4K()` or `Get64K()` returns `{ID, Buf}` if budget permits |
+| Item queued in overflow backlog | Handle is stored on the `fwdItem` when one was acquired; routes still queue if no handle is available |
 | Destination worker drains item, forwards to peer | Handle passed through |
 | Processing complete | `Return(handle)` routes to `blocks[ID]` free list |
 
-The buffer was always in its block's backing array. It was allocated from
-the multiplexer, read into directly, and returned to the same block after
-the destination peer processes it. Zero copies by construction.
+Overflow handles are accounting and ownership tokens for data held while a
+destination peer is slow. The route is not dropped if the overflow pool denies
+or cannot allocate a handle; the congestion controller then relies on threshold
+events and teardown to recover capacity.
 
-### Natural Backpressure
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- DispatchOverflow and releaseItem -->
+<!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- ShouldDeny -->
 
-When the Global Shared Pool runs low on buffers, the source peer cannot obtain
-a buffer to read into. It physically cannot read from TCP. This causes the
-kernel receive buffer to fill, which causes TCP to advertise a smaller
-receive window, which causes the remote peer to slow its sends.
+### Read Pool Exhaustion
 
-The pool IS the backpressure mechanism. No separate throttle logic is needed
-for the basic case -- buffer exhaustion creates backpressure automatically.
+Session reads use the shared 4K/64K `BufMux` pools. If `getReadBuffer()` cannot
+obtain a buffer because the combined budget is exhausted, the read path returns
+`read buffer exhausted: pool at maximum allocation`.
+
+The forward overflow pool is separate: denial there does not directly pause
+source reads. Manual `PausePeer` / `ResumePeer` APIs exist for read-loop pause,
+while automatic forward congestion currently emits congestion/resume events and
+uses pool denial plus GR-aware teardown.
+
+<!-- source: internal/component/bgp/reactor/session_read.go -- readAndProcessMessage getReadBuffer failure -->
+<!-- source: internal/component/bgp/reactor/session_flow.go -- Pause and Resume -->
 
 ## Weighted Access
 
@@ -473,14 +489,14 @@ Access rights are proportional to weight but diminish with usage.
 
 Weight = burst-adjusted prefix count. It is the peer's `prefix maximum`
 (or observed/estimated count) scaled by the burst fraction for that peer's
-size tier. Weight determines both the peer's proportional share of the
-pool (fairness) and the denominator in the usage-to-weight ratio
-(backpressure targeting).
+size tier. Weight determines the denominator in the destination peer's
+usage-to-weight ratio for overflow denial and teardown targeting.
 
 ### Diminishing Access
 
-A peer's effective priority to claim pool buffers decreases as it consumes
-more. The access decision considers the ratio of usage to weight:
+A destination peer's overflow pressure increases as it consumes more pool
+handles relative to its configured weight. The controller considers the ratio
+of overflow depth to weight:
 
 | Peer | Weight (prefix count) | Pool buffers used | Usage/weight ratio | Effective priority |
 |------|----------------------|-------------------|-------------------|-------------------|
@@ -489,19 +505,19 @@ more. The access decision considers the ratio of usage to weight:
 | A | 500K (50%) | 400 | 0.8 | Low |
 | C | 200K (20%) | 0 | 0.0 | Full weight |
 
-When the pool is under pressure, the peer with the highest usage-to-weight
-ratio is the first to be denied buffers (backpressure) and the first
+When the pool is under pressure, the destination peer with the highest
+usage-to-weight ratio is the first to be denied overflow handles and the first
 candidate for session teardown (Layer 4).
 
 ### Rebalancing Under Pressure
 
-When the pool is full and reads pause:
+When the overflow pool is full and the worker keeps draining:
 
 1. Slow peer's destination worker continues draining overflow items
 2. As items drain, that peer's usage drops, effective priority rises
-3. No new items arrive (source peer cannot get buffers)
-4. Over time, usage ratios converge toward weight ratios
-5. Reads resume when pool has headroom
+3. New overflow handles are denied first to the worst destination peer
+4. Over time, usage ratios converge toward weight ratios if the peer drains
+5. If the peer does not drain, Threshold 2 tears down that destination session
 
 The system naturally rebalances toward proportional usage without any
 explicit rebalancing algorithm.
@@ -518,13 +534,13 @@ Two thresholds:
 
 | Threshold | Trigger | Action |
 |-----------|---------|--------|
-| 1 (soft) | `PoolUsedRatio > 0.8` | Deny buffers to sources feeding the worst destination |
+| 1 (soft) | `PoolUsedRatio > 0.8` | Deny overflow handles to the worst destination peer |
 | 2 (hard) | `PoolUsedRatio > 0.95` AND worst peer > 2x weight share for grace period | Tear down worst destination peer (GR-aware) |
 
 The grace period (default 5s, `ze.fwd.teardown.grace`) prevents teardown
-on transient spikes. The check lives in `fwdBatchHandler`: when the write
-deadline fires (TCP stuck, 30s), the worker checks pool state and its own
-ratio. If Threshold 2 is met, the worker tears down its own session.
+on transient spikes. The worker checks teardown conditions after each processed
+batch. If Threshold 2 persists for the grace period, the congestion controller
+tears down the worst destination session.
 
 After teardown, all overflow handles return to the pool. The system
 recovers immediately. If another peer becomes the new worst offender,
@@ -532,20 +548,20 @@ the cycle repeats.
 
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, fwdWorker -->
 
-## Throttle the Culprit
+## Deny The Worst Destination
 
-Read throttling targets the source peers whose traffic is filling the pool.
-The system cannot accelerate sending to slow destinations -- it can only
-slow down reading from sources that are causing the pressure.
+Overflow-pool denial targets the destination peer with the highest
+usage-to-weight ratio. The system cannot accelerate sending to a slow
+destination, so it limits additional overflow-pool ownership by the peer that
+is consuming a disproportionate share.
 
-The culprit is identified by which source peer's traffic is
-disproportionately consuming pool buffers. A source whose destinations are
-all healthy (traffic flows through channels, not overflow) is not throttled
-regardless of volume.
+The culprit is identified from per-destination overflow depths. When the
+forward overflow pool runs low, `ShouldDeny()` returns true only for the worst
+destination peer. Routes still queue; denial controls pool ownership and feeds
+the later teardown decision.
 
-When the Global Shared Pool runs low, the peer with the worst usage-to-weight
-ratio is denied buffers first. This is the throttle: no buffer means no
-read means TCP backpressure on the source.
+<!-- source: internal/component/bgp/reactor/forward_pool_weight_tracker.go -- WorstPeerRatio -->
+<!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- ShouldDeny -->
 
 ## Pool Multiplexer
 
@@ -561,7 +577,7 @@ block ID so returns are always routed to the correct block.
 
 | Field | Type | Purpose |
 |-------|------|---------|
-| ID | uint16 | Block this buffer belongs to. Assigned at allocation, never changes. |
+| ID | uint32 | Block this buffer belongs to. Assigned at allocation, never changes. |
 | Buf | []byte | The buffer (slice into backing array). Used for reads/writes. |
 
 **Multiplexer operations:**
@@ -599,21 +615,20 @@ multiplexer is used for all buffer allocation (normal and overflow
 paths). A single mutex is acceptable -- `Get()` and `Return()` are
 fast O(1) operations.
 
-**Peer Pools and Global Shared Pool:**
+**Runtime Pools:**
 
 | Pool | Buffer size | Purpose |
 |------|------------|---------|
-| Incoming Peer Pool | Negotiated (4K or 64K) | 64 pre-allocated buffers per peer for inbound wire data |
-| Outgoing Peer Pool | Negotiated (4K or 64K) | 64 pre-allocated buffers per peer for outbound modification |
-| Global Shared Pool | Mixed: 64K blocks subdivisible to 4K | Byte-budgeted overflow when a Peer Pool is exhausted |
+| Read/build BufMux | 4K or 64K | Shared session read buffers and build buffers |
+| Outgoing Peer Pool | Negotiated (4K or 64K) | 64 pre-allocated buffers per destination peer for outbound modification |
+| Forward overflow MixedBufMux | Mixed: 64K blocks subdivisible to 4K | Byte-budgeted ownership for destination overflow backlog |
 
 The default forwarding path is zero-copy (no buffer taken from the Outgoing Peer Pool).
 Outgoing Peer Pool buffers are only acquired when egress filters need to modify
 the payload for a specific destination peer (copy-on-modify).
 
-**Every callsite that currently passes `[]byte` passes a handle instead.**
-The `Buf` field is used for TCP reads, wire writes, etc. The full handle
-is passed to `Return()`.
+BufMux users pass the full handle, not only the raw `[]byte`, so returns can be
+routed to the original block.
 
 ### Combined Capacity Tracking
 
@@ -622,8 +637,8 @@ so the two multiplexers maintain separate inventories. But memory
 pressure is a shared resource -- growth, shrink, and backpressure
 decisions use the combined usage across both multiplexers.
 
-<!-- source: internal/component/bgp/reactor/bufmux.go — combinedBudget -->
-<!-- source: internal/component/bgp/reactor/session.go — initBufMuxBudget, CombinedBufMuxStats -->
+<!-- source: internal/component/bgp/reactor/bufmux.go -- combinedBudget -->
+<!-- source: internal/component/bgp/reactor/session.go -- initBufMuxBudget, CombinedBufMuxStats -->
 
 **Shared byte budget:** Both multiplexers share a `combinedBudget`
 (atomic counter). Each mux increments the counter on block growth
@@ -632,13 +647,13 @@ cross-mux deadlock risk.
 
 | Decision | Mechanism |
 |----------|-----------|
-| Grow (new block) | `combinedBudget.canGrow(blockBytes)` — denies if total allocated across both muxes would exceed `ze.fwd.pool.maxbytes` |
-| Shrink (collapse) | Per-mux collapse (unchanged). Budget counter decremented on collapse via `recordCollapse`. |
-| Backpressure (deny buffer) | `CombinedBufMuxUsedRatio()` — ratio of in-use bytes across both muxes. Available to Global Shared Pool and metrics. |
+| Grow (new block) | `combinedBudget.tryReserve(blockBytes)` denies if total allocated across both muxes would exceed the active byte budget |
+| Shrink (collapse) | Per-mux collapse. Budget counter decremented on collapse via `releaseBytes`. |
+| Metrics/pressure signal | `CombinedBufMuxUsedRatio()` reports in-use bytes across both muxes. |
 
 **Configuration:** `ze.fwd.pool.maxbytes` sets the combined byte limit
-(default 0 = unlimited). Phase 4 will set this dynamically based on
-peer weights.
+(default 0 = auto-sized by the reactor from peer weights unless an explicit
+operator override is set).
 
 This prevents a scenario where the 64K multiplexer is 95% full (real
 memory pressure) but the 4K multiplexer has headroom, and the system
@@ -650,8 +665,8 @@ fails to trigger backpressure because each looks at itself in isolation.
 |-----------|---------|---------|
 | `ze.fwd.pool.maxbytes` | Combined byte budget for 4K+64K pools | Auto-sized from peer weights |
 | `ze.fwd.pool.headroom` | Extra memory beyond auto-sized baseline (e.g. "512MB", "2GB") | 0 (no extra) |
-| `ze.fwd.pool.size` | Global Shared Pool byte budget override (0 = auto-sized) | 0 (auto-sized) |
-| `ze.fwd.chan.size` | Per-peer dispatch channel capacity | 256 |
+| `ze.fwd.pool.size` | Forward overflow MixedBufMux byte budget override (0 = auto-sized) | 0 (auto-sized) |
+| `ze.fwd.chan.size` | Per-peer dispatch channel capacity | 64 |
 | `ze.fwd.teardown.grace` | Seconds at >95% + >2x weight before forced teardown | 5s |
 | Per-peer `prefix maximum` | Max expected prefixes (drives weight) | Required (PeeringDB fallback) |
 

@@ -1,8 +1,8 @@
-# ZeBGP Functional Test System
+# Ze Functional Test System
 
 ## Overview
 
-Functional tests exercise release-gate behavior across BGP wire encoding and decoding, plugin behavior, config parsing, reloads, UI/editor flows, managed config, L2TP, firewall, policy routing, and the web UI.
+Functional tests exercise release-gate behavior across BGP wire encoding and decoding, plugin behavior, config parsing, reloads, UI/editor flows, managed config, L2TP, firewall, policy routing, web UI, and install flows.
 
 ```bash
 # Quick start
@@ -16,8 +16,8 @@ make ze-reload-test       # Reload tests only
 
 `make ze-verify` runs: lint, evidence script vetting, unit tests (two-pass:
 cached full + `-race` on changed groups), `ze-functional-test`, and exabgp-compat.
-The functional test target runs 12 suites: encode, plugin, parse, decode, reload,
-ui, editor, managed, l2tp, firewall, policy, web.
+The functional test target runs 13 suites: encode, plugin, parse, decode, reload,
+ui, editor, managed, l2tp, firewall, policy, web, install.
 <!-- source: Makefile -- ze-verify; mk/test-functional.mk -- ze-functional-test -->
 
 The following shipped test suites are **not in the default release gate** and
@@ -154,7 +154,7 @@ Static route tests - routes defined in config, sent at session establishment.
 
 **Files:**
 - `*.ci` - Expected messages and config reference
-- `*.conf` - ZeBGP configuration
+- `*.conf` - Ze configuration
 
 ### 2. Parse Tests (`test/parse/`)
 
@@ -226,7 +226,7 @@ Dynamic route tests - routes injected via scripts using the process API.
 
 **Files:**
 - `*.ci` - Expected messages and config reference
-- `*.conf` - ZeBGP configuration (includes `process` block)
+- `*.conf` - Ze configuration (includes `process` block)
 - `*.run` - Script that sends API commands
 
 ### 3b. MCP Tests (`test/plugin/mcp-*.ci`, `test/plugin/elicitation-*.ci`)

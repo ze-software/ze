@@ -400,11 +400,11 @@ These files can be used for regression testing after optimizations:
 |------|-----------|-------|
 | `internal/component/bgp/reactor/hotpath_bench_test.go` | 10 | BufMux, cache, fwd pool, env, timer |
 | `internal/component/bgp/wireu/wire_bench_test.go` | 16 | WireUpdate parsing, rewrite, split |
-| `internal/component/bus/bus_bench_test.go` | 9 | Bus publish, map alloc patterns |
+| `internal/component/plugin/server/benchmark_test.go` | plugin server benchmarks | Plugin dispatch and event delivery |
 
 Run all benchmarks:
 ```bash
-go test -run='^$' -bench=. -benchmem ./internal/component/bgp/reactor/ ./internal/component/bgp/wireu/ ./internal/component/bus/
+go test -run='^$' -bench=. -benchmem ./internal/component/bgp/reactor/ ./internal/component/bgp/wireu/ ./internal/component/plugin/server/
 ```
 
 ---

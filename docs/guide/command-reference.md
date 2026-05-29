@@ -935,7 +935,8 @@ are stored in the autodetected crash directory (see `ze.crash.dir` env var).
 The offline variant works when the daemon is down (which is when you need
 it most, after a crash).
 
-<!-- source: internal/component/cmd/show/crashes.go, cmd/ze/crashes/crashes.go -->
+<!-- source: internal/component/cmd/show/crashes.go -- show crashes command -->
+<!-- source: cmd/ze/crashes/crashes.go -- crash storage commands -->
 
 ### clear interface counters
 

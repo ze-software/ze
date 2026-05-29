@@ -163,18 +163,15 @@ These are top-level plugins that own config roots and manage OS or routing resou
 | Location | `internal/plugins/iface/dhcp/register.go` |
 | Description | DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal |
 | ConfigRoots | - |
-| WantsConfig | `interface` (planned -- not yet wired) |
+| WantsConfig | - |
 | Dependencies | `interface` |
 
-DHCP client logic exists (lease negotiation, renewal, address management via
-`iface.ReplaceAddressWithLifetime`) but config-driven activation is not yet
-wired. `NewDHCPClient()` is defined but never called from config.
+The DHCP package registers a factory with the `interface` component at init time.
+The `interface` plugin owns `WantsConfig: ["interface"]`, parses DHCP leaves from
+interface units, and calls the factory from `reconcileDHCP()` on startup and reload
 
-When complete, DHCP will be a `WantsConfig: ["interface"]` plugin: it reads
-interface config to discover which interfaces have DHCP enabled, and
-participates in config transactions to start/stop clients on reload. During
-apply, it waits for `interface/created` before binding (dependency waiting
-pattern from the transaction protocol).
+<!-- source: internal/plugins/iface/dhcp/register.go -- SetDHCPClientFactory and newDHCPClientFromFactory -->
+<!-- source: internal/component/iface/register.go -- reconcileDHCP and sdk.Registration WantsConfig -->
 
 **Bus publishes:**
 

@@ -244,9 +244,11 @@ cmd/ze/main.go
 internal/component/plugin/all/all.go       (generated)
   │  _ "internal/component/bgp/plugins/rib"
   │  _ "internal/component/bgp/plugins/gr"
+  │  _ "internal/plugins/fib/kernel"
+  │  _ "internal/component/iface"
   │  _ ...                                  (one blank import per plugin)
   ▼
-internal/component/bgp/plugins/<name>/register.go
+internal/component/bgp/plugins/<name>/register.go or internal/plugins/<name>/register.go
   │  func init() { registry.Register(Registration{...}) }
   ▼
 internal/component/plugin/registry/registry.go
@@ -258,11 +260,11 @@ internal/component/plugin/registry/registry.go
 **Registry is a leaf package:** `registry/` has zero dependencies on plugin implementations. Plugins import the registry to register; consumers import the registry to query. This one-directional flow prevents cycles.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration, Lookup, All -->
 
-**Code generation keeps `all.go` in sync:** `scripts/codegen/plugin_imports.go` (invoked via `make generate`) walks `internal/component/bgp/plugins/` for `register.go` files that import `plugin/registry`, and separately discovers infrastructure `schema/register.go` files that import `config/yang`. It writes the sorted blank-import list to `all.go`.
+**Code generation keeps `all.go` in sync:** `scripts/codegen/plugin_imports.go` (invoked via `make generate`) walks plugin implementation roots such as `internal/component/bgp/plugins/`, `internal/component/`, and `internal/plugins/` for `register.go` files that import the plugin registry, and separately discovers infrastructure `schema/register.go` files that import `config/yang`. It writes the sorted blank-import list to `all.go`.
 
 **Adding a new plugin:**
 
-1. Create `internal/component/bgp/plugins/<name>/register.go` with an `init()` calling `registry.Register()`
+1. Create the plugin near its domain, for example `internal/component/bgp/plugins/<name>/register.go` for BGP plugins or `internal/plugins/<name>/register.go` for generic infrastructure plugins, with an `init()` calling `registry.Register()`
 2. Run `make generate` to regenerate `all.go`
 3. The plugin is now auto-loaded in every binary that imports `plugin/all`
 
