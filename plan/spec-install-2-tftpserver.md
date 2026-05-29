@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-05-21 |
+| Phase | 1/9 |
+| Updated | 2026-05-28 |
 | Parent | spec-install-0-umbrella.md |
 
 ## Post-Compaction Recovery
@@ -376,57 +376,114 @@ Key RFC 1350 sections to reference:
 ## Implementation Summary
 
 ### What Was Implemented
-- [List actual changes made]
+- TFTP server plugin at `internal/plugins/tftpserver/` (register.go, handler.go, config.go, socket_linux.go, socket_other.go)
+- YANG schema at `internal/plugins/tftpserver/schema/` (ze-tftp-server-conf.yang, embed.go, register.go)
+- 20 unit tests in handler_test.go + 5 in config_test.go (all passing)
+- Functional test `test/install/tftp-server-config.ci`
+- Plugin registered in all.go via codegen
+- Added `TestTFTPRetransmitOnTimeout` and `TestTFTPIOErrorMidTransfer` (were missing from prior implementation)
+- Documentation: tftpserver entry added to `docs/guide/plugins.md` Infrastructure table
 
 ### Bugs Found/Fixed
-- [Any bugs discovered -- add test for each]
+- None. Existing implementation was correct and complete.
 
 ### Documentation Updates
-- [Docs updated, or "None"]
+- `docs/guide/plugins.md`: added tftpserver to Infrastructure table with source comment
 
 ### Deviations from Plan
-- [Differences from original plan and why]
+- No `register_test.go` file needed: plugin registration is tested implicitly via `TestAvailablePlugins` in `cmd/ze/main_test.go` and config tests
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| RFC 1350 TFTP server | Done | handler.go | Full RRQ/DATA/ACK/ERROR |
+| Read-only (no WRQ) | Done | handler.go:151-153 | ERROR code 4 |
+| 512-byte blocks | Done | handler.go:36 | blockSize = 512 |
+| YANG config | Done | schema/ze-tftp-server-conf.yang | 4 leaves |
+| Plugin registration | Done | register.go:22-44 | Standard pattern |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | register.go:81-106 + TestTFTPConfigParse | |
+| AC-2 | Done | TestTFTPReadRequest, TestTFTPReadLargeFile | |
+| AC-3 | Done | TestTFTPFileNotFound | |
+| AC-4 | Done | TestTFTPPathTraversal, TestTFTPSymlinkTraversal | |
+| AC-5 | Done | TestTFTPWriteRejected | |
+| AC-6 | Done | TestTFTPReadExact512 | Two blocks: 512 + 0 |
+| AC-7 | Done | TestTFTPReadEmptyFile | One block of 0 |
+| AC-8 | Done | TestTFTPConfigVerify | |
+| AC-9 | Done | register.go:85-87 | |
+| AC-10 | Done | TestTFTPRetransmitOnTimeout | 5s, 3 retries |
+| AC-11 | Done | TestTFTPConcurrentLimit | |
+| AC-12 | Done | TestTFTPModeHandling | |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestTFTPParseRRQ | Done | handler_test.go:22 | |
+| TestTFTPParseRRQInvalid | Done | handler_test.go:44 | 5 subtests |
+| TestTFTPReadRequest | Done | handler_test.go:236 | |
+| TestTFTPReadLargeFile | Done | handler_test.go:281 | |
+| TestTFTPReadExact512 | Done | handler_test.go:345 | |
+| TestTFTPReadEmptyFile | Done | handler_test.go:405 | |
+| TestTFTPWriteRejected | Done | handler_test.go:445 | |
+| TestTFTPFileNotFound | Done | handler_test.go:479 | |
+| TestTFTPPathTraversal | Done | handler_test.go:134 | |
+| TestTFTPSymlinkTraversal | Done | handler_test.go:167 | |
+| TestTFTPBuildDataPacket | Done | handler_test.go:94 | |
+| TestTFTPBuildErrorPacket | Done | handler_test.go:114 | |
+| TestTFTPConfigParse | Done | config_test.go:9 | |
+| TestTFTPConfigVerify | Done | config_test.go:67 | |
+| TestTFTPRetransmitOnTimeout | Done | handler_test.go:618 | |
+| TestTFTPConcurrentLimit | Done | handler_test.go:559 | |
+| TestTFTPModeHandling | Done | handler_test.go:520 | |
+| TestTFTPIOErrorMidTransfer | Done | handler_test.go:685 | |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| tftpserver/register.go | Done | Plugin registration, RunEngine |
+| tftpserver/handler.go | Done | TFTP packet handling |
+| tftpserver/config.go | Done | Config parsing |
+| tftpserver/handler_test.go | Done | 20 tests |
+| tftpserver/config_test.go | Done | 5 tests |
+| tftpserver/schema/*.yang | Done | YANG schema |
+| tftpserver/schema/embed.go | Done | go:embed |
+| tftpserver/schema/register.go | Done | yang.RegisterModule |
+| test/install/tftp-server-config.ci | Done | Functional config test |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 35
+- **Done:** 35
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (register_test.go -> main_test.go)
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | ISSUE | Missing TestTFTPRetransmitOnTimeout | handler_test.go | Added test |
+| 2 | ISSUE | Missing TestTFTPIOErrorMidTransfer | handler_test.go | Added test |
+| 3 | ISSUE | tftpserver not in plugins.md | docs/guide/plugins.md | Added entry |
 
 ### Fixes applied
+- Added TestTFTPRetransmitOnTimeout (handler_test.go:618)
+- Added TestTFTPIOErrorMidTransfer (handler_test.go:685)
+- Added tftpserver to Infrastructure table in docs/guide/plugins.md
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | - | Clean | - | - |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above: none
 
 ## Pre-Commit Verification
 

@@ -614,3 +614,137 @@ func TestTFTPConcurrentLimit(t *testing.T) {
 	}
 	_ = n
 }
+
+func TestTFTPRetransmitOnTimeout(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	content := []byte("retransmit test data")
+	if err := os.WriteFile(filepath.Join(rootDir, "retry.bin"), content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srvAddr := startTestTFTPServer(t, rootDir, 10)
+
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client)
+
+	rrq := buildRRQPacket("retry.bin", "octet")
+	if _, err := client.WriteToUDP(rrq, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 516)
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, senderAddr, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("first DATA: %v", err)
+	}
+	if binary.BigEndian.Uint16(buf[0:2]) != opDATA || binary.BigEndian.Uint16(buf[2:4]) != 1 {
+		t.Fatalf("expected DATA block 1, got opcode=%d block=%d",
+			binary.BigEndian.Uint16(buf[0:2]), binary.BigEndian.Uint16(buf[2:4]))
+	}
+	firstData := make([]byte, n)
+	copy(firstData, buf[:n])
+
+	// Do NOT send ACK. Wait for retransmission (5s timeout + margin).
+	if err := client.SetReadDeadline(time.Now().Add(7 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n2, _, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("retransmit: %v", err)
+	}
+
+	if n2 != n {
+		t.Fatalf("retransmit size %d != original %d", n2, n)
+	}
+	if !bytes.Equal(buf[:n2], firstData) {
+		t.Error("retransmitted packet differs from original")
+	}
+
+	// Now ACK to cleanly end the transfer
+	ack := buildACKPacket(1)
+	if _, err := client.WriteToUDP(ack, senderAddr); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTFTPIOErrorMidTransfer(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	filePath := filepath.Join(rootDir, "vanish.bin")
+	content := make([]byte, 1024)
+	for i := range content {
+		content[i] = byte(i % 256)
+	}
+	if err := os.WriteFile(filePath, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srvAddr := startTestTFTPServer(t, rootDir, 10)
+
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client)
+
+	rrq := buildRRQPacket("vanish.bin", "octet")
+	if _, err := client.WriteToUDP(rrq, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 516)
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	_, senderAddr, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("block 1: %v", err)
+	}
+	if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+		t.Fatalf("expected DATA, got opcode %d", binary.BigEndian.Uint16(buf[0:2]))
+	}
+
+	// Truncate the file to 0 bytes while transfer is in progress
+	if err := os.Truncate(filePath, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	// ACK block 1 to trigger read of block 2 (which should fail or return short)
+	ack := buildACKPacket(1)
+	if _, err := client.WriteToUDP(ack, senderAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, _, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("block 2 response: %v", err)
+	}
+
+	opcode := binary.BigEndian.Uint16(buf[0:2])
+	// Either an ERROR packet (read error) or a short DATA block (file truncated
+	// between reads, Read returns 0 bytes which is < blockSize, ending transfer)
+	// are acceptable. Both correctly handle the I/O anomaly.
+	switch opcode {
+	case opERROR:
+		// Server detected I/O error
+	case opDATA:
+		dataLen := n - 4
+		if dataLen >= blockSize {
+			t.Errorf("expected short DATA block after truncation, got %d bytes", dataLen)
+		}
+	default:
+		t.Fatalf("unexpected opcode %d", opcode)
+	}
+}
