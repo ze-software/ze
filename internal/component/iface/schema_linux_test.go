@@ -36,9 +36,12 @@ func TestIfaceYANGDHCPBackendAnnotation(t *testing.T) {
 	ifaceCN, ok := iface.(*config.ContainerNode)
 	require.True(t, ok, "interface must be a container")
 
-	// dhcp / dhcpv6 live under any unit-bearing list; ethernet's unit
-	// container is the canonical site shared with dummy, veth, bridge,
-	// tunnel, wireguard, and loopback via `uses interface-unit`.
+	// dhcp / dhcpv6 live under the per-family containers (ipv4/ipv6) of any
+	// unit-bearing list; ethernet's unit list is the canonical site shared
+	// with dummy, veth, bridge, tunnel, wireguard, and loopback via
+	// `uses interface-unit`. The family nesting matches how config.go parses
+	// them and the path asserted by iface-vpp-rejects-dhcp.ci
+	// (/interface/ethernet/<name>/unit/<n>/ipv4/dhcp).
 	eth := ifaceCN.Get("ethernet")
 	require.NotNil(t, eth, "interface.ethernet missing from schema")
 	ethList, ok := eth.(*config.ListNode)
@@ -49,12 +52,20 @@ func TestIfaceYANGDHCPBackendAnnotation(t *testing.T) {
 	unitList, ok := unit.(*config.ListNode)
 	require.True(t, ok, "interface.ethernet.unit must be a list")
 
-	for _, name := range []string{"dhcp", "dhcpv6"} {
-		node := unitList.Get(name)
-		require.NotNilf(t, node, "interface.ethernet.unit.%s missing from schema", name)
+	for _, tc := range []struct{ family, child string }{
+		{"ipv4", "dhcp"},
+		{"ipv6", "dhcpv6"},
+	} {
+		fam := unitList.Get(tc.family)
+		require.NotNilf(t, fam, "interface.ethernet.unit.%s missing from schema", tc.family)
+		famCN, ok := fam.(*config.ContainerNode)
+		require.Truef(t, ok, "interface.ethernet.unit.%s must be a container", tc.family)
+
+		node := famCN.Get(tc.child)
+		require.NotNilf(t, node, "interface.ethernet.unit.%s.%s missing from schema", tc.family, tc.child)
 		cn, ok := node.(*config.ContainerNode)
-		require.Truef(t, ok, "interface.ethernet.unit.%s must be a container", name)
+		require.Truef(t, ok, "interface.ethernet.unit.%s.%s must be a container", tc.family, tc.child)
 		assert.Equalf(t, []string{"netlink"}, cn.Backend,
-			"interface.ethernet.unit.%s must carry ze:backend \"netlink\"", name)
+			"interface.ethernet.unit.%s.%s must carry ze:backend \"netlink\"", tc.family, tc.child)
 	}
 }
