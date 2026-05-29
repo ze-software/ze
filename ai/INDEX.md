@@ -22,7 +22,7 @@
 | Find context for an unfamiliar area | `ai/NAVIGATION.md` | Task-to-context decision tree |
 | Understand Ze vs standard Go | `ai/rules/ze-divergences.md` | Buffer-first, registration, YANG, etc. |
 | Know which hooks will check my code | `ai/rules/hook-mapping.md` | Pre-flight compliance checklist |
-| Edit the website or presentations | `docs/gh-pages.md` then `../gh-pages/AI.md` | Worktree layout, tooling, adding a talk |
+| Edit the website or presentations | `docs/contributing/gh-pages.md` then `../gh-pages/AI.md` | Worktree layout, tooling, adding a talk |
 
 ## Dev Tools
 

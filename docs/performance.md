@@ -12,6 +12,9 @@
 > not as absolute performance claims. If performance matters to you, run ze-perf
 > on your own hardware with your own workload.
 
+For internal hot-path analysis and optimization history rather than cross-implementation
+comparison, see [research/performance-analysis.md](research/performance-analysis.md).
+
 ## Methodology
 
 Ze-perf establishes two BGP sessions with a device under test (DUT): a sender

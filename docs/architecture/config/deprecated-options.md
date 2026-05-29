@@ -139,4 +139,4 @@ ze config migrate --dry-run config.conf
 ze config migrate config.conf -o config-v3.conf
 ```
 
-See [config-migration.md](config-migration.md) for full details.
+See [config-migration.md](../../config-migration.md) for full details.
