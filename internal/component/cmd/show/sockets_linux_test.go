@@ -2,7 +2,11 @@
 
 package show
 
-import "testing"
+import (
+	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+)
 
 func TestParseProcNetTCP(t *testing.T) {
 	line := "   0: 0100007F:0050 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 12345 1 0000000000000000 100 0 0 10 0"

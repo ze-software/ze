@@ -2,7 +2,11 @@
 
 package show
 
-import "testing"
+import (
+	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+)
 
 func TestCategorizeFDTarget(t *testing.T) {
 	tests := []struct {

@@ -61,7 +61,7 @@ func handleShowSystemFD(_ *pluginserver.CommandContext, args []string) (*plugin.
 		result["fds"] = details
 	}
 
-	return &plugin.Response{Status: plugin.StatusDone, Data: result}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(result)}, nil
 }
 
 type fdEntry struct {

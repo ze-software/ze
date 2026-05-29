@@ -25,7 +25,7 @@ func handleShowSystemMemoryMap(_ *pluginserver.CommandContext, _ []string) (*plu
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: status}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(status)}, nil
 }
 
 func parseProcSelfStatus() (map[string]any, error) {
