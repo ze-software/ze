@@ -27,12 +27,6 @@ time.sleep(6.0)
 EOF_PY
 
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {
