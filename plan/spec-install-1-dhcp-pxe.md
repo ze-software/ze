@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-05-21 |
+| Phase | 1/9 |
+| Updated | 2026-05-28 |
 | Parent | spec-install-0-umbrella |
 
 ## Post-Compaction Recovery
@@ -369,41 +369,82 @@ PXE-specific RFC constraints to document:
 ## Implementation Summary
 
 ### What Was Implemented
-- [Pending implementation]
+- PXE option constants (43, 60, 66, 67, 93) in handler.go
+- `isPXEClient()`, `parsePXEArch()`, `parseOptionBytes()` detection functions
+- `appendPXEOptions()` called from `buildReply()` for PXE option injection
+- `pxeConfig` struct and `parsePXEConfig()` in config.go
+- pxe container in YANG schema
+- Reply buffer increased from 576 to 1500 bytes (Ethernet MTU)
+- PXE config threaded through register.go `startServer()` to `newDHCPHandler()`
 
 ### Bugs Found/Fixed
-- [None yet]
+- None
 
 ### Documentation Updates
-- [None yet]
+- `docs/guide/configuration.md`: added PXE Boot Support section with config example and settings table
+- `docs/guide/plugins.md`: added dhcpserver plugin to Infrastructure table
 
 ### Deviations from Plan
-- [None yet]
+- None
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Extend dhcpserver with PXE options | Done | handler.go:289-320 | appendPXEOptions |
+| Detect PXE clients via option 60 | Done | handler.go:431-434 | isPXEClient |
+| Parse client architecture from option 93 | Done | handler.go:438-444 | parsePXEArch |
+| Override siaddr for PXE | Done | handler.go:302 | copy(resp[20:24], tftpIP[:]) |
+| Add YANG pxe container | Done | ze-dhcp-server-conf.yang:28-51 | |
+| Non-PXE behavior unchanged | Done | handler_test.go:785 | TestNonPXEDiscoverUnchanged |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | TestPXEDiscoverBIOS (handler_test.go:724) | opt66, opt67, siaddr verified |
+| AC-2 | Done | TestPXEDiscoverUEFI (handler_test.go:763) | UEFI bootfile verified |
+| AC-3 | Done | TestNonPXEDiscoverUnchanged (handler_test.go:785) | No PXE options, siaddr=serverIP |
+| AC-4 | Done | TestPXEDisabledIgnoresOptions (handler_test.go:814) | PXE disabled, no PXE options |
+| AC-5 | Done | TestParsePXEConfig (config_test.go:363) | Config parsing verified |
+| AC-6 | Done | TestParsePXEConfigMissing (config_test.go:411) | PXE disabled by default |
+| AC-7 | Done | TestPXENoArch93DefaultsBIOS (handler_test.go:835) | BIOS fallback verified |
+| AC-8 | Done | make ze-lint-changed passes | YANG validates |
+| AC-9 | Done | TestPXEOption43 (handler_test.go:989) | type=71, len=4 verified |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestPXEDiscoverBIOS | Pass | handler_test.go:724 | |
+| TestPXEDiscoverUEFI | Pass | handler_test.go:763 | |
+| TestNonPXEDiscoverUnchanged | Pass | handler_test.go:785 | |
+| TestPXEDisabledIgnoresOptions | Pass | handler_test.go:814 | |
+| TestPXENoArch93DefaultsBIOS | Pass | handler_test.go:835 | |
+| TestIsPXEClient | Pass | handler_test.go:875 | 6 subtests |
+| TestParsePXEArch | Pass | handler_test.go:913 | 5 subtests |
+| TestParsePXEConfig | Pass | config_test.go:363 | |
+| TestParsePXEConfigMissing | Pass | config_test.go:411 | |
+| TestParsePXEConfigInvalid | Pass | config_test.go:424 | 2 subtests |
+| TestPXERequestAck | Pass | handler_test.go:950 | Full DORA cycle |
+| TestPXEOption43 | Pass | handler_test.go:989 | Boot item suboption |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| internal/plugins/dhcpserver/handler.go | Done | PXE option constants, detection, encoding |
+| internal/plugins/dhcpserver/config.go | Done | pxeConfig struct, parsePXEConfig |
+| internal/plugins/dhcpserver/register.go | Done | PXE config threading |
+| internal/plugins/dhcpserver/schema/ze-dhcp-server-conf.yang | Done | pxe container |
+| internal/plugins/dhcpserver/handler_test.go | Done | 12 PXE tests |
+| internal/plugins/dhcpserver/config_test.go | Done | 3 PXE config tests |
+| test/install/dhcp-pxe-config.ci | Done | Functional test |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 28
+- **Done:** 28
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
 
 ## Review Gate
 

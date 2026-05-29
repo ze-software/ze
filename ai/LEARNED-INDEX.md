@@ -66,6 +66,15 @@ Registration, SDK, event flow, lifecycle, hook integration.
 - [781](plan/learned/781-remove-private-as.md) -- Remove-private-as: plugin intent + reactor wire rewrite; Set+Prepend composition
 - [806](plan/learned/806-install-1-dhcp-pxe.md) -- DHCP PXE extension: additive options in existing buildReply, server-wide pxeConfig, 1500-byte reply buffer, siaddr+option 66 dual-set for PXE ROM compat
 - [807](plan/learned/807-install-2-tftpserver.md) -- TFTP server plugin: RFC 1350 read-only, ephemeral port per transfer, channel semaphore for concurrency, SO_BINDTODEVICE on Linux, 32MB block-number limit acceptable for bootloaders
+- [811](plan/learned/811-install-3-image-server.md) -- imageserver plugin: own HTTP listener, http.ServeFile for images/boot/zefs, path traversal via flat filename validation, zefs built at configure time with ze init key patterns
+- [812](plan/learned/812-install-5-bootstrap-mode.md) -- bootstrap mode: EmitBootstrapConfig separate from EmitConfig, ethernet-only DHCP, SSH from zefs creds, falls through on failure, inserted between template and web-only in startup switch
+- [813](plan/learned/813-install-6-installer-initrd.md) -- installer initrd: busybox-based shell init, wget+dd stream to first non-removable disk (sysfs removable check), blockdev --rereadpt for partition re-read, zefs injection to /perm/ze/, kernel-level DHCP via ip=dhcp cmdline
+- [815](plan/learned/815-install-7a-namespace.md) -- namespace migration: cmd/ze/appliance/ moved to cmd/ze/install/appliance/, deprecated alias prints warning, no root registration at new location
+- [816](plan/learned/816-install-7b-vendor-builder.md) -- vendor builder: gokBuildFn replaces gokBinary shell-out, go run -mod=vendor ./cmd/ze-gok, GOMODCACHE isolation, gokSizeArg uses strconv.AppendInt
+- [817](plan/learned/817-install-7c-vendor-updater.md) -- vendor updater: local copy of gokrazy/updater (stdlib-only), authTransport for all requests, StreamTo+Switch+Reboot sequence, --testboot/--no-reboot flags
+- [818](plan/learned/818-flow-export-1-counter-export.md) -- flow export counter closure: IPFIX octetTotalCount/packetTotalCount (not Delta), single MaxDatagramSize, per-datagram metric counting, template timestamp on success only, show flow-export YANG wiring
+- [819](plan/learned/819-flow-export-2-flow-records.md) -- flow export spec-2 integration: FlowSample/ConntrackFlow neutral types + factory-registered flow encoders (import-graph constraint), platform-independent workers delegating to _linux netlink, BestChange typed-handle enrichment (next-hop only), deadlock-safe Stop ordering
+- [820](plan/learned/820-flow-export-0-umbrella.md) -- flow export umbrella: single-collection/multiple-consumers via iface callback, registration over imports, buffer-first, in-process SDK component; spec-1 complete, spec-2 CI-gated
 
 ## Configuration
 
@@ -113,6 +122,7 @@ Command structure, text format, IPC, RPC dispatch.
 - [804](plan/learned/804-gnmi-yang.md) -- gNMI YANG config, show command, Prometheus counters, external commit notify
 - [809](plan/learned/809-pol-3-validation.md) -- Policy plain names: unique filter names as default operator form, show policy chain output shape change (name+canonical), prefixed forms as escape hatch
 - [810](plan/learned/810-show-command-pipe-filters.md) -- Command-owned pipe filters: PipeFilter registration, longest-prefix lookup, FoldFilters rewrite, show verb-first grammar, generic pipe code BGP-free
+- [814](plan/learned/814-pol-4-explain.md) -- Policy dry-run: show policy test command, TracePolicyFilterChain trace helper, narrow PolicyDryRunner interface, per-filter decision trace, wire diff output
 
 ## Web Interface
 

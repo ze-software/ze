@@ -167,8 +167,13 @@ ze --plugins
 | `firewall-vpp` | VPP ACL backend for firewall: translates ze Match/Action types to VPP ACL rules, read-merge-write bindings preserving foreign ACLs | -- (registered as firewall backend) |
 | `policy-routes` | Policy-based routing via nftables packet marking and kernel ip rules. Steers traffic to alternate routing tables or next-hops based on L3/L4 match criteria. [Guide](policy-routing.md) | -- (Config-driven, depends on firewall) |
 | `sysctl` | Kernel tunable management: three-layer precedence (config > transient > default), restore on stop. Named profiles (dsr, router, hardened, multihomed, proxy) for interface units. User-defined profiles. | -- (Bus events, CLI commands) |
+| `dhcpserver` | DHCP server (RFC 2131/2132) with PXE boot support (RFC 4578): pool management, lease tracking, static mappings, PXE option injection (options 43/60/66/67/93) for BIOS/UEFI bootfile selection | -- (Config-driven, UDP listener) |
+| `tftpserver` | Read-only TFTP server (RFC 1350): serves bootloader files for PXE provisioning in 512-byte blocks with stop-and-wait ACK, concurrent transfer limiting, path traversal protection | -- (Config-driven, UDP listener on port 69) |
+| `imageserver` | HTTP image server for PXE provisioning: serves gokrazy disk images, installer boot files, and pre-provisioned zefs databases with SSH credentials. Own HTTP listener, path traversal protection, Range request support | -- (Config-driven, HTTP listener) |
 <!-- source: internal/plugins/policyroute/register.go -- policy-routes registration -->
 <!-- source: internal/plugins/sysctl/register.go -- sysctl registration -->
+<!-- source: internal/plugins/dhcpserver/register.go -- dhcpserver registration -->
+<!-- source: internal/plugins/tftpserver/register.go -- tftpserver registration -->
 <!-- source: internal/component/iface/register.go -- iface registration -->
 <!-- source: internal/plugins/iface/netlink/register.go -- iface-netlink backend registration -->
 <!-- source: internal/plugins/iface/dhcp/register.go -- iface-dhcp registration -->
@@ -433,7 +438,7 @@ Chain references: `bgp-filter-aspath-length:NAME` or `as-path-length:NAME`.
 `bgp-filter-remove-private-as` removes RFC 6996 Private Use ASNs from AS path
 attributes in an import or export policy chain. Define named actions in
 `bgp { policy { remove-private-as NAME { ... } } }` and reference them from a
-peer, group, or global filter chain with `remove-private-as:NAME`.
+peer, group, or global filter chain by their unique name.
 
 Default mode strips private ASNs from `AS_PATH` and `AS4_PATH`. The optional
 `replace-with peer-as` mode replaces each private ASN with the destination peer
@@ -450,11 +455,16 @@ bgp {
     }
     peer transit-a {
         filter {
-            export [ remove-private-as:STRIP ]
+            export [ STRIP ]
         }
     }
 }
 ```
+
+Filter instance names are globally unique under `bgp policy`. When a name is
+unique, reference it directly (e.g. `STRIP`). The prefixed forms
+`remove-private-as:STRIP` and `bgp-filter-remove-private-as:STRIP` remain
+accepted for disambiguation or advanced use.
 
 The plugin emits policy intent only. The reactor performs the wire rewrite so
 AS_SEQUENCE, AS_SET, and confederation segment structure is preserved. On export
@@ -463,6 +473,16 @@ to EBGP peers, private-AS removal runs before the normal local-AS prepend.
 <!-- source: internal/component/bgp/plugins/filter_remove_private_as/filter_remove_private_as.go -- handleFilterUpdate -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractRemovePrivateASOps -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- export policy before EBGP prepend -->
+
+To test what a filter would do without sending traffic, use `show policy test`:
+
+```
+ze show policy test peer upstream1 export filter STRIP update <BGP-UPDATE-HEX>
+```
+
+This returns per-filter trace output showing accept/reject/modify decisions and
+changed attributes. See the [command reference](command-reference.md) for full syntax.
+<!-- source: internal/component/cmd/show/show_policy_test_cmd.go -- handleShowPolicyTest -->
 
 ### NLRI Encoders/Decoders
 

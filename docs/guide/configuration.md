@@ -336,7 +336,7 @@ bgp {
     peer customer-a {
         connection { remote { ip 10.0.0.1; as 65001; } }
         filter {
-            import [ bgp-filter-prefix:CUSTOMERS ]
+            import [ CUSTOMERS ]
         }
     }
 }
@@ -362,13 +362,15 @@ ones are silently removed. In v1 this applies to the legacy IPv4 unicast
 NLRI only; IPv6 and labeled families still use whole-update accept/reject
 semantics.
 
-Chain reference forms accepted by the engine:
+Filter instance names are globally unique under `bgp policy`. Use the plain
+name as the primary reference form. Prefixed forms are accepted for
+disambiguation or advanced use:
 
 | Form | Example |
 |------|---------|
-| `<plugin>:<filter>` | `bgp-filter-prefix:CUSTOMERS` |
+| Plain filter name (preferred) | `CUSTOMERS` |
 | `<filter-type>:<filter>` | `prefix-list:CUSTOMERS` |
-| Plain filter name | `CUSTOMERS` (when no other plugin claims a filter by that name) |
+| `<plugin>:<filter>` | `bgp-filter-prefix:CUSTOMERS` |
 
 <!-- source: internal/component/bgp/plugins/filter_prefix/schema/ze-filter-prefix.yang -- prefix-list YANG container -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/config.go -- parsePrefixLists -->
@@ -493,6 +495,57 @@ peer transit-a {
 ```
 
 <!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- static route config, update/attribute/nlri blocks -->
+
+## MPLS
+
+Enable MPLS label processing on an interface (Linux LSR). This sets
+`net.mpls.conf.<iface>.input=1`; the global label-table size is set via
+the `net.mpls.platform_labels` sysctl.
+
+```
+interface ethernet eth0 {
+    unit 0 {
+        mpls { enable true }
+    }
+}
+```
+
+BGP labeled-unicast routes are then programmed into the kernel MPLS FIB
+(label push). Inspect installed entries with `show mpls forwarding`.
+
+### RSVP-TE (traffic-engineered LSPs)
+
+The `rsvp-te {}` container configures explicitly-routed MPLS tunnels with
+bandwidth admission control. RSVP runs directly on IP (protocol 46, requires
+`CAP_NET_RAW`).
+
+```
+rsvp-te {
+    router-id 10.0.0.1
+    interface eth0 {
+        max-bandwidth 10e9
+        max-reservable-bandwidth 8e9
+    }
+    tunnel to-egress {
+        destination 10.0.0.9
+        tunnel-id 1
+        bandwidth 1e9
+        explicit-route 1 {
+            address 10.0.0.5/32
+        }
+        explicit-route 2 {
+            address 10.0.0.9/32
+        }
+    }
+}
+```
+
+Inspect LSP, interface, and tunnel state with the component's
+`rsvp-te show-session`, `rsvp-te show-interface`, and `rsvp-te show-tunnel`
+commands. See [RSVP-TE](rsvp-te.md) for details and current status.
+
+<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- unit/mpls/enable -->
+<!-- source: internal/component/rsvpte/schema/ze-rsvp-te-conf.yang -- rsvp-te -->
 
 ## PKI Certificate Store
 
@@ -1079,6 +1132,56 @@ system {
 <!-- source: internal/component/config/system/conntrack.go -- ConntrackConfig, sysctl key mapping -->
 <!-- source: internal/component/config/system/schema/ze-system-conf.yang -- conntrack container -->
 
+## Flow Export
+
+Export interface counters and per-flow records to external collectors over UDP
+via sFlow v5, NetFlow v9 (RFC 3954), or IPFIX (RFC 7011). Configured under a
+single `flow-export { }` section. The component loads only when this section is
+present. See the [Flow Export guide](flow-export.md) for the full reference.
+
+```
+flow-export {
+    collector edge-sflow {
+        address 192.0.2.10;
+        port 6343;             // default 6343
+        protocol sflow;        // sflow | netflow9 | ipfix
+        polling-interval 20;   // counter polling seconds, default 20
+        agent-address 198.51.100.1;
+    }
+    collector ipfix {
+        address 192.0.2.21;
+        port 4739;
+        protocol ipfix;
+        template-refresh 600;  // NetFlow v9 / IPFIX, default 600
+        observation-domain 1;
+    }
+    sampling {
+        interface eth0 {
+            rate 1024;         // 1-in-N packets
+            trunc-size 128;    // header bytes, default 128
+            group 1;           // psample group, default 1
+        }
+    }
+    conntrack {
+        enabled true;
+        active-timeout 60;     // seconds between table dumps, default 60
+    }
+    enrichment {
+        bgp true;              // attach BGP next-hop to flow records
+    }
+}
+```
+
+**Operational:** `show flow-export [<collector>]` reports per-collector
+datagrams-sent, bytes-sent, errors, sequence, and last-export-time. Prometheus
+metrics use the `ze_flowexport_*` prefix.
+
+**Note:** these protocols are unencrypted UDP. Run flow export over a dedicated
+management VLAN. Per-flow records are IPv4-only; sampling requires Linux with
+`CAP_NET_ADMIN` and the kernel `psample` module.
+<!-- source: internal/component/flowexport/schema/ze-flowexport-conf.yang -- flow-export container -->
+<!-- source: internal/component/cmd/show/flow_export.go -- ze-show:flow-export RPC -->
+
 ## Environment Block
 
 Global settings outside BGP:
@@ -1399,8 +1502,49 @@ Multiple named ranges allow disjoint address pools within a single subnet.
 Ranges must not overlap and are allocated in order (first range fills before
 the second is used). Up to 10 ranges per subnet are supported.
 
+#### PXE Boot Support
+
+The DHCP server supports PXE boot provisioning (RFC 4578). When enabled, the
+server detects PXE clients via option 60 (`PXEClient:` prefix), reads client
+architecture from option 93, and responds with the appropriate bootfile.
+
+```
+service {
+    dhcp-server {
+        enabled true;
+        listen-interface eth0;
+        pxe {
+            enabled true;
+            tftp-server 192.168.1.1;
+            bootfile-bios ipxe.pxe;
+            bootfile-uefi ipxe.efi;
+        }
+        shared-network install {
+            subnet 192.168.1.0/24 {
+                range pool1 {
+                    start 192.168.1.100;
+                    stop 192.168.1.200;
+                }
+                default-router 192.168.1.1;
+            }
+        }
+    }
+}
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `pxe.enabled` | boolean | `false` | Enable PXE boot option injection. |
+| `pxe.tftp-server` | string | (none) | TFTP server IP for PXE boot (option 66, siaddr). Required when enabled. |
+| `pxe.bootfile-bios` | string | (none) | Boot file path for BIOS clients (option 67). Required when enabled. |
+| `pxe.bootfile-uefi` | string | (none) | Boot file path for UEFI clients (option 67). Required when enabled. |
+
+Non-PXE clients receive standard DHCP responses regardless of PXE configuration.
+When a PXE client has no option 93 (architecture), the server defaults to the
+BIOS bootfile.
+
 <!-- source: internal/plugins/dhcpserver/schema/ze-dhcp-server-conf.yang -- DHCP server config schema -->
-<!-- source: internal/plugins/dhcpserver/config.go -- parseConfig, parseRanges -->
+<!-- source: internal/plugins/dhcpserver/config.go -- parseConfig, parseRanges, parsePXEConfig -->
 
 ### Reactor Settings
 
