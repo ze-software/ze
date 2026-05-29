@@ -1,0 +1,47 @@
+# MPLS label withdraw: BGP labeled unicast route removed from kernel FIB
+# Spec: plan/spec-mpls-1-kernel.md AC-2
+#
+# TODO: requires Linux with MPLS kernel support
+# - peer sends labeled unicast UPDATE with label stack
+# - ze installs MPLS route in kernel
+# - peer sends withdraw for the prefix
+# - ze removes MPLS route from kernel
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.2 nlri ipv4/mpls-unicast add 10.1.0.0/24 label 1000
+expect=bgp:conn=1:seq=1:hex=TODO
+cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/mpls-unicast del 10.1.0.0/24 label 1000
+expect=bgp:conn=1:seq=1:hex=TODO
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/mpls-unicast { }
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

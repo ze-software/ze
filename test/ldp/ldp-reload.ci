@@ -1,0 +1,32 @@
+# LDP config reload test
+# Verifies: AC-9 (add/remove LDP interface on config reload)
+
+# Initial Ze configuration with LDP on one interface
+stdin=ze-conf:terminator=EOF_CONF
+protocol {
+	ldp {
+		router-id 10.0.0.1
+		interface eth0 {
+			hello-interval 5
+			hold-time 15
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1 }
+			local { ip 127.0.0.1; accept false }
+		}
+		session {
+			asn { local 65000; remote 65000 }
+			router-id 10.0.0.1
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_CONF
+
+# TODO: add reload config adding eth1, verify discovery starts on eth1
+# TODO: add reload config removing eth0, verify discovery stops on eth0
+# cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s

@@ -1,0 +1,33 @@
+# LDP label withdrawal on neighbor loss test
+# Verifies: AC-5 (neighbor down), AC-6 (keepalive timeout)
+
+# Ze configuration with LDP
+stdin=ze-conf:terminator=EOF_CONF
+protocol {
+	ldp {
+		router-id 10.0.0.1
+		interface lo {
+			hello-interval 5
+			hold-time 15
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1 }
+			local { ip 127.0.0.1; accept false }
+		}
+		session {
+			asn { local 65000; remote 65000 }
+			router-id 10.0.0.1
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_CONF
+
+# TODO: add ze-peer LDP mock that establishes session then disconnects
+# Verify labels withdrawn and MPLS routes removed from kernel
+# cmd=background:seq=1:exec=ze-peer --ldp --port $PORT --disconnect-after 5s:stdin=peer
+# cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=20s

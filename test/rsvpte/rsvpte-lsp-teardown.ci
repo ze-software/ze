@@ -1,0 +1,6 @@
+# RSVP-TE LSP graceful teardown
+# VALIDATES: AC-11 (PathTear removes MPLS entries and releases bandwidth)
+# PREVENTS: state leak after LSP deletion
+#
+# TODO: requires running LSP, then PathTear, verify kernel MPLS entry removed.
+# Placeholder until RSVP-TE engine runs in ze-test harness.

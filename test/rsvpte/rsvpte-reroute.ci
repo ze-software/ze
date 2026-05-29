@@ -1,0 +1,6 @@
+# RSVP-TE make-before-break reroute
+# VALIDATES: AC-7 (new LSP signaled before old torn down, traffic shifted)
+# PREVENTS: traffic blackhole during LSP reroute
+#
+# TODO: establish LSP, trigger reroute with new ERO, verify SE-style overlap.
+# Placeholder until RSVP-TE engine runs in ze-test harness.

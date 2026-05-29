@@ -24,6 +24,7 @@ import (
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	mplsfibevents "codeberg.org/thomas-mangin/ze/internal/core/mplsfib"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
@@ -33,11 +34,13 @@ import (
 
 // fibMetrics holds Prometheus metrics for the fib-kernel plugin.
 type fibMetrics struct {
-	routesInstalled metrics.Gauge      // current installed route count
-	routeInstalls   metrics.Counter    // routes successfully added
-	routeUpdates    metrics.Counter    // routes successfully replaced
-	routeRemovals   metrics.Counter    // routes successfully withdrawn
-	errors          metrics.CounterVec // backend operation failures (labels: operation)
+	routesInstalled     metrics.Gauge      // current installed route count
+	routeInstalls       metrics.Counter    // routes successfully added
+	routeUpdates        metrics.Counter    // routes successfully replaced
+	routeRemovals       metrics.Counter    // routes successfully withdrawn
+	errors              metrics.CounterVec // backend operation failures (labels: operation)
+	mplsRoutesInstalled metrics.Gauge      // current MPLS labeled route count
+	mplsInstalls        metrics.Counter    // MPLS routes successfully programmed
 }
 
 // fibMetricsPtr stores fib-kernel metrics, set by SetMetricsRegistry.
@@ -47,11 +50,13 @@ var fibMetricsPtr atomic.Pointer[fibMetrics]
 // Called via ConfigureMetrics callback before RunEngine.
 func SetMetricsRegistry(reg metrics.Registry) {
 	m := &fibMetrics{
-		routesInstalled: reg.Gauge("ze_fibkernel_routes_installed", "Current number of ze-installed kernel routes."),
-		routeInstalls:   reg.Counter("ze_fibkernel_route_installs_total", "Routes successfully added to kernel."),
-		routeUpdates:    reg.Counter("ze_fibkernel_route_updates_total", "Routes successfully replaced in kernel."),
-		routeRemovals:   reg.Counter("ze_fibkernel_route_removals_total", "Routes successfully removed from kernel."),
-		errors:          reg.CounterVec("ze_fibkernel_errors_total", "Backend operation failures.", []string{"operation"}),
+		routesInstalled:     reg.Gauge("ze_fibkernel_routes_installed", "Current number of ze-installed kernel routes."),
+		routeInstalls:       reg.Counter("ze_fibkernel_route_installs_total", "Routes successfully added to kernel."),
+		routeUpdates:        reg.Counter("ze_fibkernel_route_updates_total", "Routes successfully replaced in kernel."),
+		routeRemovals:       reg.Counter("ze_fibkernel_route_removals_total", "Routes successfully removed from kernel."),
+		errors:              reg.CounterVec("ze_fibkernel_errors_total", "Backend operation failures.", []string{"operation"}),
+		mplsRoutesInstalled: reg.Gauge("ze_fibkernel_mpls_routes_installed", "Current number of MPLS labeled routes installed."),
+		mplsInstalls:        reg.Counter("ze_fibkernel_mpls_installs_total", "MPLS routes successfully programmed."),
 	}
 	fibMetricsPtr.Store(m)
 }
@@ -154,6 +159,10 @@ const maxPendingEntries = 10000
 type fibKernel struct {
 	// installed tracks routes currently installed by ze in the kernel.
 	installed map[string]string // prefix -> next-hop
+	// mplsInstalled tracks which installed prefixes carry MPLS labels (push).
+	mplsInstalled map[string]bool
+	// mplsSwaps tracks installed AF_MPLS swap/pop entries by incoming label.
+	mplsSwaps map[uint32]bool
 	// pending tracks routes that failed FIB programming with their first
 	// failure time. Used for fib-programming-lag detection (AC-14).
 	pending map[string]time.Time
@@ -171,9 +180,11 @@ func (f *fibKernel) asRichBackend() richRouteBackend {
 
 func newFIBKernel(backend routeBackend) *fibKernel {
 	return &fibKernel{
-		installed: make(map[string]string),
-		pending:   make(map[string]time.Time),
-		backend:   backend,
+		installed:     make(map[string]string),
+		mplsInstalled: make(map[string]bool),
+		mplsSwaps:     make(map[uint32]bool),
+		pending:       make(map[string]time.Time),
+		backend:       backend,
 	}
 }
 
@@ -197,6 +208,11 @@ func changeToRichRoute(c *incomingChange) RichRoute {
 }
 
 func (f *fibKernel) addChange(c *incomingChange, pfx string, rb richRouteBackend) error {
+	if len(c.Labels) > 0 {
+		if err := validateMPLSLabels(c.Labels); err != nil {
+			return err
+		}
+	}
 	if rb != nil && hasRichFields(c) {
 		return rb.addRichRoute(changeToRichRoute(c))
 	}
@@ -204,6 +220,11 @@ func (f *fibKernel) addChange(c *incomingChange, pfx string, rb richRouteBackend
 }
 
 func (f *fibKernel) replaceChange(c *incomingChange, pfx string, rb richRouteBackend) error {
+	if len(c.Labels) > 0 {
+		if err := validateMPLSLabels(c.Labels); err != nil {
+			return err
+		}
+	}
 	if rb != nil && hasRichFields(c) {
 		return rb.replaceRichRoute(changeToRichRoute(c))
 	}
@@ -252,9 +273,16 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 			}
 			f.installed[pfx] = c.NextHop.String()
 			delete(f.pending, pfx)
+			if len(c.Labels) > 0 {
+				f.mplsInstalled[pfx] = true
+			}
 			if m := fibMetricsPtr.Load(); m != nil {
 				m.routeInstalls.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
+				if len(c.Labels) > 0 {
+					m.mplsInstalls.Inc()
+					m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
+				}
 			}
 		case bgptypes.RouteActionUpdate:
 			if err := f.replaceChange(c, pfx, rb); err != nil {
@@ -269,8 +297,20 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 			}
 			f.installed[pfx] = c.NextHop.String()
 			delete(f.pending, pfx)
+			// A replace may toggle a prefix between labeled and unlabeled;
+			// keep the MPLS membership set in sync so the gauge is accurate.
+			wasMPLS := f.mplsInstalled[pfx]
+			if len(c.Labels) > 0 {
+				f.mplsInstalled[pfx] = true
+			} else {
+				delete(f.mplsInstalled, pfx)
+			}
 			if m := fibMetricsPtr.Load(); m != nil {
 				m.routeUpdates.Inc()
+				if len(c.Labels) > 0 && !wasMPLS {
+					m.mplsInstalls.Inc()
+				}
+				m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
 			}
 		case bgptypes.RouteActionWithdraw, bgptypes.RouteActionDel:
 			if err := f.delChange(c, pfx, rb); err != nil {
@@ -284,9 +324,14 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 			}
 			delete(f.installed, pfx)
 			delete(f.pending, pfx)
+			wasMPLS := f.mplsInstalled[pfx]
+			delete(f.mplsInstalled, pfx)
 			if m := fibMetricsPtr.Load(); m != nil {
 				m.routeRemovals.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
+				if wasMPLS {
+					m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
+				}
 			}
 		case bgptypes.RouteActionUnspecified:
 			logger().Warn("fib-kernel: skipping change with unspecified action", "prefix", c.Prefix)
@@ -406,6 +451,11 @@ func (f *fibKernel) run(ctx context.Context, flushOnStop bool) {
 
 	unsub := sysribevents.BestChange.Subscribe(eb, f.processEvent)
 	defer unsub()
+
+	// MPLS label-switching entries from label-distribution sources (RSVP-TE,
+	// LDP). fib-kernel is the single kernel-FIB owner, so it programs these too.
+	unsubMPLS := mplsfibevents.EntryChange.Subscribe(eb, f.handleMPLSEntry)
+	defer unsubMPLS()
 
 	// Request full-table replay from sysrib so we populate even if sysrib
 	// started before us. Signal event, no payload.

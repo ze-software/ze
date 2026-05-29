@@ -1,0 +1,34 @@
+# LDP session establishment end-to-end test
+# Verifies: AC-1 (Hello on 224.0.0.2:646), AC-2 (TCP session), AC-3 (Label Mapping)
+
+# Ze configuration with LDP enabled on loopback.
+# NOTE: top-level `ldp {}` (ConfigRoots), real schema leaves (lsr-id,
+# transport-address, hello-hold-time, interfaces leaf-list) -- see
+# internal/component/ldp/schema/ze-ldp-conf.yang.
+stdin=ze-conf:terminator=EOF_CONF
+ldp {
+	lsr-id 10.0.0.1
+	transport-address 10.0.0.1
+	hello-interval 5
+	hello-hold-time 15
+	keepalive-time 60
+	interfaces lo
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1 }
+			local { ip 127.0.0.1; accept false }
+		}
+		session {
+			asn { local 65000; remote 65000 }
+			router-id 10.0.0.1
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_CONF
+
+# TODO: add ze-peer LDP mock and expectations
+# cmd=background:seq=1:exec=ze-peer --ldp --port $PORT:stdin=peer
+# cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=15s

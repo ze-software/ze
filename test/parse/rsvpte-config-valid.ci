@@ -1,0 +1,30 @@
+# Test: rsvp-te top-level config validates (ConfigRoots fix)
+# VALIDATES: spec-mpls-3 -- a top-level `rsvp-te {}` block reaches the plugin's
+#            config validator with the real schema leaves (router-id, interface
+#            max-reservable-bandwidth, tunnel, explicit-route/address).
+# PREVENTS: regression to the broken "protocol/rsvp-te" ConfigRoots path that
+#           silently dropped every RSVP-TE config so it never reached the plugin.
+stdin=config:terminator=EOF_CONF
+rsvp-te {
+	router-id 10.0.0.1
+	interface eth0 {
+		max-bandwidth 10e9
+		max-reservable-bandwidth 8e9
+	}
+	tunnel to-egress {
+		destination 10.0.0.9
+		tunnel-id 1
+		bandwidth 1e9
+		explicit-route 1 {
+			address 10.0.0.5/32
+		}
+		explicit-route 2 {
+			address 10.0.0.9/32
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

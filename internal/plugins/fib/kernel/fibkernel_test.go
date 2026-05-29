@@ -680,6 +680,26 @@ func TestKernelMPLSPush(t *testing.T) {
 	assert.Equal(t, []uint32{100, 200}, backend.richAdded[0].Labels)
 }
 
+// VALIDATES: AC-8 -- labeled prefixes are tracked for the MPLS route gauge,
+// added on install and removed on withdraw; unlabeled routes are not tracked.
+func TestKernelMPLSInstalledTracking(t *testing.T) {
+	backend := newRichMockBackend()
+	f := newFIBKernel(backend)
+
+	pfx := netip.MustParsePrefix("10.0.0.0/24")
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{Action: bgptypes.RouteActionAdd, Prefix: pfx, NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp", Labels: []uint32{100}},
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.1.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+	}))
+	assert.True(t, f.mplsInstalled[pfx.String()], "labeled prefix tracked")
+	assert.Len(t, f.mplsInstalled, 1, "only the labeled prefix is tracked")
+
+	f.processEvent(makeSysribPayload([]incomingChange{
+		{Action: bgptypes.RouteActionWithdraw, Prefix: pfx, Protocol: "bgp"},
+	}))
+	assert.Empty(t, f.mplsInstalled, "withdraw removes labeled prefix from tracking")
+}
+
 // VALIDATES: SRv6 SID triggers rich route path.
 func TestKernelSRv6Encap(t *testing.T) {
 	backend := newRichMockBackend()

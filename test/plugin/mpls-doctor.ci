@@ -1,0 +1,37 @@
+# Test: ze doctor reports missing MPLS kernel modules
+# Spec: plan/spec-mpls-1-kernel.md AC-6
+# VALIDATES: with a BGP + fib/kernel config and the mpls_router / mpls_iptunnel
+#            modules absent, `ze doctor` emits doctor-mpls-unavailable so the
+#            operator learns labeled routes cannot be programmed.
+# Linux-only: the MPLS module check lives in checks_linux.go (checks_other.go is
+# a no-op elsewhere). The loaded-module set is read from a stubbed /proc/modules
+# via ze.test.doctor.modules-file so the test is hermetic.
+
+option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
+option=env:var=ze.test.doctor.modules-file:value=modules.empty
+
+tmpfs=modules.empty:terminator=EOF_MODULES
+EOF_MODULES
+
+tmpfs=mpls.conf:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 10.0.0.2 }
+			local { ip 10.0.0.1 }
+		}
+		session {
+			asn { local 65001; remote 65002 }
+			router-id 1.2.3.4
+			family { ipv4/mpls-unicast { } }
+		}
+	}
+}
+fib {
+	kernel { }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json mpls.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-mpls-unavailable

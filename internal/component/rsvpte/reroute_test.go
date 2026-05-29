@@ -1,0 +1,116 @@
+// Design: plan/spec-mpls-3-rsvp-te.md -- make-before-break reroute tests
+package rsvpte
+
+import (
+	"net/netip"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+)
+
+// VALIDATES: AC-7 -- make-before-break signals a new LSP (new LSP_ID, SE-style)
+// before tearing down the old one; the old LSP survives until the new RESV
+// arrives, then is removed.
+func TestEngineMakeBeforeBreak(t *testing.T) {
+	e, ft, _ := testEngine(t, "10.0.0.1", nil)
+
+	// Establish the original ingress LSP (LSP_ID 1) and bring it up.
+	oldKey := LSPKey{
+		TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1,
+		ExtTunnelID: 0x0a000001, SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1,
+	}
+	old, _ := e.table.GetOrCreate(oldKey)
+	old.Role = RoleIngress
+	old.Bandwidth = 1e8
+	old.NextHop = netip.MustParseAddr("10.0.0.5")
+	old.PSB = &PathStateBlock{
+		Session:        SessionIPv4{TunnelEndpoint: oldKey.TunnelEndpoint, TunnelID: oldKey.TunnelID, ExtTunnelID: oldKey.ExtTunnelID},
+		SenderTemplate: SenderTemplateIPv4{SenderAddr: oldKey.SenderAddr, LSPID: oldKey.LSPID},
+		SenderTSpec:    FlowSpec{TokenRate: 1e8},
+	}
+	old.SetState(LSPStateUp)
+
+	// Reroute along a new explicit path.
+	newERO := []EROHop{{Address: netip.MustParsePrefix("10.0.0.6/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}}
+	newKey, ok := e.Reroute(oldKey, newERO)
+	require.True(t, ok)
+	assert.Equal(t, uint16(2), newKey.LSPID, "new LSP uses the next LSP_ID")
+
+	// A PATH was sent for the new LSP; both LSPs exist (make-before-break).
+	path, _, ok := ft.lastByType(MsgTypePath)
+	require.True(t, ok, "reroute sends a PATH for the new LSP")
+	assert.Equal(t, uint16(2), path.SenderTemplate.LSPID)
+	require.Len(t, path.ERO, 2)
+	_, oldStillThere := e.table.Get(oldKey)
+	assert.True(t, oldStillThere, "old LSP still up until new one is established")
+
+	newLSP, _ := e.table.Get(newKey)
+	require.NotNil(t, newLSP.Replaces)
+	assert.Equal(t, oldKey, *newLSP.Replaces)
+
+	// The new LSP's RESV arrives: new comes up, old is torn down.
+	rsb := &ResvStateBlock{
+		Session: SessionIPv4{TunnelEndpoint: newKey.TunnelEndpoint, TunnelID: newKey.TunnelID, ExtTunnelID: newKey.ExtTunnelID},
+		Label:   LabelObject{Label: 17000},
+		Style:   StyleSharedExplicit,
+	}
+	filter := SenderTemplateIPv4{SenderAddr: newKey.SenderAddr, LSPID: newKey.LSPID}
+	resv := BuildResv(rsb, filter, DefaultRefreshPeriod, netip.MustParseAddr("10.0.0.6"), 64)
+	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.6"), Payload: resv})
+
+	up, ok := e.table.Get(newKey)
+	require.True(t, ok)
+	assert.Equal(t, LSPStateUp, up.State)
+	assert.Equal(t, uint32(17000), up.OutLabel)
+	_, oldGone := e.table.Get(oldKey)
+	assert.False(t, oldGone, "old LSP torn down after new one is up")
+
+	// A PathTear was emitted for the old LSP.
+	tear, _, ok := ft.lastByType(MsgTypePathTear)
+	require.True(t, ok, "old LSP torn down with a PathTear")
+	assert.Equal(t, uint16(1), tear.SenderTemplate.LSPID)
+}
+
+// VALIDATES: B1 wiring -- reconfiguring an up tunnel with a changed ERO triggers
+// make-before-break through setupTunnel (the production entry point), proving
+// Reroute is reachable from a user action and not dead code.
+func TestSetupTunnelEROChangeReroutes(t *testing.T) {
+	e, ft, _ := testEngine(t, "10.0.0.1", nil)
+	cfg := rsvpteConfig{RouterID: netip.MustParseAddr("10.0.0.1"), RefreshPeriod: DefaultRefreshPeriod}
+	tc := tunnelConfig{
+		Name:        "t1",
+		Destination: netip.MustParseAddr("10.0.0.9"),
+		TunnelID:    1,
+		Bandwidth:   1e8,
+		ERO:         []EROHop{{Address: netip.MustParsePrefix("10.0.0.5/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}},
+	}
+	setupTunnel(slogutil.DiscardLogger(), e.table, tc, cfg, e)
+
+	key := LSPKey{
+		TunnelEndpoint: tc.Destination, TunnelID: 1,
+		ExtTunnelID: addrToUint32(cfg.RouterID), SenderAddr: cfg.RouterID, LSPID: 1,
+	}
+	lsp, ok := e.table.Get(key)
+	require.True(t, ok)
+	lsp.mu.Lock()
+	lsp.SetState(LSPStateUp)
+	lsp.mu.Unlock()
+
+	// Reconfigure with a different explicit path.
+	tc.ERO = []EROHop{{Address: netip.MustParsePrefix("10.0.0.6/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}}
+	setupTunnel(slogutil.DiscardLogger(), e.table, tc, cfg, e)
+
+	newKey := key
+	newKey.LSPID = 2
+	newLSP, ok := e.table.Get(newKey)
+	require.True(t, ok, "ERO change starts make-before-break with a new LSP_ID")
+	require.NotNil(t, newLSP.Replaces)
+	assert.Equal(t, key, *newLSP.Replaces)
+
+	p, _, ok := ft.lastByType(MsgTypePath)
+	require.True(t, ok)
+	assert.Equal(t, uint16(2), p.SenderTemplate.LSPID, "PATH sent for the replacement LSP")
+}

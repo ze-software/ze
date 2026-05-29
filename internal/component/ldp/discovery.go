@@ -1,0 +1,143 @@
+// Design: plan/spec-mpls-2-ldp.md -- LDP discovery (UDP hello)
+// Related: wire.go -- HelloMessage encoding/decoding
+//
+// RFC 5036 Section 2.4.1: Basic Discovery uses UDP multicast Hello messages
+// on 224.0.0.2:646. Each Hello carries a hold time; if no Hello is received
+// within the hold time, the adjacency expires.
+package ldp
+
+import (
+	"net/netip"
+	"strconv"
+	"sync"
+	"time"
+)
+
+// RFC 5036 Section 2.4.1: Default hello interval and hold time.
+const (
+	DefaultHelloInterval = 5 * time.Second
+	DefaultHelloHoldTime = 15 * time.Second
+)
+
+// Adjacency represents a discovered LDP neighbor via Hello messages.
+type Adjacency struct {
+	PeerLSRID      [4]byte
+	PeerLabelSpace uint16
+	TransportAddr  netip.Addr
+	HoldTime       time.Duration
+	Targeted       bool
+	LastSeen       time.Time
+}
+
+// Expired returns true if the adjacency hold timer has elapsed.
+func (a *Adjacency) Expired(now time.Time) bool {
+	return now.Sub(a.LastSeen) > a.HoldTime
+}
+
+// AdjacencyKey uniquely identifies an adjacency by LSR ID and label space.
+func AdjacencyKey(lsrID [4]byte, labelSpace uint16) string {
+	var buf []byte
+	buf = strconv.AppendUint(buf, uint64(lsrID[0]), 10)
+	buf = append(buf, '.')
+	buf = strconv.AppendUint(buf, uint64(lsrID[1]), 10)
+	buf = append(buf, '.')
+	buf = strconv.AppendUint(buf, uint64(lsrID[2]), 10)
+	buf = append(buf, '.')
+	buf = strconv.AppendUint(buf, uint64(lsrID[3]), 10)
+	buf = append(buf, ':')
+	buf = strconv.AppendUint(buf, uint64(labelSpace), 10)
+	return string(buf)
+}
+
+// AdjacencyTable tracks discovered LDP neighbors.
+type AdjacencyTable struct {
+	mu    sync.RWMutex
+	peers map[string]*Adjacency
+}
+
+// NewAdjacencyTable creates an empty adjacency table.
+func NewAdjacencyTable() *AdjacencyTable {
+	return &AdjacencyTable{
+		peers: make(map[string]*Adjacency),
+	}
+}
+
+// Update processes an incoming Hello and creates or refreshes the adjacency.
+// Returns the adjacency and true if this is a new neighbor.
+func (t *AdjacencyTable) Update(pduHeader PDUHeader, hello HelloMessage) (*Adjacency, bool) {
+	key := AdjacencyKey(pduHeader.LSRID, pduHeader.LabelSpace)
+	holdTime := time.Duration(hello.HoldTime) * time.Second
+	if holdTime == 0 {
+		holdTime = DefaultHelloHoldTime
+	}
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	adj, exists := t.peers[key]
+	if !exists {
+		adj = &Adjacency{
+			PeerLSRID:      pduHeader.LSRID,
+			PeerLabelSpace: pduHeader.LabelSpace,
+			Targeted:       hello.Targeted,
+		}
+		t.peers[key] = adj
+	}
+	adj.TransportAddr = hello.TransportAddr
+	adj.HoldTime = holdTime
+	adj.LastSeen = time.Now()
+	return adj, !exists
+}
+
+// Remove deletes an adjacency by key.
+func (t *AdjacencyTable) Remove(key string) {
+	t.mu.Lock()
+	delete(t.peers, key)
+	t.mu.Unlock()
+}
+
+// ExpireSweep removes all expired adjacencies and returns their keys.
+func (t *AdjacencyTable) ExpireSweep() []string {
+	now := time.Now()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	var expired []string
+	for key, adj := range t.peers {
+		if adj.Expired(now) {
+			expired = append(expired, key)
+			delete(t.peers, key)
+		}
+	}
+	return expired
+}
+
+// All returns a snapshot of all adjacencies.
+func (t *AdjacencyTable) All() map[string]Adjacency {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	out := make(map[string]Adjacency, len(t.peers))
+	for k, v := range t.peers {
+		out[k] = *v
+	}
+	return out
+}
+
+// Len returns the number of adjacencies.
+func (t *AdjacencyTable) Len() int {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return len(t.peers)
+}
+
+// Get returns a copy of the adjacency for the given key, if it exists.
+func (t *AdjacencyTable) Get(key string) (Adjacency, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	adj, ok := t.peers[key]
+	if !ok {
+		return Adjacency{}, false
+	}
+	return *adj, true
+}

@@ -1,0 +1,6 @@
+# RSVP-TE bandwidth admission control
+# VALIDATES: AC-8 (PathErr on oversubscription), AC-10 (per-interface bandwidth)
+# PREVENTS: silent oversubscription of interface bandwidth
+#
+# TODO: configure interface with max-reservable bandwidth, setup LSPs until denied.
+# Placeholder until RSVP-TE engine runs in ze-test harness.

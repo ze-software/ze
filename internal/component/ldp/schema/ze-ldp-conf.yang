@@ -1,0 +1,53 @@
+module ze-ldp-conf {
+    namespace "urn:ze:ldp:conf";
+    prefix ldpconf;
+    import ze-extensions { prefix ze; }
+    description "LDP protocol configuration (RFC 5036)";
+    revision 2026-05-28 { description "Initial revision"; }
+
+    container ldp {
+        description "Label Distribution Protocol configuration";
+
+        leaf lsr-id {
+            type string;
+            description "LSR identifier (IPv4 address format)";
+        }
+
+        leaf transport-address {
+            type string;
+            description "Transport address for TCP sessions";
+        }
+
+        leaf hello-interval {
+            type uint16 {
+                range "1..65535";
+            }
+            default 5;
+            units seconds;
+            description "Hello message interval";
+        }
+
+        leaf hello-hold-time {
+            type uint16 {
+                range "1..65535";
+            }
+            default 15;
+            units seconds;
+            description "Hello adjacency hold time";
+        }
+
+        leaf keepalive-time {
+            type uint16 {
+                range "1..65535";
+            }
+            default 60;
+            units seconds;
+            description "Session keepalive interval";
+        }
+
+        leaf-list interfaces {
+            type string;
+            description "Interfaces on which LDP discovery is enabled";
+        }
+    }
+}

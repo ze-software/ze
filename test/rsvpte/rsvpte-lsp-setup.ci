@@ -1,0 +1,6 @@
+# RSVP-TE LSP establishment end-to-end
+# VALIDATES: AC-1 (PATH sent), AC-2 (RESV from egress), AC-4 (head-end label push)
+# PREVENTS: regression in LSP signaling path from config to kernel MPLS entry
+#
+# TODO: requires two ze instances (head-end and tail-end) with raw IP connectivity.
+# Placeholder until RSVP-TE engine runs in ze-test harness.

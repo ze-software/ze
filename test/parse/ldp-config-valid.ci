@@ -1,0 +1,18 @@
+# Test: ldp top-level config validates (ConfigRoots fix)
+# VALIDATES: spec-mpls-2 -- a top-level `ldp {}` block reaches the plugin's
+#            config validator with the real schema leaves (lsr-id,
+#            transport-address, interfaces leaf-list).
+# PREVENTS: regression to the broken "protocol/ldp" ConfigRoots path, and to the
+#           wrong router-id / interface{} syntax that never matched the schema.
+stdin=config:terminator=EOF_CONF
+ldp {
+	lsr-id 10.0.0.1
+	transport-address 10.0.0.1
+	interfaces eth0
+	interfaces eth1
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid
