@@ -1,0 +1,12 @@
+# Test: ze install appliance — help output
+# spec-install-7a AC-1: ze install appliance --help shows all subcommands.
+
+cmd=foreground:seq=1:exec=ze install appliance --help
+expect=exit:code=0
+expect=stdout:contains=init
+expect=stdout:contains=build
+expect=stdout:contains=push
+expect=stdout:contains=list
+expect=stdout:contains=show
+expect=stdout:contains=export
+expect=stdout:contains=import

@@ -1,0 +1,256 @@
+package appliance
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestConfigDefaults(t *testing.T) {
+	cfg := DefaultConfig("lab")
+
+	if cfg.Identity.Name != "lab" {
+		t.Errorf("name = %q, want lab", cfg.Identity.Name)
+	}
+	if cfg.Identity.Hostname != "lab" {
+		t.Errorf("hostname = %q, want lab", cfg.Identity.Hostname)
+	}
+	if cfg.Credentials.Username != "admin" {
+		t.Errorf("username = %q, want admin", cfg.Credentials.Username)
+	}
+	if !cfg.Credentials.AdminEnabled {
+		t.Error("admin-enabled should default to true")
+	}
+	if cfg.SSH.Host != "0.0.0.0" {
+		t.Errorf("ssh.host = %q, want 0.0.0.0", cfg.SSH.Host)
+	}
+	if cfg.SSH.Port != "22" {
+		t.Errorf("ssh.port = %q, want 22", cfg.SSH.Port)
+	}
+	if !cfg.Web.Enabled {
+		t.Error("web.enabled should default to true")
+	}
+	if cfg.Web.Port != "8080" {
+		t.Errorf("web.port = %q, want 8080", cfg.Web.Port)
+	}
+	if cfg.TLS.ValidityYears != 10 {
+		t.Errorf("tls.validity-years = %d, want 10", cfg.TLS.ValidityYears)
+	}
+	if cfg.Image.Arch != "amd64" {
+		t.Errorf("image.arch = %q, want amd64", cfg.Image.Arch)
+	}
+	if cfg.Image.SizeBytes != 2*1024*1024*1024 {
+		t.Errorf("image.size-bytes = %d, want 2G", cfg.Image.SizeBytes)
+	}
+	if cfg.Managed {
+		t.Error("managed should default to false")
+	}
+	if cfg.Device.UpdatePort != 443 {
+		t.Errorf("device.update-port = %d, want 443", cfg.Device.UpdatePort)
+	}
+	if cfg.QEMU.SSHPort != 2222 {
+		t.Errorf("qemu.ssh-port = %d, want 2222", cfg.QEMU.SSHPort)
+	}
+}
+
+func TestConfigMarshalRoundtrip(t *testing.T) {
+	original := DefaultConfig("edge-01")
+	original.Managed = true
+	original.ConfigBase = "../_shared/ze.conf"
+	original.Credentials.SSHAuthorizedKeys = []string{"ssh-ed25519 AAAA... test@host"}
+	original.Device.Address = "10.0.100.1"
+
+	data, err := json.Marshal(&original)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var restored ApplianceConfig
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if restored.Identity.Name != original.Identity.Name {
+		t.Errorf("name roundtrip: got %q, want %q", restored.Identity.Name, original.Identity.Name)
+	}
+	if restored.Managed != original.Managed {
+		t.Errorf("managed roundtrip: got %v, want %v", restored.Managed, original.Managed)
+	}
+	if restored.ConfigBase != original.ConfigBase {
+		t.Errorf("config-base roundtrip: got %q, want %q", restored.ConfigBase, original.ConfigBase)
+	}
+	if len(restored.Credentials.SSHAuthorizedKeys) != 1 {
+		t.Fatalf("ssh-authorized-keys length: got %d, want 1", len(restored.Credentials.SSHAuthorizedKeys))
+	}
+	if restored.Credentials.SSHAuthorizedKeys[0] != original.Credentials.SSHAuthorizedKeys[0] {
+		t.Errorf("ssh-authorized-keys[0] roundtrip mismatch")
+	}
+	if restored.Device.Address != "10.0.100.1" {
+		t.Errorf("device.address roundtrip: got %q, want 10.0.100.1", restored.Device.Address)
+	}
+	if restored.TLS.ValidityYears != 10 {
+		t.Errorf("tls.validity-years roundtrip: got %d, want 10", restored.TLS.ValidityYears)
+	}
+}
+
+func TestConfigValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		modify  func(*ApplianceConfig)
+		wantErr string
+	}{
+		{
+			name:   "valid defaults",
+			modify: func(_ *ApplianceConfig) {},
+		},
+		{
+			name:    "empty name",
+			modify:  func(c *ApplianceConfig) { c.Identity.Name = "" },
+			wantErr: "identity.name is required",
+		},
+		{
+			name:    "name with path traversal",
+			modify:  func(c *ApplianceConfig) { c.Identity.Name = "../evil" },
+			wantErr: "identity.name",
+		},
+		{
+			name:    "name with slash",
+			modify:  func(c *ApplianceConfig) { c.Identity.Name = "foo/bar" },
+			wantErr: "identity.name",
+		},
+		{
+			name:    "port zero",
+			modify:  func(c *ApplianceConfig) { c.SSH.Port = "0" },
+			wantErr: "ssh.port 0: must be 1-65535",
+		},
+		{
+			name:    "port too high",
+			modify:  func(c *ApplianceConfig) { c.SSH.Port = "65536" },
+			wantErr: "ssh.port 65536: must be 1-65535",
+		},
+		{
+			name:    "port last valid",
+			modify:  func(c *ApplianceConfig) { c.SSH.Port = "65535" },
+			wantErr: "",
+		},
+		{
+			name:    "port not a number",
+			modify:  func(c *ApplianceConfig) { c.SSH.Port = "abc" },
+			wantErr: "not a valid port number",
+		},
+		{
+			name:    "image too small",
+			modify:  func(c *ApplianceConfig) { c.Image.SizeBytes = 536870911 },
+			wantErr: "minimum is",
+		},
+		{
+			name:    "image at minimum",
+			modify:  func(c *ApplianceConfig) { c.Image.SizeBytes = 512 * 1024 * 1024 },
+			wantErr: "",
+		},
+		{
+			name:    "validity zero",
+			modify:  func(c *ApplianceConfig) { c.TLS.ValidityYears = 0 },
+			wantErr: "minimum is 1",
+		},
+		{
+			name:    "validity too high",
+			modify:  func(c *ApplianceConfig) { c.TLS.ValidityYears = 26 },
+			wantErr: "maximum is 25",
+		},
+		{
+			name:    "bad arch",
+			modify:  func(c *ApplianceConfig) { c.Image.Arch = "mips" },
+			wantErr: "must be amd64 or arm64",
+		},
+		{
+			name:   "arm64 valid",
+			modify: func(c *ApplianceConfig) { c.Image.Arch = "arm64" },
+		},
+		{
+			name:    "qemu port below 1024",
+			modify:  func(c *ApplianceConfig) { c.QEMU.SSHPort = 1023 },
+			wantErr: "must be 1024-65535",
+		},
+		{
+			name:   "name at max length",
+			modify: func(c *ApplianceConfig) { c.Identity.Name = strings.Repeat("a", maxNameLen) },
+		},
+		{
+			name:    "name exceeds max length",
+			modify:  func(c *ApplianceConfig) { c.Identity.Name = strings.Repeat("a", maxNameLen+1) },
+			wantErr: "maximum length",
+		},
+		// config-base path validation deferred to assemble time (needs resolved appliance dir)
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := DefaultConfig("test")
+			tt.modify(&cfg)
+			err := cfg.Validate()
+
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+			}
+			if got := err.Error(); !contains(got, tt.wantErr) {
+				t.Errorf("error = %q, want containing %q", got, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestLoadSaveRoundtrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "appliance.json")
+
+	original := DefaultConfig("roundtrip")
+	original.Managed = true
+
+	if err := SaveConfig(path, &original); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	loaded, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+
+	if loaded.Identity.Name != "roundtrip" {
+		t.Errorf("name = %q, want roundtrip", loaded.Identity.Name)
+	}
+	if !loaded.Managed {
+		t.Error("managed should be true after roundtrip")
+	}
+}
+
+func TestLoadConfigMissing(t *testing.T) {
+	_, err := LoadConfig("/nonexistent/appliance.json")
+	if err == nil {
+		t.Fatal("expected error for missing file")
+	}
+}
+
+func TestLoadConfigInvalidJSON(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.json")
+	if err := os.WriteFile(path, []byte("{invalid"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := LoadConfig(path)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+func contains(s, substr string) bool {
+	return strings.Contains(s, substr)
+}
