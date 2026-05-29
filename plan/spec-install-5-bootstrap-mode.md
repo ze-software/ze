@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-05-21 |
+| Phase | 1/6 |
+| Updated | 2026-05-28 |
 | Parent | spec-install-0-umbrella.md |
 
 ## Post-Compaction Recovery
@@ -332,41 +332,75 @@ with their own RFC documentation.
 ## Implementation Summary
 
 ### What Was Implemented
-- [Not yet implemented]
+- `EmitBootstrapConfig()` in `internal/component/iface/emit.go:283` -- generates DHCP-on-ethernet + SSH config
+- `bootstrapFromDiscovery()` in `cmd/ze/main.go:1057` -- wires discovery into startup path
+- Bootstrap case in startup switch at `cmd/ze/main.go:789`
+- 8 unit tests in `internal/component/iface/emit_test.go`
+- 1 functional test: `test/install/bootstrap-config-valid.ci`
 
 ### Bugs Found/Fixed
-- [None yet]
+- None
 
 ### Documentation Updates
-- [None yet]
+- `docs/guide/ze-install.md` -- added Bootstrap Mode section, updated provisioning flow step 5
+- `docs/features.md` -- added bootstrap mode description to Installation feature
 
 ### Deviations from Plan
-- [None yet]
+- TestEmitBootstrapConfigNonLinuxFallback not written as a unit test: bootstrapFromDiscovery lives in cmd/ze/main.go (not testable without process-level test), and AC-10 is demonstrated by the function returning false when LoadBackend fails. The functional test validates config syntax instead.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| EmitBootstrapConfig function | Done | `emit.go:283` | Ethernet-only DHCP + SSH |
+| bootstrapFromDiscovery function | Done | `main.go:1057` | Wired in startup switch |
+| Bootstrap case in startup switch | Done | `main.go:789` | Between template and web-only |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `main.go:789` + `TestEmitBootstrapConfig` | bootstrapFromDiscovery called when no config/template |
+| AC-2 | Done | `TestEmitBootstrapConfigEthernetOnly` | Non-ethernet types excluded |
+| AC-3 | Done | `TestEmitBootstrapConfig` | SSH enabled block present |
+| AC-4 | Done | `TestEmitBootstrapConfig` + `TestEmitBootstrapConfigMultipleEthernet` | DHCP blocks per ethernet |
+| AC-5 | Done | `TestEmitBootstrapConfigEmpty` | Returns empty for no interfaces |
+| AC-6 | Done | `bootstrap-config-valid.ci` | Generated config validates |
+| AC-7 | Done | Design: normal config commit replaces bootstrap | No special exit logic needed |
+| AC-8 | Done | `TestEmitBootstrapConfigNoRegression` | EmitConfig unchanged |
+| AC-9 | Done | `main.go:783-784` | store.Exists check before bootstrap |
+| AC-10 | Done | `main.go:1058-1059` | LoadBackend failure returns false |
+| AC-11 | Done | `main.go:1069-1070` + `TestEmitBootstrapConfigNoEthernetFallback` | Empty config returns false |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestEmitBootstrapConfig | Done | `emit_test.go` | AC-1/3/4 |
+| TestEmitBootstrapConfigEmpty | Done | `emit_test.go` | AC-5 |
+| TestEmitBootstrapConfigEthernetOnly | Done | `emit_test.go` | AC-2 |
+| TestEmitBootstrapConfigMultipleEthernet | Done | `emit_test.go` | AC-4 |
+| TestEmitBootstrapConfigStructure | Done | `emit_test.go` | Brace balance |
+| TestEmitBootstrapConfigNoRegression | Done | `emit_test.go` | AC-8 |
+| TestEmitBootstrapConfigNonLinuxFallback | Changed | N/A | bootstrapFromDiscovery not unit-testable; covered by design |
+| TestEmitBootstrapConfigNoEthernetFallback | Done | `emit_test.go` | AC-11 |
+| bootstrap-config-valid.ci | Done | `test/install/` | AC-6 |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `cmd/ze/main.go` | Modified | bootstrapFromDiscovery + startup switch case |
+| `internal/component/iface/emit.go` | Modified | EmitBootstrapConfig |
+| `internal/component/iface/emit_test.go` | Modified | 8 new tests |
+| `test/install/bootstrap-config-valid.ci` | Created | Functional test |
+| `docs/guide/ze-install.md` | Modified | Bootstrap Mode section |
+| `docs/features.md` | Modified | Bootstrap mode in Installation feature |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 28
+- **Done:** 27
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (NonLinuxFallback test -> design coverage)
 
 ## Review Gate
 

@@ -155,7 +155,9 @@ target machines with a gokrazy image containing ze.
    TFTP bootloader, which chain-loads the installer kernel and initrd
    via HTTP.
 4. The installer writes the gokrazy image to disk and reboots.
-5. The target boots into ze in bootstrap mode (future: spec-install-5).
+5. The target boots into ze in bootstrap mode: discovers all interfaces,
+   enables DHCP client on each ethernet NIC, and starts SSH for operator
+   access.
 
 ### Quick Start
 
@@ -249,9 +251,113 @@ ze process. The child shuts down cleanly (closes listeners, drains
 connections). Closing the parent also sends EOF on the stdin pipe,
 which ze treats as a shutdown signal.
 
+## Bootstrap Mode
+
+When ze starts with a zefs database but no config file and no template,
+it enters bootstrap mode automatically. This is the expected state after
+a PXE-provisioned device boots for the first time.
+
+### What Happens
+
+1. Ze detects no config in zefs (no `file/active/ze.conf`, no `file/template/ze.conf`).
+2. Interface discovery enumerates all OS network interfaces.
+3. A minimal config is generated: DHCP client enabled on every ethernet
+   interface, SSH server enabled.
+4. Ze starts with this config. DHCP clients acquire addresses, SSH becomes
+   reachable.
+
+### Operator Workflow
+
+1. SSH into the device using the credentials pre-provisioned by `ze install remote`.
+2. Configure ze via the CLI (`ze config edit`, then commit).
+3. The committed config replaces the bootstrap config. On the next restart,
+   ze starts in normal mode.
+
+### Constraints
+
+- Only ethernet interfaces get DHCP. Bridge, veth, dummy, loopback,
+  wireguard, and xfrm interfaces are skipped.
+- SSH credentials come from zefs (written by the installer initrd), not
+  from the generated config.
+- Bootstrap mode is only intended for trusted/provisioning networks.
+  SSH is enabled on all interfaces.
+- If no ethernet interfaces are found (or the netlink backend is not
+  available), bootstrap mode does not activate and ze falls through to
+  the next startup path (web-only or error).
+
 ### Limitations
 
 - Single image: all targets receive the same gokrazy image
 - No per-MAC image selection (future)
 - No post-install hooks (future)
 - Assumes an isolated provisioning network (no proxy DHCP)
+
+## Installer Initrd
+
+The installer initrd is a minimal Linux image that performs the actual
+disk write on target hardware. It is the final step in the PXE chain:
+the bootloader fetches the kernel and initrd via HTTP, the kernel boots,
+and the initrd's init script installs ze.
+
+### What It Does
+
+1. Parses `ze.server` and `ze.image` from the kernel command line
+2. Downloads the gokrazy disk image from `http://<server>/install/image/<name>`
+3. Writes the image directly to the first non-removable block device
+4. Re-reads the partition table, mounts partition 4 (ext4, /perm)
+5. Downloads `database.zefs` from `http://<server>/install/database.zefs`
+6. Writes it to `/perm/ze/database.zefs`
+7. Reboots
+
+### Building the Initrd
+
+Prerequisites: `busybox-static`, `cpio`, `gzip`.
+
+```bash
+make -C tools/installer-initrd
+```
+
+This produces `tools/installer-initrd/build/initrd.img.gz`. Copy it
+alongside a Linux kernel to the boot directory served by the image
+server (`/var/lib/ze/install/boot/`).
+
+To use a custom busybox path:
+
+```bash
+make -C tools/installer-initrd BUSYBOX=/usr/bin/busybox-static
+```
+
+### Kernel Command Line
+
+The bootloader (iPXE) sets these parameters:
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `ze.server` | Yes | | IP address of the ze-install server |
+| `ze.image` | No | `ze.img` | Name of the disk image to download |
+| `ip=dhcp` | Yes | | Kernel-level network configuration |
+
+### Disk Selection
+
+The init script selects the first non-removable block device via the
+sysfs `removable` attribute. Virtual devices (loop, ram, dm, zram) and
+optical drives (sr) are skipped.
+
+Supported device types: `/dev/sda` (SATA/SCSI), `/dev/nvme0n1` (NVMe),
+`/dev/mmcblk0` (eMMC).
+
+### Error Handling
+
+If the init script encounters an error (missing server IP, no disk found,
+download failure after 3 retries), it drops to a shell for debugging
+instead of rebooting. This allows the operator to diagnose network or
+hardware issues.
+
+### Running Tests
+
+```bash
+make -C tools/installer-initrd test
+```
+
+This runs the cmdline parsing and disk detection unit tests without
+requiring QEMU or real hardware.

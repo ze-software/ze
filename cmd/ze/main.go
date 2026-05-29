@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	zeappliance "codeberg.org/thomas-mangin/ze/cmd/ze/appliance"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/bgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	zecompletion "codeberg.org/thomas-mangin/ze/cmd/ze/completion"
@@ -467,7 +466,8 @@ dispatch:
 	case "l2tp":
 		exit(zel2tp.Run(args[1:]))
 	case "appliance":
-		exit(zeappliance.Run(args[1:]))
+		fmt.Fprintln(os.Stderr, "warning: \"ze appliance\" is deprecated, use \"ze install appliance\"")
+		exit(zeinstall.Run(append([]string{"appliance"}, args[1:]...)))
 	case "service":
 		exit(zeservice.Run(args[1:]))
 	case "install":
@@ -785,6 +785,8 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		switch {
 		case bootstrapConfigFromTemplate(store, configName):
 			fmt.Fprintf(os.Stderr, "bootstrap: created config from template + discovery\n")
+		case bootstrapFromDiscovery(store, configName):
+			fmt.Fprintf(os.Stderr, "bootstrap: created config from interface discovery (DHCP + SSH)\n")
 		case webEnabled:
 			return withPanicCapture(func() int { return hub.RunWebOnly(store, webListenAddr, insecureWeb) })
 		default:
@@ -1045,6 +1047,34 @@ func bootstrapConfigFromTemplate(store storage.Storage, configName string) bool 
 
 	activeKey := zefs.KeyFileActive.Key(configName)
 	if writeErr := store.WriteFile(activeKey, merged, 0); writeErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: bootstrap: write config: %v\n", writeErr)
+		return false
+	}
+	return true
+}
+
+// bootstrapFromDiscovery generates a minimal config from interface discovery
+// when no config and no template exist. Enables DHCP client on every ethernet
+// interface and SSH for operator access. Returns true on success.
+func bootstrapFromDiscovery(store storage.Storage, configName string) bool {
+	if loadErr := iface.LoadBackend("netlink"); loadErr != nil {
+		return false
+	}
+	discovered, discErr := iface.DiscoverInterfaces()
+	if closeErr := iface.CloseBackend(); closeErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: bootstrap: close backend: %v\n", closeErr)
+	}
+	if discErr != nil {
+		return false
+	}
+
+	cfg := iface.EmitBootstrapConfig(discovered)
+	if cfg == "" {
+		return false
+	}
+
+	activeKey := zefs.KeyFileActive.Key(configName)
+	if writeErr := store.WriteFile(activeKey, []byte(cfg), 0); writeErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: bootstrap: write config: %v\n", writeErr)
 		return false
 	}

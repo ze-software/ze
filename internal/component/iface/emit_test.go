@@ -448,6 +448,199 @@ func TestSafeEmitName(t *testing.T) {
 	}
 }
 
+// VALIDATES: EmitBootstrapConfig produces DHCP-on-ethernet + SSH config
+// PREVENTS: bootstrap mode generating invalid or incomplete config
+
+func TestEmitBootstrapConfig(t *testing.T) {
+	discovered := []DiscoveredInterface{
+		{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
+	}
+	got := EmitBootstrapConfig(discovered)
+
+	mustContain := []string{
+		"interface {",
+		"ethernet eth0 {",
+		"mac-address aa:bb:cc:dd:ee:ff;",
+		"os-name eth0;",
+		"unit default {",
+		"ipv4 {",
+		"dhcp {",
+		"enabled true;",
+		"environment {",
+		"ssh {",
+		"enabled true;",
+	}
+	for _, s := range mustContain {
+		if !strings.Contains(got, s) {
+			t.Errorf("output missing %q\ngot:\n%s", s, got)
+		}
+	}
+}
+
+func TestEmitBootstrapConfigEmpty(t *testing.T) {
+	got := EmitBootstrapConfig(nil)
+	if got != "" {
+		t.Fatalf("expected empty string for nil input, got %q", got)
+	}
+	got = EmitBootstrapConfig([]DiscoveredInterface{})
+	if got != "" {
+		t.Fatalf("expected empty string for empty input, got %q", got)
+	}
+}
+
+func TestEmitBootstrapConfigEthernetOnly(t *testing.T) {
+	discovered := []DiscoveredInterface{
+		{Name: "br0", Type: "bridge", MAC: "11:22:33:44:55:66"},
+		{Name: "dummy0", Type: "dummy"},
+		{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
+		{Name: "lo", Type: "loopback"},
+		{Name: "veth0", Type: "veth", MAC: "00:11:22:33:44:55"},
+		{Name: "wg0", Type: "wireguard"},
+		{Name: "xfrm0", Type: "xfrm"},
+	}
+	got := EmitBootstrapConfig(discovered)
+
+	if !strings.Contains(got, "ethernet eth0 {") {
+		t.Errorf("missing ethernet eth0 block:\n%s", got)
+	}
+	if !strings.Contains(got, "dhcp {") {
+		t.Errorf("missing dhcp block:\n%s", got)
+	}
+
+	for _, excluded := range []string{"bridge", "dummy", "loopback", "veth", "wireguard", "xfrm"} {
+		if strings.Contains(got, excluded+" ") {
+			t.Errorf("bootstrap config should not contain %q type:\n%s", excluded, got)
+		}
+	}
+}
+
+func TestEmitBootstrapConfigMultipleEthernet(t *testing.T) {
+	discovered := []DiscoveredInterface{
+		{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
+		{Name: "eth1", Type: "ethernet", MAC: "11:22:33:44:55:66"},
+		{Name: "enp3s0", Type: "ethernet", MAC: "ff:ee:dd:cc:bb:aa"},
+	}
+	got := EmitBootstrapConfig(discovered)
+
+	for _, name := range []string{"eth0", "eth1", "enp3s0"} {
+		block := "ethernet " + name + " {"
+		if !strings.Contains(got, block) {
+			t.Errorf("missing block %q:\n%s", block, got)
+		}
+	}
+
+	dhcpCount := strings.Count(got, "enabled true;")
+	// 3 DHCP enabled + 1 SSH enabled = 4 total
+	if dhcpCount != 4 {
+		t.Errorf("expected 4 'enabled true;' (3 DHCP + 1 SSH), got %d:\n%s", dhcpCount, got)
+	}
+}
+
+func TestEmitBootstrapConfigStructure(t *testing.T) {
+	discovered := []DiscoveredInterface{
+		{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
+		{Name: "eth1", Type: "ethernet"},
+	}
+	got := EmitBootstrapConfig(discovered)
+
+	opens := strings.Count(got, "{")
+	closes := strings.Count(got, "}")
+	if opens != closes {
+		t.Errorf("unbalanced braces: %d opens, %d closes:\n%s", opens, closes, got)
+	}
+
+	depth := 0
+	for i, line := range strings.Split(got, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		switch {
+		case strings.HasSuffix(trimmed, "{"):
+			depth++
+		case trimmed == "}":
+			depth--
+			if depth < 0 {
+				t.Fatalf("line %d: brace depth went negative", i+1)
+			}
+		case !strings.HasSuffix(trimmed, ";"):
+			t.Errorf("line %d: expected ';' or '{' or '}', got: %q", i+1, trimmed)
+		}
+	}
+	if depth != 0 {
+		t.Errorf("final brace depth is %d, expected 0", depth)
+	}
+}
+
+func TestEmitBootstrapConfigNoRegression(t *testing.T) {
+	discovered := []DiscoveredInterface{
+		{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
+		{Name: "br0", Type: "bridge", MAC: "11:22:33:44:55:66"},
+		{Name: "lo", Type: "loopback"},
+	}
+	got := EmitConfig(discovered)
+
+	if strings.Contains(got, "dhcp") {
+		t.Errorf("EmitConfig should not contain DHCP blocks:\n%s", got)
+	}
+	if strings.Contains(got, "environment") {
+		t.Errorf("EmitConfig should not contain environment block:\n%s", got)
+	}
+	if strings.Contains(got, "ssh") {
+		t.Errorf("EmitConfig should not contain SSH block:\n%s", got)
+	}
+}
+
+func TestEmitBootstrapConfigNoEthernetFallback(t *testing.T) {
+	discovered := []DiscoveredInterface{
+		{Name: "br0", Type: "bridge"},
+		{Name: "lo", Type: "loopback"},
+		{Name: "wg0", Type: "wireguard"},
+	}
+	got := EmitBootstrapConfig(discovered)
+	if got != "" {
+		t.Errorf("expected empty string when no ethernet interfaces, got:\n%s", got)
+	}
+}
+
+func TestEmitBootstrapConfigUnsafeName(t *testing.T) {
+	discovered := []DiscoveredInterface{
+		{Name: "bad{name", Type: "ethernet"},
+		{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
+	}
+	got := EmitBootstrapConfig(discovered)
+
+	if strings.Contains(got, "bad{name") {
+		t.Errorf("unsafe name should be skipped:\n%s", got)
+	}
+	if !strings.Contains(got, "ethernet eth0 {") {
+		t.Errorf("safe interface should still appear:\n%s", got)
+	}
+}
+
+// An unsafe MAC (config-breaking characters) must not be interpolated into the
+// config. The interface block is still emitted, just without the mac-address
+// line, and the output stays well-formed.
+func TestEmitBootstrapConfigUnsafeMAC(t *testing.T) {
+	discovered := []DiscoveredInterface{
+		{Name: "eth0", Type: "ethernet", MAC: "aa;bb { injected"},
+	}
+	got := EmitBootstrapConfig(discovered)
+
+	if strings.Contains(got, "aa;bb") || strings.Contains(got, "injected") {
+		t.Errorf("unsafe MAC was interpolated into config:\n%s", got)
+	}
+	if strings.Contains(got, "mac-address") {
+		t.Errorf("mac-address line should be skipped for an unsafe MAC:\n%s", got)
+	}
+	if !strings.Contains(got, "ethernet eth0 {") {
+		t.Errorf("interface block should still be emitted:\n%s", got)
+	}
+	if opens, closes := strings.Count(got, "{"), strings.Count(got, "}"); opens != closes {
+		t.Errorf("unbalanced braces (%d open, %d close):\n%s", opens, closes, got)
+	}
+}
+
 func TestEmitConfigXFRMFull(t *testing.T) {
 	dis := []DiscoveredInterface{{
 		Name: "xfrm0",

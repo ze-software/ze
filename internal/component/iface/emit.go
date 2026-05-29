@@ -40,7 +40,7 @@ func EmitConfig(discovered []DiscoveredInterface) string {
 				continue
 			}
 			fmt.Fprintf(&b, "    %s %s {\n", di.Type, di.Name)
-			if di.MAC != "" {
+			if di.MAC != "" && safeEmitName(di.MAC) {
 				fmt.Fprintf(&b, "        mac-address %s;\n", di.MAC)
 			}
 			fmt.Fprintf(&b, "        os-name %s;\n", di.Name)
@@ -143,7 +143,7 @@ func EmitSetConfig(discovered []DiscoveredInterface) string {
 			if !safeEmitName(di.Name) {
 				continue
 			}
-			if di.MAC != "" {
+			if di.MAC != "" && safeEmitName(di.MAC) {
 				fmt.Fprintf(&b, "set interface %s %s mac-address %s\n", di.Type, di.Name, di.MAC)
 			}
 			fmt.Fprintf(&b, "set interface %s %s os-name %s\n", di.Type, di.Name, di.Name)
@@ -272,6 +272,63 @@ func emitXFRMSet(b *strings.Builder, di *DiscoveredInterface) {
 		b.WriteString(addr)
 		b.WriteByte('\n')
 	}
+}
+
+// EmitBootstrapConfig produces a minimal ze config for first-boot bootstrap
+// mode. For every ethernet interface in discovered, it emits an interface
+// block with DHCP client enabled. Non-ethernet types are skipped (bridge,
+// veth, dummy, loopback, wireguard, xfrm are not useful for bootstrap
+// reachability). An SSH block is appended so the operator can connect.
+// Returns empty string if no ethernet interfaces are found.
+func EmitBootstrapConfig(discovered []DiscoveredInterface) string {
+	var b strings.Builder
+	hasEthernet := false
+
+	for i := range discovered {
+		di := &discovered[i]
+		if di.Type != zeTypeEthernet {
+			continue
+		}
+		if !safeEmitName(di.Name) {
+			continue
+		}
+		if !hasEthernet {
+			b.WriteString("interface {\n")
+			hasEthernet = true
+		}
+		b.WriteString("    ethernet ")
+		b.WriteString(di.Name)
+		b.WriteString(" {\n")
+		if di.MAC != "" && safeEmitName(di.MAC) {
+			b.WriteString("        mac-address ")
+			b.WriteString(di.MAC)
+			b.WriteString(";\n")
+		}
+		b.WriteString("        os-name ")
+		b.WriteString(di.Name)
+		b.WriteString(";\n")
+		b.WriteString("        unit default {\n")
+		b.WriteString("            ipv4 {\n")
+		b.WriteString("                dhcp {\n")
+		b.WriteString("                    enabled true;\n")
+		b.WriteString("                }\n")
+		b.WriteString("            }\n")
+		b.WriteString("        }\n")
+		b.WriteString("    }\n")
+	}
+
+	if !hasEthernet {
+		return ""
+	}
+
+	b.WriteString("}\n")
+	b.WriteString("environment {\n")
+	b.WriteString("    ssh {\n")
+	b.WriteString("        enabled true;\n")
+	b.WriteString("    }\n")
+	b.WriteString("}\n")
+
+	return b.String()
 }
 
 // safeEmitName returns true if name is safe to interpolate into config

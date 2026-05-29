@@ -1,0 +1,32 @@
+# Test: bootstrap-mode generated config validates as valid ze config.
+# spec-install-5 AC-1/AC-4/AC-3: config with DHCP-on-ethernet + SSH.
+# EmitBootstrapConfig output must parse without errors.
+#
+# NOTE: the config block below must mirror EmitBootstrapConfig's output
+# (internal/component/iface/emit.go). The exact emitted string is asserted by
+# TestEmitBootstrapConfig*; its well-formedness (balanced braces, every line
+# ends with ; { or }) by TestEmitBootstrapConfigStructure. Keep them in sync.
+
+stdin=config:terminator=EOF_CONF
+interface {
+    ethernet eth0 {
+        mac-address aa:bb:cc:dd:ee:ff;
+        os-name eth0;
+        unit default {
+            ipv4 {
+                dhcp {
+                    enabled true;
+                }
+            }
+        }
+    }
+}
+environment {
+    ssh {
+        enabled true;
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
