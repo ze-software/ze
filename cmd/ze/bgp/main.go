@@ -42,7 +42,7 @@ func Run(args []string) int {
 
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
-	if s := suggest.Command(arg, []string{"decode", "encode", "plugin", "help"}); s != "" {
+	if s := suggest.Command(arg, append(bgpCommands, "help")); s != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 	}
 	usage()

@@ -35,8 +35,7 @@ func Run(args []string) int {
 		return 0
 	default:
 		fmt.Fprintf(os.Stderr, "unknown yang command: %s\n", args[0])
-		commands := []string{"completion", "tree", "doc", "help"}
-		if suggestion := suggest.Command(args[0], commands); suggestion != "" {
+		if suggestion := suggest.Command(args[0], append(yangCommands, "help")); suggestion != "" {
 			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", suggestion)
 		}
 		usage()

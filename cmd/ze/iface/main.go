@@ -20,6 +20,14 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
 )
 
+// ifaceCommands lists the user-facing subcommand names, kept in sync
+// with the switch cases in Run below. Used by the known-subcommand gate,
+// suggestion hints, and Meta.Subs in register.go.
+var ifaceCommands = []string{
+	"show", "scan", "create", "delete", "unit", "addr", "migrate",
+	"up", "down", "mtu", "mac", "neighbors", "routes", "clear",
+}
+
 // Run executes the interface subcommand with the given arguments.
 // Returns exit code.
 //
@@ -46,13 +54,9 @@ func Run(args []string) int {
 	// Validate subcommand BEFORE touching the backend. Otherwise a bogus
 	// subcommand triggers LoadBackend + defer CloseBackend, mutating
 	// package-global state that parallel unit tests rely on.
-	known := []string{
-		"show", "scan", "create", "delete", "unit", "addr", "migrate",
-		"up", "down", "mtu", "mac", "neighbors", "routes", "clear",
-	}
-	if !slices.Contains(known, subcmd) {
+	if !slices.Contains(ifaceCommands, subcmd) {
 		fmt.Fprintf(os.Stderr, "error: unknown interface subcommand: %s\n", subcmd)
-		if s := suggest.Command(subcmd, append(known, "help")); s != "" {
+		if s := suggest.Command(subcmd, append(ifaceCommands, "help")); s != "" {
 			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 		}
 		usage()

@@ -43,7 +43,7 @@ func Run(args []string) int {
 		usage()
 		return 0
 	default:
-		fmt.Fprintf(os.Stderr, "unknown shell: %s (supported: bash, zsh, fish, nushell)\n", args[0])
+		fmt.Fprintf(os.Stderr, "unknown shell: %s (supported: %s)\n", args[0], subcommands())
 		usage()
 		return 1
 	}

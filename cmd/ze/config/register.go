@@ -7,32 +7,50 @@
 package config
 
 import (
+	"sort"
+	"strings"
+
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
+// subcommands returns the sorted, comma-separated list of user-facing
+// subcommands, derived from storageHandlers and subcommandHandlers
+// (the dispatch maps in main.go).
+func subcommands() string {
+	cmds := make([]string, 0, len(storageHandlers)+len(subcommandHandlers))
+	for k := range storageHandlers {
+		cmds = append(cmds, k)
+	}
+	for k := range subcommandHandlers {
+		cmds = append(cmds, k)
+	}
+	sort.Strings(cmds)
+	return strings.Join(cmds, ", ")
+}
+
 func init() {
 	cmdregistry.RegisterRoot("config", cmdregistry.Meta{
-		Description: "Configuration management",
+		Description: "Configuration editing, formatting, validation, and history",
 		Mode:        "offline",
 		Section:     cmdregistry.SectionConfiguration,
-		Subs:        "edit, set, deactivate, activate, migrate, rollback, archive, import, rename",
+		Subs:        subcommands(),
 	})
-	cmdregistry.MustRegisterLocal("show config dump", func(args []string) int {
+	cmdregistry.MustRegisterLocalMeta("show config dump", func(args []string) int {
 		return Run(append([]string{"dump"}, args...))
-	})
-	cmdregistry.MustRegisterLocal("show config diff", func(args []string) int {
+	}, cmdregistry.Meta{Description: "Show the fully resolved config tree as JSON. What you see is exactly what the daemon uses."})
+	cmdregistry.MustRegisterLocalMeta("show config diff", func(args []string) int {
 		return Run(append([]string{"diff"}, args...))
-	})
-	cmdregistry.MustRegisterLocal("show config fmt", func(args []string) int {
+	}, cmdregistry.Meta{Description: "Show what changed between the running and candidate configurations."})
+	cmdregistry.MustRegisterLocalMeta("show config fmt", func(args []string) int {
 		return Run(append([]string{"fmt"}, args...))
-	})
-	cmdregistry.MustRegisterLocal("validate config", func(args []string) int {
+	}, cmdregistry.Meta{Description: "Pretty-print the config with consistent formatting and ordering."})
+	cmdregistry.MustRegisterLocalMeta("validate config", func(args []string) int {
 		return Run(append([]string{"validate"}, args...))
-	})
-	cmdregistry.MustRegisterLocal("show config graph", func(args []string) int {
+	}, cmdregistry.Meta{Description: "Check your config for errors without applying anything. Reports syntax and semantic issues."})
+	cmdregistry.MustRegisterLocalMeta("show config graph", func(args []string) int {
 		return Run(append([]string{"graph"}, args...))
-	})
+	}, cmdregistry.Meta{Description: "Show how components and peers depend on each other (DOT graph format)."})
 }
 
 // StorageResolver is the thunk supplied by cmd/ze/main.go so that the
@@ -44,15 +62,15 @@ type StorageResolver func() storage.Storage
 // *` commands. Must be called once from cmd/ze/main.go after global
 // flag parsing.
 func BindStorageCommands(resolve StorageResolver) {
-	cmdregistry.MustRegisterLocal("show config history", func(args []string) int {
+	cmdregistry.MustRegisterLocalMeta("show config history", func(args []string) int {
 		return runStorageClose(resolve, append([]string{"history"}, args...))
-	})
-	cmdregistry.MustRegisterLocal("show config ls", func(args []string) int {
+	}, cmdregistry.Meta{Description: "List config snapshots with timestamps and commit messages."})
+	cmdregistry.MustRegisterLocalMeta("show config ls", func(args []string) int {
 		return runStorageClose(resolve, append([]string{"ls"}, args...))
-	})
-	cmdregistry.MustRegisterLocal("show config cat", func(args []string) int {
+	}, cmdregistry.Meta{Description: "List all config snapshots stored in the blob store."})
+	cmdregistry.MustRegisterLocalMeta("show config cat", func(args []string) int {
 		return runStorageClose(resolve, append([]string{"cat"}, args...))
-	})
+	}, cmdregistry.Meta{Description: "Print the full configuration text for a stored snapshot."})
 }
 
 // runStorageClose opens storage via the resolver, runs the command,
