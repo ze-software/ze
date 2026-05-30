@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net"
-	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -942,12 +941,12 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	isUp := state == rpc.SessionStateUp
 	r.peerUp[peerAddr] = isUp
 
-	var routesToReplay []*Route
+	var replayGroups []replayGroup
 	var pendingPurgeEmits map[family.Family][]bestChangeEntry
 
 	if isUp && !wasUp {
 		delete(r.retainedPeers, peerAddr)
-		routesToReplay = r.collectAllRibOutRoutes(peerAddr)
+		replayGroups = r.collectGroupedRibOutRoutes(peerAddr)
 	} else if !isUp && wasUp {
 		if r.retainedPeers[peerAddr] {
 			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
@@ -974,8 +973,8 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 
 	r.emitPurgedWithdraws(pendingPurgeEmits)
 
-	if routesToReplay != nil {
-		r.replayRoutes(peerAddr, routesToReplay)
+	if replayGroups != nil {
+		r.replayRoutesWithCursor(peerAddr, replayGroups)
 	}
 }
 
@@ -992,13 +991,13 @@ func (r *RIBManager) handleState(event *Event) {
 	isUp := state == "up"
 	r.peerUp[peerAddr] = isUp
 
-	var routesToReplay []*Route
+	var replayGroups []replayGroup
 	var pendingPurgeEmits map[family.Family][]bestChangeEntry
 
 	if isUp && !wasUp {
 		// Peer came up - clear retain flag (fresh session replaces stale state).
 		delete(r.retainedPeers, peerAddr)
-		routesToReplay = r.collectAllRibOutRoutes(peerAddr)
+		replayGroups = r.collectGroupedRibOutRoutes(peerAddr)
 	} else if !isUp && wasUp {
 		// Peer went down - clear Adj-RIB-In unless retained for GR.
 		if r.retainedPeers[peerAddr] {
@@ -1018,28 +1017,9 @@ func (r *RIBManager) handleState(event *Event) {
 	r.emitPurgedWithdraws(pendingPurgeEmits)
 
 	// I/O operations after releasing lock
-	if routesToReplay != nil {
-		r.replayRoutes(peerAddr, routesToReplay)
+	if replayGroups != nil {
+		r.replayRoutesWithCursor(peerAddr, replayGroups)
 	}
-}
-
-// replayRoutes sends stored routes to a peer that just came up.
-// Called without lock held - safe for I/O.
-func (r *RIBManager) replayRoutes(peerAddr string, routes []*Route) {
-	// Sort by MsgID to replay in original announcement order
-	sort.Slice(routes, func(i, j int) bool {
-		return routes[i].MsgID < routes[j].MsgID
-	})
-
-	// Replay all stored routes using update text syntax
-	// RFC 7911: Include path-information when present
-	for _, route := range routes {
-		cmd := formatRouteCommand(route)
-		r.updateRoute(peerAddr, cmd)
-	}
-
-	// Signal done with peer-specific ready - ze can now send EOR for this peer
-	r.updateRoute(peerAddr, "plugin session ready")
 }
 
 // updatePeerMeta extracts and stores peer metadata from received events.

@@ -26,6 +26,7 @@ update <encoding> [<attr-sections>]... [nlri <family> add <nlri>... [del <nlri>.
 | `text` | Per-attribute keywords | Prefixes (1.0.0.0/24) | Human-readable |
 | `hex` | `attr set <hex-bytes>` | Hex wire bytes | Debug |
 | `b64` | `attr set <b64-bytes>` | Base64 wire bytes | Compact |
+| `cursor` | Stateful delta (set/del) | Prefixes (announce-only) | Replay batching |
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseUpdateText -->
 
 ## Text Mode - Per-Attribute Keywords

@@ -153,6 +153,7 @@ Route storage, selection, forwarding, communities, path selection.
 - [784](plan/learned/784-rib-rs-fastpath.md) -- locrib ForwardHandle: interface-based zero-copy wire bytes on Change for state-tracker consumers; two-trigger model (receive-path for forwarders, OnChange for state trackers) stays
 - [789](plan/learned/789-adjribout-compact-storage.md) -- ribOut compact storage: 16 B entry + pool handle replaces 385 B *Route per peer; engine OutgoingRIB is dead code (zero production callers); refcounted source tracking
 - [823](plan/learned/823-rib-show-bounded-dump.md) -- show bgp rib lock-scope reduction: sources snapshot peerMu-protected refs then iterate via PeerRIB's own lock; lazy outboundSource buffers per-peer; bestPipeline releases peerMu before terminal drain
+- [824](plan/learned/824-rib-feed-replay-batch.md) -- Replay batching: stateful cursor protocol with delta encoding reduces reconnect replay from O(routes) to O(attr-sets) UpdateRoute calls; RegisterProcessCleanup hook pattern for cross-package cleanup without import cycles
 
 ## Protocol/RFC
 

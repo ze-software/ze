@@ -13,6 +13,25 @@ func RegisterRPCs(rpcs ...RPCRegistration) {
 	registeredRPCs = append(registeredRPCs, rpcs...)
 }
 
+// ProcessCleanupFunc is called when a plugin process exits.
+// Receives the process name for scoped cleanup.
+type ProcessCleanupFunc func(processName string)
+
+var processCleanupHooks []ProcessCleanupFunc
+
+// RegisterProcessCleanup registers a callback invoked during cleanupProcess.
+// Called from init() to avoid import cycles between server and command packages.
+func RegisterProcessCleanup(fn ProcessCleanupFunc) {
+	processCleanupHooks = append(processCleanupHooks, fn)
+}
+
+// runProcessCleanupHooks calls all registered cleanup hooks for a process.
+func runProcessCleanupHooks(processName string) {
+	for _, fn := range processCleanupHooks {
+		fn(processName)
+	}
+}
+
 // PeerSubcommandKeywords returns the set of first words that follow "peer"
 // in CLI command paths. Used by config validation to reject peer names
 // that would collide with subcommand dispatch.

@@ -519,6 +519,35 @@ peer <selector> update text nlri l2vpn/evpn add ip-prefix rd <rd> prefix <prefix
 peer <selector> update text nlri l2vpn/evpn add multicast rd <rd> ip <ip>
 ```
 
+### Route Commands (update cursor)
+
+Stateful cursor mode for efficient replay of stored routes on reconnect. The engine
+maintains attribute state per (plugin, peer) pair. Subsequent commands send only
+changed attributes (delta encoding), reducing per-call overhead.
+<!-- source: internal/component/bgp/plugins/cmd/update/cursor.go -- handleUpdateCursor -->
+
+```bash
+# First command: establish full attribute state + announce NLRIs
+peer <selector> update cursor origin igp as-path [65001] med 100 \
+  next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24
+
+# Delta: only changed attributes, rest inherited from cursor
+peer <selector> update cursor as-path [65001 65003] \
+  nlri ipv4/unicast add 10.1.0.0/24
+
+# NLRIs only (all attributes inherited)
+peer <selector> update cursor nlri ipv4/unicast add 10.2.0.0/24
+
+# Remove an attribute from cursor
+peer <selector> update cursor del med nlri ipv4/unicast add 10.3.0.0/24
+
+# Clear cursor state (call after replay completes)
+peer <selector> update cursor done
+```
+
+Cursor mode supports announce-only (`nlri <family> add`). Withdrawals are not
+supported because replay re-sends stored routes, never withdrawals.
+
 ### Removed Commands (use update text instead)
 
 The following legacy commands have been removed:

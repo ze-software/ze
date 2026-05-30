@@ -890,4 +890,6 @@ func (s *Server) cleanupProcess(proc *process.Process) {
 	if proc.IsCacheConsumer() && s.reactor != nil {
 		s.reactor.UnregisterCacheConsumer(proc.Name())
 	}
+
+	runProcessCleanupHooks(proc.Name())
 }

@@ -53,7 +53,7 @@ var (
 	errSetDelKeywordsRemovedUseNext  = errors.New("set/del keywords removed; use: next-hop <address|self>")
 	errSetDelKeywordsRemovedUseRd    = errors.New("set/del keywords removed; use: rd <value>")
 	errSetDelKeywordsRemovedUseLabel = errors.New("set/del keywords removed; use: label <value>")
-	errUsagePeerAddrUpdateTexthexb64 = errors.New("usage: peer <addr> update <text|hex|b64>")
+	errUsagePeerAddrUpdateTexthexb64 = errors.New("usage: peer <addr> update <text|hex|b64|cursor>")
 )
 
 // YANG schema paths for attribute validation.
@@ -655,6 +655,7 @@ func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-update", Handler: handleUpdate, RequiresSelector: true},
 	)
+	pluginserver.RegisterProcessCleanup(ClearProcessCursors)
 }
 
 // handleUpdate dispatches update subcommands by encoding.
@@ -677,6 +678,8 @@ func handleUpdate(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 		return handleUpdateHex(ctx, args[1:])
 	case "b64":
 		return handleUpdateB64(ctx, args[1:])
+	case "cursor":
+		return handleUpdateCursor(ctx, args[1:])
 	default:
 		return nil, fmt.Errorf("unknown encoding: %s", encoding)
 	}
