@@ -20,13 +20,20 @@ and the API are the same thing. This means:
 ## Self-Describing Command Reference
 
 ```
-ze help --ai              # text summary
-ze help --ai --json       # machine-readable JSON reference
+ze help command              # full command catalog, filterable
+ze help command bgp          # filter to BGP-related commands
+ze help command --json       # machine-readable JSON (for tooling, wiki generation)
+ze help --ai                 # AI-oriented summary with recipes and context
+ze help --ai --json          # machine-readable JSON reference
 ```
 
 Generates a command reference from the live binary. The output is assembled
 from the plugin registry, YANG schemas, and RPC registrations -- it cannot go stale because
 it is generated from code, not written by hand.
+
+`ze help command` is the human-facing catalog: every command with its description,
+filterable by keyword. The `--json` form is consumed by `make ze-wiki-update` to
+regenerate the wiki command catalog.
 
 ## Structured Diagnostics
 
@@ -85,9 +92,9 @@ Start with `ze start --mcp <port>` or configure via YANG (`environment/mcp`).
 
 Other software adds an API endpoint and hopes someone wraps it for AI. Ze exposes its
 entire command surface through a self-describing interface that AI can discover and use
-without external documentation. `ze help --ai` is generated from code. The MCP tools
-have typed parameters. The command list is queryable at runtime (`command-list`,
-`command-help <name>`).
+without external documentation. `ze help command` lists every command with its description.
+`ze help --ai` adds context (recipes, families, update syntax). The MCP tools have typed
+parameters. The command list is queryable at runtime (`command-list`, `command-help <name>`).
 
 No other network daemon -- BGP or otherwise -- is designed this way.
 

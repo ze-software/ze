@@ -9,6 +9,7 @@
 .PHONY: ze-spec-status ze-spec-status-json ze-learned-counter
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
 .PHONY: ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test ze-doc-index ze-consistency
+.PHONY: ze-wiki-update ze-wiki-commands
 
 ze-spec-status:
 	@go run scripts/status/spec_status.go
@@ -32,6 +33,13 @@ ze-command-list:
 
 ze-command-list-json:
 	@go run scripts/inventory/commands.go --json
+
+ze-wiki-update: ze-wiki-commands
+	@echo "Wiki updated"
+
+ze-wiki-commands:
+	@bin/ze help command --json | python3 scripts/dev/gen_wiki_commands.py > ../wiki/command-catalog.md
+	@echo "  -> ../wiki/command-catalog.md"
 
 ze-doc-drift:
 	@go run scripts/docvalid/doc_drift.go

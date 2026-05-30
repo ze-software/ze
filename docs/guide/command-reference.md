@@ -4,6 +4,12 @@ Ze commands fall into two categories: **shell commands** that run locally
 and **runtime commands** sent to the running daemon via SSH.
 <!-- source: cmd/ze/main.go -- main dispatch -->
 
+This page explains the command model. For a live, searchable list of every
+command with its description, run `ze help command` (or `ze help command --json`
+for machine-readable output). The wiki's auto-generated
+[command-catalog](https://codeberg.org/thomas-mangin/ze/wiki/command-catalog)
+is produced from this JSON.
+
 For the forward-looking cross-vendor roadmap (which commands VyOS /
 Junos / Nokia / Arista expose and ze's status per row), see
 [`command-catalogue.md`](command-catalogue.md).

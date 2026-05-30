@@ -27,6 +27,8 @@ unregistered access (`env.MustRegister()`).
 | `ze env list -v` | Same, plus current values |
 | `ze env get <key>` | Details for a single environment variable |
 | `ze --plugins` | All registered plugins with families, capabilities, dependencies |
+| `ze help command [filter]` | Full command catalog, filterable, with descriptions |
+| `ze help command --json` | Command catalog as JSON (for wiki generation, tooling) |
 | `ze help --ai` | Machine-readable command reference generated from live binary |
 
 ## Build-Time Verification

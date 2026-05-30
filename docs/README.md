@@ -47,6 +47,7 @@ This directory contains user guides, feature inventories, implementation referen
 | Surface | Check |
 |---------|-------|
 | Registered plugins | `bin/ze --plugins` |
+| All commands | `bin/ze help command` (filterable, `--json` for tooling) |
 | Root CLI verbs | `bin/ze help --ai` |
 | YANG modules | `bin/ze schema list` |
 | Config validity | `bin/ze config validate <file>` |
