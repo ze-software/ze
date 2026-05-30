@@ -74,6 +74,13 @@ type Buffer struct {
 	b      []byte
 	done   bool
 	pooled bool
+	color  bool
+}
+
+// SetColor enables or disables ANSI color output for this buffer.
+func (b *Buffer) SetColor(enabled bool) *Buffer {
+	b.color = enabled
+	return b
 }
 
 var bufPool = sync.Pool{
@@ -224,6 +231,55 @@ func (b *Buffer) String() string {
 func (b *Buffer) Slice() string {
 	b.done = true
 	return unsafe.String(unsafe.SliceData(b.b), len(b.b)) //nolint:gosec // zero-copy always; caller must not hold past Reset()
+}
+
+// Color is an ANSI escape sequence for terminal output.
+type Color = string
+
+const (
+	ColorReset        Color = "\033[0m"
+	ColorDim          Color = "\033[2m"
+	ColorBoldRed      Color = "\033[1;31m"
+	ColorBrightGreen  Color = "\033[92m"
+	ColorBrightYellow Color = "\033[93m"
+	ColorBrightCyan   Color = "\033[96m"
+	ColorBoldCyan     Color = "\033[1;96m"
+	ColorBoldMagenta  Color = "\033[1;95m"
+)
+
+type colors struct {
+	Reset        Color
+	Dim          Color
+	BoldRed      Color
+	BrightGreen  Color
+	BrightYellow Color
+	BrightCyan   Color
+	BoldCyan     Color
+	BoldMagenta  Color
+}
+
+// C holds all ANSI color constants. Assign locally for short access:
+//
+//	c := textbuf.C
+//	tb.Colored(c.BoldCyan).Str("hello").Colored(c.Reset)
+var C = colors{
+	Reset:        ColorReset,
+	Dim:          ColorDim,
+	BoldRed:      ColorBoldRed,
+	BrightGreen:  ColorBrightGreen,
+	BrightYellow: ColorBrightYellow,
+	BrightCyan:   ColorBrightCyan,
+	BoldCyan:     ColorBoldCyan,
+	BoldMagenta:  ColorBoldMagenta,
+}
+
+// Colored appends the ANSI sequence for c if color is enabled on this buffer.
+// No-op otherwise. Use ColorReset to terminate a colored span.
+func (b *Buffer) Colored(c Color) *Buffer {
+	if b.color {
+		b.Str(c)
+	}
+	return b
 }
 
 func AppendUint(dst []byte, v uint64) []byte {

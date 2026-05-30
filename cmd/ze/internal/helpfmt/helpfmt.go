@@ -12,32 +12,21 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-)
-
-// Color palette -- ANSI codes by name.
-const (
-	colorReset        = "\033[0m"
-	colorDim          = "\033[2m"
-	colorBoldRed      = "\033[1;31m"
-	colorBrightGreen  = "\033[92m"
-	colorBrightYellow = "\033[93m"
-	colorBrightCyan   = "\033[96m"
-	colorBoldCyan     = "\033[1;96m"
-	colorBoldMagenta  = "\033[1;95m"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Role styles -- map UI roles to palette colors. Change here to restyle globally.
 const (
-	styleHeader     = colorBoldMagenta  // section titles
-	styleCommand    = colorBoldCyan     // top-level command path
-	styleSubcommand = colorBrightGreen  // entry names in lists
-	styleFlag       = colorBrightYellow // flag names
-	styleArg        = colorDim          // placeholders <file>, [options]
-	styleExample    = colorDim          // example lines
-	styleError      = colorBoldRed      // error messages
-	styleHint       = colorBrightYellow // hint/suggestion messages
-	styleSummary    = colorDim          // command summary after dash
-	styleSoftware   = colorBrightCyan   // software name in top-level header
+	styleHeader     = textbuf.ColorBoldMagenta  // section titles
+	styleCommand    = textbuf.ColorBoldCyan     // top-level command path
+	styleSubcommand = textbuf.ColorBrightGreen  // entry names in lists
+	styleFlag       = textbuf.ColorBrightYellow // flag names
+	styleArg        = textbuf.ColorDim          // placeholders <file>, [options]
+	styleExample    = textbuf.ColorDim          // example lines
+	styleError      = textbuf.ColorBoldRed      // error messages
+	styleHint       = textbuf.ColorBrightYellow // hint/suggestion messages
+	styleSummary    = textbuf.ColorDim          // command summary after dash
+	colorReset      = textbuf.ColorReset
 )
 
 // Page is a structured help page for a CLI command.
