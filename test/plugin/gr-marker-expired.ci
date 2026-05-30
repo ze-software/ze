@@ -48,13 +48,11 @@ reject=stderr:pattern=GR restart marker found
 # ze bgp configuration (identical to gr-marker-cold-start)
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external gr {
+	internal gr {
 		use bgp-gr
-		encoder json
 	}
-	external bgp-rib {
+	internal bgp-rib {
 		use bgp-rib
-		encoder json
 	}
 }
 

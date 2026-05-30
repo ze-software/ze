@@ -59,13 +59,11 @@ plugin {
 		run ./l2tp-announce-test.run
 		encoder json
 	}
-	external redistribute-orchestrator {
+	internal redistribute-orchestrator {
 		use redistribute-orchestrator
-		encoder json
 	}
-	external fakel2tp {
+	internal fakel2tp {
 		use fakel2tp
-		encoder json
 	}
 }
 

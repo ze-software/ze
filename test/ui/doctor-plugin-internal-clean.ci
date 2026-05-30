@@ -1,0 +1,13 @@
+# Test: ze doctor --json on internal { use } produces no external-builtin advisory
+# VALIDATES: AC-7 internal plugins do not trigger the advisory
+
+tmpfs=internal-clean.conf:terminator=EOF_CONF
+plugin {
+	internal rib {
+		use bgp-rib
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json internal-clean.conf
+expect=stdout:!contains=doctor-plugin-external-builtin

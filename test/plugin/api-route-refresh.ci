@@ -57,9 +57,8 @@ plugin {
 		run ./route-refresh-test.run
 		encoder json
 	}
-	external route-refresh {
+	internal route-refresh {
 		use bgp-route-refresh
-		encoder json
 	}
 }
 

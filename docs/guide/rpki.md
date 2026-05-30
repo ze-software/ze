@@ -9,13 +9,11 @@ Add the `bgp-rpki` and `bgp-adj-rib-in` plugins, then configure one or more RTR 
 
 ```
 plugin {
-    external rpki {
+    internal rpki {
         use bgp-rpki
-        encoder json
     }
-    external adj-rib-in {
+    internal adj-rib-in {
         use bgp-adj-rib-in
-        encoder json
     }
 }
 
@@ -157,9 +155,8 @@ Instead of receiving separate UPDATE and rpki events, you can use the `bgp-rpki-
 
 ```
 plugin {
-    external rpki-decorator {
+    internal rpki-decorator {
         use bgp-rpki-decorator
-        encoder json
     }
 }
 

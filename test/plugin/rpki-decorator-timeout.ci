@@ -103,13 +103,11 @@ plugin {
 		run ./rpki-to-test.run
 		encoder json
 	}
-	external rpki-decorator {
+	internal rpki-decorator {
 		use bgp-rpki-decorator
-		encoder json
 	}
-	external adj-rib-in {
+	internal adj-rib-in {
 		use bgp-adj-rib-in
-		encoder json
 	}
 }
 

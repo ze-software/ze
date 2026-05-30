@@ -36,6 +36,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+
+	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 )
 
 func TestMain(m *testing.M) {
@@ -203,6 +205,53 @@ func TestCheckPlugins_MissingBinary(t *testing.T) {
 	diags := checkPlugins(plugins)
 	require.Len(t, diags, 1)
 	assert.Equal(t, "doctor-plugin-missing", diags[0].Code)
+}
+
+func TestCheckPluginsExternalBuiltinWarns(t *testing.T) {
+	builtins := zeplugin.AvailableInternalPlugins()
+	if len(builtins) == 0 {
+		t.Skip("no internal plugins registered")
+	}
+	name := builtins[0]
+	plugins := []zeplugin.PluginConfig{
+		{Name: "feed", Internal: false, Run: "ze." + name},
+	}
+	diags := checkPlugins(plugins)
+	var found bool
+	for _, d := range diags {
+		if d.Code == "doctor-plugin-external-builtin" {
+			found = true
+			assert.Equal(t, diagnostic.SeverityWarning, d.Severity)
+			assert.Contains(t, d.Message, name)
+			assert.Contains(t, d.Message, "internal")
+		}
+	}
+	assert.True(t, found, "expected doctor-plugin-external-builtin diagnostic")
+}
+
+func TestCheckPluginsExternalScriptNoWarn(t *testing.T) {
+	plugins := []zeplugin.PluginConfig{
+		{Name: "collector", Internal: false, Run: "./collector.py"},
+	}
+	diags := checkPlugins(plugins)
+	for _, d := range diags {
+		assert.NotEqual(t, "doctor-plugin-external-builtin", d.Code)
+	}
+}
+
+func TestCheckPluginsInternalNoWarn(t *testing.T) {
+	plugins := []zeplugin.PluginConfig{
+		{Name: "rib", Internal: true, Run: "bgp-rib"},
+	}
+	diags := checkPlugins(plugins)
+	for _, d := range diags {
+		assert.NotEqual(t, "doctor-plugin-external-builtin", d.Code)
+	}
+}
+
+func TestCheckPluginsBuiltinNamesFromRegistry(t *testing.T) {
+	builtins := zeplugin.AvailableInternalPlugins()
+	assert.NotEmpty(t, builtins, "AvailableInternalPlugins must return registered names")
 }
 
 func TestCheckSystemdServiceInstallMissingAccountAndExecutable(t *testing.T) {

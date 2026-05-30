@@ -7,10 +7,10 @@ Ze can operate as a route server (RFC 7947) or route reflector, forwarding recei
 
 ```
 plugin {
-    external rs {
+    internal rs {
         use bgp-rs
     }
-    external adj-rib-in {
+    internal adj-rib-in {
         use bgp-adj-rib-in
     }
 }

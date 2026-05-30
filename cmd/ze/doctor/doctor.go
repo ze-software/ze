@@ -758,6 +758,12 @@ func checkCertExpiry(service, path string, pemData []byte) []diagnostic.Diagnost
 
 func checkPlugins(plugins []zeplugin.PluginConfig) []diagnostic.Diagnostic {
 	var diags []diagnostic.Diagnostic
+	builtins := zeplugin.AvailableInternalPlugins()
+	builtinSet := make(map[string]bool, len(builtins))
+	for _, name := range builtins {
+		builtinSet[name] = true
+	}
+
 	for _, p := range plugins {
 		if p.Internal || p.Run == "" {
 			continue
@@ -766,6 +772,16 @@ func checkPlugins(plugins []zeplugin.PluginConfig) []diagnostic.Diagnostic {
 		if len(parts) == 0 {
 			continue
 		}
+
+		matched := matchExternalBuiltinTokens(parts, builtinSet)
+		for _, name := range matched {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     "doctor-plugin-external-builtin",
+				Severity: diagnostic.SeverityWarning,
+				Message:  "plugin " + p.Name + ": command " + p.Run + " matches built-in " + name + "; use plugin { internal " + p.Name + " { use " + name + " } } for in-process execution",
+			})
+		}
+
 		binary := parts[0]
 		if filepath.IsAbs(binary) || strings.HasPrefix(binary, "./") || strings.HasPrefix(binary, "../") {
 			if _, err := os.Stat(binary); err != nil {
@@ -787,6 +803,20 @@ func checkPlugins(plugins []zeplugin.PluginConfig) []diagnostic.Diagnostic {
 		}
 	}
 	return diags
+}
+
+func matchExternalBuiltinTokens(tokens []string, builtins map[string]bool) []string {
+	seen := make(map[string]bool)
+	var matched []string
+	for _, token := range tokens {
+		name := strings.TrimPrefix(token, "ze.")
+		name = filepath.Base(name)
+		if builtins[name] && !seen[name] {
+			seen[name] = true
+			matched = append(matched, name)
+		}
+	}
+	return matched
 }
 
 func checkSSHHostKey(tree *config.Tree, configDir string) []diagnostic.Diagnostic {

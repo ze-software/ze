@@ -448,6 +448,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-archive-unreachable"},
 	},
 	{
+		Code:        "doctor-plugin-external-builtin",
+		Title:       "External plugin loads a built-in",
+		Description: "An external plugin's run command resolves to a built-in plugin name. Running a built-in as an external process adds IPC and serialization overhead. Use plugin { internal <name> { use <builtin> } } instead.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-plugin-external-builtin"},
+	},
+	{
 		Code:        "doctor-random-seed",
 		Title:       "No random seed persistence",
 		Description: "The platform has no known random-seed persistence service. On gokrazy, randomd saves to /perm/random.seed; on systemd, systemd-random-seed.service saves to /var/lib/systemd/random-seed. Without seed persistence, early-boot entropy may be poor, weakening cryptographic operations like BGP TCP-AO or TLS key generation.",

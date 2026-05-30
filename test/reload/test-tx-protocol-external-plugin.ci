@@ -43,9 +43,8 @@ EOF_PEER
 # every bgp-root transaction.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external bgp-watchdog {
+	internal bgp-watchdog {
 		use bgp-watchdog
-		encoder json
 	}
 }
 
@@ -98,9 +97,8 @@ EOF_CONF
 # transaction runs at least one participant (bgp-watchdog).
 tmpfs=updated.conf:terminator=EOF_UPDATED
 plugin {
-	external bgp-watchdog {
+	internal bgp-watchdog {
 		use bgp-watchdog
-		encoder json
 	}
 }
 

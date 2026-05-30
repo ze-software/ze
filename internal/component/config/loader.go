@@ -194,16 +194,44 @@ func detectLegacySyntaxHint(input string, parseErr error) string {
 }
 
 // ExtractPluginsFromTree extracts plugin configurations from a parsed config tree.
-// Extracts explicit plugins from plugin { external <name> { ... } } and inline plugins
-// from registered plugin extractors (e.g., BGP peer process bindings).
+// Extracts explicit plugins from plugin { internal <name> { ... } } and
+// plugin { external <name> { ... } }, plus inline plugins from registered
+// plugin extractors (e.g., BGP peer process bindings).
 func ExtractPluginsFromTree(tree *Tree) ([]plugin.PluginConfig, error) {
 	var plugins []plugin.PluginConfig
+	seen := make(map[string]bool)
 
 	if pluginContainer := tree.GetContainer("plugin"); pluginContainer != nil {
+		for name, proc := range pluginContainer.GetList("internal") {
+			if strings.HasPrefix(name, "_") {
+				return nil, fmt.Errorf("plugin name %q: names starting with underscore are reserved", name)
+			}
+			if seen[name] {
+				return nil, fmt.Errorf("plugin %q: duplicate plugin name", name)
+			}
+			seen[name] = true
+			useVal, _ := proc.Get("use")
+			if useVal == "" {
+				return nil, fmt.Errorf("plugin %q: internal plugin requires use", name)
+			}
+			if runVal, _ := proc.Get("run"); runVal != "" {
+				return nil, fmt.Errorf("plugin %q: internal plugins do not support run", name)
+			}
+			plugins = append(plugins, plugin.PluginConfig{
+				Name:     name,
+				Internal: true,
+				Run:      useVal,
+			})
+		}
+
 		for name, proc := range pluginContainer.GetList("external") {
 			if strings.HasPrefix(name, "_") {
 				return nil, fmt.Errorf("plugin name %q: names starting with underscore are reserved", name)
 			}
+			if seen[name] {
+				return nil, fmt.Errorf("plugin %q: duplicate plugin name", name)
+			}
+			seen[name] = true
 			pc := plugin.PluginConfig{Name: name}
 			runVal, _ := proc.Get("run")
 			useVal, _ := proc.Get("use")

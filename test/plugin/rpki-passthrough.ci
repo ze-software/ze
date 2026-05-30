@@ -75,9 +75,8 @@ plugin {
 		run ./rpki-passthrough-test.run
 		encoder json
 	}
-	external adj-rib-in {
+	internal adj-rib-in {
 		use bgp-adj-rib-in
-		encoder json
 	}
 }
 

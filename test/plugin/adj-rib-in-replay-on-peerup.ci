@@ -79,13 +79,11 @@ plugin {
 		run ./replay-test.run
 		encoder json
 	}
-	external bgp-rib {
+	internal bgp-rib {
 		use bgp-rib
-		encoder json
 	}
-	external adj-rib-in {
+	internal adj-rib-in {
 		use bgp-adj-rib-in
-		encoder json
 	}
 }
 

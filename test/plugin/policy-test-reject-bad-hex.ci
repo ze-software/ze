@@ -62,7 +62,7 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external rs {
+	internal rs {
 		use bgp-rs
 	}
 	external policy-test-bad-hex {

@@ -27,20 +27,28 @@ BGP itself is a config-driven plugin. If your config has a `bgp { }` section, BG
 
 ## Loading Plugins
 
-Plugins are declared in the `plugin { }` block:
+Plugins are declared in the `plugin { }` block. Built-in plugins use `internal`, external processes use `external`:
 
 ```
 plugin {
-    external rib {
+    internal rib {
         use bgp-rib
-        encoder json
     }
-    external adj-rib-in {
+    internal adj-rib-in {
         use bgp-adj-rib-in
-        encoder json
     }
-    external gr {
+    internal gr {
         use bgp-gr
+    }
+}
+```
+
+For external processes (scripts, custom binaries):
+
+```
+plugin {
+    external collector {
+        run ./collector.py
         encoder json
     }
 }
@@ -48,18 +56,19 @@ plugin {
 
 ### Plugin Block Settings
 
-| Setting | Description |
-|---------|-------------|
-| `run` | Command to start the plugin |
-| `encoder` | Wire encoding: `json` (default) or `text` |
+| List | Setting | Description |
+|------|---------|-------------|
+| `internal` | `use` | Name of a built-in plugin to run in-process |
+| `external` | `run` | Command to start an external plugin process |
+| `external` | `encoder` | Wire encoding: `json` (default) or `text` |
 
 ## Binding Plugins to Peers
 
-Each peer declares which plugins receive its events via `process` blocks. The process name must match the plugin's `external` name in the `plugin { }` block:
+Each peer declares which plugins receive its events via `process` blocks. The process name must match the plugin's `internal` or `external` name in the `plugin { }` block:
 
 ```
 plugin {
-    external rib { ... }       # <-- this name
+    internal rib { ... }       # <-- this name
 }
 peer transit-a {
     process rib { ... }        # <-- must match
@@ -113,8 +122,8 @@ process my-plugin {
 
 | Mode | Config Syntax | Description |
 |------|--------------|-------------|
-| Internal | `use bgp-rib` | Compiled-in plugin using `net.Pipe` for startup and DirectBridge for hot paths |
-| External | `run "/usr/local/bin/my-plugin"` | External binary or script using TLS connect-back |
+| Internal | `internal rib { use bgp-rib }` | Compiled-in plugin using `net.Pipe` for startup and DirectBridge for hot paths |
+| External | `external feed { run "/usr/local/bin/my-plugin" }` | External binary or script using TLS connect-back |
 
 Internal mode (`use pluginname`) runs a compiled-in plugin as a goroutine within the ze process. Startup still uses the same YANG RPC handshake as external plugins, then DirectBridge bypasses socket I/O for supported hot paths. External mode starts a separate process; that process connects back to the plugin hub over TLS and authenticates with its per-plugin token.
 <!-- source: internal/component/plugin/server/ -- plugin invocation modes; internal/component/plugin/cli/cli.go -- RunPlugin -->
@@ -323,9 +332,8 @@ Each `destination <protocol>` names a registered consumer. Under it,
 address families are redistributed; an empty list means "all families".
 
 The orchestrator **auto-loads** when `redistribute {}` appears in the
-config. No `plugin { external redistribute-orchestrator { use redistribute-orchestrator } }`
-block is required. Add an explicit block only if you need to override
-plugin defaults (encoder, respawn policy, etc).
+config. No `plugin { internal redistribute-orchestrator { use redistribute-orchestrator } }`
+block is required.
 
 Reactor per-peer NEXT_HOP substitution applies: when the producer leaves
 `NextHop` zero, the reactor stamps each peer's local session address as the

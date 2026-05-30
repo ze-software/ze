@@ -1,0 +1,14 @@
+# Test: ze config validate accepts plugin { internal { use } }
+# VALIDATES: AC-1 internal keyword parses and resolves to in-process plugin
+# PREVENTS: YANG schema regression breaking internal plugin parsing
+stdin=config:terminator=EOF_CONF
+plugin {
+	internal rib {
+		use bgp-rib
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

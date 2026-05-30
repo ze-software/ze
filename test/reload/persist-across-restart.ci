@@ -24,9 +24,8 @@ EOF_PEER
 # Initial ze bgp configuration (one static route + persist plugin)
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 plugin {
-	external persist {
+	internal persist {
 		use bgp-persist
-		encoder json
 	}
 }
 
@@ -79,9 +78,8 @@ EOF_CONF
 # Rewritten config (two routes -- count change triggers peer restart)
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
-	external persist {
+	internal persist {
 		use bgp-persist
-		encoder json
 	}
 }
 

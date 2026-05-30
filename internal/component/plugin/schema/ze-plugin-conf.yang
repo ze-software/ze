@@ -79,6 +79,26 @@ module ze-plugin-conf {
             }
         }
 
+        list internal {
+            key "name";
+            description "Built-in plugin running in-process";
+
+            leaf name {
+                type string {
+                    length "1..64";
+                }
+                description "Plugin name";
+            }
+
+            leaf use {
+                type string {
+                    length "1..64";
+                }
+                ze:validate "internal-plugin-name";
+                description "Name of a built-in plugin to run in-process";
+            }
+        }
+
         list external {
             key "name";
             description "External plugin process";

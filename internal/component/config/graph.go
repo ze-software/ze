@@ -151,6 +151,14 @@ func addProcessBindings(g *Graph, peerTree *Tree, peerID string, pluginContainer
 		}
 
 		if pluginContainer != nil {
+			if internals := pluginContainer.GetList("internal"); internals != nil {
+				if _, ok := internals[name]; ok {
+					pluginID := "plugin/" + name
+					g.addNode(pluginID, NodePlugin, name)
+					g.addEdge(peerID, pluginID, EdgeProcessBinds)
+					continue
+				}
+			}
 			if externals := pluginContainer.GetList("external"); externals != nil {
 				if _, ok := externals[name]; ok {
 					pluginID := "plugin/" + name

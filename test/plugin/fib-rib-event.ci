@@ -116,9 +116,8 @@ plugin {
 		run ./fib-rib-event-test.run
 		encoder json
 	}
-	external bgp-rib {
+	internal bgp-rib {
 		use bgp-rib
-		encoder json
 	}
 }
 

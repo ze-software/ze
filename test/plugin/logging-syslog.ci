@@ -30,9 +30,8 @@ stdin=ze-bgp:terminator=EOF_CONF
 # Verifies that ze.bgp.log.backend=syslog sends logs to syslog server
 
 plugin {
-    external gr {
+    internal gr {
         use bgp-gr
-        encoder json
     }
 }
 

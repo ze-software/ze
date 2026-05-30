@@ -363,6 +363,31 @@ func RedistributeSourceValidator() yang.CustomValidator {
 	}
 }
 
+func sortedInternalPluginNames() []string {
+	names := registry.Names()
+	sort.Strings(names)
+	return names
+}
+
+// InternalPluginNameValidator returns a validator for the internal plugin `use` leaf.
+// Validates against registered built-in plugin names from the plugin registry.
+func InternalPluginNameValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			if !registry.Has(str) {
+				return fmt.Errorf("%q is not a registered internal plugin (available: %s)",
+					str, strings.Join(sortedInternalPluginNames(), ", "))
+			}
+			return nil
+		},
+		CompleteFn: sortedInternalPluginNames,
+	}
+}
+
 // CommunityRangeValidator returns a validator that checks BGP community values.
 // Accepts well-known names (no-export, blackhole, graceful-shutdown, etc.),
 // ASN:value format (both parts uint16 0-65535), hex (0xNNNNNNNN), and bare uint32.

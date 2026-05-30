@@ -33,9 +33,8 @@ stdin=ze-bgp:terminator=EOF_CONF
 # Verifies that ze.bgp.log.server=debug produces log output
 
 plugin {
-    external gr {
+    internal gr {
         use bgp-gr
-        encoder json
     }
 }
 

@@ -1,0 +1,15 @@
+# Test: ze doctor --json flags external-of-builtin as performance warning
+# VALIDATES: AC-5/AC-8 external plugin running a built-in emits doctor-plugin-external-builtin warning
+
+tmpfs=external-builtin.conf:terminator=EOF_CONF
+plugin {
+	external feed {
+		run ze.bgp-rib
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json external-builtin.conf
+expect=stdout:contains=doctor-plugin-external-builtin
+expect=stdout:contains=warning
+expect=stdout:contains=bgp-rib

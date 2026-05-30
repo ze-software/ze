@@ -22,7 +22,7 @@ EOF_PEER
 # ze bgp configuration with RS plugin and IPv6 family
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external rr {
+	internal rr {
 		use bgp-rs
 	}
 }

@@ -41,7 +41,7 @@ Save as `example.conf`:
 
 ```
 plugin {
-    external rib {
+    internal rib {
         use bgp-rib
     }
 }

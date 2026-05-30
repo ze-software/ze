@@ -42,9 +42,8 @@ environment {
 }
 
 plugin {
-    external gr {
+    internal gr {
         use bgp-gr
-        encoder json
     }
 }
 

@@ -7,13 +7,11 @@ Graceful Restart (RFC 4724) preserves forwarding state across BGP session restar
 
 ```
 plugin {
-    external gr {
+    internal gr {
         use bgp-gr
-        encoder json
     }
-    external rib {
+    internal rib {
         use bgp-rib
-        encoder json
     }
 }
 

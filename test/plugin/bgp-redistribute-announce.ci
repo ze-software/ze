@@ -3,7 +3,7 @@
 #            UPDATE on the wire whose attributes / NLRI match the canonical
 #            `update text origin incomplete nhop self nlri ipv4/unicast add 10.0.0.1/32` shape.
 # VALIDATES: auto-load via ConfigRoots -- this scenario deliberately omits an
-#            explicit `external redistribute-orchestrator { use redistribute-orchestrator }`
+#            explicit `internal redistribute-orchestrator { use redistribute-orchestrator }`
 #            block, so the only way the orchestrator runs is via the auto-load
 #            triggered by the `redistribute {}` config root.
 # PREVENTS: redistribute-orchestrator not wired to consumers, or fakeredist event
@@ -68,9 +68,8 @@ plugin {
 	# which auto-loads the orchestrator. This validates the auto-load
 	# wiring -- if the orchestrator fails to start, no UPDATE reaches the peer
 	# and the test times out.
-	external fakeredist {
+	internal fakeredist {
 		use fakeredist
-		encoder json
 	}
 }
 

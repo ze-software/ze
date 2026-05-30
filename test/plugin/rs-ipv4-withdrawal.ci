@@ -21,7 +21,7 @@ EOF_PEER
 # ze bgp configuration with internal RS plugin
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external rr {
+	internal rr {
 		use bgp-rs
 	}
 }

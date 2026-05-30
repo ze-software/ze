@@ -27,13 +27,11 @@ EOF_PEER
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external gr {
+	internal gr {
 		use bgp-gr
-		encoder json
 	}
-	external bgp-rib {
+	internal bgp-rib {
 		use bgp-rib
-		encoder json
 	}
 }
 

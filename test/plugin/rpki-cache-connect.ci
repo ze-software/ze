@@ -78,13 +78,11 @@ plugin {
 		run ./rpki-cache-test.run
 		encoder json
 	}
-	external rpki {
+	internal rpki {
 		use bgp-rpki
-		encoder json
 	}
-	external adj-rib-in {
+	internal adj-rib-in {
 		use bgp-adj-rib-in
-		encoder json
 	}
 }
 

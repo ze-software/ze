@@ -54,13 +54,11 @@ plugin {
 		run ./burst-test.run
 		encoder json
 	}
-	external redistribute-orchestrator {
+	internal redistribute-orchestrator {
 		use redistribute-orchestrator
-		encoder json
 	}
-	external fakeredist {
+	internal fakeredist {
 		use fakeredist
-		encoder json
 	}
 }
 

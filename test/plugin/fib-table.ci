@@ -65,21 +65,19 @@ plugin {
 		run ./fib-table-test.run
 		encoder json
 	}
-	external bgp-rib {
+	internal bgp-rib {
 		use bgp-rib
-		encoder json
 	}
-	external rib {
+	internal rib {
 		use rib
-		encoder json
 	}
-	external fib-kernel {
+	internal fib-kernel {
 		use fib-kernel
 	}
-	external sysctl {
+	internal sysctl {
 		use sysctl
 	}
-	external fakefib {
+	internal fakefib {
 		use fakefib
 	}
 }

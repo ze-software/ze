@@ -493,3 +493,110 @@ func TestExtractHubServerClientSecretTooShort(t *testing.T) {
 	assert.Contains(t, err.Error(), "too short")
 	assert.Contains(t, err.Error(), "edge-01")
 }
+
+// TestExtractPluginsInternalList verifies the internal list maps to
+// PluginConfig{Internal:true}.
+//
+// VALIDATES: AC-1 internal list yields Internal=true with Run=useVal.
+// PREVENTS: Internal list entries being treated as external.
+func TestExtractPluginsInternalList(t *testing.T) {
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
+	tree.SetContainer("plugin", pluginContainer)
+
+	internal := config.NewTree()
+	internal.Set("use", "bgp-rib")
+	pluginContainer.AddListEntry("internal", "rib", internal)
+
+	plugins, err := config.ExtractPluginsFromTree(tree)
+	require.NoError(t, err)
+	require.Len(t, plugins, 1)
+
+	assert.Equal(t, "rib", plugins[0].Name)
+	assert.Equal(t, "bgp-rib", plugins[0].Run)
+	assert.True(t, plugins[0].Internal)
+}
+
+// TestExtractPluginsInternalRejectsRun verifies that internal plugins reject
+// the run leaf.
+//
+// VALIDATES: AC-2 internal plugins do not accept run.
+// PREVENTS: Ambiguous internal+run config silently resolving to external.
+func TestExtractPluginsInternalRejectsRun(t *testing.T) {
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
+	tree.SetContainer("plugin", pluginContainer)
+
+	internal := config.NewTree()
+	internal.Set("use", "bgp-rib")
+	internal.Set("run", "./plugin")
+	pluginContainer.AddListEntry("internal", "rib", internal)
+
+	_, err := config.ExtractPluginsFromTree(tree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "internal plugins do not support run")
+}
+
+// TestExtractPluginsDuplicateAcrossLists verifies that duplicate names across
+// internal and external lists are rejected.
+//
+// VALIDATES: AC-3 unique names across both lists.
+// PREVENTS: Name collision between internal and external plugin declarations.
+func TestExtractPluginsDuplicateAcrossLists(t *testing.T) {
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
+	tree.SetContainer("plugin", pluginContainer)
+
+	internal := config.NewTree()
+	internal.Set("use", "bgp-rib")
+	pluginContainer.AddListEntry("internal", "rib", internal)
+
+	external := config.NewTree()
+	external.Set("run", "/usr/bin/custom")
+	pluginContainer.AddListEntry("external", "rib", external)
+
+	_, err := config.ExtractPluginsFromTree(tree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate plugin name")
+}
+
+// TestExtractPluginsLegacyUseStillInternal verifies that the legacy
+// external { use X } form still resolves to Internal=true.
+//
+// VALIDATES: AC-4 back-compat for external { use }.
+// PREVENTS: Breaking existing configs that use external { use X }.
+func TestExtractPluginsLegacyUseStillInternal(t *testing.T) {
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
+	tree.SetContainer("plugin", pluginContainer)
+
+	ext := config.NewTree()
+	ext.Set("use", "bgp-rib")
+	pluginContainer.AddListEntry("external", "rib", ext)
+
+	plugins, err := config.ExtractPluginsFromTree(tree)
+	require.NoError(t, err)
+	require.Len(t, plugins, 1)
+
+	assert.Equal(t, "rib", plugins[0].Name)
+	assert.Equal(t, "bgp-rib", plugins[0].Run)
+	assert.True(t, plugins[0].Internal, "external { use X } must still resolve to Internal=true")
+}
+
+// TestExtractPluginsInternalRequiresUse verifies that an internal plugin
+// without the use leaf is rejected.
+//
+// VALIDATES: Internal list requires use.
+// PREVENTS: Empty internal plugin entries.
+func TestExtractPluginsInternalRequiresUse(t *testing.T) {
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
+	tree.SetContainer("plugin", pluginContainer)
+
+	internal := config.NewTree()
+	pluginContainer.AddListEntry("internal", "empty", internal)
+
+	_, err := config.ExtractPluginsFromTree(tree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "internal plugin requires use")
+}
