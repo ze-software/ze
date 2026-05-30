@@ -166,34 +166,41 @@ func registerLocalCommands() {
 		printVersion(slices.Contains(args, "--extended"))
 		return 0
 	}, cmdregistry.Meta{
-		Description: "Show version and build date",
+		Description: "Show the running Ze version and build date",
 		Mode:        "offline",
 	})
 
 	// Root commands that live in main() itself (not a package).
 	cmdregistry.RegisterRoot("start", cmdregistry.Meta{
-		Description: "Start daemon from database config",
+		Description: "Start the Ze daemon from blob storage config",
 		Mode:        "setup",
 		Section:     cmdregistry.SectionSystem,
 		Subs:        "--web <port>, --insecure-web, --mcp <port>",
 	})
 	cmdregistry.RegisterRoot("version", cmdregistry.Meta{
-		Description: "Show version and build date",
+		Description: "Show the running Ze version and build date",
 		Mode:        "offline",
 		Section:     cmdregistry.SectionSystem,
 		Subs:        "--extended",
 	})
 	cmdregistry.RegisterRoot("update-serve", cmdregistry.Meta{
-		Description: "Serve version.json and binary for update checks",
+		Description: "Run a local update server for firmware checks",
 		Mode:        "offline",
 		Section:     cmdregistry.SectionSystem,
 		Subs:        "--listen <addr>",
 	})
 	cmdregistry.RegisterRoot("help", cmdregistry.Meta{
-		Description: "Show help",
+		Description: "Show available commands and how to use them",
 		Mode:        "offline",
 		Section:     cmdregistry.SectionSystem,
-		Subs:        "--ai [--cli|--api|--mcp|--dispatch|--all]",
+		Subs:        "command [<filter>] [--json], --ai [--cli|--api|--mcp|--dispatch|--all]",
+	})
+	cmdregistry.MustRegisterLocalMeta("help command", func(args []string) int {
+		printHelpCommand(args)
+		return 0
+	}, cmdregistry.Meta{
+		Description: "List every command with its description. Use a filter to narrow the list.",
+		Mode:        "offline",
 	})
 
 	// Storage-dependent config subcommands are bound here because the
@@ -520,6 +527,12 @@ dispatch:
 	case "help", "-h", "--help": //nolint:goconst // case labels can't call functions
 		subArgs := args[1:]
 		switch {
+		case len(subArgs) > 0 && subArgs[0] == "command":
+			if slices.Contains(subArgs[1:], "--help") || slices.Contains(subArgs[1:], "-h") {
+				helpCommandUsage()
+			} else {
+				printHelpCommand(subArgs[1:])
+			}
 		case aiHelpRequested(subArgs):
 			printAIHelp(subArgs)
 		case slices.Contains(subArgs, "--help") || slices.Contains(subArgs, "-h"):
@@ -589,18 +602,28 @@ dispatch:
 		exit(handler(remaining))
 	}
 
-	// Unknown command
+	// Unknown command: suggest the closest match but never auto-dispatch.
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
-	commands := []string{
-		"show", "set", "del", "update", "validate", "monitor",
-		"bgp", "plugin", "cli", "config", "data", "doctor", "env", "init", "install", "interface", "start", "schema",
-		"sysctl", "l2tp", "yang", "exabgp", "signal", "status", "completion", "version", "help",
-	}
-	if suggestion := suggest.Command(arg, commands); suggestion != "" {
+	known := knownCommands()
+	if suggestion := suggest.Command(arg, known); suggestion != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", suggestion)
 	}
 	usage()
 	exit(1)
+}
+
+// knownCommands returns all valid top-level command names, derived from
+// the YANG verb map and the root command registry.
+func knownCommands() []string {
+	roots := cmdregistry.ListRoot()
+	names := make([]string, 0, len(yangVerbs)+len(roots))
+	for verb := range yangVerbs {
+		names = append(names, verb)
+	}
+	for _, rc := range roots {
+		names = append(names, rc.Name)
+	}
+	return names
 }
 
 // yangVerbs are the top-level verbs dispatched through the unified YANG command tree.

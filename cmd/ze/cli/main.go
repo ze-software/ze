@@ -442,8 +442,14 @@ var cliWireToPaths = yang.WireMethodToPaths(cliLoader)
 
 // WireToPath returns the YANG-derived WireMethod to CLI dispatch path mapping.
 // Used by help generation to show dispatch keys alongside RPC names.
+// Returns the shortest path when multiple aliases exist for a wire method.
 func WireToPath() map[string]string {
 	return cliWireToPath
+}
+
+// WireToPaths returns all CLI paths for each wire method (including aliases).
+func WireToPaths() map[string][]string {
+	return cliWireToPaths
 }
 
 // yangCmdTree is the YANG command tree with descriptions from YANG modules.

@@ -894,21 +894,37 @@ func aiHelpRequested(args []string) bool {
 }
 
 func helpUsage() {
-	p := helpfmt.Page{
-		Command: "ze help",
-		Summary: "Show help and AI reference",
-		Usage:   []string{"ze help [--ai [--json|--cli|--api|--mcp|--dispatch|--all]]"},
-		Sections: []helpfmt.HelpSection{
-			{Title: "AI reference", Entries: []helpfmt.HelpEntry{
-				{Name: "--ai", Desc: "Summary with counts and quick start"},
-				{Name: "--ai --json", Desc: "Machine-readable JSON reference"},
-				{Name: "--ai --cli", Desc: "CLI subcommands"},
-				{Name: "--ai --api", Desc: "Daemon API commands with parameters"},
-				{Name: "--ai --mcp", Desc: "MCP tools with parameters and examples"},
-				{Name: "--ai --dispatch", Desc: "Dispatch keys for daemon commands"},
-				{Name: "--ai --all", Desc: "Everything combined"},
-			}},
+	// Derive help subcommands from the local command registry.
+	var subEntries []helpfmt.HelpEntry
+	for _, lc := range cmdregistry.ListLocal() {
+		if !strings.HasPrefix(lc.Path, "help ") {
+			continue
+		}
+		name := strings.TrimPrefix(lc.Path, "help ")
+		subEntries = append(subEntries, helpfmt.HelpEntry{Name: name, Desc: lc.Meta.Description})
+	}
+
+	var sections []helpfmt.HelpSection
+	if len(subEntries) > 0 {
+		sections = append(sections, helpfmt.HelpSection{Title: "Subcommands", Entries: subEntries})
+	}
+	sections = append(sections, helpfmt.HelpSection{
+		Title: "AI reference", Entries: []helpfmt.HelpEntry{
+			{Name: "--ai", Desc: "Summary with counts and quick start"},
+			{Name: "--ai --json", Desc: "Machine-readable JSON reference"},
+			{Name: "--ai --cli", Desc: "CLI subcommands"},
+			{Name: "--ai --api", Desc: "Daemon API commands with parameters"},
+			{Name: "--ai --mcp", Desc: "MCP tools with parameters and examples"},
+			{Name: "--ai --dispatch", Desc: "Dispatch keys for daemon commands"},
+			{Name: "--ai --all", Desc: "Everything combined"},
 		},
+	})
+
+	p := helpfmt.Page{
+		Command:  "ze help",
+		Summary:  "Show help and AI reference",
+		Usage:    []string{"ze help [--ai [--json|--cli|--api|--mcp|--dispatch|--all]]"},
+		Sections: sections,
 	}
 	p.Write()
 }
