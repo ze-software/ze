@@ -240,3 +240,56 @@ func TestBestPipeline_MultipathDisabledDefaults(t *testing.T) {
 	_, has := entry["multipath-peers"]
 	assert.False(t, has, "multipath-peers must be absent when maximumPaths=1")
 }
+
+// TestBestPipelineLockReduced verifies that bestPipeline produces unchanged
+// results after lock-scope reduction (peerMu held only for newBestSource,
+// released before terminal drain).
+//
+// VALIDATES: AC-7 bestPipeline lock-scope reduction preserves output.
+// PREVENTS: Lock-scope change altering best-path selection or JSON output.
+func TestBestPipelineLockReduced(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	fam := family.IPv4Unicast
+
+	// Two peers, different LOCAL_PREF for same prefix
+	nlri := []byte{24, 10, 0, 0} // 10.0.0.0/24
+	attrA := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
+	peerA := storage.NewPeerRIB("192.0.2.1")
+	peerA.Insert(fam, attrA, nlri, true)
+	r.bgpPeers["192.0.2.1"] = peerA
+
+	attrB := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref200)
+	peerB := storage.NewPeerRIB("192.0.2.2")
+	peerB.Insert(fam, attrB, nlri, true)
+	r.bgpPeers["192.0.2.2"] = peerB
+
+	// Second prefix on peer A only
+	nlri2 := []byte{24, 172, 16, 0} // 172.16.0.0/24
+	peerA.Insert(fam, attrA, nlri2, true)
+
+	// Default JSON terminal
+	result := r.bestPipeline("*", nil)
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	entries, ok := parsed["best-path"].([]any)
+	require.True(t, ok, "expected best-path array")
+	require.Len(t, entries, 2, "expected 2 best-path entries (one per prefix)")
+
+	// Count terminal
+	result = r.bestPipeline("*", []string{"count"})
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	assert.Equal(t, float64(2), parsed["count"])
+
+	// Path filter + count
+	result = r.bestPipeline("*", []string{"path", "65001", "count"})
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	assert.Equal(t, float64(2), parsed["count"])
+
+	// Reason terminal still works
+	result = r.bestPipeline("*", []string{"reason"})
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	reasons, ok := parsed["best-path-reason"].([]any)
+	require.True(t, ok, "expected best-path-reason array")
+	assert.Len(t, reasons, 2)
+}

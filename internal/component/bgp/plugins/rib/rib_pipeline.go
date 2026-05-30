@@ -58,31 +58,38 @@ type PipelineIterator interface {
 
 // --- Source iterators ---
 
+// inboundPeerRef is a snapshot of a peer name and its PeerRIB pointer,
+// captured under peerMu so iteration can proceed without holding peerMu.
+type inboundPeerRef struct {
+	peer    string
+	peerRIB *storage.PeerRIB
+}
+
 // inboundSource iterates over all adj-rib-in routes matching the peer selector.
-// Caller must hold at least RLock on RIBManager.
+// Snapshots peer references under peerMu at construction; PeerRIB iteration
+// uses PeerRIB's own lock, so peerMu is not held during the pipeline drain.
 type inboundSource struct {
-	r        *RIBManager
-	selector string
-	peers    []string
-	peerIdx  int
-	items    []RouteItem // buffered items from current peer
-	itemIdx  int
-	count    int
+	peers   []inboundPeerRef
+	peerIdx int
+	items   []RouteItem
+	itemIdx int
+	count   int
 }
 
 func newInboundSource(r *RIBManager, selector string) *inboundSource {
-	var peers []string
-	for peer := range r.bgpPeers {
+	r.peerMu.RLock()
+	var peers []inboundPeerRef
+	for peer, peerRIB := range r.bgpPeers {
 		if matchesPeer(peer, selector) {
-			peers = append(peers, peer)
+			peers = append(peers, inboundPeerRef{peer: peer, peerRIB: peerRIB})
 		}
 	}
-	return &inboundSource{r: r, selector: selector, peers: peers}
+	r.peerMu.RUnlock()
+	return &inboundSource{peers: peers}
 }
 
 func (s *inboundSource) Next() (RouteItem, bool) {
 	for {
-		// Return buffered items first
 		if s.itemIdx < len(s.items) {
 			item := s.items[s.itemIdx]
 			s.itemIdx++
@@ -90,25 +97,19 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 			return item, true
 		}
 
-		// Load next peer
 		if s.peerIdx >= len(s.peers) {
 			return RouteItem{}, false
 		}
 
-		peer := s.peers[s.peerIdx]
+		ref := s.peers[s.peerIdx]
 		s.peerIdx++
 		s.items = s.items[:0]
 		s.itemIdx = 0
 
-		peerRIB := s.r.bgpPeers[peer]
-		if peerRIB == nil {
-			continue
-		}
-
-		peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
-			prefixStr := formatNLRIAsPrefix(fam, nlriBytes, peerRIB.IsAddPath(fam))
+		ref.peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
+			prefixStr := formatNLRIAsPrefix(fam, nlriBytes, ref.peerRIB.IsAddPath(fam))
 			s.items = append(s.items, RouteItem{
-				Peer:       peer,
+				Peer:       ref.peer,
 				Family:     fam,
 				Prefix:     prefixStr,
 				Direction:  rpc.DirectionReceived,
@@ -192,46 +193,82 @@ func (s *protocolInboundSource) Meta() PipelineMeta {
 }
 
 // outboundSource iterates over all adj-rib-out routes matching the peer selector.
-// Caller must hold at least RLock on RIBManager.
+// Lazy per-peer buffering: snapshots one peer's entries under peerMu at a time,
+// then reconstructs routes outside the lock (pool reads are independently safe).
 type outboundSource struct {
-	r        *RIBManager
-	selector string
-	items    []RouteItem
-	idx      int
-	count    int
+	r       *RIBManager
+	peers   []string
+	peerIdx int
+	items   []RouteItem
+	itemIdx int
+	snaps   []outboundSnap
+	count   int
 }
 
 func newOutboundSource(r *RIBManager, selector string) *outboundSource {
-	var items []RouteItem
-	for peer, peerFamilies := range r.ribOut {
-		if !matchesPeer(peer, selector) {
-			continue
-		}
-		for fam, familyRoutes := range peerFamilies {
-			for key, entry := range familyRoutes {
-				src := r.ribOutSourcePeer(fam, key)
-				rt := reconstructRoute(entry, fam, key, src)
-				items = append(items, RouteItem{
-					Peer:      peer,
-					Family:    fam,
-					Prefix:    rt.Prefix,
-					Direction: rpc.DirectionSent,
-					OutRoute:  rt,
-				})
-			}
+	r.peerMu.RLock()
+	var peers []string
+	for peer := range r.ribOut {
+		if matchesPeer(peer, selector) {
+			peers = append(peers, peer)
 		}
 	}
-	return &outboundSource{r: r, selector: selector, items: items}
+	r.peerMu.RUnlock()
+	return &outboundSource{r: r, peers: peers}
+}
+
+// outboundSnap holds a per-route snapshot taken under peerMu.
+type outboundSnap struct {
+	entry ribOutEntry
+	fam   family.Family
+	key   string
+	src   string
 }
 
 func (s *outboundSource) Next() (RouteItem, bool) {
-	if s.idx >= len(s.items) {
-		return RouteItem{}, false
+	for {
+		if s.itemIdx < len(s.items) {
+			item := s.items[s.itemIdx]
+			s.itemIdx++
+			s.count++
+			return item, true
+		}
+
+		if s.peerIdx >= len(s.peers) {
+			return RouteItem{}, false
+		}
+
+		peer := s.peers[s.peerIdx]
+		s.peerIdx++
+		s.items = s.items[:0]
+		s.itemIdx = 0
+
+		s.r.peerMu.RLock()
+		peerFamilies := s.r.ribOut[peer]
+		s.snaps = s.snaps[:0]
+		for fam, familyRoutes := range peerFamilies {
+			for key, entry := range familyRoutes {
+				s.snaps = append(s.snaps, outboundSnap{
+					entry: entry,
+					fam:   fam,
+					key:   key,
+					src:   s.r.ribOutSourcePeer(fam, key),
+				})
+			}
+		}
+		s.r.peerMu.RUnlock()
+
+		for _, sn := range s.snaps {
+			rt := reconstructRoute(sn.entry, sn.fam, sn.key, sn.src)
+			s.items = append(s.items, RouteItem{
+				Peer:      peer,
+				Family:    sn.fam,
+				Prefix:    rt.Prefix,
+				Direction: rpc.DirectionSent,
+				OutRoute:  rt,
+			})
+		}
 	}
-	item := s.items[s.idx]
-	s.idx++
-	s.count++
-	return item, true
 }
 
 func (s *outboundSource) Meta() PipelineMeta {
@@ -979,11 +1016,8 @@ const filterPath = "path"
 
 // showPipeline builds and executes a pipeline from command args.
 // Called by handleCommand for "bgp rib show" with optional scope + filter stages.
-// Returns JSON string result.
+// Sources manage their own peerMu acquisition; the pipeline drain runs outside peerMu.
 func (r *RIBManager) showPipeline(selector string, args []string) string {
-	r.peerMu.RLock()
-	defer r.peerMu.RUnlock()
-
 	scope, pipeSelector, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {
 		data, _ := json.Marshal(map[string]any{"error": errMsg})

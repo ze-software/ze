@@ -2,6 +2,7 @@ package rib
 
 import (
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -1143,4 +1145,285 @@ func TestPipeMetadataServerSide(t *testing.T) {
 	countJSON, _ := json.Marshal(map[string]any{"count": meta.Count})
 	result := string(countJSON)
 	assert.Contains(t, result, `"count":2`)
+}
+
+// --- Spec: bounded show bgp rib dump ---
+
+// TestShowOutboundSourceLazy verifies that the outbound source does not
+// materialize the entire table at construction. After newOutboundSource,
+// no items have been buffered; they load lazily per peer on Next().
+//
+// VALIDATES: AC-1 lazy Adj-RIB-Out source.
+// PREVENTS: Regression to eager full-table materialization.
+func TestShowOutboundSourceLazy(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	for i, peer := range []string{"192.0.2.1", "192.0.2.2", "192.0.2.3"} {
+		prefix := "10.0." + strconv.Itoa(i) + ".0/24"
+		r.ribOut[peer] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+			family.IPv4Unicast: {
+				prefix: {Family: family.IPv4Unicast, Prefix: prefix, NextHop: "10.0.0.1"},
+			},
+		})
+	}
+
+	src := newOutboundSource(r, "*")
+
+	// After construction, no items should be buffered yet
+	assert.Empty(t, src.items, "lazy source must not pre-materialize items at construction")
+	assert.Equal(t, 3, len(src.peers), "should have snapshotted 3 peers")
+
+	// Drain and verify all items arrive
+	var count int
+	for {
+		_, ok := src.Next()
+		if !ok {
+			break
+		}
+		count++
+	}
+	assert.Equal(t, 3, count, "lazy source should yield all 3 routes")
+}
+
+// TestShowJSONContractUnchanged verifies that the JSON output shape from
+// showPipeline is byte-equivalent to the expected contract: top-level
+// adj-rib-in and adj-rib-out maps keyed by peer, with kebab-case attribute keys.
+//
+// VALIDATES: AC-5 JSON output contract preserved.
+// PREVENTS: Lock-scope or lazy-source changes altering output shape.
+func TestShowJSONContractUnchanged(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Inbound route with full attributes
+	fam := family.IPv4Unicast
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireCommunity, testWireMED100, testWireLocalPref100)
+	nlriBytes := []byte{24, 10, 0, 0}
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
+	r.bgpPeers["192.0.2.1"] = peerRIB
+
+	// Outbound route
+	med := uint32(100)
+	r.ribOut["192.0.2.2"] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
+			"172.16.0.0/24": {Family: family.IPv4Unicast, Prefix: "172.16.0.0/24", NextHop: "10.0.0.1", MED: &med},
+		},
+	})
+
+	result := r.showPipeline("*", nil)
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+
+	// adj-rib-in must exist with peer key
+	ribIn, ok := parsed["adj-rib-in"].(map[string]any)
+	require.True(t, ok, "expected adj-rib-in map")
+	peerRoutes, ok := ribIn["192.0.2.1"].([]any)
+	require.True(t, ok, "expected routes array for peer")
+	require.Len(t, peerRoutes, 1)
+
+	route, ok := peerRoutes[0].(map[string]any)
+	require.True(t, ok, "expected route map")
+	assert.Equal(t, "10.0.0.0/24", route["prefix"])
+	assert.Contains(t, route, "next-hop")
+	assert.Contains(t, route, "origin")
+	assert.Contains(t, route, "as-path")
+	assert.Contains(t, route, "community")
+	assert.Contains(t, route, "med")
+	assert.Contains(t, route, "local-preference")
+
+	// adj-rib-out must exist with peer key
+	ribOut, ok := parsed["adj-rib-out"].(map[string]any)
+	require.True(t, ok, "expected adj-rib-out map")
+	outRoutes, ok := ribOut["192.0.2.2"].([]any)
+	require.True(t, ok, "expected routes array for outbound peer")
+	require.Len(t, outRoutes, 1)
+
+	outRoute, ok := outRoutes[0].(map[string]any)
+	require.True(t, ok, "expected outbound route map")
+	assert.Equal(t, "172.16.0.0/24", outRoute["prefix"])
+}
+
+// TestShowPipesUnchanged verifies every pipe operator produces correct
+// results after the lazy source and lock-scope changes.
+//
+// VALIDATES: AC-3 all existing pipes unchanged.
+// PREVENTS: Filter or terminal regressions from source restructuring.
+func TestShowPipesUnchanged(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	fam := family.IPv4Unicast
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireCommunity, testWireMED100, testWireLocalPref100)
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	peerRIB.Insert(fam, attrBytes, []byte{24, 10, 0, 0}, true)   // 10.0.0.0/24
+	peerRIB.Insert(fam, attrBytes, []byte{24, 172, 16, 0}, true) // 172.16.0.0/24
+	r.bgpPeers["192.0.2.1"] = peerRIB
+
+	tests := []struct {
+		name      string
+		args      []string
+		checkJSON func(t *testing.T, parsed map[string]any)
+	}{
+		{
+			name: "count",
+			args: []string{"received", "count"},
+			checkJSON: func(t *testing.T, parsed map[string]any) {
+				assert.Equal(t, float64(2), parsed["count"])
+			},
+		},
+		{
+			name: "prefix filter + count",
+			args: []string{"received", "prefix", "10.0", "count"},
+			checkJSON: func(t *testing.T, parsed map[string]any) {
+				assert.Equal(t, float64(1), parsed["count"])
+			},
+		},
+		{
+			name: "path filter + count",
+			args: []string{"received", "path", "65001", "count"},
+			checkJSON: func(t *testing.T, parsed map[string]any) {
+				assert.Equal(t, float64(2), parsed["count"])
+			},
+		},
+		{
+			name: "family filter + count",
+			args: []string{"received", "family", "ipv4/unicast", "count"},
+			checkJSON: func(t *testing.T, parsed map[string]any) {
+				assert.Equal(t, float64(2), parsed["count"])
+			},
+		},
+		{
+			name: "community filter + count",
+			args: []string{"received", "community", "65000:100", "count"},
+			checkJSON: func(t *testing.T, parsed map[string]any) {
+				assert.Equal(t, float64(2), parsed["count"])
+			},
+		},
+		{
+			name: "match filter + count",
+			args: []string{"received", "match", "10.0.0.0/24", "count"},
+			checkJSON: func(t *testing.T, parsed map[string]any) {
+				assert.Equal(t, float64(1), parsed["count"])
+			},
+		},
+		{
+			name: "prefix-summary",
+			args: []string{"received", "prefix-summary"},
+			checkJSON: func(t *testing.T, parsed map[string]any) {
+				assert.Contains(t, parsed, "prefix-summary")
+				assert.Contains(t, parsed, "count")
+			},
+		},
+		{
+			name:      "graph",
+			args:      []string{"received", "graph"},
+			checkJSON: nil, // graph returns text, not JSON map
+		},
+		{
+			name: "first 1 + count",
+			args: []string{"received", "first", "1", "count"},
+			checkJSON: func(t *testing.T, parsed map[string]any) {
+				assert.Equal(t, float64(1), parsed["count"])
+			},
+		},
+		{
+			name: "last 1 + count",
+			args: []string{"received", "last", "1", "count"},
+			checkJSON: func(t *testing.T, parsed map[string]any) {
+				assert.Equal(t, float64(1), parsed["count"])
+			},
+		},
+		{
+			name: "json (default terminal)",
+			args: nil,
+			checkJSON: func(t *testing.T, parsed map[string]any) {
+				assert.Contains(t, parsed, "adj-rib-in")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := r.showPipeline("*", tt.args)
+			require.NotEmpty(t, result)
+
+			if tt.checkJSON != nil {
+				var parsed map[string]any
+				require.NoError(t, json.Unmarshal([]byte(result), &parsed), "result: %s", result)
+				tt.checkJSON(t, parsed)
+			}
+		})
+	}
+}
+
+// BenchmarkShowLargeTable measures per-route allocations for a multi-peer table.
+//
+// VALIDATES: AC-1/AC-2 lazy source and formatting allocation baseline.
+func BenchmarkShowLargeTable(b *testing.B) {
+	registerBuiltinCommands()
+
+	newRIB := func() *RIBManager {
+		r := &RIBManager{
+			bgpPeers:     make(map[string]*storage.PeerRIB),
+			ribOut:       make(map[string]map[family.Family]map[string]ribOutEntry),
+			ribOutSource: make(map[family.Family]map[string]ribOutSourceRef),
+			ribInPool:    make(map[redistevents.ProtocolID]map[string]*storage.PeerRIB),
+			peerUp:       make(map[string]bool),
+			peerMeta:     make(map[string]*PeerMeta),
+		}
+		r.maximumPaths.Store(1)
+		return r
+	}
+
+	fam := family.IPv4Unicast
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireCommunity, testWireMED100, testWireLocalPref100)
+
+	b.Run("inbound", func(b *testing.B) {
+		r := newRIB()
+		for p := range 5 {
+			peer := "192.0.2." + strconv.Itoa(p+1)
+			peerRIB := storage.NewPeerRIB(peer)
+			for i := range 200 {
+				nlri := []byte{24, byte(10 + p), byte(i), 0}
+				peerRIB.Insert(fam, attrBytes, nlri, true)
+			}
+			r.bgpPeers[peer] = peerRIB
+		}
+		b.ResetTimer()
+		b.ReportAllocs()
+		for b.Loop() {
+			_ = r.showPipeline("*", []string{"received", "count"})
+		}
+	})
+
+	b.Run("outbound", func(b *testing.B) {
+		r := newRIB()
+		med := uint32(100)
+		origin := attribute.OriginIGP
+		for p := range 5 {
+			peer := "192.0.2." + strconv.Itoa(p+1)
+			routes := make(map[string]*Route, 200)
+			for i := range 200 {
+				prefix := "10." + strconv.Itoa(p) + "." + strconv.Itoa(i) + ".0/24"
+				routes[prefix] = &Route{
+					Family:  fam,
+					Prefix:  prefix,
+					NextHop: "10.0.0.1",
+					Origin:  &origin,
+					ASPath:  []uint32{65001},
+					MED:     &med,
+					Communities: []attribute.Community{
+						attribute.Community(65000<<16 | 100),
+					},
+				}
+			}
+			r.ribOut[peer] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+				fam: routes,
+			})
+		}
+		b.ResetTimer()
+		b.ReportAllocs()
+		for b.Loop() {
+			_ = r.showPipeline("*", []string{"sent", "count"})
+		}
+	})
 }

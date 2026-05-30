@@ -152,11 +152,9 @@ func (s *bestSource) Meta() PipelineMeta {
 
 // bestPipeline builds and executes a pipeline from best-path source.
 // Called by handleCommand for "bgp rib show best" with optional filter/terminal stages.
-// Returns JSON string result with "best-path" top-level key.
+// peerMu is held only for newBestSource (cross-peer candidate gathering);
+// filter application and terminal drain run outside the lock.
 func (r *RIBManager) bestPipeline(selector string, args []string) string {
-	r.peerMu.RLock()
-	defer r.peerMu.RUnlock()
-
 	pipeSelector, stages, errMsg := parseBestPipelineArgs(args)
 	if errMsg != "" {
 		data, _ := json.Marshal(map[string]any{"error": errMsg})
@@ -166,21 +164,16 @@ func (r *RIBManager) bestPipeline(selector string, args []string) string {
 		selector = pipeSelector
 	}
 
-	// The reason terminal needs access to every candidate (not just the
-	// winner) for every surviving prefix. Pre-allocate a stash map that
-	// bestSource populates at construction; the reason terminal reads it at
-	// drain time, keyed by the human-readable (family, prefix) pair.
-	// For other terminals the map stays nil so bestSource skips the extra
-	// bookkeeping.
 	var candidatesByKey map[string][]*Candidate
 	if hasReasonTerminal(stages) {
 		candidatesByKey = make(map[string][]*Candidate)
 	}
 
+	// newBestSource needs cross-peer data; hold lock for source construction only.
+	r.peerMu.RLock()
 	source := newBestSource(r, selector, candidatesByKey)
+	r.peerMu.RUnlock()
 
-	// Apply non-reason filter/terminal stages. The reason terminal is handled
-	// explicitly after this loop because it needs the stashed candidates.
 	var current PipelineIterator = source
 	for _, stage := range stages {
 		if stage.kind == bestTerminalReason {
