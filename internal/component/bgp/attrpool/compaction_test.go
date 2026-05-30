@@ -170,6 +170,65 @@ func TestCompactionAllDead(t *testing.T) {
 	require.Equal(t, []byte("new-after-all-dead"), d)
 }
 
+// TestCompactionPerShardValidHandles verifies that incremental compaction runs
+// across every shard and that handles in all shards remain valid throughout the
+// migration (AC-6).
+//
+// VALIDATES: AC-6 - per-shard incremental compaction keeps handles valid.
+//
+// PREVENTS: A handle in one shard being invalidated while another shard migrates.
+func TestCompactionPerShardValidHandles(t *testing.T) {
+	p := New(1024 * 1024)
+
+	// Spread live and soon-dead entries across all shards.
+	const perShard = 8
+	live := make(map[Handle][]byte)
+	for i := range numShards * perShard {
+		data := fmt.Appendf(nil, "compact-shard-%05d", i)
+		h := mustIntern(t, p, data)
+		if i%2 == 0 {
+			// Create dead space in roughly half the slots of every shard.
+			require.NoError(t, p.Release(h))
+		} else {
+			live[h] = data
+		}
+	}
+
+	before := p.Metrics()
+	require.Greater(t, before.DeadSlots, int32(0), "dead slots should exist before compaction")
+
+	// Drive incremental compaction across all shards.
+	p.StartCompaction()
+	require.Equal(t, PoolCompacting, p.State(), "every shard should be compacting")
+
+	for !p.MigrateBatch(4) {
+		// Live handles must stay valid mid-migration, in every shard. Their old
+		// buffer stays pinned (refcount > 0), so reads remain correct.
+		for h, want := range live {
+			got, err := p.Get(h)
+			require.NoError(t, err, "handle must stay valid during compaction")
+			require.Equal(t, want, got)
+		}
+	}
+
+	// Migration complete: live handles still resolve, dead space reclaimed.
+	for h, want := range live {
+		got, err := p.Get(h)
+		require.NoError(t, err)
+		require.Equal(t, want, got)
+	}
+	mid := p.Metrics()
+	require.Less(t, mid.DeadSlots, before.DeadSlots, "migration reclaimed dead slots in every shard")
+
+	// Live handles pin their shard's old buffer, so each shard finishes only
+	// once its handles drain. Release them and the shards complete.
+	for h := range live {
+		require.NoError(t, p.Release(h))
+	}
+	p.CheckOldBufferRelease()
+	require.Equal(t, PoolNormal, p.State(), "compaction completes on every shard once handles drain")
+}
+
 // TestConcurrentAccessDuringCompaction verifies operations work during compaction.
 //
 // VALIDATES: Availability during maintenance operations.

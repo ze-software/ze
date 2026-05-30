@@ -5,22 +5,23 @@
 package attrpool
 
 // validateHandle checks handle validity in release builds.
+// Operates within a single shard; the handle's per-shard slot indexes s.slots.
 // Returns error if invalid.
-func (p *Pool) validateHandle(h Handle) error {
+func (s *shard) validateHandle(h Handle) error {
 	if !h.IsValid() {
 		return ErrInvalidHandle
 	}
 
-	if h.PoolIdx() != p.idx {
+	if h.PoolIdx() != s.idx {
 		return ErrWrongPool
 	}
 
-	slot := h.Slot()
-	if int(slot) >= len(p.slots) {
+	slot := h.shardSlot()
+	if int(slot) >= len(s.slots) {
 		return ErrSlotOutOfBounds
 	}
 
-	if p.slots[slot].dead {
+	if s.slots[slot].dead {
 		return ErrSlotDead
 	}
 
@@ -29,21 +30,21 @@ func (p *Pool) validateHandle(h Handle) error {
 
 // validateHandleForRelease checks handle validity for Release.
 // Returns ErrSlotDead if already released (prevents double-release corruption).
-func (p *Pool) validateHandleForRelease(h Handle) error {
+func (s *shard) validateHandleForRelease(h Handle) error {
 	if !h.IsValid() {
 		return ErrInvalidHandle
 	}
 
-	if h.PoolIdx() != p.idx {
+	if h.PoolIdx() != s.idx {
 		return ErrWrongPool
 	}
 
-	slot := h.Slot()
-	if int(slot) >= len(p.slots) {
+	slot := h.shardSlot()
+	if int(slot) >= len(s.slots) {
 		return ErrSlotOutOfBounds
 	}
 
-	if p.slots[slot].dead {
+	if s.slots[slot].dead {
 		return ErrSlotDead
 	}
 

@@ -462,13 +462,18 @@ func TestPoolWrongPoolError(t *testing.T) {
 	require.ErrorIs(t, err, ErrWrongPool, "Release with wrong pool must return ErrWrongPool")
 }
 
-// TestMaxSlotsConstant verifies MaxSlots matches 24-bit handle slot field.
+// TestMaxSlotsConstant verifies the sharded slot-capacity constants match the
+// handle Slot sub-field widths (4 shard bits + 22 per-shard slot bits).
 //
-// VALIDATES: Slot limit constant is correctly defined.
+// VALIDATES: Slot limit constants are correctly defined (AC-7).
 //
-// PREVENTS: Mismatch between constant and handle bit width.
+// PREVENTS: Mismatch between the constants and the handle bit layout.
 func TestMaxSlotsConstant(t *testing.T) {
-	require.Equal(t, uint32(0xFFFFFF), uint32(MaxSlots), "MaxSlots must be 24-bit max (0xFFFFFF)")
+	require.Equal(t, uint32(0x3FFFFF+1), uint32(MaxSlotsPerShard),
+		"MaxSlotsPerShard must be the 22-bit per-shard slot range (4,194,304)")
+	require.Equal(t, 16, numShards, "shardIDBits=4 yields 16 shards")
+	require.Equal(t, uint32(0x4000000), uint32(MaxSlots),
+		"MaxSlots aggregate must be numShards*MaxSlotsPerShard (67,108,864)")
 }
 
 // TestPoolIdxDeduplication verifies dedup works correctly with non-zero idx.
@@ -480,10 +485,11 @@ func TestMaxSlotsConstant(t *testing.T) {
 func TestPoolIdxDeduplication(t *testing.T) {
 	p := mustNewWithIdx(t, 5, 1024)
 
-	// First intern - creates new entry
+	// First intern - creates new entry. The first slot within its shard is 0;
+	// the full Slot() is composite (shard id in the high bits).
 	h1 := mustIntern(t, p, []byte("test"))
 	require.Equal(t, uint8(5), h1.PoolIdx())
-	require.Equal(t, uint32(0), h1.Slot())
+	require.Equal(t, uint32(0), h1.shardSlot(), "first per-shard slot is 0")
 
 	// Second intern of same data - triggers dedup path
 	h2 := mustIntern(t, p, []byte("test"))
@@ -782,9 +788,10 @@ func TestReleaseOldHandleDuringCompaction(t *testing.T) {
 	h := mustIntern(t, p, []byte("release-test"))
 	originalBit := h.BufferBit()
 
-	// Start compaction (flips currentBit)
+	// Start compaction (flips currentBit in every shard)
 	p.StartCompaction()
-	require.NotEqual(t, originalBit, p.currentBit, "compaction should flip buffer")
+	require.NotEqual(t, originalBit, p.shards[h.shardID()].currentBit,
+		"compaction should flip the owning shard's buffer")
 
 	// Release using old handle (old bufferBit)
 	require.NoError(t, p.Release(h))
@@ -939,8 +946,13 @@ func TestNewSlotsDuringCompaction(t *testing.T) {
 func TestSlotReuseStaleIndexEntry(t *testing.T) {
 	p := mustNewWithIdx(t, 0, 1024)
 
+	// Slot reuse and dedup happen within a single shard, so the "different"
+	// payload must hash to the same shard as the original for this scenario.
+	original := []byte("original-data")
+	different := differentSameShard(original, "different")
+
 	// Create entry before compaction
-	h1 := mustIntern(t, p, []byte("original-data"))
+	h1 := mustIntern(t, p, original)
 	slot1 := h1.Slot()
 
 	// Start compaction
@@ -950,18 +962,18 @@ func TestSlotReuseStaleIndexEntry(t *testing.T) {
 	require.NoError(t, p.Release(h1))
 
 	// Reuse the slot with different data
-	h2 := mustIntern(t, p, []byte("different-data"))
+	h2 := mustIntern(t, p, different)
 
-	// The slot should be reused
+	// The slot should be reused (same shard, same per-shard free slot)
 	require.Equal(t, slot1, h2.Slot(), "slot should be reused from free list")
 
 	// Now try to dedup with original data
 	// This should NOT return the old stale handle
-	h3 := mustIntern(t, p, []byte("original-data"))
+	h3 := mustIntern(t, p, original)
 
 	// Get should return correct data
 	data, err := p.Get(h3)
 	require.NoError(t, err)
-	require.Equal(t, []byte("original-data"), data,
+	require.Equal(t, original, data,
 		"dedup must not return stale handle that reads wrong data")
 }

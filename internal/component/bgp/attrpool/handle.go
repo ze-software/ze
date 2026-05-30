@@ -32,6 +32,44 @@ type Handle uint32
 // Uses bufferBit=1, poolIdx=31 (reserved), slot=0x3FFFFFF.
 const InvalidHandle Handle = 0xFFFFFFFF
 
+// Shard sub-field of the 26-bit Slot space.
+//
+// To remove the single-RWMutex contention point, each Pool is sharded into
+// numShards independent sub-pools (see pool.go). The shard id is carved from
+// the high bits of the existing Slot field so the Handle stays 32 bits wide
+// and PoolIdx/BufferBit/Slot keep their meaning for external callers:
+//
+//	Slot (26 bits) = ┌ shardID (4 bits) ┬ per-shard slot (22 bits) ┐
+//	                  25              22  21                       0
+//
+// shardIDBits=4 gives 16 shards; shardSlotBits=22 gives 4,194,304 slots per
+// shard, 67,108,864 aggregate per logical pool. Handle.Slot() still returns
+// the full 26-bit composite value (unchanged); only these package-private
+// helpers split it, so opaque-handle callers are unaffected.
+const (
+	shardIDBits   = 4
+	shardSlotBits = 26 - shardIDBits         // 22
+	shardIDMask   = (1 << shardIDBits) - 1   // 0xF, high 4 bits of Slot
+	shardSlotMask = (1 << shardSlotBits) - 1 // 0x3FFFFF, low 22 bits of Slot
+)
+
+// shardID returns the shard id packed into the high bits of the Slot field.
+// Used internally by Pool to route a handle back to the shard that stored it.
+func (h Handle) shardID() uint32 {
+	return (h.Slot() >> shardSlotBits) & shardIDMask
+}
+
+// shardSlot returns the slot index within the owning shard (low 22 bits of Slot).
+func (h Handle) shardSlot() uint32 {
+	return h.Slot() & shardSlotMask
+}
+
+// packShardSlot combines a shard id and a within-shard slot index into a single
+// 26-bit Slot field value suitable for NewHandle/NewHandleWithBuffer.
+func packShardSlot(shard, slot uint32) uint32 {
+	return (shard&shardIDMask)<<shardSlotBits | (slot & shardSlotMask)
+}
+
 // NewHandle creates a handle with the given poolIdx and slot.
 // poolIdx must be 0-30 (31 is reserved for InvalidHandle).
 // slot must be 0-0x3FFFFFF (26 bits).

@@ -1,10 +1,38 @@
 package attrpool
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+// TestMetricsAggregateAcrossShards verifies Metrics() sums per-shard counters so
+// the aggregate equals the prior single-pool semantics (AC-8), even when the
+// interned data is spread across many shards.
+//
+// VALIDATES: AC-8 - InternTotal/InternHits/LiveSlots/TotalSlots aggregate.
+//
+// PREVENTS: Metrics reporting only one shard's counters after sharding.
+func TestMetricsAggregateAcrossShards(t *testing.T) {
+	p := New(1024)
+
+	// Intern enough distinct payloads to touch many shards, each twice so every
+	// shard records exactly one dedup hit.
+	const distinct = 64
+	for i := range distinct {
+		data := fmt.Appendf(nil, "metric-payload-%d", i)
+		mustIntern(t, p, data)
+		mustIntern(t, p, data) // dedup hit
+	}
+
+	m := p.Metrics()
+	require.Equal(t, int64(2*distinct), m.InternTotal, "total interns summed across shards")
+	require.Equal(t, int64(distinct), m.InternHits, "one dedup hit per payload, summed")
+	require.Equal(t, int32(distinct), m.LiveSlots, "one live slot per payload, summed")
+	require.Equal(t, int32(distinct), m.TotalSlots, "total slots summed across shards")
+	require.InDelta(t, 0.5, m.DeduplicationRate(), 0.001, "half of interns were hits")
+}
 
 // TestMetricsAccuracy verifies metrics reflect actual pool state.
 //

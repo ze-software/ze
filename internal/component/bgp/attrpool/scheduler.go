@@ -27,16 +27,26 @@ type SchedulerConfig struct {
 	MigrateBatchSize int
 }
 
-// Scheduler manages compaction across multiple pools.
-// Only one pool compacts at a time. Uses round-robin for fairness.
+// schedUnit is the compaction unit: a single shard of a pool. Sharding made each
+// shard an independent compaction target (own lock, buffer and dead-ratio), so
+// the scheduler schedules shards, not whole pools. A 1-shard pool contributes
+// exactly one unit, reproducing the pre-sharding pool-at-a-time behavior.
+type schedUnit struct {
+	pool  *Pool
+	shard *shard
+}
+
+// Scheduler manages compaction across multiple pools' shards.
+// Only one shard compacts at a time. Uses round-robin over shards for fairness.
 // Uses incremental MigrateBatch for non-blocking compaction.
 type Scheduler struct {
 	pools  []*Pool
+	units  []schedUnit
 	config SchedulerConfig
 
-	mu         sync.Mutex
-	lastIndex  int   // round-robin cursor
-	activePool *Pool // pool currently being compacted
+	mu        sync.Mutex
+	lastIndex int        // round-robin cursor over units
+	active    *schedUnit // shard currently being compacted
 }
 
 // NewScheduler creates a scheduler for the given pools.
@@ -52,8 +62,17 @@ func NewScheduler(pools []*Pool, config SchedulerConfig) *Scheduler {
 		config.MigrateBatchSize = 100
 	}
 
+	// Flatten every pool's shards into independent compaction units.
+	var units []schedUnit
+	for _, p := range pools {
+		for i := range p.shards {
+			units = append(units, schedUnit{pool: p, shard: &p.shards[i]})
+		}
+	}
+
 	return &Scheduler{
 		pools:     pools,
+		units:     units,
 		config:    config,
 		lastIndex: -1,
 	}
@@ -84,69 +103,54 @@ func (s *Scheduler) tick() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Continue active compaction
-	if s.activePool != nil {
-		// Check if any pool has activity - pause if so
-		for _, p := range s.pools {
-			if s.config.QuietPeriod > 0 && !p.IsIdle(s.config.QuietPeriod) {
-				return // Pause compaction during activity
-			}
+	// Continue active compaction.
+	if s.active != nil {
+		// Pause migration while the owning pool is being written. The quiet gate
+		// stays at pool granularity: compaction copies bytes (memory bandwidth,
+		// CPU), so it should stay out of the way during a pool's activity burst,
+		// not just when the one shard it is migrating happens to be quiet. Which
+		// shard to compact is still decided per shard (see deadRatioExceeds); only
+		// the "interfere with live traffic" gate is pool-wide.
+		if s.config.QuietPeriod > 0 && !s.active.pool.IsIdle(s.config.QuietPeriod) {
+			return
 		}
 
-		// Continue migration
-		done := s.activePool.MigrateBatch(s.config.MigrateBatchSize)
-		if done {
-			// Check if old buffer can be freed
-			s.activePool.CheckOldBufferRelease()
-			if s.activePool.State() == PoolNormal {
-				s.activePool = nil
+		sh := s.active.shard
+		if sh.migrateBatch(s.config.MigrateBatchSize) {
+			sh.checkOldBufferRelease()
+			if !sh.isCompacting() {
+				s.active = nil
 			}
 		}
 		return
 	}
 
-	// Find next pool needing compaction (round-robin)
-	n := len(s.pools)
+	// Find next shard needing compaction (round-robin over all units). The dead
+	// ratio is judged per shard (fixing pool-wide dilution); the quiet period is
+	// judged per owning pool (matching the pause gate above). Units are contiguous
+	// per pool (see NewScheduler), so a single-entry cache collapses the repeated
+	// per-pool IsIdle checks to one per pool without allocating.
+	n := len(s.units)
+	var cachedPool *Pool
+	var cachedIdle bool
 	for i := range n {
 		idx := (s.lastIndex + 1 + i) % n
-		p := s.pools[idx]
+		u := &s.units[idx]
 
-		if s.shouldCompactLocked(p) {
+		if s.config.QuietPeriod > 0 {
+			if u.pool != cachedPool {
+				cachedPool = u.pool
+				cachedIdle = u.pool.IsIdle(s.config.QuietPeriod)
+			}
+			if !cachedIdle {
+				continue
+			}
+		}
+		if u.shard.deadRatioExceeds(s.config.DeadRatioThreshold) {
 			s.lastIndex = idx
-			p.StartCompaction()
-			s.activePool = p
+			u.shard.startCompaction()
+			s.active = u
 			return // Start compaction, will continue in subsequent ticks
 		}
 	}
-}
-
-// shouldCompact returns true if the pool needs and is ready for compaction.
-// Thread-safe.
-func (s *Scheduler) shouldCompact(p *Pool) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.shouldCompactLocked(p)
-}
-
-// shouldCompactLocked checks if pool should be compacted.
-// Caller must hold s.mu.
-func (s *Scheduler) shouldCompactLocked(p *Pool) bool {
-	// Check quiet period
-	if s.config.QuietPeriod > 0 && !p.IsIdle(s.config.QuietPeriod) {
-		return false
-	}
-
-	// Check if pool has dead entries worth compacting
-	m := p.Metrics()
-	if m.DeadSlots == 0 {
-		return false
-	}
-
-	// Check dead ratio threshold
-	if m.TotalSlots > 0 {
-		deadRatio := float64(m.DeadSlots) / float64(m.TotalSlots)
-		return deadRatio >= s.config.DeadRatioThreshold
-	}
-
-	return m.DeadSlots > 0
 }

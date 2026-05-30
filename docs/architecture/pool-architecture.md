@@ -207,7 +207,17 @@ Handles encode buffer bit, pool index, and slot in a 32-bit value:
 |-------|------|-------|---------|
 | BufferBit | 1 | 0-1 | Which buffer contains data |
 | PoolIdx | 5 | 0-30 (31 reserved) | Pool validation |
-| Slot | 26 | 0-67M | Entry index |
+| Slot | 26 | 0-67M | Entry index (shard id + per-shard slot, see Sharding) |
+
+The 26-bit Slot field is itself split: the high 4 bits hold a **shard id** (0-15) and
+the low 22 bits hold the slot index within that shard. `Handle.Slot()` still returns the
+full 26-bit composite value, so external callers treat the handle as opaque; only the
+`attrpool`-internal `shardID()`/`shardSlot()` helpers split it. See [Sharding](#sharding).
+
+```
+Slot (26 bits) = ┌ shardID (4 bits) ┬ per-shard slot (22 bits) ┐
+                  25              22  21                       0
+```
 
 **Implementation** (`internal/component/bgp/attrpool/handle.go`):
 <!-- source: internal/component/bgp/attrpool/handle.go -- Handle type -->
@@ -257,18 +267,40 @@ InvalidHandle:    0xFFFFFFFF (poolIdx = 31)
 
 ## Pool Structure
 
+A `Pool` is sharded into a per-pool number of independent sub-pools, chosen at
+construction in the range `1..numShards` (16) (see [Sharding](#sharding)). The per-pool
+state that used to live directly on `Pool` (lock, dedup index, slot table, free list,
+double buffer, compaction cursor, activity and metrics counters) now lives on each `shard`.
+`Pool` keeps the immutable pool index, the shared shutdown flag, and the shard mask used
+to select a shard from a content hash.
+
 ```go
 type Pool struct {
-    mu sync.RWMutex
-
     // Pool index for handle encoding (0-30, 31 reserved for InvalidHandle)
     idx uint8
+
+    // Shutdown state (shared by all shards)
+    shutdown atomic.Bool
+
+    // shardMask = len(shards)-1; selects a shard with a single AND
+    shardMask uint32
+
+    // Independent sub-pools selected by shardOf(data, shardMask)
+    shards []shard
+}
+
+type shard struct {
+    mu sync.RWMutex
+
+    id       uint32       // shard index, packed into handle Slot high bits
+    idx      uint8        // owning pool index, for handle encoding/validation
+    shutdown *atomic.Bool // owning pool's shutdown flag (shared across shards)
 
     // Double buffer - alternates between compaction cycles
     buffers [2]buffer
     currentBit uint32  // 0 or 1 - which buffer is current
 
-    // Slot table - indexed by handle.Slot()
+    // Slot table - indexed by handle.shardSlot() (low 22 bits of Slot)
     slots []slot
 
     // Free list for slot reuse
@@ -287,11 +319,8 @@ type Pool struct {
     lastActivity atomic.Int64
 
     // Metrics counters
-    internTotal atomic.Int64  // total Intern() calls
+    internTotal atomic.Int64  // total Intern() calls routed here
     internHits  atomic.Int64  // deduplication hits
-
-    // Shutdown state
-    shutdown atomic.Bool
 }
 
 type buffer struct {
@@ -315,6 +344,74 @@ const (
 )
 ```
 <!-- source: internal/component/bgp/attrpool/pool.go -- Pool struct -->
+
+---
+
+## Sharding
+
+`Intern` is called concurrently from every per-peer goroutine (and once per path
+attribute on the UPDATE path). With a single `sync.RWMutex` per pool, profiling on a
+16-core box showed the write path fully serialized on that one lock and the read path
+bottlenecked on the `RWMutex` reader-count word (one contended cache line). To remove
+both, each `Pool` is split into a per-pool number of independent shards.
+
+| Constant | Value | Meaning |
+|----------|-------|---------|
+| `numShards` | 16 | maximum/default shard count per logical pool (`1 << shardIDBits`) |
+| `shardIDBits` | 4 | high bits of the 26-bit Slot field that hold the shard id |
+| `shardSlotBits` | 22 | low bits of Slot indexing within a shard |
+| `MaxSlotsPerShard` | 4,194,304 | per-shard slot capacity (`1 << shardSlotBits`) |
+| `MaxSlots` | 67,108,864 | aggregate at the max shard count (`numShards * MaxSlotsPerShard`) |
+
+**Per-pool shard count.** The shard count is fixed at construction:
+`NewWithShards(idx, capacity, shards)` accepts any power of two in `1..numShards`;
+`New`/`NewWithIdx` default to `numShards`. Content-hash sharding only relieves `Intern`
+lock contention when a pool's *hot* values are diverse enough to spread across shards. A
+pool dominated by a few values (ORIGIN has three; ATOMIC_AGGREGATE is a single zero-length
+flag) has its hot value monopolize one shard, gaining nothing while paying fixed per-shard
+overhead, so those pools are created with **1 shard**. A 1-shard pool is exactly the
+pre-sharding single-lock pool: one lock, one index, one buffer, shard id always 0. High
+cardinality, per-route attributes (AS_PATH, communities, MED, next-hop, labels, the wire
+RibOut blobs) use the full `numShards`. The per-attribute split lives in
+`internal/component/bgp/plugins/rib/pool`.
+
+**Shard selection.** `shardOf(data, mask)` is an allocation-free FNV-1a hash of the bytes,
+xor-folded (high half into low) and masked with the pool's `shardMask` (`len(shards)-1`).
+The fold matters because FNV-1a's final step is a multiply, whose low bits carry the
+weakest mixing; masking them directly would skew distribution. Because selection depends
+only on content, identical bytes always map to the same shard, which is what preserves the
+global deduplication guarantee. The shard id is then packed into the high 4 bits of the
+handle's Slot field, so `Get`/`Release` decode it (`Handle.shardID()`) to route a handle
+back to the shard that owns it; within the shard the low 22 bits (`Handle.shardSlot()`)
+index the slot table. Routing bounds-checks the decoded shard id against `len(shards)`, so
+a stray or foreign handle returns `ErrWrongPool`/`ErrSlotOutOfBounds` instead of indexing
+out of range (a fixed `[16]shard` array gave this for free; a variable-length slice does not).
+
+**Concurrency.** Each shard owns its own `RWMutex`, dedup index, slot table and double
+buffer, so writes to different shards proceed in parallel and each shard's reader-count
+word sits on its own cache line. `Metrics()` sums per-shard counters; `IsIdle` is true
+only when every shard is idle; `Touch` marks all shards.
+
+**Compaction is decided per shard, gated per pool.** The `Scheduler` round-robins over
+`(pool, shard)` units, not whole pools, and compacts one shard at a time. *Which* shard is
+chosen is decided by that shard's own dead ratio (`deadRatioExceeds`), so a single
+heavily-fragmented shard is never starved by a low pool-wide average. *Whether* to run is
+gated by the owning pool's quiet period (`Pool.IsIdle`): compaction copies bytes, so it
+stays out of the way during a pool's activity burst rather than only when the one shard it
+is migrating is quiet. The dead-ratio check has an O(1) fast path (an empty free list means
+no dead slots) so the per-tick scan over many shards stays cheap.
+`StartCompaction`/`MigrateBatch`/`Compact`/`CheckOldBufferRelease` still exist as pool-level
+fan-outs (each shard takes only its own lock); `State()` reports `PoolCompacting` if any
+shard is compacting. Handles stay valid throughout because a shard frees an old buffer only
+once its reference count reaches zero.
+
+The Handle ABI is unchanged (still 32 bits; `PoolIdx`/`BufferBit`/`Slot`/`IsValid` keep
+their meaning), so external callers, the wire/storage layers, and `BundlePool` (which
+builds its own handles via `NewHandle` and never routes through the sharded `Intern`) are
+all unaffected.
+
+<!-- source: internal/component/bgp/attrpool/pool.go -- shard struct, shardOf, numShards -->
+<!-- source: internal/component/bgp/attrpool/handle.go -- shardID, shardSlot, packShardSlot -->
 
 ---
 
@@ -742,8 +839,9 @@ func (h Handle) IsValid() bool
 func (h Handle) WithBufferBit(bit uint32) Handle
 
 // Pool creation
-func New(initialCapacity int) *Pool
-func NewWithIdx(idx uint8, initialCapacity int) *Pool
+func New(initialCapacity int) *Pool                                    // idx 0, default shard count
+func NewWithIdx(idx uint8, initialCapacity int) (*Pool, error)         // default shard count
+func NewWithShards(idx uint8, initialCapacity, shards int) (*Pool, error) // shards: power of two, 1..16
 
 // Core operations
 func (p *Pool) Intern(data []byte) Handle

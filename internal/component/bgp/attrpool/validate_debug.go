@@ -7,23 +7,24 @@ package attrpool
 import "fmt"
 
 // validateHandle checks handle validity in debug builds.
+// Operates within a single shard; the handle's per-shard slot indexes s.slots.
 // Returns error if invalid, with detailed message for debugging.
-func (p *Pool) validateHandle(h Handle) error {
+func (s *shard) validateHandle(h Handle) error {
 	if !h.IsValid() {
 		return fmt.Errorf("%w: handle=%d", ErrInvalidHandle, h)
 	}
 
-	if h.PoolIdx() != p.idx {
-		return fmt.Errorf("%w: handle pool=%d, this pool=%d", ErrWrongPool, h.PoolIdx(), p.idx)
+	if h.PoolIdx() != s.idx {
+		return fmt.Errorf("%w: handle pool=%d, this pool=%d", ErrWrongPool, h.PoolIdx(), s.idx)
 	}
 
-	slot := h.Slot()
-	if int(slot) >= len(p.slots) {
-		return fmt.Errorf("%w: slot=%d, max=%d", ErrSlotOutOfBounds, slot, len(p.slots))
+	slot := h.shardSlot()
+	if int(slot) >= len(s.slots) {
+		return fmt.Errorf("%w: slot=%d, max=%d", ErrSlotOutOfBounds, slot, len(s.slots))
 	}
 
-	s := &p.slots[slot]
-	if s.dead {
+	sl := &s.slots[slot]
+	if sl.dead {
 		return fmt.Errorf("%w: slot=%d", ErrSlotDead, slot)
 	}
 
@@ -32,21 +33,21 @@ func (p *Pool) validateHandle(h Handle) error {
 
 // validateHandleForRelease checks handle validity for Release.
 // Returns ErrSlotDead if already released (prevents double-release corruption).
-func (p *Pool) validateHandleForRelease(h Handle) error {
+func (s *shard) validateHandleForRelease(h Handle) error {
 	if !h.IsValid() {
 		return fmt.Errorf("%w: handle=%d", ErrInvalidHandle, h)
 	}
 
-	if h.PoolIdx() != p.idx {
-		return fmt.Errorf("%w: handle pool=%d, this pool=%d", ErrWrongPool, h.PoolIdx(), p.idx)
+	if h.PoolIdx() != s.idx {
+		return fmt.Errorf("%w: handle pool=%d, this pool=%d", ErrWrongPool, h.PoolIdx(), s.idx)
 	}
 
-	slot := h.Slot()
-	if int(slot) >= len(p.slots) {
-		return fmt.Errorf("%w: slot=%d, max=%d", ErrSlotOutOfBounds, slot, len(p.slots))
+	slot := h.shardSlot()
+	if int(slot) >= len(s.slots) {
+		return fmt.Errorf("%w: slot=%d, max=%d", ErrSlotOutOfBounds, slot, len(s.slots))
 	}
 
-	if p.slots[slot].dead {
+	if s.slots[slot].dead {
 		return fmt.Errorf("%w: slot=%d (double-release)", ErrSlotDead, slot)
 	}
 

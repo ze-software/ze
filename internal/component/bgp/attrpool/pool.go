@@ -30,19 +30,44 @@ var ErrSlotOutOfBounds = errors.New("handle slot out of bounds")
 // ErrSlotDead is returned when handle references a released slot.
 var ErrSlotDead = errors.New("handle references dead slot")
 
-// ErrPoolFull is returned when pool has reached MaxSlots limit.
-var ErrPoolFull = errors.New("pool has reached maximum slot count (16,777,215)")
+// ErrPoolFull is returned when a shard has reached MaxSlotsPerShard.
+var ErrPoolFull = errors.New("pool shard has reached maximum slot count (4,194,304 per shard)")
 
 // ErrInvalidIdx is returned when pool idx is >= 31 (reserved for InvalidHandle).
 var ErrInvalidIdx = errors.New("pool idx must be 0-30 (31 reserved for InvalidHandle)")
+
+// ErrInvalidShardCount is returned when a requested shard count is not a power
+// of two in the range 1..numShards.
+var ErrInvalidShardCount = errors.New("shard count must be a power of two between 1 and 16")
 
 // MaxDataLength is the maximum length of data that can be interned.
 // Limited by uint16 length field in slot struct.
 const MaxDataLength = 65535
 
-// MaxSlots is the maximum number of slots per pool.
-// Limited by 24-bit slot field in Handle.
-const MaxSlots = 0xFFFFFF // 16,777,215
+// numShards is the maximum (and default) number of independent sub-pools per
+// logical Pool. Each shard owns its own lock, dedup index, slot table and double
+// buffer, so concurrent Intern/Get to different shards proceed in parallel and
+// each shard's RWMutex reader-count word lives on its own cache line.
+//
+// The per-pool shard count is chosen at construction (NewWithShards) and may be
+// any power of two in 1..numShards. numShards is the ceiling because the shard
+// id is carved from shardIDBits (handle.go) of the Slot space. A pool created
+// with 1 shard degenerates to the pre-sharding single-lock behavior (one lock,
+// one index, one buffer, shard id always 0) with no extra fixed overhead, which
+// is preferable for low-cardinality pools (e.g. ORIGIN) whose few hot values
+// would monopolize a single shard and gain nothing from sharding.
+const numShards = 1 << shardIDBits // 16
+
+// MaxSlotsPerShard is the maximum number of slots in a single shard.
+// Limited by the 22-bit per-shard slot sub-field of Handle.
+const MaxSlotsPerShard = shardSlotMask + 1 // 4,194,304
+
+// MaxSlots is the maximum number of slots per logical pool, aggregated across
+// the maximum shard count. With 16 shards of 22-bit slot space this is
+// 67,108,864, which exceeds the pre-sharding 24-bit limit (16,777,215). A pool
+// configured with fewer shards has a proportionally smaller aggregate capacity
+// (shardCount * MaxSlotsPerShard); a 1-shard pool holds up to MaxSlotsPerShard.
+const MaxSlots = numShards * MaxSlotsPerShard // 67,108,864
 
 // PoolState indicates the current compaction state.
 type PoolState int
@@ -61,16 +86,25 @@ type buffer struct {
 	refCount atomic.Int32 // Number of handles pointing to this buffer
 }
 
-// Pool provides zero-copy byte slice deduplication for BGP attributes and NLRI.
-//
-// Thread-safe. Uses reference counting for lifecycle management.
-// Designed for high-frequency access patterns with many duplicate entries.
-// Uses double-buffer design for non-blocking incremental compaction.
-type Pool struct {
+// slot tracks a single interned entry.
+type slot struct {
+	offsets  [2]uint32 // offset in EACH buffer (both valid during compaction)
+	length   uint16    // data length
+	refCount int32     // reference count
+	dead     bool      // marked for removal
+}
+
+// shard is one independent sub-pool. It holds the full per-pool state (lock,
+// dedup index, slot table, free list, double buffer and compaction cursor) that
+// before sharding lived directly on Pool. A handle's shard id (high bits of its
+// Slot field) selects which shard owns it; within the shard the low 22 bits of
+// Slot index the slot table.
+type shard struct {
 	mu sync.RWMutex
 
-	// Pool index for handle encoding (0-30, 31 reserved for InvalidHandle)
-	idx uint8
+	id       uint32       // shard index, packed into handle Slot high bits
+	idx      uint8        // owning pool index, for handle encoding/validation
+	shutdown *atomic.Bool // owning pool's shutdown flag (shared across shards)
 
 	// Double buffer - alternates between compaction cycles
 	buffers    [2]buffer
@@ -81,7 +115,7 @@ type Pool struct {
 	compactCursor    uint32 // Migration progress (slot index)
 	compactSlotCount uint32 // Slot count when compaction started (don't migrate new slots)
 
-	// Slot table - indexed by handle's slot portion
+	// Slot table - indexed by handle's per-shard slot portion
 	slots []slot
 
 	// Free list for slot reuse
@@ -95,63 +129,144 @@ type Pool struct {
 	lastActivity atomic.Int64 // Unix nano timestamp
 
 	// Metrics counters
-	internTotal atomic.Int64 // total Intern() calls
-	internHits  atomic.Int64 // Intern() calls that hit existing entry
+	internTotal atomic.Int64 // total Intern() calls routed to this shard
+	internHits  atomic.Int64 // Intern() calls that hit an existing entry
+}
 
-	// Shutdown state
+// Pool provides zero-copy byte slice deduplication for BGP attributes and NLRI.
+//
+// Thread-safe. Uses reference counting for lifecycle management.
+// Designed for high-frequency access patterns with many duplicate entries.
+// Uses double-buffer design for non-blocking incremental compaction.
+//
+// Internally a Pool is sharded into 1..numShards independent sub-pools selected
+// by a content hash of the interned bytes; the count is fixed at construction.
+// Sharding is invisible to callers: the Handle ABI, global deduplication,
+// reference counting and incremental compaction semantics are unchanged. A
+// 1-shard pool behaves exactly like the pre-sharding single-lock pool.
+type Pool struct {
+	// Pool index for handle encoding (0-30, 31 reserved for InvalidHandle)
+	idx uint8
+
+	// Shutdown state (shared by all shards)
 	shutdown atomic.Bool
+
+	// shardMask = len(shards)-1; selects a shard from a content hash with a
+	// single AND. len(shards) is a power of two in 1..numShards.
+	shardMask uint32
+
+	// Independent sub-pools selected by shardOf(data, shardMask).
+	shards []shard
 }
 
-// slot tracks a single interned entry.
-type slot struct {
-	offsets  [2]uint32 // offset in EACH buffer (both valid during compaction)
-	length   uint16    // data length
-	refCount int32     // reference count
-	dead     bool      // marked for removal
-}
-
-// New creates a pool with idx=0 and the given initial buffer capacity.
-// For pools with specific idx, use NewWithIdx.
+// New creates a pool with idx=0, the default shard count, and the given initial
+// buffer capacity. For pools with specific idx, use NewWithIdx; to choose the
+// shard count, use NewWithShards.
 func New(initialCapacity int) *Pool {
-	p, _ := NewWithIdx(0, initialCapacity) // idx=0 is always valid
+	p, _ := NewWithShards(0, initialCapacity, numShards) // idx=0, default shards
 	return p
 }
 
-// NewWithIdx creates a pool with the given index and initial buffer capacity.
+// NewWithIdx creates a pool with the given index, the default shard count, and
+// the given initial buffer capacity.
 // idx must be 0-30 (31 is reserved for InvalidHandle).
 // Returns ErrInvalidIdx if idx >= 31.
 func NewWithIdx(idx uint8, initialCapacity int) (*Pool, error) {
+	return NewWithShards(idx, initialCapacity, numShards)
+}
+
+// NewWithShards creates a pool with the given index, initial buffer capacity and
+// shard count. shards must be a power of two in 1..numShards (16); shards=1
+// gives the pre-sharding single-lock pool with no extra fixed overhead, suited
+// to low-cardinality pools whose hot values cannot spread across shards.
+//
+// idx must be 0-30 (31 is reserved for InvalidHandle); returns ErrInvalidIdx
+// otherwise, or ErrInvalidShardCount for an invalid shard count.
+//
+// initialCapacity is the total starting buffer capacity for the logical pool;
+// it is divided across the shards (each shard gets at least 64 bytes).
+func NewWithShards(idx uint8, initialCapacity, shards int) (*Pool, error) {
 	if idx >= 31 {
 		return nil, ErrInvalidIdx
 	}
-	if initialCapacity < 64 {
-		initialCapacity = 64
+	if shards < 1 || shards > numShards || shards&(shards-1) != 0 {
+		return nil, ErrInvalidShardCount
 	}
-	p := &Pool{
-		idx:        idx,
-		currentBit: 0,
-		state:      PoolNormal,
-		slots:      make([]slot, 0, 64),
-		index:      make(map[string]Handle, 64),
+
+	perShardCapacity := max(initialCapacity/shards, 64)
+
+	p := &Pool{idx: idx, shardMask: uint32(shards - 1)}
+	p.shards = make([]shard, shards)
+	for i := range p.shards {
+		s := &p.shards[i]
+		s.id = uint32(i)
+		s.idx = idx
+		s.shutdown = &p.shutdown
+		s.currentBit = 0
+		s.state = PoolNormal
+		s.slots = make([]slot, 0, 64)
+		s.index = make(map[string]Handle, 64)
+		// Initialize buffer 0 (currentBit starts at 0)
+		s.buffers[0].data = make([]byte, 0, perShardCapacity)
 	}
-	// Initialize buffer 0 (currentBit starts at 0)
-	p.buffers[0].data = make([]byte, 0, initialCapacity)
 	return p, nil
 }
 
-// Touch marks the pool as recently active.
-// Used by scheduler to determine when compaction is safe.
-func (p *Pool) Touch() {
-	p.lastActivity.Store(time.Now().UnixNano())
+// shardOf selects a shard for the given bytes using an allocation-free FNV-1a
+// hash folded and masked to the shard count. Identical bytes always select the
+// same shard, which is what preserves the global deduplication guarantee.
+//
+// FNV-1a's final step is a multiply, so its low bits carry the weakest mixing;
+// masking them directly would skew distribution for inputs that differ mainly in
+// their high bits. A single xor-fold of the high half into the low half before
+// masking restores avalanche at negligible cost.
+func shardOf(data []byte, mask uint32) uint32 {
+	const (
+		offset32 = 2166136261
+		prime32  = 16777619
+	)
+	h := uint32(offset32)
+	for _, b := range data {
+		h ^= uint32(b)
+		h *= prime32
+	}
+	h ^= h >> 16
+	return h & mask
 }
 
-// IsIdle returns true if the pool has been inactive for the given duration.
-func (p *Pool) IsIdle(d time.Duration) bool {
-	last := p.lastActivity.Load()
-	if last == 0 {
-		return true // Never used
+// shardForHandle returns the shard that owns the given handle, or ErrWrongPool
+// if the handle's shard id is outside this pool's shard range. A valid handle
+// minted by this pool always has shardID < len(shards) (shardOf masks with
+// shardMask), so an out-of-range id means the handle is foreign or corrupt.
+// Bounds-checking here keeps a stray handle from panicking on shards[] before
+// validateHandle runs.
+func (p *Pool) shardForHandle(h Handle) (*shard, error) {
+	sid := h.shardID()
+	if sid >= uint32(len(p.shards)) {
+		return nil, ErrWrongPool
 	}
-	return time.Since(time.Unix(0, last)) >= d
+	return &p.shards[sid], nil
+}
+
+// Touch marks every shard as recently active.
+// Used by scheduler to determine when compaction is safe.
+func (p *Pool) Touch() {
+	now := time.Now().UnixNano()
+	for i := range p.shards {
+		p.shards[i].lastActivity.Store(now)
+	}
+}
+
+// IsIdle returns true if every shard has been inactive for the given duration.
+func (p *Pool) IsIdle(d time.Duration) bool {
+	cutoff := time.Now().Add(-d).UnixNano()
+	for i := range p.shards {
+		last := p.shards[i].lastActivity.Load()
+		if last != 0 && last > cutoff {
+			return false // a shard was active more recently than the cutoff
+		}
+	}
+	return true
 }
 
 // Intern stores data in the pool with deduplication.
@@ -159,14 +274,8 @@ func (p *Pool) IsIdle(d time.Duration) bool {
 // If identical data already exists, increments refCount and returns existing handle.
 // Returns ErrPoolShutdown if pool is shutdown.
 // Returns ErrDataTooLarge if data exceeds MaxDataLength (65535 bytes).
-// Returns ErrPoolFull if pool has reached MaxSlots (16,777,215).
+// Returns ErrPoolFull if the owning shard has reached MaxSlotsPerShard.
 func (p *Pool) Intern(data []byte) (Handle, error) {
-	return p.internLocked(data)
-}
-
-// internLocked performs the actual intern operation under lock.
-// Returns error instead of panicking.
-func (p *Pool) internLocked(data []byte) (Handle, error) {
 	// Treat nil as empty
 	if data == nil {
 		data = []byte{}
@@ -177,27 +286,32 @@ func (p *Pool) internLocked(data []byte) (Handle, error) {
 		return InvalidHandle, ErrDataTooLarge
 	}
 
+	return p.shards[shardOf(data, p.shardMask)].intern(data)
+}
+
+// intern performs the actual intern operation within a single shard.
+func (s *shard) intern(data []byte) (Handle, error) {
 	lookupKey := bytesToString(data)
 
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	// Check shutdown under lock
-	if p.shutdown.Load() {
+	if s.shutdown.Load() {
 		return InvalidHandle, ErrPoolShutdown
 	}
 
 	// Track metrics
-	p.internTotal.Add(1)
+	s.internTotal.Add(1)
 
 	// Check for existing entry (deduplication)
 	// Index always contains handles with currentBit
-	if h, ok := p.index[lookupKey]; ok {
-		s := &p.slots[h.Slot()]
-		if !s.dead && s.refCount > 0 {
-			s.refCount++
-			p.buffers[h.BufferBit()].refCount.Add(1)
-			p.internHits.Add(1) // Deduplication hit
+	if h, ok := s.index[lookupKey]; ok {
+		sl := &s.slots[h.shardSlot()]
+		if !sl.dead && sl.refCount > 0 {
+			sl.refCount++
+			s.buffers[h.BufferBit()].refCount.Add(1)
+			s.internHits.Add(1) // Deduplication hit
 			return h, nil
 		}
 	}
@@ -205,18 +319,18 @@ func (p *Pool) internLocked(data []byte) (Handle, error) {
 	// Mark activity only on new entry creation, not dedup hits.
 	// Dedup hits don't change pool structure, so compaction scheduling
 	// (which uses IsIdle) doesn't need to see them as activity.
-	p.lastActivity.Store(time.Now().UnixNano())
+	s.lastActivity.Store(time.Now().UnixNano())
 
 	// Check slot limit under lock (no race)
-	if len(p.slots) >= MaxSlots && len(p.freeSlots) == 0 {
+	if len(s.slots) >= MaxSlotsPerShard && len(s.freeSlots) == 0 {
 		return InvalidHandle, ErrPoolFull
 	}
 
 	// Allocate new entry in current buffer
-	bufIdx := p.currentBit
-	buf := &p.buffers[bufIdx]
+	bufIdx := s.currentBit
+	buf := &s.buffers[bufIdx]
 
-	p.ensureCapacity(len(data))
+	s.ensureCapacity(len(data))
 
 	offset := uint32(buf.pos)
 	buf.data = append(buf.data, data...)
@@ -224,34 +338,34 @@ func (p *Pool) internLocked(data []byte) (Handle, error) {
 
 	// Allocate or reuse slot
 	var slotIdx uint32
-	if len(p.freeSlots) > 0 {
-		slotIdx = p.freeSlots[len(p.freeSlots)-1]
-		p.freeSlots = p.freeSlots[:len(p.freeSlots)-1]
-		s := &p.slots[slotIdx]
-		s.offsets[bufIdx] = offset
-		s.length = uint16(len(data))
-		s.refCount = 1
-		s.dead = false
+	if len(s.freeSlots) > 0 {
+		slotIdx = s.freeSlots[len(s.freeSlots)-1]
+		s.freeSlots = s.freeSlots[:len(s.freeSlots)-1]
+		sl := &s.slots[slotIdx]
+		sl.offsets[bufIdx] = offset
+		sl.length = uint16(len(data))
+		sl.refCount = 1
+		sl.dead = false
 	} else {
-		slotIdx = uint32(len(p.slots))
+		slotIdx = uint32(len(s.slots))
 		newSlot := slot{
 			length:   uint16(len(data)),
 			refCount: 1,
 			dead:     false,
 		}
 		newSlot.offsets[bufIdx] = offset
-		p.slots = append(p.slots, newSlot)
+		s.slots = append(s.slots, newSlot)
 	}
 
-	// Create handle with pool idx and buffer bit encoded
-	h := NewHandleWithBuffer(bufIdx, p.idx, slotIdx)
+	// Create handle with pool idx, shard id and buffer bit encoded
+	h := NewHandleWithBuffer(bufIdx, s.idx, packShardSlot(s.id, slotIdx))
 
 	// Track buffer reference
 	buf.refCount.Add(1)
 
 	// Index with key pointing to buffer memory (zero-copy)
 	bufferKey := bytesToString(buf.data[offset : offset+uint32(len(data))])
-	p.index[bufferKey] = h
+	s.index[bufferKey] = h
 
 	return h, nil
 }
@@ -261,65 +375,89 @@ func (p *Pool) internLocked(data []byte) (Handle, error) {
 // The returned slice is only valid while the handle is live.
 // Returns error if handle is invalid, from wrong pool, or references dead slot.
 func (p *Pool) Get(h Handle) ([]byte, error) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	s, err := p.shardForHandle(h)
+	if err != nil {
+		return nil, err
+	}
+	return s.get(h)
+}
 
-	if err := p.validateHandle(h); err != nil {
+func (s *shard) get(h Handle) ([]byte, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if err := s.validateHandle(h); err != nil {
 		return nil, err
 	}
 
 	bufIdx := h.BufferBit()
-	slotIdx := h.Slot()
-	s := &p.slots[slotIdx]
-	offset := s.offsets[bufIdx]
-	return p.buffers[bufIdx].data[offset : offset+uint32(s.length)], nil
+	slotIdx := h.shardSlot()
+	sl := &s.slots[slotIdx]
+	offset := sl.offsets[bufIdx]
+	return s.buffers[bufIdx].data[offset : offset+uint32(sl.length)], nil
 }
 
 // Length returns the length of data associated with the handle.
 // Returns error if handle is invalid, from wrong pool, or references dead slot.
 func (p *Pool) Length(h Handle) (int, error) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	s, err := p.shardForHandle(h)
+	if err != nil {
+		return 0, err
+	}
+	return s.length(h)
+}
 
-	if err := p.validateHandle(h); err != nil {
+func (s *shard) length(h Handle) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if err := s.validateHandle(h); err != nil {
 		return 0, err
 	}
 
-	return int(p.slots[h.Slot()].length), nil
+	return int(s.slots[h.shardSlot()].length), nil
 }
 
 // Release decrements the reference count for the handle.
 // When refCount reaches zero, the entry is marked dead and eligible for reclamation.
 // Returns error if handle is invalid, from wrong pool, or slot out of bounds.
 func (p *Pool) Release(h Handle) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	s, err := p.shardForHandle(h)
+	if err != nil {
+		return err
+	}
+	return s.release(h)
+}
 
-	if err := p.validateHandleForRelease(h); err != nil {
+func (s *shard) release(h Handle) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := s.validateHandleForRelease(h); err != nil {
 		return err
 	}
 
 	bufIdx := h.BufferBit()
-	slotIdx := h.Slot()
-	s := &p.slots[slotIdx]
+	slotIdx := h.shardSlot()
+	sl := &s.slots[slotIdx]
 
-	s.refCount--
-	p.buffers[bufIdx].refCount.Add(-1)
+	sl.refCount--
+	s.buffers[bufIdx].refCount.Add(-1)
 
-	if s.refCount <= 0 {
-		s.dead = true
+	if sl.refCount <= 0 {
+		sl.dead = true
 
 		// Remove from index - handle may point to either buffer
 		// Must delete to prevent stale entry causing wrong data after slot reuse
-		buf := &p.buffers[bufIdx]
+		buf := &s.buffers[bufIdx]
 		if len(buf.data) > 0 {
-			offset := s.offsets[bufIdx]
-			bufferKey := bytesToString(buf.data[offset : offset+uint32(s.length)])
-			delete(p.index, bufferKey)
+			offset := sl.offsets[bufIdx]
+			bufferKey := bytesToString(buf.data[offset : offset+uint32(sl.length)])
+			delete(s.index, bufferKey)
 		}
 
 		// Add slot to free list for reuse
-		p.freeSlots = append(p.freeSlots, slotIdx)
+		s.freeSlots = append(s.freeSlots, slotIdx)
 	}
 
 	return nil
@@ -341,19 +479,27 @@ func (p *Pool) IsShutdown() bool {
 // Use when sharing a handle between multiple owners.
 // Returns error if handle is invalid or from wrong pool.
 func (p *Pool) AddRef(h Handle) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	s, err := p.shardForHandle(h)
+	if err != nil {
+		return err
+	}
+	return s.addRef(h)
+}
 
-	if err := p.validateHandle(h); err != nil {
+func (s *shard) addRef(h Handle) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := s.validateHandle(h); err != nil {
 		return err
 	}
 
 	bufIdx := h.BufferBit()
-	slotIdx := h.Slot()
-	s := &p.slots[slotIdx]
+	slotIdx := h.shardSlot()
+	sl := &s.slots[slotIdx]
 
-	s.refCount++
-	p.buffers[bufIdx].refCount.Add(1)
+	sl.refCount++
+	s.buffers[bufIdx].refCount.Add(1)
 
 	return nil
 }
@@ -361,168 +507,249 @@ func (p *Pool) AddRef(h Handle) error {
 // GetBySlot returns data for a normalized slot index.
 // Auto-selects the correct buffer based on compaction state.
 // Use when handles are stored normalized (slot only, no bufferBit).
+//
+// slotIdx is the full 26-bit Slot field (shard id in the high bits); it is
+// routed to the owning shard exactly like a handle's slot.
 func (p *Pool) GetBySlot(slotIdx uint32) ([]byte, error) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	shard := (slotIdx >> shardSlotBits) & shardIDMask
+	if shard >= uint32(len(p.shards)) {
+		return nil, ErrSlotOutOfBounds
+	}
+	return p.shards[shard].getBySlot(slotIdx & shardSlotMask)
+}
 
-	if slotIdx >= uint32(len(p.slots)) {
+func (s *shard) getBySlot(localSlot uint32) ([]byte, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if localSlot >= uint32(len(s.slots)) {
 		return nil, ErrSlotOutOfBounds
 	}
 
-	s := &p.slots[slotIdx]
-	if s.dead || s.refCount <= 0 {
+	sl := &s.slots[localSlot]
+	if sl.dead || sl.refCount <= 0 {
 		return nil, ErrSlotDead
 	}
 
 	// Determine correct buffer
-	bufIdx := p.currentBit
-	if p.state == PoolCompacting && slotIdx >= p.compactCursor {
+	bufIdx := s.currentBit
+	if s.state == PoolCompacting && localSlot >= s.compactCursor {
 		// Slot not yet migrated, use old buffer
-		bufIdx = 1 - p.currentBit
+		bufIdx = 1 - s.currentBit
 	}
 
-	offset := s.offsets[bufIdx]
-	return p.buffers[bufIdx].data[offset : offset+uint32(s.length)], nil
+	offset := sl.offsets[bufIdx]
+	return s.buffers[bufIdx].data[offset : offset+uint32(sl.length)], nil
 }
 
 // ReleaseBySlot decrements reference count for a normalized slot index.
 // Auto-selects the correct buffer based on compaction state.
 // Use when handles are stored normalized (slot only, no bufferBit).
 func (p *Pool) ReleaseBySlot(slotIdx uint32) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	shard := (slotIdx >> shardSlotBits) & shardIDMask
+	if shard >= uint32(len(p.shards)) {
+		return ErrSlotOutOfBounds
+	}
+	return p.shards[shard].releaseBySlot(slotIdx & shardSlotMask)
+}
 
-	if slotIdx >= uint32(len(p.slots)) {
+func (s *shard) releaseBySlot(localSlot uint32) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if localSlot >= uint32(len(s.slots)) {
 		return ErrSlotOutOfBounds
 	}
 
-	s := &p.slots[slotIdx]
+	sl := &s.slots[localSlot]
 
 	// Determine correct buffer
-	bufIdx := p.currentBit
-	if p.state == PoolCompacting && slotIdx >= p.compactCursor {
-		bufIdx = 1 - p.currentBit
+	bufIdx := s.currentBit
+	if s.state == PoolCompacting && localSlot >= s.compactCursor {
+		bufIdx = 1 - s.currentBit
 	}
 
-	s.refCount--
-	p.buffers[bufIdx].refCount.Add(-1)
+	sl.refCount--
+	s.buffers[bufIdx].refCount.Add(-1)
 
-	if s.refCount <= 0 {
-		s.dead = true
+	if sl.refCount <= 0 {
+		sl.dead = true
 
 		// Remove from index - must delete to prevent stale entry after slot reuse
-		buf := &p.buffers[bufIdx]
+		buf := &s.buffers[bufIdx]
 		if len(buf.data) > 0 {
-			offset := s.offsets[bufIdx]
-			bufferKey := bytesToString(buf.data[offset : offset+uint32(s.length)])
-			delete(p.index, bufferKey)
+			offset := sl.offsets[bufIdx]
+			bufferKey := bytesToString(buf.data[offset : offset+uint32(sl.length)])
+			delete(s.index, bufferKey)
 		}
 
-		p.freeSlots = append(p.freeSlots, slotIdx)
+		s.freeSlots = append(s.freeSlots, localSlot)
 	}
 
 	return nil
 }
 
 // State returns the current compaction state.
+// Reports PoolCompacting if any shard is compacting.
 func (p *Pool) State() PoolState {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return p.state
+	for i := range p.shards {
+		if p.shards[i].isCompacting() {
+			return PoolCompacting
+		}
+	}
+	return PoolNormal
 }
 
-// StartCompaction begins incremental compaction.
-// Allocates new buffer and sets state to PoolCompacting.
+func (s *shard) isCompacting() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state == PoolCompacting
+}
+
+// deadRatioExceeds reports whether this shard is fragmented enough to be worth
+// compacting: its dead-slot ratio meets threshold. The dead/total definition
+// matches Metrics (DeadSlots = dead slots whose bytes still occupy the buffer;
+// TotalSlots = len(slots)), so per-shard scheduling matches observable metrics.
+// Deciding per shard avoids the dilution where one heavily-fragmented shard
+// hides below a pool-wide average and never gets compacted.
+//
+// Fast path: every slot released to zero is pushed onto freeSlots, so an empty
+// free list means there are no dead slots and the O(slots) walk is skipped. This
+// keeps the scheduler's per-tick scan over many shards cheap when shards are
+// clean (the common case).
+func (s *shard) deadRatioExceeds(threshold float64) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if len(s.freeSlots) == 0 {
+		return false // no released slots → nothing dead to reclaim
+	}
+
+	total := len(s.slots)
+	if total == 0 {
+		return false
+	}
+
+	dead := 0
+	for i := range s.slots {
+		sl := &s.slots[i]
+		if (sl.dead || sl.refCount <= 0) && sl.length > 0 {
+			dead++
+		}
+	}
+	if dead == 0 {
+		return false
+	}
+	return float64(dead)/float64(total) >= threshold
+}
+
+// StartCompaction begins incremental compaction on every shard.
+// Allocates new buffers and sets state to PoolCompacting.
 // Call MigrateBatch() repeatedly until it returns true.
 func (p *Pool) StartCompaction() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	for i := range p.shards {
+		p.shards[i].startCompaction()
+	}
+}
 
-	if p.state == PoolCompacting {
+func (s *shard) startCompaction() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.state == PoolCompacting {
 		return // Already compacting
 	}
 
 	// Count live bytes for new buffer sizing
 	var liveBytes int64
-	for i := range p.slots {
-		s := &p.slots[i]
-		if !s.dead && s.refCount > 0 {
-			liveBytes += int64(s.length)
+	for i := range s.slots {
+		sl := &s.slots[i]
+		if !sl.dead && sl.refCount > 0 {
+			liveBytes += int64(sl.length)
 		}
 	}
 
 	// Flip to new buffer
-	oldBit := p.currentBit
+	oldBit := s.currentBit
 	newBit := 1 - oldBit
-	p.currentBit = newBit
+	s.currentBit = newBit
 
 	// Allocate new buffer with headroom
 	newSize := max(liveBytes+liveBytes/4, 64)
-	p.buffers[newBit].data = make([]byte, 0, newSize)
-	p.buffers[newBit].pos = 0
-	p.buffers[newBit].refCount.Store(0)
+	s.buffers[newBit].data = make([]byte, 0, newSize)
+	s.buffers[newBit].pos = 0
+	s.buffers[newBit].refCount.Store(0)
 
-	p.state = PoolCompacting
-	p.compactCursor = 0
-	p.compactSlotCount = uint32(len(p.slots)) // Only migrate slots that existed at start
+	s.state = PoolCompacting
+	s.compactCursor = 0
+	s.compactSlotCount = uint32(len(s.slots)) // Only migrate slots that existed at start
 }
 
-// MigrateBatch migrates a batch of slots to the new buffer.
-// Returns true when migration is complete.
-// Call repeatedly until it returns true, then old buffer will be freed
-// when its refCount reaches 0.
+// MigrateBatch migrates a batch of slots per shard to the new buffer.
+// Returns true only when every shard's migration is complete.
+// Call repeatedly until it returns true.
 func (p *Pool) MigrateBatch(batchSize int) bool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	done := true
+	for i := range p.shards {
+		if !p.shards[i].migrateBatch(batchSize) {
+			done = false
+		}
+	}
+	return done
+}
 
-	if p.state != PoolCompacting {
+func (s *shard) migrateBatch(batchSize int) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.state != PoolCompacting {
 		return true
 	}
 
-	oldBit := 1 - p.currentBit
-	newBit := p.currentBit
-	oldBuf := &p.buffers[oldBit]
-	newBuf := &p.buffers[newBit]
+	oldBit := 1 - s.currentBit
+	newBit := s.currentBit
+	oldBuf := &s.buffers[oldBit]
+	newBuf := &s.buffers[newBit]
 
 	migrated := 0
-	for p.compactCursor < p.compactSlotCount && migrated < batchSize {
-		s := &p.slots[p.compactCursor]
+	for s.compactCursor < s.compactSlotCount && migrated < batchSize {
+		sl := &s.slots[s.compactCursor]
 
-		if !s.dead && s.refCount > 0 {
+		if !sl.dead && sl.refCount > 0 {
 			// Copy data from old buffer to new buffer
-			oldOffset := s.offsets[oldBit]
-			oldData := oldBuf.data[oldOffset : oldOffset+uint32(s.length)]
+			oldOffset := sl.offsets[oldBit]
+			oldData := oldBuf.data[oldOffset : oldOffset+uint32(sl.length)]
 
 			newOffset := uint32(newBuf.pos)
 			newBuf.data = append(newBuf.data, oldData...)
-			newBuf.pos += int(s.length)
+			newBuf.pos += int(sl.length)
 
-			s.offsets[newBit] = newOffset
+			sl.offsets[newBit] = newOffset
 
 			// Update index with new handle
 			oldKey := bytesToString(oldData)
-			delete(p.index, oldKey)
+			delete(s.index, oldKey)
 
-			newKey := bytesToString(newBuf.data[newOffset : newOffset+uint32(s.length)])
-			newHandle := NewHandleWithBuffer(newBit, p.idx, p.compactCursor)
-			p.index[newKey] = newHandle
+			newKey := bytesToString(newBuf.data[newOffset : newOffset+uint32(sl.length)])
+			newHandle := NewHandleWithBuffer(newBit, s.idx, packShardSlot(s.id, s.compactCursor))
+			s.index[newKey] = newHandle
 
 			migrated++
 		} else {
 			// Clear dead slot data reference (so Metrics doesn't count as dead)
-			s.offsets[oldBit] = 0
-			s.offsets[newBit] = 0
-			s.length = 0
+			sl.offsets[oldBit] = 0
+			sl.offsets[newBit] = 0
+			sl.length = 0
 		}
 
-		p.compactCursor++
+		s.compactCursor++
 	}
 
 	// Check if migration complete
-	if p.compactCursor >= p.compactSlotCount {
+	if s.compactCursor >= s.compactSlotCount {
 		// All slots processed
 		if oldBuf.refCount.Load() == 0 {
-			p.finishCompaction()
+			s.finishCompaction()
 		}
 		return true
 	}
@@ -532,33 +759,39 @@ func (p *Pool) MigrateBatch(batchSize int) bool {
 
 // finishCompaction completes compaction by freeing old buffer.
 // Called with lock held.
-func (p *Pool) finishCompaction() {
-	oldBit := 1 - p.currentBit
-	p.buffers[oldBit].data = nil
-	p.buffers[oldBit].pos = 0
-	p.state = PoolNormal
+func (s *shard) finishCompaction() {
+	oldBit := 1 - s.currentBit
+	s.buffers[oldBit].data = nil
+	s.buffers[oldBit].pos = 0
+	s.state = PoolNormal
 }
 
-// CheckOldBufferRelease checks if old buffer can be freed after compaction.
+// CheckOldBufferRelease checks if old buffers can be freed after compaction.
 // Call periodically after MigrateBatch returns true.
 func (p *Pool) CheckOldBufferRelease() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	for i := range p.shards {
+		p.shards[i].checkOldBufferRelease()
+	}
+}
 
-	if p.state != PoolCompacting {
+func (s *shard) checkOldBufferRelease() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.state != PoolCompacting {
 		return
 	}
 
-	oldBit := 1 - p.currentBit
-	if p.buffers[oldBit].refCount.Load() == 0 {
-		p.finishCompaction()
+	oldBit := 1 - s.currentBit
+	if s.buffers[oldBit].refCount.Load() == 0 {
+		s.finishCompaction()
 	}
 }
 
 // ensureCapacity ensures the current buffer can hold additional bytes.
 // Called with lock held.
-func (p *Pool) ensureCapacity(needed int) {
-	buf := &p.buffers[p.currentBit]
+func (s *shard) ensureCapacity(needed int) {
+	buf := &s.buffers[s.currentBit]
 	required := buf.pos + needed
 	if required <= cap(buf.data) {
 		return
@@ -572,45 +805,45 @@ func (p *Pool) ensureCapacity(needed int) {
 	copy(buf.data, oldData)
 
 	// Rebuild index - old keys reference old memory
-	p.rebuildIndex()
+	s.rebuildIndex()
 }
 
 // rebuildIndex recreates the index with keys pointing to current buffer.
 // Called with lock held after buffer reallocation.
-func (p *Pool) rebuildIndex() {
-	bufIdx := p.currentBit
-	buf := &p.buffers[bufIdx]
+func (s *shard) rebuildIndex() {
+	bufIdx := s.currentBit
+	buf := &s.buffers[bufIdx]
 
 	// During compaction, preserve entries pointing to old buffer
 	// (their keys still reference valid old buffer memory)
 	var preserved map[string]Handle
-	if p.state == PoolCompacting {
+	if s.state == PoolCompacting {
 		oldBit := 1 - bufIdx
 		preserved = make(map[string]Handle)
-		for k, h := range p.index {
+		for k, h := range s.index {
 			if h.BufferBit() == oldBit {
 				preserved[k] = h
 			}
 		}
 	}
 
-	p.index = make(map[string]Handle, len(p.slots))
+	s.index = make(map[string]Handle, len(s.slots))
 
 	// Restore preserved old-buffer entries
-	maps.Copy(p.index, preserved)
+	maps.Copy(s.index, preserved)
 
 	// Rebuild entries for current buffer
-	for i := range p.slots {
-		s := &p.slots[i]
-		if !s.dead && s.refCount > 0 {
+	for i := range s.slots {
+		sl := &s.slots[i]
+		if !sl.dead && sl.refCount > 0 {
 			// During compaction, skip unmigrated slots - they're already
 			// in preserved entries pointing to old buffer
-			if p.state == PoolCompacting && uint32(i) >= p.compactCursor {
+			if s.state == PoolCompacting && uint32(i) >= s.compactCursor {
 				continue
 			}
-			offset := s.offsets[bufIdx]
-			key := bytesToString(buf.data[offset : offset+uint32(s.length)])
-			p.index[key] = NewHandleWithBuffer(bufIdx, p.idx, uint32(i))
+			offset := sl.offsets[bufIdx]
+			key := bytesToString(buf.data[offset : offset+uint32(sl.length)])
+			s.index[key] = NewHandleWithBuffer(bufIdx, s.idx, packShardSlot(s.id, uint32(i)))
 		}
 	}
 }
@@ -648,63 +881,75 @@ func (m Metrics) DeduplicationRate() float64 {
 	return float64(m.InternHits) / float64(m.InternTotal)
 }
 
-// Metrics returns current pool statistics.
+// Metrics returns current pool statistics, aggregated across all shards.
 func (p *Pool) Metrics() Metrics {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	buf := &p.buffers[p.currentBit]
-
 	var m Metrics
-	m.TotalSlots = int32(len(p.slots))
-	m.BufferSize = int64(len(buf.data))
-	m.BufferCap = int64(cap(buf.data))
-	m.InternTotal = p.internTotal.Load()
-	m.InternHits = p.internHits.Load()
-
-	for i := range p.slots {
-		s := &p.slots[i]
-		if !s.dead && s.refCount > 0 {
-			m.LiveSlots++
-			m.LiveBytes += int64(s.length)
-		} else if s.length > 0 {
-			// Dead slot with data still in buffer (not yet compacted)
-			m.DeadSlots++
-			m.DeadBytes += int64(s.length)
-		}
-		// Slots with length=0 are reclaimed/free, not counted as dead
+	for i := range p.shards {
+		p.shards[i].accumulateMetrics(&m)
 	}
-
 	return m
 }
 
-// Compact removes dead entries and reclaims buffer memory.
+// accumulateMetrics adds this shard's statistics into m.
+func (s *shard) accumulateMetrics(m *Metrics) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	buf := &s.buffers[s.currentBit]
+
+	m.TotalSlots += int32(len(s.slots))
+	m.BufferSize += int64(len(buf.data))
+	m.BufferCap += int64(cap(buf.data))
+	m.InternTotal += s.internTotal.Load()
+	m.InternHits += s.internHits.Load()
+
+	for i := range s.slots {
+		sl := &s.slots[i]
+		if !sl.dead && sl.refCount > 0 {
+			m.LiveSlots++
+			m.LiveBytes += int64(sl.length)
+		} else if sl.length > 0 {
+			// Dead slot with data still in buffer (not yet compacted)
+			m.DeadSlots++
+			m.DeadBytes += int64(sl.length)
+		}
+		// Slots with length=0 are reclaimed/free, not counted as dead
+	}
+}
+
+// Compact removes dead entries and reclaims buffer memory in every shard.
 // Live handles remain valid after compaction.
-// Note: This is stop-the-world compaction. Use StartCompaction/MigrateBatch for non-blocking.
-// If incremental compaction is in progress, this is a no-op.
+// Note: This is stop-the-world per shard. Use StartCompaction/MigrateBatch for non-blocking.
+// If incremental compaction is in progress on a shard, that shard is skipped.
 func (p *Pool) Compact() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	for i := range p.shards {
+		p.shards[i].compact()
+	}
+}
+
+func (s *shard) compact() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	// Don't interfere with incremental compaction
-	if p.state == PoolCompacting {
+	if s.state == PoolCompacting {
 		return
 	}
 
-	bufIdx := p.currentBit
-	buf := &p.buffers[bufIdx]
+	bufIdx := s.currentBit
+	buf := &s.buffers[bufIdx]
 
 	// Count live bytes
 	var liveBytes int
-	for i := range p.slots {
-		s := &p.slots[i]
-		if !s.dead && s.refCount > 0 {
-			liveBytes += int(s.length)
+	for i := range s.slots {
+		sl := &s.slots[i]
+		if !sl.dead && sl.refCount > 0 {
+			liveBytes += int(sl.length)
 		}
 	}
 
 	// Nothing to compact if no dead entries
-	if len(p.freeSlots) == 0 {
+	if len(s.freeSlots) == 0 {
 		return
 	}
 
@@ -713,21 +958,21 @@ func (p *Pool) Compact() {
 	newPos := 0
 
 	// Copy live data to new buffer, update slot offsets
-	for i := range p.slots {
-		s := &p.slots[i]
-		if !s.dead && s.refCount > 0 {
+	for i := range s.slots {
+		sl := &s.slots[i]
+		if !sl.dead && sl.refCount > 0 {
 			// Copy data to new buffer
-			oldData := buf.data[s.offsets[bufIdx] : s.offsets[bufIdx]+uint32(s.length)]
+			oldData := buf.data[sl.offsets[bufIdx] : sl.offsets[bufIdx]+uint32(sl.length)]
 			newOffset := uint32(newPos)
 			newData = append(newData, oldData...)
-			newPos += int(s.length)
+			newPos += int(sl.length)
 
 			// Update slot offset in current buffer
-			s.offsets[bufIdx] = newOffset
+			sl.offsets[bufIdx] = newOffset
 		} else {
 			// Clear dead slot data reference
-			s.offsets[bufIdx] = 0
-			s.length = 0
+			sl.offsets[bufIdx] = 0
+			sl.length = 0
 		}
 	}
 
@@ -736,5 +981,5 @@ func (p *Pool) Compact() {
 	buf.pos = newPos
 
 	// Rebuild index with new buffer pointers
-	p.rebuildIndex()
+	s.rebuildIndex()
 }
