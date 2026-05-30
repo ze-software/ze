@@ -1861,6 +1861,8 @@ Inside `ze cli`:
 | Pipe: reverse DNS | `show traceroute 8.8.8.8 \| resolve` |
 | Pipe: ASN lookup | `show traceroute 8.8.8.8 \| origin` |
 | Pipe: streaming log | `monitor traceroute 8.8.8.8 \| log` |
+| Pipe: first N items | `show bgp rib \| first 100` |
+| Pipe: last N items | `show bgp rib \| last 10` |
 | Pipe: disable paging | `show peer list \| no-more` |
 | Set default format | `set cli format json` (session override) |
 | Show current format | `set cli format` (no argument) |

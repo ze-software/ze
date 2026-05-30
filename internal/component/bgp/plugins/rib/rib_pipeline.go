@@ -667,6 +667,88 @@ func (f *matchFilter) Meta() PipelineMeta {
 	return PipelineMeta{Count: f.count}
 }
 
+type firstFilter struct {
+	upstream PipelineIterator
+	limit    int
+	seen     int
+}
+
+func newFirstFilter(upstream PipelineIterator, arg string) *firstFilter {
+	n, _ := strconv.Atoi(arg)
+	if n <= 0 {
+		n = 1
+	}
+	return &firstFilter{upstream: upstream, limit: n}
+}
+
+func (f *firstFilter) Next() (RouteItem, bool) {
+	if f.seen >= f.limit {
+		return RouteItem{}, false
+	}
+	item, ok := f.upstream.Next()
+	if !ok {
+		return RouteItem{}, false
+	}
+	f.seen++
+	return item, true
+}
+
+func (f *firstFilter) Meta() PipelineMeta {
+	return PipelineMeta{Count: f.seen}
+}
+
+type lastFilter struct {
+	upstream PipelineIterator
+	limit    int
+	buf      []RouteItem
+	drained  bool
+	idx      int
+}
+
+func newLastFilter(upstream PipelineIterator, arg string) *lastFilter {
+	n, _ := strconv.Atoi(arg)
+	if n <= 0 {
+		n = 1
+	}
+	return &lastFilter{upstream: upstream, limit: n}
+}
+
+func (f *lastFilter) Next() (RouteItem, bool) {
+	if !f.drained {
+		f.drain()
+	}
+	if f.idx >= len(f.buf) {
+		return RouteItem{}, false
+	}
+	item := f.buf[f.idx]
+	f.idx++
+	return item, true
+}
+
+func (f *lastFilter) drain() {
+	f.drained = true
+	f.buf = make([]RouteItem, 0, f.limit)
+	for {
+		item, ok := f.upstream.Next()
+		if !ok {
+			break
+		}
+		if len(f.buf) < f.limit {
+			f.buf = append(f.buf, item)
+		} else {
+			copy(f.buf, f.buf[1:])
+			f.buf[f.limit-1] = item
+		}
+	}
+}
+
+func (f *lastFilter) Meta() PipelineMeta {
+	if !f.drained {
+		f.drain()
+	}
+	return PipelineMeta{Count: len(f.buf)}
+}
+
 // --- Terminal stages ---
 
 // countTerminal drains the upstream and records count in metadata.
@@ -966,6 +1048,10 @@ func (s pipelineStage) apply(upstream PipelineIterator) PipelineIterator {
 		return newFamilyFilter(upstream, s.arg)
 	case "match":
 		return newMatchFilter(upstream, s.arg)
+	case "first":
+		return newFirstFilter(upstream, s.arg)
+	case "last":
+		return newLastFilter(upstream, s.arg)
 	case "count":
 		return newCountTerminal(upstream)
 	case "json":
@@ -988,6 +1074,8 @@ var filterKeywords = map[string]bool{
 	"community": true,
 	"family":    true,
 	"match":     true,
+	"first":     true,
+	"last":      true,
 }
 
 // terminalKeywords are pipeline terminal keywords that take no value.

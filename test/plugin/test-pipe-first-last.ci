@@ -1,0 +1,155 @@
+# Test: pipe operators | first N and | last N bound output
+# VALIDATES: first/last pipe operators limit RIB query output server-side
+# PREVENTS: first/last not truncating results or failing on RIB commands
+
+# ze-peer: send 5 routes then EOR
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 10.1.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E020000001540010100400200400304.{8}4005040000006418010100
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 10.2.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E020000001540010100400200400304.{8}4005040000006418010200
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 10.3.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E020000001540010100400200400304.{8}4005040000006418010300
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 10.4.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E020000001540010100400200400304.{8}4005040000006418010400
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 10.5.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E020000001540010100400200400304.{8}4005040000006418010500
+cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: inject routes, then test first/last pipes
+tmpfs=pipe-first-last-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for routes from ze-peer
+    time.sleep(3.0)
+
+    try:
+        # Test 1: | first 3 should return exactly 3 routes
+        result = dispatch(api, 'bgp rib routes received first 3')
+        if result.get('status') != 'done':
+            print(f'FAIL: first 3 status={result.get("status")}', file=sys.stderr)
+            sys.exit(1)
+        data = json.loads(result.get('data', '{}'))
+        routes = data.get('routes', data) if isinstance(data, dict) else data
+        if isinstance(routes, list):
+            if len(routes) != 3:
+                print(f'FAIL: first 3 returned {len(routes)} routes, expected 3', file=sys.stderr)
+                sys.exit(1)
+        print(f'OK: first 3 returned correct count', file=sys.stderr)
+
+        # Test 2: | first 3 | count should return 3
+        result = dispatch(api, 'bgp rib routes received first 3 count')
+        if result.get('status') != 'done':
+            print(f'FAIL: first 3 count status={result.get("status")}', file=sys.stderr)
+            sys.exit(1)
+        data = json.loads(result.get('data', '{}'))
+        count = data.get('count', -1)
+        if count != 3:
+            print(f'FAIL: first 3 count returned {count}, expected 3', file=sys.stderr)
+            sys.exit(1)
+        print(f'OK: first 3 count = 3', file=sys.stderr)
+
+        # Test 3: | last 2 | count should return 2
+        result = dispatch(api, 'bgp rib routes received last 2 count')
+        if result.get('status') != 'done':
+            print(f'FAIL: last 2 count status={result.get("status")}', file=sys.stderr)
+            sys.exit(1)
+        data = json.loads(result.get('data', '{}'))
+        count = data.get('count', -1)
+        if count != 2:
+            print(f'FAIL: last 2 count returned {count}, expected 2', file=sys.stderr)
+            sys.exit(1)
+        print(f'OK: last 2 count = 2', file=sys.stderr)
+
+        print('OK: all pipe first/last tests passed', file=sys.stderr)
+    finally:
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external pipe-first-last-test {
+		run ./pipe-first-last-test.run
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process pipe-first-last-test {
+		}
+		process bgp-rib {
+			receive [ state ]
+			send [ update ]
+		}
+		process adj-rib-in {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0

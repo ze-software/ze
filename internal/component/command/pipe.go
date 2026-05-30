@@ -9,6 +9,7 @@ package command
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
@@ -30,6 +31,8 @@ const (
 	pipeResolve                 // | resolve — add reverse DNS names for IP address values
 	pipeOrigin                  // | origin — add ASN and network name for IP address values
 	pipeLog                     // | log — append each update instead of replacing
+	pipeFirst                   // | first N — take first N items
+	pipeLast                    // | last N — take last N items
 	pipeUnknown                 // unrecognized operator
 	pipeInvalid                 // validation error produced while folding command filters
 )
@@ -58,6 +61,8 @@ var knownPipeOps = map[string]pipeKind{
 	"origin":  pipeOrigin,
 	"ndjson":  pipeNDJSON,
 	"log":     pipeLog,
+	"first":   pipeFirst,
+	"last":    pipeLast,
 }
 
 // ParsePipe splits user input into the command and a chain of pipe operators.
@@ -93,6 +98,10 @@ func ParsePipe(input string) (command string, ops []pipeOp) {
 			if len(fields) > 1 && fields[1] == jsonCompact {
 				op.arg = jsonCompact
 			}
+		case pipeFirst, pipeLast:
+			if len(fields) > 1 {
+				op.arg = fields[1]
+			}
 		}
 		ops = append(ops, op)
 	}
@@ -102,12 +111,16 @@ func ParsePipe(input string) (command string, ops []pipeOp) {
 
 // FoldFilters rewrites command-owned pipe filters into command arguments.
 // Generic display and transform pipes stay client-side.
-func FoldFilters(command string, ops []pipeOp) (string, []pipeOp) {
+// Returns pipe metadata recording all data-shaping modifiers (both folded
+// and remaining). Display-only pipes are excluded from metadata.
+func FoldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any) {
+	meta := collectPipeMeta(ops)
+
 	trimmed := strings.TrimSpace(command)
 
 	set, ok := lookupPipeFilters(trimmed)
 	if !ok || len(set.filters) == 0 {
-		return command, ops
+		return command, ops, meta
 	}
 
 	var leadingArgs []string
@@ -127,6 +140,18 @@ func FoldFilters(command string, ops []pipeOp) (string, []pipeOp) {
 		case pipeCount:
 			if filter, ok := set.byName["count"]; ok {
 				serverArgs = appendFilter(serverArgs, filter, "")
+			} else {
+				clientOps = append(clientOps, op)
+			}
+		case pipeFirst:
+			if filter, ok := set.byName["first"]; ok {
+				serverArgs = appendFilter(serverArgs, filter, op.arg)
+			} else {
+				clientOps = append(clientOps, op)
+			}
+		case pipeLast:
+			if filter, ok := set.byName["last"]; ok {
+				serverArgs = appendFilter(serverArgs, filter, op.arg)
 			} else {
 				clientOps = append(clientOps, op)
 			}
@@ -155,7 +180,53 @@ func FoldFilters(command string, ops []pipeOp) (string, []pipeOp) {
 		command = trimmed + " " + strings.Join(allServerArgs, " ")
 	}
 
-	return command, clientOps
+	return command, clientOps, meta
+}
+
+// collectPipeMeta builds metadata from all data-shaping pipe ops.
+// Display-only pipes (json, ndjson, table, text, yaml, resolve, origin, log, no-more)
+// are excluded.
+func collectPipeMeta(ops []pipeOp) map[string]any {
+	var meta map[string]any
+	for _, op := range ops {
+		switch op.kind { //nolint:exhaustive // only data-shaping ops
+		case pipeMatch:
+			if meta == nil {
+				meta = make(map[string]any)
+			}
+			meta["match"] = op.arg
+		case pipeCount:
+			if meta == nil {
+				meta = make(map[string]any)
+			}
+			meta["count"] = true
+		case pipeFirst:
+			if meta == nil {
+				meta = make(map[string]any)
+			}
+			if n, err := strconv.Atoi(op.arg); err == nil {
+				meta["first"] = n
+			}
+		case pipeLast:
+			if meta == nil {
+				meta = make(map[string]any)
+			}
+			if n, err := strconv.Atoi(op.arg); err == nil {
+				meta["last"] = n
+			}
+		case pipeUnknown:
+			if meta == nil {
+				meta = make(map[string]any)
+			}
+			fields := strings.Fields(op.arg)
+			if len(fields) == 1 {
+				meta[fields[0]] = true
+			} else if len(fields) >= 2 {
+				meta[fields[0]] = strings.Join(fields[1:], " ")
+			}
+		}
+	}
+	return meta
 }
 
 func validateFilter(filter PipeFilter, arg string) string {
@@ -207,7 +278,8 @@ func appendFilter(args []string, filter PipeFilter, value string) []string {
 // ApplyPipes runs the output through each pipe operator in order.
 // Returns the filtered output and an error message (empty on success).
 // Rejects multiple format operators (json, table, text, yaml).
-func ApplyPipes(output string, ops []pipeOp) (string, string) {
+// If meta is non-nil, injects a "pipe" key into JSON output before formatting.
+func ApplyPipes(output string, ops []pipeOp, meta map[string]any) (string, string) {
 	formatCount := 0
 	for _, op := range ops {
 		if op.kind == pipeJSON || op.kind == pipeNDJSON || op.kind == pipeTable || op.kind == pipeText || op.kind == pipeYAML {
@@ -219,7 +291,12 @@ func ApplyPipes(output string, ops []pipeOp) (string, string) {
 	}
 
 	result := output
+	metaInjected := false
 	for _, op := range ops {
+		if !metaInjected && isFormatOp(op.kind) {
+			result = injectPipeMeta(result, meta)
+			metaInjected = true
+		}
 		switch op.kind {
 		case pipeMatch:
 			if op.arg == "" {
@@ -244,6 +321,10 @@ func ApplyPipes(output string, ops []pipeOp) (string, string) {
 			result = ApplyResolve(result)
 		case pipeOrigin:
 			result = ApplyOrigin(result)
+		case pipeFirst:
+			result = applyFirst(result, op.arg)
+		case pipeLast:
+			result = applyLast(result, op.arg)
 		case pipeLog:
 			// Display-mode modifier, not a data transform. Handled by caller.
 		case pipeUnknown:
@@ -251,6 +332,9 @@ func ApplyPipes(output string, ops []pipeOp) (string, string) {
 		case pipeInvalid:
 			return "", op.arg
 		}
+	}
+	if !metaInjected {
+		result = injectPipeMeta(result, meta)
 	}
 	return result, ""
 }
@@ -282,6 +366,19 @@ func ValidatePipes(ops []pipeOp) string {
 		}
 		if op.kind == pipeMatch && op.arg == "" {
 			return "match requires a pattern"
+		}
+		if op.kind == pipeFirst || op.kind == pipeLast {
+			name := "first"
+			if op.kind == pipeLast {
+				name = "last"
+			}
+			if op.arg == "" {
+				return name + " requires a numeric argument"
+			}
+			n, err := strconv.Atoi(op.arg)
+			if err != nil || n <= 0 {
+				return name + " requires a positive number"
+			}
 		}
 	}
 	if formatCount > 1 {
@@ -350,6 +447,130 @@ func countItems(v any) int {
 		return len(val)
 	}
 	return 1
+}
+
+func isFormatOp(k pipeKind) bool {
+	return k == pipeJSON || k == pipeNDJSON || k == pipeTable || k == pipeText || k == pipeYAML
+}
+
+func injectPipeMeta(input string, meta map[string]any) string {
+	if len(meta) == 0 {
+		return input
+	}
+	trimmed := strings.TrimSpace(input)
+	var data any
+	if err := json.Unmarshal([]byte(trimmed), &data); err != nil {
+		return input
+	}
+	switch val := data.(type) {
+	case map[string]any:
+		val[pipeMetaKey] = meta
+		out, err := json.Marshal(val)
+		if err != nil {
+			return input
+		}
+		return string(out)
+	case []any:
+		wrapped := map[string]any{"data": val, pipeMetaKey: meta}
+		out, err := json.Marshal(wrapped)
+		if err != nil {
+			return input
+		}
+		return string(out)
+	}
+	return input
+}
+
+func applyFirst(input, arg string) string {
+	n, err := strconv.Atoi(arg)
+	if err != nil || n <= 0 {
+		return input
+	}
+	trimmed := strings.TrimSpace(input)
+	var data any
+	if err := json.Unmarshal([]byte(trimmed), &data); err != nil {
+		return applyFirstLines(input, n)
+	}
+	data = truncateItems(data, n, false)
+	out, err := json.Marshal(data)
+	if err != nil {
+		return input
+	}
+	return string(out)
+}
+
+func applyLast(input, arg string) string {
+	n, err := strconv.Atoi(arg)
+	if err != nil || n <= 0 {
+		return input
+	}
+	trimmed := strings.TrimSpace(input)
+	var data any
+	if err := json.Unmarshal([]byte(trimmed), &data); err != nil {
+		return applyLastLines(input, n)
+	}
+	data = truncateItems(data, n, true)
+	out, err := json.Marshal(data)
+	if err != nil {
+		return input
+	}
+	return string(out)
+}
+
+func truncateItems(v any, n int, fromEnd bool) any {
+	switch val := v.(type) {
+	case []any:
+		return sliceN(val, n, fromEnd)
+	case map[string]any:
+		if len(val) == 1 {
+			for k, inner := range val {
+				if arr, ok := inner.([]any); ok {
+					return map[string]any{k: sliceN(arr, n, fromEnd)}
+				}
+			}
+		}
+	}
+	return v
+}
+
+func sliceN(arr []any, n int, fromEnd bool) []any {
+	if n >= len(arr) {
+		return arr
+	}
+	if fromEnd {
+		return arr[len(arr)-n:]
+	}
+	return arr[:n]
+}
+
+func applyFirstLines(input string, n int) string {
+	var b strings.Builder
+	i := 0
+	for line := range strings.SplitSeq(input, "\n") {
+		if i >= n {
+			break
+		}
+		b.WriteString(line)
+		b.WriteByte('\n')
+		i++
+	}
+	return b.String()
+}
+
+func applyLastLines(input string, n int) string {
+	lines := strings.Split(input, "\n")
+	for len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	if n >= len(lines) {
+		return input
+	}
+	var b strings.Builder
+	for _, line := range lines[len(lines)-n:] {
+		b.WriteString(line)
+		b.WriteByte('\n')
+	}
+	return b.String()
 }
 
 // ApplyJSON reformats JSON output as valid JSON. Single-key wrapper maps
@@ -448,17 +669,17 @@ func ProcessPipes(input string) (command string, format func(string) string) {
 // ProcessPipesChecked is ProcessPipes with upfront pipe validation.
 func ProcessPipesChecked(input string) (command string, format func(string) string, errMsg string) {
 	command, ops := ParsePipe(input)
-	command, ops = FoldFilters(command, ops)
+	command, ops, meta := FoldFilters(command, ops)
 	if msg := ValidatePipes(ops); msg != "" {
 		return command, nil, msg
 	}
 
 	if len(ops) == 0 {
-		return command, func(s string) string { return s }, ""
+		return command, func(s string) string { return injectPipeMeta(s, meta) }, ""
 	}
 
 	return command, func(rawJSON string) string {
-		result, errMsg := ApplyPipes(rawJSON, ops)
+		result, errMsg := ApplyPipes(rawJSON, ops, meta)
 		if errMsg != "" {
 			return "pipe error: " + errMsg
 		}
@@ -479,7 +700,7 @@ type PipeFlags struct {
 // Returns a non-empty errMsg if the pipe chain is invalid.
 func ProcessPipesDetectLog(input string) (cmd string, format func(string) string, flags PipeFlags, errMsg string) {
 	cmd, ops := ParsePipe(input)
-	cmd, ops = FoldFilters(cmd, ops)
+	cmd, ops, meta := FoldFilters(cmd, ops)
 
 	if msg := ValidatePipes(ops); msg != "" {
 		return cmd, nil, PipeFlags{}, msg
@@ -511,7 +732,7 @@ func ProcessPipesDetectLog(input string) (cmd string, format func(string) string
 	}
 
 	return cmd, func(rawJSON string) string {
-		result, pipeErr := ApplyPipes(rawJSON, ops)
+		result, pipeErr := ApplyPipes(rawJSON, ops, meta)
 		if pipeErr != "" {
 			return "pipe error: " + pipeErr
 		}
@@ -555,7 +776,7 @@ func ProcessPipesDefaultFormat(input string) (command string, format func(string
 // ProcessPipesDefaultFormatChecked is ProcessPipesDefaultFormat with upfront pipe validation.
 func ProcessPipesDefaultFormatChecked(input string) (command string, format func(string) string, errMsg string) {
 	command, ops := ParsePipe(input)
-	command, ops = FoldFilters(command, ops)
+	command, ops, meta := FoldFilters(command, ops)
 	if msg := ValidatePipes(ops); msg != "" {
 		return command, nil, msg
 	}
@@ -565,7 +786,7 @@ func ProcessPipesDefaultFormatChecked(input string) (command string, format func
 	}
 
 	return command, func(rawJSON string) string {
-		result, errMsg := ApplyPipes(rawJSON, ops)
+		result, errMsg := ApplyPipes(rawJSON, ops, meta)
 		if errMsg != "" {
 			return "pipe error: " + errMsg
 		}
@@ -579,15 +800,15 @@ func ProcessPipesDefaultFormatChecked(input string) (command string, format func
 // one-liner for streaming monitors) while still respecting explicit pipes.
 func ProcessPipesDefaultFunc(input string, defaultFn func(string) string) (command string, format func(string) string) {
 	command, ops := ParsePipe(input)
-	command, ops = FoldFilters(command, ops)
+	command, ops, meta := FoldFilters(command, ops)
 
 	if !HasFormatOp(ops) {
 		if len(ops) == 0 {
-			return command, defaultFn
+			return command, func(s string) string { return defaultFn(injectPipeMeta(s, meta)) }
 		}
 		// Non-format ops (match, count) still apply before the default formatter.
 		return command, func(rawJSON string) string {
-			result, errMsg := ApplyPipes(rawJSON, ops)
+			result, errMsg := ApplyPipes(rawJSON, ops, meta)
 			if errMsg != "" {
 				return "pipe error: " + errMsg
 			}
@@ -596,7 +817,7 @@ func ProcessPipesDefaultFunc(input string, defaultFn func(string) string) (comma
 	}
 
 	return command, func(rawJSON string) string {
-		result, errMsg := ApplyPipes(rawJSON, ops)
+		result, errMsg := ApplyPipes(rawJSON, ops, meta)
 		if errMsg != "" {
 			return "pipe error: " + errMsg
 		}

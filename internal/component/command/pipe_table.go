@@ -15,6 +15,7 @@ import (
 )
 
 const emptyMarker = "(empty)\n"
+const pipeMetaKey = "pipe"
 
 // tableStyle controls rendering: box-drawing (table) or plain spacing (text).
 type tableStyle struct {
@@ -51,6 +52,13 @@ func applyTableStyled(input string, style tableStyle) string {
 func (s tableStyle) renderValue(v any) string {
 	switch val := v.(type) {
 	case map[string]any:
+		if _, hasPipe := val[pipeMetaKey]; hasPipe && len(val) == 2 {
+			for k, inner := range val {
+				if k != pipeMetaKey {
+					return s.renderValue(inner)
+				}
+			}
+		}
 		if len(val) == 0 {
 			return emptyMarker
 		}
@@ -208,6 +216,9 @@ func (s tableStyle) renderList(arr []any) string {
 	for _, item := range arr {
 		if m, ok := item.(map[string]any); ok {
 			for k := range m {
+				if k == pipeMetaKey {
+					continue
+				}
 				keySet[k] = true
 			}
 		}
@@ -408,10 +419,14 @@ func (s tableStyle) writeRow(b *strings.Builder, cells []tableCell, widths []int
 	}
 }
 
-// tableSortedKeys returns map keys sorted alphabetically.
+// tableSortedKeys returns map keys sorted alphabetically,
+// excluding the "pipe" metadata key which is infrastructure, not user data.
 func tableSortedKeys(m map[string]any) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
+		if k == pipeMetaKey {
+			continue
+		}
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)

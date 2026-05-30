@@ -59,6 +59,8 @@ func registerPipeFilters() {
 		command.PipeFilter{Name: "community", Description: "Filter by standard community", TakesArg: true},
 		command.PipeFilter{Name: "match", Description: "Cross-field structured match", TakesArg: true},
 		command.PipeFilter{Name: "count", Description: "Count matching routes without serializing rows"},
+		command.PipeFilter{Name: "first", Description: "Take first N routes", TakesArg: true},
+		command.PipeFilter{Name: "last", Description: "Take last N routes", TakesArg: true},
 		command.PipeFilter{Name: "prefix-summary", Description: "Summarize by family and prefix length"},
 		command.PipeFilter{Name: "graph", Description: "Render AS-path topology graph"},
 	)
@@ -70,6 +72,8 @@ func registerPipeFilters() {
 		command.PipeFilter{Name: "community", Description: "Filter by standard community", TakesArg: true},
 		command.PipeFilter{Name: "match", Description: "Cross-field structured match", TakesArg: true},
 		command.PipeFilter{Name: "count", Description: "Count matching best paths without serializing rows"},
+		command.PipeFilter{Name: "first", Description: "Take first N best paths", TakesArg: true},
+		command.PipeFilter{Name: "last", Description: "Take last N best paths", TakesArg: true},
 		command.PipeFilter{Name: "prefix-summary", Description: "Summarize by family and prefix length"},
 		command.PipeFilter{Name: "graph", Description: "Render AS-path topology graph"},
 		command.PipeFilter{Name: "reason", Description: "Explain best-path selection"},

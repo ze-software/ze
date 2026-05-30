@@ -123,6 +123,7 @@ Command structure, text format, IPC, RPC dispatch.
 - [804](plan/learned/804-gnmi-yang.md) -- gNMI YANG config, show command, Prometheus counters, external commit notify
 - [809](plan/learned/809-pol-3-validation.md) -- Policy plain names: unique filter names as default operator form, show policy chain output shape change (name+canonical), prefixed forms as escape hatch
 - [810](plan/learned/810-show-command-pipe-filters.md) -- Command-owned pipe filters: PipeFilter registration, longest-prefix lookup, FoldFilters rewrite, show verb-first grammar, generic pipe code BGP-free
+- [822](plan/learned/822-pipe-first-last.md) -- Pipe first/last: dual-path generic+server-side pattern, FoldFilters 3-tuple return with metadata map, pipe metadata dict in JSON output, table/text renderers skip pipe key
 - [814](plan/learned/814-pol-4-explain.md) -- Policy dry-run: show policy test command, TracePolicyFilterChain trace helper, narrow PolicyDryRunner interface, per-filter decision trace, wire diff output
 
 ## Web Interface

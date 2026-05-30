@@ -211,7 +211,7 @@ func TestApplyPipes(t *testing.T) {
 		{kind: pipeCount},
 	}
 
-	result, err := ApplyPipes(input, ops)
+	result, err := ApplyPipes(input, ops, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -225,7 +225,7 @@ func TestApplyPipes(t *testing.T) {
 func TestApplyPipesUnknown(t *testing.T) {
 	ops := []pipeOp{{kind: pipeUnknown, arg: "bogus"}}
 
-	_, err := ApplyPipes("input", ops)
+	_, err := ApplyPipes("input", ops, nil)
 	if err == "" {
 		t.Fatal("expected error for unknown pipe operator")
 	}
@@ -245,7 +245,7 @@ func TestParsePipeMatchNoArg(t *testing.T) {
 		t.Error("expected pipeMatch")
 	}
 	// Match with no arg should still parse; ApplyPipes should error.
-	_, err := ApplyPipes("test", ops)
+	_, err := ApplyPipes("test", ops, nil)
 	if err == "" {
 		t.Error("expected error for match with no pattern")
 	}
@@ -265,7 +265,7 @@ func TestApplyJSONPrettyIdempotent(t *testing.T) {
 // PREVENTS: empty operator list altering output.
 func TestApplyPipesEmpty(t *testing.T) {
 	input := "some output"
-	result, err := ApplyPipes(input, nil)
+	result, err := ApplyPipes(input, nil, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -306,7 +306,7 @@ func TestApplyPipesCountOfCount(t *testing.T) {
 		{kind: pipeCount},
 		{kind: pipeCount},
 	}
-	result, err := ApplyPipes(input, ops)
+	result, err := ApplyPipes(input, ops, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -436,7 +436,7 @@ func TestFoldFilters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd, ops := FoldFilters(tt.command, tt.ops)
+			cmd, ops, _ := FoldFilters(tt.command, tt.ops)
 			if cmd != tt.wantCmd {
 				t.Errorf("command = %q, want %q", cmd, tt.wantCmd)
 			}
@@ -487,7 +487,7 @@ func TestFoldFiltersValidationErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd, ops := ParsePipe(tt.input)
-			_, ops = FoldFilters(cmd, ops)
+			_, ops, _ = FoldFilters(cmd, ops)
 			if got := ValidatePipes(ops); got != tt.want {
 				t.Fatalf("validation error = %q, want %q", got, tt.want)
 			}
@@ -554,7 +554,7 @@ func TestApplyPipesMatchThenJSON(t *testing.T) {
 		{kind: pipeMatch, arg: "address"},
 		{kind: pipeJSON, arg: jsonCompact},
 	}
-	result, err := ApplyPipes(input, ops)
+	result, err := ApplyPipes(input, ops, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -568,7 +568,7 @@ func TestApplyPipesMatchThenJSON(t *testing.T) {
 // PREVENTS: confusing silent passthrough when stacking formatters.
 func TestApplyPipesMultipleFormats(t *testing.T) {
 	ops := []pipeOp{{kind: pipeText}, {kind: pipeJSON, arg: jsonPretty}}
-	_, err := ApplyPipes(`{"a":1}`, ops)
+	_, err := ApplyPipes(`{"a":1}`, ops, nil)
 	if err == "" {
 		t.Fatal("expected error for multiple format operators")
 	}
@@ -837,7 +837,7 @@ func TestApplyResolve_SkipsStar(t *testing.T) {
 func TestApplyPipes_ResolveThenJSON(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1}]}`
 	ops := []pipeOp{{kind: pipeResolve}, {kind: pipeJSON, arg: "compact"}}
-	result, errMsg := ApplyPipes(input, ops)
+	result, errMsg := ApplyPipes(input, ops, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -852,7 +852,7 @@ func TestApplyPipes_ResolveThenJSON(t *testing.T) {
 func TestApplyPipes_JSONThenResolve(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1},{"ttl":2,"addr":"127.0.0.1","rtt-ms":0.2}]}`
 	ops := []pipeOp{{kind: pipeJSON, arg: "compact"}, {kind: pipeResolve}}
-	result, errMsg := ApplyPipes(input, ops)
+	result, errMsg := ApplyPipes(input, ops, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -904,7 +904,7 @@ func TestProcessPipesDetectLog_NDJSON(t *testing.T) {
 func TestApplyPipes_NDJSONThenResolve(t *testing.T) {
 	input := `{"hops":[{"ttl":1,"addr":"127.0.0.1","rtt-ms":0.1},{"ttl":2,"addr":"127.0.0.1","rtt-ms":0.2}]}`
 	ops := []pipeOp{{kind: pipeNDJSON}, {kind: pipeResolve}}
-	result, errMsg := ApplyPipes(input, ops)
+	result, errMsg := ApplyPipes(input, ops, nil)
 	if errMsg != "" {
 		t.Fatalf("unexpected error: %s", errMsg)
 	}
@@ -914,5 +914,229 @@ func TestApplyPipes_NDJSONThenResolve(t *testing.T) {
 	lines := strings.Split(strings.TrimSpace(result), "\n")
 	if len(lines) != 2 {
 		t.Errorf("expected 2 NDJSON lines, got %d: %q", len(lines), result)
+	}
+}
+
+func TestParsePipeFirst(t *testing.T) {
+	cmd, ops := ParsePipe("show routes | first 10")
+	if cmd != "show routes" {
+		t.Errorf("command = %q, want %q", cmd, "show routes")
+	}
+	if len(ops) != 1 || ops[0].kind != pipeFirst || ops[0].arg != "10" {
+		t.Errorf("ops = %+v, want [{pipeFirst 10}]", ops)
+	}
+}
+
+func TestParsePipeLast(t *testing.T) {
+	cmd, ops := ParsePipe("show routes | last 5")
+	if cmd != "show routes" {
+		t.Errorf("command = %q, want %q", cmd, "show routes")
+	}
+	if len(ops) != 1 || ops[0].kind != pipeLast || ops[0].arg != "5" {
+		t.Errorf("ops = %+v, want [{pipeLast 5}]", ops)
+	}
+}
+
+func TestApplyFirst(t *testing.T) {
+	input := `[{"a":1},{"a":2},{"a":3},{"a":4},{"a":5}]`
+	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeFirst, arg: "3"}}, nil)
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	expected := `[{"a":1},{"a":2},{"a":3}]`
+	trimmed := strings.TrimSpace(result)
+	if trimmed != expected {
+		t.Errorf("got %q, want %q", trimmed, expected)
+	}
+}
+
+func TestApplyLast(t *testing.T) {
+	input := `[{"a":1},{"a":2},{"a":3},{"a":4},{"a":5}]`
+	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeLast, arg: "2"}}, nil)
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	expected := `[{"a":4},{"a":5}]`
+	trimmed := strings.TrimSpace(result)
+	if trimmed != expected {
+		t.Errorf("got %q, want %q", trimmed, expected)
+	}
+}
+
+func TestApplyFirstUnderCount(t *testing.T) {
+	input := `[{"a":1},{"a":2}]`
+	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeFirst, arg: "10"}}, nil)
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	expected := `[{"a":1},{"a":2}]`
+	trimmed := strings.TrimSpace(result)
+	if trimmed != expected {
+		t.Errorf("got %q, want %q", trimmed, expected)
+	}
+}
+
+func TestApplyFirstNonArray(t *testing.T) {
+	input := `{"count":42}`
+	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeFirst, arg: "3"}}, nil)
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	trimmed := strings.TrimSpace(result)
+	if trimmed != `{"count":42}` {
+		t.Errorf("non-array should pass through, got %q", trimmed)
+	}
+}
+
+func TestFirstValidation(t *testing.T) {
+	tests := []struct {
+		name string
+		ops  []pipeOp
+		want string
+	}{
+		{"first no arg", []pipeOp{{kind: pipeFirst}}, "first requires a numeric argument"},
+		{"first zero", []pipeOp{{kind: pipeFirst, arg: "0"}}, "first requires a positive number"},
+		{"first negative", []pipeOp{{kind: pipeFirst, arg: "-1"}}, "first requires a positive number"},
+		{"first non-numeric", []pipeOp{{kind: pipeFirst, arg: "abc"}}, "first requires a positive number"},
+		{"last no arg", []pipeOp{{kind: pipeLast}}, "last requires a numeric argument"},
+		{"last zero", []pipeOp{{kind: pipeLast, arg: "0"}}, "last requires a positive number"},
+		{"first valid", []pipeOp{{kind: pipeFirst, arg: "5"}}, ""},
+		{"last valid", []pipeOp{{kind: pipeLast, arg: "5"}}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ValidatePipes(tt.ops)
+			if got != tt.want {
+				t.Errorf("ValidatePipes() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFoldFiltersFirst(t *testing.T) {
+	ResetPipeFiltersForTest()
+	t.Cleanup(ResetPipeFiltersForTest)
+	RegisterPipeFilters([]string{"show routes"},
+		PipeFilter{Name: "first", Description: "Take first N", TakesArg: true},
+		PipeFilter{Name: "last", Description: "Take last N", TakesArg: true},
+	)
+
+	cmd, ops, _ := FoldFilters("show routes", []pipeOp{{kind: pipeFirst, arg: "10"}})
+	if cmd != "show routes first 10" {
+		t.Errorf("command = %q, want %q", cmd, "show routes first 10")
+	}
+	if len(ops) != 0 {
+		t.Errorf("expected 0 client ops, got %d", len(ops))
+	}
+}
+
+func TestFoldFiltersFirstNotRegistered(t *testing.T) {
+	ResetPipeFiltersForTest()
+	t.Cleanup(ResetPipeFiltersForTest)
+
+	cmd, ops, _ := FoldFilters("peer list", []pipeOp{{kind: pipeFirst, arg: "5"}})
+	if cmd != "peer list" {
+		t.Errorf("command = %q, want %q", cmd, "peer list")
+	}
+	if len(ops) != 1 || ops[0].kind != pipeFirst {
+		t.Errorf("expected 1 client pipeFirst op, got %+v", ops)
+	}
+}
+
+func TestPipeMetadataInjected(t *testing.T) {
+	meta := map[string]any{"received": true, "family": "ipv4-unicast", "first": 100}
+
+	// Map output: metadata injected directly.
+	mapInput := `{"count":42}`
+	result, errMsg := ApplyPipes(mapInput, nil, meta)
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	if !strings.Contains(result, `"pipe"`) {
+		t.Errorf("expected pipe metadata in map output, got %s", result)
+	}
+	if !strings.Contains(result, `"received":true`) {
+		t.Errorf("expected received:true in pipe metadata, got %s", result)
+	}
+	if !strings.Contains(result, `"first":100`) {
+		t.Errorf("expected first:100 in pipe metadata, got %s", result)
+	}
+
+	// Array output: wrapped as {"data": [...], "pipe": {...}}.
+	arrInput := `[{"a":1},{"a":2}]`
+	result2, errMsg2 := ApplyPipes(arrInput, nil, meta)
+	if errMsg2 != "" {
+		t.Fatalf("unexpected error: %s", errMsg2)
+	}
+	if !strings.Contains(result2, `"pipe"`) {
+		t.Errorf("expected pipe metadata in wrapped array output, got %s", result2)
+	}
+	if !strings.Contains(result2, `"data"`) {
+		t.Errorf("expected data key wrapping array, got %s", result2)
+	}
+
+	// Count pipe on array: count produces map, metadata injected into map.
+	result3, errMsg3 := ApplyPipes(arrInput, []pipeOp{{kind: pipeCount}}, meta)
+	if errMsg3 != "" {
+		t.Fatalf("unexpected error: %s", errMsg3)
+	}
+	if !strings.Contains(result3, `"pipe"`) {
+		t.Errorf("expected pipe metadata in count output, got %s", result3)
+	}
+}
+
+func TestPipeMetadataAbsentWhenNoPipes(t *testing.T) {
+	input := `{"count":5}`
+	result, errMsg := ApplyPipes(input, nil, nil)
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	if strings.Contains(result, `"pipe"`) {
+		t.Errorf("no pipe metadata expected when no modifiers, got %s", result)
+	}
+}
+
+func TestPipeMetadataTableSkipped(t *testing.T) {
+	input := `[{"name":"a","value":1},{"name":"b","value":2}]`
+	meta := map[string]any{"first": 2}
+	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeTable}}, meta)
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	// Table output should NOT contain "pipe" as a column header or data.
+	if strings.Contains(result, "pipe") {
+		t.Errorf("table renderer should skip pipe key, got:\n%s", result)
+	}
+}
+
+func TestPipeMetadataIdentityPath(t *testing.T) {
+	ResetPipeFiltersForTest()
+	t.Cleanup(ResetPipeFiltersForTest)
+	RegisterPipeFilters([]string{"show routes"},
+		PipeFilter{Name: "count", Description: "count"},
+	)
+
+	_, format, errMsg := ProcessPipesChecked("show routes | count")
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	result := format(`{"count":42}`)
+	if !strings.Contains(result, `"pipe"`) {
+		t.Errorf("identity path should inject pipe metadata, got %s", result)
+	}
+	if !strings.Contains(result, `"count":true`) {
+		t.Errorf("expected count:true in pipe metadata, got %s", result)
+	}
+}
+
+func TestApplyFirstSingleKeyWrapper(t *testing.T) {
+	input := `{"routes":[{"a":1},{"a":2},{"a":3}]}`
+	result, errMsg := ApplyPipes(input, []pipeOp{{kind: pipeFirst, arg: "2"}}, nil)
+	if errMsg != "" {
+		t.Fatalf("unexpected error: %s", errMsg)
+	}
+	trimmed := strings.TrimSpace(result)
+	if trimmed != `{"routes":[{"a":1},{"a":2}]}` {
+		t.Errorf("got %q, want single-key wrapper with 2 items", trimmed)
 	}
 }

@@ -192,7 +192,7 @@ func TestApplyPipesTable(t *testing.T) {
 		{kind: pipeCount},
 	}
 
-	result, err := ApplyPipes(input, ops)
+	result, err := ApplyPipes(input, ops, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -322,7 +322,7 @@ func TestApplyPipesCountThenTable(t *testing.T) {
 		{kind: pipeTable},
 	}
 
-	result, err := ApplyPipes(input, ops)
+	result, err := ApplyPipes(input, ops, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -344,7 +344,7 @@ func TestApplyPipesCountThenText(t *testing.T) {
 		{kind: pipeText},
 	}
 
-	result, err := ApplyPipes(input, ops)
+	result, err := ApplyPipes(input, ops, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}

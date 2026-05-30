@@ -1030,3 +1030,117 @@ func (s *sliceSource) Next() (RouteItem, bool) {
 func (s *sliceSource) Meta() PipelineMeta {
 	return s.meta
 }
+
+func TestShowRibFirstPipeline(t *testing.T) {
+	items := []RouteItem{
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{ASPath: []uint32{64501}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{ASPath: []uint32{64502}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.2.0/24", OutRoute: &Route{ASPath: []uint32{64503}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.3.0/24", OutRoute: &Route{ASPath: []uint32{64504}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.4.0/24", OutRoute: &Route{ASPath: []uint32{64505}}},
+	}
+
+	src := &sliceSource{items: items}
+	f := newFirstFilter(src, "3")
+
+	var results []RouteItem
+	for {
+		item, ok := f.Next()
+		if !ok {
+			break
+		}
+		results = append(results, item)
+	}
+
+	require.Len(t, results, 3)
+	assert.Equal(t, "10.0.0.0/24", results[0].Prefix)
+	assert.Equal(t, "10.0.2.0/24", results[2].Prefix)
+}
+
+func TestShowRibLastPipeline(t *testing.T) {
+	items := []RouteItem{
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{ASPath: []uint32{64501}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{ASPath: []uint32{64502}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.2.0/24", OutRoute: &Route{ASPath: []uint32{64503}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.3.0/24", OutRoute: &Route{ASPath: []uint32{64504}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.4.0/24", OutRoute: &Route{ASPath: []uint32{64505}}},
+	}
+
+	src := &sliceSource{items: items}
+	f := newLastFilter(src, "2")
+
+	var results []RouteItem
+	for {
+		item, ok := f.Next()
+		if !ok {
+			break
+		}
+		results = append(results, item)
+	}
+
+	require.Len(t, results, 2)
+	assert.Equal(t, "10.0.3.0/24", results[0].Prefix)
+	assert.Equal(t, "10.0.4.0/24", results[1].Prefix)
+}
+
+func TestShowRibFirstThenCount(t *testing.T) {
+	items := []RouteItem{
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{ASPath: []uint32{64501}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{ASPath: []uint32{64502}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.2.0/24", OutRoute: &Route{ASPath: []uint32{64503}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.3.0/24", OutRoute: &Route{ASPath: []uint32{64504}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.4.0/24", OutRoute: &Route{ASPath: []uint32{64505}}},
+	}
+
+	src := &sliceSource{items: items}
+	first := newFirstFilter(src, "3")
+	count := newCountTerminal(first)
+
+	meta := count.Meta()
+	assert.Equal(t, 3, meta.Count)
+}
+
+func TestApplyFirstPositionMatters(t *testing.T) {
+	items := []RouteItem{
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{ASPath: []uint32{64501}}},
+		{Peer: "p1", Family: family.IPv6Unicast, Prefix: "2001:db8::/32", OutRoute: &Route{ASPath: []uint32{64502}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{ASPath: []uint32{64503}}},
+		{Peer: "p1", Family: family.IPv6Unicast, Prefix: "2001:db8::1/128", OutRoute: &Route{ASPath: []uint32{64504}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.2.0/24", OutRoute: &Route{ASPath: []uint32{64505}}},
+	}
+
+	// | first 3 | family ipv4-unicast: from first 3 items, keep only ipv4
+	src1 := &sliceSource{items: items}
+	first := newFirstFilter(src1, "3")
+	fam := newFamilyFilter(first, family.IPv4Unicast.String())
+
+	var results []RouteItem
+	for {
+		item, ok := fam.Next()
+		if !ok {
+			break
+		}
+		results = append(results, item)
+	}
+	// First 3 items: ipv4, ipv6, ipv4. Keeping ipv4 only = 2.
+	require.Len(t, results, 2)
+}
+
+func TestPipeMetadataServerSide(t *testing.T) {
+	items := []RouteItem{
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{ASPath: []uint32{64501}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{ASPath: []uint32{64502}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.2.0/24", OutRoute: &Route{ASPath: []uint32{64503}}},
+	}
+
+	src := &sliceSource{items: items}
+	first := newFirstFilter(src, "2")
+	count := newCountTerminal(first)
+	meta := count.Meta()
+
+	assert.Equal(t, 2, meta.Count, "first 2 then count should yield 2")
+
+	countJSON, _ := json.Marshal(map[string]any{"count": meta.Count})
+	result := string(countJSON)
+	assert.Contains(t, result, `"count":2`)
+}
