@@ -14,15 +14,15 @@ func init() {
 	// of truth in host.go), not hardcoded here — adding a new section
 	// only requires editing the map, not the help metadata.
 	cmdregistry.RegisterRoot("host", cmdregistry.Meta{
-		Description: "Show hardware inventory (CPU, NICs, DMI, memory, thermal, storage, kernel)",
+		Description: "Show hardware inventory for this box (offline)",
 		Mode:        "offline",
 		Section:     cmdregistry.SectionSystem,
 		Subs:        "show [" + strings.ReplaceAll(sectionList(), ", ", "|") + "] [--text]",
 	})
-	cmdregistry.MustRegisterLocal("host show", RunShow)
-	// Bare `ze host` (no subcommand) prints a one-line hint at the
-	// intended subcommand rather than the generic "unknown command"
-	// banner. Surfaces the available shape without forcing the
-	// operator to consult --help.
-	cmdregistry.MustRegisterLocal("host", RunHint)
+	cmdregistry.MustRegisterLocalMeta("host show", RunShow, cmdregistry.Meta{
+		Description: "Show hardware details by section (cpu, nic, dmi, memory, thermal, storage, kernel). JSON by default, --text for human-readable.",
+	})
+	cmdregistry.MustRegisterLocalMeta("host", RunHint, cmdregistry.Meta{
+		Description: "Show hardware inventory for this box (offline)",
+	})
 }

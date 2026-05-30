@@ -8,10 +8,12 @@ import (
 
 func init() {
 	cmdregistry.RegisterRoot("support", cmdregistry.Meta{
-		Description: "Generate tech-support archive for troubleshooting",
+		Description: "Collect logs, config, and diagnostics into a support archive",
 		Mode:        "offline",
 		Section:     cmdregistry.SectionSystem,
 		Subs:        "[--module M] [--exclude M] [--since T] [--reason R] [--sensitive] [--json] [--list-modules]",
 	})
-	cmdregistry.MustRegisterLocal("support", Run)
+	cmdregistry.MustRegisterLocalMeta("support", Run, cmdregistry.Meta{
+		Description: "Bundle logs, config, state, and diagnostics into one archive file. Send the result to support when reporting an issue.",
+	})
 }

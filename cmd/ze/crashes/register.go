@@ -8,11 +8,15 @@ import (
 
 func init() {
 	cmdregistry.RegisterRoot("crashes", cmdregistry.Meta{
-		Description: "Show crash reports (works offline, no daemon required)",
+		Description: "View saved crash reports from panics (offline)",
 		Mode:        "offline",
 		Section:     cmdregistry.SectionSystem,
 		Subs:        "show [latest]",
 	})
-	cmdregistry.MustRegisterLocal("crashes show", RunShow)
-	cmdregistry.MustRegisterLocal("crashes", RunHint)
+	cmdregistry.MustRegisterLocalMeta("crashes show", RunShow, cmdregistry.Meta{
+		Description: "Show a crash report. Use 'latest' for the most recent, or pass a filename. Contains the goroutine stack trace at the time of panic.",
+	})
+	cmdregistry.MustRegisterLocalMeta("crashes", RunHint, cmdregistry.Meta{
+		Description: "View saved crash reports from panics (offline)",
+	})
 }

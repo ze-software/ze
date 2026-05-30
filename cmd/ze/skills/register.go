@@ -8,10 +8,12 @@ import (
 
 func init() {
 	cmdregistry.RegisterRoot("skills", cmdregistry.Meta{
-		Description: "Version-matched Ze skills for agents",
+		Description: "Agent skills matched to this Ze version",
 		Mode:        "offline",
 		Section:     cmdregistry.SectionSystem,
 		Subs:        "list, get <name> [--full]",
 	})
-	cmdregistry.MustRegisterLocal("skills", Run)
+	cmdregistry.MustRegisterLocalMeta("skills", Run, cmdregistry.Meta{
+		Description: "List or retrieve agent skill definitions matching this Ze version. Use 'get <name>' to fetch a specific skill.",
+	})
 }

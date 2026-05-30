@@ -9,18 +9,18 @@ import (
 
 func init() {
 	cmdregistry.RegisterRoot("debug", cmdregistry.Meta{
-		Description: "Runtime debug flags (persistent, stored in ZeFS)",
+		Description: "Toggle persistent debug flags (stored in ZeFS, survive restarts)",
 		Mode:        "offline",
 		Section:     cmdregistry.SectionOperations,
 		Subs:        "enable, disable, show",
 	})
-	cmdregistry.MustRegisterLocal("debug enable", func(args []string) int {
+	cmdregistry.MustRegisterLocalMeta("debug enable", func(args []string) int {
 		return Run(append([]string{"enable"}, args...))
-	})
-	cmdregistry.MustRegisterLocal("debug disable", func(args []string) int {
+	}, cmdregistry.Meta{Description: "Turn on a debug flag. Persisted in ZeFS so it survives restarts."})
+	cmdregistry.MustRegisterLocalMeta("debug disable", func(args []string) int {
 		return Run(append([]string{"disable"}, args...))
-	})
-	cmdregistry.MustRegisterLocal("debug show", func(args []string) int {
+	}, cmdregistry.Meta{Description: "Turn off a debug flag and remove it from ZeFS."})
+	cmdregistry.MustRegisterLocalMeta("debug show", func(args []string) int {
 		return Run(append([]string{"show"}, args...))
-	})
+	}, cmdregistry.Meta{Description: "List all debug flags currently enabled."})
 }
