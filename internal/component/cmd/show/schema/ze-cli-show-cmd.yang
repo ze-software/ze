@@ -2,74 +2,90 @@ module ze-cli-show-cmd {
     namespace "urn:ze:cli:show:cmd";
     prefix clishowcmd;
     import ze-extensions { prefix ze; }
-    description "Show command tree -- read-only introspection";
+    description "Show command tree for read-only inspection of system and protocol state";
     revision 2026-03-26 { description "Initial revision"; }
 
     container show {
         config false;
-        description "Read-only introspection commands";
+        description "Read-only commands to inspect system, protocol, and network state";
 
         container version {
             config false;
             ze:command "ze-show:version";
-            description "Show version and build date";
+            description "Show the running Ze version and build date.
+You can verify which release is deployed on this box.";
         }
 
         container uptime {
             config false;
             ze:command "ze-show:uptime";
-            description "Show daemon start time and uptime duration";
+            description "Show how long the daemon has been running.
+Returns the start time and elapsed uptime. Handy after a maintenance
+window to confirm the process restarted.";
         }
 
         container system {
             config false;
-            description "Daemon process metadata";
+            description "Daemon process and runtime diagnostics";
 
             container memory {
                 config false;
                 ze:command "ze-show:system-memory";
-                description "Show Go runtime memory statistics (alloc, heap, GC)";
+                description "Show how much memory the daemon is using.
+Returns allocated bytes, heap in-use, total allocations, GC cycles,
+and last GC pause duration. Compare over time to spot leaks.";
             }
 
             container cpu {
                 config false;
                 ze:command "ze-show:system-cpu";
-                description "Show goroutine count, logical CPU count, GOMAXPROCS";
+                description "Show CPU utilization context for the daemon.
+Returns goroutine count, logical CPU count, and GOMAXPROCS setting.
+Useful when the box feels sluggish and you want to see if Ze is
+hogging threads.";
             }
 
             container date {
                 config false;
                 ze:command "ze-show:system-date";
-                description "Show current wall-clock time in the daemon's timezone";
+                description "Show the daemon's current wall-clock time and timezone.
+Useful for correlating log timestamps when the box is in a
+different timezone than you are.";
             }
 
             container platform {
                 config false;
                 ze:command "ze-show:system-platform";
-                description "Show runtime platform type and capabilities (gokrazy, systemd, container, plain-linux, darwin)";
+                description "Show what kind of platform the daemon is running on.
+Reports whether this is gokrazy, systemd, container, plain-linux, or
+darwin, along with platform-specific capabilities.";
             }
 
             container subsystem {
                 config false;
-                description "Subsystem operations";
+                description "Subsystem lifecycle and state";
 
                 container list {
                     config false;
                     ze:command "ze-show:system-subsystem-list";
-                    description "List available subsystems with their state";
+                    description "List every registered subsystem and whether it is running.
+Shows you which components (bgp, dns, web, l2tp, etc.) are active,
+stopped, or failed.";
                 }
             }
 
             container ntp {
                 config false;
-                description "NTP synchronization operations";
+                description "NTP clock synchronization status";
 
                 ze:command "ze-show:system-ntp";
 
                 container peers {
                     config false;
                     ze:command "ze-show:system-ntp-peers";
-                    description "Show per-server NTP state (offset, RTT, stratum, reach)";
+                    description "Show NTP peers with offset, RTT, stratum, and reachability.
+Tells you whether your clock is synced and how far off each
+NTP server thinks you are.";
                 }
             }
 
@@ -77,25 +93,36 @@ module ze-cli-show-cmd {
                 config false;
                 ze:command "ze-show:system-conntrack";
                 ze:backend "nft";
-                description "Show netfilter conntrack table statistics, timeouts, and loaded modules";
+                description "Show the kernel connection tracking table.
+Returns conntrack entry count, table size, timeouts, and loaded
+modules. Requires the nft backend. Check this when you suspect
+conntrack table exhaustion is dropping traffic.";
             }
 
             container update {
                 config false;
                 ze:command "ze-show:system-update";
-                description "Show firmware update check status: last check time, running version, available version";
+                description "Check if a firmware update is available.
+Shows the running version, latest available version, and when the
+last check ran. Use 'update system firmware check' to trigger an
+immediate re-check.";
 
                 container history {
                     config false;
                     ze:command "ze-show:system-update-history";
-                    description "Show firmware update history (last 20 events)";
+                    description "Show recent firmware update activity.
+Lists the last 20 update events: checks, downloads, installs,
+and rollbacks with timestamps and outcomes.";
                 }
             }
 
             container sockets {
                 config false;
                 ze:command "ze-show:system-sockets";
-                description "Show TCP/UDP socket state ([tcp|udp] [state <STATE>] [port <N>])";
+                description "Show open TCP and UDP sockets on this box.
+Filters: [tcp|udp] [state <STATE>] [port <N>], all optional and
+combinable. States use kernel names (ESTABLISHED, LISTEN, TIME_WAIT).
+Linux only. Good for confirming listeners or spotting stuck connections.";
                 leaf protocol {
                     type enumeration {
                         enum tcp;
@@ -116,7 +143,10 @@ module ze-cli-show-cmd {
             container kernel-log {
                 config false;
                 ze:command "ze-show:system-kernel-log";
-                description "Show kernel log messages from /dev/kmsg ([level <LEVEL>] [count <N>])";
+                description "Show kernel log messages (dmesg-style).
+Reads from /dev/kmsg. Filter by syslog level (emerg through debug)
+and limit with count. Without count, you get everything available.
+Linux only. Useful for spotting NIC errors or OOM events.";
                 leaf level {
                     type enumeration {
                         enum emerg;
@@ -139,7 +169,10 @@ module ze-cli-show-cmd {
             container goroutines {
                 config false;
                 ze:command "ze-show:system-goroutines";
-                description "Show goroutine dump ([summary|blocked|full])";
+                description "Dump goroutine stacks for debugging hangs or deadlocks.
+Modes: summary (groups by state), blocked (only lock/channel waiters),
+full (all stacks). Default: summary. Share the output with support
+when the daemon stops responding.";
                 leaf mode {
                     type enumeration {
                         enum summary;
@@ -153,7 +186,10 @@ module ze-cli-show-cmd {
             container file-descriptors {
                 config false;
                 ze:command "ze-show:system-file-descriptors";
-                description "Show open file descriptors ([summary|detail])";
+                description "Show how many file descriptors the daemon has open.
+Summary mode: totals by type (socket, pipe, file). Detail mode: every
+fd with its path and type. Linux only (reads /proc/self/fd). Check
+this when you suspect fd exhaustion.";
                 leaf mode {
                     type enumeration {
                         enum summary;
@@ -166,7 +202,10 @@ module ze-cli-show-cmd {
             container profile {
                 config false;
                 ze:command "ze-show:system-profile";
-                description "Capture runtime profile ([cpu|heap|goroutine|allocs] [duration <D>])";
+                description "Capture a runtime profile for performance analysis.
+Types: cpu (requires duration, e.g. 30s), heap, goroutine, allocs
+(instant snapshots). Output is pprof format you can open with
+'go tool pprof'. Send the file to support for deep analysis.";
                 leaf type {
                     type enumeration {
                         enum cpu;
@@ -187,96 +226,134 @@ module ze-cli-show-cmd {
             container memory-map {
                 config false;
                 ze:command "ze-show:system-memory-map";
-                description "Show process memory map from /proc/self/status (VmRSS, VmSize, VmSwap, Threads)";
+                description "Show the process memory footprint from the kernel's view.
+Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status.
+Complements 'show system memory' (Go runtime) with the OS-level picture.";
             }
         }
 
         container host {
             config false;
-            description "Hardware inventory: CPU, NICs, DMI, memory, thermal, storage, kernel, platform";
+            description "Hardware inventory for this box.
+Sections: cpu, nic, dmi, memory, thermal, storage, kernel, platform.
+Use a subcommand for one section, or 'show host all' for everything.";
 
             container cpu {
                 config false;
                 ze:command "ze-show:host-cpu";
-                description "Show CPU inventory: vendor, model, topology, hybrid layout, scaling driver, frequencies, throttle counts";
+                description "Show what CPUs are in this box.
+Returns vendor, model, core/thread topology, hybrid layout, scaling
+driver, current/min/max frequencies, and throttle counts.";
             }
 
             container nic {
                 config false;
                 ze:command "ze-show:host-nic";
-                description "Show physical network interfaces: driver, PCI IDs, link speed, queue counts, firmware version (virtual interfaces excluded)";
+                description "Show physical NICs installed in this box.
+Returns driver, PCI vendor/device IDs, link speed, queue counts, and
+firmware version. Virtual interfaces are excluded. Use this to confirm
+NIC firmware before an upgrade.";
             }
 
             container dmi {
                 config false;
                 ze:command "ze-show:host-dmi";
-                description "Show DMI/SMBIOS board identity: system vendor, board, BIOS, chassis";
+                description "Show the box's identity from SMBIOS/DMI.
+Returns system vendor, board name, BIOS version, and chassis type.
+Useful for inventory or confirming which hardware model you are on.";
             }
 
             container memory {
                 config false;
                 ze:command "ze-show:host-memory";
-                description "Show physical memory sizes and ECC error counters (when edac driver present)";
+                description "Show installed memory and ECC health.
+Returns DIMM sizes and, when the edac driver is present, correctable
+and uncorrectable error counters. Non-zero ECC counts mean you should
+plan a DIMM replacement.";
             }
 
             container thermal {
                 config false;
                 ze:command "ze-show:host-thermal";
-                description "Show hwmon temperature sensors and per-CPU thermal-throttle counters";
+                description "Show temperature sensors and thermal throttle events.
+Returns hwmon sensor readings and per-CPU throttle counters. Non-zero
+throttle counts mean the box has been running hot enough to slow down.";
             }
 
             container storage {
                 config false;
                 ze:command "ze-show:host-storage";
-                description "Show block devices: size, model, transport (nvme/sata/mmc/virtio), rotational, NVMe firmware";
+                description "Show storage devices attached to this box.
+Returns size, model, transport type (nvme, sata, mmc, virtio),
+rotational flag, and NVMe firmware version where applicable.";
             }
 
             container kernel {
                 config false;
                 ze:command "ze-show:host-kernel";
-                description "Show Linux kernel release, cmdline, microcode revision, boot time, and security-relevant CPU flags";
+                description "Show the running kernel version and boot parameters.
+Returns kernel release, command line, CPU microcode revision, boot
+time, and security-relevant CPU flags (spectre mitigations, etc.).";
             }
 
             container platform {
                 config false;
                 ze:command "ze-show:host-platform";
-                description "Show runtime platform type and capability flags: read-only root, privilege availability, systemd, gokrazy update socket and UI, reboot-allowed, persistent-storage writability, and file-descriptor limits";
+                description "Show platform capabilities and constraints.
+Reports read-only root, privilege level, systemd presence, gokrazy
+update socket, reboot-allowed flag, persistent-storage writability,
+and fd limits. Helps you understand what operations are possible
+on this particular deployment.";
             }
 
             container all {
                 config false;
                 ze:command "ze-show:host-all";
-                description "Show the full host hardware inventory (all sections in one JSON response)";
+                description "Show the full hardware inventory in one shot.
+Returns every section (cpu, nic, dmi, memory, thermal, storage,
+kernel, platform) as a single JSON response. Ideal for support
+bundles or automated inventory collection.";
             }
         }
 
         container gnmi {
             config false;
             ze:command "ze-show:gnmi";
-            description "Show gNMI server status (enabled, listen address, auth, TLS, subscribers)";
+            description "Show whether the gNMI server is running and how it is configured.
+Returns listen address, TLS details, authentication mode, and the
+number of active streaming subscribers.";
         }
 
         container warnings {
             config false;
             ze:command "ze-show:warnings";
-            description "Show active operator-visible warnings from all subsystems (report bus snapshot)";
+            description "Show active warnings across all subsystems.
+Displays any conditions that need your attention (degraded peers,
+resource limits approaching, etc.). Use 'source <name>' to filter
+to a single subsystem.";
         }
 
         container aaa {
             config false;
-            description "AAA operational state";
+            description "Authentication, authorization, and accounting state";
 
             container accounting {
                 config false;
                 ze:command "ze-show:aaa-accounting";
-                description "Show AAA accounting counters, including dropped TACACS+ records";
+                description "Show AAA accounting counters and any dropped records.
+Tells you whether TACACS+ accounting is working or if records are
+being lost due to server unreachability.";
             }
         }
 
         container audit {
             config false;
             ze:command "ze-show:audit";
-            description "Show audit log entries ([action <type>] [actor <name>] [surface <name>] [since <RFC3339>] [until <RFC3339>] [count <N>])";
+            description "Show who did what and when on this box.
+Returns audit log entries with timestamps, actors, and actions.
+Filters (all optional, combinable): action <type>, actor <name>,
+surface <name> (cli, web, api), since/until <RFC3339>, count <N>.
+Actions include config-commit, login, peer-teardown, and more.";
             leaf action {
                 type string;
                 description "Filter by action type";
@@ -306,19 +383,28 @@ module ze-cli-show-cmd {
         container errors {
             config false;
             ze:command "ze-show:errors";
-            description "Show recent operator-visible error events from all subsystems (report bus ring buffer)";
+            description "Show recent errors across all subsystems, newest first.
+This is the first place to look when something goes wrong. Filter
+with source <name> to narrow to one subsystem, count <N> to limit
+output.";
         }
 
         container traffic {
             config false;
             ze:command "ze-show:traffic";
-            description "Show traffic control (qdisc/class/filter) state per interface";
+            description "Show traffic control (QoS) configuration per interface.
+Without arguments, lists every interface with its qdisc type and
+class/filter counts. With an interface name, shows the full qdisc
+and class breakdown. Use this to verify your shaping is applied.";
         }
 
         container ping {
             config false;
             ze:command "ze-show:ping";
-            description "ICMP ping from the router (<dest> [count N] [timeout Ns])";
+            description "Ping a target from the router itself.
+Sends ICMP echo requests to <dest> (IP or hostname). Default count
+is 5. Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms
+reachability from this box, not from your workstation.";
             leaf dest {
                 type string;
                 description "Target host or IP address";
@@ -338,7 +424,10 @@ module ze-cli-show-cmd {
         container traceroute {
             config false;
             ze:command "ze-show:traceroute";
-            description "Trace path to target (<dest> [max-hops N] [timeout Ns] [probes N])";
+            description "Trace the network path from this router to a target.
+Shows each hop with its IP and round-trip time. Dest can be an IP
+or hostname. Defaults: 30 max hops, 3 probes per hop. Increase
+probes for more reliable RTT measurements.";
             leaf dest {
                 type string;
                 description "Target host or IP address";
@@ -362,7 +451,10 @@ module ze-cli-show-cmd {
         container tcp-check {
             config false;
             ze:command "ze-show:tcp-check";
-            description "TCP port connectivity test (<host> <port> [source <IP>] [timeout <D>])";
+            description "Test TCP connectivity to a remote host and port.
+Tries to open a TCP connection and reports success or failure with
+the connection time. Use 'source <IP>' to bind a specific local
+address. Quick way to verify a peer's BGP port is reachable.";
             leaf host {
                 type string;
                 mandatory true;
@@ -388,7 +480,10 @@ module ze-cli-show-cmd {
         container probe-round {
             config false;
             ze:command "ze-show:probe-round";
-            description "Batch probe round for parallel traceroute (<dest> [probes N] [max-hops N] [timeout <D>])";
+            description "Run a parallel traceroute probe round to a target.
+Sends all probes concurrently for faster results than sequential
+traceroute. Returns per-hop RTT and IP. Use probes and max-hops
+to tune accuracy vs speed.";
             leaf dest {
                 type string;
                 description "Target host or IP address";
@@ -411,12 +506,16 @@ module ze-cli-show-cmd {
 
         container dns {
             config false;
-            description "DNS diagnostics";
+            description "DNS lookups and cache inspection";
 
             container lookup {
                 config false;
                 ze:command "ze-show:dns-lookup";
-                description "DNS lookup (<hostname> [type <A|AAAA|MX|NS|TXT|CNAME|PTR>])";
+                description "Look up a DNS name from the router.
+Resolves <hostname> using the daemon's DNS resolver (falls back to
+the system resolver if no DNS component is configured). Default type
+is A. Returns records, TTL, and query time. Supports A, AAAA, MX,
+NS, TXT, CNAME, and PTR.";
                 leaf hostname {
                     type string;
                     description "Hostname to resolve";
@@ -438,7 +537,10 @@ module ze-cli-show-cmd {
             container cache {
                 config false;
                 ze:command "ze-show:dns-cache";
-                description "DNS cache (stats | list | record <name>)";
+                description "Inspect the DNS cache.
+'stats' shows hit/miss/eviction counters. 'list' shows all cached
+entries. 'record <name>' shows one specific entry. Requires the DNS
+component to be active.";
                 leaf action {
                     type enumeration {
                         enum stats;
@@ -457,37 +559,56 @@ module ze-cli-show-cmd {
         container l2tp-health {
             config false;
             ze:command "ze-show:l2tp-health";
-            description "Show L2TP session health sorted by echo loss ratio";
+            description "Find your worst L2TP sessions at a glance.
+Sorts sessions by echo loss ratio (worst first). Shows subscriber
+login, session state, echo count, average RTT, and CQM bucket count.
+Reports how many sessions are degraded.";
         }
 
         container bgp-health {
             config false;
             ze:command "ze-show:bgp-health";
-            description "Show BGP peer health sorted by state and activity";
+            description "Quick health check for all your BGP peers.
+Lists every peer with address, state, ASN, and uptime. Reports how
+many are not Established. Much faster than 'show bgp peer *' when
+you just need a status overview.";
         }
 
         container health {
             config false;
             ze:command "ze-show:health";
-            description "Show aggregated component health status";
+            description "Is this box healthy? One command to find out.
+Returns per-component health (bgp, fib, iface, plugins, l2tp, etc.)
+plus an overall status. Each component reports healthy, degraded, or
+unhealthy with a reason. Start here when troubleshooting.";
         }
 
         container doctor {
             config false;
             ze:command "ze-show:doctor";
-            description "Run offline readiness checks (same output as ze doctor --json)";
+            description "Check if this box is ready to run Ze.
+Verifies runtime dependencies: required files, sockets, ports, and
+kernel modules. Each check reports pass or fail with a reason. Run
+this before first start or after changing the platform setup.";
         }
 
         container metrics-query {
             config false;
             ze:command "ze-show:metrics-query";
-            description "Query Prometheus metrics by name with optional label filter";
+            description "Query a specific Prometheus metric by name.
+Usage: show metrics-query <name> [label=value ...]. Returns matching
+time series from the internal registry. Multiple label filters are
+ANDed. More targeted than the full metrics dump.";
         }
 
         container capture {
             config false;
             ze:command "ze-show:capture";
-            description "Show captured control messages (l2tp [tunnel-id N] [count N] [peer X])";
+            description "Show captured control-plane messages.
+Returns protocol messages you previously enabled capture for. Without
+a protocol keyword, shows all protocols. Filters: tunnel-id (L2TP),
+peer (remote address), count (limit entries). Use this to debug
+session establishment issues.";
             leaf protocol {
                 type enumeration {
                     enum l2tp;
@@ -511,7 +632,10 @@ module ze-cli-show-cmd {
             container raw {
                 config false;
                 ze:command "ze-show:capture-raw";
-                description "Raw byte capture: start/stop activation and pcap/json dump ([start|stop|dump] [l2tp|bgp] [pcap|json] [count N])";
+                description "Control raw byte capture for protocol debugging.
+Actions: start (begin capturing), stop (halt), dump (retrieve).
+Protocols: l2tp, bgp. Output formats: pcap (for Wireshark), json.
+Limit with count <N>.";
                 leaf action {
                     type enumeration {
                         enum start;
@@ -543,7 +667,10 @@ module ze-cli-show-cmd {
             container interface {
                 config false;
                 ze:command "ze-show:capture-interface";
-                description "Live packet capture on an interface using AF_PACKET (<iface> [protocol <P> port <N>] [count <N>] [duration <D>] [snap-len <N>] [format pcap|text])";
+                description "Capture live packets on an interface (like tcpdump).
+Uses AF_PACKET for zero-copy capture. Filter by protocol and port.
+Limit with count or duration. Output as pcap (for Wireshark) or text.
+Snap-len controls how many bytes per packet are captured.";
                 leaf iface {
                     type string;
                     description "Interface name";
@@ -582,238 +709,301 @@ module ze-cli-show-cmd {
 
         container event {
             config false;
-            description "Event history";
+            description "Internal event history and namespace discovery";
 
             container recent {
                 config false;
                 ze:command "ze-show:event-recent";
-                description "Show recent events from the global event ring (newest first)";
+                description "Show recent events, newest first.
+Each event includes timestamp, namespace, and type. Filter with
+namespace <name> to focus on one area, count <N> to limit output.
+Useful for reconstructing what happened before an incident.";
             }
 
             container namespaces {
                 config false;
                 ze:command "ze-show:event-namespaces";
-                description "Show registered event namespaces with event counts";
+                description "List all event namespaces and how many events each has logged.
+Tells you which subsystems are generating events and how active
+they are.";
             }
         }
 
         container bgp {
             config false;
-            description "BGP introspection";
+            description "BGP peers, sessions, RIB, and protocol tools";
 
             container peer {
                 config false;
                 ze:command "ze-show:bgp-peer";
-                description "Show peer(s) details";
+                description "Show detailed state for one or more BGP peers.
+Returns IP, ASN, state, uptime, capabilities, message counters,
+policy, and notification history. Use a peer selector: IP address,
+name, AS pattern (as65001), glob (10.0.*), or * for all.";
             }
 
             container peer-history {
                 config false;
                 ze:command "ze-bgp:peer-history";
-                description "Show FSM transition history for a peer";
+                description "Show why a peer has been bouncing.
+Returns timestamped FSM state transitions with reasons (hold timer
+expired, notification received, etc.). Accepts a peer selector
+(IP or name). The go-to command when diagnosing flapping.";
             }
 
             container decode {
                 config false;
                 ze:command "ze-show:bgp-decode";
-                description "Decode BGP message from hex to JSON";
+                description "Decode a hex-encoded BGP message into readable JSON.
+Paste a hex BGP UPDATE and get back parsed attributes, NLRI, and
+withdrawn prefixes. Handy for reading pcap captures or debugging
+wire issues. Also available in the web UI under tools.";
             }
 
             container encode {
                 config false;
                 ze:command "ze-show:bgp-encode";
-                description "Encode API route command to BGP hex";
+                description "Turn a route announcement into wire-format hex.
+Takes a route in API syntax and returns the BGP UPDATE as a hex
+string. Useful for building test payloads, feeding to ze-test, or
+verifying that your announcement encodes correctly.";
             }
 
             container rib {
                 config false;
                 ze:command "ze-rib-api:routes";
                 ze:task-support required;
-                description "BGP RIB routes (scope + filters + terminal)";
+                description "Query routes in the BGP RIB.
+Look at received or advertised routes with flexible filters: peer,
+family, prefix, AS path regex, community, match expression. Pipe
+operators: | count, | prefix-summary, | graph. This is the main
+route inspection command.";
 
                 container best {
                     config false;
                     ze:command "ze-rib-api:best";
-                    description "Best-path per prefix";
+                    description "Show the winning route for each prefix.
+Same filters as 'show bgp rib'. Use '| reason' to see why each
+path was selected (local-pref, AS path length, MED, etc.).";
 
                     container status {
                         config false;
                         ze:command "ze-rib-api:best-status";
-                        description "Best-path computation status";
+                        description "Check whether best-path computation is still running.
+Reports idle, pending, or running, plus the last run duration.";
                     }
                 }
 
                 container status {
                     config false;
                     ze:command "ze-rib-api:status";
-                    description "RIB summary (peer count, route counts)";
+                    description "Get a quick RIB overview without dumping routes.
+Shows total peers, received/accepted/advertised route counts, and
+per-family breakdowns. Use this to confirm convergence after a
+peer comes up.";
                 }
             }
         }
 
         container env {
             config false;
-            description "Environment variable inspection";
+            description "Ze environment variable inspection";
 
             container list {
                 config false;
                 ze:command "ze-show:env-list";
-                description "List registered environment variables";
+                description "List all Ze environment variables with their current values.
+Shows which env vars are set and their defaults.";
             }
 
             container get {
                 config false;
                 ze:command "ze-show:env-get";
-                description "Show details for a specific environment variable";
+                description "Show one environment variable in detail.
+Returns the variable name, current value, default, and what it
+controls. Usage: show env get <name>.";
             }
 
             container registered {
                 config false;
                 ze:command "ze-show:env-registered";
-                description "List all registered environment variables";
+                description "List every registered environment variable with metadata.
+Includes type, default, description, and whether it is currently set.";
             }
         }
 
         container schema {
             config false;
-            description "Schema discovery and introspection";
+            description "Discover registered YANG schemas, RPCs, and events";
 
             container list {
                 config false;
                 ze:command "ze-show:schema-list";
-                description "List all registered YANG schemas";
+                description "List all YANG schemas loaded by the daemon.
+Shows module name, namespace, and revision for each schema.";
             }
 
             container methods {
                 config false;
                 ze:command "ze-show:schema-methods";
-                description "List RPCs from YANG API modules";
+                description "List all RPC methods defined in YANG API modules.
+Useful for plugin developers to discover available operations.";
             }
 
             container events {
                 config false;
                 ze:command "ze-show:schema-events";
-                description "List notifications from YANG API modules";
+                description "List all notification types defined in YANG API modules.
+Shows which events a plugin can subscribe to.";
             }
 
             container handlers {
                 config false;
                 ze:command "ze-show:schema-handlers";
-                description "List handler to module mapping";
+                description "Show which handler serves each YANG module.
+Maps module names to their implementing Go handler.";
             }
 
             container protocol {
                 config false;
                 ze:command "ze-show:schema-protocol";
-                description "Show protocol version and format info";
+                description "Show the wire protocol version and format details.
+Useful for checking compatibility between Ze versions.";
             }
         }
 
         container yang {
             config false;
-            description "YANG tree analysis and documentation";
+            description "YANG model tree visualization and documentation";
 
             container tree {
                 config false;
                 ze:command "ze-show:yang-tree";
-                description "Display YANG tree for a module";
+                description "Print the YANG tree for a module in a readable hierarchy.
+Shows node types, data types, and config-vs-state annotations.
+Similar to 'pyang -f tree'. Useful for understanding the config
+or command structure.";
             }
 
             container completion {
                 config false;
                 ze:command "ze-show:yang-completion";
-                description "Show YANG completion paths";
+                description "Show YANG paths available for tab completion.
+Lists every valid completion point in the command tree.";
             }
 
             container doc {
                 config false;
                 ze:command "ze-show:yang-doc";
-                description "Generate command documentation from YANG";
+                description "Generate command reference docs from YANG schemas.
+Produces structured documentation with descriptions, arguments, and
+usage patterns for every registered command.";
             }
         }
 
         container data {
             config false;
-            description "ZeFS blob store inspection";
+            description "ZeFS blob store keys and content";
 
             container ls {
                 config false;
                 ze:command "ze-show:data-ls";
-                description "List entries in the blob store";
+                description "List everything stored in the ZeFS blob store.
+Shows all keys and their sizes. Use 'show data cat <key>' to see
+the content of a specific entry.";
             }
 
             container cat {
                 config false;
                 ze:command "ze-show:data-cat";
-                description "Print entry content to stdout";
+                description "Print the raw content of a blob store entry.
+Usage: show data cat <key>. Outputs the value for the given key,
+like 'cat' for ZeFS.";
             }
 
             container registered {
                 config false;
                 ze:command "ze-show:data-registered";
-                description "List registered key patterns";
+                description "List the key patterns registered by all subsystems.
+Shows you what types of data ZeFS knows about.";
             }
         }
 
         container config {
             config false;
-            description "Configuration inspection";
+            description "Inspect, compare, and format configuration";
 
             container dump {
                 config false;
                 ze:command "ze-show:config-dump";
-                description "Parse and display configuration";
+                description "Show the fully resolved configuration tree.
+Parses the config and outputs it after includes, defaults, and group
+inheritance have been applied. What you see here is exactly what the
+daemon is using.";
             }
 
             container diff {
                 config false;
                 ze:command "ze-show:config-diff";
-                description "Compare two configurations";
+                description "Compare two configuration versions side by side.
+Shows what was added, removed, or changed. Commonly used with
+rollback revisions to review what changed before you roll back.";
             }
 
             container history {
                 config false;
                 ze:command "ze-show:config-history";
-                description "List rollback revisions";
+                description "List available configuration rollback points.
+Shows revisions with timestamps and commit metadata. Pair with
+'show config diff' to review changes before rolling back.";
             }
 
             container ls {
                 config false;
                 ze:command "ze-show:config-ls";
-                description "List configs in the database";
+                description "List all configuration files stored in the database.
+Shows archived snapshots and the active config.";
             }
 
             container cat {
                 config false;
                 ze:command "ze-show:config-cat";
-                description "Print a database entry";
+                description "Print the full text of a stored configuration snapshot.
+Usage: show config cat <id>. Outputs the config as-is.";
             }
 
             container fmt {
                 config false;
                 ze:command "ze-show:config-fmt";
-                description "Format and normalize configuration";
+                description "Pretty-print the configuration with consistent formatting.
+Normalizes indentation and ordering. Output goes to stdout (read-only).
+To rewrite the file in place, use 'ze config fmt -w' from the CLI.";
             }
         }
 
         container policy {
             config false;
-            description "Policy filter introspection";
+            description "Inspect and test route policy filters";
 
             container list {
                 config false;
                 ze:command "ze-show:policy-list";
-                description "List all registered filter types and named instances";
+                description "List all available filter types and named instances.
+Shows each filter type and its implementing plugin. Check here
+when building a new policy chain to see what filters you can use.";
             }
 
             container chain {
                 config false;
-                description "Show effective filter chain for a peer (import/export)";
+                description "Show the effective filter chain for a peer";
 
                 container peer {
                     config false;
                     ze:command "ze-show:policy-chain";
-                    description "Peer selector, then optional import|export direction";
+                    description "Show the import/export filter chain applied to a peer.
+Accepts a peer selector (IP, name, as<N>). Shows the effective chain
+after group inheritance is resolved. Without a direction keyword,
+shows both import and export.";
                     leaf direction {
                         type enumeration {
                             enum import;
@@ -826,12 +1016,16 @@ module ze-cli-show-cmd {
 
             container test {
                 config false;
-                description "Dry-run a BGP UPDATE through a policy chain or single filter (read-only, no forwarding)";
+                description "Dry-run a BGP UPDATE through a policy chain (read-only, safe)";
 
                 container peer {
                     config false;
                     ze:command "ze-show:policy-test";
-                    description "Peer selector, then direction, optional filter, and update bytes";
+                    description "Test what your policy does to a specific UPDATE.
+Feed a hex-encoded BGP UPDATE through a peer's filter chain and see
+the accept/reject result plus attribute modifications at each stage.
+Read-only: no routes are actually forwarded. Great for validating
+policy changes before you commit.";
                     leaf direction {
                         type enumeration {
                             enum import;
@@ -861,53 +1055,65 @@ module ze-cli-show-cmd {
         container interface {
             config false;
             ze:command "ze-show:interface";
-            description "List OS network interfaces (brief, detail, counters, type, errors dispatch to the same WireMethod; handler branches on args).";
+            description "Show network interfaces on this box.
+Without arguments, returns all interfaces with full detail.
+Subcommands: brief, type <t>, errors, rate, detail <name>,
+counters <name>.";
 
             container brief {
                 config false;
                 ze:command "ze-show:interface";
-                description "One-line-per-interface summary (name, state, IP, MTU)";
+                description "One-line summary per interface: name, state, IP, and MTU.
+Quick way to see what is up and what addresses are assigned.";
             }
 
             container scan {
                 config false;
                 ze:command "ze-show:interface-scan";
-                description "Scan OS for interfaces and classify by Ze type.
-                             Returns a JSON array of discovered interfaces with
-                             name, type, and MAC. Pipe output to table, yaml, or
-                             json for different views. The --config flag in the
-                             standalone CLI (ze interface scan --config) is not
-                             available via the daemon path; use the standalone
-                             binary for config-syntax output.";
+                description "Discover and classify all OS interfaces.
+Returns name, Ze type (ethernet, bridge, vxlan, etc.), and MAC for
+each interface found. Pipe to table, yaml, or json for different
+views. Useful during initial setup to see what the box has.";
             }
 
             container type {
                 config false;
                 ze:command "ze-show:interface";
-                description "Filter the interface list by type (ethernet, bridge, vxlan, wireguard, tunnel, bond, ...). Usage: show interface type <type>";
+                description "Show only interfaces of a given type.
+Usage: show interface type <type>. Types include ethernet, bridge,
+vxlan, wireguard, tunnel, bond, and more. If you pick an invalid
+type, the error lists all valid ones.";
             }
 
             container errors {
                 config false;
                 ze:command "ze-show:interface";
-                description "Show only interfaces with non-zero Rx/Tx error or drop counters";
+                description "Show interfaces that have errors or drops.
+Filters to only interfaces with non-zero Rx/Tx error or drop
+counters. Quick way to find troubled links.";
             }
 
             container rate {
                 config false;
                 ze:command "ze-show:interface";
-                description "Per-second rate data (rx/tx bytes/packets per second) for all interfaces or a named interface";
+                description "Show per-second traffic rates on your interfaces.
+Returns rx/tx bytes and packets per second. Pass an interface name
+to narrow the output. Requires the rate tracker. For continuous
+monitoring, use 'monitor interface rate' instead.";
             }
         }
 
         container ip {
             config false;
-            description "IP layer introspection (ARP/ND, routing table)";
+            description "IP neighbors (ARP/ND) and kernel routing table";
 
             container arp {
                 config false;
                 ze:command "ze-show:ip-arp";
-                description "Kernel neighbor table: IPv4 ARP and IPv6 ND entries. Optional --family ipv4|ipv6 narrows the dump. Equivalent to the top-level `show neighbors`; the two surface the same data and differ only in argument shape (--family vs positional).";
+                description "Show the ARP and neighbor discovery table.
+Lists IPv4 ARP and IPv6 ND entries with MAC addresses and states.
+Filter with --family ipv4 or ipv6. Same data as 'show neighbors',
+just a different path.";
                 leaf family {
                     type enumeration {
                         enum ipv4;
@@ -922,7 +1128,10 @@ module ze-cli-show-cmd {
             container route {
                 config false;
                 ze:command "ze-show:ip-route";
-                description "Kernel routing table. Optional positional CIDR (or 'default') narrows the dump. Equivalent to the top-level `show kernel-routes`; same handler, same flags.";
+                description "Show the kernel routing table.
+Lists installed routes with next-hop, interface, protocol, and metric.
+Pass a CIDR prefix or 'default' to filter. Same data as 'show
+kernel-routes'.";
                 leaf prefix {
                     type string;
                     description "CIDR prefix filter";
@@ -935,7 +1144,10 @@ module ze-cli-show-cmd {
                 container lookup {
                     config false;
                     ze:command "ze-show:route-lookup";
-                    description "Longest-prefix-match route lookup for a destination IP";
+                    description "Look up which route the kernel would use for a given IP.
+Performs a longest-prefix-match and returns the matching route with
+gateway, interface, protocol, and metric. Usage: show ip route
+lookup <ip>.";
                 }
             }
         }
@@ -943,7 +1155,9 @@ module ze-cli-show-cmd {
         container neighbors {
             config false;
             ze:command "ze-show:neighbors";
-            description "Kernel neighbor table (ARP/ND) via the iface backend. Optional positional 'ipv4', 'ipv6', or 'any' narrows the dump. Top-level shortcut for `show ip arp`; use whichever reads better in your session.";
+            description "Show the ARP/ND neighbor table (shortcut for 'show ip arp').
+Lists neighbor entries with MAC address and state. Filter with
+ipv4, ipv6, or any as a positional argument.";
             leaf family {
                 type enumeration {
                     enum ipv4;
@@ -958,7 +1172,10 @@ module ze-cli-show-cmd {
         container crashes {
             config false;
             ze:command "ze-show:crashes";
-            description "Crash reports. No argument lists files. Positional 'latest' or a filename shows report content.";
+            description "View saved crash reports from panics.
+Without arguments, lists available crash files. Use 'latest' or a
+specific filename to see the goroutine stack trace from that crash.
+Send the output to support when reporting a crash.";
             leaf name {
                 type string;
                 description "Crash report name (latest or filename)";
@@ -968,232 +1185,289 @@ module ze-cli-show-cmd {
         container kernel-routes {
             config false;
             ze:command "ze-show:kernel-routes";
-            description "Kernel routing table via the iface backend. Optional positional CIDR (or 'default') narrows the dump; --limit N caps the response size. Top-level shortcut for `show ip route`; same handler.";
+            description "Show kernel routes (shortcut for 'show ip route').
+Pass a CIDR prefix, 'default', or --limit N to narrow output.";
         }
 
         container mpls {
             config false;
-            description "MPLS label-switching introspection";
+            description "MPLS forwarding table and label operations";
 
             container forwarding {
                 config false;
                 ze:command "ze-show:mpls-forwarding";
-                description "Installed MPLS forwarding entries from the kernel AF_MPLS table (in-label, operation, next-hop). --limit N caps the response size.";
+                description "Show MPLS forwarding entries installed in the kernel.
+Each entry shows the incoming label, swap/push/pop operation, and
+outgoing next-hop. Use --limit N for large tables. Linux only.";
             }
         }
 
         container rsvp-te {
             config false;
-            description "RSVP-TE traffic-engineering introspection";
+            description "RSVP-TE LSPs, tunnels, and bandwidth reservations";
 
             container lsp {
                 config false;
                 ze:command "ze-show:rsvp-te-lsp";
-                description "RSVP-TE LSPs: state, role, bandwidth, in/out labels.";
+                description "Show RSVP-TE label-switched paths.
+Returns state, role (ingress/transit/egress), reserved bandwidth,
+and in/out labels for each LSP.";
             }
 
             container interface {
                 config false;
                 ze:command "ze-show:rsvp-te-interface";
-                description "RSVP-TE per-interface reserved / available / max bandwidth.";
+                description "Show RSVP-TE bandwidth allocation per interface.
+Returns reserved, available, and maximum bandwidth for each
+TE-enabled interface.";
             }
 
             container tunnel {
                 config false;
                 ze:command "ze-show:rsvp-te-tunnel";
-                description "RSVP-TE configured tunnels and their state.";
+                description "Show configured RSVP-TE tunnels and their current state.
+Returns tunnel name, endpoints, signaling state, and active LSP.";
             }
         }
 
         container ldp {
             config false;
-            description "LDP label-distribution introspection";
+            description "LDP neighbors and label bindings";
 
             container neighbor {
                 config false;
                 ze:command "ze-show:ldp-neighbor";
-                description "LDP neighbors with session state and transport address.";
+                description "Show LDP neighbors and their session state.
+Returns peer address, transport address, session state, and
+hold time for each LDP neighbor.";
             }
 
             container binding {
                 config false;
                 ze:command "ze-show:ldp-binding";
-                description "LDP FEC-to-label bindings (local and remote).";
+                description "Show LDP FEC-to-label bindings.
+Lists local and remote label bindings for each FEC (prefix).
+Use this to verify label distribution is working.";
             }
         }
 
         container vpp {
             config false;
             ze:backend "vpp";
-            description "VPP dataplane introspection";
+            description "VPP dataplane tracing and runtime statistics";
 
             container trace {
                 config false;
-                description "VPP packet trace operations";
+                description "Capture and inspect VPP dataplane packet traces";
 
                 container start {
                     config false;
                     ze:command "ze-show:vpp-trace-start";
-                    description "Start VPP dataplane packet trace ([node <input-node>] [count N])";
+                    description "Start capturing packets in the VPP dataplane.
+Default input node is dpdk-input, default count is 100 (max 10000).
+After starting, use 'show vpp trace show' to retrieve the captured
+packets. Requires the VPP backend.";
                 }
 
                 container show {
                     config false;
                     ze:command "ze-show:vpp-trace-show";
-                    description "Show captured VPP dataplane trace";
+                    description "Retrieve packets captured since the last trace start.
+Shows per-packet VPP graph node traversal. Requires the VPP backend.";
                 }
 
                 container clear {
                     config false;
                     ze:command "ze-show:vpp-trace-clear";
-                    description "Clear VPP trace buffer";
+                    description "Discard the captured VPP trace buffer.
+Clears all packets so you can start a fresh trace. Requires the
+VPP backend.";
                 }
             }
 
             container runtime {
                 config false;
                 ze:command "ze-show:vpp-runtime";
-                description "Show VPP node runtime counters";
+                description "Show VPP graph node processing statistics.
+Returns per-node packet counts, vectors, clocks, and suspends.
+Helps you find which node is the bottleneck. Requires the VPP
+backend.";
             }
         }
 
         container static {
             config false;
             ze:command "ze-show:static";
-            description "Show configured static routes";
+            description "Show static routes defined in the configuration.
+Lists each static route with its prefix, next-hop, and interface.";
         }
 
         container policy-routes {
             config false;
             ze:command "ze-show:policy-routes";
-            description "Show policy-based routing rules";
+            description "Show policy-based routing rules.
+Lists PBR rules with match criteria and routing actions.";
         }
 
         container bmp {
             config false;
-            description "BMP (BGP Monitoring Protocol) introspection";
+            description "BMP monitoring sessions, peers, and routes";
 
             container sessions {
                 config false;
                 ze:command "ze-show:bmp-sessions";
-                description "Show BMP receiver sessions";
+                description "Show active BMP receiver sessions.
+Lists each session with connection state and message counters.
+Check here to confirm your BMP collector is receiving data.";
             }
 
             container peers {
                 config false;
                 ze:command "ze-show:bmp-peers";
-                description "Show BMP monitored BGP peers";
+                description "Show BGP peers as seen through BMP monitoring.
+Lists peers reported via BMP with their state and route statistics.";
             }
 
             container collectors {
                 config false;
                 ze:command "ze-show:bmp-collectors";
-                description "Show BMP sender collector status";
+                description "Show BMP collector connection status.
+Lists configured collectors with connection state, sent message
+counts, and error statistics. Check here if your collector is
+not receiving data.";
             }
 
             container rib {
                 config false;
                 ze:command "ze-show:bmp-rib";
-                description "Show BMP-monitored routes";
+                description "Show routes received via BMP monitoring sessions.
+Returns the BMP RIB content. Use this to verify what your
+collector is seeing from remote peers.";
             }
         }
 
         container rr {
             config false;
-            description "Route reflector introspection";
+            description "Route reflector status and client peers";
 
             container status {
                 config false;
                 ze:command "ze-show:rr-status";
-                description "Show route reflector running state";
+                description "Show whether the route reflector is active.
+Returns cluster ID, running state, and summary statistics
+(reflected routes, client count).";
             }
 
             container peers {
                 config false;
                 ze:command "ze-show:rr-peers";
-                description "Show route reflector peer states";
+                description "Show route reflector client peers.
+Lists each RR client with session state and reflected route counts.";
             }
         }
 
         container firewall {
             config false;
-            description "Firewall (nftables) introspection";
+            description "Firewall rules and groups (nftables)";
 
             container ruleset {
                 config false;
                 ze:command "ze-show:firewall-ruleset";
                 ze:backend "nft";
-                description "Rules in a named table with per-term packet/byte counters. Usage: show firewall ruleset <name>.";
+                description "Show firewall rules in a named table with hit counters.
+Returns each rule with packet and byte counters. Usage: show
+firewall ruleset <name>. Check counters to verify rules are matching.";
             }
 
             container group {
                 config false;
                 ze:command "ze-show:firewall-group";
                 ze:backend "nft";
-                description "Members of a named firewall set (ze's firewall group). No argument lists all known groups; a positional name returns the set elements. Reads from the last applied config -- does not talk to the kernel.";
+                description "Show members of a firewall address/port group.
+Without arguments, lists all known groups. With a name, shows the
+set elements. Reads from the last applied config, not the kernel.";
             }
         }
 
         container pki {
             config false;
-            description "PKI certificate store introspection";
+            description "TLS certificates and CA trust store";
 
             container certificates {
                 config false;
                 ze:command "ze-show:pki-certificates";
-                description "List all loaded certificates (CA and device) with name, type, subject, issuer, expiry, and validity.";
+                description "List all loaded certificates with expiry dates.
+Shows name, type (CA or device), subject, issuer, expiry, and
+validity status. Check here to find certificates approaching
+expiration.";
             }
 
             container certificate {
                 config false;
                 ze:command "ze-show:pki-certificate";
-                description "Show certificate details, PEM, bundle, or fingerprint. Usage: show pki certificate <name> [pem | bundle pem | fingerprint [sha256|sha384|sha512]].";
+                description "Inspect a specific certificate in detail.
+Usage: show pki certificate <name> [pem | bundle pem | fingerprint
+[sha256|sha384|sha512]]. Use 'pem' to export for another system,
+'fingerprint' to verify identity.";
             }
         }
 
         container vpn {
             config false;
-            description "VPN subsystem introspection";
+            description "VPN tunnel state (IPsec)";
 
             container ipsec {
                 config false;
-                description "IPsec tunnel introspection";
+                description "IPsec SAs, tunnels, and peer connections";
 
                 container sa {
                     config false;
                     ze:command "ze-show:vpn-ipsec-sa";
-                    description "List all IKE and Child Security Associations with peer, algorithms, bytes, rekey, uptime.";
+                    description "Show all IKE and Child Security Associations.
+Lists every SA with peer, negotiated algorithms, byte counts, rekey
+timers, and uptime. Includes SPIs, NAT detection, and child SA
+traffic selectors. Your main IPsec status command.";
                 }
 
                 container status {
                     config false;
                     ze:command "ze-show:vpn-ipsec-status";
-                    description "Show IKE engine state, configured connection count, active IKE SA count.";
+                    description "Quick IPsec health check.
+Reports whether the IKE engine is running, how many peers are
+configured, and how many IKE SAs are Established.";
                 }
 
                 container peer {
                     config false;
                     ze:command "ze-show:vpn-ipsec-peer";
-                    description "Show detailed peer info: IKE SA state, child SAs with traffic selectors, byte counts. Usage: show vpn ipsec peer <name>.";
+                    description "Show full detail for one IPsec peer.
+Returns IKE SA state, all child SAs with traffic selectors, and
+byte counts. Usage: show vpn ipsec peer <name>.";
                 }
             }
         }
 
         container storage {
             config false;
-            description "Storage device management";
+            description "Storage device health and diagnostics";
 
             container smart {
                 config false;
                 ze:command "ze-show:storage-smart";
-                description "Show SMART health status, temperature, power-on hours, and self-test schedule for all block devices";
+                description "Show disk health via SMART data.
+Returns health status, temperature, power-on hours, and self-test
+schedule for each block device. Replace drives that report failing
+health before they cause data loss.";
             }
         }
 
         container flow-export {
             config false;
             ze:command "ze-show:flow-export";
-            description "Show flow export collector status, protocol stats, and errors. Usage: show flow-export [<collector>].";
+            description "Show flow export (NetFlow/IPFIX) collector status.
+Without arguments, lists all configured collectors. With a name,
+shows details for that collector including protocol stats and errors.
+Returns not-configured when no exporter is active.";
         }
     }
 }

@@ -6,10 +6,7 @@ module ze-pppoe-cmd {
     import ze-cli-show-cmd  { prefix clishowcmd; }
 
     description
-        "PPPoE CLI command tree. Augments the global `show` verb with
-         a `pppoe` sub-tree so operators type `show pppoe`, `show pppoe
-         sessions`, etc. Each leaf container maps to a ze-pppoe-api RPC
-         via the ze:command extension.";
+        "PPPoE access concentrator sessions and statistics.";
 
     revision 2026-05-08 {
         description "Initial revision (spec-bng-5-pppoe).";
@@ -19,30 +16,40 @@ module ze-pppoe-cmd {
         container pppoe {
             config false;
             ze:command "ze-pppoe-api:summary";
-            description "PPPoE access concentrator observability commands.";
+            description "PPPoE session and protocol state.
+Without a subcommand, shows a summary of active sessions.";
 
             container sessions {
                 config false;
                 ze:command "ze-pppoe-api:sessions";
-                description "List every live PPPoE session.";
+                description "List all active PPPoE sessions.
+One line per session: session ID, MAC, subscriber login, uptime,
+and assigned addresses.";
             }
 
             container session {
                 config false;
                 ze:command "ze-pppoe-api:session";
-                description "Show one PPPoE session by session ID.";
+                description "Show full detail for one PPPoE session.
+Pass the session ID. Returns discovery tags, LCP/NCP state,
+assigned addresses, and traffic counters.";
             }
 
             container statistics {
                 config false;
                 ze:command "ze-pppoe-api:statistics";
-                description "Show PPPoE protocol counters.";
+                description "Show PPPoE protocol message counters.
+Returns PADI, PADO, PADR, PADS, PADT counts, active sessions, and
+errors. A rising PADI count with flat PADS means sessions are not
+completing.";
             }
 
             container interfaces {
                 config false;
                 ze:command "ze-pppoe-api:interfaces";
-                description "Show configured PPPoE access interfaces.";
+                description "Show which interfaces are accepting PPPoE sessions.
+Lists each PPPoE-enabled interface with its service name, session
+limit, and how many sessions are currently active.";
             }
         }
     }

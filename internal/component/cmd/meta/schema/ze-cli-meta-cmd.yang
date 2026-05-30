@@ -2,69 +2,86 @@ module ze-cli-meta-cmd {
     namespace "urn:ze:cli:meta:cmd";
     prefix climeta;
     import ze-extensions { prefix ze; }
-    description "BGP meta/introspection command tree";
+    description "Command discovery, help, and plugin session configuration";
     revision 2026-03-16 { description "Initial revision"; }
 
     container help {
         config false;
         ze:command "ze-bgp:help";
-        description "List bgp subcommands";
+        description "Show available commands at this level.
+Lists every registered command verb with a brief description.";
     }
 
     container command {
         config false;
-        description "Command introspection";
+        description "Command discovery and completion";
 
         container list {
             config false;
             ze:command "ze-bgp:command-list";
-            description "List bgp commands";
+            description "List every command the daemon knows about.
+Returns dispatch key and description for each. Useful for scripting
+or discovering commands not shown in the top-level help.";
         }
 
         container help {
             config false;
             ze:command "ze-bgp:command-help";
-            description "Show command details";
+            description "Show usage and arguments for a specific command.
+Gives you the full description, expected arguments, and usage
+pattern for one command.";
         }
 
         container complete {
             config false;
             ze:command "ze-bgp:command-complete";
-            description "Complete command/args";
+            description "Get tab-completion candidates for a partial command.
+Returns possible completions for the given input. Used internally
+by the CLI editor, but also callable for scripting.";
         }
     }
 
     container event {
         config false;
-        description "Event operations";
+        description "Event type discovery";
 
         container list {
             config false;
             ze:command "ze-bgp:event-list";
-            description "List available BGP event types";
+            description "List every event type you can subscribe to.
+Shows event name, category, and payload structure. Use this to
+discover what events are available before subscribing.";
         }
     }
 
     container plugin {
         config false;
-        description "Plugin configuration";
+        description "Configure how events are delivered to your plugin session";
 
         container encoding {
             config false;
             ze:command "ze-bgp:plugin-encoding";
-            description "Set event encoding (json|text)";
+            description "Choose json or text encoding for plugin events.
+Controls how events are serialized in this session. JSON is
+structured and parseable; text is more compact.";
         }
 
         container format {
             config false;
             ze:command "ze-bgp:plugin-format";
-            description "Set wire format (hex|base64|parsed|full)";
+            description "Choose how BGP message bytes appear in events.
+hex and base64 are compact wire representations. parsed decodes
+attributes into structured fields. full includes both wire bytes
+and parsed content.";
         }
 
         container ack {
             config false;
             ze:command "ze-bgp:plugin-ack";
-            description "Set ACK timing (sync|async)";
+            description "Choose sync or async event delivery.
+sync: Ze waits for your plugin to acknowledge each event before
+sending the next one. Safer but slower. async: events fire without
+waiting, giving higher throughput at the cost of backpressure control.";
         }
     }
 }

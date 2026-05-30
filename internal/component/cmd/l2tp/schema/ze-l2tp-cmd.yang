@@ -7,12 +7,9 @@ module ze-l2tp-cmd {
     import ze-cli-clear-cmd { prefix cliclearcmd; }
 
     description
-        "L2TP CLI command tree. Augments the global `show` verb with
-         an `l2tp` sub-tree so operators type `show l2tp`, `show l2tp
-         tunnels`, etc. Augments `clear` with destructive operations
-         (`clear l2tp tunnel teardown`, `clear l2tp session teardown`).
-         Each leaf container maps to a ze-l2tp-api RPC via the
-         ze:command extension.";
+        "L2TP tunnel and session operations for BNG subscriber access.
+         Adds 'show l2tp' commands for inspection and 'clear l2tp'
+         commands for teardown.";
 
     revision 2026-04-22 {
         description "Move destructive tree from top-level l2tp to clear verb (spec-l2tp-11-web).";
@@ -29,90 +26,118 @@ module ze-l2tp-cmd {
         container l2tp {
             config false;
             ze:command "ze-l2tp-api:summary";
-            description "L2TP operator observability commands.";
+            description "L2TP tunnel, session, and subscriber state.
+Without a subcommand, shows a summary of tunnels and sessions.";
 
             container tunnels {
                 config false;
                 ze:command "ze-l2tp-api:tunnels";
-                description "List every live L2TP tunnel.";
+                description "List all active L2TP tunnels.
+One line per tunnel: local/remote ID, peer address, session count,
+and uptime.";
             }
 
             container tunnel {
                 config false;
                 ze:command "ze-l2tp-api:tunnel";
-                description "Show one L2TP tunnel by local tunnel ID.";
+                description "Show full detail for one L2TP tunnel.
+Pass the local tunnel ID. Returns control channel state, peer
+endpoint, hello interval, and all assigned sessions.";
             }
 
             container sessions {
                 config false;
                 ze:command "ze-l2tp-api:sessions";
-                description "List every live L2TP session.";
+                description "List all active L2TP sessions.
+One line per session: local/remote ID, parent tunnel, subscriber
+login, and uptime.";
             }
 
             container session {
                 config false;
                 ze:command "ze-l2tp-api:session";
-                description "Show one L2TP session by local session ID.";
+                description "Show full detail for one L2TP session.
+Pass the local session ID. Returns PPP state, assigned addresses,
+negotiated LCP/NCP options, and traffic counters.";
             }
 
             container statistics {
                 config false;
                 ze:command "ze-l2tp-api:statistics";
-                description "Show L2TP protocol counters.";
+                description "Show aggregate L2TP protocol counters.
+Tunnels and sessions established, control messages sent/received,
+retransmits, and errors. Your first stop for L2TP health.";
             }
 
             container listeners {
                 config false;
                 ze:command "ze-l2tp-api:listeners";
-                description "Show bound L2TP UDP listener endpoints.";
+                description "Show which UDP sockets are listening for L2TP.
+Lists each bound address, port, and the number of tunnels on it.";
             }
 
             container config {
                 config false;
                 ze:command "ze-l2tp-api:config";
-                description "Show effective L2TP runtime configuration.";
+                description "Show the resolved L2TP configuration.
+Returns the effective config after defaults and overrides. Confirms
+what the daemon is actually using.";
             }
 
             container observer {
                 config false;
                 ze:command "ze-l2tp-api:observer";
-                description "Show per-session event ring (session ID or 'all').";
+                description "Show recent events for a session (debug aid).
+Returns the event ring buffer for one session ID or 'all'. Useful
+for understanding why a session failed to establish.";
             }
 
             container cqm {
                 config false;
                 ze:command "ze-l2tp-api:cqm";
-                description "Show per-login CQM bucket history (login or 'summary').";
+                description "Show subscriber line quality (CQM latency buckets).
+Pass a login name for one subscriber or 'summary' for an overview.
+Helps diagnose poor subscriber experience.";
             }
 
             container echo {
                 config false;
                 ze:command "ze-l2tp-api:echo";
-                description "Show current echo state for a login.";
+                description "Show LCP echo health for a subscriber session.
+Returns echo request/reply counters and round-trip times. Rising
+loss or high RTT indicates a degraded line.";
             }
 
             container reliable {
                 config false;
                 ze:command "ze-l2tp-api:reliable";
-                description "Show reliable transport window state for a tunnel.";
+                description "Show the reliable transport window for a tunnel.
+Returns send/receive sequence numbers, window size, and retransmit
+queue depth. Check here when tunnel control messages seem stuck.";
             }
 
             container tunnel-history {
                 config false;
                 ze:command "ze-l2tp-api:tunnel-history";
-                description "Show FSM transition history for a tunnel.";
+                description "Show state transitions for a tunnel over time.
+Timestamped FSM entries showing how the tunnel reached its current
+state. Use this to diagnose tunnel establishment failures.";
             }
 
             container session-history {
                 config false;
                 ze:command "ze-l2tp-api:session-history";
-                description "Show FSM transition history for a session.";
+                description "Show state transitions for a session over time.
+Timestamped FSM entries for session establishment. Use this when a
+subscriber's session fails to come up.";
             }
 
             container session-traffic {
                 config false;
                 ze:command "ze-l2tp-api:session-traffic";
-                description "Show per-session traffic statistics (RX/TX counters from PPP interface).";
+                description "Show traffic counters for a subscriber's PPP interface.
+Returns byte and packet counts, error counters, and current rates.
+Compare with CQM data to get the full picture of subscriber health.";
             }
         }
     }
@@ -125,39 +150,47 @@ module ze-l2tp-cmd {
     augment "/cliclearcmd:clear" {
         container l2tp {
             config false;
-            description "L2TP destructive operations.";
+            description "Tear down L2TP tunnels and sessions";
 
             container tunnel {
                 config false;
-                description "Tunnel-scoped destructive operations.";
+                description "Tunnel teardown operations";
 
                 container teardown {
                     config false;
                     ze:command "ze-l2tp-api:tunnel-teardown";
-                    description "Send StopCCN administrative for one tunnel.";
+                    description "Gracefully tear down one L2TP tunnel.
+Sends a StopCCN to the peer. All sessions on this tunnel will be
+disconnected. Pass the local tunnel ID.";
                 }
 
                 container teardown-all {
                     config false;
                     ze:command "ze-l2tp-api:tunnel-teardown-all";
-                    description "Send StopCCN administrative for every tunnel.";
+                    description "Tear down every L2TP tunnel on this box.
+Sends StopCCN for all tunnels. Every subscriber session will be
+disconnected. Use with care during maintenance.";
                 }
             }
 
             container session {
                 config false;
-                description "Session-scoped destructive operations.";
+                description "Session teardown operations";
 
                 container teardown {
                     config false;
                     ze:command "ze-l2tp-api:session-teardown";
-                    description "Send CDN administrative for one session.";
+                    description "Disconnect one subscriber session.
+Sends a CDN to gracefully close the session. Pass the local
+session ID.";
                 }
 
                 container teardown-all {
                     config false;
                     ze:command "ze-l2tp-api:session-teardown-all";
-                    description "Send CDN administrative for every session.";
+                    description "Disconnect every L2TP session on this box.
+Sends CDN for all sessions across all tunnels. Tunnels themselves
+stay up. Use with care.";
                 }
             }
         }

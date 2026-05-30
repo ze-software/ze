@@ -2,13 +2,16 @@ module ze-cli-cache-cmd {
     namespace "urn:ze:cli:cache:cmd";
     prefix clicachecmd;
     import ze-extensions { prefix ze; }
-    description "BGP cache command tree";
+    description "BGP message cache for deferred forwarding and replay";
     revision 2026-03-16 { description "Initial revision"; }
 
     container cache {
         config false;
         ze:command "ze-bgp:cache";
-        description "BGP message cache operations. Grammar: cache <action> <id> [args].
-                     Actions: list, retain, release, expire, forward.";
+        description "Manage cached BGP UPDATE messages.
+Actions: list (show cached entries), retain (hold a message),
+release (free a retained message), expire (force eviction),
+forward (send a cached message to peers). Grammar: cache <action>
+<id> [args].";
     }
 }

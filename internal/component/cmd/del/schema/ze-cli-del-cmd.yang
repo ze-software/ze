@@ -2,21 +2,24 @@ module ze-cli-del-cmd {
     namespace "urn:ze:cli:del:cmd";
     prefix clidelcmd;
     import ze-extensions { prefix ze; }
-    description "Delete command tree -- remove configuration";
+    description "Remove configuration elements from the running config";
     revision 2026-03-23 { description "Initial revision"; }
 
     container del {
         config false;
-        description "Remove configuration";
+        description "Delete elements from the running configuration";
 
         container bgp {
             config false;
-            description "BGP configuration removal";
+            description "Remove BGP peers from running config";
 
             container peer {
                 config false;
                 ze:command "ze-del:bgp-peer";
-                description "Remove a peer dynamically";
+                description "Remove a peer from the running config.
+Tears down the TCP session and deletes the peer from the running
+configuration. Does not modify the config file on disk. Use 'set
+bgp peer save' afterward if you want the removal to survive a restart.";
             }
         }
     }

@@ -6,9 +6,7 @@ module ze-subscriber-cmd {
     import ze-cli-show-cmd  { prefix clishowcmd; }
 
     description
-        "Subscriber CLI command tree. Augments the global `show` verb with
-         a `subscriber` sub-tree: `show subscriber summary`, `show subscriber
-         detail <id>`. Each container maps to a ze-subscriber-api RPC.";
+        "Subscriber session overview and per-session detail.";
 
     revision 2026-05-22 {
         description "Initial revision (spec-subscriber-session-model).";
@@ -18,12 +16,16 @@ module ze-subscriber-cmd {
         container subscriber {
             config false;
             ze:command "ze-subscriber-api:summary";
-            description "Subscriber session summary across all access types.";
+            description "Show a summary of all subscriber sessions.
+Counts by access type (PPPoE, L2TP, IPoE) with totals. Quick way
+to see how many subscribers are online.";
 
             container detail {
                 config false;
                 ze:command "ze-subscriber-api:detail";
-                description "Show full detail for one subscriber session by ID.";
+                description "Show everything about one subscriber session.
+Pass the session ID. Returns access type, assigned addresses,
+authentication state, uptime, and traffic counters.";
             }
         }
     }

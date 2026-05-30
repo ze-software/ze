@@ -2,23 +2,27 @@ module ze-cli-log-cmd {
     namespace "urn:ze:cli:log:cmd";
     prefix clilogcmd;
     import ze-extensions { prefix ze; }
-    description "BGP log command tree";
+    description "View and control daemon logging";
     revision 2026-03-16 { description "Initial revision"; }
 
     container log {
         config false;
-        description "Log operations";
+        description "View log entries and adjust log levels at runtime";
 
         container levels {
             config false;
             ze:command "ze-bgp:log-levels";
-            description "Subsystem log levels";
+            description "Show what log level each subsystem is using.
+Lists every registered logger with its current level. Use 'log set'
+to change a level at runtime without restarting.";
         }
 
         container set {
             config false;
             ze:command "ze-bgp:log-set";
-            description "Set subsystem log level at runtime";
+            description "Change a subsystem's log level without restarting.
+Usage: log set <logger> <level>. Takes effect immediately. Set to
+debug when troubleshooting, then back to info when you are done.";
             leaf logger {
                 type string;
                 description "Logger/subsystem name";
@@ -38,7 +42,10 @@ module ze-cli-log-cmd {
         container recent {
             config false;
             ze:command "ze-bgp:log-recent";
-            description "Show recent log entries (level <lvl> component <name> count <N>)";
+            description "Show recent log entries from the in-memory ring.
+Filters (all optional): level <lvl>, component <name>, count <N>.
+Newest entries first. Useful when you cannot access the log file
+directly.";
             leaf level {
                 type enumeration {
                     enum disabled;

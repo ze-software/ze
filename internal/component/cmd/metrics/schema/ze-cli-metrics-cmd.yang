@@ -2,29 +2,35 @@ module ze-cli-metrics-cmd {
     namespace "urn:ze:cli:metrics:cmd";
     prefix climetricscmd;
     import ze-extensions { prefix ze; }
-    description "BGP metrics command tree";
+    description "Prometheus metrics and attribute pool statistics";
     revision 2026-03-16 { description "Initial revision"; }
 
     container metrics {
         config false;
-        description "Metrics operations";
+        description "Access Prometheus metrics and internal pool stats";
 
         container values {
             config false;
             ze:command "ze-bgp:metrics-values";
-            description "Prometheus metrics (text format)";
+            description "Dump all metrics in Prometheus text format.
+Outputs every registered metric with labels and values. Suitable
+for feeding into Prometheus, Grafana, or curl-based monitoring.";
         }
 
         container list {
             config false;
             ze:command "ze-bgp:metrics-list";
-            description "List metric names";
+            description "List all registered metric names (no values).
+Useful for discovering what metrics exist before querying them.";
         }
 
         container pool {
             config false;
             ze:command "ze-bgp:pool-stats";
-            description "Per-attribute pool occupancy and dedup rates";
+            description "Show attribute pool memory usage and dedup efficiency.
+Returns allocated entries, reference counts, and deduplication hit
+rates per attribute type. Watch the dedup rate to gauge how much
+memory pooling is saving you.";
         }
     }
 }

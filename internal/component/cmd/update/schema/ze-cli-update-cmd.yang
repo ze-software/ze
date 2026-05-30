@@ -2,65 +2,80 @@ module ze-cli-update-cmd {
     namespace "urn:ze:cli:update:cmd";
     prefix cliupdatecmd;
     import ze-extensions { prefix ze; }
-    description "Update command tree -- refresh stale data from external sources";
+    description "Refresh data from external sources and manage firmware updates";
     revision 2026-03-23 { description "Initial revision"; }
 
     container update {
         config false;
-        description "Refresh stale data from external sources";
+        description "Pull fresh data from external sources or manage firmware";
 
         container bgp {
             config false;
-            description "BGP data updates";
+            description "Refresh BGP operational data from external databases";
 
             container peer {
                 config false;
-                description "Update BGP peer data";
+                description "Refresh peer configuration from external sources";
 
                 container prefix {
                     config false;
                     ze:command "ze-update:bgp-peer-prefix";
-                    description "Update prefix maximums from PeeringDB for matched peer(s)";
+                    description "Pull max-prefix limits from PeeringDB for your peers.
+Queries PeeringDB by ASN and updates the configured max-prefix
+values so you do not have to look them up manually. Selector: IP,
+name, AS pattern, glob, or *.";
                 }
             }
         }
 
         container system {
             config false;
-            description "System update operations";
+            description "System firmware lifecycle management";
 
             container firmware {
                 config false;
-                description "System firmware update operations";
+                description "Check, download, apply, and rollback firmware";
 
                 container check {
                     config false;
                     ze:command "ze-update:system-firmware-check";
-                    description "Trigger immediate version check (bypass interval timer)";
+                    description "Check for a new firmware version right now.
+Bypasses the scheduled interval timer and contacts the update server
+immediately. Compare the result with 'show system update'.";
                 }
 
                 container download {
                     config false;
                     ze:command "ze-update:system-firmware-download";
-                    description "Download now (bypass spread and maintenance window)";
+                    description "Download the latest firmware image right now.
+Bypasses the maintenance window and spread timers. The image is
+staged but not applied. Use 'update system firmware apply' or
+'restart' to activate it.";
                 }
 
                 container apply {
                     config false;
                     ze:command "ze-update:system-firmware-apply";
-                    description "Download, verify, stage, and restart where Ze manages updates";
+                    description "Full upgrade: download, verify, stage, and restart.
+Runs the complete update cycle in one command. Only available on
+platforms where Ze owns the update lifecycle (e.g. gokrazy).
+The box will reboot into the new version.";
                 }
 
                 container restart {
                     config false;
                     ze:command "ze-update:system-firmware-restart";
-                    description "Restart into staged version now";
+                    description "Reboot into the already-staged firmware.
+No download happens. Use this after 'update system firmware download'
+when you are ready to activate the new version.";
                 }
 
                 container rollback {
                     config false;
                     ze:command "ze-update:system-firmware-rollback";
-                    description "Restore previous Ze binary and restart where supported";
+                    description "Roll back to the previous firmware and restart.
+Reverts to the prior image. Only available on platforms with A/B
+partitioning (e.g. gokrazy). Use this if the new version has issues.";
                 }
             }
         }

@@ -2,13 +2,16 @@ module ze-cli-commit-cmd {
     namespace "urn:ze:cli:commit:cmd";
     prefix clicommitcmd;
     import ze-extensions { prefix ze; }
-    description "BGP commit command tree";
+    description "Named commit groups for atomic route updates";
     revision 2026-03-16 { description "Initial revision"; }
 
     container commit {
         config false;
         ze:command "ze-bgp:commit";
-        description "Named commit operations. Grammar: commit <action> <name> [args].
-                     Actions: list, start, end, eor, rollback, show, withdraw.";
+        description "Group route changes into named atomic commits.
+Actions: start (begin a commit), end (finalize), eor (signal end of
+RIB), rollback (undo), show (inspect), withdraw (remove all routes
+in a commit), list (show all commits). Grammar: commit <action>
+<name> [args].";
     }
 }

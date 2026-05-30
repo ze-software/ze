@@ -4,11 +4,7 @@ module ze-bfd-cmd {
     import ze-extensions    { prefix ze; }
     import ze-cli-show-cmd  { prefix clishowcmd; }
     description
-        "BFD CLI command tree. Augments the global `show` verb with a
-         `bfd` sub-tree so operators type `show bfd sessions`, `show
-         bfd session <peer>`, and `show bfd profile [<name>]`. Each
-         leaf container maps to a ze-bfd-api RPC via the ze:command
-         extension.";
+        "BFD session state, timers, and profile configuration.";
     revision 2026-04-11 {
         description "Initial revision (spec-bfd-4).";
     }
@@ -16,24 +12,30 @@ module ze-bfd-cmd {
     augment "/clishowcmd:show" {
         container bfd {
             config false;
-            description "BFD observability commands.";
+            description "BFD session state and timer configuration";
 
             container sessions {
                 config false;
                 ze:command "ze-bfd-api:show-sessions";
-                description "List every live BFD session.";
+                description "List all active BFD sessions.
+One line per session: peer address, state, negotiated tx/rx
+intervals, and detect multiplier.";
             }
 
             container session {
                 config false;
                 ze:command "ze-bfd-api:show-session";
-                description "Show one BFD session by peer address.";
+                description "Show full detail for one BFD session.
+Pass the peer address. Returns local/remote discriminators,
+negotiated timers, detection time, and packet counters.";
             }
 
             container profile {
                 config false;
                 ze:command "ze-bfd-api:show-profile";
-                description "Show resolved BFD profile parameters.";
+                description "Show BFD timer profiles with effective values.
+Returns min-tx, min-rx, and detect-multiplier after inheritance.
+Pass a profile name, or omit it to see all profiles.";
             }
         }
     }

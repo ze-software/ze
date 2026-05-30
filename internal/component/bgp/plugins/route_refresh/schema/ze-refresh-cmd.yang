@@ -2,39 +2,49 @@ module ze-refresh-cmd {
     namespace "urn:ze:refresh:cmd";
     prefix refreshcmd;
     import ze-extensions { prefix ze; }
-    description "BGP route refresh command tree";
+    description "Request peers to re-send routes (RFC 2918, RFC 7313)";
     revision 2026-03-16 { description "Initial revision"; }
 
     container peer {
         config false;
-        description "Peer operations";
+        description "Route refresh and soft-clear operations";
 
         container refresh {
             config false;
             ze:command "ze-bgp:peer-refresh";
-            description "Send ROUTE-REFRESH to peer (RFC 2918)";
+            description "Ask a peer to re-send all routes (RFC 2918).
+Sends a ROUTE-REFRESH message for the specified AFI/SAFI. The
+peer will re-advertise its entire Adj-RIB-Out. Selector: IP,
+name, AS pattern, glob, or *.";
         }
 
         container borr {
             config false;
             ze:command "ze-bgp:peer-borr";
-            description "Send Beginning of Route Refresh";
+            description "Start an Enhanced Route Refresh cycle (RFC 7313).
+Tells the peer to mark existing routes as stale. After re-sending,
+send EORR to purge anything not refreshed.";
         }
 
         container eorr {
             config false;
             ze:command "ze-bgp:peer-eorr";
-            description "Send End of Route Refresh";
+            description "Finish an Enhanced Route Refresh cycle (RFC 7313).
+The peer purges any routes not re-advertised since the matching
+BORR. Only send this after the peer has finished re-advertising.";
         }
 
         container clear {
             config false;
-            description "Clear operations";
+            description "Non-disruptive peer refresh";
 
             container soft {
                 config false;
                 ze:command "ze-bgp:peer-clear-soft";
-                description "Soft-clear peer (send ROUTE-REFRESH for all families)";
+                description "Soft-clear a peer without dropping the session.
+Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer
+to re-send all routes. No session bounce, no traffic impact.
+Selector: IP, name, AS pattern, glob, or *.";
             }
         }
     }

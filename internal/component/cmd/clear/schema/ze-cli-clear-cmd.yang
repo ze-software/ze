@@ -2,56 +2,57 @@ module ze-cli-clear-cmd {
     namespace "urn:ze:cli:clear:cmd";
     prefix cliclearcmd;
     import ze-extensions { prefix ze; }
-    description "Clear command tree -- reset runtime counters/state without touching config";
+    description "Reset runtime counters and state without touching configuration";
     revision 2026-04-18 { description "Initial revision"; }
 
     container clear {
         config false;
-        description "Reset runtime/operational state. Unlike `del`, config is untouched.";
+        description "Reset counters, caches, and operational state. Config is never modified.";
 
         container interface {
             config false;
             ze:command "ze-clear:interface-counters";
-            description "Reset interface runtime state. Canonical form:
-                         `clear interface counters [<name>]`. Bare
-                         `clear interface counters` (no name) clears every
-                         managed interface. Backends that cannot physically
-                         reset counters in the kernel fall back to a
-                         baseline-delta stored in user space (Linux netlink);
-                         VPP's sw_interface_clear_stats zeros the hardware
-                         counters directly once wired.";
+            description "Reset interface traffic counters.
+Zeroes Rx/Tx byte and packet counters. Without a name, clears every
+managed interface. Some backends store a baseline instead of resetting
+the kernel counters directly.";
 
             container counters {
                 config false;
                 ze:command "ze-clear:interface-counters";
-                description "Reset RX/TX counters for a named interface or all.
-                             Usage: clear interface counters [<name>]";
+                description "Zero the Rx/Tx counters for one interface or all.
+Usage: clear interface counters [<name>].";
             }
         }
 
         container dns {
             config false;
-            description "DNS cache management";
+            description "DNS cache clearing operations";
 
             container cache {
                 config false;
                 ze:command "ze-clear:dns-cache";
-                description "Flush DNS cache (all | record <name> [type <A|AAAA|...>] | stats)";
+                description "Clear the DNS cache.
+With no argument, flushes everything. Use 'record <name>' to evict
+one entry, or 'stats' to see hit/miss rates without flushing.";
             }
         }
 
         container vpn {
             config false;
-            description "VPN subsystem operations";
+            description "VPN tunnel clearing operations";
 
             container ipsec {
                 config false;
-                description "IPsec tunnel management";
+                description "IPsec SA teardown";
 
                 container sa {
                     config false;
                     ze:command "ze-clear:vpn-ipsec-sa";
-                    description "Terminate IKE SAs. Bare clears all; 'peer <name>' clears one peer.";
+                    description "Tear down IKE Security Associations.
+Without arguments, terminates all SAs. Use 'peer <name>' to clear
+just one peer. The tunnel will renegotiate automatically if the
+config is still active.";
                 }
             }
         }
