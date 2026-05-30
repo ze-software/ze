@@ -11,5 +11,5 @@ import (
 var RibOut *attrpool.Pool
 
 func init() {
-	RibOut = mustPool(16, 1<<18)
+	RibOut = mustPool(16, 1<<18, shardsHot) // full wire attribute blobs, maximally diverse
 }

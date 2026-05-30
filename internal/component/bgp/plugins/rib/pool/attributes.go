@@ -29,30 +29,48 @@ var (
 	OtherAttrs       *attrpool.Pool // unknown/unhandled attributes, idx=14
 )
 
-// mustPool creates a pool with the given index, panicking on error.
-// Indices 2-14 are hardcoded valid constants, so errors cannot occur in practice.
-func mustPool(idx uint8, initialCapacity int) *attrpool.Pool {
-	p, err := attrpool.NewWithIdx(idx, initialCapacity)
+// mustPool creates a pool with the given index and shard count, panicking on
+// error. Indices 2-14 are hardcoded valid constants and the shard counts below
+// are valid powers of two, so errors cannot occur in practice.
+//
+// Shard-count guidance: content-hash sharding only relieves Intern lock
+// contention when a pool's *hot* values are diverse enough to spread across
+// shards. A pool dominated by a handful of values (ORIGIN has 3; ATOMIC_AGGREGATE
+// is a single zero-length flag) has its hot value monopolize one shard, so
+// sharding buys nothing and only adds fixed per-shard overhead — those use 1
+// shard (the pre-sharding single-lock pool). High-cardinality, per-route
+// attributes (AS_PATH, communities, MED, next-hop, unknown attrs) shard fully.
+func mustPool(idx uint8, initialCapacity, shards int) *attrpool.Pool {
+	p, err := attrpool.NewWithShards(idx, initialCapacity, shards)
 	if err != nil {
-		panic("BUG: attrpool.NewWithIdx failed for known-good index")
+		panic("BUG: attrpool.NewWithShards failed for known-good index/shard count")
 	}
 	return p
 }
 
+const (
+	// shardsHot is the full shard count for high-cardinality, frequently-interned
+	// attributes whose diverse values spread across shards and relieve contention.
+	shardsHot = 16
+	// shardsCold is the single-shard (pre-sharding) pool for low-cardinality
+	// attributes whose few hot values cannot benefit from sharding.
+	shardsCold = 1
+)
+
 func init() {
-	Origin = mustPool(2, 64)
-	ASPath = mustPool(3, 1<<18)
-	LocalPref = mustPool(4, 1<<12)
-	MED = mustPool(5, 1<<14)
-	NextHop = mustPool(6, 1<<14)
-	Communities = mustPool(7, 1<<16)
-	LargeCommunities = mustPool(8, 1<<14)
-	ExtCommunities = mustPool(9, 1<<14)
-	ClusterList = mustPool(10, 1<<12)
-	OriginatorID = mustPool(11, 1<<12)
-	AtomicAggregate = mustPool(12, 64)
-	Aggregator = mustPool(13, 1<<12)
-	OtherAttrs = mustPool(14, 1<<16)
+	Origin = mustPool(2, 64, shardsCold)        // 3 values (IGP/EGP/INCOMPLETE)
+	ASPath = mustPool(3, 1<<18, shardsHot)      // high cardinality, hot path
+	LocalPref = mustPool(4, 1<<12, shardsCold)  // few policy values
+	MED = mustPool(5, 1<<14, shardsCold)        // few distinct metric values in practice
+	NextHop = mustPool(6, 1<<14, shardsHot)     // many distinct next-hops
+	Communities = mustPool(7, 1<<16, shardsHot) // high cardinality
+	LargeCommunities = mustPool(8, 1<<14, shardsHot)
+	ExtCommunities = mustPool(9, 1<<14, shardsHot)
+	ClusterList = mustPool(10, 1<<12, shardsCold)  // small (RR cluster ids)
+	OriginatorID = mustPool(11, 1<<12, shardsCold) // small (# of RRs)
+	AtomicAggregate = mustPool(12, 64, shardsCold) // single flag value
+	Aggregator = mustPool(13, 1<<12, shardsCold)   // few aggregation points
+	OtherAttrs = mustPool(14, 1<<16, shardsHot)    // unknown attrs, diverse
 }
 
 // AllPools returns all attribute pools for scheduler construction.

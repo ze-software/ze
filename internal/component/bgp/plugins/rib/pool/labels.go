@@ -14,7 +14,7 @@ import (
 var Labels *attrpool.Pool
 
 func init() {
-	Labels = mustPool(15, 1<<12)
+	Labels = mustPool(15, 1<<12, shardsHot) // label stacks diverse across prefixes
 }
 
 // InternLabels stores a label stack in the pool and returns a handle.
