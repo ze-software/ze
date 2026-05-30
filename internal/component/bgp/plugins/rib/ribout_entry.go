@@ -1,4 +1,5 @@
 // Design: docs/architecture/pool-architecture.md — Adj-RIB-Out compact storage
+// Related: rib_replay.go — collectGroupedRibOutRoutes, collectGroupedRibOutRoutesForFamily
 //
 // ribOutEntry replaces *Route in ribOut maps. Wire attribute bytes are
 // deduplicated in pool.RibOut; full Route is reconstructed on demand for
@@ -267,22 +268,6 @@ func (r *RIBManager) collectRibOutRoutes(peerAddr string, fam family.Family) []*
 	for key, entry := range familyRoutes {
 		src := r.ribOutSourcePeer(fam, key)
 		routes = append(routes, reconstructRoute(entry, fam, key, src))
-	}
-	return routes
-}
-
-// collectAllRibOutRoutes reconstructs all Routes for a peer across all families.
-func (r *RIBManager) collectAllRibOutRoutes(peerAddr string) []*Route {
-	peerFamilies := r.ribOut[peerAddr]
-	if peerFamilies == nil {
-		return nil
-	}
-	var routes []*Route
-	for fam, familyRoutes := range peerFamilies {
-		for key, entry := range familyRoutes {
-			src := r.ribOutSourcePeer(fam, key)
-			routes = append(routes, reconstructRoute(entry, fam, key, src))
-		}
 	}
 	return routes
 }

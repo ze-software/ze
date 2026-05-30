@@ -1,5 +1,5 @@
 // Design: plan/spec-rib-feed-replay-batch.md — grouped collection and cursor replay
-// Overview: rib.go — replayRoutes, updateRoute, collectAllRibOutRoutes
+// Overview: rib.go — replayRoutes, updateRoute
 // Related: ribout_entry.go — ribOutEntry, reconstructRoute, pool.RibOut
 // Related: ../cmd/update/cursor.go — handleUpdateCursor (engine side)
 package rib
@@ -18,11 +18,12 @@ import (
 
 // replayGroup represents a set of routes sharing the same attributes.
 type replayGroup struct {
-	Route    *Route
-	Prefixes []string
-	MinMsgID uint64
-	Family   family.Family
-	PathID   uint32
+	Route      *Route
+	Prefixes   []string
+	MinMsgID   uint64
+	Family     family.Family
+	PathID     uint32
+	StaleLevel uint8
 }
 
 // groupKey identifies a unique attribute group for replay batching.
@@ -30,11 +31,24 @@ type groupKey struct {
 	Family     family.Family
 	AttrHandle attrpool.Handle
 	PathID     uint32
+	StaleLevel uint8
 }
 
-// collectGroupedRibOutRoutes groups ribOut entries by (family, AttrHandle, pathID).
+// collectGroupedRibOutRoutes groups ribOut entries by (family, AttrHandle, pathID, StaleLevel).
 // Each distinct AttrHandle is decoded once. Returns groups ready for replay.
 func (r *RIBManager) collectGroupedRibOutRoutes(peerAddr string) []replayGroup {
+	return r.collectGroupedRibOutRoutesFiltered(peerAddr, family.Family{})
+}
+
+// collectGroupedRibOutRoutesForFamily is like collectGroupedRibOutRoutes but
+// restricted to a single address family.
+func (r *RIBManager) collectGroupedRibOutRoutesForFamily(peerAddr string, fam family.Family) []replayGroup {
+	return r.collectGroupedRibOutRoutesFiltered(peerAddr, fam)
+}
+
+// collectGroupedRibOutRoutesFiltered groups ribOut entries for replay.
+// When filterFam is zero-value, all families are included.
+func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr string, filterFam family.Family) []replayGroup {
 	peerFamilies := r.ribOut[peerAddr]
 	if peerFamilies == nil {
 		return nil
@@ -48,14 +62,19 @@ func (r *RIBManager) collectGroupedRibOutRoutes(peerAddr string) []replayGroup {
 	}
 
 	groups := make(map[groupKey]*pendingGroup)
+	hasFilter := filterFam != (family.Family{})
 
 	for fam, familyRoutes := range peerFamilies {
+		if hasFilter && fam != filterFam {
+			continue
+		}
 		for key, entry := range familyRoutes {
 			prefix, pathID := parseOutRouteKey(key)
 			gk := groupKey{
 				Family:     fam,
 				AttrHandle: entry.AttrHandle,
 				PathID:     pathID,
+				StaleLevel: entry.StaleLevel,
 			}
 			pg, ok := groups[gk]
 			if !ok {
@@ -95,13 +114,15 @@ func (r *RIBManager) collectGroupedRibOutRoutes(peerAddr string) []replayGroup {
 		routeCopy.Family = pg.key.Family
 		routeCopy.PathID = pg.key.PathID
 		routeCopy.MsgID = pg.minMsgID
+		routeCopy.StaleLevel = pg.key.StaleLevel
 
 		result = append(result, replayGroup{
-			Route:    &routeCopy,
-			Prefixes: pg.prefixes,
-			MinMsgID: pg.minMsgID,
-			Family:   pg.key.Family,
-			PathID:   pg.key.PathID,
+			Route:      &routeCopy,
+			Prefixes:   pg.prefixes,
+			MinMsgID:   pg.minMsgID,
+			Family:     pg.key.Family,
+			PathID:     pg.key.PathID,
+			StaleLevel: pg.key.StaleLevel,
 		})
 	}
 
@@ -124,6 +145,10 @@ func sortGroupsForMinimalDeltas(groups []replayGroup) {
 
 	sort.SliceStable(indices, func(a, b int) bool {
 		i, j := indices[a], indices[b]
+		si, sj := groups[i].StaleLevel, groups[j].StaleLevel
+		if si != sj {
+			return si < sj
+		}
 		hi, hj := attrHashes[i], attrHashes[j]
 		if hi != hj {
 			return hi < hj
@@ -240,6 +265,39 @@ func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGrou
 
 	r.updateRoute(peerAddr, "update cursor done")
 	r.updateRoute(peerAddr, "plugin session ready")
+}
+
+// resendRoutesWithCursor replays routes using cursor mode for manual resend.
+// Unlike replayRoutesWithCursor, it does not send "plugin session ready" and
+// carries stale metadata (RFC 9494) through updateRouteWithMeta for stale groups.
+func (r *RIBManager) resendRoutesWithCursor(peerAddr string, groups []replayGroup) int {
+	if len(groups) == 0 {
+		return 0
+	}
+
+	sortGroupsForMinimalDeltas(groups)
+
+	total := 0
+	var prev *Route
+	for i := range groups {
+		g := &groups[i]
+		cmds := formatCursorCommands(g, prev)
+		if g.StaleLevel > 0 {
+			meta := map[string]any{"stale": g.StaleLevel}
+			for _, cmd := range cmds {
+				r.updateRouteWithMeta(peerAddr, cmd, meta)
+			}
+		} else {
+			for _, cmd := range cmds {
+				r.updateRoute(peerAddr, cmd)
+			}
+		}
+		total += len(g.Prefixes)
+		prev = g.Route
+	}
+
+	r.updateRoute(peerAddr, "update cursor done")
+	return total
 }
 
 const maxNLRIBytesPerCommand = 4000

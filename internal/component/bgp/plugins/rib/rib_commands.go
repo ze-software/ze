@@ -592,10 +592,11 @@ func (r *RIBManager) inboundEmptyJSON(selector string) string {
 // outboundResendJSON replays Adj-RIB-Out routes for matching peers, returns JSON result.
 // If family is non-empty, only routes from that family are resent.
 // Does NOT send "plugin session ready" - that's only for initial reconnect.
+// Uses cursor mode for efficient batched replay with delta encoding.
 func (r *RIBManager) outboundResendJSON(selector, famStr string) string {
 	r.peerMu.RLock()
 	var peersToResend []string
-	routesToResend := make(map[string][]*Route)
+	groupsToResend := make(map[string][]replayGroup)
 
 	for peer := range r.ribOut {
 		if !matchesPeer(peer, selector) {
@@ -604,27 +605,24 @@ func (r *RIBManager) outboundResendJSON(selector, famStr string) string {
 		if !r.peerUp[peer] {
 			continue // Only resend to up peers
 		}
-		var routesCopy []*Route
+		var groups []replayGroup
 		if famStr != "" {
 			if fam, ok := family.LookupFamily(famStr); ok {
-				routesCopy = r.collectRibOutRoutes(peer, fam)
+				groups = r.collectGroupedRibOutRoutesForFamily(peer, fam)
 			}
 		} else {
-			routesCopy = r.collectAllRibOutRoutes(peer)
+			groups = r.collectGroupedRibOutRoutes(peer)
 		}
-		if len(routesCopy) > 0 {
+		if len(groups) > 0 {
 			peersToResend = append(peersToResend, peer)
-			routesToResend[peer] = routesCopy
+			groupsToResend[peer] = groups
 		}
 	}
 	r.peerMu.RUnlock()
 
-	// Replay routes outside lock - use sendRoutes, not replayRoutes
 	resent := 0
 	for _, peer := range peersToResend {
-		routes := routesToResend[peer]
-		r.sendRoutes(peer, routes)
-		resent += len(routes)
+		resent += r.resendRoutesWithCursor(peer, groupsToResend[peer])
 	}
 
 	data, _ := json.Marshal(map[string]any{"resent": resent, "peers": len(peersToResend)})
@@ -632,10 +630,9 @@ func (r *RIBManager) outboundResendJSON(selector, famStr string) string {
 }
 
 // sendRoutes sends routes to a peer without the "plugin session ready" signal.
-// Used for manual resend operations. Includes full path attributes.
+// Used by RFC 7313 route refresh (BoRR/EoRR). Includes full path attributes.
 // RFC 9494: stale routes carry meta["stale"] so egress filters can suppress or modify.
 func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
-	// Sort by MsgID to send in original announcement order
 	sort.Slice(routes, func(i, j int) bool {
 		return routes[i].MsgID < routes[j].MsgID
 	})

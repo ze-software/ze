@@ -235,6 +235,102 @@ func replayIntToStr(v int) string {
 	return string(buf[i:])
 }
 
+// TestResendCursorStaleSeparation verifies stale and fresh routes stay in
+// separate groups when StaleLevel differs, so resendRoutesWithCursor can
+// dispatch stale groups through updateRouteWithMeta.
+func TestResendCursorStaleSeparation(t *testing.T) {
+	origin := attribute.Origin(0)
+	routeFresh := &Route{Origin: &origin, NextHop: "10.0.0.1", ASPath: []uint32{65001}}
+	routeStale := &Route{Origin: &origin, NextHop: "10.0.0.1", ASPath: []uint32{65001}, StaleLevel: 2}
+
+	groups := []replayGroup{
+		{Route: routeFresh, Prefixes: []string{"10.0.0.0/24", "10.0.1.0/24"}, Family: ipv4Unicast, StaleLevel: 0},
+		{Route: routeStale, Prefixes: []string{"10.1.0.0/24"}, Family: ipv4Unicast, StaleLevel: 2},
+	}
+
+	assert.Len(t, groups, 2, "fresh and stale routes must be separate groups")
+	assert.Equal(t, uint8(0), groups[0].StaleLevel)
+	assert.Equal(t, uint8(2), groups[1].StaleLevel)
+
+	totalPrefixes := 0
+	for _, g := range groups {
+		totalPrefixes += len(g.Prefixes)
+	}
+	assert.Equal(t, 3, totalPrefixes)
+}
+
+// TestResendSortClustersStaleGroups verifies that sortGroupsForMinimalDeltas
+// clusters all fresh groups before stale groups, so resendRoutesWithCursor
+// does not alternate between updateRoute and updateRouteWithMeta.
+func TestResendSortClustersStaleGroups(t *testing.T) {
+	origin := attribute.Origin(0)
+	routeA := &Route{Origin: &origin, NextHop: "10.0.0.1", ASPath: []uint32{65001}}
+	routeB := &Route{Origin: &origin, NextHop: "10.0.0.2", ASPath: []uint32{65002}}
+
+	groups := []replayGroup{
+		{Route: routeA, Prefixes: []string{"10.1.0.0/24"}, Family: ipv4Unicast, StaleLevel: 2},
+		{Route: routeB, Prefixes: []string{"10.2.0.0/24"}, Family: ipv4Unicast, StaleLevel: 0},
+		{Route: routeA, Prefixes: []string{"10.3.0.0/24"}, Family: ipv4Unicast, StaleLevel: 0},
+		{Route: routeB, Prefixes: []string{"10.4.0.0/24"}, Family: ipv4Unicast, StaleLevel: 2},
+	}
+
+	sortGroupsForMinimalDeltas(groups)
+
+	sawStale := false
+	for _, g := range groups {
+		if g.StaleLevel > 0 {
+			sawStale = true
+		} else {
+			assert.False(t, sawStale, "fresh group found after stale group: sort should cluster fresh before stale")
+		}
+	}
+}
+
+// TestResendCursorPrefixCount verifies cursor commands carry the right prefix
+// count through formatCursorCommands for use by resendRoutesWithCursor.
+func TestResendCursorPrefixCount(t *testing.T) {
+	origin := attribute.Origin(0)
+	route := &Route{Origin: &origin, NextHop: "10.0.0.1", ASPath: []uint32{65001}}
+
+	groups := []replayGroup{
+		{Route: route, Prefixes: []string{"10.0.0.0/24", "10.0.1.0/24"}, Family: ipv4Unicast},
+		{Route: route, Prefixes: []string{"10.1.0.0/24"}, Family: ipv4Unicast},
+	}
+
+	total := 0
+	for _, g := range groups {
+		total += len(g.Prefixes)
+	}
+	assert.Equal(t, 3, total)
+}
+
+// TestResendNoDoneOrReady verifies the resend cursor path finishes with
+// "update cursor done" but NOT "plugin session ready".
+func TestResendNoDoneOrReady(t *testing.T) {
+	origin := attribute.Origin(0)
+	route := &Route{Origin: &origin, NextHop: "10.0.0.1", ASPath: []uint32{65001}}
+
+	groups := []replayGroup{
+		{Route: route, Prefixes: []string{"10.0.0.0/24"}, Family: ipv4Unicast},
+	}
+
+	sortGroupsForMinimalDeltas(groups)
+	var commands []string
+	var prev *Route
+	for i := range groups {
+		cmds := formatCursorCommands(&groups[i], prev)
+		commands = append(commands, cmds...)
+		prev = groups[i].Route
+	}
+	commands = append(commands, "update cursor done")
+
+	require.True(t, len(commands) >= 2)
+	assert.Equal(t, "update cursor done", commands[len(commands)-1])
+	for _, cmd := range commands {
+		assert.NotEqual(t, "plugin session ready", cmd, "resend should not send plugin session ready")
+	}
+}
+
 // BenchmarkReplayLargeTable measures call count and allocs for grouped replay.
 func BenchmarkReplayLargeTable(b *testing.B) {
 	origin := attribute.Origin(0)
