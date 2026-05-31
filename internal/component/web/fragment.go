@@ -457,7 +457,7 @@ func buildFieldMeta(name string, leaf *config.LeafNode, value string, _ bool, pa
 	case config.TypePrefix:
 		meta.Pattern = `^[0-9a-fA-F.:]+/\d{1,3}$`
 	case config.TypeString, config.TypeBool, config.TypeInt,
-		config.TypeIPv6, config.TypeIP, config.TypeDuration:
+		config.TypeIPv6, config.TypeIP, config.TypeDuration, config.TypeEmpty:
 		// No extra metadata needed.
 	}
 
@@ -486,7 +486,7 @@ func valueTypeToFieldType(vt config.ValueType) string {
 		return "prefix"
 	case config.TypeDuration:
 		return "duration"
-	case config.TypeString:
+	case config.TypeString, config.TypeEmpty:
 		return "string"
 	}
 	return "string"

@@ -363,6 +363,11 @@ func TestLeafInputTypeMapping(t *testing.T) {
 			valueType: config.TypeInt,
 			wantInput: "number",
 		},
+		{
+			name:      "TypeEmpty maps to text",
+			valueType: config.TypeEmpty,
+			wantInput: "text",
+		},
 	}
 
 	for _, tt := range tests {

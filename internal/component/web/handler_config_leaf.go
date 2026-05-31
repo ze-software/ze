@@ -82,6 +82,8 @@ func leafInputType(vt config.ValueType) LeafField {
 
 	case config.TypeInt:
 		return LeafField{InputType: "number"}
+	case config.TypeEmpty:
+		return LeafField{InputType: "text"}
 	}
 
 	return LeafField{InputType: "text"}
