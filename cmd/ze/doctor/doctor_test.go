@@ -191,8 +191,11 @@ func TestCheckCertExpiry_InvalidPEM(t *testing.T) {
 }
 
 func TestCheckPlugins_InternalSkipped(t *testing.T) {
+	// A plugin declared with the `internal` keyword (Internal=true, Run carries
+	// no ze. prefix because the keyword uses `use`) is already in-process:
+	// no external-builtin advisory and no missing-binary error.
 	plugins := []zeplugin.PluginConfig{
-		{Name: "rib", Internal: true, Run: "ze.rib"},
+		{Name: "rib", Internal: true, Run: "bgp-rib"},
 	}
 	diags := checkPlugins(plugins)
 	assert.Empty(t, diags)
@@ -213,12 +216,17 @@ func TestCheckPluginsExternalBuiltinWarns(t *testing.T) {
 		t.Skip("no internal plugins registered")
 	}
 	name := builtins[0]
+	// Production shape: `external feed { run ze.X }` is reclassified to
+	// Internal=true by MarkInternalPlugin (it runs in-process) but keeps the
+	// ze. prefix in Run. It must warn (use the internal keyword) WITHOUT a
+	// spurious missing-binary error, since there is no subprocess binary.
 	plugins := []zeplugin.PluginConfig{
-		{Name: "feed", Internal: false, Run: "ze." + name},
+		{Name: "feed", Internal: true, Run: "ze." + name},
 	}
 	diags := checkPlugins(plugins)
 	var found bool
 	for _, d := range diags {
+		assert.NotEqual(t, "doctor-plugin-missing", d.Code, "in-process ze.X must not report a missing binary")
 		if d.Code == "doctor-plugin-external-builtin" {
 			found = true
 			assert.Equal(t, diagnostic.SeverityWarning, d.Severity)
@@ -227,6 +235,28 @@ func TestCheckPluginsExternalBuiltinWarns(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "expected doctor-plugin-external-builtin diagnostic")
+}
+
+// TestCheckPluginsExternalBareBuiltinWarns covers a genuinely external plugin
+// (subprocess) whose bare command name matches a builtin: it advises using the
+// internal keyword (and, separately, reports the binary missing from PATH).
+func TestCheckPluginsExternalBareBuiltinWarns(t *testing.T) {
+	builtins := zeplugin.AvailableInternalPlugins()
+	if len(builtins) == 0 {
+		t.Skip("no internal plugins registered")
+	}
+	name := builtins[0]
+	plugins := []zeplugin.PluginConfig{
+		{Name: "feed", Internal: false, Run: name},
+	}
+	diags := checkPlugins(plugins)
+	var advisory bool
+	for _, d := range diags {
+		if d.Code == "doctor-plugin-external-builtin" {
+			advisory = true
+		}
+	}
+	assert.True(t, advisory, "expected external-builtin advisory for a bare builtin name")
 }
 
 func TestCheckPluginsExternalScriptNoWarn(t *testing.T) {

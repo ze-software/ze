@@ -10,6 +10,7 @@ plugin {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze doctor --json external-builtin.conf
+expect=exit:code=0
 expect=stdout:contains=doctor-plugin-external-builtin
 expect=stdout:contains=warning
 expect=stdout:contains=bgp-rib

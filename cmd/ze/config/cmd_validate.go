@@ -436,7 +436,9 @@ func buildValidationSummary(bgpTree map[string]any, tree *config.Tree) *validati
 	}
 
 	if pluginContainer := tree.GetContainer("plugin"); pluginContainer != nil {
-		summary.Plugins = len(pluginContainer.GetList("external"))
+		// Count both external (subprocess) and internal (in-process) plugins;
+		// counting only "external" undercounts configs that use the `internal` keyword.
+		summary.Plugins = len(pluginContainer.GetList("external")) + len(pluginContainer.GetList("internal"))
 	}
 
 	return summary

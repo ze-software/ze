@@ -858,7 +858,9 @@ func (s *sysRIB) processLocRIBChange(c locrib.Change) {
 func (s *sysRIB) showNHTable() (any, error) {
 	r := getNHResolver()
 	if r == nil {
-		return "[]", nil
+		// Marshaled once by the SDK: return an empty slice, not a JSON
+		// string literal (which would double-encode on the wire).
+		return []any{}, nil
 	}
 
 	r.mu.RLock()

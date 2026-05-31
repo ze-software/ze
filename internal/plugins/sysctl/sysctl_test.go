@@ -1,6 +1,7 @@
 package sysctl
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -8,6 +9,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
 )
+
+// marshalJSON encodes a handler result the way the SDK does (a single
+// json.Marshal). Handlers return Go values, so tests must assert on the wire
+// JSON (field tags) rather than Go's struct print, which omits json tag names.
+func marshalJSON(t *testing.T, v any) string {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	return string(b)
+}
 
 // fakeBackend records reads/writes for testing without touching the kernel.
 type fakeBackend struct {
@@ -258,17 +271,18 @@ func TestShowResult(t *testing.T) {
 	_, _ = s.setTransient("net.core.somaxconn", "4096")
 
 	result := s.showEntries()
-	if !strings.Contains(fmt.Sprint(result), "net.ipv4.conf.all.forwarding") {
-		t.Errorf("show missing forwarding key: %s", result)
+	body := marshalJSON(t, result)
+	if !strings.Contains(body, "net.ipv4.conf.all.forwarding") {
+		t.Errorf("show missing forwarding key: %s", body)
 	}
-	if !strings.Contains(fmt.Sprint(result), "net.core.somaxconn") {
-		t.Errorf("show missing somaxconn key: %s", result)
+	if !strings.Contains(body, "net.core.somaxconn") {
+		t.Errorf("show missing somaxconn key: %s", body)
 	}
-	if !strings.Contains(fmt.Sprint(result), `"persistent"`) {
-		t.Errorf("show missing persistent field: %s", result)
+	if !strings.Contains(body, `"persistent"`) {
+		t.Errorf("show missing persistent field: %s", body)
 	}
-	if !strings.Contains(fmt.Sprint(result), `"source"`) {
-		t.Errorf("show missing source field: %s", result)
+	if !strings.Contains(body, `"source"`) {
+		t.Errorf("show missing source field: %s", body)
 	}
 }
 

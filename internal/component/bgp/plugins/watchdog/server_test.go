@@ -1,6 +1,7 @@
 package watchdog
 
 import (
+	"encoding/json"
 	"strings"
 	"sync"
 	"testing"
@@ -9,6 +10,19 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
+
+// marshalData encodes a handler's data return the way the SDK does (a single
+// json.Marshal, see OnExecuteCommand). A handler that wrongly returned a
+// pre-marshaled JSON string would serialize to an escaped string here, so the
+// object-shape assertions below would fail -- guarding against double-encoding.
+func marshalData(t *testing.T, data any) string {
+	t.Helper()
+	b, err := json.Marshal(data)
+	if err != nil {
+		t.Fatalf("marshal data: %v", err)
+	}
+	return string(b)
+}
 
 // VALIDATES: announce command sends update text for withdrawn routes
 // PREVENTS: Command accepted but no routes injected into engine
@@ -39,8 +53,9 @@ func TestCommandAnnounce(t *testing.T) {
 	if status != statusDone {
 		t.Errorf("status = %q, want done", status)
 	}
-	if !strings.Contains(data, `"watchdog":"dnsr"`) {
-		t.Errorf("data = %q, want watchdog name in response", data)
+	body := marshalData(t, data)
+	if !strings.Contains(body, `"watchdog":"dnsr"`) {
+		t.Errorf("data = %q, want watchdog name in response", body)
 	}
 
 	mu.Lock()
@@ -450,8 +465,9 @@ func TestWildcardMixedPeerStates(t *testing.T) {
 		t.Errorf("status = %q, want done", status)
 	}
 	// Should report 2 peers (peer1 and peer2 have the pool, peer3 does not)
-	if !strings.Contains(data, `"peers":2`) {
-		t.Errorf("data = %q, want 2 peers affected", data)
+	body := marshalData(t, data)
+	if !strings.Contains(body, `"peers":2`) {
+		t.Errorf("data = %q, want 2 peers affected", body)
 	}
 
 	mu.Lock()
@@ -724,8 +740,9 @@ func TestWildcardNonexistentPool(t *testing.T) {
 	if status != statusDone {
 		t.Errorf("status = %q, want done", status)
 	}
-	if !strings.Contains(data, `"peers":0`) {
-		t.Errorf("data = %q, want 0 peers affected", data)
+	body := marshalData(t, data)
+	if !strings.Contains(body, `"peers":0`) {
+		t.Errorf("data = %q, want 0 peers affected", body)
 	}
 }
 

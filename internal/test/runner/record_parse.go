@@ -385,9 +385,12 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		}
 
 	case "stdout":
-		// Support contains= (substring match)
+		// Support contains= (substring match) and !contains= (negative match)
 		if contains := kv["contains"]; contains != "" {
 			r.ExpectStdoutMatch = append(r.ExpectStdoutMatch, contains)
+		}
+		if notContains := kv["!contains"]; notContains != "" {
+			r.ExpectStdoutNotMatch = append(r.ExpectStdoutNotMatch, notContains)
 		}
 
 	case "syslog":
@@ -451,6 +454,13 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 	case "syslog":
 		pattern := kv["pattern"]
 		r.RejectSyslog = append(r.RejectSyslog, pattern)
+
+	case "stdout":
+		// reject=stdout:contains=TEXT -- stdout must NOT contain TEXT. Routed to
+		// the same field/matcher as expect=stdout:!contains= (one mechanism).
+		if contains := kv["contains"]; contains != "" {
+			r.ExpectStdoutNotMatch = append(r.ExpectStdoutNotMatch, contains)
+		}
 
 	default:
 		return fmt.Errorf("unknown reject type %q", rejType)

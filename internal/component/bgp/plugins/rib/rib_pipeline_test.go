@@ -3,6 +3,7 @@ package rib
 import (
 	"encoding/json"
 	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1084,6 +1085,78 @@ func TestShowRibLastPipeline(t *testing.T) {
 	assert.Equal(t, "10.0.4.0/24", results[1].Prefix)
 }
 
+// TestShowRibLastHugeN verifies that a huge N does not preallocate: the lazy
+// ring buffer is bounded by the actual item count. If `last` preallocated N
+// RouteItems (~110 TB here) this test would OOM. With N >> items, every item
+// passes through in order.
+func TestShowRibLastHugeN(t *testing.T) {
+	items := []RouteItem{
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{ASPath: []uint32{64501}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{ASPath: []uint32{64502}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.2.0/24", OutRoute: &Route{ASPath: []uint32{64503}}},
+	}
+
+	src := &sliceSource{items: items}
+	f := newLastFilter(src, "1099511627776") // 2^40
+
+	var results []RouteItem
+	for {
+		item, ok := f.Next()
+		if !ok {
+			break
+		}
+		results = append(results, item)
+	}
+
+	require.Len(t, results, 3)
+	assert.Equal(t, "10.0.0.0/24", results[0].Prefix)
+	assert.Equal(t, "10.0.2.0/24", results[2].Prefix)
+}
+
+// TestShowRibLastRingWraps verifies oldest-first ordering after the ring buffer
+// wraps multiple times: last 3 over 7 items keeps the final 3 in order.
+func TestShowRibLastRingWraps(t *testing.T) {
+	items := []RouteItem{
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{ASPath: []uint32{64500}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{ASPath: []uint32{64501}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.2.0/24", OutRoute: &Route{ASPath: []uint32{64502}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.3.0/24", OutRoute: &Route{ASPath: []uint32{64503}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.4.0/24", OutRoute: &Route{ASPath: []uint32{64504}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.5.0/24", OutRoute: &Route{ASPath: []uint32{64505}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.6.0/24", OutRoute: &Route{ASPath: []uint32{64506}}},
+	}
+
+	src := &sliceSource{items: items}
+	f := newLastFilter(src, "3")
+
+	var got []string
+	for {
+		item, ok := f.Next()
+		if !ok {
+			break
+		}
+		got = append(got, item.Prefix)
+	}
+
+	assert.Equal(t, []string{"10.0.4.0/24", "10.0.5.0/24", "10.0.6.0/24"}, got)
+}
+
+// TestParsePipelineArgsRejectsBadFirstLast verifies first/last reject
+// non-positive / non-numeric counts server-side. This is the folded-command
+// path that bypasses the client-side ValidatePipes numeric check, so without
+// server-side validation a crafted `last 99999999999` would reach the filter.
+func TestParsePipelineArgsRejectsBadFirstLast(t *testing.T) {
+	for _, arg := range []string{"0", "-1", "abc", ""} {
+		_, _, _, errMsg := parsePipelineArgs([]string{"last", arg})
+		assert.NotEmpty(t, errMsg, "last %q should be rejected", arg)
+		_, _, _, errMsg = parsePipelineArgs([]string{"first", arg})
+		assert.NotEmpty(t, errMsg, "first %q should be rejected", arg)
+	}
+	if _, _, _, errMsg := parsePipelineArgs([]string{"last", "5"}); errMsg != "" {
+		t.Errorf("last 5 should be accepted, got %q", errMsg)
+	}
+}
+
 func TestShowRibFirstThenCount(t *testing.T) {
 	items := []RouteItem{
 		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{ASPath: []uint32{64501}}},
@@ -1425,4 +1498,64 @@ func BenchmarkShowLargeTable(b *testing.B) {
 			_ = r.showPipeline("*", []string{"sent", "count"})
 		}
 	})
+}
+
+// TestShowPipelineConcurrentChurn exercises the I2 fix: show/best pipelines that
+// dereference pool handles (via match/community filters and best-path lookups)
+// must be mutually exclusive with the writers that release those handles. The
+// readers hold peerMu.RLock for the whole drain; the writer churns routes under
+// peerMu.Lock, freeing and re-interning bundle handles. Run under -race -- before
+// the fix (deref outside peerMu) a concurrent withdraw could free a handle the
+// reader was still dereferencing.
+func TestShowPipelineConcurrentChurn(t *testing.T) {
+	r := newTestRIBManager(t)
+	r.maximumPaths.Store(1)
+	fam := family.IPv4Unicast
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireCommunity, testWireMED100, testWireLocalPref100)
+
+	const peerCount = 3
+	const routeCount = 40
+	for p := range peerCount {
+		peer := "192.0.2." + strconv.Itoa(p+1)
+		peerRIB := storage.NewPeerRIB(peer)
+		for i := range routeCount {
+			peerRIB.Insert(fam, attrBytes, []byte{24, byte(10 + p), byte(i), 0}, true)
+		}
+		r.bgpPeers[peer] = peerRIB
+	}
+
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+
+	for range 4 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				_ = r.showPipeline("*", []string{"received", "match", "65001", "count"})
+				_ = r.showPipeline("*", []string{"received", "community", "65000:100", "count"})
+				_ = r.bestPipeline("*", []string{"count"})
+			}
+		})
+	}
+
+	wg.Go(func() {
+		for iter := range 1000 {
+			p := iter % peerCount
+			peer := "192.0.2." + strconv.Itoa(p+1)
+			nlri := []byte{24, byte(10 + p), byte(iter % routeCount), 0}
+			r.peerMu.Lock()
+			if peerRIB := r.bgpPeers[peer]; peerRIB != nil {
+				peerRIB.Remove(fam, nlri)                  // frees the bundle pool handles
+				peerRIB.Insert(fam, attrBytes, nlri, true) // re-interns
+			}
+			r.peerMu.Unlock()
+		}
+		close(stop)
+	})
+
+	wg.Wait()
 }

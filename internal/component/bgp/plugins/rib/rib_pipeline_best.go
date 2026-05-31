@@ -152,8 +152,10 @@ func (s *bestSource) Meta() PipelineMeta {
 
 // bestPipeline builds and executes a pipeline from best-path source.
 // Called by handleCommand for "bgp rib show best" with optional filter/terminal stages.
-// peerMu is held only for newBestSource (cross-peer candidate gathering);
-// filter application and terminal drain run outside the lock.
+// Holds r.peerMu.RLock across source construction AND the drain: the RouteItems
+// carry adj-rib-in bundle handles that filters/terminals dereference lazily, and
+// the writers that release them hold peerMu.Lock, so the read lock must span the
+// whole pipeline to keep handles live (I2).
 func (r *RIBManager) bestPipeline(selector string, args []string) any {
 	pipeSelector, stages, errMsg := parseBestPipelineArgs(args)
 	if errMsg != "" {
@@ -168,10 +170,11 @@ func (r *RIBManager) bestPipeline(selector string, args []string) any {
 		candidatesByKey = make(map[string][]*Candidate)
 	}
 
-	// newBestSource needs cross-peer data; hold lock for source construction only.
+	// Hold the read lock across construction and drain (see function doc): the
+	// drain dereferences InEntry pool handles that handleReceived may release.
 	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
 	source := newBestSource(r, selector, candidatesByKey)
-	r.peerMu.RUnlock()
 
 	var current PipelineIterator = source
 	for _, stage := range stages {

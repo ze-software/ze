@@ -66,8 +66,11 @@ type inboundPeerRef struct {
 }
 
 // inboundSource iterates over all adj-rib-in routes matching the peer selector.
-// Snapshots peer references under peerMu at construction; PeerRIB iteration
-// uses PeerRIB's own lock, so peerMu is not held during the pipeline drain.
+// Caller (showPipeline) holds r.peerMu.RLock across construction and the full
+// drain. PeerRIB iteration uses PeerRIB's own lock, and the downstream
+// filters/terminals deref the captured InEntry pool handles -- the outer
+// peerMu.RLock keeps those handles live against handleReceived, which releases
+// them under peerMu.Lock (I2).
 type inboundSource struct {
 	peers   []inboundPeerRef
 	peerIdx int
@@ -77,14 +80,13 @@ type inboundSource struct {
 }
 
 func newInboundSource(r *RIBManager, selector string) *inboundSource {
-	r.peerMu.RLock()
+	// Caller holds r.peerMu.RLock (see type doc); read r.bgpPeers under it.
 	var peers []inboundPeerRef
 	for peer, peerRIB := range r.bgpPeers {
 		if matchesPeer(peer, selector) {
 			peers = append(peers, inboundPeerRef{peer: peer, peerRIB: peerRIB})
 		}
 	}
-	r.peerMu.RUnlock()
 	return &inboundSource{peers: peers}
 }
 
@@ -193,36 +195,27 @@ func (s *protocolInboundSource) Meta() PipelineMeta {
 }
 
 // outboundSource iterates over all adj-rib-out routes matching the peer selector.
-// Lazy per-peer buffering: snapshots one peer's entries under peerMu at a time,
-// then reconstructs routes outside the lock (pool reads are independently safe).
+// Lazy per-peer buffering: materializes one peer's routes at a time.
+// Caller (showPipeline) holds r.peerMu.RLock across construction and the full
+// drain, so reconstructRoute's pool-handle deref stays mutually exclusive with
+// the writers that release those handles -- handleSent holds peerMu.Lock (I2).
 type outboundSource struct {
 	r       *RIBManager
 	peers   []string
 	peerIdx int
 	items   []RouteItem
 	itemIdx int
-	snaps   []outboundSnap
 	count   int
 }
 
 func newOutboundSource(r *RIBManager, selector string) *outboundSource {
-	r.peerMu.RLock()
 	var peers []string
 	for peer := range r.ribOut {
 		if matchesPeer(peer, selector) {
 			peers = append(peers, peer)
 		}
 	}
-	r.peerMu.RUnlock()
 	return &outboundSource{r: r, peers: peers}
-}
-
-// outboundSnap holds a per-route snapshot taken under peerMu.
-type outboundSnap struct {
-	entry ribOutEntry
-	fam   family.Family
-	key   string
-	src   string
 }
 
 func (s *outboundSource) Next() (RouteItem, bool) {
@@ -243,30 +236,20 @@ func (s *outboundSource) Next() (RouteItem, bool) {
 		s.items = s.items[:0]
 		s.itemIdx = 0
 
-		s.r.peerMu.RLock()
-		peerFamilies := s.r.ribOut[peer]
-		s.snaps = s.snaps[:0]
-		for fam, familyRoutes := range peerFamilies {
+		// Reconstruct under the caller's held peerMu.RLock: reconstructRoute
+		// copies all wire bytes into an owned *Route, so the materialized
+		// items remain valid for the rest of the drain. (I2)
+		for fam, familyRoutes := range s.r.ribOut[peer] {
 			for key, entry := range familyRoutes {
-				s.snaps = append(s.snaps, outboundSnap{
-					entry: entry,
-					fam:   fam,
-					key:   key,
-					src:   s.r.ribOutSourcePeer(fam, key),
+				rt := reconstructRoute(entry, fam, key, s.r.ribOutSourcePeer(fam, key))
+				s.items = append(s.items, RouteItem{
+					Peer:      peer,
+					Family:    fam,
+					Prefix:    rt.Prefix,
+					Direction: rpc.DirectionSent,
+					OutRoute:  rt,
 				})
 			}
-		}
-		s.r.peerMu.RUnlock()
-
-		for _, sn := range s.snaps {
-			rt := reconstructRoute(sn.entry, sn.fam, sn.key, sn.src)
-			s.items = append(s.items, RouteItem{
-				Peer:      peer,
-				Family:    sn.fam,
-				Prefix:    rt.Prefix,
-				Direction: rpc.DirectionSent,
-				OutRoute:  rt,
-			})
 		}
 	}
 }
@@ -734,15 +717,25 @@ func (f *firstFilter) Meta() PipelineMeta {
 	return PipelineMeta{Count: f.seen}
 }
 
+// lastFilterInitialCap bounds the initial buffer allocation for `last N` so a
+// huge user-supplied N does not preallocate gigabytes up front. The buffer
+// grows lazily via append (capped by the actual item count), so peak memory is
+// min(N, items received), never N alone. See I3 / spec-rib-show-bounded-dump.
+const lastFilterInitialCap = 1024
+
 type lastFilter struct {
 	upstream PipelineIterator
 	limit    int
-	buf      []RouteItem
+	buf      []RouteItem // ring buffer; len grows lazily to at most limit
+	head     int         // index of the oldest element once the ring is full
+	full     bool        // true once buf reached limit and started overwriting
 	drained  bool
-	idx      int
+	idx      int // emission cursor over the drained items
 }
 
 func newLastFilter(upstream PipelineIterator, arg string) *lastFilter {
+	// parsePipelineArgs validates N (positive integer) before construction; the
+	// clamp is a defensive fallback for any direct caller.
 	n, _ := strconv.Atoi(arg)
 	if n <= 0 {
 		n = 1
@@ -757,24 +750,32 @@ func (f *lastFilter) Next() (RouteItem, bool) {
 	if f.idx >= len(f.buf) {
 		return RouteItem{}, false
 	}
-	item := f.buf[f.idx]
+	// Emit oldest-first. When the ring wrapped, the oldest item is at head.
+	pos := f.idx
+	if f.full {
+		pos = (f.head + f.idx) % f.limit
+	}
 	f.idx++
-	return item, true
+	return f.buf[pos], true
 }
 
 func (f *lastFilter) drain() {
 	f.drained = true
-	f.buf = make([]RouteItem, 0, f.limit)
+	initCap := min(f.limit, lastFilterInitialCap)
+	f.buf = make([]RouteItem, 0, initCap)
 	for {
 		item, ok := f.upstream.Next()
 		if !ok {
 			break
 		}
 		if len(f.buf) < f.limit {
+			// Still filling: append grows the buffer lazily, bounded by limit.
 			f.buf = append(f.buf, item)
 		} else {
-			copy(f.buf, f.buf[1:])
-			f.buf[f.limit-1] = item
+			// Full: overwrite the oldest element in O(1) and advance head.
+			f.buf[f.head] = item
+			f.head = (f.head + 1) % f.limit
+			f.full = true
 		}
 	}
 }
@@ -1016,7 +1017,11 @@ const filterPath = "path"
 
 // showPipeline builds and executes a pipeline from command args.
 // Called by handleCommand for "bgp rib show" with optional scope + filter stages.
-// Sources manage their own peerMu acquisition; the pipeline drain runs outside peerMu.
+// Holds r.peerMu.RLock across source construction AND the full drain: the
+// sources carry pool handles (ribOut entries, adj-rib-in bundle handles) that
+// filters/terminals dereference lazily, and the writers that release those
+// handles (handleSent/handleReceived) hold peerMu.Lock, so the read lock must
+// span the whole pipeline to keep handles live (I2).
 func (r *RIBManager) showPipeline(selector string, args []string) any {
 	scope, pipeSelector, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {
@@ -1025,6 +1030,9 @@ func (r *RIBManager) showPipeline(selector string, args []string) any {
 	if pipeSelector != "" {
 		selector = pipeSelector
 	}
+
+	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
 
 	// Create source based on scope
 	var source PipelineIterator
@@ -1189,6 +1197,15 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 			if keyword == filterPath {
 				if errMsg := validatePathPattern(args[i]); errMsg != "" {
 					return "", "", nil, errMsg
+				}
+			}
+			// first/last take a positive count. The client-side ValidatePipes
+			// check is bypassed when these are folded into the command for the
+			// server-side fast path, so validate here too: reject non-numeric
+			// and <= 0 rather than silently clamping (and never preallocate N).
+			if keyword == "first" || keyword == "last" {
+				if n, err := strconv.Atoi(args[i]); err != nil || n <= 0 {
+					return "", "", nil, keyword + " requires a positive number"
 				}
 			}
 			stages = append(stages, pipelineStage{kind: keyword, arg: args[i]})

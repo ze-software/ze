@@ -765,7 +765,7 @@ func checkPlugins(plugins []zeplugin.PluginConfig) []diagnostic.Diagnostic {
 	}
 
 	for _, p := range plugins {
-		if p.Internal || p.Run == "" {
+		if p.Run == "" {
 			continue
 		}
 		parts := strings.Fields(p.Run)
@@ -773,13 +773,28 @@ func checkPlugins(plugins []zeplugin.PluginConfig) []diagnostic.Diagnostic {
 			continue
 		}
 
-		matched := matchExternalBuiltinTokens(parts, builtinSet)
-		for _, name := range matched {
-			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "doctor-plugin-external-builtin",
-				Severity: diagnostic.SeverityWarning,
-				Message:  "plugin " + p.Name + ": command " + p.Run + " matches built-in " + name + "; use plugin { internal " + p.Name + " { use " + name + " } } for in-process execution",
-			})
+		// Advisory: a plugin written in the `external` block whose command
+		// resolves to a built-in should use the `internal` keyword instead.
+		// `run ze.X` is reclassified to in-process (Internal=true) but is still
+		// an external-block declaration -- the ze. prefix marks it, since the
+		// `internal` keyword uses `use` (Run has no ze. prefix) and rejects
+		// `run`. A bare/path external binary whose basename matches a builtin
+		// (Internal=false) is also flagged. Plugins declared with the
+		// `internal` keyword are already in-process and must not be flagged.
+		if !p.Internal || strings.HasPrefix(p.Run, "ze.") {
+			for _, name := range matchExternalBuiltinTokens(parts, builtinSet) {
+				diags = append(diags, diagnostic.Diagnostic{
+					Code:     "doctor-plugin-external-builtin",
+					Severity: diagnostic.SeverityWarning,
+					Message:  "plugin " + p.Name + ": command " + p.Run + " matches built-in " + name + "; use plugin { internal " + p.Name + " { use " + name + " } } for in-process execution",
+				})
+			}
+		}
+
+		// Missing-binary only applies to genuinely external plugins that spawn
+		// a subprocess; in-process (internal keyword or ze.X) plugins have none.
+		if p.Internal {
+			continue
 		}
 
 		binary := parts[0]

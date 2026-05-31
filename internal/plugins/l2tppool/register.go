@@ -447,7 +447,9 @@ func (p *poolPlugin) showPool() any {
 	p.v6mu.RUnlock()
 
 	if pool == nil && v6pool == nil {
-		return `{"status":"no pool configured"}`
+		// Marshaled once by the SDK: return a Go value, not a JSON string
+		// literal (which would double-encode on the wire).
+		return map[string]any{"status": "no pool configured"}
 	}
 
 	var result poolShowResult

@@ -936,6 +936,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			}
 		}
 
+		// Check stdout does NOT contain forbidden substrings if specified
+		for _, forbidden := range rec.ExpectStdoutNotMatch {
+			if strings.Contains(rec.ClientOutput, forbidden) {
+				rec.Error = fmt.Errorf("stdout unexpectedly contains %q", forbidden)
+				rec.FailureType = "stdout_mismatch"
+				return false
+			}
+		}
+
 		// Validate logging expectations (expect/reject stderr patterns, expect syslog)
 		if logErr := r.validateLogging(rec, clientStderr.String(), syslogSrv); logErr != nil {
 			rec.Error = logErr

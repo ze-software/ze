@@ -50,16 +50,33 @@ const (
 // ErrWatchdogNotFound is returned when a watchdog group doesn't exist for a peer.
 var ErrWatchdogNotFound = errors.New("watchdog group not found")
 
-// handleCommand dispatches watchdog commands.
+// watchdogAllResult is the command response for a wildcard (all-peers) action.
+type watchdogAllResult struct {
+	Watchdog string `json:"watchdog"`
+	Peers    int    `json:"peers"`
+	Action   string `json:"action"`
+}
+
+// watchdogPeerResult is the command response for a single-peer action.
+type watchdogPeerResult struct {
+	Peer     string `json:"peer"`
+	Watchdog string `json:"watchdog"`
+	Count    int    `json:"count"`
+}
+
+// handleCommand dispatches watchdog commands. The data return is an arbitrary
+// Go value the SDK marshals once into the response (see OnExecuteCommand);
+// handlers must return a struct/map, never a pre-marshaled JSON string, or the
+// value is double-encoded on the wire.
 // Called from OnExecuteCommand with the command name, arguments, and peer selector.
-func (s *watchdogServer) handleCommand(command string, args []string, peer string) (string, string, error) {
+func (s *watchdogServer) handleCommand(command string, args []string, peer string) (string, any, error) {
 	if command == "watchdog announce" {
 		return s.handlePoolAction(args, peer, true)
 	}
 	if command == "watchdog withdraw" {
 		return s.handlePoolAction(args, peer, false)
 	}
-	return statusError, "", fmt.Errorf("unknown watchdog command: %s", command)
+	return statusError, nil, fmt.Errorf("unknown watchdog command: %s", command)
 }
 
 // handlePoolAction handles announce (announce=true) or withdraw (announce=false)
@@ -68,15 +85,15 @@ func (s *watchdogServer) handleCommand(command string, args []string, peer strin
 //
 // Announce syntax: watchdog announce <name> [med <N>] [peer]
 // When peer is "*", the action applies to all peers that have the named pool.
-func (s *watchdogServer) handlePoolAction(args []string, peer string, announce bool) (string, string, error) {
+func (s *watchdogServer) handlePoolAction(args []string, peer string, announce bool) (string, any, error) {
 	if len(args) < 1 {
-		return statusError, "", errors.New("missing watchdog name")
+		return statusError, nil, errors.New("missing watchdog name")
 	}
 	name := args[0]
 
 	// Reject "med" as a group name -- ambiguous with the med keyword.
 	if name == "med" {
-		return statusError, "", errors.New("'med' is not allowed as a watchdog group name (ambiguous with med <N> argument)")
+		return statusError, nil, errors.New("'med' is not allowed as a watchdog group name (ambiguous with med <N> argument)")
 	}
 
 	// Parse optional "med <N>" for announce commands.
@@ -84,11 +101,11 @@ func (s *watchdogServer) handlePoolAction(args []string, peer string, announce b
 	remaining := args[1:]
 	if announce && len(remaining) >= 1 && remaining[0] == "med" {
 		if len(remaining) < 2 {
-			return statusError, "", errors.New("missing MED value after 'med' keyword")
+			return statusError, nil, errors.New("missing MED value after 'med' keyword")
 		}
 		v, err := strconv.ParseUint(remaining[1], 10, 32)
 		if err != nil {
-			return statusError, "", fmt.Errorf("invalid MED value %q: %w", remaining[1], err)
+			return statusError, nil, fmt.Errorf("invalid MED value %q: %w", remaining[1], err)
 		}
 		med32 := uint32(v)
 		medOverride = &med32
@@ -109,7 +126,7 @@ func (s *watchdogServer) handlePoolAction(args []string, peer string, announce b
 }
 
 // handlePoolActionAll dispatches a watchdog action to all peers that have the named pool.
-func (s *watchdogServer) handlePoolActionAll(name string, announce bool, medOverride *uint32) (string, string, error) {
+func (s *watchdogServer) handlePoolActionAll(name string, announce bool, medOverride *uint32) (string, any, error) {
 	s.mu.RLock()
 	peers := make([]string, 0, len(s.peerPools))
 	for addr := range s.peerPools {
@@ -133,7 +150,7 @@ func (s *watchdogServer) handlePoolActionAll(name string, announce bool, medOver
 	if !announce {
 		action = "withdrawn"
 	}
-	return statusDone, fmt.Sprintf(`{"watchdog":%q,"peers":%d,"action":%q}`, name, total, action), nil
+	return statusDone, watchdogAllResult{Watchdog: name, Peers: total, Action: action}, nil
 }
 
 // handlePoolActionSingle handles announce/withdraw for a single peer.
@@ -141,19 +158,19 @@ func (s *watchdogServer) handlePoolActionAll(name string, announce bool, medOver
 // sets the overridden MED, and calls FormatAnnounceCommand for a one-off
 // command. The MED path bypasses the announced boolean dedup because the
 // pool tracks announced/withdrawn state, not command content.
-func (s *watchdogServer) handlePoolActionSingle(name, peer string, announce bool, medOverride *uint32) (string, string, error) {
+func (s *watchdogServer) handlePoolActionSingle(name, peer string, announce bool, medOverride *uint32) (string, any, error) {
 	s.mu.RLock()
 	pools := s.peerPools[peer]
 	isUp := s.peerUp[peer]
 	s.mu.RUnlock()
 
 	if pools == nil {
-		return statusError, "", fmt.Errorf("%w: %s", ErrWatchdogNotFound, name)
+		return statusError, nil, fmt.Errorf("%w: %s", ErrWatchdogNotFound, name)
 	}
 
 	pool := pools.GetPool(name)
 	if pool == nil {
-		return statusError, "", fmt.Errorf("%w: %s", ErrWatchdogNotFound, name)
+		return statusError, nil, fmt.Errorf("%w: %s", ErrWatchdogNotFound, name)
 	}
 
 	if announce && medOverride != nil {
@@ -194,7 +211,7 @@ func (s *watchdogServer) handlePoolActionSingle(name, peer string, announce bool
 		action = "withdrawn"
 	}
 	logger().Debug("watchdog "+action, "peer", peer, "pool", name, "count", len(entries), "up", isUp)
-	return statusDone, fmt.Sprintf(`{"peer":%q,"watchdog":%q,"count":%d}`, peer, name, len(entries)), nil
+	return statusDone, watchdogPeerResult{Peer: peer, Watchdog: name, Count: len(entries)}, nil
 }
 
 // handleMEDOverride dispatches announce commands with an overridden MED value.
@@ -209,7 +226,7 @@ func (s *watchdogServer) handlePoolActionSingle(name, peer string, announce bool
 // This covers the healthcheck race where probe success fires before
 // BGP finishes its OPEN handshake (regression surfaced by
 // test/plugin/healthcheck-cycle.ci with debounce=true).
-func (s *watchdogServer) handleMEDOverride(pool *RoutePool, peer string, isUp bool, name string, med *uint32) (string, string, error) {
+func (s *watchdogServer) handleMEDOverride(pool *RoutePool, peer string, isUp bool, name string, med *uint32) (string, any, error) {
 	// Clone routes and build commands under lock (#17: Route read must be under lock).
 	pool.mu.Lock()
 	var cmds []string
@@ -240,7 +257,7 @@ func (s *watchdogServer) handleMEDOverride(pool *RoutePool, peer string, isUp bo
 	if med != nil {
 		logger().Debug("watchdog announced (med override)", "peer", peer, "pool", name, "med", *med, "count", count, "up", isUp)
 	}
-	return statusDone, fmt.Sprintf(`{"peer":%q,"watchdog":%q,"count":%d}`, peer, name, count), nil
+	return statusDone, watchdogPeerResult{Peer: peer, Watchdog: name, Count: count}, nil
 }
 
 // handleStateUp handles a peer coming up (session established).

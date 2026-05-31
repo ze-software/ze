@@ -251,6 +251,13 @@ func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGrou
 		return
 	}
 
+	// Clear any cursor state left over from a prior replay that aborted before
+	// its terminating "update cursor done" (e.g. the peer dropped mid-replay,
+	// which is best-effort and only logged). Without this reset, the first
+	// group's full-attribute command merges against the stale cursor and
+	// announces phantom attributes the new route does not carry. (I4)
+	r.updateRoute(peerAddr, "update cursor done")
+
 	sortGroupsForMinimalDeltas(groups)
 
 	var prev *Route
@@ -274,6 +281,10 @@ func (r *RIBManager) resendRoutesWithCursor(peerAddr string, groups []replayGrou
 	if len(groups) == 0 {
 		return 0
 	}
+
+	// Reset stale cursor state from a prior aborted replay before the first
+	// group merges against it (see replayRoutesWithCursor). (I4)
+	r.updateRoute(peerAddr, "update cursor done")
 
 	sortGroupsForMinimalDeltas(groups)
 

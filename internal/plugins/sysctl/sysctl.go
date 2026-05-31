@@ -702,11 +702,11 @@ func parseSysctlProfileConfig(data string) []sysctlreg.ProfileDef {
 }
 
 // listProfiles returns a formatted table of all registered profiles.
+// The returned value is marshaled once by the SDK, so it must be a Go value;
+// the empty case falls through to a struct with an empty slice ({"profiles":[]})
+// rather than a pre-marshaled JSON string (which would double-encode).
 func listProfiles() any {
 	profiles := sysctlreg.AllProfiles()
-	if len(profiles) == 0 {
-		return "{\"profiles\":[]}"
-	}
 
 	type profileEntry struct {
 		Name        string `json:"name"`

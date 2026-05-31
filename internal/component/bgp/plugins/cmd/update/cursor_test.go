@@ -218,6 +218,52 @@ func TestCursorReplace(t *testing.T) {
 	assert.Equal(t, uint32(200), *attrs.MED)
 }
 
+// TestCursorStaleAttrPersistsWithoutDone documents the hazard the done-reset
+// guards against: when a new replay's first command OMITS an attribute that a
+// stale cursor still carries (e.g. a prior replay set MED, the new route has
+// none), the omitted attribute is inherited -- a phantom value. This is why
+// TestCursorReplace (which re-sets MED) masks the bug (I4).
+func TestCursorStaleAttrPersistsWithoutDone(t *testing.T) {
+	ctx := cursorTestCtx(t)
+
+	// Prior replay left a cursor carrying MED=100.
+	_, err := handleUpdateCursor(ctx, strings.Fields("origin igp med 100 next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"))
+	require.NoError(t, err)
+
+	// New init WITHOUT done and WITHOUT med: the stale MED is inherited.
+	_, err = handleUpdateCursor(ctx, strings.Fields("origin igp next-hop 10.0.0.2 nlri ipv4/unicast add 10.1.0.0/24"))
+	require.NoError(t, err)
+
+	attrs := loadCursorAttrs(t, ctx.PeerSelector())
+	require.NotNil(t, attrs.MED, "without a done reset the stale MED persists (the hazard the reset prevents)")
+	assert.Equal(t, uint32(100), *attrs.MED)
+}
+
+// TestCursorDoneClearsStaleAttr verifies the fix mechanism: `done` resets cursor
+// state so a subsequent init does NOT inherit an attribute the new route omits.
+// replayRoutesWithCursor/resendRoutesWithCursor send `update cursor done` at the
+// start of a replay to discard state left by a prior aborted replay, preventing
+// phantom attributes on the first group (I4).
+func TestCursorDoneClearsStaleAttr(t *testing.T) {
+	ctx := cursorTestCtx(t)
+
+	// Prior replay left a cursor carrying MED=100 (its terminating done never arrived).
+	_, err := handleUpdateCursor(ctx, strings.Fields("origin igp med 100 next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"))
+	require.NoError(t, err)
+
+	// New replay starts by resetting the cursor.
+	_, err = handleUpdateCursor(ctx, strings.Fields("done"))
+	require.NoError(t, err)
+
+	// First group of the new replay: a route WITHOUT MED.
+	resp, err := handleUpdateCursor(ctx, strings.Fields("origin igp next-hop 10.0.0.2 nlri ipv4/unicast add 10.1.0.0/24"))
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	attrs := loadCursorAttrs(t, ctx.PeerSelector())
+	assert.Nil(t, attrs.MED, "MED from the prior replay must not survive the done reset")
+}
+
 // TestCursorClearProcess verifies ClearProcessCursors frees all cursors for a process.
 func TestCursorClearProcess(t *testing.T) {
 	// Manually set up cursor state for a specific process

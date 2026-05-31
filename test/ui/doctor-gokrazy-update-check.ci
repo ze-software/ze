@@ -9,6 +9,11 @@ system {
         auto-apply true
     }
 }
+environment {
+    ntp {
+        enabled true
+    }
+}
 EOF_CONF
 
 option=env:var=ze.test.doctor.platform:value=gokrazy

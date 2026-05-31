@@ -129,9 +129,10 @@ type Record struct {
 	SyslogPort   int      // Dynamically assigned port for test-syslog
 
 	// Exit code validation
-	ExpectExitCode    *int     // expect:exit:code=N - expected exit code (nil = don't check)
-	ExpectStderrMatch string   // expect=stderr:contains=TEXT - substring match (not regex)
-	ExpectStdoutMatch []string // expect=stdout:contains=TEXT - substring match (not regex), multiple allowed
+	ExpectExitCode       *int     // expect:exit:code=N - expected exit code (nil = don't check)
+	ExpectStderrMatch    string   // expect=stderr:contains=TEXT - substring match (not regex)
+	ExpectStdoutMatch    []string // expect=stdout:contains=TEXT - substring match (not regex), multiple allowed
+	ExpectStdoutNotMatch []string // expect=stdout:!contains=TEXT - stdout must NOT contain TEXT, multiple allowed
 
 	// Tmpfs embedded files
 	TmpfsFiles   map[string][]byte // path -> content from tmpfs= blocks

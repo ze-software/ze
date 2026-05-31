@@ -92,6 +92,7 @@ func Get() *Buffer {
 	b, _ := bufPool.Get().(*Buffer) //nolint:forcetypeassert // pool only holds *Buffer
 	b.done = false
 	b.pooled = true
+	b.color = false // reset rendering mode so a prior SetColor(true) does not leak across pool reuse
 	if cap(b.b) > len(b.arr) {
 		b.b = b.b[:0]
 	} else {

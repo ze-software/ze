@@ -30,14 +30,30 @@ if [[ -z "$CONTENT" ]]; then
     exit 0
 fi
 
-# Pattern: []string{ containing 4+ quoted words that look like command names.
-# Heuristic: a line with []string{ followed by 4+ "word" entries on the
-# same or next lines, where the words are short lowercase identifiers.
-HITS=$(echo "$CONTENT" \
-    | grep -nE '\[\]string\{' \
-    | grep -iE '"(show|set|del|update|validate|monitor|clear|help|config|bgp|cli|schema|plugin|doctor|version|signal|completion|status|init)"' \
-    | grep -vE '//.*\[\]string' \
-    | head -3 || true)
+# Detect []string{ ... } literals (single- OR multi-line) that contain 4+
+# command-like words -- the signature of a hardcoded command catalog that
+# should be derived from the registry.
+#
+# The previous version grep'd line-by-line, so it (a) missed the idiomatic
+# gofmt multi-line literal entirely and (b) false-flagged short arg slices like
+# []string{"bgp", "show", "summary"}. This awk scan accumulates each []string{}
+# block across lines and flags only when the command-word count reaches the
+# threshold, fixing both the false negatives and the false positives.
+HITS=$(echo "$CONTENT" | awk '
+    BEGIN { rx = "\"(show|set|del|update|validate|monitor|clear|help|config|bgp|cli|schema|plugin|doctor|version|signal|completion|status|init)\"" }
+    /^[[:space:]]*\/\// { next }            # skip comment-only lines
+    {
+        line = $0
+        if (!inblk && line ~ /\[\]string\{/) { inblk = 1; words = 0; startln = NR; first = line }
+        if (inblk) {
+            words += gsub(rx, "&", line)
+            if (line ~ /\}/) {
+                if (words >= 4) print startln ": " first
+                inblk = 0
+            }
+        }
+    }
+' | head -3 || true)
 
 if [[ -n "$HITS" ]]; then
     echo -e "\033[31m\033[1m✘ BLOCKED: possible hardcoded command list in ${FILE_PATH}\033[0m" >&2
