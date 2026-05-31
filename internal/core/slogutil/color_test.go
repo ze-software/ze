@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
@@ -219,9 +220,25 @@ func TestUseColorZeLogColorFalse(t *testing.T) {
 // VALIDATES: AC-4: ze.log.color=true forces color on regardless of TTY.
 // PREVENTS: Color being suppressed when user explicitly requested it.
 func TestUseColorZeLogColorTrue(t *testing.T) {
+	oldNoColor, hadNoColor := os.LookupEnv("NO_COLOR")
+	oldTerm, hadTerm := os.LookupEnv("TERM")
+	require.NoError(t, os.Unsetenv("NO_COLOR"))
+	require.NoError(t, os.Unsetenv("TERM"))
+	t.Cleanup(func() {
+		if hadNoColor {
+			require.NoError(t, os.Setenv("NO_COLOR", oldNoColor))
+		} else {
+			require.NoError(t, os.Unsetenv("NO_COLOR"))
+		}
+		if hadTerm {
+			require.NoError(t, os.Setenv("TERM", oldTerm))
+		} else {
+			require.NoError(t, os.Unsetenv("TERM"))
+		}
+		env.ResetCache()
+	})
 	t.Setenv("ze.log.color", "true")
 	env.ResetCache()
-	t.Cleanup(env.ResetCache)
 	var buf bytes.Buffer
 	assert.True(t, UseColor(&buf))
 }
