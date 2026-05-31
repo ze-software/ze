@@ -52,14 +52,22 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		}
 	}
 
-	// Write plugin blocks - new syntax: plugin { external NAME { ... } }
+	// Write plugin blocks - new syntax: plugin { internal|external NAME { ... } }.
+	// Built-in plugins (declared with `use <builtin>`) take the `internal` keyword;
+	// external processes (declared with `run <command>`) take `external`.
 	pluginList := tree.GetListOrdered("plugin")
 	if len(pluginList) > 0 {
 		buf.WriteString(indent)
 		buf.WriteString("plugin {\n")
 		for _, entry := range pluginList {
+			keyword := "external"
+			if _, ok := entry.Value.Get("use"); ok {
+				keyword = "internal"
+			}
 			buf.WriteString(indent)
-			buf.WriteString("\texternal ")
+			buf.WriteString("\t")
+			buf.WriteString(keyword)
+			buf.WriteString(" ")
 			buf.WriteString(entry.Key)
 			buf.WriteString(" {\n")
 			serializeTreeIndent(entry.Value, buf, indent+"\t\t", false)

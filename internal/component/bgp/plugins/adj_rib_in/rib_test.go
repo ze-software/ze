@@ -480,8 +480,8 @@ func TestHandleCommand_Show(t *testing.T) {
 	status, data, err := r.handleCommand("adj-rib-in show", "10.0.0.1")
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, "10.0.0.1", "should contain peer address")
-	assert.Contains(t, data, "ipv4/unicast", "should contain family")
+	assert.Contains(t, string(mustMarshal(t, data)), "10.0.0.1", "should contain peer address")
+	assert.Contains(t, string(mustMarshal(t, data)), "ipv4/unicast", "should contain family")
 }
 
 // TestMultipleNLRIsPerUpdate verifies multiple NLRIs in single UPDATE are stored individually.
@@ -539,8 +539,8 @@ func TestAdjRibInReplayArgsPassthrough(t *testing.T) {
 	assert.Equal(t, statusDone, status)
 
 	// Should have replayed 1 route (from 10.0.0.1, target is 127.0.0.2)
-	assert.Contains(t, data, `"replayed":1`)
-	assert.Contains(t, data, `"last-index":1`)
+	assert.Contains(t, string(mustMarshal(t, data)), `"replayed":1`)
+	assert.Contains(t, string(mustMarshal(t, data)), `"last-index":1`)
 }
 
 // TestAdjRibInReplayArgsEmpty verifies empty selector returns an error.

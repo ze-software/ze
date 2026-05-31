@@ -11,11 +11,14 @@ EOF_CONF
 
 option=file:path=test.conf
 option=timeout:value=10s
+# An active editing session is required for "disconnect" (and "who") to appear
+# in completions; without it they are filtered and only "discard" matches "di".
+option=session:user=thomas:origin=local
 
-# Type "di" which matches "discard" and "disconnect" (common prefix "dis").
-# Ghost text shows "s" (the common extension beyond "di").
+# Type "di" which matches "discard" and "disconnect" (common prefix "disc").
+# Ghost text shows "sc" (the common extension beyond "di").
 input=type:text=di
 expect=completion:contains=discard,disconnect
 
-# Ghost text extends to common prefix "dis" -> shows "s" after "di".
-expect=ghost:text=s
+# Ghost text extends to common prefix "disc" -> shows "sc" after "di".
+expect=ghost:text=sc

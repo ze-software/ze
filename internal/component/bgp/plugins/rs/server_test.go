@@ -463,8 +463,12 @@ func TestHandleCommand_Status(t *testing.T) {
 	if status != statusDone {
 		t.Errorf("expected status done, got %q", status)
 	}
-	if !strings.Contains(fmt.Sprint(data), `"running":true`) {
-		t.Errorf("expected running:true in data, got %q", data)
+	raw, mErr := json.Marshal(data)
+	if mErr != nil {
+		t.Fatalf("marshal data: %v", mErr)
+	}
+	if !strings.Contains(string(raw), `"running":true`) {
+		t.Errorf("expected running:true in data, got %s", raw)
 	}
 }
 

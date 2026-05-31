@@ -275,8 +275,8 @@ func TestShowEmptyProbes(t *testing.T) {
 	if status != statusDone {
 		t.Errorf("status = %q, want done", status)
 	}
-	if data != "[]" {
-		t.Errorf("data = %q, want empty JSON array", data)
+	if got := mustMarshalStr(t, data); got != "[]" {
+		t.Errorf("data = %q, want empty JSON array", got)
 	}
 }
 

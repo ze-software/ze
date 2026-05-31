@@ -535,13 +535,13 @@ func TestBuildCommandTree(t *testing.T) {
 	// "cache" from ze-cli-cache-cmd
 	cache := tree.Children["cache"]
 	require.NotNil(t, cache, "cache should exist")
-	assert.Equal(t, "BGP message cache operations. Grammar: cache <action> <id> [args].\nActions: list, retain, release, expire, forward.", cache.Description)
+	assert.Equal(t, "Manage cached BGP UPDATE messages.\nActions: list (show cached entries), retain (hold a message),\nrelease (free a retained message), expire (force eviction),\nforward (send a cached message to peers). Grammar: cache <action>\n<id> [args].", cache.Description)
 	assert.Equal(t, "ze-bgp:cache", cache.WireMethod)
 
 	// "peer" merged from 3 modules
 	peer := tree.Children["peer"]
 	require.NotNil(t, peer, "peer should exist (merged)")
-	assert.Equal(t, "Peer operations", peer.Description, "peer grouping gets YANG description")
+	assert.Equal(t, "Peer lifecycle and flow control operations", peer.Description, "peer grouping gets YANG description")
 	assert.Equal(t, "", peer.WireMethod, "peer grouping has no WireMethod")
 
 	// From ze-peer-cmd -- verify WireMethod on merged leaves
@@ -604,17 +604,17 @@ func TestBuildCommandTreeCommandNodes(t *testing.T) {
 
 	rib := tree.Children["rib"]
 	require.NotNil(t, rib)
-	assert.Equal(t, "RIB operations", rib.Description, "bgp rib grouping gets YANG description")
+	assert.Equal(t, "Route table queries and management", rib.Description, "bgp rib grouping gets YANG description")
 
 	status := rib.Children["status"]
 	require.NotNil(t, status)
-	assert.Equal(t, "RIB summary (peer count, route counts)", status.Description, "status has ze:command")
+	assert.Equal(t, "Get a quick RIB overview without dumping routes.\nShows per-AFI/SAFI totals for Adj-RIB-In, Loc-RIB, and Adj-RIB-Out.\nUse this after a peer comes up to confirm route counts.", status.Description, "status has ze:command")
 	assert.Equal(t, "ze-rib-api:status", status.WireMethod)
 
 	// rib > best is both a command AND has children
 	best := rib.Children["best"]
 	require.NotNil(t, best)
-	assert.Equal(t, "Best-path per prefix", best.Description, "best has ze:command")
+	assert.Equal(t, "Show the winning route for each prefix.\nReturns the best-path selection result from the Loc-RIB. Same filters\nas 'rib routes'. Use '| reason' to see why each path won.", best.Description, "best has ze:command")
 	assert.Equal(t, "ze-rib-api:best", best.WireMethod)
 	assert.NotNil(t, best.Children["status"], "best also has child status")
 	assert.Equal(t, "ze-rib-api:best-status", best.Children["status"].WireMethod)
@@ -622,7 +622,7 @@ func TestBuildCommandTreeCommandNodes(t *testing.T) {
 	// rib > clear is a grouping (no ze:command), has children
 	clear := rib.Children["clear"]
 	require.NotNil(t, clear)
-	assert.Equal(t, "Clear operations", clear.Description, "clear grouping gets YANG description")
+	assert.Equal(t, "Clear and re-advertise RIB entries", clear.Description, "clear grouping gets YANG description")
 	assert.Equal(t, "", clear.WireMethod, "clear grouping has no WireMethod")
 	assert.NotNil(t, clear.Children["in"], "clear has child in")
 	assert.Equal(t, "ze-rib-api:clear-in", clear.Children["in"].WireMethod)

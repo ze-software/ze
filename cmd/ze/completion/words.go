@@ -9,7 +9,6 @@
 package completion
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -63,7 +62,15 @@ func writeWords(w io.Writer, args []string) int {
 		if s.Type == "pipe" {
 			continue
 		}
-		if _, err := fmt.Fprintf(w, "%s\t%s\n", s.Text, s.Description); err != nil {
+		// Shell completion is one row per candidate: collapse multi-line YANG
+		// descriptions to their first line (the synopsis). The remaining lines
+		// carry grammar/action detail that belongs in `ze yang doc`, and emitting
+		// them raw would break the word\tdescription contract.
+		desc := s.Description
+		if before, _, ok := strings.Cut(desc, "\n"); ok {
+			desc = before
+		}
+		if _, err := io.WriteString(w, s.Text+"\t"+desc+"\n"); err != nil {
 			return 1
 		}
 	}

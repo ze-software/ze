@@ -1413,11 +1413,14 @@ func TestCmdOptionBlameRedirectsToPipe(t *testing.T) {
 	assert.Contains(t, err.Error(), "show | blame")
 }
 
-// TestCmdOptionChangesRedirectsToPipe verifies option changes redirects to pipe syntax.
+// TestCmdOptionChangesReportsColumnState verifies bare "option changes" reports the
+// diff-gutter column state. The pending-changes *view* moved to "show | changes";
+// "changes" stays a display column toggled via "option changes enable|disable",
+// consistent with author/date/source. Only "blame" (not a column) redirects to a pipe.
 //
-// VALIDATES: "option changes" tells user to use "show | changes".
-// PREVENTS: Stale muscle memory from old syntax silently failing.
-func TestCmdOptionChangesRedirectsToPipe(t *testing.T) {
+// VALIDATES: "option changes" is a column-state query, not an error/redirect.
+// PREVENTS: Regression conflating the changes column with the show | changes view.
+func TestCmdOptionChangesReportsColumnState(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
@@ -1430,9 +1433,9 @@ func TestCmdOptionChangesRedirectsToPipe(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	_, err = model.cmdOption([]string{cmdChanges})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "show | changes")
+	result, err := model.cmdOption([]string{cmdChanges})
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, cmdChanges, "bare 'option changes' reports column state")
 }
 
 // TestCmdShowFormatConfigWithoutSession verifies show | format config works without session.

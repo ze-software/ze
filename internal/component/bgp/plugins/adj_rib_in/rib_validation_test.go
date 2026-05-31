@@ -248,7 +248,7 @@ func TestRevalidateInstalledRoute(t *testing.T) {
 	status, data, err := r.handleCommand("adj-rib-in revalidate", "ipv4/unicast 10.0.0.0/24")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
-	assert.Contains(t, data, "10.0.0.0/24", "revalidate should return route data")
+	assert.Contains(t, string(mustMarshal(t, data)), "10.0.0.0/24", "revalidate should return route data")
 }
 
 // TestAcceptNonExistentRoute verifies early decision buffering.

@@ -12,8 +12,8 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Switch to operational mode
-input=type:text=run
+# Switch to operational mode (exit from clean config mode)
+input=type:text=exit
 input=enter
 expect=mode:is=operational
 

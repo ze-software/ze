@@ -23,8 +23,12 @@ input=type:text=show
 input=enter
 expect=content:contains=local 65000
 
-# Switch to operational mode — config content should be saved
-input=type:text=run
+# Switch to operational mode — config content should be saved.
+# Pending changes prompt a confirmation; force the switch with y.
+input=type:text=exit
+input=enter
+expect=status:contains=Pending
+input=type:text=y
 input=enter
 expect=mode:is=operational
 

@@ -1038,9 +1038,9 @@ func validateMigrationResult(t *testing.T, testName, got string, result *Migrate
 		assert.Contains(t, got, "ip 10.0.0.1")
 
 	case "graceful-restart":
-		// Should have RIB plugin injected.
+		// Should have RIB plugin injected as a built-in (internal keyword + use).
 		assert.True(t, result.RIBInjected, "expected RIBInjected=true for graceful-restart")
-		assert.Contains(t, got, "external bgp-rib")
+		assert.Contains(t, got, "internal bgp-rib")
 
 	case "route-refresh":
 		// Should have RIB plugin injected.

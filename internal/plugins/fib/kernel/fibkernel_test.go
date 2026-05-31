@@ -1,6 +1,7 @@
 package fibkernel
 
 import (
+	"encoding/json"
 	"errors"
 	"net/netip"
 	"sync"
@@ -202,7 +203,9 @@ func TestFIBKernelShowInstalled(t *testing.T) {
 		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
-	data := f.showInstalled()
+	raw, err := json.Marshal(f.showInstalled())
+	require.NoError(t, err)
+	data := string(raw)
 	assert.Contains(t, data, "10.0.0.0/24")
 	assert.Contains(t, data, "192.168.1.1")
 }

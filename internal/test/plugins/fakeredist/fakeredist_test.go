@@ -1,6 +1,7 @@
 package fakeredist
 
 import (
+	"encoding/json"
 	"net/netip"
 	"sync"
 	"testing"
@@ -12,6 +13,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// rawString returns the JSON body a command handler produced. Command handlers
+// return `any`; the emit handlers return json.RawMessage, which the SDK marshals
+// on the wire. assert.Contains on the raw []byte would compare bytes element-wise
+// (never a substring match), so assertions must use the string form.
+func rawString(t *testing.T, data any) string {
+	t.Helper()
+	raw, ok := data.(json.RawMessage)
+	require.True(t, ok, "command data: got %T, want json.RawMessage", data)
+	return string(raw)
+}
 
 // captureBus records every Emit call as raw payload + (ns, et).
 type captureBus struct {
@@ -101,7 +113,7 @@ func TestCommandEmitAdd(t *testing.T) {
 	status, data, err := dispatchCommand("", "fakeredist emit", []string{"add", "ipv4/unicast", "10.0.0.1/32"}, "")
 	require.NoError(t, err)
 	assert.Equal(t, rpc.StatusDone, status)
-	assert.Contains(t, data, `"delivered":`)
+	assert.Contains(t, rawString(t, data), `"delivered":`)
 
 	recs := bus.records()
 	require.Len(t, recs, 1)
@@ -161,7 +173,7 @@ func TestCommandEmitBurst(t *testing.T) {
 		[]string{"10", "add", "ipv4/unicast", "10.0.0.0/32"}, "")
 	require.NoError(t, err)
 	assert.Equal(t, rpc.StatusDone, status)
-	assert.Contains(t, data, `"emitted":10`)
+	assert.Contains(t, rawString(t, data), `"emitted":10`)
 
 	recs := bus.records()
 	require.Len(t, recs, n)

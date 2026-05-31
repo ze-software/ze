@@ -1,6 +1,7 @@
 package fibp4
 
 import (
+	"encoding/json"
 	"sync"
 	"testing"
 
@@ -138,7 +139,9 @@ func TestFIBP4ShowInstalled(t *testing.T) {
 		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
-	data := f.showInstalled()
+	raw, err := json.Marshal(f.showInstalled())
+	require.NoError(t, err)
+	data := string(raw)
 	require.Contains(t, data, "10.0.0.0/24")
 	assert.Contains(t, data, "192.168.1.1")
 }

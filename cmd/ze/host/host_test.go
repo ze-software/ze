@@ -32,7 +32,7 @@ func TestRunShow_DefaultsToAll(t *testing.T) {
 func TestSectionList(t *testing.T) {
 	out := sectionList()
 	parts := strings.Split(out, ", ")
-	want := []string{"all", "cpu", "dmi", "kernel", "memory", "nic", "storage", "thermal"}
+	want := []string{"all", "cpu", "dmi", "kernel", "memory", "nic", "platform", "storage", "thermal"}
 	if !slices.Equal(parts, want) {
 		t.Errorf("sectionList = %v, want %v", parts, want)
 	}

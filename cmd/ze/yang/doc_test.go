@@ -46,7 +46,9 @@ func TestDocList(t *testing.T) {
 // PREVENTS: Doc output missing output parameters.
 func TestDocCommandWithOutputParams(t *testing.T) {
 	var buf bytes.Buffer
-	err := FormatDocCommand(&buf, "summary")
+	// "summary" canonicalises to the verb-first "show summary" path (the
+	// lexicographically smallest alias of ze-bgp:summary).
+	err := FormatDocCommand(&buf, "show summary")
 	require.NoError(t, err)
 
 	out := buf.String()

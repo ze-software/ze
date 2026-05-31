@@ -1,5 +1,5 @@
 # Test: Mode switching between config and operational modes
-# VALIDATES: AC-1 — run switches to operational mode
+# VALIDATES: AC-1 — exit (from config) switches to operational mode
 # VALIDATES: AC-2 — configure switches to config mode
 # PREVENTS: Mode state corruption on switch
 
@@ -15,11 +15,10 @@ option=timeout:value=10s
 # Initially in config mode
 expect=mode:is=config
 
-# Switch to operational mode
-input=type:text=run
+# Switch to operational mode (exit from clean config mode)
+input=type:text=exit
 input=enter
 expect=mode:is=operational
-expect=status:contains=no daemon connection
 
 # Switch back to config mode
 input=type:text=configure
