@@ -212,7 +212,7 @@ func RunRPKIPlugin(conn net.Conn) int {
 	p.OnAllPluginsReady(func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		status, _, err := p.DispatchCommand(ctx, "adj-rib-in enable-validation")
+		status, _, err := p.DispatchCommand(ctx, "request adj-rib-in enable-validation")
 		if err != nil {
 			logger().Error("rpki: failed to enable validation gate", "error", err)
 			return fmt.Errorf("enable validation gate: %w", err)
@@ -227,12 +227,12 @@ func RunRPKIPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			{Name: "rpki status", Description: "Show RPKI validation status and cache server overview"},
-			{Name: "rpki cache", Description: "Show RTR cache server sessions with protocol details"},
-			{Name: "rpki roa", Description: "Show ROA table entries or lookup covering VRPs for a prefix"},
-			{Name: "rpki summary", Description: "Show RPKI validation summary with session and ASPA counts"},
-			{Name: "rpki validate", Description: "Validate a prefix against the ROA cache", Args: []string{"<prefix>", "<origin-asn>"}},
-			{Name: "rpki aspa", Description: "Show ASPA cache or lookup providers for a customer AS"},
+			{Name: "show rpki status", Description: "Show RPKI validation status and cache server overview", DeprecatedNames: []string{"rpki status"}},
+			{Name: "show rpki cache", Description: "Show RTR cache server sessions with protocol details", DeprecatedNames: []string{"rpki cache"}},
+			{Name: "show rpki roa", Description: "Show ROA table entries or lookup covering VRPs for a prefix", DeprecatedNames: []string{"rpki roa"}},
+			{Name: "show rpki summary", Description: "Show RPKI validation summary with session and ASPA counts", DeprecatedNames: []string{"rpki summary"}},
+			{Name: "request rpki validate", Description: "Validate a prefix against the ROA cache", Args: []string{"<prefix>", "<origin-asn>"}, DeprecatedNames: []string{"rpki validate"}},
+			{Name: "show rpki aspa", Description: "Show ASPA cache or lookup providers for a customer AS", DeprecatedNames: []string{"rpki aspa"}},
 		},
 		WantsConfig: []string{"bgp"},
 	})
@@ -558,20 +558,20 @@ func (rp *RPKIPlugin) dispatchValidation(req validationRequest) {
 
 	var cmd string
 	if req.state == ValidationInvalid {
-		cmd = "adj-rib-in reject-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + pathIDStr
+		cmd = "request adj-rib-in reject-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + pathIDStr
 	} else {
 		stateStr := "2" // NotFound
 		if req.state == ValidationValid {
 			stateStr = "1"
 		}
-		cmd = "adj-rib-in accept-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + pathIDStr + " " + stateStr
+		cmd = "request adj-rib-in accept-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + pathIDStr + " " + stateStr
 	}
 
 	if req.state != ValidationInvalid && req.aspaState != aspaStateNone {
 		if aspaOverridesAccept(req.aspaState,
 			uint8(rp.aspaInvalidAction.Load()),   //nolint:gosec // stored as uint8, fits
 			uint8(rp.aspaUnknownAction.Load())) { //nolint:gosec // stored as uint8, fits
-			cmd = "adj-rib-in reject-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + pathIDStr
+			cmd = "request adj-rib-in reject-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + pathIDStr
 		}
 	}
 
@@ -780,17 +780,17 @@ func rpkiOriginASFromASPath(asp *attribute.ASPath) uint32 {
 // handleCommand processes RPKI CLI commands.
 func (rp *RPKIPlugin) handleCommand(command string, args []string) (string, any, error) {
 	switch command {
-	case "rpki status":
+	case "show rpki status":
 		return rp.statusCommand()
-	case "rpki cache":
+	case "show rpki cache":
 		return rp.cacheCommand()
-	case "rpki roa":
+	case "show rpki roa":
 		return rp.roaCommand(args)
-	case "rpki summary":
+	case "show rpki summary":
 		return rp.summaryCommand()
-	case "rpki validate":
+	case "request rpki validate":
 		return rp.validateCommand(args)
-	case "rpki aspa":
+	case "show rpki aspa":
 		return rp.aspaCommand(args)
 	}
 	return statusError, "", fmt.Errorf("unknown command: %s", command)

@@ -415,7 +415,7 @@ func runPlugin(conn net.Conn) int {
 	})
 
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
-		if command == "l2tp pool show" {
+		if command == "show l2tp pool" {
 			return "done", poolInstance.showPool(), nil
 		}
 		return "error", "", fmt.Errorf("unknown command: %s", command)
@@ -428,7 +428,7 @@ func runPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "l2tp pool show"},
+			{Name: "show l2tp pool", DeprecatedNames: []string{"l2tp pool show"}},
 		},
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)

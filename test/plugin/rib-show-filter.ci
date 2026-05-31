@@ -68,19 +68,19 @@ def main():
     time.sleep(2.0)
 
     # Community filter on empty RIB via pipeline — done (not error)
-    check('community', dispatch(api, 'bgp rib show received community 65000:100'), 'done')
+    check('community', dispatch(api, 'show bgp rib received community 65000:100'), 'done')
 
     # Path filter on empty RIB — done (not error)
-    check('path', dispatch(api, 'bgp rib show received path 64501'), 'done')
+    check('path', dispatch(api, 'show bgp rib received path 64501'), 'done')
 
     # Count terminal on empty RIB — done
-    check('count', dispatch(api, 'bgp rib show count'), 'done')
+    check('count', dispatch(api, 'show bgp rib count'), 'done')
 
     # Combined family + community filter — done
-    check('family+community', dispatch(api, 'bgp rib show received family ipv4/unicast community 65000:100'), 'done')
+    check('family+community', dispatch(api, 'show bgp rib received family ipv4/unicast community 65000:100'), 'done')
 
     # Unknown pipeline keyword — status is done but data contains error JSON
-    check('unknown-keyword', dispatch(api, 'bgp rib show bogus'), 'done', expect_error=True)
+    check('unknown-keyword', dispatch(api, 'show bgp rib bogus'), 'done', expect_error=True)
 
     # All passed — shutdown daemon
     dispatch(api, 'daemon shutdown')

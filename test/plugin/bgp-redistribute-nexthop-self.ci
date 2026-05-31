@@ -34,10 +34,10 @@ def main():
     # Wait for both peers to come up.
     time.sleep(3.0)
 
-    resp = dispatch(api, 'fakeredist emit add ipv4/unicast 10.0.0.1/32')
+    resp = dispatch(api, 'request fakeredist emit add ipv4/unicast 10.0.0.1/32')
     result = resp.get('result', {})
     if result.get('status') != 'done':
-        runtime_fail(f'fakeredist emit failed: {result}')
+        runtime_fail(f'request fakeredist emit failed: {result}')
         return
 
     time.sleep(2.0)

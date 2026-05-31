@@ -47,25 +47,25 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     # AC-1: Emit route with SRv6 SID.
-    r = dispatch(api, 'fakefib emit add ipv6/unicast 2001:db8:100::/48 nexthop fc00::1 srv6-sid 2001:db8::1')
+    r = dispatch(api, 'request fakefib emit add ipv6/unicast 2001:db8:100::/48 nexthop fc00::1 srv6-sid 2001:db8::1')
     if r.get('status') != 'done':
-        runtime_fail(f'fakefib emit srv6 failed: {r}')
+        runtime_fail(f'request fakefib emit srv6 failed: {r}')
 
     time.sleep(1.0)
     print('OK AC-1: SRv6 route emitted to fib-kernel via sysrib EventBus', file=sys.stderr)
 
     # AC-3: Withdraw the SRv6 route.
-    r = dispatch(api, 'fakefib emit withdraw ipv6/unicast 2001:db8:100::/48')
+    r = dispatch(api, 'request fakefib emit withdraw ipv6/unicast 2001:db8:100::/48')
     if r.get('status') != 'done':
-        runtime_fail(f'fakefib emit withdraw failed: {r}')
+        runtime_fail(f'request fakefib emit withdraw failed: {r}')
 
     time.sleep(1.0)
     print('OK AC-3: SRv6 route withdrawn', file=sys.stderr)
 
     # AC-4: Emit route WITHOUT SRv6 SID (plain route, no encap).
-    r = dispatch(api, 'fakefib emit add ipv4/unicast 10.0.0.0/24 nexthop 192.168.1.1')
+    r = dispatch(api, 'request fakefib emit add ipv4/unicast 10.0.0.0/24 nexthop 192.168.1.1')
     if r.get('status') != 'done':
-        runtime_fail(f'fakefib emit plain route failed: {r}')
+        runtime_fail(f'request fakefib emit plain route failed: {r}')
 
     time.sleep(1.0)
     print('OK AC-4: plain route (no SRv6 SID) emitted', file=sys.stderr)

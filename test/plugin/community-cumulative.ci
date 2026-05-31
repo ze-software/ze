@@ -45,7 +45,7 @@ def main():
     time.sleep(3.0)
 
     # Verify route accepted.
-    result = dispatch(api, 'adj-rib-in status')
+    result = dispatch(api, 'show adj-rib-in status')
     data = json.loads(result.get('data', '{}'))
     total = data.get('total-routes', -1)
 
@@ -58,7 +58,7 @@ def main():
     # Verify RPC path works for both communities; the actual tag list is
     # asserted via the production log at the bottom of this file.
     for community in ['65000:1', '65000:2']:
-        result = dispatch(api, f'bgp rib show received community {community}')
+        result = dispatch(api, f'show bgp rib received community {community}')
         if result.get('status') not in ('done', 'error'):
             msg = f'rib show community {community} rpc failed: {result.get("status")}'
             print(f'FAIL: {msg}', file=sys.stderr)

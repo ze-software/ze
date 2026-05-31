@@ -133,7 +133,7 @@ func registerInjectCommands() {
 		help    string
 		handler CommandHandler
 	}{
-		{"bgp rib show-protocol", "Show routes for a specific protocol: <protocol> [peer-selector] [pipeline-args...]",
+		{"show bgp rib protocol", "Show routes for a specific protocol: <protocol> [peer-selector] [pipeline-args...]",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) < 1 {
 					return statusError, "", errShowProtocolRequiresProtocol
@@ -146,7 +146,7 @@ func registerInjectCommands() {
 				}
 				return statusDone, r.showProtocolPipeline(args[0], selector, pipelineArgs), nil
 			}},
-		{"bgp rib withdraw-protocol", "Withdraw all routes for a peer under a protocol",
+		{"request bgp rib withdraw-protocol", "Withdraw all routes for a peer under a protocol",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) < 2 {
 					return statusError, "", errWithdrawProtocolRequiresProtocolPeerKey
@@ -154,7 +154,7 @@ func registerInjectCommands() {
 				r.withdrawAllForPeer(args[0], args[1])
 				return statusDone, map[string]any{"withdrawn": true}, nil
 			}},
-		{"bgp rib withdraw-router", "Withdraw all routes for a router under a protocol",
+		{"request bgp rib withdraw-router", "Withdraw all routes for a router under a protocol",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) < 2 {
 					return statusError, "", errWithdrawRouterRequiresProtocolRouterPrefix

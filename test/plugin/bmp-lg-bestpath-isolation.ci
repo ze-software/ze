@@ -107,7 +107,7 @@ def main():
         import sys; sys.exit(1)
 
     # Verify bgp rib show does NOT include BMP routes
-    result = dispatch(api, 'bgp rib show')
+    result = dispatch(api, 'show bgp rib')
     data = result.get('data', '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
     bgp_rib = parsed.get('adj-rib-in', {})
@@ -118,7 +118,7 @@ def main():
                 import sys; sys.exit(1)
 
     # Verify best-path does NOT include BMP route
-    result = dispatch(api, 'bgp rib show best')
+    result = dispatch(api, 'show bgp rib best')
     data = result.get('data', '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
     best = parsed.get('best', {})

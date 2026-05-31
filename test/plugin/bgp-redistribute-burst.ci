@@ -33,7 +33,7 @@ def main():
 
     time.sleep(2.0)
 
-    resp = dispatch(api, 'fakeredist emit-burst 500 add ipv4/unicast 10.0.0.0/32')
+    resp = dispatch(api, 'request fakeredist emit-burst 500 add ipv4/unicast 10.0.0.0/32')
     result = resp.get('result', {})
     if result.get('status') != 'done':
         runtime_fail(f'emit-burst failed: {result}')

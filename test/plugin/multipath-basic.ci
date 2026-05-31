@@ -52,14 +52,14 @@ def main():
     time.sleep(1.0)  # allow UPDATE processing after session up
 
     # Inject a second equal-cost route from synthetic peer
-    result = dispatch(api, 'bgp rib inject 10.0.0.99 ipv4/unicast 10.1.0.0/24 origin igp aspath 65001 localpref 100')
+    result = dispatch(api, 'request bgp rib inject 10.0.0.99 ipv4/unicast 10.1.0.0/24 origin igp aspath 65001 localpref 100')
     if result.get('status') != 'done':
         runtime_fail(f'rib inject failed: {result}')
 
     time.sleep(0.5)
 
     # Query rib best
-    result = dispatch(api, 'bgp rib show best')
+    result = dispatch(api, 'show bgp rib best')
     if result.get('status') != 'done':
         runtime_fail(f'rib show best failed: {result}')
 

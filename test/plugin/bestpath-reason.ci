@@ -54,14 +54,14 @@ def main():
     time.sleep(1.0)  # allow UPDATE processing after session up
 
     # Inject a second route from synthetic peer with lower LOCAL_PREF
-    result = dispatch(api, 'bgp rib inject 10.0.0.99 ipv4/unicast 10.1.0.0/24 origin igp aspath 65002 localpref 100')
+    result = dispatch(api, 'request bgp rib inject 10.0.0.99 ipv4/unicast 10.1.0.0/24 origin igp aspath 65002 localpref 100')
     if result.get('status') != 'done':
         runtime_fail(f'rib inject failed: {result}')
 
     time.sleep(0.5)
 
     # Query rib best reason
-    result = dispatch(api, 'bgp rib show best reason')
+    result = dispatch(api, 'show bgp rib best reason')
     if result.get('status') != 'done':
         runtime_fail(f'rib best reason failed: {result}')
 

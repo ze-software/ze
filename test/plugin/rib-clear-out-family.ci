@@ -34,14 +34,14 @@ def main():
 
     try:
         # Test per-family clear out
-        result = dispatch(api, 'bgp rib clear out * ipv4/unicast')
+        result = dispatch(api, 'clear bgp rib out * ipv4/unicast')
         if result.get('status') != 'done':
             print(f'FAIL: status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
         print('OK: rib clear out * ipv4/unicast dispatched', file=sys.stderr)
 
         # Test no-arg error
-        result = dispatch(api, 'bgp rib clear out')
+        result = dispatch(api, 'clear bgp rib out')
         if result.get('status') != 'error':
             print(f'FAIL: expected error for no-arg, got status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

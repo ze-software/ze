@@ -157,7 +157,7 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 	defer cancel()
 
 	// Full replay from index 0.
-	cmd := "adj-rib-in replay " + peerAddr + " 0"
+	cmd := "request adj-rib-in replay " + peerAddr + " 0"
 	status, data, err := rs.dispatchCommand(ctx, cmd)
 	if err != nil || status != statusDone {
 		// Graceful soft-dep fallback: when bgp-adj-rib-in is an
@@ -223,7 +223,7 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 			time.Sleep(replayConvergenceDelay)
 		}
 		var bCmd textbuf.Buffer
-		deltaCmd := bCmd.Reset().Str("adj-rib-in replay ").Str(peerAddr).Byte(' ').Int(int64(lastIndex)).String()
+		deltaCmd := bCmd.Reset().Str("request adj-rib-in replay ").Str(peerAddr).Byte(' ').Int(int64(lastIndex)).String()
 		_, deltaData, deltaErr := rs.dispatchCommand(ctx, deltaCmd)
 		if deltaErr != nil {
 			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)
@@ -367,9 +367,9 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 // Returns (status, data, error) for the SDK to send back to the engine.
 func (rs *RouteServer) handleCommand(command string) (string, any, error) {
 	switch command {
-	case "rs status":
+	case "show rs status":
 		return statusDone, map[string]any{"running": true}, nil
-	case "rs peers":
+	case "show rs peers":
 		return statusDone, rs.peerStatus(), nil
 	default:
 		return statusError, "", fmt.Errorf("unknown command: %s", command)

@@ -535,7 +535,7 @@ func TestShowPipelineComposed(t *testing.T) {
 
 // TestHandleCommandRibShow verifies unified bgp rib show via handleCommand.
 //
-// VALIDATES: "bgp rib show" is dispatched through handleCommand.
+// VALIDATES: "show bgp rib" is dispatched through handleCommand.
 // PREVENTS: bgp rib show not being wired into the command handler.
 func TestHandleCommandRibShow(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -547,7 +547,7 @@ func TestHandleCommandRibShow(t *testing.T) {
 	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
-	status, data, err := r.handleCommand("bgp rib show", "*", nil)
+	status, data, err := r.handleCommand("show bgp rib", "*", nil)
 	assert.Equal(t, statusDone, status)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, data)
@@ -558,7 +558,7 @@ func TestHandleCommandRibShow(t *testing.T) {
 
 // TestHandleCommandRibShowCount verifies bgp rib show with count terminal.
 //
-// VALIDATES: "bgp rib show" with count arg returns count without serializing routes.
+// VALIDATES: "show bgp rib" with count arg returns count without serializing routes.
 // PREVENTS: count terminal still building full JSON output.
 func TestHandleCommandRibShowCount(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -570,7 +570,7 @@ func TestHandleCommandRibShowCount(t *testing.T) {
 	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
-	status, data, err := r.handleCommand("bgp rib show", "*", []string{"count"})
+	status, data, err := r.handleCommand("show bgp rib", "*", []string{"count"})
 	assert.Equal(t, statusDone, status)
 	assert.NoError(t, err)
 
@@ -589,10 +589,10 @@ func TestHandleCommandRibShowCount(t *testing.T) {
 func TestHandleCommandOldCommandsError(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	// Pipeline-parsed old keywords: routed through "bgp rib show" with args,
+	// Pipeline-parsed old keywords: routed through "show bgp rib" with args,
 	// parsePipelineArgs returns "unknown keyword" error in JSON data.
 	for _, keyword := range []string{"in", "out", "best"} {
-		status, data, err := r.handleCommand("bgp rib show", "*", []string{keyword})
+		status, data, err := r.handleCommand("show bgp rib", "*", []string{keyword})
 		assert.NoError(t, err, "pipeline error for %q should not be a Go error", keyword)
 		assert.Equal(t, statusDone, status, "pipeline error status for %q", keyword)
 

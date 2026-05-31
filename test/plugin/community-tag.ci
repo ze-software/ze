@@ -50,7 +50,7 @@ def main():
     time.sleep(3.0)
 
     # Query adj-rib-in: route should be present with tagged community.
-    result = dispatch(api, 'adj-rib-in status')
+    result = dispatch(api, 'show adj-rib-in status')
     data = json.loads(result.get('data', '{}'))
     total = data.get('total-routes', -1)
 
@@ -61,7 +61,7 @@ def main():
         runtime_fail(msg)
 
     # Query rib with community filter to verify the tag was applied.
-    result = dispatch(api, 'bgp rib show received community 65000:100')
+    result = dispatch(api, 'show bgp rib received community 65000:100')
     status = result.get('status')
     if status != 'done':
         msg = f'rib show community returned status={status}'

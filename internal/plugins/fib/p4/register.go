@@ -86,7 +86,7 @@ func runFIBP4Plugin(conn net.Conn) int {
 	})
 
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
-		if command == "fib-p4 show" {
+		if command == "show fib-p4" {
 			data := f.showInstalled()
 			return "done", data, nil
 		}
@@ -100,7 +100,7 @@ func runFIBP4Plugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "fib-p4 show"},
+			{Name: "show fib-p4", DeprecatedNames: []string{"fib-p4 show"}},
 		},
 	})
 	if err != nil {

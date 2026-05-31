@@ -47,7 +47,7 @@ def main():
     time.sleep(3.0)
 
     # Query adj-rib-in: route should be stored (no role = no OTC filtering).
-    result = dispatch(api, 'adj-rib-in status')
+    result = dispatch(api, 'show adj-rib-in status')
     data = json.loads(result.get('data', '{}'))
     total = data.get('total-routes', -1)
 

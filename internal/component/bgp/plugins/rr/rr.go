@@ -540,7 +540,7 @@ func parseReplayResponse(data json.RawMessage) (lastIndex uint64, replayed int) 
 
 func replayCmd(peerAddr string, fromIndex uint64) string {
 	var b textbuf.Buffer
-	return b.Reset().Str("adj-rib-in replay ").Str(peerAddr).Byte(' ').Uint(fromIndex).String()
+	return b.Reset().Str("request adj-rib-in replay ").Str(peerAddr).Byte(' ').Uint(fromIndex).String()
 }
 
 func nlriDelCmd(fam, prefixes string) string {

@@ -34,7 +34,7 @@ def main():
 
     try:
         # Query adj-rib-in via rib routes received
-        result = dispatch(api, 'bgp rib routes received')
+        result = dispatch(api, 'show bgp rib routes received')
         if result.get('status') != 'done':
             print(f'FAIL: rib show-in status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)

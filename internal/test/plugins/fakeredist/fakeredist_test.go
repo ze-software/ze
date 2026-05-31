@@ -110,7 +110,7 @@ func TestInitRegistersProtocol(t *testing.T) {
 func TestCommandEmitAdd(t *testing.T) {
 	bus := resetBus(t)
 
-	status, data, err := dispatchCommand("", "fakeredist emit", []string{"add", "ipv4/unicast", "10.0.0.1/32"}, "")
+	status, data, err := dispatchCommand("", "request fakeredist emit", []string{"add", "ipv4/unicast", "10.0.0.1/32"}, "")
 	require.NoError(t, err)
 	assert.Equal(t, rpc.StatusDone, status)
 	assert.Contains(t, rawString(t, data), `"delivered":`)
@@ -135,7 +135,7 @@ func TestCommandEmitAdd(t *testing.T) {
 func TestCommandEmitRemove(t *testing.T) {
 	bus := resetBus(t)
 
-	status, _, err := dispatchCommand("", "fakeredist emit", []string{"remove", "ipv4/unicast", "10.0.0.1/32"}, "")
+	status, _, err := dispatchCommand("", "request fakeredist emit", []string{"remove", "ipv4/unicast", "10.0.0.1/32"}, "")
 	require.NoError(t, err)
 	assert.Equal(t, rpc.StatusDone, status)
 
@@ -151,7 +151,7 @@ func TestCommandEmitRemove(t *testing.T) {
 func TestCommandEmitWithNextHop(t *testing.T) {
 	bus := resetBus(t)
 
-	_, _, err := dispatchCommand("", "fakeredist emit", []string{"add", "ipv4/unicast", "10.0.0.1/32", "192.0.2.1"}, "")
+	_, _, err := dispatchCommand("", "request fakeredist emit", []string{"add", "ipv4/unicast", "10.0.0.1/32", "192.0.2.1"}, "")
 	require.NoError(t, err)
 
 	recs := bus.records()
@@ -169,7 +169,7 @@ func TestCommandEmitBurst(t *testing.T) {
 	bus := resetBus(t)
 
 	const n = 10
-	status, data, err := dispatchCommand("", "fakeredist emit-burst",
+	status, data, err := dispatchCommand("", "request fakeredist emit-burst",
 		[]string{"10", "add", "ipv4/unicast", "10.0.0.0/32"}, "")
 	require.NoError(t, err)
 	assert.Equal(t, rpc.StatusDone, status)
@@ -196,13 +196,13 @@ func TestCommandBadArgs(t *testing.T) {
 		cmd  string
 		args []string
 	}{
-		{"missing args", "fakeredist emit", []string{"add"}},
-		{"bad action", "fakeredist emit", []string{"keep", "ipv4/unicast", "10.0.0.1/32"}},
-		{"bad family", "fakeredist emit", []string{"add", "garbage", "10.0.0.1/32"}},
-		{"bad prefix", "fakeredist emit", []string{"add", "ipv4/unicast", "not-a-prefix"}},
-		{"bad nexthop", "fakeredist emit", []string{"add", "ipv4/unicast", "10.0.0.1/32", "::garbage"}},
-		{"bad burst count", "fakeredist emit-burst", []string{"-1", "add", "ipv4/unicast", "10.0.0.0/32"}},
-		{"non-numeric burst", "fakeredist emit-burst", []string{"abc", "add", "ipv4/unicast", "10.0.0.0/32"}},
+		{"missing args", "request fakeredist emit", []string{"add"}},
+		{"bad action", "request fakeredist emit", []string{"keep", "ipv4/unicast", "10.0.0.1/32"}},
+		{"bad family", "request fakeredist emit", []string{"add", "garbage", "10.0.0.1/32"}},
+		{"bad prefix", "request fakeredist emit", []string{"add", "ipv4/unicast", "not-a-prefix"}},
+		{"bad nexthop", "request fakeredist emit", []string{"add", "ipv4/unicast", "10.0.0.1/32", "::garbage"}},
+		{"bad burst count", "request fakeredist emit-burst", []string{"-1", "add", "ipv4/unicast", "10.0.0.0/32"}},
+		{"non-numeric burst", "request fakeredist emit-burst", []string{"abc", "add", "ipv4/unicast", "10.0.0.0/32"}},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -228,7 +228,7 @@ func TestDispatchUnknownCommand(t *testing.T) {
 // PREVENTS: Help disappearing as the surface evolves.
 func TestDispatchHelp(t *testing.T) {
 	resetBus(t)
-	status, data, err := dispatchCommand("", "fakeredist help", nil, "")
+	status, data, err := dispatchCommand("", "show fakeredist help", nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, rpc.StatusDone, status)
 	helpMap, ok := data.(map[string]any)

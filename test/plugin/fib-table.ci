@@ -43,9 +43,9 @@ def main():
 
     api.wait_for_post_startup(timeout=5.0)
 
-    r = dispatch(api, 'fakefib emit add ipv4/unicast 10.0.0.0/24 nexthop 192.168.1.1 tableid 100')
+    r = dispatch(api, 'request fakefib emit add ipv4/unicast 10.0.0.0/24 nexthop 192.168.1.1 tableid 100')
     if r.get('status') != 'done':
-        runtime_fail(f'fakefib emit failed: {r}')
+        runtime_fail(f'request fakefib emit failed: {r}')
 
     time.sleep(1.0)
 

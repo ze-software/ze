@@ -246,9 +246,9 @@ func runLDPEngine(conn net.Conn) int {
 
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		switch command {
-		case "ldp show-neighbor":
+		case "show ldp neighbor":
 			return "done", showNeighbors(adjTable, sessions, &sessionsMu), nil
-		case "ldp show-binding":
+		case "show ldp binding":
 			return "done", showBindings(lib), nil
 		default:
 			return "error", "", fmt.Errorf("unknown command: %s", command)
@@ -262,8 +262,8 @@ func runLDPEngine(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "ldp show-neighbor"},
-			{Name: "ldp show-binding"},
+			{Name: "show ldp neighbor", DeprecatedNames: []string{"ldp show-neighbor"}},
+			{Name: "show ldp binding", DeprecatedNames: []string{"ldp show-binding"}},
 		},
 	})
 	if err != nil {

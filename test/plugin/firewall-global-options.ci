@@ -45,7 +45,7 @@ def main():
 
     r = None
     for _ in range(40):
-        r = dispatch(api, 'sysctl show')
+        r = dispatch(api, 'show sysctl')
         if r.get('status') == 'done':
             break
         time.sleep(0.25)

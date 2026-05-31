@@ -368,11 +368,11 @@ func runRSVPTEEngine(conn net.Conn) int {
 
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		switch command {
-		case "rsvp-te show-session":
+		case "show rsvp-te session":
 			return cmdDone, showSessions(lspTable), nil
-		case "rsvp-te show-interface":
+		case "show rsvp-te interface":
 			return cmdDone, showInterfaces(admission), nil
-		case "rsvp-te show-tunnel":
+		case "show rsvp-te tunnel":
 			return cmdDone, showTunnels(lspTable), nil
 		default:
 			return "error", "", fmt.Errorf("unknown command: %s", command)
@@ -386,9 +386,9 @@ func runRSVPTEEngine(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "rsvp-te show-session"},
-			{Name: "rsvp-te show-interface"},
-			{Name: "rsvp-te show-tunnel"},
+			{Name: "show rsvp-te session", DeprecatedNames: []string{"rsvp-te show-session"}},
+			{Name: "show rsvp-te interface", DeprecatedNames: []string{"rsvp-te show-interface"}},
+			{Name: "show rsvp-te tunnel", DeprecatedNames: []string{"rsvp-te show-tunnel"}},
 		},
 	})
 	if err != nil {

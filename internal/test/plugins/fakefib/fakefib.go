@@ -202,14 +202,14 @@ func runEmit(args []string) (json.RawMessage, error) {
 }
 
 func dispatchCommand(_, command string, args []string, _ string) (string, any, error) {
-	if command == "fakefib emit" {
+	if command == "request fakefib emit" {
 		data, err := runEmit(args)
 		if err != nil {
 			return rpc.StatusError, "", err
 		}
 		return rpc.StatusDone, data, nil
 	}
-	if command == "fakefib help" {
+	if command == "show fakefib help" {
 		return rpc.StatusDone, map[string]any{"help": "fakefib emit add|withdraw <family> <prefix> [nexthop <ip>] [routetype <blackhole|unreachable|prohibit>] [metric <n>] [tableid <n>] [labels <l1,l2,...>] [srv6-sid <ipv6>]"}, nil
 	}
 	return rpc.StatusError, "", fmt.Errorf("unknown command: %s", command)

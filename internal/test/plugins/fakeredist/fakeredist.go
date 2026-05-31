@@ -255,21 +255,21 @@ func runEmitBurst(args []string) (json.RawMessage, error) {
 // commands by prefix; we receive the matched prefix as `command` and the
 // remaining tokens as `args`.
 func dispatchCommand(_, command string, args []string, _ string) (string, any, error) {
-	if command == "fakeredist emit" {
+	if command == "request fakeredist emit" {
 		data, err := runEmit(args)
 		if err != nil {
 			return rpc.StatusError, "", err
 		}
 		return rpc.StatusDone, data, nil
 	}
-	if command == "fakeredist emit-burst" {
+	if command == "request fakeredist emit-burst" {
 		data, err := runEmitBurst(args)
 		if err != nil {
 			return rpc.StatusError, "", err
 		}
 		return rpc.StatusDone, data, nil
 	}
-	if command == "fakeredist help" {
+	if command == "show fakeredist help" {
 		return rpc.StatusDone, map[string]any{"help": helpStub()}, nil
 	}
 	return rpc.StatusError, "", fmt.Errorf("unknown command: %s", command)

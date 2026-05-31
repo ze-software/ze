@@ -61,7 +61,7 @@ def main():
     # emitted (same goroutine, same code path).
     for _ in range(40):
         time.sleep(0.1)
-        result = dispatch(api, 'bgp rib show best')
+        result = dispatch(api, 'show bgp rib best')
         if '192.168.1.0/24' in result.get('data', ''):
             break
     else:

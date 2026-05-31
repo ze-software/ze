@@ -306,8 +306,8 @@ func RunRouteServer(conn net.Conn) int {
 		// small-peer workers haven't processed yet, causing ErrUpdateExpired.
 		CacheConsumerUnordered: true,
 		Commands: []sdk.CommandDecl{
-			{Name: "rs status", Description: "Show RS status"},
-			{Name: "rs peers", Description: "Show peer states"},
+			{Name: "show rs status", Description: "Show RS status", DeprecatedNames: []string{"rs status"}},
+			{Name: "show rs peers", Description: "Show peer states", DeprecatedNames: []string{"rs peers"}},
 		},
 	})
 

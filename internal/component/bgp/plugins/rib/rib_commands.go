@@ -120,22 +120,22 @@ func doRegisterBuiltinCommands() {
 		help    string
 		handler CommandHandler
 	}{
-		{[]string{"bgp rib status", "bgp rib adjacent status"}, "Show RIB status (peer count, route counts)",
+		{[]string{"show bgp rib status", "show bgp rib adjacent status"}, "Show RIB status (peer count, route counts)",
 			func(r *RIBManager, sel string, _ []string) (string, any, error) {
 				return statusDone, r.status(), nil
 			}},
-		{[]string{"bgp rib show"}, "Show routes (scope: sent|received|sent-received, filters, terminals)",
+		{[]string{"show bgp rib"}, "Show routes (scope: sent|received|sent-received, filters, terminals)",
 			func(r *RIBManager, sel string, args []string) (string, any, error) {
 				return statusDone, r.showPipeline(sel, args), nil
 			}},
-		{[]string{"bgp rib clear in", "bgp rib adjacent inbound empty"}, "Clear Adj-RIB-In routes",
+		{[]string{"clear bgp rib in", "clear bgp rib adjacent inbound"}, "Clear Adj-RIB-In routes",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) == 0 {
 					return statusError, "", errBgpRibClearInRequiresA
 				}
 				return statusDone, r.inboundEmpty(args[0]), nil
 			}},
-		{[]string{"bgp rib clear out", "bgp rib adjacent outbound resend"}, "Resend Adj-RIB-Out routes",
+		{[]string{"clear bgp rib out", "clear bgp rib adjacent outbound"}, "Resend Adj-RIB-Out routes",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) == 0 {
 					return statusError, "", errBgpRibClearOutRequiresA
@@ -146,57 +146,57 @@ func doRegisterBuiltinCommands() {
 				}
 				return statusDone, r.outboundResend(args[0], family), nil
 			}},
-		{[]string{"bgp rib retain-routes"}, "Mark peer RIB for retention",
+		{[]string{"request bgp rib retain-routes"}, "Mark peer RIB for retention",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) == 0 {
 					return statusError, "", errBgpRibRetainRoutesRequiresA
 				}
 				return statusDone, r.retainRoutes(args[0]), nil
 			}},
-		{[]string{"bgp rib release-routes"}, "Release retained peer RIB",
+		{[]string{"request bgp rib release-routes"}, "Release retained peer RIB",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) == 0 {
 					return statusError, "", errBgpRibReleaseRoutesRequiresA
 				}
 				return statusDone, r.releaseRoutes(args[0]), nil
 			}},
-		{[]string{"bgp rib mark-stale"}, "Mark peer routes at stale level",
+		{[]string{"request bgp rib mark-stale"}, "Mark peer routes at stale level",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				return r.markStaleCommand(args)
 			}},
-		{[]string{"bgp rib purge-stale"}, "Purge stale routes for peer",
+		{[]string{"request bgp rib purge-stale"}, "Purge stale routes for peer",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				return r.purgeStaleCommand(args)
 			}},
-		{[]string{"bgp rib show best"}, "Show best-path per prefix (add 'reason' terminal to narrate the RFC 4271 §9.1.2 decision process)",
+		{[]string{"show bgp rib best"}, "Show best-path per prefix (add 'reason' terminal to narrate the RFC 4271 §9.1.2 decision process)",
 			func(r *RIBManager, sel string, args []string) (string, any, error) {
 				return statusDone, r.bestPipeline(sel, args), nil
 			}},
-		{[]string{"bgp rib show best status"}, "Show best-path computation status",
+		{[]string{"show bgp rib best status"}, "Show best-path computation status",
 			func(r *RIBManager, _ string, _ []string) (string, any, error) {
 				return statusDone, r.bestPathStatus(), nil
 			}},
-		{[]string{"bgp rib help"}, "Show RIB subcommands",
+		{[]string{"show bgp rib help"}, "Show RIB subcommands",
 			func(_ *RIBManager, _ string, _ []string) (string, any, error) {
 				return statusDone, ribHelp(), nil
 			}},
-		{[]string{"bgp rib command list"}, "List RIB commands",
+		{[]string{"show bgp rib commands"}, "List RIB commands",
 			func(_ *RIBManager, _ string, _ []string) (string, any, error) {
 				return statusDone, ribCommandList(), nil
 			}},
-		{[]string{"bgp rib event list"}, "List RIB event types",
+		{[]string{"show bgp rib events"}, "List RIB event types",
 			func(_ *RIBManager, _ string, _ []string) (string, any, error) {
 				return statusDone, ribEventList(), nil
 			}},
-		{[]string{"bgp rib inject"}, "Inject route into adj-rib-in: <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]",
+		{[]string{"request bgp rib inject"}, "Inject route into adj-rib-in: <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]",
 			func(r *RIBManager, sel string, args []string) (string, any, error) {
 				return r.injectRoute(sel, args)
 			}},
-		{[]string{"bgp rib withdraw"}, "Withdraw route from adj-rib-in: <peer> <family> <prefix>",
+		{[]string{"request bgp rib withdraw"}, "Withdraw route from adj-rib-in: <peer> <family> <prefix>",
 			func(r *RIBManager, sel string, args []string) (string, any, error) {
 				return r.withdrawRoute(sel, args)
 			}},
-		{[]string{"bgp rib rpf"}, "RPF lookup: <family> <source-addr> (longest-prefix-match in Loc-RIB)",
+		{[]string{"show bgp rib rpf"}, "RPF lookup: <family> <source-addr> (longest-prefix-match in Loc-RIB)",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				return r.rpfLookup(args)
 			}},
@@ -494,14 +494,17 @@ func ribHelp() any {
 	seen := make(map[string]bool)
 	var subs []string
 	for name := range registeredCommands {
-		after, ok := strings.CutPrefix(name, "bgp rib ")
-		if !ok {
-			continue
-		}
-		parts := strings.SplitN(after, " ", 2)
-		if len(parts) > 0 && !seen[parts[0]] {
-			subs = append(subs, parts[0])
-			seen[parts[0]] = true
+		// Strip any verb prefix to find the "bgp rib" subcommands.
+		for _, prefix := range []string{"show bgp rib ", "clear bgp rib ", "request bgp rib "} {
+			after, ok := strings.CutPrefix(name, prefix)
+			if !ok {
+				continue
+			}
+			parts := strings.SplitN(after, " ", 2)
+			if len(parts) > 0 && !seen[parts[0]] {
+				subs = append(subs, parts[0])
+				seen[parts[0]] = true
+			}
 		}
 	}
 	sort.Strings(subs)

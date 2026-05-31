@@ -405,7 +405,7 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		_, _, err := bp.plugin.DispatchCommand(ctx, "bgp rib withdraw-router bmp "+remote)
+		_, _, err := bp.plugin.DispatchCommand(ctx, "request bgp rib withdraw-router bmp "+remote)
 		if err != nil {
 			logger().Debug("bmp: withdraw-router failed on session end", "remote", remote, "error", err)
 		}
@@ -485,7 +485,7 @@ func (bp *BMPPlugin) handleCommand(command string) (string, any, error) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		status, data, err := bp.plugin.DispatchCommand(ctx, "bgp rib show-protocol bmp")
+		status, data, err := bp.plugin.DispatchCommand(ctx, "show bgp rib protocol bmp")
 		if err != nil {
 			return statusError, "", err
 		}
@@ -537,7 +537,7 @@ func (bp *BMPPlugin) processTermination(remote string, _ *Termination) {
 	if bp.plugin != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		_, _, err := bp.plugin.DispatchCommand(ctx, "bgp rib withdraw-router bmp "+remote)
+		_, _, err := bp.plugin.DispatchCommand(ctx, "request bgp rib withdraw-router bmp "+remote)
 		if err != nil {
 			logger().Debug("bmp: withdraw-router failed on termination", "remote", remote, "error", err)
 		}
@@ -581,7 +581,7 @@ func (bp *BMPPlugin) processPeerDown(remote string, m *PeerDown) {
 		peerKey := bmpCompositeKey(remote, m.Peer)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		_, _, err := bp.plugin.DispatchCommand(ctx, "bgp rib withdraw-protocol bmp "+peerKey)
+		_, _, err := bp.plugin.DispatchCommand(ctx, "request bgp rib withdraw-protocol bmp "+peerKey)
 		if err != nil {
 			logger().Debug("bmp: withdraw-protocol failed on peer down", "peer", peerKey, "error", err)
 		}

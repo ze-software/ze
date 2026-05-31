@@ -34,11 +34,11 @@ func registerCommunityCommands() {
 		help    string
 		handler CommandHandler
 	}{
-		{"bgp rib attach-community", "Attach a community to stale routes for a peer family",
+		{"request bgp rib attach-community", "Attach a community to stale routes for a peer family",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				return r.attachCommunityCommand(args)
 			}},
-		{"bgp rib delete-with-community", "Delete stale routes that have a specific community",
+		{"request bgp rib delete-with-community", "Delete stale routes that have a specific community",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				return r.deleteWithCommunityCommand(args)
 			}},

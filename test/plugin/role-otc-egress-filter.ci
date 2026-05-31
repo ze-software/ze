@@ -51,7 +51,7 @@ def main():
 
     # Query adj-rib-in for diagnostic context. The destination EOR-only assertion
     # is the actual egress-suppression proof.
-    result = dispatch(api, 'adj-rib-in status')
+    result = dispatch(api, 'show adj-rib-in status')
     data = json.loads(result.get('data', '{}'))
     total = data.get('total-routes', -1)
 

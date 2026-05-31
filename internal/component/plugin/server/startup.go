@@ -633,6 +633,12 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 				logger().Debug("command registered", "plugin", proc.Name(), "command", r.Name)
 			}
 		}
+		for canonicalName, oldNames := range reg.CommandDeprecatedNames {
+			for _, oldName := range oldNames {
+				s.dispatcher.Registry().RegisterDeprecated(proc, oldName, canonicalName)
+				logger().Debug("deprecated alias registered", "plugin", proc.Name(), "old", oldName, "new", canonicalName)
+			}
+		}
 	}
 
 	// Final stage transition: Ready -> Running
@@ -804,6 +810,12 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 				reg.CommandDescriptions = make(map[string]string, len(input.Commands))
 			}
 			reg.CommandDescriptions[cmd.Name] = cmd.Description
+		}
+		if len(cmd.DeprecatedNames) > 0 {
+			if reg.CommandDeprecatedNames == nil {
+				reg.CommandDeprecatedNames = make(map[string][]string, len(input.Commands))
+			}
+			reg.CommandDeprecatedNames[cmd.Name] = cmd.DeprecatedNames
 		}
 	}
 

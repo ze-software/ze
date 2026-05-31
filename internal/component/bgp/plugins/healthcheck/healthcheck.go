@@ -86,8 +86,8 @@ func RunHealthcheckPlugin(conn net.Conn) int {
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{"bgp"},
 		Commands: []sdk.CommandDecl{
-			{Name: "healthcheck show", Description: "Show healthcheck probe status"},
-			{Name: "healthcheck reset", Description: "Reset healthcheck probe to INIT"},
+			{Name: "show healthcheck", Description: "Show healthcheck probe status", DeprecatedNames: []string{"healthcheck show"}},
+			{Name: "clear healthcheck", Description: "Reset healthcheck probe to INIT", DeprecatedNames: []string{"healthcheck reset"}},
 		},
 	})
 	if err != nil {
@@ -281,24 +281,24 @@ func (m *probeManager) dispatchStateAction(ctx context.Context, cfg ProbeConfig,
 	switch state {
 	case StateUp:
 		var b textbuf.Buffer
-		cmd := b.Reset().Str("watchdog announce ").Str(cfg.Group).Str(" med ").Int(int64(cfg.UpMetric)).String()
+		cmd := b.Reset().Str("request watchdog announce ").Str(cfg.Group).Str(" med ").Int(int64(cfg.UpMetric)).String()
 		m.dispatchCommand(ctx, cfg.Name, cmd)
 	case StateDown:
 		if cfg.WithdrawOnDown {
-			m.dispatchCommand(ctx, cfg.Name, "watchdog withdraw "+cfg.Group)
+			m.dispatchCommand(ctx, cfg.Name, "request watchdog withdraw "+cfg.Group)
 		} else {
 			var b textbuf.Buffer
-			m.dispatchCommand(ctx, cfg.Name, b.Reset().Str("watchdog announce ").Str(cfg.Group).Str(" med ").Int(int64(cfg.DownMetric)).String())
+			m.dispatchCommand(ctx, cfg.Name, b.Reset().Str("request watchdog announce ").Str(cfg.Group).Str(" med ").Int(int64(cfg.DownMetric)).String())
 		}
 	case StateDisabled:
 		if cfg.WithdrawOnDown {
-			m.dispatchCommand(ctx, cfg.Name, "watchdog withdraw "+cfg.Group)
+			m.dispatchCommand(ctx, cfg.Name, "request watchdog withdraw "+cfg.Group)
 		} else {
 			var b textbuf.Buffer
-			m.dispatchCommand(ctx, cfg.Name, b.Reset().Str("watchdog announce ").Str(cfg.Group).Str(" med ").Int(int64(cfg.DisabledMetric)).String())
+			m.dispatchCommand(ctx, cfg.Name, b.Reset().Str("request watchdog announce ").Str(cfg.Group).Str(" med ").Int(int64(cfg.DisabledMetric)).String())
 		}
 	case StateExit:
-		m.dispatchCommand(ctx, cfg.Name, "watchdog withdraw "+cfg.Group)
+		m.dispatchCommand(ctx, cfg.Name, "request watchdog withdraw "+cfg.Group)
 	case StateInit, StateRising, StateFalling, StateEnd:
 		// No watchdog action for intermediate or terminal states.
 	}
@@ -334,9 +334,9 @@ func (m *probeManager) handleIPTransition(ipt *ipTracker, cfg ProbeConfig, state
 // handleCommand dispatches healthcheck CLI commands.
 func (m *probeManager) handleCommand(command string, args []string) (string, any, error) {
 	switch command {
-	case "healthcheck show":
+	case "show healthcheck":
 		return m.handleShow(args)
-	case "healthcheck reset":
+	case "clear healthcheck":
 		return m.handleReset(args)
 	}
 	return statusError, "", fmt.Errorf("unknown healthcheck command: %s", command)

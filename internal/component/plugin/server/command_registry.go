@@ -21,7 +21,15 @@ var errCommandNameCannotBeEmpty = errors.New("command name cannot be empty")
 // map. Created by Freeze() after startup, used by Lookup() on the hot path
 // to avoid RLock.
 type frozenCommands struct {
-	commands map[string]*RegisteredCommand
+	commands   map[string]*RegisteredCommand
+	deprecated map[string]*deprecatedAlias
+}
+
+// deprecatedAlias maps an old command name to the canonical (new) name.
+type deprecatedAlias struct {
+	OldName      string
+	NewLowerName string
+	Process      *process.Process
 }
 
 // validateCommandName checks that a command name contains only safe characters.
@@ -84,9 +92,14 @@ type RegisteredCommand struct {
 // CommandRegistry manages plugin commands.
 // Thread-safe for concurrent registration and lookup.
 type CommandRegistry struct {
-	mu       sync.RWMutex
-	commands map[string]*RegisteredCommand // lowercase name → registration
-	builtins map[string]bool               // lowercase builtin names (cannot be shadowed)
+	mu         sync.RWMutex
+	commands   map[string]*RegisteredCommand // lowercase name → registration
+	builtins   map[string]bool               // lowercase builtin names (cannot be shadowed)
+	deprecated map[string]*deprecatedAlias   // old lowercase name → alias
+
+	// deprecatedWarned tracks old command names that have already logged a
+	// deprecation warning this session (log once per name).
+	deprecatedWarned sync.Map
 
 	// frozen holds an immutable snapshot for lock-free Lookup after startup.
 	// nil before Freeze() is called.
@@ -96,8 +109,9 @@ type CommandRegistry struct {
 // NewCommandRegistry creates a new command registry.
 func NewCommandRegistry() *CommandRegistry {
 	return &CommandRegistry{
-		commands: make(map[string]*RegisteredCommand),
-		builtins: make(map[string]bool),
+		commands:   make(map[string]*RegisteredCommand),
+		builtins:   make(map[string]bool),
+		deprecated: make(map[string]*deprecatedAlias),
 	}
 }
 
@@ -184,7 +198,7 @@ func (r *CommandRegistry) Unregister(proc *process.Process, names []string) {
 	r.republishFrozen()
 }
 
-// UnregisterAll removes all commands owned by the process.
+// UnregisterAll removes all commands and deprecated aliases owned by the process.
 // Called when a process dies.
 // If frozen, publishes a new snapshot reflecting the removal.
 func (r *CommandRegistry) UnregisterAll(proc *process.Process) {
@@ -197,7 +211,30 @@ func (r *CommandRegistry) UnregisterAll(proc *process.Process) {
 		}
 	}
 
+	for key, alias := range r.deprecated {
+		if alias.Process == proc {
+			delete(r.deprecated, key)
+		}
+	}
+
 	r.republishFrozen()
+}
+
+// RegisterDeprecated adds a deprecated alias that maps oldName to the
+// canonical command registered under newName. When the old name is looked
+// up, the canonical RegisteredCommand is returned and a deprecation
+// warning is logged once per session.
+func (r *CommandRegistry) RegisterDeprecated(proc *process.Process, oldName, newName string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	oldKey := strings.ToLower(oldName)
+	newKey := strings.ToLower(newName)
+	r.deprecated[oldKey] = &deprecatedAlias{
+		OldName:      oldName,
+		NewLowerName: newKey,
+		Process:      proc,
+	}
 }
 
 // republishFrozen rebuilds and stores a new frozen snapshot from the current
@@ -207,13 +244,15 @@ func (r *CommandRegistry) republishFrozen() {
 		return
 	}
 	snap := &frozenCommands{
-		commands: make(map[string]*RegisteredCommand, len(r.commands)),
+		commands:   make(map[string]*RegisteredCommand, len(r.commands)),
+		deprecated: make(map[string]*deprecatedAlias, len(r.deprecated)),
 	}
 	maps.Copy(snap.commands, r.commands)
+	maps.Copy(snap.deprecated, r.deprecated)
 	r.frozen.Store(snap)
 }
 
-// Freeze creates an immutable snapshot of the commands map.
+// Freeze creates an immutable snapshot of the commands and deprecated maps.
 // After Freeze(), Lookup uses atomic.Load instead of RLock.
 // MUST be called after all Register calls complete (after startup barrier).
 // Safe to call multiple times (each call overwrites the previous snapshot).
@@ -222,22 +261,70 @@ func (r *CommandRegistry) Freeze() {
 	defer r.mu.RUnlock()
 
 	snap := &frozenCommands{
-		commands: make(map[string]*RegisteredCommand, len(r.commands)),
+		commands:   make(map[string]*RegisteredCommand, len(r.commands)),
+		deprecated: make(map[string]*deprecatedAlias, len(r.deprecated)),
 	}
 	maps.Copy(snap.commands, r.commands)
+	maps.Copy(snap.deprecated, r.deprecated)
 
 	r.frozen.Store(snap)
 }
 
 // Lookup finds a command by exact name (case-insensitive).
+// If no primary match is found, checks deprecated aliases and returns the
+// canonical command (logging a deprecation warning once per session).
 // After Freeze(), uses lock-free atomic.Load on the frozen snapshot.
 func (r *CommandRegistry) Lookup(name string) *RegisteredCommand {
+	key := strings.ToLower(name)
 	if snap := r.frozen.Load(); snap != nil {
-		return snap.commands[strings.ToLower(name)]
+		if cmd := snap.commands[key]; cmd != nil {
+			return cmd
+		}
+		return r.resolveDeprecatedFrozen(snap, key)
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.commands[strings.ToLower(name)]
+	if cmd := r.commands[key]; cmd != nil {
+		return cmd
+	}
+	return r.resolveDeprecatedLocked(key)
+}
+
+// resolveDeprecatedFrozen checks the frozen deprecated map and returns the
+// canonical command. Logs a warning once per session per old name.
+func (r *CommandRegistry) resolveDeprecatedFrozen(snap *frozenCommands, oldKey string) *RegisteredCommand {
+	alias := snap.deprecated[oldKey]
+	if alias == nil {
+		return nil
+	}
+	cmd := snap.commands[alias.NewLowerName]
+	if cmd == nil {
+		return nil
+	}
+	r.warnDeprecated(alias.OldName, cmd.Name)
+	return cmd
+}
+
+// resolveDeprecatedLocked checks the mutable deprecated map. Caller holds RLock.
+func (r *CommandRegistry) resolveDeprecatedLocked(oldKey string) *RegisteredCommand {
+	alias := r.deprecated[oldKey]
+	if alias == nil {
+		return nil
+	}
+	cmd := r.commands[alias.NewLowerName]
+	if cmd == nil {
+		return nil
+	}
+	r.warnDeprecated(alias.OldName, cmd.Name)
+	return cmd
+}
+
+// warnDeprecated logs a deprecation warning once per session per old name.
+func (r *CommandRegistry) warnDeprecated(oldName, newName string) {
+	if _, loaded := r.deprecatedWarned.LoadOrStore(strings.ToLower(oldName), true); !loaded {
+		logger().Warn("deprecated command used", "old", oldName, "new", newName,
+			"hint", "use '"+newName+"' instead; old form will be removed in a future release")
+	}
 }
 
 // All returns all registered commands.
@@ -279,4 +366,45 @@ func (r *CommandRegistry) IsBuiltin(name string) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.builtins[strings.ToLower(name)]
+}
+
+// LookupDeprecatedPrefix finds the longest deprecated alias that is a prefix
+// of lowerInput (already lowercased by the caller). Returns the canonical
+// RegisteredCommand and the matched prefix length, or (nil, 0) if no
+// deprecated alias matches. Logs a deprecation warning on first match.
+func (r *CommandRegistry) LookupDeprecatedPrefix(lowerInput string) (*RegisteredCommand, int) {
+	if snap := r.frozen.Load(); snap != nil {
+		return r.lookupDeprecatedPrefixInMaps(snap.deprecated, snap.commands, lowerInput)
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.lookupDeprecatedPrefixInMaps(r.deprecated, r.commands, lowerInput)
+}
+
+func (r *CommandRegistry) lookupDeprecatedPrefixInMaps(
+	deprecated map[string]*deprecatedAlias,
+	commands map[string]*RegisteredCommand,
+	lowerInput string,
+) (*RegisteredCommand, int) {
+	var bestAlias *deprecatedAlias
+	var bestLen int
+	for oldKey, alias := range deprecated {
+		if len(oldKey) <= bestLen {
+			continue
+		}
+		if strings.HasPrefix(lowerInput, oldKey) &&
+			(len(lowerInput) == len(oldKey) || lowerInput[len(oldKey)] == ' ') {
+			bestAlias = alias
+			bestLen = len(oldKey)
+		}
+	}
+	if bestAlias == nil {
+		return nil, 0
+	}
+	cmd := commands[bestAlias.NewLowerName]
+	if cmd == nil {
+		return nil, 0
+	}
+	r.warnDeprecated(bestAlias.OldName, cmd.Name)
+	return cmd, bestLen
 }

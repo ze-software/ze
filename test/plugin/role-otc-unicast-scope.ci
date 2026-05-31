@@ -64,7 +64,7 @@ def main():
 
     # If OTC was applied to multicast, this route would be rejected (OTC from Customer = leak).
     # Since multicast is out of OTC scope, it should be accepted into adj-rib-in.
-    result = dispatch(api, 'adj-rib-in status')
+    result = dispatch(api, 'show adj-rib-in status')
     data = json.loads(result.get('data', '{}'))
     total = data.get('total-routes', -1)
 

@@ -108,7 +108,7 @@ func runPlugin(conn net.Conn) int {
 	})
 
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
-		if command == "l2tp shaper show" {
+		if command == "show l2tp shaper" {
 			return "done", shaperInstance.showSessions(), nil
 		}
 		return "error", "", fmt.Errorf("unknown command: %s", command)
@@ -121,7 +121,7 @@ func runPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "l2tp shaper show"},
+			{Name: "show l2tp shaper", DeprecatedNames: []string{"l2tp shaper show"}},
 		},
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)

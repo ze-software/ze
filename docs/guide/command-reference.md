@@ -1598,9 +1598,9 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `healthcheck show` | read-only | JSON summary of all healthcheck probes |
-| `healthcheck show <name>` | read-only | Detailed status of a single probe |
-| `healthcheck reset <name>` | write | Withdraw route, reset FSM to INIT, immediate re-check. Error if DISABLED. |
+| `show healthcheck` | read-only | JSON summary of all healthcheck probes |
+| `show healthcheck <name>` | read-only | Detailed status of a single probe |
+| `clear healthcheck <name>` | write | Withdraw route, reset FSM to INIT, immediate re-check. Error if DISABLED. |
 <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand -->
 
 ### BMP (RFC 7854)
@@ -1657,14 +1657,14 @@ The static route plugin programs routes directly to the kernel (netlink multipat
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `sysctl show` | read-only | Show all active sysctl keys with value, source (config/transient/default), and persistence |
-| `sysctl list` | read-only | List all known sysctl keys with descriptions and types |
-| `sysctl describe <key>` | read-only | Show detail for one key: description, type, range, current value, source |
-| `sysctl set <key> <value>` | write | Set a transient sysctl value (overrides defaults, blocked by config) |
-| `sysctl list-profiles` | read-only | List all registered sysctl profiles (built-in and user-defined) with key counts |
-| `sysctl describe-profile <name>` | read-only | Show detail for one profile: description, all key/value pairs |
+| `show sysctl` | read-only | Show all active sysctl keys with value, source (config/transient/default), and persistence |
+| `show sysctl keys` | read-only | List all known sysctl keys with descriptions and types |
+| `show sysctl key <key>` | read-only | Show detail for one key: description, type, range, current value, source |
+| `set sysctl <key> <value>` | write | Set a transient sysctl value (overrides defaults, blocked by config) |
+| `show sysctl profiles` | read-only | List all registered sysctl profiles (built-in and user-defined) with key counts |
+| `show sysctl profile <name>` | read-only | Show detail for one profile: description, all key/value pairs |
 
-The sysctl plugin manages kernel tunables with three-layer precedence: config (persistent, from YANG) wins over transient (CLI `sysctl set`), which wins over defaults (plugin-declared via EventBus). Original values are restored on clean daemon stop.
+The sysctl plugin manages kernel tunables with three-layer precedence: config (persistent, from YANG) wins over transient (CLI `set sysctl`), which wins over defaults (plugin-declared via EventBus). Original values are restored on clean daemon stop.
 
 Config example: `sysctl { setting net.ipv4.conf.all.forwarding { value 1; } }`
 

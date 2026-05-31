@@ -88,7 +88,7 @@ but write commands, REST config sessions, and gRPC config sessions return 403.
 POST `/api/v1/execute` body:
 ```json
 {
-  "command": "bgp rib routes",
+  "command": "show bgp rib routes",
   "params": {"family": "ipv4/unicast"}
 }
 ```

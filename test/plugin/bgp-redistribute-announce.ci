@@ -40,10 +40,10 @@ def main():
     # Wait for BGP session up so the UPDATE has a destination peer.
     time.sleep(2.0)
 
-    resp = dispatch(api, 'fakeredist emit add ipv4/unicast 10.0.0.1/32')
+    resp = dispatch(api, 'request fakeredist emit add ipv4/unicast 10.0.0.1/32')
     result = resp.get('result', {})
     if result.get('status') != 'done':
-        runtime_fail(f'fakeredist emit failed: {result}')
+        runtime_fail(f'request fakeredist emit failed: {result}')
         return
 
     # Give the consumer + reactor time to dispatch the UPDATE.

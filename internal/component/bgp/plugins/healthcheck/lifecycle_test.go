@@ -257,7 +257,7 @@ func TestDebounce(t *testing.T) {
 
 	// With debounce=true, should dispatch exactly once (INIT->UP transition),
 	// plus the exit withdraw. Not once per interval.
-	// The exit dispatch adds a "watchdog withdraw" at the end.
+	// The exit dispatch adds a "request watchdog withdraw" at the end.
 	if count > 2 {
 		t.Errorf("debounce=true: dispatches = %d, want <= 2 (UP + exit withdraw)", count)
 	}
@@ -268,7 +268,7 @@ func TestDebounce(t *testing.T) {
 
 func TestShowEmptyProbes(t *testing.T) {
 	mgr := newTestManager()
-	status, data, err := mgr.handleCommand("healthcheck show", nil)
+	status, data, err := mgr.handleCommand("show healthcheck", nil)
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}
@@ -293,7 +293,7 @@ func TestHandleUnknownCommand(t *testing.T) {
 
 func TestResetNonexistentProbe(t *testing.T) {
 	mgr := newTestManager()
-	status, _, err := mgr.handleCommand("healthcheck reset", []string{"missing"})
+	status, _, err := mgr.handleCommand("clear healthcheck", []string{"missing"})
 	if err == nil {
 		t.Fatal("expected error for nonexistent probe")
 	}
@@ -313,7 +313,7 @@ func TestShowAllProbes(t *testing.T) {
 	})
 	defer mgr.applyConfig(nil)
 
-	status, data, err := mgr.handleCommand("healthcheck show", nil)
+	status, data, err := mgr.handleCommand("show healthcheck", nil)
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}
@@ -336,7 +336,7 @@ func TestShowSingleProbe(t *testing.T) {
 	})
 	defer mgr.applyConfig(nil)
 
-	status, data, err := mgr.handleCommand("healthcheck show", []string{"dns"})
+	status, data, err := mgr.handleCommand("show healthcheck", []string{"dns"})
 	if err != nil {
 		t.Fatalf("show dns: %v", err)
 	}
@@ -351,7 +351,7 @@ func TestShowSingleProbe(t *testing.T) {
 func TestShowNonexistentProbe(t *testing.T) {
 	mgr := newTestManager()
 
-	status, _, err := mgr.handleCommand("healthcheck show", []string{"missing"})
+	status, _, err := mgr.handleCommand("show healthcheck", []string{"missing"})
 	if err == nil {
 		t.Fatal("expected error for nonexistent probe")
 	}
@@ -367,7 +367,7 @@ func TestResetProbe(t *testing.T) {
 	})
 	defer mgr.applyConfig(nil)
 
-	status, data, err := mgr.handleCommand("healthcheck reset", []string{"dns"})
+	status, data, err := mgr.handleCommand("clear healthcheck", []string{"dns"})
 	if err != nil {
 		t.Fatalf("reset: %v", err)
 	}
@@ -394,7 +394,7 @@ func TestResetDisabledProbe(t *testing.T) {
 	})
 	defer mgr.applyConfig(nil)
 
-	status, _, err := mgr.handleCommand("healthcheck reset", []string{"dns"})
+	status, _, err := mgr.handleCommand("clear healthcheck", []string{"dns"})
 	if err == nil {
 		t.Fatal("expected error for DISABLED probe reset")
 	}
@@ -406,7 +406,7 @@ func TestResetDisabledProbe(t *testing.T) {
 func TestResetMissingName(t *testing.T) {
 	mgr := newTestManager()
 
-	status, _, err := mgr.handleCommand("healthcheck reset", nil)
+	status, _, err := mgr.handleCommand("clear healthcheck", nil)
 	if err == nil {
 		t.Fatal("expected error for missing name")
 	}
@@ -439,14 +439,14 @@ func TestDispatchStateAction(t *testing.T) {
 		withdrawOnDown bool
 		want           string
 	}{
-		{StateUp, false, "watchdog announce hc-dns med 100"},
-		{StateUp, true, "watchdog announce hc-dns med 100"},
-		{StateDown, false, "watchdog announce hc-dns med 1000"},
-		{StateDown, true, "watchdog withdraw hc-dns"},
-		{StateDisabled, false, "watchdog announce hc-dns med 500"},
-		{StateDisabled, true, "watchdog withdraw hc-dns"},
-		{StateExit, false, "watchdog withdraw hc-dns"},
-		{StateExit, true, "watchdog withdraw hc-dns"},
+		{StateUp, false, "request watchdog announce hc-dns med 100"},
+		{StateUp, true, "request watchdog announce hc-dns med 100"},
+		{StateDown, false, "request watchdog announce hc-dns med 1000"},
+		{StateDown, true, "request watchdog withdraw hc-dns"},
+		{StateDisabled, false, "request watchdog announce hc-dns med 500"},
+		{StateDisabled, true, "request watchdog withdraw hc-dns"},
+		{StateExit, false, "request watchdog withdraw hc-dns"},
+		{StateExit, true, "request watchdog withdraw hc-dns"},
 	}
 
 	ctx := context.Background()

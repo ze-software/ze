@@ -56,7 +56,7 @@ def main():
         runtime_fail(f'missing cluster-id: {detail[:300]}')
 
     # Verify RIB has the route (proves UPDATE was processed, not just config accepted)
-    result = dispatch(api, 'bgp rib show best')
+    result = dispatch(api, 'show bgp rib best')
     if result.get('status') != 'done':
         runtime_fail(f'rib show best failed: {result}')
 

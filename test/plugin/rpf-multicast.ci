@@ -35,12 +35,12 @@ def main():
 
     try:
         # Inject multicast routes at two specificity levels
-        result = dispatch(api, 'bgp rib inject 10.0.0.99 ipv4/multicast 224.0.0.0/4 nhop 10.0.0.1')
+        result = dispatch(api, 'request bgp rib inject 10.0.0.99 ipv4/multicast 224.0.0.0/4 nhop 10.0.0.1')
         if result.get('status') != 'done':
             print(f'FAIL: inject /4 status={result.get("status")} err={result.get("data")}', file=sys.stderr)
             sys.exit(1)
 
-        result = dispatch(api, 'bgp rib inject 10.0.0.99 ipv4/multicast 224.1.0.0/16 nhop 10.0.0.2')
+        result = dispatch(api, 'request bgp rib inject 10.0.0.99 ipv4/multicast 224.1.0.0/16 nhop 10.0.0.2')
         if result.get('status') != 'done':
             print(f'FAIL: inject /16 status={result.get("status")} err={result.get("data")}', file=sys.stderr)
             sys.exit(1)
@@ -49,7 +49,7 @@ def main():
         time.sleep(0.5)
 
         # RPF query: should match the /16 (more specific)
-        result = dispatch(api, 'bgp rib rpf ipv4/multicast 224.1.2.5')
+        result = dispatch(api, 'show bgp rib rpf ipv4/multicast 224.1.2.5')
         if result.get('status') != 'done':
             print(f'FAIL: rpf status={result.get("status")} err={result.get("data")}', file=sys.stderr)
             sys.exit(1)
@@ -63,7 +63,7 @@ def main():
             sys.exit(1)
 
         # RPF query: no match
-        result = dispatch(api, 'bgp rib rpf ipv4/multicast 192.168.1.1')
+        result = dispatch(api, 'show bgp rib rpf ipv4/multicast 192.168.1.1')
         if result.get('status') != 'done':
             print(f'FAIL: rpf no-match status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
@@ -74,7 +74,7 @@ def main():
             sys.exit(1)
 
         # RPF query: non-CIDR family should error
-        result = dispatch(api, 'bgp rib rpf l2vpn/evpn 10.0.0.1')
+        result = dispatch(api, 'show bgp rib rpf l2vpn/evpn 10.0.0.1')
         if result.get('status') != 'error':
             print(f'FAIL: rpf non-CIDR should error, got status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

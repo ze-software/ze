@@ -156,7 +156,7 @@ func runFIBKernelPlugin(conn net.Conn) int {
 	})
 
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
-		if command == "fib-kernel show" {
+		if command == "show fib-kernel" {
 			data := f.showInstalled()
 			return "done", data, nil
 		}
@@ -170,7 +170,7 @@ func runFIBKernelPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "fib-kernel show"},
+			{Name: "show fib-kernel", DeprecatedNames: []string{"fib-kernel show"}},
 		},
 	})
 	if err != nil {

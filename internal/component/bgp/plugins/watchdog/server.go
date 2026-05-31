@@ -70,10 +70,10 @@ type watchdogPeerResult struct {
 // value is double-encoded on the wire.
 // Called from OnExecuteCommand with the command name, arguments, and peer selector.
 func (s *watchdogServer) handleCommand(command string, args []string, peer string) (string, any, error) {
-	if command == "watchdog announce" {
+	if command == "request watchdog announce" {
 		return s.handlePoolAction(args, peer, true)
 	}
-	if command == "watchdog withdraw" {
+	if command == "request watchdog withdraw" {
 		return s.handlePoolAction(args, peer, false)
 	}
 	return statusError, nil, fmt.Errorf("unknown watchdog command: %s", command)

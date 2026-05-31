@@ -23,7 +23,7 @@ func TestEnableValidation(t *testing.T) {
 
 	assert.False(t, r.validationEnabled, "validation should be disabled by default")
 
-	status, _, err := r.handleCommand("adj-rib-in enable-validation", "")
+	status, _, err := r.handleCommand("request adj-rib-in enable-validation", "")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 	assert.True(t, r.validationEnabled, "validation should be enabled after command")
@@ -90,7 +90,7 @@ func TestAcceptPendingRoute(t *testing.T) {
 	}
 	r.mu.Unlock()
 
-	status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1")
+	status, _, err := r.handleCommand("request adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -136,7 +136,7 @@ func TestRejectPendingRoute(t *testing.T) {
 	}
 	r.mu.Unlock()
 
-	status, _, err := r.handleCommand("adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0")
+	status, _, err := r.handleCommand("request adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -245,7 +245,7 @@ func TestRevalidateInstalledRoute(t *testing.T) {
 	})
 	r.ribIn["10.0.0.1"] = m
 
-	status, data, err := r.handleCommand("adj-rib-in revalidate", "ipv4/unicast 10.0.0.0/24")
+	status, data, err := r.handleCommand("request adj-rib-in revalidate", "ipv4/unicast 10.0.0.0/24")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 	assert.Contains(t, string(mustMarshal(t, data)), "10.0.0.0/24", "revalidate should return route data")
@@ -259,7 +259,7 @@ func TestAcceptNonExistentRoute(t *testing.T) {
 	r := newTestManager(t)
 	r.validationEnabled = true
 
-	status, data, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1")
+	status, data, err := r.handleCommand("request adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1")
 	assert.Equal(t, statusDone, status)
 	assert.NoError(t, err)
 	assert.Contains(t, data, "early")
@@ -290,7 +290,7 @@ func TestRejectAlreadyInstalled(t *testing.T) {
 	})
 	r.ribIn["10.0.0.1"] = m
 
-	status, _, err := r.handleCommand("adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0")
+	status, _, err := r.handleCommand("request adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0")
 	assert.Equal(t, statusDone, status)
 	assert.NoError(t, err)
 
@@ -310,7 +310,7 @@ func TestEarlyDecisionAppliedOnArrival(t *testing.T) {
 	r.validationEnabled = true
 
 	// Step 1: RPKI sends accept before the route exists.
-	status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 192.168.1.0/24 0 1")
+	status, _, err := r.handleCommand("request adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 192.168.1.0/24 0 1")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -348,7 +348,7 @@ func TestEarlyRejectDropsRoute(t *testing.T) {
 	r := newTestManager(t)
 	r.validationEnabled = true
 
-	status, _, err := r.handleCommand("adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 172.16.0.0/24 0")
+	status, _, err := r.handleCommand("request adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 172.16.0.0/24 0")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -408,12 +408,12 @@ func TestMultiplePendingRoutes(t *testing.T) {
 	r.mu.Unlock()
 
 	// Accept first route
-	status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1")
+	status, _, err := r.handleCommand("request adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
 	// Reject second route
-	status, _, err = r.handleCommand("adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.1.0/24 0")
+	status, _, err = r.handleCommand("request adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.1.0/24 0")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -464,7 +464,7 @@ func TestValidationStateField(t *testing.T) {
 			}
 			r.mu.Unlock()
 
-			status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 "+tt.stateArg)
+			status, _, err := r.handleCommand("request adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 "+tt.stateArg)
 			require.NoError(t, err)
 			assert.Equal(t, statusDone, status)
 
@@ -499,7 +499,7 @@ func TestAcceptWithAddPathID(t *testing.T) {
 	}
 	r.mu.Unlock()
 
-	status, _, err := r.handleCommand("adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 42 1")
+	status, _, err := r.handleCommand("request adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 42 1")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -534,7 +534,7 @@ func TestRejectWithAddPathID(t *testing.T) {
 	}
 	r.mu.Unlock()
 
-	status, _, err := r.handleCommand("adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 7")
+	status, _, err := r.handleCommand("request adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 7")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 

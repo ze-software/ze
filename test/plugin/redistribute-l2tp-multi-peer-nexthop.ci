@@ -45,10 +45,10 @@ def main():
     # Brief pause for BGP sessions to reach established after plugins ready.
     time.sleep(1.0)
 
-    resp = dispatch(api, 'fakel2tp emit add ipv4/unicast 10.0.0.1/32')
+    resp = dispatch(api, 'request fakel2tp emit add ipv4/unicast 10.0.0.1/32')
     result = resp.get('result', {})
     if result.get('status') != 'done':
-        runtime_fail(f'fakel2tp emit failed: {result}')
+        runtime_fail(f'request fakel2tp emit failed: {result}')
         return
 
     # Give reactor time to fan out the UPDATE to both peers.

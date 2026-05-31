@@ -449,14 +449,14 @@ func TestFilterReplayByFamily(t *testing.T) {
 
 // --- Command tests ---
 
-// TestHandleCommand_Status verifies "rs status" command response.
+// TestHandleCommand_Status verifies "show rs status" command response.
 //
 // VALIDATES: RS responds to status command with done status and running JSON.
 // PREVENTS: Command handler returning wrong status or data.
 func TestHandleCommand_Status(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	status, data, err := rs.handleCommand("rs status")
+	status, data, err := rs.handleCommand("show rs status")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -472,7 +472,7 @@ func TestHandleCommand_Status(t *testing.T) {
 	}
 }
 
-// TestHandleCommand_Peers verifies "rs peers" command response.
+// TestHandleCommand_Peers verifies "show rs peers" command response.
 //
 // VALIDATES: RS responds to peers command with peer list JSON.
 // PREVENTS: Command handler missing peer data.
@@ -484,7 +484,7 @@ func TestHandleCommand_Peers(t *testing.T) {
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", ASN: 65002, Up: false}
 	rs.mu.Unlock()
 
-	status, data, err := rs.handleCommand("rs peers")
+	status, data, err := rs.handleCommand("show rs peers")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1203,7 +1203,7 @@ func TestHandleStateUpReplay(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	if !strings.HasPrefix(dispatchCmds[0], "adj-rib-in replay 10.0.0.1") {
+	if !strings.HasPrefix(dispatchCmds[0], "request adj-rib-in replay 10.0.0.1") {
 		t.Errorf("expected adj-rib-in replay command, got %q", dispatchCmds[0])
 	}
 	for _, cmd := range updateCmds {
@@ -1361,10 +1361,10 @@ func TestHandleStateUpDelta(t *testing.T) {
 
 	mu.Lock()
 	defer mu.Unlock()
-	if dispatchCmds[0] != "adj-rib-in replay 10.0.0.1 0" {
+	if dispatchCmds[0] != "request adj-rib-in replay 10.0.0.1 0" {
 		t.Errorf("expected full replay, got %q", dispatchCmds[0])
 	}
-	if dispatchCmds[1] != "adj-rib-in replay 10.0.0.1 5" {
+	if dispatchCmds[1] != "request adj-rib-in replay 10.0.0.1 5" {
 		t.Errorf("expected delta replay from 5, got %q", dispatchCmds[1])
 	}
 }

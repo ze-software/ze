@@ -450,7 +450,7 @@ func TestHandleCommand_Status(t *testing.T) {
 	m2.Put("k3", 3, &RawRoute{Family: family.IPv6Unicast})
 	r.ribIn["10.0.0.2"] = m2
 
-	status, data, err := r.handleCommand("adj-rib-in status", "")
+	status, data, err := r.handleCommand("show adj-rib-in status", "")
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
@@ -477,7 +477,7 @@ func TestHandleCommand_Show(t *testing.T) {
 	})
 	r.ribIn["10.0.0.1"] = m
 
-	status, data, err := r.handleCommand("adj-rib-in show", "10.0.0.1")
+	status, data, err := r.handleCommand("show adj-rib-in", "10.0.0.1")
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, string(mustMarshal(t, data)), "10.0.0.1", "should contain peer address")
@@ -518,7 +518,7 @@ func TestMultipleNLRIsPerUpdate(t *testing.T) {
 
 // TestAdjRibInReplayArgsPassthrough verifies replay receives correct target peer and from-index.
 //
-// VALIDATES: handleCommand("adj-rib-in replay", "127.0.0.2 0") replays routes for 127.0.0.2.
+// VALIDATES: handleCommand("request adj-rib-in replay", "127.0.0.2 0") replays routes for 127.0.0.2.
 // PREVENTS: Args being dropped, causing replay to target "*" instead of specific peer.
 func TestAdjRibInReplayArgsPassthrough(t *testing.T) {
 	r := newTestManager(t)
@@ -532,9 +532,9 @@ func TestAdjRibInReplayArgsPassthrough(t *testing.T) {
 	r.ribIn["10.0.0.1"] = m
 
 	// Call handleCommand with the selector that would come from args
-	// This simulates: command="adj-rib-in replay", args=["127.0.0.2", "0"]
+	// This simulates: command="request adj-rib-in replay", args=["127.0.0.2", "0"]
 	// The selector is args joined with space: "127.0.0.2 0"
-	status, data, err := r.handleCommand("adj-rib-in replay", "127.0.0.2 0")
+	status, data, err := r.handleCommand("request adj-rib-in replay", "127.0.0.2 0")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -545,12 +545,12 @@ func TestAdjRibInReplayArgsPassthrough(t *testing.T) {
 
 // TestAdjRibInReplayArgsEmpty verifies empty selector returns an error.
 //
-// VALIDATES: handleCommand("adj-rib-in replay", "") returns error requiring target peer.
+// VALIDATES: handleCommand("request adj-rib-in replay", "") returns error requiring target peer.
 // PREVENTS: Replay running without a target peer, which could cause unexpected behavior.
 func TestAdjRibInReplayArgsEmpty(t *testing.T) {
 	r := newTestManager(t)
 
-	status, _, err := r.handleCommand("adj-rib-in replay", "")
+	status, _, err := r.handleCommand("request adj-rib-in replay", "")
 	assert.Equal(t, statusError, status)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "requires target peer address")

@@ -52,7 +52,7 @@ def main():
     # Wait for session establishment and route processing.
     time.sleep(3.0)
 
-    result = dispatch(api, 'adj-rib-in status')
+    result = dispatch(api, 'show adj-rib-in status')
     data = json.loads(result.get('data', '{}'))
     total = data.get('total-routes', -1)
 

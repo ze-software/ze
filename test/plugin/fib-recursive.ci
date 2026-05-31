@@ -37,7 +37,7 @@ def dispatch(api, command):
 
 def wait_for_rib(api):
     for _ in range(20):
-        r = dispatch(api, 'bgp rib status')
+        r = dispatch(api, 'show bgp rib status')
         if r.get('status') == 'done':
             return True
         time.sleep(0.5)
@@ -58,13 +58,13 @@ def main():
 
     # Inject a connected route: 10.0.0.0/24 with no next-hop (connected).
     # This provides a direct path for next-hops within 10.0.0.0/24.
-    r = dispatch(api, 'bgp rib inject 10.0.0.1 ipv4/unicast 10.0.0.0/24 origin igp')
+    r = dispatch(api, 'request bgp rib inject 10.0.0.1 ipv4/unicast 10.0.0.0/24 origin igp')
     if r.get('status') != 'done':
         runtime_fail(f'inject covering route failed: {r}')
 
     # Inject a BGP route with a recursive next-hop: 172.16.0.0/16 via 10.0.0.2.
     # The NH 10.0.0.2 falls within the covering prefix 10.0.0.0/24.
-    r = dispatch(api, 'bgp rib inject 10.0.0.1 ipv4/unicast 172.16.0.0/16 origin igp nexthop 10.0.0.2')
+    r = dispatch(api, 'request bgp rib inject 10.0.0.1 ipv4/unicast 172.16.0.0/16 origin igp nexthop 10.0.0.2')
     if r.get('status') != 'done':
         runtime_fail(f'inject recursive route failed: {r}')
 

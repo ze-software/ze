@@ -380,3 +380,112 @@ func TestCommandRegistryUnregisterAllAfterFreeze(t *testing.T) {
 	assert.Nil(t, registry.Lookup("cmd-c"))
 	assert.NotNil(t, registry.Lookup("cmd-b"))
 }
+
+// TestDeprecatedCommandWarning verifies deprecated aliases dispatch correctly
+// and log a warning once per session.
+//
+// VALIDATES: AC-5 -- Old noun-first command names dispatch correctly with deprecation warning.
+// PREVENTS: Breaking backward compatibility when renaming commands to verb-first.
+func TestDeprecatedCommandWarning(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "sysctl"})
+
+	// Register new verb-first command
+	results := registry.Register(proc, []CommandDef{
+		{Name: "show sysctl", Description: "Show sysctl values"},
+	})
+	assert.True(t, results[0].OK)
+
+	// Register deprecated alias (old noun-first form)
+	registry.RegisterDeprecated(proc, "sysctl show", "show sysctl")
+
+	// Lookup by new name works directly
+	cmd := registry.Lookup("show sysctl")
+	assert.NotNil(t, cmd)
+	assert.Equal(t, "show sysctl", cmd.Name)
+
+	// Lookup by old name resolves to canonical command
+	cmd = registry.Lookup("sysctl show")
+	assert.NotNil(t, cmd)
+	assert.Equal(t, "show sysctl", cmd.Name, "deprecated alias should return canonical command")
+
+	// Unknown name still returns nil
+	assert.Nil(t, registry.Lookup("unknown command"))
+}
+
+// TestDeprecatedCommandAfterFreeze verifies deprecated aliases work after Freeze.
+//
+// VALIDATES: Deprecated lookup works on the frozen snapshot path (hot path).
+// PREVENTS: Deprecated aliases silently breaking after startup barrier.
+func TestDeprecatedCommandAfterFreeze(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "sysctl"})
+
+	registry.Register(proc, []CommandDef{
+		{Name: "show sysctl", Description: "Show sysctl values"},
+	})
+	registry.RegisterDeprecated(proc, "sysctl show", "show sysctl")
+
+	registry.Freeze()
+
+	// New name works after freeze
+	cmd := registry.Lookup("show sysctl")
+	assert.NotNil(t, cmd)
+	assert.Equal(t, "show sysctl", cmd.Name)
+
+	// Deprecated alias works after freeze
+	cmd = registry.Lookup("sysctl show")
+	assert.NotNil(t, cmd)
+	assert.Equal(t, "show sysctl", cmd.Name)
+}
+
+// TestDeprecatedPrefixLookup verifies prefix matching for deprecated aliases.
+//
+// VALIDATES: dispatchPlugin prefix matching resolves deprecated aliases.
+// PREVENTS: Old command forms failing in the plugin dispatch path.
+func TestDeprecatedPrefixLookup(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "sysctl"})
+
+	registry.Register(proc, []CommandDef{
+		{Name: "show sysctl", Description: "Show sysctl values"},
+	})
+	registry.RegisterDeprecated(proc, "sysctl show", "show sysctl")
+
+	// Prefix lookup with trailing args
+	cmd, matchLen := registry.LookupDeprecatedPrefix("sysctl show")
+	assert.NotNil(t, cmd)
+	assert.Equal(t, "show sysctl", cmd.Name)
+	assert.Equal(t, len("sysctl show"), matchLen)
+
+	// Non-matching prefix returns nil
+	cmd, matchLen = registry.LookupDeprecatedPrefix("unknown prefix")
+	assert.Nil(t, cmd)
+	assert.Equal(t, 0, matchLen)
+}
+
+// TestDeprecatedUnregisterAll verifies deprecated aliases are cleaned up on process death.
+//
+// VALIDATES: UnregisterAll removes deprecated aliases for the dying process.
+// PREVENTS: Stale deprecated aliases after plugin crash/restart.
+func TestDeprecatedUnregisterAll(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "sysctl"})
+
+	registry.Register(proc, []CommandDef{
+		{Name: "show sysctl", Description: "Show sysctl values"},
+	})
+	registry.RegisterDeprecated(proc, "sysctl show", "show sysctl")
+
+	registry.Freeze()
+
+	// Both work before unregister
+	assert.NotNil(t, registry.Lookup("show sysctl"))
+	assert.NotNil(t, registry.Lookup("sysctl show"))
+
+	registry.UnregisterAll(proc)
+
+	// Both gone after unregister
+	assert.Nil(t, registry.Lookup("show sysctl"))
+	assert.Nil(t, registry.Lookup("sysctl show"))
+}

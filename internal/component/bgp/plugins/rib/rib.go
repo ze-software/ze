@@ -619,31 +619,31 @@ func RunRIBPlugin(conn net.Conn) int {
 		WantsConfig: []string{"bgp"},
 		Commands: []sdk.CommandDecl{
 			// Unified show with pipeline (scope + filters + terminals)
-			{Name: "bgp rib status"},
-			{Name: "bgp rib show"},
-			{Name: "bgp rib clear in"},
-			{Name: "bgp rib clear out"},
+			{Name: "show bgp rib status", DeprecatedNames: []string{"bgp rib status"}},
+			{Name: "show bgp rib", DeprecatedNames: []string{"bgp rib show"}},
+			{Name: "clear bgp rib in", DeprecatedNames: []string{"bgp rib clear in"}},
+			{Name: "clear bgp rib out", DeprecatedNames: []string{"bgp rib clear out"}},
 			// Legacy status alias
-			{Name: "bgp rib adjacent status"},
+			{Name: "show bgp rib adjacent status", DeprecatedNames: []string{"bgp rib adjacent status"}},
 			// GR support: route retention and stale tracking (RFC 4724)
-			{Name: "bgp rib retain-routes"},
-			{Name: "bgp rib release-routes"},
-			{Name: "bgp rib mark-stale"},
-			{Name: "bgp rib purge-stale"},
+			{Name: "request bgp rib retain-routes", DeprecatedNames: []string{"bgp rib retain-routes"}},
+			{Name: "request bgp rib release-routes", DeprecatedNames: []string{"bgp rib release-routes"}},
+			{Name: "request bgp rib mark-stale", DeprecatedNames: []string{"bgp rib mark-stale"}},
+			{Name: "request bgp rib purge-stale", DeprecatedNames: []string{"bgp rib purge-stale"}},
 			// Best-path selection (RFC 4271 §9.1.2)
-			{Name: "bgp rib show best"},
-			{Name: "bgp rib show best status"},
+			{Name: "show bgp rib best", DeprecatedNames: []string{"bgp rib show best"}},
+			{Name: "show bgp rib best status", DeprecatedNames: []string{"bgp rib show best status"}},
 			// Route injection (manual RIB manipulation)
-			{Name: "bgp rib inject"},
-			{Name: "bgp rib withdraw"},
+			{Name: "request bgp rib inject", DeprecatedNames: []string{"bgp rib inject"}},
+			{Name: "request bgp rib withdraw", DeprecatedNames: []string{"bgp rib withdraw"}},
 			// Protocol-scoped route management (BMP integration)
-			{Name: "bgp rib show-protocol"},
-			{Name: "bgp rib withdraw-protocol"},
-			{Name: "bgp rib withdraw-router"},
+			{Name: "show bgp rib protocol", DeprecatedNames: []string{"bgp rib show-protocol"}},
+			{Name: "request bgp rib withdraw-protocol", DeprecatedNames: []string{"bgp rib withdraw-protocol"}},
+			{Name: "request bgp rib withdraw-router", DeprecatedNames: []string{"bgp rib withdraw-router"}},
 			// Meta-commands (introspection)
-			{Name: "bgp rib help"},
-			{Name: "bgp rib command list"},
-			{Name: "bgp rib event list"},
+			{Name: "show bgp rib help", DeprecatedNames: []string{"bgp rib help"}},
+			{Name: "show bgp rib commands", DeprecatedNames: []string{"bgp rib command list"}},
+			{Name: "show bgp rib events", DeprecatedNames: []string{"bgp rib event list"}},
 		},
 	})
 	if err != nil {

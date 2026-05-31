@@ -319,7 +319,7 @@ func TestInjectUsesProtocolSlot(t *testing.T) {
 	r := newTestRIBManager(t)
 	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -339,13 +339,13 @@ func TestWithdrawUsesProtocolSlot(t *testing.T) {
 	r := newTestRIBManager(t)
 	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
 
-	_, _, err := r.handleCommand("bgp rib inject", "", []string{
+	_, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
 
-	status, data, err := r.handleCommand("bgp rib withdraw", "", []string{
+	status, data, err := r.handleCommand("request bgp rib withdraw", "", []string{
 		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24",
 	})
 	require.NoError(t, err)

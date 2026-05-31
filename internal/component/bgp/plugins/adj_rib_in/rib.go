@@ -176,13 +176,13 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			{Name: "adj-rib-in status"},
-			{Name: "adj-rib-in show"},
-			{Name: "adj-rib-in replay"},
-			{Name: "adj-rib-in enable-validation"},
-			{Name: "adj-rib-in accept-routes"},
-			{Name: "adj-rib-in reject-routes"},
-			{Name: "adj-rib-in revalidate"},
+			{Name: "show adj-rib-in status", DeprecatedNames: []string{"adj-rib-in status"}},
+			{Name: "show adj-rib-in", DeprecatedNames: []string{"adj-rib-in show"}},
+			{Name: "request adj-rib-in replay", DeprecatedNames: []string{"adj-rib-in replay"}},
+			{Name: "request adj-rib-in enable-validation", DeprecatedNames: []string{"adj-rib-in enable-validation"}},
+			{Name: "request adj-rib-in accept-routes", DeprecatedNames: []string{"adj-rib-in accept-routes"}},
+			{Name: "request adj-rib-in reject-routes", DeprecatedNames: []string{"adj-rib-in reject-routes"}},
+			{Name: "request adj-rib-in revalidate", DeprecatedNames: []string{"adj-rib-in revalidate"}},
 		},
 	})
 	if err != nil {

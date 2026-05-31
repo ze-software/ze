@@ -331,12 +331,12 @@ func TestHandleCommandDispatch(t *testing.T) {
 		args []string
 		ok   bool
 	}{
-		{"rpki status", nil, true},
-		{"rpki cache", nil, true},
-		{"rpki roa", nil, true},
-		{"rpki summary", nil, true},
-		{"rpki validate", []string{"10.0.0.0/8", "65001"}, true},
-		{"rpki aspa", nil, true},
+		{"show rpki status", nil, true},
+		{"show rpki cache", nil, true},
+		{"show rpki roa", nil, true},
+		{"show rpki summary", nil, true},
+		{"request rpki validate", []string{"10.0.0.0/8", "65001"}, true},
+		{"show rpki aspa", nil, true},
 		{"rpki unknown", nil, false},
 	}
 	for _, tt := range tests {

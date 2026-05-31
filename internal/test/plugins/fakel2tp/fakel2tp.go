@@ -132,14 +132,14 @@ func runEmit(args []string) (string, error) {
 
 // dispatchCommand is the OnExecuteCommand entry point.
 func dispatchCommand(_, command string, args []string, _ string) (string, any, error) {
-	if command == "fakel2tp emit" {
+	if command == "request fakel2tp emit" {
 		data, err := runEmit(args)
 		if err != nil {
 			return rpc.StatusError, "", err
 		}
 		return rpc.StatusDone, data, nil
 	}
-	if command == "fakel2tp help" {
+	if command == "show fakel2tp help" {
 		return rpc.StatusDone, "fakel2tp emit add|remove <family> <prefix>", nil
 	}
 	return rpc.StatusError, "", fmt.Errorf("unknown command: %s", command)

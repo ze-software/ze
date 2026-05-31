@@ -87,18 +87,20 @@ func LoadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pat
 // verbRIB is the CLI verb for system RIB commands (e.g., "rib show").
 const verbRIB = "rib"
 
-// IsReadOnlyPath returns true if the command path starts with a read-only verb
-// or a top-level query command not yet migrated under a verb.
+// IsReadOnlyPath returns true if the command path starts with a read-only verb.
+// With verb-first grammar, "show", "monitor", and "resolve" are read-only;
+// "clear", "set", "request", "commit", "update" are not.
 func IsReadOnlyPath(path string) bool {
 	verb, _, _ := strings.Cut(path, " ")
 	switch verb {
-	case "daemon":
-		return path == "daemon status"
-	case "show", "validate", "monitor",
+	case "show", "monitor", "resolve", "validate",
+		// Legacy noun-first forms still in YANG tree (not yet migrated).
 		"summary", "help", "command", "event",
 		"system", "plugin", "peer", verbRIB, "cache",
 		"metrics", "subscribe", "unsubscribe":
 		return true
+	case "daemon":
+		return path == "daemon status" || path == "show daemon status"
 	}
 	return false
 }
@@ -645,7 +647,8 @@ func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, input string, resp 
 }
 
 func auditActionForCommand(input string) string {
-	if strings.ToLower(strings.TrimSpace(input)) == "daemon reload" {
+	lower := strings.ToLower(strings.TrimSpace(input))
+	if lower == "daemon reload" || lower == "request daemon reload" {
 		return audit.ActionDaemonReload
 	}
 	return ""
@@ -685,6 +688,11 @@ func (d *Dispatcher) dispatchPlugin(ctx *CommandContext, input, lowerInput, peer
 				}
 			}
 		}
+	}
+
+	// Fall back to deprecated aliases if no primary match found.
+	if matchedPlugin == nil {
+		matchedPlugin, matchedLen = d.registry.LookupDeprecatedPrefix(lowerInput)
 	}
 
 	if matchedPlugin == nil {

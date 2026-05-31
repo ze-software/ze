@@ -37,7 +37,7 @@ def dispatch(api, command):
 
 def wait_for_rib(api):
     for _ in range(20):
-        r = dispatch(api, 'bgp rib status')
+        r = dispatch(api, 'show bgp rib status')
         if r.get('status') == 'done':
             return True
         time.sleep(0.5)
@@ -46,7 +46,7 @@ def wait_for_rib(api):
 
 def get_best_entry(api, prefix):
     """Query bgp rib show best and return the entry for prefix, or None."""
-    r = dispatch(api, 'bgp rib show best')
+    r = dispatch(api, 'show bgp rib best')
     if r.get('status') != 'done':
         return None
     data_str = r.get('data', '{}')
@@ -90,11 +90,11 @@ def main():
 
     # --- AC-1: Two peers, same prefix -> multipath with both next-hops ---
 
-    r = dispatch(api, f'bgp rib inject 10.0.0.1 ipv4/unicast {prefix} origin igp localpref 100 aspath 65001')
+    r = dispatch(api, f'request bgp rib inject 10.0.0.1 ipv4/unicast {prefix} origin igp localpref 100 aspath 65001')
     if r.get('status') != 'done':
         runtime_fail(f'inject peer1 failed: {r}')
 
-    r = dispatch(api, f'bgp rib inject 10.0.0.2 ipv4/unicast {prefix} origin igp localpref 100 aspath 65001')
+    r = dispatch(api, f'request bgp rib inject 10.0.0.2 ipv4/unicast {prefix} origin igp localpref 100 aspath 65001')
     if r.get('status') != 'done':
         runtime_fail(f'inject peer2 failed: {r}')
 
@@ -117,7 +117,7 @@ def main():
 
     # --- AC-2: Withdraw one peer -> single path ---
 
-    r = dispatch(api, f'bgp rib withdraw 10.0.0.2 ipv4/unicast {prefix}')
+    r = dispatch(api, f'request bgp rib withdraw 10.0.0.2 ipv4/unicast {prefix}')
     if r.get('status') != 'done':
         runtime_fail(f'withdraw peer2 failed: {r}')
 
@@ -139,11 +139,11 @@ def main():
 
     # --- AC-3: Add second + third -> 3-path multipath ---
 
-    r = dispatch(api, f'bgp rib inject 10.0.0.2 ipv4/unicast {prefix} origin igp localpref 100 aspath 65001')
+    r = dispatch(api, f'request bgp rib inject 10.0.0.2 ipv4/unicast {prefix} origin igp localpref 100 aspath 65001')
     if r.get('status') != 'done':
         runtime_fail(f're-inject peer2 failed: {r}')
 
-    r = dispatch(api, f'bgp rib inject 10.0.0.3 ipv4/unicast {prefix} origin igp localpref 100 aspath 65001')
+    r = dispatch(api, f'request bgp rib inject 10.0.0.3 ipv4/unicast {prefix} origin igp localpref 100 aspath 65001')
     if r.get('status') != 'done':
         runtime_fail(f'inject peer3 failed: {r}')
 

@@ -40,7 +40,7 @@ def main():
 
     try:
         # AC-1: dispatch a command that returns structured data
-        result = dispatch(api, 'bgp rib status')
+        result = dispatch(api, 'show bgp rib status')
         if result is None:
             print('FAIL: dispatch returned None', file=sys.stderr)
             sys.exit(1)
@@ -68,7 +68,7 @@ def main():
         # Dispatch a command with a missing required argument so the handler
         # runs and returns statusError + error text. This exercises the
         # DispatchCommandOutput.Error field (vs RPC-level errors which bypass it).
-        result = dispatch(api, 'bgp rib clear in')
+        result = dispatch(api, 'clear bgp rib in')
         if result is not None:
             error_text = result.get('error')
             if error_text and isinstance(error_text, str):

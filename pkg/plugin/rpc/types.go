@@ -62,10 +62,11 @@ type FamilyDecl struct {
 
 // CommandDecl declares a command the plugin provides.
 type CommandDecl struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Args        []string `json:"args,omitempty"`
-	Completable bool     `json:"completable,omitempty"`
+	Name            string   `json:"name"`
+	Description     string   `json:"description,omitempty"`
+	Args            []string `json:"args,omitempty"`
+	Completable     bool     `json:"completable,omitempty"`
+	DeprecatedNames []string `json:"deprecated-names,omitempty"`
 }
 
 // SchemaDecl declares the YANG schema the plugin provides.

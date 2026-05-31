@@ -95,7 +95,7 @@ func TestParseEvent_StateFormat(t *testing.T) {
 // VALIDATES: CLI command requests are parsed correctly.
 // PREVENTS: Commands being ignored.
 func TestParseEvent_RequestFormat(t *testing.T) {
-	input := `{"type":"request","serial":"abc123","command":"bgp rib adjacent status"}`
+	input := `{"type":"request","serial":"abc123","command":"show bgp rib adjacent status"}`
 
 	event, err := parseEvent([]byte(input))
 	require.NoError(t, err)
@@ -103,7 +103,7 @@ func TestParseEvent_RequestFormat(t *testing.T) {
 	assert.Equal(t, rpc.EventKindUnspecified, event.GetEventType())
 	assert.Equal(t, "request", event.Type)
 	assert.Equal(t, "abc123", event.Serial)
-	assert.Equal(t, "bgp rib adjacent status", event.Command)
+	assert.Equal(t, "show bgp rib adjacent status", event.Command)
 }
 
 // TestHandleSent_StoresRoutes verifies routes are stored in Adj-RIB-Out.
@@ -597,7 +597,7 @@ func dataStr(t *testing.T, v any) string {
 
 // TestHandleCommand_RIBAdjacentStatus verifies renamed status command.
 //
-// VALIDATES: "bgp rib adjacent status" returns status JSON via handleCommand.
+// VALIDATES: "show bgp rib adjacent status" returns status JSON via handleCommand.
 // PREVENTS: Command rename breaking status queries.
 func TestHandleCommand_RIBAdjacentStatus(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -623,7 +623,7 @@ func TestHandleCommand_RIBAdjacentStatus(t *testing.T) {
 		},
 	})
 
-	status, data, err := r.handleCommand("bgp rib adjacent status", "", nil)
+	status, data, err := r.handleCommand("show bgp rib adjacent status", "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"running":true`)
@@ -633,7 +633,7 @@ func TestHandleCommand_RIBAdjacentStatus(t *testing.T) {
 
 // TestHandleCommand_RIBShowReceived verifies received show with selector.
 //
-// VALIDATES: "bgp rib show" with received scope filters by peer selector.
+// VALIDATES: "show bgp rib" with received scope filters by peer selector.
 // PREVENTS: Wrong routes returned for filtered queries.
 func TestHandleCommand_RIBShowReceived(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -698,7 +698,7 @@ func TestHandleCommand_RIBShowReceived(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, data, err := r.handleCommand("bgp rib show", tt.selector, []string{"received"})
+			status, data, err := r.handleCommand("show bgp rib", tt.selector, []string{"received"})
 			require.NoError(t, err)
 			assert.Equal(t, "done", status)
 			if tt.wantPeer1 {
@@ -717,7 +717,7 @@ func TestHandleCommand_RIBShowReceived(t *testing.T) {
 
 // TestHandleCommand_RIBAdjacentInboundEmpty verifies inbound empty with selector.
 //
-// VALIDATES: "bgp rib adjacent inbound empty" empties matching peers only.
+// VALIDATES: "clear bgp rib adjacent inbound" empties matching peers only.
 // PREVENTS: Emptying wrong peers' routes.
 func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -748,7 +748,7 @@ func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 	}
 	r.handleReceived(event2)
 
-	status, data, err := r.handleCommand("bgp rib adjacent inbound empty", "*", []string{"10.0.0.1"})
+	status, data, err := r.handleCommand("clear bgp rib adjacent inbound", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"cleared":1`)
@@ -762,7 +762,7 @@ func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 
 // TestHandleCommand_RIBShowSent verifies sent show with selector.
 //
-// VALIDATES: "bgp rib show" with sent scope filters by peer selector.
+// VALIDATES: "show bgp rib" with sent scope filters by peer selector.
 // PREVENTS: Wrong routes returned for outbound queries.
 func TestHandleCommand_RIBShowSent(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -778,7 +778,7 @@ func TestHandleCommand_RIBShowSent(t *testing.T) {
 		},
 	})
 
-	status, data, err := r.handleCommand("bgp rib show", "10.0.0.1", []string{"sent"})
+	status, data, err := r.handleCommand("show bgp rib", "10.0.0.1", []string{"sent"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), "10.0.0.1")
@@ -787,7 +787,7 @@ func TestHandleCommand_RIBShowSent(t *testing.T) {
 
 // TestHandleCommand_RIBAdjacentOutboundResend verifies outbound resend.
 //
-// VALIDATES: "bgp rib adjacent outbound resend" returns correct count for matching peers.
+// VALIDATES: "clear bgp rib adjacent outbound" returns correct count for matching peers.
 // PREVENTS: Resend failing or targeting wrong peers.
 func TestHandleCommand_RIBAdjacentOutboundResend(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -805,7 +805,7 @@ func TestHandleCommand_RIBAdjacentOutboundResend(t *testing.T) {
 	r.peerUp["10.0.0.1"] = true
 	r.peerUp["10.0.0.2"] = true
 
-	status, data, err := r.handleCommand("bgp rib adjacent outbound resend", "*", []string{"10.0.0.1"})
+	status, data, err := r.handleCommand("clear bgp rib adjacent outbound", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	// Resend count: routes are sent via SDK RPC (updateRoute), which fails silently on closed pipes
@@ -816,7 +816,7 @@ func TestHandleCommand_RIBAdjacentOutboundResend(t *testing.T) {
 
 // TestHandleCommand_RIBAdjacentOutboundResend_DownPeer verifies resend skips down peers.
 //
-// VALIDATES: "bgp rib adjacent outbound resend" does not send routes to down peers.
+// VALIDATES: "clear bgp rib adjacent outbound" does not send routes to down peers.
 // PREVENTS: Sending routes to disconnected peers.
 func TestHandleCommand_RIBAdjacentOutboundResend_DownPeer(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -829,7 +829,7 @@ func TestHandleCommand_RIBAdjacentOutboundResend_DownPeer(t *testing.T) {
 	})
 	// peerUp["10.0.0.1"] is NOT set (peer is down)
 
-	status, data, err := r.handleCommand("bgp rib adjacent outbound resend", "*", []string{"10.0.0.1"})
+	status, data, err := r.handleCommand("clear bgp rib adjacent outbound", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"resent":0`, "should not resend to down peer")
@@ -882,11 +882,11 @@ func TestRIBPluginHandleCommandShortNames(t *testing.T) {
 		wantOK  bool
 		wantIn  string // substring expected in data
 	}{
-		{"bgp rib status", "bgp rib status", nil, true, `"running":true`},
-		{"bgp rib show received", "bgp rib show", []string{"received"}, true, "10.0.0.1"},
-		{"bgp rib clear in", "bgp rib clear in", []string{"*"}, true, `"cleared"`},
-		{"bgp rib show sent", "bgp rib show", []string{"sent"}, true, "adj-rib-out"},
-		{"bgp rib clear out", "bgp rib clear out", []string{"*"}, true, `"resent"`},
+		{"show bgp rib status", "show bgp rib status", nil, true, `"running":true`},
+		{"bgp rib show received", "show bgp rib", []string{"received"}, true, "10.0.0.1"},
+		{"clear bgp rib in", "clear bgp rib in", []string{"*"}, true, `"cleared"`},
+		{"bgp rib show sent", "show bgp rib", []string{"sent"}, true, "adj-rib-out"},
+		{"clear bgp rib out", "clear bgp rib out", []string{"*"}, true, `"resent"`},
 	}
 
 	for _, tt := range tests {
@@ -925,16 +925,16 @@ func TestRIBPluginHandleCommandLegacyNames(t *testing.T) {
 	r.peerUp["10.0.0.1"] = true
 
 	// Legacy names that still work (status, empty, resend have aliases;
-	// show commands now use unified "bgp rib show" with scope args).
+	// show commands now use unified "show bgp rib" with scope args).
 	tests := []struct {
 		name    string
 		command string
 		args    []string
 		wantIn  string
 	}{
-		{"adjacent status", "bgp rib adjacent status", nil, `"running":true`},
-		{"adjacent inbound empty", "bgp rib adjacent inbound empty", []string{"*"}, `"cleared"`},
-		{"adjacent outbound resend", "bgp rib adjacent outbound resend", []string{"*"}, `"resent"`},
+		{"adjacent status", "show bgp rib adjacent status", nil, `"running":true`},
+		{"adjacent inbound empty", "clear bgp rib adjacent inbound", []string{"*"}, `"cleared"`},
+		{"adjacent outbound resend", "clear bgp rib adjacent outbound", []string{"*"}, `"resent"`},
 	}
 
 	for _, tt := range tests {
@@ -1280,7 +1280,7 @@ func TestHandleCommand_InboundShow_PoolStorage(t *testing.T) {
 	require.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
 
 	// Call show command via handleCommand (unified pipeline, received scope)
-	status, data, err := r.handleCommand("bgp rib show", "*", []string{"received"})
+	status, data, err := r.handleCommand("show bgp rib", "*", []string{"received"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), "10.0.0.1", "should contain peer address")
@@ -1310,7 +1310,7 @@ func TestHandleCommand_InboundEmpty_PoolStorage(t *testing.T) {
 	require.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
 
 	// Call empty command via handleCommand
-	status, data, err := r.handleCommand("bgp rib adjacent inbound empty", "*", []string{"10.0.0.1"})
+	status, data, err := r.handleCommand("clear bgp rib adjacent inbound", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"cleared":1`)
@@ -1779,7 +1779,7 @@ func TestExtractCandidate_PoolWiring(t *testing.T) {
 // VALIDATES: peerMeta deleted alongside ribInPool in clear and release paths.
 // PREVENTS: peerMeta memory leak when routes are cleared or GR-released.
 func TestPeerMetaCleanup_ClearAndRelease(t *testing.T) {
-	t.Run("bgp rib clear in", func(t *testing.T) {
+	t.Run("clear bgp rib in", func(t *testing.T) {
 		r := newTestRIBManager(t)
 		peerJSON := mustMarshal(t, map[string]any{
 			"local":  map[string]any{"address": "10.0.0.2", "as": uint32(65000)},
@@ -1805,7 +1805,7 @@ func TestPeerMetaCleanup_ClearAndRelease(t *testing.T) {
 		assert.False(t, metaExists, "peerMeta should be cleared with ribInPool")
 	})
 
-	t.Run("bgp rib release-routes", func(t *testing.T) {
+	t.Run("request bgp rib release-routes", func(t *testing.T) {
 		r := newTestRIBManager(t)
 		peerJSON := mustMarshal(t, map[string]any{
 			"local":  map[string]any{"address": "10.0.0.2", "as": uint32(65000)},
@@ -2007,7 +2007,7 @@ func TestOutboundResendAllFamilies(t *testing.T) {
 		},
 	})
 
-	status, data, err := r.handleCommand("bgp rib clear out", "*", []string{"*"})
+	status, data, err := r.handleCommand("clear bgp rib out", "*", []string{"*"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
@@ -2032,7 +2032,7 @@ func TestOutboundResendSingleFamily(t *testing.T) {
 		},
 	})
 
-	status, data, err := r.handleCommand("bgp rib clear out", "*", []string{"*", family.IPv4Unicast.String()})
+	status, data, err := r.handleCommand("clear bgp rib out", "*", []string{"*", family.IPv4Unicast.String()})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
@@ -2141,7 +2141,7 @@ func TestOutboundResendSelectorFromArgs(t *testing.T) {
 
 	// Dispatch with selector "!10.0.0.1" in args (all except 10.0.0.1).
 	// peer param is "*" (as it would be for plugin-dispatched commands).
-	status, data, err := r.handleCommand("bgp rib clear out", "*", []string{"!10.0.0.1"})
+	status, data, err := r.handleCommand("clear bgp rib out", "*", []string{"!10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
@@ -2164,7 +2164,7 @@ func TestInboundEmptySelectorFromArgs(t *testing.T) {
 	r.bgpPeers["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
 
 	// Clear only 10.0.0.1
-	status, data, err := r.handleCommand("bgp rib clear in", "*", []string{"10.0.0.1"})
+	status, data, err := r.handleCommand("clear bgp rib in", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"cleared"`)
@@ -2188,7 +2188,7 @@ func TestRetainRoutesSelectorFromArgs(t *testing.T) {
 	r.bgpPeers["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
 
 	// Retain only 10.0.0.1
-	status, data, err := r.handleCommand("bgp rib retain-routes", "*", []string{"10.0.0.1"})
+	status, data, err := r.handleCommand("request bgp rib retain-routes", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"retained-peers":1`)
@@ -2211,7 +2211,7 @@ func TestReleaseRoutesSelectorFromArgs(t *testing.T) {
 	r.retainedPeers["10.0.0.2"] = true
 
 	// Release only 10.0.0.1
-	status, data, err := r.handleCommand("bgp rib release-routes", "*", []string{"10.0.0.1"})
+	status, data, err := r.handleCommand("request bgp rib release-routes", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"released-peers":1`)
@@ -2227,7 +2227,7 @@ func TestReleaseRoutesSelectorFromArgs(t *testing.T) {
 func TestOutboundResendNoArgError(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib clear out", "*", nil)
+	status, _, err := r.handleCommand("clear bgp rib out", "*", nil)
 	require.Error(t, err, "bgp rib clear out with no args should return error")
 	assert.Equal(t, "error", status)
 }
@@ -2241,7 +2241,7 @@ func TestOutboundResendNoArgError(t *testing.T) {
 func TestInjectRoute_Basic(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, data, err := r.handleCommand("bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24"})
+	status, data, err := r.handleCommand("request bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"injected":"10.0.0.0/24"`)
@@ -2267,7 +2267,7 @@ func TestInjectRoute_AllAttributes(t *testing.T) {
 		"localpref", "200",
 		"med", "50",
 	}
-	status, _, err := r.handleCommand("bgp rib inject", "", args)
+	status, _, err := r.handleCommand("request bgp rib inject", "", args)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
@@ -2290,11 +2290,11 @@ func TestWithdrawRoute_Basic(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Inject first.
-	_, _, err := r.handleCommand("bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24"})
+	_, _, err := r.handleCommand("request bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24"})
 	require.NoError(t, err)
 
 	// Withdraw.
-	status, data, err := r.handleCommand("bgp rib withdraw", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24"})
+	status, data, err := r.handleCommand("request bgp rib withdraw", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"existed":true`)
@@ -2311,12 +2311,12 @@ func TestWithdrawRoute_Basic(t *testing.T) {
 func TestInjectRoute_VisibleInShow(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	_, _, err := r.handleCommand("bgp rib inject", "", []string{
+	_, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "aspath", "64500,64501",
 	})
 	require.NoError(t, err)
 
-	status, data, err := r.handleCommand("bgp rib show", "10.0.0.1", nil)
+	status, data, err := r.handleCommand("show bgp rib", "10.0.0.1", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), "10.0.0.0/24")
@@ -2329,7 +2329,7 @@ func TestInjectRoute_VisibleInShow(t *testing.T) {
 func TestInjectRoute_MissingPeer(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{family.IPv4Unicast.String(), "10.0.0.0/24"})
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{family.IPv4Unicast.String(), "10.0.0.0/24"})
 	require.Error(t, err)
 	assert.Equal(t, "error", status)
 	assert.Contains(t, err.Error(), "usage:")
@@ -2342,7 +2342,7 @@ func TestInjectRoute_MissingPeer(t *testing.T) {
 func TestInjectRoute_InvalidPrefix(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "not-a-prefix"})
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "not-a-prefix"})
 	require.Error(t, err)
 	assert.Equal(t, "error", status)
 }
@@ -2354,7 +2354,7 @@ func TestInjectRoute_InvalidPrefix(t *testing.T) {
 func TestInjectRoute_InvalidASPath(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "aspath", "abc,def",
 	})
 	require.Error(t, err)
@@ -2369,7 +2369,7 @@ func TestInjectRoute_InvalidASPath(t *testing.T) {
 func TestInjectRoute_UnknownAttr(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "bogus", "value",
 	})
 	require.Error(t, err)
@@ -2384,7 +2384,7 @@ func TestInjectRoute_UnknownAttr(t *testing.T) {
 func TestInjectRoute_IPv6(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, data, err := r.handleCommand("bgp rib inject", "", []string{"10.0.0.1", family.IPv6Unicast.String(), "2001:db8::/32"})
+	status, data, err := r.handleCommand("request bgp rib inject", "", []string{"10.0.0.1", family.IPv6Unicast.String(), "2001:db8::/32"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"injected":"2001:db8::/32"`)
@@ -2402,10 +2402,10 @@ func TestWithdrawRoute_NonExistent(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Create PeerRIB first so we don't get "no RIB for peer" error.
-	_, _, err := r.handleCommand("bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24"})
+	_, _, err := r.handleCommand("request bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24"})
 	require.NoError(t, err)
 
-	status, data, err := r.handleCommand("bgp rib withdraw", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "192.168.0.0/24"})
+	status, data, err := r.handleCommand("request bgp rib withdraw", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "192.168.0.0/24"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"existed":false`)
@@ -2419,11 +2419,11 @@ func TestInjectRoute_ImplicitWithdraw(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Inject with localpref 100.
-	_, _, err := r.handleCommand("bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "localpref", "100"})
+	_, _, err := r.handleCommand("request bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "localpref", "100"})
 	require.NoError(t, err)
 
 	// Re-inject same prefix with localpref 200.
-	_, _, err = r.handleCommand("bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "localpref", "200"})
+	_, _, err = r.handleCommand("request bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "localpref", "200"})
 	require.NoError(t, err)
 
 	// Should still be exactly 1 route (implicit withdraw replaced the old one).
@@ -2439,7 +2439,7 @@ func TestInjectRoute_ImplicitWithdraw(t *testing.T) {
 func TestInjectRoute_InvalidPeerAddress(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{"not-an-ip", family.IPv4Unicast.String(), "10.0.0.0/24"})
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{"not-an-ip", family.IPv4Unicast.String(), "10.0.0.0/24"})
 	require.Error(t, err)
 	assert.Equal(t, "error", status)
 	assert.Contains(t, err.Error(), "invalid peer address")
@@ -2453,7 +2453,7 @@ func TestInjectRoute_IPv6NhopUnknownPeer(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// 10.0.0.1 has no peerMeta entry -- fallback accepts any valid IP.
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "nhop", "2001:db8::1",
 	})
 	require.NoError(t, err)
@@ -2470,7 +2470,7 @@ func TestInjectRoute_IPv6NhopRealPeerNoCapability(t *testing.T) {
 	r.peerMeta["10.0.0.1"] = &PeerMeta{PeerASN: 65000, LocalASN: 65001, ContextID: 0}
 
 	// ContextID 0 = no capability info, should accept with warning.
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "nhop", "2001:db8::1",
 	})
 	require.NoError(t, err)
@@ -2488,7 +2488,7 @@ func TestInjectRoute_IPv6NhopRealPeerContextNoExtNH(t *testing.T) {
 
 	r.peerMeta["10.0.0.1"] = &PeerMeta{PeerASN: 65000, LocalASN: 65001, ContextID: ctxID}
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "nhop", "2001:db8::1",
 	})
 	require.Error(t, err)
@@ -2504,7 +2504,7 @@ func TestInjectRoute_IPv6NhopRealPeerContextNoExtNH(t *testing.T) {
 func TestInjectRoute_TrailingKeyNoValue(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "origin",
 	})
 	require.Error(t, err)
@@ -2519,7 +2519,7 @@ func TestInjectRoute_TrailingKeyNoValue(t *testing.T) {
 func TestInjectRoute_NonSimpleFamily(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{"10.0.0.1", "l2vpn/evpn", "10.0.0.0/24"})
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{"10.0.0.1", "l2vpn/evpn", "10.0.0.0/24"})
 	require.Error(t, err)
 	assert.Equal(t, "error", status)
 	assert.Contains(t, err.Error(), "simple prefix families")
@@ -2532,7 +2532,7 @@ func TestInjectRoute_NonSimpleFamily(t *testing.T) {
 func TestWithdrawRoute_InvalidPeerAddress(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib withdraw", "", []string{"not-an-ip", family.IPv4Unicast.String(), "10.0.0.0/24"})
+	status, _, err := r.handleCommand("request bgp rib withdraw", "", []string{"not-an-ip", family.IPv4Unicast.String(), "10.0.0.0/24"})
 	require.Error(t, err)
 	assert.Equal(t, "error", status)
 	assert.Contains(t, err.Error(), "invalid peer address")
@@ -2545,7 +2545,7 @@ func TestWithdrawRoute_InvalidPeerAddress(t *testing.T) {
 func TestInjectRoute_IPv4Multicast(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{"10.0.0.1", "ipv4/multicast", "224.0.0.0/4"})
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{"10.0.0.1", "ipv4/multicast", "224.0.0.0/4"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
@@ -2561,7 +2561,7 @@ func TestInjectRoute_IPv4Multicast(t *testing.T) {
 func TestInjectRoute_OriginIncomplete(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "origin", "incomplete",
 	})
 	require.NoError(t, err)
@@ -2575,7 +2575,7 @@ func TestInjectRoute_OriginIncomplete(t *testing.T) {
 func TestInjectRoute_NoAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24"})
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
@@ -2593,7 +2593,7 @@ func TestInjectRoute_NoAttributes(t *testing.T) {
 func TestInjectRoute_SingleASN(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "aspath", "64500",
 	})
 	require.NoError(t, err)
@@ -2607,7 +2607,7 @@ func TestInjectRoute_SingleASN(t *testing.T) {
 func TestInjectRoute_DuplicateAttr(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "localpref", "100", "localpref", "200",
 	})
 	require.NoError(t, err)
@@ -2621,7 +2621,7 @@ func TestInjectRoute_DuplicateAttr(t *testing.T) {
 func TestInjectRoute_InvalidFamily(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{"10.0.0.1", "bogus/family", "10.0.0.0/24"})
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{"10.0.0.1", "bogus/family", "10.0.0.0/24"})
 	require.Error(t, err)
 	assert.Equal(t, "error", status)
 }
@@ -2633,7 +2633,7 @@ func TestInjectRoute_InvalidFamily(t *testing.T) {
 func TestInjectRoute_FamilyMismatch(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "2001:db8::/32"})
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "2001:db8::/32"})
 	require.Error(t, err)
 	assert.Equal(t, "error", status)
 }
@@ -2645,7 +2645,7 @@ func TestInjectRoute_FamilyMismatch(t *testing.T) {
 func TestInjectRoute_IPv4MappedIPv6NextHop(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib inject", "", []string{
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24", "nhop", "::ffff:10.0.0.1",
 	})
 	require.NoError(t, err)
@@ -2659,7 +2659,7 @@ func TestInjectRoute_IPv4MappedIPv6NextHop(t *testing.T) {
 func TestWithdrawRoute_MissingArgs(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib withdraw", "", []string{"10.0.0.1", family.IPv4Unicast.String()})
+	status, _, err := r.handleCommand("request bgp rib withdraw", "", []string{"10.0.0.1", family.IPv4Unicast.String()})
 	require.Error(t, err)
 	assert.Equal(t, "error", status)
 	assert.Contains(t, err.Error(), "usage:")
@@ -2805,7 +2805,7 @@ func newTestRIBManagerWithLocRIB(t *testing.T) *RIBManager {
 func TestRPFCommand_IPv4Multicast(t *testing.T) {
 	r := newTestRIBManagerWithLocRIB(t)
 
-	status, data, err := r.handleCommand("bgp rib rpf", "", []string{"ipv4/multicast", "224.1.2.5"})
+	status, data, err := r.handleCommand("show bgp rib rpf", "", []string{"ipv4/multicast", "224.1.2.5"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
@@ -2830,7 +2830,7 @@ func TestRPFCommand_IPv6Multicast(t *testing.T) {
 			AdminDistance: 20,
 		})
 
-	status, data, err := r.handleCommand("bgp rib rpf", "", []string{"ipv6/multicast", "ff02::1"})
+	status, data, err := r.handleCommand("show bgp rib rpf", "", []string{"ipv6/multicast", "ff02::1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
@@ -2844,7 +2844,7 @@ func TestRPFCommand_IPv6Multicast(t *testing.T) {
 func TestRPFCommand_NoRoute(t *testing.T) {
 	r := newTestRIBManagerWithLocRIB(t)
 
-	status, data, err := r.handleCommand("bgp rib rpf", "", []string{"ipv4/multicast", "192.168.1.1"})
+	status, data, err := r.handleCommand("show bgp rib rpf", "", []string{"ipv4/multicast", "192.168.1.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
@@ -2856,7 +2856,7 @@ func TestRPFCommand_NoRoute(t *testing.T) {
 func TestRPFCommand_NonCIDR(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib rpf", "", []string{"l2vpn/evpn", "10.0.0.1"})
+	status, _, err := r.handleCommand("show bgp rib rpf", "", []string{"l2vpn/evpn", "10.0.0.1"})
 	assert.Equal(t, "error", status)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "CIDR families")

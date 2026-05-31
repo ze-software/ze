@@ -55,7 +55,7 @@ def main():
 
     # Query adj-rib-in for diagnostic context only. The strip proof is the
     # destination peer wire assertion at the bottom of this file.
-    result = dispatch(api, 'adj-rib-in status')
+    result = dispatch(api, 'show adj-rib-in status')
     data = json.loads(result.get('data', '{}'))
     total = data.get('total-routes', -1)
 

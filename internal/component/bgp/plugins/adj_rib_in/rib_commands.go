@@ -24,19 +24,19 @@ var (
 // Returns (status, data, error) for the SDK to send back to the engine.
 func (r *AdjRIBInManager) handleCommand(command, selector string) (string, any, error) {
 	switch command {
-	case "adj-rib-in status":
+	case "show adj-rib-in status":
 		return statusDone, r.status(), nil
-	case "adj-rib-in show":
+	case "show adj-rib-in":
 		return statusDone, r.show(selector), nil
-	case "adj-rib-in replay":
+	case "request adj-rib-in replay":
 		return r.replayCommand(selector)
-	case "adj-rib-in enable-validation":
+	case "request adj-rib-in enable-validation":
 		return r.enableValidationCommand()
-	case "adj-rib-in accept-routes":
+	case "request adj-rib-in accept-routes":
 		return r.acceptRoutesCommand(selector)
-	case "adj-rib-in reject-routes":
+	case "request adj-rib-in reject-routes":
 		return r.rejectRoutesCommand(selector)
-	case "adj-rib-in revalidate":
+	case "request adj-rib-in revalidate":
 		return r.revalidateCommand(selector)
 	} // unknown commands return error below
 	return statusError, "", fmt.Errorf("unknown command: %s", command)

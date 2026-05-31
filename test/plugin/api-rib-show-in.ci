@@ -34,7 +34,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        result = dispatch(api, 'bgp rib routes received')
+        result = dispatch(api, 'show bgp rib routes received')
         if result.get('status') != 'done':
             print(f'FAIL: rib show-in status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)

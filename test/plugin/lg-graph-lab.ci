@@ -51,7 +51,7 @@ def dispatch(api, command):
 
 
 def inject(api, peer, prefix, nhop, aspath):
-    cmd = f'bgp rib inject {peer} ipv4/unicast {prefix} origin igp nhop {nhop} aspath {aspath}'
+    cmd = f'request bgp rib inject {peer} ipv4/unicast {prefix} origin igp nhop {nhop} aspath {aspath}'
     result = dispatch(api, cmd)
     if result.get('status') != 'done':
         print(f'FAIL: {cmd} -> {result}', file=sys.stderr)

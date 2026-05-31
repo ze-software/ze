@@ -48,7 +48,7 @@ def main():
 
     try:
         # Test 1: | first 3 should return exactly 3 routes
-        result = dispatch(api, 'bgp rib routes received first 3')
+        result = dispatch(api, 'show bgp rib routes received first 3')
         if result.get('status') != 'done':
             print(f'FAIL: first 3 status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
@@ -61,7 +61,7 @@ def main():
         print(f'OK: first 3 returned correct count', file=sys.stderr)
 
         # Test 2: | first 3 | count should return 3
-        result = dispatch(api, 'bgp rib routes received first 3 count')
+        result = dispatch(api, 'show bgp rib routes received first 3 count')
         if result.get('status') != 'done':
             print(f'FAIL: first 3 count status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
@@ -73,7 +73,7 @@ def main():
         print(f'OK: first 3 count = 3', file=sys.stderr)
 
         # Test 3: | last 2 | count should return 2
-        result = dispatch(api, 'bgp rib routes received last 2 count')
+        result = dispatch(api, 'show bgp rib routes received last 2 count')
         if result.get('status') != 'done':
             print(f'FAIL: last 2 count status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

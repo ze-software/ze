@@ -37,7 +37,7 @@ def dispatch(api, command):
 
 def wait_for_rib(api):
     for _ in range(20):
-        r = dispatch(api, 'bgp rib status')
+        r = dispatch(api, 'show bgp rib status')
         if r.get('status') == 'done':
             return True
         time.sleep(0.5)
@@ -57,7 +57,7 @@ def main():
         runtime_fail('rib plugin did not become ready')
 
     # Inject route with MED 200. MED becomes Metric in BestChangeEntry.
-    r = dispatch(api, 'bgp rib inject 10.0.0.1 ipv4/unicast 10.20.0.0/24 origin igp med 200')
+    r = dispatch(api, 'request bgp rib inject 10.0.0.1 ipv4/unicast 10.20.0.0/24 origin igp med 200')
     if r.get('status') != 'done':
         runtime_fail(f'inject failed: {r}')
 

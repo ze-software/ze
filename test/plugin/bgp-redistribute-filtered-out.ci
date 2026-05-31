@@ -33,10 +33,10 @@ def main():
     time.sleep(2.0)
 
     # ipv6/unicast prefix; the import rule restricts fakeredist to ipv4/unicast.
-    resp = dispatch(api, 'fakeredist emit add ipv6/unicast 2001:db8::1/128')
+    resp = dispatch(api, 'request fakeredist emit add ipv6/unicast 2001:db8::1/128')
     result = resp.get('result', {})
     if result.get('status') != 'done':
-        runtime_fail(f'fakeredist emit failed: {result}')
+        runtime_fail(f'request fakeredist emit failed: {result}')
         return
 
     time.sleep(2.0)

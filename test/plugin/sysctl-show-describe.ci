@@ -42,7 +42,7 @@ def main():
     # Test sysctl show: no config applied, no defaults => empty array.
     r = None
     for _ in range(20):
-        r = dispatch(api, 'sysctl show')
+        r = dispatch(api, 'show sysctl')
         if r.get('status') == 'done':
             break
         time.sleep(0.25)
@@ -59,7 +59,7 @@ def main():
         runtime_fail(f'sysctl show: expected list, got {type(entries).__name__}')
 
     # Test sysctl describe: pick first key from sysctl list.
-    r = dispatch(api, 'sysctl list')
+    r = dispatch(api, 'show sysctl keys')
     if r.get('status') != 'done':
         runtime_fail(f'sysctl list for describe: status={r.get("status")}')
 
@@ -68,22 +68,22 @@ def main():
         runtime_fail('sysctl list returned empty, cannot test describe')
 
     first_key = keys[0].get('key', '')
-    r = dispatch(api, f'sysctl describe {first_key}')
+    r = dispatch(api, f'show sysctl key {first_key}')
     if r.get('status') != 'done':
-        runtime_fail(f'sysctl describe {first_key}: status={r.get("status")}')
+        runtime_fail(f'show sysctl key {first_key}: status={r.get("status")}')
 
     try:
         detail = json.loads(r.get('data', '') or '{}')
     except json.JSONDecodeError as exc:
-        runtime_fail(f'sysctl describe json: {exc}')
+        runtime_fail(f'show sysctl key json: {exc}')
         detail = {}
 
     if detail.get('key') != first_key:
         runtime_fail(f'sysctl describe: key={detail.get("key")!r} want {first_key!r}')
     if not detail.get('description'):
-        runtime_fail(f'sysctl describe {first_key}: missing description')
+        runtime_fail(f'show sysctl key {first_key}: missing description')
     if not detail.get('type'):
-        runtime_fail(f'sysctl describe {first_key}: missing type')
+        runtime_fail(f'show sysctl key {first_key}: missing type')
 
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()

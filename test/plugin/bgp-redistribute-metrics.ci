@@ -36,11 +36,11 @@ def main():
     time.sleep(2.0)
 
     sequence = [
-        'fakeredist emit add ipv4/unicast 10.0.0.1/32',     # accepted add
-        'fakeredist emit add ipv4/unicast 10.0.0.2/32',     # accepted add
-        'fakeredist emit add ipv4/unicast 10.0.0.3/32',     # accepted add
-        'fakeredist emit remove ipv4/unicast 10.0.0.1/32',  # accepted remove
-        'fakeredist emit add ipv6/unicast 2001:db8::1/128', # rule-rejected (family)
+        'request fakeredist emit add ipv4/unicast 10.0.0.1/32',     # accepted add
+        'request fakeredist emit add ipv4/unicast 10.0.0.2/32',     # accepted add
+        'request fakeredist emit add ipv4/unicast 10.0.0.3/32',     # accepted add
+        'request fakeredist emit remove ipv4/unicast 10.0.0.1/32',  # accepted remove
+        'request fakeredist emit add ipv6/unicast 2001:db8::1/128', # rule-rejected (family)
     ]
     for cmd in sequence:
         resp = dispatch(api, cmd)
