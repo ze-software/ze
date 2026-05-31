@@ -1,6 +1,13 @@
 # Test: ze support --module filters to named modules only
 # VALIDATES: AC-2 of spec-support.md -- module selection
-cmd=foreground:seq=1:exec=ze support --module version,runtime --json --output /tmp
+# The archive is written into the per-test working dir (--output .), which the
+# runner allocates fresh and cleans up; the shared /tmp collides under load
+# (archive names are only second-granular) and is forbidden by project convention.
+tmpfs=.support-out-keep:terminator=EOF_KEEP
+placeholder so the runner allocates an isolated working dir
+EOF_KEEP
+
+cmd=foreground:seq=1:exec=ze support --module version,runtime --json --output .
 expect=exit:code=0
 expect=stdout:contains="version"
 expect=stdout:contains="runtime"

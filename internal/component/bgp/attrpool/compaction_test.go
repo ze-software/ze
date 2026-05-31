@@ -229,6 +229,78 @@ func TestCompactionPerShardValidHandles(t *testing.T) {
 	require.Equal(t, PoolNormal, p.State(), "compaction completes on every shard once handles drain")
 }
 
+// TestInternReuseDuringCompactionKeepsData drives the exact interleaving where a
+// slot freed before compaction is reused by Intern WHILE compaction is mid-flight,
+// at a slot index migration has not yet reached. The reused entry's bytes live in
+// the new (current) buffer, but its stale old-buffer offset still points at the
+// previous occupant. Migration must not copy from that stale old offset and clobber
+// the live new-buffer offset.
+//
+// VALIDATES: free-list reuse during incremental compaction does not migrate a
+// reused slot from stale old-buffer offset data.
+//
+// PREVENTS: Get(reusedHandle) returning the previous occupant's bytes (silent
+// attribute corruption) after migration walks past the reused slot.
+//
+// The interleaving is driven deterministically via same-package access to the
+// shard's compaction state and free list — no scheduler, no timing.
+func TestInternReuseDuringCompactionKeepsData(t *testing.T) {
+	// Single shard so every payload lands in shard 0 and slot indices are
+	// deterministic: A=0, B=1, C=2.
+	p, err := NewWithShards(7, 1024, 1)
+	require.NoError(t, err)
+	s := &p.shards[0]
+
+	hA := mustIntern(t, p, []byte("AAAA"))
+	hB := mustIntern(t, p, []byte("BBBB"))
+	hC := mustIntern(t, p, []byte("CCCC"))
+	require.Equal(t, uint32(0), hA.shardSlot())
+	require.Equal(t, uint32(1), hB.shardSlot())
+	require.Equal(t, uint32(2), hC.shardSlot())
+
+	// Release B: slot 1 becomes dead and is pushed onto the free list.
+	require.NoError(t, p.Release(hB))
+	require.Equal(t, []uint32{1}, s.freeSlots, "slot 1 must be free for reuse")
+
+	// Begin incremental compaction. cursor=0, compactSlotCount=3, new buffer is
+	// the flipped (currently empty) side. Migration has not advanced yet.
+	p.StartCompaction()
+	require.Equal(t, PoolCompacting, s.state)
+	require.Equal(t, uint32(0), s.compactCursor)
+	require.Equal(t, uint32(3), s.compactSlotCount)
+
+	// Reuse slot 1 via Intern BEFORE migration reaches it. The new entry's bytes
+	// are written into the new (current) buffer; slot 1's old-buffer offset is now
+	// stale (it still describes where "BBBB" used to live).
+	hD := mustIntern(t, p, []byte("DDDD"))
+	require.Equal(t, uint32(1), hD.shardSlot(), "Intern must reuse freed slot 1")
+
+	// Sanity: the reused handle reads correctly right now (before migration).
+	got, err := p.Get(hD)
+	require.NoError(t, err)
+	require.Equal(t, []byte("DDDD"), got, "reused slot reads correctly before migration")
+
+	// Drive migration to completion. As the cursor walks past slot 1, the buggy
+	// path copies from slot 1's stale old-buffer offset and overwrites the live
+	// new-buffer offset, corrupting D into B's old bytes.
+	for !p.MigrateBatch(1) {
+	}
+
+	// After migration, the reused entry must still read its own data, not the
+	// previous occupant's stale bytes.
+	got, err = p.Get(hD)
+	require.NoError(t, err)
+	require.Equal(t, []byte("DDDD"), got, "reused slot must survive migration uncorrupted")
+
+	// Surviving original live handles are unaffected.
+	gotA, err := p.Get(hA)
+	require.NoError(t, err)
+	require.Equal(t, []byte("AAAA"), gotA)
+	gotC, err := p.Get(hC)
+	require.NoError(t, err)
+	require.Equal(t, []byte("CCCC"), gotC)
+}
+
 // TestConcurrentAccessDuringCompaction verifies operations work during compaction.
 //
 // VALIDATES: Availability during maintenance operations.

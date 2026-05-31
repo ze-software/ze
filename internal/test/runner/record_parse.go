@@ -77,22 +77,44 @@ func (et *EncodingTests) Discover(dir string) error {
 	sort.Strings(files)
 
 	for _, ciFile := range files {
-		if err := et.parseAndAdd(ciFile); err != nil {
-			return fmt.Errorf("%s: %w", filepath.Base(ciFile), err)
+		// Skip-and-warn on a parse error rather than aborting discovery: one
+		// unparseable .ci file must not hide every other test in the directory
+		// (it did, suite-wide, before this — see the §1 handover note). The bad
+		// file is still recorded as a permanent failure so it fails the suite
+		// loudly instead of silently vanishing.
+		rec, err := et.parseAndAdd(ciFile)
+		if err != nil {
+			recordLogger().Warn("unparseable .ci file recorded as failure; continuing discovery",
+				"file", filepath.Base(ciFile), "error", err)
+			if rec == nil {
+				// parseAndAdd failed before a record existed (e.g. tmpfs read
+				// error). Create a placeholder so the file still appears in the
+				// suite as a failure.
+				rec = et.Add(strings.TrimSuffix(filepath.Base(ciFile), ".ci"))
+				rec.CIFile = ciFile
+				rec.Files = append(rec.Files, ciFile)
+			}
+			rec.ParseFailed = true
+			rec.State = StateFail
+			rec.FailureType = failParseError
+			rec.Error = err
 		}
 	}
 
 	return nil
 }
 
-// parseAndAdd parses a .ci file and adds it as a test.
+// parseAndAdd parses a .ci file and adds it as a test. It returns the record it
+// created so a caller can mark it failed on error (the record is added to the
+// collection as soon as the file name is known, before line parsing). The
+// record is nil only when parsing failed before any record was created.
 // Uses new key=value format: action=type:key=value:key=value:...
 // Supports Tmpfs blocks for embedded files.
-func (et *EncodingTests) parseAndAdd(ciFile string) error {
+func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 	// First, try Tmpfs parsing to extract embedded files
 	v, err := tmpfs.ReadFrom(ciFile)
 	if err != nil {
-		return fmt.Errorf("parse %s: %w", ciFile, err)
+		return nil, fmt.Errorf("parse %s: %w", ciFile, err)
 	}
 
 	name := strings.TrimSuffix(filepath.Base(ciFile), ".ci")
@@ -140,7 +162,7 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 					continue
 				}
 				if strings.HasPrefix(trimmed, "option=env:") {
-					return fmt.Errorf("stdin=peer block line %d: %q is consumed by the test runner, not ze-peer, "+
+					return r, fmt.Errorf("stdin=peer block line %d: %q is consumed by the test runner, not ze-peer, "+
 						"so placing it inside a stdin=peer block silently drops it. "+
 						"Move it outside (above) the stdin=peer:terminator=... header. "+
 						"See plan/learned/545-debug-plugin-test-cluster.md",
@@ -160,7 +182,7 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 	// Parse the non-Tmpfs lines (option:, expect:, cmd:, run=, etc.)
 	for lineNum, line := range v.OtherLines {
 		if err := et.parseLine(r, ciFile, line); err != nil {
-			return fmt.Errorf("line %d: %w", lineNum+1, err)
+			return r, fmt.Errorf("line %d: %w", lineNum+1, err)
 		}
 	}
 
@@ -174,7 +196,7 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 			}
 		}
 		if _, err := os.Stat(configPath); os.IsNotExist(err) {
-			return fmt.Errorf("config not found: %s", configPath)
+			return r, fmt.Errorf("config not found: %s", configPath)
 		}
 	}
 
@@ -188,7 +210,7 @@ generateDecoded:
 		}
 	}
 
-	return nil
+	return r, nil
 }
 
 // parseLine parses a single .ci line in the action=type:key=value format.

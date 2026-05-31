@@ -31,7 +31,7 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	rec := et.GetByNick("0")
@@ -70,7 +70,7 @@ expect=json:conn=1:seq=1:json={"type":"keepalive"}`
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	rec := et.GetByNick("0")
@@ -106,7 +106,7 @@ expect=file:glob=rollback/ze-bgp-*.conf:contains=router-id 1.2.3.4`
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	rec := et.GetByNick("0")
@@ -142,7 +142,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	rec := et.GetByNick("0")
@@ -170,7 +170,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	rec := et.GetByNick("0")
@@ -200,7 +200,7 @@ expect=bgp:conn=2:seq=2:hex=DDDD`
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	rec := et.GetByNick("0")
@@ -237,7 +237,7 @@ expect=bgp:conn=1:seq=1:hex=BBBB`
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	rec := et.GetByNick("0")
@@ -267,7 +267,7 @@ action=notification:conn=1:seq=2:text=session ending`
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	rec := et.GetByNick("0")
@@ -297,7 +297,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	rec := et.GetByNick("0")
@@ -328,7 +328,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	rec := et.GetByNick("0")
@@ -355,7 +355,7 @@ expect=bgp:seq=1:hex=FFFFFFFF`
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing conn")
@@ -379,7 +379,7 @@ expect=bgp:conn=1:hex=FFFFFFFF`
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing seq")
@@ -736,7 +736,8 @@ func TestParseCIOptionSkipOS(t *testing.T) {
 			require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 			et := NewEncodingTests(tmpDir)
-			require.NoError(t, et.parseAndAdd(ciFile))
+			_, err := et.parseAndAdd(ciFile)
+			require.NoError(t, err)
 
 			rec := et.GetByNick("0")
 			require.NotNil(t, rec)
@@ -767,7 +768,7 @@ func TestParseCIOptionSkipOSMissingValue(t *testing.T) {
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "skip-os")
 }

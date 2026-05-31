@@ -36,6 +36,16 @@ if __name__ == '__main__':
     main()
 EOF_RUN
 
+# The reject plugin participates in the bgp-root reload purely through the
+# top-level `external` declaration plus api.declare_config('bgp'); that makes it
+# a WantsConfig:["bgp"] reload participant. It is deliberately NOT bound as a
+# per-peer `process { }`: a per-peer binding is dropped when the web editor
+# re-serializes the candidate, which adds a bgp/peer/.../process removal to the
+# diff. A peer-touching diff routes the reload through the operation path
+# (decomposeBGPOperations), which only dispatches apply to operation owners and
+# never calls a non-operation participant's OnConfigApply -- so the rejection
+# would never fire. A router-id-only change keeps the reload on the full-diff
+# apply path, where every participant's OnConfigApply runs and the reject fires.
 tmpfs=web-commit-reject.conf:terminator=EOF_CONF
 plugin {
     external web-commit-reject {
@@ -69,7 +79,6 @@ bgp {
         behavior {
             group-updates disable
         }
-        process web-commit-reject { }
     }
 }
 EOF_CONF

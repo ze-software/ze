@@ -21,10 +21,12 @@ vpn {
 service {
     tftp-server {
         enabled true
+        root-directory /var/lib/tftp
     }
     image-server {
         enabled true
         listen-port 8080
+        image-directory /var/lib/images
     }
 }
 environment {

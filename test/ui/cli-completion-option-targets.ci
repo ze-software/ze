@@ -14,10 +14,10 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config completion --context bgp --input option+ test.conf
 expect=exit:code=0
-expect=stdout:contains=blame
-expect=stdout:contains=changes
 expect=stdout:contains=author
 expect=stdout:contains=date
 expect=stdout:contains=source
+expect=stdout:contains=changes
+expect=stdout:contains=errors
 expect=stdout:contains=all
 expect=stdout:contains=none

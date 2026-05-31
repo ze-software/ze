@@ -92,6 +92,13 @@ type slot struct {
 	length   uint16    // data length
 	refCount int32     // reference count
 	dead     bool      // marked for removal
+	// migrated marks a slot whose live bytes already reside in the current
+	// (new) buffer during an active compaction, so migrateBatch must not copy
+	// it from a stale old-buffer offset. Set when a free-list slot is reused by
+	// intern mid-compaction; only meaningful while state == PoolCompacting and
+	// cleared at the start of each compaction. Fits the slot's existing padding
+	// (no per-slot memory cost).
+	migrated bool
 }
 
 // shard is one independent sub-pool. It holds the full per-pool state (lock,
@@ -346,6 +353,11 @@ func (s *shard) intern(data []byte) (Handle, error) {
 		sl.length = uint16(len(data))
 		sl.refCount = 1
 		sl.dead = false
+		// During compaction the reused slot's bytes are written into the new
+		// (current) buffer; its old-buffer offset is stale from the previous
+		// occupant. Mark it so migrateBatch skips it rather than copying from
+		// that stale offset and clobbering the live new-buffer offset.
+		sl.migrated = s.state == PoolCompacting
 	} else {
 		slotIdx = uint32(len(s.slots))
 		newSlot := slot{
@@ -531,9 +543,11 @@ func (s *shard) getBySlot(localSlot uint32) ([]byte, error) {
 		return nil, ErrSlotDead
 	}
 
-	// Determine correct buffer
+	// Determine correct buffer. A slot reused by intern during compaction
+	// (sl.migrated) already lives in the current buffer even though the cursor
+	// has not reached it, so it must not be read from the old buffer.
 	bufIdx := s.currentBit
-	if s.state == PoolCompacting && localSlot >= s.compactCursor {
+	if s.state == PoolCompacting && localSlot >= s.compactCursor && !sl.migrated {
 		// Slot not yet migrated, use old buffer
 		bufIdx = 1 - s.currentBit
 	}
@@ -563,9 +577,11 @@ func (s *shard) releaseBySlot(localSlot uint32) error {
 
 	sl := &s.slots[localSlot]
 
-	// Determine correct buffer
+	// Determine correct buffer. A slot reused by intern during compaction
+	// (sl.migrated) already lives in the current buffer, so its buffer
+	// reference is the current buffer's, not the old one's.
 	bufIdx := s.currentBit
-	if s.state == PoolCompacting && localSlot >= s.compactCursor {
+	if s.state == PoolCompacting && localSlot >= s.compactCursor && !sl.migrated {
 		bufIdx = 1 - s.currentBit
 	}
 
@@ -660,10 +676,13 @@ func (s *shard) startCompaction() {
 		return // Already compacting
 	}
 
-	// Count live bytes for new buffer sizing
+	// Count live bytes for new buffer sizing. Also clear any stale migrated
+	// marks from a prior cycle: at the start of a fresh compaction every
+	// surviving slot's live bytes are in the old buffer and must be migrated.
 	var liveBytes int64
 	for i := range s.slots {
 		sl := &s.slots[i]
+		sl.migrated = false
 		if !sl.dead && sl.refCount > 0 {
 			liveBytes += int64(sl.length)
 		}
@@ -715,7 +734,18 @@ func (s *shard) migrateBatch(batchSize int) bool {
 	for s.compactCursor < s.compactSlotCount && migrated < batchSize {
 		sl := &s.slots[s.compactCursor]
 
-		if !sl.dead && sl.refCount > 0 {
+		switch {
+		case sl.dead || sl.refCount <= 0:
+			// Clear dead slot data reference (so Metrics doesn't count as dead)
+			sl.offsets[oldBit] = 0
+			sl.offsets[newBit] = 0
+			sl.length = 0
+		case sl.migrated:
+			// Slot was reused by intern during this compaction: its live bytes
+			// already reside in the new buffer at offsets[newBit] and its index
+			// entry already points there. Migrating it would copy from the stale
+			// old-buffer offset and clobber the live offset, so leave it as is.
+		default:
 			// Copy data from old buffer to new buffer
 			oldOffset := sl.offsets[oldBit]
 			oldData := oldBuf.data[oldOffset : oldOffset+uint32(sl.length)]
@@ -735,11 +765,6 @@ func (s *shard) migrateBatch(batchSize int) bool {
 			s.index[newKey] = newHandle
 
 			migrated++
-		} else {
-			// Clear dead slot data reference (so Metrics doesn't count as dead)
-			sl.offsets[oldBit] = 0
-			sl.offsets[newBit] = 0
-			sl.length = 0
 		}
 
 		s.compactCursor++
@@ -837,8 +862,10 @@ func (s *shard) rebuildIndex() {
 		sl := &s.slots[i]
 		if !sl.dead && sl.refCount > 0 {
 			// During compaction, skip unmigrated slots - they're already
-			// in preserved entries pointing to old buffer
-			if s.state == PoolCompacting && uint32(i) >= s.compactCursor {
+			// in preserved entries pointing to old buffer. A slot reused by
+			// intern mid-compaction (sl.migrated) already lives in the current
+			// buffer, so it must be re-indexed here, not skipped.
+			if s.state == PoolCompacting && uint32(i) >= s.compactCursor && !sl.migrated {
 				continue
 			}
 			offset := sl.offsets[bufIdx]

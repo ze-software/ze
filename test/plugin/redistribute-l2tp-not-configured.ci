@@ -54,9 +54,8 @@ plugin {
 		run ./l2tp-nocfg-test.run
 		encoder json
 	}
-	external fakel2tp {
+	internal fakel2tp {
 		use fakel2tp
-		encoder json
 	}
 }
 

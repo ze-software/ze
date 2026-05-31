@@ -946,12 +946,12 @@ func collectHardcodedListeners(tree *config.Tree) []serviceListener {
 	if apiCfg, ok := config.ExtractAPIConfig(tree); ok {
 		if apiCfg.RESTOn {
 			for _, s := range apiCfg.REST {
-				listeners = append(listeners, tcpListener("api-rest", s.Host, s.Port, "doctor-listen-unavailable"))
+				listeners = append(listeners, tcpListener("api-server-rest", s.Host, s.Port, "doctor-listen-unavailable"))
 			}
 		}
 		if apiCfg.GRPCOn {
 			for _, s := range apiCfg.GRPC {
-				listeners = append(listeners, tcpListener("api-grpc", s.Host, s.Port, "doctor-listen-unavailable"))
+				listeners = append(listeners, tcpListener("api-server-grpc", s.Host, s.Port, "doctor-listen-unavailable"))
 			}
 		}
 	}

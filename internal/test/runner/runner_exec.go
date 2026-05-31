@@ -30,6 +30,7 @@ var errEmptyExecCommand = errors.New("empty exec command")
 const (
 	modeForeground  = "foreground"
 	fileCheckFailed = "file_check_failed"
+	failParseError  = "parse_error"
 )
 
 // syncWriter is an io.Writer that captures output and supports waiting for patterns.
@@ -178,6 +179,15 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	if rec.SkipReason != "" {
 		rec.State = StateSkip
 		return true
+	}
+
+	// A .ci file that failed to parse at discovery (see EncodingTests.Discover)
+	// has no runnable commands. Report the parse error as a hard failure without
+	// attempting execution, so one bad file fails the suite loudly rather than
+	// aborting discovery of every other test.
+	if rec.ParseFailed {
+		rec.State = StateFail
+		return false
 	}
 
 	rec.State = StateStarting
@@ -903,7 +913,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		return false
 	}
 
-	// If testing exit code, validate it
+	// Validate the asserted exit code, if any. The comparison only makes sense
+	// when the test declared one; the output/logging/file assertions below run
+	// regardless.
 	if rec.ExpectExitCode != nil {
 		expectedCode := *rec.ExpectExitCode
 		actualCode := 0
@@ -917,86 +929,91 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			rec.FailureType = "exit_code_mismatch"
 			return false
 		}
-
-		// Check stderr match if specified
-		if rec.ExpectStderrMatch != "" {
-			if !strings.Contains(rec.ClientOutput, rec.ExpectStderrMatch) {
-				rec.Error = fmt.Errorf("stderr does not contain %q", rec.ExpectStderrMatch)
-				rec.FailureType = "stderr_mismatch"
-				return false
-			}
-		}
-
-		// Check stdout matches if specified
-		for _, expected := range rec.ExpectStdoutMatch {
-			if !strings.Contains(rec.ClientOutput, expected) {
-				rec.Error = fmt.Errorf("stdout does not contain %q", expected)
-				rec.FailureType = "stdout_mismatch"
-				return false
-			}
-		}
-
-		// Check stdout does NOT contain forbidden substrings if specified
-		for _, forbidden := range rec.ExpectStdoutNotMatch {
-			if strings.Contains(rec.ClientOutput, forbidden) {
-				rec.Error = fmt.Errorf("stdout unexpectedly contains %q", forbidden)
-				rec.FailureType = "stdout_mismatch"
-				return false
-			}
-		}
-
-		// Validate logging expectations (expect/reject stderr patterns, expect syslog)
-		if logErr := r.validateLogging(rec, clientStderr.String(), syslogSrv); logErr != nil {
-			rec.Error = logErr
-			rec.FailureType = FailTypeLoggingMismatch
-			return false
-		}
-		if fileErr := r.validateFileChecks(rec); fileErr != nil {
-			rec.Error = fileErr
-			rec.FailureType = fileCheckFailed
-			return false
-		}
-
-		return true
 	}
 
-	// Check for success
-	if err == nil && strings.Contains(rec.PeerOutput, "successful") {
-		// Validate JSON expectations
+	// Output assertions (stdout/stderr substrings) run whenever the test
+	// declares them, regardless of whether an exit code was asserted. These
+	// checks used to be nested inside the `if rec.ExpectExitCode != nil` block
+	// above, so a cmd=foreground test that only checked stdout/stderr/files (no
+	// expect=exit) had every assertion silently skipped and then fell through to
+	// a default "unknown" failure (handover §3).
+	if rec.ExpectStderrMatch != "" {
+		if !strings.Contains(rec.ClientOutput, rec.ExpectStderrMatch) {
+			rec.Error = fmt.Errorf("stderr does not contain %q", rec.ExpectStderrMatch)
+			rec.FailureType = "stderr_mismatch"
+			return false
+		}
+	}
+	for _, expected := range rec.ExpectStdoutMatch {
+		if !strings.Contains(rec.ClientOutput, expected) {
+			rec.Error = fmt.Errorf("stdout does not contain %q", expected)
+			rec.FailureType = "stdout_mismatch"
+			return false
+		}
+	}
+	for _, forbidden := range rec.ExpectStdoutNotMatch {
+		if strings.Contains(rec.ClientOutput, forbidden) {
+			rec.Error = fmt.Errorf("stdout unexpectedly contains %q", forbidden)
+			rec.FailureType = "stdout_mismatch"
+			return false
+		}
+	}
+
+	// Decide what governs this test's success:
+	//   * exit-code tests and peer-less foreground commands are self-validated by
+	//     the exit/output/file/logging assertions evaluated here;
+	//   * everything else (a ze-peer is present) is governed by BGP-level peer
+	//     synchronization and must see "successful" in the peer output.
+	// The !hasPeer guard matters: a peer test may also declare file checks, and
+	// it must still fail when the BGP exchange mismatches rather than passing on
+	// the file checks alone.
+	hasOutputAssertion := rec.ExpectStderrMatch != "" ||
+		len(rec.ExpectStdoutMatch) > 0 ||
+		len(rec.ExpectStdoutNotMatch) > 0 ||
+		len(rec.ExpectStderr) > 0 || len(rec.RejectStderr) > 0 ||
+		len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 ||
+		len(rec.FileChecks) > 0
+	selfValidated := rec.ExpectExitCode != nil || (!hasPeer && hasOutputAssertion)
+
+	if !selfValidated {
+		// BGP peer path: the peer process validates its own messages and prints
+		// "successful" on a clean exchange.
+		if err != nil || !strings.Contains(rec.PeerOutput, "successful") {
+			switch {
+			case strings.Contains(rec.PeerOutput, FailTypeMismatch):
+				rec.FailureType = FailTypeMismatch
+				rec.LastExpectedIdx, rec.LastReceivedIdx = extractMismatchIndices(rec.PeerOutput)
+			case strings.Contains(rec.PeerOutput, "connection refused"):
+				rec.FailureType = FailTypeConnectionRefuse
+			default:
+				rec.FailureType = stateUnknown
+			}
+			if err != nil {
+				rec.Error = err
+			}
+			return false
+		}
+		// Peer reported success: validate JSON expectations (peer path only).
 		if jsonErr := r.validateJSON(rec); jsonErr != nil {
 			rec.Error = jsonErr
 			rec.FailureType = FailTypeJSONMismatch
 			return false
 		}
-		// Validate logging expectations (expect/reject stderr patterns, expect syslog)
-		if logErr := r.validateLogging(rec, clientStderr.String(), syslogSrv); logErr != nil {
-			rec.Error = logErr
-			rec.FailureType = FailTypeLoggingMismatch
-			return false
-		}
-		if fileErr := r.validateFileChecks(rec); fileErr != nil {
-			rec.Error = fileErr
-			rec.FailureType = fileCheckFailed
-			return false
-		}
-		return true
 	}
 
-	// Determine failure type
-	switch {
-	case strings.Contains(rec.PeerOutput, FailTypeMismatch):
-		rec.FailureType = FailTypeMismatch
-		rec.LastExpectedIdx, rec.LastReceivedIdx = extractMismatchIndices(rec.PeerOutput)
-	case strings.Contains(rec.PeerOutput, "connection refused"):
-		rec.FailureType = FailTypeConnectionRefuse
-	default:
-		rec.FailureType = stateUnknown
+	// Common success tail: logging and file assertions apply to every passing
+	// path (exit-code, peer-less foreground, and BGP peer).
+	if logErr := r.validateLogging(rec, clientStderr.String(), syslogSrv); logErr != nil {
+		rec.Error = logErr
+		rec.FailureType = FailTypeLoggingMismatch
+		return false
 	}
-
-	if err != nil {
-		rec.Error = err
+	if fileErr := r.validateFileChecks(rec); fileErr != nil {
+		rec.Error = fileErr
+		rec.FailureType = fileCheckFailed
+		return false
 	}
-	return false
+	return true
 }
 
 // terminateGracefully sends SIGTERM to a process and waits for it to exit.

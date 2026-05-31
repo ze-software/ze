@@ -32,7 +32,7 @@ EOF_PEER
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	rec := et.GetByNick("0")
@@ -66,7 +66,7 @@ EOF_PEER
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.Error(t, err, "expected parse error for option=env inside peer block")
 
 	msg := err.Error()
@@ -109,6 +109,57 @@ EOF_PEER
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err, "non-env option directives inside peer block must be accepted")
+}
+
+// TestDiscoverSkipsUnparseableFile verifies that a single unparseable .ci file
+// is recorded as a failure but does NOT abort discovery of the rest of the
+// directory. A bad file used to error out of Discover and hide every other test
+// in the suite (see plan/handover-review-followups.md §1).
+//
+// VALIDATES: Discover returns nil with a bad file present; the good file is
+// discovered normally; the bad file is a permanent failure (ParseFailed +
+// StateFail + Error) so it still fails the suite loudly.
+// PREVENTS: one malformed .ci silently hiding an entire suite again.
+func TestDiscoverSkipsUnparseableFile(t *testing.T) {
+	ResetNickCounter()
+
+	tmpDir := t.TempDir()
+	confFile := filepath.Join(tmpDir, "test.conf")
+	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
+
+	// good.ci parses cleanly.
+	goodCI := `option=file:path=test.conf
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "good.ci"), []byte(goodCI), 0o600))
+
+	// bad.ci uses an unknown reject type, which parseReject rejects.
+	badCI := "option=file:path=test.conf\nreject=bogus:pattern=x\n"
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "bad.ci"), []byte(badCI), 0o600))
+
+	et := NewEncodingTests(tmpDir)
+	require.NoError(t, et.Discover(tmpDir), "discovery must not abort on one unparseable file")
+
+	require.Equal(t, 2, et.Count(), "both files must be present after discovery")
+
+	var good, bad *Record
+	for _, rec := range et.Registered() {
+		switch rec.Name {
+		case "good":
+			good = rec
+		case "bad":
+			bad = rec
+		}
+	}
+
+	require.NotNil(t, good, "good.ci must be discovered")
+	assert.False(t, good.ParseFailed, "good.ci must not be marked as a parse failure")
+	assert.Len(t, good.Messages, 1, "good.ci expectations must be parsed")
+
+	require.NotNil(t, bad, "bad.ci must still be recorded so it fails the suite")
+	assert.True(t, bad.ParseFailed, "bad.ci must be marked as a parse failure")
+	assert.Equal(t, StateFail, bad.State, "bad.ci must be a hard failure, not a skip")
+	require.Error(t, bad.Error, "bad.ci must carry the parse error")
+	assert.Equal(t, failParseError, bad.FailureType)
 }

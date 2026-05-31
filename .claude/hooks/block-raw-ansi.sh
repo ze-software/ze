@@ -37,7 +37,7 @@ if [[ -z "$CONTENT" ]]; then
 fi
 
 HITS=$(echo "$CONTENT" \
-    | grep -nE '\\033\[|\\x1b\[|\\e\[' \
+    | grep -niE '\\033\[|\\x1b\[|\\e\[|\\u001b\[|\\U0000001b\[' \
     | grep -vE '//.*\\033' \
     | head -5 || true)
 

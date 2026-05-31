@@ -329,6 +329,17 @@ func runValidation(input, path string) *validationResult {
 		result.addError("config-plugin-verify", verr.Error())
 	}
 
+	// Loader-level plugin extraction checks. ExtractPluginsFromTree runs the
+	// same static structural checks the boot path enforces (internal plugin
+	// requires `use`, duplicate plugin names across internal/external, reserved
+	// underscore prefix, run/use mutual exclusion). It operates only on the
+	// parsed tree (plus side-effect-free registered extractors), so it is safe
+	// to run offline without a booted runtime. Skipping it gave false
+	// confidence: configs that fail at boot were passing validation.
+	if _, extractErr := config.ExtractPluginsFromTree(tree); extractErr != nil {
+		result.addError("config-plugin-extract", extractErr.Error())
+	}
+
 	// BGP-specific validation only when bgp {} is present.
 	if tree.GetContainer("bgp") != nil {
 		bgpTree, resolveErr := bgpconfig.ResolveBGPTree(tree)

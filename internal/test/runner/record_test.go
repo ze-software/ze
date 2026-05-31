@@ -138,7 +138,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 
 			// Parse the .ci file
 			et := NewEncodingTests(tmpDir)
-			err := et.parseAndAdd(ciFile)
+			_, err := et.parseAndAdd(ciFile)
 			require.NoError(t, err)
 
 			// Get the parsed record
@@ -190,7 +190,7 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	rec := et.GetByNick("0")

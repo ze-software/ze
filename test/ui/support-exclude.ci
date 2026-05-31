@@ -2,4 +2,4 @@
 # VALIDATES: AC-3 of spec-support.md -- module exclusion
 cmd=foreground:seq=1:exec=ze support --exclude version --module version
 expect=exit:code=1
-expect=stderr:contains="mutually exclusive"
+expect=stderr:contains=mutually exclusive

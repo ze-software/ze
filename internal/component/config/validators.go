@@ -364,9 +364,9 @@ func RedistributeSourceValidator() yang.CustomValidator {
 }
 
 func sortedInternalPluginNames() []string {
-	names := registry.Names()
-	sort.Strings(names)
-	return names
+	// registry.Names already returns a freshly-allocated, alphabetically
+	// sorted slice, so no further sorting is needed here.
+	return registry.Names()
 }
 
 // InternalPluginNameValidator returns a validator for the internal plugin `use` leaf.

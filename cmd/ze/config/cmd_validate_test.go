@@ -203,6 +203,113 @@ func TestValidateRunsPluginConfigVerifier(t *testing.T) {
 	assert.Contains(t, result.Diagnostics[0].Message, "validate-test")
 }
 
+// TestValidateRejectsInternalPluginMissingUse verifies `ze config validate`
+// reports an internal plugin that omits the required `use` key, matching the
+// boot-path loader check (ExtractPluginsFromTree). The YANG schema does not mark
+// `use` mandatory, so only the loader check catches this; before wiring it in,
+// validate returned exit 0 for a config that fails at boot.
+//
+// VALIDATES: static validation runs the loader internal-plugin checks.
+// PREVENTS: `internal <name> {}` missing `use` passing validation but failing at boot.
+func TestValidateRejectsInternalPluginMissingUse(t *testing.T) {
+	conf := `plugin {
+	internal rib {
+	}
+}`
+	result := runValidation(conf, "missing-use.conf")
+	assert.False(t, result.Valid, "internal plugin without use should be invalid")
+
+	var found *diagnostic.Diagnostic
+	for i := range result.Diagnostics {
+		if result.Diagnostics[i].Code == "config-plugin-extract" {
+			found = &result.Diagnostics[i]
+			break
+		}
+	}
+	require.NotNil(t, found, "expected config-plugin-extract diagnostic")
+	assert.Contains(t, found.Message, "requires use")
+}
+
+// TestValidateRejectsDuplicatePluginName verifies `ze config validate` reports a
+// plugin name reused across the internal and external lists, matching the
+// boot-path loader check. YANG list keys are per-list, so the duplicate is legal
+// to the schema but rejected by ExtractPluginsFromTree at boot.
+//
+// VALIDATES: static validation rejects internal/external duplicate plugin names.
+// PREVENTS: duplicate plugin names passing validation but failing at boot.
+func TestValidateRejectsDuplicatePluginName(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	// Register the referenced plugin so the YANG internal-plugin-name validator
+	// on `use` passes and the only remaining error is the duplicate name.
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        "dup-test",
+		Description: "test plugin",
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+	}))
+
+	conf := `plugin {
+	internal dup {
+		use dup-test
+	}
+	external dup {
+		run /bin/true
+	}
+}`
+	result := runValidation(conf, "dup.conf")
+	assert.False(t, result.Valid, "duplicate plugin name should be invalid")
+
+	var found *diagnostic.Diagnostic
+	for i := range result.Diagnostics {
+		if result.Diagnostics[i].Code == "config-plugin-extract" {
+			found = &result.Diagnostics[i]
+			break
+		}
+	}
+	require.NotNil(t, found, "expected config-plugin-extract diagnostic")
+	assert.Contains(t, found.Message, "duplicate plugin name")
+}
+
+// TestValidateAcceptsInternalPluginWithUse verifies a well-formed internal
+// plugin block (name + registered `use`) still passes validation after the
+// loader checks were wired in, so the new check does not reject valid configs.
+//
+// VALIDATES: valid internal-plugin config passes static validation.
+// PREVENTS: the loader extraction check rejecting well-formed plugin blocks.
+func TestValidateAcceptsInternalPluginWithUse(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        "use-test",
+		Description: "test plugin",
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+	}))
+
+	conf := `plugin {
+	internal good {
+		use use-test
+	}
+}`
+	result := runValidation(conf, "valid-internal.conf")
+	if !result.Valid {
+		for _, d := range result.Diagnostics {
+			t.Logf("diagnostic: [%s] %s", d.Code, d.Message)
+		}
+	}
+	assert.True(t, result.Valid, "valid internal plugin config should pass")
+
+	for i := range result.Diagnostics {
+		assert.NotEqual(t, "config-plugin-extract", result.Diagnostics[i].Code,
+			"valid config should produce no plugin-extract diagnostic")
+	}
+}
+
 // TestValidateSemanticValidationWarnings verifies semantic checks produce warnings.
 //
 // VALIDATES: Missing router-id produces warning.

@@ -32,7 +32,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 
 	// Parse the test
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	// Verify tmpfs files were extracted
@@ -72,7 +72,7 @@ option=asn:value=65533
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	tests := et.Registered()
@@ -107,7 +107,7 @@ option=asn:value=65533
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	tests := et.Registered()
@@ -139,7 +139,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 
 	et := NewEncodingTests(tmpDir)
-	err := et.parseAndAdd(ciFile)
+	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
 	tests := et.Registered()

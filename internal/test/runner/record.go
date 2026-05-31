@@ -155,6 +155,13 @@ type Record struct {
 	// it and reports the reason (e.g. option=skip-os:value=darwin on non-Linux
 	// platforms). Set at parse time and persists across Activate() calls.
 	SkipReason string
+
+	// ParseFailed marks a .ci file that could not be parsed at discovery time.
+	// Discover records the file as a permanent failure (State=StateFail, Error
+	// set) and continues, so one unparseable file fails loudly without aborting
+	// discovery of the rest of the suite. The runner short-circuits such records
+	// without attempting execution.
+	ParseFailed bool
 }
 
 // RunCommand represents a process to run during test execution.
