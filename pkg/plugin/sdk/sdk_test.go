@@ -369,8 +369,8 @@ func TestSDKDecodeNLRI(t *testing.T) {
 
 	p, engine := newTestPair(t)
 
-	p.OnDecodeNLRI(func(family string, hex string) (string, error) {
-		return `["10.0.0.0/24"]`, nil
+	p.OnDecodeNLRI(func(family string, hex string) (any, error) {
+		return []string{"10.0.0.0/24"}, nil
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -392,12 +392,12 @@ func TestSDKDecodeNLRI(t *testing.T) {
 	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:decode-nlri", decInput)
 	require.NoError(t, err)
 
-	// CallRPC returns the result payload directly
+	// CallRPC returns the result payload directly — JSON field is raw JSON, not a quoted string
 	var result struct {
-		JSON string `json:"json"`
+		JSON json.RawMessage `json:"json"`
 	}
 	require.NoError(t, json.Unmarshal(raw, &result))
-	assert.Equal(t, `["10.0.0.0/24"]`, result.JSON)
+	assert.JSONEq(t, `["10.0.0.0/24"]`, string(result.JSON))
 
 	// Shutdown
 	byeInput := struct {
@@ -499,8 +499,8 @@ func TestSDKDecodeCapability(t *testing.T) {
 
 	p, engine := newTestPair(t)
 
-	p.OnDecodeCapability(func(code uint8, hex string) (string, error) {
-		return `{"hostname":"router1"}`, nil
+	p.OnDecodeCapability(func(code uint8, hex string) (any, error) {
+		return map[string]string{"hostname": "router1"}, nil
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -524,10 +524,10 @@ func TestSDKDecodeCapability(t *testing.T) {
 
 	// CallRPC returns the result payload directly
 	var result struct {
-		JSON string `json:"json"`
+		JSON json.RawMessage `json:"json"`
 	}
 	require.NoError(t, json.Unmarshal(raw, &result))
-	assert.Equal(t, `{"hostname":"router1"}`, result.JSON)
+	assert.JSONEq(t, `{"hostname":"router1"}`, string(result.JSON))
 
 	// Shutdown
 	byeInput := struct {
@@ -1483,13 +1483,13 @@ func TestSDKDecodeNLRIEngineCall(t *testing.T) {
 
 	// Plugin calls DecodeNLRI in background
 	decodeDone := make(chan struct {
-		json string
+		json json.RawMessage
 		err  error
 	}, 1)
 	go func() {
 		j, err := p.DecodeNLRI(ctx, "ipv4/flow", "0701180A0000")
 		decodeDone <- struct {
-			json string
+			json json.RawMessage
 			err  error
 		}{j, err}
 	}()
@@ -1506,13 +1506,13 @@ func TestSDKDecodeNLRIEngineCall(t *testing.T) {
 
 	// Respond with JSON result
 	decodeResult := struct {
-		JSON string `json:"json"`
-	}{JSON: `[{"source":"10.0.0.0/24"}]`}
+		JSON json.RawMessage `json:"json"`
+	}{JSON: json.RawMessage(`[{"source":"10.0.0.0/24"}]`)}
 	require.NoError(t, engine.mux.SendResult(ctx, req.ID, decodeResult))
 
 	r := <-decodeDone
 	require.NoError(t, r.err)
-	assert.Equal(t, `[{"source":"10.0.0.0/24"}]`, r.json)
+	assert.JSONEq(t, `[{"source":"10.0.0.0/24"}]`, string(r.json))
 
 	// Shutdown
 	byeInput := struct {

@@ -66,30 +66,25 @@ func RunEVPNPlugin(conn net.Conn) int {
 	return 0
 }
 
-// DecodeNLRIHex decodes EVPN NLRI from hex bytes, returning JSON.
+// DecodeNLRIHex decodes EVPN NLRI from hex bytes, returning a data structure.
 // This is the in-process fast path registered in the plugin registry.
 // Same logic as the OnDecodeNLRI SDK callback but callable without RPC.
-func DecodeNLRIHex(family, hexStr string) (string, error) {
+func DecodeNLRIHex(family, hexStr string) (any, error) {
 	if !isValidEVPNFamily(family) {
-		return "", fmt.Errorf("unsupported family: %s", family)
+		return nil, fmt.Errorf("unsupported family: %s", family)
 	}
 
 	data, err := hex.DecodeString(hexStr)
 	if err != nil {
-		return "", fmt.Errorf("invalid hex: %w", err)
+		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
 	results := decodeEVPNNLRI(data)
 	if len(results) == 0 {
-		return "", errNoValidEvpnRoutesDecoded
+		return nil, errNoValidEvpnRoutesDecoded
 	}
 
-	jsonBytes, err := json.Marshal(results)
-	if err != nil {
-		return "", fmt.Errorf("JSON encoding failed: %w", err)
-	}
-
-	return string(jsonBytes), nil
+	return results, nil
 }
 
 // EncodeNLRIHex encodes EVPN NLRI from text args, returning hex bytes.

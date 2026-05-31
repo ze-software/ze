@@ -108,8 +108,12 @@ func TestDecodeNLRIHex(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
+			raw, err := json.Marshal(result)
+			if err != nil {
+				t.Fatalf("marshal failed: %v", err)
+			}
 			var m map[string]any
-			if err := json.Unmarshal([]byte(result), &m); err != nil {
+			if err := json.Unmarshal(raw, &m); err != nil {
 				t.Fatalf("invalid JSON: %v", err)
 			}
 			got, ok := m[tt.wantKey]

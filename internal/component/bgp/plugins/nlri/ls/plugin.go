@@ -42,33 +42,25 @@ func RunBGPLSPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-nlri-ls", conn)
 	defer func() { _ = p.Close() }()
 
-	p.OnDecodeNLRI(func(family string, hexStr string) (string, error) {
+	p.OnDecodeNLRI(func(family string, hexStr string) (any, error) {
 		if !isValidBGPLSFamily(family) {
-			return "", fmt.Errorf("unsupported family: %s", family)
+			return nil, fmt.Errorf("unsupported family: %s", family)
 		}
 
 		data, err := hex.DecodeString(hexStr)
 		if err != nil {
-			return "", fmt.Errorf("invalid hex: %w", err)
+			return nil, fmt.Errorf("invalid hex: %w", err)
 		}
 
 		results := decodeBGPLSNLRI(data)
 		if len(results) == 0 {
-			return "", errNoValidBgpLsNlrisDecoded
+			return nil, errNoValidBgpLsNlrisDecoded
 		}
 
-		// Single object for single NLRI, array for multiple.
-		var jsonBytes []byte
 		if len(results) == 1 {
-			jsonBytes, err = json.Marshal(results[0])
-		} else {
-			jsonBytes, err = json.Marshal(results)
+			return results[0], nil
 		}
-		if err != nil {
-			return "", fmt.Errorf("JSON encoding failed: %w", err)
-		}
-
-		return string(jsonBytes), nil
+		return results, nil
 	})
 
 	ctx, cancel := sdk.SignalContext()

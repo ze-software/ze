@@ -37,11 +37,11 @@ func handleDecodeNLRI(params json.RawMessage) (any, error) {
 	if err := json.Unmarshal(params, &input); err != nil {
 		return nil, fmt.Errorf("invalid decode-nlri params: %w", err)
 	}
-	result, err := registry.DecodeNLRIByFamily(input.Family, input.Hex)
+	raw, err := registry.DecodeNLRIByFamily(input.Family, input.Hex)
 	if err != nil {
 		return nil, err
 	}
-	return &rpc.DecodeNLRIOutput{JSON: result}, nil
+	return &rpc.DecodeNLRIOutput{JSON: raw}, nil
 }
 
 // handleEncodeNLRI handles ze-plugin-engine:encode-nlri from a plugin.
@@ -189,11 +189,7 @@ func decodeMPNLRIs(nlriBytes []byte, fam family.Family, addPath bool) (json.RawM
 	familyStr := fam.String()
 	if registry.PluginForFamily(familyStr) != "" {
 		nlriHex := hex.EncodeToString(nlriBytes)
-		result, err := registry.DecodeNLRIByFamily(familyStr, nlriHex)
-		if err != nil {
-			return nil, err
-		}
-		return json.RawMessage(result), nil
+		return registry.DecodeNLRIByFamily(familyStr, nlriHex)
 	}
 
 	// Core families: parse via nlri package (IPv4/IPv6 unicast/multicast)

@@ -339,18 +339,18 @@ p.OnEncodeNLRI(func(family string, args []string) (string, error) {
     return hex, err
 })
 
-// Decode NLRI from hex to JSON
-p.OnDecodeNLRI(func(family string, hex string) (string, error) {
-    json, err := decodeFlowSpec(family, hex)
-    return json, err
+// Decode NLRI from hex to data structure (SDK marshals once)
+p.OnDecodeNLRI(func(family string, hex string) (any, error) {
+    result, err := decodeFlowSpec(family, hex)
+    return result, err
 })
 
-// Decode capability from hex to JSON
-p.OnDecodeCapability(func(code uint8, hex string) (string, error) {
+// Decode capability from hex to data structure (SDK marshals once)
+p.OnDecodeCapability(func(code uint8, hex string) (any, error) {
     if code == 73 { // FQDN
         return decodeFQDN(hex)
     }
-    return "", fmt.Errorf("unknown capability code: %d", code)
+    return nil, fmt.Errorf("unknown capability code: %d", code)
 })
 ```
 

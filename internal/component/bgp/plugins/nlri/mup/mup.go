@@ -51,31 +51,25 @@ func RunMUPPlugin(conn net.Conn) int {
 	return 0
 }
 
-// DecodeNLRIHex decodes MUP NLRI from hex bytes, returning JSON.
+// DecodeNLRIHex decodes MUP NLRI from hex bytes, returning a data structure.
 // This is the in-process fast path registered in the plugin registry.
-func DecodeNLRIHex(family, hexStr string) (string, error) {
+func DecodeNLRIHex(family, hexStr string) (any, error) {
 	afi, err := familyToAFI(family)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	data, err := hex.DecodeString(hexStr)
 	if err != nil {
-		return "", fmt.Errorf("invalid hex: %w", err)
+		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
 	mup, _, err := ParseMUP(afi, data)
 	if err != nil {
-		return "", fmt.Errorf("parse MUP failed: %w", err)
+		return nil, fmt.Errorf("parse MUP failed: %w", err)
 	}
 
-	result := mupToJSON(mup)
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", fmt.Errorf("JSON encoding failed: %w", err)
-	}
-
-	return string(jsonBytes), nil
+	return mupToJSON(mup), nil
 }
 
 // RunCLIDecode decodes MUP NLRI from hex string for CLI mode.
@@ -143,10 +137,12 @@ func RunDecode(input io.Reader, output io.Writer) int {
 		if len(parts) >= 4 && parts[0] == "decode" && parts[1] == "nlri" {
 			fam := parts[2]
 			hexData := parts[3]
-			jsonStr, err := DecodeNLRIHex(fam, hexData)
+			data, err := DecodeNLRIHex(fam, hexData)
 			if err == nil {
-				write("decoded json " + jsonStr)
-				continue
+				if raw, merr := json.Marshal(data); merr == nil {
+					write("decoded json " + string(raw))
+					continue
+				}
 			}
 		}
 		write("decoded unknown")

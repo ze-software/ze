@@ -157,15 +157,15 @@ func (p *Plugin) UnsubscribeEvents(ctx context.Context) error {
 // DecodeNLRI requests NLRI decoding from the engine via the plugin registry.
 // The engine routes the request to the in-process decoder for the given family.
 // Returns the JSON representation of the decoded NLRI.
-func (p *Plugin) DecodeNLRI(ctx context.Context, family, hex string) (string, error) {
+func (p *Plugin) DecodeNLRI(ctx context.Context, family, hex string) (json.RawMessage, error) {
 	input := &rpc.DecodeNLRIInput{Family: family, Hex: hex}
 	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:decode-nlri", input)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	var out rpc.DecodeNLRIOutput
 	if err := json.Unmarshal(result, &out); err != nil {
-		return "", fmt.Errorf("unmarshal decode-nlri result: %w", err)
+		return nil, fmt.Errorf("unmarshal decode-nlri result: %w", err)
 	}
 	return out.JSON, nil
 }

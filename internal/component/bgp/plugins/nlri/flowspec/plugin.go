@@ -68,30 +68,25 @@ func RunFlowSpecPlugin(conn net.Conn) int {
 	return 0
 }
 
-// DecodeNLRIHex decodes FlowSpec NLRI from hex bytes, returning JSON.
+// DecodeNLRIHex decodes FlowSpec NLRI from hex bytes, returning a data structure.
 // This is the in-process fast path registered in the plugin registry.
 // Same logic as the OnDecodeNLRI SDK callback but callable without RPC.
-func DecodeNLRIHex(family, hexStr string) (string, error) {
+func DecodeNLRIHex(family, hexStr string) (any, error) {
 	if !isValidFlowSpecFamily(family) {
-		return "", fmt.Errorf("unsupported family: %s", family)
+		return nil, fmt.Errorf("unsupported family: %s", family)
 	}
 
 	data, err := hex.DecodeString(hexStr)
 	if err != nil {
-		return "", fmt.Errorf("invalid hex: %w", err)
+		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
 	result := decodeFlowSpecNLRI(family, data)
 	if result == nil {
-		return "", errNoValidFlowspecDecoded
+		return nil, errNoValidFlowspecDecoded
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", fmt.Errorf("JSON encoding failed: %w", err)
-	}
-
-	return string(jsonBytes), nil
+	return result, nil
 }
 
 // EncodeNLRIHex encodes FlowSpec NLRI from text args, returning hex bytes.

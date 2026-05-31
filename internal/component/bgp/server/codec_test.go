@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"net"
 	"testing"
 
@@ -53,8 +52,8 @@ func TestHandleDecodeNLRI(t *testing.T) {
 		Name:        "test-decoder",
 		Description: "test",
 		Families:    []string{"ipv4/flow"},
-		InProcessNLRIDecoder: func(family, hex string) (string, error) {
-			return fmt.Sprintf(`[{"family":%q,"hex":%q}]`, family, hex), nil
+		InProcessNLRIDecoder: func(family, hex string) (any, error) {
+			return []map[string]string{{"family": family, "hex": hex}}, nil
 		},
 		RunEngine:  func(_ net.Conn) int { return 0 },
 		CLIHandler: func([]string) int { return 0 },
@@ -71,7 +70,7 @@ func TestHandleDecodeNLRI(t *testing.T) {
 
 	out, ok := result.(*rpc.DecodeNLRIOutput)
 	require.True(t, ok)
-	assert.Equal(t, `[{"family":"ipv4/flow","hex":"0701180A0000"}]`, out.JSON)
+	assert.JSONEq(t, `[{"family":"ipv4/flow","hex":"0701180A0000"}]`, string(out.JSON))
 }
 
 // TestHandleEncodeNLRI verifies encode-nlri routes through compile-time registry.

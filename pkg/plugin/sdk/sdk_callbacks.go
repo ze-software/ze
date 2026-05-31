@@ -133,8 +133,9 @@ func (p *Plugin) OnEncodeNLRI(fn func(family string, args []string) (string, err
 }
 
 // OnDecodeNLRI sets the handler for NLRI decoding requests.
-// The handler receives the address family and hex-encoded NLRI, and returns JSON.
-func (p *Plugin) OnDecodeNLRI(fn func(family string, hex string) (string, error)) {
+// The handler receives the address family and hex-encoded NLRI, and returns
+// a Go data structure. The SDK marshals it once into the response.
+func (p *Plugin) OnDecodeNLRI(fn func(family string, hex string) (any, error)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackDecodeNLRI] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -142,19 +143,24 @@ func (p *Plugin) OnDecodeNLRI(fn func(family string, hex string) (string, error)
 		if err := json.Unmarshal(params, &input); err != nil {
 			return nil, fmt.Errorf("unmarshal decode-nlri: %w", err)
 		}
-		jsonResult, err := fn(input.Family, input.Hex)
+		data, err := fn(input.Family, input.Hex)
 		if err != nil {
 			return nil, err
 		}
+		raw, err := json.Marshal(data)
+		if err != nil {
+			return nil, fmt.Errorf("marshal decode-nlri result: %w", err)
+		}
 		return json.Marshal(struct {
-			JSON string `json:"json"`
-		}{JSON: jsonResult})
+			JSON json.RawMessage `json:"json"`
+		}{JSON: raw})
 	}
 }
 
 // OnDecodeCapability sets the handler for capability decoding requests.
-// The handler receives the capability code and hex-encoded bytes, and returns JSON.
-func (p *Plugin) OnDecodeCapability(fn func(code uint8, hex string) (string, error)) {
+// The handler receives the capability code and hex-encoded bytes, and returns
+// a Go data structure. The SDK marshals it once into the response.
+func (p *Plugin) OnDecodeCapability(fn func(code uint8, hex string) (any, error)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackDecodeCapability] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -162,13 +168,17 @@ func (p *Plugin) OnDecodeCapability(fn func(code uint8, hex string) (string, err
 		if err := json.Unmarshal(params, &input); err != nil {
 			return nil, fmt.Errorf("unmarshal decode-capability: %w", err)
 		}
-		jsonResult, err := fn(input.Code, input.Hex)
+		data, err := fn(input.Code, input.Hex)
 		if err != nil {
 			return nil, err
 		}
+		raw, err := json.Marshal(data)
+		if err != nil {
+			return nil, fmt.Errorf("marshal decode-capability result: %w", err)
+		}
 		return json.Marshal(struct {
-			JSON string `json:"json"`
-		}{JSON: jsonResult})
+			JSON json.RawMessage `json:"json"`
+		}{JSON: raw})
 	}
 }
 

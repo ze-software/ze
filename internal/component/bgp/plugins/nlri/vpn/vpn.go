@@ -72,35 +72,28 @@ func RunVPNPlugin(conn net.Conn) int {
 	return 0
 }
 
-// DecodeNLRIHex decodes VPN NLRI from hex bytes, returning JSON.
+// DecodeNLRIHex decodes VPN NLRI from hex bytes, returning a data structure.
 // This is the in-process fast path registered in the plugin registry.
 // Same logic as the OnDecodeNLRI SDK callback but callable without RPC.
-func DecodeNLRIHex(family, hexStr string) (string, error) {
+func DecodeNLRIHex(family, hexStr string) (any, error) {
 	if !isValidVPNFamily(family) {
-		return "", fmt.Errorf("unsupported family: %s", family)
+		return nil, fmt.Errorf("unsupported family: %s", family)
 	}
 
 	data, err := hex.DecodeString(hexStr)
 	if err != nil {
-		return "", fmt.Errorf("invalid hex: %w", err)
+		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
 	results := decodeVPNNLRI(family, data)
 	if len(results) == 0 {
-		return "", errNoValidVpnRoutesDecoded
+		return nil, errNoValidVpnRoutesDecoded
 	}
 
-	var jsonBytes []byte
 	if len(results) == 1 {
-		jsonBytes, err = json.Marshal(results[0])
-	} else {
-		jsonBytes, err = json.Marshal(results)
+		return results[0], nil
 	}
-	if err != nil {
-		return "", fmt.Errorf("JSON encoding failed: %w", err)
-	}
-
-	return string(jsonBytes), nil
+	return results, nil
 }
 
 // EncodeNLRIHex encodes VPN NLRI from text args, returning hex bytes.

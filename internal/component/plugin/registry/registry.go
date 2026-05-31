@@ -75,7 +75,7 @@ type Registration struct {
 	// In-process NLRI decode/encode: fast path for infrastructure code (text.go, update_text.go)
 	// that avoids plugin package imports. Same semantics as the SDK's OnDecodeNLRI/OnEncodeNLRI
 	// callbacks, but callable directly without RPC. External plugins use the RPC path instead.
-	InProcessNLRIDecoder func(family, hex string) (string, error)           // (family, hex) → JSON
+	InProcessNLRIDecoder func(family, hex string) (any, error)              // (family, hex) → data (marshaled by registry)
 	InProcessNLRIEncoder func(family string, args []string) (string, error) // (family, args) → hex
 
 	// In-process route encoder: builds a full UPDATE message for a given family.
@@ -614,14 +614,22 @@ func RequiredPlugins(families []string) []string {
 // in-process NLRI decoder. Returns the JSON result and nil on success.
 // Returns an error if no decoder is registered or the decoder fails.
 // This is the fast path — external plugins use RPC via Server.DecodeNLRI instead.
-func DecodeNLRIByFamily(family, hexData string) (string, error) {
+func DecodeNLRIByFamily(family, hexData string) (json.RawMessage, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 
 	if reg := familyIndex[family]; reg != nil && reg.InProcessNLRIDecoder != nil {
-		return reg.InProcessNLRIDecoder(family, hexData)
+		data, err := reg.InProcessNLRIDecoder(family, hexData)
+		if err != nil {
+			return nil, err
+		}
+		raw, err := json.Marshal(data)
+		if err != nil {
+			return nil, fmt.Errorf("marshal NLRI decode result: %w", err)
+		}
+		return raw, nil
 	}
-	return "", fmt.Errorf("no NLRI decoder for family %s", family)
+	return nil, fmt.Errorf("no NLRI decoder for family %s", family)
 }
 
 // EncodeNLRIByFamily finds the plugin registered for a family and calls its

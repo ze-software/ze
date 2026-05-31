@@ -166,7 +166,7 @@ type DecodeNLRIInput struct {
 
 // DecodeNLRIOutput is the output for ze-plugin-engine:decode-nlri (plugin→engine).
 type DecodeNLRIOutput struct {
-	JSON string `json:"json"`
+	JSON json.RawMessage `json:"json"`
 }
 
 // DecodeMPReachInput is the input for ze-plugin-engine:decode-mp-reach (plugin→engine).

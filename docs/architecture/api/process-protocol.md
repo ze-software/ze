@@ -260,8 +260,8 @@ For external plugins, the process is expected to exit cleanly after receiving by
 | `config-apply` | `ConfigApplyInput` | `ConfigApplyOutput` | Apply config changes |
 | `validate-open` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate OPEN message |
 | `encode-nlri` | `EncodeNLRIInput` | `{"hex":"..."}` | Encode NLRI |
-| `decode-nlri` | `DecodeNLRIInput` | `{"json":"..."}` | Decode NLRI |
-| `decode-capability` | `DecodeCapabilityInput` | `{"json":"..."}` | Decode capability |
+| `decode-nlri` | `DecodeNLRIInput` | `{"json":<raw JSON>}` | Decode NLRI |
+| `decode-capability` | `DecodeCapabilityInput` | `{"json":<raw JSON>}` | Decode capability |
 | `bye` | `ByeInput` | `ok` | Shutdown signal |
 | `filter-update` | `FilterUpdateInput` | `FilterUpdateOutput` | Route filter request |
 
@@ -537,9 +537,9 @@ NLRI encode/decode requests are routed via the engine's plugin registry:
 | Direction | RPC Method | Input | Output |
 |-----------|-----------|-------|--------|
 | Plugin to Engine | `ze-plugin-engine:encode-nlri` | `{"family":"...","args":[...]}` | `{"hex":"..."}` |
-| Plugin to Engine | `ze-plugin-engine:decode-nlri` | `{"family":"...","hex":"..."}` | `{"json":"..."}` |
+| Plugin to Engine | `ze-plugin-engine:decode-nlri` | `{"family":"...","hex":"..."}` | `{"json":<raw JSON>}` |
 | Engine to Plugin | `ze-plugin-callback:encode-nlri` | `{"family":"...","args":[...]}` | `{"hex":"..."}` |
-| Engine to Plugin | `ze-plugin-callback:decode-nlri` | `{"family":"...","hex":"..."}` | `{"json":"..."}` |
+| Engine to Plugin | `ze-plugin-callback:decode-nlri` | `{"family":"...","hex":"..."}` | `{"json":<raw JSON>}` |
 
 **How it works:**
 1. Plugin calls `EncodeNLRI`/`DecodeNLRI` via engine RPC
@@ -708,14 +708,14 @@ SAFI names abort plugin startup.
 | RPC | Input | Output |
 |-----|-------|--------|
 | `ze-plugin-callback:encode-nlri` | `{"family":"ipv4/flow","args":["destination","10.0.0.0/24"]}` | `{"hex":"0701180A0000"}` |
-| `ze-plugin-callback:decode-nlri` | `{"family":"ipv4/flow","hex":"0701180A0000"}` | `{"json":"{\"destination\":...}"}` |
+| `ze-plugin-callback:decode-nlri` | `{"family":"ipv4/flow","hex":"0701180A0000"}` | `{"json":{"destination":...}}` |
 
 **Plugin to Engine (via registry):**
 
 | RPC | Input | Output |
 |-----|-------|--------|
 | `ze-plugin-engine:encode-nlri` | `{"family":"ipv4/flow","args":["destination","10.0.0.0/24"]}` | `{"hex":"0701180A0000"}` |
-| `ze-plugin-engine:decode-nlri` | `{"family":"ipv4/flow","hex":"0701180A0000"}` | `{"json":"{\"destination\":...}"}` |
+| `ze-plugin-engine:decode-nlri` | `{"family":"ipv4/flow","hex":"0701180A0000"}` | `{"json":{"destination":...}}` |
 
 ### Additional Decode RPCs (Plugin to Engine)
 

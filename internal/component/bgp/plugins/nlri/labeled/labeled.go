@@ -57,21 +57,27 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 		_ = e
 	}
 
-	jsonStr, err := DecodeNLRIHex(family, hexData)
+	data, err := DecodeNLRIHex(family, hexData)
+	if err != nil {
+		writeErr("error: %v\n", err)
+		return 1
+	}
+
+	raw, err := json.Marshal(data)
 	if err != nil {
 		writeErr("error: %v\n", err)
 		return 1
 	}
 
 	if textOutput {
-		text := formatLabeledText(jsonStr)
+		text := formatLabeledText(string(raw))
 		if _, e := fmt.Fprintln(output, text); e != nil {
 			return 1
 		}
 		return 0
 	}
 
-	if _, e := fmt.Fprintln(output, jsonStr); e != nil {
+	if _, e := fmt.Fprintln(output, string(raw)); e != nil {
 		return 1
 	}
 	return 0
@@ -122,10 +128,12 @@ func RunDecode(input io.Reader, output io.Writer) int {
 			fam := parts[2]
 			hexData := parts[3]
 
-			jsonStr, err := DecodeNLRIHex(fam, hexData)
+			data, err := DecodeNLRIHex(fam, hexData)
 			if err == nil {
-				write("decoded json " + jsonStr)
-				continue
+				if raw, merr := json.Marshal(data); merr == nil {
+					write("decoded json " + string(raw))
+					continue
+				}
 			}
 		}
 

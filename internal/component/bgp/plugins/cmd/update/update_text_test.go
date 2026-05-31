@@ -176,10 +176,12 @@ func testDecodeVPN(t *testing.T, n nlri.NLRI) map[string]any {
 	wire, ok := n.(*nlri.WireNLRI)
 	require.True(t, ok, "expected WireNLRI, got %T", n)
 	hexData := hex.EncodeToString(wire.Bytes())
-	jsonStr, err := vpn.DecodeNLRIHex(wire.Family().String(), hexData)
+	result, err := vpn.DecodeNLRIHex(wire.Family().String(), hexData)
 	require.NoError(t, err, "VPN decode failed")
+	raw, err := json.Marshal(result)
+	require.NoError(t, err, "VPN JSON marshal failed")
 	var data map[string]any
-	err = json.Unmarshal([]byte(jsonStr), &data)
+	err = json.Unmarshal(raw, &data)
 	require.NoError(t, err, "VPN JSON parse failed")
 	return data
 }
@@ -192,10 +194,12 @@ func testDecodeEVPN(t *testing.T, n nlri.NLRI) map[string]any {
 	wire, ok := n.(*nlri.WireNLRI)
 	require.True(t, ok, "expected WireNLRI, got %T", n)
 	hexData := hex.EncodeToString(wire.Bytes())
-	jsonStr, err := evpn.DecodeNLRIHex(wire.Family().String(), hexData)
+	result, err := evpn.DecodeNLRIHex(wire.Family().String(), hexData)
 	require.NoError(t, err, "EVPN decode failed")
+	raw, err := json.Marshal(result)
+	require.NoError(t, err, "EVPN JSON marshal failed")
 	var data []map[string]any
-	err = json.Unmarshal([]byte(jsonStr), &data)
+	err = json.Unmarshal(raw, &data)
 	require.NoError(t, err, "EVPN JSON parse failed")
 	require.Len(t, data, 1, "expected single EVPN route")
 	return data[0]
@@ -1783,8 +1787,8 @@ func TestParseUpdateText_LabeledUnicast(t *testing.T) {
 	require.True(t, ok, "expected WireNLRI, got %T", result.Groups[0].Announce[0])
 	decoded, err := registry.DecodeNLRIByFamily(wireNLRI.Family().String(), hex.EncodeToString(wireNLRI.Bytes()))
 	require.NoError(t, err)
-	assert.Contains(t, decoded, `"prefix":"10.0.0.0/24"`)
-	assert.Contains(t, decoded, `"labels":[1000]`)
+	assert.Contains(t, string(decoded), `"prefix":"10.0.0.0/24"`)
+	assert.Contains(t, string(decoded), `"labels":[1000]`)
 }
 
 // TestParseUpdateText_LabeledUnicastMissingLabel verifies labeled unicast requires label.
@@ -1837,7 +1841,7 @@ func TestParseUpdateText_IPv6LabeledUnicast(t *testing.T) {
 	require.True(t, ok, "expected WireNLRI, got %T", result.Groups[0].Announce[0])
 	decoded, err := registry.DecodeNLRIByFamily(wireNLRI.Family().String(), hex.EncodeToString(wireNLRI.Bytes()))
 	require.NoError(t, err)
-	assert.Contains(t, decoded, `"prefix":"2001:db8:1::/48"`)
+	assert.Contains(t, string(decoded), `"prefix":"2001:db8:1::/48"`)
 }
 
 // TestParseUpdateText_VPNWithPathInfo removed: tested top-level path-information set syntax.
@@ -1945,7 +1949,7 @@ func TestParseUpdateText_InNLRIModifierLabelOnly(t *testing.T) {
 	require.True(t, ok, "expected WireNLRI, got %T", result.Groups[0].Announce[0])
 	decoded, err := registry.DecodeNLRIByFamily(wireNLRI.Family().String(), hex.EncodeToString(wireNLRI.Bytes()))
 	require.NoError(t, err)
-	assert.Contains(t, decoded, `"labels":[1000]`)
+	assert.Contains(t, string(decoded), `"labels":[1000]`)
 }
 
 // TestParseUpdateText_InNLRIModifierRDOnlyStillNeedsLabel verifies rd-only still requires label.

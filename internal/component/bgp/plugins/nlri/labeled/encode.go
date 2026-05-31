@@ -30,27 +30,27 @@ var (
 	errMissingRouteCommand                 = errors.New("missing route command")
 )
 
-// DecodeNLRIHex decodes labeled unicast NLRI from hex and returns JSON.
+// DecodeNLRIHex decodes labeled unicast NLRI from hex and returns a data structure.
 // This implements the InProcessNLRIDecoder signature for the plugin registry.
 //
 // Wire format (RFC 8277 Section 2.2): [length_byte][label_stack (3*N bytes)][prefix_bytes].
-// Output JSON: {"prefix":"10.0.0.0/24","labels":[100]}.
-func DecodeNLRIHex(famName, hexStr string) (string, error) {
+// Output: map with "prefix" and "labels" keys.
+func DecodeNLRIHex(famName, hexStr string) (any, error) {
 	fam, ok := family.LookupFamily(famName)
 	if !ok {
-		return "", fmt.Errorf("unknown family: %s", famName)
+		return nil, fmt.Errorf("unknown family: %s", famName)
 	}
 	if fam.SAFI != SAFIMPLSLabel {
-		return "", fmt.Errorf("unsupported family for labeled unicast: %s", famName)
+		return nil, fmt.Errorf("unsupported family for labeled unicast: %s", famName)
 	}
 
 	data, err := hex.DecodeString(hexStr)
 	if err != nil {
-		return "", fmt.Errorf("invalid hex: %w", err)
+		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
 	if len(data) < 4 { // minimum: 1 length + 3 label bytes
-		return "", errTruncatedLabeledUnicastNlri
+		return nil, errTruncatedLabeledUnicastNlri
 	}
 
 	totalBits := int(data[0])
@@ -71,12 +71,12 @@ func DecodeNLRIHex(famName, hexStr string) (string, error) {
 	// Parse prefix
 	prefixBits := totalBits - len(labels)*24
 	if prefixBits < 0 {
-		return "", fmt.Errorf("invalid labeled unicast: totalBits=%d labels=%d", totalBits, len(labels))
+		return nil, fmt.Errorf("invalid labeled unicast: totalBits=%d labels=%d", totalBits, len(labels))
 	}
 
 	prefixBytes := nlri.PrefixBytes(prefixBits)
 	if pos+prefixBytes > len(data) {
-		return "", errTruncatedPrefixInLabeledUnicastNlri
+		return nil, errTruncatedPrefixInLabeledUnicastNlri
 	}
 
 	var addr netip.Addr
@@ -91,25 +91,13 @@ func DecodeNLRIHex(famName, hexStr string) (string, error) {
 	}
 	prefix := netip.PrefixFrom(addr, prefixBits)
 
-	// Build JSON
-	var sb strings.Builder
-	sb.WriteString(`{"prefix":"`)
-	sb.WriteString(prefix.String())
-	sb.WriteString(`"`)
-
-	if len(labels) > 0 {
-		sb.WriteString(`,"labels":[`)
-		for i, l := range labels {
-			if i > 0 {
-				sb.WriteString(",")
-			}
-			fmt.Fprintf(&sb, "%d", l)
-		}
-		sb.WriteString(`]`)
+	result := map[string]any{
+		"prefix": prefix.String(),
 	}
-
-	sb.WriteString(`}`)
-	return sb.String(), nil
+	if len(labels) > 0 {
+		result["labels"] = labels
+	}
+	return result, nil
 }
 
 // EncodeNLRIHex encodes labeled unicast NLRI from CLI-style args and returns uppercase hex.
