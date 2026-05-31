@@ -6,7 +6,11 @@
 /ze
 /ze-*
 /functional
-tmp/
+# Ignore the scratch dir, but track the tmp/go.mod sentinel: it marks tmp/ as a
+# nested module so `go list ./...` skips QEMU/Docker Go caches stored under tmp/
+# (otherwise `make ze-verify` fails). See scripts/evidence/qemu-run.py.
+tmp/*
+!tmp/go.mod
 
 # go test -c / benchmark binaries
 *.test
