@@ -61,6 +61,23 @@ this needs a CLEAN re-run (quiet host) to separate real from artifact. `encode`,
 > right `<idx>` from `bin/ze-test bgp <suite> --list` — the suite-summary `[N, M]`
 > nicks are run-scoped and do NOT round-trip as selectors.
 
+
+### 2026-05-31 — host `make ze-verify` still has open BGP functional failures
+
+**Open (triage).** A host `make ze-verify` run after the verb-first command
+cutover got past lint, unit, race, and builds, but `ze-test bgp` is still not
+clean end-to-end. The command-migration fallout was real and partially fixed:
+`bin/ze-test bgp encode 50` (`watchdog`) is green again, and the focused plugin
+rerun for the command-touched cases is green for ids `1, 21, 22, 108, 170, 172,
+305, 308, 309, 310, 314, 322, 323, 324, 325, 326, 327, 328, 396, 398, 400`.
+One touched case still times out: plugin test `2` (`adj-rib-in-replay-on-peerup`)
+receives its expected UPDATE but never exits cleanly. The full `tmp/ze-verify-full.log`
+still shows many additional pre-existing plugin failures and timeouts (`39, 42,
+44, 50, 51, 52, 53, 79, 99, 103, 104, 105, 116, 121, 136, 137, 139, 140, 154,
+155, 174, 189, 190, 201, 202, 203, 206, 207, 208, 241, 248, 252, 256, 274, 275,
+276, 280, 286, 288, 291, 295, 297, 298, 299, 300, 301, 329, 330, 346, 347, 348,
+349`), so unrelated commits should not be blocked on this baseline until the
+suite is triaged.
 ## Resolved
 
 ### 2026-05-31 — dispatch single-marshal + stale plugin lists (15 packages)
