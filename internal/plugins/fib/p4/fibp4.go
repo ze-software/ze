@@ -9,7 +9,6 @@ package fibp4
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -140,7 +139,7 @@ func (f *fibP4) flushRoutes() {
 }
 
 // showInstalled returns the currently installed routes as JSON.
-func (f *fibP4) showInstalled() string {
+func (f *fibP4) showInstalled() any {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
@@ -154,11 +153,7 @@ func (f *fibP4) showInstalled() string {
 		entries = append(entries, entry{Prefix: prefix, NextHop: nextHop})
 	}
 
-	data, err := json.Marshal(entries)
-	if err != nil {
-		return "[]"
-	}
-	return string(data)
+	return entries
 }
 
 // run subscribes to (sysrib, best-change) on the EventBus and blocks until

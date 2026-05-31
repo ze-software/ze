@@ -9,6 +9,7 @@ package rpki
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -178,7 +179,7 @@ func RunRPKIPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return rp.handleCommand(command, args)
 	})
 
@@ -777,7 +778,7 @@ func rpkiOriginASFromASPath(asp *attribute.ASPath) uint32 {
 }
 
 // handleCommand processes RPKI CLI commands.
-func (rp *RPKIPlugin) handleCommand(command string, args []string) (string, string, error) {
+func (rp *RPKIPlugin) handleCommand(command string, args []string) (string, any, error) {
 	switch command {
 	case "rpki status":
 		return rp.statusCommand()
@@ -795,7 +796,7 @@ func (rp *RPKIPlugin) handleCommand(command string, args []string) (string, stri
 	return statusError, "", fmt.Errorf("unknown command: %s", command)
 }
 
-func (rp *RPKIPlugin) statusCommand() (string, string, error) {
+func (rp *RPKIPlugin) statusCommand() (string, any, error) {
 	rp.mu.RLock()
 	sessions := make([]*RTRSession, len(rp.sessions))
 	copy(sessions, rp.sessions)
@@ -830,10 +831,10 @@ func (rp *RPKIPlugin) statusCommand() (string, string, error) {
 	}
 
 	b.Byte('}')
-	return statusDone, b.String(), nil
+	return statusDone, json.RawMessage(b.String()), nil
 }
 
-func (rp *RPKIPlugin) cacheCommand() (string, string, error) {
+func (rp *RPKIPlugin) cacheCommand() (string, any, error) {
 	rp.mu.RLock()
 	sessions := make([]*RTRSession, len(rp.sessions))
 	copy(sessions, rp.sessions)
@@ -860,12 +861,12 @@ func (rp *RPKIPlugin) cacheCommand() (string, string, error) {
 		b.Byte('}')
 	}
 	b.Str(`]}`)
-	return statusDone, b.String(), nil
+	return statusDone, json.RawMessage(b.String()), nil
 }
 
 const roaDiagLimit = 1000
 
-func (rp *RPKIPlugin) roaCommand(args []string) (string, string, error) {
+func (rp *RPKIPlugin) roaCommand(args []string) (string, any, error) {
 	// "rpki roa <prefix>" -> lookup covering VRPs for prefix
 	if len(args) > 0 && args[0] != "" {
 		_, _, err := net.ParseCIDR(args[0])
@@ -900,10 +901,10 @@ func (rp *RPKIPlugin) roaCommand(args []string) (string, string, error) {
 		b.Byte('}')
 	}
 	b.Str(`]}`)
-	return statusDone, b.String(), nil
+	return statusDone, json.RawMessage(b.String()), nil
 }
 
-func (rp *RPKIPlugin) roaLookupCommand(prefix string) (string, string, error) {
+func (rp *RPKIPlugin) roaLookupCommand(prefix string) (string, any, error) {
 	_, ipnet, _ := net.ParseCIDR(prefix) // already validated by caller
 	canonical := ipnet.String()
 	entries := rp.cache.Lookup(canonical)
@@ -930,10 +931,10 @@ func (rp *RPKIPlugin) roaLookupCommand(prefix string) (string, string, error) {
 		b.Str("true")
 	}
 	b.Byte('}')
-	return statusDone, b.String(), nil
+	return statusDone, json.RawMessage(b.String()), nil
 }
 
-func (rp *RPKIPlugin) summaryCommand() (string, string, error) {
+func (rp *RPKIPlugin) summaryCommand() (string, any, error) {
 	v4, v6 := rp.cache.Count()
 	aspaCount := rp.aspaCache.count()
 	aspaEnabled := rp.aspaEnabled.Load()
@@ -957,10 +958,10 @@ func (rp *RPKIPlugin) summaryCommand() (string, string, error) {
 	b.Str(`,"aspa-enabled":`).Bool(aspaEnabled)
 	b.Str(`,"aspa-records":`).Int(int64(aspaCount))
 	b.Byte('}')
-	return statusDone, b.String(), nil
+	return statusDone, json.RawMessage(b.String()), nil
 }
 
-func (rp *RPKIPlugin) validateCommand(args []string) (string, string, error) {
+func (rp *RPKIPlugin) validateCommand(args []string) (string, any, error) {
 	if len(args) < 2 {
 		return statusError, "", fmt.Errorf("usage: rpki validate <prefix> <origin-asn>")
 	}
@@ -995,12 +996,12 @@ func (rp *RPKIPlugin) validateCommand(args []string) (string, string, error) {
 		b.Byte('}')
 	}
 	b.Str(`]}`)
-	return statusDone, b.String(), nil
+	return statusDone, json.RawMessage(b.String()), nil
 }
 
 const aspaDiagLimit = 1000
 
-func (rp *RPKIPlugin) aspaCommand(args []string) (string, string, error) {
+func (rp *RPKIPlugin) aspaCommand(args []string) (string, any, error) {
 	// "rpki aspa <customer-asn>" -> lookup specific customer
 	if len(args) > 0 && args[0] != "" {
 		asn, err := strconv.ParseUint(args[0], 10, 32)
@@ -1023,7 +1024,7 @@ func (rp *RPKIPlugin) aspaCommand(args []string) (string, string, error) {
 			}
 			b.Str(`]}`)
 		}
-		return statusDone, b.String(), nil
+		return statusDone, json.RawMessage(b.String()), nil
 	}
 
 	// No args: dump ASPA cache summary
@@ -1055,5 +1056,5 @@ func (rp *RPKIPlugin) aspaCommand(args []string) (string, string, error) {
 		b.Str(`]}`)
 	}
 	b.Str(`]}`)
-	return statusDone, b.String(), nil
+	return statusDone, json.RawMessage(b.String()), nil
 }

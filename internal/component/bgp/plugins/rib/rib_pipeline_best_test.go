@@ -48,7 +48,7 @@ func TestBestPipelineReason_LocalPrefWinner(t *testing.T) {
 	result := r.bestPipeline("*", []string{"reason"})
 
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	entries, ok := parsed["best-path-reason"].([]any)
 	require.True(t, ok, "expected best-path-reason array, got %v", parsed)
 	require.Len(t, entries, 1)
@@ -97,7 +97,7 @@ func TestBestPipelineReason_SingleCandidate(t *testing.T) {
 	result := r.bestPipeline("*", []string{"reason"})
 
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	entries, ok := parsed["best-path-reason"].([]any)
 	require.True(t, ok)
 	require.Len(t, entries, 1)
@@ -133,7 +133,7 @@ func TestBestPipelineReason_WithPrefixFilter(t *testing.T) {
 	result := r.bestPipeline("*", []string{"prefix", "10.0.0.0/24", "reason"})
 
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	entries, ok := parsed["best-path-reason"].([]any)
 	require.True(t, ok)
 	require.Len(t, entries, 1, "prefix filter should leave exactly one prefix")
@@ -153,7 +153,7 @@ func TestBestPipelineReason_UnknownKeyword(t *testing.T) {
 	result := r.bestPipeline("*", []string{"reasons"})
 
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	errStr, ok := parsed["error"].(string)
 	require.True(t, ok, "expected error key for unknown keyword")
 	assert.Contains(t, errStr, "unknown keyword")
@@ -191,7 +191,7 @@ func TestBestPipeline_MultipathPeersInOutput(t *testing.T) {
 	result := r.bestPipeline("*", nil)
 
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	entries, ok := parsed["best-path"].([]any)
 	require.True(t, ok, "expected best-path array")
 	require.Len(t, entries, 1)
@@ -233,7 +233,7 @@ func TestBestPipeline_MultipathDisabledDefaults(t *testing.T) {
 	result := r.bestPipeline("*", nil)
 
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	entries, _ := parsed["best-path"].([]any)
 	require.Len(t, entries, 1)
 	entry, _ := entries[0].(map[string]any)
@@ -271,24 +271,24 @@ func TestBestPipelineLockReduced(t *testing.T) {
 	// Default JSON terminal
 	result := r.bestPipeline("*", nil)
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	entries, ok := parsed["best-path"].([]any)
 	require.True(t, ok, "expected best-path array")
 	require.Len(t, entries, 2, "expected 2 best-path entries (one per prefix)")
 
 	// Count terminal
 	result = r.bestPipeline("*", []string{"count"})
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Equal(t, float64(2), parsed["count"])
 
 	// Path filter + count
 	result = r.bestPipeline("*", []string{"path", "65001", "count"})
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Equal(t, float64(2), parsed["count"])
 
 	// Reason terminal still works
 	result = r.bestPipeline("*", []string{"reason"})
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	reasons, ok := parsed["best-path-reason"].([]any)
 	require.True(t, ok, "expected best-path-reason array")
 	assert.Len(t, reasons, 2)

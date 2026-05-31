@@ -4,7 +4,6 @@ package healthcheck
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -12,6 +11,15 @@ import (
 )
 
 // newTestManager creates a probeManager with a no-op dispatch for lifecycle tests.
+func mustMarshalStr(t *testing.T, v any) string {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	return string(b)
+}
+
 func newTestManager() *probeManager {
 	return &probeManager{
 		probes: make(map[string]*runningProbe),
@@ -313,10 +321,10 @@ func TestShowAllProbes(t *testing.T) {
 		t.Errorf("status = %q, want done", status)
 	}
 	// Verify JSON contains both probes with state fields.
-	if !strings.Contains(fmt.Sprint(data), `"name":"dns"`) && !strings.Contains(fmt.Sprint(data), `"name":"web"`) {
+	if !strings.Contains(mustMarshalStr(t, data), `"name":"dns"`) && !strings.Contains(mustMarshalStr(t, data), `"name":"web"`) {
 		t.Errorf("data = %q, want both probe names", data)
 	}
-	if !strings.Contains(fmt.Sprint(data), `"state":`) {
+	if !strings.Contains(mustMarshalStr(t, data), `"state":`) {
 		t.Errorf("data = %q, want state field", data)
 	}
 }
@@ -335,7 +343,7 @@ func TestShowSingleProbe(t *testing.T) {
 	if status != statusDone {
 		t.Errorf("status = %q, want done", status)
 	}
-	if !strings.Contains(fmt.Sprint(data), `"name":"dns"`) {
+	if !strings.Contains(mustMarshalStr(t, data), `"name":"dns"`) {
 		t.Errorf("data = %q, want probe name", data)
 	}
 }
@@ -366,7 +374,7 @@ func TestResetProbe(t *testing.T) {
 	if status != statusDone {
 		t.Errorf("status = %q, want done", status)
 	}
-	if !strings.Contains(fmt.Sprint(data), `"action":"reset"`) {
+	if !strings.Contains(mustMarshalStr(t, data), `"action":"reset"`) {
 		t.Errorf("data = %q, want reset action", data)
 	}
 

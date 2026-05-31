@@ -414,7 +414,7 @@ func runPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		if command == "l2tp pool show" {
 			return "done", poolInstance.showPool(), nil
 		}
@@ -437,7 +437,7 @@ func runPlugin(conn net.Conn) int {
 	return 0
 }
 
-func (p *poolPlugin) showPool() string {
+func (p *poolPlugin) showPool() any {
 	p.mu.RLock()
 	pool := p.pool
 	p.mu.RUnlock()
@@ -497,11 +497,7 @@ func (p *poolPlugin) showPool() string {
 		}
 	}
 
-	b, err := json.Marshal(result)
-	if err != nil {
-		return fmt.Sprintf(`{"error":%q}`, err.Error())
-	}
-	return string(b)
+	return result
 }
 
 type poolShowResult struct {

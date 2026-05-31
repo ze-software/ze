@@ -463,7 +463,7 @@ func TestHandleCommand_Status(t *testing.T) {
 	if status != statusDone {
 		t.Errorf("expected status done, got %q", status)
 	}
-	if !strings.Contains(data, `"running":true`) {
+	if !strings.Contains(fmt.Sprint(data), `"running":true`) {
 		t.Errorf("expected running:true in data, got %q", data)
 	}
 }
@@ -487,7 +487,7 @@ func TestHandleCommand_Peers(t *testing.T) {
 	if status != statusDone {
 		t.Errorf("expected status done, got %q", status)
 	}
-	if !strings.Contains(data, "10.0.0.1") {
+	if !strings.Contains(fmt.Sprint(data), "10.0.0.1") {
 		t.Errorf("expected peer 10.0.0.1 in data, got %q", data)
 	}
 }

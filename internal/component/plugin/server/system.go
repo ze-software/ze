@@ -483,7 +483,7 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 	case rpcErr != nil:
 		ctx.Dispatcher().Pending().Complete(serial, emptyResult)
 	case rpcOut != nil && rpcOut.Status == plugin.StatusError:
-		ctx.Dispatcher().Pending().Complete(serial, &plugin.Response{Status: plugin.StatusError, Error: rpcOut.Data})
+		ctx.Dispatcher().Pending().Complete(serial, &plugin.Response{Status: plugin.StatusError, Error: string(rpcOut.Data)})
 	case rpcOut != nil:
 		ctx.Dispatcher().Pending().Complete(serial, &plugin.Response{Status: rpcOut.Status, Data: plugin.RawJSON(rpcOut.Data)})
 	case rpcOut == nil: // no output and no error — complete with empty result

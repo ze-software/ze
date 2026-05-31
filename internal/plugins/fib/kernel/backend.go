@@ -10,7 +10,6 @@
 package fibkernel
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -19,7 +18,7 @@ import (
 const sweepDelay = 30 * time.Second
 
 // showInstalled returns the currently installed routes as JSON.
-func (f *fibKernel) showInstalled() string {
+func (f *fibKernel) showInstalled() any {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
@@ -33,9 +32,5 @@ func (f *fibKernel) showInstalled() string {
 		entries = append(entries, entry{Prefix: prefix, NextHop: nextHop})
 	}
 
-	data, err := json.Marshal(entries)
-	if err != nil {
-		return "[]"
-	}
-	return string(data)
+	return entries
 }

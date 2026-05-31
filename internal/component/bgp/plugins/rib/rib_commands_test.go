@@ -50,6 +50,22 @@ func requirePeerRoutes(t *testing.T, jsonStr, topKey, peerAddr string) []any {
 	return peerRoutes
 }
 
+// anyToJSONStr converts an any value to a JSON string.
+// For json.RawMessage, returns it directly. For other types, marshals to JSON.
+func anyToJSONStr(t *testing.T, v any) string {
+	t.Helper()
+	switch d := v.(type) {
+	case json.RawMessage:
+		return string(d)
+	case string:
+		return d
+	default:
+		b, err := json.Marshal(d)
+		require.NoError(t, err)
+		return string(b)
+	}
+}
+
 // requireFirstRoute unmarshals JSON and extracts the first route for a peer.
 func attrVal(route map[string]any, key string) any {
 	v, ok := route[key]
@@ -113,7 +129,7 @@ func TestInboundShowWithAttributes(t *testing.T) {
 	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
-	route := requireFirstRoute(t, r.showPipeline("*", []string{"received"}), "adj-rib-in", "192.0.2.1")
+	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "adj-rib-in", "192.0.2.1")
 
 	assert.Equal(t, family.IPv4Unicast.String(), route["family"])
 	assert.Equal(t, "10.0.0.0/24", route["prefix"])
@@ -148,7 +164,7 @@ func TestInboundShowMinimalAttributes(t *testing.T) {
 	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
-	route := requireFirstRoute(t, r.showPipeline("192.0.2.1", []string{"received"}), "adj-rib-in", "192.0.2.1")
+	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("192.0.2.1", []string{"received"})), "adj-rib-in", "192.0.2.1")
 
 	assert.Equal(t, "igp", attrVal(route, "origin"))
 	assert.Equal(t, "10.0.0.1", route["next-hop"])
@@ -187,7 +203,7 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 		},
 	})
 
-	route := requireFirstRoute(t, r.showPipeline("*", []string{"sent"}), "adj-rib-out", "192.0.2.1")
+	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", []string{"sent"})), "adj-rib-out", "192.0.2.1")
 
 	assert.Equal(t, family.IPv4Unicast.String(), route["family"])
 	assert.Equal(t, "10.0.0.0/24", route["prefix"])
@@ -232,11 +248,11 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Without filter: both families
-	allRoutes := requirePeerRoutes(t, r.showPipeline("*", []string{"received"}), "adj-rib-in", "192.0.2.1")
+	allRoutes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "adj-rib-in", "192.0.2.1")
 	assert.Len(t, allRoutes, 2, "expected both routes without filter")
 
 	// With family filter: only IPv4
-	filteredRoutes := requirePeerRoutes(t, r.showPipeline("*", []string{"received", "family", family.IPv4Unicast.String()}), "adj-rib-in", "192.0.2.1")
+	filteredRoutes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received", "family", family.IPv4Unicast.String()})), "adj-rib-in", "192.0.2.1")
 	require.Len(t, filteredRoutes, 1, "expected only IPv4 route")
 	first, ok := filteredRoutes[0].(map[string]any)
 	require.True(t, ok)
@@ -261,7 +277,7 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	// Filter by prefix (exact prefix string match)
-	routes := requirePeerRoutes(t, r.showPipeline("*", []string{"received", "prefix", "10.0.0.0/24"}), "adj-rib-in", "192.0.2.1")
+	routes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received", "prefix", "10.0.0.0/24"})), "adj-rib-in", "192.0.2.1")
 	require.Len(t, routes, 1, "expected only matching prefix")
 	first, ok := routes[0].(map[string]any)
 	require.True(t, ok)
@@ -285,7 +301,7 @@ func TestOutboundShowMinimalAttributes(t *testing.T) {
 		},
 	})
 
-	route := requireFirstRoute(t, r.showPipeline("*", []string{"sent"}), "adj-rib-out", "192.0.2.2")
+	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", []string{"sent"})), "adj-rib-out", "192.0.2.2")
 
 	// Only family, prefix, next-hop should be present
 	assert.Equal(t, family.IPv4Unicast.String(), route["family"])
@@ -334,7 +350,9 @@ func TestWithdrawUsesProtocolSlot(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, `"existed":true`)
+	m, ok := data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, true, m["existed"])
 
 	nlri, err := prefixToWire("ipv4/unicast", "10.0.0.0/24", 0, false)
 	require.NoError(t, err)

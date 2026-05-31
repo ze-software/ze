@@ -353,11 +353,11 @@ func TestStatusJSON(t *testing.T) {
 	r.peerUp["10.0.0.1"] = true
 	r.peerUp["10.0.0.2"] = true
 
-	status := r.statusJSON()
-	assert.Contains(t, status, `"running":true`)
-	assert.Contains(t, status, `"peers":2`)
-	assert.Contains(t, status, `"routes-in":2`)
-	assert.Contains(t, status, `"routes-out":1`)
+	status := r.status()
+	assert.Contains(t, dataStr(t, status), `"running":true`)
+	assert.Contains(t, dataStr(t, status), `"peers":2`)
+	assert.Contains(t, dataStr(t, status), `"routes-in":2`)
+	assert.Contains(t, dataStr(t, status), `"routes-out":1`)
 }
 
 // TestDispatch_RoutesToCorrectHandler verifies event routing.
@@ -577,12 +577,22 @@ func TestReplayRoutesWithPathID(t *testing.T) {
 	assert.Contains(t, cmd2, "nhop 2.2.2.2")
 }
 
-// mustMarshal marshals v to json.RawMessage, failing test on error.
+// mustMarshal converts any value to JSON bytes for test assertions.
+// Returns json.RawMessage directly if already raw, otherwise marshals.
 func mustMarshal(t *testing.T, v any) json.RawMessage {
 	t.Helper()
+	if raw, ok := v.(json.RawMessage); ok {
+		return raw
+	}
 	data, err := json.Marshal(v)
 	require.NoError(t, err)
 	return data
+}
+
+// dataStr converts any handler result to a JSON string for test assertions.
+func dataStr(t *testing.T, v any) string {
+	t.Helper()
+	return string(mustMarshal(t, v))
 }
 
 // TestHandleCommand_RIBAdjacentStatus verifies renamed status command.
@@ -616,9 +626,9 @@ func TestHandleCommand_RIBAdjacentStatus(t *testing.T) {
 	status, data, err := r.handleCommand("bgp rib adjacent status", "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, `"running":true`)
-	assert.Contains(t, data, `"routes-in":1`)
-	assert.Contains(t, data, `"routes-out":2`)
+	assert.Contains(t, dataStr(t, data), `"running":true`)
+	assert.Contains(t, dataStr(t, data), `"routes-in":1`)
+	assert.Contains(t, dataStr(t, data), `"routes-out":2`)
 }
 
 // TestHandleCommand_RIBShowReceived verifies received show with selector.
@@ -692,12 +702,12 @@ func TestHandleCommand_RIBShowReceived(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, "done", status)
 			if tt.wantPeer1 {
-				assert.Contains(t, data, "10.0.0.1")
+				assert.Contains(t, dataStr(t, data), "10.0.0.1")
 			} else {
 				assert.NotContains(t, data, "10.0.0.1")
 			}
 			if tt.wantPeer2 {
-				assert.Contains(t, data, "10.0.0.2")
+				assert.Contains(t, dataStr(t, data), "10.0.0.2")
 			} else {
 				assert.NotContains(t, data, "10.0.0.2")
 			}
@@ -741,7 +751,7 @@ func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 	status, data, err := r.handleCommand("bgp rib adjacent inbound empty", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, `"cleared":1`)
+	assert.Contains(t, dataStr(t, data), `"cleared":1`)
 
 	// 10.0.0.1 should be emptied (PeerRIB deleted)
 	_, exists1 := r.bgpPeers["10.0.0.1"]
@@ -771,7 +781,7 @@ func TestHandleCommand_RIBShowSent(t *testing.T) {
 	status, data, err := r.handleCommand("bgp rib show", "10.0.0.1", []string{"sent"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, "10.0.0.1")
+	assert.Contains(t, dataStr(t, data), "10.0.0.1")
 	assert.NotContains(t, data, "10.0.0.2")
 }
 
@@ -800,8 +810,8 @@ func TestHandleCommand_RIBAdjacentOutboundResend(t *testing.T) {
 	assert.Equal(t, "done", status)
 	// Resend count: routes are sent via SDK RPC (updateRoute), which fails silently on closed pipes
 	// but the resend logic still counts them
-	assert.Contains(t, data, `"resent":1`)
-	assert.Contains(t, data, `"peers":1`)
+	assert.Contains(t, dataStr(t, data), `"resent":1`)
+	assert.Contains(t, dataStr(t, data), `"peers":1`)
 }
 
 // TestHandleCommand_RIBAdjacentOutboundResend_DownPeer verifies resend skips down peers.
@@ -822,8 +832,8 @@ func TestHandleCommand_RIBAdjacentOutboundResend_DownPeer(t *testing.T) {
 	status, data, err := r.handleCommand("bgp rib adjacent outbound resend", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, `"resent":0`, "should not resend to down peer")
-	assert.Contains(t, data, `"peers":0`, "no peers should be affected")
+	assert.Contains(t, dataStr(t, data), `"resent":0`, "should not resend to down peer")
+	assert.Contains(t, dataStr(t, data), `"peers":0`, "no peers should be affected")
 }
 
 // TestHandleCommand_UnknownCommand verifies unknown commands are rejected.
@@ -885,7 +895,7 @@ func TestRIBPluginHandleCommandShortNames(t *testing.T) {
 			if tt.wantOK {
 				require.NoError(t, err, "command %q should succeed", tt.command)
 				assert.Equal(t, "done", status)
-				assert.Contains(t, data, tt.wantIn, "command %q data", tt.command)
+				assert.Contains(t, dataStr(t, data), tt.wantIn, "command %q data", tt.command)
 			} else {
 				require.Error(t, err)
 			}
@@ -932,7 +942,7 @@ func TestRIBPluginHandleCommandLegacyNames(t *testing.T) {
 			status, data, err := r.handleCommand(tt.command, "*", tt.args)
 			require.NoError(t, err, "legacy command %q should succeed", tt.command)
 			assert.Equal(t, "done", status)
-			assert.Contains(t, data, tt.wantIn, "legacy command %q data", tt.command)
+			assert.Contains(t, dataStr(t, data), tt.wantIn, "legacy command %q data", tt.command)
 		})
 	}
 }
@@ -1242,8 +1252,8 @@ func TestStatusJSON_WithPoolStorage(t *testing.T) {
 	r.handleReceived(event)
 	r.peerUp["10.0.0.1"] = true
 
-	status := r.statusJSON()
-	assert.Contains(t, status, `"routes-in":2`, "status should count pool routes")
+	status := r.status()
+	assert.Contains(t, dataStr(t, status), `"routes-in":2`, "status should count pool routes")
 }
 
 // TestHandleCommand_InboundShow_PoolStorage verifies show command reads from pool storage.
@@ -1273,9 +1283,9 @@ func TestHandleCommand_InboundShow_PoolStorage(t *testing.T) {
 	status, data, err := r.handleCommand("bgp rib show", "*", []string{"received"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, "10.0.0.1", "should contain peer address")
-	assert.Contains(t, data, "10.0.0.0/24", "should contain prefix from pool")
-	assert.Contains(t, data, family.IPv4Unicast.String(), "should contain family")
+	assert.Contains(t, dataStr(t, data), "10.0.0.1", "should contain peer address")
+	assert.Contains(t, dataStr(t, data), "10.0.0.0/24", "should contain prefix from pool")
+	assert.Contains(t, dataStr(t, data), family.IPv4Unicast.String(), "should contain family")
 }
 
 // TestHandleCommand_InboundEmpty_PoolStorage verifies empty command clears pool storage.
@@ -1303,7 +1313,7 @@ func TestHandleCommand_InboundEmpty_PoolStorage(t *testing.T) {
 	status, data, err := r.handleCommand("bgp rib adjacent inbound empty", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, `"cleared":1`)
+	assert.Contains(t, dataStr(t, data), `"cleared":1`)
 
 	// Verify pool is cleared (entry deleted to avoid memory leak)
 	_, exists := r.bgpPeers["10.0.0.1"]
@@ -1787,7 +1797,7 @@ func TestPeerMetaCleanup_ClearAndRelease(t *testing.T) {
 		r.handleReceived(event)
 		require.NotNil(t, r.peerMeta["10.0.0.1"], "peerMeta should exist before clear")
 
-		r.inboundEmptyJSON("*")
+		r.inboundEmpty("*")
 
 		_, ribExists := r.bgpPeers["10.0.0.1"]
 		assert.False(t, ribExists, "ribInPool should be cleared")
@@ -1815,7 +1825,7 @@ func TestPeerMetaCleanup_ClearAndRelease(t *testing.T) {
 
 		// Mark peer as retained, then release.
 		r.retainedPeers["10.0.0.1"] = true
-		r.releaseRoutesJSON("*")
+		r.releaseRoutes("*")
 
 		_, ribExists := r.bgpPeers["10.0.0.1"]
 		assert.False(t, ribExists, "ribInPool should be cleared on release")
@@ -2002,7 +2012,7 @@ func TestOutboundResendAllFamilies(t *testing.T) {
 	assert.Equal(t, "done", status)
 
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(2), result["resent"], "should resend routes from both families")
 }
 
@@ -2027,7 +2037,7 @@ func TestOutboundResendSingleFamily(t *testing.T) {
 	assert.Equal(t, "done", status)
 
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(1), result["resent"], "should resend only ipv4/unicast routes")
 }
 
@@ -2047,9 +2057,9 @@ func TestStatusJSONMultiFamilyCount(t *testing.T) {
 		},
 	})
 
-	data := r.statusJSON()
+	data := r.status()
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(3), result["routes-out"], "should count 3 total routes across families")
 }
 
@@ -2137,7 +2147,7 @@ func TestOutboundResendSelectorFromArgs(t *testing.T) {
 
 	// Only 10.0.0.2 should be resent (1 peer, 1 route)
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(1), result["peers"], "should resend to 1 peer (not 10.0.0.1)")
 	assert.Equal(t, float64(1), result["resent"], "should resend 1 route")
 }
@@ -2157,7 +2167,7 @@ func TestInboundEmptySelectorFromArgs(t *testing.T) {
 	status, data, err := r.handleCommand("bgp rib clear in", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, `"cleared"`)
+	assert.Contains(t, dataStr(t, data), `"cleared"`)
 
 	// 10.0.0.1 should be gone, 10.0.0.2 should remain
 	_, has1 := r.bgpPeers["10.0.0.1"]
@@ -2181,7 +2191,7 @@ func TestRetainRoutesSelectorFromArgs(t *testing.T) {
 	status, data, err := r.handleCommand("bgp rib retain-routes", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, `"retained-peers":1`)
+	assert.Contains(t, dataStr(t, data), `"retained-peers":1`)
 
 	assert.True(t, r.retainedPeers["10.0.0.1"], "10.0.0.1 should be retained")
 	assert.False(t, r.retainedPeers["10.0.0.2"], "10.0.0.2 should NOT be retained")
@@ -2204,7 +2214,7 @@ func TestReleaseRoutesSelectorFromArgs(t *testing.T) {
 	status, data, err := r.handleCommand("bgp rib release-routes", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, `"released-peers":1`)
+	assert.Contains(t, dataStr(t, data), `"released-peers":1`)
 
 	assert.False(t, r.retainedPeers["10.0.0.1"], "10.0.0.1 should be released")
 	assert.True(t, r.retainedPeers["10.0.0.2"], "10.0.0.2 should still be retained")
@@ -2234,8 +2244,8 @@ func TestInjectRoute_Basic(t *testing.T) {
 	status, data, err := r.handleCommand("bgp rib inject", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, `"injected":"10.0.0.0/24"`)
-	assert.Contains(t, data, `"peer":"10.0.0.1"`)
+	assert.Contains(t, dataStr(t, data), `"injected":"10.0.0.0/24"`)
+	assert.Contains(t, dataStr(t, data), `"peer":"10.0.0.1"`)
 
 	// Verify route is in RIB.
 	peerRIB := r.bgpPeers["10.0.0.1"]
@@ -2287,7 +2297,7 @@ func TestWithdrawRoute_Basic(t *testing.T) {
 	status, data, err := r.handleCommand("bgp rib withdraw", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "10.0.0.0/24"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, `"existed":true`)
+	assert.Contains(t, dataStr(t, data), `"existed":true`)
 
 	// Verify route is gone.
 	peerRIB := r.bgpPeers["10.0.0.1"]
@@ -2309,7 +2319,7 @@ func TestInjectRoute_VisibleInShow(t *testing.T) {
 	status, data, err := r.handleCommand("bgp rib show", "10.0.0.1", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, "10.0.0.0/24")
+	assert.Contains(t, dataStr(t, data), "10.0.0.0/24")
 }
 
 // TestInjectRoute_MissingPeer verifies error when not enough args.
@@ -2377,7 +2387,7 @@ func TestInjectRoute_IPv6(t *testing.T) {
 	status, data, err := r.handleCommand("bgp rib inject", "", []string{"10.0.0.1", family.IPv6Unicast.String(), "2001:db8::/32"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, `"injected":"2001:db8::/32"`)
+	assert.Contains(t, dataStr(t, data), `"injected":"2001:db8::/32"`)
 
 	peerRIB := r.bgpPeers["10.0.0.1"]
 	require.NotNil(t, peerRIB)
@@ -2398,7 +2408,7 @@ func TestWithdrawRoute_NonExistent(t *testing.T) {
 	status, data, err := r.handleCommand("bgp rib withdraw", "", []string{"10.0.0.1", family.IPv4Unicast.String(), "192.168.0.0/24"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
-	assert.Contains(t, data, `"existed":false`)
+	assert.Contains(t, dataStr(t, data), `"existed":false`)
 }
 
 // TestInjectRoute_ImplicitWithdraw verifies re-inject replaces old attributes.
@@ -2754,11 +2764,11 @@ func TestShowIteratesAllProtocols(t *testing.T) {
 	r.ribInPool[monitorID] = monitorPeers
 
 	r.peerMu.RLock()
-	result := r.statusJSON()
+	result := r.status()
 	r.peerMu.RUnlock()
 
 	var status map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &status))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &status))
 
 	routesIn, ok := status["routes-in"].(float64)
 	require.True(t, ok)
@@ -2800,7 +2810,7 @@ func TestRPFCommand_IPv4Multicast(t *testing.T) {
 	assert.Equal(t, "done", status)
 
 	var resp map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &resp))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &resp))
 	assert.Equal(t, true, resp["found"])
 	assert.Equal(t, "224.1.0.0/16", resp["matched-prefix"])
 	assert.Equal(t, "10.0.0.2", resp["next-hop"])
@@ -2825,7 +2835,7 @@ func TestRPFCommand_IPv6Multicast(t *testing.T) {
 	assert.Equal(t, "done", status)
 
 	var resp map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &resp))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &resp))
 	assert.Equal(t, true, resp["found"])
 	assert.Equal(t, "ff00::/8", resp["matched-prefix"])
 	assert.Equal(t, "2001:db8::1", resp["next-hop"])
@@ -2839,7 +2849,7 @@ func TestRPFCommand_NoRoute(t *testing.T) {
 	assert.Equal(t, "done", status)
 
 	var resp map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &resp))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &resp))
 	assert.Equal(t, false, resp["found"])
 }
 

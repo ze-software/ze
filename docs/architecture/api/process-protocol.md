@@ -762,7 +762,7 @@ At runtime, the engine dispatches commands to plugins via `execute-command`:
 
 **Plugin to Engine (success):**
 ```
-#5 ok {"status":"done","data":"{\"running\":true,\"peers\":1}"}
+#5 ok {"status":"done","data":{"running":true,"peers":1}}
 ```
 
 **Plugin to Engine (error):**

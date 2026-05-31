@@ -351,7 +351,7 @@ func (f *fibVPP) flushRoutes() {
 }
 
 // showInstalled returns the currently installed routes as JSON.
-func (f *fibVPP) showInstalled() string {
+func (f *fibVPP) showInstalled() any {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
@@ -369,11 +369,7 @@ func (f *fibVPP) showInstalled() string {
 		entries = append(entries, entry{Prefix: prefix, MPLS: true})
 	}
 
-	data, err := json.Marshal(entries)
-	if err != nil {
-		return "[]"
-	}
-	return string(data)
+	return entries
 }
 
 // run subscribes to (system-rib, best-change) on the EventBus and blocks until

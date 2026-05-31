@@ -634,13 +634,13 @@ func TestEngineExecuteCommand(t *testing.T) {
 	assert.Equal(t, []string{"ipv4"}, input.Args)
 	assert.Equal(t, "10.0.0.1", input.Peer)
 
-	result := &rpc.ExecuteCommandOutput{Status: rpc.StatusDone, Data: `{"routes":[]}`}
+	result := &rpc.ExecuteCommandOutput{Status: rpc.StatusDone, Data: json.RawMessage(`{"routes":[]}`)}
 	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
 
 	r := <-done
 	require.NoError(t, r.err)
 	assert.Equal(t, "done", r.output.Status)
-	assert.Equal(t, `{"routes":[]}`, r.output.Data)
+	assert.JSONEq(t, `{"routes":[]}`, string(r.output.Data))
 }
 
 // TestSendConfigVerifyOK verifies config-verify RPC with successful response.

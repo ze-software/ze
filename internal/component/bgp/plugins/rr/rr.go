@@ -421,16 +421,16 @@ func (rr *RouteReflector) dispatchText(text string) {
 func (rr *RouteReflector) handleCommand(command string) (string, any, error) {
 	switch command {
 	case "show rr status":
-		return statusDone, `{"running":true}`, nil
+		return statusDone, map[string]any{"running": true}, nil
 	case "show rr peers":
-		return statusDone, rr.peersJSON(), nil
+		return statusDone, rr.peerStatus(), nil
 	default: // fail on unknown command
 		return statusError, "", fmt.Errorf("unknown command: %s", command)
 	}
 }
 
-// peersJSON returns peer state as JSON.
-func (rr *RouteReflector) peersJSON() string {
+// peerStatus returns peer state.
+func (rr *RouteReflector) peerStatus() any {
 	rr.mu.RLock()
 	defer rr.mu.RUnlock()
 
@@ -443,8 +443,7 @@ func (rr *RouteReflector) peersJSON() string {
 		})
 	}
 
-	data, _ := json.Marshal(map[string]any{"peers": peers})
-	return string(data)
+	return map[string]any{"peers": peers}
 }
 
 // replayForPeer replays existing routes to a newly-connected peer via adj-rib-in,

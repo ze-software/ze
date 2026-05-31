@@ -4,7 +4,6 @@ package static
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -182,14 +181,10 @@ func runStaticPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		if command == "show static" {
 			data := rm.showRoutes()
-			out, err := json.Marshal(data)
-			if err != nil {
-				return "error", "", err
-			}
-			return "done", string(out), nil
+			return "done", data, nil
 		}
 		return "error", "", fmt.Errorf("unknown command: %s", command)
 	})

@@ -53,7 +53,7 @@ func TestRIBMarkStaleCommand(t *testing.T) {
 
 	// Parse response — should report how many routes were marked.
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(2), result["marked"], "should mark 2 routes for peer 1")
 
 	// Verify peer 1 routes are stale.
@@ -99,7 +99,7 @@ func TestRIBMarkStaleCommandNonExistentPeer(t *testing.T) {
 	assert.Equal(t, statusDone, status)
 
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(0), result["marked"])
 }
 
@@ -134,7 +134,7 @@ func TestRIBMarkStaleCommandExplicitLevel(t *testing.T) {
 	assert.Equal(t, statusDone, status)
 
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(2), result["marked"])
 
 	// Verify routes have StaleLevel=2, not the default 1.
@@ -220,7 +220,7 @@ func TestRIBPurgeStaleCommand(t *testing.T) {
 	assert.Equal(t, statusDone, status)
 
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(2), result["purged"], "should purge 2 stale routes")
 
 	// Verify: only the fresh route survives.
@@ -250,7 +250,7 @@ func TestRIBPurgeStaleFamilyCommand(t *testing.T) {
 	assert.Equal(t, statusDone, status)
 
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(1), result["purged"], "should purge 1 stale ipv4 route")
 
 	// Verify: ipv6 stale route still exists.
@@ -286,7 +286,7 @@ func TestRIBPurgeStalePreservesFresh(t *testing.T) {
 	assert.Equal(t, statusDone, status)
 
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(1), result["purged"], "should purge only the stale ipv6 route")
 
 	// Verify: IPv4 route survives (it was refreshed).
@@ -324,14 +324,14 @@ func TestGRFlowMarkAndPurge(t *testing.T) {
 	_, data, err := r.handleCommand("bgp rib purge-stale", "*", []string{"192.0.2.1", "ipv4/unicast"})
 	require.NoError(t, err)
 	var purge1 map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &purge1))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &purge1))
 	assert.Equal(t, float64(0), purge1["purged"], "no stale ipv4 routes (10.0.0.0/24 was refreshed)")
 
 	// Step 4: EOR received for ipv6/unicast → purge stale for that family
 	_, data, err = r.handleCommand("bgp rib purge-stale", "*", []string{"192.0.2.1", "ipv6/unicast"})
 	require.NoError(t, err)
 	var purge2 map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &purge2))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &purge2))
 	assert.Equal(t, float64(1), purge2["purged"], "1 stale ipv6 route purged")
 
 	// Final state: 2 fresh IPv4 routes (re-announced + new), 0 IPv6.
@@ -372,7 +372,7 @@ func TestGRConsecutiveRestart(t *testing.T) {
 	_, data, err := r.handleCommand("bgp rib purge-stale", "*", []string{"192.0.2.1"})
 	require.NoError(t, err)
 	var purgeResult map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &purgeResult))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &purgeResult))
 	assert.Equal(t, float64(1), purgeResult["purged"], "should purge 1 old stale (ipv6)")
 
 	// Step 2: retain-routes (already tested elsewhere)
@@ -406,7 +406,7 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 	_, data, err := r.handleCommand("bgp rib show", "192.0.2.1", []string{"received"})
 	require.NoError(t, err)
 	var before map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &before))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &before))
 	adjInRaw, ok := before["adj-rib-in"]
 	require.True(t, ok, "response should have adj-rib-in")
 	adjIn, ok := adjInRaw.(map[string]any)
@@ -434,7 +434,7 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 	_, data, err = r.handleCommand("bgp rib show", "192.0.2.1", []string{"received"})
 	require.NoError(t, err)
 	var after map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &after))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &after))
 	adjInRaw, ok = after["adj-rib-in"]
 	require.True(t, ok)
 	adjIn, ok = adjInRaw.(map[string]any)
@@ -587,7 +587,7 @@ func TestRIBStatusWithStale(t *testing.T) {
 	assert.Equal(t, statusDone, status)
 
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 
 	// Status should include stale information.
 	staleCount, hasStale := result["stale-routes"]
@@ -639,7 +639,7 @@ func TestAttachCommunity(t *testing.T) {
 	assert.Equal(t, statusDone, status)
 
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(1), result["attached"], "should attach to 1 stale ipv4 route")
 
 	// Verify community attached and StaleLevel raised
@@ -679,7 +679,7 @@ func TestDeleteWithCommunity(t *testing.T) {
 	assert.Equal(t, statusDone, status)
 
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(1), result["deleted"])
 
 	assert.Equal(t, 0, peerRIB.Len(), "route should be deleted")
@@ -745,7 +745,7 @@ func TestAttachCommunity_NoCommunities(t *testing.T) {
 	require.NoError(t, err)
 
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &result))
 	assert.Equal(t, float64(1), result["attached"])
 
 	entry, found := peerRIB.Lookup(ipv4Family, []byte{24, 10, 0, 0})

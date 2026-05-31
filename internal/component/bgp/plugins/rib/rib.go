@@ -549,7 +549,7 @@ func RunRIBPlugin(conn net.Conn) int {
 	})
 
 	// Register command handler: responds to "bgp rib adjacent ..." commands
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return r.handleCommand(command, peer, args)
 	})
 

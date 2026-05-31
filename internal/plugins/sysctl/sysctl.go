@@ -346,7 +346,7 @@ func (s *store) applyConfig(settings map[string]string) ([]string, []error) {
 }
 
 // showEntries returns JSON payloads for all active keys.
-func (s *store) showEntries() string {
+func (s *store) showEntries() any {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -371,8 +371,7 @@ func (s *store) showEntries() string {
 		})
 	}
 
-	data, _ := json.Marshal(entries)
-	return string(data)
+	return entries
 }
 
 // configSnapshot captures the config-layer state for rollback.
@@ -440,7 +439,7 @@ func (s *store) restoreAll() {
 }
 
 // listKnownKeys returns a JSON array of all registered known keys with metadata.
-func listKnownKeys() string {
+func listKnownKeys() any {
 	type listEntry struct {
 		Key         string `json:"key"`
 		Description string `json:"description"`
@@ -457,12 +456,11 @@ func listKnownKeys() string {
 		})
 	}
 
-	data, _ := json.Marshal(entries)
-	return string(data)
+	return entries
 }
 
 // describeKey returns a JSON object with full detail for one key.
-func (s *store) describeKey(key string) string {
+func (s *store) describeKey(key string) any {
 	type describeResult struct {
 		Key         string `json:"key"`
 		Description string `json:"description,omitempty"`
@@ -511,8 +509,7 @@ func (s *store) describeKey(key string) string {
 		}
 	}
 
-	data, _ := json.Marshal(result)
-	return string(data)
+	return result
 }
 
 func valueTypeName(t sysctlreg.ValueType) string {
@@ -705,7 +702,7 @@ func parseSysctlProfileConfig(data string) []sysctlreg.ProfileDef {
 }
 
 // listProfiles returns a formatted table of all registered profiles.
-func listProfiles() string {
+func listProfiles() any {
 	profiles := sysctlreg.AllProfiles()
 	if len(profiles) == 0 {
 		return "{\"profiles\":[]}"
@@ -726,20 +723,18 @@ func listProfiles() string {
 			Keys:        len(p.Settings),
 		})
 	}
-	data, _ := json.Marshal(struct {
+	return struct {
 		Profiles []profileEntry `json:"profiles"`
-	}{Profiles: entries})
-	return string(data)
+	}{Profiles: entries}
 }
 
 // describeProfile returns JSON detail for a named profile.
-func describeProfile(name string) string {
+func describeProfile(name string) any {
 	p, ok := sysctlreg.LookupProfile(name)
 	if !ok {
-		data, _ := json.Marshal(struct {
+		return struct {
 			Error string `json:"error"`
-		}{Error: "unknown profile: " + name})
-		return string(data)
+		}{Error: "unknown profile: " + name}
 	}
 
 	type settingEntry struct {
@@ -750,7 +745,7 @@ func describeProfile(name string) string {
 	for _, s := range p.Settings {
 		settings = append(settings, settingEntry{Key: s.Key, Value: s.Value})
 	}
-	data, _ := json.Marshal(struct {
+	return struct {
 		Name        string         `json:"name"`
 		Description string         `json:"description"`
 		Builtin     bool           `json:"builtin"`
@@ -760,8 +755,7 @@ func describeProfile(name string) string {
 		Description: p.Description,
 		Builtin:     p.Builtin,
 		Settings:    settings,
-	})
-	return string(data)
+	}
 }
 
 // appliedJSON builds the JSON payload for a (sysctl, applied) event.

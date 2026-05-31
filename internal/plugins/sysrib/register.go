@@ -201,7 +201,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 	const cmdDone = "done"
 	const cmdError = "error"
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		switch command {
 		case "show rib":
 			data, err := s.showRIB()

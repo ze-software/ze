@@ -17,10 +17,19 @@ func newTestPlugin() *RPKIPlugin {
 	}
 }
 
-func parseJSON(t *testing.T, data string) map[string]any {
+func parseJSON(t *testing.T, data any) map[string]any {
 	t.Helper()
+	var b []byte
+	switch d := data.(type) {
+	case string:
+		b = []byte(d)
+	default:
+		var err error
+		b, err = json.Marshal(d)
+		require.NoError(t, err)
+	}
 	var m map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &m))
+	require.NoError(t, json.Unmarshal(b, &m))
 	return m
 }
 

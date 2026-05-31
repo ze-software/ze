@@ -26,6 +26,7 @@
 package fakeredist
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -175,19 +176,19 @@ func parseEmitArgs(args []string) (redistevents.RouteAction, family.Family, neti
 }
 
 // runEmit handles `fakeredist emit ...`.
-func runEmit(args []string) (string, error) {
+func runEmit(args []string) (json.RawMessage, error) {
 	action, fam, prefix, nh, err := parseEmitArgs(args)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	delivered, err := emitOnce(action, fam, prefix, nh)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	logger().Debug("fakeredist: emitted",
 		"action", action, "family", fam, "prefix", prefix, "delivered", delivered)
 	var bDel textbuf.Buffer
-	return bDel.Reset().Str(`{"delivered":`).Int(int64(delivered)).Byte('}').String(), nil
+	return json.RawMessage(bDel.Reset().Str(`{"delivered":`).Int(int64(delivered)).Byte('}').String()), nil
 }
 
 // burstMaxN is the upper bound on a single emit-burst invocation. Sized to
@@ -199,28 +200,28 @@ const burstMaxN = 1_000_000
 // runEmitBurst handles `fakeredist emit-burst <N> <add|remove> <family>
 // <base-prefix>`. Emits N single-entry batches with the host portion of the
 // base prefix auto-incremented (so peers see N distinct prefixes).
-func runEmitBurst(args []string) (string, error) {
+func runEmitBurst(args []string) (json.RawMessage, error) {
 	if len(args) != 4 {
-		return "", errUsageFakeredistEmitBurstNAddremove
+		return nil, errUsageFakeredistEmitBurstNAddremove
 	}
 	n, err := strconv.Atoi(args[0])
 	if err != nil || n <= 0 {
-		return "", fmt.Errorf("invalid burst count %q (want positive integer)", args[0])
+		return nil, fmt.Errorf("invalid burst count %q (want positive integer)", args[0])
 	}
 	if n > burstMaxN {
-		return "", fmt.Errorf("burst count %d exceeds maximum %d", n, burstMaxN)
+		return nil, fmt.Errorf("burst count %d exceeds maximum %d", n, burstMaxN)
 	}
 	action, err := parseAction(args[1])
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	fam, err := parseFamily(args[2])
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	base, err := netip.ParsePrefix(args[3])
 	if err != nil {
-		return "", fmt.Errorf("invalid base-prefix %q: %w", args[3], err)
+		return nil, fmt.Errorf("invalid base-prefix %q: %w", args[3], err)
 	}
 
 	// Iterate addresses starting at base.Addr() and increment each step. We
@@ -233,13 +234,11 @@ func runEmitBurst(args []string) (string, error) {
 		var bPfx textbuf.Buffer
 		entry, err := netip.ParsePrefix(bPfx.Reset().Str(addr.String()).Byte('/').Int(int64(bits)).Slice())
 		if err != nil {
-			return "", fmt.Errorf("internal: build entry prefix: %w", err)
+			return nil, fmt.Errorf("internal: build entry prefix: %w", err)
 		}
 		d, err := emitOnce(action, fam, entry, netip.Addr{})
 		if err != nil {
-			// Report the partial-success counts in the error so callers can
-			// tell exactly how many emissions landed before the failure.
-			return "", fmt.Errorf("emit %d/%d (delivered %d) failed: %w", emitted, n, delivered, err)
+			return nil, fmt.Errorf("emit %d/%d (delivered %d) failed: %w", emitted, n, delivered, err)
 		}
 		emitted++
 		delivered += d
@@ -249,13 +248,13 @@ func runEmitBurst(args []string) (string, error) {
 		}
 	}
 	var b textbuf.Buffer
-	return b.Reset().Str(`{"delivered":`).Int(int64(delivered)).Str(`,"emitted":`).Int(int64(emitted)).Byte('}').String(), nil
+	return json.RawMessage(b.Reset().Str(`{"delivered":`).Int(int64(delivered)).Str(`,"emitted":`).Int(int64(emitted)).Byte('}').String()), nil
 }
 
 // dispatchCommand is the OnExecuteCommand entry point. The engine routes
 // commands by prefix; we receive the matched prefix as `command` and the
 // remaining tokens as `args`.
-func dispatchCommand(_, command string, args []string, _ string) (string, string, error) {
+func dispatchCommand(_, command string, args []string, _ string) (string, any, error) {
 	if command == "fakeredist emit" {
 		data, err := runEmit(args)
 		if err != nil {
@@ -271,7 +270,7 @@ func dispatchCommand(_, command string, args []string, _ string) (string, string
 		return rpc.StatusDone, data, nil
 	}
 	if command == "fakeredist help" {
-		return rpc.StatusDone, helpStub(), nil
+		return rpc.StatusDone, map[string]any{"help": helpStub()}, nil
 	}
 	return rpc.StatusError, "", fmt.Errorf("unknown command: %s", command)
 }

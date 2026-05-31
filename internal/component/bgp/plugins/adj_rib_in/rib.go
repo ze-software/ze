@@ -160,7 +160,7 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return r.handleCommand(command, strings.Join(args, " "))
 	})
 

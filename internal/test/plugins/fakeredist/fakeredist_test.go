@@ -2,7 +2,6 @@ package fakeredist
 
 import (
 	"net/netip"
-	"strings"
 	"sync"
 	"testing"
 
@@ -220,6 +219,10 @@ func TestDispatchHelp(t *testing.T) {
 	status, data, err := dispatchCommand("", "fakeredist help", nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, rpc.StatusDone, status)
-	assert.True(t, strings.Contains(data, "emit add"))
-	assert.True(t, strings.Contains(data, "emit-burst"))
+	helpMap, ok := data.(map[string]any)
+	require.True(t, ok)
+	helpStr, ok := helpMap["help"].(string)
+	require.True(t, ok)
+	assert.Contains(t, helpStr, "emit add")
+	assert.Contains(t, helpStr, "emit-burst")
 }

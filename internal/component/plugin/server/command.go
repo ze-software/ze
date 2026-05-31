@@ -738,7 +738,7 @@ func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredComma
 	}
 	if rpcOut != nil {
 		if rpcOut.Status == plugin.StatusError {
-			return &plugin.Response{Status: plugin.StatusError, Error: rpcOut.Data}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: string(rpcOut.Data)}, nil
 		}
 		return &plugin.Response{Status: rpcOut.Status, Data: plugin.RawJSON(rpcOut.Data)}, nil
 	}

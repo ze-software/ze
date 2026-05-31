@@ -154,11 +154,10 @@ func (s *bestSource) Meta() PipelineMeta {
 // Called by handleCommand for "bgp rib show best" with optional filter/terminal stages.
 // peerMu is held only for newBestSource (cross-peer candidate gathering);
 // filter application and terminal drain run outside the lock.
-func (r *RIBManager) bestPipeline(selector string, args []string) string {
+func (r *RIBManager) bestPipeline(selector string, args []string) any {
 	pipeSelector, stages, errMsg := parseBestPipelineArgs(args)
 	if errMsg != "" {
-		data, _ := json.Marshal(map[string]any{"error": errMsg})
-		return string(data)
+		return map[string]any{"error": errMsg}
 	}
 	if pipeSelector != "" {
 		selector = pipeSelector
@@ -185,25 +184,24 @@ func (r *RIBManager) bestPipeline(selector string, args []string) string {
 	// Reason terminal: drive a specialized drain that consults the stash.
 	if hasReasonTerminal(stages) {
 		rt := newBestReasonTerminal(current, candidatesByKey)
-		return rt.Meta().JSON
+		return json.RawMessage(rt.Meta().JSON)
 	}
 
 	// If no terminal was specified, default to best-path json
 	if !hasTerminal(stages) {
 		bt := newBestJSONTerminal(current)
 		meta := bt.Meta()
-		return meta.JSON
+		return json.RawMessage(meta.JSON)
 	}
 
 	// Execute terminal — drain it and return metadata
 	meta := current.Meta()
 	if meta.JSON != "" {
-		return meta.JSON
+		return json.RawMessage(meta.JSON)
 	}
 
 	// count terminal
-	data, _ := json.Marshal(map[string]any{"count": meta.Count})
-	return string(data)
+	return map[string]any{"count": meta.Count}
 }
 
 // bestTerminalReason is the keyword that activates the cmd-9 "reason"

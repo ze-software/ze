@@ -5,8 +5,6 @@
 package bmp
 
 import (
-	"encoding/json"
-	"fmt"
 	"sync"
 	"time"
 
@@ -131,7 +129,7 @@ func (s *bmpState) peerDown(remote string, ph PeerHeader, reason uint8) {
 
 // --- Command handlers ---
 
-func (s *bmpState) sessionsCommand() (string, string, error) {
+func (s *bmpState) sessionsCommand() (string, any, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -139,14 +137,10 @@ func (s *bmpState) sessionsCommand() (string, string, error) {
 	for _, r := range s.routers {
 		sessions = append(sessions, *r)
 	}
-	data, err := json.Marshal(map[string]any{"sessions": sessions})
-	if err != nil {
-		return statusError, "", fmt.Errorf("marshal sessions: %w", err)
-	}
-	return statusDone, string(data), nil
+	return statusDone, map[string]any{"sessions": sessions}, nil
 }
 
-func (s *bmpState) peersCommand() (string, string, error) {
+func (s *bmpState) peersCommand() (string, any, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -154,14 +148,10 @@ func (s *bmpState) peersCommand() (string, string, error) {
 	for _, p := range s.peers {
 		peers = append(peers, *p)
 	}
-	data, err := json.Marshal(map[string]any{"peers": peers})
-	if err != nil {
-		return statusError, "", fmt.Errorf("marshal peers: %w", err)
-	}
-	return statusDone, string(data), nil
+	return statusDone, map[string]any{"peers": peers}, nil
 }
 
-func (s *bmpState) collectorsCommand(senders []*senderSession) (string, string, error) {
+func (s *bmpState) collectorsCommand(senders []*senderSession) (string, any, error) { //nolint:unparam // matches handler pattern
 	collectors := make([]collectorStatus, 0, len(senders))
 	for _, ss := range senders {
 		ss.connMu.Lock()
@@ -174,9 +164,5 @@ func (s *bmpState) collectorsCommand(senders []*senderSession) (string, string, 
 			Connected: connected,
 		})
 	}
-	data, err := json.Marshal(map[string]any{"collectors": collectors})
-	if err != nil {
-		return statusError, "", fmt.Errorf("marshal collectors: %w", err)
-	}
-	return statusDone, string(data), nil
+	return statusDone, map[string]any{"collectors": collectors}, nil
 }

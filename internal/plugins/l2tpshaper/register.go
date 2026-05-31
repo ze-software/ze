@@ -107,7 +107,7 @@ func runPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		if command == "l2tp shaper show" {
 			return "done", shaperInstance.showSessions(), nil
 		}

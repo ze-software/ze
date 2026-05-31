@@ -244,7 +244,7 @@ func runLDPEngine(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		switch command {
 		case "ldp show-neighbor":
 			return "done", showNeighbors(adjTable, sessions, &sessionsMu), nil
@@ -707,7 +707,7 @@ func runAdjacencyExpiry(ctx context.Context, log *slog.Logger, adjTable *Adjacen
 	}
 }
 
-func showNeighbors(adjTable *AdjacencyTable, sessions map[string]*Session, mu *sync.Mutex) string {
+func showNeighbors(adjTable *AdjacencyTable, sessions map[string]*Session, mu *sync.Mutex) any {
 	adjs := adjTable.All()
 	mu.Lock()
 	defer mu.Unlock()
@@ -734,14 +734,10 @@ func showNeighbors(adjTable *AdjacencyTable, sessions map[string]*Session, mu *s
 		})
 	}
 
-	data, err := json.Marshal(neighbors)
-	if err != nil {
-		return "[]"
-	}
-	return string(data)
+	return neighbors
 }
 
-func showBindings(lib *LIB) string {
+func showBindings(lib *LIB) any {
 	// AC-8: report both directions -- the labels this LSR originates (local) and
 	// the labels learned from peers (remote). Local bindings have no peer address.
 	type bindingInfo struct {
@@ -770,9 +766,5 @@ func showBindings(lib *LIB) string {
 		})
 	}
 
-	data, err := json.Marshal(out)
-	if err != nil {
-		return "[]"
-	}
-	return string(data)
+	return out
 }

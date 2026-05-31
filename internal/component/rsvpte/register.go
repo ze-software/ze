@@ -366,7 +366,7 @@ func runRSVPTEEngine(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		switch command {
 		case "rsvp-te show-session":
 			return cmdDone, showSessions(lspTable), nil
@@ -605,7 +605,7 @@ func emitLSPDown(log *slog.Logger, lsp *LSP, activeCount int) {
 	}
 }
 
-func showSessions(lspTable *LSPTable) string {
+func showSessions(lspTable *LSPTable) any {
 	type sessionInfo struct {
 		TunnelEndpoint string  `json:"tunnel-endpoint"`
 		TunnelID       uint16  `json:"tunnel-id"`
@@ -634,14 +634,10 @@ func showSessions(lspTable *LSPTable) string {
 		})
 		lsp.mu.Unlock()
 	}
-	data, err := json.Marshal(out)
-	if err != nil {
-		return "[]"
-	}
-	return string(data)
+	return out
 }
 
-func showInterfaces(admission *AdmissionController) string {
+func showInterfaces(admission *AdmissionController) any {
 	type ifaceInfo struct {
 		Name              string  `json:"name"`
 		MaxBandwidth      float64 `json:"max-bandwidth"`
@@ -660,14 +656,10 @@ func showInterfaces(admission *AdmissionController) string {
 			Available:         ib.Available(),
 		})
 	}
-	data, err := json.Marshal(out)
-	if err != nil {
-		return "[]"
-	}
-	return string(data)
+	return out
 }
 
-func showTunnels(lspTable *LSPTable) string {
+func showTunnels(lspTable *LSPTable) any {
 	type tunnelInfo struct {
 		TunnelEndpoint string  `json:"tunnel-endpoint"`
 		TunnelID       uint16  `json:"tunnel-id"`
@@ -697,9 +689,5 @@ func showTunnels(lspTable *LSPTable) string {
 		lsp.mu.Unlock()
 		out = append(out, info)
 	}
-	data, err := json.Marshal(out)
-	if err != nil {
-		return "[]"
-	}
-	return string(data)
+	return out
 }

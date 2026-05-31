@@ -134,7 +134,7 @@ func RunWatchdogPlugin(conn net.Conn) int {
 	})
 
 	// Runtime: handle watchdog commands from CLI
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return srv.handleCommand(command, args, peer)
 	})
 

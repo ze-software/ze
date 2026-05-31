@@ -4,7 +4,6 @@
 package adj_rib_in
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -12,7 +11,6 @@ import (
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -24,12 +22,12 @@ var (
 
 // handleCommand processes command requests via SDK execute-command callback.
 // Returns (status, data, error) for the SDK to send back to the engine.
-func (r *AdjRIBInManager) handleCommand(command, selector string) (string, string, error) {
+func (r *AdjRIBInManager) handleCommand(command, selector string) (string, any, error) {
 	switch command {
 	case "adj-rib-in status":
-		return statusDone, r.statusJSON(), nil
+		return statusDone, r.status(), nil
 	case "adj-rib-in show":
-		return statusDone, r.showJSON(selector), nil
+		return statusDone, r.show(selector), nil
 	case "adj-rib-in replay":
 		return r.replayCommand(selector)
 	case "adj-rib-in enable-validation":
@@ -44,8 +42,8 @@ func (r *AdjRIBInManager) handleCommand(command, selector string) (string, strin
 	return statusError, "", fmt.Errorf("unknown command: %s", command)
 }
 
-// statusJSON returns status as JSON.
-func (r *AdjRIBInManager) statusJSON() string {
+// status returns adj-RIB-in status.
+func (r *AdjRIBInManager) status() any {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -56,19 +54,15 @@ func (r *AdjRIBInManager) statusJSON() string {
 		totalRoutes += routes.Len()
 	}
 
-	data, err := json.Marshal(map[string]any{
+	return map[string]any{
 		"running":      true,
 		"total-routes": totalRoutes,
 		"peers":        peers,
-	})
-	if err != nil {
-		return `{"error":"marshal failed"}`
 	}
-	return string(data)
 }
 
-// showJSON returns routes for a peer as human-readable JSON.
-func (r *AdjRIBInManager) showJSON(selector string) string {
+// show returns routes for a peer as human-readable JSON.
+func (r *AdjRIBInManager) show(selector string) any {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -97,17 +91,13 @@ func (r *AdjRIBInManager) showJSON(selector string) string {
 		}
 	}
 
-	data, err := json.Marshal(map[string]any{"adj-rib-in": result})
-	if err != nil {
-		return `{"error":"marshal failed"}`
-	}
-	return string(data)
+	return map[string]any{"adj-rib-in": result}
 }
 
 // replayCommand handles "adj-rib-in replay" via execute-command.
 // Selector format: "<target-peer> [<from-index>]"
 // Replays routes from ALL source peers except target, filtered by from-index.
-func (r *AdjRIBInManager) replayCommand(selector string) (string, string, error) {
+func (r *AdjRIBInManager) replayCommand(selector string) (string, any, error) {
 	parts := strings.Fields(selector)
 	if len(parts) == 0 {
 		return statusError, "", errAdjRibInReplayRequiresTarget
@@ -130,25 +120,23 @@ func (r *AdjRIBInManager) replayCommand(selector string) (string, string, error)
 		r.updateRoute(targetPeer, cmd)
 	}
 
-	var b textbuf.Buffer
-	data := b.Reset().Str(`{"last-index":`).Int(int64(maxSeq)).Str(`,"replayed":`).Int(int64(len(cmds))).Str("}").String()
-	return statusDone, data, nil
+	return statusDone, map[string]any{"last-index": maxSeq, "replayed": len(cmds)}, nil
 }
 
 // enableValidationCommand handles "adj-rib-in enable-validation".
 // Sets the validationEnabled flag so subsequent routes use pending state.
-func (r *AdjRIBInManager) enableValidationCommand() (string, string, error) {
+func (r *AdjRIBInManager) enableValidationCommand() (string, any, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	r.validationEnabled = true
 	logger().Info("validation gate enabled")
-	return statusDone, `{"validation-enabled":true}`, nil
+	return statusDone, map[string]any{"validation-enabled": true}, nil
 }
 
 // acceptRoutesCommand handles "adj-rib-in accept-routes <peer> <family> <prefix> <pathID> <state>".
 // Promotes a pending route to installed with the given validation state.
-func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, string, error) {
+func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, any, error) {
 	parts := strings.Fields(selector)
 	if len(parts) < 5 {
 		return statusError, "", errAcceptRoutesRequiresPeerFamilyPrefix
@@ -174,18 +162,18 @@ func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, string, 
 	pr, ok := r.pending[key]
 	if !ok {
 		r.storeEarlyDecision(peerAddr, rKey, earlyAccept, valState)
-		return statusDone, `{"status":"ok","early":true}`, nil
+		return statusDone, map[string]any{"status": "ok", "early": true}, nil
 	}
 
 	r.promoteToInstalled(pr, valState)
 	delete(r.pending, key)
 
-	return statusDone, `{"status":"ok"}`, nil
+	return statusDone, map[string]any{"status": "ok"}, nil
 }
 
 // rejectRoutesCommand handles "adj-rib-in reject-routes <peer> <family> <prefix> <pathID>".
 // Discards a pending route (does not install it).
-func (r *AdjRIBInManager) rejectRoutesCommand(selector string) (string, string, error) {
+func (r *AdjRIBInManager) rejectRoutesCommand(selector string) (string, any, error) {
 	parts := strings.Fields(selector)
 	if len(parts) < 4 {
 		return statusError, "", errRejectRoutesRequiresPeerFamilyPrefix
@@ -206,18 +194,18 @@ func (r *AdjRIBInManager) rejectRoutesCommand(selector string) (string, string, 
 	key := pendingKey(peerAddr, rKey)
 	if _, ok := r.pending[key]; !ok {
 		r.storeEarlyDecision(peerAddr, rKey, earlyReject, 0)
-		return statusDone, `{"status":"ok","early":true}`, nil
+		return statusDone, map[string]any{"status": "ok", "early": true}, nil
 	}
 
 	delete(r.pending, key)
 	logger().Debug("rejected pending route", "peer", peerAddr, "family", fam, "prefix", prefix, "pathID", pathID)
 
-	return statusDone, `{"status":"ok"}`, nil
+	return statusDone, map[string]any{"status": "ok"}, nil
 }
 
 // revalidateCommand handles "adj-rib-in revalidate <family> <prefix>".
 // Returns installed route data for the given prefix so the validator can re-validate.
-func (r *AdjRIBInManager) revalidateCommand(selector string) (string, string, error) {
+func (r *AdjRIBInManager) revalidateCommand(selector string) (string, any, error) {
 	parts := strings.Fields(selector)
 	if len(parts) < 2 {
 		return statusError, "", errRevalidateRequiresFamilyPrefix
@@ -259,11 +247,7 @@ func (r *AdjRIBInManager) revalidateCommand(selector string) (string, string, er
 		})
 	}
 
-	data, err := json.Marshal(map[string]any{"routes": routes})
-	if err != nil {
-		return statusError, "", fmt.Errorf("marshal revalidate response: %w", err)
-	}
-	return statusDone, string(data), nil
+	return statusDone, map[string]any{"routes": routes}, nil
 }
 
 // matchesPeer returns true if peerAddr matches the selector string.

@@ -257,7 +257,8 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 
 	var outChanges []outgoingChange
 
-	for _, c := range batch.Changes {
+	for i := range batch.Changes {
+		c := batch.Changes[i]
 		if !c.Prefix.IsValid() {
 			logger().Warn("sysrib: skipping change with empty prefix")
 			continue
@@ -854,7 +855,7 @@ func (s *sysRIB) processLocRIBChange(c locrib.Change) {
 }
 
 // showNHTable returns the NH resolver tracking table as JSON.
-func (s *sysRIB) showNHTable() (string, error) {
+func (s *sysRIB) showNHTable() (any, error) {
 	r := getNHResolver()
 	if r == nil {
 		return "[]", nil
@@ -887,15 +888,11 @@ func (s *sysRIB) showNHTable() (string, error) {
 		})
 	}
 
-	data, err := json.Marshal(entries)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
+	return entries, nil
 }
 
 // showECMPGroups returns the current ECMP groups as JSON.
-func (s *sysRIB) showECMPGroups() (string, error) {
+func (s *sysRIB) showECMPGroups() (any, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -917,15 +914,11 @@ func (s *sysRIB) showECMPGroups() (string, error) {
 		})
 	}
 
-	data, err := json.Marshal(entries)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
+	return entries, nil
 }
 
 // showRIB returns the current system RIB state as JSON.
-func (s *sysRIB) showRIB() (string, error) {
+func (s *sysRIB) showRIB() (any, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -950,11 +943,7 @@ func (s *sysRIB) showRIB() (string, error) {
 		})
 	}
 
-	data, err := json.Marshal(entries)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
+	return entries, nil
 }
 
 // changeToBatch converts a locrib.Change into the BestChangeBatch shape

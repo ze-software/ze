@@ -5,7 +5,6 @@ package rib
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -36,11 +35,11 @@ func registerCommunityCommands() {
 		handler CommandHandler
 	}{
 		{"bgp rib attach-community", "Attach a community to stale routes for a peer family",
-			func(r *RIBManager, _ string, args []string) (string, string, error) {
+			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				return r.attachCommunityCommand(args)
 			}},
 		{"bgp rib delete-with-community", "Delete stale routes that have a specific community",
-			func(r *RIBManager, _ string, args []string) (string, string, error) {
+			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				return r.deleteWithCommunityCommand(args)
 			}},
 	}
@@ -55,7 +54,7 @@ func registerCommunityCommands() {
 // Attaches a 4-byte community to all stale routes for the specified peer and family.
 // Also raises StaleLevel to DepreferenceThreshold for attached routes.
 // Args: [0]=peer, [1]=family, [2]=community as 8-char hex (e.g., "ffff0006").
-func (r *RIBManager) attachCommunityCommand(args []string) (string, string, error) {
+func (r *RIBManager) attachCommunityCommand(args []string) (string, any, error) {
 	if len(args) < 3 {
 		return statusError, "", errAttachCommunityRequiresPeerFamilyCommunity
 	}
@@ -79,8 +78,7 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, string, erro
 	peerRIB := r.bgpPeers[peerAddr]
 	if peerRIB == nil {
 		r.peerMu.Unlock()
-		data, _ := json.Marshal(map[string]any{"attached": 0})
-		return statusDone, string(data), nil
+		return statusDone, map[string]any{"attached": 0}, nil
 	}
 
 	type affectedNLRI struct {
@@ -116,14 +114,13 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, string, erro
 	logger().Debug("attach-community", "peer", peerAddr, "family", familyStr,
 		"community", commHex, "attached", attached)
 
-	data, _ := json.Marshal(map[string]any{"attached": attached})
-	return statusDone, string(data), nil
+	return statusDone, map[string]any{"attached": attached}, nil
 }
 
 // deleteWithCommunityCommand handles "bgp rib delete-with-community <peer> <family> <community-hex>".
 // Deletes stale routes that contain the specified community.
 // Args: [0]=peer, [1]=family, [2]=community as 8-char hex.
-func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, string, error) {
+func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, any, error) {
 	if len(args) < 3 {
 		return statusError, "", errDeleteWithCommunityRequiresPeerFamily
 	}
@@ -147,8 +144,7 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, string, 
 	peerRIB := r.bgpPeers[peerAddr]
 	if peerRIB == nil {
 		r.peerMu.Unlock()
-		data, _ := json.Marshal(map[string]any{"deleted": 0})
-		return statusDone, string(data), nil
+		return statusDone, map[string]any{"deleted": 0}, nil
 	}
 
 	ap := peerRIB.IsAddPath(fam)
@@ -191,8 +187,7 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, string, 
 	logger().Debug("delete-with-community", "peer", peerAddr, "family", familyStr,
 		"community", commHex, "deleted", deleted)
 
-	data, _ := json.Marshal(map[string]any{"deleted": deleted})
-	return statusDone, string(data), nil
+	return statusDone, map[string]any{"deleted": deleted}, nil
 }
 
 // containsCommunity checks if a community wire blob contains a specific 4-byte community.

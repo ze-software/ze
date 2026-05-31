@@ -201,7 +201,7 @@ func TestShowProtocolPipelineBMP(t *testing.T) {
 	result := r.showProtocolPipeline("bmp", "", nil)
 
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 
 	ribIn, ok := parsed["adj-rib-in"].(map[string]any)
 	require.True(t, ok, "result should have adj-rib-in")
@@ -228,7 +228,7 @@ func TestShowProtocolPipelineSelector(t *testing.T) {
 	result := r.showProtocolPipeline("bmp", "router1:peer1", nil)
 
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 
 	ribIn, ok := parsed["adj-rib-in"].(map[string]any)
 	require.True(t, ok)
@@ -284,7 +284,7 @@ func TestBGPShowExcludesBMP(t *testing.T) {
 	result := r.showPipeline("*", nil)
 
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 
 	ribIn, ok := parsed["adj-rib-in"].(map[string]any)
 	require.True(t, ok)

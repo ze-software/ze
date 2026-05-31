@@ -154,7 +154,7 @@ func runFibVPPPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		if command == "fib-vpp show" {
 			if fib == nil {
 				return "done", "[]", nil

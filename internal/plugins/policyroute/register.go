@@ -1,7 +1,6 @@
 package policyroute
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -146,16 +145,12 @@ func runPolicyRoutePlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		if command == "show policy-routes" {
 			mu.Lock()
 			policies := currentPolicies
 			mu.Unlock()
-			data, err := formatPolicies(policies)
-			if err != nil {
-				return "error", "", err
-			}
-			return "done", data, nil
+			return "done", formatPolicies(policies), nil
 		}
 		return "error", "", fmt.Errorf("unknown command: %s", command)
 	})
@@ -249,7 +244,7 @@ type showRule struct {
 	Action string `json:"action"`
 }
 
-func formatPolicies(policies []PolicyRoute) (string, error) {
+func formatPolicies(policies []PolicyRoute) any {
 	out := make([]showPolicy, 0, len(policies))
 	for _, p := range policies {
 		sp := showPolicy{Name: p.Name}
@@ -278,9 +273,5 @@ func formatPolicies(policies []PolicyRoute) (string, error) {
 		}
 		out = append(out, sp)
 	}
-	data, err := json.Marshal(out)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
+	return out
 }

@@ -9,7 +9,6 @@
 package rib
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/netip"
 	"sort"
@@ -83,7 +82,7 @@ func (r *RIBManager) autoExpireStale(peerAddr string, owner *peerGRState) {
 
 // CommandHandler is the signature for RIB command handlers.
 // Registered by plugins via RegisterRIBCommand during init().
-type CommandHandler func(r *RIBManager, selector string, args []string) (string, string, error)
+type CommandHandler func(r *RIBManager, selector string, args []string) (string, any, error)
 
 // ribCommandEntry holds a registered command handler and its help text.
 type ribCommandEntry struct {
@@ -122,22 +121,22 @@ func doRegisterBuiltinCommands() {
 		handler CommandHandler
 	}{
 		{[]string{"bgp rib status", "bgp rib adjacent status"}, "Show RIB status (peer count, route counts)",
-			func(r *RIBManager, sel string, _ []string) (string, string, error) {
-				return statusDone, r.statusJSON(), nil
+			func(r *RIBManager, sel string, _ []string) (string, any, error) {
+				return statusDone, r.status(), nil
 			}},
 		{[]string{"bgp rib show"}, "Show routes (scope: sent|received|sent-received, filters, terminals)",
-			func(r *RIBManager, sel string, args []string) (string, string, error) {
+			func(r *RIBManager, sel string, args []string) (string, any, error) {
 				return statusDone, r.showPipeline(sel, args), nil
 			}},
 		{[]string{"bgp rib clear in", "bgp rib adjacent inbound empty"}, "Clear Adj-RIB-In routes",
-			func(r *RIBManager, _ string, args []string) (string, string, error) {
+			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) == 0 {
 					return statusError, "", errBgpRibClearInRequiresA
 				}
-				return statusDone, r.inboundEmptyJSON(args[0]), nil
+				return statusDone, r.inboundEmpty(args[0]), nil
 			}},
 		{[]string{"bgp rib clear out", "bgp rib adjacent outbound resend"}, "Resend Adj-RIB-Out routes",
-			func(r *RIBManager, _ string, args []string) (string, string, error) {
+			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) == 0 {
 					return statusError, "", errBgpRibClearOutRequiresA
 				}
@@ -145,60 +144,60 @@ func doRegisterBuiltinCommands() {
 				if len(args) >= 2 && strings.Contains(args[1], "/") {
 					family = args[1]
 				}
-				return statusDone, r.outboundResendJSON(args[0], family), nil
+				return statusDone, r.outboundResend(args[0], family), nil
 			}},
 		{[]string{"bgp rib retain-routes"}, "Mark peer RIB for retention",
-			func(r *RIBManager, _ string, args []string) (string, string, error) {
+			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) == 0 {
 					return statusError, "", errBgpRibRetainRoutesRequiresA
 				}
-				return statusDone, r.retainRoutesJSON(args[0]), nil
+				return statusDone, r.retainRoutes(args[0]), nil
 			}},
 		{[]string{"bgp rib release-routes"}, "Release retained peer RIB",
-			func(r *RIBManager, _ string, args []string) (string, string, error) {
+			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) == 0 {
 					return statusError, "", errBgpRibReleaseRoutesRequiresA
 				}
-				return statusDone, r.releaseRoutesJSON(args[0]), nil
+				return statusDone, r.releaseRoutes(args[0]), nil
 			}},
 		{[]string{"bgp rib mark-stale"}, "Mark peer routes at stale level",
-			func(r *RIBManager, _ string, args []string) (string, string, error) {
+			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				return r.markStaleCommand(args)
 			}},
 		{[]string{"bgp rib purge-stale"}, "Purge stale routes for peer",
-			func(r *RIBManager, _ string, args []string) (string, string, error) {
+			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				return r.purgeStaleCommand(args)
 			}},
 		{[]string{"bgp rib show best"}, "Show best-path per prefix (add 'reason' terminal to narrate the RFC 4271 §9.1.2 decision process)",
-			func(r *RIBManager, sel string, args []string) (string, string, error) {
+			func(r *RIBManager, sel string, args []string) (string, any, error) {
 				return statusDone, r.bestPipeline(sel, args), nil
 			}},
 		{[]string{"bgp rib show best status"}, "Show best-path computation status",
-			func(r *RIBManager, _ string, _ []string) (string, string, error) {
-				return statusDone, r.bestPathStatusJSON(), nil
+			func(r *RIBManager, _ string, _ []string) (string, any, error) {
+				return statusDone, r.bestPathStatus(), nil
 			}},
 		{[]string{"bgp rib help"}, "Show RIB subcommands",
-			func(_ *RIBManager, _ string, _ []string) (string, string, error) {
-				return statusDone, ribHelpJSON(), nil
+			func(_ *RIBManager, _ string, _ []string) (string, any, error) {
+				return statusDone, ribHelp(), nil
 			}},
 		{[]string{"bgp rib command list"}, "List RIB commands",
-			func(_ *RIBManager, _ string, _ []string) (string, string, error) {
-				return statusDone, ribCommandListJSON(), nil
+			func(_ *RIBManager, _ string, _ []string) (string, any, error) {
+				return statusDone, ribCommandList(), nil
 			}},
 		{[]string{"bgp rib event list"}, "List RIB event types",
-			func(_ *RIBManager, _ string, _ []string) (string, string, error) {
-				return statusDone, ribEventListJSON(), nil
+			func(_ *RIBManager, _ string, _ []string) (string, any, error) {
+				return statusDone, ribEventList(), nil
 			}},
 		{[]string{"bgp rib inject"}, "Inject route into adj-rib-in: <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]",
-			func(r *RIBManager, sel string, args []string) (string, string, error) {
+			func(r *RIBManager, sel string, args []string) (string, any, error) {
 				return r.injectRoute(sel, args)
 			}},
 		{[]string{"bgp rib withdraw"}, "Withdraw route from adj-rib-in: <peer> <family> <prefix>",
-			func(r *RIBManager, sel string, args []string) (string, string, error) {
+			func(r *RIBManager, sel string, args []string) (string, any, error) {
 				return r.withdrawRoute(sel, args)
 			}},
 		{[]string{"bgp rib rpf"}, "RPF lookup: <family> <source-addr> (longest-prefix-match in Loc-RIB)",
-			func(r *RIBManager, _ string, args []string) (string, string, error) {
+			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				return r.rpfLookup(args)
 			}},
 	}
@@ -219,7 +218,7 @@ func doRegisterBuiltinCommands() {
 // injectRoute inserts a route into adj-rib-in as if received from a peer.
 // Syntax: bgp rib inject <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]
 // The peer address is a label; no live BGP session required.
-func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error) {
+func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 	if len(args) < 3 {
 		return statusError, "", errUsageRibInjectPeerFamilyPrefix
 	}
@@ -321,8 +320,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error
 
 	r.reconcileBestPath(fam, nlriBytes)
 
-	data, _ := json.Marshal(map[string]any{"injected": prefix, "peer": peer, "family": familyStr})
-	return statusDone, string(data), nil
+	return statusDone, map[string]any{"injected": prefix, "peer": peer, "family": familyStr}, nil
 }
 
 // validateIPv6NextHop checks whether an IPv6 next-hop is valid for this peer and family.
@@ -363,7 +361,7 @@ func (r *RIBManager) validateIPv6NextHop(peer string, fam family.Family) error {
 // withdrawRoute removes a route from adj-rib-in.
 // Syntax: bgp rib withdraw <peer> <family> <prefix>
 // The peer address is a label; no live BGP session required.
-func (r *RIBManager) withdrawRoute(_ string, args []string) (string, string, error) {
+func (r *RIBManager) withdrawRoute(_ string, args []string) (string, any, error) {
 	if len(args) < 3 {
 		return statusError, "", errUsageRibWithdrawPeerFamilyPrefix
 	}
@@ -398,13 +396,12 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, string, err
 
 	r.reconcileBestPath(fam, nlriBytes)
 
-	data, _ := json.Marshal(map[string]any{"withdrawn": prefix, "peer": peer, "family": familyStr, "existed": removed})
-	return statusDone, string(data), nil
+	return statusDone, map[string]any{"withdrawn": prefix, "peer": peer, "family": familyStr, "existed": removed}, nil
 }
 
 // rpfLookup performs a Reverse Path Forwarding lookup: longest-prefix-match
 // against the Loc-RIB for a given family and source address.
-func (r *RIBManager) rpfLookup(args []string) (string, string, error) {
+func (r *RIBManager) rpfLookup(args []string) (string, any, error) {
 	if len(args) < 2 {
 		return statusError, "", fmt.Errorf("usage: bgp rib rpf <family> <source-addr>")
 	}
@@ -435,19 +432,18 @@ func (r *RIBManager) rpfLookup(args []string) (string, string, error) {
 
 	best, pfx, found := loc.LPM(fam, addr)
 	if !found {
-		data, _ := json.Marshal(map[string]any{
+		return statusDone, map[string]any{
 			"source": addrStr,
 			"family": familyStr,
 			"found":  false,
-		})
-		return statusDone, string(data), nil
+		}, nil
 	}
 
 	nextHop := ""
 	if best.NextHop.IsValid() {
 		nextHop = best.NextHop.String()
 	}
-	data, _ := json.Marshal(map[string]any{
+	return statusDone, map[string]any{
 		"source":         addrStr,
 		"family":         familyStr,
 		"found":          true,
@@ -455,8 +451,7 @@ func (r *RIBManager) rpfLookup(args []string) (string, string, error) {
 		"next-hop":       nextHop,
 		"admin-distance": best.AdminDistance,
 		"metric":         best.Metric,
-	})
-	return statusDone, string(data), nil
+	}, nil
 }
 
 // parseASNList parses a comma-separated list of ASNs into uint32 slice.
@@ -487,15 +482,15 @@ var injectOriginValues = map[string]uint8{
 // handleCommand processes command requests via SDK execute-command callback.
 // Dispatches to registered handlers from the command table.
 // Returns (status, data, error) for the SDK to send back to the engine.
-func (r *RIBManager) handleCommand(command, selector string, args []string) (string, string, error) {
+func (r *RIBManager) handleCommand(command, selector string, args []string) (string, any, error) {
 	if entry, ok := registeredCommands[command]; ok {
 		return entry.Handler(r, selector, args)
 	}
 	return statusError, "", fmt.Errorf("unknown command: %s", command)
 }
 
-// ribHelpJSON returns RIB subcommands as JSON, built from the command registry.
-func ribHelpJSON() string {
+// ribHelp returns RIB subcommands, built from the command registry.
+func ribHelp() any {
 	seen := make(map[string]bool)
 	var subs []string
 	for name := range registeredCommands {
@@ -510,12 +505,11 @@ func ribHelpJSON() string {
 		}
 	}
 	sort.Strings(subs)
-	data, _ := json.Marshal(map[string]any{"subcommands": subs})
-	return string(data)
+	return map[string]any{"subcommands": subs}
 }
 
-// ribCommandListJSON returns all RIB commands as JSON, built from the command registry.
-func ribCommandListJSON() string {
+// ribCommandList returns all RIB commands, built from the command registry.
+func ribCommandList() any {
 	type entry struct {
 		Name string `json:"name"`
 		Help string `json:"help"`
@@ -525,15 +519,13 @@ func ribCommandListJSON() string {
 		cmds = append(cmds, entry{Name: name, Help: e.Help})
 	}
 	sort.Slice(cmds, func(i, j int) bool { return cmds[i].Name < cmds[j].Name })
-	data, _ := json.Marshal(map[string]any{"commands": cmds})
-	return string(data)
+	return map[string]any{"commands": cmds}
 }
 
-// ribEventListJSON returns RIB event types as JSON.
-func ribEventListJSON() string {
+// ribEventList returns RIB event types.
+func ribEventList() any {
 	events := []string{"cache", "route", "peer", "memory"}
-	data, _ := json.Marshal(map[string]any{"events": events})
-	return string(data)
+	return map[string]any{"events": events}
 }
 
 // matchesPeer returns true if peerAddr matches the selector string.
@@ -565,8 +557,8 @@ func matchesPeer(peerAddr, selector string) bool {
 	return peerAddr == selector
 }
 
-// inboundEmptyJSON clears Adj-RIB-In routes for matching peers, returns JSON result.
-func (r *RIBManager) inboundEmptyJSON(selector string) string {
+// inboundEmpty clears Adj-RIB-In routes for matching peers.
+func (r *RIBManager) inboundEmpty(selector string) any {
 	r.peerMu.Lock()
 	cleared := 0
 	var purgedPeers []string
@@ -585,15 +577,14 @@ func (r *RIBManager) inboundEmptyJSON(selector string) string {
 
 	r.reconcileBestPathBulk(purgedPeers)
 
-	data, _ := json.Marshal(map[string]any{"cleared": cleared})
-	return string(data)
+	return map[string]any{"cleared": cleared}
 }
 
-// outboundResendJSON replays Adj-RIB-Out routes for matching peers, returns JSON result.
+// outboundResend replays Adj-RIB-Out routes for matching peers.
 // If family is non-empty, only routes from that family are resent.
 // Does NOT send "plugin session ready" - that's only for initial reconnect.
 // Uses cursor mode for efficient batched replay with delta encoding.
-func (r *RIBManager) outboundResendJSON(selector, famStr string) string {
+func (r *RIBManager) outboundResend(selector, famStr string) any {
 	r.peerMu.RLock()
 	var peersToResend []string
 	groupsToResend := make(map[string][]replayGroup)
@@ -625,8 +616,7 @@ func (r *RIBManager) outboundResendJSON(selector, famStr string) string {
 		resent += r.resendRoutesWithCursor(peer, groupsToResend[peer])
 	}
 
-	data, _ := json.Marshal(map[string]any{"resent": resent, "peers": len(peersToResend)})
-	return string(data)
+	return map[string]any{"resent": resent, "peers": len(peersToResend)}
 }
 
 // sendRoutes sends routes to a peer without the "plugin session ready" signal.
@@ -647,8 +637,8 @@ func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 	}
 }
 
-// statusJSON returns status as JSON.
-func (r *RIBManager) statusJSON() string {
+// status returns RIB status.
+func (r *RIBManager) status() any {
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 
@@ -689,14 +679,13 @@ func (r *RIBManager) statusJSON() string {
 		result["gr-state"] = grPeers
 	}
 
-	data, _ := json.Marshal(result)
-	return string(data)
+	return result
 }
 
-// retainRoutesJSON marks a peer's Adj-RIB-In for retention during GR.
+// retainRoutes marks a peer's Adj-RIB-In for retention during GR.
 // RFC 4724: Receiving speaker retains routes from restarting peer.
 // Called by bgp-gr plugin via DispatchCommand("bgp rib retain-routes <peer>").
-func (r *RIBManager) retainRoutesJSON(selector string) string {
+func (r *RIBManager) retainRoutes(selector string) any {
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
 
@@ -709,14 +698,13 @@ func (r *RIBManager) retainRoutesJSON(selector string) string {
 		retained++
 	}
 
-	data, _ := json.Marshal(map[string]any{"retained-peers": retained})
-	return string(data)
+	return map[string]any{"retained-peers": retained}
 }
 
-// releaseRoutesJSON clears the retain flag and deletes Adj-RIB-In for matching peers.
+// releaseRoutes clears the retain flag and deletes Adj-RIB-In for matching peers.
 // RFC 4724: Called when restart timer expires or GR completes.
 // Called by bgp-gr plugin via DispatchCommand("bgp rib release-routes <peer>").
-func (r *RIBManager) releaseRoutesJSON(selector string) string {
+func (r *RIBManager) releaseRoutes(selector string) any {
 	r.peerMu.Lock()
 
 	released := 0
@@ -742,15 +730,14 @@ func (r *RIBManager) releaseRoutesJSON(selector string) string {
 
 	r.reconcileBestPathBulk(purgedPeers)
 
-	data, _ := json.Marshal(map[string]any{"released-peers": released})
-	return string(data)
+	return map[string]any{"released-peers": released}
 }
 
 // markStaleCommand handles "bgp rib mark-stale <peer> <restart-time>".
 // Marks all routes for the peer as stale and stores GR metadata.
 // RFC 4724 Section 4.2: mark routes stale on GR-capable peer session drop.
 // Args: [0]=peer address, [1]=restart time in seconds, [2]=optional stale level (default 1).
-func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
+func (r *RIBManager) markStaleCommand(args []string) (string, any, error) {
 	if len(args) < 2 {
 		return statusError, "", errMarkStaleRequiresPeerRestartTime
 	}
@@ -830,15 +817,14 @@ func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
 
 	logger().Debug("mark-stale", "peer", peerAddr, "marked", marked, "restart-time", restartTime)
 
-	data, _ := json.Marshal(map[string]any{"marked": marked})
-	return statusDone, string(data), nil
+	return statusDone, map[string]any{"marked": marked}, nil
 }
 
 // purgeStaleCommand handles "bgp rib purge-stale <peer> [family]".
 // Deletes only stale routes, optionally for a specific family.
 // RFC 4724 Section 4.2: purge stale routes on EOR receipt or timer expiry.
 // Args: [0]=peer address, [1]=optional family (e.g., "ipv4/unicast").
-func (r *RIBManager) purgeStaleCommand(args []string) (string, string, error) {
+func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 	if len(args) < 1 {
 		return statusError, "", errPurgeStaleRequiresPeer
 	}
@@ -912,12 +898,11 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, string, error) {
 
 	logger().Debug("purge-stale", "peer", peerAddr, "purged", purged, "family", familyFilter)
 
-	data, _ := json.Marshal(map[string]any{"purged": purged})
-	return statusDone, string(data), nil
+	return statusDone, map[string]any{"purged": purged}, nil
 }
 
-// bestPathStatusJSON returns summary statistics about the best-path computation.
-func (r *RIBManager) bestPathStatusJSON() string {
+// bestPathStatus returns summary statistics about the best-path computation.
+func (r *RIBManager) bestPathStatus() any {
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 
@@ -930,12 +915,11 @@ func (r *RIBManager) bestPathStatusJSON() string {
 		}
 	}
 
-	data, _ := json.Marshal(map[string]any{
+	return map[string]any{
 		"running":        true,
 		"peers-with-rib": totalPeers,
 		"total-routes":   totalRoutes,
-	})
-	return string(data)
+	}
 }
 
 // gatherCandidates collects best-path candidates for a given (family, nlri)

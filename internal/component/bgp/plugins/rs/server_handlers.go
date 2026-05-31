@@ -365,19 +365,19 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 
 // handleCommand processes command requests via SDK execute-command callback.
 // Returns (status, data, error) for the SDK to send back to the engine.
-func (rs *RouteServer) handleCommand(command string) (string, string, error) {
+func (rs *RouteServer) handleCommand(command string) (string, any, error) {
 	switch command {
 	case "rs status":
-		return statusDone, `{"running":true}`, nil
+		return statusDone, map[string]any{"running": true}, nil
 	case "rs peers":
-		return statusDone, rs.peersJSON(), nil
-	default: // fail on unknown command
+		return statusDone, rs.peerStatus(), nil
+	default:
 		return statusError, "", fmt.Errorf("unknown command: %s", command)
 	}
 }
 
-// peersJSON returns peer state as JSON.
-func (rs *RouteServer) peersJSON() string {
+// peerStatus returns peer state.
+func (rs *RouteServer) peerStatus() any {
 	rs.mu.RLock()
 	defer rs.mu.RUnlock()
 
@@ -390,6 +390,5 @@ func (rs *RouteServer) peersJSON() string {
 		})
 	}
 
-	data, _ := json.Marshal(map[string]any{"peers": peers})
-	return string(data)
+	return map[string]any{"peers": peers}
 }

@@ -175,7 +175,7 @@ func RunBMPPlugin(conn net.Conn) int {
 		bp.sessions.Wait()
 	}()
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return bp.handleCommand(command)
 	})
 
@@ -468,7 +468,7 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 }
 
 // handleCommand dispatches BMP CLI commands to the appropriate handler.
-func (bp *BMPPlugin) handleCommand(command string) (string, string, error) {
+func (bp *BMPPlugin) handleCommand(command string) (string, any, error) {
 	switch command {
 	case "show bmp sessions":
 		return bp.state.sessionsCommand()

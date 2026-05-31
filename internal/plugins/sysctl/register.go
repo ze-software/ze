@@ -187,11 +187,11 @@ func runSysctlPlugin(conn net.Conn) int {
 					RequestID string `json:"request-id"`
 				}
 				_ = json.Unmarshal([]byte(payload), &req)
-				result := s.showEntries()
+				entriesJSON, _ := json.Marshal(s.showEntries())
 				resp, _ := json.Marshal(struct {
 					RequestID string `json:"request-id"`
 					Entries   string `json:"entries"`
-				}{RequestID: req.RequestID, Entries: result})
+				}{RequestID: req.RequestID, Entries: string(entriesJSON)})
 				if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventShowResult, string(resp)); err != nil {
 					log.Debug("sysctl: show-result emit failed", "err", err)
 				}
@@ -202,11 +202,11 @@ func runSysctlPlugin(conn net.Conn) int {
 					RequestID string `json:"request-id"`
 				}
 				_ = json.Unmarshal([]byte(payload), &req)
-				result := listKnownKeys()
+				keysJSON, _ := json.Marshal(listKnownKeys())
 				resp, _ := json.Marshal(struct {
 					RequestID string `json:"request-id"`
 					Entries   string `json:"entries"`
-				}{RequestID: req.RequestID, Entries: result})
+				}{RequestID: req.RequestID, Entries: string(keysJSON)})
 				if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventListResult, string(resp)); err != nil {
 					log.Debug("sysctl: list-result emit failed", "err", err)
 				}
@@ -240,11 +240,11 @@ func runSysctlPlugin(conn net.Conn) int {
 					Key       string `json:"key"`
 				}
 				_ = json.Unmarshal([]byte(payload), &req)
-				result := s.describeKey(req.Key)
+				detailJSON, _ := json.Marshal(s.describeKey(req.Key))
 				resp, _ := json.Marshal(struct {
 					RequestID string `json:"request-id"`
 					Detail    string `json:"detail"`
-				}{RequestID: req.RequestID, Detail: result})
+				}{RequestID: req.RequestID, Detail: string(detailJSON)})
 				if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventDescribeResult, string(resp)); err != nil {
 					log.Debug("sysctl: describe-result emit failed", "err", err)
 				}
@@ -375,7 +375,7 @@ func runSysctlPlugin(conn net.Conn) int {
 		statusError = "error"
 	)
 
-	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, string, error) {
+	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, any, error) {
 		switch command {
 		case "sysctl show":
 			return statusDone, s.showEntries(), nil

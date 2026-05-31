@@ -64,6 +64,16 @@ func testPeerJSON(t *testing.T) json.RawMessage {
 //
 // VALIDATES: RawRoute stored with AttrHex, NHopHex, NLRIHex from format=full event.
 // PREVENTS: Raw hex fields being discarded or parsed into Route structs.
+func mustMarshalAny(v any) []byte {
+	switch d := v.(type) {
+	case json.RawMessage:
+		return []byte(d)
+	default:
+		b, _ := json.Marshal(d)
+		return b
+	}
+}
+
 func TestStoreReceivedRoute(t *testing.T) {
 	r := newTestManager(t)
 
@@ -445,7 +455,7 @@ func TestHandleCommand_Status(t *testing.T) {
 	assert.Equal(t, "done", status)
 
 	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	require.NoError(t, json.Unmarshal(mustMarshalAny(data), &result))
 
 	// Should report running and route counts
 	assert.Equal(t, true, result["running"])

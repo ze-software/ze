@@ -155,7 +155,7 @@ func runFIBKernelPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		if command == "fib-kernel show" {
 			data := f.showInstalled()
 			return "done", data, nil

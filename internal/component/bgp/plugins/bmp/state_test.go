@@ -5,6 +5,14 @@ import (
 	"testing"
 )
 
+func marshalAny(v any) []byte {
+	if raw, ok := v.(json.RawMessage); ok {
+		return []byte(raw)
+	}
+	b, _ := json.Marshal(v)
+	return b
+}
+
 func TestStateAddRemoveRouter(t *testing.T) {
 	// VALIDATES: AC-13 -- router identification captured and queryable
 	s := newBMPState()
@@ -23,7 +31,7 @@ func TestStateAddRemoveRouter(t *testing.T) {
 	var result struct {
 		Sessions []monitoredRouter `json:"sessions"`
 	}
-	if err := json.Unmarshal([]byte(data), &result); err != nil {
+	if err := json.Unmarshal(marshalAny(data), &result); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	if len(result.Sessions) != 1 {
@@ -36,7 +44,7 @@ func TestStateAddRemoveRouter(t *testing.T) {
 	// Remove and verify empty.
 	s.removeRouter("10.0.0.1:12345")
 	_, data, _ = s.sessionsCommand()
-	if err := json.Unmarshal([]byte(data), &result); err != nil {
+	if err := json.Unmarshal(marshalAny(data), &result); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	if len(result.Sessions) != 0 {
@@ -64,7 +72,7 @@ func TestStatePeerUpDown(t *testing.T) {
 	var result struct {
 		Peers []monitoredPeer `json:"peers"`
 	}
-	if err := json.Unmarshal([]byte(data), &result); err != nil {
+	if err := json.Unmarshal(marshalAny(data), &result); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	if len(result.Peers) != 1 {
@@ -80,7 +88,7 @@ func TestStatePeerUpDown(t *testing.T) {
 	// Peer down.
 	s.peerDown("10.0.0.1:12345", peer, PeerDownDeconfigured)
 	_, data, _ = s.peersCommand()
-	if err := json.Unmarshal([]byte(data), &result); err != nil {
+	if err := json.Unmarshal(marshalAny(data), &result); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	if result.Peers[0].IsUp {
@@ -103,7 +111,7 @@ func TestStateRemoveRouterClearsPeers(t *testing.T) {
 	var result struct {
 		Peers []monitoredPeer `json:"peers"`
 	}
-	if err := json.Unmarshal([]byte(data), &result); err != nil {
+	if err := json.Unmarshal(marshalAny(data), &result); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	if len(result.Peers) != 0 {
@@ -133,7 +141,7 @@ func TestStateCollectorsCommand(t *testing.T) {
 	var result struct {
 		Collectors []collectorStatus `json:"collectors"`
 	}
-	if err := json.Unmarshal([]byte(data), &result); err != nil {
+	if err := json.Unmarshal(marshalAny(data), &result); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	if len(result.Collectors) != 1 {

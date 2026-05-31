@@ -258,16 +258,16 @@ func TestShowResult(t *testing.T) {
 	_, _ = s.setTransient("net.core.somaxconn", "4096")
 
 	result := s.showEntries()
-	if !strings.Contains(result, "net.ipv4.conf.all.forwarding") {
+	if !strings.Contains(fmt.Sprint(result), "net.ipv4.conf.all.forwarding") {
 		t.Errorf("show missing forwarding key: %s", result)
 	}
-	if !strings.Contains(result, "net.core.somaxconn") {
+	if !strings.Contains(fmt.Sprint(result), "net.core.somaxconn") {
 		t.Errorf("show missing somaxconn key: %s", result)
 	}
-	if !strings.Contains(result, `"persistent"`) {
+	if !strings.Contains(fmt.Sprint(result), `"persistent"`) {
 		t.Errorf("show missing persistent field: %s", result)
 	}
-	if !strings.Contains(result, `"source"`) {
+	if !strings.Contains(fmt.Sprint(result), `"source"`) {
 		t.Errorf("show missing source field: %s", result)
 	}
 }
@@ -292,13 +292,13 @@ func TestListResult(t *testing.T) {
 	})
 
 	result := listKnownKeys()
-	if !strings.Contains(result, "net.ipv4.conf.all.forwarding") {
+	if !strings.Contains(fmt.Sprint(result), "net.ipv4.conf.all.forwarding") {
 		t.Errorf("list missing ipv4 forwarding: %s", result)
 	}
-	if !strings.Contains(result, "net.ipv6.conf.all.forwarding") {
+	if !strings.Contains(fmt.Sprint(result), "net.ipv6.conf.all.forwarding") {
 		t.Errorf("list missing ipv6 forwarding: %s", result)
 	}
-	if !strings.Contains(result, "Enable IPv4 forwarding") {
+	if !strings.Contains(fmt.Sprint(result), "Enable IPv4 forwarding") {
 		t.Errorf("list missing description: %s", result)
 	}
 }
@@ -320,13 +320,13 @@ func TestDescribeKnown(t *testing.T) {
 
 	s, _ := newTestStore()
 	result := s.describeKey("net.ipv4.conf.all.rp_filter")
-	if !strings.Contains(result, "rp_filter") {
+	if !strings.Contains(fmt.Sprint(result), "rp_filter") {
 		t.Errorf("describe missing key name: %s", result)
 	}
-	if !strings.Contains(result, "Reverse path filter") {
+	if !strings.Contains(fmt.Sprint(result), "Reverse path filter") {
 		t.Errorf("describe missing description: %s", result)
 	}
-	if !strings.Contains(result, "int-range") {
+	if !strings.Contains(fmt.Sprint(result), "int-range") {
 		t.Errorf("describe missing type: %s", result)
 	}
 }
@@ -463,7 +463,7 @@ func TestProfileSourceInShow(t *testing.T) {
 	}
 
 	result := s.showEntries()
-	if !strings.Contains(result, "profile:dsr") {
+	if !strings.Contains(fmt.Sprint(result), "profile:dsr") {
 		t.Errorf("show missing profile:dsr source: %s", result)
 	}
 }
@@ -488,10 +488,10 @@ func TestListProfiles(t *testing.T) {
 	// VALIDATES: AC-6 -- list-profiles returns all registered profiles.
 	// PREVENTS: Missing profiles in listing.
 	result := listProfiles()
-	if !strings.Contains(result, "dsr") {
+	if !strings.Contains(fmt.Sprint(result), "dsr") {
 		t.Errorf("listProfiles missing dsr: %s", result)
 	}
-	if !strings.Contains(result, "router") {
+	if !strings.Contains(fmt.Sprint(result), "router") {
 		t.Errorf("listProfiles missing router: %s", result)
 	}
 }
@@ -500,10 +500,10 @@ func TestDescribeProfile(t *testing.T) {
 	// VALIDATES: AC-7 -- describe-profile returns JSON detail.
 	// PREVENTS: Missing profile detail.
 	result := describeProfile("dsr")
-	if !strings.Contains(result, "arp_announce") {
+	if !strings.Contains(fmt.Sprint(result), "arp_announce") {
 		t.Errorf("describeProfile missing arp_announce: %s", result)
 	}
-	if !strings.Contains(result, "arp_ignore") {
+	if !strings.Contains(fmt.Sprint(result), "arp_ignore") {
 		t.Errorf("describeProfile missing arp_ignore: %s", result)
 	}
 }
@@ -512,7 +512,7 @@ func TestDescribeProfileUnknown(t *testing.T) {
 	// VALIDATES: AC-8 -- Unknown profile returns error JSON.
 	// PREVENTS: Crash on unknown profile describe.
 	result := describeProfile("nosuch")
-	if !strings.Contains(result, "unknown profile") {
+	if !strings.Contains(fmt.Sprint(result), "unknown profile") {
 		t.Errorf("describeProfile should report unknown: %s", result)
 	}
 }
@@ -549,7 +549,7 @@ func TestDescribeUnknown(t *testing.T) {
 	fb.values["net.some.key"] = "42"
 
 	result := s.describeKey("net.some.key")
-	if !strings.Contains(result, "net.some.key") {
+	if !strings.Contains(fmt.Sprint(result), "net.some.key") {
 		t.Errorf("describe missing key: %s", result)
 	}
 	// Unknown key should still have value from store if set.

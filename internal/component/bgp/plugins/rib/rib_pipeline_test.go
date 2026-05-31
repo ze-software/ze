@@ -297,7 +297,7 @@ func TestBuildPipeline(t *testing.T) {
 			assert.NotEmpty(t, result)
 
 			var parsed map[string]any
-			require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+			require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 			if !tt.wantJSON {
 				_, hasCount := parsed["count"]
 				assert.True(t, hasCount, "expected count in result")
@@ -315,7 +315,7 @@ func TestBuildPipelineUnknownKeyword(t *testing.T) {
 
 	result := r.showPipeline("*", []string{"bogus"})
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	_, hasError := parsed["error"]
 	assert.True(t, hasError, "expected error for unknown keyword: %s", result)
 }
@@ -342,7 +342,7 @@ func TestBuildPipelineFilterKeywordNoValue(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := r.showPipeline("*", tt.args)
 			var parsed map[string]any
-			require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+			require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 			_, hasError := parsed["error"]
 			assert.True(t, hasError, "expected error for '%s': %s", tt.name, result)
 		})
@@ -377,7 +377,7 @@ func TestShowPipelineBothDirections(t *testing.T) {
 
 	result := r.showPipeline("*", []string{"count"})
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	count, ok := parsed["count"]
 	require.True(t, ok, "expected count key")
 	assert.Equal(t, float64(2), count, "expected 2 routes (1 in + 1 out)")
@@ -407,7 +407,7 @@ func TestShowPipelineReceivedScope(t *testing.T) {
 
 	result := r.showPipeline("*", []string{"received", "count"})
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	count := parsed["count"]
 	assert.Equal(t, float64(1), count, "expected 1 received route")
 }
@@ -436,7 +436,7 @@ func TestShowPipelineSentScope(t *testing.T) {
 
 	result := r.showPipeline("*", []string{"sent", "count"})
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	count := parsed["count"]
 	assert.Equal(t, float64(1), count, "expected 1 sent route")
 }
@@ -460,7 +460,7 @@ func TestShowPipelineAdvertisedScope(t *testing.T) {
 
 	result := r.showPipeline("*", []string{"advertised", "count"})
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Equal(t, float64(1), parsed["count"], "expected 1 advertised route")
 }
 
@@ -473,7 +473,7 @@ func TestShowPipelineRejectsConflictingDirection(t *testing.T) {
 
 	result := r.showPipeline("*", []string{"received", "advertised", "count"})
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Contains(t, parsed["error"], "multiple route direction filters")
 }
 
@@ -495,7 +495,7 @@ func TestShowPipelinePeerFilter(t *testing.T) {
 
 	result := r.showPipeline("*", []string{"received", "peer", "192.0.2.2", "count"})
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Equal(t, float64(1), parsed["count"], "expected routes from one peer")
 }
 
@@ -527,7 +527,7 @@ func TestShowPipelineComposed(t *testing.T) {
 	// path 64501 community 65000:100 count -> should match only first route
 	result := r.showPipeline("*", []string{"sent", "path", "64501", "community", "65000:100", "count"})
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	count := parsed["count"]
 	assert.Equal(t, float64(1), count, "expected 1 route matching path 64501 AND community 65000:100")
 }
@@ -552,7 +552,7 @@ func TestHandleCommandRibShow(t *testing.T) {
 	assert.NotEmpty(t, data)
 
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &parsed))
 }
 
 // TestHandleCommandRibShowCount verifies bgp rib show with count terminal.
@@ -574,7 +574,7 @@ func TestHandleCommandRibShowCount(t *testing.T) {
 	assert.NoError(t, err)
 
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(data), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &parsed))
 	count, ok := parsed["count"]
 	require.True(t, ok, "expected count key")
 	assert.Equal(t, float64(1), count)
@@ -596,7 +596,7 @@ func TestHandleCommandOldCommandsError(t *testing.T) {
 		assert.Equal(t, statusDone, status, "pipeline error status for %q", keyword)
 
 		var parsed map[string]any
-		require.NoError(t, json.Unmarshal([]byte(data), &parsed), "data should be valid JSON for %q", keyword)
+		require.NoError(t, json.Unmarshal(mustMarshal(t, data), &parsed), "data should be valid JSON for %q", keyword)
 		_, hasError := parsed["error"]
 		assert.True(t, hasError, "data should contain error key for old keyword %q", keyword)
 	}
@@ -723,17 +723,17 @@ func TestFilterMatchCrossFieldInEntry(t *testing.T) {
 	// Match on AS-path value "65001"
 	result := r.showPipeline("*", []string{"received", "match", "65001", "count"})
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Equal(t, float64(1), parsed["count"], "expected match on AS-path 65001")
 
 	// Match on community "65000:100"
 	result = r.showPipeline("*", []string{"received", "match", "65000:100", "count"})
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Equal(t, float64(1), parsed["count"], "expected match on community 65000:100")
 
 	// Match on origin "igp"
 	result = r.showPipeline("*", []string{"received", "match", "igp", "count"})
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Equal(t, float64(1), parsed["count"], "expected match on origin igp")
 }
 
@@ -791,7 +791,7 @@ func TestShowPipelineCountZeroWithFilter(t *testing.T) {
 	// Path filter for ASN 99999 — no routes have this ASN
 	result := r.showPipeline("*", []string{"received", "path", "99999", "count"})
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	count, ok := parsed["count"]
 	require.True(t, ok, "expected count key in result")
 	assert.Equal(t, float64(0), count, "expected count=0 for non-matching filter")
@@ -824,7 +824,7 @@ func TestShowPipelineExplicitSentReceived(t *testing.T) {
 	// Explicit sent-received scope
 	result := r.showPipeline("*", []string{"sent-received", "count"})
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	count, ok := parsed["count"]
 	require.True(t, ok, "expected count key")
 	assert.Equal(t, float64(2), count, "expected 2 routes (1 in + 1 out) with explicit sent-received")
@@ -859,7 +859,7 @@ func TestBestPipeline_WithFilter(t *testing.T) {
 	// Best pipeline with community filter: should only return the route with 65000:100
 	result := r.bestPipeline("*", []string{"community", "65000:100"})
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 
 	bestPath, ok := parsed["best-path"].([]any)
 	require.True(t, ok, "expected best-path array")
@@ -890,7 +890,7 @@ func TestBestPipeline_CountTerminal(t *testing.T) {
 
 	result := r.bestPipeline("*", []string{"count"})
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 
 	count, ok := parsed["count"]
 	require.True(t, ok, "expected count key")
@@ -907,7 +907,7 @@ func TestBestPipeline_Empty(t *testing.T) {
 	// No routes in ribInPool — best pipeline should return empty array
 	result := r.bestPipeline("*", nil)
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 
 	bestPath, ok := parsed["best-path"]
 	require.True(t, ok, "expected best-path key")
@@ -984,10 +984,9 @@ func TestGraphTerminalViaPipeline(t *testing.T) {
 	result := r.showPipeline("*", []string{"received", "graph"})
 	require.NotEmpty(t, result)
 
-	// Should contain AS65001 from the injected route's AS path
-	assert.Contains(t, result, "AS65001")
-	// Should contain box-drawing characters
-	assert.Contains(t, result, "\u250C")
+	resultStr := dataStr(t, result)
+	assert.Contains(t, resultStr, "AS65001")
+	assert.Contains(t, resultStr, "\u250C")
 }
 
 // TestGraphTerminalViaBestPipeline verifies graph terminal works with best-path pipeline.
@@ -1007,8 +1006,8 @@ func TestGraphTerminalViaBestPipeline(t *testing.T) {
 	result := r.bestPipeline("*", []string{"graph"})
 	require.NotEmpty(t, result)
 
-	// Should contain AS65001
-	assert.Contains(t, result, "AS65001")
+	resultStr := dataStr(t, result)
+	assert.Contains(t, resultStr, "AS65001")
 }
 
 // --- Helpers ---
@@ -1212,7 +1211,7 @@ func TestShowJSONContractUnchanged(t *testing.T) {
 
 	result := r.showPipeline("*", nil)
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 
 	// adj-rib-in must exist with peer key
 	ribIn, ok := parsed["adj-rib-in"].(map[string]any)
@@ -1348,7 +1347,7 @@ func TestShowPipesUnchanged(t *testing.T) {
 
 			if tt.checkJSON != nil {
 				var parsed map[string]any
-				require.NoError(t, json.Unmarshal([]byte(result), &parsed), "result: %s", result)
+				require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed), "result: %s", result)
 				tt.checkJSON(t, parsed)
 			}
 		})

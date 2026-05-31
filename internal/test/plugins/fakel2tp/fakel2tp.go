@@ -131,7 +131,7 @@ func runEmit(args []string) (string, error) {
 }
 
 // dispatchCommand is the OnExecuteCommand entry point.
-func dispatchCommand(_, command string, args []string, _ string) (string, string, error) {
+func dispatchCommand(_, command string, args []string, _ string) (string, any, error) {
 	if command == "fakel2tp emit" {
 		data, err := runEmit(args)
 		if err != nil {

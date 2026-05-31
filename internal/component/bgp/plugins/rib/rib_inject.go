@@ -152,7 +152,7 @@ func registerInjectCommands() {
 					return statusError, "", errWithdrawProtocolRequiresProtocolPeerKey
 				}
 				r.withdrawAllForPeer(args[0], args[1])
-				return statusDone, `{"withdrawn":true}`, nil
+				return statusDone, map[string]any{"withdrawn": true}, nil
 			}},
 		{"bgp rib withdraw-router", "Withdraw all routes for a router under a protocol",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
@@ -160,7 +160,7 @@ func registerInjectCommands() {
 					return statusError, "", errWithdrawRouterRequiresProtocolRouterPrefix
 				}
 				r.withdrawAllForRouter(args[0], args[1])
-				return statusDone, `{"withdrawn":true}`, nil
+				return statusDone, map[string]any{"withdrawn": true}, nil
 			}},
 	}
 	for _, c := range cmds {

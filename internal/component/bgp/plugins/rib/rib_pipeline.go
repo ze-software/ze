@@ -1017,11 +1017,10 @@ const filterPath = "path"
 // showPipeline builds and executes a pipeline from command args.
 // Called by handleCommand for "bgp rib show" with optional scope + filter stages.
 // Sources manage their own peerMu acquisition; the pipeline drain runs outside peerMu.
-func (r *RIBManager) showPipeline(selector string, args []string) string {
+func (r *RIBManager) showPipeline(selector string, args []string) any {
 	scope, pipeSelector, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {
-		data, _ := json.Marshal(map[string]any{"error": errMsg})
-		return string(data)
+		return map[string]any{"error": errMsg}
 	}
 	if pipeSelector != "" {
 		selector = pipeSelector
@@ -1048,19 +1047,18 @@ func (r *RIBManager) showPipeline(selector string, args []string) string {
 	if !hasTerminal(stages) {
 		jt := newJSONTerminal(current)
 		meta := jt.Meta()
-		return meta.JSON
+		return json.RawMessage(meta.JSON)
 	}
 
 	// Execute terminal — drain it and return metadata
 	meta := current.Meta()
 
 	if meta.JSON != "" {
-		return meta.JSON
+		return json.RawMessage(meta.JSON)
 	}
 
 	// count terminal
-	data, _ := json.Marshal(map[string]any{"count": meta.Count})
-	return string(data)
+	return map[string]any{"count": meta.Count}
 }
 
 // pipelineStage represents a parsed pipeline stage (filter or terminal).

@@ -377,11 +377,7 @@ func (m *probeManager) handleShow(args []string) (string, any, error) {
 			DownMetric:     rp.config.DownMetric,
 			DisabledMetric: rp.config.DisabledMetric,
 		}
-		data, err := json.Marshal(detail)
-		if err != nil {
-			return statusError, "", fmt.Errorf("marshal probe detail: %w", err)
-		}
-		return statusDone, string(data), nil
+		return statusDone, detail, nil
 	}
 
 	// All probes summary.
@@ -394,11 +390,7 @@ func (m *probeManager) handleShow(args []string) (string, any, error) {
 	for name, rp := range m.probes {
 		probes = append(probes, probeInfo{Name: name, Group: rp.config.Group, State: stateName(State(rp.fsmState.Load()))})
 	}
-	data, err := json.Marshal(probes)
-	if err != nil {
-		return statusError, "", fmt.Errorf("marshal probes: %w", err)
-	}
-	return statusDone, string(data), nil
+	return statusDone, probes, nil
 }
 
 // handleReset withdraws the current route and resets the probe FSM to INIT.
@@ -432,8 +424,7 @@ func (m *probeManager) handleReset(args []string) (string, any, error) {
 	m.probes[name] = newRP
 	go m.runProbe(ctx, newRP)
 
-	data, _ := json.Marshal(map[string]string{"probe": name, "action": "reset"})
-	return statusDone, string(data), nil
+	return statusDone, map[string]string{"probe": name, "action": "reset"}, nil
 }
 
 // dispatchCommand sends a command to the watchdog plugin via dispatchFn.

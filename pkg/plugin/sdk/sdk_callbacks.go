@@ -174,7 +174,9 @@ func (p *Plugin) OnDecodeCapability(fn func(code uint8, hex string) (string, err
 
 // OnExecuteCommand sets the handler for command execution requests.
 // The handler receives serial, command, args, peer and returns (status, data, error).
-func (p *Plugin) OnExecuteCommand(fn func(serial, command string, args []string, peer string) (string, string, error)) {
+// The SDK marshals the data value into ExecuteCommandOutput.Data as json.RawMessage,
+// producing a single marshal instead of double-encoding.
+func (p *Plugin) OnExecuteCommand(fn func(serial, command string, args []string, peer string) (string, any, error)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackExecuteCommand] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -186,7 +188,14 @@ func (p *Plugin) OnExecuteCommand(fn func(serial, command string, args []string,
 		if err != nil {
 			return nil, err
 		}
-		return json.Marshal(&rpc.ExecuteCommandOutput{Status: status, Data: data})
+		var raw json.RawMessage
+		if data != nil {
+			raw, err = json.Marshal(data)
+			if err != nil {
+				return nil, fmt.Errorf("marshal execute-command data: %w", err)
+			}
+		}
+		return json.Marshal(&rpc.ExecuteCommandOutput{Status: status, Data: raw})
 	}
 }
 

@@ -4,9 +4,7 @@ package l2tpshaper
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -214,7 +212,7 @@ func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, ra
 	return backend.Apply(context.Background(), desired)
 }
 
-func (s *shaperPlugin) showSessions() string {
+func (s *shaperPlugin) showSessions() any {
 	type entry struct {
 		TunnelID     uint16 `json:"tunnel-id"`
 		SessionID    uint16 `json:"session-id"`
@@ -248,9 +246,5 @@ func (s *shaperPlugin) showSessions() string {
 	if entries == nil {
 		entries = []entry{}
 	}
-	b, err := json.Marshal(entries)
-	if err != nil {
-		return fmt.Sprintf(`{"error":%q}`, err.Error())
-	}
-	return string(b)
+	return entries
 }

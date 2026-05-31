@@ -107,7 +107,7 @@ func startTestHandler(t *testing.T, name string, mock *mockPluginCommands) *Subs
 						return
 					}
 					status, data := mock.handler(input.Command)
-					out := &rpc.ExecuteCommandOutput{Status: status, Data: data}
+					out := &rpc.ExecuteCommandOutput{Status: status, Data: json.RawMessage(data)}
 					if err := pluginMux.SendResult(ctx, req.ID, out); err != nil {
 						return
 					}

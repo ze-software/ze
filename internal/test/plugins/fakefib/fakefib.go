@@ -3,6 +3,7 @@
 package fakefib
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -100,9 +101,9 @@ func parseLabels(s string) ([]uint32, error) {
 	return labels, nil
 }
 
-func runEmit(args []string) (string, error) {
+func runEmit(args []string) (json.RawMessage, error) {
 	if len(args) < 3 {
-		return "", errUsageEmit
+		return nil, errUsageEmit
 	}
 
 	action := args[0]
@@ -111,11 +112,11 @@ func runEmit(args []string) (string, error) {
 
 	fam, ok := family.LookupFamily(familyName)
 	if !ok {
-		return "", fmt.Errorf("unknown family %q", familyName)
+		return nil, fmt.Errorf("unknown family %q", familyName)
 	}
 	prefix, err := netip.ParsePrefix(raw)
 	if err != nil {
-		return "", fmt.Errorf("invalid prefix %q: %w", raw, err)
+		return nil, fmt.Errorf("invalid prefix %q: %w", raw, err)
 	}
 
 	if action == "withdraw" {
@@ -125,14 +126,14 @@ func runEmit(args []string) (string, error) {
 		}
 		delivered, err := emitSysribChange(fam, change)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		var b textbuf.Buffer
-		return b.Reset().Str(`{"delivered":`).Int(int64(delivered)).Byte('}').String(), nil
+		return json.RawMessage(b.Reset().Str(`{"delivered":`).Int(int64(delivered)).Byte('}').String()), nil
 	}
 
 	if action != "add" {
-		return "", fmt.Errorf("invalid action %q (want add or withdraw)", action)
+		return nil, fmt.Errorf("invalid action %q (want add or withdraw)", action)
 	}
 
 	change := sysribevents.BestChangeEntry{
@@ -143,7 +144,7 @@ func runEmit(args []string) (string, error) {
 
 	kvArgs := args[3:]
 	if len(kvArgs)%2 != 0 {
-		return "", fmt.Errorf("attribute %q has no value", kvArgs[len(kvArgs)-1])
+		return nil, fmt.Errorf("attribute %q has no value", kvArgs[len(kvArgs)-1])
 	}
 	for i := 0; i < len(kvArgs); i += 2 {
 		key := kvArgs[i]
@@ -152,55 +153,55 @@ func runEmit(args []string) (string, error) {
 		case "nexthop":
 			addr, err := netip.ParseAddr(val)
 			if err != nil {
-				return "", fmt.Errorf("invalid nexthop %q: %w", val, err)
+				return nil, fmt.Errorf("invalid nexthop %q: %w", val, err)
 			}
 			change.NextHop = addr
 		case "routetype":
 			rt, err := parseRouteType(val)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			change.RouteType = rt
 		case "metric":
 			n, err := strconv.ParseUint(val, 10, 32)
 			if err != nil {
-				return "", fmt.Errorf("invalid metric %q: %w", val, err)
+				return nil, fmt.Errorf("invalid metric %q: %w", val, err)
 			}
 			change.Metric = uint32(n)
 		case "tableid":
 			n, err := strconv.ParseUint(val, 10, 32)
 			if err != nil {
-				return "", fmt.Errorf("invalid tableid %q: %w", val, err)
+				return nil, fmt.Errorf("invalid tableid %q: %w", val, err)
 			}
 			change.TableID = uint32(n)
 		case "labels":
 			labels, err := parseLabels(val)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			change.Labels = labels
 		case "srv6-sid":
 			sid, err := netip.ParseAddr(val)
 			if err != nil {
-				return "", fmt.Errorf("invalid srv6-sid %q: %w", val, err)
+				return nil, fmt.Errorf("invalid srv6-sid %q: %w", val, err)
 			}
 			change.SRv6SID = sid
 		default:
-			return "", fmt.Errorf("unknown attribute %q", key)
+			return nil, fmt.Errorf("unknown attribute %q", key)
 		}
 	}
 
 	delivered, err := emitSysribChange(fam, change)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	logger().Debug("fakefib: emitted", "action", action, "family", fam, "prefix", prefix, "delivered", delivered)
 	var b textbuf.Buffer
-	return b.Reset().Str(`{"delivered":`).Int(int64(delivered)).Byte('}').String(), nil
+	return json.RawMessage(b.Reset().Str(`{"delivered":`).Int(int64(delivered)).Byte('}').String()), nil
 }
 
-func dispatchCommand(_, command string, args []string, _ string) (string, string, error) {
+func dispatchCommand(_, command string, args []string, _ string) (string, any, error) {
 	if command == "fakefib emit" {
 		data, err := runEmit(args)
 		if err != nil {
@@ -209,7 +210,7 @@ func dispatchCommand(_, command string, args []string, _ string) (string, string
 		return rpc.StatusDone, data, nil
 	}
 	if command == "fakefib help" {
-		return rpc.StatusDone, "fakefib emit add|withdraw <family> <prefix> [nexthop <ip>] [routetype <blackhole|unreachable|prohibit>] [metric <n>] [tableid <n>] [labels <l1,l2,...>] [srv6-sid <ipv6>]", nil
+		return rpc.StatusDone, map[string]any{"help": "fakefib emit add|withdraw <family> <prefix> [nexthop <ip>] [routetype <blackhole|unreachable|prohibit>] [metric <n>] [tableid <n>] [labels <l1,l2,...>] [srv6-sid <ipv6>]"}, nil
 	}
 	return rpc.StatusError, "", fmt.Errorf("unknown command: %s", command)
 }
