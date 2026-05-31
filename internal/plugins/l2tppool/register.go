@@ -428,7 +428,7 @@ func runPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "show l2tp pool", DeprecatedNames: []string{"l2tp pool show"}},
+			{Name: "show l2tp pool"},
 		},
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)

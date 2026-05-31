@@ -171,7 +171,7 @@ func runFibVPPPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "show fib-vpp", DeprecatedNames: []string{"fib-vpp show"}},
+			{Name: "show fib-vpp"},
 		},
 	})
 	if err != nil {

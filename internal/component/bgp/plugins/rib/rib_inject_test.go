@@ -265,10 +265,10 @@ func TestInjectWireRouteUnknownProtocol(t *testing.T) {
 	}
 }
 
-// TestBGPShowExcludesBMP verifies the inbound show pipeline (bgp rib show)
+// TestBGPShowExcludesBMP verifies the inbound show pipeline (show bgp rib)
 // does not include BMP protocol routes.
 //
-// VALIDATES: AC-10 — bgp rib show excludes BMP routes.
+// VALIDATES: AC-10 — show bgp rib excludes BMP routes.
 func TestBGPShowExcludesBMP(t *testing.T) {
 	r := newTestRIBManager(t)
 	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
@@ -289,5 +289,5 @@ func TestBGPShowExcludesBMP(t *testing.T) {
 	ribIn, ok := parsed["adj-rib-in"].(map[string]any)
 	require.True(t, ok)
 	assert.Contains(t, ribIn, "10.0.0.1", "BGP peer should be present")
-	assert.NotContains(t, ribIn, "router1:peer1", "BMP peer must not appear in bgp rib show")
+	assert.NotContains(t, ribIn, "router1:peer1", "BMP peer must not appear in show bgp rib")
 }

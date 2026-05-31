@@ -191,8 +191,8 @@ type PeerMeta struct {
 }
 
 // peerGRState holds per-peer Graceful Restart metadata in the RIB plugin.
-// Stored when "bgp rib mark-stale" is received so that "bgp rib status" can display
-// absolute times (when routes went stale, when they expire).
+// Stored when "request bgp rib mark-stale" is received so that "show bgp rib status"
+// can display absolute times (when routes went stale, when they expire).
 // RFC 4724 Section 4.2: Receiving Speaker route retention.
 type peerGRState struct {
 	StaleAt     time.Time   // when routes were marked stale (disconnect time)
@@ -237,12 +237,12 @@ type RIBManager struct {
 	// retainedPeers tracks peers whose Adj-RIB-In is retained during GR.
 	// RFC 4724: When a GR-capable peer goes down, routes are retained until
 	// the restart timer expires or the peer re-establishes and sends EOR.
-	// Set by "bgp rib retain-routes <peer>" command from bgp-gr plugin.
-	// Cleared by "bgp rib release-routes <peer>" or when the peer comes back up.
+	// Set by "request bgp rib retain-routes <peer>" command from bgp-gr plugin.
+	// Cleared by "request bgp rib release-routes <peer>" or when the peer comes back up.
 	retainedPeers map[string]bool
 
 	// grState tracks per-peer Graceful Restart metadata.
-	// Set by "bgp rib mark-stale" command, cleared by "bgp rib release-routes" or timer expiry.
+	// Set by "request bgp rib mark-stale" command, cleared by "request bgp rib release-routes" or timer expiry.
 	// RFC 4724 Section 4.2: Receiving Speaker route retention state.
 	grState map[string]*peerGRState
 
@@ -548,7 +548,7 @@ func RunRIBPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	// Register command handler: responds to "bgp rib adjacent ..." commands
+	// Register command handler for bgp-rib plugin commands.
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return r.handleCommand(command, peer, args)
 	})
@@ -619,31 +619,29 @@ func RunRIBPlugin(conn net.Conn) int {
 		WantsConfig: []string{"bgp"},
 		Commands: []sdk.CommandDecl{
 			// Unified show with pipeline (scope + filters + terminals)
-			{Name: "show bgp rib status", DeprecatedNames: []string{"bgp rib status"}},
-			{Name: "show bgp rib", DeprecatedNames: []string{"bgp rib show"}},
-			{Name: "clear bgp rib in", DeprecatedNames: []string{"bgp rib clear in"}},
-			{Name: "clear bgp rib out", DeprecatedNames: []string{"bgp rib clear out"}},
-			// Legacy status alias
-			{Name: "show bgp rib adjacent status", DeprecatedNames: []string{"bgp rib adjacent status"}},
+			{Name: "show bgp rib status"},
+			{Name: "show bgp rib"},
+			{Name: "clear bgp rib in"},
+			{Name: "clear bgp rib out"},
 			// GR support: route retention and stale tracking (RFC 4724)
-			{Name: "request bgp rib retain-routes", DeprecatedNames: []string{"bgp rib retain-routes"}},
-			{Name: "request bgp rib release-routes", DeprecatedNames: []string{"bgp rib release-routes"}},
-			{Name: "request bgp rib mark-stale", DeprecatedNames: []string{"bgp rib mark-stale"}},
-			{Name: "request bgp rib purge-stale", DeprecatedNames: []string{"bgp rib purge-stale"}},
+			{Name: "request bgp rib retain-routes"},
+			{Name: "request bgp rib release-routes"},
+			{Name: "request bgp rib mark-stale"},
+			{Name: "request bgp rib purge-stale"},
 			// Best-path selection (RFC 4271 §9.1.2)
-			{Name: "show bgp rib best", DeprecatedNames: []string{"bgp rib show best"}},
-			{Name: "show bgp rib best status", DeprecatedNames: []string{"bgp rib show best status"}},
+			{Name: "show bgp rib best"},
+			{Name: "show bgp rib best status"},
 			// Route injection (manual RIB manipulation)
-			{Name: "request bgp rib inject", DeprecatedNames: []string{"bgp rib inject"}},
-			{Name: "request bgp rib withdraw", DeprecatedNames: []string{"bgp rib withdraw"}},
+			{Name: "request bgp rib inject"},
+			{Name: "request bgp rib withdraw"},
 			// Protocol-scoped route management (BMP integration)
-			{Name: "show bgp rib protocol", DeprecatedNames: []string{"bgp rib show-protocol"}},
-			{Name: "request bgp rib withdraw-protocol", DeprecatedNames: []string{"bgp rib withdraw-protocol"}},
-			{Name: "request bgp rib withdraw-router", DeprecatedNames: []string{"bgp rib withdraw-router"}},
+			{Name: "show bgp rib protocol"},
+			{Name: "request bgp rib withdraw-protocol"},
+			{Name: "request bgp rib withdraw-router"},
 			// Meta-commands (introspection)
-			{Name: "show bgp rib help", DeprecatedNames: []string{"bgp rib help"}},
-			{Name: "show bgp rib commands", DeprecatedNames: []string{"bgp rib command list"}},
-			{Name: "show bgp rib events", DeprecatedNames: []string{"bgp rib event list"}},
+			{Name: "show bgp rib help"},
+			{Name: "show bgp rib commands"},
+			{Name: "show bgp rib events"},
 		},
 	})
 	if err != nil {
@@ -980,7 +978,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 
 // handleState processes peer state changes.
 // Handles state transitions atomically to avoid races between up/down events.
-// RFC 4724: When retainedPeers[peer] is set (by bgp-gr via "bgp rib retain-routes"),
+// RFC 4724: When retainedPeers[peer] is set (by bgp-gr via "request bgp rib retain-routes"),
 // Adj-RIB-In is preserved on peer-down instead of being deleted.
 func (r *RIBManager) handleState(event *Event) {
 	peerAddr := event.GetPeerAddress()

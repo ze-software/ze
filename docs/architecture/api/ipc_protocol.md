@@ -343,8 +343,8 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 
 | Command | Description |
 |---------|-------------|
-| `watchdog announce <name>` | Send all routes in pool |
-| `watchdog withdraw <name>` | Withdraw all routes in pool |
+| `request watchdog announce <name>` | Send all routes in pool |
+| `request watchdog withdraw <name>` | Withdraw all routes in pool |
 
 **Commits (Batching):**
 
@@ -394,8 +394,8 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `rib command help "<cmd>"` | Command details |
 | `rib command complete "<partial>"` | Completion |
 | `rib event list` | List available RIB event types |
-| `rib show in [peer]` | Show Adj-RIB-In |
-| `rib clear in [peer]` | Clear Adj-RIB-In |
+| `show bgp rib received [peer]` | Show Adj-RIB-In |
+| `clear bgp rib in [peer]` | Clear Adj-RIB-In |
 
 **Future (BGP cache in bgp subsystem):**
 

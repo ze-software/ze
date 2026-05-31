@@ -33,8 +33,8 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        # Query adj-rib-in via rib routes received
-        result = dispatch(api, 'show bgp rib routes received')
+        # Query adj-rib-in via show bgp rib received
+        result = dispatch(api, 'show bgp rib received')
         if result.get('status') != 'done':
             print(f'FAIL: rib show-in status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)

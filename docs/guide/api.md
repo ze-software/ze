@@ -112,8 +112,8 @@ identical to calling `execute` directly.
 | `GET` | `/api/v1/peers/{name}` | `peer {name} detail` |
 | `DELETE` | `/api/v1/peers/{name}` | `peer {name} teardown` |
 | `POST` | `/api/v1/peers/{name}/refresh` | `peer {name} refresh` |
-| `GET` | `/api/v1/rib/{family}` | `rib routes {family}` |
-| `GET` | `/api/v1/rib/{family}/best` | `rib best {family}` |
+| `GET` | `/api/v1/rib/{family}` | `show bgp rib family {family}` |
+| `GET` | `/api/v1/rib/{family}/best` | `show bgp rib best family {family}` |
 | `GET` | `/api/v1/system/version` | `show version` |
 | `GET` | `/api/v1/system/status` | `daemon status` |
 | `POST` | `/api/v1/system/reload` | `daemon reload` |

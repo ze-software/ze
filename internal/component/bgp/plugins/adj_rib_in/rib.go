@@ -95,7 +95,7 @@ type AdjRIBInManager struct {
 	// Key: same as pending. Swept on the same ticker.
 	earlyDecisions map[string]*EarlyDecision
 
-	// validationEnabled is set by "adj-rib-in enable-validation" command.
+	// validationEnabled is set by "request adj-rib-in enable-validation".
 	// When true, received routes are stored as pending instead of installed.
 	validationEnabled bool
 
@@ -176,13 +176,13 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			{Name: "show adj-rib-in status", DeprecatedNames: []string{"adj-rib-in status"}},
-			{Name: "show adj-rib-in", DeprecatedNames: []string{"adj-rib-in show"}},
-			{Name: "request adj-rib-in replay", DeprecatedNames: []string{"adj-rib-in replay"}},
-			{Name: "request adj-rib-in enable-validation", DeprecatedNames: []string{"adj-rib-in enable-validation"}},
-			{Name: "request adj-rib-in accept-routes", DeprecatedNames: []string{"adj-rib-in accept-routes"}},
-			{Name: "request adj-rib-in reject-routes", DeprecatedNames: []string{"adj-rib-in reject-routes"}},
-			{Name: "request adj-rib-in revalidate", DeprecatedNames: []string{"adj-rib-in revalidate"}},
+			{Name: "show adj-rib-in status"},
+			{Name: "show adj-rib-in"},
+			{Name: "request adj-rib-in replay"},
+			{Name: "request adj-rib-in enable-validation"},
+			{Name: "request adj-rib-in accept-routes"},
+			{Name: "request adj-rib-in reject-routes"},
+			{Name: "request adj-rib-in revalidate"},
 		},
 	})
 	if err != nil {

@@ -69,7 +69,7 @@ func TestOpenAPISchemaHTTPMethods(t *testing.T) {
 // PREVENTS: lost or mistyped parameters.
 func TestCommandSchemaMatchesYANG(t *testing.T) {
 	cmd := CommandMeta{
-		Name: "bgp rib routes",
+		Name: "show bgp rib",
 		Params: []ParamMeta{
 			{Name: "family", Type: "string", Description: "Address family", Required: false},
 			{Name: "limit", Type: "uint32", Description: "Max results", Required: true},
@@ -116,7 +116,7 @@ func TestCommandSchemaNoParams(t *testing.T) {
 // VALIDATES: operationID converts command names to camelCase.
 // PREVENTS: invalid OpenAPI operationId values.
 func TestOperationID(t *testing.T) {
-	assert.Equal(t, "bgpRibRoutes", operationID("bgp rib routes"))
+	assert.Equal(t, "showBgpRib", operationID("show bgp rib"))
 	assert.Equal(t, "bgpSummary", operationID("bgp summary"))
 	assert.Equal(t, "daemonReload", operationID("daemon reload"))
 	assert.Equal(t, "peer", operationID("peer"))

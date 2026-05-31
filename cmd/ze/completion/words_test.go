@@ -32,17 +32,13 @@ func TestWordsShowProducesTabSeparatedOutput(t *testing.T) {
 	}
 }
 
-func TestWordsRunHasMoreThanShow(t *testing.T) {
-	var showBuf, runBuf bytes.Buffer
+func TestWordsShowProducesOutput(t *testing.T) {
+	var buf bytes.Buffer
 
-	writeWords(&showBuf, []string{"show"})
-	writeWords(&runBuf, []string{"run"})
+	writeWords(&buf, []string{"show"})
 
-	showLines := strings.Count(strings.TrimSpace(showBuf.String()), "\n")
-	runLines := strings.Count(strings.TrimSpace(runBuf.String()), "\n")
-
-	if runLines < showLines {
-		t.Errorf("expected run (%d entries) >= show (%d entries)", runLines, showLines)
+	if strings.TrimSpace(buf.String()) == "" {
+		t.Fatal("expected non-empty output for show context")
 	}
 }
 
@@ -95,11 +91,11 @@ func TestWordsUnknownContext(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-2 — ValueHints (families) appear in words output for rib node.
+// VALIDATES: AC-2 — ValueHints (families) appear in words output for show bgp rib node.
 // PREVENTS: ValueHints not flowing through the TreeCompleter delegation.
-func TestWordsRunRibIncludesFamilyHints(t *testing.T) {
+func TestWordsShowBGPRibIncludesFamilyHints(t *testing.T) {
 	var buf bytes.Buffer
-	code := writeWords(&buf, []string{"run", "rib"})
+	code := writeWords(&buf, []string{"show", "bgp", "rib"})
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d", code)
 	}
@@ -108,15 +104,14 @@ func TestWordsRunRibIncludesFamilyHints(t *testing.T) {
 
 	// Static children should be present.
 	if !strings.Contains(output, "best\t") {
-		t.Error("bgp rib output missing static child 'best'")
+		t.Error("show bgp rib output missing static child 'best'")
 	}
-
 	// ValueHints families should be present.
 	if !strings.Contains(output, "ipv4/mpls-vpn\t") {
-		t.Error("bgp rib output missing family ValueHint 'ipv4/mpls-vpn'")
+		t.Error("show bgp rib output missing family ValueHint 'ipv4/mpls-vpn'")
 	}
 	if !strings.Contains(output, "l2vpn/evpn\t") {
-		t.Error("bgp rib output missing family ValueHint 'l2vpn/evpn'")
+		t.Error("show bgp rib output missing family ValueHint 'l2vpn/evpn'")
 	}
 }
 

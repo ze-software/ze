@@ -100,7 +100,7 @@ func runFIBP4Plugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "show fib-p4", DeprecatedNames: []string{"fib-p4 show"}},
+			{Name: "show fib-p4"},
 		},
 	})
 	if err != nil {

@@ -120,7 +120,7 @@ func doRegisterBuiltinCommands() {
 		help    string
 		handler CommandHandler
 	}{
-		{[]string{"show bgp rib status", "show bgp rib adjacent status"}, "Show RIB status (peer count, route counts)",
+		{[]string{"show bgp rib status"}, "Show RIB status (peer count, route counts)",
 			func(r *RIBManager, sel string, _ []string) (string, any, error) {
 				return statusDone, r.status(), nil
 			}},
@@ -128,14 +128,14 @@ func doRegisterBuiltinCommands() {
 			func(r *RIBManager, sel string, args []string) (string, any, error) {
 				return statusDone, r.showPipeline(sel, args), nil
 			}},
-		{[]string{"clear bgp rib in", "clear bgp rib adjacent inbound"}, "Clear Adj-RIB-In routes",
+		{[]string{"clear bgp rib in"}, "Clear Adj-RIB-In routes",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) == 0 {
 					return statusError, "", errBgpRibClearInRequiresA
 				}
 				return statusDone, r.inboundEmpty(args[0]), nil
 			}},
-		{[]string{"clear bgp rib out", "clear bgp rib adjacent outbound"}, "Resend Adj-RIB-Out routes",
+		{[]string{"clear bgp rib out"}, "Resend Adj-RIB-Out routes",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) == 0 {
 					return statusError, "", errBgpRibClearOutRequiresA
@@ -216,7 +216,7 @@ func doRegisterBuiltinCommands() {
 }
 
 // injectRoute inserts a route into adj-rib-in as if received from a peer.
-// Syntax: bgp rib inject <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]
+// Syntax: request bgp rib inject <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]
 // The peer address is a label; no live BGP session required.
 func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 	if len(args) < 3 {
@@ -238,7 +238,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 		return statusError, "", fmt.Errorf("unknown family: %s", familyStr)
 	}
 	if !isSimplePrefixFamily(fam) {
-		return statusError, "", fmt.Errorf("bgp rib inject only supports simple prefix families (IPv4/IPv6 unicast/multicast), not %s", familyStr)
+		return statusError, "", fmt.Errorf("request bgp rib inject only supports simple prefix families (IPv4/IPv6 unicast/multicast), not %s", familyStr)
 	}
 
 	// Validate remaining args form complete key-value pairs.
@@ -274,7 +274,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 				return statusError, "", err
 			}
 			// IPv6 nhop accepted but not stored in NEXT_HOP attr (type 3 is IPv4 only).
-			// Route is injected without wire next-hop; shows in bgp rib show as-is.
+			// Route is injected without wire next-hop; shows in "show bgp rib" as-is.
 			continue
 		}
 		if key == "aspath" {
@@ -359,7 +359,7 @@ func (r *RIBManager) validateIPv6NextHop(peer string, fam family.Family) error {
 }
 
 // withdrawRoute removes a route from adj-rib-in.
-// Syntax: bgp rib withdraw <peer> <family> <prefix>
+// Syntax: request bgp rib withdraw <peer> <family> <prefix>
 // The peer address is a label; no live BGP session required.
 func (r *RIBManager) withdrawRoute(_ string, args []string) (string, any, error) {
 	if len(args) < 3 {
@@ -687,7 +687,7 @@ func (r *RIBManager) status() any {
 
 // retainRoutes marks a peer's Adj-RIB-In for retention during GR.
 // RFC 4724: Receiving speaker retains routes from restarting peer.
-// Called by bgp-gr plugin via DispatchCommand("bgp rib retain-routes <peer>").
+// Called by bgp-gr plugin via DispatchCommand("request bgp rib retain-routes <peer>").
 func (r *RIBManager) retainRoutes(selector string) any {
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
@@ -706,7 +706,7 @@ func (r *RIBManager) retainRoutes(selector string) any {
 
 // releaseRoutes clears the retain flag and deletes Adj-RIB-In for matching peers.
 // RFC 4724: Called when restart timer expires or GR completes.
-// Called by bgp-gr plugin via DispatchCommand("bgp rib release-routes <peer>").
+// Called by bgp-gr plugin via DispatchCommand("request bgp rib release-routes <peer>").
 func (r *RIBManager) releaseRoutes(selector string) any {
 	r.peerMu.Lock()
 
@@ -736,7 +736,7 @@ func (r *RIBManager) releaseRoutes(selector string) any {
 	return map[string]any{"released-peers": released}
 }
 
-// markStaleCommand handles "bgp rib mark-stale <peer> <restart-time>".
+// markStaleCommand handles "request bgp rib mark-stale <peer> <restart-time>".
 // Marks all routes for the peer as stale and stores GR metadata.
 // RFC 4724 Section 4.2: mark routes stale on GR-capable peer session drop.
 // Args: [0]=peer address, [1]=restart time in seconds, [2]=optional stale level (default 1).
@@ -823,7 +823,7 @@ func (r *RIBManager) markStaleCommand(args []string) (string, any, error) {
 	return statusDone, map[string]any{"marked": marked}, nil
 }
 
-// purgeStaleCommand handles "bgp rib purge-stale <peer> [family]".
+// purgeStaleCommand handles "request bgp rib purge-stale <peer> [family]".
 // Deletes only stale routes, optionally for a specific family.
 // RFC 4724 Section 4.2: purge stale routes on EOR receipt or timer expiry.
 // Args: [0]=peer address, [1]=optional family (e.g., "ipv4/unicast").

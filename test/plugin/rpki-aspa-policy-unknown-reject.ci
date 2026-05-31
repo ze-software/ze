@@ -72,7 +72,7 @@ def main():
         time.sleep(1.0)
 
         # Query adj-rib-in: route should be rejected
-        result = dispatch(api, 'show bgp rib routes received')
+        result = dispatch(api, 'show bgp rib received')
         if result.get('status') != 'done':
             print(f'FAIL: rib routes received status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

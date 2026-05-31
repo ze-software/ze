@@ -170,7 +170,7 @@ func runFIBKernelPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "show fib-kernel", DeprecatedNames: []string{"fib-kernel show"}},
+			{Name: "show fib-kernel"},
 		},
 	})
 	if err != nil {

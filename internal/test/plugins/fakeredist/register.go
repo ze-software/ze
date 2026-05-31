@@ -64,9 +64,9 @@ func runPlugin(conn net.Conn) int {
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			{Name: "request fakeredist emit", DeprecatedNames: []string{"fakeredist emit"}},
-			{Name: "request fakeredist emit-burst", DeprecatedNames: []string{"fakeredist emit-burst"}},
-			{Name: "show fakeredist help", DeprecatedNames: []string{"fakeredist help"}},
+			{Name: "request fakeredist emit"},
+			{Name: "request fakeredist emit-burst"},
+			{Name: "show fakeredist help"},
 		},
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)

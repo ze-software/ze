@@ -27,6 +27,9 @@ func wireRibHints(tree *Node) {
 	if node := navigatePath(tree, "show", "bgp", "rib"); node != nil {
 		node.ValueHints = FamilyValueHints
 	}
+	if node := navigatePath(tree, "bgp", "rib"); node != nil {
+		node.ValueHints = FamilyValueHints
+	}
 	if node := navigatePath(tree, "rib"); node != nil {
 		node.ValueHints = FamilyValueHints
 	}

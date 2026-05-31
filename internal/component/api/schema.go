@@ -188,7 +188,7 @@ func OpenAPISchema(commands []CommandMeta) ([]byte, error) {
 }
 
 // operationID converts a command name to an operationId.
-// "bgp rib routes" -> "bgpRibRoutes".
+// "show bgp rib" -> "showBgpRib".
 func operationID(name string) string {
 	words := strings.Fields(name)
 	if len(words) == 0 {
@@ -206,7 +206,7 @@ func operationID(name string) string {
 }
 
 // commandTag extracts the first word as the OpenAPI tag.
-// "bgp rib routes" -> "bgp".
+// "show bgp rib" -> "show".
 func commandTag(name string) string {
 	word, _, _ := strings.Cut(name, " ")
 	return word

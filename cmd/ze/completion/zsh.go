@@ -5,7 +5,7 @@
 package completion
 
 // zshScript returns the zsh completion script for ze.
-// Dynamic completions (plugin names, schema modules, show/run subcommands)
+// Dynamic completions (plugin names, schema modules, show subcommands)
 // call back to ze at completion time. Static completions cover the CLI
 // dispatch tree (subcommands that are hardcoded switch cases in Go).
 func zshScript() string {
@@ -23,7 +23,6 @@ _ze() {
         'plugin:Plugin system'
         'schema:Schema discovery'
         'show:Show daemon state (read-only commands)'
-        'run:Execute daemon command (all commands)'
         'status:Check if daemon is running'
         'signal:Send signals to running daemon'
         'completion:Generate shell completion scripts'
@@ -119,22 +118,6 @@ _ze() {
                     fi
                     local -a dynamic_commands
                     dynamic_commands=(${(f)"$(ze completion words show ${path_words} 2>/dev/null | sed $'s/\t/:/')"})
-                    # Add dynamic peer selectors when completing after "peer"
-                    if [[ ${#path_words} -eq 1 && "${path_words[1]}" == "peer" ]]; then
-                        local -a peer_completions
-                        peer_completions=(${(f)"$(ze completion peers 2>/dev/null | sed $'s/\t/:/')"})
-                        dynamic_commands+=("${peer_completions[@]}")
-                    fi
-                    [[ ${#dynamic_commands} -gt 0 ]] && _describe 'command' dynamic_commands
-                    ;;
-                run)
-                    # Dynamic: multi-level completion from YANG-driven command tree (all)
-                    local -a path_words=()
-                    if (( CURRENT > 2 )); then
-                        path_words=("${words[2,CURRENT-1]}")
-                    fi
-                    local -a dynamic_commands
-                    dynamic_commands=(${(f)"$(ze completion words run ${path_words} 2>/dev/null | sed $'s/\t/:/')"})
                     # Add dynamic peer selectors when completing after "peer"
                     if [[ ${#path_words} -eq 1 && "${path_words[1]}" == "peer" ]]; then
                         local -a peer_completions

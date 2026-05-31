@@ -191,15 +191,15 @@ func cmdDescribeProfile(args []string) int {
 }
 
 func cmdShow(_ []string) int {
-	fmt.Fprintf(os.Stderr, "error: 'ze sysctl show' requires a running daemon\n")
-	fmt.Fprintf(os.Stderr, "hint: start ze, then use 'ze cli sysctl show' or the SSH CLI\n")
+	fmt.Fprintf(os.Stderr, "error: 'show sysctl' requires a running daemon\n")
+	fmt.Fprintf(os.Stderr, "hint: start ze, then use 'ze cli -c \"show sysctl\"' or the SSH CLI\n")
 	fmt.Fprintf(os.Stderr, "hint: use 'ze sysctl list' to see known keys without a daemon\n")
 	return 1
 }
 
 func cmdSet(_ []string) int {
-	fmt.Fprintf(os.Stderr, "error: 'ze sysctl set' requires a running daemon\n")
-	fmt.Fprintf(os.Stderr, "hint: start ze, then use 'ze cli sysctl set <key> <value>'\n")
+	fmt.Fprintf(os.Stderr, "error: 'set sysctl' requires a running daemon\n")
+	fmt.Fprintf(os.Stderr, "hint: start ze, then use 'ze cli -c \"set sysctl <key> <value>\"'\n")
 	return 1
 }
 
@@ -240,8 +240,8 @@ func usage() {
 				{Name: "describe-profile <name>", Desc: "Show detail for one sysctl profile"},
 			}},
 			{Title: "Daemon Commands (requires running ze)", Entries: []helpfmt.HelpEntry{
-				{Name: "show", Desc: "Show active keys (via daemon CLI)"},
-				{Name: "set <key> <value>", Desc: "Set a transient value (via daemon CLI)"},
+				{Name: "show sysctl", Desc: "Show active keys (via daemon CLI)"},
+				{Name: "set sysctl <key> <value>", Desc: "Set a transient value (via daemon CLI)"},
 			}},
 		},
 		Examples: []string{
@@ -249,8 +249,8 @@ func usage() {
 			"ze sysctl describe net.ipv4.conf.all.forwarding",
 			"ze sysctl list-profiles",
 			"ze sysctl describe-profile dsr",
-			"ze cli sysctl show      # requires running daemon",
-			"ze cli sysctl set net.core.somaxconn 4096",
+			"ze cli -c \"show sysctl\"      # requires running daemon",
+			"ze cli -c \"set sysctl net.core.somaxconn 4096\"",
 		},
 	}
 	p.Write()

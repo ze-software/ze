@@ -62,7 +62,7 @@ doing to it."
 
 | Form | Example | When to use |
 |------|---------|-------------|
-| `<domain> <verb>` | `rib inject`, `commit start`, `log set`, `rpki status` | State that belongs to a specific subsystem |
+| `<domain> <verb>` | `request bgp rib inject`, `commit start`, `log set`, `show rpki status` | State that belongs to a specific subsystem |
 | `<domain> <selector> <verb>` | `peer <sel> teardown`, `peer <sel> pause` | Operations targeting one or more instances within a subsystem |
 | `<domain> <verb> <object>` | `config rollback <n>` | Domain operations that produce or consume a named object |
 | `show <what>` | `show summary`, `show peer list`, `show warnings`, `show errors`, `show interface`, `show version`, `show system memory` | Cross-domain read-only introspection |
@@ -149,13 +149,13 @@ close to fully shipped.
 | BGP route-refresh send | `reset ip bgp <addr>` | `clear bgp neighbor <addr> soft-inbound` | `clear router bgp neighbor <addr> soft-inbound` | `clear ip bgp <addr> soft in` | `clear ip bgp <addr> soft in` | `route-refresh <family>` | shipped | bgp | |
 | BGP hard reset | `reset ip bgp <addr>` | `clear bgp neighbor <addr>` | `clear router bgp neighbor <addr>` | `clear ip bgp <addr>` | `clear ip bgp <addr>` | `peer <sel> teardown` | shipped | bgp | |
 | BGP pause/resume peer | - | - | `tools perform router bgp neighbor ... enable/disable` | ~ | - | `peer <sel> pause/resume` | shipped | bgp | Ze-unique (flow control) |
-| BGP inject route | ~ (conf-set only) | - | - | - | static + redist | `rib inject`, `peer ... update text` | shipped | bgp | Ze-unique (test tool) |
+| BGP inject route | ~ (conf-set only) | - | - | - | static + redist | `request bgp rib inject`, `peer ... update text` | shipped | bgp | Ze-unique (test tool) |
 | BGP update dump (live) | - | `monitor traffic protocol bgp` | `debug router bgp peer ... events` | - | `debug bgp updates` | `bgp monitor` | shipped | bgp | SSE stream |
 | BGP monitoring protocol (BMP) | ~ | ~ | `show router bmp` | `show bgp bmp` | `show bmp` | `show bmp sessions/peers/collectors/rib` | shipped | bgp | |
 | BGP FlowSpec rules | - | `show firewall filter detail` | `show filter ip-filter` | - | `show bgp ipv4 flowspec detailed` | installed via fibkernel; no dedicated view | partial | bgp+nl | Add `show bgp flowspec` |
 | BGP ASPA verification | - | - | - | - | ~ | | planned | bgp | spec-bgp-2-aspa |
 | BGP AIGP | - | - | - | - | ~ | | planned | bgp | spec-bgp-3-aigp |
-| BGP RPKI cache state | `show rpki cache` | `show validation session` | `show router rpki session` | `show rpki cache-connection` | `show rpki cache` | `rpki status/cache/roa` | shipped | bgp | |
+| BGP RPKI cache state | `show rpki cache` | `show validation session` | `show router rpki session` | `show rpki cache-connection` | `show rpki cache` | `show rpki status/cache/roa` | shipped | bgp | |
 
 ## 2. Routing Table / FIB
 
@@ -274,7 +274,7 @@ subsystem lands.
 | Command (generic) | VyOS | Junos | Nokia | Arista | FRR | Ze command | Ze status | Backend | Notes |
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
 | Daemon uptime | `show system uptime` | `show system uptime` | `show system uptime` | `show uptime` | - | `show uptime` | shipped | process | |
-| Daemon memory | `show system memory` | `show task memory` | `show system memory-pools` | `show processes memory` | `show memory` | `show system memory` | shipped | process | Complements `rib status`. Nests a `hardware` subobject from `host.DetectMemory()`; same data available standalone via `show host memory` |
+| Daemon memory | `show system memory` | `show task memory` | `show system memory-pools` | `show processes memory` | `show memory` | `show system memory` | shipped | process | Complements `show bgp rib status`. Nests a `hardware` subobject from `host.DetectMemory()`; same data available standalone via `show host memory` |
 | Daemon CPU | `show system cpu` | `show task cpu` | `show system cpu` | `show processes cpu` | - | `show system cpu` | shipped | process | Nests a `hardware` subobject from `host.DetectCPU()`; same data available standalone via `show host cpu` |
 | Daemon date/time | `show date` | `show system time` | `show system time` | `show clock` | - | `show system date` | shipped | process | |
 | Platform detection | - | - | - | - | - | `show system platform` | shipped | process | Runtime platform type (gokrazy, systemd, container, plain-linux, darwin) and capability flags (read-only root, /perm, reboot, persistent storage). Also in `ze doctor` and `ze support` |
@@ -298,7 +298,7 @@ subsystem lands.
 | Errors report | - | - | `show log log-id error` | `show logging | include error` | - | `show errors` | shipped | process | |
 | Prometheus metrics | - | - | - | - | - | `metrics show` | shipped | process | |
 | Structured event stream (SSE) | - | `monitor *` | - | - | - | `bgp monitor` | shipped | bgp | SSE |
-| Operational reports (healthcheck) | - | - | - | - | - | `healthcheck show` | shipped | process | ze-unique |
+| Operational reports (healthcheck) | - | - | - | - | - | `show healthcheck` | shipped | process | ze-unique |
 | Tech-support archive | `generate tech-support archive` | `request support information` | `admin tech-support` | `show tech-support` | - | | planned | process | Zip of logs + running config |
 
 ## 10. Diagnostics

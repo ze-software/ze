@@ -18,7 +18,7 @@ import (
 var testWireLocalPref200 = []byte{0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0xC8}
 
 // TestBestPipelineReason_LocalPrefWinner drives the full bestPipeline path
-// for `bgp rib show best reason` with two candidates for the same prefix
+// for `show bgp rib best reason` with two candidates for the same prefix
 // on different peers. The higher-LOCAL_PREF peer must win and the JSON
 // must name the deciding step.
 //

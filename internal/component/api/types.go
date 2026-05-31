@@ -24,7 +24,7 @@ func IsLoopbackAddr(addr string) bool {
 
 // CommandMeta describes a registered command for API consumers.
 type CommandMeta struct {
-	Name        string      // Dispatch path, e.g. "bgp rib status"
+	Name        string      // Dispatch path, e.g. "show bgp rib status"
 	Description string      // From YANG or registration
 	ReadOnly    bool        // True if read-only command
 	Params      []ParamMeta // Input parameters from YANG RPC (nil = no typed params)

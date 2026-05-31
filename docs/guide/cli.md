@@ -43,10 +43,10 @@ ze cli -c "peer upstream1 teardown 2" # One-shot command (full access)
 |---------|-------------|
 | `peer <sel> update text <attrs> nlri <family> <op> <prefix>` | Text-format UPDATE |
 | `peer <sel> update hex <hex>` | Hex-format UPDATE |
-| `rib routes received [peer] [family]` | Show Adj-RIB-In |
-| `rib routes sent [peer] [family]` | Show Adj-RIB-Out |
-| `rib clear received [peer]` | Clear Adj-RIB-In |
-| `rib clear sent [peer]` | Clear Adj-RIB-Out |
+| `show bgp rib received [peer] [family]` | Show Adj-RIB-In |
+| `show bgp rib sent [peer] [family]` | Show Adj-RIB-Out |
+| `clear bgp rib in [peer]` | Clear Adj-RIB-In |
+| `clear bgp rib out [peer]` | Clear Adj-RIB-Out |
 <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/cmd/update/ -- update RPCs -->
 
 See [Route Injection guide](route-injection.md) for UPDATE syntax details.
@@ -83,10 +83,10 @@ Named update windows for atomic route changes:
 
 | Command | Description |
 |---------|-------------|
-| `rpki status` | RTR session count and VRP counts |
-| `rpki cache` | Cache server connection details |
-| `rpki roa` | ROA table summary |
-| `rpki summary` | Validation statistics |
+| `show rpki status` | RTR session count and VRP counts |
+| `show rpki cache` | Cache server connection details |
+| `show rpki roa` | ROA table summary |
+| `show rpki summary` | Validation statistics |
 
 ## Daemon Control
 

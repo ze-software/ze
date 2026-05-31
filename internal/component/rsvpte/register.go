@@ -386,9 +386,9 @@ func runRSVPTEEngine(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "show rsvp-te session", DeprecatedNames: []string{"rsvp-te show-session"}},
-			{Name: "show rsvp-te interface", DeprecatedNames: []string{"rsvp-te show-interface"}},
-			{Name: "show rsvp-te tunnel", DeprecatedNames: []string{"rsvp-te show-tunnel"}},
+			{Name: "show rsvp-te session"},
+			{Name: "show rsvp-te interface"},
+			{Name: "show rsvp-te tunnel"},
 		},
 	})
 	if err != nil {

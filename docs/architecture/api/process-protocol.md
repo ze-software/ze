@@ -364,7 +364,7 @@ Plugins subscribe to events using either:
 
 **Cross-Plugin DispatchCommand from Startup.** A plugin whose startup logic
 must call `DispatchCommand` on a sibling plugin's command (e.g., `bgp-rpki`
-enabling the `adj-rib-in enable-validation` gate) MUST register the call via
+enabling the `request adj-rib-in enable-validation` gate) MUST register the call via
 `OnAllPluginsReady`, not `OnStarted`. `OnStarted` fires after the plugin's own
 5-stage handshake but potentially BEFORE other plugins in later startup phases
 are loaded, so the dispatcher may not yet know about the target command.

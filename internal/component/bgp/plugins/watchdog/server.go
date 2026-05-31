@@ -290,7 +290,7 @@ func (s *watchdogServer) handleStateUp(peerAddr string) {
 
 		// First pass: mark only initiallyAnnounced routes as announced for this peer.
 		// Routes with initiallyAnnounced=false (withdraw=true in config) are left
-		// untouched — they require an explicit "watchdog announce" command.
+		// untouched — they require an explicit "request watchdog announce" command.
 		pools.AnnounceInitial(poolName, peerAddr)
 
 		// Second pass: send all announced routes. When an earlier

@@ -26,7 +26,7 @@ commands are exposed automatically without code changes.
 The `ze_execute` tool is the key to full control: anything you can do in `ze cli` (interactive or `ze cli -c` for one-shot commands), an AI can do via MCP. This includes:
 
 - **Route management:** `bgp peer * update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24`
-- **RIB queries:** `rib routes received`, `rib routes sent`, `rib clear-in`
+- **RIB queries:** `show bgp rib received`, `show bgp rib sent`, `clear bgp rib in`
 - **Peer lifecycle:** `bgp peer * show`, `bgp peer 10.0.0.1 teardown 6`, `set bgp peer new-peer with ...`
 - **Configuration:** `commit start window1`, route changes, `commit end window1`
 - **Cache operations:** `cache list`, `cache forward`
@@ -69,7 +69,7 @@ An AI assistant connected via MCP can:
 
 1. Check peer state: `ze_peers` returns structured JSON with all peer status
 2. Announce a route: `ze_announce` with origin=igp, next-hop=10.0.0.1, prefixes=[10.0.0.0/24]
-3. Verify propagation: `ze_execute` with command `rib routes sent peer1 ipv4/unicast`
+3. Verify propagation: `ze_execute` with command `show bgp rib sent peer peer1 family ipv4/unicast`
 4. Withdraw if needed: `ze_withdraw` with the same prefixes
 
 All without parsing text output -- each tool returns structured data.

@@ -384,30 +384,27 @@ func TestCommandRegistryUnregisterAllAfterFreeze(t *testing.T) {
 // TestDeprecatedCommandWarning verifies deprecated aliases dispatch correctly
 // and log a warning once per session.
 //
-// VALIDATES: AC-5 -- Old noun-first command names dispatch correctly with deprecation warning.
-// PREVENTS: Breaking backward compatibility when renaming commands to verb-first.
+// VALIDATES: Alias plumbing can map a retired spelling to a canonical command.
+// PREVENTS: Future released-command deprecations breaking dispatch.
 func TestDeprecatedCommandWarning(t *testing.T) {
 	registry := NewCommandRegistry()
-	proc := process.NewProcess(plugin.PluginConfig{Name: "sysctl"})
+	proc := process.NewProcess(plugin.PluginConfig{Name: "fixture"})
 
-	// Register new verb-first command
 	results := registry.Register(proc, []CommandDef{
-		{Name: "show sysctl", Description: "Show sysctl values"},
+		{Name: "show fixture state", Description: "Show fixture state"},
 	})
 	assert.True(t, results[0].OK)
 
-	// Register deprecated alias (old noun-first form)
-	registry.RegisterDeprecated(proc, "sysctl show", "show sysctl")
+	registry.RegisterDeprecated(proc, "legacy fixture state", "show fixture state")
 
 	// Lookup by new name works directly
-	cmd := registry.Lookup("show sysctl")
+	cmd := registry.Lookup("show fixture state")
 	assert.NotNil(t, cmd)
-	assert.Equal(t, "show sysctl", cmd.Name)
+	assert.Equal(t, "show fixture state", cmd.Name)
 
-	// Lookup by old name resolves to canonical command
-	cmd = registry.Lookup("sysctl show")
+	cmd = registry.Lookup("legacy fixture state")
 	assert.NotNil(t, cmd)
-	assert.Equal(t, "show sysctl", cmd.Name, "deprecated alias should return canonical command")
+	assert.Equal(t, "show fixture state", cmd.Name, "deprecated alias should return canonical command")
 
 	// Unknown name still returns nil
 	assert.Nil(t, registry.Lookup("unknown command"))
@@ -419,24 +416,23 @@ func TestDeprecatedCommandWarning(t *testing.T) {
 // PREVENTS: Deprecated aliases silently breaking after startup barrier.
 func TestDeprecatedCommandAfterFreeze(t *testing.T) {
 	registry := NewCommandRegistry()
-	proc := process.NewProcess(plugin.PluginConfig{Name: "sysctl"})
+	proc := process.NewProcess(plugin.PluginConfig{Name: "fixture"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show sysctl", Description: "Show sysctl values"},
+		{Name: "show fixture state", Description: "Show fixture state"},
 	})
-	registry.RegisterDeprecated(proc, "sysctl show", "show sysctl")
+	registry.RegisterDeprecated(proc, "legacy fixture state", "show fixture state")
 
 	registry.Freeze()
 
 	// New name works after freeze
-	cmd := registry.Lookup("show sysctl")
+	cmd := registry.Lookup("show fixture state")
 	assert.NotNil(t, cmd)
-	assert.Equal(t, "show sysctl", cmd.Name)
+	assert.Equal(t, "show fixture state", cmd.Name)
 
-	// Deprecated alias works after freeze
-	cmd = registry.Lookup("sysctl show")
+	cmd = registry.Lookup("legacy fixture state")
 	assert.NotNil(t, cmd)
-	assert.Equal(t, "show sysctl", cmd.Name)
+	assert.Equal(t, "show fixture state", cmd.Name)
 }
 
 // TestDeprecatedPrefixLookup verifies prefix matching for deprecated aliases.
@@ -445,18 +441,18 @@ func TestDeprecatedCommandAfterFreeze(t *testing.T) {
 // PREVENTS: Old command forms failing in the plugin dispatch path.
 func TestDeprecatedPrefixLookup(t *testing.T) {
 	registry := NewCommandRegistry()
-	proc := process.NewProcess(plugin.PluginConfig{Name: "sysctl"})
+	proc := process.NewProcess(plugin.PluginConfig{Name: "fixture"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show sysctl", Description: "Show sysctl values"},
+		{Name: "show fixture state", Description: "Show fixture state"},
 	})
-	registry.RegisterDeprecated(proc, "sysctl show", "show sysctl")
+	registry.RegisterDeprecated(proc, "legacy fixture state", "show fixture state")
 
 	// Prefix lookup with trailing args
-	cmd, matchLen := registry.LookupDeprecatedPrefix("sysctl show")
+	cmd, matchLen := registry.LookupDeprecatedPrefix("legacy fixture state extra-arg")
 	assert.NotNil(t, cmd)
-	assert.Equal(t, "show sysctl", cmd.Name)
-	assert.Equal(t, len("sysctl show"), matchLen)
+	assert.Equal(t, "show fixture state", cmd.Name)
+	assert.Equal(t, len("legacy fixture state"), matchLen)
 
 	// Non-matching prefix returns nil
 	cmd, matchLen = registry.LookupDeprecatedPrefix("unknown prefix")
@@ -470,22 +466,22 @@ func TestDeprecatedPrefixLookup(t *testing.T) {
 // PREVENTS: Stale deprecated aliases after plugin crash/restart.
 func TestDeprecatedUnregisterAll(t *testing.T) {
 	registry := NewCommandRegistry()
-	proc := process.NewProcess(plugin.PluginConfig{Name: "sysctl"})
+	proc := process.NewProcess(plugin.PluginConfig{Name: "fixture"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show sysctl", Description: "Show sysctl values"},
+		{Name: "show fixture state", Description: "Show fixture state"},
 	})
-	registry.RegisterDeprecated(proc, "sysctl show", "show sysctl")
+	registry.RegisterDeprecated(proc, "legacy fixture state", "show fixture state")
 
 	registry.Freeze()
 
 	// Both work before unregister
-	assert.NotNil(t, registry.Lookup("show sysctl"))
-	assert.NotNil(t, registry.Lookup("sysctl show"))
+	assert.NotNil(t, registry.Lookup("show fixture state"))
+	assert.NotNil(t, registry.Lookup("legacy fixture state"))
 
 	registry.UnregisterAll(proc)
 
 	// Both gone after unregister
-	assert.Nil(t, registry.Lookup("show sysctl"))
-	assert.Nil(t, registry.Lookup("sysctl show"))
+	assert.Nil(t, registry.Lookup("show fixture state"))
+	assert.Nil(t, registry.Lookup("legacy fixture state"))
 }

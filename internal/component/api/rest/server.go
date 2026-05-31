@@ -600,13 +600,13 @@ func (s *RESTServer) handleRIB(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		command = "rib best " + family
+		command = "show bgp rib best family " + family
 	} else {
 		if err := validatePathSegment("family", path); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		command = "rib routes " + path
+		command = "show bgp rib family " + path
 	}
 	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: command})
 	if errors.Is(execErr, api.ErrUnauthorized) {

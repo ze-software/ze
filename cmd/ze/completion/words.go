@@ -24,8 +24,7 @@ import (
 //
 // Usage:
 //
-//	ze completion words show [path...]   — read-only command tree
-//	ze completion words run [path...]    — full command tree
+//	ze completion words show [path...]   — read-only command tree under `ze show`
 func words(args []string) int {
 	return writeWords(os.Stdout, args)
 }
@@ -36,17 +35,14 @@ func writeWords(w io.Writer, args []string) int {
 		return 0
 	}
 
-	var readOnly bool
+	var tree *command.Node
 	switch args[0] {
 	case "show":
-		readOnly = true
-	case "run":
-		readOnly = false
+		tree = cli.BuildVerbCommandTree("show")
 	default:
 		return 0
 	}
 
-	tree := cli.BuildCommandTree(readOnly)
 	tc := command.NewTreeCompleter(tree)
 
 	// Build input string from path args. Trailing space signals "list all

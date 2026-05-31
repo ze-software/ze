@@ -542,7 +542,7 @@ rsvp-te {
 ```
 
 Inspect LSP, interface, and tunnel state with the component's
-`rsvp-te show-session`, `rsvp-te show-interface`, and `rsvp-te show-tunnel`
+`show rsvp-te session`, `show rsvp-te interface`, and `show rsvp-te tunnel`
 commands. See [RSVP-TE](rsvp-te.md) for details and current status.
 
 <!-- source: internal/component/iface/schema/ze-iface-conf.yang -- unit/mpls/enable -->
@@ -1032,7 +1032,7 @@ on Linux, or MIB names on Darwin). Known keys get type and range validation on
 commit; unknown keys are validated by attempting the write.
 
 The sysctl plugin uses three-layer precedence: config values (above) are authoritative
-and override both transient values (`sysctl set` from CLI) and plugin defaults
+and override both transient values (`set sysctl` from CLI) and plugin defaults
 (e.g., fib-kernel declaring forwarding=1). See the
 [command reference](command-reference.md#sysctl-kernel-tunables) for CLI usage.
 <!-- source: internal/plugins/sysctl/sysctl.go -- parseSysctlConfig, applyConfig -->

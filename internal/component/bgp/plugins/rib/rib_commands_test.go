@@ -105,9 +105,9 @@ func requireFirstRoute(t *testing.T, jsonStr, topKey, peerAddr string) map[strin
 	return route
 }
 
-// TestInboundShowWithAttributes verifies enriched bgp rib show received returns attributes.
+// TestInboundShowWithAttributes verifies enriched show bgp rib received returns attributes.
 //
-// VALIDATES: AC-6 — bgp rib show received returns origin, as-path, med, local-pref, communities.
+// VALIDATES: AC-6 — show bgp rib received returns origin, as-path, med, local-pref, communities.
 // PREVENTS: Show command returning only family/prefix/next-hop without path attributes.
 func TestInboundShowWithAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -178,9 +178,9 @@ func TestInboundShowMinimalAttributes(t *testing.T) {
 	assert.False(t, hasCom, "communities should be absent when not in route")
 }
 
-// TestOutboundShowWithAttributes verifies enriched bgp rib show sent returns attributes.
+// TestOutboundShowWithAttributes verifies enriched show bgp rib sent returns attributes.
 //
-// VALIDATES: AC-7 — bgp rib show sent returns origin, as-path, med, local-pref, communities.
+// VALIDATES: AC-7 — show bgp rib sent returns origin, as-path, med, local-pref, communities.
 // PREVENTS: Outbound show missing path attributes for route replay verification.
 func TestOutboundShowWithAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -228,7 +228,7 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 
 // TestInboundShowFamilyFilter verifies family filter restricts results.
 //
-// VALIDATES: AC-6 — bgp rib show received with family filter returns only matching family.
+// VALIDATES: AC-6 — show bgp rib received with family filter returns only matching family.
 // PREVENTS: Family filter being ignored, all families returned.
 func TestInboundShowFamilyFilter(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -261,7 +261,7 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 
 // TestInboundShowPrefixFilter verifies prefix filter restricts results.
 //
-// VALIDATES: AC-7 — bgp rib show received with prefix filter returns only matching prefix.
+// VALIDATES: AC-7 — show bgp rib received with prefix filter returns only matching prefix.
 // PREVENTS: Prefix filter being ignored, all prefixes returned.
 func TestInboundShowPrefixFilter(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -314,7 +314,7 @@ func TestOutboundShowMinimalAttributes(t *testing.T) {
 	assert.False(t, hasMED, "MED should be absent when nil")
 }
 
-// TestInjectUsesProtocolSlot verifies bgp rib inject stores in bgpPeers.
+// TestInjectUsesProtocolSlot verifies request bgp rib inject stores in bgpPeers.
 func TestInjectUsesProtocolSlot(t *testing.T) {
 	r := newTestRIBManager(t)
 	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
@@ -334,7 +334,7 @@ func TestInjectUsesProtocolSlot(t *testing.T) {
 	assert.True(t, found)
 }
 
-// TestWithdrawUsesProtocolSlot verifies bgp rib withdraw reads from bgpPeers.
+// TestWithdrawUsesProtocolSlot verifies request bgp rib withdraw reads from bgpPeers.
 func TestWithdrawUsesProtocolSlot(t *testing.T) {
 	r := newTestRIBManager(t)
 	ipv4Uni := family.Family{AFI: 1, SAFI: 1}

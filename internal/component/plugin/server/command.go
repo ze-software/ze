@@ -475,8 +475,8 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		}
 		// When a peer selector was extracted, rebuildWithoutSelector keeps the
 		// "peer" keyword (needed for peer commands like "peer list"). But for
-		// cross-domain commands ("peer 10.0.0.1 bgp rib show"), the "peer" prefix
-		// is not part of the target command. Strip it and retry.
+		// cross-domain commands ("peer 10.0.0.1 show bgp rib"), the "peer"
+		// prefix is not part of the target command. Strip it and retry.
 		stripped := input
 		strippedLower := lowerInput
 		if hasExplicitSelector && strings.HasPrefix(lowerInput, "peer ") {

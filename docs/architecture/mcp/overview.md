@@ -123,8 +123,8 @@ process exits (acceptable because session state lives only in RAM).
 <!-- source: internal/component/mcp/tools.go — groupCommands, buildToolDef -->
 
 `CommandLister` returns every registered CLI command (`CommandInfo`). The
-tool generator groups by common prefix (`bgp rib status`, `bgp rib routes`
--> `bgp rib` group with `status` and `routes` actions), synthesises a JSON
+tool generator groups by common prefix (`show bgp rib status`, `show bgp rib`
+-> `show bgp` group with `rib status` and `rib` actions), synthesises a JSON
 Schema from each command's YANG RPC metadata, and emits an MCP tool named
 `ze_<prefix_joined_with_underscores>`. The handcrafted `ze_execute` tool is
 a raw dispatch escape hatch.

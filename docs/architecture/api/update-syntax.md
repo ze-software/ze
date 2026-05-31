@@ -861,15 +861,15 @@ peer upstream1 raw hex ffffffffffffffffffffffffffffffff001303
 | `announce route <p> next-hop <nh>` | `update text nhop set <nh> nlri ipv4/unicast add prefix <p>` |
 | `announce attributes ... nlri ...` | `update text ... nhop set <nh> nlri ... add prefix ...` |
 | `withdraw route <p>` | `update text nlri ipv4/unicast del prefix <p>` |
-| `announce watchdog <name>` | `watchdog announce <name>` |
-| `withdraw watchdog <name>` | `watchdog withdraw <name>` |
+| `announce watchdog <name>` | `request watchdog announce <name>` |
+| `withdraw watchdog <name>` | `request watchdog withdraw <name>` |
 
 ## Watchdog Commands
 
 | Command | Purpose |
 |---------|---------|
-| `watchdog announce <name>` | Send all routes in pool to peers |
-| `watchdog withdraw <name>` | Withdraw all routes in pool from peers |
+| `request watchdog announce <name>` | Send all routes in pool to peers |
+| `request watchdog withdraw <name>` | Withdraw all routes in pool from peers |
 
 Routes are tagged with a pool when announced:
 ```bash
@@ -879,4 +879,4 @@ update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog s
 
 > **Note:** `watchdog set <name>` in `update text` commands is not yet implemented.
 > The parser recognizes the syntax but the handler returns an error.
-> Standalone `watchdog announce/withdraw` commands work as expected.
+> Standalone `request watchdog announce/withdraw` commands work as expected.

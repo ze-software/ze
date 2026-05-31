@@ -256,9 +256,9 @@ initialize and uses task-specific directives.
 
 | File | What it covers |
 |------|----------------|
-| `task-rib-routes.ci` | `rib routes` as a task: createTask -> poll -> tasks/result returns route data |
+| `task-rib-routes.ci` | `show bgp rib` as a task: createTask -> poll -> tasks/result returns route data |
 | `task-cancel.ci` | Create a long-running task, cancel it, verify state is cancelled |
-| `task-forbidden.ci` | `rib clear in` (forbidden) with `task:{}` is rejected with -32602 |
+| `task-forbidden.ci` | `clear bgp rib in` (forbidden) with `task:{}` is rejected with -32602 |
 | `task-identity-scope.ci` | Two bearer-list identities each create tasks; `tasks/list` returns only own tasks |
 
 Task directives: `task-call <tool> <args>`, `task-get <id>`,

@@ -95,7 +95,7 @@ func TestParseEvent_StateFormat(t *testing.T) {
 // VALIDATES: CLI command requests are parsed correctly.
 // PREVENTS: Commands being ignored.
 func TestParseEvent_RequestFormat(t *testing.T) {
-	input := `{"type":"request","serial":"abc123","command":"show bgp rib adjacent status"}`
+	input := `{"type":"request","serial":"abc123","command":"show bgp rib status"}`
 
 	event, err := parseEvent([]byte(input))
 	require.NoError(t, err)
@@ -103,7 +103,7 @@ func TestParseEvent_RequestFormat(t *testing.T) {
 	assert.Equal(t, rpc.EventKindUnspecified, event.GetEventType())
 	assert.Equal(t, "request", event.Type)
 	assert.Equal(t, "abc123", event.Serial)
-	assert.Equal(t, "show bgp rib adjacent status", event.Command)
+	assert.Equal(t, "show bgp rib status", event.Command)
 }
 
 // TestHandleSent_StoresRoutes verifies routes are stored in Adj-RIB-Out.
@@ -595,11 +595,11 @@ func dataStr(t *testing.T, v any) string {
 	return string(mustMarshal(t, v))
 }
 
-// TestHandleCommand_RIBAdjacentStatus verifies renamed status command.
+// TestHandleCommand_RIBStatus verifies the status command.
 //
-// VALIDATES: "show bgp rib adjacent status" returns status JSON via handleCommand.
-// PREVENTS: Command rename breaking status queries.
-func TestHandleCommand_RIBAdjacentStatus(t *testing.T) {
+// VALIDATES: "show bgp rib status" returns status JSON via handleCommand.
+// PREVENTS: Command registration breakage hiding RIB state.
+func TestHandleCommand_RIBStatus(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Add route via pool storage
@@ -623,7 +623,7 @@ func TestHandleCommand_RIBAdjacentStatus(t *testing.T) {
 		},
 	})
 
-	status, data, err := r.handleCommand("show bgp rib adjacent status", "", nil)
+	status, data, err := r.handleCommand("show bgp rib status", "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"running":true`)
@@ -715,11 +715,11 @@ func TestHandleCommand_RIBShowReceived(t *testing.T) {
 	}
 }
 
-// TestHandleCommand_RIBAdjacentInboundEmpty verifies inbound empty with selector.
+// TestHandleCommand_RIBInboundClear verifies inbound clear with selector.
 //
-// VALIDATES: "clear bgp rib adjacent inbound" empties matching peers only.
+// VALIDATES: "clear bgp rib in" empties matching peers only.
 // PREVENTS: Emptying wrong peers' routes.
-func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
+func TestHandleCommand_RIBInboundClear(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Add routes via pool storage for peer 10.0.0.1
@@ -748,7 +748,7 @@ func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 	}
 	r.handleReceived(event2)
 
-	status, data, err := r.handleCommand("clear bgp rib adjacent inbound", "*", []string{"10.0.0.1"})
+	status, data, err := r.handleCommand("clear bgp rib in", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"cleared":1`)
@@ -785,11 +785,11 @@ func TestHandleCommand_RIBShowSent(t *testing.T) {
 	assert.NotContains(t, data, "10.0.0.2")
 }
 
-// TestHandleCommand_RIBAdjacentOutboundResend verifies outbound resend.
+// TestHandleCommand_RIBOutboundResend verifies outbound resend.
 //
-// VALIDATES: "clear bgp rib adjacent outbound" returns correct count for matching peers.
+// VALIDATES: "clear bgp rib out" returns correct count for matching peers.
 // PREVENTS: Resend failing or targeting wrong peers.
-func TestHandleCommand_RIBAdjacentOutboundResend(t *testing.T) {
+func TestHandleCommand_RIBOutboundResend(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	r.ribOut["10.0.0.1"] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
@@ -805,7 +805,7 @@ func TestHandleCommand_RIBAdjacentOutboundResend(t *testing.T) {
 	r.peerUp["10.0.0.1"] = true
 	r.peerUp["10.0.0.2"] = true
 
-	status, data, err := r.handleCommand("clear bgp rib adjacent outbound", "*", []string{"10.0.0.1"})
+	status, data, err := r.handleCommand("clear bgp rib out", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	// Resend count: routes are sent via SDK RPC (updateRoute), which fails silently on closed pipes
@@ -814,11 +814,11 @@ func TestHandleCommand_RIBAdjacentOutboundResend(t *testing.T) {
 	assert.Contains(t, dataStr(t, data), `"peers":1`)
 }
 
-// TestHandleCommand_RIBAdjacentOutboundResend_DownPeer verifies resend skips down peers.
+// TestHandleCommand_RIBOutboundResend_DownPeer verifies resend skips down peers.
 //
-// VALIDATES: "clear bgp rib adjacent outbound" does not send routes to down peers.
+// VALIDATES: "clear bgp rib out" does not send routes to down peers.
 // PREVENTS: Sending routes to disconnected peers.
-func TestHandleCommand_RIBAdjacentOutboundResend_DownPeer(t *testing.T) {
+func TestHandleCommand_RIBOutboundResend_DownPeer(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Peer has routes but is DOWN
@@ -829,7 +829,7 @@ func TestHandleCommand_RIBAdjacentOutboundResend_DownPeer(t *testing.T) {
 	})
 	// peerUp["10.0.0.1"] is NOT set (peer is down)
 
-	status, data, err := r.handleCommand("clear bgp rib adjacent outbound", "*", []string{"10.0.0.1"})
+	status, data, err := r.handleCommand("clear bgp rib out", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"resent":0`, "should not resend to down peer")
@@ -843,17 +843,17 @@ func TestHandleCommand_RIBAdjacentOutboundResend_DownPeer(t *testing.T) {
 func TestHandleCommand_UnknownCommand(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("bgp rib unknown command", "", nil)
+	status, _, err := r.handleCommand("unknown bgp rib command", "", nil)
 	assert.Equal(t, "error", status)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown command")
 }
 
-// TestRIBPluginHandleCommandShortNames verifies short-name commands dispatch correctly.
+// TestRIBPluginHandleCommandCanonicalNames verifies canonical commands dispatch correctly.
 //
-// VALIDATES: handleCommand routes short names (bgp rib show in, etc.) to correct handlers.
-// PREVENTS: Short-name unification failing after builtin removal.
-func TestRIBPluginHandleCommandShortNames(t *testing.T) {
+// VALIDATES: handleCommand routes verb-first names to correct handlers.
+// PREVENTS: command registration drift after builtin removal.
+func TestRIBPluginHandleCommandCanonicalNames(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Populate test data
@@ -883,9 +883,9 @@ func TestRIBPluginHandleCommandShortNames(t *testing.T) {
 		wantIn  string // substring expected in data
 	}{
 		{"show bgp rib status", "show bgp rib status", nil, true, `"running":true`},
-		{"bgp rib show received", "show bgp rib", []string{"received"}, true, "10.0.0.1"},
+		{"show bgp rib received", "show bgp rib", []string{"received"}, true, "10.0.0.1"},
 		{"clear bgp rib in", "clear bgp rib in", []string{"*"}, true, `"cleared"`},
-		{"bgp rib show sent", "show bgp rib", []string{"sent"}, true, "adj-rib-out"},
+		{"show bgp rib sent", "show bgp rib", []string{"sent"}, true, "adj-rib-out"},
 		{"clear bgp rib out", "clear bgp rib out", []string{"*"}, true, `"resent"`},
 	}
 
@@ -903,46 +903,25 @@ func TestRIBPluginHandleCommandShortNames(t *testing.T) {
 	}
 }
 
-// TestRIBPluginHandleCommandLegacyNames verifies old-style names still work.
+// TestRIBPluginHandleCommandRejectsOldNames verifies pre-release old names do not work.
 //
-// VALIDATES: handleCommand still routes legacy names (rib adjacent ...) to correct handlers.
-// PREVENTS: Backward compatibility break during command unification.
-func TestRIBPluginHandleCommandLegacyNames(t *testing.T) {
+// VALIDATES: old command spellings are unknown instead of compatibility aliases.
+// PREVENTS: preserving invalid grammar before a public release.
+func TestRIBPluginHandleCommandRejectsOldNames(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	// Populate test data
-	peerJSON := mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}})
-	announce := &Event{
-		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 100},
-		Peer:          peerJSON,
-		RawAttributes: "40010100",
-		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
-		FamilyOps: map[family.Family][]FamilyOperation{
-			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: bgptypes.RouteActionAdd, NLRIs: []any{"10.0.0.0/24"}}},
-		},
-	}
-	r.handleReceived(announce)
-	r.peerUp["10.0.0.1"] = true
-
-	// Legacy names that still work (status, empty, resend have aliases;
-	// show commands now use unified "show bgp rib" with scope args).
-	tests := []struct {
-		name    string
-		command string
-		args    []string
-		wantIn  string
-	}{
-		{"adjacent status", "show bgp rib adjacent status", nil, `"running":true`},
-		{"adjacent inbound empty", "clear bgp rib adjacent inbound", []string{"*"}, `"cleared"`},
-		{"adjacent outbound resend", "clear bgp rib adjacent outbound", []string{"*"}, `"resent"`},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			status, data, err := r.handleCommand(tt.command, "*", tt.args)
-			require.NoError(t, err, "legacy command %q should succeed", tt.command)
-			assert.Equal(t, "done", status)
-			assert.Contains(t, dataStr(t, data), tt.wantIn, "legacy command %q data", tt.command)
+	for _, cmd := range []string{
+		"bgp rib status",
+		"bgp rib show",
+		"bgp rib clear in",
+		"show bgp rib adjacent status",
+		"clear bgp rib adjacent inbound",
+		"clear bgp rib adjacent outbound",
+	} {
+		t.Run(cmd, func(t *testing.T) {
+			status, _, err := r.handleCommand(cmd, "*", []string{"*"})
+			assert.Equal(t, statusError, status)
+			assert.Error(t, err)
 		})
 	}
 }
@@ -1309,8 +1288,8 @@ func TestHandleCommand_InboundEmpty_PoolStorage(t *testing.T) {
 	r.handleReceived(event)
 	require.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
 
-	// Call empty command via handleCommand
-	status, data, err := r.handleCommand("clear bgp rib adjacent inbound", "*", []string{"10.0.0.1"})
+	// Call clear command via handleCommand
+	status, data, err := r.handleCommand("clear bgp rib in", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), `"cleared":1`)
@@ -1774,7 +1753,7 @@ func TestExtractCandidate_PoolWiring(t *testing.T) {
 }
 
 // TestPeerMetaCleanup_ClearAndRelease verifies peerMeta is cleaned up by
-// inboundEmptyJSON (bgp rib clear in) and releaseRoutesJSON (bgp rib release-routes).
+// inboundEmptyJSON (clear bgp rib in) and releaseRoutesJSON (request bgp rib release-routes).
 //
 // VALIDATES: peerMeta deleted alongside ribInPool in clear and release paths.
 // PREVENTS: peerMeta memory leak when routes are cleared or GR-released.
@@ -2117,7 +2096,7 @@ func TestOutRouteKey(t *testing.T) {
 	}
 }
 
-// TestOutboundResendSelectorFromArgs verifies bgp rib clear out extracts the selector
+// TestOutboundResendSelectorFromArgs verifies clear bgp rib out extracts the selector
 // from args[0], not the peer parameter (which is always "*" for plugin dispatch).
 //
 // VALIDATES: AC-10 — selector from args filters peers correctly.
@@ -2152,9 +2131,9 @@ func TestOutboundResendSelectorFromArgs(t *testing.T) {
 	assert.Equal(t, float64(1), result["resent"], "should resend 1 route")
 }
 
-// TestInboundEmptySelectorFromArgs verifies bgp rib clear in extracts selector from args.
+// TestInboundEmptySelectorFromArgs verifies clear bgp rib in extracts selector from args.
 //
-// VALIDATES: AC-12 — bgp rib clear in uses args[0] for selector.
+// VALIDATES: AC-12 — clear bgp rib in uses args[0] for selector.
 // PREVENTS: Clearing all peers when only one was requested.
 func TestInboundEmptySelectorFromArgs(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -2176,9 +2155,9 @@ func TestInboundEmptySelectorFromArgs(t *testing.T) {
 	assert.True(t, has2, "10.0.0.2 should remain")
 }
 
-// TestRetainRoutesSelectorFromArgs verifies bgp rib retain-routes extracts selector from args.
+// TestRetainRoutesSelectorFromArgs verifies request bgp rib retain-routes extracts selector from args.
 //
-// VALIDATES: AC-13 — bgp rib retain-routes uses args[0] for selector.
+// VALIDATES: AC-13 — request bgp rib retain-routes uses args[0] for selector.
 // PREVENTS: Retaining all peers when only one was requested.
 func TestRetainRoutesSelectorFromArgs(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -2197,9 +2176,9 @@ func TestRetainRoutesSelectorFromArgs(t *testing.T) {
 	assert.False(t, r.retainedPeers["10.0.0.2"], "10.0.0.2 should NOT be retained")
 }
 
-// TestReleaseRoutesSelectorFromArgs verifies bgp rib release-routes extracts selector from args.
+// TestReleaseRoutesSelectorFromArgs verifies request bgp rib release-routes extracts selector from args.
 //
-// VALIDATES: AC-14 — bgp rib release-routes uses args[0] for selector.
+// VALIDATES: AC-14 — request bgp rib release-routes uses args[0] for selector.
 // PREVENTS: Releasing all peers when only one was requested.
 func TestReleaseRoutesSelectorFromArgs(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -2220,7 +2199,7 @@ func TestReleaseRoutesSelectorFromArgs(t *testing.T) {
 	assert.True(t, r.retainedPeers["10.0.0.2"], "10.0.0.2 should still be retained")
 }
 
-// TestOutboundResendNoArgError verifies bgp bgp rib clear out returns error with no args.
+// TestOutboundResendNoArgError verifies clear bgp rib out returns error with no args.
 //
 // VALIDATES: AC-15 — missing required selector returns error.
 // PREVENTS: Accidentally resending to all peers when selector was forgotten.
@@ -2228,7 +2207,7 @@ func TestOutboundResendNoArgError(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	status, _, err := r.handleCommand("clear bgp rib out", "*", nil)
-	require.Error(t, err, "bgp rib clear out with no args should return error")
+	require.Error(t, err, "clear bgp rib out with no args should return error")
 	assert.Equal(t, "error", status)
 }
 

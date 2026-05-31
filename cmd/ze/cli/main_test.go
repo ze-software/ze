@@ -170,7 +170,7 @@ func TestCommandTree(t *testing.T) {
 	tree := BuildCommandTree(false)
 
 	// Check top-level commands exist
-	topLevel := []string{"daemon", "peer", "rib", "system"}
+	topLevel := []string{"daemon", "peer", "show", "clear", "request", "system"}
 	for _, c := range topLevel {
 		if _, ok := tree.Children[c]; !ok {
 			t.Errorf("missing top-level command: %s", c)
@@ -203,15 +203,36 @@ func TestCommandTree(t *testing.T) {
 		t.Error("peer missing detail subcommand")
 	}
 
-	// Check rib subcommands (proxy handlers forwarding to bgp-rib plugin)
-	rib := tree.Children["rib"]
-	if rib == nil {
-		t.Fatal("bgp rib command missing")
+	// Check RIB subcommands (proxy handlers forwarding to bgp-rib plugin).
+	show := tree.Children["show"]
+	if show == nil || show.Children["bgp"] == nil || show.Children["bgp"].Children["rib"] == nil {
+		t.Fatal("show bgp rib command missing")
 		return
 	}
-	for _, sub := range []string{"status", "routes", "best", "clear"} {
+	rib := show.Children["bgp"].Children["rib"]
+	for _, sub := range []string{"status", "best", "rpf"} {
 		if _, ok := rib.Children[sub]; !ok {
-			t.Errorf("bgp rib missing subcommand: %s", sub)
+			t.Errorf("show bgp rib missing subcommand: %s", sub)
+		}
+	}
+	clear := tree.Children["clear"]
+	if clear == nil || clear.Children["bgp"] == nil || clear.Children["bgp"].Children["rib"] == nil {
+		t.Fatal("clear bgp rib command missing")
+		return
+	}
+	for _, sub := range []string{"in", "out"} {
+		if _, ok := clear.Children["bgp"].Children["rib"].Children[sub]; !ok {
+			t.Errorf("clear bgp rib missing subcommand: %s", sub)
+		}
+	}
+	request := tree.Children["request"]
+	if request == nil || request.Children["bgp"] == nil || request.Children["bgp"].Children["rib"] == nil {
+		t.Fatal("request bgp rib command missing")
+		return
+	}
+	for _, sub := range []string{"inject", "withdraw"} {
+		if _, ok := request.Children["bgp"].Children["rib"].Children[sub]; !ok {
+			t.Errorf("request bgp rib missing subcommand: %s", sub)
 		}
 	}
 }
@@ -452,23 +473,24 @@ func TestHistoryDedup(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-9 — BuildCommandTree wires family ValueHints to rib node.
+// VALIDATES: AC-9 — BuildCommandTree wires family ValueHints to show bgp rib node.
 // PREVENTS: missing family completions in both CLI and shell.
 func TestBuildCommandTreeFamilyValueHints(t *testing.T) {
 	tree := BuildCommandTree(false)
 
-	rib := tree.Children["rib"]
-	if rib == nil {
-		t.Fatal("bgp rib node missing from command tree")
+	show := tree.Children["show"]
+	if show == nil || show.Children["bgp"] == nil || show.Children["bgp"].Children["rib"] == nil {
+		t.Fatal("show bgp rib node missing from command tree")
 	}
+	rib := show.Children["bgp"].Children["rib"]
 
 	if rib.ValueHints == nil {
-		t.Fatal("bgp rib node should have ValueHints for address families")
+		t.Fatal("show bgp rib node should have ValueHints for address families")
 	}
 
 	hints := rib.ValueHints()
 	if len(hints) == 0 {
-		t.Fatal("bgp rib ValueHints returned no families")
+		t.Fatal("show bgp rib ValueHints returned no families")
 	}
 
 	// Check that both builtin and plugin-registered families are present.
@@ -481,7 +503,7 @@ func TestBuildCommandTreeFamilyValueHints(t *testing.T) {
 	}
 	for _, want := range []string{"ipv4/unicast", "ipv6/unicast", "ipv4/mpls-vpn", "l2vpn/evpn"} {
 		if !found[want] {
-			t.Errorf("bgp rib ValueHints missing family %q, got %v", want, hints)
+			t.Errorf("show bgp rib ValueHints missing family %q, got %v", want, hints)
 		}
 	}
 }

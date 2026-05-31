@@ -55,8 +55,6 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	assert.Contains(t, commandNames, "show bgp rib")
 	assert.Contains(t, commandNames, "clear bgp rib in")
 	assert.Contains(t, commandNames, "clear bgp rib out")
-	// Legacy status alias
-	assert.Contains(t, commandNames, "show bgp rib adjacent status")
 	// GR support commands (RFC 4724)
 	assert.Contains(t, commandNames, "request bgp rib retain-routes")
 	assert.Contains(t, commandNames, "request bgp rib release-routes")
@@ -75,7 +73,7 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	assert.Contains(t, commandNames, "show bgp rib protocol")
 	assert.Contains(t, commandNames, "request bgp rib withdraw-protocol")
 	assert.Contains(t, commandNames, "request bgp rib withdraw-router")
-	assert.Len(t, regInput.Commands, 19, "bgp rib registers exactly 19 commands")
+	assert.Len(t, regInput.Commands, 18, "bgp rib registers exactly 18 commands")
 
 	require.NoError(t, mux.SendOK(ctx, stage1.ID))
 

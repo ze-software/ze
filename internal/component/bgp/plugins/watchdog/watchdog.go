@@ -144,8 +144,8 @@ func RunWatchdogPlugin(conn net.Conn) int {
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{"bgp"},
 		Commands: []sdk.CommandDecl{
-			{Name: "request watchdog announce", Description: "Announce routes in watchdog group", DeprecatedNames: []string{"watchdog announce"}},
-			{Name: "request watchdog withdraw", Description: "Withdraw routes in watchdog group", DeprecatedNames: []string{"watchdog withdraw"}},
+			{Name: "request watchdog announce", Description: "Announce routes in watchdog group"},
+			{Name: "request watchdog withdraw", Description: "Withdraw routes in watchdog group"},
 		},
 	})
 	if err != nil {

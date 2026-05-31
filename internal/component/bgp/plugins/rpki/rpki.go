@@ -227,12 +227,12 @@ func RunRPKIPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			{Name: "show rpki status", Description: "Show RPKI validation status and cache server overview", DeprecatedNames: []string{"rpki status"}},
-			{Name: "show rpki cache", Description: "Show RTR cache server sessions with protocol details", DeprecatedNames: []string{"rpki cache"}},
-			{Name: "show rpki roa", Description: "Show ROA table entries or lookup covering VRPs for a prefix", DeprecatedNames: []string{"rpki roa"}},
-			{Name: "show rpki summary", Description: "Show RPKI validation summary with session and ASPA counts", DeprecatedNames: []string{"rpki summary"}},
-			{Name: "request rpki validate", Description: "Validate a prefix against the ROA cache", Args: []string{"<prefix>", "<origin-asn>"}, DeprecatedNames: []string{"rpki validate"}},
-			{Name: "show rpki aspa", Description: "Show ASPA cache or lookup providers for a customer AS", DeprecatedNames: []string{"rpki aspa"}},
+			{Name: "show rpki status", Description: "Show RPKI validation status and cache server overview"},
+			{Name: "show rpki cache", Description: "Show RTR cache server sessions with protocol details"},
+			{Name: "show rpki roa", Description: "Show ROA table entries or lookup covering VRPs for a prefix"},
+			{Name: "show rpki summary", Description: "Show RPKI validation summary with session and ASPA counts"},
+			{Name: "request rpki validate", Description: "Validate a prefix against the ROA cache", Args: []string{"<prefix>", "<origin-asn>"}},
+			{Name: "show rpki aspa", Description: "Show ASPA cache or lookup providers for a customer AS"},
 		},
 		WantsConfig: []string{"bgp"},
 	})
@@ -867,7 +867,7 @@ func (rp *RPKIPlugin) cacheCommand() (string, any, error) {
 const roaDiagLimit = 1000
 
 func (rp *RPKIPlugin) roaCommand(args []string) (string, any, error) {
-	// "rpki roa <prefix>" -> lookup covering VRPs for prefix
+	// "show rpki roa <prefix>" looks up covering VRPs for prefix.
 	if len(args) > 0 && args[0] != "" {
 		_, _, err := net.ParseCIDR(args[0])
 		if err != nil {
@@ -1002,7 +1002,7 @@ func (rp *RPKIPlugin) validateCommand(args []string) (string, any, error) {
 const aspaDiagLimit = 1000
 
 func (rp *RPKIPlugin) aspaCommand(args []string) (string, any, error) {
-	// "rpki aspa <customer-asn>" -> lookup specific customer
+	// "show rpki aspa <customer-asn>" looks up a specific customer.
 	if len(args) > 0 && args[0] != "" {
 		asn, err := strconv.ParseUint(args[0], 10, 32)
 		if err != nil {

@@ -19,19 +19,19 @@ func TestConflictDetection(t *testing.T) {
 	// First plugin registers a command
 	plugin1 := &PluginRegistration{
 		Name:     "plugin1",
-		Commands: []string{"bgp rib show"},
+		Commands: []string{"show fixture rib"},
 	}
 	require.NoError(t, reg.Register(plugin1))
 
 	// Second plugin tries same command - should fail
 	plugin2 := &PluginRegistration{
 		Name:     "plugin2",
-		Commands: []string{"bgp rib show"},
+		Commands: []string{"show fixture rib"},
 	}
 	err := reg.Register(plugin2)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "command conflict")
-	assert.Contains(t, err.Error(), "bgp rib show")
+	assert.Contains(t, err.Error(), "show fixture rib")
 }
 
 // TestCapabilityConflictDetection verifies capability type conflict detection.
@@ -76,7 +76,7 @@ func TestPluginRegistrationStructConstruction(t *testing.T) {
 		Encodings:        []string{"text", "b64"},
 		Families:         []string{"ipv4/unicast", "ipv6/unicast"},
 		DecodeFamilies:   []string{"ipv4/flow"},
-		Commands:         []string{"bgp rib show", "bgp rib clear"},
+		Commands:         []string{"show fixture rib", "clear fixture rib"},
 		Receive:          []string{"update", "negotiated"},
 		WantsConfigRoots: []string{"bgp"},
 		Done:             true,
@@ -86,7 +86,7 @@ func TestPluginRegistrationStructConstruction(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify registration was stored
-	assert.Equal(t, "test-plugin", registry.LookupCommand("bgp rib show"))
+	assert.Equal(t, "test-plugin", registry.LookupCommand("show fixture rib"))
 	assert.Equal(t, "test-plugin", registry.LookupFamily("ipv4/flow"))
 
 	// Build command info

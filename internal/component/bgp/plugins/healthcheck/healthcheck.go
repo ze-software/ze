@@ -86,8 +86,8 @@ func RunHealthcheckPlugin(conn net.Conn) int {
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{"bgp"},
 		Commands: []sdk.CommandDecl{
-			{Name: "show healthcheck", Description: "Show healthcheck probe status", DeprecatedNames: []string{"healthcheck show"}},
-			{Name: "clear healthcheck", Description: "Reset healthcheck probe to INIT", DeprecatedNames: []string{"healthcheck reset"}},
+			{Name: "show healthcheck", Description: "Show healthcheck probe status"},
+			{Name: "clear healthcheck", Description: "Reset healthcheck probe to INIT"},
 		},
 	})
 	if err != nil {

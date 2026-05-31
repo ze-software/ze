@@ -436,12 +436,12 @@ func TestRegistrationFromRPCEdgeCases(t *testing.T) {
 		t.Parallel()
 		input := &rpc.DeclareRegistrationInput{
 			Commands: []rpc.CommandDecl{
-				{Name: "bgp rib adjacent in show"},
-				{Name: "peer * refresh"},
+				{Name: "show fixture rib"},
+				{Name: "request fixture refresh"},
 			},
 		}
 		reg := registrationFromRPC(input)
-		assert.Equal(t, []string{"bgp rib adjacent in show", "peer * refresh"}, reg.Commands)
+		assert.Equal(t, []string{"show fixture rib", "request fixture refresh"}, reg.Commands)
 	})
 }
 

@@ -920,8 +920,8 @@ communities without RIB code changes. The RIB stores per-peer GR state
 
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go — markStaleCommand, registerCommunityCommands -->
 
-**Show output:** `rib show in` includes `"stale": true` and `"stale-level": N` on stale routes (omitted when level is 0).
-`rib status` includes aggregate `stale-routes` count and per-peer GR state with
+**Show output:** `show bgp rib received` includes `"stale": true` and `"stale-level": N` on stale routes (omitted when level is 0).
+`show bgp rib status` includes aggregate `stale-routes` count and per-peer GR state with
 `stale-at` and `expires-at` absolute times.
 
 ---

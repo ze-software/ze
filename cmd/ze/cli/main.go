@@ -496,6 +496,115 @@ func BuildCommandTree(readOnly bool) *Command {
 	return tree
 }
 
+// BuildVerbCommandTree builds the command tree for a direct verb context
+// (`ze show`, `ze clear`, `ze request`, ...). Commands registered under the
+// same verb are rooted under that verb and then exposed relative to it.
+// Read-only commands that are not rooted under "show" remain available under
+// `ze show` unchanged.
+func BuildVerbCommandTree(verb string) *Command {
+	rpcs := AllCLIRPCs()
+	infos := make([]cmd.RPCInfo, 0, len(rpcs))
+	descriptions := make(map[string]string)
+	argDefs := make(map[string][]cmd.ArgDef)
+
+	for _, reg := range rpcs {
+		paths := cliWireToPaths[reg.WireMethod]
+		if len(paths) == 0 {
+			continue
+		}
+		for _, cliPath := range paths {
+			effective, ok := verbContextPath(cliPath, verb)
+			if !ok {
+				continue
+			}
+			infos = append(infos, cmd.RPCInfo{
+				CLICommand: effective,
+				ReadOnly:   pluginserver.IsReadOnlyPath(cliPath),
+			})
+			recordContextDescriptions(descriptions, cliPath, effective)
+			if defs := pathArgDefs[cliPath]; len(defs) > 0 && len(argDefs[effective]) == 0 {
+				argDefs[effective] = defs
+			}
+		}
+	}
+
+	tree := cmd.BuildTree(infos, false)
+	applyDescriptions(tree, descriptions)
+	applyArgDefs(tree, argDefs)
+	wireValueHints(tree)
+	return tree
+}
+
+func verbContextPath(cliPath, verb string) (string, bool) {
+	if verb == "show" {
+		if rest, ok := strings.CutPrefix(cliPath, "show "); ok {
+			return rest, true
+		}
+		if pluginserver.IsReadOnlyPath(cliPath) {
+			return cliPath, true
+		}
+		return "", false
+	}
+	prefix := verb + " "
+	rest, ok := strings.CutPrefix(cliPath, prefix)
+	if !ok || rest == "" {
+		return "", false
+	}
+	return rest, true
+}
+
+func recordContextDescriptions(dst map[string]string, cliPath, effective string) {
+	origParts := strings.Fields(cliPath)
+	effParts := strings.Fields(effective)
+	if len(origParts) == 0 || len(effParts) == 0 {
+		return
+	}
+	offset := len(origParts) - len(effParts)
+	if offset < 0 {
+		return
+	}
+	for i := 1; i <= len(effParts); i++ {
+		effPrefix := strings.Join(effParts[:i], " ")
+		origPrefix := strings.Join(origParts[:offset+i], " ")
+		if dst[effPrefix] != "" {
+			continue
+		}
+		if desc := pathDescriptions[origPrefix]; desc != "" {
+			dst[effPrefix] = desc
+		}
+	}
+}
+
+var (
+	pathDescriptions = yang.PathToDescription(cliLoader)
+	pathArgDefs      = yang.PathToArgDefs(cliLoader)
+)
+
+func applyArgDefs(root *Command, defsByPath map[string][]cmd.ArgDef) {
+	if root == nil || len(defsByPath) == 0 {
+		return
+	}
+	for path, defs := range defsByPath {
+		parts := strings.Fields(path)
+		node := root
+		for _, part := range parts {
+			if node.Children == nil {
+				node = nil
+				break
+			}
+			child, ok := node.Children[part]
+			if !ok {
+				node = nil
+				break
+			}
+			node = child
+		}
+		if node != nil && len(node.ArgDefs) == 0 {
+			node.ArgDefs = defs
+		}
+	}
+}
+
 // mergeDescriptions copies Description fields from the YANG tree into dst
 // for nodes that exist in both trees but have an empty description in dst.
 func mergeDescriptions(dst, src *Command) {

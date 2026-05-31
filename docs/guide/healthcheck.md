@@ -104,9 +104,9 @@ Each hook is a leaf-list (multiple commands per event). Hooks execute asynchrono
 
 | Command | Description |
 |---------|-------------|
-| `healthcheck show` | JSON summary of all probes. |
-| `healthcheck show <name>` | Detailed status of a single probe. |
-| `healthcheck reset <name>` | Withdraw current route, reset FSM to INIT, re-check immediately. Returns error if probe is DISABLED. |
+| `show healthcheck` | JSON summary of all probes. |
+| `show healthcheck <name>` | Detailed status of a single probe. |
+| `clear healthcheck <name>` | Withdraw current route, reset FSM to INIT, re-check immediately. Returns error if probe is DISABLED. |
 
 ## Migration from ExaBGP
 

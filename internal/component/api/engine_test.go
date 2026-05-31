@@ -14,8 +14,8 @@ func fakeCommands() CommandSource {
 	return func() []CommandMeta {
 		return []CommandMeta{
 			{Name: "bgp summary", Description: "Show BGP summary", ReadOnly: true},
-			{Name: "bgp rib status", Description: "Show RIB status", ReadOnly: true},
-			{Name: "bgp rib routes", Description: "Show RIB routes", ReadOnly: true, Params: []ParamMeta{
+			{Name: "show bgp rib status", Description: "Show RIB status", ReadOnly: true},
+			{Name: "show bgp rib", Description: "Show RIB routes", ReadOnly: true, Params: []ParamMeta{
 				{Name: "family", Type: "string", Description: "Address family", Required: false},
 			}},
 			{Name: "peer list", Description: "List peers", ReadOnly: true},
@@ -62,8 +62,8 @@ func TestEngineListCommands(t *testing.T) {
 		names[cmd.Name] = true
 	}
 	assert.True(t, names["bgp summary"])
-	assert.True(t, names["bgp rib status"])
-	assert.True(t, names["bgp rib routes"])
+	assert.True(t, names["show bgp rib status"])
+	assert.True(t, names["show bgp rib"])
 	assert.True(t, names["peer list"])
 	assert.True(t, names["daemon reload"])
 }
@@ -73,10 +73,10 @@ func TestEngineListCommands(t *testing.T) {
 func TestEngineListCommandsWithPrefix(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
-	cmds := eng.ListCommands(&ListCommandsRequest{Prefix: "bgp rib"})
+	cmds := eng.ListCommands(&ListCommandsRequest{Prefix: "show bgp rib"})
 	assert.Len(t, cmds, 2)
 	for _, cmd := range cmds {
-		assert.Contains(t, cmd.Name, "bgp rib")
+		assert.Contains(t, cmd.Name, "show bgp rib")
 	}
 }
 
@@ -85,9 +85,9 @@ func TestEngineListCommandsWithPrefix(t *testing.T) {
 func TestEngineDescribeCommand(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
-	cmd, err := eng.DescribeCommand(&DescribeCommandRequest{Path: "bgp rib routes"})
+	cmd, err := eng.DescribeCommand(&DescribeCommandRequest{Path: "show bgp rib"})
 	require.NoError(t, err)
-	assert.Equal(t, "bgp rib routes", cmd.Name)
+	assert.Equal(t, "show bgp rib", cmd.Name)
 	assert.True(t, cmd.ReadOnly)
 	require.Len(t, cmd.Params, 1)
 	assert.Equal(t, "family", cmd.Params[0].Name)

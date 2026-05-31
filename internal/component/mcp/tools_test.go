@@ -20,9 +20,10 @@ func TestToolProviderInterface(t *testing.T) {
 		},
 		func() []CommandInfo {
 			return []CommandInfo{
-				{Name: "bgp rib status", Help: "RIB summary"},
-				{Name: "bgp rib routes", Help: "Show routes"},
-				{Name: "bgp peer list", Help: "List peers"},
+				{Name: "show bgp rib status", Help: "RIB summary"},
+				{Name: "show bgp rib", Help: "Show routes"},
+				{Name: "show bgp peer list", Help: "List peers"},
+				{Name: "show config dump", Help: "Dump config"},
 			}
 		},
 	)
@@ -43,8 +44,8 @@ func TestToolProviderInterface(t *testing.T) {
 	if !names["ze_execute"] {
 		t.Error("Tools() missing handcrafted ze_execute")
 	}
-	if !names["ze_bgp_rib"] {
-		t.Error("Tools() missing auto-generated ze_bgp_rib")
+	if !names["ze_show_bgp"] {
+		t.Error("Tools() missing auto-generated ze_show_bgp")
 	}
 
 	// CallTool dispatches handcrafted tool.
@@ -59,13 +60,13 @@ func TestToolProviderInterface(t *testing.T) {
 
 	// CallTool dispatches generated tool.
 	dispatched = ""
-	args, _ = json.Marshal(map[string]string{"action": "status"})
-	result = provider.CallTool("ze_bgp_rib", args)
+	args, _ = json.Marshal(map[string]string{"action": "rib status"})
+	result = provider.CallTool("ze_show_bgp", args)
 	if result == nil {
-		t.Fatal("CallTool(ze_bgp_rib) returned nil")
+		t.Fatal("CallTool(ze_show_bgp) returned nil")
 	}
-	if dispatched != "bgp rib status" {
-		t.Errorf("dispatched = %q, want %q", dispatched, "bgp rib status")
+	if dispatched != "show bgp rib status" {
+		t.Errorf("dispatched = %q, want %q", dispatched, "show bgp rib status")
 	}
 
 	// CallTool returns nil for unknown tool.
@@ -139,10 +140,10 @@ func TestLegacyHandlerBearerAuthFailureAuditRecord(t *testing.T) {
 
 func TestGroupCommands(t *testing.T) {
 	commands := []CommandInfo{
-		{Name: "bgp rib status", Help: "RIB summary"},
-		{Name: "bgp rib routes", Help: "Show routes"},
-		{Name: "bgp rib best status", Help: "Best-path status"},
-		{Name: "bgp peer list", Help: "List peers"},
+		{Name: "show bgp rib status", Help: "RIB summary"},
+		{Name: "show bgp rib", Help: "Show routes"},
+		{Name: "show bgp rib best status", Help: "Best-path status"},
+		{Name: "show bgp peer list", Help: "List peers"},
 		{Name: "show config dump", Help: "Dump config"},
 		{Name: "show config diff", Help: "Diff configs"},
 		{Name: "show config validate", Help: "Validate config"},
@@ -182,11 +183,11 @@ func TestGroupCommands(t *testing.T) {
 		t.Fatal("expected 'show version' group")
 	}
 
-	// "rib" groups at depth 2 (bgp has multiple subgroups: rib, peer).
-	if g, ok := byPrefix["bgp rib"]; !ok {
-		t.Fatal("expected 'bgp rib' group")
-	} else if len(g.actions) != 3 {
-		t.Fatalf("rib: expected 3 actions, got %d", len(g.actions))
+	// "show bgp" groups BGP show actions under verb-first grammar.
+	if g, ok := byPrefix["show bgp"]; !ok {
+		t.Fatal("expected 'show bgp' group")
+	} else if len(g.actions) != 4 {
+		t.Fatalf("show bgp: expected 4 actions, got %d", len(g.actions))
 	}
 
 	// "metrics" at depth 1.
@@ -216,7 +217,7 @@ func TestToolName(t *testing.T) {
 		prefix string
 		want   string
 	}{
-		{"bgp rib", "ze_bgp_rib"},
+		{"show bgp", "ze_show_bgp"},
 		{"show config", "ze_show_config"},
 		{"show schema", "ze_show_schema"},
 		{"metrics", "ze_metrics"},
@@ -231,15 +232,15 @@ func TestToolName(t *testing.T) {
 
 func TestGenerateToolsSkipsHandcrafted(t *testing.T) {
 	groups := []toolGroup{
-		{prefix: "bgp rib", actions: []action{{name: "status", help: "RIB summary", full: "bgp rib status"}}},
+		{prefix: "show bgp", actions: []action{{name: "rib status", help: "RIB summary", full: "show bgp rib status"}}},
 		{prefix: "metrics", actions: []action{{name: "values", help: "Metric values", full: "metrics values"}}},
 	}
 
-	skip := map[string]bool{"ze_bgp_rib": true}
+	skip := map[string]bool{"ze_show_bgp": true}
 	tools := generateTools(groups, skip)
 
 	if len(tools) != 1 {
-		t.Fatalf("expected 1 tool (bgp-rib skipped), got %d", len(tools))
+		t.Fatalf("expected 1 tool (show bgp skipped), got %d", len(tools))
 	}
 	name, _ := tools[0]["name"].(string)
 	if name != "ze_metrics" {
@@ -249,10 +250,10 @@ func TestGenerateToolsSkipsHandcrafted(t *testing.T) {
 
 func TestBuildToolDefActionEnum(t *testing.T) {
 	g := toolGroup{
-		prefix: "bgp rib",
+		prefix: "show bgp",
 		actions: []action{
-			{name: "routes", help: "Show routes", full: "bgp rib routes"},
-			{name: "status", help: "RIB summary", full: "bgp rib status"},
+			{name: "rib", help: "Show routes", full: "show bgp rib"},
+			{name: "rib status", help: "RIB summary", full: "show bgp rib status"},
 		},
 	}
 
@@ -262,8 +263,8 @@ func TestBuildToolDefActionEnum(t *testing.T) {
 	}
 
 	name, _ := tool["name"].(string)
-	if name != "ze_bgp_rib" {
-		t.Errorf("name = %q, want ze_bgp_rib", name)
+	if name != "ze_show_bgp" {
+		t.Errorf("name = %q, want ze_show_bgp", name)
 	}
 
 	// Parse inputSchema to check action enum.
@@ -285,8 +286,8 @@ func TestBuildToolDefActionEnum(t *testing.T) {
 	if len(schema.Properties.Action.Enum) != 2 {
 		t.Fatalf("expected 2 action enums, got %d", len(schema.Properties.Action.Enum))
 	}
-	if schema.Properties.Action.Enum[0] != "routes" || schema.Properties.Action.Enum[1] != "status" {
-		t.Errorf("action enums = %v, want [routes status]", schema.Properties.Action.Enum)
+	if schema.Properties.Action.Enum[0] != "rib" || schema.Properties.Action.Enum[1] != "rib status" {
+		t.Errorf("action enums = %v, want [rib rib status]", schema.Properties.Action.Enum)
 	}
 	if len(schema.Required) != 1 || schema.Required[0] != "action" {
 		t.Errorf("required = %v, want [action]", schema.Required)
@@ -301,13 +302,13 @@ func TestDispatchGenerated(t *testing.T) {
 			return "ok", nil
 		},
 	}
-	valid := map[string]bool{"status": true, "routes": true}
+	valid := map[string]bool{"rib status": true, "rib": true}
 
 	// Action only.
-	args, _ := json.Marshal(map[string]string{"action": "status"})
-	result := s.dispatchGenerated("bgp rib", valid, args)
-	if dispatched != "bgp rib status" {
-		t.Errorf("dispatched = %q, want %q", dispatched, "bgp rib status")
+	args, _ := json.Marshal(map[string]string{"action": "rib status"})
+	result := s.dispatchGenerated("show bgp", valid, args)
+	if dispatched != "show bgp rib status" {
+		t.Errorf("dispatched = %q, want %q", dispatched, "show bgp rib status")
 	}
 	content, _ := result["content"].([]map[string]any)
 	if len(content) == 0 || content[0]["text"] != "ok" {
@@ -315,36 +316,36 @@ func TestDispatchGenerated(t *testing.T) {
 	}
 
 	// Action + arguments.
-	args, _ = json.Marshal(map[string]string{"action": "routes", "arguments": "ipv4/unicast"})
-	s.dispatchGenerated("bgp rib", valid, args)
-	if dispatched != "bgp rib routes ipv4/unicast" {
-		t.Errorf("dispatched = %q, want %q", dispatched, "bgp rib routes ipv4/unicast")
+	args, _ = json.Marshal(map[string]string{"action": "rib", "arguments": "ipv4/unicast"})
+	s.dispatchGenerated("show bgp", valid, args)
+	if dispatched != "show bgp rib ipv4/unicast" {
+		t.Errorf("dispatched = %q, want %q", dispatched, "show bgp rib ipv4/unicast")
 	}
 
 	// With peer.
-	args, _ = json.Marshal(map[string]string{"action": "status", "peer": "10.0.0.1"})
-	s.dispatchGenerated("bgp rib", valid, args)
-	if dispatched != "peer 10.0.0.1 bgp rib status" {
-		t.Errorf("dispatched = %q, want %q", dispatched, "peer 10.0.0.1 bgp rib status")
+	args, _ = json.Marshal(map[string]string{"action": "rib status", "peer": "10.0.0.1"})
+	s.dispatchGenerated("show bgp", valid, args)
+	if dispatched != "peer 10.0.0.1 show bgp rib status" {
+		t.Errorf("dispatched = %q, want %q", dispatched, "peer 10.0.0.1 show bgp rib status")
 	}
 
 	// Whitespace in peer rejected.
-	args, _ = json.Marshal(map[string]string{"action": "status", "peer": "10.0 0.1"})
-	result = s.dispatchGenerated("bgp rib", valid, args)
+	args, _ = json.Marshal(map[string]string{"action": "rib status", "peer": "10.0 0.1"})
+	result = s.dispatchGenerated("show bgp", valid, args)
 	if _, isErr := result["isError"]; !isErr {
 		t.Error("expected error for whitespace in peer")
 	}
 
 	// Newline in arguments rejected.
-	args, _ = json.Marshal(map[string]string{"action": "status", "arguments": "foo\nbar"})
-	result = s.dispatchGenerated("bgp rib", valid, args)
+	args, _ = json.Marshal(map[string]string{"action": "rib status", "arguments": "foo\nbar"})
+	result = s.dispatchGenerated("show bgp", valid, args)
 	if _, isErr := result["isError"]; !isErr {
 		t.Error("expected error for newline in arguments")
 	}
 
 	// Nil validActions rejects all actions.
-	args, _ = json.Marshal(map[string]string{"action": "status"})
-	result = s.dispatchGenerated("bgp rib", nil, args)
+	args, _ = json.Marshal(map[string]string{"action": "rib status"})
+	result = s.dispatchGenerated("show bgp", nil, args)
 	if _, isErr := result["isError"]; !isErr {
 		t.Error("expected error when validActions is nil")
 	}
@@ -364,19 +365,20 @@ func TestAllToolsWithCommandLister(t *testing.T) {
 		dispatch: func(_, _, _ string) (string, error) { return "", nil },
 		commands: func() []CommandInfo {
 			return []CommandInfo{
-				{Name: "bgp rib status", Help: "RIB summary"},
-				{Name: "bgp rib routes", Help: "Show routes"},
-				{Name: "bgp peer list", Help: "List peers"},
+				{Name: "show bgp rib status", Help: "RIB summary"},
+				{Name: "show bgp rib", Help: "Show routes"},
+				{Name: "show bgp peer list", Help: "List peers"},
 				{Name: "metrics values", Help: "Metric values"},
 				{Name: "metrics list", Help: "List metrics"},
+				{Name: "show config dump", Help: "Dump config"},
 			}
 		},
 	}
 
 	tools := s.allTools()
-	// Handcrafted (ze_execute) + auto-generated: 2 groups (rib, metrics) = 4 total.
+	// Handcrafted (ze_execute) + auto-generated: 2 groups (show-bgp, metrics) = 4 total.
 	if len(tools) != 4 {
-		t.Errorf("got %d tools, want 4 (ze_execute + bgp-rib + bgp-peer + metrics)", len(tools))
+		t.Errorf("got %d tools, want 4 (ze_execute + show-bgp + metrics + possibly standalone)", len(tools))
 	}
 
 	// Verify tool names appear.
@@ -389,8 +391,8 @@ func TestAllToolsWithCommandLister(t *testing.T) {
 	if !names["ze_execute"] {
 		t.Error("missing handcrafted ze_execute tool")
 	}
-	if !names["ze_bgp_rib"] {
-		t.Error("missing auto-generated ze_bgp_rib tool")
+	if !names["ze_show_bgp"] {
+		t.Error("missing auto-generated ze_show_bgp tool")
 	}
 	if !names["ze_metrics"] {
 		t.Error("missing auto-generated ze_metrics tool")
@@ -407,17 +409,18 @@ func TestCallToolGeneratedViaHTTP(t *testing.T) {
 			},
 			func() []CommandInfo {
 				return []CommandInfo{
-					{Name: "bgp rib status", Help: "RIB summary"},
-					{Name: "bgp rib routes", Help: "Show routes"},
-					{Name: "bgp peer list", Help: "List peers"},
+					{Name: "show bgp rib status", Help: "RIB summary"},
+					{Name: "show bgp rib", Help: "Show routes"},
+					{Name: "show bgp peer list", Help: "List peers"},
+					{Name: "show config dump", Help: "Dump config"},
 				}
 			},
 		),
 		"",
 	)
 
-	// Call the auto-generated ze_bgp_rib tool with action "status".
-	body := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ze_bgp_rib","arguments":{"action":"status"}}}`
+	// Call the auto-generated ze_show_bgp tool with action "rib status".
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ze_show_bgp","arguments":{"action":"rib status"}}}`
 	req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -426,8 +429,8 @@ func TestCallToolGeneratedViaHTTP(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
 	}
-	if dispatched != "bgp rib status" {
-		t.Errorf("dispatched = %q, want %q", dispatched, "bgp rib status")
+	if dispatched != "show bgp rib status" {
+		t.Errorf("dispatched = %q, want %q", dispatched, "show bgp rib status")
 	}
 
 	var resp struct {
@@ -455,8 +458,8 @@ func TestCallToolAutoGeneratedViaHTTPSecondTool(t *testing.T) {
 			},
 			func() []CommandInfo {
 				return []CommandInfo{
-					{Name: "bgp rib status", Help: "RIB summary"},
-					{Name: "bgp peer list", Help: "List peers"},
+					{Name: "show bgp rib status", Help: "RIB summary"},
+					{Name: "show bgp peer list", Help: "List peers"},
 					{Name: "metrics values", Help: "Metric values"},
 				}
 			},
@@ -496,24 +499,26 @@ func TestGroupCommandsEmpty(t *testing.T) {
 func TestGroupCommandsActionContent(t *testing.T) {
 	// Finding #3: assert action content, not just counts.
 	commands := []CommandInfo{
-		{Name: "bgp rib status", Help: "RIB summary"},
-		{Name: "bgp rib routes", Help: "Show routes"},
-		{Name: "bgp rib best status", Help: "Best-path status"},
-		{Name: "bgp peer list", Help: "List peers"},
+		{Name: "show bgp rib status", Help: "RIB summary"},
+		{Name: "show bgp rib", Help: "Show routes"},
+		{Name: "show bgp rib best status", Help: "Best-path status"},
+		{Name: "show bgp peer list", Help: "List peers"},
+		{Name: "show config dump", Help: "Dump config"},
 	}
 	groups := groupCommands(commands)
 	byPrefix := make(map[string]toolGroup)
 	for _, g := range groups {
 		byPrefix[g.prefix] = g
 	}
-	g, ok := byPrefix["bgp rib"]
+	g, ok := byPrefix["show bgp"]
 	if !ok {
-		t.Fatal("expected 'bgp rib' group")
+		t.Fatal("expected 'show bgp' group")
 	}
 	want := []struct{ name, full, help string }{
-		{"best status", "bgp rib best status", "Best-path status"},
-		{"routes", "bgp rib routes", "Show routes"},
-		{"status", "bgp rib status", "RIB summary"},
+		{"peer list", "show bgp peer list", "List peers"},
+		{"rib", "show bgp rib", "Show routes"},
+		{"rib best status", "show bgp rib best status", "Best-path status"},
+		{"rib status", "show bgp rib status", "RIB summary"},
 	}
 	if len(g.actions) != len(want) {
 		t.Fatalf("actions: got %d, want %d", len(g.actions), len(want))
@@ -620,14 +625,14 @@ func TestDispatchGeneratedMultiWordAction(t *testing.T) {
 		},
 	}
 
-	valid := map[string]bool{"best status": true, "routes": true, "status": true}
-	args, _ := json.Marshal(map[string]string{"action": "best status"})
-	result := s.dispatchGenerated("bgp rib", valid, args)
+	valid := map[string]bool{"rib best status": true, "rib": true, "rib status": true}
+	args, _ := json.Marshal(map[string]string{"action": "rib best status"})
+	result := s.dispatchGenerated("show bgp", valid, args)
 	if _, isErr := result["isError"]; isErr {
 		t.Errorf("multi-word action should not be rejected: %v", result)
 	}
-	if dispatched != "bgp rib best status" {
-		t.Errorf("dispatched = %q, want %q", dispatched, "bgp rib best status")
+	if dispatched != "show bgp rib best status" {
+		t.Errorf("dispatched = %q, want %q", dispatched, "show bgp rib best status")
 	}
 }
 
@@ -635,9 +640,9 @@ func TestDispatchGeneratedInvalidAction(t *testing.T) {
 	// Security finding #2: action not in enum is rejected.
 	s := &server{dispatch: func(_, _, _ string) (string, error) { return "", nil }}
 
-	valid := map[string]bool{"status": true, "routes": true}
-	args, _ := json.Marshal(map[string]string{"action": "routes ipv4/unicast peer * teardown"})
-	result := s.dispatchGenerated("bgp rib", valid, args)
+	valid := map[string]bool{"rib status": true, "rib": true}
+	args, _ := json.Marshal(map[string]string{"action": "rib ipv4/unicast peer * teardown"})
+	result := s.dispatchGenerated("show bgp", valid, args)
 	if _, isErr := result["isError"]; !isErr {
 		t.Error("expected error for action not in enum")
 	}
@@ -646,7 +651,7 @@ func TestDispatchGeneratedInvalidAction(t *testing.T) {
 func TestDispatchGeneratedInvalidJSON(t *testing.T) {
 	// Finding #5: invalid JSON args.
 	s := &server{dispatch: func(_, _, _ string) (string, error) { return "", nil }}
-	result := s.dispatchGenerated("bgp rib", nil, []byte("not-json"))
+	result := s.dispatchGenerated("show bgp", nil, []byte("not-json"))
 	if _, isErr := result["isError"]; !isErr {
 		t.Error("expected error for invalid JSON")
 	}
@@ -672,7 +677,7 @@ func TestDispatchGeneratedTabInArguments(t *testing.T) {
 	// Finding #15: tab characters rejected.
 	s := &server{dispatch: func(_, _, _ string) (string, error) { return "", nil }}
 	args, _ := json.Marshal(map[string]string{"arguments": "foo\tbar"})
-	result := s.dispatchGenerated("bgp rib", nil, args)
+	result := s.dispatchGenerated("show bgp", nil, args)
 	if _, isErr := result["isError"]; !isErr {
 		t.Error("expected error for tab in arguments")
 	}
@@ -685,9 +690,9 @@ func TestDispatchGeneratedDispatchError(t *testing.T) {
 			return "", fmt.Errorf("connection refused")
 		},
 	}
-	valid := map[string]bool{"status": true}
-	args, _ := json.Marshal(map[string]string{"action": "status"})
-	result := s.dispatchGenerated("bgp rib", valid, args)
+	valid := map[string]bool{"rib status": true}
+	args, _ := json.Marshal(map[string]string{"action": "rib status"})
+	result := s.dispatchGenerated("show bgp", valid, args)
 	if _, isErr := result["isError"]; !isErr {
 		t.Error("expected error result when dispatch fails")
 	}
@@ -737,8 +742,8 @@ func TestHandcraftedSkipPreventsDuplicates(t *testing.T) {
 				// "commands" prefix would generate ze_commands, colliding with handcrafted.
 				{Name: "commands list", Help: "List commands"},
 				{Name: "commands help", Help: "Help on commands"},
-				{Name: "bgp rib status", Help: "RIB summary"},
-				{Name: "bgp peer list", Help: "List peers"},
+				{Name: "show bgp rib status", Help: "RIB summary"},
+				{Name: "show bgp peer list", Help: "List peers"},
 			}
 		},
 	}
@@ -823,7 +828,7 @@ func TestTypedParamsInToolSchema(t *testing.T) {
 		commands: func() []CommandInfo {
 			return []CommandInfo{
 				{
-					Name: "bgp rib routes",
+					Name: "show bgp rib",
 					Help: "Show routes",
 					Params: []ParamInfo{
 						{Name: "family", Type: "string", Description: "Address family", Required: false},
@@ -831,28 +836,32 @@ func TestTypedParamsInToolSchema(t *testing.T) {
 					},
 				},
 				{
-					Name: "bgp rib status",
+					Name: "show bgp rib status",
 					Help: "RIB summary",
 				},
 				{
-					Name: "bgp peer list",
+					Name: "show bgp peer list",
 					Help: "List peers",
+				},
+				{
+					Name: "show config dump",
+					Help: "Dump config",
 				},
 			}
 		},
 	}
 
 	tools := s.allTools()
-	// Find ze_bgp_rib in the tool list.
+	// Find ze_show_bgp in the tool list.
 	var ribTool map[string]any
 	for _, tool := range tools {
-		if tool["name"] == "ze_bgp_rib" {
+		if tool["name"] == "ze_show_bgp" {
 			ribTool = tool
 			break
 		}
 	}
 	if ribTool == nil {
-		t.Fatal("ze_bgp_rib tool not found")
+		t.Fatal("ze_show_bgp tool not found")
 	}
 
 	schemaRaw, ok := ribTool["inputSchema"].(json.RawMessage)
@@ -906,8 +915,9 @@ func TestTypedParamsInToolSchema(t *testing.T) {
 
 func TestToolDescriptor_TaskSupportField(t *testing.T) {
 	commands := []CommandInfo{
-		{Name: "bgp rib dump", Help: "Dump RIB", TaskSupport: TaskSupportRequired},
-		{Name: "bgp rib status", Help: "RIB summary", TaskSupport: TaskSupportOptional},
+		{Name: "show bgp rib dump", Help: "Dump RIB", TaskSupport: TaskSupportRequired},
+		{Name: "show bgp rib status", Help: "RIB summary", TaskSupport: TaskSupportOptional},
+		{Name: "show config dump", Help: "Dump config", TaskSupport: TaskSupportOptional},
 	}
 	groups := groupCommands(commands)
 	tools := generateTools(groups, handcraftedNames())
@@ -928,7 +938,6 @@ func TestToolDescriptor_TaskSupportField(t *testing.T) {
 		}
 	}
 
-	// Single-command group: forbidden propagates.
 	commands2 := []CommandInfo{
 		{Name: "ping host", Help: "Ping", TaskSupport: TaskSupportForbidden},
 	}
@@ -970,7 +979,7 @@ func TestYANGTypeToJSON(t *testing.T) {
 func TestToolDescriptor_UIMetaFromYANG(t *testing.T) {
 	commands := []CommandInfo{
 		{
-			Name: "bgp peer list",
+			Name: "show bgp peer list",
 			Help: "List peers",
 			UIResource: &UIResourceInfo{
 				Path:        "bgp-peer/index.html",
@@ -978,14 +987,15 @@ func TestToolDescriptor_UIMetaFromYANG(t *testing.T) {
 				CSP:         "default-src 'self'",
 			},
 		},
-		{Name: "bgp peer detail", Help: "Peer details"},
-		{Name: "bgp rib status", Help: "RIB summary"},
-		{Name: "bgp rib routes", Help: "Show routes"},
+		{Name: "show bgp peer detail", Help: "Peer details"},
+		{Name: "show bgp rib status", Help: "RIB summary"},
+		{Name: "show bgp rib", Help: "Show routes"},
+		{Name: "show config dump", Help: "Dump config"},
 	}
 	groups := groupCommands(commands)
 	var peerGroup *toolGroup
 	for i := range groups {
-		if groups[i].prefix == "bgp peer" {
+		if groups[i].prefix == "show bgp" {
 			peerGroup = &groups[i]
 			break
 		}
@@ -995,7 +1005,7 @@ func TestToolDescriptor_UIMetaFromYANG(t *testing.T) {
 		for _, g := range groups {
 			names = append(names, g.prefix)
 		}
-		t.Fatalf("bgp peer group not found in %v", names)
+		t.Fatalf("show bgp group not found in %v", names)
 	}
 	tool := buildToolDef(*peerGroup)
 	if tool == nil {
@@ -1017,7 +1027,7 @@ func TestToolDescriptor_UIMetaFromYANG(t *testing.T) {
 func TestToolDescriptor_UIMetaPermissionsAndCSP(t *testing.T) {
 	commands := []CommandInfo{
 		{
-			Name: "bgp peer list",
+			Name: "show bgp peer list",
 			Help: "List peers",
 			UIResource: &UIResourceInfo{
 				Path:        "bgp-peer/index.html",
@@ -1052,8 +1062,9 @@ func TestToolDescriptor_UIMetaPermissionsAndCSP(t *testing.T) {
 
 func TestToolDescriptor_NoUIMetaWithoutResource(t *testing.T) {
 	commands := []CommandInfo{
-		{Name: "bgp rib status", Help: "RIB summary"},
-		{Name: "bgp rib routes", Help: "Show routes"},
+		{Name: "show bgp rib status", Help: "RIB summary"},
+		{Name: "show bgp rib", Help: "Show routes"},
+		{Name: "show config dump", Help: "Dump config"},
 	}
 	groups := groupCommands(commands)
 	for _, g := range groups {

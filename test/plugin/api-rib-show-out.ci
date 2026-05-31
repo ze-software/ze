@@ -1,5 +1,5 @@
-# Test: rib routes sent queries Adj-RIB-Out
-# VALIDATES: rib routes sent dispatches through engine to bgp-rib plugin
+# Test: show bgp rib sent queries Adj-RIB-Out
+# VALIDATES: show bgp rib sent dispatches through engine to bgp-rib plugin
 # PREVENTS: rib show-out proxy handler broken or bgp-rib plugin unreachable
 
 # ze-peer expectations
@@ -9,7 +9,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for rib routes sent
+# Python test plugin: exercises dispatch-command for show bgp rib sent
 tmpfs=rib-show-out-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import sys
@@ -33,11 +33,11 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        result = dispatch(api, 'show bgp rib routes sent')
+        result = dispatch(api, 'show bgp rib sent')
         if result.get('status') != 'done':
             print(f'FAIL: rib show-out status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
-        print('OK: rib routes sent dispatched', file=sys.stderr)
+        print('OK: show bgp rib sent dispatched', file=sys.stderr)
     finally:
         dispatch(api, 'daemon shutdown')
         api.wait_for_shutdown()

@@ -262,8 +262,8 @@ func runLDPEngine(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "show ldp neighbor", DeprecatedNames: []string{"ldp show-neighbor"}},
-			{Name: "show ldp binding", DeprecatedNames: []string{"ldp show-binding"}},
+			{Name: "show ldp neighbor"},
+			{Name: "show ldp binding"},
 		},
 	})
 	if err != nil {

@@ -232,20 +232,31 @@ func TestRibCmdModule(t *testing.T) {
 	entry := loader.GetEntry("ze-rib-cmd")
 	require.NotNil(t, entry)
 
-	rib := entry.Dir["rib"]
+	show := entry.Dir["show"]
+	require.NotNil(t, show)
+	bgp := show.Dir["bgp"]
+	require.NotNil(t, bgp)
+	rib := bgp.Dir["rib"]
 	require.NotNil(t, rib)
-	assert.Equal(t, "ze-rib-api:status", GetCommandExtension(rib.Dir["status"]))
-	assert.Equal(t, "ze-rib-api:routes", GetCommandExtension(rib.Dir["routes"]))
+	assert.Equal(t, "ze-rib-api:rpf", GetCommandExtension(rib.Dir["rpf"]))
 
-	best := rib.Dir["best"]
-	require.NotNil(t, best)
-	assert.Equal(t, "ze-rib-api:best", GetCommandExtension(best))
-	assert.Equal(t, "ze-rib-api:best-status", GetCommandExtension(best.Dir["status"]))
-
-	ribClear := rib.Dir["clear"]
+	clear := entry.Dir["clear"]
+	require.NotNil(t, clear)
+	clearBGP := clear.Dir["bgp"]
+	require.NotNil(t, clearBGP)
+	ribClear := clearBGP.Dir["rib"]
 	require.NotNil(t, ribClear)
 	assert.Equal(t, "ze-rib-api:clear-in", GetCommandExtension(ribClear.Dir["in"]))
 	assert.Equal(t, "ze-rib-api:clear-out", GetCommandExtension(ribClear.Dir["out"]))
+
+	request := entry.Dir["request"]
+	require.NotNil(t, request)
+	requestBGP := request.Dir["bgp"]
+	require.NotNil(t, requestBGP)
+	ribRequest := requestBGP.Dir["rib"]
+	require.NotNil(t, ribRequest)
+	assert.Equal(t, "ze-rib-api:inject", GetCommandExtension(ribRequest.Dir["inject"]))
+	assert.Equal(t, "ze-rib-api:withdraw", GetCommandExtension(ribRequest.Dir["withdraw"]))
 }
 
 // TestRefreshCmdModule verifies ze-refresh-cmd.yang (route refresh from route_refresh plugin).
@@ -602,31 +613,33 @@ func TestBuildCommandTreeCommandNodes(t *testing.T) {
 	tree := BuildCommandTree(loader)
 	require.NotNil(t, tree)
 
-	rib := tree.Children["rib"]
+	show := tree.Children["show"]
+	require.NotNil(t, show)
+	bgp := show.Children["bgp"]
+	require.NotNil(t, bgp)
+	rib := bgp.Children["rib"]
 	require.NotNil(t, rib)
-	assert.Equal(t, "Route table queries and management", rib.Description, "bgp rib grouping gets YANG description")
+	assert.Equal(t, "Query routes in the BGP RIB", rib.Description, "show bgp rib grouping gets YANG description")
 
-	status := rib.Children["status"]
-	require.NotNil(t, status)
-	assert.Equal(t, "Get a quick RIB overview without dumping routes.\nShows per-AFI/SAFI totals for Adj-RIB-In, Loc-RIB, and Adj-RIB-Out.\nUse this after a peer comes up to confirm route counts.", status.Description, "status has ze:command")
-	assert.Equal(t, "ze-rib-api:status", status.WireMethod)
+	rpf := rib.Children["rpf"]
+	require.NotNil(t, rpf)
+	assert.Equal(t, "ze-rib-api:rpf", rpf.WireMethod)
 
-	// rib > best is both a command AND has children
-	best := rib.Children["best"]
-	require.NotNil(t, best)
-	assert.Equal(t, "Show the winning route for each prefix.\nReturns the best-path selection result from the Loc-RIB. Same filters\nas 'rib routes'. Use '| reason' to see why each path won.", best.Description, "best has ze:command")
-	assert.Equal(t, "ze-rib-api:best", best.WireMethod)
-	assert.NotNil(t, best.Children["status"], "best also has child status")
-	assert.Equal(t, "ze-rib-api:best-status", best.Children["status"].WireMethod)
-
-	// rib > clear is a grouping (no ze:command), has children
-	clear := rib.Children["clear"]
+	clear := tree.Children["clear"]
 	require.NotNil(t, clear)
-	assert.Equal(t, "Clear and re-advertise RIB entries", clear.Description, "clear grouping gets YANG description")
-	assert.Equal(t, "", clear.WireMethod, "clear grouping has no WireMethod")
-	assert.NotNil(t, clear.Children["in"], "clear has child in")
-	assert.Equal(t, "ze-rib-api:clear-in", clear.Children["in"].WireMethod)
+	clearRIB := clear.Children["bgp"].Children["rib"]
+	require.NotNil(t, clearRIB)
+	assert.Equal(t, "Clear and re-advertise RIB entries", clearRIB.Description, "clear bgp rib grouping gets YANG description")
+	assert.Equal(t, "", clearRIB.WireMethod, "clear bgp rib grouping has no WireMethod")
+	assert.Equal(t, "ze-rib-api:clear-in", clearRIB.Children["in"].WireMethod)
+	assert.Equal(t, "ze-rib-api:clear-out", clearRIB.Children["out"].WireMethod)
 
+	request := tree.Children["request"]
+	require.NotNil(t, request)
+	requestRIB := request.Children["bgp"].Children["rib"]
+	require.NotNil(t, requestRIB)
+	assert.Equal(t, "ze-rib-api:inject", requestRIB.Children["inject"].WireMethod)
+	assert.Equal(t, "ze-rib-api:withdraw", requestRIB.Children["withdraw"].WireMethod)
 	// Verify command package is used (tree is *command.Node from BuildCommandTree)
 	require.IsType(t, &command.Node{}, tree)
 }

@@ -256,7 +256,7 @@ func RunRouteServer(conn net.Conn) int {
 		return nil
 	})
 
-	// Register command handler: responds to "rs status" and "rs peers"
+	// Register command handler: responds to "show rs status" and "show rs peers".
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return rs.handleCommand(command)
 	})
@@ -306,8 +306,8 @@ func RunRouteServer(conn net.Conn) int {
 		// small-peer workers haven't processed yet, causing ErrUpdateExpired.
 		CacheConsumerUnordered: true,
 		Commands: []sdk.CommandDecl{
-			{Name: "show rs status", Description: "Show RS status", DeprecatedNames: []string{"rs status"}},
-			{Name: "show rs peers", Description: "Show peer states", DeprecatedNames: []string{"rs peers"}},
+			{Name: "show rs status", Description: "Show RS status"},
+			{Name: "show rs peers", Description: "Show peer states"},
 		},
 	})
 

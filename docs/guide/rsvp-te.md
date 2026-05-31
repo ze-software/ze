@@ -71,11 +71,11 @@ The RSVP-TE component exposes three introspection commands that report LSP,
 interface, and tunnel state as JSON, available both under the top-level `show`
 grammar and as direct plugin commands:
 
-- `show rsvp-te lsp` (= `rsvp-te show-session`) -- all LSPs: state, role,
+- `show rsvp-te lsp` (= `show rsvp-te session`) -- all LSPs: state, role,
   bandwidth, in/out labels.
-- `show rsvp-te interface` (= `rsvp-te show-interface`) -- per-interface
+- `show rsvp-te interface` -- per-interface
   reserved / available / max bandwidth.
-- `show rsvp-te tunnel` (= `rsvp-te show-tunnel`) -- configured tunnels and
+- `show rsvp-te tunnel` -- configured tunnels and
   their state.
 
 The `show` forms proxy to the plugin commands through the dispatcher.

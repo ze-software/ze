@@ -62,8 +62,8 @@ func runPlugin(conn net.Conn) int {
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			{Name: "request fakel2tp emit", DeprecatedNames: []string{"fakel2tp emit"}},
-			{Name: "show fakel2tp help", DeprecatedNames: []string{"fakel2tp help"}},
+			{Name: "request fakel2tp emit"},
+			{Name: "show fakel2tp help"},
 		},
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)

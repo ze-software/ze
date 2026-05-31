@@ -42,7 +42,7 @@ func TestBashContainsCommands(t *testing.T) {
 	}
 
 	for _, cmd := range []string{
-		"bgp", "config", "cli", "schema", "show", "run", "status",
+		"bgp", "config", "cli", "schema", "show", "status",
 		"plugin", "exabgp", "signal", "completion", "version", "help",
 	} {
 		if !strings.Contains(commandsLine, cmd) {
@@ -197,7 +197,6 @@ func TestRunFish(t *testing.T) {
 		"__ze_complete_dynamic",
 		"ze completion words $subcmd",
 		"__ze_complete_dynamic show",
-		"__ze_complete_dynamic run",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("fish output missing %q", want)
@@ -212,7 +211,7 @@ func TestFishCommandDescriptions(t *testing.T) {
 	out := buf.String()
 
 	for _, cmd := range []string{
-		"bgp", "config", "cli", "schema", "show", "run",
+		"bgp", "config", "cli", "schema", "show",
 		"plugin", "exabgp", "status", "signal", "completion", "version", "help",
 	} {
 		pattern := "-a " + cmd + " -d '"
@@ -274,7 +273,7 @@ func TestZshContainsCommands(t *testing.T) {
 	out := buf.String()
 
 	for _, cmd := range []string{
-		"bgp:", "config:", "cli:", "schema:", "show:", "run:", "status:",
+		"bgp:", "config:", "cli:", "schema:", "show:", "status:",
 		"plugin:", "exabgp:", "signal:", "completion:", "version:", "help:",
 	} {
 		if !strings.Contains(out, "'"+cmd) {
@@ -355,29 +354,6 @@ func TestZshDepthGuards(t *testing.T) {
 	}
 }
 
-// VALIDATES: run completions are dynamic (call ze completion words run), not hardcoded.
-// PREVENTS: run command being silently omitted from completion.
-func TestBashRunIsDynamic(t *testing.T) {
-	var buf strings.Builder
-	generate("bash", &buf)
-	out := buf.String()
-
-	if !strings.Contains(out, "ze completion words run") {
-		t.Error("bash run completion should call 'ze completion words run' dynamically")
-	}
-}
-
-// VALIDATES: zsh run completions are dynamic.
-func TestZshRunIsDynamic(t *testing.T) {
-	var buf strings.Builder
-	generate("zsh", &buf)
-	out := buf.String()
-
-	if !strings.Contains(out, "ze completion words run") {
-		t.Error("zsh run completion should call 'ze completion words run' dynamically")
-	}
-}
-
 // VALIDATES: bash offers plugin name completion for --plugin argument.
 // PREVENTS: completing commands instead of plugin names after --plugin.
 func TestBashPluginArgCompletion(t *testing.T) {
@@ -453,7 +429,6 @@ func TestRunNushell(t *testing.T) {
 		`extern "ze bgp"`,
 		`extern "ze config"`,
 		`extern "ze show"`,
-		`extern "ze run"`,
 		"nu-complete ze plugins",
 		"nu-complete ze schema-modules",
 	} {
@@ -486,7 +461,7 @@ func TestNushellContainsSubcommands(t *testing.T) {
 	out := buf.String()
 
 	for _, cmd := range []string{
-		"ze bgp", "ze config", "ze cli", "ze schema", "ze show", "ze run",
+		"ze bgp", "ze config", "ze cli", "ze schema", "ze show",
 		"ze plugin", "ze exabgp", "ze status", "ze signal", "ze completion",
 		"ze version", "ze help",
 	} {
@@ -497,17 +472,14 @@ func TestNushellContainsSubcommands(t *testing.T) {
 	}
 }
 
-// VALIDATES: nushell show/run completions are dynamic via ze completion words.
-func TestNushellShowRunDynamic(t *testing.T) {
+// VALIDATES: nushell show completions are dynamic via ze completion words.
+func TestNushellShowDynamic(t *testing.T) {
 	var buf strings.Builder
 	generate("nushell", &buf)
 	out := buf.String()
 
 	if !strings.Contains(out, "ze completion words show") {
 		t.Error("nushell show completion should call 'ze completion words show' dynamically")
-	}
-	if !strings.Contains(out, "ze completion words run") {
-		t.Error("nushell run completion should call 'ze completion words run' dynamically")
 	}
 }
 

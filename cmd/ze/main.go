@@ -389,7 +389,7 @@ dispatch:
 
 	arg := args[0]
 
-	// Dispatch YANG verb commands (show, set, del, update, validate, monitor).
+	// Dispatch YANG verb commands (show, set, clear, request, del, update, validate, monitor).
 	// These go through the unified command tree, same path as the CLI editor.
 	if isYANGVerb(arg) {
 		// Check for help at any depth: "show help", "show bgp help", "show bgp decode help"
@@ -484,7 +484,7 @@ dispatch:
 	case "run":
 		fmt.Fprintf(os.Stderr, "error: 'ze run' has been replaced by direct verb dispatch\n")
 		fmt.Fprintf(os.Stderr, "hint: use 'ze show <command>' for read-only commands\n")
-		fmt.Fprintf(os.Stderr, "hint: use 'ze set/del/update <command>' for mutations\n")
+		fmt.Fprintf(os.Stderr, "hint: use 'ze set/clear/request/del/update <command>' for mutations\n")
 		fmt.Fprintf(os.Stderr, "hint: run 'ze help' for available verbs\n")
 		exit(1)
 	case "completion":
@@ -628,9 +628,8 @@ func knownCommands() []string {
 
 // yangVerbs are the top-level verbs dispatched through the unified YANG command tree.
 var yangVerbs = map[string]bool{
-	"show": true, "set": true, "del": true,
-	"update": true, "validate": true, "monitor": true,
-	"clear": true,
+	"show": true, "set": true, "clear": true, "request": true,
+	"del": true, "update": true, "validate": true, "monitor": true,
 }
 
 // isYANGVerb returns true if the argument is a YANG verb that should be

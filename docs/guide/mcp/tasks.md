@@ -107,8 +107,8 @@ descriptor:
 | Level | Meaning |
 |-------|---------|
 | `optional` | Can be called with or without `task` (default) |
-| `required` | Must be called as a task (e.g., `monitor bgp`, `rib routes`) |
-| `forbidden` | Must not be called as a task (e.g., `rib clear in`, `rib inject`) |
+| `required` | Must be called as a task (e.g., `monitor bgp`, `show bgp rib`) |
+| `forbidden` | Must not be called as a task (e.g., `clear bgp rib in`, `request bgp rib inject`) |
 
 The level is derived from the YANG `ze:task-support` extension. Calling a
 `required` tool without `task: {}` or a `forbidden` tool with `task: {}`

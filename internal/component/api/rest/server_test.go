@@ -36,7 +36,7 @@ func testEngine() *api.APIEngine {
 			{Name: "summary", Description: "Show summary", ReadOnly: true},
 			{Name: "bgp summary", Description: "Show BGP summary", ReadOnly: true},
 			{Name: "bgp monitor", Description: "Monitor BGP events", ReadOnly: true},
-			{Name: "bgp rib routes", Description: "Show routes", ReadOnly: true, Params: []api.ParamMeta{
+			{Name: "show bgp rib", Description: "Show routes", ReadOnly: true, Params: []api.ParamMeta{
 				{Name: "family", Type: "string", Description: "Address family"},
 			}},
 			{Name: "daemon reload", Description: "Reload config", ReadOnly: false},
@@ -534,12 +534,12 @@ func TestRESTExecuteInvalidJSON(t *testing.T) {
 // PREVENTS: describe endpoint broken.
 func TestRESTDescribeCommand(t *testing.T) {
 	srv := testServer(t)
-	r := do(t, srv, "GET", "/api/v1/commands/bgp/rib/routes", "")
+	r := do(t, srv, "GET", "/api/v1/commands/show/bgp/rib", "")
 	assert.Equal(t, http.StatusOK, r.Status)
 
 	var cmd api.CommandMeta
 	require.NoError(t, json.Unmarshal([]byte(r.Body), &cmd))
-	assert.Equal(t, "bgp rib routes", cmd.Name)
+	assert.Equal(t, "show bgp rib", cmd.Name)
 	assert.Len(t, cmd.Params, 1)
 }
 
@@ -555,10 +555,10 @@ func TestRESTDescribeCommandNotFound(t *testing.T) {
 // PREVENTS: params silently ignored.
 func TestRESTExecuteWithParams(t *testing.T) {
 	srv := testServer(t)
-	r := do(t, srv, "POST", "/api/v1/execute", `{"command":"bgp rib routes","params":{"family":"ipv4/unicast"}}`)
+	r := do(t, srv, "POST", "/api/v1/execute", `{"command":"show bgp rib","params":{"family":"ipv4/unicast"}}`)
 	assert.Equal(t, http.StatusOK, r.Status)
 	// The fake executor returns "ok: <command>" for unknown commands.
-	assert.Contains(t, r.Body, "bgp rib routes family ipv4/unicast")
+	assert.Contains(t, r.Body, "show bgp rib family ipv4/unicast")
 }
 
 // VALIDATES: Execute rejects param keys with whitespace.

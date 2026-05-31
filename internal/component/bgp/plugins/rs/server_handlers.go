@@ -29,7 +29,7 @@ const errUnknownCommandMarker = "unknown command"
 // from the engine's ErrUnknownCommand -- i.e. no plugin handled the command.
 // Used as the soft-dep "adj-rib-in is not loaded" signal in replayForPeer.
 // Caller is responsible for knowing that the only command rs dispatches is
-// "adj-rib-in replay ..."; this helper does not re-verify the command text.
+// "request adj-rib-in replay ..."; this helper does not re-verify the command text.
 func isDispatchUnknownCommand(err error) bool {
 	if err == nil {
 		return false

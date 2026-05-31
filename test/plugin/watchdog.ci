@@ -5,19 +5,19 @@ stdin=peer:terminator=EOF_PEER
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001540010100400200400304010203044005040000006420424242422058585858
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001540010100400200400304C0A80164400504000000642064646464
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-cmd=api:conn=1:seq=1:text=watchdog announce dnsr
+cmd=api:conn=1:seq=1:text=request watchdog announce dnsr
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040102030440050400000064204D4D4D4D
-cmd=api:conn=1:seq=2:text=watchdog withdraw dnsr
+cmd=api:conn=1:seq=2:text=request watchdog withdraw dnsr
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C020005204D4D4D4D0000
 
-cmd=api:conn=1:seq=3:text=watchdog announce dnsr
+cmd=api:conn=1:seq=3:text=request watchdog announce dnsr
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040102030440050400000064204D4D4D4D
-cmd=api:conn=1:seq=4:text=watchdog withdraw dnsr
+cmd=api:conn=1:seq=4:text=request watchdog withdraw dnsr
 expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C020005204D4D4D4D0000
 
-cmd=api:conn=1:seq=5:text=watchdog announce dnsr
+cmd=api:conn=1:seq=5:text=request watchdog announce dnsr
 expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040102030440050400000064204D4D4D4D
-cmd=api:conn=1:seq=6:text=watchdog withdraw dnsr
+cmd=api:conn=1:seq=6:text=request watchdog withdraw dnsr
 expect=bgp:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C020005204D4D4D4D0000
 EOF_PEER
 
@@ -43,10 +43,10 @@ def main() -> None:
     api.wait_for_ack(expected_count=3)
 
     for _ in range(3):
-        api.send('watchdog announce dnsr')
+        api.send('request watchdog announce dnsr')
         api.wait_for_ack()
 
-        api.send('watchdog withdraw dnsr')
+        api.send('request watchdog withdraw dnsr')
         api.wait_for_ack()
 
     api.wait_for_shutdown()

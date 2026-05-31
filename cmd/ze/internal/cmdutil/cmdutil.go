@@ -55,8 +55,9 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 	if len(cmdWords) == 0 {
 		return -1 // signal caller to show usage
 	}
+	_ = readOnly
 
-	tree := cli.BuildCommandTree(readOnly)
+	tree := cli.BuildVerbCommandTree(cmdName)
 
 	// Extract peer selector (IP/glob) from command words.
 	// User types "peer 127.0.0.2 show" but the tree has peer → show.

@@ -13,12 +13,12 @@ import (
 )
 
 var (
-	errBgpRibClearInRequiresA                     = errors.New("bgp rib clear in requires a selector (* for all peers)")
-	errBgpRibClearOutRequiresA                    = errors.New("bgp rib clear out requires a selector (* for all peers)")
-	errBgpRibRetainRoutesRequiresA                = errors.New("bgp rib retain-routes requires a selector (* for all peers)")
-	errBgpRibReleaseRoutesRequiresA               = errors.New("bgp rib release-routes requires a selector (* for all peers)")
-	errUsageRibInjectPeerFamilyPrefix             = errors.New("usage: rib inject <peer> <family> <prefix> [origin <val>] [nhop <ip>] [aspath <asn,...>] [localpref <n>] [med <n>]")
-	errUsageRibWithdrawPeerFamilyPrefix           = errors.New("usage: rib withdraw <peer> <family> <prefix>")
+	errBgpRibClearInRequiresA                     = errors.New("clear bgp rib in requires a selector (* for all peers)")
+	errBgpRibClearOutRequiresA                    = errors.New("clear bgp rib out requires a selector (* for all peers)")
+	errBgpRibRetainRoutesRequiresA                = errors.New("request bgp rib retain-routes requires a selector (* for all peers)")
+	errBgpRibReleaseRoutesRequiresA               = errors.New("request bgp rib release-routes requires a selector (* for all peers)")
+	errUsageRibInjectPeerFamilyPrefix             = errors.New("usage: request bgp rib inject <peer> <family> <prefix> [origin <val>] [nhop <ip>] [aspath <asn,...>] [localpref <n>] [med <n>]")
+	errUsageRibWithdrawPeerFamilyPrefix           = errors.New("usage: request bgp rib withdraw <peer> <family> <prefix>")
 	errMarkStaleRequiresPeerRestartTime           = errors.New("mark-stale requires <peer> <restart-time> [level]")
 	errStaleLevelMustBe00                         = errors.New("stale level must be > 0 (0 means fresh)")
 	errPurgeStaleRequiresPeer                     = errors.New("purge-stale requires <peer>")
@@ -50,7 +50,7 @@ func registerCommunityCommands() {
 	}
 }
 
-// attachCommunityCommand handles "bgp rib attach-community <peer> <family> <community-hex>".
+// attachCommunityCommand handles "request bgp rib attach-community <peer> <family> <community-hex>".
 // Attaches a 4-byte community to all stale routes for the specified peer and family.
 // Also raises StaleLevel to DepreferenceThreshold for attached routes.
 // Args: [0]=peer, [1]=family, [2]=community as 8-char hex (e.g., "ffff0006").
@@ -117,7 +117,7 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, any, error) 
 	return statusDone, map[string]any{"attached": attached}, nil
 }
 
-// deleteWithCommunityCommand handles "bgp rib delete-with-community <peer> <family> <community-hex>".
+// deleteWithCommunityCommand handles "request bgp rib delete-with-community <peer> <family> <community-hex>".
 // Deletes stale routes that contain the specified community.
 // Args: [0]=peer, [1]=family, [2]=community as 8-char hex.
 func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, any, error) {

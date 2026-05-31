@@ -16,7 +16,7 @@ import (
 
 // TestEnableValidation verifies enable-validation command sets the flag.
 //
-// VALIDATES: adj-rib-in enable-validation command sets validationEnabled=true.
+// VALIDATES: request adj-rib-in enable-validation command sets validationEnabled=true.
 // PREVENTS: Validation gate being permanently disabled.
 func TestEnableValidation(t *testing.T) {
 	r := newTestManager(t)

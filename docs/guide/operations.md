@@ -309,7 +309,7 @@ Symptom: session establishes briefly then NOTIFICATION received
 
 1. **Check RIB plugin is loaded and bound:**
    ```bash
-   ze cli -c "rib status"
+   ze cli -c "show bgp rib status"
    ```
 
 2. **Check peer is sending updates:**

@@ -38,6 +38,18 @@ func testVerbTree() *Node {
 					},
 				},
 			},
+			"clear": {
+				Name:        "clear",
+				Description: "Reset operational state",
+				Children: map[string]*Node{
+					"bgp": {
+						Name: "bgp",
+						Children: map[string]*Node{
+							"rib": {Name: "rib", Description: "Clear RIB state", WireMethod: "ze-rib-api:clear-in"},
+						},
+					},
+				},
+			},
 			"del": {
 				Name:        "del",
 				Description: "Remove configuration",
@@ -46,6 +58,18 @@ func testVerbTree() *Node {
 						Name: "bgp",
 						Children: map[string]*Node{
 							"peer": {Name: "peer", Description: "Remove a peer dynamically", WireMethod: "ze-del:bgp-peer"},
+						},
+					},
+				},
+			},
+			"request": {
+				Name:        "request",
+				Description: "Request an operational action",
+				Children: map[string]*Node{
+					"bgp": {
+						Name: "bgp",
+						Children: map[string]*Node{
+							"rib": {Name: "rib", Description: "Request RIB action", WireMethod: "ze-rib-api:inject"},
 						},
 					},
 				},
@@ -92,6 +116,8 @@ func TestHelpTopLevel(t *testing.T) {
 	checks := map[string]string{
 		"show":     "Read-only introspection commands",
 		"set":      "Modify configuration",
+		"clear":    "Reset operational state",
+		"request":  "Request an operational action",
 		"del":      "Remove configuration",
 		"update":   "Refresh stale data from external sources",
 		"validate": "Check without changing",
@@ -168,7 +194,7 @@ func TestHelpIncludesDescriptions(t *testing.T) {
 // PREVENTS: missing verb classification.
 func TestUnifiedTreeVerbs(t *testing.T) {
 	tree := testVerbTree()
-	expectedVerbs := []string{"show", "set", "del", "update", "validate", "monitor"}
+	expectedVerbs := []string{"show", "set", "clear", "request", "del", "update", "validate", "monitor"}
 
 	for _, verb := range expectedVerbs {
 		if _, ok := tree.Children[verb]; !ok {
@@ -181,7 +207,7 @@ func TestUnifiedTreeVerbs(t *testing.T) {
 // PREVENTS: wrong authorization for commands.
 func TestVerbClassification(t *testing.T) {
 	readOnlyVerbs := []string{"show", "validate", "monitor"}
-	mutatingVerbs := []string{"set", "del", "update"}
+	mutatingVerbs := []string{"set", "clear", "request", "del", "update"}
 
 	for _, verb := range readOnlyVerbs {
 		if !IsReadOnlyVerb(verb) {

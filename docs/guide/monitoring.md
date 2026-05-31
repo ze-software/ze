@@ -339,7 +339,7 @@ For scripting, use `-c` to execute a single command and exit:
 
 ```
 ze cli -c "bgp summary"
-ze cli -c "rib routes received"
-ze cli -c "rpki status"
+ze cli -c "show bgp rib received"
+ze cli -c "show rpki status"
 ```
 <!-- source: cmd/ze/cli/main.go -- Run, Execute, StreamMonitor -->

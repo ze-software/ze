@@ -1016,7 +1016,7 @@ const (
 const filterPath = "path"
 
 // showPipeline builds and executes a pipeline from command args.
-// Called by handleCommand for "bgp rib show" with optional scope + filter stages.
+// Called by handleCommand for "show bgp rib" with optional scope + filter stages.
 // Holds r.peerMu.RLock across source construction AND the full drain: the
 // sources carry pool handles (ribOut entries, adj-rib-in bundle handles) that
 // filters/terminals dereference lazily, and the writers that release those

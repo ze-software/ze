@@ -21,7 +21,7 @@ var readOnlyVerbs = map[string]bool{
 
 // IsReadOnlyVerb returns true if the verb does not modify state.
 // show, validate, and monitor are read-only.
-// set, del, and update are mutating.
+// set, clear, request, del, and update are mutating.
 func IsReadOnlyVerb(verb string) bool {
 	return readOnlyVerbs[verb]
 }

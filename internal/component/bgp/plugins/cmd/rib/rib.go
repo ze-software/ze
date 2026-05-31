@@ -49,7 +49,7 @@ func init() {
 }
 
 func registerPipeFilters() {
-	command.RegisterPipeFilters([]string{"show bgp rib", "rib routes", cmdRibShow},
+	command.RegisterPipeFilters([]string{cmdRibShow},
 		command.PipeFilter{Name: "received", Description: "Select received routes", Leading: true},
 		command.PipeFilter{Name: "advertised", Description: "Select advertised routes", Leading: true},
 		command.PipeFilter{Name: "peer", Description: "Filter by peer", TakesArg: true},
@@ -64,7 +64,7 @@ func registerPipeFilters() {
 		command.PipeFilter{Name: "prefix-summary", Description: "Summarize by family and prefix length"},
 		command.PipeFilter{Name: "graph", Description: "Render AS-path topology graph"},
 	)
-	command.RegisterPipeFilters([]string{"show bgp rib best", "rib best", cmdRibBest},
+	command.RegisterPipeFilters([]string{cmdRibBest},
 		command.PipeFilter{Name: "peer", Description: "Filter by peer", TakesArg: true},
 		command.PipeFilter{Name: "family", Description: "Filter by AFI/SAFI", TakesArg: true},
 		command.PipeFilter{Name: "prefix", Description: "Filter by prefix", TakesArg: true},
@@ -78,7 +78,7 @@ func registerPipeFilters() {
 		command.PipeFilter{Name: "graph", Description: "Render AS-path topology graph"},
 		command.PipeFilter{Name: "reason", Description: "Explain best-path selection"},
 	)
-	command.RegisterPipeFilters([]string{"show bgp rib status", "show bgp rib best status", "rib status", "rib best status", cmdRibStatus, cmdRibBestStatus})
+	command.RegisterPipeFilters([]string{cmdRibStatus, cmdRibBestStatus})
 }
 
 func forwardRibStatus(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

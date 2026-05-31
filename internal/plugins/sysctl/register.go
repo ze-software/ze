@@ -418,12 +418,12 @@ func runSysctlPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "show sysctl", Description: "Show all active sysctl keys with source and persistence", DeprecatedNames: []string{"sysctl show"}},
-			{Name: "show sysctl keys", Description: "List all known sysctl keys with descriptions", DeprecatedNames: []string{"sysctl list"}},
-			{Name: "show sysctl key", Description: "Show detail for one sysctl key", Args: []string{"key"}, DeprecatedNames: []string{"sysctl describe"}},
-			{Name: "set sysctl", Description: "Set a transient sysctl value", Args: []string{"key", "value"}, DeprecatedNames: []string{"sysctl set"}},
-			{Name: "show sysctl profiles", Description: "List all registered sysctl profiles", DeprecatedNames: []string{"sysctl list-profiles"}},
-			{Name: "show sysctl profile", Description: "Show detail for one sysctl profile", Args: []string{"name"}, DeprecatedNames: []string{"sysctl describe-profile"}},
+			{Name: "show sysctl", Description: "Show all active sysctl keys with source and persistence"},
+			{Name: "show sysctl keys", Description: "List all known sysctl keys with descriptions"},
+			{Name: "show sysctl key", Description: "Show detail for one sysctl key", Args: []string{"key"}},
+			{Name: "set sysctl", Description: "Set a transient sysctl value", Args: []string{"key", "value"}},
+			{Name: "show sysctl profiles", Description: "List all registered sysctl profiles"},
+			{Name: "show sysctl profile", Description: "Show detail for one sysctl profile", Args: []string{"name"}},
 		},
 	})
 	if err != nil {

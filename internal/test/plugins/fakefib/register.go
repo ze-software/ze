@@ -49,8 +49,8 @@ func runPlugin(conn net.Conn) int {
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			{Name: "request fakefib emit", DeprecatedNames: []string{"fakefib emit"}},
-			{Name: "show fakefib help", DeprecatedNames: []string{"fakefib help"}},
+			{Name: "request fakefib emit"},
+			{Name: "show fakefib help"},
 		},
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)

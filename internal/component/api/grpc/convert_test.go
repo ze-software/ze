@@ -63,7 +63,7 @@ func TestExecResultToProtoNil(t *testing.T) {
 
 func TestCommandMetaToProto(t *testing.T) {
 	cmd := api.CommandMeta{
-		Name:        "bgp rib routes",
+		Name:        "show bgp rib",
 		Description: "Show RIB routes",
 		ReadOnly:    true,
 		Params: []api.ParamMeta{
@@ -72,7 +72,7 @@ func TestCommandMetaToProto(t *testing.T) {
 	}
 
 	info := commandMetaToProto(cmd)
-	assert.Equal(t, "bgp rib routes", info.Name)
+	assert.Equal(t, "show bgp rib", info.Name)
 	assert.Equal(t, "Show RIB routes", info.Description)
 	assert.True(t, info.ReadOnly)
 	require.Len(t, info.Params, 1)

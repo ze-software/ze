@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	errAdjRibInReplayRequiresTarget         = errors.New("adj-rib-in replay requires target peer address")
+	errAdjRibInReplayRequiresTarget         = errors.New("request adj-rib-in replay requires target peer address")
 	errAcceptRoutesRequiresPeerFamilyPrefix = errors.New("accept-routes requires: <peer> <family> <prefix> <pathID> <state>")
 	errRejectRoutesRequiresPeerFamilyPrefix = errors.New("reject-routes requires: <peer> <family> <prefix> <pathID>")
 	errRevalidateRequiresFamilyPrefix       = errors.New("revalidate requires: <family> <prefix>")
@@ -94,8 +94,8 @@ func (r *AdjRIBInManager) show(selector string) any {
 	return map[string]any{"adj-rib-in": result}
 }
 
-// replayCommand handles "adj-rib-in replay" via execute-command.
-// Selector format: "<target-peer> [<from-index>]"
+// replayCommand handles "request adj-rib-in replay" via execute-command.
+// Selector format: "<target-peer> [<from-index>]".
 // Replays routes from ALL source peers except target, filtered by from-index.
 func (r *AdjRIBInManager) replayCommand(selector string) (string, any, error) {
 	parts := strings.Fields(selector)
@@ -123,7 +123,7 @@ func (r *AdjRIBInManager) replayCommand(selector string) (string, any, error) {
 	return statusDone, map[string]any{"last-index": maxSeq, "replayed": len(cmds)}, nil
 }
 
-// enableValidationCommand handles "adj-rib-in enable-validation".
+// enableValidationCommand handles "request adj-rib-in enable-validation".
 // Sets the validationEnabled flag so subsequent routes use pending state.
 func (r *AdjRIBInManager) enableValidationCommand() (string, any, error) {
 	r.mu.Lock()
@@ -134,7 +134,7 @@ func (r *AdjRIBInManager) enableValidationCommand() (string, any, error) {
 	return statusDone, map[string]any{"validation-enabled": true}, nil
 }
 
-// acceptRoutesCommand handles "adj-rib-in accept-routes <peer> <family> <prefix> <pathID> <state>".
+// acceptRoutesCommand handles "request adj-rib-in accept-routes <peer> <family> <prefix> <pathID> <state>".
 // Promotes a pending route to installed with the given validation state.
 func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, any, error) {
 	parts := strings.Fields(selector)
@@ -171,7 +171,7 @@ func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, any, err
 	return statusDone, map[string]any{"status": "ok"}, nil
 }
 
-// rejectRoutesCommand handles "adj-rib-in reject-routes <peer> <family> <prefix> <pathID>".
+// rejectRoutesCommand handles "request adj-rib-in reject-routes <peer> <family> <prefix> <pathID>".
 // Discards a pending route (does not install it).
 func (r *AdjRIBInManager) rejectRoutesCommand(selector string) (string, any, error) {
 	parts := strings.Fields(selector)
@@ -203,7 +203,7 @@ func (r *AdjRIBInManager) rejectRoutesCommand(selector string) (string, any, err
 	return statusDone, map[string]any{"status": "ok"}, nil
 }
 
-// revalidateCommand handles "adj-rib-in revalidate <family> <prefix>".
+// revalidateCommand handles "request adj-rib-in revalidate <family> <prefix>".
 // Returns installed route data for the given prefix so the validator can re-validate.
 func (r *AdjRIBInManager) revalidateCommand(selector string) (string, any, error) {
 	parts := strings.Fields(selector)

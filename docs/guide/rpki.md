@@ -116,7 +116,7 @@ Query RPKI status through the ze CLI:
 | `show rpki status` | Show RTR session count and VRP counts |
 | `show rpki cache` | Show cache server connection details |
 | `show rpki roa` | Show ROA table summary |
-| `rpki summary` | Show validation statistics |
+| `show rpki summary` | Show validation statistics |
 
 Example:
 
