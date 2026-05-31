@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/commands.md -- show aaa accounting handler
+
 package show
 
 import (

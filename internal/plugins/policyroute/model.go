@@ -1,3 +1,5 @@
+// Design: plan/spec-policy-routing.md -- rule and mark data types
+
 package policyroute
 
 import "net/netip"

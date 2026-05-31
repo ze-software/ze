@@ -1,3 +1,6 @@
+// Design: docs/architecture/core-design.md -- audit log persistence
+// Related: audit.go -- core types and record append
+
 package audit
 
 import (

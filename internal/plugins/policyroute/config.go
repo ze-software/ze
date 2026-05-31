@@ -1,3 +1,5 @@
+// Design: plan/spec-policy-routing.md -- config parsing
+
 package policyroute
 
 import (

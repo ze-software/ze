@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md -- audit log file management
+
 package hub
 
 import (

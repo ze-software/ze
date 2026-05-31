@@ -1,5 +1,7 @@
 //go:build !linux
 
+// Design: docs/architecture/config/syntax.md -- resolv.conf stub (non-Linux)
+
 package system
 
 // WriteResolvConf is a no-op on non-Linux platforms.

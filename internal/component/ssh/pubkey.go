@@ -1,3 +1,4 @@
+// Design: docs/architecture/system-architecture.md -- SSH public key authentication
 // Related: ssh.go -- SSH server wires this into wish.WithPublicKeyAuth
 
 package ssh

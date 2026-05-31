@@ -1,5 +1,7 @@
 //go:build linux
 
+// Design: docs/architecture/config/syntax.md -- resolv.conf generation
+
 package system
 
 import (

@@ -1,3 +1,5 @@
+// Design: plan/spec-gap-2-static-route-enhancements.md -- event bus integration
+
 package static
 
 import (

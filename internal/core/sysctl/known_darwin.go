@@ -1,5 +1,7 @@
 //go:build darwin
 
+// Design: docs/architecture/core-design.md -- Darwin sysctl key definitions
+
 package sysctl
 
 func init() {

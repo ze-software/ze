@@ -52,6 +52,32 @@ Place after `// Design:` at file top. One line per reference with topic annotati
 
 - Standalone in package (no strong coupling to siblings)
 - Only related through package's public API
+- Relationship is obvious from filename alone (see "Not a Directory Listing" below)
+
+## Not a Directory Listing
+
+`// Detail:` lines should point to files with **non-obvious relationships**, not
+enumerate every file in the package. If the relationship is self-evident from the
+filename (e.g., `config.go` has config, `validators.go` has validators), omit it.
+
+Good hub header (reactor.go, 15 files in package, lists 5 with non-trivial roles):
+```
+// Detail: reactor_wire.go — zero-allocation wire UPDATE builders
+// Detail: reactor_connection.go — TCP accept, collision detection (RFC 4271 §6.8)
+// Detail: forward_pool.go — per-peer forward worker pool
+```
+
+Bad hub header (lists every file, duplicating `ls`):
+```
+// Detail: config.go — config parsing
+// Detail: validators.go — validation
+// Detail: logger.go — logging
+// Detail: types.go — type definitions
+```
+
+**Rule of thumb:** if removing the `// Detail:` line would leave a reader unable
+to find important code, keep it. If they would find it anyway by scanning filenames,
+drop it. Aim for 3-5 references maximum per hub file.
 
 ## Maintenance
 

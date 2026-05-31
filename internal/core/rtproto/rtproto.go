@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md -- Linux route protocol IDs
+//
 // Package rtproto defines Linux route protocol IDs used to mark Ze-owned
 // kernel routes by producer.
 package rtproto

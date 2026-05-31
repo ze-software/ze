@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/commands.md -- show audit handler
+
 package show
 
 import (

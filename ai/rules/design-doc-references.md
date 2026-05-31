@@ -9,8 +9,22 @@ Rationale: `ai/rationale/design-doc-references.md`
 // Design: docs/architecture/core-design.md — topic annotation
 ```
 
-Place in package doc block (primary file) or as first comment (other files).
 Topic annotations preferred over section numbers (survive restructuring).
+
+## Line Ordering
+
+The `// Design:` line must be the first comment in every file. Only compiler
+directives (`//go:build`) may precede it:
+
+```
+//go:build linux
+
+// Design: docs/architecture/core-design.md — topic annotation
+// Related: sibling.go — description
+package foo
+```
+
+`// Package` doc comments go after the header block, not before it.
 
 ## When to Add
 
@@ -23,4 +37,4 @@ Topic annotations preferred over section numbers (survive restructuring).
 
 ## Exempt
 
-`*_test.go`, `*_gen.go`, `register.go`, `embed.go`, `doc.go`
+`*_test.go`, `*_gen.go`, `register.go`, `embed.go`, `doc.go`, files starting with `// Code generated`.

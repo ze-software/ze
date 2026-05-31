@@ -1,5 +1,7 @@
 //go:build zetest
 
+// Design: docs/architecture/testing/ci-format.md -- test-only plugin imports
+
 package main
 
 import (

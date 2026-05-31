@@ -1,3 +1,6 @@
+// Design: docs/architecture/core-design.md -- audit log query and filtering
+// Related: audit.go -- core types and record append
+
 package audit
 
 import "time"

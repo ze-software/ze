@@ -1,3 +1,5 @@
+// Design: docs/research/vpp-deployment-reference.md -- GoVPP logrus-to-slog bridge
+
 package vpp
 
 import (

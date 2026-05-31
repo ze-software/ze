@@ -1,3 +1,5 @@
+// Design: plan/spec-policy-routing.md -- logger
+
 package policyroute
 
 import (
