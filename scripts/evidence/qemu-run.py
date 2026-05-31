@@ -273,6 +273,7 @@ def run_in_vm(
     packages: list[str],
     timeout: int,
     kernel: Path | None = None,
+    keep_alive: bool = False,
 ) -> int:
     """Boot ISO, configure live system, run commands via SSH."""
     args = qemu_args(iso, root, kernel=kernel)
@@ -376,6 +377,63 @@ def run_in_vm(
         )
 
         setup = " && ".join(setup_parts)
+
+        if keep_alive:
+            # Boot + run setup once, persist the Go/workspace env for future
+            # login shells, then idle so the caller can SSH in repeatedly. Used
+            # by `make ze-qemu-shell` for interactive failure investigation: run
+            # one .ci test at a time and inspect dmesg / nft / netlink state
+            # between runs, without rebooting the VM each iteration.
+            profile_lines = [
+                "export PATH=/usr/local/go/bin:$PATH",
+                "export GOROOT=/usr/local/go",
+                "export GOCACHE=/workspace/tmp/qemu/go-cache",
+                "export GOMODCACHE=/workspace/tmp/qemu/gomodcache",
+                "export GOFLAGS=-buildvcs=false",
+                "export HOME=/root",
+                "export TMPDIR=/tmp",
+                "cd /workspace",
+            ]
+            write_profile = (
+                "printf '%s\\n' "
+                + " ".join(shell_quote(s) for s in profile_lines)
+                + " > /etc/profile.d/ze.sh"
+            )
+            rc = ssh_run(
+                "sh -c " + shell_quote(setup + " && " + write_profile),
+                timeout=timeout,
+            )
+            if rc != 0:
+                sys.stderr.write("keep-alive: VM setup failed\n")
+                return rc
+            ssh_cmd = "ssh " + " ".join(SSH_OPTS) + " root@localhost"
+            print("\nZE_QEMU_READY", flush=True)
+            print("VM is up; it stays up until this process is stopped.", flush=True)
+            print("Run a .ci test in the VM (no Go needed, reuses bin/ze):", flush=True)
+            print(
+                f"  {ssh_cmd} 'cd /workspace && ZE_TEST_NO_BUILD=1 bin/ze-test bgp parse 264 -v'",
+                flush=True,
+            )
+            print(
+                "Run with the Go toolchain (login shell sources the env):", flush=True
+            )
+            print(
+                f"  {ssh_cmd} 'bash -lc \"go test -tags integration ./cmd/ze/doctor/...\"'",
+                flush=True,
+            )
+            print("Inspect kernel state between runs, e.g.:", flush=True)
+            print(f"  {ssh_cmd} 'dmesg | tail -50'", flush=True)
+            print(
+                "Stop this process (Ctrl-C / TaskStop) to power off the VM.\n",
+                flush=True,
+            )
+            try:
+                while proc.poll() is None:
+                    time.sleep(5)
+            except KeyboardInterrupt:
+                pass
+            return 0
+
         full_cmd = f"sh -c {shell_quote(setup + ' && ' + commands)}"
 
         print(f"  running: {commands}", file=sys.stderr)
@@ -396,7 +454,17 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run commands in a QEMU Linux VM with full kernel capabilities.",
     )
-    parser.add_argument("--run", required=True, help="Command(s) to run inside the VM")
+    parser.add_argument(
+        "--run",
+        default="",
+        help="Command(s) to run inside the VM (omit with --keep-alive)",
+    )
+    parser.add_argument(
+        "--keep-alive",
+        action="store_true",
+        help="Boot the VM, run setup, then idle for interactive SSH debugging "
+        "instead of running a single --run command and exiting",
+    )
     parser.add_argument(
         "--packages", default="", help="Space-separated Alpine packages to install"
     )
@@ -429,7 +497,17 @@ def main() -> int:
             raise SystemExit(f"kernel not found: {kernel}")
 
     packages = args.packages.split() if args.packages.strip() else []
-    rc = run_in_vm(iso, root, args.run, packages, args.timeout, kernel=kernel)
+    if not args.run and not args.keep_alive:
+        raise SystemExit("error: provide --run or --keep-alive")
+    rc = run_in_vm(
+        iso,
+        root,
+        args.run,
+        packages,
+        args.timeout,
+        kernel=kernel,
+        keep_alive=args.keep_alive,
+    )
 
     if rc == 0:
         print("\nQEMU VM: PASS", file=sys.stderr)

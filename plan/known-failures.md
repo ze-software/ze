@@ -3,7 +3,53 @@
 Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before Any
 Commit" → pre-existing failures >10 min): logged, not blocking unrelated commits.
 
-_None currently open._
+### 2026-05-31 — pppoe-client `no-default-route` rejected by config parser
+
+**Open.** `test/parse/iface-netlink-accepts-pppoe-client.ci` fails. It is
+`option=skip-os:value=darwin`, so it never ran on macOS and was first observed in
+the QEMU Linux VM run. `ze config validate` rejects the bare `no-default-route`
+flag:
+
+```
+configuration invalid: -
+Errors:
+  line 13: line 13: expected value for no-default-route, got SEMICOLON
+```
+
+**Root cause (confirmed):** `no-default-route` is `leaf no-default-route { type
+empty; }` (`internal/component/iface/schema/ze-iface-conf.yang:1042`) — a valueless
+flag. `Parser.parseLeaf` (`internal/component/config/parser.go:179`) is schema-aware
+(it receives `node *LeafNode`) but unconditionally requires a `TokenWord`/`TokenString`
+value (line 183-188), never checking the leaf's YANG type. So a bare `type empty`
+leaf, where the next token is the statement terminator, hits "expected value for ...,
+got SEMICOLON". Fix: in `parseLeaf`, when `node` is `type empty`, accept the leaf with
+no value (store presence) instead of erroring. Any `type empty` leaf used as a bare
+flag hits this, so add a unit test for the parser path plus the existing functional
+test.
+
+**Reproduce (linux-only; needs the cross-compiled linux bin/ze):**
+```
+make ze-qemu-debug NOBUILD=1 RUN='bin/ze-test bgp parse 91 -v'   # 91 = iface-netlink-accepts-pppoe-client (from --list)
+# interactive: make ze-qemu-shell  then in VM: ./bin/ze config validate tmp/pppoe-test.conf
+```
+
+### 2026-05-31 — QEMU full-run suite failures pending clean triage
+
+**Open (triage).** The first `make ze-qemu-all-test` run (commit dea8336c8, while
+the host was under concurrent load) showed failures in `plugin` (16 failed + 54
+timeout), `reload` (8 failed + 6 timeout), `l2tp` (2 failed: indices 13,15), and
+the VM crashed during `firewall` (`exit 255`), so `policy`/`install`/`unit`/
+`integration` never ran. The high timeout counts and the crash are likely host CPU
+contention (8 emulated vCPUs starved by concurrent editing), not real failures, but
+this needs a CLEAN re-run (quiet host) to separate real from artifact. `encode`,
+`decode`, `ui`, `editor`, `managed` passed clean as root. Use `make ze-qemu-debug`
+(see below) to drill into specific indices once a clean baseline exists.
+
+> Debug tooling added 2026-05-31: `make ze-qemu-debug RUN='bin/ze-test bgp <suite>
+> <idx> -v'` runs targeted tests verbosely in the VM; `make ze-qemu-shell` boots a
+> persistent VM for interactive inspection (`qemu-run.py --keep-alive`). Get the
+> right `<idx>` from `bin/ze-test bgp <suite> --list` — the suite-summary `[N, M]`
+> nicks are run-scoped and do NOT round-trip as selectors.
 
 ## Resolved
 
