@@ -38,3 +38,40 @@ func TestBuildZeNoBuild(t *testing.T) {
 	require.NoError(t, err, "buildZe must reuse a pre-built bin/ze under ZE_TEST_NO_BUILD")
 	require.Equal(t, zePath, got)
 }
+
+func TestBuildZeNoBuildEnvOverride(t *testing.T) {
+	t.Setenv("ZE_TEST_NO_BUILD", "1")
+	base := t.TempDir()
+
+	override := filepath.Join(base, "bin", "ze-linux-arm64")
+	t.Setenv("ZE_BIN", override)
+
+	// Override path absent: must fail pointing at the overridden path.
+	_, err := buildZe(context.Background(), base)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ze-linux-arm64")
+
+	// Override path present: must return it.
+	require.NoError(t, os.MkdirAll(filepath.Dir(override), 0o755))
+	require.NoError(t, os.WriteFile(override, []byte("prebuilt"), 0o755))
+
+	got, err := buildZe(context.Background(), base)
+	require.NoError(t, err)
+	require.Equal(t, override, got)
+}
+
+func TestBuildZeNoBuildRelativeOverride(t *testing.T) {
+	t.Setenv("ZE_TEST_NO_BUILD", "1")
+	base := t.TempDir()
+
+	// Relative path gets joined with baseDir.
+	t.Setenv("ZE_BIN", "bin/ze-linux-arm64")
+
+	override := filepath.Join(base, "bin", "ze-linux-arm64")
+	require.NoError(t, os.MkdirAll(filepath.Dir(override), 0o755))
+	require.NoError(t, os.WriteFile(override, []byte("prebuilt"), 0o755))
+
+	got, err := buildZe(context.Background(), base)
+	require.NoError(t, err)
+	require.Equal(t, override, got)
+}

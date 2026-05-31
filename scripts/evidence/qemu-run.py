@@ -409,9 +409,12 @@ def run_in_vm(
             ssh_cmd = "ssh " + " ".join(SSH_OPTS) + " root@localhost"
             print("\nZE_QEMU_READY", flush=True)
             print("VM is up; it stays up until this process is stopped.", flush=True)
-            print("Run a .ci test in the VM (no Go needed, reuses bin/ze):", flush=True)
             print(
-                f"  {ssh_cmd} 'cd /workspace && ZE_TEST_NO_BUILD=1 bin/ze-test bgp parse 264 -v'",
+                "Run a .ci test in the VM (no Go needed, reuses cross-compiled ze):",
+                flush=True,
+            )
+            print(
+                f"  {ssh_cmd} 'cd /workspace && ZE_TEST_NO_BUILD=1 ZE_BIN=bin/ze-linux-arm64 bin/ze-test-linux-arm64 bgp parse 264 -v'",
                 flush=True,
             )
             print(

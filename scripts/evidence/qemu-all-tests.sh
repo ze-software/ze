@@ -25,7 +25,7 @@
 # reload/managed stay serial (-p 1) because they mutate shared config state.
 #
 # Phases (each reports pass/fail; any failure -> overall non-zero exit):
-#   1. functional gating suites   (bin/ze-test; `web` skipped -> needs agent-browser)
+#   1. functional gating suites   ($ZE_TEST_BIN; `web` skipped -> needs agent-browser)
 #   2. unit tests                 (go test ./..., no -race, cacheable)
 #   3. integration tests          (-tags integration; linux-only netlink/nft/fib/...)
 #
@@ -40,7 +40,13 @@ SKIP_SUITES="${ZE_QEMU_SKIP_SUITES:-web}"
 PARALLEL="${ZE_QEMU_PARALLEL:-4}"
 SUITE_TIMEOUT="${ZE_QEMU_SUITE_TIMEOUT:-900s}"
 
-for bin in bin/ze bin/ze-test; do
+# Resolve arch-suffixed binary names. The Makefile cross-compiles to
+# bin/ze-linux-<arch> so bin/ze stays the host-native binary.
+ZE_BIN="${ZE_BIN:-bin/ze}"
+ZE_TEST_BIN="${ZE_TEST_BIN:-bin/ze-test}"
+export ZE_BIN
+
+for bin in "$ZE_BIN" "$ZE_TEST_BIN"; do
 	if [ ! -x "$bin" ]; then
 		echo "error: $bin missing or not executable -- cross-compile it on the host first" >&2
 		echo "       (make ze-qemu-all-test does this automatically)" >&2
@@ -93,18 +99,18 @@ run_check() {
 
 # 1. Functional gating suites at VM-appropriate parallelism.
 banner "PHASE: functional suites (-p $PARALLEL, skip: $SKIP_SUITES)"
-fsuite encode bin/ze-test bgp encode --all -p "$PARALLEL"
-fsuite plugin bin/ze-test bgp plugin --all -p "$PARALLEL"
-fsuite parse bin/ze-test bgp parse --all -p "$PARALLEL"
-fsuite decode bin/ze-test bgp decode --all -p "$PARALLEL"
-fsuite reload bin/ze-test bgp reload --all -p 1
-fsuite ui bin/ze-test ui --all -p "$PARALLEL"
-fsuite editor bin/ze-test editor
-fsuite managed bin/ze-test managed --all -p 1
-fsuite l2tp bin/ze-test l2tp --all -p "$PARALLEL"
-fsuite firewall bin/ze-test firewall --all -p "$PARALLEL"
-fsuite policy bin/ze-test policy --all -p "$PARALLEL"
-fsuite install bin/ze-test install --all -p "$PARALLEL"
+fsuite encode "$ZE_TEST_BIN" bgp encode --all -p "$PARALLEL"
+fsuite plugin "$ZE_TEST_BIN" bgp plugin --all -p "$PARALLEL"
+fsuite parse "$ZE_TEST_BIN" bgp parse --all -p "$PARALLEL"
+fsuite decode "$ZE_TEST_BIN" bgp decode --all -p "$PARALLEL"
+fsuite reload "$ZE_TEST_BIN" bgp reload --all -p 1
+fsuite ui "$ZE_TEST_BIN" ui --all -p "$PARALLEL"
+fsuite editor "$ZE_TEST_BIN" editor
+fsuite managed "$ZE_TEST_BIN" managed --all -p 1
+fsuite l2tp "$ZE_TEST_BIN" l2tp --all -p "$PARALLEL"
+fsuite firewall "$ZE_TEST_BIN" firewall --all -p "$PARALLEL"
+fsuite policy "$ZE_TEST_BIN" policy --all -p "$PARALLEL"
+fsuite install "$ZE_TEST_BIN" install --all -p "$PARALLEL"
 
 # 2. Unit tests: full pass, no -race, cacheable. Picks up the //go:build linux
 #    test files that never compile on macOS.

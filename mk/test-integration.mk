@@ -129,9 +129,10 @@ ze-deployment-preflight:
 # ─── QEMU ───────────────────────────────────────────────────────────────────
 
 # Full test suite in one QEMU Linux VM, host-compile / run-in-VM:
-#   - ze + ze-test are cross-compiled on the host (CGO off) and shared into the
-#     VM over 9p; ZE_TEST_NO_BUILD=1 makes every functional suite reuse them
-#     instead of recompiling the tree on the slow 9p mount.
+#   - ze + ze-test are cross-compiled on the host (CGO off) to arch-suffixed
+#     names (bin/ze-linux-<arch>, bin/ze-test-linux-<arch>) and shared into the
+#     VM over 9p; ZE_BIN/ZE_TEST_BIN env vars tell the runner where to find
+#     them, and ZE_TEST_NO_BUILD=1 skips recompilation on the slow 9p mount.
 #   - unit + integration Go tests still compile in the VM (incremental, cache on
 #     9p), no -race (Alpine has no C compiler; race coverage comes from native /
 #     Linux-CI unit runs). The VM's unique value: //go:build linux paths and the
@@ -139,9 +140,11 @@ ze-deployment-preflight:
 # GOARCH is derived from the host (Apple Silicon -> arm64, Intel -> amd64) so the
 # binaries match the VM. ZE_QEMU_SKIP_SUITES (default: web, which needs
 # agent-browser) lets you drop suites that cannot run headless in the VM.
-# This OVERWRITES bin/ze and bin/ze-test with Linux binaries; rebuild with
-# `make ze test` afterwards if you need host binaries.
+# Cross-compiled binaries go to bin/ze-linux-<arch> so bin/ze stays the
+# host-native binary. No need to run `make ze test` after QEMU testing.
 QEMU_GOARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
+ZE_QEMU_BIN := bin/ze-linux-$(QEMU_GOARCH)
+ZE_QEMU_TEST_BIN := bin/ze-test-linux-$(QEMU_GOARCH)
 ZE_QEMU_SKIP_SUITES ?= web
 ZE_QEMU_PARALLEL ?= 4
 
@@ -154,45 +157,44 @@ ZE_QEMU_PARALLEL ?= 4
 ze-qemu-all-test:
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-test on host (CGO off)..."
 	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'zetest $(ZE_TAGS)' -o bin/ze ./cmd/ze
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -o bin/ze-test ./cmd/ze-test
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'zetest $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -o $(ZE_QEMU_TEST_BIN) ./cmd/ze-test
 	@echo "Running full test suite in QEMU Linux VM (host-compiled binaries; no in-VM ze/ze-test compile)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
 		--timeout 3600 \
-		--run 'ZE_QEMU_SKIP_SUITES="$(ZE_QEMU_SKIP_SUITES)" ZE_QEMU_PARALLEL="$(ZE_QEMU_PARALLEL)" bash scripts/evidence/qemu-all-tests.sh'
-	@printf '\n\033[33mNOTE:\033[0m bin/ze and bin/ze-test are now linux/%s binaries; run "make ze test" to restore host binaries.\n' "$(QEMU_GOARCH)"
+		--run 'ZE_BIN="$(ZE_QEMU_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" ZE_QEMU_SKIP_SUITES="$(ZE_QEMU_SKIP_SUITES)" ZE_QEMU_PARALLEL="$(ZE_QEMU_PARALLEL)" bash scripts/evidence/qemu-all-tests.sh'
 
 # Debug specific functional tests in the QEMU VM with verbose output.
 #
 # Unlike ze-qemu-all-test (all-or-nothing, non-verbose), this runs ONE arbitrary
 # command in the VM and streams its output, so a failing .ci test can be re-run
 # with -v to see the expect-vs-got diff. The command runs from /workspace with
-# ZE_TEST_NO_BUILD=1 set (the runner reuses bin/ze + bin/ze-test instead of
-# recompiling on the slow 9p mount). Indices come from the ze-qemu-all-test
+# ZE_TEST_NO_BUILD=1 set (the runner reuses the cross-compiled binaries instead
+# of recompiling on the slow 9p mount). Indices come from the ze-qemu-all-test
 # summary line, e.g. "failed 2 [264, 310]".
 #
 # Usage:
-#   make ze-qemu-debug RUN='bin/ze-test bgp parse 264 310 -v'
-#   make ze-qemu-debug RUN='bin/ze-test bgp plugin 79 -v'
-#   make ze-qemu-debug NOBUILD=1 RUN='bin/ze-test bgp parse 264 -v'  # reuse bin/ as-is
+#   make ze-qemu-debug RUN='bin/ze-test-linux-arm64 bgp parse 264 310 -v'
+#   make ze-qemu-debug RUN='bin/ze-test-linux-arm64 bgp plugin 79 -v'
+#   make ze-qemu-debug NOBUILD=1 RUN='bin/ze-test-linux-arm64 bgp parse 264 -v'
 #
 # By default it cross-compiles linux/$(QEMU_GOARCH) ze + ze-test from the current
 # working tree (debug the code you are editing). NOBUILD=1 skips the compile and
 # reuses whatever linux binaries already sit in bin/ (a prior cross-compile, or a
 # restored set) so you can debug a specific build without rebuilding.
 ze-qemu-debug:
-	@test -n "$(RUN)" || { echo 'usage: make ze-qemu-debug RUN='"'"'bin/ze-test bgp <suite> <N...> -v'"'"; exit 2; }
+	@test -n "$(RUN)" || { echo 'usage: make ze-qemu-debug RUN='"'"'$(ZE_QEMU_TEST_BIN) bgp <suite> <N...> -v'"'"; exit 2; }
 ifneq ($(NOBUILD),1)
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-test on host (CGO off)..."
 	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'zetest $(ZE_TAGS)' -o bin/ze ./cmd/ze
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -o bin/ze-test ./cmd/ze-test
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'zetest $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -o $(ZE_QEMU_TEST_BIN) ./cmd/ze-test
 endif
 	python3 scripts/evidence/qemu-run.py \
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
 		--timeout 1200 \
-		--run 'ZE_TEST_NO_BUILD=1 $(RUN)'
+		--run 'ZE_TEST_NO_BUILD=1 ZE_BIN="$(ZE_QEMU_BIN)" $(RUN)'
 
 # Boot a QEMU VM and keep it alive for interactive failure investigation.
 #
@@ -207,8 +209,8 @@ ze-qemu-shell:
 ifneq ($(NOBUILD),1)
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-test on host (CGO off)..."
 	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'zetest $(ZE_TAGS)' -o bin/ze ./cmd/ze
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -o bin/ze-test ./cmd/ze-test
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'zetest $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -o $(ZE_QEMU_TEST_BIN) ./cmd/ze-test
 endif
 	python3 scripts/evidence/qemu-run.py \
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \

@@ -39,3 +39,29 @@ func TestBuildNoBuildSkip(t *testing.T) {
 	}
 	require.NoError(t, r.Build(context.Background()), "Build must skip and succeed when prebuilt binaries exist")
 }
+
+func TestBuildNoBuildWithEnvOverride(t *testing.T) {
+	t.Setenv("ZE_TEST_NO_BUILD", "1")
+	baseDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(baseDir, "bin"), 0o755))
+
+	zeBin := filepath.Join(baseDir, "bin", "ze-linux-arm64")
+	testBin := filepath.Join(baseDir, "bin", "ze-test-linux-arm64")
+	t.Setenv("ZE_BIN", zeBin)
+	t.Setenv("ZE_TEST_BIN", testBin)
+
+	r, err := NewRunner(NewEncodingTests(baseDir), baseDir)
+	require.NoError(t, err)
+	defer r.Cleanup()
+
+	// Arch-suffixed binaries absent: must fail pointing at the overridden path.
+	err = r.Build(context.Background())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ze-linux-arm64")
+
+	// Arch-suffixed binaries present: must succeed.
+	for _, p := range []string{zeBin, testBin} {
+		require.NoError(t, os.WriteFile(p, []byte("prebuilt"), 0o755))
+	}
+	require.NoError(t, r.Build(context.Background()))
+}

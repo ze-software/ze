@@ -564,6 +564,12 @@ func runClientOnly(ctx context.Context, cli *runCLIFlags, tests *runner.Encoding
 // target (e.g. a QEMU VM over 9p) even when a host cross-compiled binary exists.
 func buildZe(ctx context.Context, baseDir string) (string, error) {
 	zePath := filepath.Join(baseDir, "bin", "ze")
+	if v := os.Getenv("ZE_BIN"); v != "" {
+		if !filepath.IsAbs(v) {
+			v = filepath.Join(baseDir, v)
+		}
+		zePath = v
+	}
 	if os.Getenv("ZE_TEST_NO_BUILD") == "1" {
 		if _, err := os.Stat(zePath); err != nil {
 			return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", zePath, err)

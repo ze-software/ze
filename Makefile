@@ -374,7 +374,7 @@ help-test:
 	@echo ""
 	@echo "  QEMU (macOS-friendly, no Docker Desktop kernel limits):"
 	@echo "    ze-qemu-all-test          FULL suite in QEMU: functional + unit + integration (host-compiled)"
-	@echo "    ze-qemu-debug RUN=...      Run specific tests verbosely in QEMU (RUN='bin/ze-test bgp parse 91 -v')"
+	@echo "    ze-qemu-debug RUN=...      Run specific tests verbosely in QEMU (RUN='bin/ze-test-linux-arm64 bgp parse 91 -v')"
 	@echo "    ze-qemu-shell             Persistent QEMU VM for interactive debugging (run in background)"
 	@echo "    ze-qemu-integration-test  Integration tests in QEMU Alpine VM"
 	@echo "    ze-qemu-l2tp-ppp-test     L2TP PPP/NCP in QEMU with gokrazy kernel"

@@ -83,12 +83,28 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 
 	colors := NewColors()
 	binDir := filepath.Join(baseDir, "bin")
+
+	zePath := filepath.Join(binDir, "ze")
+	if v := os.Getenv("ZE_BIN"); v != "" {
+		if !filepath.IsAbs(v) {
+			v = filepath.Join(baseDir, v)
+		}
+		zePath = v
+	}
+	testBinPath := filepath.Join(binDir, "ze-test")
+	if v := os.Getenv("ZE_TEST_BIN"); v != "" {
+		if !filepath.IsAbs(v) {
+			v = filepath.Join(baseDir, v)
+		}
+		testBinPath = v
+	}
+
 	return &Runner{
 		tests:    tests,
 		baseDir:  baseDir,
 		tmpDir:   tmpDir,
-		zePath:   filepath.Join(binDir, "ze"),
-		testPath: filepath.Join(binDir, "ze-test"),
+		zePath:   zePath,
+		testPath: testBinPath,
 		colors:   colors,
 		display:  NewDisplay(tests.Tests, colors),
 		report:   NewReport(colors),
