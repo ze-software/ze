@@ -42,6 +42,7 @@ const (
 	TypePrefix   // CIDR prefix
 	TypeDuration // time.Duration (e.g., "100ms", "5s")
 	TypeInt      // signed integer
+	TypeEmpty    // YANG "type empty": valueless presence flag (e.g. "no-default-route;")
 )
 
 func (t ValueType) String() string {
@@ -66,6 +67,8 @@ func (t ValueType) String() string {
 		return "duration"
 	case TypeInt:
 		return "int"
+	case TypeEmpty:
+		return valueTypeEmpty
 	default:
 		return "unknown"
 	}
@@ -746,6 +749,14 @@ func ValidateValue(typ ValueType, value string) error {
 		_, err := strconv.Atoi(value)
 		if err != nil {
 			return fmt.Errorf("invalid int: %q", value)
+		}
+		return nil
+
+	case TypeEmpty:
+		// "type empty" leaves are valueless presence flags; the parser stores
+		// configTrue on presence. Anything else is a malformed flag.
+		if value != configTrue {
+			return fmt.Errorf("invalid empty flag: %q (presence flag takes no value)", value)
 		}
 		return nil
 

@@ -83,13 +83,16 @@ func serializeContainerInline(b *strings.Builder, child *Tree, name string, node
 // tree.multiValues directly rather than going through Get/GetSlice (which
 // would attempt to re-acquire the lock).
 func writeInlineLeaf(b *strings.Builder, tree *Tree, name string, node Node) bool {
-	switch node.(type) {
+	switch n := node.(type) {
 	case *LeafNode:
 		if v, ok := tree.values[name]; ok {
 			b.WriteString(" ")
 			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(normalizeBool(v)))
+			// "type empty" leaves inline as a bare flag with no value.
+			if n.Type != TypeEmpty {
+				b.WriteString(" ")
+				b.WriteString(quoteIfNeeded(normalizeBool(v)))
+			}
 			return true
 		}
 	case *MultiLeafNode:
@@ -257,8 +260,12 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 				b.WriteString("inactive: ")
 			}
 			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(normalizeBool(v)))
+			// "type empty" leaves are bare presence flags ("no-default-route");
+			// the tokenizer's ASI supplies the terminating ';' at the newline.
+			if n.Type != TypeEmpty {
+				b.WriteString(" ")
+				b.WriteString(quoteIfNeeded(normalizeBool(v)))
+			}
 			b.WriteString("\n")
 		}
 

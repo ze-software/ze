@@ -872,6 +872,8 @@ func yangTypeToValueType(t *gyang.YangType) ValueType {
 		return TypeString
 	case gyang.Ybool:
 		return TypeBool
+	case gyang.Yempty:
+		return TypeEmpty
 	case gyang.Yuint8, gyang.Yuint16:
 		return TypeUint16
 	case gyang.Yuint32, gyang.Yuint64:

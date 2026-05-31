@@ -177,6 +177,24 @@ func (p *Parser) parseNode(tree *Tree, name string, node Node) error {
 // parseLeaf parses a leaf value: `name value;`.
 // Sensitive leaves accept $9$-encoded values and decode them to plaintext.
 func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
+	// "type empty" leaves are presence flags. The canonical form is a bare
+	// "no-default-route;"; an explicit boolean ("no-default-route true;") is
+	// also accepted so serialized value-form output round-trips and the
+	// pre-TypeEmpty value form stays valid. Presence always records true.
+	if node.Type == TypeEmpty {
+		tok := p.tok.Peek()
+		if tok.Type == TokenWord || tok.Type == TokenString {
+			p.tok.Next() // consume and ignore the explicit presence value
+			tok = p.tok.Peek()
+		}
+		if tok.Type != TokenSemicolon {
+			return p.errorf(tok, "expected ';' after %s, got %s", name, tok.Type)
+		}
+		p.tok.Next()
+		tree.Set(name, configTrue)
+		return nil
+	}
+
 	tok := p.tok.Peek()
 
 	var value string

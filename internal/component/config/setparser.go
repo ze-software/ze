@@ -198,6 +198,14 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 
 	//nolint:gocritic // if-else chain preferred over type switch for exhaustive node handling
 	if leaf, ok := node.(*LeafNode); ok {
+		if leaf.Type == TypeEmpty {
+			// "type empty" leaves are presence flags: "set no-default-route".
+			if len(tokens) != 0 {
+				return fmt.Errorf("line %d: leaf %s is a flag and takes no value", lineNum, name)
+			}
+			tree.Set(name, configTrue)
+			return nil
+		}
 		if len(tokens) != 1 {
 			return fmt.Errorf("line %d: leaf %s expects exactly one value", lineNum, name)
 		}

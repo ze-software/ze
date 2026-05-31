@@ -5,7 +5,17 @@ Commit" → pre-existing failures >10 min): logged, not blocking unrelated commi
 
 ### 2026-05-31 — pppoe-client `no-default-route` rejected by config parser
 
-**Open.** `test/parse/iface-netlink-accepts-pppoe-client.ci` fails. It is
+**Resolved 2026-05-31** (commit pending). Fixed with a dedicated `TypeEmpty`
+value type wired end-to-end: `yangTypeToValueType` maps `gyang.Yempty → TypeEmpty`
+(`yang_schema.go`); `parseLeaf` accepts a bare presence flag, tolerating the
+explicit `name true;` form (`parser.go`); `ValidateValue` / `ValueType.String`
+cover it (`schema.go`, `valueTypeEmpty` constant in `constants.go`); the set-style
+parser accepts the bare flag (`setparser.go`); the serializer emits a bare flag
+that round-trips (`serialize.go`). Tests: `parser_type_empty_test.go` (9 cases:
+parse bare/value/absent/ASI, serialize + nested-container round-trip, set-parser,
+YANG-load `Yempty→TypeEmpty`, `ValidateValue`). Original diagnosis kept below.
+
+**Was Open.** `test/parse/iface-netlink-accepts-pppoe-client.ci` failed. It is
 `option=skip-os:value=darwin`, so it never ran on macOS and was first observed in
 the QEMU Linux VM run. `ze config validate` rejects the bare `no-default-route`
 flag:

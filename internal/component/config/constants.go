@@ -11,6 +11,9 @@ const (
 	configDisable = "disable" // Config value for disabled state
 	configRequire = "require" // Config value for required state
 	configSelf    = "self"    // Config value for next-hop self
+
+	// valueTypeEmpty is the YANG keyword for TypeEmpty leaves (presence flags).
+	valueTypeEmpty = "empty"
 )
 
 // extractSections lists environment sections consumed by ApplyEnvConfig
