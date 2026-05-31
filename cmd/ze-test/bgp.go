@@ -557,8 +557,19 @@ func runClientOnly(ctx context.Context, cli *runCLIFlags, tests *runner.Encoding
 // buildZe builds the ze binary into bin/ and returns its path.
 // Uses the project's bin/ directory so DefaultConfigDir() resolves correctly
 // (binary in bin/ → config in etc/ze via GNU prefix conventions).
+//
+// ZE_TEST_NO_BUILD=1 skips the compile and reuses a pre-built bin/ze, matching
+// runner.Runner.Build. The bgp suites (encode/plugin/decode/parse/reload) are
+// the bulk of the .ci corpus; without this they would recompile ze on a slow
+// target (e.g. a QEMU VM over 9p) even when a host cross-compiled binary exists.
 func buildZe(ctx context.Context, baseDir string) (string, error) {
 	zePath := filepath.Join(baseDir, "bin", "ze")
+	if os.Getenv("ZE_TEST_NO_BUILD") == "1" {
+		if _, err := os.Stat(zePath); err != nil {
+			return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", zePath, err)
+		}
+		return zePath, nil
+	}
 	cmd := exec.CommandContext(ctx, "go", "build", "-tags", runner.TestBuildTags(), "-o", zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")

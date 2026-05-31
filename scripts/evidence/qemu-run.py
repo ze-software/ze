@@ -31,8 +31,8 @@ ALPINE_MINOR = "3"
 ALPINE_ARCH = "aarch64" if platform.machine() == "arm64" else "x86_64"
 QEMU_BIN = f"qemu-system-{ALPINE_ARCH}"
 GO_VERSION = "1.25.9"
-VM_MEMORY = "2048"
-VM_CPUS = "4"
+VM_MEMORY = "16384"
+VM_CPUS = "8"
 BOOT_TIMEOUT = 60
 DEFAULT_CMD_TIMEOUT = 1200
 SSH_PORT = "2222"
@@ -46,9 +46,39 @@ def repo_root() -> Path:
     raise SystemExit("cannot locate repository root")
 
 
+TMP_SENTINEL = """\
+// Sentinel module: marks tmp/ as a separate (nested) module so that
+// `go list ./...` and `go test ./...` skip everything under tmp/.
+//
+// QEMU and Docker test runs store Go build/module caches under tmp/
+// (e.g. tmp/qemu/gomodcache, tmp/linux-gomodcache). Without this sentinel,
+// `go list ./...` descends into those caches and fails with
+// "directory ... outside main module or its selected dependencies", which
+// breaks `make ze-verify`. tmp/ is .gitignored, so this file is local-only;
+// scripts/evidence/qemu-run.py recreates it on each run.
+module ze-tmp-scratch
+
+go 1.25
+"""
+
+
+def ensure_tmp_sentinel(root: Path) -> None:
+    """Keep tmp/ out of `go list ./...` (see TMP_SENTINEL).
+
+    The VM populates a Go module cache under tmp/qemu/ on the 9p-shared repo;
+    without this, the host's `go list ./...` walks into it and `make ze-verify`
+    fails. Idempotent: only writes when missing so a hand-edited file is kept.
+    """
+    sentinel = root / "tmp" / "go.mod"
+    sentinel.parent.mkdir(parents=True, exist_ok=True)
+    if not sentinel.is_file():
+        sentinel.write_text(TMP_SENTINEL)
+
+
 def cache_dir(root: Path) -> Path:
     d = root / "tmp" / "qemu"
     d.mkdir(parents=True, exist_ok=True)
+    ensure_tmp_sentinel(root)
     (d / "iso").mkdir(exist_ok=True)
     (d / "go-dl").mkdir(exist_ok=True)
     (d / "go-cache").mkdir(exist_ok=True)
@@ -116,7 +146,7 @@ def qemu_args(iso: Path, root: Path, kernel: Path | None = None) -> list[str]:
         args.extend(
             [
                 "-machine",
-                "virt,highmem=off,accel=hvf:tcg",
+                "virt,highmem=on,accel=hvf:tcg",
                 "-cpu",
                 "max",
             ]
@@ -285,14 +315,28 @@ def run_in_vm(
             "/usr/sbin/sshd; "
             "echo SSHD_READY"
         )
-        send(proc, bootstrap)
-
-        print("  bootstrapping VM (network + sshd)...", file=sys.stderr)
-        if not expect(proc, "SSHD_READY", 90):
-            raise RuntimeError("timeout waiting for VM bootstrap (sshd)")
-
-        print("  waiting for SSH...", file=sys.stderr)
-        wait_for_ssh(timeout=30)
+        # Bootstrap can flake: the `;`-chained commands echo SSHD_READY even if
+        # ifup/apk/sshd raced or failed, and HVF boot timing varies. Re-run the
+        # bootstrap (re-attempting network + sshd) until SSH actually answers.
+        ready = False
+        for attempt in range(1, 4):
+            send(proc, bootstrap)
+            print(
+                f"  bootstrapping VM (network + sshd), attempt {attempt}...",
+                file=sys.stderr,
+            )
+            if not expect(proc, "SSHD_READY", 90):
+                continue
+            print("  waiting for SSH...", file=sys.stderr)
+            try:
+                wait_for_ssh(timeout=30)
+                ready = True
+                break
+            except RuntimeError:
+                print("  SSH not up yet; re-running bootstrap...", file=sys.stderr)
+                time.sleep(2)
+        if not ready:
+            raise RuntimeError("VM bootstrap failed: SSH not reachable after retries")
         print("  VM ready.", file=sys.stderr)
 
         go_arch = "arm64" if ALPINE_ARCH == "aarch64" else "amd64"

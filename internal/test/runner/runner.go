@@ -121,7 +121,16 @@ func (r *Runner) Cleanup() {
 }
 
 // Build compiles the test binaries.
+//
+// ZE_TEST_NO_BUILD=1 skips the in-process `go build` and uses pre-built binaries
+// already present at r.zePath / r.testPath. This lets a slow target (e.g. a QEMU
+// VM whose only writable storage is a slow 9p mount) reuse binaries cross-compiled
+// on a fast host, instead of compiling the whole tree inside the VM.
 func (r *Runner) Build(ctx context.Context) error {
+	if os.Getenv("ZE_TEST_NO_BUILD") == "1" {
+		return r.verifyPrebuilt()
+	}
+
 	r.display.BuildStatus(true, nil)
 
 	// Build ze (with version ldflags matching Makefile convention)
@@ -156,6 +165,28 @@ func (r *Runner) Build(ctx context.Context) error {
 		}
 	}
 
+	r.display.BuildStatus(false, nil)
+	return nil
+}
+
+// verifyPrebuilt is the ZE_TEST_NO_BUILD path: it checks that the binaries the
+// runner would otherwise build already exist, rather than building them. Extra
+// binaries (e.g. ze-chaos) are not supported in this mode and must be built
+// normally.
+func (r *Runner) verifyPrebuilt() error {
+	r.display.BuildStatus(true, nil)
+	for _, p := range []string{r.zePath, r.testPath} {
+		if _, err := os.Stat(p); err != nil {
+			buildErr := fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", p, err)
+			r.display.BuildStatus(false, buildErr)
+			return buildErr
+		}
+	}
+	if len(r.extraBinaries) > 0 {
+		buildErr := fmt.Errorf("ZE_TEST_NO_BUILD does not support extra binaries: %v", r.extraBinaries)
+		r.display.BuildStatus(false, buildErr)
+		return buildErr
+	}
 	r.display.BuildStatus(false, nil)
 	return nil
 }

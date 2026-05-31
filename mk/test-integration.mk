@@ -20,7 +20,7 @@
 .PHONY: ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-docker-evidence ze-deployment-preflight
-.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-ldp-frr-test ze-install-qemu-test
+.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-ldp-frr-test ze-install-qemu-test ze-qemu-all-test
 
 # ─── Interop ────────────────────────────────────────────────────────────────
 
@@ -127,6 +127,35 @@ ze-deployment-preflight:
 	exit $$missing
 
 # ─── QEMU ───────────────────────────────────────────────────────────────────
+
+# Full test suite in one QEMU Linux VM, host-compile / run-in-VM:
+#   - ze + ze-test are cross-compiled on the host (CGO off) and shared into the
+#     VM over 9p; ZE_TEST_NO_BUILD=1 makes every functional suite reuse them
+#     instead of recompiling the tree on the slow 9p mount.
+#   - unit + integration Go tests still compile in the VM (incremental, cache on
+#     9p), no -race (Alpine has no C compiler; race coverage comes from native /
+#     Linux-CI unit runs). The VM's unique value: //go:build linux paths and the
+#     integration-tagged netlink/nft/fib/socket tests.
+# GOARCH is derived from the host (Apple Silicon -> arm64, Intel -> amd64) so the
+# binaries match the VM. ZE_QEMU_SKIP_SUITES (default: web, which needs
+# agent-browser) lets you drop suites that cannot run headless in the VM.
+# This OVERWRITES bin/ze and bin/ze-test with Linux binaries; rebuild with
+# `make ze test` afterwards if you need host binaries.
+QEMU_GOARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
+ZE_QEMU_SKIP_SUITES ?= web
+ZE_QEMU_PARALLEL ?= 4
+
+ze-qemu-all-test:
+	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-test on host (CGO off)..."
+	@mkdir -p bin
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'zetest $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -o bin/ze-test ./cmd/ze-test
+	@echo "Running full test suite in QEMU Linux VM (host-compiled binaries; no in-VM ze/ze-test compile)..."
+	python3 scripts/evidence/qemu-run.py \
+		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
+		--timeout 3600 \
+		--run 'ZE_QEMU_SKIP_SUITES="$(ZE_QEMU_SKIP_SUITES)" ZE_QEMU_PARALLEL="$(ZE_QEMU_PARALLEL)" bash scripts/evidence/qemu-all-tests.sh'
+	@printf '\n\033[33mNOTE:\033[0m bin/ze and bin/ze-test are now linux/%s binaries; run "make ze test" to restore host binaries.\n' "$(QEMU_GOARCH)"
 
 ze-qemu-integration-test:
 	@echo "Running integration tests in QEMU Linux VM (requires qemu + internet for first run)..."

@@ -373,6 +373,7 @@ help-test:
 	@echo "    ze-integration-traffic-test   tc qdisc"
 	@echo ""
 	@echo "  QEMU (macOS-friendly, no Docker Desktop kernel limits):"
+	@echo "    ze-qemu-all-test          FULL suite in QEMU: functional + unit + integration (host-compiled)"
 	@echo "    ze-qemu-integration-test  Integration tests in QEMU Alpine VM"
 	@echo "    ze-qemu-l2tp-ppp-test     L2TP PPP/NCP in QEMU with gokrazy kernel"
 	@echo "    ze-qemu-ldp-frr-test      LDP interop against FRR ldpd in QEMU"
