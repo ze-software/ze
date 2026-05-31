@@ -2,6 +2,7 @@ package healthcheck
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"testing"
 )
@@ -96,8 +97,8 @@ func TestIPDynamicRemoveOnDown(t *testing.T) {
 	mgr := &probeManager{
 		probes: make(map[string]*runningProbe),
 		ipMgr:  mock,
-		dispatchFn: func(ctx context.Context, _ string) (string, string, error) {
-			return "done", "", nil
+		dispatchFn: func(ctx context.Context, _ string) (string, json.RawMessage, error) {
+			return "done", nil, nil
 		},
 	}
 	cfg := ProbeConfig{IPDynamic: true}
@@ -115,8 +116,8 @@ func TestIPDynamicRemoveOnDisabled(t *testing.T) {
 	mgr := &probeManager{
 		probes: make(map[string]*runningProbe),
 		ipMgr:  mock,
-		dispatchFn: func(_ context.Context, _ string) (string, string, error) {
-			return "done", "", nil
+		dispatchFn: func(_ context.Context, _ string) (string, json.RawMessage, error) {
+			return "done", nil, nil
 		},
 	}
 	cfg := ProbeConfig{IPDynamic: true}
@@ -134,8 +135,8 @@ func TestIPDynamicRestoreOnUp(t *testing.T) {
 	mgr := &probeManager{
 		probes: make(map[string]*runningProbe),
 		ipMgr:  mock,
-		dispatchFn: func(_ context.Context, _ string) (string, string, error) {
-			return "done", "", nil
+		dispatchFn: func(_ context.Context, _ string) (string, json.RawMessage, error) {
+			return "done", nil, nil
 		},
 	}
 	cfg := ProbeConfig{IPDynamic: true}
@@ -170,8 +171,8 @@ func TestIPStaticKeepOnDown(t *testing.T) {
 	mgr := &probeManager{
 		probes: make(map[string]*runningProbe),
 		ipMgr:  mock,
-		dispatchFn: func(ctx context.Context, _ string) (string, string, error) {
-			return "done", "", nil
+		dispatchFn: func(ctx context.Context, _ string) (string, json.RawMessage, error) {
+			return "done", nil, nil
 		},
 	}
 	cfg := ProbeConfig{IPDynamic: false}

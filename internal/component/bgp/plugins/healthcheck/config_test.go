@@ -2,6 +2,7 @@ package healthcheck
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -315,8 +316,8 @@ func TestExternalModeRejectsIPSetup(t *testing.T) {
 	mgr := &probeManager{
 		probes:   make(map[string]*runningProbe),
 		internal: false,
-		dispatchFn: func(_ context.Context, _ string) (string, string, error) {
-			return "done", "", nil
+		dispatchFn: func(_ context.Context, _ string) (string, json.RawMessage, error) {
+			return "done", nil, nil
 		},
 	}
 
@@ -341,8 +342,8 @@ func TestExternalModeAcceptsNoIPSetup(t *testing.T) {
 	mgr := &probeManager{
 		probes:   make(map[string]*runningProbe),
 		internal: false,
-		dispatchFn: func(_ context.Context, _ string) (string, string, error) {
-			return "done", "", nil
+		dispatchFn: func(_ context.Context, _ string) (string, json.RawMessage, error) {
+			return "done", nil, nil
 		},
 	}
 
@@ -362,8 +363,8 @@ func TestInternalModeAcceptsIPSetup(t *testing.T) {
 	mgr := &probeManager{
 		probes:   make(map[string]*runningProbe),
 		internal: true,
-		dispatchFn: func(_ context.Context, _ string) (string, string, error) {
-			return "done", "", nil
+		dispatchFn: func(_ context.Context, _ string) (string, json.RawMessage, error) {
+			return "done", nil, nil
 		},
 	}
 

@@ -587,7 +587,7 @@ flow through `bridge.CallbackCh()`.
 | Engine to Plugin events (text) | RPC envelope -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `onEvent` | `bridge.DeliverEvents(events)` -> `onEvent` directly |
 | Engine to Plugin events (structured) | -- | `bridge.DeliverStructured([]any)` -> `onStructuredEvent` with `*StructuredEvent` (no text formatting, no JSON parsing) |
 | Plugin to Engine RPCs (generic) | `json.Marshal` -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `dispatcher.Dispatch` | `bridge.DispatchRPC(method, params)` -> `dispatcher.Dispatch` directly |
-| Plugin to Engine dispatch-command | JSON marshal `DispatchCommandInput` -> RPC -> unmarshal -> dispatch | `bridge.DispatchCommand(command)` -> `dispatchCommand()` directly (Go strings, no JSON) |
+| Plugin to Engine dispatch-command | JSON marshal `DispatchCommandInput` -> RPC -> unmarshal -> dispatch | `bridge.DispatchCommand(command)` -> `dispatchCommand()` directly (struct passthrough, no serialization) |
 | Plugin to Engine emit-event | JSON marshal `EmitEventInput` -> RPC -> unmarshal -> deliver | `bridge.EmitEvent(namespace, eventType, ...)` -> `deliverEvent()` directly (Go strings, no JSON) |
 | Engine to Plugin callbacks | MuxConn RPC + 3-way select | `bridge.SendCallback()` -> callback channel -> `bridgeEventLoop` 2-way select |
 
@@ -780,8 +780,11 @@ Plugins can dispatch commands to other plugins via the engine:
 
 ```
 #4 ze-plugin-engine:dispatch-command {"command":"rib adjacent inbound show"}
-#4 ok {"status":"done","data":"{...}"}
+#4 ok {"status":"done","data":{...}}
 ```
+
+The `data` field carries raw JSON (single-decode). On error, the response uses a
+separate `error` field: `{"status":"error","error":"message"}`.
 
 The engine routes the command to the target plugin via longest-match registry lookup.
 

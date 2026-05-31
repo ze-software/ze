@@ -10,6 +10,7 @@ package rs
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net"
 	"strconv"
@@ -149,7 +150,7 @@ type RouteServer struct {
 
 	// dispatchCommandHook is called instead of SDK DispatchCommand for test inspection.
 	// Nil in production (zero overhead).
-	dispatchCommandHook func(command string) (string, string, error)
+	dispatchCommandHook func(command string) (string, json.RawMessage, error)
 
 	// forwardCachedHook is called instead of Plugin.ForwardCached for tests that
 	// want to observe (ids, destinations) without a real engine connection.
@@ -256,7 +257,7 @@ func RunRouteServer(conn net.Conn) int {
 	})
 
 	// Register command handler: responds to "rs status" and "rs peers"
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return rs.handleCommand(command)
 	})
 
@@ -346,7 +347,7 @@ func (rs *RouteServer) releaseCache(msgID uint64) {
 }
 
 // dispatchCommand calls DispatchCommand via the SDK or the test hook.
-func (rs *RouteServer) dispatchCommand(ctx context.Context, command string) (string, string, error) {
+func (rs *RouteServer) dispatchCommand(ctx context.Context, command string) (string, json.RawMessage, error) {
 	if rs.dispatchCommandHook != nil {
 		return rs.dispatchCommandHook(command)
 	}

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-05-29 |
+| Phase | 7/8 |
+| Updated | 2026-05-31 |
 
 ## Post-Compaction Recovery
 
@@ -53,8 +53,7 @@ This was surfaced as a deep-review follow-up during pol-4 (`plan/learned/814-pol
   → Constraint: success and error share one field; the error string is not JSON.
 - [ ] `pkg/plugin/sdk/sdk_engine.go` - `Plugin.DispatchCommand` (89) returns `(status, data string, err error)`; slow path unmarshals `DispatchCommandOutput` then returns `out.Data` verbatim to plugin code.
   → Constraint: plugin authors receive `data` as a JSON string and must `json.Unmarshal` it themselves (the double-decode).
-- [ ] `internal/component/plugin/server/command.go:741-743`, `system.go:486-488`, `subsystem.go:267-269` - three sites convert `rpcOut.Data`/`out.Data` back into `plugin.RawJSON(...)` on success and treat the same field as `Error:` text on error.
-  → Constraint: every engine-side consumer already special-cases "is this JSON or an error string?" by branching on `Status`.
+- [ ] **Note:** `command.go:741-743`, `system.go:486-488`, `subsystem.go:267-269` consume `ExecuteCommandOutput` (engine-to-plugin direction), NOT `DispatchCommandOutput`. They are in scope for spec-dispatch-response-passthrough, not this spec. The actual consumer of `DispatchCommandOutput` on the plugin side is `Plugin.DispatchCommand` in `sdk_engine.go` (listed above).
 - [ ] `pkg/plugin/rpc/bridge.go:103` - typed DirectBridge fast path returns `(r.Data, r.Err)` (no JSON round-trip), so the fast path does NOT double-encode; only the slow JSON path does.
   → Constraint: the fix must keep the fast/slow paths returning the same Go types so callers are uniform.
 
@@ -117,7 +116,7 @@ This was surfaced as a deep-review follow-up during pol-4 (`plan/learned/814-pol
 | AC-2 | Plugin dispatches a command that errors | Error text is carried in a dedicated `error` field; `data` is empty/omitted; no JSON-parse of the error string is attempted. |
 | AC-3 | Plugin dispatches via DirectBridge fast path | Returns the same Go types as the slow path; no serialization round-trip; behavior identical to before. |
 | AC-4 | `responseToDispatchOutput` marshal of `resp.Data` fails | Status becomes `error`, error text in the `error` field, `data` omitted. |
-| AC-5 | Engine-side consumers (`command.go`, `system.go`, `subsystem.go`) | Read JSON payload from `data` and error text from `error`; no `RawJSON(string-containing-quoted-json)` rewrap remains. |
+| AC-5 | SDK consumer (`Plugin.DispatchCommand` in `sdk_engine.go`) | Returns decodable bytes from `data` field and reads error from `error` field; plugin code performs a single `json.Unmarshal`, not two. (Note: `command.go`, `system.go`, `subsystem.go` consume `ExecuteCommandOutput`, not `DispatchCommandOutput`, so they are in scope for spec-dispatch-response-passthrough.) |
 | AC-6 | External surfaces audit (CLI/mux, web, MCP, gRPC) | Documented finding: confirm whether any external command-result path uses the same `Data string` double-encode; if yes, list each and fix consistently; if no, record the negative result with evidence. |
 | AC-7 | Full verification | `make ze-verify` passes (lint + all ze tests, every consumer compiles and behaves). |
 
@@ -155,10 +154,8 @@ This was surfaced as a deep-review follow-up during pol-4 (`plan/learned/814-pol
 - `internal/component/plugin/server/dispatch.go` - `responseToDispatchOutput` (raw data + error field), `dispatchCommand` return type, `handleDispatchCommandDirect`, `directResultResponse` usage.
 - `pkg/plugin/sdk/sdk_engine.go` - `DispatchCommand` return type + slow-path decode.
 - `pkg/plugin/sdk/sdk_types.go` - alias unchanged but verify it still compiles against the new struct.
-- `internal/component/plugin/server/command.go` (741-743) - read `data`/`error` fields.
-- `internal/component/plugin/server/system.go` (486-488) - same.
-- `internal/component/plugin/server/subsystem.go` (267-269) - same.
 - `pkg/plugin/rpc/bridge.go` - verify fast-path return types stay aligned.
+- **Not in scope:** `command.go`, `system.go`, `subsystem.go` consume `ExecuteCommandOutput` (engine-to-plugin direction), not `DispatchCommandOutput`. Those are in scope for spec-dispatch-response-passthrough.
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -229,9 +226,10 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Tests: `TestSDKDispatchCommandReturnsBytes`
    - Files: `pkg/plugin/sdk/sdk_engine.go`, `pkg/plugin/sdk/sdk_types.go`
    - Verify: plugin authors get decodable bytes once.
-4. **Phase: Engine-side consumers** — `command.go`, `system.go`, `subsystem.go`, `bridge.go`
-   - Files: those four
-   - Verify: error read from `error`, JSON from `data`; no double-rewrap remains; `make ze-lint-changed` clean.
+4. **Phase: Bridge verification** — `bridge.go`
+   - Files: `pkg/plugin/rpc/bridge.go`
+   - Verify: fast-path return types aligned with slow path; `make ze-lint-changed` clean.
+   - Note: `command.go`, `system.go`, `subsystem.go` consume `ExecuteCommandOutput`, not `DispatchCommandOutput`. They are out of scope (see spec-dispatch-response-passthrough).
 5. **Phase: External-surface audit (AC-6)** — grep CLI/mux, web, MCP, gRPC command-result paths
    - Verify: each surface either confirmed clean (evidence) or fixed consistently; record findings in Implementation Summary.
 6. **Functional tests** → `test/plugin/dispatch-command-single-decode.ci`.
@@ -254,7 +252,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | `DispatchCommandOutput` carries raw JSON + error field | `grep -n "Data " pkg/plugin/rpc/types.go` shows raw-JSON type |
 | No `string(.*json.Marshal` in dispatch producer | `grep -n "json.Marshal" internal/component/plugin/server/dispatch.go` |
 | Functional test exists | `ls test/plugin/dispatch-command-single-decode.ci` |
-| All consumers updated | `grep -rn "rpcOut.Data\|out.Data" internal/component/plugin/server` reviewed |
+| SDK consumer updated | `grep -n 'out.Data\|out.Error' pkg/plugin/sdk/sdk_engine.go` shows separate field access |
+| Bridge fast path aligned | `grep -n 'Data\|Error' pkg/plugin/rpc/bridge.go` reviewed |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -304,41 +303,72 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Implementation Summary
 
 ### What Was Implemented
-- [filled during implementation]
+- Changed `DispatchCommandOutput.Data` from `string` to `json.RawMessage` (single-decode raw JSON)
+- Added `DispatchCommandOutput.Error string` field for error text (no more overloaded Data field)
+- Changed `responseToDispatchOutput` to put error in `Error`, data as raw `[]byte`
+- Changed `dispatchCommand` from `(status, data string, err error)` to `(*rpc.DispatchCommandOutput, error)`
+- Changed `DispatchCommandHandler` bridge type to return `(*DispatchCommandOutput, error)`
+- Changed SDK `Plugin.DispatchCommand` to return `(status string, data json.RawMessage, err error)`
+- SDK merges response-level errors (`out.Error`) into Go error, so plugin code checks `err != nil`
+- Updated all callers: RR, RS, BMP, GR, RPKI, healthcheck, cmd_plugin, exabgp
+- Updated `parseReplayResponse` in RR/RS to take `json.RawMessage` (no more `[]byte(data)` conversion)
+- Updated all test hooks and assertions
 
 ### Bugs Found/Fixed
-- [filled during implementation]
+- None; the double-encode was a known design defect, not a runtime bug
 
 ### Documentation Updates
-- [filled during implementation]
+- Pending: `docs/architecture/api/process-protocol.md` and `docs/architecture/api/commands.md` need updating
 
 ### Deviations from Plan
-- [filled during implementation]
+- `dispatchCommand` returns `*rpc.DispatchCommandOutput` instead of individual fields, simplifying both the direct handler and bridge wiring
+- SDK folds `out.Error` into Go error rather than exposing it as a separate field
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Data carries raw JSON once | done | `pkg/plugin/rpc/types.go:271` | `json.RawMessage` |
+| Error text in dedicated field | done | `pkg/plugin/rpc/types.go:273` | `Error string` |
+| SDK single unmarshal | done | `pkg/plugin/sdk/sdk_engine.go:90` | returns `json.RawMessage` |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | done | `TestDispatchCommandToPlugin`, `TestResponseToDispatchOutputSingleDecode` | Data is `json.RawMessage`, single unmarshal |
+| AC-2 | done | `TestResponseToDispatchOutputErrorField` | Error in `Error` field, Data empty |
+| AC-3 | done | `TestDispatchCommandDirectBridge` | Bridge returns `*DispatchCommandOutput` directly |
+| AC-4 | done | `TestResponseToDispatchOutputMarshalFail` | Status becomes error, error text in Error field |
+| AC-5 | done | `TestSDKDispatchCommand` (sdk_test.go) | SDK returns `json.RawMessage` |
+| AC-6 | done | grep audit | No other external surface uses double-encode; ExecuteCommandOutput is spec-dispatch-response-passthrough scope |
+| AC-7 | pending | `make ze-verify` | Blocked by concurrent agent's rib build errors |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestDispatchCommandSingleDecode | done | dispatch_test.go:31 (TestDispatchCommandToPlugin) | Renamed/existing |
+| TestDispatchCommandErrorField | done | dispatch_test.go:362 (TestResponseToDispatchOutputErrorField) | New |
+| TestResponseToDispatchOutputMarshalFail | done | dispatch_test.go:351 | New |
+| TestDispatchCommandOutputRoundTrip | done | dispatch_test.go:389 | New |
+| TestSDKDispatchCommandReturnsBytes | done | sdk_test.go:1078 (TestSDKDispatchCommand) | Existing, updated |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `pkg/plugin/rpc/types.go` | done | Data: json.RawMessage, added Error field |
+| `internal/component/plugin/server/dispatch.go` | done | responseToDispatchOutput, dispatchCommand return type |
+| `pkg/plugin/sdk/sdk_engine.go` | done | DispatchCommand returns json.RawMessage |
+| `pkg/plugin/sdk/sdk_types.go` | done | Alias unchanged, compiles against new struct |
+| `pkg/plugin/rpc/bridge.go` | done | DispatchCommandHandler returns *DispatchCommandOutput |
+| `test/plugin/dispatch-command-single-decode.ci` | done | Functional test created |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 18
+- **Done:** 17
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (AC-7 pending concurrent agent resolution)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |

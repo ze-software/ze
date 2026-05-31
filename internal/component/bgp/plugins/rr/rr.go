@@ -148,7 +148,7 @@ func RunRouteReflector(conn net.Conn) int {
 	})
 
 	// Register command handler.
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		return rr.handleCommand(command)
 	})
 
@@ -418,7 +418,7 @@ func (rr *RouteReflector) dispatchText(text string) {
 }
 
 // handleCommand processes command requests via SDK execute-command callback.
-func (rr *RouteReflector) handleCommand(command string) (string, string, error) {
+func (rr *RouteReflector) handleCommand(command string) (string, any, error) {
 	switch command {
 	case "show rr status":
 		return statusDone, `{"running":true}`, nil
@@ -502,7 +502,7 @@ func (rr *RouteReflector) replayForPeer(peerAddr string, gen uint64) {
 }
 
 // dispatchCommand sends a command to the engine via the SDK.
-func (rr *RouteReflector) dispatchCommand(ctx context.Context, command string) (string, string, error) {
+func (rr *RouteReflector) dispatchCommand(ctx context.Context, command string) (string, json.RawMessage, error) {
 	return rr.plugin.DispatchCommand(ctx, command)
 }
 
@@ -528,12 +528,12 @@ func (rr *RouteReflector) sendEOR(peerAddr string, gen uint64) {
 }
 
 // parseReplayResponse extracts last-index and replayed count from a replay response.
-func parseReplayResponse(data string) (lastIndex uint64, replayed int) {
+func parseReplayResponse(data json.RawMessage) (lastIndex uint64, replayed int) {
 	var resp struct {
 		LastIndex uint64 `json:"last-index"`
 		Replayed  int    `json:"replayed"`
 	}
-	if err := json.Unmarshal([]byte(data), &resp); err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return 0, 0
 	}
 	return resp.LastIndex, resp.Replayed

@@ -222,16 +222,16 @@ func responseToDispatchOutput(resp *plugin.Response) *rpc.DispatchCommandOutput 
 	}
 	output.Status = resp.Status
 	if resp.Error != "" {
-		output.Data = resp.Error
+		output.Error = resp.Error
 		return output
 	}
 	if resp.Data != nil {
 		encoded, err := json.Marshal(resp.Data)
 		if err != nil {
 			output.Status = plugin.StatusError
-			output.Data = "marshal response data: " + err.Error()
+			output.Error = "marshal response data: " + err.Error()
 		} else {
-			output.Data = string(encoded)
+			output.Data = encoded
 		}
 	}
 	return output
@@ -609,17 +609,17 @@ func (s *Server) handleDispatchCommandDirect(proc *process.Process, params json.
 	if err := json.Unmarshal(params, &input); err != nil {
 		return nil, &rpc.RPCCallError{Message: "invalid dispatch-command params: " + err.Error()}
 	}
-	status, data, err := s.dispatchCommand(proc, input.Command)
+	out, err := s.dispatchCommand(proc, input.Command)
 	if err != nil {
 		return nil, &rpc.RPCCallError{Message: err.Error()}
 	}
-	return directResultResponse(&rpc.DispatchCommandOutput{Status: status, Data: data})
+	return directResultResponse(out)
 }
 
 // dispatchCommand is the core dispatch-command logic shared by JSON and typed paths.
 // Creates command context, dispatches through the command registry, and returns
-// the status/data result. Logs failures with shutdown awareness.
-func (s *Server) dispatchCommand(proc *process.Process, command string) (status, data string, err error) {
+// the full DispatchCommandOutput. Logs failures with shutdown awareness.
+func (s *Server) dispatchCommand(proc *process.Process, command string) (*rpc.DispatchCommandOutput, error) {
 	cmdCtx := &CommandContext{
 		Server:         s,
 		Process:        proc,
@@ -630,18 +630,17 @@ func (s *Server) dispatchCommand(proc *process.Process, command string) (status,
 	resp, dispatchErr := s.dispatcher.Dispatch(cmdCtx, command)
 	if dispatchErr != nil {
 		if errors.Is(dispatchErr, ErrSilent) {
-			return plugin.StatusDone, "", nil
+			return &rpc.DispatchCommandOutput{Status: plugin.StatusDone}, nil
 		}
 		if s.ctx.Err() != nil {
 			logger().Debug("dispatch-command failed (shutting down)", "plugin", proc.Name(), "command", command, "error", dispatchErr)
 		} else {
 			logger().Error("dispatch-command failed", "plugin", proc.Name(), "command", command, "error", dispatchErr)
 		}
-		return "", "", dispatchErr
+		return nil, dispatchErr
 	}
 
-	out := responseToDispatchOutput(resp)
-	return out.Status, out.Data, nil
+	return responseToDispatchOutput(resp), nil
 }
 
 // handleSubscribeEventsDirect handles subscribe-events without socket I/O.
@@ -716,7 +715,7 @@ func (s *Server) wireBridgeDispatch(proc *process.Process) {
 	proc.Bridge().SetEmitEvent(func(namespace, eventType, direction, peerAddress, event string) (int, error) {
 		return s.deliverEvent(proc, namespace, eventType, direction, peerAddress, event)
 	})
-	proc.Bridge().SetDispatchCommand(func(command string) (status, data string, err error) {
+	proc.Bridge().SetDispatchCommand(func(command string) (*rpc.DispatchCommandOutput, error) {
 		return s.dispatchCommand(proc, command)
 	})
 	// rs-fastpath-3: typed fast paths for forward-cached + release-cached.

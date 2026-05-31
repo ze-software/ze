@@ -268,12 +268,12 @@ func (rs *RouteServer) sendEOR(peerAddr string, gen uint64) {
 
 // parseReplayResponse extracts last-index and replayed count from a replay response.
 // Expected format: {"last-index":N,"replayed":M}.
-func parseReplayResponse(data string) (lastIndex uint64, replayed int) {
+func parseReplayResponse(data json.RawMessage) (lastIndex uint64, replayed int) {
 	var resp struct {
 		LastIndex uint64 `json:"last-index"`
 		Replayed  int    `json:"replayed"`
 	}
-	if err := json.Unmarshal([]byte(data), &resp); err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return 0, 0
 	}
 	return resp.LastIndex, resp.Replayed

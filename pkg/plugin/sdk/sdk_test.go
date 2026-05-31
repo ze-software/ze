@@ -552,8 +552,8 @@ func TestSDKExecuteCommand(t *testing.T) {
 
 	p, engine := newTestPair(t)
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
-		return "done", `{"routes":[]}`, nil
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+		return "done", map[string]any{"routes": []any{}}, nil
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -579,12 +579,12 @@ func TestSDKExecuteCommand(t *testing.T) {
 
 	// CallRPC returns the result payload directly
 	var result struct {
-		Status string `json:"status"`
-		Data   string `json:"data"`
+		Status string          `json:"status"`
+		Data   json.RawMessage `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(raw, &result))
 	assert.Equal(t, "done", result.Status)
-	assert.Equal(t, `{"routes":[]}`, result.Data)
+	assert.JSONEq(t, `{"routes":[]}`, string(result.Data))
 
 	// Shutdown
 	byeInput := struct {
@@ -1108,8 +1108,8 @@ func TestSDKDispatchCommand(t *testing.T) {
 			dispatchDone <- fmt.Errorf("unexpected status: %s", status)
 			return
 		}
-		if data != `{"last-index":42}` {
-			dispatchDone <- fmt.Errorf("unexpected data: %s", data)
+		if string(data) != `{"last-index":42}` {
+			dispatchDone <- fmt.Errorf("unexpected data: %s", string(data))
 			return
 		}
 		dispatchDone <- nil
@@ -1122,7 +1122,7 @@ func TestSDKDispatchCommand(t *testing.T) {
 	// Respond with result
 	dispatchResult := rpc.DispatchCommandOutput{
 		Status: rpc.StatusDone,
-		Data:   `{"last-index":42}`,
+		Data:   json.RawMessage(`{"last-index":42}`),
 	}
 	require.NoError(t, engine.mux.SendResult(ctx, req.ID, dispatchResult))
 

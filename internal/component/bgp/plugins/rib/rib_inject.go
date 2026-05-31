@@ -14,7 +14,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -135,7 +134,7 @@ func registerInjectCommands() {
 		handler CommandHandler
 	}{
 		{"bgp rib show-protocol", "Show routes for a specific protocol: <protocol> [peer-selector] [pipeline-args...]",
-			func(r *RIBManager, _ string, args []string) (string, string, error) {
+			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) < 1 {
 					return statusError, "", errShowProtocolRequiresProtocol
 				}
@@ -148,7 +147,7 @@ func registerInjectCommands() {
 				return statusDone, r.showProtocolPipeline(args[0], selector, pipelineArgs), nil
 			}},
 		{"bgp rib withdraw-protocol", "Withdraw all routes for a peer under a protocol",
-			func(r *RIBManager, _ string, args []string) (string, string, error) {
+			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) < 2 {
 					return statusError, "", errWithdrawProtocolRequiresProtocolPeerKey
 				}
@@ -156,7 +155,7 @@ func registerInjectCommands() {
 				return statusDone, `{"withdrawn":true}`, nil
 			}},
 		{"bgp rib withdraw-router", "Withdraw all routes for a router under a protocol",
-			func(r *RIBManager, _ string, args []string) (string, string, error) {
+			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) < 2 {
 					return statusError, "", errWithdrawRouterRequiresProtocolRouterPrefix
 				}
@@ -172,10 +171,10 @@ func registerInjectCommands() {
 }
 
 // showProtocolPipeline runs the show pipeline filtered to a single protocol's peers.
-func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []string) string {
+func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []string) any {
 	protoID, ok := redistevents.ProtocolIDOf(protocol)
 	if !ok {
-		return `{"error":"unknown protocol"}`
+		return json.RawMessage(`{"error":"unknown protocol"}`)
 	}
 
 	r.peerMu.RLock()
@@ -183,13 +182,12 @@ func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []stri
 
 	protoPeers := r.ribInPool[protoID]
 	if len(protoPeers) == 0 {
-		return `{"adj-rib-in":{}}`
+		return json.RawMessage(`{"adj-rib-in":{}}`)
 	}
 
 	_, pipeSelector, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {
-		data, _ := json.Marshal(map[string]any{"error": errMsg})
-		return string(data)
+		return map[string]any{"error": errMsg}
 	}
 	if pipeSelector != "" {
 		selector = pipeSelector
@@ -204,14 +202,14 @@ func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []stri
 
 	if !hasTerminal(stages) {
 		jt := newJSONTerminal(current)
-		return jt.Meta().JSON
+		return json.RawMessage(jt.Meta().JSON)
 	}
 
 	meta := current.Meta()
 	if meta.JSON != "" {
-		return meta.JSON
+		return json.RawMessage(meta.JSON)
 	}
-	return textbuf.StrIntStr(`{"count":`, int64(meta.Count), "}")
+	return map[string]any{"count": meta.Count}
 }
 
 // withdrawAllForPeer removes all routes for a peer under a given protocol.

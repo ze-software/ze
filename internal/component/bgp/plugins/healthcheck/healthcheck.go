@@ -76,7 +76,7 @@ func RunHealthcheckPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return mgr.handleCommand(command, args)
 	})
 
@@ -102,9 +102,9 @@ type probeManager struct {
 	plugin     *sdk.Plugin
 	probes     map[string]*runningProbe // name -> running probe
 	mu         sync.Mutex
-	internal   bool                                                              // true = goroutine mode (ip-setup allowed)
-	dispatchFn func(ctx context.Context, command string) (string, string, error) // injectable for tests
-	ipMgr      ipManager                                                         // injectable for tests
+	internal   bool                                                                       // true = goroutine mode (ip-setup allowed)
+	dispatchFn func(ctx context.Context, command string) (string, json.RawMessage, error) // injectable for tests
+	ipMgr      ipManager                                                                  // injectable for tests
 }
 
 // runningProbe tracks a running probe goroutine.
@@ -122,7 +122,7 @@ func newProbeManager(p *sdk.Plugin, internal bool) *probeManager {
 		internal: internal,
 		ipMgr:    realIPManager{},
 	}
-	mgr.dispatchFn = func(ctx context.Context, command string) (string, string, error) {
+	mgr.dispatchFn = func(ctx context.Context, command string) (string, json.RawMessage, error) {
 		return p.DispatchCommand(ctx, command)
 	}
 	return mgr
@@ -332,7 +332,7 @@ func (m *probeManager) handleIPTransition(ipt *ipTracker, cfg ProbeConfig, state
 }
 
 // handleCommand dispatches healthcheck CLI commands.
-func (m *probeManager) handleCommand(command string, args []string) (string, string, error) {
+func (m *probeManager) handleCommand(command string, args []string) (string, any, error) {
 	switch command {
 	case "healthcheck show":
 		return m.handleShow(args)
@@ -343,7 +343,7 @@ func (m *probeManager) handleCommand(command string, args []string) (string, str
 }
 
 // handleShow returns probe status as JSON.
-func (m *probeManager) handleShow(args []string) (string, string, error) {
+func (m *probeManager) handleShow(args []string) (string, any, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -403,7 +403,7 @@ func (m *probeManager) handleShow(args []string) (string, string, error) {
 
 // handleReset withdraws the current route and resets the probe FSM to INIT.
 // Holds the lock for the entire operation to prevent TOCTOU with concurrent applyConfig (#10).
-func (m *probeManager) handleReset(args []string) (string, string, error) {
+func (m *probeManager) handleReset(args []string) (string, any, error) {
 	if len(args) < 1 {
 		return statusError, "", errMissingProbeName
 	}

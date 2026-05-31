@@ -3,6 +3,8 @@ package healthcheck
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -13,8 +15,8 @@ import (
 func newTestManager() *probeManager {
 	return &probeManager{
 		probes: make(map[string]*runningProbe),
-		dispatchFn: func(_ context.Context, _ string) (string, string, error) {
-			return statusDone, "", nil
+		dispatchFn: func(_ context.Context, _ string) (string, json.RawMessage, error) {
+			return statusDone, nil, nil
 		},
 	}
 }
@@ -210,11 +212,11 @@ func TestDebounce(t *testing.T) {
 	mgr := &probeManager{
 		probes: make(map[string]*runningProbe),
 		ipMgr:  realIPManager{},
-		dispatchFn: func(_ context.Context, cmd string) (string, string, error) {
+		dispatchFn: func(_ context.Context, cmd string) (string, json.RawMessage, error) {
 			mu.Lock()
 			dispatches = append(dispatches, cmd)
 			mu.Unlock()
-			return statusDone, "", nil
+			return statusDone, nil, nil
 		},
 	}
 
@@ -311,10 +313,10 @@ func TestShowAllProbes(t *testing.T) {
 		t.Errorf("status = %q, want done", status)
 	}
 	// Verify JSON contains both probes with state fields.
-	if !strings.Contains(data, `"name":"dns"`) && !strings.Contains(data, `"name":"web"`) {
+	if !strings.Contains(fmt.Sprint(data), `"name":"dns"`) && !strings.Contains(fmt.Sprint(data), `"name":"web"`) {
 		t.Errorf("data = %q, want both probe names", data)
 	}
-	if !strings.Contains(data, `"state":`) {
+	if !strings.Contains(fmt.Sprint(data), `"state":`) {
 		t.Errorf("data = %q, want state field", data)
 	}
 }
@@ -333,7 +335,7 @@ func TestShowSingleProbe(t *testing.T) {
 	if status != statusDone {
 		t.Errorf("status = %q, want done", status)
 	}
-	if !strings.Contains(data, `"name":"dns"`) {
+	if !strings.Contains(fmt.Sprint(data), `"name":"dns"`) {
 		t.Errorf("data = %q, want probe name", data)
 	}
 }
@@ -364,7 +366,7 @@ func TestResetProbe(t *testing.T) {
 	if status != statusDone {
 		t.Errorf("status = %q, want done", status)
 	}
-	if !strings.Contains(data, `"action":"reset"`) {
+	if !strings.Contains(fmt.Sprint(data), `"action":"reset"`) {
 		t.Errorf("data = %q, want reset action", data)
 	}
 
@@ -410,9 +412,9 @@ func TestDispatchStateAction(t *testing.T) {
 	var dispatched []string
 	mgr := &probeManager{
 		probes: make(map[string]*runningProbe),
-		dispatchFn: func(_ context.Context, cmd string) (string, string, error) {
+		dispatchFn: func(_ context.Context, cmd string) (string, json.RawMessage, error) {
 			dispatched = append(dispatched, cmd)
-			return statusDone, "", nil
+			return statusDone, nil, nil
 		},
 	}
 

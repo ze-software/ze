@@ -70,7 +70,7 @@ func TestDispatchCommandToPlugin(t *testing.T) {
 	require.NoError(t, json.Unmarshal(result, &output))
 
 	assert.Equal(t, "done", output.Status)
-	assert.Contains(t, output.Data, "last-index")
+	assert.Contains(t, string(output.Data), "last-index")
 
 	if err := pluginSide.Close(); err != nil {
 		t.Logf("close: %v", err)
@@ -244,7 +244,7 @@ func TestDispatchCommandPluginError(t *testing.T) {
 	var output rpc.DispatchCommandOutput
 	require.NoError(t, json.Unmarshal(result, &output))
 	assert.Equal(t, "error", output.Status)
-	assert.Contains(t, output.Data, "something went wrong")
+	assert.Contains(t, output.Error, "something went wrong")
 
 	if err := pluginSide.Close(); err != nil {
 		t.Logf("close: %v", err)
@@ -345,5 +345,95 @@ func TestDispatchCommandDirectBridge(t *testing.T) {
 	require.NoError(t, json.Unmarshal(raw, &output))
 
 	assert.Equal(t, "done", output.Status)
-	assert.Contains(t, output.Data, "bridge-ok")
+	assert.Contains(t, string(output.Data), "bridge-ok")
+}
+
+func TestResponseToDispatchOutputMarshalFail(t *testing.T) {
+	t.Parallel()
+
+	resp := &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   plugin.Map{"bad": make(chan int)}, // channels are not JSON-serializable
+	}
+
+	output := responseToDispatchOutput(resp)
+
+	assert.Equal(t, plugin.StatusError, output.Status)
+	assert.Contains(t, output.Error, "marshal response data")
+	assert.Empty(t, output.Data)
+}
+
+func TestResponseToDispatchOutputErrorField(t *testing.T) {
+	t.Parallel()
+
+	resp := &plugin.Response{
+		Status: plugin.StatusError,
+		Error:  "something went wrong",
+	}
+
+	output := responseToDispatchOutput(resp)
+
+	assert.Equal(t, plugin.StatusError, output.Status)
+	assert.Equal(t, "something went wrong", output.Error)
+	assert.Empty(t, output.Data)
+}
+
+func TestDispatchCommandOutputRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	original := rpc.DispatchCommandOutput{
+		Status: "done",
+		Data:   json.RawMessage(`{"peers":[{"address":"192.0.2.1"}]}`),
+	}
+
+	wire, err := json.Marshal(original)
+	require.NoError(t, err)
+
+	var decoded rpc.DispatchCommandOutput
+	require.NoError(t, json.Unmarshal(wire, &decoded))
+
+	assert.Equal(t, original.Status, decoded.Status)
+	assert.Equal(t, string(original.Data), string(decoded.Data))
+	assert.Empty(t, decoded.Error)
+
+	var peers map[string]any
+	require.NoError(t, json.Unmarshal(decoded.Data, &peers))
+	assert.NotNil(t, peers["peers"])
+}
+
+func TestDispatchCommandOutputRoundTripError(t *testing.T) {
+	t.Parallel()
+
+	original := rpc.DispatchCommandOutput{
+		Status: "error",
+		Error:  "command not found",
+	}
+
+	wire, err := json.Marshal(original)
+	require.NoError(t, err)
+
+	var decoded rpc.DispatchCommandOutput
+	require.NoError(t, json.Unmarshal(wire, &decoded))
+
+	assert.Equal(t, "error", decoded.Status)
+	assert.Equal(t, "command not found", decoded.Error)
+	assert.Empty(t, decoded.Data)
+}
+
+func TestResponseToDispatchOutputSingleDecode(t *testing.T) {
+	t.Parallel()
+
+	resp := &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   plugin.Map{"count": float64(7)},
+	}
+
+	output := responseToDispatchOutput(resp)
+
+	assert.Equal(t, plugin.StatusDone, output.Status)
+	assert.Empty(t, output.Error)
+
+	var decoded map[string]any
+	require.NoError(t, json.Unmarshal(output.Data, &decoded))
+	assert.Equal(t, float64(7), decoded["count"])
 }

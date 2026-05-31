@@ -7,6 +7,7 @@ package sdk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -83,24 +84,33 @@ func (p *Plugin) InjectWireRoute(protocol, peerKey string, updateBody []byte) er
 }
 
 // DispatchCommand dispatches a command through the engine's command dispatcher.
-// Returns the status and data from the target handler's response. This enables
-// inter-plugin communication: the engine routes the command to the target plugin
-// via longest-match registry lookup and returns the full structured response.
-func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status, data string, err error) {
-	// Fast path: typed DirectBridge dispatch (no JSON serialization).
+// Returns the status and raw JSON data from the target handler's response. This
+// enables inter-plugin communication: the engine routes the command to the target
+// plugin via longest-match registry lookup and returns the full structured response.
+// Error text from the handler is returned as a Go error (not in data).
+func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status string, data json.RawMessage, err error) {
+	var out *rpc.DispatchCommandOutput
+
 	if p.bridge != nil && p.bridge.HasDispatchCommand() {
-		return p.bridge.DispatchCommand(command)
+		out, err = p.bridge.DispatchCommand(command)
+	} else {
+		input := &rpc.DispatchCommandInput{Command: command}
+		var result json.RawMessage
+		result, err = p.callEngineWithResult(ctx, "ze-plugin-engine:dispatch-command", input)
+		if err == nil {
+			out = new(rpc.DispatchCommandOutput)
+			err = json.Unmarshal(result, out)
+			if err != nil {
+				err = fmt.Errorf("unmarshal dispatch-command result: %w", err)
+			}
+		}
 	}
 
-	// Slow path: JSON-based RPC (external plugins or pre-startup).
-	input := &rpc.DispatchCommandInput{Command: command}
-	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:dispatch-command", input)
 	if err != nil {
-		return "", "", err
+		return "", nil, err
 	}
-	var out rpc.DispatchCommandOutput
-	if err := json.Unmarshal(result, &out); err != nil {
-		return "", "", fmt.Errorf("unmarshal dispatch-command result: %w", err)
+	if out.Error != "" {
+		return out.Status, nil, errors.New(out.Error)
 	}
 	return out.Status, out.Data, nil
 }

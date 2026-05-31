@@ -177,8 +177,9 @@ func (b *DirectBridge) DeliverEvents(events []string) error {
 }
 
 // DispatchCommandHandler is the typed handler for dispatch-command via DirectBridge.
-// Skips all JSON serialization -- takes Go strings, returns Go strings.
-type DispatchCommandHandler func(command string) (status, data string, err error)
+// Returns the full DispatchCommandOutput struct to preserve raw JSON data and
+// the separate error field without re-encoding.
+type DispatchCommandHandler func(command string) (*DispatchCommandOutput, error)
 
 // SetDispatchCommand registers the engine-side typed dispatch-command handler.
 // Called by the engine after startup alongside SetDispatchRPC.
@@ -192,9 +193,9 @@ func (b *DirectBridge) SetDispatchCommand(fn DispatchCommandHandler) {
 // DispatchCommand calls the engine's typed dispatch-command handler directly.
 // Returns error if the handler is not set. The hasDispatchCmd atomic load
 // creates a happens-before from SetDispatchCommand's write.
-func (b *DirectBridge) DispatchCommand(command string) (status, data string, err error) {
+func (b *DirectBridge) DispatchCommand(command string) (*DispatchCommandOutput, error) {
 	if !b.hasDispatchCmd.Load() {
-		return "", "", errors.New("dispatch-command handler not set")
+		return nil, errors.New("dispatch-command handler not set")
 	}
 	return b.dispatchCommand(command)
 }

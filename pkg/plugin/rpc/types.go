@@ -225,8 +225,8 @@ type ExecuteCommandInput struct {
 
 // ExecuteCommandOutput is the output for ze-plugin-callback:execute-command.
 type ExecuteCommandOutput struct {
-	Status string `json:"status"` // "done" or "error"
-	Data   string `json:"data,omitempty"`
+	Status string          `json:"status"` // "done" or "error"
+	Data   json.RawMessage `json:"data,omitempty"`
 }
 
 // UpdateRouteInput is the input for ze-plugin-engine:update-route.
@@ -268,8 +268,9 @@ type DispatchCommandInput struct {
 // Preserves the full {status, data} response from the dispatcher, unlike
 // update-route which extracts only route counters.
 type DispatchCommandOutput struct {
-	Status string `json:"status"`         // "done" or "error"
-	Data   string `json:"data,omitempty"` // JSON-encoded response data
+	Status string          `json:"status"`         // "done" or "error"
+	Data   json.RawMessage `json:"data,omitempty"` // raw JSON response data (single-decode)
+	Error  string          `json:"error,omitempty"`
 }
 
 // EmitEventInput is the input for ze-plugin-engine:emit-event.

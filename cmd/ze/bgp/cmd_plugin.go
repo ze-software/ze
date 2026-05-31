@@ -209,10 +209,10 @@ func runInteractive(ctx context.Context, p *sdk.Plugin, scanner *bufio.Scanner) 
 		switch {
 		case err != nil:
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		case data != "":
-			fmt.Printf("%s: %s\n", status, data)
+		case len(data) > 0:
+			fmt.Fprintf(os.Stdout, "%s: %s\n", status, string(data)) //nolint:errcheck // CLI output
 		default:
-			fmt.Println(status)
+			fmt.Fprintln(os.Stdout, status) //nolint:errcheck // CLI output
 		}
 		fmt.Fprint(os.Stderr, "> ")
 	}
