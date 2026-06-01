@@ -21,14 +21,26 @@ is not done. "Tested but not wired" is not done.
 
 ## Mechanical Check (MANDATORY before claiming done)
 
-For every new exported symbol `Foo` in the diff:
+`make ze-verify` runs `make ze-verify-wiring-docs`. That changed-file
+gate is blocking and checks:
+
+- new exported Go symbols under `internal/` or `cmd/` have a non-test
+  production reference in `internal/` or `cmd/`;
+- command declaration changes run `make ze-validate-commands`;
+- source-anchored documentation changes run doc drift and stale-anchor
+  checks;
+- plugin registration and generated inventory source changes run
+  registry-backed inventory checks.
+
+For manual review of a specific new exported symbol `Foo`, confirm it
+is not only a definition plus tests:
 
 ```
 grep -rn 'Foo' internal/ cmd/ --include="*.go" | grep -v "_test.go" | grep -v "plan/"
 ```
 
-If the only hits are the definition and test files, the symbol is dead code.
-Dead code is a BLOCKER, not a NOTE.
+If the only hits are the definition and test files, the symbol is dead
+code. Dead code is a BLOCKER, not a NOTE.
 
 For multi-consumer data (route attributes, config fields, bus events),
 grep all consumers: UI templates, graph rendering, functional tests,

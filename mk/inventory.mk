@@ -1,15 +1,16 @@
 # Inventory, spec status, doc validation, and consistency tools
 #
 # Quick reference:
+#   make ze-verify-wiring-docs  Changed-file-aware wiring/doc/inventory gate
 #   make ze-doc-test             All doc checks (drift + YANG/handler)
 #   make ze-inventory            Plugin/YANG/RPC/test inventory
 #   make ze-spec-status          Spec progress overview
 #   make ze-validate-commands    YANG command vs handler cross-check
-
+#
 .PHONY: ze-spec-status ze-spec-status-json ze-learned-counter
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
-.PHONY: ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test ze-doc-index ze-consistency
-.PHONY: ze-wiki-update ze-wiki-commands
+.PHONY: ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-consistency
+.PHONY: ze-verify-wiring-docs ze-wiki-update ze-wiki-commands
 
 ze-spec-status:
 	@go run scripts/status/spec_status.go
@@ -49,6 +50,10 @@ ze-validate-commands:
 
 ze-validate-commands-json:
 	@go run scripts/docvalid/commands.go --json
+
+
+ze-verify-wiring-docs:
+	@python3 scripts/dev/verify_wiring_docs.py --make "$(MAKE)"
 
 ze-doc-test:
 	@echo "Running documentation tests..."

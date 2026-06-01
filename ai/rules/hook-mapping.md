@@ -5,6 +5,11 @@ Consult this BEFORE writing code to proactively comply, rather than
 fixing after rejection. For hook false positives and workarounds, see
 `plan/learned/HOOK-FRICTION.md`.
 
+When adding or changing a hook, make target gate, or generated check, also
+satisfy `ai/rules/discovery-updates.md` so future agents can find when to run
+it and which rule it enforces.
+
+
 ## PreToolUse Hooks (block before the tool runs)
 
 ### Universal (all tools)
@@ -84,8 +89,9 @@ fixing after rejection. For hook false positives and workarounds, see
 | Hook | Enforces | Triggers on | What it does |
 |---|---|---|---|
 | Post-verify agent review | `quality.md` | Bash (`make ze-verify*`) | Spawns Sonnet agent to review all uncommitted Go changes for bugs. |
-| `check-wiring-at-commit.sh` | `integration-completeness.md` | Bash (git commit) | Warns about plugin code committed without `.ci` tests. Advisory. |
-| `check-doc-drift.sh` | `documentation.md` | Bash (git commit) | Warns about doc counts/lists drifting from live registry. Advisory. |
+| `ze-verify-wiring-docs` | `wiring-completeness.md`, `impact-analysis.md`, `documentation.md` | Make (`ze-verify`, `ze-verify-changed`, or direct target) | Blocks changed command declarations, source-anchored docs, plugin inventory drift, and unwired exported symbols. BLOCKING. |
+| `check-wiring-at-commit.sh` | `integration-completeness.md` | Bash (git commit) | Warns about plugin code committed without `.ci` tests. Advisory fallback. |
+| `check-doc-drift.sh` | `documentation.md` | Bash (git commit) | Warns about doc counts/lists drifting from live registry. Advisory fallback. |
 
 ### Write/Edit
 

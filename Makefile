@@ -5,7 +5,7 @@
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp
 .PHONY: _ze-verify-impl _ze-verify-changed-impl
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
-.PHONY: ze-regen ze-regen-check
+.PHONY: ze-plugin-imports-check ze-regen ze-regen-check
 .PHONY: check ze-setup
 .PHONY: help-test help-deploy help-dev
 
@@ -64,6 +64,9 @@ all: ze-lint ze-unit-test build
 
 generate:
 	@go run scripts/codegen/plugin_imports.go
+
+ze-plugin-imports-check:
+	@go run scripts/codegen/plugin_imports.go --check
 
 build: generate bin/ze bin/ze-test bin/ze-chaos bin/ze-analyse docs/comparison.html
 	@echo "All binaries built"
@@ -180,13 +183,13 @@ ZE_VERIFY_LOG ?= tmp/ze-verify.log
 ze-verify:
 	@scripts/dev/verify-lock.sh ze-verify $(MAKE) --no-print-directory _ze-verify-impl
 
-_ze-verify-impl: ze-lint ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
+_ze-verify-impl: ze-lint ze-verify-wiring-docs ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification passed"
 
 ze-verify-changed:
 	@scripts/dev/verify-lock.sh ze-verify-changed $(MAKE) --no-print-directory _ze-verify-changed-impl
 
-_ze-verify-changed-impl: ze-lint-changed ze-unit-test-changed ze-functional-test ze-exabgp-test
+_ze-verify-changed-impl: ze-lint-changed ze-verify-wiring-docs ze-unit-test-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification (changed) passed"
 
 ze-all: ze-verify ze-chaos-verify
@@ -294,8 +297,8 @@ help:
 	@echo "    make ze-test-bgp          Unit tests for one component group (-race)"
 	@echo "                              Also: ze-test-core, ze-test-plugins, ze-test-config, ze-test-cli, ze-test-rest"
 	@echo "    make ze-encode-test       Single functional suite (encode, plugin, decode, parse, reload, ...)"
-	@echo "    make ze-verify            Pre-commit gate: lint + unit + functional + exabgp (~2 min)"
-	@echo "    make ze-verify-changed    Scoped verify: only changed packages, then full functional"
+	@echo "    make ze-verify            Pre-commit gate: lint + wiring/docs + unit + functional + exabgp (~2 min)"
+	@echo "    make ze-verify-changed    Scoped verify: changed packages + wiring/docs, then full functional"
 	@echo ""
 	@echo "  Build:"
 	@echo "    make build                All binaries (ze, ze-test, ze-chaos, ze-analyse)"
@@ -394,8 +397,8 @@ help-test:
 	@echo ""
 	@echo "  Composite targets:"
 	@echo "    ze-smoke                  Lint + unit + build (~2 min)"
-	@echo "    ze-verify                 Pre-commit gate: lint + unit (two-pass) + functional + exabgp"
-	@echo "    ze-verify-changed         Scoped: changed packages only + functional + exabgp"
+	@echo "    ze-verify                 Pre-commit gate: lint + wiring/docs + unit (two-pass) + functional + exabgp"
+	@echo "    ze-verify-changed         Scoped: changed packages + wiring/docs + functional + exabgp"
 	@echo "    ze-test                   All ze tests including fuzz"
 	@echo "    ze-all                    ze-verify + chaos-verify"
 	@echo "    ze-all-test               ze-test + chaos-verify"
@@ -453,6 +456,7 @@ help-dev:
 	@echo "    ze-doc-index             Regenerate ai/CODE-TO-DOCS.md (code->docs reverse index)"
 	@echo "    ze-validate-commands     YANG command tree vs registered handlers"
 	@echo "    ze-consistency           Code/doc consistency: design refs, cross-refs, stale refs"
+	@echo "    ze-verify-wiring-docs     Changed-file-aware wiring, docs, command, and inventory gate"
 	@echo ""
 	@echo "  Spec management:"
 	@echo "    ze-spec-status           Spec inventory with progress status"
@@ -468,6 +472,7 @@ help-dev:
 	@echo "  Generated files:"
 	@echo "    ze-regen                 Regenerate all generated files"
 	@echo "    ze-regen-check           Verify generated files are up to date"
+	@echo "    ze-plugin-imports-check   Verify generated plugin blank imports are current"
 	@echo "    ze-ai-instructions       Generate CLAUDE.md and AGENTS.md"
 	@echo "    ze-ai-sync               Sync canonical skills to tool directories"
 	@echo "    ze-doc-index             Regenerate ai/CODE-TO-DOCS.md"
