@@ -45,7 +45,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/managed"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/pki"
+	zepki "codeberg.org/thomas-mangin/ze/internal/component/pki"
 	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -410,6 +410,16 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// namespaced pub/sub backbone serves everyone.
 
 	configTree := loadResult.Tree.ToMap()
+	pkiConfig, pkiErr := preparePKIConfig(configTree)
+	if pkiErr != nil {
+		fmt.Fprintf(os.Stderr, "error: pki config: %v\n", pkiErr)
+		return 1
+	}
+	if pkiErr := zepki.Load(pkiConfig); pkiErr != nil {
+		fmt.Fprintf(os.Stderr, "error: pki config: %v\n", pkiErr)
+		return 1
+	}
+
 	system.RegisterConntrackManagedKeys()
 	// Register infrastructure hook before engine starts.
 	// The BGP plugin calls this when creating the reactor.

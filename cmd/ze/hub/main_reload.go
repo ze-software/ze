@@ -14,6 +14,7 @@ import (
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
+	zepki "codeberg.org/thomas-mangin/ze/internal/component/pki"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
@@ -126,6 +127,15 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 		}
 		return fmt.Errorf("reload: parse config: %w", loadErr)
 	}
+
+	pkiConfig, pkiErr := preparePKIConfig(newTree)
+	if pkiErr != nil {
+		if clearErr := clearCandidate(); clearErr != nil {
+			return fmt.Errorf("reload: pki config: %w (candidate cleanup failed: %w)", pkiErr, clearErr)
+		}
+		return fmt.Errorf("reload: pki config: %w", pkiErr)
+	}
+
 	var priorProvider map[string]map[string]any
 	if cp != nil {
 		var snapErr error
@@ -177,6 +187,19 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 			}
 			return fmt.Errorf("reload: listener migration: %w", err)
 		}
+	}
+
+	if err := zepki.Load(pkiConfig); err != nil {
+		if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider); rollbackErr != nil {
+			if clearErr := clearCandidate(); clearErr != nil {
+				return fmt.Errorf("reload: pki config: %w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
+			}
+			return fmt.Errorf("reload: pki config: %w (rollback failed: %w)", err, rollbackErr)
+		}
+		if clearErr := clearCandidate(); clearErr != nil {
+			return fmt.Errorf("reload: pki config: %w (candidate cleanup failed: %w)", err, clearErr)
+		}
+		return fmt.Errorf("reload: pki config: %w", err)
 	}
 
 	applyHostTuningFromMap(newTree)

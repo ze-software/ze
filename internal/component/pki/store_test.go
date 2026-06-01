@@ -199,6 +199,55 @@ func TestExpiredCertRejected(t *testing.T) {
 	}
 }
 
+func TestValidateDoesNotMutateStore(t *testing.T) {
+	good := testPKIConfig(t)
+	if err := Load(good); err != nil {
+		t.Fatalf("Load good: %v", err)
+	}
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(2),
+		Subject:               pkix.Name{CommonName: "Expired CA"},
+		NotBefore:             time.Now().Add(-48 * time.Hour),
+		NotAfter:              time.Now().Add(-time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bad := &PKIConfig{
+		CACerts: map[string]*CACertEntry{
+			"expired-ca": {Name: "expired-ca", Certificate: cert, Raw: der},
+		},
+		Certificates: make(map[string]*CertificateEntry),
+	}
+	if err := Validate(bad); err == nil {
+		t.Fatal("expected Validate to reject expired CA")
+	}
+
+	if GetCA("test-ca") == nil {
+		t.Fatal("Validate must not clear existing CA state")
+	}
+	if GetCertificate("dev-1") == nil {
+		t.Fatal("Validate must not clear existing certificate state")
+	}
+	if GetCA("expired-ca") != nil {
+		t.Fatal("Validate must not publish rejected config")
+	}
+}
+
 func TestStoreAtomicSwap(t *testing.T) {
 	cfg1 := testPKIConfig(t)
 	if err := Load(cfg1); err != nil {

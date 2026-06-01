@@ -34,10 +34,9 @@ var (
 	}
 )
 
-// Load validates and atomically installs a new PKIConfig into the store.
-func Load(cfg *PKIConfig) error {
+// Validate checks chain validity and expiry without mutating the live store.
+func Validate(cfg *PKIConfig) error {
 	if cfg == nil {
-		current.Store(emptyState)
 		return nil
 	}
 
@@ -74,6 +73,20 @@ func Load(cfg *PKIConfig) error {
 		if err != nil {
 			return fmt.Errorf("%w: certificate %q: %w", errPKIChainValidation, name, err)
 		}
+	}
+
+	return nil
+}
+
+// Load validates and atomically installs a new PKIConfig into the store.
+func Load(cfg *PKIConfig) error {
+	if cfg == nil {
+		current.Store(emptyState)
+		return nil
+	}
+
+	if err := Validate(cfg); err != nil {
+		return err
 	}
 
 	current.Store(&storeState{
