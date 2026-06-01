@@ -13,6 +13,7 @@ Rationale: `ai/rationale/before-writing-code.md`
 [ ] 7. Lazy-first check — can the consumer use existing wire methods? `design-principles.md` "Lazy over eager"
 [ ] 8. Bulk-edit check — >2 files with same pattern? Change ONE, test, confirm, THEN `scripts/dev/replace.py` (preview before `--apply`). Never assume
 [ ] 9. Sibling call-site audit — adding a guard/fallback/retry to ONE call site? Grep ALL callers; apply same change in the same commit
+[ ] 10. Discovery update check -- adding or changing a feature, tool, self-check, verification gate, or test infrastructure? Name the docs/rules/index updates now. See `rules/discovery-updates.md`
 ```
 
 Before any spec: READ source, document current behavior, preserve by default.

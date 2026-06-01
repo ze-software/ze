@@ -76,6 +76,7 @@ Registration, SDK, event flow, lifecycle, hook integration.
 - [818](plan/learned/818-flow-export-1-counter-export.md) -- flow export counter closure: IPFIX octetTotalCount/packetTotalCount (not Delta), single MaxDatagramSize, per-datagram metric counting, template timestamp on success only, show flow-export YANG wiring
 - [819](plan/learned/819-flow-export-2-flow-records.md) -- flow export spec-2 integration: FlowSample/ConntrackFlow neutral types + factory-registered flow encoders (import-graph constraint), platform-independent workers delegating to _linux netlink, BestChange typed-handle enrichment (next-hop only), deadlock-safe Stop ordering
 - [820](plan/learned/820-flow-export-0-umbrella.md) -- flow export umbrella: single-collection/multiple-consumers via iface callback, registration over imports, buffer-first, in-process SDK component; spec-1 complete, spec-2 CI-gated
+- [821](plan/learned/821-plugin-internal-keyword.md) -- Plugin internal keyword: explicit `plugin internal <name> { use <builtin> }` config, cross-list uniqueness, internal plugins do not use external encoder/respawn/timeout leaves
 - [828](plan/learned/828-codec-callback-passthrough.md) -- NLRI decode single-marshal: DecodeNLRIHex returns any, registry marshals once; RunCLIDecode callers share function so need own marshal
 - [830](plan/learned/830-typed-inter-plugin-dispatch.md) -- Typed exact-command inter-plugin dispatch: `DispatchCommandArgs` over rebuilt strings, `CommandArgsAuthorizer` over canonical fallback, command/args boundary pinned by tests
 
@@ -126,6 +127,9 @@ Command structure, text format, IPC, RPC dispatch.
 - [809](plan/learned/809-pol-3-validation.md) -- Policy plain names: unique filter names as default operator form, show policy chain output shape change (name+canonical), prefixed forms as escape hatch
 - [810](plan/learned/810-show-command-pipe-filters.md) -- Command-owned pipe filters: PipeFilter registration, longest-prefix lookup, FoldFilters rewrite, show verb-first grammar, generic pipe code BGP-free
 - [822](plan/learned/822-pipe-first-last.md) -- Pipe first/last: dual-path generic+server-side pattern, FoldFilters 3-tuple return with metadata map, pipe metadata dict in JSON output, table/text renderers skip pipe key
+- [826](plan/learned/826-ipc-dispatch-data-raw.md) -- DispatchCommandOutput raw JSON: `Data` is `json.RawMessage`, errors move to `Error`, callers must avoid byte-slice substring assertions
+- [827](plan/learned/827-dispatch-response-passthrough.md) -- Execute-command response passthrough: SDK handlers return Go values, SDK marshals once, pipeline JSON strings must be wrapped as `json.RawMessage`
+- [829](plan/learned/829-command-verb-first.md) -- Verb-first commands: small root verb set, deprecated aliases only for released names, longest-prefix dispatch needs deprecated-prefix lookup
 - [814](plan/learned/814-pol-4-explain.md) -- Policy dry-run: show policy test command, TracePolicyFilterChain trace helper, narrow PolicyDryRunner interface, per-filter decision trace, wire diff output
 
 ## Web Interface
@@ -175,6 +179,19 @@ Metrics, telemetry, Prometheus exporters, third-party format compatibility.
 
 - [653](plan/learned/653-netdata-os-collectors.md) -- Netdata-compatible OS collector framework, 138 metrics, counter-wrap protection, per-collector config via YANG, verify names against source not summaries
 - [736](plan/learned/736-iface-rate.md) -- Interface rate tracker: raw backend stats (not baseline-adjusted), 12 GaugeVec, stale label cleanup, ticker+stop-channel lifecycle
+
+## Security/Auth
+
+Authentication, authorization, appliance bootstrap, and credential boundaries.
+
+- [831](plan/learned/831-appliance-auth-hardening.md) -- Appliance auth hardening: local admin uses `meta/auth/local/*`, config-file users share web/API/SSH auth loading, mutation paths enforce RBAC across web CLI, REST, and gRPC
+
+## Agent Workflow
+
+Agent rules, self-improvement, discovery paths, and development-time inventories.
+
+- [832](plan/learned/832-self-improving-discovery.md) -- Self-improving discovery: feature/tool/check/test changes must update docs, rules, indexes, and verification paths; `ze-verify-wiring-docs` backs changed-file discovery gates
+- [833](plan/learned/833-commit-helper-tooling.md) -- Commit helper tooling: `scripts/dev/commit_helper.py` owns session reuse, message files, executable user-run scripts, ignored-path rejection, `git commit -F`, and learned-summary gating for workflow/tooling/rule changes
 
 ## Testing
 
@@ -242,3 +259,4 @@ Reusable lessons extracted from gotchas sections across summaries.
 - (790) Debug flags: three-tier resolution (global > per-subsystem > default) in zefs `state/debug/` keys; `storage.BlobStoreFrom()` exposes underlying BlobStore from Storage interface; `state/` is the new namespace for runtime state keys
 - (797) Interop helpers must not bind peer IPs as default args (subnet chosen at setup time); BMP sidecar must start before Ze (races PeerUp); structured adj-rib-in must preserve legacy IPv4 NEXT_HOP from path attributes; BGP interop runner accepts only one scenario filter argument
 - (801) YANG sub-containers do not work for positional-argument CLI commands: dispatcher prefix-match breaks when a `<name>` arg sits between the command and sub-keyword; route sub-commands inside the handler via arg inspection instead of separate wire methods
+- (833) Commit script generation should be mechanical: use `scripts/dev/commit_helper.py` so session IDs, message files, ignored-path checks, executable scripts, and learned-summary decisions are enforced before the user runs the script

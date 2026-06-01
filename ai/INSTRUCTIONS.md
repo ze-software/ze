@@ -12,9 +12,10 @@
 - NEVER invoke `git commit`, `git add`, `git rm`, `git restore --staged`,
   or `git stash` from a Bash tool call. Sessions share staging; cross-commits
   result. Commit only via a script the user triggers.
-- Script pattern (add + commit + `-F message-file`, no heredocs) lives in
-  `ai/rules/git-safety.md` under "Commit Rules". Read it before writing any
-  commit script.
+- Use `scripts/dev/commit_helper.py` for commit scripts by default. It creates
+  the session ID, message file, executable script, ignored-path checks, and
+  learned-summary gate. Full rules live in `ai/rules/git-safety.md` under
+  "Commit Rules". Read them before writing any commit script.
 - Never `--no-verify`, never `--no-gpg-sign`.
 
 ## Destructive git commands are FORBIDDEN
@@ -105,6 +106,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Add CLI/web/plugin/config | `ai/patterns/{cli-command,web-endpoint,plugin,config-option}.md` |
 | Add or change a CLI command grammar | `ai/rules/cli-grammar.md` -- action before identifier, IDs as strings |
 | Write help text, usage strings, error messages, or docs that enumerate things | `ai/rules/derive-not-hardcode.md` -- derive from the registry/map, never re-hardcode; return structured data, not pre-formatted strings |
+| Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/discovery-updates.md` -- update rules, docs, indexes, and verification paths so future agents discover and use it |
 | Write tests | `ai/rules/testing.md`, `ai/rules/tdd.md`, `ai/rules/functional-test-gate.md`, `ai/rules/interop-and-goal-validation.md` |
 | Write linux-only code | `ai/rules/qemu-testing.md` -- QEMU integration tests are mandatory, never skip for "needs hardware" |
 | Implement an RFC | `ai/rules/rfc-compliance.md`, `ai/rules/rfc-reading.md`, `rfc/short/` |

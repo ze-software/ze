@@ -34,6 +34,15 @@ When a skill covers the task (`/ze-rfc`, `/ze-review`, `/ze-implement`, etc.),
 use it instead of spawning a raw agent or improvising the workflow. Skills
 encode project conventions, gates, and ordering that a raw agent will miss.
 
+## Commit Script Generation
+
+Use `scripts/dev/commit_helper.py` for commit script preparation. It owns
+session ID reuse, message file creation, executable `tmp/commit-SESSION.sh`
+generation, ignored-path rejection, `git commit -F`, and the learned-summary
+gate for workflow/tooling/rule changes. Hand-write a commit script only when the
+helper cannot express the commit shape, and keep the same generated-script
+contract from `ai/rules/git-safety.md`.
+
 ## Skills
 
 Version-matched skill content is embedded in the binary.
@@ -61,3 +70,6 @@ When adding agent-facing features:
 1. Update `docs/features/ai-first.md` with the new command or contract.
 2. Update `docs/guide/mcp/overview.md` if MCP users need to discover the feature.
 3. Update embedded skill files if the feature changes the agent workflow.
+4. Satisfy `ai/rules/discovery-updates.md`: add the keyword/task path in
+   `ai/INDEX.md` or `ai/NAVIGATION.md`, and document the verification target
+   that proves the feature is discoverable.

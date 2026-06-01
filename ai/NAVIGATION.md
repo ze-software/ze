@@ -23,10 +23,20 @@ action you're taking.
 | Editor test | `rules/testing.md` (Editor Tests section) | `test/editor/` existing examples | |
 | Telemetry/metrics | `plan/learned/653-netdata-os-collectors.md` | `plan/learned/736-iface-rate.md` | Registration in loader_create.go |
 | Diagnostic command | `plan/learned/727-diag-core.md` | `plan/learned/755-ze-doctor.md` | `rules/doctor-checks.md` |
+| Agent-facing command/tool | `rules/agent-tooling.md` | `docs/features/ai-first.md`, `docs/guide/mcp/overview.md` | `rules/discovery-updates.md` for indexes and verification |
+| Verification/self-check gate | `rules/discovery-updates.md` | `rules/hook-mapping.md`, `docs/contributing/documentation-testing.md` | `mk/inventory.mk` for doc/inventory targets |
 | EventBus event | `rules/plugin-design.md` (EventBus Typed Payloads) | `pkg/ze/eventbus.go` | Use `events.Register[T]`, not raw `bus.Subscribe` |
 | DirectBridge handler | `rules/plugin-design.md` (DirectBridge section) | `pkg/plugin/rpc/bridge.go`, `plan/learned/294-inprocess-direct-transport.md` | |
 | New component | `docs/architecture/core-design.md` section 1 | `rules/design-principles.md`, `rules/architecture-summary.md` | Proximity principle in `rules/plugin-design.md` |
 | New subsystem | `docs/architecture/hub-architecture.md` | `docs/architecture/subsystem-wiring.md` | |
+| Test runner or format | `rules/testing.md` | `patterns/functional-test.md`, `docs/architecture/testing/ci-format.md` | `rules/discovery-updates.md` |
+
+
+### Preparing a Commit
+
+| Task | Read first | Then use |
+|---|---|---|
+| Generate a user-run commit script | `rules/git-safety.md` | `scripts/dev/commit_helper.py create` for message files, session reuse, ignored-path rejection, and learned-summary checks |
 
 ### Modifying Existing Code
 
@@ -56,10 +66,11 @@ action you're taking.
 ### Writing Documentation
 
 ```
-1. Read rules/documentation.md (13 categories, source anchors)
-2. Read the actual source before any factual claim
-3. Add <!-- source: path -- symbol --> anchors
-4. Run make ze-doc-test after editing docs/
+1. Read rules/documentation.md (categories, source anchors)
+2. Read rules/discovery-updates.md if the doc adds or changes a feature, tool, check, gate, or test path
+3. Read the actual source before any factual claim
+4. Add <!-- source: path -- symbol --> anchors
+5. Run make ze-doc-test after editing docs/
 ```
 
 ### Working with IPsec / IKE
@@ -119,3 +130,4 @@ artifact type. Check them whenever your work touches the described concern.
 | JSON keys | `rules/json-format.md` | Any new JSON output |
 | Env vars | `rules/go-standards.md` env section | Any env var access |
 | Error handling | `rules/go-standards.md` forbidden section | Any `_` on error return |
+| Discoverability | `rules/discovery-updates.md` | Any feature, tool, self-check, verification gate, test infrastructure, or agent workflow |

@@ -18,6 +18,7 @@
 | Add a capability | `patterns/plugin.md` (capabilities section) | `docs/architecture/wire/capabilities.md` |
 | Implement an RFC | `rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
 | Write a spec | `rules/planning.md` | `plan/TEMPLATE.md` |
+| Add a feature, tool, self-check, verification gate, or test infrastructure | `rules/discovery-updates.md` | Update docs, rules, indexes, and verification paths in the same change |
 | Reorganize YANG tree | `scripts/dev/yang_move.py --help` | Preview diff, then `--apply` |
 | Find context for an unfamiliar area | `ai/NAVIGATION.md` | Task-to-context decision tree |
 | Understand Ze vs standard Go | `ai/rules/ze-divergences.md` | Buffer-first, registration, YANG, etc. |
@@ -28,10 +29,17 @@
 
 | Tool | Location | Purpose |
 |------|----------|---------|
+| `commit_helper.py` | `scripts/dev/` | Generate commit message files and executable user-run commit scripts. Reuses `tmp/commit-session-id`, rejects ignored/generated paths, uses `git commit -F`, and requires a learned summary or explicit no-lesson reason for workflow/tooling/rule changes. |
 | `go_extract.go` | `scripts/dev/` | Move Go symbols between files |
 | `replace.py` | `scripts/dev/` | Bulk find-and-replace with diff preview (run without `--apply` to review, then `--apply` to write). Supports `--regex` and `--all`. |
 | `yang_move.py` | `scripts/dev/` | Format-aware YANG path refactoring. When YANG nodes move, updates slash paths, set commands, brace blocks, and GetContainer chains across the codebase. `remove <seg> --under <path>`, `rename <old> <new> --under <path>`, `move <src> <dst>`. Preview by default, `--apply` to write. Run `--test` for self-tests. |
 | `bundle-html.py` | `gh-pages: presentations/tools/` | Inline local images, slides.md, and embeds into HTML as a self-contained file. Output: `<name>-inlined.html`. Accepts multiple files. |
+| `make ze-verify-wiring-docs` | `mk/inventory.mk` | Changed-file-aware wiring, documentation, command, and inventory gate used by `make ze-verify`. |
+| `make ze-doc-test` | `mk/inventory.mk` | Documentation drift plus YANG command handler contract checks. |
+| `make ze-inventory` / `make ze-inventory-json` | `mk/inventory.mk` | Registry-backed plugin, command, YANG, and test inventory. |
+| `make ze-command-list` / `make ze-command-list-json` | `mk/inventory.mk` | Live command inventory generated from registered handlers and schemas. |
+| `make ze-doc-index` | `mk/inventory.mk` | Regenerate `ai/CODE-TO-DOCS.md`, the source-to-document reverse index. |
+| `make ze-spec-status` / `make ze-spec-status-json` | `mk/inventory.mk` | Spec progress overview for active planning and handoff. |
 
 ## Pattern Cookbooks
 
@@ -198,7 +206,16 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | BMP, monitoring protocol | `plan/learned/574-bgp-4-bmp.md`, `plan/learned/647-bmp-5-sender-compliance.md` |
 | docker, container, scratch | `plan/learned/753-docker-go126.md`, `docs/guide/docker.md` |
 | chaos, fault injection, scheduler | `plan/learned/723-chaos-actions-v2.md`, `docs/architecture/chaos-web-dashboard.md` |
-
+| commit, commit script, commit message, lesson learned | `scripts/dev/commit_helper.py`, `ai/rules/git-safety.md`, `ai/skills/ze-commit.md` |
+| self-improvement, discoverability, discovery, new tool, self-check, verification gate | `ai/rules/discovery-updates.md`, `ai/rules/hook-mapping.md`, `docs/contributing/documentation-testing.md` |
+| inventory, command-list, doc drift, source anchor, doc index | `ai/rules/discovery-updates.md`, `ai/rules/documentation.md`, `docs/contributing/documentation-testing.md`, `mk/inventory.mk` |
+| command grammar, verb-first, command alias, deprecated alias | `ai/rules/cli-grammar.md`, `plan/learned/829-command-verb-first.md` |
+| DispatchCommandArgs, typed inter-plugin dispatch, tokenizer bypass | `plan/learned/830-typed-inter-plugin-dispatch.md`, `ai/rules/plugin-design.md` |
+| RawMessage, double marshal, callback passthrough, SDK callback | `plan/learned/826-ipc-dispatch-data-raw.md`, `plan/learned/827-dispatch-response-passthrough.md`, `plan/learned/828-codec-callback-passthrough.md` |
+| pipe first, pipe last, pipe metadata | `ai/rules/pipe-completeness.md`, `plan/learned/822-pipe-first-last.md` |
+| RIB dump, bounded dump, replay batching, update cursor | `plan/learned/823-rib-show-bounded-dump.md`, `plan/learned/824-rib-feed-replay-batch.md` |
+| plugin internal keyword, in-process plugin config | `plan/learned/821-plugin-internal-keyword.md`, `ai/patterns/plugin.md` |
+| appliance auth, local admin, bootstrap auth, RBAC | `plan/learned/831-appliance-auth-hardening.md`, `internal/component/auth/`, `internal/component/aaa/` |
 | code-to-docs, reverse index, which docs | `ai/CODE-TO-DOCS.md` (generated, `make ze-doc-index`) |
 
 All architecture docs in `docs/architecture/` unless noted.

@@ -44,17 +44,18 @@ All groups run with `-race`. Use the group matching your change during iteration
 
 | Target | Purpose |
 |--------|---------|
-| `make ze-verify` | Pre-commit gate (two-pass unit + functional + exabgp) |
-| `make ze-verify-changed` | Scoped lint+test (changed packages only) + functional + exabgp |
+| `make ze-verify` | Pre-commit gate: lint, changed-file wiring/doc/inventory, vet evidence, two-pass unit, functional, and ExaBGP |
+| `make ze-verify-changed` | Changed-package lint/test plus wiring/doc/inventory, functional, and ExaBGP |
+| `make ze-verify-wiring-docs` | Changed-file-aware wiring, documentation, command, and inventory gate |
 | `make ze-unit-test` | All unit tests with `-race` (full recompile, ~5 min) |
-| `make ze-functional-test` | All 11 functional test suites |
+| `make ze-functional-test` | All 12 functional test suites |
 | `make ze-lint` | 26 linters |
 | `make ze-ci` | lint + unit + build |
-| `make ze-fuzz-test` | Fuzz tests (15s per target) |
+| `make ze-fuzz-test` | Fuzz tests (10s per target) |
 | `make ze-exabgp-test` | ExaBGP compatibility |
 | `make ze-test` | All tests including fuzz |
 | `make ze-editor-test` | Editor `.et` tests (headless TUI) |
-| `make ze-chaos-test` | Chaos unit + functional + web |
+| `make ze-chaos-test` | Chaos unit + functional + integration + web |
 | `make ze-race-reactor` | Stress race-test reactor (`-race -count=20`) -- REQUIRED when touching reactor concurrency code |
 
 ### Linux-Only Tests (QEMU)
@@ -103,7 +104,7 @@ problem to fix before merging, not a deferral to log.
 3. **Race pass on changed groups only** (`go test -race` on component groups containing
    modified `.go` files): catches data races in what you touched, without recompiling
    everything. Group detection uses `scripts/dev/changed-groups.sh`.
-4. **Functional tests** (11 suites via `ze-test`)
+4. **Functional tests** (12 suites via `ze-test`)
 5. **ExaBGP compatibility**
 
 Common case (one group changed): ~2 min total instead of 6+.
@@ -163,6 +164,12 @@ After 3 samples, the baseline is used for two things:
 
 - `ze-peer`: BGP test peer (`--sink`, `--echo`, `--port`, `--asn`)
 - `ze-test`: Test runner (`ze-test bgp encode --list`, `--all`, by index)
+
+When adding a test runner, test format, make target, or verification gate, update
+`ai/rules/discovery-updates.md` paths in the same change: `ai/INDEX.md` for the
+tool, `ai/NAVIGATION.md` if it changes task selection, this file for required
+usage, and `docs/architecture/testing/` or `docs/contributing/` for detailed
+operator documentation.
 
 ## Temporary Files
 

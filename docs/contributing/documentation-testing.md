@@ -1,17 +1,24 @@
 # Documentation Testing
 
 Ze ships several tools that validate documentation against the live code.
-They live in `scripts/` and are exposed as `make ze-*` targets.
+They live in `scripts/` and are exposed as `make ze-*` targets. The full
+documentation check is still explicit, while `make ze-verify` runs a
+changed-file-aware wiring, documentation, command, and inventory gate.
+
+<!-- source: mk/inventory.mk -- ze-doc-test and ze-verify-wiring-docs -->
+<!-- source: Makefile -- _ze-verify-impl -->
 
 ## Quick start
 
 ```sh
-make ze-doc-test       # Run all documentation tests
+make ze-doc-test              # Run all documentation tests
+make ze-verify-wiring-docs    # Run changed-file-aware wiring/doc/inventory gate
 ```
 
-This is the umbrella target. It runs every documentation checker and
-returns non-zero if any of them report drift. Run it after editing
-documentation files, after adding/removing plugins, or as part of review.
+`ze-doc-test` runs every documentation checker and returns non-zero if any of
+them report drift. Run it after editing documentation files, after adding or
+removing plugins, or as part of review. `ze-verify-wiring-docs` selects the
+checks needed for the current diff and is included in `make ze-verify`.
 
 ## What gets checked
 
@@ -20,15 +27,19 @@ documentation files, after adding/removing plugins, or as part of review.
 | `scripts/docvalid/doc_drift.go` | `ze-doc-drift` | `docs/DESIGN.md` plugin counts, family lists, `.ci` test totals, interop scenario count, fuzz target count, Go test count -- compared to the live plugin registry, family registry, and filesystem walk. Also `docs/comparison.md` family rows, README test-count claims, `docs/features.md` status labels, and `docs/functional-tests.md` release-gate suite claims derived from the Makefile. |
 | `scripts/docvalid/commands.go` | `ze-validate-commands` | Every YANG `ze:command` declaration has a registered RPC or local CLI handler, and every registered RPC handler has a matching YANG declaration. |
 | `scripts/lint/consistency.go` | `ze-consistency` | Mixed code/doc consistency: `// Design:` references on `.go` files, cross-reference bidirectionality (`// Detail:` <-> `// Overview:`), stale package references in docs and scripts. |
+| `scripts/dev/verify_wiring_docs.py` | `ze-verify-wiring-docs` | Changed-file-aware router used by `make ze-verify`. It runs wiring checks for new exported Go symbols, `ze-validate-commands` for command sources, `ze-doc-test` and stale doc-index checks for source-anchored docs, plus inventory checks for plugin/YANG/registration sources. |
 
-`ze-doc-test` runs the first two unconditionally and reports a combined
-verdict. `ze-consistency` is left standalone because it covers both
-documentation and code-style concerns (file size limits, plugin structure
-completeness) and is run as part of code review, not doc review.
+`ze-doc-test` runs doc drift and command validation unconditionally and reports
+a combined verdict. `ze-verify-wiring-docs` is the changed-file-aware gate used
+by `make ze-verify`; it delegates to the direct targets in the table only when
+the current diff touches matching sources. `ze-consistency` is left standalone
+because it covers both documentation and code-style concerns and is run as part
+of code review, not doc review.
 
 <!-- source: scripts/docvalid/doc_drift.go -- runChecks -->
 <!-- source: scripts/docvalid/commands.go -- main -->
 <!-- source: scripts/lint/consistency.go -- package doc -->
+<!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
 
 ## When to run
 
@@ -37,11 +48,15 @@ completeness) and is run as part of code review, not doc review.
 | After editing any file under `docs/` | `make ze-doc-test` |
 | After adding or removing a plugin | `make ze-doc-test` |
 | After adding or renaming a YANG `ze:command` | `make ze-validate-commands` |
+| After adding a doc validator, inventory source, command source, or exported Go API | `make ze-verify-wiring-docs` |
 | Before opening a documentation PR | `make ze-doc-test` |
 
-`make ze-doc-test` is **not** part of `make ze-verify` today. Keep running it
-after documentation, command-tree, or command-handler changes until it moves
-into the release gate.
+The full `ze-doc-test` remains the explicit documentation review target.
+`make ze-verify` runs `ze-verify-wiring-docs`, which invokes the relevant doc,
+command, inventory, and wiring checks for changed files.
+
+<!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
+<!-- source: Makefile -- _ze-verify-impl -->
 
 ## How to interpret output
 
@@ -115,15 +130,23 @@ and scans `docs/`/`scripts/` for references to packages that no longer exist.
 
 1. Write the check as a `//go:build ignore` Go program in `scripts/docvalid/`,
    following the patterns in `doc_drift.go`.
-2. Add a `make ze-foo-check` target to `Makefile`.
+2. Add a `make ze-foo-check` target to `mk/inventory.mk` or the owning `mk/`
+   file.
 3. Add the new target to `ze-doc-test` if failure should fail the umbrella.
-4. Add a row to the table in this file.
-5. Add a help entry in the Makefile's `Documentation testing:` section.
+4. Add the new target to `scripts/dev/verify_wiring_docs.py` if changed files
+   should trigger it during `make ze-verify`.
+5. Add a row to the table in this file.
+6. Update `ai/rules/discovery-updates.md`, `ai/INDEX.md`, or
+   `ai/NAVIGATION.md` when the new check changes what future agents should run
+   or discover.
+7. Add a help entry in the Makefile or owning `mk/` quick reference.
 
 ## See also
 
-- `ai/rules/documentation.md` -- canonical documentation rules
+- `ai/rules/documentation.md` -- canonical documentation rules,
   including the BLOCKING Documentation Update Checklist for specs
-- `.claude/hooks/check-doc-drift.sh` -- PreToolUse hook that runs
-  `check-doc-drift` (advisory, exit 1) on every `git commit`
-- `Makefile` -- search for `ze-doc-test` to see the umbrella recipe
+- `ai/rules/discovery-updates.md` -- required discovery updates when new
+  checks, tools, or verification gates are added
+- `ai/rules/hook-mapping.md` -- which hooks and make gates enforce which rules
+- `mk/inventory.mk` -- owning make targets for documentation, inventory,
+  command validation, and wiring/doc gates

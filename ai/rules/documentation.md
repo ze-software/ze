@@ -25,11 +25,18 @@ Name the file, name the section, describe the change. Never say "update document
 | 12 | Architecture | `docs/architecture/core-design.md` or subsystem doc | Structural design changes |
 | 13 | Route metadata | `docs/architecture/meta/README.md` + `docs/architecture/meta/<plugin>.md` | Plugin sets or reads route metadata keys |
 | 14 | Prometheus counters | `docs/architecture/telemetry/` or subsystem telemetry doc | Counters/gauges added or changed |
+| 15 | Agent discovery | `ai/rules/discovery-updates.md`, `ai/INDEX.md`, `ai/NAVIGATION.md` | New features, tools, self-checks, verification gates, test infrastructure, or agent workflows |
 
 ## In Specs
 
 Every spec MUST have a **Documentation Update Checklist** (see `plan/TEMPLATE.md`).
 Each row answered Yes/No. Each Yes names the file and what to add.
+
+Every direct implementation that changes a feature, tool, self-check,
+verification gate, or test infrastructure MUST also satisfy
+`ai/rules/discovery-updates.md`. Documentation is incomplete until future
+agents can find the new surface from `ai/INDEX.md`, `ai/NAVIGATION.md`, or a
+specific rule.
 
 
 ## Source Anchors (BLOCKING)

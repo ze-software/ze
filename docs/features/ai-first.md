@@ -3,9 +3,12 @@
 <!-- source: internal/component/mcp/handler.go -- MCP HTTP handler -->
 <!-- source: cmd/ze/help_ai.go -- ze help --ai machine-readable reference -->
 <!-- source: cmd/ze-test/mcp.go -- MCP test client -->
+<!-- source: ai/rules/discovery-updates.md -- Current Discovery Surfaces -->
+<!-- source: mk/inventory.mk -- ze-inventory and documentation targets -->
 
-Ze is designed AI-first: the entire command surface is programmatically accessible and
-self-describing. AI assistants do not need documentation -- the binary describes itself.
+Ze is designed AI-first: the command surface is programmatically accessible and
+self-describing, while repository discovery docs tell agents which tools,
+checks, rules, and verification paths exist.
 
 ## Principle: The CLI Is the API
 
@@ -65,6 +68,28 @@ ze skills get ze --full
 The installed binary serves agent workflow guides matched to its exact version.
 Skills cover diagnostics, config, commands, and agent edit loops. Agents load
 only the skill relevant to the current task.
+
+## Development-Time Discovery
+
+Feature, tooling, self-check, verification, and test-infrastructure changes must
+update their discovery path in the same work. The standard path is
+`ai/rules/discovery-updates.md` for policy, `ai/INDEX.md` for keyword lookup,
+`ai/NAVIGATION.md` for task routing, and the relevant make target or docs page
+for verification and usage.
+
+<!-- source: ai/rules/discovery-updates.md -- Required Discovery Artifacts -->
+
+Agents should use the existing inventory and verification surfaces before
+inventing new ones: `make ze-inventory`, `make ze-command-list`,
+`make ze-doc-test`, `make ze-doc-index`, and `make ze-verify-wiring-docs`.
+
+Commit preparation uses `scripts/dev/commit_helper.py`: agents pass the vetted
+subject, body, and explicit file list, and the helper creates the session ID,
+message file, executable user-run script, ignored-path checks, `git commit -F`
+flow, and learned-summary gate for workflow/tooling/rule changes.
+<!-- source: scripts/dev/commit_helper.py -- commit helper CLI and lesson gate -->
+
+<!-- source: mk/inventory.mk -- quick reference and targets -->
 
 ## MCP Transport
 
