@@ -24,7 +24,8 @@ import (
 //
 // Usage:
 //
-//	ze completion words show [path...]   — read-only command tree under `ze show`
+//	ze completion words show [path...]       — read-only command tree under `ze show`
+//	ze completion words run [command path...] — daemon command tree used by `ze run`
 func words(args []string) int {
 	return writeWords(os.Stdout, args)
 }
@@ -35,11 +36,8 @@ func writeWords(w io.Writer, args []string) int {
 		return 0
 	}
 
-	var tree *command.Node
-	switch args[0] {
-	case "show":
-		tree = cli.BuildVerbCommandTree("show")
-	default:
+	tree, path := completionTree(args)
+	if tree == nil {
 		return 0
 	}
 
@@ -47,8 +45,8 @@ func writeWords(w io.Writer, args []string) int {
 
 	// Build input string from path args. Trailing space signals "list all
 	// children" (no prefix filter) -- the shell handles its own filtering.
-	input := strings.Join(args[1:], " ")
-	if len(args) > 1 {
+	input := strings.Join(path, " ")
+	if len(path) > 0 {
 		input += " "
 	}
 
@@ -71,4 +69,59 @@ func writeWords(w io.Writer, args []string) int {
 		}
 	}
 	return 0
+}
+
+func completionTree(args []string) (*command.Node, []string) {
+	if len(args) == 0 {
+		return nil, nil
+	}
+	if args[0] == "run" {
+		return runCompletionTree(args[1:])
+	}
+	if args[0] == "show" {
+		return cli.BuildVerbCommandTree("show"), args[1:]
+	}
+	return nil, nil
+}
+
+func runCompletionTree(path []string) (*command.Node, []string) {
+	if len(path) == 0 {
+		return cli.BuildCommandTree(false), nil
+	}
+	switch path[0] {
+	case "show", "set", "del", "clear", "request", "monitor", "resolve", "validate":
+		return cli.BuildVerbCommandTree(path[0]), path[1:]
+	case "rib":
+		tree := cli.BuildVerbCommandTree("show")
+		addRIBRoutesAlias(tree)
+		return tree, append([]string{"bgp", "rib"}, path[1:]...)
+	default:
+		return cli.BuildCommandTree(false), path
+	}
+}
+
+func addRIBRoutesAlias(tree *command.Node) {
+	if tree == nil {
+		return
+	}
+	current := tree
+	for _, name := range []string{"bgp", "rib"} {
+		if current.Children == nil {
+			return
+		}
+		child := current.Children[name]
+		if child == nil {
+			return
+		}
+		current = child
+	}
+	if current.Children == nil {
+		current.Children = make(map[string]*command.Node, 1)
+	}
+	if current.Children["routes"] == nil {
+		current.Children["routes"] = &command.Node{
+			Name:        "routes",
+			Description: "Query routes in the BGP RIB",
+		}
+	}
 }
