@@ -43,23 +43,25 @@ type BridgeCallbackResult struct {
 }
 
 type DirectBridge struct {
-	deliverEvents      func(events []string) error
-	deliverStructured  func(events []any) error
-	hasStructured      atomic.Bool // set atomically when deliverStructured is written
-	dispatchRPC        func(method string, params json.RawMessage) (json.RawMessage, error)
-	dispatchCommand    DispatchCommandHandler // Typed fast path (no JSON)
-	hasDispatchCmd     atomic.Bool            // set atomically when dispatchCommand is written
-	emitEvent          EmitEventHandler       // Typed fast path (no JSON)
-	hasEmitEvent       atomic.Bool            // set atomically when emitEvent is written
-	forwardCached      ForwardCachedHandler   // Typed fast path (no JSON) -- rs-fastpath-3
-	hasForwardCached   atomic.Bool            // set atomically when forwardCached is written
-	releaseCached      ReleaseCachedHandler   // Typed fast path (no JSON) -- rs-fastpath-3
-	hasReleaseCached   atomic.Bool            // set atomically when releaseCached is written
-	injectWireRoute    InjectWireRouteHandler // Typed fast path (no JSON) -- bmp-6
-	hasInjectWireRoute atomic.Bool            // set atomically when injectWireRoute is written
-	callbackCh         chan BridgeCallback    // Engine->plugin callbacks (replaces pipe after startup)
-	closeOnce          sync.Once              // Guards callbackCh close (Stop may be called multiple times)
-	ready              atomic.Bool
+	deliverEvents       func(events []string) error
+	deliverStructured   func(events []any) error
+	hasStructured       atomic.Bool // set atomically when deliverStructured is written
+	dispatchRPC         func(method string, params json.RawMessage) (json.RawMessage, error)
+	dispatchCommand     DispatchCommandHandler     // Typed fast path (no JSON)
+	hasDispatchCmd      atomic.Bool                // set atomically when dispatchCommand is written
+	dispatchCommandArgs DispatchCommandArgsHandler // Typed fast path with pre-tokenized args (no JSON)
+	hasDispatchCmdArgs  atomic.Bool                // set atomically when dispatchCommandArgs is written
+	emitEvent           EmitEventHandler           // Typed fast path (no JSON)
+	hasEmitEvent        atomic.Bool                // set atomically when emitEvent is written
+	forwardCached       ForwardCachedHandler       // Typed fast path (no JSON) -- rs-fastpath-3
+	hasForwardCached    atomic.Bool                // set atomically when forwardCached is written
+	releaseCached       ReleaseCachedHandler       // Typed fast path (no JSON) -- rs-fastpath-3
+	hasReleaseCached    atomic.Bool                // set atomically when releaseCached is written
+	injectWireRoute     InjectWireRouteHandler     // Typed fast path (no JSON) -- bmp-6
+	hasInjectWireRoute  atomic.Bool                // set atomically when injectWireRoute is written
+	callbackCh          chan BridgeCallback        // Engine->plugin callbacks (replaces pipe after startup)
+	closeOnce           sync.Once                  // Guards callbackCh close (Stop may be called multiple times)
+	ready               atomic.Bool
 }
 
 // NewDirectBridge creates a bridge. Both sides must register handlers and call
@@ -203,6 +205,34 @@ func (b *DirectBridge) DispatchCommand(command string) (*DispatchCommandOutput, 
 // HasDispatchCommand reports whether the typed dispatch-command handler is set.
 func (b *DirectBridge) HasDispatchCommand() bool {
 	return b.ready.Load() && b.hasDispatchCmd.Load()
+}
+
+// DispatchCommandArgsHandler is the typed handler for dispatch-command-args via DirectBridge.
+// It carries the exact registered command name, pre-tokenized args, and peer selector.
+type DispatchCommandArgsHandler func(command string, args []string, peer string) (*DispatchCommandOutput, error)
+
+// SetDispatchCommandArgs registers the engine-side typed dispatch-command-args handler.
+// Called by the engine after startup alongside SetDispatchRPC.
+// The hasDispatchCmdArgs atomic creates a happens-before edge so that readers
+// calling HasDispatchCommandArgs or DispatchCommandArgs see the function pointer.
+func (b *DirectBridge) SetDispatchCommandArgs(fn DispatchCommandArgsHandler) {
+	b.dispatchCommandArgs = fn
+	b.hasDispatchCmdArgs.Store(fn != nil)
+}
+
+// DispatchCommandArgs calls the engine's typed dispatch-command-args handler directly.
+// Returns error if the handler is not set. The hasDispatchCmdArgs atomic load
+// creates a happens-before from SetDispatchCommandArgs' write.
+func (b *DirectBridge) DispatchCommandArgs(command string, args []string, peer string) (*DispatchCommandOutput, error) {
+	if !b.hasDispatchCmdArgs.Load() {
+		return nil, errors.New("dispatch-command-args handler not set")
+	}
+	return b.dispatchCommandArgs(command, args, peer)
+}
+
+// HasDispatchCommandArgs reports whether the typed dispatch-command-args handler is set.
+func (b *DirectBridge) HasDispatchCommandArgs() bool {
+	return b.ready.Load() && b.hasDispatchCmdArgs.Load()
 }
 
 // EmitEventHandler is the typed handler for emit-event via DirectBridge.

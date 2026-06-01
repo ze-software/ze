@@ -102,9 +102,9 @@ type probeManager struct {
 	plugin     *sdk.Plugin
 	probes     map[string]*runningProbe // name -> running probe
 	mu         sync.Mutex
-	internal   bool                                                                       // true = goroutine mode (ip-setup allowed)
-	dispatchFn func(ctx context.Context, command string) (string, json.RawMessage, error) // injectable for tests
-	ipMgr      ipManager                                                                  // injectable for tests
+	internal   bool                                                                                                   // true = goroutine mode (ip-setup allowed)
+	dispatchFn func(ctx context.Context, command string, args []string, peer string) (string, json.RawMessage, error) // injectable for tests
+	ipMgr      ipManager                                                                                              // injectable for tests
 }
 
 // runningProbe tracks a running probe goroutine.
@@ -122,8 +122,8 @@ func newProbeManager(p *sdk.Plugin, internal bool) *probeManager {
 		internal: internal,
 		ipMgr:    realIPManager{},
 	}
-	mgr.dispatchFn = func(ctx context.Context, command string) (string, json.RawMessage, error) {
-		return p.DispatchCommand(ctx, command)
+	mgr.dispatchFn = func(ctx context.Context, command string, args []string, peer string) (string, json.RawMessage, error) {
+		return p.DispatchCommandArgs(ctx, command, args, peer)
 	}
 	return mgr
 }
@@ -280,25 +280,21 @@ func (m *probeManager) runProbe(ctx context.Context, rp *runningProbe) {
 func (m *probeManager) dispatchStateAction(ctx context.Context, cfg ProbeConfig, state State) {
 	switch state {
 	case StateUp:
-		var b textbuf.Buffer
-		cmd := b.Reset().Str("request watchdog announce ").Str(cfg.Group).Str(" med ").Int(int64(cfg.UpMetric)).String()
-		m.dispatchCommand(ctx, cfg.Name, cmd)
+		m.dispatchCommand(ctx, cfg.Name, "request watchdog announce", []string{cfg.Group, "med", textbuf.Int(int64(cfg.UpMetric))})
 	case StateDown:
 		if cfg.WithdrawOnDown {
-			m.dispatchCommand(ctx, cfg.Name, "request watchdog withdraw "+cfg.Group)
+			m.dispatchCommand(ctx, cfg.Name, "request watchdog withdraw", []string{cfg.Group})
 		} else {
-			var b textbuf.Buffer
-			m.dispatchCommand(ctx, cfg.Name, b.Reset().Str("request watchdog announce ").Str(cfg.Group).Str(" med ").Int(int64(cfg.DownMetric)).String())
+			m.dispatchCommand(ctx, cfg.Name, "request watchdog announce", []string{cfg.Group, "med", textbuf.Int(int64(cfg.DownMetric))})
 		}
 	case StateDisabled:
 		if cfg.WithdrawOnDown {
-			m.dispatchCommand(ctx, cfg.Name, "request watchdog withdraw "+cfg.Group)
+			m.dispatchCommand(ctx, cfg.Name, "request watchdog withdraw", []string{cfg.Group})
 		} else {
-			var b textbuf.Buffer
-			m.dispatchCommand(ctx, cfg.Name, b.Reset().Str("request watchdog announce ").Str(cfg.Group).Str(" med ").Int(int64(cfg.DisabledMetric)).String())
+			m.dispatchCommand(ctx, cfg.Name, "request watchdog announce", []string{cfg.Group, "med", textbuf.Int(int64(cfg.DisabledMetric))})
 		}
 	case StateExit:
-		m.dispatchCommand(ctx, cfg.Name, "request watchdog withdraw "+cfg.Group)
+		m.dispatchCommand(ctx, cfg.Name, "request watchdog withdraw", []string{cfg.Group})
 	case StateInit, StateRising, StateFalling, StateEnd:
 		// No watchdog action for intermediate or terminal states.
 	}
@@ -428,13 +424,13 @@ func (m *probeManager) handleReset(args []string) (string, any, error) {
 }
 
 // dispatchCommand sends a command to the watchdog plugin via dispatchFn.
-func (m *probeManager) dispatchCommand(ctx context.Context, probeName, command string) {
-	status, _, err := m.dispatchFn(ctx, command)
+func (m *probeManager) dispatchCommand(ctx context.Context, probeName, command string, args []string) {
+	status, _, err := m.dispatchFn(ctx, command, args, "")
 	if err != nil {
-		logger().Warn("dispatch failed", "probe", probeName, "command", command, "error", err)
+		logger().Warn("dispatch failed", "probe", probeName, "command", command, "args", args, "error", err)
 		return
 	}
 	if status != statusDone {
-		logger().Warn("dispatch unexpected status", "probe", probeName, "command", command, "status", status)
+		logger().Warn("dispatch unexpected status", "probe", probeName, "command", command, "args", args, "status", status)
 	}
 }

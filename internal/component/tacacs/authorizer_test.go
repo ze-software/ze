@@ -18,6 +18,31 @@ func (f *fakeLocalAuthz) Authorize(_, _, _ string, _ bool) bool {
 	return f.allow
 }
 
+func decodeAuthorRequestArgs(body []byte) ([]string, error) {
+	if len(body) < 8 {
+		return nil, assert.AnError
+	}
+	argCount := int(body[7])
+	if len(body) < 8+argCount {
+		return nil, assert.AnError
+	}
+	argLens := body[8 : 8+argCount]
+	offset := 8 + argCount + int(body[4]) + int(body[5]) + int(body[6])
+	if offset > len(body) {
+		return nil, assert.AnError
+	}
+	args := make([]string, 0, argCount)
+	for _, argLen := range argLens {
+		next := offset + int(argLen)
+		if next > len(body) {
+			return nil, assert.AnError
+		}
+		args = append(args, string(body[offset:next]))
+		offset = next
+	}
+	return args, nil
+}
+
 // authorReply returns a replyFn that produces an AuthorResponse with the given status.
 func authorReply(status uint8) func(PacketHeader, []byte) []byte {
 	return func(_ PacketHeader, _ []byte) []byte {
@@ -39,9 +64,48 @@ func TestTacacsAuthorizerPassAdd(t *testing.T) {
 	})
 	local := &fakeLocalAuthz{allow: false}
 	authorizer := NewTacacsAuthorizer(client, local, nil)
-
 	result := authorizer.Authorize("admin", "10.0.0.1:22", "show version", true)
 	assert.True(t, result, "PASS_ADD should allow")
+}
+
+// VALIDATES: AuthorizeCommandArgs preserves exact cmd-arg boundaries for TACACS+.
+// PREVENTS: typed inter-plugin args with spaces or odd characters being re-split before authorization.
+func TestTacacsAuthorizerAuthorizeCommandArgsPreservesOddArgs(t *testing.T) {
+	key := []byte("secret")
+	var gotArgs []string
+	var gotErr error
+	srv := newTestServer(t, key, func(_ PacketHeader, body []byte) []byte {
+		gotArgs, gotErr = decodeAuthorRequestArgs(body)
+		return authorReply(AuthorStatusPassAdd)(PacketHeader{}, nil)
+	})
+	defer srv.close()
+
+	client := NewTacacsClient(TacacsClientConfig{
+		Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
+		Timeout: 2 * time.Second,
+	})
+	local := &fakeLocalAuthz{allow: false}
+	authorizer := NewTacacsAuthorizer(client, local, nil)
+
+	result := authorizer.AuthorizeCommandArgs(
+		"admin",
+		"10.0.0.1:22",
+		"request adj-rib-in accept-routes",
+		[]string{"peer key with spaces", `quote"inside`, `slash\inside`},
+		"",
+		true,
+	)
+	assert.True(t, result, "PASS_ADD should allow")
+	assert.NoError(t, gotErr)
+	assert.Equal(t, []string{
+		"service=shell",
+		"cmd=request",
+		"cmd-arg=adj-rib-in",
+		"cmd-arg=accept-routes",
+		"cmd-arg=peer key with spaces",
+		`cmd-arg=quote"inside`,
+		`cmd-arg=slash\inside`,
+	}, gotArgs)
 }
 
 // VALIDATES: AC-10 -- TACACS+ authorization FAIL blocks the command.

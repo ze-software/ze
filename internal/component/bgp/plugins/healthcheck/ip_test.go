@@ -97,7 +97,7 @@ func TestIPDynamicRemoveOnDown(t *testing.T) {
 	mgr := &probeManager{
 		probes: make(map[string]*runningProbe),
 		ipMgr:  mock,
-		dispatchFn: func(ctx context.Context, _ string) (string, json.RawMessage, error) {
+		dispatchFn: func(ctx context.Context, _ string, _ []string, _ string) (string, json.RawMessage, error) {
 			return "done", nil, nil
 		},
 	}
@@ -116,7 +116,7 @@ func TestIPDynamicRemoveOnDisabled(t *testing.T) {
 	mgr := &probeManager{
 		probes: make(map[string]*runningProbe),
 		ipMgr:  mock,
-		dispatchFn: func(_ context.Context, _ string) (string, json.RawMessage, error) {
+		dispatchFn: func(_ context.Context, _ string, _ []string, _ string) (string, json.RawMessage, error) {
 			return "done", nil, nil
 		},
 	}
@@ -135,7 +135,7 @@ func TestIPDynamicRestoreOnUp(t *testing.T) {
 	mgr := &probeManager{
 		probes: make(map[string]*runningProbe),
 		ipMgr:  mock,
-		dispatchFn: func(_ context.Context, _ string) (string, json.RawMessage, error) {
+		dispatchFn: func(_ context.Context, _ string, _ []string, _ string) (string, json.RawMessage, error) {
 			return "done", nil, nil
 		},
 	}
@@ -171,7 +171,7 @@ func TestIPStaticKeepOnDown(t *testing.T) {
 	mgr := &probeManager{
 		probes: make(map[string]*runningProbe),
 		ipMgr:  mock,
-		dispatchFn: func(ctx context.Context, _ string) (string, json.RawMessage, error) {
+		dispatchFn: func(ctx context.Context, _ string, _ []string, _ string) (string, json.RawMessage, error) {
 			return "done", nil, nil
 		},
 	}

@@ -15,7 +15,6 @@ import (
 	"net"
 	"net/netip"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -212,7 +211,7 @@ func RunRPKIPlugin(conn net.Conn) int {
 	p.OnAllPluginsReady(func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		status, _, err := p.DispatchCommand(ctx, "request adj-rib-in enable-validation")
+		status, _, err := p.DispatchCommandArgs(ctx, "request adj-rib-in enable-validation", nil, "")
 		if err != nil {
 			logger().Error("rpki: failed to enable validation gate", "error", err)
 			return fmt.Errorf("enable validation gate: %w", err)
@@ -546,41 +545,33 @@ func (rp *RPKIPlugin) dispatchValidation(req validationRequest) {
 		m.validationOutcomes.With(validationStateString(req.state)).Inc()
 	}
 
-	if strings.ContainsAny(req.peerAddr, " \t\n\r") ||
-		strings.ContainsAny(req.family, " \t\n\r") ||
-		strings.ContainsAny(req.prefix, " \t\n\r") {
-		logger().Warn("rpki: invalid characters in validation request fields",
-			"peer", req.peerAddr, "family", req.family, "prefix", req.prefix)
-		return
-	}
-
 	pathIDStr := textbuf.Uint32(req.pathID)
 
-	var cmd string
-	if req.state == ValidationInvalid {
-		cmd = "request adj-rib-in reject-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + pathIDStr
-	} else {
-		stateStr := "2" // NotFound
-		if req.state == ValidationValid {
-			stateStr = "1"
-		}
-		cmd = "request adj-rib-in accept-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + pathIDStr + " " + stateStr
+	command := "request adj-rib-in accept-routes"
+	stateStr := "2" // NotFound
+	if req.state == ValidationValid {
+		stateStr = "1"
 	}
+	args := []string{req.peerAddr, req.family, req.prefix, pathIDStr, stateStr}
 
-	if req.state != ValidationInvalid && req.aspaState != aspaStateNone {
+	if req.state == ValidationInvalid {
+		command = "request adj-rib-in reject-routes"
+		args = []string{req.peerAddr, req.family, req.prefix, pathIDStr}
+	} else if req.aspaState != aspaStateNone {
 		if aspaOverridesAccept(req.aspaState,
 			uint8(rp.aspaInvalidAction.Load()),   //nolint:gosec // stored as uint8, fits
 			uint8(rp.aspaUnknownAction.Load())) { //nolint:gosec // stored as uint8, fits
-			cmd = "request adj-rib-in reject-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + pathIDStr
+			command = "request adj-rib-in reject-routes"
+			args = []string{req.peerAddr, req.family, req.prefix, pathIDStr}
 		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	_, _, err := rp.plugin.DispatchCommand(ctx, cmd)
+	_, _, err := rp.plugin.DispatchCommandArgs(ctx, command, args, "")
 	cancel()
 	if err != nil {
 		logger().Warn("rpki: validation command failed",
-			"command", cmd, "error", err)
+			"command", command, "args", args, "error", err)
 	}
 }
 

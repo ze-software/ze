@@ -687,7 +687,7 @@ func (r *RIBManager) status() any {
 
 // retainRoutes marks a peer's Adj-RIB-In for retention during GR.
 // RFC 4724: Receiving speaker retains routes from restarting peer.
-// Called by bgp-gr plugin via DispatchCommand("request bgp rib retain-routes <peer>").
+// Called by bgp-gr plugin via DispatchCommandArgs("request bgp rib retain-routes", []string{peer}).
 func (r *RIBManager) retainRoutes(selector string) any {
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
@@ -706,7 +706,7 @@ func (r *RIBManager) retainRoutes(selector string) any {
 
 // releaseRoutes clears the retain flag and deletes Adj-RIB-In for matching peers.
 // RFC 4724: Called when restart timer expires or GR completes.
-// Called by bgp-gr plugin via DispatchCommand("request bgp rib release-routes <peer>").
+// Called by bgp-gr plugin via DispatchCommandArgs("request bgp rib release-routes", []string{peer}).
 func (r *RIBManager) releaseRoutes(selector string) any {
 	r.peerMu.Lock()
 

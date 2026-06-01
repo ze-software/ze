@@ -85,6 +85,19 @@ func (e *fakeEditor) Discard() error                      { e.values = make(map[
 func (e *fakeEditor) OriginalContent() string             { return "# original\n" }
 func (e *fakeEditor) WorkingContent() string              { return "# config\n" }
 
+type denyAllAuthorizer struct {
+	username string
+	command  string
+	readOnly bool
+}
+
+func (a *denyAllAuthorizer) Authorize(username, _, command string, isReadOnly bool) bool {
+	a.username = username
+	a.command = command
+	a.readOnly = isReadOnly
+	return false
+}
+
 // serveBackground starts a gRPC server in a background goroutine.
 // One-time test lifecycle goroutine, not per-event.
 func serveBackground(srv *grpc.Server, ln net.Listener) {
@@ -326,6 +339,44 @@ func TestGRPCConfigSession(t *testing.T) {
 	// Commit.
 	_, err = cfg.CommitSession(ctx, &zepb.CommitRequest{SessionId: id})
 	require.NoError(t, err)
+}
+
+// VALIDATES: config session RPCs consult profile RBAC for authenticated users.
+// PREVENTS: read-only config users mutating config through gRPC sessions.
+func TestGRPCConfigSessionAuthorizerDeny(t *testing.T) {
+	engine := testEngine()
+	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
+		return &fakeEditor{values: make(map[string]string)}, nil
+	})
+	authorizer := &denyAllAuthorizer{}
+	srv, err := NewGRPCServer(GRPCConfig{
+		ListenAddrs: []string{"127.0.0.1:0"},
+		Authenticator: func(header string) (string, bool) {
+			return "alice", header == "Bearer alice-token"
+		},
+		Authorizer: authorizer,
+	}, engine, sessions)
+	require.NoError(t, err)
+
+	var lc net.ListenConfig
+	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	serveBackground(srv.srv, ln)
+	t.Cleanup(srv.Stop)
+
+	conn, err := grpc.NewClient(ln.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, conn.Close()) })
+
+	cfg := zepb.NewZeConfigServiceClient(conn)
+	md := metadata.Pairs("authorization", "Bearer alice-token")
+	ctx := metadata.NewOutgoingContext(t.Context(), md)
+	_, err = cfg.EnterSession(ctx, &zepb.Empty{})
+	require.Error(t, err)
+	assert.Equal(t, codes.PermissionDenied, status.Code(err))
+	assert.Equal(t, "alice", authorizer.username)
+	assert.Equal(t, "config edit", authorizer.command)
+	assert.False(t, authorizer.readOnly)
 }
 
 // VALIDATES: AC-9 -- Config commit via gRPC emits an audit record with actor, surface, action, and summary.

@@ -157,8 +157,9 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 	defer cancel()
 
 	// Full replay from index 0.
-	cmd := "request adj-rib-in replay " + peerAddr + " 0"
-	status, data, err := rs.dispatchCommand(ctx, cmd)
+	replayCommand := "request adj-rib-in replay"
+	replayArgs := []string{peerAddr, "0"}
+	status, data, err := rs.dispatchCommand(ctx, replayCommand, replayArgs...)
 	if err != nil || status != statusDone {
 		// Graceful soft-dep fallback: when bgp-adj-rib-in is an
 		// OptionalDependencies entry that was not registered at build time,
@@ -172,7 +173,7 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 				logger().Warn("bgp-adj-rib-in not loaded; replay-on-peer-up disabled (optional dependency)")
 			})
 		} else {
-			logger().Error("replay failed", "peer", peerAddr, "command", cmd, "status", status, "error", err)
+			logger().Error("replay failed", "peer", peerAddr, "command", replayCommand, "args", replayArgs, "status", status, "error", err)
 		}
 		// Clear Replaying so the peer is included in forward targets for any
 		// UPDATE arriving from now on. Only if this goroutine's generation is
@@ -222,9 +223,8 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 		if i > 0 {
 			time.Sleep(replayConvergenceDelay)
 		}
-		var bCmd textbuf.Buffer
-		deltaCmd := bCmd.Reset().Str("request adj-rib-in replay ").Str(peerAddr).Byte(' ').Int(int64(lastIndex)).String()
-		_, deltaData, deltaErr := rs.dispatchCommand(ctx, deltaCmd)
+		deltaArgs := []string{peerAddr, textbuf.Uint(lastIndex)}
+		_, deltaData, deltaErr := rs.dispatchCommand(ctx, replayCommand, deltaArgs...)
 		if deltaErr != nil {
 			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)
 			break

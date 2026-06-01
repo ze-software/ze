@@ -48,6 +48,12 @@ func newTestRouteServer(t *testing.T) *RouteServer {
 	return rs
 }
 
+type dispatchCall struct {
+	command string
+	args    []string
+	peer    string
+}
+
 // flushWorkers stops and recreates the worker pool, ensuring all pending
 // items are processed. rs-fastpath-3 removed the fire-and-forget sender
 // goroutines; workers now call ForwardCached / ReleaseCached synchronously.
@@ -208,7 +214,7 @@ func TestHandleState_Up_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	var dispatched atomic.Bool
-	rs.dispatchCommandHook = func(cmd string) (string, json.RawMessage, error) {
+	rs.dispatchCommandHook = func(cmd string, args []string, peer string) (string, json.RawMessage, error) {
 		dispatched.Store(true)
 		return statusDone, json.RawMessage(`{"last-index":0,"replayed":0}`), nil
 	}
@@ -237,18 +243,18 @@ func TestHandleState_Up_ZeBGPFormat(t *testing.T) {
 func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	var replayCmd atomic.Value
-	rs.dispatchCommandHook = func(cmd string) (string, json.RawMessage, error) {
-		replayCmd.Store(cmd)
+	var replayCall atomic.Value
+	rs.dispatchCommandHook = func(cmd string, args []string, peer string) (string, json.RawMessage, error) {
+		replayCall.Store(dispatchCall{command: cmd, args: slices.Clone(args), peer: peer})
 		return statusDone, json.RawMessage(`{"last-index":0,"replayed":0}`), nil
 	}
 
 	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
 
 	require.Eventually(t, func() bool {
-		v := replayCmd.Load()
-		s, ok := v.(string)
-		return ok && s != ""
+		v := replayCall.Load()
+		call, ok := v.(dispatchCall)
+		return ok && call.command != ""
 	}, 2*time.Second, time.Millisecond, "expected replay DispatchCommand")
 
 	rs.mu.RLock()
@@ -262,11 +268,11 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 		t.Error("expected peer to be up")
 	}
 
-	// The replay command must include the peer address — bgp-adj-rib-in uses it
-	// to replay routes from ALL source peers EXCEPT the target peer itself.
-	cmd, _ := replayCmd.Load().(string)
-	if !strings.Contains(cmd, "10.0.0.1") {
-		t.Errorf("replay command should target peer 10.0.0.1, got %q", cmd)
+	// The replay command must keep the peer in args[0] so bgp-adj-rib-in can
+	// replay routes from ALL source peers EXCEPT the target peer itself.
+	call, _ := replayCall.Load().(dispatchCall)
+	if call.command != "request adj-rib-in replay" || !slices.Equal(call.args, []string{"10.0.0.1", "0"}) {
+		t.Errorf("replay command should preserve typed split, got command=%q args=%v", call.command, call.args)
 	}
 }
 
@@ -415,7 +421,7 @@ func TestFilterReplayByFamily(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	// Replay now handled by bgp-adj-rib-in via DispatchCommand.
-	rs.dispatchCommandHook = func(cmd string) (string, json.RawMessage, error) {
+	rs.dispatchCommandHook = func(cmd string, args []string, peer string) (string, json.RawMessage, error) {
 		return statusDone, json.RawMessage(`{"last-index":0,"replayed":0}`), nil
 	}
 
@@ -1169,12 +1175,12 @@ func TestHandleStateUpReplay(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	var mu sync.Mutex
-	var dispatchCmds []string
+	var dispatchCmds []dispatchCall
 	var updateCmds []string
 
-	rs.dispatchCommandHook = func(cmd string) (string, json.RawMessage, error) {
+	rs.dispatchCommandHook = func(cmd string, args []string, peer string) (string, json.RawMessage, error) {
 		mu.Lock()
-		dispatchCmds = append(dispatchCmds, cmd)
+		dispatchCmds = append(dispatchCmds, dispatchCall{command: cmd, args: slices.Clone(args), peer: peer})
 		mu.Unlock()
 		return statusDone, json.RawMessage(`{"last-index":5,"replayed":3}`), nil
 	}
@@ -1203,8 +1209,8 @@ func TestHandleStateUpReplay(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	if !strings.HasPrefix(dispatchCmds[0], "request adj-rib-in replay 10.0.0.1") {
-		t.Errorf("expected adj-rib-in replay command, got %q", dispatchCmds[0])
+	if dispatchCmds[0].command != "request adj-rib-in replay" || !slices.Equal(dispatchCmds[0].args, []string{"10.0.0.1", "0"}) {
+		t.Errorf("expected typed replay command+args, got command=%q args=%v", dispatchCmds[0].command, dispatchCmds[0].args)
 	}
 	for _, cmd := range updateCmds {
 		if strings.Contains(cmd, "refresh") {
@@ -1233,7 +1239,7 @@ func TestRSSoftDepSkipsReplay(t *testing.T) {
 	var eorOnce sync.Once
 
 	var dispatchCount atomic.Int32
-	rs.dispatchCommandHook = func(_ string) (string, json.RawMessage, error) {
+	rs.dispatchCommandHook = func(_ string, _ []string, _ string) (string, json.RawMessage, error) {
 		dispatchCount.Add(1)
 		// Matches the engine's ErrUnknownCommand string propagated across the
 		// plugin IPC boundary when adj-rib-in is not registered.
@@ -1334,13 +1340,13 @@ func TestHandleStateUpDelta(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	var mu sync.Mutex
-	var dispatchCmds []string
-
-	rs.dispatchCommandHook = func(cmd string) (string, json.RawMessage, error) {
+	var dispatchCmds []dispatchCall
+	rs.dispatchCommandHook = func(cmd string, args []string, peer string) (string, json.RawMessage, error) {
 		mu.Lock()
-		dispatchCmds = append(dispatchCmds, cmd)
+		dispatchCmds = append(dispatchCmds, dispatchCall{command: cmd, args: slices.Clone(args), peer: peer})
+		isFullReplay := len(args) == 2 && args[1] == "0"
 		mu.Unlock()
-		if strings.HasSuffix(cmd, " 0") {
+		if isFullReplay {
 			return statusDone, json.RawMessage(`{"last-index":5,"replayed":3}`), nil
 		}
 		return statusDone, json.RawMessage(`{"last-index":7,"replayed":1}`), nil
@@ -1361,11 +1367,11 @@ func TestHandleStateUpDelta(t *testing.T) {
 
 	mu.Lock()
 	defer mu.Unlock()
-	if dispatchCmds[0] != "request adj-rib-in replay 10.0.0.1 0" {
-		t.Errorf("expected full replay, got %q", dispatchCmds[0])
+	if dispatchCmds[0].command != "request adj-rib-in replay" || !slices.Equal(dispatchCmds[0].args, []string{"10.0.0.1", "0"}) {
+		t.Errorf("expected full typed replay, got command=%q args=%v", dispatchCmds[0].command, dispatchCmds[0].args)
 	}
-	if dispatchCmds[1] != "request adj-rib-in replay 10.0.0.1 5" {
-		t.Errorf("expected delta replay from 5, got %q", dispatchCmds[1])
+	if dispatchCmds[1].command != "request adj-rib-in replay" || !slices.Equal(dispatchCmds[1].args, []string{"10.0.0.1", "5"}) {
+		t.Errorf("expected delta typed replay from 5, got command=%q args=%v", dispatchCmds[1].command, dispatchCmds[1].args)
 	}
 }
 
@@ -1385,7 +1391,7 @@ func TestHandleStateUpNonBlocking(t *testing.T) {
 		}
 	})
 
-	rs.dispatchCommandHook = func(cmd string) (string, json.RawMessage, error) {
+	rs.dispatchCommandHook = func(cmd string, args []string, peer string) (string, json.RawMessage, error) {
 		<-unblock
 		return statusDone, json.RawMessage(`{"last-index":0,"replayed":0}`), nil
 	}
@@ -1508,7 +1514,7 @@ func TestReplayGeneration_RapidReconnect(t *testing.T) {
 	})
 
 	var callCount atomic.Int32
-	rs.dispatchCommandHook = func(cmd string) (string, json.RawMessage, error) {
+	rs.dispatchCommandHook = func(cmd string, args []string, peer string) (string, json.RawMessage, error) {
 		n := callCount.Add(1)
 		if n == 1 {
 			// First call (goroutine A's full replay) — block until released.
@@ -1798,7 +1804,7 @@ func TestSelectForwardTargetsReusesBuffer(t *testing.T) {
 func TestReplayForPeer_SendsEOR(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	rs.dispatchCommandHook = func(cmd string) (string, json.RawMessage, error) {
+	rs.dispatchCommandHook = func(cmd string, args []string, peer string) (string, json.RawMessage, error) {
 		return statusDone, json.RawMessage(`{"last-index":0,"replayed":0}`), nil
 	}
 
@@ -1877,7 +1883,7 @@ func TestReplayForPeer_SendsEOR(t *testing.T) {
 func TestReplayForPeer_NoFamilies_NoEOR(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	rs.dispatchCommandHook = func(cmd string) (string, json.RawMessage, error) {
+	rs.dispatchCommandHook = func(cmd string, args []string, peer string) (string, json.RawMessage, error) {
 		return statusDone, json.RawMessage(`{"last-index":0,"replayed":0}`), nil
 	}
 
@@ -1927,7 +1933,7 @@ func TestReplayForPeer_NoFamilies_NoEOR(t *testing.T) {
 func TestReplayForPeer_FailedReplay_SendsEOR(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	rs.dispatchCommandHook = func(cmd string) (string, json.RawMessage, error) {
+	rs.dispatchCommandHook = func(cmd string, args []string, peer string) (string, json.RawMessage, error) {
 		return statusError, nil, fmt.Errorf("replay failed")
 	}
 

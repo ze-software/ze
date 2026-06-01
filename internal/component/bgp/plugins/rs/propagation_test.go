@@ -771,7 +771,7 @@ func TestOpenCreatesEmptyFamilies(t *testing.T) {
 // PREVENTS: Race where routes are dropped because OPEN hasn't been processed yet.
 func TestStateUpBeforeOpen_FamiliesNil(t *testing.T) {
 	rs := newTestRouteServer(t)
-	rs.dispatchCommandHook = func(cmd string) (string, json.RawMessage, error) {
+	rs.dispatchCommandHook = func(cmd string, args []string, peer string) (string, json.RawMessage, error) {
 		return statusDone, json.RawMessage(`{"last-index":0,"replayed":0}`), nil
 	}
 
@@ -818,7 +818,7 @@ func TestStateUpBeforeOpen_FamiliesNil(t *testing.T) {
 // PREVENTS: Missing family extraction from OPEN capabilities.
 func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 	rs := newTestRouteServer(t)
-	rs.dispatchCommandHook = func(cmd string) (string, json.RawMessage, error) {
+	rs.dispatchCommandHook = func(cmd string, args []string, peer string) (string, json.RawMessage, error) {
 		return statusDone, json.RawMessage(`{"last-index":0,"replayed":0}`), nil
 	}
 

@@ -16,18 +16,25 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 )
 
-// splitTacacsArgs splits a command string into TACACS+ convention arguments.
+// splitTacacsArgs splits a legacy command string into TACACS+ convention arguments.
 // RFC 8907 Section 6: service=shell, cmd=<verb>, cmd-arg=<arg1>, cmd-arg=<arg2>, ...
 func splitTacacsArgs(command string) []string {
+	return splitTacacsTokens(strings.Fields(command))
+}
+
+func splitTacacsCommandArgs(command string, args []string, peer string) []string {
+	return splitTacacsTokens(aaa.CanonicalCommandTokens(command, args, peer))
+}
+
+func splitTacacsTokens(tokens []string) []string {
 	args := []string{"service=shell"}
-	parts := strings.Fields(command)
-	if len(parts) == 0 {
+	if len(tokens) == 0 {
 		args = append(args, "cmd=")
 		return args
 	}
-	args = append(args, "cmd="+parts[0])
-	for _, p := range parts[1:] {
-		args = append(args, "cmd-arg="+p)
+	args = append(args, "cmd="+tokens[0])
+	for _, token := range tokens[1:] {
+		args = append(args, "cmd-arg="+token)
 	}
 	return args
 }
@@ -67,7 +74,22 @@ func NewTacacsAuthorizerWithFallback(client *TacacsClient, local aaa.Authorizer,
 //   - false on FAIL (AC-10)
 //   - Falls back to local authorizer on ERROR or connection failure.
 func (a *TacacsAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
-	args := splitTacacsArgs(command)
+	return a.authorize(username, remoteAddr, command, splitTacacsArgs(command), func() bool {
+		return a.fallback(username, remoteAddr, command, isReadOnly)
+	})
+}
+
+// AuthorizeCommandArgs implements aaa.CommandArgsAuthorizer.
+// It preserves typed arg boundaries and peer scoping when building TACACS+
+// cmd/cmd-arg fields for inter-plugin command dispatch.
+func (a *TacacsAuthorizer) AuthorizeCommandArgs(username, remoteAddr, command string, args []string, peer string, isReadOnly bool) bool {
+	authCommand := aaa.CanonicalCommand(command, args, peer)
+	return a.authorize(username, remoteAddr, authCommand, splitTacacsCommandArgs(command, args, peer), func() bool {
+		return a.fallbackArgs(username, remoteAddr, command, args, peer, isReadOnly)
+	})
+}
+
+func (a *TacacsAuthorizer) authorize(username, remoteAddr, command string, args []string, fallback func() bool) bool {
 	req := &AuthorRequest{
 		AuthenMethod:  AuthenMethodTACACS,
 		PrivLvl:       1,
@@ -88,7 +110,7 @@ func (a *TacacsAuthorizer) Authorize(username, remoteAddr, command string, isRea
 		}
 		a.logger.Warn("TACACS+ authorization server unreachable, using local RBAC",
 			"username", username, "command", command, "error", err)
-		return a.fallback(username, remoteAddr, command, isReadOnly)
+		return fallback()
 	}
 
 	if resp.Status == AuthorStatusPassAdd || resp.Status == AuthorStatusPassRepl {
@@ -109,7 +131,7 @@ func (a *TacacsAuthorizer) Authorize(username, remoteAddr, command string, isRea
 		a.logger.Warn("TACACS+ authorization error, using local RBAC",
 			"username", username, "command", command,
 			"server-msg", resp.ServerMsg)
-		return a.fallback(username, remoteAddr, command, isReadOnly)
+		return fallback()
 	}
 
 	if a.strictFallback {
@@ -119,7 +141,7 @@ func (a *TacacsAuthorizer) Authorize(username, remoteAddr, command string, isRea
 	}
 	a.logger.Warn("TACACS+ authorization unknown status, using local RBAC",
 		"username", username, "command", command, "status", resp.Status)
-	return a.fallback(username, remoteAddr, command, isReadOnly)
+	return fallback()
 }
 
 func (a *TacacsAuthorizer) fallback(username, remoteAddr, command string, isReadOnly bool) bool {
@@ -127,4 +149,14 @@ func (a *TacacsAuthorizer) fallback(username, remoteAddr, command string, isRead
 		return false
 	}
 	return a.local.Authorize(username, remoteAddr, command, isReadOnly)
+}
+
+func (a *TacacsAuthorizer) fallbackArgs(username, remoteAddr, command string, args []string, peer string, isReadOnly bool) bool {
+	if a.local == nil {
+		return false
+	}
+	if authzArgs, ok := a.local.(aaa.CommandArgsAuthorizer); ok {
+		return authzArgs.AuthorizeCommandArgs(username, remoteAddr, command, args, peer, isReadOnly)
+	}
+	return a.local.Authorize(username, remoteAddr, aaa.CanonicalCommand(command, args, peer), isReadOnly)
 }

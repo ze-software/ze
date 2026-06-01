@@ -3,18 +3,135 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+func registerExecuteCommandTarget(
+	t *testing.T,
+	d *Dispatcher,
+	command string,
+	calls int,
+	handle func(int, *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error),
+) <-chan error {
+	t.Helper()
+
+	engineSide, pluginSide := net.Pipe()
+	t.Cleanup(func() { _ = engineSide.Close() })
+	t.Cleanup(func() { _ = pluginSide.Close() })
+
+	proc := process.NewProcess(plugin.PluginConfig{Name: "target-plugin"})
+	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
+	proc.SetRunning(true)
+
+	results := d.Registry().Register(proc, []CommandDef{{Name: command, Description: "target command"}})
+	require.Len(t, results, 1)
+	require.True(t, results[0].OK, results[0].Error)
+
+	done := make(chan error, 1)
+	go func() {
+		pluginConn := rpc.NewConn(pluginSide, pluginSide)
+		for i := range calls {
+			readCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			req, err := pluginConn.ReadRequest(readCtx)
+			cancel()
+			if err != nil {
+				done <- err
+				return
+			}
+			if req.Method != "ze-plugin-callback:execute-command" {
+				done <- fmt.Errorf("unexpected method: %s", req.Method)
+				return
+			}
+
+			var input rpc.ExecuteCommandInput
+			if err := json.Unmarshal(req.Params, &input); err != nil {
+				done <- err
+				return
+			}
+
+			out, err := handle(i, &input)
+			if err != nil {
+				done <- err
+				return
+			}
+			if out == nil {
+				out = &rpc.ExecuteCommandOutput{Status: plugin.StatusDone}
+			}
+
+			writeCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			err = pluginConn.SendResult(writeCtx, req.ID, out)
+			cancel()
+			if err != nil {
+				done <- err
+				return
+			}
+		}
+		done <- nil
+	}()
+	return done
+}
+
+type captureAuthorizer struct {
+	allow      bool
+	username   string
+	remoteAddr string
+	command    string
+	readOnly   bool
+}
+
+func (a *captureAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
+	a.username = username
+	a.remoteAddr = remoteAddr
+	a.command = command
+	a.readOnly = isReadOnly
+	return a.allow
+}
+
+type captureCommandArgsAuthorizer struct {
+	allow            bool
+	username         string
+	remoteAddr       string
+	command          string
+	args             []string
+	peer             string
+	readOnly         bool
+	structuredCalled bool
+	legacyCalled     bool
+}
+
+func (a *captureCommandArgsAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
+	a.legacyCalled = true
+	a.username = username
+	a.remoteAddr = remoteAddr
+	a.command = command
+	a.readOnly = isReadOnly
+	return a.allow
+}
+
+func (a *captureCommandArgsAuthorizer) AuthorizeCommandArgs(username, remoteAddr, command string, args []string, peer string, isReadOnly bool) bool {
+	a.structuredCalled = true
+	a.username = username
+	a.remoteAddr = remoteAddr
+	a.command = command
+	a.args = slices.Clone(args)
+	a.peer = peer
+	a.readOnly = isReadOnly
+	return a.allow
+}
 
 // TestDispatchCommandToPlugin verifies that the dispatch-command RPC dispatches
 // a command through the engine's dispatcher and returns the full {status, data} response.
@@ -346,6 +463,190 @@ func TestDispatchCommandDirectBridge(t *testing.T) {
 
 	assert.Equal(t, "done", output.Status)
 	assert.Contains(t, string(output.Data), "bridge-ok")
+}
+
+// TestDispatchCommandArgsRoutesSameHandlerAsDispatchCommand verifies that the
+// typed exact-command path reaches the same plugin command handler as the
+// external string dispatch path for ordinary token values.
+//
+// VALIDATES: dispatch-command-args routes exact command plus args to the registered plugin handler.
+// PREVENTS: typed dispatch using a parallel handler path that diverges from dispatch-command routing.
+func TestDispatchCommandArgsRoutesSameHandlerAsDispatchCommand(t *testing.T) {
+	t.Parallel()
+
+	d := NewDispatcher()
+	done := registerExecuteCommandTarget(t, d, "target echo", 2, func(_ int, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
+		if input.Command != "target echo" {
+			return nil, fmt.Errorf("unexpected command: %s", input.Command)
+		}
+		if !slices.Equal(input.Args, []string{"alpha", "beta"}) {
+			return nil, fmt.Errorf("unexpected args: %#v", input.Args)
+		}
+		if input.Peer != "*" {
+			return nil, fmt.Errorf("unexpected peer: %s", input.Peer)
+		}
+		return &rpc.ExecuteCommandOutput{
+			Status: plugin.StatusDone,
+			Data:   json.RawMessage(`{"handler":"target"}`),
+		}, nil
+	})
+
+	s := &Server{dispatcher: d}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	defer s.cancel()
+
+	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
+	stringOut, err := s.dispatchCommand(caller, "target echo alpha beta")
+	require.NoError(t, err)
+
+	argsOut, err := s.dispatchCommandArgs(caller, "target echo", []string{"alpha", "beta"}, "")
+	require.NoError(t, err)
+
+	assert.Equal(t, stringOut.Status, argsOut.Status)
+	assert.JSONEq(t, string(stringOut.Data), string(argsOut.Data))
+	require.NoError(t, <-done)
+}
+
+// TestDispatchCommandArgsPreservesOddArguments verifies args that the command
+// tokenizer would split or reject arrive at the plugin as single args.
+//
+// VALIDATES: dispatch-command-args delivers spaces, quotes, tabs, and backslashes without tokenization.
+// PREVENTS: internal runtime data being reinterpreted as command syntax.
+func TestDispatchCommandArgsPreservesOddArguments(t *testing.T) {
+	t.Parallel()
+
+	d := NewDispatcher()
+	wantArgs := []string{"peer key with spaces", `quote"inside`, "tab\tinside", `slash\inside`}
+	wantPeer := "peer selector with spaces"
+	done := registerExecuteCommandTarget(t, d, "target odd", 1, func(_ int, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
+		if input.Command != "target odd" {
+			return nil, fmt.Errorf("unexpected command: %s", input.Command)
+		}
+		if !slices.Equal(input.Args, wantArgs) {
+			return nil, fmt.Errorf("unexpected args: %#v", input.Args)
+		}
+		if input.Peer != wantPeer {
+			return nil, fmt.Errorf("unexpected peer: %s", input.Peer)
+		}
+		return &rpc.ExecuteCommandOutput{Status: plugin.StatusDone}, nil
+	})
+
+	s := &Server{dispatcher: d}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	defer s.cancel()
+
+	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
+	out, err := s.dispatchCommandArgs(caller, "target odd", wantArgs, wantPeer)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	assert.Equal(t, plugin.StatusDone, out.Status)
+	require.NoError(t, <-done)
+}
+
+// TestDispatchCommandArgsErrorsMatchDispatchCommand verifies unknown command
+// and handler error semantics stay compatible with dispatch-command.
+//
+// VALIDATES: dispatch-command-args preserves unknown-command errors and handler status/error output.
+// PREVENTS: typed dispatch returning different status or error shapes from the string API.
+func TestDispatchCommandArgsErrorsMatchDispatchCommand(t *testing.T) {
+	t.Parallel()
+
+	d := NewDispatcher()
+	done := registerExecuteCommandTarget(t, d, "target fails", 2, func(_ int, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
+		if input.Command != "target fails" {
+			return nil, fmt.Errorf("unexpected command: %s", input.Command)
+		}
+		return &rpc.ExecuteCommandOutput{
+			Status: plugin.StatusError,
+			Data:   json.RawMessage(`"target broke"`),
+		}, nil
+	})
+
+	s := &Server{dispatcher: d}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	defer s.cancel()
+	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
+
+	stringUnknownOut, stringUnknownErr := s.dispatchCommand(caller, "missing command")
+	argsUnknownOut, argsUnknownErr := s.dispatchCommandArgs(caller, "missing command", nil, "")
+	require.Error(t, stringUnknownErr)
+	require.Error(t, argsUnknownErr)
+	assert.True(t, errors.Is(stringUnknownErr, ErrUnknownCommand))
+	assert.True(t, errors.Is(argsUnknownErr, ErrUnknownCommand))
+	assert.Nil(t, stringUnknownOut)
+	assert.Nil(t, argsUnknownOut)
+
+	stringOut, err := s.dispatchCommand(caller, "target fails")
+	require.NoError(t, err)
+	argsOut, err := s.dispatchCommandArgs(caller, "target fails", nil, "")
+	require.NoError(t, err)
+
+	assert.Equal(t, stringOut.Status, argsOut.Status)
+	assert.Equal(t, stringOut.Error, argsOut.Error)
+	assert.Equal(t, plugin.StatusError, argsOut.Status)
+	assert.Contains(t, argsOut.Error, "target broke")
+	require.NoError(t, <-done)
+}
+
+// TestDispatchCommandArgsPreservesPluginIdentity verifies typed dispatch uses
+// the caller plugin identity and structured auth path for authorization.
+//
+// VALIDATES: dispatch-command-args authorizes as plugin:<caller> with exact command, args, and peer.
+// PREVENTS: typed dispatch flattening auth inputs before built-in authorizers can inspect them.
+func TestDispatchCommandArgsPreservesPluginIdentity(t *testing.T) {
+	t.Parallel()
+
+	d := NewDispatcher()
+	auth := &captureCommandArgsAuthorizer{allow: false}
+	d.SetAuthorizer(auth)
+
+	s := &Server{dispatcher: d}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	defer s.cancel()
+
+	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
+	wantArgs := []string{"peer key with spaces", `quote"inside`, `slash\inside`}
+	out, err := s.dispatchCommandArgs(caller, "target echo", wantArgs, "10.0.0.1")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUnauthorized))
+	assert.NotNil(t, out)
+	assert.Equal(t, plugin.StatusError, out.Status)
+	assert.Equal(t, "plugin:caller-plugin", auth.username)
+	assert.Equal(t, "target echo", auth.command)
+	assert.Equal(t, wantArgs, auth.args)
+	assert.Equal(t, "10.0.0.1", auth.peer)
+	assert.False(t, auth.readOnly)
+	assert.True(t, auth.structuredCalled)
+	assert.False(t, auth.legacyCalled)
+}
+
+// TestDispatchCommandArgsLegacyAuthorizationCanonicalizesPeerScope verifies the
+// fallback string path preserves peer scope and quoted arg boundaries for
+// legacy aaa.Authorizer implementations.
+//
+// VALIDATES: legacy authorizers receive aaa.CanonicalCommand(command, args, peer).
+// PREVENTS: peer-scoped typed dispatch being authorized as an unscoped flat string.
+func TestDispatchCommandArgsLegacyAuthorizationCanonicalizesPeerScope(t *testing.T) {
+	t.Parallel()
+
+	d := NewDispatcher()
+	auth := &captureAuthorizer{allow: false}
+	d.SetAuthorizer(auth)
+
+	s := &Server{dispatcher: d}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	defer s.cancel()
+
+	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
+	wantArgs := []string{"peer key with spaces", `quote"inside`, `slash\inside`}
+	out, err := s.dispatchCommandArgs(caller, "target echo", wantArgs, "10.0.0.1")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUnauthorized))
+	assert.NotNil(t, out)
+	assert.Equal(t, plugin.StatusError, out.Status)
+	assert.Equal(t, "plugin:caller-plugin", auth.username)
+	assert.Equal(t, aaa.CanonicalCommand("target echo", wantArgs, "10.0.0.1"), auth.command)
+	assert.False(t, auth.readOnly)
 }
 
 func TestResponseToDispatchOutputMarshalFail(t *testing.T) {

@@ -265,6 +265,15 @@ type DispatchCommandInput struct {
 	Command string `json:"command"`
 }
 
+// DispatchCommandArgsInput is the input for ze-plugin-engine:dispatch-command-args.
+// Plugins use this to invoke an exact registered command with pre-tokenized
+// arguments, avoiding the command-string tokenizer for internal runtime data.
+type DispatchCommandArgsInput struct {
+	Command string   `json:"command"`
+	Args    []string `json:"args,omitempty"`
+	Peer    string   `json:"peer,omitempty"`
+}
+
 // DispatchCommandOutput is the output for ze-plugin-engine:dispatch-command.
 // Preserves the full {status, data} response from the dispatcher, unlike
 // update-route which extracts only route counters.

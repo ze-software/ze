@@ -44,6 +44,13 @@ func newTestManager(t *testing.T) *AdjRIBInManager {
 	}
 }
 
+func commandArgs(s string) []string {
+	if s == "" {
+		return nil
+	}
+	return strings.Fields(s)
+}
+
 func mustMarshal(t *testing.T, v any) json.RawMessage {
 	t.Helper()
 	data, err := json.Marshal(v)
@@ -449,8 +456,7 @@ func TestHandleCommand_Status(t *testing.T) {
 	m2 := seqmap.New[string, *RawRoute]()
 	m2.Put("k3", 3, &RawRoute{Family: family.IPv6Unicast})
 	r.ribIn["10.0.0.2"] = m2
-
-	status, data, err := r.handleCommand("show adj-rib-in status", "")
+	status, data, err := r.handleCommand("show adj-rib-in status", nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
@@ -476,12 +482,44 @@ func TestHandleCommand_Show(t *testing.T) {
 		NLRIHex: "180a0000",
 	})
 	r.ribIn["10.0.0.1"] = m
-
-	status, data, err := r.handleCommand("show adj-rib-in", "10.0.0.1")
+	status, data, err := r.handleCommand("show adj-rib-in", nil, "10.0.0.1")
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, string(mustMarshal(t, data)), "10.0.0.1", "should contain peer address")
 	assert.Contains(t, string(mustMarshal(t, data)), "ipv4/unicast", "should contain family")
+}
+
+// TestHandleCommand_ShowSelectorArgCompatibility verifies the legacy string
+// dispatch path still filters by the selector argument after the typed-args refactor.
+//
+// VALIDATES: handleCommand("show adj-rib-in", args=["10.0.0.1"], peer="*") shows only that peer.
+// PREVENTS: string dispatch clients receiving a full-table dump for a single-peer query.
+func TestHandleCommand_ShowSelectorArgCompatibility(t *testing.T) {
+	r := newTestManager(t)
+
+	m1 := seqmap.New[string, *RawRoute]()
+	m1.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
+		Family:  family.IPv4Unicast,
+		AttrHex: "40010100",
+		NHopHex: "0a000001",
+		NLRIHex: "180a0000",
+	})
+	m2 := seqmap.New[string, *RawRoute]()
+	m2.Put("ipv4/unicast:10.0.1.0/24", 2, &RawRoute{
+		Family:  family.IPv4Unicast,
+		AttrHex: "40010100",
+		NHopHex: "0a000002",
+		NLRIHex: "180a0001",
+	})
+	r.ribIn["10.0.0.1"] = m1
+	r.ribIn["10.0.0.2"] = m2
+
+	status, data, err := r.handleCommand("show adj-rib-in", []string{"10.0.0.1"}, "*")
+	require.NoError(t, err)
+	assert.Equal(t, statusDone, status)
+	got := string(mustMarshal(t, data))
+	assert.Contains(t, got, "10.0.0.1")
+	assert.NotContains(t, got, "10.0.0.2")
 }
 
 // TestMultipleNLRIsPerUpdate verifies multiple NLRIs in single UPDATE are stored individually.
@@ -518,7 +556,7 @@ func TestMultipleNLRIsPerUpdate(t *testing.T) {
 
 // TestAdjRibInReplayArgsPassthrough verifies replay receives correct target peer and from-index.
 //
-// VALIDATES: handleCommand("request adj-rib-in replay", "127.0.0.2 0") replays routes for 127.0.0.2.
+// VALIDATES: handleCommand("request adj-rib-in replay", args=["127.0.0.2", "0"]) replays routes for 127.0.0.2.
 // PREVENTS: Args being dropped, causing replay to target "*" instead of specific peer.
 func TestAdjRibInReplayArgsPassthrough(t *testing.T) {
 	r := newTestManager(t)
@@ -533,8 +571,7 @@ func TestAdjRibInReplayArgsPassthrough(t *testing.T) {
 
 	// Call handleCommand with the selector that would come from args
 	// This simulates: command="request adj-rib-in replay", args=["127.0.0.2", "0"]
-	// The selector is args joined with space: "127.0.0.2 0"
-	status, data, err := r.handleCommand("request adj-rib-in replay", "127.0.0.2 0")
+	status, data, err := r.handleCommand("request adj-rib-in replay", []string{"127.0.0.2", "0"}, "")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -545,12 +582,11 @@ func TestAdjRibInReplayArgsPassthrough(t *testing.T) {
 
 // TestAdjRibInReplayArgsEmpty verifies empty selector returns an error.
 //
-// VALIDATES: handleCommand("request adj-rib-in replay", "") returns error requiring target peer.
+// VALIDATES: handleCommand("request adj-rib-in replay", nil) returns error requiring target peer.
 // PREVENTS: Replay running without a target peer, which could cause unexpected behavior.
 func TestAdjRibInReplayArgsEmpty(t *testing.T) {
 	r := newTestManager(t)
-
-	status, _, err := r.handleCommand("request adj-rib-in replay", "")
+	status, _, err := r.handleCommand("request adj-rib-in replay", nil, "")
 	assert.Equal(t, statusError, status)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "requires target peer address")

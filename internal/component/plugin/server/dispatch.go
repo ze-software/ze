@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	plugipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
@@ -81,6 +82,9 @@ func (s *Server) dispatchPluginRPC(proc *process.Process, conn *plugipc.PluginCo
 		return
 	case "ze-plugin-engine:dispatch-command":
 		s.handleDispatchCommandRPC(proc, conn, req)
+		return
+	case "ze-plugin-engine:dispatch-command-args":
+		s.handleDispatchCommandArgsRPC(proc, conn, req)
 		return
 	case "ze-plugin-engine:subscribe-events":
 		s.handleSubscribeEventsRPC(proc, conn, req)
@@ -208,6 +212,30 @@ func (s *Server) handleDispatchCommandRPC(proc *process.Process, conn *plugipc.P
 	}
 
 	output := responseToDispatchOutput(resp)
+	if sendErr := conn.SendResult(s.ctx, req.ID, output); sendErr != nil {
+		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+	}
+}
+
+// handleDispatchCommandArgsRPC handles ze-plugin-engine:dispatch-command-args from a plugin.
+// Dispatches an exact registered command with pre-tokenized args, avoiding the
+// command-string tokenizer while preserving dispatch-command output semantics.
+func (s *Server) handleDispatchCommandArgsRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
+	var input rpc.DispatchCommandArgsInput
+	if err := json.Unmarshal(req.Params, &input); err != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, "invalid dispatch-command-args params: "+err.Error()); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+
+	output, err := s.dispatchCommandArgs(proc, input.Command, input.Args, input.Peer)
+	if err != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
 	if sendErr := conn.SendResult(s.ctx, req.ID, output); sendErr != nil {
 		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
 	}
@@ -528,6 +556,8 @@ func (s *Server) dispatchPluginRPCDirect(proc *process.Process, method string, p
 		return s.handleUpdateRouteDirect(proc, params)
 	case "ze-plugin-engine:dispatch-command":
 		return s.handleDispatchCommandDirect(proc, params)
+	case "ze-plugin-engine:dispatch-command-args":
+		return s.handleDispatchCommandArgsDirect(proc, params)
 	case "ze-plugin-engine:subscribe-events":
 		return s.handleSubscribeEventsDirect(proc, params)
 	case "ze-plugin-engine:unsubscribe-events":
@@ -614,6 +644,59 @@ func (s *Server) handleDispatchCommandDirect(proc *process.Process, params json.
 		return nil, &rpc.RPCCallError{Message: err.Error()}
 	}
 	return directResultResponse(out)
+}
+
+// handleDispatchCommandArgsDirect handles dispatch-command-args without socket I/O.
+// Unmarshals params, delegates to dispatchCommandArgs, wraps result as JSON.
+func (s *Server) handleDispatchCommandArgsDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
+	var input rpc.DispatchCommandArgsInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		return nil, &rpc.RPCCallError{Message: "invalid dispatch-command-args params: " + err.Error()}
+	}
+	out, err := s.dispatchCommandArgs(proc, input.Command, input.Args, input.Peer)
+	if err != nil {
+		return nil, &rpc.RPCCallError{Message: err.Error()}
+	}
+	return directResultResponse(out)
+}
+
+// dispatchCommandArgs is the core dispatch-command-args logic shared by JSON and typed paths.
+// It routes an exact registered plugin command with pre-tokenized args, avoiding
+// command-string tokenization for runtime data while preserving dispatch-command output.
+func (s *Server) dispatchCommandArgs(proc *process.Process, command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
+	if peer == "" {
+		peer = "*"
+	}
+	cmdCtx := &CommandContext{
+		Server:         s,
+		Process:        proc,
+		RequestContext: s.Context(),
+		Peer:           peer,
+		Username:       "plugin:" + proc.Name(),
+	}
+
+	authInput := aaa.CanonicalCommand(command, args, peer)
+	if s.dispatcher != nil && !s.dispatcher.isAuthorizedCommandArgs(cmdCtx, command, args, peer, false) {
+		return &rpc.DispatchCommandOutput{
+			Status: plugin.StatusError,
+			Error:  "authorization denied for " + authInput,
+		}, ErrUnauthorized
+	}
+
+	resp, dispatchErr := s.dispatcher.ForwardToPlugin(cmdCtx, command, args, peer)
+	if dispatchErr != nil {
+		if errors.Is(dispatchErr, ErrSilent) {
+			return &rpc.DispatchCommandOutput{Status: plugin.StatusDone}, nil
+		}
+		if s.ctx.Err() != nil {
+			logger().Debug("dispatch-command-args failed (shutting down)", "plugin", proc.Name(), "command", authInput, "error", dispatchErr)
+		} else {
+			logger().Error("dispatch-command-args failed", "plugin", proc.Name(), "command", authInput, "error", dispatchErr)
+		}
+		return nil, dispatchErr
+	}
+
+	return responseToDispatchOutput(resp), nil
 }
 
 // dispatchCommand is the core dispatch-command logic shared by JSON and typed paths.
@@ -717,6 +800,9 @@ func (s *Server) wireBridgeDispatch(proc *process.Process) {
 	})
 	proc.Bridge().SetDispatchCommand(func(command string) (*rpc.DispatchCommandOutput, error) {
 		return s.dispatchCommand(proc, command)
+	})
+	proc.Bridge().SetDispatchCommandArgs(func(command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
+		return s.dispatchCommandArgs(proc, command, args, peer)
 	})
 	// rs-fastpath-3: typed fast paths for forward-cached + release-cached.
 	proc.Bridge().SetForwardCached(func(_ context.Context, ids []uint64, destinations []string) error {

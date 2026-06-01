@@ -60,6 +60,44 @@ func TestDirectBridgeDispatchRPC(t *testing.T) {
 	assert.JSONEq(t, `{"announced":2,"withdrawn":4}`, string(result))
 }
 
+// TestDirectBridgeDispatchCommandArgs verifies typed command dispatch preserves
+// the exact command name, pre-tokenized args, and peer selector.
+//
+// VALIDATES: typed inter-plugin dispatch reaches the DirectBridge handler without command-string tokenization.
+// PREVENTS: args containing spaces, quotes, or backslashes being split or rejected before the handler sees them.
+func TestDirectBridgeDispatchCommandArgs(t *testing.T) {
+	t.Parallel()
+
+	bridge := NewDirectBridge()
+	args := []string{"peer key with spaces", `quote"inside`, `slash\inside`}
+
+	var gotCommand string
+	var gotArgs []string
+	var gotPeer string
+	bridge.SetDispatchCommandArgs(func(command string, args []string, peer string) (*DispatchCommandOutput, error) {
+		gotCommand = command
+		gotArgs = append(gotArgs, args...)
+		gotPeer = peer
+		return &DispatchCommandOutput{
+			Status: StatusDone,
+			Data:   json.RawMessage(`{"ok":true}`),
+		}, nil
+	})
+
+	assert.False(t, bridge.HasDispatchCommandArgs(), "handler must not be available before bridge readiness")
+	bridge.SetReady()
+	assert.True(t, bridge.HasDispatchCommandArgs(), "handler should be available after bridge readiness")
+
+	out, err := bridge.DispatchCommandArgs("bgp rib accept-routes", args, "peer selector")
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	assert.Equal(t, StatusDone, out.Status)
+	assert.JSONEq(t, `{"ok":true}`, string(out.Data))
+	assert.Equal(t, "bgp rib accept-routes", gotCommand)
+	assert.Equal(t, args, gotArgs)
+	assert.Equal(t, "peer selector", gotPeer)
+}
+
 // TestDirectBridgeDeliverError verifies error propagation from onEvent.
 //
 // VALIDATES: AC-5 — Error propagated back to deliverBatch and reflected in EventResult.

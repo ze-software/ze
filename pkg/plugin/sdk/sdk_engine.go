@@ -95,17 +95,41 @@ func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status st
 		out, err = p.bridge.DispatchCommand(command)
 	} else {
 		input := &rpc.DispatchCommandInput{Command: command}
-		var result json.RawMessage
-		result, err = p.callEngineWithResult(ctx, "ze-plugin-engine:dispatch-command", input)
-		if err == nil {
-			out = new(rpc.DispatchCommandOutput)
-			err = json.Unmarshal(result, out)
-			if err != nil {
-				err = fmt.Errorf("unmarshal dispatch-command result: %w", err)
-			}
-		}
+		out, err = p.dispatchCommandRPC(ctx, "ze-plugin-engine:dispatch-command", input, "dispatch-command")
 	}
 
+	return dispatchCommandResult(out, err)
+}
+
+// DispatchCommandArgs dispatches an exact registered command with pre-tokenized
+// arguments through the engine's command dispatcher. It preserves the external
+// dispatch-command API while avoiding command-string tokenization for internal data.
+func (p *Plugin) DispatchCommandArgs(ctx context.Context, command string, args []string, peer string) (status string, data json.RawMessage, err error) {
+	var out *rpc.DispatchCommandOutput
+
+	if p.bridge != nil && p.bridge.HasDispatchCommandArgs() {
+		out, err = p.bridge.DispatchCommandArgs(command, args, peer)
+	} else {
+		input := &rpc.DispatchCommandArgsInput{Command: command, Args: args, Peer: peer}
+		out, err = p.dispatchCommandRPC(ctx, "ze-plugin-engine:dispatch-command-args", input, "dispatch-command-args")
+	}
+
+	return dispatchCommandResult(out, err)
+}
+
+func (p *Plugin) dispatchCommandRPC(ctx context.Context, method string, input any, label string) (*rpc.DispatchCommandOutput, error) {
+	result, err := p.callEngineWithResult(ctx, method, input)
+	if err != nil {
+		return nil, err
+	}
+	out := new(rpc.DispatchCommandOutput)
+	if err := json.Unmarshal(result, out); err != nil {
+		return nil, fmt.Errorf("unmarshal %s result: %w", label, err)
+	}
+	return out, nil
+}
+
+func dispatchCommandResult(out *rpc.DispatchCommandOutput, err error) (string, json.RawMessage, error) {
 	if err != nil {
 		return "", nil, err
 	}

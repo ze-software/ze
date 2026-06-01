@@ -22,24 +22,34 @@ var (
 
 // handleCommand processes command requests via SDK execute-command callback.
 // Returns (status, data, error) for the SDK to send back to the engine.
-func (r *AdjRIBInManager) handleCommand(command, selector string) (string, any, error) {
+func (r *AdjRIBInManager) handleCommand(command string, args []string, peer string) (string, any, error) {
 	switch command {
 	case "show adj-rib-in status":
 		return statusDone, r.status(), nil
 	case "show adj-rib-in":
-		return statusDone, r.show(selector), nil
+		return statusDone, r.show(showSelector(args, peer)), nil
 	case "request adj-rib-in replay":
-		return r.replayCommand(selector)
+		return r.replayCommand(args)
 	case "request adj-rib-in enable-validation":
 		return r.enableValidationCommand()
 	case "request adj-rib-in accept-routes":
-		return r.acceptRoutesCommand(selector)
+		return r.acceptRoutesCommand(args)
 	case "request adj-rib-in reject-routes":
-		return r.rejectRoutesCommand(selector)
+		return r.rejectRoutesCommand(args)
 	case "request adj-rib-in revalidate":
-		return r.revalidateCommand(selector)
+		return r.revalidateCommand(args)
 	} // unknown commands return error below
 	return statusError, "", fmt.Errorf("unknown command: %s", command)
+}
+
+func showSelector(args []string, peer string) string {
+	if peer != "" && peer != "*" {
+		return peer
+	}
+	if len(args) > 0 {
+		return args[0]
+	}
+	return peer
 }
 
 // status returns adj-RIB-in status.
@@ -95,21 +105,20 @@ func (r *AdjRIBInManager) show(selector string) any {
 }
 
 // replayCommand handles "request adj-rib-in replay" via execute-command.
-// Selector format: "<target-peer> [<from-index>]".
+// Args format: "<target-peer> [<from-index>]".
 // Replays routes from ALL source peers except target, filtered by from-index.
-func (r *AdjRIBInManager) replayCommand(selector string) (string, any, error) {
-	parts := strings.Fields(selector)
-	if len(parts) == 0 {
+func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
+	if len(args) == 0 {
 		return statusError, "", errAdjRibInReplayRequiresTarget
 	}
 
-	targetPeer := parts[0]
+	targetPeer := args[0]
 	var fromIndex uint64
-	if len(parts) > 1 {
+	if len(args) > 1 {
 		var err error
-		fromIndex, err = strconv.ParseUint(parts[1], 10, 64)
+		fromIndex, err = strconv.ParseUint(args[1], 10, 64)
 		if err != nil {
-			return statusError, "", fmt.Errorf("invalid from-index: %s", parts[1])
+			return statusError, "", fmt.Errorf("invalid from-index: %s", args[1])
 		}
 	}
 
@@ -136,20 +145,19 @@ func (r *AdjRIBInManager) enableValidationCommand() (string, any, error) {
 
 // acceptRoutesCommand handles "request adj-rib-in accept-routes <peer> <family> <prefix> <pathID> <state>".
 // Promotes a pending route to installed with the given validation state.
-func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, any, error) {
-	parts := strings.Fields(selector)
-	if len(parts) < 5 {
+func (r *AdjRIBInManager) acceptRoutesCommand(args []string) (string, any, error) {
+	if len(args) < 5 {
 		return statusError, "", errAcceptRoutesRequiresPeerFamilyPrefix
 	}
 
-	peerAddr := parts[0]
-	fam := parts[1]
-	prefix := parts[2]
-	pathID, err := strconv.ParseUint(parts[3], 10, 32)
+	peerAddr := args[0]
+	fam := args[1]
+	prefix := args[2]
+	pathID, err := strconv.ParseUint(args[3], 10, 32)
 	if err != nil {
-		return statusError, "", fmt.Errorf("accept-routes: invalid pathID %q: %w", parts[3], err)
+		return statusError, "", fmt.Errorf("accept-routes: invalid pathID %q: %w", args[3], err)
 	}
-	valState, err := parseValidationState(parts[4])
+	valState, err := parseValidationState(args[4])
 	if err != nil {
 		return statusError, "", err
 	}
@@ -173,18 +181,17 @@ func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, any, err
 
 // rejectRoutesCommand handles "request adj-rib-in reject-routes <peer> <family> <prefix> <pathID>".
 // Discards a pending route (does not install it).
-func (r *AdjRIBInManager) rejectRoutesCommand(selector string) (string, any, error) {
-	parts := strings.Fields(selector)
-	if len(parts) < 4 {
+func (r *AdjRIBInManager) rejectRoutesCommand(args []string) (string, any, error) {
+	if len(args) < 4 {
 		return statusError, "", errRejectRoutesRequiresPeerFamilyPrefix
 	}
 
-	peerAddr := parts[0]
-	fam := parts[1]
-	prefix := parts[2]
-	pathID, err := strconv.ParseUint(parts[3], 10, 32)
+	peerAddr := args[0]
+	fam := args[1]
+	prefix := args[2]
+	pathID, err := strconv.ParseUint(args[3], 10, 32)
 	if err != nil {
-		return statusError, "", fmt.Errorf("reject-routes: invalid pathID %q: %w", parts[3], err)
+		return statusError, "", fmt.Errorf("reject-routes: invalid pathID %q: %w", args[3], err)
 	}
 
 	r.mu.Lock()
@@ -205,14 +212,13 @@ func (r *AdjRIBInManager) rejectRoutesCommand(selector string) (string, any, err
 
 // revalidateCommand handles "request adj-rib-in revalidate <family> <prefix>".
 // Returns installed route data for the given prefix so the validator can re-validate.
-func (r *AdjRIBInManager) revalidateCommand(selector string) (string, any, error) {
-	parts := strings.Fields(selector)
-	if len(parts) < 2 {
+func (r *AdjRIBInManager) revalidateCommand(args []string) (string, any, error) {
+	if len(args) < 2 {
 		return statusError, "", errRevalidateRequiresFamilyPrefix
 	}
 
-	famStr := parts[0]
-	prefix := parts[1]
+	famStr := args[0]
+	prefix := args[1]
 
 	fam, ok := family.LookupFamily(famStr)
 	if !ok {

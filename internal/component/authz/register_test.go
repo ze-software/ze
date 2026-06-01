@@ -53,3 +53,21 @@ func TestLocalBackendSelfRegistered(t *testing.T) {
 	err := r.Register(localBackend{})
 	assert.Error(t, err, "init() already registered local; second Register must fail")
 }
+
+// VALIDATES: StoreAuthorizer preserves peer-scoped typed dispatch semantics.
+// PREVENTS: typed inter-plugin authorization dropping the peer scope keyword.
+func TestStoreAuthorizerAuthorizeCommandArgsPeerScoped(t *testing.T) {
+	store := NewStore()
+	store.AddProfile(Profile{
+		Name: "ops",
+		Run: Section{
+			Default: Deny,
+			Entries: []Entry{{Number: 10, Action: Allow, Match: "^peer show bgp rib$", Regex: true}},
+		},
+	})
+	store.AssignProfiles("operator", []string{"ops"})
+
+	auth := StoreAuthorizer{Store: store}
+	assert.True(t, auth.AuthorizeCommandArgs("operator", "", "show bgp rib", nil, "10.0.0.1", true))
+	assert.False(t, auth.AuthorizeCommandArgs("operator", "", "show bgp rib", nil, "", true))
+}

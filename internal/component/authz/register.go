@@ -24,6 +24,16 @@ func (a StoreAuthorizer) Authorize(username, remoteAddr, command string, isReadO
 	return a.Store.Authorize(username, command, isReadOnly) != Deny
 }
 
+// AuthorizeCommandArgs implements aaa.CommandArgsAuthorizer.
+// It preserves typed argument boundaries while keeping the dispatcher's
+// existing peer-scoped RBAC semantics through aaa.CanonicalCommand.
+func (a StoreAuthorizer) AuthorizeCommandArgs(username, _, command string, args []string, peer string, isReadOnly bool) bool {
+	if a.Store == nil {
+		return true
+	}
+	return a.Store.Authorize(username, aaa.CanonicalCommand(command, args, peer), isReadOnly) != Deny
+}
+
 // localBackend is the AAA backend for built-in bcrypt user authentication.
 type localBackend struct{}
 

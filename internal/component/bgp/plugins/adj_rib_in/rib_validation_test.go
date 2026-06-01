@@ -23,7 +23,7 @@ func TestEnableValidation(t *testing.T) {
 
 	assert.False(t, r.validationEnabled, "validation should be disabled by default")
 
-	status, _, err := r.handleCommand("request adj-rib-in enable-validation", "")
+	status, _, err := r.handleCommand("request adj-rib-in enable-validation", nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 	assert.True(t, r.validationEnabled, "validation should be enabled after command")
@@ -90,7 +90,7 @@ func TestAcceptPendingRoute(t *testing.T) {
 	}
 	r.mu.Unlock()
 
-	status, _, err := r.handleCommand("request adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1")
+	status, _, err := r.handleCommand("request adj-rib-in accept-routes", commandArgs("10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1"), "")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -136,7 +136,7 @@ func TestRejectPendingRoute(t *testing.T) {
 	}
 	r.mu.Unlock()
 
-	status, _, err := r.handleCommand("request adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0")
+	status, _, err := r.handleCommand("request adj-rib-in reject-routes", commandArgs("10.0.0.1 ipv4/unicast 10.0.0.0/24 0"), "")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -147,6 +147,75 @@ func TestRejectPendingRoute(t *testing.T) {
 	assert.Empty(t, r.pending, "pending map should be empty after reject")
 	// Should NOT be in installed ribIn
 	assert.Empty(t, r.ribIn, "rejected route should not be in installed ribIn")
+}
+
+// TestAcceptPendingRouteOddPeerKey verifies typed args preserve a peer key that
+// command-string tokenization would split or reject.
+//
+// VALIDATES: accept-routes works when the peer key contains spaces, quotes, and backslashes.
+// PREVENTS: RPKI decisions being lost for non-token peer identifiers.
+func TestAcceptPendingRouteOddPeerKey(t *testing.T) {
+	r := newTestManager(t)
+	r.validationEnabled = true
+	peer := `peer key "quoted"\with spaces`
+	routeKey := bgp.RouteKey("ipv4/unicast", "203.0.113.0/24", 0)
+
+	r.mu.Lock()
+	r.pending[pendingKey(peer, routeKey)] = &PendingRoute{
+		peerAddr:   peer,
+		family:     family.IPv4Unicast,
+		prefix:     "203.0.113.0/24",
+		routeKey:   routeKey,
+		route:      &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "18cb0071"},
+		receivedAt: time.Now(),
+		state:      ValidationPending,
+	}
+	r.mu.Unlock()
+
+	status, _, err := r.handleCommand("request adj-rib-in accept-routes", []string{peer, "ipv4/unicast", "203.0.113.0/24", "0", "1"}, "")
+	require.NoError(t, err)
+	assert.Equal(t, statusDone, status)
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	assert.Empty(t, r.pending)
+	require.Contains(t, r.ribIn, peer)
+	rt, ok := r.ribIn[peer].Get(routeKey)
+	require.True(t, ok)
+	assert.Equal(t, ValidationValid, rt.ValidationState)
+}
+
+// TestRejectPendingRouteOddPeerKey verifies typed args preserve a peer key that
+// command-string tokenization would split or reject.
+//
+// VALIDATES: reject-routes works when the peer key contains spaces, quotes, and backslashes.
+// PREVENTS: Invalid routes being installed because a peer identifier was tokenized.
+func TestRejectPendingRouteOddPeerKey(t *testing.T) {
+	r := newTestManager(t)
+	r.validationEnabled = true
+	peer := `peer key "quoted"\with spaces`
+	routeKey := bgp.RouteKey("ipv4/unicast", "198.51.100.0/24", 0)
+
+	r.mu.Lock()
+	r.pending[pendingKey(peer, routeKey)] = &PendingRoute{
+		peerAddr:   peer,
+		family:     family.IPv4Unicast,
+		prefix:     "198.51.100.0/24",
+		routeKey:   routeKey,
+		route:      &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "18c63364"},
+		receivedAt: time.Now(),
+		state:      ValidationPending,
+	}
+	r.mu.Unlock()
+
+	status, _, err := r.handleCommand("request adj-rib-in reject-routes", []string{peer, "ipv4/unicast", "198.51.100.0/24", "0"}, "")
+	require.NoError(t, err)
+	assert.Equal(t, statusDone, status)
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	assert.Empty(t, r.pending)
+	assert.NotContains(t, r.ribIn, peer)
 }
 
 // TestPassthroughWithoutValidation verifies routes flow through unchanged without validation.
@@ -245,7 +314,7 @@ func TestRevalidateInstalledRoute(t *testing.T) {
 	})
 	r.ribIn["10.0.0.1"] = m
 
-	status, data, err := r.handleCommand("request adj-rib-in revalidate", "ipv4/unicast 10.0.0.0/24")
+	status, data, err := r.handleCommand("request adj-rib-in revalidate", commandArgs("ipv4/unicast 10.0.0.0/24"), "")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 	assert.Contains(t, string(mustMarshal(t, data)), "10.0.0.0/24", "revalidate should return route data")
@@ -259,7 +328,7 @@ func TestAcceptNonExistentRoute(t *testing.T) {
 	r := newTestManager(t)
 	r.validationEnabled = true
 
-	status, data, err := r.handleCommand("request adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1")
+	status, data, err := r.handleCommand("request adj-rib-in accept-routes", commandArgs("10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1"), "")
 	assert.Equal(t, statusDone, status)
 	assert.NoError(t, err)
 	assert.Contains(t, data, "early")
@@ -290,7 +359,7 @@ func TestRejectAlreadyInstalled(t *testing.T) {
 	})
 	r.ribIn["10.0.0.1"] = m
 
-	status, _, err := r.handleCommand("request adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0")
+	status, _, err := r.handleCommand("request adj-rib-in reject-routes", commandArgs("10.0.0.1 ipv4/unicast 10.0.0.0/24 0"), "")
 	assert.Equal(t, statusDone, status)
 	assert.NoError(t, err)
 
@@ -310,7 +379,7 @@ func TestEarlyDecisionAppliedOnArrival(t *testing.T) {
 	r.validationEnabled = true
 
 	// Step 1: RPKI sends accept before the route exists.
-	status, _, err := r.handleCommand("request adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 192.168.1.0/24 0 1")
+	status, _, err := r.handleCommand("request adj-rib-in accept-routes", commandArgs("10.0.0.1 ipv4/unicast 192.168.1.0/24 0 1"), "")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -348,7 +417,7 @@ func TestEarlyRejectDropsRoute(t *testing.T) {
 	r := newTestManager(t)
 	r.validationEnabled = true
 
-	status, _, err := r.handleCommand("request adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 172.16.0.0/24 0")
+	status, _, err := r.handleCommand("request adj-rib-in reject-routes", commandArgs("10.0.0.1 ipv4/unicast 172.16.0.0/24 0"), "")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -408,12 +477,12 @@ func TestMultiplePendingRoutes(t *testing.T) {
 	r.mu.Unlock()
 
 	// Accept first route
-	status, _, err := r.handleCommand("request adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1")
+	status, _, err := r.handleCommand("request adj-rib-in accept-routes", commandArgs("10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1"), "")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
 	// Reject second route
-	status, _, err = r.handleCommand("request adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.1.0/24 0")
+	status, _, err = r.handleCommand("request adj-rib-in reject-routes", commandArgs("10.0.0.1 ipv4/unicast 10.0.1.0/24 0"), "")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -464,7 +533,7 @@ func TestValidationStateField(t *testing.T) {
 			}
 			r.mu.Unlock()
 
-			status, _, err := r.handleCommand("request adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 0 "+tt.stateArg)
+			status, _, err := r.handleCommand("request adj-rib-in accept-routes", commandArgs("10.0.0.1 ipv4/unicast 10.0.0.0/24 0 "+tt.stateArg), "")
 			require.NoError(t, err)
 			assert.Equal(t, statusDone, status)
 
@@ -499,7 +568,7 @@ func TestAcceptWithAddPathID(t *testing.T) {
 	}
 	r.mu.Unlock()
 
-	status, _, err := r.handleCommand("request adj-rib-in accept-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 42 1")
+	status, _, err := r.handleCommand("request adj-rib-in accept-routes", commandArgs("10.0.0.1 ipv4/unicast 10.0.0.0/24 42 1"), "")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -534,7 +603,7 @@ func TestRejectWithAddPathID(t *testing.T) {
 	}
 	r.mu.Unlock()
 
-	status, _, err := r.handleCommand("request adj-rib-in reject-routes", "10.0.0.1 ipv4/unicast 10.0.0.0/24 7")
+	status, _, err := r.handleCommand("request adj-rib-in reject-routes", commandArgs("10.0.0.1 ipv4/unicast 10.0.0.0/24 7"), "")
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 

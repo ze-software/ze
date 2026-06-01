@@ -152,6 +152,19 @@ func (e *fakeEditor) Discard() error                      { e.values = make(map[
 func (e *fakeEditor) OriginalContent() string             { return "# original\n" }
 func (e *fakeEditor) WorkingContent() string              { return "# config\n" }
 
+type denyAllAuthorizer struct {
+	username string
+	command  string
+	readOnly bool
+}
+
+func (a *denyAllAuthorizer) Authorize(username, _, command string, isReadOnly bool) bool {
+	a.username = username
+	a.command = command
+	a.readOnly = isReadOnly
+	return false
+}
+
 // VALIDATES: AC-1 -- GET /api/v1/commands returns command list.
 // PREVENTS: missing commands in REST response.
 func TestRESTListCommands(t *testing.T) {
@@ -341,6 +354,34 @@ func TestRESTConfigSession(t *testing.T) {
 	r = doWithHeader(t, srv, "POST", "/api/v1/config/sessions/"+id+"/commit", "", headers)
 	assert.Equal(t, http.StatusOK, r.Status)
 	assert.Contains(t, r.Body, "committed")
+}
+
+// VALIDATES: config session writes consult profile RBAC for authenticated users.
+// PREVENTS: read-only config users mutating config through REST sessions.
+func TestRESTConfigSessionAuthorizerDeny(t *testing.T) {
+	engine := testEngine()
+	openAPI, err := api.OpenAPISchema(engine.ListCommands(&api.ListCommandsRequest{}))
+	require.NoError(t, err)
+	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
+		return &fakeEditor{values: make(map[string]string)}, nil
+	})
+	authorizer := &denyAllAuthorizer{}
+	srv, err := NewRESTServer(RESTConfig{
+		ListenAddrs: []string{"127.0.0.1:0"},
+		Authenticator: func(header string) (string, bool) {
+			return "alice", header == "Bearer alice-token"
+		},
+		Authorizer: authorizer,
+	}, engine, sessions, func() []byte { return openAPI })
+	require.NoError(t, err)
+
+	r := doWithHeader(t, srv, "POST", "/api/v1/config/sessions", "", map[string]string{
+		"Authorization": "Bearer alice-token",
+	})
+	assert.Equal(t, http.StatusForbidden, r.Status)
+	assert.Equal(t, "alice", authorizer.username)
+	assert.Equal(t, "config edit", authorizer.command)
+	assert.False(t, authorizer.readOnly)
 }
 
 // VALIDATES: AC-9 -- Config commit via REST emits an audit record with actor, surface, action, and summary.

@@ -114,18 +114,18 @@ func RunGRPlugin(conn net.Conn) int {
 	gp.state.onLLGREnter = func(peerAddr string, fam family.Family, llst uint32) {
 		famStr := fam.String()
 		// 1. Delete routes with NO_LLGR community
-		gp.dispatchCommand("request bgp rib delete-with-community " + peerAddr + " " + famStr + " ffff0007")
+		gp.dispatchCommand("request bgp rib delete-with-community", peerAddr, famStr, "ffff0007")
 		// 2. Attach LLGR_STALE community to remaining stale routes
-		gp.dispatchCommand("request bgp rib attach-community " + peerAddr + " " + famStr + " ffff0006")
+		gp.dispatchCommand("request bgp rib attach-community", peerAddr, famStr, "ffff0006")
 		// 3. Raise stale level to depreference threshold
 		// Raise stale level to 2 (depreference threshold) via mark-stale
 		// with restart-time=0 (no new timer needed, LLST timer handles expiry).
-		gp.dispatchCommand("request bgp rib mark-stale " + peerAddr + " 0 2")
+		gp.dispatchCommand("request bgp rib mark-stale", peerAddr, "0", "2")
 	}
 	gp.state.onLLGREntryDone = func(peerAddr string, families []family.Family) {
 		// RFC 9494: readvertise per-fam (not all-fam) to avoid resending unrelated families.
 		for _, fam := range families {
-			gp.dispatchCommand("clear bgp rib out !" + peerAddr + " " + fam.String())
+			gp.dispatchCommand("clear bgp rib out", "!"+peerAddr, fam.String())
 		}
 		// Increment LLGR active count for egress filter fast-path.
 		if s := egressState.Load(); s != nil {
@@ -133,10 +133,10 @@ func RunGRPlugin(conn net.Conn) int {
 		}
 	}
 	gp.state.onLLGRFamilyExpired = func(peerAddr string, fam family.Family) {
-		gp.dispatchCommand("request bgp rib purge-stale " + peerAddr + " " + fam.String())
+		gp.dispatchCommand("request bgp rib purge-stale", peerAddr, fam.String())
 	}
 	gp.state.onLLGRComplete = func(peerAddr string) {
-		gp.dispatchCommand("request bgp rib release-routes " + peerAddr)
+		gp.dispatchCommand("request bgp rib release-routes", peerAddr)
 		// Decrement LLGR active count for egress filter fast-path.
 		if s := egressState.Load(); s != nil {
 			s.llgrActiveCount.Add(-1)
@@ -341,9 +341,9 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 
 		activated := gp.state.onSessionDown(peerAddr, cap, llgrCap, wasNotification)
 		if activated {
-			gp.dispatchCommand("request bgp rib purge-stale " + peerAddr)
-			gp.dispatchCommand("request bgp rib retain-routes " + peerAddr)
-			gp.dispatchCommand("request bgp rib mark-stale " + peerAddr + " " + strconv.FormatUint(uint64(cap.RestartTime), 10))
+			gp.dispatchCommand("request bgp rib purge-stale", peerAddr)
+			gp.dispatchCommand("request bgp rib retain-routes", peerAddr)
+			gp.dispatchCommand("request bgp rib mark-stale", peerAddr, strconv.FormatUint(uint64(cap.RestartTime), 10))
 		}
 
 	case rpc.SessionStateUp:
@@ -354,7 +354,7 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 
 		purged, wasInLLGR := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
 		for _, fam := range purged {
-			gp.dispatchCommand("request bgp rib purge-stale " + peerAddr + " " + fam.String())
+			gp.dispatchCommand("request bgp rib purge-stale", peerAddr, fam.String())
 		}
 		if wasInLLGR {
 			if s := egressState.Load(); s != nil {
@@ -500,11 +500,11 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		if activated {
 			// 3-step session-down sequence (RFC 4724 + consecutive restart handling):
 			// 1. Purge old stale routes from previous GR cycle (no-op on first disconnect)
-			gp.dispatchCommand("request bgp rib purge-stale " + peerAddr)
+			gp.dispatchCommand("request bgp rib purge-stale", peerAddr)
 			// 2. Retain routes — prevents bgp-rib from deleting on state=down
-			gp.dispatchCommand("request bgp rib retain-routes " + peerAddr)
+			gp.dispatchCommand("request bgp rib retain-routes", peerAddr)
 			// 3. Mark remaining routes as stale for new GR cycle
-			gp.dispatchCommand("request bgp rib mark-stale " + peerAddr + " " + strconv.FormatUint(uint64(cap.RestartTime), 10))
+			gp.dispatchCommand("request bgp rib mark-stale", peerAddr, strconv.FormatUint(uint64(cap.RestartTime), 10))
 		}
 
 	case "up":
@@ -516,7 +516,7 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		purged, wasInLLGR := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
 		for _, fam := range purged {
 			// RFC 4724: purge stale routes for families with F-bit=0 or missing
-			gp.dispatchCommand("request bgp rib purge-stale " + peerAddr + " " + fam.String())
+			gp.dispatchCommand("request bgp rib purge-stale", peerAddr, fam.String())
 		}
 		if wasInLLGR {
 			if s := egressState.Load(); s != nil {
@@ -547,7 +547,7 @@ func (gp *grPlugin) handleEOREvent(peerAddr string, payload map[string]any) {
 	shouldPurge := gp.state.onEORReceived(peerAddr, fam)
 	if shouldPurge {
 		// RFC 4724: purge only stale routes for this family (selective, not nuclear)
-		gp.dispatchCommand("request bgp rib purge-stale " + peerAddr + " " + famStr)
+		gp.dispatchCommand("request bgp rib purge-stale", peerAddr, famStr)
 		logger().Debug("gr: EOR received, purging stale routes", "peer", peerAddr, "family", famStr)
 	}
 }
@@ -564,7 +564,7 @@ func (gp *grPlugin) onTimerExpired(peerAddr string) {
 // releaseRoutes tells bgp-rib to release (delete) retained routes for a peer.
 // Also prunes the cached peer capabilities since GR/LLGR is fully complete.
 func (gp *grPlugin) releaseRoutes(peerAddr string) {
-	gp.dispatchCommand("request bgp rib release-routes " + peerAddr)
+	gp.dispatchCommand("request bgp rib release-routes", peerAddr)
 
 	gp.mu.Lock()
 	delete(gp.peerCaps, peerAddr)
@@ -574,16 +574,16 @@ func (gp *grPlugin) releaseRoutes(peerAddr string) {
 
 // dispatchCommand sends a command to the engine for inter-plugin coordination.
 // Logs errors but does not fail — the GR state machine proceeds regardless.
-func (gp *grPlugin) dispatchCommand(command string) {
+func (gp *grPlugin) dispatchCommand(command string, args ...string) {
 	if gp.sdk == nil {
 		return // unit test — no SDK available
 	}
 	ctx := context.Background()
-	status, _, err := gp.sdk.DispatchCommand(ctx, command)
+	status, _, err := gp.sdk.DispatchCommandArgs(ctx, command, args, "")
 	if err != nil {
-		logger().Warn("gr: dispatch failed", "command", command, "err", err)
+		logger().Warn("gr: dispatch failed", "command", command, "args", args, "err", err)
 	} else {
-		logger().Debug("gr: dispatch ok", "command", command, "status", status)
+		logger().Debug("gr: dispatch ok", "command", command, "args", args, "status", status)
 	}
 }
 

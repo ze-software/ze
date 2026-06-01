@@ -16,7 +16,6 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -161,7 +160,7 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 	})
 
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
-		return r.handleCommand(command, strings.Join(args, " "))
+		return r.handleCommand(command, args, peer)
 	})
 
 	// Start the timeout scanner for pending validation routes (fail-open).

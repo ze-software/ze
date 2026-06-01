@@ -1142,6 +1142,122 @@ func TestSDKDispatchCommand(t *testing.T) {
 	}
 }
 
+// TestSDKDispatchCommandArgs verifies socket-path typed command dispatch sends
+// command name, args, and peer as separate fields and preserves status/data.
+//
+// VALIDATES: DispatchCommandArgs socket path preserves pre-tokenized args and raw response data.
+// PREVENTS: typed dispatch falling back to full command strings for external plugins.
+func TestSDKDispatchCommandArgs(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	syncEvent := struct {
+		Event string `json:"event"`
+	}{Event: "{}"}
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:deliver-event", syncEvent))
+
+	args := []string{"peer key with spaces", `quote"inside`, `slash\inside`}
+	dispatchDone := make(chan error, 1)
+	go func() {
+		status, data, err := p.DispatchCommandArgs(ctx, "bgp rib accept-routes", args, "peer selector")
+		if err != nil {
+			dispatchDone <- err
+			return
+		}
+		if status != rpc.StatusDone {
+			dispatchDone <- fmt.Errorf("unexpected status: %s", status)
+			return
+		}
+		if string(data) != `{"accepted":3}` {
+			dispatchDone <- fmt.Errorf("unexpected data: %s", string(data))
+			return
+		}
+		dispatchDone <- nil
+	}()
+
+	req := readEngineRequest(t, ctx, engine.mux)
+	assert.Equal(t, "ze-plugin-engine:dispatch-command-args", req.Method)
+
+	var input rpc.DispatchCommandArgsInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, "bgp rib accept-routes", input.Command)
+	assert.Equal(t, args, input.Args)
+	assert.Equal(t, "peer selector", input.Peer)
+
+	dispatchResult := rpc.DispatchCommandOutput{
+		Status: rpc.StatusDone,
+		Data:   json.RawMessage(`{"accepted":3}`),
+	}
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, dispatchResult))
+
+	require.NoError(t, <-dispatchDone)
+
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKDispatchCommandArgsDirectError verifies the DirectBridge fast path
+// preserves typed args and maps DispatchCommandOutput.Error to a Go error.
+//
+// VALIDATES: DispatchCommandArgs DirectBridge path preserves args and error status.
+// PREVENTS: internal plugins losing typed args or status when bypassing socket RPC.
+func TestSDKDispatchCommandArgsDirectError(t *testing.T) {
+	t.Parallel()
+
+	bridge := rpc.NewDirectBridge()
+	pluginEnd, engineEnd := net.Pipe()
+	t.Cleanup(func() {
+		_ = pluginEnd.Close()
+		_ = engineEnd.Close()
+	})
+
+	p := NewWithConn("test-bridged", rpc.NewBridgedConn(pluginEnd, bridge))
+	args := []string{"peer key with spaces", `slash\inside`}
+
+	var gotCommand string
+	var gotArgs []string
+	var gotPeer string
+	bridge.SetDispatchCommandArgs(func(command string, got []string, peer string) (*rpc.DispatchCommandOutput, error) {
+		gotCommand = command
+		gotArgs = append(gotArgs, got...)
+		gotPeer = peer
+		return &rpc.DispatchCommandOutput{
+			Status: rpc.StatusError,
+			Error:  "target rejected",
+		}, nil
+	})
+	bridge.SetReady()
+
+	status, data, err := p.DispatchCommandArgs(context.Background(), "bgp rib reject-routes", args, "peer selector")
+	require.Error(t, err)
+	assert.Equal(t, rpc.StatusError, status)
+	assert.Nil(t, data)
+	assert.EqualError(t, err, "target rejected")
+	assert.Equal(t, "bgp rib reject-routes", gotCommand)
+	assert.Equal(t, args, gotArgs)
+	assert.Equal(t, "peer selector", gotPeer)
+}
+
 // TestSDKCloseUnblocksRead verifies that Close() unblocks goroutines waiting on Read().
 //
 // VALIDATES: Close() causes blocked ReadRequest to return an error promptly.

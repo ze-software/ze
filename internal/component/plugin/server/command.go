@@ -400,6 +400,25 @@ func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, readOnly bo
 	return d.authorizer.Authorize(username, remoteAddr, input, readOnly)
 }
 
+// isAuthorizedCommandArgs checks if the user is allowed to execute a typed
+// command dispatch. This must prefer aaa.CommandArgsAuthorizer when available,
+// so built-in policy sees the exact command, args, and peer scope.
+// aaa.CanonicalCommand is fallback only for legacy string authorizers.
+func (d *Dispatcher) isAuthorizedCommandArgs(ctx *CommandContext, command string, args []string, peer string, readOnly bool) bool {
+	if d.authorizer == nil {
+		return true
+	}
+	var username, remoteAddr string
+	if ctx != nil {
+		username = ctx.Username
+		remoteAddr = ctx.RemoteAddr
+	}
+	if authzArgs, ok := d.authorizer.(aaa.CommandArgsAuthorizer); ok {
+		return authzArgs.AuthorizeCommandArgs(username, remoteAddr, command, args, peer, readOnly)
+	}
+	return d.authorizer.Authorize(username, remoteAddr, aaa.CanonicalCommand(command, args, peer), readOnly)
+}
+
 // Dispatch parses and executes a command.
 // Supports peer selector prefix: "peer <addr|name|*> <command>".
 // If no peer prefix, defaults to all peers ("*").

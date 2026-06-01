@@ -457,8 +457,7 @@ func (rr *RouteReflector) replayForPeer(peerAddr string, gen uint64) {
 	defer cancel()
 
 	// Full replay from adj-rib-in index 0.
-	cmd := replayCmd(peerAddr, 0)
-	status, data, err := rr.dispatchCommand(ctx, cmd)
+	status, data, err := rr.dispatchCommand(ctx, "request adj-rib-in replay", peerAddr, "0")
 	if err != nil || status != statusDone {
 		// Replay failure is non-fatal: the peer will still receive new routes
 		// going forward. Log and return without sending EOR.
@@ -478,8 +477,7 @@ func (rr *RouteReflector) replayForPeer(peerAddr string, gen uint64) {
 		if i > 0 {
 			time.Sleep(replayConvergenceDelay)
 		}
-		deltaCmd := replayCmd(peerAddr, lastIndex)
-		_, deltaData, deltaErr := rr.dispatchCommand(ctx, deltaCmd)
+		_, deltaData, deltaErr := rr.dispatchCommand(ctx, "request adj-rib-in replay", peerAddr, textbuf.Uint(lastIndex))
 		if deltaErr != nil {
 			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)
 			break
@@ -501,8 +499,8 @@ func (rr *RouteReflector) replayForPeer(peerAddr string, gen uint64) {
 }
 
 // dispatchCommand sends a command to the engine via the SDK.
-func (rr *RouteReflector) dispatchCommand(ctx context.Context, command string) (string, json.RawMessage, error) {
-	return rr.plugin.DispatchCommand(ctx, command)
+func (rr *RouteReflector) dispatchCommand(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
+	return rr.plugin.DispatchCommandArgs(ctx, command, args, "")
 }
 
 // sendEOR sends End-of-RIB markers for each of the peer's negotiated families.
@@ -536,11 +534,6 @@ func parseReplayResponse(data json.RawMessage) (lastIndex uint64, replayed int) 
 		return 0, 0
 	}
 	return resp.LastIndex, resp.Replayed
-}
-
-func replayCmd(peerAddr string, fromIndex uint64) string {
-	var b textbuf.Buffer
-	return b.Reset().Str("request adj-rib-in replay ").Str(peerAddr).Byte(' ').Uint(fromIndex).String()
 }
 
 func nlriDelCmd(fam, prefixes string) string {

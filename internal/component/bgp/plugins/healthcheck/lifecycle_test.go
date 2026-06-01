@@ -20,10 +20,28 @@ func mustMarshalStr(t *testing.T, v any) string {
 	return string(b)
 }
 
+type dispatchCall struct {
+	command string
+	args    []string
+	peer    string
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func newTestManager() *probeManager {
 	return &probeManager{
 		probes: make(map[string]*runningProbe),
-		dispatchFn: func(_ context.Context, _ string) (string, json.RawMessage, error) {
+		dispatchFn: func(_ context.Context, _ string, _ []string, _ string) (string, json.RawMessage, error) {
 			return statusDone, nil, nil
 		},
 	}
@@ -215,14 +233,14 @@ func TestLifecycleMultipleProbes(t *testing.T) {
 // TestDebounce verifies debounce logic by running a real probe with a recording dispatch.
 func TestDebounce(t *testing.T) {
 	var mu sync.Mutex
-	var dispatches []string
+	var dispatches []dispatchCall
 
 	mgr := &probeManager{
 		probes: make(map[string]*runningProbe),
 		ipMgr:  realIPManager{},
-		dispatchFn: func(_ context.Context, cmd string) (string, json.RawMessage, error) {
+		dispatchFn: func(_ context.Context, cmd string, args []string, peer string) (string, json.RawMessage, error) {
 			mu.Lock()
-			dispatches = append(dispatches, cmd)
+			dispatches = append(dispatches, dispatchCall{command: cmd, args: append([]string(nil), args...), peer: peer})
 			mu.Unlock()
 			return statusDone, nil, nil
 		},
@@ -417,11 +435,11 @@ func TestResetMissingName(t *testing.T) {
 
 // VALIDATES: dispatchStateAction generates correct watchdog commands for each state (#21).
 func TestDispatchStateAction(t *testing.T) {
-	var dispatched []string
+	var dispatched []dispatchCall
 	mgr := &probeManager{
 		probes: make(map[string]*runningProbe),
-		dispatchFn: func(_ context.Context, cmd string) (string, json.RawMessage, error) {
-			dispatched = append(dispatched, cmd)
+		dispatchFn: func(_ context.Context, cmd string, args []string, peer string) (string, json.RawMessage, error) {
+			dispatched = append(dispatched, dispatchCall{command: cmd, args: append([]string(nil), args...), peer: peer})
 			return statusDone, nil, nil
 		},
 	}
@@ -437,16 +455,17 @@ func TestDispatchStateAction(t *testing.T) {
 	tests := []struct {
 		state          State
 		withdrawOnDown bool
-		want           string
+		wantCommand    string
+		wantArgs       []string
 	}{
-		{StateUp, false, "request watchdog announce hc-dns med 100"},
-		{StateUp, true, "request watchdog announce hc-dns med 100"},
-		{StateDown, false, "request watchdog announce hc-dns med 1000"},
-		{StateDown, true, "request watchdog withdraw hc-dns"},
-		{StateDisabled, false, "request watchdog announce hc-dns med 500"},
-		{StateDisabled, true, "request watchdog withdraw hc-dns"},
-		{StateExit, false, "request watchdog withdraw hc-dns"},
-		{StateExit, true, "request watchdog withdraw hc-dns"},
+		{StateUp, false, "request watchdog announce", []string{"hc-dns", "med", "100"}},
+		{StateUp, true, "request watchdog announce", []string{"hc-dns", "med", "100"}},
+		{StateDown, false, "request watchdog announce", []string{"hc-dns", "med", "1000"}},
+		{StateDown, true, "request watchdog withdraw", []string{"hc-dns"}},
+		{StateDisabled, false, "request watchdog announce", []string{"hc-dns", "med", "500"}},
+		{StateDisabled, true, "request watchdog withdraw", []string{"hc-dns"}},
+		{StateExit, false, "request watchdog withdraw", []string{"hc-dns"}},
+		{StateExit, true, "request watchdog withdraw", []string{"hc-dns"}},
 	}
 
 	ctx := context.Background()
@@ -458,8 +477,9 @@ func TestDispatchStateAction(t *testing.T) {
 			t.Errorf("state=%d withdraw=%v: no dispatch", tt.state, tt.withdrawOnDown)
 			continue
 		}
-		if dispatched[0] != tt.want {
-			t.Errorf("state=%d withdraw=%v: got %q, want %q", tt.state, tt.withdrawOnDown, dispatched[0], tt.want)
+		if dispatched[0].command != tt.wantCommand || !equalStrings(dispatched[0].args, tt.wantArgs) {
+			t.Errorf("state=%d withdraw=%v: got command=%q args=%v, want command=%q args=%v",
+				tt.state, tt.withdrawOnDown, dispatched[0].command, dispatched[0].args, tt.wantCommand, tt.wantArgs)
 		}
 	}
 
@@ -468,9 +488,10 @@ func TestDispatchStateAction(t *testing.T) {
 		dispatched = nil
 		mgr.dispatchStateAction(ctx, cfg, state)
 		if len(dispatched) != 0 {
-			t.Errorf("state=%d: expected no dispatch, got %q", state, dispatched[0])
+			t.Errorf("state=%d: expected no dispatch, got command=%q args=%v", state, dispatched[0].command, dispatched[0].args)
 		}
 	}
+
 }
 
 func TestFastIntervalSelection(t *testing.T) {

@@ -316,7 +316,7 @@ func TestExternalModeRejectsIPSetup(t *testing.T) {
 	mgr := &probeManager{
 		probes:   make(map[string]*runningProbe),
 		internal: false,
-		dispatchFn: func(_ context.Context, _ string) (string, json.RawMessage, error) {
+		dispatchFn: func(_ context.Context, _ string, _ []string, _ string) (string, json.RawMessage, error) {
 			return "done", nil, nil
 		},
 	}
@@ -342,7 +342,7 @@ func TestExternalModeAcceptsNoIPSetup(t *testing.T) {
 	mgr := &probeManager{
 		probes:   make(map[string]*runningProbe),
 		internal: false,
-		dispatchFn: func(_ context.Context, _ string) (string, json.RawMessage, error) {
+		dispatchFn: func(_ context.Context, _ string, _ []string, _ string) (string, json.RawMessage, error) {
 			return "done", nil, nil
 		},
 	}
@@ -363,7 +363,7 @@ func TestInternalModeAcceptsIPSetup(t *testing.T) {
 	mgr := &probeManager{
 		probes:   make(map[string]*runningProbe),
 		internal: true,
-		dispatchFn: func(_ context.Context, _ string) (string, json.RawMessage, error) {
+		dispatchFn: func(_ context.Context, _ string, _ []string, _ string) (string, json.RawMessage, error) {
 			return "done", nil, nil
 		},
 	}

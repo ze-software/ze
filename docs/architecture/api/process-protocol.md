@@ -284,6 +284,7 @@ Includes filter name so the plugin can dispatch to the correct handler.
 |--------|-------|--------|-------------|
 | `update-route` | `UpdateRouteInput` | `UpdateRouteOutput` | Inject route to peers |
 | `dispatch-command` | `DispatchCommandInput` | `DispatchCommandOutput` | Inter-plugin command |
+| `dispatch-command-args` | `DispatchCommandArgsInput` | `DispatchCommandOutput` | Exact inter-plugin command with pre-tokenized args |
 | `emit-event` | `EmitEventInput` | `EmitEventOutput` | Push event to subscribers |
 | `subscribe-events` | `SubscribeEventsInput` | - | Subscribe to events |
 | `unsubscribe-events` | - | - | Unsubscribe from events |
@@ -588,6 +589,7 @@ flow through `bridge.CallbackCh()`.
 | Engine to Plugin events (structured) | -- | `bridge.DeliverStructured([]any)` -> `onStructuredEvent` with `*StructuredEvent` (no text formatting, no JSON parsing) |
 | Plugin to Engine RPCs (generic) | `json.Marshal` -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `dispatcher.Dispatch` | `bridge.DispatchRPC(method, params)` -> `dispatcher.Dispatch` directly |
 | Plugin to Engine dispatch-command | JSON marshal `DispatchCommandInput` -> RPC -> unmarshal -> dispatch | `bridge.DispatchCommand(command)` -> `dispatchCommand()` directly (struct passthrough, no serialization) |
+| Plugin to Engine dispatch-command-args | JSON marshal `DispatchCommandArgsInput` -> RPC -> unmarshal -> exact command route | `bridge.DispatchCommandArgs(command, args, peer)` -> `dispatchCommandArgs()` directly (Go args slice, no tokenizer) |
 | Plugin to Engine emit-event | JSON marshal `EmitEventInput` -> RPC -> unmarshal -> deliver | `bridge.EmitEvent(namespace, eventType, ...)` -> `deliverEvent()` directly (Go strings, no JSON) |
 | Engine to Plugin callbacks | MuxConn RPC + 3-way select | `bridge.SendCallback()` -> callback channel -> `bridgeEventLoop` 2-way select |
 
@@ -775,7 +777,7 @@ Note: command execution results are sent as `ok` responses with a `status` field
 
 ### Inter-Plugin Communication
 
-Plugins can dispatch commands to other plugins via the engine:
+Plugins can dispatch commands to other plugins via the external-compatible string API:
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchCommand -->
 
 ```
@@ -783,11 +785,27 @@ Plugins can dispatch commands to other plugins via the engine:
 #4 ok {"status":"done","data":{...}}
 ```
 
-The `data` field carries raw JSON (single-decode). On error, the response uses a
-separate `error` field: `{"status":"error","error":"message"}`.
+Internal plugins that already know the exact registered command should use the
+typed args API. It carries the command name, pre-tokenized arguments, and optional
+peer selector separately, so runtime values are not split by the command tokenizer.
+<!-- source: pkg/plugin/rpc/types.go -- DispatchCommandArgsInput -->
+<!-- source: internal/component/plugin/server/dispatch.go -- dispatchCommandArgs -->
 
-The engine routes the command to the target plugin via longest-match registry lookup.
+```
+#4 ze-plugin-engine:dispatch-command-args {"command":"request adj-rib-in replay","args":["peer key with spaces","0"],"peer":"*"}
+#4 ok {"status":"done","data":{"last-index":7,"replayed":3}}
+```
 
+Both APIs return `DispatchCommandOutput`. The `data` field carries raw JSON
+(single-decode). On error, the response uses a separate `error` field:
+`{"status":"error","error":"message"}`.
+<!-- source: pkg/plugin/rpc/types.go -- DispatchCommandOutput -->
+
+The string API routes by normal dispatcher parsing and remains the compatibility
+surface for CLI and external plugin callers. The typed args API routes by exact
+registered plugin command and sends the existing `execute-command` callback to
+the target plugin with `args []string`.
+<!-- source: internal/component/plugin/server/command.go -- ForwardToPlugin -->
 ---
 
 ## Config Reload Protocol

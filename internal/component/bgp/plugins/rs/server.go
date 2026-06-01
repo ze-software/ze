@@ -148,9 +148,9 @@ type RouteServer struct {
 	// Nil in production (zero overhead).
 	updateRouteHook func(peer, cmd string)
 
-	// dispatchCommandHook is called instead of SDK DispatchCommand for test inspection.
+	// dispatchCommandHook is called instead of SDK DispatchCommandArgs for test inspection.
 	// Nil in production (zero overhead).
-	dispatchCommandHook func(command string) (string, json.RawMessage, error)
+	dispatchCommandHook func(command string, args []string, peer string) (string, json.RawMessage, error)
 
 	// forwardCachedHook is called instead of Plugin.ForwardCached for tests that
 	// want to observe (ids, destinations) without a real engine connection.
@@ -346,12 +346,12 @@ func (rs *RouteServer) releaseCache(msgID uint64) {
 	}
 }
 
-// dispatchCommand calls DispatchCommand via the SDK or the test hook.
-func (rs *RouteServer) dispatchCommand(ctx context.Context, command string) (string, json.RawMessage, error) {
+// dispatchCommand calls DispatchCommandArgs via the SDK or the test hook.
+func (rs *RouteServer) dispatchCommand(ctx context.Context, command string, args ...string) (string, json.RawMessage, error) {
 	if rs.dispatchCommandHook != nil {
-		return rs.dispatchCommandHook(command)
+		return rs.dispatchCommandHook(command, args, "")
 	}
-	return rs.plugin.DispatchCommand(ctx, command)
+	return rs.plugin.DispatchCommandArgs(ctx, command, args, "")
 }
 
 // updateRoute sends a route update command to matching peers via the engine.
