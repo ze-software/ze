@@ -189,24 +189,39 @@ func (p *Plugin) OnDecodeCapability(fn func(code uint8, hex string) (any, error)
 func (p *Plugin) OnExecuteCommand(fn func(serial, command string, args []string, peer string) (string, any, error)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.onExecuteCommand = fn
 	p.callbacks[callbackExecuteCommand] = func(params json.RawMessage) (json.RawMessage, error) {
 		var input rpc.ExecuteCommandInput
 		if err := json.Unmarshal(params, &input); err != nil {
 			return nil, fmt.Errorf("unmarshal execute-command: %w", err)
 		}
-		status, data, err := fn(input.Serial, input.Command, input.Args, input.Peer)
+		out, err := executeCommandOutput(fn, input.Serial, input.Command, input.Args, input.Peer)
 		if err != nil {
 			return nil, err
 		}
-		var raw json.RawMessage
-		if data != nil {
-			raw, err = json.Marshal(data)
-			if err != nil {
-				return nil, fmt.Errorf("marshal execute-command data: %w", err)
-			}
-		}
-		return json.Marshal(&rpc.ExecuteCommandOutput{Status: status, Data: raw})
+		return json.Marshal(out)
 	}
+}
+
+func executeCommandOutput(
+	fn executeCommandFunc,
+	serial string,
+	command string,
+	args []string,
+	peer string,
+) (*rpc.ExecuteCommandOutput, error) {
+	status, data, err := fn(serial, command, args, peer)
+	if err != nil {
+		return nil, err
+	}
+	var raw json.RawMessage
+	if data != nil {
+		raw, err = json.Marshal(data)
+		if err != nil {
+			return nil, fmt.Errorf("marshal execute-command data: %w", err)
+		}
+	}
+	return &rpc.ExecuteCommandOutput{Status: status, Data: raw}, nil
 }
 
 // OnConfigVerify sets the handler for config verification requests (reload pipeline).

@@ -1,10 +1,12 @@
 package rpc
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -96,6 +98,99 @@ func TestDirectBridgeDispatchCommandArgs(t *testing.T) {
 	assert.Equal(t, "bgp rib accept-routes", gotCommand)
 	assert.Equal(t, args, gotArgs)
 	assert.Equal(t, "peer selector", gotPeer)
+}
+
+// TestDirectBridgeExecuteCommand verifies typed execute-command callbacks
+// preserve command args without bridge callback JSON.
+//
+// VALIDATES: engine-to-plugin execute-command reaches the DirectBridge typed handler.
+// PREVENTS: internal command forwarding falling back to JSON callback envelopes.
+func TestDirectBridgeExecuteCommand(t *testing.T) {
+	t.Parallel()
+
+	bridge := NewDirectBridge()
+	args := []string{"peer key with spaces", `quote"inside`, `slash\inside`}
+
+	var gotSerial string
+	var gotCommand string
+	var gotArgs []string
+	var gotPeer string
+	bridge.SetExecuteCommand(func(serial, command string, args []string, peer string) (*ExecuteCommandOutput, error) {
+		gotSerial = serial
+		gotCommand = command
+		gotArgs = append(gotArgs, args...)
+		gotPeer = peer
+		return &ExecuteCommandOutput{
+			Status: StatusDone,
+			Data:   json.RawMessage(`{"ok":true}`),
+		}, nil
+	})
+
+	assert.False(t, bridge.HasExecuteCommand(), "handler must not be available before bridge readiness")
+	bridge.SetReady()
+	assert.True(t, bridge.HasExecuteCommand(), "handler should be available after bridge readiness")
+	go func() {
+		req := <-bridge.ExecuteCommandRequests()
+		out, err := bridge.RunExecuteCommand(req)
+		req.Result <- ExecuteCommandResult{Output: out, Err: err}
+	}()
+
+	out, err := bridge.ExecuteCommand(context.Background(), "serial-1", "bgp rib accept-routes", args, "peer selector")
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	assert.Equal(t, StatusDone, out.Status)
+	assert.JSONEq(t, `{"ok":true}`, string(out.Data))
+	assert.Equal(t, "serial-1", gotSerial)
+	assert.Equal(t, "bgp rib accept-routes", gotCommand)
+	assert.Equal(t, args, gotArgs)
+	assert.Equal(t, "peer selector", gotPeer)
+}
+
+// TestDirectBridgeExecuteCommandCancellation verifies typed execute-command
+// preserves caller cancellation while the plugin callback loop is busy.
+//
+// VALIDATES: ExecuteCommand returns context errors without requiring handler completion.
+// PREVENTS: DirectBridge command fast path pinning callers in plugin handlers past timeout.
+func TestDirectBridgeExecuteCommandCancellation(t *testing.T) {
+	t.Parallel()
+
+	bridge := NewDirectBridge()
+	bridge.SetExecuteCommand(func(serial, command string, args []string, peer string) (*ExecuteCommandOutput, error) {
+		return &ExecuteCommandOutput{Status: StatusDone}, nil
+	})
+	bridge.SetReady()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	out, err := bridge.ExecuteCommand(ctx, "", "show-routes", nil, "*")
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, out)
+
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer waitCancel()
+	out, err = bridge.ExecuteCommand(waitCtx, "", "show-routes", nil, "*")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Nil(t, out)
+}
+
+// TestDirectBridgeExecuteCommandClosed verifies typed execute-command observes
+// bridge shutdown instead of calling plugin handlers after CloseCallbacks.
+//
+// VALIDATES: ExecuteCommand returns ErrBridgeClosed after bridge callback shutdown.
+// PREVENTS: command fast path invoking plugin code after the plugin event loop exited.
+func TestDirectBridgeExecuteCommandClosed(t *testing.T) {
+	t.Parallel()
+
+	bridge := NewDirectBridge()
+	bridge.SetExecuteCommand(func(serial, command string, args []string, peer string) (*ExecuteCommandOutput, error) {
+		return &ExecuteCommandOutput{Status: StatusDone}, nil
+	})
+	bridge.SetReady()
+	bridge.CloseCallbacks()
+
+	out, err := bridge.ExecuteCommand(context.Background(), "", "show-routes", nil, "*")
+	require.ErrorIs(t, err, ErrBridgeClosed)
+	assert.Nil(t, out)
 }
 
 // TestDirectBridgeDeliverError verifies error propagation from onEvent.

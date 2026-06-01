@@ -643,6 +643,55 @@ func TestEngineExecuteCommand(t *testing.T) {
 	assert.JSONEq(t, `{"routes":[]}`, string(r.output.Data))
 }
 
+// TestEngineExecuteCommandDirectBridge verifies execute-command uses the typed
+// DirectBridge handler when available instead of sending a JSON callback frame.
+//
+// VALIDATES: internal engine-to-plugin command forwarding bypasses socket RPC.
+// PREVENTS: command forwarding reintroducing JSON marshal/unmarshal on DirectBridge.
+func TestEngineExecuteCommandDirectBridge(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+	bridge := rpc.NewDirectBridge()
+	args := []string{"peer key with spaces", `quote"inside`, `slash\inside`}
+
+	var gotSerial string
+	var gotCommand string
+	var gotArgs []string
+	var gotPeer string
+	bridge.SetExecuteCommand(func(serial, command string, args []string, peer string) (*rpc.ExecuteCommandOutput, error) {
+		gotSerial = serial
+		gotCommand = command
+		gotArgs = append(gotArgs, args...)
+		gotPeer = peer
+		return &rpc.ExecuteCommandOutput{Status: rpc.StatusDone, Data: json.RawMessage(`{"routes":[]}`)}, nil
+	})
+	bridge.SetReady()
+	engineConn.SetBridge(bridge)
+	go func() {
+		req := <-bridge.ExecuteCommandRequests()
+		out, err := bridge.RunExecuteCommand(req)
+		req.Result <- rpc.ExecuteCommandResult{Output: out, Err: err}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	out, err := engineConn.SendExecuteCommand(ctx, "abc123", "show-routes", args, "peer selector")
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	assert.Equal(t, rpc.StatusDone, out.Status)
+	assert.JSONEq(t, `{"routes":[]}`, string(out.Data))
+	assert.Equal(t, "abc123", gotSerial)
+	assert.Equal(t, "show-routes", gotCommand)
+	assert.Equal(t, args, gotArgs)
+	assert.Equal(t, "peer selector", gotPeer)
+
+	readCtx, readCancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer readCancel()
+	_, readErr := pluginConn.ReadRequest(readCtx)
+	assert.ErrorIs(t, readErr, context.DeadlineExceeded)
+}
+
 // TestSendConfigVerifyOK verifies config-verify RPC with successful response.
 //
 // VALIDATES: Engine sends config-verify, plugin responds OK with status "ok".

@@ -675,8 +675,8 @@ func (s *Server) dispatchCommandArgs(proc *process.Process, command string, args
 		Username:       "plugin:" + proc.Name(),
 	}
 
-	authInput := aaa.CanonicalCommand(command, args, peer)
 	if s.dispatcher != nil && !s.dispatcher.isAuthorizedCommandArgs(cmdCtx, command, args, peer, false) {
+		authInput := aaa.CanonicalCommand(command, args, peer)
 		return &rpc.DispatchCommandOutput{
 			Status: plugin.StatusError,
 			Error:  "authorization denied for " + authInput,
@@ -688,6 +688,7 @@ func (s *Server) dispatchCommandArgs(proc *process.Process, command string, args
 		if errors.Is(dispatchErr, ErrSilent) {
 			return &rpc.DispatchCommandOutput{Status: plugin.StatusDone}, nil
 		}
+		authInput := aaa.CanonicalCommand(command, args, peer)
 		if s.ctx.Err() != nil {
 			logger().Debug("dispatch-command-args failed (shutting down)", "plugin", proc.Name(), "command", authInput, "error", dispatchErr)
 		} else {

@@ -51,6 +51,9 @@ type DirectBridge struct {
 	hasDispatchCmd      atomic.Bool                // set atomically when dispatchCommand is written
 	dispatchCommandArgs DispatchCommandArgsHandler // Typed fast path with pre-tokenized args (no JSON)
 	hasDispatchCmdArgs  atomic.Bool                // set atomically when dispatchCommandArgs is written
+	executeCommand      ExecuteCommandHandler      // Typed engine->plugin command handler (no JSON input)
+	hasExecuteCommand   atomic.Bool                // set atomically when executeCommand is written
+	executeCommandCh    chan ExecuteCommandRequest // Engine->plugin typed execute-command callbacks
 	emitEvent           EmitEventHandler           // Typed fast path (no JSON)
 	hasEmitEvent        atomic.Bool                // set atomically when emitEvent is written
 	forwardCached       ForwardCachedHandler       // Typed fast path (no JSON) -- rs-fastpath-3
@@ -68,7 +71,8 @@ type DirectBridge struct {
 // SetReady before the bridge activates.
 func NewDirectBridge() *DirectBridge {
 	return &DirectBridge{
-		callbackCh: make(chan BridgeCallback, 16),
+		callbackCh:       make(chan BridgeCallback, 16),
+		executeCommandCh: make(chan ExecuteCommandRequest, 16),
 	}
 }
 
@@ -80,7 +84,7 @@ func (b *DirectBridge) CallbackCh() <-chan BridgeCallback {
 
 // SendCallback sends an engine->plugin callback through the bridge channel.
 // Blocks until the plugin processes it and returns a result, or ctx expires.
-// Used by PluginConn methods (SendExecuteCommand, etc.) when bridge is active.
+// Used by PluginConn methods that do not have a typed bridge callback.
 // Returns ErrBridgeClosed if the callback channel was closed during shutdown.
 func (b *DirectBridge) SendCallback(ctx context.Context, method string, params json.RawMessage) (result json.RawMessage, err error) {
 	// Sending on a closed channel panics. CloseCallbacks may race with this
@@ -108,11 +112,12 @@ func (b *DirectBridge) SendCallback(ctx context.Context, method string, params j
 	}
 }
 
-// CloseCallbacks closes the callback channel, signaling the plugin's bridge
+// CloseCallbacks closes the callback channels, signaling the plugin's bridge
 // event loop to exit. Called during shutdown. Safe to call multiple times.
 func (b *DirectBridge) CloseCallbacks() {
 	b.closeOnce.Do(func() {
 		close(b.callbackCh)
+		close(b.executeCommandCh)
 	})
 }
 
@@ -233,6 +238,89 @@ func (b *DirectBridge) DispatchCommandArgs(command string, args []string, peer s
 // HasDispatchCommandArgs reports whether the typed dispatch-command-args handler is set.
 func (b *DirectBridge) HasDispatchCommandArgs() bool {
 	return b.ready.Load() && b.hasDispatchCmdArgs.Load()
+}
+
+// ExecuteCommandHandler is the plugin-side typed handler for execute-command.
+// It preserves the existing command callback API while allowing DirectBridge to
+// carry typed command data through the plugin callback loop.
+type ExecuteCommandHandler func(serial, command string, args []string, peer string) (*ExecuteCommandOutput, error)
+
+// ExecuteCommandRequest is an engine->plugin command callback carried through
+// DirectBridge without JSON marshaling.
+type ExecuteCommandRequest struct {
+	Serial  string
+	Command string
+	Args    []string
+	Peer    string
+	Result  chan<- ExecuteCommandResult
+}
+
+// ExecuteCommandResult is the plugin response for ExecuteCommandRequest.
+type ExecuteCommandResult struct {
+	Output *ExecuteCommandOutput
+	Err    error
+}
+
+// SetExecuteCommand registers the plugin-side typed execute-command handler.
+// Called by the SDK after startup alongside SetDeliverEvents.
+func (b *DirectBridge) SetExecuteCommand(fn ExecuteCommandHandler) {
+	b.executeCommand = fn
+	b.hasExecuteCommand.Store(fn != nil)
+}
+
+// ExecuteCommand sends a typed execute-command callback to the plugin event
+// loop and waits for the result. It preserves callback-loop serialization and
+// caller cancellation while avoiding JSON marshaling for the request.
+func (b *DirectBridge) ExecuteCommand(ctx context.Context, serial, command string, args []string, peer string) (out *ExecuteCommandOutput, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			out = nil
+			err = ErrBridgeClosed
+		}
+	}()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if !b.HasExecuteCommand() {
+		return nil, errors.New("execute-command handler not set")
+	}
+	resultCh := make(chan ExecuteCommandResult, 1)
+	select {
+	case b.executeCommandCh <- ExecuteCommandRequest{
+		Serial:  serial,
+		Command: command,
+		Args:    args,
+		Peer:    peer,
+		Result:  resultCh,
+	}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	select {
+	case r := <-resultCh:
+		return r.Output, r.Err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// ExecuteCommandRequests returns the typed execute-command callback channel.
+// The SDK bridge event loop drains it serially with the JSON callback channel.
+func (b *DirectBridge) ExecuteCommandRequests() <-chan ExecuteCommandRequest {
+	return b.executeCommandCh
+}
+
+// RunExecuteCommand runs the registered typed execute-command handler for req.
+func (b *DirectBridge) RunExecuteCommand(req ExecuteCommandRequest) (*ExecuteCommandOutput, error) {
+	if !b.hasExecuteCommand.Load() {
+		return nil, errors.New("execute-command handler not set")
+	}
+	return b.executeCommand(req.Serial, req.Command, req.Args, req.Peer)
+}
+
+// HasExecuteCommand reports whether the typed execute-command handler is set.
+func (b *DirectBridge) HasExecuteCommand() bool {
+	return b.ready.Load() && b.hasExecuteCommand.Load()
 }
 
 // EmitEventHandler is the typed handler for emit-event via DirectBridge.

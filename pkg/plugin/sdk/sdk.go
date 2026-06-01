@@ -45,6 +45,7 @@ import (
 // Returns result JSON (nil for status-only OK responses) and error.
 // Registered via On* methods, dispatched by both pipe and bridge event loops.
 type callbackHandler func(json.RawMessage) (json.RawMessage, error)
+type executeCommandFunc func(serial, command string, args []string, peer string) (string, any, error)
 
 // Plugin represents a ze plugin using the YANG RPC protocol.
 type Plugin struct {
@@ -84,6 +85,7 @@ type Plugin struct {
 	// onEvent is also captured by the deliver-event/deliver-batch map entries.
 	onEvent           func(string) error
 	onStructuredEvent func([]any) error
+	onExecuteCommand  executeCommandFunc
 
 	// Startup subscriptions: included in the "ready" RPC so the engine
 	// registers them atomically before SignalAPIReady, avoiding the race
@@ -312,6 +314,7 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 		p.mu.Lock()
 		onEventFn := p.onEvent
 		onStructuredFn := p.onStructuredEvent
+		onExecuteFn := p.onExecuteCommand
 		p.mu.Unlock()
 
 		p.bridge.SetDeliverEvents(func(events []string) error {
@@ -327,6 +330,11 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 		})
 		if onStructuredFn != nil {
 			p.bridge.SetDeliverStructured(onStructuredFn)
+		}
+		if onExecuteFn != nil {
+			p.bridge.SetExecuteCommand(func(serial, command string, args []string, peer string) (*rpc.ExecuteCommandOutput, error) {
+				return executeCommandOutput(onExecuteFn, serial, command, args, peer)
+			})
 		}
 		p.bridge.SetReady()
 	}

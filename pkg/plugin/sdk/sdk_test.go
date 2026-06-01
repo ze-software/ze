@@ -2018,6 +2018,66 @@ func TestCallEngineRawDirect(t *testing.T) {
 	}
 }
 
+// TestSDKExecuteCommandDirectBridge verifies the SDK wires OnExecuteCommand to
+// DirectBridge so internal engine callbacks avoid JSON input envelopes.
+//
+// VALIDATES: bridge.ExecuteCommand reaches the SDK command handler with typed args.
+// PREVENTS: internal execute-command callbacks being forced through bridge callback JSON.
+func TestSDKExecuteCommandDirectBridge(t *testing.T) {
+	t.Parallel()
+
+	p, engine, bridge := newBridgedTestPair(t)
+	args := []string{"peer key with spaces", `quote"inside`, `slash\inside`}
+
+	var gotSerial string
+	var gotCommand string
+	var gotArgs []string
+	var gotPeer string
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+		gotSerial = serial
+		gotCommand = command
+		gotArgs = append(gotArgs, args...)
+		gotPeer = peer
+		return rpc.StatusDone, map[string]any{"routes": []any{}}, nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+	require.Eventually(t, func() bool { return bridge.HasExecuteCommand() }, 2*time.Second, 10*time.Millisecond,
+		"execute-command bridge handler should be ready after startup")
+
+	out, err := bridge.ExecuteCommand(ctx, "serial-1", "show-routes", args, "peer selector")
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	assert.Equal(t, rpc.StatusDone, out.Status)
+	assert.JSONEq(t, `{"routes":[]}`, string(out.Data))
+	assert.Equal(t, "serial-1", gotSerial)
+	assert.Equal(t, "show-routes", gotCommand)
+	assert.Equal(t, args, gotArgs)
+	assert.Equal(t, "peer selector", gotPeer)
+
+	byeParams, err := json.Marshal(struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"})
+	require.NoError(t, err)
+	_, err = bridge.SendCallback(ctx, callbackBye, byeParams)
+	require.NoError(t, err)
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
 // TestCallEngineRawDirectError verifies error propagation from bridge dispatch.
 //
 // VALIDATES: AC-6 — Error propagated to SDK caller correctly.

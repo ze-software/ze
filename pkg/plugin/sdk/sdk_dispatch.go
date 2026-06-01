@@ -113,7 +113,7 @@ func (p *Plugin) getCallback(method string) callbackHandler {
 }
 
 // bridgeEventLoop handles runtime callbacks for internal plugins after pipe shutdown.
-// Reads from bridge.CallbackCh() instead of engineMux.Requests().
+// Reads from bridge callback channels instead of engineMux.Requests().
 // Callbacks are processed serially (same guarantee as the pipe event loop).
 func (p *Plugin) bridgeEventLoop(ctx context.Context) error {
 	for {
@@ -132,6 +132,13 @@ func (p *Plugin) bridgeEventLoop(ctx context.Context) error {
 			if cb.Method == callbackBye {
 				return nil
 			}
+
+		case req, ok := <-p.bridge.ExecuteCommandRequests():
+			if !ok {
+				return nil // Bridge closed (shutdown).
+			}
+			output, err := p.bridge.RunExecuteCommand(req)
+			req.Result <- rpc.ExecuteCommandResult{Output: output, Err: err}
 
 		case <-ctx.Done():
 			return nil

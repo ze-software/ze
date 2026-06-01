@@ -75,7 +75,7 @@ func (pc *PluginConn) HasBridge() bool {
 
 // CallRPC sends an RPC and waits for the response.
 // Routes through: bridge (if set) -> MuxConn (if set) -> direct Conn.
-// All typed methods (SendExecuteCommand, etc.) call this.
+// Most typed methods call this; SendExecuteCommand has a typed bridge fast path.
 func (pc *PluginConn) CallRPC(ctx context.Context, method string, params any) (json.RawMessage, error) {
 	if pc.bridge != nil {
 		paramsRaw, err := json.Marshal(params)
@@ -266,6 +266,9 @@ func (pc *PluginConn) SendDecodeCapability(ctx context.Context, code uint8, hex 
 
 // SendExecuteCommand requests command execution from the plugin.
 func (pc *PluginConn) SendExecuteCommand(ctx context.Context, serial, command string, args []string, peer string) (*rpc.ExecuteCommandOutput, error) {
+	if pc.bridge != nil && pc.bridge.HasExecuteCommand() {
+		return pc.bridge.ExecuteCommand(ctx, serial, command, args, peer)
+	}
 	input := &rpc.ExecuteCommandInput{Serial: serial, Command: command, Args: args, Peer: peer}
 	result, err := pc.CallRPC(ctx, "ze-plugin-callback:execute-command", input)
 	if err != nil {
