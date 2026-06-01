@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 const defaultListenPort = 80
@@ -95,6 +97,11 @@ func verifyConfig(cfg imageConfig) error {
 	// endpoint with no indication the credential pair is incomplete.
 	if (cfg.SSHUsername == "") != (cfg.SSHPasswordHash == "") {
 		return errors.New("image-server: ssh-username and ssh-password-hash must both be set or both empty")
+	}
+	if cfg.SSHPasswordHash != "" {
+		if _, err := bcrypt.Cost([]byte(cfg.SSHPasswordHash)); err != nil {
+			return fmt.Errorf("image-server: ssh-password-hash is not a valid bcrypt hash: %w", err)
+		}
 	}
 	return nil
 }

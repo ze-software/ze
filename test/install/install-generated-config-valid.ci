@@ -35,7 +35,7 @@ service {
         image-directory /var/lib/ze/install/images;
         boot-directory /var/lib/ze/install/boot;
         ssh-username admin;
-        ssh-password-hash "$2a$10$examplehashvalue";
+        ssh-password-hash "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234";
     }
 }
 EOF_CONF

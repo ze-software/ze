@@ -9,7 +9,7 @@ service {
         image-directory /var/lib/images
         boot-directory /var/lib/boot
         ssh-username admin
-        ssh-password-hash "$2a$10$example"
+        ssh-password-hash "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234"
     }
 }
 EOF_CONF

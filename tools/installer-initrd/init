@@ -110,6 +110,25 @@ validate_image_name() {
     return 0
 }
 
+validate_sha256() {
+    sha="$1"
+    [ ${#sha} -eq 64 ] || return 1
+    case "$sha" in
+        *[!0-9a-fA-F]*)
+            return 1
+            ;;
+    esac
+    return 0
+}
+
+read_expected_sha() {
+    sha_file="$1"
+    expected=""
+    read -r expected _ < "$sha_file" || true
+    validate_sha256 "$expected" || return 1
+    printf '%s\n' "$expected"
+}
+
 # -- disk detection --
 
 find_target_disk() {
@@ -316,11 +335,9 @@ main() {
     # onto it; when absent we fall back to transfer-success detection only.
     EXPECTED_SHA=""
     if download "${ZE_BASE}/install/image/${ZE_IMAGE}.sha256" /tmp/image.sha256.txt; then
-        # `|| true`, not `|| EXPECTED_SHA=""`: read returns non-zero when the
-        # last line has no trailing newline but STILL assigns the field, so
-        # clearing here would silently drop a valid hash and disable checksum
-        # verification. Swallow the status, keep the value.
-        read -r EXPECTED_SHA _ < /tmp/image.sha256.txt || true
+        if ! EXPECTED_SHA="$(read_expected_sha /tmp/image.sha256.txt)"; then
+            fatal "${ZE_IMAGE}.sha256 is present but does not contain a valid SHA-256"
+        fi
         log "Expected image SHA-256: $EXPECTED_SHA"
     else
         log "WARNING: no ${ZE_IMAGE}.sha256 on server; skipping image checksum verification"

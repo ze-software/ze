@@ -72,6 +72,18 @@ run_download() {
     set -e
 }
 
+run_read_expected_sha() {
+    # $1 content. Captures stdout and status without letting set -e abort.
+    sha_file="$(mktemp)"
+    printf '%s' "$1" > "$sha_file"
+    set +e
+    sha_out="$(read_expected_sha "$sha_file" 2>/dev/null)"
+    sha_rc=$?
+    set -e
+    rm -f "$sha_file"
+}
+
+
 # Test 1: clean transfer, no checksum requested -> success.
 MOCK_WGET_RC=0 MOCK_DD_RC=0 MOCK_PAYLOAD="IMAGE"
 run_download ""
@@ -118,6 +130,23 @@ result="$(MOCK_WGET_RC=0 MOCK_DD_RC=0 MOCK_DD_FAIL_UNTIL=2 MOCK_PAYLOAD="IMAGE"
           download_to_disk "http://server/install/image/ze.img" "/dev/null" "" >/dev/null 2>&1
           echo "RC=$?")"
 assert_eq "set-e-retry-no-abort" "RC=0" "$result"
+
+VALID_SHA="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+run_read_expected_sha "${VALID_SHA}  ze.img
+"
+assert_eq "sha-sidecar-valid" "0" "$sha_rc"
+assert_eq "sha-sidecar-valid-value" "$VALID_SHA" "$sha_out"
+
+run_read_expected_sha ""
+assert_eq "sha-sidecar-empty-rejected" "1" "$sha_rc"
+
+run_read_expected_sha "not-a-sha  ze.img
+"
+assert_eq "sha-sidecar-malformed-rejected" "1" "$sha_rc"
+
+run_read_expected_sha "0123  ze.img
+"
+assert_eq "sha-sidecar-short-rejected" "1" "$sha_rc"
 
 rm -f "$WGET_FAIL_MARKER" "$HASH_FILE" "$DD_COUNT_FILE"
 

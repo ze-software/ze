@@ -172,8 +172,6 @@ def have_image_build_tools(root: Path) -> str | None:
     """Return a skip-reason if the gokrazy image build cannot run, else None."""
     if os.environ.get("ZE_INSTALL_IMAGE"):
         return None
-    if not (root / "bin" / "gok").is_file() and shutil.which("gok") is None:
-        return "gok build tool missing (run: make bin/gok)"
     debugfs = shutil.which("debugfs") or _brew_debugfs()
     if debugfs is None:
         return "debugfs missing (install e2fsprogs) — needed to inject zefs into /perm"
@@ -396,7 +394,7 @@ def boot_installer(
         # installer's multiple sequential downloads.
         "user,id=net0",
         "-device",
-        f"{os.environ.get('ZE_INSTALL_NIC', 'e1000')},netdev=net0",
+        f"{os.environ.get('ZE_INSTALL_NIC', 'virtio-net-pci')},netdev=net0",
     ]
     return _run_capture(cmd, timeout)
 

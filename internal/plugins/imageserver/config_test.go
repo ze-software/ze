@@ -4,7 +4,18 @@ package imageserver
 
 import (
 	"testing"
+
+	"golang.org/x/crypto/bcrypt"
 )
+
+func testBcryptHash(t *testing.T) string {
+	t.Helper()
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(hash)
+}
 
 func TestParseImageConfig(t *testing.T) {
 	t.Parallel()
@@ -79,6 +90,7 @@ func TestParseImageConfigDisabled(t *testing.T) {
 func TestVerifyImageConfig(t *testing.T) {
 	t.Parallel()
 
+	hash := testBcryptHash(t)
 	tests := []struct {
 		name    string
 		cfg     imageConfig
@@ -88,9 +100,11 @@ func TestVerifyImageConfig(t *testing.T) {
 		{"enabled with image-dir", imageConfig{Enabled: true, ImageDirectory: "/tmp"}, false},
 		{"enabled with boot-dir", imageConfig{Enabled: true, BootDirectory: "/tmp"}, false},
 		{"enabled no dirs", imageConfig{Enabled: true}, true},
-		{"both ssh creds", imageConfig{Enabled: true, ImageDirectory: "/tmp", SSHUsername: "admin", SSHPasswordHash: "$2y$.."}, false},
+		{"both ssh creds", imageConfig{Enabled: true, ImageDirectory: "/tmp", SSHUsername: "admin", SSHPasswordHash: hash}, false},
 		{"ssh username only", imageConfig{Enabled: true, ImageDirectory: "/tmp", SSHUsername: "admin"}, true},
-		{"ssh hash only", imageConfig{Enabled: true, ImageDirectory: "/tmp", SSHPasswordHash: "$2y$.."}, true},
+		{"ssh hash only", imageConfig{Enabled: true, ImageDirectory: "/tmp", SSHPasswordHash: hash}, true},
+		{"plaintext ssh hash", imageConfig{Enabled: true, ImageDirectory: "/tmp", SSHUsername: "admin", SSHPasswordHash: "secret"}, true},
+		{"malformed ssh hash", imageConfig{Enabled: true, ImageDirectory: "/tmp", SSHUsername: "admin", SSHPasswordHash: "$2y$.."}, true},
 	}
 
 	for _, tc := range tests {

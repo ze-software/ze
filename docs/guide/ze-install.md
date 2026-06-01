@@ -540,7 +540,7 @@ default installer kernel.
 | `ZE_INSTALL_BOOT_TIMEOUT` | `300` | Seconds to wait for the installer to write the disk |
 | `ZE_INSTALL_IMAGE_SIZE` | appliance default (2 GiB) | Override image `size-bytes` (must stay large enough for the gokrazy A/B layout) |
 | `ZE_INSTALL_SSH_USER` / `ZE_INSTALL_SSH_PASS` | `admin` / `secret` | Power-user credentials provisioned into the image and used for the AC login |
-| `ZE_INSTALL_NIC` | `e1000` | QEMU NIC model for the installer boot |
+| `ZE_INSTALL_NIC` | `virtio-net-pci` | QEMU NIC model for the installer boot |
 | `ZE_INSTALL_KEEP` | unset | Keep the work directory (image, written disk, serial logs) for inspection |
 | `ZE_INSTALL_IMAGE` / `ZE_INSTALL_ZEFS` | unset | Reuse a prebuilt image + zefs instead of building one |
 
