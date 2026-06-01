@@ -45,6 +45,16 @@ except ImportError:
     sys.stderr.write('Install with: pip install psutil\n')
 
 INTERPRETER: str = os.environ.get('INTERPRETER') or os.environ.get('__PYVENV_LAUNCHER__', sys.executable)
+VERIFY_MODE = os.environ.get('ZE_VERIFY_MODE') == '1'
+ZE_FUNCTIONAL = './test/exabgp-compat/bin/functional'
+ZE_FUNCTIONAL_UV = f'uv run --with psutil --with paramiko {ZE_FUNCTIONAL}'
+
+
+def functional_cmd(test_type: str, *args: object) -> str:
+    parts = [ZE_FUNCTIONAL_UV, test_type]
+    parts.extend(str(arg) for arg in args)
+    return ' '.join(parts)
+
 
 
 # Configuration types for different test classes
@@ -898,8 +908,10 @@ class Tests:
                 if timer
                 else f'{cyan()}daemons{reset()} {daemons_started:2d} {cyan()}clients{reset()} {clients_started:2d}'
             )
-            # Clear line before writing to prevent artifacts
-            flush(f'\r\033[K{status}', end='')
+            if VERIFY_MODE:
+                flush(status)
+            else:
+                flush(f'\r\033[K{status}', end='')
             return
 
         # Count test states
@@ -964,10 +976,13 @@ class Tests:
 
         status = ' '.join(status_parts)
 
-        # Clear entire line first, then write status, then return to start
-        # This prevents "X] X] X]" artifacts when status text gets shorter
-        # Reset escape sequence at end forces terminal to process all characters
-        flush(f'\r\033[K{status}\033[0m', end='')
+        if VERIFY_MODE:
+            flush(status)
+        else:
+            # Clear entire line first, then write status, then return to start
+            # This prevents status artifacts when status text gets shorter.
+            # Reset escape sequence at end forces terminal to process all characters.
+            flush(f'\r\033[K{status}\033[0m', end='')
 
     def legend(self, quiet: bool = False) -> None:
         if quiet:
@@ -1277,22 +1292,22 @@ class Tests:
             config_file = test.conf['confs'][0] if test.conf['confs'] else None
             if config_file:
                 flush('  # Decode a hex message using test config:')
-                flush(f'  ./sbin/exabgp decode -c {config_file} "<hex>"')
+                flush(f'  ./test/exabgp-compat/bin/exabgp decode -c {config_file} "<hex>"')
                 flush()
         flush('  # Decode any hex UPDATE message:')
-        flush('  ./sbin/exabgp decode "<hex>"')
+        flush('  ./test/exabgp-compat/bin/exabgp decode "<hex>"')
         flush()
         flush('  # Encode a route to hex (for creating test cases):')
-        flush('  ./sbin/exabgp encode "route 10.0.0.0/24 next-hop 1.2.3.4"')
+        flush('  ./test/exabgp-compat/bin/exabgp encode "route 10.0.0.0/24 next-hop 1.2.3.4"')
         flush()
         flush('  # Round-trip verify (encode then decode):')
-        flush('  ./sbin/exabgp encode "route 10.0.0.0/24 next-hop 1.2.3.4" | ./sbin/exabgp decode')
+        flush('  ./test/exabgp-compat/bin/exabgp encode "route 10.0.0.0/24 next-hop 1.2.3.4" | ./test/exabgp-compat/bin/exabgp decode')
         flush()
         flush('  # Encode with attributes:')
-        flush('  ./sbin/exabgp encode "route 10.0.0.0/24 next-hop 1.2.3.4 as-path [65000 65001] community [65000:100]"')
+        flush('  ./test/exabgp-compat/bin/exabgp encode "route 10.0.0.0/24 next-hop 1.2.3.4 as-path [65000 65001] community [65000:100]"')
         flush()
         flush('  # Encode IPv6:')
-        flush('  ./sbin/exabgp encode -f "ipv6 unicast" "route 2001:db8::/32 next-hop 2001:db8::1"')
+        flush('  ./test/exabgp-compat/bin/exabgp encode -f "ipv6 unicast" "route 2001:db8::/32 next-hop 2001:db8::1"')
         flush()
 
         # Manual debug commands
@@ -1300,9 +1315,9 @@ class Tests:
             test_type = self.path_config.name
             flush('Manual debug (run in separate terminals):')
             flush('  # Terminal 1 - Start server first:')
-            flush(f'  ./qa/bin/functional {test_type} --server {test.nick}')
+            flush(f'  {functional_cmd(test_type, "--server", test.nick)}')
             flush('  # Terminal 2 - Then start client:')
-            flush(f'  ./qa/bin/functional {test_type} --client {test.nick}')
+            flush(f'  {functional_cmd(test_type, "--client", test.nick)}')
             flush()
 
             # Show copy-pasteable exabgp command for direct debugging
@@ -1313,7 +1328,7 @@ class Tests:
             flush()
 
             flush('For intermittent failures, use --save to capture run logs:')
-            flush(f'  ./qa/bin/functional {test_type} --server {test.nick} --save /tmp/runs/')
+            flush(f'  {functional_cmd(test_type, "--server", test.nick, "--save", "tmp/exabgp-runs")}')
             flush('  # Logs saved with timing, message hashes for comparison')
             flush()
 
@@ -1399,10 +1414,10 @@ class Tests:
             if is_timeout:
                 flush(f'    - test timed out after {duration:.1f}s')
                 flush('    - try increasing --timeout or check for hangs')
-            flush(f'    - run single test: ./qa/bin/functional {test_type} {test.nick}')
-            flush(f'    - manual debug:    ./qa/bin/functional {test_type} --server {test.nick}')
-            flush(f'                       ./qa/bin/functional {test_type} --client {test.nick}')
-            flush('    - decode packets:  ./sbin/exabgp decode "<hex>"')
+            flush(f'    - run single test: {functional_cmd(test_type, "--timeout", int(self._max_timeout or 20), test.nick)}')
+            flush(f'    - manual debug:    {functional_cmd(test_type, "--server", test.nick)}')
+            flush(f'                       {functional_cmd(test_type, "--client", test.nick)}')
+            flush('    - decode packets:  ./test/exabgp-compat/bin/exabgp decode "<hex>"')
 
     def _print_summary_results(
         self,
@@ -1462,13 +1477,13 @@ class Tests:
             flush()
             flush('To debug failed tests, run individually:')
             for nick in all_failed:
-                flush(f'  ./qa/bin/functional {test_type} {nick}')
+                flush(f'  {functional_cmd(test_type, "--timeout", int(self._max_timeout or 20), nick)}')
             flush()
             flush('For intermittent failures, use --save to capture run logs:')
-            flush(f'  ./qa/bin/functional {test_type} {all_failed[0]} --save /tmp/runs/')
+            flush(f'  {functional_cmd(test_type, "--timeout", int(self._max_timeout or 20), "--save", "tmp/exabgp-runs", all_failed[0])}')
             flush()
             flush('To decode/analyze hex packets from test output:')
-            flush('  ./sbin/exabgp decode "<hex>"')
+            flush('  ./test/exabgp-compat/bin/exabgp decode "<hex>"')
 
         flush()
 
@@ -2320,9 +2335,9 @@ class DecodingTests(Tests):
         # Add debug hints on failure
         if test.state != State.SUCCESS:
             self._print_debug_hints_header(test.state == State.TIMEOUT, duration)
-            flush(f'    - run single test: ./qa/bin/functional decoding {test.nick}')
+            flush(f'    - run single test: {functional_cmd("decoding", "--timeout", int(self._max_timeout or 20), test.nick)}')
             flush(
-                f'    - decode command:  ./sbin/exabgp decode -f "{test.conf["family"]}" --{test.conf["type"]} {test.conf["packet"]}'
+                f'    - decode command:  ./test/exabgp-compat/bin/exabgp decode -f "{test.conf["family"]}" --{test.conf["type"]} {test.conf["packet"]}'
             )
 
     def run_selected(
@@ -2503,8 +2518,8 @@ class ParsingTests(Tests):
         # Add debug hints on failure
         if test.state != State.SUCCESS:
             self._print_debug_hints_header(test.state == State.TIMEOUT, duration)
-            flush(f'    - run single test: ./qa/bin/functional parsing {test.nick}')
-            flush(f'    - validate command: ./sbin/exabgp configuration validate -nrv {test.conf["fname"]}')
+            flush(f'    - run single test: {functional_cmd("parsing", test.nick)}')
+            flush(f'    - validate command: ./test/exabgp-compat/bin/exabgp configuration validate -nrv {test.conf["fname"]}')
 
     def run_selected(
         self,
@@ -2623,8 +2638,8 @@ class CLITests(Tests):
         if test.state != State.SUCCESS:
             self._print_debug_hints_header(test.state == State.TIMEOUT, duration)
             confs = ' '.join(test.conf['confs'])
-            flush(f'    - run single test: ./qa/bin/functional cli {test.nick}')
-            flush(f'    - run manually:    env exabgp_api_version=6 ./sbin/exabgp -d -p {confs}')
+            flush(f'    - run single test: {functional_cmd("cli", "--timeout", int(self._max_timeout or 20), test.nick)}')
+            flush(f'    - run manually:    env exabgp_api_version=6 ./test/exabgp-compat/bin/exabgp -d -p {confs}')
 
     def run_selected(
         self,

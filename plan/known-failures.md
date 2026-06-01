@@ -78,6 +78,23 @@ still shows many additional pre-existing plugin failures and timeouts (`39, 42,
 276, 280, 286, 288, 291, 295, 297, 298, 299, 300, 301, 329, 330, 346, 347, 348,
 349`), so unrelated commits should not be blocked on this baseline until the
 suite is triaged.
+
+### 2026-06-01 — host `make ze-verify` protocol run still fails functional and ExaBGP baselines
+
+**Open (triage).** The verify debugging protocol run completed all seven top-level
+stages and wrote `tmp/ze-verify-failures.log`. Lint, wiring/docs, evidence vet,
+cached unit tests, and changed-group race tests passed. Remaining failures are:
+
+- `ze-functional-test` plugin groups: `bfd` (`52`), `check` (`79`), `dispatch`
+  (`121`), `fib` (`139`), `iface` (`174`), `loop` (`189,190`), `mpls`
+  (`201,202`), `rib` (`288,291,289,290`), `show` (`347,356`), and `teardown`
+  (`393,395`).
+- `ze-exabgp-test` encoding group: `a` (`conf-watchdog`), reproduced by
+  `uv run --with psutil --with paramiko ./test/exabgp-compat/bin/functional encoding --timeout 180 a`.
+
+Evidence paths from that run: `tmp/ze-verify-failures.log`,
+`tmp/verify/06-ze-functional-test.log`, and `tmp/verify/07-ze-exabgp-test.log`.
+
 ## Resolved
 
 ### 2026-05-31 — dispatch single-marshal + stale plugin lists (15 packages)

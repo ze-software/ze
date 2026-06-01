@@ -316,13 +316,15 @@ func (r *Report) printDebugCommands(rec *Record) {
 	// Rerun commands
 	suite := r.label
 	if suite == "" {
-		suite = "encode"
+		suite = defaultFailureSuite
 	}
 	r.writef("%s\n", c.Gray("# Run single test:"))
-	r.writef("ze-test bgp %s %s\n\n", suite, rec.Nick)
-	r.writef("%s\n", c.Gray("# Run test manually (server/client):"))
-	r.writef("ze-test bgp %s --server %s\n", suite, rec.Nick)
-	r.writef("ze-test bgp %s --client %s\n", suite, rec.Nick)
+	r.writef("%s\n\n", FormatRecordRerunCommand(suite, rec))
+	if supportsServerClientDebug(suite) {
+		r.writef("%s\n", c.Gray("# Run test manually (server/client):"))
+		r.writef("%s\n", FormatRerunCommand(suite, []string{"--server", rec.Nick}))
+		r.writef("%s\n", FormatRerunCommand(suite, []string{"--client", rec.Nick}))
+	}
 	r.writeln("")
 }
 

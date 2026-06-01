@@ -37,6 +37,21 @@ func TestDebugCommandsFullHex(t *testing.T) {
 	assert.NotContains(t, output, "...", "debug commands should not contain ellipsis truncation")
 }
 
+func TestReportDebugCommandsUseSuiteSpecificCommands(t *testing.T) {
+	rec := &Record{Nick: "A", Name: "ui-failure"}
+
+	var buf bytes.Buffer
+	report := NewReport(NewColorsWithOverride(false))
+	report.SetOutput(&buf)
+	report.SetLabel("ui")
+	report.printDebugCommands(rec)
+
+	output := buf.String()
+	assert.Contains(t, output, "ze-test ui A")
+	assert.NotContains(t, output, "ze-test bgp ui")
+	assert.NotContains(t, output, "--server")
+}
+
 // TestGenericReportStructured verifies that generic failure reports include
 // structured sections with clear labels instead of raw output dumps.
 //

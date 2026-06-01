@@ -4,6 +4,7 @@ package runner
 
 import (
 	"context"
+	"os"
 	"sync"
 	"time"
 )
@@ -214,11 +215,18 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 			logger().Warn("save timings failed", "error", err)
 		}
 	}
+	if os.Getenv("ZE_VERIFY_MODE") == "1" && len(failures) > 0 {
+		report := NewReport(r.colors)
+		report.SetOutput(r.display.output)
+		report.SetLabel(r.label)
+		report.PrintFailureGroups(r.display.tests)
+	}
 
 	r.display.DebugHints()
 
-	// Call onFail for each failure if verbose and callback set
-	if r.verbose && r.onFail != nil && len(failures) > 0 {
+	// Verify mode must include concise failure detail in saved logs without
+	// making normal interactive runs verbose.
+	if (r.verbose || os.Getenv("ZE_VERIFY_MODE") == "1") && r.onFail != nil && len(failures) > 0 {
 		for _, f := range failures {
 			r.onFail(f.test, f.err)
 		}

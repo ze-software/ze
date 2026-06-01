@@ -35,6 +35,7 @@
 | `yang_move.py` | `scripts/dev/` | Format-aware YANG path refactoring. When YANG nodes move, updates slash paths, set commands, brace blocks, and GetContainer chains across the codebase. `remove <seg> --under <path>`, `rename <old> <new> --under <path>`, `move <src> <dst>`. Preview by default, `--apply` to write. Run `--test` for self-tests. |
 | `bundle-html.py` | `gh-pages: presentations/tools/` | Inline local images, slides.md, and embeds into HTML as a self-contained file. Output: `<name>-inlined.html`. Accepts multiple files. |
 | `make ze-verify-wiring-docs` | `mk/inventory.mk` | Changed-file-aware wiring, documentation, command, and inventory gate used by `make ze-verify`. |
+| `go run ./scripts/status/verify_run.go ze-verify` | `scripts/status/verify_run.go` | Verify protocol runner used by `make ze-verify`. Writes `tmp/ze-verify.log`, per-stage logs, compact failure indexes, and `tmp/ze-verify.status`. |
 | `make ze-doc-test` | `mk/inventory.mk` | Documentation drift plus YANG command handler contract checks. |
 | `make ze-inventory` / `make ze-inventory-json` | `mk/inventory.mk` | Registry-backed plugin, command, YANG, and test inventory. |
 | `make ze-command-list` / `make ze-command-list-json` | `mk/inventory.mk` | Live command inventory generated from registered handlers and schemas. |
@@ -178,7 +179,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | ASN4, AS4 | `edge-cases/as4.md` |
 | ADD-PATH | `edge-cases/addpath.md` |
 | extended message | `edge-cases/extended-message.md` |
-| test, functional, .ci | `docs/functional-tests.md` (top-level, not architecture/), `testing/ci-format.md` |
+| test, functional, .ci, verify failures | `docs/functional-tests.md` (top-level, not architecture/), `testing/ci-format.md` |
 | netdata, telemetry, prometheus, metrics, monitoring, collector | `docs/guide/monitoring.md`, `docs/features.md`, `plan/learned/653-netdata-os-collectors.md` |
 | DHCP, dhcp-server, lease, pool | `internal/plugins/dhcpserver/` (plugin), `ze-dhcp-server-conf.yang` |
 | NTP, time sync | `internal/plugins/ntp/` (plugin), `ze-ntp-conf.yang` |
@@ -216,6 +217,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | RIB dump, bounded dump, replay batching, update cursor | `plan/learned/823-rib-show-bounded-dump.md`, `plan/learned/824-rib-feed-replay-batch.md` |
 | plugin internal keyword, in-process plugin config | `plan/learned/821-plugin-internal-keyword.md`, `ai/patterns/plugin.md` |
 | appliance auth, local admin, bootstrap auth, RBAC | `plan/learned/831-appliance-auth-hardening.md`, `internal/component/auth/`, `internal/component/aaa/` |
+| install appliance iso, installer iso, appliance iso, install qemu | `docs/guide/appliance.md`, `docs/guide/ze-install.md`, `scripts/evidence/effective-install-iso-qemu.py`, `mk/test-integration.mk` |
 | code-to-docs, reverse index, which docs | `ai/CODE-TO-DOCS.md` (generated, `make ze-doc-index`) |
 
 All architecture docs in `docs/architecture/` unless noted.

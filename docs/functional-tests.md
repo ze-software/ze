@@ -14,11 +14,28 @@ make ze-reload-test       # Reload tests only
 
 ## Release Gate Coverage
 
-`make ze-verify` runs: lint, evidence script vetting, unit tests (two-pass:
-cached full + `-race` on changed groups), `ze-functional-test`, and exabgp-compat.
+`make ze-verify` runs, in order: `ze-lint`, `ze-verify-wiring-docs`,
+`ze-vet-evidence`, `ze-unit-test-cached`, `ze-unit-test-race-changed`,
+`ze-functional-test`, and `ze-exabgp-test`. `make ze-verify-changed` uses the
+changed-only lint and unit stages, then the same wiring, functional, and ExaBGP
+stages. Both targets run under `scripts/dev/verify-lock.sh`, continue across
+top-level stage failures, and write:
+
+| Artifact | Purpose |
+|----------|---------|
+| `tmp/ze-verify.log` | Combined full verify log |
+| `tmp/verify/<nn>-<stage>.log` | Full log for one stage |
+| `tmp/ze-verify-failures.log` | Compact failure index to read first |
+| `tmp/ze-verify-failures.json` | Machine-readable failure routing index |
+| `tmp/ze-verify.status` | Freshness fingerprint for the last run |
+
 The functional test target runs 13 suites: encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, web, install.
-<!-- source: Makefile -- ze-verify; mk/test-functional.mk -- ze-functional-test -->
+<!-- source: Makefile -- ze-verify, ze-verify-changed, ze-exabgp-test -->
+<!-- source: scripts/status/verify_run.go -- artifact writing and grouped summaries -->
+<!-- source: scripts/dev/verify-lock.sh -- verify-class lock -->
+<!-- source: scripts/dev/verify-status.sh -- tmp/ze-verify.status -->
+<!-- source: mk/test-functional.mk -- ze-functional-test suite list -->
 
 The following shipped test suites are **not in the default release gate** and
 must be run manually:
@@ -131,18 +148,21 @@ make ze-verify                                                          # pre-co
 ```
 
 `make ze-verify` is the pre-commit gate. It runs a two-pass strategy:
-1. Cached full pass (all packages, no `-race`; completes in <1s when nothing changed)
+1. Cached full pass (all packages, no `-race`; completes quickly when nothing changed)
 2. Race pass on changed groups only (detects data races in what you touched)
 3. All functional test suites
 4. ExaBGP compatibility
 
-Output is captured to `tmp/ze-verify.log`. On failure, search with:
-
-```bash
-grep -E "^--- FAIL|^FAIL|TEST FAILURE" tmp/ze-verify.log
-```
+On failure, read `tmp/ze-verify-failures.log` first. It is a compact routing
+index with one block per failing stage and group. Each group names its `Rerun`
+command, `Detail log`, and `Parallel` value, so a reader can choose related
+failures without opening the full combined log. Open the referenced
+`tmp/verify/<nn>-<stage>.log` for full evidence for that group. Use
+`tmp/ze-verify.log` only when the whole combined run is needed.
+Automation should read `tmp/ze-verify-failures.json`.
 <!-- source: Makefile -- ze-test-bgp, ze-test-core, ze-test-plugins, ze-test-config, ze-test-cli, ze-test-rest -->
-<!-- source: Makefile -- ze-verify two-pass strategy, scripts/dev/changed-groups.sh -->
+<!-- source: scripts/status/verify_run.go -- stage logs, compact index, JSON index -->
+<!-- source: mk/test-unit.mk -- ze-unit-test-cached, ze-unit-test-race-changed -->
 
 ---
 
@@ -437,11 +457,35 @@ cmd=foreground:seq=1:exec=ze-test decode --family ipv4/unicast -:stdin=payload
 expect=json:json={ "type": "update", "neighbor": { ... }, "announce": { ... } }
 ```
 
+
+
 **JSON Validation:**
 - Parsed and compared field-by-field (key order independent)
 - Volatile fields ignored: `exabgp`, `ze-bgp`, `time`, `host`, `pid`, `ppid`, `counter`
 - Neighbor normalization: `peer` ↔ `neighbor` equivalence, `direction` ignored
 
+
+### Install Tests (`test/install/`)
+
+Install functional tests cover the offline `ze install` command surface and the
+installer initrd shell helpers. The QEMU evidence entries run Python drivers
+that self-skip when external prerequisites are missing, printing either
+`INSTALL-QEMU: SKIP` or `INSTALL-ISO-QEMU: SKIP` while exiting successfully.
+Real failures exit non-zero.
+<!-- source: cmd/ze-test/install.go -- installCmd -->
+<!-- source: test/install/qemu-full.ci -- PXE installer evidence entry -->
+<!-- source: test/install/qemu-iso.ci -- ISO installer evidence entry -->
+
+| File | What it verifies |
+|------|------------------|
+| `initrd-flow.ci` | Shell tests for cmdline parsing, disk selection, ISO media discovery, and checksum-protected image writes |
+| `qemu-full.ci` | PXE installer path writes the image, injects ZeFS, boots the written disk, and authenticates |
+| `qemu-iso.ci` | Appliance ISO path writes the embedded image unchanged, skips PXE ZeFS injection, powers off safely, boots the written disk, and authenticates |
+
+Run the install suite with `bin/ze-test install --all`. For the exhaustive QEMU
+entry points, use `make ze-install-qemu-test` for PXE and
+`make ze-install-iso-qemu-test` for appliance ISO media.
+<!-- source: mk/test-integration.mk -- ze-install-qemu-test, ze-install-iso-qemu-test -->
 ---
 
 ## CLI Reference
@@ -789,10 +833,13 @@ The `N:json:` lines use ZeBGP plugin format (not ExaBGP envelope format):
 
 ### Section Header
 
-Each test suite is framed by a section header:
+Each test suite is framed by a section header, including top-level suites such
+as `ui`, `managed`, `l2tp`, `firewall`, `policy`, `web`, and `install`:
 ```
 ═══════════════════════ encode ════════════════════════════════════════════════
 ```
+<!-- source: cmd/ze-test/bgp.go -- BGP suite headers -->
+<!-- source: cmd/ze-test/ci_runner.go -- top-level .ci suite headers -->
 
 ### Summary (single line, parseable)
 
@@ -816,6 +863,18 @@ On failure:
 | Timeout | `timeout N [nicks]` | Only shown when > 0, yellow |
 
 **Regex for parsing:** `═══ (PASS|FAIL)\s+(\d+)/(\d+)\s+([0-9.]+%)\s+(\S+)`
+
+### Verify Failure Groups
+
+In `ZE_VERIFY_MODE=1`, failed `.ci` suites emit native failure groups before
+the full `TEST FAILURE` blocks. A group records the suite label, group id,
+failure kind, related nicks, compact summary, exact rerun command, detail log,
+and parallelization hint. The top-level verify runner copies only bounded group
+metadata into `tmp/ze-verify-failures.log`; the full evidence remains in the
+stage log.
+<!-- source: internal/test/runner/failure_group.go -- native functional groups -->
+<!-- source: internal/test/runner/report.go -- detailed failure reports -->
+<!-- source: internal/test/runner/display.go -- summary and debug hints -->
 
 ### Stress Test Mode
 
@@ -862,21 +921,26 @@ Total: 20 iterations, 18 passed, 2 failed, 0 timed out (90.0% pass rate)
 
 ## Debugging Tests
 
-### Run single test verbosely
+### Run a single test
+
+BGP suites use the `ze-test bgp <suite>` command shape:
 
 ```bash
 ze-test bgp encode --timeout 60s --verbose 4
+ze-test bgp plugin --server 4
+ze-test bgp plugin --client 4
 ```
 
-### Manual execution
+Top-level `.ci` suites use `ze-test <suite>` without the `bgp` prefix:
 
 ```bash
-# Terminal 1: Start peer
-ze-peer --port 1790 test/encode/ebgp.ci
-
-# Terminal 2: Run ze bgp (port is now per-peer config, not a global env var)
-ze bgp server test/encode/ebgp.conf
+ze-test ui 4
+ze-test managed 4
+ze-test firewall 4
 ```
+
+The compact verify index emits the smallest useful rerun command for each
+failure group. Use that command before widening scope.
 
 ### Decode message bytes
 
@@ -1071,6 +1135,17 @@ Usage: `ze-test rpki --port 3323 [--valid-asn 65001] [--invalid-asn 65099]`
 ExaBGP compatibility tests (`make ze-exabgp-test`) use OS-assigned dynamic ports. The mock BGP server (`test/exabgp-compat/bin/bgp`) binds to port 0, receives an OS-assigned port, and prints `PORT <N>` to stdout. The test runner (`test/exabgp-compat/bin/functional`) reads this line from the server's stdout temp file and passes the discovered port to the client subprocess. This eliminates port collisions when running concurrent test instances. Use `--port N` to override with an explicit port for debugging.
 <!-- source: test/exabgp-compat/bin/bgp -- dynamic port binding and PORT line output -->
 <!-- source: test/exabgp-compat/bin/functional -- _discover_port method -->
+
+### ExaBGP Verify Output
+
+When `ZE_VERIFY_MODE=1`, the ExaBGP compatibility runner disables
+carriage-return live status in saved logs and prints newline-delimited status
+and summary lines. Its debug hints use the Ze repository invocation path:
+
+```bash
+uv run --with psutil --with paramiko ./test/exabgp-compat/bin/functional encoding --timeout 180 0
+```
+<!-- source: test/exabgp-compat/bin/functional -- verify-mode summary and reproducers -->
 
 ---
 
@@ -1268,6 +1343,8 @@ make ze-release-check              # Run clean Docker ze-verify release evidence
 make ze-deployment-vpp-test        # Run real VPP daemon FIB add/withdraw evidence
 make ze-deployment-l2tp-test       # Run real xl2tpd LAC control/session evidence
 make ze-deployment-l2tp-ppp-test   # Run real xl2tpd/pppd PPP/NCP evidence on Linux
+make ze-install-qemu-test       # Run PXE installer QEMU evidence
+make ze-install-iso-qemu-test   # Run appliance ISO installer QEMU evidence
 make ze-deployment-l2tp-ppp-docker-test # Run L2TP PPP/NCP peer-isolated Docker lab (Ze LNS + LAC + FRR)
 ```
 
@@ -1339,10 +1416,10 @@ L2TP functional tests (`test/l2tp/`) verify tunnel lifecycle, session
 negotiation, authentication, IP pool, and teardown over real loopback UDP.
 Run with `bin/ze-test l2tp`.
 
-> **Not in the default release gate.** L2TP tests require loopback UDP and
-> are not included in `make ze-verify` / `make ze-functional-test`. They must
-> be run manually via `bin/ze-test l2tp`. There is no `make ze-l2tp-test`
-> target.
+> **In the default release gate.** The in-tree L2TP `.ci` tests are included in
+> `make ze-verify` / `make ze-functional-test` and can be run directly with
+> `make ze-l2tp-test` or `bin/ze-test l2tp --all`. External-peer and PPP
+> dataplane evidence remain separate deployment targets.
 
 ```bash
 ze-test l2tp --list    # List available tests

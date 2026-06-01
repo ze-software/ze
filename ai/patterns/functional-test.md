@@ -53,9 +53,9 @@ Full format: `docs/architecture/testing/ci-format.md`. Rules: `rules/testing.md`
 | `test/decode/` | `ze-test bgp decode [N...]` | `make ze-decode-test` |
 | `test/parse/` | `ze-test bgp parse [N...]` | `make ze-parse-test` |
 | `test/reload/` | `ze-test bgp reload [N...]` | `make ze-reload-test` |
-| `test/ui/` | `ze-test bgp ui [N...]` | `make ze-ui-test` |
+| `test/ui/` | `ze-test ui [N...]` | `make ze-ui-test` |
 | `test/editor/` | `ze-test editor [-p pattern]` | `make ze-editor-test` |
-| `test/web/` | `ze-test web [N...]` | `make ze-web-test` |
+| `test/web/` | `ze-test web [-p pattern]` | `make ze-web-test` |
 | `test/managed/` | `ze-test managed [N...]` | `make ze-managed-test` |
 | `test/l2tp/` | `ze-test l2tp [N...]` | `make ze-l2tp-test` |
 | `test/firewall/` | `ze-test firewall [N...]` | `make ze-firewall-test` |

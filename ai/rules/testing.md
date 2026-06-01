@@ -135,8 +135,12 @@ Common case (one group changed): ~2 min total instead of 6+.
 | Pre-commit gate | `make ze-verify` | ~2 min (common case) |
 
 **Escalation ladder:** single test -> single package -> component group -> `ze-verify`.
+
 `make ze-verify` is the **final gate**, not a development tool. Use targeted commands and component groups during iteration.
-Output is auto-captured to `tmp/ze-verify.log` (overwritten each run, no junk accumulation).
+On failure, `make ze-verify` writes the compact index `tmp/ze-verify-failures.log`.
+Read that file first, choose a stage-local group, then open the referenced
+`tmp/verify/<nn>-<stage>.log` for full evidence. The combined log is
+`tmp/ze-verify.log`, and automation can read `tmp/ze-verify-failures.json`.
 
 **Overlapping runs:** If a test run is failing, kill it before starting another. Never run `make ze-verify` twice concurrently.
 
@@ -178,15 +182,17 @@ Create a subfolder per debugging task (e.g., `tmp/watchdog-debug/`) to keep arti
 
 ## Debugging Failures
 
-**BLOCKING:** Search the log, don't re-run the suite.
+**BLOCKING:** Read the failure index before opening full logs or re-running.
 
 ```bash
-make ze-verify   # output auto-captured to tmp/ze-verify.log
-# On failure, search:
-grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-verify.log
+make ze-verify
+# On failure, read:
+tmp/ze-verify-failures.log
 ```
 
-On failure: search the log. On success: one line of exit status. Never `| tail`.
+Use each group's `Rerun` command for the smallest useful scope. Open the
+group's `Detail log` only after choosing the group. On success: one final pass
+line plus fresh artifacts. Never `| tail`.
 
 ## Editor Tests (.et format)
 

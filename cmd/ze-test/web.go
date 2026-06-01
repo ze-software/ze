@@ -177,6 +177,8 @@ Examples:
 	passed, failed, skipped := 0, 0, 0
 	total := len(tests)
 
+	runner.PrintHeader("web")
+
 	fmt.Fprintf(os.Stdout, "Running %d web tests...\n", total) //nolint:errcheck // terminal output
 
 	for i, t := range tests {

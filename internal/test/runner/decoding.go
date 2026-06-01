@@ -410,13 +410,14 @@ func (r *DecodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 
 	// Add tests to runner
 	for _, test := range selected {
-		runner.AddTest(test.Name, test, func(runCtx context.Context, t *DecodingTest) (bool, error) {
+		rec := runner.AddTest(test.Name, test, func(runCtx context.Context, t *DecodingTest) (bool, error) {
 			success := r.runTest(runCtx, t)
 			if !success {
 				return false, t.Error
 			}
 			return true, nil
 		})
+		rec.Nick = test.Nick
 	}
 
 	// Set failure callback for verbose output

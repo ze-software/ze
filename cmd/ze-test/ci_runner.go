@@ -121,8 +121,7 @@ Examples:
 		return err
 	}
 
-	r.Display().SetLabel(cfg.Name)
-	r.Report().SetLabel(cfg.Name)
+	configureCIRunnerOutput(r, cfg.Name)
 
 	opts := &runner.RunOptions{
 		Timeout:  15 * time.Second,
@@ -141,4 +140,10 @@ Examples:
 	}
 
 	return nil
+}
+
+func configureCIRunnerOutput(r *runner.Runner, suite string) {
+	r.Display().SetLabel(suite)
+	r.Report().SetLabel(suite)
+	r.Display().Header()
 }

@@ -1,0 +1,3 @@
+cmd/ze-test/main.go:10:2: package comment should be of the form "Package main ..." (revive)
+cmd/ze-test/main.go:12:1: File is not properly formatted (gofmt)
+internal/test/runner/failure_group.go:44:6: exported type should have comment or be unexported (revive)

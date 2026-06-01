@@ -292,6 +292,7 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 
 	// Print failure reports
 	if !allSuccess && !opts.Quiet {
+		r.report.PrintFailureGroups(r.tests.Tests)
 		r.report.PrintAllFailures(r.tests.Tests)
 	}
 

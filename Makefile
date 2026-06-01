@@ -181,13 +181,13 @@ ze-test: ze-lint ze-unit-test ze-functional-test ze-exabgp-test ze-fuzz-test
 ZE_VERIFY_LOG ?= tmp/ze-verify.log
 
 ze-verify:
-	@scripts/dev/verify-lock.sh ze-verify $(MAKE) --no-print-directory _ze-verify-impl
+	@scripts/dev/verify-lock.sh ze-verify env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify
 
 _ze-verify-impl: ze-lint ze-verify-wiring-docs ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification passed"
 
 ze-verify-changed:
-	@scripts/dev/verify-lock.sh ze-verify-changed $(MAKE) --no-print-directory _ze-verify-changed-impl
+	@scripts/dev/verify-lock.sh ze-verify-changed env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify-changed
 
 _ze-verify-changed-impl: ze-lint-changed ze-verify-wiring-docs ze-unit-test-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification (changed) passed"

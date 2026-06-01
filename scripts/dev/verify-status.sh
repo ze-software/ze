@@ -19,6 +19,23 @@ set -e
 
 STATUS_FILE="tmp/ze-verify.status"
 
+hash_file() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum -- "$1" | awk '{print $1}'
+    else
+        shasum -a 256 -- "$1" | awk '{print $1}'
+    fi
+}
+
+hash_stream() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum | awk '{print $1}'
+    else
+        shasum -a 256 | awk '{print $1}'
+    fi
+}
+
+
 tree_hash() {
     {
         git rev-parse HEAD 2>/dev/null || echo "NO_HEAD"
@@ -26,12 +43,12 @@ tree_hash() {
         git ls-files -o --exclude-standard 2>/dev/null | LC_ALL=C sort | while IFS= read -r f; do
             printf '%s\n' "$f"
             if [ -f "$f" ]; then
-                sha256sum -- "$f" 2>/dev/null | awk '{print $1}'
+                hash_file "$f"
             else
                 echo "MISSING"
             fi
         done
-    } | sha256sum | awk '{print $1}'
+    } | hash_stream
 }
 
 cmd="${1:-}"

@@ -92,13 +92,14 @@ Read: `plan/learned/760` (subscriber session model), `plan/learned/725` (DHCP ra
 | BGP wire decoding | `.ci` | `test/decode/` | `ze-test bgp decode` |
 | Plugin behavior / API | `.ci` | `test/plugin/` | `ze-test bgp plugin` |
 | Config reload via SIGHUP | `.ci` | `test/reload/` | `ze-test bgp reload` |
-| CLI show/monitor output | `.ci` | `test/ui/` | `ze-test bgp ui` |
-| Web HTTP endpoints | `.ci` | `test/web/` | `ze-test web` |
+| CLI show/monitor output | `.ci` | `test/ui/` | `ze-test ui` |
+| Web HTTP endpoints | `.wb` | `test/web/` | `ze-test web` |
 | Editor TUI interactions | `.et` | `test/editor/` | `ze-test editor` |
 | Pure logic (no daemon) | `_test.go` | `internal/<pkg>/` | `go test` |
 | Linux-only kernel code | `_test.go` | `internal/<pkg>/` | `make ze-qemu-integration-test` |
 
 Key docs: `patterns/functional-test.md` (directories + runner commands),
+`docs/functional-tests.md` (verify artifacts and rerun workflow),
 `docs/architecture/testing/ci-format.md` (full format reference),
 `rules/testing.md` (observer API, iteration workflow).
 

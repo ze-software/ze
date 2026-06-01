@@ -25,6 +25,24 @@ action=type:key=value:key=value:...
 
 ## Key Concepts
 
+### Suite label, nick, and failure identity
+
+The verify debugging protocol identifies a functional failure with:
+
+| Field | Source | Purpose |
+|-------|--------|---------|
+| Suite label | `ze-test` runner label such as `plugin`, `ui`, or `managed` | First routing boundary inside `ze-functional-test` |
+| Test nick | Stable short id printed by the runner | Exact single-test rerun scope |
+| CI file path | Parsed `.ci` source path | Full test definition and embedded fixtures |
+| Failure kind | Runner failure type, timeout state, or mismatch class | Conservative grouping key |
+| Expected / received evidence | `TEST FAILURE` block detail | Full debugging evidence in the stage log |
+
+In `ZE_VERIFY_MODE=1`, failed suites emit native failure-group metadata before
+the full failure blocks. The compact verify index uses that metadata for group
+routing and keeps the full `TEST FAILURE` blocks in the stage log.
+<!-- source: internal/test/runner/failure_group.go -- suite-local failure groups -->
+<!-- source: internal/test/runner/report.go -- TEST FAILURE blocks -->
+
 ### conn and seq
 
 Most directives use `conn=N` and `seq=N` to identify message ordering:

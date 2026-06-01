@@ -94,13 +94,14 @@ No = skip and note in commit summary. Unsure = run.
 `make ze-verify` (timeout 240s). Not `go test`, not any subset.
 `ze-verify` uses a two-pass strategy: cached full pass (no `-race`) +
 `-race` only on component groups with changed `.go` files. For reactor
-concurrency changes, also run `make ze-race-reactor`. Output
-auto-captures to `tmp/ze-verify.log`; failure index in
-`tmp/ze-verify-failures.log` (read that FIRST).
+concurrency changes, also run `make ze-race-reactor`. Output writes:
+`tmp/ze-verify.log`, per-stage logs under `tmp/verify/`,
+`tmp/ze-verify-failures.log`, `tmp/ze-verify-failures.json`, and
+`tmp/ze-verify.status`.
 
 ```
 [ ] 0. `scripts/dev/verify-status.sh check`. FRESH -> skip step 1, note timestamp. STALE -> continue.
-[ ] 1. `make ze-verify` (240s). On failure read tmp/ze-verify-failures.log, then tmp/ze-verify.log.
+[ ] 1. `make ze-verify` (240s). On failure read `tmp/ze-verify-failures.log` FIRST, choose a stage-local group, then open that group's `tmp/verify/<nn>-<stage>.log`.
 [ ] 2. Failure from current work: fix + re-run. Pre-existing: fix after primary task in separate commit; if >10 min, log to `plan/known-failures.md`.
 ```
 

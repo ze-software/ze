@@ -428,6 +428,7 @@ func (r *ParsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 		// Propagate per-test SkipReason (from option=skip-os) onto the
 		// Record so ParallelRunner.Run honors it without running the test.
 		rec.SkipReason = test.SkipReason
+		rec.Nick = test.Nick
 	}
 
 	runner.SetOnFail(func(test *ParsingTest, _ error) {
