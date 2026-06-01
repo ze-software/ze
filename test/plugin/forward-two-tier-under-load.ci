@@ -197,7 +197,7 @@ tmpfs=two-tier-load-test.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 import time
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data, result_text_data
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
@@ -216,7 +216,7 @@ def main():
 
     # Verify routes were accepted in adj-rib-in.
     result = dispatch(api, 'show adj-rib-in status')
-    data = json.loads(result.get('data', '{}'))
+    data = result_json_data(result, {})
     total = data.get('total-routes', 0)
 
     if total < 0:  # architectural blocker: no forwarding plugin loaded
@@ -229,7 +229,7 @@ def main():
 
     # Verify two-tier metrics exist.
     r = dispatch(api, 'metrics values')
-    data_str = r.get('data', '{}')
+    data_str = result_text_data(r, '{}')
     try:
         data = json.loads(data_str) if isinstance(data_str, str) else data_str
     except (json.JSONDecodeError, TypeError):

@@ -41,7 +41,7 @@ import json
 import sys
 import time
 
-from ze_api import API
+from ze_api import API, result_text_data
 
 
 failures = 0
@@ -67,7 +67,7 @@ def check(label, result, expected_status):
 
 def parse_data(result):
     """Parse result data as JSON, return dict."""
-    data_str = result.get('data', '{}')
+    data_str = result_text_data(result, '{}')
     if not data_str:
         return {}
     try:

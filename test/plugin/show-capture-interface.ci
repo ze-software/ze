@@ -12,7 +12,7 @@ EOF_PEER
 tmpfs=show-capture-interface-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import sys
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_text_data
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -36,7 +36,7 @@ def main():
         status = resp.get('status')
         if status != 'error':
             runtime_fail(f'expected error for invalid iface, got status={status}')
-        data = resp.get('data', '')
+        data = result_text_data(resp)
         if 'interface not found' not in data and 'not available' not in data:
             runtime_fail(f'unexpected error message: {data}')
         print(f'OK: invalid interface rejected: {data}', file=sys.stderr)
@@ -46,7 +46,7 @@ def main():
         status = resp.get('status')
         if status != 'error':
             runtime_fail(f'expected error for missing iface, got status={status}')
-        data = resp.get('data', '')
+        data = result_text_data(resp)
         if 'missing interface' not in data and 'not available' not in data:
             runtime_fail(f'unexpected error for missing args: {data}')
         print(f'OK: missing interface rejected: {data}', file=sys.stderr)

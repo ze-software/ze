@@ -21,7 +21,7 @@ tmpfs=bfd-show-session.run:mode=755:terminator=EOF_RUN
 import json
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data, result_text_data
 
 
 def dispatch(api, command):
@@ -52,7 +52,7 @@ def main():
         runtime_fail(f'known peer: status={r.get("status") if r else "nil"}')
 
     try:
-        detail = json.loads(r.get('data', '') or '{}')
+        detail = result_json_data(r, {})
     except json.JSONDecodeError as exc:
         detail = {}
         runtime_fail(f'known peer json: {exc}')
@@ -64,9 +64,9 @@ def main():
     # AC-3: unknown peer
     r = dispatch(api, 'show bfd session 198.51.100.200')
     if r.get('status') != 'error':
-        runtime_fail(f'unknown status: {r.get("status")} data={r.get("data", "")[:200]}')
+        runtime_fail(f'unknown status: {r.get("status")} data={result_text_data(r)[:200]}')
     else:
-        msg = r.get('data', '')
+        msg = result_text_data(r)
         if 'no session for peer' not in msg:
             runtime_fail(f'unknown message: {msg}')
 

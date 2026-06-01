@@ -25,7 +25,7 @@ tmpfs=show-l2tp-empty.run:mode=755:terminator=EOF_RUN
 import json
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data, result_text_data
 
 
 def dispatch(api, command):
@@ -53,13 +53,13 @@ def main():
         time.sleep(0.25)
     if r is None or r.get('status') != 'done':
         status = r.get('status') if r else 'nil'
-        data = r.get('data', '') if r else ''
+        data = result_text_data(r) if r else ''
         runtime_fail(f'show l2tp: status={status} data={data[:200]}')
 
     try:
-        summary = json.loads(r.get('data', '') or '{}')
+        summary = result_json_data(r, {})
     except json.JSONDecodeError as exc:
-        runtime_fail(f'show l2tp json: {exc}: {r.get("data", "")[:200]}')
+        runtime_fail(f'show l2tp json: {exc}: {result_text_data(r)[:200]}')
         summary = {}
 
     if summary.get('tunnel-count') != 0:
@@ -74,7 +74,7 @@ def main():
     if r2.get('status') != 'done':
         runtime_fail(f'show l2tp listeners: status={r2.get("status")}')
     try:
-        lns = json.loads(r2.get('data', '') or '[]')
+        lns = result_json_data(r2, [])
     except json.JSONDecodeError as exc:
         runtime_fail(f'show l2tp listeners json: {exc}')
         lns = []
@@ -85,7 +85,7 @@ def main():
     r3 = dispatch(api, 'show l2tp config')
     if r3.get('status') != 'done':
         runtime_fail(f'show l2tp config: status={r3.get("status")}')
-    cfg = json.loads(r3.get('data', '') or '{}')
+    cfg = result_json_data(r3, {})
     if cfg.get('shared-secret') not in ('<set>', '<unset>'):
         runtime_fail(f'show l2tp config shared-secret leaked: {cfg.get("shared-secret")!r}')
 

@@ -179,7 +179,7 @@ tmpfs=show-l2tp-session-detail.run:mode=755:terminator=EOF_RUN
 import json
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data, result_text_data
 
 
 def dispatch(api, command):
@@ -203,7 +203,7 @@ def main():
         r = dispatch(api, 'show l2tp sessions')
         if r.get('status') == 'done':
             try:
-                ss = json.loads(r.get('data', '') or '[]')
+                ss = result_json_data(r, [])
             except json.JSONDecodeError:
                 ss = []
             if isinstance(ss, list) and len(ss) >= 1:
@@ -215,9 +215,9 @@ def main():
 
     r = dispatch(api, f'show l2tp session {local_sid}')
     if r.get('status') != 'done':
-        runtime_fail(f'show l2tp session {local_sid}: status={r.get("status")!r} data={r.get("data", "")[:120]}')
+        runtime_fail(f'show l2tp session {local_sid}: status={r.get("status")!r} data={result_text_data(r)[:120]}')
     try:
-        s = json.loads(r.get('data', '') or '{}')
+        s = result_json_data(r, {})
     except json.JSONDecodeError as exc:
         runtime_fail(f'detail json: {exc}')
         s = {}

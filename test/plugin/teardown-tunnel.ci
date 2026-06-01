@@ -146,7 +146,7 @@ tmpfs=teardown-tunnel.run:mode=755:terminator=EOF_RUN
 import json
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data, result_text_data
 
 
 def dispatch(api, command):
@@ -170,7 +170,7 @@ def main():
         r = dispatch(api, 'show l2tp tunnels')
         if r.get('status') == 'done':
             try:
-                ts = json.loads(r.get('data', '') or '[]')
+                ts = result_json_data(r, [])
             except json.JSONDecodeError:
                 ts = []
             if isinstance(ts, list) and len(ts) >= 1:
@@ -182,9 +182,9 @@ def main():
 
     r = dispatch(api, f'clear l2tp tunnel teardown {local_tid}')
     if r.get('status') != 'done':
-        runtime_fail(f'teardown {local_tid}: status={r.get("status")!r} data={r.get("data", "")[:120]}')
+        runtime_fail(f'teardown {local_tid}: status={r.get("status")!r} data={result_text_data(r)[:120]}')
     try:
-        payload = json.loads(r.get('data', '') or '{}')
+        payload = result_json_data(r, {})
     except json.JSONDecodeError as exc:
         runtime_fail(f'teardown json: {exc}')
         payload = {}
@@ -201,7 +201,7 @@ def main():
         r = dispatch(api, 'show l2tp tunnels')
         if r.get('status') == 'done':
             try:
-                ts = json.loads(r.get('data', '') or '[]')
+                ts = result_json_data(r, [])
             except json.JSONDecodeError:
                 ts = []
             still_live = any(t.get('state') == 'established' for t in ts)

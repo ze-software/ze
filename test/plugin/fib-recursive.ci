@@ -24,7 +24,7 @@ import json
 import sys
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data, result_text_data
 
 
 def dispatch(api, command):
@@ -75,21 +75,21 @@ def main():
     if r.get('status') != 'done':
         runtime_fail(f'show rib failed: {r}')
     try:
-        entries = json.loads(r.get('data', '[]'))
+        entries = result_json_data(r, [])
         if not isinstance(entries, list):
             entries = []
         found = any(e.get('prefix') == '172.16.0.0/16' for e in entries)
         if not found:
-            runtime_fail(f'AC-2: 172.16.0.0/16 not in sysrib: {r.get("data", "")[:300]}')
+            runtime_fail(f'AC-2: 172.16.0.0/16 not in sysrib: {result_text_data(r)[:300]}')
         print('OK AC-2: recursive route 172.16.0.0/16 present in system RIB', file=sys.stderr)
     except (json.JSONDecodeError, TypeError):
-        runtime_fail(f'show rib parse error: {r.get("data", "")[:200]}')
+        runtime_fail(f'show rib parse error: {result_text_data(r)[:200]}')
 
     # Verify show nexthop-table returns resolver state.
     r = dispatch(api, 'show nexthop-table')
     if r.get('status') != 'done':
         runtime_fail(f'show nexthop-table failed: {r}')
-    data_str = r.get('data', '[]')
+    data_str = result_text_data(r, '[]')
     try:
         nh_entries = json.loads(data_str)
         if not isinstance(nh_entries, list):
@@ -102,7 +102,7 @@ def main():
     r = dispatch(api, 'show ecmp-groups')
     if r.get('status') != 'done':
         runtime_fail(f'show ecmp-groups failed: {r}')
-    data_str = r.get('data', '[]')
+    data_str = result_text_data(r, '[]')
     try:
         ecmp_entries = json.loads(data_str)
         if not isinstance(ecmp_entries, list):

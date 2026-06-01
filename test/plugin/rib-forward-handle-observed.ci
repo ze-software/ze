@@ -28,7 +28,7 @@ EOF_PEER
 tmpfs=shutdown.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import time
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_text_data
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -49,7 +49,7 @@ def main():
     for _ in range(40):
         time.sleep(0.1)
         result = dispatch(api, 'peer peer1 detail')
-        if result.get('status') == 'done' and 'established' in result.get('data', '').lower():
+        if result.get('status') == 'done' and 'established' in result_text_data(result).lower():
             break
     else:
         runtime_fail('peer1 never reached established state')

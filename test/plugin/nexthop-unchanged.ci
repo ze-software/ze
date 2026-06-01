@@ -19,7 +19,7 @@ tmpfs=nh-test.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 import time
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_text_data
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -40,7 +40,7 @@ def main():
     for _ in range(20):
         time.sleep(0.3)
         result = dispatch(api, 'peer peer1 detail')
-        if result.get('status') == 'done' and 'established' in result.get('data', '').lower():
+        if result.get('status') == 'done' and 'established' in result_text_data(result).lower():
             break
     else:
         runtime_fail('peer1 never reached established state')
@@ -49,7 +49,7 @@ def main():
     if result.get('status') != 'done':
         runtime_fail(f'peer detail failed: {result}')
 
-    detail = result.get('data', '')
+    detail = result_text_data(result)
     if '"next-hop"' not in detail:
         runtime_fail(f'peer detail missing next-hop: {detail[:200]}')
     if '"unchanged"' not in detail:
@@ -60,7 +60,7 @@ def main():
     if result.get('status') != 'done':
         runtime_fail(f'rib show best failed: {result}')
 
-    data = result.get('data', '{}')
+    data = result_text_data(result, '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
     entries = parsed.get('best-path', [])
 

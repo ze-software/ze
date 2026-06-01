@@ -30,7 +30,7 @@ import json
 import sys
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_text_data
 
 
 failures = 0
@@ -49,7 +49,7 @@ def check(label, result, expected_status):
     actual = result.get('status')
     if actual != expected_status:
         print(f'FAIL {label}: expected status={expected_status}, got={actual}', file=sys.stderr)
-        print(f'  data: {result.get("data", "")[:200]}', file=sys.stderr)
+        print(f'  data: {result_text_data(result)[:200]}', file=sys.stderr)
         failures += 1
     else:
         print(f'OK {label}: status={actual}', file=sys.stderr)
@@ -57,7 +57,7 @@ def check(label, result, expected_status):
 
 def parse_best(result):
     """Parse best-path JSON from dispatch result data string."""
-    data_str = result.get('data', '')
+    data_str = result_text_data(result)
     try:
         data = json.loads(data_str)
     except (json.JSONDecodeError, TypeError):
@@ -165,7 +165,7 @@ def main():
     # --- Test 4: Verify total count ---
     r = dispatch(api, 'show bgp rib best count')
     check('best-count', r, 'done')
-    data_str = r.get('data', '')
+    data_str = result_text_data(r)
     try:
         count_data = json.loads(data_str)
         count = count_data.get('count', -1)

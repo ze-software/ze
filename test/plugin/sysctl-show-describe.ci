@@ -19,7 +19,7 @@ import json
 import sys
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data
 
 
 def dispatch(api, command):
@@ -50,7 +50,7 @@ def main():
         runtime_fail(f'sysctl show: status={r.get("status") if r else "nil"}')
 
     try:
-        entries = json.loads(r.get('data', '') or '[]')
+        entries = result_json_data(r, [])
     except json.JSONDecodeError as exc:
         runtime_fail(f'sysctl show json: {exc}')
         entries = None
@@ -63,7 +63,7 @@ def main():
     if r.get('status') != 'done':
         runtime_fail(f'sysctl list for describe: status={r.get("status")}')
 
-    keys = json.loads(r.get('data', '') or '[]')
+    keys = result_json_data(r, [])
     if not keys:
         runtime_fail('sysctl list returned empty, cannot test describe')
 
@@ -73,7 +73,7 @@ def main():
         runtime_fail(f'show sysctl key {first_key}: status={r.get("status")}')
 
     try:
-        detail = json.loads(r.get('data', '') or '{}')
+        detail = result_json_data(r, {})
     except json.JSONDecodeError as exc:
         runtime_fail(f'show sysctl key json: {exc}')
         detail = {}

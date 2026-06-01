@@ -161,7 +161,7 @@ import json
 import os
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data
 
 
 def dispatch(api, command):
@@ -188,7 +188,7 @@ def main():
         r = dispatch(api, 'show l2tp tunnels')
         if r.get('status') == 'done':
             try:
-                ts = json.loads(r.get('data', '') or '[]')
+                ts = result_json_data(r, [])
             except json.JSONDecodeError:
                 ts = []
             if isinstance(ts, list) and len(ts) >= 1:

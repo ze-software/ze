@@ -18,7 +18,7 @@ tmpfs=iface-rate-json.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_text_data
 
 
 def dispatch(api, command):
@@ -42,16 +42,16 @@ def main():
     r = dispatch(api, 'show interface rate')
     if r.get('status') != 'error':
         runtime_fail(f'interface rate: expected error, got status={r.get("status")}')
-    msg = r.get('data', '')
+    msg = result_text_data(r)
     if 'rate tracker not running' not in msg and 'no backend loaded' not in msg:
         runtime_fail(f'interface rate: expected error about rate tracker, got: {msg}')
 
     # AC-2: Map test -- system help returns structured JSON with commands array
     r = dispatch(api, 'system help')
     if r.get('status') != 'done':
-        runtime_fail(f'system help: status={r.get("status")} data={r.get("data", "")[:200]}')
+        runtime_fail(f'system help: status={r.get("status")} data={result_text_data(r)[:200]}')
 
-    raw = r.get('data', '')
+    raw = result_text_data(r)
     if not raw:
         runtime_fail('system help: empty data')
 

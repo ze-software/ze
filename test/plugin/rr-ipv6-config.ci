@@ -25,7 +25,7 @@ tmpfs=rr-ipv6-test.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 import time
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_text_data
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -46,7 +46,7 @@ def main():
     for _ in range(20):
         time.sleep(0.3)
         result = dispatch(api, 'peer peer-src detail')
-        if result.get('status') == 'done' and 'established' in result.get('data', '').lower():
+        if result.get('status') == 'done' and 'established' in result_text_data(result).lower():
             break
     else:
         runtime_fail('peer-src never reached established state')
@@ -55,7 +55,7 @@ def main():
     if result.get('status') != 'done':
         runtime_fail(f'peer detail failed: {result}')
 
-    detail = result.get('data', '')
+    detail = result_text_data(result)
     if 'route-reflector-client' not in detail:
         runtime_fail(f'missing route-reflector-client: {detail[:300]}')
 

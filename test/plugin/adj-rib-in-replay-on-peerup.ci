@@ -18,7 +18,7 @@ tmpfs=replay-test.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 import time
-from ze_api import API
+from ze_api import API, result_json_data
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -41,7 +41,7 @@ def main():
         result = dispatch(api, 'show adj-rib-in status')
         if result.get('status') != 'done':
             continue
-        data = json.loads(result.get('data', '{}'))
+        data = result_json_data(result, {})
         if data.get('total-routes', 0) > 0:
             break
     else:
@@ -58,7 +58,7 @@ def main():
         api.wait_for_shutdown()
         sys.exit(1)
 
-    replay_data = json.loads(result.get('data', '{}'))
+    replay_data = result_json_data(result, {})
     if replay_data.get('replayed', 0) == 0:
         print(f'FAIL: replay returned 0 commands', file=sys.stderr)
         dispatch(api, 'daemon shutdown')

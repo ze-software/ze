@@ -27,7 +27,7 @@ tmpfs=rib-graph-test.run:mode=755:terminator=EOF_RUN
 import sys
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_text_data
 
 
 failures = 0
@@ -51,7 +51,7 @@ def check(label, result, expected_status):
 
 def check_contains(label, result, substring):
     global failures
-    data = result.get('data', '')
+    data = result_text_data(result)
     if substring not in data:
         print(f'FAIL {label}: output does not contain {substring!r}', file=sys.stderr)
         print(f'  got: {data[:200]!r}', file=sys.stderr)

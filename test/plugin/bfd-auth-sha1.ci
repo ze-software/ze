@@ -23,7 +23,7 @@ tmpfs=bfd-auth-sha1.run:mode=755:terminator=EOF_RUN
 import json
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data
 
 
 def dispatch(api, command):
@@ -47,7 +47,7 @@ def main():
     if r.get('status') != 'done':
         runtime_fail(f'profile status: {r.get("status")}')
     try:
-        profile = json.loads(r.get('data', '') or '{}')
+        profile = result_json_data(r, {})
     except json.JSONDecodeError as exc:
         profile = {}
         runtime_fail(f'profile json: {exc}')
@@ -58,7 +58,7 @@ def main():
     if r.get('status') != 'done':
         runtime_fail(f'session status: {r.get("status")}')
     try:
-        session = json.loads(r.get('data', '') or '{}')
+        session = result_json_data(r, {})
     except json.JSONDecodeError as exc:
         session = {}
         runtime_fail(f'session json: {exc}')

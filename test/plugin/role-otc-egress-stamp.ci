@@ -34,7 +34,7 @@ tmpfs=test-stamp.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 import time
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data, result_text_data
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
@@ -53,7 +53,7 @@ def main():
 
     # Verify route was accepted in adj-rib-in from source Customer.
     result = dispatch(api, 'show adj-rib-in status')
-    data = json.loads(result.get('data', '{}'))
+    data = result_json_data(result, {})
     total = data.get('total-routes', -1)
 
     if total < 0:  # validation gate + disconnect race, same as community-strip
@@ -68,7 +68,7 @@ def main():
     # diagnostics; under parallel runs the destination can still be connecting
     # when the observer wakes up.
     dest_result = dispatch(api, 'peer dest-peer detail')
-    dest_data = dest_result.get('data', '')
+    dest_data = result_text_data(dest_result)
     print(f'INFO: dest-peer detail while wire assertion runs: {dest_data}', file=sys.stderr)
 
     print('OK: dest wire assertion verified OTC stamp', file=sys.stderr)

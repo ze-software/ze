@@ -26,7 +26,7 @@ import json
 import sys
 import time
 
-from ze_api import API
+from ze_api import API, result_text_data
 
 
 failures = 0
@@ -45,7 +45,7 @@ def check(label, result, expected_status):
     actual = result.get('status')
     if actual != expected_status:
         print(f'FAIL {label}: expected status={expected_status}, got={actual}', file=sys.stderr)
-        print(f'  data: {result.get("data", "")[:200]}', file=sys.stderr)
+        print(f'  data: {result_text_data(result)[:200]}', file=sys.stderr)
         failures += 1
     else:
         print(f'OK {label}: status={actual}', file=sys.stderr)
@@ -81,7 +81,7 @@ def main():
     # Verify best-path shows the route.
     r = dispatch(api, 'show bgp rib best')
     check('show-best', r, 'done')
-    data_str = r.get('data', '')
+    data_str = result_text_data(r)
     try:
         data = json.loads(data_str)
         best = data.get('best-path', [])

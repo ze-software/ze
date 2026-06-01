@@ -176,7 +176,7 @@ tmpfs=teardown-session-all.run:mode=755:terminator=EOF_RUN
 import json
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data, result_text_data
 
 
 def dispatch(api, command):
@@ -192,7 +192,7 @@ def list_sessions(api, established_only=False):
     if r.get('status') != 'done':
         return []
     try:
-        ss = json.loads(r.get('data', '') or '[]')
+        ss = result_json_data(r, [])
     except json.JSONDecodeError:
         return []
     if not isinstance(ss, list):
@@ -226,9 +226,9 @@ def main():
 
     r = dispatch(api, 'clear l2tp session teardown-all')
     if r.get('status') != 'done':
-        runtime_fail(f'teardown-all: status={r.get("status")!r} data={r.get("data", "")[:120]}')
+        runtime_fail(f'teardown-all: status={r.get("status")!r} data={result_text_data(r)[:120]}')
     try:
-        payload = json.loads(r.get('data', '') or '{}')
+        payload = result_json_data(r, {})
     except json.JSONDecodeError as exc:
         runtime_fail(f'teardown-all json: {exc}')
         payload = {}

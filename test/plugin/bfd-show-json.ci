@@ -20,7 +20,7 @@ import json
 import sys
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_text_data
 
 
 def dispatch(api, command):
@@ -50,7 +50,7 @@ def main():
         status = r.get('status') if r else 'nil'
         runtime_fail(f'show bfd sessions: status={status}')
 
-    raw = r.get('data', '')
+    raw = result_text_data(r)
     if not raw:
         runtime_fail('show bfd sessions: empty data')
 

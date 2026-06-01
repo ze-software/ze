@@ -40,6 +40,28 @@ func TestClassifyStderrLinePassesAtOrAboveRelayLevel(t *testing.T) {
 	}
 }
 
+// TestClassifyStderrLineRelaysPlainText verifies that non-slog plugin stderr
+// is surfaced at the default WARN relay threshold.
+//
+// VALIDATES: plain stderr lines are treated as WARN.
+// PREVENTS: observer success/failure text disappearing behind the default filter.
+func TestClassifyStderrLineRelaysPlainText(t *testing.T) {
+	line := "OK: cursor commands accepted"
+	level, msg, _, inPanic, skip := classifyStderrLine(line, false, slog.LevelWarn)
+	if skip {
+		t.Fatal("plain stderr line should be relayed at WARN relayLevel")
+	}
+	if level != slog.LevelWarn {
+		t.Fatalf("level = %v, want WARN", level)
+	}
+	if msg != line {
+		t.Fatalf("msg = %q, want %q", msg, line)
+	}
+	if inPanic {
+		t.Fatal("plain stderr line should not enter panic mode")
+	}
+}
+
 // TestClassifyStderrLinePanicForcedToError is the core regression guard for
 // the bug documented in known-failures entry "SDK NewFromTLSEnv missing
 // initCallbackDefaults": a plugin process panic (panic: ... + goroutine

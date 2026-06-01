@@ -22,7 +22,7 @@ import json
 import sys
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data, result_text_data
 
 
 def dispatch(api, command):
@@ -50,13 +50,13 @@ def main():
         time.sleep(0.25)
     if r is None or r.get('status') != 'done':
         status = r.get('status') if r else 'nil'
-        data = r.get('data', '') if r else ''
+        data = result_text_data(r) if r else ''
         runtime_fail(f'show bfd sessions: status={status} data={data[:200]}')
 
     try:
-        sessions = json.loads(r.get('data', '') or '[]')
+        sessions = result_json_data(r, [])
     except json.JSONDecodeError as exc:
-        runtime_fail(f'show bfd sessions json: {exc}: {r.get("data", "")[:200]}')
+        runtime_fail(f'show bfd sessions json: {exc}: {result_text_data(r)[:200]}')
         sessions = []
 
     peers = {s.get('peer') for s in sessions if isinstance(s, dict)}

@@ -25,7 +25,7 @@ import json
 import sys
 import time
 
-from ze_api import API
+from ze_api import API, result_text_data
 
 
 failures = 0
@@ -44,7 +44,7 @@ def check(label, result, expected_status):
     actual = result.get('status')
     if actual != expected_status:
         print(f'FAIL {label}: expected status={expected_status}, got={actual}', file=sys.stderr)
-        print(f'  data: {result.get("data", "")[:200]}', file=sys.stderr)
+        print(f'  data: {result_text_data(result)[:200]}', file=sys.stderr)
         failures += 1
     else:
         print(f'OK {label}: status={actual}', file=sys.stderr)
@@ -83,7 +83,7 @@ def main():
     # Query sysrib.
     r = dispatch(api, 'show rib')
     check('rib-show', r, 'done')
-    data_str = r.get('data', '')
+    data_str = result_text_data(r)
     try:
         entries = json.loads(data_str)
         if not isinstance(entries, list):

@@ -1162,6 +1162,31 @@ def send_and_wait(command: str, timeout: float = 2.0) -> bool:
     return _get_api().send_and_wait(command, timeout)
 
 
+def result_text_data(result: dict | None, default: str = "") -> str:
+    """Return dispatch/result data as text for string checks and previews."""
+    if result is None:
+        return default
+    data = result.get("data", default)
+    if data is None:
+        return default
+    if isinstance(data, str):
+        return data
+    return json.dumps(data, separators=(",", ":"))
+
+
+def result_json_data(result: dict | None, default: Any) -> Any:
+    """Return dispatch/result data decoded to Python objects."""
+    if result is None:
+        return default
+    data = result.get("data")
+    if data is None or data == "":
+        return default
+    if not isinstance(data, str):
+        return data
+    return json.loads(data)
+
+
+
 def wait_for_shutdown(timeout: float = 5.0) -> None:
     """Wait for shutdown signal."""
     _get_api().wait_for_shutdown(timeout)

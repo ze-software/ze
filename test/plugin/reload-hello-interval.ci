@@ -37,7 +37,7 @@ import json
 import os
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data
 
 
 def dispatch(api, command):
@@ -58,7 +58,7 @@ def read_interval(api, label):
     if r is None or r.get('status') != 'done':
         runtime_fail(f'{label}: show l2tp config: status={r.get("status") if r else "nil"}')
     try:
-        cfg = json.loads(r.get('data', '') or '{}')
+        cfg = result_json_data(r, {})
     except json.JSONDecodeError as exc:
         runtime_fail(f'{label}: json: {exc}')
         return 0

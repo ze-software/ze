@@ -24,7 +24,7 @@ import json
 import sys
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data, result_text_data
 
 
 def dispatch(api, command):
@@ -49,7 +49,7 @@ def get_best_entry(api, prefix):
     r = dispatch(api, 'show bgp rib best')
     if r.get('status') != 'done':
         return None
-    data_str = r.get('data', '{}')
+    data_str = result_text_data(r, '{}')
     try:
         parsed = json.loads(data_str) if isinstance(data_str, str) else data_str
     except (json.JSONDecodeError, TypeError):
@@ -66,7 +66,7 @@ def sysrib_has_prefix(api, prefix):
     if r.get('status') != 'done':
         return False
     try:
-        entries = json.loads(r.get('data', '[]'))
+        entries = result_json_data(r, [])
     except (json.JSONDecodeError, TypeError):
         return False
     if not isinstance(entries, list):

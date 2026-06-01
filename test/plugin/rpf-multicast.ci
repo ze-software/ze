@@ -15,7 +15,7 @@ tmpfs=rpf-multicast-test.run:mode=755:terminator=EOF_RUN
 import sys
 import json
 import time
-from ze_api import API
+from ze_api import API, result_json_data
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -54,7 +54,7 @@ def main():
             print(f'FAIL: rpf status={result.get("status")} err={result.get("data")}', file=sys.stderr)
             sys.exit(1)
 
-        data = json.loads(result.get('data', '{}'))
+        data = result_json_data(result, {})
         if not data.get('found'):
             print(f'FAIL: rpf found=false, expected match: {data}', file=sys.stderr)
             sys.exit(1)
@@ -68,7 +68,7 @@ def main():
             print(f'FAIL: rpf no-match status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
 
-        data = json.loads(result.get('data', '{}'))
+        data = result_json_data(result, {})
         if data.get('found') != False:
             print(f'FAIL: rpf should be found=false for non-multicast addr: {data}', file=sys.stderr)
             sys.exit(1)

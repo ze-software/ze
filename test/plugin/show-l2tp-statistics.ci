@@ -144,7 +144,7 @@ tmpfs=show-l2tp-statistics.run:mode=755:terminator=EOF_RUN
 import json
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data
 
 
 def dispatch(api, command):
@@ -168,7 +168,7 @@ def main():
         r = dispatch(api, 'show l2tp statistics')
         if r.get('status') == 'done':
             try:
-                s = json.loads(r.get('data', '') or '{}')
+                s = result_json_data(r, {})
             except json.JSONDecodeError:
                 s = {}
             if s.get('tunnels-active', 0) >= 1:

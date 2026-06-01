@@ -652,18 +652,23 @@ func (p *Process) relayStderrFrom(stderr io.Reader) {
 
 // classifyStderrLine inspects a single plugin stderr line and returns how it
 // should be relayed. It parses slog format via slogutil.ParseLogLine, then
-// applies two overrides:
+// applies three overrides:
 //
 //  1. Once a Go runtime panic prefix ("panic:" or "fatal error:") has been
 //     seen, the returned level is forced to ERROR for that line and every
 //     line after it until a valid slog-formatted line arrives. A valid slog
 //     line resets inPanic to false, since it clearly belongs to the plugin's
 //     normal logging again.
-//  2. Lines whose computed level is below the configured relayLevel are
+//  2. Non-empty plain stderr lines from plugins are treated as WARN. Test
+//     helpers and ad-hoc plugins often print human text instead of slog
+//     records; relaying those at INFO made them disappear behind the default
+//     WARN filter even when the plugin intentionally wrote to stderr.
+//  3. Lines whose computed level is below the configured relayLevel are
 //     reported via skip=true so the caller can drop them.
 //
 // The panic-block forcing runs BEFORE the level filter, so a panic block is
 // always relayed regardless of ze.log.relay. Extracted from relayStderrFrom
+// so the classifier can be unit-tested without a live process.
 // so the classifier can be unit-tested without a live process.
 func classifyStderrLine(line string, inPanic bool, relayLevel slog.Level) (level slog.Level, msg string, attrs []any, nowInPanic, skip bool) {
 	level, msg, attrs = slogutil.ParseLogLine(line)
@@ -673,6 +678,8 @@ func classifyStderrLine(line string, inPanic bool, relayLevel slog.Level) (level
 	validSlog := strings.Contains(line, "level=") && strings.Contains(line, "msg=")
 	if validSlog {
 		inPanic = false
+	} else if !inPanic && strings.TrimSpace(line) != "" {
+		level = slog.LevelWarn
 	}
 	if !inPanic && isPanicStart(line) {
 		inPanic = true

@@ -34,7 +34,7 @@ tmpfs=test-otc.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 import time
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_json_data
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
@@ -53,7 +53,7 @@ def main():
 
     # Query adj-rib-in: route should have been rejected by ingress filter.
     result = dispatch(api, 'show adj-rib-in status')
-    data = json.loads(result.get('data', '{}'))
+    data = result_json_data(result, {})
     total = data.get('total-routes', -1)
 
     if total < 0:  # architectural blocker: validation gate makes positive assertions unreliable

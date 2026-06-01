@@ -33,6 +33,7 @@ bgp {
 				ipv4/unicast {
 					prefix {
 						maximum 10000
+						updated 2024-01-01
 					}
 				}
 			}

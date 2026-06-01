@@ -35,7 +35,7 @@ Empty RIB is expected — the test proves wiring, not filtering logic
 import sys
 import time
 
-from ze_api import API
+from ze_api import API, result_text_data
 
 
 def dispatch(api, command):
@@ -51,7 +51,7 @@ def check(label, result, expected_status, expect_error=False):
     if actual != expected_status:
         sys.exit(1)
     if expect_error:
-        data = result.get('data', '')
+        data = result_text_data(result)
         if '"error"' not in data:
             sys.exit(1)
 

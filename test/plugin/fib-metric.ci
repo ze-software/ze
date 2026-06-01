@@ -24,7 +24,7 @@ import json
 import sys
 import time
 
-from ze_api import API, runtime_fail
+from ze_api import API, runtime_fail, result_text_data
 
 
 def dispatch(api, command):
@@ -68,7 +68,7 @@ def main():
     if r.get('status') != 'done':
         runtime_fail(f'rib show failed: {r}')
 
-    data_str = r.get('data', '')
+    data_str = result_text_data(r)
     try:
         entries = json.loads(data_str)
         if not isinstance(entries, list):
