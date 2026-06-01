@@ -174,12 +174,13 @@ If a spec describes work that is **already implemented**, run the full Completio
 [ ] 7. Executive Summary Report — present to user with what was done and what is left (including deferred).
         BLOCKING: learned summary (step 10) must exist. Name the file in the report.
         Do NOT ask to commit. The user will tell you when to commit.
-[ ] 7. Commit (when user says so) — ONE script, TWO commits (per Spec Closure above):
-        - **Commit A:** `git add` all implementation files (code, tests, docs, schema)
-          + `git add plan/learned/NNN-<name>.md` + `git add plan/spec-<name>.md` (preserves edits)
-          + Bump `plan/learned/.counter` and `git add plan/learned/.counter`
-        - **Commit B:** `git rm plan/spec-<name>.md` (spec closure)
-        The user runs the script and the work is done. They will not come back for a
+[ ] 7. Commit (when user says so) -- ONE helper-generated script, TWO commits (per Spec Closure above):
+        - **Commit A:** `scripts/dev/commit_helper.py create --replace` with `--file` for all implementation files (code, tests, docs, schema)
+          + `--file plan/learned/NNN-<name>.md` + `--file plan/spec-<name>.md` (preserves edits)
+          + Bump `plan/learned/.counter` and include `--file plan/learned/.counter`
+          + include `--file ai/LEARNED-INDEX.md` if updated
+        - **Commit B:** `scripts/dev/commit_helper.py create --append --remove plan/spec-<name>.md` (spec closure)
+        The user runs the generated script and the work is done. They will not come back for a
         second step. If spec closure or learned summary is missing, it never happens.
         Disjoint systems (e.g., CLI and BGP encoding) get separate commits.
 ```
@@ -204,10 +205,11 @@ status updates, corrected assumptions). Those edits are valuable design history.
 `git rm` destroys the working copy. If the edited spec is never committed before
 deletion, the design work is lost from git history forever.
 
-The commit script MUST produce two commits:
-1. **Commit A (implementation + spec):** `git add` all code, tests, docs, learned summary,
-   LEARNED-INDEX, counter bump, AND the spec file itself (with all edits from implementation).
-2. **Commit B (spec closure):** `git rm plan/<spec>` only.
+The helper-generated commit script MUST produce two commits:
+1. **Commit A (implementation + spec):** `scripts/dev/commit_helper.py create --replace`
+   with `--file` for all code, tests, docs, learned summary, LEARNED-INDEX,
+   counter bump, AND the spec file itself (with all edits from implementation).
+2. **Commit B (spec closure):** `scripts/dev/commit_helper.py create --append --remove plan/<spec>` only.
 
 This preserves the final spec state in git history. `git log -p -- plan/<spec>` shows
 the full design record. The deletion in commit B is a clean removal of a file whose
@@ -285,7 +287,7 @@ Every row must be answered Yes/No. Every Yes must name the file and what to add.
 ## Writing Learned Summaries
 
 When a spec is complete, write a concise summary to `plan/learned/` using the next available number.
-`plan/learned/.counter` contains the next number. Read it, use it, bump it in the commit script.
+`plan/learned/.counter` contains the next number. Read it, use it, bump it, and include it in the Commit A helper command.
 Recovery: `make ze-learned-counter`.
 
 The summary (~25-35 lines) uses this fixed 5-section format:

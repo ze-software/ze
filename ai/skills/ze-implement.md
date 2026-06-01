@@ -102,19 +102,12 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
     b. Update `ai/LEARNED-INDEX.md` if the summary contains a structural decision (not just task completion).
     c. Remove your line from `tmp/session/selected-spec`.
     d. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
-    e. Prepare ONE commit script (`tmp/commit-SESSION.sh`) that produces TWO commits:
-       - Guard: `if ls plan/learned/NNN-*.md 1>/dev/null 2>&1; then echo "ERROR: NNN already taken, re-read .counter"; exit 1; fi`
-       - **Commit A (implementation + spec):**
-         - `git add` all implementation files (code, tests, docs, schema)
-         - `git add plan/learned/NNN-<spec-stem>.md`
-         - `git add ai/LEARNED-INDEX.md` (if updated)
-         - `git add plan/<spec-name>` (preserves all edits from implementation in git history)
-         - Bump `plan/learned/.counter` to NNN+1 and `git add plan/learned/.counter`
-         - Commit with feature description message
-       - **Commit B (spec closure):**
-         - `git rm plan/<spec-name>`
-         - Commit with spec closure message
-    f. Present the commit script to the user. This is the end.
+    e. Prepare ONE commit script with `scripts/dev/commit_helper.py` that produces TWO commits:
+       - **Commit A (implementation + spec):** run `scripts/dev/commit_helper.py create --replace` with `--file` for every implementation file (code, tests, docs, schema), `plan/learned/NNN-<spec-stem>.md`, `plan/learned/.counter`, `ai/LEARNED-INDEX.md` if updated, and `plan/<spec-name>` to preserve all implementation edits in git history.
+       - **Commit B (spec closure):** run `scripts/dev/commit_helper.py create --append --remove plan/<spec-name>` with the spec closure commit message.
+       - Use `--lesson-required` for Commit A. Use `--lesson-not-needed "spec closure only; lesson is in Commit A"` for Commit B.
+       - The helper owns the session ID, message files, executable script, ignored-path rejection, `git commit -F`, and learned-summary checks.
+    f. Present the generated script path, message files, commit subjects, and included files to the user. This is the end.
 
     **Why one script, two commits, no follow-up:** the user will not ask for a second step.
     They will not remember that the spec needs closing. They will not prompt you for the

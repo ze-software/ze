@@ -42,22 +42,21 @@ See also: `/ze-commit` (commit without verification), `/ze-verify` (must pass be
 
 6. **Health check (conditional):** Only if `.claude/` files are in the commit scope, run the .claude health check (see below). Skip entirely for pure code/docs commits.
 7. **Check recent commits:** Run `git log --oneline -5` to match commit message style.
-8. **Draft commit message:** Based on the actual changes (not the spec), write a concise commit message.
-9. **Generate commit script:** Write to `tmp/commit-SESSION.sh` where SESSION is the 8-char session ID:
+8. **Draft commit message:** Based on the actual changes (not the spec), write a concise subject and body.
+9. **Lesson check:** If the commit changes agent workflow, rules, tooling, verification, discovery paths, or a reusable gotcha, write a `plan/learned/NNN-<name>.md` summary, bump `plan/learned/.counter`, and include both files. If no reusable lesson is useful, pass `--lesson-not-needed "<reason>"` to the helper.
+10. **Generate commit script:** Use `scripts/dev/commit_helper.py create` so the session ID, message file, executable script, ignored-path checks, `git commit -F`, and lesson gate are handled consistently:
 
 ```bash
-#!/bin/bash
-set -e
-git add file1.go file2.go file3_test.go
-git commit -m "$(cat <<'EOF'
-type: subject line
-
-Body explaining why.
-EOF
-)"
+scripts/dev/commit_helper.py create \
+  --replace \
+  --subject "type: subject line" \
+  --body "Body explaining why." \
+  --file file1.go \
+  --file file2.go \
+  --file file3_test.go
 ```
 
-10. **Remaining work table (BLOCKING -- must appear before the commit script):**
+11. **Remaining work table (BLOCKING -- must appear before the commit script):**
    Before showing the commit script, present a table of what is NOT included in this commit.
    This lets the user decide whether to continue working before committing.
 
@@ -82,7 +81,7 @@ EOF
 
    If nothing remains, say "Nothing remaining." Do not skip this table.
 
-11. **Present to user:** Show the completeness check, remaining work table, then the staged files, commit message, and health check results. The user runs the script themselves.
+12. **Present to user:** Show the completeness check, remaining work table, then the staged files, commit message file, generated script path, and health check results. The user runs the script themselves.
 
 ## Health Check
 
@@ -140,6 +139,7 @@ N issues found. [or "Clean -- no issues."]
 ## Rules
 
 - **NEVER run `git add` or `git commit` directly.** Write the commit script only.
+- Use `scripts/dev/commit_helper.py create` unless the commit shape cannot be expressed by the helper.
 - Never include spec files unless the user explicitly asks.
 - Never include documentation changes unless they're part of the task.
 - If `make ze-verify` hasn't passed this session, run it before preparing the commit.

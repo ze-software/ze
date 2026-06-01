@@ -19,7 +19,7 @@ are available inside Claude Code when working in the ze repository.
 | `/ze-review-deep` | Multi-agent exhaustive review (9 specialized agents) |
 | `/ze-review-spec` | Post-implementation: did we build what the spec says? |
 | `/ze-review-docs` | Documentation accuracy, completeness, and quality |
-| `/ze-commit` | Prepare a scoped commit script (does not commit directly) |
+| `/ze-commit` | Prepare a scoped commit script through `scripts/dev/commit_helper.py` (does not commit directly) |
 | `/ze-debrief` | Summarize current session state |
 | `/ze-handoff` | Generate a handoff document for the next session |
 | `/ze-rfc` | Generate an implementation summary from an RFC |
@@ -27,6 +27,9 @@ are available inside Claude Code when working in the ze repository.
 | `/ze-fix-alloc <file:line>` | Convert a specific allocation to buffer-writing |
 | `/ze-extract <src> <dst> <symbols>` | Move Go symbols between files |
 
+
+<!-- source: ai/skills/ze-commit.md -- scoped commit workflow -->
+<!-- source: scripts/dev/commit_helper.py -- generated message file and user-run script -->
 ## Typical Workflows
 
 ### Contributing a new feature
@@ -81,7 +84,8 @@ The four review commands serve different purposes:
 
 ## Notes
 
-- `/ze-commit` does **not** run `git commit`. It generates a commit script that you run yourself.
+- `/ze-commit` does **not** run `git commit`. It generates a message file and executable commit script through `scripts/dev/commit_helper.py`; you run the script yourself.
+<!-- source: scripts/dev/commit_helper.py -- generated message file and user-run script -->
 - `/ze-verify` is the same as `make ze-verify` but formats the output as a structured report.
 - `/ze-review-deep` accepts arguments: path scope, agent names, or `branch` for branch review.
 - All commands are read-only unless explicitly stated. Reviews report findings without making changes.

@@ -10,13 +10,14 @@ Rationale: `ai/rationale/git-safety.md`
 cross-commit. Package add + commit into a single user-triggered script.
 
 **Commit workflow:**
-1. Pick an 8-char session ID (`head -c4 /dev/urandom | xxd -p`); reuse for every script + message file this session.
-2. One `tmp/commit-msg-<SESSION>-<tag>.txt` per commit (plain text). **No heredocs** -- macOS bash 3.2 mis-parses backticks inside `$(cat <<'EOF')`. Always `git commit -F <file>`.
-3. `tmp/commit-<SESSION>.sh`: per logical commit, one `git add <explicit files>` then `git commit -F <msg>`. Spec-preservation = two pairs (code first; `git rm <spec>` + `git add <summary>` second).
-4. `chmod +x` every script you hand the user (commit, delete, helper) at creation. User runs it directly (`./tmp/...`), not via `bash`.
-5. Never end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. Put path on its own line or follow with a space.
-6. Report what was done and what is left. User decides when to commit.
-7. Before writing a commit script, read `.gitignore` and never `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. Only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
+1. Use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id`.
+2. Use `scripts/dev/commit_helper.py create` to write `tmp/commit-msg-<SESSION>-<tag>.txt` and `tmp/commit-<SESSION>.sh`. Pass `--file` once per explicit file, `--remove` for tracked deletions, `--replace` for the first logical commit, and `--append` for later commits in the same user-run script.
+3. The helper writes executable scripts, uses `git commit -F <message-file>`, rejects ignored/generated paths, and refuses to overwrite an existing script unless `--replace` or `--append` is explicit.
+4. Lesson learned check: when a commit changes agent workflow, rules, tooling, verification, or discovery surfaces, include `plan/learned/NNN-<name>.md` and `plan/learned/.counter` in `--file`. If no reusable lesson is useful, pass `--lesson-not-needed "<reason>"`. For known-required lessons, pass `--lesson-required`.
+5. If the helper cannot express the commit shape, hand-write the same `tmp/commit-<SESSION>.sh` pattern and `chmod +x` it. Do not use heredocs. Always use `git commit -F <file>`.
+6. Never end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. Put path on its own line or follow with a space.
+7. Report what was done and what is left. User decides when to commit.
+8. Before writing a commit script, read `.gitignore` and never `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. Only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
 
 `git commit`/`git add` inside the script is fine -- the ban is on
 direct AI tool invocations, not on what the script does when the user
@@ -29,21 +30,27 @@ modified during implementation (specs, stubs), use `git rm -f` to avoid
 "has local modifications" errors. Never `git rm -f` without first
 committing the file's current state (see Spec Closure in planning rules).
 
-**Script format:**
+**Helper format:**
+```bash
+scripts/dev/commit_helper.py create \
+  --replace \
+  --subject "type: subject line" \
+  --body "Body explaining why." \
+  --file file1.go \
+  --file file2.go \
+  --file file3_test.go
+```
+
+The generated script has this shape:
 ```bash
 #!/bin/bash
-set -e
+set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-# Commit A
-git add file1.go file2.go file3_test.go
+# Commit a: type: subject line
+# Lesson: plan/learned/NNN-name.md
+git add -- file1.go file2.go file3_test.go
 git commit -F tmp/commit-msg-<SESSION>-a.txt
-
-# Commit B (optional; e.g., spec-preservation)
-git rm plan/spec-<name>.md
-git add plan/learned/NNN-<name>.md
-git add plan/learned/.counter   # bumped to NNN+1
-git commit -F tmp/commit-msg-<SESSION>-b.txt
 ```
 
 **Never suggest / ask / hint at committing.** Complete ALL work first
